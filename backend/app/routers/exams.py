@@ -2,13 +2,11 @@
 from __future__ import annotations
 
 import copy
-import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,13 +34,9 @@ from app.schemas.exam import (
 )
 from app.schemas.latex_packages import LatexPackageEntry
 from app.services import audit as audit_svc
-from app.services.capabilities import require_server_latex
-from app.services.exercise_resource_store import load_resources_for_exercises
-from app.services.latex import CompilationError, compilation_failed_response, compile_exam_latex
 from app.services.latex_packages import stored_entries
-from app.services.latex_resources import ResourceError
 from app.services.latex_score import parse_exercise_score
-from app.services.logo import get_exam_logo, resolve_logo
+from app.services.logo import get_exam_logo
 
 router = APIRouter(prefix="/exams", tags=["exams"], dependencies=[Depends(get_teaching_teacher)])
 
@@ -686,83 +680,4 @@ async def delete_exam(
         update(ScanSubmission)
         .where(ScanSubmission.exam_id == exam.id, ScanSubmission.deleted_at.is_(None))
         .values(deleted_at=now, retention_until=grace_deadline)
-    )
-
-
-@router.post("/{exam_id}/compile")
-@limiter.limit("10/minute")
-async def compile_exam_endpoint(
-    request: Request,  # Required by slowapi for rate limiting
-    answers: bool = False,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(require_server_latex),
-    db: AsyncSession = Depends(get_db),
-) -> Response:
-    """Compile complete exam LaTeX document using live-linked library exercises."""
-    ex_tuples = await _fetch_exam_exercises(exam.id, db)
-    mc_groups = await _fetch_exam_mc_groups(exam.id, db)
-
-    # Resources live on the server in server/hybrid mode, so the browser never
-    # uploads them for a compile — they are read straight out of the database.
-    try:
-        binary_files = await load_resources_for_exercises(
-            [t[0].id for t in ex_tuples if getattr(t[0], "id", None)], teacher, db
-        )
-    except ResourceError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-            headers={"code": "ERR_COMPILE_FAILED"},
-        ) from exc
-
-    _, logo = await resolve_logo(teacher.id, exam.id, db)
-
-    try:
-        pdf_bytes = await compile_exam_latex(
-            exam,
-            ex_tuples,
-            mc_groups,
-            show_answers=answers,
-            binary_files=binary_files,
-            logo=logo,
-            account_packages=teacher.latex_packages,
-        )
-        exam.compilation_status = "compiled"
-        await db.flush()
-    except TimeoutError:
-        # Each failure commits before raising: get_db rolls back on the exception and would drop it.
-        exam.compilation_status = "failed"
-        await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Compilation timed out.",
-            headers={"code": "ERR_COMPILE_TIMEOUT"},
-        ) from None
-    except CompilationError as exc:
-        exam.compilation_status = "failed"
-        await db.commit()
-        return compilation_failed_response(exc)
-    except OSError as exc:
-        exam.compilation_status = "failed"
-        await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The LaTeX compilation service is unavailable.",
-            headers={"code": "ERR_COMPILE_UNAVAILABLE"},
-        ) from exc
-
-    # RFC 6266. The title is user-controlled: a quote would break out of the
-    # quoted-string and let the download filename be spoofed, and a CR/LF would
-    # be rejected downstream as a malformed header.
-    safe_title = re.sub(r"[^A-Za-z0-9._-]", "_", exam.title)[:100] or "exam"
-    filename = f"Exam_{safe_title}{'_answers' if answers else ''}.pdf"
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": (
-                f'attachment; filename="{filename}"; '
-                f"filename*=UTF-8''{quote(filename)}"
-            )
-        },
     )

@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.latex import compile_exam_latex
 from app.services.latex_packages import (
     PackageEntry,
     PackageLayer,
@@ -162,54 +159,3 @@ async def test_template_packages_lists_what_the_template_loads(
     assert packages["xcolor"]["locked"] is None
     assert "inputenc" not in packages
     assert {"name": "arrows.meta", "source": "packages"} in resp.json()["tikz_libraries"]
-
-
-@pytest.mark.asyncio
-async def test_exam_compile_writes_all_levels_before_documentclass() -> None:
-    exam = SimpleNamespace(
-        testart="Kurzarbeit",
-        klasse="10a",
-        datum="",
-        nr="1",
-        fach="Informatik",
-        lehrernachname="",
-        info_text="",
-        latex_packages=[{"name": "siunitx", "options": "locale=DE"}],
-    )
-    exercise = SimpleNamespace(
-        id="ex-1", name="A", latex_body="\\usepackage[table]{xcolor}\nText \\BE"
-    )
-    fake_compile = AsyncMock(return_value=b"%PDF")
-    with patch("app.services.latex.compile_latex", fake_compile):
-        await compile_exam_latex(
-            exam,
-            [(exercise, 1, None, None)],
-            account_packages=[{"kind": "tikzlibrary", "name": "mindmap"}],
-        )
-    main_tex = fake_compile.call_args.args[0]
-    head = main_tex[: main_tex.index("\\documentclass")]
-    assert "\\PassOptionsToPackage{table}{xcolor}" in head
-    assert "\\PassOptionsToPackage{locale=DE}{siunitx}" in head
-    assert "\\usetikzlibrary{mindmap}%" in head
-
-
-@pytest.mark.asyncio
-async def test_exam_compile_appends_extra_notes_block_last() -> None:
-    exam = SimpleNamespace(
-        testart="Kurzarbeit",
-        klasse="10a",
-        datum="",
-        nr="1",
-        fach="Informatik",
-        lehrernachname="",
-        info_text="",
-        extra_notes={"title": "Platz & mehr", "description": "50%", "min_height_cm": 4, "max_height_cm": 99},
-    )
-    exercise = SimpleNamespace(id="ex-1", name="A", latex_body="Text \\BE")
-    fake_compile = AsyncMock(return_value=b"%PDF")
-    with patch("app.services.latex.compile_latex", fake_compile):
-        await compile_exam_latex(exam, [(exercise, 1, None, None)])
-    main_tex = fake_compile.call_args.args[0]
-    notes = "\\ExamNotes{Platz \\& mehr}{50\\%}{4.0}{25.0}"
-    assert notes in main_tex
-    assert main_tex.index("\\input{") < main_tex.index(notes) < main_tex.index("\\end{document}")

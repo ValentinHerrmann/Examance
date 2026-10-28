@@ -118,7 +118,7 @@ ${extraNotesLatex(exam.extraNotes)}
   return withPackages(doc, documentLayers(accountPackages, exerciseInputs, exam.latexPackages));
 }
 
-/** The closing `\ExamNotes` karo block (issue #156), or "" when off; mirrors `compile_exam_latex`. */
+/** The closing `\ExamNotes` karo block (issue #156), or "" when off. */
 export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   if (!notes) return "";
   const clamp = (v: number) => (Number.isFinite(v) ? Math.min(25, Math.max(1, v)) : 1);
@@ -127,7 +127,7 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
-/** Adds the exam's layout switches to the Schulaufgabe.sty options; mirrors `compile_exam_latex`. */
+/** Adds the exam's layout switches to the Schulaufgabe.sty options. */
 export function withExamOptions(options: string, nameLine: boolean | undefined): string {
   return nameLine ? `${options},namenszeile` : options;
 }

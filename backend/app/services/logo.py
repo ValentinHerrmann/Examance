@@ -39,7 +39,7 @@ LOGO_FILENAMES = frozenset(f"{LOGO_BASENAME}.{ext}" for ext in ("pdf", "png", "j
 LogoSource = Literal["default", "account", "exam", "none"]
 
 # The default logo: what every exam printed before logos were configurable. Resolved like
-# ``app.services.latex.ASSETS_DIR``.
+# ``app.services.tectonic.ASSETS_DIR``.
 _ASSETS_DIR = Path(__file__).resolve().parents[2] / "latex-assets"
 if not _ASSETS_DIR.exists():
     _ASSETS_DIR = Path("latex-assets")

@@ -5,7 +5,7 @@ import json
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Signing keys that ship in this repository / in example configs. Usable for
@@ -108,9 +108,9 @@ class Settings(BaseSettings):
     # Body size limits (bytes). Compile requests carry the document plus its resource files
     # (base64, ~4/3 of raw); the compile route's 10/min rate limit bounds the volume.
     BODY_LIMIT_COMPILE: int = 28 * 1024 * 1024      # 28 MB
-    # Tectonic runs at once per backend process (each can take a core and hundreds of MB). A request
-    # waits for a slot up to its own compile timeout, then gets the usual timeout error.
-    LATEX_MAX_CONCURRENT_COMPILES: int = Field(default=2, ge=1)
+    # LaTeX worker container (app/latex_worker.py), e.g. http://latex:8001. Empty = Tectonic runs
+    # in this process (dev, tests). LATEX_MAX_CONCURRENT_COMPILES is read by services/tectonic.
+    LATEX_WORKER_URL: str = ""
     # Single resource-file upload: 5 MB raw, base64-inflated, plus JSON slack.
     BODY_LIMIT_RESOURCE: int = 7 * 1024 * 1024      # 7 MB
     BODY_LIMIT_SUBMISSION: int = 50 * 1024 * 1024   # 50 MB

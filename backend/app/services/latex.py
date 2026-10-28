@@ -1,69 +1,45 @@
-"""Async Tectonic LaTeX compilation service."""
+"""LaTeX compilation: validates the request, then runs Tectonic in the worker or here."""
 from __future__ import annotations
 
-import asyncio
-import contextlib
+import base64
 import ctypes
 import logging
-import os
 import re
-import shutil
 import sys
-import tempfile
-import uuid
-from collections.abc import AsyncIterator
-from pathlib import Path
-from typing import Any
 
+import httpx
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.services.latex_packages import (
-    PackageLayer,
-    document_body,
-    exercise_entries,
-    stored_entries,
-    with_packages,
-)
+from app.services.latex_packages import PackageLayer, document_body, exercise_entries, with_packages
 from app.services.latex_resources import validate_resource_name
 from app.services.logo import ResolvedLogo
+from app.services.tectonic import (
+    COMPILE_TIMEOUT_SECONDS,
+    PREVIEW_TIMEOUT_SECONDS,
+    CompilationError,
+    run_tectonic,
+)
+
+__all__ = ["CompilationError", "compilation_failed_response", "compile_latex"]
 
 logger = logging.getLogger(__name__)
 
-PREVIEW_TIMEOUT_SECONDS = 30
-COMPILE_TIMEOUT_SECONDS = 120
-
-# Tectonic reads absolute and `../` paths whatever `--untrusted` says (its FilesystemIo allows
-# them), so a document can typeset any file this user may read. Secrets therefore stay out of
-# the child's environment, and `forbid_environ_reads()` hides the server's own /proc entries.
-_CHILD_ENV_KEYS = (
-    "PATH", "HOME", "LANG", "LC_ALL", "TZ", "XDG_CACHE_HOME", "TECTONIC_CACHE_DIR",
-    "SSL_CERT_FILE", "SSL_CERT_DIR", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
-    "http_proxy", "https_proxy", "no_proxy",
-)
 _PR_SET_DUMPABLE = 4
 
 # A tripwire for the obvious ways a document asks for a file outside its directory, not the
-# boundary: TeX can build paths in many ways.
+# boundary (that is the worker container): TeX can build paths in many ways.
 _ABSOLUTE_OR_PARENT_PATH = re.compile(
     r"\\(?:input|include|InputIfFileExists|openin|openout|write|read|usepackage|RequirePackage"
     r"|lstinputlisting|includegraphics|import|subimport|verbatiminput)"
     r"\s*(?:\[[^\]]*\])?\s*\{?\s*(?:/|\.\./|~|\\\\)",
 )
 
-ASSETS_DIR = Path(__file__).resolve().parents[2] / "latex-assets"
-if not ASSETS_DIR.exists():
-    ASSETS_DIR = Path("latex-assets")
-
-
-def _child_env() -> dict[str, str]:
-    return {key: value for key in _CHILD_ENV_KEYS if (value := os.environ.get(key)) is not None}
-
 
 def forbid_environ_reads() -> None:
     """Make this process's /proc/<pid>/environ and memory unreadable to its same-user children.
 
-    Linux only, called once at startup; the process can still read its own entries."""
+    Linux only, called once at startup; matters when Tectonic runs here instead of the worker."""
     if not sys.platform.startswith("linux"):
         return
     try:
@@ -72,15 +48,6 @@ def forbid_environ_reads() -> None:
             raise OSError(ctypes.get_errno(), "prctl(PR_SET_DUMPABLE, 0) failed")
     except (OSError, AttributeError) as exc:
         logger.warning("Could not hide the server environment from LaTeX compiles: %s", exc)
-
-
-class CompilationError(Exception):
-    """Raised when Tectonic exits non-zero or the process fails. *log* is the sanitized TeX log
-    (``_read_tex_log``), returned only to the requesting teacher and never logged (issue #166)."""
-
-    def __init__(self, message: str, log: str | None = None) -> None:
-        super().__init__(message)
-        self.log = log
 
 
 def compilation_failed_response(exc: CompilationError) -> JSONResponse:
@@ -92,167 +59,51 @@ def compilation_failed_response(exc: CompilationError) -> JSONResponse:
     )
 
 
-# Process-wide cap on concurrent Tectonic runs; the rate limits alone still allow a burst per IP.
-_compile_slots = asyncio.Semaphore(settings.LATEX_MAX_CONCURRENT_COMPILES)
-
-
-@contextlib.asynccontextmanager
-async def _compile_slot(wait_seconds: float) -> AsyncIterator[None]:
-    """Hold one Tectonic slot; waiting longer than *wait_seconds* raises TimeoutError."""
-    async with asyncio.timeout(wait_seconds):
-        await _compile_slots.acquire()
-    try:
-        yield
-    finally:
-        _compile_slots.release()
-
-
-_TEX_ESCAPE_MAP = {
-    "\\": r"\textbackslash{}",
-    "&": r"\&",
-    "%": r"\%",
-    "$": r"\$",
-    "#": r"\#",
-    "_": r"\_",
-    "{": r"\{",
-    "}": r"\}",
-    "~": r"\textasciitilde{}",
-    "^": r"\textasciicircum{}",
-}
-
-
-def format_exam_course(grade: str | None, klasse: str | None) -> str:
-    """Concatenate grade and course (e.g. grade="10", klasse="a" -> "10a")."""
-    g = (grade or "").strip()
-    k = (klasse or "").strip()
-    if g and k:
-        if k.lower().startswith(g.lower()):
-            return k
-        return f"{g}{k}"
-    return g or k or ""
-
-
-def _cm_arg(value: object, default: float) -> str:
-    """A bounded plain number for a LaTeX length argument; never raw user text."""
-    try:
-        number = float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        number = default
-    return f"{min(max(number, 1.0), 25.0):.1f}"
-
-
-def escape_tex(text: str | None) -> str:
-    """
-    Escape LaTeX special characters in plain user text before interpolating it into a command
-    argument, e.g. \\begin{Aufgabe}{<title>}. Never use it on fields that are raw LaTeX by design
-    (`latex_body`, `info_text`/`\\Info{}`), only on plain-text metadata like titles and class.
-    """
-    if not text:
-        return ""
-    # Single pass over the original characters (not sequential str.replace
-    # calls), so an escaped char's own backslash never gets re-escaped.
-    return "".join(_TEX_ESCAPE_MAP.get(ch, ch) for ch in text)
-
-
 def reject_unsafe_paths(latex_source: str) -> None:
-    """
-    Raise CompilationError if *latex_source* references an absolute or parent path.
-
-    A TeX document can read arbitrary files and typeset them into the PDF; this only fails fast
-    with a clearer message on the common cases (the boundary is the scrubbed child environment).
-    """
+    """Raise CompilationError if *latex_source* references an absolute or parent path (fails fast
+    with a clear message on the common cases)."""
     if _ABSOLUTE_OR_PARENT_PATH.search(latex_source):
-        raise CompilationError(
-            "Absolute and parent-directory file references are not permitted."
-        )
+        raise CompilationError("Absolute and parent-directory file references are not permitted.")
 
 
 def _with_body_packages(doc: str) -> str:
     return with_packages(doc, [PackageLayer("exercise", exercise_entries(document_body(doc)))])
 
 
-def _safe_extra_file_path(tmpdir: Path, rel_path: str) -> Path:
-    """
-    Resolve *rel_path* inside *tmpdir*, refusing anything that escapes it.
-
-    Callers currently pass server-generated names, but this function is public
-    and one caller change away from being an arbitrary-write primitive.
-    """
-    resolved_root = tmpdir.resolve()
-    target = (resolved_root / rel_path).resolve()
-    if target != resolved_root and resolved_root not in target.parents:
-        raise CompilationError("Invalid extra file path.")
-    return target
-
-
-_MAX_ERROR_LINES = 5
-_MAX_ERROR_LINE_CHARS = 200
-
-
-_MAX_LOG_CHARS = 256 * 1024
-
-
-def _read_tex_log(tmpdir: Path, stderr: bytes) -> str:
-    """
-    The full TeX log (stderr if main.log is missing) for the requesting teacher only: the temp-dir
-    path is replaced by "./" and the size capped, keeping the tail. Never write it to server logs.
-    """
-    log_file = tmpdir / "main.log"
+async def _run_in_worker(main_tex: str, files: dict[str, bytes], timeout: float) -> bytes:
+    """POST the job to the LaTeX worker and map its answer back onto the local runner's errors."""
+    job = {
+        "main_tex": main_tex,
+        "files": {path: base64.b64encode(blob).decode() for path, blob in files.items()},
+        "timeout": timeout,
+    }
     try:
-        text = log_file.read_text(encoding="utf-8", errors="replace") if log_file.exists() else ""
-    except OSError:
-        text = ""
-    if not text.strip():
-        text = stderr.decode("utf-8", errors="replace")
-    for prefix in {str(tmpdir), str(tmpdir.resolve())}:
-        text = text.replace(prefix + os.sep, "./").replace(prefix, ".")
-    if len(text) > _MAX_LOG_CHARS:
-        text = "[... log truncated ...]\n" + text[-_MAX_LOG_CHARS:]
-    return text
-
-
-def _extract_tex_error(tmpdir: Path) -> str:
-    """
-    TeX's own error lines (starting with "!") from main.log: the short ``detail`` that may also be
-    written to server logs. The full log only goes back to the caller (``_read_tex_log``).
-    """
-    log_file = tmpdir / "main.log"
-    error_lines: list[str] = []
-
-    if log_file.exists():
-        try:
-            log_content = log_file.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            log_content = ""
-        for line in log_content.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("!"):
-                error_lines.append(stripped[:_MAX_ERROR_LINE_CHARS])
-            if len(error_lines) >= _MAX_ERROR_LINES:
-                break
-
-    if error_lines:
-        return " | ".join(error_lines)
-
-    return "No TeX diagnostic was produced; check the document for errors."
+        # Slot wait plus two passes, with headroom for transfer.
+        async with httpx.AsyncClient(timeout=3 * timeout + 10) as client:
+            res = await client.post(f"{settings.LATEX_WORKER_URL.rstrip('/')}/compile", json=job)
+    except httpx.TimeoutException:
+        raise TimeoutError from None
+    except httpx.HTTPError as exc:
+        raise OSError(f"LaTeX worker unreachable: {exc}") from exc
+    if res.status_code == 200:
+        return res.content
+    if res.status_code == 422:
+        body = res.json()
+        raise CompilationError(str(body.get("detail", "")), log=body.get("log"))
+    if res.status_code == 504:
+        raise TimeoutError
+    raise OSError(f"LaTeX worker answered {res.status_code}")
 
 
 async def compile_latex(
     latex_source: str,
-    extra_files: dict[str, str] | None = None,
     preview: bool = True,
     binary_files: dict[str, bytes] | None = None,
     logo: ResolvedLogo | None = None,
 ) -> bytes:
-    """
-    Compile *latex_source* with Tectonic and return raw PDF bytes. *binary_files* are teacher
-    resources by flat name, validated by ``app.services.latex_resources`` so they cannot escape the
-    workdir or shadow a .sty. *logo* is the exam header logo (``app.services.logo``).
-    """
+    """Compile *latex_source* and return raw PDF bytes. *binary_files* are teacher resources by
+    flat name, validated so they cannot escape the workdir or shadow a .sty; *logo* is the logo."""
     reject_unsafe_paths(latex_source)
-    for content in (extra_files or {}).values():
-        reject_unsafe_paths(content)
-
     if "\\documentclass" not in latex_source:
         latex_source = _with_body_packages(f"""\\documentclass[a4paper]{{article}}
 \\usepackage[sans,punkte]{{sty/Schulaufgabe}}
@@ -264,346 +115,15 @@ async def compile_latex(
 {latex_source}
 \\end{{document}}
 """)
-
-    tmpdir = Path(tempfile.mkdtemp(prefix="blindgrade-latex-"))
+    files = {validate_resource_name(name): blob for name, blob in (binary_files or {}).items()}
+    if logo is not None:
+        files[logo.filename] = logo.content
     timeout = PREVIEW_TIMEOUT_SECONDS if preview else COMPILE_TIMEOUT_SECONDS
-    try:
-        # Copy style and image assets if available
-        if ASSETS_DIR.exists():
-            for item in ASSETS_DIR.iterdir():
-                dest = tmpdir / item.name
-                if item.is_dir():
-                    shutil.copytree(item, dest, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(item, dest)
-
-        # Write extra files (e.g. exercise fragments)
-        if extra_files:
-            for rel_path, content in extra_files.items():
-                target_path = _safe_extra_file_path(tmpdir, rel_path)
-                target_path.parent.mkdir(parents=True, exist_ok=True)
-                target_path.write_text(content, encoding="utf-8")
-
-        # Write teacher-uploaded resources flat next to main.tex, after the
-        # bundled assets so the copy loop above can never clobber one.
-        if binary_files:
-            for rel_path, blob in binary_files.items():
-                target_path = _safe_extra_file_path(tmpdir, validate_resource_name(rel_path))
-                target_path.parent.mkdir(parents=True, exist_ok=True)
-                target_path.write_bytes(blob)
-
-        if logo is not None:
-            (tmpdir / logo.filename).write_bytes(logo.content)
-
-        tex_file = tmpdir / "main.tex"
-        tex_file.write_text(latex_source, encoding="utf-8")
-
-        # Document content is NEVER logged — see schemas/latex.py. Sizes only.
-        logger.debug(
-            "Starting LaTeX compilation (preview=%s, main.tex=%d chars, extra_files=%d, "
-            "resources=%d/%d bytes)",
-            preview,
-            len(latex_source),
-            len(extra_files or {}),
-            len(binary_files or {}),
-            sum(len(b) for b in (binary_files or {}).values()),
-        )
-
-        cmd = [
-            "tectonic",
-            # Refuses shell-escape and extra search paths (not file reads). Must precede the input.
-            "--untrusted",
-            "-k",
-            str(tex_file),
-            "--outdir",
-            str(tmpdir),
-            "--keep-logs",
-        ]
-
-        passes = 2
-        async with _compile_slot(timeout):
-            for pass_idx in range(passes):
-                proc = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=str(tmpdir),
-                    env=_child_env(),
-                )
-
-                try:
-                    _stdout, stderr = await asyncio.wait_for(
-                        proc.communicate(), timeout=timeout
-                    )
-                except TimeoutError:
-                    proc.kill()
-                    await proc.communicate()
-                    raise
-
-                logger.debug(
-                    "LaTeX pass %d finished (exit %d)", pass_idx + 1, proc.returncode
-                )
-
-                if proc.returncode != 0:
-                    err_snippet = _extract_tex_error(tmpdir)
-                    raise CompilationError(
-                        f"LaTeX compilation failed on pass {pass_idx + 1}: {err_snippet}",
-                        log=_read_tex_log(tmpdir, stderr),
-                    )
-
-        pdf_path = tmpdir / "main.pdf"
-        if not pdf_path.exists():
-            raise CompilationError("Tectonic succeeded but main.pdf not found.")
-
-        return pdf_path.read_bytes()
-
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
-
-
-def format_exercise_latex(latex_body: str | None, title: str, exercise_id: Any = None) -> str:
-    """
-    Format exercise LaTeX code ensuring \\begin{Aufgabe}{<title>} and \\end{Aufgabe} tags exist.
-    - If \\begin{Aufgabe} is missing, prepends \\begin{Aufgabe}{<title>}.
-    - If \\end{Aufgabe} is missing, appends \\end{Aufgabe}.
-
-    If `exercise_id` is given, injects `\\OmrExercise{<id>}` right before the body
-    (mirrors frontend/src/lib/latex/scoreParser.ts::formatExerciseLatex). Inert
-    unless the body uses \\multi/\\Lmulti (Loesung.sty), so it's safe to inject
-    unconditionally, including for free-text exercises.
-    """
-    body = latex_body or ""
-    if exercise_id:
-        body = f"\\OmrExercise{{{exercise_id}}}\n{body}"
-    prefix = ""
-    suffix = ""
-
-    if r"\begin{Aufgabe}" not in body:
-        prefix = f"\\begin{{Aufgabe}}{{{escape_tex(title)}}}\n"
-
-    if r"\end{Aufgabe}" not in body:
-        if body and not body.endswith("\n"):
-            suffix = "\n\\end{Aufgabe}"
-        else:
-            suffix = "\\end{Aufgabe}"
-
-    return f"{prefix}{body}{suffix}"
-
-
-# \alph* only has 26 letters; larger MC groups are numbered instead. Mirrors
-# ALPHA_LABEL_LIMIT in frontend/src/lib/grading/mcGroupLabels.ts.
-MC_GROUP_ALPHA_LABEL_LIMIT = 26
-
-
-def format_mc_group_latex(
-    members: list[Any],
-    group_title: str,
-    scoring_text: str,
-) -> str:
-    """
-    Build one \\begin{Aufgabe} block with enumerate[label=\\alph*)] for an MC group
-    (\\arabic*) beyond MC_GROUP_ALPHA_LABEL_LIMIT members).
-
-    Each member gets `\\OmrExercise{<id>}` injected before its body -- grading
-    and statistics still key strictly on exerciseId (CLAUDE.md invariant); the
-    group remains layout-only.
-    """
-
-    def _member_id(ex: Any) -> Any:
-        return ex.get("id") if isinstance(ex, dict) else getattr(ex, "id", None)
-
-    def _member_latex_body(ex: Any) -> str:
-        body = ex.get("latex_body") if isinstance(ex, dict) else getattr(ex, "latex_body", None)
-        return body or ""
-
-    label = "alph" if len(members) <= MC_GROUP_ALPHA_LABEL_LIMIT else "arabic"
-    items = "\n".join(
-        f"\\item \\OmrExercise{{{_member_id(ex)}}}\n{_member_latex_body(ex)}" for ex in members
+    # Document content is NEVER logged (see schemas/latex.py). Sizes only.
+    logger.debug(
+        "Starting LaTeX compilation (preview=%s, main.tex=%d chars, files=%d/%d bytes)",
+        preview, len(latex_source), len(files), sum(len(b) for b in files.values()),
     )
-    return (
-        f"\\begin{{Aufgabe}}{{{escape_tex(group_title)}}}"
-        f" Kreuze jeweils die korrekten Lösungen an."
-        f" Mehrere können, mind. eine ist jeweils richtig."
-        f" Für falsch gesetzte Kreuze werden Punkte abgezogen"
-        f" (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n"
-        f"\\begin{{enumerate}}[label=\\{label}*)]\n"
-        f"{items}\n"
-        f"\\end{{enumerate}}\n\n"
-        f"\\LoesungLeer{{{escape_tex(scoring_text)}}}{{0pt}}\n"
-        f"\\end{{Aufgabe}}"
-    )
-
-
-async def compile_exam_latex(
-    exam_model: Any,
-    exercises: list[tuple[Any, int, uuid.UUID | None, int | None]],
-    mc_groups: list[Any] | None = None,
-    show_answers: bool = False,
-    binary_files: dict[str, bytes] | None = None,
-    logo: ResolvedLogo | None = None,
-    account_packages: object = None,
-) -> bytes:
-    """
-    Build complete LaTeX document for an Exam model and compile it.
-
-    exercises: list of (Exercise, order_index, mc_group_id, sub_index)
-    mc_groups: list of ExamMcGroup (or dicts) with id, title, scoring_text, order_index
-    binary_files: resource files of the exam's exercises, merged by the caller
-        (see app.services.latex_resources.merge_resources)
-    logo: the exam's header logo, resolved by the caller (app.services.logo.resolve_logo)
-    account_packages: the teacher's ``latex_packages`` column (app.services.latex_packages)
-    """
-    extra_files: dict[str, str] = {}
-    exercise_inputs: list[str] = []
-
-    # Build mc_group lookup: id -> (group_obj, sorted_members)
-    mc_group_map: dict[uuid.UUID, tuple[Any, list[Any]]] = {}
-    if mc_groups:
-        for g in mc_groups:
-            gid = getattr(g, "id", None) or (g.get("id") if isinstance(g, dict) else None)
-            if gid:
-                mc_group_map[gid] = (g, [])
-
-    # Assign exercises to groups or keep as solo
-    solo_exercises: list[tuple[Any, int]] = []
-    for idx, item in enumerate(exercises, start=1):
-        if isinstance(item, tuple):
-            if len(item) == 4:
-                ex, order_idx, mc_group_id, sub_idx = item
-            else:
-                ex, order_idx = item[0], item[1]
-                mc_group_id, sub_idx = None, None
-        else:
-            ex = item
-            order_idx = getattr(ex, "order_index", idx) or idx
-            mc_group_id, sub_idx = None, None
-
-        if mc_group_id and mc_group_id in mc_group_map:
-            mc_group_map[mc_group_id][1].append((ex, sub_idx or 0))
-        else:
-            solo_exercises.append((ex, order_idx or idx))
-
-    # Collect all items (solo or mc_group) with their order_index for sorting
-    # (order_index, filename, latex, item_id); the id is the exercise or MC group id
-    items_with_order: list[tuple[int, str, str, str]] = []
-
-    for ex, order_idx in solo_exercises:
-        filename = f"exercises/ex_{order_idx}.tex"
-        ex_name = getattr(ex, "name", None) or (ex.get("name") if isinstance(ex, dict) else None)
-        title = ex_name or f"Aufgabe {order_idx}"
-        latex_body = (
-            ex.get("latex_body") if isinstance(ex, dict) else getattr(ex, "latex_body", None)
-        )
-        ex_id = ex.get("id") if isinstance(ex, dict) else getattr(ex, "id", None)
-        ex_latex = format_exercise_latex(latex_body, title, ex_id)
-        items_with_order.append((order_idx, filename, ex_latex, str(ex_id) if ex_id else ""))
-
-    if mc_groups:
-        for g in mc_groups:
-            gid = getattr(g, "id", None) or (g.get("id") if isinstance(g, dict) else None)
-            if not gid or gid not in mc_group_map:
-                continue
-            _, members_with_sub = mc_group_map[gid]
-            members_sorted = [ex for ex, _ in sorted(members_with_sub, key=lambda t: t[1])]
-            g_order = (
-                getattr(g, "order_index", None)
-                or (g.get("order_index") if isinstance(g, dict) else 1)
-                or 1
-            )
-            g_title = (
-                getattr(g, "title", None)
-                or (g.get("title") if isinstance(g, dict) else "Grundlagen")
-                or "Grundlagen"
-            )
-            g_scoring = (
-                getattr(g, "scoring_text", None)
-                or (g.get("scoring_text") if isinstance(g, dict) else None)
-                or (
-                    "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE."
-                    " Pro Teilaufgabe aber immer $\\geq$0BE"
-                )
-            )
-            filename = f"exercises/mc_group_{gid}.tex"
-            items_with_order.append(
-                (
-                    g_order,
-                    filename,
-                    format_mc_group_latex(members_sorted, g_title, g_scoring),
-                    str(gid),
-                )
-            )
-
-    items_with_order.sort(key=lambda t: t[0])
-    # A break goes before the listed item, never before the first one.
-    page_breaks = set(getattr(exam_model, "page_breaks", None) or [])
-    for pos, (_, filename, latex, item_id) in enumerate(items_with_order):
-        extra_files[filename] = latex
-        if pos > 0 and item_id in page_breaks:
-            exercise_inputs.append("\\newpage")
-        exercise_inputs.append(f"\\input{{{filename}}}")
-
-    opts = ["sans", "punkte"]
-    if show_answers:
-        opts.append("antworten")
-    if getattr(exam_model, "name_line", False):
-        opts.append("namenszeile")
-    opts_str = ",".join(opts)
-
-    # Plain-text metadata -- escaped before interpolation into LaTeX macro
-    # args below. info_text is intentionally NOT escaped: \Info{} holds raw
-    # LaTeX markup by convention (e.g. \begin{itemize}...\end{itemize}).
-    testart = escape_tex(exam_model.testart or "Kurzarbeit")
-    raw_grade = getattr(exam_model, "grade", None)
-    raw_klasse = getattr(exam_model, "klasse", None)
-    klasse = escape_tex(format_exam_course(raw_grade, raw_klasse))
-    datum = escape_tex(exam_model.datum or "")
-    nr = escape_tex(exam_model.nr or "1")
-    fach = escape_tex(exam_model.fach or "Informatik")
-    lehrernachname = escape_tex(exam_model.lehrernachname or "")
-    info_text = exam_model.info_text or ""
-
-    extra_notes = getattr(exam_model, "extra_notes", None)
-    if extra_notes:
-        title = escape_tex(str(extra_notes.get("title", "")))
-        low = _cm_arg(extra_notes.get("min_height_cm"), 4.0)
-        high = _cm_arg(extra_notes.get("max_height_cm"), 12.0)
-        description = escape_tex(str(extra_notes.get("description", "")))
-        exercise_inputs.append(f"\\ExamNotes{{{title}}}{{{description}}}{{{low}}}{{{high}}}")
-    inputs_str = "\n\n".join(exercise_inputs)
-    # The exercises are \input from extra files, so their package lines are collected from those.
-    exercise_latex = "\n".join(latex for _, _, latex, _ in items_with_order)
-    package_layers = [
-        PackageLayer("account", stored_entries(account_packages)),
-        PackageLayer("exercise", exercise_entries(exercise_latex)),
-        PackageLayer("exam", stored_entries(getattr(exam_model, "latex_packages", None))),
-    ]
-
-    main_tex = f"""\\documentclass[a4paper]{{article}}
-\\usepackage[{opts_str}]{{sty/Schulaufgabe}}
-
-\\Info{{{info_text}}}
-\\Fach{{{fach}}}
-\\Lehrernachname{{{lehrernachname}}}
-\\usepackage{{fontspec}}
-
-\\usetikzlibrary{{shapes.geometric, arrows}}
-\\usepackage{{sty/tikz-uml}}
-
-\\neverindent
-\\WarningsOff
-
-\\begin{{document}}
-\\Testart{{{testart}}}
-\\Klasse{{{klasse}}}
-\\Datum{{{datum}}}
-\\Nr{{{nr}}}
-
-{inputs_str}
-
-\\end{{document}}
-"""
-    main_tex = with_packages(main_tex, package_layers)
-
-    return await compile_latex(
-        main_tex, extra_files=extra_files, preview=False, binary_files=binary_files, logo=logo
-    )
+    if settings.LATEX_WORKER_URL:
+        return await _run_in_worker(latex_source, files, timeout)
+    return await run_tectonic(latex_source, files, timeout)

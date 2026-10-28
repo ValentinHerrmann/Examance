@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from app.schemas.latex import LaTeXRequest
-from app.services.latex import CompilationError, compile_exam_latex, compile_latex
+from app.services.latex import CompilationError, compile_latex
 
 
 def test_latex_request_repr_redacted() -> None:
@@ -117,14 +117,14 @@ def test_extra_file_paths_cannot_escape_workdir() -> None:
     import tempfile
     from pathlib import Path
 
-    from app.services.latex import CompilationError as CE
-    from app.services.latex import _safe_extra_file_path
+    from app.services.tectonic import CompilationError as CE
+    from app.services.tectonic import safe_path
 
     tmpdir = Path(tempfile.mkdtemp())
-    assert _safe_extra_file_path(tmpdir, "exercises/ex_1.tex").is_relative_to(tmpdir.resolve())
+    assert safe_path(tmpdir, "exercises/ex_1.tex").is_relative_to(tmpdir.resolve())
     for bad in ("../escape.tex", "../../etc/passwd", "/etc/passwd"):
         with pytest.raises(CE, match="Invalid extra file path"):
-            _safe_extra_file_path(tmpdir, bad)
+            safe_path(tmpdir, bad)
 
 
 def test_tex_error_extraction_does_not_leak_log_context() -> None:
@@ -135,7 +135,7 @@ def test_tex_error_extraction_does_not_leak_log_context() -> None:
     import tempfile
     from pathlib import Path
 
-    from app.services.latex import _extract_tex_error
+    from app.services.tectonic import _extract_tex_error
 
     tmpdir = Path(tempfile.mkdtemp())
     (tmpdir / "main.log").write_text(
@@ -158,7 +158,7 @@ def test_read_tex_log_hides_tmpdir_and_caps_size() -> None:
     import tempfile
     from pathlib import Path
 
-    from app.services import latex as latex_svc
+    from app.services import tectonic as latex_svc
 
     tmpdir = Path(tempfile.mkdtemp())
     (tmpdir / "main.log").write_text("(" + str(tmpdir) + "/main.tex\n! Boom.\n", encoding="utf-8")
@@ -197,67 +197,6 @@ Programmieren einen Tisch. \\BE
     assert parse_exercise_score(snippet_2) == 1.0
 
 
-def test_format_exercise_latex_cases() -> None:
-    from app.services.latex import format_exercise_latex
-
-    # Case 1: Missing both \begin{Aufgabe} and \end{Aufgabe}
-    res1 = format_exercise_latex("Berechne 2 + 2.", "Rechnen")
-    assert res1 == "\\begin{Aufgabe}{Rechnen}\nBerechne 2 + 2.\n\\end{Aufgabe}"
-
-    # Case 2: Missing only \begin{Aufgabe}
-    res2 = format_exercise_latex("Berechne 2 + 2.\n\\end{Aufgabe}", "Rechnen")
-    assert res2 == "\\begin{Aufgabe}{Rechnen}\nBerechne 2 + 2.\n\\end{Aufgabe}"
-
-    # Case 3: Missing only \end{Aufgabe}
-    res3 = format_exercise_latex("\\begin{Aufgabe}[5]{Rechnen}\nBerechne 2 + 2.", "Rechnen")
-    assert res3 == "\\begin{Aufgabe}[5]{Rechnen}\nBerechne 2 + 2.\n\\end{Aufgabe}"
-
-    # Case 4: Already has both tags
-    full_snippet = "\\begin{Aufgabe}{Rechnen}\nBerechne 2 + 2.\n\\end{Aufgabe}"
-    res4 = format_exercise_latex(full_snippet, "Rechnen")
-    assert res4 == full_snippet
-
-    # Case 5: Empty body / None
-    res5 = format_exercise_latex(None, "Leere Aufgabe")
-    assert res5 == "\\begin{Aufgabe}{Leere Aufgabe}\n\\end{Aufgabe}"
-
-    # Case 6: Title with LaTeX special chars (e.g. the default "New_Exercise") must be escaped, or
-    # Tectonic fails with "Missing $ inserted" (see the format_mc_group_latex test below).
-    res6 = format_exercise_latex("Frage hier eingeben...", "New_Exercise")
-    assert res6 == "\\begin{Aufgabe}{New\\_Exercise}\nFrage hier eingeben...\n\\end{Aufgabe}"
-
-
-def test_escape_tex() -> None:
-    from app.services.latex import escape_tex
-
-    assert escape_tex("New_Exercise") == "New\\_Exercise"
-    assert escape_tex("100% & #1 ~ ^2 $ \\ {x}") == (
-        "100\\% \\& \\#1 \\textasciitilde{} \\textasciicircum{}2 \\$ "
-        "\\textbackslash{} \\{x\\}"
-    )
-    assert escape_tex(None) == ""
-    assert escape_tex("") == ""
-    assert escape_tex("Plain text") == "Plain text"
-
-
-def test_format_mc_group_latex_escapes_default_titles() -> None:
-    """Two MC exercises left at the default name "New_Exercise" used to produce '! Missing $
-    inserted' on Tectonic pass 1: the bare underscore was spliced into
-    \\begin{Aufgabe}{New_Exercise}."""
-    from app.services.latex import format_mc_group_latex
-
-    members = [
-        {"id": "ex-1", "latex_body": "\\LoesungMulti[2]{\\Lmulti{Richtig} \\multi{Falsch}}"},
-        {"id": "ex-2", "latex_body": "\\LoesungMulti[2]{\\Lmulti{Richtig} \\multi{Falsch}}"},
-    ]
-    result = format_mc_group_latex(members, "New_Exercise", "1BE pro Kreuz")
-
-    assert "\\begin{Aufgabe}{New\\_Exercise}" in result
-    assert "New_Exercise}" not in result  # unescaped form must not survive
-    assert "\\item \\OmrExercise{ex-1}" in result
-    assert "\\item \\OmrExercise{ex-2}" in result
-
-
 @pytest.mark.asyncio
 async def test_compile_latex_auto_wraps_snippet() -> None:
     import tempfile
@@ -284,49 +223,6 @@ async def test_compile_latex_auto_wraps_snippet() -> None:
         await compile_latex("\\begin{Aufgabe}{Test}Hello\\end{Aufgabe}", preview=True)
 
     # Verify auto wrapping added documentclass
-
-
-@pytest.mark.asyncio
-async def test_compile_exam_latex_fallback_wrapping() -> None:
-    import tempfile
-    from pathlib import Path
-    from types import SimpleNamespace
-    from unittest.mock import AsyncMock, patch
-
-    captured_files: dict[str, str] = {}
-
-    async def fake_exec(*args, **kwargs):
-        mock_proc = AsyncMock()
-        mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
-        return mock_proc
-
-    original_mkdtemp = tempfile.mkdtemp
-
-    def fake_mkdtemp(**kwargs):
-        d = original_mkdtemp(**kwargs)
-        (Path(d) / "main.pdf").write_bytes(b"%PDF-1.4 fake")
-        return d
-
-    exam = SimpleNamespace(
-        testart="Schulaufgabe",
-        klasse="10b",
-        datum="2026-07-27",
-        nr="1",
-        fach="Informatik",
-        lehrernachname="Müller",
-        info_text="Viel Erfolg!",
-    )
-    exercises = [
-        SimpleNamespace(name="Schleifen", latex_body="Schreibe eine For-Schleife."),
-        SimpleNamespace(name="Funktionen", latex_body="\\begin{Aufgabe}{Funktionen}\nDefine foo().\n\\end{Aufgabe}"),
-    ]
-
-    with patch("asyncio.create_subprocess_exec", side_effect=fake_exec), \
-         patch("tempfile.mkdtemp", side_effect=fake_mkdtemp):
-        pdf_bytes = await compile_exam_latex(exam, exercises)
-
-    assert pdf_bytes == b"%PDF-1.4 fake"
 
 
 @pytest.mark.asyncio
@@ -358,15 +254,15 @@ Zeichne das Klassendiagramm.
 async def test_compile_slots_cap_concurrent_runs(monkeypatch) -> None:
     import asyncio
 
-    from app.services import latex
+    from app.services import tectonic
 
-    monkeypatch.setattr(latex, "_compile_slots", asyncio.Semaphore(1))
-    async with latex._compile_slot(1):
+    monkeypatch.setattr(tectonic, "_compile_slots", asyncio.Semaphore(1))
+    async with tectonic._compile_slot(1):
         with pytest.raises(TimeoutError):
-            async with latex._compile_slot(0.05):
+            async with tectonic._compile_slot(0.05):
                 pass
     # Freed on exit, including after a wait that timed out.
-    async with latex._compile_slot(0.05):
+    async with tectonic._compile_slot(0.05):
         pass
 
 
@@ -377,13 +273,13 @@ async def test_tectonic_runs_inside_a_compile_slot(monkeypatch) -> None:
     from pathlib import Path
     from unittest.mock import AsyncMock, patch
 
-    from app.services import latex
+    from app.services import tectonic
 
-    monkeypatch.setattr(latex, "_compile_slots", asyncio.Semaphore(1))
+    monkeypatch.setattr(tectonic, "_compile_slots", asyncio.Semaphore(1))
     slot_held: list[bool] = []
 
     async def fake_exec(*args, **kwargs):
-        slot_held.append(latex._compile_slots.locked())
+        slot_held.append(tectonic._compile_slots.locked())
         proc = AsyncMock()
         proc.returncode = 0
         proc.communicate = AsyncMock(return_value=(b"", b""))
@@ -401,37 +297,4 @@ async def test_tectonic_runs_inside_a_compile_slot(monkeypatch) -> None:
         await compile_latex("\\documentclass{article}", preview=True)
 
     assert slot_held == [True, True]
-    assert not latex._compile_slots.locked()
-
-
-@pytest.mark.asyncio
-async def test_exam_compile_is_rate_limited(client, db, monkeypatch) -> None:
-    import uuid
-    from datetime import date, timedelta
-    from unittest.mock import patch
-
-    from app.middleware.rate_limit import limiter
-    from tests.factors import sign_in, unique_email
-
-    await sign_in(client, db, unique_email("compile-limit"))
-    exam = await client.post(
-        "/api/v1/exams",
-        json={
-            "title": f"Limited {uuid.uuid4().hex[:6]}",
-            "retention_until": (date.today() + timedelta(days=30)).isoformat(),
-        },
-    )
-    assert exam.status_code == 201, exam.text
-    url = f"/api/v1/exams/{exam.json()['id']}/compile"
-
-    limiter.reset()
-    monkeypatch.setattr(limiter, "enabled", True)
-    try:
-        with patch("app.routers.exams.compile_exam_latex", return_value=b"%PDF-1.4 fake"):
-            statuses = [(await client.post(url)).status_code for _ in range(11)]
-    finally:
-        limiter.reset()
-    assert statuses[:10] == [200] * 10
-    assert statuses[10] == 429
-
-
+    assert not tectonic._compile_slots.locked()

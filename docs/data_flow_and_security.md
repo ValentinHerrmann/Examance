@@ -350,7 +350,8 @@ the account's own mode data); see the qualifier on server compilation below and
 
 **Server compilation is processing, not storage.** With "LaTeX Server" enabled, a
 compile sends the exam's full LaTeX source (including solution variants) and its
-resource files to `POST /compile/latex`; it is compiled in a temp directory that
+resource files to `POST /compile/latex`; it is compiled in a temp directory of the
+separate LaTeX worker container (no secrets, database or scan files, `docs/deployment.md`) that
 is deleted afterwards, and neither persisted nor logged. Student data is never part
 of a compile request. It requires a sign-in and the `server_latex` capability of the account (§5; the server answers `403 ERR_FEATURE_NOT_ALLOWED` without it), and
 enabling it asks for consent once (`storagePolicy.serverCompileConsent`). The choice is a per-browser preference, independent of the storage mode.
@@ -582,8 +583,8 @@ An admin sets three switches per account (issues #53, #65), and all are enforced
   `403 ERR_FEATURE_NOT_ALLOWED` for an account that has the switch off and is not
   currently in `all-server`; reads and deletes are never refused, because the
   move and erasure need them.
-* `server_latex`: server-side LaTeX compilation (`POST /compile/latex`,
-  `POST /exams/{id}/compile`); without it the app compiles in the browser.
+* `server_latex`: server-side LaTeX compilation (`POST /compile/latex`); without it
+  the app compiles in the browser.
 * `exercise_sharing`: sharing own exercises with, and browsing, copying and
   resyncing exercises from, other accounts (§3 "Exercise sharing").
 

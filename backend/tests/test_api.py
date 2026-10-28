@@ -384,7 +384,6 @@ async def test_compile_endpoint_requires_auth(client: AsyncClient, db: AsyncSess
 
     # Authenticated request passes auth check
     await _create_teacher_and_login(client, db, "compileteacher@example.com")
-    from unittest.mock import patch
     with patch("app.routers.compile.compile_latex", return_value=b"%PDF-1.4 fake"):
         auth_res = await client.post("/api/v1/compile/latex", json={"latex": "\\documentclass{article}"})
         assert auth_res.status_code == 200
@@ -605,12 +604,6 @@ async def test_exam_mc_group_creation_and_compilation(client: AsyncClient, db: A
     assert len(fetched_exam["mc_groups"][0]["member_ids"]) == 2
     assert fetched_exam["exercises"][0]["id"] in fetched_exam["mc_groups"][0]["member_ids"]
     assert fetched_exam["exercises"][1]["id"] in fetched_exam["mc_groups"][0]["member_ids"]
-
-    # Test PDF compile endpoint mock
-    with patch("app.routers.exams.compile_exam_latex", return_value=b"%PDF-1.4 mc_test"):
-        compile_resp = await client.post(f"/api/v1/exams/{exam_id}/compile")
-        assert compile_resp.status_code == 200
-        assert compile_resp.content == b"%PDF-1.4 mc_test"
 
 
 @pytest.mark.asyncio
@@ -912,32 +905,3 @@ async def test_exercise_writes_reject_values_the_columns_cannot_hold(
         f"/api/v1/exercises/groups/{ex['exercise_group_id']}", json={"name": "x" * 201}
     )
     assert group.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_failed_exam_compile_keeps_its_status(client: AsyncClient, db: AsyncSession) -> None:
-    from app.services.latex import CompilationError
-
-    await _create_teacher_and_login(client, db, f"status-{uuid.uuid4().hex[:8]}@example.com")
-    exam = await client.post(
-        "/api/v1/exams",
-        json={
-            "title": "Status",
-            "retention_until": (date.today() + timedelta(days=30)).isoformat(),
-        },
-    )
-    assert exam.status_code == 201, exam.text
-    exam_id = exam.json()["id"]
-
-    with patch("app.routers.exams.compile_exam_latex", side_effect=CompilationError("! Boom")):
-        failed = await client.post(f"/api/v1/exams/{exam_id}/compile")
-    assert failed.status_code == 422
-
-    # The 422 used to roll the status back to "pending".
-    reloaded = await client.get(f"/api/v1/exams/{exam_id}")
-    assert reloaded.json()["compilation_status"] == "failed"
-
-
-
-
-

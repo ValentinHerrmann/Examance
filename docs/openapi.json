@@ -735,7 +735,7 @@
           "compile"
         ],
         "summary": "Compile Latex Endpoint",
-        "description": "Compile LaTeX source to PDF via Tectonic (body limit: BODY_LIMIT_COMPILE).\n\nExtra files come from `resource_exercise_ids` (stored on the server) and `resources` (unsaved\nor local-only exercises). LaTeX source is NEVER logged; 422 detail is TeX diagnostics only.",
+        "description": "Compile LaTeX source to PDF via Tectonic (body limit: BODY_LIMIT_COMPILE).\n\nExtra files come from `resource_exercise_ids` (stored on the server) and `resources` (unsaved\nor local-only exercises). LaTeX source is NEVER logged; a 422 carries the TeX diagnostic as\n`detail` and the sanitized full log as `log`, for this caller only.",
         "operationId": "compile_latex_endpoint_api_v1_compile_latex_post",
         "parameters": [
           {
@@ -1244,74 +1244,6 @@
                   },
                   "title": "Response List Exam Exercises Api V1 Exams  Exam Id  Exercises Get"
                 }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/exams/{exam_id}/compile": {
-      "post": {
-        "tags": [
-          "exams"
-        ],
-        "summary": "Compile Exam Endpoint",
-        "description": "Compile complete exam LaTeX document using live-linked library exercises.",
-        "operationId": "compile_exam_endpoint_api_v1_exams__exam_id__compile_post",
-        "parameters": [
-          {
-            "name": "exam_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Exam Id"
-            }
-          },
-          {
-            "name": "answers",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Answers"
-            }
-          },
-          {
-            "name": "access_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
               }
             }
           },
@@ -6133,6 +6065,66 @@
         }
       }
     },
+    "/api/v1/admin/maintenance/start-now": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Start Maintenance Now",
+        "description": "Cut the countdown of the open window short, e.g. when nobody is online (issue #149).",
+        "operationId": "start_maintenance_now_api_v1_admin_maintenance_start_now_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceStartNowRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminMaintenanceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user/capabilities": {
       "get": {
         "tags": [
@@ -7346,6 +7338,386 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/MaintenanceReadyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/layout-reports": {
+      "post": {
+        "tags": [
+          "layout-reports"
+        ],
+        "summary": "Create Layout Report",
+        "description": "Store a report and notify the admins (count and link only).",
+        "operationId": "create_layout_report_api_v1_layout_reports_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LayoutReportCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/layout-reports": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Layout Reports",
+        "description": "Reports, newest first (Admin only).",
+        "operationId": "list_layout_reports_api_v1_admin_layout_reports_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "open",
+                "done"
+              ],
+              "type": "string",
+              "default": "open",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutReportList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/layout-reports/{report_id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Layout Report",
+        "operationId": "get_layout_report_api_v1_admin_layout_reports__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutReportDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Delete Layout Report",
+        "operationId": "delete_layout_report_api_v1_admin_layout_reports__report_id__delete",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/layout-reports/{report_id}/files/{file_id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Download Layout Report File",
+        "description": "One attached file; served like exercise resources (only PDF/PNG/JPEG inline).",
+        "operationId": "download_layout_report_file_api_v1_admin_layout_reports__report_id__files__file_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/layout-reports/{report_id}/resolve": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Resolve Layout Report",
+        "description": "Mark resolved and tell the reporter by mail (with the optional note). Idempotent.",
+        "operationId": "resolve_layout_report_api_v1_admin_layout_reports__report_id__resolve_post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LayoutReportResolve"
               }
             }
           }
@@ -9008,6 +9380,21 @@
             ],
             "title": "Page Breaks"
           },
+          "name_line": {
+            "type": "boolean",
+            "title": "Name Line",
+            "default": false
+          },
+          "extra_notes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtraNotes"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "exercise_ids": {
             "items": {
               "type": "string",
@@ -9405,6 +9792,21 @@
             ],
             "title": "Page Breaks"
           },
+          "name_line": {
+            "type": "boolean",
+            "title": "Name Line",
+            "default": false
+          },
+          "extra_notes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtraNotes"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "exercises": {
             "items": {
               "$ref": "#/components/schemas/ExerciseResponse"
@@ -9617,6 +10019,27 @@
               }
             ],
             "title": "Page Breaks"
+          },
+          "name_line": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Line"
+          },
+          "extra_notes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtraNotes"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "exercise_ids": {
             "anyOf": [
@@ -10615,6 +11038,41 @@
         ],
         "title": "ExerciseUsageResponse"
       },
+      "ExtraNotes": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          },
+          "min_height_cm": {
+            "type": "number",
+            "maximum": 25.0,
+            "minimum": 1.0,
+            "title": "Min Height Cm"
+          },
+          "max_height_cm": {
+            "type": "number",
+            "maximum": 25.0,
+            "minimum": 1.0,
+            "title": "Max Height Cm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "min_height_cm",
+          "max_height_cm"
+        ],
+        "title": "ExtraNotes",
+        "description": "Karo block at the end of the exam; heights in cm, the layout fills the page within them."
+      },
       "ForgotPasswordRequest": {
         "properties": {
           "email": {
@@ -10954,6 +11412,373 @@
         "title": "LatexPackageEntry",
         "description": "A package, TikZ or pgfplots library; ``disabled`` (exam level) drops an account one."
       },
+      "LayoutReportCreate": {
+        "properties": {
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "exercise"
+            ],
+            "title": "Source Kind"
+          },
+          "source_title": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Source Title",
+            "default": ""
+          },
+          "engine": {
+            "type": "string",
+            "enum": [
+              "browser",
+              "server"
+            ],
+            "title": "Engine"
+          },
+          "app_version": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "App Version",
+            "default": ""
+          },
+          "problem": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Problem"
+          },
+          "expected": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Expected"
+          },
+          "compile_error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compile Error"
+          },
+          "allow_publication": {
+            "type": "boolean",
+            "title": "Allow Publication",
+            "default": false
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutReportFileIn"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_kind",
+          "engine",
+          "problem",
+          "expected"
+        ],
+        "title": "LayoutReportCreate"
+      },
+      "LayoutReportDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reporter_email": {
+            "type": "string",
+            "title": "Reporter Email"
+          },
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "exercise"
+            ],
+            "title": "Source Kind"
+          },
+          "source_title": {
+            "type": "string",
+            "title": "Source Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "allow_publication": {
+            "type": "boolean",
+            "title": "Allow Publication"
+          },
+          "problem": {
+            "type": "string",
+            "title": "Problem"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "engine": {
+            "type": "string",
+            "title": "Engine"
+          },
+          "app_version": {
+            "type": "string",
+            "title": "App Version"
+          },
+          "expected": {
+            "type": "string",
+            "title": "Expected"
+          },
+          "compile_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compile Error"
+          },
+          "resolution_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Note"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutReportFileOut"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reporter_email",
+          "source_kind",
+          "source_title",
+          "status",
+          "allow_publication",
+          "problem",
+          "created_at",
+          "resolved_at",
+          "engine",
+          "app_version",
+          "expected",
+          "compile_error",
+          "resolution_note",
+          "files"
+        ],
+        "title": "LayoutReportDetail"
+      },
+      "LayoutReportFileIn": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[^/\\\\\\\"\\x00-\\x1f]+$",
+            "title": "Filename"
+          },
+          "mime_type": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Mime Type"
+          },
+          "content_b64": {
+            "type": "string",
+            "title": "Content B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "mime_type",
+          "content_b64"
+        ],
+        "title": "LayoutReportFileIn"
+      },
+      "LayoutReportFileOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "mime_type": {
+            "type": "string",
+            "title": "Mime Type"
+          },
+          "byte_size": {
+            "type": "integer",
+            "title": "Byte Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "mime_type",
+          "byte_size"
+        ],
+        "title": "LayoutReportFileOut"
+      },
+      "LayoutReportList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutReportSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "open_count": {
+            "type": "integer",
+            "title": "Open Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "open_count"
+        ],
+        "title": "LayoutReportList"
+      },
+      "LayoutReportResolve": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "LayoutReportResolve"
+      },
+      "LayoutReportSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reporter_email": {
+            "type": "string",
+            "title": "Reporter Email"
+          },
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "exercise"
+            ],
+            "title": "Source Kind"
+          },
+          "source_title": {
+            "type": "string",
+            "title": "Source Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "allow_publication": {
+            "type": "boolean",
+            "title": "Allow Publication"
+          },
+          "problem": {
+            "type": "string",
+            "title": "Problem"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reporter_email",
+          "source_kind",
+          "source_title",
+          "status",
+          "allow_publication",
+          "problem",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "LayoutReportSummary"
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -10987,6 +11812,20 @@
           "revision"
         ],
         "title": "MaintenanceReadyRequest"
+      },
+      "MaintenanceStartNowRequest": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "MaintenanceStartNowRequest"
       },
       "MaintenanceStartRequest": {
         "properties": {
@@ -11912,6 +12751,10 @@
           "training_sample_days": {
             "type": "integer",
             "title": "Training Sample Days"
+          },
+          "layout_report_days": {
+            "type": "integer",
+            "title": "Layout Report Days"
           }
         },
         "type": "object",
@@ -11922,7 +12765,8 @@
           "pending_account_days",
           "contribution_days",
           "contribution_pending_days",
-          "training_sample_days"
+          "training_sample_days",
+          "layout_report_days"
         ],
         "title": "RetentionPeriods"
       },

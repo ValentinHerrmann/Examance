@@ -163,13 +163,13 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
   the route's body limit is 28 MB. Names are sanitised, must not collide with a
   bundled LaTeX asset, and `.svg` is rejected (convert to PDF — it stays vector).
 - **Response**: Binary stream (`application/pdf`).
-- **Errors**: `403 ERR_FEATURE_NOT_ALLOWED` (the account's `server_latex` switch is off; `POST /api/v1/exams/{id}/compile` answers the same), `422 ERR_COMPILE_FAILED` (TeX diagnostics), `422 ERR_RESOURCE_INVALID` (a resource
+- **Errors**: `403 ERR_FEATURE_NOT_ALLOWED` (the account's `server_latex` switch is off), `422 ERR_COMPILE_FAILED` (TeX diagnostics), `422 ERR_RESOURCE_INVALID` (a resource
   name is not usable), `503 ERR_COMPILE_UNAVAILABLE` (the engine itself is missing or cannot
   run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL` **with** CORS
   headers, so a browser reports the status rather than a phantom CORS failure.
-- **Limits**: this route and `POST /api/v1/exams/{id}/compile` are each rate-limited to 10
+- **Limits**: this route is rate-limited to 10
   per minute per IP (`429`). At most `LATEX_MAX_CONCURRENT_COMPILES` (default 2) Tectonic runs
-  happen at once per backend process; a request waits for a slot up to its own compile timeout
+  happen at once per LaTeX worker; a request waits for a slot up to its own compile timeout
   (30 s preview, 120 s exam) and then gets `504 ERR_COMPILE_TIMEOUT`.
 
 ---
@@ -185,7 +185,6 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job. |
 | `POST` | `/api/v1/exams/{exam_id}/duplicate` | Duplicate Exam | Yes | Body `{"retention_until"}`. Creates a new exam titled "… (Kopie)" with the same header fields, settings, logo override, MC groups (new ids), page breaks (following those ids) and links to the same library exercises (a legacy exam-bound exercise gets its own copy). Never copies students, submissions or scores; `compilation_status` starts at `pending`. Rate limit 60/hour. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
-| `POST` | `/api/v1/exams/{exam_id}/compile` | Compile Exam | Yes | Compiles the complete exam LaTeX document from its live-linked library exercises; returns `application/pdf`. Needs the account's `server_latex` feature (`403 ERR_FEATURE_NOT_ALLOWED` otherwise). |
 | `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
 | `GET` | `/api/v1/exams/{exam_id}/logo/file` | Exam Logo File | Yes | Bytes of the logo the exam prints; 404 when it prints none. |
 | `PUT` | `/api/v1/exams/{exam_id}/logo` | Set Exam Logo | Yes | `{"mode": "account" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. |
@@ -244,9 +243,8 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 - **`ExerciseResourceCreate`**: `{"filename": "figure.png", "mime_type": "image/png", "content_b64": "iVBORw0..."}`
 - **`ExerciseResourceResponse`**: `{"id": "uuid", "exercise_id": "uuid", "filename": "figure.png", "mime_type": "image/png", "byte_size": 20481, "created_at": "..."}`
 - Resource bytes are stored in plaintext on the server (like `latex_body`) and copied
-  onto new versions and variants of the exercise. `POST /api/v1/exams/{id}/compile`
-  loads them from the database, so the client never uploads them for a server-side
-  exam compile.
+  onto new versions and variants of the exercise. `POST /api/v1/compile/latex` loads
+  them from the database by `resource_exercise_ids`, so saved files are not uploaded again.
 
 ---
 

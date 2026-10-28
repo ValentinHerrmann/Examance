@@ -71,8 +71,8 @@ it leaves out a package the account adds (not one an exercise needs; that one is
   split over lines) fails with a clear error.
 
 Every document builder goes through this: `buildExamLatex`, the new-exam draft, exercise previews
-and the group export (`buildExerciseDocument`), and on the server `compile_exam_latex` and the
-snippet wrapper of `compile_latex`. The frontend fetches the account list once per session
+and the group export (`buildExerciseDocument`), and on the server the snippet wrapper of
+`compile_latex`. The frontend fetches the account list once per session
 (`getAccountPackages()`, cleared with the compile cache); the server reads the column.
 
 ## Validation
