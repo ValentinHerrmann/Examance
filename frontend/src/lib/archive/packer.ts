@@ -18,7 +18,7 @@ import {
   PAYLOAD_OFFSET,
   type ProgressCallback,
 } from './format';
-import { deriveKey, generateSalt } from '#lib/crypto/keyDerivation';
+import { deriveArgon2Key, generateSalt } from '#lib/crypto/keyDerivation';
 import { deriveSessionKey } from '#lib/crypto/sessionKey';
 import { decrypt, encryptJson, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import {
@@ -218,8 +218,8 @@ export async function packProject(
   const nonce = new Uint8Array(12);
   crypto.getRandomValues(nonce);
 
-  // 2. Derive the fresh master key.
-  const { masterKey } = await deriveKey(password, salt);
+  // 2. Derive the fresh master key: Argon2id or an error, never a silent PBKDF2 substitute (S14).
+  const { masterKey } = await deriveArgon2Key(password, salt);
 
   // 3. Collect records from IDB
   const key = get(sessionStore).sessionKey;

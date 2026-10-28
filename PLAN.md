@@ -72,6 +72,7 @@ Target:
 
 ## Phase 2: frontend security (crypto: call out in PR)
 - [ ] **S3 Pseudonym hash.**
+  - Design note written: `docs/dev/pseudonym_hmac_and_aad.md` (HMAC over the old SHA-256 hex, so all-server rows can be re-keyed without raw values). **Waiting for sign-off.**
   - `pseudonym_hmac` is an unkeyed `SHA-256(raw)` from `ensure64CharHex` (`lib/repositories/studentRepository.ts` ~32, `submissionRepository.ts` ~39).
   - `lib/crypto/hmac.ts` `hmacPseudonymId` (keyed, per exam) is never called, which contradicts `docs/data_flow_and_security.md`.
   - External name-sticker QR codes (`lib/workers/qrWorker.ts` ~35, ~66) make the hash dictionary-attackable, and the raw value sits in plain Dexie columns (`students.pseudonymId`, `submissions.pseudonymHash`).
@@ -84,19 +85,23 @@ Target:
     - track progress in a Dexie meta flag;
     - the server needs a way to rename hmac keys per exam (new endpoint or upsert plus delete).
   - Design this first, as a short note in `docs/dev/`.
-- [ ] **S10 Key in sessionStorage.** `lib/stores/session.ts` (~135) stores the raw data key in sessionStorage. Now: zero-fill all key arrays in `lock()`. Later, only after user sign-off: a session-wrapped key, with the design note in `docs/dev/`.
+- [x] **S10 Key in sessionStorage.** `lib/stores/session.ts` (~135) stores the raw data key in sessionStorage. Now: zero-fill all key arrays in `lock()`. Later, only after user sign-off: a session-wrapped key, with the design note in `docs/dev/`.
+  - Done: zero-fill in `lock()`/`reset()`; the store keeps its own copies so a caller vault is never wiped. Session-wrapped key not started (needs sign-off).
 - [ ] **S11 AAD.**
+  - Covered by the same design note; **waiting for sign-off**.
   - Only scores use AAD in `lib/db/dbEncryption.ts` (~133–197), and even they fall back to no-AAD.
   - Fix: add AAD `"<kind>:<id>"` to every codec (student, submission, exam, exercise, audit, scan, annotation, resource, OMR).
   - Decrypt tries AAD first, then the legacy no-AAD; re-seal with AAD on the next write.
-- [ ] **S12 Cross-account writes.**
+- [x] **S12 Cross-account writes.**
+  - Done: header checked in the shared `_decode_session()` (also the Phase 4 dependency merge); the client resets this tab without broadcasting.
   - The account-mismatch check runs only on capability loads (`lib/stores/capabilities.ts` ~77) and is skipped when `teacherId` is null.
   - Fix: `lib/api/client.ts` sends `X-Expected-Account: <teacherId>`, and a backend dependency answers `409 ERR_ACCOUNT_MISMATCH` on a mismatch. The client then locks.
-- [ ] **S13 ZIP bomb.** `lib/archive/zipImport.ts` (~122) calls `unzipSync` with no limits. Use fflate's `filter` to cap the entry count and the total `originalSize`.
-- [ ] **S14 Archive KDF.**
+- [x] **S13 ZIP bomb.** `lib/archive/zipImport.ts` (~122) calls `unzipSync` with no limits. Use fflate's `filter` to cap the entry count and the total `originalSize`.
+- [x] **S14 Archive KDF.**
   - `archive/packer.ts` (~222) and `unpacker.ts` (~157) use `deriveKey`, which silently falls back to PBKDF2 (`crypto/keyDerivation.ts` ~407).
   - Fix: export only with `deriveArgon2Key` and fail if Argon2 cannot load. On import, try Argon2, then PBKDF2.
-- [ ] **Low items.**
+- [x] **Low items.**
+  - Done: dead `deriveRawKeyMaterial` removed; `getArgon2` ignores a pre-existing global. **Not done (finding):** the pin has no accept path in the UI (`security.envelope.changedAccept` unused, `clearFingerprint` uncalled), so the password path already dead-ends after a key change on another device; pinning the recovery path too would remove the last way back. Needs a product decision (wire the accept button first).
   - `openWithRecoveryCode` and `openWithPasskey` (`services/keyEnvelopeService.ts` ~265, ~540) should call `assertPinnedOrPin`.
   - Delete the dead `deriveRawKeyMaterial`.
   - `getArgon2` must not trust a pre-existing `window.argon2`.
@@ -137,7 +142,7 @@ Target:
   - Catch `IntegrityError` on a concurrent submission insert (`submissions.py` ~121) and return 409.
   - Reject a duplicate `item.id` in `put_scores` with 422.
   - Send layout-report download filenames as RFC 5987 `filename*`.
-- [ ] **F17 Workspace edge cases.**
+- [ ] **F17 Workspace edge cases.** (PROVIDE_KEYS part done in Phase 2: one key-record shape for storage and tabs.)
   - `lib/db/workspace.ts` `openWorkspace` (~325) should map only a real owner mismatch to `blocked/foreign-key`; other errors are retryable.
   - Serialise it against `refreshCapabilities`.
   - Remove the localStorage key in `legacyCachedMode()` (~95) after the transaction commits.

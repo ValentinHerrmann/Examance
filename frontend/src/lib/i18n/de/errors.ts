@@ -19,6 +19,7 @@ export const errors = {
         ERR_MAINTENANCE_NOT_PENDING: 'Die Wartung hat bereits begonnen oder ist beendet.',
         ERR_MAINTENANCE_LOGIN_BLOCKED: 'Die Anmeldung ist wegen einer Wartung kurz pausiert. Bitte versuchen Sie es gleich noch einmal.',
         ERR_ACCOUNT_LOCKED: 'Zu viele fehlgeschlagene Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
+        ERR_ACCOUNT_MISMATCH: 'In einem anderen Tab hat sich ein anderes Konto angemeldet. Bitte melden Sie sich erneut an.',
         ERR_LAYOUT_REPORT_QUOTA: 'Tageskontingent für Layout-Meldungen erreicht. Bitte versuchen Sie es morgen erneut.',
         ERR_TRAINING_QUOTA: 'Tageskontingent für gespendete Trainingsdaten erreicht.',
         ERR_COMPILE_TIMEOUT: 'Zeitüberschreitung bei der Kompilierung.',

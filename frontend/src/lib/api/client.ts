@@ -184,6 +184,9 @@ async function request<T>(
   options: { binary?: boolean; silentError?: boolean } = {}
 ): Promise<T> {
   const headers: Record<string, string> = {};
+  // The server answers 409 ERR_ACCOUNT_MISMATCH when the cookie now belongs to another account (S12).
+  const account = get(sessionStore).teacherId;
+  if (account) headers['X-Expected-Account'] = account;
   let bodyInit: BodyInit | undefined;
 
   if (body !== undefined) {
@@ -241,6 +244,16 @@ async function request<T>(
       if (typeof window !== 'undefined') {
         window.location.assign('/unlock');
       }
+    }
+    await handleNonOkResponse(resp, true);
+  }
+
+  if (resp.status === 409 && resp.headers.get('code') === 'ERR_ACCOUNT_MISMATCH') {
+    // Another tab signed in as someone else. Drop only this tab's keys (no broadcast: the other tab
+    // owns the cookie now) and never write into that account.
+    sessionStore.reset();
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/unlock')) {
+      window.location.assign('/unlock');
     }
     await handleNonOkResponse(resp, true);
   }

@@ -115,11 +115,24 @@ function examPayload(manifest: ExamZipManifest, files: Files): Row {
   return payload;
 }
 
+// A ZIP bomb must fail before it is inflated in memory (S13); real exports stay far below both.
+const MAX_ZIP_ENTRIES = 20_000;
+const MAX_ZIP_BYTES = 1024 * 1024 * 1024;
+
 /** @throws a translated error when the file is no Examance ZIP export, or one without the re-import data. */
 export function readZipExport(bytes: Uint8Array): Row {
   let files: Files;
+  let entries = 0;
+  let total = 0;
   try {
-    files = unzipSync(bytes);
+    files = unzipSync(bytes, {
+      filter: (file) => {
+        entries += 1;
+        total += file.originalSize;
+        if (entries > MAX_ZIP_ENTRIES || total > MAX_ZIP_BYTES) throw new Error('ZIP too large');
+        return true;
+      },
+    });
   } catch {
     throw new Error(translate('workspace.zipImport.unreadable'));
   }

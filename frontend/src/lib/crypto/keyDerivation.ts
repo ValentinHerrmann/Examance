@@ -13,12 +13,8 @@ export const ArgonType = {
 };
 
 async function getArgon2(): Promise<any> {
-  if (typeof window !== 'undefined' && (window as any).argon2) {
-    return (window as any).argon2;
-  }
-  if (typeof self !== 'undefined' && (self as any).argon2) {
-    return (self as any).argon2;
-  }
+  // Never a pre-existing global: any script on the page could have planted a fake `argon2` there.
+  const planted = (globalThis as any).argon2;
   try {
     // @ts-expect-error — argon2-browser ships no types for the bundled build
     const argon2Module = await import('argon2-browser/dist/argon2-bundled.min.js');
@@ -26,8 +22,10 @@ async function getArgon2(): Promise<any> {
     if (mod && typeof mod.hash === 'function') {
       return mod;
     }
-    if (typeof window !== 'undefined' && (window as any).argon2) {
-      return (window as any).argon2;
+    // The UMD build may only register itself globally; accept that object, not one found before the import.
+    const registered = (globalThis as any).argon2;
+    if (registered && registered !== planted && typeof registered.hash === 'function') {
+      return registered;
     }
   } catch {
     // Try main package export as secondary fallback
@@ -123,9 +121,6 @@ export async function derivePbkdf2Key(
   return { masterKey, rawKey };
 }
 
-/**
- * Derive master CryptoKey via Argon2id (if available) or PBKDF2.
- */
 /** Argon2 could not be loaded, and the caller cannot silently use something else. */
 export class Argon2UnavailableError extends Error {
   constructor(cause?: unknown) {
@@ -251,29 +246,4 @@ export async function deriveKeyWithFallback(
     legacyMasterKey,
     rawLegacyMasterKey,
   };
-}
-
-/** Derive a 32-byte raw buffer from password + salt, as intermediate HKDF material for sessionKey.ts. */
-export async function deriveRawKeyMaterial(
-  password: string,
-  salt: Uint8Array
-): Promise<CryptoKey> {
-  const argon2 = await getArgon2();
-  const result = await argon2.hash({
-    pass: password,
-    salt,
-    type: ArgonType.Argon2id,
-    time: 3,
-    mem: 65536,
-    parallelism: 4,
-    hashLen: 32,
-  });
-
-  return crypto.subtle.importKey(
-    'raw',
-    toArrayBuffer(result.hash),
-    'HKDF',
-    false,
-    ['deriveKey', 'deriveBits']
-  );
 }

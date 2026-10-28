@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass
 
 import jwt
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,15 +19,13 @@ from app.services.exercise_sharing import readable_clause
 from app.services.jwt import decode_token
 
 
-async def get_current_teacher(
-    access_token: str | None = Cookie(default=None),
-    db: AsyncSession = Depends(get_db),
-) -> Teacher:
-    """
-    Read access token from httpOnly cookie (never from Authorization header).
+async def _decode_session(
+    access_token: str | None, expected_account: str | None, db: AsyncSession
+) -> tuple[Teacher, dict[str, object]]:
+    """The approved account and claims of the access cookie (never an Authorization header), or 401.
 
-    Returns the authenticated Teacher or raises 401.
-    """
+    A tab that names the account it holds keys for (`X-Expected-Account`) gets 409 when the cookie
+    now belongs to another one (S12): it must lock instead of writing into that account."""
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated.",
@@ -45,16 +43,10 @@ async def get_current_teacher(
         ) from None
     except jwt.InvalidTokenError:
         raise credentials_exc from None
-
     if payload.get("type") != "access":
         raise credentials_exc
-
-    teacher_id_str: str | None = payload.get("sub")
-    if not teacher_id_str:
-        raise credentials_exc
-
     try:
-        teacher_id = uuid.UUID(teacher_id_str)
+        teacher_id = uuid.UUID(str(payload.get("sub") or ""))
     except ValueError:
         raise credentials_exc from None
 
@@ -64,7 +56,22 @@ async def get_current_teacher(
     # keeps a token minted by any other path from reaching anything.
     if teacher is None or teacher.approved_at is None:
         raise credentials_exc
+    if expected_account and expected_account != str(teacher.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This browser tab belongs to another account. Sign in again.",
+            headers={"code": "ERR_ACCOUNT_MISMATCH"},
+        )
+    return teacher, payload
 
+
+async def get_current_teacher(
+    access_token: str | None = Cookie(default=None),
+    x_expected_account: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> Teacher:
+    """The signed-in Teacher of a full session, else 401/403."""
+    teacher, payload = await _decode_session(access_token, x_expected_account, db)
     # Everything outside the login and enrollment endpoints needs a session that
     # two distinct factors earned. A token minted halfway through a sign-in, or
     # for an account that has not finished enrolling, reaches nothing else.
@@ -98,55 +105,20 @@ class PendingSession:
 
 async def get_pending_teacher(
     access_token: str | None = Cookie(default=None),
+    x_expected_account: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> PendingSession:
     """Accept a half-finished sign-in (factor, enrollment and key-recovery endpoints only).
 
     Returns the account, token scope and factors already presented. The next factor is checked
     against the account named in the token, never an email the caller supplies."""
-    credentials_exc = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    if not access_token:
-        raise credentials_exc
-    try:
-        payload = decode_token(access_token)
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired.",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from None
-    except jwt.InvalidTokenError:
-        raise credentials_exc from None
-
-    if payload.get("type") != "access":
-        raise credentials_exc
-
-    teacher_id_str: str | None = payload.get("sub")
-    if not teacher_id_str:
-        raise credentials_exc
-    try:
-        teacher_id = uuid.UUID(teacher_id_str)
-    except ValueError:
-        raise credentials_exc from None
-
-    result = await db.execute(select(Teacher).where(Teacher.id == teacher_id))
-    teacher = result.scalar_one_or_none()
-    if teacher is None or teacher.approved_at is None:
-        raise credentials_exc
-
-    scope = str(payload.get("scope", "full"))
-    amr = payload.get("amr") or []
-    if not isinstance(amr, list):
-        amr = []
+    teacher, payload = await _decode_session(access_token, x_expected_account, db)
+    amr = payload.get("amr")
     jti = payload.get("jti")
     return PendingSession(
         teacher=teacher,
-        scope=scope,
-        amr=[str(f) for f in amr],
+        scope=str(payload.get("scope", "full")),
+        amr=[str(f) for f in amr] if isinstance(amr, list) else [],
         jti=str(jti) if jti else None,
     )
 

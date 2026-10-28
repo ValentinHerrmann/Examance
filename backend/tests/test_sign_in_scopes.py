@@ -163,3 +163,20 @@ async def test_a_single_use_marker_is_spent_once() -> None:
     assert await ephemeral_store.take("test:marker") is True
     assert await ephemeral_store.take("test:marker") is False
     assert await ephemeral_store.take("test:never-set") is False
+
+
+@pytest.mark.asyncio
+async def test_a_tab_of_another_account_is_refused(client: AsyncClient, db: AsyncSession) -> None:
+    """S12: a tab holding keys of account A must not act on account B's cookie."""
+    import uuid as _uuid
+
+    from .factors import sign_in as _sign_in
+
+    teacher = await _sign_in(client, db, "expected-account@example.com")
+    own = await client.get("/api/v1/user/capabilities", headers={"X-Expected-Account": str(teacher.id)})
+    assert own.status_code == 200
+    other = await client.get(
+        "/api/v1/user/capabilities", headers={"X-Expected-Account": str(_uuid.uuid4())}
+    )
+    assert other.status_code == 409
+    assert other.headers.get("code") == "ERR_ACCOUNT_MISMATCH"

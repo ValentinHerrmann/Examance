@@ -7,6 +7,7 @@ import { get } from 'svelte/store';
 vi.mock('../src/lib/api/client', async () => (await import('./helpers/fakeServer')).clientModule);
 
 import { fakeServer } from './helpers/fakeServer';
+import { setArgon2Available } from './mocks/argon2Mock';
 import { packProject } from '../src/lib/archive/packer';
 import { applyArchive, decryptArchive, unpackProject } from '../src/lib/archive/unpacker';
 import { applyResolutions, detectConflicts } from '../src/lib/archive/conflicts';
@@ -46,6 +47,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
   let testKey: CryptoKey;
 
   beforeEach(async () => {
+    setArgon2Available(true);
     fakeServer.reset();
     await db.exams.clear();
     await db.exercises.clear();
@@ -218,6 +220,18 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     const packedBytes = new Uint8Array(await packed.arrayBuffer());
     packedBytes[packedBytes.length - 5] ^= 0xff;
     await expect(unpackProject(packedBytes, testPassword)).rejects.toThrow();
+  });
+
+  it('refuses to export without Argon2 instead of sealing with another KDF (S14)', async () => {
+    await saveExamEncrypted(exam('e1', 'Chemistry'), testKey);
+    setArgon2Available(false);
+    await expect(packBlob(testPassword)).rejects.toThrow(/Argon2/);
+  });
+
+  it('refuses a ZIP with more entries than any export has (S13)', () => {
+    const files: Record<string, Uint8Array> = {};
+    for (let i = 0; i <= 20_000; i++) files[`f${i}`] = new Uint8Array(0);
+    expect(() => readZipExport(zipSync(files))).toThrow();
   });
 
   it('merges into the existing workspace instead of wiping it', async () => {

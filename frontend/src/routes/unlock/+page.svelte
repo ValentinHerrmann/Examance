@@ -2,7 +2,6 @@
   import { untrack } from "svelte";
   import { goto } from "$app/navigation";
   import { t, translate } from "#lib/i18n";
-  import { deriveKey, deriveKeyWithFallback, generateSalt, getUserSalt, getUserSessionNonce } from "#lib/crypto/keyDerivation";
   import {
     deriveSessionKey,
     generateSessionNonce,

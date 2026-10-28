@@ -16,7 +16,7 @@ import {
   HEADER_SIZE,
   type ProgressEvent,
 } from './format';
-import { deriveKey } from '#lib/crypto/keyDerivation';
+import { deriveArgon2Key, derivePbkdf2Key } from '#lib/crypto/keyDerivation';
 import { deriveSessionKey } from '#lib/crypto/sessionKey';
 import { api } from '#lib/api/client';
 import { decrypt, encrypt, toArrayBuffer } from '#lib/crypto/aesGcm';
@@ -153,24 +153,25 @@ export async function decryptArchive(
 
   onProgress?.({ stage: 'salt', current: 20, total: 100 });
 
-  // 4. Derive key from header salt + password
-  const { masterKey } = await deriveKey(password, salt);
-
-  onProgress?.({ stage: 'encrypt', current: 40, total: 100 });
-
-  // 5. ATOMIC OUTER DECRYPTION: Decrypt and authenticate entire envelope
-  let decompressedInner: Uint8Array;
-  try {
-    const gcmKey = await deriveSessionKey(masterKey, nonce);
-    const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: toArrayBuffer(nonce) },
-      gcmKey,
-      toArrayBuffer(ciphertext)
-    );
-    decompressedInner = new Uint8Array(decryptedBuffer);
-  } catch {
+  // 4-5. Derive the key from header salt + password and authenticate the whole envelope. Archives are
+  // sealed with Argon2id; older ones may carry the PBKDF2 key of the former silent fallback (S14).
+  let decompressedInner: Uint8Array | null = null;
+  for (const derive of [deriveArgon2Key, derivePbkdf2Key]) {
+    try {
+      const { masterKey } = await derive(password, salt);
+      const gcmKey = await deriveSessionKey(masterKey, nonce);
+      decompressedInner = new Uint8Array(
+        await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toArrayBuffer(nonce) }, gcmKey, toArrayBuffer(ciphertext))
+      );
+      break;
+    } catch {
+      // Wrong password, or the other KDF.
+    }
+  }
+  if (!decompressedInner) {
     throw new Error('Decryption failed: Incorrect password or corrupted archive payload.');
   }
+  onProgress?.({ stage: 'encrypt', current: 40, total: 100 });
 
   onProgress?.({ stage: 'db_writes', current: 60, total: 100 });
 
