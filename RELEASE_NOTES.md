@@ -1,8 +1,8 @@
 ## What's Changed
-* Release notes now appear only after the update prompt, not during a maintenance countdown (#157) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/159
-* Enhance LaTeX snippets with comments for clarity and fix mistakes in chemistry snippets by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/158
-* Optional grid area for extra solutions at the end of the student sheet, switched on below the exercise list, with its own heading and note and a minimum and maximum height (#156) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/161
-* Reliable import and export: archives keep all images, exams and exercise libraries exported as ZIP can be imported again (also into another Examance), exam archives (.examance-exam) are told apart from workspace backups (.examance), and imports no longer create hidden duplicates (#145) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/160
+* Code solutions in exercises: new "Code solution" block that shows program code (lstlisting) only in the answer key, a computer-science snippet to place points (BE) or other commands inside code, and a link to the demo of all LaTeX snippets (#162, #163) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/164
+* On phones, exercise and exam titles in the overview lists are no longer hidden under the variant and version labels (#165) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/167
+* LaTeX errors now name the exercise and the line in the exercise editor, and a "Full LaTeX log" button shows the whole compiler log to copy or download, for browser and server compilation (#166) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/169
+* AI chat assistance for exercises: describe what you want and get a ready-made prompt for ByLKI, ChatGPT, Claude or Gemini that knows Examance's template commands and packages; compile errors now show the likely cause and a prompt to fix them (#168) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/170
 
 
-**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.4.2...0.4.3
+**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.4.3...0.4.4
