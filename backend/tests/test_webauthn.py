@@ -229,3 +229,57 @@ async def test_a_passkey_alone_signs_in(
     assert body["status"] == "ok"
     assert body["satisfied"] == ["passkey"]
     assert "refresh_token" in resp.cookies
+
+
+@pytest.mark.asyncio
+async def test_removing_the_passkey_holding_the_only_usable_wrap_is_refused(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """S9: the guard runs for every passkey, not just the last, and the wrap goes with its key."""
+    import base64
+    import secrets
+    from datetime import UTC, datetime
+
+    from sqlalchemy import select
+
+    from app.models.key_envelope import KeyEnvelope
+    from app.models.webauthn_credential import WebAuthnCredential
+
+    teacher = await sign_in(client, db, "passkey-wrap@example.com")
+    ids = [secrets.token_bytes(16) for _ in range(3)]
+    for cid in ids:
+        db.add(
+            WebAuthnCredential(
+                credential_id=cid, teacher_id=teacher.id, public_key=secrets.token_bytes(32),
+                sign_count=0, prf_salt=secrets.token_bytes(32), supports_prf=True,
+            )
+        )
+
+    def wrap(kind: str, cid: bytes | None = None, invalid: bool = False) -> KeyEnvelope:
+        return KeyEnvelope(
+            teacher_id=teacher.id, kind=kind, credential_id=cid, kdf="hkdf",
+            kdf_salt=bytes(16), kdf_params={}, wrapped_bundle=b"\x01" * 64, wrap_iv=bytes(12),
+            key_id=b"\x07" * 16, envelope_version=1,
+            invalidated_at=datetime.now(UTC) if invalid else None,
+        )
+
+    db.add_all([wrap("password", invalid=True), wrap("recovery"), wrap("passkey", ids[0])])
+    await db.commit()
+
+    def url(cid: bytes) -> str:
+        return "/api/v1/webauthn/credentials/" + base64.urlsafe_b64encode(cid).decode().rstrip("=")
+
+    refused = await client.delete(url(ids[0]))
+    assert refused.status_code == 409
+    assert refused.headers.get("code") == "ERR_LAST_FACTOR_PROTECTED"
+    assert (await client.delete(url(ids[1]))).status_code == 204
+
+    db.add(wrap("passkey", ids[2]))
+    await db.commit()
+    assert (await client.delete(url(ids[0]))).status_code == 204
+    left = await db.scalars(
+        select(KeyEnvelope.credential_id).where(
+            KeyEnvelope.teacher_id == teacher.id, KeyEnvelope.kind == "passkey"
+        )
+    )
+    assert list(left) == [ids[2]]

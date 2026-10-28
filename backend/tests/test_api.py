@@ -667,14 +667,14 @@ async def test_cors_preflight_origins(client: AsyncClient) -> None:
         resp_sub = await client.options(
             "/api/v1/auth/login",
             headers={
-                "Origin": "https://sub.valentin-herrmann.com",
+                "Origin": "http://127.0.0.1:4173",
                 "Access-Control-Request-Method": "POST",
             },
         )
         assert resp_sub.status_code == 200
         assert (
             resp_sub.headers.get("access-control-allow-origin")
-            == "https://sub.valentin-herrmann.com"
+            == "http://127.0.0.1:4173"
         )
 
     # 3. An unlisted origin is never echoed back.

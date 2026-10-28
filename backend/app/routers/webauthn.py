@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
-from app.routers.auth import advance_sign_in
+from app.routers.auth import advance_sign_in, reissue_pending_headers
 from app.schemas.auth import AuthResponse
 from app.schemas.webauthn import (
     AuthenticationVerifyRequest,
@@ -175,14 +175,15 @@ async def login_verify(
             headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
         )
 
-    if pending_subject and flow == "auth_pending":
-        # Before consuming, so a teacher refused for maintenance keeps the step (issue #130).
+    pending_teacher = None
+    if pending_subject:
         try:
             pending_teacher = await auth_policy.teacher_by_id(db, uuid.UUID(pending_subject))
         except ValueError:
             pending_teacher = None
-        if pending_teacher is not None:
-            await maintenance.ensure_sign_in_allowed(db, pending_teacher.role)
+    if pending_teacher is not None and flow == "auth_pending":
+        # Before consuming, so a teacher refused for maintenance keeps the step (issue #130).
+        await maintenance.ensure_sign_in_allowed(db, pending_teacher.role)
 
     if pending_jti is not None and not await pending_token.consume(pending_jti):
         raise HTTPException(
@@ -196,10 +197,18 @@ async def login_verify(
             db, body.handle, body.challenge_b64, body.credential_json
         )
     except Exception as exc:  # noqa: BLE001 - every ceremony failure reads alike
+        # As a second factor, a failed ceremony costs the attempt, not the consumed sign-in step.
+        retry_headers = (
+            await reissue_pending_headers(
+                PendingSession(teacher=pending_teacher, scope=flow, amr=already, jti=None)
+            )
+            if pending_jti is not None and pending_teacher is not None
+            else {}
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc) or "The passkey could not be verified.",
-            headers={"code": "ERR_PASSKEY_FAILED"},
+            headers={"code": "ERR_PASSKEY_FAILED", **retry_headers},
         ) from None
 
     teacher = await auth_policy.teacher_by_id(db, credential.teacher_id)
@@ -278,18 +287,24 @@ async def delete_credential(
 
     teacher = session.teacher
     remaining = await webauthn_svc.list_credentials(db, teacher.id)
+    reason: str | None = None
     if len(remaining) <= 1:
-        allowed, reason = await auth_policy.may_remove_factor(db, teacher, "passkey")
-        if not allowed:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=reason or "That factor cannot be removed.",
-                headers={"code": "ERR_LAST_FACTOR_PROTECTED"},
-            )
+        _, reason = await auth_policy.may_remove_factor(db, teacher, "passkey")
+    could_open = bool(await auth_policy.key_capable_factors(db, teacher))
 
     padded = credential_id_b64 + "=" * (-len(credential_id_b64) % 4)
     if not await webauthn_svc.delete_credential(db, teacher.id, base64.urlsafe_b64decode(padded)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Passkey not found.")
+    # Checked after the delete for every passkey, not just the last: this one may hold the only
+    # usable wrap. Raising rolls the delete back.
+    if reason is None and could_open and not await auth_policy.key_capable_factors(db, teacher):
+        reason = "That is the only factor that can still decrypt this account's data."
+    if reason is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=reason,
+            headers={"code": "ERR_LAST_FACTOR_PROTECTED"},
+        )
 
     await audit_svc.write(
         db,

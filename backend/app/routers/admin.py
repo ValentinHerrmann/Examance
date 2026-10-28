@@ -498,6 +498,15 @@ async def reset_user_factors(
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    if user.approved_at is None:
+        raise _pending_conflict()
+    # Another admin's factors are reset only with the CLI: one admin must not take over another.
+    if user.role == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An admin's sign-in factors can only be reset on the server (cli.py).",
+            headers={"code": "ERR_ADMIN_FACTORS_PROTECTED"},
+        )
 
     await mfa_svc.disable(db, user.id)
     for credential in await webauthn_svc.list_credentials(db, user.id):

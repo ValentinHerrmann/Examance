@@ -104,7 +104,8 @@ async def replace_envelopes(
     the previous DEK, which looks healthy until someone needs to recover.
     """
     teacher = _require_envelope_scope(session, write=True)
-    rows = await replace_envelope_set(db, teacher, body)
+    enrolling = session.scope == "enroll"
+    rows = await replace_envelope_set(db, teacher, body, keep_secret_wraps=enrolling)
 
     await audit_svc.write(
         db,
@@ -144,10 +145,11 @@ async def delete_envelope(
     row = result.scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Envelope not found.")
-    if row.kind == "recovery":
+    # An enrolling account (one proven factor) may only drop passkey wraps.
+    if row.kind == "recovery" or (row.kind == "password" and session.scope == "enroll"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="The recovery wrap cannot be removed.",
+            detail="This key copy cannot be removed.",
             headers={"code": "ERR_LAST_FACTOR_PROTECTED"},
         )
     await db.delete(row)

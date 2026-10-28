@@ -70,20 +70,14 @@ def test_effective_cors_origin_regex_in_dev() -> None:
     pattern = re.compile(settings.effective_cors_origin_regex)
     assert pattern.fullmatch("http://localhost:8000")
     assert pattern.fullmatch("http://127.0.0.1:9999")
-    assert pattern.fullmatch("https://sub.valentin-herrmann.com")
-    assert pattern.fullmatch("https://claude-fullstack.examance.pages.dev")
+    assert not pattern.fullmatch("https://sub.valentin-herrmann.com")
     assert not pattern.fullmatch("https://attacker.com")
 
 
-def test_effective_cors_origin_regex_in_production() -> None:
+def test_production_allows_only_listed_origins_by_default() -> None:
+    """S7: no wildcard subdomain may receive credentialed CORS answers."""
     settings = Settings(_env_file=None, ENVIRONMENT="production", SECRET_KEY=STRONG_KEY)
-    assert settings.effective_cors_origin_regex is not None
-    pattern = re.compile(settings.effective_cors_origin_regex)
-    assert not pattern.fullmatch("http://localhost:8000")
-    assert not pattern.fullmatch("http://127.0.0.1:9999")
-    assert pattern.fullmatch("https://sub.valentin-herrmann.com")
-    assert pattern.fullmatch("https://claude-fullstack.examance.pages.dev")
-    assert not pattern.fullmatch("https://attacker.com")
+    assert settings.effective_cors_origin_regex is None
 
 
 def test_production_rejects_short_initial_admin_password() -> None:
@@ -247,12 +241,23 @@ async def test_state_changing_request_from_allowed_origin_passes_guard(
 
 @pytest.mark.asyncio
 async def test_regex_allowed_origin_passes_guard(client: AsyncClient) -> None:
+    # The suite runs in development, whose regex admits loopback origins on any port.
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "victim@example.com", "password": "twelve-chars-plus"},
+        headers={"Origin": "http://127.0.0.1:4173"},
+    )
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_unlisted_subdomain_is_refused_by_guard(client: AsyncClient) -> None:
     resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "victim@example.com", "password": "twelve-chars-plus"},
         headers={"Origin": "https://exams.valentin-herrmann.com"},
     )
-    assert resp.status_code == 401
+    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio

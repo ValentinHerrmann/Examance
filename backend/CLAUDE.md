@@ -11,7 +11,7 @@ Python 3.12, FastAPI (async), SQLAlchemy 2.0, Alembic, PostgreSQL (asyncpg; psyc
 
 ## Environment
 
-`backend/.env.example` → `backend/.env`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` covering `*.valentin-herrmann.com` and `*.examance.pages.dev`. With `ENVIRONMENT=development`, `effective_cors_origin_regex` also allows arbitrary loopback ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `app/config.py`).
+`backend/.env.example` → `backend/.env`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`; `CORS_ALLOWED_ORIGIN_REGEX` has no default (credentialed `SameSite=None` cookies: never admit a wildcard subdomain). With `ENVIRONMENT=development`, `effective_cors_origin_regex` also allows arbitrary loopback ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `app/config.py`).
 
 `WEBAUTHN_RP_ID` is per stack: a passkey registered against production does not work against preview. Rotating `SECRET_KEY` invalidates every TOTP enrollment.
 

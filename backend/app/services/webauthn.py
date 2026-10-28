@@ -10,7 +10,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from webauthn import (
     generate_authentication_options,
@@ -27,6 +27,7 @@ from webauthn.helpers.structs import (
 )
 
 from app.config import settings
+from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
 from app.models.webauthn_credential import WebAuthnCredential
 from app.services import ephemeral_store
@@ -228,5 +229,13 @@ async def delete_credential(
     if stored is None:
         return False
     await db.delete(stored)
+    # Its key wrap goes with it: a wrap for a gone credential still counts as key-capable.
+    await db.execute(
+        delete(KeyEnvelope).where(
+            KeyEnvelope.teacher_id == teacher_id,
+            KeyEnvelope.kind == "passkey",
+            KeyEnvelope.credential_id == credential_id,
+        )
+    )
     await db.flush()
     return True

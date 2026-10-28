@@ -1,6 +1,7 @@
 """Auth router — /api/v1/auth/*"""
 from __future__ import annotations
 
+import secrets
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -16,7 +17,7 @@ from fastapi import (
     Response,
     status,
 )
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +28,7 @@ from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.exercise import Exercise
 from app.models.key_envelope import KeyEnvelope
+from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
 from app.schemas.auth import (
@@ -56,7 +58,7 @@ from app.services import (
 )
 from app.services import audit as audit_svc
 from app.services import mfa as mfa_svc
-from app.services.crypto import hash_password, needs_rehash, verify_password
+from app.services.crypto import hash_password_async, needs_rehash, verify_password_async
 from app.services.jwt import (
     access_token_ttl_seconds,
     create_access_token,
@@ -69,7 +71,7 @@ from app.services.password_reset import (
     create_reset_token,
     verify_reset_token,
 )
-from app.services.tokens import rowcount
+from app.services.tokens import hash_token, rowcount
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -163,6 +165,14 @@ async def forgot_password(
         # an existing address measurably slower to answer than an unknown one.
         await db.commit()
         background_tasks.add_task(account_mail.send_all, [mail])
+    else:
+        # A comparable query and commit, so an unknown address does not answer measurably faster.
+        await db.execute(
+            delete(PasswordResetToken).where(
+                PasswordResetToken.token_hash == hash_token(secrets.token_urlsafe(32))
+            )
+        )
+        await db.commit()
 
     return {
         "message": (
@@ -452,9 +462,7 @@ async def change_password(
     normalized_email = teacher.email.strip().lower()
     await login_throttle.assert_not_locked(normalized_email, teacher)
 
-    stored_hash = teacher.password_hash
-    dummy_hash = "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"
-    if not verify_password(body.current_password, stored_hash or dummy_hash) or stored_hash is None:
+    if not await verify_password_async(body.current_password, teacher.password_hash):
         await login_throttle.register_failure(db, normalized_email, teacher)
         await audit_svc.write(
             db,
@@ -472,7 +480,7 @@ async def change_password(
 
     await login_throttle.register_success(db, normalized_email, teacher)
 
-    teacher.password_hash = hash_password(body.new_password)
+    teacher.password_hash = await hash_password_async(body.new_password)
     teacher.password_changed_at = datetime.now(tz=UTC)
 
     if body.envelope is not None:
@@ -610,6 +618,7 @@ async def advance_sign_in(
     # Maintenance (issue #130): no new session after the second reminder; only here, after a
     # proven factor, so it reveals nothing about the address. Admins pass to end the window.
     await maintenance.ensure_sign_in_allowed(db, teacher.role)
+    await login_throttle.register_success(db, teacher.email, teacher, session_issued=True)
 
     access_token = create_access_token(
         teacher.id, teacher.email, teacher.role, scope="full", amr=amr
@@ -672,7 +681,7 @@ async def _require_pending(
         )
 
 
-async def _reissue_pending_headers(session: PendingSession) -> dict[str, str]:
+async def reissue_pending_headers(session: PendingSession) -> dict[str, str]:
     """Headers that reissue an equivalent pending token after a rejected factor.
 
     A typo must cost an attempt, not the single-use step. Headers, not `Response` cookies, since
@@ -731,8 +740,7 @@ async def factor_password(
     await login_throttle.assert_not_locked(teacher.email, teacher)
 
     stored_hash = teacher.password_hash
-    dummy_hash = "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"
-    if not verify_password(body.password, stored_hash or dummy_hash) or stored_hash is None:
+    if stored_hash is None or not await verify_password_async(body.password, stored_hash):
         await login_throttle.register_failure(db, teacher.email, teacher)
         await audit_svc.write(
             db,
@@ -741,7 +749,7 @@ async def factor_password(
             action="LOGIN_FAILED",
             request_ip=request.client.host if request.client else None,
         )
-        retry_headers = await _reissue_pending_headers(session)
+        retry_headers = await reissue_pending_headers(session)
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -751,7 +759,7 @@ async def factor_password(
 
     await login_throttle.register_success(db, teacher.email, teacher)
     if needs_rehash(stored_hash):
-        teacher.password_hash = hash_password(body.password)
+        teacher.password_hash = await hash_password_async(body.password)
 
     return await advance_sign_in(
         db, request, response, teacher, "password", session.amr, flow=session.scope
@@ -787,7 +795,7 @@ async def factor_totp(
     if outcome == "replayed":
         # Genuine code whose window is already spent (e.g. right after a password reset took one).
         # Not a guess: it costs no attempt and no audit row, only a wait.
-        retry_headers = await _reissue_pending_headers(session)
+        retry_headers = await reissue_pending_headers(session)
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -796,7 +804,7 @@ async def factor_totp(
         )
 
     if outcome != "ok":
-        await login_throttle.register_failure(db, teacher.email, teacher)
+        await login_throttle.register_failure(db, teacher.email, teacher, second_factor=True)
         await audit_svc.write(
             db,
             teacher_id=teacher.id,
@@ -804,7 +812,7 @@ async def factor_totp(
             action="LOGIN_FAILED",
             request_ip=request.client.host if request.client else None,
         )
-        retry_headers = await _reissue_pending_headers(session)
+        retry_headers = await reissue_pending_headers(session)
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -812,7 +820,6 @@ async def factor_totp(
             headers={"code": "ERR_MFA_INVALID_CODE", **retry_headers},
         )
 
-    await login_throttle.register_success(db, teacher.email, teacher)
     return await advance_sign_in(
         db, request, response, teacher, "totp", session.amr, flow=session.scope
     )
@@ -845,8 +852,8 @@ async def factor_backup_code(
     await login_throttle.assert_not_locked(teacher.email, teacher)
 
     if not await mfa_svc.consume_backup_code(db, teacher, body.code):
-        await login_throttle.register_failure(db, teacher.email, teacher)
-        retry_headers = await _reissue_pending_headers(session)
+        await login_throttle.register_failure(db, teacher.email, teacher, second_factor=True)
+        retry_headers = await reissue_pending_headers(session)
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -854,7 +861,6 @@ async def factor_backup_code(
             headers={"code": "ERR_MFA_INVALID_CODE", **retry_headers},
         )
 
-    await login_throttle.register_success(db, teacher.email, teacher)
     return await advance_sign_in(
         db, request, response, teacher, "totp", session.amr, flow=session.scope
     )
@@ -882,10 +888,8 @@ async def login(
     await login_throttle.assert_not_locked(normalized_email, teacher)
 
     stored_hash = teacher.password_hash if teacher else None
-
-    # Constant-time: always call verify_password even if teacher not found
-    dummy_hash = "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"
-    password_ok = verify_password(body.password, stored_hash if stored_hash else dummy_hash)
+    # Runs Argon2 for unknown accounts too (dummy hash), so both cost the same.
+    password_ok = await verify_password_async(body.password, stored_hash)
 
     if not teacher or stored_hash is None or not password_ok:
         # An account without a password answers exactly like a wrong password: a distinct response
@@ -921,9 +925,8 @@ async def login(
 
     await login_throttle.register_success(db, normalized_email, teacher)
 
-    # Rehash if parameters changed
     if needs_rehash(stored_hash):
-        teacher.password_hash = hash_password(body.password)
+        teacher.password_hash = await hash_password_async(body.password)
 
     return await advance_sign_in(db, request, response, teacher, "password", [])
 

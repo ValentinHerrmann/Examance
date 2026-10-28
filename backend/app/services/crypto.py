@@ -1,6 +1,7 @@
 """Server-side cryptographic helpers — Argon2id password hashing, HMAC."""
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import secrets
@@ -29,6 +30,23 @@ def verify_password(plaintext: str, hashed: str) -> bool:
         return _ph.verify(hashed, plaintext)
     except (VerifyMismatchError, VerificationError, InvalidHashError):
         return False
+
+
+# Verified when an account has no password hash, so a miss costs the same Argon2 work as a hit.
+DUMMY_PASSWORD_HASH = (
+    "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"  # noqa: S105
+)
+
+
+async def hash_password_async(plaintext: str) -> str:
+    """`hash_password` off the event loop: Argon2id takes a core for tens of milliseconds."""
+    return await asyncio.to_thread(hash_password, plaintext)
+
+
+async def verify_password_async(plaintext: str, hashed: str | None) -> bool:
+    """`verify_password` off the event loop; a missing *hashed* checks the dummy hash and fails."""
+    ok = await asyncio.to_thread(verify_password, plaintext, hashed or DUMMY_PASSWORD_HASH)
+    return ok and hashed is not None
 
 
 def needs_rehash(hashed: str) -> bool:

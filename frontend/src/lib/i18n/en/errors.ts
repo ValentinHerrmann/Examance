@@ -45,6 +45,7 @@ export const errors: Translations['errors'] = {
         ERR_ALREADY_APPROVED: 'This account is already approved.',
         ERR_LAST_ADMIN: 'The last admin account cannot be deleted. Make another account an admin first.',
         ERR_INVALID_DELETION_TOKEN: 'This deletion link is invalid or has expired. Request a new one in the settings.',
+        ERR_ADMIN_FACTORS_PROTECTED: "An admin account's sign-in factors can only be reset on the server (cli.py).",
         ERR_DELETE_SELF: 'Delete your own account in the settings.',
         ERR_INVALID_DOMAIN: 'Enter a domain such as school.example.',
         ERR_DOMAIN_EXISTS: 'This domain is already on the list.',

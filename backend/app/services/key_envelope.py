@@ -9,7 +9,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.key_envelope import KeyEnvelope
@@ -36,6 +36,30 @@ async def invalidate_password_wrap(db: AsyncSession, teacher_id: uuid.UUID) -> N
     )
 
 
+async def _assert_secret_wraps_kept(
+    db: AsyncSession, teacher: Teacher, key_id: bytes, rows: list[KeyEnvelope]
+) -> None:
+    """One proven factor (an enrolling account) may add or renew passkey wraps, but never swap
+    the data key or touch the password and recovery wraps of an existing set (S8)."""
+    existing = (
+        await db.execute(select(KeyEnvelope).where(KeyEnvelope.teacher_id == teacher.id))
+    ).scalars().all()
+    new = {(r.kind, r.wrapped_bundle, r.wrap_iv) for r in rows}
+    if existing and (
+        existing[0].key_id != key_id
+        or any(
+            (old.kind, old.wrapped_bundle, old.wrap_iv) not in new
+            for old in existing
+            if old.kind in ("password", "recovery") and old.invalidated_at is None
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A full session is required to replace these key copies.",
+            headers={"code": "ERR_MFA_REQUIRED"},
+        )
+
+
 # Wrapped bundles are three 32-byte keys plus JSON framing and GCM overhead.
 # Generous, but bounded: this column is written by the client.
 MAX_WRAPPED_BUNDLE_BYTES = 4096
@@ -43,7 +67,7 @@ MAX_CREDENTIAL_ID_BYTES = 1023
 
 
 async def replace_envelope_set(
-    db: AsyncSession, teacher: Teacher, body: KeyEnvelopeSetIn
+    db: AsyncSession, teacher: Teacher, body: KeyEnvelopeSetIn, *, keep_secret_wraps: bool = False
 ) -> list[KeyEnvelope]:
     """
     Replace a teacher's whole envelope set, validating it first. Wholesale by design: merging could
@@ -116,6 +140,8 @@ async def replace_envelope_set(
             headers={"code": "ERR_BAD_REQUEST"},
         )
 
+    if keep_secret_wraps:
+        await _assert_secret_wraps_kept(db, teacher, key_id, rows)
     await db.execute(delete(KeyEnvelope).where(KeyEnvelope.teacher_id == teacher.id))
     db.add_all(rows)
     await db.flush()

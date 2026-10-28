@@ -49,8 +49,10 @@ async def create_layout_report(
     now = datetime.now(tz=UTC)
     account_hash = hashlib.sha256(str(teacher.id).encode("ascii")).hexdigest()
     quota_key = f"{_QUOTA_PREFIX}{account_hash}:{now.date().isoformat()}"
-    used = await ephemeral_store.get(quota_key) or 0
-    if used >= settings.LAYOUT_REPORTS_PER_TEACHER_PER_DAY:
+    # Reserved atomically up front, so parallel requests cannot all pass the check.
+    limit = settings.LAYOUT_REPORTS_PER_TEACHER_PER_DAY
+    if await ephemeral_store.incr(quota_key, _DAY_SECONDS) > limit:
+        await ephemeral_store.incr(quota_key, _DAY_SECONDS, -1)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Daily layout-report quota reached.",
@@ -89,7 +91,6 @@ async def create_layout_report(
     await db.flush()
     notices = await reports_svc.admin_notices(db, report)
     await db.commit()
-    await ephemeral_store.set(quota_key, used + 1, _DAY_SECONDS)
     if notices:
         background_tasks.add_task(account_mail.send_all, notices)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

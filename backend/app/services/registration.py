@@ -16,7 +16,7 @@ from app.models.registration_request import RegistrationRequest
 from app.models.teacher import Teacher
 from app.services import account_mail
 from app.services.account_mail import Mail
-from app.services.crypto import hash_password
+from app.services.crypto import hash_password_async
 from app.services.tokens import aware, hash_token, rowcount
 
 # A quiet period between admin notices: a burst of registrations produces one mail.
@@ -122,7 +122,7 @@ async def complete_registration(
 
     teacher = Teacher(
         email=email,
-        password_hash=hash_password(password),
+        password_hash=await hash_password_async(password),
         password_changed_at=now,
         role="teacher",
     )

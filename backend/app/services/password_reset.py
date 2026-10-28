@@ -15,7 +15,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
 from app.services import account_mail
 from app.services.account_mail import Mail
-from app.services.crypto import hash_password
+from app.services.crypto import hash_password_async
 from app.services.key_envelope import invalidate_password_wrap
 from app.services.tokens import aware, hash_token
 
@@ -102,7 +102,7 @@ async def complete_password_reset(
         raise ValueError("Invalid or expired password reset token.")
 
     token_record.used_at = datetime.now(UTC)
-    teacher.password_hash = hash_password(new_password)
+    teacher.password_hash = await hash_password_async(new_password)
     teacher.password_changed_at = datetime.now(UTC)
 
     # The server never sees the data key, so it cannot re-wrap it for the new password: a stale wrap

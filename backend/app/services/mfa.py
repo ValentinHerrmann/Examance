@@ -14,14 +14,15 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from cryptography.exceptions import InvalidTag
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.mfa_credential import MfaBackupCode, MfaCredential
 from app.models.teacher import Teacher
 from app.services import totp as totp_svc
-from app.services.crypto import verify_password
+from app.services.crypto import verify_password_async
 from app.services.mfa_secret import backup_code_digest, decrypt_secret, encrypt_secret
+from app.services.tokens import rowcount
 
 BACKUP_CODE_COUNT = 10
 
@@ -127,10 +128,17 @@ async def verify_totp(db: AsyncSession, teacher: Teacher, code: str) -> TotpResu
     if check.step is None:
         return "replayed" if check.replayed else "invalid"
 
-    credential.last_used_step = check.step
-    credential.last_used_at = datetime.now(tz=UTC)
-    await db.flush()
-    return "ok"
+    # Conditional, so a code cannot be replayed by two parallel requests within its window.
+    claimed = await db.execute(
+        update(MfaCredential)
+        .where(
+            MfaCredential.teacher_id == credential.teacher_id,
+            or_(MfaCredential.last_used_step.is_(None), MfaCredential.last_used_step < check.step),
+        )
+        .values(last_used_step=check.step, last_used_at=datetime.now(tz=UTC))
+        .execution_options(synchronize_session="fetch")
+    )
+    return "ok" if rowcount(claimed) == 1 else "replayed"
 
 
 async def issue_backup_codes(db: AsyncSession, teacher: Teacher) -> list[str]:
@@ -186,14 +194,22 @@ async def consume_backup_code(db: AsyncSession, teacher: Teacher, code: str) -> 
     if matched is None:
         legacy = [row for row in rows if row.code_hash.startswith("$argon2")]
         for row in legacy:
-            if verify_password(normalized, row.code_hash) and matched is None:
+            if await verify_password_async(normalized, row.code_hash) and matched is None:
                 matched = row
 
     if matched is None:
         return False
 
     now = datetime.now(tz=UTC)
-    matched.used_at = now
+    # Conditional, so two parallel requests cannot both spend the same code.
+    spent = await db.execute(
+        update(MfaBackupCode)
+        .where(MfaBackupCode.id == matched.id, MfaBackupCode.used_at.is_(None))
+        .values(used_at=now)
+        .execution_options(synchronize_session="fetch")
+    )
+    if rowcount(spent) != 1:
+        return False
 
     # A backup code stands in for the authenticator, so it counts as the
     # authenticator having been used. `last_used_step` is left alone: that one

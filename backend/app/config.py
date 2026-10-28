@@ -62,13 +62,10 @@ class Settings(BaseSettings):
 
     # CORS — required; app refuses to start if unset or empty
     CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "https://examance.pages.dev"]
-    # Production base regex (fullmatch): valentin-herrmann.com (apex and subdomains) and
-    # examance.pages.dev (plus its Cloudflare Pages previews). Loopback origins on any port are
-    # added by `effective_cors_origin_regex` only when ENVIRONMENT == "development".
-    CORS_ALLOWED_ORIGIN_REGEX: str | None = (
-        r"https://([a-zA-Z0-9-]+\.)*valentin-herrmann\.com"
-        r"|https://([a-zA-Z0-9-]+\.)?examance\.pages\.dev"
-    )
+    # Optional extra origins (fullmatch). No default: credentialed cookies are SameSite=None, so
+    # every subdomain a wildcard admits could act as the teacher. Name origins in the list above.
+    # Loopback origins on any port are added by `effective_cors_origin_regex` in development only.
+    CORS_ALLOWED_ORIGIN_REGEX: str | None = None
 
     # Host header allowlist (Host-spoofing protection). Deployment-specific, so
     # it stays opt-in: TrustedHostMiddleware is only registered when non-empty.

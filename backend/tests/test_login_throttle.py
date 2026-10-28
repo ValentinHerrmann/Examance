@@ -174,3 +174,60 @@ async def test_the_circuit_breaker_stops_retrying_a_dead_redis(
     finally:
         settings.RATE_LIMIT_STORAGE_URI = previous_uri
         ephemeral_store.reset()
+
+
+@pytest.mark.asyncio
+async def test_second_factor_failures_survive_a_correct_password(
+    client: AsyncClient, db: AsyncSession, throttling: None
+) -> None:
+    """S2: password plus wrong codes in a loop must lock; the password must not reset the count."""
+    from .factors import current_code, enrol_totp
+
+    email = "totp-guess@example.com"
+    teacher = await _create_teacher(db, email)
+    secret = await enrol_totp(db, teacher)
+    wrong = f"{(int(current_code(secret)) + 500_000) % 1_000_000:06d}"
+
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS):
+        first = await client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
+        assert first.status_code == 200, first.text
+        client.cookies.update(first.cookies)
+        guess = await client.post("/api/v1/auth/factor/totp", json={"code": wrong})
+        assert guess.status_code == 401
+
+    locked = await client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
+    assert locked.status_code == 429
+    assert locked.headers.get("code") == "ERR_ACCOUNT_LOCKED"
+
+
+@pytest.mark.asyncio
+async def test_a_full_session_clears_second_factor_failures(
+    client: AsyncClient, db: AsyncSession, throttling: None
+) -> None:
+    from .factors import complete_login, current_code, enrol_totp
+
+    email = "totp-clear@example.com"
+    teacher = await _create_teacher(db, email)
+    secret = await enrol_totp(db, teacher)
+    wrong = f"{(int(current_code(secret)) + 500_000) % 1_000_000:06d}"
+
+    async def guess_once() -> None:
+        first = await client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
+        client.cookies.update(first.cookies)
+        assert (await client.post("/api/v1/auth/factor/totp", json={"code": wrong})).status_code == 401
+
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS - 1):
+        await guess_once()
+    await complete_login(client, email, secret, password=_PASSWORD)
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS - 1):
+        await guess_once()
+    again = await client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
+    assert again.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_incr_counts_atomically_in_the_fallback() -> None:
+    ephemeral_store.reset()
+    assert [await ephemeral_store.incr("k", 60) for _ in range(3)] == [1, 2, 3]
+    assert await ephemeral_store.incr("k", 60, -1) == 2
+    assert await ephemeral_store.get("k") == 2

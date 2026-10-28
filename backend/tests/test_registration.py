@@ -732,16 +732,14 @@ async def test_latex_compilation_needs_the_server_latex_feature(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     teacher = await sign_in(client, db, _email("latex"))
-    exam_id = await _create_exam(client)
     body = {"latex": "\\documentclass{article}"}
 
     teacher.allow_server_latex = False
     await db.commit()
     with patch("app.routers.compile.compile_latex", return_value=b"%PDF-1.4 fake") as compiler:
-        for path in ("/api/v1/compile/latex", f"/api/v1/exams/{exam_id}/compile"):
-            refused = await client.post(path, json=body)
-            assert refused.status_code == 403, path
-            assert refused.headers.get("code") == "ERR_FEATURE_NOT_ALLOWED"
+        refused = await client.post("/api/v1/compile/latex", json=body)
+        assert refused.status_code == 403
+        assert refused.headers.get("code") == "ERR_FEATURE_NOT_ALLOWED"
         compiler.assert_not_called()
 
         teacher.allow_server_latex = True

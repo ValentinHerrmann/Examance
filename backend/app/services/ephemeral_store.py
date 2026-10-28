@@ -36,6 +36,9 @@ _CIRCUIT_OPEN_SECONDS = 60.0
 
 _client: Redis[bytes] | None = None
 _circuit_open_until = 0.0
+# The fallback otherwise only drops a key when it is read again; sweep it at most this often.
+_SWEEP_INTERVAL_SECONDS = 60.0
+_next_sweep = 0.0
 
 
 def uses_redis() -> bool:
@@ -114,6 +117,16 @@ async def _pipeline(*commands: tuple[Any, ...]) -> list[Any] | None:
         return None
 
 
+def _sweep_memory() -> None:
+    global _next_sweep
+    now = time.monotonic()
+    if now < _next_sweep:
+        return
+    _next_sweep = now + _SWEEP_INTERVAL_SECONDS
+    for key in [k for k, (_, expires_at) in _memory.items() if expires_at <= now]:
+        _memory.pop(key, None)
+
+
 def _prune_members(now: float) -> None:
     for key in [k for k, (_, expires_at) in _members.items() if expires_at <= now]:
         _members.pop(key, None)
@@ -147,7 +160,26 @@ async def set(key: str, value: int, ttl_seconds: int) -> None:  # noqa: A001 - m
     """
     ttl = max(ttl_seconds, 1)
     await _call("set", key, value, ttl)
+    _sweep_memory()
     _memory[key] = (value, time.monotonic() + ttl)
+
+
+async def incr(key: str, ttl_seconds: int, amount: int = 1) -> int:
+    """Add *amount* to the counter *key* atomically, (re)start its TTL and return the new value.
+
+    Redis INCRBY when reachable (shared across workers); the local copy mirrors it and stands in
+    otherwise. No await between the local read and write, so the fallback is atomic too."""
+    ttl = max(ttl_seconds, 1)
+    result = await _pipeline(("incrby", key, amount), ("expire", key, ttl))
+    _sweep_memory()
+    now = time.monotonic()
+    if result is not None:
+        value = int(result[0])
+    else:
+        entry = _memory.get(key)
+        value = (entry[0] if entry is not None and entry[1] > now else 0) + amount
+    _memory[key] = (value, now + ttl)
+    return value
 
 
 async def delete(*keys: str) -> None:
@@ -203,10 +235,11 @@ async def members_since(key: str, since_seconds: int) -> list[str] | None:
 
 def reset() -> None:
     """Drop the in-process fallback store and the circuit state. Test helper."""
-    global _circuit_open_until
+    global _circuit_open_until, _next_sweep
     _memory.clear()
     _members.clear()
     _circuit_open_until = 0.0
+    _next_sweep = 0.0
 
 
 async def check_reachable() -> bool:

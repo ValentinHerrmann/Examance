@@ -36,28 +36,34 @@ Target:
 - Separately, the generated `example.json` drops by 6.5k lines.
 
 ## Phase 1: backend security
-- [ ] **S1 LaTeX file read.**
+- [x] **S1 LaTeX file read.**
+  - Done: separate `latex` worker container (user decision) instead of bubblewrap, which needs user namespaces that Docker's default seccomp/AppArmor block for uid 10001. Runner in `services/tectonic.py`, worker `app/latex_worker.py`, compose service `latex`. The `\openin\f=` form still passes the regex; the container is the boundary. Not runnable here (no Docker, Tectonic bundle host blocked).
   - The `\input` tripwire in `backend/app/services/latex.py` (about lines 48–52, 157–167, 312–321) is bypassable via `\def\p{/etc/passwd}\input{\p}`, `\openin` or `\read`.
   - Tectonic runs as the backend user, so a teacher with `server_latex` can read any file that user can read.
   - Fix: sandbox the Tectonic subprocess with bubblewrap (or nsjail) inside the backend Docker image. Bind only the compile tmpdir (rw) and the Tectonic cache and `backend/latex-assets` (ro); no network; a separate uid if possible.
   - Keep the regex as a cheap first filter.
   - Probe: a document with `\newread\f\openin\f=/etc/hostname` must fail or read nothing.
-- [ ] **S15 Orphaned Tectonic.** The child is killed only on `TimeoutError` (`latex.py` ~334). Kill it in a `finally` so `CancelledError` (client disconnect) is covered too.
-- [ ] **S2 Second-factor brute force.**
+- [x] **S15 Orphaned Tectonic.** The child is killed only on `TimeoutError` (`latex.py` ~334). Kill it in a `finally` so `CancelledError` (client disconnect) is covered too.
+- [x] **S2 Second-factor brute force.**
   - `login_throttle.register_success` runs after the password factor (`routers/auth.py` ~473 and ~922) and clears the shared `login:fail:` counter.
   - With a known password, a loop of login plus 4 wrong TOTP codes never locks.
   - Fix: count second-factor failures under a separate key that only full session issuance clears. Password success clears only the password counter.
-- [ ] **S4 Argon2 blocks the event loop.** Wrap `hash_password` and `verify_password` calls in `await asyncio.to_thread(...)`. Call sites: `routers/auth.py`, `services/registration.py`, `crypto.py`.
-- [ ] **S5 Unbounded memory store.** `services/ephemeral_store.py`'s in-process fallback only prunes the key it reads. Sweep expired entries on `set`, at most once per N seconds.
-- [ ] **S6 Non-atomic counters.** `login_throttle.register_failure`, the layout-report quota (`routers/layout_reports.py`) and the training quota all use get-then-set. Add an atomic `incr(key, ttl)` to `ephemeral_store`: Redis `INCR` plus `EXPIRE`, and a lock-protected in-memory version.
-- [ ] **S7 CORS.** `CORS_ALLOWED_ORIGIN_REGEX` in `config.py` allows every `*.valentin-herrmann.com` origin with credentials while cookies are `SameSite=None`. Replace it with an explicit origin list from env. The production and preview hosts are in `docs/deployment.md`.
-- [ ] **S8 Envelope replacement.**
+- [x] **S4 Argon2 blocks the event loop.** Wrap `hash_password` and `verify_password` calls in `await asyncio.to_thread(...)`. Call sites: `routers/auth.py`, `services/registration.py`, `crypto.py`.
+  - Done: `hash_password_async`/`verify_password_async` in `services/crypto.py` (the module lives there, not `app/crypto.py`); also the legacy backup-code loop in `mfa.py`.
+- [x] **S5 Unbounded memory store.** `services/ephemeral_store.py`'s in-process fallback only prunes the key it reads. Sweep expired entries on `set`, at most once per N seconds.
+- [x] **S6 Non-atomic counters.** `login_throttle.register_failure`, the layout-report quota (`routers/layout_reports.py`) and the training quota all use get-then-set. Add an atomic `incr(key, ttl)` to `ephemeral_store`: Redis `INCR` plus `EXPIRE`, and a lock-protected in-memory version.
+- [x] **S7 CORS.** `CORS_ALLOWED_ORIGIN_REGEX` in `config.py` allows every `*.valentin-herrmann.com` origin with credentials while cookies are `SameSite=None`. Replace it with an explicit origin list from env. The production and preview hosts are in `docs/deployment.md`.
+  - Done: no regex default; preview keeps a loopback-only regex. Operator: remove the wildcard `CORS_ALLOWED_ORIGIN_REGEX` line from the preview host `.env`.
+- [x] **S8 Envelope replacement.**
+  - Done: refusing `enroll` whenever a set exists would break `addPasskeyWrap` during enrolment (e.g. after an admin factor reset). Instead `enroll` may add or renew passkey wraps but must keep the key id and the live password/recovery wraps byte-identical; it may delete only passkey wraps.
   - `routers/keys.py` `_ENVELOPE_WRITE_SCOPES` lets an `enroll`-scope session (one factor) call `key_envelope.replace_envelope_set` on an account that already has envelopes.
   - Fix: allow `enroll` only when no set exists, otherwise require a full session.
-- [ ] **S9 Passkey delete.**
+- [x] **S9 Passkey delete.**
+  - Done: key-capable check (password wrap or passkey wrap) after the delete, rolled back on refusal; recovery is not counted, matching `may_remove_factor`.
   - `routers/webauthn.py` `delete_credential` runs `may_remove_factor` only for the last passkey.
   - Fix: always check that some remaining factor can still open the vault (password wrap, PRF passkey or recovery). Delete that credential's key envelope in the same transaction.
-- [ ] **Low items.**
+- [x] **Low items.**
+  - Done: all except the admin audit `request_ip`, which moves into the Phase 4 audit sweep (`audit_svc.log`).
   - TOTP replay and backup-code double spend (`services/mfa.py` `verify_totp` and `consume_backup_code`): use an atomic conditional UPDATE.
   - `admin.reset_user_factors` (~487): refuse it for admins and pending accounts.
   - Admin audit writes: pass `request_ip` so `ip_hash` is set.
@@ -139,7 +145,8 @@ Target:
 - [ ] **Plausible, verify first:** a teaching route may mount while the workspace state is `unchecked` (`+layout.svelte` ~124, ~443). `put_scores` may break for legacy exams linked via `Exercise.exam_id`.
 
 ## Phase 4: backend refactor and merges (no API change except M6)
-- [ ] **M6 Remove the server exam compile.** The frontend never calls it.
+- [x] **M6 Remove the server exam compile.** The frontend never calls it.
+  - Done: done in Phase 1 together with S1 (less code to restructure).
   - Delete `POST /exams/{id}/compile` (`routers/exams.py` ~692–768).
   - Delete `compile_exam_latex`, `format_mc_group_latex` and `format_exercise_latex` from `services/latex.py`, and their tests.
   - Remove the "server mirror" mentions in `frontend/CLAUDE.md` (page breaks, name line, extra notes, resources).
