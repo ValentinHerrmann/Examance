@@ -75,9 +75,9 @@ export const exercises = {
         discardMessage: 'Sie haben Felder dieser Aufgabe geändert. Beim Verwerfen gehen Ihre ungespeicherten Änderungen verloren.',
     },
     aiPrompt: {
-        button: 'KI-Prompt',
+        button: 'KI-Prompt erstellen',
         buttonTitle: 'Prompt für einen KI-Chat erstellen, der diese Aufgabe schreibt oder ändert',
-        title: 'Aufgabe mit einem KI-Chat schreiben',
+        title: 'Prompt für einen KI-Chat: Aufgabe schreiben oder ändern',
         intro: 'Beschreiben Sie, was der KI-Chat tun soll. Der Prompt darunter erklärt dem Chat, wie Examance Aufgaben aufbaut, welche Vorlagenbefehle und Pakete es gibt, und enthält Ihre Anfrage. Kopieren Sie ihn in einen KI-Chat Ihrer Wahl (etwa ByLKI, ChatGPT, Claude oder Gemini).',
         taskLabel: 'Was soll die KI tun?',
         taskPlaceholder: 'z. B. „Erstelle eine Variante mit anderen Zahlen“, „Ergänze eine Teilaufgabe c) zur Steigung“, „Mache daraus eine Ankreuzaufgabe mit 4 Optionen“ oder „Schreibe eine neue Aufgabe zu quadratischen Gleichungen für Klasse 9“',

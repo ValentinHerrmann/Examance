@@ -518,7 +518,7 @@ explicit opt-in tick (off by default). Header fields (teacher name, class, date,
 and student data are never included: they are left out of preamble and code excerpts, and redacted in the
 log too (their values wherever they appear, and the rest of any log line naming a header macro). Pasting it into a third-party AI is the teacher's own disclosure; the dialog says so.
 
-The exercise editor's "AI prompt" works the same way: it combines the teacher's request with the
+The exercise editor's "Create AI prompt" works the same way: it combines the teacher's request with the
 template commands, package names, attached file names and (ticked by default, can be unticked) the
 current exercise code, for the clipboard only. It holds exercise content, never student data.
 
