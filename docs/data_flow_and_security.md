@@ -508,6 +508,19 @@ title (admin-only) and the reporter's account id. No student data is collected. 
   Quota: `LAYOUT_REPORTS_PER_TEACHER_PER_DAY` via a hashed key in `ephemeral_store`, 429 without
   `Retry-After`; body limit `BODY_LIMIT_LAYOUT_REPORT` (30 MB).
 
+### LaTeX error help (issue #168)
+
+Below every compile error the app explains typical TeX errors locally and offers a prompt for an
+external AI chat, which the teacher copies to the clipboard. The app makes no network call for it (only
+the authenticated bundled-asset fetch it already uses). The prompt holds the error lines, the log tail,
+the preamble package lines and template definitions; the affected exercise's LaTeX only after an
+explicit opt-in tick (off by default). Header fields (teacher name, class, date) and student data are
+never included. Pasting it into a third-party AI is the teacher's own disclosure; the dialog says so.
+
+The exercise editor's "AI prompt" works the same way: it combines the teacher's request with the
+template commands, package names, attached file names and (ticked by default, can be unticked) the
+current exercise code, for the clipboard only. It holds exercise content, never student data.
+
 ---
 
 ## 4. DevTools Security & Session Hygiene Lifecycle

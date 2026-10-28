@@ -1,8 +1,8 @@
 <script lang="ts">
   import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
   import { onMount, onDestroy, untrack } from "svelte";
-  import { compileErrorLog } from "#lib/latex/compileError";
-  import CompileLogButton from "#lib/components/latex/CompileLogButton.svelte";
+  import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
+  import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
@@ -131,7 +131,7 @@ Frage hier eingeben... \\BE
   let isPreviewLoading = $state(false);
   /** The last live preview's failure and sources, sent with a layout report (issue #134). */
   let previewError = $state("");
-  let previewLog = $state<string | null>(null);
+  let previewLog = $state<CompileFailure | null>(null);
   let reportSources: { angabeTex: string; loesungTex: string; owners: { id: string; label?: string }[] } | null =
     $state.raw(null);
 
@@ -474,7 +474,7 @@ ${extraNotesLatex(extraNotes)}
     } catch (err: any) {
       errorMsg = err.message || translate("examCreation.errors.previewCompilationFailed");
       previewError = errorMsg;
-      previewLog = compileErrorLog(err);
+      previewLog = compileFailure(err);
     } finally {
       isPreviewLoading = false;
     }
@@ -680,7 +680,7 @@ ${extraNotesLatex(extraNotes)}
   {#if errorMsg}
     <Alert severity="danger" class="mb-6">
       <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
-      {#if previewLog && errorMsg === previewError}<CompileLogButton log={previewLog} class="mt-2" />{/if}
+      {#if previewLog && errorMsg === previewError}<CompileErrorHelp failure={previewLog} class="mt-2" />{/if}
     </Alert>
   {/if}
   {#if previewError && reportSources && !previewPdfUrl && !previewSolutionPdfUrl}

@@ -49,9 +49,10 @@
     openSearchPanel,
     searchPanelOpen
   } from "@codemirror/search";
-  import { StreamLanguage, syntaxHighlighting } from "@codemirror/language";
+  import { syntaxHighlighting } from "@codemirror/language";
   import {
     latexHighlightStyle,
+    latexLanguage,
     createLatexTheme,
     diffDecorationsField,
     applyDiffDecorations
@@ -325,19 +326,7 @@
           ...historyKeymap
         ]),
         phrasesCompartment.of(EditorState.phrases.of(searchPhrases)),
-        StreamLanguage.define({
-          token(stream) {
-            if (stream.match(/^%.*/)) return "comment";
-            if (stream.match(/^\\(?:begin|end)\b/)) return "keyword";
-            if (stream.match(/^\\[a-zA-Z]+/)) return "macroName";
-            if (stream.match(/^\\./)) return "macroName";
-            if (stream.match(/^[{}[\]]/)) return "bracket";
-            if (stream.match(/^\$+/)) return "string";
-            if (stream.match(/^\d+(?:\.\d+)?/)) return "number";
-            stream.next();
-            return null;
-          }
-        }),
+        latexLanguage,
         syntaxHighlighting(latexHighlightStyle),
         themeCompartment.of(createLatexTheme($theme === "dark")),
         diffDecorationsField,

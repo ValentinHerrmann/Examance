@@ -1,6 +1,6 @@
 import { EditorView, Decoration, WidgetType, type DecorationSet } from "@codemirror/view";
 import { StateEffect, StateField, RangeSetBuilder, type Extension } from "@codemirror/state";
-import { HighlightStyle } from "@codemirror/language";
+import { HighlightStyle, StreamLanguage } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import type {
   DiffDecorationConfig,
@@ -58,6 +58,30 @@ export const diffDecorationsField = StateField.define<DecorationSet>({
   },
   provide: (f) => EditorView.decorations.from(f)
 });
+
+/** The editor's LaTeX tokenizer; also highlights `latex` code blocks in the AI prompt preview. */
+export const latexLanguage = StreamLanguage.define({
+  token(stream) {
+    if (stream.match(/^%.*/)) return "comment";
+    if (stream.match(/^\\(?:begin|end)\b/)) return "keyword";
+    if (stream.match(/^\\[a-zA-Z]+/)) return "macroName";
+    if (stream.match(/^\\./)) return "macroName";
+    if (stream.match(/^[{}[\]]/)) return "bracket";
+    if (stream.match(/^\$+/)) return "string";
+    if (stream.match(/^\d+(?:\.\d+)?/)) return "number";
+    stream.next();
+    return null;
+  }
+});
+
+/** Markdown marks of the AI prompt preview. List items stay plain so their inline code and LaTeX colours stand out. */
+export const markdownHighlightStyle = HighlightStyle.define([
+  { tag: [t.heading1, t.heading2, t.heading3], fontWeight: "bold", color: "var(--color-content)" },
+  { tag: t.heading1, fontSize: "1.15em" },
+  { tag: t.processingInstruction, color: "var(--color-syntax-comment)" },
+  { tag: t.monospace, color: "var(--color-syntax-string)" },
+  { tag: t.strong, fontWeight: "bold" }
+]);
 
 export const latexHighlightStyle = HighlightStyle.define([
   { tag: t.comment, color: "var(--color-syntax-comment)", fontStyle: "italic" },
