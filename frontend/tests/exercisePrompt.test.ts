@@ -24,12 +24,14 @@ describe('buildExercisePrompt', () => {
     expect(prompt).toContain('siunitx[locale=DE]');
     expect(prompt).toContain('Preloaded: `amsmath`, `tikz`.');
     expect(prompt).not.toContain('topic _General');
+    expect(prompt).toContain('Change only what the task asks for.');
   });
 
   it('leaves the code out when not ticked and then shows the example', () => {
     const prompt = buildExercisePrompt({ ...base, includeCode: false });
     expect(prompt).not.toContain('Berechne $1+1$');
     expect(prompt).toContain('New exercise, no code yet.');
+    expect(prompt).not.toContain('Change only what the task asks for.');
     expect(prompt).toContain('Example of a well-formed exercise body');
   });
 

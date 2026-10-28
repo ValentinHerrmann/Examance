@@ -123,7 +123,7 @@ function intro(language: string): string {
     '',
     'Please answer with:',
     '1. In plain words: what the error means and which exercise line causes it.',
-    '2. The corrected lines of the exercise code, ready to paste into the exercise editor.',
+    '2. The corrected lines of the exercise code, ready to paste into the exercise editor. Change only what the fix needs; leave everything else exactly as written.',
     '3. If the cause is outside the exercise code (e.g. a missing package), what to change in the app instead.',
     '',
     'Use only the template commands below or standard LaTeX and package commands. If the information is not enough to be sure, say what you would need.',

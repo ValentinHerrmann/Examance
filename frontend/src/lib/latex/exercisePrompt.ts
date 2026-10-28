@@ -38,7 +38,7 @@ export function buildExercisePrompt(input: ExercisePromptInput): string {
     '# Write LaTeX for an exam exercise',
     section('Task', input.task.trim() || '(describe the task here)'),
     section('Context', context(input)),
-    section('Output rules', outputRules(input.questionType, input.resourceNames.length > 0, language)),
+    section('Output rules', outputRules(input.questionType, input.resourceNames.length > 0, Boolean(code), language)),
     section('How the document is built', documentSetup(input.engine)),
     templateCommandsSection(),
     section('Packages', packages(input)),
@@ -66,18 +66,24 @@ function context(input: ExercisePromptInput): string {
 }
 
 /** Requirements only; what the frame and the commands do is in the sections after it. */
-function outputRules(questionType: ExercisePromptInput['questionType'], hasFiles: boolean, language: string): string {
+function outputRules(questionType: ExercisePromptInput['questionType'], hasFiles: boolean, hasCode: boolean, language: string): string {
   return [
     '- Answer with the complete new exercise body in exactly one `latex` code block.',
+    // Teachers compare versions and variants line by line, so rewording what the task did not ask to change is noise.
+    hasCode
+      ? '- Change only what the task asks for. Keep every other line exactly as it is: same wording, formatting, line breaks and commands, no rephrasing with the same meaning, so the diff to the current exercise stays small.'
+      : '',
     questionType === 'mc'
       ? `- Multiple choice: the question text, then exactly one ${cs('LoesungMulti')} block and no other solution commands.`
       : '- Give every question a solution command with its points (see the template commands).',
-    '- Write the exercise text in the language of the current exercise (or of the task if there is none); keep the LaTeX simple.',
+    '- Write the exercise text in the language of the current exercise (or of the task if there is none); keep new LaTeX simple.',
     hasFiles
       ? '- Use only the attached files as images; draw anything else with TikZ, or say which image the teacher should upload.'
       : '- No files are attached: draw figures with TikZ, or say which image the teacher should upload.',
     `- After the code block, add at most three short notes in ${language} (what changed, what to check).`,
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 function packages(input: ExercisePromptInput): string {
