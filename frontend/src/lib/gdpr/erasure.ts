@@ -52,7 +52,7 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
   );
 
   // Through the repositories, so each mode's copy goes (scores included); a refused server delete throws.
-  // In all-server the identity delete also cascades server-side, so a failed list above loses nothing.
+  // A failed list above throws before anything is deleted, so the caller reports it and a retry is safe.
   for (const sub of matchingSubs) {
     await submissionRepository.delete(examId, sub.id);
   }

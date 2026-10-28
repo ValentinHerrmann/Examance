@@ -19,6 +19,8 @@ export const errors = {
         ERR_MAINTENANCE_NOT_PENDING: 'Die Wartung hat bereits begonnen oder ist beendet.',
         ERR_MAINTENANCE_LOGIN_BLOCKED: 'Die Anmeldung ist wegen einer Wartung kurz pausiert. Bitte versuchen Sie es gleich noch einmal.',
         ERR_ACCOUNT_LOCKED: 'Zu viele fehlgeschlagene Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
+        ERR_EXERCISE_NOT_CURRENT: 'Diese Version ist nicht mehr aktuell. Laden Sie die Bibliothek neu und arbeiten Sie mit der aktuellen Version weiter.',
+        ERR_SUBMISSION_CONFLICT: 'Diese Abgabe wurde gleichzeitig an anderer Stelle gespeichert. Laden Sie die Seite neu.',
         ERR_ACCOUNT_MISMATCH: 'In einem anderen Tab hat sich ein anderes Konto angemeldet. Bitte melden Sie sich erneut an.',
         ERR_LAYOUT_REPORT_QUOTA: 'Tageskontingent für Layout-Meldungen erreicht. Bitte versuchen Sie es morgen erneut.',
         ERR_TRAINING_QUOTA: 'Tageskontingent für gespendete Trainingsdaten erreicht.',

@@ -121,6 +121,20 @@ describe('examRepository mapping & saving', () => {
     expect(mapped.retentionUntil).toBe('2027-08-14');
   });
 
+  it('getAll throws on a failed server read in all-server mode (an empty list would feed export and erasure)', async () => {
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'server' });
+    (api.get as any).mockRejectedValue(new Error('offline'));
+
+    await expect(examRepository.getAll(null)).rejects.toThrow('offline');
+  });
+
+  it('getAll falls back to the local copy in hybrid mode', async () => {
+    storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'server' });
+    (api.get as any).mockRejectedValue(new Error('offline'));
+
+    expect(await examRepository.getAll(null)).toEqual([]);
+  });
+
   it('getById maps grading_key from server response (guards against the [id] page reload bug)', async () => {
     storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'server' });
     (api.get as any).mockResolvedValue({

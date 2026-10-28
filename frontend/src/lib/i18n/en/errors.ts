@@ -16,6 +16,8 @@ export const errors: Translations['errors'] = {
         ERR_MAINTENANCE_NOT_PENDING: 'The maintenance has already started or ended.',
         ERR_MAINTENANCE_LOGIN_BLOCKED: 'Sign-in is briefly paused for maintenance. Please try again in a moment.',
         ERR_ACCOUNT_LOCKED: 'Too many failed attempts. Please wait a moment and try again.',
+        ERR_EXERCISE_NOT_CURRENT: 'This version is no longer the current one. Reload the library and continue with the current version.',
+        ERR_SUBMISSION_CONFLICT: 'This submission was saved elsewhere at the same time. Reload the page.',
         ERR_ACCOUNT_MISMATCH: 'Another account signed in in a different tab. Please sign in again.',
         ERR_LAYOUT_REPORT_QUOTA: 'Daily quota for layout reports reached. Please try again tomorrow.',
         ERR_TRAINING_QUOTA: 'Daily quota for donated training data reached.',

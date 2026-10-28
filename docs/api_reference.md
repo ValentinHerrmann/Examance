@@ -182,7 +182,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `GET` | `/api/v1/exams` | List Exams | Yes | Lists all active (non-deleted) exams owned by the authenticated teacher. |
 | `GET` | `/api/v1/exams/{exam_id}` | Get Exam Details | Yes | Retrieves full exam metadata and live-linked exercises. |
 | `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. |
-| `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job. |
+| `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job, which also erases the exam row and its scan files once that period has passed. |
 | `POST` | `/api/v1/exams/{exam_id}/duplicate` | Duplicate Exam | Yes | Body `{"retention_until"}`. Creates a new exam titled "… (Kopie)" with the same header fields, settings, logo override, MC groups (new ids), page breaks (following those ids) and links to the same library exercises (a legacy exam-bound exercise gets its own copy). Never copies students, submissions or scores; `compilation_status` starts at `pending`. Rate limit 60/hour. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
 | `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
@@ -225,8 +225,8 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `GET` | `/api/v1/exercises/{id}` | Get Exercise | Yes | Retrieves a single exercise (own exercises or published ones). |
 | `PATCH` | `/api/v1/exercises/{id}` | Update Exercise | Yes | Updates a library exercise in place. |
 | `PATCH` | `/api/v1/exercises/groups/{group_id}` | Update Exercise Group | Yes | Updates group metadata and cascades it to every member variant. |
-| `POST` | `/api/v1/exercises/{id}/new-version` | Create Version | Yes | Creates a new version of an exercise, updating `is_current`. |
-| `POST` | `/api/v1/exercises/{id}/new-variant` | Create Variant | Yes | Creates a parallel variant within the same exercise group. |
+| `POST` | `/api/v1/exercises/{id}/new-version` | Create Version | Yes | Creates a new version of an exercise, updating `is_current`. Only from the current row (`409 ERR_EXERCISE_NOT_CURRENT` otherwise); deleting the current version makes the previous one current again. |
+| `POST` | `/api/v1/exercises/{id}/new-variant` | Create Variant | Yes | Creates a parallel variant within the same exercise group; only from the current row (`409 ERR_EXERCISE_NOT_CURRENT`). |
 | `POST` | `/api/v1/exercises/{id}/duplicate` | Duplicate Exercise | Yes | Copies the current version of every variant of an own exercise group (with its files) into a new private group named "… (Kopie)", version 1, without copy provenance. A duplicate of a copied group stays marked as copied, so it is never shared as one's own. Returns `{group_id, exercises}`. Rate limit 60/hour. |
 | `GET` | `/api/v1/exercises/{id}/usage` | Exercise Usage | Yes | Lists exams referencing this exercise and count. |
 | `DELETE` | `/api/v1/exercises/{id}` | Delete Exercise | Yes | Soft-deletes exercise from the caller's own library. Idempotent (always `204`); a foreign id is a silent no-op. |
@@ -346,7 +346,7 @@ Two rules the endpoint enforces rather than trusts the client with:
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
 | `GET` | `/api/v1/exams/{exam_id}/submissions` | List Submissions | Yes | Lists all non-deleted submissions for an exam. |
-| `POST` | `/api/v1/exams/{exam_id}/submissions` | Upload Submission | Yes | Stores/upserts encrypted scan submission and anonymized score. An upsert onto a soft-deleted submission makes it live again; a soft-deleted identity of the same pseudonym comes back only as an empty placeholder (its PII is not revived). |
+| `POST` | `/api/v1/exams/{exam_id}/submissions` | Upload Submission | Yes | Stores/upserts encrypted scan submission and anonymized score. An upsert onto a soft-deleted submission makes it live again; a soft-deleted identity of the same pseudonym comes back only as an empty placeholder (its PII is not revived). `409 ERR_SUBMISSION_CONFLICT` when a submission with this id was created in parallel. |
 | `GET` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Get Submission | Yes | Retrieves single encrypted submission payload. |
 | `PATCH` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/score` | Update Score | Yes | Updates the plaintext `total_score` used for server-side statistics. |
 | `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/grading` | Clear Grading | Yes | Clears all grading data (score + annotations) for a submission, without deleting it. |
