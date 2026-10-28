@@ -7,6 +7,20 @@ export const exportNs: Translations['export'] = {
         download: 'Download ZIP',
         packing: 'Packing ZIP …',
         doneWithWarnings: 'The download was created, but not everything could be exported:',
+        format: 'Format',
+        formatZip: 'Readable ZIP (PDFs, LaTeX, grades as CSV)',
+        formatBackup: 'Re-importable, password-protected backup',
+    },
+    backup: {
+        intro: 'Encrypts everything selected with exercises, image files, scans and grades. “Import” reads the file back in, also on another device or in another Examance instance.',
+        password: 'Password',
+        passwordHint: 'Needed for the import; it cannot be recovered.',
+        passwordRepeat: 'Repeat password',
+        mismatch: 'The passwords do not match.',
+        withoutCode: 'Without exercise texts (to share results)',
+        withoutCodeHint: 'Contains the exercises’ names, points and MC answer keys but no LaTeX code and no files: a way to share results with another teacher without handing over the exercises.',
+        download: 'Download backup',
+        encrypting: 'Encrypting backup …',
     },
     latexReadme:
         'LaTeX project exported from Examance\n' +
@@ -16,7 +30,7 @@ export const exportNs: Translations['export'] = {
         'Locally: run latexmk in the folder (the bundled latexmkrc selects XeLaTeX) or run "xelatex <file>.tex" twice.\n\n' +
         'The sty/ and img/ folders hold the bundled packages and images; the .sty files are also copied flat into the folder because some are loaded by bare name.\n',
     exam: {
-        title: 'Export exam (ZIP)',
+        title: 'Export exam',
         notice:
             'The download contains unencrypted personal data (names, grades, scans). Store it only in safe places and delete it after use. An immutable audit-log entry is created.',
         options: {

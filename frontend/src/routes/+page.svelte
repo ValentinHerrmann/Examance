@@ -40,7 +40,7 @@
   import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 
   let exams: ExamRecord[] = $state.raw([]);
-  let rawExportExamId: string | null = $state(null);
+  let exportExam: ExamRecord | null = $state(null);
   let duplicatingExamId: string | null = $state(null);
   let addingExampleData = $state(false);
   let exampleDataError = $state('');
@@ -405,7 +405,7 @@
           onToggleExam={expandedExams.toggle}
           onDelete={handleDeleteDashboardExam}
           onPreview={examPreview.open}
-          onRawExport={(exam) => (rawExportExamId = exam.id)}
+          onExport={(exam) => (exportExam = exam)}
           onDuplicate={handleDuplicateExam}
           onExerciseSaved={() => expandedExams.ids().forEach((id) => exerciseMap.reload(id))}
           duplicatingId={duplicatingExamId}
@@ -417,8 +417,8 @@
 
 <PreviewHost flow={examPreview} kind="exam" />
 
-{#if rawExportExamId}
-  <ExamExportModal examId={rawExportExamId} onClose={() => (rawExportExamId = null)} />
+{#if exportExam}
+  <ExamExportModal examId={exportExam.id} examTitle={exportExam.title ?? ""} onClose={() => (exportExam = null)} />
 {/if}
 
 <DeleteWithUsageModal

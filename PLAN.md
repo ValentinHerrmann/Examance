@@ -202,7 +202,7 @@ Target:
 - [ ] **Verify:** export OpenAPI before and after and diff the route set. Only M6 may disappear.
 
 ## Phase 5: feature merges (user-approved)
-- [ ] **M1 "New exam" becomes the exam editor.** It replaces `routes/exam/new/+page.svelte` (795 lines) and `lib/components/exam-creation/*`, which duplicate the library picking, MC staging, ordering, metadata form and a hand-written preamble. That preamble ignores page breaks, packages and the logo.
+- [x] **M1 "New exam" becomes the exam editor.** It replaces `routes/exam/new/+page.svelte` (795 lines) and `lib/components/exam-creation/*`, which duplicate the library picking, MC staging, ordering, metadata form and a hand-written preamble. That preamble ignores page breaks, packages and the logo.
   - "New exam" (dashboard, navbar, empty states, `lib/utils/links.ts`) opens `exam/ExamMetadataEditor` in create mode.
   - Save calls `examRepository.create` with empty links and navigates to `/exam/[id]?library=open`, which opens `ExamLibraryModal`.
   - `ExamLibraryModal` gets a "New exercise" button that opens `ExerciseEditorModal`. It replaces `CustomExerciseForm`; the new exercise is linked to the exam on save.
@@ -211,8 +211,8 @@ Target:
   - Update `e2e/helpers`, `frontend/CLAUDE.md` (the "new-exam page has its own preamble builder" note and the `SelectedExercisesList` mention) and the in-app help.
   - Trade-off accepted by the user: an abandoned draft is a real, empty exam.
   - Estimate: −1,200 lines.
-- [ ] **M7 Remove "Sync to server"** from `routes/exam/[id]/+page.svelte` (~349–458, `syncCurrentExamToServer`). It bypasses `resultsMover`, swallows errors, uses an all-zero salt and can resurrect deleted exams. This also fixes F7. About −110 lines.
-- [ ] **M2 One score-save path and one grid.**
+- [x] **M7 Remove "Sync to server"** from `routes/exam/[id]/+page.svelte` (~349–458, `syncCurrentExamToServer`). It bypasses `resultsMover`, swallows errors, uses an all-zero salt and can resurrect deleted exams. This also fixes F7. About −110 lines.
+- [x] **M2 One score-save path and one grid.**
   - Add `lib/grading/scoreService.ts` with `saveSubmissionScores(examId, submission, { values, carry })`. It owns:
     - the OMR carry-forward;
     - never deleting rows with `omrMeta` or `decryptFailed`;
@@ -224,14 +224,14 @@ Target:
   - Merge the two grids into `manual-grading/ScoreGrid.svelte` with `orientation: 'students' | 'exercises'`. It shares `buildSubmissionMap` with the seq guard, the raw-input buffer, keyboard navigation and the `ScoreInputCell`. Keep the live grade, prev/next, per-exercise averages and the graded count.
   - Respect the frontend CLAUDE.md gotchas (issue #85 derived-store rule; never clear an OMR row).
   - Estimate: −300 lines.
-- [ ] **M3 Storage modal only at first sign-in.**
+- [x] **M3 Storage modal only at first sign-in.**
   - `components/StoragePolicyModal.svelte` duplicates the storage and LaTeX radios from `settings/SettingsForm.svelte`. Keep it only for the must-choose state, rendering `SettingsForm part="storage"`.
   - The navbar pills link to `/settings#storage-policy`.
   - Move the backend-URL field into a `/settings` card.
   - Host `StorageModeSwitchWizard` only in `routes/+layout.svelte`.
   - Drop the duplicated `misc.storageModal.*` keys.
   - Estimate: −220 lines.
-- [ ] **M4 One export dialog.**
+- [x] **M4 One export dialog.**
   - `components/export/ExportOptionsModal` gains "Re-importable, password-protected backup" (replaces the native `prompt()` in `exportArchiveInteractively`; password fields in the dialog) and "Without exercise code" (replaces the "Share results" menu entry).
   - The exam page's two buttons, the workspace menu and the library all open it.
   - Both formats and ZIP re-import stay.

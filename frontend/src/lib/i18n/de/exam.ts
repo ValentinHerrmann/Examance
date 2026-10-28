@@ -10,9 +10,6 @@ export const exam = {
             confirmMessage: 'Möchten Sie die Prüfung "{title}" und alle zugehörigen Abgaben wirklich löschen?',
             failed: 'Löschen fehlgeschlagen: {message}',
         },
-        export: {
-            successBanner: 'Prüfungsarchiv (.examance-exam) mit Aufgaben, Bilddateien, Scans und Bewertungen heruntergeladen.',
-        },
         omr: {
             checkingExercises: 'MC-Aufgaben werden geprüft…',
             noExercisesError: 'OMR-Vorbereitung fehlgeschlagen: Diese Prüfung enthält keine MC-Aufgaben.',
@@ -80,7 +77,6 @@ export const exam = {
         stats: 'Statistik',
         edit: 'Bearbeiten',
         deleteSubmissions: 'Abgaben löschen',
-        export: 'Diese Prüfung verschlüsselt archivieren (.examance-exam)',
         delete: 'Löschen',
     },
     metadata: {

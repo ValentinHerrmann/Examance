@@ -99,7 +99,7 @@ Legacy local data is never opened. The blocked screen (`legacy-local`) offers on
 
 - **Bytes are base64.** They are encoded as `{ $b64 }` (`binary.ts`). Plain `JSON.stringify` had turned every `Uint8Array` into an object nobody could read, so scans were lost. Old numbered-key objects are still decoded.
 - **Scans travel decrypted.** Scans, annotations and audit notes go inside the password envelope (Argon2id + AES-GCM), like names, scores and resource files already did. The importer re-seals them under its own key, so an archive opens for another account.
-- **Results-only export.** The "Share results (without exercise texts)" menu entry calls `packProject(…, { includeExerciseCode: false })`. It keeps exams, students, scans, annotations, scores, exercise names, points and MC answer keys, but no LaTeX and no resource files.
+- **Results-only export.** The export dialog's "Without exercise texts" option (`ExportOptionsModal`, backup format) calls `packProject(…, { includeExerciseCode: false })`. It keeps exams, students, scans, annotations, scores, exercise names, points and MC answer keys, but no LaTeX and no resource files.
   - The imported exercises carry `exercises.code_withheld` (Alembic `0025`).
   - Grading, verification and statistics work.
   - Compiling, editing and building the OMR template are refused with a message, and the exercise library hides these exercises.

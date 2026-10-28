@@ -17,7 +17,8 @@ import {
   type DecisionMap,
 } from "#lib/archive/conflicts";
 import { translate } from "#lib/i18n";
-import { WORKSPACE_ARCHIVE_EXT } from "#lib/archive/format";
+import { EXAM_ARCHIVE_EXT, WORKSPACE_ARCHIVE_EXT } from "#lib/archive/format";
+import { downloadBlob } from "#lib/components/stats/chartExport";
 
 type ConflictResolver = (conflicts: ArchiveConflict[], identicalCount: number) => Promise<DecisionMap>;
 
@@ -87,7 +88,7 @@ export async function importArchiveInteractively(file: File): Promise<boolean> {
     if (isZip(new Uint8Array(await file.slice(0, 4).arrayBuffer()))) {
       result = await openZipExport(file);
     } else {
-      const password = promptArchivePassword(translate("workspace.archive.promptImportPassword"));
+      const password = prompt(translate("workspace.archive.promptImportPassword"));
       if (!password) return false;
       result = await openBgprojArchive(file, password);
     }
@@ -99,42 +100,19 @@ export async function importArchiveInteractively(file: File): Promise<boolean> {
   return true;
 }
 
+/** What an encrypted archive export packs; `name` (without extension) defaults to `examance-<date>`. */
+export type ArchiveExportOptions = PackOptions & { name?: string };
+
 /** Exports the workspace (or, with `examIds`, single exams) as an encrypted archive download. @throws Error if export fails. */
-export async function exportBgprojArchive(
-  password: string,
-  filename = `examance-${new Date().toISOString().slice(0, 10)}${WORKSPACE_ARCHIVE_EXT}`,
-  opts: PackOptions = {}
-): Promise<ArchiveReport> {
-  const { result, errors } = await collectHttpErrors(() => packProject(password, undefined, opts));
+export async function exportBgprojArchive(password: string, opts: ArchiveExportOptions = {}): Promise<ArchiveReport> {
+  const { name = `examance-${new Date().toISOString().slice(0, 10)}`, ...pack } = opts;
+  const filename = `${name}${pack.includeExerciseCode === false ? "-results" : ""}${pack.examIds ? EXAM_ARCHIVE_EXT : WORKSPACE_ARCHIVE_EXT}`;
+  const { result, errors } = await collectHttpErrors(() => packProject(password, undefined, pack));
   const { blob, report } = result;
   report.filename = filename;
   report.problems.push(...describeHttpErrors(errors));
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  // Revoking synchronously after click() can cancel the download.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  downloadBlob(blob, filename);
   return report;
-}
-
-/** The whole interactive export (password prompt, download, report modal or error alert), shared by workspace menu, exam page and mode-switch wizard. Returns true when written. */
-export async function exportArchiveInteractively(
-  filename = `examance-${new Date().toISOString().slice(0, 10)}${WORKSPACE_ARCHIVE_EXT}`,
-  opts: PackOptions = {}
-): Promise<boolean> {
-  const password = promptArchivePassword(translate("workspace.archive.promptExportPassword"));
-  if (!password) return false;
-  let report: ArchiveReport;
-  try {
-    report = await exportBgprojArchive(password, filename, opts);
-  } catch (err: any) {
-    alert(translate("workspace.archive.exportFailed", { message: err.message }));
-    return false;
-  }
-  await showArchiveReport(report);
-  return true;
 }
 
 /** Clears the entire local workspace (all tables + project state). @throws Error if clearing fails. */
@@ -146,9 +124,4 @@ export async function clearWorkspace(): Promise<void> {
 /** Shows a confirmation dialog for clearing the workspace; true if confirmed. */
 export function confirmWorkspaceClear(): boolean {
   return confirm(translate("workspace.archive.confirmClear"));
-}
-
-/** Prompts for an archive password (import or export); null if cancelled. */
-export function promptArchivePassword(message: string): string | null {
-  return prompt(message);
 }

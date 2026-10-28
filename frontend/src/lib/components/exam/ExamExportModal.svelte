@@ -11,10 +11,11 @@
 
   interface Props {
     examId: string;
+    examTitle: string;
     onClose: () => void;
   }
 
-  let { examId, onClose }: Props = $props();
+  let { examId, examTitle, onClose }: Props = $props();
 
   // Null until known: ExportOptionsModal reads its options once, when it mounts.
   let withheld: boolean | null = $state(null);
@@ -52,6 +53,7 @@
     title={$t("export.exam.title")}
     {options}
     run={(selected, progress) => runExamExport(examId, selected, progress)}
+    backup={{ examIds: [examId], name: examTitle || "exam" }}
     {onClose}
   >
     {#snippet notice()}

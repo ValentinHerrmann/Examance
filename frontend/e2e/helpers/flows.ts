@@ -153,6 +153,9 @@ export async function createExercise(
   await page.getByRole('button', { name: await l(page, trigger) }).click();
   const editor = await exerciseEditor(page);
   await expect(editor).toBeVisible();
+  // Narrow editors fold the details behind a toggle (hidden from `@3xl` on).
+  const details = editor.getByRole('button', { name: await l(page, 'exercises.editor.metaToggle') });
+  if ((await details.isVisible()) && (await details.getAttribute('aria-expanded')) === 'false') await details.click();
 
   await editor.getByLabel(await lx(page, 'exercises.editor.nameLabel')).fill(spec.name);
   if (spec.topic) await editor.getByLabel(await l(page, 'exercises.editor.topicLabel')).fill(spec.topic);

@@ -47,8 +47,6 @@
     onHelpClick?: () => void;
     onOpenArchive?: () => void;
     onExportArchive?: () => void;
-    /** Export exams with scans and results but without the exercises' code, to share with another teacher. */
-    onShareResults?: () => void;
     onClearWorkspace?: () => void;
     onLock?: () => void;
   }
@@ -65,7 +63,6 @@
     onHelpClick = () => {},
     onOpenArchive = () => {},
     onExportArchive = () => {},
-    onShareResults = () => {},
     onClearWorkspace = () => {},
     onLock = () => {},
   }: Props = $props();
@@ -126,7 +123,6 @@
 {#snippet workspaceItems()}
   <MenuItem icon={faFileImport} onSelect={onOpenArchive}>{$t("workspace.menu.open")}</MenuItem>
   <MenuItem icon={faFileExport} onSelect={onExportArchive}>{$t("workspace.menu.export")}</MenuItem>
-  <MenuItem icon={faFileExport} onSelect={onShareResults}>{$t("workspace.menu.shareResults")}</MenuItem>
   <MenuItem icon={faTrashCan} danger onSelect={onClearWorkspace}>{$t("workspace.menu.clear")}</MenuItem>
 {/snippet}
 

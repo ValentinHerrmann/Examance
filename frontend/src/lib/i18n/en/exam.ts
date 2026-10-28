@@ -12,9 +12,6 @@ export const exam: Translations['exam'] = {
             confirmMessage: 'Are you sure you want to delete exam "{title}" and all its submissions?',
             failed: 'Delete failed: {message}',
         },
-        export: {
-            successBanner: 'Exam archive (.examance-exam) with exercises, image files, scans and grades downloaded.',
-        },
         omr: {
             checkingExercises: 'Checking MC exercises…',
             noExercisesError: 'OMR preparation failed: no MC exercises found in this exam.',
@@ -82,7 +79,6 @@ export const exam: Translations['exam'] = {
         stats: 'Statistics',
         edit: 'Edit',
         deleteSubmissions: 'Delete Submissions',
-        export: 'Encrypted archive of this exam (.examance-exam)',
         delete: 'Delete',
     },
     metadata: {

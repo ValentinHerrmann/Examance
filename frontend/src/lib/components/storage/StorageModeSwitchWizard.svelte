@@ -19,8 +19,7 @@
   } from '#lib/services/resultsMover';
   import { PendingWritesError } from '#lib/services/storageModeSwitch';
   import { flushOfflineQueue, pendingWritesCount } from '#lib/services/offlineQueue';
-  import { exportArchiveInteractively } from '#lib/services/archiveService';
-  import { WORKSPACE_ARCHIVE_EXT } from '#lib/archive/format';
+  import ExportOptionsModal from '#lib/components/export/ExportOptionsModal.svelte';
 
   interface Props {
     open?: boolean;
@@ -48,6 +47,7 @@
   let result = $state.raw<MoveResult | null>(null);
   let deleted = $state.raw<{ students: number; submissions: number } | null>(null);
   let backupDone = $state(false);
+  let backupOpen = $state(false);
 
   let direction = $derived(target ? directionFor(target) : 'to-server');
   let toLabel = $derived(target ? modeLabel(target) : '');
@@ -105,11 +105,6 @@
       return;
     }
     blockedByPendingWrites = false;
-  }
-
-  async function handleBackup() {
-    const filename = `examance-${new Date().toISOString().slice(0, 10)}${WORKSPACE_ARCHIVE_EXT}`;
-    if (await exportArchiveInteractively(filename)) backupDone = true;
   }
 
   async function handleMove() {
@@ -187,7 +182,7 @@
         <p>{$t('storagePolicy.switch.otherTabsNote')}</p>
         {#if from}
           <div class="flex flex-wrap items-center gap-2 pt-1">
-            <Button variant="outlined" severity="secondary" size="sm" disabled={busy} onClick={() => run(handleBackup)}>
+            <Button variant="outlined" severity="secondary" size="sm" disabled={busy} onClick={() => (backupOpen = true)}>
               {$t('storagePolicy.switch.backupButton')}
             </Button>
             <span class="text-xs">
@@ -277,3 +272,11 @@
     {/if}
   {/snippet}
 </Modal>
+{#if backupOpen}
+  <ExportOptionsModal
+    title={$t('storagePolicy.switch.backupButton')}
+    backup={{}}
+    onBackupDone={() => (backupDone = true)}
+    onClose={() => (backupOpen = false)}
+  />
+{/if}

@@ -498,11 +498,10 @@ test.describe('workspace', () => {
     await expect(page.getByRole('heading', { name: literal('Roundtrip exam') })).toBeVisible();
 
     // --- export ---
-    const download = await exportWorkspace(page);
+    const download = await exportWorkspace(page, dialogs.promptAnswer);
     expect(download.suggestedFilename()).toMatch(/\.examance$/);
-    const archivePath = testInfo.outputPath('roundtrip.bgproj');
+    const archivePath = testInfo.outputPath('roundtrip.examance');
     await download.saveAs(archivePath);
-    await dialogs.expectSeen('prompt', label('workspace.archive.promptExportPassword'));
 
     // --- clear ---
     // Clearing only empties this browser's tables; exams and exercises live on the server. Drop them
@@ -528,10 +527,6 @@ test.describe('workspace', () => {
     // --- import ---
     await importWorkspace(page, archivePath);
     await dialogs.expectSeen('prompt', label('workspace.archive.promptImportPassword'));
-    await dialogs.expectSeen(
-      'alert',
-      label('workspace.archive.summarySuccess', { loaded: '' }),
-    );
     await expect(page.getByRole('heading', { name: literal('Roundtrip exam') })).toBeVisible();
 
     await openExamFromDashboard(page, 'Roundtrip exam');

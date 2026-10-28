@@ -39,8 +39,6 @@
   import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
   import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
   import { isMcQuestion } from "#lib/grading/mcScore";
-  import { exportArchiveInteractively } from "#lib/services/archiveService";
-  import { EXAM_ARCHIVE_EXT } from "#lib/archive/format";
   import { invalidateOwner } from "#lib/latex/compileCache";
   import { prunePageBreaks, togglePageBreak } from "#lib/exam/pageBreaks";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
@@ -99,9 +97,7 @@
   // Set when the submission read failed: counts show "–" and "delete all" is off, never "no submissions".
   let submissionsLoadError = $state("");
 
-  let isExporting = false;
-  let exportSuccess = $state(false);
-  let rawExportOpen = $state(false);
+  let exportOpen = $state(false);
 
   let isPreviewLoading = $state(false);
   let compileNotice = $state("");
@@ -395,16 +391,6 @@
       alert(translate("dashboard.duplicateFailed", { message: err?.message ?? "" }));
     } finally {
       isDuplicating = false;
-    }
-  }
-
-  async function handleExportArchive() {
-    isExporting = true;
-    try {
-      // Only this exam, its linked exercises with their files, and its results; not the whole workspace.
-      exportSuccess = await exportArchiveInteractively(`${exam?.title || "exam"}${EXAM_ARCHIVE_EXT}`, { examIds: [examId] });
-    } finally {
-      isExporting = false;
     }
   }
 
@@ -1175,8 +1161,7 @@
       {examId}
       onEdit={openMetadataEditor}
       onDelete={handleDeleteExam}
-      onExport={handleExportArchive}
-      onRawExport={() => (rawExportOpen = true)}
+      onExport={() => (exportOpen = true)}
       onDeleteAllSubmissions={handleDeleteAllSubmissions}
       onDuplicate={handleDuplicateExam}
       {isDuplicating}
@@ -1217,10 +1202,6 @@
   onConfirm={forceCancelMetadata}
   onCancel={() => (showMetadataConfirm = false)}
 />
-
-    {#if exportSuccess}
-      <Alert severity="success" class="mb-6">{$t("exam.page.export.successBanner")}</Alert>
-    {/if}
 
     <div class="grid min-w-0 grid-cols-1 items-start gap-6 @6xl:grid-cols-2">
       <Card title={$t("exam.page.compileSection.heading")}>
@@ -1372,6 +1353,6 @@
   onCancel={() => (showLibraryConfirm = false)}
 />
 
-{#if rawExportOpen}
-  <ExamExportModal {examId} onClose={() => (rawExportOpen = false)} />
+{#if exportOpen}
+  <ExamExportModal {examId} examTitle={exam?.title ?? ""} onClose={() => (exportOpen = false)} />
 {/if}

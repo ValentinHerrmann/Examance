@@ -663,7 +663,7 @@ The plaintext ZIP exports (exam, exercise library) can be imported again
 exercises only; the importer never reads students, scans, scores or the logo
 from a ZIP, even when the exam ZIP also contains graded PDFs.
 
-*Share results (without exercise texts)* (workspace menu) exports exams, students,
+*Without exercise texts* (an option of the backup format in the export dialog) exports exams, students,
 scans, annotations, scores, exercise names, points and MC answer keys, but no
 LaTeX code and no resource files. Imported exercises are marked `code_withheld`:
 exams show a "Results only" notice, grading and statistics work, compiling,
@@ -696,7 +696,7 @@ which the vault cannot re-derive.
 
 ### Raw exports (plain ZIP, issue #82)
 
-The exam export ("Export (ZIP)" on an exam) and the exercise-library export are built
+The exam export ("Export" on an exam, format "Readable ZIP") and the exercise-library export are built
 **entirely in the browser** (`frontend/src/lib/export/`) and are **not encrypted**. The exam
 ZIP can hold graded scans with annotations, names, scores, grades (summary PDF, `grades.csv`)
 and the LaTeX source; results are read through the repositories of the account's storage

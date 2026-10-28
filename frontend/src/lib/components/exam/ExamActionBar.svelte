@@ -9,7 +9,6 @@
     onEdit: () => void;
     onDelete: () => void;
     onExport: () => void;
-    onRawExport: () => void;
     onDeleteAllSubmissions: () => void;
     onDuplicate: () => void;
     isDuplicating?: boolean;
@@ -20,7 +19,6 @@
     onEdit,
     onDelete,
     onExport,
-    onRawExport,
     onDeleteAllSubmissions,
     onDuplicate,
     isDuplicating = false
@@ -42,11 +40,8 @@
     <Button size="sm" variant="outlined" severity="secondary" onClick={onEdit}>
       {$t("exam.actionBar.edit")}
     </Button>
-    <Button size="sm" variant="outlined" severity="secondary" onClick={onExport}>
-      {$t("exam.actionBar.export")}
-    </Button>
-    <Button size="sm" variant="outlined" severity="secondary" icon={faFileZipper} onClick={onRawExport}>
-      {$t("export.button")}
+    <Button size="sm" variant="outlined" severity="secondary" icon={faFileZipper} onClick={onExport}>
+      {$t("common.export")}
     </Button>
     <Button
       size="sm"

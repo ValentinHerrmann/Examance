@@ -12,8 +12,8 @@ import { DEFAULT_LOCALE, type Locale } from './i18n';
 const LOCALE_STORAGE_KEY = 'bg_locale';
 
 /**
- * Expected console noise; keep minimal and justify every entry (anything else is a real finding). Empty because the
- * fake backend answers every request; add one only for a deliberate error answer the app handles itself (409, 404).
+ * Expected console noise; keep minimal and justify every entry (anything else is a real finding). Add one only for a
+ * deliberate error answer the app handles itself (409, 404).
  */
 interface AllowedConsoleError {
   /** Matched against the console message text. */
@@ -24,7 +24,13 @@ interface AllowedConsoleError {
   why: string;
 }
 
-export const ALLOWED_CONSOLE_ERRORS: AllowedConsoleError[] = [];
+export const ALLOWED_CONSOLE_ERRORS: AllowedConsoleError[] = [
+  {
+    message: /status of 404/,
+    url: /\/api\/v1\/exercises\/[0-9a-f-]{36}$/,
+    why: 'The archive import asks whether each exercise is already on the server (archive/serverImport.ts); 404 means import it.',
+  },
+];
 
 /** A native browser dialog the app raised, as recorded by the `dialogs` fixture. */
 export interface RecordedDialog {

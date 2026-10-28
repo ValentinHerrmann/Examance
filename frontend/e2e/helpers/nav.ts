@@ -4,7 +4,7 @@
  */
 import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './guards';
-import { DEFAULT_LOCALE, label, type Locale } from './i18n';
+import { DEFAULT_LOCALE, label, labelExact, type Locale } from './i18n';
 
 export type ExamTab = 'setup' | 'scan' | 'verify' | 'grade' | 'manual' | 'stats';
 export type LegalPage = 'impressum' | 'datenschutz';
@@ -218,17 +218,19 @@ const WORKSPACE_ITEM_KEYS: Record<WorkspaceAction, string> = {
 export async function openWorkspaceMenu(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
   const workspace = header(page).getByRole('button', { name: label('nav.workspace', undefined, locale) });
-  const inBar = await workspace.isVisible();
+  // By breakpoint (Tailwind `sm` = 640px), not `isVisible()`, which races the header right after a navigation.
+  const inBar = (page.viewportSize()?.width ?? 1024) >= 640;
   const menu = inBar
     ? page.getByRole('menu', { name: label('nav.workspace', undefined, locale) })
     : page.getByRole('menu').filter({
         has: page.getByRole('menuitem', { name: label('workspace.menu.open', undefined, locale) }),
       });
-  if (!(await menu.isVisible())) {
-    const trigger = inBar ? workspace : header(page).locator('button[aria-haspopup="menu"]').last();
-    await trigger.click();
-  }
-  await expect(menu).toBeVisible();
+  const trigger = inBar ? workspace : header(page).locator('button[aria-haspopup="menu"]').last();
+  // Retried: a click that lands before the header hydrates after a reload is lost.
+  await expect(async () => {
+    if (!(await menu.isVisible())) await trigger.click();
+    await expect(menu).toBeVisible({ timeout: 2000 });
+  }).toPass();
   return menu;
 }
 
@@ -238,14 +240,25 @@ async function clickWorkspaceItem(page: Page, action: WorkspaceAction): Promise<
   await menu.getByRole('menuitem', { name: label(WORKSPACE_ITEM_KEYS[action], undefined, locale) }).click();
 }
 
-/**
- * Export the whole workspace as a `.bgproj`. The archive password prompt is
- * answered by the `dialogs` fixture (`dialogs.promptAnswer`).
- */
-export async function exportWorkspace(page: Page): Promise<Download> {
-  const downloadPromise = page.waitForEvent('download');
+/** Close the report the app shows after every archive export and import. */
+export async function closeArchiveReport(page: Page): Promise<void> {
+  const locale = await currentLocale(page);
+  // The header's icon button shares the name; the footer button comes last.
+  await page.getByRole('button', { name: label('workspace.archiveReport.close', undefined, locale) }).last().click();
+}
+
+/** Export the whole workspace as an `.examance` backup through the export dialog, then close its report. */
+export async function exportWorkspace(page: Page, password: string): Promise<Download> {
+  const locale = await currentLocale(page);
   await clickWorkspaceItem(page, 'export');
-  return downloadPromise;
+  const dialog = page.getByRole('dialog', { name: label('workspace.menu.export', undefined, locale) });
+  await dialog.getByLabel(labelExact('export.backup.password', undefined, locale)).fill(password);
+  await dialog.getByLabel(labelExact('export.backup.passwordRepeat', undefined, locale)).fill(password);
+  const downloadPromise = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: label('export.backup.download', undefined, locale) }).click();
+  const download = await downloadPromise;
+  await closeArchiveReport(page);
+  return download;
 }
 
 /**
@@ -260,16 +273,16 @@ export async function clearWorkspace(page: Page): Promise<void> {
 }
 
 /**
- * Import a `.bgproj` through the workspace menu. The password prompt and the
- * result alert are handled by the `dialogs` fixture; the app reloads to the
- * dashboard afterwards.
+ * Import an archive through the workspace menu. The password prompt is answered by the
+ * `dialogs` fixture; closing the report reloads the dashboard.
  */
 export async function importWorkspace(page: Page, filePath: string): Promise<void> {
   const chooserPromise = page.waitForEvent('filechooser');
   await clickWorkspaceItem(page, 'open');
   const chooser = await chooserPromise;
   await chooser.setFiles(filePath);
-  await page.waitForURL((url) => url.pathname === '/');
+  await closeArchiveReport(page);
+  await page.waitForLoadState('networkidle');
 }
 
 /* -------------------------------------------------------------------------- */

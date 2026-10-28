@@ -22,7 +22,7 @@
     onToggleExam: (examId: string) => void;
     onDelete: (id: string, title?: string) => void;
     onPreview: (exam: ExamRecord) => void;
-    onRawExport: (exam: ExamRecord) => void;
+    onExport: (exam: ExamRecord) => void;
     onDuplicate: (exam: ExamRecord) => void;
     /** An exercise was edited from its name; the expanded lists reload. */
     onExerciseSaved?: () => void;
@@ -40,7 +40,7 @@
     onToggleExam,
     onDelete,
     onPreview,
-    onRawExport,
+    onExport,
     onDuplicate,
     onExerciseSaved,
     duplicatingId = null
@@ -95,7 +95,7 @@
 
         {#snippet footer()}
           <Button variant="outlined" severity="secondary" size="sm" icon={faEye} onClick={() => onPreview(exam)}>{$t("common.preview")}</Button>
-          <Button variant="outlined" severity="secondary" size="sm" icon={faFileZipper} onClick={() => onRawExport(exam)}>{$t("export.button")}</Button>
+          <Button variant="outlined" severity="secondary" size="sm" icon={faFileZipper} onClick={() => onExport(exam)}>{$t("common.export")}</Button>
           <Button
             variant="outlined"
             severity="secondary"

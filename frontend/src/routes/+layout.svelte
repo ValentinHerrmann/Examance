@@ -35,15 +35,15 @@
     isAdminPath,
     ADMIN_HOME,
   } from "#lib/stores/navigationStore";
-  import { IMPORT_ACCEPT, WORKSPACE_ARCHIVE_EXT } from "#lib/archive/format";
+  import { IMPORT_ACCEPT } from "#lib/archive/format";
   import {
     importArchiveInteractively,
-    exportArchiveInteractively,
     clearWorkspace,
     confirmWorkspaceClear,
   } from "#lib/services/archiveService";
   import ImportConflictModal from "#lib/components/storage/ImportConflictModal.svelte";
   import ArchiveReportModal from "#lib/components/storage/ArchiveReportModal.svelte";
+  import ExportOptionsModal from "#lib/components/export/ExportOptionsModal.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
   import { pendingSwitchStore, switchOwnedHere, requestedModeSwitch } from "#lib/services/storageModeSwitch";
   import { loadWorkspace, localResultCount, openWorkspace, refreshCapabilities } from "#lib/db/workspace";
@@ -88,6 +88,7 @@
   // Results still held in this browser (hybrid's home, or leftovers after the account left hybrid).
   let localResults = $state(0);
   let hybridHintDismissed = $state(false);
+  let workspaceExportOpen = $state(false);
   let workspaceReady = $derived($workspaceStatusStore.state === "ok" && page.url.pathname !== "/unlock");
   let strayLocalResults = $derived(
     workspaceReady && $storagePolicyStore.storageMode === "all-server" && localResults > 0,
@@ -343,11 +344,7 @@
       helpUnseen={!$helpSeen}
       onHelpClick={() => openHelp()}
       onOpenArchive={triggerOpenBgproj}
-      onExportArchive={() => exportArchiveInteractively()}
-      onShareResults={() =>
-        exportArchiveInteractively(`examance-results-${new Date().toISOString().slice(0, 10)}${WORKSPACE_ARCHIVE_EXT}`, {
-          includeExerciseCode: false,
-        })}
+      onExportArchive={() => (workspaceExportOpen = true)}
       onClearWorkspace={handleCloseWorkspace}
       onLock={lockSession}
     />
@@ -497,3 +494,6 @@
 
 <ImportConflictModal />
 <ArchiveReportModal />
+{#if workspaceExportOpen}
+  <ExportOptionsModal title={$t("workspace.menu.export")} backup={{}} onClose={() => (workspaceExportOpen = false)} />
+{/if}
