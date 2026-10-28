@@ -18,8 +18,7 @@
     SubmissionRecord,
   } from "#lib/db/schema";
   import RosterManager from "./RosterManager.svelte";
-  import ExerciseFirstGrid from "./ExerciseFirstGrid.svelte";
-  import StudentFirstGrid from "./StudentFirstGrid.svelte";
+  import ScoreGrid from "./ScoreGrid.svelte";
   import PasteImportModal from "./PasteImportModal.svelte";
   import { t } from "#lib/i18n";
 
@@ -151,7 +150,8 @@
         onRosterChanged={handleDataChanged}
       />
     {:else if activeTab === "exercise-first"}
-      <ExerciseFirstGrid
+      <ScoreGrid
+        orientation="exercises"
         {examId}
         {exercises}
         {students}
@@ -161,7 +161,8 @@
         onOpenRoster={() => (activeTab = "roster")}
       />
     {:else if activeTab === "student-first"}
-      <StudentFirstGrid
+      <ScoreGrid
+        orientation="students"
         {exam}
         {examId}
         {exercises}

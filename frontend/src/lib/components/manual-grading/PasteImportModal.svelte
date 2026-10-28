@@ -2,15 +2,10 @@
   import { untrack } from "svelte";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
-  import { storagePolicyStore } from "#lib/stores/storagePolicy";
-  import { studentRepository } from "#lib/repositories/studentRepository";
-  import { api } from "#lib/api/client";
-  import { db } from "#lib/db/db";
-  import {
-    saveSubmissionEncrypted,
-  } from "#lib/db/dbEncryption";
+  import { createStudentWithSubmission, saveSubmissionScores } from "#lib/grading/scoreService";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
   import type {
     ExerciseRecord,
     ExerciseScoreRecord,
@@ -26,7 +21,6 @@
     exercises?: ExerciseRecord[];
     students?: StudentRecord[];
     submissions?: SubmissionRecord[];
-    scoresMap?: Map<string, Record<string, number | null>>;
     onClose?: () => void;
     onImportComplete?: () => void;
   }
@@ -36,7 +30,6 @@
     exercises = [],
     students = [],
     submissions = [],
-    scoresMap = new Map(),
     onClose = () => {},
     onImportComplete = () => {},
   }: Props = $props();
@@ -201,112 +194,55 @@
 
   async function importRows() {
     const key = get(sessionStore).sessionKey;
-    const policy = get(storagePolicyStore);
-    // OMR-read MC rows carry selectedOptions/omrMeta that a pasted score must not drop (verify queue).
-    const existingScores = new Map(
-      (await scoreRepository.getByExamId(examId, key)).map((row) => [`${row.submissionId}:${row.exerciseId}`, row]),
-    );
+    const exerciseIds = exercises.map((ex) => ex.id);
+    // One read for the whole exam instead of one per row; the rows carry OMR data a pasted score must not drop.
+    const existingBySub = new Map<string, Map<string, ExerciseScoreRecord>>();
+    for (const row of await scoreRepository.getByExamId(examId, key)) {
+      const rows = existingBySub.get(row.submissionId) ?? new Map<string, ExerciseScoreRecord>();
+      rows.set(row.exerciseId, row);
+      existingBySub.set(row.submissionId, rows);
+    }
 
     for (const row of parsedRows) {
-      let student = row.matchedStudent;
-      let pseudonymId: string;
-
-      if (!student && autoCreateStudents) {
-        pseudonymId = crypto.randomUUID();
-        student = {
-          pseudonymId,
-          examId,
+      let sub: SubmissionRecord | undefined;
+      if (row.matchedStudent) {
+        sub = submissionMap.get(row.matchedStudent.pseudonymId);
+      } else if (autoCreateStudents) {
+        const created = await createStudentWithSubmission(examId, {
           studentName: row.rawName,
           studentNumber: row.rawNumber || undefined,
-          piiCt: new Uint8Array(0),
-          piiIv: new Uint8Array(12),
-        };
-        await studentRepository.save(student, key);
-        row.matchedStudent = student;
-
-        const newSub: SubmissionRecord = {
-          id: crypto.randomUUID(),
-          examId,
-          pseudonymHash: pseudonymId,
-          createdAt: new Date().toISOString(),
-        };
-        await saveSubmissionEncrypted(newSub, key);
-        submissions.push(newSub);
-        submissionMap.set(pseudonymId, newSub);
-      } else if (student) {
-        pseudonymId = student.pseudonymId;
+          fallbackCode: undefined,
+        });
+        row.matchedStudent = created.student;
+        sub = created.submission;
+        submissions.push(sub);
+        submissionMap.set(created.student.pseudonymId, sub);
       } else {
         continue;
       }
 
-      let sub = submissionMap.get(pseudonymId);
-      if (!sub) {
+      if (!sub && row.matchedStudent) {
         sub = {
           id: crypto.randomUUID(),
           examId,
-          pseudonymHash: pseudonymId,
+          pseudonymHash: row.matchedStudent.pseudonymId,
           createdAt: new Date().toISOString(),
         };
-        await saveSubmissionEncrypted(sub, key);
+        await submissionRepository.save(sub, key);
         submissions.push(sub);
-        submissionMap.set(pseudonymId, sub);
+        submissionMap.set(row.matchedStudent.pseudonymId, sub);
       }
+      if (!sub) continue;
 
-      const activeSub = sub;
-      let subScores = scoresMap.get(activeSub.id);
-      if (!subScores) {
-        subScores = {};
-        scoresMap.set(activeSub.id, subScores);
-      }
-
-      // One write per pasted row instead of one per cell, to avoid hundreds
-      // of round-trips in server mode (e.g. 30 students x 10 exercises).
-      const rowScores: ExerciseScoreRecord[] = [];
-      for (let exIdx = 0; exIdx < exercises.length; exIdx++) {
-        const ex = exercises[exIdx];
-        const scoreVal = row.scores[exIdx];
-
-        if (scoreVal !== null && scoreVal !== undefined && !isNaN(scoreVal)) {
-          if (scoreVal >= 0 && scoreVal <= ex.maxPoints) {
-            const existing = existingScores.get(`${activeSub.id}:${ex.id}`);
-            rowScores.push({
-              id: crypto.randomUUID(),
-              submissionId: activeSub.id,
-              exerciseId: ex.id,
-              score: scoreVal,
-              selectedOptions: existing?.selectedOptions,
-              omrMeta: existing?.omrMeta,
-            });
-            subScores[ex.id] = scoreVal;
-          }
-        }
-      }
-      await scoreRepository.saveMany(examId, activeSub.id, rowScores, key);
-
-      // Recompute total
-      let isFully = true;
-      let sumGraded = 0;
-      for (const ex of exercises) {
-        const val = subScores[ex.id];
-        if (val === null || val === undefined) {
-          isFully = false;
-        } else {
-          sumGraded += val;
-        }
-      }
-
-      activeSub.totalScore = isFully ? Math.round(sumGraded * 100) / 100 : undefined;
-      await saveSubmissionEncrypted(activeSub, key);
-
-      if (policy.storageMode === "all-server") {
-        try {
-          await api.patch(`/exams/${examId}/submissions/${activeSub.id}/score`, {
-            total_score: activeSub.totalScore ?? null,
-          });
-        } catch (err) {
-          console.warn("Backend score sync error:", err);
-        }
-      }
+      // Only valid pasted values are written; blank or out-of-range cells leave the stored score as it is.
+      const values = new Map<string, number | null>();
+      exercises.forEach((ex, idx) => {
+        const val = row.scores[idx];
+        if (val !== null && val !== undefined && !isNaN(val) && val >= 0 && val <= ex.maxPoints) values.set(ex.id, val);
+      });
+      await saveSubmissionScores(examId, sub, exerciseIds, values, {
+        existing: existingBySub.get(sub.id) ?? new Map(),
+      });
     }
   }
 

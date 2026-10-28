@@ -6,7 +6,7 @@
   import { sessionStore } from "#lib/stores/session";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
-  import { saveSubmissionEncrypted } from "#lib/db/dbEncryption";
+  import { createStudentWithSubmission } from "#lib/grading/scoreService";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { t, translate } from "#lib/i18n";
@@ -36,27 +36,11 @@
 
   async function handleAddSingle() {
     if (!newName.trim()) return;
-    const key = get(sessionStore).sessionKey;
-    const pseudonymId = crypto.randomUUID();
-
-    const student: StudentRecord = {
-      pseudonymId,
-      examId,
+    await createStudentWithSubmission(examId, {
       studentName: newName.trim(),
       studentNumber: newStudentNumber.trim() || undefined,
       fallbackCode: newFallbackCode.trim() || undefined,
-      piiCt: new Uint8Array(0),
-      piiIv: new Uint8Array(12),
-    };
-    await studentRepository.save(student, key);
-
-    const sub: SubmissionRecord = {
-      id: crypto.randomUUID(),
-      examId,
-      pseudonymHash: pseudonymId,
-      createdAt: new Date().toISOString(),
-    };
-    await saveSubmissionEncrypted(sub, key);
+    });
 
     newName = "";
     newStudentNumber = "";
@@ -67,32 +51,16 @@
   async function handleAddBulk() {
     if (!bulkText.trim()) return;
     const lines = bulkText.split("\n").map((l) => l.trim()).filter(Boolean);
-    const key = get(sessionStore).sessionKey;
 
     for (const line of lines) {
       const parts = line.split(/[\t;,]/).map((p) => p.trim());
       const studentName = parts[0];
       if (!studentName) continue;
-      const studentNumber = parts[1] || undefined;
-      const pseudonymId = crypto.randomUUID();
-
-      const student: StudentRecord = {
-        pseudonymId,
-        examId,
+      await createStudentWithSubmission(examId, {
         studentName,
-        studentNumber,
-        piiCt: new Uint8Array(0),
-        piiIv: new Uint8Array(12),
-      };
-      await studentRepository.save(student, key);
-
-      const sub: SubmissionRecord = {
-        id: crypto.randomUUID(),
-        examId,
-        pseudonymHash: pseudonymId,
-        createdAt: new Date().toISOString(),
-      };
-      await saveSubmissionEncrypted(sub, key);
+        studentNumber: parts[1] || undefined,
+        fallbackCode: undefined,
+      });
     }
 
     bulkText = "";
