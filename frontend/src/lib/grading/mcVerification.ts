@@ -76,12 +76,17 @@ export type McQueueCategory = "failed" | "unsure" | "confident";
 
 /**
  * Single source of truth for which verification queue an item belongs to; the verify dashboard and
- * verify-item view must both use it, or the queues' Next/Prev drift from the dashboard.
+ * item view both go through it (`mcQueue`), or the queues' Next/Prev drift from the dashboard.
  */
 export function categorizeMcItem(item: McDetectionItem): McQueueCategory {
   if (item.confidence === "failed") return "failed";
   if (item.confidence === "ambiguous" || item.flaggedOptions.length > 0) return "unsure";
   return "confident";
+}
+
+/** The items of one verification queue, in dashboard order. */
+export function mcQueue(items: McDetectionItem[], category: McQueueCategory): McDetectionItem[] {
+  return items.filter((i) => categorizeMcItem(i) === category);
 }
 
 export interface DetectionConfidenceQuality {

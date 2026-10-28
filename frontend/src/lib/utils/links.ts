@@ -20,8 +20,7 @@ export const SNIPPET_DEMO_URL = "https://valentin-herrmann.com/examance/#interac
 
 export const exerciseGroupHref =(groupId: string) => `/exercises?group=${q(groupId)}`;
 
-/** Read by `routes/exam/[id]/verify-item/+page.svelte`. */
-export function verifyItemHref(examId: string, submissionId: string, exerciseId: string, queue: string): string {
-  const params = new URLSearchParams({ submissionId, exerciseId, queue });
-  return `/exam/${q(examId)}/verify-item?${params.toString()}`;
+/** The MC verification dashboard, or with `item` one item of it (`routes/exam/[id]/verify/+page.svelte`). */
+export function verifyHref(examId: string, item?: { submissionId: string; exerciseId: string; queue: string }): string {
+  return `/exam/${q(examId)}/verify${item ? `?${new URLSearchParams(item).toString()}` : ""}`;
 }

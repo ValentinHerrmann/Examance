@@ -9,13 +9,15 @@
   import { Alert, Button, EmptyState, PageHeader, PageShell, Spinner } from "#lib/components/ui";
   import {
     computeMcVerificationStats,
-    categorizeMcItem,
+    mcQueue,
     isMcReviewed,
     type McVerificationStats,
     type McDetectionItem,
   } from "#lib/grading/mcVerification";
   import McVerificationOverview from "#lib/components/verify/McVerificationOverview.svelte";
   import McVerificationQueue from "#lib/components/verify/McVerificationQueue.svelte";
+  import McItemVerificationView from "#lib/components/verify/McItemVerificationView.svelte";
+  import { verifyHref } from "#lib/utils/links";
   import McDetectionSettingsPanel from "#lib/components/verify/McDetectionSettingsPanel.svelte";
   import McRerunDialog from "#lib/components/verify/McRerunDialog.svelte";
   import { buildOmrScoreRecord, mergeRedetectionIntoVerified } from "#lib/grading/omrResult";
@@ -40,6 +42,10 @@
   import { scoreRepository } from "#lib/repositories/scoreRepository";
 
   let examId = $derived(page.params.id || "");
+  // Set = one item (M5, formerly `/verify-item`); the stats below serve both views.
+  let submissionId = $derived(page.url.searchParams.get("submissionId") || "");
+  let exerciseId = $derived(page.url.searchParams.get("exerciseId") || "");
+  let queue = $derived(page.url.searchParams.get("queue") || "all");
 
   // Raw: computed by lib/grading, replaced wholesale on every refresh.
   let stats = $state.raw<McVerificationStats | null>(null);
@@ -56,7 +62,10 @@
   let lastRefreshId = 0;
   let lastRefreshedKey = "";
 
-  let currentRefreshKey = $derived(`${examId}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`);
+  // Item changes refresh too, so reviewed counts and queue order follow the teacher's last save.
+  let currentRefreshKey = $derived(
+    `${examId}:${submissionId}:${exerciseId}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`
+  );
 
   afterNavigate(() => {
     if (examId && $sessionStore.sessionKey && currentRefreshKey !== lastRefreshedKey) {
@@ -392,7 +401,7 @@
   }
 
   function openVerifyItem(item: McDetectionItem, queueTag: string = "all") {
-    goto(`/exam/${examId}/verify-item?submissionId=${item.submissionId}&exerciseId=${item.exerciseId}&queue=${queueTag}`);
+    goto(verifyHref(examId, { submissionId: item.submissionId, exerciseId: item.exerciseId, queue: queueTag }));
   }
 
   // Each queue's badge counts only that queue's items, so a student gets an independent
@@ -408,9 +417,9 @@
     return map;
   }
 
-  let failedItems = $derived(stats?.items.filter((i) => categorizeMcItem(i) === "failed") ?? []);
-  let unsureItems = $derived(stats?.items.filter((i) => categorizeMcItem(i) === "unsure") ?? []);
-  let otherItems = $derived(stats?.items.filter((i) => categorizeMcItem(i) === "confident") ?? []);
+  let failedItems = $derived(stats ? mcQueue(stats.items, "failed") : []);
+  let unsureItems = $derived(stats ? mcQueue(stats.items, "unsure") : []);
+  let otherItems = $derived(stats ? mcQueue(stats.items, "confident") : []);
   let failedProgress = $derived(buildStudentProgress(failedItems));
   let unsureProgress = $derived(buildStudentProgress(unsureItems));
   let confidentProgress = $derived(buildStudentProgress(otherItems));
@@ -425,108 +434,118 @@
 </script>
 
 <PageShell width="fluid">
-  <PageHeader
-    title={$t("scanning.verify.heading")}
-    subtitle={$t("scanning.verify.description")}
-    helpTopic="scanning"
-  >
-    {#snippet actions()}
-      <Button
-        variant="outlined" severity="secondary"
-        size="sm"
-        onClick={handleResetAllReviews}
-        disabled={isRerunningMc || isResettingReviews || loading}
-      >
-        {isResettingReviews ? $t("scanning.verify.resettingReviews") : $t("scanning.verify.resetReviews")}
-      </Button>
-      <Button
-        size="sm"
-        onClick={requestRerunMcDetection}
-        disabled={isRerunningMc || isResettingReviews || loading || !stats}
-        loading={isRerunningMc}
-      >
-        {isRerunningMc ? $t("scanning.verify.rerunning") : $t("scanning.verify.rerun")}
-      </Button>
-      <Button
-        variant="outlined" severity="secondary"
-        size="sm"
-        onClick={refresh}
-        disabled={loading || isRerunningMc || isResettingReviews}
-      >
-        {loading ? $t("scanning.verify.refreshing") : $t("scanning.verify.refresh")}
-      </Button>
-    {/snippet}
-  </PageHeader>
-
-  {#if rerunMcMessage}
-    <Alert severity="info" class="mb-6">{rerunMcMessage}</Alert>
-  {/if}
-  {#if rerunMcError}
-    <Alert severity="danger" class="mb-6">{rerunMcError}</Alert>
-  {/if}
-  {#if resetReviewsMessage}
-    <Alert severity="info" class="mb-6">{resetReviewsMessage}</Alert>
-  {/if}
-  {#if resetReviewsError}
-    <Alert severity="danger" class="mb-6">{resetReviewsError}</Alert>
-  {/if}
-
-  {#if loading && !stats}
-    <div class="p-8 text-center text-sm text-muted"><Spinner class="mr-2" />{$t("scanning.verify.loading")}</div>
-  {:else if errorMsg}
-    <Alert severity="danger" class="mb-6">{errorMsg}</Alert>
-  {:else if stats}
-    {#if stats.totalQuestions === 0}
-      <EmptyState title={$t("scanning.verify.emptyTitle")} description={$t("scanning.verify.emptyDescription")}>
-        {#snippet actions()}
-          <Button variant="outlined" severity="secondary" href={`/exam/${examId}`}>{$t("scanning.verify.examSetup")}</Button>
-          <Button href={`/exam/${examId}/scan`}>{$t("scanning.verify.goToScan")}</Button>
-        {/snippet}
-      </EmptyState>
+  {#if submissionId && exerciseId}
+    {#if stats}
+      <McItemVerificationView {examId} {submissionId} {exerciseId} {queue} {stats} />
+    {:else if errorMsg}
+      <Alert severity="danger" class="mx-auto max-w-xl">{errorMsg}</Alert>
     {:else}
-      <McDetectionSettingsPanel
-        runs={stats.detectionRuns}
-        current={$omrSettingsStore}
-        comparison={stats.algorithmComparison}
-      />
+      <div class="p-12 text-center text-sm text-muted">{$t("scanning.verifyItem.loading")}</div>
+    {/if}
+  {:else}
+    <PageHeader
+      title={$t("scanning.verify.heading")}
+      subtitle={$t("scanning.verify.description")}
+      helpTopic="scanning"
+    >
+      {#snippet actions()}
+        <Button
+          variant="outlined" severity="secondary"
+          size="sm"
+          onClick={handleResetAllReviews}
+          disabled={isRerunningMc || isResettingReviews || loading}
+        >
+          {isResettingReviews ? $t("scanning.verify.resettingReviews") : $t("scanning.verify.resetReviews")}
+        </Button>
+        <Button
+          size="sm"
+          onClick={requestRerunMcDetection}
+          disabled={isRerunningMc || isResettingReviews || loading || !stats}
+          loading={isRerunningMc}
+        >
+          {isRerunningMc ? $t("scanning.verify.rerunning") : $t("scanning.verify.rerun")}
+        </Button>
+        <Button
+          variant="outlined" severity="secondary"
+          size="sm"
+          onClick={refresh}
+          disabled={loading || isRerunningMc || isResettingReviews}
+        >
+          {loading ? $t("scanning.verify.refreshing") : $t("scanning.verify.refresh")}
+        </Button>
+      {/snippet}
+    </PageHeader>
 
-      <McVerificationOverview {stats} />
+    {#if rerunMcMessage}
+      <Alert severity="info" class="mb-6">{rerunMcMessage}</Alert>
+    {/if}
+    {#if rerunMcError}
+      <Alert severity="danger" class="mb-6">{rerunMcError}</Alert>
+    {/if}
+    {#if resetReviewsMessage}
+      <Alert severity="info" class="mb-6">{resetReviewsMessage}</Alert>
+    {/if}
+    {#if resetReviewsError}
+      <Alert severity="danger" class="mb-6">{resetReviewsError}</Alert>
+    {/if}
 
-      <McVerificationQueue
-        {examId}
-        title={$t("scanning.verify.queueFailed")}
-        items={failedItems}
-        studentProgress={failedProgress}
-        emptyMessage={$t("scanning.verify.emptyFailed")}
-        queueTag="failed"
-      />
+    {#if loading && !stats}
+      <div class="p-8 text-center text-sm text-muted"><Spinner class="mr-2" />{$t("scanning.verify.loading")}</div>
+    {:else if errorMsg}
+      <Alert severity="danger" class="mb-6">{errorMsg}</Alert>
+    {:else if stats}
+      {#if stats.totalQuestions === 0}
+        <EmptyState title={$t("scanning.verify.emptyTitle")} description={$t("scanning.verify.emptyDescription")}>
+          {#snippet actions()}
+            <Button variant="outlined" severity="secondary" href={`/exam/${examId}`}>{$t("scanning.verify.examSetup")}</Button>
+            <Button href={`/exam/${examId}/scan`}>{$t("scanning.verify.goToScan")}</Button>
+          {/snippet}
+        </EmptyState>
+      {:else}
+        <McDetectionSettingsPanel
+          runs={stats.detectionRuns}
+          current={$omrSettingsStore}
+          comparison={stats.algorithmComparison}
+        />
 
-      <McVerificationQueue
-        {examId}
-        title={$t("scanning.verify.queueUnsure")}
-        items={unsureItems}
-        studentProgress={unsureProgress}
-        emptyMessage={$t("scanning.verify.emptyUnsure")}
-        queueTag="unsure"
-      />
+        <McVerificationOverview {stats} />
 
-      {#if otherItems.some((i) => !i.isReviewed)}
-        <div class="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted">
-          <Button variant="outlined" severity="secondary" size="sm" onClick={openRandomConfidentItem}>
-            {$t("scanning.verify.randomSample")}
-          </Button>
-          <span>{$t("scanning.verify.randomSampleHint")}</span>
-        </div>
+        <McVerificationQueue
+          {examId}
+          title={$t("scanning.verify.queueFailed")}
+          items={failedItems}
+          studentProgress={failedProgress}
+          emptyMessage={$t("scanning.verify.emptyFailed")}
+          queueTag="failed"
+        />
+
+        <McVerificationQueue
+          {examId}
+          title={$t("scanning.verify.queueUnsure")}
+          items={unsureItems}
+          studentProgress={unsureProgress}
+          emptyMessage={$t("scanning.verify.emptyUnsure")}
+          queueTag="unsure"
+        />
+
+        {#if otherItems.some((i) => !i.isReviewed)}
+          <div class="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted">
+            <Button variant="outlined" severity="secondary" size="sm" onClick={openRandomConfidentItem}>
+              {$t("scanning.verify.randomSample")}
+            </Button>
+            <span>{$t("scanning.verify.randomSampleHint")}</span>
+          </div>
+        {/if}
+
+        <McVerificationQueue
+          {examId}
+          title={$t("scanning.verify.queueOther")}
+          items={otherItems}
+          studentProgress={confidentProgress}
+          emptyMessage={$t("scanning.verify.emptyOther")}
+          queueTag="confident"
+        />
       {/if}
-
-      <McVerificationQueue
-        {examId}
-        title={$t("scanning.verify.queueOther")}
-        items={otherItems}
-        studentProgress={confidentProgress}
-        emptyMessage={$t("scanning.verify.emptyOther")}
-        queueTag="confident"
-      />
     {/if}
   {/if}
 

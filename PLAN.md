@@ -237,7 +237,8 @@ Target:
   - The exam page's two buttons, the workspace menu and the library all open it.
   - Both formats and ZIP re-import stay.
   - Estimate: −60 lines.
-- [ ] **M5 One verify route.**
+- [x] **M5 One verify route.**
+  - Done: the item keeps its parameters (`/verify?submissionId=…&exerciseId=…&queue=…`), matching `gradeHref`; `ExamSidebar` and the e2e helpers had no link to the old route.
   - `routes/exam/[id]/verify-item` becomes `/exam/[id]/verify?item=<id>`, sharing the data load and queue (`lib/grading/mcVerification.ts`).
   - The old route redirects.
   - Update `utils/links.ts`, `ExamSidebar` and the e2e helpers.

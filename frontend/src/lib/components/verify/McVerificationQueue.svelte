@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { McDetectionItem } from "#lib/grading/mcVerification";
   import { t } from "#lib/i18n";
-  import { gradeHref, verifyItemHref } from "#lib/utils/links";
+  import { gradeHref, verifyHref } from "#lib/utils/links";
   import { faChevronDown, faChevronRight, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, CrossLink, Icon } from "#lib/components/ui";
 
@@ -80,7 +80,7 @@
               </div>
 
               <div class="flex items-center gap-2 self-start sm:self-auto">
-                <Button size="sm" href={verifyItemHref(examId, item.submissionId, item.exerciseId, queueTag)}>{$t("scanning.queue.verifyItem")}</Button>
+                <Button size="sm" href={verifyHref(examId, { submissionId: item.submissionId, exerciseId: item.exerciseId, queue: queueTag })}>{$t("scanning.queue.verifyItem")}</Button>
                 <Button size="sm" variant="outlined" severity="secondary" title={$t("scanning.queue.openGrading")} href={gradeHref(examId, { submissionId: item.submissionId, exerciseId: item.exerciseId })}>
                   {$t("scanning.queue.canvas")}
                 </Button>
