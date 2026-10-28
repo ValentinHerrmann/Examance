@@ -13,6 +13,7 @@
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
   import { onMount } from "svelte";
+  import PromptPreview from "#lib/components/latex/PromptPreview.svelte";
 
   interface Props {
     latexBody: string;
@@ -91,7 +92,7 @@
       <p class="m-0 text-sm text-danger-fg">{$t("exercises.aiPrompt.copyFailed")}</p>
     {/if}
     <h3 class="m-0 text-sm font-semibold">{$t("exercises.aiPrompt.preview")}</h3>
-    <pre class="m-0 min-h-32 flex-1 overflow-auto rounded-md bg-surface-sunken p-3 text-xs whitespace-pre-wrap break-all">{prompt}</pre>
+    <PromptPreview text={prompt} class="min-h-32 flex-1" />
   </div>
   {#snippet footer()}
     <Button onClick={copy} disabled={!task.trim()}>{copied ? $t("exercises.aiPrompt.copied") : $t("exercises.aiPrompt.copy")}</Button>

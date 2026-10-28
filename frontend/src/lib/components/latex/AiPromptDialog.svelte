@@ -9,6 +9,7 @@
   import type { CompileFailure } from "#lib/latex/compileError";
   import { buildAiPrompt } from "#lib/latex/errorHelp";
   import { onMount } from "svelte";
+  import PromptPreview from "./PromptPreview.svelte";
 
   interface Props {
     failure: CompileFailure;
@@ -68,7 +69,7 @@
       <p class="m-0 text-sm text-danger-fg">{$t("misc.compiler.aiFailed")}</p>
     {/if}
     <h3 class="m-0 text-sm font-semibold">{$t("misc.compiler.aiPreview")}</h3>
-    <pre class="m-0 min-h-0 flex-1 overflow-auto rounded-md bg-surface-sunken p-3 text-xs whitespace-pre-wrap break-all">{prompt}</pre>
+    <PromptPreview text={prompt} class="flex-1" />
   </div>
   {#snippet footer()}
     <Button onClick={copy}>{copied ? $t("misc.compiler.aiCopied") : $t("misc.compiler.aiCopy")}</Button>
