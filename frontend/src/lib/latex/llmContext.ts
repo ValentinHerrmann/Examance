@@ -1,50 +1,16 @@
 /**
- * Context shared by the AI-chat prompts (compile errors, exercise writing; issue #168). The prompts are English and
- * written for a model that knows nothing about Examance; keep TEMPLATE_COMMANDS in sync with the .sty files.
+ * Context shared by the AI-chat prompts (compile errors, exercise writing; issue #168): English Markdown for a model
+ * that knows nothing about Examance. Each fact lives in one place: the frame in `documentSetup`, what a command does
+ * in TEMPLATE_COMMANDS (keep in sync with the .sty files); the prompts only add their own requirements.
  */
 
 export const BACKSLASH = String.fromCodePoint(92);
 export const LANGUAGES: Record<string, string> = { de: 'German', en: 'English' };
 const PDFTEX_ONLY = new Set(['iftex', 'inputenc', 'fontenc']);
 
-/** Teacher-facing commands of Schulaufgabe.sty / Loesung.sty; keep in sync with the .sty files. */
-export const TEMPLATE_COMMANDS: { name: string; usage: string }[] = [
-  { name: 'Aufgabe', usage: String.raw`\begin{Aufgabe}[fixed points]{title} … \end{Aufgabe}: one exercise with a score box. The app wraps every exercise body in it unless the body contains \begin{Aufgabe} itself.` },
-  { name: 'Teilaufgabe', usage: String.raw`\begin{Teilaufgabe}[fixed points]{subtitle} … \end{Teilaufgabe}: part a), b), … with its own score box.` },
-  { name: 'BE', usage: String.raw`\BE, \hBE, \qBE: one, a half, a quarter point, placed in the solution where it is earned (a check mark on the solution sheet).` },
-  { name: 'FestePunkte', usage: String.raw`\FestePunkte{n}: fixed score for the enclosing Teilaufgabe or Aufgabe instead of the counted points.` },
-  { name: 'AFB', usage: String.raw`\AFB{I|II|III}, \Kompetenz{text}: metadata tags, printed only on the solution sheet.` },
-  { name: 'Loesung', usage: String.raw`\Loesung{solution}: solution text, only on the solution sheet.` },
-  { name: 'LoesungReplace', usage: String.raw`\LoesungReplace{solution}{student text}: the solution on the solution sheet, other text on the student sheet.` },
-  { name: 'LoesungLeer', usage: String.raw`\LoesungLeer{solution}{height}: the solution, or empty space of that height (e.g. 3cm) on the student sheet.` },
-  { name: 'LoesungLuecke', usage: String.raw`\LoesungLuecke{solution}{width}: fill-in gap: the solution, or a rule of that width.` },
-  { name: 'LoesungKaro', usage: String.raw`\LoesungKaro{solution}{rows}: the solution, or a squared grid with that many 0.5 cm rows.` },
-  { name: 'LoesungLine', usage: String.raw`\LoesungLine{solution}{rows}: the solution, or that many ruled lines.` },
-  { name: 'LoesungImg', usage: String.raw`\LoesungImg{solution image}{student image}{width}: a different image file per sheet.` },
-  { name: 'LoesungCode', usage: String.raw`\begin{LoesungCode} … \end{LoesungCode}: code solution; the only solution command that may contain lstlisting (escape to LaTeX inside a listing with (*@ … @*), e.g. (*@\BE@*)).` },
-  { name: 'LoesungMulti', usage: String.raw`\LoesungMulti[columns]{ \multi{wrong option} \Lmulti{correct option} … }: multiple-choice options (one per line); \multi and \Lmulti are \item commands and only work inside \LoesungMulti.` },
-  { name: 'kariert', usage: String.raw`\kariert[size]{rows}, \liniert[spacing]{rows}, \Leer{height}: squared grid, ruled lines, empty space.` },
-  { name: 'Seitenumbruch', usage: String.raw`\Seitenumbruch: page break between blocks of an exercise.` },
-];
-
-export function documentSetup(engine: 'local' | 'server' | null): string {
-  const compiler =
-    engine === 'local'
-      ? 'XeLaTeX in the browser (busytex, a reduced TeX Live 2026)'
-      : 'XeLaTeX on the server (Tectonic with TeX Live 2022; packages newer than 2022 are missing)';
-  return [
-    `- Engine: ${compiler}. Input is UTF-8 with fontspec; inputenc/fontenc are not used.`,
-    String.raw`- Class article with the template package Schulaufgabe.sty, which loads Loesung.sty and packages.sty. Each exercise body sits inside \begin{Aufgabe}{title} … \end{Aufgabe}.`,
-    String.raw`- Every exam and exercise is compiled twice: the student sheet and the solution sheet (package option "antworten"). On the student sheet the solution arguments are still typeset into a discarded box, so they must compile there too. Solution arguments are macro arguments: verbatim material (\verb, lstlisting) is only allowed in the LoesungCode environment.`,
-    String.raw`- Extra packages: a line containing only \usepackage[options]{name} in the exercise code (the app moves it into the preamble) or the app's LaTeX package settings. A \usepackage elsewhere in the body fails.`,
-  ].join('\n');
-}
-
-/** Package names `packages.sty` loads, without the pdfTeX-only ones and the `sty/` prefix. */
-export function preloadedPackages(packagesSty: string): string[] {
-  return [...packagesSty.matchAll(/\\RequirePackage(?:\[[^\]]*\])?\{([^}]*)\}/g)]
-    .map((m) => m[1].replace(/^sty\//, ''))
-    .filter((name) => !PDFTEX_ONLY.has(name));
+/** Inline Markdown code. */
+export function code(text: string): string {
+  return '`' + text + '`';
 }
 
 export function section(heading: string, body: string): string {
@@ -53,4 +19,68 @@ export function section(heading: string, body: string): string {
 
 export function fence(text: string, language = ''): string {
   return '```' + language + '\n' + text.replaceAll('```', "'''") + '\n```';
+}
+
+interface TemplateCommand {
+  /** Command and environment names, for finding their definitions. */
+  names: string[];
+  forms: string[];
+  text: string;
+}
+
+/** Teacher-facing commands of Schulaufgabe.sty / Loesung.sty. */
+const TEMPLATE_COMMANDS: TemplateCommand[] = [
+  { names: ['Teilaufgabe'], forms: [String.raw`\begin{Teilaufgabe}[fixed points]{subtitle} … \end{Teilaufgabe}`], text: 'part a), b), … with its own score box.' },
+  { names: ['BE', 'hBE', 'qBE'], forms: [String.raw`\BE`, String.raw`\hBE`, String.raw`\qBE`], text: 'one, a half, a quarter point, placed in the solution where it is earned (a check mark on the solution sheet).' },
+  { names: ['FestePunkte'], forms: [String.raw`\FestePunkte{n}`], text: 'fixed score for the enclosing part or exercise instead of the counted points.' },
+  { names: ['AFB', 'Kompetenz'], forms: [String.raw`\AFB{I|II|III}`, String.raw`\Kompetenz{text}`], text: 'metadata tags, printed only on the solution sheet.' },
+  { names: ['Loesung'], forms: [String.raw`\Loesung{solution}`], text: 'nothing on the student sheet.' },
+  { names: ['LoesungReplace'], forms: [String.raw`\LoesungReplace{solution}{student text}`], text: 'other text on the student sheet.' },
+  { names: ['LoesungLeer'], forms: [String.raw`\LoesungLeer{solution}{height}`], text: 'empty space of that height (e.g. 3cm) on the student sheet.' },
+  { names: ['LoesungLuecke'], forms: [String.raw`\LoesungLuecke{solution}{width}`], text: 'fill-in gap: a rule of that width on the student sheet.' },
+  { names: ['LoesungKaro'], forms: [String.raw`\LoesungKaro{solution}{rows}`], text: 'a squared grid with that many 0.5 cm rows on the student sheet.' },
+  { names: ['LoesungLine'], forms: [String.raw`\LoesungLine{solution}{rows}`], text: 'that many ruled lines on the student sheet.' },
+  { names: ['LoesungImg'], forms: [String.raw`\LoesungImg{solution image}{student image}{width}`], text: 'a different image file per sheet.' },
+  {
+    names: ['LoesungCode'],
+    forms: [String.raw`\begin{LoesungCode} … \end{LoesungCode}`],
+    text: `code solution, the only one that may contain ${code('lstlisting')}; inside a listing, ${code(String.raw`(*@\BE@*)`)} escapes to LaTeX.`,
+  },
+  {
+    names: ['LoesungMulti', 'multi', 'Lmulti'],
+    forms: [String.raw`\LoesungMulti[columns]{ \multi{wrong} \Lmulti{correct} … }`],
+    text: `multiple-choice options, one per line; each correct option counts one point (no ${code(String.raw`\BE`)}). ${code(String.raw`\multi`)} and ${code(String.raw`\Lmulti`)} are list items and work only inside it.`,
+  },
+  { names: ['kariert', 'liniert', 'Leer'], forms: [String.raw`\kariert[size]{rows}`, String.raw`\liniert[spacing]{rows}`, String.raw`\Leer{height}`], text: 'squared grid, ruled lines, empty space.' },
+  { names: ['Seitenumbruch'], forms: [String.raw`\Seitenumbruch`], text: 'page break between blocks of an exercise.' },
+];
+
+/** Names whose definitions a prompt may quote; `Aufgabe` is the frame the app adds. */
+export const TEMPLATE_NAMES = ['Aufgabe', ...TEMPLATE_COMMANDS.flatMap((c) => c.names)];
+
+export function templateCommandsSection(): string {
+  const intro = `Every ${code(String.raw`\Loesung…`)} command takes the solution first; it is shown only on the solution sheet, and the second argument says what the student sheet shows instead.`;
+  const lines = TEMPLATE_COMMANDS.map((c) => `- ${c.forms.map(code).join(', ')}: ${c.text}`);
+  return section(`Template commands (${code('Schulaufgabe.sty')}, ${code('Loesung.sty')})`, [intro, ...lines].join('\n'));
+}
+
+/** The document frame: engine, what the app generates, the two sheets, where packages go. */
+export function documentSetup(engine: 'local' | 'server' | null): string {
+  const compiler =
+    engine === 'local'
+      ? 'XeLaTeX in the browser (busytex, a reduced TeX Live 2026)'
+      : 'XeLaTeX on the server (Tectonic with TeX Live 2022; packages newer than 2022 are missing)';
+  return [
+    `- Engine: ${compiler}; UTF-8 input with ${code('fontspec')}.`,
+    `- The teacher edits only the body of an exercise. The app generates everything else: class ${code('article')} with the template package ${code('Schulaufgabe.sty')} (it loads ${code('Loesung.sty')} and ${code('packages.sty')}), the header, and ${code(String.raw`\begin{Aufgabe}{exercise name} … \end{Aufgabe}`)} around the body.`,
+    `- Every document is compiled twice: the student sheet and the solution sheet (package option ${code('antworten')}). Solution arguments are typeset on the student sheet too (into a discarded box), so they must always compile; being macro arguments, they cannot hold verbatim material (${code(String.raw`\verb`)}, ${code('lstlisting')}).`,
+    `- Extra packages: ${code(String.raw`\usepackage[options]{name}`)} on a line of its own in the body (the app moves it into the preamble) or the app's LaTeX package settings; anywhere else it fails.`,
+  ].join('\n');
+}
+
+/** Package names `packages.sty` loads, without the pdfTeX-only ones and the `sty/` prefix. */
+export function preloadedPackages(packagesSty: string): string[] {
+  return [...packagesSty.matchAll(/\\RequirePackage(?:\[[^\]]*\])?\{([^}]*)\}/g)]
+    .map((m) => m[1].replace(/^sty\//, ''))
+    .filter((name) => !PDFTEX_ONLY.has(name));
 }

@@ -4,7 +4,7 @@
  * Examance, so it explains the document frame; it is English (machine-facing) and asks for a reply in the UI language.
  */
 import type { LatexAsset } from './assets';
-import { BACKSLASH, documentSetup, fence, LANGUAGES, preloadedPackages, section, TEMPLATE_COMMANDS } from './llmContext';
+import { BACKSLASH, code, documentSetup, fence, LANGUAGES, preloadedPackages, section, TEMPLATE_NAMES, templateCommandsSection } from './llmContext';
 import { mapLine, type SourceMap, type SourceRange } from './sourceMap';
 import { extractTexErrors } from './texLog';
 
@@ -61,8 +61,7 @@ function undefinedMacro(log: string): string | null {
 
 // --- Prompt ---------------------------------------------------------------------------------------------------------
 
-const LINE_NUMBERS =
-  '- Line numbers: "l.<n>" in the log counts lines of the whole generated document. Where the app could map it, it appends the exercise and the line in the exercise editor in square brackets; the code below is numbered like the editor.';
+const LINE_NUMBERS = `- Line numbers: ${code('l.<n>')} in the log counts lines of the whole generated document. Where the app could map it, the log names the exercise and its editor line in square brackets; exercise code below is numbered like the editor.`;
 const OWN_STYLES = ['sty/Schulaufgabe.sty', 'sty/Loesung.sty'];
 const DEFINERS = [String.raw`\newcommand`, String.raw`\renewcommand`, String.raw`\providecommand`, String.raw`\newenvironment`, String.raw`\def`];
 
@@ -94,7 +93,7 @@ export function buildAiPrompt(input: AiPromptInput): string {
   const parts = [
     intro(LANGUAGES[input.locale] ?? 'English'),
     section('How the document is built', `${documentSetup(input.engine)}\n${LINE_NUMBERS}`),
-    section('Template commands (Schulaufgabe.sty, Loesung.sty)', TEMPLATE_COMMANDS.map((c) => `- ${c.usage}`).join('\n')),
+    templateCommandsSection(),
     packagesSection(input.source, sources.get('sty/packages.sty')),
     ...logSections(input.log, blocks),
     definitionsSection(blocks, sources),
@@ -105,12 +104,14 @@ export function buildAiPrompt(input: AiPromptInput): string {
   return parts.filter(Boolean).join('\n\n') + '\n';
 }
 
-/** The error blocks and the log tail; a short log is shown once, whole. */
+/** The log tail, preceded by the error blocks it does not already contain; a short log is shown once, whole. */
 function logSections(log: string, blocks: string[]): string[] {
-  if (log.trimEnd().split('\n').length <= LOG_TAIL_LINES) return [section('Log', fence(log.trimEnd()))];
+  if (log.trimEnd().split('\n').length <= LOG_TAIL_LINES) return [section('Log', fence(log.trimEnd(), 'text'))];
+  const tail = logTail(log);
+  const earlier = blocks.filter((block) => !tail.includes(block.split('\n')[0]));
   return [
-    blocks.length > 0 ? section('Error messages', fence(blocks.join('\n\n'))) : '',
-    section(`End of the log (last ${LOG_TAIL_LINES} lines)`, fence(logTail(log))),
+    earlier.length > 0 ? section('Earlier error messages', fence(earlier.join('\n\n'), 'text')) : '',
+    section(`End of the log (last ${LOG_TAIL_LINES} lines)`, fence(tail, 'text')),
   ];
 }
 
@@ -118,15 +119,14 @@ function intro(language: string): string {
   return [
     '# Help me fix a LaTeX compile error',
     'You are helping a teacher who writes exam exercises in Examance, a web app that typesets school exams with LaTeX. ' +
-      'The teacher edits only the code of single exercises; the app builds the full document around them. ' +
       `The teacher is usually not a LaTeX expert. Reply in ${language}.`,
+    '',
     'Please answer with:',
     '1. In plain words: what the error means and which exercise line causes it.',
     '2. The corrected lines of the exercise code, ready to paste into the exercise editor.',
     '3. If the cause is outside the exercise code (e.g. a missing package), what to change in the app instead.',
-    String.raw`Rules: the document frame (preamble, \documentclass, header) and the template files are generated and cannot be edited. ` +
-      'Use only the template commands listed below or standard LaTeX and package commands; do not invent template commands. ' +
-      'If the information below is not enough to be sure, say what you would need.',
+    '',
+    'Use only the template commands below or standard LaTeX and package commands. If the information is not enough to be sure, say what you would need.',
   ].join('\n');
 }
 
@@ -134,10 +134,10 @@ function intro(language: string): string {
 function packagesSection(source: string | null | undefined, packagesSty: string | undefined): string {
   const lines: string[] = [];
   if (packagesSty) {
-    lines.push(`packages.sty preloads: ${preloadedPackages(packagesSty).join(', ')}.`);
+    lines.push(`${code('packages.sty')} preloads: ${preloadedPackages(packagesSty).map(code).join(', ')}.`);
   }
   const preamble = source ? preambleLines(source) : [];
-  if (preamble.length > 0) lines.push('Preamble of this document:', fence(preamble.join('\n')));
+  if (preamble.length > 0) lines.push('Preamble of this document:', fence(preamble.join('\n'), 'latex'));
   return lines.length > 0 ? section('Packages', lines.join('\n')) : '';
 }
 
@@ -162,14 +162,14 @@ function preambleLines(source: string): string[] {
 function definitionsSection(blocks: string[], sources: Map<string, string>): string {
   const text = blocks.join('\n');
   const found: string[] = [];
-  for (const { name } of TEMPLATE_COMMANDS) {
+  for (const name of TEMPLATE_NAMES) {
     if (!mentions(text, name)) continue;
     for (const path of OWN_STYLES) {
       const def = definitionOf(sources.get(path), name);
       if (def) found.push(`% ${path}\n${def}`);
     }
   }
-  return found.length > 0 ? section('Definitions of the template commands in the error', fence(found.join('\n\n'))) : '';
+  return found.length > 0 ? section('Definitions of the template commands in the error', fence(found.join('\n\n'), 'latex')) : '';
 }
 
 /** Whether `text` mentions `\name` or `{name}` with no letter right after the name. */
@@ -246,13 +246,13 @@ function exerciseExcerpt(lines: string[], range: SourceRange, errorLine: number)
   const from = size <= EXERCISE_LINES ? 1 : Math.max(1, errorLine - CONTEXT_LINES);
   const to = size <= EXERCISE_LINES ? size : Math.min(size, errorLine + CONTEXT_LINES);
   const body = numbered(lines, range.start - 1 + from - 1, range.start - 1 + to - 1, from);
-  return `Exercise "${range.label}" (lines as in the editor; error at line ${errorLine}):\n${fence(body)}`;
+  return `Exercise "${range.label}", error at line ${errorLine}:\n${fence(body, 'latex')}`;
 }
 
 function frameExcerpt(lines: string[], line: number): string {
   const from = Math.max(1, line - CONTEXT_LINES);
   const to = Math.min(lines.length, line + CONTEXT_LINES);
-  return `Generated document around line ${line} (not editable directly, shown for context):\n${fence(numbered(lines, from - 1, to - 1, from))}`;
+  return `Generated document around line ${line}:\n${fence(numbered(lines, from - 1, to - 1, from), 'latex')}`;
 }
 
 function logTail(log: string): string {

@@ -22,7 +22,7 @@ describe('buildExercisePrompt', () => {
     expect(prompt).toContain('```latex\nBerechne $1+1$.');
     expect(prompt).not.toContain('Example of a well-formed exercise body');
     expect(prompt).toContain('siunitx[locale=DE]');
-    expect(prompt).toContain('Preloaded: amsmath, tikz.');
+    expect(prompt).toContain('Preloaded: `amsmath`, `tikz`.');
     expect(prompt).not.toContain('topic _General');
   });
 
@@ -35,8 +35,8 @@ describe('buildExercisePrompt', () => {
 
   it('switches the solution rule for multiple choice and lists attached files', () => {
     const prompt = buildExercisePrompt({ ...base, questionType: 'mc', resourceNames: ['graph.png'] });
-    expect(prompt).toContain('This is a multiple-choice question');
-    expect(prompt).not.toContain('Every question gets a solution');
-    expect(prompt).toContain('graph.png');
+    expect(prompt).toContain('- Multiple choice:');
+    expect(prompt).not.toContain('Give every question a solution');
+    expect(prompt).toContain('`graph.png`');
   });
 });
