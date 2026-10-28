@@ -12,8 +12,8 @@ export interface ExercisePromptInput {
   includeCode: boolean;
   meta: { name: string; subject: string; grade: string; topic: string };
   questionType: 'free_text' | 'mc';
-  /** Files attached to the exercise (names only). */
-  resourceNames: readonly string[];
+  /** Files attached to the exercise (names only); null while not known yet, which leaves out the file rule. */
+  resourceNames: readonly string[] | null;
   accountPackages: readonly LatexPackageEntry[];
   /** Names `packages.sty` preloads (`preloadedPackages`), if the assets could be loaded. */
   preloaded: readonly string[];
@@ -33,17 +33,17 @@ Skizziere den Graphen von $f$.
 
 export function buildExercisePrompt(input: ExercisePromptInput): string {
   const language = LANGUAGES[input.locale] ?? 'English';
-  const code = input.includeCode ? input.latexBody.trim() : '';
+  const body = input.includeCode ? input.latexBody.trim() : '';
   return [
     '# Write LaTeX for an exam exercise',
     section('Task', input.task.trim() || '(describe the task here)'),
     section('Context', context(input)),
-    section('Output rules', outputRules(input.questionType, input.resourceNames.length > 0, Boolean(code), language)),
+    section('Output rules', outputRules(input.questionType, input.resourceNames, Boolean(body), language)),
     section('How the document is built', documentSetup(input.engine)),
     templateCommandsSection(),
     section('Packages', packages(input)),
-    section('Current exercise', code ? fence(code, 'latex') : 'New exercise, no code yet.'),
-    code ? '' : section('Example of a well-formed exercise body', fence(EXAMPLE, 'latex')),
+    section('Current exercise', body ? fence(body, 'latex') : 'New exercise, no code yet.'),
+    body ? '' : section('Example of a well-formed exercise body', fence(EXAMPLE, 'latex')),
   ]
     .filter(Boolean)
     .join('\n\n') + '\n';
@@ -59,14 +59,19 @@ function context(input: ExercisePromptInput): string {
     input.questionType === 'mc' ? 'multiple choice' : 'free-text exercise',
   ].filter(Boolean);
   const lines = ['Examance is a web app teachers use to typeset school exams with LaTeX.', `This exercise: ${meta.join(', ')}.`];
-  if (input.resourceNames.length > 0) {
+  if (input.resourceNames && input.resourceNames.length > 0) {
     lines.push(`Attached files (for ${cs('includegraphics')} or ${cs('input')}): ${input.resourceNames.map(code).join(', ')}.`);
   }
   return lines.join('\n');
 }
 
 /** Requirements only; what the frame and the commands do is in the sections after it. */
-function outputRules(questionType: ExercisePromptInput['questionType'], hasFiles: boolean, hasCode: boolean, language: string): string {
+function outputRules(
+  questionType: ExercisePromptInput['questionType'],
+  resourceNames: ExercisePromptInput['resourceNames'],
+  hasCode: boolean,
+  language: string
+): string {
   return [
     '- Answer with the complete new exercise body in exactly one `latex` code block.',
     // Teachers compare versions and variants line by line, so rewording what the task did not ask to change is noise.
@@ -77,13 +82,18 @@ function outputRules(questionType: ExercisePromptInput['questionType'], hasFiles
       ? `- Multiple choice: the question text, then exactly one ${cs('LoesungMulti')} block and no other solution commands.`
       : '- Give every question a solution command with its points (see the template commands).',
     '- Write the exercise text in the language of the current exercise (or of the task if there is none); keep new LaTeX simple.',
-    hasFiles
-      ? '- Use only the attached files as images; draw anything else with TikZ, or say which image the teacher should upload.'
-      : '- No files are attached: draw figures with TikZ, or say which image the teacher should upload.',
+    fileRule(resourceNames),
     `- After the code block, add at most three short notes in ${language} (what changed, what to check).`,
   ]
     .filter(Boolean)
     .join('\n');
+}
+
+function fileRule(resourceNames: ExercisePromptInput['resourceNames']): string {
+  if (resourceNames === null) return '';
+  return resourceNames.length > 0
+    ? '- Use only the attached files as images; draw anything else with TikZ, or say which image the teacher should upload.'
+    : '- No files are attached: draw figures with TikZ, or say which image the teacher should upload.';
 }
 
 function packages(input: ExercisePromptInput): string {

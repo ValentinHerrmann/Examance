@@ -8,6 +8,7 @@
   import { loadLatexAssets, type LatexAsset } from "#lib/latex/assets";
   import type { CompileFailure } from "#lib/latex/compileError";
   import { buildAiPrompt } from "#lib/latex/errorHelp";
+  import { createCopyState } from "#lib/utils/copyState.svelte";
   import { onMount } from "svelte";
   import PromptPreview from "./PromptPreview.svelte";
 
@@ -20,8 +21,7 @@
 
   let includeSource = $state(false);
   let assets = $state.raw<LatexAsset[] | null>(null);
-  let copied = $state(false);
-  let copyFailed = $state(false);
+  const clipboard = createCopyState();
 
   const prompt = $derived(
     buildAiPrompt({
@@ -42,17 +42,6 @@
       () => {}
     );
   });
-
-  async function copy() {
-    copyFailed = false;
-    try {
-      await navigator.clipboard.writeText(prompt);
-      copied = true;
-      setTimeout(() => (copied = false), 2000);
-    } catch {
-      copyFailed = true;
-    }
-  }
 </script>
 
 <Modal open={true} size="large" tall title={$t("misc.compiler.aiTitle")} closeOnBackdrop {onClose}>
@@ -65,14 +54,14 @@
       </div>
     {/if}
     <p class="m-0 text-sm text-muted">{$t("misc.compiler.aiNotice")}</p>
-    {#if copyFailed}
+    {#if clipboard.failed}
       <p class="m-0 text-sm text-danger-fg">{$t("misc.compiler.aiFailed")}</p>
     {/if}
     <h3 class="m-0 text-sm font-semibold">{$t("misc.compiler.aiPreview")}</h3>
     <PromptPreview text={prompt} class="flex-1" />
   </div>
   {#snippet footer()}
-    <Button onClick={copy}>{copied ? $t("misc.compiler.aiCopied") : $t("misc.compiler.aiCopy")}</Button>
+    <Button onClick={() => clipboard.copy(prompt)}>{clipboard.copied ? $t("misc.compiler.aiCopied") : $t("misc.compiler.aiCopy")}</Button>
     <Button severity="secondary" onClick={onClose}>{$t("misc.compiler.logClose")}</Button>
   {/snippet}
 </Modal>

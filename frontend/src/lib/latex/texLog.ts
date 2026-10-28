@@ -14,7 +14,8 @@ export function extractTexErrors(text: string | undefined | null, maxBlocks = 5)
     const limit = Math.min(lines.length, i + 12);
     let j = i + 1;
     while (j < limit && !/^l\.\d+/.test(lines[j])) j++;
-    const stop = j < limit ? j + 2 : limit;
+    // The line after `l.<n>` is TeX's continuation, unless the next error starts right there.
+    const stop = j < limit ? (lines[j + 1]?.startsWith('!') ? j + 1 : j + 2) : limit;
     blocks.push(
       lines
         .slice(i, stop)

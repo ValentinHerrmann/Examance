@@ -35,6 +35,12 @@ describe('buildExercisePrompt', () => {
     expect(prompt).toContain('Example of a well-formed exercise body');
   });
 
+  it('leaves out the file rule while the attached files are not known yet', () => {
+    const prompt = buildExercisePrompt({ ...base, resourceNames: null });
+    expect(prompt).not.toContain('No files are attached');
+    expect(prompt).not.toContain('Use only the attached files');
+  });
+
   it('switches the solution rule for multiple choice and lists attached files', () => {
     const prompt = buildExercisePrompt({ ...base, questionType: 'mc', resourceNames: ['graph.png'] });
     expect(prompt).toContain('- Multiple choice:');

@@ -76,7 +76,6 @@ export const exercises: Translations['exercises'] = {
         discardTitle: 'Discard exercise changes?',
         discardMessage: 'You have changed fields of this exercise. Discarding will lose your unsaved changes.',
     },
-    /** Score & structure section of the exercise editor (issues #77-#79). */
     aiPrompt: {
         button: 'AI prompt',
         buttonTitle: 'Create a prompt for an AI chat that writes or changes this exercise',
@@ -93,6 +92,7 @@ export const exercises: Translations['exercises'] = {
         copied: 'Copied',
         copyFailed: 'Could not copy (clipboard access was refused). Select the prompt and copy it by hand.',
     },
+    /** Score & structure section of the exercise editor (issues #77-#79). */
     structure: {
         title: 'Score & structure',
         openTitle: 'Edit score, requirement level, competencies and parts',

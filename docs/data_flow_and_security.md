@@ -514,8 +514,9 @@ Below every compile error the app explains typical TeX errors locally and offers
 external AI chat, which the teacher copies to the clipboard. The app makes no network call for it (only
 the authenticated bundled-asset fetch it already uses). The prompt holds the error lines, the log tail,
 the preamble package lines and template definitions; the affected exercise's LaTeX only after an
-explicit opt-in tick (off by default). Header fields (teacher name, class, date) and student data are
-never included. Pasting it into a third-party AI is the teacher's own disclosure; the dialog says so.
+explicit opt-in tick (off by default). Header fields (teacher name, class, date, info text, exam notes)
+and student data are never included: they are left out of preamble and code excerpts, and redacted in the
+log too (their values wherever they appear, and the rest of any log line naming a header macro). Pasting it into a third-party AI is the teacher's own disclosure; the dialog says so.
 
 The exercise editor's "AI prompt" works the same way: it combines the teacher's request with the
 template commands, package names, attached file names and (ticked by default, can be unticked) the

@@ -64,3 +64,60 @@ describe('buildAiPrompt', () => {
     expect(prompt).toContain('#1 grid');
   });
 });
+
+describe('buildAiPrompt privacy and context', () => {
+  const header = ['\\documentclass{article}', '\\Lehrernachname{Müller}', '\\Klasse{9b}', '\\begin{document}', 'Text', '\\ExamNotes{Notizen}{Rechnung zu Aufgabe 2}{3}{8}'];
+  const source = header.join('\n');
+
+  it('redacts header values and header lines from the log, also without the source', () => {
+    const log = [
+      '! Missing $ inserted.',
+      '<argument> Müller',
+      'l.2 \\Lehrernachname{Müller}',
+      '! Undefined control sequence.',
+      'l.6 \\ExamNotes{Notizen}{Rechnung zu Aufgabe 2}',
+      '                                  {3}{8}',
+    ].join('\n');
+    const prompt = buildAiPrompt({ log, engine: 'local', source, ranges: [], includeSource: true, locale: 'en' });
+    expect(prompt).not.toContain('Müller');
+    expect(prompt).not.toContain('Rechnung zu Aufgabe 2');
+    expect(prompt).not.toContain('Notizen');
+    expect(prompt).toContain('[omitted]');
+    const withoutSource = buildAiPrompt({ log: 'l.9 \\Klasse{9b}', engine: 'local', includeSource: false, locale: 'en' });
+    expect(withoutSource).not.toContain('9b');
+  });
+
+  it('quotes whole template definitions, not lines that merely use the name', () => {
+    const sty = [
+      '\\renewcommand{\\theTeilaufgabe}{\\alph{Teilaufgabe}}',
+      '\\newenvironment{Teilaufgabe}[2][]',
+      '{%',
+      '    PART BEGIN',
+      '}',
+      '{%',
+      '    PART END',
+      '}',
+      '',
+      '\\newcommand{\\FestePunkte}[1]{50\\% #1}',
+      'UNRELATED LINE',
+    ].join('\n');
+    const assets = [{ path: 'sty/Schulaufgabe.sty', content: enc(sty) }];
+    const log = '! LaTeX Error: \\begin{Teilaufgabe} on input line 1 ended by \\end{Aufgabe}.\nl.5 \\FestePunkte{2}\n';
+    const prompt = buildAiPrompt({ log, engine: 'local', includeSource: false, assets, locale: 'en' });
+    expect(prompt).toContain('PART BEGIN');
+    expect(prompt).toContain('PART END');
+    expect(prompt).not.toContain('\\theTeilaufgabe');
+    expect(prompt).toContain('50\\% #1');
+    expect(prompt).not.toContain('UNRELATED LINE');
+  });
+
+  it('shows the code around each error of a long exercise', () => {
+    const body = Array.from({ length: 300 }, (_, i) => `row ${i + 1}`);
+    const doc = ['\\begin{document}', ...body].join('\n');
+    const log = '! Undefined control sequence.\nl.21 row 20\n! Undefined control sequence.\nl.181 row 180\n';
+    const prompt = buildAiPrompt({ log, engine: 'local', source: doc, ranges: [{ label: 'Long', start: 2, end: 301 }], includeSource: true, locale: 'en' });
+    expect(prompt).toContain('error at line 20');
+    expect(prompt).toContain('error at line 180');
+    expect(prompt).toContain('row 180');
+  });
+});

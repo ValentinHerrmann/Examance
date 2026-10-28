@@ -74,7 +74,6 @@ export const exercises = {
         discardTitle: 'Aufgabenänderungen verwerfen?',
         discardMessage: 'Sie haben Felder dieser Aufgabe geändert. Beim Verwerfen gehen Ihre ungespeicherten Änderungen verloren.',
     },
-    /** Score & structure section of the exercise editor (issues #77-#79). */
     aiPrompt: {
         button: 'KI-Prompt',
         buttonTitle: 'Prompt für einen KI-Chat erstellen, der diese Aufgabe schreibt oder ändert',
@@ -91,6 +90,7 @@ export const exercises = {
         copied: 'Kopiert',
         copyFailed: 'Kopieren nicht möglich (Zugriff auf die Zwischenablage verweigert). Markieren Sie den Prompt und kopieren Sie ihn von Hand.',
     },
+    /** Score & structure section of the exercise editor (issues #77-#79). */
     structure: {
         title: 'Punkte & Aufbau',
         openTitle: 'Punkte, Anforderungsbereich, Kompetenzen und Teilaufgaben bearbeiten',
