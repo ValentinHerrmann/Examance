@@ -120,7 +120,7 @@
   }
 
   async function handleDeleteOld() {
-    deleted = await deleteOldCopy(direction);
+    deleted = await deleteOldCopy(direction, result?.movedExams ?? []);
     step = 'done';
   }
 

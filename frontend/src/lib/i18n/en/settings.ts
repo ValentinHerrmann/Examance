@@ -209,6 +209,7 @@ export const settings: Translations['settings'] = {
         storageModeSet: 'Global Storage Mode updated to {mode}. Session cleared.',
         languageSet: 'Language set to {language}.',
         studentErased: 'Student {id} successfully erased.',
+        studentErasurePending: 'Student {id} was removed here; the server copy is deleted as soon as the connection is back.',
         exportDownloaded: 'Subject access export downloaded.',
         exportFailed: 'Export failed.',
     },

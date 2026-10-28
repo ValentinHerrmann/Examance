@@ -180,11 +180,13 @@
           onSubmissionHydrated(fullSub);
         }
       } catch (err) {
-        // strokesSubmissionId stays null, so a save leaves this submission's annotations untouched.
         console.error("Failed to load scan for grading:", err);
         if (seq !== loadSeq) return;
-        await showMessage(translate("grading.canvas.scanLoadFailed"), cssVar("--color-danger-fg", "#a61b29"), 80);
-        return;
+        // Without the scan bytes this is a failure, not "scan missing"; with them the record at hand is complete.
+        if (!sub.scanCt || !sub.scanIv) {
+          await showMessage(translate("grading.canvas.scanLoadFailed"), cssVar("--color-danger-fg", "#a61b29"), 80);
+          return;
+        }
       }
     }
 

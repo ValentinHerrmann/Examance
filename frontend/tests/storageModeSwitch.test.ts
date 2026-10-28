@@ -141,3 +141,22 @@ describe('workspace manifest', () => {
     expect(localStorage.getItem('bg_storage_policy')).toBeNull();
   });
 });
+
+describe('cleanup after a move to the server (F11)', () => {
+  it('clears only the exams that moved; a skipped exam keeps its local results', async () => {
+    const { deleteOldCopy } = await import('../src/lib/services/resultsMover');
+    await clearAllTables();
+    const row = (examId: string, id: string) => ({ examId, id }) as never;
+    await db.students.bulkPut([{ pseudonymId: 'p-moved', examId: 'moved' }, { pseudonymId: 'p-kept', examId: 'skipped' }] as never[]);
+    await db.submissions.bulkPut([row('moved', 's-moved'), row('skipped', 's-kept')]);
+    await db.exerciseScores.bulkPut([
+      { id: 'sc-moved', submissionId: 's-moved', exerciseId: 'e' },
+      { id: 'sc-kept', submissionId: 's-kept', exerciseId: 'e' },
+    ] as never[]);
+
+    expect(await deleteOldCopy('to-server', ['moved'])).toEqual({ students: 1, submissions: 1 });
+    expect((await db.students.toArray()).map((s) => s.examId)).toEqual(['skipped']);
+    expect((await db.submissions.toArray()).map((s) => s.id)).toEqual(['s-kept']);
+    expect((await db.exerciseScores.toArray()).map((s) => s.id)).toEqual(['sc-kept']);
+  });
+});

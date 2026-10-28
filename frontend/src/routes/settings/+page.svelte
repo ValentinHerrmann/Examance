@@ -42,10 +42,10 @@
   import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
-  async function handleExportStudent(pseudonymId: string) {
+  async function handleExportStudent(pseudonymId: string, examId: string) {
     statusMsg = "";
     try {
-      const data = await exportStudentData(pseudonymId);
+      const data = await exportStudentData(pseudonymId, examId);
       const url = URL.createObjectURL(toDownloadableJson(data));
       const link = document.createElement("a");
       link.href = url;
@@ -59,6 +59,7 @@
   }
 
   let students: StudentRecord[] = $state.raw([]);
+  let gdprLoadError = $state("");
   let studentExams: { id: string; title: string }[] = $state.raw([]);
   let isErasing = $state(false);
   let statusMsg = $state("");
@@ -93,9 +94,17 @@
     }
     if (isAdmin) return;
     const key = get(sessionStore).sessionKey;
-    students = await studentRepository.getAll(key);
-    const exams = await examRepository.getAll(key);
-    studentExams = exams.map((e) => ({ id: e.id, title: e.title || e.id }));
+    try {
+      students = await studentRepository.getAll(key);
+      const exams = await examRepository.getAll(key);
+      studentExams = exams.map((e) => ({ id: e.id, title: e.title || e.id }));
+    } catch (err) {
+      // The table must not claim "no students stored" for a failed read.
+      students = [];
+      gdprLoadError = translate("admin.gdprErasureTable.loadFailed", {
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
   });
 
   function handleLatexChange(val: "server" | "local") {
@@ -129,9 +138,12 @@
     if (!confirm(translate("settings.alerts.eraseStudentConfirm"))) return;
     isErasing = true;
     try {
-      await eraseStudent(pseudonymId, examId);
+      const result = await eraseStudent(pseudonymId, examId);
       students = students.filter((s) => s.pseudonymId !== pseudonymId);
-      statusMsg = translate("settings.status.studentErased", { id: pseudonymId });
+      statusMsg = translate(
+        result.status === "pending" ? "settings.status.studentErasurePending" : "settings.status.studentErased",
+        { id: pseudonymId },
+      );
     } catch (err: any) {
       alert(translate("settings.alerts.eraseFailed", { message: err.message }));
     } finally {
@@ -259,6 +271,7 @@
           <GdprErasureTable
             {students}
             exams={studentExams}
+            loadError={gdprLoadError}
             {isErasing}
             onErase={handleEraseStudent}
             onExport={handleExportStudent}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { randomCode } from "#lib/utils/randomCode";
   import { page } from "$app/state";
   import { loadPdfjs } from "#lib/pdf/pdfjs";
   import { browser } from "$app/env";
@@ -52,7 +53,7 @@
   import type { PDFDocument, PDFPage } from "pdf-lib";
   import HardwareProfileCard from "#lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "#lib/components/scanning/UploadPanel.svelte";
-  import { Alert, PageHeader, PageShell } from "#lib/components/ui";
+  import { Alert, Button, PageHeader, PageShell } from "#lib/components/ui";
   import UnmatchedResolver from "#lib/components/scanning/UnmatchedResolver.svelte";
   import ScannedSubmissionsTable from "#lib/components/scanning/ScannedSubmissionsTable.svelte";
   import ScanPreviewModal from "#lib/components/scanning/ScanPreviewModal.svelte";
@@ -114,6 +115,9 @@
   // Starts true: the overview must not flash "no submissions yet" while the
   // first fetch is still in flight (see loadScannedSubmissions()).
   let isLoadingSubmissions = $state(true);
+  // A failed list read hides the table (an empty one would say "no submissions yet"); `readError` covers the other reads.
+  let submissionsLoadError = $state("");
+  let readError = $state("");
   let previewModalOpen = $state(false);
   let previewItem: ScannedSubmissionItem | null = $state.raw(null);
   let previewObjectUrl: string | null = $state(null);
@@ -303,10 +307,16 @@
       }
 
       scannedSubmissions = items;
+      submissionsLoadError = "";
+    } catch (err) {
+      console.error("Failed to load scanned submissions:", err);
+      submissionsLoadError = translate("scanning.errorLoadSubmissions", { message: errorText(err) });
     } finally {
       isLoadingSubmissions = false;
     }
   }
+
+  const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
   async function openPreview(item: ScannedSubmissionItem) {
     closePreview();
@@ -323,11 +333,18 @@
     let scanIv = item.scanIv;
 
     if (!scanCt || !scanIv) {
-      const fullSub = await submissionRepository.getById(examId, item.id, key || fallbackKey);
-      if (seq !== previewSeq) return;
-      if (fullSub) {
-        scanCt = fullSub.scanCt;
-        scanIv = fullSub.scanIv;
+      try {
+        const fullSub = await submissionRepository.getById(examId, item.id, key || fallbackKey);
+        if (seq !== previewSeq) return;
+        if (fullSub) {
+          scanCt = fullSub.scanCt;
+          scanIv = fullSub.scanIv;
+        }
+      } catch (err) {
+        if (seq !== previewSeq) return;
+        previewLoading = false;
+        previewError = translate("scanning.errorLoadScan", { message: errorText(err) });
+        return;
       }
     }
 
@@ -484,7 +501,18 @@
     return new Uint8Array(await blob.arrayBuffer());
   }
 
+  /** A failed read stops before the orphan cleanup below, which would otherwise delete students still linked. */
   async function refreshUnmatched() {
+    try {
+      await doRefreshUnmatched();
+      readError = "";
+    } catch (err) {
+      console.error("Failed to refresh unmatched students:", err);
+      readError = translate("scanning.errorLoadSubmissions", { message: errorText(err) });
+    }
+  }
+
+  async function doRefreshUnmatched() {
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     const students = await studentRepository.getByExamId(examId, key);
@@ -560,10 +588,20 @@
   async function handleFileUpload(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
-
     isProcessing = true;
+    try {
+      await ingestFiles(Array.from(input.files));
+    } catch (err) {
+      console.error("[scan] ingest failed:", err);
+      statusText = translate("scanning.status.failed", { message: err instanceof Error ? err.message : String(err) });
+    } finally {
+      // Always, so a failed upload never leaves the panel disabled (F9).
+      isProcessing = false;
+    }
+  }
+
+  async function ingestFiles(files: File[]) {
     progress = 0;
-    const files = Array.from(input.files);
 
     interface StudentBooklet {
       pseudonymId: string;
@@ -651,7 +689,7 @@
           const fallbackCode =
             (parsedStudent ? parsedStudent.displayName : null) ||
             qrResult.fallbackCode ||
-            `F-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            `F-${randomCode()}`;
 
           if (currentBooklet && currentBooklet.pseudonymId === pseudoId) {
             currentBooklet.pageRefs.push(pageRef);
@@ -681,7 +719,7 @@
             const pseudoId: string = crypto.randomUUID();
             const newBooklet: StudentBooklet = {
               pseudonymId: pseudoId,
-              fallbackCode: `UNMATCHED-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+              fallbackCode: `UNMATCHED-${randomCode()}`,
               isUnmatched: true,
               pageRefs: [pageRef],
             };
@@ -841,7 +879,6 @@
 
     await refreshUnmatched();
     await loadScannedSubmissions();
-    isProcessing = false;
     statusText = translate("scanning.status.complete", {
       fileCount: files.length,
       pageCount: processedPages,
@@ -868,7 +905,13 @@
     const code = item.newCode.trim();
     if (!code) return;
     const key = get(sessionStore).sessionKey;
-    const students = await studentRepository.getByExamId(examId, key);
+    let students: StudentRecord[];
+    try {
+      students = await studentRepository.getByExamId(examId, key);
+    } catch (err) {
+      readError = translate("scanning.errorLoadSubmissions", { message: errorText(err) });
+      return;
+    }
     let st = students.find((s) => s.pseudonymId === item.studentId);
     if (!st) {
       const rawSt = await db.students.get(item.studentId);
@@ -908,10 +951,15 @@
     let scanIv = item.scanIv;
 
     if (!scanCt || !scanIv) {
-      const fullSub = await submissionRepository.getById(examId, item.id, key || fallbackKey);
-      if (fullSub) {
-        scanCt = fullSub.scanCt;
-        scanIv = fullSub.scanIv;
+      try {
+        const fullSub = await submissionRepository.getById(examId, item.id, key || fallbackKey);
+        if (fullSub) {
+          scanCt = fullSub.scanCt;
+          scanIv = fullSub.scanIv;
+        }
+      } catch (err) {
+        readError = translate("scanning.errorLoadScan", { message: errorText(err) });
+        return;
       }
     }
 
@@ -977,7 +1025,7 @@
 
       // Create new unmatched student & submission record for Part 2
       const part2PseudoId = crypto.randomUUID();
-      const part2Fallback = `UNMATCHED-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const part2Fallback = `UNMATCHED-${randomCode()}`;
 
       await saveStudentEncrypted(
         {
@@ -1030,21 +1078,34 @@
 
   <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload} />
 
+  {#if readError}
+    <Alert severity="danger" class="my-4" onDismiss={() => (readError = "")}>{readError}</Alert>
+  {/if}
+
   <UnmatchedResolver {unmatchedList} onUpdateFallbackCode={updateFallbackCode} />
 
-  <ScannedSubmissionsTable
-    {examId}
-    {scannedSubmissions}
-    loading={isLoadingSubmissions}
-    {exportingId}
-    {isGraded}
-    onPreview={openPreview}
-    onExportPdf={handleExportPdf}
-    onSplit={handleSplitSubmission}
-    onDeleteGrading={handleDeleteGrading}
-    onDelete={handleDeleteScan}
-    onDeleteAll={handleDeleteAllScans}
-  />
+  {#if submissionsLoadError}
+    <Alert severity="danger" class="my-4">
+      {submissionsLoadError}
+      {#snippet actions()}
+        <Button variant="outlined" severity="danger" size="sm" onClick={loadScannedSubmissions}>{$t("common.retry")}</Button>
+      {/snippet}
+    </Alert>
+  {:else}
+    <ScannedSubmissionsTable
+      {examId}
+      {scannedSubmissions}
+      loading={isLoadingSubmissions}
+      {exportingId}
+      {isGraded}
+      onPreview={openPreview}
+      onExportPdf={handleExportPdf}
+      onSplit={handleSplitSubmission}
+      onDeleteGrading={handleDeleteGrading}
+      onDelete={handleDeleteScan}
+      onDeleteAll={handleDeleteAllScans}
+    />
+  {/if}
 </PageShell>
 
 <ScanPreviewModal

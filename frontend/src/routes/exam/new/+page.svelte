@@ -246,6 +246,8 @@ Frage hier eingeben... \\BE
       }
     } catch (err) {
       console.error("Failed to load exercise library:", err);
+      // Otherwise the picker would just look like an empty library.
+      errorMsg = translate("exercises.page.loadFailed");
     }
   }
 

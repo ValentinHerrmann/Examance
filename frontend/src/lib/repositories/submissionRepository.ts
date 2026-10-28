@@ -63,24 +63,20 @@ export const submissionRepository = {
       return Promise.all(raw.map((sub) => decryptSubmission(sub, key)));
     } else {
       // Remote mode: backend has no /submissions endpoint, so fetch per-exam
-      try {
-        const exams = knownExams ?? (await examRepository.getAll(key));
-        // In parallel, so the dashboard doesn't wait for one round-trip per
-        // exam. silentError throughout: the caller falls back to no
-        // statistics, and one modal per exam would be a wall of dialogs.
-        const perExam = await Promise.all(
-          exams.map(async (exam) => {
-            const rawList = await api.get<any[]>(
-              `/exams/${exam.id}/submissions${includeScansQS(opts.includeScans)}`,
-              { silentError: true }
-            );
-            return rawList.map((s: any) => mapApiToSubmissionRecord(s, exam.id));
-          })
-        );
-        return perExam.flat();
-      } catch {
-        return [];
-      }
+      const exams = knownExams ?? (await examRepository.getAll(key));
+      // In parallel, so the dashboard doesn't wait for one round-trip per exam.
+      // silentError: one modal per exam would be a wall of dialogs; a failed
+      // read throws and the caller reports it (never a partial list).
+      const perExam = await Promise.all(
+        exams.map(async (exam) => {
+          const rawList = await api.get<any[]>(
+            `/exams/${exam.id}/submissions${includeScansQS(opts.includeScans)}`,
+            { silentError: true }
+          );
+          return rawList.map((s: any) => mapApiToSubmissionRecord(s, exam.id));
+        })
+      );
+      return perExam.flat();
     }
   },
 
@@ -93,16 +89,12 @@ export const submissionRepository = {
       const raw = await db.submissions.where('examId').equals(examId).toArray();
       return Promise.all(raw.map((sub) => decryptSubmission(sub, key)));
     } else {
-      try {
-        // silentError: a failure degrades to "no submissions" below.
-        const rawList = await api.get<any[]>(
-          `/exams/${examId}/submissions${includeScansQS(opts.includeScans)}`,
-          { silentError: true }
-        );
-        return rawList.map((s: any) => mapApiToSubmissionRecord(s, examId));
-      } catch {
-        return [];
-      }
+      // silentError: a failed read throws and the caller reports it; never "no submissions".
+      const rawList = await api.get<any[]>(
+        `/exams/${examId}/submissions${includeScansQS(opts.includeScans)}`,
+        { silentError: true }
+      );
+      return rawList.map((s: any) => mapApiToSubmissionRecord(s, examId));
     }
   },
 
@@ -114,8 +106,10 @@ export const submissionRepository = {
       try {
         const s = await api.get<any>(`/exams/${examId}/submissions/${id}`, { silentError: true });
         return mapApiToSubmissionRecord(s, examId);
-      } catch {
-        return null;
+      } catch (err: any) {
+        // Only "does not exist" is null; any other failed read must not look like a missing submission.
+        if (err?.status === 404) return null;
+        throw err;
       }
     }
   },

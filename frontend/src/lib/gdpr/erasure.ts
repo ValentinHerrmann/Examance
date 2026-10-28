@@ -8,12 +8,15 @@ import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
 import { api } from '#lib/api/client';
+import { pendingWritesCount } from '#lib/services/offlineQueue';
 import { get } from 'svelte/store';
 
 export interface ErasureResult {
   pseudonymId: string;
   submissionsErased: number;
   auditEntryId: string;
+  /** `pending`: a server delete was queued offline and runs when the connection returns (F3). */
+  status: 'erased' | 'pending';
 }
 
 /** Permanently erase a student's identity and submissions (by raw pseudonym ID, within an exam) in both storage modes. */
@@ -23,6 +26,7 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
   const pseudonymHmac = await ensure64CharHex(pseudonymId);
 
   const key = get(sessionStore).sessionKey;
+  const queuedBefore = get(pendingWritesCount);
   const encryptedAudit = await encryptAuditEntry({
     id: auditId,
     action: 'DELETE',
@@ -66,5 +70,6 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
     pseudonymId,
     submissionsErased: matchingSubs.length,
     auditEntryId: auditId,
+    status: get(pendingWritesCount) > queuedBefore ? 'pending' : 'erased',
   };
 }

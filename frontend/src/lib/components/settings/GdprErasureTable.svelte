@@ -2,18 +2,20 @@
   import { faChevronLeft, faChevronRight, faDownload, faTrash } from "@fortawesome/free-solid-svg-icons";
   import type { StudentRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
-  import { Button, Card, Select, TableScroller, TextInput } from "#lib/components/ui";
+  import { Alert, Button, Card, Select, TableScroller, TextInput } from "#lib/components/ui";
 
   interface Props {
     students: StudentRecord[];
     /** Exams the students belong to, for the filter and the per-row label. */
     exams: { id: string; title: string }[];
+    /** A failed read: shown instead of the "no students stored" text, which would be untrue. */
+    loadError?: string;
     isErasing: boolean;
     onErase: (pseudonymId: string, examId: string) => void;
-    onExport: (pseudonymId: string) => void;
+    onExport: (pseudonymId: string, examId: string) => void;
   }
 
-  let { students, exams, isErasing, onErase, onExport }: Props = $props();
+  let { students, exams, loadError = "", isErasing, onErase, onExport }: Props = $props();
 
   const PAGE_SIZE = 10;
 
@@ -47,7 +49,9 @@
 </script>
 
 <Card title={$t("admin.gdprErasureTable.title")}>
-  {#if students.length === 0}
+  {#if loadError}
+    <Alert severity="danger">{loadError}</Alert>
+  {:else if students.length === 0}
     <p class="m-0 text-sm text-muted">
       {$t("admin.gdprErasureTable.empty")}
     </p>
@@ -99,7 +103,7 @@
                       variant="outlined"
                       size="sm"
                       icon={faDownload}
-                      onClick={() => onExport(st.pseudonymId)}
+                      onClick={() => onExport(st.pseudonymId, st.examId)}
                       disabled={isErasing}
                     >
                       {$t("admin.gdprErasureTable.exportButton")}

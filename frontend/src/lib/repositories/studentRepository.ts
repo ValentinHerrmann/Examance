@@ -45,18 +45,14 @@ export const studentRepository = {
       const raw = await db.students.toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
-            // Per exam: no endpoint lists "every student" (GET /students was never served, the router is at
-            // /exams/{id}/students; it silently 404'd, leaving the erasure table empty and .bgproj exports without students).
-      try {
-        const exams = await examRepository.getAll(key);
-        const all: StudentRecord[] = [];
-        for (const exam of exams) {
-          all.push(...(await this.getByExamId(exam.id, key)));
-        }
-        return all;
-      } catch {
-        return [];
+      // Per exam: no endpoint lists "every student" (the router is at /exams/{id}/students). A failed
+      // read throws; an empty list would let erasure and .bgproj exports run on partial data.
+      const exams = await examRepository.getAll(key);
+      const all: StudentRecord[] = [];
+      for (const exam of exams) {
+        all.push(...(await this.getByExamId(exam.id, key)));
       }
+      return all;
     }
   },
 
@@ -65,50 +61,46 @@ export const studentRepository = {
       const raw = await db.students.where('examId').equals(examId).toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
-      try {
-        // silentError: a failure falls back to the local copy below.
-        const rawList = await api.get<any[]>(`/exams/${examId}/students`, { silentError: true });
-        const serverStudents = await Promise.all(
-          rawList.map((st: any) => decryptStudent(mapApiToStudentRecord(st, examId), key))
-        );
-        const localRaw = await db.students.where('examId').equals(examId).toArray();
-        const localStudents = await Promise.all(localRaw.map((st) => decryptStudent(st, key)));
-        const combinedMap = new Map<string, StudentRecord>();
-        const hmacToKeyMap = new Map<string, string>();
+      // all-server holds nothing locally, so a local fallback would be a silent empty list: a failed
+      // read throws and the caller reports it. silentError because callers show their own error.
+      const rawList = await api.get<any[]>(`/exams/${examId}/students`, { silentError: true });
+      const serverStudents = await Promise.all(
+        rawList.map((st: any) => decryptStudent(mapApiToStudentRecord(st, examId), key))
+      );
+      const localRaw = await db.students.where('examId').equals(examId).toArray();
+      const localStudents = await Promise.all(localRaw.map((st) => decryptStudent(st, key)));
+      const combinedMap = new Map<string, StudentRecord>();
+      const hmacToKeyMap = new Map<string, string>();
 
-        for (const st of serverStudents) {
-          combinedMap.set(st.pseudonymId, st);
-          hmacToKeyMap.set(st.pseudonymId, st.pseudonymId);
-        }
-
-        for (const st of localStudents) {
-          const localHmac = await ensure64CharHex(st.pseudonymId);
-          const existingKey = combinedMap.has(st.pseudonymId)
-            ? st.pseudonymId
-            : hmacToKeyMap.get(localHmac);
-
-          if (!existingKey) {
-            combinedMap.set(st.pseudonymId, st);
-            hmacToKeyMap.set(localHmac, st.pseudonymId);
-          } else {
-            const existing = combinedMap.get(existingKey)!;
-            const merged: StudentRecord = {
-              ...existing,
-              pseudonymId: st.pseudonymId || existing.pseudonymId,
-              studentName: st.studentName || existing.studentName,
-              studentNumber: st.studentNumber || existing.studentNumber,
-              fallbackCode: st.fallbackCode || existing.fallbackCode,
-            };
-            combinedMap.delete(existingKey);
-            combinedMap.set(merged.pseudonymId, merged);
-            hmacToKeyMap.set(localHmac, merged.pseudonymId);
-          }
-        }
-        return Array.from(combinedMap.values());
-      } catch {
-        const raw = await db.students.where('examId').equals(examId).toArray();
-        return Promise.all(raw.map((st) => decryptStudent(st, key)));
+      for (const st of serverStudents) {
+        combinedMap.set(st.pseudonymId, st);
+        hmacToKeyMap.set(st.pseudonymId, st.pseudonymId);
       }
+
+      for (const st of localStudents) {
+        const localHmac = await ensure64CharHex(st.pseudonymId);
+        const existingKey = combinedMap.has(st.pseudonymId)
+          ? st.pseudonymId
+          : hmacToKeyMap.get(localHmac);
+
+        if (!existingKey) {
+          combinedMap.set(st.pseudonymId, st);
+          hmacToKeyMap.set(localHmac, st.pseudonymId);
+        } else {
+          const existing = combinedMap.get(existingKey)!;
+          const merged: StudentRecord = {
+            ...existing,
+            pseudonymId: st.pseudonymId || existing.pseudonymId,
+            studentName: st.studentName || existing.studentName,
+            studentNumber: st.studentNumber || existing.studentNumber,
+            fallbackCode: st.fallbackCode || existing.fallbackCode,
+          };
+          combinedMap.delete(existingKey);
+          combinedMap.set(merged.pseudonymId, merged);
+          hmacToKeyMap.set(localHmac, merged.pseudonymId);
+        }
+      }
+      return Array.from(combinedMap.values());
     }
   },
 
@@ -135,13 +127,8 @@ export const studentRepository = {
     }
   },
 
-  async delete(examIdOrPseudonymId: string, pseudonymIdArg?: string): Promise<void> {
-    let examId = examIdOrPseudonymId;
-    let pseudonymId = pseudonymIdArg;
-    if (!pseudonymId) {
-      pseudonymId = examIdOrPseudonymId;
-      examId = '';
-    }
+  /** Students live per exam on the server (`/exams/{id}/students/{hmac}`); there is no exam-less route (F12). */
+  async delete(examId: string, pseudonymId: string): Promise<void> {
     const pseudonymHmac = await ensure64CharHex(pseudonymId);
 
     // Delete locally from IndexedDB in all modes to keep local state clean
@@ -150,9 +137,7 @@ export const studentRepository = {
 
     // Also search local students by examId or full list to catch raw UUID keys matching the HMAC
     try {
-      const candidates = examId
-        ? await db.students.where('examId').equals(examId).toArray()
-        : await db.students.toArray();
+      const candidates = await db.students.where('examId').equals(examId).toArray();
       for (const st of candidates) {
         if (!st.pseudonymId) continue;
         if (
@@ -169,7 +154,7 @@ export const studentRepository = {
 
     const policy = get(storagePolicyStore);
     if (policy.storageMode === 'all-server') {
-      const url = examId ? `/exams/${examId}/students/${pseudonymHmac}` : `/students/${pseudonymHmac}`;
+      const url = `/exams/${examId}/students/${pseudonymHmac}`;
       try {
         await api.delete(url, { silentError: true });
       } catch (err) {

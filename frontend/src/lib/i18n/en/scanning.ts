@@ -54,6 +54,7 @@ export const scanning: Translations['scanning'] = {
         analyzingFiles: 'Analyzing files...',
         scanningPage: 'Scanning page {current} of {total}: {fileName}',
         savingBooklet: 'Saving student booklet {current} of {total} ({pages} page(s))...',
+        failed: 'Import stopped: {message}. Check the list below and upload the missing files again.',
         complete: 'Complete! Ingested {fileCount} file(s) ({pageCount} page(s)) into {bookletCount} student submission booklet(s).',
     },
     omrBanner: {
@@ -71,6 +72,8 @@ export const scanning: Translations['scanning'] = {
     confirmDeleteAllScans: 'Are you sure you want to delete ALL {count} ingested scan(s) for this exam? This action cannot be undone.',
     errorDeleteScan: 'Failed to delete scan: {message}',
     errorDeleteGrading: 'Failed to delete grading: {message}',
+    errorLoadSubmissions: 'Failed to load the submissions: {message}',
+    errorLoadScan: 'Failed to load the scan: {message}',
     errorDeleteAllScans: 'Failed to delete all scans: {message}',
     errorExportPdf: 'Failed to export PDF: {message}',
     errorPreviewMissingData: 'Scan data or session encryption key missing.',

@@ -52,6 +52,7 @@ export const scanning = {
         analyzingFiles: 'Dateien werden analysiert…',
         scanningPage: 'Scanne Seite {current} von {total}: {fileName}',
         savingBooklet: 'Speichere Schülerheft {current} von {total} ({pages} Seite(n))…',
+        failed: 'Import abgebrochen: {message}. Prüfen Sie die Liste unten und laden Sie fehlende Dateien erneut hoch.',
         complete: 'Fertig! {fileCount} Datei(en) ({pageCount} Seite(n)) in {bookletCount} Schülerabgabe(n) eingelesen.',
     },
     omrBanner: {
@@ -69,6 +70,8 @@ export const scanning = {
     confirmDeleteAllScans: 'Möchten Sie wirklich ALLE {count} eingelesenen Scan(s) für diese Prüfung löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
     errorDeleteScan: 'Scan konnte nicht gelöscht werden: {message}',
     errorDeleteGrading: 'Bewertung konnte nicht gelöscht werden: {message}',
+    errorLoadSubmissions: 'Die Abgaben konnten nicht geladen werden: {message}',
+    errorLoadScan: 'Der Scan konnte nicht geladen werden: {message}',
     errorDeleteAllScans: 'Nicht alle Scans konnten gelöscht werden: {message}',
     errorExportPdf: 'PDF-Export fehlgeschlagen: {message}',
     errorPreviewMissingData: 'Scan-Daten oder Sitzungs-Verschlüsselungsschlüssel fehlen.',

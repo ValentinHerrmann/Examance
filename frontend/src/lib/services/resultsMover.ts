@@ -17,6 +17,7 @@ import {
 } from '#lib/db/dbEncryption';
 import type { ExerciseScoreRecord, StudentRecord, SubmissionRecord } from '#lib/db/schema';
 import { applyMode, rememberMode } from '#lib/db/workspace';
+import { ensure64CharHex } from '#lib/crypto/hmac';
 import { mapApiToStudentRecord, studentServerPayload } from '#lib/repositories/studentRepository';
 import { mapApiToSubmissionRecord, submissionServerPayload } from '#lib/repositories/submissionRepository';
 import { fromApi as scoreFromApi, toApi as scoreToApi } from '#lib/repositories/scoreRepository';
@@ -45,6 +46,8 @@ export interface MoveResult {
   scores: number;
   /** Exams whose results could not be moved (e.g. the exam no longer exists on the server). */
   skippedExams: string[];
+  /** Exams whose results arrived and verified: the only ones `deleteOldCopy` may clear (F11). */
+  movedExams: string[];
 }
 
 export class MoveVerificationError extends Error {
@@ -154,11 +157,20 @@ async function writeServer(examId: string, results: ExamResults): Promise<void> 
   }
 }
 
+/** Every record sent must have arrived, by identity, not by count (F11): other rows could make up a count. */
 async function verify(examId: string, sent: ExamResults, direction: MoveDirection): Promise<void> {
   const arrived = direction === 'to-browser' ? await readLocal(examId) : await readServer(examId);
-  if (arrived.submissions.length < sent.submissions.length) throw new MoveVerificationError(examId, 'submissions');
-  if (arrived.scores.length < sent.scores.length) throw new MoveVerificationError(examId, 'scores');
-  if (arrived.students.length < sent.students.length) throw new MoveVerificationError(examId, 'students');
+  const studentKey = (s: StudentRecord) => ensure64CharHex(s.pseudonymId);
+  const scoreKey = (s: ExerciseScoreRecord) => `${s.submissionId}:${s.exerciseId}`;
+  const checks: [string, string[], string[]][] = [
+    ['submissions', sent.submissions.map((s) => s.id), arrived.submissions.map((s) => s.id)],
+    ['scores', sent.scores.map(scoreKey), arrived.scores.map(scoreKey)],
+    ['students', await Promise.all(sent.students.map(studentKey)), await Promise.all(arrived.students.map(studentKey))],
+  ];
+  for (const [what, sentIds, arrivedIds] of checks) {
+    const have = new Set(arrivedIds);
+    if (sentIds.some((id) => !have.has(id))) throw new MoveVerificationError(examId, what);
+  }
 }
 
 /** Exams whose results this move must carry. */
@@ -195,7 +207,7 @@ export async function moveResults(from: StorageMode | null, to: StorageMode): Pr
   beginModeSwitch(from, to);
   try {
     const examIds = await examIdsToMove(direction);
-    const result: MoveResult = { students: 0, submissions: 0, scores: 0, skippedExams: [] };
+    const result: MoveResult = { students: 0, submissions: 0, scores: 0, skippedExams: [], movedExams: [] };
     moveProgressStore.set({ direction, examsDone: 0, examsTotal: examIds.length, students: 0, submissions: 0, scores: 0 });
 
     for (const examId of examIds) {
@@ -225,6 +237,7 @@ export async function moveResults(from: StorageMode | null, to: StorageMode): Pr
         }
       }
       await verify(examId, results, direction);
+      result.movedExams.push(examId);
       result.students += results.students.length;
       result.submissions += results.submissions.length;
       result.scores += results.scores.length;
@@ -250,9 +263,12 @@ export async function moveResults(from: StorageMode | null, to: StorageMode): Pr
 /**
  * Optional last step: removes the copy the move left behind. Towards the browser that is the server's
  * student data (`POST /user/purge-server-student-data`, soft delete with a 7-day grace period);
- * towards the server it is this browser's result tables, cleared in one transaction.
+ * towards the server it is this browser's results of the exams that moved, in one transaction.
  */
-export async function deleteOldCopy(direction: MoveDirection): Promise<{ students: number; submissions: number }> {
+export async function deleteOldCopy(
+  direction: MoveDirection,
+  movedExams: string[],
+): Promise<{ students: number; submissions: number }> {
   if (direction === 'to-browser') {
     const res = await api.post<{ purged_student_identities: number; purged_submissions: number }>(
       '/user/purge-server-student-data',
@@ -261,9 +277,12 @@ export async function deleteOldCopy(direction: MoveDirection): Promise<{ student
     );
     return { students: res.purged_student_identities, submissions: res.purged_submissions };
   }
-  const counts = { students: await db.students.count(), submissions: await db.submissions.count() };
-  await db.transaction('rw', [db.students, db.submissions, db.exerciseScores], async () => {
-    await Promise.all([db.students.clear(), db.submissions.clear(), db.exerciseScores.clear()]);
+  // Only exams that moved: a skipped exam's results exist nowhere else.
+  return db.transaction('rw', [db.students, db.submissions, db.exerciseScores], async () => {
+    const submissionIds = await db.submissions.where('examId').anyOf(movedExams).primaryKeys();
+    const students = await db.students.where('examId').anyOf(movedExams).delete();
+    await db.exerciseScores.where('submissionId').anyOf(submissionIds).delete();
+    await db.submissions.bulkDelete(submissionIds);
+    return { students, submissions: submissionIds.length };
   });
-  return counts;
 }

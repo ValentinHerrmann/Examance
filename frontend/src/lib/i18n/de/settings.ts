@@ -205,6 +205,7 @@ export const settings = {
         storageModeSet: 'Globaler Speichermodus auf {mode} geändert. Sitzung gelöscht.',
         languageSet: 'Sprache auf {language} gesetzt.',
         studentErased: 'Schüler {id} erfolgreich gelöscht.',
+        studentErasurePending: 'Schüler {id} wurde hier entfernt; die Kopie auf dem Server wird gelöscht, sobald die Verbindung wieder besteht.',
         exportDownloaded: 'Auskunftsexport heruntergeladen.',
         exportFailed: 'Export fehlgeschlagen.',
     },

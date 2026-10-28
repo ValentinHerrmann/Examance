@@ -951,6 +951,7 @@
         }
       } catch (err) {
         console.warn("Failed to load local exercises for diff:", err);
+        modalError = failText(err, "exercises.page.loadFailed");
       }
     }
 

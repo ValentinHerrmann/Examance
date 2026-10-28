@@ -67,13 +67,9 @@ export function mapExerciseRecordToApi(ex: ExerciseRecord): any {
 
 export const exerciseRepository = {
   async getAll(_key: CryptoKey | null): Promise<ExerciseRecord[]> {
-    try {
-      // silentError: the caller falls back to the local copy on failure.
-      const rawList = await api.get<any[]>('/exercises', { silentError: true });
-      return rawList.map(mapApiToExerciseRecord);
-    } catch (err: any) {
-      return [];
-    }
+    // silentError: a failed read throws and the caller reports it; never an empty library.
+    const rawList = await api.get<any[]>('/exercises', { silentError: true });
+    return rawList.map(mapApiToExerciseRecord);
   },
 
   async getByExamId(examId: string, key: CryptoKey | null): Promise<ExerciseRecord[]> {
