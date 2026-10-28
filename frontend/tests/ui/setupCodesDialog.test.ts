@@ -10,8 +10,8 @@ afterEach(cleanup);
 const onConfirm = () => {};
 
 describe('SetupCodesDialog', () => {
-  it('labels both halves when given backup codes and a recovery code', async () => {
-    const { getByText } = render(SetupCodesDialog, { backupCodes: ['AAAA-1111'], recoveryCode: 'RC-1', onConfirm });
+  it('labels each half after sign-in', async () => {
+    const { getByText } = render(SetupCodesDialog, { afterSignIn: true, backupCodes: ['AAAA-1111'], recoveryCode: 'RC-1', onConfirm });
     await tick();
     expect(getByText(translate('security.setupCodes.title'))).toBeTruthy();
     expect(getByText(translate('security.setupCodes.backupHeading'))).toBeTruthy();

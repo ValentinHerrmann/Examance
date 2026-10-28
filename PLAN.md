@@ -251,7 +251,8 @@ Target:
   - Callers: the settings security cards and `routes/reset-password`.
   - Optional: a `FactorCard` shell for the Totp, Recovery and Password factor cards and `PasskeyManager`.
   - Estimate: −120 lines.
-- [ ] **V2 `useSecondFactor()`** (`lib/webauthn/secondFactor.svelte.ts`). It holds the passkey ceremony (`loginOptions` → `authenticate` → `verifyLogin` → `passkeyUnwrap`), TOTP and backup-code submit, and the error mapping. Shared by `routes/unlock` and `routes/reset-password`; each page keeps its own state machine. Auth: call out in the PR. Estimate: −100 lines.
+- [x] **V2 `useSecondFactor()`** (`lib/webauthn/secondFactor.svelte.ts`). It holds the passkey ceremony (`loginOptions` → `authenticate` → `verifyLogin` → `passkeyUnwrap`), TOTP and backup-code submit, and the error mapping. Shared by `routes/unlock` and `routes/reset-password`; each page keeps its own state machine. Auth: call out in the PR. Estimate: −100 lines.
+  - Done: plain functions in `lib/services/secondFactor.ts` (no state to share); reset-password now reports a locked account and an expired step like sign-in does.
 - [x] **V3 Dialog primitives.**
   - Done: no hand-rolled dialogs were left; the `role="dialog"` hits are `ConfirmDialog` calls whose role the e2e tests rely on.
   - `ui/ConfirmDialog` gains `error`, `confirmDisabled` and a cancel that is disabled while busy.

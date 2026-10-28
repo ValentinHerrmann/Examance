@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * The one "write this down" screen: backup codes, the recovery code, or both after sign-in (each then
-   * labelled for its purpose). Shown once, never dismissable by backdrop/Escape, confirmed by an acknowledgement.
+   * The one "write this down" screen for backup codes and/or the recovery code; after sign-in (`afterSignIn`)
+   * each half is labelled for its purpose. Shown once, never dismissable by backdrop/Escape, acknowledged explicitly.
    */
   import { Alert, Button, Checkbox, Modal } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
@@ -10,14 +10,14 @@
   interface Props {
     backupCodes?: string[] | null;
     recoveryCode?: string | null;
+    afterSignIn?: boolean;
     onConfirm: () => void;
   }
 
-  let { backupCodes = null, recoveryCode = null, onConfirm }: Props = $props();
+  let { backupCodes = null, recoveryCode = null, afterSignIn = false, onConfirm }: Props = $props();
 
-  let both = $derived(!!backupCodes?.length && !!recoveryCode);
   let prefix = $derived(
-    both ? "security.setupCodes" : backupCodes?.length ? "security.backupCodes" : "security.recovery"
+    afterSignIn ? "security.setupCodes" : backupCodes?.length ? "security.backupCodes" : "security.recovery"
   ) as "security.setupCodes" | "security.backupCodes" | "security.recovery";
   let acknowledged = $state(false);
   let copied = $state(false);
@@ -34,10 +34,12 @@
   }
 
   function download() {
-    // Headings only when both halves share the file.
-    const parts = both
-      ? [$t("security.setupCodes.backupHeading"), ...backupCodes!, "", $t("security.setupCodes.recoveryHeading"), recoveryCode!, ""]
-      : [...(backupCodes ?? []), ...(recoveryCode ? [recoveryCode] : [])];
+    // After sign-in each half keeps its heading in the file too.
+    const half = (heading: string, codes: string[]) => (afterSignIn ? [heading, ...codes, ""] : codes);
+    const parts = [
+      ...(backupCodes?.length ? half($t("security.setupCodes.backupHeading"), backupCodes) : []),
+      ...(recoveryCode ? half($t("security.setupCodes.recoveryHeading"), [recoveryCode]) : []),
+    ];
     downloadBlob(new Blob([`${parts.join("\n")}\n`], { type: "text/plain" }), $t(`${prefix}.fileName`));
   }
 </script>
@@ -49,7 +51,7 @@
 
     {#if backupCodes?.length}
       <section class="flex flex-col gap-2">
-        {#if both}
+        {#if afterSignIn}
           <h3 class="m-0 text-sm font-semibold text-content">{$t("security.setupCodes.backupHeading")}</h3>
           <p class="m-0 text-sm text-muted">{$t("security.setupCodes.backupPurpose")}</p>
         {/if}
@@ -65,7 +67,7 @@
 
     {#if recoveryCode}
       <section class="flex flex-col gap-2">
-        {#if both}
+        {#if afterSignIn}
           <h3 class="m-0 text-sm font-semibold text-content">{$t("security.setupCodes.recoveryHeading")}</h3>
           <p class="m-0 text-sm text-muted">{$t("security.setupCodes.recoveryPurpose")}</p>
         {/if}

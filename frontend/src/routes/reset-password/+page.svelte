@@ -2,12 +2,12 @@
   // Password reset wizard. Needs a second factor (mailbox alone must not take over an account); the data key is
   // unwrapped in the browser with the recovery code and re-wrapped under the new password, sent in one request.
   import { onMount } from "svelte";
-  import { api, apiErrorMessage, ApiError } from "#lib/api/client";
+  import { api, apiErrorMessage } from "#lib/api/client";
   import { takeUrlToken } from "#lib/utils/urlToken";
   import { t, translate } from "#lib/i18n";
-  import { startReset, submitBackupCode, submitTotp, type AuthStep } from "#lib/api/mfa";
-  import { loginOptions, verifyLogin } from "#lib/api/webauthn";
-  import { authenticate, isSupported as passkeysSupported } from "#lib/webauthn/client";
+  import { startReset, type AuthStep } from "#lib/api/mfa";
+  import { isSupported as passkeysSupported } from "#lib/webauthn/client";
+  import { codeFactorError, signInWithPasskey, submitCodeFactor, type PasskeyUnwrap } from "#lib/services/secondFactor";
   import { envelopeSetToDto } from "#lib/api/keyEnvelopes";
   import {
     buildResetEnvelopeSet,
@@ -48,7 +48,7 @@
    */
   let needsKeyRecovery = $state(true);
   /** A passkey that carried the second factor and yielded its PRF secret; it already recovered the data key, so the recovery-code step is skipped. */
-  let passkeyUnwrap = $state.raw<{ credentialIdB64: string; prfOutput: Uint8Array } | null>(null);
+  let passkeyUnwrap = $state.raw<PasskeyUnwrap | null>(null);
 
   onMount(() => {
     token = takeUrlToken();
@@ -107,15 +107,12 @@
   async function handleSecondFactor(code: string, useBackupCode: boolean) {
     factorErrorMsg = "";
     try {
-      step = useBackupCode ? await submitBackupCode(code) : await submitTotp(code);
+      step = await submitCodeFactor(code, useBackupCode);
       if (step.status === "ok") {
         await enterKeyStage();
       }
     } catch (err: unknown) {
-      factorErrorMsg =
-        err instanceof ApiError && err.code === "ERR_MFA_CODE_ALREADY_USED"
-          ? translate("security.factors.alreadyUsed")
-          : translate("security.factors.invalid");
+      factorErrorMsg = codeFactorError(err);
     }
   }
 
@@ -123,17 +120,9 @@
   async function handlePasskeyFactor() {
     factorErrorMsg = "";
     try {
-      const options = await loginOptions();
-      const assertion = await authenticate(options);
-      step = await verifyLogin({
-        handle: options.handle,
-        challenge_b64: options.challenge_b64,
-        credential_json: assertion.credentialJson,
-      });
-      if (assertion.prfOutput) {
-        const parsed = JSON.parse(assertion.credentialJson) as { rawId: string };
-        passkeyUnwrap = { credentialIdB64: parsed.rawId, prfOutput: assertion.prfOutput };
-      }
+      const result = await signInWithPasskey();
+      step = result.step;
+      if (result.unwrap) passkeyUnwrap = result.unwrap;
       if (step.status === "ok") {
         if (passkeyUnwrap) {
           // The passkey already holds a copy of the data key. Nothing else to ask for.

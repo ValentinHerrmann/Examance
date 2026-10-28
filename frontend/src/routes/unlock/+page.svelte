@@ -24,15 +24,15 @@
     TotpEnrollDialog,
     VaultUnlockStep,
   } from "#lib/components/security";
+  import { submitPassword, submitPasswordFactor, type AuthStep } from "#lib/api/mfa";
+  import { isSupported as passkeysSupported } from "#lib/webauthn/client";
   import {
-    submitBackupCode,
-    submitPassword,
-    submitPasswordFactor,
-    submitTotp,
-    type AuthStep,
-  } from "#lib/api/mfa";
-  import { loginOptions, verifyLogin } from "#lib/api/webauthn";
-  import { authenticate, isSupported as passkeysSupported } from "#lib/webauthn/client";
+    codeFactorError,
+    passkeyAssertion,
+    signInWithPasskey,
+    submitCodeFactor,
+    type PasskeyUnwrap,
+  } from "#lib/services/secondFactor";
   import { addPasskeyWrap, openWithPasskey } from "#lib/services/keyEnvelopeService";
   import {
     EnvelopeChangedError,
@@ -87,7 +87,7 @@
   let finishingEmail = $state("");
   const canUsePasskeys = passkeysSupported();
   /** PRF secret from a passkey assertion, held until the vault opens (lets passkey + TOTP skip the password). */
-  let passkeyUnwrap: { credentialIdB64: string; prfOutput: Uint8Array } | null = null;
+  let passkeyUnwrap: PasskeyUnwrap | null = null;
   // True only once the server accepted `password` in this sign-in. Unsubmitted text would otherwise be used
   // to open the vault and, on an account without an envelope, seal a wrong data key over every record.
   let passwordVerified = false;
@@ -95,7 +95,7 @@
   let passkeyAutoTriedFor: AuthStep | null = $state.raw(null);
   let passkeyPending = $state(false);
   /** A PRF passkey that signed in but has no working wrap; re-wrapped once the vault opens another way. */
-  let passkeyToHeal: { credentialIdB64: string; prfOutput: Uint8Array } | null = $state.raw(null);
+  let passkeyToHeal: PasskeyUnwrap | null = $state.raw(null);
   /** Which second factor the enrollment step sets up; a passkey is offered first where the browser can make one (issue #72). */
   let enrollWithTotp = $state(!canUsePasskeys);
 
@@ -373,23 +373,11 @@
         }
       }
 
-      const options = await loginOptions();
-      const assertion = await authenticate(options);
-      const step = await verifyLogin({
-        handle: options.handle,
-        challenge_b64: options.challenge_b64,
-        credential_json: assertion.credentialJson,
-      });
-
+      const { step, unwrap } = await signInWithPasskey();
       if (trimmedBackendUrl) {
         backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
       }
-
-      if (assertion.prfOutput) {
-        const parsed = JSON.parse(assertion.credentialJson) as { rawId: string };
-        passkeyUnwrap = { credentialIdB64: parsed.rawId, prfOutput: assertion.prfOutput };
-      }
-
+      if (unwrap) passkeyUnwrap = unwrap;
       await handleAuthStep(step);
     } catch (err: any) {
       if (opts.auto && isCeremonyCancelled(err)) {
@@ -504,25 +492,9 @@
   async function handleSecondFactor(code: string, useBackupCode: boolean) {
     factorErrorMsg = "";
     try {
-      const step = useBackupCode ? await submitBackupCode(code) : await submitTotp(code);
-      await handleAuthStep(step);
+      await handleAuthStep(await submitCodeFactor(code, useBackupCode));
     } catch (err: any) {
-      const code = err instanceof ApiError ? err.code : "";
-      factorErrorMsg =
-        vaultFailureMessage(err) ??
-        (code === "ERR_ACCOUNT_LOCKED"
-          ? translate("errors.code.ERR_ACCOUNT_LOCKED")
-          : code === "ERR_MFA_CODE_ALREADY_USED"
-            // The code is right, its window is spent. Every sign-in straight
-            // after a password reset lands here, because the reset took a code
-            // of its own moments earlier.
-            ? translate("security.factors.alreadyUsed")
-            : code === "ERR_STEP_EXPIRED"
-              // A wrong code is retryable and an expired step is not, so saying
-              // "that code is not valid" to both leaves the teacher retyping a
-              // correct code into a sign-in that has already ended.
-              ? translate("security.factors.expired")
-              : translate("security.factors.invalid"));
+      factorErrorMsg = vaultFailureMessage(err) ?? codeFactorError(err);
     }
   }
 
@@ -601,16 +573,13 @@
       return;
     }
     const { teacherId, email: userEmail, role } = pendingRecovery;
-    const options = await loginOptions();
-    const assertion = await authenticate(options);
-    if (!assertion.prfOutput) {
-      // The authenticator answered without a PRF result, so it does not
-      // implement the extension. Reported as the missing wrap it amounts to, so
-      // the dialog can say which passkeys *can* open the data.
+    const { unwrap } = await passkeyAssertion();
+    if (!unwrap) {
+      // No PRF result: the authenticator lacks the extension. Reported as the missing wrap it amounts to,
+      // so the dialog can say which passkeys *can* open the data.
       throw new EnvelopeFactorMissingError("passkey");
     }
-    const parsed = JSON.parse(assertion.credentialJson) as { rawId: string };
-    const vault = await openWithPasskey(teacherId, parsed.rawId, assertion.prfOutput);
+    const vault = await openWithPasskey(teacherId, unwrap.credentialIdB64, unwrap.prfOutput);
 
     const normalizedEmail = userEmail.trim().toLowerCase();
     const keys = await materializeSession(vault, normalizedEmail);
@@ -742,6 +711,7 @@
 
 {#if showSetupCodes}
   <SetupCodesDialog
+    afterSignIn
     backupCodes={pendingBackupCodes}
     recoveryCode={pendingRecoveryCode}
     onConfirm={handleSetupCodesAcknowledged}
