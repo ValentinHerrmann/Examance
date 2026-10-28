@@ -74,13 +74,12 @@ export const latexLanguage = StreamLanguage.define({
   }
 });
 
-/** Markdown marks of the AI prompt preview (headings, inline code, list markers). */
+/** Markdown marks of the AI prompt preview. List items stay plain so their inline code and LaTeX colours stand out. */
 export const markdownHighlightStyle = HighlightStyle.define([
   { tag: [t.heading1, t.heading2, t.heading3], fontWeight: "bold", color: "var(--color-content)" },
   { tag: t.heading1, fontSize: "1.15em" },
   { tag: t.processingInstruction, color: "var(--color-syntax-comment)" },
   { tag: t.monospace, color: "var(--color-syntax-string)" },
-  { tag: t.list, color: "var(--color-syntax-keyword)" },
   { tag: t.strong, fontWeight: "bold" }
 ]);
 
