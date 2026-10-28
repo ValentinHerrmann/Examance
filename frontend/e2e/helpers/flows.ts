@@ -85,6 +85,8 @@ export async function signIn(
 /** Open `/unlock` on a fresh browser profile and sign in for the first time. */
 export async function signInFirstTime(page: Page, opts: { waitForDashboard?: boolean } = {}): Promise<void> {
   await page.goto('/unlock');
+  // The dev server compiles on demand: a fill before hydration is wiped by it.
+  await page.waitForLoadState('networkidle');
   await signIn(page, { firstTime: true, ...opts });
 }
 
@@ -278,46 +280,45 @@ async function tickOnlyMatch(page: Page, scope: Locator, checkboxKey: string): P
 }
 
 /**
- * Create an exam on `/exam/new` from library exercises and optional MC groups,
- * save it and wait for the exam page. Exercises must already exist.
+ * Create an exam: "New exam" asks for the header data, then the exam page opens with the library,
+ * where the exercises and optional MC groups are picked (M1). Exercises must already exist.
  */
 export async function createExam(page: Page, spec: ExamSpec): Promise<void> {
   await page.getByRole('link', { name: await l(page, 'dashboard.header.createButton') }).click();
   await page.waitForURL((url) => url.pathname === '/exam/new');
 
-  await page.getByLabel(await l(page, 'examCreation.metadataForm.titleLabel')).fill(spec.title);
-  await page
-    .getByLabel(await l(page, 'examCreation.metadataForm.lehrerLabel'))
-    .fill(spec.teacher ?? 'Tester');
+  await page.getByLabel(await l(page, 'exam.metadataEditor.examTitle')).fill(spec.title);
+  await page.getByLabel(await l(page, 'exam.metadataEditor.lehrernachname')).fill(spec.teacher ?? 'Tester');
+  await page.getByRole('button', { name: await l(page, 'exam.metadataEditor.createButton') }).click();
+  await page.waitForURL((url) => /^\/exam\/[^/]+$/.test(url.pathname) && url.pathname !== '/exam/new');
 
-  const selector = page;
-  const libraryTab = page.getByRole('button', { name: await l(page, 'examCreation.exerciseSelector.tabLibrary') });
-  await libraryTab.click();
+  const library = page.getByRole('dialog', { name: await l(page, 'exam.libraryModal.header') });
+  await expect(library).toBeVisible();
   for (const name of spec.exercises) {
-    await filterPicker(page, selector, name);
-    await tickOnlyMatch(page, selector, 'exercises.libraryPicker.checkboxAddToExam');
+    await filterPicker(page, library, name);
+    await tickOnlyMatch(page, library, 'exercises.libraryPicker.checkboxAddToExam');
   }
-  if (spec.exercises.length > 0) await filterPicker(page, selector, '');
+  if (spec.exercises.length > 0) await filterPicker(page, library, '');
 
   for (const group of spec.mcGroups ?? []) {
-    await page.getByRole('button', { name: await l(page, 'examCreation.exerciseSelector.tabMc') }).click();
+    await library.getByRole('button', { name: await l(page, 'exam.libraryModal.mcTab') }).click();
     for (const member of group.members) {
-      await filterPicker(page, selector, member);
-      await tickOnlyMatch(page, selector, 'exercises.libraryPicker.checkboxAddMcStaging');
+      await filterPicker(page, library, member);
+      await tickOnlyMatch(page, library, 'exercises.libraryPicker.checkboxAddMcStaging');
     }
     if (group.title) {
-      await page.getByLabel(await l(page, 'exam.mcStagingPanel.titleLabel')).fill(group.title);
+      await library.getByLabel(await l(page, 'exam.mcStagingPanel.titleLabel')).fill(group.title);
     }
-    await page
+    await library
       .getByRole('button', {
         name: await l(page, 'exam.mcStagingPanel.addButton', { count: group.members.length }),
       })
       .click();
-    await filterPicker(page, selector, '');
+    await filterPicker(page, library, '');
   }
 
-  await page.getByRole('button', { name: await l(page, 'examCreation.submit.saveAndContinue') }).click();
-  await page.waitForURL((url) => /^\/exam\/[^/]+$/.test(url.pathname) && url.pathname !== '/exam/new');
+  await library.getByRole('button', { name: await l(page, 'exam.libraryModal.applyButton') }).click();
+  await expect(library).toBeHidden();
   await expect(examTitleHeading(page, spec.title)).toBeVisible();
 }
 

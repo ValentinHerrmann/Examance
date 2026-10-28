@@ -149,7 +149,7 @@ export const help: Translations['help'] = {
             },
             s2: {
                 h: 'Assembling exercises',
-                p1: 'Exercises come from the library, or can be created as one-offs inside the exam. The arrows reorder them, and the total score is recalculated as you go. A long exercise continues on the next page; its heading always stays with its first lines. To start an exercise on a new page, use “Insert page break” between two exercises on the exam page. The break belongs to the exercise below it and moves with it. If you change page breaks after creating the answer-sheet template, create the template again.',
+                p1: '“New exam” first asks for the header data, creates the exam and opens it in the exam editor with the exercise library. There you pick exercises or write your own with “New exercise”; it is saved to the library and selected right away. Logo and LaTeX packages are set afterwards in the exam data. The arrows reorder them, and the total score is recalculated as you go. A long exercise continues on the next page; its heading always stays with its first lines. To start an exercise on a new page, use “Insert page break” between two exercises on the exam page. The break belongs to the exercise below it and moves with it. If you change page breaks after creating the answer-sheet template, create the template again.',
                 p2: '"Duplicate" (in the exam overview and on the exam page) creates a new exam with the same header, exercises, MC groups, grading key and settings, for example for a parallel class or next school year. Students, scans and results are never copied; the copy gets its own QR codes.',
             },
             s3: {

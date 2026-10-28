@@ -66,6 +66,7 @@
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
   import type { GradingKeyConfig, ExtraNotes } from "#lib/db/schema";
   import { goto } from "$app/navigation";
+  import { takeUrlParam } from "#lib/utils/urlToken";
   import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
   import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
   import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
@@ -183,7 +184,6 @@
   });
 
   let isLocalFallback = $state(false);
-  let isSyncingSingle = $state(false);
 
   // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's
   // examMcGroups/examExercises rows, which left the local MC groups empty.
@@ -316,10 +316,15 @@
 
   // Quick exercise editor (opened from exercise names and the library picker).
   let quickEditEx: ExerciseRecord | null = $state.raw(null);
+  let creatingExercise = $state(false);
 
   /** Reload via loadExam so the junction fields (group, sub-index, order) stay intact. */
-  async function handleQuickEditSaved() {
-    await loadExam(examId);
+  /** A new exercise from the library dialog joins the library list and the selection (M1). */
+  async function handleEditorSaved({ exercise }: { exercise: ExerciseRecord }) {
+    if (!creatingExercise) return loadExam(examId);
+    creatingExercise = false;
+    libraryExercises = [...libraryExercises.filter((ex) => ex.id !== exercise.id), exercise];
+    if (!selectedLibraryIds.includes(exercise.id)) selectedLibraryIds = [...selectedLibraryIds, exercise.id];
   }
 
   /** MC exercises in exam order from one merged lookup (`exercises` wins over `libraryExercises`), so the
@@ -354,124 +359,6 @@
     } catch (err) {
       console.error("Failed to check OMR template status:", err);
       omrTemplateStatus = "none";
-    }
-  }
-
-  async function syncCurrentExamToServer() {
-    if (!exam) return;
-    isSyncingSingle = true;
-    try {
-      // 1. Exercises first: links reference them. POST is create-only (409 on a known id), so fall
-      //    back to PATCH; silentError keeps these expected conflicts out of the global error modal.
-      for (const ex of exercises) {
-        const exercisePayload = mapExerciseRecordToApi(ex);
-        try {
-          await api.post("/exercises", exercisePayload, { silentError: true });
-        } catch (err: any) {
-          if (err?.status === 409) {
-            const { id: _ignored, ...patchPayload } = exercisePayload;
-            try {
-              await api.patch(`/exercises/${ex.id}`, patchPayload, { silentError: true });
-            } catch (patchErr) {
-              // A published exercise owned by someone else is read-only for us.
-              // It is already on the server, which is all the links need.
-              console.warn("Could not update exercise on server:", ex.id, patchErr);
-            }
-          } else {
-            console.warn("Could not push exercise to server:", ex.id, err);
-          }
-        }
-      }
-
-      // 2. Push the exam with its links. One payload, built from the same
-      //    helper the incremental save uses, so an exercise is never listed
-      //    both standalone and as an MC group member.
-      const { mcGroupsPayload, exerciseLinksPayload } = buildExamLinkPayload();
-      const examPayload = {
-        title: exam.title || translate("exam.page.untitledExam"),
-        testart: exam.testart,
-        grade: exam.grade,
-        klasse: exam.klasse,
-        datum: exam.datum,
-        nr: exam.nr,
-        fach: exam.fach,
-        topic: exam.topic,
-        lehrernachname: exam.lehrernachname,
-        info_text: exam.infoText,
-        latex_packages: exam.latexPackages,
-        page_breaks: exam.pageBreaks,
-        name_line: exam.nameLine,
-        extra_notes: extraNotesToApi(exam.extraNotes ?? null),
-        latex_template: exam.latexTemplate,
-        retention_until:
-          exam.retentionUntil ||
-          new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
-        mc_groups: mcGroupsPayload,
-        exercise_links: exerciseLinksPayload,
-      };
-      try {
-        await api.post("/exams", { id: exam.id, ...examPayload }, { silentError: true });
-      } catch (err: any) {
-        if (err?.status !== 409) throw err;
-        await api.patch(`/exams/${exam.id}`, examPayload, { silentError: true });
-      }
-
-      // 3. Post students. Only in all-server mode: in hybrid the results belong in this browser, and
-      // moving them is the results mover's job, never a side effect of syncing the exam.
-      const uploadResults = !resultsAreLocal();
-      const localStudents = uploadResults
-        ? await db.students.where("examId").equals(exam.id).toArray()
-        : [];
-      for (const st of localStudents) {
-        try {
-          const ct = st.payloadCt || st.piiCt || new Uint8Array([0]);
-          const iv = st.payloadIv || st.piiIv || new Uint8Array(12);
-          const ctB64 = uint8ArrayToBase64(ct);
-          const ivB64 = uint8ArrayToBase64(iv);
-          const emptySaltB64 = uint8ArrayToBase64(new Uint8Array(16));
-          const pseudonymHmac = await ensure64CharHex(st.pseudonymId);
-          await api.post(`/exams/${exam.id}/students`, {
-            pseudonym_hmac: pseudonymHmac,
-            pii_ciphertext_b64: ctB64,
-            iv_b64: ivB64,
-            encryption_salt_b64: emptySaltB64,
-          }, { silentError: true });
-        } catch {}
-      }
-
-      // 4. Post submissions (all-server mode only, as above)
-      const localSubmissions = uploadResults
-        ? await db.submissions.where("examId").equals(exam.id).toArray()
-        : [];
-      for (const sub of localSubmissions) {
-        try {
-          const pseudonymHmac = await ensure64CharHex(sub.pseudonymHash);
-          await api.post(`/exams/${exam.id}/submissions`, {
-            id: sub.id,
-            pseudonym_hmac: pseudonymHmac,
-            total_score: sub.totalScore ?? null,
-            scan_ciphertext_b64: sub.scanCt
-              ? uint8ArrayToBase64(sub.scanCt)
-              : undefined,
-            scan_iv_b64: sub.scanIv
-              ? uint8ArrayToBase64(sub.scanIv)
-              : undefined,
-            annotation_ciphertext_b64: sub.annotationCt
-              ? uint8ArrayToBase64(sub.annotationCt)
-              : undefined,
-            annotation_iv_b64: sub.annotationIv
-              ? uint8ArrayToBase64(sub.annotationIv)
-              : undefined,
-          }, { silentError: true });
-        } catch {}
-      }
-
-      isLocalFallback = false;
-      alert(translate("exam.page.sync.success"));
-    } catch (err: any) {
-      alert(translate("exam.page.sync.failed", { message: err.message }));
-    } finally {
-      isSyncingSingle = false;
     }
   }
 
@@ -1227,7 +1114,11 @@
   $effect.pre(() => {
     const id = examId;
     if (browser && id) {
-      untrack(() => loadExam(id));
+      untrack(async () => {
+        await loadExam(id);
+        // A just-created exam ("New exam") opens with the library (M1).
+        if (exam && takeUrlParam("library") === "open") await openLibraryModal();
+      });
     }
   });
 </script>
@@ -1255,18 +1146,6 @@
   {#if isLocalFallback}
     <Alert severity="warning" class="mb-6">
       {$t("exam.page.localFallback.banner")}
-      {#snippet actions()}
-        <Button
-          size="sm"
-          variant="outlined"
-          severity="warning"
-          onClick={syncCurrentExamToServer}
-          disabled={isSyncingSingle}
-          loading={isSyncingSingle}
-        >
-          {isSyncingSingle ? $t("exam.page.localFallback.syncing") : $t("exam.page.localFallback.syncNow")}
-        </Button>
-      {/snippet}
     </Alert>
   {/if}
 
@@ -1363,6 +1242,10 @@
                 : $t("exam.page.preview.liveButton")}
           </Button>
         </div>
+
+        {#if exercises.length === 0 && mcGroups.length === 0}
+          <p class="mt-3 text-sm text-muted">{$t("exam.page.compileSection.emptyHint")}</p>
+        {/if}
 
         {#if omrTemplateStatus === "stale"}
           <Alert severity="warning" class="mt-3">
@@ -1464,13 +1347,17 @@
   onApply={applyLibrarySelection}
   onRequestClose={requestCloseLibraryModal}
   onQuickEdit={(ex) => (quickEditEx = ex)}
+  onNewExercise={() => (creatingExercise = true)}
 />
 
 <ExerciseEditorModal
-  isOpen={quickEditEx !== null}
+  isOpen={quickEditEx !== null || creatingExercise}
   editingExercise={quickEditEx}
-  onClose={() => (quickEditEx = null)}
-  onSave={handleQuickEditSaved}
+  onClose={() => {
+    quickEditEx = null;
+    creatingExercise = false;
+  }}
+  onSave={handleEditorSaved}
 />
 
 <ConfirmDialog

@@ -7,12 +7,6 @@ export const exam: Translations['exam'] = {
         examNotFoundOrDeleted: 'Exam not found or has been deleted from server.',
         localFallback: {
             banner: 'ℹ️ This exam is currently loaded from local browser storage.',
-            syncing: 'Syncing…',
-            syncNow: 'Sync to Server Now',
-        },
-        sync: {
-            success: 'Exam successfully synced to server!',
-            failed: 'Failed to sync exam to server: {message}',
         },
         delete: {
             confirmMessage: 'Are you sure you want to delete exam "{title}" and all its submissions?',
@@ -66,6 +60,7 @@ export const exam: Translations['exam'] = {
         },
         compileSection: {
             heading: 'LaTeX Exam Compilation & Download',
+            emptyHint: 'This exam has no exercises yet. Add some from the library with "Add exercises" or write a new one.',
             description: 'Generate printable A4 PDF exams using the Schulaufgabe template layout.',
             liveTooltip: 'Compiles the exam PDF and (if it has MC exercises) automatically refreshes the OMR bubble template right after.',
         },
@@ -102,6 +97,9 @@ export const exam: Translations['exam'] = {
     },
     metadataEditor: {
         heading: 'Edit Exam',
+        createHeading: 'New exam',
+        createButton: 'Create exam and choose exercises',
+        createFailed: 'Failed to create exam.',
         examTitle: 'Exam Title',
         testart: 'Exam Type',
         grade: 'Grade Level',
@@ -126,6 +124,7 @@ export const exam: Translations['exam'] = {
         showNormalExercises: 'Show normal exercises',
         normalTab: 'Normal Exercises',
         mcTab: 'MC Groups',
+        newExercise: 'New exercise',
         applyButton: 'Apply Linked Exercises',
     },
     exerciseLabel: {

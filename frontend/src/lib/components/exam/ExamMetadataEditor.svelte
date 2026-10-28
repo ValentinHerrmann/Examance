@@ -38,6 +38,11 @@
     editLatexPackages?: LatexPackageEntry[] | null;
     /** The exam's exercises, for the package result. */
     packageSources?: { label: string; latex: string }[];
+    /** Create mode ("New exam", M1): own heading and save label, logo and packages come later in the editor. */
+    create?: boolean;
+    /** Inline error (e.g. a refused create). */
+    error?: string;
+    busy?: boolean;
     onSave: () => void;
     onCancel: () => void;
   }
@@ -62,6 +67,9 @@
     logoChange = $bindable(null),
     editLatexPackages = $bindable(null),
     packageSources = [],
+    create = false,
+    error = "",
+    busy = false,
     onSave,
     onCancel
   }: Props = $props();
@@ -103,7 +111,13 @@
   });
 </script>
 
-<Modal open={isOpen} size="large" title={$t("exam.metadataEditor.heading")} onClose={onCancel}>
+<Modal
+  open={isOpen}
+  size="large"
+  title={create ? $t("exam.metadataEditor.createHeading") : $t("exam.metadataEditor.heading")}
+  {error}
+  onClose={onCancel}
+>
   <div class="mb-4 grid grid-cols-1 gap-4 @3xl:grid-cols-2">
     <div class="flex flex-col gap-1">
       <label for="editTitle" class="text-sm font-medium text-content">{$t("exam.metadataEditor.examTitle")}</label>
@@ -185,6 +199,8 @@
 
   {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onCancel}>{$t("common.cancel")}</Button>
-    <Button onClick={handleSave}>{$t("common.save")}</Button>
+    <Button onClick={handleSave} loading={busy} disabled={busy || (create && !editTitle.trim())}>
+      {create ? $t("exam.metadataEditor.createButton") : $t("common.save")}
+    </Button>
   {/snippet}
 </Modal>

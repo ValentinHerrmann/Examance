@@ -463,7 +463,7 @@ test.describe('help', () => {
 
     // "?" and F1 must not steal keystrokes from a text field (a LaTeX body can contain "?").
     await page.goto('/exam/new');
-    const title = page.getByLabel(await t(page, 'examCreation.metadataForm.titleLabel'));
+    const title = page.getByLabel(await t(page, 'exam.metadataEditor.examTitle'));
     await title.focus();
     await page.keyboard.press('F1');
     await expect(await helpDialog(page)).toBeHidden();
@@ -510,7 +510,7 @@ test.describe('workspace', () => {
 
     // --- export ---
     const download = await exportWorkspace(page);
-    expect(download.suggestedFilename()).toMatch(/\.bgproj$/);
+    expect(download.suggestedFilename()).toMatch(/\.examance$/);
     const archivePath = testInfo.outputPath('roundtrip.bgproj');
     await download.saveAs(archivePath);
     await dialogs.expectSeen('prompt', label('workspace.archive.promptExportPassword'));

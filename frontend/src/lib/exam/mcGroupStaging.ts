@@ -1,6 +1,6 @@
 /**
- * Pure state transitions for building MC groups from library questions, shared by the
- * exam-creation route and the exam page. An exercise links to an exam at most once
+ * Pure state transitions for building MC groups from library questions on the exam page.
+ * An exercise links to an exam at most once
  * (`[examId+exerciseId]` junction key), so a question belongs to at most one group.
  */
 
