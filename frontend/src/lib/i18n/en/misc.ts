@@ -59,7 +59,7 @@ export const misc: Translations['misc'] = {
         },
         aiButton: 'Ask an AI chat for help',
         aiTitle: 'Fix the error with an AI chat',
-        aiIntro: 'Copy this prompt and paste it into an AI chat of your choice (such as ChatGPT, Claude or Gemini). It tells the chat how Examance builds the document, which template commands exist and what the compiler reported; the chat answers in English.',
+        aiIntro: 'Copy this prompt and paste it into an AI chat of your choice (such as ByLKI, ChatGPT, Claude or Gemini). It tells the chat how Examance builds the document, which template commands exist and what the compiler reported; the chat answers in English.',
         aiIncludeSource: 'Include the code of the affected exercise',
         aiIncludeSourceHint: 'This lets the chat suggest a concrete fix. The prompt then contains the exercise text, never student data.',
         aiNotice: 'Examance sends nothing. Whatever you paste into an AI chat goes to its provider.',

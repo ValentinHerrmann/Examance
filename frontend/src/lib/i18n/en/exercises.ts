@@ -81,7 +81,7 @@ export const exercises: Translations['exercises'] = {
         button: 'AI prompt',
         buttonTitle: 'Create a prompt for an AI chat that writes or changes this exercise',
         title: 'Write the exercise with an AI chat',
-        intro: 'Describe what the AI chat should do. The prompt below tells the chat how Examance builds exercises, which template commands and packages exist, and contains your request. Copy it into an AI chat of your choice (such as ChatGPT, Claude or Gemini).',
+        intro: 'Describe what the AI chat should do. The prompt below tells the chat how Examance builds exercises, which template commands and packages exist, and contains your request. Copy it into an AI chat of your choice (such as ByLKI, ChatGPT, Claude or Gemini).',
         taskLabel: 'What should the AI do?',
         taskPlaceholder: 'e.g. “Create a variant with different numbers”, “Add a part c) about the slope”, “Turn this into a multiple-choice question with 4 options” or “Write a new exercise on quadratic equations for grade 9”',
         includeCode: 'Include the current exercise code',

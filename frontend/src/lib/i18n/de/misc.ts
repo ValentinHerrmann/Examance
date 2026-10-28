@@ -61,7 +61,7 @@ export const misc = {
         },
         aiButton: 'KI-Chat um Hilfe fragen',
         aiTitle: 'Fehler mit einem KI-Chat klären',
-        aiIntro: 'Kopieren Sie diesen Prompt und fügen Sie ihn in einen KI-Chat Ihrer Wahl ein (etwa ChatGPT, Claude oder Gemini). Er erklärt dem Chat, wie Examance das Dokument aufbaut, welche Vorlagenbefehle es gibt und was der Compiler gemeldet hat; der Chat antwortet auf Deutsch.',
+        aiIntro: 'Kopieren Sie diesen Prompt und fügen Sie ihn in einen KI-Chat Ihrer Wahl ein (etwa ByLKI, ChatGPT, Claude oder Gemini). Er erklärt dem Chat, wie Examance das Dokument aufbaut, welche Vorlagenbefehle es gibt und was der Compiler gemeldet hat; der Chat antwortet auf Deutsch.',
         aiIncludeSource: 'Code der betroffenen Aufgabe mitsenden',
         aiIncludeSourceHint: 'Damit kann der Chat eine konkrete Korrektur vorschlagen. Der Prompt enthält dann den Aufgabentext, nie Schülerdaten.',
         aiNotice: 'Examance sendet dabei nichts. Was Sie in einen KI-Chat einfügen, geht an dessen Anbieter.',
