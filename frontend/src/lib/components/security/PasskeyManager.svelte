@@ -1,8 +1,9 @@
 <script lang="ts">
+  import FactorCard from "./FactorCard.svelte";
   // Register and remove passkeys. A passkey without PRF signs in but cannot unlock data; "opens data"
   // is read from the stored wraps, never from the registration-time `supports_prf` guess.
   import { untrack } from "svelte";
-  import { Button, Card, Field, TextInput } from "#lib/components/ui";
+  import { Button, Field, TextInput } from "#lib/components/ui";
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
   import { ApiError } from "#lib/api/client";
@@ -161,100 +162,94 @@
   });
 </script>
 
-<Card>
-  <div class="flex flex-col gap-4">
-    <div>
-      <h2 class="m-0 text-xl font-medium text-content">{$t("security.passkey.title")}</h2>
-      <p class="mt-1 text-sm text-muted">{$t("security.passkey.intro")}</p>
-    </div>
+<FactorCard title={$t("security.passkey.title")} intro={$t("security.passkey.intro")}>
 
-    {#if !supported}
-      <p class="m-0 text-sm text-muted">{$t("security.passkey.unsupported")}</p>
+  {#if !supported}
+    <p class="m-0 text-sm text-muted">{$t("security.passkey.unsupported")}</p>
+  {:else}
+    {#if errorMsg}
+      <p class="m-0 text-sm text-danger-fg" role="alert">{errorMsg}</p>
+    {/if}
+    {#if noticeMsg}
+      <p class="m-0 text-sm text-muted" role="status">{noticeMsg}</p>
+    {/if}
+
+    {#if passkeys.length === 0}
+      <p class="m-0 text-sm text-muted">{$t("security.passkey.none")}</p>
     {:else}
-      {#if errorMsg}
-        <p class="m-0 text-sm text-danger-fg" role="alert">{errorMsg}</p>
-      {/if}
-      {#if noticeMsg}
-        <p class="m-0 text-sm text-muted" role="status">{noticeMsg}</p>
-      {/if}
-
-      {#if passkeys.length === 0}
-        <p class="m-0 text-sm text-muted">{$t("security.passkey.none")}</p>
-      {:else}
-        <ul class="m-0 flex list-none flex-col gap-2 p-0">
-          {#each passkeys as passkey (passkey.credential_id_b64)}
-            <li
-              class="flex min-w-0 flex-col gap-2 rounded-md border border-line bg-surface-sunken
-                     p-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div class="min-w-0">
-                <p class="m-0 truncate text-sm font-medium text-content">
-                  {passkey.nickname || passkey.credential_id_b64.slice(0, 12)}
-                </p>
-                <p class="m-0 text-xs text-muted">
-                  {$t("security.passkey.created", {
-                    date: $fmt.date(new Date(passkey.created_at)),
-                  })}
-                  ·
-                  {passkey.last_used_at
-                    ? $t("security.passkey.lastUsed", {
-                        date: $fmt.date(new Date(passkey.last_used_at)),
-                      })
-                    : $t("security.passkey.neverUsed")}
-                </p>
-                {#if wrapIds !== null}
-                  {#if opensData(passkey.credential_id_b64, wrapIds)}
-                    <p class="m-0 mt-1 text-xs text-muted">{$t("security.passkey.opensData")}</p>
-                    {#if unlockNotes[passkey.credential_id_b64] === "done"}
-                      <p class="m-0 mt-1 text-xs text-accent" role="status">
-                        {$t("security.passkey.enableUnlockDone")}
-                      </p>
-                    {/if}
-                  {:else if unlockNotes[passkey.credential_id_b64] === "noPrf"}
-                    <p class="m-0 mt-1 text-xs text-warning-fg" role="alert">
-                      {$t("security.passkey.noPrfWarning")}
-                    </p>
-                  {:else}
-                    <p class="m-0 mt-1 text-xs text-warning-fg">
-                      {$t("security.passkey.notOpensData")}
+      <ul class="m-0 flex list-none flex-col gap-2 p-0">
+        {#each passkeys as passkey (passkey.credential_id_b64)}
+          <li
+            class="flex min-w-0 flex-col gap-2 rounded-md border border-line bg-surface-sunken
+                   p-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="min-w-0">
+              <p class="m-0 truncate text-sm font-medium text-content">
+                {passkey.nickname || passkey.credential_id_b64.slice(0, 12)}
+              </p>
+              <p class="m-0 text-xs text-muted">
+                {$t("security.passkey.created", {
+                  date: $fmt.date(new Date(passkey.created_at)),
+                })}
+                ·
+                {passkey.last_used_at
+                  ? $t("security.passkey.lastUsed", {
+                      date: $fmt.date(new Date(passkey.last_used_at)),
+                    })
+                  : $t("security.passkey.neverUsed")}
+              </p>
+              {#if wrapIds !== null}
+                {#if opensData(passkey.credential_id_b64, wrapIds)}
+                  <p class="m-0 mt-1 text-xs text-muted">{$t("security.passkey.opensData")}</p>
+                  {#if unlockNotes[passkey.credential_id_b64] === "done"}
+                    <p class="m-0 mt-1 text-xs text-accent" role="status">
+                      {$t("security.passkey.enableUnlockDone")}
                     </p>
                   {/if}
+                {:else if unlockNotes[passkey.credential_id_b64] === "noPrf"}
+                  <p class="m-0 mt-1 text-xs text-warning-fg" role="alert">
+                    {$t("security.passkey.noPrfWarning")}
+                  </p>
+                {:else}
+                  <p class="m-0 mt-1 text-xs text-warning-fg">
+                    {$t("security.passkey.notOpensData")}
+                  </p>
                 {/if}
-              </div>
-              <div class="flex shrink-0 flex-wrap gap-2">
-                {#if wrapIds !== null && !opensData(passkey.credential_id_b64, wrapIds) && unlockNotes[passkey.credential_id_b64] !== "noPrf"}
-                  <Button
-                    severity="secondary"
-                    size="sm"
-                    disabled={enabling !== null}
-                    loading={enabling === passkey.credential_id_b64}
-                    onClick={() => enableUnlock(passkey.credential_id_b64)}
-                  >
-                    {$t("security.passkey.enableUnlock")}
-                  </Button>
-                {/if}
+              {/if}
+            </div>
+            <div class="flex shrink-0 flex-wrap gap-2">
+              {#if wrapIds !== null && !opensData(passkey.credential_id_b64, wrapIds) && unlockNotes[passkey.credential_id_b64] !== "noPrf"}
                 <Button
                   severity="secondary"
                   size="sm"
-                  onClick={() => remove(passkey.credential_id_b64)}
+                  disabled={enabling !== null}
+                  loading={enabling === passkey.credential_id_b64}
+                  onClick={() => enableUnlock(passkey.credential_id_b64)}
                 >
-                  {$t("security.passkey.remove")}
+                  {$t("security.passkey.enableUnlock")}
                 </Button>
-              </div>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-
-      <Field label={$t("security.passkey.nicknameLabel")}>
-        <TextInput bind:value={nickname} placeholder={$t("security.passkey.nicknamePlaceholder")} />
-      </Field>
-
-      <div>
-        <Button disabled={isWorking} loading={isWorking} onClick={add}>
-          {$t("security.passkey.add")}
-        </Button>
-      </div>
+              {/if}
+              <Button
+                severity="secondary"
+                size="sm"
+                onClick={() => remove(passkey.credential_id_b64)}
+              >
+                {$t("security.passkey.remove")}
+              </Button>
+            </div>
+          </li>
+        {/each}
+      </ul>
     {/if}
-  </div>
-</Card>
+
+    <Field label={$t("security.passkey.nicknameLabel")}>
+      <TextInput bind:value={nickname} placeholder={$t("security.passkey.nicknamePlaceholder")} />
+    </Field>
+
+    <div>
+      <Button disabled={isWorking} loading={isWorking} onClick={add}>
+        {$t("security.passkey.add")}
+      </Button>
+    </div>
+  {/if}
+</FactorCard>

@@ -245,7 +245,7 @@ Target:
   - Estimate: −80 lines.
 
 ## Phase 6: frontend refactor and visual merges (user-approved)
-- [ ] **V1 Code dialogs.**
+- [x] **V1 Code dialogs.**
   - `BackupCodeList` and `RecoveryCodeDialog` merge into `SetupCodesDialog`, which already handles either half via `labels`/`i18nPrefix` props.
   - Keep the per-variant copy button, download contents and i18n keys.
   - Callers: the settings security cards and `routes/reset-password`.

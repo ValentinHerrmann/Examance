@@ -15,7 +15,7 @@
     openWithRecoveryCode,
     pinEnvelopeSet,
   } from "#lib/services/keyEnvelopeService";
-  import { FactorChooser, RecoveryCodeDialog } from "#lib/components/security";
+  import { FactorChooser, SetupCodesDialog } from "#lib/components/security";
   import { Alert, Button, Field, TextInput } from "#lib/components/ui";
   import AuthCard from "#lib/components/unlock/AuthCard.svelte";
 
@@ -325,8 +325,5 @@
 
 {#if issuedRecoveryCode}
   <!-- The code that got us here is spent; this replacement is shown once. -->
-  <RecoveryCodeDialog
-    code={issuedRecoveryCode}
-    onConfirm={() => (issuedRecoveryCode = null)}
-  />
+  <SetupCodesDialog recoveryCode={issuedRecoveryCode} onConfirm={() => (issuedRecoveryCode = null)} />
 {/if}
