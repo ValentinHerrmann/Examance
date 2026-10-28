@@ -13,6 +13,15 @@ export function code(text: string): string {
   return '`' + text + '`';
 }
 
+/** A control sequence as inline code: `cs('BE')` is \BE in backticks. */
+export function cs(name: string): string {
+  return code(BACKSLASH + name);
+}
+
+const AUFGABE_FRAME = String.raw`\begin{Aufgabe}{exercise name} … \end{Aufgabe}`;
+const USEPACKAGE = String.raw`\usepackage[options]{name}`;
+const LISTING_ESCAPE = String.raw`(*@\BE@*)`;
+
 export function section(heading: string, body: string): string {
   return `## ${heading}\n${body}`;
 }
@@ -44,12 +53,12 @@ const TEMPLATE_COMMANDS: TemplateCommand[] = [
   {
     names: ['LoesungCode'],
     forms: [String.raw`\begin{LoesungCode} … \end{LoesungCode}`],
-    text: `code solution, the only one that may contain ${code('lstlisting')}; inside a listing, ${code(String.raw`(*@\BE@*)`)} escapes to LaTeX.`,
+    text: `code solution, the only one that may contain ${code('lstlisting')}; inside a listing, ${code(LISTING_ESCAPE)} escapes to LaTeX.`,
   },
   {
     names: ['LoesungMulti', 'multi', 'Lmulti'],
     forms: [String.raw`\LoesungMulti[columns]{ \multi{wrong} \Lmulti{correct} … }`],
-    text: `multiple-choice options, one per line; each correct option counts one point (no ${code(String.raw`\BE`)}). ${code(String.raw`\multi`)} and ${code(String.raw`\Lmulti`)} are list items and work only inside it.`,
+    text: `multiple-choice options, one per line; each correct option counts one point (no ${cs('BE')}). ${cs('multi')} and ${cs('Lmulti')} are list items and work only inside it.`,
   },
   { names: ['kariert', 'liniert', 'Leer'], forms: [String.raw`\kariert[size]{rows}`, String.raw`\liniert[spacing]{rows}`, String.raw`\Leer{height}`], text: 'squared grid, ruled lines, empty space.' },
   { names: ['Seitenumbruch'], forms: [String.raw`\Seitenumbruch`], text: 'page break between blocks of an exercise.' },
@@ -59,7 +68,7 @@ const TEMPLATE_COMMANDS: TemplateCommand[] = [
 export const TEMPLATE_NAMES = ['Aufgabe', ...TEMPLATE_COMMANDS.flatMap((c) => c.names)];
 
 export function templateCommandsSection(): string {
-  const intro = `Every ${code(String.raw`\Loesung…`)} command takes the solution first; it is shown only on the solution sheet, and the second argument says what the student sheet shows instead.`;
+  const intro = `Every ${cs('Loesung…')} command takes the solution first; it is shown only on the solution sheet, and the second argument says what the student sheet shows instead.`;
   const lines = TEMPLATE_COMMANDS.map((c) => `- ${c.forms.map(code).join(', ')}: ${c.text}`);
   return section(`Template commands (${code('Schulaufgabe.sty')}, ${code('Loesung.sty')})`, [intro, ...lines].join('\n'));
 }
@@ -72,9 +81,9 @@ export function documentSetup(engine: 'local' | 'server' | null): string {
       : 'XeLaTeX on the server (Tectonic with TeX Live 2022; packages newer than 2022 are missing)';
   return [
     `- Engine: ${compiler}; UTF-8 input with ${code('fontspec')}.`,
-    `- The teacher edits only the body of an exercise. The app generates everything else: class ${code('article')} with the template package ${code('Schulaufgabe.sty')} (it loads ${code('Loesung.sty')} and ${code('packages.sty')}), the header, and ${code(String.raw`\begin{Aufgabe}{exercise name} … \end{Aufgabe}`)} around the body.`,
-    `- Every document is compiled twice: the student sheet and the solution sheet (package option ${code('antworten')}). Solution arguments are typeset on the student sheet too (into a discarded box), so they must always compile; being macro arguments, they cannot hold verbatim material (${code(String.raw`\verb`)}, ${code('lstlisting')}).`,
-    `- Extra packages: ${code(String.raw`\usepackage[options]{name}`)} on a line of its own in the body (the app moves it into the preamble) or the app's LaTeX package settings; anywhere else it fails.`,
+    `- The teacher edits only the body of an exercise. The app generates everything else: class ${code('article')} with the template package ${code('Schulaufgabe.sty')} (it loads ${code('Loesung.sty')} and ${code('packages.sty')}), the header, and ${code(AUFGABE_FRAME)} around the body.`,
+    `- Every document is compiled twice: the student sheet and the solution sheet (package option ${code('antworten')}). Solution arguments are typeset on the student sheet too (into a discarded box), so they must always compile; being macro arguments, they cannot hold verbatim material (${cs('verb')}, ${code('lstlisting')}).`,
+    `- Extra packages: ${code(USEPACKAGE)} on a line of its own in the body (the app moves it into the preamble) or the app's LaTeX package settings; anywhere else it fails.`,
   ].join('\n');
 }
 

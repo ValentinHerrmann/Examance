@@ -2,7 +2,7 @@
  * A prompt for an external AI chat that writes or changes an exercise (issue #168). Clipboard only; a later BYOK
  * integration builds on it. Token-lean: no logs or definitions, comma lists, an example only for new exercises.
  */
-import { code, documentSetup, fence, LANGUAGES, section, templateCommandsSection } from './llmContext';
+import { code, cs, documentSetup, fence, LANGUAGES, section, templateCommandsSection } from './llmContext';
 import type { LatexPackageEntry } from './packages';
 
 export interface ExercisePromptInput {
@@ -60,7 +60,7 @@ function context(input: ExercisePromptInput): string {
   ].filter(Boolean);
   const lines = ['Examance is a web app teachers use to typeset school exams with LaTeX.', `This exercise: ${meta.join(', ')}.`];
   if (input.resourceNames.length > 0) {
-    lines.push(`Attached files (for ${code(String.raw`\includegraphics`)} or ${code(String.raw`\input`)}): ${input.resourceNames.map(code).join(', ')}.`);
+    lines.push(`Attached files (for ${cs('includegraphics')} or ${cs('input')}): ${input.resourceNames.map(code).join(', ')}.`);
   }
   return lines.join('\n');
 }
@@ -70,7 +70,7 @@ function outputRules(questionType: ExercisePromptInput['questionType'], hasFiles
   return [
     '- Answer with the complete new exercise body in exactly one `latex` code block.',
     questionType === 'mc'
-      ? `- Multiple choice: the question text, then exactly one ${code(String.raw`\LoesungMulti`)} block and no other solution commands.`
+      ? `- Multiple choice: the question text, then exactly one ${cs('LoesungMulti')} block and no other solution commands.`
       : '- Give every question a solution command with its points (see the template commands).',
     '- Write the exercise text in the language of the current exercise (or of the task if there is none); keep the LaTeX simple.',
     hasFiles
