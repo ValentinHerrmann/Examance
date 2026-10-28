@@ -45,14 +45,19 @@ async def write(
 
 
 async def log(
-    db: AsyncSession, request: Request, teacher: Teacher, action: str, target: object
+    db: AsyncSession, request: Request, teacher: Teacher, action: str, target: object = None
 ) -> AuditLog:
-    """`write` for a signed-in teacher's request (target and client IP are hashed there)."""
+    """`write` for a signed-in account's request (target and client IP are hashed there)."""
     return await write(
         db,
         teacher_id=teacher.id,
         teacher_email=teacher.email,
         action=action,
-        target_id=str(target),
-        request_ip=request.client.host if request.client else None,
+        target_id=None if target is None else str(target),
+        request_ip=client_ip(request),
     )
+
+
+def client_ip(request: Request) -> str | None:
+    """The caller's address as uvicorn resolved it (proxy headers from the trusted proxy only)."""
+    return request.client.host if request.client else None

@@ -536,6 +536,27 @@ async def test_reject_deletes_a_pending_account_and_tells_the_registrant(
     assert "not approved" in mail["body_text"]
 
 
+async def test_admin_actions_are_audited_with_the_hashed_client_ip(
+    client: AsyncClient, visitor: AsyncClient, db: AsyncSession, admin: Teacher
+) -> None:
+    email = _email()
+    await _register(visitor, email)
+    pending = await _teacher(db, email)
+
+    with outbox():
+        assert (await client.post(f"{ADMIN_USERS}/{pending.id}/reject")).status_code == 204
+
+    entry = await db.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "USER_REJECTED",
+            AuditLog.target_hash == hashlib.sha256(str(pending.id).encode()).hexdigest(),
+        )
+    )
+    assert entry is not None
+    assert entry.teacher_id == admin.id
+    assert entry.ip_hash == hashlib.sha256(b"127.0.0.1").hexdigest()
+
+
 async def test_an_approved_account_cannot_be_rejected(
     client: AsyncClient, db: AsyncSession, admin: Teacher
 ) -> None:

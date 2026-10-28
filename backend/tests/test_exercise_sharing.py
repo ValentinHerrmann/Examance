@@ -16,8 +16,11 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog
+from app.models.exercise import Exercise
+from app.models.exercise_contribution import ExerciseContribution
 from app.models.exercise_resource import ExerciseResource
 from app.models.teacher import Teacher
+from app.services.exercise_sharing import EXERCISE_CONTENT_FIELDS, content_fingerprint, content_of
 
 from .factors import sign_in
 
@@ -357,3 +360,62 @@ async def test_a_recipients_read_never_writes_the_owners_rows(shared, db: AsyncS
         )
     )
     assert stored is None
+
+
+# Every other `Exercise` column: identity, placement, share state or provenance of one row. A new
+# column must be added here or to EXERCISE_CONTENT_FIELDS, which decides whether copies, resyncs
+# and proposals carry it.
+_NOT_CONTENT = {
+    "id",
+    "teacher_id",
+    "exam_id",
+    "order_index",
+    "name",
+    "topic_tag",
+    "grade",
+    "subject",
+    "version",
+    "exercise_group_id",
+    "variant_key",
+    "is_current",
+    "is_public",
+    "shared_at",
+    "copied_from_exercise_id",
+    "synced_fingerprint",
+    "code_withheld",
+}
+
+
+def test_content_fields_match_the_exercise_columns() -> None:
+    columns = set(Exercise.__table__.columns.keys())
+    content = set(EXERCISE_CONTENT_FIELDS)
+    assert content.isdisjoint(_NOT_CONTENT)
+    assert columns == content | _NOT_CONTENT, "classify the new Exercise column"
+    # A proposal stores the snapshot under the same names.
+    assert content <= set(ExerciseContribution.__table__.columns.keys())
+
+
+def test_every_content_field_is_copied_and_fingerprinted() -> None:
+    changed: dict[str, Any] = {
+        "latex_body": "other",
+        "max_points": 9.0,
+        "question_type": "mc",
+        "correct_answers": {"a": [1]},
+        "penalty": 0.5,
+    }
+    assert set(changed) == set(EXERCISE_CONTENT_FIELDS)
+    base = Exercise(
+        latex_body="x", max_points=1.0, question_type="free_text", correct_answers=None, penalty=0.0
+    )
+    reference = content_fingerprint(base, [])
+    for name, value in changed.items():
+        other = Exercise(**{**content_of(base), name: value})
+        assert content_of(other)[name] == value
+        assert content_fingerprint(other, []) != reference, name
+
+
+def test_content_projection_copies_the_answer_key() -> None:
+    source = Exercise(correct_answers={"a": [1]})
+    copied = content_of(source)
+    assert copied["correct_answers"] == {"a": [1]}
+    assert copied["correct_answers"] is not source.correct_answers

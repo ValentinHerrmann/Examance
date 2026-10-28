@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.exam import Exam
 from app.models.logo import ExamLogo, TeacherLogo
+from app.services.blob_validation import check_upload
 
 #: Hard cap for a logo file (bytes). It is printed 9 mm tall; anything larger is a scan.
 MAX_LOGO_BYTES = 2 * 1024 * 1024
@@ -77,13 +78,7 @@ def decode_logo(content_b64: str) -> tuple[bytes, str]:
         content = base64.b64decode(content_b64, validate=True)
     except (binascii.Error, ValueError):
         raise LogoError("Logo content is not valid base64.") from None
-    if not content:
-        raise LogoError("The logo file is empty.")
-    if len(content) > MAX_LOGO_BYTES:
-        raise LogoError(
-            f"The logo is larger than {MAX_LOGO_BYTES // (1024 * 1024)} MB. "
-            "Use a smaller image or a PDF."
-        )
+    check_upload(content, MAX_LOGO_BYTES, "The logo file", LogoError)
     return content, sniff_logo_mime(content)
 
 

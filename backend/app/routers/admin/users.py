@@ -1,9 +1,9 @@
-"""Admin router — /api/v1/admin/*"""
+"""Admin: accounts, sign-in factor reset, audit log — /api/v1/admin/*"""
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Literal, cast
 
 from fastapi import (
     APIRouter,
@@ -16,20 +16,17 @@ from fastapi import (
     status,
 )
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_admin_teacher
-from app.models.allowed_email_domain import AllowedEmailDomain
 from app.models.audit_log import AuditLog
 from app.models.key_envelope import KeyEnvelope
 from app.models.refresh_token import RefreshToken
 from app.models.registration_request import RegistrationRequest
 from app.models.teacher import Teacher
-from app.routers.maintenance import status_of as maintenance_status_of
+from app.routers.admin.features import apply_features, features_of, patch_features
 from app.schemas.admin import (
-    AccountFeatures,
     AccountFeaturesUpdate,
     AdminApproveRequest,
     AdminCreateUserRequest,
@@ -37,50 +34,20 @@ from app.schemas.admin import (
     AdminResetPasswordResponse,
     AdminUserList,
     AdminUserResponse,
-    AllowedDomainRequest,
-    AllowedDomainResponse,
     AuditLogResponse,
-)
-from app.schemas.maintenance import (
-    AdminMaintenanceResponse,
-    MaintenanceStartNowRequest,
-    MaintenanceStartRequest,
-    PresenceCountsResponse,
 )
 from app.services import account_mail, registration
 from app.services import audit as audit_svc
-from app.services import maintenance as maintenance_svc
 from app.services import mfa as mfa_svc
 from app.services import webauthn as webauthn_svc
 from app.services.account_deletion import delete_account, ensure_not_last_admin
 from app.services.password_reset import create_and_send_reset_token
 from app.services.tokens import rowcount
 
-router = APIRouter(prefix="/admin", tags=["admin"])
-
-
-def _features(row: Teacher | AllowedEmailDomain) -> AccountFeatures:
-    return AccountFeatures(
-        server_results=row.allow_server_results,
-        server_latex=row.allow_server_latex,
-        exercise_sharing=row.allow_exercise_sharing,
-    )
-
-
-def _apply_features(row: Teacher | AllowedEmailDomain, features: AccountFeatures) -> None:
-    row.allow_server_results = features.server_results
-    row.allow_server_latex = features.server_latex
-    row.allow_exercise_sharing = features.exercise_sharing
-
-
-def _patch_features(row: Teacher | AllowedEmailDomain, change: AccountFeaturesUpdate) -> None:
-    """Apply the switches *change* names; omitted ones stay."""
-    if change.server_results is not None:
-        row.allow_server_results = change.server_results
-    if change.server_latex is not None:
-        row.allow_server_latex = change.server_latex
-    if change.exercise_sharing is not None:
-        row.allow_exercise_sharing = change.exercise_sharing
+router = APIRouter()
+# Registered after the allowed-domain routes: path order is registration order, and
+# docs/openapi.json (diffed in CI) lists these two there.
+security_router = APIRouter()
 
 
 def _user_out(user: Teacher) -> AdminUserResponse:
@@ -91,7 +58,7 @@ def _user_out(user: Teacher) -> AdminUserResponse:
         created_at=user.created_at,
         approved_at=user.approved_at,
         registration_note=user.registration_note,
-        features=_features(user),
+        features=features_of(user),
         password_set=user.password_hash is not None,
     )
 
@@ -137,6 +104,7 @@ async def list_users(
 @router.post("/users", status_code=status.HTTP_201_CREATED)
 async def create_user(
     body: AdminCreateUserRequest,
+    request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminCreateUserResponse:
@@ -167,19 +135,15 @@ async def create_user(
         role=body.role,
         approved_at=datetime.now(UTC),
     )
-    _apply_features(user, body.features)
+    apply_features(user, body.features)
     db.add(user)
     await db.flush()
     await db.refresh(user)
 
     _token, reset_sent = await create_and_send_reset_token(db, user)
 
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="CREATE_USER" if reset_sent else "CREATE_USER_EMAIL_FAILED",
-        target_id=str(user.id),
+    await audit_svc.log(
+        db, request, admin, "CREATE_USER" if reset_sent else "CREATE_USER_EMAIL_FAILED", user.id
     )
     await db.flush()
 
@@ -196,6 +160,7 @@ async def create_user(
 async def approve_user(
     user_id: uuid.UUID,
     body: AdminApproveRequest,
+    request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
@@ -225,13 +190,7 @@ async def approve_user(
             headers={"code": "ERR_ALREADY_APPROVED"},
         )
 
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="USER_APPROVED",
-        target_id=str(user.id),
-    )
+    await audit_svc.log(db, request, admin, "USER_APPROVED", user.id)
     await db.commit()
     background_tasks.add_task(account_mail.send_all, [account_mail.approved_mail(user.email)])
     return _user_out(user)
@@ -240,6 +199,7 @@ async def approve_user(
 @router.post("/users/{user_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
 async def reject_user(
     user_id: uuid.UUID,
+    request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
@@ -261,13 +221,7 @@ async def reject_user(
             headers={"code": "ERR_ALREADY_APPROVED"},
         )
 
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="USER_REJECTED",
-        target_id=str(user_id),
-    )
+    await audit_svc.log(db, request, admin, "USER_REJECTED", user_id)
     await db.commit()
     background_tasks.add_task(account_mail.send_all, [account_mail.rejected_mail(email)])
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -277,6 +231,7 @@ async def reject_user(
 async def update_user_features(
     user_id: uuid.UUID,
     body: AccountFeaturesUpdate,
+    request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminUserResponse:
@@ -287,14 +242,8 @@ async def update_user_features(
     next time it opens, the app asks it to move its results into the browser.
     """
     user = await _load_user(db, user_id)
-    _patch_features(user, body)
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="USER_FEATURES_CHANGED",
-        target_id=str(user.id),
-    )
+    patch_features(user, body)
+    await audit_svc.log(db, request, admin, "USER_FEATURES_CHANGED", user.id)
     await db.flush()
     return _user_out(user)
 
@@ -326,7 +275,7 @@ async def delete_user(
         user,
         actor=admin,
         keep_exercises=keep_exercises,
-        request_ip=request.client.host if request.client else None,
+        request_ip=audit_svc.client_ip(request),
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -334,6 +283,7 @@ async def delete_user(
 @router.post("/users/{user_id}/reset-password", status_code=status.HTTP_200_OK)
 async def reset_user_password(
     user_id: uuid.UUID,
+    request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminResetPasswordResponse:
@@ -341,24 +291,18 @@ async def reset_user_password(
 
     Emails a single-use reset token; the existing password stays active until the link is used.
     For an invited account that never set a password this resends the invitation."""
-    result = await db.execute(select(Teacher).where(Teacher.id == user_id))
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found.",
-        )
+    user = await _load_user(db, user_id)
     if user.approved_at is None:
         raise _pending_conflict()
 
     _token, reset_sent = await create_and_send_reset_token(db, user)
 
-    await audit_svc.write(
+    await audit_svc.log(
         db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="PASSWORD_RESET_REQUESTED" if reset_sent else "PASSWORD_RESET_EMAIL_FAILED",
-        target_id=str(user.id),
+        request,
+        admin,
+        "PASSWORD_RESET_REQUESTED" if reset_sent else "PASSWORD_RESET_EMAIL_FAILED",
+        user.id,
     )
 
     if reset_sent:
@@ -373,120 +317,10 @@ async def reset_user_password(
     )
 
 
-def _domain_out(row: AllowedEmailDomain) -> AllowedDomainResponse:
-    return AllowedDomainResponse(
-        id=row.id, domain=row.domain, features=_features(row), created_at=row.created_at
-    )
-
-
-async def _load_domain(db: AsyncSession, domain_id: uuid.UUID) -> AllowedEmailDomain:
-    row = await db.get(AllowedEmailDomain, domain_id)
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Domain not found.")
-    return row
-
-
-@router.get("/allowed-domains", response_model=list[AllowedDomainResponse])
-async def list_allowed_domains(
-    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> list[AllowedDomainResponse]:
-    """Domains whose registrations are approved automatically (Admin only)."""
-    rows = await db.scalars(select(AllowedEmailDomain).order_by(AllowedEmailDomain.domain))
-    return [_domain_out(row) for row in rows]
-
-
-@router.post(
-    "/allowed-domains",
-    response_model=AllowedDomainResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def add_allowed_domain(
-    body: AllowedDomainRequest,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> AllowedDomainResponse:
-    """
-    Approve every future registration from a domain automatically (Admin only).
-
-    Exact match on the part after '@'; subdomains need their own entry. Existing accounts are
-    not affected.
-    """
-    try:
-        domain = registration.normalize_domain(body.domain)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Enter a domain such as school.example.",
-            headers={"code": "ERR_INVALID_DOMAIN"},
-        ) from None
-    row = AllowedEmailDomain(domain=domain)
-    _apply_features(row, body.features)
-    db.add(row)
-    try:
-        await db.flush()
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="This domain is already on the list.",
-            headers={"code": "ERR_DOMAIN_EXISTS"},
-        ) from None
-    await db.refresh(row)
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="ALLOWED_DOMAIN_ADDED",
-        target_id=domain,
-    )
-    return _domain_out(row)
-
-
-@router.patch("/allowed-domains/{domain_id}", response_model=AllowedDomainResponse)
-async def update_allowed_domain(
-    domain_id: uuid.UUID,
-    body: AccountFeaturesUpdate,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> AllowedDomainResponse:
-    """Change the features future registrations from a domain receive (Admin only)."""
-    row = await _load_domain(db, domain_id)
-    _patch_features(row, body)
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="ALLOWED_DOMAIN_CHANGED",
-        target_id=row.domain,
-    )
-    await db.flush()
-    return _domain_out(row)
-
-
-@router.delete("/allowed-domains/{domain_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_allowed_domain(
-    domain_id: uuid.UUID,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> Response:
-    """Stop approving a domain automatically (Admin only). Existing accounts stay."""
-    row = await _load_domain(db, domain_id)
-    domain = row.domain
-    await db.delete(row)
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="ALLOWED_DOMAIN_REMOVED",
-        target_id=domain,
-    )
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post("/users/{user_id}/reset-factors", status_code=status.HTTP_200_OK)
+@security_router.post("/users/{user_id}/reset-factors", status_code=status.HTTP_200_OK)
 async def reset_user_factors(
     user_id: uuid.UUID,
+    request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, str]:
@@ -494,10 +328,7 @@ async def reset_user_factors(
 
     Does not restore data access: the server cannot read key copies, so the removed factors' wraps
     are gone; the recovery code stays the way back (else an admin could read the data)."""
-    result = await db.execute(select(Teacher).where(Teacher.id == user_id))
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    user = await _load_user(db, user_id)
     if user.approved_at is None:
         raise _pending_conflict()
     # Another admin's factors are reset only with the CLI: one admin must not take over another.
@@ -525,13 +356,7 @@ async def reset_user_factors(
         update(RefreshToken).where(RefreshToken.teacher_id == user.id).values(revoked=True)
     )
 
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="MFA_DISABLED",
-        target_id=str(user.id),
-    )
+    await audit_svc.log(db, request, admin, "MFA_DISABLED", user.id)
 
     return {
         "message": (
@@ -541,7 +366,7 @@ async def reset_user_factors(
     }
 
 
-@router.get("/audit", response_model=list[AuditLogResponse])
+@security_router.get("/audit", response_model=list[AuditLogResponse])
 async def list_audit_logs(
     limit: int = Query(default=50, le=100),
     offset: int = Query(default=0, ge=0),
@@ -565,111 +390,3 @@ async def list_audit_logs(
         )
         for log in logs
     ]
-
-
-# ── Maintenance (issue #130) ─────────────────────────────────────────────────
-
-
-async def _maintenance_out(db: AsyncSession) -> AdminMaintenanceResponse:
-    state = await maintenance_svc.load(db, fresh=True)
-    body = maintenance_status_of(state)
-    counts = await maintenance_svc.presence_counts(body.revision)
-    response = AdminMaintenanceResponse(
-        status=body,
-        counts=PresenceCountsResponse(
-            online=counts.online, warned=counts.warned, ready=counts.ready
-        ),
-    )
-    if state is not None and body.phase != "none":
-        response.backup_wanted = state.backup_wanted
-        response.backup_state = cast(Any, state.backup_state)
-        response.backup_file = state.backup_file
-        response.backup_finished_at = state.backup_finished_at
-        response.offsite_state = cast(Any, state.offsite_state)
-    return response
-
-
-@router.get("/maintenance")
-async def get_maintenance(
-    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> AdminMaintenanceResponse:
-    """The current window, its backup, and how many teachers are online / warned / ready."""
-    return await _maintenance_out(db)
-
-
-@router.post("/maintenance")
-async def start_maintenance(
-    body: MaintenanceStartRequest,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> AdminMaintenanceResponse:
-    """Announce manual maintenance in `lead_minutes` (0 = now); replaces an open manual window."""
-    try:
-        state = await maintenance_svc.start(
-            db,
-            kind="manual",
-            downtime_class=body.downtime_class,
-            lead_seconds=body.lead_minutes * 60,
-            backup=body.backup,
-            started_by=admin.id,
-        )
-    except maintenance_svc.WindowBusyError:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An update is being deployed right now; try again when it is done.",
-            headers={"code": "ERR_MAINTENANCE_DEPLOYMENT_RUNNING"},
-        ) from None
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="MAINTENANCE_STARTED",
-        target_id=f"maintenance:{state.revision}",
-    )
-    await db.flush()
-    return await _maintenance_out(db)
-
-
-@router.post("/maintenance/start-now")
-async def start_maintenance_now(
-    body: MaintenanceStartNowRequest,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> AdminMaintenanceResponse:
-    """Cut the countdown of the open window short, e.g. when nobody is online (issue #149)."""
-    state = await maintenance_svc.start_now(db, body.revision)
-    if state is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="The maintenance has already started or ended.",
-            headers={"code": "ERR_MAINTENANCE_NOT_PENDING"},
-        )
-    await audit_svc.write(
-        db,
-        teacher_id=admin.id,
-        teacher_email=admin.email,
-        action="MAINTENANCE_STARTED_EARLY",
-        target_id=f"maintenance:{state.revision}",
-    )
-    await db.flush()
-    return await _maintenance_out(db)
-
-
-@router.delete("/maintenance")
-async def end_maintenance(
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> AdminMaintenanceResponse:
-    """End the open window (manual or deployment); teachers can work and sign in again."""
-    state = await maintenance_svc.load(db, fresh=True)
-    if await maintenance_svc.end(db):
-        await audit_svc.write(
-            db,
-            teacher_id=admin.id,
-            teacher_email=admin.email,
-            action="MAINTENANCE_ENDED",
-            target_id=f"maintenance:{state.revision if state else 0}",
-        )
-        await db.flush()
-    return await _maintenance_out(db)

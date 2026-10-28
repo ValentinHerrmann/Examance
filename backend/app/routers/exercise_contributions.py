@@ -18,7 +18,7 @@ from app.models.exercise import Exercise
 from app.models.exercise_contribution import ExerciseContribution, ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
 from app.models.teacher import Teacher
-from app.routers.exercises import _to_res
+from app.schemas.exam import ExerciseResponse
 from app.schemas.exercise_contributions import (
     ContributionAccept,
     ContributionCount,
@@ -217,7 +217,7 @@ async def get_contribution(
         correct_answers=row.correct_answers,
         max_points=row.max_points,
         penalty=row.penalty,
-        base=_to_res(base) if base is not None else None,
+        base=ExerciseResponse.from_exercise(base) if base is not None else None,
         files=out,
     )
 

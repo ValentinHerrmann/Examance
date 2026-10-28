@@ -53,8 +53,8 @@ class Teacher(Base):
     # default, and nothing writes it implicitly. Every browser of the account follows this value.
     storage_mode: Mapped[str | None] = mapped_column(String(16), nullable=True)
     # When an admin (or an always-allowed domain) approved the account; null = pending, which holds
-    # no token of any kind (`advance_sign_in` in app/routers/auth.py, app/dependencies.py). No
-    # default on purpose: a write path that forgets it locks the account out, never one in.
+    # no token of any kind (`advance_sign_in` in routers/auth/session.py, app/dependencies.py).
+    # No default on purpose: a write path that forgets it locks the account out, never one in.
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Optional note a self-registered teacher leaves for the approving admin. Erased on approval.
     registration_note: Mapped[str | None] = mapped_column(String(500), nullable=True)

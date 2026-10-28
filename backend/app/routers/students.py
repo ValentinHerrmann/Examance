@@ -12,6 +12,7 @@ from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
+from app.models.teacher import Teacher
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
@@ -94,6 +95,7 @@ async def erase_student_identity(
     pseudonym_hmac: str,
     request: Request,
     exam: Exam = Depends(get_exam_for_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
@@ -127,19 +129,7 @@ async def erase_student_identity(
         await db.delete(submission)
     await db.delete(identity)
 
-    # Record AuditLog entry with snapshot of teacher email
-    from app.models.teacher import Teacher
-    t_res = await db.execute(select(Teacher).where(Teacher.id == exam.teacher_id))
-    teacher = t_res.scalar_one()
-
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="DELETE",
-        target_id=pseudonym_hmac,
-        request_ip=request.client.host if request.client else None,
-    )
+    await audit_svc.log(db, request, teacher, "DELETE", pseudonym_hmac)
 
 
 @router.get("", response_model=list[StudentIdentityResponse])

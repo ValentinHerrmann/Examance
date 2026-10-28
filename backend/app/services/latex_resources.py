@@ -12,6 +12,7 @@ from urllib.parse import quote
 
 from fastapi import Response
 
+from app.services.blob_validation import check_upload
 from app.services.logo import LOGO_FILENAMES
 
 # Resolved the same way as ``app.services.latex.ASSETS_DIR``; kept independent
@@ -117,15 +118,7 @@ def validate_resource_name(raw_name: str) -> str:
 def validate_resource(raw_name: str, content: bytes) -> str:
     """Validate one resource's name and size. Returns the sanitised name."""
     name = validate_resource_name(raw_name)
-
-    if not content:
-        raise ResourceError(f"'{name}' is empty.")
-    if len(content) > MAX_RESOURCE_BYTES:
-        raise ResourceError(
-            f"'{name}' is {len(content) // (1024 * 1024)} MB; the limit is "
-            f"{MAX_RESOURCE_BYTES // (1024 * 1024)} MB per file."
-        )
-
+    check_upload(content, MAX_RESOURCE_BYTES, f"'{name}'", ResourceError)
     return name
 
 
@@ -151,19 +144,20 @@ def content_disposition(disposition: str, filename: str) -> str:
     return f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
 
 
-def resource_response(content: bytes, mime_type: str | None, filename: str) -> Response:
+def resource_response(
+    content: bytes, mime_type: str | None, filename: str, *, no_store: bool = False
+) -> Response:
     """A stored resource as a response. The type is never taken at face value and sniffing is
     off: a text/html file served inline from the API origin would be stored XSS."""
     media_type, disposition = resolve_content_disposition(mime_type)
-    return Response(
-        content=content,
-        media_type=media_type,
-        headers={
-            "Content-Disposition": content_disposition(disposition, filename),
-            "X-Content-Type-Options": "nosniff",
-            "Content-Security-Policy": "sandbox; default-src 'none'",
-        },
-    )
+    headers = {
+        "Content-Disposition": content_disposition(disposition, filename),
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "sandbox; default-src 'none'",
+    }
+    if no_store:
+        headers["Cache-Control"] = "no-store"
+    return Response(content=content, media_type=media_type, headers=headers)
 
 
 def merge_resources(

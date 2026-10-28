@@ -161,45 +161,46 @@ Target:
   - Delete `POST /exams/{id}/compile` (`routers/exams.py` ~692–768).
   - Delete `compile_exam_latex`, `format_mc_group_latex` and `format_exercise_latex` from `services/latex.py`, and their tests.
   - Remove the "server mirror" mentions in `frontend/CLAUDE.md` (page breaks, name line, extra notes, resources).
-- [ ] **Auth helpers** in `routers/auth.py`:
+- [x] **Auth helpers** in `routers/auth.py`:
   - `_issue_session()` (3 copies of access, refresh, `RefreshToken` and cookies);
   - `_reject_factor()` (3 failure sequences);
   - `client_ip(request)` (11 copies);
   - one dummy-hash constant;
   - `_decode_session()` shared by `get_current_teacher` and `get_pending_teacher` in `dependencies.py`.
-- [ ] **Audit.** Make `audit_svc.log(request, …)` take the request and use it everywhere instead of the ~20 hand-written `audit_svc.write(teacher_id=…, teacher_email=…)` calls.
-- [ ] **Response builders.** Replace `_to_exercise_response` and `_to_res` (exercises) and `_to_exam_response` with `Model.model_validate(obj, from_attributes=True)` plus overrides.
-- [ ] **Update loops.**
+- [x] **Audit.** Make `audit_svc.log(request, …)` take the request and use it everywhere instead of the ~20 hand-written `audit_svc.write(teacher_id=…, teacher_email=…)` calls.
+- [x] **Response builders.** Replace `_to_exercise_response` and `_to_res` (exercises) and `_to_exam_response` with `Model.model_validate(obj, from_attributes=True)` plus overrides.
+- [x] **Update loops.**
   - Replace the ~25 `if body.x is not None` blocks in `update_exam` with a loop over `body.model_dump(exclude_unset=True)`.
   - Turn `duplicate_exam` into a `_COPIED_FIELDS` tuple.
-- [ ] **Lookups.**
+- [x] **Lookups.**
   - `submissions.py`: use the existing `get_submission_for_teacher` dependency (4 lookups) and one `_to_response()` (5 copies).
   - `exercises.py`: add `get_own_group` (3 copies) and one group-metadata cascade helper.
   - `students.py`: use the Teacher from `get_teaching_teacher` instead of re-querying.
   - `admin.py`: use `_load_user` in the reset endpoints.
-- [ ] **LaTeX accessors.** Drop the `isinstance(dict)` and `getattr` dual accessors in `services/latex.py` (they are gone with M6 if they live only there).
-- [ ] **Dead code.** Delete `schemas/auth.TokenClaims`, `crypto.generate_invite_token`, `crypto.hash_token` (a duplicate of `services/tokens.hash_token`) and `crypto.hmac_sha256`. Grep `backend/tests` first. Keep `GET /user/me/export` and the admin endpoints.
-- [ ] **B1 CLI.**
+- [x] **LaTeX accessors.** Drop the `isinstance(dict)` and `getattr` dual accessors in `services/latex.py` (they are gone with M6 if they live only there).
+- [x] **Dead code.** Delete `schemas/auth.TokenClaims`, `crypto.generate_invite_token`, `crypto.hash_token` (a duplicate of `services/tokens.hash_token`) and `crypto.hmac_sha256`. Grep `backend/tests` first. Keep `GET /user/me/export` and the admin endpoints.
+- [x] **B1 CLI.**
   - Add `_with_teacher(email, fn)` on `_in_session` in `cli.py` for `send-password-reset`, `approve-user`, `create-user`, `set-role` and `set-password` (lookup, not-found and the schema hint).
   - `set-role` uses `services/account_deletion.ensure_not_last_admin`.
   - Do not touch the `maintenance` group, because CI runs it from the previous image.
   - Move the maintenance group into `cli_maintenance.py` with the same command names.
-- [ ] **B2 Uploads.**
+- [x] **B2 Uploads.**
   - Add `services/blob_validation.check_upload(content, max_bytes, label)`, used by `services/logo.decode_logo`, the resource upload in `routers/exercises.py` (~955–1030), `services/latex_resources.validate_resource` and `routers/layout_reports.py`.
   - Keep the error codes, including `413 ERR_PAYLOAD_TOO_LARGE`.
   - `logos._logo_response` reuses `latex_resources.resource_response(..., no_store=True)` with identical hardening headers.
-- [ ] **B3 Sharing fields.**
+- [x] **B3 Sharing fields.**
   - Add one `EXERCISE_CONTENT_FIELDS` constant and projection.
   - Replace `exercise_contributions._payload`, `exercise_sharing._content_from` and the list in `next_version`.
   - Add a test asserting the constant matches the content columns of the `Exercise` model.
-- [ ] **B4 Drop `exams.is_public`** (`models/exam.py` ~35, never read). Add a new Alembic migration (forward only; never edit old migrations).
-- [ ] **Splits** (move code, no logic change):
+- [x] **B4 Drop `exams.is_public`** (`models/exam.py` ~35, never read). Add a new Alembic migration (forward only; never edit old migrations).
+  - Done: `0045_drop_exam_is_public`. An older image still maps the column, so rolling back past this release needs `alembic downgrade 0044_exam_extra_notes` first.
+- [x] **Splits** (move code, no logic change):
   - `routers/exercises.py` → `routers/exercises/{library,sharing,resources}.py`;
   - `routers/auth.py` → `{session,recovery,registration}.py`;
   - `routers/admin.py` → `{users,domains,maintenance}.py`;
   - the exam fetch and serialise helpers from `routers/exams.py` (~50–263) → `services/exam_queries.py`;
   - the GDPR export body of `routers/user.py` (~234–375) → `services/account_export.py` with an `_iso()` helper.
-- [ ] **Verify:** export OpenAPI before and after and diff the route set. Only M6 may disappear.
+- [x] **Verify:** export OpenAPI before and after and diff the route set. Only M6 may disappear.
 
 ## Phase 5: feature merges (user-approved)
 - [x] **M1 "New exam" becomes the exam editor.** It replaces `routes/exam/new/+page.svelte` (795 lines) and `lib/components/exam-creation/*`, which duplicate the library picking, MC staging, ordering, metadata form and a hand-written preamble. That preamble ignores page breaks, packages and the logo.

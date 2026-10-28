@@ -101,13 +101,7 @@ async def register_verify(
             headers={"code": "ERR_PASSKEY_FAILED"},
         ) from None
 
-    await audit_svc.write(
-        db,
-        teacher_id=session.teacher.id,
-        teacher_email=session.teacher.email,
-        action="PASSKEY_REGISTERED",
-        request_ip=request.client.host if request.client else None,
-    )
+    await audit_svc.log(db, request, session.teacher, "PASSKEY_REGISTERED")
     return CredentialSummary(
         credential_id_b64=_b64(credential.credential_id),
         nickname=credential.nickname,
@@ -306,10 +300,4 @@ async def delete_credential(
             headers={"code": "ERR_LAST_FACTOR_PROTECTED"},
         )
 
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="PASSKEY_REMOVED",
-        request_ip=request.client.host if request.client else None,
-    )
+    await audit_svc.log(db, request, teacher, "PASSKEY_REMOVED")

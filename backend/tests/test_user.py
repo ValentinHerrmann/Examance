@@ -183,3 +183,45 @@ async def test_submission_upload_never_revives_deleted_pii(
     assert identity.deleted_at is None
     assert identity.retention_until is None
     assert identity.pii_ciphertext == b"\x00"
+
+
+@pytest.mark.asyncio
+async def test_account_export_shape(client: AsyncClient, db: AsyncSession) -> None:
+    await _create_teacher_and_login(client, db, "exportshape@example.com")
+    created = await client.post(
+        "/api/v1/exams",
+        json={"title": "Exported", "retention_until": "2027-12-31", "topic": "Optik"},
+    )
+    exam_id = created.json()["id"]
+
+    first = (await client.get("/api/v1/user/me/export")).json()
+    assert set(first) == {
+        "generated_at",
+        "account",
+        "exams",
+        "shared_exercises",
+        "contributions_submitted",
+        "audit_log",
+    }
+    assert set(first["account"]) == {
+        "id",
+        "email",
+        "role",
+        "created_at",
+        "approved_at",
+        "registration_note",
+        "storage_mode",
+        "features",
+        "sharing_paused",
+        "exam_logo",
+        "latex_packages",
+    }
+    (exam,) = [e for e in first["exams"] if e["id"] == exam_id]
+    assert exam["retention_until"] == "2027-12-31"
+    assert exam["deleted_at"] is None
+    assert exam["created_at"] and exam["created_at"].startswith("20")
+    assert exam["logo"] == {"mode": "account"}
+    # The export's own audit entry is written after reading, so it shows from the next one on.
+    assert "EXPORT" not in [entry["action"] for entry in first["audit_log"]]
+    second = (await client.get("/api/v1/user/me/export")).json()
+    assert [entry["action"] for entry in second["audit_log"]].count("EXPORT") == 1

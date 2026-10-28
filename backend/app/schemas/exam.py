@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Any, Literal, Self
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.config import settings
 from app.schemas.latex_packages import LatexPackageEntry, check_entry_list
+
+if TYPE_CHECKING:
+    from app.models.exercise import Exercise
 
 
 def validate_retention_until(value: date | None) -> date | None:
@@ -158,6 +161,13 @@ class ExerciseResponse(BaseModel):
     copied_from_exercise_id: uuid.UUID | None = None
     # The row's group was copied from another account: it can be proposed back, not shared.
     group_copied: bool = False
+
+    @classmethod
+    def from_exercise(cls, ex: Exercise, **computed: Any) -> Self:
+        """The library view of *ex*; *computed* sets what is no column (exam position, flags)."""
+        return cls.model_validate(ex, from_attributes=True).model_copy(
+            update={"is_shared": ex.is_public, **computed}
+        )
 
 
 class ExamMcGroupCreate(BaseModel):

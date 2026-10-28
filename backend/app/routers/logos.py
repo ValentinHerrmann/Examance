@@ -15,6 +15,7 @@ from app.models.exam import Exam
 from app.models.logo import ExamLogo, TeacherLogo
 from app.models.teacher import Teacher
 from app.schemas.logo import AccountLogoInfo, AccountLogoUpdate, ExamLogoInfo, ExamLogoUpdate
+from app.services.latex_resources import resource_response
 from app.services.logo import (
     LogoError,
     ResolvedLogo,
@@ -59,16 +60,7 @@ def _apply_choice(row: TeacherLogo | ExamLogo, mode: str, content_b64: str | Non
 def _logo_response(logo: ResolvedLogo | None) -> Response:
     if logo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No logo.")
-    return Response(
-        content=logo.content,
-        media_type=logo.mime_type,
-        headers={
-            "Content-Disposition": f'inline; filename="{logo.filename}"',
-            "X-Content-Type-Options": "nosniff",
-            "Content-Security-Policy": "sandbox; default-src 'none'",
-            "Cache-Control": "no-store",
-        },
-    )
+    return resource_response(logo.content, logo.mime_type, logo.filename, no_store=True)
 
 
 # --- account logo -------------------------------------------------------------------------

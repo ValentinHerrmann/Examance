@@ -21,6 +21,7 @@ from app.models.teacher import Teacher
 from app.services import account_mail
 from app.services.exercise_sharing import (
     content_fingerprint,
+    content_of,
     edited_content,
     file_fields,
     new_variant_row,
@@ -48,16 +49,6 @@ def _decided() -> ContributionError:
 
 def _not_contributable() -> ContributionError:
     return ContributionError(400, "Nothing to propose for this variant.", "ERR_NOT_CONTRIBUTABLE")
-
-
-def _payload(row: Exercise) -> dict[str, object]:
-    return {
-        "latex_body": row.latex_body,
-        "question_type": row.question_type,
-        "correct_answers": row.correct_answers,
-        "penalty": row.penalty,
-        "max_points": row.max_points,
-    }
 
 
 async def submit(
@@ -134,7 +125,7 @@ async def submit(
             message=(message or "").strip() or None,
             base_fingerprint=own.synced_fingerprint if kind == "version" else None,
             status="pending",
-            **_payload(own),
+            **content_of(own),
         )
         db.add(row)
         await db.flush()
@@ -284,14 +275,7 @@ async def accept(
         raise _not_found()
 
     content = edited_content(
-        {
-            "latex_body": row.latex_body,
-            "question_type": row.question_type or "free_text",
-            "correct_answers": row.correct_answers,
-            "penalty": row.penalty,
-            "max_points": row.max_points,
-        },
-        latex_override,
+        {**content_of(row), "question_type": row.question_type or "free_text"}, latex_override
     )
     files = [
         file_fields(f)

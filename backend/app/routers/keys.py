@@ -107,13 +107,7 @@ async def replace_envelopes(
     enrolling = session.scope == "enroll"
     rows = await replace_envelope_set(db, teacher, body, keep_secret_wraps=enrolling)
 
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="KEY_ENVELOPE_RESET",
-        request_ip=request.client.host if request.client else None,
-    )
+    await audit_svc.log(db, request, teacher, "KEY_ENVELOPE_RESET")
 
     return KeyEnvelopeListOut(
         key_id_b64=body.key_id_b64,

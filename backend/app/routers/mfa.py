@@ -137,13 +137,7 @@ async def confirm_totp(
         )
 
     codes = await mfa_svc.issue_backup_codes(db, teacher)
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="MFA_ENROLLED",
-        request_ip=request.client.host if request.client else None,
-    )
+    await audit_svc.log(db, request, teacher, "MFA_ENROLLED")
     return MfaBackupCodesResponse(backup_codes=codes)
 
 
@@ -199,10 +193,4 @@ async def disable_totp(
         )
 
     await mfa_svc.disable(db, teacher.id)
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="MFA_DISABLED",
-        request_ip=request.client.host if request.client else None,
-    )
+    await audit_svc.log(db, request, teacher, "MFA_DISABLED")

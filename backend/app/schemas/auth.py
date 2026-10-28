@@ -87,14 +87,6 @@ class AuthResponse(BaseModel):
     needs_key_recovery: bool | None = None
 
 
-class TokenClaims(BaseModel):
-    sub: str          # teacher_id (UUID string)
-    email: str
-    role: str
-    exp: int          # Unix timestamp
-    jti: str | None = None  # JWT ID — used for refresh token revocation
-
-
 class RegisterRequest(BaseModel):
     email: EmailStr
 

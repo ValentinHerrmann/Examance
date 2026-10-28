@@ -19,7 +19,7 @@ from sqlalchemy import ColumnElement, and_, false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.exercise import Exercise
-from app.models.exercise_contribution import ExerciseContributionResource
+from app.models.exercise_contribution import ExerciseContribution, ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.teacher import Teacher
@@ -58,6 +58,26 @@ def shared_with_clause(viewer: Teacher) -> ColumnElement[bool]:
 def readable_clause(viewer: Teacher) -> ColumnElement[bool]:
     """Rows *viewer* may read: their own, or shared with them. Never use it for writes or links."""
     return or_(Exercise.teacher_id == viewer.id, shared_with_clause(viewer))
+
+
+# --- Content ---------------------------------------------------------------
+
+#: What a copy, a resync and a proposal carry, and what `content_fingerprint` covers besides file
+#: digests. Every other `Exercise` column is identity, placement, share state or provenance of one
+#: account's row; a test fails when a new column is classified as neither.
+EXERCISE_CONTENT_FIELDS = (
+    "latex_body",
+    "max_points",
+    "question_type",
+    "correct_answers",
+    "penalty",
+)
+
+
+def content_of(src: Exercise | ExerciseContribution) -> dict[str, object]:
+    """The content fields of *src* as keyword arguments. The answer key is copied, so the new row
+    never shares a mutable dict with its source."""
+    return {name: copy.deepcopy(getattr(src, name)) for name in EXERCISE_CONTENT_FIELDS}
 
 
 # --- Fingerprints ---------------------------------------------------------
@@ -157,32 +177,18 @@ def next_version(old: Exercise, **content: object) -> Exercise:
         "topic_tag": old.topic_tag,
         "grade": old.grade,
         "subject": old.subject,
-        "latex_body": old.latex_body,
-        "max_points": old.max_points,
         "version": old.version + 1,
         "exercise_group_id": old.exercise_group_id,
         "variant_key": old.variant_key,
         "is_current": True,
-        "question_type": old.question_type,
-        "correct_answers": old.correct_answers,
-        "penalty": old.penalty,
         "is_public": old.is_public,
         "shared_at": old.shared_at,
         "copied_from_exercise_id": old.copied_from_exercise_id,
         "synced_fingerprint": old.synced_fingerprint,
+        **content_of(old),
     }
     fields.update(content)
     return Exercise(**fields)
-
-
-def _content_from(src: Exercise) -> dict[str, object]:
-    return {
-        "latex_body": src.latex_body,
-        "max_points": src.max_points,
-        "question_type": src.question_type,
-        "correct_answers": copy.deepcopy(src.correct_answers),
-        "penalty": src.penalty,
-    }
 
 
 async def shared_group_rows(
@@ -235,7 +241,7 @@ async def copy_shared_group(
             is_current=True,
             copied_from_exercise_id=src.id,
             synced_fingerprint=content_fingerprint(src, digests.get(src.id, [])),
-            **_content_from(src),
+            **content_of(src),
         )
         db.add(row)
         await db.flush()
@@ -293,7 +299,7 @@ async def duplicate_own_group(
             variant_key=src.variant_key,
             is_current=True,
             code_withheld=src.code_withheld,
-            **_content_from(src),
+            **content_of(src),
         )
         db.add(row)
         await db.flush()
@@ -540,7 +546,7 @@ async def apply_resync(
     created: list[Exercise] = []
     for sid in reviewed:
         variant, src = applicable[sid]
-        content = edited_content(_content_from(src), overrides.get(sid))
+        content = edited_content(content_of(src), overrides.get(sid))
         if variant.own is not None:
             row = next_version(
                 variant.own,
