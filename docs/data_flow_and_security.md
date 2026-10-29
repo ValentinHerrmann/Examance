@@ -198,6 +198,13 @@ An account that has no password set answers exactly like a wrong password. The
 older, distinct response told an unauthenticated caller which addresses have
 accounts here.
 
+A refused authenticator or backup code counts in a separate per-account counter
+(`login:factorfail:`), so knowing the password does not reset the guesses at the
+second factor: only a sign-in that ends in a session clears it
+(`register_success(..., session_issued=True)` in `advance_sign_in`). TOTP and backup
+codes are spent with conditional `UPDATE`s, so two parallel requests cannot use one
+code twice, and Argon2 hashing runs off the event loop.
+
 ### Maintenance mode (issue #130)
 
 New sign-ins pause at the second maintenance reminder: the factor endpoints refuse a non-admin (`503 ERR_MAINTENANCE_LOGIN_BLOCKED`) before the pending token is spent, and `advance_sign_in` before a full session is minted; every check comes after a proven factor, so it reveals nothing about an address. Refresh tokens keep working, so open sessions survive. While a window is down, `get_teaching_teacher` answers `503 ERR_MAINTENANCE`, which freezes teaching writes for the maintenance backup (the client's offline queue replays them afterwards), and password, key-envelope, MFA, passkey and account changes answer `503 ERR_MAINTENANCE_ACCOUNT_PAUSED` (`require_not_frozen`, admins exempt), so a restore of that backup cannot silently revert them. **Presence**: the public status poll marks a signed-in teacher as online in the ephemeral store under a SHA-256 of the account id (90 s), plus "warned"/"ready" for the current window (2 h); admins see only counts. No IP, no timestamps per person beyond that window, nothing in the database. Maintenance backups (`maintenance-backups/`, restic tag `maintenance`) are plaintext dumps like `restore-safety/` and are rotated by `BACKUP_KEEP_MAINTENANCE`. Details: `docs/dev/maintenance_mode.md`.
@@ -554,6 +561,13 @@ sequenceDiagram
 
     Note over User,IDB: Inspection via DevTools (F12 -> Application -> Storage -> IndexedDB)
 ```
+
+On lock the key bytes the tab holds are overwritten with zeros, not only dropped
+(`stores/session.ts`). **One account per tab:** every API call names the account the
+tab holds keys for (`X-Expected-Account`, the account id). When the session cookie now
+belongs to another account, for example after another tab signed in as someone else,
+the server answers `409 ERR_ACCOUNT_MISMATCH` and the tab locks instead of writing that
+account's data under the wrong key.
 
 ---
 

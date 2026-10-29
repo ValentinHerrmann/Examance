@@ -57,7 +57,7 @@ Both modes now seal under the same account data key, and only the results move. 
 4. **Commit.** Write the account's mode with compare-and-set on `from`, publish it, remember it in the manifest, and announce it (`bg_mode_changed`) so other tabs reload.
 5. **Old copy, asked each time.** The user keeps it or deletes it:
    - **To the browser:** `POST /user/purge-server-student-data` soft-deletes, with a 7-day grace period.
-   - **To the server:** the local result tables are cleared in one Dexie transaction.
+   - **To the server:** the local results of the exams that moved and verified (`movedExams`) are cleared in one Dexie transaction. A skipped exam keeps them, since they exist nowhere else (F11).
 6. **Reload** the page, because every list was loaded under the old mode.
 
 **Interruptions and leftovers:**
@@ -79,6 +79,8 @@ Both modes now seal under the same account data key, and only the results move. 
   - `foreign-account` / `foreign-key`, with a confirmed reset;
   - `pending-writes` when another account's offline writes wait.
 - Unbound offline-queue entries are stamped only after the owner check passes.
+
+**The offline queue** (`services/offlineQueue.ts`) lives in IndexedDB (`db.offlineQueue`, Dexie v11) with an in-memory mirror, so queued writes survive a reload. Tabs share it; a Web Lock (`examance-offline-queue`) serializes their flushes, so one write is never replayed twice.
 
 **Resetting the workspace** (`replaceWorkspace`) is one transaction: every data table is cleared and the new manifest written. It also clears the offline queue and the compile cache.
 

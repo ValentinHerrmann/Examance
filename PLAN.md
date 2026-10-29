@@ -293,10 +293,11 @@ Target:
 - [x] Do not squash the Alembic migrations, because deployed instances may sit on old revisions.
 
 ## Phase 8: docs
-- [ ] `docs/data_flow_and_security.md`: keyed pseudonym HMAC, AAD, the LaTeX sandbox, the expected-account header.
-- [ ] `docs/dev/storage_modes.md`: per-exam mover deletion and the Dexie-backed offline queue.
-- [ ] `backend/CLAUDE.md` and `frontend/CLAUDE.md`: new module paths (router packages, `scoreService`, `ScoreGrid`, `HeroDialog`, `FeatureMatrix`), and removals (`/exam/new`, `ConfirmDeleteModal`, the server exam compile).
-- [ ] In-app help (`lib/help/topics.ts`, `i18n/*/help.ts`): exam creation, export dialog, storage settings.
+- [x] `docs/data_flow_and_security.md`: keyed pseudonym HMAC, AAD, the LaTeX sandbox, the expected-account header.
+  - Done except HMAC and AAD, which wait for the S3/S11 sign-off; also the second-factor throttle and key zeroing.
+- [x] `docs/dev/storage_modes.md`: per-exam mover deletion and the Dexie-backed offline queue.
+- [x] `backend/CLAUDE.md` and `frontend/CLAUDE.md`: new module paths (router packages, `scoreService`, `ScoreGrid`, `HeroDialog`, `FeatureMatrix`), and removals (`/exam/new`, `ConfirmDeleteModal`, the server exam compile).
+- [x] In-app help (`lib/help/topics.ts`, `i18n/*/help.ts`): exam creation, export dialog, storage settings.
 
 ## Phase 9: one-line comments (run last, so it does not conflict with the refactors)
 Rule (user decision): when a comment or docstring spans several lines and its information matters, write it as **one line** and let the editor soft-wrap it. Only comments change; code does not.
