@@ -26,6 +26,7 @@
   import LatexEditor from "./LatexEditor.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
   import { recordValue } from "#lib/utils/recentValues";
+  import { createDirtyClose } from "#lib/utils/dirtyClose.svelte";
   import { t, translate } from "#lib/i18n";
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { exerciseReportFiles } from "#lib/layout-report/collect";
@@ -91,9 +92,6 @@
   /** Same consent as the share dialog; saving a newly shared exercise waits for it. */
   let shareConfirmed = $state(false);
   let needsShareConsent = $derived(shareAllowed && editorShared && !initialShared);
-
-  // Confirmation modal state
-  let showConfirmClose = $state(false);
 
   // Fresh staging id for resource files: lets upload/preview work before the exercise exists.
   // Committed onto the real exercise on save; closing without saving discards the staged set.
@@ -227,7 +225,7 @@
     });
     showAngabePreview = false;
     showLoesungPreview = false;
-    showConfirmClose = false;
+    dirtyClose.cancel();
     latexSourceOpen = false;
     errorMsg = "";
     syncMcStateFromLatex();
@@ -341,24 +339,18 @@
     }
   }
 
-  function requestClose() {
-    if (isDirty) {
-      showConfirmClose = true;
-    } else {
-      forceClose();
-    }
-  }
-
-  function forceClose() {
-    showConfirmClose = false;
-    cleanupPreview();
-    // Staged files belong to the dialog, not to the library: unless they were
-    // committed by a save, they go with it.
-    if (!resourcesCommitted && resourceStagingId) {
-      void exerciseResourceRepository.deleteForExercise(resourceStagingId);
-    }
-    onClose?.();
-  }
+  const dirtyClose = createDirtyClose({
+    isDirty: () => isDirty,
+    onClose: () => {
+      cleanupPreview();
+      // Staged files belong to the dialog, not to the library: unless they were
+      // committed by a save, they go with it.
+      if (!resourcesCommitted && resourceStagingId) {
+        void exerciseResourceRepository.deleteForExercise(resourceStagingId);
+      }
+      onClose?.();
+    },
+  });
 
   async function handlePreviewExercise() {
     isPreviewLoading = true;
@@ -513,7 +505,7 @@
         await commitStagedResources(savedEx.id, key);
         const sharingError = await applySharing(savedEx.id);
         onSave?.({ exercise: savedEx, isNewVersion: true, sharingError });
-        forceClose();
+        dirtyClose.force();
         return;
       }
 
@@ -584,7 +576,7 @@
       await commitStagedResources(record.id, key);
       const sharingError = await applySharing(record.id);
       onSave?.({ exercise: record, isNewVersion: false, sharingError });
-      forceClose();
+      dirtyClose.force();
     } catch (err) {
       errorMsg = translate("exercises.editor.saveFailed", { message: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -637,7 +629,7 @@
 {/snippet}
 
 {#if isOpen}
-  <Modal open={isOpen} size="full" tall bare onClose={requestClose} labelledBy="exercise-editor-title">
+  <Modal open={isOpen} size="full" tall bare onClose={dirtyClose.request} labelledBy="exercise-editor-title">
     {#snippet header()}
       <!-- Metadata sits in the header: beside the title from @6xl, below it down to @3xl, folded on phones. -->
       <div class="flex min-w-0 flex-col gap-2 @6xl:flex-row @6xl:items-center @6xl:gap-4">
@@ -804,7 +796,7 @@
     </div>
 
     {#snippet footer()}
-      <Button variant="outlined" severity="secondary" onClick={requestClose}>{$t("common.cancel")}</Button>
+      <Button variant="outlined" severity="secondary" onClick={dirtyClose.request}>{$t("common.cancel")}</Button>
       <Button onClick={handleSaveExercise} disabled={isSaving || !!editingExercise?.codeWithheld || (needsShareConsent && !shareConfirmed)}>
         {saveLabel}
       </Button>
@@ -845,13 +837,13 @@
 {/if}
 
 <ConfirmDialog
-  open={showConfirmClose}
+  open={dirtyClose.confirming}
   title={$t("exercises.editor.discardTitle")}
   message={$t("exercises.editor.discardMessage")}
   confirmText={$t("exercises.confirmDiscard.confirmText")}
   cancelText={$t("exercises.confirmDiscard.cancelText")}
   severity="danger"
   role="dialog"
-  onConfirm={forceClose}
-  onCancel={() => (showConfirmClose = false)}
+  onConfirm={dirtyClose.force}
+  onCancel={dirtyClose.cancel}
 />

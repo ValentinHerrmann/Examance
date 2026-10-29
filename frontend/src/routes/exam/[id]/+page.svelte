@@ -1,97 +1,50 @@
 <script lang="ts">
-  import { resultsAreLocal } from "#lib/stores/storagePolicy";
-  import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
-  import { matchesExerciseFilters, uniqueSorted } from "#lib/utils/listFilter";
   import { page } from "$app/state";
-  import { onMount, onDestroy, untrack } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
   import { db } from "#lib/db/db";
-  import type {
-    ExamRecord,
-    ExerciseRecord,
-    SubmissionRecord,
-    ExamMcGroupRecord,
-    ExamExerciseRecord,
-  } from "#lib/db/schema";
-  import {
-    loadExamEncrypted,
-    saveExamEncrypted,
-    loadExamExercisesEncrypted,
-    loadExercisesEncrypted,
-    loadStudentsEncrypted,
-    loadSubmissionsEncrypted,
-    decryptExercise,
-    decryptSubmission,
-    decryptStudent,
-    encryptExercise,
-    loadOmrTemplateEncrypted,
-    loadLocalMcGroups,
-    type McGroup,
-  } from "#lib/db/dbEncryption";
+  import type { ExamRecord, ExerciseRecord, SubmissionRecord, ExtraNotes } from "#lib/db/schema";
+  import { saveExamEncrypted, loadOmrTemplateEncrypted, type McGroup } from "#lib/db/dbEncryption";
   import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
   import {
-    buildExamItems,
     computeOmrTemplateHash,
     loadExamCompileContext,
-    mapRemoteMcGroups,
     prepareOmrTemplate,
     type ExamItemRef,
   } from "#lib/grading/omrTemplatePrep";
   import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
   import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
-  import { isMcQuestion } from "#lib/grading/mcScore";
-  import { invalidateOwner } from "#lib/latex/compileCache";
   import { prunePageBreaks, togglePageBreak } from "#lib/exam/pageBreaks";
-  import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { compileExamPreview, getCurrentExamPreview } from "#lib/exam/examPreview";
+  import { loadExamData, loadExamSubmissions, loadLibraryExercises, type ExamLoadTarget } from "#lib/exam/loadExam";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
-  import { examRepository, mapApiToExamRecord, extraNotesToApi } from "#lib/repositories/examRepository";
-  import { mapExerciseRecordToApi } from "#lib/repositories/exerciseRepository";
-  import { uint8ArrayToBase64, decrypt } from "#lib/crypto/aesGcm";
-  import { ensure64CharHex } from "#lib/crypto/hmac";
-  import type {
-    OmrWorkerRequest,
-    OmrWorkerResponse,
-    OmrExerciseAnswerKey,
-  } from "#lib/workers/omrWorker";
+  import { examRepository } from "#lib/repositories/examRepository";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
   import { get } from "svelte/store";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { examReportFiles } from "#lib/layout-report/collect";
-  import { getPresetCutoffs } from "#lib/analytics/gradingKey";
-  import type { GradingKeyConfig, ExtraNotes } from "#lib/db/schema";
   import { goto } from "$app/navigation";
   import { takeUrlParam } from "#lib/utils/urlToken";
   import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
   import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
   import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
   import ExerciseList from "#lib/components/exam/ExerciseList.svelte";
-  import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
-  import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
-  import { entriesError, type LatexPackageEntry } from "#lib/latex/packages";
+  import ExamMetadataEditDialog from "#lib/components/exam/ExamMetadataEditDialog.svelte";
+  import ExamExercisePicker from "#lib/components/exam/ExamExercisePicker.svelte";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
-  import ExamLibraryModal from "#lib/components/exam/ExamLibraryModal.svelte";
-  import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
-  import {
-    applyGroup,
-    buildMcGroupMembership,
-    canFinalizeGroup,
-    moveStaged,
-    toggleStaged,
-  } from "#lib/exam/mcGroupStaging";
   import { t, translate } from "#lib/i18n";
-  import { exerciseTopicSuggestions } from "#lib/utils/examLabel";
-  import { ConfirmDialog, Alert, Button, Card, PageHeader, PageShell } from "#lib/components/ui";
+  import { Alert, Button, Card, PageHeader, PageShell } from "#lib/components/ui";
 
   let examId = $derived(page.params.id || "");
 
   // Raw: these records go to Dexie, encryption, the API and buildExamLinkPayload(); update immutably.
   let exam: ExamRecord | null = $state.raw(null);
   let exercises: ExerciseRecord[] = $state.raw([]);
+  let libraryExercises: ExerciseRecord[] = $state.raw([]);
   let mcGroups: McGroup[] = $state.raw([]);
   let examItems: ExamItemRef[] = $state.raw([]);
   let submissions: SubmissionRecord[] = $state.raw([]);
@@ -186,123 +139,35 @@
   // examMcGroups/examExercises rows, which left the local MC groups empty.
   let loadSeq = 0;
 
+  // loadExamData() writes straight into the page state, so a load that fails midway keeps what it had set.
+  const loadTarget: ExamLoadTarget = {
+    get exam() { return exam; },
+    set exam(value) { exam = value; },
+    get exercises() { return exercises; },
+    set exercises(value) { exercises = value; },
+    get mcGroups() { return mcGroups; },
+    set mcGroups(value) { mcGroups = value; },
+    get examItems() { return examItems; },
+    set examItems(value) { examItems = value; },
+    get isLocalFallback() { return isLocalFallback; },
+    set isLocalFallback(value) { isLocalFallback = value; },
+    get errorMsg() { return errorMsg; },
+    set errorMsg(value) { errorMsg = value; },
+  };
+
   async function loadExam(id: string) {
     await awaitSessionReady();
     const seq = ++loadSeq;
     const isStale = () => seq !== loadSeq;
     const key = get(sessionStore).sessionKey;
     try {
-      if ($isAuthenticated) {
-        try {
-          const remoteExam = (await api.get(`/exams/${id}`)) as any;
-          if (isStale()) return;
-          exam = mapApiToExamRecord(remoteExam);
-          exercises = remoteExam.exercises.map(mapApiToExerciseRecord);
-          // Only a response that actually carries `mc_groups` may rewrite
-          // local grouping — otherwise this would replace every junction's
-          // mcGroupId with undefined and dissolve the groups.
-          const groupsAreAuthoritative = Array.isArray(remoteExam.mc_groups);
-
-          if (groupsAreAuthoritative) {
-            mcGroups = mapRemoteMcGroups(remoteExam.mc_groups);
-            const mcGroupRecords = mcGroups.map((g, idx) => ({
-              id: g.id,
-              examId: id,
-              title: g.title,
-              scoringText: g.scoringText,
-              orderIndex: g.orderIndex ?? idx + 1,
-            }));
-            if (isStale()) return;
-            await db.transaction("rw", db.examMcGroups, async () => {
-              await db.examMcGroups.where("examId").equals(id).delete();
-              if (mcGroupRecords.length > 0) {
-                await db.examMcGroups.bulkPut(mcGroupRecords);
-              }
-            });
-          } else {
-            mcGroups = await loadLocalMcGroups(id);
-            if (isStale()) return;
-          }
-          if (exercises.length > 0) {
-            const encExs = await Promise.all(exercises.map((ex: any) => encryptExercise(ex, key)));
-            // When the response said nothing about groups, membership comes from
-            // the rows we already hold rather than from the response's silence.
-            const storedLinks = groupsAreAuthoritative
-              ? new Map<string, ExamExerciseRecord>()
-              : new Map(
-                  (await db.examExercises.where("examId").equals(id).toArray()).map(
-                    (link) => [link.exerciseId, link],
-                  ),
-                );
-            const junctions = exercises.map((ex: any, idx: number) => {
-              const stored = storedLinks.get(ex.id);
-              return {
-                examId: id,
-                exerciseId: ex.id,
-                orderIndex: ex.orderIndex || (idx + 1),
-                mcGroupId: ex.mcGroupId ?? stored?.mcGroupId,
-                subIndex: ex.subIndex ?? stored?.subIndex,
-              };
-            });
-            if (isStale()) return;
-            await db.transaction("rw", [db.exercises, db.examExercises], async () => {
-              await db.exercises.bulkPut(encExs);
-              // Replace, don't merge: a link the server dropped must not survive
-              // locally and reappear as a phantom exercise on the next open.
-              await db.examExercises.where("examId").equals(id).delete();
-              await db.examExercises.bulkPut(junctions);
-            });
-          } else {
-            const localExs = await loadExamExercisesEncrypted(id, key);
-            if (isStale()) return;
-            if (localExs.length > 0) {
-              exercises = localExs;
-            }
-          }
-          isLocalFallback = false;
-        } catch (serverErr) {
-          // Fall back to IndexedDB if exam is not on server
-          const localExam = (await loadExamEncrypted(id, key)) || null;
-          if (isStale()) return;
-          exam = localExam;
-          if (exam) {
-            isLocalFallback = true;
-            exercises = await loadExamExercisesEncrypted(id, key);
-            mcGroups = await loadLocalMcGroups(id);
-            if (isStale()) return;
-          } else {
-            errorMsg = translate("exam.page.examNotFoundOrDeleted");
-            console.error("Exam not found on server or locally:", serverErr);
-          }
-        }
-      } else {
-        isLocalFallback = false;
-        const localExam = (await loadExamEncrypted(id, key)) || null;
-        const localExercises = await loadExamExercisesEncrypted(id, key);
-        const localGroups = await loadLocalMcGroups(id);
-        if (isStale()) return;
-        exam = localExam;
-        exercises = localExercises;
-        mcGroups = localGroups;
-      }
-      examItems = buildExamItems(exercises, mcGroups);
-      if (browser && key) {
-        try {
-          libraryExercises = await loadExercisesEncrypted(key);
-        } catch {}
-      }
-      try {
-        const loadedSubmissions = await submissionRepository.getByExamId(id, key);
-        if (isStale()) return;
-        submissions = loadedSubmissions;
-        submissionsLoadError = "";
-      } catch (err) {
-        if (isStale()) return;
-        submissions = [];
-        submissionsLoadError = translate("exam.page.submissions.loadFailed", {
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
+      if (!(await loadExamData(id, { key, authenticated: $isAuthenticated, isStale }, loadTarget))) return;
+      const library = await loadLibraryExercises(key);
+      if (library) libraryExercises = library;
+      const loadedSubmissions = await loadExamSubmissions(id, key, isStale);
+      if (!loadedSubmissions) return;
+      submissions = loadedSubmissions.submissions;
+      submissionsLoadError = loadedSubmissions.error;
       await checkOmrTemplateStatus(id);
       if (isStale()) return;
       await restoreCachedPreviews();
@@ -314,14 +179,16 @@
   // Quick exercise editor (opened from exercise names and the library picker).
   let quickEditEx: ExerciseRecord | null = $state.raw(null);
   let creatingExercise = $state(false);
+  // Dialog flows that live in components; the page opens them through these refs.
+  let metadataDialog: ReturnType<typeof ExamMetadataEditDialog> | undefined = $state();
+  let picker: ReturnType<typeof ExamExercisePicker> | undefined = $state();
 
   /** Reload via loadExam so the junction fields (group, sub-index, order) stay intact. */
   /** A new exercise from the library dialog joins the library list and the selection (M1). */
   async function handleEditorSaved({ exercise }: { exercise: ExerciseRecord }) {
     if (!creatingExercise) return loadExam(examId);
     creatingExercise = false;
-    libraryExercises = [...libraryExercises.filter((ex) => ex.id !== exercise.id), exercise];
-    if (!selectedLibraryIds.includes(exercise.id)) selectedLibraryIds = [...selectedLibraryIds, exercise.id];
+    picker?.addCreatedExercise(exercise);
   }
 
   /** MC exercises in exam order from one merged lookup (`exercises` wins over `libraryExercises`), so the
@@ -497,338 +364,12 @@
     }
   }
 
-  let isEditingMetadata = $state(false);
-  let editTitle = $state("");
-  let editTestart = $state("");
-  let editGrade = $state("");
-  let editKlasse = $state("");
-  let editDatum = $state("");
-  let editNr = $state("");
-  let editFach = $state("");
-  let editTopic = $state("");
-  let editLehrernachname = $state("");
-  let editInfoText = $state("");
-  let editNameLine = $state(false);
-  let editLogoChange: ExamLogoChange | null = $state.raw(null);
-  let editLatexPackages: LatexPackageEntry[] | null = $state.raw(null);
-  let initialLatexPackages = $state("null");
-  let editRetentionUntil = $state("");
-  let editGradingKey: GradingKeyConfig = $state({
-    preset: "linear_50",
-    cutoffs: getPresetCutoffs("linear_50"),
-  });
-
-  let initialMetadata = $state({
-    title: "",
-    testart: "",
-    grade: "",
-    klasse: "",
-    datum: "",
-    nr: "",
-    fach: "",
-    topic: "",
-    lehrernachname: "",
-    infoText: "",
-    nameLine: false,
-    retentionUntil: "",
-  });
-  let showMetadataConfirm = $state(false);
-
-  let isMetadataDirty = $derived(
-    isEditingMetadata &&
-      (editTitle !== initialMetadata.title ||
-        editTestart !== initialMetadata.testart ||
-        editGrade !== initialMetadata.grade ||
-        editKlasse !== initialMetadata.klasse ||
-        editDatum !== initialMetadata.datum ||
-        editNr !== initialMetadata.nr ||
-        editFach !== initialMetadata.fach ||
-        editTopic !== initialMetadata.topic ||
-        editLehrernachname !== initialMetadata.lehrernachname ||
-        editInfoText !== initialMetadata.infoText ||
-        editNameLine !== initialMetadata.nameLine ||
-        editLogoChange !== null ||
-        JSON.stringify(editLatexPackages) !== initialLatexPackages ||
-        editRetentionUntil !== initialMetadata.retentionUntil),
-  );
-
   let totalPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints ?? 0), 0));
   let submissionsCount = $derived(submissions.length);
   let studentsCount = $derived(new Set(submissions.map((s) => s.pseudonymHash)).size);
   let gradedCount = $derived(
     submissions.filter((s) => typeof s.totalScore === "number" && !isNaN(s.totalScore)).length,
   );
-
-  let isLibraryModalOpen = $state(false);
-  let libraryExercises: ExerciseRecord[] = $state.raw([]);
-  let selectedLibraryIds: string[] = $state.raw([]);
-  let initialSelectedLibraryIds: string[] = $state.raw([]);
-  let showLibraryConfirm = $state(false);
-  let librarySearch = $state("");
-  let activeVariantPerGroup: Record<string, string> = $state.raw({});
-
-  let isLibraryDirty = $derived(
-    isLibraryModalOpen &&
-      (selectedLibraryIds.length !== initialSelectedLibraryIds.length ||
-        selectedLibraryIds.some((id, i) => id !== initialSelectedLibraryIds[i])),
-  );
-
-  let filteredLibrary = $derived(
-    libraryExercises.filter((ex) =>
-      matchesExerciseFilters(
-        ex,
-        { query: librarySearch, grade: selectedGradeFilter, subject: selectedSubjectFilter },
-        true,
-      ),
-    ),
-  );
-
-  let filteredGroups = $derived(groupExercises(filteredLibrary));
-
-  function setGroupVariant(groupId: string, vKey: string) {
-    activeVariantPerGroup = { ...activeVariantPerGroup, [groupId]: vKey };
-  }
-
-  function getGroupMemberIds(group: ExerciseGroup): string[] {
-    return group.allMembers.map((member) => member.ex.id);
-  }
-
-  function selectGroupVariant(group: ExerciseGroup, vKey: string) {
-    setGroupVariant(group.groupId, vKey);
-  }
-
-  function toggleGroupSelection(group: ExerciseGroup, vKey: string) {
-    setGroupVariant(group.groupId, vKey);
-    const variantId = group.variants.get(vKey)?.[0]?.ex.id;
-    if (!variantId) return;
-    if (selectedLibraryIds.includes(variantId)) {
-      selectedLibraryIds = selectedLibraryIds.filter((id) => id !== variantId);
-      return;
-    }
-    selectedLibraryIds = [...selectedLibraryIds, variantId];
-  }
-
-  function openMetadataEditor() {
-    if (!exam) return;
-    editTitle = exam.title || "";
-    editTestart = exam.testart || "Kurzarbeit";
-    editGrade = exam.grade || "";
-    editKlasse = exam.klasse || "";
-    editDatum = exam.datum || "";
-    editNr = exam.nr || "1";
-    editFach = exam.fach || "Informatik";
-    editTopic = exam.topic || "";
-    editLehrernachname = exam.lehrernachname || "";
-    editInfoText = exam.infoText || "";
-    editNameLine = exam.nameLine === true;
-    editRetentionUntil = exam.retentionUntil || "";
-    editGradingKey = exam.gradingKey || {
-      preset: "linear_50",
-      cutoffs: getPresetCutoffs("linear_50"),
-    };
-
-    initialMetadata = {
-      title: editTitle,
-      testart: editTestart,
-      grade: editGrade,
-      klasse: editKlasse,
-      datum: editDatum,
-      nr: editNr,
-      fach: editFach,
-      topic: editTopic,
-      lehrernachname: editLehrernachname,
-      infoText: editInfoText,
-      nameLine: editNameLine,
-      retentionUntil: editRetentionUntil,
-    };
-    editLogoChange = null;
-    editLatexPackages = exam.latexPackages ?? null;
-    initialLatexPackages = JSON.stringify(editLatexPackages);
-    showMetadataConfirm = false;
-    isEditingMetadata = true;
-  }
-
-  function requestCancelMetadata() {
-    if (isMetadataDirty) {
-      showMetadataConfirm = true;
-    } else {
-      forceCancelMetadata();
-    }
-  }
-
-  function forceCancelMetadata() {
-    showMetadataConfirm = false;
-    isEditingMetadata = false;
-  }
-
-  async function handleSaveMetadata() {
-    if (!exam) return;
-    // editGradingKey is a deep edit buffer (GradingKeyEditor mutates it); persist a plain copy.
-    const gradingKey = $state.snapshot(editGradingKey);
-    // Sent even when empty: "" is how the server learns the topic was cleared.
-    const topic = editTopic.trim();
-    if (editLatexPackages && entriesError(editLatexPackages)) {
-      alert(translate("latexPackages.exam.invalid"));
-      return;
-    }
-    // An empty override prints the same as none; the server stores both as "follows the account".
-    const latexPackages = editLatexPackages?.length ? editLatexPackages : null;
-    try {
-      if ($isAuthenticated) {
-        await api.patch(`/exams/${exam.id}`, {
-          title: editTitle,
-          testart: editTestart,
-          grade: editGrade,
-          klasse: editKlasse,
-          datum: editDatum,
-          nr: editNr,
-          fach: editFach,
-          topic,
-          lehrernachname: editLehrernachname,
-          info_text: editInfoText,
-          name_line: editNameLine,
-          grading_key: gradingKey,
-          latex_packages: latexPackages,
-          retention_until: editRetentionUntil,
-        });
-      }
-
-      exam = {
-        ...exam,
-        title: editTitle,
-        testart: editTestart,
-        grade: editGrade,
-        klasse: editKlasse,
-        datum: editDatum,
-        nr: editNr,
-        fach: editFach,
-        topic,
-        lehrernachname: editLehrernachname,
-        infoText: editInfoText,
-        nameLine: editNameLine,
-        retentionUntil: editRetentionUntil,
-        gradingKey,
-        latexPackages,
-      };
-      const key = get(sessionStore).sessionKey;
-      await saveExamEncrypted(exam, key);
-
-      if (editLogoChange) {
-        try {
-          await setExamLogo(exam.id, editLogoChange.mode, editLogoChange.bytes);
-        } catch (err: any) {
-          alert(translate("logo.exam.saveFailed", { message: err.message }));
-          return;
-        }
-      }
-
-      forceCancelMetadata();
-      afterLayoutChange();
-      alert(translate("exam.page.metadata.saveSuccess"));
-    } catch (err: any) {
-      alert(translate("exam.page.metadata.saveFailed", { message: err.message }));
-    }
-  }
-
-  async function openLibraryModal() {
-    if (!editingMcGroupId) {
-      mcStagingIds = [];
-    }
-    const key = get(sessionStore).sessionKey;
-    try {
-      if ($isAuthenticated) {
-        const remoteExs = (await api.get("/exercises")) as any[];
-        libraryExercises = remoteExs.map(mapApiToExerciseRecord);
-      } else {
-        libraryExercises = await loadExercisesEncrypted(key);
-      }
-      // The library selection holds standalone exercises only; group members are
-      // managed through their group (MC tab), never ticked as standalone too.
-      const groupedIds = new Set(mcGroups.flatMap((g) => g.memberIds));
-      selectedLibraryIds = exercises.filter((e) => !groupedIds.has(e.id)).map((e) => e.id);
-      initialSelectedLibraryIds = [...selectedLibraryIds];
-      activeVariantPerGroup = {};
-      for (const ex of exercises) {
-        const groupId = ex.exerciseGroupId || `name:${ex.name || "Untitled"}`;
-        if (ex.variantKey) {
-          activeVariantPerGroup = { ...activeVariantPerGroup, [groupId]: ex.variantKey };
-        }
-      }
-      showLibraryConfirm = false;
-      isLibraryModalOpen = true;
-    } catch (err) {
-      console.error("Failed to load library exercises:", err);
-    }
-  }
-
-  function requestCloseLibraryModal() {
-    if (isLibraryDirty) {
-      showLibraryConfirm = true;
-    } else {
-      forceCloseLibraryModal();
-    }
-  }
-
-  function forceCloseLibraryModal() {
-    showLibraryConfirm = false;
-    isLibraryModalOpen = false;
-    editingMcGroupId = null;
-    mcStagingIds = [];
-  }
-
-  let mcStagingIds: string[] = $state.raw([]);
-  let editingMcGroupId: string | null = $state(null);
-  let selectedGradeFilter = $state("ALL");
-  let selectedSubjectFilter = $state("ALL");
-  let selectedTopicFilter = $state("ALL");
-
-  let availableGrades = $derived(uniqueSorted(libraryExercises, (e) => e.grade));
-  let availableSubjects = $derived(uniqueSorted(libraryExercises, (e) => e.subject));
-  let totalVariantsCount = $derived(libraryExercises.length);
-
-  let editingMcGroup = $derived(mcGroups.find((g) => g.id === editingMcGroupId) ?? null);
-  let mcGroupMembership = $derived(buildMcGroupMembership(mcGroups, editingMcGroupId));
-
-  function toggleMcStaging(id: string) {
-    mcStagingIds = toggleStaged(mcStagingIds, id, mcGroupMembership);
-  }
-
-  function reorderMcStaging(index: number, direction: "up" | "down") {
-    mcStagingIds = moveStaged(mcStagingIds, index, direction);
-  }
-
-  async function finalizeMcGroup(title: string, scoringText: string) {
-    if (!canFinalizeGroup(mcStagingIds)) return;
-    const memberIds = [...mcStagingIds];
-    const previousMemberIds = new Set(editingMcGroup?.memberIds ?? []);
-    mcGroups = applyGroup(mcGroups, { editingId: editingMcGroupId, title, scoringText, memberIds });
-    adoptGroupMembers(memberIds, previousMemberIds);
-    editingMcGroupId = null;
-    mcStagingIds = [];
-    await saveExerciseLinks();
-  }
-
-  /** Syncs `exercises` with a group change: new members are linked only as group members (an exercise is
-   *  linked once), and members dropped from an edited group leave the exam. */
-  function adoptGroupMembers(memberIds: string[], previousMemberIds: Set<string>) {
-    const members = new Set(memberIds);
-    const removed = new Set([...previousMemberIds].filter((id) => !members.has(id)));
-    const linkedIds = new Set(exercises.map((e) => e.id));
-    const added = memberIds
-      .filter((id) => !linkedIds.has(id))
-      .map((id) => libraryExercises.find((e) => e.id === id))
-      .filter((e): e is ExerciseRecord => Boolean(e));
-    exercises = [...exercises.filter((e) => !removed.has(e.id)), ...added];
-    selectedLibraryIds = selectedLibraryIds.filter((id) => !members.has(id));
-    examItems = examItems.filter((item) => !(item.type === "exercise" && members.has(item.id)));
-  }
-
-  function editMcGroup(groupId: string) {
-    if (!mcGroups.some((g) => g.id === groupId)) return;
-    editingMcGroupId = groupId;
-    mcStagingIds = [...(mcGroups.find((g) => g.id === groupId)?.memberIds ?? [])];
-    openLibraryModal();
-  }
 
   async function moveExamItem(index: number, direction: "up" | "down") {
     const targetIdx = direction === "up" ? index - 1 : index + 1;
@@ -1025,28 +566,6 @@
     afterLayoutChange();
   }
 
-  function toggleLibrarySelection(id: string) {
-    if (selectedLibraryIds.includes(id)) {
-      selectedLibraryIds = selectedLibraryIds.filter((i) => i !== id);
-    } else {
-      selectedLibraryIds = [...selectedLibraryIds, id];
-    }
-  }
-
-  async function applyLibrarySelection() {
-    const groupedIds = new Set(mcGroups.flatMap((g) => g.memberIds));
-    const standalone = selectedLibraryIds
-      .filter((id) => !groupedIds.has(id))
-      .map((id) => libraryExercises.find((ex) => ex.id === id))
-      .filter((ex): ex is ExerciseRecord => Boolean(ex))
-      .map((ex, idx) => ({ ...ex, orderIndex: idx + 1 }));
-    const groupMembers = exercises.filter((ex) => groupedIds.has(ex.id));
-
-    exercises = [...standalone, ...groupMembers];
-    await saveExerciseLinks();
-    isLibraryModalOpen = false;
-  }
-
   let isDeletingAllSubmissions = false;
 
   async function handleDeleteAllSubmissions() {
@@ -1097,7 +616,7 @@
       untrack(async () => {
         await loadExam(id);
         // A just-created exam ("New exam") opens with the library (M1).
-        if (exam && takeUrlParam("library") === "open") await openLibraryModal();
+        if (exam && takeUrlParam("library") === "open") await picker?.open();
       });
     }
   });
@@ -1153,7 +672,7 @@
 
     <ExamActionBar
       {examId}
-      onEdit={openMetadataEditor}
+      onEdit={() => metadataDialog?.open()}
       onDelete={handleDeleteExam}
       onExport={() => (exportOpen = true)}
       onDeleteAllSubmissions={handleDeleteAllSubmissions}
@@ -1161,41 +680,13 @@
       {isDuplicating}
     />
 
-    <ExamMetadataEditor
-      isOpen={isEditingMetadata}
-      bind:editTitle
-      bind:editTestart
-      bind:editGrade
-      bind:editKlasse
-      bind:editDatum
-      bind:editNr
-      bind:editFach
-      bind:editTopic
-      topicSuggestions={exerciseTopicSuggestions(exercises)}
-      bind:editLehrernachname
-      bind:editInfoText
-      bind:editNameLine
-      bind:editRetentionUntil
-      bind:editGradingKey
-      examId={exam?.id}
-      bind:logoChange={editLogoChange}
-      bind:editLatexPackages
-      packageSources={exercises.map((ex) => ({ label: ex.name || "", latex: ex.latexBody || "" }))}
-      onSave={handleSaveMetadata}
-      onCancel={requestCancelMetadata}
+    <ExamMetadataEditDialog
+      bind:this={metadataDialog}
+      {exam}
+      {exercises}
+      onExamChange={(next) => (exam = next)}
+      onLayoutChange={afterLayoutChange}
     />
-
-<ConfirmDialog
-  open={showMetadataConfirm}
-  title={$t("exam.page.metadata.discardTitle")}
-  message={$t("exam.page.metadata.discardMessage")}
-  confirmText={$t("exam.page.metadata.discardConfirm")}
-  cancelText={$t("exam.page.metadata.discardKeepEditing")}
-  severity="danger"
-  role="dialog"
-  onConfirm={forceCancelMetadata}
-  onCancel={() => (showMetadataConfirm = false)}
-/>
 
     <div class="grid min-w-0 grid-cols-1 items-start gap-6 @6xl:grid-cols-2">
       <Card title={$t("exam.page.compileSection.heading")}>
@@ -1282,12 +773,12 @@
         {libraryExercises}
         {examItems}
         onRemove={removeExerciseLink}
-        onAddExercises={openLibraryModal}
+        onAddExercises={() => picker?.open()}
         onMoveUp={(idx) => moveExerciseOrder(idx, "up")}
         onMoveDown={(idx) => moveExerciseOrder(idx, "down")}
         onMoveExamItem={moveExamItem}
         onRemoveMcGroup={removeMcGroup}
-        onEditMcGroup={editMcGroup}
+        onEditMcGroup={(groupId) => picker?.editMcGroup(groupId)}
         pageBreaks={exam.pageBreaks ?? []}
         onTogglePageBreak={toggleExamPageBreak}
         extraNotes={exam.extraNotes ?? null}
@@ -1298,29 +789,13 @@
   {/if}
 </PageShell>
 
-<ExamLibraryModal
-  isOpen={isLibraryModalOpen}
-  {filteredGroups}
-  {totalVariantsCount}
-  {availableGrades}
-  {availableSubjects}
-  bind:librarySearch
-  bind:selectedGradeFilter
-  bind:selectedSubjectFilter
-  bind:selectedTopicFilter
-  {selectedLibraryIds}
-  {activeVariantPerGroup}
-  {libraryExercises}
-  {mcStagingIds}
-  {editingMcGroup}
-  {mcGroupMembership}
-  onToggleMcStaging={toggleMcStaging}
-  onReorderMcStaging={reorderMcStaging}
-  onFinalizeMcGroup={finalizeMcGroup}
-  onToggleSelection={toggleLibrarySelection}
-  onSetGroupVariant={setGroupVariant}
-  onApply={applyLibrarySelection}
-  onRequestClose={requestCloseLibraryModal}
+<ExamExercisePicker
+  bind:this={picker}
+  bind:exercises
+  bind:mcGroups
+  bind:examItems
+  bind:libraryExercises
+  onSaveLinks={saveExerciseLinks}
   onQuickEdit={(ex) => (quickEditEx = ex)}
   onNewExercise={() => (creatingExercise = true)}
 />
@@ -1333,18 +808,6 @@
     creatingExercise = false;
   }}
   onSave={handleEditorSaved}
-/>
-
-<ConfirmDialog
-  open={showLibraryConfirm}
-  title={$t("exam.page.library.discardTitle")}
-  message={$t("exam.page.library.discardMessage")}
-  confirmText={$t("exam.page.metadata.discardConfirm")}
-  cancelText={$t("exam.page.metadata.discardKeepEditing")}
-  severity="danger"
-  role="dialog"
-  onConfirm={forceCloseLibraryModal}
-  onCancel={() => (showLibraryConfirm = false)}
 />
 
 {#if exportOpen}

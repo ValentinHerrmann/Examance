@@ -274,7 +274,8 @@ Target:
   - Add `LogoFilePicker`, shared by `AccountLogoCard` and `ExamLogoField`; the save semantics stay in the parents.
   - Add `McOptionRow`, shared by `McAnswerReview` and `McItemVerificationCard`.
   - Estimate: −115 lines.
-- [ ] **Page splits** (no shrink, readability):
+- [x] **Page splits** (no shrink, readability):
+  - Done: exam page 1,352 → 815 (`loadExam.ts`, `ExamMetadataEditDialog`, `ExamExercisePicker`; MC-group editing stays in the picker, it is a tab of the same modal), library page 1,432 → 966 (four `*Flow` components, `utils/dirtyClose.svelte.ts` also used by the exercise editor), scan page 1,119 → 771 (`lib/scan/ingest.ts` with 13 tests; the upload path never used native dialogs). Not done: the unlock state machine; it saves no lines and would move the sign-in rules, so only "clear `password` after use" was done.
   - `routes/exam/[id]/+page.svelte` (1,475): a `loadExam` service plus `MetadataEditor`, `LibraryPicker` and `McGroupEditor`.
   - `routes/exercises/+page.svelte` (1,434): diff, variant, regroup and group-metadata modals as components with one dirty-close helper.
   - `scan/+page.svelte` (1,058): `handleFileUpload` → `lib/scan/ingest.ts`, returning a result object instead of `alert`/`confirm`/`prompt`.
@@ -285,7 +286,7 @@ Target:
   - Done: 58 keys per locale. Kept `security.envelope.changedTitle`/`changedAccept` (the key-copy accept path is an open decision). `help.topics.settings.s3.p2` (colour scheme) was real help text that was never shown; it is shown now.
 - [x] **Shared LaTeX package rules.** `FORBIDDEN_PACKAGES`, `LOCKED_PACKAGES`, `PACKAGE_ALIASES`, `AFTER_HYPERREF`, `MAX_*` and `NAME_PATTERN` are duplicated in `frontend/src/lib/latex/packages.ts` and `backend/app/services/latex_packages.py`. Move them to one `backend/latex-assets/package-rules.json` read by both (frontend: Vite import). Update `docs/dev/latex_packages.md`.
   - Done: in `backend/app/services/latex_package_rules.json` (not `latex-assets/`, which is copied into every compile directory and the browser asset manifest).
-- [ ] **Optional:** a `useAsync` loading/error helper for components that hand-roll it (`LayoutReports`, `AccountLogoCard`, `ExamLogoField`).
+- [ ] ~~**Optional:** a `useAsync` loading/error helper~~ Skipped (optional; a new helper for three call sites). for components that hand-roll it (`LayoutReports`, `AccountLogoCard`, `ExamLogoField`).
 
 ## Phase 7: generated data and CI
 - [x] Minify `frontend/static/example-data/example.json` in `docs/demo-instance/export-example.mjs` (no indent) and regenerate it. −6.5k lines, same content.
