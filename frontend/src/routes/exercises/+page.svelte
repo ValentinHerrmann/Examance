@@ -11,7 +11,7 @@
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { get } from "svelte/store";
   import { isServerBacked } from "#lib/utils/serverBacked";
-  import { countActiveFilters, facetOptions, matchesQuery, uniqueSorted } from "#lib/utils/listFilter";
+  import { countActiveFilters, facetOptions, matchesExerciseFilters, uniqueSorted } from "#lib/utils/listFilter";
   import { GROUP_SORT_KEYS, SORT_STORAGE, loadSort, saveSort, sortGroups } from "#lib/utils/listSort";
   import { t, translate, type TranslationKey } from "#lib/i18n";
 
@@ -250,10 +250,7 @@
 
   // Groups passing every filter but the topic, so the topic pills and "All" count follow the other filters.
   let groupsBeforeTopic = $derived(groupExercises(viewExercises.filter(
-    (ex) =>
-      (selectedGrade === "ALL" || ex.grade === selectedGrade) &&
-      (selectedSubject === "ALL" || ex.subject === selectedSubject) &&
-      matchesQuery(searchQuery, ex.name, ex.topicTag, ex.grade, ex.subject, ex.latexBody)
+    (ex) => matchesExerciseFilters(ex, { query: searchQuery, grade: selectedGrade, subject: selectedSubject })
   )));
   let topicPillOptions = $derived(facetOptions(groupsBeforeTopic, (g) => g.topicTag, selectedTopic));
   let filteredGroups = $derived(sortGroups(

@@ -30,6 +30,11 @@ export const ALLOWED_CONSOLE_ERRORS: AllowedConsoleError[] = [
     url: /\/api\/v1\/exercises\/[0-9a-f-]{36}$/,
     why: 'The archive import asks whether each exercise is already on the server (archive/serverImport.ts); 404 means import it.',
   },
+  {
+    message: /status of 409/,
+    url: /\/api\/v1\/exercises$/,
+    why: 'exerciseRepository.save creates with POST and, on 409 (the id exists), updates with PATCH instead.',
+  },
 ];
 
 /** A native browser dialog the app raised, as recorded by the `dialogs` fixture. */

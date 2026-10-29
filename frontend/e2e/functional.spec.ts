@@ -177,7 +177,8 @@ test.describe('exercises', () => {
     await page.reload();
     await expect(exerciseGroupHeading(page, 'Alpha Renamed')).toBeVisible();
     await expandExerciseGroup(page, 'Alpha Renamed');
-    await expect(page.getByRole('main')).toContainText('Alpha edited body');
+    // The list shows no LaTeX body any more; the edit raised the points from 3 to 4.
+    await expect(page.getByText(await t(page, 'exercises.groupList.pointsSingle', { max: 4 })).first()).toBeVisible();
 
     // Add a variant: the group now reports two variants.
     await page
@@ -194,14 +195,12 @@ test.describe('exercises', () => {
 
     // Delete the other exercise through the confirm dialog.
     await expandExerciseGroup(page, 'Beta Graphs');
-    await page
-      .getByRole('button', { name: await t(page, 'exercises.groupList.deleteTitle') })
-      .or(page.getByTitle(await t(page, 'exercises.groupList.deleteTitle')))
-      .last()
-      .click();
-    const deleteDialog = page.getByRole('dialog', { name: await t(page, 'exercises.deleteModal.title', { name: 'Beta Graphs' }) });
+    // Delete lives in the variant's "More actions" menu; Beta is the last group.
+    await page.getByRole('button', { name: await t(page, 'exercises.groupList.moreActions') }).last().click();
+    await page.getByRole('menuitem', { name: await t(page, 'exercises.groupList.deleteTitle') }).click();
+    const deleteDialog = page.getByRole('alertdialog', { name: await t(page, 'exercises.deleteModal.title', { name: 'Beta Graphs' }) });
     await expect(deleteDialog).toBeVisible();
-    await deleteDialog.getByRole('button', { name: await t(page, 'exercises.deleteModal.deleteAnyway') }).click();
+    await deleteDialog.getByRole('button', { name: await t(page, 'common.deleteModal.deleteAnyway') }).click();
     await expect(deleteDialog).toBeHidden();
     await expect(exerciseGroupHeading(page, 'Beta Graphs')).toHaveCount(0);
 

@@ -161,7 +161,7 @@ export async function createExercise(
   if (spec.topic) await editor.getByLabel(await l(page, 'exercises.editor.topicLabel')).fill(spec.topic);
   if (spec.grade) await editor.getByLabel(await lx(page, 'exercises.editor.gradeLabel')).fill(spec.grade);
   if (spec.subject) {
-    await editor.getByLabel(await l(page, 'exercises.editor.subjectLabel')).fill(spec.subject);
+    await editor.getByLabel(await lx(page, 'exercises.editor.subjectLabel')).fill(spec.subject);
   }
 
   if (spec.mc) {
@@ -245,10 +245,14 @@ export async function expandExerciseGroup(page: Page, name: string): Promise<voi
  */
 export async function groupEditButton(page: Page, groupName: string): Promise<Locator> {
   const locale = await currentLocale(page);
-  const header = page.getByRole('button', { name: literal(groupName) }).first();
-  return header.getByRole('button', {
-    name: labelExact('exercises.groupList.editGroupAriaLabel', undefined, locale),
-  });
+  const edit = page.getByRole('button', { name: labelExact('exercises.groupList.editGroupAriaLabel', undefined, locale) });
+  // The edit button sits beside the heading's toggle; the innermost container holding both is the card header.
+  const header = page
+    .locator('div')
+    .filter({ has: page.getByRole('heading', { name: literal(groupName) }) })
+    .filter({ has: edit })
+    .last();
+  return header.getByRole('button', { name: labelExact('exercises.groupList.editGroupAriaLabel', undefined, locale) });
 }
 
 /* -------------------------------------------------------------------------- */

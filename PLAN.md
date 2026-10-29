@@ -261,13 +261,15 @@ Target:
   - `ClearAnnotationsModal` and `LastSubmissionModal` merge into `ui/HeroDialog` (icon badge, tone, title, body, two actions).
   - Move the remaining hand-rolled `role="dialog"` and `<dialog>` uses onto `ui/Modal`; find them with `git grep -ln 'role="dialog"\|<dialog' frontend/src`.
   - Estimate: −90 lines, more for the hand-rolled ones.
-- [ ] **V4 `admin/FeatureMatrix`.** A generic table with per-feature switches (`ACCOUNT_FEATURES`), with `identity`, `meta` and `actions` snippets. Used by `admin/AccountList` and `admin/AllowedDomains`. Keep the aria labels and the busy rules. Estimate: −60 lines.
-- [ ] **V5 Filters and analytics.**
+- [x] **V4 `admin/FeatureMatrix`.** A generic table with per-feature switches (`ACCOUNT_FEATURES`), with `identity`, `meta` and `actions` snippets. Used by `admin/AccountList` and `admin/AllowedDomains`. Keep the aria labels and the busy rules. Estimate: −60 lines.
+- [x] **V5 Filters and analytics.**
+  - Done: only the shared predicate (`matchesExerciseFilters`). Not done, because both grew the code: the inline `ListFilterPanel` layout for the picker (+30 lines) and `AnalyticsSection`/`ScoreBar` (+33).
   - `ExerciseLibraryPicker` uses `common/ListFilterPanel` with a new `layout="inline"` and `size` prop, keeping its own sort persistence and i18n keys.
   - Share the library filter predicate between `/exam/[id]` and `/exercises` via `utils/listFilter.ts`.
   - `ExerciseQualityTable` and `VariantFairnessTable` share `analytics/AnalyticsSection` and `ScoreBar`; the colour threshold is a prop.
   - Estimate: −125 lines.
-- [ ] **V6 Forms, logo and MC options.**
+- [x] **V6 Forms, logo and MC options.**
+  - Done: the forms (`Field`, `SuggestField`). Not done, because both grew the code: `LogoFilePicker` (+16) and `McOptionRow` (+45; the two rows differ too much, and it would have turned a `<button>` into `div role="button"`).
   - `GroupEditModal`, `VariantModal` and `ExamMetadataEditor` use `ui/Field`, plus a new `SuggestField` (`Field` + `SuggestInput` with `storageKey`).
   - Add `LogoFilePicker`, shared by `AccountLogoCard` and `ExamLogoField`; the save semantics stay in the parents.
   - Add `McOptionRow`, shared by `McAnswerReview` and `McItemVerificationCard`.

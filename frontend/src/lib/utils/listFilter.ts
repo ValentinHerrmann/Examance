@@ -1,3 +1,5 @@
+import type { ExerciseRecord } from "#lib/db/schema";
+
 /** Distinct, non-empty values of `pick`, sorted. */
 export function uniqueSorted<T>(items: T[], pick: (item: T) => string | undefined | null): string[] {
   return [...new Set(items.map(pick).filter((v): v is string => Boolean(v)))].sort();
@@ -37,6 +39,22 @@ export function facetOptions<T>(
 export function matchesQuery(query: string, ...fields: (string | undefined | null)[]): boolean {
   const q = query.trim().toLowerCase();
   return !q || fields.some((f) => !!f && f.toLowerCase().includes(q));
+}
+
+/**
+ * Exercise-library filter shared by the library page and the exam page's picker: grade, subject and search
+ * (everything but the topic, which is a facet). The picker also searches the variant key.
+ */
+export function matchesExerciseFilters(
+  ex: Pick<ExerciseRecord, "name" | "topicTag" | "grade" | "subject" | "latexBody" | "variantKey">,
+  filters: { query: string; grade: string; subject: string },
+  searchVariantKey = false
+): boolean {
+  return (
+    (filters.grade === "ALL" || ex.grade === filters.grade) &&
+    (filters.subject === "ALL" || ex.subject === filters.subject) &&
+    matchesQuery(filters.query, ex.name, ex.topicTag, ex.grade, ex.subject, searchVariantKey ? ex.variantKey : null, ex.latexBody)
+  );
 }
 
 /** Number of active filters: `"ALL"` selections and blank search do not count. */

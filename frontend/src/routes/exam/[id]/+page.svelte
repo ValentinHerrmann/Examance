@@ -1,6 +1,7 @@
 <script lang="ts">
   import { resultsAreLocal } from "#lib/stores/storagePolicy";
   import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
+  import { matchesExerciseFilters, uniqueSorted } from "#lib/utils/listFilter";
   import { page } from "$app/state";
   import { onMount, onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
@@ -573,20 +574,13 @@
   );
 
   let filteredLibrary = $derived(
-    libraryExercises.filter((ex) => {
-      const matchesGrade = selectedGradeFilter === "ALL" || ex.grade === selectedGradeFilter;
-      const matchesSubject = selectedSubjectFilter === "ALL" || ex.subject === selectedSubjectFilter;
-      const q = librarySearch.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        (ex.name && ex.name.toLowerCase().includes(q)) ||
-        (ex.topicTag && ex.topicTag.toLowerCase().includes(q)) ||
-        (ex.grade && ex.grade.toLowerCase().includes(q)) ||
-        (ex.subject && ex.subject.toLowerCase().includes(q)) ||
-        (ex.variantKey && ex.variantKey.toLowerCase().includes(q)) ||
-        (ex.latexBody && ex.latexBody.toLowerCase().includes(q));
-      return matchesGrade && matchesSubject && matchesSearch;
-    }),
+    libraryExercises.filter((ex) =>
+      matchesExerciseFilters(
+        ex,
+        { query: librarySearch, grade: selectedGradeFilter, subject: selectedSubjectFilter },
+        true,
+      ),
+    ),
   );
 
   let filteredGroups = $derived(groupExercises(filteredLibrary));
@@ -788,8 +782,8 @@
   let selectedSubjectFilter = $state("ALL");
   let selectedTopicFilter = $state("ALL");
 
-  let availableGrades = $derived([...new Set(libraryExercises.map((e) => e.grade).filter((g): g is string => Boolean(g)))].sort());
-  let availableSubjects = $derived([...new Set(libraryExercises.map((e) => e.subject).filter((s): s is string => Boolean(s)))].sort());
+  let availableGrades = $derived(uniqueSorted(libraryExercises, (e) => e.grade));
+  let availableSubjects = $derived(uniqueSorted(libraryExercises, (e) => e.subject));
   let totalVariantsCount = $derived(libraryExercises.length);
 
   let editingMcGroup = $derived(mcGroups.find((g) => g.id === editingMcGroupId) ?? null);
