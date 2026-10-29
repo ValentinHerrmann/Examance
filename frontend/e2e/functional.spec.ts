@@ -17,6 +17,7 @@ import {
   signInAgain,
   signInFirstTime,
   t,
+  unfoldEditorDetails,
 } from './helpers/flows';
 import {
   clearWorkspace,
@@ -212,6 +213,7 @@ test.describe('exercises', () => {
     // Without a correct option the editor refuses to save.
     await page.getByRole('button', { name: await t(page, 'exercises.page.createButton') }).click();
     const editor = page.getByRole('dialog', { name: await t(page, 'exercises.editor.titleCreate') });
+    await unfoldEditorDetails(page, editor);
     await editor.getByLabel(await t(page, 'exercises.editor.nameLabel')).fill('MC validation');
     await editor.getByRole('button', { name: await t(page, 'exercises.editor.mcButton') }).click();
     await editor.getByRole('button', { name: await t(page, 'exercises.editor.saveButton') }).click();

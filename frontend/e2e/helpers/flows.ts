@@ -127,6 +127,12 @@ export async function exerciseEditor(page: Page): Promise<Locator> {
   });
 }
 
+/** Narrow exercise editors fold name, topic and grade behind a toggle (hidden from `@3xl` on); open it. */
+export async function unfoldEditorDetails(page: Page, editor: Locator): Promise<void> {
+  const details = editor.getByRole('button', { name: await l(page, 'exercises.editor.metaToggle') });
+  if ((await details.isVisible()) && (await details.getAttribute('aria-expanded')) === 'false') await details.click();
+}
+
 /** Create an exercise through the editor dialog. Must be called on the exercise library page (use {@link createExerciseInLibrary} otherwise); ends there with the dialog closed. */
 export async function createExercise(
   page: Page,
@@ -137,9 +143,7 @@ export async function createExercise(
   await page.getByRole('button', { name: await l(page, trigger) }).click();
   const editor = await exerciseEditor(page);
   await expect(editor).toBeVisible();
-  // Narrow editors fold the details behind a toggle (hidden from `@3xl` on).
-  const details = editor.getByRole('button', { name: await l(page, 'exercises.editor.metaToggle') });
-  if ((await details.isVisible()) && (await details.getAttribute('aria-expanded')) === 'false') await details.click();
+  await unfoldEditorDetails(page, editor);
 
   await editor.getByLabel(await lx(page, 'exercises.editor.nameLabel')).fill(spec.name);
   if (spec.topic) await editor.getByLabel(await l(page, 'exercises.editor.topicLabel')).fill(spec.topic);

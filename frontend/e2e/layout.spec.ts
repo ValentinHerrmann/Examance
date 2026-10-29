@@ -107,9 +107,9 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
     await expect(inlineNav).toBeHidden();
   }
 
-  // Data + LaTeX indicators sit in the bar from `sm` (icon-only until xl); on phones they live in the drawer.
-  const dataPill = header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) });
-  const latexPill = header(page).getByRole('button', { name: label('nav.latexMode', undefined, locale) });
+  // Data + LaTeX indicators (links to their settings) sit in the bar from `sm`, icon-only until xl; on phones they live in the drawer.
+  const dataPill = header(page).getByRole('link', { name: label('nav.storageMode', undefined, locale) });
+  const latexPill = header(page).getByRole('link', { name: label('nav.latexMode', undefined, locale) });
   if (width >= 640) {
     await expect(dataPill).toBeVisible();
     await expect(latexPill).toBeVisible();

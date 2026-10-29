@@ -7,7 +7,7 @@
   import { examRepository } from "#lib/repositories/examRepository";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
   import type { ExamRecord, GradingKeyConfig } from "#lib/db/schema";
-  import { translate } from "#lib/i18n";
+  import { t, translate } from "#lib/i18n";
   import { PageShell } from "#lib/components/ui";
   import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
 
@@ -79,6 +79,8 @@
 </script>
 
 <PageShell width="narrow" center>
+  <!-- The page is only the dialog; its h1 names the page for assistive technology. -->
+  <h1 class="sr-only">{$t("exam.metadataEditor.createHeading")}</h1>
   <ExamMetadataEditor
     isOpen={ready}
     create
