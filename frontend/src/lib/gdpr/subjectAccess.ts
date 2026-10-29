@@ -3,7 +3,6 @@
 import { get } from 'svelte/store';
 
 import { db } from '#lib/db/db';
-import type { StudentRecord } from '#lib/db/schema';
 import { ensure64CharHex } from '#lib/crypto/hmac';
 import { examRepository } from '#lib/repositories/examRepository';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
@@ -46,20 +45,21 @@ export async function exportStudentData(pseudonymId: string, examId: string): Pr
   const pseudonymHmac = await ensure64CharHex(pseudonymId);
   const isThisStudent = async (id: string) => id === pseudonymId || (await ensure64CharHex(id)) === pseudonymHmac;
 
-  let student: StudentRecord | undefined;
-  for (const candidate of await studentRepository.getByExamId(examId, key)) {
-    if (await isThisStudent(candidate.pseudonymId)) student = candidate;
-  }
+  // Every row's hash is independent: match them all at once, keeping the rows' order.
+  const ofThisStudent = async <T>(rows: T[], idOf: (row: T) => string) => {
+    const hits = await Promise.all(rows.map((row) => isThisStudent(idOf(row))));
+    return rows.filter((_, i) => hits[i]);
+  };
+
+  const student = (await ofThisStudent(await studentRepository.getByExamId(examId, key), (s) => s.pseudonymId)).at(-1);
   if (!student) {
     throw new Error('No student found for that pseudonym.');
   }
 
   const exam = await examRepository.getById(examId, key);
-  const submissions: SubjectAccessSubmission[] = [];
-  for (const sub of await submissionRepository.getByExamId(examId, key)) {
-    if (!(await isThisStudent(sub.pseudonymHash))) continue;
-    const scores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
-    submissions.push({
+  const ownSubmissions = await ofThisStudent(await submissionRepository.getByExamId(examId, key), (s) => s.pseudonymHash);
+  const submissions: SubjectAccessSubmission[] = await Promise.all(
+    ownSubmissions.map(async (sub) => ({
       submissionId: sub.id,
       examId,
       examTitle: exam?.title ?? null,
@@ -67,9 +67,12 @@ export async function exportStudentData(pseudonymId: string, examId: string): Pr
       createdAt: sub.createdAt ?? null,
       hasScan: sub.hasScan ?? Boolean(sub.scanCt),
       hasAnnotations: sub.hasAnnotations ?? Boolean(sub.annotationCt),
-      exerciseScores: scores.map((score) => ({ exerciseId: score.exerciseId, score: score.score ?? null })),
-    });
-  }
+      exerciseScores: (await scoreRepository.getBySubmissionId(examId, sub.id, key)).map((score) => ({
+        exerciseId: score.exerciseId,
+        score: score.score ?? null,
+      })),
+    })),
+  );
 
   // Record the disclosure under the same target as an erasure (the pseudonym's HMAC).
   await db.auditLog.add(

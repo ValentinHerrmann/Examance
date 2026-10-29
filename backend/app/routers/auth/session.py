@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Literal, NoReturn
+from typing import Any, Literal, NoReturn, TypedDict
 
 import jwt
 from fastapi import (
@@ -51,7 +51,16 @@ router = APIRouter()
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
 
-_COOKIE_KWARGS = dict(httponly=True, secure=True, samesite="none")
+REFRESH_COOKIE_PATH = "/api/v1/auth/refresh"
+
+
+class _CookieFlags(TypedDict):
+    httponly: bool
+    secure: bool
+    samesite: Literal["lax", "strict", "none"]
+
+
+_COOKIE_KWARGS: _CookieFlags = {"httponly": True, "secure": True, "samesite": "none"}
 
 
 def _set_auth_cookies(
@@ -64,14 +73,14 @@ def _set_auth_cookies(
         ACCESS_COOKIE,
         access_token,
         max_age=access_token_ttl_seconds("full"),
-        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+        **_COOKIE_KWARGS,
     )
     response.set_cookie(
         REFRESH_COOKIE,
         refresh_token,
         max_age=refresh_max_age,
-        path="/api/v1/auth/refresh",
-        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+        path=REFRESH_COOKIE_PATH,
+        **_COOKIE_KWARGS,
     )
 
 
@@ -81,22 +90,22 @@ def _set_pending_cookie(response: Response, token: str, scope: str) -> None:
         ACCESS_COOKIE,
         token,
         max_age=access_token_ttl_seconds(scope),
-        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+        **_COOKIE_KWARGS,
     )
     response.delete_cookie(
         REFRESH_COOKIE,
-        path="/api/v1/auth/refresh",
-        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+        path=REFRESH_COOKIE_PATH,
+        **_COOKIE_KWARGS,
     )
 
 
 def clear_auth_cookies(response: Response) -> None:
     """Clear both auth cookies. The delete must repeat the attributes the cookie was set with: Chrome and Firefox reject a `SameSite=None` cookie sent without `Secure`, silently leaving the access cookie in place."""
-    response.delete_cookie(ACCESS_COOKIE, path="/", **_COOKIE_KWARGS)  # type: ignore[arg-type]
+    response.delete_cookie(ACCESS_COOKIE, path="/", **_COOKIE_KWARGS)
     response.delete_cookie(
         REFRESH_COOKIE,
-        path="/api/v1/auth/refresh",
-        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+        path=REFRESH_COOKIE_PATH,
+        **_COOKIE_KWARGS,
     )
 
 
@@ -123,7 +132,7 @@ async def issue_pending(response: Response, teacher: Teacher, scope: str, amr: l
     _set_pending_cookie(response, token, scope)
 
 
-async def _issue_session(
+def _issue_session(
     db: AsyncSession, response: Response, teacher: Teacher, amr: list[str]
 ) -> None:
     """Start a full session: access + refresh token, the revocable refresh row, both cookies."""
@@ -198,7 +207,7 @@ async def change_password(
         .where(RefreshToken.teacher_id == teacher.id, RefreshToken.revoked.is_(False))
         .values(revoked=True)
     )
-    await _issue_session(db, response, teacher, session.amr)
+    _issue_session(db, response, teacher, session.amr)
     await audit_svc.log(db, request, teacher, "PASSWORD_CHANGED")
 
     return {"message": "Password changed."}
@@ -253,9 +262,31 @@ async def advance_sign_in(
     await maintenance.ensure_sign_in_allowed(db, teacher.role)
     await login_throttle.register_success(db, teacher.email, teacher, session_issued=True)
 
-    await _issue_session(db, response, teacher, amr)
+    _issue_session(db, response, teacher, amr)
     await audit_svc.log(db, request, teacher, "LOGIN")
     return auth_response(teacher, "ok", amr)
+
+
+def _factor_already_presented() -> HTTPException:
+    """Presenting a factor twice is a mistake to correct, not a sign-in to end."""
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="That factor has already been used for this sign-in.",
+        headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
+    )
+
+
+def _refresh_claims(refresh_token: str | None) -> dict[str, Any] | None:
+    """The claims of a well-formed, unexpired refresh token that names its `jti`, else None."""
+    if not refresh_token:
+        return None
+    try:
+        payload = decode_token(refresh_token)
+    except jwt.InvalidTokenError:
+        return None
+    if payload.get("type") != "refresh" or not payload.get("jti"):
+        return None
+    return payload
 
 
 async def _require_pending(
@@ -295,7 +326,7 @@ async def reissue_pending_headers(session: PendingSession) -> dict[str, str]:
         ACCESS_COOKIE,
         token,
         max_age=access_token_ttl_seconds(session.scope),
-        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+        **_COOKIE_KWARGS,
     )
     return {"set-cookie": carrier.headers["set-cookie"]}
 
@@ -328,7 +359,7 @@ async def _reject_factor(
     )
 
 
-@router.post("/factor/password", response_model=AuthResponse)
+@router.post("/factor/password")
 @limiter.limit("10/minute;50/hour")
 async def factor_password(
     body: PasswordFactorRequest,
@@ -345,13 +376,9 @@ async def factor_password(
             detail="The password cannot be used as a factor here.",
             headers={"code": "ERR_FACTOR_REQUIRED"},
         )
-    # Checked before the token is consumed: presenting a factor twice is a mistake to correct, not a sign-in to end.
+    # Checked before the token is consumed (see `_factor_already_presented`).
     if "password" in session.amr:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="That factor has already been used for this sign-in.",
-            headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
-        )
+        raise _factor_already_presented()
     await _require_pending(db, session, allow_scopes={"auth_pending"})
 
     teacher = session.teacher
@@ -372,7 +399,7 @@ async def factor_password(
     )
 
 
-@router.post("/factor/totp", response_model=AuthResponse)
+@router.post("/factor/totp")
 @limiter.limit("10/minute;50/hour")
 async def factor_totp(
     body: TotpFactorRequest,
@@ -383,11 +410,7 @@ async def factor_totp(
 ) -> AuthResponse:
     """Present an authenticator code as the second factor. Second position only: a TOTP code does not identify an account, so accepting it first would need an email alongside it, a probe for which addresses have accounts."""
     if "totp" in session.amr:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="That factor has already been used for this sign-in.",
-            headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
-        )
+        raise _factor_already_presented()
     await _require_pending(db, session, allow_scopes={"auth_pending", "reset_pending"})
 
     teacher = session.teacher
@@ -422,7 +445,7 @@ async def factor_totp(
     )
 
 
-@router.post("/factor/backup-code", response_model=AuthResponse)
+@router.post("/factor/backup-code")
 @limiter.limit("10/minute;50/hour")
 async def factor_backup_code(
     body: BackupCodeRequest,
@@ -433,11 +456,7 @@ async def factor_backup_code(
 ) -> AuthResponse:
     """Spend a backup code in place of the authenticator. It counts as the ``totp`` factor, so it cannot be paired with a TOTP code to make up two: it stands in for that factor rather than adding one."""
     if "totp" in session.amr:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="That factor has already been used for this sign-in.",
-            headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
-        )
+        raise _factor_already_presented()
     await _require_pending(db, session, allow_scopes={"auth_pending", "reset_pending"})
 
     teacher = session.teacher
@@ -459,7 +478,7 @@ async def factor_backup_code(
     )
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login")
 @limiter.limit("10/minute;50/hour")
 async def login(
     body: LoginRequest,
@@ -503,7 +522,7 @@ async def login(
     return await advance_sign_in(db, request, response, teacher, "password", [])
 
 
-@router.post("/refresh", response_model=AuthResponse)
+@router.post("/refresh")
 @limiter.limit("30/minute")
 async def refresh(
     request: Request,  # Required by slowapi for rate limiting
@@ -516,20 +535,10 @@ async def refresh(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Session expired. Please log in again.",
     )
-    if not refresh_token:
+    payload = _refresh_claims(refresh_token)
+    if payload is None:
         raise credentials_exc
-
-    try:
-        payload = decode_token(refresh_token)
-    except jwt.InvalidTokenError:
-        raise credentials_exc from None
-
-    if payload.get("type") != "refresh":
-        raise credentials_exc
-
-    jti = payload.get("jti")
-    if not jti:
-        raise credentials_exc
+    jti = payload["jti"]
 
     result = await db.execute(select(RefreshToken).where(RefreshToken.jti == jti))
     rt = result.scalar_one_or_none()
@@ -579,7 +588,7 @@ async def refresh(
             [] if scope == "enroll" else await auth_policy.remaining_factors(db, teacher, amr),
         )
 
-    await _issue_session(db, response, teacher, amr)
+    _issue_session(db, response, teacher, amr)
     return auth_response(teacher, "ok", amr)
 
 

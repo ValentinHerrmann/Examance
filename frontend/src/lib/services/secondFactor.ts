@@ -1,6 +1,6 @@
 /** Factor steps shared by sign-in (`routes/unlock`) and password reset (`routes/reset-password`); each page keeps its own flow. A passkey's PRF secret (`unwrap`) can also open the vault. */
 import { ApiError } from "#lib/api/client";
-import { submitBackupCode, submitTotp, type AuthStep } from "#lib/api/mfa";
+import type { AuthStep } from "#lib/api/mfa";
 import { loginOptions, verifyLogin } from "#lib/api/webauthn";
 import { translate } from "#lib/i18n";
 import { authenticate } from "#lib/webauthn/client";
@@ -29,11 +29,6 @@ export async function signInWithPasskey(): Promise<{ step: AuthStep; unwrap: Pas
     credential_json: assertion.credentialJson,
   });
   return { step, unwrap };
-}
-
-/** An authenticator code, or a backup code standing in for one. */
-export function submitCodeFactor(code: string, useBackupCode: boolean): Promise<AuthStep> {
-  return useBackupCode ? submitBackupCode(code) : submitTotp(code);
 }
 
 /** Message for a refused authenticator or backup code. */

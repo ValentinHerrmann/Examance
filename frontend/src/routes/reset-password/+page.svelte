@@ -4,9 +4,9 @@
   import { api, apiErrorMessage } from "#lib/api/client";
   import { takeUrlToken } from "#lib/utils/urlToken";
   import { t, translate } from "#lib/i18n";
-  import { startReset, type AuthStep } from "#lib/api/mfa";
+  import { startReset, submitBackupCode, submitTotp, type AuthStep } from "#lib/api/mfa";
   import { isSupported as passkeysSupported } from "#lib/webauthn/client";
-  import { codeFactorError, signInWithPasskey, submitCodeFactor, type PasskeyUnwrap } from "#lib/services/secondFactor";
+  import { codeFactorError, signInWithPasskey, type PasskeyUnwrap } from "#lib/services/secondFactor";
   import { envelopeSetToDto } from "#lib/api/keyEnvelopes";
   import {
     buildResetEnvelopeSet,
@@ -102,7 +102,7 @@
   async function handleSecondFactor(code: string, useBackupCode: boolean) {
     factorErrorMsg = "";
     try {
-      step = await submitCodeFactor(code, useBackupCode);
+      step = useBackupCode ? await submitBackupCode(code) : await submitTotp(code);
       if (step.status === "ok") {
         await enterKeyStage();
       }

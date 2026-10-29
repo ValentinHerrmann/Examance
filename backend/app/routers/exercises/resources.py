@@ -51,7 +51,7 @@ async def _get_resource(
     return row
 
 
-@router.get("/{exercise_id}/resources", response_model=list[ExerciseResourceResponse])
+@router.get("/{exercise_id}/resources")
 async def list_exercise_resources(
     ex: Exercise = Depends(get_readable_exercise),
     db: AsyncSession = Depends(get_db),
@@ -73,7 +73,6 @@ async def list_exercise_resources(
 
 @router.post(
     "/{exercise_id}/resources",
-    response_model=ExerciseResourceResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_exercise_resource(
@@ -146,7 +145,7 @@ async def download_exercise_resource(
     return resource_response(row.content, row.mime_type, row.filename)
 
 
-@router.patch("/{exercise_id}/resources/{resource_id}", response_model=ExerciseResourceResponse)
+@router.patch("/{exercise_id}/resources/{resource_id}")
 async def rename_exercise_resource(
     resource_id: uuid.UUID,
     body: ExerciseResourceRename,

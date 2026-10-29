@@ -62,9 +62,7 @@ export async function saveSubmissionScores(
   }
 
   await scoreRepository.saveMany(examId, submission.id, toSave, key);
-  for (const exerciseId of toClear) {
-    await scoreRepository.deleteOne(examId, submission.id, exerciseId);
-  }
+  await Promise.all(toClear.map((exerciseId) => scoreRepository.deleteOne(examId, submission.id, exerciseId)));
 
   const scores = [...effective.values()];
   const fullyGraded = exerciseIds.length > 0 && scores.every((s) => typeof s === 'number');

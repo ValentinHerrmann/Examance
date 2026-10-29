@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher, get_exercise_for_teacher
+from app.dependencies import DB, CurrentTeacher, get_current_teacher, get_exercise_for_teacher
 from app.middleware.rate_limit import limiter
 from app.models.exercise import Exercise
 from app.models.exercise_group import ExerciseGroup
@@ -54,10 +54,10 @@ async def _owner_emails(rows: list[Exercise], db: AsyncSession) -> dict[uuid.UUI
     if not ids:
         return {}
     res = await db.execute(select(Teacher.id, Teacher.email).where(Teacher.id.in_(ids)))
-    return {tid: email for tid, email in res.tuples().all()}
+    return dict(res.tuples().all())
 
 
-@catalog.get("/shared", response_model=list[SharedExerciseResponse])
+@catalog.get("/shared")
 async def list_shared_exercises(
     topic_tag: str | None = None,
     grade: str | None = None,
@@ -82,7 +82,7 @@ async def list_shared_exercises(
     return [_to_shared_res(ex, email) for ex, email in rows]
 
 
-@catalog.get("/sync-status", response_model=list[SyncStatusItem])
+@catalog.get("/sync-status")
 async def get_sync_status(
     teacher: Teacher = Depends(require_exercise_sharing),
     db: AsyncSession = Depends(get_db),
@@ -120,7 +120,7 @@ def _sharing_action(shared: bool) -> str:
     return "EXERCISE_SHARED" if shared else "EXERCISE_UNSHARED"
 
 
-@router.put("/{exercise_id}/sharing", response_model=list[ExerciseResponse])
+@router.put("/{exercise_id}/sharing")
 async def set_exercise_sharing(
     request: Request,
     body: ExerciseSharingUpdate,
@@ -171,7 +171,7 @@ async def set_exercise_sharing(
     return [ExerciseResponse.from_exercise(r) for r in rows if r.is_current]
 
 
-@router.post("/sharing/bulk", response_model=BulkSharingResult)
+@router.post("/sharing/bulk")
 async def set_sharing_bulk(
     request: Request,
     body: BulkSharingUpdate,
@@ -212,10 +212,7 @@ async def set_sharing_bulk(
 
 @router.put("/sharing/pause", status_code=status.HTTP_204_NO_CONTENT)
 async def set_sharing_paused(
-    request: Request,
-    body: SharingPauseUpdate,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    request: Request, body: SharingPauseUpdate, teacher: CurrentTeacher, db: DB
 ) -> None:
     """Hide (or show again) everything the account shares; per-group choices are kept. Pausing is never gated; resuming needs the sharing switch."""
     if not body.paused:
@@ -227,7 +224,7 @@ async def set_sharing_paused(
 
 
 @router.post(
-    "/{exercise_id}/copy", response_model=CopyResponse, status_code=status.HTTP_201_CREATED
+    "/{exercise_id}/copy", status_code=status.HTTP_201_CREATED
 )
 @limiter.limit("60/hour")
 async def copy_shared_exercise(
@@ -254,7 +251,7 @@ async def copy_shared_exercise(
 
 
 @router.post(
-    "/{exercise_id}/duplicate", response_model=CopyResponse, status_code=status.HTTP_201_CREATED
+    "/{exercise_id}/duplicate", status_code=status.HTTP_201_CREATED
 )
 @limiter.limit("60/hour")
 async def duplicate_exercise(
@@ -271,7 +268,7 @@ async def duplicate_exercise(
     )
 
 
-@router.get("/groups/{group_id}/resync-preview", response_model=ResyncPreviewResponse)
+@router.get("/groups/{group_id}/resync-preview")
 async def resync_preview(
     group_id: uuid.UUID,
     teacher: Teacher = Depends(require_exercise_sharing),
@@ -297,7 +294,7 @@ async def resync_preview(
     )
 
 
-@router.post("/groups/{group_id}/resync", response_model=list[ExerciseResponse])
+@router.post("/groups/{group_id}/resync")
 @limiter.limit("60/hour")
 async def resync_group(
     request: Request,
@@ -326,7 +323,6 @@ async def resync_group(
 
 @router.post(
     "/groups/{group_id}/contributions",
-    response_model=list[uuid.UUID],
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("30/hour")

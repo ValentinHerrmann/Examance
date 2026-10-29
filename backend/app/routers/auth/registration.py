@@ -50,7 +50,7 @@ async def register(
     }
 
 
-@router.post("/register/complete", response_model=RegisterCompleteResponse)
+@router.post("/register/complete")
 @limiter.limit("20/hour")
 async def complete_registration(
     body: RegisterCompleteRequest,
@@ -91,7 +91,7 @@ async def complete_registration(
     return RegisterCompleteResponse(status="approved" if approved else "pending")
 
 
-@router.post("/account-deletion/preview", response_model=AccountDeletionPreview)
+@router.post("/account-deletion/preview")
 @limiter.limit("20/hour")
 async def preview_account_deletion(
     body: AccountDeletionTokenRequest,

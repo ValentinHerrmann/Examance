@@ -75,7 +75,7 @@ async def forgot_password(
     }
 
 
-@reset_router.post("/reset/start", response_model=AuthResponse)
+@reset_router.post("/reset/start")
 @limiter.limit("10/hour")
 async def start_reset(
     body: ResetTokenRequest,

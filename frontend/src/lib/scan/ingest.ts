@@ -103,8 +103,8 @@ export class BookletCollector {
       if (this.current?.pseudonymId !== qr.pseudonymId) {
         this.current = this.booklets.find((b) => b.pseudonymId === qr.pseudonymId) ?? this.open(bookletFromQr(qr));
       }
-    } else if (!this.current) {
-      this.current = this.open({
+    } else {
+      this.current ??= this.open({
         pseudonymId: crypto.randomUUID(),
         fallbackCode: `UNMATCHED-${randomCode()}`,
         isUnmatched: true,
@@ -135,7 +135,7 @@ function bookletFromQr(qr: QrResult): StudentBooklet {
 
 /** Collects OMR results per booklet across its pages, plus the alignment diagnostics of the whole upload. */
 export class OmrAccumulator {
-  private byPseudonym = new Map<string, { result: OmrExerciseResult; pageStats: OmrPageStats }[]>();
+  private readonly byPseudonym = new Map<string, { result: OmrExerciseResult; pageStats: OmrPageStats }[]>();
   private alignmentFailures = 0;
   private minFiducialsFound: number | null = null;
   private missingCorners = new Set<string>();
@@ -228,10 +228,10 @@ class ScanPass {
   processedPages = 0;
 
   constructor(
-    private deps: IngestDeps,
-    private omrRun: OmrRunInfo,
-    private totalPages: number,
-    private warnings: IngestWarning[],
+    private readonly deps: IngestDeps,
+    private readonly omrRun: OmrRunInfo,
+    private readonly totalPages: number,
+    private readonly warnings: IngestWarning[],
   ) {}
 
   async scan(source: ScanSource): Promise<void> {

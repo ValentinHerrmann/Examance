@@ -4,7 +4,7 @@ from __future__ import annotations
 import base64
 import uuid
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import delete, select
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.dependencies import (
+    DB,
     get_exam_for_teacher,
     get_submission_for_teacher,
     get_teaching_teacher,
@@ -54,6 +55,9 @@ async def _live_submission(
 ) -> ScanSubmission:
     """`get_submission_for_teacher` under this router's `{sub_id}` path parameter name."""
     return await get_submission_for_teacher(sub_id, exam, db)
+
+
+LiveSubmission = Annotated[ScanSubmission, Depends(_live_submission)]
 
 
 def _to_response(
@@ -257,11 +261,7 @@ async def get_submission(
     response_model=SubmissionResponse,
     dependencies=[Depends(require_server_results_writable)],
 )
-async def update_score(
-    body: SubmissionScoreUpdate,
-    sub: ScanSubmission = Depends(_live_submission),
-    db: AsyncSession = Depends(get_db),
-) -> SubmissionResponse:
+async def update_score(body: SubmissionScoreUpdate, sub: LiveSubmission, db: DB) -> SubmissionResponse:
     """Update plaintext total score for server-side statistics."""
     sub.total_score = body.total_score
     await db.flush()
@@ -269,10 +269,7 @@ async def update_score(
 
 
 @router.delete("/{sub_id}/grading", status_code=status.HTTP_204_NO_CONTENT)
-async def clear_grading(
-    sub: ScanSubmission = Depends(_live_submission),
-    db: AsyncSession = Depends(get_db),
-) -> Response:
+async def clear_grading(sub: LiveSubmission, db: DB) -> Response:
     """Clear all grading data (score + annotations) for a submission."""
     sub.total_score = None
     sub.annotation_ciphertext = None
@@ -284,10 +281,7 @@ async def clear_grading(
 
 
 @router.delete("/{sub_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_submission(
-    sub: ScanSubmission = Depends(_live_submission),
-    db: AsyncSession = Depends(get_db),
-) -> Response:
+async def delete_submission(sub: LiveSubmission, db: DB) -> Response:
     """Soft-delete a scan submission by ID."""
     # Retention only erases soft-deleted rows that carry a deadline.
     sub.deleted_at = datetime.now(UTC)

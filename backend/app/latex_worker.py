@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import base64
-import binascii
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
@@ -28,8 +27,8 @@ async def health() -> dict[str, str]:
 async def compile_job(job: CompileJob) -> Response:
     try:
         files = {path: base64.b64decode(blob, validate=True) for path, blob in job.files.items()}
-    except (binascii.Error, ValueError) as exc:
-        raise HTTPException(status_code=400, detail="Invalid file encoding.") from exc
+    except ValueError:  # binascii.Error is a ValueError
+        return JSONResponse(status_code=400, content={"detail": "Invalid file encoding."})
     try:
         pdf = await run_tectonic(job.main_tex, files, job.timeout)
     except TimeoutError:

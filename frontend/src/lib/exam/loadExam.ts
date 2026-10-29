@@ -40,86 +40,13 @@ export interface ExamLoadContext {
 export async function loadExamData(id: string, ctx: ExamLoadContext, target: ExamLoadTarget): Promise<boolean> {
   const { key, authenticated, isStale } = ctx;
   if (authenticated) {
+    let current: boolean;
     try {
-      const remoteExam = (await api.get(`/exams/${id}`)) as any;
-      if (isStale()) return false;
-      target.exam = mapApiToExamRecord(remoteExam);
-      const remoteExercises: ExerciseRecord[] = remoteExam.exercises.map(mapApiToExerciseRecord);
-      target.exercises = remoteExercises;
-      // Only a response that actually carries `mc_groups` may rewrite local grouping — otherwise this would replace every junction's mcGroupId with undefined and dissolve the groups.
-      const groupsAreAuthoritative = Array.isArray(remoteExam.mc_groups);
-
-      if (groupsAreAuthoritative) {
-        const remoteGroups = mapRemoteMcGroups(remoteExam.mc_groups);
-        target.mcGroups = remoteGroups;
-        const mcGroupRecords = remoteGroups.map((g, idx) => ({
-          id: g.id,
-          examId: id,
-          title: g.title,
-          scoringText: g.scoringText,
-          orderIndex: g.orderIndex ?? idx + 1,
-        }));
-        if (isStale()) return false;
-        await db.transaction("rw", db.examMcGroups, async () => {
-          await db.examMcGroups.where("examId").equals(id).delete();
-          if (mcGroupRecords.length > 0) {
-            await db.examMcGroups.bulkPut(mcGroupRecords);
-          }
-        });
-      } else {
-        target.mcGroups = await loadLocalMcGroups(id);
-        if (isStale()) return false;
-      }
-      if (remoteExercises.length > 0) {
-        const encExs = await Promise.all(remoteExercises.map((ex: any) => encryptExercise(ex, key)));
-        // When the response said nothing about groups, membership comes from the rows we already hold rather than from the response's silence.
-        const storedLinks = groupsAreAuthoritative
-          ? new Map<string, ExamExerciseRecord>()
-          : new Map(
-              (await db.examExercises.where("examId").equals(id).toArray()).map(
-                (link) => [link.exerciseId, link],
-              ),
-            );
-        const junctions = remoteExercises.map((ex: any, idx: number) => {
-          const stored = storedLinks.get(ex.id);
-          return {
-            examId: id,
-            exerciseId: ex.id,
-            orderIndex: ex.orderIndex || (idx + 1),
-            mcGroupId: ex.mcGroupId ?? stored?.mcGroupId,
-            subIndex: ex.subIndex ?? stored?.subIndex,
-          };
-        });
-        if (isStale()) return false;
-        await db.transaction("rw", [db.exercises, db.examExercises], async () => {
-          await db.exercises.bulkPut(encExs);
-          // Replace, don't merge: a link the server dropped must not survive locally and reappear as a phantom exercise on the next open.
-          await db.examExercises.where("examId").equals(id).delete();
-          await db.examExercises.bulkPut(junctions);
-        });
-      } else {
-        const localExs = await loadExamExercisesEncrypted(id, key);
-        if (isStale()) return false;
-        if (localExs.length > 0) {
-          target.exercises = localExs;
-        }
-      }
-      target.isLocalFallback = false;
+      current = await loadFromServer(id, ctx, target);
     } catch (serverErr) {
-      // Fall back to IndexedDB if exam is not on server
-      const localExam = (await loadExamEncrypted(id, key)) || null;
-      if (isStale()) return false;
-      target.exam = localExam;
-      if (localExam) {
-        target.isLocalFallback = true;
-        target.exercises = await loadExamExercisesEncrypted(id, key);
-        target.mcGroups = await loadLocalMcGroups(id);
-        if (isStale()) return false;
-      } else {
-        target.errorMsg = translate("exam.page.examNotFoundOrDeleted");
-        console.error("Exam not found on server or locally:", serverErr);
-      }
+      current = await loadLocalFallback(id, ctx, target, serverErr);
     }
+    if (!current) return false;
   } else {
     target.isLocalFallback = false;
     const localExam = (await loadExamEncrypted(id, key)) || null;
@@ -132,6 +59,102 @@ export async function loadExamData(id: string, ctx: ExamLoadContext, target: Exa
   }
   target.examItems = buildExamItems(target.exercises, target.mcGroups);
   return true;
+}
+
+/** The server copy, mirrored into Dexie. False when the run went stale; throws when the server cannot answer. */
+async function loadFromServer(id: string, ctx: ExamLoadContext, target: ExamLoadTarget): Promise<boolean> {
+  const { key, isStale } = ctx;
+  const remoteExam = (await api.get(`/exams/${id}`)) as any;
+  if (isStale()) return false;
+  target.exam = mapApiToExamRecord(remoteExam);
+  const remoteExercises: ExerciseRecord[] = remoteExam.exercises.map(mapApiToExerciseRecord);
+  target.exercises = remoteExercises;
+  // Only a response that actually carries `mc_groups` may rewrite local grouping — otherwise this would replace every junction's mcGroupId with undefined and dissolve the groups.
+  const groupsAreAuthoritative = Array.isArray(remoteExam.mc_groups);
+  if (groupsAreAuthoritative) {
+    target.mcGroups = mapRemoteMcGroups(remoteExam.mc_groups);
+    if (isStale()) return false;
+    await mirrorMcGroups(id, target.mcGroups);
+  } else {
+    target.mcGroups = await loadLocalMcGroups(id);
+    if (isStale()) return false;
+  }
+  if (remoteExercises.length > 0) {
+    if (!(await mirrorExercises(id, remoteExercises, groupsAreAuthoritative, ctx))) return false;
+  } else {
+    const localExs = await loadExamExercisesEncrypted(id, key);
+    if (isStale()) return false;
+    if (localExs.length > 0) target.exercises = localExs;
+  }
+  target.isLocalFallback = false;
+  return true;
+}
+
+async function mirrorMcGroups(id: string, groups: McGroup[]): Promise<void> {
+  const records = groups.map((g, idx) => ({
+    id: g.id,
+    examId: id,
+    title: g.title,
+    scoringText: g.scoringText,
+    orderIndex: g.orderIndex ?? idx + 1,
+  }));
+  await db.transaction("rw", db.examMcGroups, async () => {
+    await db.examMcGroups.where("examId").equals(id).delete();
+    if (records.length > 0) await db.examMcGroups.bulkPut(records);
+  });
+}
+
+/** Mirrors the server's exercises and their links. False when the run went stale. */
+async function mirrorExercises(
+  id: string,
+  remoteExercises: ExerciseRecord[],
+  groupsAreAuthoritative: boolean,
+  { key, isStale }: ExamLoadContext,
+): Promise<boolean> {
+  const encExs = await Promise.all(remoteExercises.map((ex: any) => encryptExercise(ex, key)));
+  // When the response said nothing about groups, membership comes from the rows we already hold rather than from the response's silence.
+  const storedLinks = groupsAreAuthoritative
+    ? new Map<string, ExamExerciseRecord>()
+    : new Map((await db.examExercises.where("examId").equals(id).toArray()).map((link) => [link.exerciseId, link]));
+  const junctions = remoteExercises.map((ex: any, idx: number) => {
+    const stored = storedLinks.get(ex.id);
+    return {
+      examId: id,
+      exerciseId: ex.id,
+      orderIndex: ex.orderIndex || idx + 1,
+      mcGroupId: ex.mcGroupId ?? stored?.mcGroupId,
+      subIndex: ex.subIndex ?? stored?.subIndex,
+    };
+  });
+  if (isStale()) return false;
+  await db.transaction("rw", [db.exercises, db.examExercises], async () => {
+    await db.exercises.bulkPut(encExs);
+    // Replace, don't merge: a link the server dropped must not survive locally and reappear as a phantom exercise on the next open.
+    await db.examExercises.where("examId").equals(id).delete();
+    await db.examExercises.bulkPut(junctions);
+  });
+  return true;
+}
+
+/** The server could not answer: show the local copy, if any. False when the run went stale. */
+async function loadLocalFallback(
+  id: string,
+  { key, isStale }: ExamLoadContext,
+  target: ExamLoadTarget,
+  serverErr: unknown,
+): Promise<boolean> {
+  const localExam = (await loadExamEncrypted(id, key)) || null;
+  if (isStale()) return false;
+  target.exam = localExam;
+  if (!localExam) {
+    target.errorMsg = translate("exam.page.examNotFoundOrDeleted");
+    console.error("Exam not found on server or locally:", serverErr);
+    return true;
+  }
+  target.isLocalFallback = true;
+  target.exercises = await loadExamExercisesEncrypted(id, key);
+  target.mcGroups = await loadLocalMcGroups(id);
+  return !isStale();
 }
 
 /** The account's exercise library, or null when it cannot be read (the caller keeps what it has). */

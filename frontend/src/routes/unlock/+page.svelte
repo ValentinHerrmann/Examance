@@ -24,13 +24,12 @@
     TotpEnrollDialog,
     VaultUnlockStep,
   } from "#lib/components/security";
-  import { submitPassword, submitPasswordFactor, type AuthStep } from "#lib/api/mfa";
+  import { submitBackupCode, submitPassword, submitPasswordFactor, submitTotp, type AuthStep } from "#lib/api/mfa";
   import { isSupported as passkeysSupported } from "#lib/webauthn/client";
   import {
     codeFactorError,
     passkeyAssertion,
     signInWithPasskey,
-    submitCodeFactor,
     type PasskeyUnwrap,
   } from "#lib/services/secondFactor";
   import { addPasskeyWrap, openWithPasskey } from "#lib/services/keyEnvelopeService";
@@ -457,7 +456,7 @@
   async function handleSecondFactor(code: string, useBackupCode: boolean) {
     factorErrorMsg = "";
     try {
-      await handleAuthStep(await submitCodeFactor(code, useBackupCode));
+      await handleAuthStep(useBackupCode ? await submitBackupCode(code) : await submitTotp(code));
     } catch (err: any) {
       factorErrorMsg = vaultFailureMessage(err) ?? codeFactorError(err);
     }

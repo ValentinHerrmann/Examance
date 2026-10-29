@@ -38,7 +38,7 @@ async def _load_domain(db: AsyncSession, domain_id: uuid.UUID) -> AllowedEmailDo
     return row
 
 
-@router.get("/allowed-domains", response_model=list[AllowedDomainResponse])
+@router.get("/allowed-domains")
 async def list_allowed_domains(
     _admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -50,7 +50,6 @@ async def list_allowed_domains(
 
 @router.post(
     "/allowed-domains",
-    response_model=AllowedDomainResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def add_allowed_domain(
@@ -85,7 +84,7 @@ async def add_allowed_domain(
     return _domain_out(row)
 
 
-@router.patch("/allowed-domains/{domain_id}", response_model=AllowedDomainResponse)
+@router.patch("/allowed-domains/{domain_id}")
 async def update_allowed_domain(
     domain_id: uuid.UUID,
     body: AccountFeaturesUpdate,

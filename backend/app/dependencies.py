@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from typing import Annotated
 
 import jwt
 from fastapi import Cookie, Depends, Header, HTTPException, status
@@ -228,3 +229,10 @@ async def require_not_frozen(
             role = None
     if role != "admin":
         await maintenance.ensure_teaching_allowed(db, code="ERR_MAINTENANCE_ACCOUNT_PAUSED")
+
+
+# FastAPI's recommended dependency form; new signatures use these instead of `= Depends(...)` defaults.
+DB = Annotated[AsyncSession, Depends(get_db)]
+CurrentTeacher = Annotated[Teacher, Depends(get_current_teacher)]
+AdminTeacher = Annotated[Teacher, Depends(get_admin_teacher)]
+OwnExercise = Annotated[Exercise, Depends(get_exercise_for_teacher)]

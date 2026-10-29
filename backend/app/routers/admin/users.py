@@ -19,7 +19,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_admin_teacher
+from app.dependencies import DB, AdminTeacher, get_admin_teacher
 from app.models.audit_log import AuditLog
 from app.models.key_envelope import KeyEnvelope
 from app.models.refresh_token import RefreshToken
@@ -77,7 +77,7 @@ async def _load_user(db: AsyncSession, user_id: uuid.UUID) -> Teacher:
     return user
 
 
-@router.get("/users", response_model=AdminUserList)
+@router.get("/users")
 async def list_users(
     _admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -152,7 +152,7 @@ async def create_user(
     )
 
 
-@router.post("/users/{user_id}/approve", response_model=AdminUserResponse)
+@router.post("/users/{user_id}/approve")
 async def approve_user(
     user_id: uuid.UUID,
     body: AdminApproveRequest,
@@ -214,7 +214,7 @@ async def reject_user(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.patch("/users/{user_id}/features", response_model=AdminUserResponse)
+@router.patch("/users/{user_id}/features")
 async def update_user_features(
     user_id: uuid.UUID,
     body: AccountFeaturesUpdate,
@@ -338,12 +338,12 @@ async def reset_user_factors(
     }
 
 
-@security_router.get("/audit", response_model=list[AuditLogResponse])
+@security_router.get("/audit")
 async def list_audit_logs(
-    limit: int = Query(default=50, le=100),
-    offset: int = Query(default=0, ge=0),
-    _admin: Teacher = Depends(get_admin_teacher),
-    db: AsyncSession = Depends(get_db),
+    _admin: AdminTeacher,
+    db: DB,
+    limit: Annotated[int, Query(le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[AuditLogResponse]:
     """Get paginated audit logs (Admin only)."""
     result = await db.execute(

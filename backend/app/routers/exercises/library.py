@@ -10,7 +10,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher, get_exercise_for_teacher, get_readable_exercise
+from app.dependencies import (
+    DB,
+    CurrentTeacher,
+    OwnExercise,
+    get_current_teacher,
+    get_exercise_for_teacher,
+    get_readable_exercise,
+)
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exercise import Exercise
@@ -69,7 +76,7 @@ async def _lock_current(ex: Exercise, teacher: Teacher, db: AsyncSession) -> Exe
     return group
 
 
-@listing.get("", response_model=list[ExerciseResponse])
+@listing.get("")
 async def list_exercises(
     topic_tag: str | None = None,
     grade: str | None = None,
@@ -104,7 +111,7 @@ async def list_exercises(
     ]
 
 
-@router.patch("/groups/{group_id}", response_model=ExerciseGroupResponse)
+@router.patch("/groups/{group_id}")
 async def update_exercise_group(
     group_id: uuid.UUID,
     body: ExerciseGroupUpdate,
@@ -118,7 +125,7 @@ async def update_exercise_group(
     return ExerciseGroupResponse.model_validate(group, from_attributes=True)
 
 
-@router.post("", response_model=ExerciseResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def create_exercise(
     body: ExerciseCreate,
     teacher: Teacher = Depends(get_current_teacher),
@@ -185,7 +192,7 @@ async def create_exercise(
     return ExerciseResponse.from_exercise(ex)
 
 
-@router.get("/{exercise_id}", response_model=ExerciseResponse)
+@router.get("/{exercise_id}")
 async def get_exercise(
     ex: Exercise = Depends(get_readable_exercise),
     teacher: Teacher = Depends(get_current_teacher),
@@ -198,12 +205,18 @@ async def get_exercise(
     return res
 
 
-@router.patch("/{exercise_id}", response_model=ExerciseResponse)
+async def _move_to_group(ex: Exercise, group_id: uuid.UUID, teacher: Teacher, db: AsyncSession) -> None:
+    """Move *ex* into the teacher's own group; a copy stays a copy, so the target can no longer be shared as one's own."""
+    target = await get_own_group(group_id, teacher.id, db)
+    old = await db.get(ExerciseGroup, ex.exercise_group_id) if ex.exercise_group_id else None
+    if target.copied_at is None and (ex.copied_from_exercise_id is not None or (old is not None and old.copied_at)):
+        target.copied_at = datetime.now(UTC)
+    ex.exercise_group_id = group_id
+
+
+@router.patch("/{exercise_id}")
 async def update_exercise(
-    body: ExerciseUpdate,
-    ex: Exercise = Depends(get_exercise_for_teacher),
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    body: ExerciseUpdate, ex: OwnExercise, teacher: CurrentTeacher, db: DB
 ) -> ExerciseResponse:
     """Update a library exercise in place."""
     sent = body.model_dump(exclude_unset=True, include=_PLAIN_UPDATE_FIELDS)
@@ -216,14 +229,7 @@ async def update_exercise(
     elif body.max_points is not None:
         ex.max_points = body.max_points
     if body.exercise_group_id is not None and body.exercise_group_id != ex.exercise_group_id:
-        target = await get_own_group(body.exercise_group_id, teacher.id, db)
-        # A copy stays a copy when moved: the target group can no longer be shared as one's own.
-        old = await db.get(ExerciseGroup, ex.exercise_group_id) if ex.exercise_group_id else None
-        if target.copied_at is None and (
-            ex.copied_from_exercise_id is not None or (old is not None and old.copied_at)
-        ):
-            target.copied_at = datetime.now(UTC)
-        ex.exercise_group_id = body.exercise_group_id
+        await _move_to_group(ex, body.exercise_group_id, teacher, db)
 
     changes = metadata_changes(body)
     if ex.exercise_group_id and changes:
@@ -235,7 +241,6 @@ async def update_exercise(
 
 @router.post(
     "/{exercise_id}/new-version",
-    response_model=ExerciseResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_new_version(
@@ -278,7 +283,6 @@ async def create_new_version(
 
 @router.post(
     "/{exercise_id}/new-variant",
-    response_model=ExerciseResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_new_variant(
@@ -308,7 +312,7 @@ async def create_new_variant(
     return ExerciseResponse.from_exercise(variant_ex)
 
 
-@router.get("/{exercise_id}/usage", response_model=ExerciseUsageResponse)
+@router.get("/{exercise_id}/usage")
 async def get_exercise_usage(
     ex: Exercise = Depends(get_readable_exercise),
     teacher: Teacher = Depends(get_current_teacher),
