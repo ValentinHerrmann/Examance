@@ -22,7 +22,6 @@ export const maintenance: Translations['maintenance'] = {
     finalTitle: 'Last reminder: {kind} in {countdown}',
     finalBody: 'Save whatever is still open now. New sign-ins are paused until it is over. Keep this tab open; it continues by itself afterwards.',
     savedButton: "I've saved my work",
-    savedThanks: 'Thank you! You can keep working until it starts.',
     close: 'Close',
     downTitle: {
         manual: 'Maintenance in progress',

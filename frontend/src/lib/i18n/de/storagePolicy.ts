@@ -5,8 +5,6 @@ export const storagePolicy = {
     notChosen: 'Kein Speicherort gewählt',
     notChosenTitle: 'Für dieses Konto wurde noch kein Speicherort gewählt',
     notEnabled: 'Für Ihr Konto nicht freigeschaltet.',
-    latexServer: 'LaTeX Server',
-    latexLocal: 'LaTeX lokal',
     allServerTitle: 'Prüfungen, Aufgaben und Ergebnisse liegen verschlüsselt auf dem Server',
     hybridTitle: 'Prüfungen & Aufgaben auf dem Server, Schülerdaten & Ergebnisse nur in diesem Browser',
 

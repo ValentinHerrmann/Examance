@@ -56,8 +56,6 @@ export const scanning = {
         complete: 'Fertig! {fileCount} Datei(en) ({pageCount} Seite(n)) in {bookletCount} Schülerabgabe(n) eingelesen.',
     },
     omrBanner: {
-        notPrepared: 'MC-Autokorrektur nicht verfügbar, bis „OMR vorbereiten" auf der Prüfungsseite ausgeführt wurde — Scans werden trotzdem normal importiert.',
-        stale: 'OMR-Vorlage ist veraltet (Lösungsschlüssel hat sich seit der Erfassung geändert) — führen Sie „OMR vorbereiten" auf der Prüfungsseite erneut aus, um die MC-Autokorrektur für diesen Scan zu aktivieren.',
         alignmentFailed: 'OMR-Ausrichtung auf {count} Seite(n) fehlgeschlagen{fiducialDetail} — diese MC-Aufgaben wurden ohne Bewertung importiert und müssen manuell bewertet werden. Prüfen Sie die Scanqualität (Beschnitt/Schräglage/Druckränder) in der Nähe der Seitenecken.',
         alignmentFiducialDetail: '(nur {found}/4 Eckmarkierungen erkannt, fehlend: {missing})',
         autoPreparing: 'OMR-Vorlage wird automatisch vorbereitet, bitte warten…',

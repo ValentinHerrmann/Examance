@@ -1,7 +1,6 @@
 <script lang="ts">
   import { randomCode } from "#lib/utils/randomCode";
   import { page } from "$app/state";
-  import { loadPdfjs } from "#lib/pdf/pdfjs";
   import { browser } from "$app/env";
   import {
     detectHardware,
@@ -23,17 +22,11 @@
   import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
   import { prepareOmrTemplate, loadExamCompileContext, computeOmrTemplateHash } from "#lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "#lib/grading/mcScore";
-  import { buildOmrScoreRecord } from "#lib/grading/omrResult";
-  import { createOmrRun, type OmrPageStats } from "#lib/grading/omrSettings";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
-  import type {
-    StudentRecord,
-    OmrPageTemplate,
-    ExerciseScoreRecord,
-  } from "#lib/db/schema";
+  import type { StudentRecord, OmrPageTemplate } from "#lib/db/schema";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
@@ -46,11 +39,10 @@
   import type {
     OmrWorkerRequest,
     OmrWorkerResponse,
-    OmrExerciseResult,
     OmrExerciseAnswerKey,
   } from "#lib/workers/omrWorker";
   import { parseStudentQr } from "#lib/utils/studentQr";
-  import type { PDFDocument, PDFPage } from "pdf-lib";
+  import { ingestScans, type IngestProgress, type OmrSummary } from "#lib/scan/ingest";
   import HardwareProfileCard from "#lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "#lib/components/scanning/UploadPanel.svelte";
   import { Alert, Button, PageHeader, PageShell } from "#lib/components/ui";
@@ -81,18 +73,12 @@
   let isProcessing = $state(false);
   let progress = $state(0);
   let statusText = $state(translate("scanning.status.ready"));
-  let scannedCount = 0;
 
   interface UnmatchedSubmission {
     submissionId: string;
     studentId: string;
     currentFallback: string;
     newCode: string;
-  }
-
-  interface PdfPageRef {
-    doc: PDFDocument;
-    index: number;
   }
 
   interface ScannedSubmissionItem {
@@ -461,46 +447,6 @@
     }
   }
 
-  async function combinePageBuffers(pageBuffers: Uint8Array[]): Promise<Uint8Array> {
-    if (pageBuffers.length === 1) return pageBuffers[0];
-    const images = await Promise.all(
-      pageBuffers.map((buf) => {
-        return new Promise<HTMLImageElement>((resolve, reject) => {
-          const blob = new Blob([buf.buffer as ArrayBuffer], { type: "image/png" });
-          const url = URL.createObjectURL(blob);
-          const img = new Image();
-          img.onload = () => {
-            URL.revokeObjectURL(url);
-            resolve(img);
-          };
-          img.onerror = (err) => {
-            URL.revokeObjectURL(url);
-            reject(err);
-          };
-          img.src = url;
-        });
-      })
-    );
-
-    const totalHeight = images.reduce((acc, img) => acc + img.height, 0);
-    const maxWidth = Math.max(...images.map((img) => img.width));
-    const canvas = document.createElement("canvas");
-    canvas.width = maxWidth;
-    canvas.height = totalHeight;
-    const ctx = canvas.getContext("2d")!;
-
-    let currentY = 0;
-    for (const img of images) {
-      ctx.drawImage(img, 0, currentY);
-      currentY += img.height;
-    }
-
-    const blob: Blob = await new Promise((res) =>
-      canvas.toBlob((b) => res(b!), "image/png")
-    );
-    return new Uint8Array(await blob.arrayBuffer());
-  }
-
   /** A failed read stops before the orphan cleanup below, which would otherwise delete students still linked. */
   async function refreshUnmatched() {
     try {
@@ -550,39 +496,27 @@
     }));
   }
 
-  async function loadImageData(
-    file: File,
-  ): Promise<{ imageData: ImageData; buffer: Uint8Array }> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
+  /** Maps the ingest module's progress events onto the panel's bar and status line. */
+  function showIngestProgress(p: IngestProgress) {
+    progress = p.progress;
+    if (p.phase === "analyzing") {
+      statusText = translate("scanning.status.analyzingFiles");
+    } else if (p.phase === "scanning") {
+      statusText = translate("scanning.status.scanningPage", { current: p.current, total: p.total, fileName: p.fileName });
+    } else {
+      statusText = translate("scanning.status.savingBooklet", { current: p.current, total: p.total, pages: p.pages });
+    }
+  }
 
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, img.width, img.height);
-        URL.revokeObjectURL(url);
-
-        canvas.toBlob(async (blob) => {
-          if (!blob) {
-            reject(new Error("Canvas blob generation failed"));
-            return;
-          }
-          const buffer = new Uint8Array(await blob.arrayBuffer());
-          resolve({ imageData, buffer });
-        }, "image/png");
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error(`Failed to load image file: ${file.name}`));
-      };
-
-      img.src = url;
-    });
+  function alignmentBanner(omr: OmrSummary): string {
+    const fiducialDetail =
+      omr.minFiducialsFound !== null
+        ? translate("scanning.omrBanner.alignmentFiducialDetail", {
+            found: omr.minFiducialsFound,
+            missing: omr.missingCorners.join(", "),
+          })
+        : "";
+    return translate("scanning.omrBanner.alignmentFailed", { count: omr.alignmentFailures, fiducialDetail });
   }
 
   async function handleFileUpload(event: Event) {
@@ -590,7 +524,25 @@
     if (!input.files || input.files.length === 0) return;
     isProcessing = true;
     try {
-      await ingestFiles(Array.from(input.files));
+      const result = await ingestScans(Array.from(input.files), {
+        examId,
+        getSessionKey: () => get(sessionStore).sessionKey,
+        qrPool,
+        omrPool,
+        getOmrContext: () => (omrAvailable ? { templatePages: omrTemplatePages, answerKeys: omrAnswerKeys } : null),
+        omrSettings: get(omrSettingsStore),
+        omrTemplateHash,
+        monitor,
+        onProgress: showIngestProgress,
+      });
+      await refreshUnmatched();
+      await loadScannedSubmissions();
+      statusText = translate("scanning.status.complete", {
+        fileCount: result.fileCount,
+        pageCount: result.pageCount,
+        bookletCount: result.bookletCount,
+      });
+      if (omrAvailable && result.omr.alignmentFailures > 0) omrBanner = alignmentBanner(result.omr);
     } catch (err) {
       console.error("[scan] ingest failed:", err);
       statusText = translate("scanning.status.failed", { message: err instanceof Error ? err.message : String(err) });
@@ -600,306 +552,6 @@
     }
   }
 
-  async function ingestFiles(files: File[]) {
-    progress = 0;
-
-    interface StudentBooklet {
-      pseudonymId: string;
-      fallbackCode: string;
-      studentName?: string;
-      studentNumber?: string;
-      isUnmatched: boolean;
-      pageRefs: PdfPageRef[];
-    }
-
-    const booklets: StudentBooklet[] = [];
-    let processedPages = 0;
-    let totalPagesCount = 0;
-    let omrAlignmentFailures = 0;
-    let omrMinFiducialsFound: number | null = null;
-    const omrMissingCorners = new Set<string>();
-    const CORNER_NAMES = ["bottom-left", "bottom-right", "top-right", "top-left"];
-    /** Accumulates OMR results per booklet across all its pages, merged into scores once subId exists. */
-    const omrResultsByPseudonym = new Map<string, { result: OmrExerciseResult; pageStats: OmrPageStats }[]>();
-    // One settings snapshot for the whole upload: every page of this batch is detected with the
-    // same params, and each score row records them (issue #32 — later setting changes never
-    // affect this detection).
-    const omrRun = createOmrRun("scan", get(omrSettingsStore), omrTemplateHash);
-
-    // --- PASS 1: Calculate total pages for progress bar ---
-    const fileInfos: any[] = [];
-    statusText = translate("scanning.status.analyzingFiles");
-
-    for (const file of files) {
-      if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-        try {
-          const pdfjsLib = await loadPdfjs();
-          // Pass bytes via `{ data }`: a blob: `{ url }` makes pdf.js fetch it, which CSP connect-src
-          // blocks (same pattern as PASS 2 below).
-          const fileBytes = new Uint8Array(await file.arrayBuffer());
-          const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
-          const pdf = await loadingTask.promise;
-
-          totalPagesCount += pdf.numPages;
-          fileInfos.push({ file, type: "pdf", pdf, loadingTask });
-        } catch (pdfErr) {
-          console.error("Failed to load PDF:", pdfErr);
-        }
-      } else {
-        totalPagesCount += 1;
-        fileInfos.push({ file, type: "image" });
-      }
-    }
-
-    // --- PASS 2: Extract & Process Iteratively ---
-    let currentBooklet: StudentBooklet | null = null;
-
-    for (let i = 0; i < fileInfos.length; i++) {
-      const info = fileInfos[i];
-      const fileName = info.file.name;
-
-      // --- HELPER: Process Single Page ---
-      async function processScannedPage(fileName: string, imageData: ImageData, pageRef: PdfPageRef) {
-        processedPages++;
-        progress = Math.round((processedPages / Math.max(totalPagesCount, 1)) * 50);
-        statusText = translate("scanning.status.scanningPage", {
-          current: processedPages,
-          total: totalPagesCount,
-          fileName,
-        });
-
-        let qrResult: QrWorkerResponse | null = null;
-        if (qrPool) {
-          try {
-            const res = await qrPool.dispatch({
-              type: "QR_DECODE",
-              imageData: imageData,
-            });
-            if (res.type === "QR_RESULT") {
-              qrResult = res;
-            }
-          } catch {
-            // No QR on this page
-          }
-        }
-
-        if (qrResult) {
-          const pseudoId: string = qrResult.pseudonymId;
-          const parsedStudent = parseStudentQr(pseudoId) || (qrResult.rawText ? parseStudentQr(qrResult.rawText) : null);
-          const fallbackCode =
-            (parsedStudent ? parsedStudent.displayName : null) ||
-            qrResult.fallbackCode ||
-            `F-${randomCode()}`;
-
-          if (currentBooklet && currentBooklet.pseudonymId === pseudoId) {
-            currentBooklet.pageRefs.push(pageRef);
-          } else {
-            const existingBooklet = booklets.find((b) => b.pseudonymId === pseudoId);
-            if (existingBooklet) {
-              currentBooklet = existingBooklet;
-              currentBooklet.pageRefs.push(pageRef);
-            } else {
-              const newBooklet: StudentBooklet = {
-                pseudonymId: pseudoId,
-                fallbackCode,
-                studentName: parsedStudent?.displayName,
-                studentNumber: parsedStudent?.studentNumber,
-                isUnmatched: false,
-                pageRefs: [pageRef],
-              };
-              booklets.push(newBooklet);
-              currentBooklet = newBooklet;
-            }
-          }
-        } else {
-          // No QR code detected on this page: append to current active booklet or start unmatched booklet
-          if (currentBooklet) {
-            currentBooklet.pageRefs.push(pageRef);
-          } else {
-            const pseudoId: string = crypto.randomUUID();
-            const newBooklet: StudentBooklet = {
-              pseudonymId: pseudoId,
-              fallbackCode: `UNMATCHED-${randomCode()}`,
-              isUnmatched: true,
-              pageRefs: [pageRef],
-            };
-            booklets.push(newBooklet);
-            currentBooklet = newBooklet;
-          }
-        }
-
-        // Reuse the imageData already rasterized for QR decode — no second pass, no second
-        // rasterization. Position within the booklet maps 1:1 to the blank template's page
-        // index, since a scanned booklet is expected to follow the exam's own page order.
-        if (omrPool && omrAvailable && currentBooklet) {
-          const pageIndexInBooklet = currentBooklet.pageRefs.length - 1;
-          const pageTemplate = omrTemplatePages[pageIndexInBooklet];
-          if (pageTemplate && (pageTemplate.bubbles.length > 0 || pageTemplate.fiducials.length > 0)) {
-            try {
-              const omrRes = await omrPool.dispatch({
-                type: "OMR_PROCESS",
-                imageData,
-                pageTemplate,
-                scanScale: omrRun.params.scanScale,
-                answerKeys: omrAnswerKeys,
-                params: omrRun.params,
-              });
-              if (omrRes.type === "OMR_RESULT") {
-                const list = omrResultsByPseudonym.get(currentBooklet.pseudonymId) ?? [];
-                list.push(...omrRes.results.map((result) => ({ result, pageStats: omrRes.pageStats })));
-                omrResultsByPseudonym.set(currentBooklet.pseudonymId, list);
-                if (omrRes.alignmentFailed) omrAlignmentFailures++;
-                omrMinFiducialsFound =
-                  omrMinFiducialsFound === null
-                    ? omrRes.fiducialsFound
-                    : Math.min(omrMinFiducialsFound, omrRes.fiducialsFound);
-                if (omrRes.fiducialCorners) {
-                  for (let c = 0; c < 4; c++) {
-                    if (!omrRes.fiducialCorners.includes(c)) {
-                      omrMissingCorners.add(CORNER_NAMES[c]);
-                    }
-                  }
-                }
-              }
-            } catch (omrErr) {
-              console.warn(`OMR processing failed for page in ${fileName}:`, omrErr);
-            }
-          }
-        }
-
-        monitor?.checkMemoryHealth();
-      }
-
-      if (info.type === "pdf") {
-        const pdfJsDoc = info.pdf;
-
-        // Load the same file with pdf-lib for page copying
-        const fileBytes = await info.file.arrayBuffer();
-        const { PDFDocument: PDFDocClass } = await import("pdf-lib");
-        const pdfLibDoc = await PDFDocClass.load(fileBytes, { ignoreEncryption: true });
-        const numPages = pdfJsDoc.numPages;
-
-        for (let pIdx = 1; pIdx <= numPages; pIdx++) {
-          const page = await pdfJsDoc.getPage(pIdx);
-          // ~200 DPI; must equal the scanScale the OMR worker is told, or bubble geometry breaks.
-          const viewport = page.getViewport({ scale: omrRun.params.scanScale });
-          const canvas = document.createElement("canvas");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const ctx = canvas.getContext("2d")!;
-          await page.render({ canvasContext: ctx, canvas, viewport } as any).promise;
-
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-          // Reference the page in the pdf-lib document (0-based index)
-          const pageRef: PdfPageRef = { doc: pdfLibDoc, index: pIdx - 1 };
-
-          // Scan and group immediately, dropping imageData after use
-          await processScannedPage(fileName, imageData, pageRef);
-
-          // Clean up page resources
-          page.cleanup();
-        }
-
-        // Clean up PDF.js resources
-        await info.loadingTask.destroy();
-
-      } else {
-        // Image files are no longer supported — skip with warning
-        console.warn(`Skipping unsupported file type (image): ${fileName}. Only PDF files are supported.`);
-      }
-    }
-
-    let newlyIngestedCount = 0;
-    for (let bIdx = 0; bIdx < booklets.length; bIdx++) {
-      const booklet = booklets[bIdx];
-      statusText = translate("scanning.status.savingBooklet", {
-        current: bIdx + 1,
-        total: booklets.length,
-        pages: booklet.pageRefs.length,
-      });
-      progress = 50 + Math.round(((bIdx + 1) / Math.max(booklets.length, 1)) * 50);
-
-      // Assemble a new PDF by copying pages from the source documents
-      const { PDFDocument: PDFDocClass } = await import("pdf-lib");
-      const assembledPdf = await PDFDocClass.create();
-      for (const ref of booklet.pageRefs) {
-        const copiedPages = await assembledPdf.copyPages(ref.doc, [ref.index]);
-        assembledPdf.addPage(copiedPages[0]);
-      }
-      const scanBuffer = await assembledPdf.save();
-
-      let scanCt: Uint8Array | undefined;
-      let scanIv: Uint8Array | undefined;
-      if ($sessionStore.sessionKey) {
-        const encRes = await encrypt($sessionStore.sessionKey, scanBuffer);
-        scanCt = encRes.ciphertext;
-        scanIv = encRes.iv;
-      }
-
-      const key = get(sessionStore).sessionKey;
-      await saveStudentEncrypted(
-        {
-          pseudonymId: booklet.pseudonymId,
-          examId,
-          fallbackCode: booklet.fallbackCode,
-          studentName: booklet.studentName,
-          studentNumber: booklet.studentNumber,
-          piiCt: new Uint8Array([0]),
-          piiIv: new Uint8Array(12),
-        },
-        key,
-      );
-
-      const subId: string = crypto.randomUUID();
-      await saveSubmissionEncrypted(
-        {
-          id: subId,
-          examId,
-          pseudonymHash: booklet.pseudonymId,
-          scanCt,
-          scanIv: scanIv || new Uint8Array(12),
-          createdAt: new Date().toISOString(),
-        },
-        key,
-      );
-
-      const omrResults = omrResultsByPseudonym.get(booklet.pseudonymId) ?? [];
-      // Accumulated and written once per booklet, to avoid one write per MC
-      // question per pupil — hundreds of sequential requests in server mode.
-      const omrScores: ExerciseScoreRecord[] = omrResults.map(({ result, pageStats }) =>
-        buildOmrScoreRecord(result, { id: crypto.randomUUID(), submissionId: subId, run: omrRun, pageStats })
-      );
-      await scoreRepository.saveMany(examId, subId, omrScores, key);
-
-      newlyIngestedCount++;
-      scannedCount++;
-
-    }
-
-    await refreshUnmatched();
-    await loadScannedSubmissions();
-    statusText = translate("scanning.status.complete", {
-      fileCount: files.length,
-      pageCount: processedPages,
-      bookletCount: newlyIngestedCount,
-    });
-
-    if (omrAvailable && omrAlignmentFailures > 0) {
-      const missingList = Array.from(omrMissingCorners).join(", ");
-      const fiducialDetail =
-        omrMinFiducialsFound !== null
-          ? translate("scanning.omrBanner.alignmentFiducialDetail", {
-              found: omrMinFiducialsFound,
-              missing: missingList,
-            })
-          : "";
-      omrBanner = translate("scanning.omrBanner.alignmentFailed", {
-        count: omrAlignmentFailures,
-        fiducialDetail,
-      });
-    }
-  }
 
   async function updateFallbackCode(item: UnmatchedSubmission) {
     const code = item.newCode.trim();

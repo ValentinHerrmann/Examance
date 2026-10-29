@@ -282,6 +282,8 @@
   // account's storage mode is loaded (lib/db/workspace.ts); a blocked workspace stays on this page
   // with an explanation, an unchosen mode is asked for by the root layout.
   async function enterApp() {
+    // The session is open: nothing needs the password any more (the PRF secret is dropped once used).
+    password = "";
     // A workspace this account does not own stays on this page with an explanation (see template).
     const status = await openWorkspace();
     if (status.state === "blocked") {

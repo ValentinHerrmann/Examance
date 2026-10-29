@@ -68,10 +68,7 @@ export const dashboard: Translations['dashboard'] = {
         deleteData: 'Delete Data',
         extendRetention: 'Extend Retention (+1 Year)',
     },
-    importPasswordPrompt: 'Enter password to decrypt and import the archive:',
     importDecrypting: 'Decrypting & unpacking archive…',
-    importStatus: 'Status: {stage} ({current}%)',
-    importFailed: 'Import failed: {message}',
     deleteFailed: 'Delete failed: {message}',
     duplicateFailed: 'Duplicating failed: {message}',
     deleteModal: {

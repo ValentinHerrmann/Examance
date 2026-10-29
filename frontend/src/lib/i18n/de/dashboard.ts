@@ -66,10 +66,7 @@ export const dashboard = {
         deleteData: 'Daten löschen',
         extendRetention: 'Aufbewahrung verlängern (+1 Jahr)',
     },
-    importPasswordPrompt: 'Passwort zum Entschlüsseln und Importieren des Archivs eingeben:',
     importDecrypting: 'Archiv wird entschlüsselt und entpackt…',
-    importStatus: 'Status: {stage} ({current}%)',
-    importFailed: 'Import fehlgeschlagen: {message}',
     deleteFailed: 'Löschen fehlgeschlagen: {message}',
     duplicateFailed: 'Duplizieren fehlgeschlagen: {message}',
     deleteModal: {

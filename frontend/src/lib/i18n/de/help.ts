@@ -14,7 +14,6 @@ export const help = {
         openHelpFor: 'Hilfe zu: {topic}',
         openHelp: 'Hilfe öffnen',
         statusBarHint: 'Hilfe öffnen (F1)',
-        contextTopic: 'Passend zu dieser Seite',
         moreInfo: 'Mehr dazu',
         showTip: 'Erklärung anzeigen',
         onboardingLink: 'Handbuch öffnen',

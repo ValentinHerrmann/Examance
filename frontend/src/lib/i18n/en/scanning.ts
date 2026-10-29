@@ -58,8 +58,6 @@ export const scanning: Translations['scanning'] = {
         complete: 'Complete! Ingested {fileCount} file(s) ({pageCount} page(s)) into {bookletCount} student submission booklet(s).',
     },
     omrBanner: {
-        notPrepared: 'MC auto-grading unavailable until you run "Prepare OMR" on the exam page — scans will still be imported normally.',
-        stale: 'OMR template is stale (answer key changed since it was captured) — re-run "Prepare OMR" on the exam page to enable MC auto-grading for this scan.',
         alignmentFailed: 'OMR alignment failed on {count} page(s){fiducialDetail} — those MC exercises were imported ungraded and need manual grading. Check the scan quality (crop/skew/print margins) near the page corners.',
         alignmentFiducialDetail: '(as few as {found}/4 corner markers detected, missing: {missing})',
         autoPreparing: 'Automatically preparing OMR template, please wait...',

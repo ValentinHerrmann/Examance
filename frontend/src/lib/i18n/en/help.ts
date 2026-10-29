@@ -14,7 +14,6 @@ export const help: Translations['help'] = {
         openHelpFor: 'Help on: {topic}',
         openHelp: 'Open help',
         statusBarHint: 'Open help (F1)',
-        contextTopic: 'Matches this page',
         moreInfo: 'Read more',
         showTip: 'Show explanation',
         onboardingLink: 'Open the manual',

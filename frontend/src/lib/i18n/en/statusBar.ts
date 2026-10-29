@@ -1,8 +1,6 @@
 import type { Translations } from '../types';
 
 export const statusBar: Translations['statusBar'] = {
-    storageSettingsHint: 'Click to change storage & privacy settings',
-    lockedHint: 'Session locked — Click to unlock',
     backendConfigureHint: 'Click to configure backend server address',
     backendCurrent: 'Current Backend Server',
     noServer: 'No Server Configured',
@@ -24,5 +22,4 @@ export const statusBar: Translations['statusBar'] = {
     updateReload: 'Reload now',
     releaseNotesTitle: 'Updated to v{version}',
     releaseNotesLink: 'View release notes on GitHub',
-    releaseNotesDismiss: 'Dismiss',
 };

@@ -11,7 +11,6 @@ export const stats: Translations['stats'] = {
         exportButton: 'Export Grades CSV (Excel Compatible)',
     },
     cards: {
-        submissionsGraded: 'Submissions (graded)',
         gradeAverage: 'Class average grade',
         passRate: 'Pass rate',
         avgPoints: 'Avg. points',

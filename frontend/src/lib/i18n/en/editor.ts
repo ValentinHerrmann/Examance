@@ -73,12 +73,6 @@ export const editor: Translations['editor'] = {
         seitenumbruch: { label: 'Page break', description: 'Forces a page break here (student sheet and solution sheet).' },
     },
 
-    confirmDialog: {
-        title: 'Unsaved Changes',
-        message: 'You have unsaved changes that will be lost. Are you sure you want to exit without saving?',
-        confirmText: 'Discard Changes',
-        cancelText: 'Keep Editing',
-    },
 
     pdfPreview: {
         titleAngabe: 'Exercise',

@@ -20,7 +20,6 @@ export const maintenance = {
     finalTitle: 'Letzte Erinnerung: {kind} in {countdown}',
     finalBody: 'Speichern Sie jetzt, was noch offen ist. Neue Anmeldungen sind bis zum Ende pausiert. Lassen Sie diesen Tab offen; danach geht es von selbst weiter.',
     savedButton: 'Ich habe gespeichert',
-    savedThanks: 'Danke! Sie können bis zum Beginn weiterarbeiten.',
     close: 'Schließen',
     downTitle: {
         manual: 'Wartung läuft',

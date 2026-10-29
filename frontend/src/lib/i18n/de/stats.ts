@@ -9,7 +9,6 @@ export const stats = {
         exportButton: 'Noten als CSV exportieren (Excel-kompatibel)',
     },
     cards: {
-        submissionsGraded: 'Abgaben (mit Noten)',
         gradeAverage: 'Notendurchschnitt',
         passRate: 'Bestanden',
         avgPoints: 'Ø Punkte',

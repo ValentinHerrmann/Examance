@@ -7,8 +7,6 @@ export const storagePolicy: Translations['storagePolicy'] = {
     notChosen: 'No storage location chosen',
     notChosenTitle: 'No storage location has been chosen for this account yet',
     notEnabled: 'Not enabled for your account.',
-    latexServer: 'LaTeX Server',
-    latexLocal: 'LaTeX Local',
     allServerTitle: 'Exams, exercises and results are stored encrypted on the server',
     hybridTitle: 'Exams & exercises on the server, student data & results only in this browser',
 
