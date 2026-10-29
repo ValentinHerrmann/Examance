@@ -13,9 +13,7 @@ const packages = [
   '/core/busytex/texlive-extra.js'
 ];
 
-// Asset-version cache busting: texlyre-busytex's `ensureCacheVersion` is a no-op in Workers (guards on `localStorage`) and
-// keys on the npm version, which doesn't change when we redeploy our TeX Live bundles (stale packages, bogus "File `X.sty'
-// not found"). We track the chunk-manifest fingerprint in IndexedDB instead and wipe the cache when it changes.
+// Asset-version cache busting: texlyre-busytex's `ensureCacheVersion` is a no-op in Workers (guards on `localStorage`) and keys on the npm version, which doesn't change when we redeploy our TeX Live bundles (stale packages, bogus "File `X.sty' not found"). We track the chunk-manifest fingerprint in IndexedDB instead and wipe the cache when it changes.
 const ASSET_VERSION_DB = 'blindgrade-busytex-asset-version';
 const ASSET_VERSION_STORE = 'version';
 const ASSET_VERSION_KEY = 'fingerprint';
@@ -129,10 +127,7 @@ async function initRunner(onStatus: (status: string) => void) {
       onStatus('compiling');
     }
 
-    // Progress for the loading dialog (store: lib/latex/downloadProgress.ts). The nested busytex worker reports bytes via
-    // scripts/fetch-interceptor.js as "Downloading data... (loaded/total)" with the manifest's compressed total; emscripten's
-    // own lines of that shape carry uncompressed per-package totals and are ignored. Package steps arrive as "Preparing... (n/m)".
-    // The dialog stays up until initialize() is through, also when everything is cached.
+    // Progress for the loading dialog (store: lib/latex/downloadProgress.ts). The nested busytex worker reports bytes via scripts/fetch-interceptor.js as "Downloading data... (loaded/total)" with the manifest's compressed total; emscripten's own lines of that shape carry uncompressed per-package totals and are ignored. Package steps arrive as "Preparing... (n/m)". The dialog stays up until initialize() is through, also when everything is cached.
     const compressedTotal = await compressedEngineBytes();
     console.info(`[CompilerWorker] creating a new engine (TeX Live packages cached: ${allCached})`);
     runner = new BusyTexRunner({
@@ -159,10 +154,7 @@ async function initRunner(onStatus: (status: string) => void) {
   }
 }
 
-/**
- * The bundled LaTeX assets, posted once by the main thread (`compiler.ts`, which owns the
- * authenticated fetch) before any preload or compile. `sty/x.sty` and `sty/x.tex` are also exposed flat (`\input x.tex`).
- */
+/** The bundled LaTeX assets, posted once by the main thread (`compiler.ts`, which owns the authenticated fetch) before any preload or compile. `sty/x.sty` and `sty/x.tex` are also exposed flat (`\input x.tex`). */
 let bundledAssets: { path: string; content: Uint8Array }[] | null = null;
 
 function loadAdditionalFiles(): { path: string; content: Uint8Array }[] {
@@ -177,11 +169,7 @@ function loadAdditionalFiles(): { path: string; content: Uint8Array }[] {
 const AUX_EXTENSIONS = ['.aux', '.toc', '.out'];
 const MAX_TEX_RUNS = 4;
 
-/**
- * busytex's own rerun loop always does 4 XeTeX runs (its `rerunfilecheck` pattern matches whenever hyperref loads the
- * package), ~3.5 s each. We run single passes (`rerun: false`) and feed the previous run's aux files back until they stop
- * changing: usually 2 runs (Schulaufgabe.sty passes each task's score to the next run through the aux file).
- */
+/** busytex's own rerun loop always does 4 XeTeX runs (its `rerunfilecheck` pattern matches whenever hyperref loads the package), ~3.5 s each. We run single passes (`rerun: false`) and feed the previous run's aux files back until they stop changing: usually 2 runs (Schulaufgabe.sty passes each task's score to the next run through the aux file). */
 async function compileUntilStable(
   engine: XeLatex,
   activeRunner: BusyTexRunner | null,
@@ -221,18 +209,14 @@ function resetRunner(reason = 'unspecified') {
   }
 }
 
-// Matches "File `foo.sty' not found" errors for files in our bundled TeX Live packages. That
-// strongly suggests corrupted/truncated cached package data (see fetchInterceptor.ts), not broken
-// LaTeX, so wipe the cache and retry exactly once before surfacing the error.
+// Matches "File `foo.sty' not found" errors for files in our bundled TeX Live packages. That strongly suggests corrupted/truncated cached package data (see fetchInterceptor.ts), not broken LaTeX, so wipe the cache and retry exactly once before surfacing the error.
 export const MISSING_PACKAGE_FILE_PATTERN = /File `[^']+\.(sty|cls|clo|def|cfg|fd)' not found/i;
 
 export function looksLikeMissingBundledPackage(log: string | undefined | null): boolean {
   return !!log && MISSING_PACKAGE_FILE_PATTERN.test(log);
 }
 
-// A missing figure is not fatal to XeLaTeX: it typesets a box and carries on,
-// so the compile "succeeds" with the picture silently absent. Surfacing it is
-// the difference between a teacher noticing now and noticing on exam day.
+// A missing figure is not fatal to XeLaTeX: it typesets a box and carries on, so the compile "succeeds" with the picture silently absent. Surfacing it is the difference between a teacher noticing now and noticing on exam day.
 export const MISSING_GRAPHICS_PATTERN =
   /(File `[^']+\.(png|jpe?g|pdf|eps)' not found|Unable to load picture|Cannot determine size of graphic)/i;
 
@@ -244,8 +228,7 @@ export function extractMissingGraphics(log: string | undefined | null): string[]
     .map((line) => line.trim());
 }
 
-// The xetex_bibtex8_dvipdfmx pipeline runs xdvipdfmx even after XeTeX failed, so the log then ends in
-// this fatal while the real error sits in the XeTeX step's log (`result.logs`).
+// The xetex_bibtex8_dvipdfmx pipeline runs xdvipdfmx even after XeTeX failed, so the log then ends in this fatal while the real error sits in the XeTeX step's log (`result.logs`).
 export const XDV_OPEN_FATAL_PATTERN = /xdvipdfmx:fatal: Could not open specified DVI \(or XDV\) file/i;
 
 export { extractTexErrors };
@@ -288,10 +271,7 @@ async function recoverFromPossiblyCorruptedCache(): Promise<void> {
   }
 }
 
-/**
- * Whether the missing-package cache wipe has already been spent in this worker.
- * See the guard in the message handler below.
- */
+/** Whether the missing-package cache wipe has already been spent in this worker. See the guard in the message handler below. */
 let cacheRecoveryAttempted = false;
 
 let compileQueue: Promise<void> = Promise.resolve();
@@ -337,9 +317,7 @@ self.onmessage = (e: MessageEvent) => {
       // A copy: the loaded list is cached for the worker's life, resources must not leak into later compiles.
       const additionalFiles = loadAdditionalFiles();
 
-      // Teacher-uploaded resources go in flat, after the bundled assets, and
-      // never over one: a name that would shadow an asset is already refused
-      // at upload time (lib/latex/resources.ts), this is the second line.
+      // Teacher-uploaded resources go in flat, after the bundled assets, and never over one: a name that would shadow an asset is already refused at upload time (lib/latex/resources.ts), this is the second line.
       const bundledPaths = new Set(additionalFiles.map((f) => f.path));
       for (const res of resources ?? []) {
         if (bundledPaths.has(res.filename)) {
@@ -355,9 +333,7 @@ self.onmessage = (e: MessageEvent) => {
     try {
       let result = await runCompile();
 
-      // At most one cache-wipe recovery per worker: the pattern can't tell a
-      // corrupted cache from a document referencing a package we don't ship,
-      // so without this guard that case re-downloads TeX Live on every retry.
+      // At most one cache-wipe recovery per worker: the pattern can't tell a corrupted cache from a document referencing a package we don't ship, so without this guard that case re-downloads TeX Live on every retry.
       if (
         !result.success &&
         !cacheRecoveryAttempted &&
@@ -400,14 +376,11 @@ self.onmessage = (e: MessageEvent) => {
           missingGraphics: extractMissingGraphics(result.log)
         });
       } else {
-        // Not reset here — an ordinary compile error (e.g. a LaTeX typo)
-        // shouldn't force a full engine reboot on the next attempt.
+        // Not reset here — an ordinary compile error (e.g. a LaTeX typo) shouldn't force a full engine reboot on the next attempt.
         self.postMessage({ id, success: false, error: describeCompileFailure(result), log: compileLogForUser(result) });
       }
     } catch (error: any) {
-      // A thrown error is different: the engine itself is in an unknown state, so reset. Required for
-      // texlyre-busytex's 180 s timeout, which rejects without stopping its worker: that worker's late
-      // answer would otherwise resolve the next compile.
+      // A thrown error is different: the engine itself is in an unknown state, so reset. Required for texlyre-busytex's 180 s timeout, which rejects without stopping its worker: that worker's late answer would otherwise resolve the next compile.
       resetRunner(`compile threw: ${error?.message || error}`);
       self.postMessage({ id, success: false, error: error.message || "Unknown error in compilation worker" });
     }

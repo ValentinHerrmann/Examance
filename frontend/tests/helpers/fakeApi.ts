@@ -1,8 +1,4 @@
-/**
- * Stateful in-memory fake of the Examance API (`/api/v1`) for the vitest archive tests and the Playwright suite (frontend/CLAUDE.md, E2E).
- * Framework-free (no vitest, Playwright or app imports); snake_case responses like the real API (`backend/app/schemas/*.py`), sealed blobs echoed.
- * An unrouted request answers 404 and lands in `state.unhandled`, which fails the e2e test: extend this fake, not the app.
- */
+/** Stateful in-memory fake of the Examance API (`/api/v1`) for the vitest archive tests and the Playwright suite (frontend/CLAUDE.md, E2E). Framework-free (no vitest, Playwright or app imports); snake_case responses like the real API (`backend/app/schemas/*.py`), sealed blobs echoed. An unrouted request answers 404 and lands in `state.unhandled`, which fails the e2e test: extend this fake, not the app. */
 
 export type FakeStorageMode = 'all-server' | 'hybrid';
 
@@ -411,11 +407,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       ex,
     );
 
-  /**
-   * The group of an exercise being created. A known id adopts the group's metadata. An unknown id is
-   * created on the spot: the real backend answers 404, but the archive tests hand in ids of groups
-   * that only exist in their IndexedDB fixtures.
-   */
+  /** The group of an exercise being created. A known id adopts the group's metadata. An unknown id is created on the spot: the real backend answers 404, but the archive tests hand in ids of groups that only exist in their IndexedDB fixtures. */
   function resolveGroup(groupId: string | null | undefined, meta: any): any {
     const existing = groupId ? state.groups.get(groupId) : undefined;
     if (existing) return existing;

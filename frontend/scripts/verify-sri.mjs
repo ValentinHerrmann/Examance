@@ -1,8 +1,4 @@
-/**
- * Build-time SRI check of static/sri-manifest.json: "wasm" hashes must match static/wasm/,
- * "js" hashes the built bundle in build/assets/. Exits 1 on any mismatch (CI).
- * Usage: node scripts/verify-sri.mjs
- */
+/** Build-time SRI check of static/sri-manifest.json: "wasm" hashes must match static/wasm/, "js" hashes the built bundle in build/assets/. Exits 1 on any mismatch (CI). Usage: node scripts/verify-sri.mjs */
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -21,9 +17,7 @@ if (!existsSync(manifestPath)) {
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
 let hasErrors = false;
 
-// Placeholders are only tolerated while the control is explicitly declared
-// unimplemented. Once `enforced` is true they fail the build, so this step can
-// never report success without actually having verified something.
+// Placeholders are only tolerated while the control is explicitly declared unimplemented. Once `enforced` is true they fail the build, so this step can never report success without actually having verified something.
 const enforced = manifest.enforced === true;
 if (!enforced) {
   console.warn(

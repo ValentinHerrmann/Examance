@@ -1,7 +1,4 @@
-/**
- * Shared setup for the device-matrix specs (layout, a11y, screens): one signed-in
- * account with one exercise and one exam, plus the list of routes worth checking.
- */
+/** Shared setup for the device-matrix specs (layout, a11y, screens): one signed-in account with one exercise and one exam, plus the list of routes worth checking. */
 import type { Page } from '@playwright/test';
 import { createExam, createExercise, currentExamId, exerciseBody, signInFirstTime } from './flows';
 import { gotoDashboard, gotoExerciseLibrary, settleNavigation } from './nav';

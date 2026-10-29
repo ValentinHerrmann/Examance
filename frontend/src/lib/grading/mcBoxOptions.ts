@@ -19,10 +19,7 @@ export interface McBoxOptions {
   mismatch: { boxes: number; options: number } | null;
 }
 
-/**
- * Pairs a scanned MC question's boxes with the exercise's options by `optionIndex`. Anything but an
- * exact 0..n-1 match is reported as a mismatch, never attached to another option or dropped.
- */
+/** Pairs a scanned MC question's boxes with the exercise's options by `optionIndex`. Anything but an exact 0..n-1 match is reported as a mismatch, never attached to another option or dropped. */
 export function matchBoxesToOptions(
   exercise: Pick<ExerciseRecord, 'options' | 'correctAnswers'>,
   detections: OmrScoreMeta['detections']

@@ -1,5 +1,4 @@
-// Post-build: preview builds get their own installed-app name ("Examance Preview") so the preview and production
-// PWAs can sit side by side. Same preview rule as vite.config.ts; edits only build/, never static/.
+// Post-build: preview builds get their own installed-app name ("Examance Preview") so the preview and production PWAs can sit side by side. Same preview rule as vite.config.ts; edits only build/, never static/.
 import fs from 'node:fs';
 
 const branch = process.env.CF_PAGES_BRANCH;

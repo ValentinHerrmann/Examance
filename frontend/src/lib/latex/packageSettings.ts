@@ -1,7 +1,4 @@
-/**
- * Server side of the LaTeX package settings (issue #108): the account list (`/user/latex-packages`) and what the
- * template loads (`/latex/template-packages`). Merging rules: `lib/latex/packages.ts`.
- */
+/** Server side of the LaTeX package settings (issue #108): the account list (`/user/latex-packages`) and what the template loads (`/latex/template-packages`). Merging rules: `lib/latex/packages.ts`. */
 import { api } from "#lib/api/client";
 import { storedEntries, type LatexPackageEntry } from "./packages";
 

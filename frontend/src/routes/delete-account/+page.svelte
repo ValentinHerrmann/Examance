@@ -1,7 +1,5 @@
 <script lang="ts">
-  // The page behind the mailed self-deletion link (GDPR Art. 17). Opening it deletes nothing (a mail
-  // scanner may open links); it shows what goes and deletes only on the button. No sign-in needed:
-  // the single-use link proves the mailbox, and the holder asked for it while signed in.
+  // The page behind the mailed self-deletion link (GDPR Art. 17). Opening it deletes nothing (a mail scanner may open links); it shows what goes and deletes only on the button. No sign-in needed: the single-use link proves the mailbox, and the holder asked for it while signed in.
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { apiErrorMessage, ApiError } from "#lib/api/client";

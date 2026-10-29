@@ -1,7 +1,5 @@
 <script lang="ts">
-  // Shown instead of the app while the signed-in account may not open this browser's workspace
-  // (lib/db/workspace.ts, owner binding). Nothing is read or written until the person decides. It names
-  // whose workspace this is and offers the way back in, plus a confirmed reset as the last resort.
+  // Shown instead of the app while the signed-in account may not open this browser's workspace (lib/db/workspace.ts, owner binding). Nothing is read or written until the person decides. It names whose workspace this is and offers the way back in, plus a confirmed reset as the last resort.
   import { onMount } from 'svelte';
   import { t } from '#lib/i18n';
   import { Alert, Button, Checkbox } from '#lib/components/ui';

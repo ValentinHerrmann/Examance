@@ -1,5 +1,4 @@
-/** Plain (unencrypted) ZIP assembly for the raw exports (issue #82). Built synchronously:
- *  fflate's async mode spawns blob workers, which the CSP does not allow. */
+/** Plain (unencrypted) ZIP assembly for the raw exports (issue #82). Built synchronously: fflate's async mode spawns blob workers, which the CSP does not allow. */
 import { zipSync, strToU8, type Zippable } from 'fflate';
 
 // Already-compressed formats are stored, everything else is deflated.

@@ -1,6 +1,5 @@
 <script lang="ts">
-  // Invite someone (issue #53): the account is created approved with the chosen features, the address
-  // counts as verified, and a set-password link is mailed. The route performs the call.
+  // Invite someone (issue #53): the account is created approved with the chosen features, the address counts as verified, and a set-password link is mailed. The route performs the call.
   import { untrack } from "svelte";
   import { ALL_FEATURES_ON, type AccountFeatures } from "#lib/api/admin";
   import { t } from "#lib/i18n";

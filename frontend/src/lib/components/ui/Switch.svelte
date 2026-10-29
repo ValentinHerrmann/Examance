@@ -42,8 +42,7 @@
     onclick={toggle}
     class="group inline-flex h-6 w-10 shrink-0 cursor-pointer items-center border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-60 pointer-coarse:h-11"
   >
-    <!-- The pill is drawn inside the button: on coarse pointers the button grows to a 44px hit area
-         (app.css gives every button that minimum height), and the pill must not stretch with it. -->
+    <!-- The pill is drawn inside the button: on coarse pointers the button grows to a 44px hit area (app.css gives every button that minimum height), and the pill must not stretch with it. -->
     <span
       class="relative block h-6 w-10 rounded-full transition-colors {checked ? 'bg-primary' : 'bg-line-strong'}"
     >

@@ -1,8 +1,4 @@
-/**
- * Functional regression suite: asserts behaviour and data, never layout or visuals, so UI redesigns only touch
- * `helpers/nav.ts`. Texts come from the i18n catalogs (`helpers/i18n.ts`); LaTeX compilation is never awaited or
- * asserted. Titles are tagged by area (`-g "\[exam\]"`).
- */
+/** Functional regression suite: asserts behaviour and data, never layout or visuals, so UI redesigns only touch `helpers/nav.ts`. Texts come from the i18n catalogs (`helpers/i18n.ts`); LaTeX compilation is never awaited or asserted. Titles are tagged by area (`-g "\[exam\]"`). */
 import { test, expect } from './helpers/guards';
 import { label, labelExact, literal, rawTemplate, stem } from './helpers/i18n';
 import {
@@ -222,8 +218,7 @@ test.describe('exercises', () => {
     await expect(editor.getByText(await t(page, 'exercises.editor.mcCorrectRequired'))).toBeVisible();
     await expect(editor).toBeVisible();
     await editor.getByRole('button', { name: await t(page, 'common.cancel') }).click();
-    // Nothing was typed that differs from the defaults except the name, so the
-    // discard confirmation may or may not appear; confirm it if it does.
+    // Nothing was typed that differs from the defaults except the name, so the discard confirmation may or may not appear; confirm it if it does.
     const discard = page.getByRole('dialog', { name: await t(page, 'exercises.editor.discardTitle') });
     if (await discard.isVisible()) {
       await discard.getByRole('button', { name: await t(page, 'exercises.confirmDiscard.confirmText') }).click();
@@ -420,8 +415,7 @@ test.describe('help', () => {
 
     // The topic index and one topic's content.
     const topics = dialog.getByRole('navigation', { name: await t(page, 'help.ui.contents') });
-    // On narrow screens the index is replaced by the open topic (the panel
-    // preselects one); "back to overview" returns to it. Wide layouts show both.
+    // On narrow screens the index is replaced by the open topic (the panel preselects one); "back to overview" returns to it. Wide layouts show both.
     const back = dialog.getByRole('button', { name: stem('help.ui.backToOverview') });
     if (await back.isVisible()) await back.click();
     await expect(topics).toBeVisible();
@@ -502,9 +496,7 @@ test.describe('workspace', () => {
     const archivePath = testInfo.outputPath('roundtrip.examance');
     await download.saveAs(archivePath);
 
-    // --- clear ---
-    // Clearing only empties this browser's tables; exams and exercises live on the server. Drop them
-    // there too, so the import below has to bring them back.
+    // --- clear --- Clearing only empties this browser's tables; exams and exercises live on the server. Drop them there too, so the import below has to bring them back.
     for (const table of [
       backend.state.exams,
       backend.state.exercises,

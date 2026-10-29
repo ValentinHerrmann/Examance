@@ -64,11 +64,7 @@ function createHttpErrorStore() {
 
 export const httpErrorStore = createHttpErrorStore();
 
-/**
- * Runs `fn` with the global HTTP error modal held back: every error a non-silent request would have
- * shown is collected and returned instead. For long batch operations (archive import/export) that
- * report their outcome in one place rather than as a pop-up per failed request.
- */
+/** Runs `fn` with the global HTTP error modal held back: every error a non-silent request would have shown is collected and returned instead. For long batch operations (archive import/export) that report their outcome in one place rather than as a pop-up per failed request. */
 export async function collectHttpErrors<T>(fn: () => Promise<T>): Promise<{ result: T; errors: CollectedHttpError[] }> {
   const errors: CollectedHttpError[] = [];
   collectors.push(errors);

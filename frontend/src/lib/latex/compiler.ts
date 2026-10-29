@@ -1,9 +1,4 @@
-/**
- * Client-side LaTeX Compiler.
- *
- * Compiles LaTeX source to PDF bytes.
- * Falls back to server POST /api/v1/compile/latex if WASM compiler is unavailable.
- */
+/** Client-side LaTeX Compiler. Compiles LaTeX source to PDF bytes. Falls back to server POST /api/v1/compile/latex if WASM compiler is unavailable. */
 
 import { api } from '#lib/api/client';
 import { translate } from '#lib/i18n';
@@ -20,18 +15,11 @@ export interface CompileResult {
   pdfBytes: Uint8Array;
   usedFallback: boolean;
   engineUsed: 'server' | 'local';
-  /**
-   * Graphics the engine could not load. A missing figure does not fail a
-   * XeLaTeX run — the PDF just comes back without it — so callers should show
-   * these rather than treat the compile as clean.
-   */
+  /** Graphics the engine could not load. A missing figure does not fail a XeLaTeX run — the PDF just comes back without it — so callers should show these rather than treat the compile as clean. */
   missingGraphics?: string[];
 }
 
-/**
- * One compiler worker, created on first use and kept for the session. Compiles are serialised via
- * `compileQueue` and busytex is a single WASM VM, so a second worker would only double the TeX Live mount.
- */
+/** One compiler worker, created on first use and kept for the session. Compiles are serialised via `compileQueue` and busytex is a single WASM VM, so a second worker would only double the TeX Live mount. */
 let worker: Worker | null = null;
 let msgIdCounter = 0;
 let compileQueue: Promise<any> = Promise.resolve();
@@ -39,11 +27,7 @@ let compileQueue: Promise<any> = Promise.resolve();
 /** How long a single compile may run before we stop waiting for the worker. */
 const COMPILE_TIMEOUT_MS = 5 * 60 * 1000;
 
-/**
- * What the engine is doing while it boots, and how many compiles wait for it. The dialog shows for a real download and
- * whenever a compile is waiting; a cached engine that boots in the background after a page load is not worth interrupting
- * anyone for.
- */
+/** What the engine is doing while it boots, and how many compiles wait for it. The dialog shows for a real download and whenever a compile is waiting; a cached engine that boots in the background after a page load is not worth interrupting anyone for. */
 let engineLoad: LatexDownloadProgress | null = null;
 /** The TeX Live packages were already in the browser's cache: the boot still streams them, but nothing is downloaded. */
 let engineCached = false;
@@ -98,10 +82,7 @@ function discardWorker(reason = 'unspecified'): void {
 /** The worker already asked to preload; keyed on the instance so a replaced worker is preloaded again. */
 let preloadedWorker: Worker | null = null;
 
-/**
- * Boots the local engine (WASM + TeX Live packages) without compiling, so the first compile does not pay
- * for it. Idempotent per worker; a failure is logged only, the first compile retries the boot itself.
- */
+/** Boots the local engine (WASM + TeX Live packages) without compiling, so the first compile does not pay for it. Idempotent per worker; a failure is logged only, the first compile retries the boot itself. */
 export function preloadLocalEngine(): void {
   try {
     const w = acquireWorker();
@@ -144,9 +125,7 @@ async function compileLocalWasm(
     return new Promise<CompileResult>((resolve, reject) => {
       let settled = false;
 
-      // Cleanup must run on error/timeout too, not just a terminal message —
-      // otherwise a dead worker leaves this promise pending forever and
-      // wedges the queue behind it.
+      // Cleanup must run on error/timeout too, not just a terminal message — otherwise a dead worker leaves this promise pending forever and wedges the queue behind it.
       const cleanup = () => {
         clearTimeout(timer);
         w.removeEventListener('message', onMessage);
@@ -211,11 +190,7 @@ async function compileLocalWasm(
   return nextQueue;
 }
 
-/**
- * Compile a LaTeX string to PDF bytes, locally with WebAssembly when `useLocal`. `opts.resources` are placed flat next to
- * main.tex in both engines; `opts.resourceExerciseIds` name exercises whose files the server loads itself (ignored locally);
- * `opts.logo` is the exam header logo (lib/latex/logo.ts), resolved by the server or sent as bytes locally.
- */
+/** Compile a LaTeX string to PDF bytes, locally with WebAssembly when `useLocal`. `opts.resources` are placed flat next to main.tex in both engines; `opts.resourceExerciseIds` name exercises whose files the server loads itself (ignored locally); `opts.logo` is the exam header logo (lib/latex/logo.ts), resolved by the server or sent as bytes locally. */
 export async function compileLatex(
   latexSource: string,
   useLocal = false,
@@ -242,8 +217,7 @@ async function compileMapped(
   promptFallback: boolean,
   opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo }
 ): Promise<CompileResult> {
-  // Throws on a real filename conflict between two exercises — surfacing that
-  // beats compiling a document where one figure silently wins.
+  // Throws on a real filename conflict between two exercises — surfacing that beats compiling a document where one figure silently wins.
   const resources = mergeResources(opts.resources ?? []);
   const { logo } = opts;
 
@@ -297,9 +271,7 @@ async function compileOnServer(
       engineUsed: 'server',
     };
   } catch (err: any) {
-    // Status 0 means the browser never got a usable response: the request was
-    // blocked, the server crashed before CORS headers were written, or the API
-    // is a different version than this build. Saying so beats "unknown error".
+    // Status 0 means the browser never got a usable response: the request was blocked, the server crashed before CORS headers were written, or the API is a different version than this build. Saying so beats "unknown error".
     if (err?.status === 0 || err?.code === 'ERR_NETWORK') {
       throw new Error(
         'LaTeX compilation failed: no response from the server. It may be unreachable, ' +

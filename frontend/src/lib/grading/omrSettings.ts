@@ -1,12 +1,6 @@
-/**
- * Tunable parameters of the OMR pipeline, the single source of truth: `omrWorker.ts` reads every threshold from the
- * request's `OmrDetectionParams`, and each detection stamps them into the sealed `omrMeta.run` (`omrResult.ts`), so settings
- * changes only affect future runs. Pure module (no DOM, no stores; the worker imports it).
- */
+/** Tunable parameters of the OMR pipeline, the single source of truth: `omrWorker.ts` reads every threshold from the request's `OmrDetectionParams`, and each detection stamps them into the sealed `omrMeta.run` (`omrResult.ts`), so settings changes only affect future runs. Pure module (no DOM, no stores; the worker imports it). */
 
-/** Bump when feature extraction or classification semantics change (not for param changes). 2 = fill ratio + shape
- *  analysis (`omrShape.ts`); 4 = local threshold + stroke-based decision (`classifyV4`); 3 was withdrawn (area thresholds
- *  misread thin-pen crosses). `params.algorithm` selects 2 or 4; the other runs alongside. */
+/** Bump when feature extraction or classification semantics change (not for param changes). 2 = fill ratio + shape analysis (`omrShape.ts`); 4 = local threshold + stroke-based decision (`classifyV4`); 3 was withdrawn (area thresholds misread thin-pen crosses). `params.algorithm` selects 2 or 4; the other runs alongside. */
 export const OMR_ALGORITHM_VERSION = 4;
 
 /** Algorithms a run can be decided by (`params.algorithm`). */
@@ -77,8 +71,7 @@ export type OmrNumericParamKey = {
 
 /** Built-in defaults. Changing one changes future runs only (each run snapshots its params). */
 export const DEFAULT_OMR_PARAMS: Readonly<OmrDetectionParams> = Object.freeze({
-  // v4 is the default since it read 36/36 verified boxes correctly (v2: 20/36) on the first
-  // compared exam. v2 stays selectable, and the non-deciding algorithm keeps running alongside.
+  // v4 is the default since it read 36/36 verified boxes correctly (v2: 20/36) on the first compared exam. v2 stays selectable, and the non-deciding algorithm keeps running alongside.
   algorithm: 4,
   ambiguousLow: 0.15,
   markedHigh: 0.45,
@@ -146,10 +139,7 @@ export const OMR_PARAM_SPECS: readonly OmrParamSpec[] = [
   { kind: 'number', key: 'scanScale', group: 'fixed', min: 1, max: 4, step: 0.5 },
 ];
 
-/**
- * Params that only one algorithm's *decision* reads (`classifyV2` / `classifyV4` + `measureBox`).
- * Everything not listed here feeds both. The settings UI disables the others' controls.
- */
+/** Params that only one algorithm's *decision* reads (`classifyV2` / `classifyV4` + `measureBox`). Everything not listed here feeds both. The settings UI disables the others' controls. */
 export const OMR_PARAM_ALGORITHM: Partial<Record<OmrParamKey, OmrAlgorithm>> = {
   ambiguousLow: 2,
   markedHigh: 2,
@@ -184,11 +174,7 @@ export function validateOmrParams(p: OmrDetectionParams): OmrParamsError[] {
   return errors;
 }
 
-/**
- * Coerces anything (a stored/hand-edited value, a message payload, `undefined`) into a valid
- * params object. Never throws: out-of-range fields fall back to their default, and an order
- * violation resets the fields involved.
- */
+/** Coerces anything (a stored/hand-edited value, a message payload, `undefined`) into a valid params object. Never throws: out-of-range fields fall back to their default, and an order violation resets the fields involved. */
 export function normalizeOmrParams(input: unknown): OmrDetectionParams {
   const src = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
   const out: OmrDetectionParams = { ...DEFAULT_OMR_PARAMS };
@@ -208,16 +194,12 @@ export function normalizeOmrParams(input: unknown): OmrDetectionParams {
   return out;
 }
 
-/** Keys whose values differ (in `OMR_PARAM_SPECS` order). `a` may be an older run snapshot that
- *  lacks keys added since — a missing key counts as different, never as "the default". */
+/** Keys whose values differ (in `OMR_PARAM_SPECS` order). `a` may be an older run snapshot that lacks keys added since — a missing key counts as different, never as "the default". */
 export function diffOmrParams(a: Partial<OmrDetectionParams>, b: OmrDetectionParams): OmrParamKey[] {
   return OMR_PARAM_SPECS.map((s) => s.key).filter((k) => a[k] !== b[k]);
 }
 
-/**
- * Where a params set came from. `'learned'` is reserved for a future profile fitted from
- * teacher verification — it must stay client-side and aggregate-only (no per-pupil rows).
- */
+/** Where a params set came from. `'learned'` is reserved for a future profile fitted from teacher verification — it must stay client-side and aggregate-only (no per-pupil rows). */
 export type OmrSettingsSource = 'default' | 'user' | 'learned';
 
 export interface OmrSettingsProfile {
@@ -248,8 +230,7 @@ export interface OmrRunInfo {
   trigger: 'scan' | 'rerun';
   /** The algorithm that decided this run (`params.algorithm`: 2 or 4; 3 on withdrawn v3 runs). */
   algorithmVersion: number;
-  /** `OMR_ALGORITHM_VERSION` at detection time — what the recorded features and verdicts mean.
-   *  Absent on runs made before it was recorded (those were pipeline 3 or 4). */
+  /** `OMR_ALGORITHM_VERSION` at detection time — what the recorded features and verdicts mean. Absent on runs made before it was recorded (those were pipeline 3 or 4). */
   pipelineVersion?: number;
   settings: { source: OmrSettingsSource; revision: number };
   /** Full params at the time. Snapshots from older algorithm versions lack later keys. */

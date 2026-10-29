@@ -52,9 +52,7 @@
       return;
     }
 
-    // No open vault means no re-wrap, and the server would mark the password
-    // wrap stale rather than guess — leaving the teacher needing their recovery
-    // code for a change they made deliberately. Refuse instead.
+    // No open vault means no re-wrap, and the server would mark the password wrap stale rather than guess — leaving the teacher needing their recovery code for a change they made deliberately. Refuse instead.
     const vault = vaultFromSession();
     if (!vault) {
       errorMsg = $t("security.password.needsUnlock");
@@ -65,8 +63,7 @@
     try {
       const set = await rewrapForChangedPassword(teacherId, vault, newPassword);
       await changePassword(currentPassword, newPassword, envelopeSetToDto(set));
-      // Written by the change request rather than by saveEnvelopes, so pin it
-      // here: this browser built it and knows it is genuine.
+      // Written by the change request rather than by saveEnvelopes, so pin it here: this browser built it and knows it is genuine.
       await pinEnvelopeSet(teacherId, set);
 
       successMsg = $t("security.password.changed");
@@ -76,8 +73,7 @@
     } catch (err: unknown) {
       const code = err instanceof ApiError ? err.code : "";
       errorMsg =
-        // Refusing beats writing a wrap that only the fallback KDF can open —
-        // which is unrecoverable once the browser can load Argon2 again.
+        // Refusing beats writing a wrap that only the fallback KDF can open — which is unrecoverable once the browser can load Argon2 again.
         err instanceof Argon2UnavailableError
           ? $t("security.vaultUnlock.kdfUnavailable")
           : code === "ERR_INVALID_CREDENTIALS"

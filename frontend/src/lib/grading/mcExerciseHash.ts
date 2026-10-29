@@ -1,8 +1,4 @@
-/**
- * Hash of an exam's MC/SC/TF answer key, to detect a stale OMR template after an edit. Tuples are
- * sorted by exercise id. Deliberately not `ensure64CharHex` (`#lib/crypto/hmac.ts`): it returns
- * 64-hex input unhashed, unacceptable for a hash gating MC auto-scoring.
- */
+/** Hash of an exam's MC/SC/TF answer key, to detect a stale OMR template after an edit. Tuples are sorted by exercise id. Deliberately not `ensure64CharHex` (`#lib/crypto/hmac.ts`): it returns 64-hex input unhashed, unacceptable for a hash gating MC auto-scoring. */
 
 import type { ExerciseRecord } from '#lib/db/schema';
 import { isMcQuestion } from './mcScore';
@@ -18,11 +14,7 @@ export interface McGroupLike {
   memberIds: string[];
 }
 
-/**
- * Fills `options`/`correctAnswers` for MC/SC/TF. The LaTeX wins: it is what is printed and what the
- * OMR template numbers, while the stored `{ options, correct }` goes stale on edits that write only
- * `latex_body` (new variants, the diff editor, resync). The stored copy is the fallback without one.
- */
+/** Fills `options`/`correctAnswers` for MC/SC/TF. The LaTeX wins: it is what is printed and what the OMR template numbers, while the stored `{ options, correct }` goes stale on edits that write only `latex_body` (new variants, the diff editor, resync). The stored copy is the fallback without one. */
 export function normalizeMcExercise(ex: ExerciseRecord): ExerciseRecord {
   if (!isMcQuestion(ex)) return ex;
 
@@ -57,10 +49,7 @@ export function normalizeMcExercise(ex: ExerciseRecord): ExerciseRecord {
   };
 }
 
-/**
- * Inverse of `normalizeMcExercise`: the `{ options, correct }` object the backend stores in
- * `correct_answers` (a bare array is rejected with 422). Free-text exercises give `null`.
- */
+/** Inverse of `normalizeMcExercise`: the `{ options, correct }` object the backend stores in `correct_answers` (a bare array is rejected with 422). Free-text exercises give `null`. */
 export function serializeMcAnswers(
   ex: ExerciseRecord
 ): { options: string[]; correct: number[] } | null {
@@ -72,10 +61,7 @@ export function serializeMcAnswers(
   };
 }
 
-/**
- * Resolves the MC-relevant exercises for an exam given its exercises, library exercises,
- * and MC groups. Deduplicates and unwraps MC group members.
- */
+/** Resolves the MC-relevant exercises for an exam given its exercises, library exercises, and MC groups. Deduplicates and unwraps MC group members. */
 export function resolveMcExercises(
   exercises: ExerciseRecord[],
   libraryExercises: ExerciseRecord[],
@@ -118,10 +104,7 @@ export function resolveMcExercises(
   return result.filter(isMcQuestion);
 }
 
-/**
- * Loads exam exercises, library exercises, and local MC groups from IndexedDB,
- * then returns the resolved MC-relevant exercises for the exam.
- */
+/** Loads exam exercises, library exercises, and local MC groups from IndexedDB, then returns the resolved MC-relevant exercises for the exam. */
 export async function loadExamMcExercises(
   examId: string,
   key: CryptoKey | null

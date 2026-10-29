@@ -1,8 +1,4 @@
-/**
- * Channel between an archive import/export and the report modal: `showArchiveReport` publishes a
- * report, the `ArchiveReportModal` in the root layout shows it, and the promise settles when the
- * teacher closes it (so a caller can reload only afterwards).
- */
+/** Channel between an archive import/export and the report modal: `showArchiveReport` publishes a report, the `ArchiveReportModal` in the root layout shows it, and the promise settles when the teacher closes it (so a caller can reload only afterwards). */
 
 import { writable } from 'svelte/store';
 import type { ArchiveReport } from '#lib/archive/report';

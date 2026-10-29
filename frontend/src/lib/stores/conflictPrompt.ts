@@ -1,8 +1,4 @@
-/**
- * Channel between an import and the conflict modal. `askAboutConflicts` (default resolver for
- * `openBgprojArchive`) publishes the conflicts; the `ImportConflictModal` in the root layout settles the
- * promise, so the import waits and nothing is written until the teacher decides.
- */
+/** Channel between an import and the conflict modal. `askAboutConflicts` (default resolver for `openBgprojArchive`) publishes the conflicts; the `ImportConflictModal` in the root layout settles the promise, so the import waits and nothing is written until the teacher decides. */
 
 import { writable } from 'svelte/store';
 import type { ArchiveConflict, DecisionMap } from '#lib/archive/conflicts';

@@ -9,9 +9,7 @@ describe('Hardware Detection & Pipeline Monitor', () => {
   });
 
   it('falls back instead of throwing when there is no navigator global', async () => {
-    // `navigator` only became a Node global in Node 21, and does not exist
-    // under SSR/prerendering either. CI pins Node 20, so an unguarded read
-    // here crashed there while passing on newer local Node versions.
+    // `navigator` only became a Node global in Node 21, and does not exist under SSR/prerendering either. CI pins Node 20, so an unguarded read here crashed there while passing on newer local Node versions.
     const had = 'navigator' in globalThis;
     const original = (globalThis as any).navigator;
     delete (globalThis as any).navigator;

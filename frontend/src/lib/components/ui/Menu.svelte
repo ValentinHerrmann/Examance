@@ -5,10 +5,7 @@
   import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
   import Icon from "./Icon.svelte";
 
-  /**
-   * Dropdown menu: trigger button plus a `role="menu"` panel of <MenuItem>s. Outside click and Escape
-   * close it (Escape refocuses the trigger); arrows/Home/End move between items. Trigger styled via `triggerClass`.
-   */
+  /** Dropdown menu: trigger button plus a `role="menu"` panel of <MenuItem>s. Outside click and Escape close it (Escape refocuses the trigger); arrows/Home/End move between items. Trigger styled via `triggerClass`. */
   interface Props {
     label: string;
     icon?: IconDefinition | undefined;

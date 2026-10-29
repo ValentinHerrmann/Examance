@@ -23,9 +23,7 @@
 
 <Card class="@container mx-auto my-4 max-w-3xl">
   <EmptyState title={$t("dashboard.onboarding.welcome")} description={$t("dashboard.onboarding.intro")}>
-    <!-- The most prominent element on the very first screen a new teacher sees.
-         Everything else here assumes the reader already knows Examance's
-         concepts; this is the way out of that assumption. -->
+    <!-- The most prominent element on the very first screen a new teacher sees. Everything else here assumes the reader already knows Examance's concepts; this is the way out of that assumption. -->
     <Button
       variant="outlined"
       severity="warning"

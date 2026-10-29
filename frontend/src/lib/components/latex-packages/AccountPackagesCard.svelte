@@ -15,10 +15,7 @@
   import PackageResultView from "./PackageResultView.svelte";
   import TemplatePackagesTable from "./TemplatePackagesTable.svelte";
 
-  /**
-   * The account's LaTeX packages (issue #108), added to every exam and exercise preview. Shows what the template loads,
-   * lets the teacher pass options to it, and previews the merged result before saving.
-   */
+  /** The account's LaTeX packages (issue #108), added to every exam and exercise preview. Shows what the template loads, lets the teacher pass options to it, and previews the merged result before saving. */
 
   let template = $state.raw<TemplatePackages | null>(null);
   let saved = $state.raw<LatexPackageEntry[]>([]);

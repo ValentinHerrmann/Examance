@@ -7,11 +7,7 @@
   import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
   import Icon from "./Icon.svelte";
 
-  /**
-   * Collapsible list card (Artemis group card). The title is the real toggle button; a click
-   * elsewhere on the header toggles too. Clicks/keys inside `actions` never toggle the card.
-   * `preview` shows only while collapsed; `footer` is the dashed action row under `body`.
-   */
+  /** Collapsible list card (Artemis group card). The title is the real toggle button; a click elsewhere on the header toggles too. Clicks/keys inside `actions` never toggle the card. `preview` shows only while collapsed; `footer` is the dashed action row under `body`. */
   interface Props {
     expanded?: boolean;
     title: string;
@@ -44,8 +40,7 @@
     role="presentation"
     onclick={onToggle}
   >
-    <!-- Preview stacks below the title on narrow screens (issue #165). Beside it, the title column keeps its
-         natural width (at most half) and the pills take the rest, else they squeeze the title to one letter. -->
+    <!-- Preview stacks below the title on narrow screens (issue #165). Beside it, the title column keeps its natural width (at most half) and the pills take the rest, else they squeeze the title to one letter. -->
     <div class="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-start md:gap-4">
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3 {showPreview ? 'md:max-w-1/2 md:flex-none' : ''}">
         <h3 class="m-0 min-w-0 max-w-full text-lg font-semibold wrap-anywhere text-content">

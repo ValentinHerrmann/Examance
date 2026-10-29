@@ -5,10 +5,7 @@
   import { Button } from "#lib/components/ui";
   import { faPenToSquare, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
 
-  /**
-   * Merge of two LaTeX texts: shows `mine` against the result and lets the user edit the result in place.
-   * `value` starts as `theirs` (the incoming text); "reset" restores either side.
-   */
+  /** Merge of two LaTeX texts: shows `mine` against the result and lets the user edit the result in place. `value` starts as `theirs` (the incoming text); "reset" restores either side. */
   interface Props {
     mine: string;
     theirs: string;

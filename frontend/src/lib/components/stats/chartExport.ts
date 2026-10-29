@@ -1,15 +1,9 @@
-/**
- * Chart export as SVG, PDF and PNG. `var(--color-*)` tokens mean nothing outside the app's stylesheet, so each is
- * swapped for a literal light-palette colour. The PDF redraws only `line`, `rect`, `path` and `text` (`svgToPdf`): a new
- * element type in `ColumnChart` must be added there too; unknown elements throw rather than silently vanishing.
- */
+/** Chart export as SVG, PDF and PNG. `var(--color-*)` tokens mean nothing outside the app's stylesheet, so each is swapped for a literal light-palette colour. The PDF redraws only `line`, `rect`, `path` and `text` (`svgToPdf`): a new element type in `ColumnChart` must be added there too; unknown elements throw rather than silently vanishing. */
 
 /** Token name (without `--color-`) → literal colour. */
 export type ChartPalette = Record<string, string>;
 
-// Neutral greys, not the app's blue-tinted slate: over a dark viewer background (a
-// transparent PNG in an image viewer) slate text reads as blue. Grades 2–5 darkened from
-// the app's on-screen shades so every mark keeps at least 3:1 contrast on white.
+// Neutral greys, not the app's blue-tinted slate: over a dark viewer background (a transparent PNG in an image viewer) slate text reads as blue. Grades 2–5 darkened from the app's on-screen shades so every mark keeps at least 3:1 contrast on white.
 export const CHART_PALETTE: ChartPalette = {
   line: '#d4d4d4',
   'line-strong': '#a3a3a3',
@@ -181,8 +175,7 @@ export async function svgToPdfBytes(markup: string, title: string): Promise<Uint
         return;
       }
       case 'text': {
-        // A caption may be split into <tspan> runs of different colours (static vs. dynamic
-        // values); draw them one after another along the baseline.
+        // A caption may be split into <tspan> runs of different colours (static vs. dynamic values); draw them one after another along the baseline.
         const tspans = Array.from(el.children).filter((c) => c.tagName === 'tspan');
         const runs = (tspans.length ? tspans : [el]).map((r) => ({
           text: toWinAnsi(r.textContent ?? ''),

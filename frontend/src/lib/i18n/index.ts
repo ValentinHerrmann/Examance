@@ -22,10 +22,7 @@ function isLocale(value: unknown): value is Locale {
     return value === 'de' || value === 'en';
 }
 
-/**
- * Saved choice wins; otherwise follow the browser. Read synchronously at
- * module init so the very first paint is already in the right language.
- */
+/** Saved choice wins; otherwise follow the browser. Read synchronously at module init so the very first paint is already in the right language. */
 export function detectLocale(): Locale {
     const saved = safeLocalStorage.getItem(STORAGE_KEY);
     if (isLocale(saved)) return saved;
@@ -55,10 +52,7 @@ function interpolate(template: string, vars?: TranslationVars): string {
     });
 }
 
-/**
- * Falls back to German and then to the key itself: a missing translation
- * degrades to readable text instead of an empty label or a crash.
- */
+/** Falls back to German and then to the key itself: a missing translation degrades to readable text instead of an empty label or a crash. */
 function lookup(activeLocale: Locale, key: string, vars?: TranslationVars): string {
     const template = resolve(catalogs[activeLocale], key) ?? resolve(de, key) ?? key;
     return interpolate(template, vars);
@@ -84,10 +78,7 @@ export const t = derived(
             lookup($locale, key, vars)
 );
 
-/**
- * Reactive counterpart of `translateOptional` for markup: yields `undefined`
- * when the runtime key has no catalog entry.
- */
+/** Reactive counterpart of `translateOptional` for markup: yields `undefined` when the runtime key has no catalog entry. */
 export const tOptional = derived(
     locale,
     ($locale) =>
@@ -102,11 +93,7 @@ export function translate(key: TranslationKey, vars?: TranslationVars): string {
     return lookup(get(locale), key, vars);
 }
 
-/**
- * Translate a key that is only known at runtime (e.g. a backend error code),
- * returning `undefined` when no catalog entry exists so the caller can fall
- * back to the server-supplied text.
- */
+/** Translate a key that is only known at runtime (e.g. a backend error code), returning `undefined` when no catalog entry exists so the caller can fall back to the server-supplied text. */
 export function translateOptional(key: string, vars?: TranslationVars): string | undefined {
     const template = resolve(catalogs[get(locale)], key) ?? resolve(de, key);
     return template === undefined ? undefined : interpolate(template, vars);

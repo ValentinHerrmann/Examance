@@ -126,8 +126,7 @@
   let searchQuery: string = $state("");
   let sortKey: string = $state(loadSort(SORT_STORAGE.exercises, GROUP_SORT_KEYS, "nameAsc"));
 
-  // Badge on the mobile filter button, so an active filter is visible without
-  // opening the drawer.
+  // Badge on the mobile filter button, so an active filter is visible without opening the drawer.
   let activeFilterCount = $derived(countActiveFilters(searchQuery, selectedTopic, selectedGrade, selectedSubject));
   let isLoading = $state(false);
   let loadAgain = false;

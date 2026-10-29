@@ -291,8 +291,7 @@ describe("ingestScans", () => {
 
     const result = await ingestScans([await pdfFile("a.pdf", 3)], deps);
 
-    // Anna's page 1 (template page 0) is detected; her page 2 maps to the empty template page 1.
-    // Ben's page 3 is his booklet's page 0, so it is detected too.
+    // Anna's page 1 (template page 0) is detected; her page 2 maps to the empty template page 1. Ben's page 3 is his booklet's page 0, so it is detected too.
     expect(omrDispatch).toHaveBeenCalledTimes(2);
     expect(result.omr).toEqual({ alignmentFailures: 0, minFiducialsFound: 4, missingCorners: [] });
     expect(saved.scores.map((s) => s.scores.length)).toEqual([1, 1]);

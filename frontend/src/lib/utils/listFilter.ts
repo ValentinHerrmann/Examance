@@ -18,10 +18,7 @@ export function countOptions<T>(
   return [...counts.keys()].sort().map((v) => ({ value: v, label: v, count: counts.get(v)! }));
 }
 
-/**
- * Pill options counted over `items` that already passed every other filter, so a pill never shows (0).
- * The selected value stays listed with 0 when nothing matches, or it could not be deselected.
- */
+/** Pill options counted over `items` that already passed every other filter, so a pill never shows (0). The selected value stays listed with 0 when nothing matches, or it could not be deselected. */
 export function facetOptions<T>(
   items: T[],
   pick: (item: T) => string | undefined | null,
@@ -41,10 +38,7 @@ export function matchesQuery(query: string, ...fields: (string | undefined | nul
   return !q || fields.some((f) => !!f && f.toLowerCase().includes(q));
 }
 
-/**
- * Exercise-library filter shared by the library page and the exam page's picker: grade, subject and search
- * (everything but the topic, which is a facet). The picker also searches the variant key.
- */
+/** Exercise-library filter shared by the library page and the exam page's picker: grade, subject and search (everything but the topic, which is a facet). The picker also searches the variant key. */
 export function matchesExerciseFilters(
   ex: Pick<ExerciseRecord, "name" | "topicTag" | "grade" | "subject" | "latexBody" | "variantKey">,
   filters: { query: string; grade: string; subject: string },

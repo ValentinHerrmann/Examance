@@ -10,10 +10,7 @@ export const isPreviewBuild: boolean = __IS_PREVIEW__;
 /** GitHub repository this frontend is published from (see vite.config.ts). */
 export const repoUrl: string = __REPO_URL__;
 
-/**
- * Where the footer/navbar version tag links: bare semver -> matching GitHub Release; preview PR format
- * -> the PR; other untagged builds ("1.4.0-a1b2c3d") -> the commit when known; local dev (no SHA) -> no link.
- */
+/** Where the footer/navbar version tag links: bare semver -> matching GitHub Release; preview PR format -> the PR; other untagged builds ("1.4.0-a1b2c3d") -> the commit when known; local dev (no SHA) -> no link. */
 export function versionUrlFor(version: string, commitSha: string): string | null {
     if (!version.includes('-')) return `${repoUrl}/releases/tag/v${version}`;
 
@@ -96,10 +93,7 @@ let inFlight: Promise<void> | null = null;
 let inFlightOrigin = '';
 let latestProbe = 0;
 
-/**
- * Read the server's version from GET /api/health. Deliberately bypasses `#lib/api/client` (it appends
- * /api/v1; health sits outside). A passive probe: every failure collapses to 'unknown', none surface as user errors.
- */
+/** Read the server's version from GET /api/health. Deliberately bypasses `#lib/api/client` (it appends /api/v1; health sits outside). A passive probe: every failure collapses to 'unknown', none surface as user errors. */
 export function refreshBackendVersion(): Promise<void> {
     const origin = get(effectiveBackendStore);
     if (!origin) {
@@ -107,13 +101,11 @@ export function refreshBackendVersion(): Promise<void> {
         return Promise.resolve();
     }
 
-    // Coalesce concurrent probes, but only for the same server: if the address
-    // changed mid-flight, the outstanding request answers for the wrong host.
+    // Coalesce concurrent probes, but only for the same server: if the address changed mid-flight, the outstanding request answers for the wrong host.
     if (inFlight && inFlightOrigin === origin) return inFlight;
 
     inFlightOrigin = origin;
-    // Only the newest probe may publish, so a slow answer from a previously
-    // configured server cannot overwrite a newer one.
+    // Only the newest probe may publish, so a slow answer from a previously configured server cannot overwrite a newer one.
     const token = ++latestProbe;
 
     inFlight = (async () => {

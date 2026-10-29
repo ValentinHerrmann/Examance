@@ -107,8 +107,7 @@
     showRerunDialog = true;
   }
 
-  /** Re-detects every MC question. Verified ones keep answer, score and review; only their detection is
-   *  refreshed (issue #32). Hand-typed scores without a detection are never touched. */
+  /** Re-detects every MC question. Verified ones keep answer, score and review; only their detection is refreshed (issue #32). Hand-typed scores without a detection are never touched. */
   async function handleRerunMcDetection() {
     showRerunDialog = false;
     if (!examId || isRerunningMc || isResettingReviews) return;
@@ -174,8 +173,7 @@
 
       const [mcExercises, submissions] = await Promise.all([
         loadExamMcExercises(examId, key),
-        // Rerunning OMR detection decrypts every submission's scan below, so
-        // (unlike the page's own overview load) this one needs the bytes.
+        // Rerunning OMR detection decrypts every submission's scan below, so (unlike the page's own overview load) this one needs the bytes.
         submissionRepository.getByExamId(examId, key, { includeScans: true }),
       ]);
 
@@ -242,8 +240,7 @@
           const existingScores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
           const existingByExercise = new Map(existingScores.map((s) => [s.exerciseId, s]));
 
-          // Collected across every page of this booklet and written once —
-          // a per-result write here was one request per MC question per pupil.
+          // Collected across every page of this booklet and written once — a per-result write here was one request per MC question per pupil.
           const rescored: ExerciseScoreRecord[] = [];
 
           const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
@@ -301,9 +298,7 @@
                   pageStats: response.pageStats,
                 });
                 if (existing && isMcReviewed(existing.omrMeta)) {
-                  // Verified: the teacher's answer and score stay; only the detection is refreshed,
-                  // so the stats show how these settings would have read the sheet.
-                  // (Unchanged when this run could not read the question.)
+                  // Verified: the teacher's answer and score stay; only the detection is refreshed, so the stats show how these settings would have read the sheet. (Unchanged when this run could not read the question.)
                   const merged = mergeRedetectionIntoVerified(existing, fresh);
                   if (merged !== existing) {
                     rescored.push(merged);
@@ -392,8 +387,7 @@
     }
   }
 
-  /** Against selection bias in the (future) training data: teachers mostly review flagged
-   *  items, so confident readings rarely get checked. Opens a random unverified confident one. */
+  /** Against selection bias in the (future) training data: teachers mostly review flagged items, so confident readings rarely get checked. Opens a random unverified confident one. */
   function openRandomConfidentItem() {
     const candidates = otherItems.filter((i) => !i.isReviewed);
     if (candidates.length === 0) return;
@@ -404,8 +398,7 @@
     goto(verifyHref(examId, { submissionId: item.submissionId, exerciseId: item.exerciseId, queue: queueTag }));
   }
 
-  // Each queue's badge counts only that queue's items, so a student gets an independent
-  // "reviewed/total" per category instead of one combined count repeated in every section.
+  // Each queue's badge counts only that queue's items, so a student gets an independent "reviewed/total" per category instead of one combined count repeated in every section.
   function buildStudentProgress(items: McDetectionItem[]) {
     const map = new Map<string, { total: number; reviewed: number }>();
     for (const it of items) {

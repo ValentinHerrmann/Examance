@@ -1,7 +1,4 @@
-/**
- * LaTeX syntax highlighter for static/read-only code displays.
- * Tokenizes LaTeX string and outputs HTML with syntax-highlighted <span> tags.
- */
+/** LaTeX syntax highlighter for static/read-only code displays. Tokenizes LaTeX string and outputs HTML with syntax-highlighted <span> tags. */
 
 export interface LatexToken {
   type: 'comment' | 'keyword' | 'macro' | 'bracket' | 'string' | 'number' | 'plain';

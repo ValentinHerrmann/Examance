@@ -1,7 +1,5 @@
 <script lang="ts">
-  // Self-registration, step two (issue #53): the mailed link proves the address; here the registrant
-  // chooses a password and the account is created. It is approved on the spot when its domain is on the
-  // admin's always-allowed list, and otherwise waits for an admin. No session is created either way.
+  // Self-registration, step two (issue #53): the mailed link proves the address; here the registrant chooses a password and the account is created. It is approved on the spot when its domain is on the admin's always-allowed list, and otherwise waits for an admin. No session is created either way.
   import { onMount } from "svelte";
   import { apiErrorMessage, ApiError } from "#lib/api/client";
   import { takeUrlToken } from "#lib/utils/urlToken";

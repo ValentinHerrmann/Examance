@@ -1,5 +1,4 @@
-// In-app help: panel chrome, the manual topics and the short tooltip texts.
-// German is the source of truth; `en/help.ts` must mirror this key structure.
+// In-app help: panel chrome, the manual topics and the short tooltip texts. German is the source of truth; `en/help.ts` must mirror this key structure.
 export const help = {
     ui: {
         title: 'Hilfe',

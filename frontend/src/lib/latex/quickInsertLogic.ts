@@ -1,7 +1,4 @@
-/**
- * Pure insertion logic for the quick-insert toolbar. Kept separate from
- * quickInsertMacros.ts (data) so it can be unit-tested without CodeMirror.
- */
+/** Pure insertion logic for the quick-insert toolbar. Kept separate from quickInsertMacros.ts (data) so it can be unit-tested without CodeMirror. */
 
 import type { QuickInsertMacro } from "./quickInsertMacros";
 
@@ -10,11 +7,7 @@ export interface QuickInsertResult {
   selection: { anchor: number; head: number };
 }
 
-/**
- * Document change and selection for inserting a macro at [from,to). Selected text wraps into the
- * `selectionArgIndex` argument (default 0); other arguments get placeholders, and the returned
- * selection spans the next placeholder to fill. A multi-line snippet gets `% comment` on the line above.
- */
+/** Document change and selection for inserting a macro at [from,to). Selected text wraps into the `selectionArgIndex` argument (default 0); other arguments get placeholders, and the returned selection spans the next placeholder to fill. A multi-line snippet gets `% comment` on the line above. */
 export function computeQuickInsert(
   macro: QuickInsertMacro,
   selectedText: string,

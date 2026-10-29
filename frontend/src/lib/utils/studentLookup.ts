@@ -1,11 +1,7 @@
 import { ensure64CharHex } from '#lib/crypto/hmac';
 import type { StudentRecord, SubmissionRecord } from '#lib/db/schema';
 
-/**
- * Builds a Map mapping all identifier variations of submissions and students
- * (raw pseudonymId, 64-char SHA256 HMAC hex, fallbackCode, submission ID)
- * to the corresponding SubmissionRecord.
- */
+/** Builds a Map mapping all identifier variations of submissions and students (raw pseudonymId, 64-char SHA256 HMAC hex, fallbackCode, submission ID) to the corresponding SubmissionRecord. */
 export async function buildSubmissionMap(
   submissions: SubmissionRecord[],
   students: StudentRecord[] = []

@@ -1,7 +1,4 @@
-/**
- * GitHub issue text for a layout report (issue #134). Never includes the reporter, the
- * exam/exercise title or resource file names: the admin pastes it into a public issue.
- */
+/** GitHub issue text for a layout report (issue #134). Never includes the reporter, the exam/exercise title or resource file names: the admin pastes it into a public issue. */
 
 import type { LayoutReportDetail } from "#lib/api/layoutReports";
 

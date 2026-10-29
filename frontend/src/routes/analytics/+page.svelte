@@ -111,8 +111,7 @@
 
     const allExamExercises = await db.examExercises.toArray();
     const allSubmissions = await submissionRepository.getAll(key, exams);
-    // Through the repository, so server mode sees its own rows rather than an
-    // empty local cache that lockSession() wiped.
+    // Through the repository, so server mode sees its own rows rather than an empty local cache that lockSession() wiped.
     const allScores = await scoreRepository.getAll(
       exams.map((e) => e.id),
       key,
@@ -146,8 +145,7 @@
       }
     }
 
-    // Only include scores from graded submissions to avoid stale/orphaned scores
-    // from ungraded submissions polluting the analytics
+    // Only include scores from graded submissions to avoid stale/orphaned scores from ungraded submissions polluting the analytics
     const gradedSubmissionIds = new Set(gradedSubmissions.map((s) => s.id));
 
     // Group scores by exercise ID (only from graded submissions)

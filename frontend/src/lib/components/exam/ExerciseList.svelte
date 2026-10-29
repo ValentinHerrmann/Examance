@@ -66,9 +66,7 @@
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
     return group.memberIds
-      // `exercises` first: it is the authoritative per-exam copy, and
-      // `libraryExercises` may still be loading (or hold a different variant of
-      // the same id). Same precedence as resolveMcExercises().
+      // `exercises` first: it is the authoritative per-exam copy, and `libraryExercises` may still be loading (or hold a different variant of the same id). Same precedence as resolveMcExercises().
       .map((id) => exercises.find((e) => e.id === id) || libraryExercises.find((e) => e.id === id))
       .filter((e): e is ExerciseRecord => Boolean(e));
   }
@@ -80,8 +78,7 @@
     );
   }
 
-  // Rows are subgrids of one list grid, so number, points and controls line up across all rows. On
-  // phones the controls drop to their own line (3 tracks); from `sm` they take the fourth track.
+  // Rows are subgrids of one list grid, so number, points and controls line up across all rows. On phones the controls drop to their own line (3 tracks); from `sm` they take the fourth track.
   const listClass = "grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-2 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto]";
   const rowClass = "col-span-3 grid grid-cols-subgrid items-center gap-y-1 rounded-md border border-line bg-surface-inset px-3 py-2 sm:col-span-4";
   const numberClass = "text-right font-semibold text-muted tabular-nums";

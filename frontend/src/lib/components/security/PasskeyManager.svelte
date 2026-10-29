@@ -1,7 +1,6 @@
 <script lang="ts">
   import FactorCard from "./FactorCard.svelte";
-  // Register and remove passkeys. A passkey without PRF signs in but cannot unlock data; "opens data"
-  // is read from the stored wraps, never from the registration-time `supports_prf` guess.
+  // Register and remove passkeys. A passkey without PRF signs in but cannot unlock data; "opens data" is read from the stored wraps, never from the registration-time `supports_prf` guess.
   import { untrack } from "svelte";
   import { Button, Field, TextInput } from "#lib/components/ui";
   import { t } from "#lib/i18n";
@@ -109,8 +108,7 @@
 
       const vault = vaultFromSession();
       if (vault) {
-        // Wrap the data key under the PRF secret. Providers that evaluate PRF at creation need no second
-        // prompt (issue #71); the others get one, pinned to the new credential so no other passkey seals it.
+        // Wrap the data key under the PRF secret. Providers that evaluate PRF at creation need no second prompt (issue #71); the others get one, pinned to the new credential so no other passkey seals it.
         try {
           const prfOutput =
             result.prfOutput ??
@@ -145,8 +143,7 @@
       await deletePasskey(credentialIdB64);
       onChanged();
     } catch (err: unknown) {
-      // The server names the rule it hit (below two factors vs. last means of decrypting data);
-      // they need different fixes, so pass the reason through.
+      // The server names the rule it hit (below two factors vs. last means of decrypting data); they need different fixes, so pass the reason through.
       errorMsg =
         err instanceof ApiError && err.code === "ERR_LAST_FACTOR_PROTECTED"
           ? err.message

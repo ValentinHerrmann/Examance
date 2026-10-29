@@ -37,8 +37,7 @@ export async function renderScanPage(
   scale: number
 ): Promise<HTMLCanvasElement> {
   const pdfjsLib = await loadPdfjs();
-    // pdf.js transfers the ArrayBuffer to its worker (detaching it); callers reuse `pdfBytes`,
-    // so pass a copy or the second call throws "ArrayBuffer is detached".
+    // pdf.js transfers the ArrayBuffer to its worker (detaching it); callers reuse `pdfBytes`, so pass a copy or the second call throws "ArrayBuffer is detached".
   const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice() });
   const pdfDoc = await loadingTask.promise;
   try {
@@ -57,10 +56,7 @@ export async function renderScanPage(
   }
 }
 
-/**
- * Renders a cropped high-DPI image of an MC bubble region, with and without the overlay (same
- * page render), so a viewer can toggle markings. Returns PNG data URLs.
- */
+/** Renders a cropped high-DPI image of an MC bubble region, with and without the overlay (same page render), so a viewer can toggle markings. Returns PNG data URLs. */
 export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers> {
   const {
     pdfBytes,
@@ -174,8 +170,7 @@ export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers
 
     cropCtx.drawImage(source, pxMinX, pxMinY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
-    // Dim what lies outside the exercise's own band, so leftover neighbour content
-    // reads as "not this one".
+    // Dim what lies outside the exercise's own band, so leftover neighbour content reads as "not this one".
     cropCtx.fillStyle = 'rgba(255, 255, 255, 0.55)';
     const pxBandTop = Math.round(ownBandTop * canvas.height);
     const topOverlayHeight = Math.max(0, Math.min(cropHeight, pxBandTop - pxMinY));

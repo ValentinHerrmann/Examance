@@ -18,10 +18,7 @@
     type LogoMime,
   } from "#lib/latex/logo";
 
-  /**
-   * An exam's logo choice (issue #46): the account logo, no logo, or the exam's own. Nothing is
-   * written here; the choice is staged in `change` and the exam page applies it on save.
-   */
+  /** An exam's logo choice (issue #46): the account logo, no logo, or the exam's own. Nothing is written here; the choice is staged in `change` and the exam page applies it on save. */
   interface Props {
     examId: string;
     /** Null while the choice equals what the exam already has. */

@@ -8,21 +8,14 @@ import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
 import { offlineQueue } from '#lib/services/offlineQueue';
 import { isServerBacked } from '#lib/utils/serverBacked';
 
-/**
- * The exam list as the dashboard shows it. In server-backed modes the server is authoritative: fetched and mirrored into
- * IndexedDB (for offline export), local leftovers it no longer knows are purged (except exams in the offline queue). A failed
- * fetch returns the local copy with `failed: true`, else a rejected request would read as "all my data is gone".
- */
+/** The exam list as the dashboard shows it. In server-backed modes the server is authoritative: fetched and mirrored into IndexedDB (for offline export), local leftovers it no longer knows are purged (except exams in the offline queue). A failed fetch returns the local copy with `failed: true`, else a rejected request would read as "all my data is gone". */
 export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: ExamRecord[]; failed: boolean }> {
-  // IndexedDB itself: examRepository.getAll() answers with the server list, which made the purge
-  // and the pending-exam merge below compare the server with itself.
+  // IndexedDB itself: examRepository.getAll() answers with the server list, which made the purge and the pending-exam merge below compare the server with itself.
   const localExams = await Promise.all((await db.exams.toArray()).map((e) => decryptExam(e, key)));
 
     if (isServerBacked()) {
       try {
-        // Silent: the catch below falls back to what is in IndexedDB and the
-        // banner reports the failure in place. The global modal on top of that
-        // is the same error told twice.
+        // Silent: the catch below falls back to what is in IndexedDB and the banner reports the failure in place. The global modal on top of that is the same error told twice.
         const remoteExamsRaw = (await api.get('/exams', { silentError: true })) as any[];
         const remoteExams: ExamRecord[] = remoteExamsRaw.map(mapApiToExamRecord);
 
@@ -53,9 +46,7 @@ export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: E
         await db.exams.bulkPut(encryptedExams);
 
 
-        // Also sync remote exercises, junction records and MC groups to IndexedDB
-        // for offline export — nothing else writes these tables in all-server
-        // mode, so without this a .bgproj export ships them empty.
+        // Also sync remote exercises, junction records and MC groups to IndexedDB for offline export — nothing else writes these tables in all-server mode, so without this a .bgproj export ships them empty.
         const remoteExercises: ExerciseRecord[] = [];
         const junctionRecords: any[] = [];
         const mcGroupRecords: any[] = [];
@@ -80,9 +71,7 @@ export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: E
                 examId: e.id,
                 exerciseId: ex.id,
                 orderIndex,
-                                // MC membership MUST be carried over: junctions are written with bulkPut on the
-                                // [examId+exerciseId] key, so one rebuilt without mcGroupId/subIndex overwrites the stored
-                                // one, erasing MC group membership (empty group, members shown as standalone exercises).
+                                // MC membership MUST be carried over: junctions are written with bulkPut on the [examId+exerciseId] key, so one rebuilt without mcGroupId/subIndex overwrites the stored one, erasing MC group membership (empty group, members shown as standalone exercises).
                 mcGroupId: ex.mc_group_id ?? ex.mcGroupId ?? undefined,
                 subIndex: ex.sub_index ?? ex.subIndex ?? undefined,
               });
@@ -93,9 +82,7 @@ export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: E
           const encExercises = await Promise.all(remoteExercises.map((ex) => encryptExercise(ex, key)));
           await db.exercises.bulkPut(encExercises);
         }
-        // Prune before writing: the server is authoritative for these tables in
-        // server-backed modes, so a link or group it no longer knows about must
-        // not survive locally and resurface as a phantom exercise/group.
+        // Prune before writing: the server is authoritative for these tables in server-backed modes, so a link or group it no longer knows about must not survive locally and resurface as a phantom exercise/group.
         const syncedExamIds = remoteExamsRaw.map((e: any) => e.id).filter(Boolean);
         for (const syncedExamId of syncedExamIds) {
           const keptExerciseIds = new Set(
@@ -126,8 +113,7 @@ export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: E
         return { exams, failed: false };
       } catch (apiErr) {
         console.warn('Failed to fetch remote exams, falling back to IDB:', apiErr);
-                // Local copy plus the `failed` flag: all-server caches nothing, so without the banner a rejected
-                // request is indistinguishable from an empty account (a session problem read as "all my data is gone").
+                // Local copy plus the `failed` flag: all-server caches nothing, so without the banner a rejected request is indistinguishable from an empty account (a session problem read as "all my data is gone").
         return { exams: localExams, failed: true };
       }
     }

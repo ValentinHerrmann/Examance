@@ -1,5 +1,4 @@
-// German catalog — the source of truth. Adding a key here makes every other
-// catalog fail to type-check until it is translated too.
+// German catalog — the source of truth. Adding a key here makes every other catalog fail to type-check until it is translated too.
 import { common } from './common';
 import { nav } from './nav';
 import { statusBar } from './statusBar';

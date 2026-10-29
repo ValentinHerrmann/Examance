@@ -11,8 +11,7 @@
 
   let { onClearRequested }: Props = $props();
 
-  /* Finger-sized (48px) glyph-over-label tool button. `!` beats the Button
-   * size recipe's own padding/gap. */
+  /* Finger-sized (48px) glyph-over-label tool button. `!` beats the Button size recipe's own padding/gap. */
   const toolBtn = "h-12 min-h-12 w-12 shrink-0 flex-col gap-0! px-1! py-1!";
 
   function selectTool(tool: ToolType) {

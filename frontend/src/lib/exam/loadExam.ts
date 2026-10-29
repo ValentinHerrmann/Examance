@@ -1,7 +1,4 @@
-/**
- * Data loading of the exam page: the exam with its exercises and MC groups (server first, Dexie as
- * fallback), the library and the submissions. Results follow the account's mode via the repositories.
- */
+/** Data loading of the exam page: the exam with its exercises and MC groups (server first, Dexie as fallback), the library and the submissions. Results follow the account's mode via the repositories. */
 import { browser } from "$app/env";
 import { api } from "#lib/api/client";
 import { db } from "#lib/db/db";
@@ -49,9 +46,7 @@ export async function loadExamData(id: string, ctx: ExamLoadContext, target: Exa
       target.exam = mapApiToExamRecord(remoteExam);
       const remoteExercises: ExerciseRecord[] = remoteExam.exercises.map(mapApiToExerciseRecord);
       target.exercises = remoteExercises;
-      // Only a response that actually carries `mc_groups` may rewrite
-      // local grouping — otherwise this would replace every junction's
-      // mcGroupId with undefined and dissolve the groups.
+      // Only a response that actually carries `mc_groups` may rewrite local grouping — otherwise this would replace every junction's mcGroupId with undefined and dissolve the groups.
       const groupsAreAuthoritative = Array.isArray(remoteExam.mc_groups);
 
       if (groupsAreAuthoritative) {
@@ -77,8 +72,7 @@ export async function loadExamData(id: string, ctx: ExamLoadContext, target: Exa
       }
       if (remoteExercises.length > 0) {
         const encExs = await Promise.all(remoteExercises.map((ex: any) => encryptExercise(ex, key)));
-        // When the response said nothing about groups, membership comes from
-        // the rows we already hold rather than from the response's silence.
+        // When the response said nothing about groups, membership comes from the rows we already hold rather than from the response's silence.
         const storedLinks = groupsAreAuthoritative
           ? new Map<string, ExamExerciseRecord>()
           : new Map(
@@ -99,8 +93,7 @@ export async function loadExamData(id: string, ctx: ExamLoadContext, target: Exa
         if (isStale()) return false;
         await db.transaction("rw", [db.exercises, db.examExercises], async () => {
           await db.exercises.bulkPut(encExs);
-          // Replace, don't merge: a link the server dropped must not survive
-          // locally and reappear as a phantom exercise on the next open.
+          // Replace, don't merge: a link the server dropped must not survive locally and reappear as a phantom exercise on the next open.
           await db.examExercises.where("examId").equals(id).delete();
           await db.examExercises.bulkPut(junctions);
         });

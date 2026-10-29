@@ -119,8 +119,7 @@
 
   let correctAnswers = $derived(exercise.correctAnswers ?? []);
   let questionType = $derived((exercise.questionType as McQuestionType) || "mc");
-  // Each box carries its own reading (reasons, provisional verdict); a box/option mismatch is shown
-  // as such and not scored here, never mapped onto other options.
+  // Each box carries its own reading (reasons, provisional verdict); a box/option mismatch is shown as such and not scored here, never mapped onto other options.
   let boxOptions = $derived(matchBoxesToOptions(exercise, omrMeta?.detections));
   let options = $derived(boxOptions.options);
   let mismatch = $derived(boxOptions.mismatch);
@@ -132,14 +131,12 @@
     return computeMcScore(questionType, selection, correctAnswers, exercise.penalty ?? 0, exercise.maxPoints);
   }
 
-  // The stored score is shown and confirmed as is (it may be hand-typed in a grading grid); only a
-  // toggle here recomputes it. A differing answer-key score is offered, never applied silently.
+  // The stored score is shown and confirmed as is (it may be hand-typed in a grading grid); only a toggle here recomputes it. A differing answer-key score is offered, never applied silently.
   let score: number = $derived(scoreRecord?.score ?? scoreFor(scoreRecord?.selectedOptions ?? []));
   let keyScore = $derived(mismatch ? null : scoreFor(selectedOptions));
   let keyScoreDiffers = $derived(keyScore !== null && Math.abs(keyScore - score) > 1e-9);
 
-  // Redraws when bubble positions/states, submission or exercise change; the ids avoid
-  // template-key collisions across submissions.
+  // Redraws when bubble positions/states, submission or exercise change; the ids avoid template-key collisions across submissions.
   let cropKey = $derived(
     scanPdfBytes && omrMeta?.detections && submissionId && exercise?.id
       ? `${submissionId}:${exercise.id}:${omrMeta.detections.pageIndex}:${neighbourRects.map((r) => r.join(",")).join(";")}:${omrMeta.detections.bubbles
@@ -290,8 +287,7 @@
       originalOptions!.every((o) => selectedOptions.includes(o))
   );
 
-  // Mirrors computeMcVerificationStats' own isReviewed/isCorrected semantics
-  // exactly, so this badge can never drift from the calibration stats.
+  // Mirrors computeMcVerificationStats' own isReviewed/isCorrected semantics exactly, so this badge can never drift from the calibration stats.
   type ReviewStatus = "unreviewed" | "confirmedUnchanged" | "manuallyCorrected";
   let reviewStatus = $derived.by((): ReviewStatus => {
     const reviewed = isMcReviewed(omrMeta);
@@ -299,9 +295,7 @@
     return hasOriginal && !isMatchesOriginal ? "manuallyCorrected" : "confirmedUnchanged";
   });
 
-  // Guards the two advance paths (Next button, → key) so an accidental
-  // keypress can't silently accept an untouched detection — the teacher must
-  // either review the item or explicitly confirm they want to skip it.
+  // Guards the two advance paths (Next button, → key) so an accidental keypress can't silently accept an untouched detection — the teacher must either review the item or explicitly confirm they want to skip it.
   let pendingAdvance: (() => void) | null = $state(null);
 
   function requestAdvance(action: () => void) {

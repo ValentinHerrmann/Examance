@@ -1,8 +1,4 @@
-/**
- * Context shared by the AI-chat prompts (compile errors, exercise writing; issue #168): English Markdown for a model
- * that knows nothing about Examance. Each fact lives in one place: the frame in `documentSetup`, what a command does
- * in TEMPLATE_COMMANDS (keep in sync with the .sty files); the prompts only add their own requirements.
- */
+/** Context shared by the AI-chat prompts (compile errors, exercise writing; issue #168): English Markdown for a model that knows nothing about Examance. Each fact lives in one place: the frame in `documentSetup`, what a command does in TEMPLATE_COMMANDS (keep in sync with the .sty files); the prompts only add their own requirements. */
 
 export const BACKSLASH = String.fromCodePoint(92);
 export const LANGUAGES: Record<string, string> = { de: 'German', en: 'English' };

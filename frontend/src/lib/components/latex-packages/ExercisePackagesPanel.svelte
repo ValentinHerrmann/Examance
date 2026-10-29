@@ -16,11 +16,7 @@
   import PackageAddForm from "./PackageAddForm.svelte";
   import PackageNotes from "./PackageNotes.svelte";
 
-  /**
-   * The packages an exercise loads (issue #108). They stay `\usepackage` lines in its LaTeX, so they travel with
-   * sharing, versions and exports; this panel only reads and rewrites those lines. Commands mixed into other code are
-   * listed read-only.
-   */
+  /** The packages an exercise loads (issue #108). They stay `\usepackage` lines in its LaTeX, so they travel with sharing, versions and exports; this panel only reads and rewrites those lines. Commands mixed into other code are listed read-only. */
   interface Props {
     latex: string;
     name: string;

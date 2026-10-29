@@ -1,8 +1,4 @@
-/**
- * IDB hygiene: best-effort clear-on-close plus session timeout. SECURITY: a courtesy, NOT a guarantee (the unload
- * wipe does not reliably fire on crashes, kills, mobile tab discards). If it fails the data stays safe: a new session
- * cannot derive the key without the password and sensitive fields are encrypted before every write (the PRIMARY protection).
- */
+/** IDB hygiene: best-effort clear-on-close plus session timeout. SECURITY: a courtesy, NOT a guarantee (the unload wipe does not reliably fire on crashes, kills, mobile tab discards). If it fails the data stays safe: a new session cannot derive the key without the password and sensitive fields are encrypted before every write (the PRIMARY protection). */
 
 import { clearAllTables, db } from './db';
 import { isUnlocked, sessionStore } from '#lib/stores/session';
@@ -32,10 +28,7 @@ export async function wipeDatabase({ keepAuditLog = false } = {}): Promise<boole
   }
 }
 
-/**
- * The one sign-out: keys first, so no later failure can leave the tab unlocked, then caches, the server
- * session and (all-server) the local cache, then /unlock. The audit log stays: it is sealed and per owner.
- */
+/** The one sign-out: keys first, so no later failure can leave the tab unlocked, then caches, the server session and (all-server) the local cache, then /unlock. The audit log stays: it is sealed and per owner. */
 export async function lockSession(): Promise<void> {
   const allServer = get(storagePolicyStore).storageMode === 'all-server';
   timeUntilLock.set(null);

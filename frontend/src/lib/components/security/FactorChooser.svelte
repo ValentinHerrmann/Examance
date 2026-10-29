@@ -64,8 +64,7 @@
     errorMsg = "";
   }
 
-  // With exactly two factors enrolled there is only ever one left to present,
-  // and a menu of one is worse than no menu.
+  // With exactly two factors enrolled there is only ever one left to present, and a menu of one is worse than no menu.
   $effect.pre(() => {
     const factors = available;
     const current = chosen;

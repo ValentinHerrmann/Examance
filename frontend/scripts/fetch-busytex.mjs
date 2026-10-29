@@ -1,6 +1,4 @@
-// Downloads the BusyTeX assets into <dest>/busytex, streaming into the system `tar` and exiting at once (upstream's
-// script lingers ~15 s). Sources in order: R2 mirror (BUSYTEX_MIRROR_URL), GitHub release, upstream script; a stale
-// mirror costs speed, never the build. Fetches the raw archive; build.mjs tries the processed copy first.
+// Downloads the BusyTeX assets into <dest>/busytex, streaming into the system `tar` and exiting at once (upstream's script lingers ~15 s). Sources in order: R2 mirror (BUSYTEX_MIRROR_URL), GitHub release, upstream script; a stale mirror costs speed, never the build. Fetches the raw archive; build.mjs tries the processed copy first.
 import fs from 'node:fs';
 import path from 'node:path';
 import { RAW_ARCHIVE, UPSTREAM_URL, mirrorUrl, run, streamExtract, version } from './busytex-mirror.mjs';

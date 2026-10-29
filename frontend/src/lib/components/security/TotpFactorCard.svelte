@@ -53,9 +53,7 @@
       await disableTotp();
       onChanged();
     } catch (err: unknown) {
-      // The server refuses when this is the last factor keeping the account
-      // usable, and says which rule it hit. That reason is more useful than
-      // anything this component could word for itself.
+      // The server refuses when this is the last factor keeping the account usable, and says which rule it hit. That reason is more useful than anything this component could word for itself.
       errorMsg =
         err instanceof ApiError && err.code === "ERR_LAST_FACTOR_PROTECTED"
           ? err.message

@@ -67,8 +67,7 @@
     exerciseRepository.getByExamId(examId, get(sessionStore).sessionKey)
   );
 
-  // Badge on the mobile filter button, so an active filter is visible without
-  // opening the drawer.
+  // Badge on the mobile filter button, so an active filter is visible without opening the drawer.
   let activeFilterCount = $derived(countActiveFilters(searchQuery, selectedGradeFilter, selectedSubjectFilter, selectedTestartFilter, selectedTopicFilter));
 
   let fileInput: HTMLInputElement | undefined = $state();
@@ -76,8 +75,7 @@
   /** The header logo each expanded exam prints, loaded with its exercises. */
   const logoMap = createLazyMap<ExamLogoPreview>(loadExamLogoPreview);
 
-  // Which exam rows are expanded (the list is collapsibles, like the exercise
-  // library).
+  // Which exam rows are expanded (the list is collapsibles, like the exercise library).
   const expandedExams = createExpandSet((examId) => {
     exerciseMap.ensure(examId);
     logoMap.ensure(examId);
@@ -119,8 +117,7 @@
 
   onMount(async () => {
     try {
-      // Must run before the check below, or it can run against a session the
-      // layout hasn't restored yet, bouncing a reload to /unlock.
+      // Must run before the check below, or it can run against a session the layout hasn't restored yet, bouncing a reload to /unlock.
       await awaitSessionReady();
       if (!$isUnlocked) {
         goto("/unlock");
@@ -157,8 +154,7 @@
     examsLoadFailed = failed;
 
     try {
-      // `exams` is already loaded above; passing it stops this from fetching
-      // /exams a second time on every dashboard render.
+      // `exams` is already loaded above; passing it stops this from fetching /exams a second time on every dashboard render.
       const allSubmissions = await submissionRepository.getAll(key, exams);
       examStatsMap = computeExamStats(allSubmissions);
       statsLoadFailed = false;

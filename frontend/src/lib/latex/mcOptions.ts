@@ -1,7 +1,4 @@
-/**
- * Parse/build helpers for one MC question's options, matching the \LoesungMulti[N]{ \multi{wrong}
- * \Lmulti{correct} ... } macros in backend/latex-assets/sty/Loesung.sty.
- */
+/** Parse/build helpers for one MC question's options, matching the \LoesungMulti[N]{ \multi{wrong} \Lmulti{correct} ... } macros in backend/latex-assets/sty/Loesung.sty. */
 
 import { escapeLatex, unescapeLatex } from "./scoreParser";
 
@@ -26,10 +23,7 @@ export interface McOptionsParseResult {
   options: McOption[];
   /** LaTeX after the block (e.g. an explanation), kept when the body is rebuilt. */
   trailingText: string;
-  /**
-   * Explicit column count, or `null` for "auto" (one column per option, capped
-   * at MC_MAX_COLUMNS). Stored only in the LaTeX body as \LoesungMulti[N].
-   */
+  /** Explicit column count, or `null` for "auto" (one column per option, capped at MC_MAX_COLUMNS). Stored only in the LaTeX body as \LoesungMulti[N]. */
   columns: number | null;
   /** A `\LoesungMulti{` whose group never closes, e.g. while it is being typed. */
   malformed: boolean;
@@ -54,10 +48,7 @@ function scanOptions(tex: string): Required<McOption>[] {
   });
 }
 
-/**
- * `\multi` takes no argument: its item text runs to the next option (already cut off), an
- * unmatched `\end{` or the enclosing group's end. A leading `{…}` is only a TeX group.
- */
+/** `\multi` takes no argument: its item text runs to the next option (already cut off), an unmatched `\end{` or the enclosing group's end. A leading `{…}` is only a TeX group. */
 function optionText(rest: string): string {
   let depth = 0;
   let envs = 0;
@@ -95,23 +86,15 @@ function sourceText(raw: string): string {
   return unescapeLatex(unwrapLeadingGroup(raw));
 }
 
-/**
- * The options a body prints, one per answer box, wherever they stand: `\OmrExercise` numbers every
- * `\multi`/`\Lmulti` of the body, so this is what the OMR template's `optionIndex` refers to.
- */
+/** The options a body prints, one per answer box, wherever they stand: `\OmrExercise` numbers every `\multi`/`\Lmulti` of the body, so this is what the OMR template's `optionIndex` refers to. */
 export function printedMcOptions(latexBody: string | undefined | null): McOption[] {
   return scanOptions(latexBody ?? "").map(({ text, correct }) => ({ text, correct }));
 }
 
-/**
- * Splits a MC exercise's latex body into the question (LaTeX, as written) and structured options
- * (texts unescaped, sources kept), the inverse of buildMcOptionsLatex. Returns an empty options
- * array if no \LoesungMulti block is found (e.g. a brand-new exercise).
- */
+/** Splits a MC exercise's latex body into the question (LaTeX, as written) and structured options (texts unescaped, sources kept), the inverse of buildMcOptionsLatex. Returns an empty options array if no \LoesungMulti block is found (e.g. a brand-new exercise). */
 export function parseMcOptions(latexBody: string | undefined | null): McOptionsParseResult {
   const body = latexBody || "";
-  // Comments are blanked, not removed, so offsets in `masked` match `body`.
-  // A block that starts but never closes (mid-edit) is `malformed`: callers must not rebuild from it.
+  // Comments are blanked, not removed, so offsets in `masked` match `body`. A block that starts but never closes (mid-edit) is `malformed`: callers must not rebuild from it.
   const masked = body.replaceAll(COMMENT_RE, (m: string, pre: string, slashes: string) =>
     pre + slashes + " ".repeat(m.length - pre.length - slashes.length));
   const match = LOESUNG_MULTI_START_RE.exec(masked);
@@ -150,20 +133,13 @@ function autoColumns(optionCount: number): number {
   return clampColumns(optionCount);
 }
 
-/**
- * An option's argument: its parsed source while the text is unchanged, else the escaped text. A
- * source that is one group (`{a}`) is unwrapped; any other keeps its leading group's scope.
- */
+/** An option's argument: its parsed source while the text is unchanged, else the escaped text. A source that is one group (`{a}`) is unwrapped; any other keeps its leading group's scope. */
 function optionLatex(o: McOption): string {
   if (o.source === undefined || sourceText(o.source) !== o.text) return escapeLatex(o.text);
   return leadingGroupEnd(o.source) === o.source.length - 1 ? o.source.slice(1, -1) : o.source;
 }
 
-/**
- * Builds an MC exercise's latex body. The question is LaTeX (edited in a LaTeX editor) and written
- * as is: escaping it again on every rebuild corrupted it. Option texts are plain input, escaped so
- * a stray %/#/_/&/{/} cannot break the \LoesungMulti block the OMR template capture relies on.
- */
+/** Builds an MC exercise's latex body. The question is LaTeX (edited in a LaTeX editor) and written as is: escaping it again on every rebuild corrupted it. Option texts are plain input, escaped so a stray %/#/_/&/{/} cannot break the \LoesungMulti block the OMR template capture relies on. */
 export function buildMcOptionsLatex(
   questionText: string,
   options: McOption[],

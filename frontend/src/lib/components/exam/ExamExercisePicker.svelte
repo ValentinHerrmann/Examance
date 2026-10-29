@@ -19,10 +19,7 @@
   import { ConfirmDialog } from "#lib/components/ui";
   import ExamLibraryModal from "#lib/components/exam/ExamLibraryModal.svelte";
 
-  /**
-   * Adds library exercises and MC groups to the exam. The MC tab is part of the same dialog, so group editing
-   * shares its open/close lifecycle and selection with the library picking and lives here too.
-   */
+  /** Adds library exercises and MC groups to the exam. The MC tab is part of the same dialog, so group editing shares its open/close lifecycle and selection with the library picking and lives here too. */
   interface Props {
     /** The exam's linked exercises, including MC group members. */
     exercises: ExerciseRecord[];
@@ -99,8 +96,7 @@
       } else {
         libraryExercises = await loadExercisesEncrypted(key);
       }
-      // The library selection holds standalone exercises only; group members are
-      // managed through their group (MC tab), never ticked as standalone too.
+      // The library selection holds standalone exercises only; group members are managed through their group (MC tab), never ticked as standalone too.
       const groupedIds = new Set(mcGroups.flatMap((g) => g.memberIds));
       selectedLibraryIds = exercises.filter((e) => !groupedIds.has(e.id)).map((e) => e.id);
       initialSelectedLibraryIds = [...selectedLibraryIds];
@@ -166,8 +162,7 @@
     await onSaveLinks();
   }
 
-  /** Syncs `exercises` with a group change: new members are linked only as group members (an exercise is
-   *  linked once), and members dropped from an edited group leave the exam. */
+  /** Syncs `exercises` with a group change: new members are linked only as group members (an exercise is linked once), and members dropped from an edited group leave the exam. */
   function adoptGroupMembers(memberIds: string[], previousMemberIds: Set<string>) {
     const members = new Set(memberIds);
     const removed = new Set([...previousMemberIds].filter((id) => !members.has(id)));

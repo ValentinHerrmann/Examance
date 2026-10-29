@@ -1,8 +1,4 @@
-/**
- * Stand-in for `argon2-browser` in the node test environment. The switch lets a test put wrap and unwrap in different KDF
- * states on purpose (that mismatch reached production when the mock always threw). The "available" implementation is a
- * cheap deterministic stand-in, not Argon2; it only needs to differ from PBKDF2 for the same inputs.
- */
+/** Stand-in for `argon2-browser` in the node test environment. The switch lets a test put wrap and unwrap in different KDF states on purpose (that mismatch reached production when the mock always threw). The "available" implementation is a cheap deterministic stand-in, not Argon2; it only needs to differ from PBKDF2 for the same inputs. */
 let available = false;
 
 export function setArgon2Available(value: boolean): void {

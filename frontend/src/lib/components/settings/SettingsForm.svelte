@@ -50,11 +50,7 @@
   const optionText = "m-0 mt-1 text-sm text-muted";
   const description = "mt-0 mb-4 text-sm text-muted";
 
-  /**
-   * The radios never select themselves: a mode change runs through the move dialog (and may be
-   * cancelled). Cancelling the native toggle keeps the
-   * checked dot on what is actually in effect; the store moves it once a change is committed.
-   */
+  /** The radios never select themselves: a mode change runs through the move dialog (and may be cancelled). Cancelling the native toggle keeps the checked dot on what is actually in effect; the store moves it once a change is committed. */
   function gated(event: MouseEvent, request: () => void) {
     event.preventDefault();
     request();

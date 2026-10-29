@@ -1,8 +1,4 @@
-/**
- * Reads and edits an exercise's structure from its LaTeX (issues #77-#79): score units, fixed
- * scores, part exercises (`Teilaufgabe`), Anforderungsbereich (`\AFB`) and competencies
- * (`\Kompetenz`). The LaTeX stays the single source of truth; macros live in Schulaufgabe.sty.
- */
+/** Reads and edits an exercise's structure from its LaTeX (issues #77-#79): score units, fixed scores, part exercises (`Teilaufgabe`), Anforderungsbereich (`\AFB`) and competencies (`\Kompetenz`). The LaTeX stays the single source of truth; macros live in Schulaufgabe.sty. */
 
 export const REQUIREMENT_LEVELS = ["I", "II", "III"] as const;
 export type RequirementLevel = (typeof REQUIREMENT_LEVELS)[number];
@@ -294,10 +290,7 @@ function formatNumber(n: number): string {
   return String(Math.round(n * 100) / 100);
 }
 
-/**
- * Sets (or with null removes) a fixed score for the exercise or one part. An existing `[N]`
- * environment option is updated in place (or dropped) so the source never carries two fixed scores.
- */
+/** Sets (or with null removes) a fixed score for the exercise or one part. An existing `[N]` environment option is updated in place (or dropped) so the source never carries two fixed scores. */
 export function setFixedScore(latex: string, score: number | null, partIndex: number | null = null): string {
   const option = environmentOption(latex, partIndex);
   if (!option) {
@@ -321,10 +314,7 @@ export function partSnippet(title: string): string {
   return String.raw`\begin{Teilaufgabe}{${title}}` + "\n\n" + PART_END;
 }
 
-/**
- * Appends a part at the end of the exercise body (before `\end{Aufgabe}` when present). A body
- * without parts keeps its text as the introduction above the first part.
- */
+/** Appends a part at the end of the exercise body (before `\end{Aufgabe}` when present). A body without parts keeps its text as the introduction above the first part. */
 export function appendPart(latex: string, title: string): string {
   const masked = maskComments(latex);
   const endIdx = masked.lastIndexOf(String.raw`\end{Aufgabe}`);

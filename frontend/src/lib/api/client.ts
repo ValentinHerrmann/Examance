@@ -1,8 +1,4 @@
-/**
- * Typed API fetch wrapper. SECURITY: `credentials: 'include'` on every request (httpOnly
- * cookies); the access token is never read or stored in JS. 401 -> silent refresh via
- * POST /api/v1/auth/refresh; refresh failure -> redirect to /unlock.
- */
+/** Typed API fetch wrapper. SECURITY: `credentials: 'include'` on every request (httpOnly cookies); the access token is never read or stored in JS. 401 -> silent refresh via POST /api/v1/auth/refresh; refresh failure -> redirect to /unlock. */
 
 import { get } from 'svelte/store';
 import { sessionStore } from '#lib/stores/session';
@@ -12,9 +8,7 @@ import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { loginLockout } from '#lib/stores/loginLockout';
 import { noteMaintenanceRevision, refreshMaintenance } from '#lib/stores/maintenanceStore';
 
-// Every fetch() is bounded: a stalled connection would otherwise never resolve or reject,
-// leaving isLoading stuck with no error. Binary requests get a longer bound because
-// `/compile/latex` legitimately runs up to COMPILE_TIMEOUT_SECONDS (120s, backend/app/services/latex.py).
+// Every fetch() is bounded: a stalled connection would otherwise never resolve or reject, leaving isLoading stuck with no error. Binary requests get a longer bound because `/compile/latex` legitimately runs up to COMPILE_TIMEOUT_SECONDS (120s, backend/app/services/latex.py).
 const DEFAULT_TIMEOUT_MS = 25_000;
 const BINARY_TIMEOUT_MS = 150_000;
 
@@ -73,13 +67,9 @@ async function parseError(response: Response): Promise<ApiError> {
     } else if (body.message) {
       detailStr = String(body.message);
     }
-    // The backend attaches the code as a response *header*, not in the body
-    // (see the HTTPException(headers={'code': ...}) calls across the routers).
-    // The body is checked first so a future JSON-carried code still wins.
+    // The backend attaches the code as a response *header*, not in the body (see the HTTPException(headers={'code': ...}) calls across the routers). The body is checked first so a future JSON-carried code still wins.
     const code = body.code ?? response.headers.get('code') ?? 'ERR_UNKNOWN';
-    // The backend ships an English `detail` next to a machine-readable `code`.
-    // Prefer a localized message for known codes and keep the server text as
-    // the fallback so unmapped errors stay diagnosable.
+    // The backend ships an English `detail` next to a machine-readable `code`. Prefer a localized message for known codes and keep the server text as the fallback so unmapped errors stay diagnosable.
     return new ApiError(
       response.status,
       code,
@@ -102,17 +92,10 @@ async function parseError(response: Response): Promise<ApiError> {
 let refreshPromise: Promise<void> | null = null;
 let lastRefreshAt = 0;
 
-/**
- * A 401 this soon after a successful refresh means the request raced the rotation, so retry it
- * rather than refresh again: POST /auth/refresh treats a second use of a revoked refresh token
- * as theft and revokes the whole family (logs the user out).
- */
+/** A 401 this soon after a successful refresh means the request raced the rotation, so retry it rather than refresh again: POST /auth/refresh treats a second use of a revoked refresh token as theft and revokes the whole family (logs the user out). */
 const REFRESH_GRACE_MS = 5000;
 
-/**
- * Rotate the refresh cookie once for every concurrent caller in this tab. Tabs share the cookie,
- * so the rotation runs under a cross-tab lock: a waiting tab then sends the new token, not the revoked one.
- */
+/** Rotate the refresh cookie once for every concurrent caller in this tab. Tabs share the cookie, so the rotation runs under a cross-tab lock: a waiting tab then sends the new token, not the revoked one. */
 export function refreshSession(): Promise<void> {
   if (!refreshPromise) {
     const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
@@ -148,9 +131,7 @@ async function refreshToken(): Promise<void> {
 async function handleNonOkResponse(resp: Response, silentError?: boolean): Promise<never> {
   const err = await parseError(resp);
   if (err.status === 429 && err.retryAfterSeconds !== null) {
-    // Keyed on status, not ERR_ACCOUNT_LOCKED, so the IP-based limiter (429 with Retry-After but
-    // no `code` header, surfacing as ERR_UNKNOWN) is covered too. Set even for silent callers:
-    // this is page state, not a dialog.
+    // Keyed on status, not ERR_ACCOUNT_LOCKED, so the IP-based limiter (429 with Retry-After but no `code` header, surfacing as ERR_UNKNOWN) is covered too. Set even for silent callers: this is page state, not a dialog.
     loginLockout.start(err.retryAfterSeconds);
   }
   if (err.code === 'ERR_MAINTENANCE' || err.code === 'ERR_MAINTENANCE_LOGIN_BLOCKED') {
@@ -166,10 +147,7 @@ async function handleNonOkResponse(resp: Response, silentError?: boolean): Promi
   throw err;
 }
 
-/**
- * A factor was accepted, so the server cleared the cooloff; drop ours. Scoped to auth paths:
- * an unrelated success (e.g. a health poll) says nothing about the account's lock state.
- */
+/** A factor was accepted, so the server cleared the cooloff; drop ours. Scoped to auth paths: an unrelated success (e.g. a health poll) says nothing about the account's lock state. */
 function noteAuthSuccess(path: string): void {
   // Registration and account deletion prove nothing about signing in, so they must not lift a lockout.
   if (path.startsWith('/auth/') && !path.startsWith('/auth/register') && !path.startsWith('/auth/account-deletion')) {
@@ -215,8 +193,7 @@ async function request<T>(
       noteMaintenanceRevision(response.headers.get('maintenance-revision'));
       return response;
     } catch {
-      // fetch rejects when no usable response arrived: server unreachable, a response without the
-      // CORS headers, or a timeout (AbortError, indistinguishable from a never-resolving stall).
+      // fetch rejects when no usable response arrived: server unreachable, a response without the CORS headers, or a timeout (AbortError, indistinguishable from a never-resolving stall).
       const netErr = new ApiError(
         0,
         'ERR_NETWORK',
@@ -234,9 +211,7 @@ async function request<T>(
   const resp = await send();
 
   if (resp.status === 403 && resp.headers.get('code') === 'ERR_MFA_ENROLLMENT_REQUIRED') {
-    // The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the
-    // teacher to /unlock to enroll. Must come before the 401 branch (a refresh would rotate a valid token for nothing).
-    // Skipped on /unlock itself, where enrollment runs: locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED.
+    // The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the teacher to /unlock to enroll. Must come before the 401 branch (a refresh would rotate a valid token for nothing). Skipped on /unlock itself, where enrollment runs: locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED.
     const onUnlockPage =
       typeof window !== 'undefined' && window.location.pathname.startsWith('/unlock');
     if (!onUnlockPage) {
@@ -249,8 +224,7 @@ async function request<T>(
   }
 
   if (resp.status === 409 && resp.headers.get('code') === 'ERR_ACCOUNT_MISMATCH') {
-    // Another tab signed in as someone else. Drop only this tab's keys (no broadcast: the other tab
-    // owns the cookie now) and never write into that account.
+    // Another tab signed in as someone else. Drop only this tab's keys (no broadcast: the other tab owns the cookie now) and never write into that account.
     sessionStore.reset();
     if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/unlock')) {
       window.location.assign('/unlock');
@@ -259,8 +233,7 @@ async function request<T>(
   }
 
   if (resp.status === 401 && !path.startsWith('/auth/')) {
-    // Deduplicate concurrent refreshes. A request that 401'd by racing a just-finished refresh
-    // retries directly; a second rotation would trip token-theft detection and revoke every session.
+    // Deduplicate concurrent refreshes. A request that 401'd by racing a just-finished refresh retries directly; a second rotation would trip token-theft detection and revoke every session.
     if (!refreshPromise && Date.now() - lastRefreshAt >= REFRESH_GRACE_MS) {
       void refreshSession().catch(() => {});
     }

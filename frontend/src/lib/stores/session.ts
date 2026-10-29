@@ -1,8 +1,4 @@
-/**
- * Session store: in-memory key state, persisted per tab via sessionStorage and synced across tabs via BroadcastChannel.
- * SECURITY: no accessToken field; auth tokens live in httpOnly cookies, never read or stored by JS. masterKey (HKDF) and
- * sessionKey (AES-GCM) are wiped on manual lock, 60-minute inactivity (hygiene.ts), tab close or browser quit.
- */
+/** Session store: in-memory key state, persisted per tab via sessionStorage and synced across tabs via BroadcastChannel. SECURITY: no accessToken field; auth tokens live in httpOnly cookies, never read or stored by JS. masterKey (HKDF) and sessionKey (AES-GCM) are wiped on manual lock, 60-minute inactivity (hygiene.ts), tab close or browser quit. */
 
 import { writable, derived, get } from 'svelte/store';
 import { uint8ArrayToBase64, base64ToUint8Array, toArrayBuffer } from '#lib/crypto/aesGcm';
@@ -55,16 +51,11 @@ const SESSION_STORAGE_KEYS = {
   TEACHER_ID: 'bg_session_teacher_id',
   ROLE: 'bg_session_role',
   MODE: 'bg_session_mode',
-  // Written by lib/services/keyEnvelopeService.ts (rememberKeyId), listed here
-  // so locking wipes it with everything else. Not secret — a random label for
-  // the data-key generation — but it is meaningless once the keys are gone.
+  // Written by lib/services/keyEnvelopeService.ts (rememberKeyId), listed here so locking wipes it with everything else. Not secret — a random label for the data-key generation — but it is meaningless once the keys are gone.
   KEY_ID: 'bg_key_id',
 } as const;
 
-/**
- * localStorage keys of the discontinued local passphrase vault (issue #47). Never read for keys any
- * more; only to recognise a browser that still holds such a vault and to remove them with it.
- */
+/** localStorage keys of the discontinued local passphrase vault (issue #47). Never read for keys any more; only to recognise a browser that still holds such a vault and to remove them with it. */
 const LEGACY_LOCAL_VAULT_KEYS = ['bg_anon_salt', 'bg_anon_nonce', 'bg_anon_pwd'] as const;
 
 /** True when this browser still holds parameters of the discontinued local passphrase vault. */
@@ -378,11 +369,7 @@ export const isAuthenticated = derived(
 // Session readiness gate
 // ---------------------------------------------------------------------------
 
-/**
- * Resolves once the root layout finished restoring the session (keys, other tabs, token refresh). Svelte mounts children
- * before parents, so a route's `onMount` runs earlier: every vault-touching route must await this, then still check
- * `isUnlocked` and redirect to `/unlock`.
- */
+/** Resolves once the root layout finished restoring the session (keys, other tabs, token refresh). Svelte mounts children before parents, so a route's `onMount` runs earlier: every vault-touching route must await this, then still check `isUnlocked` and redirect to `/unlock`. */
 let resolveSessionReady: (() => void) | null = null;
 let sessionReadyPromise: Promise<void> = new Promise<void>((resolve) => {
   resolveSessionReady = resolve;

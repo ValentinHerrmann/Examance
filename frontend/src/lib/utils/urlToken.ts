@@ -1,7 +1,4 @@
-/**
- * Reads a one-shot query parameter and removes it from the address bar and history.
- * Native `history` on purpose: SvelteKit's `replaceState` rejects in `onMount` before the router started.
- */
+/** Reads a one-shot query parameter and removes it from the address bar and history. Native `history` on purpose: SvelteKit's `replaceState` rejects in `onMount` before the router started. */
 export function takeUrlParam(name: string): string {
   const url = new URL(window.location.href);
   const value = url.searchParams.get(name) ?? '';

@@ -62,8 +62,7 @@
 
   let viewerRef: ReturnType<typeof ScanCanvasViewer> | undefined = $state();
 
-  // Below `lg` the score panel is a bottom sheet (a fixed column left the scan ~70px on phones);
-  // collapsed it shows summary + navigation, expanded it takes the screen for score entry.
+  // Below `lg` the score panel is a bottom sheet (a fixed column left the scan ~70px on phones); collapsed it shows summary + navigation, expanded it takes the screen for score entry.
   let isScorePanelExpanded = $state(false);
 
   let activeExercise = $derived(exercises.find((e) => e.id === $gradingStore.activeExerciseId));
@@ -86,9 +85,7 @@
   {calculatedGrade}
 />
 
-<!-- `flex-1 min-h-0` rather than a viewport-height magic number: the grade
-     page root is a flex column that fills the space above the footer, and the
-     old value broke as soon as the header wrapped to a second line. -->
+<!-- `flex-1 min-h-0` rather than a viewport-height magic number: the grade page root is a flex column that fills the space above the footer, and the old value broke as soon as the header wrapped to a second line. -->
 <div
   class="box-border grid min-h-0 w-full flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden p-2
     lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-1"

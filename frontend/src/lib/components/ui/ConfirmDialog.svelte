@@ -3,10 +3,7 @@
   import Modal from "./Modal.svelte";
   import Button from "./Button.svelte";
 
-  /**
-   * Confirm/cancel prompt. Destructive confirms use `severity="danger"`. `busy` = the action runs (spinner,
-   * nothing dismissable); `error` = it failed, shown inline while the dialog stays open.
-   */
+  /** Confirm/cancel prompt. Destructive confirms use `severity="danger"`. `busy` = the action runs (spinner, nothing dismissable); `error` = it failed, shown inline while the dialog stays open. */
   interface Props {
     open?: boolean;
     title: string;

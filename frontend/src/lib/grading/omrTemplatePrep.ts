@@ -135,10 +135,7 @@ async function hashOmrTemplate(mcExercises: ExerciseRecord[], mcGroups: McGroup[
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Identity of an OMR template: the MC answer key plus the whole blank sheet's LaTeX, so editing any exercise,
- * reordering items or a page break marks it stale (bubbles move), not only answer-key edits (issue #135).
- */
+/** Identity of an OMR template: the MC answer key plus the whole blank sheet's LaTeX, so editing any exercise, reordering items or a page break marks it stale (bubbles move), not only answer-key edits (issue #135). */
 export async function computeOmrTemplateHash(ctx: OmrLayoutInput): Promise<string> {
   const mcExercises = resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups);
   return hashOmrTemplate(mcExercises, ctx.mcGroups, await buildOmrBlankTex(ctx));
@@ -261,9 +258,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
 
     for (const b of bubbles) {
       const redoRect = redoRects.get(`${b.exerciseId}|${b.optionIndex}`);
-      // The captured redo link overlaps the box itself (zero-width \makebox + \special in
-      // Loesung.sty); store the zone that is really left of it. The worker applies the same
-      // correction to templates captured before this fix.
+      // The captured redo link overlaps the box itself (zero-width \makebox + \special in Loesung.sty); store the zone that is really left of it. The worker applies the same correction to templates captured before this fix.
       if (redoRect) b.redoRect = effectiveRedoRect(b.rect, redoRect);
     }
 

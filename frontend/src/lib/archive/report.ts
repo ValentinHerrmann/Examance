@@ -1,7 +1,4 @@
-/**
- * What an archive import or export actually did, shown to the user in `ArchiveReportModal` instead
- * of global HTTP error pop-ups. Counts are real outcomes, not archive totals.
- */
+/** What an archive import or export actually did, shown to the user in `ArchiveReportModal` instead of global HTTP error pop-ups. Counts are real outcomes, not archive totals. */
 
 export type ReportKind =
   | 'exams'
@@ -30,11 +27,7 @@ export const REPORT_KINDS: readonly ReportKind[] = [
   'auditLogs',
 ];
 
-/**
- * `included` (export), `created` (archived id), `newId` (archived id was taken), `linked` (existing exercise reused),
- * `alreadyPresent` (identical, nothing written), `keptExisting`/`replaced`/`copied` (conflict decisions), `failed`
- * (refused by the server or unreadable).
- */
+/** `included` (export), `created` (archived id), `newId` (archived id was taken), `linked` (existing exercise reused), `alreadyPresent` (identical, nothing written), `keptExisting`/`replaced`/`copied` (conflict decisions), `failed` (refused by the server or unreadable). */
 export type ReportOutcome =
   | 'included'
   | 'created'
@@ -58,11 +51,7 @@ export const REPORT_OUTCOMES: readonly ReportOutcome[] = [
   'failed',
 ];
 
-/**
- * What an exam refers to that is not there: `exerciseUnavailable` (neither in the archive nor available to the account),
- * `scoresWithoutExercise`, `scanUnreadable` (not decryptable/openable), `examNotImported` (its results had nowhere to
- * go), `logoUnavailable`, `resourceUnavailable` (an exercise file that could not be read, or was empty).
- */
+/** What an exam refers to that is not there: `exerciseUnavailable` (neither in the archive nor available to the account), `scoresWithoutExercise`, `scanUnreadable` (not decryptable/openable), `examNotImported` (its results had nowhere to go), `logoUnavailable`, `resourceUnavailable` (an exercise file that could not be read, or was empty). */
 export type MissingReason =
   | 'exerciseUnavailable'
   | 'scoresWithoutExercise'

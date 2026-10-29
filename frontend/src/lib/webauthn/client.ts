@@ -1,16 +1,8 @@
-/**
- * WebAuthn ceremonies in the browser, two jobs: (1) authentication, a passkey being one of three sign-in factors; (2) key
- * recovery, where a PRF-capable authenticator derives a device-bound secret that wraps a copy of the data key. Without PRF
- * the passkey only signs in, and the UI must say so.
- */
+/** WebAuthn ceremonies in the browser, two jobs: (1) authentication, a passkey being one of three sign-in factors; (2) key recovery, where a PRF-capable authenticator derives a device-bound secret that wraps a copy of the data key. Without PRF the passkey only signs in, and the UI must say so. */
 
 import { fromBase64url, toArrayBuffer, toBase64url } from '#lib/crypto/aesGcm';
 
-/**
- * The PRF input, fixed for the whole app: it must be supplied *before* the ceremony and at sign-in the answering passkey is
- * unknown (`/webauthn/login/options` takes no account identifier on purpose), so no per-credential value is possible. A
- * constant is fine: a PRF salt is a public domain-separation input and the derived secret stays per credential.
- */
+/** The PRF input, fixed for the whole app: it must be supplied *before* the ceremony and at sign-in the answering passkey is unknown (`/webauthn/login/options` takes no account identifier on purpose), so no per-credential value is possible. A constant is fine: a PRF salt is a public domain-separation input and the derived secret stays per credential. */
 export const APP_PRF_SALT: Uint8Array = new TextEncoder().encode(
   'examance-passkey-prf-v1--------',
 );
@@ -39,9 +31,7 @@ export function decodeCreationOptions(json: string): CredentialCreationOptions {
       }),
     ),
   };
-  // Unconditional. Asking at registration is how we learn whether PRF works
-  // here at all, and there is deliberately no call shape left that asks for
-  // nothing — that shape is what made every sign-in silently keyless.
+  // Unconditional. Asking at registration is how we learn whether PRF works here at all, and there is deliberately no call shape left that asks for nothing — that shape is what made every sign-in silently keyless.
   (publicKey as PublicKeyCredentialCreationOptions & { extensions?: unknown }).extensions = {
     prf: { eval: { first: toArrayBuffer(APP_PRF_SALT) } },
   };
@@ -113,8 +103,7 @@ function readPrf(credential: PublicKeyCredential): {
   }
   const first = prf.results?.first;
   return {
-    // `enabled` is what registration reports; a returned result is what an
-    // assertion gives. Either one means the extension works here.
+    // `enabled` is what registration reports; a returned result is what an assertion gives. Either one means the extension works here.
     enabled: prf.enabled === true || first !== undefined,
     output: first ? new Uint8Array(first) : null,
   };
@@ -159,11 +148,7 @@ export interface AssertionResult {
   prfOutput: Uint8Array | null;
 }
 
-/**
- * Run an authentication ceremony, always asking for the PRF secret. `credentialIdB64` pins it to one
- * passkey: wrapping needs *that* credential's PRF secret, and an account-wide prompt could yield a
- * secret from the wrong passkey, sealing a wrap that never opens.
- */
+/** Run an authentication ceremony, always asking for the PRF secret. `credentialIdB64` pins it to one passkey: wrapping needs *that* credential's PRF secret, and an account-wide prompt could yield a secret from the wrong passkey, sealing a wrap that never opens. */
 export async function authenticate(
   options: ServerOptions,
   opts: { credentialIdB64?: string; transports?: AuthenticatorTransport[] } = {},

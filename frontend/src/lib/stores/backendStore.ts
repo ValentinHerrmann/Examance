@@ -56,18 +56,13 @@ export function inferBackendProtocol(raw: string): 'http:' | 'https:' {
     return isLoopbackHost(hostname) ? 'http:' : 'https:';
 }
 
-/**
- * Validate and normalise a backend origin. Protocol is forced regardless of user input (non-local ->
- * HTTPS, loopback -> HTTP); credentials, queries, fragments and non-http schemes are rejected; the path
- * is dropped (the API client appends /api/v1). @throws Error with a user-presentable message.
- */
+/** Validate and normalise a backend origin. Protocol is forced regardless of user input (non-local -> HTTPS, loopback -> HTTP); credentials, queries, fragments and non-http schemes are rejected; the path is dropped (the API client appends /api/v1). @throws Error with a user-presentable message. */
 export function normalizeBackendUrl(raw: string): string {
     if (!raw || !raw.trim()) return '';
 
     const trimmed = raw.trim();
 
-    // Reject non-http(s) schemes like ftp://, javascript:, data:, etc.
-    // Note: a port like localhost:8000 or host.com:8443 has digits after the colon, not a scheme.
+    // Reject non-http(s) schemes like ftp://, javascript:, data:, etc. Note: a port like localhost:8000 or host.com:8443 has digits after the colon, not a scheme.
     const schemeMatch = trimmed.match(/^([a-z][a-z0-9+.-]*):/i);
     if (schemeMatch) {
         const scheme = schemeMatch[1].toLowerCase();

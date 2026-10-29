@@ -1,7 +1,4 @@
-/**
- * Passkey endpoints. A passkey is one of three sign-in factors, never a shortcut past two-of-three:
- * `/webauthn/login/verify` returns the same auth step shape as any other factor.
- */
+/** Passkey endpoints. A passkey is one of three sign-in factors, never a shortcut past two-of-three: `/webauthn/login/verify` returns the same auth step shape as any other factor. */
 
 import { api } from './client';
 import type { AuthStep } from './mfa';
@@ -17,11 +14,7 @@ export interface PasskeySummary {
   nickname: string | null;
   /** False means this passkey signs in but cannot open the encrypted data. */
   supports_prf: boolean;
-    /**
-     * Per-credential PRF input the server generates but nothing reads: the salt must be chosen
-     * before the ceremony, when the answering passkey is unknown, so every ceremony uses
-     * `APP_PRF_SALT`. Kept as a basis for rotating PRF inputs later.
-     */
+    /** Per-credential PRF input the server generates but nothing reads: the salt must be chosen before the ceremony, when the answering passkey is unknown, so every ceremony uses `APP_PRF_SALT`. Kept as a basis for rotating PRF inputs later. */
   prf_salt_b64: string;
   created_at: string;
   last_used_at: string | null;

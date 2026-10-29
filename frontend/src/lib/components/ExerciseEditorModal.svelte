@@ -93,8 +93,7 @@
   let shareConfirmed = $state(false);
   let needsShareConsent = $derived(shareAllowed && editorShared && !initialShared);
 
-  // Fresh staging id for resource files: lets upload/preview work before the exercise exists.
-  // Committed onto the real exercise on save; closing without saving discards the staged set.
+  // Fresh staging id for resource files: lets upload/preview work before the exercise exists. Committed onto the real exercise on save; closing without saving discards the staged set.
   let resourceStagingId = $state("");
   let resourcesCommitted = false;
   // The staging area is filled asynchronously; the panel loads and commit runs only after it.
@@ -105,9 +104,7 @@
   let isPreviewLoading = $state(false);
   let previewPdfUrl: string | null = $state(null);
   let previewSolutionPdfUrl: string | null = $state(null);
-  // Both panes start collapsed: there is nothing to preview until the user
-  // compiles, so reserving half the dialog for an empty placeholder on open
-  // wastes space. Expanding either pane is still one click away.
+  // Both panes start collapsed: there is nothing to preview until the user compiles, so reserving half the dialog for an empty placeholder on open wastes space. Expanding either pane is still one click away.
   let showAngabePreview = $state(false);
   let showLoesungPreview = $state(false);
   let showLatexPanel = $state(true);
@@ -126,8 +123,7 @@
   let previewError = $state("");
   let previewLog = $state<CompileFailure | null>(null);
 
-  // Move the staged files onto the just-written exercise. Upload failures never fail the save:
-  // the exercise is already stored and the files stay staged locally.
+  // Move the staged files onto the just-written exercise. Upload failures never fail the save: the exercise is already stored and the files stay staged locally.
   async function commitStagedResources(exerciseId: string, key: CryptoKey | null) {
     await resourceSeed;
     try {
@@ -208,9 +204,7 @@
     editorShared = !!source?.isShared;
     initialShared = editorShared;
     shareConfirmed = false;
-    // Seed the staging area from whichever exercise is being edited or
-    // versioned; a new version therefore starts with the base version's
-    // figures without ever writing back to it.
+    // Seed the staging area from whichever exercise is being edited or versioned; a new version therefore starts with the base version's figures without ever writing back to it.
     const stagingId = crypto.randomUUID();
     resourceStagingId = stagingId;
     resourcesCommitted = false;
@@ -271,8 +265,7 @@
     editorLatexBody = setCompetencies(setRequirementLevel(body, meta.levels[0] ?? null), meta.competencies);
   }
 
-  // Typing in the composed LaTeX updates the MC editor (also in free-text mode, for a later switch),
-  // so its next change rebuilds from this text.
+  // Typing in the composed LaTeX updates the MC editor (also in free-text mode, for a later switch), so its next change rebuilds from this text.
   function handleLatexBodyEdit(latex: string) {
     syncMcStateFromLatex(latex);
   }
@@ -343,8 +336,7 @@
     isDirty: () => isDirty,
     onClose: () => {
       cleanupPreview();
-      // Staged files belong to the dialog, not to the library: unless they were
-      // committed by a save, they go with it.
+      // Staged files belong to the dialog, not to the library: unless they were committed by a save, they go with it.
       if (!resourcesCommitted && resourceStagingId) {
         void exerciseResourceRepository.deleteForExercise(resourceStagingId);
       }
@@ -381,12 +373,10 @@
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
 
-      // Panes start collapsed (nothing to show); now that a PDF exists, open
-      // the exam pane so the compile result is actually visible.
+      // Panes start collapsed (nothing to show); now that a PDF exists, open the exam pane so the compile result is actually visible.
       showAngabePreview = true;
 
-      // A missing figure does not fail the engine — say so instead of handing
-      // back a PDF with a silent hole in it.
+      // A missing figure does not fail the engine — say so instead of handing back a PDF with a silent hole in it.
       if (res.missingGraphics.length > 0) {
         errorMsg = translate("common.previewMissingGraphic", { name: res.missingGraphics[0] });
       }
@@ -500,8 +490,7 @@
           await saveExerciseEncrypted(savedEx, key);
         }
 
-        // A new version is a new exercise row; the staged set (the base
-        // version's files plus anything added here) becomes its file set.
+        // A new version is a new exercise row; the staged set (the base version's files plus anything added here) becomes its file set.
         await commitStagedResources(savedEx.id, key);
         const sharingError = await applySharing(savedEx.id);
         onSave?.({ exercise: savedEx, isNewVersion: true, sharingError });
@@ -552,8 +541,7 @@
         }
       }
 
-      // saveExerciseEncrypted() already created a new exercise on the server; a second
-      // POST is a 409 (create-only). The PATCH sends explicit nulls so cleared fields stick.
+      // saveExerciseEncrypted() already created a new exercise on the server; a second POST is a 409 (create-only). The PATCH sends explicit nulls so cleared fields stick.
       if ($isAuthenticated && editingExercise) {
         try {
           const payload = {
@@ -584,8 +572,7 @@
     }
   }
 
-  // Below `@3xl` the column takes its natural height inside the body's scroller; from `@3xl` it fills
-  // its half and scrolls on its own.
+  // Below `@3xl` the column takes its natural height inside the body's scroller; from `@3xl` it fills its half and scrolls on its own.
   const editorColumnBase =
     "flex flex-col shrink-0 rounded-md border border-line bg-surface-sunken transition-all duration-200 @3xl:h-full @3xl:min-h-0 @3xl:overflow-hidden";
   let editorColumnClass = $derived(showLatexPanel

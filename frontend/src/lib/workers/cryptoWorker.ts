@@ -1,8 +1,4 @@
-/**
- * Web Worker for off-main-thread AES-256-GCM encryption & decryption of large blobs.
- *
- * Structured Cloning of CryptoKey objects is supported per W3C Web Crypto spec.
- */
+/** Web Worker for off-main-thread AES-256-GCM encryption & decryption of large blobs. Structured Cloning of CryptoKey objects is supported per W3C Web Crypto spec. */
 
 export type CryptoWorkerRequest =
   | { type: 'ENCRYPT'; key: CryptoKey; plaintext: Uint8Array; id: number }

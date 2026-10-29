@@ -114,8 +114,7 @@
 
   let isGradeActive = $derived(isGradeActivePath(page.url.pathname));
 
-  // Admins manage users and the server only (issue #58). Teaching routes stay unmounted until the
-  // session's role is known, so an admin never renders one or calls its (refusing) endpoints.
+  // Admins manage users and the server only (issue #58). Teaching routes stay unmounted until the session's role is known, so an admin never renders one or calls its (refusing) endpoints.
   let isAdmin = $derived($isUnlocked && $sessionStore.role === "admin");
   let roleKnown = $derived(!isInitializing || $workspaceStatusStore.state !== "unchecked");
   // Also while an unlocked tab has not yet proven it owns this browser's workspace (openWorkspace pending).
@@ -141,8 +140,7 @@
       return;
     }
     const target = event.target as HTMLElement | null;
-    // F1 is not a printable character: while the help panel is open (its
-    // search field takes focus on open) it must still close it.
+    // F1 is not a printable character: while the help panel is open (its search field takes focus on open) it must still close it.
     const closesHelp = event.key === "F1" && get(helpStore).open;
     if (
       !closesHelp &&
@@ -166,8 +164,7 @@
     registerCspDiagnostics();
     registerHygieneListeners();
     registerWorkspaceSync();
-    // The manifest in IndexedDB is the source of truth for the mode; this refreshes the
-    // localStorage cache the stores booted from before anything routes a request.
+    // The manifest in IndexedDB is the source of truth for the mode; this refreshes the localStorage cache the stores booted from before anything routes a request.
     try {
       await loadWorkspace();
     } catch (err) {
@@ -189,13 +186,11 @@
 
     if (restored && get(isUnlocked)) {
       const mode = get(sessionStore).mode;
-      // Before routes read: the session must own this browser's workspace, and the account's
-      // storage mode comes from the server (lib/db/workspace.ts). Nothing here changes the mode.
+      // Before routes read: the session must own this browser's workspace, and the account's storage mode comes from the server (lib/db/workspace.ts). Nothing here changes the mode.
       await openWorkspace();
       await refreshLocalResults();
 
-      // Keys are back, so release `awaitSessionReady()` routes before the token refresh below
-      // (that refresh is about the access cookie, not the vault; `client.ts` handles the race).
+      // Keys are back, so release `awaitSessionReady()` routes before the token refresh below (that refresh is about the access cookie, not the vault; `client.ts` handles the race).
       markSessionReady();
 
       if (mode === "hybrid" || mode === "authenticated") {
@@ -215,8 +210,7 @@
       await goto("/unlock");
     }
     isInitializing = false;
-    // Releases every route blocked on `awaitSessionReady()`, whether or not
-    // the session came back unlocked — routes check `isUnlocked` themselves.
+    // Releases every route blocked on `awaitSessionReady()`, whether or not the session came back unlocked — routes check `isUnlocked` themselves.
     markSessionReady();
   });
 
@@ -245,9 +239,7 @@
     }
   }
 
-  // The inline script in app.html applied the theme before the first paint;
-  // from here on the store keeps <html data-theme> in step with the user's
-  // choice and with OS changes while "system" is selected.
+  // The inline script in app.html applied the theme before the first paint; from here on the store keeps <html data-theme> in step with the user's choice and with OS changes while "system" is selected.
   $effect.pre(() => {
     const currentTheme = $theme;
     if (typeof document !== "undefined") {
@@ -255,8 +247,7 @@
     }
   });
 
-  // app.html ships a static <html lang="en">; keep it truthful so screen
-  // readers and browser translation follow the selected language.
+  // app.html ships a static <html lang="en">; keep it truthful so screen readers and browser translation follow the selected language.
   $effect.pre(() => {
     const lang = $locale;
     if (typeof document !== "undefined") {
@@ -264,9 +255,7 @@
     }
   });
 
-  // Re-probe the server's version whenever the address changes or the session
-  // unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the
-  // overlap with the onMount call below is harmless.
+  // Re-probe the server's version whenever the address changes or the session unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the overlap with the onMount call below is harmless.
   $effect.pre(() => {
     const backend = $effectiveBackendStore;
     const unlocked = $isUnlocked;
@@ -284,8 +273,7 @@
     }
   });
 
-  // Admins change an account's switches at any time (issue #53): ask again whenever the tab comes back
-  // into view, at most every 30 s, so a change shows without signing in again.
+  // Admins change an account's switches at any time (issue #53): ask again whenever the tab comes back into view, at most every 30 s, so a change shows without signing in again.
   let lastCapabilitiesCheck = 0;
   function recheckCapabilities() {
     if (document.visibilityState !== "visible" || isInitializing) return;
@@ -354,8 +342,7 @@
   <MaintenanceNotice />
 
   {#if $versionStatus === "incompatible"}
-    <!-- A differing major version means frontend and backend disagree on the
-         API; saving may fail. Not dismissible, and visible without scrolling. -->
+    <!-- A differing major version means frontend and backend disagree on the API; saving may fail. Not dismissible, and visible without scrolling. -->
     <Alert severity="danger" title={$t("statusBar.incompatibleTitle")} class="mx-3 mt-2 sm:mx-4">
       {$t("statusBar.incompatibleBody", { app: frontendVersion, server: $backendVersionStore ?? "?" })}
     </Alert>

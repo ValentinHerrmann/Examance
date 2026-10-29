@@ -78,8 +78,7 @@ describe('applyResolutions', () => {
   });
 
   it('mints one new id for a copy and carries it through every reference', () => {
-    // The old serverImport retried a 409 under a fresh UUID the rest of the
-    // import never learned about, which is how duplicates appeared unlinked.
+    // The old serverImport retried a 409 under a fresh UUID the rest of the import never learned about, which is how duplicates appeared unlinked.
     const decisions: DecisionMap = new Map([
       ['exam-1', { id: 'exam-1', kind: 'exam', choice: 'import-as-copy' }],
     ]);
@@ -103,8 +102,7 @@ describe('applyResolutions', () => {
     const { payload: next } = applyResolutions(payload(), decisions);
 
     expect(next.submissions).toHaveLength(0);
-    // The existing submission keeps its own scores; the archive's would be a
-    // second set for a submission that is not being replaced.
+    // The existing submission keeps its own scores; the archive's would be a second set for a submission that is not being replaced.
     expect(next.exerciseScores).toHaveLength(0);
   });
 

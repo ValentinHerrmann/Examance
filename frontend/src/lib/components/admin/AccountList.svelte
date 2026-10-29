@@ -1,7 +1,5 @@
 <script lang="ts">
-  // Approved accounts with their feature switches (issue #53). Turning `server_results` off for an all-server account
-  // touches no data: it is asked to move its results into the browser the next time it opens. One row per account on
-  // phones, table from `md`; any account but the admin's own can be deleted (own: settings page).
+  // Approved accounts with their feature switches (issue #53). Turning `server_results` off for an all-server account touches no data: it is asked to move its results into the browser the next time it opens. One row per account on phones, table from `md`; any account but the admin's own can be deleted (own: settings page).
   import { faMagnifyingGlass, faTrash } from "@fortawesome/free-solid-svg-icons";
   import type { AccountFeature, AdminUser } from "#lib/api/admin";
   import { t } from "#lib/i18n";

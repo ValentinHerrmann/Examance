@@ -2,11 +2,7 @@
   import { t } from "#lib/i18n";
   import { Alert, ConfirmDialog } from "#lib/components/ui";
 
-  /**
-   * Delete confirmation for a record other data may depend on (exam with submissions, exercise used in exams):
-   * plain prompt without usage, a warning with an optional affected-items list with usage. Wording comes from the
-   * caller; chrome, busy state and inline error from ConfirmDialog.
-   */
+  /** Delete confirmation for a record other data may depend on (exam with submissions, exercise used in exams): plain prompt without usage, a warning with an optional affected-items list with usage. Wording comes from the caller; chrome, busy state and inline error from ConfirmDialog. */
   interface Props {
     open?: boolean;
     title: string;

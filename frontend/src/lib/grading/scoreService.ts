@@ -1,7 +1,4 @@
-/**
- * The one score-save path of every grading view (M2): grade page, both manual grids and the paste import.
- * Rows go through `scoreRepository`, the total through `submissionRepository`, so both follow the storage mode.
- */
+/** The one score-save path of every grading view (M2): grade page, both manual grids and the paste import. Rows go through `scoreRepository`, the total through `submissionRepository`, so both follow the storage mode. */
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import type { ExerciseScoreRecord, OmrScoreMeta, StudentRecord, SubmissionRecord } from '#lib/db/schema';
@@ -18,11 +15,7 @@ export interface McCarry {
   omrMeta?: OmrScoreMeta;
 }
 
-/**
- * Saves `values` (exercise id -> score; `null` clears, a missing id stays as it is) and the submission's total,
- * which is set only when every exercise of `exerciseIds` has a score. Never deletes a row carrying OMR data or one
- * that failed to decrypt: both only look ungraded (frontend `CLAUDE.md`). Returns the effective score per exercise.
- */
+/** Saves `values` (exercise id -> score; `null` clears, a missing id stays as it is) and the submission's total, which is set only when every exercise of `exerciseIds` has a score. Never deletes a row carrying OMR data or one that failed to decrypt: both only look ungraded (frontend `CLAUDE.md`). Returns the effective score per exercise. */
 export async function saveSubmissionScores(
   examId: string,
   submission: SubmissionRecord,

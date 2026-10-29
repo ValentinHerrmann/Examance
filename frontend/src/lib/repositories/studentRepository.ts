@@ -32,9 +32,7 @@ export async function studentServerPayload(student: StudentRecord, key: CryptoKe
     pseudonym_hmac: await ensure64CharHex(student.pseudonymId),
     pii_ciphertext_b64: encrypted.payloadCt ? uint8ArrayToBase64(encrypted.payloadCt) : uint8ArrayToBase64(student.piiCt),
     iv_b64: encrypted.payloadIv ? uint8ArrayToBase64(encrypted.payloadIv) : uint8ArrayToBase64(student.piiIv),
-    // Not an Argon2id salt: ciphertext is sealed under HKDF(dataKey, sessionNonce). These 16 bytes
-    // record *which data-key generation* sealed it, so a later key rotation is diagnosable rather
-    // than silently unreadable (formerly 16 hardcoded zero bytes).
+    // Not an Argon2id salt: ciphertext is sealed under HKDF(dataKey, sessionNonce). These 16 bytes record *which data-key generation* sealed it, so a later key rotation is diagnosable rather than silently unreadable (formerly 16 hardcoded zero bytes).
     encryption_salt_b64: uint8ArrayToBase64(currentKeyId()),
   };
 }
@@ -45,8 +43,7 @@ export const studentRepository = {
       const raw = await db.students.toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
-      // Per exam: no endpoint lists "every student" (the router is at /exams/{id}/students). A failed
-      // read throws; an empty list would let erasure and .bgproj exports run on partial data.
+      // Per exam: no endpoint lists "every student" (the router is at /exams/{id}/students). A failed read throws; an empty list would let erasure and .bgproj exports run on partial data.
       const exams = await examRepository.getAll(key);
       const all: StudentRecord[] = [];
       for (const exam of exams) {
@@ -61,8 +58,7 @@ export const studentRepository = {
       const raw = await db.students.where('examId').equals(examId).toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
-      // all-server holds nothing locally, so a local fallback would be a silent empty list: a failed
-      // read throws and the caller reports it. silentError because callers show their own error.
+      // all-server holds nothing locally, so a local fallback would be a silent empty list: a failed read throws and the caller reports it. silentError because callers show their own error.
       const rawList = await api.get<any[]>(`/exams/${examId}/students`, { silentError: true });
       const serverStudents = await Promise.all(
         rawList.map((st: any) => decryptStudent(mapApiToStudentRecord(st, examId), key))
@@ -105,14 +101,11 @@ export const studentRepository = {
   },
 
   async save(student: StudentRecord, key: CryptoKey | null): Promise<void> {
-    // `encrypted` deliberately carries no plaintext identity fields — see
-    // encryptStudent(). Anything that needs the name reads it back through
-    // decryptStudent().
+    // `encrypted` deliberately carries no plaintext identity fields — see encryptStudent(). Anything that needs the name reads it back through decryptStudent().
     const encrypted = await encryptStudent(student, key);
     const policy = get(storagePolicyStore);
 
-    // In all-server mode nothing about a pupil is supposed to persist on this
-    // device. The local write used to happen before this check, so it did.
+    // In all-server mode nothing about a pupil is supposed to persist on this device. The local write used to happen before this check, so it did.
     if (policy.storageMode !== 'all-server') {
       await db.students.put(encrypted);
     }

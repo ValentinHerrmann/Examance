@@ -1,15 +1,9 @@
-/**
- * Overall-score distribution of the global analysis: every fully graded submission's total as a
- * percentage of its own exam's maximum points (exams differ), summarized like one exam's results.
- */
+/** Overall-score distribution of the global analysis: every fully graded submission's total as a percentage of its own exam's maximum points (exams differ), summarized like one exam's results. */
 import type { ExerciseRecord, GradingKeyConfig, SubmissionRecord } from "#lib/db/schema";
 import { DEFAULT_CUTOFFS_LINEAR_40 } from "./gradingKey";
 import { clampPercentage, summarizeExam, type ExamResult, type ExamStats, type PercentageHistogramBin } from "./stats";
 
-/**
- * Grade colours, bins and bands of the global chart. The exams behind one bar may use different
- * keys, so the chart uses one fixed reference key (linear, pass mark 40 %; issue #89).
- */
+/** Grade colours, bins and bands of the global chart. The exams behind one bar may use different keys, so the chart uses one fixed reference key (linear, pass mark 40 %; issue #89). */
 export const OVERALL_GRADING_KEY: GradingKeyConfig = {
   preset: "linear_40",
   cutoffs: DEFAULT_CUTOFFS_LINEAR_40,
@@ -33,10 +27,7 @@ export function examMaxPoints(exercises: Pick<ExerciseRecord, "maxPoints">[]): n
   return exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0);
 }
 
-/**
- * `maxPointsByExam` maps an exam id to its maximum points. Pass only the submissions the page
- * currently includes: whatever it filters on, the histogram follows.
- */
+/** `maxPointsByExam` maps an exam id to its maximum points. Pass only the submissions the page currently includes: whatever it filters on, the histogram follows. */
 export function calculateOverallScoreDistribution(
   submissions: (Pick<SubmissionRecord, "examId" | "totalScore"> & { id?: string })[],
   maxPointsByExam: ReadonlyMap<string, number>,
@@ -56,8 +47,7 @@ export function calculateOverallScoreDistribution(
       withoutMaxPoints++;
       continue;
     }
-    // Clamped (bonus points, MC penalties); the histogram rounds like the exam one, so float
-    // noise (8.1 / 9 is 89.99999999999999 %) cannot drop a 90 % result into the bin below.
+    // Clamped (bonus points, MC penalties); the histogram rounds like the exam one, so float noise (8.1 / 9 is 89.99999999999999 %) cannot drop a 90 % result into the bin below.
     results.push({
       submissionId: submission.id ?? "",
       percentage: clampPercentage((score / max) * 100),

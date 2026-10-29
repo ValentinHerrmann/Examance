@@ -11,9 +11,7 @@ import {
 } from "../src/lib/grading/omrShape";
 import { DEFAULT_OMR_PARAMS } from "../src/lib/grading/omrSettings";
 
-// Synthetic page at scanScale 3: a printed 38 px box (≈ 4.5 mm) with a 1 px border, a redo zone
-// (≈ 4 mm) directly left of it. The template rect sits 5 px *below* the printed box, like the
-// real `\OmrBox` link annotation (baseline) vs its TikZ drawing (baseline=-0.5ex).
+// Synthetic page at scanScale 3: a printed 38 px box (≈ 4.5 mm) with a 1 px border, a redo zone (≈ 4 mm) directly left of it. The template rect sits 5 px *below* the printed box, like the real `\OmrBox` link annotation (baseline) vs its TikZ drawing (baseline=-0.5ex).
 const W = 120;
 const H = 110;
 const P = DEFAULT_OMR_PARAMS;
@@ -187,9 +185,7 @@ describe("omrShape v4 (measureBox + classifyV4)", () => {
   });
 });
 
-// First donated verified samples (dev DB, one exam): numbers only — no crops, no ids.
-// [label, fill, minCellFill, cellEvenness, ringFill, spillExcess, inkContrast, strokeSpan, strokeFrac]
-// v3 as shipped read 23/40 correctly with 23 unsure; v4 must stay at ≥ 38 with ≤ 8 unsure.
+// First donated verified samples (dev DB, one exam): numbers only — no crops, no ids. [label, fill, minCellFill, cellEvenness, ringFill, spillExcess, inkContrast, strokeSpan, strokeFrac] v3 as shipped read 23/40 correctly with 23 unsure; v4 must stay at ≥ 38 with ≤ 8 unsure.
 const DONATED_V3_FEATURES: number[][] = [
   [0, 0.0, 0.0, 0.0, 0.0, -0.036, 1.0, 0.0, 0.0],
   [0, 0.0, 0.0, 0.0, 0.0, 0, 1.0, 0.0, 0.0],

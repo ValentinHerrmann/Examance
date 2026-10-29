@@ -1,8 +1,4 @@
-/**
- * Cross-tab coordination for a storage-mode change. The move itself is `services/resultsMover.ts`; this
- * module only records that one is running (so other tabs block, `stores/workspaceSync.ts`) and in
- * which tab. Strategy: docs/dev/storage_modes.md.
- */
+/** Cross-tab coordination for a storage-mode change. The move itself is `services/resultsMover.ts`; this module only records that one is running (so other tabs block, `stores/workspaceSync.ts`) and in which tab. Strategy: docs/dev/storage_modes.md. */
 
 import { get, writable } from 'svelte/store';
 import type { StorageMode } from '#lib/stores/storagePolicy';
@@ -66,10 +62,7 @@ export function finishModeSwitch(): void {
   pendingSwitchStore.set(null);
 }
 
-/**
- * A move a reload interrupted is simply run again: every step is an idempotent upsert, and the
- * account's mode only changes once the results have arrived.
- */
+/** A move a reload interrupted is simply run again: every step is an idempotent upsert, and the account's mode only changes once the results have arrived. */
 export function interruptedSwitch(): PendingModeSwitch | null {
   return get(pendingSwitchStore);
 }

@@ -35,8 +35,7 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
     note: 'GDPR Art. 17 student erasure',
   }, key);
 
-  // Hybrid: a server copy can outlive a switch from all-server (the move may keep it). Delete it first,
-  // so a failure (reported by the caller) leaves everything in place for a retry; 404 means none exists.
+  // Hybrid: a server copy can outlive a switch from all-server (the move may keep it). Delete it first, so a failure (reported by the caller) leaves everything in place for a retry; 404 means none exists.
   if (resultsAreLocal()) {
     try {
       await api.delete(`/exams/${examId}/students/${pseudonymHmac}`, { silentError: true });
@@ -45,14 +44,12 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
     }
   }
 
-  // THIS student's submissions only: locally `pseudonymHash` holds the raw pseudonymId, the server sends the HMAC.
-  // Compare exactly: a truthiness check would match every submission and erase all students' work.
+  // THIS student's submissions only: locally `pseudonymHash` holds the raw pseudonymId, the server sends the HMAC. Compare exactly: a truthiness check would match every submission and erase all students' work.
   const matchingSubs = (await submissionRepository.getByExamId(examId, key)).filter(
     (s) => s.pseudonymHash === pseudonymId || s.pseudonymHash === pseudonymHmac
   );
 
-  // Through the repositories, so each mode's copy goes (scores included); a refused server delete throws.
-  // A failed list above throws before anything is deleted, so the caller reports it and a retry is safe.
+  // Through the repositories, so each mode's copy goes (scores included); a refused server delete throws. A failed list above throws before anything is deleted, so the caller reports it and a retry is safe.
   for (const sub of matchingSubs) {
     await submissionRepository.delete(examId, sub.id);
   }

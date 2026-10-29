@@ -1,9 +1,6 @@
 import { toArrayBuffer } from './aesGcm';
 
-/**
- * Client-side HMAC-SHA-256 helpers for pseudonym IDs:
- * pseudonym_hmac = HMAC-SHA256(raw_pseudonym_uuid, per_exam_secret). The server only sees the HMAC, never the raw UUID.
- */
+/** Client-side HMAC-SHA-256 helpers for pseudonym IDs: pseudonym_hmac = HMAC-SHA256(raw_pseudonym_uuid, per_exam_secret). The server only sees the HMAC, never the raw UUID. */
 
 /** Import 32-byte raw key material (e.g. from HKDF) as an HMAC-SHA-256 CryptoKey. */
 export async function importHmacKey(keyBytes: Uint8Array): Promise<CryptoKey> {

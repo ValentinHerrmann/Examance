@@ -1,8 +1,5 @@
 <script lang="ts">
-  /**
-   * Read-only, highlighted view of an AI-chat prompt (issue #168): Markdown marks plus LaTeX in `latex` code blocks.
-   * Shows the exact text that is copied; never rendered as HTML, since the prompt holds exercise code and logs.
-   */
+  /** Read-only, highlighted view of an AI-chat prompt (issue #168): Markdown marks plus LaTeX in `latex` code blocks. Shows the exact text that is copied; never rendered as HTML, since the prompt holds exercise code and logs. */
   import { onDestroy, onMount, untrack } from "svelte";
   import { EditorView } from "@codemirror/view";
   import { Compartment, EditorState } from "@codemirror/state";

@@ -1,6 +1,5 @@
 <script lang="ts">
-  // "New exam" (M1): the exam's data dialog in create mode. The exam is created empty and opens in the
-  // exam editor with the library, so exercises, MC groups, order, preview and logo live in one place.
+  // "New exam" (M1): the exam's data dialog in create mode. The exam is created empty and opens in the exam editor with the library, so exercises, MC groups, order, preview and logo live in one place.
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { get } from "svelte/store";

@@ -28,8 +28,7 @@
 
     <div class="flex min-w-0 max-w-3xl flex-1 flex-col gap-4">
       {#each HELP_TOPICS as topic (topic.id)}
-        <!-- `scroll-mt` keeps the heading clear of the sticky topic strip when
-             a /help#topic link jumps to it. -->
+        <!-- `scroll-mt` keeps the heading clear of the sticky topic strip when a /help#topic link jumps to it. -->
         <div id={topic.id} class="scroll-mt-16 lg:scroll-mt-4">
           <Card>
             <h2 class="mt-0 mb-3 flex items-center gap-2 text-xl font-medium text-content">

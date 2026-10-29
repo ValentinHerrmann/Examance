@@ -1,6 +1,5 @@
 <script lang="ts">
-  // Self-registration, step one (issue #53): ask for a verification link. The server answers the same
-  // whether or not the address already has an account, so this page cannot say which it was either.
+  // Self-registration, step one (issue #53): ask for a verification link. The server answers the same whether or not the address already has an account, so this page cannot say which it was either.
   import { get } from "svelte/store";
   import { apiErrorMessage, ApiError } from "#lib/api/client";
   import { requestRegistration } from "#lib/api/registration";

@@ -1,7 +1,4 @@
-/**
- * Reads an exam or exercise-library ZIP export (`export/zipManifest.ts`) back into an archive payload, which then
- * runs through the normal import (conflicts, server creation, report). Only settings and exercises travel this way.
- */
+/** Reads an exam or exercise-library ZIP export (`export/zipManifest.ts`) back into an archive payload, which then runs through the normal import (conflicts, server creation, report). Only settings and exercises travel this way. */
 import { strFromU8, unzipSync } from 'fflate';
 import type { ExerciseRecord } from '#lib/db/schema';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';

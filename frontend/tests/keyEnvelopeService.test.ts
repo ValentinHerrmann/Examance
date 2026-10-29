@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { setArgon2Available } from './mocks/argon2Mock';
 
-// These exercise wrapping, which now refuses to run without Argon2 rather than
-// silently substituting PBKDF2 and writing a wrap labelled with a KDF that did
-// not make it.
+// These exercise wrapping, which now refuses to run without Argon2 rather than silently substituting PBKDF2 and writing a wrap labelled with a KDF that did not make it.
 setArgon2Available(true);
 import {
   buildBundle,
@@ -16,11 +14,7 @@ import {
   type KeyEnvelope,
 } from '../src/lib/crypto/keyEnvelope';
 
-/**
- * Guards silent key-material loss: `saveEnvelopes` replaces the whole set and the builder only
- * emits wraps it was given a secret for, so rebuilding to change *one* factor drops the others
- * (e.g. passkeys still sign in but no longer open the vault).
- */
+/** Guards silent key-material loss: `saveEnvelopes` replaces the whole set and the builder only emits wraps it was given a secret for, so rebuilding to change *one* factor drops the others (e.g. passkeys still sign in but no longer open the vault). */
 
 const TEACHER_ID = '11111111-2222-3333-4444-555555555555';
 
@@ -75,8 +69,7 @@ describe('replacing one wrap', () => {
   });
 
   it('keeps the passkey wraps when the password changes', async () => {
-    // A recovery wrap this browser cannot rebuild — the code's plaintext is
-    // gone — has to survive a password change untouched.
+    // A recovery wrap this browser cannot rebuild — the code's plaintext is gone — has to survive a password change untouched.
     stored!.envelopes.push({
       ...(await passkeyEnvelope(dek, keyId)),
       kind: 'recovery',
@@ -87,8 +80,7 @@ describe('replacing one wrap', () => {
 
     const kinds = set.envelopes.map((e) => e.kind).sort();
     expect(kinds).toEqual(['passkey', 'password', 'recovery']);
-    // Built, not saved: the change-password request writes it alongside the
-    // password so the two cannot end up disagreeing.
+    // Built, not saved: the change-password request writes it alongside the password so the two cannot end up disagreeing.
     expect(saved).toBeNull();
   });
 

@@ -1,8 +1,4 @@
-/**
- * Per-exercise grading results: IndexedDB in `hybrid`, server-side in `all-server`
- * (`/exams/{id}/submissions/{id}/scores`). The payload (score, selected options, OMR metadata) is
- * sealed client-side either way; the server only stores ciphertext.
- */
+/** Per-exercise grading results: IndexedDB in `hybrid`, server-side in `all-server` (`/exams/{id}/submissions/{id}/scores`). The payload (score, selected options, OMR metadata) is sealed client-side either way; the server only stores ciphertext. */
 
 import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';

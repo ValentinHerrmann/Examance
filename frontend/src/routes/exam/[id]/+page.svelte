@@ -135,8 +135,7 @@
 
   let isLocalFallback = $state(false);
 
-  // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's
-  // examMcGroups/examExercises rows, which left the local MC groups empty.
+  // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's examMcGroups/examExercises rows, which left the local MC groups empty.
   let loadSeq = 0;
 
   // loadExamData() writes straight into the page state, so a load that fails midway keeps what it had set.
@@ -191,14 +190,12 @@
     picker?.addCreatedExercise(exercise);
   }
 
-  /** MC exercises in exam order from one merged lookup (`exercises` wins over `libraryExercises`), so the
-   *  answer-key hash is stable across calls and no spurious "stale" banner appears. */
+  /** MC exercises in exam order from one merged lookup (`exercises` wins over `libraryExercises`), so the answer-key hash is stable across calls and no spurious "stale" banner appears. */
   function collectMcExercises(): ExerciseRecord[] {
     return resolveMcExercises(exercises, libraryExercises, mcGroups);
   }
 
-  /** Template hash shared with the scan/verify checks (`computeOmrTemplateHash`): answer key plus the printed
-   *  layout. Detects a stale OMR template; on this page never used to silently regenerate one. */
+  /** Template hash shared with the scan/verify checks (`computeOmrTemplateHash`): answer key plus the printed layout. Detects a stale OMR template; on this page never used to silently regenerate one. */
   async function computeExercisesHash(): Promise<string> {
     if (!exam) return "";
     return computeOmrTemplateHash({ exam, exercises, libraryExercises, mcGroups, examItems: getEffectiveExamItems() });
@@ -236,8 +233,7 @@
       return;
 
     try {
-      // One cascade, shared with the dashboard and the repository, so no
-      // owned table is missed.
+      // One cascade, shared with the dashboard and the repository, so no owned table is missed.
       await examRepository.delete(exam.id);
 
       window.location.href = "/";
@@ -299,8 +295,7 @@
     }
   }
 
-  /** Reloads exercises and MC groups: they may have been edited elsewhere (another tab, the library) since this
-   *  page loaded, and compiling the old copies would just hit the compile cache again (issue #135). */
+  /** Reloads exercises and MC groups: they may have been edited elsewhere (another tab, the library) since this page loaded, and compiling the old copies would just hit the compile cache again (issue #135). */
   async function refreshExamSources() {
     if (!exam) return;
     const ctx = await loadExamCompileContext(exam.id, get(sessionStore).sessionKey);
@@ -357,8 +352,7 @@
       isPreviewLoading = false;
     }
 
-    // Refresh the OMR template after every successful compile so it never drifts from the layout.
-    // Gated on MC exercises: handlePrepareOmr() would otherwise surface an unprompted error.
+    // Refresh the OMR template after every successful compile so it never drifts from the layout. Gated on MC exercises: handlePrepareOmr() would otherwise surface an unprompted error.
     if (compileSucceeded && collectMcExercises().length > 0) {
       await handlePrepareOmr();
     }
@@ -450,8 +444,7 @@
     items: ExamItemRef[];
   }
 
-  /** Single builder for both the Dexie records and the server payload. MC group members are emitted only
-   *  under their group: listing them standalone too duplicated the (exam, exercise) primary key. */
+  /** Single builder for both the Dexie records and the server payload. MC group members are emitted only under their group: listing them standalone too duplicated the (exam, exercise) primary key. */
   function buildExamLinkPayload(): ExamLinkPayload {
     const currentExamId = exam?.id ?? "";
     const items = getEffectiveExamItems();
@@ -527,9 +520,7 @@
     if (breaksChanged) exam = { ...exam, pageBreaks };
 
     try {
-      // One transaction: this is a delete-then-reinsert of the exam's entire
-      // link set, and an interruption between the two would leave the exam
-      // with zero exercises and zero MC groups.
+      // One transaction: this is a delete-then-reinsert of the exam's entire link set, and an interruption between the two would leave the exam with zero exercises and zero MC groups.
       await db.transaction("rw", [db.examExercises, db.examMcGroups], async () => {
         await db.examExercises.where("examId").equals(currentExamId).delete();
         await db.examExercises.bulkPut(examExerciseRecords);
@@ -547,8 +538,7 @@
     }
 
     try {
-      // silentError: the failure is reported inline below, and the global
-      // HTTP error modal on top of an autosave is pure noise.
+      // silentError: the failure is reported inline below, and the global HTTP error modal on top of an autosave is pure noise.
       await api.patch(
         `/exams/${currentExamId}`,
         {
@@ -599,9 +589,7 @@
     }
   }
 
-  // Keeps examItems in step with exercises/mcGroups (drops vanished refs, appends new ones).
-  // Shares computeExamItems() with getEffectiveExamItems(), so rendered and stored order agree.
-  // Also tracks examItems; it only writes when the result differs, so it settles.
+  // Keeps examItems in step with exercises/mcGroups (drops vanished refs, appends new ones). Shares computeExamItems() with getEffectiveExamItems(), so rendered and stored order agree. Also tracks examItems; it only writes when the result differs, so it settles.
   $effect.pre(() => {
     const items = examItems;
     const nextItems = computeExamItems(items, exercises, mcGroups);

@@ -1,8 +1,4 @@
-/**
- * Layout regression suite, run on every device project: asserts geometry, not behaviour
- * (no document scroll, no horizontal overflow, one h1, 44px touch targets, breakpoints,
- * dialog widths). Soft assertions in the per-route loops list every offending route.
- */
+/** Layout regression suite, run on every device project: asserts geometry, not behaviour (no document scroll, no horizontal overflow, one h1, 44px touch targets, breakpoints, dialog widths). Soft assertions in the per-route loops list every offending route. */
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './helpers/guards';
 import { label } from './helpers/i18n';
@@ -30,9 +26,7 @@ for (const theme of THEMES) {
       const m = await page.evaluate(() => {
         const doc = document.scrollingElement!;
         const main = document.querySelector('.app-main');
-        // Horizontal overflow of .app-main is acceptable only when it comes
-        // from inside a TableScroller region (role=region); an element that
-        // sticks out of the viewport beyond such a region is a defect.
+        // Horizontal overflow of .app-main is acceptable only when it comes from inside a TableScroller region (role=region); an element that sticks out of the viewport beyond such a region is a defect.
         const regions = [...document.querySelectorAll('[role=region]')];
         const outside = main
           ? [...main.querySelectorAll('*')].filter((el) => {
@@ -226,8 +220,7 @@ async function expectDialogFits(page: Page, dialog: Locator, size: keyof typeof 
   expect.soft(box.x, `${what}: dialog starts off-screen`).toBeGreaterThanOrEqual(-1);
   expect.soft(box.x + box.width, `${what}: dialog ends off-screen`).toBeLessThanOrEqual(vw + 1);
 
-  // No scroller nested inside the modal body that actually scrolls: the body
-  // (the dialog's own scroll area) is the only one allowed.
+  // No scroller nested inside the modal body that actually scrolls: the body (the dialog's own scroll area) is the only one allowed.
   const nested = await dialog.evaluate((root) => {
     const found: string[] = [];
     const scrollers = [...root.querySelectorAll('*')].filter((el) => {

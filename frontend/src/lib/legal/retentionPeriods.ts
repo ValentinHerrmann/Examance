@@ -24,10 +24,7 @@ const FIELDS: Record<keyof RetentionPeriods, string> = {
   layoutReportDays: 'layout_report_days',
 };
 
-/**
- * Null when the backend is unreachable or answers incompletely; the page then states the criteria instead.
- * A plain public fetch: no session needed, and a failure must not open the global error dialog.
- */
+/** Null when the backend is unreachable or answers incompletely; the page then states the criteria instead. A plain public fetch: no session needed, and a failure must not open the global error dialog. */
 export async function fetchRetentionPeriods(): Promise<RetentionPeriods | null> {
   const url = get(backendStore);
   if (!url) return null;

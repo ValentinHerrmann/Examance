@@ -1,7 +1,4 @@
-/**
- * Layout problem reports (issue #134): teachers send them, admins review them. The content is
- * plaintext the teacher chose to share; every call is `silentError`, callers report inline.
- */
+/** Layout problem reports (issue #134): teachers send them, admins review them. The content is plaintext the teacher chose to share; every call is `silentError`, callers report inline. */
 
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { api } from './client';

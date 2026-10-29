@@ -1,6 +1,5 @@
 <script lang="ts">
-  // First sign-in only (M3): the account must choose where its results live before any route mounts.
-  // Changing it later is the storage card in /settings; both open the layout's move dialog.
+  // First sign-in only (M3): the account must choose where its results live before any route mounts. Changing it later is the storage card in /settings; both open the layout's move dialog.
   import { t } from "#lib/i18n";
   import { Alert, Modal } from "#lib/components/ui";
   import SettingsForm from "#lib/components/settings/SettingsForm.svelte";

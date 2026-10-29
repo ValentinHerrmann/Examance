@@ -1,6 +1,5 @@
 <script lang="ts">
-  // One MC item of the verify route (`/exam/[id]/verify?submissionId=…&exerciseId=…&queue=…`, M5).
-  // The route loads the stats once for dashboard and item; this view loads only the item's scan and scores.
+  // One MC item of the verify route (`/exam/[id]/verify?submissionId=…&exerciseId=…&queue=…`, M5). The route loads the stats once for dashboard and item; this view loads only the item's scan and scores.
   import { goto } from "$app/navigation";
   import { onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";

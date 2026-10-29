@@ -1,7 +1,4 @@
-/**
- * Hardware detection and heap monitor: probes CPU cores, device memory and WASM SIMD, and downgrades
- * parallel pipeline processing to assembly-line mode when Chrome's heap exceeds 70%.
- */
+/** Hardware detection and heap monitor: probes CPU cores, device memory and WASM SIMD, and downgrades parallel pipeline processing to assembly-line mode when Chrome's heap exceeds 70%. */
 
 export interface HardwareProfile {
   logicalCores: number;
@@ -26,8 +23,7 @@ export function checkSimdSupport(): boolean {
 
 /** Probe current browser environment hardware profile. */
 export function detectHardware(): HardwareProfile {
-    // `navigator` is guarded like `window`: absent under SSR/prerender and Node < 21. The
-    // conservative defaults below apply when the probe cannot run.
+    // `navigator` is guarded like `window`: absent under SSR/prerender and Node < 21. The conservative defaults below apply when the probe cannot run.
   const nav = typeof navigator !== 'undefined' ? navigator : undefined;
   const logicalCores = nav?.hardwareConcurrency || 2;
   // deviceMemory is rounded to powers of 2 by browsers; Firefox privacy.resistFingerprinting omits it

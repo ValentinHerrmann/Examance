@@ -1,8 +1,5 @@
 <script lang="ts">
-  /**
-   * The AI-chat prompt for writing or changing an exercise (issue #168): the teacher's request plus Examance context.
-   * Clipboard only; the current code goes in only while its box is ticked.
-   */
+  /** The AI-chat prompt for writing or changing an exercise (issue #168): the teacher's request plus Examance context. Clipboard only; the current code goes in only while its box is ticked. */
   import { Button, Checkbox, Field, Modal, Textarea } from "#lib/components/ui";
   import { locale, t } from "#lib/i18n";
   import { loadLatexAssets } from "#lib/latex/assets";

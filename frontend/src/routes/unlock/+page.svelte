@@ -70,8 +70,7 @@
   /** Set when the password wrap is unusable (as after a password reset); holds what the recovery dialog needs. */
   let pendingRecovery: { teacherId: string; email: string; role: "teacher" | "admin" } | null =
     $state.raw(null);
-  // The sign-in in progress (two of three factors). `password` stays in memory until it finishes, since it
-  // unwraps the data key once the session is real; it is never persisted or sent anywhere else.
+  // The sign-in in progress (two of three factors). `password` stays in memory until it finishes, since it unwraps the data key once the session is real; it is never persisted or sent anywhere else.
   let authStep = $state.raw<AuthStep | null>(null);
   let factorErrorMsg = $state("");
   /** Backup codes from a just-completed enrollment, shown once. */
@@ -80,16 +79,14 @@
   let showSetupCodes = $state(false);
   /** Signed in with nothing that opens the vault (e.g. passkey without PRF plus authenticator). */
   let vaultLocked: AuthStep | null = $state.raw(null);
-  // Both factors are in and the vault is opening. Rendered ahead of everything else; otherwise the login
-  // form showed for as long as Argon2id took, which read as a failed sign-in.
+  // Both factors are in and the vault is opening. Rendered ahead of everything else; otherwise the login form showed for as long as Argon2id took, which read as a failed sign-in.
   let isFinishing = $state(false);
   /** The account being signed in, for the panel that says so. */
   let finishingEmail = $state("");
   const canUsePasskeys = passkeysSupported();
   /** PRF secret from a passkey assertion, held until the vault opens (lets passkey + TOTP skip the password). */
   let passkeyUnwrap: PasskeyUnwrap | null = null;
-  // True only once the server accepted `password` in this sign-in. Unsubmitted text would otherwise be used
-  // to open the vault and, on an account without an envelope, seal a wrong data key over every record.
+  // True only once the server accepted `password` in this sign-in. Unsubmitted text would otherwise be used to open the vault and, on an account without an envelope, seal a wrong data key over every record.
   let passwordVerified = false;
   /** The step whose passkey prompt already auto-started: one attempt per step, a cancel must not re-prompt. */
   let passkeyAutoTriedFor: AuthStep | null = $state.raw(null);
@@ -120,8 +117,7 @@
       return;
     }
 
-    // Set transient backend URL for authentication attempt. Validated before
-    // use — credentials are about to be posted to whatever this points at.
+    // Set transient backend URL for authentication attempt. Validated before use — credentials are about to be posted to whatever this points at.
     try {
       backendStore.setTransient(trimmedBackendUrl);
     } catch (err: any) {
@@ -134,12 +130,10 @@
     passkeyUnwrap = null;
     passkeyToHeal = null;
     try {
-      // Starting a sign-in demotes the access cookie and clears the refresh cookie, so client state must
-      // follow, or an unlocked tab keeps rendering and every request 403s (seen on back-navigation).
+      // Starting a sign-in demotes the access cookie and clears the refresh cookie, so client state must follow, or an unlocked tab keeps rendering and every request 403s (seen on back-navigation).
       sessionStore.lock();
 
-      // First factor. A correct password no longer produces a session: the
-      // server answers with what is still outstanding.
+      // First factor. A correct password no longer produces a session: the server answers with what is still outstanding.
       const step = await submitPassword(normalizedEmail, password);
       passwordVerified = true;
 
@@ -158,8 +152,7 @@
       } else if (err instanceof EnvelopeFactorMissingError) {
         errorMsg = translate("security.envelope.missingPassword");
       } else {
-        // "Failed to fetch" is the browser's opaque network error for CORS
-        // preflight rejections. Give users a concrete hint.
+        // "Failed to fetch" is the browser's opaque network error for CORS preflight rejections. Give users a concrete hint.
         const raw: string = err.message || '';
         errorMsg =
           raw === 'Failed to fetch'
@@ -171,10 +164,7 @@
     }
   }
 
-  /**
-   * Wrong email or password: the login calls stay `silentError` (other failures are reported
-   * inline), but rejected credentials also get the global 401 pop-up (issue #59 follow-up).
-   */
+  /** Wrong email or password: the login calls stay `silentError` (other failures are reported inline), but rejected credentials also get the global 401 pop-up (issue #59 follow-up). */
   function showInvalidCredentialsPopup(err: unknown) {
     if (err instanceof ApiError && err.status === 401 && err.code === "ERR_INVALID_CREDENTIALS") {
       httpErrorStore.showError(401, err.message, err.code);
@@ -186,8 +176,7 @@
     factorErrorMsg = "";
 
     if (step.status === "approval_pending") {
-      // The password was right, but no admin has approved this self-registered account yet.
-      // The server issued no token; there is nothing to continue.
+      // The password was right, but no admin has approved this self-registered account yet. The server issued no token; there is nothing to continue.
       authStep = null;
       password = "";
       passwordVerified = false;
@@ -196,17 +185,13 @@
     }
 
     if (step.status !== "ok") {
-      // Enrollment and the second factor are both rendered from `authStep`. The loading step must give way
-      // to them: the template checks `isFinishing` first, so leaving it set hid the step for good (seen
-      // right after enrolling the authenticator, when the replayed password now needs a second factor).
+      // Enrollment and the second factor are both rendered from `authStep`. The loading step must give way to them: the template checks `isFinishing` first, so leaving it set hid the step for good (seen right after enrolling the authenticator, when the replayed password now needs a second factor).
       authStep = step;
       isFinishing = false;
       return;
     }
 
-    // Deliberately not stored: there is nothing to render from an "ok" step, and
-    // keeping the previous `factor_required` one is what lets the chooser come
-    // back — with its error visible — if opening the vault fails.
+    // Deliberately not stored: there is nothing to render from an "ok" step, and keeping the previous `factor_required` one is what lets the chooser come back — with its error visible — if opening the vault fails.
     isFinishing = true;
     finishingEmail = step.email;
     try {
@@ -217,24 +202,19 @@
     }
   }
 
-  // Recover the data key and start the session. On a pre-envelope account this runs the one-time migration,
-  // adopting the old derived key as the data key so nothing is re-encrypted.
+  // Recover the data key and start the session. On a pre-envelope account this runs the one-time migration, adopting the old derived key as the data key so nothing is re-encrypted.
   async function openVault(step: AuthStep) {
     const normalizedEmail = step.email.trim().toLowerCase();
     let vault;
 
     if (passkeyUnwrap) {
-      // Signed in without the password. The passkey's PRF secret opens the
-      // vault instead, which is the whole reason that secret is asked for
-      // during the ceremony.
+      // Signed in without the password. The passkey's PRF secret opens the vault instead, which is the whole reason that secret is asked for during the ceremony.
       const unwrap = passkeyUnwrap;
       passkeyUnwrap = null;
       try {
         vault = await openWithPasskey(step.id, unwrap.credentialIdB64, unwrap.prfOutput);
       } catch (passkeyErr) {
-        // A PRF passkey with no usable wrap (never wrapped, or sealed under another passkey's secret): fall
-        // back to a server-checked password, else ask, and re-wrap once open. A changed envelope set is the
-        // substitution alarm and must surface.
+        // A PRF passkey with no usable wrap (never wrapped, or sealed under another passkey's secret): fall back to a server-checked password, else ask, and re-wrap once open. A changed envelope set is the substitution alarm and must surface.
         if (passkeyErr instanceof EnvelopeChangedError) {
           throw passkeyErr;
         }
@@ -249,8 +229,7 @@
     }
 
     if (!password || !passwordVerified) {
-      // Nothing here can open the vault (no PRF secret, no password), so ask; unwrapping with an empty
-      // string used to surface as a bogus "code not valid".
+      // Nothing here can open the vault (no PRF secret, no password), so ask; unwrapping with an empty string used to surface as a bogus "code not valid".
       vaultLocked = step;
       authStep = null;
       isFinishing = false;
@@ -264,9 +243,7 @@
       });
     } catch (envelopeErr) {
       if (envelopeErr instanceof EnvelopeFactorMissingError) {
-        // The password is correct — the server accepted it — but it no longer
-        // opens the stored key. That is what a reset leaves behind, and the
-        // recovery code is the way out of it.
+        // The password is correct — the server accepted it — but it no longer opens the stored key. That is what a reset leaves behind, and the recovery code is the way out of it.
         pendingRecovery = { teacherId: step.id, email: step.email, role: step.role };
         authStep = null;
         isFinishing = false;
@@ -278,9 +255,7 @@
     await finishUnlock(step, normalizedEmail, vault);
   }
 
-  // Leave for an authenticated session. The session must own this browser's workspace and the
-  // account's storage mode is loaded (lib/db/workspace.ts); a blocked workspace stays on this page
-  // with an explanation, an unchosen mode is asked for by the root layout.
+  // Leave for an authenticated session. The session must own this browser's workspace and the account's storage mode is loaded (lib/db/workspace.ts); a blocked workspace stays on this page with an explanation, an unchosen mode is asked for by the root layout.
   async function enterApp() {
     // The session is open: nothing needs the password any more (the PRF secret is dropped once used).
     password = "";
@@ -300,9 +275,7 @@
     vault: Awaited<ReturnType<typeof openWithPassword>>,
   ) {
     if (passkeyToHeal) {
-      // The vault was opened by a route that proves the data key (an existing
-      // envelope unwrapped, or a server-checked password), so wrapping it for
-      // this passkey is safe. Best effort: the sign-in must not fail over it.
+      // The vault was opened by a route that proves the data key (an existing envelope unwrapped, or a server-checked password), so wrapping it for this passkey is safe. Best effort: the sign-in must not fail over it.
       const heal = passkeyToHeal;
       passkeyToHeal = null;
       try {
@@ -327,8 +300,7 @@
     }
 
     if (pendingRecoveryCode || pendingBackupCodes) {
-      // Shown once, and the dashboard waits until they are acknowledged: these
-      // are the only copies of the two factors that always work.
+      // Shown once, and the dashboard waits until they are acknowledged: these are the only copies of the two factors that always work.
       showSetupCodes = true;
       isFinishing = false;
       return;
@@ -337,11 +309,9 @@
     await enterApp();
   }
 
-  // Sign in with a passkey, in either factor position. With PRF the assertion also yields the secret that
-  // opens the vault, so passkey + authenticator never needs the password.
+  // Sign in with a passkey, in either factor position. With PRF the assertion also yields the secret that opens the vault, so passkey + authenticator never needs the password.
   async function handlePasskey(opts: { auto?: boolean } = {}) {
-    // Which error slot to write to. Mid-sign-in the form is not on screen, so a
-    // failure reported there would be invisible.
+    // Which error slot to write to. Mid-sign-in the form is not on screen, so a failure reported there would be invisible.
     const inProgress = authStep !== null;
     errorMsg = "";
     infoMsg = "";
@@ -350,13 +320,11 @@
     passkeyPending = inProgress;
     try {
       if (!inProgress) {
-        // A passkey-first sign-in never submitted the password field, so its
-        // contents are unverified and must not open (or migrate) the vault.
+        // A passkey-first sign-in never submitted the password field, so its contents are unverified and must not open (or migrate) the vault.
         passwordVerified = false;
         passkeyUnwrap = null;
         passkeyToHeal = null;
-        // As in handleUnlock, the new sign-in demotes the cookie, so lock client state, but not while a
-        // sign-in is already running (that would discard the step in progress).
+        // As in handleUnlock, the new sign-in demotes the cookie, so lock client state, but not while a sign-in is already running (that would discard the step in progress).
         sessionStore.lock();
       }
 
@@ -383,8 +351,7 @@
       await handleAuthStep(step);
     } catch (err: any) {
       if (opts.auto && isCeremonyCancelled(err)) {
-        // The automatic prompt was declined: the chooser below is the answer,
-        // not an error.
+        // The automatic prompt was declined: the chooser below is the answer, not an error.
         return;
       }
       const message = err instanceof ApiError ? err.message : "";
@@ -417,8 +384,7 @@
       : [],
   );
 
-  // Message for a failure *after* the server accepted the factor; null when the factor itself failed.
-  // Keeps key problems (e.g. Argon2 failing to load) from being reported as a wrong credential.
+  // Message for a failure *after* the server accepted the factor; null when the factor itself failed. Keeps key problems (e.g. Argon2 failing to load) from being reported as a wrong credential.
   function vaultFailureMessage(err: unknown): string | null {
     if (err instanceof Argon2UnavailableError) {
       return translate("security.vaultUnlock.kdfUnavailable");
@@ -461,22 +427,19 @@
     }
     const step = vaultLocked;
     const normalizedEmail = step.email.trim().toLowerCase();
-    // Not checked by the server, so never allowed to run the migration: an
-    // account without an envelope must sign in with its password once first.
+    // Not checked by the server, so never allowed to run the migration: an account without an envelope must sign in with its password once first.
     const vault = await openWithPassword(step.id, normalizedEmail, entered, {
       allowMigration: false,
     });
     password = entered;
-    // Busy panel before the step is cleared, or the last stretch falls through
-    // to the login form again.
+    // Busy panel before the step is cleared, or the last stretch falls through to the login form again.
     isFinishing = true;
     finishingEmail = step.email;
     vaultLocked = null;
     await finishUnlock(step, normalizedEmail, vault);
   }
 
-  // Unwrap with the recovery code. Deliberately no re-wrap (unlike `handleRecovery`): the wraps are fine
-  // and no password was typed, so rewrapping would seal the account under an empty string.
+  // Unwrap with the recovery code. Deliberately no re-wrap (unlike `handleRecovery`): the wraps are fine and no password was typed, so rewrapping would seal the account under an empty string.
   async function handleVaultRecovery(recoveryCode: string) {
     if (!vaultLocked) {
       return;
@@ -500,25 +463,19 @@
     }
   }
 
-  // Enrollment finished: replay the still-held password to turn the enrollment token into a real session
-  // and store the key for the first time.
+  // Enrollment finished: replay the still-held password to turn the enrollment token into a real session and store the key for the first time.
   async function handleEnrolled(backupCodes: string[] | null) {
-    // Held, not shown. The recovery code does not exist yet — it is minted when
-    // the key envelope is created a few steps from here — and showing the two
-    // sets in sequence is what made the second look like a repeat of the first.
+    // Held, not shown. The recovery code does not exist yet — it is minted when the key envelope is created a few steps from here — and showing the two sets in sequence is what made the second look like a repeat of the first.
     pendingBackupCodes = backupCodes;
     authStep = null;
-    // Past the credentials already: the replay must not fall through to the
-    // login form either.
+    // Past the credentials already: the replay must not fall through to the login form either.
     isFinishing = true;
     finishingEmail = email.trim().toLowerCase();
     isLoading = true;
     try {
       const step = await submitPassword(email.trim().toLowerCase(), password);
       passwordVerified = true;
-      // With the authenticator confirmed the account has two factors, so the password alone now asks for
-      // the second one. The confirmation code is spent; the next code from the app finishes the sign-in.
-      // A new passkey is asked for by itself (the effect below); its PRF secret then wraps the data key.
+      // With the authenticator confirmed the account has two factors, so the password alone now asks for the second one. The confirmation code is spent; the next code from the app finishes the sign-in. A new passkey is asked for by itself (the effect below); its PRF secret then wraps the data key.
       if (step.status === "factor_required") {
         factorNotice = translate(
           backupCodes === null ? "auth.unlock.enrolledPasskeySignIn" : "auth.unlock.enrolledEnterNextCode",
@@ -541,8 +498,7 @@
     await enterApp();
   }
 
-  // Finish a recovery: unwrap the data key with the code, re-wrap it under the new password. The key
-  // never changes, so every existing exam, scan and score stays readable.
+  // Finish a recovery: unwrap the data key with the code, re-wrap it under the new password. The key never changes, so every existing exam, scan and score stays readable.
   async function handleRecovery(recoveryCode: string) {
     if (!pendingRecovery) {
       return;
@@ -568,8 +524,7 @@
     showSetupCodes = true;
   }
 
-  // Open the vault with a passkey instead of the recovery code: a reset invalidates only the password
-  // wrap, so a PRF passkey still recovers everything. Offered before the route that gives data up.
+  // Open the vault with a passkey instead of the recovery code: a reset invalidates only the password wrap, so a PRF passkey still recovers everything. Offered before the route that gives data up.
   async function handleRecoveryPasskey() {
     if (!pendingRecovery) {
       return;
@@ -577,8 +532,7 @@
     const { teacherId, email: userEmail, role } = pendingRecovery;
     const { unwrap } = await passkeyAssertion();
     if (!unwrap) {
-      // No PRF result: the authenticator lacks the extension. Reported as the missing wrap it amounts to,
-      // so the dialog can say which passkeys *can* open the data.
+      // No PRF result: the authenticator lacks the extension. Reported as the missing wrap it amounts to, so the dialog can say which passkeys *can* open the data.
       throw new EnvelopeFactorMissingError("passkey");
     }
     const vault = await openWithPasskey(teacherId, unwrap.credentialIdB64, unwrap.prfOutput);
@@ -596,8 +550,7 @@
     await enterApp();
   }
 
-  // Last resort: give up the old data key and start again under the current password (reset password,
-  // lost recovery code). Irreversible; the dialog says so before calling this.
+  // Last resort: give up the old data key and start again under the current password (reset password, lost recovery code). Irreversible; the dialog says so before calling this.
   async function handleStartFresh() {
     if (!pendingRecovery) {
       return;
@@ -620,8 +573,7 @@
     showSetupCodes = true;
   }
 
-  // A passkey is the preferred second factor: its prompt opens by itself, once per step. Cancelling
-  // leaves the chooser.
+  // A passkey is the preferred second factor: its prompt opens by itself, once per step. Cancelling leaves the chooser.
   $effect.pre(() => {
     const step = authStep;
     const loading = isLoading;

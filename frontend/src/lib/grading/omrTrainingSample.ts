@@ -1,8 +1,4 @@
-/**
- * Builds anonymous training samples (opt-in donation) from one teacher-verified MC question: a small grayscale crop of one
- * box plus redo zone, the teacher's label and the detector's reading. Deliberately no exam, submission, exercise, pupil or
- * teacher id and no timestamp; `sample_token` is random per box so a re-donation replaces it. Match backend/app/schemas/training.py.
- */
+/** Builds anonymous training samples (opt-in donation) from one teacher-verified MC question: a small grayscale crop of one box plus redo zone, the teacher's label and the detector's reading. Deliberately no exam, submission, exercise, pupil or teacher id and no timestamp; `sample_token` is random per box so a re-donation replaces it. Match backend/app/schemas/training.py. */
 import type { OmrScoreMeta } from '#lib/db/schema';
 import { renderScanPage } from './mcCropRender';
 import type { OmrRunInfo } from './omrSettings';
@@ -54,10 +50,7 @@ export function donationLabel(selectedOptions: number[]): string {
   return [...selectedOptions].sort((a, b) => a - b).join(',');
 }
 
-/**
- * One random token per box of the question, reusing any the row (or this page session) already
- * has — so every donation of a box, before and after a correction, carries the same token.
- */
+/** One random token per box of the question, reusing any the row (or this page session) already has — so every donation of a box, before and after a correction, carries the same token. */
 export function donationTokens(
   omrMeta: OmrScoreMeta,
   known: Record<number, string> = {}
@@ -84,10 +77,7 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-/**
- * Samples for every box of one verified question, or [] when the detection predates the
- * features a sample needs (algorithm < 3) or its page cannot be read.
- */
+/** Samples for every box of one verified question, or [] when the detection predates the features a sample needs (algorithm < 3) or its page cannot be read. */
 export async function buildTrainingSamples(
   scanPdfBytes: Uint8Array,
   omrMeta: OmrScoreMeta,
@@ -96,8 +86,7 @@ export async function buildTrainingSamples(
 ): Promise<OmrTrainingSampleIn[]> {
   const detections = omrMeta.detections;
   if (!detections) return [];
-  // `algorithm_version` names the *feature* version: v3 runs and every run since (v2 or v4
-  // deciding) store the v3/v4 `measureBox` features; older runs have none and are skipped below.
+  // `algorithm_version` names the *feature* version: v3 runs and every run since (v2 or v4 deciding) store the v3/v4 `measureBox` features; older runs have none and are skipped below.
   const version = featureVersion(omrMeta.run);
   const usable = detections.bubbles.filter((b) => b.shape?.strokeSpan !== undefined && b.fillRatio !== undefined);
   if (usable.length === 0) return [];

@@ -1,6 +1,5 @@
 <script lang="ts">
-  // Always-allowed domains (issue #53): a verified registration from a listed domain is approved on the
-  // spot with that domain's features. Changes apply to future registrations only.
+  // Always-allowed domains (issue #53): a verified registration from a listed domain is approved on the spot with that domain's features. Changes apply to future registrations only.
   import { faTrash } from "@fortawesome/free-solid-svg-icons";
   import { ALL_FEATURES_ON, type AccountFeature, type AccountFeatures, type AllowedDomain } from "#lib/api/admin";
   import { t } from "#lib/i18n";

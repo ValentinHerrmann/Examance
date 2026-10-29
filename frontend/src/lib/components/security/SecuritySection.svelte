@@ -1,8 +1,5 @@
 <script lang="ts">
-  /**
-   * Sign-in and security cards, loaded once: every card reloads the whole set after a change, so the
-   * summary, factor list and passkey list can never disagree about what the account has.
-   */
+  /** Sign-in and security cards, loaded once: every card reloads the whole set after a change, so the summary, factor list and passkey list can never disagree about what the account has. */
   import { onMount } from "svelte";
   import { t } from "#lib/i18n";
   import { sessionStore } from "#lib/stores/session";

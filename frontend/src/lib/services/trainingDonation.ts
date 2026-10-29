@@ -1,8 +1,4 @@
-/**
- * Opt-in donation of teacher-verified checkbox crops (see docs/data_flow_and_security.md). Privacy rules, keep them: send only
- * when opted in (default off) AND signed in, only `isMcReviewed` questions, with a random per-box token (the account counts
- * for the daily quota only, never stored with a sample); drop unsent data on withdrawal/sign-out, never retry failures.
- */
+/** Opt-in donation of teacher-verified checkbox crops (see docs/data_flow_and_security.md). Privacy rules, keep them: send only when opted in (default off) AND signed in, only `isMcReviewed` questions, with a random per-box token (the account counts for the daily quota only, never stored with a sample); drop unsent data on withdrawal/sign-out, never retry failures. */
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import type { ExerciseScoreRecord } from '#lib/db/schema';
@@ -64,8 +60,7 @@ function dropPending(): void {
   outbox = [];
 }
 
-// Consent withdrawn (here or in another tab — the store follows `storage` events) or signed
-// out: nothing that was waiting may still go out.
+// Consent withdrawn (here or in another tab — the store follows `storage` events) or signed out: nothing that was waiting may still go out.
 trainingDonationStore.subscribe((consent) => {
   if (!consent.enabled) dropPending();
 });
@@ -162,8 +157,7 @@ function shuffle<T>(items: T[]): T[] {
   return a;
 }
 
-/** Sends the outbox in requests of whole questions (≤ MAX_PER_REQUEST samples each). An upload
- *  already running picks up what is added meanwhile. */
+/** Sends the outbox in requests of whole questions (≤ MAX_PER_REQUEST samples each). An upload already running picks up what is added meanwhile. */
 async function upload(): Promise<void> {
   if (uploading) return uploading;
   uploading = (async () => {

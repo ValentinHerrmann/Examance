@@ -1,8 +1,4 @@
-/**
- * Import a .bgproj archive. `decryptArchive()` only opens the envelope (touches no tables, session or stores), so a wrong
- * password costs nothing; `applyArchive()` writes only after decryption succeeded and every conflict has a decision.
- * Never call `sessionStore.unlock()` with the archive key; records are re-encrypted under the live session key.
- */
+/** Import a .bgproj archive. `decryptArchive()` only opens the envelope (touches no tables, session or stores), so a wrong password costs nothing; `applyArchive()` writes only after decryption succeeded and every conflict has a decision. Never call `sessionStore.unlock()` with the archive key; records are re-encrypted under the live session key. */
 
 import { samePackageLists, storedEntries } from '#lib/latex/packages';
 import { getAccountPackages } from '#lib/latex/packageSettings';
@@ -42,11 +38,7 @@ function describe(err: any): string {
   return err?.message ?? String(err);
 }
 
-/**
- * Re-seals an archived submission's scan and annotation under the live key. Current archives carry
- * them decrypted (`scanBytes`); older ones carried the exporter's ciphertext, which opens only when
- * the exporter was this very account; otherwise the scan is dropped and reported.
- */
+/** Re-seals an archived submission's scan and annotation under the live key. Current archives carry them decrypted (`scanBytes`); older ones carried the exporter's ciphertext, which opens only when the exporter was this very account; otherwise the scan is dropped and reported. */
 async function resealScans(
   sub: any,
   key: CryptoKey,
@@ -153,8 +145,7 @@ export async function decryptArchive(
 
   onProgress?.({ stage: 'salt', current: 20, total: 100 });
 
-  // 4-5. Derive the key from header salt + password and authenticate the whole envelope. Archives are
-  // sealed with Argon2id; older ones may carry the PBKDF2 key of the former silent fallback (S14).
+  // 4-5. Derive the key from header salt + password and authenticate the whole envelope. Archives are sealed with Argon2id; older ones may carry the PBKDF2 key of the former silent fallback (S14).
   let decompressedInner: Uint8Array | null = null;
   for (const derive of [deriveArgon2Key, derivePbkdf2Key]) {
     try {
@@ -190,20 +181,16 @@ export async function applyArchive(
   onProgress?: (event: ProgressEvent) => void,
   { report = newReport('import'), ownExamIds = new Set(), decided = new Map() }: ApplyOptions = {}
 ): Promise<ImportResult> {
-  // Always the live session key, never the archive's — records arrive already
-  // decrypted and only need re-sealing under this vault's key.
+  // Always the live session key, never the archive's — records arrive already decrypted and only need re-sealing under this vault's key.
   const activeKey = get(sessionStore).sessionKey;
   if (!activeKey) {
     throw new Error('Unlock the session before importing an archive.');
   }
 
-    // Exams and exercises are *created* under the importing account: saveExamEncrypted/
-    // saveExerciseEncrypted go through repository.save(), which PATCHes ids the account doesn't own.
-    // importPayloadToServer() creates them instead and reports id substitutions.
+    // Exams and exercises are *created* under the importing account: saveExamEncrypted/ saveExerciseEncrypted go through repository.save(), which PATCHes ids the account doesn't own. importPayloadToServer() creates them instead and reports id substitutions.
   const errors: string[] = [];
   let idMap = new Map<string, string>();
-  // Filled by the server import so the local mirror uses the same group ids
-  // the server created.
+  // Filled by the server import so the local mirror uses the same group ids the server created.
   let mcGroupIdMap = new Map<string, string>();
 
   const exams: any[] = Array.isArray(payload.exams) ? payload.exams : [];
@@ -247,8 +234,7 @@ export async function applyArchive(
     );
   }
 
-  // Each created exam gets the header logo it was exported with (archives before payload
-  // version 3 carry none, so their exams follow this account's logo).
+  // Each created exam gets the header logo it was exported with (archives before payload version 3 carry none, so their exams follow this account's logo).
   const examLogos: ArchivedExamLogo[] = Array.isArray(payload.examLogos) ? payload.examLogos : [];
   const logosToRestore = examLogos.filter((l) => result.createdExamIds.has(l.examId));
   if (logosToRestore.length > 0) {
@@ -270,9 +256,7 @@ export async function applyArchive(
     }
   }
 
-  // Submissions of an exam that got a fresh id get fresh ids too: their archived ids may belong to
-  // another account's exam on this server (a 409 that used to vanish into the offline queue).
-  // Submissions of an exam that kept its id keep theirs, so re-importing one's own backup upserts.
+  // Submissions of an exam that got a fresh id get fresh ids too: their archived ids may belong to another account's exam on this server (a 409 that used to vanish into the offline queue). Submissions of an exam that kept its id keep theirs, so re-importing one's own backup upserts.
   const submissionIdMap = new Map<string, string>();
   for (const sub of Array.isArray(payload.submissions) ? payload.submissions : []) {
     if (remap(sub.examId) !== sub.examId) submissionIdMap.set(sub.id, crypto.randomUUID());
@@ -280,8 +264,7 @@ export async function applyArchive(
   const remapSubmission = (id: string) => submissionIdMap.get(id) ?? id;
   const local = resultsAreLocal();
 
-  // Results need an exam to belong to: one created by this import, or one the account already
-  // has (a kept or identical exam). Results of an exam that failed to import have nowhere to go.
+  // Results need an exam to belong to: one created by this import, or one the account already has (a kept or identical exam). Results of an exam that failed to import have nowhere to go.
   const examAvailable = (archivedExamId: string) =>
     result.createdExamIds.has(archivedExamId) || ownExamIds.has(archivedExamId);
   const skipForMissingExam = (archivedExamId: string, what: string) => {
@@ -290,9 +273,7 @@ export async function applyArchive(
     return true;
   };
 
-  // Results go where the account keeps them: this browser in hybrid mode (through the
-  // repositories), the server in all-server mode. Server writes are direct, so a rejection is
-  // reported here instead of disappearing into the offline queue.
+  // Results go where the account keeps them: this browser in hybrid mode (through the repositories), the server in all-server mode. Server writes are direct, so a rejection is reported here instead of disappearing into the offline queue.
   if (Array.isArray(payload.students)) {
     for (const item of payload.students) {
       if (skipForMissingExam(item.examId, 'students')) continue;
@@ -337,8 +318,7 @@ export async function applyArchive(
   }
 
   if (Array.isArray(payload.exerciseScores)) {
-    // Scores are addressed per exam; the archive only records which submission
-    // they belong to, so the exam id comes from that submission.
+    // Scores are addressed per exam; the archive only records which submission they belong to, so the exam id comes from that submission.
     const archivedExamBySubmission = new Map<string, string>();
     for (const sub of Array.isArray(payload.submissions) ? payload.submissions : []) {
       if (examAvailable(sub.examId)) archivedExamBySubmission.set(remapSubmission(sub.id), sub.examId);
@@ -348,8 +328,7 @@ export async function applyArchive(
     for (const score of payload.exerciseScores) {
       const submissionId = remapSubmission(score.submissionId);
       const archivedExamId = archivedExamBySubmission.get(submissionId);
-      // A score for an exercise this import could not link to its (new) exam would be refused by the
-      // server for the whole submission; leave it out and say which exercise is missing.
+      // A score for an exercise this import could not link to its (new) exam would be refused by the server for the whole submission; leave it out and say which exercise is missing.
       const linked = archivedExamId ? result.linkedExercisesByExam.get(archivedExamId) : undefined;
       if (archivedExamId && linked && !linked.has(score.exerciseId)) {
         addMissing(report, {
@@ -400,14 +379,11 @@ export async function applyArchive(
     }
   }
 
-    // MC groups before the junctions (which carry mcGroupId). A group whose exam got a fresh id needs
-    // its own fresh id too, else re-importing into the source DB would rewrite the original exam's
-    // groups. Both sides share one map, so membership survives.
+    // MC groups before the junctions (which carry mcGroupId). A group whose exam got a fresh id needs its own fresh id too, else re-importing into the source DB would rewrite the original exam's groups. Both sides share one map, so membership survives.
   if (Array.isArray(payload.examMcGroups) && payload.examMcGroups.length > 0) {
     const groupRecords = payload.examMcGroups.map((g: any) => {
       const remappedExamId = remap(g.examId);
-      // In server-backed modes the id is whatever the server minted; locally,
-      // a fresh one only when the exam itself was remapped.
+      // In server-backed modes the id is whatever the server minted; locally, a fresh one only when the exam itself was remapped.
       const groupId =
         mcGroupIdMap.get(g.id) ?? (remappedExamId === g.examId ? g.id : crypto.randomUUID());
       if (groupId !== g.id) mcGroupIdMap.set(g.id, groupId);
@@ -427,12 +403,10 @@ export async function applyArchive(
     );
   }
 
-  // Resource files live on the server only (uploaded by `importPayloadToServer`). A local copy would
-  // hide the server's set, since resource reads are local-first (issue #145).
+  // Resource files live on the server only (uploaded by `importPayloadToServer`). A local copy would hide the server's set, since resource reads are local-first (issue #145).
 
   if (Array.isArray(payload.auditLogs) && payload.auditLogs.length > 0) {
-    // Current archives carry the entries decrypted; re-seal them under this account's key. Entries
-    // of older archives are still sealed under the exporter's key and only open for that account.
+    // Current archives carry the entries decrypted; re-seal them under this account's key. Entries of older archives are still sealed under the exporter's key and only open for that account.
     const entries = await Promise.all(
       payload.auditLogs
         // An entry the exporter could not open carries no note worth sealing again.
@@ -451,10 +425,7 @@ export async function applyArchive(
   return { examCount, studentCount, errors, report };
 }
 
-/**
- * Decrypt and write in one call, without conflict resolution. For callers that can't present
- * conflicts (tests, imports into an empty workspace); user-facing imports use `archiveService.openBgprojArchive()`.
- */
+/** Decrypt and write in one call, without conflict resolution. For callers that can't present conflicts (tests, imports into an empty workspace); user-facing imports use `archiveService.openBgprojArchive()`. */
 export async function unpackProject(
   archiveData: Blob | ArrayBuffer | Uint8Array,
   password: string,

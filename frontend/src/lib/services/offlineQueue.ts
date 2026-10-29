@@ -38,10 +38,7 @@ async function persist(queue: QueuedRequest[]): Promise<void> {
   }
 }
 
-/**
- * Re-reads the stored queue: entries another tab replayed disappear here too, entries only this tab
- * holds (never persisted) stay, and the legacy localStorage queue moves in once.
- */
+/** Re-reads the stored queue: entries another tab replayed disappear here too, entries only this tab holds (never persisted) stay, and the legacy localStorage queue moves in once. */
 async function hydrate(): Promise<void> {
   let legacy: QueuedRequest[] = [];
   try {
@@ -94,10 +91,7 @@ export function isTransientError(err: unknown): boolean {
   return typeof status === 'number' && (status >= 500 || status === 408 || status === 429);
 }
 
-/**
- * Fallback for a failed server write: queue it when a replay can succeed. Otherwise report it like a
- * non-silent request and rethrow, so the caller never treats a refused write as saved.
- */
+/** Fallback for a failed server write: queue it when a replay can succeed. Otherwise report it like a non-silent request and rethrow, so the caller never treats a refused write as saved. */
 export function enqueueOrThrow(
   err: unknown,
   url: string,
@@ -165,8 +159,7 @@ function send(req: QueuedRequest): Promise<unknown> {
 const isFlushable = (state: string) => state === 'ok' || state === 'needs-choice';
 
 async function replay(): Promise<void> {
-  // Never replay against a session that isn't fully signed in: `online` fires readily on a tablet, and a
-  // sign-in in progress has demoted the access cookie, so replaying would burst 403s for replayable writes.
+  // Never replay against a session that isn't fully signed in: `online` fires readily on a tablet, and a sign-in in progress has demoted the access cookie, so replaying would burst 403s for replayable writes.
   if (!get(isUnlocked)) return;
   // Only into the workspace the writes were made in, and only once the session has proven it owns it.
   if (!isServerBacked() || !isFlushable(get(workspaceStatusStore).state)) return;
@@ -192,8 +185,7 @@ async function replay(): Promise<void> {
       processed.add(req.id);
     }
   } finally {
-    // update(), not set(): writes queued while this ran must survive. Entries another tab queued are
-    // not in this tab's `persisted` set, so they are deleted from IndexedDB explicitly.
+    // update(), not set(): writes queued while this ran must survive. Entries another tab queued are not in this tab's `persisted` set, so they are deleted from IndexedDB explicitly.
     offlineQueue.update((q) => q.filter((req) => !processed.has(req.id)));
     if (hasIdb()) await db.offlineQueue.bulkDelete([...processed]).catch(() => {});
   }
@@ -228,8 +220,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     void flushOfflineQueue();
   });
-  // `online` alone misses a server that was down while the network was up: also flush whenever the
-  // workspace opens, and periodically while it is open.
+  // `online` alone misses a server that was down while the network was up: also flush whenever the workspace opens, and periodically while it is open.
   workspaceStatusStore.subscribe(({ state }) => {
     if (isFlushable(state)) {
       flushTimer ??= setInterval(() => {

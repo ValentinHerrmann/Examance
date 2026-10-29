@@ -1,7 +1,4 @@
-/**
- * Factor steps shared by sign-in (`routes/unlock`) and password reset (`routes/reset-password`); each page
- * keeps its own flow. A passkey's PRF secret (`unwrap`) can also open the vault.
- */
+/** Factor steps shared by sign-in (`routes/unlock`) and password reset (`routes/reset-password`); each page keeps its own flow. A passkey's PRF secret (`unwrap`) can also open the vault. */
 import { ApiError } from "#lib/api/client";
 import { submitBackupCode, submitTotp, type AuthStep } from "#lib/api/mfa";
 import { loginOptions, verifyLogin } from "#lib/api/webauthn";

@@ -1,8 +1,4 @@
-/**
- * Pure state transitions for building MC groups from library questions on the exam page.
- * An exercise links to an exam at most once
- * (`[examId+exerciseId]` junction key), so a question belongs to at most one group.
- */
+/** Pure state transitions for building MC groups from library questions on the exam page. An exercise links to an exam at most once (`[examId+exerciseId]` junction key), so a question belongs to at most one group. */
 
 export interface McGroupDraft {
   id: string;

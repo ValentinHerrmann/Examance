@@ -26,8 +26,7 @@
     calculatedGrade
   }: Props = $props();
 
-  // The raw pseudonymHash can be the QR text including the student's name (issue #80):
-  // never render it here, only its hash (the same value the server stores).
+  // The raw pseudonymHash can be the QR text including the student's name (issue #80): never render it here, only its hash (the same value the server stores).
   let displayId = $state("");
   let idSeq = 0;
 

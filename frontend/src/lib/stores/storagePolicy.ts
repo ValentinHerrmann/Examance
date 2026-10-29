@@ -2,11 +2,7 @@ import { writable, get } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
 import { translate } from '#lib/i18n';
 
-/**
- * Where an account keeps its grading results (docs/dev/storage_modes.md). Exams and exercises always
- * live on the server; `hybrid` keeps students, submissions and scores in one browser only. Which modes
- * an account may choose comes from the server (`lib/stores/capabilities.ts`), never from this list.
- */
+/** Where an account keeps its grading results (docs/dev/storage_modes.md). Exams and exercises always live on the server; `hybrid` keeps students, submissions and scores in one browser only. Which modes an account may choose comes from the server (`lib/stores/capabilities.ts`), never from this list. */
 export type StorageMode = 'all-server' | 'hybrid';
 
 export const STORAGE_MODES: readonly StorageMode[] = ['all-server', 'hybrid'];
@@ -21,19 +17,12 @@ export interface StoragePolicy {
     latexCompilation: 'server' | 'local';
 }
 
-/**
- * Pre-#47 browsers kept the mode per browser under this key. It is read once, when the workspace
- * manifest is created (`legacyCachedMode`), and then removed; the account's mode lives on the server.
- */
+/** Pre-#47 browsers kept the mode per browser under this key. It is read once, when the workspace manifest is created (`legacyCachedMode`), and then removed; the account's mode lives on the server. */
 const LEGACY_MODE_KEY = 'bg_storage_policy';
 /** The LaTeX engine is a per-browser preference with its own key. */
 const LATEX_KEY = 'bg_latex_compilation';
 
-/**
- * The storage mode decides which store every repository uses, so it is only settable via `commitStorageMode` with a token
- * from `armStorageModeSwitch` (only `lib/db/workspace.ts` calls it); `updateSetting` is narrowed to `latexCompilation` so
- * any other caller is a compile error.
- */
+/** The storage mode decides which store every repository uses, so it is only settable via `commitStorageMode` with a token from `armStorageModeSwitch` (only `lib/db/workspace.ts` calls it); `updateSetting` is narrowed to `latexCompilation` so any other caller is a compile error. */
 let activeSwitchToken: string | null = null;
 
 /** Called by the workspace layer right before it publishes the account's mode. */
@@ -47,10 +36,7 @@ export function disarmStorageModeSwitch(): void {
   activeSwitchToken = null;
 }
 
-/**
- * No storage mode by default: every account chooses one explicitly. The LaTeX default is `server`; accounts the admin did
- * not allow server LaTeX fall back to local via `effectiveLatexCompilation()`. Only an explicit choice is persisted.
- */
+/** No storage mode by default: every account chooses one explicitly. The LaTeX default is `server`; accounts the admin did not allow server LaTeX fall back to local via `effectiveLatexCompilation()`. Only an explicit choice is persisted. */
 export const DEFAULT_POLICY: StoragePolicy = {
     storageMode: null,
     latexCompilation: 'server',
@@ -79,10 +65,7 @@ function parseLatex(value: unknown): 'server' | 'local' | null {
     return value === 'server' || value === 'local' ? value : null;
 }
 
-/**
- * The per-browser mode a pre-#47 browser had cached, for legacy detection only: `'all-local'` when
- * the browser used local mode (the old default, also when nothing was cached). Removes the key.
- */
+/** The per-browser mode a pre-#47 browser had cached, for legacy detection only: `'all-local'` when the browser used local mode (the old default, also when nothing was cached). Removes the key. */
 export function legacyCachedMode(): StorageMode | 'all-local' {
     const saved = safeLocalStorage.getItem(LEGACY_MODE_KEY);
     if (!saved) return 'all-local';

@@ -23,10 +23,7 @@ function csvCell(value: number | string): string {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-/**
- * RFC 4180 CSV bytes with a UTF-8 BOM (Excel). The header stays English: it is a machine-readable
- * interchange format, and German spreadsheets import it either way.
- */
+/** RFC 4180 CSV bytes with a UTF-8 BOM (Excel). The header stays English: it is a machine-readable interchange format, and German spreadsheets import it either way. */
 export function buildGradesCsv(rows: CsvExportRow[]): Uint8Array {
   const lines = [
     'Pseudonym ID,Fallback Code,Student Name,Total Score,Max Points,Percentage,Grade,Status',

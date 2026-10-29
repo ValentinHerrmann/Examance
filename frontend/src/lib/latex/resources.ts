@@ -1,8 +1,4 @@
-/**
- * Rules for teacher-uploaded LaTeX resource files (images, `\input` data, CSVs, fonts). They are
- * placed flat next to `main.tex`, so the source's filename is the filename on disk in both engines.
- * Mirrored by `backend/app/services/latex_resources.py`: what the browser accepts the server accepts.
- */
+/** Rules for teacher-uploaded LaTeX resource files (images, `\input` data, CSVs, fonts). They are placed flat next to `main.tex`, so the source's filename is the filename on disk in both engines. Mirrored by `backend/app/services/latex_resources.py`: what the browser accepts the server accepts. */
 import { LOGO_FILENAMES } from './logo';
 import { fetchAssetIndex } from './assets';
 
@@ -17,11 +13,7 @@ export const MAX_COMPILE_RESOURCE_COUNT = 30;
 
 const MAX_FILENAME_CHARS = 100;
 
-/**
- * SVG is refused on purpose: LaTeX cannot include it directly, and the usual
- * workarounds (dvisvgm/inkscape shell-escape) do not exist in either of our
- * sandboxed engines. Converting to PDF keeps the graphic vector.
- */
+/** SVG is refused on purpose: LaTeX cannot include it directly, and the usual workarounds (dvisvgm/inkscape shell-escape) do not exist in either of our sandboxed engines. Converting to PDF keeps the graphic vector. */
 export const SVG_REJECTION_MESSAGE =
   'SVG is not supported because it renders unreliably in LaTeX. ' +
   'Convert it to PDF first — it stays a vector graphic ' +
@@ -37,11 +29,7 @@ export interface LatexResourceFile {
 
 export class ResourceError extends Error {}
 
-/**
- * Names a user file must not take: `main.tex` and friends, the exam logo's names (`logo.ts`), and every bundled LaTeX asset (basenames
- * too, since the worker flattens `sty/x.sty` and `sty/x.tex`). Loaded from the server's asset index, cached;
- * failure degrades to the static base list rather than blocking an upload.
- */
+/** Names a user file must not take: `main.tex` and friends, the exam logo's names (`logo.ts`), and every bundled LaTeX asset (basenames too, since the worker flattens `sty/x.sty` and `sty/x.tex`). Loaded from the server's asset index, cached; failure degrades to the static base list rather than blocking an upload. */
 const BASE_RESERVED_NAMES = ['main.tex', 'main.log', 'main.aux', 'main.pdf', 'index.json', ...LOGO_FILENAMES];
 let reservedNamesCache: Set<string> | null = null;
 
@@ -114,10 +102,7 @@ export async function validateResource(file: File, usedBytes = 0): Promise<strin
   return name;
 }
 
-/**
- * Flattens resources from several exercises into the compiler's map. Identical bytes under one name
- * are written once; different bytes are a conflict the teacher must resolve by renaming.
- */
+/** Flattens resources from several exercises into the compiler's map. Identical bytes under one name are written once; different bytes are a conflict the teacher must resolve by renaming. */
 export function mergeResources(files: LatexResourceFile[]): LatexResourceFile[] {
   const merged = new Map<string, LatexResourceFile>();
 

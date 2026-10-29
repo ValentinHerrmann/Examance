@@ -1,8 +1,4 @@
-/**
- * The workspace manifest: one IndexedDB row saying whose key sealed the data and the last storage mode (an offline copy only).
- * A session opens the workspace only if it owns it; a workspace from the discontinued local mode is never opened, only deleted.
- * Invariants and detail: docs/dev/storage_modes.md ("Workspace manifest and owner binding").
- */
+/** The workspace manifest: one IndexedDB row saying whose key sealed the data and the last storage mode (an offline copy only). A session opens the workspace only if it owns it; a workspace from the discontinued local mode is never opened, only deleted. Invariants and detail: docs/dev/storage_modes.md ("Workspace manifest and owner binding"). */
 
 import { get } from 'svelte/store';
 import { db, vaultTables } from './db';
@@ -82,11 +78,7 @@ export async function localResultCount(): Promise<number> {
   return counts.reduce((a, b) => a + b, 0);
 }
 
-/**
- * Loads the manifest, creating it on first use. A browser from before the manifest gets the mode it
- * had cached, so legacy local data is recognised (`'all-local'`, the old default) and a former
- * hybrid browser keeps knowing that its results are real data.
- */
+/** Loads the manifest, creating it on first use. A browser from before the manifest gets the mode it had cached, so legacy local data is recognised (`'all-local'`, the old default) and a former hybrid browser keeps knowing that its results are real data. */
 export async function loadWorkspace(): Promise<WorkspaceManifestRecord> {
   if (!db.isOpen()) await db.open();
   const empty = await workspaceIsEmpty();
@@ -230,10 +222,7 @@ async function checkOwner(manifest: WorkspaceManifestRecord): Promise<WorkspaceS
   return { state: 'blocked', reason: keyOk ? 'foreign-account' : 'foreign-key' };
 }
 
-/**
- * Admins hold no exams or results (issue #58): never check, claim or replace this browser's workspace
- * (it may hold a teacher's data) and never ask for a mode. The capabilities load only binds the tab to its account.
- */
+/** Admins hold no exams or results (issue #58): never check, claim or replace this browser's workspace (it may hold a teacher's data) and never ask for a mode. The capabilities load only binds the tab to its account. */
 async function openAdminSession(): Promise<WorkspaceStatus> {
   applyMode(null);
   try {
@@ -268,8 +257,7 @@ async function decide(): Promise<WorkspaceStatus> {
     capabilitiesStore.set(cached);
     const current = await currentManifest();
     mode = cached?.storageMode ?? (current?.mode === 'all-server' || current?.mode === 'hybrid' ? current.mode : null);
-    // Without any cached answer, trust the mode this browser last worked in rather than allowing nothing,
-    // which would strand an offline tab in a choice it cannot make.
+    // Without any cached answer, trust the mode this browser last worked in rather than allowing nothing, which would strand an offline tab in a choice it cannot make.
     allowed = cached ? allowedModesFrom(cached) : mode ? [mode] : [];
   }
 
@@ -282,11 +270,7 @@ async function decide(): Promise<WorkspaceStatus> {
   return { state: 'ok' };
 }
 
-/**
- * Another tab signed in as a different account, so this tab's server session now belongs to that
- * account. Drop this tab's keys and answer without signing out: logging out would end the other
- * tab's session, which is the one the cookie now belongs to.
- */
+/** Another tab signed in as a different account, so this tab's server session now belongs to that account. Drop this tab's keys and answer without signing out: logging out would end the other tab's session, which is the one the cookie now belongs to. */
 function lockForeignSession(): WorkspaceStatus {
   clearCapabilities();
   // Not `lock()`: that broadcasts and would also drop the keys of the tab that owns the cookie now.
@@ -295,11 +279,7 @@ function lockForeignSession(): WorkspaceStatus {
   return { state: 'unchecked' };
 }
 
-/**
- * Re-asks the server what the account may use (admins change its switches at any time); runs whenever the tab refocuses.
- * Only a changed answer re-runs `openWorkspace()`, which asks for a new mode if the current one is no longer allowed.
- * Offline, nothing changes.
- */
+/** Re-asks the server what the account may use (admins change its switches at any time); runs whenever the tab refocuses. Only a changed answer re-runs `openWorkspace()`, which asks for a new mode if the current one is no longer allowed. Offline, nothing changes. */
 export function refreshCapabilities(): Promise<void> {
   return serialized(refreshCapabilitiesNow);
 }
@@ -329,10 +309,7 @@ function serialized<T>(run: () => Promise<T>): Promise<T> {
   return next;
 }
 
-/**
- * Checks that the unlocked session owns this browser's workspace, loads the account's storage mode and
- * publishes the result. Call after every unlock and before routes touch the vault.
- */
+/** Checks that the unlocked session owns this browser's workspace, loads the account's storage mode and publishes the result. Call after every unlock and before routes touch the vault. */
 export function openWorkspace(): Promise<WorkspaceStatus> {
   return serialized(openWorkspaceNow);
 }
@@ -362,10 +339,7 @@ async function discardLegacyLocalWorkspace(): Promise<void> {
   removeLegacyLocalVault();
 }
 
-/**
- * The blocked screen's last resort: drop this browser's data and claim an empty workspace for the
- * current session, then load the account's mode again. Destroys data the session cannot use anyway.
- */
+/** The blocked screen's last resort: drop this browser's data and claim an empty workspace for the current session, then load the account's mode again. Destroys data the session cannot use anyway. */
 export function resetWorkspaceForCurrentSession(): Promise<void> {
   return serialized(async () => {
     const manifest = await loadWorkspace();

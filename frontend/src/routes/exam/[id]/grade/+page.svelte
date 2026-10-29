@@ -130,9 +130,7 @@
     }
     if (seq !== loadSeq) return;
 
-    // Check strokes/annotations for exercises with active stamps. Read them from `sub`
-    // itself: the canvas loads the new submission's strokes asynchronously, so the
-    // store still holds the previous student's strokes at this point.
+    // Check strokes/annotations for exercises with active stamps. Read them from `sub` itself: the canvas loads the new submission's strokes asynchronously, so the store still holds the previous student's strokes at this point.
     const subStrokes = await loadStrokesFor(sub);
     if (seq !== loadSeq) return;
     const exerciseIdsWithStrokes = new Set<string>();
@@ -155,8 +153,7 @@
     gradingStore.setMcState(sheet.mcState);
   }
 
-  /** Score rows as loaded for the current submission — lets a save keep an MC row it
-   *  would otherwise have deleted (see handleSaveScore). */
+  /** Score rows as loaded for the current submission — lets a save keep an MC row it would otherwise have deleted (see handleSaveScore). */
   let loadedScores = new Map<string, ExerciseScoreRecord>();
   /** Submission the loaded sheet belongs to; a save under any other id is refused (issue #85). */
   let loadedFor: string | null = null;
@@ -185,12 +182,10 @@
 
   async function handleSaveScore() {
     if (!currentSub) return;
-    // Snapshot everything this save writes: Next/Prev during the awaits below must not send the
-    // rest of the save (deletes, annotations, total) to the next student.
+    // Snapshot everything this save writes: Next/Prev during the awaits below must not send the rest of the save (deletes, annotations, total) to the next student.
     const sub = currentSub;
     const { currentStrokes: strokes, strokesSubmissionId } = get(gradingStore);
-    // Strokes still from the previous student (scan not loaded yet) must neither be written
-    // here nor clear this student's own annotations: leave the annotation layer untouched.
+    // Strokes still from the previous student (scan not loaded yet) must neither be written here nor clear this student's own annotations: leave the annotation layer untouched.
     const ownsStrokes = strokesSubmissionId === sub.id;
     const values = new Map(exercises.map((ex) => [ex.id, scoreInputs[ex.id] ?? null]));
     const mcState = get(gradingStore).mcState;
@@ -204,8 +199,7 @@
       if (loadedFor !== sub.id) {
         throw new Error(translate("grading.page.scoresNotLoaded"));
       }
-      // Encrypt annotations. "No strokes" and "no key" differ: saving without a session key must
-      // refuse, not silently clear the teacher's corrections.
+      // Encrypt annotations. "No strokes" and "no key" differ: saving without a session key must refuse, not silently clear the teacher's corrections.
       let clearAnnotations = false;
       if (!$sessionStore.sessionKey) {
         throw new Error(

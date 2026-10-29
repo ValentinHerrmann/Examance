@@ -29,11 +29,7 @@
   import { ADMIN_HOME } from "#lib/stores/navigationStore";
   import { Icon, Menu, MenuItem } from "#lib/components/ui";
 
-  /**
-   * Artemis navbar, dark slate in both themes: brand and (from `xl`) main links left; storage mode, workspace, language,
-   * theme, help, account right. Below `xl` the links move into the drawer (they do not fit at 1024px). `minimal` is for
-   * locked and public pages: brand, language, theme, help. Admins get user management only (issue #58).
-   */
+  /** Artemis navbar, dark slate in both themes: brand and (from `xl`) main links left; storage mode, workspace, language, theme, help, account right. Below `xl` the links move into the drawer (they do not fit at 1024px). `minimal` is for locked and public pages: brand, language, theme, help. Admins get user management only (issue #58). */
   interface Props {
     variant?: "full" | "minimal";
     authenticated?: boolean;

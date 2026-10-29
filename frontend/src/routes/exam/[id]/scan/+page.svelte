@@ -98,8 +98,7 @@
   // Raw: records go back to repositories; UnmatchedResolver binds item.newCode on the shared objects.
   let unmatchedList: UnmatchedSubmission[] = $state.raw([]);
   let scannedSubmissions: ScannedSubmissionItem[] = $state.raw([]);
-  // Starts true: the overview must not flash "no submissions yet" while the
-  // first fetch is still in flight (see loadScannedSubmissions()).
+  // Starts true: the overview must not flash "no submissions yet" while the first fetch is still in flight (see loadScannedSubmissions()).
   let isLoadingSubmissions = $state(true);
   // A failed list read hides the table (an empty one would say "no submissions yet"); `readError` covers the other reads.
   let submissionsLoadError = $state("");

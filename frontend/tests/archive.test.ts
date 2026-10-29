@@ -2,8 +2,7 @@ import 'fake-indexeddb/auto'; // In-memory IndexedDB mock for Vitest — must be
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { get } from 'svelte/store';
 
-// Exams and exercises always live on the server (issue #47): the archive round-trips run against an
-// in-memory fake of the API. Results stay in IndexedDB because the tests run in hybrid mode.
+// Exams and exercises always live on the server (issue #47): the archive round-trips run against an in-memory fake of the API. Results stay in IndexedDB because the tests run in hybrid mode.
 vi.mock('../src/lib/api/client', async () => (await import('./helpers/fakeServer')).clientModule);
 
 import { fakeServer } from './helpers/fakeServer';
@@ -235,9 +234,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
   });
 
   it('merges into the existing workspace instead of wiping it', async () => {
-    // Importing used to clear every table first — and, in archiveService, to do
-    // so *before* the password had even been checked. An import now adds to
-    // what is there; replacing is opt-in and happens after decryption.
+    // Importing used to clear every table first — and, in archiveService, to do so *before* the password had even been checked. An import now adds to what is there; replacing is opt-in and happens after decryption.
     await saveExamEncrypted(exam('new-exam-id', 'New Biology Exam'), testKey);
     const newProjectPacked = await packBlob(testPassword);
 
@@ -264,9 +261,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
   });
 
   it('does not replace the live session key with the archive key', async () => {
-    // The importer used to call sessionStore.unlock() with a key derived from
-    // the archive's own random salt, which the vault cannot re-derive: every
-    // record written afterwards was sealed under a key that died with the tab.
+    // The importer used to call sessionStore.unlock() with a key derived from the archive's own random salt, which the vault cannot re-derive: every record written afterwards was sealed under a key that died with the tab.
     await saveExamEncrypted(exam('keyed-exam', 'Key check'), testKey);
     const packed = await packBlob(testPassword);
     const keyBefore = get(sessionStore).sessionKey;

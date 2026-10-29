@@ -13,10 +13,7 @@ import { documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex
 import { getAccountPackages } from "#lib/latex/packageSettings";
 import { translate } from "#lib/i18n";
 
-/**
- * The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups).
- * `pageBreaks` lists item ids that start on a new page; the first emitted block never does.
- */
+/** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). `pageBreaks` lists item ids that start on a new page; the first emitted block never does. */
 export function buildExerciseInputs(
   examItems: ExamItemRef[],
   exercises: ExerciseRecord[],
@@ -53,12 +50,7 @@ export function buildExerciseInputs(
   return blocks.join("\n\n");
 }
 
-/**
- * Resource files of every exercise in the exam, for the compiler. Files are written flat, so
- * same-name different files conflict; mergeResources() (lib/latex/resources.ts) raises it
- * before compiling. The server engine loads its own rows and only gets exercise ids, unless
- * `needBytes` (local engine, raw export) asks for every file's bytes.
- */
+/** Resource files of every exercise in the exam, for the compiler. Files are written flat, so same-name different files conflict; mergeResources() (lib/latex/resources.ts) raises it before compiling. The server engine loads its own rows and only gets exercise ids, unless `needBytes` (local engine, raw export) asks for every file's bytes. */
 export async function collectExamResources(
   examItems: ExamItemRef[],
   exercises: ExerciseRecord[],
@@ -85,11 +77,7 @@ export async function collectExamResources(
   return exerciseResourceRepository.collectForCompile(owners, sessionKey, needBytes);
 }
 
-/**
- * Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is
- * the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own.
- * The exam's own layout options (`namenszeile`) are added here.
- */
+/** Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own. The exam's own layout options (`namenszeile`) are added here. */
 export function buildExamLatex(
   exam: ExamRecord,
   exerciseInputs: string,
@@ -215,10 +203,7 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
   };
 }
 
-/**
- * The cached Angabe/Lösung if they were compiled from the exam's current sources; "stale" when this
- * exam was compiled before but its exercises, order or header changed since (issue #135); null when never compiled.
- */
+/** The cached Angabe/Lösung if they were compiled from the exam's current sources; "stale" when this exam was compiled before but its exercises, order or header changed since (issue #135); null when never compiled. */
 export async function getCurrentExamPreview(
   input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">
 ): Promise<{ angabe: CachedCompileEntry; loesung: CachedCompileEntry } | "stale" | null> {

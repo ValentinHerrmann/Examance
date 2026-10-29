@@ -1,9 +1,4 @@
-/**
- * LaTeX packages chosen in Examance: account, exam and exercise levels (issue #108). `resolvePackages` merges them
- * into one set without option clashes and `withPackages` writes it before `\documentclass` (packages.sty loads it
- * before hyperref). Rules: docs/dev/latex_packages.md. Mirrors backend/app/services/latex_packages.py; keep in sync.
- * The rule tables come from one file both sides read (`backend/app/services/latex_package_rules.json`).
- */
+/** LaTeX packages chosen in Examance: account, exam and exercise levels (issue #108). `resolvePackages` merges them into one set without option clashes and `withPackages` writes it before `\documentclass` (packages.sty loads it before hyperref). Rules: docs/dev/latex_packages.md. Mirrors backend/app/services/latex_packages.py; keep in sync. The rule tables come from one file both sides read (`backend/app/services/latex_package_rules.json`). */
 import RULES from '../../../../backend/app/services/latex_package_rules.json';
 
 export type PackageKind = "package" | "tikzlibrary" | "pgfplotslibrary";
@@ -48,11 +43,7 @@ export interface PackageLayer {
 
 export type NoteCode = "conflict" | "override" | "ignored" | "aliased" | "kept" | "added";
 
-/**
- * conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail =
- * reason); aliased: replaced by a template option (detail = target); kept: the exam left out a package an exercise
- * needs; added: pgfplots for its libraries.
- */
+/** conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); kept: the exam left out a package an exercise needs; added: pgfplots for its libraries. */
 export interface PackageNote {
   code: NoteCode;
   kind: PackageKind;
@@ -428,10 +419,7 @@ export function addPackageLine(latex: string, entry: LatexPackageEntry): string 
   return `${formatPackageLine(entry)}\n${latex}`;
 }
 
-/**
- * Rewrites package line `line` with `name` (of `kind`) removed, or set to `entry` when given. A name shared with others
- * in one command (`\usepackage[x]{a,b}`) is split off first, so only that package changes.
- */
+/** Rewrites package line `line` with `name` (of `kind`) removed, or set to `entry` when given. A name shared with others in one command (`\usepackage[x]{a,b}`) is split off first, so only that package changes. */
 export function updatePackageLine(
   latex: string,
   line: number,

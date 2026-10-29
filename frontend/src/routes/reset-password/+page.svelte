@@ -1,6 +1,5 @@
 <script lang="ts">
-  // Password reset wizard. Needs a second factor (mailbox alone must not take over an account); the data key is
-  // unwrapped in the browser with the recovery code and re-wrapped under the new password, sent in one request.
+  // Password reset wizard. Needs a second factor (mailbox alone must not take over an account); the data key is unwrapped in the browser with the recovery code and re-wrapped under the new password, sent in one request.
   import { onMount } from "svelte";
   import { api, apiErrorMessage } from "#lib/api/client";
   import { takeUrlToken } from "#lib/utils/urlToken";
@@ -42,10 +41,7 @@
   let availableFactors = $derived(
     (step?.available ?? ["totp"]).filter((f) => f !== "password" && (f !== "passkey" || canUsePasskeys)),
   );
-  /**
-   * False for a fresh account (no key copy, nothing authored): there is no data to recover, so the
-   * recovery-code step (and its "your data stays sealed" warning) is skipped.
-   */
+  /** False for a fresh account (no key copy, nothing authored): there is no data to recover, so the recovery-code step (and its "your data stays sealed" warning) is skipped. */
   let needsKeyRecovery = $state(true);
   /** A passkey that carried the second factor and yielded its PRF secret; it already recovered the data key, so the recovery-code step is skipped. */
   let passkeyUnwrap = $state.raw<PasskeyUnwrap | null>(null);
@@ -89,8 +85,7 @@
     try {
       step = await startReset(token);
       needsKeyRecovery = step.needs_key_recovery !== false;
-      // An account that never finished enrolling has no second factor to offer;
-      // requiring one would strand it. It goes straight to key recovery.
+      // An account that never finished enrolling has no second factor to offer; requiring one would strand it. It goes straight to key recovery.
       if (step.status === "factor_required") {
         stage = "factor";
       } else {
@@ -180,8 +175,7 @@
       );
 
       if (builtSet) {
-        // The set was written by the reset request rather than by saveEnvelopes,
-        // so pin it here: this browser built it and knows it is genuine.
+        // The set was written by the reset request rather than by saveEnvelopes, so pin it here: this browser built it and knows it is genuine.
         await pinEnvelopeSet(step.id, builtSet.set);
       }
 
@@ -208,11 +202,7 @@
   {:else if stage === "factor"}
     <h2 class="m-0 text-lg font-semibold text-content">{$t("security.reset.step2Title")}</h2>
     <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.step2Intro")}</p>
-    <!--
-      The same chooser the sign-in screen uses, minus the password: a reset
-      exists because the password is unavailable, and the emailed token
-      already stands in for it.
-    -->
+    <!-- The same chooser the sign-in screen uses, minus the password: a reset exists because the password is unavailable, and the emailed token already stands in for it. -->
     <FactorChooser
       available={availableFactors}
       onTotp={handleSecondFactor}

@@ -5,10 +5,7 @@
   import Button from "./Button.svelte";
   import Modal from "./Modal.svelte";
 
-  /**
-   * Below `lg` the filter panel moves into a drawer opened from a full-width button (one breakpoint owns
-   * layout and toggle). Children are rendered in the drawer modal; the desktop sidebar is rendered by the page.
-   */
+  /** Below `lg` the filter panel moves into a drawer opened from a full-width button (one breakpoint owns layout and toggle). Children are rendered in the drawer modal; the desktop sidebar is rendered by the page. */
   interface Props {
     open?: boolean;
     title: string;

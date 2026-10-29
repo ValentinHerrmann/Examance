@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
-// `compiler.worker.ts` assigns `self.onmessage` on import, and `self` doesn't exist in Vitest's
-// Node environment; polyfill it with `globalThis` so the pure exported helpers can be imported.
+// `compiler.worker.ts` assigns `self.onmessage` on import, and `self` doesn't exist in Vitest's Node environment; polyfill it with `globalThis` so the pure exported helpers can be imported.
 beforeAll(() => {
   if (typeof (globalThis as any).self === 'undefined') {
     (globalThis as any).self = globalThis;

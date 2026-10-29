@@ -1,8 +1,4 @@
-/**
- * GDPR Art. 15 / Art. 20 subject access export for one student: the readable, decrypted copy of their personal data that
- * the teacher-key-encrypted `.bgproj` backup cannot serve. Mirrors erasure.ts: resolve via repositories, decrypt with the
- * session key, record the disclosure in the audit log.
- */
+/** GDPR Art. 15 / Art. 20 subject access export for one student: the readable, decrypted copy of their personal data that the teacher-key-encrypted `.bgproj` backup cannot serve. Mirrors erasure.ts: resolve via repositories, decrypt with the session key, record the disclosure in the audit log. */
 
 import { get } from 'svelte/store';
 
@@ -40,10 +36,7 @@ export interface SubjectAccessExport {
   notes: string[];
 }
 
-/**
- * Build a decrypted export of everything held about one student (raw pseudonym ID or its HMAC) in one exam, through
- * the repositories so it works in both storage modes (F1). @throws if the session is locked or the student is unknown.
- */
+/** Build a decrypted export of everything held about one student (raw pseudonym ID or its HMAC) in one exam, through the repositories so it works in both storage modes (F1). @throws if the session is locked or the student is unknown. */
 export async function exportStudentData(pseudonymId: string, examId: string): Promise<SubjectAccessExport> {
   const key = get(sessionStore).sessionKey;
   if (!key) {

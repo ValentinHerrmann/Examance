@@ -14,16 +14,14 @@
   const timer = setInterval(() => {
     remaining = remainingSeconds($loginLockout.lockedUntil);
     if ($loginLockout.lockedUntil !== null && remaining === 0) {
-      // Clears itself exactly when retrying starts working again, so nobody is
-      // left looking at a stale "wait" they have already waited out.
+      // Clears itself exactly when retrying starts working again, so nobody is left looking at a stale "wait" they have already waited out.
       loginLockout.clear();
     }
   }, 1000);
 
   onDestroy(() => clearInterval(timer));
 
-  // Recomputed on every tick *and* whenever the deadline changes, so a second
-  // rejection showing less time left replaces the first without waiting.
+  // Recomputed on every tick *and* whenever the deadline changes, so a second rejection showing less time left replaces the first without waiting.
   $effect.pre(() => {
     const lockedUntil = $loginLockout.lockedUntil;
     untrack(() => {

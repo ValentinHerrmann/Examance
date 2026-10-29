@@ -2,11 +2,7 @@ import { derived, writable, type Readable } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
 import { mediaQuery } from '#lib/stores/viewport';
 
-/**
- * Colour theme: the preference is the user's pick; `theme` is what renders once `system` is resolved.
- * `app.html` runs an inline script applying the same resolution before first paint (no white flash);
- * keep THEME_STORAGE_KEY and that script in sync.
- */
+/** Colour theme: the preference is the user's pick; `theme` is what renders once `system` is resolved. `app.html` runs an inline script applying the same resolution before first paint (no white flash); keep THEME_STORAGE_KEY and that script in sync. */
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type Theme = 'light' | 'dark';
 

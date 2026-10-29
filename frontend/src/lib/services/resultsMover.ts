@@ -1,8 +1,4 @@
-/**
- * Fluent storage-mode change: moves grading results between server and this browser in place; both sides seal under the same
- * account data key, so nothing is re-encrypted. Every write is an idempotent upsert (rerun an interrupted move); the mode flips
- * only after counts verify, deleting the old copy is a separate last step. Strategy: docs/dev/storage_modes.md.
- */
+/** Fluent storage-mode change: moves grading results between server and this browser in place; both sides seal under the same account data key, so nothing is re-encrypted. Every write is an idempotent upsert (rerun an interrupted move); the mode flips only after counts verify, deleting the old copy is a separate last step. Strategy: docs/dev/storage_modes.md. */
 
 import { get, writable } from 'svelte/store';
 import { api, ApiError } from '#lib/api/client';
@@ -260,11 +256,7 @@ export async function moveResults(from: StorageMode | null, to: StorageMode): Pr
   }
 }
 
-/**
- * Optional last step: removes the copy the move left behind. Towards the browser that is the server's
- * student data (`POST /user/purge-server-student-data`, soft delete with a 7-day grace period);
- * towards the server it is this browser's results of the exams that moved, in one transaction.
- */
+/** Optional last step: removes the copy the move left behind. Towards the browser that is the server's student data (`POST /user/purge-server-student-data`, soft delete with a 7-day grace period); towards the server it is this browser's results of the exams that moved, in one transaction. */
 export async function deleteOldCopy(
   direction: MoveDirection,
   movedExams: string[],

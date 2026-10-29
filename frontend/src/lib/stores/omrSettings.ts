@@ -11,10 +11,7 @@ import {
   type OmrSettingsProfile,
 } from '#lib/grading/omrSettings';
 
-/**
- * MC-detection settings for the *next* run. Per browser, not per account, not synced (like `bg_storage_policy` / `bg_locale`);
- * survives lock, wipe and mode switches. Callers take one `get()` snapshot per run so a mid-run change can't mix parameters.
- */
+/** MC-detection settings for the *next* run. Per browser, not per account, not synced (like `bg_storage_policy` / `bg_locale`); survives lock, wipe and mode switches. Callers take one `get()` snapshot per run so a mid-run change can't mix parameters. */
 const STORAGE_KEY = 'bg_omr_settings';
 
 function parseProfile(raw: string | null): OmrSettingsProfile {

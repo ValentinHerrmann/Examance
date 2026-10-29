@@ -78,10 +78,7 @@ async function importPayload(payload: Record<string, any>, filename: string, res
   return result;
 }
 
-/**
- * The whole interactive import (password prompt for archives, import, report modal), shared by workspace menu, dashboard
- * and exercise library. Takes `.examance`/`.examance-exam`/`.bgproj` archives and Examance ZIP exports. True when imported.
- */
+/** The whole interactive import (password prompt for archives, import, report modal), shared by workspace menu, dashboard and exercise library. Takes `.examance`/`.examance-exam`/`.bgproj` archives and Examance ZIP exports. True when imported. */
 export async function importArchiveInteractively(file: File): Promise<boolean> {
   let result: ImportResult;
   try {

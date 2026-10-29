@@ -1,6 +1,5 @@
 <script lang="ts">
-  // Leaf: subscribes to gradingStore directly (scoped exception, see #lib/grading/gradingStore.ts);
-  // toggling an option writes straight into scoreInputs, alongside ScoreEntry's numeric input.
+  // Leaf: subscribes to gradingStore directly (scoped exception, see #lib/grading/gradingStore.ts); toggling an option writes straight into scoreInputs, alongside ScoreEntry's numeric input.
   import type { ExerciseRecord } from "#lib/db/schema";
   import { gradingStore } from "#lib/grading/gradingStore";
   import { applyMcCorrection, type McQuestionType } from "#lib/grading/mcScore";

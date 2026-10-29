@@ -226,8 +226,7 @@
       {#if orientation === "students"}
         <div class="flex min-w-0 flex-wrap items-center gap-2">
           <label for="student-select" class="text-sm text-content">{$t("grading.manual.studentFirst.selectStudent")}</label>
-          <!-- No save on change: the binding has already switched the student, so it wrote the previous
-               student's inputs onto the new one. The inputs save on blur before the select gets focus. -->
+          <!-- No save on change: the binding has already switched the student, so it wrote the previous student's inputs onto the new one. The inputs save on blur before the select gets focus. -->
           <select
             id="student-select"
             class="{controlClass} {controlSmClass} w-full sm:w-56"

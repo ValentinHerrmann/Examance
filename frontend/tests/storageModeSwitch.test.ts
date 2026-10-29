@@ -19,8 +19,7 @@ import {
 } from '../src/lib/services/storageModeSwitch';
 import { directionFor } from '../src/lib/services/resultsMover';
 
-// Vitest runs in node: an in-memory localStorage for the manifest's legacy-cache reads.
-// safeLocalStorage probes lazily and retries, so installing it here is early enough.
+// Vitest runs in node: an in-memory localStorage for the manifest's legacy-cache reads. safeLocalStorage probes lazily and retries, so installing it here is early enough.
 const mockStorage: Record<string, string> = {};
 globalThis.localStorage = {
   getItem: (key: string) => mockStorage[key] ?? null,

@@ -1,7 +1,4 @@
-/**
- * Key-envelope API: wrapped copies of the teacher's data key. The server only sees ciphertext,
- * a public salt and public KDF params; wrapping happens in `lib/crypto/keyEnvelope.ts`, in the browser.
- */
+/** Key-envelope API: wrapped copies of the teacher's data key. The server only sees ciphertext, a public salt and public KDF params; wrapping happens in `lib/crypto/keyEnvelope.ts`, in the browser. */
 
 import { base64ToUint8Array, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import type { EnvelopeKind, EnvelopeSet, KeyEnvelope } from '#lib/crypto/keyEnvelope';
@@ -65,14 +62,9 @@ export async function fetchEnvelopes(): Promise<EnvelopeSet | null> {
   };
 }
 
-/**
- * Replace the whole envelope set. Wholesale on purpose: a merge could leave the password wrap
- * on a new DEK and the recovery wrap on the old one, unnoticed until recovery is needed.
- */
+/** Replace the whole envelope set. Wholesale on purpose: a merge could leave the password wrap on a new DEK and the recovery wrap on the old one, unnoticed until recovery is needed. */
 export async function saveEnvelopes(set: EnvelopeSet): Promise<void> {
-  // Silent, like the fetch: callers report an envelope write failure in the
-  // dialog the teacher is looking at. The global HTTP modal on top of that is
-  // one error reported twice.
+  // Silent, like the fetch: callers report an envelope write failure in the dialog the teacher is looking at. The global HTTP modal on top of that is one error reported twice.
   await api.put(
     '/keys/envelopes',
     {
@@ -84,10 +76,7 @@ export async function saveEnvelopes(set: EnvelopeSet): Promise<void> {
   );
 }
 
-/**
- * Wire shape of a whole envelope set. Exported because a password reset sends it inside the
- * reset request: new password and matching key copy are written in one transaction.
- */
+/** Wire shape of a whole envelope set. Exported because a password reset sends it inside the reset request: new password and matching key copy are written in one transaction. */
 export function envelopeSetToDto(set: EnvelopeSet): Record<string, unknown> {
   return {
     key_id_b64: uint8ArrayToBase64(set.keyId),

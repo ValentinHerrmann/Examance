@@ -1,7 +1,4 @@
-/**
- * A prompt for an external AI chat that writes or changes an exercise (issue #168). Clipboard only; a later BYOK
- * integration builds on it. Token-lean: no logs or definitions, comma lists, an example only for new exercises.
- */
+/** A prompt for an external AI chat that writes or changes an exercise (issue #168). Clipboard only; a later BYOK integration builds on it. Token-lean: no logs or definitions, comma lists, an example only for new exercises. */
 import { attachedFiles, code, cs, documentSetup, fence, LANGUAGES, section, templateCommandsSection } from './llmContext';
 import type { LatexPackageEntry } from './packages';
 

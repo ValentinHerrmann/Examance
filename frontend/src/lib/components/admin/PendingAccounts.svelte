@@ -1,6 +1,5 @@
 <script lang="ts">
-  // Self-registrations waiting for an admin (issue #53): the address is verified and the password set;
-  // approving chooses the account's features, rejecting deletes it and tells the registrant.
+  // Self-registrations waiting for an admin (issue #53): the address is verified and the password set; approving chooses the account's features, rejecting deletes it and tells the registrant.
   import { ALL_FEATURES_ON, type AccountFeatures, type AdminUser } from "#lib/api/admin";
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";

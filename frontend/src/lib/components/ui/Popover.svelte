@@ -2,10 +2,7 @@
   import type { Snippet } from "svelte";
   import { tick } from "svelte";
 
-  /**
-   * Anchored panel: `trigger` snippet + children. Fixed-positioned from the trigger rect and clamped to
-   * the viewport, so no scroll container clips it. Outside click and Escape close; focus returns to the trigger.
-   */
+  /** Anchored panel: `trigger` snippet + children. Fixed-positioned from the trigger rect and clamped to the viewport, so no scroll container clips it. Outside click and Escape close; focus returns to the trigger. */
   interface Props {
     open?: boolean;
     placement?: "bottom-start" | "bottom-end" | "top-start";

@@ -18,10 +18,7 @@
   import { exportBgprojArchive, type ArchiveExportOptions } from "#lib/services/archiveService";
   import { showArchiveReport } from "#lib/stores/archiveReport";
 
-  /**
-   * The one export dialog (M4). `run` builds a readable ZIP from the chosen options; `backup` adds the
-   * re-importable, password-protected archive. With both, the teacher picks the format first.
-   */
+  /** The one export dialog (M4). `run` builds a readable ZIP from the chosen options; `backup` adds the re-importable, password-protected archive. With both, the teacher picks the format first. */
   interface Props {
     title: string;
     options?: ExportOption[];

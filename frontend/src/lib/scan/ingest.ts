@@ -1,7 +1,4 @@
-/**
- * Scan ingest: uploaded PDFs -> QR decode (+ OMR) per page -> one encrypted booklet per student.
- * No UI here (no dialogs, no component state): the scan page renders `onProgress` and the result.
- */
+/** Scan ingest: uploaded PDFs -> QR decode (+ OMR) per page -> one encrypted booklet per student. No UI here (no dialogs, no component state): the scan page renders `onProgress` and the result. */
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import type { PDFDocument } from "pdf-lib";
 import { loadPdfjs } from "#lib/pdf/pdfjs";
@@ -100,10 +97,7 @@ export class BookletCollector {
   readonly booklets: StudentBooklet[] = [];
   private current: StudentBooklet | null = null;
 
-  /**
-   * A QR page joins the booklet of its pseudonym (current one first, then any earlier one) or opens a new one.
-   * A page without QR continues the current booklet, or opens an unmatched one if there is none yet.
-   */
+  /** A QR page joins the booklet of its pseudonym (current one first, then any earlier one) or opens a new one. A page without QR continues the current booklet, or opens an unmatched one if there is none yet. */
   addPage(qr: QrResult | null, pageRef: PdfPageRef): StudentBooklet {
     if (qr) {
       if (this.current?.pseudonymId !== qr.pseudonymId) {
@@ -185,8 +179,7 @@ async function openSources(files: File[], warnings: IngestWarning[]) {
     if (isPdfFile(file)) {
       try {
         const pdfjsLib = await loadPdfjs();
-        // Pass bytes via `{ data }`: a blob: `{ url }` makes pdf.js fetch it, which CSP connect-src
-        // blocks (same pattern as PASS 2).
+        // Pass bytes via `{ data }`: a blob: `{ url }` makes pdf.js fetch it, which CSP connect-src blocks (same pattern as PASS 2).
         const fileBytes = new Uint8Array(await file.arrayBuffer());
         const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
         const pdf = await loadingTask.promise;
@@ -285,8 +278,7 @@ class ScanPass {
     this.deps.monitor?.checkMemoryHealth();
   }
 
-  // Reuses the imageData rasterized for the QR decode. A booklet page maps 1:1 to the blank
-  // template's page index, since a scanned booklet follows the exam's own page order.
+  // Reuses the imageData rasterized for the QR decode. A booklet page maps 1:1 to the blank template's page index, since a scanned booklet follows the exam's own page order.
   private async detectOmr(fileName: string, imageData: ImageData, booklet: StudentBooklet): Promise<void> {
     const ctx = this.deps.getOmrContext();
     if (!this.deps.omrPool || !ctx) return;
@@ -368,10 +360,7 @@ export async function saveBooklet(
   await scoreRepository.saveMany(examId, subId, omrScores, key);
 }
 
-/**
- * One OMR settings snapshot covers the whole batch. A storage failure throws with the earlier
- * booklets already saved (no rollback); the caller reports it.
- */
+/** One OMR settings snapshot covers the whole batch. A storage failure throws with the earlier booklets already saved (no rollback); the caller reports it. */
 export async function ingestScans(files: File[], deps: IngestDeps): Promise<IngestResult> {
   const report = deps.onProgress;
   const warnings: IngestWarning[] = [];

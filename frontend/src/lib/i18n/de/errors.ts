@@ -5,10 +5,7 @@ export const errors = {
     unauthorized: 'Nicht autorisiert',
     httpFallback: 'HTTP-Fehler',
 
-    /**
-     * Keyed by the machine-readable `code` the backend sends alongside its
-     * English `detail`, so error text can be localized without touching the API.
-     */
+    /** Keyed by the machine-readable `code` the backend sends alongside its English `detail`, so error text can be localized without touching the API. */
     code: {
         ERR_INVALID_TOKEN: 'Ungültiger oder abgelaufener Link zum Zurücksetzen des Passworts.',
         ERR_PASSWORD_NOT_SET: 'Für dieses Konto wurde noch kein Passwort gesetzt. Bitte nutzen Sie den per E-Mail zugesandten Link.',
@@ -31,9 +28,7 @@ export const errors = {
         ERR_ORIGIN_REJECTED: 'Herkunft nicht erlaubt.',
         ERR_UNAUTHORIZED: 'Nicht autorisiert.',
         ERR_NETWORK: 'Server nicht erreichbar.',
-                // Fallbacks. Beim Entfernen eines Faktors nennt `detail`, welche Regel greift (unter zwei
-                // Faktoren oder unter den letzten Daten-Faktor); das ist hilfreicher als ein pauschaler
-                // Satz, daher zeigt die Oberfläche den Servertext.
+                // Fallbacks. Beim Entfernen eines Faktors nennt `detail`, welche Regel greift (unter zwei Faktoren oder unter den letzten Daten-Faktor); das ist hilfreicher als ein pauschaler Satz, daher zeigt die Oberfläche den Servertext.
         ERR_LAST_FACTOR_PROTECTED: 'Dieser Faktor kann nicht entfernt werden, ohne den Zugang zum Konto oder zu den Daten zu verlieren.',
         ERR_MFA_REQUIRED: 'Für diese Aktion ist eine vollständige Anmeldung erforderlich.',
         ERR_STEP_EXPIRED: 'Dieser Anmeldeschritt ist abgelaufen. Bitte melden Sie sich erneut an.',

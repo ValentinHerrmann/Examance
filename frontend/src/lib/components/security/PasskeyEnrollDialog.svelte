@@ -1,6 +1,5 @@
 <script lang="ts">
-  /** Sets up a passkey as the second factor, from the enrollment scope (issue #72). No vault is open yet: the data wrap
-   *  comes from the sign-in that follows, whose assertion carries the PRF secret (`passkeyToHeal` in the unlock route). */
+  /** Sets up a passkey as the second factor, from the enrollment scope (issue #72). No vault is open yet: the data wrap comes from the sign-in that follows, whose assertion carries the PRF secret (`passkeyToHeal` in the unlock route). */
   import { Alert, Button, Modal } from "#lib/components/ui";
   import { t } from "#lib/i18n";
   import { registrationOptions, verifyRegistration } from "#lib/api/webauthn";

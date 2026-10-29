@@ -3,8 +3,7 @@
   import { isPreviewBuild } from "#lib/stores/versionStore";
 </script>
 
-<!-- Purely visual marker: never blocks clicks, stays below modals (--z-modal). The band is centred on
-     the corner diagonal (centre 3.25rem from both edges) so its label always lies fully inside the 8rem box. -->
+<!-- Purely visual marker: never blocks clicks, stays below modals (--z-modal). The band is centred on the corner diagonal (centre 3.25rem from both edges) so its label always lies fully inside the 8rem box. -->
 {#if isPreviewBuild}
   <div
     class="pointer-events-none fixed top-0 left-0 h-32 w-32 overflow-hidden"

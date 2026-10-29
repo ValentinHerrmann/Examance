@@ -1,7 +1,5 @@
 <script lang="ts">
-  // The fluent storage-mode change: explain → (optional backup) → move the results → keep or delete
-  // the old copy → reload. Nothing is wiped up front; the account's mode changes only after every
-  // result arrived (services/resultsMover.ts). Also used for the account's first choice.
+  // The fluent storage-mode change: explain → (optional backup) → move the results → keep or delete the old copy → reload. Nothing is wiped up front; the account's mode changes only after every result arrived (services/resultsMover.ts). Also used for the account's first choice.
   import { untrack } from 'svelte';
   import { get } from 'svelte/store';
   import { t, translate } from '#lib/i18n';
@@ -59,9 +57,7 @@
 
   async function prepare() {
     step = 'explain';
-    // An admin may have disallowed the account's mode: the workspace then publishes no mode (needs-choice)
-    // while the server still records it. The move must start from that recorded mode, or its
-    // compare-and-set fails and the results stay behind.
+    // An admin may have disallowed the account's mode: the workspace then publishes no mode (needs-choice) while the server still records it. The move must start from that recorded mode, or its compare-and-set fails and the results stay behind.
     from = get(storagePolicyStore).storageMode ?? get(capabilitiesStore)?.storageMode ?? null;
     somethingToMove = null;
     errorMsg = '';

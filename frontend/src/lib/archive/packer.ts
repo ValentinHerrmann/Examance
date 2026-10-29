@@ -1,8 +1,4 @@
-/**
- * Export a .bgproj archive, encrypting records with a fresh Argon2id key from the export password.
- * Freshness invariant: a new 16-byte salt and 12-byte nonce MUST be generated on every pack
- * (ciphertext uniqueness, no key/nonce reuse or replay).
- */
+/** Export a .bgproj archive, encrypting records with a fresh Argon2id key from the export password. Freshness invariant: a new 16-byte salt and 12-byte nonce MUST be generated on every pack (ciphertext uniqueness, no key/nonce reuse or replay). */
 
 import { get } from 'svelte/store';
 import { db } from '#lib/db/db';
@@ -39,19 +35,11 @@ import { addMissing, bump, newReport, type ArchiveReport } from './report';
 import { exportExamLogo, type ArchivedExamLogo } from '#lib/latex/logo';
 import { getAccountPackages } from '#lib/latex/packageSettings';
 
-/**
- * Payload layout version: 2 added `$b64` bytes, decrypted scans, and `codeWithheld`; 3 added
- * `examLogos`; 4 added `accountLatexPackages` on exams that follow their account (issue #108).
- * Older archives import with every exam following the importer's account logo and packages.
- */
+/** Payload layout version: 2 added `$b64` bytes, decrypted scans, and `codeWithheld`; 3 added `examLogos`; 4 added `accountLatexPackages` on exams that follow their account (issue #108). Older archives import with every exam following the importer's account logo and packages. */
 export const ARCHIVE_PAYLOAD_VERSION = 4;
 
 export interface PackOptions {
-  /**
-   * Include the exercises' LaTeX and resource files (default). Off, the archive carries exams with
-   * scans and results plus each exercise's name, points and answer key, but no code: a way to share
-   * results with another teacher without handing over the exercises.
-   */
+  /** Include the exercises' LaTeX and resource files (default). Off, the archive carries exams with scans and results plus each exercise's name, points and answer key, but no code: a way to share results with another teacher without handing over the exercises. */
   includeExerciseCode?: boolean;
   /** Only these exams with their linked exercises and results (the exam page export); default: the whole workspace. */
   examIds?: string[];
@@ -71,10 +59,7 @@ async function mapPool<T, R>(items: T[], width: number, fn: (item: T) => Promise
   return out;
 }
 
-/**
- * Resource files of the exported exercises, from the cache or the server (the cache alone lost
- * every figure in all-server mode, issue #145). An unreadable or empty file is reported, never packed.
- */
+/** Resource files of the exported exercises, from the cache or the server (the cache alone lost every figure in all-server mode, issue #145). An unreadable or empty file is reported, never packed. */
 async function collectResources(
   exercises: ExerciseRecord[],
   key: CryptoKey | null,
@@ -121,10 +106,7 @@ async function collectResources(
   return perExercise.flat();
 }
 
-/**
- * Scans and annotations are sealed under this account's key; another account could never open them.
- * Like resource files they travel decrypted inside the password envelope and are re-sealed on import.
- */
+/** Scans and annotations are sealed under this account's key; another account could never open them. Like resource files they travel decrypted inside the password envelope and are re-sealed on import. */
 async function unsealScans(
   sub: SubmissionRecord,
   key: CryptoKey | null,
@@ -163,11 +145,7 @@ export interface PackResult {
   report: ArchiveReport;
 }
 
-/**
- * Exams, library and results in the archive's scope: the whole workspace, or only `onlyExams` with their own results
- * (a single-exam archive carries the exercises those exams link, not the library). Scans are included: the archive is
- * the export/import bridge, so this is the one caller that opts into the heavy list response.
- */
+/** Exams, library and results in the archive's scope: the whole workspace, or only `onlyExams` with their own results (a single-exam archive carries the exercises those exams link, not the library). Scans are included: the archive is the export/import bridge, so this is the one caller that opts into the heavy list response. */
 async function loadScope(key: CryptoKey | null, onlyExams: Set<string> | null) {
   const allExams = await loadExamsEncrypted(key);
   if (!onlyExams) {
@@ -224,8 +202,7 @@ export async function packProject(
   // 3. Collect records from IDB
   const key = get(sessionStore).sessionKey;
   const { exams, library, students, submissions } = await loadScope(key, onlyExams);
-  // Through the repository, not Dexie directly — in all-server mode the local
-  // cache can be empty (e.g. right after a lock).
+  // Through the repository, not Dexie directly — in all-server mode the local cache can be empty (e.g. right after a lock).
   const exerciseScores = await scoreRepository.getAll(exams.map((e) => e.id), key);
   // A single-exam archive keeps only entries about that exam, its students or its submissions.
   const auditTargets = onlyExams
@@ -233,16 +210,13 @@ export async function packProject(
     : null;
   const auditLogs = await loadAuditLogs(key, auditTargets);
 
-  // Exercise links and MC groups, per exam, through the repository for the
-  // same reason: the local Dexie tables can be empty in server-backed modes.
+  // Exercise links and MC groups, per exam, through the repository for the same reason: the local Dexie tables can be empty in server-backed modes.
   const structures = await Promise.all(exams.map((e) => examRepository.getStructure(e.id)));
   const exerciseExams = structures.flatMap((s) => s.links);
   const examMcGroups = structures.flatMap((s) => s.mcGroups);
   const examLabel = new Map(exams.map((e) => [e.id, e.title || e.id]));
 
-  // Every exercise an exported exam links must travel with it. The library list holds only current
-  // versions (own and shared), so linked older versions are fetched one by one. A full export also
-  // carries the rest of the library; a results-only export carries just the linked exercises.
+  // Every exercise an exported exam links must travel with it. The library list holds only current versions (own and shared), so linked older versions are fetched one by one. A full export also carries the rest of the library; a results-only export carries just the linked exercises.
   const libraryById = new Map(library.map((ex) => [ex.id, ex]));
   const linkedIds = [...new Set(exerciseExams.map((j) => j.exerciseId))];
   const linked: ExerciseRecord[] = [];
@@ -266,8 +240,7 @@ export async function packProject(
 
   const exerciseResources = !includeExerciseCode ? [] : await collectResources(exercises, key, report, onProgress);
 
-  // The header logo is part of the exam, so it travels in every archive, results-only included.
-  // The bytes are what the exam printed, so the importer's own account logo cannot change it.
+  // The header logo is part of the exam, so it travels in every archive, results-only included. The bytes are what the exam printed, so the importer's own account logo cannot change it.
   const examLogos: ArchivedExamLogo[] = [];
   for (const exam of exams) {
     try {

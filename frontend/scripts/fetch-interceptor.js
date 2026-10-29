@@ -25,9 +25,7 @@
     return chunkManifestPromise;
   }
 
-  // Byte progress for the app's loading dialog. busytex forwards a worker's `print` messages that look like
-  // "Downloading data... (loaded/total)" to its onDownloadProgress; its own emscripten status text never carries bytes.
-  // Totals are compressed network bytes over the whole manifest (engine wasm plus the TeX Live packages).
+  // Byte progress for the app's loading dialog. busytex forwards a worker's `print` messages that look like "Downloading data... (loaded/total)" to its onDownloadProgress; its own emscripten status text never carries bytes. Totals are compressed network bytes over the whole manifest (engine wasm plus the TeX Live packages).
   const inWorker = typeof WorkerGlobalScope !== 'undefined' && globalScope instanceof WorkerGlobalScope;
   let loadedBytes = 0;
   let lastReport = 0;
@@ -42,9 +40,7 @@
     });
   }
 
-  // Concatenates the bodies of `responses` while counting raw (pre-decompression) bytes. If the manifest's expected size
-  // does not match, the stream errors instead of closing, so a truncated download fails loudly rather than mounting a
-  // partial virtual filesystem (busytex "File `X.sty' not found" for bundled packages).
+  // Concatenates the bodies of `responses` while counting raw (pre-decompression) bytes. If the manifest's expected size does not match, the stream errors instead of closing, so a truncated download fails loudly rather than mounting a partial virtual filesystem (busytex "File `X.sty' not found" for bundled packages).
   function createVerifiedStream(responses, expectedSize, describeSource) {
     return new ReadableStream({
       async start(controller) {

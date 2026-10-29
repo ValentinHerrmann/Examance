@@ -10,19 +10,12 @@ import type { OmrRunInfo } from "#lib/grading/omrSettings";
 import { formatStudentName } from "#lib/utils/studentQr";
 import { translate } from "#lib/i18n";
 
-/**
- * The one definition of "a teacher has verified this detection". A re-run must never touch
- * a row for which this is true (issue #32), and the dashboard/queues count by it.
- */
+/** The one definition of "a teacher has verified this detection". A re-run must never touch a row for which this is true (issue #32), and the dashboard/queues count by it. */
 export function isMcReviewed(omrMeta: Pick<OmrScoreMeta, "source" | "reviewedAt"> | undefined): boolean {
   return !!omrMeta && (omrMeta.source === "manual" || !!omrMeta.reviewedAt);
 }
 
-/**
- * How each detection algorithm would have read the verified boxes: the deciding one (its stored
- * `detectedState`/`provisional`) and the shadow one (`alt`). Lets a teacher see on their own sheets
- * whether switching `params.algorithm` would help before switching.
- */
+/** How each detection algorithm would have read the verified boxes: the deciding one (its stored `detectedState`/`provisional`) and the shadow one (`alt`). Lets a teacher see on their own sheets whether switching `params.algorithm` would help before switching. */
 export interface McAlgorithmScore {
   algorithm: number;
   /** Verified boxes both algorithms were run on. */
@@ -38,10 +31,7 @@ const verdictSelected = (v: BoxVerdict) =>
   v.state === "marked" || v.state === "redone" || (v.state === "ambiguous" && v.provisional !== false);
 const verdictUnsure = (v: BoxVerdict) => v.state === "ambiguous" || (v.reasons?.length ?? 0) > 0;
 
-/**
- * Score rows grouped by the detection batch that produced them. `run === null` collects rows
- * detected before run snapshots existed — their settings are unknown, not "the defaults".
- */
+/** Score rows grouped by the detection batch that produced them. `run === null` collects rows detected before run snapshots existed — their settings are unknown, not "the defaults". */
 export interface McDetectionRunSummary {
   run: OmrRunInfo | null;
   itemCount: number;
@@ -74,10 +64,7 @@ export interface McDetectionItem {
 
 export type McQueueCategory = "failed" | "unsure" | "confident";
 
-/**
- * Single source of truth for which verification queue an item belongs to; the verify dashboard and
- * item view both go through it (`mcQueue`), or the queues' Next/Prev drift from the dashboard.
- */
+/** Single source of truth for which verification queue an item belongs to; the verify dashboard and item view both go through it (`mcQueue`), or the queues' Next/Prev drift from the dashboard. */
 export function categorizeMcItem(item: McDetectionItem): McQueueCategory {
   if (item.confidence === "failed") return "failed";
   if (item.confidence === "ambiguous" || item.flaggedOptions.length > 0) return "unsure";
@@ -115,11 +102,7 @@ export interface ConfusionBucket {
   percent: number;
 }
 
-/**
- * Per-OPTION (bubble) classification of OMR reliability, unlike per-QUESTION `DetectionQualityStats`. Ground truth is the
- * human's final selection; unreviewed items are bucketed by OMR's original call crossed with `flaggedOptions`. Excludes
- * `failed` items and items without an `original` snapshot (pure-manual entries).
- */
+/** Per-OPTION (bubble) classification of OMR reliability, unlike per-QUESTION `DetectionQualityStats`. Ground truth is the human's final selection; unreviewed items are bucketed by OMR's original call crossed with `flaggedOptions`. Excludes `failed` items and items without an `original` snapshot (pure-manual entries). */
 export interface DetectionConfusionMatrix {
   totalOptionsEvaluated: number;
   correctPositive: ConfusionBucket;
@@ -164,11 +147,7 @@ export interface McVerificationStats {
   algorithmComparison: McAlgorithmScore[];
 }
 
-/**
- * `items` has one entry per (submission, MC/SC/TF exercise) pair; `*Questions` counts use that granularity, while
- * `totalMarkedBoxes`/`markedBoxes` sum `markedCount` per marked bubble. Don't conflate them: box counts as headline numbers
- * scaled with marks per question regardless of confidence.
- */
+/** `items` has one entry per (submission, MC/SC/TF exercise) pair; `*Questions` counts use that granularity, while `totalMarkedBoxes`/`markedBoxes` sum `markedCount` per marked bubble. Don't conflate them: box counts as headline numbers scaled with marks per question regardless of confidence. */
 export async function computeMcVerificationStats(
   examId: string,
   key: CryptoKey | null
@@ -203,8 +182,7 @@ export async function computeMcVerificationStats(
     return studentMap.get(hex) || translate("scanning.verifyItem.submissionLabelFallback", { shortId: sub.id.slice(0, 8) });
   }
 
-  // One read for the exam, then grouped in memory, to avoid an N+1 network
-  // read per submission now that scores are server-side.
+  // One read for the exam, then grouped in memory, to avoid an N+1 network read per submission now that scores are server-side.
   const allScores = await scoreRepository.getByExamId(examId, key);
   const scoresBySubmission = new Map<string, typeof allScores>();
   for (const sc of allScores) {
@@ -227,9 +205,7 @@ export async function computeMcVerificationStats(
     const rawScores = scoresBySubmission.get(sub.id) ?? [];
     const label = await labelFor(sub);
 
-        // Defensive: storage doesn't enforce one score row per (submission, exercise) and a re-ingest
-        // can leave stale duplicates that would inflate totals. Keep the last per exercise,
-        // preferring a manual correction over a raw OMR read.
+        // Defensive: storage doesn't enforce one score row per (submission, exercise) and a re-ingest can leave stale duplicates that would inflate totals. Keep the last per exercise, preferring a manual correction over a raw OMR read.
     const scoreByExercise = new Map<string, (typeof rawScores)[number]>();
     for (const sc of rawScores) {
       const existing = scoreByExercise.get(sc.exerciseId);
@@ -486,11 +462,7 @@ function optionsEqual(a: number[], b: number[]): boolean {
   return sortedA.every((val, idx) => val === sortedB[idx]);
 }
 
-/**
- * Physically marked bubbles of one (submission, exercise) score: 1 for a failed alignment (region
- * still needs a human), else distinct options selected or flagged uncertain (a faint mark may be
- * flagged without being counted as selected).
- */
+/** Physically marked bubbles of one (submission, exercise) score: 1 for a failed alignment (region still needs a human), else distinct options selected or flagged uncertain (a faint mark may be flagged without being counted as selected). */
 function detectionMarkedCount(
   confidence: "high" | "ambiguous" | "failed",
   selectedOptions: number[],

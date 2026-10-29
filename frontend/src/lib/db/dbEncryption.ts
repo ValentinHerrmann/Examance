@@ -1,8 +1,4 @@
-/**
- * IndexedDB record encryption/decryption helpers. Every sensitive payload (LaTeX templates, exercise
- * text, answer keys, scores, fallback codes) is AES-256-GCM encrypted with the in-memory sessionKey, so
- * with the session locked DevTools shows only ciphertext blobs.
- */
+/** IndexedDB record encryption/decryption helpers. Every sensitive payload (LaTeX templates, exercise text, answer keys, scores, fallback codes) is AES-256-GCM encrypted with the in-memory sessionKey, so with the session locked DevTools shows only ciphertext blobs. */
 
 import { encrypt, decrypt } from '#lib/crypto/aesGcm';
 import {
@@ -70,9 +66,7 @@ export async function decryptResourceBytes(
   return resource.data ?? new Uint8Array(0);
 }
 
-// Record codecs: plain index/link columns stay readable (Dexie queries them); everything in `sealed` goes into one
-// AES-256-GCM `payloadCt`. Both lists are whitelists: a field in neither is dropped on write, so extra data spread onto a
-// record can never leak into IndexedDB in plaintext.
+// Record codecs: plain index/link columns stay readable (Dexie queries them); everything in `sealed` goes into one AES-256-GCM `payloadCt`. Both lists are whitelists: a field in neither is dropped on write, so extra data spread onto a record can never leak into IndexedDB in plaintext.
 
 interface RecordCodec<T> {
   kind: string;
@@ -97,8 +91,7 @@ async function sealRecord<T extends MaybeUndecryptable & SealedPayload>(
   const payload = JSON.stringify(pick(record, codec.sealed));
   const aad = codec.aad ? encoder.encode(codec.aad(record)) : undefined;
   const { ct, iv } = await encryptBytes(key, encoder.encode(payload), aad);
-  // The whitelist drops every sealed field, which the record types mark
-  // optional — so the partial is a complete record for everything required.
+  // The whitelist drops every sealed field, which the record types mark optional — so the partial is a complete record for everything required.
   return { ...pick(record, codec.plain), payloadCt: ct, payloadIv: iv } as unknown as T;
 }
 
@@ -168,13 +161,11 @@ const SCORE: RecordCodec<ExerciseScoreRecord> = {
   kind: 'score',
   plain: ['id', 'submissionId', 'exerciseId'],
   sealed: ['score', 'selectedOptions', 'omrMeta'],
-  // Binds a result to its submission and question (issue #85): a moved row cannot pass as another pupil's.
-  // Lower-cased: the server returns canonical UUIDs, so a differently cased local id must still match.
+  // Binds a result to its submission and question (issue #85): a moved row cannot pass as another pupil's. Lower-cased: the server returns canonical UUIDs, so a differently cased local id must still match.
   aad: (r) => `score:v1:${String(r.submissionId).toLowerCase()}:${String(r.exerciseId).toLowerCase()}`,
 };
 
-// Identity fields live only inside the payload — re-emitting them as plain
-// columns was the L17 leak (docs/legal_audit_dsgvo.md).
+// Identity fields live only inside the payload — re-emitting them as plain columns was the L17 leak (docs/legal_audit_dsgvo.md).
 const STUDENT: RecordCodec<StudentRecord> = {
   kind: 'student',
   plain: ['pseudonymId', 'examId', 'piiCt', 'piiIv'],
@@ -210,8 +201,7 @@ export const decryptSubmission = (r: SubmissionRecord, k: Key) => openRecord(r, 
 export const encryptAuditEntry = (r: AuditEntry, k: Key) => sealRecord(r, k, AUDIT);
 export const decryptAuditEntry = (r: AuditEntry, k: Key) => openRecord(r, k, AUDIT);
 
-// OmrTemplateRecord: one per exam (id === examId), bubble/fiducial rects from a blank compile (pdfjs getAnnotations()).
-// Follows the ScoreRecord pattern above (direct db.* access, no repository).
+// OmrTemplateRecord: one per exam (id === examId), bubble/fiducial rects from a blank compile (pdfjs getAnnotations()). Follows the ScoreRecord pattern above (direct db.* access, no repository).
 
 export async function encryptOmrTemplate(
   tpl: OmrTemplateRecord,

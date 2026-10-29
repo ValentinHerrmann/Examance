@@ -1,11 +1,7 @@
 import { readable, type Readable } from "svelte/store";
 import { browser } from "$app/env";
 
-/**
- * Viewport breakpoint stores mirroring Tailwind's defaults, only for places where a narrow screen must
- * change *behaviour* (header slide-over, grading score sheet, PDF preview single-pane). Purely visual
- * changes belong in `md:`/`lg:` classes.
- */
+/** Viewport breakpoint stores mirroring Tailwind's defaults, only for places where a narrow screen must change *behaviour* (header slide-over, grading score sheet, PDF preview single-pane). Purely visual changes belong in `md:`/`lg:` classes. */
 export const breakpoints = {
   sm: 640,
   md: 768,

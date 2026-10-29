@@ -1,6 +1,5 @@
 <script lang="ts" generics="T extends { id: string; features: AccountFeatures }">
-  // Admin list with one set of feature switches per row (issue #53): cards below `md`, a table from `md`.
-  // Callers fill the name, extra columns and actions; the switch columns, headers and row-busy rule live here.
+  // Admin list with one set of feature switches per row (issue #53): cards below `md`, a table from `md`. Callers fill the name, extra columns and actions; the switch columns, headers and row-busy rule live here.
   import type { Snippet } from "svelte";
   import { ACCOUNT_FEATURES, FEATURE_COLUMNS, type AccountFeature, type AccountFeatures } from "#lib/api/admin";
   import { t } from "#lib/i18n";

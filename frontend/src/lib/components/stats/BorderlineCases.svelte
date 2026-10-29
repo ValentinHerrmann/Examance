@@ -20,8 +20,7 @@
     class: className = ''
   }: Props = $props();
 
-  // One column template for the header and every row, so the numbers line up.
-  // Phone widths get narrower columns and smaller text, so a row fits a 320px screen.
+  // One column template for the header and every row, so the numbers line up. Phone widths get narrower columns and smaller text, so a row fits a 320px screen.
   const ROW =
     'grid grid-cols-[2.25rem_minmax(0,1fr)_3.25rem_4rem_3rem] items-center gap-x-1.5 sm:grid-cols-[2.75rem_minmax(0,1fr)_4.5rem_5.5rem_4rem] sm:gap-x-3';
 

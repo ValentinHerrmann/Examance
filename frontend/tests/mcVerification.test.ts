@@ -68,9 +68,7 @@ describe("computeMcVerificationStats", () => {
     expect(stats.items.length).toBe(6);
     expect(stats.perExercise.length).toBe(3);
 
-    // Headline counts are question-level (one per item), not scaled by how many boxes
-    // were ticked on any one question — that's the "multiplies exercises by marks"
-    // regression this test guards against.
+    // Headline counts are question-level (one per item), not scaled by how many boxes were ticked on any one question — that's the "multiplies exercises by marks" regression this test guards against.
     expect(stats.totalQuestions).toBe(6);
     expect(stats.highQuestions).toBe(3); // ex-1/sub-1, ex-1/sub-2, ex-2/sub-2
     expect(stats.ambiguousQuestions).toBe(2); // ex-2/sub-1, ex-3/sub-2
@@ -137,8 +135,7 @@ describe("computeMcVerificationStats", () => {
               original: { confidence: "high", selectedOptions: [0], score: 1 },
             },
           },
-          // Item 2: High confidence, reviewed, corrected (was [0], changed to [1])
-          // -> counts as false confidence!
+          // Item 2: High confidence, reviewed, corrected (was [0], changed to [1]) -> counts as false confidence!
           {
             id: "s2",
             submissionId: "sub-1",

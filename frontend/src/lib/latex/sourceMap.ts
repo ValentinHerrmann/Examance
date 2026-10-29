@@ -1,8 +1,4 @@
-/**
- * Maps TeX line numbers of an assembled document back to the exercise the user edited (issue #166).
- * Builders wrap each user-authored body in marker comment lines (`markSource`); `extractSourceMap`
- * removes them again, so the engines and every exported file see exactly the unmarked document.
- */
+/** Maps TeX line numbers of an assembled document back to the exercise the user edited (issue #166). Builders wrap each user-authored body in marker comment lines (`markSource`); `extractSourceMap` removes them again, so the engines and every exported file see exactly the unmarked document. */
 
 const BEGIN = "%%@examance-src:";
 const END = "%%@examance-end";
@@ -26,10 +22,7 @@ export interface SourceLocation {
   line: number;
 }
 
-/**
- * `body` between markers; `extractSourceMap` removes exactly the inserted `BEGIN…\n` and `\nEND`,
- * whatever surrounds them. Must start at the beginning of a line.
- */
+/** `body` between markers; `extractSourceMap` removes exactly the inserted `BEGIN…\n` and `\nEND`, whatever surrounds them. Must start at the beginning of a line. */
 export function markSource(body: string, label: string): string {
   const clean = label.replace(/\s+/g, " ").trim() || "?";
   return `${BEGIN}${clean}\n${body}\n${END}`;
@@ -65,10 +58,7 @@ export function stripSourceMarkers(tex: string): string {
   return extractSourceMap(tex).tex;
 }
 
-/**
- * Where line `line` of the compiled document came from. With `echoed` (the text TeX printed after
- * `l.<n>`), a line whose source does not contain it is rejected: the error was inside a package file.
- */
+/** Where line `line` of the compiled document came from. With `echoed` (the text TeX printed after `l.<n>`), a line whose source does not contain it is rejected: the error was inside a package file. */
 export function mapLine(map: SourceMap, line: number, echoed?: string): SourceLocation | null {
   if (echoed !== undefined) {
     const source = map.tex.split("\n")[line - 1];

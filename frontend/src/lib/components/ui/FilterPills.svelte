@@ -1,9 +1,5 @@
 <script lang="ts">
-  /**
-   * Filter pill row (Artemis): one "All" pill plus one per option with its count; wraps in a drawer,
-   * stacks in the desktop sidebar (`layout="responsive"`) or always wraps (`"wrap"`, for a header row).
-   * `onSelect` receives "ALL" or an option value.
-   */
+  /** Filter pill row (Artemis): one "All" pill plus one per option with its count; wraps in a drawer, stacks in the desktop sidebar (`layout="responsive"`) or always wraps (`"wrap"`, for a header row). `onSelect` receives "ALL" or an option value. */
   interface Props {
     selected: string;
     allLabel: string;

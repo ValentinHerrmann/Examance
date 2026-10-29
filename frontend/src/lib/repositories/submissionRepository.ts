@@ -20,9 +20,7 @@ export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): Submis
     scanIv: s.scan_iv_b64 ? base64ToUint8Array(s.scan_iv_b64) : undefined,
     annotationCt: s.annotation_ciphertext_b64 ? base64ToUint8Array(s.annotation_ciphertext_b64) : undefined,
     annotationIv: s.annotation_iv_b64 ? base64ToUint8Array(s.annotation_iv_b64) : undefined,
-    // Cheap presence flags the list endpoint always sends, even when the
-    // actual scan/annotation bytes are omitted (see `includeScans` below) —
-    // lets a "has a scan?" indicator stay correct without paying for the PDF.
+    // Cheap presence flags the list endpoint always sends, even when the actual scan/annotation bytes are omitted (see `includeScans` below) — lets a "has a scan?" indicator stay correct without paying for the PDF.
     hasScan: s.has_scan ?? Boolean(s.scan_ciphertext_b64),
     hasAnnotations: s.has_annotations ?? Boolean(s.annotation_ciphertext_b64),
   };
@@ -64,9 +62,7 @@ export const submissionRepository = {
     } else {
       // Remote mode: backend has no /submissions endpoint, so fetch per-exam
       const exams = knownExams ?? (await examRepository.getAll(key));
-      // In parallel, so the dashboard doesn't wait for one round-trip per exam.
-      // silentError: one modal per exam would be a wall of dialogs; a failed
-      // read throws and the caller reports it (never a partial list).
+      // In parallel, so the dashboard doesn't wait for one round-trip per exam. silentError: one modal per exam would be a wall of dialogs; a failed read throws and the caller reports it (never a partial list).
       const perExam = await Promise.all(
         exams.map(async (exam) => {
           const rawList = await api.get<any[]>(
@@ -135,9 +131,7 @@ export const submissionRepository = {
 
   async delete(examId: string, id: string): Promise<void> {
 
-    // Always clean up associated exercise scores to prevent orphaned data
-    // from polluting analytics. Through the repository, so server-held rows
-    // are deleted too.
+    // Always clean up associated exercise scores to prevent orphaned data from polluting analytics. Through the repository, so server-held rows are deleted too.
     await scoreRepository.deleteBySubmissionId(examId, id);
 
     if (resultsAreLocal()) {
@@ -154,13 +148,10 @@ export const submissionRepository = {
   async clearGrading(examId: string, id: string, key: CryptoKey | null): Promise<void> {
 
     if (resultsAreLocal()) {
-      // Local only: in server mode DELETE /grading clears the score rows in the
-      // same transaction as the total and the annotations.
+      // Local only: in server mode DELETE /grading clears the score rows in the same transaction as the total and the annotations.
       await scoreRepository.deleteBySubmissionId(examId, id);
 
-      // Must decrypt → modify → re-encrypt → save, because submissions are stored
-      // encrypted in IndexedDB. Directly updating the encrypted record won't work
-      // since fields like totalScore don't exist at the encrypted storage level.
+      // Must decrypt → modify → re-encrypt → save, because submissions are stored encrypted in IndexedDB. Directly updating the encrypted record won't work since fields like totalScore don't exist at the encrypted storage level.
       const raw = await db.submissions.get(id);
       if (!raw) return;
       const sub = await decryptSubmission(raw, key);
@@ -170,9 +161,7 @@ export const submissionRepository = {
       const encrypted = await encryptSubmission(sub, key);
       await db.submissions.put(encrypted);
     } else {
-      // all-server mode: use dedicated DELETE /grading endpoint which atomically clears
-      // total_score, annotations and the per-exercise scores in a single request.
-      // The local mirror goes too, so a fallback read cannot resurrect them.
+      // all-server mode: use dedicated DELETE /grading endpoint which atomically clears total_score, annotations and the per-exercise scores in a single request. The local mirror goes too, so a fallback read cannot resurrect them.
       await db.exerciseScores.where('submissionId').equals(id).delete();
       try {
         await api.delete(`/exams/${examId}/submissions/${id}/grading`, { silentError: true });

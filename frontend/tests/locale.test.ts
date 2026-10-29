@@ -159,8 +159,7 @@ describe('translate', () => {
 });
 
 describe('catalog parity', () => {
-  // The type system already enforces this, but a structural check catches a
-  // catalog that type-checks only because of a stray `as any` or cast.
+  // The type system already enforces this, but a structural check catches a catalog that type-checks only because of a stray `as any` or cast.
   function paths(node: unknown, prefix = ''): string[] {
     if (typeof node === 'string') return [prefix];
     if (typeof node !== 'object' || node === null) return [];

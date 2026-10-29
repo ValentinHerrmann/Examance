@@ -19,8 +19,7 @@
   const num = (v: number) => $fmt.number(v, { maximumFractionDigits: 2 });
   const share = (count: number, of: number) => $fmt.percent(of > 0 ? count / of : 0, 0);
 
-  // The exam stats page's merged chart (grade bands, bins, mean/median, ±SD, normal curve), drawn
-  // with the fixed reference key; the bars get the overall page's own tooltip.
+  // The exam stats page's merged chart (grade bands, bins, mean/median, ±SD, normal curve), drawn with the fixed reference key; the bars get the overall page's own tooltip.
   let model = $derived(distribution ? buildGradeChartModel(distribution.stats, { t: $t, fmt: $fmt }) : null);
 
   // Same mirrored 100 % → 0 % order as the exam charts; the tooltip names the range, count and share.

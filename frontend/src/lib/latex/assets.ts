@@ -1,8 +1,4 @@
-/**
- * The bundled LaTeX assets (`backend/latex-assets`), fetched from the authenticated
- * `/latex-assets` endpoint so local and server compiles use identical files. Main thread only:
- * the worker cannot refresh a session, so `compiler.ts` hands it the result.
- */
+/** The bundled LaTeX assets (`backend/latex-assets`), fetched from the authenticated `/latex-assets` endpoint so local and server compiles use identical files. Main thread only: the worker cannot refresh a session, so `compiler.ts` hands it the result. */
 import { api } from '#lib/api/client';
 
 export type LatexAsset = { path: string; content: Uint8Array };
