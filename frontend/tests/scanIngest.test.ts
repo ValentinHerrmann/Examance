@@ -46,20 +46,14 @@ vi.mock("../src/lib/repositories/scoreRepository", () => ({
 // The fake document reports the real page count of the uploaded bytes, so no rendering is needed.
 vi.mock("../src/lib/pdf/pdfjs", async () => {
   const { PDFDocument: Doc } = await import("pdf-lib");
+  const page = {
+    getViewport: () => ({ width: 2, height: 2 }),
+    render: () => ({ promise: Promise.resolve() }),
+    cleanup: () => {},
+  };
+  const open = async (data: Uint8Array) => ({ numPages: (await Doc.load(data)).getPageCount(), getPage: async () => page });
   return {
-    loadPdfjs: async () => ({
-      getDocument: ({ data }: { data: Uint8Array }) => ({
-        promise: Doc.load(data).then((doc) => ({
-          numPages: doc.getPageCount(),
-          getPage: async () => ({
-            getViewport: () => ({ width: 2, height: 2 }),
-            render: () => ({ promise: Promise.resolve() }),
-            cleanup: () => {},
-          }),
-        })),
-        destroy: async () => {},
-      }),
-    }),
+    loadPdfjs: async () => ({ getDocument: ({ data }: { data: Uint8Array }) => ({ promise: open(data), destroy: async () => {} }) }),
   };
 });
 

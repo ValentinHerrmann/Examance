@@ -73,12 +73,13 @@ export function enqueueRequest(
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   body?: any
 ): void {
+  lastTimestamp = Math.max(Date.now(), lastTimestamp + 1);
   const req: QueuedRequest = {
     id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     url,
     method,
     body,
-    timestamp: (lastTimestamp = Math.max(Date.now(), lastTimestamp + 1)),
+    timestamp: lastTimestamp,
     workspaceId: get(workspaceIdStore) ?? undefined,
   };
   offlineQueue.update((q) => [...q, req]);
