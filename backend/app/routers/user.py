@@ -104,7 +104,6 @@ async def purge_server_student_data(
             "retention_until": retention_until.isoformat(),
         }
 
-    # Soft-delete student identities
     students_update = (
         update(StudentIdentity)
         .where(
@@ -116,7 +115,6 @@ async def purge_server_student_data(
     students_res = await db.execute(students_update)
     purged_students_count = rowcount(students_res)
 
-    # Soft-delete scan submissions
     submissions_update = (
         update(ScanSubmission)
         .where(
@@ -128,7 +126,6 @@ async def purge_server_student_data(
     submissions_res = await db.execute(submissions_update)
     purged_submissions_count = rowcount(submissions_res)
 
-    # Audit log
     await audit_svc.log(db, request, teacher, "DELETE", teacher.id)
 
     return {
@@ -165,7 +162,6 @@ async def restore_server_data(
             "restored_submissions": 0,
         }
 
-    # Restore student identities
     students_update = (
         update(StudentIdentity)
         .where(
@@ -178,7 +174,6 @@ async def restore_server_data(
     students_res = await db.execute(students_update)
     restored_students_count = rowcount(students_res)
 
-    # Restore scan submissions
     submissions_update = (
         update(ScanSubmission)
         .where(
@@ -191,7 +186,6 @@ async def restore_server_data(
     submissions_res = await db.execute(submissions_update)
     restored_submissions_count = rowcount(submissions_res)
 
-    # Audit log
     await audit_svc.log(db, request, teacher, "EXTEND_RETENTION", teacher.id)
 
     return {

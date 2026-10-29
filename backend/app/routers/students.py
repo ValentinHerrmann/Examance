@@ -97,7 +97,6 @@ async def erase_student_identity(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """GDPR Art. 17 Erasure — hard delete student identity + cascade submissions. Appends an immutable audit log entry."""
-    # Fetch identity
     result = await db.execute(
         select(StudentIdentity).where(
             StudentIdentity.pseudonym_hmac == pseudonym_hmac,

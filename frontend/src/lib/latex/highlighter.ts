@@ -21,7 +21,6 @@ export function tokenizeLatex(code: string): LatexToken[] {
   while (pos < code.length) {
     const sub = code.slice(pos);
 
-    // Comment
     const commentMatch = sub.match(/^%.*/);
     if (commentMatch) {
       tokens.push({ type: 'comment', text: commentMatch[0] });
@@ -45,7 +44,6 @@ export function tokenizeLatex(code: string): LatexToken[] {
       continue;
     }
 
-    // Brackets
     const bracketMatch = sub.match(/^[{}[\]]/);
     if (bracketMatch) {
       tokens.push({ type: 'bracket', text: bracketMatch[0] });
@@ -61,7 +59,6 @@ export function tokenizeLatex(code: string): LatexToken[] {
       continue;
     }
 
-    // Numbers
     const numberMatch = sub.match(/^\d+(?:\.\d+)?/);
     if (numberMatch) {
       tokens.push({ type: 'number', text: numberMatch[0] });

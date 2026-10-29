@@ -92,7 +92,6 @@ export function calculateSummaryStats(scores: number[]): SummaryStats | null {
   const median =
     count % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 
-  // Build 5 histogram bins
   const binCount = 5;
   const step = (max - min) / binCount || 1;
   const histogram = Array.from({ length: binCount }).map((_, i) => ({

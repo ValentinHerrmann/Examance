@@ -57,7 +57,6 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
 
   await db.transaction('rw', [db.submissions, db.auditLog], async () => {
     await db.submissions.bulkDelete(matchingSubs.map((sub) => sub.id));
-    // Append immutable audit log entry
     await db.auditLog.add(encryptedAudit);
   });
 

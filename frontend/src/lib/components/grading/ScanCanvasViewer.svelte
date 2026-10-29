@@ -185,7 +185,6 @@
     }
 
     try {
-      // Decrypt in-memory
       const decryptedBytes = await decrypt(
         $sessionStore.sessionKey,
         sub.scanCt,

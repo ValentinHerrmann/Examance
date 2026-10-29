@@ -119,7 +119,6 @@
 
     totalSubmissionsCount = allSubmissions.length;
 
-    // Filter submissions that have been graded
     const gradedSubmissions = allSubmissions.filter(
       (s) => typeof s.totalScore === 'number' && !isNaN(s.totalScore)
     );
@@ -189,7 +188,6 @@
 
       const group = exGroupMap.get(groupKey)!;
 
-      // Add linked active exam IDs
       const linkedExams = examMapByExercise.get(ex.id);
       if (linkedExams) {
         linkedExams.forEach((eId) => {

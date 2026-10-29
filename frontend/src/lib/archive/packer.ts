@@ -298,15 +298,12 @@ export async function packProject(
 
   // Write magic bytes "BGPROJ\0"
   fileBuffer.set(BGPROJ_MAGIC, 0);
-  // Write version
   fileBuffer[6] = BGPROJ_VERSION;
-  // Write salt & nonce
   fileBuffer.set(salt, SALT_OFFSET);
   fileBuffer.set(nonce, NONCE_OFFSET);
   // Write payload length (4 bytes UInt32BE) at offset 35
   const view = new DataView(fileBuffer.buffer);
   view.setUint32(35, encryptedPayload.ciphertext.byteLength, false);
-  // Write ciphertext payload
   fileBuffer.set(new Uint8Array(encryptedPayload.ciphertext), PAYLOAD_OFFSET);
 
   onProgress?.({
