@@ -284,9 +284,11 @@ def test_check_upload_rejects_empty_and_oversized_content() -> None:
 def test_callers_keep_their_own_exception_types() -> None:
     with pytest.raises(LogoError):
         decode_logo("")
+    too_big_logo = base64.b64encode(b"%PDF-" + b"x" * (2 * 1024 * 1024)).decode()
     with pytest.raises(LogoError, match="larger than 2 MB"):
-        decode_logo(base64.b64encode(b"%PDF-" + b"x" * (2 * 1024 * 1024)).decode())
+        decode_logo(too_big_logo)
     with pytest.raises(ResourceError, match="'a.png' is empty"):
         validate_resource("a.png", b"")
+    too_big_resource = b"x" * (MAX_RESOURCE_BYTES + 1)
     with pytest.raises(ResourceError, match="'a.png' is larger than 5 MB"):
-        validate_resource("a.png", b"x" * (MAX_RESOURCE_BYTES + 1))
+        validate_resource("a.png", too_big_resource)

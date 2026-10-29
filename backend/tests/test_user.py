@@ -219,7 +219,7 @@ async def test_account_export_shape(client: AsyncClient, db: AsyncSession) -> No
     (exam,) = [e for e in first["exams"] if e["id"] == exam_id]
     assert exam["retention_until"] == "2027-12-31"
     assert exam["deleted_at"] is None
-    assert exam["created_at"] and exam["created_at"].startswith("20")
+    assert exam["created_at"].startswith("20")
     assert exam["logo"] == {"mode": "account"}
     # The export's own audit entry is written after reading, so it shows from the next one on.
     assert "EXPORT" not in [entry["action"] for entry in first["audit_log"]]
