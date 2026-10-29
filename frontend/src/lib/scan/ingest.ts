@@ -172,30 +172,29 @@ type ScanSource =
   | { kind: "image"; file: File };
 
 /** PASS 1: opens every PDF to learn the total page count for the progress bar. */
+/** Opens every upload at once (all stay open for PASS 2 anyway); sources and warnings keep the upload order. */
 async function openSources(files: File[], warnings: IngestWarning[]) {
+  const opened = await Promise.all(files.map(openSource));
   const sources: ScanSource[] = [];
-  let totalPages = 0;
-  for (const file of files) {
-    if (isPdfFile(file)) {
-      try {
-        const pdfjsLib = await loadPdfjs();
-        // Pass bytes via `{ data }`: a blob: `{ url }` makes pdf.js fetch it, which CSP connect-src blocks (same pattern as PASS 2).
-        const fileBytes = new Uint8Array(await file.arrayBuffer());
-        const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
-        const pdf = await loadingTask.promise;
-
-        totalPages += pdf.numPages;
-        sources.push({ kind: "pdf", file, pdf, loadingTask });
-      } catch (error) {
-        console.error("Failed to load PDF:", error);
-        warnings.push({ kind: "pdfUnreadable", fileName: file.name, error });
-      }
-    } else {
-      totalPages += 1;
-      sources.push({ kind: "image", file });
-    }
+  for (const { source, warning } of opened) {
+    if (source) sources.push(source);
+    if (warning) warnings.push(warning);
   }
+  const totalPages = sources.reduce((n, s) => n + (s.kind === "pdf" ? s.pdf.numPages : 1), 0);
   return { sources, totalPages };
+}
+
+async function openSource(file: File): Promise<{ source?: ScanSource; warning?: IngestWarning }> {
+  if (!isPdfFile(file)) return { source: { kind: "image", file } };
+  try {
+    const pdfjsLib = await loadPdfjs();
+    // Pass bytes via `{ data }`: a blob: `{ url }` makes pdf.js fetch it, which CSP connect-src blocks (same pattern as PASS 2).
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+    return { source: { kind: "pdf", file, pdf: await loadingTask.promise, loadingTask } };
+  } catch (error) {
+    console.error("Failed to load PDF:", error);
+    return { warning: { kind: "pdfUnreadable", fileName: file.name, error } };
+  }
 }
 
 async function renderPage(page: PDFPageProxy, scale: number): Promise<ImageData> {
