@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import base64
+import logging
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from app.services.tectonic import COMPILE_TIMEOUT_SECONDS, CompilationError, run_tectonic
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -34,7 +37,8 @@ async def compile_job(job: CompileJob) -> Response:
     except TimeoutError:
         return JSONResponse(status_code=504, content={"detail": "Compilation timed out."})
     except CompilationError as exc:
-        return JSONResponse(status_code=422, content={"detail": str(exc), "log": exc.log})
+        logger.warning("LaTeX compilation failed", exc_info=True)
+        return JSONResponse(status_code=422, content={"detail": "Compilation failed."})
     except OSError:
         return JSONResponse(status_code=503, content={"detail": "Tectonic is unavailable."})
     return Response(content=pdf, media_type="application/pdf")
