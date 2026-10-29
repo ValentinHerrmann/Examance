@@ -138,7 +138,7 @@ export class OmrAccumulator {
   private readonly byPseudonym = new Map<string, { result: OmrExerciseResult; pageStats: OmrPageStats }[]>();
   private alignmentFailures = 0;
   private minFiducialsFound: number | null = null;
-  private missingCorners = new Set<string>();
+  private readonly missingCorners = new Set<string>();
 
   add(pseudonymId: string, res: OmrResponse): void {
     const list = this.byPseudonym.get(pseudonymId) ?? [];

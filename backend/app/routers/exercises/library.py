@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -13,7 +14,6 @@ from app.database import get_db
 from app.dependencies import (
     DB,
     CurrentTeacher,
-    OwnExercise,
     get_current_teacher,
     get_exercise_for_teacher,
     get_readable_exercise,
@@ -216,7 +216,10 @@ async def _move_to_group(ex: Exercise, group_id: uuid.UUID, teacher: Teacher, db
 
 @router.patch("/{exercise_id}")
 async def update_exercise(
-    body: ExerciseUpdate, ex: OwnExercise, teacher: CurrentTeacher, db: DB
+    body: ExerciseUpdate,
+    ex: Annotated[Exercise, Depends(get_exercise_for_teacher)],
+    teacher: CurrentTeacher,
+    db: DB,
 ) -> ExerciseResponse:
     """Update a library exercise in place."""
     sent = body.model_dump(exclude_unset=True, include=_PLAIN_UPDATE_FIELDS)

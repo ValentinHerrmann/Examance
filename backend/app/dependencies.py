@@ -235,4 +235,3 @@ async def require_not_frozen(
 DB = Annotated[AsyncSession, Depends(get_db)]
 CurrentTeacher = Annotated[Teacher, Depends(get_current_teacher)]
 AdminTeacher = Annotated[Teacher, Depends(get_admin_teacher)]
-OwnExercise = Annotated[Exercise, Depends(get_exercise_for_teacher)]
