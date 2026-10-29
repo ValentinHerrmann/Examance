@@ -13,9 +13,7 @@ from app.database import Base
 class StudentIdentity(Base):
     __tablename__ = "student_identities"
 
-    # PK = (HMAC(raw_uuid, per_exam_secret), exam_id) — raw ID never leaves the client.
-    # Exam-scoped like the client schema: a pupil is an independent identity in each exam,
-    # so a workspace can be imported into another account on the same server.
+    # PK = (HMAC(raw_uuid, per_exam_secret), exam_id) — raw ID never leaves the client. Exam-scoped like the client schema: a pupil is an independent identity in each exam, so a workspace can be imported into another account on the same server.
     pseudonym_hmac: Mapped[str] = mapped_column(String(64), primary_key=True)
     exam_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("exams.id", ondelete="CASCADE"), primary_key=True, index=True

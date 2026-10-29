@@ -19,11 +19,7 @@ async def load_resources_for_exercises(
     teacher: Teacher,
     db: AsyncSession,
 ) -> dict[str, bytes]:
-    """
-    Resource files of *exercise_ids*, merged into one working-directory map. Only exercises the
-    teacher may read are used (mirrors ``get_readable_exercise``); the rest are skipped, not
-    rejected: the list is a hint, and a missing figure beats a 403 for a deleted exercise.
-    """
+    """Resource files of *exercise_ids*, merged into one working-directory map. Only exercises the teacher may read are used (mirrors ``get_readable_exercise``); the rest are skipped, not rejected: the list is a hint, and a missing figure beats a 403 for a deleted exercise."""
     if not exercise_ids:
         return {}
 

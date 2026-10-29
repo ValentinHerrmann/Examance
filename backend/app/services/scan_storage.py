@@ -1,6 +1,4 @@
-"""Where a submission's scan lives: one of `scan_path` (file partition) or `scan_ciphertext` (DB).
-
-The only code that reads or writes those two columns; moves between them: `blob_migration`."""
+"""Where a submission's scan lives: one of `scan_path` (file partition) or `scan_ciphertext` (DB). The only code that reads or writes those two columns; moves between them: `blob_migration`."""
 from __future__ import annotations
 
 import uuid

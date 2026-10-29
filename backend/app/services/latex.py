@@ -27,8 +27,7 @@ logger = logging.getLogger(__name__)
 
 _PR_SET_DUMPABLE = 4
 
-# A tripwire for the obvious ways a document asks for a file outside its directory, not the
-# boundary (that is the worker container): TeX can build paths in many ways.
+# A tripwire for the obvious ways a document asks for a file outside its directory, not the boundary (that is the worker container): TeX can build paths in many ways.
 _ABSOLUTE_OR_PARENT_PATH = re.compile(
     r"\\(?:input|include|InputIfFileExists|openin|openout|write|read|usepackage|RequirePackage"
     r"|lstinputlisting|includegraphics|import|subimport|verbatiminput)"
@@ -37,9 +36,7 @@ _ABSOLUTE_OR_PARENT_PATH = re.compile(
 
 
 def forbid_environ_reads() -> None:
-    """Make this process's /proc/<pid>/environ and memory unreadable to its same-user children.
-
-    Linux only, called once at startup; matters when Tectonic runs here instead of the worker."""
+    """Make this process's /proc/<pid>/environ and memory unreadable to its same-user children. Linux only, called once at startup; matters when Tectonic runs here instead of the worker."""
     if not sys.platform.startswith("linux"):
         return
     try:
@@ -60,8 +57,7 @@ def compilation_failed_response(exc: CompilationError) -> JSONResponse:
 
 
 def reject_unsafe_paths(latex_source: str) -> None:
-    """Raise CompilationError if *latex_source* references an absolute or parent path (fails fast
-    with a clear message on the common cases)."""
+    """Raise CompilationError if *latex_source* references an absolute or parent path (fails fast with a clear message on the common cases)."""
     if _ABSOLUTE_OR_PARENT_PATH.search(latex_source):
         raise CompilationError("Absolute and parent-directory file references are not permitted.")
 
@@ -101,8 +97,7 @@ async def compile_latex(
     binary_files: dict[str, bytes] | None = None,
     logo: ResolvedLogo | None = None,
 ) -> bytes:
-    """Compile *latex_source* and return raw PDF bytes. *binary_files* are teacher resources by
-    flat name, validated so they cannot escape the workdir or shadow a .sty; *logo* is the logo."""
+    """Compile *latex_source* and return raw PDF bytes. *binary_files* are teacher resources by flat name, validated so they cannot escape the workdir or shadow a .sty; *logo* is the logo."""
     reject_unsafe_paths(latex_source)
     if "\\documentclass" not in latex_source:
         latex_source = _with_body_packages(f"""\\documentclass[a4paper]{{article}}

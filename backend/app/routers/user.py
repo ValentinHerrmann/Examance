@@ -57,11 +57,7 @@ async def set_storage_mode(
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> CapabilitiesOut:
-    """
-    Records the account's storage mode, compare-and-set on `expected`. Moving the results
-    between server and browser is the client's job and happens before this call; this only
-    states where they now live.
-    """
+    """Records the account's storage mode, compare-and-set on `expected`. Moving the results between server and browser is the client's job and happens before this call; this only states where they now live."""
     if body.mode not in capabilities_for(teacher).allowed_storage_modes:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -90,10 +86,7 @@ async def purge_server_student_data(
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Soft-delete the teacher's student identities and scan submissions (hard delete after 7 days).
-
-    LaTeX exercises, exam structures and their resource files stay (teacher-authored content).
-    A file with personal data (e.g. a pupil photo) must be deleted with the exercise or itself."""
+    """Soft-delete the teacher's student identities and scan submissions (hard delete after 7 days). LaTeX exercises, exam structures and their resource files stay (teacher-authored content). A file with personal data (e.g. a pupil photo) must be deleted with the exercise or itself."""
     now = datetime.now(UTC)
     retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
 
@@ -156,10 +149,7 @@ async def restore_server_data(
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """
-    Restore soft-deleted student identities and scan submissions for the current teacher
-    if they are within the 7-day retention grace period.
-    """
+    """Restore soft-deleted student identities and scan submissions for the current teacher if they are within the 7-day retention grace period."""
     today = date.today()
 
     # Never a deleted exam's rows: retention skips deleted exams, so they would stay forever.
@@ -217,10 +207,7 @@ async def export_own_data(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """GDPR Art. 15/20: machine-readable copy of the account holder's own data.
-
-    Only what the server holds *about the teacher*: account fields, authored exams, audit trail.
-    Student payloads are excluded (the server cannot read them); use the client-side export."""
+    """GDPR Art. 15/20: machine-readable copy of the account holder's own data. Only what the server holds *about the teacher*: account fields, authored exams, audit trail. Student payloads are excluded (the server cannot read them); use the client-side export."""
     export = await build_export(teacher, db)
     await audit_svc.log(db, request, teacher, "EXPORT", teacher.id)
     return export
@@ -235,10 +222,7 @@ async def request_account_deletion(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """GDPR Art. 17: ask to delete one's own account; mails a single-use confirmation link.
-
-    The link leads to `POST /auth/account-deletion/confirm` (see `services/account_deletion.py`).
-    A new request replaces an open one; the last admin account is refused up front."""
+    """GDPR Art. 17: ask to delete one's own account; mails a single-use confirmation link. The link leads to `POST /auth/account-deletion/confirm` (see `services/account_deletion.py`). A new request replaces an open one; the last admin account is refused up front."""
     await ensure_not_last_admin(db, teacher)
     mail = await create_deletion_request(db, teacher, keep_exercises=body.keep_exercises)
     await audit_svc.log(db, request, teacher, "DELETION_REQUESTED", teacher.id)

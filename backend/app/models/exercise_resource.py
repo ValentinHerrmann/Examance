@@ -19,12 +19,7 @@ from app.database import Base
 
 
 class ExerciseResource(Base):
-    """
-    A binary file attached to one exercise (figure, data file, ...).
-
-    ``content`` is plaintext like ``Exercise.latex_body`` (Tectonic cannot compile ciphertext;
-    docs/data_flow_and_security.md). ``filename`` is the flat name LaTeX uses, unique per exercise.
-    """
+    """A binary file attached to one exercise (figure, data file, ...). ``content`` is plaintext like ``Exercise.latex_body`` (Tectonic cannot compile ciphertext; docs/data_flow_and_security.md). ``filename`` is the flat name LaTeX uses, unique per exercise."""
 
     __tablename__ = "exercise_resources"
     __table_args__ = (

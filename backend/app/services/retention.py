@@ -53,10 +53,7 @@ async def _sweep_orphan_scans(db: AsyncSession) -> int:
 
 
 async def run(*, dry_run: bool = False) -> int:
-    """Apply the retention policy and return the number of affected rows. Idempotent.
-
-    Steps are numbered inline. Step 1 must cascade a grace deadline onto the exam's student data;
-    step 11 hard-deletes the exam itself once that grace period has passed."""
+    """Apply the retention policy and return the number of affected rows. Idempotent. Steps are numbered inline. Step 1 must cascade a grace deadline onto the exam's student data; step 11 hard-deletes the exam itself once that grace period has passed."""
     today = date.today()
     now = datetime.now(tz=UTC)
     grace_deadline = today + timedelta(days=settings.RETENTION_GRACE_DAYS)
@@ -184,8 +181,7 @@ async def run(*, dry_run: bool = False) -> int:
         if dry_run:
             return total_affected
 
-        # Soft-delete the exams and cascade the deadline onto their child rows,
-        # so the next run (after the grace period) erases them for good.
+        # Soft-delete the exams and cascade the deadline onto their child rows, so the next run (after the grace period) erases them for good.
         for exam in expired_exams:
             exam.deleted_at = now
 
@@ -249,9 +245,7 @@ async def run(*, dry_run: bool = False) -> int:
             await db.execute(delete(LayoutReport).where(report_filter))
 
         if purge_exam_ids:
-            # The exam's rows cascade in the DB, so its scan files are dropped explicitly. Legacy
-            # exercises still name their exam (`exercises.exam_id`, ON DELETE CASCADE) and may be
-            # linked into other exams: detach them first, they stay in the library.
+            # The exam's rows cascade in the DB, so its scan files are dropped explicitly. Legacy exercises still name their exam (`exercises.exam_id`, ON DELETE CASCADE) and may be linked into other exams: detach them first, they stay in the library.
             scan_storage.forget_scans_of_exams(db, purge_exam_ids)
             await db.execute(
                 update(Exercise).where(Exercise.exam_id.in_(purge_exam_ids)).values(exam_id=None)
@@ -264,9 +258,7 @@ async def run(*, dry_run: bool = False) -> int:
         if stale_reset_count:
             await db.execute(delete(PasswordResetToken).where(stale_reset_filter))
 
-        # Audit the exam expiries. Deliberately no entry per erased student
-        # record: that would recreate, in the audit trail, the very identifiers
-        # the erasure is meant to remove.
+        # Audit the exam expiries. Deliberately no entry per erased student record: that would recreate, in the audit trail, the very identifiers the erasure is meant to remove.
         db.add_all(
             [
                 AuditLog(

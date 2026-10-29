@@ -59,8 +59,7 @@ async def _live_submission(
 def _to_response(
     sub: ScanSubmission, *, scan_present: bool | None = None, **overrides: Any
 ) -> SubmissionResponse:
-    """A submission without scan bytes; *overrides* add them or replace a field. Pass
-    *scan_present* when known: `has_scan` reads a deferred column, which a fresh row lacks."""
+    """A submission without scan bytes; *overrides* add them or replace a field. Pass *scan_present* when known: `has_scan` reads a deferred column, which a fresh row lacks."""
     return SubmissionResponse(
         id=sub.id,
         exam_id=sub.exam_id,
@@ -132,9 +131,7 @@ async def upload_submission(
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """Upload encrypted scan submission."""
-    # Ensure the student identity exists first (foreign key). The FK spans (pseudonym_hmac,
-    # exam_id), so the identity is looked up within this exam only: a submission cannot link to
-    # another exam's (and tenant's) identity.
+    # Ensure the student identity exists first (foreign key). The FK spans (pseudonym_hmac, exam_id), so the identity is looked up within this exam only: a submission cannot link to another exam's (and tenant's) identity.
     student_res = await db.execute(
         select(StudentIdentity).where(
             StudentIdentity.pseudonym_hmac == body.pseudonym_hmac,
@@ -143,8 +140,7 @@ async def upload_submission(
     )
     existing_identity = student_res.scalar_one_or_none()
     if existing_identity is None:
-        # In a savepoint: a parallel upload for the same new pseudonym may insert the placeholder
-        # first, and then this upload simply links to it (a 409 would make the queue drop it).
+        # In a savepoint: a parallel upload for the same new pseudonym may insert the placeholder first, and then this upload simply links to it (a 409 would make the queue drop it).
         try:
             async with db.begin_nested():
                 db.add(
@@ -159,8 +155,7 @@ async def upload_submission(
         except IntegrityError:
             pass
     elif existing_identity.deleted_at is not None:
-        # Its erasure would cascade to this submission. It comes back as the placeholder, as if
-        # already erased: only a student upload brings deleted PII back.
+        # Its erasure would cascade to this submission. It comes back as the placeholder, as if already erased: only a student upload brings deleted PII back.
         existing_identity.pii_ciphertext = b"\x00"
         existing_identity.iv = b"\x00" * 12
         existing_identity.encryption_salt = b"\x00" * 16

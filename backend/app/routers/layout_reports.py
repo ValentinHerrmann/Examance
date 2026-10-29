@@ -1,7 +1,4 @@
-"""Layout reports — POST /api/v1/layout-reports, admin inbox /api/v1/admin/layout-reports (#134).
-
-The teacher deliberately shares plaintext LaTeX and PDFs with the admins (per-report consent in the
-client). Quota answers are 429 without ``Retry-After`` (client login lockout), as in training."""
+"""Layout reports — POST /api/v1/layout-reports, admin inbox /api/v1/admin/layout-reports (#134). The teacher deliberately shares plaintext LaTeX and PDFs with the admins (per-report consent in the client). Quota answers are 429 without ``Retry-After`` (client login lockout), as in training."""
 from __future__ import annotations
 
 import hashlib

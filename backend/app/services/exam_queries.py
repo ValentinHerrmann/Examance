@@ -17,8 +17,7 @@ from app.services.latex_packages import stored_entries
 # (exercise, order_index, mc_group_id, sub_index): the exercise with its place in the exam.
 ExerciseRow = tuple[Exercise, int, uuid.UUID | None, int | None]
 
-# Columns copied by name. `exercises` stays out: on an Exam it is the ORM relationship of that
-# name, and reading it lazy-loads, which fails on an async session.
+# Columns copied by name. `exercises` stays out: on an Exam it is the ORM relationship of that name, and reading it lazy-loads, which fails on an async session.
 _EXAM_COLUMNS = ExamResponse.model_fields.keys() - {
     "latex_packages",
     "extra_notes",

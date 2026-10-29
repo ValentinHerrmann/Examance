@@ -1,7 +1,4 @@
-"""Per-exercise score endpoints. The behaviour under test is mostly *not* failing: bulk writes must
-be replayable and clearing a missing score a no-op, since offline-queue flushes and grid keystrokes
-would otherwise surface a 409 or 404 as a modal.
-"""
+"""Per-exercise score endpoints. The behaviour under test is mostly *not* failing: bulk writes must be replayable and clearing a missing score a no-op, since offline-queue flushes and grid keystrokes would otherwise surface a 409 or 404 as a modal."""
 from __future__ import annotations
 
 import base64
@@ -90,8 +87,7 @@ async def test_bulk_put_is_idempotent(client: AsyncClient, db: AsyncSession) -> 
     assert len(first.json()) == 1
     first_row_id = first.json()[0]["id"]
 
-    # Replaying the same write — an offline-queue flush, a retried autosave —
-    # must update in place, not answer 409 the way the create-only POSTs do.
+    # Replaying the same write — an offline-queue flush, a retried autosave — must update in place, not answer 409 the way the create-only POSTs do.
     second = await client.put(url, json=body)
     assert second.status_code == 200, second.text
     assert len(second.json()) == 1
@@ -111,8 +107,7 @@ async def test_put_ignores_a_stale_client_id_for_an_existing_pair(
     )
     row_id = created.json()[0]["id"]
 
-    # The row's identity is (submission, exercise). A different client-supplied
-    # id for the same pair updates that row rather than colliding.
+    # The row's identity is (submission, exercise). A different client-supplied id for the same pair updates that row rather than colliding.
     replayed = await client.put(
         url,
         json={
@@ -237,8 +232,7 @@ async def test_delete_is_idempotent(client: AsyncClient, db: AsyncSession) -> No
     await client.put(url, json={"scores": [{"exercise_id": exercise_id, "payload_iv_b64": IV_B64}]})
 
     assert (await client.delete(f"{url}/{exercise_id}")).status_code == 204
-    # Clearing an already-clear score is the requested state, not an error: the
-    # grading grid fires this on every cleared input.
+    # Clearing an already-clear score is the requested state, not an error: the grading grid fires this on every cleared input.
     assert (await client.delete(f"{url}/{exercise_id}")).status_code == 204
     assert (await client.get(url)).json() == []
 

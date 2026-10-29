@@ -1,6 +1,4 @@
-"""Tectonic runner shared by the backend and the LaTeX worker (`app/latex_worker.py`).
-
-Imports nothing that loads settings or secrets: the worker container runs it without either."""
+"""Tectonic runner shared by the backend and the LaTeX worker (`app/latex_worker.py`). Imports nothing that loads settings or secrets: the worker container runs it without either."""
 from __future__ import annotations
 
 import asyncio
@@ -17,8 +15,7 @@ logger = logging.getLogger(__name__)
 PREVIEW_TIMEOUT_SECONDS = 30
 COMPILE_TIMEOUT_SECONDS = 120
 
-# Tectonic reads absolute and `../` paths whatever `--untrusted` says (its FilesystemIo allows
-# them), so secrets stay out of the child's environment; in production it runs in the worker.
+# Tectonic reads absolute and `../` paths whatever `--untrusted` says (its FilesystemIo allows them), so secrets stay out of the child's environment; in production it runs in the worker.
 _CHILD_ENV_KEYS = (
     "PATH", "HOME", "LANG", "LC_ALL", "TZ", "XDG_CACHE_HOME", "TECTONIC_CACHE_DIR",
     "SSL_CERT_FILE", "SSL_CERT_DIR", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
@@ -35,8 +32,7 @@ _MAX_LOG_CHARS = 256 * 1024
 
 
 class CompilationError(Exception):
-    """Raised when Tectonic exits non-zero or the process fails. *log* is the sanitized TeX log
-    (``_read_tex_log``), returned only to the requesting teacher and never logged (issue #166)."""
+    """Raised when Tectonic exits non-zero or the process fails. *log* is the sanitized TeX log (``_read_tex_log``), returned only to the requesting teacher and never logged (issue #166)."""
 
     def __init__(self, message: str, log: str | None = None) -> None:
         super().__init__(message)
@@ -47,8 +43,7 @@ def _child_env() -> dict[str, str]:
     return {key: value for key in _CHILD_ENV_KEYS if (value := os.environ.get(key)) is not None}
 
 
-# Process-wide cap on concurrent Tectonic runs; read from the environment, not app.config, so the
-# worker never loads the backend settings.
+# Process-wide cap on concurrent Tectonic runs; read from the environment, not app.config, so the worker never loads the backend settings.
 _compile_slots = asyncio.Semaphore(max(1, int(os.environ.get("LATEX_MAX_CONCURRENT_COMPILES", 2))))
 
 
@@ -73,8 +68,7 @@ def safe_path(tmpdir: Path, rel_path: str) -> Path:
 
 
 def _read_tex_log(tmpdir: Path, stderr: bytes) -> str:
-    """The full TeX log (stderr if main.log is missing) for the requesting teacher only: the tmpdir
-    path becomes "./" and the size is capped, keeping the tail. Never write it to server logs."""
+    """The full TeX log (stderr if main.log is missing) for the requesting teacher only: the tmpdir path becomes "./" and the size is capped, keeping the tail. Never write it to server logs."""
     log_file = tmpdir / "main.log"
     try:
         text = log_file.read_text(encoding="utf-8", errors="replace") if log_file.exists() else ""
@@ -90,8 +84,7 @@ def _read_tex_log(tmpdir: Path, stderr: bytes) -> str:
 
 
 def _extract_tex_error(tmpdir: Path) -> str:
-    """TeX's own error lines (starting with "!") from main.log: the short ``detail`` that may also
-    be written to server logs. The full log only goes back to the caller (``_read_tex_log``)."""
+    """TeX's own error lines (starting with "!") from main.log: the short ``detail`` that may also be written to server logs. The full log only goes back to the caller (``_read_tex_log``)."""
     log_file = tmpdir / "main.log"
     error_lines: list[str] = []
     if log_file.exists():
@@ -130,8 +123,7 @@ async def _run_pass(cmd: list[str], tmpdir: Path, timeout: float) -> tuple[int, 
 
 
 async def run_tectonic(main_tex: str, files: dict[str, bytes], timeout: float) -> bytes:
-    """Compile *main_tex* with the bundled assets plus *files* (relative path -> bytes, written
-    after the assets) in two passes and return the PDF. Raises CompilationError or TimeoutError."""
+    """Compile *main_tex* with the bundled assets plus *files* (relative path -> bytes, written after the assets) in two passes and return the PDF. Raises CompilationError or TimeoutError."""
     tmpdir = Path(tempfile.mkdtemp(prefix="blindgrade-latex-"))
     try:
         if ASSETS_DIR.exists():
@@ -148,8 +140,7 @@ async def run_tectonic(main_tex: str, files: dict[str, bytes], timeout: float) -
         tex_file = tmpdir / "main.tex"
         tex_file.write_text(main_tex, encoding="utf-8")
 
-        # --untrusted refuses shell-escape and extra search paths (not file reads); it must
-        # precede the input.
+        # --untrusted refuses shell-escape and extra search paths (not file reads); it must precede the input.
         cmd = [
             "tectonic", "--untrusted", "-k", str(tex_file), "--outdir", str(tmpdir), "--keep-logs",
         ]

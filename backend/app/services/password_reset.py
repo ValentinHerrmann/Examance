@@ -21,10 +21,7 @@ from app.services.tokens import aware, hash_token
 
 
 async def create_reset_token(db: AsyncSession, teacher: Teacher) -> tuple[str, Mail]:
-    """Generate a single-use reset token, persist its hash, invalidate prior unused tokens.
-
-    Returns the raw token and the unsent mail carrying it. An account without a password (admin
-    created, never signed in) gets the invitation wording."""
+    """Generate a single-use reset token, persist its hash, invalidate prior unused tokens. Returns the raw token and the unsent mail carrying it. An account without a password (admin created, never signed in) gets the invitation wording."""
     raw_token = secrets.token_urlsafe(32)
     token_hash = hash_token(raw_token)
     expires_at = datetime.now(UTC) + timedelta(hours=settings.PASSWORD_RESET_TOKEN_TTL_HOURS)
@@ -53,10 +50,7 @@ async def create_reset_token(db: AsyncSession, teacher: Teacher) -> tuple[str, M
 async def create_and_send_reset_token(
     db: AsyncSession, teacher: Teacher
 ) -> tuple[str, bool]:
-    """`create_reset_token`, then send the mail now; returns (raw_token, email_sent).
-
-    For callers that report delivery (admin endpoints). Public endpoints send from a background
-    task instead, so response time does not reveal whether an account exists."""
+    """`create_reset_token`, then send the mail now; returns (raw_token, email_sent). For callers that report delivery (admin endpoints). Public endpoints send from a background task instead, so response time does not reveal whether an account exists."""
     raw_token, mail = await create_reset_token(db, teacher)
     return raw_token, await account_mail.send(mail)
 
@@ -81,8 +75,7 @@ async def verify_reset_token(
     if token_record.used_at is not None or aware(token_record.expires_at) <= now:
         return None, None
 
-    # A pending account holds no token of any kind, a reset included. Covers /auth/reset/start
-    # and /auth/reset-password alike.
+    # A pending account holds no token of any kind, a reset included. Covers /auth/reset/start and /auth/reset-password alike.
     if teacher.approved_at is None:
         return None, None
 
@@ -92,11 +85,7 @@ async def verify_reset_token(
 async def complete_password_reset(
     db: AsyncSession, raw_token: str, new_password: str, *, teacher_id: uuid.UUID
 ) -> Teacher:
-    """
-    Validate token, set new teacher password, mark token used, and revoke all active refresh tokens.
-
-    The token must belong to `teacher_id`, the account whose factors the reset session proved.
-    """
+    """Validate token, set new teacher password, mark token used, and revoke all active refresh tokens. The token must belong to `teacher_id`, the account whose factors the reset session proved."""
     token_record, teacher = await verify_reset_token(db, raw_token)
     if not token_record or not teacher or teacher.id != teacher_id:
         raise ValueError("Invalid or expired password reset token.")
@@ -105,9 +94,7 @@ async def complete_password_reset(
     teacher.password_hash = await hash_password_async(new_password)
     teacher.password_changed_at = datetime.now(UTC)
 
-    # The server never sees the data key, so it cannot re-wrap it for the new password: a stale wrap
-    # makes the client offer the recovery code, not a vault of blank fields. The recovery and
-    # passkey wraps still hold the same key.
+    # The server never sees the data key, so it cannot re-wrap it for the new password: a stale wrap makes the client offer the recovery code, not a vault of blank fields. The recovery and passkey wraps still hold the same key.
     await invalidate_password_wrap(db, teacher.id)
 
     # Force re-authentication across all active sessions by revoking refresh tokens

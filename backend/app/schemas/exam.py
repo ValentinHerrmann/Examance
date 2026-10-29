@@ -15,11 +15,7 @@ if TYPE_CHECKING:
 
 
 def validate_retention_until(value: date | None) -> date | None:
-    """
-    Keep the retention date inside the configured window.
-    The upper bound enforces Art. 5(1)(e) (nothing kept indefinitely); the lower bound is off by
-    default (RETENTION_MIN_DAYS = 0) so drafts can be deleted at once, see config.py.
-    """
+    """Keep the retention date inside the configured window. The upper bound enforces Art. 5(1)(e) (nothing kept indefinitely); the lower bound is off by default (RETENTION_MIN_DAYS = 0) so drafts can be deleted at once, see config.py."""
     if value is None:
         return None
     today = date.today()
@@ -74,8 +70,7 @@ def check_page_breaks(value: list[str] | None) -> list[str] | None:
     return list(dict.fromkeys(value))
 
 
-# Request bounds mirror the model columns (String(n), the question_type enum), so an oversized
-# value is a 422 instead of a database error. Positions are small ints, far below int4.
+# Request bounds mirror the model columns (String(n), the question_type enum), so an oversized value is a 422 instead of a database error. Positions are small ints, far below int4.
 QuestionType = Literal["free_text", "mc", "sc", "tf"]
 _MAX_POSITION = 10_000
 
@@ -86,9 +81,7 @@ class ExerciseCreate(BaseModel):
     topic_tag: str | None = Field(default=None, max_length=200)
     grade: str | None = Field(default=None, max_length=50)
     subject: str | None = Field(default=None, max_length=100)
-    # None: the exercise's code was withheld (an exam imported from a results-only archive).
-    # The row keeps its name, points and answer key so scans and scores stay gradeable, but
-    # nothing can be compiled.
+    # None: the exercise's code was withheld (an exam imported from a results-only archive). The row keeps its name, points and answer key so scans and scores stay gradeable, but nothing can be compiled.
     latex_body: str | None = ""
     code_withheld: bool = False
     max_points: float = 0.0

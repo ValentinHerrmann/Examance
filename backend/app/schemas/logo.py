@@ -1,7 +1,4 @@
-"""Schemas for exam header logos (/user/logo, /exams/{id}/logo).
-
-SECURITY: the logo's bytes are never part of a repr; only type and size may be logged.
-"""
+"""Schemas for exam header logos (/user/logo, /exams/{id}/logo). SECURITY: the logo's bytes are never part of a repr; only type and size may be logged."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -23,11 +20,7 @@ def _check_encoded_size(v: str) -> str:
 
 
 class AccountLogoUpdate(BaseModel):
-    """
-    The account's logo choice: ``default`` prints the bundled default logo (MTG), ``none`` prints
-    no logo, ``custom`` prints ``content_b64``. ``custom`` without content keeps the stored file.
-    The type is read from the bytes, never from the client.
-    """
+    """The account's logo choice: ``default`` prints the bundled default logo (MTG), ``none`` prints no logo, ``custom`` prints ``content_b64``. ``custom`` without content keeps the stored file. The type is read from the bytes, never from the client."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -53,10 +46,7 @@ class AccountLogoUpdate(BaseModel):
 
 
 class ExamLogoUpdate(BaseModel):
-    """
-    An exam's logo choice: ``account`` follows the account logo, ``none`` prints no logo,
-    ``custom`` prints ``content_b64``. ``custom`` without content keeps the exam's stored file.
-    """
+    """An exam's logo choice: ``account`` follows the account logo, ``none`` prints no logo, ``custom`` prints ``content_b64``. ``custom`` without content keeps the exam's stored file."""
 
     model_config = ConfigDict(extra="forbid")
 

@@ -21,9 +21,7 @@ def _send_sync(
     """Synchronous SMTP email delivery."""
     smtp_host = settings.SMTP_HOST
     if not smtp_host:
-        # send_email() already guards this; repeating it here keeps the helper
-        # safe on its own and stops smtplib from silently falling back to
-        # localhost when no relay is configured.
+        # send_email() already guards this; repeating it here keeps the helper safe on its own and stops smtplib from silently falling back to localhost when no relay is configured.
         logger.error("SMTP_HOST is not configured; cannot send email to %s", to_email)
         return False
 
@@ -52,8 +50,7 @@ def _send_sync(
         logger.info("Sent email with subject: %s", subject)
         return True
     except Exception as exc:
-        # Never log the body (it carries live tokens) or the address; a refused recipient's error
-        # text contains the address, so only its class is logged.
+        # Never log the body (it carries live tokens) or the address; a refused recipient's error text contains the address, so only its class is logged.
         reason = (
             type(exc).__name__ if isinstance(exc, smtplib.SMTPRecipientsRefused) else repr(exc)
         )
@@ -67,9 +64,7 @@ async def send_email(
     body_text: str,
     body_html: str | None = None,
 ) -> bool:
-    """
-    Send an email via SMTP or log it in dev mode if SMTP_HOST is not configured.
-    """
+    """Send an email via SMTP or log it in dev mode if SMTP_HOST is not configured."""
     if not settings.SMTP_HOST:
         if settings.is_dev:
             logger.info(

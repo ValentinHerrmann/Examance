@@ -1,7 +1,4 @@
-"""Management CLI. Commands: `python -m app.cli --help` (from /app inside the container).
-
-Retention (`run-retention`) is invoked by external cron (systemd timer / Kubernetes CronJob),
-never by an in-process scheduler, which would duplicate work across workers."""
+"""Management CLI. Commands: `python -m app.cli --help` (from /app inside the container). Retention (`run-retention`) is invoked by external cron (systemd timer / Kubernetes CronJob), never by an in-process scheduler, which would duplicate work across workers."""
 from __future__ import annotations
 
 import asyncio
@@ -73,11 +70,7 @@ def send_password_reset(email: str) -> None:
 @cli.command("approve-user")
 @click.option("--email", required=True, help="User email.")
 def approve_user(email: str) -> None:
-    """
-    Approve a pending account (recovery path when no admin can sign in to do it).
-
-    Keeps the account's feature switches as they are.
-    """
+    """Approve a pending account (recovery path when no admin can sign in to do it). Keeps the account's feature switches as they are."""
 
     async def _approve(db: AsyncSession, teacher: Teacher) -> str:
         if teacher.approved_at is not None:
@@ -160,10 +153,7 @@ def create_user(email: str, role: str, allow_admin: bool, password: str) -> None
     help="Make an account that owns exams or exercises an admin anyway.",
 )
 def set_role(email: str, role: str, force: bool) -> None:
-    """Change an account's role; admins manage users and the server only (issue #58).
-
-    An admin's own exams and exercises are kept but unreachable until it is a teacher again.
-    Signs the account out everywhere, so every browser picks up the new role."""
+    """Change an account's role; admins manage users and the server only (issue #58). An admin's own exams and exercises are kept but unreachable until it is a teacher again. Signs the account out everywhere, so every browser picks up the new role."""
     from fastapi import HTTPException
 
     from app.models.exam import Exam
@@ -233,8 +223,7 @@ def set_password(email: str, password: str) -> None:
 
     async def _update(db: AsyncSession, teacher: Teacher) -> None:
         teacher.password_hash = hash_password(password)
-        # The server never sees the data key, so it cannot re-wrap it: a stale password
-        # wrap sends the teacher to the recovery code, not into a vault of blank fields.
+        # The server never sees the data key, so it cannot re-wrap it: a stale password wrap sends the teacher to the recovery code, not into a vault of blank fields.
         await invalidate_password_wrap(db, teacher.id)
 
     _with_teacher(email, _update)
@@ -248,10 +237,7 @@ def set_password(email: str, password: str) -> None:
 @cli.command("run-retention")
 @click.option("--dry-run", is_flag=True, default=False, help="Print actions without DB writes.")
 def run_retention(dry_run: bool) -> None:
-    """Apply the retention policy (GDPR Art. 5(1)(e)): soft-delete, then hard-delete after grace.
-
-    Idempotent; run it from EXTERNAL cron, not in-process. It is the ONLY thing that erases
-    expired student data and audit entries: if it is not scheduled, nothing is ever deleted."""
+    """Apply the retention policy (GDPR Art. 5(1)(e)): soft-delete, then hard-delete after grace. Idempotent; run it from EXTERNAL cron, not in-process. It is the ONLY thing that erases expired student data and audit entries: if it is not scheduled, nothing is ever deleted."""
     from app.services.retention import run as _run
 
     try:
@@ -271,10 +257,7 @@ def run_retention(dry_run: bool) -> None:
 @cli.command("init-blob-store")
 @click.option("--force", is_flag=True, default=False, help="Accept a non-empty directory.")
 def init_blob_store(force: bool) -> None:
-    """Mark BLOB_STORAGE_DIR as this stack's file partition (docs/dev/storage_partitions.md).
-
-    Run once, with the mount up. Without the marker every scan read/write fails instead of
-    silently landing on the local disk under a dropped mount."""
+    """Mark BLOB_STORAGE_DIR as this stack's file partition (docs/dev/storage_partitions.md). Run once, with the mount up. Without the marker every scan read/write fails instead of silently landing on the local disk under a dropped mount."""
     from app.services import blob_store
 
     try:
@@ -287,9 +270,7 @@ def init_blob_store(force: bool) -> None:
 @cli.command("move-blobs")
 @click.option("--to", "target", type=click.Choice(["fs", "db"]), required=True)
 def move_blobs(target: str) -> None:
-    """Move every scan into the file partition or back into the database; verified, resumable.
-
-    Set BLOB_STORAGE_BACKEND to the same target first, or new uploads land on the other side."""
+    """Move every scan into the file partition or back into the database; verified, resumable. Set BLOB_STORAGE_BACKEND to the same target first, or new uploads land on the other side."""
     from sqlalchemy import create_engine
 
     from app.services import blob_store
@@ -323,10 +304,7 @@ def move_blobs(target: str) -> None:
     help="Only samples donated on or after this date (YYYY-MM-DD).",
 )
 def training_export(out_path: str, since: datetime | None) -> None:
-    """Export donated OMR training samples as JSON Lines for offline model training.
-
-    Rows (label, versions, detector features, base64 grayscale crop) carry no identifiers by
-    design: keep the export that way, no joins or enrichment."""
+    """Export donated OMR training samples as JSON Lines for offline model training. Rows (label, versions, detector features, base64 grayscale crop) carry no identifiers by design: keep the export that way, no joins or enrichment."""
     import base64
     import json
 

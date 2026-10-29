@@ -1,8 +1,4 @@
-"""Auth router — /api/v1/auth/*
-
-`session` (sign-in, refresh, logout, change-password), `recovery` (password reset) and
-`registration` (self-registration, self-deletion). Other routers import `advance_sign_in` and
-`reissue_pending_headers` from here."""
+"""Auth router — /api/v1/auth/* `session` (sign-in, refresh, logout, change-password), `recovery` (password reset) and `registration` (self-registration, self-deletion). Other routers import `advance_sign_in` and `reissue_pending_headers` from here."""
 from __future__ import annotations
 
 from fastapi import APIRouter

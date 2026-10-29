@@ -1,7 +1,4 @@
-"""Exercise sharing, copy and resync (issue #65).
-
-The invariant under test: a recipient's exams only ever reference the recipient's own rows, so an
-owner's edit, unsharing or deletion never reaches them; a resync only adds versions."""
+"""Exercise sharing, copy and resync (issue #65). The invariant under test: a recipient's exams only ever reference the recipient's own rows, so an owner's edit, unsharing or deletion never reaches them; a resync only adds versions."""
 from __future__ import annotations
 
 import base64
@@ -362,9 +359,7 @@ async def test_a_recipients_read_never_writes_the_owners_rows(shared, db: AsyncS
     assert stored is None
 
 
-# Every other `Exercise` column: identity, placement, share state or provenance of one row. A new
-# column must be added here or to EXERCISE_CONTENT_FIELDS, which decides whether copies, resyncs
-# and proposals carry it.
+# Every other `Exercise` column: identity, placement, share state or provenance of one row. A new column must be added here or to EXERCISE_CONTENT_FIELDS, which decides whether copies, resyncs and proposals carry it.
 _NOT_CONTENT = {
     "id",
     "teacher_id",

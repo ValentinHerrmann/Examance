@@ -1,8 +1,4 @@
-"""
-What a half-finished sign-in or a reset may do: read, but never add factors or rewrite key wraps.
-
-Also the reset-token binding, refresh-token reuse detection and single-use markers.
-"""
+"""What a half-finished sign-in or a reset may do: read, but never add factors or rewrite key wraps. Also the reset-token binding, refresh-token reuse detection and single-use markers."""
 from __future__ import annotations
 
 import base64

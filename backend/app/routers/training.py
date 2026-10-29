@@ -1,7 +1,4 @@
-"""Training router: opt-in OMR training-data donation (see docs/dev/training_donation.md).
-
-Full session only; the account is used for the daily quota and never stored, audited or logged.
-Quota answers are 429 without ``Retry-After`` (client login lockout), hence no slowapi limit."""
+"""Training router: opt-in OMR training-data donation (see docs/dev/training_donation.md). Full session only; the account is used for the daily quota and never stored, audited or logged. Quota answers are 429 without ``Retry-After`` (client login lockout), hence no slowapi limit."""
 from __future__ import annotations
 
 import hashlib

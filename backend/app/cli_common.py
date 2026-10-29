@@ -1,5 +1,4 @@
-"""Helpers shared by `app.cli` and `app.cli_maintenance` (kept apart: `python -m app.cli` runs
-`app.cli` as `__main__`, so a module imported by it must not import it back)."""
+"""Helpers shared by `app.cli` and `app.cli_maintenance` (kept apart: `python -m app.cli` runs `app.cli` as `__main__`, so a module imported by it must not import it back)."""
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable

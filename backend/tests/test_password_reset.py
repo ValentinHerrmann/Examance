@@ -123,8 +123,7 @@ async def test_admin_create_user_and_password_reset_flow(
     raw_token, reset_sent = await create_and_send_reset_token(db, new_teacher)
     assert reset_sent is True
 
-    # The new account has one factor, so the emailed token carries the reset on
-    # its own; requiring a second factor it does not have would strand it.
+    # The new account has one factor, so the emailed token carries the reset on its own; requiring a second factor it does not have would strand it.
     client.cookies.clear()
     await complete_reset(client, raw_token, "NewSecurePassword123!")
 
@@ -338,12 +337,7 @@ def test_send_sync_includes_date_and_message_id_headers() -> None:
 
 @pytest.mark.asyncio
 async def test_reset_needs_a_second_factor(client: AsyncClient, db: AsyncSession) -> None:
-    """
-    Mailbox access alone must not complete a reset.
-
-    This is the bypass the whole change exists to close: before it, anyone who
-    could read the teacher's email could take the account.
-    """
+    """Mailbox access alone must not complete a reset. This is the bypass the whole change exists to close: before it, anyone who could read the teacher's email could take the account."""
     teacher = await create_teacher(db, "reset-2fa@example.com")
     await enrol_totp(db, teacher)
     raw_token, _ = await create_and_send_reset_token(db, teacher)

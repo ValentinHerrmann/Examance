@@ -11,12 +11,7 @@ from app.database import Base
 
 
 class MfaCredential(Base):
-    """
-    One authenticator-app enrollment per teacher.
-
-    The secret is encrypted under a key derived from SECRET_KEY (`app/services/mfa_secret.py`):
-    not zero-knowledge (the server computes codes), but a database dump alone yields no seeds.
-    """
+    """One authenticator-app enrollment per teacher. The secret is encrypted under a key derived from SECRET_KEY (`app/services/mfa_secret.py`): not zero-knowledge (the server computes codes), but a database dump alone yields no seeds."""
 
     __tablename__ = "mfa_credentials"
 
@@ -26,21 +21,15 @@ class MfaCredential(Base):
     secret_ct: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     secret_iv: Mapped[bytes] = mapped_column(LargeBinary(12), nullable=False)
 
-    # Null until the teacher proves they can produce a code. An unconfirmed row
-    # does not count as an enrolled factor, so a half-finished enrollment can
-    # never satisfy the login policy.
+    # Null until the teacher proves they can produce a code. An unconfirmed row does not count as an enrolled factor, so a half-finished enrollment can never satisfy the login policy.
     confirmed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
-    # Highest time step already accepted. A code stays valid for 30 seconds, so
-    # without this one observed over a shoulder could be replayed inside that
-    # window.
+    # Highest time step already accepted. A code stays valid for 30 seconds, so without this one observed over a shoulder could be replayed inside that window.
     last_used_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # Wall-clock counterpart to `last_used_step`, for the security page. The step
-    # could be multiplied out, but only for codes — a backup code standing in for
-    # the authenticator moves this and not that.
+    # Wall-clock counterpart to `last_used_step`, for the security page. The step could be multiplied out, but only for codes — a backup code standing in for the authenticator moves this and not that.
     last_used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -51,12 +40,7 @@ class MfaCredential(Base):
 
 
 class MfaBackupCode(Base):
-    """
-    A single-use stand-in for the authenticator app.
-
-    `code_hash` is a keyed digest (`mfa_secret.backup_code_digest`), not Argon2id (machine-made
-    codes). Legacy Argon2id hashes stay valid until the set is regenerated.
-    """
+    """A single-use stand-in for the authenticator app. `code_hash` is a keyed digest (`mfa_secret.backup_code_digest`), not Argon2id (machine-made codes). Legacy Argon2id hashes stay valid until the set is regenerated."""
 
     __tablename__ = "mfa_backup_codes"
 

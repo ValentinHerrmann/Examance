@@ -1,7 +1,4 @@
-"""Cross-tenant object-level authorization tests.
-Guards the ownership predicates on the exercise library and exam->exercise linking: without them
-any teacher could read, rewrite or delete another's exercises by id, or link one into their exam.
-"""
+"""Cross-tenant object-level authorization tests. Guards the ownership predicates on the exercise library and exam->exercise linking: without them any teacher could read, rewrite or delete another's exercises by id, or link one into their exam."""
 from __future__ import annotations
 
 import uuid
@@ -39,11 +36,7 @@ async def _create_exercise(client: AsyncClient, name: str) -> str:
 
 @pytest_asyncio.fixture
 async def two_teachers(clients, db: AsyncSession) -> tuple[AsyncClient, AsyncClient, str]:
-    """Teacher A owns one exercise; teacher B is a separate account.
-
-    The `engine` fixture is session-scoped, so rows persist across tests in this
-    module — emails must be unique per test to avoid registration collisions.
-    """
+    """Teacher A owns one exercise; teacher B is a separate account. The `engine` fixture is session-scoped, so rows persist across tests in this module — emails must be unique per test to avoid registration collisions."""
     a, b = clients
     suffix = uuid.uuid4().hex[:8]
     await _register(a, db, f"owner-{suffix}@example.com")

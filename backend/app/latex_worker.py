@@ -1,6 +1,4 @@
-"""LaTeX worker: runs Tectonic in its own container without secrets, database or scan files.
-
-Reached only by the backend (`LATEX_WORKER_URL`); never import app.config here."""
+"""LaTeX worker: runs Tectonic in its own container without secrets, database or scan files. Reached only by the backend (`LATEX_WORKER_URL`); never import app.config here."""
 from __future__ import annotations
 
 import base64

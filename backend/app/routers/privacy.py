@@ -1,6 +1,4 @@
-"""Privacy router: public, read-only facts for the privacy statement (frontend /legal/datenschutz).
-
-Read from the live settings, so the published periods cannot drift from what retention enforces."""
+"""Privacy router: public, read-only facts for the privacy statement (frontend /legal/datenschutz). Read from the live settings, so the published periods cannot drift from what retention enforces."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Request

@@ -26,8 +26,7 @@ async def open_count(db: AsyncSession) -> int:
 
 
 async def admin_notices(db: AsyncSession, new_report: LayoutReport) -> list[Mail]:
-    """Mails to every approved admin; throttled like registration notices (a report from the
-    quiet period already announced this one)."""
+    """Mails to every approved admin; throttled like registration notices (a report from the quiet period already announced this one)."""
     since = datetime.now(UTC) - timedelta(minutes=ADMIN_NOTICE_QUIET_MINUTES)
     recent_others = await db.scalar(
         select(func.count())
@@ -44,8 +43,7 @@ async def admin_notices(db: AsyncSession, new_report: LayoutReport) -> list[Mail
 
 
 async def resolve(db: AsyncSession, report_id: uuid.UUID, note: str | None) -> Mail | None:
-    """Close an open report and return the reporter's mail; an already resolved one is left
-    untouched and mails nobody (one conditional UPDATE, so a double click cannot mail twice)."""
+    """Close an open report and return the reporter's mail; an already resolved one is left untouched and mails nobody (one conditional UPDATE, so a double click cannot mail twice)."""
     report = await db.get(LayoutReport, report_id)
     if report is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found.")

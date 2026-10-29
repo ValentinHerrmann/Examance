@@ -212,9 +212,7 @@ async def test_student_and_submission_upsert(client: AsyncClient, db: AsyncSessi
 async def test_list_submissions_omits_scan_by_default(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """The list endpoint must not ship every submission's scan PDF by default —
-    only has_scan (a cheap presence flag), and the real bytes when a caller
-    opts in with include_scans=true or fetches the single submission."""
+    """The list endpoint must not ship every submission's scan PDF by default — only has_scan (a cheap presence flag), and the real bytes when a caller opts in with include_scans=true or fetches the single submission."""
     await _create_teacher_and_login(client, db, "listscans@example.com")
 
     e_resp = await client.post(
@@ -282,9 +280,7 @@ async def test_admin_can_create_teacher_user(client: AsyncClient, db: AsyncSessi
     assert body["role"] == "teacher"
     assert body["password_reset_sent"] is True
 
-    # The created account has no password yet. Login answers with the generic
-    # credential error — an account-specific "no password set" response would
-    # tell an unauthenticated caller which addresses exist here.
+    # The created account has no password yet. Login answers with the generic credential error — an account-specific "no password set" response would tell an unauthenticated caller which addresses exist here.
     login_resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "newteacher-api@example.com", "password": "AnyPassword123!"},
@@ -460,8 +456,7 @@ async def test_deleting_the_current_version_restores_the_previous_one(
         res = await client.get("/api/v1/exercises", params={"group_id": group})
         return {e["id"] for e in res.json()}
 
-    # Deleting an archived version changes nothing; deleting the current one promotes the next
-    # newest of the same variant only, so the library never loses the variant's row.
+    # Deleting an archived version changes nothing; deleting the current one promotes the next newest of the same variant only, so the library never loses the variant's row.
     assert (await client.delete(f"/api/v1/exercises/{v1['id']}")).status_code == 204
     assert await current_ids() == {v3["id"], other["id"]}
     assert (await client.delete(f"/api/v1/exercises/{v3['id']}")).status_code == 204
@@ -735,10 +730,7 @@ async def test_exercise_usage_and_deletion(client: AsyncClient, db: AsyncSession
 
 @pytest.mark.asyncio
 async def test_cors_preflight_origins(client: AsyncClient) -> None:
-    """
-    Preflight must reflect whatever origin allowlist is configured.
-    Driven off `settings`, not hardcoded hostnames: CI narrows CORS_ALLOWED_ORIGINS to localhost.
-    """
+    """Preflight must reflect whatever origin allowlist is configured. Driven off `settings`, not hardcoded hostnames: CI narrows CORS_ALLOWED_ORIGINS to localhost."""
     from app.config import settings
 
     allowed = settings.CORS_ALLOWED_ORIGINS[0]

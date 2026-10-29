@@ -9,8 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
-# The maintenance-backup service in deploy/docker-compose.deploy.yml claims and reports backups
-# with plain SQL against this table: keep column names and the backup_state values in sync with it.
+# The maintenance-backup service in deploy/docker-compose.deploy.yml claims and reports backups with plain SQL against this table: keep column names and the backup_state values in sync with it.
 
 
 class MaintenanceWindow(Base):

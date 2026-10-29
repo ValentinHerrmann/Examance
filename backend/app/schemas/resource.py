@@ -1,8 +1,4 @@
-"""Pydantic models for exercise resource files.
-
-SECURITY: file content is never included in a repr. Only names and sizes are
-safe to log — an uploaded file may hold anything the teacher had on disk.
-"""
+"""Pydantic models for exercise resource files. SECURITY: file content is never included in a repr. Only names and sizes are safe to log — an uploaded file may hold anything the teacher had on disk."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -41,8 +37,7 @@ class ExerciseResourceCreate(BaseModel):
     @field_validator("content_b64")
     @classmethod
     def check_content_size(cls, v: str) -> str:
-        # Cheap pre-check on the encoded length; the exact size is enforced
-        # after decoding in the router.
+        # Cheap pre-check on the encoded length; the exact size is enforced after decoding in the router.
         if len(v) > (MAX_RESOURCE_BYTES * 4 // 3) + 1024:
             raise ValueError(
                 f"Resource exceeds the {MAX_RESOURCE_BYTES // (1024 * 1024)} MB per-file limit."

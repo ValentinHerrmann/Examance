@@ -18,8 +18,7 @@ class RegistrationVerifyRequest(BaseModel):
     handle: str
     challenge_b64: str
     credential_json: str
-    # Read from getClientExtensionResults().prf?.enabled in the browser. False
-    # means the passkey authenticates but cannot unwrap the data key.
+    # Read from getClientExtensionResults().prf?.enabled in the browser. False means the passkey authenticates but cannot unwrap the data key.
     supports_prf: bool = False
     nickname: str | None = Field(default=None, max_length=64)
 
@@ -34,9 +33,7 @@ class CredentialSummary(BaseModel):
     credential_id_b64: str
     nickname: str | None
     supports_prf: bool
-    # The PRF *input*, not its output. Public and fixed per credential, so the
-    # same authenticator always derives the same key-encryption key. The derived
-    # secret never leaves the browser.
+    # The PRF *input*, not its output. Public and fixed per credential, so the same authenticator always derives the same key-encryption key. The derived secret never leaves the browser.
     prf_salt_b64: str
     created_at: datetime
     last_used_at: datetime | None

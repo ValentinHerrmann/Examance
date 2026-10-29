@@ -8,8 +8,7 @@ from urllib.parse import urlparse
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Signing keys that ship in this repository / in example configs. Usable for
-# local development, never for a deployment that holds real data.
+# Signing keys that ship in this repository / in example configs. Usable for local development, never for a deployment that holds real data.
 PLACEHOLDER_SECRET_KEYS = frozenset(
     {
         "dev-secret-key-change-me-in-production-32-chars-long!",
@@ -18,9 +17,7 @@ PLACEHOLDER_SECRET_KEYS = frozenset(
     }
 )
 
-# Free hosting domains, abused for phishing and so on URI blocklists (SURBL / URIBL / Spamhaus DBL):
-# relays reject reset mails linking to them ("550 5.7.1 ... (B-URL)"). Use a custom domain that
-# matches the SMTP_FROM_EMAIL domain instead.
+# Free hosting domains, abused for phishing and so on URI blocklists (SURBL / URIBL / Spamhaus DBL): relays reject reset mails linking to them ("550 5.7.1 ... (B-URL)"). Use a custom domain that matches the SMTP_FROM_EMAIL domain instead.
 BLOCKLISTED_LINK_DOMAINS = (
     ".pages.dev",
     ".workers.dev",
@@ -30,31 +27,25 @@ BLOCKLISTED_LINK_DOMAINS = (
     ".firebaseapp.com",
 )
 
-# Loopback origins on arbitrary ports (http/https on localhost or 127.0.0.1).
-# Appended to effective_cors_origin_regex ONLY when ENVIRONMENT == "development"
-# to permit local frontend debugging without enabling local CSRF in production.
+# Loopback origins on arbitrary ports (http/https on localhost or 127.0.0.1). Appended to effective_cors_origin_regex ONLY when ENVIRONMENT == "development" to permit local frontend debugging without enabling local CSRF in production.
 LOCALHOST_CORS_ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # Database
-    # asyncpg URL for the application (or SQLite in tests)
+    # Database asyncpg URL for the application (or SQLite in tests)
     DATABASE_URL: str = "sqlite+aiosqlite:///:memory:"
     DATABASE_URL_SYNC: str = ""  # psycopg2 URL for Alembic (derived if absent)
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # Rate limiting — storage defaults to REDIS_URL so counters are shared
-    # across uvicorn workers. Override with "memory://" only for dev/tests.
+    # Rate limiting — storage defaults to REDIS_URL so counters are shared across uvicorn workers. Override with "memory://" only for dev/tests.
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_STORAGE_URI: str = ""
 
-    # JWT / Auth
-    # Development-only default. `validate_secret_key` below rejects it whenever
-    # ENVIRONMENT != "development", so it can never reach a real deployment.
+    # JWT / Auth Development-only default. `validate_secret_key` below rejects it whenever ENVIRONMENT != "development", so it can never reach a real deployment.
     SECRET_KEY: str = "dev-secret-key-change-me-in-production-32-chars-long!"  # noqa: S105
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_TTL_MINUTES: int = 15
@@ -62,51 +53,38 @@ class Settings(BaseSettings):
 
     # CORS — required; app refuses to start if unset or empty
     CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "https://examance.pages.dev"]
-    # Optional extra origins (fullmatch). No default: credentialed cookies are SameSite=None, so
-    # every subdomain a wildcard admits could act as the teacher. Name origins in the list above.
-    # Loopback origins on any port are added by `effective_cors_origin_regex` in development only.
+    # Optional extra origins (fullmatch). No default: credentialed cookies are SameSite=None, so every subdomain a wildcard admits could act as the teacher. Name origins in the list above. Loopback origins on any port are added by `effective_cors_origin_regex` in development only.
     CORS_ALLOWED_ORIGIN_REGEX: str | None = None
 
-    # Host header allowlist (Host-spoofing protection). Deployment-specific, so
-    # it stays opt-in: TrustedHostMiddleware is only registered when non-empty.
+    # Host header allowlist (Host-spoofing protection). Deployment-specific, so it stays opt-in: TrustedHostMiddleware is only registered when non-empty.
     ALLOWED_HOSTS: list[str] = []
 
     # Environment
     ENVIRONMENT: str = "production"
     LOG_LEVEL: str = "INFO"
 
-    # Build version baked into the image (Dockerfile ARG/ENV APP_VERSION) from the root VERSION
-    # file. Informational: GET /api/health reports it so the frontend can check compatibility.
-    # Production is bare semver ("1.4.0"); preview appends PR number and build time.
+    # Build version baked into the image (Dockerfile ARG/ENV APP_VERSION) from the root VERSION file. Informational: GET /api/health reports it so the frontend can check compatibility. Production is bare semver ("1.4.0"); preview appends PR number and build time.
     APP_VERSION: str = "0.0.0-dev"
 
-    # Retention bounds. MAX enforces Art. 5(1)(e) storage limitation: no exam lives indefinitely.
-    # MIN is 0 on purpose: teachers must be able to delete a draft at once. The duty to retain
-    # graded work (school law, e.g. BaySchO) binds the school, not each exam; schools may raise MIN.
+    # Retention bounds. MAX enforces Art. 5(1)(e) storage limitation: no exam lives indefinitely. MIN is 0 on purpose: teachers must be able to delete a draft at once. The duty to retain graded work (school law, e.g. BaySchO) binds the school, not each exam; schools may raise MIN.
     RETENTION_MIN_DAYS: int = 0
     RETENTION_MAX_DAYS: int = 3650          # 10 years
     # Grace period between soft-delete and irreversible erasure.
     RETENTION_GRACE_DAYS: int = 7
-    # Audit entries carry teacher_email and ip_hash. Art. 17(3) justifies
-    # keeping them, but not indefinitely.
+    # Audit entries carry teacher_email and ip_hash. Art. 17(3) justifies keeping them, but not indefinitely.
     AUDIT_LOG_RETENTION_DAYS: int = 365
-    # Opt-in, anonymous OMR training samples (routers/training.py). Unlinked to
-    # any person, but still not kept forever.
+    # Opt-in, anonymous OMR training samples (routers/training.py). Unlinked to any person, but still not kept forever.
     TRAINING_SAMPLE_RETENTION_DAYS: int = 730
 
-    # Accept opt-in training-data donations (anonymous checkbox crops). False
-    # disables POST /training/omr-samples and hides the option in the client.
+    # Accept opt-in training-data donations (anonymous checkbox crops). False disables POST /training/omr-samples and hides the option in the client.
     TRAINING_DONATION_ENABLED: bool = True
-    # Donations need a signed-in account; these bound what one account, and all
-    # accounts together, can add per UTC day (the endpoint answers 429 above).
+    # Donations need a signed-in account; these bound what one account, and all accounts together, can add per UTC day (the endpoint answers 429 above).
     TRAINING_SAMPLES_PER_TEACHER_PER_DAY: int = 2000
     TRAINING_SAMPLES_PER_DAY_MAX: int = 20000
 
-    # Body size limits (bytes). Compile requests carry the document plus its resource files
-    # (base64, ~4/3 of raw); the compile route's 10/min rate limit bounds the volume.
+    # Body size limits (bytes). Compile requests carry the document plus its resource files (base64, ~4/3 of raw); the compile route's 10/min rate limit bounds the volume.
     BODY_LIMIT_COMPILE: int = 28 * 1024 * 1024      # 28 MB
-    # LaTeX worker container (app/latex_worker.py), e.g. http://latex:8001. Empty = Tectonic runs
-    # in this process (dev, tests). LATEX_MAX_CONCURRENT_COMPILES is read by services/tectonic.
+    # LaTeX worker container (app/latex_worker.py), e.g. http://latex:8001. Empty = Tectonic runs in this process (dev, tests). LATEX_MAX_CONCURRENT_COMPILES is read by services/tectonic.
     LATEX_WORKER_URL: str = ""
     # Single resource-file upload: 5 MB raw, base64-inflated, plus JSON slack.
     BODY_LIMIT_RESOURCE: int = 7 * 1024 * 1024      # 7 MB
@@ -118,8 +96,7 @@ class Settings(BaseSettings):
     BODY_LIMIT_LAYOUT_REPORT: int = 30 * 1024 * 1024  # 30 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
 
-    # Storage partitions (issue #114, docs/dev/storage_partitions.md). "db" keeps scans in Postgres;
-    # "fs" writes new ones under BLOB_STORAGE_DIR (local dir or rclone mount). Reads accept both.
+    # Storage partitions (issue #114, docs/dev/storage_partitions.md). "db" keeps scans in Postgres; "fs" writes new ones under BLOB_STORAGE_DIR (local dir or rclone mount). Reads accept both.
     BLOB_STORAGE_BACKEND: Literal["db", "fs"] = "db"
     BLOB_STORAGE_DIR: str | None = None
 
@@ -138,38 +115,29 @@ class Settings(BaseSettings):
     # Frontend base URL for email link generation
     FRONTEND_URL: str = "http://localhost:5173"
 
-    # WebAuthn relying party; defaults to the FRONTEND_URL host. A passkey is bound to its RP ID,
-    # so production and preview (different domains) each need their own value *and* enrollments.
+    # WebAuthn relying party; defaults to the FRONTEND_URL host. A passkey is bound to its RP ID, so production and preview (different domains) each need their own value *and* enrollments.
     WEBAUTHN_RP_ID: str = ""
     WEBAUTHN_RP_NAME: str = "Examance"
 
     # Password reset configuration
     PASSWORD_RESET_TOKEN_TTL_HOURS: int = 24
 
-    # Self-registration (app/services/registration.py), always available: the account exists only
-    # after the mailed link is used and stays pending until admin approval (or an allowlisted
-    # domain). Without SMTP the link cannot be delivered; `send_email` logs each failed delivery.
+    # Self-registration (app/services/registration.py), always available: the account exists only after the mailed link is used and stays pending until admin approval (or an allowlisted domain). Without SMTP the link cannot be delivered; `send_email` logs each failed delivery.
     REGISTRATION_TOKEN_TTL_HOURS: int = 24
     # Minimum gap between two verification mails to the same address.
     REGISTRATION_RESEND_COOLDOWN_SECONDS: int = 300
-    # Verified accounts nobody approved are erased after this many days (only when they hold no
-    # data, which a pending account cannot create).
+    # Verified accounts nobody approved are erased after this many days (only when they hold no data, which a pending account cannot create).
     PENDING_ACCOUNT_RETENTION_DAYS: int = 90
-    # Lifetime of the mailed link that confirms deleting one's own account
-    # (app/services/account_deletion.py).
+    # Lifetime of the mailed link that confirms deleting one's own account (app/services/account_deletion.py).
     ACCOUNT_DELETION_TOKEN_TTL_MINUTES: int = 60
-    # Exercise contributions (issue #65): decided proposals (payload already cleared) are dropped
-    # this many days after the decision; undecided ones after the second limit.
+    # Exercise contributions (issue #65): decided proposals (payload already cleared) are dropped this many days after the decision; undecided ones after the second limit.
     CONTRIBUTION_RETENTION_DAYS: int = 30
     CONTRIBUTION_PENDING_MAX_DAYS: int = 180
-    # Layout reports (issue #134): plaintext the teacher shared with the admins, dropped this many
-    # days after submission; one account may send this many per UTC day.
+    # Layout reports (issue #134): plaintext the teacher shared with the admins, dropped this many days after submission; one account may send this many per UTC day.
     LAYOUT_REPORT_RETENTION_DAYS: int = 90
     LAYOUT_REPORTS_PER_TEACHER_PER_DAY: int = 10
 
-    # Per-account login throttling (`app.services.login_throttle`): slowapi limits per client IP and
-    # misses a distributed guess at one account. Exponential cooloff, capped on purpose so the lock
-    # always expires: otherwise anyone who knows an email could lock its owner out.
+    # Per-account login throttling (`app.services.login_throttle`): slowapi limits per client IP and misses a distributed guess at one account. Exponential cooloff, capped on purpose so the lock always expires: otherwise anyone who knows an email could lock its owner out.
     LOGIN_THROTTLE_ENABLED: bool | None = None  # defaults to RATE_LIMIT_ENABLED
     LOGIN_MAX_FAILED_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_BASE_SECONDS: int = 60
@@ -200,12 +168,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_secret_key(self) -> Settings:
-        """
-        Refuse to start outside development with a published or too-short key.
-
-        SECRET_KEY signs both access and refresh tokens; a known value lets
-        anyone mint an admin token. Generate one with: openssl rand -hex 32
-        """
+        """Refuse to start outside development with a published or too-short key. SECRET_KEY signs both access and refresh tokens; a known value lets anyone mint an admin token. Generate one with: openssl rand -hex 32"""
         if self.is_dev:
             return self
         if self.SECRET_KEY in PLACEHOLDER_SECRET_KEYS:
@@ -222,9 +185,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_initial_admin_password(self) -> Settings:
-        """
-        Refuse to start outside development with a published or too-short initial admin password.
-        """
+        """Refuse to start outside development with a published or too-short initial admin password."""
         if self.is_dev:
             return self
         if self.INITIAL_ADMIN_PASSWORD is not None:
@@ -240,10 +201,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_frontend_url_for_email(self) -> Settings:
-        """Refuse to start when password-reset links would point at a blocklisted domain.
-
-        Enforced only when mail is really sent (SMTP_HOST set, not development): the relay rejects
-        the message at DATA time, long after the user requested the reset."""
+        """Refuse to start when password-reset links would point at a blocklisted domain. Enforced only when mail is really sent (SMTP_HOST set, not development): the relay rejects the message at DATA time, long after the user requested the reset."""
         if self.is_dev or not self.SMTP_HOST:
             return self
         host = urlparse(self.FRONTEND_URL).hostname or ""
@@ -305,10 +263,7 @@ class Settings(BaseSettings):
 
     @property
     def effective_cors_origin_regex(self) -> str | None:
-        """Return the combined CORS origin regex.
-
-        Development also permits any port on localhost/127.0.0.1; production never does, to keep
-        local-dev CSRF vectors away from hosted instances."""
+        """Return the combined CORS origin regex. Development also permits any port on localhost/127.0.0.1; production never does, to keep local-dev CSRF vectors away from hosted instances."""
         if not self.is_dev:
             return self.CORS_ALLOWED_ORIGIN_REGEX
         if self.CORS_ALLOWED_ORIGIN_REGEX:

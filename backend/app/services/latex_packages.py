@@ -65,9 +65,7 @@ class PackageLayer:
 
 @dataclass(frozen=True)
 class PackageNote:
-    # conflict: two exercises disagree on an option; override: a later level changed one; ignored:
-    # unsupported (detail = reason); aliased: replaced by a template option (detail = target);
-    # kept: the exam left out a package an exercise needs; added: pgfplots for its libraries.
+    # conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); kept: the exam left out a package an exercise needs; added: pgfplots for its libraries.
     code: str
     kind: PackageKind
     name: str

@@ -14,9 +14,7 @@ LAYOUT_REPORT_STATUSES = ("open", "done")
 
 
 class LayoutReport(Base):
-    """A plaintext snapshot the teacher chose to share with the admins (per-report consent).
-
-    Cascades with the reporter's account; retention drops it after LAYOUT_REPORT_RETENTION_DAYS."""
+    """A plaintext snapshot the teacher chose to share with the admins (per-report consent). Cascades with the reporter's account; retention drops it after LAYOUT_REPORT_RETENTION_DAYS."""
 
     __tablename__ = "layout_reports"
 

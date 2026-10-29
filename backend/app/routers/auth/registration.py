@@ -32,10 +32,7 @@ async def register(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    """Ask for an account: mails a verification link to the address; nothing is created until used.
-
-    Answers the same whether or not the address already has an account (nothing is mailed then),
-    and the mail goes out after the response so timing does not tell either."""
+    """Ask for an account: mails a verification link to the address; nothing is created until used. Answers the same whether or not the address already has an account (nothing is mailed then), and the mail goes out after the response so timing does not tell either."""
     email = registration_svc.normalize_email(body.email)
     try:
         mail = await registration_svc.request_registration(db, email)
@@ -61,10 +58,7 @@ async def complete_registration(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> RegisterCompleteResponse:
-    """Verify the address with the mailed token and create the account with the chosen password.
-
-    An address on the admin's always-allowed list is approved at once, any other account waits
-    for an admin (notified). Neither issues a session: the registrant signs in and enrolls then."""
+    """Verify the address with the mailed token and create the account with the chosen password. An address on the admin's always-allowed list is approved at once, any other account waits for an admin (notified). Neither issues a session: the registrant signs in and enrolls then."""
     invalid = HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail="This confirmation link is invalid or has expired. Register again.",
@@ -104,10 +98,7 @@ async def preview_account_deletion(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> AccountDeletionPreview:
-    """
-    What the mailed self-deletion link would delete, for the confirmation page. Deletes nothing:
-    a mail scanner that opens the link must not delete the account.
-    """
+    """What the mailed self-deletion link would delete, for the confirmation page. Deletes nothing: a mail scanner that opens the link must not delete the account."""
     deletion, teacher = await account_deletion.find_deletion_request(db, body.token)
     return AccountDeletionPreview(
         email=teacher.email,
@@ -127,10 +118,7 @@ async def confirm_account_deletion(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """GDPR Art. 17: delete the account behind the mailed single-use link (last admin refused).
-
-    No session needed (the link proves the mailbox); exercises stay ownerless if the holder asked.
-    Cookies are left alone (they may belong to another account; this one's tokens die with it)."""
+    """GDPR Art. 17: delete the account behind the mailed single-use link (last admin refused). No session needed (the link proves the mailbox); exercises stay ownerless if the holder asked. Cookies are left alone (they may belong to another account; this one's tokens die with it)."""
     deletion, teacher = await account_deletion.claim_deletion_request(db, body.token)
     await account_deletion.ensure_not_last_admin(db, teacher)
     result = await account_deletion.delete_account(

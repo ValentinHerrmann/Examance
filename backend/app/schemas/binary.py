@@ -12,11 +12,7 @@ ARGON2_SALT_BYTES = 16
 
 
 def decode_b64(value: str, field: str, *, expected_len: int | None = None) -> bytes:
-    """
-    Decode *value* as strict base64, or raise 400.
-    ``validate=True`` matters: the default silently drops non-alphabet characters, so corrupted
-    ciphertext would be stored and fail much later as a GCM authentication error.
-    """
+    """Decode *value* as strict base64, or raise 400. ``validate=True`` matters: the default silently drops non-alphabet characters, so corrupted ciphertext would be stored and fail much later as a GCM authentication error."""
     try:
         decoded = base64.b64decode(value, validate=True)
     except (binascii.Error, ValueError):

@@ -26,12 +26,7 @@ class KeyEnvelopeIn(BaseModel):
 
 
 class KeyEnvelopeSetIn(BaseModel):
-    """
-    The complete envelope set for a teacher.
-
-    Replacement is wholesale and atomic: a partially written set is a locked-out
-    teacher, so the endpoint never merges.
-    """
+    """The complete envelope set for a teacher. Replacement is wholesale and atomic: a partially written set is a locked-out teacher, so the endpoint never merges."""
 
     key_id_b64: str
     envelope_version: int = 1

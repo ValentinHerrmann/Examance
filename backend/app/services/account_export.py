@@ -1,7 +1,4 @@
-"""GDPR Art. 15/20 export: the machine-readable copy of what the server holds about a teacher.
-
-Only the account holder's own data: account fields, authored exams, audit trail. Student payloads
-are excluded (the server cannot read them); the client-side export covers them."""
+"""GDPR Art. 15/20 export: the machine-readable copy of what the server holds about a teacher. Only the account holder's own data: account fields, authored exams, audit trail. Student payloads are excluded (the server cannot read them); the client-side export covers them."""
 from __future__ import annotations
 
 import base64
@@ -42,8 +39,7 @@ def _exam_logo_export(row: ExamLogo | None) -> dict[str, Any]:
 
 
 async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
-    """Everything is read here, so the caller may add its own audit entry afterwards without
-    that entry appearing in the export."""
+    """Everything is read here, so the caller may add its own audit entry afterwards without that entry appearing in the export."""
     exams = list(
         (
             await db.execute(
@@ -93,8 +89,7 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
             "storage_mode": teacher.storage_mode,
             "features": account_features(teacher),
             "sharing_paused": teacher.sharing_paused,
-            # The logo is printed on the exams, so the export carries the file itself.
-            # "default" prints the bundled default logo, which is not the teacher's data.
+            # The logo is printed on the exams, so the export carries the file itself. "default" prints the bundled default logo, which is not the teacher's data.
             "exam_logo": (
                 {"mode": "default"}
                 if logo is None

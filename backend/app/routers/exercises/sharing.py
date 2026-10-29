@@ -1,7 +1,4 @@
-"""Exercise sharing, copying, resync and proposals (issue #65).
-
-Visibility is decided only in app/services/exercise_sharing.py. Shared rows are read-only for
-everyone but their owner and are only ever copied; a copy stays linked to its source for resync."""
+"""Exercise sharing, copying, resync and proposals (issue #65). Visibility is decided only in app/services/exercise_sharing.py. Shared rows are read-only for everyone but their owner and are only ever copied; a copy stays linked to its source for resync."""
 from __future__ import annotations
 
 import uuid
@@ -90,8 +87,7 @@ async def get_sync_status(
     teacher: Teacher = Depends(require_exercise_sharing),
     db: AsyncSession = Depends(get_db),
 ) -> list[SyncStatusItem]:
-    """For each own group copied from a shared one: whether the source changed since the last
-    sync. "source_unavailable" does not tell unshared from deleted, on purpose."""
+    """For each own group copied from a shared one: whether the source changed since the last sync. "source_unavailable" does not tell unshared from deleted, on purpose."""
     return [
         SyncStatusItem(
             group_id=plan.group.id,
@@ -132,8 +128,7 @@ async def set_exercise_sharing(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> list[ExerciseResponse]:
-    """Share an own exercise group (all its variants) with every account, or stop sharing it.
-    Stopping is never gated, so a revoked account can still withdraw; copies stay with copiers."""
+    """Share an own exercise group (all its variants) with every account, or stop sharing it. Stopping is never gated, so a revoked account can still withdraw; copies stay with copiers."""
     if body.shared:
         ensure_exercise_sharing(teacher)
     if ex.exam_id is not None or ex.code_withheld:
@@ -183,8 +178,7 @@ async def set_sharing_bulk(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> BulkSharingResult:
-    """Share or stop sharing every own library group at once. Copied groups are skipped (never
-    shared as one's own); stopping is never gated."""
+    """Share or stop sharing every own library group at once. Copied groups are skipped (never shared as one's own); stopping is never gated."""
     if body.shared:
         ensure_exercise_sharing(teacher)
     groups = list(
@@ -223,8 +217,7 @@ async def set_sharing_paused(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Hide (or show again) everything the account shares; per-group choices are kept. Pausing
-    is never gated; resuming needs the sharing switch."""
+    """Hide (or show again) everything the account shares; per-group choices are kept. Pausing is never gated; resuming needs the sharing switch."""
     if not body.paused:
         ensure_exercise_sharing(teacher)
     teacher.sharing_paused = body.paused
@@ -243,8 +236,7 @@ async def copy_shared_exercise(
     teacher: Teacher = Depends(require_exercise_sharing),
     db: AsyncSession = Depends(get_db),
 ) -> CopyResponse:
-    """Copy a shared exercise group into the caller's library as a new private group that stays
-    linked to its source. 404 for anything not shared with the caller, existing or not."""
+    """Copy a shared exercise group into the caller's library as a new private group that stays linked to its source. 404 for anything not shared with the caller, existing or not."""
     source = (
         await db.execute(
             select(Exercise).where(
@@ -271,8 +263,7 @@ async def duplicate_exercise(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> CopyResponse:
-    """Duplicate an own exercise group (current version of every variant) as a new private
-    group, e.g. as the starting point for a similar exercise (issue #121)."""
+    """Duplicate an own exercise group (current version of every variant) as a new private group, e.g. as the starting point for a similar exercise (issue #121)."""
     group, rows = await sharing.duplicate_own_group(ex, teacher, db)
     await audit_svc.log(db, request, teacher, "EXERCISE_DUPLICATED", group.id)
     return CopyResponse(
@@ -286,8 +277,7 @@ async def resync_preview(
     teacher: Teacher = Depends(require_exercise_sharing),
     db: AsyncSession = Depends(get_db),
 ) -> ResyncPreviewResponse:
-    """Per variant of a copied group: own current row, source current row and the source
-    fingerprint the resync request must echo."""
+    """Per variant of a copied group: own current row, source current row and the source fingerprint the resync request must echo."""
     plan = await sharing.plan_group(teacher, db, group_id)
     emails = await _owner_emails([v.source for v in plan.variants if v.source], db)
     return ResyncPreviewResponse(
@@ -316,9 +306,7 @@ async def resync_group(
     teacher: Teacher = Depends(require_exercise_sharing),
     db: AsyncSession = Depends(get_db),
 ) -> list[ExerciseResponse]:
-    """Bring a copied group up to its source: changed variants become new versions (the old row
-    stays for the exams that link it), new source variants new rows. 409 if the source changed
-    since the reviewed preview."""
+    """Bring a copied group up to its source: changed variants become new versions (the old row stays for the exams that link it), new source variants new rows. 409 if the source changed since the reviewed preview."""
     plan = await sharing.plan_group(teacher, db, group_id, lock=True)
     if plan.state == "source_unavailable":
         raise HTTPException(
@@ -350,8 +338,7 @@ async def submit_contributions(
     teacher: Teacher = Depends(require_exercise_sharing),
     db: AsyncSession = Depends(get_db),
 ) -> list[uuid.UUID]:
-    """Propose variants of a linked copy to the original's author: changed ones as new versions,
-    ones added to the copy as new variants. The author is notified and decides."""
+    """Propose variants of a linked copy to the original's author: changed ones as new versions, ones added to the copy as new variants. The author is notified and decides."""
     rows = await contributions.submit(teacher, group_id, body.exercise_ids, body.message, db)
     for row in rows:
         await audit_svc.log(db, request, teacher, "CONTRIBUTION_SUBMITTED", row.id)

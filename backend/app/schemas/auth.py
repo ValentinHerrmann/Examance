@@ -9,8 +9,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.schemas.key_envelope import KeyEnvelopeSetIn
 
-# Matches the policy already enforced by AdminCreateUserRequest and the
-# `create-user` / `set-password` CLI commands.
+# Matches the policy already enforced by AdminCreateUserRequest and the `create-user` / `set-password` CLI commands.
 PASSWORD_MIN_LENGTH = 12
 PASSWORD_MAX_LENGTH = 256
 
@@ -26,35 +25,26 @@ class ResetTokenRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
-    # The data key, re-wrapped in the browser under the new password and written in the same
-    # transaction. Absent when the teacher could not recover their key: the account is reset and
-    # the old data stays sealed (they are told so).
+    # The data key, re-wrapped in the browser under the new password and written in the same transaction. Absent when the teacher could not recover their key: the account is reset and the old data stays sealed (they are told so).
     envelope: KeyEnvelopeSetIn | None = None
 
 
 class ChangePasswordRequest(BaseModel):
-    # Verified although the session is already full-scope: the client needs it to unwrap the data
-    # key for re-wrapping, and it stops a borrowed unlocked browser from changing the password.
+    # Verified although the session is already full-scope: the client needs it to unwrap the data key for re-wrapping, and it stops a borrowed unlocked browser from changing the password.
     current_password: str = Field(max_length=PASSWORD_MAX_LENGTH)
     new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
-    # The whole envelope set, re-wrapped in the browser under the new password and written in the
-    # same transaction. Absent only when the client could not rebuild it: the password wrap is then
-    # marked stale and the recovery code becomes the way back to the data.
+    # The whole envelope set, re-wrapped in the browser under the new password and written in the same transaction. Absent only when the client could not rebuild it: the password wrap is then marked stale and the recovery code becomes the way back to the data.
     envelope: KeyEnvelopeSetIn | None = None
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    # Bounded above only: a minimum would let an attacker tell "too short" from "wrong password"
-    # (leaking the policy of an existing account); the maximum keeps oversized strings away from
-    # the 64 MiB-per-hash Argon2id verifier.
+    # Bounded above only: a minimum would let an attacker tell "too short" from "wrong password" (leaking the policy of an existing account); the maximum keeps oversized strings away from the 64 MiB-per-hash Argon2id verifier.
     password: str = Field(max_length=PASSWORD_MAX_LENGTH)
 
 
 class PasswordFactorRequest(BaseModel):
-    # No email: the account comes from the pending token, never the body, or the second step would
-    # probe which addresses have accounts. Bounded above only, like LoginRequest (a minimum would
-    # leak the policy applied to an existing account).
+    # No email: the account comes from the pending token, never the body, or the second step would probe which addresses have accounts. Bounded above only, like LoginRequest (a minimum would leak the policy applied to an existing account).
     password: str = Field(max_length=PASSWORD_MAX_LENGTH)
 
 
@@ -67,23 +57,17 @@ class BackupCodeRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    # The account id lets the client bind its key-envelope AAD to the account rather than the
-    # email. Not a secret: the caller has just authenticated as this account.
+    # The account id lets the client bind its key-envelope AAD to the account rather than the email. Not a secret: the caller has just authenticated as this account.
     id: uuid.UUID
     email: str
     role: str
 
-    # Sign-in progress: ok (real session), factor_required (`available` lists what may come next),
-    # enroll_required (<2 factors enrolled: enrollment endpoints only), approval_pending (admin
-    # approval outstanding, no token at all; answered only after a factor was proven).
+    # Sign-in progress: ok (real session), factor_required (`available` lists what may come next), enroll_required (<2 factors enrolled: enrollment endpoints only), approval_pending (admin approval outstanding, no token at all; answered only after a factor was proven).
     status: Literal["ok", "factor_required", "enroll_required", "approval_pending"] = "ok"
     satisfied: list[str] = Field(default_factory=list)
-    # Only ever populated after a factor has been proven. Answering it earlier
-    # would turn the endpoint into an account-profile oracle.
+    # Only ever populated after a factor has been proven. Answering it earlier would turn the endpoint into an account-profile oracle.
     available: list[str] = Field(default_factory=list)
-    # /auth/reset/start only: false for a fresh account (no key envelope, nothing authored, so no
-    # data to recover); its reset skips the recovery-code step. Answered to the mailed-token
-    # holder alone.
+    # /auth/reset/start only: false for a fresh account (no key envelope, nothing authored, so no data to recover); its reset skips the recovery-code step. Answered to the mailed-token holder alone.
     needs_key_recovery: bool | None = None
 
 
@@ -111,6 +95,5 @@ class AccountDeletionPreview(BaseModel):
 
 
 class RegisterCompleteResponse(BaseModel):
-    # approved: the domain is on the admin's always-allowed list; sign in now.
-    # pending:  an admin has to approve the account first.
+    # approved: the domain is on the admin's always-allowed list; sign in now. pending:  an admin has to approve the account first.
     status: Literal["approved", "pending"]

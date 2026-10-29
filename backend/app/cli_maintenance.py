@@ -1,8 +1,4 @@
-"""Maintenance-window commands of the management CLI (`python -m app.cli maintenance ...`).
-
-Registered on the `cli` group by `app.cli`. Deploy workflows call these through the *running*
-(previous) image: keep names and options stable, or the next deploy runs without maintenance
-(docs/deployment.md)."""
+"""Maintenance-window commands of the management CLI (`python -m app.cli maintenance ...`). Registered on the `cli` group by `app.cli`. Deploy workflows call these through the *running* (previous) image: keep names and options stable, or the next deploy runs without maintenance (docs/deployment.md)."""
 from __future__ import annotations
 
 import asyncio

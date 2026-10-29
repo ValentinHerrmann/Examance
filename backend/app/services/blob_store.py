@@ -1,7 +1,4 @@
-"""File partition for large blobs (scans today): a local dir or an rclone mount (issue #114).
-
-Layout `<BLOB_STORAGE_DIR>/<kind>/<group>/<name>-<token>.bin`; the DB stores the relative ref.
-Background and invariants: `docs/dev/storage_partitions.md`."""
+"""File partition for large blobs (scans today): a local dir or an rclone mount (issue #114). Layout `<BLOB_STORAGE_DIR>/<kind>/<group>/<name>-<token>.bin`; the DB stores the relative ref. Background and invariants: `docs/dev/storage_partitions.md`."""
 from __future__ import annotations
 
 import json
@@ -58,8 +55,7 @@ def writes_to_files() -> bool:
 
 
 def root() -> Path:
-    """The verified root. Never falls back to a bare directory: a dropped mount must fail, not
-    silently fill the local disk underneath it."""
+    """The verified root. Never falls back to a bare directory: a dropped mount must fail, not silently fill the local disk underneath it."""
     if not settings.BLOB_STORAGE_DIR:
         raise BlobStoreUnavailable("BLOB_STORAGE_DIR is not set")
     base = Path(settings.BLOB_STORAGE_DIR)
@@ -107,8 +103,7 @@ def _resolve(ref: str) -> Path:
 
 
 def put_sync(kind: str, group: str, name: str, data: bytes) -> str:
-    """Write atomically, read back the size, return the new ref. Every write gets a fresh file,
-    so a committed row never points at a half-replaced one."""
+    """Write atomically, read back the size, return the new ref. Every write gets a fresh file, so a committed row never points at a half-replaced one."""
     ref = f"{kind}/{group}/{name}-{secrets.token_hex(4)}.bin"
     path = _resolve(ref)
     path.parent.mkdir(parents=True, exist_ok=True)

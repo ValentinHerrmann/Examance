@@ -1,8 +1,4 @@
-"""
-Short-lived shared counters and markers: Redis if configured, else an in-process dict. All of it
-expires and is safe to lose. Runs on the login path, so it must fail fast (backend/CLAUDE.md).
-Keys are hashed by callers where they would otherwise be personal data.
-"""
+"""Short-lived shared counters and markers: Redis if configured, else an in-process dict. All of it expires and is safe to lose. Runs on the login path, so it must fail fast (backend/CLAUDE.md). Keys are hashed by callers where they would otherwise be personal data."""
 from __future__ import annotations
 
 import asyncio
@@ -19,19 +15,15 @@ logger = logging.getLogger(__name__)
 
 # Fallback store: key -> (value, expiry as monotonic seconds).
 _memory: dict[str, tuple[int, float]] = {}
-# Fallback for timestamped sets: key -> member -> last seen (wall-clock seconds).
-# Presence fallback: key -> (members with last-seen time, key expiry as time.time()).
+# Fallback for timestamped sets: key -> member -> last seen (wall-clock seconds). Presence fallback: key -> (members with last-seen time, key expiry as time.time()).
 _members: dict[str, tuple[dict[str, float], float]] = {}
 
-# Redis is a cache in front of a fallback that always works, so these are set to
-# "answer quickly or get out of the way" rather than to ride out a blip.
+# Redis is a cache in front of a fallback that always works, so these are set to "answer quickly or get out of the way" rather than to ride out a blip.
 _CONNECT_TIMEOUT_SECONDS = 0.5
 _OPERATION_TIMEOUT_SECONDS = 0.5
-# Outer bound. Covers the case a socket timeout does not: a peer that completes
-# the TCP handshake and then never answers.
+# Outer bound. Covers the case a socket timeout does not: a peer that completes the TCP handshake and then never answers.
 _DEADLINE_SECONDS = 1.0
-# How long to stop trying after a failure. Long enough that a sustained outage
-# costs one timeout per minute rather than one per request.
+# How long to stop trying after a failure. Long enough that a sustained outage costs one timeout per minute rather than one per request.
 _CIRCUIT_OPEN_SECONDS = 60.0
 
 _client: Redis[bytes] | None = None
@@ -80,10 +72,7 @@ def _get_client() -> Redis[bytes] | None:
 
 
 async def _call(operation: str, *args: Any) -> Any | None:
-    """
-    Run one Redis command, or give up quickly. Returns None both when Redis is unusable and when the
-    command returned nothing; callers treat both alike, which is what makes losing the store safe.
-    """
+    """Run one Redis command, or give up quickly. Returns None both when Redis is unusable and when the command returned nothing; callers treat both alike, which is what makes losing the store safe."""
     if not uses_redis() or _circuit_is_open():
         return None
     client = _get_client()
@@ -152,12 +141,7 @@ async def get(key: str) -> int | None:
 
 
 async def set(key: str, value: int, ttl_seconds: int) -> None:  # noqa: A001 - mirrors Redis
-    """
-    Store *value* under *key*.
-
-    Written to both stores rather than one: if Redis is reachable now but not on
-    the read, the in-process copy still answers on this worker.
-    """
+    """Store *value* under *key*. Written to both stores rather than one: if Redis is reachable now but not on the read, the in-process copy still answers on this worker."""
     ttl = max(ttl_seconds, 1)
     await _call("set", key, value, ttl)
     _sweep_memory()
@@ -165,10 +149,7 @@ async def set(key: str, value: int, ttl_seconds: int) -> None:  # noqa: A001 - m
 
 
 async def incr(key: str, ttl_seconds: int, amount: int = 1) -> int:
-    """Add *amount* to the counter *key* atomically, (re)start its TTL and return the new value.
-
-    Redis INCRBY when reachable (shared across workers); the local copy mirrors it and stands in
-    otherwise. No await between the local read and write, so the fallback is atomic too."""
+    """Add *amount* to the counter *key* atomically, (re)start its TTL and return the new value. Redis INCRBY when reachable (shared across workers); the local copy mirrors it and stands in otherwise. No await between the local read and write, so the fallback is atomic too."""
     ttl = max(ttl_seconds, 1)
     result = await _pipeline(("incrby", key, amount), ("expire", key, ttl))
     _sweep_memory()
@@ -190,10 +171,7 @@ async def delete(*keys: str) -> None:
 
 
 async def take(key: str) -> bool:
-    """Delete *key* and report whether it was present, in one step, so a marker is spent once.
-
-    When Redis answers it alone decides (shared across workers); the local copy only stands in
-    while Redis is unreachable."""
+    """Delete *key* and report whether it was present, in one step, so a marker is spent once. When Redis answers it alone decides (shared across workers); the local copy only stands in while Redis is unreachable."""
     deleted = await _call("delete", key)
     entry = _memory.pop(key, None)
     if deleted is not None:
@@ -220,8 +198,7 @@ async def mark_member(key: str, member: str, ttl_seconds: int) -> None:
 
 
 async def members_since(key: str, since_seconds: int) -> list[str] | None:
-    """Members of *key* seen within the last *since_seconds*; None when Redis is configured but
-    unreachable, so a caller can say "unknown" instead of reporting nobody."""
+    """Members of *key* seen within the last *since_seconds*; None when Redis is configured but unreachable, so a caller can say "unknown" instead of reporting nobody."""
     cutoff = time.time() - since_seconds
     if uses_redis():
         raw = await _call("zrangebyscore", key, cutoff, "+inf")
@@ -243,11 +220,7 @@ def reset() -> None:
 
 
 async def check_reachable() -> bool:
-    """
-    Probe the configured store once, for a startup log line. A misconfigured REDIS_URL otherwise
-    degrades silently to per-process counters; the default ``redis://localhost:6379/0`` points at
-    the container itself inside Docker.
-    """
+    """Probe the configured store once, for a startup log line. A misconfigured REDIS_URL otherwise degrades silently to per-process counters; the default ``redis://localhost:6379/0`` points at the container itself inside Docker."""
     if not uses_redis():
         return False
     reset()

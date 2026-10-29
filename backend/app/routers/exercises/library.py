@@ -35,8 +35,7 @@ from app.services.exercise_library import (
 )
 from app.services.latex_score import parse_exercise_score
 
-# `listing` is registered before the sharing catalog (`/shared`, `/sync-status`), `router` after
-# it: FastAPI matches overlapping paths in registration order (see `__init__`).
+# `listing` is registered before the sharing catalog (`/shared`, `/sync-status`), `router` after it: FastAPI matches overlapping paths in registration order (see `__init__`).
 listing = APIRouter()
 router = APIRouter()
 
@@ -55,8 +54,7 @@ _PLAIN_UPDATE_FIELDS = {
 
 
 async def _lock_current(ex: Exercise, teacher: Teacher, db: AsyncSession) -> ExerciseGroup:
-    """The group of *ex* under its row lock, with *ex* re-read inside it: of two concurrent
-    writers only the first still finds *ex* current, so a variant never gets two current rows."""
+    """The group of *ex* under its row lock, with *ex* re-read inside it: of two concurrent writers only the first still finds *ex* current, so a variant never gets two current rows."""
     if ex.exercise_group_id is not None:
         group = await get_own_group(ex.exercise_group_id, teacher.id, db, lock=True)
         await db.refresh(ex)
@@ -82,8 +80,7 @@ async def list_exercises(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> list[ExerciseResponse]:
-    """List the teacher's own library. Shared rows are listed by `/shared` and only ever copied,
-    so the library, the exam picker and the offline mirror never hold another account's row."""
+    """List the teacher's own library. Shared rows are listed by `/shared` and only ever copied, so the library, the exam picker and the offline mirror never hold another account's row."""
     query = select(Exercise).where(Exercise.teacher_id == teacher.id)
     if current_only:
         query = query.where(Exercise.is_current.is_(True))
@@ -175,8 +172,7 @@ async def create_exercise(
         kwargs["id"] = body.id
     ex = Exercise(**kwargs)
     db.add(ex)
-    # See create_exam: a client-chosen id collision is a 409, never a 500 that
-    # would reveal that the id is already taken (possibly by another teacher).
+    # See create_exam: a client-chosen id collision is a 409, never a 500 that would reveal that the id is already taken (possibly by another teacher).
     try:
         await db.flush()
     except IntegrityError:
@@ -194,8 +190,7 @@ async def get_exercise(
     ex: Exercise = Depends(get_readable_exercise),
     teacher: Teacher = Depends(get_current_teacher),
 ) -> ExerciseResponse:
-    """Get an own exercise, or one shared with the caller (then without owner id or provenance,
-    so `teacher_id` tells the caller whether the row is theirs)."""
+    """Get an own exercise, or one shared with the caller (then without owner id or provenance, so `teacher_id` tells the caller whether the row is theirs)."""
     res = ExerciseResponse.from_exercise(ex)
     if ex.teacher_id != teacher.id:
         res.teacher_id = None
@@ -215,8 +210,7 @@ async def update_exercise(
     for name, value in sent.items():
         if value is not None:
             setattr(ex, name, value)
-    # Points follow the LaTeX only when there is some: an empty body used to reset max_points
-    # to 0, which zeroed every score scale of an exercise saved without code.
+    # Points follow the LaTeX only when there is some: an empty body used to reset max_points to 0, which zeroed every score scale of an exercise saved without code.
     if body.latex_body:
         ex.max_points = parse_exercise_score(body.latex_body)
     elif body.max_points is not None:
@@ -320,12 +314,7 @@ async def get_exercise_usage(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseUsageResponse:
-    """
-    Get count and details of non-deleted exams referencing this exercise.
-
-    Only the caller's own exams are reported, so usage of a published exercise
-    in another teacher's exam is never disclosed.
-    """
+    """Get count and details of non-deleted exams referencing this exercise. Only the caller's own exams are reported, so usage of a published exercise in another teacher's exam is never disclosed."""
     query = (
         select(Exam)
         .join(ExamExercise, ExamExercise.exam_id == Exam.id)
@@ -360,8 +349,7 @@ async def get_exercise_usage(
 async def _previous_version(
     ex: Exercise, teacher: Teacher, db: AsyncSession
 ) -> Exercise | None:
-    """The newest older version of *ex*'s variant, unless the variant already has another
-    current row (then nothing needs promoting)."""
+    """The newest older version of *ex*'s variant, unless the variant already has another current row (then nothing needs promoting)."""
     rows = (
         await db.execute(
             select(Exercise)
@@ -387,11 +375,7 @@ async def delete_exercise(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """
-    Delete an exercise from the caller's own library. Idempotent: always 204.
-    Only exercises owned by *teacher* are deleted, so a foreign id is a silent no-op that
-    does not reveal the id exists.
-    """
+    """Delete an exercise from the caller's own library. Idempotent: always 204. Only exercises owned by *teacher* are deleted, so a foreign id is a silent no-op that does not reveal the id exists."""
     result = await db.execute(
         select(Exercise).where(
             Exercise.id == exercise_id,

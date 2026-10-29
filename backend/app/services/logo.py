@@ -1,8 +1,4 @@
-"""
-Exam header logos (issue #46): validation and resolution. Accounts print the bundled default
-(MTG) until they store their own or none; an exam follows the account, prints none, or has its own.
-Written as ``examance-logo.<ext>`` (:data:`LOGO_FILENAMES`, reserved from resources); see logo.ts.
-"""
+"""Exam header logos (issue #46): validation and resolution. Accounts print the bundled default (MTG) until they store their own or none; an exam follows the account, prints none, or has its own. Written as ``examance-logo.<ext>`` (:data:`LOGO_FILENAMES`, reserved from resources); see logo.ts."""
 from __future__ import annotations
 
 import base64
@@ -35,12 +31,10 @@ _MIME_EXTENSIONS = {
 #: Every name a logo can have in the working directory. Reserved for resource uploads.
 LOGO_FILENAMES = frozenset(f"{LOGO_BASENAME}.{ext}" for ext in ("pdf", "png", "jpg", "jpeg"))
 
-#: Where a printed logo comes from: the bundled default, the account's own file, the exam's own
-#: file, or nowhere.
+# : Where a printed logo comes from: the bundled default, the account's own file, the exam's own : file, or nowhere.
 LogoSource = Literal["default", "account", "exam", "none"]
 
-# The default logo: what every exam printed before logos were configurable. Resolved like
-# ``app.services.tectonic.ASSETS_DIR``.
+# The default logo: what every exam printed before logos were configurable. Resolved like ``app.services.tectonic.ASSETS_DIR``.
 _ASSETS_DIR = Path(__file__).resolve().parents[2] / "latex-assets"
 if not _ASSETS_DIR.exists():
     _ASSETS_DIR = Path("latex-assets")
@@ -113,12 +107,7 @@ async def resolve_logo(
     exam_id: uuid.UUID | None,
     db: AsyncSession,
 ) -> tuple[LogoSource, ResolvedLogo | None]:
-    """
-    The logo an exam prints, and where it comes from.
-
-    *exam_id* must already be known to belong to *teacher_id*; ``None`` asks for the account
-    logo (an exam that does not exist on the server yet).
-    """
+    """The logo an exam prints, and where it comes from. *exam_id* must already be known to belong to *teacher_id*; ``None`` asks for the account logo (an exam that does not exist on the server yet)."""
     if exam_id is not None:
         override = await get_exam_logo(exam_id, db)
         if override is not None:
@@ -144,11 +133,7 @@ async def resolve_logo_for_compile(
     exam_id: uuid.UUID | None,
     db: AsyncSession,
 ) -> ResolvedLogo | None:
-    """
-    Like :func:`resolve_logo`, for a compile request naming *exam_id*. An exam the teacher does
-    not own (or that is gone) falls back to the account logo instead of failing: the id is a
-    hint about which header to print, and must never read another tenant's logo.
-    """
+    """Like :func:`resolve_logo`, for a compile request naming *exam_id*. An exam the teacher does not own (or that is gone) falls back to the account logo instead of failing: the id is a hint about which header to print, and must never read another tenant's logo."""
     if exam_id is not None:
         owned = await db.scalar(
             select(Exam.id).where(

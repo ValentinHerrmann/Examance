@@ -23,8 +23,7 @@ class ExerciseScoreBulkPut(BaseModel):
 
     @model_validator(mode="after")
     def _ids_name_one_exercise(self) -> Self:
-        # One id on two exercises would insert two rows with the same key (a 500). A repeated
-        # exercise is fine: the router lets the last item win.
+        # One id on two exercises would insert two rows with the same key (a 500). A repeated exercise is fine: the router lets the last item win.
         seen: dict[uuid.UUID, uuid.UUID] = {}
         for item in self.scores:
             if item.id is None:

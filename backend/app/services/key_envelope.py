@@ -1,8 +1,4 @@
-"""
-Key-envelope maintenance the server may perform. It can never re-wrap (that needs the new
-password and the data key), but must mark the `password` wrap stale when a password is set
-outside the browser flow; otherwise the client derives a key that opens nothing (blank vault).
-"""
+"""Key-envelope maintenance the server may perform. It can never re-wrap (that needs the new password and the data key), but must mark the `password` wrap stale when a password is set outside the browser flow; otherwise the client derives a key that opens nothing (blank vault)."""
 from __future__ import annotations
 
 import uuid
@@ -19,12 +15,7 @@ from app.schemas.key_envelope import KEY_ID_BYTES, KeyEnvelopeSetIn
 
 
 async def invalidate_password_wrap(db: AsyncSession, teacher_id: uuid.UUID) -> None:
-    """
-    Mark the teacher's password wrap unusable after a server-side password write.
-
-    The recovery and passkey wraps are left alone: they still hold the same data
-    key, and they are how the teacher gets back in.
-    """
+    """Mark the teacher's password wrap unusable after a server-side password write. The recovery and passkey wraps are left alone: they still hold the same data key, and they are how the teacher gets back in."""
     await db.execute(
         update(KeyEnvelope)
         .where(
@@ -39,8 +30,7 @@ async def invalidate_password_wrap(db: AsyncSession, teacher_id: uuid.UUID) -> N
 async def _assert_secret_wraps_kept(
     db: AsyncSession, teacher: Teacher, key_id: bytes, rows: list[KeyEnvelope]
 ) -> None:
-    """One proven factor (an enrolling account) may add or renew passkey wraps, but never swap
-    the data key or touch the password and recovery wraps of an existing set (S8)."""
+    """One proven factor (an enrolling account) may add or renew passkey wraps, but never swap the data key or touch the password and recovery wraps of an existing set (S8)."""
     existing = (
         await db.execute(select(KeyEnvelope).where(KeyEnvelope.teacher_id == teacher.id))
     ).scalars().all()
@@ -60,8 +50,7 @@ async def _assert_secret_wraps_kept(
         )
 
 
-# Wrapped bundles are three 32-byte keys plus JSON framing and GCM overhead.
-# Generous, but bounded: this column is written by the client.
+# Wrapped bundles are three 32-byte keys plus JSON framing and GCM overhead. Generous, but bounded: this column is written by the client.
 MAX_WRAPPED_BUNDLE_BYTES = 4096
 MAX_CREDENTIAL_ID_BYTES = 1023
 
@@ -69,11 +58,7 @@ MAX_CREDENTIAL_ID_BYTES = 1023
 async def replace_envelope_set(
     db: AsyncSession, teacher: Teacher, body: KeyEnvelopeSetIn, *, keep_secret_wraps: bool = False
 ) -> list[KeyEnvelope]:
-    """
-    Replace a teacher's whole envelope set, validating it first. Wholesale by design: merging could
-    pair a new data key in the password wrap with the old one in the recovery wrap. Shared with
-    password reset, which writes the new wrap in the same transaction as the new password.
-    """
+    """Replace a teacher's whole envelope set, validating it first. Wholesale by design: merging could pair a new data key in the password wrap with the old one in the recovery wrap. Shared with password reset, which writes the new wrap in the same transaction as the new password."""
     key_id = decode_b64(body.key_id_b64, "key_id_b64", expected_len=KEY_ID_BYTES)
 
     seen: set[tuple[str, str | None]] = set()
@@ -132,8 +117,7 @@ async def replace_envelope_set(
         )
 
     if not any(row.kind == "recovery" for row in rows):
-        # Without it, a teacher who loses their password has no way back to
-        # their data at all. This is the one wrap that is never optional.
+        # Without it, a teacher who loses their password has no way back to their data at all. This is the one wrap that is never optional.
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The envelope set must include a recovery wrap.",

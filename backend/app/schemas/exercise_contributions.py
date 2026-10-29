@@ -49,8 +49,7 @@ class ContributionSummary(BaseModel):
     stale: bool = False
     target_gone: bool = False
     result_exercise_id: uuid.UUID | None = None
-    # The viewer's own exercise group this proposal is about (author: the original; contributor:
-    # their copy). Never the other account's group.
+    # The viewer's own exercise group this proposal is about (author: the original; contributor: their copy). Never the other account's group.
     library_group_id: uuid.UUID | None = None
 
 

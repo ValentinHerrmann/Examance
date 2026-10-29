@@ -81,12 +81,7 @@ async def create_exercise_resource(
     ex: Exercise = Depends(get_exercise_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResourceResponse:
-    """
-    Attach a file to an exercise. Uploading an existing filename replaces it.
-
-    The filename is sanitised and checked against the bundled LaTeX assets by
-    the schema; SVG is refused there with a convert-to-PDF hint.
-    """
+    """Attach a file to an exercise. Uploading an existing filename replaces it. The filename is sanitised and checked against the bundled LaTeX assets by the schema; SVG is refused there with a convert-to-PDF hint."""
     content = decode_b64(body.content_b64, "content_b64")
     try:
         check_upload(content, MAX_RESOURCE_BYTES, f"'{body.filename}'")

@@ -1,7 +1,4 @@
-"""Account deletion by the holder (mailed link: preview, then confirm) and by an admin.
-
-Mail is captured by patching ``app.services.email.send_email``. The database is shared across the
-session: addresses are unique per test, so the last-admin guard (counts every admin) is not hit."""
+"""Account deletion by the holder (mailed link: preview, then confirm) and by an admin. Mail is captured by patching ``app.services.email.send_email``. The database is shared across the session: addresses are unique per test, so the last-admin guard (counts every admin) is not hit."""
 from __future__ import annotations
 
 import uuid
@@ -149,8 +146,7 @@ async def test_keep_exercises_leaves_library_exercises_without_owner(
     kept = await db.get(Exercise, library_id)
     assert kept is not None
     assert kept.teacher_id is None
-    # The exam-bound copy is not orphaned: it goes with its exam (the FK cascades on Postgres;
-    # the SQLite test database does not enforce foreign keys).
+    # The exam-bound copy is not orphaned: it goes with its exam (the FK cascades on Postgres; the SQLite test database does not enforce foreign keys).
     bound = await db.get(Exercise, bound_id)
     assert bound is None or bound.teacher_id == teacher_id
 

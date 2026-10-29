@@ -35,17 +35,12 @@ async def compile_latex_endpoint(
     teacher: Annotated[Teacher, Depends(require_server_latex)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
-    """Compile LaTeX source to PDF via Tectonic (body limit: BODY_LIMIT_COMPILE).
-
-    Extra files come from `resource_exercise_ids` (stored on the server) and `resources` (unsaved
-    or local-only exercises). LaTeX source is NEVER logged; a 422 carries the TeX diagnostic as
-    `detail` and the sanitized full log as `log`, for this caller only."""
+    """Compile LaTeX source to PDF via Tectonic (body limit: BODY_LIMIT_COMPILE). Extra files come from `resource_exercise_ids` (stored on the server) and `resources` (unsaved or local-only exercises). LaTeX source is NEVER logged; a 422 carries the TeX diagnostic as `detail` and the sanitized full log as `log`, for this caller only."""
     try:
         binary_files = await load_resources_for_exercises(
             body.resource_exercise_ids, teacher, db
         )
-        # Inline files win: they are the caller's current, unsaved version of a
-        # file whose stored copy may be stale.
+        # Inline files win: they are the caller's current, unsaved version of a file whose stored copy may be stale.
         binary_files.update(body.binary_files())
         logo = (
             await resolve_logo_for_compile(teacher.id, body.logo_exam_id, db)
@@ -72,9 +67,7 @@ async def compile_latex_endpoint(
         logger.info("LaTeX preview compilation failed: %s", exc)
         return compilation_failed_response(exc)
     except OSError as exc:
-        # A missing tectonic binary, a full disk, an unwritable temp dir. Not
-        # the document's fault, and not something the caller can fix by editing
-        # it — say so instead of letting it surface as an opaque 500.
+        # A missing tectonic binary, a full disk, an unwritable temp dir. Not the document's fault, and not something the caller can fix by editing it — say so instead of letting it surface as an opaque 500.
         logger.error("LaTeX compilation is unavailable: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

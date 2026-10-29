@@ -1,7 +1,4 @@
-"""Shared helpers for signing a test client in through the real endpoints, like a browser does.
-
-A password alone yields no session (a passkey, or any two of password/passkey/TOTP), so these
-enrol an authenticator directly in the database first."""
+"""Shared helpers for signing a test client in through the real endpoints, like a browser does. A password alone yields no session (a passkey, or any two of password/passkey/TOTP), so these enrol an authenticator directly in the database first."""
 from __future__ import annotations
 
 import re
@@ -125,12 +122,7 @@ async def sign_in(
 
 
 async def start_reset(client: AsyncClient, token: str) -> dict[str, object]:
-    """
-    Open a password reset with the emailed token.
-
-    The token stands in for the password factor but is not, on its own, enough:
-    mailbox access completing a reset is the bypass the second factor closes.
-    """
+    """Open a password reset with the emailed token. The token stands in for the password factor but is not, on its own, enough: mailbox access completing a reset is the bypass the second factor closes."""
     resp = await client.post("/api/v1/auth/reset/start", json={"token": token})
     assert resp.status_code == 200, resp.text
     client.cookies.update(resp.cookies)

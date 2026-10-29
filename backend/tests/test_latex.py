@@ -63,8 +63,7 @@ async def test_tectonic_subprocess_args() -> None:
     assert any("-k" in args for args in captured_args)
     assert len(captured_args) == 2
 
-    # --untrusted blocks shell-escape and filesystem access outside the working
-    # directory, and must precede the input path to take effect.
+    # --untrusted blocks shell-escape and filesystem access outside the working directory, and must precede the input path to take effect.
     for args in captured_args:
         assert "--untrusted" in args, args
         assert args.index("--untrusted") < args.index("-k"), args
@@ -128,10 +127,7 @@ def test_extra_file_paths_cannot_escape_workdir() -> None:
 
 
 def test_tex_error_extraction_does_not_leak_log_context() -> None:
-    """
-    main.log echoes source context around an error. Only the TeX diagnostic
-    lines ("!") may reach the client — never the echoed content.
-    """
+    """main.log echoes source context around an error. Only the TeX diagnostic lines ("!") may reach the client — never the echoed content."""
     import tempfile
     from pathlib import Path
 

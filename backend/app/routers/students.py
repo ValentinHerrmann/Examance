@@ -44,9 +44,7 @@ async def upload_student_identity(
         body.encryption_salt_b64, "encryption_salt_b64", expected_len=ARGON2_SALT_BYTES
     )
 
-    # Check if this exam already holds the identity. Identities are keyed by
-    # (pseudonym_hmac, exam_id), so the same hmac under a different exam is a
-    # different identity and must not be matched here.
+    # Check if this exam already holds the identity. Identities are keyed by (pseudonym_hmac, exam_id), so the same hmac under a different exam is a different identity and must not be matched here.
     result = await db.execute(
         select(StudentIdentity).where(
             StudentIdentity.pseudonym_hmac == body.pseudonym_hmac,
@@ -98,10 +96,7 @@ async def erase_student_identity(
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """
-    GDPR Art. 17 Erasure — hard delete student identity + cascade submissions.
-    Appends an immutable audit log entry.
-    """
+    """GDPR Art. 17 Erasure — hard delete student identity + cascade submissions. Appends an immutable audit log entry."""
     # Fetch identity
     result = await db.execute(
         select(StudentIdentity).where(

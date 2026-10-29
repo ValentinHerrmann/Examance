@@ -1,7 +1,4 @@
-"""Admin router — /api/v1/admin/*
-
-`users` (accounts, factor reset, audit log), `domains` (auto-approved email domains) and
-`maintenance` (maintenance windows)."""
+"""Admin router — /api/v1/admin/* `users` (accounts, factor reset, audit log), `domains` (auto-approved email domains) and `maintenance` (maintenance windows)."""
 from __future__ import annotations
 
 from fastapi import APIRouter

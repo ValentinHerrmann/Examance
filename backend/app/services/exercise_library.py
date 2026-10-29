@@ -87,8 +87,7 @@ def metadata_changes(body: ExerciseGroupUpdate | ExerciseUpdate) -> dict[str, st
 async def cascade_group_metadata(
     group_id: uuid.UUID, teacher_id: uuid.UUID, changes: Mapping[str, str], db: AsyncSession
 ) -> None:
-    """Write *changes* onto the group and every row in it. Both are scoped to the owner, so a
-    shared group id can never reach another account's rows."""
+    """Write *changes* onto the group and every row in it. Both are scoped to the owner, so a shared group id can never reach another account's rows."""
     group = await db.get(ExerciseGroup, group_id)
     members = (
         await db.execute(

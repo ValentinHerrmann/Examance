@@ -1,8 +1,4 @@
-"""
-MFA enrollment — /api/v1/mfa/*. Reachable from a half-finished sign-in as well as a full session:
-an account with fewer than two factors holds an ``enroll``-scoped token that reaches nothing
-else, so enrollment has to work from there.
-"""
+"""MFA enrollment — /api/v1/mfa/*. Reachable from a half-finished sign-in as well as a full session: an account with fewer than two factors holds an ``enroll``-scoped token that reaches nothing else, so enrollment has to work from there."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -25,8 +21,7 @@ from app.services import mfa as mfa_svc
 
 router = APIRouter(prefix="/mfa", tags=["mfa"])
 
-# Read-only status is fine mid-sign-in; adding a factor needs the finished sign-in or an account
-# still enrolling, or one proven factor could enroll its own second one.
+# Read-only status is fine mid-sign-in; adding a factor needs the finished sign-in or an account still enrolling, or one proven factor could enroll its own second one.
 _STATUS_SCOPES = {"full", "enroll", "auth_pending"}
 _ENROLL_SCOPES = {"full", "enroll"}
 
@@ -47,11 +42,7 @@ async def mfa_status(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> MfaStatusResponse:
-    """
-    What this account has enrolled, whether that is enough to sign in, and per-factor details for
-    the security page. Only about the *authenticated* account, so it is no profile oracle for an
-    email.
-    """
+    """What this account has enrolled, whether that is enough to sign in, and per-factor details for the security page. Only about the *authenticated* account, so it is no profile oracle for an email."""
     _require_enrollment_scope(session, _STATUS_SCOPES)
     teacher = session.teacher
     enrolled = await auth_policy.enrolled_factors(db, teacher)
@@ -92,11 +83,7 @@ async def enroll_totp(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> MfaEnrollResponse:
-    """
-    Start an authenticator enrollment.
-    The secret is returned once, in the `otpauth://` URI, and never again: re-serving it would let
-    anyone holding a session clone the second factor, while a lost setup just starts over.
-    """
+    """Start an authenticator enrollment. The secret is returned once, in the `otpauth://` URI, and never again: re-serving it would let anyone holding a session clone the second factor, while a lost setup just starts over."""
     _require_enrollment_scope(session)
     try:
         uri = await mfa_svc.start_enrollment(db, session.teacher)
@@ -120,12 +107,7 @@ async def confirm_totp(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> MfaBackupCodesResponse:
-    """
-    Prove the authenticator works, which is what makes it count as a factor.
-
-    Returns the backup codes once. They are the way back when the phone is lost,
-    and they stand in for this factor rather than adding a third.
-    """
+    """Prove the authenticator works, which is what makes it count as a factor. Returns the backup codes once. They are the way back when the phone is lost, and they stand in for this factor rather than adding a third."""
     _require_enrollment_scope(session)
     teacher = session.teacher
 
@@ -172,10 +154,7 @@ async def disable_totp(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """
-    Remove the authenticator, refused if it would drop the account below two sign-in factors or
-    below its last means of decrypting its own data. That guard makes "any two of three" safe.
-    """
+    """Remove the authenticator, refused if it would drop the account below two sign-in factors or below its last means of decrypting its own data. That guard makes "any two of three" safe."""
     if session.scope != "full":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

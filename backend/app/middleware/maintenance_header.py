@@ -9,8 +9,7 @@ HEADER = b"maintenance-revision"
 
 
 class MaintenanceHeaderMiddleware:
-    """Active clients learn of a window with their next request, not the next poll. Reads only the
-    worker's phase cache; no header means "unknown". Details: docs/dev/maintenance_mode.md."""
+    """Active clients learn of a window with their next request, not the next poll. Reads only the worker's phase cache; no header means "unknown". Details: docs/dev/maintenance_mode.md."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app

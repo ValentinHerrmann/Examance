@@ -77,10 +77,7 @@ _UPDATED_FIELDS = {"title", "retention_until", *_HEADER_FIELDS}
 async def _resolve_linkable_exercise(
     exercise_id: uuid.UUID, teacher: Teacher, db: AsyncSession
 ) -> Exercise:
-    """Load an exercise *teacher* may place into their own exam: only their own.
-
-    A shared exercise is copied first (issue #65): linking another account's row would let its
-    owner's edit or deletion cascade into this exam and its scores. Anything else raises 404."""
+    """Load an exercise *teacher* may place into their own exam: only their own. A shared exercise is copied first (issue #65): linking another account's row would let its owner's edit or deletion cascade into this exam and its scores. Anything else raises 404."""
     res = await db.execute(
         select(Exercise).where(Exercise.id == exercise_id, Exercise.teacher_id == teacher.id)
     )
@@ -97,12 +94,7 @@ def _resolve_mc_group_id(
     client_group_id: uuid.UUID | None,
     id_map: dict[uuid.UUID, uuid.UUID],
 ) -> uuid.UUID | None:
-    """
-    Map a client-supplied MC group id onto the group just persisted for this exam.
-
-    An id that is not in *id_map* does not belong to this exam's groups and is
-    rejected rather than stored verbatim.
-    """
+    """Map a client-supplied MC group id onto the group just persisted for this exam. An id that is not in *id_map* does not belong to this exam's groups and is rejected rather than stored verbatim."""
     if client_group_id is None:
         return None
     resolved = id_map.get(client_group_id)
@@ -115,10 +107,7 @@ def _resolve_mc_group_id(
 
 
 def _dedupe_exercise_links(links: list[Any]) -> list[Any]:
-    """Collapse repeated exercise_ids in an exercise_links payload.
-
-    (exam_id, exercise_id) is the primary key, so a duplicate (e.g. standalone and as an MC group
-    member) would raise an IntegrityError (500). MC group membership wins, else the first entry."""
+    """Collapse repeated exercise_ids in an exercise_links payload. (exam_id, exercise_id) is the primary key, so a duplicate (e.g. standalone and as an MC group member) would raise an IntegrityError (500). MC group membership wins, else the first entry."""
     kept: dict[uuid.UUID, Any] = {}
     order: list[uuid.UUID] = []
     for link in links:
@@ -179,10 +168,7 @@ async def _persist_mc_groups(
     mc_groups_data: list[Any],
     db: AsyncSession,
 ) -> dict[uuid.UUID, uuid.UUID]:
-    """Create ExamMcGroup rows and return the {client_id: db_id} mapping.
-
-    A client-supplied id is kept verbatim, like Exam.id and Exercise.id: minting a fresh one would
-    desync the client's local (IndexedDB) group records on every write."""
+    """Create ExamMcGroup rows and return the {client_id: db_id} mapping. A client-supplied id is kept verbatim, like Exam.id and Exercise.id: minting a fresh one would desync the client's local (IndexedDB) group records on every write."""
     id_map: dict[uuid.UUID, uuid.UUID] = {}
     for g in mc_groups_data:
         group_id = g.id or uuid.uuid4()
@@ -194,8 +180,7 @@ async def _persist_mc_groups(
             order_index=g.order_index,
         )
         db.add(group)
-        # Both directions resolve, so a payload may address a group either by the
-        # id it sent or by the id a previous response handed back.
+        # Both directions resolve, so a payload may address a group either by the id it sent or by the id a previous response handed back.
         id_map[group_id] = group_id
         if g.id is not None:
             id_map[g.id] = group_id
@@ -228,9 +213,7 @@ async def create_exam(
         kwargs["id"] = body.id
     exam = Exam(**kwargs)
     db.add(exam)
-    # Client-chosen ids let local-mode records keep their UUID when syncing. A
-    # collision must be a deterministic 409, not an IntegrityError surfacing as
-    # a 500 — which would distinguish "id exists" from "id is free".
+    # Client-chosen ids let local-mode records keep their UUID when syncing. A collision must be a deterministic 409, not an IntegrityError surfacing as a 500 — which would distinguish "id exists" from "id is free".
     try:
         await db.flush()
     except IntegrityError:
@@ -326,8 +309,7 @@ async def duplicate_exam(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExamResponse:
-    """Copy an exam's header, settings, MC groups and exercise links into a new exam (issue #121).
-    Never copies results: students, submissions and scores belong to the source only."""
+    """Copy an exam's header, settings, MC groups and exercise links into a new exam (issue #121). Never copies results: students, submissions and scores belong to the source only."""
     exam = Exam(
         teacher_id=teacher.id,
         title=f"{source.title} (Kopie)"[:500],
@@ -433,9 +415,7 @@ async def update_exam(
         exam.extra_notes = body.extra_notes.model_dump() if body.extra_notes else None
 
     if body.mc_groups is not None:
-        # Detach the links before dropping the groups. exam_exercises.mc_group_id
-        # is a real FK, so deleting a group would otherwise take its member rows
-        # with it — silently removing those exercises from the exam.
+        # Detach the links before dropping the groups. exam_exercises.mc_group_id is a real FK, so deleting a group would otherwise take its member rows with it — silently removing those exercises from the exam.
         await db.execute(
             update(ExamExercise)
             .where(ExamExercise.exam_id == exam.id)
@@ -479,10 +459,7 @@ async def delete_exam(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Soft-delete an exam and start the erasure grace period of its student data.
-
-    Retention skips deleted exams and only erases child rows with a deadline, so without the
-    cascade a deleted exam's identities and submissions would be kept forever."""
+    """Soft-delete an exam and start the erasure grace period of its student data. Retention skips deleted exams and only erases child rows with a deadline, so without the cascade a deleted exam's identities and submissions would be kept forever."""
     now = datetime.now(tz=UTC)
     grace_deadline = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
     exam.deleted_at = now

@@ -1,8 +1,4 @@
-"""
-WebAuthn ceremonies. Parsing is `py_webauthn`'s on purpose: hand-rolled CBOR/COSE parsers are how
-relying parties get CVEs. A passkey is one of the three factors; it is key-capable only with the
-PRF extension (a device-bound secret wraps a data-key copy), otherwise it merely authenticates.
-"""
+"""WebAuthn ceremonies. Parsing is `py_webauthn`'s on purpose: hand-rolled CBOR/COSE parsers are how relying parties get CVEs. A passkey is one of the three factors; it is key-capable only with the PRF extension (a device-bound secret wraps a data-key copy), otherwise it merely authenticates."""
 from __future__ import annotations
 
 import base64
@@ -32,23 +28,16 @@ from app.models.teacher import Teacher
 from app.models.webauthn_credential import WebAuthnCredential
 from app.services import ephemeral_store
 
-# Challenges are single-use and short-lived, so they belong in the ephemeral
-# store rather than the database.
+# Challenges are single-use and short-lived, so they belong in the ephemeral store rather than the database.
 _CHALLENGE_PREFIX = "webauthn:challenge:"
 _CHALLENGE_TTL_SECONDS = 300
 
-# Per credential and currently unread: the PRF salt must be chosen before the ceremony, when the
-# passkey is unknown, so the client uses one application-wide constant (`webauthn/client.ts`).
-# Kept as the basis for rotating PRF inputs later.
+# Per credential and currently unread: the PRF salt must be chosen before the ceremony, when the passkey is unknown, so the client uses one application-wide constant (`webauthn/client.ts`). Kept as the basis for rotating PRF inputs later.
 PRF_SALT_BYTES = 32
 
 
 def _challenge_b64(value: bytes) -> str:
-    """
-    Unpadded base64url, the form py_webauthn puts in the options JSON and the browser echoes back,
-    hence the only valid lookup key. The padded spelling never matched, so every ceremony read as
-    expired.
-    """
+    """Unpadded base64url, the form py_webauthn puts in the options JSON and the browser echoes back, hence the only valid lookup key. The padded spelling never matched, so every ceremony read as expired."""
     return base64.urlsafe_b64encode(value).decode().rstrip("=")
 
 
@@ -65,8 +54,7 @@ def _expected_origins() -> list[str]:
 
 
 async def _store_challenge(handle: str, challenge: bytes) -> None:
-    # The store holds integers, so the challenge is kept as its own key with a
-    # presence marker; the handle is what the client echoes back.
+    # The store holds integers, so the challenge is kept as its own key with a presence marker; the handle is what the client echoes back.
     await ephemeral_store.set(
         _CHALLENGE_PREFIX + handle + ":" + _challenge_b64(challenge),
         1,
@@ -79,12 +67,7 @@ async def _take_challenge(handle: str, challenge_b64: str) -> bool:
 
 
 async def registration_options(db: AsyncSession, teacher: Teacher) -> tuple[str, str]:
-    """
-    Options for registering a new passkey, plus the handle that ties them to it.
-
-    Existing credentials are excluded so an authenticator that already holds a
-    passkey for this account says so rather than silently making a second one.
-    """
+    """Options for registering a new passkey, plus the handle that ties them to it. Existing credentials are excluded so an authenticator that already holds a passkey for this account says so rather than silently making a second one."""
     existing = await db.execute(
         select(WebAuthnCredential.credential_id).where(
             WebAuthnCredential.teacher_id == teacher.id
@@ -102,8 +85,7 @@ async def registration_options(db: AsyncSession, teacher: Teacher) -> tuple[str,
         user_display_name=teacher.email,
         exclude_credentials=exclude,
         authenticator_selection=AuthenticatorSelectionCriteria(
-            # Discoverable, because a passkey has to be able to identify the
-            # account by itself — it is a first-position factor.
+            # Discoverable, because a passkey has to be able to identify the account by itself — it is a first-position factor.
             resident_key=ResidentKeyRequirement.PREFERRED,
             user_verification=UserVerificationRequirement.REQUIRED,
         ),
@@ -150,10 +132,7 @@ async def verify_registration(
 
 
 async def authentication_options() -> tuple[str, str]:
-    """
-    Options for a passkey sign-in. No credential list or account name: the discoverable credential
-    names the account, and asking which passkeys an email has would be an account-profile oracle.
-    """
+    """Options for a passkey sign-in. No credential list or account name: the discoverable credential names the account, and asking which passkeys an email has would be an account-profile oracle."""
     options = generate_authentication_options(
         rp_id=settings.WEBAUTHN_RP_ID,
         user_verification=UserVerificationRequirement.REQUIRED,
@@ -195,9 +174,7 @@ async def verify_authentication(
         require_user_verification=True,
     )
 
-    # A counter that goes backwards is the spec's clone signal. A constant 0
-    # means the authenticator does not count at all, which most platform ones
-    # do not — rejecting that would break every iCloud-keychain passkey.
+    # A counter that goes backwards is the spec's clone signal. A constant 0 means the authenticator does not count at all, which most platform ones do not — rejecting that would break every iCloud-keychain passkey.
     if stored.sign_count > 0 and verified.new_sign_count < stored.sign_count:
         raise ValueError("This passkey's counter went backwards; it may have been cloned.")
 

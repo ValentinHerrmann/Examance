@@ -1,7 +1,4 @@
-"""Self-registration, approval and per-account features (issue #53), plus retention of stale ones.
-
-Mail is captured by patching ``app.services.email.send_email`` (background tasks run in-request).
-The database is shared across the session, so every address and domain is unique per test."""
+"""Self-registration, approval and per-account features (issue #53), plus retention of stale ones. Mail is captured by patching ``app.services.email.send_email`` (background tasks run in-request). The database is shared across the session, so every address and domain is unique per test."""
 from __future__ import annotations
 
 import base64

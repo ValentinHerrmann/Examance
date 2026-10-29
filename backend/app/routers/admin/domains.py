@@ -59,12 +59,7 @@ async def add_allowed_domain(
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AllowedDomainResponse:
-    """
-    Approve every future registration from a domain automatically (Admin only).
-
-    Exact match on the part after '@'; subdomains need their own entry. Existing accounts are
-    not affected.
-    """
+    """Approve every future registration from a domain automatically (Admin only). Exact match on the part after '@'; subdomains need their own entry. Existing accounts are not affected."""
     try:
         domain = registration.normalize_domain(body.domain)
     except ValueError:

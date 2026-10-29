@@ -20,12 +20,7 @@ async def write(
     target_id: str | None = None,
     request_ip: str | None = None,
 ) -> AuditLog:
-    """
-    Append an immutable audit entry.
-
-    *target_id* is SHA-256 hashed before storage.
-    *request_ip* is SHA-256 hashed before storage.
-    """
+    """Append an immutable audit entry. *target_id* is SHA-256 hashed before storage. *request_ip* is SHA-256 hashed before storage."""
     import hashlib
 
     target_hash: str | None = None

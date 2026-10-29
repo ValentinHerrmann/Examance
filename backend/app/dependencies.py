@@ -22,10 +22,7 @@ from app.services.jwt import decode_token
 async def _decode_session(
     access_token: str | None, expected_account: str | None, db: AsyncSession
 ) -> tuple[Teacher, dict[str, object]]:
-    """The approved account and claims of the access cookie (never an Authorization header), or 401.
-
-    A tab that names the account it holds keys for (`X-Expected-Account`) gets 409 when the cookie
-    now belongs to another one (S12): it must lock instead of writing into that account."""
+    """The approved account and claims of the access cookie (never an Authorization header), or 401. A tab that names the account it holds keys for (`X-Expected-Account`) gets 409 when the cookie now belongs to another one (S12): it must lock instead of writing into that account."""
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated.",
@@ -52,8 +49,7 @@ async def _decode_session(
 
     result = await db.execute(select(Teacher).where(Teacher.id == teacher_id))
     teacher = result.scalar_one_or_none()
-    # A pending account never receives a token (auth.advance_sign_in); refusing one here too
-    # keeps a token minted by any other path from reaching anything.
+    # A pending account never receives a token (auth.advance_sign_in); refusing one here too keeps a token minted by any other path from reaching anything.
     if teacher is None or teacher.approved_at is None:
         raise credentials_exc
     if expected_account and expected_account != str(teacher.id):
@@ -72,9 +68,7 @@ async def get_current_teacher(
 ) -> Teacher:
     """The signed-in Teacher of a full session, else 401/403."""
     teacher, payload = await _decode_session(access_token, x_expected_account, db)
-    # Everything outside the login and enrollment endpoints needs a session that
-    # two distinct factors earned. A token minted halfway through a sign-in, or
-    # for an account that has not finished enrolling, reaches nothing else.
+    # Everything outside the login and enrollment endpoints needs a session that two distinct factors earned. A token minted halfway through a sign-in, or for an account that has not finished enrolling, reaches nothing else.
     scope = payload.get("scope", "full")
     if scope != "full":
         raise HTTPException(
@@ -108,10 +102,7 @@ async def get_pending_teacher(
     x_expected_account: str | None = Header(default=None, include_in_schema=False),
     db: AsyncSession = Depends(get_db),
 ) -> PendingSession:
-    """Accept a half-finished sign-in (factor, enrollment and key-recovery endpoints only).
-
-    Returns the account, token scope and factors already presented. The next factor is checked
-    against the account named in the token, never an email the caller supplies."""
+    """Accept a half-finished sign-in (factor, enrollment and key-recovery endpoints only). Returns the account, token scope and factors already presented. The next factor is checked against the account named in the token, never an email the caller supplies."""
     teacher, payload = await _decode_session(access_token, x_expected_account, db)
     amr = payload.get("amr")
     jti = payload.get("jti")
@@ -136,10 +127,7 @@ async def get_teaching_teacher(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Teacher:
-    """Require a teacher account: admins manage users and the server only (issue #58).
-
-    Gates every endpoint that reads or writes exams, exercises, results or their settings.
-    An admin's legacy data is kept but unreachable until `cli.py set-role` makes it a teacher."""
+    """Require a teacher account: admins manage users and the server only (issue #58). Gates every endpoint that reads or writes exams, exercises, results or their settings. An admin's legacy data is kept but unreachable until `cli.py set-role` makes it a teacher."""
     if teacher.role != "teacher":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -157,12 +145,7 @@ async def get_exam_for_teacher(
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exam:
-    """
-    Return the exam if it belongs to *teacher* and is not soft-deleted.
-
-    Missing, foreign and deleted all answer the same 404, so existence never leaks. Not 401: the
-    client would refresh the session, and a queued write for a deleted exam would retry forever.
-    """
+    """Return the exam if it belongs to *teacher* and is not soft-deleted. Missing, foreign and deleted all answer the same 404, so existence never leaks. Not 401: the client would refresh the session, and a queued write for a deleted exam would retry forever."""
     result = await db.execute(
         select(Exam).where(
             Exam.id == exam_id,
@@ -185,10 +168,7 @@ async def get_exercise_for_teacher(
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exercise:
-    """Return the exercise only if it belongs to *teacher*; use for every write path.
-
-    Shared (`is_public`) exercises are never writable by non-owners. Raises 404, not 403, so a
-    non-owner cannot tell "someone else's" from "does not exist"."""
+    """Return the exercise only if it belongs to *teacher*; use for every write path. Shared (`is_public`) exercises are never writable by non-owners. Raises 404, not 403, so a non-owner cannot tell "someone else's" from "does not exist"."""
     result = await db.execute(
         select(Exercise).where(
             Exercise.id == exercise_id,
@@ -206,10 +186,7 @@ async def get_readable_exercise(
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exercise:
-    """Return the exercise if *teacher* owns it or it is shared with them (issue #65).
-
-    Read-only counterpart to `get_exercise_for_teacher`; never use it to write or to link an
-    exercise into an exam (a shared row is only ever copied)."""
+    """Return the exercise if *teacher* owns it or it is shared with them (issue #65). Read-only counterpart to `get_exercise_for_teacher`; never use it to write or to link an exercise into an exam (a shared row is only ever copied)."""
     result = await db.execute(
         select(Exercise).where(Exercise.id == exercise_id, readable_clause(teacher))
     )
@@ -242,8 +219,7 @@ async def require_not_frozen(
     access_token: str | None = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Credential and account writes also stop while maintenance is down, so the maintenance
-    backup stays consistent (issue #130). The role claim only exempts admins; auth stays below."""
+    """Credential and account writes also stop while maintenance is down, so the maintenance backup stays consistent (issue #130). The role claim only exempts admins; auth stays below."""
     role = None
     if access_token:
         try:

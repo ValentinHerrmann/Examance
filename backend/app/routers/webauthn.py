@@ -1,8 +1,4 @@
-"""
-Passkeys — /api/v1/webauthn/*. One of the three sign-in factors, and the only one that completes
-a sign-in alone: every ceremony requires user verification (`auth_policy.SELF_SUFFICIENT_FACTORS`).
-Registration needs a session; authentication does not (it is a first-position factor).
-"""
+"""Passkeys — /api/v1/webauthn/*. One of the three sign-in factors, and the only one that completes a sign-in alone: every ceremony requires user verification (`auth_policy.SELF_SUFFICIENT_FACTORS`). Registration needs a session; authentication does not (it is a first-position factor)."""
 from __future__ import annotations
 
 import base64
@@ -31,8 +27,7 @@ from app.services.jwt import decode_token
 
 router = APIRouter(prefix="/webauthn", tags=["webauthn"])
 
-# Listing is fine mid-sign-in; registering needs the finished sign-in or an account still
-# enrolling, or one proven factor could add a passkey and then sign in with it alone.
+# Listing is fine mid-sign-in; registering needs the finished sign-in or an account still enrolling, or one proven factor could add a passkey and then sign in with it alone.
 _LIST_SCOPES = {"full", "enroll", "auth_pending"}
 _REGISTER_SCOPES = {"full", "enroll"}
 
@@ -115,12 +110,7 @@ async def register_verify(
 @router.post("/login/options", response_model=CeremonyOptionsResponse)
 @limiter.limit("30/minute")
 async def login_options(request: Request) -> CeremonyOptionsResponse:
-    """
-    Options for a passkey sign-in.
-
-    Unauthenticated and rate-limited: it allocates a challenge per call, and it
-    takes no account identifier, so there is nothing here to probe with.
-    """
+    """Options for a passkey sign-in. Unauthenticated and rate-limited: it allocates a challenge per call, and it takes no account identifier, so there is nothing here to probe with."""
     handle, options_json = await webauthn_svc.authentication_options()
     import json
 
@@ -139,11 +129,7 @@ async def login_verify(
     db: AsyncSession = Depends(get_db),
     access_token: str | None = Cookie(default=None),
 ) -> AuthResponse:
-    """
-    Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy.
-    The cookie is read directly, not via a dependency, because this must work with no session
-    (passkey first) and with a sign-in part-way through (passkey second).
-    """
+    """Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy. The cookie is read directly, not via a dependency, because this must work with no session (passkey first) and with a sign-in part-way through (passkey second)."""
     already: list[str] = []
     flow = "auth_pending"
     pending_jti: str | None = None
@@ -213,9 +199,7 @@ async def login_verify(
             headers={"code": "ERR_PASSKEY_FAILED"},
         )
 
-    # The passkey must belong to the account this sign-in is for: else your password plus another
-    # account's passkey would run `advance_sign_in` with their teacher and your factors. A mismatch
-    # is an attack or stale cookie; restart.
+    # The passkey must belong to the account this sign-in is for: else your password plus another account's passkey would run `advance_sign_in` with their teacher and your factors. A mismatch is an attack or stale cookie; restart.
     if pending_subject and pending_subject != str(teacher.id):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -266,12 +250,7 @@ async def delete_credential(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """
-    Remove a passkey.
-
-    Refused when it would drop the account below two sign-in factors, or below
-    its last means of decrypting its own data.
-    """
+    """Remove a passkey. Refused when it would drop the account below two sign-in factors, or below its last means of decrypting its own data."""
     if session.scope != "full":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -289,8 +268,7 @@ async def delete_credential(
     padded = credential_id_b64 + "=" * (-len(credential_id_b64) % 4)
     if not await webauthn_svc.delete_credential(db, teacher.id, base64.urlsafe_b64decode(padded)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Passkey not found.")
-    # Checked after the delete for every passkey, not just the last: this one may hold the only
-    # usable wrap. Raising rolls the delete back.
+    # Checked after the delete for every passkey, not just the last: this one may hold the only usable wrap. Raising rolls the delete back.
     if reason is None and could_open and not await auth_policy.key_capable_factors(db, teacher):
         reason = "That is the only factor that can still decrypt this account's data."
     if reason is not None:

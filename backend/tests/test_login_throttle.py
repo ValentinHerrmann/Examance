@@ -1,7 +1,4 @@
-"""Per-account login cooloff.
-
-The suite runs with RATE_LIMIT_ENABLED=false (see conftest), which also switches the throttle off
-by default, so each test enables it explicitly and restores the previous setting."""
+"""Per-account login cooloff. The suite runs with RATE_LIMIT_ENABLED=false (see conftest), which also switches the throttle off by default, so each test enables it explicitly and restores the previous setting."""
 from __future__ import annotations
 
 import time
@@ -124,10 +121,7 @@ async def test_unknown_account_is_throttled_the_same_way(
 async def test_an_unreachable_redis_does_not_stall_the_login(
     client: AsyncClient, db: AsyncSession, throttling: None
 ) -> None:
-    """The throttle must fail fast: an unreachable Redis may not stall the login.
-
-    `Redis.from_url()` leaves `socket_connect_timeout` unset, so redis-py waits for the OS connect
-    timeout (~2 min on Linux) and the browser reports the server down: worse than guessing."""
+    """The throttle must fail fast: an unreachable Redis may not stall the login. `Redis.from_url()` leaves `socket_connect_timeout` unset, so redis-py waits for the OS connect timeout (~2 min on Linux) and the browser reports the server down: worse than guessing."""
     email = "redis-down@example.com"
     await _create_teacher(db, email)
 
@@ -143,8 +137,7 @@ async def test_an_unreachable_redis_does_not_stall_the_login(
 
         # The request still succeeds — the in-process store carries it.
         assert resp.status_code == 200
-        # Comfortably inside the frontend's 25s abort, and nowhere near the
-        # ~130s an unbounded connect would take.
+        # Comfortably inside the frontend's 25s abort, and nowhere near the ~130s an unbounded connect would take.
         assert elapsed < 10, f"login took {elapsed:.1f}s with Redis unreachable"
     finally:
         settings.RATE_LIMIT_STORAGE_URI = previous_uri

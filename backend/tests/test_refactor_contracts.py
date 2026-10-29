@@ -1,7 +1,4 @@
-"""Behaviour of the exam/exercise/submission routes that shared helpers now produce.
-
-Pins what the hand-written per-route code did: null handling of PATCH, the fields a duplicate
-copies, what an exam embeds of an exercise, group cascades and the upload size rules."""
+"""Behaviour of the exam/exercise/submission routes that shared helpers now produce. Pins what the hand-written per-route code did: null handling of PATCH, the fields a duplicate copies, what an exam embeds of an exercise, group cascades and the upload size rules."""
 from __future__ import annotations
 
 import base64

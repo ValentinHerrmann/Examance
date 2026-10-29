@@ -16,8 +16,7 @@ def _now_utc() -> datetime:
     return datetime.now(tz=UTC)
 
 
-# A pending token authenticates only the next step. Ten minutes is long enough to read a code
-# off a phone and short enough that a captured cookie is close to worthless.
+# A pending token authenticates only the next step. Ten minutes is long enough to read a code off a phone and short enough that a captured cookie is close to worthless.
 PENDING_TOKEN_TTL_MINUTES = 10
 
 
@@ -30,11 +29,7 @@ def create_access_token(
     amr: list[str] | None = None,
     ttl_minutes: int | None = None,
 ) -> str:
-    """
-    Return a signed JWT access token. *scope* is what `get_current_teacher` enforces: ``full`` (two
-    distinct factors presented), ``auth_pending``, ``enroll`` (enrollment endpoints only),
-    ``reset_pending``. *amr* records the factors that earned it, so step two cannot repeat step one.
-    """
+    """Return a signed JWT access token. *scope* is what `get_current_teacher` enforces: ``full`` (two distinct factors presented), ``auth_pending``, ``enroll`` (enrollment endpoints only), ``reset_pending``. *amr* records the factors that earned it, so step two cannot repeat step one."""
     from datetime import timedelta
 
     minutes = ttl_minutes if ttl_minutes is not None else (
@@ -52,9 +47,7 @@ def create_access_token(
         "amr": sorted(amr or []),
     }
     if scope != "full":
-        # A token that only carries a sign-in forward is single-use: its id is
-        # registered when issued and burned when spent, so one captured mid-login
-        # cannot be replayed to collect a second factor twice.
+        # A token that only carries a sign-in forward is single-use: its id is registered when issued and burned when spent, so one captured mid-login cannot be replayed to collect a second factor twice.
         payload["jti"] = str(uuid.uuid4())
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
@@ -70,11 +63,7 @@ def access_token_ttl_seconds(scope: str) -> int:
 def create_refresh_token(
     teacher_id: uuid.UUID, email: str, role: str, *, amr: list[str] | None = None
 ) -> tuple[str, str]:
-    """
-    Return (signed_jwt, jti) for a refresh token valid for REFRESH_TOKEN_TTL_DAYS; *jti* is stored
-    for revocation. *amr* is carried here, not inferred at refresh: assuming "full" would turn a
-    half-finished sign-in into a complete session.
-    """
+    """Return (signed_jwt, jti) for a refresh token valid for REFRESH_TOKEN_TTL_DAYS; *jti* is stored for revocation. *amr* is carried here, not inferred at refresh: assuming "full" would turn a half-finished sign-in into a complete session."""
     from datetime import timedelta
 
     jti = str(uuid.uuid4())
@@ -93,10 +82,5 @@ def create_refresh_token(
 
 
 def decode_token(token: str) -> dict[str, Any]:
-    """
-    Decode and verify *token*.
-
-    Raises jwt.ExpiredSignatureError, jwt.InvalidTokenError on failure.
-    Algorithm is explicitly pinned — prevents algorithm-confusion attacks.
-    """
+    """Decode and verify *token*. Raises jwt.ExpiredSignatureError, jwt.InvalidTokenError on failure. Algorithm is explicitly pinned — prevents algorithm-confusion attacks."""
     return jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])

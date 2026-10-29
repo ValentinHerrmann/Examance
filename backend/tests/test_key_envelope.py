@@ -1,8 +1,4 @@
-"""Key-envelope endpoints.
-
-The server must never be able to unwrap anything it stores here, and a partially
-written envelope set is a locked-out teacher, so replacement is wholesale.
-"""
+"""Key-envelope endpoints. The server must never be able to unwrap anything it stores here, and a partially written envelope set is a locked-out teacher, so replacement is wholesale."""
 from __future__ import annotations
 
 import base64

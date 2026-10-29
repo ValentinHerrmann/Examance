@@ -11,11 +11,7 @@ _STATE_CHANGING = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
 class OriginGuardMiddleware(BaseHTTPMiddleware):
-    """
-    Reject state-changing requests with a disallowed ``Origin`` header (CSRF).
-    Cookies are ``SameSite=None`` (cross-site SPA); CORS blocks reading the response, not sending.
-    A missing Origin passes: non-browser clients (curl, CLI) are not CSRF-reachable.
-    """
+    """Reject state-changing requests with a disallowed ``Origin`` header (CSRF). Cookies are ``SameSite=None`` (cross-site SPA); CORS blocks reading the response, not sending. A missing Origin passes: non-browser clients (curl, CLI) are not CSRF-reachable."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.method in _STATE_CHANGING:

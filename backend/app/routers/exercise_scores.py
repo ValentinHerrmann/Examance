@@ -1,7 +1,4 @@
-"""Per-exercise scores — /api/v1/exams/{id}/submissions/{id}/scores.
-
-The payload (score, selected options, OMR metadata) is sealed client-side; the server stores only
-the ciphertext. Writes are keyed on (submission, exercise): idempotent, safe to replay offline."""
+"""Per-exercise scores — /api/v1/exams/{id}/submissions/{id}/scores. The payload (score, selected options, OMR metadata) is sealed client-side; the server stores only the ciphertext. Writes are keyed on (submission, exercise): idempotent, safe to replay offline."""
 from __future__ import annotations
 
 import base64
@@ -89,11 +86,7 @@ async def put_scores(
     submission: ScanSubmission = Depends(get_submission_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> list[ExerciseScoreResponse]:
-    """Upsert the listed scores; unlisted ones are left alone (clearing is a DELETE).
-
-    Rows resolve by (submission_id, exercise_id), never by the client's id, so a
-    replay updates in place instead of answering 409.
-    """
+    """Upsert the listed scores; unlisted ones are left alone (clearing is a DELETE). Rows resolve by (submission_id, exercise_id), never by the client's id, so a replay updates in place instead of answering 409."""
     requested = {s.exercise_id for s in body.scores}
     if requested:
         linked = set(

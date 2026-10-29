@@ -32,8 +32,7 @@ from app.services.password_reset import (
 )
 from app.services.tokens import hash_token
 
-# Two routers: docs/openapi.json (diffed in CI) lists /forgot-password ahead of the registration
-# paths and the reset steps after them, and path order is registration order.
+# Two routers: docs/openapi.json (diffed in CI) lists /forgot-password ahead of the registration paths and the reset steps after them, and path order is registration order.
 forgot_router = APIRouter()
 reset_router = APIRouter()
 
@@ -46,9 +45,7 @@ async def forgot_password(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    """
-    Request a password reset link sent to the user's email address.
-    """
+    """Request a password reset link sent to the user's email address."""
     normalized_email = body.email.strip().lower()
     result = await db.execute(
         select(Teacher).where(func.lower(Teacher.email) == normalized_email)
@@ -59,8 +56,7 @@ async def forgot_password(
     if teacher and teacher.approved_at is not None:
         _token, mail = await create_reset_token(db, teacher)
         await audit_svc.log(db, request, teacher, "PASSWORD_RESET_REQUESTED")
-        # Committed before the response, and the mail sent after it: awaiting SMTP here made
-        # an existing address measurably slower to answer than an unknown one.
+        # Committed before the response, and the mail sent after it: awaiting SMTP here made an existing address measurably slower to answer than an unknown one.
         await db.commit()
         background_tasks.add_task(account_mail.send_all, [mail])
     else:
@@ -87,10 +83,7 @@ async def start_reset(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> AuthResponse:
-    """Open a password reset with the emailed link (the token is *one* of the two required factors).
-
-    Mailbox access alone must not complete a reset. An account that has not finished enrolling has
-    no second factor to offer, so it gets a `reset_pending` token that completes it alone."""
+    """Open a password reset with the emailed link (the token is *one* of the two required factors). Mailbox access alone must not complete a reset. An account that has not finished enrolling has no second factor to offer, so it gets a `reset_pending` token that completes it alone."""
     token_record, teacher = await verify_reset_token(db, body.token)
     if not token_record or not teacher:
         raise HTTPException(
@@ -103,9 +96,7 @@ async def start_reset(
     complete = await auth_policy.is_enrollment_complete(db, teacher)
     await issue_pending(response, teacher, "reset_pending", amr)
 
-    # Something to recover exists once the account holds a key copy, or authored anything (an
-    # account from before key envelopes holds data sealed under its old password). A fresh
-    # account, invited or self-registered, has neither and skips the recovery-code step.
+    # Something to recover exists once the account holds a key copy, or authored anything (an account from before key envelopes holds data sealed under its old password). A fresh account, invited or self-registered, has neither and skips the recovery-code step.
     holds_key_or_data = False
     for model in (KeyEnvelope, Exam, Exercise):
         found = await db.scalar(select(model.id).where(model.teacher_id == teacher.id).limit(1))
@@ -136,10 +127,7 @@ async def reset_password(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    """Set the new password and store the re-wrapped data key with it, in one transaction.
-
-    A password without its key copy looks like a working account until a sign-in opens nothing.
-    No envelope: the password wrap is marked unusable and the teacher needs the recovery code."""
+    """Set the new password and store the re-wrapped data key with it, in one transaction. A password without its key copy looks like a working account until a sign-in opens nothing. No envelope: the password wrap is marked unusable and the teacher needs the recovery code."""
     if session.scope != "reset_pending":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -176,9 +164,7 @@ async def reset_password(
         ) from err
 
     if body.envelope is not None:
-        # The teacher unwrapped their data key in the browser and re-wrapped it
-        # under the new password. `complete_password_reset` has just invalidated
-        # the old password wrap; this replaces the whole set with the new one.
+        # The teacher unwrapped their data key in the browser and re-wrapped it under the new password. `complete_password_reset` has just invalidated the old password wrap; this replaces the whole set with the new one.
         await replace_envelope_set(db, teacher, body.envelope)
 
     await audit_svc.log(db, request, teacher, "PASSWORD_RESET_COMPLETED")

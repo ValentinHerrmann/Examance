@@ -1,8 +1,4 @@
-"""Tests for the auth/config hardening controls.
-
-Covers: production SECRET_KEY validation, the registration password policy,
-logout cookie clearing, and the CSRF origin backstop.
-"""
+"""Tests for the auth/config hardening controls. Covers: production SECRET_KEY validation, the registration password policy, logout cookie clearing, and the CSRF origin backstop."""
 from __future__ import annotations
 
 import re
@@ -179,10 +175,7 @@ async def test_login_does_not_enforce_a_password_minimum(client: AsyncClient) ->
 async def test_logout_clears_cookies_with_matching_attributes(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    A SameSite=None cookie deleted without Secure is dropped by the browser,
-    leaving the session alive. The delete must repeat the set attributes.
-    """
+    """A SameSite=None cookie deleted without Secure is dropped by the browser, leaving the session alive. The delete must repeat the set attributes."""
     teacher = Teacher(
         email="logout-attrs@example.com",
         password_hash=hash_password("twelve-chars-plus"),
@@ -289,10 +282,7 @@ async def test_oversized_body_rejected_by_content_length(client: AsyncClient) ->
 
 @pytest.mark.asyncio
 async def test_oversized_chunked_body_rejected(client: AsyncClient) -> None:
-    """
-    A chunked request carries no Content-Length, so the header check alone
-    would let an unbounded body stream straight into memory.
-    """
+    """A chunked request carries no Content-Length, so the header check alone would let an unbounded body stream straight into memory."""
     from app.config import settings
 
     chunk = b"x" * 64_000

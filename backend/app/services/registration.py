@@ -1,6 +1,4 @@
-"""Self-registration (issue #53): `request_registration` stores a hashed single-use token and mails
-it; only `complete_registration` creates the account, approved at once just for allowlisted domains.
-Neither step may reveal whether an address already has an account."""
+"""Self-registration (issue #53): `request_registration` stores a hashed single-use token and mails it; only `complete_registration` creates the account, approved at once just for allowlisted domains. Neither step may reveal whether an address already has an account."""
 from __future__ import annotations
 
 import re
@@ -57,10 +55,7 @@ async def domain_rule(db: AsyncSession, email: str) -> AllowedEmailDomain | None
 
 
 async def request_registration(db: AsyncSession, email: str) -> Mail | None:
-    """Create or refresh the registration request for *email* and return its verification mail.
-
-    None (nothing sent) if the address has an account or a mail went out within the cooldown. The
-    caller commits, then sends; a unique-email failure on commit is a race: treat it as cooldown."""
+    """Create or refresh the registration request for *email* and return its verification mail. None (nothing sent) if the address has an account or a mail went out within the cooldown. The caller commits, then sends; a unique-email failure on commit is a race: treat it as cooldown."""
     existing_account = await db.scalar(
         select(Teacher.id).where(func.lower(Teacher.email) == email)
     )
@@ -99,10 +94,7 @@ async def request_registration(db: AsyncSession, email: str) -> Mail | None:
 async def complete_registration(
     db: AsyncSession, raw_token: str, password: str, note: str | None
 ) -> Teacher:
-    """Claim the token and create the account; raises `RegistrationTokenError`.
-
-    Claiming deletes the token row and checks this call deleted it, so concurrent completions cannot
-    both create an account. The caller commits; a unique-email violation then is the same error."""
+    """Claim the token and create the account; raises `RegistrationTokenError`. Claiming deletes the token row and checks this call deleted it, so concurrent completions cannot both create an account. The caller commits; a unique-email violation then is the same error."""
     request = await db.scalar(
         select(RegistrationRequest).where(RegistrationRequest.token_hash == hash_token(raw_token))
     )
@@ -142,12 +134,7 @@ async def complete_registration(
 
 
 async def admin_notices(db: AsyncSession, new_account: Teacher) -> list[Mail]:
-    """
-    Mails telling every approved admin that registrations are waiting.
-
-    Throttled without extra state: nothing goes out when another pending account arrived during
-    the quiet period, since its notice already covers this one.
-    """
+    """Mails telling every approved admin that registrations are waiting. Throttled without extra state: nothing goes out when another pending account arrived during the quiet period, since its notice already covers this one."""
     since = datetime.now(UTC) - timedelta(minutes=ADMIN_NOTICE_QUIET_MINUTES)
     recent_others = await db.scalar(
         select(func.count())

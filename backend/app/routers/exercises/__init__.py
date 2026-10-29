@@ -1,8 +1,4 @@
-"""Exercises library router — /api/v1/exercises/*
-
-Split by topic (library, sharing, resources). The parts are included in the order the routes were
-registered in the single module they came from: FastAPI matches overlapping paths in that order,
-so the fixed `/shared` and `/sync-status` must come before `/{exercise_id}`."""
+"""Exercises library router — /api/v1/exercises/* Split by topic (library, sharing, resources). The parts are included in the order the routes were registered in the single module they came from: FastAPI matches overlapping paths in that order, so the fixed `/shared` and `/sync-status` must come before `/{exercise_id}`."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

@@ -1,9 +1,4 @@
-"""
-TOTP enrollment and verification, and the backup codes that stand in for it.
-
-Everything that touches the stored secret lives here so the encryption boundary
-(`mfa_secret.py`) has exactly one set of callers.
-"""
+"""TOTP enrollment and verification, and the backup codes that stand in for it. Everything that touches the stored secret lives here so the encryption boundary (`mfa_secret.py`) has exactly one set of callers."""
 from __future__ import annotations
 
 import hmac
@@ -26,8 +21,7 @@ from app.services.tokens import rowcount
 
 BACKUP_CODE_COUNT = 10
 
-# 10 characters from a 32-symbol alphabet is ~50 bits — far beyond guessing at
-# the rate the login throttle allows, and still short enough to write down.
+# 10 characters from a 32-symbol alphabet is ~50 bits — far beyond guessing at the rate the login throttle allows, and still short enough to write down.
 _BACKUP_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 _BACKUP_CODE_LENGTH = 10
 
@@ -49,11 +43,7 @@ async def get_credential(db: AsyncSession, teacher_id: uuid.UUID) -> MfaCredenti
 
 
 async def start_enrollment(db: AsyncSession, teacher: Teacher) -> str:
-    """
-    Create (or replace) an unconfirmed enrollment and return its otpauth URI. Replacing is
-    deliberate (an abandoned screen should yield a working secret); a *confirmed* enrollment is
-    never replaced this way, its removal goes through the factor-removal guard.
-    """
+    """Create (or replace) an unconfirmed enrollment and return its otpauth URI. Replacing is deliberate (an abandoned screen should yield a working secret); a *confirmed* enrollment is never replaced this way, its removal goes through the factor-removal guard."""
     existing = await get_credential(db, teacher.id)
     if existing is not None and existing.confirmed_at is not None:
         raise ValueError("An authenticator is already enrolled for this account.")
@@ -78,8 +68,7 @@ async def _load_secret(credential: MfaCredential) -> bytes | None:
     try:
         return decrypt_secret(credential.secret_ct, credential.secret_iv)
     except InvalidTag:
-        # SECRET_KEY was rotated. The enrollment is gone; say so by failing the
-        # code rather than by accepting anything.
+        # SECRET_KEY was rotated. The enrollment is gone; say so by failing the code rather than by accepting anything.
         return None
 
 
@@ -109,11 +98,7 @@ TotpResult = Literal["ok", "invalid", "replayed"]
 
 
 async def verify_totp(db: AsyncSession, teacher: Teacher, code: str) -> TotpResult:
-    """
-    Check a code against a confirmed enrollment, refusing replays. "replayed" is a correct code
-    whose window is already spent (the app still shows it right after a password reset): it proves
-    possession, so callers must not count it as a failure or a thirty-second wait becomes a lockout.
-    """
+    """Check a code against a confirmed enrollment, refusing replays. "replayed" is a correct code whose window is already spent (the app still shows it right after a password reset): it proves possession, so callers must not count it as a failure or a thirty-second wait becomes a lockout."""
     credential = await get_credential(db, teacher.id)
     if credential is None or credential.confirmed_at is None:
         return "invalid"
@@ -142,12 +127,7 @@ async def verify_totp(db: AsyncSession, teacher: Teacher, code: str) -> TotpResu
 
 
 async def issue_backup_codes(db: AsyncSession, teacher: Teacher) -> list[str]:
-    """
-    Replace the teacher's backup codes and return the plaintext once.
-
-    Stored as keyed digests — see `mfa_secret.backup_code_digest` for why that
-    is the right primitive here and Argon2id was not.
-    """
+    """Replace the teacher's backup codes and return the plaintext once. Stored as keyed digests — see `mfa_secret.backup_code_digest` for why that is the right primitive here and Argon2id was not."""
     existing = await db.execute(
         select(MfaBackupCode).where(MfaBackupCode.teacher_id == teacher.id)
     )
@@ -167,11 +147,7 @@ async def issue_backup_codes(db: AsyncSession, teacher: Teacher) -> list[str]:
 
 
 async def consume_backup_code(db: AsyncSession, teacher: Teacher, code: str) -> bool:
-    """
-    Spend one backup code, looked up by keyed digest (one hash, one indexed read, no value-dependent
-    comparison). Legacy Argon2id sets cannot be converted (the plaintext is gone) and are still
-    verified row by row until regenerated from the security panel.
-    """
+    """Spend one backup code, looked up by keyed digest (one hash, one indexed read, no value-dependent comparison). Legacy Argon2id sets cannot be converted (the plaintext is gone) and are still verified row by row until regenerated from the security panel."""
     normalized = normalize_backup_code(code)
     if not normalized:
         return False
@@ -211,9 +187,7 @@ async def consume_backup_code(db: AsyncSession, teacher: Teacher, code: str) -> 
     if rowcount(spent) != 1:
         return False
 
-    # A backup code stands in for the authenticator, so it counts as the
-    # authenticator having been used. `last_used_step` is left alone: that one
-    # guards code replay and a backup code is not a code.
+    # A backup code stands in for the authenticator, so it counts as the authenticator having been used. `last_used_step` is left alone: that one guards code replay and a backup code is not a code.
     credential = await get_credential(db, teacher.id)
     if credential is not None:
         credential.last_used_at = now

@@ -1,8 +1,4 @@
-"""
-Key-envelope router — /api/v1/keys/*: wrapped copies of a teacher's data key.
-Opaque to the server: ciphertext, public salt and KDF params, never a password or recovery code.
-A teacher can only read or write their own envelopes.
-"""
+"""Key-envelope router — /api/v1/keys/*: wrapped copies of a teacher's data key. Opaque to the server: ciphertext, public salt and KDF params, never a password or recovery code. A teacher can only read or write their own envelopes."""
 from __future__ import annotations
 
 import base64
@@ -30,8 +26,7 @@ router = APIRouter(prefix="/keys", tags=["keys"])
 
 # Reads precede a full session (the reset and vault prompts unwrap first); the rows are ciphertext.
 _ENVELOPE_READ_SCOPES = {"full", "enroll", "auth_pending", "reset_pending"}
-# Writes need the finished sign-in, or an account still enrolling: one proven factor must never
-# replace or drop the only wraps of the data key. A reset stores its set via /auth/reset-password.
+# Writes need the finished sign-in, or an account still enrolling: one proven factor must never replace or drop the only wraps of the data key. A reset stores its set via /auth/reset-password.
 _ENVELOPE_WRITE_SCOPES = {"full", "enroll"}
 
 
@@ -71,10 +66,7 @@ async def list_envelopes(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> KeyEnvelopeListOut:
-    """
-    Return every wrap for the calling teacher, invalidated rows included and marked, so the client
-    can tell a factor orphaned by an admin password write from one never enrolled.
-    """
+    """Return every wrap for the calling teacher, invalidated rows included and marked, so the client can tell a factor orphaned by an admin password write from one never enrolled."""
     teacher = _require_envelope_scope(session)
     result = await db.execute(
         select(KeyEnvelope)
@@ -98,11 +90,7 @@ async def replace_envelopes(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> KeyEnvelopeListOut:
-    """
-    Replace the teacher's whole envelope set in one transaction.
-    Wholesale on purpose: merging could leave a new password wrap beside a recovery wrap holding
-    the previous DEK, which looks healthy until someone needs to recover.
-    """
+    """Replace the teacher's whole envelope set in one transaction. Wholesale on purpose: merging could leave a new password wrap beside a recovery wrap holding the previous DEK, which looks healthy until someone needs to recover."""
     teacher = _require_envelope_scope(session, write=True)
     enrolling = session.scope == "enroll"
     rows = await replace_envelope_set(db, teacher, body, keep_secret_wraps=enrolling)
@@ -125,11 +113,7 @@ async def delete_envelope(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """
-    Remove a single wrap (used when a passkey is deregistered).
-    The recovery wrap cannot be deleted this way: it always works, and dropping it would leave
-    the account one forgotten password from unreadable data.
-    """
+    """Remove a single wrap (used when a passkey is deregistered). The recovery wrap cannot be deleted this way: it always works, and dropping it would leave the account one forgotten password from unreadable data."""
     teacher = _require_envelope_scope(session, write=True)
     result = await db.execute(
         select(KeyEnvelope).where(

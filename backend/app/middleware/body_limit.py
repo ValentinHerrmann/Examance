@@ -10,11 +10,7 @@ from app.config import settings
 
 
 class BodyLimitMiddleware(BaseHTTPMiddleware):
-    """
-    Enforce per-route request body size limits, rejecting oversized requests with HTTP 413.
-    Content-Length is only an early reject (untrusted, absent on chunked uploads), so the limit
-    is also enforced while the body streams.
-    """
+    """Enforce per-route request body size limits, rejecting oversized requests with HTTP 413. Content-Length is only an early reject (untrusted, absent on chunked uploads), so the limit is also enforced while the body streams."""
 
     def _get_limit(self, path: str, method: str) -> int:
         if method not in ("POST", "PATCH", "PUT"):
@@ -58,11 +54,7 @@ class BodyLimitMiddleware(BaseHTTPMiddleware):
         original_receive = request.receive
 
         async def limited_receive() -> Message:
-            """
-            Stop feeding the body downstream once the limit is passed.
-            Raising would surface as a generic 400; instead the stream is cut short and dispatch
-            replaces the response with a 413.
-            """
+            """Stop feeding the body downstream once the limit is passed. Raising would surface as a generic 400; instead the stream is cut short and dispatch replaces the response with a 413."""
             nonlocal received, exceeded
             message = await original_receive()
             if message["type"] == "http.request":
