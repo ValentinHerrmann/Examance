@@ -1,3 +1,7 @@
+---
+editLink: false
+---
+
 # Getting started
 
 Examance covers an exam end to end: collect exercises, typeset the exam, import the scanned sheets, grade them anonymously and analyse the results. Everything sensitive (student names, scans, annotations, scores) is encrypted in your browser before it is stored. The key is derived from your password and never leaves your device, so not even whoever runs the server can read it.
@@ -38,5 +42,5 @@ In the still empty exam overview, **Add example data** creates example exercises
 ## Next steps
 
 - [From exercise to analysis](./workflow): the usual workflow, step by step.
-- [Pitch decks and posters](../concept_pitch): a screenshot tour and a detailed explanation of privacy and security, in German.
+- [Info material](./material): slide decks and posters with a screenshot tour and a detailed explanation of privacy and security, in German.
 - [Data flow and security](../data_flow_and_security): how the encryption works, for the technically curious.

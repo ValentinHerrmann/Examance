@@ -1,6 +1,6 @@
 # LaTeX in the frontend: exercise structure, resources, compile errors, engines
 
-Read on demand; moved out of `frontend/CLAUDE.md` so it does not load into every session. The never-rules stay there.
+The short rules that must never be broken in this area are in `frontend/CLAUDE.md`.
 
 ## Exercise structure (issues #77-#79)
 

@@ -1,6 +1,8 @@
-# Examance pitch index
+# Decks and posters: sources
 
-Two sets of material in German, each a deck (16:9) and a poster (A3 portrait). All share the theme in [`pitches/examance-theme.css`](pitches/examance-theme.css), which reuses the app's dark-theme colour tokens, navbar, chips and step markers so the material reads as part of the product. Screenshots are taken in the app's dark theme to match. Keep it at these two sets; adapt them instead of adding audience variants.
+How the info material is made and maintained. Readers find the PDFs on the [Info material](user/material.md) page.
+
+Two sets of material in German, each a deck (16:9) and a poster (A3 portrait), written as [Marp](https://marp.app) Markdown: sources in [`pitches/`](pitches/) and [`posters/`](posters/). All share the theme in [`pitches/examance-theme.css`](pitches/examance-theme.css), which reuses the app's dark-theme colour tokens, navbar, chips and step markers so the material reads as part of the product. Screenshots are taken in the app's dark theme to match. Keep it at these two sets; adapt them instead of adding audience variants.
 
 | Set | Deck | Poster | Audience and focus |
 |---|---|---|---|

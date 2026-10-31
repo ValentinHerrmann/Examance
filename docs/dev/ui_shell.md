@@ -1,6 +1,6 @@
 # UI shell, overview lists and small features
 
-Read on demand; moved out of `frontend/CLAUDE.md` so it does not load into every session. The never-rules stay there.
+The short rules that must never be broken in this area are in `frontend/CLAUDE.md`.
 
 ## Overview lists
 

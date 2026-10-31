@@ -1,35 +1,9 @@
-import { existsSync } from 'node:fs';
-import { dirname, posix, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitepress';
 import { withMermaid } from 'vitepress-plugin-mermaid';
+import { copySiteFiles, examanceMarkdown, REPO_URL, siteFilesDevServer, SRC_EXCLUDE } from './markdown';
 
 // Production and previews on Cloudflare (served at /), backup on GitHub Pages (served at /Examance/, DOCS_BASE set by .github/workflows/docs.yml).
-const REPO_URL = 'https://github.com/ValentinHerrmann/Examance';
-const DOCS_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const REPO_ROOT = resolve(DOCS_ROOT, '..');
 const BASE = process.env.DOCS_BASE ?? '/';
-
-// Marp slide sources and demo-instance tooling are not pages; the site links their PDFs and sources on GitHub.
-const SRC_EXCLUDE = ['demo-instance/**', 'pitches/**', 'posters/**', 'screenshots/**', 'node_modules/**', 'README.md'];
-
-const EXCLUDED_DIRS = ['demo-instance/', 'pitches/', 'posters/', 'screenshots/'];
-
-/** Rewrites a relative link that is not a site page (source file, PDF, excluded page) to its GitHub copy on `release`. */
-function toGithubHref(href: string, pageRelPath: string): string | null {
-  if (/^([a-z][a-z0-9+.-]*:|#|\/)/i.test(href)) return null;
-  const [path, hash = ''] = href.split('#', 2);
-  if (!path) return null;
-  const target = posix.normalize(posix.join(posix.dirname(pageRelPath), path));
-  const insideDocs = !target.startsWith('../');
-  const isPage = target.endsWith('.md') && insideDocs && !EXCLUDED_DIRS.some((d) => target.startsWith(d));
-  const isImage = /\.(png|jpe?g|gif|webp|svg)$/i.test(target);
-  if (isPage || (isImage && insideDocs)) return null;
-  const repoPath = relative(REPO_ROOT, resolve(DOCS_ROOT, target)).split('\\').join('/');
-  if (!existsSync(resolve(REPO_ROOT, repoPath))) return null;
-  const kind = repoPath.endsWith('/') || !/\.[a-z0-9]+$/i.test(repoPath) ? 'tree' : 'blob';
-  return `${REPO_URL}/${kind}/release/${repoPath}${hash ? `#${hash}` : ''}`;
-}
 
 export default withMermaid(defineConfig({
   title: 'Examance',
@@ -40,24 +14,10 @@ export default withMermaid(defineConfig({
   head: [['link', { rel: 'icon', type: 'image/png', href: `${BASE}logo.png` }]],
   markdown: {
     languageAlias: { env: 'dotenv' },
-    config(md) {
-      md.core.ruler.after('inline', 'examance-github-links', (state) => {
-        const pageRelPath: string = state.env.relativePath ?? '';
-        for (const block of state.tokens) {
-          for (const token of block.children ?? []) {
-            if (token.type !== 'link_open') continue;
-            const href = token.attrGet('href');
-            const rewritten = href ? toGithubHref(href, pageRelPath) : null;
-            if (rewritten) {
-              token.attrSet('href', rewritten);
-              token.attrSet('target', '_blank');
-              token.attrSet('rel', 'noreferrer');
-            }
-          }
-        }
-      });
-    },
+    config: (md) => examanceMarkdown(md, BASE),
   },
+  vite: { plugins: [siteFilesDevServer(BASE)] },
+  buildEnd: (siteConfig) => copySiteFiles(siteConfig.outDir),
   themeConfig: {
     logo: '/logo.png',
     nav: [
@@ -72,7 +32,7 @@ export default withMermaid(defineConfig({
         items: [
           { text: 'Getting started', link: '/user/' },
           { text: 'From exercise to analysis', link: '/user/workflow' },
-          { text: 'Pitch decks and posters', link: '/concept_pitch' },
+          { text: 'Info material (PDF)', link: '/user/material' },
         ],
       },
       {
@@ -103,7 +63,7 @@ export default withMermaid(defineConfig({
           { text: 'CI and dependency audit', link: '/dev/ci_and_audit' },
           { text: 'Training-data donation', link: '/dev/training_donation' },
           { text: 'Third-party licenses and SRI', link: '/THIRD_PARTY_LICENSES' },
-          { text: 'Slide sources', link: '/concept_pitch_slides' },
+          { text: 'Decks and posters: sources', link: '/concept_pitch' },
         ],
       },
       {

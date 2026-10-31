@@ -2,7 +2,7 @@
 
 Privacy-first, zero-knowledge-encrypted anonymous exam grading. Teachers author LaTeX exams, print QR-coded booklets, scan and grade submissions against a pseudonym rather than a name, and get class-level analytics — all with student identity, scans and grading annotations encrypted client-side before they ever reach a server (in `all-server` mode as ciphertext on the server; in `hybrid` mode grading results stay only in the teacher's browser). Every user signs in with a server account. Repo name `BlindGrade` is legacy; the product is Examance.
 
-[Concept Pitch](docs/concept_pitch.md) ([slides PDF](docs/concept_pitch.pdf)) — problem, feature walkthrough with current screenshots, security modes. (Superseded [slide deck](docs/BlindGrade_Presentation.pdf) / [poster](docs/BlindGrade_Poster.png) kept for reference — pre-rename, AI-generated mockups, not current UI.)
+[Info material](https://valentinherrmann.github.io/Examance/user/material) — slide decks and posters with a screenshot tour and a detailed explanation of privacy and security (German).
 
 ## Quickstart
 
@@ -42,7 +42,7 @@ Backend API at `http://localhost:8000/api/docs`, frontend at `http://localhost:5
 **Documentation site: <https://valentinherrmann.github.io/Examance/>** (user guide, operator and developer docs, legal; built from `docs/` for the latest release). The files below are the same sources.
 
 **Pitch & posters** — two sets, each a slide deck and a poster, using the actual app and current privacy model:
-* [Examance pitch index](docs/concept_pitch.md) — overview, audiences and rendering
+* [Decks and posters: sources](docs/concept_pitch.md) — audiences, rules and rendering
 * [UI deck](docs/pitches/examance-ui.pdf) · [UI poster](docs/posters/examance-ui.pdf) — screenshot tour for everyone
 * [Information deck](docs/pitches/examance-info.pdf) · [Information poster](docs/posters/examance-info.pdf) — how it works, privacy and security in detail, with diagrams; for computer science teachers, school leadership, data protection and IT
 

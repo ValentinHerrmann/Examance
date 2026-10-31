@@ -253,7 +253,7 @@ Until the link is used no `teachers` row exists, so that table holds verified ad
 | `exams` | `id, teacherId, retentionUntil` | Title, LaTeX preamble, LaTeX template, info text, testart, klasse, datum, nr, fach, topic, teacher name | Opaque Binary Ciphertext / Purged |
 | `exercises` | `id, examId, topicTag, grade, subject, name, exerciseGroupId, variantKey, isCurrent` | Title, exercise name, LaTeX body, answer choices, correct answers | Opaque Binary Ciphertext / Purged |
 | `examExercises` | `[examId+exerciseId], examId, exerciseId, orderIndex, mcGroupId` | N/A (UUID links only) | Standard IDB table |
-| `examMcGroups` | `id, examId, orderIndex` | N/A — title, scoring text and order are layout metadata for MC-group LaTeX rendering only, not exercise content; see CLAUDE.md "Multiple Choice (MC) Data Model" | Standard IDB table |
+| `examMcGroups` | `id, examId, orderIndex` | N/A — title, scoring text and order are layout metadata for MC-group LaTeX rendering only, not exercise content; see [MC and exam data model](dev/mc_model.md) | Standard IDB table |
 | `students` | `pseudonymId, examId` | Student PII — `fallbackCode`, `studentName`, `studentNumber` (`payloadCt`) | Opaque Binary Ciphertext / Purged |
 | `submissions` | `id, examId, pseudonymHash` | Total score (`totalScore`), scan image blob (`scanCt`), annotations vector layer (`annotationCt`) | Opaque Binary Ciphertext / Purged |
 | `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options, OMR metadata (`omrMeta`: detection result, per-bubble raw fill ratios and immutable detector state, page alignment stats, and the `run` snapshot — detection time, settings and algorithm version used) | Opaque Binary Ciphertext / Purged |

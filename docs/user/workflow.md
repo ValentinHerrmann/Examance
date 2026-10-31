@@ -1,3 +1,7 @@
+---
+editLink: false
+---
+
 # From exercise to analysis
 
 The usual path of an exam through Examance. Each step has its own help topic in the app (the **?** buttons).

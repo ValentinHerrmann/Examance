@@ -1,6 +1,6 @@
 # Multiple Choice (MC) and exam data model
 
-Read on demand; moved out of `frontend/CLAUDE.md` so it does not load into every session. The never-rules stay there.
+The short rules that must never be broken in this area are in `frontend/CLAUDE.md`.
 
 - **MC question**: an individual `Exercise` / `ExerciseRecord` (`question_type: mc|sc|tf`, `correct_answers` JSON / `options` & `correctAnswers` arrays, `penalty`). Variants use the standard `exercise_group_id` + `variant_key`.
 - **MC group (`\McExercise{a}{b}{c}`)**: a per-exam layout container (`ExamMcGroup` / `ExamMcGroupRecord`, 1+ sub-items, no cap on count or size) linking members via `ExamExercise.mc_group_id` and `sub_index`. Rendered into one `\begin{Aufgabe}` by `formatMcGroupLatex()` (`lib/latex/scoreParser.ts`; the server builds no exam LaTeX since M6). An exercise belongs to at most one group (staging rules: `lib/exam/mcGroupStaging.ts`, used by the exam page's `exam/ExamExercisePicker`).
