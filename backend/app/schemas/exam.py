@@ -209,6 +209,7 @@ class ExamCreate(BaseModel):
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
     name_line: bool = False
+    mc_correction_hint: bool = False
     extra_notes: ExtraNotes | None = None
     exercise_ids: list[uuid.UUID] = []
     exercise_links: list[ExerciseLinkCreate] = []
@@ -249,6 +250,7 @@ class ExamUpdate(BaseModel):
     # Absent keeps the stored breaks; null or [] clears them.
     page_breaks: list[str] | None = None
     name_line: bool | None = None
+    mc_correction_hint: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     exercise_ids: list[uuid.UUID] | None = None
@@ -282,6 +284,7 @@ class ExamResponse(BaseModel):
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
     name_line: bool = False
+    mc_correction_hint: bool = False
     extra_notes: ExtraNotes | None = None
     exercises: list[ExerciseResponse] = []
     mc_groups: list[ExamMcGroupResponse] = []

@@ -34,7 +34,7 @@ Print the sheets exactly as typeset; the QR codes must stay readable. After the 
 
 Upload the PDF on the exam's scan page. Examance splits it into submissions along the QR codes and encrypts every page in the browser right away. The QR code points at a pseudonym, not a name. Pages with unreadable codes land in a verification view where you assign them by hand or enter the fallback code printed on the sheet.
 
-Ticked multiple choice boxes are detected during import. In the MC verification view you confirm or correct uncertain detections.
+Ticked multiple choice boxes are detected during import. Students withdraw a cross by filling the box completely and choose a filled box again by crossing just left of it; the exam option "Show how to correct a cross at every multiple-choice task" prints this as one short line on each multiple choice task. In the MC verification view you confirm or correct uncertain detections.
 
 ![Scan import](../screenshots/pitch/05-scan-import.jpg)
 ![MC verification](../screenshots/pitch/07-mc-review.jpg)
