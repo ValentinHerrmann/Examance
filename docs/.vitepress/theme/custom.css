@@ -8,3 +8,8 @@
   margin-right: 0.4rem;
   vertical-align: middle;
 }
+
+/* Documented theme variable (vars.css): sidebar and outline sit at the screen edges instead of inside a 1440 px frame. */
+:root {
+  --vp-layout-max-width: 100vw;
+}
