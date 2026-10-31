@@ -13,7 +13,7 @@ Real captures of the current UI (German, dark theme to match the decks, 1600×10
 | `07-mc-review.jpg` | MC detection review of one answer |
 | `08-results.jpg`, `08b-paper-entry.jpg` | Grade overview; points of a paper-graded class pasted from Excel |
 | `09-analytics.jpg`, `09b-variant-comparison.jpg` | Cross-exam analytics; Gruppe A vs. B comparison |
-| `10-settings-storage.jpg`, `11-security.jpg` | Storage mode and LaTeX engine; sign-in factors (older settings layout; the user guide uses [`../guide/`](../guide/README.md)) |
+| `10-settings-storage.jpg`, `11-security.jpg` | Storage mode; sign-in factors (cropped from the `guide-settings-storage` and `guide-security` captures) |
 | `12-signin-second-factor.jpg`, `13-storage-choice.jpg` | Mandatory second factor and storage choice at first sign-in |
 | `14-admin-accounts.jpg`, `15-admin-approvals.jpg`, `16-admin-domains.jpg` | Admin user management |
 | `17-scanned-sheet.jpg`, `18-scanned-sheet-mc.jpg` | Synthetic scanned exam pages |

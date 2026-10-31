@@ -262,7 +262,7 @@ async function tour() {
     await page.setViewportSize({ width: 1280, height: 800 });
   }
   if (t('grading')) {
-    // Booklet af14… (plan Q2-Q4: 3 / 4 / 2.5), zoomed onto the MC group and Q2. A stamped task scores the sum of its stamps, so the stamps (set once, persisted) add up to the plan; Q4 keeps its entered score.
+    // Booklet af14… (plan Q2-Q4: 3 / 4 / 2.5), zoomed onto the MC group and Q2. Once a booklet has stamps its tasks score the sum of their stamps, so the stamps (set once, persisted) cover Q2-Q4 and add up to the plan.
     await go(page, `/exam/${ids['10b']}/scan`, 8000);
     const subId = await page.locator('td[title^="Pseudonym: af14e273c5"]').locator('xpath=ancestor::tr[1]').locator('td[title^="Abgabe-ID: "]').getAttribute('title');
     const open1 = async () => {
@@ -282,10 +282,13 @@ async function tour() {
         await page.getByRole('button', { name: tool }).first().click();
         for (const [x, y] of pts) { await page.mouse.click(x, y); await page.waitForTimeout(400); }
       };
-      const ONE = /^\+1\.0|\+1,0/;
+      const ONE = /^\+1\.0|\+1,0/, HALF = /^\+0\.5|\+0,5|½/;
       await stamp('Q2', ONE, [[290, 405], [365, 500], [245, 535]]);
       await page.mouse.click(611, 721); await page.waitForTimeout(3500); // page 2: Q3 at the top
       await stamp('Q3', ONE, [[275, 236], [275, 267], [275, 297], [525, 478]]);
+      await page.mouse.move(500, 400); await page.mouse.wheel(0, 300); await page.waitForTimeout(1200); // Q4 below
+      await stamp('Q4', ONE, [[515, 108], [612, 162]]);
+      await stamp('Q4', HALF, [[612, 195]]);
       await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
       await page.waitForTimeout(3000);
       writeState('progress.json', { ...progress, 'tour-stamps': true });
@@ -329,9 +332,9 @@ async function tour() {
     const c = await open({ profile: 'berger', width: 760, height: 1150, scale: 3 });
     await login(c.page, 'berger');
     await go(c.page, `/exam/${ids['10b']}/verify`, 7000);
-    // Question a) of that pupil: the cancelled and faint marks are there.
-    const item = c.page.locator('div, li').filter({ hasText: 'Y5QYAD' }).filter({ hasText: 'Personenbezogene Daten' }).filter({ has: c.page.getByRole('link', { name: /Element überprüfen/ }) }).last();
-    await item.getByRole('link', { name: /Element überprüfen/ }).first().click();
+    // Its question a) (cancelled and faint marks) is the only unsure item, listed first.
+    await c.page.getByText('Y5QYAD', { exact: true }).first().waitFor();
+    await c.page.getByRole('link', { name: /Element überprüfen/ }).first().click();
     await c.page.waitForTimeout(15000);
     await shot(c.page, 'tour-mc-review');
     await c.ctx.close();

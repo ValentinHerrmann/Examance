@@ -28,7 +28,7 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 
 `capture.mjs exam-new` (and `tour-exam-new`) creates a real exam "Leistungsnachweis Informatik 10c", because the new-exam flow saves before picking exercises; delete it afterwards. Run `capture.mjs` with one name per group: a failing step aborts the rest. Without Tectonic on the host, set `bg_latex_compilation` to `local` in the Playwright profiles so exams compile in the browser.
 
-**Known gap:** the exam page now lists MC groups first, but `mkscans.py` still places the handwriting for the old order (MC group last), so a fresh seed writes over the wrong questions on the *10b*/*10a* sheets. The committed `06`–`08`, `17`, `18` and the matching tour crops come from an earlier run; retake them only after `mkscans.py` follows the new layout.
+`mkscans.py` places the handwriting under each prompt as found in the compiled exam and reads the MC boxes from every page, so the exercise order of the exam does not matter. The stamp positions in `seed-results.mjs` (showcase) and `capture.mjs` (`tour-grading`) are screen coordinates for the current layout; check them after a layout change.
 
 The demo exercises put `\BE` inside their solutions (checkmark per scored part). The student sheet counts those only with the `\LSG` fix from PR #84; without it the score boxes read "/ 0".
 
