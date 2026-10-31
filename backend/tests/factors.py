@@ -152,15 +152,19 @@ async def complete_reset(
     assert done.status_code == 200, done.text
 
 
-async def compile_job(client: AsyncClient, json: dict[str, Any], **kwargs: Any) -> Response:
-    """Start a compile job and poll it like the browser; returns the refusal when the start is refused, else the job's outcome."""
-    start = await client.post("/api/v1/compile/latex/jobs", json=json, **kwargs)
-    if start.status_code != 202:
-        return start
-    url = f"/api/v1/compile/latex/jobs/{start.json()['job_id']}"
+async def poll_compile_job(client: AsyncClient, job_id: str, **kwargs: Any) -> Response:
+    """Poll a compile job like the browser does until it stops answering 202."""
     for _ in range(200):
-        res = await client.get(url, **kwargs)
+        res = await client.get(f"/api/v1/compile/latex/jobs/{job_id}", **kwargs)
         if res.status_code != 202:
             return res
         await asyncio.sleep(0.01)
     raise AssertionError("compile job never finished")
+
+
+async def compile_job(client: AsyncClient, json: dict[str, Any], **kwargs: Any) -> Response:
+    """Start a compile job and poll it; returns the refusal when the start is refused, else the job's outcome."""
+    start = await client.post("/api/v1/compile/latex/jobs", json=json, **kwargs)
+    if start.status_code != 202:
+        return start
+    return await poll_compile_job(client, start.json()["job_id"], **kwargs)
