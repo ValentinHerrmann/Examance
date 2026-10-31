@@ -1,7 +1,4 @@
-/**
- * Accessibility scan (axe-core) of every main route in both themes, on the
- * desktop and phone projects. Serious and critical violations fail the test.
- */
+/** Accessibility scan (axe-core) of every main route in both themes, on the desktop and phone projects. Serious and critical violations fail the test. */
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect } from './helpers/guards';
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';

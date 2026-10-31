@@ -14,9 +14,7 @@ CONTRIBUTION_STATUSES = ("pending", "accepted", "rejected", "withdrawn")
 
 
 class ExerciseContribution(Base):
-    """An immutable snapshot the owner accepts (as a new version/variant) or rejects.
-
-    The payload is cleared once decided; only the decision is kept until retention drops the row."""
+    """An immutable snapshot the owner accepts (as a new version/variant) or rejects. The payload is cleared once decided; only the decision is kept until retention drops the row."""
 
     __tablename__ = "exercise_contributions"
 

@@ -1,11 +1,7 @@
 import { derived, get, writable, type Readable } from 'svelte/store';
 import { effectiveBackendStore } from '#lib/stores/backendStore';
 
-/**
- * Maintenance and deployment windows (issue #130), polled from the public GET /api/v1/maintenance.
- * A passive probe like refreshBackendVersion: bare fetch, never the HTTP error modal; a failed poll keeps
- * the last known window (the backend is unreachable exactly while it restarts).
- */
+/** Maintenance and deployment windows (issue #130), polled from the public GET /api/v1/maintenance. A passive probe like refreshBackendVersion: bare fetch, never the HTTP error modal; a failed poll keeps the last known window (the backend is unreachable exactly while it restarts). */
 
 export type MaintenancePhase = 'none' | 'scheduled' | 'warning' | 'final' | 'down';
 export type DowntimeClass = 'very_short' | 'short' | 'long' | 'unspecific';

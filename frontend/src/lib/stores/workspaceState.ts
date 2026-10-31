@@ -1,11 +1,7 @@
 import { writable } from 'svelte/store';
 
-/**
- * Why this session may not open this browser's workspace (`lib/db/workspace.ts`): `foreign-key` (sealed under another
- * account's key), `foreign-account` (local results of another account or backend), `pending-writes` (another account's
- * offline writes still await the server), `legacy-local` (discontinued local mode, can no longer be opened).
- */
-export type WorkspaceBlockReason = 'foreign-key' | 'foreign-account' | 'pending-writes' | 'legacy-local';
+/** Why this session may not open this browser's workspace (`lib/db/workspace.ts`): `foreign-key` (sealed under another account's key), `foreign-account` (local results of another account or backend), `pending-writes` (another account's offline writes still await the server), `legacy-local` (discontinued local mode, can no longer be opened), `error` (IndexedDB or the server failed while deciding: retryable, never a reason to offer the reset). */
+export type WorkspaceBlockReason = 'foreign-key' | 'foreign-account' | 'pending-writes' | 'legacy-local' | 'error';
 
 export type WorkspaceStatus =
   | { state: 'unchecked' }
@@ -19,8 +15,5 @@ export type WorkspaceStatus =
 /** Set by `openWorkspace()`; the root layout renders a blocking screen or the mode choice from it. */
 export const workspaceStatusStore = writable<WorkspaceStatus>({ state: 'unchecked' });
 
-/**
- * Id of the workspace this tab works in, read synchronously by the offline queue. Null until the
- * manifest is loaded.
- */
+/** Id of the workspace this tab works in, read synchronously by the offline queue. Null until the manifest is loaded. */
 export const workspaceIdStore = writable<string | null>(null);

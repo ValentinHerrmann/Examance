@@ -27,10 +27,7 @@ export function describeLocation(loc: SourceLocation): string {
     : translate('misc.compiler.locationGenerated', { line: String(loc.line) });
 }
 
-/**
- * The error with its TeX errors summarized and their line numbers mapped back to the exercises
- * (`map` from `extractSourceMap`). Keeps the original message when the log holds no "!" error.
- */
+/** The error with its TeX errors summarized and their line numbers mapped back to the exercises (`map` from `extractSourceMap`). Keeps the original message when the log holds no "!" error. */
 export function withSourceLocations(err: LatexCompileError, map: SourceMap): LatexCompileError {
   const blocks = extractTexErrors(err.log);
   if (blocks.length === 0) return new LatexCompileError(err.message, err.log, err.engine, map.tex, map.ranges);

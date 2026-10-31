@@ -1,8 +1,4 @@
-/**
- * Creates an imported .bgproj archive's contents on the server by POSTing everything, never `examRepository.save()`: it
- * PATCHes when a record has an id and the backend answers 401 (not 404) for another account's exam, so its create-fallback
- * never fires. A taken archived id (409) is retried once under a fresh UUID kept in `idMap`; foreign exercises are copied (#65).
- */
+/** Creates an imported .bgproj archive's contents on the server by POSTing everything, never `examRepository.save()`: it PATCHes when a record has an id and the backend answers 401 (not 404) for another account's exam, so its create-fallback never fires. A taken archived id (409) is retried once under a fresh UUID kept in `idMap`; foreign exercises are copied (#65). */
 
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
@@ -57,8 +53,7 @@ async function createWithIdFallback(
     }
   }
 
-  // 409 — the archived id belongs to a record that already exists on this
-  // backend (typically the account the archive was exported from).
+  // 409 — the archived id belongs to a record that already exists on this backend (typically the account the archive was exported from).
   const retryBody = { ...body, id: crypto.randomUUID() };
   try {
     const res = (await api.post<any>(path, retryBody, { silentError: true })) as any;
@@ -108,8 +103,7 @@ export async function importPayloadToServer(
   for (const ex of exercises) {
     const label = ex.title || ex.name || ex.id;
 
-    // Already on the server and owned by this account: link it.
-    // Sequential on purpose: later members of a group reuse the group id the first one created.
+    // Already on the server and owned by this account: link it. Sequential on purpose: later members of a group reuse the group id the first one created.
     if (ex.id && (await exerciseOwned(ex.id))) { // NOSONAR: see above
       reusedExerciseIds.add(ex.id);
       bump(report, 'exercises', 'linked');
@@ -142,9 +136,7 @@ export async function importPayloadToServer(
     bump(report, 'exercises', decided.get(ex.id) ?? (ex.id && created.id !== ex.id ? 'newId' : 'created'));
   }
 
-  // 1b. Resource files of those exercises. They follow the same id remapping;
-  // a rejection is reported but never aborts the rest of the import, since a
-  // missing figure is far less costly than a lost exercise.
+  // 1b. Resource files of those exercises. They follow the same id remapping; a rejection is reported but never aborts the rest of the import, since a missing figure is far less costly than a lost exercise.
   for (const res of resources) {
     if (!res?.exerciseId || !createdExerciseIds.has(res.exerciseId)) continue;
     const exerciseId = idMap.get(res.exerciseId) ?? res.exerciseId;
@@ -174,8 +166,7 @@ export async function importPayloadToServer(
     }
   }
 
-  // 1c. Links to exercises the archive does not carry: reuse them only when this account owns them on
-  // the server. Another teacher's exercise, shared or not, is never linked (copy it in the library).
+  // 1c. Links to exercises the archive does not carry: reuse them only when this account owns them on the server. Another teacher's exercise, shared or not, is never linked (copy it in the library).
   const archivedExerciseIds = new Set(exercises.map((ex) => ex.id));
   for (const id of new Set(junctions.map((j) => j.exerciseId as string))) {
     if (archivedExerciseIds.has(id) || reusedExerciseIds.has(id)) continue;

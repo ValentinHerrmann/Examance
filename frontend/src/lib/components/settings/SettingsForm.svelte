@@ -10,28 +10,28 @@
   interface Props {
     /** Null until the account has chosen one. */
     storageMode: StorageMode | null;
-    latexCompilation: "server" | "local";
-    uiLocale: Locale;
-    onStorageModeChange: (val: StorageMode) => void;
-    onLatexChange: (val: "server" | "local") => void;
+    latexCompilation?: "server" | "local";
+    uiLocale?: Locale;
+    onStorageModeChange?: (val: StorageMode) => void;
+    onLatexChange?: (val: "server" | "local") => void;
     /** Modes this account may choose (`stores/capabilities.ts`); the others render disabled. */
     allowedModes: StorageMode[];
     /** Whether this account may compile on the server. */
-    serverLatexEnabled: boolean;
-    onLocaleChange: (val: Locale) => void;
+    serverLatexEnabled?: boolean;
+    onLocaleChange?: (val: Locale) => void;
     /** Which cards to render, so the page can order them by how often they are used. */
     part: "storage" | "latex" | "general";
   }
 
   let {
     storageMode,
-    latexCompilation,
-    uiLocale,
-    onStorageModeChange,
-    onLatexChange,
+    latexCompilation = "local",
+    uiLocale = "de",
+    onStorageModeChange = () => {},
+    onLatexChange = () => {},
     allowedModes,
-    serverLatexEnabled,
-    onLocaleChange,
+    serverLatexEnabled = false,
+    onLocaleChange = () => {},
     part,
   }: Props = $props();
 
@@ -50,11 +50,7 @@
   const optionText = "m-0 mt-1 text-sm text-muted";
   const description = "mt-0 mb-4 text-sm text-muted";
 
-  /**
-   * The radios never select themselves: a mode change runs through the move dialog (and may be
-   * cancelled). Cancelling the native toggle keeps the
-   * checked dot on what is actually in effect; the store moves it once a change is committed.
-   */
+  /** The radios never select themselves: a mode change runs through the move dialog (and may be cancelled). Cancelling the native toggle keeps the checked dot on what is actually in effect; the store moves it once a change is committed. */
   function gated(event: MouseEvent, request: () => void) {
     event.preventDefault();
     request();

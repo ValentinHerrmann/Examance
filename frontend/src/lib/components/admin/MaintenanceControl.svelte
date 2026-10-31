@@ -1,6 +1,5 @@
 <script lang="ts">
-  // Maintenance mode for admins (issue #130): announce a window with a lead time (0 = now) and an expected
-  // duration, optionally back up the database when it starts, and see who is still online.
+  // Maintenance mode for admins (issue #130): announce a window with a lead time (0 = now) and an expected duration, optionally back up the database when it starts, and see who is still online.
   import { onMount } from "svelte";
   import { apiErrorMessage } from "#lib/api/client";
   import {

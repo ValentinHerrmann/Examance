@@ -1,8 +1,4 @@
-/**
- * Cross-tab coherence for the workspace (I6, docs/dev/storage_modes.md): a tab holding the previous mode would route to the
- * old store and mirror server rows into a database that moved on, so any workspace change reloads every other tab and a
- * results move blocks them. `storage` events fire only in the *other* tabs, which is exactly the audience.
- */
+/** Cross-tab coherence for the workspace (I6, docs/dev/storage_modes.md): a tab holding the previous mode would route to the old store and mirror server rows into a database that moved on, so any workspace change reloads every other tab and a results move blocks them. `storage` events fire only in the *other* tabs, which is exactly the audience. */
 
 import { derived, writable } from 'svelte/store';
 import { WORKSPACE_ID_KEY } from '#lib/db/workspace';
@@ -23,14 +19,12 @@ let registered = false;
 export function registerWorkspaceSync(): void {
   if (registered || typeof window === 'undefined') return;
   registered = true;
-  // Only a move that starts while this tab is open blocks it. A record already present at load is
-  // an interrupted move; the layout offers to run it again instead of blocking forever.
+  // Only a move that starts while this tab is open blocks it. A record already present at load is an interrupted move; the layout offers to run it again instead of blocking forever.
 
   window.addEventListener('storage', (event) => {
     const changed = event.newValue !== event.oldValue;
     if ((event.key === WORKSPACE_ID_KEY || event.key === MODE_CHANGED_KEY) && changed) {
-      // Another tab replaced the workspace or changed the account's mode: nothing in this tab's memory
-      // is valid any more.
+      // Another tab replaced the workspace or changed the account's mode: nothing in this tab's memory is valid any more.
       window.location.reload();
       return;
     }

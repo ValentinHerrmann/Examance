@@ -14,10 +14,7 @@
   import { examNavItems } from "./examNavItems";
   import { ADMIN_HOME } from "#lib/stores/navigationStore";
 
-  /**
-   * Navigation drawer below `xl`, opened by the navbar burger. Lists the current exam's steps first (phones have no
-   * exam sidebar), then the main links; workspace and account actions stay in the navbar menus.
-   */
+  /** Navigation drawer below `xl`, opened by the navbar burger. Lists the current exam's steps first (phones have no exam sidebar), then the main links; workspace and account actions stay in the navbar menus. */
   interface Props {
     userRole?: string | null;
   }

@@ -1,4 +1,3 @@
-export { default as BackupCodeList } from "./BackupCodeList.svelte";
 export { default as FactorChooser } from "./FactorChooser.svelte";
 export { default as FactorMeta } from "./FactorMeta.svelte";
 export { default as LockoutNotice } from "./LockoutNotice.svelte";
@@ -10,7 +9,6 @@ export { default as PasswordFactorCard } from "./PasswordFactorCard.svelte";
 export { default as RecoveryFactorCard } from "./RecoveryFactorCard.svelte";
 export { default as TotpFactorCard } from "./TotpFactorCard.svelte";
 export { default as VaultUnlockStep } from "./VaultUnlockStep.svelte";
-export { default as RecoveryCodeDialog } from "./RecoveryCodeDialog.svelte";
 export { default as SigningInStep } from "./SigningInStep.svelte";
 export { default as SetupCodesDialog } from "./SetupCodesDialog.svelte";
 export { default as RecoveryUnlockDialog } from "./RecoveryUnlockDialog.svelte";

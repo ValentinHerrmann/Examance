@@ -1,7 +1,4 @@
-"""Deleting an account (GDPR Art. 17) by its holder (mailed single-use link) or an admin.
-
-Flow: docs/account_creation_and_management.md. Students are soft-deleted first (grace period);
-audit rows stay (Art. 17(3)(b)) until AUDIT_LOG_RETENTION_DAYS; kept exercises have no owner."""
+"""Deleting an account (GDPR Art. 17) by its holder (mailed single-use link) or an admin. Flow: docs/account_creation_and_management.md. Students are soft-deleted first (grace period); audit rows stay (Art. 17(3)(b)) until AUDIT_LOG_RETENTION_DAYS; kept exercises have no owner."""
 from __future__ import annotations
 
 import secrets
@@ -82,10 +79,7 @@ async def find_deletion_request(
 async def claim_deletion_request(
     db: AsyncSession, raw_token: str
 ) -> tuple[AccountDeletionRequest, Teacher]:
-    """
-    Like `find_deletion_request`, but removes the request so the link works once: two
-    confirmations racing each other delete the account once, the second gets 400.
-    """
+    """Like `find_deletion_request`, but removes the request so the link works once: two confirmations racing each other delete the account once, the second gets 400."""
     request, teacher = await find_deletion_request(db, raw_token)
     removed = await db.execute(
         delete(AccountDeletionRequest).where(AccountDeletionRequest.id == request.id)
@@ -123,10 +117,7 @@ async def delete_account(
     keep_exercises: bool = False,
     request_ip: str | None = None,
 ) -> DeletionResult:
-    """Delete *teacher* and everything the account owns; *actor* (holder or admin) is audited.
-
-    The caller checks permission and `ensure_not_last_admin`. With *keep_exercises* the library
-    exercises (every version, with resources) stay without an owner instead."""
+    """Delete *teacher* and everything the account owns; *actor* (holder or admin) is audited. The caller checks permission and `ensure_not_last_admin`. With *keep_exercises* the library exercises (every version, with resources) stay without an owner instead."""
     now = datetime.now(UTC)
     retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
 
@@ -165,8 +156,7 @@ async def delete_account(
         )
 
     if keep_exercises:
-        # Cut every link to the account first: the teacher FK cascades, and so would the
-        # group's ORM delete-orphan.
+        # Cut every link to the account first: the teacher FK cascades, and so would the group's ORM delete-orphan.
         await db.execute(
             update(Exercise)
             .where(Exercise.teacher_id == teacher.id, Exercise.exam_id.is_(None))

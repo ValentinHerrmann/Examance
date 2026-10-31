@@ -1,8 +1,4 @@
-"""LaTeX packages (issue #108) — /api/v1/user/latex-packages and /api/v1/latex/template-packages.
-
-The account list applies to every document of the account; an exam adds to it through its own
-``latex_packages`` field (app/routers/exams.py). Merging rules: app/services/latex_packages.py.
-"""
+"""LaTeX packages (issue #108) — /api/v1/user/latex-packages and /api/v1/latex/template-packages. The account list applies to every document of the account; an exam adds to it through its own ``latex_packages`` field (app/routers/exams.py). Merging rules: app/services/latex_packages.py."""
 from __future__ import annotations
 
 from typing import Annotated

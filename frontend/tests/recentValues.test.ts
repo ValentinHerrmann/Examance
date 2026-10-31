@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getRecentValues, recordValue, removeValue, clearRecentValues } from '../src/lib/utils/recentValues';
+import { getRecentValues, recordValue, removeValue } from '../src/lib/utils/recentValues';
 
 const mockStorage: Record<string, string> = {};
 globalThis.localStorage = {
@@ -52,12 +52,6 @@ describe('recentValues', () => {
     const res = getRecentValues('testKey');
     expect(res.length).toBe(5);
     expect(res).toEqual(['val_20', 'val_19', 'val_18', 'val_17', 'val_16']);
-  });
-
-  it('clears stored values', () => {
-    recordValue('testKey', 'Algebra');
-    clearRecentValues('testKey');
-    expect(getRecentValues('testKey')).toEqual([]);
   });
 
   it('removes a specific value', () => {

@@ -11,11 +11,7 @@ const headersTemplate = readFileSync(
 
 const srcDir = fileURLToPath(new URL('../src', import.meta.url));
 
-/**
- * Hosts the app may name in source: XML namespaces (never fetched), form placeholders and same-machine dev addresses, none
- * contacting a third party, except `http.cat`: the one intentional third party (issue #59), allowed by img-src in
- * static/_headers and named as a recipient in the Art. 30 record and the privacy policy.
- */
+/** Hosts the app may name in source: XML namespaces (never fetched), form placeholders and same-machine dev addresses, none contacting a third party, except `http.cat`: the one intentional third party (issue #59), allowed by img-src in static/_headers and named as a recipient in the Art. 30 record and the privacy policy. */
 // valentin-herrmann.com: outbound link only (snippet demo, new tab); the app never fetches from it.
 const ALLOWED_HOSTS = new Set(['www.w3.org', 'localhost', 'api.example.org', 'http.cat', 'valentin-herrmann.com']);
 
@@ -50,8 +46,7 @@ describe('CSP header generation', () => {
   });
 
   it('keeps the placeholder in static/_headers so the build can fill it in', () => {
-    // A hard-coded sha256- literal here means someone pinned a hash by hand
-    // again; it will go stale on the next Cloudflare Pages build.
+    // A hard-coded sha256- literal here means someone pinned a hash by hand again; it will go stale on the next Cloudflare Pages build.
     expect(headersTemplate).toContain(PLACEHOLDER);
     expect(headersTemplate).not.toMatch(/'sha256-[^']+'/);
   });
@@ -67,9 +62,7 @@ describe('src/app.html', () => {
 });
 
 describe('the deployed origin is self-contained', () => {
-  // The CSP is `default-src 'self'` and docs promise no external host is contacted. Two regressions got past review (pdf.js
-  // worker from cdnjs, HttpCatModal fetching http.cat), each leaking IP and User-Agent; http.cat is now deliberate (issue #59)
-  // and allowlisted above.
+  // The CSP is `default-src 'self'` and docs promise no external host is contacted. Two regressions got past review (pdf.js worker from cdnjs, HttpCatModal fetching http.cat), each leaking IP and User-Agent; http.cat is now deliberate (issue #59) and allowlisted above.
   it('names no off-origin host in src/', () => {
     const offenders: string[] = [];
     for (const file of sourceFiles(srcDir)) {
@@ -80,9 +73,7 @@ describe('the deployed origin is self-contained', () => {
         }
       }
     }
-    // Bundle the asset and serve it from our own origin instead. If a new host
-    // genuinely belongs here, it needs a connect-src/img-src entry in
-    // static/_headers and a recipients entry in the Art. 30 record first.
+    // Bundle the asset and serve it from our own origin instead. If a new host genuinely belongs here, it needs a connect-src/img-src entry in static/_headers and a recipients entry in the Art. 30 record first.
     expect(offenders).toEqual([]);
   });
 });

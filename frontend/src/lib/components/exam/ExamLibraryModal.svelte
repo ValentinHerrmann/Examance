@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { faPlus } from "@fortawesome/free-solid-svg-icons";
   import { untrack } from "svelte";
   import { type ExerciseGroup } from "#lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from '#lib/db/schema';
@@ -34,6 +35,8 @@
     onToggleSelection: (id: string) => void;
     onSetGroupVariant: (groupId: string, vKey: string) => void;
     onQuickEdit?: ((ex: ExerciseRecord) => void) | undefined;
+    /** Write a new exercise right here (M1); the caller selects it once saved. */
+    onNewExercise?: () => void;
     onApply: () => void;
     onRequestClose: () => void;
   }
@@ -60,6 +63,7 @@
     onToggleSelection,
     onSetGroupVariant,
     onQuickEdit = undefined,
+    onNewExercise = undefined,
     onApply,
     onRequestClose
   }: Props = $props();
@@ -159,6 +163,9 @@
   </div>
 
   {#snippet footer()}
+    {#if onNewExercise}
+      <Button variant="outlined" icon={faPlus} class="mr-auto" onClick={onNewExercise}>{$t("exam.libraryModal.newExercise")}</Button>
+    {/if}
     <Button variant="outlined" severity="secondary" onClick={onRequestClose}>{$t("common.cancel")}</Button>
     <Button onClick={onApply}>{$t("exam.libraryModal.applyButton")}</Button>
   {/snippet}

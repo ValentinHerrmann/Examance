@@ -9,7 +9,6 @@ export const auth: Translations['auth'] = {
             enterEmail: 'Please enter your email.',
             enterPassword: 'Please enter your password.',
             invalidBackendUrl: 'That backend server address is not valid.',
-            passwordNotSet: 'Your account password has not been set yet. Please check your email for a password setup link, or use "Forgot password?" below.',
             couldNotReachServer: 'Could not reach the server. If you are using a local backend, make sure it is running and has CORS enabled for this origin.',
             unlockFailed: 'Unlock failed. Check your password or credentials.',
         },

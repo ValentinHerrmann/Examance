@@ -1,8 +1,4 @@
-/**
- * In-memory LaTeX compilation cache: avoids re-compiling identical documents across tab switches and preview reopen. Keyed
- * by (kind, id, variant) and verified by a SHA-256 of source, app version, engine, resources and exam logo, so any content
- * change misses. Entries hold raw PDF bytes; callers create short-lived object URLs and revoke them on destroy.
- */
+/** In-memory LaTeX compilation cache: avoids re-compiling identical documents across tab switches and preview reopen. Keyed by (kind, id, variant) and verified by a SHA-256 of source, app version, engine, resources and exam logo, so any content change misses. Entries hold raw PDF bytes; callers create short-lived object URLs and revoke them on destroy. */
 
 import { frontendVersion } from '#lib/stores/versionStore';
 import { compileLatex, type CompileResult } from './compiler';
@@ -81,10 +77,7 @@ export async function computeCompileContentHash(
     .join('');
 }
 
-/**
- * Retrieves a cached entry if its slot key and content hash match.
- * Touches the entry for LRU ordering on hit.
- */
+/** Retrieves a cached entry if its slot key and content hash match. Touches the entry for LRU ordering on hit. */
 export function getCached(key: CompileCacheKey, hash: string): CachedCompileEntry | undefined {
   const slotKey = makeSlotKey(key);
   const entry = cache.get(slotKey);
@@ -101,10 +94,7 @@ export function getCached(key: CompileCacheKey, hash: string): CachedCompileEntr
   return entry;
 }
 
-/**
- * Retrieves the latest cached entry for this slot without checking content hash.
- * Used for instant preview restoration on component mount / tab switch before re-compiling.
- */
+/** Retrieves the latest cached entry for this slot without checking content hash. Used for instant preview restoration on component mount / tab switch before re-compiling. */
 export function getLatestForSlot(key: CompileCacheKey): CachedCompileEntry | undefined {
   const slotKey = makeSlotKey(key);
   const entry = cache.get(slotKey);

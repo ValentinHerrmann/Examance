@@ -5,10 +5,7 @@ export const errors = {
     unauthorized: 'Nicht autorisiert',
     httpFallback: 'HTTP-Fehler',
 
-    /**
-     * Keyed by the machine-readable `code` the backend sends alongside its
-     * English `detail`, so error text can be localized without touching the API.
-     */
+    /** Keyed by the machine-readable `code` the backend sends alongside its English `detail`, so error text can be localized without touching the API. */
     code: {
         ERR_INVALID_TOKEN: 'Ungültiger oder abgelaufener Link zum Zurücksetzen des Passworts.',
         ERR_PASSWORD_NOT_SET: 'Für dieses Konto wurde noch kein Passwort gesetzt. Bitte nutzen Sie den per E-Mail zugesandten Link.',
@@ -19,18 +16,21 @@ export const errors = {
         ERR_MAINTENANCE_NOT_PENDING: 'Die Wartung hat bereits begonnen oder ist beendet.',
         ERR_MAINTENANCE_LOGIN_BLOCKED: 'Die Anmeldung ist wegen einer Wartung kurz pausiert. Bitte versuchen Sie es gleich noch einmal.',
         ERR_ACCOUNT_LOCKED: 'Zu viele fehlgeschlagene Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
+        ERR_EXERCISE_NOT_CURRENT: 'Diese Version ist nicht mehr aktuell. Laden Sie die Bibliothek neu und arbeiten Sie mit der aktuellen Version weiter.',
+        ERR_SUBMISSION_CONFLICT: 'Diese Abgabe wurde gleichzeitig an anderer Stelle gespeichert. Laden Sie die Seite neu.',
+        ERR_ACCOUNT_MISMATCH: 'In einem anderen Tab hat sich ein anderes Konto angemeldet. Bitte melden Sie sich erneut an.',
         ERR_LAYOUT_REPORT_QUOTA: 'Tageskontingent für Layout-Meldungen erreicht. Bitte versuchen Sie es morgen erneut.',
         ERR_TRAINING_QUOTA: 'Tageskontingent für gespendete Trainingsdaten erreicht.',
         ERR_COMPILE_TIMEOUT: 'Zeitüberschreitung bei der Kompilierung.',
+        ERR_COMPILE_BUSY: 'Es laufen bereits mehrere Kompilierungen für dieses Konto. Bitte kurz warten.',
+        ERR_COMPILE_JOB_UNKNOWN: 'Der Server wurde während der Kompilierung neu gestartet. Bitte erneut versuchen.',
         ERR_COMPILE_UNAVAILABLE: 'Der LaTeX-Dienst des Servers ist gerade nicht verfügbar. Bitte später erneut versuchen.',
         ERR_PAYLOAD_TOO_LARGE: 'Die Anfrage ist zu groß.',
         ERR_BAD_REQUEST: 'Ungültige Anfrage.',
         ERR_ORIGIN_REJECTED: 'Herkunft nicht erlaubt.',
         ERR_UNAUTHORIZED: 'Nicht autorisiert.',
         ERR_NETWORK: 'Server nicht erreichbar.',
-                // Fallbacks. Beim Entfernen eines Faktors nennt `detail`, welche Regel greift (unter zwei
-                // Faktoren oder unter den letzten Daten-Faktor); das ist hilfreicher als ein pauschaler
-                // Satz, daher zeigt die Oberfläche den Servertext.
+                // Fallbacks. Beim Entfernen eines Faktors nennt `detail`, welche Regel greift (unter zwei Faktoren oder unter den letzten Daten-Faktor); das ist hilfreicher als ein pauschaler Satz, daher zeigt die Oberfläche den Servertext.
         ERR_LAST_FACTOR_PROTECTED: 'Dieser Faktor kann nicht entfernt werden, ohne den Zugang zum Konto oder zu den Daten zu verlieren.',
         ERR_MFA_REQUIRED: 'Für diese Aktion ist eine vollständige Anmeldung erforderlich.',
         ERR_STEP_EXPIRED: 'Dieser Anmeldeschritt ist abgelaufen. Bitte melden Sie sich erneut an.',
@@ -51,6 +51,7 @@ export const errors = {
         ERR_ALREADY_APPROVED: 'Dieses Konto ist bereits freigegeben.',
         ERR_LAST_ADMIN: 'Das letzte Admin-Konto kann nicht gelöscht werden. Machen Sie zuerst ein anderes Konto zum Admin.',
         ERR_INVALID_DELETION_TOKEN: 'Dieser Löschlink ist ungültig oder abgelaufen. Fordern Sie in den Einstellungen einen neuen an.',
+        ERR_ADMIN_FACTORS_PROTECTED: 'Die Anmeldefaktoren eines Admin-Kontos lassen sich nur auf dem Server zurücksetzen (cli.py).',
         ERR_DELETE_SELF: 'Ihr eigenes Konto löschen Sie in den Einstellungen.',
         ERR_INVALID_DOMAIN: 'Bitte geben Sie eine Domain wie schule.example ein.',
         ERR_DOMAIN_EXISTS: 'Diese Domain steht bereits auf der Liste.',

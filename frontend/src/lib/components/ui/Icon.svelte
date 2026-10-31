@@ -1,10 +1,7 @@
 <script lang="ts">
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
-  /**
-   * FontAwesome Free (solid) icon as inline SVG from the icon's path data (no runtime, no font;
-   * call sites import only the icons they use). Sized 1em tall, coloured by `currentColor`.
-   */
+  /** FontAwesome Free (solid) icon as inline SVG from the icon's path data (no runtime, no font; call sites import only the icons they use). Sized 1em tall, coloured by `currentColor`. */
   interface Props {
     icon: IconDefinition;
     /** Accessible name. Without it the icon is decorative and hidden from AT. */

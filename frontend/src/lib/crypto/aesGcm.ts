@@ -1,11 +1,7 @@
 import { get } from 'svelte/store';
 import { sessionStore } from '#lib/stores/session';
 
-/**
- * AES-256-GCM helpers. SECURITY INVARIANTS: every encrypt() draws a fresh random 12-byte IV via
- * crypto.getRandomValues; IVs are never reused or taken from external input; decrypt needs the
- * IV stored with the ciphertext; a tampered ciphertext makes decrypt() throw (GCM auth failure).
- */
+/** AES-256-GCM helpers. SECURITY INVARIANTS: every encrypt() draws a fresh random 12-byte IV via crypto.getRandomValues; IVs are never reused or taken from external input; decrypt needs the IV stored with the ciphertext; a tampered ciphertext makes decrypt() throw (GCM auth failure). */
 
 export interface EncryptResult {
   /** AES-256-GCM ciphertext (includes 16-byte GCM authentication tag appended by Web Crypto). */
@@ -61,8 +57,7 @@ export async function decrypt(
   const ciphertextBuffer = toArrayBuffer(ciphertext);
   const storedSession = typeof window !== 'undefined' ? get(sessionStore) : null;
   const activeFallbackKey = fallbackKey ?? storedSession?.fallbackSessionKey ?? null;
-  // Records written before the PBKDF2 iteration increase are sealed under the
-  // old parameters. Decrypt-only: nothing is ever re-encrypted with this key.
+  // Records written before the PBKDF2 iteration increase are sealed under the old parameters. Decrypt-only: nothing is ever re-encrypted with this key.
   const legacyKey = storedSession?.legacySessionKey ?? null;
 
   let primaryErr: any = null;

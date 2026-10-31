@@ -1,7 +1,4 @@
-"""Pydantic model for LaTeX compilation requests.
-SECURITY: __repr__ is overridden so LaTeX source never reaches tracebacks, debug logging or
-error reports, unconditionally (no env toggle). Likewise only resource file names may be logged.
-"""
+"""Pydantic model for LaTeX compilation requests. SECURITY: __repr__ is overridden so LaTeX source never reaches tracebacks, debug logging or error reports, unconditionally (no env toggle). Likewise only resource file names may be logged."""
 from __future__ import annotations
 
 import base64
@@ -20,11 +17,7 @@ from app.services.latex_resources import (
 
 
 class LaTeXResource(BaseModel):
-    """One file to place next to main.tex for this compilation only.
-
-    Nothing here is persisted: the bytes live in the temp working directory and
-    are removed with it. Teachers in all-local mode keep the only durable copy.
-    """
+    """One file to place next to main.tex for this compilation only. Nothing here is persisted: the bytes live in the temp working directory and are removed with it. Teachers in all-local mode keep the only durable copy."""
 
     filename: str
     content_b64: str
@@ -67,13 +60,9 @@ class LaTeXResource(BaseModel):
 class LaTeXRequest(BaseModel):
     latex: str
     resources: list[LaTeXResource] = Field(default_factory=list)
-    #: Exercises whose stored resource files this document needs; the server loads them itself, so
-    #: clients need not upload bytes it already has. Only exercises the caller may read are
-    #: honoured; unknown ids are ignored.
+    # : Exercises whose stored resource files this document needs; the server loads them itself, so : clients need not upload bytes it already has. Only exercises the caller may read are : honoured; unknown ids are ignored.
     resource_exercise_ids: list[UUID] = Field(default_factory=list, max_length=100)
-    #: Exam header logo (app.services.logo): ``logo_exam_id`` prints that exam's logo (not owned:
-    #: the account logo); ``account_logo`` alone prints the account logo, for an exam the server
-    #: does not know yet. Neither prints no logo.
+    # : Exam header logo (app.services.logo): ``logo_exam_id`` prints that exam's logo (not owned: : the account logo); ``account_logo`` alone prints the account logo, for an exam the server : does not know yet. Neither prints no logo.
     logo_exam_id: UUID | None = None
     account_logo: bool = False
 

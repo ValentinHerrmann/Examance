@@ -1,9 +1,5 @@
 #!/usr/bin/env node
-/**
- * Rewrites the `__INLINE_SCRIPT_HASHES__` placeholder in `build/_headers` with the SHA-256 of every inline <script>
- * (SvelteKit's bootstrap hash changes with any bundle). Fail-closed: if never run, the script stays blocked and the app
- * breaks loudly. Usage: node scripts/generate-csp-headers.mjs [buildDir]
- */
+/** Rewrites the `__INLINE_SCRIPT_HASHES__` placeholder in `build/_headers` with the SHA-256 of every inline <script> (SvelteKit's bootstrap hash changes with any bundle). Fail-closed: if never run, the script stays blocked and the app breaks loudly. Usage: node scripts/generate-csp-headers.mjs [buildDir] */
 
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -12,16 +8,13 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const buildDir = resolve(root, process.argv[2] ?? 'build');
-// Read the template from source and write the resolved copy into the build
-// output, so re-running the step is idempotent rather than a hard error.
+// Read the template from source and write the resolved copy into the build output, so re-running the step is idempotent rather than a hard error.
 const templatePath = join(root, 'static', '_headers');
 const headersPath = join(buildDir, '_headers');
 
 export const PLACEHOLDER = '__INLINE_SCRIPT_HASHES__';
 
-// Inline <script> elements only count against script-src when the browser
-// treats them as executable. `type="application/json"` payloads (SvelteKit
-// emits those for prerendered fetch data) are inert and need no hash.
+// Inline <script> elements only count against script-src when the browser treats them as executable. `type="application/json"` payloads (SvelteKit emits those for prerendered fetch data) are inert and need no hash.
 const EXECUTABLE_TYPES = new Set([
   '',
   'module',
@@ -46,8 +39,7 @@ export function inlineScriptHashes(html) {
       .slice(2)
       .find((/** @type {string | undefined} */ value) => value !== undefined);
     if (!EXECUTABLE_TYPES.has((type ?? '').trim().toLowerCase())) continue;
-    // The hash covers the element's text content verbatim — no trimming, no
-    // normalisation. Any whitespace change is a different script to the CSP.
+    // The hash covers the element's text content verbatim — no trimming, no normalisation. Any whitespace change is a different script to the CSP.
     hashes.push(`sha256-${createHash('sha256').update(body, 'utf8').digest('base64')}`);
   }
   return hashes;
@@ -100,8 +92,7 @@ function main() {
   }
 
   if (hashes.size === 0) {
-    // Legitimate if SvelteKit ever stops emitting the bootstrap, but far more
-    // likely a sign the extraction broke. Say so rather than pass silently.
+    // Legitimate if SvelteKit ever stops emitting the bootstrap, but far more likely a sign the extraction broke. Say so rather than pass silently.
     console.warn('[CSP] No executable inline scripts found. script-src will carry no hashes.');
   }
 

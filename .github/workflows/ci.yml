@@ -39,6 +39,11 @@ jobs:
         run: cd backend && ruff check app
       - name: Mypy
         run: cd backend && mypy app
+      # docs/openapi.json is generated; a route change must regenerate it (python -m app.cli export-openapi).
+      - name: OpenAPI drift check
+        env:
+          ENVIRONMENT: development
+        run: cd backend && python -m app.cli export-openapi && git diff --exit-code -- ../docs/openapi.json
       - name: Alembic migration check
         env:
           DATABASE_URL_SYNC: postgresql+psycopg2://blindgrade:blindgrade@localhost:5432/blindgrade_test

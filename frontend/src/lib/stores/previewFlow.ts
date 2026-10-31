@@ -44,8 +44,7 @@ interface PreviewFlowOptions<T> {
     onStatus: (status: string) => void,
     onAngabe: (angabe: CompileResult) => void
   ) => Promise<{ angabe: CompileResult; loesung: CompileResult; missingGraphics: string[] }>;
-  /** Checks the cache against the item's current sources: "stale" recompiles right away (issue #135). Without it,
-   *  the last compile is shown as is. */
+  /** Checks the cache against the item's current sources: "stale" recompiles right away (issue #135). Without it, the last compile is shown as is. */
   cached?: (item: T) => Promise<{ angabe: { pdfBytes: Uint8Array }; loesung: { pdfBytes: Uint8Array } } | "stale" | null>;
   /** Builds the layout-report files from the shown PDFs; without it the modal offers no report. */
   reportFiles?: (item: T, angabeUrl: string | null, loesungUrl: string | null) => Promise<LayoutReportFileData[]>;
@@ -63,11 +62,7 @@ const idle: PreviewState = {
   errorLog: null,
 };
 
-/**
- * The Preview flow of the overview pages: show the last compile from the in-memory cache, else compile
- * in the modal. Owns the object URLs (every replacement, close and destroy revokes them); a compile
- * finishing after the modal closed is dropped.
- */
+/** The Preview flow of the overview pages: show the last compile from the in-memory cache, else compile in the modal. Owns the object URLs (every replacement, close and destroy revokes them); a compile finishing after the modal closed is dropped. */
 export function createPreviewFlow<T>(options: PreviewFlowOptions<T>): PreviewFlow<T> {
   const store = writable<PreviewState>(idle);
   let state = idle;

@@ -1,8 +1,4 @@
-"""
-The two-of-three factor policy: the one place deciding what a session needs.
-A session needs a passkey alone or two distinct factors (password, passkey, TOTP), and at least
-one enrolled factor must be key-capable (rules in backend/CLAUDE.md).
-"""
+"""The two-of-three factor policy: the one place deciding what a session needs. A session needs a passkey alone or two distinct factors (password, passkey, TOTP), and at least one enrolled factor must be key-capable (rules in backend/CLAUDE.md)."""
 from __future__ import annotations
 
 import uuid
@@ -19,19 +15,13 @@ FactorKind = Literal["password", "passkey", "totp"]
 
 ALL_FACTORS: tuple[FactorKind, ...] = ("password", "passkey", "totp")
 
-# Never below two. The setting exists so the policy can be *tightened*, and the
-# config validator refuses a smaller value — a hardened login that an
-# environment variable can switch off is not one.
+# Never below two. The setting exists so the policy can be *tightened*, and the config validator refuses a smaller value — a hardened login that an environment variable can switch off is not one.
 REQUIRED_FACTOR_COUNT = 2
 
-# Factors that can also yield a key-encryption key for the data-key envelope. A passkey only
-# qualifies if its authenticator supports PRF, so membership here is necessary but not
-# sufficient (see `key_capable_factors`).
+# Factors that can also yield a key-encryption key for the data-key envelope. A passkey only qualifies if its authenticator supports PRF, so membership here is necessary but not sufficient (see `key_capable_factors`).
 KEY_CAPABLE_FACTORS: frozenset[str] = frozenset({"password", "passkey"})
 
-# Factors that complete a sign-in by themselves. Only a passkey: the ceremony
-# requires user verification, so the authenticator has checked a biometric or
-# PIN on top of possession. Never add password or TOTP here.
+# Factors that complete a sign-in by themselves. Only a passkey: the ceremony requires user verification, so the authenticator has checked a biometric or PIN on top of possession. Never add password or TOTP here.
 SELF_SUFFICIENT_FACTORS: frozenset[str] = frozenset({"passkey"})
 
 
@@ -51,9 +41,7 @@ async def enrolled_factors(db: AsyncSession, teacher: Teacher) -> set[FactorKind
     if totp.scalar_one_or_none() is not None:
         factors.add("totp")
 
-    # Passkeys arrive with the WebAuthn work. Until that table exists an account
-    # simply has no passkey factor, which is the correct answer rather than an
-    # error.
+    # Passkeys arrive with the WebAuthn work. Until that table exists an account simply has no passkey factor, which is the correct answer rather than an error.
     try:
         from app.models.webauthn_credential import WebAuthnCredential
 
@@ -71,10 +59,7 @@ async def enrolled_factors(db: AsyncSession, teacher: Teacher) -> set[FactorKind
 
 
 async def key_capable_factors(db: AsyncSession, teacher: Teacher) -> set[FactorKind]:
-    """
-    Of the enrolled factors, those that can unwrap the data key. A password counts only while a
-    usable wrap exists (an admin-forced password write invalidates it).
-    """
+    """Of the enrolled factors, those that can unwrap the data key. A password counts only while a usable wrap exists (an admin-forced password write invalidates it)."""
     factors = await enrolled_factors(db, teacher)
     capable: set[FactorKind] = set()
 
@@ -119,12 +104,7 @@ def satisfies(amr: list[str]) -> bool:
 async def remaining_factors(
     db: AsyncSession, teacher: Teacher, amr: list[str]
 ) -> list[str]:
-    """
-    Which factors this account can still present.
-
-    Returned only *after* a factor has been proven. Answering it earlier would
-    turn the endpoint into an account-existence and account-profile oracle.
-    """
+    """Which factors this account can still present. Returned only *after* a factor has been proven. Answering it earlier would turn the endpoint into an account-existence and account-profile oracle."""
     enrolled = await enrolled_factors(db, teacher)
     presented = {f for f in amr if f in ALL_FACTORS}
     return sorted(f for f in enrolled if f not in presented)
@@ -133,10 +113,7 @@ async def remaining_factors(
 async def may_remove_factor(
     db: AsyncSession, teacher: Teacher, kind: FactorKind
 ) -> tuple[bool, str | None]:
-    """
-    Whether removing *kind* would leave the account unusable: below the policy, or below its last
-    means of opening its own data. This guard makes "any two of three" safe to offer.
-    """
+    """Whether removing *kind* would leave the account unusable: below the policy, or below its last means of opening its own data. This guard makes "any two of three" safe to offer."""
     enrolled = await enrolled_factors(db, teacher)
     if kind not in enrolled:
         return True, None

@@ -29,12 +29,7 @@ async def _create_test_teacher(db: AsyncSession, email: str, password: str = "s3
 async def test_password_alone_does_not_produce_a_session(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    A correct password gets the sign-in to step two, not into the account.
-
-    No refresh cookie is issued yet either: a half-authenticated session must not
-    be renewable.
-    """
+    """A correct password gets the sign-in to step two, not into the account. No refresh cookie is issued yet either: a half-authenticated session must not be renewable."""
     teacher = await _create_test_teacher(db, "onefactor@example.com", "s3cr3t!!-min12")
     await enrol_totp(db, teacher)
 
@@ -114,10 +109,7 @@ async def test_the_same_factor_cannot_be_presented_twice(
 
 @pytest.mark.asyncio
 async def test_a_totp_code_cannot_be_replayed(client: AsyncClient, db: AsyncSession) -> None:
-    """
-    A code stays valid for 30 seconds. One observed inside that window — over a
-    shoulder, in a proxied request — must not open a second sign-in.
-    """
+    """A code stays valid for 30 seconds. One observed inside that window — over a shoulder, in a proxied request — must not open a second sign-in."""
     teacher = await _create_test_teacher(db, "replay@example.com", "s3cr3t!!-min12")
     secret = await enrol_totp(db, teacher)
     code = current_code(secret)
@@ -138,9 +130,7 @@ async def test_a_totp_code_cannot_be_replayed(client: AsyncClient, db: AsyncSess
     client.cookies.update(second.cookies)
     replayed = await client.post("/api/v1/auth/factor/totp", json={"code": code})
     assert replayed.status_code == 401
-    # Refused, and named for what it is. A spent code is not a wrong one, and
-    # saying so is what keeps a sign-in right after a password reset from
-    # looking like a broken authenticator.
+    # Refused, and named for what it is. A spent code is not a wrong one, and saying so is what keeps a sign-in right after a password reset from looking like a broken authenticator.
     assert replayed.headers.get("code") == "ERR_MFA_CODE_ALREADY_USED"
 
 
@@ -148,12 +138,7 @@ async def test_a_totp_code_cannot_be_replayed(client: AsyncClient, db: AsyncSess
 async def test_login_uninitialized_password_is_indistinguishable(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    An account with no password answers exactly like a wrong password.
-
-    The old ERR_PASSWORD_NOT_SET response told an unauthenticated caller which
-    addresses have accounts here. The hint now lives in the reset mail instead.
-    """
+    """An account with no password answers exactly like a wrong password. The old ERR_PASSWORD_NOT_SET response told an unauthenticated caller which addresses have accounts here. The hint now lives in the reset mail instead."""
     teacher = Teacher(
         email="uninit@example.com",
         password_hash=None,
@@ -212,10 +197,7 @@ async def test_logout_clears_cookies(client: AsyncClient, db: AsyncSession) -> N
 async def test_a_refresh_cookie_cannot_skip_the_second_factor(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """A refresh token minted for a half-finished sign-in must not become a session.
-
-    Otherwise any surviving refresh cookie (pre-policy, or kept by a browser after the sign-in
-    demoted it) would be a way around the two-of-three rule."""
+    """A refresh token minted for a half-finished sign-in must not become a session. Otherwise any surviving refresh cookie (pre-policy, or kept by a browser after the sign-in demoted it) would be a way around the two-of-three rule."""
     from datetime import UTC, datetime
 
     from app.models.refresh_token import RefreshToken
@@ -294,10 +276,7 @@ async def _enrol_passkey(db: AsyncSession, teacher: Teacher) -> None:
 async def _pending_cookie(
     client: AsyncClient, teacher: Teacher, amr: list[str], *, scope: str = "auth_pending"
 ) -> None:
-    """Put the client mid-sign-in with *amr* already proven.
-
-    A passkey ceremony needs a real authenticator, so the token it would issue is minted directly;
-    scope, single-use jti and factor list match what the endpoint produces."""
+    """Put the client mid-sign-in with *amr* already proven. A passkey ceremony needs a real authenticator, so the token it would issue is minted directly; scope, single-use jti and factor list match what the endpoint produces."""
     from app.services import pending_token
     from app.services.jwt import create_access_token, decode_token
 
@@ -312,10 +291,7 @@ async def _pending_cookie(
 async def test_the_password_completes_a_passkey_sign_in(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """Passkey then password: one of the three pairs the policy promises.
-
-    `/auth/login` only ever opens a sign-in (empty presented-factor list), so the password needs a
-    factor endpoint of its own to come second; else "any two" would offer only the authenticator."""
+    """Passkey then password: one of the three pairs the policy promises. `/auth/login` only ever opens a sign-in (empty presented-factor list), so the password needs a factor endpoint of its own to come second; else "any two" would offer only the authenticator."""
     teacher = await _create_test_teacher(db, "passkey-then-password@example.com")
     await _enrol_passkey(db, teacher)
     await _pending_cookie(client, teacher, ["passkey"])
@@ -349,12 +325,7 @@ async def test_the_password_cannot_be_presented_twice(
 async def test_the_password_factor_is_not_reachable_in_a_reset(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    A reset exists because the password is unavailable.
-
-    Accepting it there would also mean the emailed token plus the old password
-    were enough to set a new one.
-    """
+    """A reset exists because the password is unavailable. Accepting it there would also mean the emailed token plus the old password were enough to set a new one."""
     teacher = await _create_test_teacher(db, "reset-password-factor@example.com")
     await _pending_cookie(client, teacher, ["password"], scope="reset_pending")
 

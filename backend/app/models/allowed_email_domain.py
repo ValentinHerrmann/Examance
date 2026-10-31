@@ -11,12 +11,7 @@ from app.database import Base
 
 
 class AllowedEmailDomain(Base):
-    """
-    An admin-maintained domain (exact match on the part after '@', lowercased).
-
-    A verified registration from this domain is approved on the spot with the features stored
-    here. Changing a row only affects future registrations, never existing accounts.
-    """
+    """An admin-maintained domain (exact match on the part after '@', lowercased). A verified registration from this domain is approved on the spot with the features stored here. Changing a row only affects future registrations, never existing accounts."""
 
     __tablename__ = "allowed_email_domains"
 

@@ -86,21 +86,23 @@ services:
   backend:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
     restart: unless-stopped
-    environment: *backend-env
+    environment:
+      <<: *backend-env
+      LATEX_WORKER_URL: http://latex:8001
+    networks: [default, latex]
     # Bound to loopback only: Caddy on the host terminates TLS and proxies to
     # this port. Publishing on 0.0.0.0 would expose the API without TLS.
     ports:
       - "127.0.0.1:${APP_PORT:-8000}:8000"
-    # Tectonic cache: an empty one makes the first compile exceed the proxy timeout (a bare
-    # 504/524 that browsers report as a CORS error). Public TeX files only, never exam content.
     volumes:
-      - tectonic_cache:/var/cache/tectonic
       - *blob-volume
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      latex:
+        condition: service_started
     # --forwarded-allow-ips names the reverse proxy (the docker bridge gateway behind Caddy, not
     # 127.0.0.1). Set PROXY_ALLOWED_IPS to that gateway/CIDR, never "*": any client could then
     # spoof its rate-limit bucket and poison the audit log's IP hashes.
@@ -121,6 +123,32 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+
+  # Tectonic in its own container: a TeX document can read any file its process may read, so it
+  # gets no secrets, no database or Redis network and no scan files. Reached only by the backend.
+  latex:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
+    restart: unless-stopped
+    environment:
+      HOME: /tmp
+      LATEX_MAX_CONCURRENT_COMPILES: ${LATEX_MAX_CONCURRENT_COMPILES:-2}
+    command: ["uvicorn", "app.latex_worker:app", "--host", "0.0.0.0", "--port", "8001"]
+    networks: [latex]
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # Tectonic cache: an empty one makes the first compile exceed the proxy timeout (a bare
+    # 504/524 that browsers report as a CORS error). Public TeX files only, never exam content.
+    volumes:
+      - tectonic_cache:/var/cache/tectonic
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/health').status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # Retention sweep at start, then daily: deploys recreate this container, so sleep-first would
   # postpone it forever. Runs the backend image directly; the dev compose file's busybox
@@ -291,6 +319,8 @@ volumes:
 
 
 networks:
+  # Not internal: Tectonic downloads TeX bundle files it has not cached yet.
+  latex: {}
   default:
     ipam:
       config:

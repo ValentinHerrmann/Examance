@@ -6,11 +6,7 @@
   import { t } from "#lib/i18n";
   import { FilterPills, Select, TextInput } from "#lib/components/ui";
 
-  /**
-   * Filter panel shared by the exam and exercise overviews (search, grade/subject selects, category pills).
-   * The topic select shows only with `topicOptions` (the exercise overview filters topics by pills instead).
-   * Mounted in both the desktop sidebar and the phone drawer, so select ids are unique per instance.
-   */
+  /** Filter panel shared by the exam and exercise overviews (search, grade/subject selects, category pills). The topic select shows only with `topicOptions` (the exercise overview filters topics by pills instead). Mounted in both the desktop sidebar and the phone drawer, so select ids are unique per instance. */
   interface Props {
     searchQuery?: string;
     searchPlaceholder: string;

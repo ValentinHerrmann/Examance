@@ -1,7 +1,5 @@
 <script lang="ts">
-  // Scrollable stack of scan + overlay canvases (one pair per page), drawing/erasing, pinch-zoom and
-  // two-finger scroll, lazy PDF page rendering and auto-crop; exposes imperative methods via
-  // `bind:this`. Highest-risk area (submission switching, redraw timing): guard every await with `loadSeq`.
+  // Scrollable stack of scan + overlay canvases (one pair per page), drawing/erasing, pinch-zoom and two-finger scroll, lazy PDF page rendering and auto-crop; exposes imperative methods via `bind:this`. Highest-risk area (submission switching, redraw timing): guard every await with `loadSeq`.
   import { cssVar } from "#lib/utils/cssVar";
   import { tick, onMount, untrack } from "svelte";
   import { loadPdfjs } from "#lib/pdf/pdfjs";
@@ -28,9 +26,7 @@
 
   let { examId, submission, exercises, onSubmissionHydrated }: Props = $props();
 
-  // ExerciseRecord.mcGroupId/subIndex are not populated for exam-linked exercises (the
-  // exam-specific placement lives only in ExamExerciseRecord) — load the real group/letter
-  // mapping once per exam for the "a) 1/2" sub-exercise sum stamp in drawOmrDetections().
+  // ExerciseRecord.mcGroupId/subIndex are not populated for exam-linked exercises (the exam-specific placement lives only in ExamExerciseRecord) — load the real group/letter mapping once per exam for the "a) 1/2" sub-exercise sum stamp in drawOmrDetections().
   let subExerciseLetters: Map<string, string> = $state.raw(new Map());
   let loadedGroupsExamId: string | null = null;
 
@@ -38,9 +34,7 @@
     subExerciseLetters = buildSubLabelMap(await loadLocalMcGroups(id).catch(() => []));
   }
 
-  // One scan + overlay canvas pair per page, stacked in a single scroll pane (like the read-only
-  // PDF previews). Stroke coordinates stay in each page's own canvas pixels (pdf.js scale 2), so
-  // annotations saved by the old one-page-at-a-time viewer line up unchanged.
+  // One scan + overlay canvas pair per page, stacked in a single scroll pane (like the read-only PDF previews). Stroke coordinates stay in each page's own canvas pixels (pdf.js scale 2), so annotations saved by the old one-page-at-a-time viewer line up unchanged.
   interface PageSize {
     w: number;
     h: number;
@@ -51,8 +45,7 @@
 
   let canvasViewport: HTMLDivElement | undefined = $state();
   let pageSizes: PageSize[] = $state.raw([]);
-  // Bumped per load so the `{#key}` block recreates every canvas (a reused canvas with
-  // identical width/height attributes would keep the previous student's pixels).
+  // Bumped per load so the `{#key}` block recreates every canvas (a reused canvas with identical width/height attributes would keep the previous student's pixels).
   let docKey = $state(0);
   let pageEls: HTMLDivElement[] = $state([]);
   let scanCanvases: HTMLCanvasElement[] = $state([]);
@@ -61,8 +54,7 @@
   let isDrawing = false;
   let isErasing = false;
   let gesturePage = 1;
-  // Index of the stroke the first finger created and when, so a second finger arriving right
-  // after (pinch/two-finger scroll) can take back the accidental dot or stamp.
+  // Index of the stroke the first finger created and when, so a second finger arriving right after (pinch/two-finger scroll) can take back the accidental dot or stamp.
   let gestureStrokeIndex: number | null = null;
   let gestureStartedAt = 0;
 
@@ -71,15 +63,13 @@
   let initialZoomScale: number = 1.0;
   let lastPinchMid: { x: number; y: number } | null = null;
 
-  // Writable $derived (not proxied): strokes stay the store's own array, which handlePointerMove
-  // mutates in place before persistStrokes().
+  // Writable $derived (not proxied): strokes stay the store's own array, which handlePointerMove mutates in place before persistStrokes().
   let strokes: VectorStroke[] = $derived($gradingStore.currentStrokes);
 
   let loadedSubId: string | null = null;
   let loadSeq = 0;
 
-  // Local PDF state (not needed by any other component, unlike currentPage/totalPages/isScanPdf
-  // which live in the store for ZoomPageControls to read).
+  // Local PDF state (not needed by any other component, unlike currentPage/totalPages/isScanPdf which live in the store for ZoomPageControls to read).
   let pdfDoc: any = null;
   let renderedPages = new Set<number>();
   let pageObserver: IntersectionObserver | null = null;
@@ -165,18 +155,27 @@
     pdfDoc = null;
     gradingStore.setPdfPaging(1, 1, false);
     gradingStore.setStrokesSubmissionId(null);
-    // Replace the previous student's pages at once: they stayed visible next to the new
-    // student's scores until the new scan had decrypted and rendered.
+    // Replace the previous student's pages at once: they stayed visible next to the new student's scores until the new scan had decrypted and rendered.
     await showMessage(translate("grading.canvas.loading"), cssVar("--color-muted", "#64748b"), 240);
     if (seq !== loadSeq) return;
 
     const key = get(sessionStore).sessionKey;
     if ((!sub.scanCt || !sub.scanIv || !sub.annotationCt) && key) {
-      const fullSub = await submissionRepository.getById(examId, sub.id, key);
-      if (seq !== loadSeq) return;
-      if (fullSub && fullSub.scanCt && fullSub.scanIv) {
-        sub = fullSub;
-        onSubmissionHydrated(fullSub);
+      try {
+        const fullSub = await submissionRepository.getById(examId, sub.id, key);
+        if (seq !== loadSeq) return;
+        if (fullSub && fullSub.scanCt && fullSub.scanIv) {
+          sub = fullSub;
+          onSubmissionHydrated(fullSub);
+        }
+      } catch (err) {
+        console.error("Failed to load scan for grading:", err);
+        if (seq !== loadSeq) return;
+        // Without the scan bytes this is a failure, not "scan missing"; with them the record at hand is complete.
+        if (!sub.scanCt || !sub.scanIv) {
+          await showMessage(translate("grading.canvas.scanLoadFailed"), cssVar("--color-danger-fg", "#a61b29"), 80);
+          return;
+        }
       }
     }
 
@@ -186,7 +185,6 @@
     }
 
     try {
-      // Decrypt in-memory
       const decryptedBytes = await decrypt(
         $sessionStore.sessionKey,
         sub.scanCt,
@@ -199,8 +197,7 @@
       const isPdf = isPdfBytes(decryptedBytes);
 
       if (isPdf) {
-        // PDF path: measure every page up front so the stack has its final height, then render
-        // pages lazily as they scroll near the viewport.
+        // PDF path: measure every page up front so the stack has its final height, then render pages lazily as they scroll near the viewport.
         const pdfjsLib = await loadPdfjs();
         const doc = await pdfjsLib.getDocument({ data: decryptedBytes }).promise;
         if (seq !== loadSeq) {
@@ -553,8 +550,7 @@
     isErasing = false;
   }
 
-  // Svelte 5 registers `onwheel` as passive; ctrl+wheel zoom needs preventDefault, so attach non-passively.
-  // A plain wheel scrolls the page stack natively.
+  // Svelte 5 registers `onwheel` as passive; ctrl+wheel zoom needs preventDefault, so attach non-passively. A plain wheel scrolls the page stack natively.
   function wheelAction(node: HTMLElement) {
     node.addEventListener("wheel", handleWheel, { passive: false });
     return { destroy: () => node.removeEventListener("wheel", handleWheel) };
@@ -603,8 +599,7 @@
     fitToPage();
   }
 
-  /* Re-fit when the pane changes size — rotating a tablet or opening the score
-   * sheet used to leave the scan at a zoom computed for the old width. */
+  /* Re-fit when the pane changes size — rotating a tablet or opening the score sheet used to leave the scan at a zoom computed for the old width. */
   onMount(() => {
     if (!canvasViewport || typeof ResizeObserver === "undefined") {
       return () => pageObserver?.disconnect();
@@ -661,8 +656,7 @@
     drawOmrDetections(ctx, overlayCanvas, page);
   }
 
-  // Non-persisted OMR draw pass: never pushed into `strokes` (not erasable, no recalcScores()).
-  // Shared with the graded-PDF export (routes/exam/[id]/scan) via omrOverlay.ts.
+  // Non-persisted OMR draw pass: never pushed into `strokes` (not erasable, no recalcScores()). Shared with the graded-PDF export (routes/exam/[id]/scan) via omrOverlay.ts.
   function drawOmrDetections(ctx: CanvasRenderingContext2D, overlayCanvas: HTMLCanvasElement, page: number) {
     const state = get(gradingStore);
     drawOmrOverlayForPage(
@@ -718,8 +712,7 @@
   use:wheelAction
   onscroll={updateCurrentPageFromScroll}
 >
-  <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead
-       of letting the viewport scroll, so zooming in did nothing. -->
+  <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead of letting the viewport scroll, so zooming in did nothing. -->
   <div
     class="relative mx-auto flex flex-col gap-2"
     style="width: {$gradingStore.zoomScale * 100}%;"

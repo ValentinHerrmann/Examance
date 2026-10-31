@@ -2,11 +2,7 @@
   import type { VersionStatus } from "#lib/stores/versionStore";
   import { t } from "#lib/i18n";
 
-  /**
-   * Slim page footer (Artemis): legal links, server address, version, pinned to the bottom by `mt-auto`.
-   * Renders on the grade page too (section 5 DDG: Impressum reachable from every page). The backend's version wins
-   * when known (the server is the source of truth for compatibility); mismatches are also flagged in the navbar.
-   */
+  /** Slim page footer (Artemis): legal links, server address, version, pinned to the bottom by `mt-auto`. Renders on the grade page too (section 5 DDG: Impressum reachable from every page). The backend's version wins when known (the server is the source of truth for compatibility); mismatches are also flagged in the navbar. */
   interface Props {
     onBackendClick: () => void;
     backendLabel?: string;

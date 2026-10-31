@@ -1,22 +1,24 @@
-"""Compile router — POST /api/v1/compile/latex"""
+"""Compile router: background compile jobs (`/compile/latex/jobs`) and the deprecated synchronous `POST /compile/latex`."""
 from __future__ import annotations
 
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_teaching_teacher
+from app.dependencies import DB, get_teaching_teacher
 from app.middleware.rate_limit import limiter
 from app.models.teacher import Teacher
 from app.schemas.latex import LaTeXRequest
+from app.services import compile_jobs
 from app.services.capabilities import require_server_latex
 from app.services.exercise_resource_store import load_resources_for_exercises
 from app.services.latex import CompilationError, compilation_failed_response, compile_latex
 from app.services.latex_resources import ResourceError
-from app.services.logo import resolve_logo_for_compile
+from app.services.logo import ResolvedLogo, resolve_logo_for_compile
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,86 @@ router = APIRouter(
 )
 
 
-@router.post("/latex")
+def _error(status_code: int, detail: str, code: str) -> JSONResponse:
+    # Same shape as an HTTPException (detail in the body, code in a header), but storable as a job outcome.
+    return JSONResponse(status_code=status_code, content={"detail": detail}, headers={"code": code})
+
+
+async def _load_inputs(
+    body: LaTeXRequest, teacher: Teacher, db: AsyncSession
+) -> tuple[dict[str, bytes], ResolvedLogo | None]:
+    """Resource files and logo, read inside the request: a job must never outlive the DB session."""
+    binary_files = await load_resources_for_exercises(body.resource_exercise_ids, teacher, db)
+    # Inline files win: they are the caller's current, unsaved version of a file whose stored copy may be stale.
+    binary_files.update(body.binary_files())
+    logo = (
+        await resolve_logo_for_compile(teacher.id, body.logo_exam_id, db)
+        if body.logo_exam_id is not None or body.account_logo
+        else None
+    )
+    return binary_files, logo
+
+
+async def _compile(
+    latex: str, files: dict[str, bytes], logo: ResolvedLogo | None, *, preview: bool
+) -> Response:
+    """The PDF, or the error response the caller sees; LaTeX source is NEVER logged, and a 422 carries the diagnostic as `detail` and the sanitized log as `log`, for this caller only."""
+    try:
+        pdf_bytes = await compile_latex(latex, preview=preview, binary_files=files, logo=logo)
+    except ResourceError as exc:
+        return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), "ERR_RESOURCE_INVALID")
+    except TimeoutError:
+        return _error(status.HTTP_504_GATEWAY_TIMEOUT, "Compilation timed out.", "ERR_COMPILE_TIMEOUT")
+    except CompilationError as exc:
+        logger.info("LaTeX compilation failed: %s", exc)
+        return compilation_failed_response(exc)
+    except OSError as exc:
+        # A missing tectonic binary, an unreachable worker, a full disk: not the document's fault, so not an opaque 500.
+        logger.error("LaTeX compilation is unavailable: %s", exc)
+        return _error(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "The LaTeX compilation service is unavailable.",
+            "ERR_COMPILE_UNAVAILABLE",
+        )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="output.pdf"'},
+    )
+
+
+@router.post("/latex/jobs", status_code=status.HTTP_202_ACCEPTED, response_model=None)
+@limiter.limit("10/minute")
+async def start_compile_job(
+    request: Request,  # Required by slowapi for rate limiting
+    body: LaTeXRequest,
+    teacher: Annotated[Teacher, Depends(require_server_latex)],
+    db: DB,
+) -> dict[str, str] | JSONResponse:
+    """Start a compile (body limit: BODY_LIMIT_COMPILE) and answer at once with its `job_id`; poll `GET /compile/latex/jobs/{job_id}`. Passes get the full COMPILE_TIMEOUT_SECONDS, which no proxy sees."""
+    try:
+        files, logo = await _load_inputs(body, teacher, db)
+    except ResourceError as exc:
+        return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), "ERR_RESOURCE_INVALID")
+    job_id = compile_jobs.start(teacher.id, _compile(body.latex, files, logo, preview=False))
+    return {"job_id": job_id}
+
+
+@router.get("/latex/jobs/{job_id}", response_model=None)
+@limiter.limit("120/minute")
+async def poll_compile_job(
+    request: Request,  # Required by slowapi for rate limiting
+    job_id: str,
+    teacher: Annotated[Teacher, Depends(require_server_latex)],
+) -> Response:
+    """202 `{"status": "pending"}` while running, then once the PDF (200) or the compile's error response; answers at once, never long-polls."""
+    outcome = compile_jobs.poll(teacher.id, job_id)
+    if outcome is None:
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={"status": "pending"})
+    return outcome
+
+
+@router.post("/latex", deprecated=True)
 @limiter.limit("10/minute")
 async def compile_latex_endpoint(
     request: Request,  # Required by slowapi for rate limiting
@@ -35,55 +116,9 @@ async def compile_latex_endpoint(
     teacher: Annotated[Teacher, Depends(require_server_latex)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
-    """Compile LaTeX source to PDF via Tectonic (body limit: BODY_LIMIT_COMPILE).
-
-    Extra files come from `resource_exercise_ids` (stored on the server) and `resources` (unsaved
-    or local-only exercises). LaTeX source is NEVER logged; a 422 carries the TeX diagnostic as
-    `detail` and the sanitized full log as `log`, for this caller only."""
+    """Synchronous compile with the 30 s preview budget, kept for tabs still running an older app; new clients use the jobs above (a long compile here hits the proxy timeout)."""
     try:
-        binary_files = await load_resources_for_exercises(
-            body.resource_exercise_ids, teacher, db
-        )
-        # Inline files win: they are the caller's current, unsaved version of a
-        # file whose stored copy may be stale.
-        binary_files.update(body.binary_files())
-        logo = (
-            await resolve_logo_for_compile(teacher.id, body.logo_exam_id, db)
-            if body.logo_exam_id is not None or body.account_logo
-            else None
-        )
-
-        pdf_bytes = await compile_latex(
-            body.latex, preview=True, binary_files=binary_files, logo=logo
-        )
+        files, logo = await _load_inputs(body, teacher, db)
     except ResourceError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-            headers={"code": "ERR_RESOURCE_INVALID"},
-        ) from exc
-    except TimeoutError:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Compilation timed out.",
-            headers={"code": "ERR_COMPILE_TIMEOUT"},
-        ) from None
-    except CompilationError as exc:
-        logger.info("LaTeX preview compilation failed: %s", exc)
-        return compilation_failed_response(exc)
-    except OSError as exc:
-        # A missing tectonic binary, a full disk, an unwritable temp dir. Not
-        # the document's fault, and not something the caller can fix by editing
-        # it — say so instead of letting it surface as an opaque 500.
-        logger.error("LaTeX compilation is unavailable: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The LaTeX compilation service is unavailable.",
-            headers={"code": "ERR_COMPILE_UNAVAILABLE"},
-        ) from exc
-
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="output.pdf"'},
-    )
+        return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), "ERR_RESOURCE_INVALID")
+    return await _compile(body.latex, files, logo, preview=True)

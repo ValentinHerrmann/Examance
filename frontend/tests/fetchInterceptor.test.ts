@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// `fetchInterceptor.ts` patches `globalThis.fetch` on first import (guarded by the
-// `__busytex_fetch_intercepted__` sentinel), so reset modules and the sentinel per test.
+// `fetchInterceptor.ts` patches `globalThis.fetch` on first import (guarded by the `__busytex_fetch_intercepted__` sentinel), so reset modules and the sentinel per test.
 async function loadInterceptor() {
   vi.resetModules();
   delete (globalThis as any).__busytex_fetch_intercepted__;
@@ -12,8 +11,7 @@ function textBody(text: string): Uint8Array {
   return new TextEncoder().encode(text);
 }
 
-// Node's DOM typings reject `Uint8Array<ArrayBufferLike>` as `BodyInit` (lib quirk, not a
-// runtime restriction); cast at the boundary.
+// Node's DOM typings reject `Uint8Array<ArrayBufferLike>` as `BodyInit` (lib quirk, not a runtime restriction); cast at the boundary.
 function asBody(bytes: Uint8Array): BodyInit {
   return bytes as unknown as BodyInit;
 }
@@ -127,9 +125,7 @@ describe('busytex fetch interceptor', () => {
     }
   });
 
-  // Regression: a truncated chunk download used to be mounted as a short file, causing a
-  // confusing "File `ulem.sty' not found" LaTeX error. A declared/received byte-count mismatch
-  // must now surface as a hard stream error.
+  // Regression: a truncated chunk download used to be mounted as a short file, causing a confusing "File `ulem.sty' not found" LaTeX error. A declared/received byte-count mismatch must now surface as a hard stream error.
   it('errors the response body stream instead of silently truncating when a single chunk download is short', async () => {
     const original = textBody('this payload is definitely more than eight bytes long');
     const truncated = original.slice(0, 8); // simulate a cut-off download
@@ -157,8 +153,7 @@ describe('busytex fetch interceptor', () => {
     try {
       await loadInterceptor();
       const res = await globalThis.fetch('/core/busytex/texlive-extra.data');
-      // The interceptor still returns a Response synchronously (streaming);
-      // the integrity failure only becomes visible once the body is read.
+      // The interceptor still returns a Response synchronously (streaming); the integrity failure only becomes visible once the body is read.
       await expect(res.arrayBuffer()).rejects.toThrow(/Incomplete download/i);
     } finally {
       globalThis.fetch = originalFetch;

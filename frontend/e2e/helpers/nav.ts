@@ -1,10 +1,7 @@
-/**
- * App-shell navigation (header, menus, footer, help, exam tab strip). A shell redesign must only require changes
- * HERE: selectors prefer landmarks, roles and catalog-derived names.
- */
+/** App-shell navigation (header, menus, footer, help, exam tab strip). A shell redesign must only require changes HERE: selectors prefer landmarks, roles and catalog-derived names. */
 import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './guards';
-import { DEFAULT_LOCALE, label, type Locale } from './i18n';
+import { DEFAULT_LOCALE, label, labelExact, type Locale } from './i18n';
 
 export type ExamTab = 'setup' | 'scan' | 'verify' | 'grade' | 'manual' | 'stats';
 export type LegalPage = 'impressum' | 'datenschutz';
@@ -31,19 +28,14 @@ const EXAM_TAB_PATH: Record<ExamTab, string> = {
 /* Locale                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/**
- * The language the app is currently showing. Read from the same localStorage
- * key the app persists it under rather than from `<html lang>`, which is only
- * correct after hydration.
- */
+/** The language the app is currently showing. Read from the same localStorage key the app persists it under rather than from `<html lang>`, which is only correct after hydration. */
 export async function currentLocale(page: Page): Promise<Locale> {
   for (let attempt = 0; ; attempt++) {
     try {
       const saved = await page.evaluate(() => window.localStorage.getItem('bg_locale'));
       return saved === 'de' || saved === 'en' ? saved : DEFAULT_LOCALE;
     } catch (error) {
-      // A full-page navigation (lock, import, clear...) can destroy the
-      // execution context between two statements of a helper: wait and retry.
+      // A full-page navigation (lock, import, clear...) can destroy the execution context between two statements of a helper: wait and retry.
       const navigating = /context was destroyed|navigation/i.test(String(error));
       if (!navigating || attempt >= 5) throw error;
       await page.waitForLoadState('domcontentloaded');
@@ -51,10 +43,7 @@ export async function currentLocale(page: Page): Promise<Locale> {
   }
 }
 
-/**
- * Wait until the page has stopped navigating. Locking navigates to `/unlock` more than once (lock service, layout
- * handler, unlock-page reload), so the first matching URL is not yet the page the test will interact with.
- */
+/** Wait until the page has stopped navigating. Locking navigates to `/unlock` more than once (lock service, layout handler, unlock-page reload), so the first matching URL is not yet the page the test will interact with. */
 export async function settleNavigation(page: Page, quietMs = 700): Promise<void> {
   let lastNavigation = Date.now();
   const onNavigated = (frame: import('@playwright/test').Frame) => {
@@ -95,11 +84,7 @@ export function statusBar(page: Page): Locator {
   return page.getByRole('contentinfo');
 }
 
-/**
- * The shell's main-menu landmark, opening the navigation drawer first when the
- * inline links are not shown (below `xl`). Returns null when this page has no
- * shell navigation at all (the grade route hides the navbar by design).
- */
+/** The shell's main-menu landmark, opening the navigation drawer first when the inline links are not shown (below `xl`). Returns null when this page has no shell navigation at all (the grade route hides the navbar by design). */
 async function mainMenu(page: Page): Promise<Locator | null> {
   const locale = await currentLocale(page);
   const landmark = page.getByRole('navigation', { name: label('nav.menuLabel', undefined, locale) });
@@ -116,8 +101,7 @@ async function clickMainMenuLink(page: Page, key: string, fallbackPath: string):
   const locale = await currentLocale(page);
   const menu = await mainMenu(page);
   if (!menu) {
-    // No shell navigation on this route (grade). Leave the way a user would:
-    // by address.
+    // No shell navigation on this route (grade). Leave the way a user would: by address.
     await page.goto(fallbackPath);
   } else {
     await menu.getByRole('link', { name: label(key, undefined, locale) }).click();
@@ -166,10 +150,7 @@ export async function gotoManual(page: Page): Promise<void> {
   await page.waitForURL((url) => url.pathname === '/help' || url.pathname === '/help/');
 }
 
-/**
- * Go to one tab of the current exam. Uses the tab strip when it is shown and
- * falls back to the address on routes that hide it (the grade route).
- */
+/** Go to one tab of the current exam. Uses the tab strip when it is shown and falls back to the address on routes that hide it (the grade route). */
 export async function gotoExamTab(page: Page, tab: ExamTab): Promise<void> {
   const examId = /\/exam\/([^/?#]+)/.exec(new URL(page.url()).pathname)?.[1];
   if (!examId) throw new Error(`gotoExamTab('${tab}'): not on an exam page (${page.url()})`);
@@ -177,9 +158,7 @@ export async function gotoExamTab(page: Page, tab: ExamTab): Promise<void> {
 
   const locale = await currentLocale(page);
   const linkName = label(EXAM_TAB_KEYS[tab], undefined, locale);
-  // From `lg` the exam sidebar lists the steps; below it the navigation
-  // drawer does. The grade route has no navbar, so on phones it is left by
-  // address.
+  // From `lg` the exam sidebar lists the steps; below it the navigation drawer does. The grade route has no navbar, so on phones it is left by address.
   const sidebar = page.getByRole('navigation', { name: label('exam.sidebar.label', undefined, locale) });
   if (await sidebar.isVisible()) {
     await sidebar.getByRole('link', { name: linkName }).click();
@@ -211,24 +190,23 @@ const WORKSPACE_ITEM_KEYS: Record<WorkspaceAction, string> = {
   clear: 'workspace.menu.clear',
 };
 
-/**
- * Open the menu that holds the workspace items: the navbar's Workspace menu from `sm`, the
- * account menu on phones (the bar has no room for a separate one, issue #67).
- */
+/** Open the menu that holds the workspace items: the navbar's Workspace menu from `sm`, the account menu on phones (the bar has no room for a separate one, issue #67). */
 export async function openWorkspaceMenu(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
   const workspace = header(page).getByRole('button', { name: label('nav.workspace', undefined, locale) });
-  const inBar = await workspace.isVisible();
+  // By breakpoint (Tailwind `sm` = 640px), not `isVisible()`, which races the header right after a navigation.
+  const inBar = (page.viewportSize()?.width ?? 1024) >= 640;
   const menu = inBar
     ? page.getByRole('menu', { name: label('nav.workspace', undefined, locale) })
     : page.getByRole('menu').filter({
         has: page.getByRole('menuitem', { name: label('workspace.menu.open', undefined, locale) }),
       });
-  if (!(await menu.isVisible())) {
-    const trigger = inBar ? workspace : header(page).locator('button[aria-haspopup="menu"]').last();
-    await trigger.click();
-  }
-  await expect(menu).toBeVisible();
+  const trigger = inBar ? workspace : header(page).locator('button[aria-haspopup="menu"]').last();
+  // Retried: a click that lands before the header hydrates after a reload is lost.
+  await expect(async () => {
+    if (!(await menu.isVisible())) await trigger.click();
+    await expect(menu).toBeVisible({ timeout: 2000 });
+  }).toPass();
   return menu;
 }
 
@@ -238,38 +216,42 @@ async function clickWorkspaceItem(page: Page, action: WorkspaceAction): Promise<
   await menu.getByRole('menuitem', { name: label(WORKSPACE_ITEM_KEYS[action], undefined, locale) }).click();
 }
 
-/**
- * Export the whole workspace as a `.bgproj`. The archive password prompt is
- * answered by the `dialogs` fixture (`dialogs.promptAnswer`).
- */
-export async function exportWorkspace(page: Page): Promise<Download> {
-  const downloadPromise = page.waitForEvent('download');
-  await clickWorkspaceItem(page, 'export');
-  return downloadPromise;
+/** Close the report the app shows after every archive export and import. */
+export async function closeArchiveReport(page: Page): Promise<void> {
+  const locale = await currentLocale(page);
+  // The header's icon button shares the name; the footer button comes last.
+  await page.getByRole('button', { name: label('workspace.archiveReport.close', undefined, locale) }).last().click();
 }
 
-/**
- * Clear the workspace. The confirmation and the "cleared" alert are native
- * dialogs handled by the `dialogs` fixture; the app then reloads to the
- * dashboard.
- */
+/** Export the whole workspace as an `.examance` backup through the export dialog, then close its report. */
+export async function exportWorkspace(page: Page, password: string): Promise<Download> {
+  const locale = await currentLocale(page);
+  await clickWorkspaceItem(page, 'export');
+  const dialog = page.getByRole('dialog', { name: label('workspace.menu.export', undefined, locale) });
+  await dialog.getByLabel(labelExact('export.backup.password', undefined, locale)).fill(password);
+  await dialog.getByLabel(labelExact('export.backup.passwordRepeat', undefined, locale)).fill(password);
+  const downloadPromise = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: label('export.backup.download', undefined, locale) }).click();
+  const download = await downloadPromise;
+  await closeArchiveReport(page);
+  return download;
+}
+
+/** Clear the workspace. The confirmation and the "cleared" alert are native dialogs handled by the `dialogs` fixture; the app then reloads to the dashboard. */
 export async function clearWorkspace(page: Page): Promise<void> {
   await clickWorkspaceItem(page, 'clear');
   // `window.location.href = "/"` after the alert: wait for the reload to land.
   await page.waitForURL((url) => url.pathname === '/');
 }
 
-/**
- * Import a `.bgproj` through the workspace menu. The password prompt and the
- * result alert are handled by the `dialogs` fixture; the app reloads to the
- * dashboard afterwards.
- */
+/** Import an archive through the workspace menu. The password prompt is answered by the `dialogs` fixture; closing the report reloads the dashboard. */
 export async function importWorkspace(page: Page, filePath: string): Promise<void> {
   const chooserPromise = page.waitForEvent('filechooser');
   await clickWorkspaceItem(page, 'open');
   const chooser = await chooserPromise;
   await chooser.setFiles(filePath);
-  await page.waitForURL((url) => url.pathname === '/');
+  await closeArchiveReport(page);
+  await page.waitForLoadState('networkidle');
 }
 
 /* -------------------------------------------------------------------------- */
@@ -308,10 +290,7 @@ export async function openHelp(page: Page): Promise<Locator> {
   return dialog;
 }
 
-/**
- * Open the help panel with the global F1 shortcut. The shortcut is ignored
- * while a text field has focus, so focus is parked on the page body first.
- */
+/** Open the help panel with the global F1 shortcut. The shortcut is ignored while a text field has focus, so focus is parked on the page body first. */
 export async function openHelpWithKeyboard(page: Page): Promise<Locator> {
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('F1');
@@ -320,17 +299,16 @@ export async function openHelpWithKeyboard(page: Page): Promise<Locator> {
   return dialog;
 }
 
-/**
- * Open the storage & privacy dialog from the navbar's storage-mode button (from `sm`), or from
- * the footer's server button on phones, which opens the same dialog.
- */
-export async function openStoragePolicy(page: Page): Promise<Locator> {
+/** Open the storage card in /settings from the navbar's storage-mode link (from `sm`; directly on phones). */
+export async function openStorageSettings(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
-  const pill = header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) });
-  await ((await pill.isVisible()) ? pill : statusBar(page).getByRole('button')).click();
-  const dialog = page.getByRole('dialog', { name: label('misc.storageModal.heading', undefined, locale) });
-  await expect(dialog).toBeVisible();
-  return dialog;
+  const pill = header(page).getByRole('link', { name: label('nav.storageMode', undefined, locale) });
+  if (await pill.isVisible()) await pill.click();
+  else await page.goto('/settings#storage-policy');
+  await page.waitForURL((url) => url.pathname === '/settings');
+  const card = page.locator('#storage-policy');
+  await expect(card).toBeVisible();
+  return card;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -19,8 +19,7 @@ import {
 } from '../src/lib/services/storageModeSwitch';
 import { directionFor } from '../src/lib/services/resultsMover';
 
-// Vitest runs in node: an in-memory localStorage for the manifest's legacy-cache reads.
-// safeLocalStorage probes lazily and retries, so installing it here is early enough.
+// Vitest runs in node: an in-memory localStorage for the manifest's legacy-cache reads. safeLocalStorage probes lazily and retries, so installing it here is early enough.
 const mockStorage: Record<string, string> = {};
 globalThis.localStorage = {
   getItem: (key: string) => mockStorage[key] ?? null,
@@ -139,5 +138,24 @@ describe('workspace manifest', () => {
     expect(manifest.mode).toBe('hybrid');
     // The per-browser cache is gone; the account's mode lives on the server now.
     expect(localStorage.getItem('bg_storage_policy')).toBeNull();
+  });
+});
+
+describe('cleanup after a move to the server (F11)', () => {
+  it('clears only the exams that moved; a skipped exam keeps its local results', async () => {
+    const { deleteOldCopy } = await import('../src/lib/services/resultsMover');
+    await clearAllTables();
+    const row = (examId: string, id: string) => ({ examId, id }) as never;
+    await db.students.bulkPut([{ pseudonymId: 'p-moved', examId: 'moved' }, { pseudonymId: 'p-kept', examId: 'skipped' }] as never[]);
+    await db.submissions.bulkPut([row('moved', 's-moved'), row('skipped', 's-kept')]);
+    await db.exerciseScores.bulkPut([
+      { id: 'sc-moved', submissionId: 's-moved', exerciseId: 'e' },
+      { id: 'sc-kept', submissionId: 's-kept', exerciseId: 'e' },
+    ] as never[]);
+
+    expect(await deleteOldCopy('to-server', ['moved'])).toEqual({ students: 1, submissions: 1 });
+    expect((await db.students.toArray()).map((s) => s.examId)).toEqual(['skipped']);
+    expect((await db.submissions.toArray()).map((s) => s.id)).toEqual(['s-kept']);
+    expect((await db.exerciseScores.toArray()).map((s) => s.id)).toEqual(['sc-kept']);
   });
 });

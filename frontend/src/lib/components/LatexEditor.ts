@@ -92,10 +92,7 @@ export const latexHighlightStyle = HighlightStyle.define([
   { tag: t.number, color: "var(--color-syntax-number)" }
 ]);
 
-/**
- * Editor chrome in design-token CSS variables so it follows the theme. `dark` only selects
- * CodeMirror's base styles; LatexEditor.svelte swaps it via a Compartment.
- */
+/** Editor chrome in design-token CSS variables so it follows the theme. `dark` only selects CodeMirror's base styles; LatexEditor.svelte swaps it via a Compartment. */
 export function createLatexTheme(dark: boolean): Extension {
   return EditorView.theme(
     {
@@ -142,8 +139,7 @@ export function createLatexTheme(dark: boolean): Extension {
       ".cm-scroller": {
         overflow: "auto"
       },
-      // Find/replace panel (@codemirror/search). The `&.cm-editor` prefix outranks the base
-      // theme's `&light`/`&dark` panel colours.
+      // Find/replace panel (@codemirror/search). The `&.cm-editor` prefix outranks the base theme's `&light`/`&dark` panel colours.
       "&.cm-editor .cm-panels": {
         backgroundColor: "var(--color-surface-raised)",
         color: "var(--color-content)",
@@ -253,8 +249,7 @@ export function createLatexTheme(dark: boolean): Extension {
         boxSizing: "border-box",
         background: "transparent"
       },
-      // border-box keeps the dashed borders inside the explicit height, so a
-      // gap spacer is exactly as tall as the lines it stands in for.
+      // border-box keeps the dashed borders inside the explicit height, so a gap spacer is exactly as tall as the lines it stands in for.
       ".cm-diff-gap-spacer": {
         backgroundColor: "var(--color-surface-sunken)",
         backgroundImage:

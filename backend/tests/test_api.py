@@ -9,9 +9,12 @@ from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
+from app.models.scan_submission import ScanSubmission
+from app.models.student_identity import StudentIdentity
 
 from .factors import sign_in
 
@@ -128,6 +131,40 @@ async def test_student_and_submission_upload(client: AsyncClient, db: AsyncSessi
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("model", [StudentIdentity, ScanSubmission])
+async def test_parallel_submission_insert_is_linked_or_answers_409(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch, model: type
+) -> None:
+    await _create_teacher_and_login(client, db, f"race-{model.__name__}@example.com".lower())
+    exam = await client.post(
+        "/api/v1/exams",
+        json={
+            "title": "Race exam",
+            "retention_until": (date.today() + timedelta(days=30)).isoformat(),
+        },
+    )
+    real_flush = AsyncSession.flush
+
+    async def lose_the_race(self: AsyncSession, objects: object = None) -> None:
+        # What a parallel upload inserting the same key first looks like to this request.
+        if any(isinstance(row, model) for row in self.sync_session.new):
+            raise IntegrityError("INSERT", {}, Exception("duplicate key"))
+        await real_flush(self, objects)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(AsyncSession, "flush", lose_the_race)
+    resp = await client.post(
+        f"/api/v1/exams/{exam.json()['id']}/submissions",
+        json={"pseudonym_hmac": "f" * 64, "total_score": 1.0},
+    )
+    if model is StudentIdentity:
+        # The placeholder race is absorbed: the upload links to the identity the other request made.
+        assert resp.status_code == 201, resp.text
+    else:
+        assert resp.status_code == 409, resp.text
+        assert resp.headers["code"] == "ERR_SUBMISSION_CONFLICT"
+
+
+@pytest.mark.asyncio
 async def test_student_and_submission_upsert(client: AsyncClient, db: AsyncSession) -> None:
     await _create_teacher_and_login(client, db, "teacher2@example.com")
     e_resp = await client.post(
@@ -175,9 +212,7 @@ async def test_student_and_submission_upsert(client: AsyncClient, db: AsyncSessi
 async def test_list_submissions_omits_scan_by_default(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """The list endpoint must not ship every submission's scan PDF by default —
-    only has_scan (a cheap presence flag), and the real bytes when a caller
-    opts in with include_scans=true or fetches the single submission."""
+    """The list endpoint must not ship every submission's scan PDF by default — only has_scan (a cheap presence flag), and the real bytes when a caller opts in with include_scans=true or fetches the single submission."""
     await _create_teacher_and_login(client, db, "listscans@example.com")
 
     e_resp = await client.post(
@@ -245,9 +280,7 @@ async def test_admin_can_create_teacher_user(client: AsyncClient, db: AsyncSessi
     assert body["role"] == "teacher"
     assert body["password_reset_sent"] is True
 
-    # The created account has no password yet. Login answers with the generic
-    # credential error — an account-specific "no password set" response would
-    # tell an unauthenticated caller which addresses exist here.
+    # The created account has no password yet. Login answers with the generic credential error — an account-specific "no password set" response would tell an unauthenticated caller which addresses exist here.
     login_resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "newteacher-api@example.com", "password": "AnyPassword123!"},
@@ -331,7 +364,7 @@ async def test_exercise_versions_and_variants(client: AsyncClient, db: AsyncSess
 
     # Create parallel variant (Fahrzeug)
     var_res = await client.post(
-        f"/api/v1/exercises/{ex1_id}/new-variant",
+        f"/api/v1/exercises/{ex1_v2['id']}/new-variant",
         json={
             "name": "Typ1_Fahrzeug",
             "topic_tag": "_Vererbung",
@@ -377,6 +410,61 @@ async def test_exercise_versions_and_variants(client: AsyncClient, db: AsyncSess
 
 
 @pytest.mark.asyncio
+async def test_new_version_and_variant_start_only_from_the_current_row(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, "currentrow@example.com")
+    v1 = (await client.post("/api/v1/exercises", json={"name": "Q", "latex_body": "\\BE"})).json()
+    v2 = await client.post(f"/api/v1/exercises/{v1['id']}/new-version", json={"latex_body": "\\BE x"})
+    assert v2.status_code == 201
+
+    # A superseded row would fork the history (two current versions) or seed a stale answer key.
+    for path, body in (("new-version", {}), ("new-variant", {"variant_key": "B"})):
+        stale = await client.post(f"/api/v1/exercises/{v1['id']}/{path}", json=body)
+        assert stale.status_code == 409, stale.text
+        assert stale.headers["code"] == "ERR_EXERCISE_NOT_CURRENT"
+
+    current = await client.get("/api/v1/exercises", params={"group_id": v1["exercise_group_id"]})
+    assert [e["id"] for e in current.json()] == [v2.json()["id"]]
+    ok = await client.post(
+        f"/api/v1/exercises/{v2.json()['id']}/new-variant", json={"variant_key": "B"}
+    )
+    assert ok.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_deleting_the_current_version_restores_the_previous_one(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, "promote@example.com")
+    v1 = (
+        await client.post(
+            "/api/v1/exercises", json={"name": "Q", "latex_body": "\\BE", "variant_key": "A"}
+        )
+    ).json()
+    v2 = (await client.post(f"/api/v1/exercises/{v1['id']}/new-version", json={})).json()
+    v3 = (await client.post(f"/api/v1/exercises/{v2['id']}/new-version", json={})).json()
+    other = (
+        await client.post(
+            f"/api/v1/exercises/{v3['id']}/new-variant",
+            json={"latex_body": "\\BE", "variant_key": "B"},
+        )
+    ).json()
+    group = v1["exercise_group_id"]
+
+    async def current_ids() -> set[str]:
+        res = await client.get("/api/v1/exercises", params={"group_id": group})
+        return {e["id"] for e in res.json()}
+
+    # Deleting an archived version changes nothing; deleting the current one promotes the next newest of the same variant only, so the library never loses the variant's row.
+    assert (await client.delete(f"/api/v1/exercises/{v1['id']}")).status_code == 204
+    assert await current_ids() == {v3["id"], other["id"]}
+    assert (await client.delete(f"/api/v1/exercises/{v3['id']}")).status_code == 204
+    assert await current_ids() == {v2["id"], other["id"]}
+    assert (await client.get(f"/api/v1/exercises/{v2['id']}")).json()["is_current"] is True
+
+
+@pytest.mark.asyncio
 async def test_compile_endpoint_requires_auth(client: AsyncClient, db: AsyncSession) -> None:
     # Unauthenticated request fails with 401
     unauth_res = await client.post("/api/v1/compile/latex", json={"latex": "\\documentclass{article}"})
@@ -384,7 +472,6 @@ async def test_compile_endpoint_requires_auth(client: AsyncClient, db: AsyncSess
 
     # Authenticated request passes auth check
     await _create_teacher_and_login(client, db, "compileteacher@example.com")
-    from unittest.mock import patch
     with patch("app.routers.compile.compile_latex", return_value=b"%PDF-1.4 fake"):
         auth_res = await client.post("/api/v1/compile/latex", json={"latex": "\\documentclass{article}"})
         assert auth_res.status_code == 200
@@ -606,12 +693,6 @@ async def test_exam_mc_group_creation_and_compilation(client: AsyncClient, db: A
     assert fetched_exam["exercises"][0]["id"] in fetched_exam["mc_groups"][0]["member_ids"]
     assert fetched_exam["exercises"][1]["id"] in fetched_exam["mc_groups"][0]["member_ids"]
 
-    # Test PDF compile endpoint mock
-    with patch("app.routers.exams.compile_exam_latex", return_value=b"%PDF-1.4 mc_test"):
-        compile_resp = await client.post(f"/api/v1/exams/{exam_id}/compile")
-        assert compile_resp.status_code == 200
-        assert compile_resp.content == b"%PDF-1.4 mc_test"
-
 
 @pytest.mark.asyncio
 async def test_exercise_usage_and_deletion(client: AsyncClient, db: AsyncSession) -> None:
@@ -649,10 +730,7 @@ async def test_exercise_usage_and_deletion(client: AsyncClient, db: AsyncSession
 
 @pytest.mark.asyncio
 async def test_cors_preflight_origins(client: AsyncClient) -> None:
-    """
-    Preflight must reflect whatever origin allowlist is configured.
-    Driven off `settings`, not hardcoded hostnames: CI narrows CORS_ALLOWED_ORIGINS to localhost.
-    """
+    """Preflight must reflect whatever origin allowlist is configured. Driven off `settings`, not hardcoded hostnames: CI narrows CORS_ALLOWED_ORIGINS to localhost."""
     from app.config import settings
 
     allowed = settings.CORS_ALLOWED_ORIGINS[0]
@@ -674,14 +752,14 @@ async def test_cors_preflight_origins(client: AsyncClient) -> None:
         resp_sub = await client.options(
             "/api/v1/auth/login",
             headers={
-                "Origin": "https://sub.valentin-herrmann.com",
+                "Origin": "http://127.0.0.1:4173",
                 "Access-Control-Request-Method": "POST",
             },
         )
         assert resp_sub.status_code == 200
         assert (
             resp_sub.headers.get("access-control-allow-origin")
-            == "https://sub.valentin-herrmann.com"
+            == "http://127.0.0.1:4173"
         )
 
     # 3. An unlisted origin is never echoed back.
@@ -912,32 +990,3 @@ async def test_exercise_writes_reject_values_the_columns_cannot_hold(
         f"/api/v1/exercises/groups/{ex['exercise_group_id']}", json={"name": "x" * 201}
     )
     assert group.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_failed_exam_compile_keeps_its_status(client: AsyncClient, db: AsyncSession) -> None:
-    from app.services.latex import CompilationError
-
-    await _create_teacher_and_login(client, db, f"status-{uuid.uuid4().hex[:8]}@example.com")
-    exam = await client.post(
-        "/api/v1/exams",
-        json={
-            "title": "Status",
-            "retention_until": (date.today() + timedelta(days=30)).isoformat(),
-        },
-    )
-    assert exam.status_code == 201, exam.text
-    exam_id = exam.json()["id"]
-
-    with patch("app.routers.exams.compile_exam_latex", side_effect=CompilationError("! Boom")):
-        failed = await client.post(f"/api/v1/exams/{exam_id}/compile")
-    assert failed.status_code == 422
-
-    # The 422 used to roll the status back to "pending".
-    reloaded = await client.get(f"/api/v1/exams/{exam_id}")
-    assert reloaded.json()["compilation_status"] == "failed"
-
-
-
-
-

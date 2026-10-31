@@ -1,7 +1,4 @@
-"""Exam header logos (issue #46) — /api/v1/user/logo and /api/v1/exams/{id}/logo.
-An account prints the bundled default logo until it picks its own or none; an exam follows
-its account, prints none, or its own (``app.services.logo``). Owner-only, sniffing disabled.
-"""
+"""Exam header logos (issue #46) — /api/v1/user/logo and /api/v1/exams/{id}/logo. An account prints the bundled default logo until it picks its own or none; an exam follows its account, prints none, or its own (``app.services.logo``). Owner-only, sniffing disabled."""
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -15,6 +12,7 @@ from app.models.exam import Exam
 from app.models.logo import ExamLogo, TeacherLogo
 from app.models.teacher import Teacher
 from app.schemas.logo import AccountLogoInfo, AccountLogoUpdate, ExamLogoInfo, ExamLogoUpdate
+from app.services.latex_resources import resource_response
 from app.services.logo import (
     LogoError,
     ResolvedLogo,
@@ -59,16 +57,7 @@ def _apply_choice(row: TeacherLogo | ExamLogo, mode: str, content_b64: str | Non
 def _logo_response(logo: ResolvedLogo | None) -> Response:
     if logo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No logo.")
-    return Response(
-        content=logo.content,
-        media_type=logo.mime_type,
-        headers={
-            "Content-Disposition": f'inline; filename="{logo.filename}"',
-            "X-Content-Type-Options": "nosniff",
-            "Content-Security-Policy": "sandbox; default-src 'none'",
-            "Cache-Control": "no-store",
-        },
-    )
+    return resource_response(logo.content, logo.mime_type, logo.filename, no_store=True)
 
 
 # --- account logo -------------------------------------------------------------------------
@@ -110,10 +99,7 @@ async def set_account_logo(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> AccountLogoInfo:
-    """
-    Choose the account logo: the bundled default (`default`), none (`none`), or its own file
-    (`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`).
-    """
+    """Choose the account logo: the bundled default (`default`), none (`none`), or its own file (`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`)."""
     row = await get_teacher_logo(teacher.id, db)
     if body.mode == "default":
         if row is not None:
@@ -191,10 +177,7 @@ async def set_exam_logo(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExamLogoInfo:
-    """
-    Choose the exam's logo: follow the account (`account`), print none (`none`), or print its
-    own (`custom`, with `content_b64` to replace the stored file).
-    """
+    """Choose the exam's logo: follow the account (`account`), print none (`none`), or print its own (`custom`, with `content_b64` to replace the stored file)."""
     row = await get_exam_logo(exam.id, db)
     if body.mode == "account":
         if row is not None:

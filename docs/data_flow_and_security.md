@@ -198,6 +198,13 @@ An account that has no password set answers exactly like a wrong password. The
 older, distinct response told an unauthenticated caller which addresses have
 accounts here.
 
+A refused authenticator or backup code counts in a separate per-account counter
+(`login:factorfail:`), so knowing the password does not reset the guesses at the
+second factor: only a sign-in that ends in a session clears it
+(`register_success(..., session_issued=True)` in `advance_sign_in`). TOTP and backup
+codes are spent with conditional `UPDATE`s, so two parallel requests cannot use one
+code twice, and Argon2 hashing runs off the event loop.
+
 ### Maintenance mode (issue #130)
 
 New sign-ins pause at the second maintenance reminder: the factor endpoints refuse a non-admin (`503 ERR_MAINTENANCE_LOGIN_BLOCKED`) before the pending token is spent, and `advance_sign_in` before a full session is minted; every check comes after a proven factor, so it reveals nothing about an address. Refresh tokens keep working, so open sessions survive. While a window is down, `get_teaching_teacher` answers `503 ERR_MAINTENANCE`, which freezes teaching writes for the maintenance backup (the client's offline queue replays them afterwards), and password, key-envelope, MFA, passkey and account changes answer `503 ERR_MAINTENANCE_ACCOUNT_PAUSED` (`require_not_frozen`, admins exempt), so a restore of that backup cannot silently revert them. **Presence**: the public status poll marks a signed-in teacher as online in the ephemeral store under a SHA-256 of the account id (90 s), plus "warned"/"ready" for the current window (2 h); admins see only counts. No IP, no timestamps per person beyond that window, nothing in the database. Maintenance backups (`maintenance-backups/`, restic tag `maintenance`) are plaintext dumps like `restore-safety/` and are rotated by `BACKUP_KEEP_MAINTENANCE`. Details: `docs/dev/maintenance_mode.md`.
@@ -350,8 +357,11 @@ the account's own mode data); see the qualifier on server compilation below and
 
 **Server compilation is processing, not storage.** With "LaTeX Server" enabled, a
 compile sends the exam's full LaTeX source (including solution variants) and its
-resource files to `POST /compile/latex`; it is compiled in a temp directory that
-is deleted afterwards, and neither persisted nor logged. Student data is never part
+resource files to `POST /compile/latex/jobs`; it is compiled in a temp directory of the
+separate LaTeX worker container (no secrets, database or scan files, `docs/deployment.md`) that
+is deleted afterwards, and neither persisted nor logged. The finished PDF (or error) waits in the
+backend's memory until the requesting teacher's poll fetches it once, at most 2 minutes, and is
+then dropped; another account's poll gets 404 (`app/services/compile_jobs.py`). Student data is never part
 of a compile request. It requires a sign-in and the `server_latex` capability of the account (§5; the server answers `403 ERR_FEATURE_NOT_ALLOWED` without it), and
 enabling it asks for consent once (`storagePolicy.serverCompileConsent`). The choice is a per-browser preference, independent of the storage mode.
 A failed compile answers `422 ERR_COMPILE_FAILED` with the full TeX log (`log`, temp-dir path
@@ -554,6 +564,13 @@ sequenceDiagram
     Note over User,IDB: Inspection via DevTools (F12 -> Application -> Storage -> IndexedDB)
 ```
 
+On lock the key bytes the tab holds are overwritten with zeros, not only dropped
+(`stores/session.ts`). **One account per tab:** every API call names the account the
+tab holds keys for (`X-Expected-Account`, the account id). When the session cookie now
+belongs to another account, for example after another tab signed in as someone else,
+the server answers `409 ERR_ACCOUNT_MISMATCH` and the tab locks instead of writing that
+account's data under the wrong key.
+
 ---
 
 ## 5. Storage Modes, Data Migration & Sharing
@@ -582,8 +599,8 @@ An admin sets three switches per account (issues #53, #65), and all are enforced
   `403 ERR_FEATURE_NOT_ALLOWED` for an account that has the switch off and is not
   currently in `all-server`; reads and deletes are never refused, because the
   move and erasure need them.
-* `server_latex`: server-side LaTeX compilation (`POST /compile/latex`,
-  `POST /exams/{id}/compile`); without it the app compiles in the browser.
+* `server_latex`: server-side LaTeX compilation (`POST /compile/latex/jobs`); without it
+  the app compiles in the browser.
 * `exercise_sharing`: sharing own exercises with, and browsing, copying and
   resyncing exercises from, other accounts (§3 "Exercise sharing").
 
@@ -662,7 +679,7 @@ The plaintext ZIP exports (exam, exercise library) can be imported again
 exercises only; the importer never reads students, scans, scores or the logo
 from a ZIP, even when the exam ZIP also contains graded PDFs.
 
-*Share results (without exercise texts)* (workspace menu) exports exams, students,
+*Without exercise texts* (an option of the backup format in the export dialog) exports exams, students,
 scans, annotations, scores, exercise names, points and MC answer keys, but no
 LaTeX code and no resource files. Imported exercises are marked `code_withheld`:
 exams show a "Results only" notice, grading and statistics work, compiling,
@@ -695,7 +712,7 @@ which the vault cannot re-derive.
 
 ### Raw exports (plain ZIP, issue #82)
 
-The exam export ("Export (ZIP)" on an exam) and the exercise-library export are built
+The exam export ("Export" on an exam, format "Readable ZIP") and the exercise-library export are built
 **entirely in the browser** (`frontend/src/lib/export/`) and are **not encrypted**. The exam
 ZIP can hold graded scans with annotations, names, scores, grades (summary PDF, `grades.csv`)
 and the LaTeX source; results are read through the repositories of the account's storage

@@ -101,11 +101,7 @@ export interface ExamStructure {
 }
 
 export const examRepository = {
-    /**
-     * An exam's exercise links and MC groups from whichever store owns them. `mapApiToExamRecord` drops
-     * `exercises`/`mc_groups` and the local tables can be empty (e.g. after a lock), so this fetches
-     * from the server and only falls back to the local mirror when that fails.
-     */
+    /** An exam's exercise links and MC groups from whichever store owns them. `mapApiToExamRecord` drops `exercises`/`mc_groups` and the local tables can be empty (e.g. after a lock), so this fetches from the server and only falls back to the local mirror when that fails. */
   async getStructure(examId: string): Promise<ExamStructure> {
     const local = async () => ({
       links: await db.examExercises.where('examId').equals(examId).toArray(),
@@ -139,8 +135,7 @@ export const examRepository = {
     const policy = get(storagePolicyStore);
     if (!db.exams) return [];
     try {
-      // silentError: every failure here falls back to the local copy, so the
-      // global HTTP error modal would fire for an outcome the user never sees.
+      // silentError: hybrid falls back to the local copy; otherwise the caller reports the thrown error.
       const rawList = await api.get<any[]>('/exams', { silentError: true });
       return rawList.map(mapApiToExamRecord);
     } catch (err: any) {
@@ -148,7 +143,8 @@ export const examRepository = {
         const raw = await db.exams.toArray();
         return Promise.all(raw.map((e) => decryptExam(e, key)));
       }
-      return [];
+      // all-server holds no local copy: an empty list would pass as "no exams" to export and erasure.
+      throw err;
     }
   },
 
@@ -200,8 +196,7 @@ export const examRepository = {
     }
   },
 
-  /** Copies an exam's header, settings and exercise links (never its results) into a new exam.
-   * Online-only like the create flow's server round trip; returns the new exam. */
+  /** Copies an exam's header, settings and exercise links (never its results) into a new exam. Online-only like the create flow's server round trip; returns the new exam. */
   async duplicate(id: string, retentionDays = 365): Promise<ExamRecord> {
     const retentionUntil = new Date(Date.now() + retentionDays * 86400000).toISOString().slice(0, 10);
     const raw = await api.post<any>(`/exams/${id}/duplicate`, { retention_until: retentionUntil }, { silentError: true });
@@ -252,14 +247,13 @@ export const examRepository = {
   async delete(id: string): Promise<void> {
     invalidateOwner('exam', id);
     invalidateOwner('omr-blank', id);
-
-    await this.deleteLocalCascade(id);
-
+    // Server first (F10): a refused delete throws before the local cascade, so nothing is gone on one side only.
     try {
       await api.delete(`/exams/${id}`, { silentError: true });
     } catch (err: any) {
       enqueueOrThrow(err, `/exams/${id}`, 'DELETE');
     }
+    await this.deleteLocalCascade(id);
   },
 };
 

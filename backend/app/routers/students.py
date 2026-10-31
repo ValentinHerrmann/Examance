@@ -10,10 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
+from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
+from app.models.teacher import Teacher
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
+from app.services import scan_storage
 from app.services.capabilities import require_server_results_writable
 
 router = APIRouter(
@@ -41,9 +44,7 @@ async def upload_student_identity(
         body.encryption_salt_b64, "encryption_salt_b64", expected_len=ARGON2_SALT_BYTES
     )
 
-    # Check if this exam already holds the identity. Identities are keyed by
-    # (pseudonym_hmac, exam_id), so the same hmac under a different exam is a
-    # different identity and must not be matched here.
+    # Check if this exam already holds the identity. Identities are keyed by (pseudonym_hmac, exam_id), so the same hmac under a different exam is a different identity and must not be matched here.
     result = await db.execute(
         select(StudentIdentity).where(
             StudentIdentity.pseudonym_hmac == body.pseudonym_hmac,
@@ -92,13 +93,10 @@ async def erase_student_identity(
     pseudonym_hmac: str,
     request: Request,
     exam: Exam = Depends(get_exam_for_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """
-    GDPR Art. 17 Erasure — hard delete student identity + cascade submissions.
-    Appends an immutable audit log entry.
-    """
-    # Fetch identity
+    """GDPR Art. 17 Erasure — hard delete student identity + cascade submissions. Appends an immutable audit log entry."""
     result = await db.execute(
         select(StudentIdentity).where(
             StudentIdentity.pseudonym_hmac == pseudonym_hmac,
@@ -111,22 +109,21 @@ async def erase_student_identity(
             status_code=status.HTTP_404_NOT_FOUND, detail="Student identity not found."
         )
 
-    # Hard delete student identity (cascade deletes submissions due to FK constraint)
+    # The FK cascade removes the submissions' rows but never their scan files.
+    submissions = (
+        await db.execute(
+            select(ScanSubmission).where(
+                ScanSubmission.pseudonym_hmac == pseudonym_hmac,
+                ScanSubmission.exam_id == exam.id,
+            )
+        )
+    ).scalars().all()
+    scan_storage.forget_scans(db, submissions)
+    for submission in submissions:
+        await db.delete(submission)
     await db.delete(identity)
 
-    # Record AuditLog entry with snapshot of teacher email
-    from app.models.teacher import Teacher
-    t_res = await db.execute(select(Teacher).where(Teacher.id == exam.teacher_id))
-    teacher = t_res.scalar_one()
-
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="DELETE",
-        target_id=pseudonym_hmac,
-        request_ip=request.client.host if request.client else None,
-    )
+    await audit_svc.log(db, request, teacher, "DELETE", pseudonym_hmac)
 
 
 @router.get("", response_model=list[StudentIdentityResponse])

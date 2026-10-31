@@ -1,8 +1,4 @@
-/**
- * Catalog of LaTeX snippets for the quick-insert toolbar in LatexEditor.svelte: answer-key macros
- * (Loesung.sty), scoring macros (Schulaufgabe.sty) and generic constructs; subject snippets live in subjectSnippets.ts.
- * Metadata the editor sets through its UI (AFB, competencies, fixed scores) has no snippet; the macros still work.
- */
+/** Catalog of LaTeX snippets for the quick-insert toolbar in LatexEditor.svelte: answer-key macros (Loesung.sty), scoring macros (Schulaufgabe.sty) and generic constructs; subject snippets live in subjectSnippets.ts. Metadata the editor sets through its UI (AFB, competencies, fixed scores) has no snippet; the macros still work. */
 
 export interface QuickInsertArg {
   placeholder: string;
@@ -25,11 +21,7 @@ export const SUBJECT_CATEGORIES = ["math", "cs", "physics", "chemistry", "biolog
 export type GeneralCategory = (typeof GENERAL_CATEGORIES)[number];
 export type SubjectCategory = (typeof SUBJECT_CATEGORIES)[number];
 
-/**
- * Palette entry for the LaTeX quick-insert bar. The visible button text and
- * tooltip live in the i18n catalogs under `editor.macros.<id>`, keyed by `id`,
- * so they can be translated without touching this table.
- */
+/** Palette entry for the LaTeX quick-insert bar. The visible button text and tooltip live in the i18n catalogs under `editor.macros.<id>`, keyed by `id`, so they can be translated without touching this table. */
 export interface QuickInsertMacro {
   id: string;
   category: GeneralCategory | SubjectCategory;
@@ -41,10 +33,7 @@ export interface QuickInsertMacro {
   selectionArgIndex?: number;
 }
 
-/**
- * Interleaves literalParts and args (literalParts.length === args.length + 1) into one string and
- * tracks each arg's [from,to) span, so callers needn't search for placeholder text that may recur.
- */
+/** Interleaves literalParts and args (literalParts.length === args.length + 1) into one string and tracks each arg's [from,to) span, so callers needn't search for placeholder text that may recur. */
 export function templateJoin(literalParts: string[], args: string[]): QuickInsertTemplate {
   let text = "";
   const argOffsets: ArgOffset[] = [];

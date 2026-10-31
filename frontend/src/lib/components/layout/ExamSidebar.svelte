@@ -7,11 +7,7 @@
   import { Badge, Icon, Tooltip } from "#lib/components/ui";
   import { examNavItems } from "./examNavItems";
 
-  /**
-   * Exam navigation (Artemis course sidebar): exam context, the exam's steps, a collapse toggle (64px rail).
-   * Shown from `lg`; below that the items live in the nav drawer. Without a saved preference: rail at `lg` and on
-   * the grade page, open from `xl`.
-   */
+  /** Exam navigation (Artemis course sidebar): exam context, the exam's steps, a collapse toggle (64px rail). Shown from `lg`; below that the items live in the nav drawer. Without a saved preference: rail at `lg` and on the grade page, open from `xl`. */
   interface Props {
     context: ExamNavContext;
     pathname: string;

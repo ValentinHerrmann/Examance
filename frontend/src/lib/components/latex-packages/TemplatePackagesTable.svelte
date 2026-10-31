@@ -4,10 +4,7 @@
   import type { TemplatePackages } from "#lib/latex/packageSettings";
   import TemplatePackageRows from "./TemplatePackageRows.svelte";
 
-  /**
-   * What the exam template loads by itself (issue #108), read-only. Unlocked packages can take more options through the
-   * account list (`onAdjust`); packages that bundled ones pull in are folded away.
-   */
+  /** What the exam template loads by itself (issue #108), read-only. Unlocked packages can take more options through the account list (`onAdjust`); packages that bundled ones pull in are folded away. */
   interface Props {
     template: TemplatePackages;
     /** Template packages the account already passes options to. */

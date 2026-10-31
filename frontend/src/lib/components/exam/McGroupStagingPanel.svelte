@@ -31,8 +31,7 @@
     onOpenExercise = undefined
   }: Props = $props();
 
-  // Default group title and scoring sentence are exam CONTENT printed verbatim in
-  // the German exam PDF (see i18n brief "Do NOT translate") — not UI strings.
+  // Default group title and scoring sentence are exam CONTENT printed verbatim in the German exam PDF (see i18n brief "Do NOT translate") — not UI strings.
   const DEFAULT_TITLE = "Grundlagen";
   const DEFAULT_SCORING_TEXT =
     "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";

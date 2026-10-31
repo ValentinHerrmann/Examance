@@ -1,8 +1,4 @@
-"""
-Encryption for TOTP shared secrets at rest. Cannot be zero-knowledge (the server computes the
-code), but the key derives from SECRET_KEY (environment, not database), so a DB dump alone
-yields no seeds. Rotating SECRET_KEY invalidates every TOTP enrollment, as it does every session.
-"""
+"""Encryption for TOTP shared secrets at rest. Cannot be zero-knowledge (the server computes the code), but the key derives from SECRET_KEY (environment, not database), so a DB dump alone yields no seeds. Rotating SECRET_KEY invalidates every TOTP enrollment, as it does every session."""
 from __future__ import annotations
 
 import hashlib
@@ -29,11 +25,7 @@ def _wrapping_key() -> bytes:
 
 
 def backup_code_digest(normalized_code: str) -> str:
-    """
-    Keyed digest of a backup code, for storage and lookup. Deliberately not a password hash: the
-    code is ~50 bits of `secrets.choice`, so Argon2id has nothing to slow and only blocks the event
-    loop. Keying from SECRET_KEY defeats a DB dump alone.
-    """
+    """Keyed digest of a backup code, for storage and lookup. Deliberately not a password hash: the code is ~50 bits of `secrets.choice`, so Argon2id has nothing to slow and only blocks the event loop. Keying from SECRET_KEY defeats a DB dump alone."""
     mac = hmac.new(_derive(_BACKUP_INFO), normalized_code.encode("utf-8"), hashlib.sha256)
     return mac.hexdigest()
 
@@ -46,8 +38,5 @@ def encrypt_secret(secret: bytes) -> tuple[bytes, bytes]:
 
 
 def decrypt_secret(ciphertext: bytes, iv: bytes) -> bytes:
-    """
-    Recover a stored secret. Raises `cryptography.exceptions.InvalidTag` when SECRET_KEY has
-    changed, which is correct: the enrollment is gone and the teacher must re-enroll.
-    """
+    """Recover a stored secret. Raises `cryptography.exceptions.InvalidTag` when SECRET_KEY has changed, which is correct: the enrollment is gone and the teacher must re-enroll."""
     return AESGCM(_wrapping_key()).decrypt(iv, ciphertext, _INFO)

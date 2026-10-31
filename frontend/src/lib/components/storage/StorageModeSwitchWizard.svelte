@@ -1,7 +1,5 @@
 <script lang="ts">
-  // The fluent storage-mode change: explain → (optional backup) → move the results → keep or delete
-  // the old copy → reload. Nothing is wiped up front; the account's mode changes only after every
-  // result arrived (services/resultsMover.ts). Also used for the account's first choice.
+  // The fluent storage-mode change: explain → (optional backup) → move the results → keep or delete the old copy → reload. Nothing is wiped up front; the account's mode changes only after every result arrived (services/resultsMover.ts). Also used for the account's first choice.
   import { untrack } from 'svelte';
   import { get } from 'svelte/store';
   import { t, translate } from '#lib/i18n';
@@ -19,8 +17,7 @@
   } from '#lib/services/resultsMover';
   import { PendingWritesError } from '#lib/services/storageModeSwitch';
   import { flushOfflineQueue, pendingWritesCount } from '#lib/services/offlineQueue';
-  import { exportArchiveInteractively } from '#lib/services/archiveService';
-  import { WORKSPACE_ARCHIVE_EXT } from '#lib/archive/format';
+  import ExportOptionsModal from '#lib/components/export/ExportOptionsModal.svelte';
 
   interface Props {
     open?: boolean;
@@ -48,6 +45,7 @@
   let result = $state.raw<MoveResult | null>(null);
   let deleted = $state.raw<{ students: number; submissions: number } | null>(null);
   let backupDone = $state(false);
+  let backupOpen = $state(false);
 
   let direction = $derived(target ? directionFor(target) : 'to-server');
   let toLabel = $derived(target ? modeLabel(target) : '');
@@ -59,9 +57,7 @@
 
   async function prepare() {
     step = 'explain';
-    // An admin may have disallowed the account's mode: the workspace then publishes no mode (needs-choice)
-    // while the server still records it. The move must start from that recorded mode, or its
-    // compare-and-set fails and the results stay behind.
+    // An admin may have disallowed the account's mode: the workspace then publishes no mode (needs-choice) while the server still records it. The move must start from that recorded mode, or its compare-and-set fails and the results stay behind.
     from = get(storagePolicyStore).storageMode ?? get(capabilitiesStore)?.storageMode ?? null;
     somethingToMove = null;
     errorMsg = '';
@@ -107,11 +103,6 @@
     blockedByPendingWrites = false;
   }
 
-  async function handleBackup() {
-    const filename = `examance-${new Date().toISOString().slice(0, 10)}${WORKSPACE_ARCHIVE_EXT}`;
-    if (await exportArchiveInteractively(filename)) backupDone = true;
-  }
-
   async function handleMove() {
     if (!target) return;
     step = 'moving';
@@ -120,7 +111,7 @@
   }
 
   async function handleDeleteOld() {
-    deleted = await deleteOldCopy(direction);
+    deleted = await deleteOldCopy(direction, result?.movedExams ?? []);
     step = 'done';
   }
 
@@ -187,7 +178,7 @@
         <p>{$t('storagePolicy.switch.otherTabsNote')}</p>
         {#if from}
           <div class="flex flex-wrap items-center gap-2 pt-1">
-            <Button variant="outlined" severity="secondary" size="sm" disabled={busy} onClick={() => run(handleBackup)}>
+            <Button variant="outlined" severity="secondary" size="sm" disabled={busy} onClick={() => (backupOpen = true)}>
               {$t('storagePolicy.switch.backupButton')}
             </Button>
             <span class="text-xs">
@@ -277,3 +268,11 @@
     {/if}
   {/snippet}
 </Modal>
+{#if backupOpen}
+  <ExportOptionsModal
+    title={$t('storagePolicy.switch.backupButton')}
+    backup={{}}
+    onBackupDone={() => (backupDone = true)}
+    onClose={() => (backupOpen = false)}
+  />
+{/if}

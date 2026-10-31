@@ -1,8 +1,4 @@
-"""
-RFC 6238 TOTP on the standard library, deliberately not a dependency: it is HMAC plus a truncation
-rule, and `pyotp` would add more supply-chain surface than the code it replaces. The secret is
-stored encrypted (`mfa_secret.py`), not zero-knowledge, since the server computes codes.
-"""
+"""RFC 6238 TOTP on the standard library, deliberately not a dependency: it is HMAC plus a truncation rule, and `pyotp` would add more supply-chain surface than the code it replaces. The secret is stored encrypted (`mfa_secret.py`), not zero-knowledge, since the server computes codes."""
 from __future__ import annotations
 
 import base64
@@ -17,12 +13,10 @@ from urllib.parse import quote
 TOTP_STEP_SECONDS = 30
 TOTP_DIGITS = 6
 
-# 20 bytes is the RFC 4226 recommendation. HMAC-SHA-1 is unaffected by SHA-1 collision attacks
-# and is the only variant authenticator apps universally support.
+# 20 bytes is the RFC 4226 recommendation. HMAC-SHA-1 is unaffected by SHA-1 collision attacks and is the only variant authenticator apps universally support.
 TOTP_SECRET_BYTES = 20
 
-# One step either side. Wider windows buy very little usability and multiply the
-# number of codes an attacker may guess at any moment.
+# One step either side. Wider windows buy very little usability and multiply the number of codes an attacker may guess at any moment.
 TOTP_DRIFT_STEPS = 1
 
 
@@ -61,11 +55,7 @@ class CodeCheck(NamedTuple):
 def verify_code(
     secret: bytes, code: str, timestamp: int, *, last_used_step: int | None
 ) -> CodeCheck:
-    """
-    Check *code*, reporting usable and replay separately. The matched step is recorded so a code is
-    refused twice. A spent code proves possession (e.g. right after a password reset), so it must
-    not count as a failure. Constant-time; all steps evaluated.
-    """
+    """Check *code*, reporting usable and replay separately. The matched step is recorded so a code is refused twice. A spent code proves possession (e.g. right after a password reset), so it must not count as a failure. Constant-time; all steps evaluated."""
     candidate = code.strip().replace(" ", "")
     if len(candidate) != TOTP_DIGITS or not candidate.isdigit():
         return CodeCheck(None, False)
@@ -74,8 +64,7 @@ def verify_code(
     matched: int | None = None
     replayed = False
     for step in range(now - TOTP_DRIFT_STEPS, now + TOTP_DRIFT_STEPS + 1):
-        # No early exit and no skipped step: the whole window is evaluated
-        # whatever is found, so timing says nothing about which step matched.
+        # No early exit and no skipped step: the whole window is evaluated whatever is found, so timing says nothing about which step matched.
         hit = hmac.compare_digest(generate_code(secret, step), candidate)
         spent = last_used_step is not None and step <= last_used_step
         if hit and spent:
@@ -86,11 +75,7 @@ def verify_code(
 
 
 def provisioning_uri(secret: bytes, account_email: str, issuer: str = "Examance") -> str:
-    """
-    The `otpauth://` URI an authenticator app scans, rendered as a QR code in the browser from the
-    bundled `qrcode` dependency: CSP is `script-src 'self'` and the secret must not leave the
-    browser.
-    """
+    """The `otpauth://` URI an authenticator app scans, rendered as a QR code in the browser from the bundled `qrcode` dependency: CSP is `script-src 'self'` and the secret must not leave the browser."""
     label = quote(f"{issuer}:{account_email}", safe="")
     params = "&".join(
         [

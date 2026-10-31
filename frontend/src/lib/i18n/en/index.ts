@@ -9,7 +9,6 @@ import { auth } from './auth';
 import { workspace } from './workspace';
 import { dashboard } from './dashboard';
 import { exam } from './exam';
-import { examCreation } from './examCreation';
 import { exercises } from './exercises';
 import { grading } from './grading';
 import { scanning } from './scanning';
@@ -39,7 +38,6 @@ export const en: Translations = {
     workspace,
     dashboard,
     exam,
-    examCreation,
     exercises,
     grading,
     scanning,

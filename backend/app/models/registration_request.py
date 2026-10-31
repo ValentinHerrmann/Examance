@@ -11,10 +11,7 @@ from app.database import Base
 
 
 class RegistrationRequest(Base):
-    """One row per address awaiting verification (app/services/registration.py).
-
-    No teacher row exists until the mailed link is used. The token is stored as a SHA-256 hash;
-    expired rows are removed by the retention job."""
+    """One row per address awaiting verification (app/services/registration.py). No teacher row exists until the mailed link is used. The token is stored as a SHA-256 hash; expired rows are removed by the retention job."""
 
     __tablename__ = "registration_requests"
 

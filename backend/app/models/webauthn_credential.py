@@ -11,12 +11,7 @@ from app.database import Base
 
 
 class WebAuthnCredential(Base):
-    """
-    One passkey, as one of the account's sign-in factors.
-
-    Nothing secret is stored: `prf_salt` is the PRF *input*; the derived secret never leaves the
-    browser, which is what lets a passkey unwrap the data key without the server.
-    """
+    """One passkey, as one of the account's sign-in factors. Nothing secret is stored: `prf_salt` is the PRF *input*; the derived secret never leaves the browser, which is what lets a passkey unwrap the data key without the server."""
 
     __tablename__ = "webauthn_credentials"
 
@@ -26,20 +21,15 @@ class WebAuthnCredential(Base):
     )
     public_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
-    # The spec's clone signal is a counter that goes *backwards*. Many platform
-    # authenticators report a constant 0 instead of counting; treating 0 as
-    # "not supported" is what keeps every iCloud-keychain passkey working.
+    # The spec's clone signal is a counter that goes *backwards*. Many platform authenticators report a constant 0 instead of counting; treating 0 as "not supported" is what keeps every iCloud-keychain passkey working.
     sign_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     transports: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     aaguid: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
-    # 32 public bytes, fixed at registration, used as the PRF input so the same
-    # authenticator always derives the same key-encryption key.
+    # 32 public bytes, fixed at registration, used as the PRF input so the same authenticator always derives the same key-encryption key.
     prf_salt: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
-    # Whether this authenticator actually implements PRF. Where it does not, the
-    # passkey authenticates but cannot open the vault, and the UI has to say so
-    # rather than letting the teacher believe they are covered.
+    # Whether this authenticator actually implements PRF. Where it does not, the passkey authenticates but cannot open the vault, and the UI has to say so rather than letting the teacher believe they are covered.
     supports_prf: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     nickname: Mapped[str | None] = mapped_column(String(64), nullable=True)

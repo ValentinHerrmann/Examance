@@ -1,8 +1,4 @@
-/**
- * Exam header logos (issue #46). The account stores one logo; an exam follows it, prints none, or prints its own. The compile
- * places it next to `main.tex` as `examance-logo.<ext>` and `Schulaufgabe.sty` prints whichever exists, so the LaTeX never
- * names it. Mirrored by `backend/app/services/logo.py` (limits, types, names); the local engine gets the bytes from here.
- */
+/** Exam header logos (issue #46). The account stores one logo; an exam follows it, prints none, or prints its own. The compile places it next to `main.tex` as `examance-logo.<ext>` and `Schulaufgabe.sty` prints whichever exists, so the LaTeX never names it. Mirrored by `backend/app/services/logo.py` (limits, types, names); the local engine gets the bytes from here. */
 import { api } from '#lib/api/client';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import type { TranslationKey } from '#lib/i18n';
@@ -144,10 +140,7 @@ export function setExamLogo(examId: string, mode: ExamLogoMode, bytes?: Uint8Arr
 
 const bytesCache = new Map<string, Uint8Array>();
 
-/**
- * The logo for compiling an exam (`examId`) or a draft the server does not know yet (null).
- * Never fails a compile: when the logo cannot be loaded the exam is compiled without one.
- */
+/** The logo for compiling an exam (`examId`) or a draft the server does not know yet (null). Never fails a compile: when the logo cannot be loaded the exam is compiled without one. */
 export async function resolveCompileLogo(
   examId: string | null,
   useLocal: boolean
@@ -178,11 +171,7 @@ export function clearLogoCache(): void {
 
 // --- archives (.bgproj) ------------------------------------------------------------------------
 
-/**
- * An exam's logo as it travels in a `.bgproj` archive: the exam's setting plus the bytes it
- * printed (its own file, or the account logo it followed), so an importer gets the same header
- * whatever their own account logo is.
- */
+/** An exam's logo as it travels in a `.bgproj` archive: the exam's setting plus the bytes it printed (its own file, or the account logo it followed), so an importer gets the same header whatever their own account logo is. */
 export interface ArchivedExamLogo {
   examId: string;
   mode: ExamLogoMode;
@@ -202,11 +191,7 @@ function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
-/**
- * Gives an imported exam (already created on the server) the header it was exported with: it keeps following the importer's
- * account logo (`accountLogo`, null: none) only if that prints the same thing, else it gets the archived file (or no logo)
- * as its own. Returns whether anything was written.
- */
+/** Gives an imported exam (already created on the server) the header it was exported with: it keeps following the importer's account logo (`accountLogo`, null: none) only if that prints the same thing, else it gets the archived file (or no logo) as its own. Returns whether anything was written. */
 export async function restoreExamLogo(
   examId: string,
   archived: ArchivedExamLogo,

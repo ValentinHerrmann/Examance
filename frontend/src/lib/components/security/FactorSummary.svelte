@@ -17,8 +17,7 @@
   } as const satisfies Record<FactorKind, TranslationKey>;
 
   let keyCapableLabels = $derived(status.key_capable.map((f) => translate(FACTOR_LABEL[f])).join(", "));
-  // Exactly the minimum means every factor is load-bearing: lose one and only an
-  // administrator can restore the account, and not the data.
+  // Exactly the minimum means every factor is load-bearing: lose one and only an administrator can restore the account, and not the data.
   let atMinimum = $derived(status.enrolled.length === status.required_factor_count);
 </script>
 

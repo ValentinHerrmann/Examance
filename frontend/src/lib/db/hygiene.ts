@@ -1,10 +1,6 @@
-/**
- * IDB hygiene: best-effort clear-on-close plus session timeout. SECURITY: a courtesy, NOT a guarantee (the unload
- * wipe does not reliably fire on crashes, kills, mobile tab discards). If it fails the data stays safe: a new session
- * cannot derive the key without the password and sensitive fields are encrypted before every write (the PRIMARY protection).
- */
+/** IDB hygiene: best-effort clear-on-close plus session timeout. SECURITY: a courtesy, NOT a guarantee (the unload wipe does not reliably fire on crashes, kills, mobile tab discards). If it fails the data stays safe: a new session cannot derive the key without the password and sensitive fields are encrypted before every write (the PRIMARY protection). */
 
-import { clearAllTables } from './db';
+import { clearAllTables, db } from './db';
 import { isUnlocked, sessionStore } from '#lib/stores/session';
 import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import { workspaceStatusStore } from '#lib/stores/workspaceState';
@@ -21,10 +17,10 @@ async function clearCompileCache(): Promise<void> {
 }
 
 /** Clear all IDB data and compilation cache. Returns true if successful, false on error. */
-export async function wipeDatabase(): Promise<boolean> {
+export async function wipeDatabase({ keepAuditLog = false } = {}): Promise<boolean> {
   try {
     await clearCompileCache();
-    await clearAllTables();
+    await clearAllTables(keepAuditLog ? [db.auditLog] : []);
     return true;
   } catch {
     // Intentionally silenced — wipe failure is non-fatal (data is encrypted-at-rest)
@@ -32,24 +28,22 @@ export async function wipeDatabase(): Promise<boolean> {
   }
 }
 
-/** Lock the session: wipe keys from store, set lockedAt, clear compilation cache, and wipe DB if server-synced. */
+/** The one sign-out: keys first, so no later failure can leave the tab unlocked, then caches, the server session and (all-server) the local cache, then /unlock. The audit log stays: it is sealed and per owner. */
 export async function lockSession(): Promise<void> {
+  const allServer = get(storagePolicyStore).storageMode === 'all-server';
   timeUntilLock.set(null);
-  await clearCompileCache();
   sessionStore.lock();
   clearCapabilities();
   // The next unlock decides afresh whether its session owns the workspace.
   workspaceStatusStore.set({ state: 'unchecked' });
   try {
-    await api.post('/auth/logout');
-  } catch {
-    // Non-fatal if offline
-  }
-  if (get(storagePolicyStore).storageMode === 'all-server') {
-    await wipeDatabase();
-  }
-  if (typeof window !== 'undefined' && window.location.pathname !== '/unlock') {
-    window.location.href = '/unlock';
+    await api.post('/auth/logout', undefined, { silentError: true }).catch(() => {});
+    if (allServer) await wipeDatabase({ keepAuditLog: true });
+    else await clearCompileCache();
+  } finally {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/unlock') {
+      window.location.href = '/unlock';
+    }
   }
 }
 

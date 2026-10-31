@@ -1,7 +1,4 @@
-/**
- * Byte arrays inside the .bgproj JSON payload are stored as `{ $b64: "…" }`: `JSON.stringify` writes a `Uint8Array` as
- * numbered keys, which no decoder accepts. Reading also understands that old numbered-key shape.
- */
+/** Byte arrays inside the .bgproj JSON payload are stored as `{ $b64: "…" }`: `JSON.stringify` writes a `Uint8Array` as numbered keys, which no decoder accepts. Reading also understands that old numbered-key shape. */
 
 import { base64ToUint8Array, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 

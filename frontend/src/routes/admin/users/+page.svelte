@@ -1,7 +1,5 @@
 <script lang="ts">
-  // Account administration (issue #53): registrations awaiting approval, invitations, per-account
-  // feature switches and always-allowed domains. Data loading and handlers live here; the components in
-  // lib/components/admin hold the markup.
+  // Account administration (issue #53): registrations awaiting approval, invitations, per-account feature switches and always-allowed domains. Data loading and handlers live here; the components in lib/components/admin hold the markup.
   import { onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import { apiErrorMessage } from "#lib/api/client";

@@ -1,8 +1,4 @@
-/**
- * Refuses writes that would replace real data with blanks: a record that failed
- * to decrypt is marked, and every `encryptX()` calls `assertEncryptable()` first.
- * The marker is a plain field so it survives `{ ...record }`.
- */
+/** Refuses writes that would replace real data with blanks: a record that failed to decrypt is marked, and every `encryptX()` calls `assertEncryptable()` first. The marker is a plain field so it survives `{ ...record }`. */
 
 import { vaultIntegrityStore } from '#lib/stores/vaultIntegrity';
 

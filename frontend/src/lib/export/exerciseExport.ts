@@ -124,11 +124,7 @@ function addGroupDocument(ctx: ExportContext, groupDir: string, parts: DocumentP
   return texFile;
 }
 
-/**
- * Layout: `<group>/[<variant>/]<exercise>/{exercise.tex, resources, angabe.pdf, loesung.pdf}`, a
- * `<group>.tex` per group and `manifest.json`. The group documents sit at the ZIP root, next to
- * `sty/`, because XeLaTeX resolves `sty/Schulaufgabe` from the working directory.
- */
+/** Layout: `<group>/[<variant>/]<exercise>/{exercise.tex, resources, angabe.pdf, loesung.pdf}`, a `<group>.tex` per group and `manifest.json`. The group documents sit at the ZIP root, next to `sty/`, because XeLaTeX resolves `sty/Schulaufgabe` from the working directory. */
 export async function exportExerciseGroups(
   groups: ExerciseGroup[],
   { globalAssets, pdfs }: ExerciseExportOptions,

@@ -1,6 +1,4 @@
-"""What an account may use (issue #53), decided only here. Admin switches: `allow_server_results`
-(all-server), `allow_server_latex`, `allow_exercise_sharing` (issue #65). The frontend renders
-from `capabilities_for`; endpoints enforce it."""
+"""What an account may use (issue #53), decided only here. Admin switches: `allow_server_results` (all-server), `allow_server_latex`, `allow_exercise_sharing` (issue #65). The frontend renders from `capabilities_for`; endpoints enforce it."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -78,10 +76,7 @@ async def require_exercise_sharing(teacher: Teacher = Depends(get_teaching_teach
 async def require_server_results_writable(
     teacher: Teacher = Depends(get_teaching_teacher),
 ) -> Teacher:
-    """The signed-in teacher, if their account may write grading results to the server.
-
-    A revoked account still in "all-server" keeps writing until resultsMover.ts moved its results
-    out (else they strand offline). Reads and deletes are never gated (move, erasure need them)."""
+    """The signed-in teacher, if their account may write grading results to the server. A revoked account still in "all-server" keeps writing until resultsMover.ts moved its results out (else they strand offline). Reads and deletes are never gated (move, erasure need them)."""
     if "all-server" in capabilities_for(teacher).allowed_storage_modes:
         return teacher
     if teacher.storage_mode == "all-server":

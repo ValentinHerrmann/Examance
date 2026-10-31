@@ -1,7 +1,4 @@
-"""Self-registration, approval and per-account features (issue #53), plus retention of stale ones.
-
-Mail is captured by patching ``app.services.email.send_email`` (background tasks run in-request).
-The database is shared across the session, so every address and domain is unique per test."""
+"""Self-registration, approval and per-account features (issue #53), plus retention of stale ones. Mail is captured by patching ``app.services.email.send_email`` (background tasks run in-request). The database is shared across the session, so every address and domain is unique per test."""
 from __future__ import annotations
 
 import base64
@@ -536,6 +533,27 @@ async def test_reject_deletes_a_pending_account_and_tells_the_registrant(
     assert "not approved" in mail["body_text"]
 
 
+async def test_admin_actions_are_audited_with_the_hashed_client_ip(
+    client: AsyncClient, visitor: AsyncClient, db: AsyncSession, admin: Teacher
+) -> None:
+    email = _email()
+    await _register(visitor, email)
+    pending = await _teacher(db, email)
+
+    with outbox():
+        assert (await client.post(f"{ADMIN_USERS}/{pending.id}/reject")).status_code == 204
+
+    entry = await db.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "USER_REJECTED",
+            AuditLog.target_hash == hashlib.sha256(str(pending.id).encode()).hexdigest(),
+        )
+    )
+    assert entry is not None
+    assert entry.teacher_id == admin.id
+    assert entry.ip_hash == hashlib.sha256(b"127.0.0.1").hexdigest()
+
+
 async def test_an_approved_account_cannot_be_rejected(
     client: AsyncClient, db: AsyncSession, admin: Teacher
 ) -> None:
@@ -732,16 +750,14 @@ async def test_latex_compilation_needs_the_server_latex_feature(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     teacher = await sign_in(client, db, _email("latex"))
-    exam_id = await _create_exam(client)
     body = {"latex": "\\documentclass{article}"}
 
     teacher.allow_server_latex = False
     await db.commit()
     with patch("app.routers.compile.compile_latex", return_value=b"%PDF-1.4 fake") as compiler:
-        for path in ("/api/v1/compile/latex", f"/api/v1/exams/{exam_id}/compile"):
-            refused = await client.post(path, json=body)
-            assert refused.status_code == 403, path
-            assert refused.headers.get("code") == "ERR_FEATURE_NOT_ALLOWED"
+        refused = await client.post("/api/v1/compile/latex", json=body)
+        assert refused.status_code == 403
+        assert refused.headers.get("code") == "ERR_FEATURE_NOT_ALLOWED"
         compiler.assert_not_called()
 
         teacher.allow_server_latex = True

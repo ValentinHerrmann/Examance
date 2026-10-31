@@ -15,8 +15,7 @@
 
   let { stats, totalMaxPoints, gradingKey = undefined }: Props = $props();
 
-  // Values that stand for a grade are tinted like the charts' bars. The darkest grades are
-  // lifted towards white, or dark green / dark red text is hard to read on the dark tiles.
+  // Values that stand for a grade are tinted like the charts' bars. The darkest grades are lifted towards white, or dark green / dark red text is hard to read on the dark tiles.
   const LIFT: Record<string, string> = {
     'var(--color-grade-1)': 'color-mix(in srgb, var(--color-grade-1) 60%, white)',
     'var(--color-grade-6)': 'color-mix(in srgb, var(--color-grade-6) 60%, white)',

@@ -1,7 +1,4 @@
-/**
- * Subject snippets of the palette (one tab per subject, MINT topics from LehrplanPLUS Gymnasium); labels in the `snippets`
- * i18n namespace. packages.sty preloads every package they use. Never write `${` in these String.raw templates.
- */
+/** Subject snippets of the palette (one tab per subject, MINT topics from LehrplanPLUS Gymnasium); labels in the `snippets` i18n namespace. packages.sty preloads every package they use. Never write `${` in these String.raw templates. */
 import { oneArgMacro, type QuickInsertMacro, type SubjectCategory } from "./quickInsertMacros";
 
 const snippet =

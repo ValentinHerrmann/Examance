@@ -1,7 +1,5 @@
 <script lang="ts">
-  // Shows what a .bgproj import or export actually did: real counts per kind, what an exam links
-  // but is missing, what an export withheld, and the technical problems (collected HTTP errors)
-  // that used to surface as pop-ups. Mounted once in the root layout, driven by `archiveReportPrompt`.
+  // Shows what a .bgproj import or export actually did: real counts per kind, what an exam links but is missing, what an export withheld, and the technical problems (collected HTTP errors) that used to surface as pop-ups. Mounted once in the root layout, driven by `archiveReportPrompt`.
   import { t, tOptional } from '#lib/i18n';
   import { Modal, Button, Alert, TableScroller } from '#lib/components/ui';
   import { archiveReportPrompt } from '#lib/stores/archiveReport';

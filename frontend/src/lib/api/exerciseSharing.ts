@@ -1,8 +1,4 @@
-/**
- * Exercise sharing (issue #65): share own exercise groups with every account, browse and copy shared ones,
- * resync copies. Online-only on purpose (never the offline queue): a share, copy or resync must not be
- * replayed into another workspace. Every call is `silentError`; the library page reports inline.
- */
+/** Exercise sharing (issue #65): share own exercise groups with every account, browse and copy shared ones, resync copies. Online-only on purpose (never the offline queue): a share, copy or resync must not be replayed into another workspace. Every call is `silentError`; the library page reports inline. */
 
 import type { ExerciseRecord } from '#lib/db/schema';
 import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';

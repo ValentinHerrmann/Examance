@@ -4,7 +4,7 @@
  */
 import { test } from './helpers/guards';
 import { label } from './helpers/i18n';
-import { openHelp, openStoragePolicy } from './helpers/nav';
+import { openHelp } from './helpers/nav';
 import { exerciseEditor } from './helpers/flows';
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';
 
@@ -28,11 +28,6 @@ for (const theme of THEMES) {
     await page.screenshot({ path: shot('modal-help') });
     await page.keyboard.press('Escape');
     await help.waitFor({ state: 'hidden' });
-
-    const storage = await openStoragePolicy(page);
-    await page.screenshot({ path: shot('modal-storage') });
-    await page.keyboard.press('Escape');
-    await storage.waitFor({ state: 'hidden' });
 
     await visit(page, '/exercises');
     await page.getByRole('button', { name: label('exercises.page.createButton', undefined, 'en') }).click();

@@ -29,11 +29,7 @@
   import { ADMIN_HOME } from "#lib/stores/navigationStore";
   import { Icon, Menu, MenuItem } from "#lib/components/ui";
 
-  /**
-   * Artemis navbar, dark slate in both themes: brand and (from `xl`) main links left; storage mode, workspace, language,
-   * theme, help, account right. Below `xl` the links move into the drawer (they do not fit at 1024px). `minimal` is for
-   * locked and public pages: brand, language, theme, help. Admins get user management only (issue #58).
-   */
+  /** Artemis navbar, dark slate in both themes: brand and (from `xl`) main links left; storage mode, workspace, language, theme, help, account right. Below `xl` the links move into the drawer (they do not fit at 1024px). `minimal` is for locked and public pages: brand, language, theme, help. Admins get user management only (issue #58). */
   interface Props {
     variant?: "full" | "minimal";
     authenticated?: boolean;
@@ -44,12 +40,9 @@
     latexCompilation?: "local" | "server";
     versionStatus?: VersionStatus;
     helpUnseen?: boolean;
-    onStorageClick?: () => void;
     onHelpClick?: () => void;
     onOpenArchive?: () => void;
     onExportArchive?: () => void;
-    /** Export exams with scans and results but without the exercises' code, to share with another teacher. */
-    onShareResults?: () => void;
     onClearWorkspace?: () => void;
     onLock?: () => void;
   }
@@ -63,11 +56,9 @@
     latexCompilation = "local",
     versionStatus = "no-server",
     helpUnseen = false,
-    onStorageClick = () => {},
     onHelpClick = () => {},
     onOpenArchive = () => {},
     onExportArchive = () => {},
-    onShareResults = () => {},
     onClearWorkspace = () => {},
     onLock = () => {},
   }: Props = $props();
@@ -128,7 +119,6 @@
 {#snippet workspaceItems()}
   <MenuItem icon={faFileImport} onSelect={onOpenArchive}>{$t("workspace.menu.open")}</MenuItem>
   <MenuItem icon={faFileExport} onSelect={onExportArchive}>{$t("workspace.menu.export")}</MenuItem>
-  <MenuItem icon={faFileExport} onSelect={onShareResults}>{$t("workspace.menu.shareResults")}</MenuItem>
   <MenuItem icon={faTrashCan} danger onSelect={onClearWorkspace}>{$t("workspace.menu.clear")}</MenuItem>
 {/snippet}
 
@@ -197,30 +187,28 @@
       {#if !isAdmin}
       <!-- Data + LaTeX from sm (mark + state icon); on phones they do not fit and live in the drawer, the version in the footer. -->
       <div class="hidden items-center sm:flex sm:gap-1">
-        <button
-          type="button"
+        <a
           class="{control} gap-1 px-1.5 sm:gap-2 sm:px-2.5"
           title="{$t('nav.dataLabel')}: {dataLabel} – {dataTitle}"
           aria-label={$t("nav.storageMode", { mode: dataLabel })}
-          onclick={onStorageClick}
+          href="/settings#storage-policy"
         >
           <Icon icon={faDatabase} class="text-xs opacity-70" />
           {#if storageMode}
             <Icon icon={dataPlaceIcons[storageMode]} />
           {/if}
           <span class="hidden truncate xl:inline">{$t("nav.dataLabel")}: {dataLabel}</span>
-        </button>
-        <button
-          type="button"
+        </a>
+        <a
           class="{control} gap-1 px-1.5 sm:gap-2 sm:px-2.5"
           title="{$t('nav.latexLabel')}: {latexLabel} – {latexTitle}"
           aria-label={$t("nav.latexMode", { mode: latexLabel })}
-          onclick={onStorageClick}
+          href="/settings#latex"
         >
           <span class="font-serif text-xs font-bold tracking-tight opacity-70" aria-hidden="true">TeX</span>
           <Icon icon={latexPlaceIcons[latexCompilation]} />
           <span class="hidden truncate xl:inline">{$t("nav.latexLabel")}: {latexLabel}</span>
-        </button>
+        </a>
       </div>
 
       {#if $smUp}

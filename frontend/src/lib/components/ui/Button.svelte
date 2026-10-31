@@ -8,10 +8,7 @@
   type Variant = "solid" | "outlined" | "text";
   type Severity = "primary" | "secondary" | "success" | "info" | "warning" | "danger" | "contrast";
 
-  /**
-   * The single button recipe (Artemis spec): `variant` x `severity`. With `href` it renders an <a>.
-   * One primary button per view; destructive actions confirm first; links navigate, buttons act.
-   */
+  /** The single button recipe (Artemis spec): `variant` x `severity`. With `href` it renders an <a>. One primary button per view; destructive actions confirm first; links navigate, buttons act. */
   interface Props extends Omit<HTMLButtonAttributes & HTMLAnchorAttributes, "class" | "type" | "title" | "disabled" | "onclick" | "children"> {
     variant?: Variant;
     severity?: Severity;

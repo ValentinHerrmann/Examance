@@ -19,8 +19,7 @@ class AuditLogResponse(BaseModel):
 
 
 class AccountFeatures(BaseModel):
-    """The per-account admin switches (app/services/capabilities.py): server_results ("all-server"
-    allowed), server_latex (server-side compile), exercise_sharing (sharing/copying, issue #65)."""
+    """The per-account admin switches (app/services/capabilities.py): server_results ("all-server" allowed), server_latex (server-side compile), exercise_sharing (sharing/copying, issue #65)."""
 
     model_config = ConfigDict(extra="forbid")
 

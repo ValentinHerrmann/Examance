@@ -40,13 +40,15 @@
   import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 
   let exams: ExamRecord[] = $state.raw([]);
-  let rawExportExamId: string | null = $state(null);
+  let exportExam: ExamRecord | null = $state(null);
   let duplicatingExamId: string | null = $state(null);
   let addingExampleData = $state(false);
   let exampleDataError = $state('');
   let duplicateError = $state('');
   /** Set when the server refused the exam list, so the view can say so. */
   let examsLoadFailed = $state(false);
+  // The submission read failed: the per-exam figures are unknown, which is not "no submissions".
+  let statsLoadFailed = $state(false);
   let examStatsMap = $state.raw(new Map<string, { avgScore: number | null; count: number }>());
   let isImporting = $state(false);
   let importStatus = $state('');
@@ -65,8 +67,7 @@
     exerciseRepository.getByExamId(examId, get(sessionStore).sessionKey)
   );
 
-  // Badge on the mobile filter button, so an active filter is visible without
-  // opening the drawer.
+  // Badge on the mobile filter button, so an active filter is visible without opening the drawer.
   let activeFilterCount = $derived(countActiveFilters(searchQuery, selectedGradeFilter, selectedSubjectFilter, selectedTestartFilter, selectedTopicFilter));
 
   let fileInput: HTMLInputElement | undefined = $state();
@@ -74,8 +75,7 @@
   /** The header logo each expanded exam prints, loaded with its exercises. */
   const logoMap = createLazyMap<ExamLogoPreview>(loadExamLogoPreview);
 
-  // Which exam rows are expanded (the list is collapsibles, like the exercise
-  // library).
+  // Which exam rows are expanded (the list is collapsibles, like the exercise library).
   const expandedExams = createExpandSet((examId) => {
     exerciseMap.ensure(examId);
     logoMap.ensure(examId);
@@ -117,8 +117,7 @@
 
   onMount(async () => {
     try {
-      // Must run before the check below, or it can run against a session the
-      // layout hasn't restored yet, bouncing a reload to /unlock.
+      // Must run before the check below, or it can run against a session the layout hasn't restored yet, bouncing a reload to /unlock.
       await awaitSessionReady();
       if (!$isUnlocked) {
         goto("/unlock");
@@ -155,12 +154,14 @@
     examsLoadFailed = failed;
 
     try {
-      // `exams` is already loaded above; passing it stops this from fetching
-      // /exams a second time on every dashboard render.
+      // `exams` is already loaded above; passing it stops this from fetching /exams a second time on every dashboard render.
       const allSubmissions = await submissionRepository.getAll(key, exams);
       examStatsMap = computeExamStats(allSubmissions);
+      statsLoadFailed = false;
     } catch (e) {
       console.warn('Could not load submission stats for dashboard:', e);
+      examStatsMap = new Map();
+      statsLoadFailed = true;
     }
 
     for (const exam of exams) {
@@ -356,6 +357,10 @@
       <Alert severity="danger" class="mb-6">{$t("dashboard.loadFailed")}</Alert>
     {/if}
 
+    {#if statsLoadFailed}
+      <Alert severity="danger" class="mb-6">{$t("dashboard.statsLoadFailed")}</Alert>
+    {/if}
+
     {#if exams.length === 0}
       {#if !examsLoadFailed}
         <OnboardingEmptyState onAddExampleData={handleAddExampleData} {addingExampleData} {exampleDataError} />
@@ -396,7 +401,7 @@
           onToggleExam={expandedExams.toggle}
           onDelete={handleDeleteDashboardExam}
           onPreview={examPreview.open}
-          onRawExport={(exam) => (rawExportExamId = exam.id)}
+          onExport={(exam) => (exportExam = exam)}
           onDuplicate={handleDuplicateExam}
           onExerciseSaved={() => expandedExams.ids().forEach((id) => exerciseMap.reload(id))}
           duplicatingId={duplicatingExamId}
@@ -408,8 +413,8 @@
 
 <PreviewHost flow={examPreview} kind="exam" />
 
-{#if rawExportExamId}
-  <ExamExportModal examId={rawExportExamId} onClose={() => (rawExportExamId = null)} />
+{#if exportExam}
+  <ExamExportModal examId={exportExam.id} examTitle={exportExam.title ?? ""} onClose={() => (exportExam = null)} />
 {/if}
 
 <DeleteWithUsageModal

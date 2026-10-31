@@ -2,11 +2,11 @@ import 'fake-indexeddb/auto'; // In-memory IndexedDB mock for Vitest — must be
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { get } from 'svelte/store';
 
-// Exams and exercises always live on the server (issue #47): the archive round-trips run against an
-// in-memory fake of the API. Results stay in IndexedDB because the tests run in hybrid mode.
+// Exams and exercises always live on the server (issue #47): the archive round-trips run against an in-memory fake of the API. Results stay in IndexedDB because the tests run in hybrid mode.
 vi.mock('../src/lib/api/client', async () => (await import('./helpers/fakeServer')).clientModule);
 
 import { fakeServer } from './helpers/fakeServer';
+import { setArgon2Available } from './mocks/argon2Mock';
 import { packProject } from '../src/lib/archive/packer';
 import { applyArchive, decryptArchive, unpackProject } from '../src/lib/archive/unpacker';
 import { applyResolutions, detectConflicts } from '../src/lib/archive/conflicts';
@@ -46,6 +46,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
   let testKey: CryptoKey;
 
   beforeEach(async () => {
+    setArgon2Available(true);
     fakeServer.reset();
     await db.exams.clear();
     await db.exercises.clear();
@@ -220,10 +221,20 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await expect(unpackProject(packedBytes, testPassword)).rejects.toThrow();
   });
 
+  it('refuses to export without Argon2 instead of sealing with another KDF (S14)', async () => {
+    await saveExamEncrypted(exam('e1', 'Chemistry'), testKey);
+    setArgon2Available(false);
+    await expect(packBlob(testPassword)).rejects.toThrow(/Argon2/);
+  });
+
+  it('refuses a ZIP with more entries than any export has (S13)', () => {
+    const files: Record<string, Uint8Array> = {};
+    for (let i = 0; i <= 20_000; i++) files[`f${i}`] = new Uint8Array(0);
+    expect(() => readZipExport(zipSync(files))).toThrow();
+  });
+
   it('merges into the existing workspace instead of wiping it', async () => {
-    // Importing used to clear every table first — and, in archiveService, to do
-    // so *before* the password had even been checked. An import now adds to
-    // what is there; replacing is opt-in and happens after decryption.
+    // Importing used to clear every table first — and, in archiveService, to do so *before* the password had even been checked. An import now adds to what is there; replacing is opt-in and happens after decryption.
     await saveExamEncrypted(exam('new-exam-id', 'New Biology Exam'), testKey);
     const newProjectPacked = await packBlob(testPassword);
 
@@ -250,9 +261,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
   });
 
   it('does not replace the live session key with the archive key', async () => {
-    // The importer used to call sessionStore.unlock() with a key derived from
-    // the archive's own random salt, which the vault cannot re-derive: every
-    // record written afterwards was sealed under a key that died with the tab.
+    // The importer used to call sessionStore.unlock() with a key derived from the archive's own random salt, which the vault cannot re-derive: every record written afterwards was sealed under a key that died with the tab.
     await saveExamEncrypted(exam('keyed-exam', 'Key check'), testKey);
     const packed = await packBlob(testPassword);
     const keyBefore = get(sessionStore).sessionKey;

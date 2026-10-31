@@ -1,7 +1,4 @@
-"""Changing a password from an open session.
-Writes the new password and the re-wrapped key together and keeps the current session alive,
-unlike the emailed reset, which invalidates the key wrap and needs the recovery code.
-"""
+"""Changing a password from an open session. Writes the new password and the re-wrapped key together and keeps the current session alive, unlike the emailed reset, which invalidates the key wrap and needs the recovery code."""
 from __future__ import annotations
 
 import base64
@@ -81,8 +78,7 @@ async def test_the_new_password_signs_in_and_the_key_copy_moves_with_it(
     )
     assert resp.status_code == 200, resp.text
 
-    # The wrap written by the request is the usable one — the point of sending
-    # both together is that the password and its key copy cannot disagree.
+    # The wrap written by the request is the usable one — the point of sending both together is that the password and its key copy cannot disagree.
     wraps = await db.execute(
         select(KeyEnvelope).where(
             KeyEnvelope.teacher_id == teacher.id, KeyEnvelope.kind == "password"
@@ -128,12 +124,7 @@ async def test_the_old_password_stops_working(client: AsyncClient, db: AsyncSess
 async def test_a_wrong_current_password_is_refused(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    And costs a throttle attempt.
-
-    Without that this endpoint would be a password oracle that skips the login
-    cooloff entirely — slower per guess, but unbounded.
-    """
+    """And costs a throttle attempt. Without that this endpoint would be a password oracle that skips the login cooloff entirely — slower per guess, but unbounded."""
     email = "wrong-current@example.com"
     teacher = await sign_in(client, db, email)
 
@@ -156,12 +147,7 @@ async def test_a_wrong_current_password_is_refused(
 async def test_without_a_re_wrap_the_password_wrap_is_marked_stale(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    The server cannot re-wrap a key it has never seen.
-
-    Marking the wrap unusable is what sends the teacher to their recovery code
-    instead of to a vault that silently reads as empty.
-    """
+    """The server cannot re-wrap a key it has never seen. Marking the wrap unusable is what sends the teacher to their recovery code instead of to a vault that silently reads as empty."""
     email = "no-envelope@example.com"
     teacher = await sign_in(client, db, email)
 
@@ -189,17 +175,12 @@ async def test_without_a_re_wrap_the_password_wrap_is_marked_stale(
 async def test_this_session_survives_while_the_others_are_revoked(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    A teacher changing their own password has not asked to be logged out of the
-    browser they are doing it in — but every other device has to re-authenticate.
-    """
+    """A teacher changing their own password has not asked to be logged out of the browser they are doing it in — but every other device has to re-authenticate."""
     email = "sessions@example.com"
     teacher = await create_teacher(db, email)
     secret = await enrol_totp(db, teacher)
 
-    # A second device, signed in first and left alone. The two sign-ins have to
-    # use different time steps: a code is refused on its second use, which is
-    # the replay guard doing its job.
+    # A second device, signed in first and left alone. The two sign-ins have to use different time steps: a code is refused on its second use, which is the replay guard doing its job.
     other = AsyncClient(transport=client._transport, base_url=str(client.base_url))
     await complete_login(other, email, secret)
     await _sign_in_at_next_step(client, email, secret)

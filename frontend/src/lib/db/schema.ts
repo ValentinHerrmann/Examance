@@ -3,11 +3,7 @@ import type { LatexPackageEntry } from '#lib/latex/packages';
 import type { OmrPageStats, OmrRunInfo } from '#lib/grading/omrSettings';
 import type { OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
 
-/**
- * IndexedDB schema types for Dexie. SECURITY: all *_ct fields are Uint8Array ciphertext before IDB
- * write; decrypted only at point of use, never stored decrypted. Encryption at rest is the PRIMARY
- * protection on shared machines; the hygiene.ts wipe is best-effort UX.
- */
+/** IndexedDB schema types for Dexie. SECURITY: all *_ct fields are Uint8Array ciphertext before IDB write; decrypted only at point of use, never stored decrypted. Encryption at rest is the PRIMARY protection on shared machines; the hygiene.ts wipe is best-effort UX. */
 
 export interface GradeCutoff {
   grade: string;      // e.g. "1", "2", "3", "4", "5", "6"
@@ -96,11 +92,7 @@ export interface ExerciseRecord extends MaybeUndecryptable {
   options?: string[];
   correctAnswers?: number[];
   penalty: number;
-  /**
-   * The exercise's code was withheld: it came from a results-only archive of another teacher. Name,
-   * points and answer key are there, so its scans and scores grade and count as usual, but there is
-   * no LaTeX to compile or edit.
-   */
+  /** The exercise's code was withheld: it came from a results-only archive of another teacher. Name, points and answer key are there, so its scans and scores grade and count as usual, but there is no LaTeX to compile or edit. */
   codeWithheld?: boolean;
   /** Shared with every account of the installation (issue #65); own rows only. */
   isShared?: boolean;
@@ -112,11 +104,7 @@ export interface ExerciseRecord extends MaybeUndecryptable {
   payloadIv?: Uint8Array;
 }
 
-/**
- * A file attached to an exercise so its LaTeX can reference it by name (`\includegraphics{figure.png}`).
- * Bytes are AES-256-GCM encrypted (`dataCt`/`dataIv`) like a scan; `data` holds plaintext only when no
- * session key exists. `filename`, `mimeType`, `byteSize` stay clear (Dexie index/display fields).
- */
+/** A file attached to an exercise so its LaTeX can reference it by name (`\includegraphics{figure.png}`). Bytes are AES-256-GCM encrypted (`dataCt`/`dataIv`) like a scan; `data` holds plaintext only when no session key exists. `filename`, `mimeType`, `byteSize` stay clear (Dexie index/display fields). */
 export interface ExerciseResourceRecord {
   id: string;            // UUID
   exerciseId: string;
@@ -174,19 +162,13 @@ export interface OmrScoreMeta {
   };
   /** ISO timestamp when the detection was verified or corrected. */
   reviewedAt?: string;
-    /** Detection batch that produced this row (when, params, algorithm version). Absent on rows detected
-     *  before settings existed ("not recorded", don't assume current defaults). Carried through review
-     *  actions (mcScore.ts spreads `omrMeta`) so a verified row keeps its detection provenance. */
+    /** Detection batch that produced this row (when, params, algorithm version). Absent on rows detected before settings existed ("not recorded", don't assume current defaults). Carried through review actions (mcScore.ts spreads `omrMeta`) so a verified row keeps its detection provenance. */
   run?: OmrRunInfo;
   /** Registration diagnostics of the page this exercise sits on. */
   pageStats?: OmrPageStats;
-    /** Opt-in training-data donation of this verified question: when, the verified selection donated
-     *  (re-donated only if it changes), and one random token per box (optionIndex -> UUID) reused by every
-     *  donation of that box so the server replaces the earlier sample. `at`/`label` absent until a donation succeeded. */
+    /** Opt-in training-data donation of this verified question: when, the verified selection donated (re-donated only if it changes), and one random token per box (optionIndex -> UUID) reused by every donation of that box so the server replaces the earlier sample. `at`/`label` absent until a donation succeeded. */
   donation?: { at?: string; label?: string; tokens?: Record<number, string> };
-    /** Detected bubble boxes drawn over the scan, for every option (blank ones too, to place "missing"
-     *  annotations). `rect`, `detectedState` and ratios record what the scanner saw and are never
-     *  rewritten; `state` is the current display state and follows teacher corrections. */
+    /** Detected bubble boxes drawn over the scan, for every option (blank ones too, to place "missing" annotations). `rect`, `detectedState` and ratios record what the scanner saw and are never rewritten; `state` is the current display state and follows teacher corrections. */
   detections?: {
     /** 0-based, matches OmrPageTemplate.pageIndex. */
     pageIndex: number;
@@ -205,11 +187,9 @@ export interface OmrScoreMeta {
       shape?: OmrShapeFeatures;
       /** Why shape analysis changed or flagged the reading (immutable, like `detectedState`). */
       reasons?: OmrShapeReason[];
-      /** Detector's provisional (closer) reading of an ambiguous box — true = counted as ticked
-       *  until verified. Immutable; the teacher's decision lives in `selectedOptions`. */
+      /** Detector's provisional (closer) reading of an ambiguous box — true = counted as ticked until verified. Immutable; the teacher's decision lives in `selectedOptions`. */
       provisional?: boolean;
-      /** Verdict of the algorithm that did not decide (shadow run, `params.algorithm`), kept to
-       *  compare algorithms on verified data. Immutable. */
+      /** Verdict of the algorithm that did not decide (shadow run, `params.algorithm`), kept to compare algorithms on verified data. Immutable. */
       alt?: { algorithm: number; state: 'ambiguous' | 'marked' | 'blank' | 'undone' | 'redone'; reasons?: OmrShapeReason[]; provisional?: boolean };
     }[];
   };
@@ -228,11 +208,7 @@ export interface ExerciseScoreRecord extends MaybeUndecryptable {
   payloadIv?: Uint8Array;
 }
 
-/**
- * A pupil's identity within one exam. `fallbackCode`, `studentName`, `studentNumber` exist only on records returned by
- * `decryptStudent()`; stored, they live solely inside `payloadCt`. Writing them back as plain columns is the L17 leak
- * (docs/legal_audit_dsgvo.md) that broke Core Invariant 1.
- */
+/** A pupil's identity within one exam. `fallbackCode`, `studentName`, `studentNumber` exist only on records returned by `decryptStudent()`; stored, they live solely inside `payloadCt`. Writing them back as plain columns is the L17 leak (docs/legal_audit_dsgvo.md) that broke Core Invariant 1. */
 export interface StudentRecord extends MaybeUndecryptable {
   /** Raw pseudonym UUID — only in local IDB, never sent to server. */
   pseudonymId: string;
@@ -268,8 +244,7 @@ export interface SubmissionRecord extends MaybeUndecryptable {
   annotationCt?: Uint8Array;
   annotationIv?: Uint8Array;
   createdAt: string;
-    /** Presence flags from the server's list endpoint (see `submissionRepository.getByExamId` `includeScans`):
-     *  true even when `scanCt`/`annotationCt` were omitted. Undefined for local records, where the bytes are known directly. */
+    /** Presence flags from the server's list endpoint (see `submissionRepository.getByExamId` `includeScans`): true even when `scanCt`/`annotationCt` were omitted. Undefined for local records, where the bytes are known directly. */
   hasScan?: boolean;
   hasAnnotations?: boolean;
   /** AES-256-GCM encrypted payload containing totalScore. */
@@ -284,8 +259,7 @@ export interface OmrBubbleRect {
   optionIndex: number;
   /** PDF user-space rect [x0, y0, x1, y1], origin bottom-left of the page. */
   rect: [number, number, number, number];
-  /** Redo-zone rect immediately left of the box (PDF points), present only on exams
-   *  compiled after undo/redo support was added. Absent → worker uses legacy 2-band logic. */
+  /** Redo-zone rect immediately left of the box (PDF points), present only on exams compiled after undo/redo support was added. Absent → worker uses legacy 2-band logic. */
   redoRect?: [number, number, number, number];
 }
 
@@ -312,9 +286,7 @@ export interface OmrTemplateRecord {
   /** Equal to examId — one template per exam. */
   id: string;
   examId: string;
-  /** Hash of the ordered (exerciseId, questionType, options.length, correctAnswers, penalty)
-   *  tuples this template was built from — used to detect a stale template after an
-   *  answer-key edit. Never silently regenerated; the UI gates on a mismatch. */
+  /** Hash of the ordered (exerciseId, questionType, options.length, correctAnswers, penalty) tuples this template was built from — used to detect a stale template after an answer-key edit. Never silently regenerated; the UI gates on a mismatch. */
   exercisesHash: string;
   createdAt: string;
   /** AES-256-GCM encrypted payload containing { pages: OmrPageTemplate[] }. */
@@ -347,11 +319,7 @@ export interface WorkspaceOwner {
   accountEmail?: string | null;
 }
 
-/**
- * The single row of the `workspace` table: whose key sealed this database's data and the account's last storage mode here
- * (offline loads only; the real mode lives on the server, `GET /user/capabilities`). `'all-local'` marks a workspace from
- * before local mode was discontinued.
- */
+/** The single row of the `workspace` table: whose key sealed this database's data and the account's last storage mode here (offline loads only; the real mode lives on the server, `GET /user/capabilities`). `'all-local'` marks a workspace from before local mode was discontinued. */
 export interface WorkspaceManifestRecord {
   /** Always `'current'` (single-row table). */
   id: 'current';
@@ -367,4 +335,17 @@ export interface WorkspaceManifestRecord {
   /** Legacy field from the per-browser mode era; ignored. */
   explicit?: boolean;
   createdAt: string;
+}
+
+/** A server write waiting for the connection (`services/offlineQueue.ts`); kept out of `vaultTables()`. */
+export interface QueuedRequest {
+  id: string;
+  url: string;
+  /** PUT serves the per-exercise score endpoint, keyed by (submission, exercise): idempotent, hence safe to replay from the queue. */
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  body?: any;
+  /** Strictly increasing per tab: the replay order. */
+  timestamp: number;
+  /** The workspace (`lib/db/workspace.ts`) whose data this write belongs to. Replayed only into that workspace: after a mode switch or under another account the write is meaningless or harmful. Missing on entries from before the manifest; `stampUnboundQueueEntries` adopts those once. */
+  workspaceId?: string;
 }

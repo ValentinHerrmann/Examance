@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { detectHardware, PipelineMonitor } from '../src/lib/hardware/detect';
-import { generateLatex, generateQrDataUrl } from '../src/lib/latex/generator';
 
 describe('Hardware Detection & Pipeline Monitor', () => {
   it('detects hardware profile correctly', () => {
@@ -10,9 +9,7 @@ describe('Hardware Detection & Pipeline Monitor', () => {
   });
 
   it('falls back instead of throwing when there is no navigator global', async () => {
-    // `navigator` only became a Node global in Node 21, and does not exist
-    // under SSR/prerendering either. CI pins Node 20, so an unguarded read
-    // here crashed there while passing on newer local Node versions.
+    // `navigator` only became a Node global in Node 21, and does not exist under SSR/prerendering either. CI pins Node 20, so an unguarded read here crashed there while passing on newer local Node versions.
     const had = 'navigator' in globalThis;
     const original = (globalThis as any).navigator;
     delete (globalThis as any).navigator;
@@ -47,30 +44,5 @@ describe('Hardware Detection & Pipeline Monitor', () => {
 
     expect(downgradeFired).toBe(true);
     expect(monitor.inConstrainedMode).toBe(true);
-  });
-});
-
-describe('LaTeX Generator', () => {
-  it('generates LaTeX document containing TikZ corner fiducials and QR code block', async () => {
-    const latex = await generateLatex({
-      title: 'Computer Science 101',
-      pseudonymId: 'uuid-1234',
-      version: 'A',
-      fallbackCode: 'CS-A1B2C3',
-      exercises: [
-        { title: 'Explain Polymorphism', type: 'free_text', points: 10 },
-        { title: 'Is HTML a programming language?', type: 'tf', points: 2, options: ['True', 'False'] },
-      ],
-    });
-
-    expect(latex).toContain('\\FiducialMarker');
-    expect(latex).toContain('Computer Science 101');
-    expect(latex).toContain('FALLBACK: A-CS-A1B2C3');
-    expect(latex).toContain('\\begin{tikzpicture}');
-  });
-
-  it('generates QR data URL data URI string', async () => {
-    const dataUrl = await generateQrDataUrl('uuid-999', 'B', 'FB-999');
-    expect(dataUrl).toMatch(/^data:image\/png;base64,/);
   });
 });

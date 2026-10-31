@@ -1,6 +1,4 @@
-// Shared naming/download helpers for the BusyTeX assets (fetch-busytex.mjs, build.mjs, mirror-busytex.yml `keys`) so all
-// agree on what the R2 mirror holds: `busytex-assets-v<version>.tar.gz` (upstream archive, byte for byte) and
-// `busytex-processed-v<version>-<hash>.tar` (process-large-files.mjs output; <hash> covers its scripts, so no stale output).
+// Shared naming/download helpers for the BusyTeX assets (fetch-busytex.mjs, build.mjs, mirror-busytex.yml `keys`) so all agree on what the R2 mirror holds: `busytex-assets-v<version>.tar.gz` (upstream archive, byte for byte) and `busytex-processed-v<version>-<hash>.tar` (process-large-files.mjs output; <hash> covers its scripts, so no stale output).
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -11,8 +9,7 @@ import { fileURLToPath } from 'node:url';
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND = path.dirname(SCRIPTS);
 
-// From the lockfile rather than node_modules, so the mirror workflow can
-// compute the same names without installing dependencies.
+// From the lockfile rather than node_modules, so the mirror workflow can compute the same names without installing dependencies.
 const lock = JSON.parse(fs.readFileSync(path.join(FRONTEND, 'package-lock.json'), 'utf-8'));
 export const version = lock.packages?.['node_modules/texlyre-busytex']?.version;
 if (!version) throw new Error('texlyre-busytex not found in package-lock.json');
@@ -46,11 +43,7 @@ export function run(cmd, args, stdin) {
   });
 }
 
-/**
- * Streams the tarball at `url` into the system `tar`, extracting via a scratch directory and
- * moving into `dest` only once `expect` (relative to `dest`) exists, so an interrupted
- * download never leaves a partial tree that a later run would skip.
- */
+/** Streams the tarball at `url` into the system `tar`, extracting via a scratch directory and moving into `dest` only once `expect` (relative to `dest`) exists, so an interrupted download never leaves a partial tree that a later run would skip. */
 export async function streamExtract(url, dest, { gzip, expect }) {
   const tmp = path.join(dest, '.busytex-download');
   fs.rmSync(tmp, { recursive: true, force: true });

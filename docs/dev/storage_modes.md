@@ -18,7 +18,7 @@ Issue #47 ("Ensure consistent mode switching") reported that modes got mixed up,
 
 - **The mode belongs to the account.** It is stored in `teachers.storage_mode` (Alembic `0024`) and every browser of the account follows it.
   - It is nullable, with **no default**. Nothing ever sets it implicitly.
-  - Until the account chooses, `openWorkspace()` returns `needs-choice`. The root layout then keeps routes unmounted and opens the settings modal (`StoragePolicyModal`, `mustChoose`) in a non-dismissible state.
+  - Until the account chooses, `openWorkspace()` returns `needs-choice`. The root layout then keeps routes unmounted and opens the non-dismissible `storage/StorageChoiceModal` (the storage card of `/settings`). Changing the mode later happens only on `/settings`; both request the root layout's one `StorageModeSwitchWizard` through `requestedModeSwitch` (`services/storageModeSwitch.ts`).
   - **Admin accounts have no mode** (issue #58): they hold no exams or results. `openWorkspace()` returns `admin` for them: it loads the capabilities only to bind the tab to its account, never checks, claims or replaces this browser's workspace and never asks for a mode. Everything gated on the `ok` state (offline-queue replay, the result banners) therefore skips admins.
 - **Capabilities** (`GET /user/capabilities` returns `{account_id, storage_mode, allowed_storage_modes, features}`). It is built by the single function `capabilities_for(teacher)` in `backend/app/services/capabilities.py`. Since issue #53 an admin sets two switches per account, stored as `teachers.allow_server_results` and `allow_server_latex` (both default to on, and accounts that existed before kept everything); the Admin UI (`/admin/users`) and `PATCH /admin/users/{id}/features` change them, and new accounts get them from the invitation, the approval or the always-allowed domain they registered with. They are **enforced** on both sides: the UI offers only what `frontend/src/lib/stores/capabilities.ts` allows, and the server refuses what the account may not use.
   - `server_results`: whether `all-server` is allowed. `hybrid` is always allowed, so a teacher's `allowed_storage_modes` is never empty (an admin's is, along with every feature). `capabilities_for` reports `["hybrid"]` without it.
@@ -26,7 +26,7 @@ Issue #47 ("Ensure consistent mode switching") reported that modes got mixed up,
   - **Freshness and ownership.** The frontend asks at every unlock, again whenever the tab comes back into view (at most every 30 s, `refreshCapabilities()` in `lib/db/workspace.ts`) and when the settings page opens, so an admin's change applies without signing in again. A changed answer re-runs `openWorkspace()`. The answer carries `account_id`; the per-tab cache is only used for the same account and is cleared at sign-out. If the server answers for a different account than the tab signed in as (another tab of the same browser signed in as someone else, and the access cookie is shared), the tab locks itself instead of showing that account's options or data.
   - The frontend renders every mode and server-feature option from `stores/capabilities.ts`, never from a hard-coded list. A disallowed option shows "not enabled for your account". Compile sites pick their engine through `effectiveLatexCompilation()` (never the raw preference), so without `server_latex` they compile locally in the browser.
   - `PUT /user/storage-mode {mode, expected}` is compare-and-set: 409 `ERR_STORAGE_MODE_CHANGED` when another browser changed it, 403 `ERR_STORAGE_MODE_NOT_ALLOWED` when the mode is not allowed.
-  - Server-side gates (`ERR_FEATURE_NOT_ALLOWED`, 403): `POST /compile/latex` and `POST /exams/{id}/compile` need `server_latex`. The result **write** endpoints (`POST /exams/{id}/students`, `POST /exams/{id}/submissions`, `PATCH …/submissions/{id}/score`, `PUT …/scores`, `POST /user/restore-server-data`) need `server_results`, **unless** the account's stored mode is still `all-server` (see "Revoking `server_results`"). Reads and deletes are never gated.
+  - Server-side gates (`ERR_FEATURE_NOT_ALLOWED`, 403): `POST /compile/latex/jobs` (and its poll) needs `server_latex`. The result **write** endpoints (`POST /exams/{id}/students`, `POST /exams/{id}/submissions`, `PATCH …/submissions/{id}/score`, `PUT …/scores`, `POST /user/restore-server-data`) need `server_results`, **unless** the account's stored mode is still `all-server` (see "Revoking `server_results`"). Reads and deletes are never gated.
 
 ## Revoking `server_results`
 
@@ -57,7 +57,7 @@ Both modes now seal under the same account data key, and only the results move. 
 4. **Commit.** Write the account's mode with compare-and-set on `from`, publish it, remember it in the manifest, and announce it (`bg_mode_changed`) so other tabs reload.
 5. **Old copy, asked each time.** The user keeps it or deletes it:
    - **To the browser:** `POST /user/purge-server-student-data` soft-deletes, with a 7-day grace period.
-   - **To the server:** the local result tables are cleared in one Dexie transaction.
+   - **To the server:** the local results of the exams that moved and verified (`movedExams`) are cleared in one Dexie transaction. A skipped exam keeps them, since they exist nowhere else (F11).
 6. **Reload** the page, because every list was loaded under the old mode.
 
 **Interruptions and leftovers:**
@@ -80,6 +80,8 @@ Both modes now seal under the same account data key, and only the results move. 
   - `pending-writes` when another account's offline writes wait.
 - Unbound offline-queue entries are stamped only after the owner check passes.
 
+**The offline queue** (`services/offlineQueue.ts`) lives in IndexedDB (`db.offlineQueue`, Dexie v11) with an in-memory mirror, so queued writes survive a reload. Tabs share it; a Web Lock (`examance-offline-queue`) serializes their flushes, so one write is never replayed twice.
+
 **Resetting the workspace** (`replaceWorkspace`) is one transaction: every data table is cleared and the new manifest written. It also clears the offline queue and the compile cache.
 
 **Cross-tab coherence:** a change of `bg_workspace_id` or `bg_mode_changed` reloads every other tab.
@@ -99,7 +101,7 @@ Legacy local data is never opened. The blocked screen (`legacy-local`) offers on
 
 - **Bytes are base64.** They are encoded as `{ $b64 }` (`binary.ts`). Plain `JSON.stringify` had turned every `Uint8Array` into an object nobody could read, so scans were lost. Old numbered-key objects are still decoded.
 - **Scans travel decrypted.** Scans, annotations and audit notes go inside the password envelope (Argon2id + AES-GCM), like names, scores and resource files already did. The importer re-seals them under its own key, so an archive opens for another account.
-- **Results-only export.** The "Share results (without exercise texts)" menu entry calls `packProject(…, { includeExerciseCode: false })`. It keeps exams, students, scans, annotations, scores, exercise names, points and MC answer keys, but no LaTeX and no resource files.
+- **Results-only export.** The export dialog's "Without exercise texts" option (`ExportOptionsModal`, backup format) calls `packProject(…, { includeExerciseCode: false })`. It keeps exams, students, scans, annotations, scores, exercise names, points and MC answer keys, but no LaTeX and no resource files.
   - The imported exercises carry `exercises.code_withheld` (Alembic `0025`).
   - Grading, verification and statistics work.
   - Compiling, editing and building the OMR template are refused with a message, and the exercise library hides these exercises.

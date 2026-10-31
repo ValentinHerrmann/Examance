@@ -14,7 +14,7 @@ All API v1 endpoints are served relative to the root URL path:
 
 ### Content Types
 - Request payloads accept `application/json` unless handling binary compile/download requests.
-- Response bodies return `application/json`, except binary compilation endpoints (`/api/v1/compile/latex`) which return `application/pdf`.
+- Response bodies return `application/json`, except finished compiles (`/api/v1/compile/latex/jobs/{job_id}`, `/api/v1/compile/latex`) which return `application/pdf`.
 
 ### Standard HTTP Response Codes
 | Status Code | Meaning | Description |
@@ -134,7 +134,9 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `POST` | `/api/v1/compile/latex` | Compile LaTeX | Yes | Compiles raw LaTeX code into PDF bytes using sandboxed Tectonic engine. |
+| `POST` | `/api/v1/compile/latex/jobs` | Start a compile | Yes | Starts a background compile and answers `202 {"job_id"}` at once, so long compiles never meet a proxy timeout. |
+| `GET` | `/api/v1/compile/latex/jobs/{job_id}` | Poll a compile | Yes | `202 {"status": "pending"}` while running, then once the PDF or the compile's error (422 with `log`, 504, 503); 404 for an unknown or foreign job. |
+| `POST` | `/api/v1/compile/latex` | Compile LaTeX (deprecated) | Yes | Synchronous compile with the 30 s preview budget, kept for tabs running an older app. |
 
 #### Compile Request & Response
 - **Request Body**:
@@ -163,13 +165,13 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
   the route's body limit is 28 MB. Names are sanitised, must not collide with a
   bundled LaTeX asset, and `.svg` is rejected (convert to PDF — it stays vector).
 - **Response**: Binary stream (`application/pdf`).
-- **Errors**: `403 ERR_FEATURE_NOT_ALLOWED` (the account's `server_latex` switch is off; `POST /api/v1/exams/{id}/compile` answers the same), `422 ERR_COMPILE_FAILED` (TeX diagnostics), `422 ERR_RESOURCE_INVALID` (a resource
+- **Errors**: `403 ERR_FEATURE_NOT_ALLOWED` (the account's `server_latex` switch is off), `422 ERR_COMPILE_FAILED` (TeX diagnostics), `422 ERR_RESOURCE_INVALID` (a resource
   name is not usable), `503 ERR_COMPILE_UNAVAILABLE` (the engine itself is missing or cannot
   run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL` **with** CORS
   headers, so a browser reports the status rather than a phantom CORS failure.
-- **Limits**: this route and `POST /api/v1/exams/{id}/compile` are each rate-limited to 10
+- **Limits**: this route is rate-limited to 10
   per minute per IP (`429`). At most `LATEX_MAX_CONCURRENT_COMPILES` (default 2) Tectonic runs
-  happen at once per backend process; a request waits for a slot up to its own compile timeout
+  happen at once per LaTeX worker; a request waits for a slot up to its own compile timeout
   (30 s preview, 120 s exam) and then gets `504 ERR_COMPILE_TIMEOUT`.
 
 ---
@@ -182,10 +184,9 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `GET` | `/api/v1/exams` | List Exams | Yes | Lists all active (non-deleted) exams owned by the authenticated teacher. |
 | `GET` | `/api/v1/exams/{exam_id}` | Get Exam Details | Yes | Retrieves full exam metadata and live-linked exercises. |
 | `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. |
-| `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job. |
+| `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job, which also erases the exam row and its scan files once that period has passed. |
 | `POST` | `/api/v1/exams/{exam_id}/duplicate` | Duplicate Exam | Yes | Body `{"retention_until"}`. Creates a new exam titled "… (Kopie)" with the same header fields, settings, logo override, MC groups (new ids), page breaks (following those ids) and links to the same library exercises (a legacy exam-bound exercise gets its own copy). Never copies students, submissions or scores; `compilation_status` starts at `pending`. Rate limit 60/hour. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
-| `POST` | `/api/v1/exams/{exam_id}/compile` | Compile Exam | Yes | Compiles the complete exam LaTeX document from its live-linked library exercises; returns `application/pdf`. Needs the account's `server_latex` feature (`403 ERR_FEATURE_NOT_ALLOWED` otherwise). |
 | `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
 | `GET` | `/api/v1/exams/{exam_id}/logo/file` | Exam Logo File | Yes | Bytes of the logo the exam prints; 404 when it prints none. |
 | `PUT` | `/api/v1/exams/{exam_id}/logo` | Set Exam Logo | Yes | `{"mode": "account" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. |
@@ -226,8 +227,8 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `GET` | `/api/v1/exercises/{id}` | Get Exercise | Yes | Retrieves a single exercise (own exercises or published ones). |
 | `PATCH` | `/api/v1/exercises/{id}` | Update Exercise | Yes | Updates a library exercise in place. |
 | `PATCH` | `/api/v1/exercises/groups/{group_id}` | Update Exercise Group | Yes | Updates group metadata and cascades it to every member variant. |
-| `POST` | `/api/v1/exercises/{id}/new-version` | Create Version | Yes | Creates a new version of an exercise, updating `is_current`. |
-| `POST` | `/api/v1/exercises/{id}/new-variant` | Create Variant | Yes | Creates a parallel variant within the same exercise group. |
+| `POST` | `/api/v1/exercises/{id}/new-version` | Create Version | Yes | Creates a new version of an exercise, updating `is_current`. Only from the current row (`409 ERR_EXERCISE_NOT_CURRENT` otherwise); deleting the current version makes the previous one current again. |
+| `POST` | `/api/v1/exercises/{id}/new-variant` | Create Variant | Yes | Creates a parallel variant within the same exercise group; only from the current row (`409 ERR_EXERCISE_NOT_CURRENT`). |
 | `POST` | `/api/v1/exercises/{id}/duplicate` | Duplicate Exercise | Yes | Copies the current version of every variant of an own exercise group (with its files) into a new private group named "… (Kopie)", version 1, without copy provenance. A duplicate of a copied group stays marked as copied, so it is never shared as one's own. Returns `{group_id, exercises}`. Rate limit 60/hour. |
 | `GET` | `/api/v1/exercises/{id}/usage` | Exercise Usage | Yes | Lists exams referencing this exercise and count. |
 | `DELETE` | `/api/v1/exercises/{id}` | Delete Exercise | Yes | Soft-deletes exercise from the caller's own library. Idempotent (always `204`); a foreign id is a silent no-op. |
@@ -244,9 +245,8 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 - **`ExerciseResourceCreate`**: `{"filename": "figure.png", "mime_type": "image/png", "content_b64": "iVBORw0..."}`
 - **`ExerciseResourceResponse`**: `{"id": "uuid", "exercise_id": "uuid", "filename": "figure.png", "mime_type": "image/png", "byte_size": 20481, "created_at": "..."}`
 - Resource bytes are stored in plaintext on the server (like `latex_body`) and copied
-  onto new versions and variants of the exercise. `POST /api/v1/exams/{id}/compile`
-  loads them from the database, so the client never uploads them for a server-side
-  exam compile.
+  onto new versions and variants of the exercise. `POST /api/v1/compile/latex` loads
+  them from the database by `resource_exercise_ids`, so saved files are not uploaded again.
 
 ---
 
@@ -348,7 +348,7 @@ Two rules the endpoint enforces rather than trusts the client with:
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
 | `GET` | `/api/v1/exams/{exam_id}/submissions` | List Submissions | Yes | Lists all non-deleted submissions for an exam. |
-| `POST` | `/api/v1/exams/{exam_id}/submissions` | Upload Submission | Yes | Stores/upserts encrypted scan submission and anonymized score. An upsert onto a soft-deleted submission makes it live again; a soft-deleted identity of the same pseudonym comes back only as an empty placeholder (its PII is not revived). |
+| `POST` | `/api/v1/exams/{exam_id}/submissions` | Upload Submission | Yes | Stores/upserts encrypted scan submission and anonymized score. An upsert onto a soft-deleted submission makes it live again; a soft-deleted identity of the same pseudonym comes back only as an empty placeholder (its PII is not revived). `409 ERR_SUBMISSION_CONFLICT` when a submission with this id was created in parallel. |
 | `GET` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Get Submission | Yes | Retrieves single encrypted submission payload. |
 | `PATCH` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/score` | Update Score | Yes | Updates the plaintext `total_score` used for server-side statistics. |
 | `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/grading` | Clear Grading | Yes | Clears all grading data (score + annotations) for a submission, without deleting it. |

@@ -1,8 +1,4 @@
-"""Key-envelope endpoints.
-
-The server must never be able to unwrap anything it stores here, and a partially
-written envelope set is a locked-out teacher, so replacement is wholesale.
-"""
+"""Key-envelope endpoints. The server must never be able to unwrap anything it stores here, and a partially written envelope set is a locked-out teacher, so replacement is wholesale."""
 from __future__ import annotations
 
 import base64
@@ -140,3 +136,32 @@ async def test_envelopes_require_authentication(client: AsyncClient) -> None:
     client.cookies.clear()
     resp = await client.get("/api/v1/keys/envelopes")
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_enrolling_session_may_add_passkey_wraps_but_not_replace_secret_wraps(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """S8: one proven factor must never swap the data key or rewrite the password/recovery wraps."""
+    from .factors import DEFAULT_PASSWORD, create_teacher
+
+    email = "enrol-envelopes@example.com"
+    await create_teacher(db, email)
+    login = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
+    )
+    assert login.json()["status"] == "enroll_required"
+    client.cookies.update(login.cookies)
+
+    base = [_envelope("password"), _envelope("recovery")]
+    assert (await client.put("/api/v1/keys/envelopes", json=_payload(*base))).status_code == 200
+
+    passkey = _envelope("passkey", credential_id=b"\x09" * 16)
+    added = await client.put("/api/v1/keys/envelopes", json=_payload(*base, passkey))
+    assert added.status_code == 200
+
+    rewritten = dict(base[1], wrapped_bundle_b64=_b64(b"\x02" * 120))
+    refused = await client.put("/api/v1/keys/envelopes", json=_payload(base[0], rewritten))
+    assert refused.status_code == 403
+    other_key = dict(_payload(*base), key_id_b64=_b64(b"\x08" * 16))
+    assert (await client.put("/api/v1/keys/envelopes", json=other_key)).status_code == 403

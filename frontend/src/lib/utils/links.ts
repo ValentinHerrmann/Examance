@@ -12,7 +12,7 @@ export function gradeHref(examId: string, opts: { submissionId?: string; exercis
   if (opts.submissionId) params.set("submissionId", opts.submissionId);
   if (opts.exerciseId) params.set("exerciseId", opts.exerciseId);
   const s = params.toString();
-  return `/exam/${q(examId)}/grade${s ? `?${s}` : ""}`;
+  return `/exam/${q(examId)}/grade${s ? "?" + s : ""}`;
 }
 
 /** Public showcase of every palette snippet as student sheet and answer key (linked from the LaTeX palette header). */
@@ -20,8 +20,8 @@ export const SNIPPET_DEMO_URL = "https://valentin-herrmann.com/examance/#interac
 
 export const exerciseGroupHref =(groupId: string) => `/exercises?group=${q(groupId)}`;
 
-/** Read by `routes/exam/[id]/verify-item/+page.svelte`. */
-export function verifyItemHref(examId: string, submissionId: string, exerciseId: string, queue: string): string {
-  const params = new URLSearchParams({ submissionId, exerciseId, queue });
-  return `/exam/${q(examId)}/verify-item?${params.toString()}`;
+/** The MC verification dashboard, or with `item` one item of it (`routes/exam/[id]/verify/+page.svelte`). */
+export function verifyHref(examId: string, item?: { submissionId: string; exerciseId: string; queue: string }): string {
+  const query = item ? "?" + new URLSearchParams(item).toString() : "";
+  return `/exam/${q(examId)}/verify${query}`;
 }

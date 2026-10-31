@@ -40,6 +40,8 @@
       submissionCount = subs.length;
     } catch (e) {
       console.error(e);
+      // The count is only a sidebar badge: hide it (never a stale or zero count); each page reports its own failed reads.
+      submissionCount = 0;
     }
   }
 
@@ -54,8 +56,7 @@
     }
   });
 
-  // The sidebar and the phone drawer live in the app shell (so they do not
-  // scroll with the page); this layout only tells them which exam is open.
+  // The sidebar and the phone drawer live in the app shell (so they do not scroll with the page); this layout only tells them which exam is open.
   $effect.pre(() => {
     const id = examId;
     const current = exam;
@@ -66,13 +67,10 @@
   });
 </script>
 
-<!-- Size container (columns follow `@3xl:` container variants, not the viewport).
-     The grade page fills the space above the footer; other pages grow so the main area scrolls. -->
+<!-- Size container (columns follow `@3xl:` container variants, not the viewport). The grade page fills the space above the footer; other pages grow so the main area scrolls. -->
 <div class="@container flex w-full min-w-0 flex-col {isGradeActive ? 'min-h-0 flex-1' : 'grow'}">
   {#if exam && exam.id === examId && !isGradeActive}
-    <!-- The exam's name, as a heading at every width: the sidebar can be
-         collapsed or absent (below `lg`), so it cannot be the one place that
-         names the exam. -->
+    <!-- The exam's name, as a heading at every width: the sidebar can be collapsed or absent (below `lg`), so it cannot be the one place that names the exam. -->
     <h2 class="m-0 truncate px-4 pt-3 text-base font-semibold text-content sm:px-6" title={exam.title}>
       {exam.title || $t("exam.nav.examFallback")}
     </h2>

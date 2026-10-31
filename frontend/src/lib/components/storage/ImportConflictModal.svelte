@@ -1,6 +1,5 @@
 <script lang="ts">
-  // Asks which version of each colliding record wins. Mounted once in the root layout, driven by
-  // `conflictPrompt`; nothing is written until every conflict has a decision, so cancelling is free.
+  // Asks which version of each colliding record wins. Mounted once in the root layout, driven by `conflictPrompt`; nothing is written until every conflict has a decision, so cancelling is free.
   import { t, tOptional } from '#lib/i18n';
   import { faCheck } from '@fortawesome/free-solid-svg-icons';
   import { Modal, Button, Icon } from '#lib/components/ui';

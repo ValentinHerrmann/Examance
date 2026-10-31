@@ -1,7 +1,5 @@
 <script lang="ts">
-  // Deleting one's own account (GDPR Art. 17). This only asks: the server mails a single-use link
-  // whose page (`routes/delete-account`) confirms the deletion. The holder may keep their library
-  // exercises on the server without their name, for sharing later.
+  // Deleting one's own account (GDPR Art. 17). This only asks: the server mails a single-use link whose page (`routes/delete-account`) confirms the deletion. The holder may keep their library exercises on the server without their name, for sharing later.
   import { apiErrorMessage } from "#lib/api/client";
   import { requestAccountDeletion } from "#lib/api/account";
   import { t } from "#lib/i18n";

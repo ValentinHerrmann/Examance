@@ -1,8 +1,5 @@
 <script lang="ts">
-  /**
-   * The AI-chat prompt for a failed compile (issue #168), shown before copying. Clipboard only; the exercise code
-   * goes in only on the user's tick (exam content).
-   */
+  /** The AI-chat prompt for a failed compile (issue #168), shown before copying. Clipboard only; the exercise code goes in only on the user's tick (exam content). */
   import { Button, Checkbox, Modal } from "#lib/components/ui";
   import { locale, t } from "#lib/i18n";
   import { loadLatexAssets, type LatexAsset } from "#lib/latex/assets";

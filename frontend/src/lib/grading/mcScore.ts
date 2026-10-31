@@ -1,26 +1,15 @@
-/**
- * Pure MC/SC/TF scoring shared by omrWorker.ts and the review UI so they never disagree. Takes only
- * one exercise's own fields: ExamMcGroup is layout-only and must never enter scoring (see the
- * Grading & Statistics Invariant in CLAUDE.md).
- */
+/** Pure MC/SC/TF scoring shared by omrWorker.ts and the review UI so they never disagree. Takes only one exercise's own fields: ExamMcGroup is layout-only and must never enter scoring (see the Grading & Statistics Invariant in CLAUDE.md). */
 
 import type { OmrScoreMeta } from '#lib/db/schema';
 
 export type McQuestionType = 'mc' | 'sc' | 'tf';
 
-/**
- * True if `ex` is an MC/SC/TF exercise. Prefer over `questionType !== 'free_text'`: legacy records
- * have `questionType === undefined`, which passes that check and is mis-routed into the MC path.
- */
+/** True if `ex` is an MC/SC/TF exercise. Prefer over `questionType !== 'free_text'`: legacy records have `questionType === undefined`, which passes that check and is mis-routed into the MC path. */
 export function isMcQuestion(ex: { questionType?: string }): boolean {
   return ex.questionType === 'mc' || ex.questionType === 'sc' || ex.questionType === 'tf';
 }
 
-/**
- * Score for one MC/SC/TF exercise. `mc`: `clamp(#correctSelected - |penalty| * #wrongSelected, 0,
- * maxPoints)`. `sc`/`tf`: exact match scores `maxPoints`, else `0` or the signed `penalty` if
- * negative (legacy negative marking for a wrong single choice).
- */
+/** Score for one MC/SC/TF exercise. `mc`: `clamp(#correctSelected - |penalty| * #wrongSelected, 0, maxPoints)`. `sc`/`tf`: exact match scores `maxPoints`, else `0` or the signed `penalty` if negative (legacy negative marking for a wrong single choice). */
 export function computeMcScore(
   questionType: McQuestionType,
   selectedOptions: number[],
@@ -87,10 +76,7 @@ function resolveOriginalSnapshot(
   return undefined;
 }
 
-/**
- * Sets explicit selected options for an MC/SC/TF exercise (e.g. from checkboxes),
- * recomputes score, preserves original detection snapshot, and marks as manually reviewed.
- */
+/** Sets explicit selected options for an MC/SC/TF exercise (e.g. from checkboxes), recomputes score, preserves original detection snapshot, and marks as manually reviewed. */
 export function setMcSelectedOptions(
   questionType: McQuestionType,
   selectedOptions: number[],
@@ -121,8 +107,7 @@ export function setMcSelectedOptions(
       }
     : undefined;
 
-  // Spread first: run snapshot, raw readings, alignmentUncertain and any future field must
-  // survive a review — never enumerate the fields to keep.
+  // Spread first: run snapshot, raw readings, alignmentUncertain and any future field must survive a review — never enumerate the fields to keep.
   const nextOmrMeta: OmrScoreMeta = {
     ...omrMeta,
     confidence: 'high',
@@ -140,10 +125,7 @@ export function setMcSelectedOptions(
   };
 }
 
-/**
- * Toggles an option index for an MC/SC/TF exercise and returns the updated selectedOptions,
- * score, and omrMeta (marking source as manual, recording reviewedAt, and preserving original detection).
- */
+/** Toggles an option index for an MC/SC/TF exercise and returns the updated selectedOptions, score, and omrMeta (marking source as manual, recording reviewedAt, and preserving original detection). */
 export function applyMcCorrection(
   questionType: McQuestionType,
   selectedOptions: number[],
@@ -179,8 +161,7 @@ export function applyMcCorrection(
       }
     : undefined;
 
-  // Spread first: run snapshot, raw readings, alignmentUncertain and any future field must
-  // survive a review — never enumerate the fields to keep.
+  // Spread first: run snapshot, raw readings, alignmentUncertain and any future field must survive a review — never enumerate the fields to keep.
   const nextOmrMeta: OmrScoreMeta = {
     ...omrMeta,
     confidence: 'high',
@@ -262,10 +243,7 @@ export function restoreOriginalDetection(
   };
 }
 
-/**
- * Replaces a stored score (hand-typed, or from an older answer key) with the answer key's score for
- * the unchanged selection. Snapshots the stored values as `original`; the review state is untouched.
- */
+/** Replaces a stored score (hand-typed, or from an older answer key) with the answer key's score for the unchanged selection. Snapshots the stored values as `original`; the review state is untouched. */
 export function applyAnswerKeyScore(
   questionType: McQuestionType,
   selectedOptions: number[],

@@ -5,8 +5,6 @@ export const storagePolicy = {
     notChosen: 'Kein Speicherort gewählt',
     notChosenTitle: 'Für dieses Konto wurde noch kein Speicherort gewählt',
     notEnabled: 'Für Ihr Konto nicht freigeschaltet.',
-    latexServer: 'LaTeX Server',
-    latexLocal: 'LaTeX lokal',
     allServerTitle: 'Prüfungen, Aufgaben und Ergebnisse liegen verschlüsselt auf dem Server',
     hybridTitle: 'Prüfungen & Aufgaben auf dem Server, Schülerdaten & Ergebnisse nur in diesem Browser',
 
@@ -95,6 +93,12 @@ export const storagePolicy = {
                 primary: 'Abmelden',
                 reset: 'Wenn Sie keinen Zugang zu diesem Konto haben, können Sie die Daten in diesem Browser zurücksetzen. Ohne Archiv (.examance) sind sie dann verloren.',
                 resetButton: 'Daten in diesem Browser löschen und neu beginnen',
+            },
+            error: {
+                title: 'Die Daten dieses Browsers konnten nicht geöffnet werden',
+                body: 'Das Lesen der lokalen Datenbank oder die Anfrage an den Server ist fehlgeschlagen. Es wurde nichts verändert; versuchen Sie es gleich noch einmal.',
+                retry: 'Erneut versuchen',
+                signOut: 'Abmelden',
             },
             pendingWrites: {
                 title: 'Unübertragene Änderungen von {owner}',

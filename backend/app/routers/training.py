@@ -1,7 +1,4 @@
-"""Training router: opt-in OMR training-data donation (see docs/dev/training_donation.md).
-
-Full session only; the account is used for the daily quota and never stored, audited or logged.
-Quota answers are 429 without ``Retry-After`` (client login lockout), hence no slowapi limit."""
+"""Training router: opt-in OMR training-data donation (see docs/dev/training_donation.md). Full session only; the account is used for the daily quota and never stored, audited or logged. Quota answers are 429 without ``Retry-After`` (client login lockout), hence no slowapi limit."""
 from __future__ import annotations
 
 import hashlib
@@ -68,9 +65,8 @@ async def donate_omr_samples(
     # Per account, per UTC day. Hashed: the key must not name the account.
     account_hash = hashlib.sha256(str(teacher.id).encode("ascii")).hexdigest()
     quota_key = f"{_QUOTA_PREFIX}{account_hash}:{now.date().isoformat()}"
-    used = await ephemeral_store.get(quota_key) or 0
-    if used + n > settings.TRAINING_SAMPLES_PER_TEACHER_PER_DAY:
-        raise _quota_exceeded()
+    # Reserved atomically up front, so parallel requests cannot all pass the check.
+    used = await ephemeral_store.incr(quota_key, _DAY_SECONDS, n)
 
     # All accounts together — a backstop that holds even when Redis is down.
     today_total = await db.scalar(
@@ -78,7 +74,11 @@ async def donate_omr_samples(
         .select_from(OmrTrainingSample)
         .where(OmrTrainingSample.created_on == now.date())
     )
-    if (today_total or 0) + n > settings.TRAINING_SAMPLES_PER_DAY_MAX:
+    if (
+        used > settings.TRAINING_SAMPLES_PER_TEACHER_PER_DAY
+        or (today_total or 0) + n > settings.TRAINING_SAMPLES_PER_DAY_MAX
+    ):
+        await ephemeral_store.incr(quota_key, _DAY_SECONDS, -n)
         raise _quota_exceeded()
 
     crops = [
@@ -114,5 +114,4 @@ async def donate_omr_samples(
         for sample, crop in zip(body.samples, crops, strict=True)
     )
     await db.commit()
-    await ephemeral_store.set(quota_key, used + n, _DAY_SECONDS)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

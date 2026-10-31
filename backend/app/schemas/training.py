@@ -14,8 +14,7 @@ OMR_CROP_BYTES = OMR_CROP_WIDTH * OMR_CROP_HEIGHT  # 8-bit grayscale, row-major
 OmrBoxState = Literal["blank", "ambiguous", "marked", "undone", "redone"]
 OmrReason = Literal["solid", "spill", "faint", "thin", "redo"]
 
-# Public, unauthenticated input: reject anything not explicitly modelled, and
-# NaN/Infinity, so nothing unexpected (least of all an identifier) is stored.
+# Public, unauthenticated input: reject anything not explicitly modelled, and NaN/Infinity, so nothing unexpected (least of all an identifier) is stored.
 _STRICT = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
@@ -54,8 +53,7 @@ class OmrSampleIn(BaseModel):
     # base64 of exactly OMR_CROP_BYTES grayscale bytes (checked on decode).
     crop_b64: str = Field(min_length=1, max_length=6000)
     features: OmrSampleFeatures
-    # Random per-box id from the browser: a re-donation with the same token replaces
-    # the earlier row (the teacher corrected the label). Not derived from any id.
+    # Random per-box id from the browser: a re-donation with the same token replaces the earlier row (the teacher corrected the label). Not derived from any id.
     sample_token: uuid.UUID | None = None
 
 

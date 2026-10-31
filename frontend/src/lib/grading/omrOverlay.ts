@@ -1,8 +1,4 @@
-/**
- * OMR auto-grading overlay drawing — shared by the live grading canvas
- * (ScanCanvasViewer.svelte) and the graded-PDF export (routes/exam/[id]/scan/+page.svelte)
- * so both render the exact same annotations from the same data.
- */
+/** OMR auto-grading overlay drawing — shared by the live grading canvas (ScanCanvasViewer.svelte) and the graded-PDF export (routes/exam/[id]/scan/+page.svelte) so both render the exact same annotations from the same data. */
 
 import type { ExerciseRecord, OmrScoreMeta } from '#lib/db/schema';
 
@@ -74,8 +70,7 @@ export function formatPoints(value: number): string {
   return Number.isInteger(value) ? String(value) : String(value).replace('.', ',');
 }
 
-/** Formats a penalty magnitude like the manual `minus_full`/`minus_half`/`minus_quarter`
- *  stamps ("-1", "-0,5", "-0,25") so OMR-derived stamps read consistently with them. */
+/** Formats a penalty magnitude like the manual `minus_full`/`minus_half`/`minus_quarter` stamps ("-1", "-0,5", "-0,25") so OMR-derived stamps read consistently with them. */
 export function formatSignedScore(value: number): string {
   const sign = value >= 0 ? '+' : '-';
   const magnitude = Math.abs(value);
@@ -83,11 +78,7 @@ export function formatSignedScore(value: number): string {
   return `${sign}${text}`;
 }
 
-/**
- * Draws OMR-derived annotations over every MC/SC/TF exercise on one page, as a non-persisted overlay separate from manual
- * strokes. Rects are normalized [minX,minY,maxX,maxY] in [0,1] (omrWorker.ts), so `w`/`h` are the raster's pixel size.
- * Boxes: red solid = marked, amber dashed = ambiguous; plus score/`missing` stamps and a running total per MC group.
- */
+/** Draws OMR-derived annotations over every MC/SC/TF exercise on one page, as a non-persisted overlay separate from manual strokes. Rects are normalized [minX,minY,maxX,maxY] in [0,1] (omrWorker.ts), so `w`/`h` are the raster's pixel size. Boxes: red solid = marked, amber dashed = ambiguous; plus score/`missing` stamps and a running total per MC group. */
 export function drawOmrOverlayForPage(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -104,9 +95,7 @@ export function drawOmrOverlayForPage(
 
     const exercise = exercises.find((ex) => ex.id === exerciseId);
     const correctAnswers = new Set(exercise?.correctAnswers ?? []);
-    // "Unsure" is the detector's verdict and lasts until a teacher verifies the question. It must
-    // not follow `bubble.state`: the review builders rewrite that to marked/blank on the first click.
-    // (Same rule as isMcReviewed in mcVerification.ts — not imported: that module pulls in the DB.)
+    // "Unsure" is the detector's verdict and lasts until a teacher verifies the question. It must not follow `bubble.state`: the review builders rewrite that to marked/blank on the first click. (Same rule as isMcReviewed in mcVerification.ts — not imported: that module pulls in the DB.)
     const reviewed = state.omrMeta?.source === 'manual' || !!state.omrMeta?.reviewedAt;
     const flagged = new Set(state.omrMeta?.flaggedOptions ?? []);
     const penalty = exercise?.penalty ?? 0;
@@ -122,8 +111,7 @@ export function drawOmrOverlayForPage(
       const boxPx = (x1 - x0) * w;
       const strokeWidth = Math.max(1.5, boxPx * 0.08);
       const pad = boxPx * 0.25;
-      // Right-hand stamps sit raised by half a box, so they clear the option text
-      // that follows the box on the same line (still beside the box, never over it).
+      // Right-hand stamps sit raised by half a box, so they clear the option text that follows the box on the same line (still beside the box, never over it).
       const stampY = cy - boxPx * 0.5;
 
       bboxMinX = Math.min(bboxMinX, x0 * w);
@@ -186,8 +174,7 @@ export function drawOmrOverlayForPage(
         ctx.restore();
       }
 
-      // An unverified ambiguous box whose provisional (closer) reading is "not ticked": keep the
-      // orange frame, but score it like a blank box.
+      // An unverified ambiguous box whose provisional (closer) reading is "not ticked": keep the orange frame, but score it like a blank box.
       if (bubble.state === 'ambiguous' && bubble.provisional === false) {
         if (isCorrectOption) {
           ctx.save();

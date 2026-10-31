@@ -2,11 +2,7 @@ import { derived, get } from 'svelte/store';
 import { locale } from '#lib/i18n';
 import type { Locale } from '#lib/i18n';
 
-/**
- * BCP 47 tags for `Intl`. Decimal comma vs. point and dd.MM.yyyy vs. dd/MM/yyyy
- * both matter in a grading app, so the UI locale drives them explicitly instead
- * of falling back to the browser default.
- */
+/** BCP 47 tags for `Intl`. Decimal comma vs. point and dd.MM.yyyy vs. dd/MM/yyyy both matter in a grading app, so the UI locale drives them explicitly instead of falling back to the browser default. */
 const INTL_LOCALE: Record<Locale, string> = {
     de: 'de-DE',
     en: 'en-GB',
@@ -57,10 +53,7 @@ export function formatPercent(
     }).format(value);
 }
 
-/**
- * Reactive formatters for markup: `{$fmt.date(exam.createdAt)}` re-renders when
- * the language is switched.
- */
+/** Reactive formatters for markup: `{$fmt.date(exam.createdAt)}` re-renders when the language is switched. */
 export const fmt = derived(locale, ($locale) => ({
     date: (value: Date | string | number) => formatDate(value, $locale),
     dateTime: (value: Date | string | number) => formatDateTime(value, $locale),

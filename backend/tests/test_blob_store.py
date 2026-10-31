@@ -94,3 +94,34 @@ async def test_scan_round_trip_through_files(
     assert base64.b64decode(fetched.json()["scan_ciphertext_b64"]) == b"second"
     listed = await client.get(f"/api/v1/exams/{exam_id}/submissions")
     assert listed.json()[0]["has_scan"] is True
+
+
+@pytest.mark.asyncio
+async def test_erasing_a_student_removes_the_scan_files_of_their_submissions(
+    client: AsyncClient, db: AsyncSession, store: Path
+) -> None:
+    await _create_teacher_and_login(client, db, f"erase-{uuid.uuid4().hex[:8]}@example.com")
+    exam = await client.post(
+        "/api/v1/exams", json={"title": "Erase exam", "retention_until": "2027-12-31"}
+    )
+    exam_id = exam.json()["id"]
+    for pseudonym in ("d" * 64, "e" * 64):
+        sub = await client.post(
+            f"/api/v1/exams/{exam_id}/submissions",
+            json={
+                "pseudonym_hmac": pseudonym,
+                "scan_ciphertext_b64": base64.b64encode(b"scan").decode(),
+                "scan_iv_b64": base64.b64encode(b"123456789012").decode(),
+            },
+        )
+        assert sub.status_code == 201, sub.text
+    assert len(list(blob_store.iter_refs("scans"))) == 2
+
+    erased = await client.delete(f"/api/v1/exams/{exam_id}/students/{'d' * 64}")
+    assert erased.status_code == 204, erased.text
+
+    # The FK cascade drops the row, not the file: only the other student's scan may remain.
+    remaining = await db.execute(
+        select(ScanSubmission.scan_path).where(ScanSubmission.exam_id == uuid.UUID(exam_id))
+    )
+    assert [ref for ref, _ in blob_store.iter_refs("scans")] == list(remaining.scalars())

@@ -96,10 +96,7 @@ export async function runExamExport(
   return { zip, fileName: `${examSlug}_${exportDateStamp()}.zip`, warnings };
 }
 
-/**
- * `manifest.json` plus one `exercises/<name>/` folder per linked exercise, read back by `archive/zipImport.ts`.
- * Settings only: results, scans and the logo never go into a re-importable ZIP.
- */
+/** `manifest.json` plus one `exercises/<name>/` folder per linked exercise, read back by `archive/zipImport.ts`. Settings only: results, scans and the logo never go into a re-importable ZIP. */
 async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<string[]> {
   const { exam, exercises, key } = input;
   const warnings: string[] = [];

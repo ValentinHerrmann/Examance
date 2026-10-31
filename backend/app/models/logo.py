@@ -17,17 +17,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
-# What an account or exam does with its logo slot. No TeacherLogo row means the default logo,
-# no ExamLogo row means "follow the account".
+# What an account or exam does with its logo slot. No TeacherLogo row means the default logo, no ExamLogo row means "follow the account".
 LOGO_MODES = ("none", "custom")
 
 
 class TeacherLogo(Base):
-    """
-    The account's deviation from the default logo (``app.services.logo``): ``none`` or ``custom``.
-    No row means the default; exams follow this unless they override it. ``content`` is plaintext
-    like ``ExerciseResource.content`` (Tectonic compiles it); only PNG, JPEG, PDF.
-    """
+    """The account's deviation from the default logo (``app.services.logo``): ``none`` or ``custom``. No row means the default; exams follow this unless they override it. ``content`` is plaintext like ``ExerciseResource.content`` (Tectonic compiles it); only PNG, JPEG, PDF."""
 
     __tablename__ = "teacher_logos"
     __table_args__ = (
@@ -53,10 +48,7 @@ class TeacherLogo(Base):
 
 
 class ExamLogo(Base):
-    """
-    An exam's deviation from the account logo: ``none`` prints no logo, ``custom`` prints
-    ``content``. Deleting the row returns the exam to the account logo.
-    """
+    """An exam's deviation from the account logo: ``none`` prints no logo, ``custom`` prints ``content``. Deleting the row returns the exam to the account logo."""
 
     __tablename__ = "exam_logos"
     __table_args__ = (

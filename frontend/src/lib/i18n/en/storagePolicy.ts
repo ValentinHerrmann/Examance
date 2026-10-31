@@ -7,8 +7,6 @@ export const storagePolicy: Translations['storagePolicy'] = {
     notChosen: 'No storage location chosen',
     notChosenTitle: 'No storage location has been chosen for this account yet',
     notEnabled: 'Not enabled for your account.',
-    latexServer: 'LaTeX Server',
-    latexLocal: 'LaTeX Local',
     allServerTitle: 'Exams, exercises and results are stored encrypted on the server',
     hybridTitle: 'Exams & exercises on the server, student data & results only in this browser',
 
@@ -97,6 +95,12 @@ export const storagePolicy: Translations['storagePolicy'] = {
                 primary: 'Sign out',
                 reset: 'If you have no access to that account, you can reset the data in this browser. Without an archive (.examance) it is lost then.',
                 resetButton: 'Delete data in this browser and start over',
+            },
+            error: {
+                title: "This browser's data could not be opened",
+                body: 'Reading the local database or asking the server failed. Nothing was changed; try again in a moment.',
+                retry: 'Try again',
+                signOut: 'Sign out',
             },
             pendingWrites: {
                 title: 'Unsent changes of {owner}',

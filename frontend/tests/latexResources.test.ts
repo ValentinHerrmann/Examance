@@ -76,9 +76,7 @@ describe('insertSnippetFor', () => {
 });
 
 describe('exercise resource staging', () => {
-  // A real key, not null. Staging with `key = null` used to write the raw file
-  // bytes into IndexedDB in plaintext; `encryptResource` now refuses, so the
-  // test has to exercise the path production actually takes.
+  // A real key, not null. Staging with `key = null` used to write the raw file bytes into IndexedDB in plaintext; `encryptResource` now refuses, so the test has to exercise the path production actually takes.
   let key: CryptoKey;
 
   beforeEach(async () => {

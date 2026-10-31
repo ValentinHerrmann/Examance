@@ -50,8 +50,7 @@
   let isOpen = $state(false);
   let highlightedIndex = $state(-1);
 
-  // `fixed` against the input's box: callers sit in overflow-hidden/auto containers that clipped an absolute list.
-  // Flips above the field when there is no room below (phone in landscape).
+  // `fixed` against the input's box: callers sit in overflow-hidden/auto containers that clipped an absolute list. Flips above the field when there is no room below (phone in landscape).
   let dropdownStyle = $state("");
 
   function updateDropdownPosition() {

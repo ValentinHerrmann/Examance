@@ -3,9 +3,7 @@
   import { t, tOptional } from "#lib/i18n";
   import { Modal } from "#lib/components/ui";
 
-  // The status image comes from http.cat on purpose (issue #59): only IP, User-Agent and status code leave the browser
-  // (no Referer, no cookies, only while the modal is open). It cannot be self-hosted (licence); CSP img-src allows
-  // exactly this host (docs/legal_audit_dsgvo.md, finding L16).
+  // The status image comes from http.cat on purpose (issue #59): only IP, User-Agent and status code leave the browser (no Referer, no cookies, only while the modal is open). It cannot be self-hosted (licence); CSP img-src allows exactly this host (docs/legal_audit_dsgvo.md, finding L16).
 
   let status = $derived($httpErrorStore.status);
 
@@ -13,8 +11,7 @@
   let statusText =
     $derived($tOptional(`errors.http.${status}`) ?? $t("errors.httpFallback"));
 
-  // The text rendering stays visible until the image has loaded, and remains if it fails.
-  // Keyed by status so a new error starts from the text again without an effect.
+  // The text rendering stays visible until the image has loaded, and remains if it fails. Keyed by status so a new error starts from the text again without an effect.
   let loadedFor = $state<number | null>(null);
   let failedFor = $state<number | null>(null);
   let loaded = $derived(loadedFor === status);

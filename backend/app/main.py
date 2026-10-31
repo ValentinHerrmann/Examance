@@ -78,9 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "Blob store unavailable, scan reads and writes will fail: %s", exc.reason
             )
 
-    # The login throttle and the single-use pending tokens both live in this
-    # store. It degrades safely when Redis is unreachable, but silently — so say
-    # so once at startup rather than leaving it to be inferred from behaviour.
+    # The login throttle and the single-use pending tokens both live in this store. It degrades safely when Redis is unreachable, but silently — so say so once at startup rather than leaving it to be inferred from behaviour.
     from app.services import ephemeral_store
 
     if ephemeral_store.uses_redis():
@@ -211,24 +209,19 @@ def create_app() -> FastAPI:
         version=settings.APP_VERSION,
         description=description,
         openapi_tags=openapi_tags,
-        # Interactive docs enumerate every route and parameter, including the
-        # admin surface. Offline reference stays available via
-        # `python -m app.cli export-openapi`.
+        # Interactive docs enumerate every route and parameter, including the admin surface. Offline reference stays available via `python -m app.cli export-openapi`.
         docs_url="/api/docs" if settings.is_dev else None,
         redoc_url="/api/redoc" if settings.is_dev else None,
         openapi_url="/api/openapi.json" if settings.is_dev else None,
         lifespan=lifespan,
     )
 
-    # Rate limiter state
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        # Runs in ServerErrorMiddleware, outside CORSMiddleware, so a 500 would reach the browser
-        # without Access-Control-Allow-Origin and look like a CORS error, hiding the real fault.
-        # Headers are added by hand, for allowlisted origins only.
+        # Runs in ServerErrorMiddleware, outside CORSMiddleware, so a 500 would reach the browser without Access-Control-Allow-Origin and look like a CORS error, hiding the real fault. Headers are added by hand, for allowlisted origins only.
         logging.getLogger("app.main").exception(
             "Unhandled exception on %s %s", request.method, request.url.path
         )
@@ -248,8 +241,7 @@ def create_app() -> FastAPI:
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(BodyLimitMiddleware)
     if settings.ALLOWED_HOSTS:
-        # Opt-in: rejects requests with an unexpected Host header. Left off when
-        # unset so a deployment cannot be locked out by a wrong default.
+        # Opt-in: rejects requests with an unexpected Host header. Left off when unset so a deployment cannot be locked out by a wrong default.
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
     app.add_middleware(OriginGuardMiddleware)
     app.add_middleware(CSPMiddleware)
@@ -284,8 +276,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:
-        # `version` is deliberately public: the frontend uses it to detect an incompatible server
-        # (differing major version). No auth, crypto or retention behaviour depends on it.
+        # `version` is deliberately public: the frontend uses it to detect an incompatible server (differing major version). No auth, crypto or retention behaviour depends on it.
         body = {"status": "ok", "version": settings.APP_VERSION}
         if blob_store.configured():
             # Reported, not fatal: everything except scan reads/writes keeps working.

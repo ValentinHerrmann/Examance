@@ -27,15 +27,6 @@ export function redirectToUnlock(): void {
   }
 }
 
-/**
- * Navigates to the home page with a hard redirect.
- */
-export function redirectToHome(): void {
-  if (typeof window !== "undefined") {
-    window.location.href = "/";
-  }
-}
-
 /** True if the pathname is the grading view (/grade within an exam). */
 export function isGradeActivePath(pathname: string): boolean {
   return pathname.includes("/exam/") && pathname.endsWith("/grade");
@@ -46,11 +37,7 @@ export function isUnlockPath(pathname: string): boolean {
   return pathname === "/unlock";
 }
 
-/**
- * Paths that must render without an unlocked session: Impressum and Datenschutzerklärung (§ 5 DDG,
- * Art. 12 DSGVO; redirecting to /unlock would defeat them), password reset and self-registration
- * pages, the manual and the info posters (no data, most useful before signing in).
- */
+/** Paths that must render without an unlocked session: Impressum and Datenschutzerklärung (§ 5 DDG, Art. 12 DSGVO; redirecting to /unlock would defeat them), password reset and self-registration pages, the manual and the info posters (no data, most useful before signing in). */
 export function isPublicPath(pathname: string): boolean {
   return (
     isUnlockPath(pathname) ||

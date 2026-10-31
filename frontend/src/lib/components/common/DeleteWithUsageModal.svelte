@@ -1,12 +1,8 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
-  import { Alert, ConfirmDeleteModal } from "#lib/components/ui";
+  import { Alert, ConfirmDialog } from "#lib/components/ui";
 
-  /**
-   * Delete confirmation for a record other data may depend on (exam with submissions, exercise used in exams):
-   * plain prompt without usage, a warning with an optional affected-items list with usage. Wording comes from the
-   * caller; chrome, busy state and inline error from ConfirmDeleteModal.
-   */
+  /** Delete confirmation for a record other data may depend on (exam with submissions, exercise used in exams): plain prompt without usage, a warning with an optional affected-items list with usage. Wording comes from the caller; chrome, busy state and inline error from ConfirmDialog. */
   interface Props {
     open?: boolean;
     title: string;
@@ -42,16 +38,17 @@
   }: Props = $props();
 </script>
 
-<ConfirmDeleteModal
+<ConfirmDialog
   {open}
   {title}
-  isDeleteLoading={usageLoading}
+  severity="danger"
+  confirmDisabled={usageLoading}
   {busy}
   {error}
-  confirmLabel={$t("common.deleteModal.deleteAnyway")}
-  cancelLabel={$t("common.cancel")}
+  confirmText={$t("common.deleteModal.deleteAnyway")}
+  cancelText={$t("common.cancel")}
   {onConfirm}
-  {onClose}
+  onCancel={onClose}
 >
   {#if usageLoading}
     <p class="m-0 text-muted">{loadingText}</p>
@@ -73,4 +70,4 @@
   {:else}
     <p class="m-0">{plainText}</p>
   {/if}
-</ConfirmDeleteModal>
+</ConfirmDialog>

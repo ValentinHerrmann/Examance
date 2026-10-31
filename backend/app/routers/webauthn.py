@@ -1,8 +1,4 @@
-"""
-Passkeys — /api/v1/webauthn/*. One of the three sign-in factors, and the only one that completes
-a sign-in alone: every ceremony requires user verification (`auth_policy.SELF_SUFFICIENT_FACTORS`).
-Registration needs a session; authentication does not (it is a first-position factor).
-"""
+"""Passkeys — /api/v1/webauthn/*. One of the three sign-in factors, and the only one that completes a sign-in alone: every ceremony requires user verification (`auth_policy.SELF_SUFFICIENT_FACTORS`). Registration needs a session; authentication does not (it is a first-position factor)."""
 from __future__ import annotations
 
 import base64
@@ -15,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
-from app.routers.auth import advance_sign_in
+from app.routers.auth import advance_sign_in, reissue_pending_headers
 from app.schemas.auth import AuthResponse
 from app.schemas.webauthn import (
     AuthenticationVerifyRequest,
@@ -31,8 +27,7 @@ from app.services.jwt import decode_token
 
 router = APIRouter(prefix="/webauthn", tags=["webauthn"])
 
-# Listing is fine mid-sign-in; registering needs the finished sign-in or an account still
-# enrolling, or one proven factor could add a passkey and then sign in with it alone.
+# Listing is fine mid-sign-in; registering needs the finished sign-in or an account still enrolling, or one proven factor could add a passkey and then sign in with it alone.
 _LIST_SCOPES = {"full", "enroll", "auth_pending"}
 _REGISTER_SCOPES = {"full", "enroll"}
 
@@ -101,13 +96,7 @@ async def register_verify(
             headers={"code": "ERR_PASSKEY_FAILED"},
         ) from None
 
-    await audit_svc.write(
-        db,
-        teacher_id=session.teacher.id,
-        teacher_email=session.teacher.email,
-        action="PASSKEY_REGISTERED",
-        request_ip=request.client.host if request.client else None,
-    )
+    await audit_svc.log(db, request, session.teacher, "PASSKEY_REGISTERED")
     return CredentialSummary(
         credential_id_b64=_b64(credential.credential_id),
         nickname=credential.nickname,
@@ -121,12 +110,7 @@ async def register_verify(
 @router.post("/login/options", response_model=CeremonyOptionsResponse)
 @limiter.limit("30/minute")
 async def login_options(request: Request) -> CeremonyOptionsResponse:
-    """
-    Options for a passkey sign-in.
-
-    Unauthenticated and rate-limited: it allocates a challenge per call, and it
-    takes no account identifier, so there is nothing here to probe with.
-    """
+    """Options for a passkey sign-in. Unauthenticated and rate-limited: it allocates a challenge per call, and it takes no account identifier, so there is nothing here to probe with."""
     handle, options_json = await webauthn_svc.authentication_options()
     import json
 
@@ -145,11 +129,7 @@ async def login_verify(
     db: AsyncSession = Depends(get_db),
     access_token: str | None = Cookie(default=None),
 ) -> AuthResponse:
-    """
-    Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy.
-    The cookie is read directly, not via a dependency, because this must work with no session
-    (passkey first) and with a sign-in part-way through (passkey second).
-    """
+    """Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy. The cookie is read directly, not via a dependency, because this must work with no session (passkey first) and with a sign-in part-way through (passkey second)."""
     already: list[str] = []
     flow = "auth_pending"
     pending_jti: str | None = None
@@ -175,14 +155,15 @@ async def login_verify(
             headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
         )
 
-    if pending_subject and flow == "auth_pending":
-        # Before consuming, so a teacher refused for maintenance keeps the step (issue #130).
+    pending_teacher = None
+    if pending_subject:
         try:
             pending_teacher = await auth_policy.teacher_by_id(db, uuid.UUID(pending_subject))
         except ValueError:
             pending_teacher = None
-        if pending_teacher is not None:
-            await maintenance.ensure_sign_in_allowed(db, pending_teacher.role)
+    if pending_teacher is not None and flow == "auth_pending":
+        # Before consuming, so a teacher refused for maintenance keeps the step (issue #130).
+        await maintenance.ensure_sign_in_allowed(db, pending_teacher.role)
 
     if pending_jti is not None and not await pending_token.consume(pending_jti):
         raise HTTPException(
@@ -196,10 +177,18 @@ async def login_verify(
             db, body.handle, body.challenge_b64, body.credential_json
         )
     except Exception as exc:  # noqa: BLE001 - every ceremony failure reads alike
+        # As a second factor, a failed ceremony costs the attempt, not the consumed sign-in step.
+        retry_headers = (
+            await reissue_pending_headers(
+                PendingSession(teacher=pending_teacher, scope=flow, amr=already, jti=None)
+            )
+            if pending_jti is not None and pending_teacher is not None
+            else {}
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc) or "The passkey could not be verified.",
-            headers={"code": "ERR_PASSKEY_FAILED"},
+            headers={"code": "ERR_PASSKEY_FAILED", **retry_headers},
         ) from None
 
     teacher = await auth_policy.teacher_by_id(db, credential.teacher_id)
@@ -210,9 +199,7 @@ async def login_verify(
             headers={"code": "ERR_PASSKEY_FAILED"},
         )
 
-    # The passkey must belong to the account this sign-in is for: else your password plus another
-    # account's passkey would run `advance_sign_in` with their teacher and your factors. A mismatch
-    # is an attack or stale cookie; restart.
+    # The passkey must belong to the account this sign-in is for: else your password plus another account's passkey would run `advance_sign_in` with their teacher and your factors. A mismatch is an attack or stale cookie; restart.
     if pending_subject and pending_subject != str(teacher.id):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -263,12 +250,7 @@ async def delete_credential(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """
-    Remove a passkey.
-
-    Refused when it would drop the account below two sign-in factors, or below
-    its last means of decrypting its own data.
-    """
+    """Remove a passkey. Refused when it would drop the account below two sign-in factors, or below its last means of decrypting its own data."""
     if session.scope != "full":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -278,23 +260,22 @@ async def delete_credential(
 
     teacher = session.teacher
     remaining = await webauthn_svc.list_credentials(db, teacher.id)
+    reason: str | None = None
     if len(remaining) <= 1:
-        allowed, reason = await auth_policy.may_remove_factor(db, teacher, "passkey")
-        if not allowed:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=reason or "That factor cannot be removed.",
-                headers={"code": "ERR_LAST_FACTOR_PROTECTED"},
-            )
+        _, reason = await auth_policy.may_remove_factor(db, teacher, "passkey")
+    could_open = bool(await auth_policy.key_capable_factors(db, teacher))
 
     padded = credential_id_b64 + "=" * (-len(credential_id_b64) % 4)
     if not await webauthn_svc.delete_credential(db, teacher.id, base64.urlsafe_b64decode(padded)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Passkey not found.")
+    # Checked after the delete for every passkey, not just the last: this one may hold the only usable wrap. Raising rolls the delete back.
+    if reason is None and could_open and not await auth_policy.key_capable_factors(db, teacher):
+        reason = "That is the only factor that can still decrypt this account's data."
+    if reason is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=reason,
+            headers={"code": "ERR_LAST_FACTOR_PROTECTED"},
+        )
 
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="PASSKEY_REMOVED",
-        request_ip=request.client.host if request.client else None,
-    )
+    await audit_svc.log(db, request, teacher, "PASSKEY_REMOVED")

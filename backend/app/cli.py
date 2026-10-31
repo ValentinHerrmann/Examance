@@ -1,25 +1,23 @@
-"""Management CLI. Commands: `python -m app.cli --help` (from /app inside the container).
-
-Retention (`run-retention`) is invoked by external cron (systemd timer / Kubernetes CronJob),
-never by an in-process scheduler, which would duplicate work across workers."""
+"""Management CLI. Commands: `python -m app.cli --help` (from /app inside the container). Retention (`run-retention`) is invoked by external cron (systemd timer / Kubernetes CronJob), never by an in-process scheduler, which would duplicate work across workers."""
 from __future__ import annotations
 
 import asyncio
-import sys
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING
 
 import click
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
-from app.config import settings  # noqa: F401 — validates config at import
+from app.cli_common import in_session, raise_schema_hint
+from app.cli_maintenance import maintenance_group
+from app.config import settings  # validates config at import
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from app.services.maintenance import WindowState
+    from app.models.teacher import Teacher
 
 
 @click.group()
@@ -27,90 +25,61 @@ def cli() -> None:
     """Examance management commands."""
 
 
-def _raise_schema_hint(exc: Exception) -> NoReturn:
-    """Convert DB schema errors into actionable CLI guidance."""
-    msg = str(exc).lower()
-    if "no such table" in msg or "undefined table" in msg:
-        raise click.ClickException(
-            "Database schema is not initialized for the current DATABASE_URL.\n"
-            f"Current DATABASE_URL: {settings.DATABASE_URL}\n"
-            "Run migrations first, then retry:\n"
-            "  docker compose up -d db redis backend\n"
-            "  docker compose exec backend alembic upgrade head\n"
-            "If you intentionally use local SQLite, run Alembic with matching env vars."
+# Deploy workflows call `python -m app.cli maintenance ...` through the *running* (previous) image.
+cli.add_command(maintenance_group)
+
+
+def _with_teacher[T](email: str, action: Callable[[AsyncSession, Teacher], Awaitable[T]]) -> T:
+    """Run *action* on the account with this address in one committed session, else fail."""
+    from app.models.teacher import Teacher
+
+    normalized_email = email.strip().lower()
+
+    async def _run(db: AsyncSession) -> T:
+        result = await db.execute(
+            select(Teacher).where(func.lower(Teacher.email) == normalized_email)
         )
-    raise click.ClickException(f"Database operation failed: {exc}")
+        teacher = result.scalar_one_or_none()
+        if teacher is None:
+            raise click.ClickException("No user found with this email.")
+        return await action(db, teacher)
+
+    return asyncio.run(in_session(_run))
 
 
 @cli.command("send-password-reset")
 @click.option("--email", required=True, help="User email.")
 def send_password_reset(email: str) -> None:
     """Generate and email a password reset link for an existing user account."""
-    from app.models.teacher import Teacher
     from app.services.password_reset import create_and_send_reset_token
 
     normalized_email = email.strip().lower()
 
-    async def _send() -> None:
-        from app.database import AsyncSessionLocal
+    async def _send(db: AsyncSession, teacher: Teacher) -> bool:
+        _raw_token, sent = await create_and_send_reset_token(db, teacher)
+        return sent
 
-        async with AsyncSessionLocal() as db:
-            try:
-                result = await db.execute(
-                    select(Teacher).where(func.lower(Teacher.email) == normalized_email)
-                )
-                teacher = result.scalar_one_or_none()
-                if teacher is None:
-                    raise click.ClickException("No user found with this email.")
-
-                _raw_token, sent = await create_and_send_reset_token(db, teacher)
-                await db.commit()
-                if sent:
-                    click.echo(f"Password reset link generated and sent to: {normalized_email}")
-                else:
-                    click.echo(
-                        "Password reset token generated, but failed to send email to: "
-                        f"{normalized_email}"
-                    )
-            except (OperationalError, ProgrammingError) as exc:
-                _raise_schema_hint(exc)
-
-    asyncio.run(_send())
+    if _with_teacher(email, _send):
+        click.echo(f"Password reset link generated and sent to: {normalized_email}")
+    else:
+        click.echo(
+            f"Password reset token generated, but failed to send email to: {normalized_email}"
+        )
 
 
 @cli.command("approve-user")
 @click.option("--email", required=True, help="User email.")
 def approve_user(email: str) -> None:
-    """
-    Approve a pending account (recovery path when no admin can sign in to do it).
+    """Approve a pending account (recovery path when no admin can sign in to do it). Keeps the account's feature switches as they are."""
 
-    Keeps the account's feature switches as they are.
-    """
-    from app.models.teacher import Teacher
+    async def _approve(db: AsyncSession, teacher: Teacher) -> str:
+        if teacher.approved_at is not None:
+            return f"Already approved: {teacher.email}"
+        teacher.approved_at = datetime.now(UTC)
+        teacher.registration_note = None
+        return f"Approved: {teacher.email}"
 
-    normalized_email = email.strip().lower()
-
-    async def _approve() -> str:
-        from app.database import AsyncSessionLocal
-
-        async with AsyncSessionLocal() as db:
-            try:
-                result = await db.execute(
-                    select(Teacher).where(func.lower(Teacher.email) == normalized_email)
-                )
-                teacher = result.scalar_one_or_none()
-                if teacher is None:
-                    raise click.ClickException("No user found with this email.")
-                if teacher.approved_at is not None:
-                    return f"Already approved: {teacher.email}"
-                teacher.approved_at = datetime.now(UTC)
-                teacher.registration_note = None
-                await db.commit()
-                return f"Approved: {teacher.email}"
-            except (OperationalError, ProgrammingError) as exc:
-                _raise_schema_hint(exc)
-
-    click.echo(asyncio.run(_approve()))
+    click.echo(_with_teacher(email, _approve))
 
 
 @cli.command("create-user")
@@ -148,32 +117,25 @@ def create_user(email: str, role: str, allow_admin: bool, password: str) -> None
     typed_role = role if role == "admin" else "teacher"
     normalized_email = email.strip().lower()
 
-    async def _insert() -> Teacher:
-        from app.database import AsyncSessionLocal
+    async def _insert(db: AsyncSession) -> str:
+        existing = await db.execute(
+            select(Teacher).where(func.lower(Teacher.email) == normalized_email)
+        )
+        if existing.scalar_one_or_none() is not None:
+            raise click.ClickException("A user with this email already exists.")
 
-        async with AsyncSessionLocal() as db:
-            try:
-                existing = await db.execute(
-                    select(Teacher).where(func.lower(Teacher.email) == normalized_email)
-                )
-                if existing.scalar_one_or_none() is not None:
-                    raise click.ClickException("A user with this email already exists.")
+        teacher = Teacher(
+            email=normalized_email,
+            password_hash=hash_password(password),
+            role=typed_role,
+            approved_at=datetime.now(UTC),
+        )
+        db.add(teacher)
+        await db.flush()
+        await db.refresh(teacher)
+        return f"Created user: {teacher.email} ({teacher.role}) id={teacher.id}"
 
-                teacher = Teacher(
-                    email=normalized_email,
-                    password_hash=hash_password(password),
-                    role=typed_role,
-                    approved_at=datetime.now(UTC),
-                )
-                db.add(teacher)
-                await db.commit()
-                await db.refresh(teacher)
-                return teacher
-            except (OperationalError, ProgrammingError) as exc:
-                _raise_schema_hint(exc)
-
-    created = asyncio.run(_insert())
-    click.echo(f"Created user: {created.email} ({created.role}) id={created.id}")
+    click.echo(asyncio.run(in_session(_insert)))
 
 
 @cli.command("set-role")
@@ -191,77 +153,53 @@ def create_user(email: str, role: str, allow_admin: bool, password: str) -> None
     help="Make an account that owns exams or exercises an admin anyway.",
 )
 def set_role(email: str, role: str, force: bool) -> None:
-    """Change an account's role; admins manage users and the server only (issue #58).
+    """Change an account's role; admins manage users and the server only (issue #58). An admin's own exams and exercises are kept but unreachable until it is a teacher again. Signs the account out everywhere, so every browser picks up the new role."""
+    from fastapi import HTTPException
 
-    An admin's own exams and exercises are kept but unreachable until it is a teacher again.
-    Signs the account out everywhere, so every browser picks up the new role."""
     from app.models.exam import Exam
     from app.models.exercise import Exercise
     from app.models.refresh_token import RefreshToken
-    from app.models.teacher import Teacher
+    from app.services.account_deletion import ensure_not_last_admin
 
-    normalized_email = email.strip().lower()
+    async def _update(db: AsyncSession, teacher: Teacher) -> str:
+        if teacher.role == role:
+            return f"Unchanged: {teacher.email} is already {role}."
 
-    async def _update() -> str:
-        from app.database import AsyncSessionLocal
-
-        async with AsyncSessionLocal() as db:
+        if role == "teacher":
             try:
-                result = await db.execute(
-                    select(Teacher).where(func.lower(Teacher.email) == normalized_email)
+                await ensure_not_last_admin(db, teacher)
+            except HTTPException:
+                raise click.ClickException(
+                    "Refusing to demote the last approved admin: nobody could approve "
+                    "or manage accounts afterwards. Make another account an admin first."
+                ) from None
+        else:
+            exams = await db.scalar(
+                select(func.count())
+                .select_from(Exam)
+                .where(Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None))
+            )
+            exercises = await db.scalar(
+                select(func.count())
+                .select_from(Exercise)
+                .where(Exercise.teacher_id == teacher.id, Exercise.is_current.is_(True))
+            )
+            if (exams or exercises) and not force:
+                raise click.ClickException(
+                    f"{teacher.email} owns {exams or 0} exam(s) and {exercises or 0} "
+                    "exercise(s). Admin accounts cannot open exams or exercises, so this "
+                    "data stays stored but inaccessible while the account is an admin "
+                    "(set the role back to teacher to reach it again). Re-run with "
+                    "--force to proceed anyway."
                 )
-                teacher = result.scalar_one_or_none()
-                if teacher is None:
-                    raise click.ClickException("No user found with this email.")
-                if teacher.role == role:
-                    return f"Unchanged: {teacher.email} is already {role}."
 
-                if role == "teacher":
-                    # Locks the admin rows, like ensure_not_last_admin, so two demotions can't race.
-                    admins = (
-                        await db.scalars(
-                            select(Teacher.id)
-                            .where(Teacher.role == "admin", Teacher.approved_at.isnot(None))
-                            .with_for_update()
-                        )
-                    ).all()
-                    if not [admin_id for admin_id in admins if admin_id != teacher.id]:
-                        raise click.ClickException(
-                            "Refusing to demote the last approved admin: nobody could approve "
-                            "or manage accounts afterwards. Make another account an admin first."
-                        )
-                else:
-                    exams = await db.scalar(
-                        select(func.count())
-                        .select_from(Exam)
-                        .where(Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None))
-                    )
-                    exercises = await db.scalar(
-                        select(func.count())
-                        .select_from(Exercise)
-                        .where(Exercise.teacher_id == teacher.id, Exercise.is_current.is_(True))
-                    )
-                    if (exams or exercises) and not force:
-                        raise click.ClickException(
-                            f"{teacher.email} owns {exams or 0} exam(s) and {exercises or 0} "
-                            "exercise(s). Admin accounts cannot open exams or exercises, so this "
-                            "data stays stored but inaccessible while the account is an admin "
-                            "(set the role back to teacher to reach it again). Re-run with "
-                            "--force to proceed anyway."
-                        )
+        teacher.role = role
+        await db.execute(
+            update(RefreshToken).where(RefreshToken.teacher_id == teacher.id).values(revoked=True)
+        )
+        return f"{teacher.email} is now {role}; their sessions were signed out."
 
-                teacher.role = role
-                await db.execute(
-                    update(RefreshToken)
-                    .where(RefreshToken.teacher_id == teacher.id)
-                    .values(revoked=True)
-                )
-                await db.commit()
-                return f"{teacher.email} is now {role}; their sessions were signed out."
-            except (OperationalError, ProgrammingError) as exc:
-                _raise_schema_hint(exc)
-
-    click.echo(asyncio.run(_update()))
+    click.echo(_with_teacher(email, _update))
 
 
 @cli.command("set-password")
@@ -275,7 +213,6 @@ def set_role(email: str, role: str, force: bool) -> None:
 )
 def set_password(email: str, password: str) -> None:
     """Reset password for an existing user account."""
-    from app.models.teacher import Teacher
     from app.services.crypto import hash_password
     from app.services.key_envelope import invalidate_password_wrap
 
@@ -284,27 +221,12 @@ def set_password(email: str, password: str) -> None:
 
     normalized_email = email.strip().lower()
 
-    async def _update() -> None:
-        from app.database import AsyncSessionLocal
+    async def _update(db: AsyncSession, teacher: Teacher) -> None:
+        teacher.password_hash = hash_password(password)
+        # The server never sees the data key, so it cannot re-wrap it: a stale password wrap sends the teacher to the recovery code, not into a vault of blank fields.
+        await invalidate_password_wrap(db, teacher.id)
 
-        async with AsyncSessionLocal() as db:
-            try:
-                result = await db.execute(
-                    select(Teacher).where(func.lower(Teacher.email) == normalized_email)
-                )
-                teacher = result.scalar_one_or_none()
-                if teacher is None:
-                    raise click.ClickException("No user found with this email.")
-
-                teacher.password_hash = hash_password(password)
-                # The server never sees the data key, so it cannot re-wrap it: a stale password
-                # wrap sends the teacher to the recovery code, not into a vault of blank fields.
-                await invalidate_password_wrap(db, teacher.id)
-                await db.commit()
-            except (OperationalError, ProgrammingError) as exc:
-                _raise_schema_hint(exc)
-
-    asyncio.run(_update())
+    _with_teacher(email, _update)
     click.echo(f"Password updated for user: {normalized_email}")
     click.echo(
         "Note: this does not restore access to the account's encrypted data. "
@@ -315,16 +237,13 @@ def set_password(email: str, password: str) -> None:
 @cli.command("run-retention")
 @click.option("--dry-run", is_flag=True, default=False, help="Print actions without DB writes.")
 def run_retention(dry_run: bool) -> None:
-    """Apply the retention policy (GDPR Art. 5(1)(e)): soft-delete, then hard-delete after grace.
-
-    Idempotent; run it from EXTERNAL cron, not in-process. It is the ONLY thing that erases
-    expired student data and audit entries: if it is not scheduled, nothing is ever deleted."""
+    """Apply the retention policy (GDPR Art. 5(1)(e)): soft-delete, then hard-delete after grace. Idempotent; run it from EXTERNAL cron, not in-process. It is the ONLY thing that erases expired student data and audit entries: if it is not scheduled, nothing is ever deleted."""
     from app.services.retention import run as _run
 
     try:
         count = asyncio.run(_run(dry_run=dry_run))
     except (OperationalError, ProgrammingError) as exc:
-        _raise_schema_hint(exc)
+        raise_schema_hint(exc)
 
     if dry_run:
         click.echo(
@@ -338,10 +257,7 @@ def run_retention(dry_run: bool) -> None:
 @cli.command("init-blob-store")
 @click.option("--force", is_flag=True, default=False, help="Accept a non-empty directory.")
 def init_blob_store(force: bool) -> None:
-    """Mark BLOB_STORAGE_DIR as this stack's file partition (docs/dev/storage_partitions.md).
-
-    Run once, with the mount up. Without the marker every scan read/write fails instead of
-    silently landing on the local disk under a dropped mount."""
+    """Mark BLOB_STORAGE_DIR as this stack's file partition (docs/dev/storage_partitions.md). Run once, with the mount up. Without the marker every scan read/write fails instead of silently landing on the local disk under a dropped mount."""
     from app.services import blob_store
 
     try:
@@ -354,12 +270,9 @@ def init_blob_store(force: bool) -> None:
 @cli.command("move-blobs")
 @click.option("--to", "target", type=click.Choice(["fs", "db"]), required=True)
 def move_blobs(target: str) -> None:
-    """Move every scan into the file partition or back into the database; verified, resumable.
-
-    Set BLOB_STORAGE_BACKEND to the same target first, or new uploads land on the other side."""
+    """Move every scan into the file partition or back into the database; verified, resumable. Set BLOB_STORAGE_BACKEND to the same target first, or new uploads land on the other side."""
     from sqlalchemy import create_engine
 
-    from app.config import settings
     from app.services import blob_store
     from app.services.blob_migration import move_scans
 
@@ -391,10 +304,7 @@ def move_blobs(target: str) -> None:
     help="Only samples donated on or after this date (YYYY-MM-DD).",
 )
 def training_export(out_path: str, since: datetime | None) -> None:
-    """Export donated OMR training samples as JSON Lines for offline model training.
-
-    Rows (label, versions, detector features, base64 grayscale crop) carry no identifiers by
-    design: keep the export that way, no joins or enrichment."""
+    """Export donated OMR training samples as JSON Lines for offline model training. Rows (label, versions, detector features, base64 grayscale crop) carry no identifiers by design: keep the export that way, no joins or enrichment."""
     import base64
     import json
 
@@ -432,7 +342,7 @@ def training_export(out_path: str, since: datetime | None) -> None:
     try:
         count = asyncio.run(_export())
     except (OperationalError, ProgrammingError) as exc:
-        _raise_schema_hint(exc)
+        raise_schema_hint(exc)
     click.echo(f"Exported {count} training sample(s) to {out_path}.")
 
 
@@ -462,191 +372,6 @@ def export_openapi(output: str) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(openapi_schema, indent=2) + "\n", encoding="utf-8")
     click.echo(f"Exported OpenAPI specification to {out_path}")
-
-
-# Deploy workflows call these through the *running* (previous) image: keep names and options
-# stable, or the next deploy runs without maintenance (docs/deployment.md).
-@cli.group("maintenance")
-def maintenance_group() -> None:
-    """Announce, freeze and end maintenance windows (issue #130)."""
-
-
-async def _in_session[T](action: Callable[[AsyncSession], Awaitable[T]]) -> T:
-    from app.database import AsyncSessionLocal, engine
-
-    try:
-        async with AsyncSessionLocal() as db:
-            try:
-                result = await action(db)
-                await db.commit()
-                return result
-            except (OperationalError, ProgrammingError) as exc:
-                _raise_schema_hint(exc)
-    finally:
-        # Each command step is its own asyncio.run: pooled connections must not outlive their loop.
-        await engine.dispose()
-
-
-@maintenance_group.command("start")
-@click.option("--kind", type=click.Choice(["deployment", "manual"]), default="deployment")
-@click.option("--lead-seconds", type=click.IntRange(min=0), default=300, show_default=True)
-@click.option("--second-warning-seconds", type=click.IntRange(min=0), default=60, show_default=True)
-@click.option(
-    "--class",
-    "downtime_class",
-    type=click.Choice(["very_short", "short", "long", "unspecific"]),
-    default="very_short",
-    show_default=True,
-)
-@click.option("--backup/--no-backup", default=True, help="Manual windows only; deployments always.")
-@click.option(
-    "--wait-free",
-    type=click.IntRange(min=0),
-    default=0,
-    help="Wait up to N s for an open manual or frozen window to end; then exit 75.",
-)
-def maintenance_start(
-    kind: str,
-    lead_seconds: int,
-    second_warning_seconds: int,
-    downtime_class: str,
-    backup: bool,
-    wait_free: int,
-) -> None:
-    """Announce a window; prints its revision (pass it to freeze/wait-backup/stop)."""
-    import time
-
-    from app.services import maintenance
-
-    async def _start(db: AsyncSession) -> WindowState:
-        return await maintenance.start(
-            db,
-            kind=kind,  # type: ignore[arg-type]
-            downtime_class=downtime_class,  # type: ignore[arg-type]
-            lead_seconds=lead_seconds,
-            second_warning_seconds=second_warning_seconds,
-            backup=backup,
-        )
-
-    deadline = time.monotonic() + wait_free
-    while True:
-        try:
-            state = asyncio.run(_in_session(_start))
-            break
-        except maintenance.WindowBusyError:
-            if time.monotonic() >= deadline:
-                click.echo("Another maintenance window is still open; not announcing.", err=True)
-                # 75 (EX_TEMPFAIL): CI tells "busy" apart from "no CLI / no stack".
-                sys.exit(75)
-            click.echo("Waiting for the open maintenance window to end.", err=True)
-            time.sleep(10)
-    click.echo(state.revision)
-
-
-def _wait_for_announced_start(revision: int) -> None:
-    """Sleep until the window's start, re-reading it: an admin may move it forward (issue #149)."""
-    import time
-
-    from app.services import maintenance
-
-    async def _load(db: AsyncSession) -> WindowState | None:
-        return await maintenance.load(db, fresh=True)
-
-    deadline = time.monotonic() + 900
-    announced = False
-    while time.monotonic() < deadline:
-        state = asyncio.run(_in_session(_load))
-        now = maintenance.now_utc()
-        if state is None or state.revision != revision or state.phase(now) == "none":
-            return
-        remaining = (state.starts_at - now).total_seconds()
-        if remaining <= 0:
-            return
-        if not announced:
-            click.echo(f"Waiting {remaining:.0f}s for the announced start.")
-            announced = True
-        time.sleep(min(remaining, 5, max(0.0, deadline - time.monotonic())))
-
-
-@maintenance_group.command("freeze")
-@click.option("--revision", type=int, required=True)
-@click.option("--wait", is_flag=True, help="First wait for the announced start (at most 15 min).")
-def maintenance_freeze(revision: int, wait: bool) -> None:
-    """Deployment: stop teaching writes, so the backup is consistent."""
-    from app.services import maintenance
-
-    async def _freeze(db: AsyncSession) -> bool:
-        return await maintenance.freeze(db, revision)
-
-    if wait:
-        _wait_for_announced_start(revision)
-
-    if not asyncio.run(_in_session(_freeze)):
-        raise click.ClickException(f"Window {revision} is not open (ended, expired or replaced).")
-    click.echo(f"Window {revision} frozen.")
-
-
-@maintenance_group.command("wait-backup")
-@click.option("--revision", type=int, required=True)
-@click.option("--timeout", "timeout_seconds", type=click.IntRange(min=1), default=900)
-def maintenance_wait_backup(revision: int, timeout_seconds: int) -> None:
-    """Wait for the maintenance-backup service; fails on a failed backup or timeout."""
-    import time
-
-    from app.services import maintenance
-
-    async def _load(db: AsyncSession) -> WindowState | None:
-        return await maintenance.load(db, fresh=True)
-
-    deadline = time.monotonic() + timeout_seconds
-    while True:
-        state = asyncio.run(_in_session(_load))
-        if state is None or state.revision != revision:
-            raise click.ClickException(f"Window {revision} was replaced or never started.")
-        if state.phase(maintenance.now_utc()) != "down":
-            raise click.ClickException(f"Window {revision} is no longer frozen (ended or expired).")
-        if state.backup_state == "done":
-            click.echo(f"Backup done: {state.backup_file}")
-            return
-        if state.backup_state == "failed":
-            raise click.ClickException("Maintenance backup failed; see the maintenance-backup log.")
-        if time.monotonic() > deadline:
-            raise click.ClickException(
-                "No maintenance backup in time. Is the maintenance-backup service running?"
-            )
-        time.sleep(2)
-
-
-@maintenance_group.command("stop")
-@click.option("--revision", type=int, default=None, help="Only end this window.")
-def maintenance_stop(revision: int | None) -> None:
-    """End the open window (no-op if it is already over or was replaced)."""
-    from app.services import maintenance
-
-    async def _end(db: AsyncSession) -> bool:
-        return await maintenance.end(db, revision)
-
-    ended = asyncio.run(_in_session(_end))
-    click.echo("Window ended." if ended else "No matching open window.")
-
-
-@maintenance_group.command("status")
-def maintenance_status() -> None:
-    """Show the current window and its phase."""
-    from app.services import maintenance
-
-    async def _load(db: AsyncSession) -> WindowState | None:
-        return await maintenance.load(db, fresh=True)
-
-    state = asyncio.run(_in_session(_load))
-    if state is None:
-        click.echo("No maintenance window.")
-        return
-    click.echo(
-        f"revision={state.revision} kind={state.kind} phase={state.phase(maintenance.now_utc())} "
-        f"starts_at={state.starts_at.isoformat()} backup={state.backup_state or '-'} "
-        f"offsite={state.offsite_state or '-'}"
-    )
 
 
 if __name__ == "__main__":

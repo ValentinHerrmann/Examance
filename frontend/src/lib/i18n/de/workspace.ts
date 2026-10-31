@@ -1,8 +1,7 @@
 export const workspace = {
     menu: {
         open: 'Importieren (.examance, ZIP)',
-        export: 'Arbeitsbereich sichern (.examance)',
-        shareResults: 'Ergebnisse teilen (ohne Aufgabentexte)',
+        export: 'Arbeitsbereich sichern oder teilen (.examance)',
         clear: 'Arbeitsbereich leeren',
     },
     session: {
@@ -13,9 +12,7 @@ export const workspace = {
     },
     archive: {
         promptImportPassword: 'Passwort für dieses Archiv eingeben:',
-        promptExportPassword: 'Passwort zum Verschlüsseln des Archivs eingeben:',
         importFailed: 'Import des Archivs fehlgeschlagen: {message}',
-        exportFailed: 'Export fehlgeschlagen: {message}',
         clearFailed: 'Arbeitsbereich konnte nicht geleert werden: {message}',
         cleared: 'Arbeitsbereich erfolgreich geleert.',
         confirmClear: 'Möchten Sie dieses Projekt wirklich schließen und alle lokalen Arbeitsbereichsdaten löschen? Nicht gespeicherte Änderungen gehen verloren.',

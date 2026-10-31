@@ -6,8 +6,8 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from app.services.latex import ASSETS_DIR
 from app.services.latex_packages import FORBIDDEN_PACKAGES, LOCKED_PACKAGES
+from app.services.tectonic import ASSETS_DIR
 
 
 @lru_cache(maxsize=1)
@@ -24,8 +24,7 @@ def asset_manifest() -> dict[str, str]:
 
 
 def resolve_asset(relative_path: str) -> Path | None:
-    """The file for a manifest entry, else None. Only listed names resolve, so no request
-    string ever becomes a filesystem path (traversal, absolute paths, unlisted files)."""
+    """The file for a manifest entry, else None. Only listed names resolve, so no request string ever becomes a filesystem path (traversal, absolute paths, unlisted files)."""
     if relative_path not in asset_manifest():
         return None
     return ASSETS_DIR / relative_path
@@ -74,9 +73,7 @@ def _read_template_file(
 
 @lru_cache(maxsize=1)
 def template_packages() -> dict[str, list[dict[str, str | None]]]:
-    """Packages and TikZ libraries the bundled .sty files load, for the settings overview (#108).
-
-    Read from the files themselves so the list cannot drift; pdfLaTeX-only loads are left out."""
+    """Packages and TikZ libraries the bundled .sty files load, for the settings overview (#108). Read from the files themselves so the list cannot drift; pdfLaTeX-only loads are left out."""
     packages: dict[str, dict[str, str | None]] = {}
     libraries: dict[str, dict[str, str | None]] = {
         name: {"name": name, "source": "packages"} for name in _BUILDER_TIKZ_LIBRARIES

@@ -1,7 +1,4 @@
-/**
- * Fetch interceptor for BusyTeX chunked asset resolution.
- * Automatically decompresses gzipped chunks or joins split files.
- */
+/** Fetch interceptor for BusyTeX chunked asset resolution. Automatically decompresses gzipped chunks or joins split files. */
 function getGlobalScope(): any {
   if (typeof window !== 'undefined') return window;
   if (typeof self !== 'undefined') return self;
@@ -48,11 +45,7 @@ if (!globalScope.__busytex_fetch_intercepted__) {
     return fallbackHeader || 'application/octet-stream';
   }
 
-    /**
-     * Concatenates `responses` while counting raw (pre-decompression) bytes. A size mismatch with the manifest errors the
-     * stream instead of closing it, so a truncated chunk fails visibly rather than leaving a partial busytex filesystem
-     * ("File `X.sty' not found" for bundled packages).
-     */
+    /** Concatenates `responses` while counting raw (pre-decompression) bytes. A size mismatch with the manifest errors the stream instead of closing it, so a truncated chunk fails visibly rather than leaving a partial busytex filesystem ("File `X.sty' not found" for bundled packages). */
   function createVerifiedStream(
     responses: Response[],
     expectedSize: number | undefined,

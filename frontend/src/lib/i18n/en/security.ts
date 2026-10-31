@@ -3,9 +3,7 @@ import type { Translations } from '../types';
 export const security: Translations['security'] = {
     page: {
         title: 'Sign-in & security',
-        subtitle: 'What you sign in with, which of those can open your encrypted data, and how to change either.',
         loading: 'Loading security status…',
-        localOnly: 'This workspace is local-only and has no account. Sign-in factors start with a server account.',
         statusEnrolled: 'Set up',
         statusMissing: 'Not set up',
         added: 'Added on {date}',
@@ -69,7 +67,6 @@ export const security: Translations['security'] = {
         startFreshFailed: 'Starting fresh with a new data key failed.',
         startFreshWarning: 'This creates a new data key. Your existing exams, student data and grading stay permanently unreadable, even if you find the old code later. Passkeys you have registered will no longer open your data either, and have to be added again under Sign-in & security.',
         startFreshConfirm: 'Start fresh and give up the old data',
-        skipWarning: 'Without the code your existing encrypted data stays unreadable. Data created from now on is unaffected.',
     },
     factors: {
         totpTitle: 'Confirm with your authenticator app',
@@ -202,7 +199,6 @@ export const security: Translations['security'] = {
         removeBlocked: 'That passkey cannot be removed while it is the last factor left.',
         unsupported: 'This browser does not support passkeys.',
         failed: 'The passkey could not be used.',
-        noPrfTitle: 'This passkey will not open your data',
         opensData: 'Also opens your encrypted data.',
         notOpensData: 'Signs you in, but does not open your encrypted data yet.',
         enableUnlock: 'Enable data access',
@@ -218,6 +214,5 @@ export const security: Translations['security'] = {
         changedBody: 'The key copy held on the server differs from the one this browser knows. That normally happens after a password reset on another device. If you did not do this, do not sign in and contact your administrator.',
         changedAccept: 'I reset the password myself — continue',
         missingPassword: 'No usable password copy of the key is stored for this account. Please restore access with your recovery code.',
-        migrating: 'Storing your key copy once…',
     },
 };

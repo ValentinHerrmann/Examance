@@ -1,8 +1,4 @@
-/**
- * Import conflict detection and resolution before anything is written: keep existing, import as a copy, or (results only)
- * take the archive's. No copies for students/submissions (duplicate pseudonym = data-protection problem); no "take" for
- * exams, exercises and MC groups, whose create-only POST turned it into a hidden duplicate (issue #145).
- */
+/** Import conflict detection and resolution before anything is written: keep existing, import as a copy, or (results only) take the archive's. No copies for students/submissions (duplicate pseudonym = data-protection problem); no "take" for exams, exercises and MC groups, whose create-only POST turned it into a hidden duplicate (issue #145). */
 
 import { db } from '#lib/db/db';
 import { examRepository } from '#lib/repositories/examRepository';
@@ -65,11 +61,7 @@ interface KindSpec {
   existing: (rows: Row[], key: CryptoKey | null, ownExamIds: Set<string>) => Promise<Row[]>;
 }
 
-/**
- * Students and submissions are scoped per exam, so they are loaded per exam, and only for exams
- * this account owns: another account's exam cannot hold this account's results, and asking the
- * server about it answers 401 (which used to raise an error pop-up and a token refresh per exam).
- */
+/** Students and submissions are scoped per exam, so they are loaded per exam, and only for exams this account owns: another account's exam cannot hold this account's results, and asking the server about it answers 401 (which used to raise an error pop-up and a token refresh per exam). */
 async function perExam(
   rows: Row[],
   ownExamIds: Set<string>,
@@ -160,9 +152,7 @@ const SPECS: KindSpec[] = [
     title: (r) => String(r.pseudonymHash ?? r.id).slice(0, 8),
     fields: {
       ...props('totalScore', 'createdAt'),
-      // `scanCt`/`annotationCt` exist only on a full fetch; `hasScan`/`hasAnnotations` are the list
-      // endpoint's cheap flags and stay accurate without the bytes (see submissionRepository `includeScans`).
-      // Archived submissions carry the decrypted bytes (`scanBytes`/`annotationBytes`) instead.
+      // `scanCt`/`annotationCt` exist only on a full fetch; `hasScan`/`hasAnnotations` are the list endpoint's cheap flags and stay accurate without the bytes (see submissionRepository `includeScans`). Archived submissions carry the decrypted bytes (`scanBytes`/`annotationBytes`) instead.
       hasScan: (r) => Boolean(r.scanCt) || Boolean(r.scanBytes) || Boolean(r.hasScan),
       hasAnnotations: (r) => Boolean(r.annotationCt) || Boolean(r.annotationBytes) || Boolean(r.hasAnnotations),
     },
@@ -219,11 +209,7 @@ export interface ConflictScan {
   ownExamIds: Set<string>;
 }
 
-/**
- * Compares an archive against what the target store holds (via the repositories, so it asks the
- * store the import writes to). Identical collisions are not returned as conflicts; they are listed
- * so the import skips them instead of writing a duplicate.
- */
+/** Compares an archive against what the target store holds (via the repositories, so it asks the store the import writes to). Identical collisions are not returned as conflicts; they are listed so the import skips them instead of writing a duplicate. */
 export async function detectConflicts(payload: Row, key: CryptoKey | null): Promise<ConflictScan> {
   const conflicts: ArchiveConflict[] = [];
   const identical: { kind: ConflictKind; id: string }[] = [];
@@ -273,10 +259,7 @@ function remapStrokeExercises(bytes: unknown, idMap: Map<string, string>): unkno
   }
 }
 
-/**
- * Rewrites the payload per the decisions: kept records dropped, copies get one fresh id that every
- * reference follows. Loosely typed on purpose: the archive may carry unknown fields that must round-trip.
- */
+/** Rewrites the payload per the decisions: kept records dropped, copies get one fresh id that every reference follows. Loosely typed on purpose: the archive may carry unknown fields that must round-trip. */
 export function applyResolutions(
   payload: Row,
   decisions: DecisionMap,
@@ -309,8 +292,7 @@ export function applyResolutions(
     exerciseResources: rewrite('exerciseResources', (r) => r.exerciseId, (r) => ({ exerciseId: remap(r.exerciseId) })),
     // The logo is part of its exam: a kept exam keeps its own, a copy takes the archived one.
     examLogos: rewrite('examLogos', (r) => r.examId, (r) => ({ examId: remap(r.examId) })),
-    // A kept exam keeps its own links. A kept exercise is still linked: the importer reuses the
-    // existing exercise instead of dropping the link (`serverImport.ts`).
+    // A kept exam keeps its own links. A kept exercise is still linked: the importer reuses the existing exercise instead of dropping the link (`serverImport.ts`).
     exerciseExams: ((payload.exerciseExams ?? []) as Row[])
       .filter((j) => !skipped.has(j.examId))
       .map((j) => ({

@@ -1,8 +1,4 @@
-/**
- * Help for failed compiles (issue #168): typical causes of common TeX errors and a self-contained prompt for an
- * external AI chat. Clipboard only, nothing is sent. The prompt is written for a model that knows nothing about
- * Examance, so it explains the document frame; it is English (machine-facing) and asks for a reply in the UI language.
- */
+/** Help for failed compiles (issue #168): typical causes of common TeX errors and a self-contained prompt for an external AI chat. Clipboard only, nothing is sent. The prompt is written for a model that knows nothing about Examance, so it explains the document frame; it is English (machine-facing) and asks for a reply in the UI language. */
 import type { LatexAsset } from './assets';
 import { attachedFiles, BACKSLASH, code, documentSetup, fence, LANGUAGES, preloadedPackages, section, TEMPLATE_NAMES, templateCommandsSection } from './llmContext';
 import { mapLine, type SourceMap, type SourceRange } from './sourceMap';
@@ -155,10 +151,7 @@ function isHeaderField(line: string): boolean {
   return HEADER_FIELDS.some((field) => line.trimStart().startsWith(field));
 }
 
-/**
- * The log without header-field content: their values anywhere (TeX wraps and echoes arguments), the rest of any
- * line naming a header macro, and the echo of an `l.<n>` that points at a header line.
- */
+/** The log without header-field content: their values anywhere (TeX wraps and echoes arguments), the rest of any line naming a header macro, and the echo of an `l.<n>` that points at a header line. */
 export function redactHeaderFields(log: string, source: string | null): string {
   const sourceLines = source ? source.split('\n') : [];
   const headerLines = new Set(sourceLines.flatMap((line, i) => (isHeaderField(line) ? [i + 1] : [])));

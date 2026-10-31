@@ -14,7 +14,7 @@ Storage modes (`lib/stores/storagePolicy.ts`, `docs/dev/storage_modes.md`, issue
 
 - `backend/` — FastAPI + SQLAlchemy + Alembic. Conventions, auth/data-key rules, backend gotchas: `backend/CLAUDE.md`.
 - `frontend/` — SvelteKit 3 on **Svelte 5 (runes only)**. Design system, responsive rules, i18n, MC data model, LaTeX resources, frontend gotchas: `frontend/CLAUDE.md`.
-- `docs/` — product, legal and deployment docs. Pitch decks/posters (`docs/pitches/`, `docs/posters/`) use real screenshots from the scripted demo instance in `docs/demo-instance/`. Developer deep-dives, read on demand: `docs/dev/omr.md` (MC detection), `docs/dev/latex_packages.md` (LaTeX package levels and conflict rules), `docs/dev/training_donation.md`, `docs/dev/ci_and_audit.md`, `docs/dev/build_and_csp.md`, `docs/dev/storage_partitions.md` (scan file storage, backups), `docs/dev/maintenance_mode.md` (maintenance windows, deploy freeze, maintenance backups). Operator guide for restores: `docs/backup_and_restore.md`.
+- `docs/` — product, legal and deployment docs. Pitch decks/posters (`docs/pitches/`, `docs/posters/`) use real screenshots from the scripted demo instance in `docs/demo-instance/`. Developer deep-dives, read on demand: `docs/dev/omr.md` (MC detection), `docs/dev/latex_packages.md` (LaTeX package levels and conflict rules), `docs/dev/training_donation.md`, `docs/dev/ci_and_audit.md`, `docs/dev/build_and_csp.md`, `docs/dev/storage_partitions.md` (scan file storage, backups), `docs/dev/maintenance_mode.md` (maintenance windows, deploy freeze, maintenance backups), `docs/dev/latex.md` (exercise structure, resources, compile errors, browser engine), `docs/dev/mc_model.md` (MC and exam data model), `docs/dev/ui_shell.md` (shell, navbar, overview lists, small features), `docs/dev/exercise_sharing.md` (copies, resync, contributions). Operator guide for restores: `docs/backup_and_restore.md`.
 - `backend/latex-assets/` is the single copy of the bundled LaTeX assets: Tectonic reads it directly and the browser engine fetches it from the authenticated `GET /api/v1/latex-assets/*` (`lib/latex/assets.ts`), so both compile with identical files.
 
 ## Commands
@@ -46,6 +46,23 @@ Prefer `make` over hand-rolled `cd backend && ...`. Deps: `uv` backend, `npm` fr
 - Frontend is Cloudflare Pages (builds only `release` and `preview`); backend is Docker behind Caddy on one SSH host. Migrations run **forward only** on deploy; rolling back an image does not undo them.
 - CSP: never hard-code a `sha256-` literal in `frontend/static/_headers` (it is a template filled at build), and never widen `script-src` to silence a CSP error. Details and diagnosis: `docs/dev/build_and_csp.md`.
 
+## How we build (defaults; the 2026 review had to clean up every one of these)
+
+- **Reuse, extend, merge: never implement from scratch what already exists.** Before writing a helper, component, dialog, endpoint or service:
+  1. **Search**: the reuse maps ("One component per job" in `frontend/CLAUDE.md`, the services in `backend/CLAUDE.md`), `git grep` for the job's verbs and nouns, the nearest `lib/<feature>/` and `services/`.
+  2. **Reuse** it as is when it does the job.
+  3. **Extend** it with a prop, option or parameter when it nearly does; never copy it and edit the copy.
+  4. **Merge** when two pieces are very similar (same job, small differences: two dialogs, two grids, two builders, two save paths): fold them into one with an option, move every caller and delete the other, in the same PR or, outside the scope, as a filed issue.
+  5. **Write new code** only when nothing comparable exists, and add it to the reuse map.
+  A second implementation of the same job is a bug, not a pattern (this PR merged two export dialogs, two score grids, two exam preambles and three code-entry steps).
+- **One flow per user task.** Replacing a flow deletes the old one in the same PR; old URLs only redirect. Deprecated code names when it goes.
+- **Delete as you go.** Exports, i18n keys, endpoints and files that a change orphans leave in the same PR.
+- **Small files.** No route or component grows past ~600 lines: move a whole flow into a component opened through an exported `open()`, when you touch it, not in a big bang later.
+- **Fixes before cleanups, refactors keep behaviour.** Security and data-loss fixes come first; a refactor leaves the OpenAPI document unchanged unless the endpoint is the point.
+- **Every bug fix adds a regression test** at the lowest level that reproduces it.
+- **Every change passes what CI checks**: ruff, mypy, `svelte-check`, eslint, the OpenAPI drift check, SonarCloud without new issues. Answer CodeQL with a fix or a dismissal reason, never with an unread autofix. Generated files (`docs/openapi.json`, `static/example-data/`) are regenerated, never hand-edited.
+- **One PR, one purpose.** Cleanup found outside the scope becomes an issue; a refactor across many files gets a short plan in `docs/dev/` first.
+
 ## Standing instructions
 
 - **Prefer cheaper models** for mechanical or well-defined work and hand it off aggressively (wide searches go to subagents, which report conclusions rather than file dumps). Expensive models are on a tight budget; escalate only when reasoning complexity really demands it.
@@ -57,5 +74,5 @@ Prefer `make` over hand-rolled `cd backend && ...`. Deps: `uv` backend, `npm` fr
 - **Follow Claude-Code mode strictly**: never edit files in planning mode, don't even ask. Just make a PLAN in plan mode.
 - Keep in-app help and documentation up to date.
 - **PR titles are user-facing**: GitHub generates the release notes from them and the app shows those notes to teachers after an update (previews show the PR title, issue #94). Write each title as what changes for users, in plain language a non-technical teacher understands ("Export exams and exercise libraries as ZIP including graded PDFs, statistical summary, LaTeX code, etc.", not "Add ZIP export service"); no jargon or file names; a trailing "(#123)" for the solved issue is fine. A title longer than developers are comfortable with is fine if it makes the release note understandable and detailed: say what the user gets (which contents, which options), not just the feature name.
-- **Comments and docstrings: at most 2-3 lines.** Say why, not what; keep invariants and "never" rules. Longer explanations go to `docs/dev/` or the nearest `CLAUDE.md`.
+- **Comments and docstrings: one line each** (the editor wraps; keep multi-line only where line breaks carry structure: lists, tables, code). Say why, not what; keep invariants and "never" rules. Longer explanations go to `docs/dev/` or the nearest `CLAUDE.md`.
 - If you learn something future agent sessions should know (structure, constraints), add it to the closest `CLAUDE.md` or `docs/dev/` file, but don't clutter. Persisted prose (code, comments, commits, docs, PRs, memory) is normal English, not caveman.

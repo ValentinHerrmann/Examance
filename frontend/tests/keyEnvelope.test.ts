@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { setArgon2Available } from './mocks/argon2Mock';
 
-// These exercise wrapping, which now refuses to run without Argon2 rather than
-// silently substituting PBKDF2 and writing a wrap labelled with a KDF that did
-// not make it.
+// These exercise wrapping, which now refuses to run without Argon2 rather than silently substituting PBKDF2 and writing a wrap labelled with a KDF that did not make it.
 setArgon2Available(true);
 import {
   buildBundle,
@@ -49,9 +47,7 @@ async function makeEnvelope(
 
 describe('key envelope', () => {
   it('round-trips the whole key bundle, not just the data key', async () => {
-    // The decrypt chain walks primary -> fallback -> legacy, so a vault can hold
-    // records that only open under a superseded key. Wrapping the data key alone
-    // would strand them on the first passwordless login.
+    // The decrypt chain walks primary -> fallback -> legacy, so a vault can hold records that only open under a superseded key. Wrapping the data key alone would strand them on the first passwordless login.
     const dek = generateDek();
     const fallback = randomBytes(32);
     const legacy = randomBytes(32);
@@ -143,8 +139,7 @@ describe('key envelope', () => {
   });
 
   it('normalizes the characters the recovery alphabet leaves out', () => {
-    // The alphabet omits I, L, O and U precisely because they are misread off
-    // paper, so a code typed with them must still open the vault.
+    // The alphabet omits I, L, O and U precisely because they are misread off paper, so a code typed with them must still open the vault.
     expect(normalizeRecoveryCode('abcde-fghi j')).toBe('ABCDEFGH1J');
     expect(normalizeRecoveryCode('O0L1U')).toBe('0011V');
   });

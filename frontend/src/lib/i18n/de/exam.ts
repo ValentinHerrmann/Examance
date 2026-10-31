@@ -5,19 +5,10 @@ export const exam = {
         examNotFoundOrDeleted: 'Prüfung nicht gefunden oder wurde vom Server gelöscht.',
         localFallback: {
             banner: 'ℹ️ Diese Prüfung wird derzeit aus dem lokalen Browser-Speicher geladen.',
-            syncing: 'Synchronisiert…',
-            syncNow: 'Jetzt mit Server synchronisieren',
-        },
-        sync: {
-            success: 'Prüfung erfolgreich mit dem Server synchronisiert!',
-            failed: 'Synchronisierung der Prüfung fehlgeschlagen: {message}',
         },
         delete: {
             confirmMessage: 'Möchten Sie die Prüfung "{title}" und alle zugehörigen Abgaben wirklich löschen?',
             failed: 'Löschen fehlgeschlagen: {message}',
-        },
-        export: {
-            successBanner: 'Prüfungsarchiv (.examance-exam) mit Aufgaben, Bilddateien, Scans und Bewertungen heruntergeladen.',
         },
         omr: {
             checkingExercises: 'MC-Aufgaben werden geprüft…',
@@ -60,9 +51,11 @@ export const exam = {
             confirmDeleteAll: 'Möchten Sie wirklich alle {count} Abgabe(n) für diese Prüfung löschen? Dies kann nicht rückgängig gemacht werden.',
             allDeleted: 'Alle Abgaben wurden gelöscht.',
             deleteFailed: 'Löschen der Abgaben fehlgeschlagen: {message}',
+            loadFailed: 'Die Abgaben dieser Prüfung konnten nicht geladen werden: {message}. Die Zahlen oben fehlen deshalb; laden Sie die Seite neu.',
         },
         compileSection: {
             heading: 'LaTeX-Prüfungskompilierung & Download',
+            emptyHint: 'Die Prüfung hat noch keine Aufgaben. Fügen Sie über „Aufgaben hinzufügen“ welche aus der Bibliothek hinzu oder schreiben Sie eine neue.',
             description: 'Druckfertige A4-PDF-Prüfungen mit dem Schulaufgabe-Vorlagenlayout erzeugen.',
             liveTooltip: 'Kompiliert das Prüfungs-PDF und aktualisiert danach (falls MC-Aufgaben vorhanden sind) automatisch die OMR-Antwortblasen-Vorlage.',
         },
@@ -84,7 +77,6 @@ export const exam = {
         stats: 'Statistik',
         edit: 'Bearbeiten',
         deleteSubmissions: 'Abgaben löschen',
-        export: 'Diese Prüfung verschlüsselt archivieren (.examance-exam)',
         delete: 'Löschen',
     },
     metadata: {
@@ -99,6 +91,9 @@ export const exam = {
     },
     metadataEditor: {
         heading: 'Prüfung bearbeiten',
+        createHeading: 'Neue Prüfung',
+        createButton: 'Prüfung anlegen und Aufgaben wählen',
+        createFailed: 'Die Prüfung konnte nicht angelegt werden.',
         examTitle: 'Prüfungstitel',
         testart: 'Testart',
         grade: 'Jahrgangsstufe (Grade)',
@@ -123,6 +118,7 @@ export const exam = {
         showNormalExercises: 'Normale Aufgaben anzeigen',
         normalTab: 'Normale Aufgaben',
         mcTab: 'MC-Gruppen',
+        newExercise: 'Neue Aufgabe',
         applyButton: 'Verknüpfte Aufgaben übernehmen',
     },
     exerciseLabel: {

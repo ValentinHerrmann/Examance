@@ -13,17 +13,15 @@
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
-    saveSubmissionEncrypted,
   } from "#lib/db/dbEncryption";
   import { calculateGradeDetail } from "#lib/analytics/gradingKey";
-  import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
-  import { storagePolicyStore } from "#lib/stores/storagePolicy";
   import { decrypt, encrypt } from "#lib/crypto/aesGcm";
   import { get } from "svelte/store";
   import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
   import { isMcQuestion } from "#lib/grading/mcScore";
+  import { saveSubmissionScores } from "#lib/grading/scoreService";
   import { buildGradingSheet } from "#lib/grading/gradingSheet";
   import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
   import { t, translate } from "#lib/i18n";
@@ -80,7 +78,15 @@
     if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
-    submissions = await submissionRepository.getByExamId(examId, key);
+    try {
+      submissions = await submissionRepository.getByExamId(examId, key);
+    } catch (err) {
+      // An empty list would read as "no submissions for this exam".
+      submissionsLoadError = translate("grading.page.submissionsLoadFailed", {
+        message: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
     const targetId = page.url.searchParams.get('submissionId');
     if (targetId) {
       const idx = submissions.findIndex((s) => s.id === targetId);
@@ -124,9 +130,7 @@
     }
     if (seq !== loadSeq) return;
 
-    // Check strokes/annotations for exercises with active stamps. Read them from `sub`
-    // itself: the canvas loads the new submission's strokes asynchronously, so the
-    // store still holds the previous student's strokes at this point.
+    // Check strokes/annotations for exercises with active stamps. Read them from `sub` itself: the canvas loads the new submission's strokes asynchronously, so the store still holds the previous student's strokes at this point.
     const subStrokes = await loadStrokesFor(sub);
     if (seq !== loadSeq) return;
     const exerciseIdsWithStrokes = new Set<string>();
@@ -149,14 +153,15 @@
     gradingStore.setMcState(sheet.mcState);
   }
 
-  /** Score rows as loaded for the current submission — lets a save keep an MC row it
-   *  would otherwise have deleted (see handleSaveScore). */
+  /** Score rows as loaded for the current submission — lets a save keep an MC row it would otherwise have deleted (see handleSaveScore). */
   let loadedScores = new Map<string, ExerciseScoreRecord>();
   /** Submission the loaded sheet belongs to; a save under any other id is refused (issue #85). */
   let loadedFor: string | null = null;
   let loadSeq = 0;
   /** Set when the current submission's scores failed to load; saving is refused meanwhile. */
   let scoresLoadError = $state("");
+  /** Set when the submission list failed to load: shown instead of the "no submissions" text. */
+  let submissionsLoadError = $state("");
 
   async function loadStrokesFor(sub: SubmissionRecord): Promise<VectorStroke[]> {
     const { sessionKey, fallbackSessionKey } = get(sessionStore);
@@ -177,14 +182,14 @@
 
   async function handleSaveScore() {
     if (!currentSub) return;
-    // Snapshot everything this save writes: Next/Prev during the awaits below must not send the
-    // rest of the save (deletes, annotations, total) to the next student.
+    // Snapshot everything this save writes: Next/Prev during the awaits below must not send the rest of the save (deletes, annotations, total) to the next student.
     const sub = currentSub;
-    const total = isFullyGraded ? sumGradedScores : undefined;
     const { currentStrokes: strokes, strokesSubmissionId } = get(gradingStore);
-    // Strokes still from the previous student (scan not loaded yet) must neither be written
-    // here nor clear this student's own annotations: leave the annotation layer untouched.
+    // Strokes still from the previous student (scan not loaded yet) must neither be written here nor clear this student's own annotations: leave the annotation layer untouched.
     const ownsStrokes = strokesSubmissionId === sub.id;
+    const values = new Map(exercises.map((ex) => [ex.id, scoreInputs[ex.id] ?? null]));
+    const mcState = get(gradingStore).mcState;
+    const mc = Object.fromEntries(exercises.filter(isMcQuestion).map((ex) => [ex.id, mcState[ex.id]]));
     gradingStore.setSaving(true);
 
     try {
@@ -194,45 +199,7 @@
       if (loadedFor !== sub.id) {
         throw new Error(translate("grading.page.scoresNotLoaded"));
       }
-      sub.totalScore = total;
-      const key = get(sessionStore).sessionKey;
-
-      // Save individual exercise scores if graded, delete if reset to ungraded
-      const mcState = get(gradingStore).mcState;
-      const toSave: ExerciseScoreRecord[] = [];
-      const toClear: string[] = [];
-      for (const ex of exercises) {
-        const val = scoreInputs[ex.id];
-        const loaded = loadedScores.get(ex.id);
-        if (isMcQuestion(ex) && loaded?.omrMeta && (val === null || val === undefined || isNaN(val))) {
-          // Grading MC here is optional: an unreviewed OMR row stays exactly as it is
-          // (score, selectedOptions, omrMeta incl. review status) instead of being cleared.
-          continue;
-        }
-        if (val !== null && val !== undefined && !isNaN(val)) {
-          const mc = isMcQuestion(ex) ? mcState[ex.id] : undefined;
-          toSave.push({
-            id: crypto.randomUUID(),
-            submissionId: sub.id,
-            exerciseId: ex.id,
-            score: val,
-            selectedOptions: mc?.selectedOptions,
-            omrMeta: mc?.omrMeta,
-          });
-        } else if (!loaded?.decryptFailed) {
-          // A row that would not decrypt shows as ungraded; deleting it would destroy the real score.
-          toClear.push(ex.id);
-        }
-      }
-      // One write for the whole sheet; the repository reconciles on
-      // (submissionId, exerciseId), so no existing-row lookup is needed.
-      await scoreRepository.saveMany(examId, sub.id, toSave, key);
-      for (const exerciseId of toClear) {
-        await scoreRepository.deleteOne(examId, sub.id, exerciseId);
-      }
-
-      // Encrypt annotations. "No strokes" and "no key" differ: saving without a session key must
-      // refuse, not silently clear the teacher's corrections.
+      // Encrypt annotations. "No strokes" and "no key" differ: saving without a session key must refuse, not silently clear the teacher's corrections.
       let clearAnnotations = false;
       if (!$sessionStore.sessionKey) {
         throw new Error(
@@ -253,14 +220,15 @@
         clearAnnotations = true;
       }
 
-      await submissionRepository.save(sub, key, { clearAnnotations });
+      // One path for rows, total and the all-server total (M2); OMR rows are carried forward, never cleared.
+      await saveSubmissionScores(
+        examId,
+        sub,
+        exercises.map((ex) => ex.id),
+        values,
+        { mc, existing: loadedScores, clearAnnotations },
+      );
       submissions = submissions.map((s) => (s.id === sub.id ? { ...sub } : s));
-
-      if ($storagePolicyStore.storageMode === "all-server") {
-        await api.patch(`/exams/${examId}/submissions/${sub.id}/score`, {
-          total_score: total ?? null,
-        });
-      }
       if (currentSub?.id === sub.id) {
         sessionStore.setDirty(false);
         gradingStore.markClean();
@@ -318,7 +286,9 @@
 </script>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-base text-content">
-  {#if submissions.length === 0}
+  {#if submissionsLoadError}
+    <Alert severity="danger" class="m-3 shrink-0">{submissionsLoadError}</Alert>
+  {:else if submissions.length === 0}
     <EmptyState level="h1" title={$t("grading.page.empty")} class="py-16" />
   {:else}
     {#if scoresLoadError}

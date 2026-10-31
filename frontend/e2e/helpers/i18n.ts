@@ -1,8 +1,4 @@
-/**
- * Catalog-driven text matching: specs pass a catalog key (`src/lib/i18n/{en,de}`) and get a case-insensitive SUBSTRING
- * RegExp, so rewording changes tests and app together. Emoji and decorative glyphs are stripped because redesigns turn
- * them into icons; `{placeholders}` use `vars` or become wildcards.
- */
+/** Catalog-driven text matching: specs pass a catalog key (`src/lib/i18n/{en,de}`) and get a case-insensitive SUBSTRING RegExp, so rewording changes tests and app together. Emoji and decorative glyphs are stripped because redesigns turn them into icons; `{placeholders}` use `vars` or become wildcards. */
 import { de } from '../../src/lib/i18n/de';
 import { en } from '../../src/lib/i18n/en';
 
@@ -14,10 +10,7 @@ const catalogs: Record<Locale, unknown> = { en, de };
 /** The locale the whole suite pins the app to unless a test switches it. */
 export const DEFAULT_LOCALE: Locale = 'en';
 
-/**
- * Walk a dotted key through a catalog. Throws on a missing key so a typo in a
- * spec fails loudly instead of silently matching an empty string.
- */
+/** Walk a dotted key through a catalog. Throws on a missing key so a typo in a spec fails loudly instead of silently matching an empty string. */
 export function rawTemplate(key: string, locale: Locale = DEFAULT_LOCALE): string {
   let node: unknown = catalogs[locale];
   for (const segment of key.split('.')) {
@@ -32,11 +25,7 @@ export function rawTemplate(key: string, locale: Locale = DEFAULT_LOCALE): strin
   return node;
 }
 
-/**
- * Remove emoji, arrows, check marks and other decorative glyphs, then collapse
- * whitespace. Order matters: glyphs go first so the numbering/`+`/`*` rules see
- * the text that is really left.
- */
+/** Remove emoji, arrows, check marks and other decorative glyphs, then collapse whitespace. Order matters: glyphs go first so the numbering/`+`/`*` rules see the text that is really left. */
 export function stripDecoration(text: string): string {
   return (
     text
@@ -61,10 +50,7 @@ export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/**
- * Fill a template's `{name}` placeholders from `vars`. Placeholders without a
- * value are left in place (the caller turns them into wildcards).
- */
+/** Fill a template's `{name}` placeholders from `vars`. Placeholders without a value are left in place (the caller turns them into wildcards). */
 function substitute(template: string, vars?: Vars): string {
   if (!vars) return template;
   return template.replace(/\{(\w+)\}/g, (match, name: string) =>
@@ -77,11 +63,7 @@ export function text(key: string, vars?: Vars, locale: Locale = DEFAULT_LOCALE):
   return stripDecoration(substitute(rawTemplate(key, locale), vars));
 }
 
-/**
- * A case-insensitive substring RegExp for a catalog entry. Unresolved
- * `{placeholders}` match any run of characters; literal whitespace is matched
- * flexibly (newlines and repeated spaces in the DOM).
- */
+/** A case-insensitive substring RegExp for a catalog entry. Unresolved `{placeholders}` match any run of characters; literal whitespace is matched flexibly (newlines and repeated spaces in the DOM). */
 export function label(key: string, vars?: Vars, locale: Locale = DEFAULT_LOCALE): RegExp {
   const cleaned = stripDecoration(substitute(rawTemplate(key, locale), vars));
   const pieces = cleaned.split(/\{\w+\}/);
@@ -91,11 +73,7 @@ export function label(key: string, vars?: Vars, locale: Locale = DEFAULT_LOCALE)
   return new RegExp(pattern, 'i');
 }
 
-/**
- * Like `label` but anchored: the whole accessible name must match, ignoring non-word edge
- * characters (icons, `*`, `:`). Use where a substring is ambiguous, e.g. "Delete" vs
- * "Delete Submissions".
- */
+/** Like `label` but anchored: the whole accessible name must match, ignoring non-word edge characters (icons, `*`, `:`). Use where a substring is ambiguous, e.g. "Delete" vs "Delete Submissions". */
 export function labelExact(key: string, vars?: Vars, locale: Locale = DEFAULT_LOCALE): RegExp {
   const cleaned = stripDecoration(substitute(rawTemplate(key, locale), vars));
   const pieces = cleaned.split(/\{\w+\}/);
@@ -105,22 +83,14 @@ export function labelExact(key: string, vars?: Vars, locale: Locale = DEFAULT_LO
   return new RegExp(`^\\W*${pattern}\\W*$`, 'i');
 }
 
-/**
- * The "stem" of a label: the text before the first `{placeholder}` or opening
- * parenthesis. "2. Scan Ingestion ({count})" becomes /Scan Ingestion/i. Use it
- * where a counter that is rendered as "(3)" today may become a badge later.
- */
+/** The "stem" of a label: the text before the first `{placeholder}` or opening parenthesis. "2. Scan Ingestion ({count})" becomes /Scan Ingestion/i. Use it where a counter that is rendered as "(3)" today may become a badge later. */
 export function stem(key: string, locale: Locale = DEFAULT_LOCALE): RegExp {
   const cleaned = stripDecoration(rawTemplate(key, locale));
   const head = cleaned.split(/\s*[({]/)[0].trim();
   return new RegExp(escapeRegExp(head).replace(/\s+/g, '\\s+'), 'i');
 }
 
-/**
- * Native language names. They live in `lib/i18n/index.ts` (`LOCALE_LABELS`),
- * which cannot be imported here because it uses the `#lib` alias, and they are
- * deliberately not translated, so repeating them is safe.
- */
+/** Native language names. They live in `lib/i18n/index.ts` (`LOCALE_LABELS`), which cannot be imported here because it uses the `#lib` alias, and they are deliberately not translated, so repeating them is safe. */
 export const LOCALE_NATIVE_NAMES: Record<Locale, string> = { de: 'Deutsch', en: 'English' };
 
 /** A RegExp for text that is not a catalog entry (user-entered data). */

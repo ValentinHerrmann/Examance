@@ -33,10 +33,7 @@ function canvasToPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   });
 }
 
-/**
- * Returns the scan with strokes and OMR detections burned in. Pure bytes: no download, no UI;
- * throws on any failure.
- */
+/** Returns the scan with strokes and OMR detections burned in. Pure bytes: no download, no UI; throws on any failure. */
 export async function renderGradedPdf(
   submission: SubmissionRecord,
   scores: ExerciseScoreRecord[],

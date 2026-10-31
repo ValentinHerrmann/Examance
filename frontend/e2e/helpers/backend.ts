@@ -1,8 +1,4 @@
-/**
- * Answers the app's API from the in-memory fake (`tests/helpers/fakeApi.ts`), so no backend runs. Calls from :4173 to
- * :8000 are cross-origin with credentials, so responses carry the real CORS headers and preflights are answered here.
- * Routed on the browser context so it survives reloads and new pages; never touches the app's CSP.
- */
+/** Answers the app's API from the in-memory fake (`tests/helpers/fakeApi.ts`), so no backend runs. Calls from :4173 to :8000 are cross-origin with credentials, so responses carry the real CORS headers and preflights are answered here. Routed on the browser context so it survives reloads and new pages; never touches the app's CSP. */
 import type { BrowserContext, Route } from '@playwright/test';
 import type { FakeApi } from '../../tests/helpers/fakeApi';
 

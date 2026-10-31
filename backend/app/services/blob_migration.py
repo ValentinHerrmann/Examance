@@ -1,7 +1,4 @@
-"""Move scans between the DB and the file partition, verified and resumable (issue #114).
-
-Runs on an AUTOCOMMIT sync connection (Alembic `autocommit_block` or the CLI): every row commits on
-its own, so an abort keeps all finished rows and a rerun only picks up what is left."""
+"""Move scans between the DB and the file partition, verified and resumable (issue #114). Runs on an AUTOCOMMIT sync connection (Alembic `autocommit_block` or the CLI): every row commits on its own, so an abort keeps all finished rows and a rerun only picks up what is left."""
 from __future__ import annotations
 
 import hashlib

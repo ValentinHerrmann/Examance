@@ -1,7 +1,4 @@
-"""Exercise sharing (issue #65): who may read a foreign exercise, copying, and resyncing copies.
-
-The only place that decides visibility. A foreign row is never linked into an exam, only copied,
-and a resync only adds versions: an owner's edit or deletion never reaches a recipient's exams."""
+"""Exercise sharing (issue #65): who may read a foreign exercise, copying, and resyncing copies. The only place that decides visibility. A foreign row is never linked into an exam, only copied, and a resync only adds versions: an owner's edit or deletion never reaches a recipient's exams."""
 from __future__ import annotations
 
 import copy
@@ -19,7 +16,7 @@ from sqlalchemy import ColumnElement, and_, false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.exercise import Exercise
-from app.models.exercise_contribution import ExerciseContributionResource
+from app.models.exercise_contribution import ExerciseContribution, ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.teacher import Teacher
@@ -27,8 +24,7 @@ from app.services.latex_score import parse_exercise_score
 
 
 def shared_with_clause(viewer: Teacher) -> ColumnElement[bool]:
-    """Rows another account shared and *viewer* may see: current library rows with code whose
-    owner is approved, has the switch on and has not paused. Checked per query (fails closed)."""
+    """Rows another account shared and *viewer* may see: current library rows with code whose owner is approved, has the switch on and has not paused. Checked per query (fails closed)."""
     if not viewer.allow_exercise_sharing:
         return false()
     # Correlate on exercises only: a caller that also joins teachers must not empty this subquery.
@@ -60,6 +56,23 @@ def readable_clause(viewer: Teacher) -> ColumnElement[bool]:
     return or_(Exercise.teacher_id == viewer.id, shared_with_clause(viewer))
 
 
+# --- Content ---------------------------------------------------------------
+
+# : What a copy, a resync and a proposal carry, and what `content_fingerprint` covers besides file : digests. Every other `Exercise` column is identity, placement, share state or provenance of one : account's row; a test fails when a new column is classified as neither.
+EXERCISE_CONTENT_FIELDS = (
+    "latex_body",
+    "max_points",
+    "question_type",
+    "correct_answers",
+    "penalty",
+)
+
+
+def content_of(src: Exercise | ExerciseContribution) -> dict[str, object]:
+    """The content fields of *src* as keyword arguments. The answer key is copied, so the new row never shares a mutable dict with its source."""
+    return {name: copy.deepcopy(getattr(src, name)) for name in EXERCISE_CONTENT_FIELDS}
+
+
 # --- Fingerprints ---------------------------------------------------------
 
 ResourceDigest = tuple[str, str, str]  # (filename, mime_type, content sha256)
@@ -72,8 +85,7 @@ def sha256_hex(content: bytes) -> str:
 async def resource_digests(
     exercise_ids: Iterable[uuid.UUID], db: AsyncSession
 ) -> dict[uuid.UUID, list[ResourceDigest]]:
-    """Per exercise, its resources as digests. Rows not hashed yet (older than 0032's backfill)
-    are hashed in memory only: the rows may belong to another account, so never write them."""
+    """Per exercise, its resources as digests. Rows not hashed yet (older than 0032's backfill) are hashed in memory only: the rows may belong to another account, so never write them."""
     ids = list(dict.fromkeys(exercise_ids))
     out: dict[uuid.UUID, list[ResourceDigest]] = defaultdict(list)
     if not ids:
@@ -102,8 +114,7 @@ async def resource_digests(
 
 
 def content_fingerprint(ex: Exercise, resources: Sequence[ResourceDigest]) -> str:
-    """SHA-256 of what a resync carries over. Name, topic, grade, subject and variant key are
-    the recipient's own organisation and deliberately left out."""
+    """SHA-256 of what a resync carries over. Name, topic, grade, subject and variant key are the recipient's own organisation and deliberately left out."""
     payload = {
         "latex_body": ex.latex_body or "",
         "question_type": ex.question_type,
@@ -148,8 +159,7 @@ async def copy_resources(source_id: uuid.UUID, target_id: uuid.UUID, db: AsyncSe
 
 
 def next_version(old: Exercise, **content: object) -> Exercise:
-    """The row that supersedes *old*: version + 1, same owner, group, variant, share state and
-    provenance; *content* overrides fields. *old* stays as history, so exams linking it keep it."""
+    """The row that supersedes *old*: version + 1, same owner, group, variant, share state and provenance; *content* overrides fields. *old* stays as history, so exams linking it keep it."""
     old.is_current = False
     fields: dict[str, object] = {
         "teacher_id": old.teacher_id,
@@ -157,32 +167,18 @@ def next_version(old: Exercise, **content: object) -> Exercise:
         "topic_tag": old.topic_tag,
         "grade": old.grade,
         "subject": old.subject,
-        "latex_body": old.latex_body,
-        "max_points": old.max_points,
         "version": old.version + 1,
         "exercise_group_id": old.exercise_group_id,
         "variant_key": old.variant_key,
         "is_current": True,
-        "question_type": old.question_type,
-        "correct_answers": old.correct_answers,
-        "penalty": old.penalty,
         "is_public": old.is_public,
         "shared_at": old.shared_at,
         "copied_from_exercise_id": old.copied_from_exercise_id,
         "synced_fingerprint": old.synced_fingerprint,
+        **content_of(old),
     }
     fields.update(content)
     return Exercise(**fields)
-
-
-def _content_from(src: Exercise) -> dict[str, object]:
-    return {
-        "latex_body": src.latex_body,
-        "max_points": src.max_points,
-        "question_type": src.question_type,
-        "correct_answers": copy.deepcopy(src.correct_answers),
-        "penalty": src.penalty,
-    }
 
 
 async def shared_group_rows(
@@ -235,7 +231,7 @@ async def copy_shared_group(
             is_current=True,
             copied_from_exercise_id=src.id,
             synced_fingerprint=content_fingerprint(src, digests.get(src.id, [])),
-            **_content_from(src),
+            **content_of(src),
         )
         db.add(row)
         await db.flush()
@@ -247,8 +243,7 @@ async def copy_shared_group(
 async def duplicate_own_group(
     source: Exercise, teacher: Teacher, db: AsyncSession
 ) -> tuple[ExerciseGroup, list[Exercise]]:
-    """Copy the current rows of *source*'s own group into a new private group (issue #121).
-    No resync link; a duplicate of a copy stays marked as copied so it is never shared as own."""
+    """Copy the current rows of *source*'s own group into a new private group (issue #121). No resync link; a duplicate of a copy stays marked as copied so it is never shared as own."""
     sources: list[Exercise] = [source]
     origin: ExerciseGroup | None = None
     if source.exercise_group_id is not None:
@@ -293,7 +288,7 @@ async def duplicate_own_group(
             variant_key=src.variant_key,
             is_current=True,
             code_withheld=src.code_withheld,
-            **_content_from(src),
+            **content_of(src),
         )
         db.add(row)
         await db.flush()
@@ -338,8 +333,7 @@ class GroupPlan:
 async def plan_groups(
     viewer: Teacher, db: AsyncSession, group_id: uuid.UUID | None = None, *, lock: bool = False
 ) -> list[GroupPlan]:
-    """Compare *viewer*'s linked groups (or one of them) with their sources. Writers pass *lock*:
-    the group row lock serializes them, so two cannot both version the same current row."""
+    """Compare *viewer*'s linked groups (or one of them) with their sources. Writers pass *lock*: the group row lock serializes them, so two cannot both version the same current row."""
     query = select(ExerciseGroup).where(
         ExerciseGroup.teacher_id == viewer.id, ExerciseGroup.source_group_id.is_not(None)
     )
@@ -450,8 +444,7 @@ async def plan_group(
 
 
 def _mark_synced(own: Exercise, src: Exercise, fp: str) -> None:
-    """Content equal to the source means in sync (e.g. a proposal accepted unchanged): advance the
-    sync point. Provenance only, on the copy owner's own row in their own request."""
+    """Content equal to the source means in sync (e.g. a proposal accepted unchanged): advance the sync point. Provenance only, on the copy owner's own row in their own request."""
     if own.synced_fingerprint != fp or own.copied_from_exercise_id != src.id:
         own.synced_fingerprint = fp
         own.copied_from_exercise_id = src.id
@@ -463,8 +456,7 @@ def _match(
     taken: set[uuid.UUID],
     lineage: dict[uuid.UUID, tuple[uuid.UUID | None, str | None]],
 ) -> Exercise | None:
-    """The copy row that tracks *src*: same source row, else a row copied from an earlier
-    version of the same source variant, else (lineage gone) the same variant key."""
+    """The copy row that tracks *src*: same source row, else a row copied from an earlier version of the same source variant, else (lineage gone) the same variant key."""
     free = [r for r in mine if r.id not in taken]
     for row in free:
         if row.copied_from_exercise_id == src.id:
@@ -491,8 +483,7 @@ class ResyncConflict(HTTPException):
 
 
 def new_variant_row(group: ExerciseGroup, sibling: Exercise | None, **content: object) -> Exercise:
-    """Version 1 of a new variant in *group*; it joins the group's share state like one made
-    in the editor. *content* carries variant key, LaTeX, answers and provenance."""
+    """Version 1 of a new variant in *group*; it joins the group's share state like one made in the editor. *content* carries variant key, LaTeX, answers and provenance."""
     shared = bool(sibling and sibling.is_public)
     fields: dict[str, object] = {
         "teacher_id": group.teacher_id,
@@ -524,9 +515,7 @@ async def apply_resync(
     db: AsyncSession,
     overrides: dict[uuid.UUID, str] | None = None,
 ) -> list[Exercise]:
-    """Take over the *reviewed* variants (source row id -> fingerprint the user saw; a subset is
-    fine, the rest stays pending). Compare-and-set per variant. *overrides* holds edited LaTeX.
-    Never updates a row in place: changes become new versions."""
+    """Take over the *reviewed* variants (source row id -> fingerprint the user saw; a subset is fine, the rest stays pending). Compare-and-set per variant. *overrides* holds edited LaTeX. Never updates a row in place: changes become new versions."""
     overrides = overrides or {}
     applicable = {v.source.id: (v, v.source) for v in plan.applicable if v.source}
     if not reviewed or any(
@@ -540,7 +529,7 @@ async def apply_resync(
     created: list[Exercise] = []
     for sid in reviewed:
         variant, src = applicable[sid]
-        content = edited_content(_content_from(src), overrides.get(sid))
+        content = edited_content(content_of(src), overrides.get(sid))
         if variant.own is not None:
             row = next_version(
                 variant.own,

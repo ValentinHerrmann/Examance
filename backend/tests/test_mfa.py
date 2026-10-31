@@ -31,12 +31,7 @@ def _secret_from_uri(uri: str) -> bytes:
 
 @pytest.mark.asyncio
 async def test_enrollment_completes_the_policy(client: AsyncClient, db: AsyncSession) -> None:
-    """
-    A password-only account enrols its second factor from the enrollment scope.
-
-    This is the path every existing account takes on its first sign-in after the
-    policy lands, so it has to work without a full session.
-    """
+    """A password-only account enrols its second factor from the enrollment scope. This is the path every existing account takes on its first sign-in after the policy lands, so it has to work without a full session."""
     email = "enroll-flow@example.com"
     await create_teacher(db, email)
 
@@ -134,10 +129,7 @@ async def test_a_backup_code_stands_in_for_the_authenticator(
 async def test_removing_the_last_second_factor_is_refused(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    Without this guard a teacher could delete their way below the policy and
-    lock themselves out of their own account.
-    """
+    """Without this guard a teacher could delete their way below the policy and lock themselves out of their own account."""
     await sign_in(client, db, "cannot-remove@example.com")
 
     resp = await client.delete("/api/v1/mfa/totp")
@@ -174,12 +166,7 @@ async def test_totp_drift_window_is_one_step(client: AsyncClient, db: AsyncSessi
 async def test_an_admin_can_clear_a_locked_out_teachers_factors(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    The escape hatch for a teacher who lost a factor.
-
-    It restores the *account*, not the data: an administrator who could undo the
-    encryption could also read it.
-    """
+    """The escape hatch for a teacher who lost a factor. It restores the *account*, not the data: an administrator who could undo the encryption could also read it."""
     teacher = await create_teacher(db, "stuck@example.com")
     await enrol_totp(db, teacher)
 
@@ -204,11 +191,7 @@ async def test_only_admins_can_clear_factors(client: AsyncClient, db: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_a_mistyped_code_can_be_retried(client: AsyncClient, db: AsyncSession) -> None:
-    """
-    One wrong digit costs an attempt, not the sign-in. The single-use pending token used to be spent
-    before the code was checked, so a typo left every retry failing. Now only a succeeding factor
-    consumes it; a failure hands back an equivalent token.
-    """
+    """One wrong digit costs an attempt, not the sign-in. The single-use pending token used to be spent before the code was checked, so a typo left every retry failing. Now only a succeeding factor consumes it; a failure hands back an equivalent token."""
     email = "retry-totp@example.com"
     teacher = await create_teacher(db, email)
     secret = await enrol_totp(db, teacher)
@@ -234,12 +217,7 @@ async def test_a_mistyped_code_can_be_retried(client: AsyncClient, db: AsyncSess
 async def test_a_spent_pending_token_says_the_step_expired(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    Reusing the token a *successful* factor consumed is a different failure.
-
-    The frontend needs to tell the two apart: "try that code again" and "start
-    the sign-in over" are opposite instructions.
-    """
+    """Reusing the token a *successful* factor consumed is a different failure. The frontend needs to tell the two apart: "try that code again" and "start the sign-in over" are opposite instructions."""
     email = "spent-pending@example.com"
     teacher = await create_teacher(db, email)
     secret = await enrol_totp(db, teacher)
@@ -267,11 +245,7 @@ async def test_a_spent_pending_token_says_the_step_expired(
 async def test_a_backup_code_issued_under_the_old_hash_still_works(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    Sets minted before the keyed digest cannot be converted — the plaintext is
-    gone — so they are still verified the old way. Dropping that would have
-    locked out every account holding codes issued before this change.
-    """
+    """Sets minted before the keyed digest cannot be converted — the plaintext is gone — so they are still verified the old way. Dropping that would have locked out every account holding codes issued before this change."""
     from app.models.mfa_credential import MfaBackupCode
     from app.services.crypto import hash_password
 
@@ -299,10 +273,7 @@ async def test_a_backup_code_issued_under_the_old_hash_still_works(
 async def test_status_reports_recovery_and_factor_activity(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    What the security page renders per factor. The dates are nullable on purpose: added after the
-    factors, so older accounts have none and the page says "not recorded" rather than inventing one.
-    """
+    """What the security page renders per factor. The dates are nullable on purpose: added after the factors, so older accounts have none and the page says "not recorded" rather than inventing one."""
     email = "status-detail@example.com"
     await sign_in(client, db, email)
 
@@ -342,9 +313,7 @@ async def test_status_reports_recovery_and_factor_activity(
 
 
 def _spent_code(secret: bytes) -> str:
-    """The code of the step the next sign-in spends (or the one before, if it rolls over).
-
-    Re-reading the clock after the sign-in can land on a fresh, unspent step."""
+    """The code of the step the next sign-in spends (or the one before, if it rolls over). Re-reading the clock after the sign-in can land on a fresh, unspent step."""
     return totp_svc.generate_code(secret, totp_svc.current_step(int(time.time())))
 
 
@@ -352,11 +321,7 @@ def _spent_code(secret: bytes) -> str:
 async def test_a_spent_code_says_so_instead_of_calling_itself_invalid(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    The code the authenticator is *still showing* is not a wrong code.
-    Every sign-in right after a password reset hits this (the reset took a code moments earlier);
-    saying "invalid" sends the teacher hunting for a problem that fixes itself in thirty seconds.
-    """
+    """The code the authenticator is *still showing* is not a wrong code. Every sign-in right after a password reset hits this (the reset took a code moments earlier); saying "invalid" sends the teacher hunting for a problem that fixes itself in thirty seconds."""
     email = "spent-code@example.com"
     teacher = await create_teacher(db, email)
     secret = await enrol_totp(db, teacher)
@@ -377,12 +342,7 @@ async def test_a_spent_code_says_so_instead_of_calling_itself_invalid(
 
 @pytest.mark.asyncio
 async def test_a_spent_code_costs_no_attempt(client: AsyncClient, db: AsyncSession) -> None:
-    """
-    It proves possession of the secret, so it is not a guess.
-
-    Charging it to the failure counter is how retyping the displayed code a few
-    times after a reset turned a thirty-second wait into a per-account lockout.
-    """
+    """It proves possession of the secret, so it is not a guess. Charging it to the failure counter is how retyping the displayed code a few times after a reset turned a thirty-second wait into a per-account lockout."""
     from app.services import login_throttle
 
     email = "spent-code-throttle@example.com"

@@ -90,7 +90,7 @@ An erasure routine that over-deletes is both a data-loss bug and an integrity fa
 
 | Asserted | Actual |
 | :--- | :--- |
-| `SameSite=Strict` cookies | `SameSite=None` (`routers/auth.py`) |
+| `SameSite=Strict` cookies | `SameSite=None` (`routers/auth/session.py`) |
 | `tectonic --untrusted` | flag absent from the command (`services/latex.py`) |
 | Keys "never written to LocalStorage, SessionStorage, or IndexedDB" (`data_flow_and_security.md`) | written to both `sessionStorage` and `localStorage` (`stores/session.ts`) |
 

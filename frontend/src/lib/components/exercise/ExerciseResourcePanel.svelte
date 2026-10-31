@@ -55,8 +55,7 @@
     }
   }
 
-  // Only files whose bytes are already local get a thumbnail; server-seeded rows carry
-  // metadata only, and downloading every figure for a 36px square would be expensive.
+  // Only files whose bytes are already local get a thumbnail; server-seeded rows carry metadata only, and downloading every figure for a 36px square would be expensive.
   async function buildThumbnails() {
     const key = get(sessionStore).sessionKey;
     for (const res of resources) {
@@ -85,8 +84,7 @@
     errorMsg = "";
     const key = get(sessionStore).sessionKey;
 
-    // Tracked across the batch: the reactive `usedBytes` only catches up after
-    // the reload below, which would let one drop overshoot the limit.
+    // Tracked across the batch: the reactive `usedBytes` only catches up after the reload below, which would let one drop overshoot the limit.
     let pending = usedBytes;
 
     try {

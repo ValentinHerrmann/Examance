@@ -58,8 +58,7 @@
 
   let sideBySideDiff = $derived(computeSideBySideDiff(diffLeftLatex, diffRightLatex));
 
-  // Wrapped line heights fed to the alignment; re-read on every CodeMirror re-measure,
-  // since a one-off read at mount only sees estimated heights.
+  // Wrapped line heights fed to the alignment; re-read on every CodeMirror re-measure, since a one-off read at mount only sees estimated heights.
   let leftLineHeights = $state.raw(new Map<number, number>());
   let rightLineHeights = $state.raw(new Map<number, number>());
   let remeasureFrame: number | null = null;
@@ -77,8 +76,7 @@
     remeasureFrame = null;
     const left = diffLeftEditor?.getLineHeights() ?? new Map<number, number>();
     const right = diffRightEditor?.getLineHeights() ?? new Map<number, number>();
-    // Only reassign on a real change, so applying the resulting paddings
-    // (which triggers another geometry update) settles instead of looping.
+    // Only reassign on a real change, so applying the resulting paddings (which triggers another geometry update) settles instead of looping.
     if (!sameHeights(left, leftLineHeights)) leftLineHeights = left;
     if (!sameHeights(right, rightLineHeights)) rightLineHeights = right;
   }

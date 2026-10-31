@@ -209,8 +209,7 @@ describe('histogram bin width', () => {
 });
 
 describe('grade colour never straddles a bin', () => {
-  // Mirrors calculatePercentageHistogram's own bin search — built once per key from bins
-  // that are already computed, never re-derived per value.
+  // Mirrors calculatePercentageHistogram's own bin search — built once per key from bins that are already computed, never re-derived per value.
   function binFor(bins: PercentageHistogramBin[], v: number): PercentageHistogramBin {
     let idx = bins.length - 1;
     while (idx > 0 && v < bins[idx].binStart) idx--;
@@ -249,9 +248,7 @@ describe('grade colour never straddles a bin', () => {
         bucketByColor.set(color, (bucketByColor.get(color) ?? 0) + b.count);
       });
 
-      // Union of colours: an out-of-range cutoff (e.g. minPercentage 110) makes an empty
-      // bucket that no bin's colorVar ever matches, so one side can legitimately lack a key
-      // the other has at 0 — normalize both onto the same key set before comparing.
+      // Union of colours: an out-of-range cutoff (e.g. minPercentage 110) makes an empty bucket that no bin's colorVar ever matches, so one side can legitimately lack a key the other has at 0 — normalize both onto the same key set before comparing.
       const colors = new Set([...histByColor.keys(), ...bucketByColor.keys()]);
       const histCounts: Record<string, number> = {};
       const bucketCounts: Record<string, number> = {};

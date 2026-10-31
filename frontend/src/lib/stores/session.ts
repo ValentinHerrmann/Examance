@@ -1,8 +1,4 @@
-/**
- * Session store: in-memory key state, persisted per tab via sessionStorage and synced across tabs via BroadcastChannel.
- * SECURITY: no accessToken field; auth tokens live in httpOnly cookies, never read or stored by JS. masterKey (HKDF) and
- * sessionKey (AES-GCM) are wiped on manual lock, 60-minute inactivity (hygiene.ts), tab close or browser quit.
- */
+/** Session store: in-memory key state, persisted per tab via sessionStorage and synced across tabs via BroadcastChannel. SECURITY: no accessToken field; auth tokens live in httpOnly cookies, never read or stored by JS. masterKey (HKDF) and sessionKey (AES-GCM) are wiped on manual lock, 60-minute inactivity (hygiene.ts), tab close or browser quit. */
 
 import { writable, derived, get } from 'svelte/store';
 import { uint8ArrayToBase64, base64ToUint8Array, toArrayBuffer } from '#lib/crypto/aesGcm';
@@ -55,16 +51,11 @@ const SESSION_STORAGE_KEYS = {
   TEACHER_ID: 'bg_session_teacher_id',
   ROLE: 'bg_session_role',
   MODE: 'bg_session_mode',
-  // Written by lib/services/keyEnvelopeService.ts (rememberKeyId), listed here
-  // so locking wipes it with everything else. Not secret — a random label for
-  // the data-key generation — but it is meaningless once the keys are gone.
+  // Written by lib/services/keyEnvelopeService.ts (rememberKeyId), listed here so locking wipes it with everything else. Not secret — a random label for the data-key generation — but it is meaningless once the keys are gone.
   KEY_ID: 'bg_key_id',
 } as const;
 
-/**
- * localStorage keys of the discontinued local passphrase vault (issue #47). Never read for keys any
- * more; only to recognise a browser that still holds such a vault and to remove them with it.
- */
+/** localStorage keys of the discontinued local passphrase vault (issue #47). Never read for keys any more; only to recognise a browser that still holds such a vault and to remove them with it. */
 const LEGACY_LOCAL_VAULT_KEYS = ['bg_anon_salt', 'bg_anon_nonce', 'bg_anon_pwd'] as const;
 
 /** True when this browser still holds parameters of the discontinued local passphrase vault. */
@@ -77,108 +68,100 @@ export function removeLegacyLocalVault(): void {
   LEGACY_LOCAL_VAULT_KEYS.forEach((k) => safeLocalStorage.removeItem(k));
 }
 
-async function exportSessionKeyToBase64(key: CryptoKey | null): Promise<string | null> {
-  if (!key) return null;
+async function exportAesKey(key: CryptoKey | null): Promise<string | undefined> {
+  if (!key) return undefined;
   try {
-    const raw = await crypto.subtle.exportKey('raw', key);
-    return uint8ArrayToBase64(new Uint8Array(raw));
+    return uint8ArrayToBase64(new Uint8Array(await crypto.subtle.exportKey('raw', key)));
   } catch (err) {
     console.warn('[SessionStore] Failed to export session key:', err);
-    return null;
+    return undefined;
   }
 }
 
-async function importMasterKeyFromRawBytes(bytes: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    'raw',
-    toArrayBuffer(bytes),
-    'HKDF',
-    false, // HKDF keys must have extractable=false per WebCrypto spec
-    ['deriveKey', 'deriveBits']
-  );
+async function importAesKey(b64: string | undefined): Promise<CryptoKey | null> {
+  if (!b64) return null;
+  return crypto.subtle.importKey('raw', toArrayBuffer(base64ToUint8Array(b64)), { name: 'AES-GCM', length: 256 }, true, [
+    'encrypt',
+    'decrypt',
+  ]);
 }
 
-async function importSessionKeyFromBase64(b64: string): Promise<CryptoKey> {
-  const bytes = base64ToUint8Array(b64);
-  return crypto.subtle.importKey(
-    'raw',
-    toArrayBuffer(bytes),
-    { name: 'AES-GCM', length: 256 },
-    true,
-    ['encrypt', 'decrypt']
-  );
+/** Key material as kept per tab and handed to other tabs: one shape, so neither path drops a key (F17). */
+type KeyRecord = Partial<Record<keyof typeof SESSION_STORAGE_KEYS, string>>;
+
+async function toKeyRecord(s: SessionState): Promise<KeyRecord> {
+  const b64 = (bytes: Uint8Array | null) => (bytes ? uint8ArrayToBase64(bytes) : undefined);
+  return {
+    MASTER_KEY_RAW: b64(s.masterKeyRaw),
+    SESSION_KEY: await exportAesKey(s.sessionKey),
+    FALLBACK_MASTER_KEY_RAW: b64(s.fallbackMasterKeyRaw),
+    FALLBACK_SESSION_KEY: await exportAesKey(s.fallbackSessionKey),
+    LEGACY_MASTER_KEY_RAW: b64(s.legacyMasterKeyRaw),
+    LEGACY_SESSION_KEY: await exportAesKey(s.legacySessionKey),
+    SESSION_NONCE: b64(s.sessionNonce),
+    EMAIL: s.email ?? undefined,
+    TEACHER_ID: s.teacherId ?? undefined,
+    ROLE: s.role ?? undefined,
+    MODE: s.mode ?? undefined,
+    KEY_ID: safeSessionStorage.getItem(SESSION_STORAGE_KEYS.KEY_ID) ?? undefined,
+  };
+}
+
+/** The unlocked state a record describes, or null when it holds no usable session. */
+async function fromKeyRecord(r: KeyRecord): Promise<Partial<SessionState> | null> {
+  // A session of the discontinued local mode must sign in again.
+  if (!r.SESSION_KEY || !r.SESSION_NONCE || !r.MODE || r.MODE === 'local') return null;
+  const raw = (b64: string | undefined) => (b64 ? base64ToUint8Array(b64) : null);
+  const masterKeyRaw = raw(r.MASTER_KEY_RAW);
+  return {
+    mode: r.MODE as SessionState['mode'],
+    // HKDF keys must be non-extractable per the WebCrypto spec.
+    masterKey: masterKeyRaw
+      ? await crypto.subtle.importKey('raw', toArrayBuffer(masterKeyRaw), 'HKDF', false, ['deriveKey', 'deriveBits'])
+      : null,
+    masterKeyRaw,
+    sessionKey: await importAesKey(r.SESSION_KEY),
+    fallbackSessionKey: await importAesKey(r.FALLBACK_SESSION_KEY),
+    fallbackMasterKeyRaw: raw(r.FALLBACK_MASTER_KEY_RAW),
+    legacySessionKey: await importAesKey(r.LEGACY_SESSION_KEY),
+    legacyMasterKeyRaw: raw(r.LEGACY_MASTER_KEY_RAW),
+    sessionNonce: raw(r.SESSION_NONCE),
+    lockedAt: null,
+    ...(r.EMAIL ? { email: r.EMAIL } : {}),
+    ...(r.TEACHER_ID ? { teacherId: r.TEACHER_ID } : {}),
+    ...(r.ROLE ? { role: r.ROLE as SessionState['role'] } : {}),
+  };
+}
+
+function readKeyRecord(): KeyRecord {
+  const record: KeyRecord = {};
+  for (const [name, key] of Object.entries(SESSION_STORAGE_KEYS)) {
+    record[name as keyof KeyRecord] = safeSessionStorage.getItem(key) ?? undefined;
+  }
+  return record;
+}
+
+function writeKeyRecord(record: KeyRecord): void {
+  if (!safeSessionStorage.isAvailable()) return;
+  try {
+    for (const [name, key] of Object.entries(SESSION_STORAGE_KEYS)) {
+      const value = record[name as keyof KeyRecord];
+      if (value === undefined) safeSessionStorage.removeItem(key);
+      else safeSessionStorage.setItem(key, value);
+    }
+  } catch (err) {
+    console.warn('[SessionStore] Could not save keys to sessionStorage:', err);
+  }
 }
 
 function clearSessionStorage() {
   Object.values(SESSION_STORAGE_KEYS).forEach((k) => safeSessionStorage.removeItem(k));
 }
 
-async function saveToSessionStorage(params: {
-  masterKeyRaw?: Uint8Array | null;
-  sessionKey: CryptoKey;
-  fallbackSessionKey?: CryptoKey | null;
-  fallbackMasterKeyRaw?: Uint8Array | null;
-  legacySessionKey?: CryptoKey | null;
-  legacyMasterKeyRaw?: Uint8Array | null;
-  sessionNonce: Uint8Array;
-  email?: string | null;
-  teacherId?: string | null;
-  role?: 'teacher' | 'admin' | null;
-  mode: 'hybrid' | 'authenticated';
-}) {
-  if (!safeSessionStorage.isAvailable()) return;
-  try {
-    const sessionB64 = await exportSessionKeyToBase64(params.sessionKey);
-    const fallbackB64 = await exportSessionKeyToBase64(params.fallbackSessionKey ?? null);
-    const legacyB64 = await exportSessionKeyToBase64(params.legacySessionKey ?? null);
-
-    if (params.masterKeyRaw) {
-      safeSessionStorage.setItem(
-        SESSION_STORAGE_KEYS.MASTER_KEY_RAW,
-        uint8ArrayToBase64(params.masterKeyRaw)
-      );
-    }
-    if (sessionB64) {
-      safeSessionStorage.setItem(SESSION_STORAGE_KEYS.SESSION_KEY, sessionB64);
-    }
-    if (params.fallbackMasterKeyRaw) {
-      safeSessionStorage.setItem(
-        SESSION_STORAGE_KEYS.FALLBACK_MASTER_KEY_RAW,
-        uint8ArrayToBase64(params.fallbackMasterKeyRaw)
-      );
-    } else {
-      safeSessionStorage.removeItem(SESSION_STORAGE_KEYS.FALLBACK_MASTER_KEY_RAW);
-    }
-    if (fallbackB64) {
-      safeSessionStorage.setItem(SESSION_STORAGE_KEYS.FALLBACK_SESSION_KEY, fallbackB64);
-    } else {
-      safeSessionStorage.removeItem(SESSION_STORAGE_KEYS.FALLBACK_SESSION_KEY);
-    }
-    if (params.legacyMasterKeyRaw) {
-      safeSessionStorage.setItem(
-        SESSION_STORAGE_KEYS.LEGACY_MASTER_KEY_RAW,
-        uint8ArrayToBase64(params.legacyMasterKeyRaw)
-      );
-    } else {
-      safeSessionStorage.removeItem(SESSION_STORAGE_KEYS.LEGACY_MASTER_KEY_RAW);
-    }
-    if (legacyB64) {
-      safeSessionStorage.setItem(SESSION_STORAGE_KEYS.LEGACY_SESSION_KEY, legacyB64);
-    } else {
-      safeSessionStorage.removeItem(SESSION_STORAGE_KEYS.LEGACY_SESSION_KEY);
-    }
-    safeSessionStorage.setItem(
-      SESSION_STORAGE_KEYS.SESSION_NONCE,
-      uint8ArrayToBase64(params.sessionNonce)
-    );
-    safeSessionStorage.setItem(SESSION_STORAGE_KEYS.MODE, params.mode);
-    if (params.email) safeSessionStorage.setItem(SESSION_STORAGE_KEYS.EMAIL, params.email);
-    if (params.teacherId) {
-      safeSessionStorage.setItem(SESSION_STORAGE_KEYS.TEACHER_ID, params.teacherId);
-    }
-    if (params.role) safeSessionStorage.setItem(SESSION_STORAGE_KEYS.ROLE, params.role);
-  } catch (err) {
-    console.warn('[SessionStore] Could not save keys to sessionStorage:', err);
+/** Overwrites the raw key bytes before dropping them (S10); CryptoKey objects cannot be wiped. */
+function zeroFill(s: SessionState): void {
+  for (const bytes of [s.masterKeyRaw, s.fallbackMasterKeyRaw, s.legacyMasterKeyRaw, s.sessionNonce]) {
+    bytes?.fill(0);
   }
 }
 
@@ -199,29 +182,7 @@ function initBroadcastChannel(
         if (data.type === 'REQUEST_KEYS') {
           const state = getStoreState();
           if (state.sessionKey && state.sessionNonce && state.mode) {
-            const sessionB64 = await exportSessionKeyToBase64(state.sessionKey);
-            const fallbackB64 = await exportSessionKeyToBase64(state.fallbackSessionKey);
-            const masterRawB64 = state.masterKeyRaw ? uint8ArrayToBase64(state.masterKeyRaw) : null;
-            const fallbackMasterRawB64 = state.fallbackMasterKeyRaw
-              ? uint8ArrayToBase64(state.fallbackMasterKeyRaw)
-              : null;
-
-            if (sessionB64) {
-              syncChannel?.postMessage({
-                type: 'PROVIDE_KEYS',
-                masterRawB64,
-                sessionB64,
-                fallbackB64,
-                fallbackMasterRawB64,
-                sessionNonceB64: uint8ArrayToBase64(state.sessionNonce),
-                mode: state.mode,
-                email: state.email,
-                // Without it a tab restored this way identified the account by e-mail only, and the
-                // workspace owner check (lib/db/workspace.ts) took that for another account.
-                teacherId: state.teacherId,
-                role: state.role,
-              });
-            }
+            syncChannel?.postMessage({ type: 'PROVIDE_KEYS', keys: await toKeyRecord(state) });
           }
         } else if (data.type === 'SESSION_LOCKED') {
           clearSessionStorage();
@@ -237,6 +198,25 @@ function initBroadcastChannel(
 
 function createSessionStore() {
   const { subscribe, set, update } = writable<SessionState>(INITIAL_STATE);
+
+  /** Adopts a record from sessionStorage or another tab; false when it holds no usable session. */
+  async function adopt(record: KeyRecord): Promise<boolean> {
+    try {
+      const keys = await fromKeyRecord(record);
+      if (!keys) return false;
+      writeKeyRecord(record);
+      update((s) => ({ ...s, ...keys }));
+      return true;
+    } catch (err) {
+      console.warn('[SessionStore] Could not import session keys:', err);
+      return false;
+    }
+  }
+
+  function wipe(): void {
+    zeroFill(get({ subscribe }));
+    set({ ...INITIAL_STATE, lockedAt: Date.now() });
+  }
 
   const store = {
     subscribe,
@@ -262,116 +242,36 @@ function createSessionStore() {
       // Older versions stored the address here; nothing reads it, so erase it.
       safeLocalStorage.removeItem('bg_user_email');
 
-      await saveToSessionStorage({
-        masterKeyRaw: params.masterKeyRaw,
-        sessionKey: params.sessionKey,
-        fallbackSessionKey: params.fallbackSessionKey,
-        fallbackMasterKeyRaw: params.fallbackMasterKeyRaw,
-        legacySessionKey: params.legacySessionKey,
-        legacyMasterKeyRaw: params.legacyMasterKeyRaw,
-        sessionNonce: params.sessionNonce,
-        email: params.email,
-        teacherId: params.teacherId,
-        role: params.role,
-        mode,
-      });
-
-      update((s) => ({
-        ...s,
+      const current = get({ subscribe });
+      const next: SessionState = {
+        ...current,
         mode,
         masterKey: params.masterKey,
-        masterKeyRaw: params.masterKeyRaw ?? null,
+        // Own copies: lock() zero-fills them, and the caller's vault must not be wiped with them.
+        masterKeyRaw: params.masterKeyRaw?.slice() ?? null,
         sessionKey: params.sessionKey,
         fallbackSessionKey: params.fallbackSessionKey ?? null,
-        fallbackMasterKeyRaw: params.fallbackMasterKeyRaw ?? null,
+        fallbackMasterKeyRaw: params.fallbackMasterKeyRaw?.slice() ?? null,
         legacySessionKey: params.legacySessionKey ?? null,
-        legacyMasterKeyRaw: params.legacyMasterKeyRaw ?? null,
-        sessionNonce: params.sessionNonce,
+        legacyMasterKeyRaw: params.legacyMasterKeyRaw?.slice() ?? null,
+        sessionNonce: params.sessionNonce.slice(),
         lockedAt: null,
-        email: params.email ?? s.email,
-        teacherId: params.teacherId ?? s.teacherId,
-        role: params.role ?? s.role,
-      }));
+        email: params.email ?? current.email,
+        teacherId: params.teacherId ?? current.teacherId,
+        role: params.role ?? current.role,
+      };
+      // Storage first: a reload right after unlock must find the keys.
+      writeKeyRecord(await toKeyRecord(next));
+      set(next);
     },
 
     /** Restore session keys from tab-isolated sessionStorage across F5 reloads. */
     async restoreFromSessionStorage(): Promise<boolean> {
       if (!safeSessionStorage.isAvailable()) return false;
-
-      const masterRawB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.MASTER_KEY_RAW);
-      const sessionB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_KEY);
-      const nonceB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_NONCE);
-      const mode = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.MODE) as SessionState['mode'];
-
-      if (!sessionB64 || !nonceB64 || !mode) {
-        return false;
-      }
-      // A tab still holding a session of the discontinued local mode must sign in again.
-      if ((mode as string) === 'local') {
-        clearSessionStorage();
-        return false;
-      }
-
-      try {
-        const sessionKey = await importSessionKeyFromBase64(sessionB64);
-        const sessionNonce = base64ToUint8Array(nonceB64);
-
-        let masterKey: CryptoKey | null = null;
-        let masterKeyRaw: Uint8Array | null = null;
-        if (masterRawB64) {
-          masterKeyRaw = base64ToUint8Array(masterRawB64);
-          masterKey = await importMasterKeyFromRawBytes(masterKeyRaw);
-        }
-
-        const fallbackB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.FALLBACK_SESSION_KEY);
-        const fallbackMasterRawB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.FALLBACK_MASTER_KEY_RAW);
-        let fallbackSessionKey: CryptoKey | null = null;
-        let fallbackMasterKeyRaw: Uint8Array | null = null;
-        if (fallbackB64) {
-          fallbackSessionKey = await importSessionKeyFromBase64(fallbackB64);
-        }
-        if (fallbackMasterRawB64) {
-          fallbackMasterKeyRaw = base64ToUint8Array(fallbackMasterRawB64);
-        }
-
-        const legacyB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.LEGACY_SESSION_KEY);
-        const legacyMasterRawB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.LEGACY_MASTER_KEY_RAW);
-        let legacySessionKey: CryptoKey | null = null;
-        let legacyMasterKeyRaw: Uint8Array | null = null;
-        if (legacyB64) {
-          legacySessionKey = await importSessionKeyFromBase64(legacyB64);
-        }
-        if (legacyMasterRawB64) {
-          legacyMasterKeyRaw = base64ToUint8Array(legacyMasterRawB64);
-        }
-
-        const email = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.EMAIL);
-        const teacherId = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.TEACHER_ID);
-        const role = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.ROLE) as SessionState['role'];
-
-        update((s) => ({
-          ...s,
-          mode,
-          masterKey,
-          masterKeyRaw,
-          sessionKey,
-          fallbackSessionKey,
-          fallbackMasterKeyRaw,
-          legacySessionKey,
-          legacyMasterKeyRaw,
-          sessionNonce,
-          lockedAt: null,
-          email: email ?? s.email,
-          teacherId: teacherId ?? s.teacherId,
-          role: role ?? s.role,
-        }));
-
-        return true;
-      } catch (err) {
-        console.warn('[SessionStore] Could not restore keys from sessionStorage:', err);
-        clearSessionStorage();
-        return false;
-      }
+      const record = readKeyRecord();
+      if (await adopt(record)) return true;
+      if (record.SESSION_KEY) clearSessionStorage();
+      return false;
     },
 
     /** Request keys from another unlocked tab via BroadcastChannel. */
@@ -394,57 +294,7 @@ function createSessionStore() {
           if (data && typeof data === 'object' && data.type === 'PROVIDE_KEYS') {
             clearTimeout(timer);
             ch.removeEventListener('message', handler);
-            try {
-              const sessionKey = await importSessionKeyFromBase64(data.sessionB64);
-              const sessionNonce = base64ToUint8Array(data.sessionNonceB64);
-              let masterKey: CryptoKey | null = null;
-              let masterKeyRaw: Uint8Array | null = null;
-              if (data.masterRawB64) {
-                masterKeyRaw = base64ToUint8Array(data.masterRawB64);
-                masterKey = await importMasterKeyFromRawBytes(masterKeyRaw);
-              }
-
-              let fallbackSessionKey: CryptoKey | null = null;
-              let fallbackMasterKeyRaw: Uint8Array | null = null;
-              if (data.fallbackB64) {
-                fallbackSessionKey = await importSessionKeyFromBase64(data.fallbackB64);
-              }
-              if (data.fallbackMasterRawB64) {
-                fallbackMasterKeyRaw = base64ToUint8Array(data.fallbackMasterRawB64);
-              }
-
-              await saveToSessionStorage({
-                masterKeyRaw,
-                sessionKey,
-                fallbackSessionKey,
-                fallbackMasterKeyRaw,
-                sessionNonce,
-                email: data.email,
-                teacherId: data.teacherId,
-                role: data.role,
-                mode: data.mode,
-              });
-
-              update((s) => ({
-                ...s,
-                mode: data.mode,
-                masterKey,
-                masterKeyRaw,
-                sessionKey,
-                fallbackSessionKey,
-                fallbackMasterKeyRaw,
-                sessionNonce,
-                lockedAt: null,
-                email: data.email ?? s.email,
-                teacherId: data.teacherId ?? s.teacherId,
-                role: data.role ?? s.role,
-              }));
-
-              resolve(true);
-            } catch (err) {
-              console.warn('[SessionStore] Key import from BroadcastChannel failed:', err);
-              resolve(false);
-            }
+            resolve(await adopt(data.keys ?? {}));
           }
         };
 
@@ -470,19 +320,12 @@ function createSessionStore() {
           // Ignore
         }
       }
-
-      set({
-        ...INITIAL_STATE,
-        lockedAt: Date.now(),
-      });
+      wipe();
     },
 
     /** Internal reset handler for broadcast lock messages (prevents loop). */
     resetFromBroadcast() {
-      set({
-        ...INITIAL_STATE,
-        lockedAt: Date.now(),
-      });
+      wipe();
     },
 
     setDirty(dirty: boolean) {
@@ -495,6 +338,7 @@ function createSessionStore() {
 
     reset() {
       clearSessionStorage();
+      zeroFill(get({ subscribe }));
       set(INITIAL_STATE);
     },
   };
@@ -525,11 +369,7 @@ export const isAuthenticated = derived(
 // Session readiness gate
 // ---------------------------------------------------------------------------
 
-/**
- * Resolves once the root layout finished restoring the session (keys, other tabs, token refresh). Svelte mounts children
- * before parents, so a route's `onMount` runs earlier: every vault-touching route must await this, then still check
- * `isUnlocked` and redirect to `/unlock`.
- */
+/** Resolves once the root layout finished restoring the session (keys, other tabs, token refresh). Svelte mounts children before parents, so a route's `onMount` runs earlier: every vault-touching route must await this, then still check `isUnlocked` and redirect to `/unlock`. */
 let resolveSessionReady: (() => void) | null = null;
 let sessionReadyPromise: Promise<void> = new Promise<void>((resolve) => {
   resolveSessionReady = resolve;

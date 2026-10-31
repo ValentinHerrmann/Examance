@@ -1,9 +1,4 @@
-"""Account mails: set-password (reset / invite), registration, approval and report notices.
-
-Rendering only; delivery is `app.services.email.send_email`. Every interpolated value is
-HTML-escaped in the HTML part, and nothing a registrant typed (the note) is ever put in a mail;
-the only free text mailed is an admin's resolution note to a layout reporter.
-"""
+"""Account mails: set-password (reset / invite), registration, approval and report notices. Rendering only; delivery is `app.services.email.send_email`. Every interpolated value is HTML-escaped in the HTML part, and nothing a registrant typed (the note) is ever put in a mail; the only free text mailed is an admin's resolution note to a layout reporter."""
 from __future__ import annotations
 
 import logging
@@ -102,8 +97,7 @@ def admin_notice_mail(admin_email: str, pending: int) -> Mail:
 
 
 def contribution_notice_mail(owner_email: str, pending: int) -> Mail:
-    """Tells an author that colleagues proposed changes to their shared exercises. Carries no
-    proposal content and no contributor address."""
+    """Tells an author that colleagues proposed changes to their shared exercises. Carries no proposal content and no contributor address."""
     return _compose(
         owner_email,
         "Examance: proposed changes to your shared exercises",
@@ -125,8 +119,7 @@ def layout_report_notice_mail(admin_email: str, open_count: int) -> Mail:
 def layout_report_resolved_mail(
     reporter_email: str, kind: Literal["exam", "exercise"], created: str, note: str | None
 ) -> Mail:
-    """Tells the reporter their layout report was resolved. Only the admin's note is quoted,
-    never the reported content or the exam/exercise title."""
+    """Tells the reporter their layout report was resolved. Only the admin's note is quoted, never the reported content or the exam/exercise title."""
     subject_of = "an exam" if kind == "exam" else "an exercise"
     paragraphs = [
         f"The layout problem you reported on {created} for {subject_of} has been resolved "

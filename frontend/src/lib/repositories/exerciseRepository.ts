@@ -6,10 +6,7 @@ import type { ExerciseRecord } from '#lib/db/schema';
 import { normalizeMcExercise, serializeMcAnswers } from '#lib/grading/mcExerciseHash';
 import { invalidateOwner } from '#lib/latex/compileCache';
 
-/**
- * The one API -> ExerciseRecord mapper; use it for every exercise payload. Hand-rolled copies dropped
- * variantKey/exerciseGroupId/isCurrent, making variants indistinguishable and overwriting the full IndexedDB record.
- */
+/** The one API -> ExerciseRecord mapper; use it for every exercise payload. Hand-rolled copies dropped variantKey/exerciseGroupId/isCurrent, making variants indistinguishable and overwriting the full IndexedDB record. */
 export function mapApiToExerciseRecord(raw: any): ExerciseRecord {
   const baseRecord: ExerciseRecord = {
     id: raw.id,
@@ -55,9 +52,7 @@ export function mapExerciseRecordToApi(ex: ExerciseRecord): any {
     grade: ex.grade,
     subject: ex.subject,
     question_type: ex.questionType || 'free_text',
-    // The backend stores the answer key as a JSON object; sending the raw
-    // `correctAnswers` array is rejected with a 422. `options` is not a field on
-    // ExerciseCreate at all — it travels inside correct_answers.
+    // The backend stores the answer key as a JSON object; sending the raw `correctAnswers` array is rejected with a 422. `options` is not a field on ExerciseCreate at all — it travels inside correct_answers.
     correct_answers: serializeMcAnswers(ex),
     penalty: ex.penalty || 0,
     exercise_group_id: ex.exerciseGroupId,
@@ -67,13 +62,9 @@ export function mapExerciseRecordToApi(ex: ExerciseRecord): any {
 
 export const exerciseRepository = {
   async getAll(_key: CryptoKey | null): Promise<ExerciseRecord[]> {
-    try {
-      // silentError: the caller falls back to the local copy on failure.
-      const rawList = await api.get<any[]>('/exercises', { silentError: true });
-      return rawList.map(mapApiToExerciseRecord);
-    } catch (err: any) {
-      return [];
-    }
+    // silentError: a failed read throws and the caller reports it; never an empty library.
+    const rawList = await api.get<any[]>('/exercises', { silentError: true });
+    return rawList.map(mapApiToExerciseRecord);
   },
 
   async getByExamId(examId: string, key: CryptoKey | null): Promise<ExerciseRecord[]> {
@@ -109,9 +100,7 @@ export const exerciseRepository = {
     try {
       await api.post('/exercises', payload, { silentError: true });
     } catch (err: any) {
-      // POST /exercises is create-only and answers 409 for an id it already
-      // knows. Re-queuing that POST could never succeed — it just replayed the
-      // same conflict on every flush. An existing exercise is a PATCH.
+      // POST /exercises is create-only and answers 409 for an id it already knows. Re-queuing that POST could never succeed — it just replayed the same conflict on every flush. An existing exercise is a PATCH.
       if (err?.status === 409) {
         const { id: _id, ...patchPayload } = payload;
         try {
@@ -125,8 +114,7 @@ export const exerciseRepository = {
     }
   },
 
-  /** Copies an own group (current version of each variant) into a new private group. Online-only:
-   * a queued duplicate could replay into another workspace. */
+  /** Copies an own group (current version of each variant) into a new private group. Online-only: a queued duplicate could replay into another workspace. */
   async duplicate(id: string): Promise<{ groupId: string; exercises: ExerciseRecord[] }> {
     const res = await api.post<{ group_id: string; exercises: any[] }>(`/exercises/${id}/duplicate`, undefined, {
       silentError: true,
@@ -141,8 +129,7 @@ export const exerciseRepository = {
     } catch (err: any) {
       enqueueOrThrow(err, `/exercises/${id}`, 'DELETE');
     } finally {
-      // The server cascades its own rows; drop the local mirror either way, or
-      // an IndexedDB fallback would bring the exercise back.
+      // The server cascades its own rows; drop the local mirror either way, or an IndexedDB fallback would bring the exercise back.
       await db.exercises.delete(id);
       await db.exerciseResources.where('exerciseId').equals(id).delete();
     }

@@ -7,10 +7,7 @@
   import PackageEntriesEditor from "./PackageEntriesEditor.svelte";
   import PackageResultView from "./PackageResultView.svelte";
 
-  /**
-   * An exam's LaTeX packages (issue #108): follow the account, or add packages and leave out account ones for this
-   * exam. Nothing is written here; the exam page saves `packages` with the other exam data.
-   */
+  /** An exam's LaTeX packages (issue #108): follow the account, or add packages and leave out account ones for this exam. Nothing is written here; the exam page saves `packages` with the other exam data. */
   interface Props {
     /** Null follows the account; otherwise additions plus `disabled` entries for left-out account packages. */
     packages: LatexPackageEntry[] | null;

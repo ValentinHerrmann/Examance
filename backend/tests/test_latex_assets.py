@@ -6,7 +6,7 @@ import hashlib
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.latex import ASSETS_DIR
+from app.services.tectonic import ASSETS_DIR
 
 from .factors import sign_in
 

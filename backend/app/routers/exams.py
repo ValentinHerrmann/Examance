@@ -2,13 +2,11 @@
 from __future__ import annotations
 
 import copy
-import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,65 +26,26 @@ from app.models.teacher import Teacher
 from app.schemas.exam import (
     ExamCreate,
     ExamDuplicate,
-    ExamMcGroupResponse,
     ExamResponse,
     ExamUpdate,
     ExerciseResponse,
-    ExtraNotes,
 )
 from app.schemas.latex_packages import LatexPackageEntry
 from app.services import audit as audit_svc
-from app.services.capabilities import require_server_latex
-from app.services.exercise_resource_store import load_resources_for_exercises
-from app.services.latex import CompilationError, compilation_failed_response, compile_exam_latex
-from app.services.latex_packages import stored_entries
-from app.services.latex_resources import ResourceError
+from app.services.exam_queries import (
+    ExerciseRow,
+    exam_response,
+    exercise_response,
+    fetch_exam_exercises,
+    fetch_exam_mc_groups,
+    fetch_exercises_for_exams,
+    fetch_mc_groups_for_exams,
+    load_exam_response,
+)
 from app.services.latex_score import parse_exercise_score
-from app.services.logo import get_exam_logo, resolve_logo
+from app.services.logo import get_exam_logo
 
 router = APIRouter(prefix="/exams", tags=["exams"], dependencies=[Depends(get_teaching_teacher)])
-
-
-def _to_exercise_response(
-    ex: Exercise,
-    order_index: int = 1,
-    mc_group_id: uuid.UUID | None = None,
-    sub_index: int | None = None,
-) -> ExerciseResponse:
-    return ExerciseResponse(
-        id=ex.id,
-        teacher_id=ex.teacher_id,
-        name=ex.name,
-        topic_tag=ex.topic_tag,
-        grade=ex.grade,
-        subject=ex.subject,
-        latex_body=ex.latex_body,
-        code_withheld=ex.code_withheld,
-        max_points=ex.max_points,
-        version=ex.version,
-        exercise_group_id=ex.exercise_group_id,
-        variant_key=ex.variant_key,
-        is_current=ex.is_current,
-        order_index=order_index,
-        question_type=ex.question_type,
-        correct_answers=ex.correct_answers,
-        penalty=ex.penalty,
-        mc_group_id=mc_group_id,
-        sub_index=sub_index,
-    )
-
-
-ExerciseRow = tuple[Exercise, int, uuid.UUID | None, int | None]
-
-
-def _stored_packages(value: object) -> list[LatexPackageEntry] | None:
-    """The exam's package override for responses; null when it follows the account."""
-    if value is None:
-        return None
-    return [
-        LatexPackageEntry(kind=e.kind, name=e.name, options=e.options, disabled=e.disabled)
-        for e in stored_entries(value)
-    ]
 
 
 def _packages_column(entries: list[LatexPackageEntry] | None) -> list[dict[str, Any]] | None:
@@ -94,66 +53,31 @@ def _packages_column(entries: list[LatexPackageEntry] | None) -> list[dict[str, 
     return [entry.model_dump() for entry in entries] if entries else None
 
 
-def _to_exam_response(
-    e: Exam,
-    exercises: list[ExerciseRow],
-    mc_groups: list[ExamMcGroup],
-) -> ExamResponse:
-    group_members: dict[uuid.UUID, list[tuple[int, uuid.UUID]]] = {}
-    for ex, _, gid, sidx in exercises:
-        if gid is not None:
-            group_members.setdefault(gid, []).append((sidx or 0, ex.id))
-
-    return ExamResponse(
-        id=e.id,
-        teacher_id=e.teacher_id,
-        title=e.title,
-        latex_template=e.latex_template,
-        compilation_status=e.compilation_status,
-        created_at=e.created_at,
-        retention_until=e.retention_until,
-        testart=e.testart,
-        grade=e.grade,
-        klasse=e.klasse,
-        datum=e.datum,
-        nr=e.nr,
-        fach=e.fach,
-        topic=e.topic,
-        lehrernachname=e.lehrernachname,
-        info_text=e.info_text,
-        grading_key=e.grading_key,
-        latex_packages=_stored_packages(e.latex_packages),
-        page_breaks=e.page_breaks,
-        name_line=e.name_line,
-        extra_notes=ExtraNotes.model_validate(e.extra_notes) if e.extra_notes else None,
-        exercises=[_to_exercise_response(ex, idx, gid, sidx) for ex, idx, gid, sidx in exercises],
-        mc_groups=[
-            ExamMcGroupResponse(
-                id=g.id,
-                exam_id=g.exam_id,
-                title=g.title,
-                scoring_text=g.scoring_text,
-                order_index=g.order_index,
-                member_ids=[
-                    mid for _, mid in sorted(group_members.get(g.id, []))
-                ],
-            )
-            for g in mc_groups
-        ],
-    )
-
-
-async def _fetch_exam_exercises(exam_id: uuid.UUID, db: AsyncSession) -> list[ExerciseRow]:
-    return (await _fetch_exercises_for_exams([exam_id], db))[exam_id]
+# Plain header columns that create, update and duplicate treat alike.
+_HEADER_FIELDS = (
+    "latex_template",
+    "testart",
+    "grade",
+    "klasse",
+    "datum",
+    "nr",
+    "fach",
+    "topic",
+    "lehrernachname",
+    "info_text",
+    "grading_key",
+    "name_line",
+)
+# What a duplicate takes over; the title, retention and page breaks are set separately.
+_COPIED_FIELDS = (*_HEADER_FIELDS, "extra_notes", "latex_packages")
+# Update keeps the stored value for a null here, except `topic` (null or blank clears it).
+_UPDATED_FIELDS = {"title", "retention_until", *_HEADER_FIELDS}
 
 
 async def _resolve_linkable_exercise(
     exercise_id: uuid.UUID, teacher: Teacher, db: AsyncSession
 ) -> Exercise:
-    """Load an exercise *teacher* may place into their own exam: only their own.
-
-    A shared exercise is copied first (issue #65): linking another account's row would let its
-    owner's edit or deletion cascade into this exam and its scores. Anything else raises 404."""
+    """Load an exercise *teacher* may place into their own exam: only their own. A shared exercise is copied first (issue #65): linking another account's row would let its owner's edit or deletion cascade into this exam and its scores. Anything else raises 404."""
     res = await db.execute(
         select(Exercise).where(Exercise.id == exercise_id, Exercise.teacher_id == teacher.id)
     )
@@ -170,12 +94,7 @@ def _resolve_mc_group_id(
     client_group_id: uuid.UUID | None,
     id_map: dict[uuid.UUID, uuid.UUID],
 ) -> uuid.UUID | None:
-    """
-    Map a client-supplied MC group id onto the group just persisted for this exam.
-
-    An id that is not in *id_map* does not belong to this exam's groups and is
-    rejected rather than stored verbatim.
-    """
+    """Map a client-supplied MC group id onto the group just persisted for this exam. An id that is not in *id_map* does not belong to this exam's groups and is rejected rather than stored verbatim."""
     if client_group_id is None:
         return None
     resolved = id_map.get(client_group_id)
@@ -188,10 +107,7 @@ def _resolve_mc_group_id(
 
 
 def _dedupe_exercise_links(links: list[Any]) -> list[Any]:
-    """Collapse repeated exercise_ids in an exercise_links payload.
-
-    (exam_id, exercise_id) is the primary key, so a duplicate (e.g. standalone and as an MC group
-    member) would raise an IntegrityError (500). MC group membership wins, else the first entry."""
+    """Collapse repeated exercise_ids in an exercise_links payload. (exam_id, exercise_id) is the primary key, so a duplicate (e.g. standalone and as an MC group member) would raise an IntegrityError (500). MC group membership wins, else the first entry."""
     kept: dict[uuid.UUID, Any] = {}
     order: list[uuid.UUID] = []
     for link in links:
@@ -202,65 +118,6 @@ def _dedupe_exercise_links(links: list[Any]) -> list[Any]:
         elif existing.mc_group_id is None and link.mc_group_id is not None:
             kept[link.exercise_id] = link
     return [kept[eid] for eid in order]
-
-
-async def _fetch_exam_mc_groups(exam_id: uuid.UUID, db: AsyncSession) -> list[ExamMcGroup]:
-    return (await _fetch_mc_groups_for_exams([exam_id], db))[exam_id]
-
-
-async def _fetch_exercises_for_exams(
-    exam_ids: list[uuid.UUID], db: AsyncSession
-) -> dict[uuid.UUID, list[ExerciseRow]]:
-    """Every listed exam's exercises in one query (plus one for legacy links)."""
-    by_exam: dict[uuid.UUID, list[ExerciseRow]] = {exam_id: [] for exam_id in exam_ids}
-    if not exam_ids:
-        return by_exam
-
-    result = await db.execute(
-        select(
-            ExamExercise.exam_id,
-            Exercise,
-            ExamExercise.order_index,
-            ExamExercise.mc_group_id,
-            ExamExercise.sub_index,
-        )
-        .join(ExamExercise, Exercise.id == ExamExercise.exercise_id)
-        .where(ExamExercise.exam_id.in_(exam_ids))
-        .order_by(ExamExercise.order_index.asc(), ExamExercise.sub_index.asc())
-    )
-    for exam_id, exercise, order, group_id, sub_index in result.all():
-        by_exam[exam_id].append((exercise, order, group_id, sub_index))
-
-    # Legacy exams link via exercise.exam_id instead of the junction table.
-    legacy_ids = [exam_id for exam_id, rows in by_exam.items() if not rows]
-    if legacy_ids:
-        legacy = await db.execute(
-            select(Exercise)
-            .where(Exercise.exam_id.in_(legacy_ids))
-            .order_by(Exercise.order_index.asc())
-        )
-        for exercise in legacy.scalars().all():
-            if exercise.exam_id is not None:
-                by_exam[exercise.exam_id].append((exercise, exercise.order_index, None, None))
-
-    return by_exam
-
-
-async def _fetch_mc_groups_for_exams(
-    exam_ids: list[uuid.UUID], db: AsyncSession
-) -> dict[uuid.UUID, list[ExamMcGroup]]:
-    """Every listed exam's MC groups in one query, keyed by exam id."""
-    by_exam: dict[uuid.UUID, list[ExamMcGroup]] = {exam_id: [] for exam_id in exam_ids}
-    if not exam_ids:
-        return by_exam
-    result = await db.execute(
-        select(ExamMcGroup)
-        .where(ExamMcGroup.exam_id.in_(exam_ids))
-        .order_by(ExamMcGroup.order_index.asc())
-    )
-    for group in result.scalars().all():
-        by_exam[group.exam_id].append(group)
-    return by_exam
 
 
 @router.get("", response_model=list[ExamResponse])
@@ -300,10 +157,10 @@ async def list_exams(
     exams = list(result.scalars().all())
 
     exam_ids = [e.id for e in exams]
-    exercises_by_exam = await _fetch_exercises_for_exams(exam_ids, db)
-    groups_by_exam = await _fetch_mc_groups_for_exams(exam_ids, db)
+    exercises_by_exam = await fetch_exercises_for_exams(exam_ids, db)
+    groups_by_exam = await fetch_mc_groups_for_exams(exam_ids, db)
 
-    return [_to_exam_response(e, exercises_by_exam[e.id], groups_by_exam[e.id]) for e in exams]
+    return [exam_response(e, exercises_by_exam[e.id], groups_by_exam[e.id]) for e in exams]
 
 
 async def _persist_mc_groups(
@@ -311,10 +168,7 @@ async def _persist_mc_groups(
     mc_groups_data: list[Any],
     db: AsyncSession,
 ) -> dict[uuid.UUID, uuid.UUID]:
-    """Create ExamMcGroup rows and return the {client_id: db_id} mapping.
-
-    A client-supplied id is kept verbatim, like Exam.id and Exercise.id: minting a fresh one would
-    desync the client's local (IndexedDB) group records on every write."""
+    """Create ExamMcGroup rows and return the {client_id: db_id} mapping. A client-supplied id is kept verbatim, like Exam.id and Exercise.id: minting a fresh one would desync the client's local (IndexedDB) group records on every write."""
     id_map: dict[uuid.UUID, uuid.UUID] = {}
     for g in mc_groups_data:
         group_id = g.id or uuid.uuid4()
@@ -326,8 +180,7 @@ async def _persist_mc_groups(
             order_index=g.order_index,
         )
         db.add(group)
-        # Both directions resolve, so a payload may address a group either by the
-        # id it sent or by the id a previous response handed back.
+        # Both directions resolve, so a payload may address a group either by the id it sent or by the id a previous response handed back.
         id_map[group_id] = group_id
         if g.id is not None:
             id_map[g.id] = group_id
@@ -350,32 +203,17 @@ async def create_exam(
 ) -> ExamResponse:
     """Create a new exam and live-link exercises from library or inline creation."""
     kwargs = {
+        **{name: getattr(body, name) for name in ("title", "retention_until", *_HEADER_FIELDS)},
         "teacher_id": teacher.id,
-        "title": body.title,
-        "latex_template": body.latex_template,
-        "retention_until": body.retention_until,
-        "testart": body.testart,
-        "grade": body.grade,
-        "klasse": body.klasse,
-        "datum": body.datum,
-        "nr": body.nr,
-        "fach": body.fach,
-        "topic": body.topic,
-        "lehrernachname": body.lehrernachname,
-        "info_text": body.info_text,
-        "grading_key": body.grading_key,
         "latex_packages": _packages_column(body.latex_packages),
         "page_breaks": body.page_breaks,
-        "name_line": body.name_line,
         "extra_notes": body.extra_notes.model_dump() if body.extra_notes else None,
     }
     if body.id:
         kwargs["id"] = body.id
     exam = Exam(**kwargs)
     db.add(exam)
-    # Client-chosen ids let local-mode records keep their UUID when syncing. A
-    # collision must be a deterministic 409, not an IntegrityError surfacing as
-    # a 500 — which would distinguish "id exists" from "id is free".
+    # Client-chosen ids let local-mode records keep their UUID when syncing. A collision must be a deterministic 409, not an IntegrityError surfacing as a 500 — which would distinguish "id exists" from "id is free".
     try:
         await db.flush()
     except IntegrityError:
@@ -456,8 +294,8 @@ async def create_exam(
             order += 1
 
     await db.flush()
-    mc_groups = await _fetch_exam_mc_groups(exam.id, db)
-    return _to_exam_response(exam, linked_exercises, mc_groups)
+    mc_groups = await fetch_exam_mc_groups(exam.id, db)
+    return exam_response(exam, linked_exercises, mc_groups)
 
 
 @router.post(
@@ -471,32 +309,18 @@ async def duplicate_exam(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExamResponse:
-    """Copy an exam's header, settings, MC groups and exercise links into a new exam (issue #121).
-    Never copies results: students, submissions and scores belong to the source only."""
+    """Copy an exam's header, settings, MC groups and exercise links into a new exam (issue #121). Never copies results: students, submissions and scores belong to the source only."""
     exam = Exam(
         teacher_id=teacher.id,
         title=f"{source.title} (Kopie)"[:500],
-        latex_template=source.latex_template,
         retention_until=body.retention_until,
-        testart=source.testart,
-        grade=source.grade,
-        klasse=source.klasse,
-        datum=source.datum,
-        nr=source.nr,
-        fach=source.fach,
-        topic=source.topic,
-        lehrernachname=source.lehrernachname,
-        info_text=source.info_text,
-        grading_key=copy.deepcopy(source.grading_key),
-        name_line=source.name_line,
-        extra_notes=source.extra_notes,
-        latex_packages=copy.deepcopy(source.latex_packages),
+        **{name: copy.deepcopy(getattr(source, name)) for name in _COPIED_FIELDS},
     )
     db.add(exam)
     await db.flush()
 
     group_map: dict[uuid.UUID, uuid.UUID] = {}
-    for g in await _fetch_exam_mc_groups(source.id, db):
+    for g in await fetch_exam_mc_groups(source.id, db):
         new_group = ExamMcGroup(
             exam_id=exam.id, title=g.title, scoring_text=g.scoring_text, order_index=g.order_index
         )
@@ -506,7 +330,7 @@ async def duplicate_exam(
 
     # Page breaks name exercise or MC-group ids, so they follow every id that changes.
     item_map: dict[str, str] = {str(old): str(new) for old, new in group_map.items()}
-    for ex, order, gid, sidx in await _fetch_exam_exercises(source.id, db):
+    for ex, order, gid, sidx in await fetch_exam_exercises(source.id, db):
         if ex.exam_id is not None:
             legacy_id = str(ex.id)
             # A legacy row belongs to its exam and dies with it: give the copy its own row.
@@ -551,9 +375,7 @@ async def duplicate_exam(
         )
     await db.flush()
     await audit_svc.log(db, request, teacher, "EXAM_DUPLICATED", exam.id)
-    exs = await _fetch_exam_exercises(exam.id, db)
-    groups = await _fetch_exam_mc_groups(exam.id, db)
-    return _to_exam_response(exam, exs, groups)
+    return await load_exam_response(exam, db)
 
 
 @router.get("/{exam_id}", response_model=ExamResponse)
@@ -562,9 +384,7 @@ async def get_exam(
     db: AsyncSession = Depends(get_db),
 ) -> ExamResponse:
     """Get exam details with live-linked exercises."""
-    exs = await _fetch_exam_exercises(exam.id, db)
-    groups = await _fetch_exam_mc_groups(exam.id, db)
-    return _to_exam_response(exam, exs, groups)
+    return await load_exam_response(exam, db)
 
 
 @router.get("/{exam_id}/exercises", response_model=list[ExerciseResponse])
@@ -573,9 +393,7 @@ async def list_exam_exercises(
     db: AsyncSession = Depends(get_db),
 ) -> list[ExerciseResponse]:
     """Get exercises linked to a specific exam."""
-    exs = await _fetch_exam_exercises(exam.id, db)
-    return [_to_exercise_response(ex, idx, gid, sidx) for ex, idx, gid, sidx in exs]
-
+    return [exercise_response(row) for row in await fetch_exam_exercises(exam.id, db)]
 
 
 @router.patch("/{exam_id}", response_model=ExamResponse)
@@ -586,45 +404,18 @@ async def update_exam(
     db: AsyncSession = Depends(get_db),
 ) -> ExamResponse:
     """Update exam details and exercise links."""
-    if body.title is not None:
-        exam.title = body.title
-    if body.latex_template is not None:
-        exam.latex_template = body.latex_template
-    if body.retention_until is not None:
-        exam.retention_until = body.retention_until
-    if body.testart is not None:
-        exam.testart = body.testart
-    if body.grade is not None:
-        exam.grade = body.grade
-    if body.klasse is not None:
-        exam.klasse = body.klasse
-    if body.datum is not None:
-        exam.datum = body.datum
-    if body.nr is not None:
-        exam.nr = body.nr
-    if body.fach is not None:
-        exam.fach = body.fach
-    if "topic" in body.model_fields_set:
-        exam.topic = body.topic
-    if body.lehrernachname is not None:
-        exam.lehrernachname = body.lehrernachname
-    if body.info_text is not None:
-        exam.info_text = body.info_text
-    if body.grading_key is not None:
-        exam.grading_key = body.grading_key
+    for name, value in body.model_dump(exclude_unset=True, include=_UPDATED_FIELDS).items():
+        if value is not None or name == "topic":
+            setattr(exam, name, value)
     if "latex_packages" in body.model_fields_set:
         exam.latex_packages = _packages_column(body.latex_packages)
     if "page_breaks" in body.model_fields_set:
         exam.page_breaks = body.page_breaks or None
-    if body.name_line is not None:
-        exam.name_line = body.name_line
     if "extra_notes" in body.model_fields_set:
         exam.extra_notes = body.extra_notes.model_dump() if body.extra_notes else None
 
     if body.mc_groups is not None:
-        # Detach the links before dropping the groups. exam_exercises.mc_group_id
-        # is a real FK, so deleting a group would otherwise take its member rows
-        # with it — silently removing those exercises from the exam.
+        # Detach the links before dropping the groups. exam_exercises.mc_group_id is a real FK, so deleting a group would otherwise take its member rows with it — silently removing those exercises from the exam.
         await db.execute(
             update(ExamExercise)
             .where(ExamExercise.exam_id == exam.id)
@@ -635,7 +426,7 @@ async def update_exam(
         mc_group_id_map = await _persist_mc_groups(exam.id, body.mc_groups, db)
     else:
         # Groups untouched: links may still address the groups already on the exam.
-        existing_groups = await _fetch_exam_mc_groups(exam.id, db)
+        existing_groups = await fetch_exam_mc_groups(exam.id, db)
         mc_group_id_map = {g.id: g.id for g in existing_groups}
 
     if body.exercise_links is not None:
@@ -660,9 +451,7 @@ async def update_exam(
             order += 1
 
     await db.flush()
-    exs = await _fetch_exam_exercises(exam.id, db)
-    groups = await _fetch_exam_mc_groups(exam.id, db)
-    return _to_exam_response(exam, exs, groups)
+    return await load_exam_response(exam, db)
 
 
 @router.delete("/{exam_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -670,10 +459,7 @@ async def delete_exam(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Soft-delete an exam and start the erasure grace period of its student data.
-
-    Retention skips deleted exams and only erases child rows with a deadline, so without the
-    cascade a deleted exam's identities and submissions would be kept forever."""
+    """Soft-delete an exam and start the erasure grace period of its student data. Retention skips deleted exams and only erases child rows with a deadline, so without the cascade a deleted exam's identities and submissions would be kept forever."""
     now = datetime.now(tz=UTC)
     grace_deadline = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
     exam.deleted_at = now
@@ -686,83 +472,4 @@ async def delete_exam(
         update(ScanSubmission)
         .where(ScanSubmission.exam_id == exam.id, ScanSubmission.deleted_at.is_(None))
         .values(deleted_at=now, retention_until=grace_deadline)
-    )
-
-
-@router.post("/{exam_id}/compile")
-@limiter.limit("10/minute")
-async def compile_exam_endpoint(
-    request: Request,  # Required by slowapi for rate limiting
-    answers: bool = False,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(require_server_latex),
-    db: AsyncSession = Depends(get_db),
-) -> Response:
-    """Compile complete exam LaTeX document using live-linked library exercises."""
-    ex_tuples = await _fetch_exam_exercises(exam.id, db)
-    mc_groups = await _fetch_exam_mc_groups(exam.id, db)
-
-    # Resources live on the server in server/hybrid mode, so the browser never
-    # uploads them for a compile — they are read straight out of the database.
-    try:
-        binary_files = await load_resources_for_exercises(
-            [t[0].id for t in ex_tuples if getattr(t[0], "id", None)], teacher, db
-        )
-    except ResourceError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-            headers={"code": "ERR_COMPILE_FAILED"},
-        ) from exc
-
-    _, logo = await resolve_logo(teacher.id, exam.id, db)
-
-    try:
-        pdf_bytes = await compile_exam_latex(
-            exam,
-            ex_tuples,
-            mc_groups,
-            show_answers=answers,
-            binary_files=binary_files,
-            logo=logo,
-            account_packages=teacher.latex_packages,
-        )
-        exam.compilation_status = "compiled"
-        await db.flush()
-    except TimeoutError:
-        # Each failure commits before raising: get_db rolls back on the exception and would drop it.
-        exam.compilation_status = "failed"
-        await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Compilation timed out.",
-            headers={"code": "ERR_COMPILE_TIMEOUT"},
-        ) from None
-    except CompilationError as exc:
-        exam.compilation_status = "failed"
-        await db.commit()
-        return compilation_failed_response(exc)
-    except OSError as exc:
-        exam.compilation_status = "failed"
-        await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The LaTeX compilation service is unavailable.",
-            headers={"code": "ERR_COMPILE_UNAVAILABLE"},
-        ) from exc
-
-    # RFC 6266. The title is user-controlled: a quote would break out of the
-    # quoted-string and let the download filename be spoofed, and a CR/LF would
-    # be rejected downstream as a malformed header.
-    safe_title = re.sub(r"[^A-Za-z0-9._-]", "_", exam.title)[:100] or "exam"
-    filename = f"Exam_{safe_title}{'_answers' if answers else ''}.pdf"
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": (
-                f'attachment; filename="{filename}"; '
-                f"filename*=UTF-8''{quote(filename)}"
-            )
-        },
     )

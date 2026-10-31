@@ -1,8 +1,4 @@
-/**
- * Typed API fetch wrapper. SECURITY: `credentials: 'include'` on every request (httpOnly
- * cookies); the access token is never read or stored in JS. 401 -> silent refresh via
- * POST /api/v1/auth/refresh; refresh failure -> redirect to /unlock.
- */
+/** Typed API fetch wrapper. SECURITY: `credentials: 'include'` on every request (httpOnly cookies); the access token is never read or stored in JS. 401 -> silent refresh via POST /api/v1/auth/refresh; refresh failure -> redirect to /unlock. */
 
 import { get } from 'svelte/store';
 import { sessionStore } from '#lib/stores/session';
@@ -12,9 +8,7 @@ import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { loginLockout } from '#lib/stores/loginLockout';
 import { noteMaintenanceRevision, refreshMaintenance } from '#lib/stores/maintenanceStore';
 
-// Every fetch() is bounded: a stalled connection would otherwise never resolve or reject,
-// leaving isLoading stuck with no error. Binary requests get a longer bound because
-// `/compile/latex` legitimately runs up to COMPILE_TIMEOUT_SECONDS (120s, backend/app/services/latex.py).
+// Every fetch() is bounded: a stalled connection would otherwise never resolve or reject, leaving isLoading stuck with no error. Binary requests (scans, PDFs) get a longer bound; compiles are background jobs polled with short requests.
 const DEFAULT_TIMEOUT_MS = 25_000;
 const BINARY_TIMEOUT_MS = 150_000;
 
@@ -73,13 +67,9 @@ async function parseError(response: Response): Promise<ApiError> {
     } else if (body.message) {
       detailStr = String(body.message);
     }
-    // The backend attaches the code as a response *header*, not in the body
-    // (see the HTTPException(headers={'code': ...}) calls across the routers).
-    // The body is checked first so a future JSON-carried code still wins.
+    // The backend attaches the code as a response *header*, not in the body (see the HTTPException(headers={'code': ...}) calls across the routers). The body is checked first so a future JSON-carried code still wins.
     const code = body.code ?? response.headers.get('code') ?? 'ERR_UNKNOWN';
-    // The backend ships an English `detail` next to a machine-readable `code`.
-    // Prefer a localized message for known codes and keep the server text as
-    // the fallback so unmapped errors stay diagnosable.
+    // The backend ships an English `detail` next to a machine-readable `code`. Prefer a localized message for known codes and keep the server text as the fallback so unmapped errors stay diagnosable.
     return new ApiError(
       response.status,
       code,
@@ -102,17 +92,10 @@ async function parseError(response: Response): Promise<ApiError> {
 let refreshPromise: Promise<void> | null = null;
 let lastRefreshAt = 0;
 
-/**
- * A 401 this soon after a successful refresh means the request raced the rotation, so retry it
- * rather than refresh again: POST /auth/refresh treats a second use of a revoked refresh token
- * as theft and revokes the whole family (logs the user out).
- */
+/** A 401 this soon after a successful refresh means the request raced the rotation, so retry it rather than refresh again: POST /auth/refresh treats a second use of a revoked refresh token as theft and revokes the whole family (logs the user out). */
 const REFRESH_GRACE_MS = 5000;
 
-/**
- * Rotate the refresh cookie once for every concurrent caller in this tab. Tabs share the cookie,
- * so the rotation runs under a cross-tab lock: a waiting tab then sends the new token, not the revoked one.
- */
+/** Rotate the refresh cookie once for every concurrent caller in this tab. Tabs share the cookie, so the rotation runs under a cross-tab lock: a waiting tab then sends the new token, not the revoked one. */
 export function refreshSession(): Promise<void> {
   if (!refreshPromise) {
     const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
@@ -148,9 +131,7 @@ async function refreshToken(): Promise<void> {
 async function handleNonOkResponse(resp: Response, silentError?: boolean): Promise<never> {
   const err = await parseError(resp);
   if (err.status === 429 && err.retryAfterSeconds !== null) {
-    // Keyed on status, not ERR_ACCOUNT_LOCKED, so the IP-based limiter (429 with Retry-After but
-    // no `code` header, surfacing as ERR_UNKNOWN) is covered too. Set even for silent callers:
-    // this is page state, not a dialog.
+    // Keyed on status, not ERR_ACCOUNT_LOCKED, so the IP-based limiter (429 with Retry-After but no `code` header, surfacing as ERR_UNKNOWN) is covered too. Set even for silent callers: this is page state, not a dialog.
     loginLockout.start(err.retryAfterSeconds);
   }
   if (err.code === 'ERR_MAINTENANCE' || err.code === 'ERR_MAINTENANCE_LOGIN_BLOCKED') {
@@ -166,10 +147,7 @@ async function handleNonOkResponse(resp: Response, silentError?: boolean): Promi
   throw err;
 }
 
-/**
- * A factor was accepted, so the server cleared the cooloff; drop ours. Scoped to auth paths:
- * an unrelated success (e.g. a health poll) says nothing about the account's lock state.
- */
+/** A factor was accepted, so the server cleared the cooloff; drop ours. Scoped to auth paths: an unrelated success (e.g. a health poll) says nothing about the account's lock state. */
 function noteAuthSuccess(path: string): void {
   // Registration and account deletion prove nothing about signing in, so they must not lift a lockout.
   if (path.startsWith('/auth/') && !path.startsWith('/auth/register') && !path.startsWith('/auth/account-deletion')) {
@@ -181,9 +159,12 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  options: { binary?: boolean; silentError?: boolean } = {}
+  options: { binary?: boolean; silentError?: boolean; pendingOn202?: boolean } = {}
 ): Promise<T> {
   const headers: Record<string, string> = {};
+  // The server answers 409 ERR_ACCOUNT_MISMATCH when the cookie now belongs to another account (S12).
+  const account = get(sessionStore).teacherId;
+  if (account) headers['X-Expected-Account'] = account;
   let bodyInit: BodyInit | undefined;
 
   if (body !== undefined) {
@@ -212,8 +193,7 @@ async function request<T>(
       noteMaintenanceRevision(response.headers.get('maintenance-revision'));
       return response;
     } catch {
-      // fetch rejects when no usable response arrived: server unreachable, a response without the
-      // CORS headers, or a timeout (AbortError, indistinguishable from a never-resolving stall).
+      // fetch rejects when no usable response arrived: server unreachable, a response without the CORS headers, or a timeout (AbortError, indistinguishable from a never-resolving stall).
       const netErr = new ApiError(
         0,
         'ERR_NETWORK',
@@ -228,12 +208,16 @@ async function request<T>(
     }
   };
 
+  // 202 with `pendingOn202` means "not ready yet" (compile job polls): undefined, like a 204.
+  const parseBody = (r: Response): Promise<T> => {
+    if (r.status === 204 || (r.status === 202 && options.pendingOn202)) return Promise.resolve(undefined as T);
+    return (options.binary ? r.arrayBuffer() : r.json()) as Promise<T>;
+  };
+
   const resp = await send();
 
   if (resp.status === 403 && resp.headers.get('code') === 'ERR_MFA_ENROLLMENT_REQUIRED') {
-    // The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the
-    // teacher to /unlock to enroll. Must come before the 401 branch (a refresh would rotate a valid token for nothing).
-    // Skipped on /unlock itself, where enrollment runs: locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED.
+    // The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the teacher to /unlock to enroll. Must come before the 401 branch (a refresh would rotate a valid token for nothing). Skipped on /unlock itself, where enrollment runs: locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED.
     const onUnlockPage =
       typeof window !== 'undefined' && window.location.pathname.startsWith('/unlock');
     if (!onUnlockPage) {
@@ -245,9 +229,17 @@ async function request<T>(
     await handleNonOkResponse(resp, true);
   }
 
+  if (resp.status === 409 && resp.headers.get('code') === 'ERR_ACCOUNT_MISMATCH') {
+    // Another tab signed in as someone else. Drop only this tab's keys (no broadcast: the other tab owns the cookie now) and never write into that account.
+    sessionStore.reset();
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/unlock')) {
+      window.location.assign('/unlock');
+    }
+    await handleNonOkResponse(resp, true);
+  }
+
   if (resp.status === 401 && !path.startsWith('/auth/')) {
-    // Deduplicate concurrent refreshes. A request that 401'd by racing a just-finished refresh
-    // retries directly; a second rotation would trip token-theft detection and revoke every session.
+    // Deduplicate concurrent refreshes. A request that 401'd by racing a just-finished refresh retries directly; a second rotation would trip token-theft detection and revoke every session.
     if (!refreshPromise && Date.now() - lastRefreshAt >= REFRESH_GRACE_MS) {
       void refreshSession().catch(() => {});
     }
@@ -271,9 +263,7 @@ async function request<T>(
       await handleNonOkResponse(retryResp, options.silentError);
     }
     noteAuthSuccess(path);
-    if (retryResp.status === 204) return undefined as T;
-    if (options.binary) return retryResp.arrayBuffer() as unknown as T;
-    return retryResp.json() as Promise<T>;
+    return parseBody(retryResp);
   }
 
   if (!resp.ok) {
@@ -281,9 +271,7 @@ async function request<T>(
   }
 
   noteAuthSuccess(path);
-  if (resp.status === 204) return undefined as T;
-  if (options.binary) return resp.arrayBuffer() as unknown as T;
-  return resp.json() as Promise<T>;
+  return parseBody(resp);
 }
 
 export const api = {
@@ -294,8 +282,9 @@ export const api = {
   delete: <T>(path: string, options?: { silentError?: boolean }) => request<T>('DELETE', path, undefined, options),
   postBinary: (path: string, data: Uint8Array) =>
     request<ArrayBuffer>('POST', path, data, { binary: true }),
-  postJsonForBinary: (path: string, body: unknown, options?: { silentError?: boolean }) =>
-    request<ArrayBuffer>('POST', path, body, { ...options, binary: true }),
   getBinary: (path: string, options?: { silentError?: boolean }) =>
     request<ArrayBuffer>('GET', path, undefined, { ...options, binary: true }),
+  /** Binary GET that answers undefined while the server says 202 (still running). */
+  pollBinary: (path: string, options?: { silentError?: boolean }) =>
+    request<ArrayBuffer | undefined>('GET', path, undefined, { ...options, binary: true, pendingOn202: true }),
 };

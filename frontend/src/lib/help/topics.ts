@@ -15,11 +15,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import type { TranslationKey } from "#lib/i18n";
 
-/**
- * The in-app manual as data. Content lives in the `help` i18n namespace (German is the source);
- * this registry only fixes the order of headings and paragraphs, with `TranslationKey`-typed keys so a
- * typo is a `svelte-check` error. Feeds the help modal, the `/help` route and the contextual `?` buttons.
- */
+/** The in-app manual as data. Content lives in the `help` i18n namespace (German is the source); this registry only fixes the order of headings and paragraphs, with `TranslationKey`-typed keys so a typo is a `svelte-check` error. Feeds the help modal, the `/help` route and the contextual `?` buttons. */
 export type HelpTopicId =
   | "gettingStarted"
   | "storageModes"
@@ -281,7 +277,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         headingKey: "help.topics.settings.s2.h",
         bodyKeys: ["help.topics.settings.s2.p1", "help.topics.settings.s2.p2"],
       },
-      { headingKey: "help.topics.settings.s3.h", bodyKeys: ["help.topics.settings.s3.p1"] },
+      { headingKey: "help.topics.settings.s3.h", bodyKeys: ["help.topics.settings.s3.p1", "help.topics.settings.s3.p2"] },
       {
         headingKey: "help.topics.settings.s4.h",
         bodyKeys: ["help.topics.settings.s4.p1", "help.topics.settings.s4.p2", "help.topics.settings.s4.p3"],
@@ -386,10 +382,7 @@ export function getHelpTopic(id: HelpTopicId): HelpTopic | undefined {
   return HELP_TOPICS.find((topic) => topic.id === id);
 }
 
-/**
- * The topic a page opens by default. Matched on the plain pathname, the same
- * way `lib/stores/navigationStore.ts` does it — no route-id lookup needed.
- */
+/** The topic a page opens by default. Matched on the plain pathname, the same way `lib/stores/navigationStore.ts` does it — no route-id lookup needed. */
 export function topicForPath(pathname: string): HelpTopicId {
   if (pathname.startsWith("/exercises")) return "exercises";
   if (pathname.startsWith("/exam/new")) return "examCreation";

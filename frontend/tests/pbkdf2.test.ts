@@ -5,8 +5,7 @@ import {
   derivePbkdf2Key,
 } from '../src/lib/crypto/keyDerivation';
 
-// Kept from the local-vault tests when local mode was discontinued (issue #47): the PBKDF2 fallback
-// still derives account keys.
+// Kept from the local-vault tests when local mode was discontinued (issue #47): the PBKDF2 fallback still derives account keys.
 const PASSPHRASE = 'correct-horse-battery-staple';
 
 describe('PBKDF2 parameters', () => {

@@ -3,20 +3,19 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Any, Literal, Self
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.config import settings
 from app.schemas.latex_packages import LatexPackageEntry, check_entry_list
 
+if TYPE_CHECKING:
+    from app.models.exercise import Exercise
+
 
 def validate_retention_until(value: date | None) -> date | None:
-    """
-    Keep the retention date inside the configured window.
-    The upper bound enforces Art. 5(1)(e) (nothing kept indefinitely); the lower bound is off by
-    default (RETENTION_MIN_DAYS = 0) so drafts can be deleted at once, see config.py.
-    """
+    """Keep the retention date inside the configured window. The upper bound enforces Art. 5(1)(e) (nothing kept indefinitely); the lower bound is off by default (RETENTION_MIN_DAYS = 0) so drafts can be deleted at once, see config.py."""
     if value is None:
         return None
     today = date.today()
@@ -71,8 +70,7 @@ def check_page_breaks(value: list[str] | None) -> list[str] | None:
     return list(dict.fromkeys(value))
 
 
-# Request bounds mirror the model columns (String(n), the question_type enum), so an oversized
-# value is a 422 instead of a database error. Positions are small ints, far below int4.
+# Request bounds mirror the model columns (String(n), the question_type enum), so an oversized value is a 422 instead of a database error. Positions are small ints, far below int4.
 QuestionType = Literal["free_text", "mc", "sc", "tf"]
 _MAX_POSITION = 10_000
 
@@ -83,9 +81,7 @@ class ExerciseCreate(BaseModel):
     topic_tag: str | None = Field(default=None, max_length=200)
     grade: str | None = Field(default=None, max_length=50)
     subject: str | None = Field(default=None, max_length=100)
-    # None: the exercise's code was withheld (an exam imported from a results-only archive).
-    # The row keeps its name, points and answer key so scans and scores stay gradeable, but
-    # nothing can be compiled.
+    # None: the exercise's code was withheld (an exam imported from a results-only archive). The row keeps its name, points and answer key so scans and scores stay gradeable, but nothing can be compiled.
     latex_body: str | None = ""
     code_withheld: bool = False
     max_points: float = 0.0
@@ -158,6 +154,13 @@ class ExerciseResponse(BaseModel):
     copied_from_exercise_id: uuid.UUID | None = None
     # The row's group was copied from another account: it can be proposed back, not shared.
     group_copied: bool = False
+
+    @classmethod
+    def from_exercise(cls, ex: Exercise, **computed: Any) -> Self:
+        """The library view of *ex*; *computed* sets what is no column (exam position, flags)."""
+        return cls.model_validate(ex, from_attributes=True).model_copy(
+            update={"is_shared": ex.is_public, **computed}
+        )
 
 
 class ExamMcGroupCreate(BaseModel):

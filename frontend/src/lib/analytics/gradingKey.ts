@@ -52,20 +52,14 @@ function cutoffIndex(sorted: GradeCutoff[], percentage: number): number {
   return idx === -1 ? sorted.length - 1 : idx;
 }
 
-/**
- * Lowest two-decimal percentage reaching a cutoff under `cutoffIndex`'s rounding (hand-typed
- * 33.333 becomes 33.34). The epsilon absorbs float noise (16.66 * 100 = 1666.0000000000002).
- */
+/** Lowest two-decimal percentage reaching a cutoff under `cutoffIndex`'s rounding (hand-typed 33.333 becomes 33.34). The epsilon absorbs float noise (16.66 * 100 = 1666.0000000000002). */
 export function cutoffThreshold(minPercentage: number): number {
   return Math.ceil(minPercentage * 100 - 1e-6) / 100;
 }
 
 const GRADE_COLOR_RAMP = 6;
 
-/**
- * CSS colour token for the `index`-th of `total` best-first buckets on the 6-step
- * `--color-grade-1..6` ramp; keys with a different row count are scaled by position.
- */
+/** CSS colour token for the `index`-th of `total` best-first buckets on the 6-step `--color-grade-1..6` ramp; keys with a different row count are scaled by position. */
 export function gradeColorVar(index: number, total: number): string {
   const step =
     total <= 1
@@ -74,10 +68,7 @@ export function gradeColorVar(index: number, total: number): string {
   return `var(--color-grade-${step + 1})`;
 }
 
-/**
- * Colour token for a percentage under a grading key. A range takes the grade of its *lower*
- * bound, so a bin straddling a cutoff gets the lower grade.
- */
+/** Colour token for a percentage under a grading key. A range takes the grade of its *lower* bound, so a bin straddling a cutoff gets the lower grade. */
 export function gradeColorForPercentage(
   percentage: number,
   keyConfig?: GradingKeyConfig,
@@ -112,19 +103,6 @@ export function calculateGradeFromPercentage(
   const sorted = sortedCutoffs(effectiveGradingKey(keyConfig).cutoffs);
   const cutoff = sorted[cutoffIndex(sorted, percentage)];
   return cutoff ? { grade: cutoff.grade, label: cutoff.label } : null;
-}
-
-export function calculateGrade(
-  score: number,
-  maxPoints: number,
-  keyConfig?: GradingKeyConfig,
-): { grade: string; label: string } | null {
-  if (!keyConfig?.cutoffs || keyConfig.cutoffs.length === 0 || maxPoints <= 0) {
-    return null;
-  }
-
-  const percentage = (score / maxPoints) * 100;
-  return calculateGradeFromPercentage(percentage, keyConfig);
 }
 
 export interface GradeDetail {
@@ -276,10 +254,7 @@ export interface BorderlineCase {
   /** Index of the grade in the key, best first (for its colour). */
   gradeIndex: number;
   gradeCount: number;
-  /**
-   * `'+'`: within `BORDERLINE_MARGINS.plus` of the next better grade; `'-'`: within
-   * `.minus` above its own lower boundary. A very narrow grade can be on both lists.
-   */
+  /** `'+'`: within `BORDERLINE_MARGINS.plus` of the next better grade; `'-'`: within `.minus` above its own lower boundary. A very narrow grade can be on both lists. */
   side: "+" | "-";
   /** Points achieved (so far, while provisional). */
   points: number;
@@ -302,10 +277,7 @@ interface BorderlineInput {
   isComplete: boolean;
 }
 
-/**
- * Results within the borderline windows (`BORDERLINE_MARGINS`) of a grade boundary, closest first.
- * Points use the result's own basis (`gradedMaxPoints`). Best grade has no `'+'`, worst no `'-'`.
- */
+/** Results within the borderline windows (`BORDERLINE_MARGINS`) of a grade boundary, closest first. Points use the result's own basis (`gradedMaxPoints`). Best grade has no `'+'`, worst no `'-'`. */
 export function borderlineCases(
   results: BorderlineInput[],
   keyConfig?: GradingKeyConfig,

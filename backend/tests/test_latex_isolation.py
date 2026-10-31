@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services import latex
+from app.services import tectonic as latex
 
 
 def test_the_compiler_environment_holds_no_secrets(monkeypatch: pytest.MonkeyPatch) -> None:

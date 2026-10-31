@@ -19,8 +19,7 @@ class ExamExercise(Base):
         ForeignKey("exercises.id", ondelete="CASCADE"), primary_key=True
     )
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    # SET NULL, not CASCADE: dissolving an MC group must leave its members linked to the
-    # exam as standalone items instead of silently dropping them.
+    # SET NULL, not CASCADE: dissolving an MC group must leave its members linked to the exam as standalone items instead of silently dropping them.
     mc_group_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("exam_mc_groups.id", ondelete="SET NULL"), nullable=True, index=True
     )

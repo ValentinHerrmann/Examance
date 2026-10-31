@@ -28,8 +28,7 @@ describe('login lockout', () => {
   });
 
   it('ignores a cooloff that is absent or nonsense', () => {
-    // A 429 without a usable Retry-After falls back to the generic message
-    // rather than showing a countdown to nothing.
+    // A 429 without a usable Retry-After falls back to the generic message rather than showing a countdown to nothing.
     loginLockout.start(0);
     loginLockout.start(Number.NaN);
     loginLockout.start(-5);
@@ -49,8 +48,7 @@ describe('login lockout', () => {
   });
 
   it('a later, shorter cooloff replaces the earlier one', () => {
-    // Attempting during a lock is refused before the failure is counted, so the
-    // server reports the *remaining* time — which must not read as a fresh wait.
+    // Attempting during a lock is refused before the failure is counted, so the server reports the *remaining* time — which must not read as a fresh wait.
     loginLockout.start(600);
     vi.advanceTimersByTime(120_000);
     loginLockout.start(480);

@@ -6,6 +6,20 @@ export const exportNs = {
         download: 'ZIP herunterladen',
         packing: 'ZIP wird gepackt …',
         doneWithWarnings: 'Der Download wurde erstellt, aber nicht alles konnte exportiert werden:',
+        format: 'Format',
+        formatZip: 'Lesbares ZIP (PDFs, LaTeX, Noten als CSV)',
+        formatBackup: 'Wieder importierbare, passwortgeschützte Sicherung',
+    },
+    backup: {
+        intro: 'Verschlüsselt alles Gewählte mit Aufgaben, Bilddateien, Scans und Bewertungen. Über „Importieren“ lässt sich die Datei wieder einlesen, auch auf einem anderen Gerät oder in einer anderen Examance-Instanz.',
+        password: 'Passwort',
+        passwordHint: 'Wird zum Importieren gebraucht und lässt sich nicht wiederherstellen.',
+        passwordRepeat: 'Passwort wiederholen',
+        mismatch: 'Die Passwörter stimmen nicht überein.',
+        withoutCode: 'Ohne Aufgabentexte (zum Teilen der Ergebnisse)',
+        withoutCodeHint: 'Enthält Namen, Punkte und MC-Lösungen der Aufgaben, aber keinen LaTeX-Code und keine Dateien: so lassen sich Ergebnisse mit einer anderen Lehrkraft teilen, ohne die Aufgaben weiterzugeben.',
+        download: 'Sicherung herunterladen',
+        encrypting: 'Sicherung wird verschlüsselt …',
     },
     latexReadme:
         'LaTeX-Projekt aus Examance\n' +
@@ -15,7 +29,7 @@ export const exportNs = {
         'Lokal: latexmk im Ordner ausführen (die mitgelieferte latexmkrc wählt XeLaTeX) oder "xelatex <datei>.tex" zweimal aufrufen.\n\n' +
         'Die Ordner sty/ und img/ enthalten die mitgelieferten Pakete und Bilder; die .sty-Dateien liegen zusätzlich flach im Ordner, weil einige per Name geladen werden.\n',
     exam: {
-        title: 'Prüfung exportieren (ZIP)',
+        title: 'Prüfung exportieren',
         notice:
             'Der Download enthält unverschlüsselte personenbezogene Daten (Klarnamen, Noten, Scans). Bitte nur an sicheren Orten speichern und nach Gebrauch löschen. Ein unveränderlicher Prüfprotokolleintrag wird erstellt.',
         options: {

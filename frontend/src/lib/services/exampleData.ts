@@ -42,8 +42,7 @@ async function loadPayload(): Promise<Record<string, any>> {
   copy('exercise', raw.exercises);
   copy('mcGroup', raw.examMcGroups);
   const { payload } = applyResolutions(raw, decisions);
-  // Submission and score ids are global keys on the server, and `applyArchive` keeps them when it
-  // sees no exam id change (it cannot, the copy was made here).
+  // Submission and score ids are global keys on the server, and `applyArchive` keeps them when it sees no exam id change (it cannot, the copy was made here).
   const submissionIds = new Map<string, string>();
   for (const sub of payload.submissions ?? []) {
     submissionIds.set(sub.id, crypto.randomUUID());

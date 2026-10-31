@@ -5,11 +5,7 @@ import {
   decodeRequestOptions,
 } from '../src/lib/webauthn/client';
 
-/**
- * Pins a bug: the PRF extension was attached only when a salt was passed and every sign-in
- * path passed none, so `prfOutput` was always null and a passkey wrap could never be opened.
- * The salt is now a constant so no call shape silently asks for nothing.
- */
+/** Pins a bug: the PRF extension was attached only when a salt was passed and every sign-in path passed none, so `prfOutput` was always null and a passkey wrap could never be opened. The salt is now a constant so no call shape silently asks for nothing. */
 
 const CREATION = JSON.stringify({
   challenge: 'AAAA',
@@ -40,8 +36,7 @@ describe('webauthn ceremony options', () => {
   });
 
   it('asks for the PRF secret when authenticating', () => {
-    // The half that was broken: without this the passkey signs in and yields
-    // nothing that can open the vault.
+    // The half that was broken: without this the passkey signs in and yields nothing that can open the vault.
     expect(Array.from(prfInput(decodeRequestOptions(REQUEST)))).toEqual(
       Array.from(APP_PRF_SALT),
     );

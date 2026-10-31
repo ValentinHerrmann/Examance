@@ -29,5 +29,13 @@ describe('ConfirmDialog', () => {
     expect(btn.disabled).toBe(true);
     await fireEvent.click(btn);
     expect(onConfirm).not.toHaveBeenCalled();
+    expect(getByText('No').closest('button')!.disabled).toBe(true);
+  });
+
+  it('shows an inline error and honours confirmDisabled', async () => {
+    const { getByText } = render(ConfirmDialog, { ...props, error: 'Failed', confirmDisabled: true });
+    await tick();
+    expect(getByText('Failed')).toBeTruthy();
+    expect(getByText('Yes').closest('button')!.disabled).toBe(true);
   });
 });

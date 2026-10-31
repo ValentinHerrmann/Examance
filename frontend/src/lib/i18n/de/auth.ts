@@ -7,7 +7,6 @@ export const auth = {
             enterEmail: 'Bitte geben Sie Ihre E-Mail-Adresse ein.',
             enterPassword: 'Bitte geben Sie Ihr Passwort ein.',
             invalidBackendUrl: 'Diese Server-Adresse ist ungültig.',
-            passwordNotSet: 'Für Ihr Konto wurde noch kein Passwort festgelegt. Bitte prüfen Sie Ihre E-Mails auf einen Link zur Passwort-Einrichtung oder nutzen Sie unten „Passwort vergessen?“.',
             couldNotReachServer: 'Der Server konnte nicht erreicht werden. Falls Sie einen lokalen Backend-Server verwenden, stellen Sie sicher, dass dieser läuft und CORS für diesen Ursprung aktiviert ist.',
             unlockFailed: 'Entsperren fehlgeschlagen. Prüfen Sie Ihr Passwort bzw. Ihre Zugangsdaten.',
         },

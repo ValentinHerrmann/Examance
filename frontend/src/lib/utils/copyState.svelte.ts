@@ -1,7 +1,4 @@
-/**
- * "Copy" button state: `copied` for a moment after success, `failed` when the clipboard is refused. Call during
- * component init; the reset timer is cleared on unmount.
- */
+/** "Copy" button state: `copied` for a moment after success, `failed` when the clipboard is refused. Call during component init; the reset timer is cleared on unmount. */
 export function createCopyState(resetMs = 2000) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const state = $state({ copied: false, failed: false });

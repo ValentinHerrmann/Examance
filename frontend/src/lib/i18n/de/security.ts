@@ -1,9 +1,7 @@
 export const security = {
     page: {
         title: 'Anmeldung & Sicherheit',
-        subtitle: 'Womit Sie sich anmelden, was davon Ihre verschlüsselten Daten öffnen kann, und wie Sie beides ändern.',
         loading: 'Sicherheitsstatus wird geladen …',
-        localOnly: 'Dieser Arbeitsbereich ist rein lokal und hat kein Konto. Anmeldefaktoren gibt es erst mit einem Serverkonto.',
         statusEnrolled: 'Eingerichtet',
         statusMissing: 'Nicht eingerichtet',
         added: 'Eingerichtet am {date}',
@@ -67,7 +65,6 @@ export const security = {
         startFreshFailed: 'Der Neustart mit einem neuen Datenschlüssel ist fehlgeschlagen.',
         startFreshWarning: 'Damit wird ein neuer Datenschlüssel erzeugt. Ihre bisherigen Klausuren, Schülerdaten und Korrekturen bleiben dauerhaft unlesbar — auch wenn Sie den alten Code später wiederfinden. Bereits eingerichtete Passkeys öffnen Ihre Daten danach ebenfalls nicht mehr und müssen unter „Anmeldung & Sicherheit“ neu hinterlegt werden.',
         startFreshConfirm: 'Neu beginnen und alte Daten aufgeben',
-        skipWarning: 'Ohne den Code bleiben Ihre bisherigen verschlüsselten Daten unlesbar. Neue Daten sind davon nicht betroffen.',
     },
     factors: {
         totpTitle: 'Bestätigung mit Authenticator-App',
@@ -199,7 +196,6 @@ export const security = {
         removeBlocked: 'Dieser Passkey kann nicht entfernt werden, solange er der letzte verbliebene Faktor ist.',
         unsupported: 'Dieser Browser unterstützt keine Passkeys.',
         failed: 'Der Passkey konnte nicht verwendet werden.',
-        noPrfTitle: 'Dieser Passkey öffnet Ihre Daten nicht',
         opensData: 'Öffnet auch Ihre verschlüsselten Daten.',
         notOpensData: 'Meldet Sie an, öffnet Ihre verschlüsselten Daten aber noch nicht.',
         enableUnlock: 'Datenzugriff aktivieren',
@@ -215,6 +211,5 @@ export const security = {
         changedBody: 'Die auf dem Server hinterlegte Schlüsselkopie unterscheidet sich von der, die dieser Browser kennt. Das passiert normalerweise nach einem Passwort-Zurücksetzen auf einem anderen Gerät. Wenn Sie das nicht selbst veranlasst haben, melden Sie sich nicht an und wenden Sie sich an die Administration.',
         changedAccept: 'Ich habe das Passwort selbst zurückgesetzt — fortfahren',
         missingPassword: 'Für dieses Konto ist keine gültige Passwort-Kopie des Schlüssels hinterlegt. Bitte stellen Sie den Zugriff mit Ihrem Wiederherstellungscode wieder her.',
-        migrating: 'Schlüssel wird einmalig hinterlegt …',
     },
 } as const;

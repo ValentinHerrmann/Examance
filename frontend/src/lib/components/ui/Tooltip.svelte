@@ -2,10 +2,7 @@
   import type { Snippet } from "svelte";
   import { tick } from "svelte";
 
-  /**
-   * Short text tip (Artemis spec), shown on hover and keyboard focus, never hover-only. `position: fixed`
-   * so clipped/scrolling ancestors cannot cut it off. Not an accessible name: the control keeps its own `aria-label`.
-   */
+  /** Short text tip (Artemis spec), shown on hover and keyboard focus, never hover-only. `position: fixed` so clipped/scrolling ancestors cannot cut it off. Not an accessible name: the control keeps its own `aria-label`. */
   interface Props {
     text: string;
     placement?: "top" | "bottom" | "right" | "left";

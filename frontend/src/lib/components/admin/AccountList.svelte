@@ -1,13 +1,11 @@
 <script lang="ts">
-  // Approved accounts with their feature switches (issue #53). Turning `server_results` off for an all-server account
-  // touches no data: it is asked to move its results into the browser the next time it opens. One row per account on
-  // phones, table from `md`; any account but the admin's own can be deleted (own: settings page).
+  // Approved accounts with their feature switches (issue #53). Turning `server_results` off for an all-server account touches no data: it is asked to move its results into the browser the next time it opens. One row per account on phones, table from `md`; any account but the admin's own can be deleted (own: settings page).
   import { faMagnifyingGlass, faTrash } from "@fortawesome/free-solid-svg-icons";
-  import { ACCOUNT_FEATURES, FEATURE_COLUMNS, type AccountFeature, type AdminUser } from "#lib/api/admin";
+  import type { AccountFeature, AdminUser } from "#lib/api/admin";
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
-  import { Badge, Button, Icon, Switch, TableScroller, TextInput } from "#lib/components/ui";
-  import FeatureSwitches from "./FeatureSwitches.svelte";
+  import { Badge, Button, Icon, TextInput } from "#lib/components/ui";
+  import FeatureMatrix from "./FeatureMatrix.svelte";
 
   interface Props {
     users: AdminUser[];
@@ -44,6 +42,43 @@
   {/if}
 {/snippet}
 
+{#snippet identity(user: AdminUser)}{user.email}{/snippet}
+
+<!-- Cards get inline pieces, the table its own cells. -->
+{#snippet meta(user: AdminUser, card: boolean)}
+  {#if card}
+    <span>{@render roleText(user)}</span>
+    {@render statusBadge(user)}
+  {:else}
+    <td class="whitespace-nowrap">{@render roleText(user)}</td>
+    <td class="whitespace-nowrap">{@render statusBadge(user)}</td>
+  {/if}
+{/snippet}
+
+{#snippet actions(user: AdminUser, card: boolean)}
+  {@const variant = card ? "outlined" : "text"}
+  {#if !user.password_set}
+    <Button size="sm" {variant} block={card} disabled={busy.has(user.id)} onClick={() => onResendInvite(user)}>
+      {$t("admin.accounts.resendInvite")}
+    </Button>
+  {/if}
+  {#if user.id !== ownId}
+    <Button
+      size="sm"
+      {variant}
+      severity="danger"
+      icon={faTrash}
+      iconOnly={!card}
+      block={card}
+      ariaLabel={card ? undefined : $t("admin.accounts.deleteLabel", { email: user.email })}
+      disabled={busy.size > 0}
+      onClick={() => onDelete(user)}
+    >
+      {$t("admin.accounts.delete")}
+    </Button>
+  {/if}
+{/snippet}
+
 {#if users.length === 0}
   <p class="m-0 text-sm text-muted">{$t("admin.accounts.empty")}</p>
 {:else}
@@ -57,107 +92,18 @@
     {#if shown.length === 0}
       <p class="m-0 text-sm text-muted">{$t("admin.accounts.noMatch")}</p>
     {:else}
-      <!-- Phones and small tablets: one row per account. -->
-      <ul class="m-0 flex list-none flex-col gap-3 p-0 md:hidden">
-        {#each shown as user (user.id)}
-          <li class="flex min-w-0 flex-col gap-3 rounded-md border border-line bg-surface-base p-4">
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <strong class="min-w-0 break-words text-content">{user.email}</strong>
-              <div class="flex flex-wrap items-center gap-2 text-sm text-muted">
-                <span>{@render roleText(user)}</span>
-                {@render statusBadge(user)}
-              </div>
-            </div>
-            <FeatureSwitches
-              features={user.features}
-              disabled={busy.has(user.id)}
-              compact
-              onChange={(key, value) => onToggleFeature(user, key, value)}
-            />
-            {#if !user.password_set}
-              <Button
-                size="sm"
-                variant="outlined"
-                block
-                disabled={busy.has(user.id)}
-                onClick={() => onResendInvite(user)}
-              >
-                {$t("admin.accounts.resendInvite")}
-              </Button>
-            {/if}
-            {#if user.id !== ownId}
-              <Button
-                size="sm"
-                variant="outlined"
-                severity="danger"
-                icon={faTrash}
-                block
-                disabled={busy.size > 0}
-                onClick={() => onDelete(user)}
-              >
-                {$t("admin.accounts.delete")}
-              </Button>
-            {/if}
-          </li>
-        {/each}
-      </ul>
-
-      <!-- From md: the table. -->
-      <div class="hidden min-w-0 md:block">
-        <TableScroller label={$t("admin.accounts.title")}>
-          <table class="data-table data-table-compact data-table-hover w-full">
-            <thead>
-              <tr>
-                <th>{$t("admin.users.emailLabel")}</th>
-                <th>{$t("admin.users.roleLabel")}</th>
-                <th>{$t("admin.accounts.columnStatus")}</th>
-                {#each ACCOUNT_FEATURES as key (key)}
-                  <th>{$t(FEATURE_COLUMNS[key])}</th>
-                {/each}
-                <th><span class="sr-only">{$t("admin.accounts.columnActions")}</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each shown as user (user.id)}
-                <tr>
-                  <td class="break-words text-content">{user.email}</td>
-                  <td class="whitespace-nowrap">{@render roleText(user)}</td>
-                  <td class="whitespace-nowrap">{@render statusBadge(user)}</td>
-                  {#each ACCOUNT_FEATURES as key (key)}
-                    <td>
-                      <Switch
-                        checked={user.features[key]}
-                        disabled={busy.has(user.id)}
-                        ariaLabel={`${$t(FEATURE_COLUMNS[key])}: ${user.email}`}
-                        onChange={(value) => onToggleFeature(user, key, value)}
-                      />
-                    </td>
-                  {/each}
-                  <td class="text-right whitespace-nowrap">
-                    {#if !user.password_set}
-                      <Button size="sm" variant="text" disabled={busy.has(user.id)} onClick={() => onResendInvite(user)}>
-                        {$t("admin.accounts.resendInvite")}
-                      </Button>
-                    {/if}
-                    {#if user.id !== ownId}
-                      <Button
-                        iconOnly
-                        icon={faTrash}
-                        variant="text"
-                        severity="danger"
-                        size="sm"
-                        ariaLabel={$t("admin.accounts.deleteLabel", { email: user.email })}
-                        disabled={busy.size > 0}
-                        onClick={() => onDelete(user)}
-                      />
-                    {/if}
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </TableScroller>
-      </div>
+      <FeatureMatrix
+        rows={shown}
+        rowLabel={(user) => user.email}
+        tableLabel={$t("admin.accounts.title")}
+        headers={[$t("admin.users.emailLabel"), $t("admin.users.roleLabel"), $t("admin.accounts.columnStatus")]}
+        hover
+        disabled={(user) => busy.has(user.id)}
+        onToggle={onToggleFeature}
+        {identity}
+        {meta}
+        {actions}
+      />
     {/if}
   </div>
 {/if}

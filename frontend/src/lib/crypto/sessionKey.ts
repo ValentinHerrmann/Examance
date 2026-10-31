@@ -1,7 +1,4 @@
-/**
- * Session key derivation: HKDF from master key + nonce. The session key encrypts IDB entries;
- * the master key is only used to re-derive it on unlock.
- */
+/** Session key derivation: HKDF from master key + nonce. The session key encrypts IDB entries; the master key is only used to re-derive it on unlock. */
 
 import { toArrayBuffer } from '#lib/crypto/aesGcm';
 

@@ -1,8 +1,4 @@
-/**
- * Deleting one's own account (GDPR Art. 17): ask in the settings, confirm through the mailed link.
- * The link's page previews first and deletes only on an explicit click, so a mail scanner opening
- * the link deletes nothing. Every call is `silentError`; the pages report failures inline.
- */
+/** Deleting one's own account (GDPR Art. 17): ask in the settings, confirm through the mailed link. The link's page previews first and deletes only on an explicit click, so a mail scanner opening the link deletes nothing. Every call is `silentError`; the pages report failures inline. */
 
 import { api } from './client';
 

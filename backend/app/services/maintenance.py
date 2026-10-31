@@ -1,7 +1,4 @@
-"""Maintenance and deployment windows (issue #130): the only place that decides the phase.
-
-Phases none -> scheduled -> warning -> final (sign-in closed) -> down (writes 503); a deployment is
-down only once CI froze it. Details: docs/dev/maintenance_mode.md."""
+"""Maintenance and deployment windows (issue #130): the only place that decides the phase. Phases none -> scheduled -> warning -> final (sign-in closed) -> down (writes 503); a deployment is down only once CI froze it. Details: docs/dev/maintenance_mode.md."""
 from __future__ import annotations
 
 import hashlib
@@ -26,8 +23,7 @@ FIRST_WARNING_SECONDS = 300
 SECOND_WARNING_SECONDS = 60
 # A lead up to the 2nd offset would merge both reminders; the 2nd then comes this close.
 SHORT_LEAD_SECOND_WARNING_SECONDS = 10
-# Safety nets for a cancelled or crashed deploy run: nobody stays locked out for good. After the
-# freeze it must outlast wait-backup (15 min) plus migrate and restart.
+# Safety nets for a cancelled or crashed deploy run: nobody stays locked out for good. After the freeze it must outlast wait-backup (15 min) plus migrate and restart.
 DEPLOYMENT_AUTO_END = timedelta(minutes=15)
 DEPLOYMENT_AUTO_END_AFTER_FREEZE = timedelta(minutes=45)
 # What a client is told to wait, by announced duration.
@@ -170,10 +166,7 @@ async def start(
     backup: bool,
     started_by: uuid.UUID | None = None,
 ) -> WindowState:
-    """Open a window, replacing any earlier one; the revision tells the two apart.
-
-    Raises WindowBusyError for a deployment over a manual or frozen window, and for a manual one
-    over a frozen deployment."""
+    """Open a window, replacing any earlier one; the revision tells the two apart. Raises WindowBusyError for a deployment over a manual or frozen window, and for a manual one over a frozen deployment."""
     now = now_utc()
     current = await load(db, fresh=True)
     if (kind == "deployment" and blocks_deployment(current, now)) or (
@@ -224,8 +217,7 @@ async def freeze(db: AsyncSession, revision: int) -> bool:
 
 
 async def start_now(db: AsyncSession, revision: int) -> WindowState | None:
-    """Admin: cut the countdown short (issue #149). Keeps the revision, so CI's --revision calls
-    still match, and auto_end_at, so a slow build keeps its safety net. None if not pending."""
+    """Admin: cut the countdown short (issue #149). Keeps the revision, so CI's --revision calls still match, and auto_end_at, so a slow build keeps its safety net. None if not pending."""
     row = await _row(db)
     now = now_utc()
     if row is None or row.revision != revision:
@@ -241,8 +233,7 @@ async def start_now(db: AsyncSession, revision: int) -> WindowState | None:
 
 
 async def end(db: AsyncSession, revision: int | None = None) -> bool:
-    """Close the open window; with *revision*, only that one (a cancelled deploy run must not end
-    the window of the run that replaced it)."""
+    """Close the open window; with *revision*, only that one (a cancelled deploy run must not end the window of the run that replaced it)."""
     row = await _row(db)
     if row is None or row.ended_at is not None:
         return False
@@ -284,8 +275,7 @@ async def ensure_sign_in_allowed(db: AsyncSession, role: str) -> None:
         )
 
 
-# Presence (aggregate only): a hash of the account id, kept ONLINE_WINDOW_SECONDS for "online" and
-# _SET_TTL_SECONDS for "warned"/"ready" of one revision. Nothing else is stored.
+# Presence (aggregate only): a hash of the account id, kept ONLINE_WINDOW_SECONDS for "online" and _SET_TTL_SECONDS for "warned"/"ready" of one revision. Nothing else is stored.
 
 
 def _member(teacher_id: str) -> str:

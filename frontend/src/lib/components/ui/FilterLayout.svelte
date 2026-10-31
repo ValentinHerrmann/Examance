@@ -2,10 +2,7 @@
   import type { Snippet } from "svelte";
   import FilterDrawer from "./FilterDrawer.svelte";
 
-  /**
-   * Overview-page layout: filters left from `lg` (sticky), in a drawer below it, list on the right.
-   * The `filters` snippet renders in both places; its `close` closes the drawer (no-op in the sidebar).
-   */
+  /** Overview-page layout: filters left from `lg` (sticky), in a drawer below it, list on the right. The `filters` snippet renders in both places; its `close` closes the drawer (no-op in the sidebar). */
   interface Props {
     title: string;
     toggleLabel: string;

@@ -1,7 +1,4 @@
-/**
- * Builds the files of a layout report (issue #134) from the same sources the preview compiled.
- * File names are generic on purpose: the exam/exercise title must not reach the GitHub text.
- */
+/** Builds the files of a layout report (issue #134) from the same sources the preview compiled. File names are generic on purpose: the exam/exercise title must not reach the GitHub text. */
 
 import type { LayoutReportFileData } from "#lib/api/layoutReports";
 import { prepareExamSources, type ExamPreviewInput } from "#lib/exam/examPreview";

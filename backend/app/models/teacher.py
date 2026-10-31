@@ -10,9 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
-# Storage modes (docs/dev/storage_modes.md). Exams and exercises always live on the server; the
-# mode only decides whether grading results do too ("all-server") or stay in one browser
-# ("hybrid"). Which modes an account may use: app/services/capabilities.py.
+# Storage modes (docs/dev/storage_modes.md). Exams and exercises always live on the server; the mode only decides whether grading results do too ("all-server") or stay in one browser ("hybrid"). Which modes an account may use: app/services/capabilities.py.
 STORAGE_MODES = ("all-server", "hybrid")
 
 
@@ -34,32 +32,24 @@ class Teacher(Base):
         nullable=False,
         default="teacher",
     )
-    # Mirror of the Redis-held login cooloff (app/services/login_throttle.py), so
-    # flushing Redis cannot silently clear a lock and an operator can read the
-    # state out of the database. Always in the future or None; never permanent.
+    # Mirror of the Redis-held login cooloff (app/services/login_throttle.py), so flushing Redis cannot silently clear a lock and an operator can read the state out of the database. Always in the future or None; never permanent.
     locked_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    # Factor activity, shown on the security page. Null means "not recorded
-    # since this shipped" — deliberately not backfilled from created_at, which
-    # would state a change that may never have happened.
+    # Factor activity, shown on the security page. Null means "not recorded since this shipped" — deliberately not backfilled from created_at, which would state a change that may never have happened.
     password_changed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     password_last_used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    # The account's storage mode. Null until the teacher chooses one explicitly; there is no
-    # default, and nothing writes it implicitly. Every browser of the account follows this value.
+    # The account's storage mode. Null until the teacher chooses one explicitly; there is no default, and nothing writes it implicitly. Every browser of the account follows this value.
     storage_mode: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    # When an admin (or an always-allowed domain) approved the account; null = pending, which holds
-    # no token of any kind (`advance_sign_in` in app/routers/auth.py, app/dependencies.py). No
-    # default on purpose: a write path that forgets it locks the account out, never one in.
+    # When an admin (or an always-allowed domain) approved the account; null = pending, which holds no token of any kind (`advance_sign_in` in routers/auth/session.py, app/dependencies.py). No default on purpose: a write path that forgets it locks the account out, never one in.
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Optional note a self-registered teacher leaves for the approving admin. Erased on approval.
     registration_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # Admin-set switches (app/services/capabilities.py): server results, server LaTeX, sharing.
-    # Python and server defaults are both needed, or a fresh row leaves them unloaded.
+    # Admin-set switches (app/services/capabilities.py): server results, server LaTeX, sharing. Python and server defaults are both needed, or a fresh row leaves them unloaded.
     allow_server_results: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=true()
     )

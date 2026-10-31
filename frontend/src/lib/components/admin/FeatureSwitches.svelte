@@ -1,6 +1,5 @@
 <script lang="ts">
-  // The per-account switches an admin sets (issue #53), rendered from ACCOUNT_FEATURES so a new switch
-  // needs no markup change here. Exams and exercises always live on the server and have no switch.
+  // The per-account switches an admin sets (issue #53), rendered from ACCOUNT_FEATURES so a new switch needs no markup change here. Exams and exercises always live on the server and have no switch.
   import { ACCOUNT_FEATURES, type AccountFeature, type AccountFeatures } from "#lib/api/admin";
   import { t } from "#lib/i18n";
   import { Switch } from "#lib/components/ui";

@@ -9,8 +9,7 @@
   // Last version this browser/installed app has shown; an installed (PWA) app can stay open for days.
   const SEEN_KEY = "examance.lastSeenVersion";
   const isRelease = !frontendVersion.includes("-");
-  // TEMPORARY (issue #94): previews always show the deployed PR's title (deploy-preview.yml writes it as the notes) so the
-  // visuals can be reviewed; remove before merging.
+  // TEMPORARY (issue #94): previews always show the deployed PR's title (deploy-preview.yml writes it as the notes) so the visuals can be reviewed; remove before merging.
   const isPreview = /PR#\d+/.test(frontendVersion);
 
   const blocks = parseReleaseNotes(__RELEASE_NOTES__, new URL(repoUrl).origin);
@@ -33,9 +32,7 @@
     if (!notesReady) return;
     if (isPreview) { showNotes = blocks.length > 0; return; }
     if (!isRelease) return;
-    // A missing marker also counts as "not seen yet": browsers that last ran a build without this feature (or no
-    // release build at all) have none, and releases published while the app was closed must still be announced.
-    // The marker is written only once the notes may show, otherwise a maintenance window would swallow them.
+    // A missing marker also counts as "not seen yet": browsers that last ran a build without this feature (or no release build at all) have none, and releases published while the app was closed must still be announced. The marker is written only once the notes may show, otherwise a maintenance window would swallow them.
     const seen = readSeen();
     writeSeen(frontendVersion);
     if (seen !== frontendVersion && blocks.length > 0) showNotes = true;

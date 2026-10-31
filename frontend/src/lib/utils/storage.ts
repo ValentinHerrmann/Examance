@@ -1,8 +1,4 @@
-/**
- * Safe wrappers around localStorage/sessionStorage: some browsers report `typeof localStorage === 'object'` but throw
- * SecurityError on access (Firefox private mode, Safari ITP). Import from here, never the globals; `safe*` never throw.
- * `setItemOrThrow` is the exception: a swallowed write of the vault's salt/nonce would silently blank every record next unlock.
- */
+/** Safe wrappers around localStorage/sessionStorage: some browsers report `typeof localStorage === 'object'` but throw SecurityError on access (Firefox private mode, Safari ITP). Import from here, never the globals; `safe*` never throw. `setItemOrThrow` is the exception: a swallowed write of the vault's salt/nonce would silently blank every record next unlock. */
 
 /** Thrown by `setItemOrThrow` when the value could not be persisted. */
 export class StorageWriteError extends Error {
@@ -28,8 +24,7 @@ function safeSet(store: Storage, key: string, value: string): void {
   try {
     store.setItem(key, value);
   } catch {
-    // Storage quota exceeded or access denied — silently ignore.
-    // The app degrades gracefully: it just won't remember the setting.
+    // Storage quota exceeded or access denied — silently ignore. The app degrades gracefully: it just won't remember the setting.
   }
 }
 
@@ -53,9 +48,7 @@ function probeStore(name: 'localStorage' | 'sessionStorage'): Storage | null {
   }
 }
 
-// Lazily cached after first SUCCESSFUL probe. A null result is never cached so
-// that the probe is retried on every call — this lets test environments (and
-// late-initialising browser APIs) inject storage after module load time.
+// Lazily cached after first SUCCESSFUL probe. A null result is never cached so that the probe is retried on every call — this lets test environments (and late-initialising browser APIs) inject storage after module load time.
 let _ls: Storage | undefined;
 let _ss: Storage | undefined;
 
@@ -81,11 +74,7 @@ export const safeLocalStorage = {
   getItem: (key: string): string | null => ls() ? safeGet(ls()!, key) : null,
   setItem: (key: string, value: string): void => { if (ls()) safeSet(ls()!, key, value); },
   removeItem: (key: string): void => { if (ls()) safeRemove(ls()!, key); },
-  /**
-   * Write, or throw `StorageWriteError`. Use for values whose loss costs data —
-   * the local vault's salt and nonce above all — and never for UI preferences.
-   * Reads the value back, because a quota failure is not always an exception.
-   */
+  /** Write, or throw `StorageWriteError`. Use for values whose loss costs data — the local vault's salt and nonce above all — and never for UI preferences. Reads the value back, because a quota failure is not always an exception. */
   setItemOrThrow: (key: string, value: string): void => {
     const store = ls();
     if (!store) throw new StorageWriteError(key);

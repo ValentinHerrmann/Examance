@@ -1,8 +1,4 @@
-/**
- * Key envelope: wrapped copies of the random data-encryption key (DEK), independent of any password (a password-derived
- * DEK orphaned every vault on reset, and decryptors swallow GCM failures, so teachers saw blank names). Each factor
- * (password, recovery code, PRF passkey) wraps its own copy in-browser; the server holds ciphertext and public KDF params only.
- */
+/** Key envelope: wrapped copies of the random data-encryption key (DEK), independent of any password (a password-derived DEK orphaned every vault on reset, and decryptors swallow GCM failures, so teachers saw blank names). Each factor (password, recovery code, PRF passkey) wraps its own copy in-browser; the server holds ciphertext and public KDF params only. */
 
 import { decrypt, fromBase64url, toArrayBuffer, toBase64url } from './aesGcm';
 import { deriveArgon2Key, derivePbkdf2Key } from './keyDerivation';
@@ -15,11 +11,7 @@ export const KEK_KDF_PARAMS = { t: 3, m: 65536, p: 4 } as const;
 
 export type EnvelopeKind = 'password' | 'recovery' | 'passkey';
 
-/**
- * What a wrap protects: not just the DEK. `decrypt()` walks primary -> fallback -> legacy, so records
- * may open only under superseded PBKDF2 keys. Migration is the only moment all three exist together,
- * so all are captured; wrapping the DEK alone would strand those records at the first passwordless sign-in.
- */
+/** What a wrap protects: not just the DEK. `decrypt()` walks primary -> fallback -> legacy, so records may open only under superseded PBKDF2 keys. Migration is the only moment all three exist together, so all are captured; wrapping the DEK alone would strand those records at the first passwordless sign-in. */
 export interface KeyBundle {
   v: number;
   dek: string;
@@ -117,10 +109,7 @@ async function hkdfKek(material: Uint8Array, salt: Uint8Array, kind: EnvelopeKin
   );
 }
 
-/**
- * Derive the KEK for a password or recovery-code factor: Argon2id over a *random* per-factor salt
- * (the old scheme used SHA-256("blindgrade-user-salt:" + email), public and identical per address).
- */
+/** Derive the KEK for a password or recovery-code factor: Argon2id over a *random* per-factor salt (the old scheme used SHA-256("blindgrade-user-salt:" + email), public and identical per address). */
 export async function deriveSecretKek(
   secret: string,
   salt: Uint8Array,
@@ -130,11 +119,7 @@ export async function deriveSecretKek(
   return hkdfKek(rawKey, salt, kind);
 }
 
-/**
- * The same KEK derived with PBKDF2, only for *opening* wraps written while Argon2 was unavailable:
- * `deriveKey` once substituted PBKDF2 on Argon2 failure without recording it, so a wrap can claim
- * `argon2id` yet open only with this. Nothing writes such wraps now; this recovers existing accounts.
- */
+/** The same KEK derived with PBKDF2, only for *opening* wraps written while Argon2 was unavailable: `deriveKey` once substituted PBKDF2 on Argon2 failure without recording it, so a wrap can claim `argon2id` yet open only with this. Nothing writes such wraps now; this recovers existing accounts. */
 export async function deriveFallbackSecretKek(
   secret: string,
   salt: Uint8Array,
@@ -144,11 +129,7 @@ export async function deriveFallbackSecretKek(
   return hkdfKek(rawKey, salt, kind);
 }
 
-/**
- * Open a wrap with whichever KDF actually made it. `envelope.kdf` can't be trusted (the substitution
- * left the label `argon2id` either way), so the recorded KDF is tried first, then the other, and the
- * caller learns which won: a wrap that opened only under the fallback gets repaired.
- */
+/** Open a wrap with whichever KDF actually made it. `envelope.kdf` can't be trusted (the substitution left the label `argon2id` either way), so the recorded KDF is tried first, then the other, and the caller learns which won: a wrap that opened only under the fallback gets repaired. */
 export async function unwrapWithSecret(
   secret: string,
   envelope: KeyEnvelope,
@@ -164,8 +145,7 @@ export async function unwrapWithSecret(
     try {
       return { bundle: await unwrapBundle(kek, envelope, teacherId, keyId), usedFallbackKdf: true };
     } catch {
-      // Report the first failure: an Argon2-labelled wrap that neither KDF opens
-      // is a wrong secret, and that is the answer the caller needs.
+      // Report the first failure: an Argon2-labelled wrap that neither KDF opens is a wrong secret, and that is the answer the caller needs.
       throw primaryErr;
     }
   }
@@ -176,11 +156,7 @@ export async function derivePrfKek(prfOutput: Uint8Array, salt: Uint8Array): Pro
   return hkdfKek(prfOutput, salt, 'passkey');
 }
 
-/**
- * AAD for a wrap: binds ciphertext to account, factor and DEK generation, so a wrap can't be
- * replayed under another kind or key generation. Does not stop a server substituting the whole
- * set; see `envelopeFingerprint`.
- */
+/** AAD for a wrap: binds ciphertext to account, factor and DEK generation, so a wrap can't be replayed under another kind or key generation. Does not stop a server substituting the whole set; see `envelopeFingerprint`. */
 function wrapAad(teacherId: string, kind: EnvelopeKind, keyId: Uint8Array): Uint8Array {
   return encoder.encode(`${teacherId}|${kind}|${toBase64url(keyId)}|${ENVELOPE_VERSION}`);
 }
@@ -260,11 +236,7 @@ export async function unwrapBundle(
   return parseBundle(decoder.decode(plaintext));
 }
 
-/**
- * Fingerprint of an envelope set, pinned locally after the first successful unwrap. A server serving
- * a substituted set (one whose DEK it knows) could read everything written afterwards; AAD can't catch
- * that (the server picks both sides), a pinned fingerprint can: the set changes only when this browser re-wraps.
- */
+/** Fingerprint of an envelope set, pinned locally after the first successful unwrap. A server serving a substituted set (one whose DEK it knows) could read everything written afterwards; AAD can't catch that (the server picks both sides), a pinned fingerprint can: the set changes only when this browser re-wraps. */
 export async function envelopeFingerprint(set: EnvelopeSet): Promise<string> {
   const parts = set.envelopes
     .map((e) => `${e.kind}:${e.credentialIdB64 ?? ''}:${toBase64url(e.wrappedBundle)}`)

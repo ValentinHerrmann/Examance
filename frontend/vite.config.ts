@@ -9,10 +9,7 @@ import wasm from 'vite-plugin-wasm';
 import tailwindcss from '@tailwindcss/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
 
-/**
- * argon2-bundled.min.js is a UMD bundle calling `}(this, …)`; served as native ESM (dev, optimizeDeps
- * exclude) `this` is undefined and it crashes. Rewrite it to `globalThis` and add a default export.
- */
+/** argon2-bundled.min.js is a UMD bundle calling `}(this, …)`; served as native ESM (dev, optimizeDeps exclude) `this` is undefined and it crashes. Rewrite it to `globalThis` and add a default export. */
 function argon2BundlePlugin(): Plugin {
   return {
     name: 'argon2-bundle-umd-fix',
@@ -60,8 +57,7 @@ function computeAppVersion(): string {
   if (branch === 'release') return readVersionFile();
   const preview = readPreviewVersionFile();
   if (preview) return preview;
-  // Fallback for a preview build that never went through deploy-preview.yml
-  // (e.g. a manual branch push straight to `preview`): short commit SHA.
+  // Fallback for a preview build that never went through deploy-preview.yml (e.g. a manual branch push straight to `preview`): short commit SHA.
   const sha = (process.env.CF_PAGES_COMMIT_SHA ?? '').slice(0, 7);
   return sha ? `${readVersionFile()}-${sha}` : readVersionFile();
 }
@@ -101,8 +97,7 @@ export default defineConfig({
     tailwindcss(),
     wasm(),
     argon2BundlePlugin(),
-    // SvelteKit 3 reads its config here (svelte.config.js is gone). `version.name` stays at its
-    // default so "new deployment" detection works; the CSP hash comes from the build output.
+    // SvelteKit 3 reads its config here (svelte.config.js is gone). `version.name` stays at its default so "new deployment" detection works; the CSP hash comes from the build output.
     sveltekit({
       adapter: adapter({ pages: 'build', assets: 'build', fallback: 'index.html', precompress: false, strict: true }),
       preprocess: vitePreprocess(),
@@ -123,8 +118,7 @@ export default defineConfig({
     __PREVIEW_BACKEND_URL__: JSON.stringify(PREVIEW_BACKEND_URL),
   },
   test: {
-    // Vitest must only pick up unit tests: the Playwright specs under e2e/
-    // are named *.spec.ts, which Vitest's default include pattern also matches.
+    // Vitest must only pick up unit tests: the Playwright specs under e2e/ are named *.spec.ts, which Vitest's default include pattern also matches.
     include: ['tests/**/*.test.ts'],
     alias: {
       'argon2-browser/dist/argon2-bundled.min.js': fileURLToPath(
@@ -144,24 +138,19 @@ export default defineConfig({
     external: ['argon2-browser'],
   },
   build: {
-    // ES2022 includes native top-level await, so no TLA transform plugin is
-    // needed — vite-plugin-top-level-await re-parsed every chunk with SWC and
-    // cost ~10 s per Cloudflare Pages build.
+    // ES2022 includes native top-level await, so no TLA transform plugin is needed — vite-plugin-top-level-await re-parsed every chunk with SWC and cost ~10 s per Cloudflare Pages build.
     target: 'es2022',
-    // Gzip-sizing every chunk only feeds the build log and cost ~9 s per
-    // Cloudflare Pages build.
+    // Gzip-sizing every chunk only feeds the build log and cost ~9 s per Cloudflare Pages build.
     reportCompressedSize: false,
     rolldownOptions: {
       external: [/.*\.wasm$/],
-      // No `output.*FileNames` overrides here — SvelteKit owns the output
-      // layout and ignores them, always emitting under `_app/immutable/`,
-      // which is what `static/_headers` targets.
+      // No `output.*FileNames` overrides here — SvelteKit owns the output layout and ignores them, always emitting under `_app/immutable/`, which is what `static/_headers` targets.
     },
   },
   server: {
     port: 5173,
-    // The info posters are bundled from the repo's docs (src/lib/about/posters.ts).
-    fs: { allow: ['.', '../docs/posters'] },
+    // The info posters are bundled from the repo's docs (src/lib/about/posters.ts), the LaTeX package rules from the backend.
+    fs: { allow: ['.', '../docs/posters', '../backend/app/services/latex_package_rules.json'] },
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

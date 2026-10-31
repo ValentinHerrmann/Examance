@@ -1,7 +1,4 @@
-"""Duplicating own exercises and exams (issue #121).
-
-A duplicate copies content only: no copy provenance (it is not a resync copy), no results, and
-another account's rows are never reachable."""
+"""Duplicating own exercises and exams (issue #121). A duplicate copies content only: no copy provenance (it is not a resync copy), no results, and another account's rows are never reachable."""
 from __future__ import annotations
 
 import base64

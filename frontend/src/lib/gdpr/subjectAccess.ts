@@ -1,18 +1,14 @@
-/**
- * GDPR Art. 15 / Art. 20 subject access export for one student: the readable, decrypted copy of their personal data that
- * the teacher-key-encrypted `.bgproj` backup cannot serve. Mirrors erasure.ts: resolve via repositories, decrypt with the
- * session key, record the disclosure in the audit log.
- */
+/** GDPR Art. 15 / Art. 20 subject access export for one student: the readable, decrypted copy of their personal data that the teacher-key-encrypted `.bgproj` backup cannot serve. Mirrors erasure.ts: resolve via repositories, decrypt with the session key, record the disclosure in the audit log. */
 
 import { get } from 'svelte/store';
 
 import { db } from '#lib/db/db';
+import { ensure64CharHex } from '#lib/crypto/hmac';
+import { examRepository } from '#lib/repositories/examRepository';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
-import {
-  decryptStudent,
-  decryptSubmission,
-  encryptAuditEntry,
-} from '#lib/db/dbEncryption';
+import { studentRepository } from '#lib/repositories/studentRepository';
+import { submissionRepository } from '#lib/repositories/submissionRepository';
+import { encryptAuditEntry } from '#lib/db/dbEncryption';
 import { sessionStore } from '#lib/stores/session';
 
 export interface SubjectAccessSubmission {
@@ -39,63 +35,52 @@ export interface SubjectAccessExport {
   notes: string[];
 }
 
-/** Build a decrypted export of everything held about one student (raw pseudonym ID). @throws if the session is locked (no key, nothing decryptable). */
-export async function exportStudentData(pseudonymId: string): Promise<SubjectAccessExport> {
+/** Build a decrypted export of everything held about one student (raw pseudonym ID or its HMAC) in one exam, through the repositories so it works in both storage modes (F1). @throws if the session is locked or the student is unknown. */
+export async function exportStudentData(pseudonymId: string, examId: string): Promise<SubjectAccessExport> {
   const key = get(sessionStore).sessionKey;
   if (!key) {
     throw new Error('Unlock the workspace before exporting student data.');
   }
+  // Locally the raw id, on the server its HMAC: match either (as erasure.ts does).
+  const pseudonymHmac = await ensure64CharHex(pseudonymId);
+  const isThisStudent = async (id: string) => id === pseudonymId || (await ensure64CharHex(id)) === pseudonymHmac;
 
-  const rawStudent = await db.students.get(pseudonymId);
-  if (!rawStudent) {
+  // Every row's hash is independent: match them all at once, keeping the rows' order.
+  const ofThisStudent = async <T>(rows: T[], idOf: (row: T) => string) => {
+    const hits = await Promise.all(rows.map((row) => isThisStudent(idOf(row))));
+    return rows.filter((_, i) => hits[i]);
+  };
+
+  const student = (await ofThisStudent(await studentRepository.getByExamId(examId, key), (s) => s.pseudonymId)).at(-1);
+  if (!student) {
     throw new Error('No student found for that pseudonym.');
   }
-  const student = await decryptStudent(rawStudent, key);
 
-  // Locally, a submission's `pseudonymHash` holds the raw pseudonymId.
-  const rawSubmissions = await db.submissions
-    .where('pseudonymHash')
-    .equals(pseudonymId)
-    .toArray();
-
-  const submissions: SubjectAccessSubmission[] = [];
-  for (const raw of rawSubmissions) {
-    const sub = await decryptSubmission(raw, key);
-    const scores = await scoreRepository.getBySubmissionId(sub.examId, raw.id, key);
-    const exerciseScores = scores.map((score) => ({
-      exerciseId: score.exerciseId,
-      score: score.score ?? null,
-    }));
-
-    const exam = await db.exams.get(sub.examId);
-    submissions.push({
+  const exam = await examRepository.getById(examId, key);
+  const ownSubmissions = await ofThisStudent(await submissionRepository.getByExamId(examId, key), (s) => s.pseudonymHash);
+  const submissions: SubjectAccessSubmission[] = await Promise.all(
+    ownSubmissions.map(async (sub) => ({
       submissionId: sub.id,
-      examId: sub.examId,
-      examTitle: exam ? (exam as { title?: string }).title ?? null : null,
+      examId,
+      examTitle: exam?.title ?? null,
       totalScore: sub.totalScore ?? null,
       createdAt: sub.createdAt ?? null,
-      hasScan: Boolean(raw.scanCt),
-      hasAnnotations: Boolean(raw.annotationCt),
-      exerciseScores,
-    });
-  }
-
-  // Record the disclosure. targetId is hashed by encryptAuditEntry's caller
-  // convention elsewhere in this module; keep the same shape.
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(pseudonymId)
+      hasScan: sub.hasScan ?? Boolean(sub.scanCt),
+      hasAnnotations: sub.hasAnnotations ?? Boolean(sub.annotationCt),
+      exerciseScores: (await scoreRepository.getBySubmissionId(examId, sub.id, key)).map((score) => ({
+        exerciseId: score.exerciseId,
+        score: score.score ?? null,
+      })),
+    })),
   );
-  const targetHash = Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
 
+  // Record the disclosure under the same target as an erasure (the pseudonym's HMAC).
   await db.auditLog.add(
     await encryptAuditEntry(
       {
         id: crypto.randomUUID(),
         action: 'EXPORT',
-        targetId: targetHash,
+        targetId: pseudonymHmac,
         timestamp: new Date().toISOString(),
         note: 'GDPR Art. 15 subject access export',
       },

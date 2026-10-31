@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import delete, select
@@ -12,7 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_exam_for_teacher, get_teaching_teacher
+from app.dependencies import (
+    DB,
+    get_exam_for_teacher,
+    get_submission_for_teacher,
+    get_teaching_teacher,
+)
 from app.models.exam import Exam
 from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
@@ -21,6 +27,15 @@ from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
 from app.services.capabilities import require_server_results_writable
 from app.services.scan_storage import has_scan, load_scan, store_scan
+
+
+def _upload_conflict() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="A submission with this id already exists, or a parallel upload won the race.",
+        headers={"code": "ERR_SUBMISSION_CONFLICT"},
+    )
+
 
 router = APIRouter(
     prefix="/exams/{exam_id}/submissions",
@@ -31,6 +46,46 @@ router = APIRouter(
 
 def _b64(data: bytes | None) -> str | None:
     return base64.b64encode(data).decode() if data else None
+
+
+async def _live_submission(
+    sub_id: uuid.UUID,
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> ScanSubmission:
+    """`get_submission_for_teacher` under this router's `{sub_id}` path parameter name."""
+    return await get_submission_for_teacher(sub_id, exam, db)
+
+
+LiveSubmission = Annotated[ScanSubmission, Depends(_live_submission)]
+
+
+def _to_response(
+    sub: ScanSubmission, *, scan_present: bool | None = None, **overrides: Any
+) -> SubmissionResponse:
+    """A submission without scan bytes; *overrides* add them or replace a field. Pass *scan_present* when known: `has_scan` reads a deferred column, which a fresh row lacks."""
+    return SubmissionResponse(
+        id=sub.id,
+        exam_id=sub.exam_id,
+        pseudonym_hmac=sub.pseudonym_hmac,
+        total_score=sub.total_score,
+        scan_iv_b64=_b64(sub.scan_iv),
+        annotation_ciphertext_b64=_b64(sub.annotation_ciphertext),
+        annotation_iv_b64=_b64(sub.annotation_iv),
+        created_at=sub.created_at,
+        has_scan=has_scan(sub) if scan_present is None else scan_present,
+        has_annotations=bool(sub.annotation_ciphertext),
+    ).model_copy(update=overrides)
+
+
+def _echo(body: SubmissionCreate) -> dict[str, str | None]:
+    """An upload answers with the encrypted fields as sent."""
+    return {
+        "scan_ciphertext_b64": body.scan_ciphertext_b64,
+        "scan_iv_b64": body.scan_iv_b64,
+        "annotation_ciphertext_b64": body.annotation_ciphertext_b64,
+        "annotation_iv_b64": body.annotation_iv_b64,
+    }
 
 
 @router.get("", response_model=list[SubmissionResponse])
@@ -59,28 +114,10 @@ async def list_submissions(
     subs = result.scalars().all()
     scans = {s.id: await load_scan(db, s) for s in subs} if include_scans else {}
     return [
-        SubmissionResponse(
-            id=s.id,
-            exam_id=s.exam_id,
-            pseudonym_hmac=s.pseudonym_hmac,
-            total_score=s.total_score,
+        _to_response(
+            s,
             scan_ciphertext_b64=_b64(scans.get(s.id)),
-            scan_iv_b64=(
-                base64.b64encode(s.scan_iv).decode()
-                if include_scans and s.scan_iv
-                else None
-            ),
-            annotation_ciphertext_b64=(
-                base64.b64encode(s.annotation_ciphertext).decode()
-                if s.annotation_ciphertext
-                else None
-            ),
-            annotation_iv_b64=(
-                base64.b64encode(s.annotation_iv).decode() if s.annotation_iv else None
-            ),
-            created_at=s.created_at,
-            has_scan=has_scan(s),
-            has_annotations=bool(s.annotation_ciphertext),
+            scan_iv_b64=_b64(s.scan_iv) if include_scans else None,
         )
         for s in subs
     ]
@@ -98,9 +135,7 @@ async def upload_submission(
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """Upload encrypted scan submission."""
-    # Ensure the student identity exists first (foreign key). The FK spans (pseudonym_hmac,
-    # exam_id), so the identity is looked up within this exam only: a submission cannot link to
-    # another exam's (and tenant's) identity.
+    # Ensure the student identity exists first (foreign key). The FK spans (pseudonym_hmac, exam_id), so the identity is looked up within this exam only: a submission cannot link to another exam's (and tenant's) identity.
     student_res = await db.execute(
         select(StudentIdentity).where(
             StudentIdentity.pseudonym_hmac == body.pseudonym_hmac,
@@ -109,19 +144,22 @@ async def upload_submission(
     )
     existing_identity = student_res.scalar_one_or_none()
     if existing_identity is None:
-        db.add(
-            StudentIdentity(
-                pseudonym_hmac=body.pseudonym_hmac,
-                exam_id=exam.id,
-                pii_ciphertext=b"\x00",
-                iv=b"\x00" * 12,
-                encryption_salt=b"\x00" * 16,
-            )
-        )
-        await db.flush()
+        # In a savepoint: a parallel upload for the same new pseudonym may insert the placeholder first, and then this upload simply links to it (a 409 would make the queue drop it).
+        try:
+            async with db.begin_nested():
+                db.add(
+                    StudentIdentity(
+                        pseudonym_hmac=body.pseudonym_hmac,
+                        exam_id=exam.id,
+                        pii_ciphertext=b"\x00",
+                        iv=b"\x00" * 12,
+                        encryption_salt=b"\x00" * 16,
+                    )
+                )
+        except IntegrityError:
+            pass
     elif existing_identity.deleted_at is not None:
-        # Its erasure would cascade to this submission. It comes back as the placeholder, as if
-        # already erased: only a student upload brings deleted PII back.
+        # Its erasure would cascade to this submission. It comes back as the placeholder, as if already erased: only a student upload brings deleted PII back.
         existing_identity.pii_ciphertext = b"\x00"
         existing_identity.iv = b"\x00" * 12
         existing_identity.encryption_salt = b"\x00" * 16
@@ -180,18 +218,8 @@ async def upload_submission(
                 existing_sub.annotation_iv = None
             # An absent annotation field means "leave them"; deleting is explicit.
             await db.flush()
-            return SubmissionResponse(
-                id=existing_sub.id,
-                exam_id=existing_sub.exam_id,
-                pseudonym_hmac=existing_sub.pseudonym_hmac,
-                total_score=existing_sub.total_score,
-                scan_ciphertext_b64=body.scan_ciphertext_b64,
-                scan_iv_b64=body.scan_iv_b64,
-                annotation_ciphertext_b64=body.annotation_ciphertext_b64,
-                annotation_iv_b64=body.annotation_iv_b64,
-                created_at=existing_sub.created_at,
-                has_scan=had_scan or scan_bytes is not None,
-                has_annotations=bool(existing_sub.annotation_ciphertext),
+            return _to_response(
+                existing_sub, **_echo(body), scan_present=had_scan or scan_bytes is not None
             )
 
     sub = ScanSubmission(
@@ -210,63 +238,21 @@ async def upload_submission(
         await db.flush()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A submission with this id already exists.",
-        ) from None
+        raise _upload_conflict() from None
 
-    return SubmissionResponse(
-        id=sub.id,
-        exam_id=sub.exam_id,
-        pseudonym_hmac=sub.pseudonym_hmac,
-        total_score=sub.total_score,
-        scan_ciphertext_b64=body.scan_ciphertext_b64,
-        scan_iv_b64=body.scan_iv_b64,
-        annotation_ciphertext_b64=body.annotation_ciphertext_b64,
-        annotation_iv_b64=body.annotation_iv_b64,
-        created_at=sub.created_at,
-        has_scan=scan_bytes is not None,
-        has_annotations=bool(sub.annotation_ciphertext),
-    )
+    return _to_response(sub, **_echo(body), scan_present=scan_bytes is not None)
 
 
 @router.get("/{sub_id}", response_model=SubmissionResponse)
 async def get_submission(
-    sub_id: uuid.UUID,
-    exam: Exam = Depends(get_exam_for_teacher),
+    sub: ScanSubmission = Depends(_live_submission),
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """Download encrypted scan submission by ID."""
-    result = await db.execute(
-        select(ScanSubmission).where(
-            ScanSubmission.id == sub_id,
-            ScanSubmission.exam_id == exam.id,
-            ScanSubmission.deleted_at.is_(None),
-        )
-    )
-    sub = result.scalar_one_or_none()
-    if sub is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
-
-    scan = await load_scan(db, sub)
-    return SubmissionResponse(
-        id=sub.id,
-        exam_id=sub.exam_id,
-        pseudonym_hmac=sub.pseudonym_hmac,
-        total_score=sub.total_score,
-        scan_ciphertext_b64=base64.b64encode(scan).decode() if scan else None,
+    return _to_response(
+        sub,
+        scan_ciphertext_b64=_b64(await load_scan(db, sub)),
         scan_iv_b64=base64.b64encode(sub.scan_iv).decode(),
-        annotation_ciphertext_b64=(
-            base64.b64encode(sub.annotation_ciphertext).decode()
-            if sub.annotation_ciphertext
-            else None
-        ),
-        annotation_iv_b64=(
-            base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None
-        ),
-        created_at=sub.created_at,
-        has_scan=has_scan(sub),
-        has_annotations=bool(sub.annotation_ciphertext),
     )
 
 
@@ -275,65 +261,16 @@ async def get_submission(
     response_model=SubmissionResponse,
     dependencies=[Depends(require_server_results_writable)],
 )
-async def update_score(
-    sub_id: uuid.UUID,
-    body: SubmissionScoreUpdate,
-    exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
-) -> SubmissionResponse:
+async def update_score(body: SubmissionScoreUpdate, sub: LiveSubmission, db: DB) -> SubmissionResponse:
     """Update plaintext total score for server-side statistics."""
-    result = await db.execute(
-        select(ScanSubmission).where(
-            ScanSubmission.id == sub_id,
-            ScanSubmission.exam_id == exam.id,
-            ScanSubmission.deleted_at.is_(None),
-        )
-    )
-    sub = result.scalar_one_or_none()
-    if sub is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
-
     sub.total_score = body.total_score
     await db.flush()
-
-    return SubmissionResponse(
-        id=sub.id,
-        exam_id=sub.exam_id,
-        pseudonym_hmac=sub.pseudonym_hmac,
-        total_score=sub.total_score,
-        scan_iv_b64=base64.b64encode(sub.scan_iv).decode() if sub.scan_iv else None,
-        annotation_ciphertext_b64=(
-            base64.b64encode(sub.annotation_ciphertext).decode()
-            if sub.annotation_ciphertext
-            else None
-        ),
-        annotation_iv_b64=(
-            base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None
-        ),
-        created_at=sub.created_at,
-        has_scan=has_scan(sub),
-        has_annotations=bool(sub.annotation_ciphertext),
-    )
+    return _to_response(sub)
 
 
 @router.delete("/{sub_id}/grading", status_code=status.HTTP_204_NO_CONTENT)
-async def clear_grading(
-    sub_id: uuid.UUID,
-    exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
-) -> Response:
+async def clear_grading(sub: LiveSubmission, db: DB) -> Response:
     """Clear all grading data (score + annotations) for a submission."""
-    result = await db.execute(
-        select(ScanSubmission).where(
-            ScanSubmission.id == sub_id,
-            ScanSubmission.exam_id == exam.id,
-            ScanSubmission.deleted_at.is_(None),
-        )
-    )
-    sub = result.scalar_one_or_none()
-    if sub is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
-
     sub.total_score = None
     sub.annotation_ciphertext = None
     sub.annotation_iv = None
@@ -344,23 +281,8 @@ async def clear_grading(
 
 
 @router.delete("/{sub_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_submission(
-    sub_id: uuid.UUID,
-    exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
-) -> Response:
+async def delete_submission(sub: LiveSubmission, db: DB) -> Response:
     """Soft-delete a scan submission by ID."""
-    result = await db.execute(
-        select(ScanSubmission).where(
-            ScanSubmission.id == sub_id,
-            ScanSubmission.exam_id == exam.id,
-            ScanSubmission.deleted_at.is_(None),
-        )
-    )
-    sub = result.scalar_one_or_none()
-    if sub is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
-
     # Retention only erases soft-deleted rows that carry a deadline.
     sub.deleted_at = datetime.now(UTC)
     sub.retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)

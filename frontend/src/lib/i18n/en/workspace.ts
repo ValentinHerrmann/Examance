@@ -3,8 +3,7 @@ import type { Translations } from '../types';
 export const workspace: Translations['workspace'] = {
     menu: {
         open: 'Import (.examance, ZIP)',
-        export: 'Back up workspace (.examance)',
-        shareResults: 'Share results (without exercise texts)',
+        export: 'Back up or share workspace (.examance)',
         clear: 'Clear Workspace',
     },
     session: {
@@ -15,9 +14,7 @@ export const workspace: Translations['workspace'] = {
     },
     archive: {
         promptImportPassword: 'Enter the password for this archive:',
-        promptExportPassword: 'Enter a password to encrypt the archive:',
         importFailed: 'Failed to import archive: {message}',
-        exportFailed: 'Export failed: {message}',
         clearFailed: 'Failed to clear workspace: {message}',
         cleared: 'Workspace cleared successfully.',
         confirmClear: 'Are you sure you want to close this project and clear all local workspace data? Unsaved changes will be lost.',

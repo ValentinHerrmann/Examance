@@ -17,11 +17,7 @@ def _origin_pattern() -> re.Pattern[str] | None:
 
 
 def is_allowed_origin(origin: str | None) -> bool:
-    """
-    Whether *origin* is on the CORS allowlist; shared by CORSMiddleware, the origin guard and
-    the 500 handler so all three agree. fullmatch mirrors Starlette: a prefix match would let
-    evil.example.com.attacker.test through.
-    """
+    """Whether *origin* is on the CORS allowlist; shared by CORSMiddleware, the origin guard and the 500 handler so all three agree. fullmatch mirrors Starlette: a prefix match would let evil.example.com.attacker.test through."""
     if not origin:
         return False
     if origin in settings.CORS_ALLOWED_ORIGINS:
@@ -31,12 +27,7 @@ def is_allowed_origin(origin: str | None) -> bool:
 
 
 def add_cors_middleware(app: FastAPI) -> None:
-    """
-    Register CORSMiddleware with an explicit origin allowlist.
-
-    allow_credentials=True is required for httpOnly cookie auth.
-    CORS_ALLOWED_ORIGINS must be non-empty (enforced by Settings validator).
-    """
+    """Register CORSMiddleware with an explicit origin allowlist. allow_credentials=True is required for httpOnly cookie auth. CORS_ALLOWED_ORIGINS must be non-empty (enforced by Settings validator)."""
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ALLOWED_ORIGINS,
@@ -44,9 +35,7 @@ def add_cors_middleware(app: FastAPI) -> None:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        # Routers send the error code as a response header (``code``); cross-origin it is unreadable
-        # unless exposed here, which would hide errors.code.* localization and Retry-After from the
-        # SPA.
+        # Routers send the error code as a response header (``code``); cross-origin it is unreadable unless exposed here, which would hide errors.code.* localization and Retry-After from the SPA.
         expose_headers=["code", "Retry-After", "Maintenance-Revision"],
     )
 

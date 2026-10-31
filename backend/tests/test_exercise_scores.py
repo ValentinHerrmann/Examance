@@ -1,14 +1,16 @@
-"""Per-exercise score endpoints. The behaviour under test is mostly *not* failing: bulk writes must
-be replayable and clearing a missing score a no-op, since offline-queue flushes and grid keystrokes
-would otherwise surface a 409 or 404 as a modal.
-"""
+"""Per-exercise score endpoints. The behaviour under test is mostly *not* failing: bulk writes must be replayable and clearing a missing score a no-op, since offline-queue flushes and grid keystrokes would otherwise surface a 409 or 404 as a modal."""
 from __future__ import annotations
 
 import base64
+import uuid
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.exam_exercise import ExamExercise
+from app.models.exercise import Exercise
 
 from .factors import sign_in
 
@@ -85,8 +87,7 @@ async def test_bulk_put_is_idempotent(client: AsyncClient, db: AsyncSession) -> 
     assert len(first.json()) == 1
     first_row_id = first.json()[0]["id"]
 
-    # Replaying the same write — an offline-queue flush, a retried autosave —
-    # must update in place, not answer 409 the way the create-only POSTs do.
+    # Replaying the same write — an offline-queue flush, a retried autosave — must update in place, not answer 409 the way the create-only POSTs do.
     second = await client.put(url, json=body)
     assert second.status_code == 200, second.text
     assert len(second.json()) == 1
@@ -106,8 +107,7 @@ async def test_put_ignores_a_stale_client_id_for_an_existing_pair(
     )
     row_id = created.json()[0]["id"]
 
-    # The row's identity is (submission, exercise). A different client-supplied
-    # id for the same pair updates that row rather than colliding.
+    # The row's identity is (submission, exercise). A different client-supplied id for the same pair updates that row rather than colliding.
     replayed = await client.put(
         url,
         json={
@@ -150,6 +150,62 @@ async def test_put_with_a_repeated_exercise_stores_one_row(
     assert resp.json()[0]["payload_ciphertext_b64"] == last
 
 
+async def test_put_rejects_one_score_id_on_two_exercises(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    exam_id, exercise_id, sub_id = await _exam_with_submission(
+        client, db, "scores-sameid@example.com"
+    )
+    url = f"/api/v1/exams/{exam_id}/submissions/{sub_id}/scores"
+    shared_id = str(uuid.uuid4())
+
+    # Two new rows with one primary key would fail at flush as a 500.
+    clash = await client.put(
+        url,
+        json={
+            "scores": [
+                {"id": shared_id, "exercise_id": exercise_id, "payload_iv_b64": IV_B64},
+                {"id": shared_id, "exercise_id": str(uuid.uuid4()), "payload_iv_b64": IV_B64},
+            ]
+        },
+    )
+    assert clash.status_code == 422
+
+    # The same item sent twice is still a harmless repeat of one exercise.
+    item = {"id": shared_id, "exercise_id": exercise_id, "payload_iv_b64": IV_B64}
+    repeat = await client.put(url, json={"scores": [item, item]})
+    assert repeat.status_code == 200, repeat.text
+    assert len(repeat.json()) == 1
+
+
+async def test_put_accepts_a_legacy_exam_that_links_by_exam_id(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    exam_id, exercise_id, sub_id = await _exam_with_submission(
+        client, db, "scores-legacy@example.com"
+    )
+    # A legacy exam owns its exercise through `exercise.exam_id` and has no junction rows.
+    await db.execute(delete(ExamExercise).where(ExamExercise.exam_id == uuid.UUID(exam_id)))
+    await db.execute(
+        update(Exercise)
+        .where(Exercise.id == uuid.UUID(exercise_id))
+        .values(exam_id=uuid.UUID(exam_id))
+    )
+    await db.commit()
+
+    url = f"/api/v1/exams/{exam_id}/submissions/{sub_id}/scores"
+    saved = await client.put(
+        url, json={"scores": [{"exercise_id": exercise_id, "payload_iv_b64": IV_B64}]}
+    )
+    assert saved.status_code == 200, saved.text
+    assert [row["exercise_id"] for row in saved.json()] == [exercise_id]
+
+    stray = await client.put(
+        url, json={"scores": [{"exercise_id": str(uuid.uuid4()), "payload_iv_b64": IV_B64}]}
+    )
+    assert stray.status_code == 404
+
+
 async def test_put_rejects_an_exercise_outside_the_exam(
     client: AsyncClient, db: AsyncSession
 ) -> None:
@@ -176,8 +232,7 @@ async def test_delete_is_idempotent(client: AsyncClient, db: AsyncSession) -> No
     await client.put(url, json={"scores": [{"exercise_id": exercise_id, "payload_iv_b64": IV_B64}]})
 
     assert (await client.delete(f"{url}/{exercise_id}")).status_code == 204
-    # Clearing an already-clear score is the requested state, not an error: the
-    # grading grid fires this on every cleared input.
+    # Clearing an already-clear score is the requested state, not an error: the grading grid fires this on every cleared input.
     assert (await client.delete(f"{url}/{exercise_id}")).status_code == 204
     assert (await client.get(url)).json() == []
 

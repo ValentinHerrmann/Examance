@@ -1,10 +1,10 @@
 <script lang="ts">
   import { type ExerciseGroup } from "#lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "#lib/db/schema";
-  import SuggestInput from "#lib/components/common/SuggestInput.svelte";
+  import SuggestField from "#lib/components/common/SuggestField.svelte";
   import { recordValue } from "#lib/utils/recentValues";
   import { t } from "#lib/i18n";
-  import { Modal, Button, controlClass } from "#lib/components/ui";
+  import { Modal, Button, Field, controlClass } from "#lib/components/ui";
 
   interface Props {
     isOpen?: boolean;
@@ -47,44 +47,36 @@
       {$t("exercises.groupEditModal.appliesToAll", { count: editingGroup.allMembers.length })}
     </div>
 
-    <div class="mb-4 flex flex-col gap-1.5">
-      <label for="groupEditorName" class="text-sm text-muted">{$t("exercises.groupEditModal.nameLabel")}</label>
-      <input id="groupEditorName" type="text" bind:value={groupEditorName} required class={controlClass} />
-    </div>
-
-    <div class="mb-4 flex flex-col gap-1.5">
-      <label for="groupEditorTopic" class="text-sm text-muted">{$t("exercises.groupEditModal.topicLabel")}</label>
-      <SuggestInput
-        id="groupEditorTopic"
-        storageKey="exercise.topic"
-        bind:value={groupEditorTopicTag}
-        placeholder="_Vererbung"
-        required
-        class={controlClass}
-      />
-    </div>
-
-    <div class="mb-4 flex flex-col gap-1.5">
-      <label for="groupEditorGrade" class="text-sm text-muted">{$t("exercises.groupEditModal.gradeLabel")}</label>
-      <SuggestInput
-        id="groupEditorGrade"
-        storageKey="exercise.grade"
-        bind:value={groupEditorGrade}
-        placeholder={$t("exercises.groupEditModal.gradePlaceholder")}
-        class={controlClass}
-      />
-    </div>
-
-    <div class="mb-4 flex flex-col gap-1.5">
-      <label for="groupEditorSubject" class="text-sm text-muted">{$t("exercises.groupEditModal.subjectLabel")}</label>
-      <SuggestInput
-        id="groupEditorSubject"
-        storageKey="exercise.subject"
-        bind:value={groupEditorSubject}
-        placeholder={$t("exercises.groupEditModal.subjectPlaceholder")}
-        class={controlClass}
-      />
-    </div>
+    <Field label={$t("exercises.groupEditModal.nameLabel")} forId="groupEditorName" class="mb-4">
+      {#snippet children({ id })}
+        <input {id} type="text" bind:value={groupEditorName} required class={controlClass} />
+      {/snippet}
+    </Field>
+    <SuggestField
+      id="groupEditorTopic"
+      label={$t("exercises.groupEditModal.topicLabel")}
+      storageKey="exercise.topic"
+      bind:value={groupEditorTopicTag}
+      placeholder="_Vererbung"
+      required
+      class="mb-4"
+    />
+    <SuggestField
+      id="groupEditorGrade"
+      label={$t("exercises.groupEditModal.gradeLabel")}
+      storageKey="exercise.grade"
+      bind:value={groupEditorGrade}
+      placeholder={$t("exercises.groupEditModal.gradePlaceholder")}
+      class="mb-4"
+    />
+    <SuggestField
+      id="groupEditorSubject"
+      label={$t("exercises.groupEditModal.subjectLabel")}
+      storageKey="exercise.subject"
+      bind:value={groupEditorSubject}
+      placeholder={$t("exercises.groupEditModal.subjectPlaceholder")}
+      class="mb-4"
+    />
   {/if}
 
   {#snippet footer()}

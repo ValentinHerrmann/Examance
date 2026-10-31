@@ -1,7 +1,4 @@
-/**
- * LaTeX syntax highlighter for static/read-only code displays.
- * Tokenizes LaTeX string and outputs HTML with syntax-highlighted <span> tags.
- */
+/** LaTeX syntax highlighter for static/read-only code displays. Tokenizes LaTeX string and outputs HTML with syntax-highlighted <span> tags. */
 
 export interface LatexToken {
   type: 'comment' | 'keyword' | 'macro' | 'bracket' | 'string' | 'number' | 'plain';
@@ -24,7 +21,6 @@ export function tokenizeLatex(code: string): LatexToken[] {
   while (pos < code.length) {
     const sub = code.slice(pos);
 
-    // Comment
     const commentMatch = sub.match(/^%.*/);
     if (commentMatch) {
       tokens.push({ type: 'comment', text: commentMatch[0] });
@@ -48,7 +44,6 @@ export function tokenizeLatex(code: string): LatexToken[] {
       continue;
     }
 
-    // Brackets
     const bracketMatch = sub.match(/^[{}[\]]/);
     if (bracketMatch) {
       tokens.push({ type: 'bracket', text: bracketMatch[0] });
@@ -64,7 +59,6 @@ export function tokenizeLatex(code: string): LatexToken[] {
       continue;
     }
 
-    // Numbers
     const numberMatch = sub.match(/^\d+(?:\.\d+)?/);
     if (numberMatch) {
       tokens.push({ type: 'number', text: numberMatch[0] });

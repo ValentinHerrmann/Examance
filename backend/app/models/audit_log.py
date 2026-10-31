@@ -14,8 +14,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    # Nullable FK — ON DELETE SET NULL so deleting a teacher account does NOT
-    # cascade-delete or block removal of audit records.
+    # Nullable FK — ON DELETE SET NULL so deleting a teacher account does NOT cascade-delete or block removal of audit records.
     teacher_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("teachers.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -31,8 +30,7 @@ class AuditLog(Base):
             "CREATE_USER",
             "PASSWORD_RESET_REQUESTED",
             "PASSWORD_RESET_COMPLETED",
-            # Written by admin.py when an outbound mail fails. These were being
-            # written before they were enum members, which Postgres rejects.
+            # Written by admin.py when an outbound mail fails. These were being written before they were enum members, which Postgres rejects.
             "CREATE_USER_EMAIL_FAILED",
             "PASSWORD_RESET_EMAIL_FAILED",
             # Authentication hardening.
@@ -52,8 +50,7 @@ class AuditLog(Base):
             "ALLOWED_DOMAIN_ADDED",
             "ALLOWED_DOMAIN_CHANGED",
             "ALLOWED_DOMAIN_REMOVED",
-            # Written by /auth/change-password since it shipped, but never an enum member,
-            # which Postgres rejects. Added with migration 0028.
+            # Written by /auth/change-password since it shipped, but never an enum member, which Postgres rejects. Added with migration 0028.
             "PASSWORD_CHANGED",
             # A self-deletion link was mailed (migration 0029).
             "DELETION_REQUESTED",
@@ -66,8 +63,7 @@ class AuditLog(Base):
             "CONTRIBUTION_ACCEPTED",
             "CONTRIBUTION_REJECTED",
             "CONTRIBUTION_WITHDRAWN",
-            # Consent and its withdrawal, told apart (migration 0032). The old
-            # EXERCISE_SHARING_CHANGED stays for rows written before it.
+            # Consent and its withdrawal, told apart (migration 0032). The old EXERCISE_SHARING_CHANGED stays for rows written before it.
             "EXERCISE_SHARED",
             "EXERCISE_UNSHARED",
             "EXERCISE_SHARING_PAUSED",
@@ -94,9 +90,7 @@ class AuditLog(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    # AuditLog rows are append-only (never soft-deleted or edited) but hard-deleted after
-    # AUDIT_LOG_RETENTION_DAYS (services/retention.py): they hold teacher_email and ip_hash, which
-    # Art. 17(3) justifies keeping for a defined period, not forever.
+    # AuditLog rows are append-only (never soft-deleted or edited) but hard-deleted after AUDIT_LOG_RETENTION_DAYS (services/retention.py): they hold teacher_email and ip_hash, which Art. 17(3) justifies keeping for a defined period, not forever.
 
     def __repr__(self) -> str:
         return (

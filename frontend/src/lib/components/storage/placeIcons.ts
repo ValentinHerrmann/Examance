@@ -2,7 +2,7 @@ import { faCloud, faHouse, faShuffle } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 import type { StorageMode } from "#lib/stores/storagePolicy";
 
-/** One icon per place, shared by the navbar, the storage dialog and the settings page. */
+/** One icon per place, shared by the navbar and the settings page. */
 export const placeIcons: Record<"local" | "cloud" | "hybrid", IconDefinition> = {
   local: faHouse,
   cloud: faCloud,

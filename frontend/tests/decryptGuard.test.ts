@@ -66,8 +66,7 @@ describe('decrypt guard', () => {
     const sealed = await encryptExam(baseExam(), await aesKey(1));
     const opened = await decryptExam(sealed, await aesKey(2));
 
-    // This is the data-loss path: re-sealing `opened` would replace the real
-    // title and preamble with undefined.
+    // This is the data-loss path: re-sealing `opened` would replace the real title and preamble with undefined.
     await expect(encryptExam(opened, await aesKey(2))).rejects.toBeInstanceOf(DecryptFailedError);
   });
 

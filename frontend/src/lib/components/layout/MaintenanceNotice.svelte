@@ -18,8 +18,7 @@
   import { markReady } from "#lib/api/maintenance";
   import { maintenanceText } from "#lib/maintenance/text";
 
-  // Issue #130: two reminders before downtime (the 2nd shows even if the 1st was closed), then a
-  // blocking notice while it runs. Admins only get banners: they must stay able to end the window.
+  // Issue #130: two reminders before downtime (the 2nd shows even if the 1st was closed), then a blocking notice while it runs. Admins only get banners: they must stay able to end the window.
   const DISMISSED_KEY = "examance.maintenanceDismissed";
   const SAVED_KEY = "examance.maintenanceSaved";
 

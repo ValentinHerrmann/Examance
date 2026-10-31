@@ -1,7 +1,5 @@
 <script lang="ts">
-  // Vertical column chart: categories on x, counts on y. Layers draw in order on a shared domain (callers order best-left, worst-right).
-  // Rotated axis labels that collide are thinned (`anchor` columns always keep theirs). A `band` layer is drawn as wide translucent
-  // bars behind the others (the merged grade chart). Colours are `var(--color-*)` so `chartExport.ts` can re-theme the serialised `svgEl`.
+  // Vertical column chart: categories on x, counts on y. Layers draw in order on a shared domain (callers order best-left, worst-right). Rotated axis labels that collide are thinned (`anchor` columns always keep theirs). A `band` layer is drawn as wide translucent bars behind the others (the merged grade chart). Colours are `var(--color-*)` so `chartExport.ts` can re-theme the serialised `svgEl`.
   import { onMount } from 'svelte';
   import { countAxis } from '#lib/analytics/stats';
   import type { Caption, ChartColumn, ChartCurve, ChartLayer, ChartMarker, ChartSpan } from './chartColumns';
@@ -59,8 +57,7 @@
 
   let width = $state(0);
   let container: HTMLDivElement | undefined = $state();
-  // ResizeObserver rather than `bind:clientWidth` (hidden iframe per element). Also measured synchronously on mount so an
-  // offscreen export copy has its drawing by the time the caller's `tick()` resolves.
+  // ResizeObserver rather than `bind:clientWidth` (hidden iframe per element). Also measured synchronously on mount so an offscreen export copy has its drawing by the time the caller's `tick()` resolves.
   onMount(() => {
     const el = container;
     if (!el) return;
@@ -109,8 +106,7 @@
     );
   }
 
-  // Values that move while grading continues (counts, shares) in the full text colour; static
-  // labels (grades, names, ranges) in the muted grey of the axis labels.
+  // Values that move while grading continues (counts, shares) in the full text colour; static labels (grades, names, ranges) in the muted grey of the axis labels.
   const partFill = (dynamic?: boolean) => (dynamic ? 'var(--color-content)' : 'var(--color-muted)');
 
   /** A bar path with rounded top corners, anchored flat on the baseline. */
@@ -247,9 +243,7 @@
 
 <div class="w-full min-w-0 overflow-hidden" bind:this={container}>
   {#if width > 0}
-    <!-- Sized by CSS, never by a pixel width: a fixed width would become the container's
-         min-content size, so the card could no longer shrink and the chart was cut off when
-         the window narrowed. -->
+    <!-- Sized by CSS, never by a pixel width: a fixed width would become the container's min-content size, so the card could no longer shrink and the chart was cut off when the window narrowed. -->
     <svg
       bind:this={svgEl}
       class="block h-auto w-full"
@@ -262,8 +256,7 @@
         <text x="0" y={base - h(tick) + 4} font-size="11" fill="var(--color-subtle)">{tick}</text>
       {/each}
 
-      <!-- Summary strip above the plot: the spread as a bracket, mean and median as marks on it.
-           Nothing is drawn inside the plot, so the bars and their captions stay untouched. -->
+      <!-- Summary strip above the plot: the spread as a bracket, mean and median as marks on it. Nothing is drawn inside the plot, so the bars and their captions stay untouched. -->
       {#each spans as span}
         {@const sx = clampX(Math.min(span.from, span.to))}
         {@const sw = clampX(Math.max(span.from, span.to)) - sx}
@@ -296,8 +289,7 @@
               fill="var(--color-content)"
             />
           {/if}
-          <!-- Guide line down to the axis (where the same mark sits again, small). Drawn before
-               the layers, so every bar covers it, and broken wherever it would cross a caption. -->
+          <!-- Guide line down to the axis (where the same mark sits again, small). Drawn before the layers, so every bar covers it, and broken wherever it would cross a caption. -->
           {#each guideSegments(mx, trackY + 6, base) as [g0, g1]}
             <line x1={mx} x2={mx} y1={g0} y2={g1} stroke="var(--color-muted)" stroke-opacity="0.6" stroke-width="1" stroke-dasharray="2 3" />
           {/each}
@@ -365,15 +357,12 @@
               <title>{c.title}</title>
               <path d={bar(x, base - confirmed, w, confirmed, c.provisional === 0)} {fill} />
               {#if c.provisional > 0}
-                <!-- Provisional share: the grade colour lightened with a white wash rather than made
-                     translucent, so it keeps its hue over the grade bars and never reads darker than
-                     a confirmed bar (or an empty one) of the same grade. -->
+                <!-- Provisional share: the grade colour lightened with a white wash rather than made translucent, so it keeps its hue over the grade bars and never reads darker than a confirmed bar (or an empty one) of the same grade. -->
                 <path d={bar(x, base - h(c.count), w, h(c.provisional), true)} {fill} />
                 <path d={bar(x, base - h(c.count), w, h(c.provisional), true)} fill="#ffffff" opacity="0.4" />
               {/if}
               {#if c.marks && c.count > 0}
-                <!-- Borderline zones: '+' (just short of the better grade) darkened at the top of the
-                     bar, '−' (just above the worse grade) at its foot, each set off by a white rule. -->
+                <!-- Borderline zones: '+' (just short of the better grade) darkened at the top of the bar, '−' (just above the worse grade) at its foot, each set off by a white rule. -->
                 {@const plusH = h(Math.min(c.marks.plus, c.count))}
                 {@const minusH = Math.min(h(c.marks.minus), h(c.count) - plusH)}
                 {#each [{ y: base - h(c.count), hgt: plusH, plus: true, rule: base - h(c.count) + plusH, round: true }, { y: base - minusH, hgt: minusH, plus: false, rule: base - minusH, round: false }] as zone}

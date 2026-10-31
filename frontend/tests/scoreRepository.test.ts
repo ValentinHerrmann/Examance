@@ -73,8 +73,7 @@ describe('scoreRepository', () => {
       [{ id: 'first-uuid', submissionId: 'sub-1', exerciseId: 'ex-1', score: 4 }],
       key
     );
-    // A fresh client-side uuid for an exercise already scored used to leave two
-    // rows behind, and the totals counted both.
+    // A fresh client-side uuid for an exercise already scored used to leave two rows behind, and the totals counted both.
     await scoreRepository.saveMany(
       'exam-1',
       'sub-1',
@@ -181,8 +180,7 @@ describe('scoreRepository', () => {
 
     let queued: { method: string; url: string }[] = [];
     offlineQueue.subscribe((q) => (queued = q))();
-    // PUT, not POST: the row is keyed by (submission, exercise) server-side, so
-    // replaying the write updates in place instead of colliding.
+    // PUT, not POST: the row is keyed by (submission, exercise) server-side, so replaying the write updates in place instead of colliding.
     expect(queued).toHaveLength(1);
     expect(queued[0].method).toBe('PUT');
     expect(queued[0].url).toBe('/exams/exam-1/submissions/sub-1/scores');

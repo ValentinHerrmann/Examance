@@ -1,8 +1,4 @@
-/**
- * Exercise resource files: local staging area plus server sync. The editor works against a *staging* owner id, never the
- * live exercise, so files can be attached and previewed before it exists; Save flushes the staged set to the API, cancel
- * discards it. Dexie is the working copy; server-seeded rows carry only metadata until their bytes are needed.
- */
+/** Exercise resource files: local staging area plus server sync. The editor works against a *staging* owner id, never the live exercise, so files can be attached and previewed before it exists; Save flushes the staged set to the API, cancel discards it. Dexie is the working copy; server-seeded rows carry only metadata until their bytes are needed. */
 
 import { api } from '#lib/api/client';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
@@ -45,10 +41,7 @@ export const exerciseResourceRepository = {
     return sortByName(rows);
   },
 
-    /**
-     * Fill a staging area with what *exerciseId* has. Local mode copies bytes; against a server only
-     * metadata, so opening the editor doesn't download every figure. Silent if the exercise isn't on the server yet.
-     */
+    /** Fill a staging area with what *exerciseId* has. Local mode copies bytes; against a server only metadata, so opening the editor doesn't download every figure. Silent if the exercise isn't on the server yet. */
   async seedStaging(exerciseId: string, stagingId: string, key: CryptoKey | null): Promise<void> {
     await db.exerciseResources.where('exerciseId').equals(stagingId).delete();
 
@@ -73,8 +66,7 @@ export const exerciseResourceRepository = {
         await db.exerciseResources.put({ ...row, id: crypto.randomUUID() });
       }
     } catch {
-      // Unsaved exercise, offline, or a server that does not know it — the
-      // staging area simply starts empty.
+      // Unsaved exercise, offline, or a server that does not know it — the staging area simply starts empty.
     }
   },
 
@@ -141,11 +133,7 @@ export const exerciseResourceRepository = {
     await db.exerciseResources.where('exerciseId').equals(ownerId).delete();
   },
 
-    /**
-     * Make the staged set the exercise's set. Local rows are re-keyed onto *exerciseId*; against a server
-     * the staged set is authoritative: new files upload and files removed while editing are deleted there.
-     * Called only after the exercise itself was saved, so the id exists.
-     */
+    /** Make the staged set the exercise's set. Local rows are re-keyed onto *exerciseId*; against a server the staged set is authoritative: new files upload and files removed while editing are deleted there. Called only after the exercise itself was saved, so the id exists. */
   async commit(
     stagingId: string,
     exerciseId: string,
@@ -207,10 +195,7 @@ export const exerciseResourceRepository = {
     return { errors };
   },
 
-    /**
-     * Resource files for a compilation. `inline` = bytes the server can't look up (staged files); `exerciseIds` = saved exercises whose files the server loads itself (smaller request).
-     * `needBytes` forces everything inline: the WASM engine runs in the browser with no database.
-     */
+    /** Resource files for a compilation. `inline` = bytes the server can't look up (staged files); `exerciseIds` = saved exercises whose files the server loads itself (smaller request). `needBytes` forces everything inline: the WASM engine runs in the browser with no database. */
   /** The files to export for a saved exercise: local rows when the cache has them, else the server's list. */
   async listForExport(exerciseId: string): Promise<ExerciseResourceRecord[]> {
     const local = await this.listLocal(exerciseId);
@@ -245,8 +230,7 @@ export const exerciseResourceRepository = {
             owner: owner.label ?? owner.id
           });
         } catch {
-          // Unreadable file (locked vault, deleted on the server): the compile
-          // still runs and the missing-graphics check reports the gap.
+          // Unreadable file (locked vault, deleted on the server): the compile still runs and the missing-graphics check reports the gap.
           unreadable.push(row.filename);
         }
       }

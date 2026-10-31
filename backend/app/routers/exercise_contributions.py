@@ -1,7 +1,4 @@
-"""Proposals back to a shared original — /api/v1/exercises/contributions/* (issue #65).
-
-Registered before the exercises router, whose `/{exercise_id}` would otherwise capture these
-paths. Only the owner and the contributor of a proposal ever see it; anyone else gets 404."""
+"""Proposals back to a shared original — /api/v1/exercises/contributions/* (issue #65). Registered before the exercises router, whose `/{exercise_id}` would otherwise capture these paths. Only the owner and the contributor of a proposal ever see it; anyone else gets 404."""
 from __future__ import annotations
 
 import uuid
@@ -18,7 +15,7 @@ from app.models.exercise import Exercise
 from app.models.exercise_contribution import ExerciseContribution, ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
 from app.models.teacher import Teacher
-from app.routers.exercises import _to_res
+from app.schemas.exam import ExerciseResponse
 from app.schemas.exercise_contributions import (
     ContributionAccept,
     ContributionCount,
@@ -217,7 +214,7 @@ async def get_contribution(
         correct_answers=row.correct_answers,
         max_points=row.max_points,
         penalty=row.penalty,
-        base=_to_res(base) if base is not None else None,
+        base=ExerciseResponse.from_exercise(base) if base is not None else None,
         files=out,
     )
 
@@ -245,8 +242,7 @@ async def accept_contribution(
     teacher: Teacher = Depends(require_exercise_sharing),
     db: AsyncSession = Depends(get_db),
 ) -> ContributionSummary:
-    """Adopt a proposal as a new version (or a new variant at version 1); the owner may edit it.
-    Nothing is updated in place, so the owner's exams keep the rows they link."""
+    """Adopt a proposal as a new version (or a new variant at version 1); the owner may edit it. Nothing is updated in place, so the owner's exams keep the rows they link."""
     await contrib.accept(
         teacher,
         contribution_id,

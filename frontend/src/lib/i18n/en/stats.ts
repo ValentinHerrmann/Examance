@@ -7,10 +7,10 @@ export const stats: Translations['stats'] = {
         partialIndicator: '({partial} partially graded, {full} fully graded)',
         pendingIndicator: '({pending} not yet started)',
         emptyStats: 'No exercises graded yet. Statistics will appear here once you start grading.',
+        loadFailed: 'The results of this exam could not be loaded: {message}',
         exportButton: 'Export Grades CSV (Excel Compatible)',
     },
     cards: {
-        submissionsGraded: 'Submissions (graded)',
         gradeAverage: 'Class average grade',
         passRate: 'Pass rate',
         avgPoints: 'Avg. points',
@@ -109,6 +109,7 @@ export const stats: Translations['stats'] = {
     analyticsPage: {
         heading: 'Global Multi-Exam Analytics',
         subtitle: 'Cross-exam performance tracking, exercise quality metrics & variant comparison',
+        loadFailed: 'The analytics could not be loaded: {message}',
     },
     analyticsBanner: {
         loading: 'Loading analytics data across all exams…',

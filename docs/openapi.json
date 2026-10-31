@@ -58,7 +58,7 @@
           "auth"
         ],
         "summary": "Register",
-        "description": "Ask for an account: mails a verification link to the address; nothing is created until used.\n\nAnswers the same whether or not the address already has an account (nothing is mailed then),\nand the mail goes out after the response so timing does not tell either.",
+        "description": "Ask for an account: mails a verification link to the address; nothing is created until used. Answers the same whether or not the address already has an account (nothing is mailed then), and the mail goes out after the response so timing does not tell either.",
         "operationId": "register_api_v1_auth_register_post",
         "requestBody": {
           "content": {
@@ -104,7 +104,7 @@
           "auth"
         ],
         "summary": "Complete Registration",
-        "description": "Verify the address with the mailed token and create the account with the chosen password.\n\nAn address on the admin's always-allowed list is approved at once, any other account waits\nfor an admin (notified). Neither issues a session: the registrant signs in and enrolls then.",
+        "description": "Verify the address with the mailed token and create the account with the chosen password. An address on the admin's always-allowed list is approved at once, any other account waits for an admin (notified). Neither issues a session: the registrant signs in and enrolls then.",
         "operationId": "complete_registration_api_v1_auth_register_complete_post",
         "requestBody": {
           "content": {
@@ -146,7 +146,7 @@
           "auth"
         ],
         "summary": "Preview Account Deletion",
-        "description": "What the mailed self-deletion link would delete, for the confirmation page. Deletes nothing:\na mail scanner that opens the link must not delete the account.",
+        "description": "What the mailed self-deletion link would delete, for the confirmation page. Deletes nothing: a mail scanner that opens the link must not delete the account.",
         "operationId": "preview_account_deletion_api_v1_auth_account_deletion_preview_post",
         "requestBody": {
           "content": {
@@ -188,7 +188,7 @@
           "auth"
         ],
         "summary": "Confirm Account Deletion",
-        "description": "GDPR Art. 17: delete the account behind the mailed single-use link (last admin refused).\n\nNo session needed (the link proves the mailbox); exercises stay ownerless if the holder asked.\nCookies are left alone (they may belong to another account; this one's tokens die with it).",
+        "description": "GDPR Art. 17: delete the account behind the mailed single-use link (last admin refused). No session needed (the link proves the mailbox); exercises stay ownerless if the holder asked. Cookies are left alone (they may belong to another account; this one's tokens die with it).",
         "operationId": "confirm_account_deletion_api_v1_auth_account_deletion_confirm_post",
         "parameters": [
           {
@@ -250,7 +250,7 @@
           "auth"
         ],
         "summary": "Start Reset",
-        "description": "Open a password reset with the emailed link (the token is *one* of the two required factors).\n\nMailbox access alone must not complete a reset. An account that has not finished enrolling has\nno second factor to offer, so it gets a `reset_pending` token that completes it alone.",
+        "description": "Open a password reset with the emailed link (the token is *one* of the two required factors). Mailbox access alone must not complete a reset. An account that has not finished enrolling has no second factor to offer, so it gets a `reset_pending` token that completes it alone.",
         "operationId": "start_reset_api_v1_auth_reset_start_post",
         "requestBody": {
           "content": {
@@ -292,7 +292,7 @@
           "auth"
         ],
         "summary": "Reset Password",
-        "description": "Set the new password and store the re-wrapped data key with it, in one transaction.\n\nA password without its key copy looks like a working account until a sign-in opens nothing.\nNo envelope: the password wrap is marked unusable and the teacher needs the recovery code.",
+        "description": "Set the new password and store the re-wrapped data key with it, in one transaction. A password without its key copy looks like a working account until a sign-in opens nothing. No envelope: the password wrap is marked unusable and the teacher needs the recovery code.",
         "operationId": "reset_password_api_v1_auth_reset_password_post",
         "parameters": [
           {
@@ -356,7 +356,7 @@
           "auth"
         ],
         "summary": "Change Password",
-        "description": "Change the password of a signed-in account, keeping the session.\n\nThe client re-wraps the data key; wrap and password go in one transaction so they never diverge.\nThe current password uses the `/auth/login` throttle, else this is a cooloff-free oracle.",
+        "description": "Change the password of a signed-in account, keeping the session. The client re-wraps the data key; wrap and password go in one transaction so they never diverge. The current password uses the `/auth/login` throttle, else this is a cooloff-free oracle.",
         "operationId": "change_password_api_v1_auth_change_password_post",
         "parameters": [
           {
@@ -420,7 +420,7 @@
           "auth"
         ],
         "summary": "Factor Password",
-        "description": "Present the password as the *second* factor (`/auth/login` can only open a sign-in).\n\nThe account comes from the pending token; taking an email here would make the second step an\naccount-existence probe. Not reachable in the reset flow (the emailed token stands in).",
+        "description": "Present the password as the *second* factor (`/auth/login` can only open a sign-in). The account comes from the pending token; taking an email here would make the second step an account-existence probe. Not reachable in the reset flow (the emailed token stands in).",
         "operationId": "factor_password_api_v1_auth_factor_password_post",
         "parameters": [
           {
@@ -480,7 +480,7 @@
           "auth"
         ],
         "summary": "Factor Totp",
-        "description": "Present an authenticator code as the second factor.\n\nSecond position only: a TOTP code does not identify an account, so accepting it first would\nneed an email alongside it, a probe for which addresses have accounts.",
+        "description": "Present an authenticator code as the second factor. Second position only: a TOTP code does not identify an account, so accepting it first would need an email alongside it, a probe for which addresses have accounts.",
         "operationId": "factor_totp_api_v1_auth_factor_totp_post",
         "parameters": [
           {
@@ -540,7 +540,7 @@
           "auth"
         ],
         "summary": "Factor Backup Code",
-        "description": "Spend a backup code in place of the authenticator.\n\nIt counts as the ``totp`` factor, so it cannot be paired with a TOTP code to\nmake up two: it stands in for that factor rather than adding one.",
+        "description": "Spend a backup code in place of the authenticator. It counts as the ``totp`` factor, so it cannot be paired with a TOTP code to make up two: it stands in for that factor rather than adding one.",
         "operationId": "factor_backup_code_api_v1_auth_factor_backup_code_post",
         "parameters": [
           {
@@ -600,7 +600,7 @@
           "auth"
         ],
         "summary": "Login",
-        "description": "Verify credentials, set httpOnly access + refresh cookies.\n\nResponse body contains only { email, role } \u2014 never the token value.",
+        "description": "Verify credentials, set httpOnly access + refresh cookies. Response body contains only { email, role } \u2014 never the token value.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -642,7 +642,7 @@
           "auth"
         ],
         "summary": "Refresh",
-        "description": "Issue new access + refresh cookies, revoke the old refresh token.\n\nDetects concurrent use (token theft) if the token is already revoked.",
+        "description": "Issue new access + refresh cookies, revoke the old refresh token. Detects concurrent use (token theft) if the token is already revoked.",
         "operationId": "refresh_api_v1_auth_refresh_post",
         "parameters": [
           {
@@ -692,7 +692,7 @@
           "auth"
         ],
         "summary": "Logout",
-        "description": "Clear auth cookies and revoke the refresh token.\n\nDeliberately needs no session, so a teacher with a half-finished or expired sign-in can still\nclear their cookies. The revocation is authenticated by the refresh token itself.",
+        "description": "Clear auth cookies and revoke the refresh token. Deliberately needs no session, so a teacher with a half-finished or expired sign-in can still clear their cookies. The revocation is authenticated by the refresh token itself.",
         "operationId": "logout_api_v1_auth_logout_post",
         "parameters": [
           {
@@ -729,14 +729,130 @@
         }
       }
     },
+    "/api/v1/compile/latex/jobs": {
+      "post": {
+        "tags": [
+          "compile"
+        ],
+        "summary": "Start Compile Job",
+        "description": "Start a compile (body limit: BODY_LIMIT_COMPILE) and answer at once with its `job_id`; poll `GET /compile/latex/jobs/{job_id}`. Passes get the full COMPILE_TIMEOUT_SECONDS, which no proxy sees.",
+        "operationId": "start_compile_job_api_v1_compile_latex_jobs_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaTeXRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/compile/latex/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "compile"
+        ],
+        "summary": "Poll Compile Job",
+        "description": "202 `{\"status\": \"pending\"}` while running, then once the PDF (200) or the compile's error response; answers at once, never long-polls.",
+        "operationId": "poll_compile_job_api_v1_compile_latex_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/compile/latex": {
       "post": {
         "tags": [
           "compile"
         ],
         "summary": "Compile Latex Endpoint",
-        "description": "Compile LaTeX source to PDF via Tectonic (body limit: BODY_LIMIT_COMPILE).\n\nExtra files come from `resource_exercise_ids` (stored on the server) and `resources` (unsaved\nor local-only exercises). LaTeX source is NEVER logged; 422 detail is TeX diagnostics only.",
+        "description": "Synchronous compile with the 30 s preview budget, kept for tabs still running an older app; new clients use the jobs above (a long compile here hits the proxy timeout).",
         "operationId": "compile_latex_endpoint_api_v1_compile_latex_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "access_token",
@@ -953,7 +1069,7 @@
           "exams"
         ],
         "summary": "Duplicate Exam",
-        "description": "Copy an exam's header, settings, MC groups and exercise links into a new exam (issue #121).\nNever copies results: students, submissions and scores belong to the source only.",
+        "description": "Copy an exam's header, settings, MC groups and exercise links into a new exam (issue #121). Never copies results: students, submissions and scores belong to the source only.",
         "operationId": "duplicate_exam_api_v1_exams__exam_id__duplicate_post",
         "parameters": [
           {
@@ -1149,7 +1265,7 @@
           "exams"
         ],
         "summary": "Delete Exam",
-        "description": "Soft-delete an exam and start the erasure grace period of its student data.\n\nRetention skips deleted exams and only erases child rows with a deadline, so without the\ncascade a deleted exam's identities and submissions would be kept forever.",
+        "description": "Soft-delete an exam and start the erasure grace period of its student data. Retention skips deleted exams and only erases child rows with a deadline, so without the cascade a deleted exam's identities and submissions would be kept forever.",
         "operationId": "delete_exam_api_v1_exams__exam_id__delete",
         "parameters": [
           {
@@ -1244,74 +1360,6 @@
                   },
                   "title": "Response List Exam Exercises Api V1 Exams  Exam Id  Exercises Get"
                 }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/exams/{exam_id}/compile": {
-      "post": {
-        "tags": [
-          "exams"
-        ],
-        "summary": "Compile Exam Endpoint",
-        "description": "Compile complete exam LaTeX document using live-linked library exercises.",
-        "operationId": "compile_exam_endpoint_api_v1_exams__exam_id__compile_post",
-        "parameters": [
-          {
-            "name": "exam_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Exam Id"
-            }
-          },
-          {
-            "name": "answers",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Answers"
-            }
-          },
-          {
-            "name": "access_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
               }
             }
           },
@@ -1657,7 +1705,7 @@
           "logos"
         ],
         "summary": "Set Account Logo",
-        "description": "Choose the account logo: the bundled default (`default`), none (`none`), or its own file\n(`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`).",
+        "description": "Choose the account logo: the bundled default (`default`), none (`none`), or its own file (`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`).",
         "operationId": "set_account_logo_api_v1_user_logo_put",
         "parameters": [
           {
@@ -1871,7 +1919,7 @@
           "logos"
         ],
         "summary": "Set Exam Logo",
-        "description": "Choose the exam's logo: follow the account (`account`), print none (`none`), or print its\nown (`custom`, with `content_b64` to replace the stored file).",
+        "description": "Choose the exam's logo: follow the account (`account`), print none (`none`), or print its own (`custom`, with `content_b64` to replace the stored file).",
         "operationId": "set_exam_logo_api_v1_exams__exam_id__logo_put",
         "parameters": [
           {
@@ -2245,7 +2293,7 @@
           "exercise-contributions"
         ],
         "summary": "Accept Contribution",
-        "description": "Adopt a proposal as a new version (or a new variant at version 1); the owner may edit it.\nNothing is updated in place, so the owner's exams keep the rows they link.",
+        "description": "Adopt a proposal as a new version (or a new variant at version 1); the owner may edit it. Nothing is updated in place, so the owner's exams keep the rows they link.",
         "operationId": "accept_contribution_api_v1_exercises_contributions__contribution_id__accept_post",
         "parameters": [
           {
@@ -2431,7 +2479,7 @@
           "exercises"
         ],
         "summary": "List Exercises",
-        "description": "List the teacher's own library. Shared rows are listed by `/shared` and only ever copied,\nso the library, the exam picker and the offline mirror never hold another account's row.",
+        "description": "List the teacher's own library. Shared rows are listed by `/shared` and only ever copied, so the library, the exam picker and the offline mirror never hold another account's row.",
         "operationId": "list_exercises_api_v1_exercises_get",
         "parameters": [
           {
@@ -2775,7 +2823,7 @@
           "exercises"
         ],
         "summary": "Get Sync Status",
-        "description": "For each own group copied from a shared one: whether the source changed since the last\nsync. \"source_unavailable\" does not tell unshared from deleted, on purpose.",
+        "description": "For each own group copied from a shared one: whether the source changed since the last sync. \"source_unavailable\" does not tell unshared from deleted, on purpose.",
         "operationId": "get_sync_status_api_v1_exercises_sync_status_get",
         "parameters": [
           {
@@ -2899,7 +2947,7 @@
           "exercises"
         ],
         "summary": "Get Exercise",
-        "description": "Get an own exercise, or one shared with the caller (then without owner id or provenance,\nso `teacher_id` tells the caller whether the row is theirs).",
+        "description": "Get an own exercise, or one shared with the caller (then without owner id or provenance, so `teacher_id` tells the caller whether the row is theirs).",
         "operationId": "get_exercise_api_v1_exercises__exercise_id__get",
         "parameters": [
           {
@@ -3025,7 +3073,7 @@
           "exercises"
         ],
         "summary": "Delete Exercise",
-        "description": "Delete an exercise from the caller's own library. Idempotent: always 204.\nOnly exercises owned by *teacher* are deleted, so a foreign id is a silent no-op that\ndoes not reveal the id exists.",
+        "description": "Delete an exercise from the caller's own library. Idempotent: always 204. Only exercises owned by *teacher* are deleted, so a foreign id is a silent no-op that does not reveal the id exists.",
         "operationId": "delete_exercise_api_v1_exercises__exercise_id__delete",
         "parameters": [
           {
@@ -3218,7 +3266,7 @@
           "exercises"
         ],
         "summary": "Get Exercise Usage",
-        "description": "Get count and details of non-deleted exams referencing this exercise.\n\nOnly the caller's own exams are reported, so usage of a published exercise\nin another teacher's exam is never disclosed.",
+        "description": "Get count and details of non-deleted exams referencing this exercise. Only the caller's own exams are reported, so usage of a published exercise in another teacher's exam is never disclosed.",
         "operationId": "get_exercise_usage_api_v1_exercises__exercise_id__usage_get",
         "parameters": [
           {
@@ -3278,7 +3326,7 @@
           "exercises"
         ],
         "summary": "Set Exercise Sharing",
-        "description": "Share an own exercise group (all its variants) with every account, or stop sharing it.\nStopping is never gated, so a revoked account can still withdraw; copies stay with copiers.",
+        "description": "Share an own exercise group (all its variants) with every account, or stop sharing it. Stopping is never gated, so a revoked account can still withdraw; copies stay with copiers.",
         "operationId": "set_exercise_sharing_api_v1_exercises__exercise_id__sharing_put",
         "parameters": [
           {
@@ -3352,7 +3400,7 @@
           "exercises"
         ],
         "summary": "Set Sharing Bulk",
-        "description": "Share or stop sharing every own library group at once. Copied groups are skipped (never\nshared as one's own); stopping is never gated.",
+        "description": "Share or stop sharing every own library group at once. Copied groups are skipped (never shared as one's own); stopping is never gated.",
         "operationId": "set_sharing_bulk_api_v1_exercises_sharing_bulk_post",
         "parameters": [
           {
@@ -3412,7 +3460,7 @@
           "exercises"
         ],
         "summary": "Set Sharing Paused",
-        "description": "Hide (or show again) everything the account shares; per-group choices are kept. Pausing\nis never gated; resuming needs the sharing switch.",
+        "description": "Hide (or show again) everything the account shares; per-group choices are kept. Pausing is never gated; resuming needs the sharing switch.",
         "operationId": "set_sharing_paused_api_v1_exercises_sharing_pause_put",
         "parameters": [
           {
@@ -3465,7 +3513,7 @@
           "exercises"
         ],
         "summary": "Copy Shared Exercise",
-        "description": "Copy a shared exercise group into the caller's library as a new private group that stays\nlinked to its source. 404 for anything not shared with the caller, existing or not.",
+        "description": "Copy a shared exercise group into the caller's library as a new private group that stays linked to its source. 404 for anything not shared with the caller, existing or not.",
         "operationId": "copy_shared_exercise_api_v1_exercises__exercise_id__copy_post",
         "parameters": [
           {
@@ -3525,7 +3573,7 @@
           "exercises"
         ],
         "summary": "Duplicate Exercise",
-        "description": "Duplicate an own exercise group (current version of every variant) as a new private\ngroup, e.g. as the starting point for a similar exercise (issue #121).",
+        "description": "Duplicate an own exercise group (current version of every variant) as a new private group, e.g. as the starting point for a similar exercise (issue #121).",
         "operationId": "duplicate_exercise_api_v1_exercises__exercise_id__duplicate_post",
         "parameters": [
           {
@@ -3585,7 +3633,7 @@
           "exercises"
         ],
         "summary": "Resync Preview",
-        "description": "Per variant of a copied group: own current row, source current row and the source\nfingerprint the resync request must echo.",
+        "description": "Per variant of a copied group: own current row, source current row and the source fingerprint the resync request must echo.",
         "operationId": "resync_preview_api_v1_exercises_groups__group_id__resync_preview_get",
         "parameters": [
           {
@@ -3645,7 +3693,7 @@
           "exercises"
         ],
         "summary": "Resync Group",
-        "description": "Bring a copied group up to its source: changed variants become new versions (the old row\nstays for the exams that link it), new source variants new rows. 409 if the source changed\nsince the reviewed preview.",
+        "description": "Bring a copied group up to its source: changed variants become new versions (the old row stays for the exams that link it), new source variants new rows. 409 if the source changed since the reviewed preview.",
         "operationId": "resync_group_api_v1_exercises_groups__group_id__resync_post",
         "parameters": [
           {
@@ -3719,7 +3767,7 @@
           "exercises"
         ],
         "summary": "Submit Contributions",
-        "description": "Propose variants of a linked copy to the original's author: changed ones as new versions,\nones added to the copy as new variants. The author is notified and decides.",
+        "description": "Propose variants of a linked copy to the original's author: changed ones as new versions, ones added to the copy as new variants. The author is notified and decides.",
         "operationId": "submit_contributions_api_v1_exercises_groups__group_id__contributions_post",
         "parameters": [
           {
@@ -3909,7 +3957,7 @@
           "exercises"
         ],
         "summary": "Create Exercise Resource",
-        "description": "Attach a file to an exercise. Uploading an existing filename replaces it.\n\nThe filename is sanitised and checked against the bundled LaTeX assets by\nthe schema; SVG is refused there with a convert-to-PDF hint.",
+        "description": "Attach a file to an exercise. Uploading an existing filename replaces it. The filename is sanitised and checked against the bundled LaTeX assets by the schema; SVG is refused there with a convert-to-PDF hint.",
         "operationId": "create_exercise_resource_api_v1_exercises__exercise_id__resources_post",
         "parameters": [
           {
@@ -4318,7 +4366,7 @@
           "students"
         ],
         "summary": "Erase Student Identity",
-        "description": "GDPR Art. 17 Erasure \u2014 hard delete student identity + cascade submissions.\nAppends an immutable audit log entry.",
+        "description": "GDPR Art. 17 Erasure \u2014 hard delete student identity + cascade submissions. Appends an immutable audit log entry.",
         "operationId": "erase_student_identity_api_v1_exams__exam_id__students__pseudonym_hmac__delete",
         "parameters": [
           {
@@ -4869,7 +4917,7 @@
           "exercise-scores"
         ],
         "summary": "Put Scores",
-        "description": "Upsert the listed scores; unlisted ones are left alone (clearing is a DELETE).\n\nRows resolve by (submission_id, exercise_id), never by the client's id, so a\nreplay updates in place instead of answering 409.",
+        "description": "Upsert the listed scores; unlisted ones are left alone (clearing is a DELETE). Rows resolve by (submission_id, exercise_id), never by the client's id, so a replay updates in place instead of answering 409.",
         "operationId": "put_scores_api_v1_exams__exam_id__submissions__submission_id__scores_put",
         "parameters": [
           {
@@ -5234,7 +5282,7 @@
           "admin"
         ],
         "summary": "Create User",
-        "description": "Invite a teacher/admin: create the account without a password (Admin only).\n\nApproved with the given features; the address counts as verified because the mailed\nset-password link is the only way in. A pending self-registration for it is superseded.",
+        "description": "Invite a teacher/admin: create the account without a password (Admin only). Approved with the given features; the address counts as verified because the mailed set-password link is the only way in. A pending self-registration for it is superseded.",
         "operationId": "create_user_api_v1_admin_users_post",
         "parameters": [
           {
@@ -5294,7 +5342,7 @@
           "admin"
         ],
         "summary": "Approve User",
-        "description": "Approve a pending registration with the given features (Admin only).\n\nConditional on the account still being pending, so two admins approving at once send one\nmail. The registrant's note is erased: it only served this decision.",
+        "description": "Approve a pending registration with the given features (Admin only). Conditional on the account still being pending, so two admins approving at once send one mail. The registrant's note is erased: it only served this decision.",
         "operationId": "approve_user_api_v1_admin_users__user_id__approve_post",
         "parameters": [
           {
@@ -5364,7 +5412,7 @@
           "admin"
         ],
         "summary": "Reject User",
-        "description": "Reject a pending registration: the account is deleted and the registrant told (Admin only).\n\nOnly ever deletes an account that is still pending; an approved one is refused.",
+        "description": "Reject a pending registration: the account is deleted and the registrant told (Admin only). Only ever deletes an account that is still pending; an approved one is refused.",
         "operationId": "reject_user_api_v1_admin_users__user_id__reject_post",
         "parameters": [
           {
@@ -5417,7 +5465,7 @@
           "admin"
         ],
         "summary": "Update User Features",
-        "description": "Change an account's feature switches (Admin only).\n\nRevoking `server_results` from an account in \"all-server\" mode does not touch its data: the\nnext time it opens, the app asks it to move its results into the browser.",
+        "description": "Change an account's feature switches (Admin only). Revoking `server_results` from an account in \"all-server\" mode does not touch its data: the next time it opens, the app asks it to move its results into the browser.",
         "operationId": "update_user_features_api_v1_admin_users__user_id__features_patch",
         "parameters": [
           {
@@ -5487,7 +5535,7 @@
           "admin"
         ],
         "summary": "Delete User",
-        "description": "Delete an approved account and everything it owns (Admin only).\n\nWith `keep_exercises` its library exercises stay ownerless (`services/account_deletion.py`).\nPending registrations go through `/reject`; admins delete their own account in settings.",
+        "description": "Delete an approved account and everything it owns (Admin only). With `keep_exercises` its library exercises stay ownerless (`services/account_deletion.py`). Pending registrations go through `/reject`; admins delete their own account in settings.",
         "operationId": "delete_user_api_v1_admin_users__user_id__delete",
         "parameters": [
           {
@@ -5550,7 +5598,7 @@
           "admin"
         ],
         "summary": "Reset User Password",
-        "description": "Trigger an admin-forced password reset for an existing user (Admin only).\n\nEmails a single-use reset token; the existing password stays active until the link is used.\nFor an invited account that never set a password this resends the invitation.",
+        "description": "Trigger an admin-forced password reset for an existing user (Admin only). Emails a single-use reset token; the existing password stays active until the link is used. For an invited account that never set a password this resends the invitation.",
         "operationId": "reset_user_password_api_v1_admin_users__user_id__reset_password_post",
         "parameters": [
           {
@@ -5662,7 +5710,7 @@
           "admin"
         ],
         "summary": "Add Allowed Domain",
-        "description": "Approve every future registration from a domain automatically (Admin only).\n\nExact match on the part after '@'; subdomains need their own entry. Existing accounts are\nnot affected.",
+        "description": "Approve every future registration from a domain automatically (Admin only). Exact match on the part after '@'; subdomains need their own entry. Existing accounts are not affected.",
         "operationId": "add_allowed_domain_api_v1_admin_allowed_domains_post",
         "parameters": [
           {
@@ -5843,7 +5891,7 @@
           "admin"
         ],
         "summary": "Reset User Factors",
-        "description": "Clear a user's authenticator and passkeys (Admin only), the escape hatch for a lost factor.\n\nDoes not restore data access: the server cannot read key copies, so the removed factors' wraps\nare gone; the recovery code stays the way back (else an admin could read the data).",
+        "description": "Clear a user's authenticator and passkeys (Admin only), the escape hatch for a lost factor. Does not restore data access: the server cannot read key copies, so the removed factors' wraps are gone; the recovery code stays the way back (else an admin could read the data).",
         "operationId": "reset_user_factors_api_v1_admin_users__user_id__reset_factors_post",
         "parameters": [
           {
@@ -6133,6 +6181,66 @@
         }
       }
     },
+    "/api/v1/admin/maintenance/start-now": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Start Maintenance Now",
+        "description": "Cut the countdown of the open window short, e.g. when nobody is online (issue #149).",
+        "operationId": "start_maintenance_now_api_v1_admin_maintenance_start_now_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceStartNowRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminMaintenanceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user/capabilities": {
       "get": {
         "tags": [
@@ -6189,7 +6297,7 @@
           "user"
         ],
         "summary": "Set Storage Mode",
-        "description": "Records the account's storage mode, compare-and-set on `expected`. Moving the results\nbetween server and browser is the client's job and happens before this call; this only\nstates where they now live.",
+        "description": "Records the account's storage mode, compare-and-set on `expected`. Moving the results between server and browser is the client's job and happens before this call; this only states where they now live.",
         "operationId": "set_storage_mode_api_v1_user_storage_mode_put",
         "parameters": [
           {
@@ -6249,7 +6357,7 @@
           "user"
         ],
         "summary": "Purge Server Student Data",
-        "description": "Soft-delete the teacher's student identities and scan submissions (hard delete after 7 days).\n\nLaTeX exercises, exam structures and their resource files stay (teacher-authored content).\nA file with personal data (e.g. a pupil photo) must be deleted with the exercise or itself.",
+        "description": "Soft-delete the teacher's student identities and scan submissions (hard delete after 7 days). LaTeX exercises, exam structures and their resource files stay (teacher-authored content). A file with personal data (e.g. a pupil photo) must be deleted with the exercise or itself.",
         "operationId": "purge_server_student_data_api_v1_user_purge_server_student_data_post",
         "parameters": [
           {
@@ -6301,7 +6409,7 @@
           "user"
         ],
         "summary": "Restore Server Data",
-        "description": "Restore soft-deleted student identities and scan submissions for the current teacher\nif they are within the 7-day retention grace period.",
+        "description": "Restore soft-deleted student identities and scan submissions for the current teacher if they are within the 7-day retention grace period.",
         "operationId": "restore_server_data_api_v1_user_restore_server_data_post",
         "parameters": [
           {
@@ -6353,7 +6461,7 @@
           "user"
         ],
         "summary": "Export Own Data",
-        "description": "GDPR Art. 15/20: machine-readable copy of the account holder's own data.\n\nOnly what the server holds *about the teacher*: account fields, authored exams, audit trail.\nStudent payloads are excluded (the server cannot read them); use the client-side export.",
+        "description": "GDPR Art. 15/20: machine-readable copy of the account holder's own data. Only what the server holds *about the teacher*: account fields, authored exams, audit trail. Student payloads are excluded (the server cannot read them); use the client-side export.",
         "operationId": "export_own_data_api_v1_user_me_export_get",
         "parameters": [
           {
@@ -6405,7 +6513,7 @@
           "user"
         ],
         "summary": "Request Account Deletion",
-        "description": "GDPR Art. 17: ask to delete one's own account; mails a single-use confirmation link.\n\nThe link leads to `POST /auth/account-deletion/confirm` (see `services/account_deletion.py`).\nA new request replaces an open one; the last admin account is refused up front.",
+        "description": "GDPR Art. 17: ask to delete one's own account; mails a single-use confirmation link. The link leads to `POST /auth/account-deletion/confirm` (see `services/account_deletion.py`). A new request replaces an open one; the last admin account is refused up front.",
         "operationId": "request_account_deletion_api_v1_user_me_deletion_request_post",
         "parameters": [
           {
@@ -6467,7 +6575,7 @@
           "keys"
         ],
         "summary": "List Envelopes",
-        "description": "Return every wrap for the calling teacher, invalidated rows included and marked, so the client\ncan tell a factor orphaned by an admin password write from one never enrolled.",
+        "description": "Return every wrap for the calling teacher, invalidated rows included and marked, so the client can tell a factor orphaned by an admin password write from one never enrolled.",
         "operationId": "list_envelopes_api_v1_keys_envelopes_get",
         "parameters": [
           {
@@ -6515,7 +6623,7 @@
           "keys"
         ],
         "summary": "Replace Envelopes",
-        "description": "Replace the teacher's whole envelope set in one transaction.\nWholesale on purpose: merging could leave a new password wrap beside a recovery wrap holding\nthe previous DEK, which looks healthy until someone needs to recover.",
+        "description": "Replace the teacher's whole envelope set in one transaction. Wholesale on purpose: merging could leave a new password wrap beside a recovery wrap holding the previous DEK, which looks healthy until someone needs to recover.",
         "operationId": "replace_envelopes_api_v1_keys_envelopes_put",
         "parameters": [
           {
@@ -6575,7 +6683,7 @@
           "keys"
         ],
         "summary": "Delete Envelope",
-        "description": "Remove a single wrap (used when a passkey is deregistered).\nThe recovery wrap cannot be deleted this way: it always works, and dropping it would leave\nthe account one forgotten password from unreadable data.",
+        "description": "Remove a single wrap (used when a passkey is deregistered). The recovery wrap cannot be deleted this way: it always works, and dropping it would leave the account one forgotten password from unreadable data.",
         "operationId": "delete_envelope_api_v1_keys_envelopes__envelope_id__delete",
         "parameters": [
           {
@@ -6628,7 +6736,7 @@
           "mfa"
         ],
         "summary": "Mfa Status",
-        "description": "What this account has enrolled, whether that is enough to sign in, and per-factor details for\nthe security page. Only about the *authenticated* account, so it is no profile oracle for an\nemail.",
+        "description": "What this account has enrolled, whether that is enough to sign in, and per-factor details for the security page. Only about the *authenticated* account, so it is no profile oracle for an email.",
         "operationId": "mfa_status_api_v1_mfa_status_get",
         "parameters": [
           {
@@ -6678,7 +6786,7 @@
           "mfa"
         ],
         "summary": "Enroll Totp",
-        "description": "Start an authenticator enrollment.\nThe secret is returned once, in the `otpauth://` URI, and never again: re-serving it would let\nanyone holding a session clone the second factor, while a lost setup just starts over.",
+        "description": "Start an authenticator enrollment. The secret is returned once, in the `otpauth://` URI, and never again: re-serving it would let anyone holding a session clone the second factor, while a lost setup just starts over.",
         "operationId": "enroll_totp_api_v1_mfa_totp_enroll_post",
         "parameters": [
           {
@@ -6728,7 +6836,7 @@
           "mfa"
         ],
         "summary": "Confirm Totp",
-        "description": "Prove the authenticator works, which is what makes it count as a factor.\n\nReturns the backup codes once. They are the way back when the phone is lost,\nand they stand in for this factor rather than adding a third.",
+        "description": "Prove the authenticator works, which is what makes it count as a factor. Returns the backup codes once. They are the way back when the phone is lost, and they stand in for this factor rather than adding a third.",
         "operationId": "confirm_totp_api_v1_mfa_totp_confirm_post",
         "parameters": [
           {
@@ -6838,7 +6946,7 @@
           "mfa"
         ],
         "summary": "Disable Totp",
-        "description": "Remove the authenticator, refused if it would drop the account below two sign-in factors or\nbelow its last means of decrypting its own data. That guard makes \"any two of three\" safe.",
+        "description": "Remove the authenticator, refused if it would drop the account below two sign-in factors or below its last means of decrypting its own data. That guard makes \"any two of three\" safe.",
         "operationId": "disable_totp_api_v1_mfa_totp_delete",
         "parameters": [
           {
@@ -6990,7 +7098,7 @@
           "webauthn"
         ],
         "summary": "Login Options",
-        "description": "Options for a passkey sign-in.\n\nUnauthenticated and rate-limited: it allocates a challenge per call, and it\ntakes no account identifier, so there is nothing here to probe with.",
+        "description": "Options for a passkey sign-in. Unauthenticated and rate-limited: it allocates a challenge per call, and it takes no account identifier, so there is nothing here to probe with.",
         "operationId": "login_options_api_v1_webauthn_login_options_post",
         "responses": {
           "200": {
@@ -7012,7 +7120,7 @@
           "webauthn"
         ],
         "summary": "Login Verify",
-        "description": "Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy.\nThe cookie is read directly, not via a dependency, because this must work with no session\n(passkey first) and with a sign-in part-way through (passkey second).",
+        "description": "Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy. The cookie is read directly, not via a dependency, because this must work with no session (passkey first) and with a sign-in part-way through (passkey second).",
         "operationId": "login_verify_api_v1_webauthn_login_verify_post",
         "parameters": [
           {
@@ -7121,7 +7229,7 @@
           "webauthn"
         ],
         "summary": "Delete Credential",
-        "description": "Remove a passkey.\n\nRefused when it would drop the account below two sign-in factors, or below\nits last means of decrypting its own data.",
+        "description": "Remove a passkey. Refused when it would drop the account below two sign-in factors, or below its last means of decrypting its own data.",
         "operationId": "delete_credential_api_v1_webauthn_credentials__credential_id_b64__delete",
         "parameters": [
           {
@@ -7367,6 +7475,386 @@
         }
       }
     },
+    "/api/v1/layout-reports": {
+      "post": {
+        "tags": [
+          "layout-reports"
+        ],
+        "summary": "Create Layout Report",
+        "description": "Store a report and notify the admins (count and link only).",
+        "operationId": "create_layout_report_api_v1_layout_reports_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LayoutReportCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/layout-reports": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Layout Reports",
+        "description": "Reports, newest first (Admin only).",
+        "operationId": "list_layout_reports_api_v1_admin_layout_reports_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "open",
+                "done"
+              ],
+              "type": "string",
+              "default": "open",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutReportList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/layout-reports/{report_id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Layout Report",
+        "operationId": "get_layout_report_api_v1_admin_layout_reports__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutReportDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Delete Layout Report",
+        "operationId": "delete_layout_report_api_v1_admin_layout_reports__report_id__delete",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/layout-reports/{report_id}/files/{file_id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Download Layout Report File",
+        "description": "One attached file; served like exercise resources (only PDF/PNG/JPEG inline).",
+        "operationId": "download_layout_report_file_api_v1_admin_layout_reports__report_id__files__file_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/layout-reports/{report_id}/resolve": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Resolve Layout Report",
+        "description": "Mark resolved and tell the reporter by mail (with the optional note). Idempotent.",
+        "operationId": "resolve_layout_report_api_v1_admin_layout_reports__report_id__resolve_post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LayoutReportResolve"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -7468,7 +7956,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "AccountFeatures",
-        "description": "The per-account admin switches (app/services/capabilities.py): server_results (\"all-server\"\nallowed), server_latex (server-side compile), exercise_sharing (sharing/copying, issue #65)."
+        "description": "The per-account admin switches (app/services/capabilities.py): server_results (\"all-server\" allowed), server_latex (server-side compile), exercise_sharing (sharing/copying, issue #65)."
       },
       "AccountFeaturesUpdate": {
         "properties": {
@@ -7613,7 +8101,7 @@
           "mode"
         ],
         "title": "AccountLogoUpdate",
-        "description": "The account's logo choice: ``default`` prints the bundled default logo (MTG), ``none`` prints\nno logo, ``custom`` prints ``content_b64``. ``custom`` without content keeps the stored file.\nThe type is read from the bytes, never from the client."
+        "description": "The account's logo choice: ``default`` prints the bundled default logo (MTG), ``none`` prints no logo, ``custom`` prints ``content_b64``. ``custom`` without content keeps the stored file. The type is read from the bytes, never from the client."
       },
       "AdminApproveRequest": {
         "properties": {
@@ -9008,6 +9496,21 @@
             ],
             "title": "Page Breaks"
           },
+          "name_line": {
+            "type": "boolean",
+            "title": "Name Line",
+            "default": false
+          },
+          "extra_notes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtraNotes"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "exercise_ids": {
             "items": {
               "type": "string",
@@ -9150,7 +9653,7 @@
           "mode"
         ],
         "title": "ExamLogoUpdate",
-        "description": "An exam's logo choice: ``account`` follows the account logo, ``none`` prints no logo,\n``custom`` prints ``content_b64``. ``custom`` without content keeps the exam's stored file."
+        "description": "An exam's logo choice: ``account`` follows the account logo, ``none`` prints no logo, ``custom`` prints ``content_b64``. ``custom`` without content keeps the exam's stored file."
       },
       "ExamMcGroupCreate": {
         "properties": {
@@ -9405,6 +9908,21 @@
             ],
             "title": "Page Breaks"
           },
+          "name_line": {
+            "type": "boolean",
+            "title": "Name Line",
+            "default": false
+          },
+          "extra_notes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtraNotes"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "exercises": {
             "items": {
               "$ref": "#/components/schemas/ExerciseResponse"
@@ -9617,6 +10135,27 @@
               }
             ],
             "title": "Page Breaks"
+          },
+          "name_line": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Line"
+          },
+          "extra_notes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtraNotes"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "exercise_ids": {
             "anyOf": [
@@ -10615,6 +11154,41 @@
         ],
         "title": "ExerciseUsageResponse"
       },
+      "ExtraNotes": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          },
+          "min_height_cm": {
+            "type": "number",
+            "maximum": 25.0,
+            "minimum": 1.0,
+            "title": "Min Height Cm"
+          },
+          "max_height_cm": {
+            "type": "number",
+            "maximum": 25.0,
+            "minimum": 1.0,
+            "title": "Max Height Cm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "min_height_cm",
+          "max_height_cm"
+        ],
+        "title": "ExtraNotes",
+        "description": "Karo block at the end of the exam; heights in cm, the layout fills the page within them."
+      },
       "ForgotPasswordRequest": {
         "properties": {
           "email": {
@@ -10850,7 +11424,7 @@
           "envelopes"
         ],
         "title": "KeyEnvelopeSetIn",
-        "description": "The complete envelope set for a teacher.\n\nReplacement is wholesale and atomic: a partially written set is a locked-out\nteacher, so the endpoint never merges."
+        "description": "The complete envelope set for a teacher. Replacement is wholesale and atomic: a partially written set is a locked-out teacher, so the endpoint never merges."
       },
       "LaTeXRequest": {
         "properties": {
@@ -10915,7 +11489,7 @@
           "content_b64"
         ],
         "title": "LaTeXResource",
-        "description": "One file to place next to main.tex for this compilation only.\n\nNothing here is persisted: the bytes live in the temp working directory and\nare removed with it. Teachers in all-local mode keep the only durable copy."
+        "description": "One file to place next to main.tex for this compilation only. Nothing here is persisted: the bytes live in the temp working directory and are removed with it. Teachers in all-local mode keep the only durable copy."
       },
       "LatexPackageEntry": {
         "properties": {
@@ -10954,6 +11528,373 @@
         "title": "LatexPackageEntry",
         "description": "A package, TikZ or pgfplots library; ``disabled`` (exam level) drops an account one."
       },
+      "LayoutReportCreate": {
+        "properties": {
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "exercise"
+            ],
+            "title": "Source Kind"
+          },
+          "source_title": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Source Title",
+            "default": ""
+          },
+          "engine": {
+            "type": "string",
+            "enum": [
+              "browser",
+              "server"
+            ],
+            "title": "Engine"
+          },
+          "app_version": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "App Version",
+            "default": ""
+          },
+          "problem": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Problem"
+          },
+          "expected": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Expected"
+          },
+          "compile_error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compile Error"
+          },
+          "allow_publication": {
+            "type": "boolean",
+            "title": "Allow Publication",
+            "default": false
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutReportFileIn"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_kind",
+          "engine",
+          "problem",
+          "expected"
+        ],
+        "title": "LayoutReportCreate"
+      },
+      "LayoutReportDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reporter_email": {
+            "type": "string",
+            "title": "Reporter Email"
+          },
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "exercise"
+            ],
+            "title": "Source Kind"
+          },
+          "source_title": {
+            "type": "string",
+            "title": "Source Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "allow_publication": {
+            "type": "boolean",
+            "title": "Allow Publication"
+          },
+          "problem": {
+            "type": "string",
+            "title": "Problem"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "engine": {
+            "type": "string",
+            "title": "Engine"
+          },
+          "app_version": {
+            "type": "string",
+            "title": "App Version"
+          },
+          "expected": {
+            "type": "string",
+            "title": "Expected"
+          },
+          "compile_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compile Error"
+          },
+          "resolution_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Note"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutReportFileOut"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reporter_email",
+          "source_kind",
+          "source_title",
+          "status",
+          "allow_publication",
+          "problem",
+          "created_at",
+          "resolved_at",
+          "engine",
+          "app_version",
+          "expected",
+          "compile_error",
+          "resolution_note",
+          "files"
+        ],
+        "title": "LayoutReportDetail"
+      },
+      "LayoutReportFileIn": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[^/\\\\\\\"\\x00-\\x1f]+$",
+            "title": "Filename"
+          },
+          "mime_type": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Mime Type"
+          },
+          "content_b64": {
+            "type": "string",
+            "title": "Content B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "mime_type",
+          "content_b64"
+        ],
+        "title": "LayoutReportFileIn"
+      },
+      "LayoutReportFileOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "mime_type": {
+            "type": "string",
+            "title": "Mime Type"
+          },
+          "byte_size": {
+            "type": "integer",
+            "title": "Byte Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "mime_type",
+          "byte_size"
+        ],
+        "title": "LayoutReportFileOut"
+      },
+      "LayoutReportList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutReportSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "open_count": {
+            "type": "integer",
+            "title": "Open Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "open_count"
+        ],
+        "title": "LayoutReportList"
+      },
+      "LayoutReportResolve": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "LayoutReportResolve"
+      },
+      "LayoutReportSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reporter_email": {
+            "type": "string",
+            "title": "Reporter Email"
+          },
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "exam",
+              "exercise"
+            ],
+            "title": "Source Kind"
+          },
+          "source_title": {
+            "type": "string",
+            "title": "Source Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "allow_publication": {
+            "type": "boolean",
+            "title": "Allow Publication"
+          },
+          "problem": {
+            "type": "string",
+            "title": "Problem"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reporter_email",
+          "source_kind",
+          "source_title",
+          "status",
+          "allow_publication",
+          "problem",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "LayoutReportSummary"
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -10987,6 +11928,20 @@
           "revision"
         ],
         "title": "MaintenanceReadyRequest"
+      },
+      "MaintenanceStartNowRequest": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "MaintenanceStartNowRequest"
       },
       "MaintenanceStartRequest": {
         "properties": {
@@ -11813,7 +12768,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ResyncRequest",
-        "description": "The variants to take over, by source row id -> the fingerprint the user reviewed (CAS); a\nsubset is fine. `overrides` holds the user's edited LaTeX for some of them."
+        "description": "The variants to take over, by source row id -> the fingerprint the user reviewed (CAS); a subset is fine. `overrides` holds the user's edited LaTeX for some of them."
       },
       "ResyncVariant": {
         "properties": {
@@ -11912,6 +12867,10 @@
           "training_sample_days": {
             "type": "integer",
             "title": "Training Sample Days"
+          },
+          "layout_report_days": {
+            "type": "integer",
+            "title": "Layout Report Days"
           }
         },
         "type": "object",
@@ -11922,7 +12881,8 @@
           "pending_account_days",
           "contribution_days",
           "contribution_pending_days",
-          "training_sample_days"
+          "training_sample_days",
+          "layout_report_days"
         ],
         "title": "RetentionPeriods"
       },
@@ -12066,7 +13026,7 @@
           "shared_by_email"
         ],
         "title": "SharedExerciseResponse",
-        "description": "Another account's shared row. Carries no owner id and no exam id, only the sharer's\ne-mail, which they agreed to disclose when sharing."
+        "description": "Another account's shared row. Carries no owner id and no exam id, only the sharer's e-mail, which they agreed to disclose when sharing."
       },
       "SharingPauseUpdate": {
         "properties": {

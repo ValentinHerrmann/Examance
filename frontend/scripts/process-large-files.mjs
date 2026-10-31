@@ -10,8 +10,7 @@ const MAX_FILE_SIZE = 24 * 1024 * 1024; // 24MB limit for Cloudflare Pages
 const CHUNK_SIZE = 20 * 1024 * 1024;    // 20MB chunk size for splitting
 
 const manifest = {};
-// Large files are compressed concurrently after the walk: async gzip runs on the libuv threadpool, so the four TeX Live
-// bundles don't compress one after another (this runs on every Cloudflare Pages build).
+// Large files are compressed concurrently after the walk: async gzip runs on the libuv threadpool, so the four TeX Live bundles don't compress one after another (this runs on every Cloudflare Pages build).
 const largeFiles = [];
 
 async function processDirectory(dir) {
@@ -35,8 +34,7 @@ async function processLargeFile({ fullPath, stats }) {
   console.log(`Processing large file (${(stats.size / 1024 / 1024).toFixed(2)} MB): ${fullPath}`);
   
   const fileContent = fs.readFileSync(fullPath);
-  // Level 6, not 9: the TeX Live bundles are mostly pre-compressed fonts, so
-  // -9 took twice as long for 0.5% smaller output.
+  // Level 6, not 9: the TeX Live bundles are mostly pre-compressed fonts, so -9 took twice as long for 0.5% smaller output.
   console.log(`  Compressing with gzip -6...`);
   const gzipped = await gzipPipeline(fileContent, { level: 6 });
   
@@ -142,8 +140,7 @@ async function main() {
     fs.mkdirSync(manifestDir, { recursive: true });
   }
 
-  // Sorted so the output is byte-identical regardless of which file finished
-  // compressing first (keeps the content hash stable between deploys).
+  // Sorted so the output is byte-identical regardless of which file finished compressing first (keeps the content hash stable between deploys).
   const sortedManifest = Object.fromEntries(Object.keys(manifest).sort().map((k) => [k, manifest[k]]));
   fs.writeFileSync(manifestPath, JSON.stringify(sortedManifest, null, 2));
   console.log(`Manifest successfully written to: ${manifestPath}`);

@@ -187,3 +187,31 @@ async def test_account_export_carries_the_logos(client: AsyncClient, db: AsyncSe
     (exam,) = [e for e in export["exams"] if e["id"] == exam_id]
     assert exam["logo"]["mode"] == "custom"
     assert exam["logo"]["file"]["content_b64"] == _b64(PDF)
+
+
+@pytest.mark.parametrize(
+    ("mime_type", "filename"),
+    [("image/png", "examance-logo.png"), ("application/pdf", "examance-logo.pdf")],
+)
+def test_logo_download_keeps_its_hardening_headers(mime_type: str, filename: str) -> None:
+    """The logo is served through `resource_response`; its headers must not drift from this."""
+    from app.routers.logos import _logo_response
+    from app.services.logo import ResolvedLogo
+
+    response = _logo_response(ResolvedLogo(mime_type, b"bytes"))
+    assert dict(response.headers) == {
+        "content-disposition": f'inline; filename="{filename}"',
+        "x-content-type-options": "nosniff",
+        "content-security-policy": "sandbox; default-src 'none'",
+        "cache-control": "no-store",
+        "content-length": "5",
+        "content-type": mime_type,
+    }
+    assert list(response.headers) == [
+        "content-disposition",
+        "x-content-type-options",
+        "content-security-policy",
+        "cache-control",
+        "content-length",
+        "content-type",
+    ]

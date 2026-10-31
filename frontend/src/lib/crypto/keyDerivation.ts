@@ -1,8 +1,4 @@
-/**
- * Key derivation: Argon2id master key from password + salt (argon2-browser WASM) as a non-extractable HKDF CryptoKey.
- * NOTE: the WASM binary is NOT integrity-verified today: `fetchAndVerifyWasm()` (./sri.ts) has no call site (nothing
- * vendored, placeholder manifest hashes). See static/sri-manifest.json ("enforced": false).
- */
+/** Key derivation: Argon2id master key from password + salt (argon2-browser WASM) as a non-extractable HKDF CryptoKey. NOTE: the WASM binary is NOT integrity-verified today: `fetchAndVerifyWasm()` (./sri.ts) has no call site (nothing vendored, placeholder manifest hashes). See static/sri-manifest.json ("enforced": false). */
 
 import { toArrayBuffer } from './aesGcm';
 
@@ -13,12 +9,8 @@ export const ArgonType = {
 };
 
 async function getArgon2(): Promise<any> {
-  if (typeof window !== 'undefined' && (window as any).argon2) {
-    return (window as any).argon2;
-  }
-  if (typeof self !== 'undefined' && (self as any).argon2) {
-    return (self as any).argon2;
-  }
+  // Never a pre-existing global: any script on the page could have planted a fake `argon2` there.
+  const planted = (globalThis as any).argon2;
   try {
     // @ts-expect-error — argon2-browser ships no types for the bundled build
     const argon2Module = await import('argon2-browser/dist/argon2-bundled.min.js');
@@ -26,8 +18,10 @@ async function getArgon2(): Promise<any> {
     if (mod && typeof mod.hash === 'function') {
       return mod;
     }
-    if (typeof window !== 'undefined' && (window as any).argon2) {
-      return (window as any).argon2;
+    // The UMD build may only register itself globally; accept that object, not one found before the import.
+    const registered = (globalThis as any).argon2;
+    if (registered && registered !== planted && typeof registered.hash === 'function') {
+      return registered;
     }
   } catch {
     // Try main package export as secondary fallback
@@ -75,10 +69,7 @@ export async function getUserSessionNonce(email: string): Promise<Uint8Array> {
   return new Uint8Array(digest).slice(0, 12);
 }
 
-/**
- * OWASP 2024 minimum for PBKDF2-HMAC-SHA-256. Not just a fallback: `deriveKeyWithFallback` derives
- * it on every unlock and `decrypt()` transparently retries with it, so its cost is the scheme's effective strength.
- */
+/** OWASP 2024 minimum for PBKDF2-HMAC-SHA-256. Not just a fallback: `deriveKeyWithFallback` derives it on every unlock and `decrypt()` transparently retries with it, so its cost is the scheme's effective strength. */
 export const PBKDF2_ITERATIONS = 600_000;
 
 /** Superseded; kept only to decrypt vaults written before the increase. Never use it to derive a key that encrypts. */
@@ -123,9 +114,6 @@ export async function derivePbkdf2Key(
   return { masterKey, rawKey };
 }
 
-/**
- * Derive master CryptoKey via Argon2id (if available) or PBKDF2.
- */
 /** Argon2 could not be loaded, and the caller cannot silently use something else. */
 export class Argon2UnavailableError extends Error {
   constructor(cause?: unknown) {
@@ -134,11 +122,7 @@ export class Argon2UnavailableError extends Error {
   }
 }
 
-/**
- * Argon2id, or an error; never a different KDF. Key *wrapping* must use this, not `deriveKey`: a wrap
- * records its KDF, and a silent substitution writes an envelope only the other KDF can open, unrecoverable
- * once the transient condition passes.
- */
+/** Argon2id, or an error; never a different KDF. Key *wrapping* must use this, not `deriveKey`: a wrap records its KDF, and a silent substitution writes an envelope only the other KDF can open, unrecoverable once the transient condition passes. */
 export async function deriveArgon2Key(
   password: string,
   salt: Uint8Array
@@ -186,11 +170,7 @@ export async function argon2Available(): Promise<boolean> {
   }
 }
 
-/**
- * Argon2id where possible, PBKDF2 where not. The fallback is safe only here: the legacy path
- * (`deriveKeyWithFallback`) captures the PBKDF2 key alongside the Argon2 one so either seal stays
- * readable. Key wraps have no second copy and use `deriveArgon2Key`.
- */
+/** Argon2id where possible, PBKDF2 where not. The fallback is safe only here: the legacy path (`deriveKeyWithFallback`) captures the PBKDF2 key alongside the Argon2 one so either seal stays readable. Key wraps have no second copy and use `deriveArgon2Key`. */
 export async function deriveKey(password: string, salt: Uint8Array): Promise<DerivedKeyResult> {
   try {
     return await deriveArgon2Key(password, salt);
@@ -210,11 +190,7 @@ export interface DerivedKeyWithFallbackResult {
   rawLegacyMasterKey: Uint8Array | null;
 }
 
-/**
- * Derives primary (Argon2id or PBKDF2) and fallback master keys so a vault stays readable if Argon2
- * WASM availability changes between sessions. A third key at PBKDF2_ITERATIONS_LEGACY only opens
- * and re-encrypts pre-increase vaults; it must never encrypt.
- */
+/** Derives primary (Argon2id or PBKDF2) and fallback master keys so a vault stays readable if Argon2 WASM availability changes between sessions. A third key at PBKDF2_ITERATIONS_LEGACY only opens and re-encrypts pre-increase vaults; it must never encrypt. */
 export async function deriveKeyWithFallback(
   password: string,
   salt: Uint8Array
@@ -251,29 +227,4 @@ export async function deriveKeyWithFallback(
     legacyMasterKey,
     rawLegacyMasterKey,
   };
-}
-
-/** Derive a 32-byte raw buffer from password + salt, as intermediate HKDF material for sessionKey.ts. */
-export async function deriveRawKeyMaterial(
-  password: string,
-  salt: Uint8Array
-): Promise<CryptoKey> {
-  const argon2 = await getArgon2();
-  const result = await argon2.hash({
-    pass: password,
-    salt,
-    type: ArgonType.Argon2id,
-    time: 3,
-    mem: 65536,
-    parallelism: 4,
-    hashLen: 32,
-  });
-
-  return crypto.subtle.importKey(
-    'raw',
-    toArrayBuffer(result.hash),
-    'HKDF',
-    false,
-    ['deriveKey', 'deriveBits']
-  );
 }

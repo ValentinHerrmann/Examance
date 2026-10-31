@@ -1,7 +1,4 @@
-/**
- * Parses student identity from QR strings: `Lastname, Firstname_NumericID`,
- * `BG:Lastname, Firstname_NumericID:version:fallbackCode`, or `Lastname_NumericID` (no first name).
- */
+/** Parses student identity from QR strings: `Lastname, Firstname_NumericID`, `BG:Lastname, Firstname_NumericID:version:fallbackCode`, or `Lastname_NumericID` (no first name). */
 
 export interface ParsedStudentQr {
   lastname: string;
@@ -10,10 +7,7 @@ export interface ParsedStudentQr {
   displayName: string;
 }
 
-/**
- * Display form of a "Lastname, Firstname" name with empty parts dropped, so a missing last name
- * gives "Firstname", not ", Firstname". Also cleans names stored before this existed.
- */
+/** Display form of a "Lastname, Firstname" name with empty parts dropped, so a missing last name gives "Firstname", not ", Firstname". Also cleans names stored before this existed. */
 export function formatStudentName(name: string | null | undefined): string {
   return (name ?? '')
     .split(',')

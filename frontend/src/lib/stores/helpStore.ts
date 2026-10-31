@@ -35,12 +35,6 @@ export function openHelp(topic?: HelpTopicId): void {
   helpStore.set({ open: true, topicId: resolved });
 }
 
-/** Open the panel on the topic list rather than on a single topic. */
-export function openHelpOverview(): void {
-  markSeen();
-  helpStore.set({ open: true, topicId: null });
-}
-
 export function closeHelp(): void {
   helpStore.update((state) => ({ ...state, open: false }));
 }

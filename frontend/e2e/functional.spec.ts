@@ -1,8 +1,4 @@
-/**
- * Functional regression suite: asserts behaviour and data, never layout or visuals, so UI redesigns only touch
- * `helpers/nav.ts`. Texts come from the i18n catalogs (`helpers/i18n.ts`); LaTeX compilation is never awaited or
- * asserted. Titles are tagged by area (`-g "\[exam\]"`).
- */
+/** Functional regression suite: asserts behaviour and data, never layout or visuals, so UI redesigns only touch `helpers/nav.ts`. Texts come from the i18n catalogs (`helpers/i18n.ts`); LaTeX compilation is never awaited or asserted. Titles are tagged by area (`-g "\[exam\]"`). */
 import { test, expect } from './helpers/guards';
 import { label, labelExact, literal, rawTemplate, stem } from './helpers/i18n';
 import {
@@ -21,6 +17,7 @@ import {
   signInAgain,
   signInFirstTime,
   t,
+  unfoldEditorDetails,
 } from './helpers/flows';
 import {
   clearWorkspace,
@@ -35,7 +32,7 @@ import {
   lockApp,
   openHelp,
   openHelpWithKeyboard,
-  openStoragePolicy,
+  openStorageSettings,
   switchLocale,
 } from './helpers/nav';
 
@@ -91,13 +88,12 @@ test.describe('auth, first storage choice', () => {
       await expect(choice.getByRole('button', { name: labelExact('common.close') })).toHaveCount(0);
 
       // Picking a mode opens the move dialog; with nothing to move it just records the choice.
-      const title = mode === 'all-server' ? 'misc.storageModal.allServerTitle' : 'misc.storageModal.hybridTitle';
+      const title = mode === 'all-server' ? 'settings.storage.allServerTitle' : 'settings.storage.hybridTitle';
       await choice.getByRole('radio', { name: await t(page, title) }).click();
       const wizard = page.getByRole('dialog', { name: await t(page, 'storagePolicy.switch.title', { to: '' }) });
       await expect(wizard).toBeVisible();
-      await wizard
-        .getByRole('button', { name: await t(page, 'storagePolicy.switch.chooseButton', { to: '' }) })
-        .click();
+      // The primary action names the chosen mode ("Use …"); it is the dialog's last button.
+      await wizard.getByRole('button').last().click();
       await expect.poll(() => backend.state.storageMode).toBe(mode);
 
       await wizard.getByRole('button', { name: await t(page, 'storagePolicy.switch.finish') }).click();
@@ -178,7 +174,8 @@ test.describe('exercises', () => {
     await page.reload();
     await expect(exerciseGroupHeading(page, 'Alpha Renamed')).toBeVisible();
     await expandExerciseGroup(page, 'Alpha Renamed');
-    await expect(page.getByRole('main')).toContainText('Alpha edited body');
+    // The list shows no LaTeX body any more; the edit raised the points from 3 to 4.
+    await expect(page.getByText(await t(page, 'exercises.groupList.pointsSingle', { max: 4 })).first()).toBeVisible();
 
     // Add a variant: the group now reports two variants.
     await page
@@ -195,14 +192,12 @@ test.describe('exercises', () => {
 
     // Delete the other exercise through the confirm dialog.
     await expandExerciseGroup(page, 'Beta Graphs');
-    await page
-      .getByRole('button', { name: await t(page, 'exercises.groupList.deleteTitle') })
-      .or(page.getByTitle(await t(page, 'exercises.groupList.deleteTitle')))
-      .last()
-      .click();
-    const deleteDialog = page.getByRole('dialog', { name: await t(page, 'exercises.deleteModal.title', { name: 'Beta Graphs' }) });
+    // Delete lives in the variant's "More actions" menu; Beta is the last group.
+    await page.getByRole('button', { name: await t(page, 'exercises.groupList.moreActions') }).last().click();
+    await page.getByRole('menuitem', { name: await t(page, 'exercises.groupList.deleteTitle') }).click();
+    const deleteDialog = page.getByRole('alertdialog', { name: await t(page, 'exercises.deleteModal.title', { name: 'Beta Graphs' }) });
     await expect(deleteDialog).toBeVisible();
-    await deleteDialog.getByRole('button', { name: await t(page, 'exercises.deleteModal.deleteAnyway') }).click();
+    await deleteDialog.getByRole('button', { name: await t(page, 'common.deleteModal.deleteAnyway') }).click();
     await expect(deleteDialog).toBeHidden();
     await expect(exerciseGroupHeading(page, 'Beta Graphs')).toHaveCount(0);
 
@@ -218,14 +213,14 @@ test.describe('exercises', () => {
     // Without a correct option the editor refuses to save.
     await page.getByRole('button', { name: await t(page, 'exercises.page.createButton') }).click();
     const editor = page.getByRole('dialog', { name: await t(page, 'exercises.editor.titleCreate') });
+    await unfoldEditorDetails(page, editor);
     await editor.getByLabel(await t(page, 'exercises.editor.nameLabel')).fill('MC validation');
     await editor.getByRole('button', { name: await t(page, 'exercises.editor.mcButton') }).click();
     await editor.getByRole('button', { name: await t(page, 'exercises.editor.saveButton') }).click();
     await expect(editor.getByText(await t(page, 'exercises.editor.mcCorrectRequired'))).toBeVisible();
     await expect(editor).toBeVisible();
     await editor.getByRole('button', { name: await t(page, 'common.cancel') }).click();
-    // Nothing was typed that differs from the defaults except the name, so the
-    // discard confirmation may or may not appear; confirm it if it does.
+    // Nothing was typed that differs from the defaults except the name, so the discard confirmation may or may not appear; confirm it if it does.
     const discard = page.getByRole('dialog', { name: await t(page, 'exercises.editor.discardTitle') });
     if (await discard.isVisible()) {
       await discard.getByRole('button', { name: await t(page, 'exercises.confirmDiscard.confirmText') }).click();
@@ -375,6 +370,27 @@ test.describe('exam', () => {
     await gotoExamTab(page, 'grade');
     await expect(page.getByText(await t(page, 'grading.page.empty'))).toBeVisible();
   });
+
+  test('[exam] the by-student score table opens with a student and saves a score', async ({ page }) => {
+    await signInFirstTime(page);
+    await gotoExerciseLibrary(page);
+    await createExercise(page, { name: 'Grid exercise', topic: 'Grid', latex: exerciseBody('grid', 3) });
+    await gotoDashboard(page);
+    await createExam(page, { title: 'Grid exam', exercises: ['Grid exercise'] });
+
+    await gotoExamTab(page, 'manual');
+    await page.getByRole('tab', { name: stem('grading.manual.container.tabRoster') }).click();
+    await page.getByLabel(await t(page, 'grading.manual.roster.nameLabel')).fill('Sample, Karin');
+    await page.getByRole('button', { name: await t(page, 'grading.manual.roster.addButton') }).click();
+
+    // The rows render before the async submission map: binding them used to throw props_invalid_value.
+    await page.getByRole('tab', { name: await t(page, 'grading.manual.container.tabStudentFirst') }).click();
+    const score = page.locator('input[data-score-input]').first();
+    await score.fill('2');
+    await score.blur();
+    await page.getByRole('tab', { name: await t(page, 'grading.manual.container.tabExerciseFirst') }).click();
+    await expect(page.locator('input[data-score-input]').first()).toHaveValue('2');
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -382,6 +398,16 @@ test.describe('exam', () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe('settings', () => {
+  test('[settings] section links scroll the page body, never the shell', async ({ page }) => {
+    await signInFirstTime(page);
+    await gotoSettings(page);
+    await page.locator('nav a[href="#delete-account"]').click();
+    await expect(page).toHaveURL(/#delete-account$/);
+    // The document stays put (a scrolled document left a gap under the footer), .app-main did the scrolling.
+    expect(await page.evaluate(() => document.scrollingElement!.scrollTop)).toBe(0);
+    expect(await page.evaluate(() => document.querySelector('.app-main')!.scrollTop)).toBeGreaterThan(0);
+  });
+
   test('[settings] changing the language switches the UI and survives a reload', async ({ page }) => {
     await signInFirstTime(page);
     await gotoSettings(page);
@@ -422,8 +448,7 @@ test.describe('help', () => {
 
     // The topic index and one topic's content.
     const topics = dialog.getByRole('navigation', { name: await t(page, 'help.ui.contents') });
-    // On narrow screens the index is replaced by the open topic (the panel
-    // preselects one); "back to overview" returns to it. Wide layouts show both.
+    // On narrow screens the index is replaced by the open topic (the panel preselects one); "back to overview" returns to it. Wide layouts show both.
     const back = dialog.getByRole('button', { name: stem('help.ui.backToOverview') });
     if (await back.isVisible()) await back.click();
     await expect(topics).toBeVisible();
@@ -463,7 +488,7 @@ test.describe('help', () => {
 
     // "?" and F1 must not steal keystrokes from a text field (a LaTeX body can contain "?").
     await page.goto('/exam/new');
-    const title = page.getByLabel(await t(page, 'examCreation.metadataForm.titleLabel'));
+    const title = page.getByLabel(await t(page, 'exam.metadataEditor.examTitle'));
     await title.focus();
     await page.keyboard.press('F1');
     await expect(await helpDialog(page)).toBeHidden();
@@ -472,21 +497,11 @@ test.describe('help', () => {
     await expect(await helpDialog(page)).toBeHidden();
   });
 
-  test('[help] the storage and privacy dialog opens and closes', async ({ page }) => {
+  test('[help] the navbar storage link opens the storage settings', async ({ page }) => {
     await signInFirstTime(page);
-    const dialog = await openStoragePolicy(page);
-
-    // The mocked account stores everything on the server; LaTeX compiles locally by default.
-    await expect(dialog.getByRole('radio', { name: await t(page, 'misc.storageModal.allServerTitle') })).toBeChecked();
-    await expect(dialog.getByRole('radio', { name: await t(page, 'misc.storageModal.latexLocalTitle') })).toBeChecked();
-
-    // The dialog has a close icon and a footer button; either closes it.
-    await dialog.getByRole('button', { name: labelExact('common.close') }).first().click();
-    await expect(dialog).toBeHidden();
-
-    await openStoragePolicy(page);
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog', { name: await t(page, 'misc.storageModal.heading') })).toBeHidden();
+    const card = await openStorageSettings(page);
+    // The mocked account stores everything on the server.
+    await expect(card.getByRole('radio', { name: await t(page, 'settings.storage.allServerTitle') })).toBeChecked();
   });
 });
 
@@ -509,15 +524,12 @@ test.describe('workspace', () => {
     await expect(page.getByRole('heading', { name: literal('Roundtrip exam') })).toBeVisible();
 
     // --- export ---
-    const download = await exportWorkspace(page);
-    expect(download.suggestedFilename()).toMatch(/\.bgproj$/);
-    const archivePath = testInfo.outputPath('roundtrip.bgproj');
+    const download = await exportWorkspace(page, dialogs.promptAnswer);
+    expect(download.suggestedFilename()).toMatch(/\.examance$/);
+    const archivePath = testInfo.outputPath('roundtrip.examance');
     await download.saveAs(archivePath);
-    await dialogs.expectSeen('prompt', label('workspace.archive.promptExportPassword'));
 
-    // --- clear ---
-    // Clearing only empties this browser's tables; exams and exercises live on the server. Drop them
-    // there too, so the import below has to bring them back.
+    // --- clear --- Clearing only empties this browser's tables; exams and exercises live on the server. Drop them there too, so the import below has to bring them back.
     for (const table of [
       backend.state.exams,
       backend.state.exercises,
@@ -539,10 +551,6 @@ test.describe('workspace', () => {
     // --- import ---
     await importWorkspace(page, archivePath);
     await dialogs.expectSeen('prompt', label('workspace.archive.promptImportPassword'));
-    await dialogs.expectSeen(
-      'alert',
-      label('workspace.archive.summarySuccess', { loaded: '' }),
-    );
     await expect(page.getByRole('heading', { name: literal('Roundtrip exam') })).toBeVisible();
 
     await openExamFromDashboard(page, 'Roundtrip exam');

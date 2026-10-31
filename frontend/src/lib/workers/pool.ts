@@ -83,8 +83,7 @@ export class WorkerPool<TReq, TRes> {
     const handleError = (err: ErrorEvent) => {
       cleanup();
       this.release(availableWorker);
-      // Replies are matched by order: a crashed worker could still answer late and hand this
-      // task's result to the next one, so it never gets another task.
+      // Replies are matched by order: a crashed worker could still answer late and hand this task's result to the next one, so it never gets another task.
       this.replace(availableWorker);
       task.reject(new Error(err.message || 'Worker crash error'));
       this.processNext();

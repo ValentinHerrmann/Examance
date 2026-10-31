@@ -102,6 +102,7 @@ export const admin = {
     gdprErasureTable: {
         title: 'DSGVO Art. 15 & 17 — Schüleridentitäten, Auskunft & Löschung',
         empty: 'Keine Schüleridentitätsdatensätze in der aktuellen Sitzung gespeichert.',
+        loadFailed: 'Die Schüleridentitäten konnten nicht geladen werden: {message}',
         columnPseudonymId: 'Pseudonym-ID',
         columnFallbackCode: 'Fallback-Code',
         columnActions: 'Aktionen',

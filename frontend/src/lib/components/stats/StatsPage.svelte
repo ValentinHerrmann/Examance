@@ -3,17 +3,18 @@
   import { fmt } from '#lib/utils/format';
   import type { ExamRecord } from '#lib/db/schema';
   import type { ExamStats } from '#lib/analytics/stats';
-  import { PageShell, PageHeader, Button, Card } from '#lib/components/ui';
+  import { Alert, PageShell, PageHeader, Button, Card, ConfirmDialog } from '#lib/components/ui';
   import StatsCards from './StatsCards.svelte';
   import BorderlineCases from './BorderlineCases.svelte';
   import ChartCard from './ChartCard.svelte';
   import { binColumns, gradeColumns } from './chartColumns';
   import { buildGradeChartModel } from '#lib/analytics/gradeChartModel';
-  import StatsExportModal from './StatsExportModal.svelte';
 
   interface Props {
     exam: ExamRecord | null;
     stats: ExamStats | null;
+    /** A failed read: shown in place of the "nothing graded yet" text, which would be untrue. */
+    loadError?: string;
     totalMaxPoints: number | null;
     submissionCount: number;
     /** Submission ids in grading-view order, for the borderline list's links. */
@@ -27,6 +28,7 @@
   let {
     exam,
     stats,
+    loadError = '',
     totalMaxPoints,
     submissionCount,
     submissionIds,
@@ -131,17 +133,28 @@
         {$t('stats.gradeDistribution.provisionalLegend')}
       </p>
     {/if}
+  {:else if loadError}
+    <Alert severity="danger">{loadError}</Alert>
   {:else}
     <Card class="text-sm text-muted">{$t('stats.page.emptyStats')}</Card>
   {/if}
 
-  <div class="mt-6">
-    <Button variant="outlined" severity="secondary" onClick={onOpenExport}>
-      {$t('stats.page.exportButton')}
-    </Button>
-  </div>
+  {#if !loadError}
+    <div class="mt-6">
+      <Button variant="outlined" severity="secondary" onClick={onOpenExport}>
+        {$t('stats.page.exportButton')}
+      </Button>
+    </div>
+  {/if}
 </PageShell>
 
-{#if showConfirmModal}
-  <StatsExportModal onConfirm={onConfirmExport} onCancel={onCancelExport} />
-{/if}
+<ConfirmDialog
+  open={showConfirmModal}
+  role="dialog"
+  title={$t('stats.exportModal.title')}
+  message={$t('stats.exportModal.body')}
+  confirmText={$t('stats.exportModal.confirmButton')}
+  cancelText={$t('common.cancel')}
+  onConfirm={onConfirmExport}
+  onCancel={onCancelExport}
+/>

@@ -1,8 +1,4 @@
-/**
- * Sign-in factors and authenticator enrollment. A sign-in presents two of three factors
- * (password, passkey, authenticator); the server reports what is outstanding, so the client
- * never learns what an account has enrolled before proving a factor.
- */
+/** Sign-in factors and authenticator enrollment. A sign-in presents two of three factors (password, passkey, authenticator); the server reports what is outstanding, so the client never learns what an account has enrolled before proving a factor. */
 
 import { api } from './client';
 
@@ -16,10 +12,7 @@ export interface AuthStep {
   status: 'ok' | 'factor_required' | 'enroll_required' | 'approval_pending';
   satisfied: FactorKind[];
   available: FactorKind[];
-  /**
-   * `/auth/reset/start` only: false for a fresh account (no key copy, nothing authored), so there is
-   * no data to recover and the recovery-code step is skipped.
-   */
+  /** `/auth/reset/start` only: false for a fresh account (no key copy, nothing authored), so there is no data to recover and the recovery-code step is skipped. */
   needs_key_recovery?: boolean | null;
 }
 
@@ -45,10 +38,7 @@ export async function submitPassword(email: string, password: string): Promise<A
   return api.post<AuthStep>('/auth/login', { email, password }, { silentError: true });
 }
 
-/**
- * The password as the *second* factor. Unlike `submitPassword` it sends no email: the account is
- * the one the pending token names, and an address here would turn step two into an account probe.
- */
+/** The password as the *second* factor. Unlike `submitPassword` it sends no email: the account is the one the pending token names, and an address here would turn step two into an account probe. */
 export async function submitPasswordFactor(password: string): Promise<AuthStep> {
   return api.post<AuthStep>('/auth/factor/password', { password }, { silentError: true });
 }
@@ -96,10 +86,7 @@ export async function disableTotp(): Promise<void> {
   await api.delete('/mfa/totp', { silentError: true });
 }
 
-/**
- * Change the password of a signed-in account. The re-wrapped envelope set travels with it so the
- * server writes password and key copy in one transaction and they cannot disagree.
- */
+/** Change the password of a signed-in account. The re-wrapped envelope set travels with it so the server writes password and key copy in one transaction and they cannot disagree. */
 export async function changePassword(
   currentPassword: string,
   newPassword: string,
@@ -113,10 +100,7 @@ export async function changePassword(
 }
 
 
-/**
- * Open a password reset with the emailed token. It counts as the password factor, but only one
- * of two: mailbox access alone completing a reset is the bypass the second factor closes.
- */
+/** Open a password reset with the emailed token. It counts as the password factor, but only one of two: mailbox access alone completing a reset is the bypass the second factor closes. */
 export async function startReset(token: string): Promise<AuthStep> {
   return api.post<AuthStep>('/auth/reset/start', { token }, { silentError: true });
 }

@@ -4,53 +4,82 @@ import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { isUnlocked } from '#lib/stores/session';
 import { workspaceIdStore, workspaceStatusStore } from '#lib/stores/workspaceState';
 import { isServerBacked } from '#lib/utils/serverBacked';
+import { db } from '#lib/db/db';
+import type { QueuedRequest } from '#lib/db/schema';
 
-export interface QueuedRequest {
-  id: string;
-  url: string;
-    /** PUT serves the per-exercise score endpoint, keyed by (submission, exercise): idempotent, hence safe to replay from the queue. */
-  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  body?: any;
-  timestamp: number;
-  /**
-   * The workspace (`lib/db/workspace.ts`) whose data this write belongs to. Replayed only into that
-   * workspace: after a mode switch or under another account the write is meaningless or harmful.
-   * Missing on entries from before the manifest; `stampUnboundQueueEntries` adopts those once.
-   */
-  workspaceId?: string;
-}
+export type { QueuedRequest };
 
-const QUEUE_KEY = 'bg_offline_queue';
+/** Former localStorage home of the queue; read once and moved into IndexedDB. */
+const LEGACY_QUEUE_KEY = 'bg_offline_queue';
+const hasIdb = () => typeof indexedDB !== 'undefined' && Boolean(db.offlineQueue);
 
-function getInitialQueue(): QueuedRequest[] {
-  if (typeof localStorage === 'undefined') return [];
+/** In-memory mirror for synchronous readers; IndexedDB (`db.offlineQueue`) is what survives a reload. */
+export const offlineQueue = writable<QueuedRequest[]>([]);
+
+/** What IndexedDB holds, as this tab last wrote or read it; object identity tells changed entries apart. */
+let persisted = new Map<string, QueuedRequest>();
+let persisting: Promise<void> = Promise.resolve();
+
+async function persist(queue: QueuedRequest[]): Promise<void> {
+  if (!hasIdb()) return;
+  const ids = new Set(queue.map((req) => req.id));
+  const removed = [...persisted.keys()].filter((id) => !ids.has(id));
+  const changed = queue.filter((req) => persisted.get(req.id) !== req);
+  if (removed.length === 0 && changed.length === 0) return;
   try {
-    const raw = localStorage.getItem(QUEUE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
+    await db.transaction('rw', db.offlineQueue, async () => {
+      await db.offlineQueue.bulkDelete(removed);
+      await db.offlineQueue.bulkPut(changed);
+    });
+    persisted = new Map(queue.map((req) => [req.id, req]));
+  } catch (err) {
+    // Storage full: the writes stay queued in this tab, they just do not survive a reload.
+    console.warn('[offlineQueue] Could not persist queued writes:', err);
   }
 }
 
-export const offlineQueue = writable<QueuedRequest[]>(getInitialQueue());
-
-offlineQueue.subscribe((val) => {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(val));
+/** Re-reads the stored queue: entries another tab replayed disappear here too, entries only this tab holds (never persisted) stay, and the legacy localStorage queue moves in once. */
+async function hydrate(): Promise<void> {
+  let legacy: QueuedRequest[] = [];
+  try {
+    legacy = JSON.parse(localStorage.getItem(LEGACY_QUEUE_KEY) ?? '[]');
+  } catch {
+    legacy = [];
   }
-});
+  const stored = hasIdb() ? await db.offlineQueue.toArray().catch(() => null) : null;
+  if (stored === null && legacy.length === 0) return;
+  const before = persisted;
+  if (stored) persisted = new Map(stored.map((req) => [req.id, req]));
+  offlineQueue.update((q) => {
+    const onlyHere = q.filter((req) => !before.has(req.id) && !persisted.has(req.id));
+    const byId = new Map([...legacy, ...(stored ?? q), ...onlyHere].map((req) => [req.id, req]));
+    return [...byId.values()].sort((a, b) => a.timestamp - b.timestamp);
+  });
+  await persisting;
+  if (legacy.length > 0) localStorage.removeItem(LEGACY_QUEUE_KEY);
+}
+
+if (typeof window !== 'undefined') {
+  offlineQueue.subscribe((queue) => {
+    persisting = persisting.then(() => persist(queue));
+  });
+  void hydrate();
+}
+
+let lastTimestamp = 0;
 
 export function enqueueRequest(
   url: string,
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   body?: any
 ): void {
+  lastTimestamp = Math.max(Date.now(), lastTimestamp + 1);
   const req: QueuedRequest = {
     id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     url,
     method,
     body,
-    timestamp: Date.now(),
+    timestamp: lastTimestamp,
     workspaceId: get(workspaceIdStore) ?? undefined,
   };
   offlineQueue.update((q) => [...q, req]);
@@ -63,10 +92,7 @@ export function isTransientError(err: unknown): boolean {
   return typeof status === 'number' && (status >= 500 || status === 408 || status === 429);
 }
 
-/**
- * Fallback for a failed server write: queue it when a replay can succeed. Otherwise report it like a
- * non-silent request and rethrow, so the caller never treats a refused write as saved.
- */
+/** Fallback for a failed server write: queue it when a replay can succeed. Otherwise report it like a non-silent request and rethrow, so the caller never treats a refused write as saved. */
 export function enqueueOrThrow(
   err: unknown,
   url: string,
@@ -134,8 +160,7 @@ function send(req: QueuedRequest): Promise<unknown> {
 const isFlushable = (state: string) => state === 'ok' || state === 'needs-choice';
 
 async function replay(): Promise<void> {
-  // Never replay against a session that isn't fully signed in: `online` fires readily on a tablet, and a
-  // sign-in in progress has demoted the access cookie, so replaying would burst 403s for replayable writes.
+  // Never replay against a session that isn't fully signed in: `online` fires readily on a tablet, and a sign-in in progress has demoted the access cookie, so replaying would burst 403s for replayable writes.
   if (!get(isUnlocked)) return;
   // Only into the workspace the writes were made in, and only once the session has proven it owns it.
   if (!isServerBacked() || !isFlushable(get(workspaceStatusStore).state)) return;
@@ -161,19 +186,29 @@ async function replay(): Promise<void> {
       processed.add(req.id);
     }
   } finally {
-    // update(), not set(): writes queued while this ran must survive.
+    // update(), not set(): writes queued while this ran must survive. Entries another tab queued are not in this tab's `persisted` set, so they are deleted from IndexedDB explicitly.
     offlineQueue.update((q) => q.filter((req) => !processed.has(req.id)));
+    if (hasIdb()) await db.offlineQueue.bulkDelete([...processed]).catch(() => {});
   }
   if (rejected.length > 0) {
     rejectedWritesStore.update(({ count }) => ({ count: count + rejected.length, lastMessage: rejected[rejected.length - 1] }));
   }
 }
 
+/** One replay per browser (F4): tabs share the stored queue, so two concurrent runs would send entries twice. */
+async function replayExclusively(): Promise<void> {
+  if (typeof navigator === 'undefined' || !navigator.locks) return replay();
+  await navigator.locks.request('examance-offline-queue', async () => {
+    await hydrate();
+    await replay();
+  });
+}
+
 let flushing: Promise<void> | null = null;
 
 /** Replays the current workspace's queued writes in order; concurrent callers share one run. */
 export function flushOfflineQueue(): Promise<void> {
-  flushing ??= replay().finally(() => {
+  flushing ??= replayExclusively().finally(() => {
     flushing = null;
   });
   return flushing;
@@ -186,8 +221,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     void flushOfflineQueue();
   });
-  // `online` alone misses a server that was down while the network was up: also flush whenever the
-  // workspace opens, and periodically while it is open.
+  // `online` alone misses a server that was down while the network was up: also flush whenever the workspace opens, and periodically while it is open.
   workspaceStatusStore.subscribe(({ state }) => {
     if (isFlushable(state)) {
       flushTimer ??= setInterval(() => {

@@ -11,12 +11,7 @@ from app.database import Base
 
 
 class ExerciseScore(Base):
-    """
-    Per-exercise grading result for one submission.
-
-    No plaintext score column (it would reconstruct the answer sheet): one client-sealed payload.
-    (submission_id, exercise_id) is the identity, so writes are idempotent.
-    """
+    """Per-exercise grading result for one submission. No plaintext score column (it would reconstruct the answer sheet): one client-sealed payload. (submission_id, exercise_id) is the identity, so writes are idempotent."""
 
     __tablename__ = "exercise_scores"
     __table_args__ = (

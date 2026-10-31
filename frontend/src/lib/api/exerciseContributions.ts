@@ -1,7 +1,4 @@
-/**
- * Proposals from a linked copy back to the shared original (issue #65): submit, list, review, decide.
- * Online-only (never the offline queue); every call is `silentError`, the library page reports inline.
- */
+/** Proposals from a linked copy back to the shared original (issue #65): submit, list, review, decide. Online-only (never the offline queue); every call is `silentError`, the library page reports inline. */
 
 import type { ExerciseRecord } from '#lib/db/schema';
 import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';

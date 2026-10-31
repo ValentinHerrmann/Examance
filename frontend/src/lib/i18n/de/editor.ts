@@ -18,11 +18,7 @@ export const editor = {
         humanities: 'Sprachen & Gesellschaft',
     },
 
-    /**
-     * Button text and tooltip for each quick-insert macro, keyed by the macro's
-     * `id` in `#lib/latex/quickInsertMacros.ts`. The LaTeX itself lives there;
-     * only the human-readable text lives here.
-     */
+    /** Button text and tooltip for each quick-insert macro, keyed by the macro's `id` in `#lib/latex/quickInsertMacros.ts`. The LaTeX itself lives there; only the human-readable text lives here. */
     macros: {
         loesung: { label: 'Lösungstext', description: 'Nur im Erwartungshorizont sichtbar.' },
         'loesung-replace': {
@@ -84,12 +80,6 @@ export const editor = {
     },
 
     /** Generic unsaved-changes dialog (ConfirmDialog defaults). */
-    confirmDialog: {
-        title: 'Ungespeicherte Änderungen',
-        message: 'Es gibt ungespeicherte Änderungen, die verloren gehen. Möchten Sie wirklich beenden, ohne zu speichern?',
-        confirmText: 'Änderungen verwerfen',
-        cancelText: 'Weiter bearbeiten',
-    },
 
     /** Side-by-side PDF preview panes. */
     pdfPreview: {

@@ -2,6 +2,7 @@ import type { Translations } from '../types';
 
 export const dashboard: Translations['dashboard'] = {
     loadFailed: 'Your exams could not be loaded from the server. What is shown is what this device has locally, which may not be all of it. Sign in again, or try once more in a moment.',
+    statsLoadFailed: 'The submissions could not be loaded from the server, so the figures for your exams (submissions, average) are missing. Reload the page or try again later.',
     header: {
         title: 'Exams Dashboard',
         subtitle: 'Manage, grade, and analyze your Schulaufgabe exams',
@@ -67,10 +68,7 @@ export const dashboard: Translations['dashboard'] = {
         deleteData: 'Delete Data',
         extendRetention: 'Extend Retention (+1 Year)',
     },
-    importPasswordPrompt: 'Enter password to decrypt and import the archive:',
     importDecrypting: 'Decrypting & unpacking archive…',
-    importStatus: 'Status: {stage} ({current}%)',
-    importFailed: 'Import failed: {message}',
     deleteFailed: 'Delete failed: {message}',
     duplicateFailed: 'Duplicating failed: {message}',
     deleteModal: {

@@ -1,7 +1,4 @@
-"""Proposals from a linked copy back to the shared original (issue #65).
-
-The owner's library changes only on an explicit accept, and only by a new version or a new
-variant: an exam built on the previous row keeps it."""
+"""Proposals from a linked copy back to the shared original (issue #65). The owner's library changes only on an explicit accept, and only by a new version or a new variant: an exam built on the previous row keeps it."""
 from __future__ import annotations
 
 import uuid

@@ -1,8 +1,4 @@
-/**
- * Shared user flows (sign in, create exercises and exams) so a form change has
- * one place to fix. They drive page content; shell navigation lives in `nav.ts`. Selectors
- * are role/label/catalog-text based; unavoidable workarounds (CodeMirror) stay isolated.
- */
+/** Shared user flows (sign in, create exercises and exams) so a form change has one place to fix. They drive page content; shell navigation lives in `nav.ts`. Selectors are role/label/catalog-text based; unavoidable workarounds (CodeMirror) stay isolated. */
 import type { Locator, Page } from '@playwright/test';
 import { expect } from './guards';
 import { label, labelExact, literal, type Locale } from './i18n';
@@ -63,11 +59,7 @@ export async function expectDashboard(page: Page): Promise<void> {
   await expect(await dashboardHeading(page)).toBeVisible();
 }
 
-/**
- * Sign in on `/unlock` with the e2e account; a first sign-in acknowledges the one-time setup codes dialog (`firstTime`).
- * Ends on the dashboard, except for a `storageMode: null` account: the layout then asks for a mode first and the
- * caller continues from that dialog (`waitForDashboard: false`).
- */
+/** Sign in on `/unlock` with the e2e account; a first sign-in acknowledges the one-time setup codes dialog (`firstTime`). Ends on the dashboard, except for a `storageMode: null` account: the layout then asks for a mode first and the caller continues from that dialog (`waitForDashboard: false`). */
 export async function signIn(
   page: Page,
   { firstTime, waitForDashboard = true }: { firstTime: boolean; waitForDashboard?: boolean },
@@ -85,6 +77,8 @@ export async function signIn(
 /** Open `/unlock` on a fresh browser profile and sign in for the first time. */
 export async function signInFirstTime(page: Page, opts: { waitForDashboard?: boolean } = {}): Promise<void> {
   await page.goto('/unlock');
+  // The dev server compiles on demand: a fill before hydration is wiped by it.
+  await page.waitForLoadState('networkidle');
   await signIn(page, { firstTime: true, ...opts });
 }
 
@@ -113,11 +107,7 @@ export interface ExerciseSpec {
   mc?: { question: string; options: McOption[] };
 }
 
-/**
- * LaTeX body for a free-text exercise. The app scores by counting `\BE` marks
- * (`lib/latex/scoreParser.ts`), so `points` marks give that many points; `marker` is
- * searchable text for the list preview.
- */
+/** LaTeX body for a free-text exercise. The app scores by counting `\BE` marks (`lib/latex/scoreParser.ts`), so `points` marks give that many points; `marker` is searchable text for the list preview. */
 export function exerciseBody(marker: string, points = 3): string {
   return `\\begin{Aufgabe}{${marker}}\n${marker}\n${'\\BE '.repeat(points).trim()}\n\\end{Aufgabe}`;
 }
@@ -137,11 +127,13 @@ export async function exerciseEditor(page: Page): Promise<Locator> {
   });
 }
 
-/**
- * Create an exercise through the editor dialog. Must be called on the exercise
- * library page (use {@link createExerciseInLibrary} otherwise); ends there with
- * the dialog closed.
- */
+/** Narrow exercise editors fold name, topic and grade behind a toggle (hidden from `@3xl` on); open it. */
+export async function unfoldEditorDetails(page: Page, editor: Locator): Promise<void> {
+  const details = editor.getByRole('button', { name: await l(page, 'exercises.editor.metaToggle') });
+  if ((await details.isVisible()) && (await details.getAttribute('aria-expanded')) === 'false') await details.click();
+}
+
+/** Create an exercise through the editor dialog. Must be called on the exercise library page (use {@link createExerciseInLibrary} otherwise); ends there with the dialog closed. */
 export async function createExercise(
   page: Page,
   spec: ExerciseSpec,
@@ -151,12 +143,13 @@ export async function createExercise(
   await page.getByRole('button', { name: await l(page, trigger) }).click();
   const editor = await exerciseEditor(page);
   await expect(editor).toBeVisible();
+  await unfoldEditorDetails(page, editor);
 
   await editor.getByLabel(await lx(page, 'exercises.editor.nameLabel')).fill(spec.name);
   if (spec.topic) await editor.getByLabel(await l(page, 'exercises.editor.topicLabel')).fill(spec.topic);
   if (spec.grade) await editor.getByLabel(await lx(page, 'exercises.editor.gradeLabel')).fill(spec.grade);
   if (spec.subject) {
-    await editor.getByLabel(await l(page, 'exercises.editor.subjectLabel')).fill(spec.subject);
+    await editor.getByLabel(await lx(page, 'exercises.editor.subjectLabel')).fill(spec.subject);
   }
 
   if (spec.mc) {
@@ -198,11 +191,7 @@ export function exerciseGroupHeading(page: Page, name: string): Locator {
   return page.getByRole('heading', { name: literal(name), level: 3 });
 }
 
-/**
- * Type into the exercise-library search. Below the `lg` breakpoint the filters
- * live in a drawer behind a "Show filters" button; this opens and closes it as
- * needed so callers do not care about the layout.
- */
+/** Type into the exercise-library search. Below the `lg` breakpoint the filters live in a drawer behind a "Show filters" button; this opens and closes it as needed so callers do not care about the layout. */
 export async function searchExerciseLibrary(page: Page, query: string): Promise<void> {
   const locale = await currentLocale(page);
   const search = page.getByRole('textbox', {
@@ -226,24 +215,23 @@ export async function searchExerciseLibrary(page: Page, query: string): Promise<
 export async function expandExerciseGroup(page: Page, name: string): Promise<void> {
   const collapsed = page.getByRole('button', { name: literal(name), expanded: false });
   if ((await collapsed.count()) > 0) {
-    // Click the title, not the middle of the header: on narrower layouts the
-    // header's centre is occupied by its own "edit group" icon button.
+    // Click the title, not the middle of the header: on narrower layouts the header's centre is occupied by its own "edit group" icon button.
     await exerciseGroupHeading(page, name).click();
   }
   await expect(page.getByRole('button', { name: literal(name), expanded: true })).toBeVisible();
 }
 
-/**
- * The "edit group metadata" icon button of one exercise group. The group header
- * is itself a button whose text contains that label, hence the exact name and
- * the scoping to the group's own header.
- */
+/** The "edit group metadata" icon button of one exercise group. The group header is itself a button whose text contains that label, hence the exact name and the scoping to the group's own header. */
 export async function groupEditButton(page: Page, groupName: string): Promise<Locator> {
   const locale = await currentLocale(page);
-  const header = page.getByRole('button', { name: literal(groupName) }).first();
-  return header.getByRole('button', {
-    name: labelExact('exercises.groupList.editGroupAriaLabel', undefined, locale),
-  });
+  const edit = page.getByRole('button', { name: labelExact('exercises.groupList.editGroupAriaLabel', undefined, locale) });
+  // The edit button sits beside the heading's toggle; the innermost container holding both is the card header.
+  const header = page
+    .locator('div')
+    .filter({ has: page.getByRole('heading', { name: literal(groupName) }) })
+    .filter({ has: edit })
+    .last();
+  return header.getByRole('button', { name: labelExact('exercises.groupList.editGroupAriaLabel', undefined, locale) });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -267,57 +255,50 @@ async function filterPicker(page: Page, scope: Locator, query: string): Promise<
     .fill(query);
 }
 
-/**
- * Tick the single exercise the picker is currently narrowed to.
- * `checkboxKey` is the catalog key of the checkbox tooltip (add vs. stage).
- */
+/** Tick the single exercise the picker is currently narrowed to. `checkboxKey` is the catalog key of the checkbox tooltip (add vs. stage). */
 async function tickOnlyMatch(page: Page, scope: Locator, checkboxKey: string): Promise<void> {
   const box = scope.getByRole('checkbox', { name: await l(page, checkboxKey) });
   await expect(box).toHaveCount(1);
   await box.check();
 }
 
-/**
- * Create an exam on `/exam/new` from library exercises and optional MC groups,
- * save it and wait for the exam page. Exercises must already exist.
- */
+/** Create an exam: "New exam" asks for the header data, then the exam page opens with the library, where the exercises and optional MC groups are picked (M1). Exercises must already exist. */
 export async function createExam(page: Page, spec: ExamSpec): Promise<void> {
   await page.getByRole('link', { name: await l(page, 'dashboard.header.createButton') }).click();
   await page.waitForURL((url) => url.pathname === '/exam/new');
 
-  await page.getByLabel(await l(page, 'examCreation.metadataForm.titleLabel')).fill(spec.title);
-  await page
-    .getByLabel(await l(page, 'examCreation.metadataForm.lehrerLabel'))
-    .fill(spec.teacher ?? 'Tester');
+  await page.getByLabel(await l(page, 'exam.metadataEditor.examTitle')).fill(spec.title);
+  await page.getByLabel(await l(page, 'exam.metadataEditor.lehrernachname')).fill(spec.teacher ?? 'Tester');
+  await page.getByRole('button', { name: await l(page, 'exam.metadataEditor.createButton') }).click();
+  await page.waitForURL((url) => /^\/exam\/[^/]+$/.test(url.pathname) && url.pathname !== '/exam/new');
 
-  const selector = page;
-  const libraryTab = page.getByRole('button', { name: await l(page, 'examCreation.exerciseSelector.tabLibrary') });
-  await libraryTab.click();
+  const library = page.getByRole('dialog', { name: await l(page, 'exam.libraryModal.header') });
+  await expect(library).toBeVisible();
   for (const name of spec.exercises) {
-    await filterPicker(page, selector, name);
-    await tickOnlyMatch(page, selector, 'exercises.libraryPicker.checkboxAddToExam');
+    await filterPicker(page, library, name);
+    await tickOnlyMatch(page, library, 'exercises.libraryPicker.checkboxAddToExam');
   }
-  if (spec.exercises.length > 0) await filterPicker(page, selector, '');
+  if (spec.exercises.length > 0) await filterPicker(page, library, '');
 
   for (const group of spec.mcGroups ?? []) {
-    await page.getByRole('button', { name: await l(page, 'examCreation.exerciseSelector.tabMc') }).click();
+    await library.getByRole('button', { name: await l(page, 'exam.libraryModal.mcTab') }).click();
     for (const member of group.members) {
-      await filterPicker(page, selector, member);
-      await tickOnlyMatch(page, selector, 'exercises.libraryPicker.checkboxAddMcStaging');
+      await filterPicker(page, library, member);
+      await tickOnlyMatch(page, library, 'exercises.libraryPicker.checkboxAddMcStaging');
     }
     if (group.title) {
-      await page.getByLabel(await l(page, 'exam.mcStagingPanel.titleLabel')).fill(group.title);
+      await library.getByLabel(await l(page, 'exam.mcStagingPanel.titleLabel')).fill(group.title);
     }
-    await page
+    await library
       .getByRole('button', {
         name: await l(page, 'exam.mcStagingPanel.addButton', { count: group.members.length }),
       })
       .click();
-    await filterPicker(page, selector, '');
+    await filterPicker(page, library, '');
   }
 
-  await page.getByRole('button', { name: await l(page, 'examCreation.submit.saveAndContinue') }).click();
-  await page.waitForURL((url) => /^\/exam\/[^/]+$/.test(url.pathname) && url.pathname !== '/exam/new');
+  await library.getByRole('button', { name: await l(page, 'exam.libraryModal.applyButton') }).click();
+  await expect(library).toBeHidden();
   await expect(examTitleHeading(page, spec.title)).toBeVisible();
 }
 
@@ -335,8 +316,7 @@ export function currentExamId(page: Page): string {
 
 /** Open an exam from the dashboard by its title. */
 export async function openExamFromDashboard(page: Page, title: string): Promise<void> {
-  // The exam row is a collapsible: expand it first, then open the exam from
-  // its body (the "Open Exam" link).
+  // The exam row is a collapsible: expand it first, then open the exam from its body (the "Open Exam" link).
   await page.getByRole('button', { name: literal(title) }).click();
   await page.getByRole('link', { name: await l(page, 'dashboard.examList.openExam') }).click();
   await page.waitForURL((url) => /^\/exam\/[^/]+\/?$/.test(url.pathname));

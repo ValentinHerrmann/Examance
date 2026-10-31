@@ -1,6 +1,4 @@
-// `npm run build`: Vite build plus the BusyTeX assets (~500 MB), staged alongside `vite build` and moved into build/
-// afterwards (hides ~20 s, avoids Vite copying 500 MB twice). With BUSYTEX_MIRROR_URL set the processed R2 copy is
-// tried first (busytex-mirror.mjs); an existing static/core/busytex skips staging.
+// `npm run build`: Vite build plus the BusyTeX assets (~500 MB), staged alongside `vite build` and moved into build/ afterwards (hides ~20 s, avoids Vite copying 500 MB twice). With BUSYTEX_MIRROR_URL set the processed R2 copy is tried first (busytex-mirror.mjs); an existing static/core/busytex skips staging.
 import fs from 'node:fs';
 import path from 'node:path';
 import { PROCESSED_ARCHIVE, mirrorUrl, run, streamExtract } from './busytex-mirror.mjs';
@@ -37,14 +35,12 @@ async function main() {
         console.warn(`Processed mirror unavailable (${err.message}); processing the raw archive`);
       }
     }
-    // fetch-busytex skips the download when the staging copy survived a
-    // previous local build.
+    // fetch-busytex skips the download when the staging copy survived a previous local build.
     await run('node', ['scripts/fetch-busytex.mjs', path.join(STAGE_ROOT, 'core')]);
     await run('node', ['scripts/process-large-files.mjs', STAGE_ROOT]);
     console.log(`✓ BusyTeX assets staged (${((Date.now() - started) / 1000).toFixed(1)} s)`);
   })();
-  // Both must settle before exiting, or a failed Vite build would leave the
-  // BusyTeX step writing into .busytex/ after the error is reported.
+  // Both must settle before exiting, or a failed Vite build would leave the BusyTeX step writing into .busytex/ after the error is reported.
   const [viteResult, busytexResult] = await Promise.allSettled([viteBuild(), busytex]);
   for (const result of [viteResult, busytexResult]) {
     if (result.status === 'rejected') throw result.reason;
@@ -53,8 +49,7 @@ async function main() {
   fs.rmSync(BUILT_BUSYTEX, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(BUILT_BUSYTEX), { recursive: true });
   if (process.env.CF_PAGES) {
-    // Same filesystem, so a rename instead of a 500 MB copy. The staging
-    // directory is not reused on Cloudflare: every build starts clean.
+    // Same filesystem, so a rename instead of a 500 MB copy. The staging directory is not reused on Cloudflare: every build starts clean.
     fs.renameSync(STAGED_BUSYTEX, BUILT_BUSYTEX);
   } else {
     // Keep the staged copy so the next local build skips the download.

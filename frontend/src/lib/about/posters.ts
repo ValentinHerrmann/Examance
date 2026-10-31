@@ -1,7 +1,4 @@
-/**
- * The info posters from `docs/posters/` (issue #119), bundled at build time like the release notes:
- * every build ships the PDFs committed in the repo, served from our own origin (never fetched from GitHub).
- */
+/** The info posters from `docs/posters/` (issue #119), bundled at build time like the release notes: every build ships the PDFs committed in the repo, served from our own origin (never fetched from GitHub). */
 import infoPdf from '../../../../docs/posters/examance-info.pdf?url';
 import uiPdf from '../../../../docs/posters/examance-ui.pdf?url';
 

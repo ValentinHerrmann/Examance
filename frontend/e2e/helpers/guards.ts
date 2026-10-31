@@ -1,8 +1,4 @@
-/**
- * Shared Playwright fixtures: import `test` and `expect` from here. Adds a pinned UI locale, the mocked `backend`
- * (fresh fake API per test, unrouted requests fail), a guard failing on uncaught page errors or non-allowlisted
- * `console.error`, and a `dialogs` recorder for the native dialogs of the archive flows.
- */
+/** Shared Playwright fixtures: import `test` and `expect` from here. Adds a pinned UI locale, the mocked `backend` (fresh fake API per test, unrouted requests fail), a guard failing on uncaught page errors or non-allowlisted `console.error`, and a `dialogs` recorder for the native dialogs of the archive flows. */
 import { test as base, expect, type Dialog, type Page } from '@playwright/test';
 import { createFakeApi, type FakeApi, type FakeStorageMode } from '../../tests/helpers/fakeApi';
 import { installFakeBackend } from './backend';
@@ -11,10 +7,7 @@ import { DEFAULT_LOCALE, type Locale } from './i18n';
 /** localStorage key the app reads its locale from (`lib/i18n/index.ts`). */
 const LOCALE_STORAGE_KEY = 'bg_locale';
 
-/**
- * Expected console noise; keep minimal and justify every entry (anything else is a real finding). Empty because the
- * fake backend answers every request; add one only for a deliberate error answer the app handles itself (409, 404).
- */
+/** Expected console noise; keep minimal and justify every entry (anything else is a real finding). Add one only for a deliberate error answer the app handles itself (409, 404). */
 interface AllowedConsoleError {
   /** Matched against the console message text. */
   message: RegExp;
@@ -24,7 +17,18 @@ interface AllowedConsoleError {
   why: string;
 }
 
-export const ALLOWED_CONSOLE_ERRORS: AllowedConsoleError[] = [];
+export const ALLOWED_CONSOLE_ERRORS: AllowedConsoleError[] = [
+  {
+    message: /status of 404/,
+    url: /\/api\/v1\/exercises\/[0-9a-f-]{36}$/,
+    why: 'The archive import asks whether each exercise is already on the server (archive/serverImport.ts); 404 means import it.',
+  },
+  {
+    message: /status of 409/,
+    url: /\/api\/v1\/exercises$/,
+    why: 'exerciseRepository.save creates with POST and, on 409 (the id exists), updates with PATCH instead.',
+  },
+];
 
 /** A native browser dialog the app raised, as recorded by the `dialogs` fixture. */
 export interface RecordedDialog {
@@ -32,10 +36,7 @@ export interface RecordedDialog {
   message: string;
 }
 
-/**
- * Answers every native dialog and remembers it. Playwright auto-dismisses unheard dialogs,
- * which would silently abort the archive export/import password prompt.
- */
+/** Answers every native dialog and remembers it. Playwright auto-dismisses unheard dialogs, which would silently abort the archive export/import password prompt. */
 export class DialogRecorder {
   readonly seen: RecordedDialog[] = [];
   /** Password given to `prompt()` (the .bgproj archive password). */
@@ -80,11 +81,7 @@ export class DialogRecorder {
 interface Fixtures {
   /** Locale the app is pinned to for this test. */
   appLocale: Locale;
-  /**
-   * The account's storage mode on the fake server: `'all-server'` (default, results go through the
-   * fake too), `'hybrid'`, or `null` for an account that has not chosen one yet (the first sign-in
-   * then asks). Set per file or describe with `test.use({ storageMode })`.
-   */
+  /** The account's storage mode on the fake server: `'all-server'` (default, results go through the fake too), `'hybrid'`, or `null` for an account that has not chosen one yet (the first sign-in then asks). Set per file or describe with `test.use({ storageMode })`. */
   storageMode: FakeStorageMode | null;
   /** The stateful fake API answering for the default backend; inspect or seed `backend.state`. */
   backend: FakeApi;
@@ -98,8 +95,7 @@ export const test = base.extend<Fixtures>({
   storageMode: ['all-server', { option: true }],
 
   context: async ({ context, appLocale }, use) => {
-    // Runs before any page script on every navigation. Only seeds the value:
-    // once the app (or a test) has saved a language, it is left alone.
+    // Runs before any page script on every navigation. Only seeds the value: once the app (or a test) has saved a language, it is left alone.
     await context.addInitScript(
       ({ key, value }) => {
         try {
@@ -113,8 +109,7 @@ export const test = base.extend<Fixtures>({
     await use(context);
   },
 
-  // Automatic, so no test can reach a real (absent) backend. A route the fake lacks answers 404 and
-  // is listed here after the test body, so a gap in the mock reads as one and not as an app bug.
+  // Automatic, so no test can reach a real (absent) backend. A route the fake lacks answers 404 and is listed here after the test body, so a gap in the mock reads as one and not as an app bug.
   backend: [
     async ({ context, storageMode }, use) => {
       const api = createFakeApi({ storageMode });
@@ -128,8 +123,7 @@ export const test = base.extend<Fixtures>({
     { auto: true },
   ],
 
-  // Automatic so that an unexpected dialog never hangs a test: Playwright would
-  // auto-dismiss it (cancelling e.g. the archive password prompt) otherwise.
+  // Automatic so that an unexpected dialog never hangs a test: Playwright would auto-dismiss it (cancelling e.g. the archive password prompt) otherwise.
   dialogs: [
     async ({ page }, use) => {
       const recorder = new DialogRecorder();

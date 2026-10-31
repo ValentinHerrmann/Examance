@@ -1,7 +1,4 @@
-/**
- * What the account may use, as the server decides it (`GET /user/capabilities`): storage mode, allowed modes, features.
- * Render every such option from this store, never from hard-coded lists. Per-account admin switches: issues #53, #65.
- */
+/** What the account may use, as the server decides it (`GET /user/capabilities`): storage mode, allowed modes, features. Render every such option from this store, never from hard-coded lists. Per-account admin switches: issues #53, #65. */
 
 import { derived, get, writable } from 'svelte/store';
 import { api } from '#lib/api/client';
@@ -36,11 +33,7 @@ function readCache(): Capabilities | null {
   }
 }
 
-/**
- * The server answered for a different account than this tab is signed in as. The access cookie is
- * shared by every tab of the browser, so signing in as someone else in another tab swaps the account
- * under this one. The tab must lock rather than show (or write) another account's data.
- */
+/** The server answered for a different account than this tab is signed in as. The access cookie is shared by every tab of the browser, so signing in as someone else in another tab swaps the account under this one. The tab must lock rather than show (or write) another account's data. */
 export class AccountMismatchError extends Error {
   constructor() {
     super('The server session belongs to a different account than this tab.');
@@ -48,10 +41,7 @@ export class AccountMismatchError extends Error {
   }
 }
 
-/**
- * Null until loaded (or while signed out). Cached per tab so a reload offline still knows the answer;
- * the cache is read back through `cachedCapabilities()` once the session (and so the account) is known.
- */
+/** Null until loaded (or while signed out). Cached per tab so a reload offline still knows the answer; the cache is read back through `cachedCapabilities()` once the session (and so the account) is known. */
 export const capabilitiesStore = writable<Capabilities | null>(null);
 capabilitiesStore.subscribe((value) => {
   if (value) safeSessionStorage.setItem(CACHE_KEY, JSON.stringify(value));
@@ -138,10 +128,7 @@ export function featureEnabled(name: FeatureName): boolean {
 
 export const featuresStore = derived(capabilitiesStore, ($c) => featuresFrom($c));
 
-/**
- * The LaTeX engine actually used: the browser's preference, unless this account may not compile on the
- * server. Every compile call site chooses its engine through this, never through the raw preference.
- */
+/** The LaTeX engine actually used: the browser's preference, unless this account may not compile on the server. Every compile call site chooses its engine through this, never through the raw preference. */
 export function effectiveLatexCompilation(): 'server' | 'local' {
   return get(storagePolicyStore).latexCompilation === 'server' && featureEnabled('server_latex')
     ? 'server'

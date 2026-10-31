@@ -47,7 +47,6 @@
   const instanceId = Math.random().toString(36).substring(2, 9);
   let dropdownId = $derived(id ? `${id}-backend-listbox` : `backend-listbox-${instanceId}`);
 
-  // Reactive protocol inferred from hostInput
   let protocol = $derived(inferBackendProtocol(hostInput));
 
   interface ServerSuggestion {

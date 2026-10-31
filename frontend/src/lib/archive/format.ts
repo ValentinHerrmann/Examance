@@ -1,7 +1,4 @@
-/**
- * .bgproj archive format. Header: 7 bytes magic ("BGPROJ\x01"), 1 version, 16 Argon2id salt, 12 AES-GCM nonce,
- * 4 ciphertext length (uint32 BE), 2 reserved; then the AES-GCM ciphertext of the inner bundle.
- */
+/** .bgproj archive format. Header: 7 bytes magic ("BGPROJ\x01"), 1 version, 16 Argon2id salt, 12 AES-GCM nonce, 4 ciphertext length (uint32 BE), 2 reserved; then the AES-GCM ciphertext of the inner bundle. */
 
 export const BGPROJ_MAGIC = new Uint8Array([0x42, 0x47, 0x50, 0x52, 0x4f, 0x4a, 0x01]);
 export const BGPROJ_VERSION = 0x01;

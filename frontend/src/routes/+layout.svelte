@@ -14,7 +14,7 @@
   } from "#lib/stores/session";
   import { vaultIntegrityStore } from "#lib/stores/vaultIntegrity";
   import { rejectedWritesStore } from "#lib/services/offlineQueue";
-  import { refreshSession } from "#lib/api/client";
+  import { ApiError, refreshSession } from "#lib/api/client";
   import {
     storagePolicyStore,
   } from "#lib/stores/storagePolicy";
@@ -35,17 +35,17 @@
     isAdminPath,
     ADMIN_HOME,
   } from "#lib/stores/navigationStore";
-  import { IMPORT_ACCEPT, WORKSPACE_ARCHIVE_EXT } from "#lib/archive/format";
+  import { IMPORT_ACCEPT } from "#lib/archive/format";
   import {
     importArchiveInteractively,
-    exportArchiveInteractively,
     clearWorkspace,
     confirmWorkspaceClear,
   } from "#lib/services/archiveService";
   import ImportConflictModal from "#lib/components/storage/ImportConflictModal.svelte";
   import ArchiveReportModal from "#lib/components/storage/ArchiveReportModal.svelte";
+  import ExportOptionsModal from "#lib/components/export/ExportOptionsModal.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
-  import { pendingSwitchStore, switchOwnedHere } from "#lib/services/storageModeSwitch";
+  import { pendingSwitchStore, switchOwnedHere, requestedModeSwitch } from "#lib/services/storageModeSwitch";
   import { loadWorkspace, localResultCount, openWorkspace, refreshCapabilities } from "#lib/db/workspace";
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
@@ -62,7 +62,7 @@
   import { Alert, Button, PageShell } from "#lib/components/ui";
   import UpdateNotice from "#lib/components/layout/UpdateNotice.svelte";
   import MaintenanceNotice from "#lib/components/layout/MaintenanceNotice.svelte";
-  import StoragePolicyModal from "#lib/components/StoragePolicyModal.svelte";
+  import StorageChoiceModal from "#lib/components/storage/StorageChoiceModal.svelte";
   import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "#lib/components/HttpCatModal.svelte";
   import PreviewBanner from "#lib/components/layout/PreviewBanner.svelte";
@@ -78,19 +78,17 @@
   let { children }: Props = $props();
 
   let fileInput: HTMLInputElement | undefined = $state();
-  let isSettingsModalOpen = $state(false);
   let isInitializing = $state(true);
   let showFocusNav = false;
 
   // The storage-mode move dialog, opened from the banners below (interrupted move, stray results).
-  let switchWizardOpen = $state(false);
-  let switchTarget: StorageMode | null = $state(null);
   let resumeBannerDismissed = $state(false);
   // A move a reload or crash interrupted: running it again is safe (every step is an upsert).
   let interruptedSwitch = $derived($pendingSwitchStore && !$switchOwnedHere ? $pendingSwitchStore : null);
   // Results still held in this browser (hybrid's home, or leftovers after the account left hybrid).
   let localResults = $state(0);
   let hybridHintDismissed = $state(false);
+  let workspaceExportOpen = $state(false);
   let workspaceReady = $derived($workspaceStatusStore.state === "ok" && page.url.pathname !== "/unlock");
   let strayLocalResults = $derived(
     workspaceReady && $storagePolicyStore.storageMode === "all-server" && localResults > 0,
@@ -103,8 +101,7 @@
   );
 
   function openSwitch(target: StorageMode) {
-    switchTarget = target;
-    switchWizardOpen = true;
+    requestedModeSwitch.set(target);
   }
 
   async function refreshLocalResults() {
@@ -117,11 +114,12 @@
 
   let isGradeActive = $derived(isGradeActivePath(page.url.pathname));
 
-  // Admins manage users and the server only (issue #58). Teaching routes stay unmounted until the
-  // session's role is known, so an admin never renders one or calls its (refusing) endpoints.
+  // Admins manage users and the server only (issue #58). Teaching routes stay unmounted until the session's role is known, so an admin never renders one or calls its (refusing) endpoints.
   let isAdmin = $derived($isUnlocked && $sessionStore.role === "admin");
   let roleKnown = $derived(!isInitializing || $workspaceStatusStore.state !== "unchecked");
-  let holdRoute = $derived(!isAdminPath(page.url.pathname) && (!roleKnown || isAdmin));
+  // Also while an unlocked tab has not yet proven it owns this browser's workspace (openWorkspace pending).
+  let ownerPending = $derived($isUnlocked && $workspaceStatusStore.state === "unchecked" && !isPublicPath(page.url.pathname));
+  let holdRoute = $derived(ownerPending || (!isAdminPath(page.url.pathname) && (!roleKnown || isAdmin)));
 
   let showFullNav = $derived($isUnlocked && page.url.pathname !== "/unlock");
   let showExamSidebar = $derived(
@@ -130,7 +128,7 @@
 
   function handleFooterClick() {
     if (get(isUnlocked)) {
-      isSettingsModalOpen = true;
+      void goto("/settings#backend");
     } else {
       window.location.href = "/unlock";
     }
@@ -142,8 +140,7 @@
       return;
     }
     const target = event.target as HTMLElement | null;
-    // F1 is not a printable character: while the help panel is open (its
-    // search field takes focus on open) it must still close it.
+    // F1 is not a printable character: while the help panel is open (its search field takes focus on open) it must still close it.
     const closesHelp = event.key === "F1" && get(helpStore).open;
     if (
       !closesHelp &&
@@ -167,8 +164,7 @@
     registerCspDiagnostics();
     registerHygieneListeners();
     registerWorkspaceSync();
-    // The manifest in IndexedDB is the source of truth for the mode; this refreshes the
-    // localStorage cache the stores booted from before anything routes a request.
+    // The manifest in IndexedDB is the source of truth for the mode; this refreshes the localStorage cache the stores booted from before anything routes a request.
     try {
       await loadWorkspace();
     } catch (err) {
@@ -190,22 +186,23 @@
 
     if (restored && get(isUnlocked)) {
       const mode = get(sessionStore).mode;
-      // Before routes read: the session must own this browser's workspace, and the account's
-      // storage mode comes from the server (lib/db/workspace.ts). Nothing here changes the mode.
+      // Before routes read: the session must own this browser's workspace, and the account's storage mode comes from the server (lib/db/workspace.ts). Nothing here changes the mode.
       await openWorkspace();
       await refreshLocalResults();
 
-      // Keys are back, so release `awaitSessionReady()` routes before the token refresh below
-      // (that refresh is about the access cookie, not the vault; `client.ts` handles the race).
+      // Keys are back, so release `awaitSessionReady()` routes before the token refresh below (that refresh is about the access cookie, not the vault; `client.ts` handles the race).
       markSessionReady();
 
       if (mode === "hybrid" || mode === "authenticated") {
         try {
           await refreshSession();
-        } catch {
-          await lockSession();
-          isInitializing = false;
-          return;
+        } catch (err) {
+          // Only a refused session locks; offline (ERR_NETWORK) keeps working on the local keys.
+          if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+            await lockSession();
+            isInitializing = false;
+            return;
+          }
         }
       }
     } else if (!get(isUnlocked) && !isPublicPath(page.url.pathname)) {
@@ -213,15 +210,9 @@
       await goto("/unlock");
     }
     isInitializing = false;
-    // Releases every route blocked on `awaitSessionReady()`, whether or not
-    // the session came back unlocked — routes check `isUnlocked` themselves.
+    // Releases every route blocked on `awaitSessionReady()`, whether or not the session came back unlocked — routes check `isUnlocked` themselves.
     markSessionReady();
   });
-
-  async function handleLock() {
-    await lockSession();
-    window.location.href = "/unlock";
-  }
 
   function triggerOpenBgproj() {
     fileInput?.click();
@@ -248,9 +239,7 @@
     }
   }
 
-  // The inline script in app.html applied the theme before the first paint;
-  // from here on the store keeps <html data-theme> in step with the user's
-  // choice and with OS changes while "system" is selected.
+  // The inline script in app.html applied the theme before the first paint; from here on the store keeps <html data-theme> in step with the user's choice and with OS changes while "system" is selected.
   $effect.pre(() => {
     const currentTheme = $theme;
     if (typeof document !== "undefined") {
@@ -258,8 +247,7 @@
     }
   });
 
-  // app.html ships a static <html lang="en">; keep it truthful so screen
-  // readers and browser translation follow the selected language.
+  // app.html ships a static <html lang="en">; keep it truthful so screen readers and browser translation follow the selected language.
   $effect.pre(() => {
     const lang = $locale;
     if (typeof document !== "undefined") {
@@ -267,9 +255,7 @@
     }
   });
 
-  // Re-probe the server's version whenever the address changes or the session
-  // unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the
-  // overlap with the onMount call below is harmless.
+  // Re-probe the server's version whenever the address changes or the session unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the overlap with the onMount call below is harmless.
   $effect.pre(() => {
     const backend = $effectiveBackendStore;
     const unlocked = $isUnlocked;
@@ -287,8 +273,7 @@
     }
   });
 
-  // Admins change an account's switches at any time (issue #53): ask again whenever the tab comes back
-  // into view, at most every 30 s, so a change shows without signing in again.
+  // Admins change an account's switches at any time (issue #53): ask again whenever the tab comes back into view, at most every 30 s, so a change shows without signing in again.
   let lastCapabilitiesCheck = 0;
   function recheckCapabilities() {
     if (document.visibilityState !== "visible" || isInitializing) return;
@@ -325,7 +310,8 @@
   onchange={handleFileSelected}
 />
 
-<svelte:window onkeydown={handleGlobalKeydown} onfocus={recheckCapabilities} />
+<!-- `.app-main` is the only scroller; an anchor jump, focus() or scrollIntoView can still scroll the overflow:hidden document and leave a gap under the footer. -->
+<svelte:window onkeydown={handleGlobalKeydown} onfocus={recheckCapabilities} onscroll={() => (window.scrollX || window.scrollY) && window.scrollTo(0, 0)} />
 <svelte:document onvisibilitychange={recheckCapabilities} />
 
 <SessionTimeoutWarning />
@@ -345,16 +331,11 @@
       latexCompilation={$effectiveLatexStore}
       versionStatus={$versionStatus}
       helpUnseen={!$helpSeen}
-      onStorageClick={handleFooterClick}
       onHelpClick={() => openHelp()}
       onOpenArchive={triggerOpenBgproj}
-      onExportArchive={() => exportArchiveInteractively()}
-      onShareResults={() =>
-        exportArchiveInteractively(`examance-results-${new Date().toISOString().slice(0, 10)}${WORKSPACE_ARCHIVE_EXT}`, {
-          includeExerciseCode: false,
-        })}
+      onExportArchive={() => (workspaceExportOpen = true)}
       onClearWorkspace={handleCloseWorkspace}
-      onLock={handleLock}
+      onLock={lockSession}
     />
   {/if}
 
@@ -362,8 +343,7 @@
   <MaintenanceNotice />
 
   {#if $versionStatus === "incompatible"}
-    <!-- A differing major version means frontend and backend disagree on the
-         API; saving may fail. Not dismissible, and visible without scrolling. -->
+    <!-- A differing major version means frontend and backend disagree on the API; saving may fail. Not dismissible, and visible without scrolling. -->
     <Alert severity="danger" title={$t("statusBar.incompatibleTitle")} class="mx-3 mt-2 sm:mx-4">
       {$t("statusBar.incompatibleBody", { app: frontendVersion, server: $backendVersionStore ?? "?" })}
     </Alert>
@@ -424,7 +404,7 @@
         kinds: $vaultIntegrityStore.kinds.join(", "),
       })}
       {#snippet actions()}
-        <Button variant="outlined" severity="danger" size="sm" onClick={handleLock}>
+        <Button variant="outlined" severity="danger" size="sm" onClick={lockSession}>
           {$t("misc.vaultIntegrity.action")}
         </Button>
         <Button variant="text" severity="secondary" size="sm" onClick={() => vaultIntegrityStore.reset()}>
@@ -474,12 +454,7 @@
 
   <HelpModal />
 
-  <StoragePolicyModal
-    isOpen={isSettingsModalOpen || mustChooseMode}
-    teaching={!isAdmin}
-    mustChoose={mustChooseMode}
-    onClose={() => (isSettingsModalOpen = false)}
-  />
+  <StorageChoiceModal isOpen={mustChooseMode} />
 </div>
 
 {#if $switchRunningElsewhere}
@@ -498,14 +473,15 @@
   </div>
 {/if}
 
+<!-- The one move dialog: the storage card in /settings and the first-sign-in choice request it. -->
 <StorageModeSwitchWizard
-  open={switchWizardOpen}
-  target={switchTarget}
-  onClose={() => {
-    switchWizardOpen = false;
-    switchTarget = null;
-  }}
+  open={$requestedModeSwitch !== null}
+  target={$requestedModeSwitch}
+  onClose={() => requestedModeSwitch.set(null)}
 />
 
 <ImportConflictModal />
 <ArchiveReportModal />
+{#if workspaceExportOpen}
+  <ExportOptionsModal title={$t("workspace.menu.export")} backup={{}} onClose={() => (workspaceExportOpen = false)} />
+{/if}

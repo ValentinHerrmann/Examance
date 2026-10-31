@@ -60,6 +60,8 @@ ignore = [
     # every route to `Annotated[X, Depends(f)]` would touch every endpoint for
     # no behavioural gain. Bugbear's other checks stay enabled.
     "B008",
+    # E501: comments and docstrings are one line each and the editor wraps them; code keeps 100 by hand.
+    "E501",
 ]
 
 [tool.ruff.lint.per-file-ignores]

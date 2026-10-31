@@ -1,6 +1,4 @@
 export const statusBar = {
-    storageSettingsHint: 'Klicken, um Speicher- und Datenschutzeinstellungen zu ändern',
-    lockedHint: 'Sitzung gesperrt — Klicken zum Entsperren',
     backendConfigureHint: 'Klicken, um die Serveradresse zu konfigurieren',
     backendCurrent: 'Aktueller Server',
     noServer: 'Kein Server konfiguriert',
@@ -22,5 +20,4 @@ export const statusBar = {
     updateReload: 'Jetzt neu laden',
     releaseNotesTitle: 'Aktualisiert auf v{version}',
     releaseNotesLink: 'Release Notes auf GitHub ansehen',
-    releaseNotesDismiss: 'Schließen',
 } as const;

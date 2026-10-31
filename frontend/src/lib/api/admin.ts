@@ -1,16 +1,9 @@
-/**
- * Account administration (admin only): registrations awaiting approval, invitations, per-account
- * feature switches and the always-allowed domains. Every call is `silentError`; the admin page
- * reports failures inline.
- */
+/** Account administration (admin only): registrations awaiting approval, invitations, per-account feature switches and the always-allowed domains. Every call is `silentError`; the admin page reports failures inline. */
 
 import type { TranslationKey } from '#lib/i18n';
 import { api } from './client';
 
-/**
- * The switches an admin sets per account. Exams and exercises always live on the server and need none.
- * Keys mirror `AccountFeatures` in backend/app/schemas/admin.py; the UI renders them in this order.
- */
+/** The switches an admin sets per account. Exams and exercises always live on the server and need none. Keys mirror `AccountFeatures` in backend/app/schemas/admin.py; the UI renders them in this order. */
 export const ACCOUNT_FEATURES = ['server_results', 'server_latex', 'exercise_sharing'] as const;
 export type AccountFeature = (typeof ACCOUNT_FEATURES)[number];
 export type AccountFeatures = Record<AccountFeature, boolean>;

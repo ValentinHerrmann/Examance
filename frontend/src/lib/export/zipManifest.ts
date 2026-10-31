@@ -1,7 +1,4 @@
-/**
- * `manifest.json` of the plaintext ZIP exports, read back by `archive/zipImport.ts` (issue #145).
- * Version 1 added ids, group ids and variant keys; older library ZIPs (no `kind`) still import.
- */
+/** `manifest.json` of the plaintext ZIP exports, read back by `archive/zipImport.ts` (issue #145). Version 1 added ids, group ids and variant keys; older library ZIPs (no `kind`) still import. */
 import type { ExerciseRecord, ExtraNotes, GradingKeyConfig } from '#lib/db/schema';
 import type { LatexPackageEntry } from '#lib/latex/packages';
 import { parseExerciseScore } from '#lib/latex/scoreParser';

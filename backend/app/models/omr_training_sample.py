@@ -12,19 +12,12 @@ from app.database import Base
 
 
 class OmrTrainingSample(Base):
-    """
-    Opt-in training data for a shared MC-box classifier.
-
-    Deliberately unlinked: no FK, teacher, exam, submission or pupil id, no IP, only a day-granular
-    date (retention). Grayscale checkbox crop plus verified label ("Training-data donation").
-    """
+    """Opt-in training data for a shared MC-box classifier. Deliberately unlinked: no FK, teacher, exam, submission or pupil id, no IP, only a day-granular date (retention). Grayscale checkbox crop plus verified label ("Training-data donation")."""
 
     __tablename__ = "omr_training_samples"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    # Random per-box id chosen by the donating browser and kept only in its sealed
-    # score row. A re-donation after the teacher changed the verified label carries
-    # the same token and replaces this row instead of adding a contradicting one.
+    # Random per-box id chosen by the donating browser and kept only in its sealed score row. A re-donation after the teacher changed the verified label carries the same token and replaces this row instead of adding a contradicting one.
     sample_token: Mapped[uuid.UUID | None] = mapped_column(
         nullable=True, unique=True, index=True
     )

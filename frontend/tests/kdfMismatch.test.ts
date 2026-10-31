@@ -13,11 +13,7 @@ import {
 } from '../src/lib/crypto/keyEnvelope';
 import { Argon2UnavailableError } from '../src/lib/crypto/keyDerivation';
 
-/**
- * Pins a lockout: `deriveKey` once fell back to PBKDF2 silently when the Argon2 WASM failed to load, so a wrap made with
- * WASM could never be opened without it (a correct password read as wrong). The suite missed it because the argon2 mock
- * always threw, so wrap and unwrap ran the same branch.
- */
+/** Pins a lockout: `deriveKey` once fell back to PBKDF2 silently when the Argon2 WASM failed to load, so a wrap made with WASM could never be opened without it (a correct password read as wrong). The suite missed it because the argon2 mock always threw, so wrap and unwrap ran the same branch. */
 
 const TEACHER_ID = '11111111-2222-3333-4444-555555555555';
 const SECRET = 'a-correct-password-1';
@@ -42,8 +38,7 @@ async function wrapUnder(
   return {
     kind: 'password',
     credentialIdB64: null,
-    // Labelled argon2id either way — which is precisely the lie the old
-    // fallback told, and why the label cannot be trusted on read.
+    // Labelled argon2id either way — which is precisely the lie the old fallback told, and why the label cannot be trusted on read.
     kdf: 'argon2id',
     kdfSalt: salt,
     kdfParams: { t: 3, m: 65536, p: 4 },
@@ -74,8 +69,7 @@ describe('a wrap written under one KDF and opened under the other', () => {
 
   it('still opens a wrap the old fallback made, and says so', async () => {
     const envelope = await wrapUnder(false, dek, keyId);
-    // Argon2 is back — the state in which such a wrap used to become permanently
-    // unopenable, and the account got "that password is not correct".
+    // Argon2 is back — the state in which such a wrap used to become permanently unopenable, and the account got "that password is not correct".
     setArgon2Available(true);
 
     const { bundle, usedFallbackKdf } = await unwrapWithSecret(
@@ -86,15 +80,12 @@ describe('a wrap written under one KDF and opened under the other', () => {
       'password',
     );
     expect(Array.from(bundle.dek)).toEqual(Array.from(dek));
-    // The flag is what triggers rewriting the wrap under Argon2, so the account
-    // stops depending on the fallback.
+    // The flag is what triggers rewriting the wrap under Argon2, so the account stops depending on the fallback.
     expect(usedFallbackKdf).toBe(true);
   });
 
   it('says Argon2 is unavailable rather than blaming the password', async () => {
-    // An Argon2-made wrap genuinely cannot be opened without Argon2 — nothing can
-    // fix that here. What matters is that the teacher is told the browser could
-    // not load the key derivation, not that their correct password is wrong.
+    // An Argon2-made wrap genuinely cannot be opened without Argon2 — nothing can fix that here. What matters is that the teacher is told the browser could not load the key derivation, not that their correct password is wrong.
     const envelope = await wrapUnder(true, dek, keyId);
     setArgon2Available(false);
 
@@ -113,8 +104,7 @@ describe('a wrap written under one KDF and opened under the other', () => {
   });
 
   it('refuses to write a wrap when Argon2 is unavailable', async () => {
-    // The alternative is what caused this: a wrap that only PBKDF2 opens,
-    // labelled argon2id, written without anyone being told.
+    // The alternative is what caused this: a wrap that only PBKDF2 opens, labelled argon2id, written without anyone being told.
     setArgon2Available(false);
     await expect(deriveSecretKek(SECRET, randomBytes(16), 'password')).rejects.toThrow(
       Argon2UnavailableError,

@@ -97,8 +97,7 @@
     onScroll
   }: Props = $props();
 
-  // Applied to both wrapper divs: flex ancestors (the editor's stacked phone column)
-  // can otherwise collapse them to ~0px and CodeMirror paints into a collapsed box.
+  // Applied to both wrapper divs: flex ancestors (the editor's stacked phone column) can otherwise collapse them to ~0px and CodeMirror paints into a collapsed box.
   let wrapperMinHeight = $derived(`${Math.max(rows, 3) * 1.5}rem`);
 
   const ALL_MACROS = [...QUICK_INSERT_MACROS, ...SUBJECT_SNIPPETS];
@@ -116,9 +115,7 @@
     safeLocalStorage.setItem(SUBJECT_KEY, next);
   }
 
-  // Palette text is keyed by macro id, so the key is only known at runtime and
-  // has to be cast. A key missing from the catalogs renders as the key itself
-  // rather than an empty button.
+  // Palette text is keyed by macro id, so the key is only known at runtime and has to be cast. A key missing from the catalogs renders as the key itself rather than an empty button.
   const isSubject = (macro: QuickInsertMacro) => (SUBJECT_CATEGORIES as readonly string[]).includes(macro.category);
   function macroText(macro: QuickInsertMacro, field: "label" | "description") {
     const ns = isSubject(macro) ? "snippets" : "editor.macros";
@@ -149,8 +146,7 @@
     hoverTimer = setTimeout(() => {
       hoveredMacro = macro;
 
-      // Clamp to the viewport: anchored straight to the trigger's coordinates,
-      // the tooltip hung off the screen near the right and bottom edges.
+      // Clamp to the viewport: anchored straight to the trigger's coordinates, the tooltip hung off the screen near the right and bottom edges.
       const width = 320; // matches max-w-xs
       const estimatedHeight = 96;
       const margin = 8;
@@ -173,8 +169,7 @@
   // Marks the dispatch that mirrors an outside `value` change, so it does not count as an edit.
   const externalSync = Annotation.define<boolean>();
 
-  // The palette's many buttons pushed the code out of view on phones and short laptops: it starts
-  // folded unless the screen is large, and an explicit toggle is remembered.
+  // The palette's many buttons pushed the code out of view on phones and short laptops: it starts folded unless the screen is large, and an explicit toggle is remembered.
   const PALETTE_KEY = "bg_latex_palette_open";
   function initialPaletteOpen(): boolean {
     const saved = safeLocalStorage.getItem(PALETTE_KEY);
@@ -284,8 +279,7 @@
     }
   }
 
-  // Rendered text height per line (incl. soft wraps). Diff padding/gap widgets are excluded:
-  // they are sized from these numbers, so counting them would feed back into the next measure.
+  // Rendered text height per line (incl. soft wraps). Diff padding/gap widgets are excluded: they are sized from these numbers, so counting them would feed back into the next measure.
   export function getLineHeights(): Map<number, number> {
     const heights = new Map<number, number>();
     if (!view) return heights;
@@ -364,8 +358,7 @@
     };
     scrollDOM.addEventListener("scroll", handleScrollListener, { passive: true });
 
-    // Escape closes the search panel first: the dialog around the editor must not also close.
-    // The capture pass sees the panel still open; the bubble pass (after the panel closed it) swallows the key.
+    // Escape closes the search panel first: the dialog around the editor must not also close. The capture pass sees the panel still open; the bubble pass (after the panel closed it) swallows the key.
     let escapeClosedSearch = false;
     view.dom.addEventListener(
       "keydown",
@@ -446,8 +439,7 @@
   });
 </script>
 
-<!-- No overflow-hidden/min-h-0 here: the wrapper's minimum must include the palette, or flex parents
-     squeeze it and the editor's last lines end up clipped under whatever follows. -->
+<!-- No overflow-hidden/min-h-0 here: the wrapper's minimum must include the palette, or flex parents squeeze it and the editor's last lines end up clipped under whatever follows. -->
 <div class="flex w-full h-full flex-1 flex-col">
   {#if showQuickInsert && !readonly}
     <div class="flex shrink-0 items-center border-b border-line bg-surface-raised">

@@ -151,8 +151,7 @@
 
   async function mount(url: string) {
     const { mountEmbedPdf } = await import("#lib/pdf/embedpdf");
-    // A src change (or unmount racing a fast page switch) may land here
-    // after containerEl is gone or after a newer `mount()` already ran.
+    // A src change (or unmount racing a fast page switch) may land here after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
     destroy();
     if (!containerEl) return;
@@ -220,8 +219,7 @@
   });
 </script>
 
-<!-- The host is absolutely positioned so it always has a real height: EmbedPDF's first zoom fit
-     needs one, and a content-sized host stayed blank for good (issue #93). -->
+<!-- The host is absolutely positioned so it always has a real height: EmbedPDF's first zoom fit needs one, and a content-sized host stayed blank for good (issue #93). -->
 <div class="relative h-full min-h-40 w-full">
   <div bind:this={containerEl} class="embed-pdf-viewer absolute inset-0 flex"></div>
   {#if src && isOverlayVisible}
@@ -269,8 +267,7 @@
 </div>
 
 <style>
-  /* The custom element EmbedPDF mounts (<embedpdf-container>) has no
-     intrinsic size; make it fill this wrapper. */
+  /* The custom element EmbedPDF mounts (<embedpdf-container>) has no intrinsic size; make it fill this wrapper. */
   .embed-pdf-viewer :global(embedpdf-container) {
     display: block;
     width: 100%;

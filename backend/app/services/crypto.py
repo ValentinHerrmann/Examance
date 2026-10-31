@@ -1,9 +1,8 @@
-"""Server-side cryptographic helpers — Argon2id password hashing, HMAC."""
+"""Server-side cryptographic helpers — Argon2id password hashing, audit IP hashing."""
 from __future__ import annotations
 
+import asyncio
 import hashlib
-import hmac
-import secrets
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
@@ -31,19 +30,26 @@ def verify_password(plaintext: str, hashed: str) -> bool:
         return False
 
 
+# Verified when an account has no password hash, so a miss costs the same Argon2 work as a hit.
+DUMMY_PASSWORD_HASH = (
+    "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"  # noqa: S105
+)
+
+
+async def hash_password_async(plaintext: str) -> str:
+    """`hash_password` off the event loop: Argon2id takes a core for tens of milliseconds."""
+    return await asyncio.to_thread(hash_password, plaintext)
+
+
+async def verify_password_async(plaintext: str, hashed: str | None) -> bool:
+    """`verify_password` off the event loop; a missing *hashed* checks the dummy hash and fails."""
+    ok = await asyncio.to_thread(verify_password, plaintext, hashed or DUMMY_PASSWORD_HASH)
+    return ok and hashed is not None
+
+
 def needs_rehash(hashed: str) -> bool:
     """Return True if the hash was made with outdated parameters."""
     return _ph.check_needs_rehash(hashed)
-
-
-def hash_token(raw_token: str) -> str:
-    """Return hex-encoded SHA-256 of *raw_token* for storage in InviteToken."""
-    return hashlib.sha256(raw_token.encode()).hexdigest()
-
-
-def generate_invite_token() -> str:
-    """Generate a cryptographically secure URL-safe random token (32 bytes → 43 chars)."""
-    return secrets.token_urlsafe(32)
 
 
 def hash_ip(ip: str) -> str | None:
@@ -51,8 +57,3 @@ def hash_ip(ip: str) -> str | None:
     if not ip:
         return None
     return hashlib.sha256(ip.encode()).hexdigest()
-
-
-def hmac_sha256(message: str, key: str) -> str:
-    """Return hex-encoded HMAC-SHA256 of *message* keyed with *key*."""
-    return hmac.new(key.encode(), message.encode(), hashlib.sha256).hexdigest()

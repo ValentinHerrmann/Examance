@@ -15,10 +15,7 @@ function label(ctx: CanvasRenderingContext2D, font: string, text: string, x: num
   ctx.fillText(text, x, y);
 }
 
-/**
- * Draws the persisted annotation strokes of one page in canvas pixel space. The single renderer
- * for the grading overlay and the graded-PDF export, so both look identical.
- */
+/** Draws the persisted annotation strokes of one page in canvas pixel space. The single renderer for the grading overlay and the graded-PDF export, so both look identical. */
 export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: VectorStroke[], page: number): void {
   ctx.strokeStyle = INK;
   ctx.fillStyle = INK;

@@ -33,10 +33,7 @@ export function getRecentValues(fieldKey: string): string[] {
   return [];
 }
 
-/**
- * Adds a new value to the top of recent values for a given field key.
- * Removes duplicate occurrences, caps array at maxItems, and persists to localStorage.
- */
+/** Adds a new value to the top of recent values for a given field key. Removes duplicate occurrences, caps array at maxItems, and persists to localStorage. */
 export function recordValue(fieldKey: string, value: string, maxItems = 15): string[] {
   if (!fieldKey) return [];
   const cleaned = cleanRecentValue(fieldKey, value);
@@ -74,10 +71,3 @@ export function removeValue(fieldKey: string, value: string): string[] {
   return updated;
 }
 
-/**
- * Clears stored recent values for a specific field key.
- */
-export function clearRecentValues(fieldKey: string): void {
-  if (!fieldKey) return;
-  safeLocalStorage.removeItem(PREFIX + fieldKey);
-}

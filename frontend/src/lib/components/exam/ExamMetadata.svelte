@@ -5,9 +5,10 @@
   interface Props {
     exam: ExamRecord | null;
     totalPoints: number;
-    submissionsCount: number;
-    studentsCount: number;
-    gradedCount: number;
+    /** Null when the submissions could not be read: shown as "–", never as 0. */
+    submissionsCount: number | null;
+    studentsCount: number | null;
+    gradedCount: number | null;
   }
 
   let {
@@ -36,9 +37,9 @@
       <span>{$t("common.teacher")}: {exam.lehrernachname}</span>
     {/if}
     <span>{$t("common.points")}: {totalPoints}</span>
-    <span>{$t("exam.metadata.submissions")}: {submissionsCount}</span>
-    <span>{$t("common.students")}: {studentsCount}</span>
-    <span>{$t("exam.metadata.graded")}: {gradedCount}</span>
+    <span>{$t("exam.metadata.submissions")}: {submissionsCount ?? "–"}</span>
+    <span>{$t("common.students")}: {studentsCount ?? "–"}</span>
+    <span>{$t("exam.metadata.graded")}: {gradedCount ?? "–"}</span>
     {#if gradeTypeLabel}
       <span>{$t("common.grade")}: {gradeTypeLabel}</span>
     {/if}

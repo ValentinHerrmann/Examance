@@ -1,8 +1,4 @@
-/**
- * Web Worker for OMR and fiducial alignment: binarize (Otsu), locate the 4 corner fiducials (largest dark blob per quadrant),
- * homography (4-point DLT, 3-point affine fallback), sample each bubble's fill ratio, score via mcScore.ts. No OpenCV.js:
- * bubble positions come from the PDF's `omr://` link annotations ("Prepare OMR"); only fiducials are detected.
- */
+/** Web Worker for OMR and fiducial alignment: binarize (Otsu), locate the 4 corner fiducials (largest dark blob per quadrant), homography (4-point DLT, 3-point affine fallback), sample each bubble's fill ratio, score via mcScore.ts. No OpenCV.js: bubble positions come from the PDF's `omr://` link annotations ("Prepare OMR"); only fiducials are detected. */
 
 import type { OmrFiducialRect, OmrPageTemplate } from '#lib/db/schema';
 import { computeMcScore, type McQuestionType } from '#lib/grading/mcScore';
@@ -43,8 +39,7 @@ export interface OmrWorkerRequest {
   /** Scale factor the scan was rasterized at (e.g. 2.0), matching pdfjs viewport scale semantics. */
   scanScale: number;
   answerKeys: OmrExerciseAnswerKey[];
-  /** Detection thresholds for this run (`omrSettings.ts`). Absent → built-in defaults.
-   *  The caller snapshots these once per run and stamps the same object into `omrMeta.run`. */
+  /** Detection thresholds for this run (`omrSettings.ts`). Absent → built-in defaults. The caller snapshots these once per run and stamps the same object into `omrMeta.run`. */
   params?: OmrDetectionParams;
 }
 
@@ -68,8 +63,7 @@ export interface OmrBubbleReading {
 
 export interface OmrExerciseResult {
   exerciseId: string;
-  /** 0-based, matches OmrPageTemplate.pageIndex — lets the grading viewer show
-   *  detection boxes only for the page currently on screen. */
+  /** 0-based, matches OmrPageTemplate.pageIndex — lets the grading viewer show detection boxes only for the page currently on screen. */
   pageIndex: number;
   selectedOptions: number[];
   score: number;
@@ -86,16 +80,14 @@ export type OmrWorkerResponse =
       alignmentFailed: boolean;
       alignmentUncertain: boolean;
       fiducialsFound: number;
-      /** Corner indices (0=BL,1=BR,2=TR,3=TL) actually detected this pass — lets a
-       *  caller report exactly which corner is missing instead of just a count. */
+      /** Corner indices (0=BL,1=BR,2=TR,3=TL) actually detected this pass — lets a caller report exactly which corner is missing instead of just a count. */
       fiducialCorners: number[];
       /** Registration diagnostics for this page — persisted with each score for future calibration. */
       pageStats: OmrPageStats;
     }
   | { type: 'ERROR'; message: string };
 
-// Every threshold below comes from `OmrDetectionParams` (lib/grading/omrSettings.ts), whose
-// defaults are the constants this file used to hardcode.
+// Every threshold below comes from `OmrDetectionParams` (lib/grading/omrSettings.ts), whose defaults are the constants this file used to hardcode.
 
 type Homography = [number, number, number, number, number, number, number, number, number];
 
@@ -205,11 +197,7 @@ function pdfPointToExpectedPixel(
   return [px * scanScale, (pageHeightPt - py) * scanScale];
 }
 
-/**
- * Finds the connected dark blob in [qx0,qx1) x [qy0,qy1) that best matches a fiducial, scored by
- * proximity to the template-expected position rather than area: a logo or student QR in the same
- * quadrant is often the largest blob but is filtered out by the area/aspect checks.
- */
+/** Finds the connected dark blob in [qx0,qx1) x [qy0,qy1) that best matches a fiducial, scored by proximity to the template-expected position rather than area: a logo or student QR in the same quadrant is often the largest blob but is filtered out by the area/aspect checks. */
 function findBestFiducialBlob(
   dark: Uint8Array,
   visited: Uint8Array,
@@ -354,9 +342,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
     const dark = new Uint8Array(width * height);
     for (let p = 0; p < gray.length; p++) dark[p] = gray[p] < threshold ? 1 : 0;
 
-    // Locate each fiducial: expected position from the template, searched for in the
-    // corresponding quadrant of the actual scan (a scan can be shifted/skewed, not rotated
-    // past quadrant boundaries under normal handling).
+    // Locate each fiducial: expected position from the template, searched for in the corresponding quadrant of the actual scan (a scan can be shifted/skewed, not rotated past quadrant boundaries under normal handling).
     const visited = new Uint8Array(width * height);
     const srcPts: [number, number][] = [];
     const dstPts: [number, number][] = [];
@@ -485,9 +471,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         if (mappedW <= 0 || mappedH <= 0 || width <= 0 || height <= 0) {
           alignmentUncertain = true;
         } else {
-          // A correct registration maps the page onto the scan without distorting its
-          // aspect ratio. Compare against the page itself, not the scan image — a
-          // scanner bed larger than the sheet changes the image's ratio, not the page's.
+          // A correct registration maps the page onto the scan without distorting its aspect ratio. Compare against the page itself, not the scan image — a scanner bed larger than the sheet changes the image's ratio, not the page's.
           const mappedRatio = mappedW / mappedH;
           const pageRatio = expW / expH;
           const ratioDiff = Math.abs(mappedRatio - pageRatio) / pageRatio;
@@ -543,8 +527,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         continue;
       }
 
-      // Pass 1: measure every box both ways — v4 (local threshold, border snapping, strokes) and
-      // v2 (global Otsu, template rect). Spill needs every sibling's ring before classifying.
+      // Pass 1: measure every box both ways — v4 (local threshold, border snapping, strokes) and v2 (global Otsu, template rect). Spill needs every sibling's ring before classifying.
       const measured = bubbleRects.map((b) => {
         const bbox = bubbleBBoxInImage(H, b.rect, scanScale, pageTemplate.pageHeightPt);
         const redoBbox = b.redoRect
@@ -592,13 +575,11 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         const [chosen, other, otherAlgorithm]: [OmrBubbleClassification, OmrBubbleClassification, number] =
           params.algorithm === 4 ? [dec4, dec2, 2] : [dec2, dec4, 4];
         const { state, reasons, provisional } = chosen;
-        // Raw readings are the v4 measurements (features for calibration/training), whichever
-        // algorithm decided.
+        // Raw readings are the v4 measurements (features for calibration/training), whichever algorithm decided.
         const ratio = m.fill;
         const redoRatio = m.redoRatio;
 
-        // Report the box where the printed border actually is (snapped), not the raw template
-        // position — the viewer's overlay and any crop then sit on the real box.
+        // Report the box where the printed border actually is (snapped), not the raw template position — the viewer's overlay and any crop then sit on the real box.
         const w = rawBbox.maxX - rawBbox.minX;
         const h = rawBbox.maxY - rawBbox.minY;
         const bbox = {
@@ -635,8 +616,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
       const selectedOptions = bubbleReadings
         .filter((r) => r.state === 'marked' || r.state === 'redone' || (r.state === 'ambiguous' && r.provisional !== false))
         .map((r) => r.optionIndex);
-      // A shape reason flags the box even when it was resolved (e.g. solid → undone): the
-      // detector changed or doubted the fill-ratio reading, so a human confirms it.
+      // A shape reason flags the box even when it was resolved (e.g. solid → undone): the detector changed or doubted the fill-ratio reading, so a human confirms it.
       const flaggedOptions = bubbleReadings
         .filter((r) => r.state === 'ambiguous' || (r.reasons?.length ?? 0) > 0)
         .map((r) => r.optionIndex);

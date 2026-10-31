@@ -16,10 +16,7 @@
     type LogoMime,
   } from "#lib/latex/logo";
 
-  /**
-   * The account logo (issue #46): printed in the header of every exam that does not override it.
-   * Without a choice it is the bundled default (MTG); "reset" returns to that.
-   */
+  /** The account logo (issue #46): printed in the header of every exam that does not override it. Without a choice it is the bundled default (MTG); "reset" returns to that. */
 
   const MODE_LABEL = {
     default: "logo.mode.default",

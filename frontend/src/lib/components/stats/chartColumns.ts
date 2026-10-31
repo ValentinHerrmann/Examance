@@ -1,8 +1,4 @@
-/**
- * Column data for the stats charts: `ColumnChart` draws layers of these on a shared domain.
- * Every chart reads best-left: grade columns are already best-first, and percentage builders
- * (`binColumns`, `gradeBands`) mirror the 0-100 % axis so 100 % is on the left.
- */
+/** Column data for the stats charts: `ColumnChart` draws layers of these on a shared domain. Every chart reads best-left: grade columns are already best-first, and percentage builders (`binColumns`, `gradeBands`) mirror the 0-100 % axis so 100 % is on the left. */
 import { gradeColorVar, type BorderlineCase, type GradeDistributionBucket } from '#lib/analytics/gradingKey';
 import type { PercentageHistogramBin } from '#lib/analytics/stats';
 
@@ -73,10 +69,7 @@ export interface ChartCurve {
   title: string;
 }
 
-/**
- * Normal distribution with the class mean/stddev scaled to the histogram (students per bin =
- * count × bin width × density), on the mirrored axis (x = 100 − percentage). Empty without spread.
- */
+/** Normal distribution with the class mean/stddev scaled to the histogram (students per bin = count × bin width × density), on the mirrored axis (x = 100 − percentage). Empty without spread. */
 export function normalCurve(mean: number, sd: number, count: number, binWidth: number): [number, number][] {
   if (!(sd > 0) || count === 0) return [];
   const scale = (count * binWidth) / (sd * Math.sqrt(2 * Math.PI));
@@ -97,10 +90,7 @@ function countWithShare(count: number, total: number, percent: Percent): string 
   return total > 0 ? `${count} (${percent(count / total, 0)})` : `${count}`;
 }
 
-/**
- * Percentage range `[lo, hi]` each grade covers. `buckets` is best-first; a grade's high end is
- * the previous grade's low end (100 % for the best) and the worst grade reaches down to 0 %.
- */
+/** Percentage range `[lo, hi]` each grade covers. `buckets` is best-first; a grade's high end is the previous grade's low end (100 % for the best) and the worst grade reaches down to 0 %. */
 function gradeRanges(buckets: GradeDistributionBucket[]): [number, number][] {
   const clamp = (v: number) => Math.min(100, Math.max(0, v));
   const los = buckets.map((b, i) => (i === buckets.length - 1 ? 0 : clamp(b.minPercentage)));
@@ -139,10 +129,7 @@ export function gradeColumns(
   });
 }
 
-/**
- * Each grade as a band over its percentage range: the merged chart's backdrop, mirrored onto the
- * 100→0 axis. Captions match the grade chart and show for empty grades too, so zero reads as zero.
- */
+/** Each grade as a band over its percentage range: the merged chart's backdrop, mirrored onto the 100→0 axis. Captions match the grade chart and show for empty grades too, so zero reads as zero. */
 export function gradeBands(
   buckets: GradeDistributionBucket[],
   num: NumberFormat,

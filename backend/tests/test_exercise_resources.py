@@ -234,11 +234,7 @@ async def test_engine_unavailable_is_503_not_500(client: AsyncClient, db: AsyncS
 async def test_unhandled_error_still_carries_cors_headers(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    A 500 is produced outside CORSMiddleware, so it needs its own CORS headers or the browser
-    reports a CORS failure and hides the fault. The shared client re-raises exceptions; this one
-    lets the stack turn them into a response, as uvicorn does in production.
-    """
+    """A 500 is produced outside CORSMiddleware, so it needs its own CORS headers or the browser reports a CORS failure and hides the fault. The shared client re-raises exceptions; this one lets the stack turn them into a response, as uvicorn does in production."""
     await _login(client, db, "res-cors@example.com")
     origin = "http://localhost:5173"
 

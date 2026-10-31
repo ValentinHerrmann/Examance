@@ -17,10 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.config import settings
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
+from app.models.password_reset_token import PasswordResetToken
+from app.models.refresh_token import RefreshToken
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
-from app.services import retention
+from app.services import blob_store, retention
 from app.services.crypto import hash_password
 from tests.factors import sign_in, unique_email
 
@@ -329,3 +331,88 @@ async def test_restore_never_revives_a_deleted_exams_student_data(
     identity, submission = await _children(retention_db, exam_id)
     assert identity.deleted_at is not None
     assert submission.deleted_at is not None
+
+
+async def _present(db: AsyncSession, *ids: uuid.UUID) -> set[uuid.UUID]:
+    db.expire_all()
+    return set(await db.scalars(select(Exam.id).where(Exam.id.in_(ids))))
+
+
+@pytest.mark.asyncio
+async def test_soft_deleted_exam_is_hard_deleted_once_its_grace_period_passes(
+    retention_db, tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "BLOB_STORAGE_DIR", str(tmp_path))
+    monkeypatch.setattr(settings, "BLOB_STORAGE_BACKEND", "fs")
+    blob_store.init()
+    later = date.today() + timedelta(days=30)
+    over = await _seed_exam(retention_db, retention_until=later, with_children=False)
+    waiting = await _seed_exam(retention_db, retention_until=later, with_children=False)
+    live = await _seed_exam(retention_db, retention_until=later, with_children=False)
+    now = datetime.now(UTC)
+    over.deleted_at = now - timedelta(days=settings.RETENTION_GRACE_DAYS + 2)
+    waiting.deleted_at = now - timedelta(days=1)
+    await retention_db.commit()
+    blob_store.put_sync("scans", str(over.id), "s", b"scan")
+    kept_file = blob_store.put_sync("scans", str(waiting.id), "s", b"scan")
+
+    over_id, waiting_id, live_id = over.id, waiting.id, live.id
+
+    await retention.run(dry_run=True)
+    assert await _present(retention_db, over_id, waiting_id, live_id) == {
+        over_id, waiting_id, live_id
+    }
+
+    await retention.run()
+    # Only the exam past its grace period goes; its scan files go with it, not the others'.
+    assert await _present(retention_db, over_id, waiting_id, live_id) == {waiting_id, live_id}
+    assert [ref for ref, _ in blob_store.iter_refs("scans")] == [kept_file]
+
+
+@pytest.mark.asyncio
+async def test_unusable_session_and_reset_tokens_are_purged(retention_db) -> None:
+    exam = await _seed_exam(
+        retention_db, retention_until=date.today() + timedelta(days=30), with_children=False
+    )
+    teacher_id = exam.teacher_id
+    now = datetime.now(UTC)
+    day = timedelta(days=1)
+
+    def refresh(*, expires: datetime, revoked: bool = False) -> RefreshToken:
+        return RefreshToken(
+            jti=str(uuid.uuid4()), teacher_id=teacher_id, expires_at=expires, revoked=revoked
+        )
+
+    def reset(*, expires: datetime, used: datetime | None = None) -> PasswordResetToken:
+        return PasswordResetToken(
+            teacher_id=teacher_id,
+            token_hash=uuid.uuid4().hex * 2,
+            expires_at=expires,
+            used_at=used,
+        )
+
+    expired_refresh = refresh(expires=now - day)
+    live_refresh = refresh(expires=now + day)
+    # Revoked but unexpired stays: presenting it again is how a stolen cookie is detected.
+    revoked_refresh = refresh(expires=now + day, revoked=True)
+    expired_reset = reset(expires=now - day)
+    used_reset = reset(expires=now + day, used=now)
+    live_reset = reset(expires=now + day)
+    retention_db.add_all(
+        [expired_refresh, live_refresh, revoked_refresh, expired_reset, used_reset, live_reset]
+    )
+    await retention_db.commit()
+    kept_refresh = {live_refresh.jti, revoked_refresh.jti}
+    kept_reset = {live_reset.id}
+
+    await retention.run()
+
+    retention_db.expire_all()
+    refresh_left = await retention_db.scalars(
+        select(RefreshToken.jti).where(RefreshToken.teacher_id == teacher_id)
+    )
+    reset_left = await retention_db.scalars(
+        select(PasswordResetToken.id).where(PasswordResetToken.teacher_id == teacher_id)
+    )
+    assert set(refresh_left) == kept_refresh
+    assert set(reset_left) == kept_reset

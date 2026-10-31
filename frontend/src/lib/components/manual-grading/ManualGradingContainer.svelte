@@ -18,8 +18,7 @@
     SubmissionRecord,
   } from "#lib/db/schema";
   import RosterManager from "./RosterManager.svelte";
-  import ExerciseFirstGrid from "./ExerciseFirstGrid.svelte";
-  import StudentFirstGrid from "./StudentFirstGrid.svelte";
+  import ScoreGrid from "./ScoreGrid.svelte";
   import PasteImportModal from "./PasteImportModal.svelte";
   import { t } from "#lib/i18n";
 
@@ -62,8 +61,7 @@
       const nextStudents = await studentRepository.getByExamId(examId, key);
       const nextSubmissions = await submissionRepository.getByExamId(examId, key);
 
-      // One request for the whole exam instead of one per submission, to
-      // avoid an N+1 over the network in server mode.
+      // One request for the whole exam instead of one per submission, to avoid an N+1 over the network in server mode.
       const allScores = await scoreRepository.getByExamId(examId, key);
       const scoresBySubmission = new Map<string, typeof allScores>();
       for (const s of allScores) {
@@ -151,7 +149,8 @@
         onRosterChanged={handleDataChanged}
       />
     {:else if activeTab === "exercise-first"}
-      <ExerciseFirstGrid
+      <ScoreGrid
+        orientation="exercises"
         {examId}
         {exercises}
         {students}
@@ -161,7 +160,8 @@
         onOpenRoster={() => (activeTab = "roster")}
       />
     {:else if activeTab === "student-first"}
-      <StudentFirstGrid
+      <ScoreGrid
+        orientation="students"
         {exam}
         {examId}
         {exercises}

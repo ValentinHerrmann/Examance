@@ -1,8 +1,9 @@
 # LaTeX packages (issue #108)
 
 Teachers add LaTeX packages and TikZ/pgfplots libraries to the exam template without touching the
-template. The rules live twice, in `frontend/src/lib/latex/packages.ts` and
-`backend/app/services/latex_packages.py`; keep the two in sync (same constants, same output).
+template. The rule tables (limits, name pattern, forbidden, locked, aliases, after-hyperref) live once in
+`backend/app/services/latex_package_rules.json`, read by both `frontend/src/lib/latex/packages.ts` (Vite JSON import)
+and `backend/app/services/latex_packages.py`; the merge logic exists on both sides and must give the same output.
 
 ## Levels
 
@@ -71,8 +72,8 @@ it leaves out a package the account adds (not one an exercise needs; that one is
   split over lines) fails with a clear error.
 
 Every document builder goes through this: `buildExamLatex`, the new-exam draft, exercise previews
-and the group export (`buildExerciseDocument`), and on the server `compile_exam_latex` and the
-snippet wrapper of `compile_latex`. The frontend fetches the account list once per session
+and the group export (`buildExerciseDocument`), and on the server the snippet wrapper of
+`compile_latex`. The frontend fetches the account list once per session
 (`getAccountPackages()`, cleared with the compile cache); the server reads the column.
 
 ## Validation

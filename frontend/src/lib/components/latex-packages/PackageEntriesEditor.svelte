@@ -7,10 +7,7 @@
   import { entryErrorText } from "#lib/latex/packageMessages";
   import PackageAddForm from "./PackageAddForm.svelte";
 
-  /**
-   * An editable level of package entries (issue #108). Records are replaced, never mutated, so the bound list stays a
-   * plain array for the API. Each row shows its own error; callers block saving with `entriesError`.
-   */
+  /** An editable level of package entries (issue #108). Records are replaced, never mutated, so the bound list stays a plain array for the API. Each row shows its own error; callers block saving with `entriesError`. */
   interface Props {
     entries: LatexPackageEntry[];
     idPrefix: string;

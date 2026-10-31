@@ -11,8 +11,7 @@ from app.schemas.exam import ExerciseResponse
 
 
 class SharedExerciseResponse(BaseModel):
-    """Another account's shared row. Carries no owner id and no exam id, only the sharer's
-    e-mail, which they agreed to disclose when sharing."""
+    """Another account's shared row. Carries no owner id and no exam id, only the sharer's e-mail, which they agreed to disclose when sharing."""
 
     id: uuid.UUID
     exercise_group_id: uuid.UUID | None = None
@@ -78,8 +77,7 @@ class ResyncOverride(BaseModel):
 
 
 class ResyncRequest(BaseModel):
-    """The variants to take over, by source row id -> the fingerprint the user reviewed (CAS); a
-    subset is fine. `overrides` holds the user's edited LaTeX for some of them."""
+    """The variants to take over, by source row id -> the fingerprint the user reviewed (CAS); a subset is fine. `overrides` holds the user's edited LaTeX for some of them."""
 
     model_config = ConfigDict(extra="forbid")
 

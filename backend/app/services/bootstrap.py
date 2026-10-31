@@ -15,10 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 async def create_initial_admin(db: AsyncSession) -> None:
-    """
-    Idempotent startup hook to create initial admin user if configured in .env
-    and no matching user exists yet.
-    """
+    """Idempotent startup hook to create initial admin user if configured in .env and no matching user exists yet."""
     if not settings.INITIAL_ADMIN_EMAIL or not settings.INITIAL_ADMIN_PASSWORD:
         if settings.is_dev:
             logger.info(
@@ -56,9 +53,7 @@ async def create_initial_admin(db: AsyncSession) -> None:
                 admin_email,
             )
         elif existing_admin.approved_at is None:
-            # Approval arrived after this account was created (migration 0028 backfills, but
-            # a row written by an old container during the deploy would be missed). Only the
-            # configured admin with the configured password is healed, never anyone else.
+            # Approval arrived after this account was created (migration 0028 backfills, but a row written by an old container during the deploy would be missed). Only the configured admin with the configured password is healed, never anyone else.
             existing_admin.approved_at = datetime.now(UTC)
             await db.commit()
             logger.warning("Initial admin user (%s) was not approved; approved it.", admin_email)

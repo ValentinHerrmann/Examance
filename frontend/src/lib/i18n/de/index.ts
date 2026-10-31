@@ -1,5 +1,4 @@
-// German catalog — the source of truth. Adding a key here makes every other
-// catalog fail to type-check until it is translated too.
+// German catalog — the source of truth. Adding a key here makes every other catalog fail to type-check until it is translated too.
 import { common } from './common';
 import { nav } from './nav';
 import { statusBar } from './statusBar';
@@ -10,7 +9,6 @@ import { auth } from './auth';
 import { workspace } from './workspace';
 import { dashboard } from './dashboard';
 import { exam } from './exam';
-import { examCreation } from './examCreation';
 import { exercises } from './exercises';
 import { grading } from './grading';
 import { scanning } from './scanning';
@@ -40,7 +38,6 @@ export const de = {
     workspace,
     dashboard,
     exam,
-    examCreation,
     exercises,
     grading,
     scanning,

@@ -9,13 +9,12 @@
   import AnnotationToolbar from "./AnnotationToolbar.svelte";
   import ScoreEntry from "./ScoreEntry.svelte";
   import McAnswerReview from "./McAnswerReview.svelte";
-  import ClearAnnotationsModal from "./ClearAnnotationsModal.svelte";
-  import LastSubmissionModal from "./LastSubmissionModal.svelte";
   import GradingActions from "./GradingActions.svelte";
   import ScanCanvasViewer from "./ScanCanvasViewer.svelte";
   import { t } from "#lib/i18n";
-  import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
-  import { Button } from "#lib/components/ui";
+  import { faChevronDown, faChevronUp, faFlagCheckered, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+  import { Button, HeroDialog } from "#lib/components/ui";
+  import { examHref } from "#lib/utils/links";
 
   interface Props {
     examId: string;
@@ -63,8 +62,7 @@
 
   let viewerRef: ReturnType<typeof ScanCanvasViewer> | undefined = $state();
 
-  // Below `lg` the score panel is a bottom sheet (a fixed column left the scan ~70px on phones);
-  // collapsed it shows summary + navigation, expanded it takes the screen for score entry.
+  // Below `lg` the score panel is a bottom sheet (a fixed column left the scan ~70px on phones); collapsed it shows summary + navigation, expanded it takes the screen for score entry.
   let isScorePanelExpanded = $state(false);
 
   let activeExercise = $derived(exercises.find((e) => e.id === $gradingStore.activeExerciseId));
@@ -87,9 +85,7 @@
   {calculatedGrade}
 />
 
-<!-- `flex-1 min-h-0` rather than a viewport-height magic number: the grade
-     page root is a flex column that fills the space above the footer, and the
-     old value broke as soon as the header wrapped to a second line. -->
+<!-- `flex-1 min-h-0` rather than a viewport-height magic number: the grade page root is a flex column that fills the space above the footer, and the old value broke as soon as the header wrapped to a second line. -->
 <div
   class="box-border grid min-h-0 w-full flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden p-2
     lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-1"
@@ -158,12 +154,29 @@
   </div>
 </div>
 
-<LastSubmissionModal {examId} onStay={onStayOnLastSub} />
+<HeroDialog
+  open={$gradingStore.showLastSubModal}
+  icon={faFlagCheckered}
+  tone="info"
+  title={$t("grading.lastSubmission.title")}
+  body={$t("grading.lastSubmission.body")}
+  primary={{ label: $t("grading.lastSubmission.backToOverview"), href: examHref(examId) }}
+  secondary={{ label: $t("grading.lastSubmission.stayHere"), onClick: onStayOnLastSub }}
+/>
 
-<ClearAnnotationsModal
-  onConfirm={async () => {
-    await viewerRef?.clearAnnotations();
-    gradingStore.setShowClearConfirmModal(false);
+<!-- Destructive: the clearing waits for this explicit confirmation. -->
+<HeroDialog
+  open={$gradingStore.showClearConfirmModal}
+  icon={faTrashCan}
+  tone="danger"
+  title={$t("grading.clearModal.title")}
+  body={$t("grading.clearModal.body")}
+  primary={{
+    label: $t("grading.clearModal.confirm"),
+    onClick: async () => {
+      await viewerRef?.clearAnnotations();
+      gradingStore.setShowClearConfirmModal(false);
+    },
   }}
-  onCancel={cancelClearAnnotations}
+  secondary={{ label: $t("common.cancel"), onClick: cancelClearAnnotations }}
 />

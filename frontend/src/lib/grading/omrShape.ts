@@ -1,8 +1,4 @@
-/**
- * Per-box measurement and classification for MC answer boxes. v2 (fallback: global Otsu, fixed-inset rect, fill ratio + shape
- * checks) and v4 (default: per-box local threshold, stroke structure; see docs/dev/omr.md) run on every box, the other's
- * verdict is stored as `alt`. Only `solid` changes a reading; `thin`/`faint`/`spill` only make a box `ambiguous`. Pure functions.
- */
+/** Per-box measurement and classification for MC answer boxes. v2 (fallback: global Otsu, fixed-inset rect, fill ratio + shape checks) and v4 (default: per-box local threshold, stroke structure; see docs/dev/omr.md) run on every box, the other's verdict is stored as `alt`. Only `solid` changes a reading; `thin`/`faint`/`spill` only make a box `ambiguous`. Pure functions. */
 import type { OmrDetectionParams } from './omrSettings';
 
 export type OmrBubbleState = 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone';
@@ -16,8 +12,7 @@ export interface PixelBox {
 }
 
 export interface OmrShapeFeatures {
-  /** Lowest ink fraction of the 3×3 cells of the box interior. A cross or tick leaves cells nearly
-   *  empty; hatching or a scribble-out covers all nine. */
+  /** Lowest ink fraction of the 3×3 cells of the box interior. A cross or tick leaves cells nearly empty; hatching or a scribble-out covers all nine. */
   minCellFill: number;
   /** Lowest ÷ highest cell fill. A bold cross is uneven (≈0.35), hatching is even (≈0.9). */
   cellEvenness: number;
@@ -88,10 +83,7 @@ function shift(b: PixelBox, dx: number, dy: number): PixelBox {
   return { minX: b.minX + dx, minY: b.minY + dy, maxX: b.maxX + dx, maxY: b.maxY + dy };
 }
 
-/**
- * Measures one box. `box`/`redo` are the template rects mapped into scan pixels; `blackRef` is
- * the page's print black (`blackReference`).
- */
+/** Measures one box. `box`/`redo` are the template rects mapped into scan pixels; `blackRef` is the page's print black (`blackReference`). */
 export function measureBox(
   gray: Uint8ClampedArray,
   width: number,
@@ -130,9 +122,7 @@ export function measureBox(
   const isInk = (x: number, y: number) =>
     x >= 0 && x < width && y >= 0 && y < height && gray[y * width + x] < inkThr;
 
-  // --- Snap onto the printed border --------------------------------------------------------
-  // Score = ink on the outline minus ink just inside/outside it, so a hatched interior (ink
-  // everywhere) doesn't pull the window around.
+  // --- Snap onto the printed border -------------------------------------------------------- Score = ink on the outline minus ink just inside/outside it, so a hatched interior (ink everywhere) doesn't pull the window around.
   const outlineScore = (b: PixelBox): number => {
     const bx0 = Math.round(b.minX);
     const bx1 = Math.round(b.maxX) - 1;
@@ -354,11 +344,7 @@ export function measureBox(
   };
 }
 
-/**
- * Template redo rect to the zone actually left of the box: `\OmrBox` (Loesung.sty) pushes the redo
- * link left with `\makebox[0pt][r]{…}`, but a `\special` has no width so the annotation covers the box
- * itself. Corrected at use time so existing templates work too. Rects are PDF user space `[x0,y0,x1,y1]`.
- */
+/** Template redo rect to the zone actually left of the box: `\OmrBox` (Loesung.sty) pushes the redo link left with `\makebox[0pt][r]{…}`, but a `\special` has no width so the annotation covers the box itself. Corrected at use time so existing templates work too. Rects are PDF user space `[x0,y0,x1,y1]`. */
 export function effectiveRedoRect(
   box: [number, number, number, number],
   redo: [number, number, number, number]
@@ -418,10 +404,7 @@ function solidOutcome(redoRatio: number | undefined, p: OmrDetectionParams): Omr
 // v4
 // ---------------------------------------------------------------------------------------------
 
-/**
- * v4 decision on `measureBox` output. Calibrated on the first donated verified samples
- * (40 boxes: blanks measure fill 0.00 / span 0, crosses fill 0.09–0.28 / span ≥ 0.48).
- */
+/** v4 decision on `measureBox` output. Calibrated on the first donated verified samples (40 boxes: blanks measure fill 0.00 / span 0, crosses fill 0.09–0.28 / span ≥ 0.48). */
 export function classifyV4(
   input: { fill: number; redoRatio: number | undefined; features: OmrShapeFeatures },
   p: OmrDetectionParams

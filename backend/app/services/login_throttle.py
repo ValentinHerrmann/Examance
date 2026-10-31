@@ -1,8 +1,4 @@
-"""
-Per-account login throttling with an exponential, capped cooloff, complementing the per-IP
-slowapi limits. Failure count in Redis under a hashed email, lock mirrored in the database;
-the lock always expires and is never escalated while in force (backend/CLAUDE.md).
-"""
+"""Per-account login throttling with an exponential, capped cooloff, complementing the per-IP slowapi limits. Failure count in Redis under a hashed email, lock mirrored in the database; the lock always expires and is never escalated while in force (backend/CLAUDE.md)."""
 from __future__ import annotations
 
 import hashlib
@@ -17,6 +13,8 @@ from app.models.teacher import Teacher
 from app.services import ephemeral_store
 
 _FAIL_PREFIX = "login:fail:"
+# Second-factor guesses count apart from password guesses: a known password must not reset them, or password + four wrong codes in a loop never locks. Only a full session clears them.
+_FACTOR_FAIL_PREFIX = "login:factorfail:"
 _LOCK_PREFIX = "login:lock:"
 
 
@@ -30,13 +28,9 @@ def _enabled() -> bool:
 
 
 def _cooloff_seconds(failures: int) -> int:
-    """
-    Exponential cooloff, capped: the first lock lands at LOGIN_MAX_FAILED_ATTEMPTS and lasts
-    LOGIN_LOCKOUT_BASE_SECONDS; each further failure doubles it up to LOGIN_LOCKOUT_MAX_SECONDS.
-    """
+    """Exponential cooloff, capped: the first lock lands at LOGIN_MAX_FAILED_ATTEMPTS and lasts LOGIN_LOCKOUT_BASE_SECONDS; each further failure doubles it up to LOGIN_LOCKOUT_MAX_SECONDS."""
     over = max(failures - settings.LOGIN_MAX_FAILED_ATTEMPTS, 0)
-    # Bound the exponent before shifting so a large counter cannot allocate a
-    # huge integer.
+    # Bound the exponent before shifting so a large counter cannot allocate a huge integer.
     over = min(over, 32)
     seconds: int = settings.LOGIN_LOCKOUT_BASE_SECONDS * (2**over)
     return min(seconds, int(settings.LOGIN_LOCKOUT_MAX_SECONDS))
@@ -51,12 +45,7 @@ def _locked_exc(retry_after: int) -> HTTPException:
 
 
 async def assert_not_locked(email: str, teacher: Teacher | None = None) -> None:
-    """
-    Raise 429 when *email* is in a cooloff.
-
-    Called for unknown accounts too, so a locked and an unknown account are not
-    distinguishable by response shape or by how much work the server does.
-    """
+    """Raise 429 when *email* is in a cooloff. Called for unknown accounts too, so a locked and an unknown account are not distinguishable by response shape or by how much work the server does."""
     if not _enabled():
         return
 
@@ -76,20 +65,15 @@ async def assert_not_locked(email: str, teacher: Teacher | None = None) -> None:
 
 
 async def register_failure(
-    db: AsyncSession, email: str, teacher: Teacher | None = None
+    db: AsyncSession, email: str, teacher: Teacher | None = None, *, second_factor: bool = False
 ) -> int | None:
-    """
-    Count one failed attempt and start a cooloff once the threshold is hit.
-
-    Returns the cooloff in seconds when this attempt caused a lock, else None,
-    so the caller can write the ACCOUNT_LOCKED audit entry.
-    """
+    """Count one failed attempt (password, or a *second_factor* code) and start a cooloff once the threshold is hit. Returns the cooloff in seconds when this attempt caused a lock, else None, so the caller can write the ACCOUNT_LOCKED audit entry."""
     if not _enabled():
         return None
 
     key = _account_key(email)
-    failures = (await ephemeral_store.get(_FAIL_PREFIX + key) or 0) + 1
-    await ephemeral_store.set(_FAIL_PREFIX + key, failures, settings.LOGIN_FAIL_WINDOW_SECONDS)
+    prefix = _FACTOR_FAIL_PREFIX if second_factor else _FAIL_PREFIX
+    failures = await ephemeral_store.incr(prefix + key, settings.LOGIN_FAIL_WINDOW_SECONDS)
 
     if failures < settings.LOGIN_MAX_FAILED_ATTEMPTS:
         return None
@@ -103,14 +87,17 @@ async def register_failure(
 
 
 async def register_success(
-    db: AsyncSession, email: str, teacher: Teacher | None = None
+    db: AsyncSession, email: str, teacher: Teacher | None = None, *, session_issued: bool = False
 ) -> None:
-    """Clear the counter and any lock after a factor is presented correctly."""
+    """Clear the password counter and any lock after the password was presented correctly; the second-factor counter only once a full session is issued (*session_issued*)."""
     if not _enabled():
         return
 
     key = _account_key(email)
-    await ephemeral_store.delete(_FAIL_PREFIX + key, _LOCK_PREFIX + key)
+    keys = [_FAIL_PREFIX + key, _LOCK_PREFIX + key]
+    if session_issued:
+        keys.append(_FACTOR_FAIL_PREFIX + key)
+    await ephemeral_store.delete(*keys)
     if teacher is not None and teacher.locked_until is not None:
         teacher.locked_until = None
         await db.flush()

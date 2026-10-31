@@ -3,7 +3,7 @@
   import LatexEditor from "#lib/components/LatexEditor.svelte";
   import { t } from "#lib/i18n";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
-  import { ConfirmDialog, Modal, Button, controlClass } from "#lib/components/ui";
+  import { ConfirmDialog, Modal, Button, Field, controlClass } from "#lib/components/ui";
 
   interface Props {
     isOpen?: boolean;
@@ -43,27 +43,20 @@
       {$t("exercises.variantModal.groupContext", { name: variantBaseEx.name, topic: variantBaseEx.topicTag || '_General', gradeSuffix: variantBaseEx.grade ? $t("exercises.variantModal.groupContextGradeSuffix", { grade: variantBaseEx.grade }) : '' })}
     </div>
 
-    <div class="mb-4 flex flex-col gap-1.5">
-      <label for="variantKey" class="flex items-center gap-1.5 text-sm text-muted">
-        {$t("exercises.variantModal.keyLabel")}
-        <InfoTip text={$t("help.tips.variantKey")} topic="exercises" />
-      </label>
-      <input
-        id="variantKey"
-        type="text"
-        bind:value={variantKey}
-        placeholder={$t("exercises.variantModal.keyPlaceholder")}
-        required
-        class={controlClass}
-      />
-    </div>
+    <!-- Own label: `Field`'s is plain text and this one carries the help tip. -->
+    <Field forId="variantKey" class="mb-4">
+      {#snippet children({ id })}
+        <label for={id} class="flex items-center gap-1.5 text-sm font-medium text-content">
+          {$t("exercises.variantModal.keyLabel")}
+          <InfoTip text={$t("help.tips.variantKey")} topic="exercises" />
+        </label>
+        <input {id} type="text" bind:value={variantKey} placeholder={$t("exercises.variantModal.keyPlaceholder")} required class={controlClass} />
+      {/snippet}
+    </Field>
 
-    <div class="mb-4 flex flex-col gap-1.5">
-      <label for="variantBody" class="text-sm text-muted"
-        >{$t("exercises.variantModal.latexBodyLabel")}</label
-      >
+    <Field label={$t("exercises.variantModal.latexBodyLabel")} forId="variantBody" class="mb-4">
       <LatexEditor bind:value={variantLatexBody} rows={8} />
-    </div>
+    </Field>
   {/if}
 
   {#snippet footer()}
