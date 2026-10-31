@@ -12,18 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services import compile_jobs
 from app.services.latex import CompilationError
 
-from .factors import sign_in
+from .factors import poll_compile_job, sign_in
 
 DOC = {"latex": "\\documentclass{article}"}
-
-
-async def _wait(client: AsyncClient, job_id: str):  # type: ignore[no-untyped-def]
-    for _ in range(100):
-        res = await client.get(f"/api/v1/compile/latex/jobs/{job_id}")
-        if res.status_code != 202:
-            return res
-        await asyncio.sleep(0.01)
-    raise AssertionError("job never finished")
 
 
 @pytest.mark.asyncio
@@ -46,7 +37,7 @@ async def test_job_runs_with_the_full_budget_and_hands_out_the_pdf_once(
         pending = await client.get(f"/api/v1/compile/latex/jobs/{job_id}")
         assert pending.status_code == 202 and pending.json() == {"status": "pending"}
         gate.set()
-        done = await _wait(client, job_id)
+        done = await poll_compile_job(client, job_id)
 
     assert done.status_code == 200 and done.content == b"%PDF-1.4 job"
     assert seen == [False]  # final budget, not the 30 s preview one
@@ -65,11 +56,11 @@ async def test_job_errors_keep_their_shape(client: AsyncClient, db: AsyncSession
     for error, status_code, code in cases:
         with patch("app.routers.compile.compile_latex", side_effect=error):
             job_id = (await client.post("/api/v1/compile/latex/jobs", json=DOC)).json()["job_id"]
-            res = await _wait(client, job_id)
+            res = await poll_compile_job(client, job_id)
         assert res.status_code == status_code and res.headers["code"] == code
     with patch("app.routers.compile.compile_latex", side_effect=cases[0][0]):
         job_id = (await client.post("/api/v1/compile/latex/jobs", json=DOC)).json()["job_id"]
-        body = (await _wait(client, job_id)).json()
+        body = (await poll_compile_job(client, job_id)).json()
     assert body["detail"] == "! Boom" and body["log"] == "full log"
 
 

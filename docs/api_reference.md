@@ -136,7 +136,6 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 |---|---|---|---|---|
 | `POST` | `/api/v1/compile/latex/jobs` | Start a compile | Yes | Starts a background compile and answers `202 {"job_id"}` at once, so long compiles never meet a proxy timeout. |
 | `GET` | `/api/v1/compile/latex/jobs/{job_id}` | Poll a compile | Yes | `202 {"status": "pending"}` while running, then once the PDF or the compile's error (422 with `log`, 504, 503); 404 for an unknown or foreign job. |
-| `POST` | `/api/v1/compile/latex` | Compile LaTeX (deprecated) | Yes | Synchronous compile with the 30 s preview budget, kept for tabs running an older app. |
 
 #### Compile Request & Response
 - **Request Body**:
@@ -245,7 +244,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 - **`ExerciseResourceCreate`**: `{"filename": "figure.png", "mime_type": "image/png", "content_b64": "iVBORw0..."}`
 - **`ExerciseResourceResponse`**: `{"id": "uuid", "exercise_id": "uuid", "filename": "figure.png", "mime_type": "image/png", "byte_size": 20481, "created_at": "..."}`
 - Resource bytes are stored in plaintext on the server (like `latex_body`) and copied
-  onto new versions and variants of the exercise. `POST /api/v1/compile/latex` loads
+  onto new versions and variants of the exercise. `POST /api/v1/compile/latex/jobs` loads
   them from the database by `resource_exercise_ids`, so saved files are not uploaded again.
 
 ---
