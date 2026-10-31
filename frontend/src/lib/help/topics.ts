@@ -206,6 +206,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.accounts.s3.h", bodyKeys: ["help.topics.accounts.s3.p1"], docs: "security#factors" },
       { headingKey: "help.topics.accounts.s4.h", bodyKeys: ["help.topics.accounts.s4.p1"], docs: "security#passkeys" },
       { headingKey: "help.topics.accounts.s5.h", bodyKeys: ["help.topics.accounts.s5.p1"], docs: "security#reset-password" },
+      { headingKey: "help.topics.accounts.s12.h", bodyKeys: ["help.topics.accounts.s12.p1"], docs: "security#key-copy" },
       { headingKey: "help.topics.accounts.s6.h", bodyKeys: ["help.topics.accounts.s6.p1"], docs: "security#recovery-code" },
       { headingKey: "help.topics.accounts.s7.h", bodyKeys: ["help.topics.accounts.s7.p1"], docs: "security#lockout" },
       { headingKey: "help.topics.accounts.s8.h", bodyKeys: ["help.topics.accounts.s8.p1"], docs: "admin#roles" },

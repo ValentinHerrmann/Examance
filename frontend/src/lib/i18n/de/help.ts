@@ -344,6 +344,10 @@ export const help = {
                 h: 'Für Administratoren: Wartungsmodus',
                 p1: 'Unter Benutzerverwaltung → Wartung kündigen Sie eine Wartung mit Vorlauf und Dauer an. Angemeldete Lehrkräfte werden erinnert, ab der zweiten Erinnerung ist die Anmeldung pausiert; „Jetzt beginnen“ verkürzt den Countdown.',
             },
+            s12: {
+                h: 'Schlüsselkopie geändert',
+                p1: 'Haben Sie auf einem anderen Gerät Passwort, Wiederherstellungscode oder Passkeys geändert, fragt dieser Browser einmal nach. Bestätigen Sie nur, wenn Sie das selbst waren; sonst abbrechen, nicht anmelden und die Administration informieren.',
+            },
         },
         privacy: {
             title: 'Datenschutz & Sicherheit',

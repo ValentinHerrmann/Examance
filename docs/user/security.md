@@ -61,6 +61,13 @@ A factor can only be removed while **two remain** afterwards and **at least one 
 
 Nothing is re-encrypted.
 
+### Key copy changed on another device {#key-copy}
+
+Your encrypted key copy on the server changes whenever you change or reset your password, create a new recovery code, or add or remove a passkey. Every other browser you use notices this at the next sign-in and asks whether you made the change yourself:
+
+- **If you did**, choose **I changed this myself — accept the new key**. That browser remembers the new key copy and does not ask again.
+- **If you did not change anything**, cancel and do not sign in. Tell your administrator: the server may have been tampered with, and accepting would let a forged key copy in.
+
 ### Without password and recovery code {#recovery-code}
 
 There is no back door. Without your password and without the recovery code, exams, student data and grading that are already encrypted stay **permanently unreadable**. Your administrator cannot restore them either, because the server never knows the key. Anything you create afterwards is unaffected.

@@ -61,6 +61,13 @@ Ein Faktor lässt sich nur entfernen, solange danach noch **zwei übrig bleiben*
 
 Es wird nichts neu verschlüsselt.
 
+### Schlüsselkopie auf einem anderen Gerät geändert {#key-copy}
+
+Ihre verschlüsselte Schlüsselkopie auf dem Server ändert sich, wenn Sie Ihr Passwort ändern oder zurücksetzen, einen neuen Wiederherstellungscode erzeugen oder einen Passkey hinzufügen oder entfernen. Jeder andere Browser, den Sie nutzen, bemerkt das bei der nächsten Anmeldung und fragt, ob Sie das selbst waren:
+
+- **Wenn ja**, wählen Sie **Ich habe das selbst geändert — neuen Schlüssel annehmen**. Dieser Browser merkt sich die neue Schlüsselkopie und fragt nicht erneut.
+- **Wenn Sie nichts geändert haben**, brechen Sie ab und melden Sie sich nicht an. Informieren Sie die Administration: Der Server könnte manipuliert worden sein, und ein Bestätigen würde eine gefälschte Schlüsselkopie übernehmen.
+
 ### Ohne Passwort und Wiederherstellungscode {#recovery-code}
 
 Es gibt keine Hintertür. Ohne Ihr Passwort und ohne den Wiederherstellungscode bleiben bereits verschlüsselte Prüfungen, Schülerdaten und Korrekturen **dauerhaft unlesbar**. Auch Ihre Administration kann sie nicht wiederherstellen, weil der Server den Schlüssel nie kennt. Was Sie danach anlegen, ist davon nicht betroffen.

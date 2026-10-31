@@ -345,6 +345,10 @@ export const help: Translations['help'] = {
                 h: 'For administrators: maintenance mode',
                 p1: 'Under User Management → Maintenance you announce maintenance with a lead time and duration. Signed-in teachers are reminded; from the second reminder sign-in is paused; “Start now” cuts the countdown short.',
             },
+            s12: {
+                h: 'Key copy changed',
+                p1: 'If you changed your password, recovery code or passkeys on another device, this browser asks once. Confirm only if you made the change yourself; otherwise cancel, do not sign in and tell your administrator.',
+            },
         },
         privacy: {
             title: 'Privacy & security',
