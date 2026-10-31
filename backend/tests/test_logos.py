@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .factors import sign_in
+from .factors import compile_job, sign_in
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"pretend-logo"
 PDF = b"%PDF-1.4 pretend-logo"
@@ -117,9 +117,7 @@ async def test_compile_writes_the_exam_logo(client: AsyncClient, db: AsyncSessio
             {"account_logo": True},
             {},
         ):
-            resp = await client.post(
-                "/api/v1/compile/latex", json={"latex": "\\documentclass{article}", **body}
-            )
+            resp = await compile_job(client, {"latex": "\\documentclass{article}", **body})
             assert resp.status_code == 200, resp.text
 
     exam_logo, account_logo, no_logo = seen
@@ -149,9 +147,9 @@ async def test_compile_never_reads_another_teachers_exam_logo(
         return b"%PDF-1.4 fake"
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
-        resp = await client.post(
-            "/api/v1/compile/latex",
-            json={"latex": "\\documentclass{article}", "logo_exam_id": exam_id},
+        resp = await compile_job(
+            client,
+            {"latex": "\\documentclass{article}", "logo_exam_id": exam_id},
         )
     assert resp.status_code == 200
     # Falls back to the intruder's own account logo (the default), never the owner's file.

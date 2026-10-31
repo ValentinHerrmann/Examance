@@ -16,7 +16,7 @@ from app.main import app
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 
-from .factors import sign_in
+from .factors import compile_job, sign_in
 
 
 async def _create_teacher_and_login(
@@ -467,13 +467,13 @@ async def test_deleting_the_current_version_restores_the_previous_one(
 @pytest.mark.asyncio
 async def test_compile_endpoint_requires_auth(client: AsyncClient, db: AsyncSession) -> None:
     # Unauthenticated request fails with 401
-    unauth_res = await client.post("/api/v1/compile/latex", json={"latex": "\\documentclass{article}"})
+    unauth_res = await client.post("/api/v1/compile/latex/jobs", json={"latex": "\\documentclass{article}"})
     assert unauth_res.status_code == 401
 
     # Authenticated request passes auth check
     await _create_teacher_and_login(client, db, "compileteacher@example.com")
     with patch("app.routers.compile.compile_latex", return_value=b"%PDF-1.4 fake"):
-        auth_res = await client.post("/api/v1/compile/latex", json={"latex": "\\documentclass{article}"})
+        auth_res = await compile_job(client, {"latex": "\\documentclass{article}"})
         assert auth_res.status_code == 200
         assert auth_res.content == b"%PDF-1.4 fake"
 

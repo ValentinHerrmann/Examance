@@ -1,6 +1,7 @@
 """Shared helpers for signing a test client in through the real endpoints, like a browser does. A password alone yields no session (a passkey, or any two of password/passkey/TOTP), so these enrol an authenticator directly in the database first."""
 from __future__ import annotations
 
+import asyncio
 import re
 import time
 import uuid
@@ -10,7 +11,7 @@ from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.mfa_credential import MfaCredential
@@ -149,3 +150,17 @@ async def complete_reset(
         "/api/v1/auth/reset-password", json={"token": token, "new_password": new_password}
     )
     assert done.status_code == 200, done.text
+
+
+async def compile_job(client: AsyncClient, json: dict[str, Any], **kwargs: Any) -> Response:
+    """Start a compile job and poll it like the browser; returns the refusal when the start is refused, else the job's outcome."""
+    start = await client.post("/api/v1/compile/latex/jobs", json=json, **kwargs)
+    if start.status_code != 202:
+        return start
+    url = f"/api/v1/compile/latex/jobs/{start.json()['job_id']}"
+    for _ in range(200):
+        res = await client.get(url, **kwargs)
+        if res.status_code != 202:
+            return res
+        await asyncio.sleep(0.01)
+    raise AssertionError("compile job never finished")

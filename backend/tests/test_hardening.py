@@ -272,7 +272,7 @@ async def test_oversized_body_rejected_by_content_length(client: AsyncClient) ->
     from app.config import settings
 
     resp = await client.post(
-        "/api/v1/compile/latex",
+        "/api/v1/compile/latex/jobs",
         content=b"x" * (settings.BODY_LIMIT_COMPILE + 1),
         headers={"Content-Type": "application/json"},
     )
@@ -293,7 +293,7 @@ async def test_oversized_chunked_body_rejected(client: AsyncClient) -> None:
             yield chunk
 
     resp = await client.post(
-        "/api/v1/compile/latex",
+        "/api/v1/compile/latex/jobs",
         content=body_stream(),
         headers={"Content-Type": "application/json"},
     )
@@ -304,7 +304,7 @@ async def test_oversized_chunked_body_rejected(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_malformed_content_length_is_a_400_not_a_500(client: AsyncClient) -> None:
     resp = await client.post(
-        "/api/v1/compile/latex",
+        "/api/v1/compile/latex/jobs",
         content=b"{}",
         headers={"Content-Type": "application/json", "Content-Length": "not-a-number"},
     )

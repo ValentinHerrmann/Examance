@@ -29,6 +29,7 @@ from app.services.password_reset import create_reset_token
 
 from .factors import (
     DEFAULT_PASSWORD,
+    compile_job,
     create_teacher,
     mails_to,
     outbox,
@@ -755,14 +756,14 @@ async def test_latex_compilation_needs_the_server_latex_feature(
     teacher.allow_server_latex = False
     await db.commit()
     with patch("app.routers.compile.compile_latex", return_value=b"%PDF-1.4 fake") as compiler:
-        refused = await client.post("/api/v1/compile/latex", json=body)
+        refused = await compile_job(client, body)
         assert refused.status_code == 403
         assert refused.headers.get("code") == "ERR_FEATURE_NOT_ALLOWED"
         compiler.assert_not_called()
 
         teacher.allow_server_latex = True
         await db.commit()
-        allowed = await client.post("/api/v1/compile/latex", json=body)
+        allowed = await compile_job(client, body)
         assert allowed.status_code == 200, allowed.text
 
 

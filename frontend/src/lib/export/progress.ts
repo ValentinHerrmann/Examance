@@ -10,7 +10,7 @@ export interface ExportResult {
   warnings: string[];
 }
 
-// POST /compile/latex allows 10 requests per minute; batches stay just under it.
+// POST /compile/latex/jobs allows 10 requests per minute; batches stay just under it.
 const SERVER_COMPILES_PER_MINUTE = 9;
 const starts: number[] = [];
 
