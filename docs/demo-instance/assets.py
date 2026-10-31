@@ -34,7 +34,8 @@ for name, (src, crop) in GUIDE.items():
         im = im.resize((2400, round(im.height * 2400 / im.width)), Image.LANCZOS)
     im.save(OUT.parent / "guide" / f"{name}.jpg", quality=86, optimize=True, progressive=True)
 if sys.argv[1:] == ["guide"]:
-    sys.exit(print("guide", len(GUIDE)))
+    print("guide", len(GUIDE))
+    sys.exit()
 
 SPEC = {
     "01-dashboard": ("dashboard", (0, 0, 3200, 1000)),

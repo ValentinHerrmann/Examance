@@ -302,7 +302,7 @@ async function tour() {
       writeState('progress.json', { ...progress, 'tour-stamps': true });
       await open1();
       const v = [];
-      for (const q of ['Q2', 'Q3', 'Q4']) v.push(await page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first().inputValue());
+      for (const q of ['Q2', 'Q3', 'Q4']) v.push(await page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first().inputValue()); // NOSONAR: UI steps run in order in one browser
       console.log('af14 scores after stamping', v.join(' / '));
     }
     await shot(page, 'tour-grading');
@@ -441,10 +441,10 @@ async function guide() {
   // The settings section nav scrolls the page itself.
   for (const [name, link] of [['settings-storage', 'Globale Speicherstrategie'], ['settings-mc', 'MC-Erkennung (OMR) feinjustieren'], ['settings-packages', 'LaTeX-Pakete'], ['security', 'Anmeldung & Sicherheit']]) {
     if (!g(name)) continue;
-    await go(page, '/settings');
-    await page.getByRole('link', { name: link, exact: true }).first().click();
-    await page.waitForTimeout(1200);
-    await shot(page, 'guide-' + name);
+    await go(page, '/settings'); // NOSONAR: UI steps run in order in one browser
+    await page.getByRole('link', { name: link, exact: true }).first().click(); // NOSONAR: UI steps run in order in one browser
+    await page.waitForTimeout(1200); // NOSONAR: UI steps run in order in one browser
+    await shot(page, 'guide-' + name); // NOSONAR: UI steps run in order in one browser
   }
   if (g('borderline')) {
     await page.setViewportSize({ width: 1600, height: 1400 });

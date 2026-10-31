@@ -67,7 +67,7 @@ if (!done.annotated) {
   const tool = async (n) => { await page.getByRole('button', { name: n }).first().click(); await page.waitForTimeout(300); };
   const at = async (x, y) => { await page.mouse.click(x, y); await page.waitForTimeout(400); };
   const saved = {};
-  for (const q of ['Q2', 'Q3', 'Q4']) saved[q] = await row(q).inputValue();
+  for (const q of ['Q2', 'Q3', 'Q4']) saved[q] = await row(q).inputValue(); // NOSONAR: UI steps run in order in one browser
   await pick('Q2');
   await tool(/^\+1\.0|\+1,0/); await at(570, 289); await at(470, 343);
   await pick('Q3');
@@ -75,7 +75,7 @@ if (!done.annotated) {
   await tool(/Fehlt/); await at(445, 548);
   await tool(/Falsch/); await at(600, 625);
   // Stamps rewrite the scores they touch; restore the planned ones.
-  for (const q of ['Q2', 'Q3', 'Q4']) { const inp = row(q); await inp.fill(saved[q]); await inp.press('Tab'); }
+  for (const q of ['Q2', 'Q3', 'Q4']) { const inp = row(q); await inp.fill(saved[q]); await inp.press('Tab'); } // NOSONAR: UI steps run in order in one browser
   await pick('Q2');
   await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
   await page.waitForTimeout(2000);

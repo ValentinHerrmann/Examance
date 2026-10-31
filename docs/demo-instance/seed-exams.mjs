@@ -20,7 +20,7 @@ for (const e of EXAMS) {
   await page.getByLabel(/^Datum/).fill(e.datum);
   await page.getByLabel(/Lehrernachname/).fill('Berger');
   // Current UI: "Neue Prüfung" saves the exam and opens the library picker on the exam page.
-  await page.getByRole('button', { name: /Prüfung anlegen und Aufgaben wählen/ }).click();
+  await page.getByRole('button', { name: /Prüfung anlegen und Aufgaben wählen/ }).click(); // NOSONAR: UI steps run in order in one browser
   await page.waitForURL((u) => /\/exam\/[^/]+$/.test(u.pathname) && !u.pathname.endsWith('/new'), { timeout: 60000 });
   ids[e.key] = page.url().split('/exam/')[1].split('?')[0];
   const search = page.getByRole('textbox', { name: /Aufgabenbibliothek nach Name/ });
@@ -43,8 +43,8 @@ for (const e of EXAMS) {
     await search.fill('');
   }
   await page.waitForTimeout(800);
-  await page.getByRole('button', { name: /Verknüpfte Aufgaben übernehmen/ }).click();
-  await page.waitForTimeout(2500);
+  await page.getByRole('button', { name: /Verknüpfte Aufgaben übernehmen/ }).click(); // NOSONAR: UI steps run in order in one browser
+  await page.waitForTimeout(2500); // NOSONAR: UI steps run in order in one browser
   writeState('exams.json', ids);
   console.log('exam', e.key, ids[e.key]);
   await page.waitForTimeout(2000);
