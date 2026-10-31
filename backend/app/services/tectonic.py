@@ -122,6 +122,8 @@ async def _run_pass(cmd: list[str], tmpdir: Path, timeout: float, pass_idx: int)
         )
         try:
             await asyncio.wait_for(proc.wait(), timeout=timeout)
+            # Duration only: shows how close documents get to the limit before one fails.
+            logger.info("Tectonic pass %d took %.1f s", pass_idx, time.monotonic() - started)
         except TimeoutError:
             # Counts only: Tectonic's notes can name files the document asked for, and document content is never logged.
             downloads = err_path.read_bytes().count(b"downloading")

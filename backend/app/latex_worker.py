@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import base64
+import logging
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from app.services.tectonic import COMPILE_TIMEOUT_SECONDS, CompilationError, run_tectonic
+
+# Same format as the backend; without it only warnings reach the container log.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:\t%(name)s - %(message)s")
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
