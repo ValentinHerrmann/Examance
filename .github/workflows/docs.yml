@@ -1,6 +1,6 @@
 name: Docs
 
-# Publishes the backup copy of the documentation site (docs/, VitePress) to GitHub Pages from `release`; production and previews are on Cloudflare (docs/wrangler.jsonc).
+# Publishes the backup copy of the documentation site (docs/, VitePress) to GitHub Pages from `release`; production and previews are on Cloudflare Pages (docs/deployment.md).
 # deploy-release.yml calls this after it pushed `release`: that push uses GITHUB_TOKEN, which never starts other workflows.
 # One-time repository setting: Settings → Pages → Source "GitHub Actions".
 on:
