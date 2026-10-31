@@ -18,26 +18,43 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      present: ${{ steps.site.outputs.present }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: release
-      - uses: actions/setup-node@v4
+      # `release` predates the docs site until the first release after issue #174; skip instead of failing.
+      - name: Check for the docs site on release
+        id: site
+        run: |
+          if [ -f docs/package-lock.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::release has no docs site yet (the first release after #174 publishes it); nothing to deploy"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.site.outputs.present == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version-file: frontend/.node-version
           cache: "npm"
           cache-dependency-path: docs/package-lock.json
       - name: Install and build
+        if: steps.site.outputs.present == 'true'
         working-directory: docs
         run: npm ci && npm run docs:build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - if: steps.site.outputs.present == 'true'
+        uses: actions/configure-pages@v5
+      - if: steps.site.outputs.present == 'true'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
 
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    if: needs.build.outputs.present == 'true'
     runs-on: ubuntu-latest
     permissions:
       pages: write
