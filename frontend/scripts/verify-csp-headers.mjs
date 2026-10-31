@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Fails the build if an inline script in `build/**\/*.html` is missing from `script-src` in `build/_headers` (blank app).
- * Scripts injected after the build (Cloudflare Web Analytics) are out of reach; see docs/deployment.md.
+ * Scripts injected after the build (Cloudflare Web Analytics) are out of reach; see docs/hosting.md section 5.3.
  * Usage: node scripts/verify-csp-headers.mjs [buildDir]
  */
 import { existsSync, readFileSync } from 'node:fs';

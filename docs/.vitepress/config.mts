@@ -22,7 +22,7 @@ export default withMermaid(defineConfig({
     logo: '/logo.png',
     nav: [
       { text: 'User guide', link: '/user/' },
-      { text: 'Operate', link: '/deployment' },
+      { text: 'Operate', link: '/hosting' },
       { text: 'Develop', link: '/data_flow_and_security' },
       { text: 'Legal', link: '/legal_audit_dsgvo' },
     ],
@@ -38,11 +38,20 @@ export default withMermaid(defineConfig({
       {
         text: 'Operate',
         items: [
-          { text: 'Deployment', link: '/deployment' },
-          { text: 'Accounts and administration', link: '/account_creation_and_management' },
-          { text: 'Backup and restore', link: '/backup_and_restore' },
-          { text: 'Maintenance mode', link: '/dev/maintenance_mode' },
-          { text: 'Storage partitions', link: '/dev/storage_partitions' },
+          {
+            text: 'Host Examance',
+            items: [
+              { text: 'Setup and updates', link: '/hosting' },
+              { text: 'Accounts and administration', link: '/account_creation_and_management' },
+              { text: 'Backup and restore', link: '/backup_and_restore' },
+              { text: 'Maintenance mode', link: '/dev/maintenance_mode' },
+              { text: 'Storage partitions', link: '/dev/storage_partitions' },
+            ],
+          },
+          {
+            text: 'Like the maintainer: GitHub Actions',
+            items: [{ text: 'Release and preview pipeline', link: '/deployment' }],
+          },
         ],
       },
       {

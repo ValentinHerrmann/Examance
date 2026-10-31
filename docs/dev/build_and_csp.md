@@ -18,7 +18,7 @@ Response headers come from `frontend/static/_headers`, which is a **template**. 
 
 A console error reading `Executing inline script violates the following Content Security Policy directive 'script-src 'self' …'` on a deployed stack is **not** a CORS error and **not** a build failure. It means a Cloudflare dashboard feature (Web Analytics above all, also Rocket Loader and Email Obfuscation) is rewriting the HTML after the build hashed it. Turn the feature off; never widen `script-src`.
 
-`lib/utils/cspDiagnostics.ts` says so at runtime, `npm run csp:verify` guards the build side, and `docs/deployment.md` has the full checklist.
+`lib/utils/cspDiagnostics.ts` says so at runtime, `npm run csp:verify` guards the build side, and `docs/hosting.md` §5.3 has the full checklist.
 
 ## BusyTeX mirror
 

@@ -358,7 +358,7 @@ the account's own mode data); see the qualifier on server compilation below and
 **Server compilation is processing, not storage.** With "LaTeX Server" enabled, a
 compile sends the exam's full LaTeX source (including solution variants) and its
 resource files to `POST /compile/latex/jobs`; it is compiled in a temp directory of the
-separate LaTeX worker container (no secrets, database or scan files, `docs/deployment.md`) that
+separate LaTeX worker container (no secrets, database or scan files, `docs/hosting.md` §4.5) that
 is deleted afterwards, and neither persisted nor logged. The finished PDF (or error) waits in the
 backend's memory until the requesting teacher's poll fetches it once, at most 2 minutes, and is
 then dropped; another account's poll gets 404 (`app/services/compile_jobs.py`). Student data is never part

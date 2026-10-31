@@ -55,7 +55,8 @@ Sources are [Marp](https://marp.app) Markdown sharing one theme that mirrors the
 * [Account Creation & Management](docs/account_creation_and_management.md) — admin bootstrap, password reset, CLI
 
 **Operator** — deployment:
-* [Deployment](docs/deployment.md) — production/preview topology, release flow, versioning, secrets, runbook
+* [Host Examance](docs/hosting.md) — run your own installation: backend stack, frontend build and hosting, updates, rollback
+* [Host it like the maintainer: GitHub Actions](docs/deployment.md) — production/preview stacks, release and preview flow, versioning, secrets, runbook
 
 **Legal & Compliance (DSGVO)** — read the audit first, it links the rest:
 * [Legal Audit — DSGVO / BDSG / Bavarian school law](docs/legal_audit_dsgvo.md) — **start here**; findings, role model, what's fixed vs. still open

@@ -3,7 +3,7 @@ export const legal = {
     backToHome: 'Zurück zu Examance',
     notConfigured: {
         strong: 'Betreiberangaben fehlen.',
-        text: 'Dieser Build enthält keine Angaben zum Betreiber (VITE_LEGAL_*, siehe docs/deployment.md); die markierten Felder sind Platzhalter.',
+        text: 'Dieser Build enthält keine Angaben zum Betreiber (VITE_LEGAL_*, siehe docs/hosting.md); die markierten Felder sind Platzhalter.',
     },
 
     // Operator block shared by Impressum and Datenschutzerklärung; values come from the build (lib/legal/operator.ts).

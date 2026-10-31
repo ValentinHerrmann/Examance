@@ -14,7 +14,7 @@ hero:
       link: /user/
     - theme: alt
       text: Run a server
-      link: /deployment
+      link: /hosting
     - theme: alt
       text: Develop
       link: /data_flow_and_security
@@ -24,8 +24,8 @@ features:
     details: For teachers. Getting started, storage modes and the path from the first exercise to the finished analysis.
     link: /user/
   - title: Operate
-    details: For administrators and operators. Deployment, accounts, backups, restores and maintenance windows.
-    link: /deployment
+    details: For administrators and operators. Host your own installation, manage accounts, back up and restore, or copy the maintainer's GitHub Actions setup.
+    link: /hosting
   - title: Develop
     details: For contributors. Architecture, encryption, REST API, data model, LaTeX, MC detection and CI.
     link: /data_flow_and_security

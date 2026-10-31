@@ -342,7 +342,7 @@ jobs:
                 || $NEW_CLI maintenance wait-backup --revision "$MAINTENANCE_REVISION" --timeout 900
             fi
             # Migrations run forward only. A rollback to an older image does NOT
-            # undo them — see docs/deployment.md.
+            # undo them — see docs/hosting.md section 7.
             $COMPOSE --profile tools run --rm migrate
             $COMPOSE up -d --remove-orphans
 
