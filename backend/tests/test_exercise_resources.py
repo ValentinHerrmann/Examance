@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.main import app
 from app.middleware.cors import is_allowed_origin
 
-from .factors import sign_in
+from .factors import compile_job, sign_in
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"pretend-image-bytes"
 PNG_B64 = base64.b64encode(PNG).decode()
@@ -140,8 +140,8 @@ async def test_compile_loads_resources_by_exercise_id(
         return b"%PDF-1.4 fake"
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
-        resp = await client.post(
-            "/api/v1/compile/latex",
+        resp = await compile_job(
+            client,
             json={
                 "latex": "\\documentclass{article}",
                 "resource_exercise_ids": [exercise_id],
@@ -172,8 +172,8 @@ async def test_compile_ignores_another_teachers_exercise_ids(
         return b"%PDF-1.4 fake"
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
-        resp = await client.post(
-            "/api/v1/compile/latex",
+        resp = await compile_job(
+            client,
             json={"latex": "\\documentclass{article}", "resource_exercise_ids": [foreign_id]},
         )
     assert resp.status_code == 200
@@ -200,8 +200,8 @@ async def test_inline_resource_overrides_the_stored_copy(
 
     newer = b"\x89PNG\r\n\x1a\nnewer-bytes"
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
-        resp = await client.post(
-            "/api/v1/compile/latex",
+        resp = await compile_job(
+            client,
             json={
                 "latex": "\\documentclass{article}",
                 "resource_exercise_ids": [exercise_id],
@@ -223,9 +223,7 @@ async def test_engine_unavailable_is_503_not_500(client: AsyncClient, db: AsyncS
         "app.routers.compile.compile_latex",
         side_effect=FileNotFoundError("tectonic"),
     ):
-        resp = await client.post(
-            "/api/v1/compile/latex", json={"latex": "\\documentclass{article}"}
-        )
+        resp = await compile_job(client, {"latex": "\\documentclass{article}"})
     assert resp.status_code == 503
     assert resp.headers.get("code") == "ERR_COMPILE_UNAVAILABLE"
 
@@ -242,9 +240,9 @@ async def test_unhandled_error_still_carries_cors_headers(
     async with AsyncClient(transport=transport, base_url="https://test") as serving:
         serving.cookies.update(client.cookies)
         with patch("app.routers.compile.compile_latex", side_effect=RuntimeError("boom")):
-            resp = await serving.post(
-                "/api/v1/compile/latex",
-                json={"latex": "\\documentclass{article}"},
+            resp = await compile_job(
+                serving,
+                {"latex": "\\documentclass{article}"},
                 headers={"Origin": origin},
             )
 
@@ -261,8 +259,8 @@ async def test_unlisted_origin_never_reaches_the_handler(
     """The origin guard rejects it first, and the 500 handler would not echo it."""
     await _login(client, db, "res-cors-evil@example.com")
 
-    resp = await client.post(
-        "/api/v1/compile/latex",
+    resp = await compile_job(
+        client,
         json={"latex": "\\documentclass{article}"},
         headers={"Origin": "https://attacker.example"},
     )

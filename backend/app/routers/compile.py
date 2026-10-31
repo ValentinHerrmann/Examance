@@ -1,4 +1,4 @@
-"""Compile router: background compile jobs (`/compile/latex/jobs`) and the deprecated synchronous `POST /compile/latex`."""
+"""Compile router: background compile jobs (`/compile/latex/jobs`), so no compile meets the proxy timeout."""
 from __future__ import annotations
 
 import logging
@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.dependencies import DB, get_teaching_teacher
 from app.middleware.rate_limit import limiter
 from app.models.teacher import Teacher
@@ -49,12 +48,10 @@ async def _load_inputs(
     return binary_files, logo
 
 
-async def _compile(
-    latex: str, files: dict[str, bytes], logo: ResolvedLogo | None, *, preview: bool
-) -> Response:
+async def _compile(latex: str, files: dict[str, bytes], logo: ResolvedLogo | None) -> Response:
     """The PDF, or the error response the caller sees; LaTeX source is NEVER logged, and a 422 carries the diagnostic as `detail` and the sanitized log as `log`, for this caller only."""
     try:
-        pdf_bytes = await compile_latex(latex, preview=preview, binary_files=files, logo=logo)
+        pdf_bytes = await compile_latex(latex, preview=False, binary_files=files, logo=logo)
     except ResourceError as exc:
         return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), "ERR_RESOURCE_INVALID")
     except TimeoutError:
@@ -90,7 +87,7 @@ async def start_compile_job(
         files, logo = await _load_inputs(body, teacher, db)
     except ResourceError as exc:
         return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), "ERR_RESOURCE_INVALID")
-    job_id = compile_jobs.start(teacher.id, _compile(body.latex, files, logo, preview=False))
+    job_id = compile_jobs.start(teacher.id, _compile(body.latex, files, logo))
     return {"job_id": job_id}
 
 
@@ -107,18 +104,3 @@ async def poll_compile_job(
         return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={"status": "pending"})
     return outcome
 
-
-@router.post("/latex", deprecated=True)
-@limiter.limit("10/minute")
-async def compile_latex_endpoint(
-    request: Request,  # Required by slowapi for rate limiting
-    body: LaTeXRequest,
-    teacher: Annotated[Teacher, Depends(require_server_latex)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> Response:
-    """Synchronous compile with the 30 s preview budget, kept for tabs still running an older app; new clients use the jobs above (a long compile here hits the proxy timeout)."""
-    try:
-        files, logo = await _load_inputs(body, teacher, db)
-    except ResourceError as exc:
-        return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), "ERR_RESOURCE_INVALID")
-    return await _compile(body.latex, files, logo, preview=True)

@@ -844,65 +844,6 @@
         }
       }
     },
-    "/api/v1/compile/latex": {
-      "post": {
-        "tags": [
-          "compile"
-        ],
-        "summary": "Compile Latex Endpoint",
-        "description": "Synchronous compile with the 30 s preview budget, kept for tabs still running an older app; new clients use the jobs above (a long compile here hits the proxy timeout).",
-        "operationId": "compile_latex_endpoint_api_v1_compile_latex_post",
-        "deprecated": true,
-        "parameters": [
-          {
-            "name": "access_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LaTeXRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/exams": {
       "get": {
         "tags": [

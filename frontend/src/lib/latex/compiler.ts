@@ -1,4 +1,4 @@
-/** Client-side LaTeX Compiler. Compiles LaTeX source to PDF bytes. Falls back to server POST /api/v1/compile/latex if WASM compiler is unavailable. */
+/** Client-side LaTeX Compiler. Compiles LaTeX source to PDF bytes. Falls back to a server compile job (POST /api/v1/compile/latex/jobs) if WASM compiler is unavailable. */
 
 import { api } from '#lib/api/client';
 import { translate } from '#lib/i18n';
