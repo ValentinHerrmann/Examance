@@ -22,7 +22,7 @@ To change the header data later, open **Edit Exam** on the exam page.
 
 ## Assemble the exercises {#assemble}
 
-On the exam page you pick exercises from the library (**From library**), with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
+On the exam page, **Add exercises** picks exercises from the library, with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
 
 - The arrows reorder the exercises.
 - The total score is recalculated as you go.
