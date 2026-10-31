@@ -151,6 +151,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
             gradingKey: 'Grading key',
             latexPackages: 'LaTeX packages',
             nameLine: 'Name line',
+            mcCorrectionHint: 'MC correction legend',
             extraNotes: 'Space for extra solutions',
             pageBreaks: 'Page breaks (count)',
             name: 'Name',

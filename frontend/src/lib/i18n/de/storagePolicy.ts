@@ -149,6 +149,7 @@ export const storagePolicy = {
             gradingKey: 'Bewertungsmaßstab',
             latexPackages: 'LaTeX-Pakete',
             nameLine: 'Namenszeile',
+            mcCorrectionHint: 'MC-Korrekturhinweis',
             extraNotes: 'Platz für weitere Lösungen',
             pageBreaks: 'Seitenumbrüche (Anzahl)',
             name: 'Name',

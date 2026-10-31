@@ -50,6 +50,8 @@ class Exam(Base):
     page_breaks: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     # Adds a handwritten name line next to the QR sticker box (issue #127).
     name_line: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    # Prints a correction legend at every MC task (issue #192).
+    mc_correction_hint: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 

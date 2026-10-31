@@ -143,7 +143,7 @@ const EXAM: RecordCodec<ExamRecord> = {
   sealed: [
     'title', 'testart', 'grade', 'klasse', 'datum', 'nr', 'fach', 'topic', 'lehrernachname',
     'infoText', 'latexPreamble', 'latexTemplate', 'numVersions', 'gradingKey', 'latexPackages',
-    'pageBreaks', 'nameLine', 'extraNotes',
+    'pageBreaks', 'nameLine', 'mcCorrectionHint', 'extraNotes',
   ],
 };
 

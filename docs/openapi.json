@@ -9442,6 +9442,11 @@
             "title": "Name Line",
             "default": false
           },
+          "mc_correction_hint": {
+            "type": "boolean",
+            "title": "Mc Correction Hint",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -9854,6 +9859,11 @@
             "title": "Name Line",
             "default": false
           },
+          "mc_correction_hint": {
+            "type": "boolean",
+            "title": "Mc Correction Hint",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -10087,6 +10097,17 @@
               }
             ],
             "title": "Name Line"
+          },
+          "mc_correction_hint": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Correction Hint"
           },
           "extra_notes": {
             "anyOf": [
