@@ -1,4 +1,6 @@
-# Deployment
+# Host it like the maintainer: GitHub Actions
+
+How the maintainer's installation runs: two isolated stacks (production and preview) on one server, deployed by GitHub Actions on every release and every pull request, with the frontend on Cloudflare Pages. Each stack is an ordinary installation as described in [Host Examance](hosting.md); this page covers only what the pipeline adds. Read that page first.
 
 Examance ships as two artefacts that always carry **the same version number, deployed at the same time**:
 
@@ -15,12 +17,21 @@ There are two fully independent instances, **production** and **preview**.
 | Pages environment | Production | Preview |
 | Image tag | `ghcr.io/…/examance-backend:1.4.0` + `:latest` | `…:sha-<full-sha>` + `:preview` |
 | Compose project | `examance-prod` | `examance-preview` |
-| Loopback port | `8000` | `8001` |
+| Loopback port (`APP_PORT`) | `9002` in the template | `9001` in the template |
 | Volumes | `examance-prod_pg_data`, `examance-prod_tectonic_cache`, `examance-prod_blob_data`, `examance-prod_restic_cache` | `examance-preview_pg_data`, `examance-preview_tectonic_cache`, `examance-preview_blob_data`, `examance-preview_restic_cache` |
 | Files CI writes | `docker-compose.deploy.yml`, `restore-backup.sh` (next to `.env`) | same |
 | Server env file | `$DEPLOY_APP_DIR/prod/.env` | `$DEPLOY_APP_DIR/preview/.env` |
 
 Publishing a GitHub Release is the **only** action needed to ship production. Nothing else is manual.
+
+### Copy this setup
+
+1. Fork the repository. The backend image is pushed to `ghcr.io/<owner>/examance-backend`, so nothing names the maintainer there.
+2. On the server, set up one directory per stack, each with its own `.env` ([section 6](#_6-two-stacks-on-one-server)).
+3. In the repository: the `DEPLOY_*` secrets, and the environments `production` and `preview` with their variables ([section 5](#_5-secrets-and-variables)). Set `BACKEND_PUBLIC_URL` in both: the workflows fall back to the maintainer's API addresses.
+4. Create the Cloudflare Pages project for `frontend/` with your own custom domains and build variables ([Cloudflare Pages](#cloudflare-pages-dashboard-managed)).
+5. Optional: the BusyTeX mirror on Cloudflare R2 ([BusyTeX mirror](#busytex-mirror-cloudflare-r2)) and the documentation site ([Documentation site](#documentation-site-issue-174)).
+6. Publish a release. It writes `VERSION`, pushes `release`, builds the image and deploys production.
 
 ---
 
@@ -138,6 +149,15 @@ After pushing, both deploy workflows' `frontend` job waits for Cloudflare Pages 
 
 Both halves consume the same resolved version, which is what guarantees frontend and backend always ship the same number together.
 
+### Documentation site (issue #174)
+
+The Markdown under `docs/` is also published as a [VitePress](https://vitepress.dev) site (Mermaid diagrams render through `vitepress-plugin-mermaid`), linked in the app footer (`PUBLIC_DOCS_URL` at frontend build time, default the GitHub Pages copy).
+
+- **Production and previews: Cloudflare Pages** (its own project, next to the app's). Settings: root directory `docs`, build command `npm ci --ignore-scripts && npm run docs:build`, build output directory `.vitepress/dist`, environment variables `NODE_VERSION=22.22.0` (as `frontend/.node-version`) and `SKIP_DEPENDENCY_INSTALL=1` (Pages' own install would run lifecycle scripts; the build command installs without them), production branch `release`, preview deployments for all other branches. Served at `/`.
+- **Backup: GitHub Pages** (`https://valentinherrmann.github.io/Examance/`, served at `/Examance/` via `DOCS_BASE`). The `docs` job of the release workflow calls `.github/workflows/docs.yml` after the `frontend` job has pushed `release`; a reusable workflow rather than a `push: release` trigger because pushes made with `GITHUB_TOKEN` never start other workflows. "Run workflow" republishes by hand; its `ref` input publishes another branch, tag or commit. One-time setup: Settings → Pages → Source "GitHub Actions", and allow the `v*` tags (release runs) under Settings → Environments → `github-pages`.
+
+The sources stay readable on GitHub; `docs/.vitepress/markdown.ts` fixes what only GitHub renders: task lists become checkboxes, code spans naming a docs page or a repo file become links (page, or GitHub on `release`), issue numbers link to GitHub, and the PDFs under `pitches/`/`posters/` plus `openapi.json` are copied into the site so they open in the browser. CI builds the site on every push and PR, so a dead internal link fails before release. Locally: `cd docs && npm install && npm run docs:dev`.
+
 ### Maintenance window on every backend deploy (issue #130)
 
 The `backend-deploy` job starts together with the image build, not after it: its first step announces a deployment maintenance window through the running backend's CLI (production: 5 minutes, second reminder 1 minute before; preview: 30 seconds, second reminder 10 seconds before). Signed-in teachers are reminded to save their work while the image builds, sign-in pauses at the second reminder, and only the freeze, backup and restart are downtime. The job then waits for the "Build backend image" job (GitHub API, `actions: read`), pulls, and runs `maintenance freeze --wait` (waits out the warning, then stops teaching writes) and `maintenance wait-backup` (the `maintenance-backup` service dumps the database). A failed backup aborts the deploy **before** `migrate`. A final `if: always()` step ends the window by revision (also after a failed build); deployment windows also end by themselves 15 minutes after the announced start if never frozen, or 45 minutes after the freeze. The announcement never replaces an open manual maintenance or a frozen deploy: it waits up to 25 minutes for it to end, else the deploy fails before touching anything. An admin who sees nobody online can cut the wait short ("Start now" in the maintenance tab). Frontend-only deploys announce nothing. The deploy that introduces this feature runs without a window (the old image has no `maintenance` command). Details: `docs/dev/maintenance_mode.md`.
@@ -200,38 +220,7 @@ How it reaches each artefact:
 - **Frontend** — `frontend/vite.config.ts` reads `../VERSION` at config-eval time and inlines the result via Vite `define` as `__APP_VERSION__`. For a preview build (`CF_PAGES_BRANCH` set to anything other than `release`) it instead reads `../PREVIEW_VERSION` — a file `deploy-preview.yml`'s `frontend` job stamps as an extra commit on the `preview` branch, since Cloudflare Pages has no notion of PR numbers on its own. A preview build that never went through that job (a manual push straight to `preview`) falls back to `VERSION` + the short commit SHA. The same condition inlines `__IS_PREVIEW__`, which makes the root layout show the "Preview" corner ribbon (`PreviewBanner.svelte`); production and local dev never show it. Because `define` substitutes a literal into an already-bundled same-origin chunk, no new inline script appears and the CSP hashing in `frontend/scripts/generate-csp-headers.mjs` is unaffected.
 - **Backend** — `docker build --build-arg APP_VERSION=…` → `ENV APP_VERSION` in `backend/Dockerfile` → `Settings.APP_VERSION` in `backend/app/config.py` → reported by `GET /api/health` and used as the FastAPI `version`.
 
-`GET /api/health` now returns:
-
-```json
-{ "status": "ok", "version": "1.4.0" }
-```
-
-This endpoint is unauthenticated by design — the frontend probes it before any login. Exposing the build version is deliberate, low-risk information disclosure: it is the mechanism by which incompatibility is detected, and it is the same class of data a `Server` header leaks. It touches neither authentication, encryption, nor retention.
-
-### Compatibility indicator
-
-**A difference in major version means the frontend and backend are incompatible.** The footer (`AppFooter.svelte`) shows the version and colours it accordingly; a mismatch additionally puts a badge in the navbar, and an incompatible major version shows a non-dismissible danger banner above the page content:
-
-```mermaid
-stateDiagram-v2
-    [*] --> NoServer
-    NoServer: no-server — grey<br/>no backend configured
-    Unknown: unknown — grey<br/>server unreachable or reports no version
-    Match: match — normal<br/>identical version strings (a preview's [built-at] stamp is ignored)
-    Mismatch: mismatch — amber<br/>same major, out of sync
-    Incompatible: incompatible — red, bold<br/>different major
-
-    NoServer --> Unknown: address configured, probe fails
-    NoServer --> Match: probe succeeds, versions equal
-    Unknown --> Match: probe succeeds, versions equal
-    Unknown --> Mismatch: same major
-    Unknown --> Incompatible: different major
-    Match --> Mismatch: one side redeployed
-    Mismatch --> Incompatible: major bump on one side
-    Incompatible --> Match: other side redeployed
-```
-
-The label reads `v1.4.0` when in sync and `v1.4.0 / 1.3.2` when the two differ, so both numbers are visible at a glance. Comparison lives in `frontend/src/lib/stores/versionStore.ts` (`compareVersions`); the probe re-runs when the backend address changes and when the session unlocks.
+`GET /api/health` reports it; how the frontend compares the two versions: [Host Examance, section 3](hosting.md#_3-versions).
 
 ---
 
@@ -259,10 +248,14 @@ Per-environment `SECRET_KEY` and `POSTGRES_PASSWORD` live **only** in the server
 
 ### Cloudflare Pages (dashboard-managed)
 
+One Pages project builds the frontend for both stacks. What each build variable means and what the static host must do: [Host Examance, section 5](hosting.md#_5-frontend).
+
+- Root directory `frontend/`, build command `npm run build`, output `build/`.
 - Production branch: `release`.
 - Preview branches: **only** `preview` (Settings → Builds → "Include only certain branches"). This keeps every feature branch from consuming build minutes and gives preview a stable URL, `prev-examance.valentin-herrmann.com`, which must be listed in the preview `CORS_ALLOWED_ORIGINS` (there is no wildcard default).
-- Environment variable `BUSYTEX_MIRROR_URL` (Settings → Variables and Secrets, for **both** Production and Preview): the public base URL of the R2 bucket below, e.g. `https://pub-<id>.r2.dev`. Optional — without it, builds download BusyTeX from GitHub.
-- Environment variables for the operator details on `/legal/impressum` and `/legal/datenschutz` (Settings → Variables and Secrets, for **both** Production and Preview, since both pages are public on both stacks): `VITE_LEGAL_NAME`, `VITE_LEGAL_STREET` (street and number), `VITE_LEGAL_POSTCODE_CITY`, `VITE_LEGAL_EMAIL`, and optionally `VITE_LEGAL_PHONE` (shown only when set). They are read at build time (`frontend/src/lib/legal/operator.ts`) and inlined into the bundle, so they are kept out of the repository but are public once deployed; a change needs a rebuild. A build missing any required value renders marked placeholders and a "not configured" banner on both pages. The retention periods in the privacy statement come from the backend's settings at runtime (`GET /api/v1/privacy/retention`), not from these variables.
+- **Custom domains for both environments** (Settings → Custom domains): `examance.valentin-herrmann.com` for `release`, `prev-examance.valentin-herrmann.com` for `preview`. Each stack's `FRONTEND_URL` points at its domain, never at `*.pages.dev` ([why](hosting.md#_4-2-settings)).
+- Variables (Settings → Variables and Secrets), per environment: `PUBLIC_DEFAULT_BACKEND_URL` (that environment's API origin), and for **both** environments the `VITE_LEGAL_*` operator details, since the legal pages are public on both stacks. Optional `BUSYTEX_MIRROR_URL` for both (see below).
+- **Web Analytics, Rocket Loader and Email Obfuscation stay off**: they inject scripts after the build, which the Content Security Policy blocks ([troubleshooting](hosting.md#_5-3-troubleshooting-executing-inline-script-violates-content-security-policy)).
 
 ### BusyTeX mirror (Cloudflare R2)
 
@@ -284,141 +277,28 @@ One-time setup:
 3. GitHub → Settings → Secrets and variables → Actions: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; repository variable `R2_BUCKET`.
 4. Pages → Settings → Variables and Secrets: `BUSYTEX_MIRROR_URL` for Production and Preview (see above).
 5. Actions → *Mirror BusyTeX assets* → Run workflow. The next Pages build logs `Streaming processed BusyTeX assets from https://pub-….r2.dev/…` followed by `✓ BusyTeX assets staged`.
-- Root directory `frontend/`, build command `npm run build`, output `frontend/build/` — unchanged.
-- **Custom domains are mandatory for both environments** (Settings → Custom domains): `examance.valentin-herrmann.com` for `release`, `prev-examance.valentin-herrmann.com` for `preview`. `FRONTEND_URL` must point at these, never at the `*.pages.dev` URL: that domain sits on URL blocklists, so outbound mail relays reject password-reset mails linking to it with `550 5.7.1 Refused by local policy … (B-URL)`. Serving reset links from the same registrable domain as `SMTP_FROM_EMAIL` also avoids the From/link mismatch that phishing filters score. `validate_frontend_url_for_email` (`backend/app/config.py`) refuses to start on a blocklisted `FRONTEND_URL` whenever `SMTP_HOST` is set outside development.
-- Environment variable `PUBLIC_DEFAULT_BACKEND_URL`, set per Cloudflare environment to that environment's API origin. It seeds the backend address on a fresh browser profile so the production frontend defaults to the production API and the preview frontend to the preview API. It is only a default: a saved address always wins and the user can still point the app anywhere.
-- **Web Analytics must stay off** (Settings → Analytics). It injects an inline snippet and `https://static.cloudflareinsights.com/beacon.min.js` into the HTML *after* the build has run, which means after `scripts/generate-csp-headers.mjs` has hashed the inline scripts. The CSP therefore blocks both, and the browser console fills with
-
-  ```
-  Executing inline script violates the following Content Security Policy directive 'script-src 'self' …'
-  Loading the script 'https://static.cloudflareinsights.com/beacon.min.js/…' violates …
-  ```
-
-  Those two lines are the expected result of switching Web Analytics on, not a broken deploy — the app's own bootstrap hash still matches and the page works. **Do not "fix" them by adding the beacon host to `script-src`**: that would start sending visitor data to a third party, which contradicts the no-third-party-transfer claims in `data_flow_and_security.md` and the legal pages. Turn the feature off instead.
-
-### Troubleshooting: "Executing inline script violates … Content Security Policy"
-
-If this appears in the browser console on a deployed stack:
-
-```
-Executing inline script violates the following Content Security Policy directive
-'script-src 'self' 'wasm-unsafe-eval' 'sha256-…''
-```
-
-**It is not a CORS error and not a build failure**, though it reads like both and
-has been reported as both. Work through it in this order:
-
-1. **Is Web Analytics on?** That is the cause in every occurrence so far — see
-   the bullet above. Turn it off in Settings → Analytics. The same applies to
-   Rocket Loader and Email Obfuscation: all three rewrite the served HTML after
-   the build, so the hash of what the browser executes is not the hash the build
-   computed. The app's own bootstrap hash still matches, so the page works; the
-   console noise is the symptom, not the failure.
-2. **Does `build/_headers` still contain the placeholder?** If `script-src`
-   carries a literal `__INLINE_SCRIPT_HASHES__`, the `csp:headers` build step
-   did not run and *every* inline script is blocked, so the page is blank rather
-   than merely noisy. `npm run build` runs `csp:verify` immediately afterwards
-   and fails the build on exactly this, so a deploy should never get this far.
-3. **Is the deployment mixed?** The inline bootstrap embeds the content-hashed
-   entry chunk filenames, so an `_headers` from one build served alongside
-   `_app` chunks from another gives one valid-looking hash that matches nothing.
-   Redeploy rather than editing the policy.
-
-The app explains this itself: `lib/utils/cspDiagnostics.ts` listens for
-`securitypolicyviolation`, names the likely Cloudflare feature, and points here.
-
-**Never resolve this by widening `script-src`.** Allowing the beacon host starts
-sending visitor data to a third party, which contradicts the
-no-third-party-transfer claims in `data_flow_and_security.md` and on the legal
-pages.
-
-`npm run csp:verify` is wired into `npm run build` rather than into `ci.yml`,
-because CI does not build the frontend — `prebuild` downloads the busytex
-assets. The gate therefore fires in the Cloudflare Pages build, which is the
-build that would otherwise ship.
-
-### Passkeys are per stack, and per origin
-
-`WEBAUTHN_RP_ID` defaults to the hostname of `FRONTEND_URL` (`backend/app/config.py`), so each stack must set `FRONTEND_URL` to *its own* frontend origin — production to `examance.valentin-herrmann.com`, preview to `prev-examance.valentin-herrmann.com`. A passkey registered against one RP ID does not work against the other, by design.
-
-The origin check behind it is stricter than CORS: `_expected_origins()` (`backend/app/services/webauthn.py`) reads `CORS_ALLOWED_ORIGINS` and `FRONTEND_URL` only — **not** `CORS_ALLOWED_ORIGIN_REGEX`. A stack whose frontend origin is matched only by the regex will let the browser complete a ceremony and then reject it server-side. Name the frontend origin explicitly in one of those two settings.
 
 ---
 
-## 6. First-time server setup
+## 6. Two stacks on one server
 
-```bash
-# 1. Directories, one per environment
-mkdir -p ~/examance/prod ~/examance/preview
+Set up each stack as in [Host Examance, section 4](hosting.md#_4-backend), with these differences:
 
-# 2. Env files from the templates in deploy/ — 0600, never committed
-install -m 600 /dev/null ~/examance/prod/.env
-install -m 600 /dev/null ~/examance/preview/.env
-# paste deploy/env.prod.example / deploy/env.preview.example and fill in:
-openssl rand -hex 32   # SECRET_KEY        — different per environment
-openssl rand -hex 24   # POSTGRES_PASSWORD — different per environment
-
-# 3. First boot (CI does this on every deploy afterwards)
-cd ~/examance/prod
-docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env pull
-docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env --profile tools run --rm migrate
-docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env up -d
-
-# 4. Find the bridge gateway and put it in .env as PROXY_ALLOWED_IPS
-docker network inspect examance-prod_default -f '{{(index .IPAM.Config 0).Gateway}}'
-```
-
-Self-registration (issue #53) is always available and needs working SMTP for its verification links. Its settings `REGISTRATION_TOKEN_TTL_HOURS`, `REGISTRATION_RESEND_COOLDOWN_SECONDS` and `PENDING_ACCOUNT_RETENTION_DAYS` have sensible defaults (24 h, 300 s, 90 days) and only need an entry in `.env` to change them. Approval, features and allowed domains: `docs/account_creation_and_management.md` §7.
-
-Then a Caddy site block per environment with a plain `reverse_proxy` to `127.0.0.1:8000` / `127.0.0.1:8001`. Caddy obtains and renews TLS certificates by itself. It is managed on the host and deliberately **not** touched by these workflows.
-
-Two settings the two stacks must **not** share:
-
-* `WEBAUTHN_RP_ID` — a passkey is bound to its relying-party ID and will not work
-  under a different registrable domain. Production and preview are different
-  domains, so each needs its own value and its own enrollments. This is a
-  WebAuthn property, not something configuration can work around.
-* The host clock has to be right. TOTP codes are time-derived, so a drifting
-  server clock rejects correct codes and looks, to the teacher, exactly like a
-  wrong one.
-
-No proxy timeout tuning is needed. Server compiles are background jobs the browser polls with short requests (`/api/v1/compile/latex/jobs`), so a compile of up to two `COMPILE_TIMEOUT_SECONDS` passes (`backend/app/services/tectonic.py`) never meets Cloudflare's 100 s origin limit. Only the deprecated synchronous `/api/v1/compile/latex` still runs inside one request. Do not add a `response_header_timeout` or similar below `COMPILE_TIMEOUT_SECONDS` plus margin: a proxy that answers before the backend does sends its own error page without CORS headers, and the browser then reports a CORS error instead of a timeout.
-
-**Tectonic cache (issue #75).** With an empty cache, Tectonic downloads several hundred bundle files one by one and the first previews exceed `PREVIEW_TIMEOUT_SECONDS` (504). The backend image therefore compiles a synthetic warm-up document at build time (`backend/latex-warmup/`) into `TECTONIC_CACHE_DIR=/var/cache/tectonic`, and Docker seeds a new or empty `tectonic_cache` volume from it. A volume that already has content is never re-seeded, so both deploy workflows run the same `warmup.sh` in the `latex` container after the health check (bounded to 300 s, non-fatal; seconds when the cache is warm). To start over: stop the stack, `docker volume rm <project>_tectonic_cache`, and `up -d` again. The cache, image layer and volume hold only public TeX files, never exam content. An image build now needs `relay.fullyjustified.net` to be reachable.
-
-**LaTeX worker container.** A TeX document can read any file its process may read (`\openin`, `\input` with a computed path), so Tectonic does not run in the backend. The `latex` service runs the same image as `uvicorn app.latex_worker:app` on port 8001: no secrets in its environment, read-only root filesystem with a tmpfs `/tmp`, all capabilities dropped, only the `tectonic_cache` volume, and only the `latex` network (with internet egress for TeX bundle files, without the database or Redis). The backend reaches it via `LATEX_WORKER_URL=http://latex:8001`; when the variable is empty (development, tests), Tectonic runs in the backend process. If the worker is down, compiles answer `503 ERR_COMPILE_UNAVAILABLE` and the browser engine still works.
-
-**Storage partitions and backups (issue #114).** By default every scan stays in Postgres. To keep scans on another disk or an rclone mount, and to enable the daily encrypted restic backup (`COMPOSE_PROFILES=backup`), follow `docs/dev/storage_partitions.md`. Each stack needs its own blob directory and its own backup repository prefix and password. The first deploy after switching to `fs` moves existing scans inside the migration step, so it takes longer the more scans there are. A `--profile …` on the command line replaces `COMPOSE_PROFILES` from `.env` for that command, so `… --profile tools down` leaves the backup container running; name both profiles or neither.
-
-`PROXY_ALLOWED_IPS` must name the actual proxy address — never `*`. With a wildcard, any client could spoof `X-Forwarded-For` to reset its own rate-limit bucket and poison the audit log's IP hashes.
+- **Directories**: `$DEPLOY_APP_DIR/prod` and `$DEPLOY_APP_DIR/preview`, each with its own `.env` from `deploy/env.prod.example` / `deploy/env.preview.example` (mode 0600, never committed). Nothing else: every deploy writes `docker-compose.deploy.yml` and `restore-backup.sh` next to `.env` and sets `BACKEND_IMAGE`.
+- **Project names** `examance-prod` and `examance-preview`, so containers and volumes never mix and no preview process can reach production data.
+- **Different values** for `SECRET_KEY` and `POSTGRES_PASSWORD` (a shared key would let preview mint tokens production accepts), `APP_PORT`, `NETWORK_SUBNET` and therefore `PROXY_ALLOWED_IPS`, `FRONTEND_URL` (so each stack has its own passkeys), `CORS_ALLOWED_ORIGINS` and `ALLOWED_HOSTS`; with backups, a separate blob directory, restic repository prefix and password per stack.
+- **First boot by hand** (pull, migrate, `up -d`, gateway into `PROXY_ALLOWED_IPS`) as in [section 4.3](hosting.md#_4-3-first-start), with `-p examance-prod` / `-p examance-preview`. Afterwards every deploy does pull, migrate and restart itself, plus the cache warm-up in the `latex` container (bounded to 300 s, non-fatal).
+- **Caddy** has one site block per stack, each a plain `reverse_proxy` to its `APP_PORT`. It is managed on the host and deliberately **not** touched by the workflows.
 
 ---
 
 ## 7. Runbook
 
-**Manual redeploy** — Actions → *Deploy Release* → Run workflow → enter the version (e.g. `1.4.0`). Preview: Actions → *Deploy Preview* → Run workflow.
+Generic operations (logs, rollback, restore): [Host Examance, section 7](hosting.md#_7-operating). The commands there use `$COMPOSE`; here that is `docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env` (or `examance-preview`) in the stack's directory.
 
-**Rollback**
+**Manual redeploy**: Actions → *Deploy Release* → Run workflow → enter the version (e.g. `1.4.0`). Preview: Actions → *Deploy Preview* → Run workflow.
 
-```bash
-cd ~/examance/prod
-sed -i 's|^BACKEND_IMAGE=.*|BACKEND_IMAGE=ghcr.io/valentinherrmann/examance-backend:1.3.2|' .env
-docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env up -d
-```
-
-Two things to know before rolling back:
-
-- **Migrations run forward only.** `alembic upgrade head` runs on every deploy; reverting to an older image does **not** undo it. A schema change that an older backend cannot read has to be reverted deliberately with `alembic downgrade`, by hand, after taking a database dump. Automatic downgrade is deliberately never wired into CI.
-- Scans stored as files (`BLOB_STORAGE_BACKEND=fs`) are unreadable for releases before #114: move them back first (`docs/dev/storage_partitions.md`, "Moving scans").
-- Rolling the backend back **across a major version** leaves the frontend on the newer major, so the footer version goes red and the incompatibility banner appears until the frontend is rolled back too (re-point the `release` branch at the older commit).
-
-**Restore from backup** (restic; step-by-step guide per situation: `docs/backup_and_restore.md`): run `./restore-backup.sh` in the stack directory. `list` shows the snapshots, `db <id|latest>` replaces the whole database (the state before is kept for `undo`), and `scans <id|latest>` copies missing scan files back. A database restore rolls back every account, so use it for disasters, not for one teacher's mistake.
-
-**Logs**
-
-```bash
-docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env logs --tail 200 backend
-```
+**Rollback**: set `BACKEND_IMAGE` by hand as described there; the next release deploy overwrites it again. To roll the frontend back too, re-point the `release` branch at the older commit.
 
 **Check what is actually deployed**
 

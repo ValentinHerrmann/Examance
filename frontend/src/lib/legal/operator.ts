@@ -1,4 +1,4 @@
-/** Operator identity for Impressum and Datenschutzerklärung. Set per Cloudflare Pages environment (docs/deployment.md), never committed. */
+/** Operator identity for Impressum and Datenschutzerklärung. Build variables of every frontend build (docs/hosting.md section 5.1), never committed. */
 export interface LegalOperator {
   name: string;
   street: string;

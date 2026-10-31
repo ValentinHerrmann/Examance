@@ -1,4 +1,4 @@
-/** Turns a blocked inline script into an actionable console message: it looks like CORS or a build failure, but is a Cloudflare dashboard feature rewriting the HTML after the build hashed it (docs/deployment.md). Never "fix" it by allowing the injector's host in `script-src`: that sends visitor data to a third party (docs/data_flow_and_security.md). */
+/** Turns a blocked inline script into an actionable console message: it looks like CORS or a build failure, but is a Cloudflare dashboard feature rewriting the HTML after the build hashed it (docs/hosting.md section 5.3). Never "fix" it by allowing the injector's host in `script-src`: that sends visitor data to a third party (docs/data_flow_and_security.md). */
 
 const EDGE_INJECTORS: [RegExp, string][] = [
   [/cloudflareinsights|beacon\.min\.js/i, 'Cloudflare Web Analytics'],
@@ -23,7 +23,7 @@ export function registerCspDiagnostics(): void {
     console.warn(
       `[CSP] A script the build never saw was blocked — not a CORS error, not a build failure. ` +
         `Likely ${feature} injecting it at the edge: turn it off in the Cloudflare dashboard, ` +
-        `do not widen script-src. See docs/deployment.md, "Cloudflare dashboard settings".`,
+        `do not widen script-src. See docs/hosting.md, section 5.3.`,
       { blocked: event.blockedURI || '(inline)', sourceFile: event.sourceFile, line: event.lineNumber }
     );
   };

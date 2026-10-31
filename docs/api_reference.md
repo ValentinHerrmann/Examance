@@ -425,7 +425,7 @@ Two rules the endpoint enforces rather than trusts the client with:
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `GET` | `/api/health` | Health Check | No | Returns `{"status": "ok", "version": "1.4.0"}`. The version is deliberately public — it is how the frontend detects an incompatible backend; see `deployment.md` §4. |
+| `GET` | `/api/health` | Health Check | No | Returns `{"status": "ok", "version": "1.4.0"}`. The version is deliberately public — it is how the frontend detects an incompatible backend; see `docs/hosting.md` §3. |
 | `GET` | `/api/v1/privacy/retention` | Retention Periods | No | The configured retention periods the privacy statement (`/legal/datenschutz`) shows: `{"grace_days", "audit_log_days", "registration_link_hours", "pending_account_days", "contribution_days", "contribution_pending_days", "training_sample_days"}`, read from the settings of the same names. Configuration only, no personal data. Rate limit 60/minute per IP. |
 | `GET` | `/api/v1/maintenance` | Maintenance Status | No | `{"phase": "none" \| "scheduled" \| "warning" \| "final" \| "down", "kind", "downtime_class", "revision", "first_warning_at", "second_warning_at", "starts_at", "server_time"}`, polled by every page (issue #130). A valid session cookie of a teacher marks the account as online for the admin's aggregate count (hashed id, 90 s; see `dev/maintenance_mode.md`). Rate limit 600/minute per IP. While a window is open, `/api/*` responses also carry `Maintenance-Revision: <revision>` (when the worker's cache knows it), so active clients refetch this endpoint at once. |
 | `POST` | `/api/v1/maintenance/ready` | Saved My Work | Yes | `{"revision"}`: the teacher confirmed they saved their work for that window (counted for the admin). `204`. |
@@ -442,4 +442,4 @@ python -m app.cli export-openapi --output docs/openapi.json
 
 Run this from the **repository root**, not from `backend/`: a relative `--output` is resolved against the repo root regardless of current working directory (`export_openapi()` in `app/cli.py` anchors it via `Path(__file__).resolve().parent.parent.parent`), so `docs/openapi.json` is correct from anywhere but `../docs/openapi.json` silently writes one directory above the repo.
 
-The exported specification file is saved at [docs/openapi.json](docs/openapi.json).
+The exported specification file is saved at [docs/openapi.json](openapi.json).

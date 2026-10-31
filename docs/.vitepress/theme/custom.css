@@ -1,0 +1,15 @@
+/* GitHub-style task lists (rendered by markdown.ts): checkbox instead of bullet. */
+.vp-doc li.task-list-item {
+  list-style: none;
+  margin-left: -1.25rem;
+}
+
+.vp-doc .task-list-item-checkbox {
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
+/* Documented theme variable (vars.css): sidebar and outline sit at the screen edges instead of inside a 1440 px frame. */
+:root {
+  --vp-layout-max-width: 100vw;
+}

@@ -1,0 +1,77 @@
+name: Docs
+
+# Publishes the backup copy of the documentation site (docs/, VitePress) to GitHub Pages from `release`; production and previews are on Cloudflare Pages (docs/deployment.md).
+# deploy-release.yml calls this after it pushed `release`: that push uses GITHUB_TOKEN, which never starts other workflows.
+# One-time repository setting: Settings → Pages → Source "GitHub Actions".
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or SHA to publish (default: release)"
+        required: false
+        default: release
+        type: string
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build docs site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      present: ${{ steps.site.outputs.present }}
+    steps:
+      # Always build from trusted `release` to avoid executing untrusted refs in a cache-writing context.
+      - uses: actions/checkout@v4
+        with:
+          ref: release
+      # `release` predates the docs site until the first release after issue #174; skip instead of failing.
+      - name: Check for the docs site
+        id: site
+        run: |
+          if [ -f docs/package-lock.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::this ref has no docs site yet (release gets it with the first release after #174); nothing to deploy"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.site.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.node-version
+          cache: "npm"
+          cache-dependency-path: docs/package-lock.json
+      - name: Install and build
+        if: steps.site.outputs.present == 'true'
+        working-directory: docs
+        # GitHub Pages serves the project under /Examance/; Cloudflare serves it at /.
+        env:
+          DOCS_BASE: /Examance/
+        run: npm ci --ignore-scripts && npm run docs:build
+      - if: steps.site.outputs.present == 'true'
+        uses: actions/configure-pages@v5
+      - if: steps.site.outputs.present == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: needs.build.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

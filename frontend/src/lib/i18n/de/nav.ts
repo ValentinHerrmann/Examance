@@ -11,6 +11,7 @@ export const nav = {
     privacy: 'Datenschutz',
     legal: 'Rechtliches',
     licenses: 'Lizenzen',
+    docs: 'Dokumentation',
     account: 'Konto',
     openMenu: 'Navigation öffnen',
     closeMenu: 'Navigation schließen',

@@ -110,6 +110,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: .github/scripts/wait-for-cloudflare-pages.sh "$(git rev-parse HEAD)"
 
+  # Publishes docs/ from the `release` branch the frontend job just pushed (issue #174).
+  docs:
+    name: Publish docs site
+    needs: frontend
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs.yml
+
   backend-image:
     name: Build backend image
     needs: version
@@ -332,7 +342,7 @@ jobs:
                 || $NEW_CLI maintenance wait-backup --revision "$MAINTENANCE_REVISION" --timeout 900
             fi
             # Migrations run forward only. A rollback to an older image does NOT
-            # undo them — see docs/deployment.md.
+            # undo them — see docs/hosting.md section 7.
             $COMPOSE --profile tools run --rm migrate
             $COMPOSE up -d --remove-orphans
 

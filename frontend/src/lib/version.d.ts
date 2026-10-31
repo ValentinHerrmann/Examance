@@ -6,11 +6,12 @@ declare const __APP_COMMIT_SHA__: string;
 /** GitHub Release body of this build's version (markdown), '' if none. */
 declare const __RELEASE_NOTES__: string;
 declare const __REPO_URL__: string;
+declare const __DOCS_URL__: string;
 declare const __DEFAULT_BACKEND_URL__: string;
 declare const __PROD_BACKEND_URL__: string;
 declare const __PREVIEW_BACKEND_URL__: string;
 
-/** Operator details for the legal pages, inlined from the build environment the same way (docs/deployment.md); never committed. */
+/** Operator details for the legal pages, inlined from the build environment the same way (docs/hosting.md section 5.1); never committed. */
 interface ImportMetaEnv {
   readonly VITE_LEGAL_NAME?: string;
   readonly VITE_LEGAL_STREET?: string;

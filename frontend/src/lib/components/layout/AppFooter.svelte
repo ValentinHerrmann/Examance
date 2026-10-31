@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { VersionStatus } from "#lib/stores/versionStore";
+  import { docsUrl, type VersionStatus } from "#lib/stores/versionStore";
   import { t } from "#lib/i18n";
 
-  /** Slim page footer (Artemis): legal links, server address, version, pinned to the bottom by `mt-auto`. Renders on the grade page too (section 5 DDG: Impressum reachable from every page). The backend's version wins when known (the server is the source of truth for compatibility); mismatches are also flagged in the navbar. */
+  /** Slim page footer (Artemis): legal links, docs link, server address, version, pinned to the bottom by `mt-auto`. Renders on the grade page too (section 5 DDG: Impressum reachable from every page). The backend's version wins when known (the server is the source of truth for compatibility); mismatches are also flagged in the navbar. */
   interface Props {
     onBackendClick: () => void;
     backendLabel?: string;
@@ -64,6 +64,7 @@
     <a href="/legal/datenschutz" class={item}>{$t("nav.privacy")}</a>
     <a href="/third-party-notices.txt" class={item} target="_blank" rel="noopener">{$t("nav.licenses")}</a>
   </nav>
+  <a href={docsUrl} class={item} target="_blank" rel="noopener noreferrer">{$t("nav.docs")}</a>
 
   <div class="ml-auto flex min-w-0 items-center gap-x-4">
     <button

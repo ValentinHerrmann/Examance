@@ -1,6 +1,6 @@
 # Exercise sharing, copies and contributions (backend)
 
-Read on demand; moved out of `backend/CLAUDE.md`. The never-rules stay there. Background: `docs/data_flow_and_security.md` §3 "Exercise sharing".
+The short rules that must never be broken in this area are in `backend/CLAUDE.md`. Background: `docs/data_flow_and_security.md` §3 "Exercise sharing".
 
 - What a copy, resync or proposal carries is `EXERCISE_CONTENT_FIELDS` (projected by `content_of`); every other `Exercise` column is identity, share state or provenance. A new column must be classified in `tests/test_exercise_sharing.py` or that test fails.
 - Copy provenance (`copied_from_exercise_id`, `synced_fingerprint`, `exercise_groups.source_group_id`) has no FK on purpose. Resync only adds versions (`next_version`, shared with `create_new_version`); it never updates a row an exam may link. Resource writes must set `content_sha256` (the fingerprint covers file bytes). Content-equal copy and source are in sync: `plan_groups` advances the copy's sync point itself (`_mark_synced`, provenance only, own rows only), so an identically accepted proposal needs no update.

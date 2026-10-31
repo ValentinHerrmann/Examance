@@ -1,6 +1,6 @@
 # Backup and restore guide (operators)
 
-What the two backups cover, how to check that it works, and what to do in each emergency. Setup and design details: `docs/dev/storage_partitions.md`. Deployment: `docs/deployment.md`.
+What the two backups cover, how to check that it works, and what to do in each emergency. Setup and design details: `docs/dev/storage_partitions.md`. Hosting: `docs/hosting.md`.
 
 ## What is backed up
 
@@ -102,7 +102,7 @@ This goes back to the state from just before the last `db` restore, using the ne
 
 ### E. The whole server is gone
 
-1. Set up the new server as in `docs/deployment.md` §6. Restore `.env` from the password manager: **the same** `BACKUP_RESTIC_REPOSITORY` and `BACKUP_RESTIC_PASSWORD`, but leave `COMPOSE_PROFILES` empty for now. Otherwise the backup service starts snapshotting the empty new database right away.
+1. Set up the new server as in `docs/hosting.md` §4. Restore `.env` from the password manager: **the same** `BACKUP_RESTIC_REPOSITORY` and `BACKUP_RESTIC_PASSWORD`, but leave `COMPOSE_PROFILES` empty for now. Otherwise the backup service starts snapshotting the empty new database right away.
 2. If scans are stored as files, mount the blob directory and mark it (`init-blob-store`, see `docs/dev/storage_partitions.md`).
 3. Deploy. CI writes `docker-compose.deploy.yml` and `restore-backup.sh`. The stack starts with an empty database.
 4. Run `./restore-backup.sh list`, `./restore-backup.sh db <id>`, then `./restore-backup.sh scans`.
@@ -117,7 +117,7 @@ Passkeys work again only under the same domain (`WEBAUTHN_RP_ID`), and TOTP only
 ./restore-backup.sh maintenance latest     # newest local file (or newest `maintenance` snapshot)
 ```
 
-The restore migrates the loaded database to the release that is running. If the update's own migration caused the damage, roll the backend image back first (`docs/deployment.md` §7), then restore. Like `db`, it saves the current state for `undo` first.
+The restore migrates the loaded database to the release that is running. If the update's own migration caused the damage, roll the backend image back first (`docs/hosting.md` §7), then restore. Like `db`, it saves the current state for `undo` first.
 
 ## Check that backups work
 

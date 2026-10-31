@@ -7,7 +7,7 @@ export const legal: Translations['legal'] = {
     backToHome: 'Back to Examance',
     notConfigured: {
         strong: 'Operator details missing.',
-        text: 'This build carries no operator details (VITE_LEGAL_*, see docs/deployment.md); the marked fields are placeholders.',
+        text: 'This build carries no operator details (VITE_LEGAL_*, see docs/hosting.md); the marked fields are placeholders.',
     },
 
     // Operator block shared by Impressum and Datenschutzerklärung; values come from the build (lib/legal/operator.ts).
