@@ -61,6 +61,7 @@ In der noch leeren Prüfungsübersicht legt **Beispieldaten hinzufügen** Beispi
 - **?** neben einer Überschrift oder **F1** öffnet die Hilfe zur jeweiligen Seite. Sie gibt eine schnelle Orientierung; **Mehr in der Dokumentation** führt zum passenden Abschnitt dieses Handbuchs.
 - **Vollständiges Handbuch öffnen** am Ende des Hilfebereichs zeigt alle Hilfethemen auf einer Seite. Es ist auch von der Anmeldeseite aus verlinkt.
 - **Dokumentation** in der Fußzeile öffnet dieses Handbuch.
+- In diesem Handbuch vergrößert ein Klick einen Screenshot; ein zweiter Klick oder **Esc** schließt ihn.
 - [Infomaterial](./material): Foliensätze und Poster mit einem Rundgang in Screenshots und einer Erklärung zu Datenschutz und Sicherheit, auf Deutsch.
 
 ![Der Hilfe-Dialog mit Links in dieses Handbuch](../../screenshots/guide/help-dialog.jpg)

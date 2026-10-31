@@ -61,6 +61,7 @@ In the still empty exam overview, **Add example data** creates example exercises
 - **?** next to a heading, or **F1**, opens the help for that screen. It gives a quick direction; **More in the documentation** leads to the matching section of this guide.
 - **Open the full manual** at the bottom of the help panel shows all help topics on one page. It is also linked from the sign-in page.
 - **Documentation** in the footer opens this guide.
+- In this guide, a click on a screenshot enlarges it; a second click or **Esc** closes it.
 - [Info material](./material): slide decks and posters with a screenshot tour and an explanation of privacy and security, in German.
 
 ![The help dialog with links into this guide](../screenshots/guide/help-dialog.jpg)
