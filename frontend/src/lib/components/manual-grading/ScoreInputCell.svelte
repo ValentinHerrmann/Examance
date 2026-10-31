@@ -8,10 +8,11 @@
     onCommit: () => void;
   }
 
-  let { value = $bindable(""), max, onCommit }: Props = $props();
+  let { value = $bindable(), max, onCommit }: Props = $props();
 
   let invalid = $derived.by(() => {
-    if (value === "") return false;
+    // No fallback on the bindable: the grid binds rows it has not filled yet, and binding undefined to a prop with a fallback throws.
+    if (!value) return false;
     const num = parseFloat(value.replace(",", "."));
     return isNaN(num) || num < 0 || num > max;
   });

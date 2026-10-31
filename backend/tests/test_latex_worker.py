@@ -1,6 +1,7 @@
 """LaTeX worker (S1): the backend hands compiles to the worker container and maps its answers."""
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -69,3 +70,36 @@ async def test_worker_rejects_paths_outside_its_workdir() -> None:
         )
     assert res.status_code == 422
     assert "Invalid extra file path" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_pass_timeout_logs_counts_never_document_names(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from app.services import tectonic
+
+    procs: list[AsyncMock] = []
+
+    async def hanging_exec(*_args: object, stderr: object, **_kwargs: object) -> AsyncMock:
+        stderr.write(b"note: downloading secret-student-name.tex\nnote: downloading x.sty\n")  # type: ignore[attr-defined]
+        stderr.flush()  # type: ignore[attr-defined]
+        proc = AsyncMock()
+        proc.returncode = None
+        proc.kill = lambda: setattr(proc, "returncode", -9)
+
+        async def wait() -> int:
+            if proc.returncode is None:
+                await asyncio.sleep(10)
+            return proc.returncode
+
+        proc.wait = wait
+        procs.append(proc)
+        return proc
+
+    with patch("asyncio.create_subprocess_exec", side_effect=hanging_exec), \
+            caplog.at_level("WARNING"), pytest.raises(TimeoutError):
+        await tectonic.run_tectonic("\\documentclass{article}", {}, timeout=0.05)
+
+    assert procs[0].returncode == -9  # killed, never orphaned
+    assert "timed out" in caplog.text and "2 bundle downloads" in caplog.text
+    assert "secret-student-name" not in caplog.text

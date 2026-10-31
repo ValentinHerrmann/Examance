@@ -41,7 +41,7 @@ Design note for both: `docs/dev/pseudonym_hmac_and_aad.md`. Nothing is implement
 ## Verification checklist (for the human tester; put it in each PR body)
 - [ ] `make lint`, `npx svelte-check --threshold error` and `cd backend && python -c "import app.main"` are clean.
 - [ ] Sign in with the password, then 5 wrong TOTP codes: the account locks, and logging in again with the password does not reset it (S2).
-- [ ] A LaTeX `\openin` probe of `/etc/hostname` reads nothing (S1).
+- [ ] A LaTeX `\openin` probe through an indirect path (`\def\target{/etc/hostname}\openin\probe=\target`) prints the `latex` container's hostname, not the backend's, and `/proc/1/environ` shows no secrets (S1, preview stack with the worker).
 - [ ] An existing hybrid and all-server account unlocks, the pseudonyms are re-keyed, and the grading data is intact (S3, S11).
 - [ ] Move hybrid → all-server with one skipped exam; that exam's local results survive (F11).
 - [ ] An offline reload does not lock (F5). The Art. 15 export works in all-server mode (F1).

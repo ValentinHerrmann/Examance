@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 import tempfile
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -50,8 +51,12 @@ _compile_slots = asyncio.Semaphore(max(1, int(os.environ.get("LATEX_MAX_CONCURRE
 @contextlib.asynccontextmanager
 async def _compile_slot(wait_seconds: float) -> AsyncIterator[None]:
     """Hold one Tectonic slot; waiting longer than *wait_seconds* raises TimeoutError."""
-    async with asyncio.timeout(wait_seconds):
-        await _compile_slots.acquire()
+    try:
+        async with asyncio.timeout(wait_seconds):
+            await _compile_slots.acquire()
+    except TimeoutError:
+        logger.warning("LaTeX compile waited %.0f s for a free slot and gave up", wait_seconds)
+        raise
     try:
         yield
     finally:
@@ -103,23 +108,35 @@ def _extract_tex_error(tmpdir: Path) -> str:
     return "No TeX diagnostic was produced; check the document for errors."
 
 
-async def _run_pass(cmd: list[str], tmpdir: Path, timeout: float) -> tuple[int, bytes]:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=str(tmpdir),
-        env=_child_env(),
-    )
-    try:
-        _stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        return proc.returncode or 0, stderr
-    finally:
-        # Also on CancelledError (client disconnect): never leave an orphaned Tectonic running.
-        if proc.returncode is None:
-            with contextlib.suppress(ProcessLookupError):
-                proc.kill()
-            await proc.wait()
+async def _run_pass(cmd: list[str], tmpdir: Path, timeout: float, pass_idx: int) -> tuple[int, bytes]:
+    # stderr goes to a file, so a pass killed on timeout still shows how far it got.
+    err_path = tmpdir / "tectonic.err"
+    started = time.monotonic()
+    with err_path.open("wb") as err:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=err,
+            cwd=str(tmpdir),
+            env=_child_env(),
+        )
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=timeout)
+        except TimeoutError:
+            # Counts only: Tectonic's notes can name files the document asked for, and document content is never logged.
+            downloads = err_path.read_bytes().count(b"downloading")
+            logger.warning(
+                "Tectonic pass %d timed out after %.0f s (%d bundle downloads started)",
+                pass_idx, time.monotonic() - started, downloads,
+            )
+            raise
+        finally:
+            # Also on CancelledError (client disconnect): never leave an orphaned Tectonic running.
+            if proc.returncode is None:
+                with contextlib.suppress(ProcessLookupError):
+                    proc.kill()
+                await proc.wait()
+    return proc.returncode or 0, err_path.read_bytes()
 
 
 async def run_tectonic(main_tex: str, files: dict[str, bytes], timeout: float) -> bytes:
@@ -146,7 +163,7 @@ async def run_tectonic(main_tex: str, files: dict[str, bytes], timeout: float) -
         ]
         async with _compile_slot(timeout):
             for pass_idx in range(2):
-                returncode, stderr = await _run_pass(cmd, tmpdir, timeout)
+                returncode, stderr = await _run_pass(cmd, tmpdir, timeout, pass_idx + 1)
                 logger.debug("LaTeX pass %d finished (exit %d)", pass_idx + 1, returncode)
                 if returncode != 0:
                     raise CompilationError(

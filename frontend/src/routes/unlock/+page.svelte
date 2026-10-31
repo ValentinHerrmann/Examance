@@ -595,7 +595,7 @@
 
 <PageShell width="medium" center flush class="gap-4 py-3">
   <!-- Above the step: the cooloff can be hit from the form, the second factor and the vault prompt alike. -->
-  <LockoutNotice />
+  <LockoutNotice class="mx-auto" />
 
   {#if $workspaceStatusStore.state === "blocked"}
     <WorkspaceBlocked reason={$workspaceStatusStore.reason} />

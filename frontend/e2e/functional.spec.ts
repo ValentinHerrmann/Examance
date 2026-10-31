@@ -370,6 +370,27 @@ test.describe('exam', () => {
     await gotoExamTab(page, 'grade');
     await expect(page.getByText(await t(page, 'grading.page.empty'))).toBeVisible();
   });
+
+  test('[exam] the by-student score table opens with a student and saves a score', async ({ page }) => {
+    await signInFirstTime(page);
+    await gotoExerciseLibrary(page);
+    await createExercise(page, { name: 'Grid exercise', topic: 'Grid', latex: exerciseBody('grid', 3) });
+    await gotoDashboard(page);
+    await createExam(page, { title: 'Grid exam', exercises: ['Grid exercise'] });
+
+    await gotoExamTab(page, 'manual');
+    await page.getByRole('tab', { name: stem('grading.manual.container.tabRoster') }).click();
+    await page.getByLabel(await t(page, 'grading.manual.roster.nameLabel')).fill('Sample, Karin');
+    await page.getByRole('button', { name: await t(page, 'grading.manual.roster.addButton') }).click();
+
+    // The rows render before the async submission map: binding them used to throw props_invalid_value.
+    await page.getByRole('tab', { name: await t(page, 'grading.manual.container.tabStudentFirst') }).click();
+    const score = page.locator('input[data-score-input]').first();
+    await score.fill('2');
+    await score.blur();
+    await page.getByRole('tab', { name: await t(page, 'grading.manual.container.tabExerciseFirst') }).click();
+    await expect(page.locator('input[data-score-input]').first()).toHaveValue('2');
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -377,6 +398,16 @@ test.describe('exam', () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe('settings', () => {
+  test('[settings] section links scroll the page body, never the shell', async ({ page }) => {
+    await signInFirstTime(page);
+    await gotoSettings(page);
+    await page.locator('nav a[href="#delete-account"]').click();
+    await expect(page).toHaveURL(/#delete-account$/);
+    // The document stays put (a scrolled document left a gap under the footer), .app-main did the scrolling.
+    expect(await page.evaluate(() => document.scrollingElement!.scrollTop)).toBe(0);
+    expect(await page.evaluate(() => document.querySelector('.app-main')!.scrollTop)).toBeGreaterThan(0);
+  });
+
   test('[settings] changing the language switches the UI and survives a reload', async ({ page }) => {
     await signInFirstTime(page);
     await gotoSettings(page);

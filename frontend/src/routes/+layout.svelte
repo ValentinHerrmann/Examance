@@ -310,7 +310,8 @@
   onchange={handleFileSelected}
 />
 
-<svelte:window onkeydown={handleGlobalKeydown} onfocus={recheckCapabilities} />
+<!-- `.app-main` is the only scroller; an anchor jump, focus() or scrollIntoView can still scroll the overflow:hidden document and leave a gap under the footer. -->
+<svelte:window onkeydown={handleGlobalKeydown} onfocus={recheckCapabilities} onscroll={() => (window.scrollX || window.scrollY) && window.scrollTo(0, 0)} />
 <svelte:document onvisibilitychange={recheckCapabilities} />
 
 <SessionTimeoutWarning />

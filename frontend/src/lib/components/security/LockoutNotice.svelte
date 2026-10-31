@@ -9,6 +9,8 @@
     remainingSeconds,
   } from "#lib/stores/loginLockout";
 
+  let { class: className = "" }: { class?: string } = $props();
+
   let remaining = $state(0);
 
   const timer = setInterval(() => {
@@ -31,7 +33,7 @@
 </script>
 
 {#if remaining > 0}
-  <Alert severity="warning" class="mb-4 w-full max-w-form">
+  <Alert severity="warning" class="w-full max-w-form {className}">
     <p class="m-0 font-semibold">{$t("security.lockout.title")}</p>
     <p class="m-0 mt-1">
       {$t("security.lockout.retryIn", { time: formatRemaining(remaining) })}
