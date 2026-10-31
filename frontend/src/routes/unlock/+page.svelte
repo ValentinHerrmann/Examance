@@ -15,6 +15,7 @@
   import { Alert, Card, PageShell } from "#lib/components/ui";
   import UnlockForm from "#lib/components/unlock/UnlockForm.svelte";
   import {
+    EnvelopeChangedDialog,
     FactorChooser,
     LockoutNotice,
     PasskeyEnrollDialog,
@@ -37,6 +38,7 @@
     EnvelopeChangedError,
     EnvelopeFactorMissingError,
     materializeSession,
+    openAcceptingChange,
     openWithPassword,
     openWithRecoveryCode,
     rewrapForNewPassword,
@@ -57,6 +59,9 @@
   let email = $state("");
   let backendUrl = $state(get(backendStore));
   let errorMsg = $state("");
+  let envelopeDialog: EnvelopeChangedDialog;
+  // Lets each open path ask once whether a changed key copy is the teacher's own doing (issue #180).
+  const confirmEnvelopeChange = () => envelopeDialog.open();
   let infoMsg = $state("");
   /** Shown above the factor chooser after the authenticator was just enrolled. */
   let factorNotice = $state("");
@@ -211,7 +216,10 @@
       const unwrap = passkeyUnwrap;
       passkeyUnwrap = null;
       try {
-        vault = await openWithPasskey(step.id, unwrap.credentialIdB64, unwrap.prfOutput);
+        vault = await openAcceptingChange(
+          () => openWithPasskey(step.id, unwrap.credentialIdB64, unwrap.prfOutput),
+          confirmEnvelopeChange,
+        );
       } catch (passkeyErr) {
         // A PRF passkey with no usable wrap (never wrapped, or sealed under another passkey's secret): fall back to a server-checked password, else ask, and re-wrap once open. A changed envelope set is the substitution alarm and must surface.
         if (passkeyErr instanceof EnvelopeChangedError) {
@@ -237,9 +245,10 @@
 
     try {
       // Server-verified, so the one-time migration may run on it.
-      vault = await openWithPassword(step.id, normalizedEmail, password, {
-        allowMigration: true,
-      });
+      vault = await openAcceptingChange(
+        () => openWithPassword(step.id, normalizedEmail, password, { allowMigration: true }),
+        confirmEnvelopeChange,
+      );
     } catch (envelopeErr) {
       if (envelopeErr instanceof EnvelopeFactorMissingError) {
         // The password is correct — the server accepted it — but it no longer opens the stored key. That is what a reset leaves behind, and the recovery code is the way out of it.
@@ -427,9 +436,10 @@
     const step = vaultLocked;
     const normalizedEmail = step.email.trim().toLowerCase();
     // Not checked by the server, so never allowed to run the migration: an account without an envelope must sign in with its password once first.
-    const vault = await openWithPassword(step.id, normalizedEmail, entered, {
-      allowMigration: false,
-    });
+    const vault = await openAcceptingChange(
+      () => openWithPassword(step.id, normalizedEmail, entered, { allowMigration: false }),
+      confirmEnvelopeChange,
+    );
     password = entered;
     // Busy panel before the step is cleared, or the last stretch falls through to the login form again.
     isFinishing = true;
@@ -445,7 +455,10 @@
     }
     const step = vaultLocked;
     const normalizedEmail = step.email.trim().toLowerCase();
-    const vault = await openWithRecoveryCode(step.id, recoveryCode);
+    const vault = await openAcceptingChange(
+      () => openWithRecoveryCode(step.id, recoveryCode),
+      confirmEnvelopeChange,
+    );
     isFinishing = true;
     finishingEmail = step.email;
     vaultLocked = null;
@@ -505,7 +518,10 @@
     const { teacherId, email: userEmail, role } = pendingRecovery;
     const normalizedEmail = userEmail.trim().toLowerCase();
 
-    const vault = await openWithRecoveryCode(teacherId, recoveryCode);
+    const vault = await openAcceptingChange(
+      () => openWithRecoveryCode(teacherId, recoveryCode),
+      confirmEnvelopeChange,
+    );
     const newCode = await rewrapForNewPassword(teacherId, vault, password);
     const keys = await materializeSession(vault, normalizedEmail);
 
@@ -534,7 +550,10 @@
       // No PRF result: the authenticator lacks the extension. Reported as the missing wrap it amounts to, so the dialog can say which passkeys *can* open the data.
       throw new EnvelopeFactorMissingError("passkey");
     }
-    const vault = await openWithPasskey(teacherId, unwrap.credentialIdB64, unwrap.prfOutput);
+    const vault = await openAcceptingChange(
+      () => openWithPasskey(teacherId, unwrap.credentialIdB64, unwrap.prfOutput),
+      confirmEnvelopeChange,
+    );
 
     const normalizedEmail = userEmail.trim().toLowerCase();
     const keys = await materializeSession(vault, normalizedEmail);
@@ -661,6 +680,8 @@
     onStartFresh={handleStartFresh}
   />
 {/if}
+
+<EnvelopeChangedDialog bind:this={envelopeDialog} />
 
 {#if showSetupCodes}
   <SetupCodesDialog

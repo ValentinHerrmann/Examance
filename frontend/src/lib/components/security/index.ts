@@ -14,3 +14,4 @@ export { default as SetupCodesDialog } from "./SetupCodesDialog.svelte";
 export { default as RecoveryUnlockDialog } from "./RecoveryUnlockDialog.svelte";
 export { default as TotpEnrollDialog } from "./TotpEnrollDialog.svelte";
 export { default as TotpFactor } from "./TotpFactor.svelte";
+export { default as EnvelopeChangedDialog } from "./EnvelopeChangedDialog.svelte";

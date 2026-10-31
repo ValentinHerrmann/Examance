@@ -336,6 +336,7 @@ export const help = {
             s3: {
                 h: 'Passwort zurücksetzen',
                 p1: 'Ein Serverkonto lässt sich über „Passwort vergessen“ zurücksetzen. Sie bestätigen dabei mit einem zweiten Faktor und geben einmalig Ihren Wiederherstellungscode ein — damit werden Ihre bestehenden verschlüsselten Daten wieder lesbar, ohne dass etwas neu verschlüsselt wird.',
+                p2: 'Ändern oder setzen Sie Ihr Passwort auf einem Gerät zurück, erzeugen Sie einen neuen Wiederherstellungscode oder fügen Sie einen Passkey hinzu oder entfernen ihn, bemerken andere Browser, dass sich die hinterlegte Schlüsselkopie geändert hat, und fragen, ob Sie das selbst waren. Bestätigen Sie nur dann; dieser Browser merkt sich danach die neue Schlüsselkopie. Haben Sie nichts geändert, brechen Sie ab, melden Sie sich nicht an und wenden Sie sich an die Administration: Dann könnte der Server manipuliert worden sein.',
             },
             s4: {
                 h: 'Wiederherstellungscode',

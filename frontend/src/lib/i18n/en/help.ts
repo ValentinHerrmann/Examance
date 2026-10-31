@@ -337,6 +337,7 @@ export const help: Translations['help'] = {
             s3: {
                 h: 'Resetting a password',
                 p1: 'A server account can be reset via “forgot password”. You confirm with a second factor, then enter your recovery code once so your existing encrypted data becomes readable again — nothing is re-encrypted.',
+                p2: 'If you change or reset your password, create a new recovery code, or add or remove a passkey on one device, other browsers notice that the stored key copy has changed and ask whether you made this change yourself. Confirm only then; that browser then remembers the new key copy. If you did not change anything, cancel, do not sign in, and contact your administrator: the server may have been tampered with.',
             },
             s4: {
                 h: 'Recovery code',
