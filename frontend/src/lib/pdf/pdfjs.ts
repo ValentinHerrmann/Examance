@@ -3,14 +3,21 @@
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 
 type PdfjsModule = typeof import('pdfjs-dist');
+type DocumentParams = Exclude<Parameters<PdfjsModule['getDocument']>[0], string | URL | ArrayBuffer | ArrayLike<number> | undefined>;
+
+/** Same-origin copy of `pdfjs-dist/wasm/` (vite.config.ts `pdfjsWasmPlugin`). pdf.js 6 decodes JBIG2, JPX and ICC only with these files: without them a scanner's compressed ink layer is silently skipped and the page renders nearly blank. */
+export const PDFJS_WASM_PATH = '/pdfjs/wasm/';
 
 let pdfjsPromise: Promise<PdfjsModule> | null = null;
 
-/** Load pdf.js with its worker configured. Safe to call repeatedly. */
+/** Load pdf.js with its worker configured; its `getDocument` supplies `wasmUrl` unless the caller sets one. Safe to call repeatedly. */
 export function loadPdfjs(): Promise<PdfjsModule> {
   pdfjsPromise ??= (import('pdfjs-dist/legacy/build/pdf.mjs') as Promise<PdfjsModule>).then((pdfjsLib) => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-    return pdfjsLib;
+    const wasmUrl = new URL(PDFJS_WASM_PATH, globalThis.location?.origin ?? 'http://localhost').href;
+    const getDocument = ((src: DocumentParams) =>
+      pdfjsLib.getDocument({ wasmUrl, ...src })) as PdfjsModule['getDocument'];
+    return { ...pdfjsLib, getDocument };
   });
   return pdfjsPromise;
 }

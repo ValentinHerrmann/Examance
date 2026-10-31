@@ -67,7 +67,7 @@ UI text lives in typed catalogs under `src/lib/i18n/`.
 
 ## Gotchas
 
-- **pdf.js loads only through `loadPdfjs()` (`lib/pdf/pdfjs.ts`), from its legacy build.** Slightly older browsers render no scans with the modern build; never import `pdfjs-dist` directly.
+- **pdf.js loads only through `loadPdfjs()` (`lib/pdf/pdfjs.ts`), from its legacy build.** Slightly older browsers render no scans with the modern build; never import `pdfjs-dist` directly. Its `getDocument` also supplies `wasmUrl` (decoders served at `/pdfjs/wasm/`); without it JBIG2/JPX scan layers render blank.
 - **A swallowed API error still opens the global HTTP error modal.** `api.*` calls `httpErrorStore.showError()` before throwing. Pass `silentError: true` on anything with a local fallback, an offline-queue fallback, or an expected 409. Multi-step flows that report their own outcome (archive import/export) wrap their work in `collectHttpErrors()` (`stores/httpErrorStore.ts`) so stray errors land in their report instead.
 - **Repository list reads throw on a failed server read** (`getAll`/`getByExamId` of submissions, students, exercises, exams; `submissionRepository.getById` answers `null` only for a 404). Hybrid reads from Dexie; only `examRepository.getAll` falls back to its local copy there. Never turn the error into `[]`/`null`: display callers show the page's error state ("no data" is a lie), integrity callers (archive, export, erasure, mover, conflicts) let it propagate.
 - **Never re-encrypt a record that failed to decrypt.** `decryptX()` marks it (`decryptFailed: 'error' | 'locked'`, `lib/db/decryptGuard.ts`) and every `encryptX()` calls `assertEncryptable()` first, which throws. Re-encrypting a blank record seals the blanks over the real payload.
