@@ -22,6 +22,8 @@ export const errors = {
         ERR_LAYOUT_REPORT_QUOTA: 'Tageskontingent für Layout-Meldungen erreicht. Bitte versuchen Sie es morgen erneut.',
         ERR_TRAINING_QUOTA: 'Tageskontingent für gespendete Trainingsdaten erreicht.',
         ERR_COMPILE_TIMEOUT: 'Zeitüberschreitung bei der Kompilierung.',
+        ERR_COMPILE_BUSY: 'Es laufen bereits mehrere Kompilierungen für dieses Konto. Bitte kurz warten.',
+        ERR_COMPILE_JOB_UNKNOWN: 'Der Server wurde während der Kompilierung neu gestartet. Bitte erneut versuchen.',
         ERR_COMPILE_UNAVAILABLE: 'Der LaTeX-Dienst des Servers ist gerade nicht verfügbar. Bitte später erneut versuchen.',
         ERR_PAYLOAD_TOO_LARGE: 'Die Anfrage ist zu groß.',
         ERR_BAD_REQUEST: 'Ungültige Anfrage.',

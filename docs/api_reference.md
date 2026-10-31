@@ -14,7 +14,7 @@ All API v1 endpoints are served relative to the root URL path:
 
 ### Content Types
 - Request payloads accept `application/json` unless handling binary compile/download requests.
-- Response bodies return `application/json`, except binary compilation endpoints (`/api/v1/compile/latex`) which return `application/pdf`.
+- Response bodies return `application/json`, except finished compiles (`/api/v1/compile/latex/jobs/{job_id}`, `/api/v1/compile/latex`) which return `application/pdf`.
 
 ### Standard HTTP Response Codes
 | Status Code | Meaning | Description |
@@ -134,7 +134,9 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `POST` | `/api/v1/compile/latex` | Compile LaTeX | Yes | Compiles raw LaTeX code into PDF bytes using sandboxed Tectonic engine. |
+| `POST` | `/api/v1/compile/latex/jobs` | Start a compile | Yes | Starts a background compile and answers `202 {"job_id"}` at once, so long compiles never meet a proxy timeout. |
+| `GET` | `/api/v1/compile/latex/jobs/{job_id}` | Poll a compile | Yes | `202 {"status": "pending"}` while running, then once the PDF or the compile's error (422 with `log`, 504, 503); 404 for an unknown or foreign job. |
+| `POST` | `/api/v1/compile/latex` | Compile LaTeX (deprecated) | Yes | Synchronous compile with the 30 s preview budget, kept for tabs running an older app. |
 
 #### Compile Request & Response
 - **Request Body**:

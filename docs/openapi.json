@@ -729,14 +729,130 @@
         }
       }
     },
+    "/api/v1/compile/latex/jobs": {
+      "post": {
+        "tags": [
+          "compile"
+        ],
+        "summary": "Start Compile Job",
+        "description": "Start a compile (body limit: BODY_LIMIT_COMPILE) and answer at once with its `job_id`; poll `GET /compile/latex/jobs/{job_id}`. Passes get the full COMPILE_TIMEOUT_SECONDS, which no proxy sees.",
+        "operationId": "start_compile_job_api_v1_compile_latex_jobs_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaTeXRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/compile/latex/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "compile"
+        ],
+        "summary": "Poll Compile Job",
+        "description": "202 `{\"status\": \"pending\"}` while running, then once the PDF (200) or the compile's error response; answers at once, never long-polls.",
+        "operationId": "poll_compile_job_api_v1_compile_latex_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/compile/latex": {
       "post": {
         "tags": [
           "compile"
         ],
         "summary": "Compile Latex Endpoint",
-        "description": "Compile LaTeX source to PDF via Tectonic (body limit: BODY_LIMIT_COMPILE). Extra files come from `resource_exercise_ids` (stored on the server) and `resources` (unsaved or local-only exercises). LaTeX source is NEVER logged; a 422 carries the TeX diagnostic as `detail` and the sanitized full log as `log`, for this caller only.",
+        "description": "Synchronous compile with the 30 s preview budget, kept for tabs still running an older app; new clients use the jobs above (a long compile here hits the proxy timeout).",
         "operationId": "compile_latex_endpoint_api_v1_compile_latex_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "access_token",

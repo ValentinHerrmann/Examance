@@ -22,6 +22,8 @@ export const errors: Translations['errors'] = {
         ERR_LAYOUT_REPORT_QUOTA: 'Daily quota for layout reports reached. Please try again tomorrow.',
         ERR_TRAINING_QUOTA: 'Daily quota for donated training data reached.',
         ERR_COMPILE_TIMEOUT: 'Compilation timed out.',
+        ERR_COMPILE_BUSY: 'Several compilations are already running for this account. Please wait a moment.',
+        ERR_COMPILE_JOB_UNKNOWN: 'The server restarted during the compilation. Please try again.',
         ERR_COMPILE_UNAVAILABLE: 'The server\'s LaTeX service is unavailable right now. Please try again later.',
         ERR_PAYLOAD_TOO_LARGE: 'Payload too large.',
         ERR_BAD_REQUEST: 'Bad request.',

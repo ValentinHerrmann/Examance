@@ -8,7 +8,7 @@ import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { loginLockout } from '#lib/stores/loginLockout';
 import { noteMaintenanceRevision, refreshMaintenance } from '#lib/stores/maintenanceStore';
 
-// Every fetch() is bounded: a stalled connection would otherwise never resolve or reject, leaving isLoading stuck with no error. Binary requests get a longer bound because `/compile/latex` legitimately runs up to COMPILE_TIMEOUT_SECONDS (120s, backend/app/services/latex.py).
+// Every fetch() is bounded: a stalled connection would otherwise never resolve or reject, leaving isLoading stuck with no error. Binary requests (scans, PDFs) get a longer bound; compiles are background jobs polled with short requests.
 const DEFAULT_TIMEOUT_MS = 25_000;
 const BINARY_TIMEOUT_MS = 150_000;
 
@@ -159,7 +159,7 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  options: { binary?: boolean; silentError?: boolean } = {}
+  options: { binary?: boolean; silentError?: boolean; pendingOn202?: boolean } = {}
 ): Promise<T> {
   const headers: Record<string, string> = {};
   // The server answers 409 ERR_ACCOUNT_MISMATCH when the cookie now belongs to another account (S12).
@@ -206,6 +206,12 @@ async function request<T>(
     } finally {
       cancel();
     }
+  };
+
+  // 202 with `pendingOn202` means "not ready yet" (compile job polls): undefined, like a 204.
+  const parseBody = (r: Response): Promise<T> => {
+    if (r.status === 204 || (r.status === 202 && options.pendingOn202)) return Promise.resolve(undefined as T);
+    return (options.binary ? r.arrayBuffer() : r.json()) as Promise<T>;
   };
 
   const resp = await send();
@@ -257,9 +263,7 @@ async function request<T>(
       await handleNonOkResponse(retryResp, options.silentError);
     }
     noteAuthSuccess(path);
-    if (retryResp.status === 204) return undefined as T;
-    if (options.binary) return retryResp.arrayBuffer() as unknown as T;
-    return retryResp.json() as Promise<T>;
+    return parseBody(retryResp);
   }
 
   if (!resp.ok) {
@@ -267,9 +271,7 @@ async function request<T>(
   }
 
   noteAuthSuccess(path);
-  if (resp.status === 204) return undefined as T;
-  if (options.binary) return resp.arrayBuffer() as unknown as T;
-  return resp.json() as Promise<T>;
+  return parseBody(resp);
 }
 
 export const api = {
@@ -280,8 +282,9 @@ export const api = {
   delete: <T>(path: string, options?: { silentError?: boolean }) => request<T>('DELETE', path, undefined, options),
   postBinary: (path: string, data: Uint8Array) =>
     request<ArrayBuffer>('POST', path, data, { binary: true }),
-  postJsonForBinary: (path: string, body: unknown, options?: { silentError?: boolean }) =>
-    request<ArrayBuffer>('POST', path, body, { ...options, binary: true }),
   getBinary: (path: string, options?: { silentError?: boolean }) =>
     request<ArrayBuffer>('GET', path, undefined, { ...options, binary: true }),
+  /** Binary GET that answers undefined while the server says 202 (still running). */
+  pollBinary: (path: string, options?: { silentError?: boolean }) =>
+    request<ArrayBuffer | undefined>('GET', path, undefined, { ...options, binary: true, pendingOn202: true }),
 };

@@ -243,6 +243,21 @@ async function compileMapped(
   return compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo);
 }
 
+const POLL_INTERVAL_MS = 1000;
+// Beyond the server's own job limit, so the server's answer (PDF or error) always arrives first.
+const POLL_DEADLINE_MS = 11 * 60_000;
+
+/** Polls a compile job until it answers with the PDF or throws its error (422 with log, 504, 503, 404 after a restart). */
+async function pollCompileJob(jobId: string): Promise<ArrayBuffer> {
+  const deadline = Date.now() + POLL_DEADLINE_MS;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    const pdf = await api.pollBinary(`/compile/latex/jobs/${encodeURIComponent(jobId)}`, { silentError: true });
+    if (pdf) return pdf;
+  }
+  throw new Error(translate('errors.code.ERR_COMPILE_TIMEOUT'));
+}
+
 async function compileOnServer(
   latexSource: string,
   resources: LatexResourceFile[] = [],
@@ -250,8 +265,9 @@ async function compileOnServer(
   logo?: CompileLogo
 ): Promise<CompileResult> {
   try {
-    const pdfBuffer = await api.postJsonForBinary(
-      '/compile/latex',
+    // A background job polled with short requests: a long compile never meets the proxy's timeout (Cloudflare cuts at 100 s).
+    const { job_id: jobId } = await api.post<{ job_id: string }>(
+      '/compile/latex/jobs',
       {
         latex: latexSource,
         resources: resources.map((r) => ({
@@ -265,6 +281,7 @@ async function compileOnServer(
       // A failed compile is an expected outcome: callers show the TeX diagnostics in place, not the HTTP error modal.
       { silentError: true }
     );
+    const pdfBuffer = await pollCompileJob(jobId);
     return {
       pdfBytes: new Uint8Array(pdfBuffer),
       usedFallback: false,
@@ -278,6 +295,7 @@ async function compileOnServer(
           'or running a different version of the API than this app.'
       );
     }
+    if (err?.code === 'ERR_COMPILE_JOB_UNKNOWN') throw new Error(translate('errors.code.ERR_COMPILE_JOB_UNKNOWN'));
     const message = `LaTeX Compilation failed: ${err.message || 'Unknown error'}`;
     const log = typeof err?.body?.log === 'string' ? err.body.log : '';
     if (log) {

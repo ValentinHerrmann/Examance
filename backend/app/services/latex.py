@@ -74,8 +74,8 @@ async def _run_in_worker(main_tex: str, files: dict[str, bytes], timeout: float)
         "timeout": timeout,
     }
     try:
-        # Below Cloudflare's 100 s origin limit: a proxy timeout reaches the browser as a CORS error, ours as 504 ERR_COMPILE_TIMEOUT.
-        async with httpx.AsyncClient(timeout=2 * timeout + 15) as client:
+        # Slot wait plus two passes; internal only, since the browser polls a background job (services/compile_jobs.py).
+        async with httpx.AsyncClient(timeout=3 * timeout + 10) as client:
             res = await client.post(f"{settings.LATEX_WORKER_URL.rstrip('/')}/compile", json=job)
     except httpx.TimeoutException:
         raise TimeoutError from None
