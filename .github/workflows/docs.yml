@@ -26,10 +26,10 @@ jobs:
     outputs:
       present: ${{ steps.site.outputs.present }}
     steps:
-      # A manual run publishes its `ref` input; the release workflow `release`.
+      # Always build from trusted `release` to avoid executing untrusted refs in a cache-writing context.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || 'release' }}
+          ref: release
       # `release` predates the docs site until the first release after issue #174; skip instead of failing.
       - name: Check for the docs site
         id: site
