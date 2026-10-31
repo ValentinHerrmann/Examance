@@ -122,17 +122,21 @@
   let omrAvailable = false;
   let omrBanner = $state("");
 
-  /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. */
+  /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. Exams without MC still get a template: grading fills the printed score boxes from it (issue #187). */
   async function loadOmrContext() {
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
+    const mcExercises = await loadExamMcExercises(examId, key).catch(() => []);
+    await prepareOmrContext(key, mcExercises);
+    // Without MC nothing here depends on the template, so a failure only leaves the score boxes empty.
+    if (mcExercises.length === 0) {
+      omrAvailable = false;
+      omrBanner = "";
+    }
+  }
+
+  async function prepareOmrContext(key: CryptoKey | null, mcExercises: Awaited<ReturnType<typeof loadExamMcExercises>>) {
     try {
-      const mcExercises = await loadExamMcExercises(examId, key);
-      if (mcExercises.length === 0) {
-        omrAvailable = false;
-        omrBanner = "";
-        return;
-      }
       const existing = await loadOmrTemplateEncrypted(examId, key);
       let needsCompile = !existing || !existing.payload;
       // The layout hash needs the exam itself, so the context is loaded for the check too.

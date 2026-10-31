@@ -98,6 +98,8 @@ export const grading = {
         stampTarget: 'Stempelziel',
         resetTitle: 'Als unkorrigiert zurücksetzen',
         manualEdit: 'Manuell bearbeitet',
+        partRowLabel: 'Teilaufgabe {label})',
+        sumOfParts: 'Summe der Teilaufgaben',
     },
     zoom: {
         pagePrevTitle: 'Zur vorherigen Seite springen',

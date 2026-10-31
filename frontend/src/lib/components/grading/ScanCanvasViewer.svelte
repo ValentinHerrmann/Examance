@@ -14,6 +14,8 @@
   import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
   import { drawOmrOverlayForPage } from "#lib/grading/omrOverlay";
   import { drawStrokes } from "#lib/grading/strokeRenderer";
+  import { buildScoreBoxValues, drawScoreBoxesForPage, registerScorePage, type ScoreBoxContext } from "#lib/grading/scoreBoxes";
+  import type { Homography } from "#lib/grading/omrRegistration";
   import { isPdfBytes, decodePngBytes, legacyScanCrop } from "./ScanCanvasViewer";
   import { translate } from "#lib/i18n";
 
@@ -22,9 +24,13 @@
     submission: SubmissionRecord | undefined;
     exercises: ExerciseRecord[];
     onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
+    /** Printed score-box layout to fill in (issue #187); null when the exam has none. */
+    scoreBoxes?: ScoreBoxContext | null;
   }
 
-  let { examId, submission, exercises, onSubmissionHydrated }: Props = $props();
+  let { examId, submission, exercises, onSubmissionHydrated, scoreBoxes = null }: Props = $props();
+  /** Per rendered page of the current scan: its registration against the template (null = cannot align, boxes stay empty). */
+  let scoreBoxPages = new Map<number, Homography | null>();
 
   // ExerciseRecord.mcGroupId/subIndex are not populated for exam-linked exercises (the exam-specific placement lives only in ExamExerciseRecord) — load the real group/letter mapping once per exam for the "a) 1/2" sub-exercise sum stamp in drawOmrDetections().
   let subExerciseLetters: Map<string, string> = $state.raw(new Map());
@@ -81,8 +87,9 @@
 
   function recalcScores() {
     const state = get(gradingStore);
-    const next = recalculateAutoScores(exercises, strokes, state.scoreInputs, state.manualOverride);
-    gradingStore.setScoreInputs(next);
+    const next = recalculateAutoScores(exercises, strokes, state.scoreInputs, state.manualOverride, state.partInputs);
+    gradingStore.setPartInputs(next.partInputs);
+    gradingStore.setScoreInputs(next.scoreInputs);
   }
 
   export function toggleAutoCrop() {
@@ -104,6 +111,7 @@
   async function setPages(sizes: PageSize[]) {
     pageObserver?.disconnect();
     renderedPages = new Set();
+    scoreBoxPages = new Map();
     pageEls = [];
     scanCanvases = [];
     overlayCanvases = [];
@@ -279,12 +287,22 @@
       if (doc !== pdfDoc) return;
       const viewport = pdfPage.getViewport({ scale: PDF_RENDER_SCALE });
       await pdfPage.render({ canvasContext: canvas.getContext("2d")!, canvas, viewport } as any).promise;
+      if (doc === pdfDoc) registerScoreBoxes(page);
     } catch (err) {
       if (doc === pdfDoc) {
         renderedPages.delete(page);
         console.error(`Failed to render scan page ${page}:`, err);
       }
     }
+  }
+
+  /** Aligns a rendered scan page with the printed score boxes, then redraws its overlay. Only a scan with the template's page count is the printed booklet page for page. */
+  function registerScoreBoxes(page: number) {
+    const canvas = scanCanvases[page - 1];
+    if (!scoreBoxes || !pdfDoc || !canvas || pdfDoc.numPages !== scoreBoxes.pages.length) return;
+    const image = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
+    scoreBoxPages.set(page, registerScorePage(scoreBoxes, page, image));
+    redrawOverlay(page);
   }
 
   function pageTop(page: number): number | null {
@@ -460,6 +478,7 @@
           points: [{ x, y }],
           color,
           exerciseId: targetEx ? targetEx.id : undefined,
+          partLabel: targetEx && targetEx.id === activeExerciseId ? state.activePartLabel || undefined : undefined,
           pageNumber: page,
         },
       ]);
@@ -654,6 +673,11 @@
 
     drawStrokes(ctx, strokes, page);
     drawOmrDetections(ctx, overlayCanvas, page);
+    if (scoreBoxes && scoreBoxPages.get(page)) {
+      const state = get(gradingStore);
+      const values = buildScoreBoxValues({ ...scoreBoxes, exercises, scoreInputs: state.scoreInputs, partInputs: state.partInputs });
+      drawScoreBoxesForPage(ctx, overlayCanvas.width, overlayCanvas.height, scoreBoxes.pages[page - 1], scoreBoxPages.get(page)!, values);
+    }
   }
 
   // Non-persisted OMR draw pass: never pushed into `strokes` (not erasable, no recalcScores()). Shared with the graded-PDF export (routes/exam/[id]/scan) via omrOverlay.ts.
@@ -684,9 +708,20 @@
     const count = overlayCanvases.length;
     const mcState = $gradingStore.mcState;
     const letters = subExerciseLetters;
-    if (count > 0 && (mcState || letters)) {
+    const scores = $gradingStore.scoreInputs;
+    if (count > 0 && (mcState || letters || scores)) {
       untrack(() => redrawAllOverlays());
     }
+  });
+
+  // The layout loads independently of the scan: align pages rendered before it arrived.
+  $effect.pre(() => {
+    const ctx = scoreBoxes;
+    untrack(() => {
+      scoreBoxPages = new Map();
+      if (ctx) renderedPages.forEach((page) => registerScoreBoxes(page));
+      else redrawAllOverlays();
+    });
   });
 
   $effect.pre(() => {

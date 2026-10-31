@@ -13,7 +13,47 @@ import { documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex
 import { getAccountPackages } from "#lib/latex/packageSettings";
 import { translate } from "#lib/i18n";
 
-/** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). `pageBreaks` lists item ids that start on a new page; the first emitted block never does. */
+/** One `\Aufgabe` block of the exam and the exercise ids it scores (several for an MC group); block i is exam position i + 1 (`\thePunkte`). */
+export interface ExerciseBlock {
+  itemId: string;
+  latex: string;
+  exerciseIds: string[];
+}
+
+/** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). */
+export function buildExerciseBlocks(
+  examItems: ExamItemRef[],
+  exercises: ExerciseRecord[],
+  libraryExercises: ExerciseRecord[],
+  mcGroups: McGroup[]
+): ExerciseBlock[] {
+  let exerciseCount = 0;
+  const blocks: ExerciseBlock[] = [];
+  for (const item of examItems) {
+    if (item.type === "exercise") {
+      const ex = exercises.find((e) => e.id === item.id);
+      if (!ex) continue;
+      exerciseCount++;
+      const title = ex.name || `Aufgabe ${exerciseCount}`;
+      blocks.push({ itemId: item.id, latex: formatExerciseLatex(ex.latexBody, title, ex.id, title), exerciseIds: [ex.id] });
+    } else {
+      const group = mcGroups.find((g) => g.id === item.id);
+      if (!group) continue;
+      const members = group.memberIds
+        .map((id) => libraryExercises.find((e) => e.id === id) || exercises.find((e) => e.id === id))
+        .filter((e): e is ExerciseRecord => Boolean(e));
+      const latex = formatMcGroupLatex(
+        members.map((m) => ({ id: m.id, latexBody: m.latexBody || "", sourceLabel: m.name || group.title })),
+        group.title,
+        group.scoringText
+      );
+      blocks.push({ itemId: item.id, latex, exerciseIds: members.map((m) => m.id) });
+    }
+  }
+  return blocks;
+}
+
+/** The blocks of `buildExerciseBlocks` as one string. `pageBreaks` lists item ids that start on a new page; the first emitted block never does. */
 export function buildExerciseInputs(
   examItems: ExamItemRef[],
   exercises: ExerciseRecord[],
@@ -21,33 +61,10 @@ export function buildExerciseInputs(
   mcGroups: McGroup[],
   pageBreaks?: readonly string[] | null
 ): string {
-  let exerciseCount = 0;
   const breaks = new Set(pageBreaks ?? []);
-  const blocks: string[] = [];
-  for (const item of examItems) {
-    let latex = "";
-    if (item.type === "exercise") {
-      const ex = exercises.find((e) => e.id === item.id);
-      if (!ex) continue;
-      exerciseCount++;
-      const title = ex.name || `Aufgabe ${exerciseCount}`;
-      latex = formatExerciseLatex(ex.latexBody, title, ex.id, title);
-    } else {
-      const group = mcGroups.find((g) => g.id === item.id);
-      if (!group) continue;
-      const members = group.memberIds
-        .map((id) => libraryExercises.find((e) => e.id === id) || exercises.find((e) => e.id === id))
-        .filter((e): e is ExerciseRecord => Boolean(e));
-      latex = formatMcGroupLatex(
-        members.map((m) => ({ id: m.id, latexBody: m.latexBody || "", sourceLabel: m.name || group.title })),
-        group.title,
-        group.scoringText
-      );
-    }
-    if (!latex) continue;
-    blocks.push(blocks.length > 0 && breaks.has(item.id) ? `\\newpage\n${latex}` : latex);
-  }
-  return blocks.join("\n\n");
+  return buildExerciseBlocks(examItems, exercises, libraryExercises, mcGroups)
+    .map((b, i) => (i > 0 && breaks.has(b.itemId) ? `\\newpage\n${b.latex}` : b.latex))
+    .join("\n\n");
 }
 
 /** Resource files of every exercise in the exam, for the compiler. Files are written flat, so same-name different files conflict; mergeResources() (lib/latex/resources.ts) raises it before compiling. The server engine loads its own rows and only gets exercise ids, unless `needBytes` (local engine, raw export) asks for every file's bytes. */

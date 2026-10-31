@@ -41,7 +41,7 @@ Ticked multiple choice boxes are detected during import. In the MC verification 
 
 ## 5. Grade blind
 
-While grading you see the handwriting and the answers, but not the name. Correction marks are drawn on a layer above the scan (the original stays untouched), points are awarded per exercise, and total and grade follow from the grading key. Progress is saved continuously. Papers graded without scanning can be entered in a score grid.
+While grading you see the handwriting and the answers, but not the name. Correction marks are drawn on a layer above the scan (the original stays untouched), points are awarded per exercise or per part (a, b, …), and total and grade follow from the grading key. The score boxes printed on the exam, next to each exercise and part and in the table at the end (including Σ and the grade), are filled in on the scan and in the graded PDF automatically once the exercise is graded. Progress is saved continuously. Papers graded without scanning can be entered in a score grid.
 
 ![Grading](../screenshots/pitch/06-grading.jpg)
 

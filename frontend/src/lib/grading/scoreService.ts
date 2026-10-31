@@ -8,6 +8,7 @@ import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { sessionStore } from '#lib/stores/session';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
+import { reconcileParts, type PartScores } from '#lib/grading/partScores';
 
 /** Live MC state of the grade page; other views carry the stored row's values forward. */
 export interface McCarry {
@@ -25,6 +26,8 @@ export async function saveSubmissionScores(
     mc?: Readonly<Record<string, McCarry | undefined>>;
     existing?: ReadonlyMap<string, ExerciseScoreRecord>;
     clearAnnotations?: boolean;
+    /** Live part scores of the grade page; other views keep the stored parts while they still add up to the total. */
+    parts?: Readonly<Record<string, PartScores | undefined>>;
   } = {},
 ): Promise<Map<string, number | null>> {
   const key = get(sessionStore).sessionKey;
@@ -51,6 +54,7 @@ export async function saveSubmissionScores(
         score: value,
         selectedOptions: mc?.selectedOptions ?? row?.selectedOptions,
         omrMeta: mc?.omrMeta ?? row?.omrMeta,
+        partScores: reconcileParts(value, opts.parts ? opts.parts[exerciseId] : row?.partScores),
       });
       effective.set(exerciseId, value);
     } else if (row?.omrMeta || row?.decryptFailed) {

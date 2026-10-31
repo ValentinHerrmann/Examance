@@ -3,6 +3,8 @@
   import { gradingStore } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
+  import PartScoreRows from "./PartScoreRows.svelte";
+  import { partOverrideKey, sumParts } from "#lib/grading/partScores";
   import { faBullseye, faXmark } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon, LinkButton, controlClass, controlSmClass } from "#lib/components/ui";
 
@@ -15,7 +17,12 @@
   let { exercises, onExerciseSaved }: Props = $props();
 
   function selectExercise(id: string) {
-    gradingStore.setActiveExerciseId(id);
+    gradingStore.setActivePart(id, '');
+  }
+
+  /** While any part has a score, the exercise score is their sum and not typed. */
+  function fromParts(ex: ExerciseRecord): boolean {
+    return sumParts($gradingStore.partInputs[ex.id]) !== null;
   }
 
   function handleScoreInput(ex: ExerciseRecord, e: Event) {
@@ -32,6 +39,11 @@
 
   function resetScore(ex: ExerciseRecord, e: MouseEvent) {
     e.stopPropagation();
+    const state = gradingStore.getState();
+    const { [ex.id]: _dropped, ...partInputs } = state.partInputs;
+    const prefix = partOverrideKey(ex.id, '');
+    gradingStore.setPartInputs(partInputs);
+    gradingStore.setManualOverride(Object.fromEntries(Object.entries(state.manualOverride).filter(([k]) => !k.startsWith(prefix))));
     gradingStore.setScoreInput(ex.id, null);
     gradingStore.setManualOverrideFlag(ex.id, false);
   }
@@ -74,6 +86,8 @@
           max={ex.maxPoints}
           placeholder="–"
           value={$gradingStore.scoreInputs[ex.id] ?? ''}
+          readonly={fromParts(ex)}
+          title={fromParts(ex) ? $t("grading.scoreEntry.sumOfParts") : undefined}
           oninput={(e) => handleScoreInput(ex, e)}
           class="{controlClass} {controlSmClass} w-16 text-right font-bold pointer-coarse:min-h-11 pointer-coarse:text-base"
         />
@@ -94,6 +108,7 @@
         <span class="size-2 shrink-0 rounded-full bg-warning" title={$t("grading.scoreEntry.manualEdit")}></span>
       {/if}
     </div>
+    <PartScoreRows exercise={ex} />
   {/each}
 </div>
 

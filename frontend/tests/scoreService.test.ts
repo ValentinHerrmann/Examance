@@ -109,6 +109,19 @@ describe('saveSubmissionScores', () => {
     expect(sub.totalScore).toBeUndefined();
   });
 
+  it('stores live part scores, keeps them while the total matches and drops them when it was overridden (issue #187)', async () => {
+    await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', 3]]), { parts: { 'ex-1': { a: 1, b: 2 } } });
+    expect((await stored('ex-1'))?.partScores).toEqual({ a: 1, b: 2 });
+
+    // A view that edits only totals keeps the stored parts while they still add up.
+    await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', 3]]));
+    expect((await stored('ex-1'))?.partScores).toEqual({ a: 1, b: 2 });
+
+    await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', 4]]));
+    expect((await stored('ex-1'))?.partScores).toBeUndefined();
+    expect((await stored('ex-1'))?.score).toBe(4);
+  });
+
   it('never deletes a row that failed to decrypt', async () => {
     // Sealed under another key: it opens as `decryptFailed`, which only looks ungraded.
     await scoreRepository.saveMany(EXAM, 'sub-1', [scoreRow('ex-1', 4)], await aesKey(9));

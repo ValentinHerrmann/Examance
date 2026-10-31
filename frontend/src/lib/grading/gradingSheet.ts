@@ -1,10 +1,12 @@
 import type { ExerciseScoreRecord, OmrScoreMeta } from '#lib/db/schema';
 import { isMcQuestion } from '#lib/grading/mcScore';
+import { reconcileParts, type PartScores } from '#lib/grading/partScores';
 
 export interface GradingSheet {
   loadedScores: Map<string, ExerciseScoreRecord>;
   scoreInputs: Record<string, number | null>;
   mcState: Record<string, { selectedOptions: number[]; omrMeta?: OmrScoreMeta }>;
+  partInputs: Record<string, PartScores>;
 }
 
 /** Grade-page state for one submission. Rows of any other submission are dropped: a save writes this sheet under `submissionId`, so a foreign row would move its result (issue #85). */
@@ -22,6 +24,7 @@ export function buildGradingSheet(
   const loadedScores = new Map(own.map((row) => [row.exerciseId, row]));
   const scoreInputs: GradingSheet['scoreInputs'] = {};
   const mcState: GradingSheet['mcState'] = {};
+  const partInputs: GradingSheet['partInputs'] = {};
   for (const ex of exercises) {
     const existing = loadedScores.get(ex.id);
     if (existing && typeof existing.score === 'number' && !isNaN(existing.score)) {
@@ -35,9 +38,11 @@ export function buildGradingSheet(
     } else {
       scoreInputs[ex.id] = null;
     }
+    const parts = existing && typeof existing.score === 'number' ? reconcileParts(existing.score, existing.partScores) : undefined;
+    if (parts && scoreInputs[ex.id] !== null) partInputs[ex.id] = { ...parts };
     if (isMcQuestion(ex) && existing) {
       mcState[ex.id] = { selectedOptions: existing.selectedOptions ?? [], omrMeta: existing.omrMeta };
     }
   }
-  return { loadedScores, scoreInputs, mcState };
+  return { loadedScores, scoreInputs, mcState, partInputs };
 }

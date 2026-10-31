@@ -202,7 +202,9 @@ export interface ExerciseScoreRecord extends MaybeUndecryptable {
   score?: number;
   selectedOptions?: number[];
   omrMeta?: OmrScoreMeta;
-  /** AES-256-GCM encrypted payload containing score, selectedOptions, and omrMeta. */
+  /** Scores per part letter (Teilaufgabe, issue #187); when present, `score` is the sum of its non-null values. */
+  partScores?: Record<string, number | null>;
+  /** AES-256-GCM encrypted payload containing score, selectedOptions, omrMeta and partScores. */
   payloadCt?: Uint8Array;
   /** 12-byte GCM IV for payloadCt. */
   payloadIv?: Uint8Array;
@@ -270,16 +272,35 @@ export interface OmrFiducialRect {
   rect: [number, number, number, number];
 }
 
+/** Which printed score box: an exercise's box, a part's box, a column of the bottom table, its Σ or its grade cell. */
+export type OmrScoreBoxKind = 'task' | 'part' | 'cell' | 'sum' | 'grade';
+
+/** One printed score box's blank area (issue #187), in PDF points like OmrBubbleRect. */
+export interface OmrScoreBoxRect {
+  box: OmrScoreBoxKind;
+  /** Exam position (`\thePunkte`, 1-based) for task, part and cell boxes. */
+  position?: number;
+  /** Part letter for part boxes. */
+  part?: string;
+  rect: [number, number, number, number];
+}
+
 export interface OmrPageTemplate {
   pageIndex: number;
   pageWidthPt: number;
   pageHeightPt: number;
   fiducials: OmrFiducialRect[];
   bubbles: OmrBubbleRect[];
+  /** Absent on templates captured before version 2. */
+  scoreBoxes?: OmrScoreBoxRect[];
 }
 
 export interface OmrTemplatePayload {
   pages: OmrPageTemplate[];
+  /** Capture format; 2 adds score boxes and `positions`. Absent = 1. */
+  version?: number;
+  /** Exam position -> the exercise ids its score box sums (one, or an MC group's members). Empty when the capture could not map positions safely. */
+  positions?: Record<number, string[]>;
 }
 
 export interface OmrTemplateRecord {

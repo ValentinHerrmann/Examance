@@ -263,10 +263,11 @@
     await saveExerciseLinks();
   }
 
-  async function handlePrepareOmr() {
+  /** `quiet`: an exam without MC, whose template only fills score boxes; a failure is logged, not shown. */
+  async function handlePrepareOmr(quiet = false) {
     if (!exam) return;
     isPreparingOmr = true;
-    errorMsg = "";
+    if (!quiet) errorMsg = "";
 
     try {
       const result = await prepareOmrTemplate({
@@ -277,8 +278,12 @@
         mcGroups,
         examItems,
         key: get(sessionStore).sessionKey,
-        onProgress: (msg) => { omrPrepareMessage = msg; }
+        onProgress: (msg) => { if (!quiet) omrPrepareMessage = msg; }
       });
+      if (quiet) {
+        if (result.status === 'stale') console.warn("[PrepareOMR]", result.message);
+        return;
+      }
       omrTemplateStatus = result.status;
       if (result.status === 'stale') {
         omrPrepareMessage = "";
@@ -287,6 +292,10 @@
         omrPrepareMessage = result.message;
       }
     } catch (err: any) {
+      if (quiet) {
+        console.warn("[PrepareOMR]", err);
+        return;
+      }
       errorMsg = err.message || translate("exam.page.omr.failedGeneric");
       rememberCompileLog(errorMsg, err);
       omrPrepareMessage = "";
@@ -352,9 +361,11 @@
       isPreviewLoading = false;
     }
 
-    // Refresh the OMR template after every successful compile so it never drifts from the layout. Gated on MC exercises: handlePrepareOmr() would otherwise surface an unprompted error.
+    // Refresh the scan template after every successful compile so it never drifts from the layout. Without MC it only serves the score boxes (issue #187), so it refreshes quietly.
     if (compileSucceeded && collectMcExercises().length > 0) {
       await handlePrepareOmr();
+    } else if (compileSucceeded && exercises.length > 0) {
+      await handlePrepareOmr(true);
     }
   }
 

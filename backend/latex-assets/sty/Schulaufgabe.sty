@@ -386,6 +386,8 @@
             \cols=\expandafter{\tempcols}%
             \edef\tempscores{\the\scorecols \noexpand\getScore{\the\value{i}}}%
             \scorecols=\expandafter{\tempscores}%
+            \edef\templast{\the\last \noexpand\OmrScoreCell{cell/\the\value{i}}}%
+            \last=\expandafter{\templast}%
             \ifnum\value{i}<\N
                 \cols=\expandafter{\the\cols &}%
                 \scorecols=\expandafter{\the\scorecols &}%
@@ -395,8 +397,8 @@
 
         \noindent\hspace{3mm}\begin{tabularx}{\dimexpr\textwidth-6mm\relax}{|*{\N}{C|}C|C|}\hline
             \the\cols & $\sum$ & Note\\\hline
-            \the\scorecols & \formatScore{\TotalScoreG} & \\\cline{1-\theNotenzeile}
-            \the\last &&\\\hline
+            \the\scorecols & \formatScore{\TotalScoreG} & \OmrScoreCell{grade}\\\cline{1-\theNotenzeile}
+            \the\last & \OmrScoreCell{sum} & \OmrScoreCell{grade}\\\hline
         \end{tabularx}%
         \normalsize
     }{}%
@@ -543,7 +545,8 @@
     \fi
     % \aPunkte mapping removed (unused)
     % Title line with the score box (no \par between the shape and the title, or TeX resets the shape)
-    \sbox\TaskBox{\Large\framebox[1.1\width]{ ~~~~~ / ~\PrintPkt~}}%
+    % The blank carries an omr://__box__ link so grading can fill it in (issue #187).
+    \sbox\TaskBox{\Large\framebox[1.1\width]{ \OmrScoreSlot{~~~~~}{omr://__box__/task/\thePunkte} / ~\PrintPkt~}}%
     \noindent
     \hangindent=-\dimexpr\wd\TaskBox+1em\relax \hangafter=-1
     % Bottom on the baseline: hanging below it, the box ran into the second line, which \hangindent does not shorten.
@@ -597,7 +600,7 @@
     \fi
     % Run-in title like \paragraph. The score box hangs at the right end of the first line,
     % which \hangindent shortens so the text never runs into it.
-    \sbox\PartBox{\large\framebox[1.1\width]{~~~~ / ~\PrintPartPkt~}}%
+    \sbox\PartBox{\large\framebox[1.1\width]{\OmrScoreSlot{~~~~}{omr://__box__/part/\thePunkte/\theTeilaufgabe} / ~\PrintPartPkt~}}%
     \hangindent=-\dimexpr\wd\PartBox+1em\relax \hangafter=-1
     \makebox[0pt][l]{\hspace{\linewidth}\llap{\usebox\PartBox}}%
     \textbf{\theTeilaufgabe)\if\relax\detokenize{#2}\relax\else~#2\fi}\quad

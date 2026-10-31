@@ -100,6 +100,8 @@ export const grading: Translations['grading'] = {
         stampTarget: 'Stamp target',
         resetTitle: 'Reset to ungraded',
         manualEdit: 'Manually edited',
+        partRowLabel: 'Part {label})',
+        sumOfParts: 'Sum of the parts',
     },
     zoom: {
         pagePrevTitle: 'Jump to previous page',

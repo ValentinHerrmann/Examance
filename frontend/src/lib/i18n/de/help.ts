@@ -133,7 +133,7 @@ export const help = {
             s8: {
                 h: 'Punkte, Teilaufgaben und Anforderungsbereiche',
                 p1: String.raw`Die Punktzahl einer Aufgabe ergibt sich aus den Bewertungseinheiten im Quelltext: \BE zählt einen Punkt, \hBE einen halben, \qBE einen Viertelpunkt, bei Ankreuzaufgaben jede richtige Option einen. Setzen Sie sie an die Stelle der Lösung, an der der Punkt vergeben wird; im Erwartungshorizont erscheinen sie als Haken. Die Schaltfläche „Punkte & Aufbau“ über dem Quelltext im Editor (sie zeigt die aktuelle Punktzahl) öffnet einen Dialog, der zeigt, wie die Punktzahl zustande kommt, und erlaubt, sie fest vorzugeben.`,
-                p2: '„Teilaufgabe hinzufügen“ gliedert eine Aufgabe in a), b), c) mit eigener Unterüberschrift und eigenem Punktekästchen. Die Punkte der Teilaufgaben ergeben zusammen die Punktzahl der Aufgabe; auch für eine einzelne Teilaufgabe lässt sich die Punktzahl fest vorgeben. Bewertet wird weiterhin je Aufgabe.',
+                p2: '„Teilaufgabe hinzufügen“ gliedert eine Aufgabe in a), b), c) mit eigener Unterüberschrift und eigenem Punktekästchen. Die Punkte der Teilaufgaben ergeben zusammen die Punktzahl der Aufgabe; auch für eine einzelne Teilaufgabe lässt sich die Punktzahl fest vorgeben. Bewertet wird je Aufgabe oder je Teilaufgabe.',
                 p3: String.raw`Anforderungsbereich (I Reproduktion, II Reorganisation und Transfer, III Reflexion und Problemlösen) und Kompetenzen lassen sich für die ganze Aufgabe oder je Teilaufgabe hinterlegen. Sie stehen als \AFB{…} und \Kompetenz{…} im Quelltext, erscheinen nur im Erwartungshorizont und reisen mit der Aufgabe in Varianten, Kopien und Archive.`,
                 p4: String.raw`Seitenumbrüche: Überschrift, Einleitung und Bilder einer Aufgabe bleiben mit der Teilaufgabe a) auf einer Seite, und eine Teilaufgabe wird nicht getrennt, solange sie auf eine Seite passt. Umbrochen wird zwischen den Teilaufgaben; ein Bild bleibt beim Text danach. Wo das nicht passt, erzwingt \Seitenumbruch an der gewünschten Stelle eine neue Seite (Palette „Allgemein“).`,
             },
@@ -199,7 +199,7 @@ export const help = {
             s2: {
                 h: 'Annotieren',
                 p1: 'Korrekturzeichen entstehen auf einer Ebene über dem Scan. Das Original bleibt unverändert und lässt sich jederzeit wieder ohne Anmerkungen anzeigen. Alle Seiten einer Abgabe stehen untereinander: Mit Mausrad oder Scrollleiste blättern Sie durch, auf Touchgeräten mit zwei Fingern (ein Finger zeichnet). Strg + Mausrad oder Zwei-Finger-Zoom vergrößert.',
-                p2: 'Punkte werden pro Aufgabe vergeben. Note und Gesamtpunktzahl ergeben sich laufend aus dem hinterlegten Notenschlüssel.',
+                p2: 'Punkte werden pro Aufgabe vergeben, bei Aufgaben mit Teilaufgaben auf Wunsch je Teilaufgabe (Zeile anklicken, um Stempel auf diese Teilaufgabe zu zählen). Note und Gesamtpunktzahl ergeben sich laufend aus dem hinterlegten Notenschlüssel. Die gedruckten Punktekästchen an den Aufgaben, Teilaufgaben und in der Tabelle am Ende (samt Summe und Note) werden auf dem Scan und im korrigierten PDF automatisch ausgefüllt.',
             },
             s3: {
                 h: 'Ankreuzaufgaben',

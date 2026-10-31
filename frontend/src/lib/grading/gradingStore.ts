@@ -2,6 +2,7 @@
 
 import { writable, get } from 'svelte/store';
 import type { OmrScoreMeta } from '#lib/db/schema';
+import { sumParts, type PartScores } from './partScores';
 
 export type ToolType =
   | 'pen'
@@ -25,6 +26,8 @@ export interface VectorStroke {
   points: { x: number; y: number }[];
   color: string;
   exerciseId?: string;
+  /** Part letter the stamp counts towards (issue #187); absent for the whole exercise. */
+  partLabel?: string;
   pageNumber?: number;
 }
 
@@ -40,8 +43,13 @@ export interface GradingState {
 
   // Scoring
   scoreInputs: Record<string, number | null>;
+  /** Exercise ids, and `partOverrideKey()` for parts, whose score was typed instead of counted from stamps. */
   manualOverride: Record<string, boolean>;
   activeExerciseId: string;
+  /** Part scores per exercise with parts; while any part has a value, `scoreInputs` of that exercise is their sum. */
+  partInputs: Record<string, PartScores>;
+  /** Part of the active exercise new stamps count towards; '' = the exercise itself. */
+  activePartLabel: string;
 
   /** MC/SC/TF answer review state — omitted for exercises with no stored score yet. */
   mcState: Record<string, McAnswerState>;
@@ -74,6 +82,8 @@ const INITIAL_STATE: GradingState = {
   scoreInputs: {},
   manualOverride: {},
   activeExerciseId: '',
+  partInputs: {},
+  activePartLabel: '',
   mcState: {},
   isSaving: false,
   showLastSubModal: false,
@@ -122,7 +132,29 @@ function createGradingStore() {
     },
 
     setActiveExerciseId(exerciseId: string) {
-      update((s) => ({ ...s, activeExerciseId: exerciseId }));
+      update((s) => ({ ...s, activeExerciseId: exerciseId, activePartLabel: s.activeExerciseId === exerciseId ? s.activePartLabel : '' }));
+    },
+
+    /** Makes a part of an exercise the stamp target. */
+    setActivePart(exerciseId: string, label: string) {
+      update((s) => ({ ...s, activeExerciseId: exerciseId, activePartLabel: label }));
+    },
+
+    setPartInputs(partInputs: Record<string, PartScores>) {
+      update((s) => ({ ...s, partInputs }));
+    },
+
+    /** A typed part score; the exercise score follows as the sum of its parts. */
+    setPartInput(exerciseId: string, label: string, value: number | null) {
+      update((s) => {
+        const parts = { ...s.partInputs[exerciseId], [label]: value };
+        return {
+          ...s,
+          partInputs: { ...s.partInputs, [exerciseId]: parts },
+          scoreInputs: { ...s.scoreInputs, [exerciseId]: sumParts(parts) },
+          isDirty: true,
+        };
+      });
     },
 
     setMcState(mcState: Record<string, McAnswerState>) {

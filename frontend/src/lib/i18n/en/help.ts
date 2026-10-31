@@ -134,7 +134,7 @@ export const help: Translations['help'] = {
             s8: {
                 h: 'Scores, part exercises and requirement levels',
                 p1: String.raw`An exercise’s score comes from the scoring units in its source: \BE counts one point, \hBE half a point, \qBE a quarter, and in multiple-choice questions every correct option counts one. Place them where the solution earns the point; the solution sheet shows them as ticks. The “Score & structure” button above the source in the editor (it shows the current score) opens a dialog that shows how the score is made up and lets you fix it to a set value.`,
-                p2: '“Add part” splits an exercise into a), b), c), each with its own subtitle and score box. The parts add up to the exercise’s score, and a single part’s score can be fixed as well. Grading still happens per exercise.',
+                p2: '“Add part” splits an exercise into a), b), c), each with its own subtitle and score box. The parts add up to the exercise’s score, and a single part’s score can be fixed as well. Grading happens per exercise or per part.',
                 p3: String.raw`Requirement level (AFB I reproduction, II reorganisation and transfer, III reflection and problem solving) and competencies can be set for the whole exercise or per part. They are stored as \AFB{…} and \Kompetenz{…} in the source, appear only on the solution sheet, and travel with the exercise into variants, copies and archives.`,
                 p4: String.raw`Page breaks: an exercise’s title, introduction and pictures stay on one page with part a), and a part is never split as long as it fits on a page. Pages break between parts; a picture stays with the text after it. Where that doesn’t suit, \Seitenumbruch forces a new page at that spot (“Generic” palette).`,
             },
@@ -200,7 +200,7 @@ export const help: Translations['help'] = {
             s2: {
                 h: 'Annotating',
                 p1: 'Correction marks are drawn on a layer above the scan. The original stays untouched and can be shown without annotations at any time. All pages of a submission are stacked: scroll through them with the mouse wheel or scrollbar, or with two fingers on touch devices (one finger draws). Ctrl + mouse wheel or pinching zooms.',
-                p2: 'Points are awarded per exercise. Total score and grade follow continuously from the configured grading key.',
+                p2: 'Points are awarded per exercise, or per part for exercises with parts (click a part row to count stamps towards it). Total score and grade follow continuously from the configured grading key. The printed score boxes next to exercises and parts and in the table at the end (including the sum and the grade) are filled in on the scan and in the graded PDF automatically.',
             },
             s3: {
                 h: 'Tick-box exercises',

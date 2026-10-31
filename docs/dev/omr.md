@@ -14,3 +14,14 @@ Developer notes for the optical mark recognition of multiple-choice answer boxes
 - **Overlay "unsure" frames** come from `detectedState` / `flaggedOptions` plus review status, never from `state` (review builders rewrite it). An `ambiguous` box counts by its persisted `provisional` (closer) reading until verified.
 - **The verify view pairs boxes with options by `optionIndex`** (`grading/mcBoxOptions.ts`) and scores the selection with the current answer key. If the boxes are not exactly the options 0..n-1 (exercise edited after printing), it says so and does not score; never map one box's reading onto another option.
 - **Grading views must never clear an OMR-read MC score row.** See the frontend gotchas in `frontend/CLAUDE.md`.
+
+## Score boxes (issue #187)
+
+The same template also fills the printed score boxes while grading.
+
+- **Links.** `\OmrScoreSlot` (exercise and part boxes) and `\OmrScoreCell` (bottom table) in `Loesung.sty` put a borderless `omr://__box__/…` link over each blank: `task/<n>`, `part/<n>/<letter>`, `cell/<n>`, `sum`, `grade`, where `<n>` is the exam position (`\thePunkte`). The second path segment is never a bare number, so a frontend older than this never reads a box as a bubble (`grading/omrUri.ts` parses all links).
+- **Template.** Since `OMR_TEMPLATE_VERSION` 2 (part of the hash, so older templates turn stale once) each page carries `scoreBoxes` (one rect per key, merged) and the payload `positions` (position -> exercise ids, one per block of `buildExerciseBlocks`, all members for an MC group). `positions` stays empty unless the captured exercise boxes match the blocks one to one. Exams without MC get a template too (built quietly after a compile and on the scan page).
+- **Placement.** Box positions are not stored per submission: the viewer and the graded-PDF export register each rendered page against the template (`grading/omrRegistration.ts`, the worker's own fiducial and homography code) and map the boxes through it. No registration (fewer than 3 fiducials, page count differs from the template, legacy PNG scan, stale or missing template) means the boxes stay empty: never a number in the wrong place.
+- **Values** come from `buildScoreBoxValues` (`grading/scoreBoxes.ts`): a box shows a value only once everything it sums is graded; Σ and grade need the whole exam (grade from the exam's grading key, empty without one). Drawn by `drawScoreBoxesForPage`, a non-persisted overlay like the OMR one.
+- The template lives in this browser only (Dexie), so another browser fills the boxes after its first compile or scan-page visit.
+
