@@ -329,7 +329,8 @@ async function tour() {
     const c = await open({ profile: 'berger', width: 760, height: 1150, scale: 3 });
     await login(c.page, 'berger');
     await go(c.page, `/exam/${ids['10b']}/verify`, 7000);
-    const item = c.page.locator('div, li').filter({ hasText: 'Y5QYAD' }).filter({ has: c.page.getByRole('link', { name: /Element überprüfen/ }) }).last();
+    // Question a) of that pupil: the cancelled and faint marks are there.
+    const item = c.page.locator('div, li').filter({ hasText: 'Y5QYAD' }).filter({ hasText: 'Personenbezogene Daten' }).filter({ has: c.page.getByRole('link', { name: /Element überprüfen/ }) }).last();
     await item.getByRole('link', { name: /Element überprüfen/ }).first().click();
     await c.page.waitForTimeout(15000);
     await shot(c.page, 'tour-mc-review');
