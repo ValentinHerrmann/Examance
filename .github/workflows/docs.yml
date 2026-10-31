@@ -6,7 +6,15 @@ name: Docs
 on:
   workflow_call:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or SHA to publish (default: release)"
+        required: false
+        default: release
+        type: string
+  # TEMPORARY (PR #184): deploys this branch's docs before the first release; remove before merging.
   push:
+    branches: [claude/intelligent-mccarthy-ln20rw]
 
 concurrency:
   group: pages
@@ -21,17 +29,18 @@ jobs:
     outputs:
       present: ${{ steps.site.outputs.present }}
     steps:
+      # A push publishes its own commit; a manual run its `ref` input; the release workflow `release`.
       - uses: actions/checkout@v4
         with:
-          ref: release
+          ref: ${{ github.event_name == 'push' && github.sha || inputs.ref || 'release' }}
       # `release` predates the docs site until the first release after issue #174; skip instead of failing.
-      - name: Check for the docs site on release
+      - name: Check for the docs site
         id: site
         run: |
           if [ -f docs/package-lock.json ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::release has no docs site yet (the first release after #174 publishes it); nothing to deploy"
+            echo "::notice::this ref has no docs site yet (release gets it with the first release after #174); nothing to deploy"
             echo "present=false" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.site.outputs.present == 'true'
