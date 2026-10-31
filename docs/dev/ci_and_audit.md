@@ -8,7 +8,7 @@ The `--omit=dev` tree is still not only shipped code: `@embedpdf/snippet`'s pack
 
 Their advisories hit the gate. Fix with a lockfile bump (`npm audit fix`), never `--force`.
 
-The `docs` job builds the VitePress site in `docs/` (its own `package.json`, separate from the app). VitePress fails on dead internal links; links that leave the site (sources, PDFs, Marp slides) are rewritten to GitHub by `docs/.vitepress/config.mts`. Its dev-server advisories are not audited: the site is static HTML.
+The `docs` job builds the VitePress site in `docs/` (its own `package.json`, separate from the app), installing with `--ignore-scripts`: the only install scripts in its tree are esbuild's binary check (the binary comes from its platform package) and macOS-only fsevents. VitePress fails on dead internal links; links that leave the site (sources, PDFs, Marp slides) are rewritten to GitHub by `docs/.vitepress/config.mts`. Its dev-server advisories are not audited: the site is static HTML.
 
 ## SonarCloud
 

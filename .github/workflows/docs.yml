@@ -52,7 +52,7 @@ jobs:
         # GitHub Pages serves the project under /Examance/; Cloudflare serves it at /.
         env:
           DOCS_BASE: /Examance/
-        run: npm ci && npm run docs:build
+        run: npm ci --ignore-scripts && npm run docs:build
       - if: steps.site.outputs.present == 'true'
         uses: actions/configure-pages@v5
       - if: steps.site.outputs.present == 'true'

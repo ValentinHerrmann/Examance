@@ -107,4 +107,4 @@ jobs:
           cache-dependency-path: docs/package-lock.json
       - name: Install and build
         working-directory: docs
-        run: npm ci && npm run docs:build
+        run: npm ci --ignore-scripts && npm run docs:build
