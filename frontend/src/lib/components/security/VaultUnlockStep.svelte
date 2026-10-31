@@ -3,7 +3,7 @@
   import { Button, Field, TextInput } from "#lib/components/ui";
   import { t } from "#lib/i18n";
   import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
-  import { EnvelopeFactorMissingError } from "#lib/services/keyEnvelopeService";
+  import { EnvelopeChangedError, EnvelopeFactorMissingError } from "#lib/services/keyEnvelopeService";
 
   interface Props {
     onPassword: (password: string) => Promise<void>;
@@ -32,6 +32,8 @@
       errorMsg =
         err instanceof Argon2UnavailableError
           ? $t("security.vaultUnlock.kdfUnavailable")
+          : err instanceof EnvelopeChangedError
+            ? $t("security.envelope.changedBody")
           : err instanceof EnvelopeFactorMissingError
             ? $t("security.vaultUnlock.needsPasswordSignIn")
           : useRecovery

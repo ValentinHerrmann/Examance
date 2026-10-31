@@ -69,9 +69,9 @@ export function forgetKeyId(): void {
   safeSessionStorage.removeItem(KEY_ID_STORAGE);
 }
 
-/** The envelope set changed without this browser re-wrapping it. */
+/** The envelope set changed without this browser re-wrapping it; `teacherId` names whose pin `acceptChangedEnvelopes` would drop. */
 export class EnvelopeChangedError extends Error {
-  constructor() {
+  constructor(public readonly teacherId: string) {
     super('The stored key envelope changed unexpectedly.');
     this.name = 'EnvelopeChangedError';
   }
@@ -103,22 +103,37 @@ async function pinFingerprint(teacherId: string, set: EnvelopeSet): Promise<void
   safeLocalStorage.setItem(FINGERPRINT_PREFIX + teacherId, await envelopeFingerprint(set));
 }
 
-/** Refuse an envelope set this browser hasn't seen. A server substituting a set whose data key it knows could read everything written afterwards; AAD can't catch that (server picks both sides), a pin can. */
-async function assertPinnedOrPin(teacherId: string, set: EnvelopeSet): Promise<void> {
+/** Refuse an envelope set this browser hasn't seen. A server substituting a set whose data key it knows could read everything written afterwards; AAD can't catch that (server picks both sides), a pin can. Returns true when nothing is pinned yet: the caller pins only once the vault opened, so a set that fails to unwrap is never trusted. */
+async function assertPinned(teacherId: string, set: EnvelopeSet): Promise<boolean> {
   const stored = safeLocalStorage.getItem(FINGERPRINT_PREFIX + teacherId);
-  const current = await envelopeFingerprint(set);
   if (stored === null) {
-    safeLocalStorage.setItem(FINGERPRINT_PREFIX + teacherId, current);
-    return;
+    return true;
   }
-  if (stored !== current) {
-    throw new EnvelopeChangedError();
+  if (stored !== (await envelopeFingerprint(set))) {
+    throw new EnvelopeChangedError(teacherId);
   }
+  return false;
 }
 
-/** Drop the pin, e.g. after a deliberate re-wrap on another device. */
-export function clearFingerprint(teacherId: string): void {
+/** Drop the pin after the teacher explicitly confirmed they changed the key copies on another device; the next successful open pins the new set. Never call without that confirmation: it disarms the substitution alarm. */
+export function acceptChangedEnvelopes(teacherId: string): void {
   safeLocalStorage.removeItem(FINGERPRINT_PREFIX + teacherId);
+}
+
+/** Run an open; on a changed envelope set ask `confirm` (the teacher's explicit "I changed this myself") and, only if accepted, drop the pin and try once more. A refusal rethrows the alarm. */
+export async function openAcceptingChange<T>(
+  openVault: () => Promise<T>,
+  confirm: () => Promise<boolean>,
+): Promise<T> {
+  try {
+    return await openVault();
+  } catch (err) {
+    if (!(err instanceof EnvelopeChangedError) || !(await confirm())) {
+      throw err;
+    }
+    acceptChangedEnvelopes(err.teacherId);
+    return await openVault();
+  }
 }
 
 async function buildSet(
@@ -203,7 +218,7 @@ export async function openWithPassword(
     return { ...source, keyId, newRecoveryCode: recoveryCode, migrated: true };
   }
 
-  await assertPinnedOrPin(teacherId, existing);
+  const firstSeen = await assertPinned(teacherId, existing);
 
   const envelope = usable(existing, 'password');
   if (envelope === null) {
@@ -218,6 +233,10 @@ export async function openWithPassword(
     existing.keyId,
     'password',
   );
+  // Before the heal, which re-pins the set it rewrites.
+  if (firstSeen) {
+    await pinFingerprint(teacherId, existing);
+  }
   const vault: OpenedVault = { ...bundle, keyId: existing.keyId, migrated: false };
   await healFallbackWrap(teacherId, vault, 'password', password, usedFallbackKdf);
   return vault;
@@ -252,6 +271,7 @@ export async function openWithRecoveryCode(
   if (existing === null) {
     throw new EnvelopeFactorMissingError('recovery');
   }
+  const firstSeen = await assertPinned(teacherId, existing);
   const envelope = usable(existing, 'recovery');
   if (envelope === null) {
     throw new EnvelopeFactorMissingError('recovery');
@@ -264,6 +284,9 @@ export async function openWithRecoveryCode(
     existing.keyId,
     'recovery',
   );
+  if (firstSeen) {
+    await pinFingerprint(teacherId, existing);
+  }
   const vault: OpenedVault = { ...bundle, keyId: existing.keyId, migrated: false };
   await healFallbackWrap(teacherId, vault, 'recovery', normalized, usedFallbackKdf);
   return vault;
@@ -501,6 +524,7 @@ export async function openWithPasskey(
   if (existing === null) {
     throw new EnvelopeFactorMissingError('passkey');
   }
+  const firstSeen = await assertPinned(teacherId, existing);
   const envelope = existing.envelopes.find(
     (e) =>
       e.kind === 'passkey' &&
@@ -512,6 +536,9 @@ export async function openWithPasskey(
   }
   const kek = await derivePrfKek(prfOutput, envelope.kdfSalt);
   const bundle = await unwrapBundle(kek, envelope, teacherId, existing.keyId);
+  if (firstSeen) {
+    await pinFingerprint(teacherId, existing);
+  }
   return { ...bundle, keyId: existing.keyId, migrated: false };
 }
 

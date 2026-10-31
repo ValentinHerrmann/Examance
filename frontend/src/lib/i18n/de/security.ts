@@ -209,7 +209,8 @@ export const security = {
     envelope: {
         changedTitle: 'Schlüssel-Hinterlegung hat sich geändert',
         changedBody: 'Die auf dem Server hinterlegte Schlüsselkopie unterscheidet sich von der, die dieser Browser kennt. Das passiert normalerweise nach einem Passwort-Zurücksetzen auf einem anderen Gerät. Wenn Sie das nicht selbst veranlasst haben, melden Sie sich nicht an und wenden Sie sich an die Administration.',
-        changedAccept: 'Ich habe das Passwort selbst zurückgesetzt — fortfahren',
+        changedAccept: 'Ich habe das selbst geändert — neuen Schlüssel annehmen',
+        changedAcceptHint: 'Bestätigen Sie nur, wenn Sie selbst auf einem anderen Gerät Ihr Passwort geändert oder zurückgesetzt, einen neuen Wiederherstellungscode erzeugt oder einen Passkey hinzugefügt oder entfernt haben. Dieser Browser merkt sich danach die neue Schlüssel-Hinterlegung.',
         missingPassword: 'Für dieses Konto ist keine gültige Passwort-Kopie des Schlüssels hinterlegt. Bitte stellen Sie den Zugriff mit Ihrem Wiederherstellungscode wieder her.',
     },
 } as const;

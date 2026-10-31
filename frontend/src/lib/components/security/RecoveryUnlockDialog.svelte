@@ -2,7 +2,7 @@
   /** Recovers the data key with the printable recovery code, for when the password wrap is unusable (e.g. a server-side password reset, which cannot re-wrap a key it never saw). */
   import { Button, Field, Modal, TextInput } from "#lib/components/ui";
   import { t } from "#lib/i18n";
-  import { EnvelopeFactorMissingError } from "#lib/services/keyEnvelopeService";
+  import { EnvelopeChangedError, EnvelopeFactorMissingError } from "#lib/services/keyEnvelopeService";
 
 
   interface Props {
@@ -32,9 +32,11 @@
     } catch (err: unknown) {
       // "No passkey copy stored" is actionable, unlike "ceremony failed".
       errorMsg =
-        err instanceof EnvelopeFactorMissingError
-          ? $t("security.unlock.passkeyHasNoCopy")
-          : fallbackMsg;
+        err instanceof EnvelopeChangedError
+          ? $t("security.envelope.changedBody")
+          : err instanceof EnvelopeFactorMissingError
+            ? $t("security.unlock.passkeyHasNoCopy")
+            : fallbackMsg;
     } finally {
       isWorking = false;
     }
@@ -48,9 +50,9 @@
     errorMsg = "";
     try {
       await onSubmit(recoveryCode);
-    } catch {
-      // Every failure reads the same: this code does not open this account.
-      errorMsg = $t("security.unlock.wrong");
+    } catch (err: unknown) {
+      // Every failure but the changed-key alarm reads the same: this code does not open this account.
+      errorMsg = err instanceof EnvelopeChangedError ? $t("security.envelope.changedBody") : $t("security.unlock.wrong");
     } finally {
       isWorking = false;
     }
