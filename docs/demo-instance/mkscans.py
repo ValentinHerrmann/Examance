@@ -45,14 +45,31 @@ def half(v, hi):
 
 
 doc = pymupdf.open(SRC)
-links = [ln for ln in doc[1].get_links() if ln.get("uri", "").startswith("omr://")
-         and "__fid__" not in ln["uri"] and not ln["uri"].endswith("/redo")]
+# MC answer boxes on any page: {exercise: (page, {option: rect})}, in reading order.
 boxes = {}
-for ln in links:
-    ex, opt = ln["uri"].split("omr://")[1].split("/")[:2]
-    boxes.setdefault(ex, {})[int(opt)] = ln["from"]
-order = sorted(boxes, key=lambda e: boxes[e][0].y0)
+for pno, page in enumerate(doc):
+    for ln in page.get_links():
+        uri = ln.get("uri", "")
+        if not uri.startswith("omr://") or "__fid__" in uri or uri.endswith("/redo"):
+            continue
+        ex, opt = uri.split("omr://")[1].split("/")[:2]
+        boxes.setdefault(ex, (pno, {}))[1][int(opt)] = ln["from"]
+order = sorted(boxes, key=lambda e: (boxes[e][0], boxes[e][1][0].y0))
 base = [Image.open(io.BytesIO(p.get_pixmap(dpi=DPI).tobytes("png"))).convert("RGB") for p in doc]
+
+# Handwriting starts below the prompt it answers, wherever the exam layout puts it: (page, y) from the compiled text.
+ANCHORS = {"q1a": "Wandle die Dezimalzahl", "q1b": "in eine Hexadezimalzahl um", "q2a": "Sortiere die Folge", "q2b": "Begründe, warum Bubblesort", "q3": "Formuliere eine SQL"}
+
+
+def anchor(text):
+    for pno, page in enumerate(doc):
+        for b in page.get_text("blocks"):
+            if text in b[4].replace("\n", " "):
+                return pno, b[3] + 6
+    raise SystemExit(f"prompt not found in {SRC}: {text}")
+
+
+SPOT = {k: anchor(t) for k, t in ANCHORS.items()}
 
 
 def write(d, lines, x, y, font, r, ink, lh=17):
@@ -132,32 +149,31 @@ for idx, pct in enumerate(targets(CFG["size"], CFG["mean"], CFG["sd"], CFG["seed
 
     font = ImageFont.truetype(FONTS[idx % len(FONTS)], int((17 if FONTS[idx % len(FONTS)].endswith("Caveat.ttf") else 14) * S))
     ink = r.choice([(20, 40, 120), (25, 25, 60), (10, 30, 90)])
-    p1, p2 = base[0].copy(), base[1].copy()
+    pages = [im.copy() for im in base]
     lab = sticker(f"BG:{pseudo}:A:{code}").rotate(r.uniform(-4, 4), expand=True, fillcolor=(255, 255, 255))
-    p1.paste(lab, (int(56 * S), int(50 * S)))
-    d1, d2 = ImageDraw.Draw(p1), ImageDraw.Draw(p2)
-    write(d1, ans["q1a"][level(fr["q1"])], 40, 205, font, r, ink)
-    write(d1, ans["q1b"][level(fr["q1"])], 40, 312, font, r, ink)
-    write(d1, ans["q2a"][level(fr["q2"])], 40, 412, font, r, ink)
-    write(d1, ans["q2b"][level(fr["q2"])], 40, 520, font, r, ink, lh=28)
-    write(d2, ans["q3"][level(fr["q3"])], 40, 92, font, r, ink, lh=28)
+    pages[0].paste(lab, (int(56 * S), int(50 * S)))
+    draw = [ImageDraw.Draw(im) for im in pages]
+    for k, q, lh in (("q1a", "q1", 17), ("q1b", "q1", 17), ("q2a", "q2", 17), ("q2b", "q2", 28), ("q3", "q3", 28)):
+        pno, y = SPOT[k]
+        write(draw[pno], ans[k][level(fr[q])], 40, y, font, r, ink, lh=lh)
     special = CFG.get("showcase") if showcase is None and not mc_right[0] and 50 <= pct <= 75 else None
     for qi, ex in enumerate(order):
+        d2, opts = draw[boxes[ex][0]], boxes[ex][1]
         if special and qi == 0:
             showcase = pseudo
             for o, how in enumerate(special):
                 if how == "x":
-                    cross(d2, boxes[ex][o], r, ink)
+                    cross(d2, opts[o], r, ink)
                 elif how == "undo-redo":
-                    undo(d2, boxes[ex][o], r, ink)
-                    redo(d2, boxes[ex][o], r, ink)
+                    undo(d2, opts[o], r, ink)
+                    redo(d2, opts[o], r, ink)
                 elif how == "faint":
-                    faint(d2, boxes[ex][o], r)
+                    faint(d2, opts[o], r)
             continue
         chosen = set(MC_KEYS[qi]) if mc_right[qi] else {(MC_KEYS[qi][0] + 1 + r.randrange(3)) % 4}
         for o in chosen:
-            cross(d2, boxes[ex][o], r, ink)
-    for im in (p1, p2):
+            cross(d2, opts[o], r, ink)
+    for im in pages:
         data = scanify(im, r)
         for doc_ in (out, show_pdf) if special else (out,):
             pg = doc_.new_page(width=595.28, height=841.89)

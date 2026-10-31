@@ -40,8 +40,8 @@ if sys.argv[1:] == ["guide"]:
 SPEC = {
     "01-dashboard": ("dashboard", (0, 0, 3200, 1000)),
     "02-library": ("library", None),
-    "03-exercise-editor": ("editor", (160, 96, 3040, 1900)),
-    "03b-mc-editor": ("editor-mc", (160, 96, 3040, 1900)),
+    "03-exercise-editor": ("editor", None),
+    "03b-mc-editor": ("editor-mc", None),
     "04-exam-builder": ("exam-new", None),
     "04b-exam-setup": ("exam-setup", None),
     "05-scan-import": ("scan", None),
@@ -51,15 +51,15 @@ SPEC = {
     "08b-paper-entry": ("paper", None),
     "09-analytics": ("analytics", None),
     "09b-variant-comparison": ("analytics-variants", (40, 180, 1600, 1080)),
-    "10-settings-storage": ("settings", (300, 120, 2480, 1360)),
-    "11-security": ("security", (300, 120, 2480, 1360)),
-    "12-signin-second-factor": ("onboarding-2fa", (820, 405, 2380, 1620)),
-    "13-storage-choice": ("onboarding-storage", (820, 620, 2380, 1380)),
+    "10-settings-storage": ("guide-settings-storage", (360, 140, 2840, 1600)),
+    "11-security": ("guide-security", (360, 120, 2840, 1600)),
+    "12-signin-second-factor": ("onboarding-2fa", (820, 760, 2380, 1240)),
+    "13-storage-choice": ("onboarding-storage", (820, 525, 2380, 1475)),
     "14-admin-accounts": ("admin-accounts", (340, 120, 2860, 1640)),
     "15-admin-approvals": ("admin-approvals", (340, 120, 2860, 1800)),
     "16-admin-domains": ("admin-domains", (340, 120, 2860, 1420)),
     "19-shared-library": ("shared", None),
-    "20-share-confirm": ("share-confirm", (160, 96, 3040, 1100)),
+    "20-share-confirm": ("share-confirm", (0, 0, 3200, 1100)),
     "21-proposal-review": ("proposal", (420, 400, 2740, 1620)),
 }
 
@@ -77,14 +77,14 @@ for idx, name in [(12, "17-scanned-sheet"), (13, "18-scanned-sheet-mc")]:
     Image.frombytes("RGB", (pm.width, pm.height), pm.samples).save(OUT / f"{name}.jpg", quality=84, optimize=True)
 # UI tour posters: captures from the 1280 px window (capture.mjs tour-*), cropped to the content.
 TOUR = {
-    "t-exercise-editor": ("tour-editor", (165, 375, 2400, 1770)),
-    "t-mc-editor": ("tour-editor-mc", (165, 90, 1260, 1515)),
-    "t-exam-builder": ("tour-exam-new", (45, 105, 1260, 1600)),
-    "t-exam-setup": ("tour-exam-setup", (420, 420, 2475, 1515)),
+    "t-exercise-editor": ("tour-editor", (40, 180, 2500, 1730)),
+    "t-mc-editor": ("tour-editor-mc", (40, 180, 2300, 1300)),
+    "t-exam-builder": ("tour-exam-new", (120, 110, 2440, 1500)),
+    "t-exam-setup": ("tour-exam-setup", (400, 410, 2490, 1450)),
     "t-grading": ("tour-grading", (135, 0, 2560, 1530)),
     "t-paper-entry": ("tour-paper", (48, 220, 1752, 1600)),
     "t-results": ("tour-results", (345, 120, 2560, 1600)),
-    "t-variant-diff": ("tour-variant-diff", (128, 192, 2432, 1060)),
+    "t-variant-diff": ("tour-variant-diff", (40, 140, 2480, 1000)),
     "t-proposal": ("tour-proposal", (135, 210, 2430, 1395)),
 }
 (OUT / "tour").mkdir(exist_ok=True)

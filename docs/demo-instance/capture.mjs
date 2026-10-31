@@ -122,14 +122,6 @@ async function teacher() {
     await scrollTo(page, page.getByText(/Schwierigkeits- & Fairnessvergleich/), 120);
     await shot(page, 'analytics-variants');
   }
-  if (want('settings')) {
-    await go(page, '/settings');
-    await shot(page, 'settings');
-  }
-  if (want('security')) {
-    await go(page, '/settings#security');
-    await shot(page, 'security');
-  }
   if (want('shared')) {
     await go(page, '/exercises');
     await page.getByRole('button', { name: /Von anderen geteilt/ }).or(page.getByRole('tab', { name: /Von anderen geteilt/ })).first().click();
