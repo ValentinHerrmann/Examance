@@ -45,6 +45,7 @@ export const help = {
                 p3: 'Einen schnellen Überblick geben zwei Poster unter „Poster: Funktionen & Datenschutz“ (auf der Anmeldeseite verlinkt): was Examance kann, wie die Oberfläche aussieht und wie Ihre Daten geschützt sind.',
                 p4: 'Zum Ausprobieren legt „Beispieldaten hinzufügen“ in der noch leeren Prüfungsübersicht Beispielaufgaben, zwei Beispielprüfungen und bereits korrigierte Bögen erfundener Schülerinnen und Schüler an, darunter gescannte. Sie werden nicht geteilt, wie Ihre eigenen Daten gespeichert und verschlüsselt und lassen sich wie jede Prüfung und Aufgabe wieder löschen.',
                 p5: 'Viele Namen sind anklickbar: Aufgaben öffnen sich überall direkt im Editor, etwa in der Klausur, beim Korrigieren und in der Auswertung; Klausuren in der Bibliothek als Übersicht mit „In neuem Tab öffnen“. Namen mit dem Symbol ↗, etwa Schülerinnen und Schüler, öffnen die Korrektur gleich in einem neuen Tab, damit ungespeicherte Arbeit im aktuellen Tab erhalten bleibt.',
+                p6: '„Dokumentation“ in der Fußzeile öffnet die Dokumentation zur aktuellen Version (auf Englisch): einen Überblick für Lehrkräfte sowie Anleitungen für Betrieb, Entwicklung und Datenschutz.',
             },
             s2: {
                 h: 'Der typische Ablauf',

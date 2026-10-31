@@ -91,3 +91,17 @@ jobs:
         run: cd frontend && npm audit || true
       - name: SRI verification
         run: cd frontend && npm run sri:verify
+
+  docs:
+    name: Docs site — build (dead links fail)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.node-version
+          cache: "npm"
+          cache-dependency-path: docs/package-lock.json
+      - name: Install and build
+        working-directory: docs
+        run: npm ci && npm run docs:build

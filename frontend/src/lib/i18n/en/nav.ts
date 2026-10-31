@@ -13,6 +13,7 @@ export const nav: Translations['nav'] = {
     privacy: 'Privacy Policy',
     legal: 'Legal',
     licenses: 'Licenses',
+    docs: 'Documentation',
     account: 'Account',
     openMenu: 'Open navigation',
     closeMenu: 'Close navigation',

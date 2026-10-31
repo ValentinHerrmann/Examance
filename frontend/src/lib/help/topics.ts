@@ -61,6 +61,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           "help.topics.gettingStarted.s1.p3",
           "help.topics.gettingStarted.s1.p4",
           "help.topics.gettingStarted.s1.p5",
+          "help.topics.gettingStarted.s1.p6",
         ],
       },
       {

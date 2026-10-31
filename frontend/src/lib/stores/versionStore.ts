@@ -10,6 +10,9 @@ export const isPreviewBuild: boolean = __IS_PREVIEW__;
 /** GitHub repository this frontend is published from (see vite.config.ts). */
 export const repoUrl: string = __REPO_URL__;
 
+/** Documentation site of the latest release (see vite.config.ts). */
+export const docsUrl: string = __DOCS_URL__;
+
 /** Where the footer/navbar version tag links: bare semver -> matching GitHub Release; preview PR format -> the PR; other untagged builds ("1.4.0-a1b2c3d") -> the commit when known; local dev (no SHA) -> no link. */
 export function versionUrlFor(version: string, commitSha: string): string | null {
     if (!version.includes('-')) return `${repoUrl}/releases/tag/v${version}`;

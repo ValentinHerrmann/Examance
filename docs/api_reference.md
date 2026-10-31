@@ -442,4 +442,4 @@ python -m app.cli export-openapi --output docs/openapi.json
 
 Run this from the **repository root**, not from `backend/`: a relative `--output` is resolved against the repo root regardless of current working directory (`export_openapi()` in `app/cli.py` anchors it via `Path(__file__).resolve().parent.parent.parent`), so `docs/openapi.json` is correct from anywhere but `../docs/openapi.json` silently writes one directory above the repo.
 
-The exported specification file is saved at [docs/openapi.json](docs/openapi.json).
+The exported specification file is saved at [docs/openapi.json](openapi.json).

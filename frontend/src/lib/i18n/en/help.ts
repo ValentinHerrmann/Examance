@@ -46,6 +46,7 @@ export const help: Translations['help'] = {
                 p3: 'For a quick overview, two posters under "Posters: features & privacy" (linked from the sign-in page) show what Examance does, what the interface looks like and how your data is protected.',
                 p4: 'To try things out, "Add example data" in the still empty exam overview creates example exercises, two example exams and already graded sheets of invented students, some of them scanned. They are not shared, are stored and encrypted like your own data, and can be deleted like any exam and exercise.',
                 p5: 'Many names are clickable: exercises open straight in the editor everywhere, for example on the exam page, while grading and in analytics; exams in the library open as an overview with “Open in new tab”. Names marked with ↗, such as students, open grading straight in a new tab, so unsaved work in the current tab stays where it is.',
+                p6: '“Documentation” in the footer opens the documentation of the current version: an overview for teachers plus guides for operation, development and data protection.',
             },
             s2: {
                 h: 'The usual workflow',

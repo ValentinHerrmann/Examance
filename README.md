@@ -39,6 +39,8 @@ Backend API at `http://localhost:8000/api/docs`, frontend at `http://localhost:5
 
 ## Documentation
 
+**Documentation site: <https://valentinherrmann.github.io/Examance/>** (user guide, operator and developer docs, legal; built from `docs/` for the latest release). The files below are the same sources.
+
 **Pitch & posters** — two sets, each a slide deck and a poster, using the actual app and current privacy model:
 * [Examance pitch index](docs/concept_pitch.md) — overview, audiences and rendering
 * [UI deck](docs/pitches/examance-ui.pdf) · [UI poster](docs/posters/examance-ui.pdf) — screenshot tour for everyone

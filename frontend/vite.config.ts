@@ -71,6 +71,9 @@ function computeIsPreview(): boolean {
 /** Linked next to the version tag: release builds link their GitHub Release, others their commit. */
 const REPO_URL = 'https://github.com/ValentinHerrmann/Examance';
 
+/** Documentation site (GitHub Pages, published from `release` by .github/workflows/docs.yml); linked in the footer. */
+const DOCS_URL = process.env.PUBLIC_DOCS_URL ?? 'https://valentinherrmann.github.io/Examance/';
+
 /** Full commit SHA of this build, when Cloudflare Pages provides one. */
 function computeCommitSha(): string {
   return process.env.CF_PAGES_COMMIT_SHA ?? '';
@@ -113,6 +116,7 @@ export default defineConfig({
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
     __RELEASE_NOTES__: JSON.stringify(readReleaseNotes()),
     __REPO_URL__: JSON.stringify(REPO_URL),
+    __DOCS_URL__: JSON.stringify(DOCS_URL),
     __DEFAULT_BACKEND_URL__: JSON.stringify(computeDefaultBackendUrl()),
     __PROD_BACKEND_URL__: JSON.stringify(PROD_BACKEND_URL),
     __PREVIEW_BACKEND_URL__: JSON.stringify(PREVIEW_BACKEND_URL),
