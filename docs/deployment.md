@@ -140,7 +140,12 @@ Both halves consume the same resolved version, which is what guarantees frontend
 
 ### Documentation site (issue #174)
 
-The Markdown under `docs/` is also published as a [VitePress](https://vitepress.dev) site on GitHub Pages (`https://valentinherrmann.github.io/Examance/`, linked in the app footer; override with `PUBLIC_DOCS_URL` at frontend build time). The `docs` job of the release workflow calls `.github/workflows/docs.yml` after the `frontend` job has pushed `release`, and that workflow builds from the `release` branch, so the site always matches the live version. It is a reusable workflow rather than a `push: release` trigger because pushes made with `GITHUB_TOKEN` never start other workflows; run it by hand with "Run workflow" to republish (its `ref` input publishes another branch, tag or commit; the next release publishes `release` again). One-time setup: repository Settings → Pages → Source "GitHub Actions". CI builds the site on every push and PR, so a dead internal link fails before release. Locally: `cd docs && npm install && npm run docs:dev`.
+The Markdown under `docs/` is also published as a [VitePress](https://vitepress.dev) site (Mermaid diagrams render through `vitepress-plugin-mermaid`), linked in the app footer (`PUBLIC_DOCS_URL` at frontend build time, default the GitHub Pages copy).
+
+- **Production and previews: Cloudflare Workers** (static assets, `docs/wrangler.jsonc`, Worker `examance-docs`). Workers Builds settings: root directory `docs`, build command `npm ci && npm run docs:build`, deploy command `npx wrangler deploy`, preview command `npx wrangler versions upload`, production branch `release`, non-production branch builds on. A push to `release` deploys production; every other branch gets a preview URL. Served at `/`.
+- **Backup: GitHub Pages** (`https://valentinherrmann.github.io/Examance/`, served at `/Examance/` via `DOCS_BASE`). The `docs` job of the release workflow calls `.github/workflows/docs.yml` after the `frontend` job has pushed `release`; a reusable workflow rather than a `push: release` trigger because pushes made with `GITHUB_TOKEN` never start other workflows. "Run workflow" republishes by hand; its `ref` input publishes another branch, tag or commit. One-time setup: Settings → Pages → Source "GitHub Actions", and allow the `v*` tags (release runs) under Settings → Environments → `github-pages`.
+
+CI builds the site on every push and PR, so a dead internal link fails before release. Locally: `cd docs && npm install && npm run docs:dev`.
 
 ### Maintenance window on every backend deploy (issue #130)
 

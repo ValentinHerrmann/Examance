@@ -2,11 +2,13 @@ import { existsSync } from 'node:fs';
 import { dirname, posix, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitepress';
+import { withMermaid } from 'vitepress-plugin-mermaid';
 
-// Published from the `release` branch by .github/workflows/docs.yml (issue #174).
+// Production and previews on Cloudflare (served at /), backup on GitHub Pages (served at /Examance/, DOCS_BASE set by .github/workflows/docs.yml).
 const REPO_URL = 'https://github.com/ValentinHerrmann/Examance';
 const DOCS_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_ROOT = resolve(DOCS_ROOT, '..');
+const BASE = process.env.DOCS_BASE ?? '/';
 
 // Marp slide sources and demo-instance tooling are not pages; the site links their PDFs and sources on GitHub.
 const SRC_EXCLUDE = ['demo-instance/**', 'pitches/**', 'posters/**', 'screenshots/**', 'node_modules/**', 'README.md'];
@@ -29,13 +31,13 @@ function toGithubHref(href: string, pageRelPath: string): string | null {
   return `${REPO_URL}/${kind}/release/${repoPath}${hash ? `#${hash}` : ''}`;
 }
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: 'Examance',
   description: 'Privacy-first anonymous exam grading: user, operator and developer documentation.',
-  base: '/Examance/',
+  base: BASE,
   srcExclude: SRC_EXCLUDE,
   cleanUrls: true,
-  head: [['link', { rel: 'icon', type: 'image/png', href: '/Examance/logo.png' }]],
+  head: [['link', { rel: 'icon', type: 'image/png', href: `${BASE}logo.png` }]],
   markdown: {
     languageAlias: { env: 'dotenv' },
     config(md) {
@@ -121,4 +123,4 @@ export default defineConfig({
     socialLinks: [{ icon: 'github', link: REPO_URL }],
     footer: { message: 'Documentation of the latest Examance release.' },
   },
-});
+}));

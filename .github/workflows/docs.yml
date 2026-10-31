@@ -1,6 +1,6 @@
 name: Docs
 
-# Publishes the documentation site (docs/, VitePress) to GitHub Pages from the `release` branch, so it matches the live version.
+# Publishes the backup copy of the documentation site (docs/, VitePress) to GitHub Pages from `release`; production and previews are on Cloudflare (docs/wrangler.jsonc).
 # deploy-release.yml calls this after it pushed `release`: that push uses GITHUB_TOKEN, which never starts other workflows.
 # One-time repository setting: Settings → Pages → Source "GitHub Actions".
 on:
@@ -12,9 +12,6 @@ on:
         required: false
         default: release
         type: string
-  # TEMPORARY (PR #184): deploys this branch's docs before the first release; remove before merging.
-  push:
-    branches: [claude/intelligent-mccarthy-ln20rw]
 
 concurrency:
   group: pages
@@ -29,10 +26,10 @@ jobs:
     outputs:
       present: ${{ steps.site.outputs.present }}
     steps:
-      # A push publishes its own commit; a manual run its `ref` input; the release workflow `release`.
+      # A manual run publishes its `ref` input; the release workflow `release`.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'push' && github.sha || inputs.ref || 'release' }}
+          ref: ${{ inputs.ref || 'release' }}
       # `release` predates the docs site until the first release after issue #174; skip instead of failing.
       - name: Check for the docs site
         id: site
@@ -52,6 +49,9 @@ jobs:
       - name: Install and build
         if: steps.site.outputs.present == 'true'
         working-directory: docs
+        # GitHub Pages serves the project under /Examance/; Cloudflare serves it at /.
+        env:
+          DOCS_BASE: /Examance/
         run: npm ci && npm run docs:build
       - if: steps.site.outputs.present == 'true'
         uses: actions/configure-pages@v5
