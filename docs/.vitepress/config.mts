@@ -18,6 +18,60 @@ export default withMermaid(defineConfig({
   },
   vite: { plugins: [siteFilesDevServer(BASE)] },
   buildEnd: (siteConfig) => copySiteFiles(siteConfig.outDir),
+  // German exists only for the user guide (docs/de/user/, same file names and {#anchors} as docs/user/, linked from the in-app help); operator and developer pages stay English.
+  locales: {
+    root: { label: 'English', lang: 'en' },
+    de: {
+      label: 'Deutsch',
+      lang: 'de',
+      link: '/de/user/',
+      description: 'Anonyme, datenschutzfreundliche Korrektur von Prüfungen: Benutzerhandbuch.',
+      themeConfig: {
+        nav: [
+          { text: 'Benutzerhandbuch', link: '/de/user/' },
+          { text: 'Betrieb & Entwicklung (Englisch)', link: '/hosting' },
+        ],
+        sidebar: [
+          {
+            text: 'Benutzerhandbuch',
+            items: [
+              { text: 'Erste Schritte', link: '/de/user/' },
+              { text: 'Von der Aufgabe zur Auswertung', link: '/de/user/workflow' },
+              { text: 'Aufgabenbibliothek', link: '/de/user/exercises' },
+              { text: 'Aufgaben teilen', link: '/de/user/sharing' },
+              { text: 'Prüfung erstellen', link: '/de/user/exams' },
+              { text: 'Scannen und Zuordnen', link: '/de/user/scanning' },
+              { text: 'Korrigieren', link: '/de/user/grading' },
+              { text: 'Ergebnisse und Auswertung', link: '/de/user/results' },
+              { text: 'Sichern und Übertragen', link: '/de/user/backup' },
+              { text: 'Einstellungen', link: '/de/user/settings' },
+              { text: 'Anmeldung und Sicherheit', link: '/de/user/security' },
+              { text: 'Für Administratoren', link: '/de/user/admin' },
+              { text: 'Infomaterial (PDF)', link: '/de/user/material' },
+            ],
+          },
+          {
+            text: 'Betrieb & Entwicklung (Englisch)',
+            items: [
+              { text: 'Installation und Updates', link: '/hosting' },
+              { text: 'Datenfluss und Sicherheit', link: '/data_flow_and_security' },
+              { text: 'Rechtliches (DSGVO)', link: '/legal_audit_dsgvo' },
+            ],
+          },
+        ],
+        outline: { level: [2, 3], label: 'Auf dieser Seite' },
+        docFooter: { prev: 'Vorherige Seite', next: 'Nächste Seite' },
+        darkModeSwitchLabel: 'Darstellung',
+        lightModeSwitchTitle: 'Zum hellen Modus wechseln',
+        darkModeSwitchTitle: 'Zum dunklen Modus wechseln',
+        sidebarMenuLabel: 'Menü',
+        returnToTopLabel: 'Nach oben',
+        langMenuLabel: 'Sprache wechseln',
+        notFound: { title: 'Seite nicht gefunden', quote: '', linkText: 'Zum Benutzerhandbuch', linkLabel: 'Zum Benutzerhandbuch' },
+        footer: { message: 'Dokumentation der aktuellen Examance-Version.' },
+      },
+    },
+  },
   themeConfig: {
     logo: '/logo.png',
     nav: [
@@ -32,6 +86,16 @@ export default withMermaid(defineConfig({
         items: [
           { text: 'Getting started', link: '/user/' },
           { text: 'From exercise to analysis', link: '/user/workflow' },
+          { text: 'Exercise library', link: '/user/exercises' },
+          { text: 'Sharing exercises', link: '/user/sharing' },
+          { text: 'Creating an exam', link: '/user/exams' },
+          { text: 'Scanning and assignment', link: '/user/scanning' },
+          { text: 'Grading', link: '/user/grading' },
+          { text: 'Results and analysis', link: '/user/results' },
+          { text: 'Backup and transfer', link: '/user/backup' },
+          { text: 'Settings', link: '/user/settings' },
+          { text: 'Sign-in and security', link: '/user/security' },
+          { text: 'For administrators', link: '/user/admin' },
           { text: 'Info material (PDF)', link: '/user/material' },
         ],
       },
@@ -86,7 +150,25 @@ export default withMermaid(defineConfig({
         ],
       },
     ],
-    search: { provider: 'local' },
+    // Only the user guide is translated, so switching language opens the other locale's start page instead of a missing /de/ copy.
+    i18nRouting: false,
+    search: {
+      provider: 'local',
+      options: {
+        locales: {
+          de: {
+            translations: {
+              button: { buttonText: 'Suchen', buttonAriaLabel: 'Suchen' },
+              modal: {
+                noResultsText: 'Keine Ergebnisse für',
+                resetButtonTitle: 'Suche zurücksetzen',
+                footer: { selectText: 'auswählen', navigateText: 'navigieren', closeText: 'schließen' },
+              },
+            },
+          },
+        },
+      },
+    },
     outline: [2, 3],
     editLink: { pattern: `${REPO_URL}/edit/main/docs/:path`, text: 'Edit this page on GitHub' },
     socialLinks: [{ icon: 'github', link: REPO_URL }],

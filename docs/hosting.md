@@ -177,7 +177,7 @@ The build downloads about 500 MB of browser LaTeX engine files and writes the si
 |---|---|
 | `PUBLIC_DEFAULT_BACKEND_URL` | API address a new browser starts with. Teachers can still change it; a saved address wins. |
 | `VITE_LEGAL_NAME`, `VITE_LEGAL_STREET`, `VITE_LEGAL_POSTCODE_CITY`, `VITE_LEGAL_EMAIL`, optional `VITE_LEGAL_PHONE` | Operator details on the legal notice and privacy policy (`/legal/impressum`, `/legal/datenschutz`). They are built into the public pages, not stored in the repository. Without them both pages show marked placeholders and a "not configured" banner. Retention periods on the privacy page come from the backend at runtime. |
-| `PUBLIC_DOCS_URL` | Optional: where the footer's "Documentation" link points (default: this site). |
+| `PUBLIC_DOCS_URL` | Optional: base URL of this documentation site, ending with `/`, for the footer's "Documentation" link and the in-app help's links to user-guide sections (default: the maintainer's copy of this site). |
 | `BUSYTEX_MIRROR_URL` | Optional: a mirror of the LaTeX engine files that speeds up builds ([maintainer setup](deployment.md#busytex-mirror-cloudflare-r2)). |
 
 ### 5.2 Serve

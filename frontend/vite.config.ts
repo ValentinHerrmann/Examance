@@ -71,8 +71,8 @@ function computeIsPreview(): boolean {
 /** Linked next to the version tag: release builds link their GitHub Release, others their commit. */
 const REPO_URL = 'https://github.com/ValentinHerrmann/Examance';
 
-/** Documentation site (GitHub Pages, published from `release` by .github/workflows/docs.yml); linked in the footer. */
-const DOCS_URL = process.env.PUBLIC_DOCS_URL ?? 'https://valentinherrmann.github.io/Examance/';
+/** Documentation site (VitePress, docs/); linked in the footer and, per section, from the in-app help (lib/help/docsLink.ts). Must end with "/". */
+const DOCS_URL = process.env.PUBLIC_DOCS_URL ?? 'https://preview-backend.examance-docs.pages.dev/';
 
 /** Full commit SHA of this build, when Cloudflare Pages provides one. */
 function computeCommitSha(): string {

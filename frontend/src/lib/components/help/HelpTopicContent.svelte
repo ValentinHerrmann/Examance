@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { t } from "#lib/i18n";
+  import { CrossLink } from "#lib/components/ui";
+  import { locale, t } from "#lib/i18n";
+  import { docsHref } from "#lib/help/docsLink";
   import type { HelpTopic } from "#lib/help/topics";
 
   interface Props {
@@ -34,6 +36,8 @@
           {/each}
         </ul>
       {/if}
+
+      <CrossLink href={docsHref(section.docs, $locale)} class="mt-1.5 text-sm">{$t("help.ui.docsLink")}</CrossLink>
     </section>
   {/each}
 </div>
