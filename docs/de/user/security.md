@@ -26,7 +26,7 @@ Ein erratenes Passwort allein nützt nichts. Bei der ersten Anmeldung richten Si
 
 Der Abschnitt **Anmeldung & Sicherheit** der Einstellungen zeigt für jeden Faktor, ob er eingerichtet ist, wann er zuletzt verwendet wurde und ob er auch Ihre verschlüsselten Daten öffnen kann. Hier fügen Sie Faktoren hinzu und entfernen sie, ändern Ihr Passwort und ersetzen Ihre Codes.
 
-![Anmeldefaktoren](../../screenshots/pitch/11-security.jpg)
+![Anmeldefaktoren](../../screenshots/guide/settings-security.jpg)
 
 ## Passkeys {#passkeys}
 

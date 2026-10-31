@@ -16,6 +16,8 @@ In **hybrid mode** this archive is the **main backup** of your results, because 
 - the whole exercise library, including older versions an exam still uses, and the exercises' image and resource files;
 - student data, scans, annotations and scores.
 
+![Backing up the workspace](../screenshots/guide/workspace-backup.jpg)
+
 Not included: MC answer-sheet templates (they are rebuilt) and your account settings.
 
 ## Back up one exam {#exam-backup}

@@ -1,4 +1,5 @@
-"""Crop .state/shots into docs/screenshots/pitch/ (JPEG, max 2400 px wide). Boxes are in capture pixels (2x)."""
+"""Crop .state/shots into docs/screenshots/pitch/ and guide/ (JPEG, max 2400 px wide). Boxes are in capture pixels (2x); `assets.py guide` crops only the guide set."""
+import sys
 from pathlib import Path
 
 import pymupdf
@@ -7,6 +8,33 @@ from PIL import Image
 HERE = Path(__file__).resolve().parent
 SHOTS = HERE / ".state/shots"
 OUT = HERE.parent / "screenshots/pitch"
+
+# User-guide details (capture.mjs guide-*), referenced from docs/user/ and docs/de/user/.
+GUIDE = {
+    "exercise-score": ("guide-score", (828, 662, 2370, 1338)),
+    "exercise-ai-prompt": ("guide-ai-prompt", (446, 100, 2752, 1902)),
+    "exercise-compile-error": ("guide-compile-error", (30, 30, 3170, 1810)),
+    "exam-exercises": ("guide-exam-exercises", (330, 100, 3200, 1870)),
+    "exam-export": ("guide-exam-export", (828, 260, 2370, 1745)),
+    "workspace-backup": ("guide-backup", (828, 540, 2370, 1462)),
+    "help-dialog": ("guide-help", (446, 100, 2752, 1902)),
+    "settings-storage": ("guide-settings-storage", (870, 170, 2840, 855)),
+    "settings-mc-detection": ("guide-settings-mc", (870, 170, 2840, 1890)),
+    "settings-latex-packages": ("guide-settings-packages", (870, 170, 2840, 2000)),
+    "settings-security": ("guide-security", (870, 120, 2840, 1480)),
+    "results-borderline": ("guide-borderline", (365, 385, 3165, 2560)),
+    "admin-maintenance": ("guide-maintenance", (360, 120, 2840, 1880)),
+}
+(OUT.parent / "guide").mkdir(exist_ok=True)
+for name, (src, crop) in GUIDE.items():
+    im = Image.open(SHOTS / f"{src}.png").convert("RGB")
+    if crop:
+        im = im.crop(crop)
+    if im.width > 2400:
+        im = im.resize((2400, round(im.height * 2400 / im.width)), Image.LANCZOS)
+    im.save(OUT.parent / "guide" / f"{name}.jpg", quality=86, optimize=True, progressive=True)
+if sys.argv[1:] == ["guide"]:
+    sys.exit(print("guide", len(GUIDE)))
 
 SPEC = {
     "01-dashboard": ("dashboard", (0, 0, 3200, 1000)),

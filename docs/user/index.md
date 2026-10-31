@@ -63,6 +63,8 @@ In the still empty exam overview, **Add example data** creates example exercises
 - **Documentation** in the footer opens this guide.
 - [Info material](./material): slide decks and posters with a screenshot tour and an explanation of privacy and security, in German.
 
+![The help dialog with links into this guide](../screenshots/guide/help-dialog.jpg)
+
 ## Next steps {#next-steps}
 
 - [From exercise to analysis](./workflow): the usual workflow, step by step.

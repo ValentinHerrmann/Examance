@@ -48,6 +48,8 @@ An exercise's score is counted from the **scoring units** in its source:
 | `\qBE` | ¼ point |
 | a correct option of a multiple choice question | 1 point |
 
+![The Score & structure dialog](../screenshots/guide/exercise-score.jpg)
+
 Put a scoring unit where the solution earns the point: the solution sheet shows them as ticks, so whoever grades sees exactly where the points are.
 
 The **Score & structure** button above the source shows the current score. It opens a dialog that explains how the score is made up and lets you **fix** it to a set value instead. Clear the field to go back to counting.
@@ -130,12 +132,16 @@ If the PDF cannot be produced, the error message names the **exercise** and its 
 - **Full LaTeX log**, to read, copy or download the whole log;
 - **Create prompt for AI chat** (see below).
 
+![A compile error with its likely cause](../screenshots/guide/exercise-compile-error.jpg)
+
 ## Help from an AI chat {#ai-prompts}
 
 Examance never sends anything to an AI service itself. It prepares a prompt that you copy into an AI chat of your choice:
 
 - **After a compile error**, **Create prompt for AI chat** explains to the chat how Examance builds the document, which template commands exist and what the compiler reported. The code of the affected exercise is included only if you tick the box for it. Student data is never included.
 - **While writing**, **Create AI prompt** in the header of the code editor opens a dialog. Describe what the AI should do (a variant with other numbers, an extra part, a new exercise on a topic, …). The prompt contains the template commands, the available packages, the names of the attached files and, while the box is ticked, the current exercise code. Paste the LaTeX from the answer back into the editor.
+
+![Preparing a prompt for an AI chat](../screenshots/guide/exercise-ai-prompt.jpg)
 
 ## Report a layout problem {#layout-reports}
 

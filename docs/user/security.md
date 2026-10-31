@@ -26,7 +26,7 @@ A guessed password alone gets nowhere. On your first sign-in you set up the seco
 
 The **Sign-in & security** section of the settings shows for every factor whether it is set up, when it was last used and whether it can also open your encrypted data. Here you add and remove factors, change your password and replace your codes.
 
-![Sign-in factors](../screenshots/pitch/11-security.jpg)
+![Sign-in factors](../screenshots/guide/settings-security.jpg)
 
 ## Passkeys {#passkeys}
 

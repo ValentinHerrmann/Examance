@@ -34,6 +34,8 @@ Auf der Prüfungsseite wählen Sie Aufgaben aus der Bibliothek (**Aufgaben hinzu
 
 Soll eine Aufgabe auf einer neuen Seite beginnen, fügen Sie zwischen zwei Aufgaben **Seitenumbruch einfügen** ein. Der Umbruch gehört zur Aufgabe darunter und wandert beim Verschieben mit. Seitenumbrüche *innerhalb* einer Aufgabe legen Sie in der Aufgabe selbst fest, siehe [Seitenumbrüche](./exercises#page-breaks).
 
+![Aufgabenliste einer Prüfung mit MC-Gruppe, Seitenumbrüchen und Platz für weitere Lösungen](../../screenshots/guide/exam-exercises.jpg)
+
 Ändern Sie Seitenumbrüche, nachdem Sie die Antwortbogen-Vorlage für die MC-Erkennung erstellt haben, erzeugen Sie die Vorlage neu.
 
 ### MC-Gruppen {#mc-groups}
@@ -106,3 +108,5 @@ Nach der Prüfung geht es weiter mit [Scannen und Zuordnen](./scanning).
 ## Exportieren {#export}
 
 **Exportieren** an einer Prüfung (Startseite oder Prüfungsseite) lädt sie entweder als lesbares ZIP oder als passwortgeschützte Sicherung herunter, siehe [Ergebnisse exportieren](./results#export) und [Sicherung und Übertragung](./backup#exam-backup).
+
+![Prüfung exportieren](../../screenshots/guide/exam-export.jpg)

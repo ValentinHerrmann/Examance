@@ -29,6 +29,8 @@ Die Kachel **Grenzfälle** zählt die knappen Fälle, und eine Tabelle unter dem
 - **+** bedeutet höchstens **0,75 Punkte** unter der nächstbesseren Note;
 - **−** bedeutet höchstens **0,5 Punkte** über der Untergrenze der eigenen Note (genau auf der Grenze zählt als −).
 
+![Grenzfälle und Notenverteilung](../../screenshots/guide/results-borderline.jpg)
+
 Jede Zeile nennt die erreichten Punkte, die Grenze in Punkten und den Abstand dazu. Ein Klick auf eine Zeile öffnet die Abgabe in der Korrektur, weiterhin anonym, mit derselben Nummer. Nützlich für einen zweiten Blick, bevor Sie die Prüfungen zurückgeben.
 
 ### Teilweise korrigierte Abgaben {#partial}

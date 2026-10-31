@@ -34,6 +34,8 @@ On the exam page, **Add exercises** picks exercises from the library, with the v
 
 To start an exercise on a new page, use **Insert page break** between two exercises. The break belongs to the exercise below it and moves with it when you reorder. Page breaks *inside* an exercise are set in the exercise itself, see [Page breaks](./exercises#page-breaks).
 
+![Exercise list of an exam with an MC group, page breaks and extra solution space](../screenshots/guide/exam-exercises.jpg)
+
 If you change page breaks after you created the answer-sheet template for MC detection, create the template again.
 
 ### MC groups {#mc-groups}
@@ -106,3 +108,5 @@ After the exam, continue with [Scanning and assignment](./scanning).
 ## Export {#export}
 
 **Export** on an exam (dashboard or exam page) downloads it either as a readable ZIP or as a password-protected backup, see [Exporting results](./results#export) and [Backup and transfer](./backup#exam-backup).
+
+![Exporting an exam](../screenshots/guide/exam-export.jpg)

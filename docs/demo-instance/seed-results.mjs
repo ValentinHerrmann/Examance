@@ -21,6 +21,10 @@ for (const key of ['10b', '10a']) {
   writeState('progress.json', done);
 }
 
+// The MC group is listed first now (Q1 a-c), so the plan's free exercises q1-q3 are Q2-Q4 on the grade page.
+const LABEL = { q1: 'Q2', q2: 'Q3', q3: 'Q4' };
+// The row label itself opens the exercise editor; click the row's padding to set the stamp target.
+const pick = (q) => page.locator('div[role=button]').filter({ has: page.getByText(q, { exact: true }) }).first().click({ position: { x: 3, y: 3 } });
 const row = (q) => page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first();
 for (const key of ['10b', '10a']) {
   if (done[`graded-${key}`]) continue;
@@ -37,7 +41,7 @@ for (const key of ['10b', '10a']) {
     const pid = Object.keys(plan).find((p) => header.includes(p));
     if (!pid) throw new Error(`booklet ${i}: pseudonym not in plan`);
     for (const [q, v] of Object.entries(plan[pid].scores)) {
-      const inp = row(q.toUpperCase());
+      const inp = row(LABEL[q]);
       await inp.click();
       await inp.fill(String(v));
       await inp.press('Tab');
@@ -63,16 +67,16 @@ if (!done.annotated) {
   const tool = async (n) => { await page.getByRole('button', { name: n }).first().click(); await page.waitForTimeout(300); };
   const at = async (x, y) => { await page.mouse.click(x, y); await page.waitForTimeout(400); };
   const saved = {};
-  for (const q of ['Q1', 'Q2', 'Q3']) saved[q] = await row(q).inputValue();
-  await page.getByText('Q1', { exact: true }).first().click();
+  for (const q of ['Q2', 'Q3', 'Q4']) saved[q] = await row(q).inputValue();
+  await pick('Q2');
   await tool(/^\+1\.0|\+1,0/); await at(570, 289); await at(470, 343);
-  await page.getByText('Q2', { exact: true }).first().click();
+  await pick('Q3');
   await tool(/^\+1\.0|\+1,0/); await at(452, 508); await at(452, 528);
   await tool(/Fehlt/); await at(445, 548);
   await tool(/Falsch/); await at(600, 625);
   // Stamps rewrite the scores they touch; restore the planned ones.
-  for (const q of ['Q1', 'Q2', 'Q3']) { const inp = row(q); await inp.fill(saved[q]); await inp.press('Tab'); }
-  await page.getByText('Q1', { exact: true }).first().click();
+  for (const q of ['Q2', 'Q3', 'Q4']) { const inp = row(q); await inp.fill(saved[q]); await inp.press('Tab'); }
+  await pick('Q2');
   await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
   await page.waitForTimeout(2000);
   done.annotated = true;

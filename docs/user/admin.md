@@ -63,6 +63,8 @@ When a teacher reports a LaTeX layout problem, administrators receive an e-mail 
 - From the start, no exam data can be changed until you end the maintenance.
 - Optionally, the database is backed up when the maintenance starts; begin your work only once the backup is done.
 
+![Announcing maintenance](../screenshots/guide/admin-maintenance.jpg)
+
 The counters show how many teachers are online, how many saw the announcement and how many confirmed they saved their work. When nobody is signed in any more, **Start now** cuts the countdown short.
 
 Updates on deployment announce themselves the same way (5 minutes ahead) and always back up the database first. Operator details: [Maintenance mode](../dev/maintenance_mode).

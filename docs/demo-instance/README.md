@@ -26,6 +26,10 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 
 `./setup.sh --keep` reuses the current database; each seeding step records its progress in `.state/progress.json` and skips what is done. `node capture.mjs grading results` retakes single screenshots; `python assets.py` re-crops them.
 
+`capture.mjs exam-new` (and `tour-exam-new`) creates a real exam "Leistungsnachweis Informatik 10c", because the new-exam flow saves before picking exercises; delete it afterwards. Run `capture.mjs` with one name per group: a failing step aborts the rest. Without Tectonic on the host, set `bg_latex_compilation` to `local` in the Playwright profiles so exams compile in the browser.
+
+**Known gap:** the exam page now lists MC groups first, but `mkscans.py` still places the handwriting for the old order (MC group last), so a fresh seed writes over the wrong questions on the *10b*/*10a* sheets. The committed `06`–`08`, `17`, `18` and the matching tour crops come from an earlier run; retake them only after `mkscans.py` follows the new layout.
+
 The demo exercises put `\BE` inside their solutions (checkmark per scored part). The student sheet counts those only with the `\LSG` fix from PR #84; without it the score boxes read "/ 0".
 
 ## Files
@@ -38,7 +42,7 @@ The demo exercises put `\BE` inside their solutions (checkmark per scored part).
 | `mkscans.py`, `data/answers.json`, `data/classes.json` | Synthetic scans and the grading plan per class |
 | `mkpaper.py` | Spreadsheet for the paper-graded class |
 | `seed-results.mjs` | Scan import, grading, showcase annotations, Excel paste |
-| `capture.mjs`, `assets.py` | Dark-theme screenshots and crops (`node capture.mjs tour-…` for the 1280 px UI tour set) |
+| `capture.mjs`, `assets.py` | Dark-theme screenshots and crops (`node capture.mjs tour-…` for the 1280 px UI tour set; `node capture.mjs guide-…` and `python assets.py guide` for the user-guide set in `docs/screenshots/guide/`) |
 | `relatex.mjs "<name>[|<variant>]" …` | Pushes changed exercise LaTeX from `data/library.json` into an already seeded instance |
 | `export-example.mjs` | Writes the in-app example data (`frontend/static/example-data/`) from the seeded instance |
 | `showcase.mjs <raw> <hash>` | Swaps the MC showcase booklet (`showcase` in `data/classes.json`; `mkscans.py` prints both prefixes) into an already seeded instance |

@@ -63,6 +63,8 @@ In der noch leeren Prüfungsübersicht legt **Beispieldaten hinzufügen** Beispi
 - **Dokumentation** in der Fußzeile öffnet dieses Handbuch.
 - [Infomaterial](./material): Foliensätze und Poster mit einem Rundgang in Screenshots und einer Erklärung zu Datenschutz und Sicherheit, auf Deutsch.
 
+![Der Hilfe-Dialog mit Links in dieses Handbuch](../../screenshots/guide/help-dialog.jpg)
+
 ## Nächste Schritte {#next-steps}
 
 - [Von der Aufgabe zur Auswertung](./workflow): der übliche Ablauf, Schritt für Schritt.

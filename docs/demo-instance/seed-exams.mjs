@@ -16,10 +16,13 @@ for (const e of EXAMS) {
   await page.getByLabel(/^Testart/).fill(e.testart);
   await page.getByLabel(/^Jahrgangsstufe/).fill(e.grade);
   await page.getByLabel(/^Klasse \/ Kurs/).fill(e.klasse);
-  await page.getByLabel(/^Nummer/).fill(e.nr);
+  await page.getByLabel(/^Prüfungsnummer/).fill(e.nr);
   await page.getByLabel(/^Datum/).fill(e.datum);
-  await page.getByLabel(/Lehrer Nachname/).fill('Berger');
-  await page.getByRole('button', { name: /Aus Bibliothek/ }).click();
+  await page.getByLabel(/Lehrernachname/).fill('Berger');
+  // Current UI: "Neue Prüfung" saves the exam and opens the library picker on the exam page.
+  await page.getByRole('button', { name: /Prüfung anlegen und Aufgaben wählen/ }).click();
+  await page.waitForURL((u) => /\/exam\/[^/]+$/.test(u.pathname) && !u.pathname.endsWith('/new'), { timeout: 60000 });
+  ids[e.key] = page.url().split('/exam/')[1].split('?')[0];
   const search = page.getByRole('textbox', { name: /Aufgabenbibliothek nach Name/ });
   for (const [name, variant] of e.free) {
     await search.fill(variant ? `${variant}` : name);
@@ -40,9 +43,8 @@ for (const e of EXAMS) {
     await search.fill('');
   }
   await page.waitForTimeout(800);
-  await page.getByRole('button', { name: /Prüfung speichern & fortfahren/ }).click();
-  await page.waitForURL((u) => /\/exam\/[^/]+$/.test(u.pathname) && !u.pathname.endsWith('/new'), { timeout: 60000 });
-  ids[e.key] = page.url().split('/exam/')[1];
+  await page.getByRole('button', { name: /Verknüpfte Aufgaben übernehmen/ }).click();
+  await page.waitForTimeout(2500);
   writeState('exams.json', ids);
   console.log('exam', e.key, ids[e.key]);
   await page.waitForTimeout(2000);

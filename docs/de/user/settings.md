@@ -6,7 +6,7 @@ editLink: false
 
 Die **Einstellungen** (dorthin führt auch die Angabe **Daten** in der Navigationsleiste) sind in **Allgemein**, **Arbeitsbereich** und **Konto & Datenschutz** gegliedert. Manche Einstellungen gehören zu Ihrem Konto und gelten in jedem Browser; andere werden nur in dem Browser gespeichert, den Sie gerade verwenden. Jeder Abschnitt unten sagt, was zutrifft.
 
-![Einstellungen für Speicherort und LaTeX](../../screenshots/pitch/10-settings-storage.jpg)
+![Speicherort in den Einstellungen](../../screenshots/guide/settings-storage.jpg)
 
 ## Speicherort {#storage}
 
@@ -59,9 +59,13 @@ Eine einzelne Prüfung kann das Logo unter **Prüfung bearbeiten** überschreibe
 
 *Gehört zu Ihrem Konto.* Listet die Pakete auf, die die Vorlage lädt, und lässt Sie Pakete, TikZ-Bibliotheken und Optionen für alle Ihre Prüfungen hinzufügen. Wie Pakete von Konto, Prüfung und Aufgabe zusammenwirken, steht unter [LaTeX-Pakete](./exercises#packages).
 
+![LaTeX-Pakete für das ganze Konto](../../screenshots/guide/settings-latex-packages.jpg)
+
 ## MC-Erkennung feinjustieren {#mc-detection}
 
 *Wird in diesem Browser gespeichert.* Wählen Sie das Erkennungsverfahren (v4 oder v2, siehe [Erkennungsverfahren](./scanning#detection-methods)) und passen Sie die Schwellenwerte an, zum Beispiel wenn ein Scanner sehr helle oder sehr dunkle Scans erzeugt. Die Standardwerte passen zu den meisten Scannern.
+
+![MC-Erkennung feinjustieren](../../screenshots/guide/settings-mc-detection.jpg)
 
 - Änderungen gelten nur für **künftige** Erkennungsläufe (neue Scans oder **MC-Erkennung erneut ausführen**). Bereits erkannte und geprüfte Ergebnisse ändern sich nicht.
 - Jeder Lauf speichert die verwendeten Werte mit, sodass die Prüfansicht sie vergleichen kann.

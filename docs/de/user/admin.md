@@ -63,6 +63,8 @@ Meldet eine Lehrkraft ein LaTeX-Layoutproblem, erhält die Administration eine E
 - Ab Beginn können keine Prüfungsdaten mehr geändert werden, bis Sie die Wartung beenden.
 - Auf Wunsch wird die Datenbank bei Beginn der Wartung gesichert; beginnen Sie Ihre Arbeiten erst, wenn die Sicherung fertig ist.
 
+![Wartung ankündigen](../../screenshots/guide/admin-maintenance.jpg)
+
 Die Zähler zeigen, wie viele Lehrkräfte online sind, wie viele die Ankündigung gesehen und wie viele bestätigt haben, dass sie gespeichert haben. Ist niemand mehr angemeldet, verkürzt **Jetzt beginnen** den Countdown.
 
 Updates beim Deployment kündigen sich genauso an (5 Minuten vorher) und sichern die Datenbank immer vorher. Einzelheiten für den Betrieb: [Wartungsmodus (Englisch)](../../dev/maintenance_mode).

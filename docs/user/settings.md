@@ -6,7 +6,7 @@ editLink: false
 
 **Settings** (the **Data** label in the navigation bar leads there) is grouped into **General**, **Workspace** and **Account & privacy**. Some settings belong to your account and apply in every browser; others are stored only in the browser you are using. Each section below says which.
 
-![Storage and LaTeX settings](../screenshots/pitch/10-settings-storage.jpg)
+![Storage location in the settings](../screenshots/guide/settings-storage.jpg)
 
 ## Storage location {#storage}
 
@@ -59,9 +59,13 @@ A single exam can override the logo under **Edit Exam**, see [Logo and LaTeX pac
 
 *Belongs to your account.* Lists the packages the template loads, and lets you add packages, TikZ libraries and options for all your exams. See [LaTeX packages](./exercises#packages) for how account, exam and exercise packages combine.
 
+![LaTeX packages for the whole account](../screenshots/guide/settings-latex-packages.jpg)
+
 ## Fine-tuning MC detection {#mc-detection}
 
 *Stored in this browser.* Choose the detection method (v4 or v2, see [Detection method](./scanning#detection-methods)) and adjust the thresholds, for example when a scanner produces very light or very dark scans. The defaults suit most scanners.
+
+![Fine-tuning MC detection](../screenshots/guide/settings-mc-detection.jpg)
 
 - Changes apply only to **future** detection runs (new scans or **Re-run MC detection**). Detected and verified results do not change.
 - Every run records the values it used, so the verification view can compare them.

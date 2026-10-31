@@ -48,6 +48,8 @@ Die Punktzahl einer Aufgabe wird aus den **Bewertungseinheiten** im Quelltext ge
 | `\qBE` | ¼ Punkt |
 | eine richtige Option einer Multiple-Choice-Frage | 1 Punkt |
 
+![Der Dialog „Punkte & Aufbau“](../../screenshots/guide/exercise-score.jpg)
+
 Setzen Sie eine Bewertungseinheit an die Stelle, an der die Lösung den Punkt verdient: Der Erwartungshorizont zeigt sie als Haken, sodass beim Korrigieren genau zu sehen ist, wo die Punkte liegen.
 
 Die Schaltfläche **Punkte & Aufbau** über dem Quelltext zeigt die aktuelle Punktzahl. Sie öffnet einen Dialog, der erklärt, wie die Punktzahl zustande kommt, und mit dem Sie sie auf einen festen Wert **vorgeben** können, statt zu zählen. Leeren Sie das Feld, um wieder zu zählen.
@@ -130,12 +132,16 @@ Lässt sich das PDF nicht erzeugen, nennt die Fehlermeldung wo möglich die **Au
 - **Vollständiges LaTeX-Log**, um das ganze Protokoll zu lesen, zu kopieren oder herunterzuladen;
 - **Prompt für KI-Chat erstellen** (siehe unten).
 
+![Ein Kompilierfehler mit wahrscheinlicher Ursache](../../screenshots/guide/exercise-compile-error.jpg)
+
 ## Hilfe aus einem KI-Chat {#ai-prompts}
 
 Examance sendet nie selbst etwas an einen KI-Dienst. Es bereitet einen Prompt vor, den Sie in einen KI-Chat Ihrer Wahl kopieren:
 
 - **Nach einem Kompilierfehler** erklärt **Prompt für KI-Chat erstellen** dem Chat, wie Examance das Dokument aufbaut, welche Vorlagenbefehle es gibt und was der Compiler gemeldet hat. Den Code der betroffenen Aufgabe enthält der Prompt nur, wenn Sie das Häkchen dafür setzen. Schülerdaten sind nie enthalten.
 - **Beim Schreiben** öffnet **KI-Prompt erstellen** in der Kopfzeile des Code-Editors einen Dialog. Beschreiben Sie, was die KI tun soll (eine Variante mit anderen Zahlen, eine zusätzliche Teilaufgabe, eine neue Aufgabe zu einem Thema, …). Der Prompt enthält die Vorlagenbefehle, die verfügbaren Pakete, die Namen der angehängten Dateien und, solange das Häkchen gesetzt ist, den aktuellen Code der Aufgabe. Fügen Sie den LaTeX-Code aus der Antwort wieder in den Editor ein.
+
+![Prompt für einen KI-Chat vorbereiten](../../screenshots/guide/exercise-ai-prompt.jpg)
 
 ## Ein Layoutproblem melden {#layout-reports}
 

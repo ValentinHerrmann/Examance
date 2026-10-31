@@ -16,6 +16,8 @@ Im **Hybrid-Modus** ist dieses Archiv die **wichtigste Sicherung** Ihrer Ergebni
 - der ganzen Aufgabenbibliothek, einschließlich älterer Versionen, die eine Prüfung noch verwendet, und der Bild- und Ressourcendateien der Aufgaben;
 - Schülerdaten, Scans, Anmerkungen und Punkten.
 
+![Arbeitsbereich sichern](../../screenshots/guide/workspace-backup.jpg)
+
 Nicht enthalten sind MC-Antwortbogen-Vorlagen (sie werden neu erzeugt) und Ihre Kontoeinstellungen.
 
 ## Eine einzelne Prüfung sichern {#exam-backup}

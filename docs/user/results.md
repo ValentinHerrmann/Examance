@@ -29,6 +29,8 @@ The **Borderline** tile counts the close calls, and a table below the combined c
 - **+** means at most **0.75 points** short of the next better grade;
 - **−** means at most **0.5 points** above the lower boundary of its own grade (exactly on the boundary counts as −).
 
+![Borderline cases and the grade distribution](../screenshots/guide/results-borderline.jpg)
+
 Each row gives the points achieved, the boundary in points and the distance to it. Clicking a row opens the submission in grading, still anonymous, under the same number. Useful for a second look before you hand back the exams.
 
 ### Partially graded submissions {#partial}
