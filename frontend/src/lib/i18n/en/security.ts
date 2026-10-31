@@ -212,7 +212,8 @@ export const security: Translations['security'] = {
     envelope: {
         changedTitle: 'Stored key copy has changed',
         changedBody: 'The key copy held on the server differs from the one this browser knows. That normally happens after a password reset on another device. If you did not do this, do not sign in and contact your administrator.',
-        changedAccept: 'I reset the password myself — continue',
+        changedAccept: 'I changed this myself — accept the new key',
+        changedAcceptHint: 'Only confirm if you yourself changed or reset your password, created a new recovery code, or added or removed a passkey on another device. This browser then remembers the new key copy.',
         missingPassword: 'No usable password copy of the key is stored for this account. Please restore access with your recovery code.',
     },
 };

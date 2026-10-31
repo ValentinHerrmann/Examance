@@ -66,7 +66,13 @@ data key, so it cannot unwrap what it holds.
 * **Fingerprint pinning.** AAD cannot stop a *server* that substitutes the whole
   envelope set — it would pick both sides. The client therefore pins a SHA-256 of
   the set in `localStorage` after the first successful unwrap and refuses a set it
-  has not seen before.
+  has not seen before, on every open path (password, recovery code, passkey). A set
+  that fails to unwrap is never pinned. A legitimate change made on another device
+  (password change or reset, new recovery code, passkey added or removed) trips the
+  same alarm: the sign-in asks whether the teacher made it themselves
+  (`EnvelopeChangedDialog`, `openAcceptingChange`). Only an explicit confirmation
+  drops the pin (`acceptChangedEnvelopes`); the next successful open pins the new
+  set. Cancelling keeps the block (issue #180).
 * **Migration adopts, it does not re-key.** On an account created before the
   envelope, the first sign-in takes the key the old scheme derived and makes *that*
   the data key. Every existing ciphertext stays valid, the resulting session key is

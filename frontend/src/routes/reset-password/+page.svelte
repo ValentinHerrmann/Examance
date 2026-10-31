@@ -10,11 +10,13 @@
   import { envelopeSetToDto } from "#lib/api/keyEnvelopes";
   import {
     buildResetEnvelopeSet,
+    EnvelopeChangedError,
+    openAcceptingChange,
     openWithPasskey,
     openWithRecoveryCode,
     pinEnvelopeSet,
   } from "#lib/services/keyEnvelopeService";
-  import { FactorChooser, SetupCodesDialog } from "#lib/components/security";
+  import { EnvelopeChangedDialog, FactorChooser, SetupCodesDialog } from "#lib/components/security";
   import { Alert, Button, Field, TextInput } from "#lib/components/ui";
   import AuthCard from "#lib/components/unlock/AuthCard.svelte";
 
@@ -26,6 +28,7 @@
   let isSubmitting = $state(false);
   let errorMsg = $state("");
   let successMsg = $state("");
+  let envelopeDialog: EnvelopeChangedDialog;
 
   let stage: Stage = $state("password");
   let step = $state.raw<AuthStep | null>(null);
@@ -160,9 +163,15 @@
       let builtSet: Awaited<ReturnType<typeof buildResetEnvelopeSet>> | null = null;
 
       if (withRecovery) {
-        const vault = passkeyUnwrap
-          ? await openWithPasskey(step.id, passkeyUnwrap.credentialIdB64, passkeyUnwrap.prfOutput)
-          : await openWithRecoveryCode(step.id, recoveryCode);
+        const teacherId = step.id;
+        const unwrap = passkeyUnwrap;
+        const vault = await openAcceptingChange(
+          () =>
+            unwrap
+              ? openWithPasskey(teacherId, unwrap.credentialIdB64, unwrap.prfOutput)
+              : openWithRecoveryCode(teacherId, recoveryCode),
+          () => envelopeDialog.open(),
+        );
         builtSet = await buildResetEnvelopeSet(step.id, vault, newPassword);
         envelopeDto = envelopeSetToDto(builtSet.set);
         mintedCode = builtSet.recoveryCode;
@@ -185,7 +194,10 @@
       recoveryCode = "";
       issuedRecoveryCode = mintedCode;
     } catch (err: unknown) {
-      recoveryErrorMsg = apiErrorMessage(err, translate("auth.resetPassword.errors.failed"));
+      recoveryErrorMsg =
+        err instanceof EnvelopeChangedError
+          ? translate("security.envelope.changedBody")
+          : apiErrorMessage(err, translate("auth.resetPassword.errors.failed"));
     } finally {
       isSubmitting = false;
     }
@@ -301,6 +313,8 @@
     <a href="/unlock" class="text-sm text-accent no-underline hover:underline">{$t("auth.resetPassword.backToUnlock")}</a>
   </div>
 </AuthCard>
+
+<EnvelopeChangedDialog bind:this={envelopeDialog} />
 
 {#if issuedRecoveryCode}
   <!-- The code that got us here is spent; this replacement is shown once. -->
