@@ -262,8 +262,7 @@ async function tour() {
     await page.setViewportSize({ width: 1280, height: 800 });
   }
   if (t('grading')) {
-    // Booklet af14… (plan 3 / 4 / 2.5), zoomed onto tasks 1-2. With stamps a task's score is the sum of its
-    // stamps, so the stamps (set once, persisted) cover Q1-Q3 and add up to the plan.
+    // Booklet af14… (plan Q2-Q4: 3 / 4 / 2.5), zoomed onto the MC group and Q2. A stamped task scores the sum of its stamps, so the stamps (set once, persisted) add up to the plan; Q4 keeps its entered score.
     await go(page, `/exam/${ids['10b']}/scan`, 8000);
     const subId = await page.locator('td[title^="Pseudonym: af14e273c5"]').locator('xpath=ancestor::tr[1]').locator('td[title^="Abgabe-ID: "]').getAttribute('title');
     const open1 = async () => {
@@ -271,6 +270,8 @@ async function tour() {
       for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: /Vergrößern/ }).first().click(); await page.waitForTimeout(500); }
       await page.mouse.move(600, 500);
       await page.mouse.wheel(0, 330);
+      await page.waitForTimeout(800);
+      await page.mouse.wheel(0, 300);
       await page.waitForTimeout(1500);
     };
     await open1();
@@ -281,14 +282,10 @@ async function tour() {
         await page.getByRole('button', { name: tool }).first().click();
         for (const [x, y] of pts) { await page.mouse.click(x, y); await page.waitForTimeout(400); }
       };
-      const ONE = /^\+1\.0|\+1,0/, HALF = /^\+0\.5|\+0,5|½/;
-      await stamp('Q2', ONE, [[448, 166], [275, 234], [358, 337]]);
-      await stamp('Q3', ONE, [[262, 526], [262, 558], [262, 589]]);
-      await page.mouse.move(600, 500); await page.mouse.wheel(0, 120); await page.waitForTimeout(1200);
-      await stamp('Q3', ONE, [[540, 613]]);
-      await page.mouse.click(611, 721); await page.waitForTimeout(3000); // next page
-      await stamp('Q4', ONE, [[506, 256], [602, 290]]);
-      await stamp('Q4', HALF, [[640, 322]]);
+      const ONE = /^\+1\.0|\+1,0/;
+      await stamp('Q2', ONE, [[290, 405], [365, 500], [245, 535]]);
+      await page.mouse.click(611, 721); await page.waitForTimeout(3500); // page 2: Q3 at the top
+      await stamp('Q3', ONE, [[275, 236], [275, 267], [275, 297], [525, 478]]);
       await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
       await page.waitForTimeout(3000);
       writeState('progress.json', { ...progress, 'tour-stamps': true });

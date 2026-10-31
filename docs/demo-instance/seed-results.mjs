@@ -60,7 +60,7 @@ for (const key of ['10b', '10a']) {
 }
 
 if (!done.annotated) {
-  // Showcase booklet: correction stamps on page 1 of a mid-range 10b paper.
+  // Showcase booklet: correction stamps on the Q2 answers (page 1, below the MC group) of a mid-range 10b paper.
   await page.goto(`${BASE}/exam/${ids['10b']}/grade`);
   await page.waitForTimeout(6000);
   for (let i = 0; i < 6; i++) { await page.getByRole('button', { name: /Nächster/ }).click(); await page.waitForTimeout(2000); }
@@ -69,11 +69,8 @@ if (!done.annotated) {
   const saved = {};
   for (const q of ['Q2', 'Q3', 'Q4']) saved[q] = await row(q).inputValue(); // NOSONAR: UI steps run in order in one browser
   await pick('Q2');
-  await tool(/^\+1\.0|\+1,0/); await at(570, 289); await at(470, 343);
-  await pick('Q3');
-  await tool(/^\+1\.0|\+1,0/); await at(452, 508); await at(452, 528);
-  await tool(/Fehlt/); await at(445, 548);
-  await tool(/Falsch/); await at(600, 625);
+  await tool(/^\+1\.0|\+1,0/); await at(505, 557); await at(500, 668);
+  await tool(/Fehlt/); await at(470, 576);
   // Stamps rewrite the scores they touch; restore the planned ones.
   for (const q of ['Q2', 'Q3', 'Q4']) { const inp = row(q); await inp.fill(saved[q]); await inp.press('Tab'); } // NOSONAR: UI steps run in order in one browser
   await pick('Q2');
