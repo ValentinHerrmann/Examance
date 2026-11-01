@@ -11,8 +11,8 @@
     /** A failed read: shown instead of the "no students stored" text, which would be untrue. */
     loadError?: string;
     isErasing: boolean;
-    onErase: (pseudonymId: string, examId: string) => void;
-    onExport: (pseudonymId: string, examId: string) => void;
+    onErase: (student: StudentRecord) => void;
+    onExport: (student: StudentRecord) => void;
   }
 
   let { students, exams, loadError = "", isErasing, onErase, onExport }: Props = $props();
@@ -35,7 +35,7 @@
     return students.filter(
       (s) =>
         (!examFilter || s.examId === examFilter) &&
-        (!q || s.pseudonymId.toLowerCase().includes(q) || (s.fallbackCode ?? "").toLowerCase().includes(q)),
+        (!q || s.pseudonymHmac.toLowerCase().includes(q) || (s.fallbackCode ?? "").toLowerCase().includes(q)),
     );
   });
   let pageCount = $derived(Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
@@ -92,18 +92,18 @@
             </tr>
           </thead>
           <tbody>
-            {#each rows as st (st.pseudonymId)}
+            {#each rows as st (`${st.examId}:${st.pseudonymHmac}`)}
               <tr>
                 <td>{st.fallbackCode}</td>
                 <td>{examTitles.get(st.examId) ?? "—"}</td>
-                <td class="font-mono text-sm">{st.pseudonymId}</td>
+                <td class="font-mono text-sm">{st.pseudonymHmac}</td>
                 <td>
                   <div class="flex flex-wrap gap-2">
                     <Button
                       variant="outlined"
                       size="sm"
                       icon={faDownload}
-                      onClick={() => onExport(st.pseudonymId, st.examId)}
+                      onClick={() => onExport(st)}
                       disabled={isErasing}
                     >
                       {$t("admin.gdprErasureTable.exportButton")}
@@ -112,7 +112,7 @@
                       severity="danger"
                       size="sm"
                       icon={faTrash}
-                      onClick={() => onErase(st.pseudonymId, st.examId)}
+                      onClick={() => onErase(st)}
                       disabled={isErasing}
                     >
                       {$t("admin.gdprErasureTable.eraseButton")}

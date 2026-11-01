@@ -136,6 +136,7 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
       ...(accountPackages.length ? { accountLatexPackages: [...accountPackages] } : {}),
       pageBreaks: exam.pageBreaks ?? null,
       nameLine: exam.nameLine ?? false,
+      mcCorrectionHint: exam.mcCorrectionHint ?? false,
       extraNotes: exam.extraNotes ?? null,
     },
     exercises: entries,

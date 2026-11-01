@@ -319,6 +319,12 @@ export async function openStorageSettings(page: Page): Promise<Locator> {
 export async function chooseTheme(page: Page, pref: 'system' | 'light' | 'dark'): Promise<void> {
   const locale = await currentLocale(page);
   const key = { system: 'nav.themeSystem', light: 'nav.themeLight', dark: 'nav.themeDark' }[pref];
-  await header(page).getByRole('button', { name: label('nav.theme', undefined, locale) }).click();
-  await page.getByRole('menu').getByText(label(key, undefined, locale)).click();
+  const menu = page.getByRole('menu', { name: label('nav.theme', undefined, locale) });
+  const trigger = header(page).getByRole('button', { name: label('nav.theme', undefined, locale) });
+  // Retried: a click that lands before the header hydrates after a reload is lost.
+  await expect(async () => {
+    if (!(await menu.isVisible())) await trigger.click();
+    await expect(menu).toBeVisible({ timeout: 2000 });
+  }).toPass();
+  await menu.getByText(label(key, undefined, locale)).click();
 }

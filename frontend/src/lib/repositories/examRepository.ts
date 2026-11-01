@@ -3,6 +3,7 @@ import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import { decryptExam } from '#lib/db/dbEncryption';
+import { serverVersion } from '#lib/crypto/pseudonymKey';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord, ExtraNotes } from '#lib/db/schema';
 import { invalidateOwner } from '#lib/latex/compileCache';
@@ -56,6 +57,8 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     latexPackages: packagesField(raw.latex_packages !== undefined ? raw.latex_packages : raw.latexPackages),
     pageBreaks: pageBreaksField(raw.page_breaks !== undefined ? raw.page_breaks : raw.pageBreaks),
     nameLine: (raw.name_line ?? raw.nameLine) === true,
+    mcCorrectionHint: (raw.mc_correction_hint ?? raw.mcCorrectionHint) === true,
+    pseudonymVersion: raw.pseudonymVersion === 2 ? 2 : serverVersion(raw),
     extraNotes: extraNotesField(raw.extra_notes !== undefined ? raw.extra_notes : raw.extraNotes),
     latexPreamble: raw.latex_preamble || raw.latexPreamble,
     latexTemplate: raw.latex_template || raw.latexTemplate,
@@ -65,6 +68,9 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
   };
 }
+
+/** A new exam keys its pseudonyms from the start (issue #177); older clients omit this and get version 1. */
+const NEW_EXAM = { pseudonym_version: 2 } as const;
 
 export function mapExamRecordToApi(exam: ExamRecord): any {
   return {
@@ -87,6 +93,7 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     page_breaks: exam.pageBreaks,
     // Undefined leaves the stored choice alone.
     name_line: exam.nameLine,
+    mc_correction_hint: exam.mcCorrectionHint,
     // null switches the block off, undefined leaves it alone.
     extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,
@@ -168,27 +175,29 @@ export const examRepository = {
         await api.patch(`/exams/${exam.id}`, payload, { silentError: true });
       } catch (err: any) {
         if (err?.status === 404) {
+          const created = { ...payload, ...NEW_EXAM };
           try {
-            await api.post('/exams', payload, { silentError: true });
+            await api.post('/exams', created, { silentError: true });
           } catch (postErr: any) {
-            enqueueOrThrow(postErr, '/exams', 'POST', payload);
+            enqueueOrThrow(postErr, '/exams', 'POST', created);
           }
         } else {
           enqueueOrThrow(err, `/exams/${exam.id}`, 'PATCH', payload);
         }
       }
     } else {
+      const created = { ...payload, ...NEW_EXAM };
       try {
-        await api.post('/exams', payload, { silentError: true });
+        await api.post('/exams', created, { silentError: true });
       } catch (err: any) {
-        enqueueOrThrow(err, '/exams', 'POST', payload);
+        enqueueOrThrow(err, '/exams', 'POST', created);
       }
     }
   },
 
   /** A brand-new exam with its links in one create-only POST; save() would first probe with a 404ing PATCH. */
   async create(exam: ExamRecord, structure: { exercise_links: unknown[]; mc_groups: unknown[] }): Promise<void> {
-    const payload = { ...mapExamRecordToApi(exam), ...structure };
+    const payload = { ...mapExamRecordToApi(exam), ...structure, ...NEW_EXAM };
     try {
       await api.post('/exams', payload, { silentError: true });
     } catch (err: any) {
@@ -199,7 +208,11 @@ export const examRepository = {
   /** Copies an exam's header, settings and exercise links (never its results) into a new exam. Online-only like the create flow's server round trip; returns the new exam. */
   async duplicate(id: string, retentionDays = 365): Promise<ExamRecord> {
     const retentionUntil = new Date(Date.now() + retentionDays * 86400000).toISOString().slice(0, 10);
-    const raw = await api.post<any>(`/exams/${id}/duplicate`, { retention_until: retentionUntil }, { silentError: true });
+    const raw = await api.post<any>(
+      `/exams/${id}/duplicate`,
+      { retention_until: retentionUntil, ...NEW_EXAM },
+      { silentError: true }
+    );
     return mapApiToExamRecord(raw);
   },
 
@@ -221,6 +234,7 @@ export const examRepository = {
         db.examMcGroups,
         db.submissions,
         db.students,
+        db.examStudents,
         db.exerciseScores,
         db.exerciseResources,
         db.omrTemplates,
@@ -238,6 +252,7 @@ export const examRepository = {
         await db.examExercises.where('examId').equals(id).delete();
         await db.examMcGroups.where('examId').equals(id).delete();
         await db.submissions.where('examId').equals(id).delete();
+        await db.examStudents.where('examId').equals(id).delete();
         await db.students.where('examId').equals(id).delete();
         await db.omrTemplates.delete(id); // id === examId (one template per exam)
       }

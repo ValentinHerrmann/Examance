@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { encrypt, decrypt, toBase64url, fromBase64url, uint8ArrayToBase64, base64ToUint8Array } from '../src/lib/crypto/aesGcm';
-import { hmacPseudonymId, ensure64CharHex } from '../src/lib/crypto/hmac';
+import { joinKey, keyFromRaw, pseudonymBase } from '../src/lib/crypto/pseudonymKey';
+import { sessionStore } from '../src/lib/stores/session';
+import { hkdfMasterKey } from './helpers/keys';
 import { deriveSessionKey, generateSessionNonce } from '../src/lib/crypto/sessionKey';
 import { getUserSalt, getUserSessionNonce } from '../src/lib/crypto/keyDerivation';
 import {
@@ -109,27 +111,43 @@ describe('AES-256-GCM Cryptography', () => {
   });
 });
 
-describe('HMAC-SHA-256 Pseudonym Hashing', () => {
-  it('produces deterministic output for identical key and message', async () => {
-    const keyBytes = new Uint8Array(32).fill(42);
-    const id = 'student-uuid-1234-5678';
+describe('Keyed per-exam pseudonyms (S3, issue #177)', () => {
+  const unlockWith = async (fill: number) => {
+    const aes = await crypto.subtle.importKey('raw', new Uint8Array(32).fill(1), { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']);
+    await sessionStore.unlock({ masterKey: await hkdfMasterKey(fill), sessionKey: aes, sessionNonce: new Uint8Array(12) });
+  };
+  const id = 'student-uuid-1234-5678';
 
-    const hash1 = await hmacPseudonymId(id, keyBytes);
-    const hash2 = await hmacPseudonymId(id, keyBytes);
-
-    expect(hash1).toBe(hash2);
-    expect(hash1).toHaveLength(64); // SHA-256 hex is 64 chars
+  it('is deterministic, 64 hex characters, and keyed over the old SHA-256 form', async () => {
+    await unlockWith(42);
+    const a = await keyFromRaw('exam-1', id);
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
+    expect(await keyFromRaw('exam-1', id)).toBe(a);
+    // A row the server only knows hashed re-keys to the same value as the raw id.
+    expect(await keyFromRaw('exam-1', await pseudonymBase(id))).toBe(a);
+    expect(a).not.toBe(await pseudonymBase(id));
   });
 
-  it('produces different outputs for different exam secrets', async () => {
-    const keyBytes1 = new Uint8Array(32).fill(1);
-    const keyBytes2 = new Uint8Array(32).fill(2);
-    const id = 'student-uuid-1234-5678';
+  it('differs per exam and per data key, and exam ids compare case-insensitively', async () => {
+    await unlockWith(42);
+    const a = await keyFromRaw('exam-1', id);
+    expect(await keyFromRaw('exam-2', id)).not.toBe(a);
+    expect(await keyFromRaw('EXAM-1', id)).toBe(a);
+    await unlockWith(43);
+    expect(await keyFromRaw('exam-1', id)).not.toBe(a);
+  });
 
-    const hash1 = await hmacPseudonymId(id, keyBytes1);
-    const hash2 = await hmacPseudonymId(id, keyBytes2);
+  it('joins a stored row on its keyed value and never re-keys a version-2 value', async () => {
+    await unlockWith(42);
+    const keyed = await keyFromRaw('exam-1', id);
+    expect(await joinKey({ examId: 'exam-1', pseudonymHmac: id })).toBe(keyed);
+    expect(await joinKey({ examId: 'exam-1', pseudonymHmac: await pseudonymBase(id), pseudonymVersion: 1 })).toBe(keyed);
+    expect(await joinKey({ examId: 'exam-1', pseudonymHmac: keyed, pseudonymVersion: 2 })).toBe(keyed);
+  });
 
-    expect(hash1).not.toBe(hash2);
+  it('refuses without an unlocked data key', async () => {
+    sessionStore.lock();
+    await expect(keyFromRaw('exam-1', id)).rejects.toThrow();
   });
 });
 
@@ -277,13 +295,11 @@ describe('Large Binary & Pseudonym Validation Helpers', () => {
     expect(b64.length).toBeGreaterThan(1000000);
   });
 
-  it('guarantees 64-character hex strings for pseudonym_hmac', async () => {
+  it('keeps the version-1 form exactly as older builds sent it', async () => {
     const rawUuid = 'f47ac10b-58cc-4372-a567-0e02b2c3d479'; // 36 chars
-    const hmacHex = await ensure64CharHex(rawUuid);
-    expect(hmacHex).toHaveLength(64);
-
-    const existing64Hex = 'a'.repeat(64);
-    const result64 = await ensure64CharHex(existing64Hex);
-    expect(result64).toBe(existing64Hex);
+    expect(await pseudonymBase(rawUuid)).toMatch(/^[0-9a-f]{64}$/);
+    // Any 64-character value passed through unhashed; server rows were written that way.
+    const existing64 = 'a'.repeat(64);
+    expect(await pseudonymBase(existing64)).toBe(existing64);
   });
 });

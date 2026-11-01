@@ -10,7 +10,7 @@ import {
   type PdfPageRef,
   type QrResult,
 } from "../src/lib/scan/ingest";
-import { decrypt } from "../src/lib/crypto/aesGcm";
+import { openScan } from "../src/lib/db/dbEncryption";
 import { defaultOmrProfile } from "../src/lib/grading/omrSettings";
 import type { OmrWorkerResponse } from "../src/lib/workers/omrWorker";
 
@@ -23,7 +23,9 @@ const { calls, saved } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../src/lib/db/dbEncryption", () => ({
+// The real codecs (the scan is sealed bound to its submission, issue #178); only the saves are recorded.
+vi.mock("../src/lib/db/dbEncryption", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/db/dbEncryption")>()),
   saveStudentEncrypted: vi.fn(async (student: any) => {
     calls.push(`student:${student.fallbackCode}`);
     saved.students.push(student);
@@ -32,6 +34,16 @@ vi.mock("../src/lib/db/dbEncryption", () => ({
     calls.push("submission");
     saved.submissions.push(sub);
   }),
+}));
+
+// The keyed pseudonym itself is covered in tests/crypto.test.ts; here it only has to reach both rows (issue #177).
+vi.mock("../src/lib/services/pseudonymRekey", () => ({
+  pseudonymFor: vi.fn(async (_examId: string, raw: string) => ({
+    pseudonymHmac: `keyed:${raw}`,
+    pseudonymVersion: 2,
+    pseudonymRaw: raw,
+    pseudonymBase: `base:${raw}`,
+  })),
 }));
 
 vi.mock("../src/lib/repositories/scoreRepository", () => ({
@@ -232,16 +244,20 @@ describe("ingestScans", () => {
 
     expect(result).toMatchObject({ fileCount: 2, pageCount: 4, bookletCount: 2, warnings: [] });
     expect(calls).toEqual(["student:Muster, Anna", "submission", "scores:0", "student:Beispiel, Ben", "submission", "scores:0"]);
-    expect(saved.students.map((s) => [s.pseudonymId, s.examId, s.studentNumber])).toEqual([
-      ["Muster, Anna_1", "exam-1", "1"],
-      ["Beispiel, Ben_2", "exam-1", "2"],
+    // The raw QR value goes only into the sealed identity; both rows carry the keyed pseudonym.
+    expect(saved.students.map((s) => [s.pseudonymRaw, s.pseudonymHmac, s.examId, s.studentNumber])).toEqual([
+      ["Muster, Anna_1", "keyed:Muster, Anna_1", "exam-1", "1"],
+      ["Beispiel, Ben_2", "keyed:Beispiel, Ben_2", "exam-1", "2"],
     ]);
-    expect(saved.submissions.map((s) => s.pseudonymHash)).toEqual(["Muster, Anna_1", "Beispiel, Ben_2"]);
+    expect(saved.submissions.map((s) => [s.pseudonymHmac, s.pseudonymVersion])).toEqual([
+      ["keyed:Muster, Anna_1", 2],
+      ["keyed:Beispiel, Ben_2", 2],
+    ]);
 
     // The sealed scan is the assembled booklet: Anna got pages 1-2 of a.pdf, Ben page 3 plus b.pdf.
     const sealedPages = async (i: number) => {
-      const { scanCt, scanIv } = saved.submissions[i];
-      const bytes = await decrypt(key, scanCt, scanIv);
+      const { id, scanCt, scanIv } = saved.submissions[i];
+      const bytes = await openScan(id, scanCt, scanIv, key);
       return (await PDFDocument.load(bytes)).getPageCount();
     };
     expect(await sealedPages(0)).toBe(2);

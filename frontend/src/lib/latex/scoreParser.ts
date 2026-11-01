@@ -41,18 +41,23 @@ export function unescapeLatex(text: string | undefined | null): string {
   );
 }
 
-/** Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}, adding whichever is missing. With `exerciseId`, an inert `\OmrExercise{<id>}` call (see Loesung.sty) is injected before the body so OMR template capture can map bubbles back to exerciseId without changing the stored latexBody (see mcOptions.ts). With `sourceLabel`, the body is wrapped in source markers so compile errors name it (sourceMap.ts). */
+/** The compact correction legend of `Loesung.sty` (issue #192), printed at the start of an MC task. */
+export const MC_CORRECTION_HINT = "\\McKorrekturHinweis\n";
+
+/** Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}, adding whichever is missing. With `exerciseId`, an inert `\OmrExercise{<id>}` call (see Loesung.sty) is injected before the body so OMR template capture can map bubbles back to exerciseId without changing the stored latexBody (see mcOptions.ts). With `sourceLabel`, the body is wrapped in source markers so compile errors name it (sourceMap.ts). `correctionHint` prints the MC correction legend after the title (issue #192); skipped when the body opens its own `Aufgabe`. */
 export function formatExerciseLatex(
   latexBody: string | undefined | null,
   title: string,
   exerciseId?: string,
-  sourceLabel?: string
+  sourceLabel?: string,
+  correctionHint = false
 ): string {
   const raw = latexBody || "";
-  const omr = exerciseId ? `\\OmrExercise{${exerciseId}}\n` : "";
+  const hint = correctionHint && !raw.includes(String.raw`\begin{Aufgabe}`) ? MC_CORRECTION_HINT : "";
+  const lead = hint + (exerciseId ? `\\OmrExercise{${exerciseId}}\n` : "");
   // The suffix follows the unmarked body, so the stripped document equals the unmarked one.
-  const plain = omr + raw;
-  const body = sourceLabel === undefined ? plain : omr + markSource(raw, sourceLabel);
+  const plain = lead + raw;
+  const body = sourceLabel === undefined ? plain : lead + markSource(raw, sourceLabel);
   let prefix = "";
   let suffix = "";
 
@@ -77,11 +82,12 @@ export interface McGroupMember {
   sourceLabel?: string;
 }
 
-/** Formats MC sub-exercise bodies into one \begin{Aufgabe} block with enumerate[label=\alph*)], or \arabic*) past 26 members (mirrors mcSubLabel in #lib/grading/mcGroupLabels). Each member gets `\OmrExercise{<id>}` (see formatExerciseLatex); grading/statistics still key on exerciseId, the group is layout-only. */
+/** Formats MC sub-exercise bodies into one \begin{Aufgabe} block with enumerate[label=\alph*)], or \arabic*) past 26 members (mirrors mcSubLabel in #lib/grading/mcGroupLabels). Each member gets `\OmrExercise{<id>}` (see formatExerciseLatex); grading/statistics still key on exerciseId, the group is layout-only. `correctionHint` adds the MC correction legend under the instruction (issue #192). */
 export function formatMcGroupLatex(
   members: McGroupMember[],
   groupTitle: string,
-  scoringText: string
+  scoringText: string,
+  correctionHint = false
 ): string {
   const items = members
     .map((m) => `\\item \\OmrExercise{${m.id}}\n${m.sourceLabel === undefined ? m.latexBody : markSource(m.latexBody, m.sourceLabel)}`)
@@ -90,6 +96,7 @@ export function formatMcGroupLatex(
     `\\begin{Aufgabe}{${escapeLatex(groupTitle)}}` +
     ` Kreuze jeweils die korrekten Lösungen an. Mehrere können, mind. eine ist jeweils richtig.` +
     ` Für falsch gesetzte Kreuze werden Punkte abgezogen (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n` +
+    (correctionHint ? MC_CORRECTION_HINT : "") +
     `\\begin{enumerate}[label=\\${usesAlphaLabels(members.length) ? "alph" : "arabic"}*)]\n` +
     `${items}\n` +
     `\\end{enumerate}\n\n` +

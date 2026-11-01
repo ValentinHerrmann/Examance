@@ -29,6 +29,8 @@
     editInfoText: string;
     /** Name line next to the QR box (issue #127). */
     editNameLine?: boolean;
+    /** MC correction legend at every MC task (issue #192). */
+    editMcCorrectionHint?: boolean;
     editRetentionUntil: string;
     editGradingKey: GradingKeyConfig;
     /** Exam whose logo choice is edited; the staged choice lands in `logoChange`. */
@@ -61,6 +63,7 @@
     editLehrernachname = $bindable(),
     editInfoText = $bindable(),
     editNameLine = $bindable(false),
+    editMcCorrectionHint = $bindable(false),
     editRetentionUntil = $bindable(),
     editGradingKey = $bindable(),
     examId = undefined,
@@ -172,6 +175,10 @@
 
   <Field hint={$t("exam.metadataEditor.nameLineHint")} class="mb-4">
     <Checkbox id="editNameLine" bind:checked={editNameLine} label={$t("exam.metadataEditor.nameLine")} />
+  </Field>
+
+  <Field hint={$t("exam.metadataEditor.mcCorrectionHintHint")} class="mb-4">
+    <Checkbox id="editMcCorrectionHint" bind:checked={editMcCorrectionHint} label={$t("exam.metadataEditor.mcCorrectionHint")} />
   </Field>
 
   {#if examId && isOpen}

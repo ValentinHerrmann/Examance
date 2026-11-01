@@ -72,6 +72,8 @@ def check_page_breaks(value: list[str] | None) -> list[str] | None:
 
 # Request bounds mirror the model columns (String(n), the question_type enum), so an oversized value is a 422 instead of a database error. Positions are small ints, far below int4.
 QuestionType = Literal["free_text", "mc", "sc", "tf"]
+# 1 = SHA-256 of the raw pseudonym, 2 = keyed per-exam HMAC (issue #177).
+PseudonymVersion = Literal[1, 2]
 _MAX_POSITION = 10_000
 
 
@@ -209,7 +211,10 @@ class ExamCreate(BaseModel):
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
     name_line: bool = False
+    mc_correction_hint: bool = False
     extra_notes: ExtraNotes | None = None
+    # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
+    pseudonym_version: PseudonymVersion = 1
     exercise_ids: list[uuid.UUID] = []
     exercise_links: list[ExerciseLinkCreate] = []
     exercises: list[ExerciseCreate] = []
@@ -225,6 +230,8 @@ class ExamDuplicate(BaseModel):
     """A duplicate gets its own retention window, like a new exam (issue #121)."""
 
     retention_until: date
+    # Like ExamCreate: older clients omit it.
+    pseudonym_version: PseudonymVersion = 1
 
     _check_retention = field_validator("retention_until")(validate_retention_until)
 
@@ -249,6 +256,7 @@ class ExamUpdate(BaseModel):
     # Absent keeps the stored breaks; null or [] clears them.
     page_breaks: list[str] | None = None
     name_line: bool | None = None
+    mc_correction_hint: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     exercise_ids: list[uuid.UUID] | None = None
@@ -282,7 +290,9 @@ class ExamResponse(BaseModel):
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
     name_line: bool = False
+    mc_correction_hint: bool = False
     extra_notes: ExtraNotes | None = None
+    pseudonym_version: int = 1
     exercises: list[ExerciseResponse] = []
     mc_groups: list[ExamMcGroupResponse] = []
 
@@ -297,3 +307,33 @@ class ExerciseUsageResponse(BaseModel):
     exam_count: int
     exams: list[ExamUsageItem] = []
 
+
+
+_HMAC_PATTERN = r"^[0-9a-f]{64}$"
+
+
+class PseudonymList(BaseModel):
+    """Every pseudonym value an exam holds, live and soft-deleted, for a client-side rekey (issue #177)."""
+
+    pseudonym_version: int
+    values: list[str]
+
+
+class PseudonymPair(BaseModel):
+    old: str = Field(min_length=64, max_length=64)
+    new: str = Field(pattern=_HMAC_PATTERN)
+
+
+class PseudonymRekey(BaseModel):
+    """Renames an exam's pseudonyms from one version to the next; `pairs` must cover every value the exam holds."""
+
+    from_version: PseudonymVersion
+    to_version: PseudonymVersion
+    pairs: list[PseudonymPair] = Field(max_length=100_000)
+
+
+class PseudonymRekeyResult(BaseModel):
+    #: False when the exam already was at `to_version` (a repeat, or another browser did it).
+    changed: bool
+    pseudonym_version: int
+    renamed: int

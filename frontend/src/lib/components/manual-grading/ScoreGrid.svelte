@@ -46,7 +46,7 @@
   let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
   // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
   let submissionMapSeq = 0;
-  let currentSub = $derived(currentStudent ? submissionMap.get(currentStudent.pseudonymId) : null);
+  let currentSub = $derived(currentStudent ? submissionMap.get(currentStudent.pseudonymHmac) : null);
 
   // Editable buffer (row index -> input string), bound by the inputs.
   let rawInputs: Record<number, string> = $state({});
@@ -75,7 +75,7 @@
     const exId = activeExerciseId;
     const texts = exId
       ? students.map((st) => {
-          const sub = submissionMap.get(st.pseudonymId);
+          const sub = submissionMap.get(st.pseudonymHmac);
           return sub ? scoreText(scoresMap.get(sub.id)?.[exId]) : "";
         })
       : [];
@@ -106,7 +106,7 @@
     orientation === "exercises"
       ? students
           .map((st) => {
-            const sub = submissionMap.get(st.pseudonymId);
+            const sub = submissionMap.get(st.pseudonymHmac);
             return sub ? scoresMap.get(sub.id)?.[activeExerciseId] : null;
           })
           .filter((v): v is number => v !== null && v !== undefined)
@@ -145,7 +145,7 @@
   async function saveCell(index: number) {
     const ex = activeExercise;
     const st = students[index];
-    const sub = st ? submissionMap.get(st.pseudonymId) : undefined;
+    const sub = st ? submissionMap.get(st.pseudonymHmac) : undefined;
     if (!ex || !sub) return;
     const val = parseScore(rawInputs[index]);
     if (val !== null && (val < 0 || val > ex.maxPoints)) return; // stays marked invalid
@@ -306,7 +306,7 @@
                 {currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}
               {/if}
             </h3>
-            <p class="m-0 text-sm text-muted">{$t("grading.manual.studentFirst.studentInfo", { number: currentStudent.studentNumber || "-", code: currentStudent.fallbackCode || currentStudent.pseudonymId.slice(0, 8) })}</p>
+            <p class="m-0 text-sm text-muted">{$t("grading.manual.studentFirst.studentInfo", { number: currentStudent.studentNumber || "-", code: currentStudent.fallbackCode || currentStudent.pseudonymHmac.slice(0, 8) })}</p>
           </div>
 
           <div class="flex flex-col items-end gap-0.5">
@@ -387,8 +387,8 @@
             </tr>
           </thead>
           <tbody>
-            {#each students as st, i (st.pseudonymId)}
-              {@const sub = submissionMap.get(st.pseudonymId)}
+            {#each students as st, i (st.pseudonymHmac)}
+              {@const sub = submissionMap.get(st.pseudonymHmac)}
               <tr>
                 <td>{i + 1}</td>
                 <td>

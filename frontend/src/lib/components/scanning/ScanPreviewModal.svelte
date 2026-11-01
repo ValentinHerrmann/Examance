@@ -7,7 +7,7 @@
 
   interface ScannedSubmissionItem {
     id: string;
-    pseudonymHash: string;
+    pseudonymHmac: string;
     fallbackCode: string;
     studentName?: string;
     studentNumber?: string;

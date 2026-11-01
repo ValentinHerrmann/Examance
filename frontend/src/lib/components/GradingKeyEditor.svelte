@@ -82,6 +82,7 @@
           <span class="text-xs text-muted">{$t("exam.gradingKeyEditor.from")}</span>
           <input
             type="number"
+            aria-label={$t("exam.gradingKeyEditor.cutoffLabel", { grade: cutoff.grade })}
             min="0"
             max="100"
             step="0.01"

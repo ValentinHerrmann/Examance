@@ -17,6 +17,8 @@ class SubmissionCreate(BaseModel):
     total_score: float | None = None
     #: Omitting the annotation ciphertext keeps the stored layer; this deletes it.
     clear_annotations: bool = False
+    #: How `pseudonym_hmac` was derived (issue #177); omitted by older clients, which mean 1.
+    pseudonym_version: int = Field(default=1, ge=1, le=2)
 
 
 class SubmissionScoreUpdate(BaseModel):
@@ -28,6 +30,8 @@ class SubmissionResponse(BaseModel):
     id: uuid.UUID
     exam_id: uuid.UUID
     pseudonym_hmac: str
+    #: The exam's pseudonym version: how `pseudonym_hmac` was derived (issue #177).
+    pseudonym_version: int = 1
     total_score: float | None
     scan_ciphertext_b64: str | None = None
     scan_iv_b64: str | None = None
