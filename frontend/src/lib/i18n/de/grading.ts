@@ -99,6 +99,10 @@ export const grading = {
         stampTarget: 'Stempelziel',
         resetTitle: 'Als unkorrigiert zurücksetzen',
         manualEdit: 'Manuell bearbeitet',
+        partRowLabel: 'Teilaufgabe {label})',
+        sumOfParts: 'Ergibt sich aus den Teilaufgaben, sobald alle bewertet sind',
+        restRowLabel: 'Ohne Teilaufgabe',
+        restOverMax: 'Mehr als die Punkte außerhalb der Teilaufgaben ({max}): Stempel ohne Teilaufgabe?',
     },
     zoom: {
         pagePrevTitle: 'Zur vorherigen Seite springen',

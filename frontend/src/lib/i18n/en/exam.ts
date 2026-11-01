@@ -14,7 +14,7 @@ export const exam: Translations['exam'] = {
         },
         omr: {
             checkingExercises: 'Checking MC exercises…',
-            noExercisesError: 'OMR preparation failed: no MC exercises found in this exam.',
+            noExercisesError: 'Scan template failed: this exam has no exercises.',
             invalidExercisesError: 'OMR preparation failed: MC exercise(s) {names} do not contain \\multi or \\Lmulti option bubbles in their LaTeX body. Please check and edit the exercise options.',
             compilingBlank: 'Compiling blank exam…',
             loginRequired: 'Please log in to compile LaTeX on the server.',
@@ -22,7 +22,7 @@ export const exam: Translations['exam'] = {
             extractingBubbles: 'Extracting bubble positions…',
             noBubblesError: 'OMR preparation failed: the compiled exam has no MC bubble markers at all. The LaTeX MC/OMR macros likely failed to render — check that the exam actually contains MC exercises and that sty/Loesung.sty is up to date.',
             shortFiducialsError: 'OMR preparation failed: page(s) {pages} have fewer than 4 corner fiducial markers (needed for scan alignment). The LaTeX fiducial macros likely failed to render on those pages — re-check sty/Schulaufgabe.sty and re-run Prepare OMR.',
-            templateSaved: 'OMR template saved ({pageCount} page(s), {bubbleCount} bubble(s), 4 fiducials/page).',
+            templateSaved: 'Scan template saved ({pageCount} page(s), {bubbleCount} bubble(s), {boxCount} score box(es), 4 fiducials/page).',
             failedGeneric: 'Failed to prepare OMR template.',
             refreshing: 'Refreshing OMR…',
             refreshNow: 'Refresh OMR now',

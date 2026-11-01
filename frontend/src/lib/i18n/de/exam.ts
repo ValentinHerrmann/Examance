@@ -12,7 +12,7 @@ export const exam = {
         },
         omr: {
             checkingExercises: 'MC-Aufgaben werden geprüft…',
-            noExercisesError: 'OMR-Vorbereitung fehlgeschlagen: Diese Prüfung enthält keine MC-Aufgaben.',
+            noExercisesError: 'Scan-Vorlage fehlgeschlagen: Diese Prüfung enthält keine Aufgaben.',
             invalidExercisesError: 'OMR-Vorbereitung fehlgeschlagen: MC-Aufgabe(n) {names} enthalten keine \\multi- oder \\Lmulti-Antwortblasen im LaTeX-Code. Bitte die Aufgabenoptionen prüfen und bearbeiten.',
             compilingBlank: 'Leere Prüfung wird kompiliert…',
             loginRequired: 'Bitte melden Sie sich an, um LaTeX auf dem Server zu kompilieren.',
@@ -20,7 +20,7 @@ export const exam = {
             extractingBubbles: 'Positionen der Antwortblasen werden extrahiert…',
             noBubblesError: 'OMR-Vorbereitung fehlgeschlagen: Die kompilierte Prüfung enthält überhaupt keine MC-Antwortblasen-Markierungen. Die LaTeX-MC/OMR-Makros wurden vermutlich nicht korrekt gerendert — bitte prüfen, ob die Prüfung tatsächlich MC-Aufgaben enthält und sty/Loesung.sty aktuell ist.',
             shortFiducialsError: 'OMR-Vorbereitung fehlgeschlagen: Seite(n) {pages} haben weniger als 4 Eck-Passmarken (für die Scan-Ausrichtung erforderlich). Die LaTeX-Passmarken-Makros wurden auf diesen Seiten vermutlich nicht korrekt gerendert — bitte sty/Schulaufgabe.sty prüfen und OMR-Vorbereitung erneut ausführen.',
-            templateSaved: 'OMR-Vorlage gespeichert ({pageCount} Seite(n), {bubbleCount} Antwortblase(n), 4 Passmarken pro Seite).',
+            templateSaved: 'Scan-Vorlage gespeichert ({pageCount} Seite(n), {bubbleCount} Antwortblase(n), {boxCount} Punktekästen, 4 Passmarken pro Seite).',
             failedGeneric: 'OMR-Vorlage konnte nicht vorbereitet werden.',
             refreshing: 'OMR wird aktualisiert…',
             refreshNow: 'OMR jetzt aktualisieren',

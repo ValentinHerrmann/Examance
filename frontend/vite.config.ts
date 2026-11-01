@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -18,6 +18,32 @@ function argon2BundlePlugin(): Plugin {
         let transformed = code.replace('}(this,', '}(globalThis,');
         transformed += '\nexport default (typeof globalThis !== "undefined" ? globalThis.argon2 : undefined);\n';
         return { code: transformed, map: null };
+      }
+    },
+  };
+}
+
+/** Serves `pdfjs-dist/wasm/` (JBIG2, OpenJPEG and ICC decoders plus their JS fallbacks) at the fixed, unhashed, same-origin path `/pdfjs/wasm/` that `lib/pdf/pdfjs.ts` passes to pdf.js as `wasmUrl`: pdf.js fetches them by file name, so `?url` imports (hashed) cannot work. */
+function pdfjsWasmPlugin(): Plugin {
+  const dir = fileURLToPath(new URL('./node_modules/pdfjs-dist/wasm/', import.meta.url));
+  const prefix = '/pdfjs/wasm/';
+  // quickjs-eval runs JavaScript embedded in PDFs (scripting, off in the app): never shipped.
+  const files = () => readdirSync(dir).filter((f) => /^(jbig2|openjpeg|qcms)[\w.-]*\.(wasm|js)$/.test(f));
+  return {
+    name: 'pdfjs-wasm-assets',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const name = req.url?.startsWith(prefix) ? decodeURIComponent(req.url.slice(prefix.length).split('?')[0]) : '';
+        if (!name || !files().includes(name)) return next();
+        res.setHeader('Content-Type', name.endsWith('.wasm') ? 'application/wasm' : 'text/javascript');
+        res.end(readFileSync(dir + name));
+      });
+    },
+    generateBundle() {
+      // Client build only: the SSR build output is never served.
+      if (this.environment?.name !== 'client') return;
+      for (const name of files()) {
+        this.emitFile({ type: 'asset', fileName: `pdfjs/wasm/${name}`, source: readFileSync(dir + name) });
       }
     },
   };
@@ -100,6 +126,7 @@ export default defineConfig({
     tailwindcss(),
     wasm(),
     argon2BundlePlugin(),
+    pdfjsWasmPlugin(),
     // SvelteKit 3 reads its config here (svelte.config.js is gone). `version.name` stays at its default so "new deployment" detection works; the CSP hash comes from the build output.
     sveltekit({
       adapter: adapter({ pages: 'build', assets: 'build', fallback: 'index.html', precompress: false, strict: true }),

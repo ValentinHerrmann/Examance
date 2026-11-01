@@ -13,6 +13,7 @@ Response headers come from `frontend/static/_headers`, which is a **template**. 
 - **Never hard-code a `sha256-` literal there.** SvelteKit's inline bootstrap embeds the content-hashed entry chunk filenames, so its hash changes with any bundle change (including a dependency or Node version difference between your machine and the Pages build image). A pinned hash takes the deployed app down with "Executing inline script violates the following Content Security Policy directive". `tests/cspHeaders.test.ts` guards this.
 - The no-flash theme script in `app.html` is hashed like any other inline script.
 - The policy is `script-src 'self'` with no CDN allowances. Third-party assets (e.g. the pdf.js worker, see `src/lib/pdf/pdfjs.ts`) must be bundled and served from our own origin: required by the CSP and by the "no third-party transfer" claims in `docs/`.
+- **pdf.js decoders** (`jbig2`, `openjpeg`, `qcms` from `pdfjs-dist/wasm/`) are copied by `pdfjsWasmPlugin` (`vite.config.ts`) to the fixed, unhashed path `/pdfjs/wasm/`, which `loadPdfjs()` passes as `wasmUrl`: pdf.js fetches them by file name. Without them pdf.js 6 silently skips JBIG2 and JPX images, so scanner PDFs with a compressed ink layer render nearly blank and their QR codes are never read. `quickjs-eval` (PDF JavaScript) is deliberately not shipped.
 
 ## Diagnosing a CSP console error on a deployed stack
 

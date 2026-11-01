@@ -203,7 +203,7 @@ const EXERCISE: RecordCodec<ExerciseRecord> = {
 const SCORE: RecordCodec<ExerciseScoreRecord> = {
   kind: 'score',
   plain: ['id', 'submissionId', 'exerciseId'],
-  sealed: ['score', 'selectedOptions', 'omrMeta'],
+  sealed: ['score', 'selectedOptions', 'omrMeta', 'partScores'],
   // Binds a result to its submission and question (issue #85): a moved row cannot pass as another pupil's. Lower-cased: the server returns canonical UUIDs, so a differently cased local id must still match.
   aad: (r) => aadFor('score', r.submissionId, r.exerciseId),
 };

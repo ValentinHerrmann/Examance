@@ -189,6 +189,23 @@ escapeinside={(*@}{@*)}
   \special{pdf:ann width \w\space height \h\space depth 0pt << /Subtype /Link /A << /S /URI /URI (#3) >> >>}%
 }
 
+% Borderless link with an explicit depth, for the score boxes; \OmrLink stays byte-identical for bubbles and fiducials.
+\newcommand{\OmrLinkBox}[4]{%
+  \edef\OmrLinkW{\the\dimexpr#1\relax}%
+  \edef\OmrLinkH{\the\dimexpr#2\relax}%
+  \edef\OmrLinkD{\the\dimexpr#3\relax}%
+  \special{pdf:ann width \OmrLinkW\space height \OmrLinkH\space depth \OmrLinkD\space << /Subtype /Link /Border [0 0 0] /A << /S /URI /URI (#4) >> >>}%
+}
+% Score box blank (issue #187): the link covers #1, whose width is unchanged, so line and page breaks never move.
+\newsavebox{\OmrSlotBox}
+\newcommand{\OmrScoreSlot}[2]{%
+  \sbox\OmrSlotBox{#1}%
+  \OmrLinkBox{\wd\OmrSlotBox}{\ht\strutbox}{\dp\strutbox}{#2}%
+  \usebox\OmrSlotBox
+}
+% A score table cell of the full column width; #1 is the box key after omr://__box__/.
+\newcommand{\OmrScoreCell}[1]{\makebox[\linewidth][l]{\OmrLinkBox{\linewidth}{\ht\strutbox}{\dp\strutbox}{omr://__box__/#1}}}
+
 \newlength{\OmrBoxSize}
 \setlength{\OmrBoxSize}{4.5mm}
 \newlength{\OmrRedoZoneWidth}

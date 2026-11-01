@@ -13,6 +13,7 @@ import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { renderGradedPdf } from './gradedPdf';
+import { loadScoreBoxContext } from '#lib/grading/scoreBoxes';
 import { addLatexProjectFiles } from './latexAssets';
 import type { ExportProgress, ExportResult } from './progress';
 import { renderSummaryPdf } from './summaryPdf';
@@ -198,6 +199,7 @@ async function addGradedScans(
   const rowBySubmission = new Map<string, GradeRow>(rows.flatMap((r) => (r.submissionId ? [[r.submissionId, r]] : [])));
   const scoresBySubmission = new Map<string, typeof scoreRecords>();
   for (const sc of scoreRecords) scoresBySubmission.set(sc.submissionId, [...(scoresBySubmission.get(sc.submissionId) ?? []), sc]);
+  const scoreBoxes = submissions.length > 0 ? await loadScoreBoxContext(submissions[0].examId, key) : null;
 
   for (const [i, sub] of submissions.entries()) {
     progress(translate('export.exam.steps.graded'), i, submissions.length);
@@ -208,7 +210,7 @@ async function addGradedScans(
       continue;
     }
     try {
-      const pdf = await renderGradedPdf(sub, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey }); // NOSONAR: one scan at a time keeps memory bounded
+      const pdf = await renderGradedPdf(sub, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes }); // NOSONAR: one scan at a time keeps memory bounded
       zip.add(`graded/${slug(name)}${GRADED_SUFFIX[gradingState(resultBySubmission.get(sub.id))]}.pdf`, pdf);
     } catch (err) {
       warnings.push(translate('export.exam.warnings.gradedOne', { name, error: errorText(err) }));

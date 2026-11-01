@@ -9,6 +9,7 @@ import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { sessionStore } from '#lib/stores/session';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
+import { hasPartValues, type PartScores } from '#lib/grading/partScores';
 
 /** Live MC state of the grade page; other views carry the stored row's values forward. */
 export interface McCarry {
@@ -16,17 +17,65 @@ export interface McCarry {
   omrMeta?: OmrScoreMeta;
 }
 
-/** Saves `values` (exercise id -> score; `null` clears, a missing id stays as it is) and the submission's total, which is set only when every exercise of `exerciseIds` has a score. Never deletes a row carrying OMR data or one that failed to decrypt: both only look ungraded (frontend `CLAUDE.md`). Returns the effective score per exercise. */
+type SaveOpts = {
+  mc?: Readonly<Record<string, McCarry | undefined>>;
+  existing?: ReadonlyMap<string, ExerciseScoreRecord>;
+  clearAnnotations?: boolean;
+  /** Live part scores of the grade page. Other views keep the stored parts while the total is unchanged and drop them when it was overridden. */
+  parts?: Readonly<Record<string, PartScores | undefined>>;
+};
+
+/** What a save does with one exercise: write `row`, delete the stored row, or keep it; `effective` is the score it ends up with. */
+type RowPlan = { row?: ExerciseScoreRecord; clear?: boolean; effective: number | null };
+
+/** Stored parts belong to the stored total: a total changed elsewhere (score grid, paste import) drops them. */
+function storedParts(row: ExerciseScoreRecord | undefined, score: number | undefined): PartScores | undefined {
+  return row?.score === score ? row?.partScores : undefined;
+}
+
+function planRow(
+  submissionId: string,
+  exerciseId: string,
+  row: ExerciseScoreRecord | undefined,
+  value: number | null | undefined,
+  opts: SaveOpts,
+): RowPlan {
+  const score = typeof value === 'number' && !Number.isNaN(value) ? value : undefined;
+  const parts = opts.parts ? opts.parts[exerciseId] : storedParts(row, score);
+  const keptParts = hasPartValues(parts) ? parts : undefined;
+  // A partly graded exercise is stored with its parts but without a score.
+  if (score !== undefined || (opts.parts && keptParts)) {
+    const mc = opts.mc?.[exerciseId];
+    return {
+      row: {
+        id: crypto.randomUUID(),
+        submissionId,
+        exerciseId,
+        score,
+        selectedOptions: mc?.selectedOptions ?? row?.selectedOptions,
+        omrMeta: mc?.omrMeta ?? row?.omrMeta,
+        partScores: keptParts,
+      },
+      effective: score ?? null,
+    };
+  }
+  if (row?.omrMeta || row?.decryptFailed || keptParts) return { effective: row?.score ?? null };
+  return { clear: true, effective: null };
+}
+
+/** The total of a fully graded submission; undefined while any exercise lacks a score. */
+function totalOf(scores: (number | null)[]): number | undefined {
+  if (scores.length === 0 || !scores.every((s) => typeof s === 'number')) return undefined;
+  return Math.round(scores.reduce((sum: number, s) => sum + (s ?? 0), 0) * 100) / 100;
+}
+
+/** Saves `values` (exercise id -> score; `null` clears, a missing id stays as it is) and the submission's total, which is set only when every exercise of `exerciseIds` has a score. Never deletes a row carrying OMR data, part scores of a partly graded exercise, or one that failed to decrypt: they only look ungraded (frontend `CLAUDE.md`). Returns the effective score per exercise. */
 export async function saveSubmissionScores(
   examId: string,
   submission: SubmissionRecord,
   exerciseIds: readonly string[],
   values: ReadonlyMap<string, number | null>,
-  opts: {
-    mc?: Readonly<Record<string, McCarry | undefined>>;
-    existing?: ReadonlyMap<string, ExerciseScoreRecord>;
-    clearAnnotations?: boolean;
-  } = {},
+  opts: SaveOpts = {},
 ): Promise<Map<string, number | null>> {
   const key = get(sessionStore).sessionKey;
   const existing =
@@ -38,38 +87,18 @@ export async function saveSubmissionScores(
   const effective = new Map<string, number | null>();
   for (const exerciseId of exerciseIds) {
     const row = existing.get(exerciseId);
-    if (!values.has(exerciseId)) {
-      effective.set(exerciseId, row?.score ?? null);
-      continue;
-    }
-    const value = values.get(exerciseId);
-    if (typeof value === 'number' && !Number.isNaN(value)) {
-      const mc = opts.mc?.[exerciseId];
-      toSave.push({
-        id: crypto.randomUUID(),
-        submissionId: submission.id,
-        exerciseId,
-        score: value,
-        selectedOptions: mc?.selectedOptions ?? row?.selectedOptions,
-        omrMeta: mc?.omrMeta ?? row?.omrMeta,
-      });
-      effective.set(exerciseId, value);
-    } else if (row?.omrMeta || row?.decryptFailed) {
-      effective.set(exerciseId, row.score ?? null);
-    } else {
-      toClear.push(exerciseId);
-      effective.set(exerciseId, null);
-    }
+    const plan: RowPlan = values.has(exerciseId)
+      ? planRow(submission.id, exerciseId, row, values.get(exerciseId), opts)
+      : { effective: row?.score ?? null };
+    if (plan.row) toSave.push(plan.row);
+    if (plan.clear) toClear.push(exerciseId);
+    effective.set(exerciseId, plan.effective);
   }
 
   await scoreRepository.saveMany(examId, submission.id, toSave, key);
   await Promise.all(toClear.map((exerciseId) => scoreRepository.deleteOne(examId, submission.id, exerciseId)));
 
-  const scores = [...effective.values()];
-  const fullyGraded = exerciseIds.length > 0 && scores.every((s) => typeof s === 'number');
-  submission.totalScore = fullyGraded
-    ? Math.round(scores.reduce((sum: number, s) => sum + (s ?? 0), 0) * 100) / 100
-    : undefined;
+  submission.totalScore = totalOf([...effective.values()]);
   await submissionRepository.save(submission, key, { clearAnnotations: opts.clearAnnotations });
   // The upsert above only ever sets a total; clearing one needs its own request.
   if (!resultsAreLocal() && submission.totalScore === undefined) {

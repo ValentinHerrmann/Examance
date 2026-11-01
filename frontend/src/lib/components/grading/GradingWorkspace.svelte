@@ -15,6 +15,7 @@
   import { faChevronDown, faChevronUp, faFlagCheckered, faTrashCan } from "@fortawesome/free-solid-svg-icons";
   import { Button, HeroDialog } from "#lib/components/ui";
   import { examHref } from "#lib/utils/links";
+  import type { ScoreBoxContext } from "#lib/grading/scoreBoxes";
 
   interface Props {
     examId: string;
@@ -36,6 +37,7 @@
     onNext: () => void;
     onStayOnLastSub: () => void;
     onExerciseSaved?: () => void;
+    scoreBoxes?: ScoreBoxContext | null;
   }
 
   let {
@@ -57,7 +59,8 @@
     onPrev,
     onNext,
     onStayOnLastSub,
-    onExerciseSaved
+    onExerciseSaved,
+    scoreBoxes = null
   }: Props = $props();
 
   let viewerRef: ReturnType<typeof ScanCanvasViewer> | undefined = $state();
@@ -99,6 +102,7 @@
       submission={currentSub}
       {exercises}
       {onSubmissionHydrated}
+      {scoreBoxes}
     />
 
     <ZoomPageControls
