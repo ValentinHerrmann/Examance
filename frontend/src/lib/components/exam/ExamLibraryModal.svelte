@@ -25,13 +25,18 @@
     libraryExercises?: ExerciseRecord[];
     // MC Group staging props
     mcStagingIds?: string[];
+    /** Draft group title and scoring, owned by the caller. */
+    mcDraftTitle?: string;
+    mcDraftScoring?: string;
+    /** The footer's apply also commits an MC group (#175). */
+    mcGroupPending?: boolean;
     /** The group being edited (prefills title/scoring), or null for a new group. */
     editingMcGroup?: McGroupDraft | null;
     /** exerciseId → title of the group it already belongs to (excluding the one being edited). */
     mcGroupMembership?: Record<string, string>;
     onToggleMcStaging?: (id: string) => void;
     onReorderMcStaging?: (index: number, direction: "up" | "down") => void;
-    onFinalizeMcGroup?: (title: string, scoringText: string) => void;
+    onFinalizeMcGroup?: () => void;
     onToggleSelection: (id: string) => void;
     onSetGroupVariant: (groupId: string, vKey: string) => void;
     onQuickEdit?: ((ex: ExerciseRecord) => void) | undefined;
@@ -55,6 +60,9 @@
     activeVariantPerGroup,
     libraryExercises = [],
     mcStagingIds = [],
+    mcDraftTitle = $bindable(""),
+    mcDraftScoring = $bindable(""),
+    mcGroupPending = false,
     editingMcGroup = null,
     mcGroupMembership = {},
     onToggleMcStaging = () => {},
@@ -152,6 +160,8 @@
           <McGroupStagingPanel
             stagedExercises={mcStagingExercises}
             editingGroup={editingMcGroup}
+            bind:title={mcDraftTitle}
+            bind:scoringText={mcDraftScoring}
             onRemove={onToggleMcStaging}
             onReorder={onReorderMcStaging}
             onFinalize={onFinalizeMcGroup}
@@ -167,7 +177,9 @@
       <Button variant="outlined" icon={faPlus} class="mr-auto" onClick={onNewExercise}>{$t("exam.libraryModal.newExercise")}</Button>
     {/if}
     <Button variant="outlined" severity="secondary" onClick={onRequestClose}>{$t("common.cancel")}</Button>
-    <Button onClick={onApply}>{$t("exam.libraryModal.applyButton")}</Button>
+    <Button onClick={onApply}>
+      {mcGroupPending ? $t("exam.libraryModal.applyWithGroupButton") : $t("exam.libraryModal.applyButton")}
+    </Button>
   {/snippet}
 </Modal>
 

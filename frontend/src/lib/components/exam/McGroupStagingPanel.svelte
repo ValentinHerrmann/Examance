@@ -17,9 +17,13 @@
     editingGroup?: McGroupDraft | null;
     onRemove: (exerciseId: string) => void;
     onReorder: (index: number, direction: "up" | "down") => void;
-    onFinalize: (title: string, scoringText: string) => void;
+    /** Commits the caller's draft (staged questions, `title`, `scoringText`) as a group. */
+    onFinalize: () => void;
     /** Opens a staged exercise name in place (editor modal). */
     onOpenExercise?: ((ex: ExerciseRecord) => void) | undefined;
+    /** Draft title and scoring; the caller owns, prefills and resets them. */
+    title: string;
+    scoringText: string;
   }
 
   let {
@@ -28,21 +32,13 @@
     onRemove,
     onReorder,
     onFinalize,
-    onOpenExercise = undefined
+    onOpenExercise = undefined,
+    title = $bindable(),
+    scoringText = $bindable()
   }: Props = $props();
 
-  // Default group title and scoring sentence are exam CONTENT printed verbatim in the German exam PDF (see i18n brief "Do NOT translate") — not UI strings.
-  const DEFAULT_TITLE = "Grundlagen";
-  const DEFAULT_SCORING_TEXT =
-    "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
-
-  let title = $state(DEFAULT_TITLE);
-  let scoringText = $state(DEFAULT_SCORING_TEXT);
   /** Confirmation after a group was added/updated, so it is clear another one can follow. */
   let notice = $state("");
-
-  // Prefill from the group being edited; reset when switching back to "new".
-  let loadedGroupId: string | null = null;
 
   let count = $derived(stagedExercises.length);
 
@@ -50,21 +46,8 @@
     notice = editingGroup
       ? $t("exam.mcStagingPanel.updatedNotice", { title })
       : $t("exam.mcStagingPanel.addedNotice", { title });
-    onFinalize(title, scoringText);
-    title = DEFAULT_TITLE;
+    onFinalize();
   }
-
-  $effect.pre(() => {
-    const group = editingGroup;
-    const groupId = group?.id ?? null;
-    untrack(() => {
-      if (groupId !== loadedGroupId) {
-        loadedGroupId = groupId;
-        title = group?.title ?? DEFAULT_TITLE;
-        scoringText = group?.scoringText ?? DEFAULT_SCORING_TEXT;
-      }
-    });
-  });
 
   $effect.pre(() => {
     if (stagedExercises.length > 0) untrack(() => (notice = ""));
@@ -84,6 +67,9 @@
 
   {#if count === 0}
     <p class="m-0 text-xs text-muted">{$t("exam.mcStagingPanel.emptyHint")}</p>
+    {#if editingGroup}
+      <Alert severity="warning">{$t("exam.mcStagingPanel.emptyEditHint")}</Alert>
+    {/if}
   {:else}
     <ul class="m-0 flex list-none flex-col gap-1.5 p-0">
       {#each stagedExercises as ex, i (ex.id)}

@@ -7,6 +7,11 @@ export interface McGroupDraft {
   memberIds: string[];
 }
 
+// Default group title and scoring sentence are exam CONTENT printed verbatim in the German exam PDF (see i18n brief "Do NOT translate"), not UI strings.
+export const DEFAULT_MC_GROUP_TITLE = "Grundlagen";
+export const DEFAULT_MC_GROUP_SCORING_TEXT =
+  "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
+
 /** A group needs at least this many questions. There is no upper limit. */
 export const MC_GROUP_MIN_MEMBERS = 1;
 
@@ -58,4 +63,26 @@ export function applyGroup<G extends McGroupDraft>(
     return groups.map((g) => (g.id === draft.editingId ? { ...g, ...fields } : g));
   }
   return [...groups, { id: newId(), ...fields }];
+}
+
+/** Commits the draft: a new group, the edited group updated, or the edited group removed once all its questions were unstaged; `null` when there is nothing to commit. */
+export function commitStagedGroup<G extends McGroupDraft>(
+  groups: readonly G[],
+  draft: { editingId: string | null; staged: readonly string[]; title: string; scoringText: string },
+  newId?: () => string,
+): { groups: (G | McGroupDraft)[]; memberIds: string[]; previousMemberIds: Set<string> } | null {
+  const edited = draft.editingId ? groups.find((g) => g.id === draft.editingId) : undefined;
+  const previousMemberIds = new Set(edited?.memberIds ?? []);
+  if (!canFinalizeGroup(draft.staged)) {
+    if (!edited) return null;
+    return { groups: groups.filter((g) => g !== edited), memberIds: [], previousMemberIds };
+  }
+  const memberIds = [...draft.staged];
+  const next = applyGroup(groups, { editingId: edited?.id ?? null, title: draft.title, scoringText: draft.scoringText, memberIds }, newId);
+  return { groups: next, memberIds, previousMemberIds };
+}
+
+/** True when two ordered id lists differ (length, membership or order). */
+export function idsChanged(a: readonly string[], b: readonly string[]): boolean {
+  return a.length !== b.length || a.some((id, i) => id !== b[i]);
 }
