@@ -1248,6 +1248,19 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         return noContent();
       }
     }
+    // The reports and maintenance tabs: nothing reported, no window open.
+    if (resource === 'layout-reports' && method === 'GET' && !id) return ok({ items: [], total: 0, open_count: 0 });
+    if (resource === 'maintenance' && method === 'GET' && !id) {
+      return ok({
+        status: { phase: 'none', kind: null, downtime_class: null, revision: null, first_warning_at: null, second_warning_at: null, starts_at: null, server_time: new Date().toISOString() },
+        backup_wanted: false,
+        backup_state: null,
+        backup_file: null,
+        backup_finished_at: null,
+        offsite_state: null,
+        counts: { online: 1, warned: 0, ready: 0 },
+      });
+    }
     return undefined;
   }
 
