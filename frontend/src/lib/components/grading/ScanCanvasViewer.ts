@@ -111,7 +111,7 @@ export function newStroke(
     points: [point],
     color: '#ef4444',
     exerciseId: target?.id,
-    partLabel: target && target.id === state.activeExerciseId ? state.activePartLabel || undefined : undefined,
+    partLabel: target?.id === state.activeExerciseId ? state.activePartLabel || undefined : undefined,
     pageNumber: page,
   };
 }

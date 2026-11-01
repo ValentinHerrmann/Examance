@@ -7,7 +7,7 @@ export type Homography = [number, number, number, number, number, number, number
 
 export function grayHistogram(gray: Uint8ClampedArray): number[] {
   const hist = new Array<number>(256).fill(0);
-  for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+  for (const g of gray) hist[g]++;
   return hist;
 }
 
@@ -39,31 +39,35 @@ export function computeOtsuThreshold(hist: number[], total: number): number {
   return threshold;
 }
 
+/** Row at or below `col` with the largest magnitude in column `col`. */
+function pivotRow(augmented: number[][], col: number): number {
+  let pivot = col;
+  for (let r = col + 1; r < augmented.length; r++) {
+    if (Math.abs(augmented[r][col]) > Math.abs(augmented[pivot][col])) pivot = r;
+  }
+  return pivot;
+}
+
+/** Clears column `col` in every row but the pivot row. */
+function eliminateColumn(augmented: number[][], col: number) {
+  const n = augmented.length;
+  for (let r = 0; r < n; r++) {
+    if (r === col) continue;
+    const factor = augmented[r][col] / augmented[col][col];
+    for (let c = col; c <= n; c++) augmented[r][c] -= factor * augmented[col][c];
+  }
+}
+
 /** Gaussian elimination with partial pivoting. Returns null if the system is singular. */
 function solveLinearSystem(matrix: number[][], rhs: number[]): number[] | null {
   const n = rhs.length;
   const augmented = matrix.map((row, i) => [...row, rhs[i]]);
-
   for (let col = 0; col < n; col++) {
-    let pivotRow = col;
-    let maxVal = Math.abs(augmented[col][col]);
-    for (let r = col + 1; r < n; r++) {
-      if (Math.abs(augmented[r][col]) > maxVal) {
-        maxVal = Math.abs(augmented[r][col]);
-        pivotRow = r;
-      }
-    }
-    if (maxVal < 1e-10) return null;
-
-    [augmented[col], augmented[pivotRow]] = [augmented[pivotRow], augmented[col]];
-
-    for (let r = 0; r < n; r++) {
-      if (r === col) continue;
-      const factor = augmented[r][col] / augmented[col][col];
-      for (let c = col; c <= n; c++) augmented[r][c] -= factor * augmented[col][c];
-    }
+    const pivot = pivotRow(augmented, col);
+    if (Math.abs(augmented[pivot][col]) < 1e-10) return null;
+    [augmented[col], augmented[pivot]] = [augmented[pivot], augmented[col]];
+    eliminateColumn(augmented, col);
   }
-
   return augmented.map((row, i) => row[n] / row[i]);
 }
 
@@ -111,90 +115,90 @@ export function pdfPointToExpectedPixel(
   return [px * scanScale, (pageHeightPt - py) * scanScale];
 }
 
-/** Finds the connected dark blob in [qx0,qx1) x [qy0,qy1) that best matches a fiducial, scored by proximity to the template-expected position rather than area: a logo or student QR in the same quadrant is often the largest blob but is filtered out by the area/aspect checks. */
-function findBestFiducialBlob(
-  dark: Uint8Array,
-  visited: Uint8Array,
-  width: number,
-  qx0: number,
-  qy0: number,
-  qx1: number,
-  qy1: number,
-  expectedAreaPx: number,
-  expectedX: number,
-  expectedY: number,
-  maxDistPx: number,
-  p: OmrDetectionParams
-): { x: number; y: number } | null {
-  const minArea = Math.max(9, expectedAreaPx * p.fiducialAreaMinRatio);
-  const maxArea = expectedAreaPx * p.fiducialAreaMaxRatio;
+/** Where to look for one fiducial and what it should look like. */
+interface FiducialSearch {
+  dark: Uint8Array;
+  visited: Uint8Array;
+  width: number;
+  /** Search window [x0, y0, x1, y1). */
+  box: [number, number, number, number];
+  expectedAreaPx: number;
+  expectedX: number;
+  expectedY: number;
+  maxDistPx: number;
+  params: OmrDetectionParams;
+}
 
-  let best: { x: number; y: number; dist: number } | null = null;
-  const stack: number[] = [];
+interface Blob {
+  area: number;
+  sumX: number;
+  sumY: number;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
 
-  for (let y = qy0; y < qy1; y++) {
-    for (let x = qx0; x < qx1; x++) {
-      const idx = y * width + x;
-      if (visited[idx] || !dark[idx]) continue;
-
-      let area = 0;
-      let sumX = 0;
-      let sumY = 0;
-      let minBx = x;
-      let maxBx = x;
-      let minBy = y;
-      let maxBy = y;
-      stack.push(idx);
-      visited[idx] = 1;
-
-      while (stack.length > 0) {
-        const cur = stack.pop() as number;
-        const cy = Math.floor(cur / width);
-        const cx = cur - cy * width;
-        area++;
-        sumX += cx;
-        sumY += cy;
-        if (cx < minBx) minBx = cx;
-        if (cx > maxBx) maxBx = cx;
-        if (cy < minBy) minBy = cy;
-        if (cy > maxBy) maxBy = cy;
-
-        const neighbors: [number, number][] = [
-          [cx - 1, cy],
-          [cx + 1, cy],
-          [cx, cy - 1],
-          [cx, cy + 1],
-        ];
-        for (const [nx, ny] of neighbors) {
-          if (nx < qx0 || nx >= qx1 || ny < qy0 || ny >= qy1) continue;
-          const nidx = ny * width + nx;
-          if (!visited[nidx] && dark[nidx]) {
-            visited[nidx] = 1;
-            stack.push(nidx);
-          }
-        }
-      }
-
-      if (area < minArea || area > maxArea) continue;
-
-      const bw = maxBx - minBx + 1;
-      const bh = maxBy - minBy + 1;
-      const aspect = Math.max(bw, bh) / Math.max(1, Math.min(bw, bh));
-      if (aspect > p.fiducialMaxAspectRatio) continue;
-
-      const cx = sumX / area;
-      const cy = sumY / area;
-      const dist = Math.hypot(cx - expectedX, cy - expectedY);
-      if (dist > maxDistPx) continue;
-
-      if (!best || dist < best.dist) {
-        best = { x: cx, y: cy, dist };
+/** Flood-fills the 4-connected dark blob containing `start` inside the window, marking it visited. */
+function floodFillBlob(s: FiducialSearch, start: number): Blob {
+  const { dark, visited, width } = s;
+  const [qx0, qy0, qx1, qy1] = s.box;
+  const sx = start % width;
+  const sy = Math.floor(start / width);
+  const blob: Blob = { area: 0, sumX: 0, sumY: 0, minX: sx, maxX: sx, minY: sy, maxY: sy };
+  const stack = [start];
+  visited[start] = 1;
+  while (stack.length > 0) {
+    const cur = stack.pop() as number;
+    const cy = Math.floor(cur / width);
+    const cx = cur - cy * width;
+    blob.area++;
+    blob.sumX += cx;
+    blob.sumY += cy;
+    blob.minX = Math.min(blob.minX, cx);
+    blob.maxX = Math.max(blob.maxX, cx);
+    blob.minY = Math.min(blob.minY, cy);
+    blob.maxY = Math.max(blob.maxY, cy);
+    for (const [nx, ny] of [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]]) {
+      if (nx < qx0 || nx >= qx1 || ny < qy0 || ny >= qy1) continue;
+      const nidx = ny * width + nx;
+      if (!visited[nidx] && dark[nidx]) {
+        visited[nidx] = 1;
+        stack.push(nidx);
       }
     }
   }
+  return blob;
+}
 
-  if (!best) return null;
-  return { x: best.x, y: best.y };
+/** The blob's centroid and its distance from the expected position, or null when its area, aspect or distance rule it out. */
+function fiducialCandidate(s: FiducialSearch, b: Blob): { x: number; y: number; dist: number } | null {
+  const p = s.params;
+  const minArea = Math.max(9, s.expectedAreaPx * p.fiducialAreaMinRatio);
+  const maxArea = s.expectedAreaPx * p.fiducialAreaMaxRatio;
+  if (b.area < minArea || b.area > maxArea) return null;
+  const bw = b.maxX - b.minX + 1;
+  const bh = b.maxY - b.minY + 1;
+  if (Math.max(bw, bh) / Math.max(1, Math.min(bw, bh)) > p.fiducialMaxAspectRatio) return null;
+  const x = b.sumX / b.area;
+  const y = b.sumY / b.area;
+  const dist = Math.hypot(x - s.expectedX, y - s.expectedY);
+  return dist > s.maxDistPx ? null : { x, y, dist };
+}
+
+/** Finds the connected dark blob in the search window that best matches a fiducial, scored by proximity to the template-expected position rather than area: a logo or student QR in the same quadrant is often the largest blob but is filtered out by the area/aspect checks. */
+function findBestFiducialBlob(s: FiducialSearch): { x: number; y: number } | null {
+  const [qx0, qy0, qx1, qy1] = s.box;
+  let best: { x: number; y: number; dist: number } | null = null;
+  for (let y = qy0; y < qy1; y++) {
+    for (let x = qx0; x < qx1; x++) {
+      const idx = y * s.width + x;
+      if (s.visited[idx] || !s.dark[idx]) continue;
+      const candidate = fiducialCandidate(s, floodFillBlob(s, idx));
+      if (candidate && (!best || candidate.dist < best.dist)) best = candidate;
+    }
+  }
+  return best ? { x: best.x, y: best.y } : null;
 }
 
 /** Quadrant bounds [x0,y0,x1,y1) to search for a given corner, per the 0=BL,1=BR,2=TR,3=TL convention. */
@@ -252,6 +256,45 @@ export interface PageRegistration {
   H: Homography | null;
 }
 
+/** Searches one corner's fiducial in its quadrant, then in a tight window around the expected spot (e.g. when it merged with nearby content). Returns its expected and detected pixel position. */
+function locateFiducial(
+  corner: 0 | 1 | 2 | 3,
+  template: OmrFiducialRect,
+  scan: { dark: Uint8Array; visited: Uint8Array; width: number; height: number },
+  pageHeightPt: number,
+  scanScale: number,
+  params: OmrDetectionParams
+): { expected: [number, number]; detected: [number, number] } | null {
+  const { dark, visited, width, height } = scan;
+  const [rx0, ry0, rx1, ry1] = template.rect;
+  const [expectedX, expectedY] = pdfPointToExpectedPixel((rx0 + rx1) / 2, (ry0 + ry1) / 2, scanScale, pageHeightPt);
+  const sizePt = (rx1 - rx0 + (ry1 - ry0)) / 2;
+  const expectedAreaPx = Math.pow(sizePt * scanScale, 2);
+  const search: FiducialSearch = {
+    dark,
+    visited,
+    width,
+    box: quadrantForCorner(corner, width, height, params.quadrantFraction),
+    expectedAreaPx,
+    expectedX,
+    expectedY,
+    maxDistPx: params.fiducialMaxDistFraction * Math.min(width, height),
+    params,
+  };
+  let detected = findBestFiducialBlob(search);
+  if (!detected) {
+    const half = Math.ceil(Math.sqrt(expectedAreaPx) * 1.5);
+    const box: [number, number, number, number] = [
+      Math.max(0, Math.floor(expectedX - half)),
+      Math.max(0, Math.floor(expectedY - half)),
+      Math.min(width, Math.ceil(expectedX + half)),
+      Math.min(height, Math.ceil(expectedY + half)),
+    ];
+    detected = findBestFiducialBlob({ ...search, box, visited: new Uint8Array(width * height) });
+  }
+  return detected ? { expected: [expectedX, expectedY], detected: [detected.x, detected.y] } : null;
+}
+
 /** Binarizes the scan and maps the template onto it through the corner fiducials. */
 export function registerPage(
   imageData: ImageData,
@@ -283,65 +326,10 @@ export function registerPage(
   for (const corner of [0, 1, 2, 3] as const) {
     const template = fiducialsByCorner.get(corner);
     if (!template) continue;
-
-    const [rx0, ry0, rx1, ry1] = template.rect;
-    const centerPtX = (rx0 + rx1) / 2;
-    const centerPtY = (ry0 + ry1) / 2;
-    const [expectedX, expectedY] = pdfPointToExpectedPixel(
-      centerPtX,
-      centerPtY,
-      scanScale,
-      pageTemplate.pageHeightPt
-    );
-
-    const sizePt = (rx1 - rx0 + (ry1 - ry0)) / 2;
-    const expectedAreaPx = Math.pow(sizePt * scanScale, 2);
-    const maxDistPx = params.fiducialMaxDistFraction * Math.min(width, height);
-
-    const [qx0, qy0, qx1, qy1] = quadrantForCorner(corner, width, height, params.quadrantFraction);
-    let detected = findBestFiducialBlob(
-      dark,
-      visited,
-      width,
-      qx0,
-      qy0,
-      qx1,
-      qy1,
-      expectedAreaPx,
-      expectedX,
-      expectedY,
-      maxDistPx,
-      params
-    );
-
-    // Tight-window retry if quadrant search failed (e.g. fiducial merged with nearby content)
-    if (!detected) {
-      const half = Math.ceil(Math.sqrt(expectedAreaPx) * 1.5);
-      const tx0 = Math.max(0, Math.floor(expectedX - half));
-      const ty0 = Math.max(0, Math.floor(expectedY - half));
-      const tx1 = Math.min(width, Math.ceil(expectedX + half));
-      const ty1 = Math.min(height, Math.ceil(expectedY + half));
-      const retryVisited = new Uint8Array(width * height);
-      detected = findBestFiducialBlob(
-        dark,
-        retryVisited,
-        width,
-        tx0,
-        ty0,
-        tx1,
-        ty1,
-        expectedAreaPx,
-        expectedX,
-        expectedY,
-        maxDistPx,
-        params
-      );
-    }
-
-    if (!detected) continue;
-
-    srcPts.push([expectedX, expectedY]);
-    dstPts.push([detected.x, detected.y]);
+    const found = locateFiducial(corner, template, { dark, visited, width, height }, pageTemplate.pageHeightPt, scanScale, params);
+    if (!found) continue;
+    srcPts.push(found.expected);
+    dstPts.push(found.detected);
     fiducialsFound++;
     fiducialCorners.push(corner);
   }

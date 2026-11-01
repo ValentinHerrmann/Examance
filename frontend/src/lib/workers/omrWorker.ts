@@ -117,265 +117,290 @@ function handleRegister(req: OmrRegisterRequest) {
 
 // Every threshold below comes from `OmrDetectionParams` (lib/grading/omrSettings.ts), whose defaults are the constants this file used to hardcode.
 
+/** The binarized scan of one page and its mapping to the template. */
+interface PageScan {
+  gray: Uint8ClampedArray;
+  dark: Uint8Array;
+  width: number;
+  height: number;
+  threshold: number;
+  blackRef: number;
+  H: Homography;
+  scanScale: number;
+  pageHeightPt: number;
+  params: OmrDetectionParams;
+}
+
+interface AlignmentQuality {
+  uncertain: boolean;
+  residualFraction?: number;
+  ratioDiff?: number;
+  angleDeg?: number;
+}
+
+/** With 4 fiducials: how far the 4th lands from where the affine fit of the other 3 puts it. */
+function affineResidual(srcPts: [number, number][], dstPts: [number, number][], width: number, params: OmrDetectionParams): AlignmentQuality {
+  const affine = buildAffine3(srcPts.slice(0, 3), dstPts.slice(0, 3));
+  if (!affine) return { uncertain: true };
+  const [mX, mY] = transformPoint(affine, srcPts[3][0], srcPts[3][1]);
+  const residual = Math.hypot(mX - dstPts[3][0], mY - dstPts[3][1]);
+  return {
+    uncertain: residual > params.alignResidualFraction * width,
+    residualFraction: width > 0 ? residual / width : undefined,
+  };
+}
+
+/** Maps the template page's corners through H: a correct registration keeps the page's aspect ratio and right angles. */
+function pageShape(H: Homography, pageTemplate: OmrPageTemplate, scanScale: number, width: number, height: number, params: OmrDetectionParams): AlignmentQuality {
+  const expW = pageTemplate.pageWidthPt * scanScale;
+  const expH = pageTemplate.pageHeightPt * scanScale;
+  const cTL = transformPoint(H, 0, 0);
+  const cTR = transformPoint(H, expW, 0);
+  const cBR = transformPoint(H, expW, expH);
+  const cBL = transformPoint(H, 0, expH);
+
+  const vTop: [number, number] = [cTR[0] - cTL[0], cTR[1] - cTL[1]];
+  const vBottom: [number, number] = [cBR[0] - cBL[0], cBR[1] - cBL[1]];
+  const vLeft: [number, number] = [cBL[0] - cTL[0], cBL[1] - cTL[1]];
+  const vRight: [number, number] = [cBR[0] - cTR[0], cBR[1] - cTR[1]];
+
+  const topLen = Math.hypot(vTop[0], vTop[1]);
+  const leftLen = Math.hypot(vLeft[0], vLeft[1]);
+  const mappedW = (topLen + Math.hypot(vBottom[0], vBottom[1])) / 2;
+  const mappedH = (leftLen + Math.hypot(vRight[0], vRight[1])) / 2;
+  if (mappedW <= 0 || mappedH <= 0 || width <= 0 || height <= 0) return { uncertain: true };
+
+  // Compare against the page itself, not the scan image — a scanner bed larger than the sheet changes the image's ratio, not the page's.
+  const pageRatio = expW / expH;
+  const ratioDiff = Math.abs(mappedW / mappedH - pageRatio) / pageRatio;
+  if (topLen <= 0 || leftLen <= 0) return { uncertain: true, ratioDiff };
+  const dot = vTop[0] * vLeft[0] + vTop[1] * vLeft[1];
+  const cosAngle = Math.max(-1, Math.min(1, dot / (topLen * leftLen)));
+  const angleDeg = (Math.acos(cosAngle) * 180) / Math.PI;
+  return {
+    uncertain: ratioDiff > params.alignRatioTolerance || Math.abs(angleDeg - 90) > params.alignAngleToleranceDeg,
+    ratioDiff,
+    angleDeg,
+  };
+}
+
+/** Registration diagnostics: 3 fiducials (affine fallback) are always uncertain; with 4, the residual and the mapped page shape decide. */
+function alignmentQuality(
+  reg: { H: Homography | null; fiducialsFound: number; srcPts: [number, number][]; dstPts: [number, number][] },
+  pageTemplate: OmrPageTemplate,
+  scanScale: number,
+  width: number,
+  height: number,
+  params: OmrDetectionParams
+): AlignmentQuality {
+  if (!reg.H) return { uncertain: false };
+  if (reg.fiducialsFound === 3) return { uncertain: true };
+  if (reg.fiducialsFound < 4) return { uncertain: false };
+  const residual = affineResidual(reg.srcPts, reg.dstPts, width, params);
+  const shape = pageShape(reg.H, pageTemplate, scanScale, width, height, params);
+  return { ...residual, ...shape, uncertain: residual.uncertain || shape.uncertain };
+}
+
+/** Pass 1: measure every box both ways — v4 (local threshold, border snapping, strokes) and v2 (global Otsu, template rect). Spill needs every sibling's ring before classifying. */
+function measureBubbles(scan: PageScan, bubbleRects: OmrPageTemplate['bubbles']) {
+  const { gray, dark, width, height, threshold, blackRef, H, scanScale, pageHeightPt, params } = scan;
+  return bubbleRects.map((b) => {
+    const bbox = bubbleBBoxInImage(H, b.rect, scanScale, pageHeightPt);
+    const redoBbox = b.redoRect
+      ? bubbleBBoxInImage(H, effectiveRedoRect(b.rect, b.redoRect), scanScale, pageHeightPt)
+      : undefined;
+    const cells = cellFills(dark, width, height, bbox, params.sampleInsetFraction);
+    const maxCell = Math.max(...cells);
+    return {
+      b,
+      bbox,
+      m: measureBox(gray, width, height, bbox, redoBbox, blackRef, params),
+      v2: {
+        fill: sampleFillRatio(dark, width, height, bbox, params.sampleInsetFraction),
+        redoRatio: redoBbox ? sampleFillRatio(dark, width, height, redoBbox, params.sampleInsetFraction) : undefined,
+        minCellFill: Math.min(...cells),
+        cellEvenness: maxCell > 0 ? Math.min(...cells) / maxCell : 0,
+        ringFill: ringFill(dark, width, height, bbox, params.ringFraction, redoBbox),
+        inkContrast: inkContrast(gray, dark, width, height, bbox, params.sampleInsetFraction, threshold, blackRef),
+      },
+    };
+  });
+}
+
+type MeasuredBubble = ReturnType<typeof measureBubbles>[number];
+
+const spill = (own: number, rings: number[]) => (rings.length > 0 ? { spillExcess: own - median(rings) } : {});
+const classifiedExtras = (c: OmrBubbleClassification) => ({
+  ...(c.reasons.length > 0 ? { reasons: c.reasons } : {}),
+  ...(c.provisional !== undefined ? { provisional: c.provisional } : {}),
+});
+
+/** Pass 2: classify one box with both algorithms (against its siblings' rings) and report it where its printed border really is. */
+function classifyBubble(measured: MeasuredBubble[], i: number, scan: PageScan): OmrBubbleReading {
+  const { b, bbox: rawBbox, m, v2 } = measured[i];
+  const { width, height, params } = scan;
+  const others = measured.filter((_, j) => j !== i);
+  const shape: OmrShapeFeatures = {
+    ...m.features,
+    ...spill(m.features.ringFill, others.map((o) => o.m.features.ringFill)),
+  };
+  const dec4 = classifyV4({ fill: m.fill, redoRatio: m.redoRatio, features: shape }, params);
+  const dec2 = classifyV2(
+    {
+      fill: v2.fill,
+      redoRatio: v2.redoRatio,
+      features: {
+        minCellFill: v2.minCellFill,
+        cellEvenness: v2.cellEvenness,
+        ringFill: v2.ringFill,
+        ...spill(v2.ringFill, others.map((o) => o.v2.ringFill)),
+        inkContrast: v2.inkContrast,
+      },
+    },
+    params
+  );
+  const [chosen, other, otherAlgorithm]: [OmrBubbleClassification, OmrBubbleClassification, number] =
+    params.algorithm === 4 ? [dec4, dec2, 2] : [dec2, dec4, 4];
+
+  // The snapped box, not the raw template position — the viewer's overlay and any crop then sit on the real box.
+  const w = rawBbox.maxX - rawBbox.minX;
+  const h = rawBbox.maxY - rawBbox.minY;
+  const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+  const rect: [number, number, number, number] = [
+    clamp01((rawBbox.minX + shape.snapDx * w) / width),
+    clamp01((rawBbox.minY + shape.snapDy * h) / height),
+    clamp01((rawBbox.maxX + shape.snapDx * w) / width),
+    clamp01((rawBbox.maxY + shape.snapDy * h) / height),
+  ];
+  // Raw readings are the v4 measurements (features for calibration/training), whichever algorithm decided.
+  return {
+    optionIndex: b.optionIndex,
+    fillRatio: m.fill,
+    redoRatio: m.redoRatio,
+    state: chosen.state,
+    shape,
+    ...classifiedExtras(chosen),
+    alt: { algorithm: otherAlgorithm, state: other.state, ...classifiedExtras(other) },
+    rect,
+  };
+}
+
+/** One exercise's result from its box readings. */
+function exerciseResult(
+  exerciseId: string,
+  pageIndex: number,
+  bubbleReadings: OmrBubbleReading[],
+  answerKey: OmrExerciseAnswerKey | undefined,
+  alignmentUncertain: boolean
+): OmrExerciseResult {
+  // An ambiguous box counts by its provisional (closer) reading until a teacher verifies it.
+  const selectedOptions = bubbleReadings
+    .filter((r) => r.state === 'marked' || r.state === 'redone' || (r.state === 'ambiguous' && r.provisional !== false))
+    .map((r) => r.optionIndex);
+  // A shape reason flags the box even when it was resolved (e.g. solid → undone): the detector changed or doubted the fill-ratio reading, so a human confirms it.
+  const flaggedOptions = bubbleReadings
+    .filter((r) => r.state === 'ambiguous' || (r.reasons?.length ?? 0) > 0)
+    .map((r) => r.optionIndex);
+
+  const questionType = answerKey?.questionType ?? 'mc';
+  const isSingleAnswerMultiMark = (questionType === 'sc' || questionType === 'tf') && selectedOptions.length > 1;
+  const rawConfidence: 'high' | 'ambiguous' = flaggedOptions.length > 0 || isSingleAnswerMultiMark ? 'ambiguous' : 'high';
+  const confidence = alignmentUncertain ? 'ambiguous' : rawConfidence;
+
+  const score = answerKey
+    ? computeMcScore(answerKey.questionType, selectedOptions, answerKey.correctAnswers, answerKey.penalty, answerKey.maxPoints)
+    : 0;
+
+  return {
+    exerciseId,
+    pageIndex,
+    selectedOptions,
+    score,
+    confidence,
+    flaggedOptions,
+    bubbles: bubbleReadings,
+    ...(alignmentUncertain ? { alignmentUncertain: true } : {}),
+  };
+}
+
+/** Without alignment nothing can be read: every box blank, the exercise `failed`. */
+function failedResult(exerciseId: string, pageIndex: number, bubbleRects: OmrPageTemplate['bubbles']): OmrExerciseResult {
+  return {
+    exerciseId,
+    pageIndex,
+    selectedOptions: [],
+    score: 0,
+    confidence: 'failed',
+    flaggedOptions: [],
+    bubbles: bubbleRects.map((b) => ({ optionIndex: b.optionIndex, fillRatio: 0, state: 'blank' as const, rect: [0, 0, 0, 0] })),
+  };
+}
+
+function processPage(req: OmrWorkerRequest): OmrWorkerResponse {
+  const { imageData, pageTemplate, scanScale, answerKeys } = req;
+  const params = normalizeOmrParams(req.params);
+  const { width, height } = imageData;
+  const reg = registerPage(imageData, pageTemplate, scanScale, params);
+  const quality = alignmentQuality(reg, pageTemplate, scanScale, width, height, params);
+  const scan: PageScan | null = reg.H
+    ? {
+        gray: reg.gray,
+        dark: reg.dark,
+        width,
+        height,
+        threshold: reg.threshold,
+        blackRef: blackReference(reg.hist, reg.gray.length),
+        H: reg.H,
+        scanScale,
+        pageHeightPt: pageTemplate.pageHeightPt,
+        params,
+      }
+    : null;
+
+  const byExercise = new Map<string, OmrPageTemplate['bubbles']>();
+  for (const bubble of pageTemplate.bubbles) {
+    const list = byExercise.get(bubble.exerciseId) ?? [];
+    list.push(bubble);
+    byExercise.set(bubble.exerciseId, list);
+  }
+  const answerKeyById = new Map(answerKeys.map((k) => [k.exerciseId, k]));
+  const results: OmrExerciseResult[] = [];
+  for (const [exerciseId, bubbleRects] of byExercise) {
+    bubbleRects.sort((a, b) => a.optionIndex - b.optionIndex);
+    if (!scan) {
+      results.push(failedResult(exerciseId, pageTemplate.pageIndex, bubbleRects));
+      continue;
+    }
+    const measured = measureBubbles(scan, bubbleRects);
+    const readings = measured.map((_, i) => classifyBubble(measured, i, scan));
+    results.push(exerciseResult(exerciseId, pageTemplate.pageIndex, readings, answerKeyById.get(exerciseId), quality.uncertain));
+  }
+
+  return {
+    type: 'OMR_RESULT',
+    results,
+    alignmentFailed: reg.H === null,
+    alignmentUncertain: quality.uncertain,
+    fiducialsFound: reg.fiducialsFound,
+    fiducialCorners: reg.fiducialCorners,
+    pageStats: {
+      otsuThreshold: reg.threshold,
+      fiducialsFound: reg.fiducialsFound,
+      fiducialCorners: reg.fiducialCorners,
+      ...(quality.residualFraction !== undefined ? { residualFraction: quality.residualFraction } : {}),
+      ...(quality.ratioDiff !== undefined ? { ratioDiff: quality.ratioDiff } : {}),
+      ...(quality.angleDeg !== undefined ? { angleDeg: quality.angleDeg } : {}),
+    },
+  };
+}
+
 self.onmessage = (event: MessageEvent<OmrWorkerRequest | OmrRegisterRequest>) => {
   if (event.data.type === 'REGISTER_PAGE') {
     handleRegister(event.data);
     return;
   }
-  const { imageData, pageTemplate, scanScale, answerKeys } = event.data;
-  const params = normalizeOmrParams(event.data.params);
   try {
-    const { width, height } = imageData;
-    const { gray, hist, threshold, dark, srcPts, dstPts, fiducialsFound, fiducialCorners, H } = registerPage(
-      imageData,
-      pageTemplate,
-      scanScale,
-      params
-    );
-    const blackRef = blackReference(hist, gray.length);
-    const alignmentFailed = H === null;
-
-    let alignmentUncertain = false;
-    let residualFraction: number | undefined;
-    let ratioDiffStat: number | undefined;
-    let angleDegStat: number | undefined;
-    if (!alignmentFailed && H) {
-      if (fiducialsFound === 3) {
-        alignmentUncertain = true;
-      } else if (fiducialsFound >= 4) {
-        const affine = buildAffine3(srcPts.slice(0, 3), dstPts.slice(0, 3));
-        if (!affine) {
-          alignmentUncertain = true;
-        } else {
-          const [mX, mY] = transformPoint(affine, srcPts[3][0], srcPts[3][1]);
-          const residual = Math.hypot(mX - dstPts[3][0], mY - dstPts[3][1]);
-          residualFraction = width > 0 ? residual / width : undefined;
-          if (residual > params.alignResidualFraction * width) {
-            alignmentUncertain = true;
-          }
-        }
-
-        // Map template page's corners through H
-        const expW = pageTemplate.pageWidthPt * scanScale;
-        const expH = pageTemplate.pageHeightPt * scanScale;
-        const cTL = transformPoint(H, 0, 0);
-        const cTR = transformPoint(H, expW, 0);
-        const cBR = transformPoint(H, expW, expH);
-        const cBL = transformPoint(H, 0, expH);
-
-        const vTop: [number, number] = [cTR[0] - cTL[0], cTR[1] - cTL[1]];
-        const vBottom: [number, number] = [cBR[0] - cBL[0], cBR[1] - cBL[1]];
-        const vLeft: [number, number] = [cBL[0] - cTL[0], cBL[1] - cTL[1]];
-        const vRight: [number, number] = [cBR[0] - cTR[0], cBR[1] - cTR[1]];
-
-        const topLen = Math.hypot(vTop[0], vTop[1]);
-        const bottomLen = Math.hypot(vBottom[0], vBottom[1]);
-        const leftLen = Math.hypot(vLeft[0], vLeft[1]);
-        const rightLen = Math.hypot(vRight[0], vRight[1]);
-
-        const mappedW = (topLen + bottomLen) / 2;
-        const mappedH = (leftLen + rightLen) / 2;
-
-        if (mappedW <= 0 || mappedH <= 0 || width <= 0 || height <= 0) {
-          alignmentUncertain = true;
-        } else {
-          // A correct registration maps the page onto the scan without distorting its aspect ratio. Compare against the page itself, not the scan image — a scanner bed larger than the sheet changes the image's ratio, not the page's.
-          const mappedRatio = mappedW / mappedH;
-          const pageRatio = expW / expH;
-          const ratioDiff = Math.abs(mappedRatio - pageRatio) / pageRatio;
-          ratioDiffStat = ratioDiff;
-          if (ratioDiff > params.alignRatioTolerance) {
-            alignmentUncertain = true;
-          }
-
-          if (topLen > 0 && leftLen > 0) {
-            const dot = vTop[0] * vLeft[0] + vTop[1] * vLeft[1];
-            const cosAngle = Math.max(-1, Math.min(1, dot / (topLen * leftLen)));
-            const angleDeg = (Math.acos(cosAngle) * 180) / Math.PI;
-            angleDegStat = angleDeg;
-            if (Math.abs(angleDeg - 90) > params.alignAngleToleranceDeg) {
-              alignmentUncertain = true;
-            }
-          } else {
-            alignmentUncertain = true;
-          }
-        }
-      }
-    }
-
-    const byExercise = new Map<string, OmrPageTemplate['bubbles']>();
-    for (const bubble of pageTemplate.bubbles) {
-      const list = byExercise.get(bubble.exerciseId) ?? [];
-      list.push(bubble);
-      byExercise.set(bubble.exerciseId, list);
-    }
-
-    const answerKeyById = new Map(answerKeys.map((k) => [k.exerciseId, k]));
-    const results: OmrExerciseResult[] = [];
-
-    for (const [exerciseId, bubbleRects] of byExercise) {
-      const answerKey = answerKeyById.get(exerciseId);
-      bubbleRects.sort((a, b) => a.optionIndex - b.optionIndex);
-
-      if (alignmentFailed || !H) {
-        results.push({
-          exerciseId,
-          pageIndex: pageTemplate.pageIndex,
-          selectedOptions: [],
-          score: 0,
-          confidence: 'failed',
-          flaggedOptions: [],
-          bubbles: bubbleRects.map((b) => ({
-            optionIndex: b.optionIndex,
-            fillRatio: 0,
-            state: 'blank' as const,
-            rect: [0, 0, 0, 0],
-          })),
-        });
-        continue;
-      }
-
-      // Pass 1: measure every box both ways — v4 (local threshold, border snapping, strokes) and v2 (global Otsu, template rect). Spill needs every sibling's ring before classifying.
-      const measured = bubbleRects.map((b) => {
-        const bbox = bubbleBBoxInImage(H, b.rect, scanScale, pageTemplate.pageHeightPt);
-        const redoBbox = b.redoRect
-          ? bubbleBBoxInImage(H, effectiveRedoRect(b.rect, b.redoRect), scanScale, pageTemplate.pageHeightPt)
-          : undefined;
-        const cells = cellFills(dark, width, height, bbox, params.sampleInsetFraction);
-        const maxCell = Math.max(...cells);
-        return {
-          b,
-          bbox,
-          m: measureBox(gray, width, height, bbox, redoBbox, blackRef, params),
-          v2: {
-            fill: sampleFillRatio(dark, width, height, bbox, params.sampleInsetFraction),
-            redoRatio: redoBbox ? sampleFillRatio(dark, width, height, redoBbox, params.sampleInsetFraction) : undefined,
-            minCellFill: Math.min(...cells),
-            cellEvenness: maxCell > 0 ? Math.min(...cells) / maxCell : 0,
-            ringFill: ringFill(dark, width, height, bbox, params.ringFraction, redoBbox),
-            inkContrast: inkContrast(gray, dark, width, height, bbox, params.sampleInsetFraction, threshold, blackRef),
-          },
-        };
-      });
-
-      const bubbleReadings: OmrBubbleReading[] = measured.map(({ b, bbox: rawBbox, m, v2 }, i) => {
-        const others = measured.filter((_, j) => j !== i);
-        const spill = (own: number, rings: number[]) => (rings.length > 0 ? { spillExcess: own - median(rings) } : {});
-        const shape: OmrShapeFeatures = {
-          ...m.features,
-          ...spill(m.features.ringFill, others.map((o) => o.m.features.ringFill)),
-        };
-        const dec4 = classifyV4({ fill: m.fill, redoRatio: m.redoRatio, features: shape }, params);
-        const dec2 = classifyV2(
-          {
-            fill: v2.fill,
-            redoRatio: v2.redoRatio,
-            features: {
-              minCellFill: v2.minCellFill,
-              cellEvenness: v2.cellEvenness,
-              ringFill: v2.ringFill,
-              ...spill(v2.ringFill, others.map((o) => o.v2.ringFill)),
-              inkContrast: v2.inkContrast,
-            },
-          },
-          params
-        );
-        const [chosen, other, otherAlgorithm]: [OmrBubbleClassification, OmrBubbleClassification, number] =
-          params.algorithm === 4 ? [dec4, dec2, 2] : [dec2, dec4, 4];
-        const { state, reasons, provisional } = chosen;
-        // Raw readings are the v4 measurements (features for calibration/training), whichever algorithm decided.
-        const ratio = m.fill;
-        const redoRatio = m.redoRatio;
-
-        // Report the box where the printed border actually is (snapped), not the raw template position — the viewer's overlay and any crop then sit on the real box.
-        const w = rawBbox.maxX - rawBbox.minX;
-        const h = rawBbox.maxY - rawBbox.minY;
-        const bbox = {
-          minX: rawBbox.minX + shape.snapDx * w,
-          maxX: rawBbox.maxX + shape.snapDx * w,
-          minY: rawBbox.minY + shape.snapDy * h,
-          maxY: rawBbox.maxY + shape.snapDy * h,
-        };
-        const rect: [number, number, number, number] = [
-          Math.min(1, Math.max(0, bbox.minX / width)),
-          Math.min(1, Math.max(0, bbox.minY / height)),
-          Math.min(1, Math.max(0, bbox.maxX / width)),
-          Math.min(1, Math.max(0, bbox.maxY / height)),
-        ];
-        return {
-          optionIndex: b.optionIndex,
-          fillRatio: ratio,
-          redoRatio,
-          state,
-          shape,
-          ...(reasons.length > 0 ? { reasons } : {}),
-          ...(provisional !== undefined ? { provisional } : {}),
-          alt: {
-            algorithm: otherAlgorithm,
-            state: other.state,
-            ...(other.reasons.length > 0 ? { reasons: other.reasons } : {}),
-            ...(other.provisional !== undefined ? { provisional: other.provisional } : {}),
-          },
-          rect,
-        };
-      });
-
-      // An ambiguous box counts by its provisional (closer) reading until a teacher verifies it.
-      const selectedOptions = bubbleReadings
-        .filter((r) => r.state === 'marked' || r.state === 'redone' || (r.state === 'ambiguous' && r.provisional !== false))
-        .map((r) => r.optionIndex);
-      // A shape reason flags the box even when it was resolved (e.g. solid → undone): the detector changed or doubted the fill-ratio reading, so a human confirms it.
-      const flaggedOptions = bubbleReadings
-        .filter((r) => r.state === 'ambiguous' || (r.reasons?.length ?? 0) > 0)
-        .map((r) => r.optionIndex);
-
-      const questionType = answerKey?.questionType ?? 'mc';
-      const isSingleAnswerMultiMark =
-        (questionType === 'sc' || questionType === 'tf') && selectedOptions.length > 1;
-
-      const rawConfidence: 'high' | 'ambiguous' | 'failed' =
-        flaggedOptions.length > 0 || isSingleAnswerMultiMark ? 'ambiguous' : 'high';
-      const confidence: 'high' | 'ambiguous' | 'failed' =
-        alignmentUncertain && rawConfidence === 'high' ? 'ambiguous' : rawConfidence;
-
-      const score = answerKey
-        ? computeMcScore(
-            answerKey.questionType,
-            selectedOptions,
-            answerKey.correctAnswers,
-            answerKey.penalty,
-            answerKey.maxPoints
-          )
-        : 0;
-
-      results.push({
-        exerciseId,
-        pageIndex: pageTemplate.pageIndex,
-        selectedOptions,
-        score,
-        confidence,
-        flaggedOptions,
-        bubbles: bubbleReadings,
-        ...(alignmentUncertain ? { alignmentUncertain: true } : {}),
-      });
-    }
-
-    self.postMessage({
-      type: 'OMR_RESULT',
-      results,
-      alignmentFailed,
-      alignmentUncertain,
-      fiducialsFound,
-      fiducialCorners,
-      pageStats: {
-        otsuThreshold: threshold,
-        fiducialsFound,
-        fiducialCorners,
-        ...(residualFraction !== undefined ? { residualFraction } : {}),
-        ...(ratioDiffStat !== undefined ? { ratioDiff: ratioDiffStat } : {}),
-        ...(angleDegStat !== undefined ? { angleDeg: angleDegStat } : {}),
-      },
-    });
+    self.postMessage(processPage(event.data));
   } catch (err: any) {
     self.postMessage({ type: 'ERROR', message: err.message || 'OMR processing failed' });
   }

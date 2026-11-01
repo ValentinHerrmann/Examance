@@ -13,6 +13,13 @@ export interface GradingSheet {
   manualOverride: Record<string, boolean>;
 }
 
+/** The stored score of an exercise not graded part by part. Legacy: 0 without annotations means ungraded, never for an OMR-read MC row (nulling it made the next save delete the row and its omrMeta, dropping it from verification). */
+function storedScore(ex: PartExercise, row: ExerciseScoreRecord | undefined, hasStrokes: boolean): number | null {
+  if (typeof row?.score !== 'number' || Number.isNaN(row.score)) return null;
+  const isOmrMc = isMcQuestion(ex) && !!row.omrMeta;
+  return row.score === 0 && !isOmrMc && !hasStrokes ? null : row.score;
+}
+
 /** Grade-page state for one submission, given its stored rows and annotation strokes. Rows of any other submission are dropped: a save writes this sheet under `submissionId`, so a foreign row would move its result (issue #85). */
 export function buildGradingSheet(
   submissionId: string,
@@ -36,12 +43,8 @@ export function buildGradingSheet(
       // Graded part by part: the score follows from the parts (null while one is missing).
       partInputs[ex.id] = parts;
       scoreInputs[ex.id] = partTotal(ex, parts);
-    } else if (existing && typeof existing.score === 'number' && !isNaN(existing.score)) {
-      // Legacy: score 0 without annotations means ungraded. Never for an OMR-read MC row: nulling it made the next save delete the row (and its omrMeta), dropping it from verification.
-      const isOmrMc = isMcQuestion(ex) && !!existing.omrMeta;
-      scoreInputs[ex.id] = existing.score === 0 && !isOmrMc && !exerciseIdsWithStrokes.has(ex.id) ? null : existing.score;
     } else {
-      scoreInputs[ex.id] = null;
+      scoreInputs[ex.id] = storedScore(ex, existing, exerciseIdsWithStrokes.has(ex.id));
     }
     if (isMcQuestion(ex) && existing) {
       mcState[ex.id] = { selectedOptions: existing.selectedOptions ?? [], omrMeta: existing.omrMeta };

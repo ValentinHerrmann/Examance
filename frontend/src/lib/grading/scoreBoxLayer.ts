@@ -50,7 +50,7 @@ export class ScoreBoxLayer {
   ) {
     const ctx = this.ctx;
     // Only a scan with the template's page count is the printed booklet page for page.
-    if (!ctx || this.pageCount !== ctx.pages.length || !ctx.pages[page - 1]?.scoreBoxes?.length) return;
+    if (ctx?.pages.length !== this.pageCount || !ctx.pages[page - 1]?.scoreBoxes?.length) return;
     const values = buildScoreBoxValues({ ...ctx, exercises, ...scores });
     if (values.size === 0) return;
     if (!this.aligned.has(page)) {

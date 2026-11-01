@@ -53,32 +53,37 @@ export interface ScoreBoxInput {
 const isNum = (v: unknown): v is number => typeof v === "number" && !Number.isNaN(v);
 const round = (v: number) => Math.round(v * 100) / 100;
 
+/** The exercise box, table cell and part boxes of one exam position. */
+function addPositionValues(values: Map<string, string>, position: number, ids: string[], input: ScoreBoxInput) {
+  const scores = ids.map((id) => input.scoreInputs[id]);
+  if (ids.length > 0 && scores.every(isNum)) {
+    const text = formatPoints(round(scores.reduce((s, v) => s + v, 0)));
+    values.set(scoreBoxKey({ box: "task", position }), text);
+    values.set(scoreBoxKey({ box: "cell", position }), text);
+  }
+  for (const id of ids) {
+    for (const [part, v] of Object.entries(input.partInputs[id] ?? {})) {
+      if (part !== REST_KEY && isNum(v)) values.set(scoreBoxKey({ box: "part", position, part }), formatPoints(v));
+    }
+  }
+}
+
+/** Σ and grade, once every exercise of the exam is graded. */
+function addTotalValues(values: Map<string, string>, { exercises, scoreInputs, gradingKey }: ScoreBoxInput) {
+  const all = exercises.map((ex) => scoreInputs[ex.id]);
+  if (exercises.length === 0 || !all.every(isNum)) return;
+  const total = round(all.reduce((s, v) => s + v, 0));
+  values.set("sum", formatPoints(total));
+  const max = exercises.reduce((s, ex) => s + (ex.maxPoints || 0), 0);
+  const grade = calculateGradeDetail(total, max, gradingKey)?.grade;
+  if (grade) values.set("grade", grade);
+}
+
 /** Text per score-box key (`scoreBoxKey`). A box stays empty until everything it sums is graded. */
 export function buildScoreBoxValues(input: ScoreBoxInput): Map<string, string> {
-  const { positions, exercises, scoreInputs, partInputs, gradingKey } = input;
   const values = new Map<string, string>();
-  for (const [pos, ids] of Object.entries(positions)) {
-    const position = Number(pos);
-    const scores = ids.map((id) => scoreInputs[id]);
-    if (ids.length > 0 && scores.every(isNum)) {
-      const text = formatPoints(round(scores.reduce((s, v) => s + v, 0)));
-      values.set(scoreBoxKey({ box: "task", position }), text);
-      values.set(scoreBoxKey({ box: "cell", position }), text);
-    }
-    for (const id of ids) {
-      for (const [part, v] of Object.entries(partInputs[id] ?? {})) {
-        if (part !== REST_KEY && isNum(v)) values.set(scoreBoxKey({ box: "part", position, part }), formatPoints(v));
-      }
-    }
-  }
-  const all = exercises.map((ex) => scoreInputs[ex.id]);
-  if (exercises.length > 0 && all.every(isNum)) {
-    const total = round(all.reduce((s, v) => s + v, 0));
-    values.set("sum", formatPoints(total));
-    const max = exercises.reduce((s, ex) => s + (ex.maxPoints || 0), 0);
-    const grade = calculateGradeDetail(total, max, gradingKey)?.grade;
-    if (grade) values.set("grade", grade);
-  }
+  for (const [pos, ids] of Object.entries(input.positions)) addPositionValues(values, Number(pos), ids, input);
+  addTotalValues(values, input);
   return values;
 }
 
