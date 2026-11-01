@@ -28,7 +28,7 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 
 `capture.mjs exam-new` (and `tour-exam-new`) creates a real exam "Leistungsnachweis Informatik 10c", because the new-exam flow saves before picking exercises; delete it afterwards. Run `capture.mjs` with one name per group: a failing step aborts the rest. Without Tectonic on the host, set `bg_latex_compilation` to `local` in the Playwright profiles so exams compile in the browser.
 
-The grading seed finds each booklet by its printed fallback code (the plan records it): the grade page shows only the exam-keyed pseudonym. `mkscans.py` places the handwriting under each prompt as found in the compiled exam and reads the MC boxes from every page, so the exercise order of the exam does not matter. The stamp positions in `seed-results.mjs` (showcase) and `capture.mjs` (`tour-grading`) are screen coordinates for the current layout; check them after a layout change.
+The grading seed finds each booklet by its printed fallback code (the plan records it; `openBooklet()` in `lib.mjs`): the grade page shows only the exam-keyed pseudonym. The annotated showcase is booklet F7A9BG, the poster's grading booklet RPCPDW. `mkscans.py` places the handwriting under each prompt as found in the compiled exam and reads the MC boxes from every page, so the exercise order of the exam does not matter. The stamp positions in `seed-results.mjs` (showcase) and `capture.mjs` (`tour-grading`) are screen coordinates for the current layout; check them after a layout change.
 
 The demo exercises put `\BE` inside their solutions (checkmark per scored part). The student sheet counts those only with the `\LSG` fix from PR #84; without it the score boxes read "/ 0".
 

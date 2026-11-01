@@ -2,7 +2,7 @@
 // annotate one showcase booklet, and enter the paper-graded class via the Excel paste import.
 import fs from 'node:fs';
 import path from 'node:path';
-import { open, login, shot, BASE, STATE, readState, writeState } from './lib.mjs';
+import { open, login, shot, BASE, STATE, readState, writeState, openBooklet } from './lib.mjs';
 
 const ids = readState('exams.json', {});
 const done = readState('progress.json', {});
@@ -64,24 +64,20 @@ for (const key of ['10b', '10a']) {
 }
 
 if (!done.annotated) {
-  // Showcase booklet: correction stamps on the Q2 answers (page 1, below the MC group) of a mid-range 10b paper.
-  await page.goto(`${BASE}/exam/${ids['10b']}/grade`);
-  await page.waitForTimeout(6000);
-  for (let i = 0; i < 6; i++) { await page.getByRole('button', { name: /Nächster/ }).click(); await page.waitForTimeout(2000); }
+  // Showcase booklet F7A9BG (plan Q2 parts 1.5 + 1, Q3 2.5, Q4 1): stamps on its Q2 answers (page 1, below the MC group) that add up to the plan.
+  const show = Object.values(JSON.parse(fs.readFileSync(path.join(STATE, 'plan-10b.json'), 'utf8'))).find((p) => p.code === 'F7A9BG');
+  await openBooklet(page, ids['10b'], 'F7A9BG');
   const tool = async (n) => { await page.getByRole('button', { name: n }).first().click(); await page.waitForTimeout(300); };
   const at = async (x, y) => { await page.mouse.click(x, y); await page.waitForTimeout(400); };
-  const rows = ['Teilaufgabe a)', 'Teilaufgabe b)', 'Q3', 'Q4'];
-  const saved = {};
-  for (const q of rows) saved[q] = await row(q).inputValue(); // NOSONAR: UI steps run in order in one browser
-  // Q2 is graded part by part: stamps on each part's answers count towards that part.
   await pick('Teilaufgabe a)');
   await tool(/^\+1\.0|\+1,0/); await at(520, 598);
   await tool(/^\+0\.5|\+0,5|½/); await at(470, 617);
   await pick('Teilaufgabe b)');
   await tool(/^\+1\.0|\+1,0/); await at(515, 712);
   await tool(/Fehlt/); await at(440, 731);
-  // Stamps rewrite the scores they touch; restore the planned ones.
-  for (const q of rows) { const inp = row(q); await inp.fill(saved[q]); await inp.press('Tab'); } // NOSONAR: UI steps run in order in one browser
+  // Stamps rewrite the scores they touch; type the planned ones again.
+  const planned = { 'Teilaufgabe a)': show.parts.q1.a, 'Teilaufgabe b)': show.parts.q1.b, Q3: show.scores.q2, Q4: show.scores.q3 };
+  for (const [q, v] of Object.entries(planned)) { const inp = row(q); await inp.fill(String(v)); await inp.press('Tab'); } // NOSONAR: UI steps run in order in one browser
   await pick('Teilaufgabe a)');
   await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
   await page.waitForTimeout(2000);

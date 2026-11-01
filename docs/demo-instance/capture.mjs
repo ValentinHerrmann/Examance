@@ -1,6 +1,6 @@
 // Capture the pitch screenshots from the seeded demo instance into .state/shots/.
 // Usage: node capture.mjs [name ...]   (no names = all). assets.py crops them into docs/screenshots/pitch/.
-import { open, login, shot, BASE, readState, writeState, setCodeMirror } from './lib.mjs';
+import { open, login, shot, BASE, readState, writeState, setCodeMirror, openBooklet } from './lib.mjs';
 
 const ids = readState('exams.json', {});
 const only = process.argv.slice(2);
@@ -94,9 +94,8 @@ async function teacher() {
     await shot(page, 'scan');
   }
   if (want('grading')) {
-    await go(page, `/exam/${ids['10b']}/grade`, 6000);
-    for (let i = 0; i < 6; i++) { await page.getByRole('button', { name: /Nächster/ }).click(); await page.waitForTimeout(2000); }
-    await pick(page, 'Q2');
+    await openBooklet(page, ids['10b'], 'F7A9BG'); // the annotated showcase booklet (seed-results.mjs)
+    await pick(page, 'Teilaufgabe a)');
     await page.waitForTimeout(800);
     await shot(page, 'grading');
   }
@@ -263,11 +262,8 @@ async function tour() {
   }
   if (t('grading')) {
     // Booklet RPCPDW (af14…; plan Q2-Q4: 3 / 4 / 2.5), zoomed onto the MC group and Q2. Once a booklet has stamps its tasks score the sum of their stamps, so the stamps (set once, persisted) cover Q2-Q4 and add up to the plan.
-    await go(page, `/exam/${ids['10b']}/scan`, 8000);
-    // By its printed fallback code: the pseudonym column shows only the exam-keyed value (issue #177).
-    const subId = await page.locator('tr').filter({ has: page.getByRole('cell', { name: 'RPCPDW', exact: true }) }).locator('td[title^="Abgabe-ID: "]').getAttribute('title');
     const open1 = async () => {
-      await go(page, `/exam/${ids['10b']}/grade?submissionId=${subId.replace('Abgabe-ID: ', '')}`, 9000);
+      await openBooklet(page, ids['10b'], 'RPCPDW');
       for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: /Vergrößern/ }).first().click(); await page.waitForTimeout(500); }
       await page.mouse.move(600, 500);
       await page.mouse.wheel(0, 330);
