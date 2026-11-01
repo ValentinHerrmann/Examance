@@ -36,6 +36,7 @@ export const exam: Translations['exam'] = {
             failed: 'Preview failed: {message}',
             unknownError: 'Unknown compilation error',
             liveButton: 'Live Preview PDF',
+            outdated: 'The exam has changed since this preview. Click “Live Preview PDF” to compile it again.',
         },
         metadata: {
             saveSuccess: 'Exam details updated successfully.',

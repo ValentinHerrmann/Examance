@@ -92,7 +92,7 @@ Under **Edit Exam** you can also add LaTeX packages for this exam only or leave 
 
 ## Typeset {#typeset}
 
-**Live Preview PDF** typesets the exam and the solution sheet. The run produces a print-ready PDF with QR codes, one per exam, variant and student slot.
+**Live Preview PDF** typesets the exam and the solution sheet. The run produces a print-ready PDF with QR codes, one per exam, variant and student slot. Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
 
 Depending on your settings and your account, the exam is typeset
 

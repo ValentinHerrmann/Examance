@@ -92,7 +92,7 @@ Unter **Prüfung bearbeiten** können Sie außerdem LaTeX-Pakete nur für diese 
 
 ## Setzen {#typeset}
 
-**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Dabei entsteht ein druckfertiges PDF mit QR-Codes, je einer pro Prüfung, Variante und Schülerplatz.
+**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Dabei entsteht ein druckfertiges PDF mit QR-Codes, je einer pro Prüfung, Variante und Schülerplatz. Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.
 
 Je nach Ihren Einstellungen und Ihrem Konto wird die Prüfung
 

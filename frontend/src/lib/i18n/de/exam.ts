@@ -34,6 +34,7 @@ export const exam = {
             failed: 'Vorschau fehlgeschlagen: {message}',
             unknownError: 'Unbekannter Kompilierungsfehler',
             liveButton: 'Live-Vorschau PDF',
+            outdated: 'Die Prüfung wurde seit dieser Vorschau geändert. Klicken Sie auf „Live-Vorschau PDF“, um sie neu zu kompilieren.',
         },
         metadata: {
             saveSuccess: 'Prüfungsdetails erfolgreich aktualisiert.',
