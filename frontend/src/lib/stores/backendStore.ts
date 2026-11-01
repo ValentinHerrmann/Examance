@@ -1,6 +1,7 @@
 import { writable, derived } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
 import { recordValue } from '#lib/utils/recentValues';
+import { domainMove, onOldAddress } from '#lib/domainMove';
 
 const BACKEND_URL_KEY = 'bg_backend_url';
 
@@ -129,17 +130,20 @@ function getConstant(getter: () => string): string {
     }
 }
 
-/** Default backend URL for initial loads: http://localhost:8000 on localhost, else the build-time default API. */
+/** Default backend URL for initial loads: http://localhost:8000 on localhost, the old API on an address being retired (same site, so cookies stay first-party), else the build-time default API. */
 export function defaultBackendUrl(): string {
     if (isLocalhostFrontend()) {
         return 'http://localhost:8000';
+    }
+    if (onOldAddress() && domainMove?.fromBackendUrl) {
+        return safeNormalize(domainMove.fromBackendUrl);
     }
     const buildDefault = getConstant(() => __DEFAULT_BACKEND_URL__);
     return safeNormalize(buildDefault);
 }
 
-export const DEFAULT_PROD_HOST = 'api-examance.valentin-herrmann.com';
-export const DEFAULT_PREVIEW_HOST = 'prev-api-examance.valentin-herrmann.com';
+export const DEFAULT_PROD_HOST = 'api.examance.de';
+export const DEFAULT_PREVIEW_HOST = 'preview-api.examance.de';
 export const DEFAULT_LOCAL_HOST = 'localhost:8000';
 
 /** Known server hosts (no protocol) for the suggestions dropdown: on localhost, localhost:8000 first then preview and production; otherwise default, production, preview, localhost. */

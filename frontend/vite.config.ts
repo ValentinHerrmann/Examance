@@ -9,6 +9,7 @@ import { loadEnv } from 'vite';
 import wasm from 'vite-plugin-wasm';
 import tailwindcss from '@tailwindcss/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
+import { computeDomainMove } from './scripts/domain-move.mjs';
 
 /** argon2-bundled.min.js is a UMD bundle calling `}(this, …)`; served as native ESM (dev, optimizeDeps exclude) `this` is undefined and it crashes. Rewrite it to `globalThis` and add a default export. */
 function argon2BundlePlugin(): Plugin {
@@ -114,8 +115,8 @@ function computeCommitSha(): string {
 }
 
 // Default backend for a fresh profile (production vs preview API); still revalidated and user-changeable.
-const prodBackendUrl = (env: BuildEnv) => env.PUBLIC_PROD_BACKEND_URL ?? 'https://api-examance.valentin-herrmann.com';
-const previewBackendUrl = (env: BuildEnv) => env.PUBLIC_PREVIEW_BACKEND_URL ?? 'https://prev-api-examance.valentin-herrmann.com';
+const prodBackendUrl = (env: BuildEnv) => env.PUBLIC_PROD_BACKEND_URL ?? 'https://api.examance.de';
+const previewBackendUrl = (env: BuildEnv) => env.PUBLIC_PREVIEW_BACKEND_URL ?? 'https://preview-api.examance.de';
 
 function computeDefaultBackendUrl(env: BuildEnv): string {
   if (env.PUBLIC_DEFAULT_BACKEND_URL) {
@@ -155,6 +156,7 @@ export default defineConfig(({ mode }) => {
       __DEFAULT_BACKEND_URL__: JSON.stringify(computeDefaultBackendUrl(env)),
       __PROD_BACKEND_URL__: JSON.stringify(prodBackendUrl(env)),
       __PREVIEW_BACKEND_URL__: JSON.stringify(previewBackendUrl(env)),
+      __DOMAIN_MOVE__: JSON.stringify(computeDomainMove(env, process.env.CF_PAGES_BRANCH)),
     },
     test: {
       // Vitest must only pick up unit tests: the Playwright specs under e2e/ are named *.spec.ts, which Vitest's default include pattern also matches.

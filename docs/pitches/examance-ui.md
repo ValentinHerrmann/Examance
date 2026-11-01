@@ -3,7 +3,7 @@ marp: true
 theme: examance
 paginate: true
 size: 16:9
-header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· examance.valentin-herrmann.com</em>'
+header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· examance.de</em>'
 footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 
@@ -162,4 +162,4 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Dem
 
 <div class="cols3" style="margin-top:10px"><div class="card ok"><h3>Ende-zu-Ende verschlüsselt</h3><p class="small" style="margin:0">Namen, Scans, Punkte und Anmerkungen werden im Browser mit AES-256-GCM verschlüsselt, bevor sie gespeichert werden.</p></div><div class="card ok"><h3>Schlüssel bleibt bei Ihnen</h3><p class="small" style="margin:0">Ein zufälliger 256-Bit-Schlüssel, freigeschaltet durch Ihr Passwort (Argon2id) oder Ihren Passkey. Er verlässt Ihr Gerät nie.</p></div><div class="card ok"><h3>Server sieht nur Chiffretext</h3><p class="small" style="margin:0">Auch die Administration kann keine Noten oder Namen lesen; sie verwaltet nur Konten.</p></div><div class="card ok"><h3>Anonym von Anfang an</h3><p class="small" style="margin:0">Bögen tragen ein Pseudonym im QR-Code; Namen erscheinen erst nach der Korrektur, entschlüsselt auf Ihrem Gerät.</p></div><div class="card ok"><h3>Sie wählen den Speicherort</h3><p class="small" style="margin:0">Ergebnisse verschlüsselt auf dem Schulserver oder nur in diesem Browser.</p></div><div class="card ok"><h3>Zwei Faktoren</h3><p class="small" style="margin:0">Anmeldung mit Passwort plus Authenticator-App oder Passkey.</p></div></div>
 
-<p class="lead" style="margin-top:18px">Ausprobieren: <strong>examance.valentin-herrmann.com</strong> · Details zu Technik und Datenschutz in der Informationspräsentation.</p>
+<p class="lead" style="margin-top:18px">Ausprobieren: <strong>examance.de</strong> · Details zu Technik und Datenschutz in der Informationspräsentation.</p>

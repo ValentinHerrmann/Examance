@@ -7169,6 +7169,23 @@
         "summary": "Login Options",
         "description": "Options for a passkey sign-in. Unauthenticated and rate-limited: it allocates a challenge per call, and it takes no account identifier, so there is nothing here to probe with.",
         "operationId": "login_options_api_v1_webauthn_login_options_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AuthenticationOptionsRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -7176,6 +7193,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CeremonyOptionsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -8611,6 +8638,17 @@
         ],
         "title": "AuthResponse"
       },
+      "AuthenticationOptionsRequest": {
+        "properties": {
+          "legacy": {
+            "type": "boolean",
+            "title": "Legacy",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "AuthenticationOptionsRequest"
+      },
       "AuthenticationVerifyRequest": {
         "properties": {
           "handle": {
@@ -9375,6 +9413,11 @@
               }
             ],
             "title": "Last Used At"
+          },
+          "legacy": {
+            "type": "boolean",
+            "title": "Legacy",
+            "default": false
           }
         },
         "type": "object",

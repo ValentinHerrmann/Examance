@@ -92,3 +92,14 @@ Die technischen Einzelheiten stehen unter [Datenfluss und Sicherheit (Englisch)]
 ## Aufbewahrung {#retention}
 
 Prüfungen tragen eine Aufbewahrungsfrist, nach deren Ablauf sie entfernt werden können. Schülerbezogene Daten lassen sich einzeln löschen, ohne die Statistik der Prüfung zu verlieren, siehe [Daten löschen](./settings#deletion). Die Aufbewahrungsfristen Ihrer Installation stehen in deren Datenschutzerklärung (**Datenschutz** in der Fußzeile).
+
+## Umzug auf eine neue Adresse {#domain-move}
+
+Zieht Ihre Installation auf eine neue Adresse um (zum Beispiel von `examance.valentin-herrmann.com` nach `examance.de`), zeigt die alte Adresse einen Hinweis mit dem Datum, ab dem sie nicht mehr funktioniert, und eine Checkliste **So ziehen Sie um**. Bis zu diesem Datum funktionieren beide Adressen mit demselben Konto. Ihre Prüfungen und Aufgaben liegen auf dem Server und sind auf der neuen Adresse sofort da. Gehen Sie diese Schritte auf jedem Gerät einmal durch:
+
+1. **Nur im Hybrid-Modus: Ergebnisse mitnehmen.** Ergebnisse, die nur in diesem Browser liegen, gehören zur alten Adresse und ziehen nicht mit. Wechseln Sie vorher die **Globale Speicherstrategie** auf **Alles auf dem Server** und auf der neuen Adresse wieder zurück, oder erstellen Sie eine [Sicherung des Arbeitsbereichs](./backup#workspace-backup) und [importieren](./backup#import) Sie sie dort.
+2. **Auf der neuen Adresse anmelden**, mit derselben E-Mail-Adresse. Ihr Passwort-Manager hat das Passwort unter der alten Adresse gespeichert; schlagen Sie es dort nach, falls es nicht vorgeschlagen wird.
+3. **Passkeys gehören zu ihrer Adresse.** Auf der neuen Adresse meldet **Passkey der alten Adresse verwenden** Sie in Chrome, Edge und Safari mit Ihrem bisherigen Passkey an und öffnet Ihre Daten wie gewohnt. Firefox kann das nicht: Melden Sie sich dort mit Passwort und Authenticator-Code an und richten Sie vorher auf der alten Adresse ein, was davon fehlt.
+4. **Einen neuen Passkey hinzufügen**, auf der neuen Adresse unter [Anmeldung & Sicherheit](#security-page). Auf der alten Adresse lassen sich keine neuen Passkeys mehr hinzufügen. Solange kein neuer existiert, erinnert die neue Adresse daran.
+5. **Lesezeichen und installierte App erneuern.** Einstellungen, die nur der Browser speichert (etwa das Design), stellen Sie einmal neu ein.
+6. **Nach dem Datum** entfernen Sie die als „alte Adresse“ markierten Passkeys und den alten Eintrag im Passwort-Manager.

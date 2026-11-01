@@ -33,6 +33,8 @@ class WebAuthnCredential(Base):
     supports_prf: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     nickname: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # RP ID (domain) the passkey was made for; NULL for passkeys registered before it was recorded (issue #198), filled in at their next sign-in.
+    rp_id: Mapped[str | None] = mapped_column(String(253), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

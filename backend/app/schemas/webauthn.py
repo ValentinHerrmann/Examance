@@ -23,6 +23,11 @@ class RegistrationVerifyRequest(BaseModel):
     nickname: str | None = Field(default=None, max_length=64)
 
 
+class AuthenticationOptionsRequest(BaseModel):
+    # Ask for a passkey of the previous domain from the new one (issue #198); the browser checks the old domain's `/.well-known/webauthn` before it allows that.
+    legacy: bool = False
+
+
 class AuthenticationVerifyRequest(BaseModel):
     handle: str
     challenge_b64: str
@@ -37,6 +42,8 @@ class CredentialSummary(BaseModel):
     prf_salt_b64: str
     created_at: datetime
     last_used_at: datetime | None
+    # Made for an old domain that is being retired (issue #198): it stops working there, so the UI asks for a new passkey.
+    legacy: bool = False
 
 
 class CredentialListResponse(BaseModel):

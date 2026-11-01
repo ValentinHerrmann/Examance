@@ -76,6 +76,13 @@ def test_production_allows_only_listed_origins_by_default() -> None:
     assert settings.effective_cors_origin_regex is None
 
 
+def test_a_leftover_origin_pattern_admits_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Issue #198 dropped CORS_ALLOWED_ORIGIN_REGEX; an old .env that still sets it must not widen CORS."""
+    monkeypatch.setenv("CORS_ALLOWED_ORIGIN_REGEX", r"https://.*")
+    settings = Settings(_env_file=None, ENVIRONMENT="production", SECRET_KEY=STRONG_KEY)
+    assert settings.effective_cors_origin_regex is None
+
+
 def test_production_rejects_short_initial_admin_password() -> None:
     with pytest.raises(ValidationError, match="at least 12 characters"):
         Settings(

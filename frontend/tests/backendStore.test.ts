@@ -163,21 +163,21 @@ describe('localhost frontend execution detection and defaults', () => {
     const suggestions = knownServerSuggestions();
     expect(suggestions[0]).toBe('localhost:8000');
     expect(suggestions).toContain('localhost:8000');
-    expect(suggestions.some((s) => s.includes('prev-api-examance'))).toBe(true);
-    expect(suggestions.some((s) => s.includes('api-examance'))).toBe(true);
+    expect(suggestions.some((s) => s.includes('preview-api.examance.de'))).toBe(true);
+    expect(suggestions.some((s) => s.includes('api.examance.de'))).toBe(true);
   });
 
   it('detects non-localhost frontend and includes prod, prev, and localhost suggestions', () => {
     (globalThis as any).window = {
       location: {
-        hostname: 'examance.valentin-herrmann.com',
+        hostname: 'examance.de',
       },
     };
 
     expect(isLocalhostFrontend()).toBe(false);
     const suggestions = knownServerSuggestions();
     expect(suggestions).toContain('localhost:8000');
-    expect(suggestions.some((s) => s.includes('prev-api-examance'))).toBe(true);
-    expect(suggestions.some((s) => s.includes('api-examance'))).toBe(true);
+    expect(suggestions.some((s) => s.includes('preview-api.examance.de'))).toBe(true);
+    expect(suggestions.some((s) => s.includes('api.examance.de'))).toBe(true);
   });
 });

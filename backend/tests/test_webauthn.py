@@ -259,3 +259,81 @@ async def test_removing_the_passkey_holding_the_only_usable_wrap_is_refused(
         )
     )
     assert list(left) == [ids[2]]
+
+
+# --- Domain move (issue #198) ----------------------------------------------
+
+NEW_RP = "examance.de"
+OLD_RP = "examance.valentin-herrmann.com"
+
+
+@pytest.fixture
+def moved_domain(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "WEBAUTHN_RP_ID", NEW_RP)
+    monkeypatch.setattr(settings, "WEBAUTHN_LEGACY_RP_IDS", [OLD_RP])
+
+
+def test_each_address_gets_its_own_rp_id(moved_domain: None) -> None:
+    from app.services import webauthn as svc
+
+    assert svc.rp_id_for_origin("https://examance.de") == NEW_RP
+    assert svc.rp_id_for_origin("https://examance.valentin-herrmann.com") == OLD_RP
+    # Neither a lookalike suffix nor an unknown origin may select the old RP ID.
+    assert svc.rp_id_for_origin("https://examance.valentin-herrmann.com.attacker.test") == NEW_RP
+    assert svc.rp_id_for_origin("https://evil-examance.de") == NEW_RP
+    assert svc.rp_id_for_origin(None) == NEW_RP
+
+
+def test_an_edited_handle_names_no_rp_id(moved_domain: None) -> None:
+    from app.services import webauthn as svc
+
+    assert svc._rp_id_of_handle(svc._issue_handle(OLD_RP)) == OLD_RP
+    with pytest.raises(ValueError, match="expired"):
+        svc._rp_id_of_handle("abc~attacker.test")
+
+
+def test_unrecorded_passkeys_count_as_old_only_during_a_move(
+    moved_domain: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.config import settings
+    from app.models.webauthn_credential import WebAuthnCredential
+    from app.services import webauthn as svc
+
+    assert svc.is_legacy(WebAuthnCredential(rp_id=None))
+    assert svc.is_legacy(WebAuthnCredential(rp_id=OLD_RP))
+    assert not svc.is_legacy(WebAuthnCredential(rp_id=NEW_RP))
+    monkeypatch.setattr(settings, "WEBAUTHN_LEGACY_RP_IDS", [])
+    assert not svc.is_legacy(WebAuthnCredential(rp_id=None))
+
+
+@pytest.mark.asyncio
+async def test_legacy_login_options_use_the_old_rp_id(
+    client: AsyncClient, moved_domain: None
+) -> None:
+    client.cookies.clear()
+    plain = await client.post("/api/v1/webauthn/login/options")
+    assert f'"rpId": "{NEW_RP}"' in plain.json()["options_json"]
+    legacy = await client.post("/api/v1/webauthn/login/options", json={"legacy": True})
+    assert legacy.status_code == 200
+    assert f'"rpId": "{OLD_RP}"' in legacy.json()["options_json"]
+
+
+@pytest.mark.asyncio
+async def test_legacy_login_options_need_a_previous_domain(client: AsyncClient) -> None:
+    client.cookies.clear()
+    resp = await client.post("/api/v1/webauthn/login/options", json={"legacy": True})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_no_new_passkeys_for_the_old_address(db: AsyncSession, moved_domain: None) -> None:
+    """A passkey made for the old domain would die with it, so registration there is refused."""
+    from app.services import webauthn as svc
+
+    teacher = await create_teacher(db, "passkey-old-address@example.com")
+    with pytest.raises(svc.LegacyAddressError):
+        await svc.registration_options(db, teacher, "https://examance.valentin-herrmann.com")
+    handle, _ = await svc.registration_options(db, teacher, "https://examance.de")
+    assert handle.endswith("~" + NEW_RP)

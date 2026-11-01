@@ -252,8 +252,8 @@ One Pages project builds the frontend for both stacks. What each build variable 
 
 - Root directory `frontend/`, build command `npm run build`, output `build/`.
 - Production branch: `release`.
-- Preview branches: **only** `preview` (Settings → Builds → "Include only certain branches"). This keeps every feature branch from consuming build minutes and gives preview a stable URL, `prev-examance.valentin-herrmann.com`, which must be listed in the preview `CORS_ALLOWED_ORIGINS` (there is no wildcard default).
-- **Custom domains for both environments** (Settings → Custom domains): `examance.valentin-herrmann.com` for `release`, `prev-examance.valentin-herrmann.com` for `preview`. Each stack's `FRONTEND_URL` points at its domain, never at `*.pages.dev` ([why](hosting.md#_4-2-settings)).
+- Preview branches: **only** `preview` (Settings → Builds → "Include only certain branches"). This keeps every feature branch from consuming build minutes and gives preview a stable URL, `preview.examance.de`, which must be listed in the preview `CORS_ALLOWED_ORIGINS` (there is no wildcard default).
+- **Custom domains for both environments** (Settings → Custom domains): `examance.de` for `release`, `preview.examance.de` for `preview` (plus the old `*.valentin-herrmann.com` domains until the end of the [domain move](domain_move.md)), APIs at `api.examance.de` and `preview-api.examance.de`. Each stack's `FRONTEND_URL` points at its domain, never at `*.pages.dev` ([why](hosting.md#_4-2-settings)).
 - Variables (Settings → Variables and Secrets), per environment: `PUBLIC_DEFAULT_BACKEND_URL` (that environment's API origin), and for **both** environments the `VITE_LEGAL_*` operator details, since the legal pages are public on both stacks. Optional `BUSYTEX_MIRROR_URL` for both (see below).
 - **Web Analytics, Rocket Loader and Email Obfuscation stay off**: they inject scripts after the build, which the Content Security Policy blocks ([troubleshooting](hosting.md#_5-3-troubleshooting-executing-inline-script-violates-content-security-policy)).
 
@@ -303,7 +303,7 @@ Generic operations (logs, rollback, restore): [Host Examance, section 7](hosting
 **Check what is actually deployed**
 
 ```bash
-curl -s https://api-examance.valentin-herrmann.com/api/health
+curl -s https://api.examance.de/api/health
 # {"status":"ok","version":"1.4.0"}
 ```
 

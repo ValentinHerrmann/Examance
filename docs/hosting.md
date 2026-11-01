@@ -99,7 +99,7 @@ Fill in `.env`. The template explains every setting; these are the ones you must
 | `SECRET_KEY` | `openssl rand -hex 32` | Signs all sessions. Changing it signs everyone out. Never share it between installations. |
 | `POSTGRES_PASSWORD` | `openssl rand -hex 24` | Database password; the database is reachable only inside the stack. |
 | `FRONTEND_URL` | `https://examance.example.org/` | Used in e-mailed links, and its host name is the passkey relying party. Never a `*.pages.dev` address: that domain is on URL blocklists, so mail servers reject the e-mails (`550 5.7.1 … (B-URL)`), and the backend refuses to start with one when SMTP is configured. Serving it from the same domain as `SMTP_FROM_EMAIL` also keeps spam filters calm. |
-| `CORS_ALLOWED_ORIGINS` | `["https://examance.example.org"]` | The frontend origins allowed to call the API; no wildcard, and empty means the backend does not start. |
+| `CORS_ALLOWED_ORIGINS` | `["https://examance.example.org"]` | The frontend origins allowed to call the API; no wildcard or pattern (name every origin), and empty means the backend does not start. |
 | `ALLOWED_HOSTS` | `["api.example.org","127.0.0.1","localhost"]` | Host names the API answers to; loopback keeps the health checks working. |
 | `APP_PORT` | `8000` | Loopback port the reverse proxy forwards to. |
 | `NETWORK_SUBNET` | e.g. `172.23.0.0/16` | Fixed subnet of the stack's network, so the proxy address below stays stable. |
@@ -107,7 +107,7 @@ Fill in `.env`. The template explains every setting; these are the ones you must
 | `SMTP_*` | your mail account | Without SMTP, links are only written to the log. |
 | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | your admin account | Creates the first admin on startup if it does not exist yet ([details](account_creation_and_management.md#_1-initial-admin-bootstrap-automatic-startup)). Remove the password afterwards. |
 
-Passkeys belong to the host name in `FRONTEND_URL`: a passkey created on one installation or domain does not work on another, by design of WebAuthn.
+Passkeys belong to the host name in `FRONTEND_URL`: a passkey created on one installation or domain does not work on another, by design of WebAuthn. To move an installation to a new domain without locking teachers out, follow [Moving to a new domain](domain_move.md) (`WEBAUTHN_LEGACY_RP_IDS`).
 
 Self-registration needs nothing beyond SMTP; its token lifetimes and the retention of unapproved accounts have defaults that only need an entry to change. Approval, features and allowed domains: [Accounts and administration](account_creation_and_management.md#_7-self-registration-approval-and-features).
 
@@ -181,6 +181,7 @@ Set them in the build environment or in `frontend/.env` (template: `frontend/.en
 | `VITE_LEGAL_NAME`, `VITE_LEGAL_STREET`, `VITE_LEGAL_POSTCODE_CITY`, `VITE_LEGAL_EMAIL`, optional `VITE_LEGAL_PHONE` | Operator details on the legal notice and privacy policy (`/legal/impressum`, `/legal/datenschutz`). They are built into the public pages, not stored in the repository. Without them both pages show marked placeholders and a "not configured" banner. Retention periods on the privacy page come from the backend at runtime. |
 | `PUBLIC_DOCS_URL` | Optional: base URL of this documentation site, for the footer's "Documentation" link and the in-app help's links to user-guide sections (default: `https://docs.examance.de/`). |
 | `BUSYTEX_MIRROR_URL` | Optional: a mirror of the LaTeX engine files that speeds up builds ([maintainer setup](deployment.md#busytex-mirror-cloudflare-r2)). |
+| `PUBLIC_DOMAIN_MOVE_FROM`, `PUBLIC_DOMAIN_MOVE_FROM_BACKEND_URL`, `PUBLIC_DOMAIN_MOVE_TO`, `PUBLIC_DOMAIN_MOVE_DEADLINE` | Only while moving to a new domain: the old frontend host, its API, the new origin and the deadline ([Moving to a new domain](domain_move.md)). |
 
 ### 5.2 Serve
 

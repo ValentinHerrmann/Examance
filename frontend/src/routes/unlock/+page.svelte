@@ -321,7 +321,7 @@
   }
 
   // Sign in with a passkey, in either factor position. With PRF the assertion also yields the secret that opens the vault, so passkey + authenticator never needs the password.
-  async function handlePasskey(opts: { auto?: boolean } = {}) {
+  async function handlePasskey(opts: { auto?: boolean; legacy?: boolean } = {}) {
     // Which error slot to write to. Mid-sign-in the form is not on screen, so a failure reported there would be invisible.
     const inProgress = authStep !== null;
     errorMsg = "";
@@ -354,7 +354,7 @@
         }
       }
 
-      const { step, unwrap } = await signInWithPasskey();
+      const { step, unwrap } = await signInWithPasskey({ legacy: opts.legacy });
       if (trimmedBackendUrl) {
         backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
       }
@@ -366,7 +366,11 @@
         return;
       }
       const message = err instanceof ApiError ? err.message : "";
-      const text = message || translate("security.passkey.failed");
+      // Without related-origin support (e.g. Firefox) the browser refuses the old address's passkey outright.
+      const refusedHere = opts.legacy && err instanceof DOMException && err.name === "SecurityError";
+      const text = refusedHere
+        ? translate("domainMove.legacyUnsupported")
+        : message || translate("security.passkey.failed");
       if (inProgress) {
         factorErrorMsg = text;
       } else {
@@ -637,6 +641,7 @@
         onTotp={handleSecondFactor}
         onPassword={handlePasswordFactor}
         onPasskey={() => handlePasskey()}
+        onLegacyPasskey={() => handlePasskey({ legacy: true })}
         errorMsg={factorErrorMsg}
       />
     </Card>
@@ -661,6 +666,7 @@
       {isLoading}
       onUnlock={handleUnlock}
       onPasskey={canUsePasskeys ? () => handlePasskey() : undefined}
+      onLegacyPasskey={canUsePasskeys ? () => handlePasskey({ legacy: true }) : undefined}
     />
   {/if}
 </PageShell>

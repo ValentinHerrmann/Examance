@@ -10,9 +10,9 @@ export interface PasskeyUnwrap {
   prfOutput: Uint8Array;
 }
 
-/** The browser ceremony alone; `unwrap` is null when the authenticator returned no PRF secret. */
-export async function passkeyAssertion() {
-  const options = await loginOptions();
+/** The browser ceremony alone; `unwrap` is null when the authenticator returned no PRF secret. `legacy` uses a passkey of the old address (domain move). */
+export async function passkeyAssertion(opts: { legacy?: boolean } = {}) {
+  const options = await loginOptions(opts);
   const assertion = await authenticate(options);
   const unwrap: PasskeyUnwrap | null = assertion.prfOutput
     ? { credentialIdB64: (JSON.parse(assertion.credentialJson) as { rawId: string }).rawId, prfOutput: assertion.prfOutput }
@@ -21,8 +21,10 @@ export async function passkeyAssertion() {
 }
 
 /** A passkey presented as a sign-in factor: the ceremony plus the server's verdict. */
-export async function signInWithPasskey(): Promise<{ step: AuthStep; unwrap: PasskeyUnwrap | null }> {
-  const { options, assertion, unwrap } = await passkeyAssertion();
+export async function signInWithPasskey(
+  opts: { legacy?: boolean } = {},
+): Promise<{ step: AuthStep; unwrap: PasskeyUnwrap | null }> {
+  const { options, assertion, unwrap } = await passkeyAssertion(opts);
   const step = await verifyLogin({
     handle: options.handle,
     challenge_b64: options.challenge_b64,

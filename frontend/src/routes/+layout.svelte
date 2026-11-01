@@ -63,6 +63,7 @@
   import { Alert, Button, PageShell } from "#lib/components/ui";
   import UpdateNotice from "#lib/components/layout/UpdateNotice.svelte";
   import MaintenanceNotice from "#lib/components/layout/MaintenanceNotice.svelte";
+  import DomainMoveNotice from "#lib/components/layout/DomainMoveNotice.svelte";
   import StorageChoiceModal from "#lib/components/storage/StorageChoiceModal.svelte";
   import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "#lib/components/HttpCatModal.svelte";
@@ -344,6 +345,7 @@
 
   <UpdateNotice />
   <MaintenanceNotice />
+  <DomainMoveNotice />
 
   {#if $versionStatus === "incompatible"}
     <!-- A differing major version means frontend and backend disagree on the API; saving may fail. Not dismissible, and visible without scrolling. -->

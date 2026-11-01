@@ -27,7 +27,7 @@ BLOCKLISTED_LINK_DOMAINS = (
     ".firebaseapp.com",
 )
 
-# Loopback origins on arbitrary ports (http/https on localhost or 127.0.0.1). Appended to effective_cors_origin_regex ONLY when ENVIRONMENT == "development" to permit local frontend debugging without enabling local CSRF in production.
+# Loopback origins on arbitrary ports (http/https on localhost or 127.0.0.1). Allowed ONLY when ENVIRONMENT == "development" to permit local frontend debugging without enabling local CSRF in production.
 LOCALHOST_CORS_ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
 
 
@@ -53,8 +53,7 @@ class Settings(BaseSettings):
 
     # CORS — required; app refuses to start if unset or empty
     CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "https://examance.pages.dev"]
-    # Optional extra origins (fullmatch). No default: credentialed cookies are SameSite=None, so every subdomain a wildcard admits could act as the teacher. Name origins in the list above. Loopback origins on any port are added by `effective_cors_origin_regex` in development only.
-    CORS_ALLOWED_ORIGIN_REGEX: str | None = None
+    # There is deliberately no origin pattern (issue #198): credentialed cookies are SameSite=None, so every subdomain a wildcard admits could act as the teacher. Loopback origins on any port are added by `effective_cors_origin_regex` in development only.
 
     # Host header allowlist (Host-spoofing protection). Deployment-specific, so it stays opt-in: TrustedHostMiddleware is only registered when non-empty.
     ALLOWED_HOSTS: list[str] = []
@@ -117,6 +116,8 @@ class Settings(BaseSettings):
 
     # WebAuthn relying party; defaults to the FRONTEND_URL host. A passkey is bound to its RP ID, so production and preview (different domains) each need their own value *and* enrollments.
     WEBAUTHN_RP_ID: str = ""
+    # RP IDs of earlier frontend domains whose passkeys still sign in during a domain move (issue #198, docs/domain_move.md); new passkeys are only made for WEBAUTHN_RP_ID.
+    WEBAUTHN_LEGACY_RP_IDS: list[str] = []
     WEBAUTHN_RP_NAME: str = "Examance"
 
     # Password reset configuration
@@ -144,7 +145,7 @@ class Settings(BaseSettings):
     LOGIN_LOCKOUT_MAX_SECONDS: int = 3600
     LOGIN_FAIL_WINDOW_SECONDS: int = 900
 
-    @field_validator("ALLOWED_HOSTS", "CORS_ALLOWED_ORIGINS", mode="before")
+    @field_validator("ALLOWED_HOSTS", "CORS_ALLOWED_ORIGINS", "WEBAUTHN_LEGACY_RP_IDS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: object) -> list[str]:
         if isinstance(v, str):
@@ -232,6 +233,10 @@ class Settings(BaseSettings):
         """Default the relying-party ID to the frontend's own host."""
         if not self.WEBAUTHN_RP_ID:
             self.WEBAUTHN_RP_ID = urlparse(self.FRONTEND_URL).hostname or "localhost"
+        # The current RP ID is never legacy, so a half-edited .env cannot make every new passkey a legacy one.
+        self.WEBAUTHN_LEGACY_RP_IDS = [
+            rp for rp in self.WEBAUTHN_LEGACY_RP_IDS if rp and rp != self.WEBAUTHN_RP_ID
+        ]
         return self
 
     @model_validator(mode="after")
@@ -263,12 +268,8 @@ class Settings(BaseSettings):
 
     @property
     def effective_cors_origin_regex(self) -> str | None:
-        """Return the combined CORS origin regex. Development also permits any port on localhost/127.0.0.1; production never does, to keep local-dev CSRF vectors away from hosted instances."""
-        if not self.is_dev:
-            return self.CORS_ALLOWED_ORIGIN_REGEX
-        if self.CORS_ALLOWED_ORIGIN_REGEX:
-            return f"{self.CORS_ALLOWED_ORIGIN_REGEX}|{LOCALHOST_CORS_ORIGIN_REGEX}"
-        return LOCALHOST_CORS_ORIGIN_REGEX
+        """The only CORS origin pattern: any port on localhost/127.0.0.1 in development. Hosted instances name every origin in CORS_ALLOWED_ORIGINS, to keep local-dev CSRF vectors away from them."""
+        return LOCALHOST_CORS_ORIGIN_REGEX if self.is_dev else None
 
 
 settings = Settings()

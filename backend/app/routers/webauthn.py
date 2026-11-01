@@ -11,9 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
+from app.models.webauthn_credential import WebAuthnCredential
 from app.routers.auth import advance_sign_in, reissue_pending_headers
 from app.schemas.auth import AuthResponse
 from app.schemas.webauthn import (
+    AuthenticationOptionsRequest,
     AuthenticationVerifyRequest,
     CeremonyOptionsResponse,
     CredentialListResponse,
@@ -36,6 +38,18 @@ def _b64(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).decode()
 
 
+def _summary(credential: WebAuthnCredential) -> CredentialSummary:
+    return CredentialSummary(
+        credential_id_b64=_b64(credential.credential_id),
+        nickname=credential.nickname,
+        supports_prf=credential.supports_prf,
+        prf_salt_b64=_b64(credential.prf_salt),
+        created_at=credential.created_at,
+        last_used_at=credential.last_used_at,
+        legacy=webauthn_svc.is_legacy(credential),
+    )
+
+
 @router.post(
     "/register/options",
     dependencies=[Depends(require_not_frozen)],
@@ -53,7 +67,16 @@ async def register_options(
             detail="Not authenticated.",
             headers={"code": "ERR_UNAUTHORIZED"},
         )
-    handle, options_json = await webauthn_svc.registration_options(db, session.teacher)
+    try:
+        handle, options_json = await webauthn_svc.registration_options(
+            db, session.teacher, request.headers.get("origin")
+        )
+    except webauthn_svc.LegacyAddressError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+            headers={"code": "ERR_PASSKEY_OLD_ADDRESS"},
+        ) from None
     import json
 
     challenge = json.loads(options_json)["challenge"]
@@ -97,21 +120,26 @@ async def register_verify(
         ) from None
 
     await audit_svc.log(db, request, session.teacher, "PASSKEY_REGISTERED")
-    return CredentialSummary(
-        credential_id_b64=_b64(credential.credential_id),
-        nickname=credential.nickname,
-        supports_prf=credential.supports_prf,
-        prf_salt_b64=_b64(credential.prf_salt),
-        created_at=credential.created_at,
-        last_used_at=credential.last_used_at,
-    )
+    return _summary(credential)
 
 
 @router.post("/login/options", response_model=CeremonyOptionsResponse)
 @limiter.limit("30/minute")
-async def login_options(request: Request) -> CeremonyOptionsResponse:
+async def login_options(
+    request: Request, body: AuthenticationOptionsRequest | None = None
+) -> CeremonyOptionsResponse:
     """Options for a passkey sign-in. Unauthenticated and rate-limited: it allocates a challenge per call, and it takes no account identifier, so there is nothing here to probe with."""
-    handle, options_json = await webauthn_svc.authentication_options()
+    rp_id = webauthn_svc.rp_id_for_origin(request.headers.get("origin"))
+    if body is not None and body.legacy:
+        legacy = webauthn_svc.legacy_rp_id()
+        if legacy is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This server has no previous address.",
+                headers={"code": "ERR_PASSKEY_FAILED"},
+            )
+        rp_id = legacy
+    handle, options_json = await webauthn_svc.authentication_options(rp_id)
     import json
 
     challenge = json.loads(options_json)["challenge"]
@@ -225,17 +253,7 @@ async def list_credentials(
         )
     rows = await webauthn_svc.list_credentials(db, session.teacher.id)
     return CredentialListResponse(
-        credentials=[
-            CredentialSummary(
-                credential_id_b64=_b64(row.credential_id),
-                nickname=row.nickname,
-                supports_prf=row.supports_prf,
-                prf_salt_b64=_b64(row.prf_salt),
-                created_at=row.created_at,
-                last_used_at=row.last_used_at,
-            )
-            for row in rows
-        ]
+        credentials=[_summary(row) for row in rows]
     )
 
 
