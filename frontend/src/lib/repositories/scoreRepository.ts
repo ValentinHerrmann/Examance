@@ -7,6 +7,8 @@ import { encryptScore, decryptScore } from '#lib/db/dbEncryption';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import type { ExerciseScoreRecord } from '#lib/db/schema';
+import { deleteUrl, trashHeaders, type DeleteOptions } from '#lib/trash/group';
+import { captureLocal } from '#lib/trash/localTrash';
 
 const submissionPath = (examId: string, submissionId: string) =>
   `/exams/${examId}/submissions/${submissionId}/scores`;
@@ -40,13 +42,18 @@ async function fetchScores(path: string, key: CryptoKey | null) {
 }
 
 /** Server write with offline-queue fallback. Safe to replay: the endpoints are idempotent. */
-async function send(method: 'PUT' | 'DELETE', path: string, body?: unknown) {
+async function send(method: 'PUT' | 'DELETE', path: string, body?: unknown, headers?: Record<string, string>) {
   try {
     if (method === 'PUT') await api.put(path, body, { silentError: true });
-    else await api.delete(path, { silentError: true });
+    else await api.delete(path, { silentError: true, headers });
   } catch (err) {
-    enqueueOrThrow(err, path, method, body);
+    enqueueOrThrow(err, path, method, body, headers);
   }
+}
+
+/** Server delete of scores; unless permanent, they go to the trash of `opts.group` (issue #125). */
+function sendDelete(path: string, opts: DeleteOptions) {
+  return send('DELETE', deleteUrl(path, opts), undefined, trashHeaders(opts));
 }
 
 export const scoreRepository = {
@@ -91,18 +98,10 @@ export const scoreRepository = {
     return this.saveMany(examId, score.submissionId, [score], key);
   },
 
-  async deleteOne(examId: string, submissionId: string, exerciseId: string): Promise<void> {
-    if (!resultsAreLocal()) return send('DELETE', `${submissionPath(examId, submissionId)}/${exerciseId}`);
-    await db.exerciseScores
-      .where('submissionId')
-      .equals(submissionId)
-      .and((row) => row.exerciseId === exerciseId)
-      .delete();
-  },
-
-  /** Local rows go in every mode, so a later fallback read cannot resurrect them. */
-  async deleteBySubmissionId(examId: string, submissionId: string): Promise<void> {
-    await db.exerciseScores.where('submissionId').equals(submissionId).delete();
-    if (!resultsAreLocal()) await send('DELETE', submissionPath(examId, submissionId));
+  async deleteOne(examId: string, submissionId: string, exerciseId: string, opts: DeleteOptions = {}): Promise<void> {
+    if (!resultsAreLocal()) return sendDelete(`${submissionPath(examId, submissionId)}/${exerciseId}`, opts);
+    const rows = db.exerciseScores.where('submissionId').equals(submissionId).and((row) => row.exerciseId === exerciseId);
+    await captureLocal(opts, { kind: 'scores', examId, submissionId, rows: { exerciseScores: await rows.toArray() } });
+    await rows.delete();
   },
 };

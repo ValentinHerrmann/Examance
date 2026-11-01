@@ -80,7 +80,7 @@ export const help = {
                 p2: 'Danach fragt Examance jedes Mal, ob die alte Kopie behalten oder gelöscht werden soll. Beim Wechsel zu „Hybrid“ wird die Kopie auf dem Server zum Löschen vorgemerkt (mit 7 Tagen Frist), beim Wechsel zu „Alles auf dem Server“ wird die lokale Kopie in diesem Browser für jede vollständig angekommene Klausur geleert; eine Klausur, die nicht verschoben werden konnte, behält ihre lokale Kopie. Noch nicht gesendete Änderungen müssen vorher gesendet werden („Jetzt senden“), sonst wird der Wechsel abgelehnt. Andere geöffnete Tabs sind währenddessen gesperrt und laden danach neu.',
                 p3: 'Hat ein Browser im Modus „Alles auf dem Server“ noch lokale Ergebnisse, etwa aus früherer Hybrid-Nutzung, bietet ein Hinweis an, sie auf den Server hochzuladen. Im Hybrid-Modus zeigt ein Browser ohne Ergebnisse einen Hinweis: Die Ergebnisse liegen nur in dem Browser, in dem sie erfasst wurden.',
                 p4: 'Der Browser-Speicher gehört immer genau einem Konto auf einem Server: Daten, die zu einem anderen Konto gehören, werden nicht geöffnet; ein Hinweis erklärt, wie Sie sich mit dem passenden Zugang anmelden oder den Speicher zurücksetzen. Browser mit Daten aus dem früheren rein lokalen Modus (ohne Konto) zeigen stattdessen einen Hinweis, dass sich diese Daten nicht mehr öffnen lassen. Sie können sie löschen und weiterarbeiten; eine Übernahme gibt es nicht.',
-                p5: 'Vom Server gelöschte Ergebnisse (einzelne Abgaben oder die beim Wechsel zu „Hybrid“ gelöschte Server-Kopie) holen Sie in den Einstellungen unter „Vom Server gelöschte Ergebnisse wiederherstellen“ zurück, solange ihre Übergangsfrist läuft. Danach entfernt der Server sie endgültig; die Wiederherstellung nennt die Prüfungen, bei denen das schon geschehen ist. Gelöschte Prüfungen und nach DSGVO gelöschte Schüler:innen kommen nicht zurück.',
+                p5: 'Die Server-Kopie, die beim Wechsel zu „Hybrid“ übrig bleibt, wird nach 7 Tagen gelöscht und lässt sich in der App nicht wiederherstellen. Sonst gilt: Was Sie löschen, liegt zunächst im Papierkorb (siehe „Papierkorb“) und lässt sich dort 7 Tage lang zurückholen.',
             },
         },
         exercises: {
@@ -124,7 +124,7 @@ export const help = {
                 h: 'Änderungen dem Original vorschlagen',
                 p1: 'Haben Sie Ihre Kopie verbessert oder eine Variante ergänzt, schlägt „Dem Original vorschlagen…“ das der Person vor, die die Aufgabe teilt. Geänderte Varianten werden als neue Version vorgeschlagen, ergänzte als neue Variante. Ihre E-Mail-Adresse wird dabei angezeigt.',
                 p2: 'Die Person sieht Vorschläge unter „Vorschläge“ und erhält eine kurze E-Mail-Benachrichtigung ohne Inhalt. Sie vergleicht den Vorschlag mit ihrer aktuellen Version, kann ihn bearbeiten und übernimmt oder lehnt ihn ab. Übernommen wird immer als neue Version oder neue Variante; bestehende Versionen und Prüfungen bleiben unverändert. Eine PDF-Vorschau gibt es erst nach dem Übernehmen.',
-                p3: 'Nach der Entscheidung wird der Inhalt des Vorschlags gelöscht, der Eintrag selbst nach 30 Tagen; offene Vorschläge nach 180 Tagen. Sie können einen offenen Vorschlag jederzeit zurückziehen. Übernommene Änderungen erreichen Ihre Kopie über „Aktualisieren…“. Wurde Ihr Vorschlag unverändert übernommen, ist Ihre Kopie automatisch wieder auf dem Stand des Originals; nur bei einer bearbeiteten Übernahme erscheint „Aktualisierung verfügbar“. Aufgaben mit offenem Vorschlag tragen in der Bibliothek ein Schild, das direkt zu den Vorschlägen führt; von dort öffnet „In der Bibliothek öffnen“ die Aufgabe.',
+                p3: 'Nach der Entscheidung wird der Inhalt des Vorschlags entfernt; wurde er abgelehnt oder zurückgezogen, bleibt er 7 Tage im Papierkorb der Person, die entschieden hat, und lässt sich dort wiederherstellen. Der Eintrag selbst wird nach 30 Tagen gelöscht; offene Vorschläge nach 180 Tagen. Sie können einen offenen Vorschlag jederzeit zurückziehen. Übernommene Änderungen erreichen Ihre Kopie über „Aktualisieren…“. Wurde Ihr Vorschlag unverändert übernommen, ist Ihre Kopie automatisch wieder auf dem Stand des Originals; nur bei einer bearbeiteten Übernahme erscheint „Aktualisierung verfügbar“. Aufgaben mit offenem Vorschlag tragen in der Bibliothek ein Schild, das direkt zu den Vorschlägen führt; von dort öffnet „In der Bibliothek öffnen“ die Aufgabe.',
             },
             s7: {
                 h: 'Exportieren (ZIP)',
@@ -245,6 +245,28 @@ export const help = {
                 p1: 'Für Aufgaben mit Varianten wird verglichen, ob eine Fassung systematisch schwerer war als die andere. Das ist die Grundlage, um eine unfaire Variante zu überarbeiten.',
             },
         },
+        trash: {
+            title: 'Papierkorb',
+            summary: 'Versehentlich Gelöschtes 7 Tage lang zurückholen.',
+            s1: {
+                h: 'Was im Papierkorb landet',
+                p1: 'Fast alles, was Sie löschen, liegt zuerst 7 Tage im Papierkorb: Klausuren mit ihren Ergebnissen, Aufgaben der Bibliothek (auch einzelne Versionen) und ihre Ressourcendateien, Logos, die Sie entfernen oder zurücksetzen, einzelne Schüler, Scans und Abgaben, Punkte, zurückgesetzte Bewertungen und Anmerkungen, aus einer Klausur entfernte Aufgaben sowie abgelehnte oder zurückgezogene Vorschläge zu geteilten Aufgaben. Was Sie in einem Zug löschen, erscheint als ein Eintrag.',
+                p2: 'Den Papierkorb öffnen Sie im Kontomenü neben den Einstellungen, auf kleinen Bildschirmen im Navigationsmenü.',
+            },
+            s2: {
+                h: 'Wiederherstellen oder endgültig löschen',
+                p1: '„Wiederherstellen“ bringt zurück, was fehlt. Vorhandenes wird nie überschrieben: Haben Sie dasselbe inzwischen neu angelegt, bleibt die aktuelle Fassung. Konnte etwas nicht zurückkommen, etwa ein Scan, dessen Klausur nicht mehr existiert, nennt die Seite, was und warum. „Endgültig löschen“ entfernt einen Eintrag sofort samt Scans; ohne das verschwindet er nach 7 Tagen von selbst.',
+            },
+            s3: {
+                h: 'Hybrid-Modus',
+                p1: 'Im Hybrid-Modus liegen die Ergebnisse nur in diesem Browser, und ihr Papierkorb ebenfalls. Er erscheint auf derselben Seite, lässt sich aber nur in diesem Browser und nur so lange wiederherstellen, wie Ihr Konto im Hybrid-Modus bleibt. Er ersetzt keine .examance-Sicherung.',
+            },
+            s4: {
+                h: 'Was sofort gelöscht wird',
+                p1: 'Die Löschung einer Schülerin oder eines Schülers nach DSGVO in den Einstellungen wirkt sofort und läuft nicht über den Papierkorb, ebenso das Löschen des Kontos und das Leeren des lokalen Arbeitsbereichs. Auch Ergebnisse, deren Aufbewahrungsfrist abläuft, werden direkt entfernt.',
+                p2: 'Für ältere Einträge wenden Sie sich an Ihre Administration: Sie kann Einträge aus der nächtlichen Sicherung in Ihren Papierkorb zurückkopieren, solange eine Sicherung aus dieser Zeit noch existiert. Von dort stellen Sie sie wie gewohnt wieder her.',
+            },
+        },
         settings: {
             title: 'Einstellungen',
             summary: 'Speicherstrategie, LaTeX-Kompilierung, Klausur-Logo, Sprache, MC-Erkennung und Datenlöschung.',
@@ -265,7 +287,7 @@ export const help = {
             s4: {
                 h: 'Sitzung und Löschung',
                 p1: 'Die Sitzung sperrt sich nach Inaktivität von selbst; danach sind alle Inhalte wieder nur mit dem Passwort erreichbar.',
-                p2: 'Über die Datenlöschung lassen sich einzelne Schülerdaten (Auskunfts- und Löschansprüche nach DSGVO) oder der gesamte Arbeitsbereich entfernen. Das Löschen ist endgültig und kann nicht rückgängig gemacht werden.',
+                p2: 'Über die Datenlöschung lassen sich einzelne Schülerdaten (Auskunfts- und Löschansprüche nach DSGVO) oder der gesamte Arbeitsbereich entfernen. Dieses Löschen wirkt sofort, läuft nicht über den Papierkorb und kann nicht rückgängig gemacht werden.',
                 p3: 'Unter „Konto löschen“ können Sie Ihr eigenes Konto löschen. Sie erhalten eine E-Mail mit einem Link; gelöscht wird erst, wenn Sie ihn öffnen und bestätigen. Dabei wird alles entfernt, was dazu auf dem Server gespeichert ist (Prüfungen, Ergebnisse, Anmeldefaktoren), und der Browser, in dem Sie bestätigen, wird geleert (andere Browser behalten ihre lokale Kopie, die ohne das Konto nicht mehr lesbar ist). Ihre Aufgaben können auf Wunsch ohne Ihren Namen auf dem Server bleiben, damit sie später geteilt werden können. Admins können in der Kontenverwaltung auch andere Konten löschen, mit derselben Option.',
             },
             s5: {
@@ -383,7 +405,7 @@ export const help = {
             },
             s3: {
                 h: 'Aufbewahrung',
-                p1: 'Klausuren tragen eine Aufbewahrungsfrist, nach deren Ablauf sie entfernt werden können. Schülerbezogene Daten lassen sich einzeln löschen, ohne die Statistik der Klausur zu verlieren.',
+                p1: 'Klausuren tragen eine Aufbewahrungsfrist, nach deren Ablauf sie entfernt werden können. Schülerbezogene Daten lassen sich einzeln löschen, ohne die Statistik der Klausur zu verlieren. Gelöschtes liegt zunächst 7 Tage im Papierkorb; die DSGVO-Löschung in den Einstellungen wirkt dagegen sofort.',
             },
             s4: {
                 h: 'Kein Passwort, keine Daten',

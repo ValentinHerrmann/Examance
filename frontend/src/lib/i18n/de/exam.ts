@@ -48,7 +48,7 @@ export const exam = {
         },
         submissions: {
             noneToDelete: 'Keine Abgaben zum Löschen vorhanden.',
-            confirmDeleteAll: 'Möchten Sie wirklich alle {count} Abgabe(n) für diese Prüfung löschen? Dies kann nicht rückgängig gemacht werden.',
+            confirmDeleteAll: 'Möchten Sie wirklich alle {count} Abgabe(n) für diese Prüfung löschen?',
             allDeleted: 'Alle Abgaben wurden gelöscht.',
             deleteFailed: 'Löschen der Abgaben fehlgeschlagen: {message}',
             loadFailed: 'Die Abgaben dieser Prüfung konnten nicht geladen werden: {message}. Die Zahlen oben fehlen deshalb; laden Sie die Seite neu.',

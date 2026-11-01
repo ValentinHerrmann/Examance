@@ -380,8 +380,31 @@ export interface QueuedRequest {
   /** PUT serves the per-exercise score endpoint, keyed by (submission, exercise): idempotent, hence safe to replay from the queue. */
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;
+  /** Extra request headers replayed with the write, e.g. the trash group (`X-Trash-Group`) of a delete. */
+  headers?: Record<string, string>;
   /** Strictly increasing per tab: the replay order. */
   timestamp: number;
   /** The workspace (`lib/db/workspace.ts`) whose data this write belongs to. Replayed only into that workspace: after a mode switch or under another account the write is meaningless or harmful. Missing on entries from before the manifest; `stampUnboundQueueEntries` adopts those once. */
   workspaceId?: string;
+}
+
+/** A delete held in this browser's trash (hybrid results, issue #125; `lib/trash/localTrash.ts`). Rows are kept exactly as stored, still sealed under their row-bound AAD, so a restore re-inserts them without re-encrypting. */
+export interface LocalTrashRecord {
+  id: string;
+  /** One UI action; shared with the server trash entries of the same action. */
+  groupId: string;
+  kind: 'exam' | 'student' | 'submission' | 'scores' | 'grading';
+  examId: string;
+  /** Plain index values the stored rows already carry (never a name). */
+  pseudonymHmac?: string;
+  submissionId?: string;
+  deletedAt: string;
+  purgeAfter: string;
+  rows: {
+    examStudents?: StudentRecord[];
+    submissions?: SubmissionRecord[];
+    exerciseScores?: ExerciseScoreRecord[];
+  };
+  /** Submissions as they were before an in-place clear (grading); put back only while still cleared. */
+  cleared?: SubmissionRecord[];
 }

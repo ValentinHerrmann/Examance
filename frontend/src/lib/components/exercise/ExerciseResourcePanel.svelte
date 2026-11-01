@@ -4,6 +4,7 @@
   import { sessionStore } from "#lib/stores/session";
   import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
   import { t, translate } from "#lib/i18n";
+  import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { Badge, Button, Icon, TextInput } from "#lib/components/ui";
   import type { ExerciseResourceRecord } from "#lib/db/schema";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
@@ -125,7 +126,7 @@
   }
 
   async function handleDelete(res: ExerciseResourceRecord) {
-    if (!window.confirm(translate("editor.resources.confirmDelete", { name: res.filename }))) {
+    if (!window.confirm(`${translate("editor.resources.confirmDelete", { name: res.filename })}\n\n${translate("common.trashHint", { days: TRASH_DAYS })}`)) {
       return;
     }
     await exerciseResourceRepository.remove(res);

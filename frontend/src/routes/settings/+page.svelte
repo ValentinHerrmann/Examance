@@ -18,7 +18,6 @@
   import OmrDetectionSettingsCard from "#lib/components/settings/OmrDetectionSettingsCard.svelte";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import OmrDonationCard from "#lib/components/settings/OmrDonationCard.svelte";
-  import RestoreServerDataCard from "#lib/components/settings/RestoreServerDataCard.svelte";
   import AccountLogoCard from "#lib/components/logo/AccountLogoCard.svelte";
   import AccountPackagesCard from "#lib/components/latex-packages/AccountPackagesCard.svelte";
   import { trainingDonationStore } from "#lib/stores/trainingDonation";
@@ -230,11 +229,6 @@
           <p class="px-1 text-xs text-muted">
             {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
           </p>
-        {/if}
-
-        <!-- Same rule as the server's result-write gate: server results allowed, or the account still in all-server. -->
-        {#if $allowedStorageModes.includes("all-server") || $storagePolicyStore.storageMode === "all-server"}
-          <RestoreServerDataCard hybrid={$storagePolicyStore.storageMode === "hybrid"} />
         {/if}
 
         <OmrDonationCard

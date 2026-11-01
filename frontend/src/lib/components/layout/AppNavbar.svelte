@@ -281,6 +281,9 @@
           <div role="separator" class="my-1 border-t border-line"></div>
         {/if}
         <MenuItem icon={faGear} href="/settings">{$t("nav.settings")}</MenuItem>
+        {#if !isAdmin}
+          <MenuItem icon={faTrashCan} href="/trash">{$t("nav.trash")}</MenuItem>
+        {/if}
         <MenuItem icon={authenticated ? faArrowRightFromBracket : faLock} onSelect={onLock}>
           {authenticated ? $t("workspace.session.lockSession") : $t("workspace.session.lock")}
         </MenuItem>

@@ -131,7 +131,7 @@ export const exercises: Translations['exercises'] = {
         checkingUsage: 'Checking exercise usage in exams...',
         warningTitle: 'Warning: exercise is in use',
         usageInfo: 'This exercise is currently used in {count} exam(s):',
-        usageWarning: 'Deleting it will remove it permanently from the library and from these exams.',
+        usageWarning: 'Deleting it will remove it from the library and from these exams.',
         confirmPlain: 'Are you sure you want to delete this exercise from your library?',
     },
     diffModal: {

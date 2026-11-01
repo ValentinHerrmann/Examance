@@ -191,18 +191,6 @@ export const settings = {
         privacyNote: 'Details in der Datenschutzerklärung:',
         privacyLink: 'Datenschutz',
     },
-    restoreServerData: {
-        heading: 'Vom Server gelöschte Ergebnisse wiederherstellen',
-        description: 'Gelöschte Ergebnisse bleiben noch eine Übergangsfrist lang auf dem Server. Bis dahin holt diese Schaltfläche sie zurück: einzeln gelöschte Abgaben und die Server-Kopie, die beim Wechsel zu „Hybrid“ gelöscht wurde.',
-        notRestored: 'Gelöschte Prüfungen und nach DSGVO gelöschte Schüler:innen kommen nicht zurück.',
-        hybridNote: 'Im Hybrid-Modus liegen Ihre Ergebnisse in diesem Browser. Die wiederhergestellte Kopie bleibt auf dem Server, bis Sie zu „Alles auf dem Server“ wechseln.',
-        button: 'Wiederherstellen',
-        confirmTitle: 'Gelöschte Ergebnisse wiederherstellen?',
-        confirmMessage: 'Alle Ergebnisse dieses Kontos, deren Übergangsfrist noch läuft, werden wieder sichtbar, auch Abgaben, die Sie absichtlich gelöscht haben.',
-        done: 'Wiederhergestellt: {students} Schüler:innen, {submissions} Abgaben.',
-        purgedHeading: 'Nicht mehr wiederherstellbar, weil die Übergangsfrist von {days} Tagen abgelaufen ist:',
-        purgedItem: '{title}: ältere gelöschte Ergebnisse am {date} endgültig entfernt',
-    },
     deleteAccount: {
         heading: 'Konto löschen',
         description: 'Löscht Ihr Konto und alles, was dazu auf dem Server gespeichert ist: Prüfungen, Bewertungsergebnisse, Aufgabengruppen und Anmeldefaktoren, dazu Ihre Aufgaben, sofern Sie sie nicht behalten. Wir senden Ihnen einen Link zur Bestätigung; gelöscht wird erst, wenn Sie ihn öffnen und bestätigen.',

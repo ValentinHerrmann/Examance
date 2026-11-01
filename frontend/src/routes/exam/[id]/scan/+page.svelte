@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { newTrashGroup } from "#lib/trash/group";
+  import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { randomCode } from "#lib/utils/randomCode";
   import { page } from "$app/state";
   import { browser } from "$app/env";
@@ -387,11 +389,12 @@
   }
 
   async function handleDeleteScan(item: ScannedSubmissionItem) {
-    if (!confirm(translate("scanning.confirmDeleteScan"))) return;
+    if (!confirm(`${translate("scanning.confirmDeleteScan")}\n\n${translate("common.trashHint", { days: TRASH_DAYS })}`)) return;
     try {
-      await submissionRepository.delete(examId, item.id);
+      const group = newTrashGroup();
+      await submissionRepository.delete(examId, item.id, { group });
       // Also remove the associated student record to prevent orphaned UNMATCHED entries
-      await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion });
+      await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion }, { group });
       await refreshUnmatched();
       await loadScannedSubmissions();
     } catch (err: any) {
@@ -404,7 +407,7 @@
   }
 
   async function handleDeleteGrading(item: ScannedSubmissionItem) {
-    if (!confirm(translate("scanning.confirmDeleteGrading"))) return;
+    if (!confirm(`${translate("scanning.confirmDeleteGrading")}\n\n${translate("common.trashHint", { days: TRASH_DAYS })}`)) return;
     try {
       const key = get(sessionStore).sessionKey;
       await submissionRepository.clearGrading(examId, item.id, key);
@@ -440,16 +443,18 @@
     if (scannedSubmissions.length === 0) return;
     if (
       !confirm(
-        translate("scanning.confirmDeleteAllScans", { count: scannedSubmissions.length })
+        `${translate("scanning.confirmDeleteAllScans", { count: scannedSubmissions.length })}\n\n${translate("common.trashHint", { days: TRASH_DAYS })}`
       )
     ) {
       return;
     }
     try {
+      // One trash entry for the whole action (issue #125).
+      const group = newTrashGroup();
       for (const item of scannedSubmissions) {
-        await submissionRepository.delete(examId, item.id);
+        await submissionRepository.delete(examId, item.id, { group });
         // Also remove the associated student record to prevent orphaned UNMATCHED entries
-        await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion });
+        await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion }, { group });
       }
       await refreshUnmatched();
       await loadScannedSubmissions();
@@ -486,8 +491,8 @@
       if (activeKeys.has(await joinKey(s))) {
         validUnmatched.push(s);
       } else {
-        // Clean up orphaned unmatched student identity
-        await studentRepository.delete(s);
+        // Clean up orphaned unmatched student identity: housekeeping, not a teacher's delete, so no trash entry.
+        await studentRepository.delete(s, { permanent: true });
       }
     }
 

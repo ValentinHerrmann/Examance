@@ -159,9 +159,9 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  options: { binary?: boolean; silentError?: boolean; pendingOn202?: boolean } = {}
+  options: { binary?: boolean; silentError?: boolean; pendingOn202?: boolean; headers?: Record<string, string> } = {}
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...options.headers };
   // The server answers 409 ERR_ACCOUNT_MISMATCH when the cookie now belongs to another account (S12).
   const account = get(sessionStore).teacherId;
   if (account) headers['X-Expected-Account'] = account;
@@ -274,12 +274,18 @@ async function request<T>(
   return parseBody(resp);
 }
 
+/** Per-call options; `headers` carries e.g. the trash group of one UI action (`X-Trash-Group`). */
+export interface RequestOptions {
+  silentError?: boolean;
+  headers?: Record<string, string>;
+}
+
 export const api = {
-  get: <T>(path: string, options?: { silentError?: boolean }) => request<T>('GET', path, undefined, options),
-  post: <T>(path: string, body?: unknown, options?: { silentError?: boolean }) => request<T>('POST', path, body, options),
-  patch: <T>(path: string, body: unknown, options?: { silentError?: boolean }) => request<T>('PATCH', path, body, options),
-  put: <T>(path: string, body: unknown, options?: { silentError?: boolean }) => request<T>('PUT', path, body, options),
-  delete: <T>(path: string, options?: { silentError?: boolean }) => request<T>('DELETE', path, undefined, options),
+  get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options),
+  post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
+  patch: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>('PATCH', path, body, options),
+  put: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>('PUT', path, body, options),
+  delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, options),
   postBinary: (path: string, data: Uint8Array) =>
     request<ArrayBuffer>('POST', path, data, { binary: true }),
   getBinary: (path: string, options?: { silentError?: boolean }) =>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { newTrashGroup } from "#lib/trash/group";
+  import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { page } from "$app/state";
   import { onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
@@ -227,7 +229,7 @@
     if (!exam) return;
     if (
       !confirm(
-        translate("exam.page.delete.confirmMessage", { title: exam.title }),
+        translate("exam.page.delete.confirmMessage", { title: exam.title }) + "\n\n" + translate("common.trashHint", { days: TRASH_DAYS }),
       )
     )
       return;
@@ -578,16 +580,18 @@
     }
     if (
       !confirm(
-        translate("exam.page.submissions.confirmDeleteAll", { count: submissions.length }),
+        translate("exam.page.submissions.confirmDeleteAll", { count: submissions.length }) + "\n\n" + translate("common.trashHint", { days: TRASH_DAYS }),
       )
     )
       return;
 
     isDeletingAllSubmissions = true;
     try {
+      // One trash entry for the whole action (issue #125).
+      const group = newTrashGroup();
       for (const sub of submissions) {
-        await submissionRepository.delete(exam.id, sub.id);
-        await studentRepository.delete(sub);
+        await submissionRepository.delete(exam.id, sub.id, { group });
+        await studentRepository.delete(sub, { group });
       }
       submissions = await submissionRepository.getByExamId(
         exam.id,

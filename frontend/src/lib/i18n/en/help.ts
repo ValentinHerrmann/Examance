@@ -81,7 +81,7 @@ export const help: Translations['help'] = {
                 p2: 'Afterwards Examance asks each time whether to keep or delete the old copy. When switching to "Hybrid", the copy on the server is marked for deletion (with a 7-day grace period); when switching to "All on the server", the local copy in this browser is cleared for every exam that arrived completely; an exam that could not be moved keeps its local copy. Changes not yet sent must be sent first ("Send now"), otherwise the switch is refused. Other open tabs are blocked while it runs and reload afterwards.',
                 p3: 'If a browser in "All on the server" mode still holds local results, for example from earlier hybrid use, a notice offers to upload them to the server. In hybrid mode, a browser without results shows a notice: the results live only in the browser where they were recorded.',
                 p4: 'A browser’s storage always belongs to exactly one account on one server: data belonging to a different account is not opened; a notice explains how to sign in with the matching credentials or reset the storage. Browsers holding data from the former purely local mode (without an account) show a notice instead that this data can no longer be opened. You can delete it and carry on; it is not migrated.',
-                p5: 'Results deleted from the server (single submissions, or the server copy deleted when you switched to “Hybrid”) come back through “Restore results deleted from the server” in the settings while their grace period runs. After that the server removes them for good; the restore names the exams where that already happened. Deleted exams and students erased under the GDPR do not come back.',
+                p5: 'The server copy left behind when you switch to “Hybrid” is erased after 7 days and cannot be restored from the app. Otherwise, whatever you delete first sits in the trash (see “Trash”), where you can bring it back for 7 days.',
             },
         },
         exercises: {
@@ -125,7 +125,7 @@ export const help: Translations['help'] = {
                 h: 'Proposing changes to the original',
                 p1: 'If you improved your copy or added a variant, “Propose to original…” suggests it to the person who shares the exercise. Changed variants are proposed as a new version, added ones as a new variant. Your email address is shown to them.',
                 p2: 'They see proposals under “Proposals” and get a short email notice without content. They compare the proposal with their current version, can edit it, and accept or reject it. Accepting always adds a new version or variant; existing versions and exams stay unchanged. A PDF preview is available only after accepting.',
-                p3: 'After the decision the proposal’s content is deleted, the entry itself after 30 days; open proposals after 180 days. You can withdraw an open proposal at any time. Accepted changes reach your copy through “Update…”. If your proposal was accepted unchanged, your copy is automatically back in sync with the original; only an edited acceptance shows “Update available”. Exercises with an open proposal carry a tag in the library that leads straight to the proposals; from there, “Open in library” opens the exercise.',
+                p3: 'After the decision the proposal’s content is removed; if it was rejected or withdrawn, it stays for 7 days in the trash of the person who decided and can be restored there. The entry itself is deleted after 30 days; open proposals after 180 days. You can withdraw an open proposal at any time. Accepted changes reach your copy through “Update…”. If your proposal was accepted unchanged, your copy is automatically back in sync with the original; only an edited acceptance shows “Update available”. Exercises with an open proposal carry a tag in the library that leads straight to the proposals; from there, “Open in library” opens the exercise.',
             },
             s7: {
                 h: 'Exporting (ZIP)',
@@ -246,6 +246,28 @@ export const help: Translations['help'] = {
                 p1: 'For exercises with variants it compares whether one phrasing was systematically harder than the other. That is the basis for reworking an unfair variant.',
             },
         },
+        trash: {
+            title: 'Trash',
+            summary: 'Get back anything deleted by mistake for 7 days.',
+            s1: {
+                h: 'What goes to the trash',
+                p1: 'Almost everything you delete first spends 7 days in the trash: exams with their results, exercises of the library (also single versions) and their resource files, logos you remove or reset, single students, scans and submissions, scores, cleared gradings and annotations, exercises removed from an exam, and rejected or withdrawn proposals for shared exercises. Whatever you delete in one go shows up as one entry.',
+                p2: 'Open the trash from the account menu next to the settings, or from the navigation menu on small screens.',
+            },
+            s2: {
+                h: 'Restore or delete permanently',
+                p1: '“Restore” brings back what is missing. It never overwrites anything you have now: if you created the same thing again in the meantime, the current version stays. When something could not come back, such as a scan whose exam no longer exists, the page tells you what and why. “Delete permanently” removes an entry at once, scans included; without it, the entry disappears by itself after 7 days.',
+            },
+            s3: {
+                h: 'Hybrid mode',
+                p1: 'In hybrid mode your results live only in this browser, and so does their trash. It appears on the same page, but you can restore it only in this browser and only while your account stays in hybrid mode. It is no replacement for a .examance backup.',
+            },
+            s4: {
+                h: 'What is deleted immediately',
+                p1: 'Erasing a student under the GDPR in the settings takes effect at once and does not go through the trash, and neither do deleting your account and clearing the local workspace. Results whose retention period expires are removed directly as well.',
+                p2: 'For older entries, ask your administrator: they can copy entries from the nightly backup back into your trash as long as a backup from that time still exists. You then restore them from there as usual.',
+            },
+        },
         settings: {
             title: 'Settings',
             summary: 'Storage strategy, LaTeX compilation, exam logo, language, MC detection and data deletion.',
@@ -266,7 +288,7 @@ export const help: Translations['help'] = {
             s4: {
                 h: 'Session and deletion',
                 p1: 'The session locks itself after a period of inactivity; afterwards the content is reachable only with the password again.',
-                p2: 'Data deletion removes individual student records (GDPR access and erasure requests) or the entire workspace. Deletion is final and cannot be undone.',
+                p2: 'Data deletion removes individual student records (GDPR access and erasure requests) or the entire workspace. This deletion takes effect at once, does not go through the trash and cannot be undone.',
                 p3: 'Under “Delete account” you can delete your own account. You receive an email with a link; the account is deleted only when you open it and confirm. Everything stored with it on the server goes (exams, results, sign-in factors), and the browser you confirm in is cleared (other browsers keep their local copy, which can no longer be read without the account). Your exercises can optionally stay on the server without your name, so they can be shared later. Admins can also delete other accounts in account management, with the same option.',
             },
             s5: {
@@ -384,7 +406,7 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'Retention',
-                p1: 'Exams carry a retention period, after which they can be removed. Student-related data can be deleted individually without losing the exam’s statistics.',
+                p1: 'Exams carry a retention period, after which they can be removed. Student-related data can be deleted individually without losing the exam’s statistics. Deleted items first sit in the trash for 7 days; the GDPR erasure in the settings, by contrast, takes effect at once.',
             },
             s4: {
                 h: 'No password, no data',

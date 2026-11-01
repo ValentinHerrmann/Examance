@@ -50,7 +50,7 @@ export const exam: Translations['exam'] = {
         },
         submissions: {
             noneToDelete: 'No submissions to delete.',
-            confirmDeleteAll: 'Are you sure you want to delete all {count} submission(s) for this exam? This cannot be undone.',
+            confirmDeleteAll: 'Are you sure you want to delete all {count} submission(s) for this exam?',
             allDeleted: 'All submissions deleted.',
             deleteFailed: 'Failed to delete submissions: {message}',
             loadFailed: 'The submissions of this exam could not be loaded: {message}. The figures above are missing; reload the page.',

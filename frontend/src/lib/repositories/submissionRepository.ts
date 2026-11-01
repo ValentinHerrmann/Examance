@@ -7,7 +7,8 @@ import type { SubmissionRecord } from '#lib/db/schema';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import { joinKey, pseudonymBase, serverVersion } from '#lib/crypto/pseudonymKey';
 import { examRepository } from '#lib/repositories/examRepository';
-import { scoreRepository } from '#lib/repositories/scoreRepository';
+import { deleteUrl, trashHeaders, type DeleteOptions } from '#lib/trash/group';
+import { captureLocal, storedSubmissionRows } from '#lib/trash/localTrash';
 
 export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): SubmissionRecord {
   return {
@@ -118,7 +119,7 @@ export const submissionRepository = {
   async save(
     submission: SubmissionRecord,
     key: CryptoKey | null,
-    opts: { clearAnnotations?: boolean } = {}
+    opts: { clearAnnotations?: boolean; group?: string } = {}
   ): Promise<void> {
     if (resultsAreLocal()) {
       // This browser stores keyed rows only, so a record read before the re-key cannot write its old value back.
@@ -130,38 +131,59 @@ export const submissionRepository = {
       await db.submissions.put(encrypted);
     } else {
       const payload = await submissionServerPayload(submission, opts);
+      // Cleared annotations go to the trash of this action's group (issue #125).
+      const headers = trashHeaders({ group: opts.group });
       try {
-        await api.post(`/exams/${submission.examId}/submissions`, payload, { silentError: true });
+        await api.post(`/exams/${submission.examId}/submissions`, payload, { silentError: true, headers });
       } catch (err) {
-        enqueueOrThrow(err, `/exams/${submission.examId}/submissions`, 'POST', payload);
+        enqueueOrThrow(err, `/exams/${submission.examId}/submissions`, 'POST', payload, headers);
       }
     }
   },
 
-  async delete(examId: string, id: string): Promise<void> {
-
-    // Always clean up associated exercise scores to prevent orphaned data from polluting analytics. Through the repository, so server-held rows are deleted too.
-    await scoreRepository.deleteBySubmissionId(examId, id);
-
+  /** Deletes a submission with its scores. Unless `opts.permanent`, a copy goes to the trash (the server's, or this browser's in hybrid mode; issue #125). */
+  async delete(examId: string, id: string, opts: DeleteOptions = {}): Promise<void> {
     if (resultsAreLocal()) {
+      const rows = await storedSubmissionRows(id);
+      await captureLocal(opts, {
+        kind: 'submission',
+        examId,
+        submissionId: id,
+        pseudonymHmac: rows.submissions[0]?.pseudonymHmac,
+        rows,
+      });
+      await db.exerciseScores.where('submissionId').equals(id).delete();
       await db.submissions.delete(id);
     } else {
+      // The server deletes (and trashes) the scores with the submission; the local mirror goes too, so a fallback read cannot resurrect them.
+      await db.exerciseScores.where('submissionId').equals(id).delete();
+      const url = deleteUrl(`/exams/${examId}/submissions/${id}`, opts);
+      const headers = trashHeaders(opts);
       try {
-        await api.delete(`/exams/${examId}/submissions/${id}`, { silentError: true });
+        await api.delete(url, { silentError: true, headers });
       } catch (err) {
-        enqueueOrThrow(err, `/exams/${examId}/submissions/${id}`, 'DELETE');
+        enqueueOrThrow(err, url, 'DELETE', undefined, headers);
       }
     }
   },
 
-  async clearGrading(examId: string, id: string, key: CryptoKey | null): Promise<void> {
+  async clearGrading(examId: string, id: string, key: CryptoKey | null, opts: DeleteOptions = {}): Promise<void> {
 
     if (resultsAreLocal()) {
+      const raw = await db.submissions.get(id);
+      const { exerciseScores } = await storedSubmissionRows(id);
+      await captureLocal(opts, {
+        kind: 'grading',
+        examId,
+        submissionId: id,
+        pseudonymHmac: raw?.pseudonymHmac,
+        rows: { exerciseScores },
+        cleared: raw ? [raw] : [],
+      });
       // Local only: in server mode DELETE /grading clears the score rows in the same transaction as the total and the annotations.
-      await scoreRepository.deleteBySubmissionId(examId, id);
+      await db.exerciseScores.where('submissionId').equals(id).delete();
 
       // Must decrypt → modify → re-encrypt → save, because submissions are stored encrypted in IndexedDB. Directly updating the encrypted record won't work since fields like totalScore don't exist at the encrypted storage level.
-      const raw = await db.submissions.get(id);
       if (!raw) return;
       const sub = await decryptSubmission(raw, key);
       sub.totalScore = undefined;
@@ -172,10 +194,12 @@ export const submissionRepository = {
     } else {
       // all-server mode: use dedicated DELETE /grading endpoint which atomically clears total_score, annotations and the per-exercise scores in a single request. The local mirror goes too, so a fallback read cannot resurrect them.
       await db.exerciseScores.where('submissionId').equals(id).delete();
+      const url = `/exams/${examId}/submissions/${id}/grading`;
+      const headers = trashHeaders(opts);
       try {
-        await api.delete(`/exams/${examId}/submissions/${id}/grading`, { silentError: true });
+        await api.delete(url, { silentError: true, headers });
       } catch (err) {
-        enqueueOrThrow(err, `/exams/${examId}/submissions/${id}/grading`, 'DELETE');
+        enqueueOrThrow(err, url, 'DELETE', undefined, headers);
       }
     }
   },

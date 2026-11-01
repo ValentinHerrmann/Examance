@@ -67,7 +67,7 @@ export const scanning: Translations['scanning'] = {
     examContextNotFound: 'Exam data could not be loaded.',
     confirmDeleteScan: 'Are you sure you want to delete this scan submission?',
     confirmDeleteGrading: 'Are you sure you want to delete the grading for this submission? This will clear all annotations and the score.',
-    confirmDeleteAllScans: 'Are you sure you want to delete ALL {count} ingested scan(s) for this exam? This action cannot be undone.',
+    confirmDeleteAllScans: 'Are you sure you want to delete ALL {count} ingested scan(s) for this exam?',
     errorDeleteScan: 'Failed to delete scan: {message}',
     errorDeleteGrading: 'Failed to delete grading: {message}',
     errorLoadSubmissions: 'Failed to load the submissions: {message}',

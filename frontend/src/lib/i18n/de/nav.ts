@@ -4,6 +4,7 @@ export const nav = {
     analytics: 'Auswertung',
     userManagement: 'Benutzerverwaltung',
     settings: 'Einstellungen',
+    trash: 'Papierkorb',
     workspace: 'Arbeitsbereich',
     menuLabel: 'Hauptmenü',
     logoAlt: 'Examance Logo',

@@ -104,7 +104,7 @@ describe('saveSubmissionScores', () => {
 
     const effective = await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', null]]));
 
-    expect(deleteOne).toHaveBeenCalledWith(EXAM, 'sub-1', 'ex-1');
+    expect(deleteOne).toHaveBeenCalledWith(EXAM, 'sub-1', 'ex-1', { group: expect.any(String) });
     expect(effective.get('ex-1')).toBeNull();
     expect(await stored('ex-1')).toBeUndefined();
     expect(sub.totalScore).toBeUndefined();

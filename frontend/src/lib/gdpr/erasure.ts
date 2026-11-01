@@ -8,6 +8,7 @@ import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
 import { api } from '#lib/api/client';
+import { purgeLocalStudent } from '#lib/trash/localTrash';
 import { pendingWritesCount } from '#lib/services/offlineQueue';
 import { get } from 'svelte/store';
 import type { StudentRecord } from '#lib/db/schema';
@@ -28,7 +29,7 @@ async function deleteServerCopy(student: ErasedStudent, target: string): Promise
   const base = student.pseudonymBase ?? (student.pseudonymVersion === 2 ? null : await pseudonymBase(student.pseudonymHmac));
   for (const serverValue of new Set([target, ...(base ? [base] : [])])) {
     try {
-      await api.delete(`/exams/${student.examId}/students/${serverValue}`, { silentError: true }); // NOSONAR: at most two values; the first refusal must stop the erasure
+      await api.delete(`/exams/${student.examId}/students/${serverValue}?permanent=true`, { silentError: true }); // NOSONAR: at most two values; the first refusal must stop the erasure
     } catch (err) {
       if ((err as { status?: unknown })?.status !== 404) throw err;
     }
@@ -63,10 +64,12 @@ export async function eraseStudent(student: ErasedStudent): Promise<ErasureResul
   const matchingSubs = await submissionsOf(examId, target, key);
 
   // Through the repositories, so each mode's copy goes (scores included); a refused server delete throws. A failed list above throws before anything is deleted, so the caller reports it and a retry is safe.
+  // Permanent: an erasure never goes to the trash, and earlier trash entries of this student go too (issue #125).
   for (const sub of matchingSubs) {
-    await submissionRepository.delete(examId, sub.id);
+    await submissionRepository.delete(examId, sub.id, { permanent: true });
   }
-  await studentRepository.delete(student);
+  await studentRepository.delete(student, { permanent: true });
+  await purgeLocalStudent(examId, target);
 
   await db.transaction('rw', [db.submissions, db.auditLog], async () => {
     await db.submissions.bulkDelete(matchingSubs.map((sub) => sub.id));

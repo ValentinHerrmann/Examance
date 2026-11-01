@@ -71,7 +71,8 @@ let lastTimestamp = 0;
 export function enqueueRequest(
   url: string,
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  body?: any
+  body?: any,
+  headers?: Record<string, string>
 ): void {
   lastTimestamp = Math.max(Date.now(), lastTimestamp + 1);
   const req: QueuedRequest = {
@@ -79,6 +80,7 @@ export function enqueueRequest(
     url,
     method,
     body,
+    ...(headers ? { headers } : {}),
     timestamp: lastTimestamp,
     workspaceId: get(workspaceIdStore) ?? undefined,
   };
@@ -97,7 +99,8 @@ export function enqueueOrThrow(
   err: unknown,
   url: string,
   method: QueuedRequest['method'],
-  body?: unknown
+  body?: unknown,
+  headers?: Record<string, string>
 ): void {
   const { status, message, code } = (err ?? {}) as { status?: unknown; message?: string; code?: string };
   if (method === 'DELETE' && status === 404) return; // already gone: the requested state
@@ -105,7 +108,7 @@ export function enqueueOrThrow(
     if (typeof status === 'number') httpErrorStore.showError(status, message, code);
     throw err;
   }
-  enqueueRequest(url, method, body);
+  enqueueRequest(url, method, body, headers);
 }
 
 /** True when the workspace still has writes waiting for the server. */
@@ -149,7 +152,7 @@ export function replayOutcome(req: Pick<QueuedRequest, 'method'>, err: unknown):
 
 function send(req: QueuedRequest): Promise<unknown> {
   // Silent: a replay is a background retry, and one modal per queued request would be a wall of dialogs.
-  const opts = { silentError: true };
+  const opts = { silentError: true, headers: req.headers };
   if (req.method === 'POST') return api.post(req.url, req.body, opts);
   if (req.method === 'PUT') return api.put(req.url, req.body, opts);
   if (req.method === 'PATCH') return api.patch(req.url, req.body, opts);

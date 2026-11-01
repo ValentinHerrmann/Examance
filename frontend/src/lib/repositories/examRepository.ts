@@ -1,12 +1,14 @@
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
-import { storagePolicyStore } from '#lib/stores/storagePolicy';
+import { resultsAreLocal, storagePolicyStore } from '#lib/stores/storagePolicy';
 import { decryptExam } from '#lib/db/dbEncryption';
 import { serverVersion } from '#lib/crypto/pseudonymKey';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord, ExtraNotes } from '#lib/db/schema';
 import { invalidateOwner } from '#lib/latex/compileCache';
+import { newTrashGroup, trashHeaders, type DeleteOptions } from '#lib/trash/group';
+import { captureLocal, storedExamRows } from '#lib/trash/localTrash';
 import { storedEntries, type LatexPackageEntry } from '#lib/latex/packages';
 
 /** Undefined (unknown) stays undefined, so a later save leaves the server's value alone. */
@@ -217,8 +219,12 @@ export const examRepository = {
   },
 
     /** Removes every local table an exam owns. The single implementation for all exam deletions, so no owned table is missed. */
-  async deleteLocalCascade(id: string): Promise<void> {
+  async deleteLocalCascade(id: string, opts: DeleteOptions = {}): Promise<void> {
     if (!db.exams) return;
+    // Hybrid results exist only here: keep a copy in this browser's trash (issue #125).
+    if (resultsAreLocal()) {
+      await captureLocal(opts, { kind: 'exam', examId: id, rows: await storedExamRows(id) });
+    }
 
     const submissionIds = (await db.submissions.where('examId').equals(id).toArray()).map(
       (s) => s.id
@@ -259,16 +265,19 @@ export const examRepository = {
     );
   },
 
-  async delete(id: string): Promise<void> {
+  /** The server keeps the exam in its trash (issue #125); `opts.group` ties it to this browser's copy of hybrid results. */
+  async delete(id: string, opts: DeleteOptions = {}): Promise<void> {
     invalidateOwner('exam', id);
     invalidateOwner('omr-blank', id);
+    const group = opts.group ?? newTrashGroup();
+    const headers = trashHeaders({ group });
     // Server first (F10): a refused delete throws before the local cascade, so nothing is gone on one side only.
     try {
-      await api.delete(`/exams/${id}`, { silentError: true });
+      await api.delete(`/exams/${id}`, { silentError: true, headers });
     } catch (err: any) {
-      enqueueOrThrow(err, `/exams/${id}`, 'DELETE');
+      enqueueOrThrow(err, `/exams/${id}`, 'DELETE', undefined, headers);
     }
-    await this.deleteLocalCascade(id);
+    await this.deleteLocalCascade(id, { group });
   },
 };
 

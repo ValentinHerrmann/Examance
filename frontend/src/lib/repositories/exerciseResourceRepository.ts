@@ -1,6 +1,7 @@
 /** Exercise resource files: local staging area plus server sync. The editor works against a *staging* owner id, never the live exercise, so files can be attached and previewed before it exists; Save flushes the staged set to the API, cancel discards it. Dexie is the working copy; server-seeded rows carry only metadata until their bytes are needed. */
 
 import { api } from '#lib/api/client';
+import { newTrashGroup, trashHeaders } from '#lib/trash/group';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { db } from '#lib/db/db';
 import { decryptResourceBytes, encryptResource } from '#lib/db/dbEncryption';
@@ -149,10 +150,12 @@ export const exerciseResourceRepository = {
     }
 
     const stagedNames = new Set(staged.map((r) => r.filename));
+    // Files removed while editing go to the trash as one action (issue #125).
+    const headers = trashHeaders({ group: newTrashGroup() });
     for (const row of remote) {
       if (!stagedNames.has(row.filename) && row.remoteId) {
         try {
-          await api.delete(`/exercises/${exerciseId}/resources/${row.remoteId}`, QUIET);
+          await api.delete(`/exercises/${exerciseId}/resources/${row.remoteId}`, { ...QUIET, headers });
         } catch {
           // Already gone, or gone by someone else's hand — nothing to undo.
         }

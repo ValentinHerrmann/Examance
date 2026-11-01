@@ -31,6 +31,7 @@
           { href: "/analytics", label: $t("nav.analytics") },
         ]),
     { href: "/settings", label: $t("nav.settings") },
+    ...(userRole === "admin" ? [] : [{ href: "/trash", label: $t("nav.trash") }]),
     { href: "/help", label: $t("help.ui.navLabel") },
   ]);
 

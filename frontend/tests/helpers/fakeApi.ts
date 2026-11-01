@@ -316,16 +316,6 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       state.storageMode = body.mode;
       return ok(capabilities());
     }
-    // The fake purges for good, so a restore finds nothing; it reports no erased exams either.
-    if (method === 'POST' && action === 'restore-server-data') {
-      return ok({
-        status: 'ok',
-        restored_student_identities: 0,
-        restored_submissions: 0,
-        grace_days: 7,
-        purged_exams: [],
-      });
-    }
     if (method === 'POST' && action === 'purge-server-student-data') {
       let students = 0;
       let submissions = 0;
@@ -1056,10 +1046,6 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (!exerciseId) {
       if (method === 'GET') return ok((state.scores.get(submissionId) ?? []).map(scoreResponse));
       if (method === 'PUT') return putScores(examId, submissionId, body);
-      if (method === 'DELETE') {
-        state.scores.delete(submissionId);
-        return noContent();
-      }
       return undefined;
     }
     if (method !== 'DELETE') return undefined;
@@ -1316,6 +1302,10 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         break;
       case 'latex':
         if (verb === 'GET' && parts[1] === 'template-packages') handled = ok(TEMPLATE_PACKAGES);
+        break;
+      case 'trash':
+        // The fake deletes for good, so its trash is always empty (issue #125).
+        if (verb === 'GET' && parts.length === 1) handled = ok({ grace_days: 7, groups: [] });
         break;
     }
     if (handled) return handled;

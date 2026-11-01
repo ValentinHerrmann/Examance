@@ -73,7 +73,7 @@ export const dashboard = {
         title: 'Prüfung löschen: {title}',
         warningTitle: 'Warnung: Prüfung enthält Abgaben',
         usageInfo: 'Zu dieser Prüfung gehören {count} Abgabe(n).',
-        usageWarning: 'Beim Löschen werden die Prüfungsdaten und alle zugehörigen Abgaben dauerhaft entfernt.',
+        usageWarning: 'Beim Löschen werden die Prüfungsdaten und alle zugehörigen Abgaben in den Papierkorb verschoben.',
         confirmPlain: 'Möchten Sie diese Prüfung wirklich löschen?',
     },
     error: {
