@@ -101,6 +101,10 @@ export const grading: Translations['grading'] = {
         stampTarget: 'Stamp target',
         resetTitle: 'Reset to ungraded',
         manualEdit: 'Manually edited',
+        partRowLabel: 'Part {label})',
+        sumOfParts: 'Follows from the parts once all of them are graded',
+        restRowLabel: 'Outside the parts',
+        restOverMax: 'More than the points outside the parts ({max}): stamps without a part?',
     },
     zoom: {
         pagePrevTitle: 'Jump to previous page',

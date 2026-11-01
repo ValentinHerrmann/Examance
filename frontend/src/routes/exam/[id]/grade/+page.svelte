@@ -25,6 +25,7 @@
   import { saveSubmissionScores } from "#lib/grading/scoreService";
   import { buildGradingSheet } from "#lib/grading/gradingSheet";
   import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
+  import { loadScoreBoxContext, type ScoreBoxContext } from "#lib/grading/scoreBoxes";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, EmptyState } from "#lib/components/ui";
 
@@ -40,6 +41,8 @@
   let exam = $state.raw<ExamRecord | null>(null);
   let submissions: SubmissionRecord[] = $state.raw([]);
   let exercises: ExerciseRecord[] = $state.raw([]);
+  /** Printed score boxes the viewer fills in (issue #187); null when the exam has no usable layout. */
+  let scoreBoxes: ScoreBoxContext | null = $state.raw(null);
 
   let currentIndex = $derived($gradingStore.currentIndex);
   let currentSub = $derived(submissions[currentIndex]);
@@ -79,6 +82,7 @@
     if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
+    void loadScoreBoxContext(examId, key).then((ctx) => (scoreBoxes = ctx));
     try {
       submissions = await submissionRepository.getByExamId(examId, key);
     } catch (err) {
@@ -112,6 +116,7 @@
     loadedFor = null;
     gradingStore.setManualOverride({});
     gradingStore.setScoreInputs({});
+    gradingStore.setPartInputs({});
     gradingStore.setMcState({});
     gradingStore.markClean();
     if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
@@ -143,23 +148,14 @@
       return;
     }
     if (seq !== loadSeq) return;
-    const exerciseIdsWithStrokes = new Set<string>();
-    for (const stroke of subStrokes) {
-      if (stroke.exerciseId) {
-        exerciseIdsWithStrokes.add(stroke.exerciseId);
-      }
-    }
 
-    const sheet = buildGradingSheet(
-      sub.id,
-      existingScores,
-      exercises,
-      exerciseIdsWithStrokes,
-      get(gradingStore).manualOverride
-    );
+    const sheet = buildGradingSheet(sub.id, existingScores, exercises, subStrokes);
     loadedScores = sheet.loadedScores;
     loadedFor = sub.id;
+    // Typed scores are not stored as such; flag them so the viewer's recalculation keeps them.
+    gradingStore.setManualOverride(sheet.manualOverride);
     gradingStore.setScoreInputs(sheet.scoreInputs);
+    gradingStore.setPartInputs(sheet.partInputs);
     gradingStore.setMcState(sheet.mcState);
   }
 
@@ -197,6 +193,7 @@
     const values = new Map(exercises.map((ex) => [ex.id, scoreInputs[ex.id] ?? null]));
     const mcState = get(gradingStore).mcState;
     const mc = Object.fromEntries(exercises.filter(isMcQuestion).map((ex) => [ex.id, mcState[ex.id]]));
+    const parts = get(gradingStore).partInputs;
     gradingStore.setSaving(true);
 
     try {
@@ -230,7 +227,7 @@
         sub,
         exercises.map((ex) => ex.id),
         values,
-        { mc, existing: loadedScores, clearAnnotations },
+        { mc, existing: loadedScores, clearAnnotations, parts },
       );
       submissions = submissions.map((s) => (s.id === sub.id ? { ...sub } : s));
       if (currentSub?.id === sub.id) {
@@ -325,6 +322,7 @@
       onNext={nextStudent}
       onStayOnLastSub={stayOnLastSub}
       onExerciseSaved={async () => (exercises = await loadExamExercisesEncrypted(examId, get(sessionStore).sessionKey))}
+      {scoreBoxes}
     />
   {/if}
 </div>
