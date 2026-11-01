@@ -87,3 +87,8 @@
 
 /wasm/*.wasm
   Content-Type: application/wasm
+
+# Related origins for passkeys during a domain move (scripts/related-origins.mjs,
+# issue #198); browsers read it as JSON.
+/.well-known/webauthn
+  Content-Type: application/json

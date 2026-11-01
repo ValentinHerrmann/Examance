@@ -13,9 +13,9 @@ Python 3.12, FastAPI (async), SQLAlchemy 2.0, Alembic, PostgreSQL (asyncpg; psyc
 
 ## Environment
 
-`backend/.env.example` → `backend/.env`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`; `CORS_ALLOWED_ORIGIN_REGEX` has no default (credentialed `SameSite=None` cookies: never admit a wildcard subdomain). With `ENVIRONMENT=development`, `effective_cors_origin_regex` also allows arbitrary loopback ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `app/config.py`).
+`backend/.env.example` → `backend/.env`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`; there is no origin pattern setting (issue #198 removed `CORS_ALLOWED_ORIGIN_REGEX`; credentialed `SameSite=None` cookies: never admit a wildcard subdomain). Only with `ENVIRONMENT=development` does `effective_cors_origin_regex` allow arbitrary loopback ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `app/config.py`).
 
-`WEBAUTHN_RP_ID` is per stack: a passkey registered against production does not work against preview. Rotating `SECRET_KEY` invalidates every TOTP enrollment.
+`WEBAUTHN_RP_ID` is per stack: a passkey registered against production does not work against preview. During a domain move `WEBAUTHN_LEGACY_RP_IDS` names the old RP ID: ceremonies pick the RP ID from the request `Origin` (`services/webauthn.rp_id_for_origin`) and carry it in the challenge handle, new passkeys are refused on the old address, and `{"legacy": true}` asks for old passkeys from the new one via related origins (`docs/domain_move.md`). Rotating `SECRET_KEY` invalidates every TOTP enrollment.
 
 ## Authentication and the data key
 

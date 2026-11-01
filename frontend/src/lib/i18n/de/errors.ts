@@ -31,6 +31,7 @@ export const errors = {
         ERR_UNAUTHORIZED: 'Nicht autorisiert.',
         ERR_NETWORK: 'Server nicht erreichbar.',
                 // Fallbacks. Beim Entfernen eines Faktors nennt `detail`, welche Regel greift (unter zwei Faktoren oder unter den letzten Daten-Faktor); das ist hilfreicher als ein pauschaler Satz, daher zeigt die Oberfläche den Servertext.
+        ERR_PASSKEY_OLD_ADDRESS: 'Neue Passkeys fügen Sie auf der neuen Adresse dieses Dienstes hinzu.',
         ERR_LAST_FACTOR_PROTECTED: 'Dieser Faktor kann nicht entfernt werden, ohne den Zugang zum Konto oder zu den Daten zu verlieren.',
         ERR_MFA_REQUIRED: 'Für diese Aktion ist eine vollständige Anmeldung erforderlich.',
         ERR_STEP_EXPIRED: 'Dieser Anmeldeschritt ist abgelaufen. Bitte melden Sie sich erneut an.',

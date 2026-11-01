@@ -26,6 +26,7 @@ import { about } from './about';
 import { maintenance } from './maintenance';
 import { layoutReport } from './layoutReport';
 import { snippets } from './snippets';
+import { domainMove } from './domainMove';
 
 export const en: Translations = {
     common,
@@ -55,4 +56,5 @@ export const en: Translations = {
     maintenance,
     layoutReport,
     snippets,
+    domainMove,
 };

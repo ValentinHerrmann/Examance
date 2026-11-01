@@ -565,12 +565,13 @@ export async function passkeyWrapIds(): Promise<string[]> {
 export async function enablePasskeyUnlock(
   teacherId: string,
   credentialIdB64: string,
+  opts: { legacy?: boolean } = {},
 ): Promise<void> {
   const vault = vaultFromSession();
   if (vault === null) {
     throw new EnvelopeFactorMissingError('session');
   }
-  const assertion = await authenticate(await loginOptions(), { credentialIdB64 });
+  const assertion = await authenticate(await loginOptions(opts), { credentialIdB64 });
   const assertedId = (JSON.parse(assertion.credentialJson) as { rawId: string }).rawId;
   if (!sameCredential(assertedId, credentialIdB64)) {
     throw new Error('The browser answered with a different passkey.');

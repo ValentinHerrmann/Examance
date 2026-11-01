@@ -5,6 +5,7 @@
   import { stripBackendProtocol } from "#lib/stores/backendStore";
   import { faBookOpen, faKey, faLightbulb, faUserPlus } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, Card, Field, TextInput } from "#lib/components/ui";
+  import OldAddressPasskey from "./OldAddressPasskey.svelte";
 
   interface Props {
     backendUrl: string;
@@ -17,6 +18,8 @@
     onUnlock: () => void;
     /** Passkey sign-in (no email, no second factor), or undefined without WebAuthn. */
     onPasskey?: (() => void) | undefined;
+    /** Passkey of the old address during a domain move (issue #198); shown only on the new address. */
+    onLegacyPasskey?: (() => void) | undefined;
   }
 
   let {
@@ -28,6 +31,7 @@
     isLoading,
     onUnlock,
     onPasskey,
+    onLegacyPasskey,
   }: Props = $props();
 
   // A remembered server is shown as one line so the page fits on one screen (issue #128).
@@ -120,6 +124,9 @@
           {$t("security.passkey.signIn")}
         </Button>
         <p class="m-0 text-center text-xs text-muted">{$t("auth.unlock.cloud.passkeyHint")}</p>
+        {#if onLegacyPasskey}
+          <OldAddressPasskey onClick={onLegacyPasskey} disabled={isLoading} />
+        {/if}
       {/if}
 
     </form>

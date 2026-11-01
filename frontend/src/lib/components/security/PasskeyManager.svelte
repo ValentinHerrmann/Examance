@@ -22,6 +22,7 @@
     sameCredential,
     vaultFromSession,
   } from "#lib/services/keyEnvelopeService";
+  import { deadlineDate, domainMove, newHost, onOldAddress } from "#lib/domainMove";
 
   interface Props {
     teacherId: string;
@@ -60,14 +61,15 @@
     return (ids ?? []).some((id) => sameCredential(id, credentialIdB64));
   }
 
-  async function enableUnlock(credentialIdB64: string) {
+  async function enableUnlock(passkey: PasskeySummary) {
+    const credentialIdB64 = passkey.credential_id_b64;
     if (enabling) {
       return;
     }
     enabling = credentialIdB64;
     errorMsg = "";
     try {
-      await enablePasskeyUnlock(teacherId, credentialIdB64);
+      await enablePasskeyUnlock(teacherId, credentialIdB64, { legacy: passkey.legacy });
       unlockNotes = { ...unlockNotes, [credentialIdB64]: "done" };
       await loadWrapIds();
     } catch (err: unknown) {
@@ -83,6 +85,9 @@
   let errorMsg = $state("");
   let isWorking = $state(false);
   const supported = isSupported();
+  // Domain move (issue #198): the old address makes no new passkeys, they would stop working with it.
+  const oldAddress = onOldAddress();
+  const moveDeadline = deadlineDate();
 
   async function add() {
     if (isWorking) {
@@ -130,8 +135,11 @@
       }
 
       onChanged();
-    } catch {
-      errorMsg = $t("security.passkey.failed");
+    } catch (err: unknown) {
+      errorMsg =
+        err instanceof ApiError && err.code === "ERR_PASSKEY_OLD_ADDRESS"
+          ? err.message
+          : $t("security.passkey.failed");
     } finally {
       isWorking = false;
     }
@@ -195,6 +203,11 @@
                     })
                   : $t("security.passkey.neverUsed")}
               </p>
+              {#if passkey.legacy && domainMove && moveDeadline}
+                <p class="m-0 mt-1 text-xs text-warning-fg">
+                  {$t("domainMove.passkeyOld", { from: domainMove.from, date: $fmt.date(moveDeadline) })}
+                </p>
+              {/if}
               {#if wrapIds !== null}
                 {#if opensData(passkey.credential_id_b64, wrapIds)}
                   <p class="m-0 mt-1 text-xs text-muted">{$t("security.passkey.opensData")}</p>
@@ -221,7 +234,7 @@
                   size="sm"
                   disabled={enabling !== null}
                   loading={enabling === passkey.credential_id_b64}
-                  onClick={() => enableUnlock(passkey.credential_id_b64)}
+                  onClick={() => enableUnlock(passkey)}
                 >
                   {$t("security.passkey.enableUnlock")}
                 </Button>
@@ -239,14 +252,23 @@
       </ul>
     {/if}
 
-    <Field label={$t("security.passkey.nicknameLabel")}>
-      <TextInput bind:value={nickname} placeholder={$t("security.passkey.nicknamePlaceholder")} />
-    </Field>
+    {#if oldAddress && domainMove}
+      <p class="m-0 text-sm text-muted">{$t("domainMove.addPasskeyThere", { host: newHost() })}</p>
+      <div>
+        <Button href={`${domainMove.to}/settings#security`} target="_blank" rel="noopener">
+          {$t("domainMove.openNew", { host: newHost() })}
+        </Button>
+      </div>
+    {:else}
+      <Field label={$t("security.passkey.nicknameLabel")}>
+        <TextInput bind:value={nickname} placeholder={$t("security.passkey.nicknamePlaceholder")} />
+      </Field>
 
-    <div>
-      <Button disabled={isWorking} loading={isWorking} onClick={add}>
-        {$t("security.passkey.add")}
-      </Button>
-    </div>
+      <div>
+        <Button disabled={isWorking} loading={isWorking} onClick={add}>
+          {$t("security.passkey.add")}
+        </Button>
+      </div>
+    {/if}
   {/if}
 </FactorCard>

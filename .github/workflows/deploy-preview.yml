@@ -82,7 +82,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           VERSION: ${{ steps.resolve.outputs.version }}
-          BACKEND_URL: ${{ vars.BACKEND_PUBLIC_URL || 'https://prev-api-examance.valentin-herrmann.com/' }}
+          BACKEND_URL: ${{ vars.BACKEND_PUBLIC_URL || 'https://preview-api.examance.de/' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -134,7 +134,7 @@ jobs:
       name: preview
       # The Cloudflare Pages deployment that went live (dashboard link);
       # the site itself if the wait step never got that far.
-      url: ${{ steps.pages.outputs.url || 'https://prev-examance.valentin-herrmann.com/' }}
+      url: ${{ steps.pages.outputs.url || 'https://preview.examance.de/' }}
     steps:
       - name: Checkout PR head
         uses: actions/checkout@v4
@@ -247,7 +247,7 @@ jobs:
       actions: read
     environment:
       name: preview
-      url: ${{ vars.BACKEND_PUBLIC_URL || 'https://prev-api-examance.valentin-herrmann.com/' }}
+      url: ${{ vars.BACKEND_PUBLIC_URL || 'https://preview-api.examance.de/' }}
     steps:
       - name: Checkout PR head
         uses: actions/checkout@v4

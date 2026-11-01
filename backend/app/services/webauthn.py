@@ -5,6 +5,7 @@ import base64
 import secrets
 import uuid
 from datetime import UTC, datetime
+from urllib.parse import urlparse
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +33,9 @@ from app.services import ephemeral_store
 _CHALLENGE_PREFIX = "webauthn:challenge:"
 _CHALLENGE_TTL_SECONDS = 300
 
+# Separates the random handle from the RP ID it was issued for; never in a token_urlsafe value.
+_HANDLE_RP_SEPARATOR = "~"
+
 # Per credential and currently unread: the PRF salt must be chosen before the ceremony, when the passkey is unknown, so the client uses one application-wide constant (`webauthn/client.ts`). Kept as the basis for rotating PRF inputs later.
 PRF_SALT_BYTES = 32
 
@@ -53,6 +57,49 @@ def _expected_origins() -> list[str]:
     return origins
 
 
+class LegacyAddressError(ValueError):
+    """A passkey would be made for an old domain that is being retired (issue #198)."""
+
+
+def rp_ids() -> list[str]:
+    """Every RP ID this server accepts passkeys for: the current one first, then those of earlier domains."""
+    return [settings.WEBAUTHN_RP_ID, *settings.WEBAUTHN_LEGACY_RP_IDS]
+
+
+def rp_id_for_origin(origin: str | None) -> str:
+    """The RP ID a page at *origin* can use without help: its own host or a parent domain of it. Unknown origins get the current RP ID, which the browser then refuses if it does not fit."""
+    host = urlparse(origin).hostname if origin else None
+    if host:
+        for rp_id in rp_ids():
+            if host == rp_id or host.endswith("." + rp_id):
+                return rp_id
+    return settings.WEBAUTHN_RP_ID
+
+
+def legacy_rp_id() -> str | None:
+    """RP ID of the previous domain, for a sign-in on the new one through related origins (`/.well-known/webauthn` on the old domain)."""
+    return settings.WEBAUTHN_LEGACY_RP_IDS[0] if settings.WEBAUTHN_LEGACY_RP_IDS else None
+
+
+def is_legacy(credential: WebAuthnCredential) -> bool:
+    """Whether the passkey belongs to an old domain. Credentials from before RP IDs were recorded (NULL) were all made for the previous domain."""
+    if not settings.WEBAUTHN_LEGACY_RP_IDS:
+        return False
+    return credential.rp_id is None or credential.rp_id in settings.WEBAUTHN_LEGACY_RP_IDS
+
+
+def _issue_handle(rp_id: str) -> str:
+    # The RP ID rides in the handle; the challenge key contains the whole handle, so an edited one finds no challenge.
+    return secrets.token_urlsafe(16) + _HANDLE_RP_SEPARATOR + rp_id
+
+
+def _rp_id_of_handle(handle: str) -> str:
+    _, _, rp_id = handle.partition(_HANDLE_RP_SEPARATOR)
+    if rp_id not in rp_ids():
+        raise ValueError("This attempt has expired. Try again.")
+    return rp_id
+
+
 async def _store_challenge(handle: str, challenge: bytes) -> None:
     # The store holds integers, so the challenge is kept as its own key with a presence marker; the handle is what the client echoes back.
     await ephemeral_store.set(
@@ -66,8 +113,14 @@ async def _take_challenge(handle: str, challenge_b64: str) -> bool:
     return await ephemeral_store.take(_CHALLENGE_PREFIX + handle + ":" + challenge_b64)
 
 
-async def registration_options(db: AsyncSession, teacher: Teacher) -> tuple[str, str]:
+async def registration_options(
+    db: AsyncSession, teacher: Teacher, origin: str | None
+) -> tuple[str, str]:
     """Options for registering a new passkey, plus the handle that ties them to it. Existing credentials are excluded so an authenticator that already holds a passkey for this account says so rather than silently making a second one."""
+    rp_id = rp_id_for_origin(origin)
+    if rp_id != settings.WEBAUTHN_RP_ID:
+        # A passkey made for the old domain stops working when it is switched off; the teacher adds one on the new address instead.
+        raise LegacyAddressError("Add new passkeys on the new address of this service.")
     existing = await db.execute(
         select(WebAuthnCredential.credential_id).where(
             WebAuthnCredential.teacher_id == teacher.id
@@ -78,7 +131,7 @@ async def registration_options(db: AsyncSession, teacher: Teacher) -> tuple[str,
     ]
 
     options = generate_registration_options(
-        rp_id=settings.WEBAUTHN_RP_ID,
+        rp_id=rp_id,
         rp_name=settings.WEBAUTHN_RP_NAME,
         user_id=teacher.id.bytes,
         user_name=teacher.email,
@@ -90,7 +143,7 @@ async def registration_options(db: AsyncSession, teacher: Teacher) -> tuple[str,
             user_verification=UserVerificationRequirement.REQUIRED,
         ),
     )
-    handle = secrets.token_urlsafe(16)
+    handle = _issue_handle(rp_id)
     await _store_challenge(handle, options.challenge)
     return handle, options_to_json(options)
 
@@ -106,13 +159,14 @@ async def verify_registration(
     nickname: str | None,
 ) -> WebAuthnCredential:
     """Verify a registration ceremony and store the resulting credential."""
+    rp_id = _rp_id_of_handle(handle)
     if not await _take_challenge(handle, challenge_b64):
         raise ValueError("This registration attempt has expired. Try again.")
 
     verified = verify_registration_response(
         credential=credential_json,
         expected_challenge=_challenge_bytes(challenge_b64),
-        expected_rp_id=settings.WEBAUTHN_RP_ID,
+        expected_rp_id=rp_id,
         expected_origin=_expected_origins(),
     )
 
@@ -125,19 +179,20 @@ async def verify_registration(
         prf_salt=secrets.token_bytes(PRF_SALT_BYTES),
         supports_prf=supports_prf,
         nickname=nickname,
+        rp_id=rp_id,
     )
     db.add(credential)
     await db.flush()
     return credential
 
 
-async def authentication_options() -> tuple[str, str]:
+async def authentication_options(rp_id: str) -> tuple[str, str]:
     """Options for a passkey sign-in. No credential list or account name: the discoverable credential names the account, and asking which passkeys an email has would be an account-profile oracle."""
     options = generate_authentication_options(
-        rp_id=settings.WEBAUTHN_RP_ID,
+        rp_id=rp_id,
         user_verification=UserVerificationRequirement.REQUIRED,
     )
-    handle = secrets.token_urlsafe(16)
+    handle = _issue_handle(rp_id)
     await _store_challenge(handle, options.challenge)
     return handle, options_to_json(options)
 
@@ -146,6 +201,7 @@ async def verify_authentication(
     db: AsyncSession, handle: str, challenge_b64: str, credential_json: str
 ) -> WebAuthnCredential:
     """Verify a sign-in ceremony and return the credential that answered it."""
+    rp_id = _rp_id_of_handle(handle)
     if not await _take_challenge(handle, challenge_b64):
         raise ValueError("This sign-in attempt has expired. Try again.")
 
@@ -167,7 +223,7 @@ async def verify_authentication(
     verified = verify_authentication_response(
         credential=credential_json,
         expected_challenge=_challenge_bytes(challenge_b64),
-        expected_rp_id=settings.WEBAUTHN_RP_ID,
+        expected_rp_id=rp_id,
         expected_origin=_expected_origins(),
         credential_public_key=stored.public_key,
         credential_current_sign_count=stored.sign_count,
@@ -179,6 +235,8 @@ async def verify_authentication(
         raise ValueError("This passkey's counter went backwards; it may have been cloned.")
 
     stored.sign_count = verified.new_sign_count
+    # The authenticator signed over this RP ID, which fills in credentials registered before it was recorded.
+    stored.rp_id = rp_id
     stored.last_used_at = datetime.now(tz=UTC)
     await db.flush()
     return stored

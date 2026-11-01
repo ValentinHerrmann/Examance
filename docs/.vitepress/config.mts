@@ -110,6 +110,7 @@ export default withMermaid(defineConfig({
               { text: 'Backup and restore', link: '/backup_and_restore' },
               { text: 'Maintenance mode', link: '/dev/maintenance_mode' },
               { text: 'Storage partitions', link: '/dev/storage_partitions' },
+              { text: 'Moving to a new domain', link: '/domain_move' },
             ],
           },
           {

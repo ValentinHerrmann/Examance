@@ -68,7 +68,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 - Completing a password reset (`POST /api/v1/auth/reset-password`) sets the new password and revokes all active refresh tokens for the user account.
 
 ### CORS & Security Policies
-- **CORS Allowed Origins**: Explicitly restricted to configured origins (e.g., `https://examance.pages.dev`, `http://localhost:5173`, and `*.valentin-herrmann.com` subdomains).
+- **CORS Allowed Origins**: Explicitly restricted to configured origins (e.g., `https://examance.pages.dev`, `https://examance.de`, `http://localhost:5173`); there is no origin pattern, every origin is named.
 - **Security Headers**: Middleware enforces strict Content Security Policy (CSP), anti-clickjacking frame options, and rate limits via `slowapi`.
 
 ---

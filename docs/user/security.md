@@ -92,3 +92,14 @@ The technical details are in [Data flow and security](../data_flow_and_security)
 ## Retention {#retention}
 
 Exams carry a retention period, after which they can be removed. Student-related data can be deleted individually without losing the exam's statistics, see [Deleting data](./settings#deletion). The retention periods of your installation are listed in its privacy policy (**Privacy** in the footer).
+
+## Moving to a new address {#domain-move}
+
+When your installation moves to a new address (for example from `examance.valentin-herrmann.com` to `examance.de`), the old address shows a notice with the date it stops working and a **How to move** checklist. Until that date both addresses work with the same account. Your exams and exercises are on the server and appear on the new address straight away. Go through these steps once on every device:
+
+1. **Hybrid mode only: take your results along.** Results stored only in this browser belong to the old address and do not move. Switch **Global Data Storage Strategy** to **All Server** before you leave and back on the new address, or create a [workspace backup](./backup#workspace-backup) and [import](./backup#import) it there.
+2. **Sign in on the new address** with the same e-mail address. Your password manager has the password saved under the old address, so look it up there if it is not suggested.
+3. **Passkeys belong to their address.** On the new address, **Use a passkey of the old address** signs you in with your existing passkey in Chrome, Edge and Safari, and opens your data as before. Firefox cannot do this: sign in with your password and authenticator code instead, and set up whichever of the two you lack on the old address first.
+4. **Add a new passkey** on the new address under [Sign-in & security](#security-page). New passkeys cannot be added on the old address any more. Until a new one exists, the new address reminds you.
+5. **Renew bookmarks and the installed app.** Settings that only the browser keeps (such as the theme) need to be set once more.
+6. **After the date**, remove the passkeys marked "old address" and the old entry in your password manager.

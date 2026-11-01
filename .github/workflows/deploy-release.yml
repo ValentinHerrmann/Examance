@@ -62,7 +62,7 @@ jobs:
       name: production
       # The Cloudflare Pages deployment that went live (dashboard link);
       # the site itself if the wait step never got that far.
-      url: ${{ steps.pages.outputs.url || 'https://examance.valentin-herrmann.com/' }}
+      url: ${{ steps.pages.outputs.url || 'https://examance.de/' }}
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v4
@@ -187,7 +187,7 @@ jobs:
       actions: read
     environment:
       name: production
-      url: ${{ vars.BACKEND_PUBLIC_URL || 'https://api-examance.valentin-herrmann.com/' }}
+      url: ${{ vars.BACKEND_PUBLIC_URL || 'https://api.examance.de/' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
