@@ -179,7 +179,7 @@ def sign_in():
 def pseudonym():
     sequence("pseudonym", 1300, [("Browser der Lehrkraft", "ok"), ("Papier und Kopierer", None), ("Server", None)], [
         ("self", 0, "Schülerliste: je Person ein zufälliges Pseudonym"),
-        ("msg", 0, 2, "Name, Nummer verschlüsselt; Kennung = Hash des Pseudonyms"),
+        ("msg", 0, 2, "Name, Nummer verschlüsselt; Kennung je Klausur geschlüsselt (HMAC)"),
         ("msg", 0, 1, "Klausur-PDF: QR mit Pseudonym, Variante, Ersatzcode"),
         ("msg", 1, 0, "ein Scan-PDF für den ganzen Stapel"),
         ("self", 0, "QR lesen, Seiten zuordnen, Kreuze messen (Web Worker)"),

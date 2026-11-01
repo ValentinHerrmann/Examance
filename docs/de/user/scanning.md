@@ -62,7 +62,7 @@ Neben dem Füllgrad eines Kästchens betrachtet die Erkennung auch die **Form** 
 
 Bis zur Prüfung zählt ein unsicheres Kästchen vorläufig als das Ergebnis, dem seine Messwerte näher liegen, angekreuzt oder nicht angekreuzt; die Ansicht zeigt dazu „Vorläufig als angekreuzt / nicht angekreuzt gewertet“. Unsichere Kästchen behalten ihren gelben Rahmen, bis die Frage geprüft ist.
 
-![Eine gescannte Multiple-Choice-Seite](../../screenshots/pitch/18-scanned-sheet-mc.jpg)
+![Ankreuzaufgaben auf einem gescannten Bogen: Korrekturzeile, ein zurückgenommenes und ein neu gesetztes Kreuz](../../screenshots/pitch/18-scanned-sheet-mc.jpg)
 
 ## Erkennung erneut ausführen {#rerun}
 

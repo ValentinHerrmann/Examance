@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import random
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -45,15 +46,16 @@ def half(v, hi):
 
 
 doc = pymupdf.open(SRC)
+BUBBLE = re.compile(r"^omr://([^/]+)/(\d+)$")
 # MC answer boxes on any page: {exercise: (page, {option: rect})}, in reading order.
 boxes = {}
 for pno, page in enumerate(doc):
     for ln in page.get_links():
-        uri = ln.get("uri", "")
-        if not uri.startswith("omr://") or "__fid__" in uri or uri.endswith("/redo"):
+        # Answer bubbles only (omr://<exercise>/<n>, as lib/grading/omrUri.ts); score boxes and fiducials are skipped.
+        m = BUBBLE.match(ln.get("uri", ""))
+        if not m or m[1] in ("__box__", "__fid__"):
             continue
-        ex, opt = uri.split("omr://")[1].split("/")[:2]
-        boxes.setdefault(ex, (pno, {}))[1][int(opt)] = ln["from"]
+        boxes.setdefault(m[1], (pno, {}))[1][int(m[2])] = ln["from"]
 order = sorted(boxes, key=lambda e: (boxes[e][0], boxes[e][1][0].y0))
 base = [Image.open(io.BytesIO(p.get_pixmap(dpi=DPI).tobytes("png"))).convert("RGB") for p in doc]
 
@@ -143,7 +145,10 @@ for idx, pct in enumerate(targets(CFG["size"], CFG["mean"], CFG["sd"], CFG["seed
     fr = {k: min(1.0, max(0.0, remaining / 12 + r.uniform(-0.12, 0.12) + (q1_bias if k == "q1" else 0))) for k in MAX}
     scores = {k: half(MAX[k] * fr[k], MAX[k]) for k in MAX}
     # Keyed by the prefix the grading view shows: the raw pseudonym, or its SHA-256 once stored server-side.
-    entry = {"pct": round(pct, 1), "scores": scores, "mc_right": mc_right}
+    # q1 has parts a) and b) (2 + 2 points), graded one by one; a separate stream keeps every other draw unchanged.
+    rp = random.Random(CFG["seed"] * 7919 + idx)
+    q1a = min(2.0, max(scores["q1"] - 2.0, half(scores["q1"] / 2 + rp.uniform(-0.5, 0.5), 2.0)))
+    entry = {"pct": round(pct, 1), "scores": scores, "parts": {"q1": {"a": q1a, "b": scores["q1"] - q1a}}, "mc_right": mc_right, "code": code}
     plan[pseudo[:10]] = entry
     plan[hashlib.sha256(pseudo.encode()).hexdigest()[:10]] = entry
 

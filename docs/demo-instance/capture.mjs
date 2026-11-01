@@ -262,9 +262,10 @@ async function tour() {
     await page.setViewportSize({ width: 1280, height: 800 });
   }
   if (t('grading')) {
-    // Booklet af14… (plan Q2-Q4: 3 / 4 / 2.5), zoomed onto the MC group and Q2. Once a booklet has stamps its tasks score the sum of their stamps, so the stamps (set once, persisted) cover Q2-Q4 and add up to the plan.
+    // Booklet RPCPDW (af14…; plan Q2-Q4: 3 / 4 / 2.5), zoomed onto the MC group and Q2. Once a booklet has stamps its tasks score the sum of their stamps, so the stamps (set once, persisted) cover Q2-Q4 and add up to the plan.
     await go(page, `/exam/${ids['10b']}/scan`, 8000);
-    const subId = await page.locator('td[title^="Pseudonym: af14e273c5"]').locator('xpath=ancestor::tr[1]').locator('td[title^="Abgabe-ID: "]').getAttribute('title');
+    // By its printed fallback code: the pseudonym column shows only the exam-keyed value (issue #177).
+    const subId = await page.locator('tr').filter({ has: page.getByRole('cell', { name: 'RPCPDW', exact: true }) }).locator('td[title^="Abgabe-ID: "]').getAttribute('title');
     const open1 = async () => {
       await go(page, `/exam/${ids['10b']}/grade?submissionId=${subId.replace('Abgabe-ID: ', '')}`, 9000);
       for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: /Vergrößern/ }).first().click(); await page.waitForTimeout(500); }
@@ -362,7 +363,7 @@ async function tour() {
 
 /** Detail screenshots for the user guide (docs/screenshots/guide/, cropped by assets.py). Saved as guide-<name>.png. */
 async function guide() {
-  const G = ['score', 'ai-prompt', 'compile-error', 'exam-exercises', 'exam-export', 'backup', 'help', 'settings-storage', 'settings-mc', 'settings-packages', 'security', 'borderline', 'maintenance'];
+  const G = ['score', 'ai-prompt', 'compile-error', 'exam-exercises', 'exam-export', 'backup', 'help', 'settings-storage', 'settings-mc', 'settings-packages', 'settings-restore', 'security', 'borderline', 'grading-parts', 'maintenance'];
   if (!G.some((n) => want('guide-' + n))) return;
   const g = (n) => want('guide-' + n);
   const { ctx, page } = await open({ profile: 'berger' });
@@ -438,6 +439,18 @@ async function guide() {
     await page.getByRole('link', { name: link, exact: true }).first().click(); // NOSONAR: UI steps run in order in one browser
     await page.waitForTimeout(1200); // NOSONAR: UI steps run in order in one browser
     await shot(page, 'guide-' + name); // NOSONAR: UI steps run in order in one browser
+  }
+  if (g('settings-restore')) {
+    await go(page, '/settings');
+    await scrollTo(page, page.getByText('Vom Server gelöschte Ergebnisse wiederherstellen', { exact: true }), 140);
+    await shot(page, 'guide-settings-restore');
+  }
+  if (g('grading-parts')) {
+    // First booklet: part rows of Q2 in the scoring panel, score boxes filled on the scan.
+    await go(page, `/exam/${ids['10b']}/grade`, 9000);
+    await page.locator('div[role=button]').filter({ has: page.getByText('Teilaufgabe a)', { exact: true }) }).first().click({ position: { x: 3, y: 3 } });
+    await page.waitForTimeout(1500);
+    await shot(page, 'guide-grading-parts');
   }
   if (g('borderline')) {
     await page.setViewportSize({ width: 1600, height: 1400 });

@@ -21,6 +21,8 @@ GUIDE = {
     "settings-storage": ("guide-settings-storage", (870, 170, 2840, 855)),
     "settings-mc-detection": ("guide-settings-mc", (870, 170, 2840, 1890)),
     "settings-latex-packages": ("guide-settings-packages", (870, 170, 2840, 2000)),
+    "settings-restore": ("guide-settings-restore", None),
+    "grading-parts": ("guide-grading-parts", None),
     "settings-security": ("guide-security", (870, 120, 2840, 1480)),
     "results-borderline": ("guide-borderline", (365, 385, 3165, 2560)),
     "admin-maintenance": ("guide-maintenance", (360, 120, 2840, 1880)),
@@ -33,6 +35,10 @@ for name, (src, crop) in GUIDE.items():
     if im.width > 2400:
         im = im.resize((2400, round(im.height * 2400 / im.width)), Image.LANCZOS)
     im.save(OUT.parent / "guide" / f"{name}.jpg", quality=86, optimize=True, progressive=True)
+# The MC correction line straight from the compiled exam (page 1, MC group heading).
+exam = pymupdf.open(HERE / ".state/exam-10b.pdf")
+pm = exam[0].get_pixmap(dpi=220, clip=pymupdf.Rect(25, 163, 570, 222))
+Image.frombytes("RGB", (pm.width, pm.height), pm.samples).save(OUT.parent / "guide" / "exam-mc-hint.jpg", quality=86, optimize=True)
 if sys.argv[1:] == ["guide"]:
     print("guide", len(GUIDE))
     sys.exit()
@@ -72,8 +78,9 @@ for name, (src, crop) in SPEC.items():
     im.save(OUT / f"{name}.jpg", quality=86, optimize=True, progressive=True)
 
 scan = pymupdf.open(HERE / ".state/scan-10b.pdf")
-for idx, name in [(12, "17-scanned-sheet"), (13, "18-scanned-sheet-mc")]:
-    pm = scan[idx].get_pixmap(dpi=150)
+# 17: page 1 of booklet 7 (MC group with correction line, parts a/b); 18: the MC block of the showcase booklet 5 (withdrawn and re-chosen cross).
+for idx, name, clip in [(12, "17-scanned-sheet", None), (8, "18-scanned-sheet-mc", pymupdf.Rect(25, 160, 570, 420))]:
+    pm = scan[idx].get_pixmap(dpi=150 if clip is None else 220, clip=clip)
     Image.frombytes("RGB", (pm.width, pm.height), pm.samples).save(OUT / f"{name}.jpg", quality=84, optimize=True)
 # UI tour posters: captures from the 1280 px window (capture.mjs tour-*), cropped to the content.
 TOUR = {

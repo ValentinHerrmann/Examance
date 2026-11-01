@@ -62,7 +62,7 @@ Besides how full a box is, detection also looks at the **shape** of a mark:
 
 Until it is verified, an unsure box counts provisionally as whatever its measurements are closer to, ticked or not ticked; the view says "Provisionally counted as ticked / not ticked". Unsure boxes keep their yellow frame until the question is verified.
 
-![A scanned multiple choice page](../screenshots/pitch/18-scanned-sheet-mc.jpg)
+![Multiple choice on a scanned sheet: correction line, a withdrawn and a re-chosen cross](../screenshots/pitch/18-scanned-sheet-mc.jpg)
 
 ## Re-run detection {#rerun}
 
