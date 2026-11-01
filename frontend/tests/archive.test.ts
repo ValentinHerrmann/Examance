@@ -22,8 +22,9 @@ import {
   loadExamsEncrypted,
   loadStudentsEncrypted,
   loadExamExercisesEncrypted,
+  openScan,
 } from '../src/lib/db/dbEncryption';
-import { decrypt, encrypt } from '../src/lib/crypto/aesGcm';
+import { encrypt } from '../src/lib/crypto/aesGcm';
 import { sessionStore } from '../src/lib/stores/session';
 import { storagePolicyStore } from '../src/lib/stores/storagePolicy';
 import { eraseStudent } from '../src/lib/gdpr/erasure';
@@ -160,8 +161,10 @@ describe('.bgproj Archive Packer and Unpacker', () => {
 
     const restored = await db.submissions.get('sub-scan-1');
     expect(restored?.scanCt).toBeInstanceOf(Uint8Array);
-    const opened = await decrypt(get(sessionStore).sessionKey!, restored!.scanCt!, restored!.scanIv!);
+    const opened = await openScan(restored!.id, restored!.scanCt!, restored!.scanIv!, get(sessionStore).sessionKey!);
     expect(new TextDecoder().decode(opened)).toBe('%PDF-1.7 fake scan');
+    // Re-sealed bound to its submission (issue #178): it does not open as another one.
+    await expect(openScan('other-sub', restored!.scanCt!, restored!.scanIv!, get(sessionStore).sessionKey!)).rejects.toThrow();
   });
 
   it('withholds exercise code from a results-only archive', async () => {
