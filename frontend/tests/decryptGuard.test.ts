@@ -40,7 +40,7 @@ describe('decrypt guard', () => {
     await expect(encryptExam(baseExam(), null)).rejects.toBeInstanceOf(MissingSessionKeyError);
     await expect(
       encryptSubmission(
-        { id: 's1', examId: 'exam-1', pseudonymHash: 'abc', createdAt: '', totalScore: 7 },
+        { id: 's1', examId: 'exam-1', pseudonymHmac: 'abc', createdAt: '', totalScore: 7 },
         null
       )
     ).rejects.toBeInstanceOf(MissingSessionKeyError);

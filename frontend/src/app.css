@@ -201,13 +201,14 @@ body {
   }
 }
 
-/* Inline text link. */
+/* Inline text link: underlined at rest, since colour alone does not set a link apart from running text (WCAG 1.4.1). */
 @utility link {
   color: var(--color-accent);
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
   cursor: pointer;
   &:hover {
-    text-decoration: underline;
+    text-decoration-thickness: 2px;
   }
 }
 

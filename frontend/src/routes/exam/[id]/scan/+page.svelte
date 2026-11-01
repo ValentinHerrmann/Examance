@@ -7,17 +7,17 @@
     PipelineMonitor,
     type HardwareProfile,
   } from "#lib/hardware/detect";
-  import { db } from "#lib/db/db";
-  import { encrypt, decrypt, uint8ArrayToBase64 } from "#lib/crypto/aesGcm";
-  import { ensure64CharHex } from "#lib/crypto/hmac";
+  import { joinKey } from "#lib/crypto/pseudonymKey";
+  import { pseudonymFor } from "#lib/services/pseudonymRekey";
   import { sessionStore, awaitSessionReady } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
   import {
     loadStudentsEncrypted,
     saveStudentEncrypted,
     saveSubmissionEncrypted,
-    decryptStudent,
     loadOmrTemplateEncrypted,
+    openScan,
+    sealScan,
   } from "#lib/db/dbEncryption";
   import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
   import { prepareOmrTemplate, loadExamCompileContext, computeOmrTemplateHash } from "#lib/grading/omrTemplatePrep";
@@ -26,7 +26,7 @@
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
-  import type { StudentRecord, OmrPageTemplate } from "#lib/db/schema";
+  import type { StudentRecord, OmrPageTemplate, PseudonymVersion } from "#lib/db/schema";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
@@ -83,7 +83,8 @@
 
   interface ScannedSubmissionItem {
     id: string;
-    pseudonymHash: string;
+    pseudonymHmac: string;
+    pseudonymVersion?: PseudonymVersion;
     fallbackCode: string;
     studentName?: string;
     studentNumber?: string;
@@ -232,34 +233,27 @@
       const submissions = await submissionRepository.getByExamId(examId, key);
       const students = await studentRepository.getByExamId(examId, key);
 
+      // Rows meet on the join key, whatever pseudonym version each is stored at (issue #177).
       const studentMap = new Map<string, StudentRecord>();
       for (const st of students) {
-        if (st.pseudonymId) {
-          studentMap.set(st.pseudonymId, st);
-          const hex = await ensure64CharHex(st.pseudonymId);
-          studentMap.set(hex, st);
-        }
-        if (st.fallbackCode) {
-          studentMap.set(st.fallbackCode, st);
-        }
+        if (st.pseudonymHmac) studentMap.set(await joinKey(st), st);
+        if (st.fallbackCode) studentMap.set(st.fallbackCode, st);
       }
+
+      // Only a version-1 value may still be the raw QR text; a keyed one never is.
+      const rawOf = (row: { pseudonymHmac: string; pseudonymVersion?: PseudonymVersion }) =>
+        row.pseudonymVersion === 2 ? undefined : row.pseudonymHmac;
 
       const items: ScannedSubmissionItem[] = [];
       for (const sub of submissions) {
-        let st = studentMap.get(sub.pseudonymHash);
-        if (!st) {
-          const hex = await ensure64CharHex(sub.pseudonymHash);
-          st = studentMap.get(hex);
-        }
+        const st = sub.pseudonymHmac ? studentMap.get(await joinKey(sub)) : undefined;
 
         let sName = st?.studentName;
         let sNumber = st?.studentNumber;
         let fCode = st?.fallbackCode;
 
         const qrCandidate =
-          (st?.pseudonymId && st.pseudonymId.includes('_') ? st.pseudonymId : null) ||
-          (sub.pseudonymHash && sub.pseudonymHash.includes('_') ? sub.pseudonymHash : null) ||
-          (fCode && fCode.includes('_') ? fCode : null);
+          [st?.pseudonymRaw, st && rawOf(st), rawOf(sub), fCode].find((v) => v?.includes('_')) ?? null;
 
         if (qrCandidate) {
           const parsed = parseStudentQr(qrCandidate);
@@ -273,12 +267,13 @@
         }
 
         if (!fCode || fCode === "UNKNOWN") {
-          fCode = sName || (sub.pseudonymHash.length > 16 ? sub.pseudonymHash.substring(0, 8) : sub.pseudonymHash);
+          fCode = sName || (sub.pseudonymHmac.length > 16 ? sub.pseudonymHmac.substring(0, 8) : sub.pseudonymHmac);
         }
 
         items.push({
           id: sub.id,
-          pseudonymHash: sub.pseudonymHash,
+          pseudonymHmac: sub.pseudonymHmac,
+          pseudonymVersion: sub.pseudonymVersion,
           fallbackCode: fCode,
           studentName: sName,
           studentNumber: sNumber,
@@ -340,7 +335,7 @@
     }
 
     try {
-      const decryptedBytes = await decrypt(key || fallbackKey, scanCt, scanIv, fallbackKey);
+      const decryptedBytes = await openScan(item.id, scanCt, scanIv, (key || fallbackKey)!, fallbackKey);
       if (seq !== previewSeq) return;
       const isPdf =
         decryptedBytes.length > 4 &&
@@ -379,7 +374,7 @@
     try {
       await submissionRepository.delete(examId, item.id);
       // Also remove the associated student record to prevent orphaned UNMATCHED entries
-      await studentRepository.delete(examId, item.pseudonymHash);
+      await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion });
       await refreshUnmatched();
       await loadScannedSubmissions();
     } catch (err: any) {
@@ -437,7 +432,7 @@
       for (const item of scannedSubmissions) {
         await submissionRepository.delete(examId, item.id);
         // Also remove the associated student record to prevent orphaned UNMATCHED entries
-        await studentRepository.delete(examId, item.pseudonymHash);
+        await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion });
       }
       await refreshUnmatched();
       await loadScannedSubmissions();
@@ -463,33 +458,25 @@
     const students = await studentRepository.getByExamId(examId, key);
     const submissions = await submissionRepository.getByExamId(examId, key);
 
-    const activeHashes = new Set<string>();
+    const activeKeys = new Set<string>();
     for (const sub of submissions) {
-      if (sub.pseudonymHash) {
-        activeHashes.add(sub.pseudonymHash);
-        activeHashes.add(await ensure64CharHex(sub.pseudonymHash));
-      }
+      if (sub.pseudonymHmac) activeKeys.add(await joinKey(sub));
     }
 
     const validUnmatched: StudentRecord[] = [];
     for (const s of students) {
-      if (!s.fallbackCode || !s.fallbackCode.startsWith("UNMATCHED-")) continue;
-      const hmac = s.pseudonymId ? await ensure64CharHex(s.pseudonymId) : "";
-      const isLinkedToSubmission =
-        (s.pseudonymId && activeHashes.has(s.pseudonymId)) ||
-        (hmac && activeHashes.has(hmac));
-
-      if (isLinkedToSubmission) {
+      if (!s.fallbackCode || !s.fallbackCode.startsWith("UNMATCHED-") || !s.pseudonymHmac) continue;
+      if (activeKeys.has(await joinKey(s))) {
         validUnmatched.push(s);
-      } else if (s.pseudonymId) {
+      } else {
         // Clean up orphaned unmatched student identity
-        await studentRepository.delete(examId, s.pseudonymId);
+        await studentRepository.delete(s);
       }
     }
 
     unmatchedList = validUnmatched.map((s) => ({
-      submissionId: s.pseudonymId,
-      studentId: s.pseudonymId,
+      submissionId: s.pseudonymHmac,
+      studentId: s.pseudonymHmac,
       currentFallback: s.fallbackCode || "",
       newCode: "",
     }));
@@ -563,15 +550,7 @@
       readError = translate("scanning.errorLoadSubmissions", { message: errorText(err) });
       return;
     }
-    let st = students.find((s) => s.pseudonymId === item.studentId);
-    if (!st) {
-      const rawSt = await db.students.get(item.studentId);
-      if (rawSt) st = await decryptStudent(rawSt, key);
-    }
-    if (!st) {
-      const itemHmac = await ensure64CharHex(item.studentId);
-      st = students.find((s) => s.pseudonymId === itemHmac);
-    }
+    const st = students.find((s) => s.pseudonymHmac === item.studentId);
     if (st) {
       st.fallbackCode = code;
       const parsed = parseStudentQr(code);
@@ -620,8 +599,8 @@
     }
 
     try {
-      const activeKey = key || fallbackKey;
-      const decryptedBytes = await decrypt(activeKey, scanCt, scanIv, fallbackKey);
+      const activeKey = (key || fallbackKey)!;
+      const decryptedBytes = await openScan(item.id, scanCt, scanIv, activeKey, fallbackKey);
 
       const { PDFDocument } = await import("pdf-lib");
       const srcPdf = await PDFDocument.load(decryptedBytes, { ignoreEncryption: true });
@@ -646,41 +625,32 @@
       copied2.forEach((p) => pdf2.addPage(p));
       const buf2 = await pdf2.save();
 
-      let enc1Ct: Uint8Array | undefined;
-      let enc1Iv: Uint8Array | undefined;
-      let enc2Ct: Uint8Array | undefined;
-      let enc2Iv: Uint8Array | undefined;
-
-      if (activeKey) {
-        const enc1 = await encrypt(activeKey, buf1);
-        enc1Ct = enc1.ciphertext;
-        enc1Iv = enc1.iv;
-
-        const enc2 = await encrypt(activeKey, buf2);
-        enc2Ct = enc2.ciphertext;
-        enc2Iv = enc2.iv;
-      }
+      // Ids first: each part's ciphertext is bound to its submission (AAD, issue #178).
+      const part2SubId = crypto.randomUUID();
+      const part1 = activeKey ? await sealScan(item.id, buf1, activeKey) : undefined;
+      const part2 = activeKey ? await sealScan(part2SubId, buf2, activeKey) : undefined;
 
       // Update existing submission with Part 1
       await saveSubmissionEncrypted(
         {
           id: item.id,
           examId,
-          pseudonymHash: item.pseudonymHash,
-          scanCt: enc1Ct,
-          scanIv: enc1Iv || new Uint8Array(12),
+          pseudonymHmac: item.pseudonymHmac,
+          pseudonymVersion: item.pseudonymVersion,
+          scanCt: part1?.ct,
+          scanIv: part1?.iv || new Uint8Array(12),
           createdAt: item.createdAt,
         },
         activeKey,
       );
 
       // Create new unmatched student & submission record for Part 2
-      const part2PseudoId = crypto.randomUUID();
+      const part2Pseudonym = await pseudonymFor(examId, crypto.randomUUID());
       const part2Fallback = `UNMATCHED-${randomCode()}`;
 
       await saveStudentEncrypted(
         {
-          pseudonymId: part2PseudoId,
+          ...part2Pseudonym,
           examId,
           fallbackCode: part2Fallback,
           piiCt: new Uint8Array([0]),
@@ -689,14 +659,14 @@
         activeKey,
       );
 
-      const part2SubId = crypto.randomUUID();
       await saveSubmissionEncrypted(
         {
           id: part2SubId,
           examId,
-          pseudonymHash: part2PseudoId,
-          scanCt: enc2Ct,
-          scanIv: enc2Iv || new Uint8Array(12),
+          pseudonymHmac: part2Pseudonym.pseudonymHmac,
+          pseudonymVersion: part2Pseudonym.pseudonymVersion,
+          scanCt: part2?.ct,
+          scanIv: part2?.iv || new Uint8Array(12),
           createdAt: new Date().toISOString(),
         },
         activeKey,

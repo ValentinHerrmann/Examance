@@ -205,7 +205,8 @@
           aria-label={$t("nav.latexMode", { mode: latexLabel })}
           href="/settings#latex"
         >
-          <span class="font-serif text-xs font-bold tracking-tight opacity-70" aria-hidden="true">TeX</span>
+          <!-- No extra opacity on the mark: text-navbar-muted is already 70 % white and a second fade drops below 4.5:1 on the slate. -->
+          <span class="font-serif text-xs font-bold tracking-tight" aria-hidden="true">TeX</span>
           <Icon icon={latexPlaceIcons[latexCompilation]} />
           <span class="hidden truncate xl:inline">{$t("nav.latexLabel")}: {latexLabel}</span>
         </a>

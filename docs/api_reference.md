@@ -185,6 +185,8 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. |
 | `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job, which also erases the exam row and its scan files once that period has passed. |
 | `POST` | `/api/v1/exams/{exam_id}/duplicate` | Duplicate Exam | Yes | Body `{"retention_until"}`. Creates a new exam titled "… (Kopie)" with the same header fields, settings, logo override, MC groups (new ids), page breaks (following those ids) and links to the same library exercises (a legacy exam-bound exercise gets its own copy). Never copies students, submissions or scores; `compilation_status` starts at `pending`. Rate limit 60/hour. |
+| `GET` | `/api/v1/exams/{exam_id}/pseudonyms` | Exam Pseudonyms | Yes | `{pseudonym_version, values}`: every pseudonym value of the exam, soft-deleted rows included, as input for the client-side rekey (issue #177). |
+| `POST` | `/api/v1/exams/{exam_id}/pseudonyms/rekey` | Rekey Exam Pseudonyms | Yes | `{from_version, to_version, pairs: [{old, new}]}`: renames every identity and submission of the exam and moves its `pseudonym_version`; see "Keyed per exam" below. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
 | `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
 | `GET` | `/api/v1/exams/{exam_id}/logo/file` | Exam Logo File | Yes | Bytes of the logo the exam prints; 404 when it prints none. |
@@ -262,13 +264,20 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 > identities, so erasure removes the record for the named exam only. This also allows a
 > workspace archive to be imported into a different account on the same server.
 >
-> **Known gap.** The per-exam derivation described above is not yet implemented on the
-> client: `ensure64CharHex()` (`frontend/src/lib/crypto/hmac.ts`) currently computes an
-> unkeyed SHA-256 of the raw pseudonym UUID, with no exam secret mixed in. The correct
-> helper (`hmacPseudonymId()`) exists but has no call sites. Until that is wired up, the
-> same pupil UUID produces the same `pseudonym_hmac` in every exam, so the server could in
-> principle correlate a pupil across exams. Fixing it requires a re-keying strategy, since
-> the server cannot re-derive the values itself.
+> **Keyed per exam (issue #177).** `pseudonym_hmac` is `HMAC(K_exam, SHA-256(raw))` with
+> `K_exam` derived in the browser from the account's data key and the exam id, so the same
+> pupil gets an unrelated value in every exam and the server cannot test a guessed name. An
+> exam's `pseudonym_version` (in `ExamResponse`, and on every student and submission
+> response) says how its rows were derived: 1 = the older unkeyed SHA-256, 2 = keyed. Student
+> and submission uploads send `pseudonym_version` (absent means 1); a mismatch with the exam
+> answers `422 ERR_PSEUDONYM_VERSION` (not 409, which the offline queue would count as applied).
+> `GET /exams/{exam_id}/pseudonyms` lists the version and every value, soft-deleted rows
+> included; `POST /exams/{exam_id}/pseudonyms/rekey` `{from_version, to_version, pairs: [{old,
+> new}]}` renames them in one transaction: compare-and-set on `from_version` (`409
+> ERR_PSEUDONYM_VERSION_CHANGED`; `{changed: false}` when already at `to_version`), and `422
+> ERR_PSEUDONYM_PAIRS` unless the pairs cover every value. Gated like other result writes. The
+> client runs it after unlock (`frontend/src/lib/services/pseudonymRekey.ts`); details in
+> `docs/dev/pseudonym_hmac_and_aad.md`.
 
 #### Student Identity Payload
 ```json
@@ -407,7 +416,7 @@ Two rules the endpoint enforces rather than trusts the client with:
 | `GET` | `/api/v1/user/capabilities` | Capabilities | Yes | `{"account_id", "storage_mode", "allowed_storage_modes", "features"}`: the account the answer is about (a tab locks itself when it differs from its own sign-in, because the cookie is shared by every tab of a browser), the account's storage mode (null until chosen), the modes it may choose, and its features: `server_results`, `server_latex` (admin switches) and `training_donation` (deployment setting). Built by `capabilities_for(teacher)`; the frontend renders its options from this and nothing else. An admin account gets no modes and no features. |
 | `PUT` | `/api/v1/user/storage-mode` | Set Storage Mode | Yes | `{"mode", "expected"}`: compare-and-set, `409 ERR_STORAGE_MODE_CHANGED` if another browser changed it meanwhile, `403 ERR_STORAGE_MODE_NOT_ALLOWED` if the mode is not allowed for the account (`all-server` without `server_results`). Moving the results happens in the client before this call. |
 | `POST` | `/api/v1/user/purge-server-student-data` | Purge Server Student Data | Yes | Soft-deletes this teacher's server-side student identities and submissions (7-day retention grace) — the local→`all-local` migration step in `data_flow_and_security.md` §5. |
-| `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions of the current teacher's non-deleted exams, if still within the 7-day grace period. Subject to the result-write rule in §4.6 (`403 ERR_FEATURE_NOT_ALLOWED`). |
+| `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions of the current teacher's non-deleted exams, if still within the grace period (`grace_days`, 7 by default). Returns `{restored_student_identities, restored_submissions, grace_days, purged_exams}`; `purged_exams` lists `{exam_id, purged_at}` for live exams whose older deleted results the retention run already erased (`exams.results_purged_at`, issue #181), so the client can say what can no longer come back. Deleted exams are never restored, and GDPR erasure is a hard delete. Used by the "Restore results deleted from the server" card in Settings. Subject to the result-write rule in §4.6 (`403 ERR_FEATURE_NOT_ALLOWED`). |
 | `GET` | `/api/v1/user/logo` | Account Logo | Yes | The account's logo setting (`mode`: `default` = bundled MTG logo, `none`, `custom`) and what it prints (`source`: `default`, `account`, `none`, plus type and size). |
 | `GET` | `/api/v1/user/logo/file` | Account Logo File | Yes | Bytes of the logo the account prints (its own or the default), served as `image/png`, `image/jpeg` or `application/pdf` with `nosniff`; 404 for `none`. |
 | `PUT` | `/api/v1/user/logo` | Set Account Logo | Yes | `{"mode": "default" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. Printed on every exam that does not override it. |

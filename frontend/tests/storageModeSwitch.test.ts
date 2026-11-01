@@ -62,7 +62,7 @@ describe('fluent switch coordination', () => {
     finishModeSwitch();
     offlineQueue.set([]);
     await db.workspace.clear();
-    await db.students.clear();
+    await db.examStudents.clear();
     await db.submissions.clear();
     await db.exerciseScores.clear();
   });
@@ -146,7 +146,8 @@ describe('cleanup after a move to the server (F11)', () => {
     const { deleteOldCopy } = await import('../src/lib/services/resultsMover');
     await clearAllTables();
     const row = (examId: string, id: string) => ({ examId, id }) as never;
-    await db.students.bulkPut([{ pseudonymId: 'p-moved', examId: 'moved' }, { pseudonymId: 'p-kept', examId: 'skipped' }] as never[]);
+    // Students live in `examStudents` since Dexie v12 (issue #177).
+    await db.examStudents.bulkPut([{ pseudonymHmac: 'p-moved', examId: 'moved' }, { pseudonymHmac: 'p-kept', examId: 'skipped' }] as never[]);
     await db.submissions.bulkPut([row('moved', 's-moved'), row('skipped', 's-kept')]);
     await db.exerciseScores.bulkPut([
       { id: 'sc-moved', submissionId: 's-moved', exerciseId: 'e' },
@@ -154,7 +155,7 @@ describe('cleanup after a move to the server (F11)', () => {
     ] as never[]);
 
     expect(await deleteOldCopy('to-server', ['moved'])).toEqual({ students: 1, submissions: 1 });
-    expect((await db.students.toArray()).map((s) => s.examId)).toEqual(['skipped']);
+    expect((await db.examStudents.toArray()).map((s) => s.examId)).toEqual(['skipped']);
     expect((await db.submissions.toArray()).map((s) => s.id)).toEqual(['s-kept']);
     expect((await db.exerciseScores.toArray()).map((s) => s.id)).toEqual(['sc-kept']);
   });

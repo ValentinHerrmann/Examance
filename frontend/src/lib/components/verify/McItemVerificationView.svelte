@@ -9,7 +9,7 @@
   import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
-  import { decrypt } from "#lib/crypto/aesGcm";
+  import { openScan } from "#lib/db/dbEncryption";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "#lib/db/schema";
   import McItemVerificationCard from "#lib/components/verify/McItemVerificationCard.svelte";
   import { Alert, Modal, Button } from "#lib/components/ui";
@@ -72,9 +72,9 @@
       ]);
       const exercise = exercises.find((e) => e.id === exerciseId) ?? null;
       let bytes: Uint8Array | null = null;
-      if (submission?.scanCt && submission.scanIv) {
+      if (submission?.scanCt && submission.scanIv && key) {
         try {
-          bytes = await decrypt(key, submission.scanCt, submission.scanIv);
+          bytes = await openScan(submission.id, submission.scanCt, submission.scanIv, key);
         } catch (err) {
           console.warn("Failed to decrypt scan PDF:", err);
         }

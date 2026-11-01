@@ -5,7 +5,7 @@ import { encryptSubmission, decryptSubmission } from '#lib/db/dbEncryption';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import type { SubmissionRecord } from '#lib/db/schema';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
-import { ensure64CharHex } from '#lib/crypto/hmac';
+import { joinKey, pseudonymBase, serverVersion } from '#lib/crypto/pseudonymKey';
 import { examRepository } from '#lib/repositories/examRepository';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
 
@@ -13,7 +13,8 @@ export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): Submis
   return {
     id: s.id,
     examId: s.exam_id || fallbackExamId,
-    pseudonymHash: s.pseudonym_hmac || s.pseudonymHash,
+    pseudonymHmac: s.pseudonym_hmac,
+    pseudonymVersion: serverVersion(s),
     totalScore: s.total_score ?? s.totalScore,
     createdAt: s.created_at || s.createdAt || new Date().toISOString(),
     scanCt: s.scan_ciphertext_b64 ? base64ToUint8Array(s.scan_ciphertext_b64) : undefined,
@@ -32,9 +33,12 @@ const includeScansQS = (includeScans: boolean | undefined) =>
 
 /** The `POST /exams/{id}/submissions` body for a decrypted submission (scan bytes stay sealed). */
 export async function submissionServerPayload(submission: SubmissionRecord, opts: { clearAnnotations?: boolean } = {}) {
+  const version = submission.pseudonymVersion ?? 1;
   return {
     id: submission.id,
-    pseudonym_hmac: await ensure64CharHex(submission.pseudonymHash),
+    // A version-1 value is sent as older builds did: its SHA-256 form.
+    pseudonym_hmac: version === 2 ? submission.pseudonymHmac : await pseudonymBase(submission.pseudonymHmac),
+    pseudonym_version: version,
     total_score: submission.totalScore ?? null,
     scan_ciphertext_b64: submission.scanCt ? uint8ArrayToBase64(submission.scanCt) : undefined,
     scan_iv_b64: submission.scanIv ? uint8ArrayToBase64(submission.scanIv) : undefined,
@@ -117,7 +121,12 @@ export const submissionRepository = {
     opts: { clearAnnotations?: boolean } = {}
   ): Promise<void> {
     if (resultsAreLocal()) {
-      const encrypted = await encryptSubmission(submission, key);
+      // This browser stores keyed rows only, so a record read before the re-key cannot write its old value back.
+      const keyed: SubmissionRecord =
+        submission.pseudonymVersion === 2
+          ? submission
+          : { ...submission, pseudonymHmac: await joinKey(submission), pseudonymVersion: 2 };
+      const encrypted = await encryptSubmission(keyed, key);
       await db.submissions.put(encrypted);
     } else {
       const payload = await submissionServerPayload(submission, opts);

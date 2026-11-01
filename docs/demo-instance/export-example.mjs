@@ -53,8 +53,9 @@ const picked = [...showcase, ...Array.from({ length: SCANNED_BOOKLETS - showcase
   .filter(Boolean);
 const submissions = [...picked, ...all.submissions.filter((s) => s.examId === ids['9c'])];
 const keptSubs = new Set(submissions.map((s) => s.id));
-const keptPseudonyms = new Set(submissions.map((s) => `${s.examId}|${s.pseudonymHash}`));
-const students = all.students.filter((s) => keptPseudonyms.has(`${s.examId}|${s.pseudonymId}`));
+// Archive payload v5 names the stored value `pseudonymHmac` (issue #177); older payloads only had the legacy names.
+const keptPseudonyms = new Set(submissions.map((s) => `${s.examId}|${s.pseudonymHmac ?? s.pseudonymHash}`));
+const students = all.students.filter((s) => keptPseudonyms.has(`${s.examId}|${s.pseudonymHmac ?? s.pseudonymId}`));
 const exerciseScores = all.exerciseScores.filter((sc) => keptSubs.has(sc.submissionId));
 
 fs.rmSync(OUT, { recursive: true, force: true });

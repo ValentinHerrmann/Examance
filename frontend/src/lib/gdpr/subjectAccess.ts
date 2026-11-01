@@ -3,7 +3,8 @@
 import { get } from 'svelte/store';
 
 import { db } from '#lib/db/db';
-import { ensure64CharHex } from '#lib/crypto/hmac';
+import { joinKey } from '#lib/crypto/pseudonymKey';
+import type { StudentRecord } from '#lib/db/schema';
 import { examRepository } from '#lib/repositories/examRepository';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
 import { studentRepository } from '#lib/repositories/studentRepository';
@@ -24,7 +25,8 @@ export interface SubjectAccessSubmission {
 
 export interface SubjectAccessExport {
   generatedAt: string;
-  pseudonymId: string;
+  /** The student's keyed pseudonym, as the audit entry names it. */
+  pseudonymHmac: string;
   identity: {
     studentName: string | null;
     studentNumber: string | null;
@@ -35,29 +37,31 @@ export interface SubjectAccessExport {
   notes: string[];
 }
 
-/** Build a decrypted export of everything held about one student (raw pseudonym ID or its HMAC) in one exam, through the repositories so it works in both storage modes (F1). @throws if the session is locked or the student is unknown. */
-export async function exportStudentData(pseudonymId: string, examId: string): Promise<SubjectAccessExport> {
+/** Build a decrypted export of everything held about one student (a stored record, within its exam), through the repositories so it works in both storage modes (F1). @throws if the session is locked or the student is unknown. */
+export async function exportStudentData(
+  who: Pick<StudentRecord, 'examId' | 'pseudonymHmac' | 'pseudonymVersion'>
+): Promise<SubjectAccessExport> {
+  const { examId } = who;
   const key = get(sessionStore).sessionKey;
   if (!key) {
     throw new Error('Unlock the workspace before exporting student data.');
   }
-  // Locally the raw id, on the server its HMAC: match either (as erasure.ts does).
-  const pseudonymHmac = await ensure64CharHex(pseudonymId);
-  const isThisStudent = async (id: string) => id === pseudonymId || (await ensure64CharHex(id)) === pseudonymHmac;
+  // Rows meet on the join key, whatever pseudonym version each is stored at (as erasure.ts does).
+  const pseudonymHmac = await joinKey(who);
 
-  // Every row's hash is independent: match them all at once, keeping the rows' order.
-  const ofThisStudent = async <T>(rows: T[], idOf: (row: T) => string) => {
-    const hits = await Promise.all(rows.map((row) => isThisStudent(idOf(row))));
+  // Every row's key is independent: match them all at once, keeping the rows' order.
+  const ofThisStudent = async <T extends Parameters<typeof joinKey>[0]>(rows: T[]) => {
+    const hits = await Promise.all(rows.map(async (row) => !!row.pseudonymHmac && (await joinKey(row)) === pseudonymHmac));
     return rows.filter((_, i) => hits[i]);
   };
 
-  const student = (await ofThisStudent(await studentRepository.getByExamId(examId, key), (s) => s.pseudonymId)).at(-1);
+  const student = (await ofThisStudent(await studentRepository.getByExamId(examId, key))).at(-1);
   if (!student) {
     throw new Error('No student found for that pseudonym.');
   }
 
   const exam = await examRepository.getById(examId, key);
-  const ownSubmissions = await ofThisStudent(await submissionRepository.getByExamId(examId, key), (s) => s.pseudonymHash);
+  const ownSubmissions = await ofThisStudent(await submissionRepository.getByExamId(examId, key));
   const submissions: SubjectAccessSubmission[] = await Promise.all(
     ownSubmissions.map(async (sub) => ({
       submissionId: sub.id,
@@ -90,7 +94,7 @@ export async function exportStudentData(pseudonymId: string, examId: string): Pr
 
   return {
     generatedAt: new Date().toISOString(),
-    pseudonymId,
+    pseudonymHmac,
     identity: {
       studentName: student.studentName ?? null,
       studentNumber: student.studentNumber ?? null,

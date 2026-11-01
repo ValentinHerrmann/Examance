@@ -23,6 +23,8 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
+  /* Containing block for absolutely positioned content (`sr-only`): otherwise it is placed against the viewport, escapes the clipping and makes the document scroll. */
+  position: relative;
   /* Both axes: content wider than the viewport must stay reachable. Wide
    * tables scroll inside their own TableScroller instead of pushing this. */
   overflow: auto;

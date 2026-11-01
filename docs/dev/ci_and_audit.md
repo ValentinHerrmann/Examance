@@ -8,6 +8,8 @@ The `--omit=dev` tree is still not only shipped code: `@embedpdf/snippet`'s pack
 
 Their advisories hit the gate. Fix with a lockfile bump (`npm audit fix`), never `--force`.
 
+The `e2e` job runs the Playwright layout and accessibility specs (`frontend/e2e/layout.spec.ts`, `a11y.spec.ts`) on the `desktop`, `ipad-portrait` and `phone` projects (issue #183), so they cannot rot again. The browser's API calls go to the in-memory fake (`frontend/tests/helpers/fakeApi.ts`), so no backend or database runs. It installs with `--ignore-scripts` (the only install script in the tree is macOS-only fsevents) and calls the locked binaries in `node_modules/.bin`, never an on-demand `npx` download (SonarCloud S6505/S8543). It needs `svelte-kit sync` before Playwright loads its config (the tsconfig extends the generated `$app/tsconfig`), and on failure it uploads the HTML report as the `playwright-report` artifact. The functional suite and the other device projects stay local for run time; run them with `npm run test:e2e`.
+
 The `docs` job builds the VitePress site in `docs/` (its own `package.json`, separate from the app), installing with `--ignore-scripts`: the only install scripts in its tree are esbuild's binary check (the binary comes from its platform package) and macOS-only fsevents. VitePress fails on dead internal links; links that leave the site (sources, PDFs, Marp slides) are rewritten to GitHub by `docs/.vitepress/config.mts`. Its dev-server advisories are not audited: the site is static HTML.
 
 ## SonarCloud
