@@ -7,6 +7,7 @@ import type {
   OmrPageTemplate, 
   OmrBubbleRect, 
   OmrFiducialRect, 
+  OmrScoreBoxRect,
   OmrTemplatePayload 
 } from "#lib/db/schema";
 import { 
@@ -18,8 +19,9 @@ import {
   saveOmrTemplateEncrypted 
 } from "#lib/db/dbEncryption";
 import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
-import { compileWithCache } from "#lib/latex/compileCache";
-import { buildExamLatex, buildExerciseInputs, collectExamResources } from "#lib/exam/examPreview";
+import { compileWithCache, getCachedFor } from "#lib/latex/compileCache";
+import { buildExamLatex, buildExerciseBlocks, buildExerciseInputs, collectExamResources } from "#lib/exam/examPreview";
+import { parseOmrUri, scoreBoxKey } from "./omrUri";
 import { getAccountPackages } from "#lib/latex/packageSettings";
 import { stripSourceMarkers } from "#lib/latex/sourceMap";
 import { resolveCompileLogo } from "#lib/latex/logo";
@@ -88,7 +90,8 @@ export async function loadExamCompileContext(examId: string, key: CryptoKey | nu
 
   if (get(isAuthenticated)) {
     try {
-      const remoteExam = (await api.get(`/exams/${examId}`)) as any;
+      // Silent: the local copy below is the fallback, and score boxes load this in the background (issue #187).
+      const remoteExam = (await api.get(`/exams/${examId}`, { silentError: true })) as any;
       exam = mapApiToExamRecord(remoteExam);
       exercises = remoteExam.exercises.map(mapApiToExerciseRecord);
       if (remoteExam.mc_groups && Array.isArray(remoteExam.mc_groups)) {
@@ -124,9 +127,12 @@ type OmrLayoutInput = ExamCompileContext & { examItems?: ExamItemRef[] };
 export async function buildOmrBlankTex(ctx: OmrLayoutInput): Promise<string> {
   const { exam, exercises, libraryExercises, mcGroups } = ctx;
   const examItems = ctx.examItems ?? buildExamItems(exercises, mcGroups);
-  const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks);
+  const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks, exam.mcCorrectionHint);
   return buildExamLatex(exam, exerciseInputs, "sans,punkte", await getAccountPackages());
 }
+
+/** Capture format stored in the payload (2 = score boxes, issue #187). Deliberately not part of the hash: a forced re-capture would take the current .sty layout for sheets printed under an older one. */
+export const OMR_TEMPLATE_VERSION = 2;
 
 async function hashOmrTemplate(mcExercises: ExerciseRecord[], mcGroups: McGroup[], blankTex: string): Promise<string> {
   // Unmarked, so stored hashes stay valid and only real document changes mark the template stale.
@@ -157,7 +163,24 @@ export interface PrepareOmrTemplateResult {
   message: string;
   pages: OmrPageTemplate[];
   totalBubbles: number;
+  totalScoreBoxes: number;
   exercisesHash: string;
+}
+
+/** Union of two PDF rects (one score box can be captured as several links, e.g. the grade cell spanning two table rows). */
+function unionRect(a: [number, number, number, number], b: [number, number, number, number]): [number, number, number, number] {
+  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+}
+
+/** Exam position -> exercise ids; empty unless the captured exercise boxes match the blocks one to one, so a body with its own extra `\begin{Aufgabe}` never fills a wrong box. */
+export function mapScorePositions(blockExerciseIds: string[][], pages: OmrPageTemplate[]): Record<number, string[]> {
+  const captured = new Set(pages.flatMap((p) => (p.scoreBoxes ?? []).filter((b) => b.box === "task").map((b) => b.position)));
+  const expected = blockExerciseIds.map((_, i) => i + 1);
+  if (captured.size !== expected.length || expected.some((n) => !captured.has(n))) {
+    if (captured.size > 0) console.warn(`[PrepareOMR] Score boxes not mapped: ${captured.size} exercise box(es) for ${expected.length} block(s)`);
+    return {};
+  }
+  return Object.fromEntries(blockExerciseIds.map((ids, i) => [i + 1, ids]));
 }
 
 export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<PrepareOmrTemplateResult> {
@@ -167,12 +190,12 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
 
   const mcExercises = resolveMcExercises(exercises, libraryExercises, mcGroups);
   console.log("[PrepareOMR] MC exercises count:", mcExercises.length, mcExercises.map((e) => ({ id: e.id, name: e.name })));
-  if (mcExercises.length === 0) {
+  if (exercises.length === 0 && mcExercises.length === 0) {
     throw new Error(translate("exam.page.omr.noExercisesError"));
   }
 
   // Results-only imports carry no LaTeX: a blank sheet cannot be compiled, so no new scans are read.
-  if (mcExercises.some((ex) => ex.codeWithheld)) {
+  if (mcExercises.some((ex) => ex.codeWithheld) || exercises.some((ex) => ex.codeWithheld)) {
     throw new Error(translate("exam.resultsOnly.noOmr"));
   }
 
@@ -204,7 +227,9 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   const logo = await resolveCompileLogo(examId, useLocal);
   const resourceOptions = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds, logo };
 
-  const result = await compileWithCache(
+  // The blank sheet is the exam's Angabe (same builder, options and resources): reuse a fresh preview compile instead of compiling twice.
+  const preview = await getCachedFor({ kind: "exam", id: examId, variant: "angabe" }, fullTex, useLocal, resourceOptions);
+  const result = preview ?? await compileWithCache(
     { kind: "omr-blank", id: examId, variant: "blank" },
     fullTex,
     useLocal,
@@ -223,7 +248,8 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   onProgress?.(translate("exam.page.omr.extractingBubbles"));
 
   const pdfjsLib = await loadPdfjs();
-  const pdfDoc = await pdfjsLib.getDocument({ data: result.pdfBytes }).promise;
+  // A copy: pdf.js detaches the buffer it is given, which would empty the shared compile-cache entry.
+  const pdfDoc = await pdfjsLib.getDocument({ data: result.pdfBytes.slice() }).promise;
   console.log(`[PrepareOMR] pdfDoc loaded: numPages=${pdfDoc.numPages}`);
 
   const pages: OmrPageTemplate[] = [];
@@ -235,24 +261,23 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
     const bubbles: OmrBubbleRect[] = [];
     const fiducials: OmrFiducialRect[] = [];
     const redoRects = new Map<string, [number, number, number, number]>();
+    const boxes = new Map<string, OmrScoreBoxRect>();
 
     for (const ann of annotations) {
       if (ann.subtype !== "Link") continue;
-      const uri: string = ann.unsafeUrl ?? ann.url ?? "";
-      const match = /^omr:\/\/([^/]+)\/(\d+)(\/redo)?$/.exec(uri);
-      if (!match) continue;
-
-      const [, token, idxStr, isRedo] = match;
+      const parsed = parseOmrUri(ann.unsafeUrl ?? ann.url ?? "");
+      if (!parsed) continue;
       const rect = ann.rect as [number, number, number, number];
-      if (token === "__fid__") {
-        const corner = Number(idxStr);
-        if (corner === 0 || corner === 1 || corner === 2 || corner === 3) {
-          fiducials.push({ corner, rect });
-        }
-      } else if (isRedo) {
-        redoRects.set(`${token}|${idxStr}`, rect);
+      if (parsed.kind === "fiducial") {
+        fiducials.push({ corner: parsed.corner, rect });
+      } else if (parsed.kind === "bubble" && parsed.redo) {
+        redoRects.set(`${parsed.exerciseId}|${parsed.optionIndex}`, rect);
+      } else if (parsed.kind === "bubble") {
+        bubbles.push({ exerciseId: parsed.exerciseId, optionIndex: parsed.optionIndex, rect });
       } else {
-        bubbles.push({ exerciseId: token, optionIndex: Number(idxStr), rect });
+        const key = scoreBoxKey(parsed);
+        const prev = boxes.get(key);
+        boxes.set(key, { box: parsed.box, position: parsed.position, part: parsed.part, rect: prev ? unionRect(prev.rect, rect) : rect });
       }
     }
 
@@ -262,7 +287,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
       if (redoRect) b.redoRect = effectiveRedoRect(b.rect, redoRect);
     }
 
-    console.log(`[PrepareOMR] Page ${pageNum}: totalAnnotations=${annotations.length}, fiducials=${fiducials.length}, bubbles=${bubbles.length}`);
+    console.log(`[PrepareOMR] Page ${pageNum}: totalAnnotations=${annotations.length}, fiducials=${fiducials.length}, bubbles=${bubbles.length}, scoreBoxes=${boxes.size}`);
 
     pages.push({
       pageIndex: pageNum - 1,
@@ -270,34 +295,35 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
       pageHeightPt: viewport.height,
       fiducials,
       bubbles,
+      scoreBoxes: [...boxes.values()],
     });
   }
 
   console.log("[PrepareOMR] Pages extraction summary:", pages.map((p) => ({ page: p.pageIndex + 1, fiducials: p.fiducials.length, bubbles: p.bubbles.length })));
 
-  const payload: OmrTemplatePayload = { pages };
+  const blockIds = buildExerciseBlocks(examItems, exercises, libraryExercises, mcGroups).map((b) => b.exerciseIds);
+  const positions = mapScorePositions(blockIds, pages);
+  const payload: OmrTemplatePayload = { pages, version: OMR_TEMPLATE_VERSION, positions };
   const exercisesHash = await hashOmrTemplate(mcExercises, mcGroups, fullTex);
   await saveOmrTemplateEncrypted(examId, exercisesHash, payload, key);
   
   const totalBubbles = pages.reduce((sum, p) => sum + p.bubbles.length, 0);
+  const totalScoreBoxes = pages.reduce((sum, p) => sum + (p.scoreBoxes?.length ?? 0), 0);
   const shortPages = pages.filter((p) => p.fiducials.length < 4).map((p) => p.pageIndex + 1);
+  const base = { pages, totalBubbles, totalScoreBoxes, exercisesHash };
   
-  if (totalBubbles === 0) {
+  if (mcExercises.length > 0 && totalBubbles === 0) {
     console.warn(`[PrepareOMR] FAILED: totalBubbles is 0 despite ${mcExercises.length} MC exercise(s). Macro counts in fullTex were: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}`);
     return {
       status: 'stale',
       message: translate("exam.page.omr.noBubblesError"),
-      pages,
-      totalBubbles,
-      exercisesHash
+      ...base,
     };
   } else if (shortPages.length > 0) {
     return {
       status: 'stale',
       message: translate("exam.page.omr.shortFiducialsError", { pages: shortPages.join(", ") }),
-      pages,
-      totalBubbles,
-      exercisesHash
+      ...base,
     };
   } else {
     return {
@@ -305,10 +331,9 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
       message: translate("exam.page.omr.templateSaved", {
         pageCount: pages.length,
         bubbleCount: totalBubbles,
+        boxCount: totalScoreBoxes,
       }),
-      pages,
-      totalBubbles,
-      exercisesHash
+      ...base,
     };
   }
 }

@@ -126,6 +126,7 @@ export default withMermaid(defineConfig({
           { text: 'REST API reference', link: '/api_reference' },
           { text: 'Storage modes', link: '/dev/storage_modes' },
           { text: 'Pseudonym HMAC and AAD', link: '/dev/pseudonym_hmac_and_aad' },
+          { text: 'Session keys across reloads', link: '/dev/session_key_wrap' },
           { text: 'MC and exam data model', link: '/dev/mc_model' },
           { text: 'MC detection (OMR)', link: '/dev/omr' },
           { text: 'LaTeX in the frontend', link: '/dev/latex' },

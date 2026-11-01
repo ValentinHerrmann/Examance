@@ -32,7 +32,9 @@ describe('submissionRepository mapping', () => {
 
     expect(mapped.id).toBe('sub-1');
     expect(mapped.examId).toBe('exam-1');
-    expect(mapped.pseudonymHash).toBe(raw.pseudonym_hmac);
+    expect(mapped.pseudonymHmac).toBe(raw.pseudonym_hmac);
+    // An older server sends no version: the row is version 1 (issue #177).
+    expect(mapped.pseudonymVersion).toBe(1);
     expect(mapped.totalScore).toBe(8.5);
     expect(mapped.scanCt).toBeInstanceOf(Uint8Array);
   });

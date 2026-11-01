@@ -56,7 +56,7 @@ The **Score & structure** button above the source shows the current score. It op
 
 ### Part exercises {#parts}
 
-**Add part** splits an exercise into a), b), c). Each part gets its own subtitle and score box on the sheet. The parts add up to the exercise's score; a single part's score can be fixed as well (an empty field counts that part's scoring units). Grading still happens per exercise, not per part.
+**Add part** splits an exercise into a), b), c). Each part gets its own subtitle and score box on the sheet. The parts add up to the exercise's score; a single part's score can be fixed as well (an empty field counts that part's scoring units). When grading, you can award the points per exercise or [part by part](./grading#parts).
 
 ### Requirement levels and competencies {#requirement-levels}
 

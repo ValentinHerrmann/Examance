@@ -72,6 +72,16 @@ Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung od
 
 Der Erwartungshorizont enthält das Feld nicht.
 
+### Wie man ein Kreuz korrigiert {#mc-hint}
+
+**Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert** (beim Anlegen der Prüfung oder unter **Prüfung bearbeiten**) druckt zu Beginn jeder Multiple-Choice-Aufgabe eine kurze Zeile, in der Prüfung und im Erwartungshorizont:
+
+- Kästchen **ankreuzen**, um eine Option zu wählen;
+- Kästchen **ganz ausmalen**, um ein Kreuz zurückzunehmen;
+- **links neben** ein ausgemaltes Kästchen kreuzen, um es wieder zu wählen.
+
+Die MC-Erkennung liest genau diese Markierungen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification). Wenn Sie die Option ein- oder ausschalten, wird die Antwortbogen-Vorlage neu erzeugt; setzen und drucken Sie die Prüfung danach erneut.
+
 ### Logo und LaTeX-Pakete {#logo-packages}
 
 Jede Prüfung druckt oben links auf der ersten Seite ein Logo. Unter **Prüfung bearbeiten** wählen Sie das Logo aus Ihren Einstellungen, kein Logo oder ein Logo nur für diese Prüfung (siehe [Logo auf der Prüfung](./settings#logo)). In der Prüfungsübersicht zeigt jede aufgeklappte Prüfung, welches Logo sie druckt.

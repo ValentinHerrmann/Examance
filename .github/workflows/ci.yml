@@ -95,6 +95,63 @@ jobs:
       - name: SRI verification
         run: cd frontend && npm run sri:verify
 
+  # Layout and accessibility on the three main devices (issue #183), one job per device and check group so they run side by side; the API is the in-memory fake, so no backend runs.
+  e2e:
+    name: Frontend — Playwright (${{ matrix.device }}, ${{ matrix.group }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [desktop, ipad-portrait, phone]
+        group: [routes, a11y, shell]
+        exclude:
+          # a11y.spec runs on desktop and phone only.
+          - device: ipad-portrait
+            group: a11y
+        # Every test of layout.spec and a11y.spec lands in exactly one group: "shell" takes all of layout.spec but the route loops.
+        include:
+          - group: routes
+            args: e2e/layout.spec.ts --grep=routes.do.not.scroll
+          - group: a11y
+            args: e2e/a11y.spec.ts
+          - group: shell
+            args: e2e/layout.spec.ts --grep-invert=routes.do.not.scroll
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.node-version
+      - name: Restore node_modules
+        id: modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: e2e-node-modules-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json', 'frontend/.node-version') }}
+      # No lifecycle scripts: the only ones in the tree are macOS-only fsevents.
+      - name: Install deps
+        if: steps.modules.outputs.cache-hit != 'true'
+        run: cd frontend && npm ci --ignore-scripts
+      # The locked binaries from the lockfile, never an on-demand `npx` download. tsconfig.json extends the generated `$app/tsconfig`, which Playwright reads when it loads the config.
+      - name: SvelteKit sync
+        run: cd frontend && ./node_modules/.bin/svelte-kit sync
+      # Headless runs use only the headless shell, so the full Chrome and FFmpeg are not downloaded.
+      - name: Install Chromium
+        run: cd frontend && ./node_modules/.bin/playwright install --with-deps --only-shell chromium
+      - name: Playwright specs
+        env:
+          ARGS: ${{ matrix.args }}
+          DEVICE: ${{ matrix.device }}
+        # ARGS is split into words on purpose.
+        run: cd frontend && ./node_modules/.bin/playwright test $ARGS --project="$DEVICE"
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.device }}-${{ matrix.group }}
+          path: frontend/playwright-report
+          retention-days: 7
+
   docs:
     name: Docs site — build (dead links fail)
     runs-on: ubuntu-latest

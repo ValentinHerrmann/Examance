@@ -13,17 +13,19 @@
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
+    openAnnotation,
+    sealAnnotation,
   } from "#lib/db/dbEncryption";
   import { calculateGradeDetail } from "#lib/analytics/gradingKey";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
-  import { decrypt, encrypt } from "#lib/crypto/aesGcm";
   import { get } from "svelte/store";
   import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { saveSubmissionScores } from "#lib/grading/scoreService";
   import { buildGradingSheet } from "#lib/grading/gradingSheet";
   import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
+  import { loadScoreBoxContext, type ScoreBoxContext } from "#lib/grading/scoreBoxes";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, EmptyState } from "#lib/components/ui";
 
@@ -39,6 +41,8 @@
   let exam = $state.raw<ExamRecord | null>(null);
   let submissions: SubmissionRecord[] = $state.raw([]);
   let exercises: ExerciseRecord[] = $state.raw([]);
+  /** Printed score boxes the viewer fills in (issue #187); null when the exam has no usable layout. */
+  let scoreBoxes: ScoreBoxContext | null = $state.raw(null);
 
   let currentIndex = $derived($gradingStore.currentIndex);
   let currentSub = $derived(submissions[currentIndex]);
@@ -78,6 +82,7 @@
     if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
+    void loadScoreBoxContext(examId, key).then((ctx) => (scoreBoxes = ctx));
     try {
       submissions = await submissionRepository.getByExamId(examId, key);
     } catch (err) {
@@ -111,6 +116,7 @@
     loadedFor = null;
     gradingStore.setManualOverride({});
     gradingStore.setScoreInputs({});
+    gradingStore.setPartInputs({});
     gradingStore.setMcState({});
     gradingStore.markClean();
     if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
@@ -131,25 +137,25 @@
     if (seq !== loadSeq) return;
 
     // Check strokes/annotations for exercises with active stamps. Read them from `sub` itself: the canvas loads the new submission's strokes asynchronously, so the store still holds the previous student's strokes at this point.
-    const subStrokes = await loadStrokesFor(sub);
-    if (seq !== loadSeq) return;
-    const exerciseIdsWithStrokes = new Set<string>();
-    for (const stroke of subStrokes) {
-      if (stroke.exerciseId) {
-        exerciseIdsWithStrokes.add(stroke.exerciseId);
-      }
+    let subStrokes: VectorStroke[];
+    try {
+      subStrokes = await loadStrokesFor(sub);
+    } catch (err) {
+      if (seq !== loadSeq) return;
+      console.error("[grade] annotations did not open:", err);
+      loadedScores = new Map();
+      scoresLoadError = translate("grading.page.annotationsUnreadable");
+      return;
     }
+    if (seq !== loadSeq) return;
 
-    const sheet = buildGradingSheet(
-      sub.id,
-      existingScores,
-      exercises,
-      exerciseIdsWithStrokes,
-      get(gradingStore).manualOverride
-    );
+    const sheet = buildGradingSheet(sub.id, existingScores, exercises, subStrokes);
     loadedScores = sheet.loadedScores;
     loadedFor = sub.id;
+    // Typed scores are not stored as such; flag them so the viewer's recalculation keeps them.
+    gradingStore.setManualOverride(sheet.manualOverride);
     gradingStore.setScoreInputs(sheet.scoreInputs);
+    gradingStore.setPartInputs(sheet.partInputs);
     gradingStore.setMcState(sheet.mcState);
   }
 
@@ -163,15 +169,12 @@
   /** Set when the submission list failed to load: shown instead of the "no submissions" text. */
   let submissionsLoadError = $state("");
 
+  /** @throws when the stored layer does not open: reading it as "no strokes" would let a save drop stamp-derived scores. */
   async function loadStrokesFor(sub: SubmissionRecord): Promise<VectorStroke[]> {
     const { sessionKey, fallbackSessionKey } = get(sessionStore);
     if (!sub.annotationCt || !sub.annotationIv || !sessionKey) return [];
-    try {
-      const bytes = await decrypt(sessionKey, sub.annotationCt, sub.annotationIv, fallbackSessionKey);
-      return JSON.parse(new TextDecoder().decode(bytes));
-    } catch {
-      return [];
-    }
+    const bytes = await openAnnotation(sub.id, sub.annotationCt, sub.annotationIv, sessionKey, fallbackSessionKey);
+    return JSON.parse(new TextDecoder().decode(bytes));
   }
 
   function handleSubmissionHydrated(fullSub: SubmissionRecord) {
@@ -190,6 +193,7 @@
     const values = new Map(exercises.map((ex) => [ex.id, scoreInputs[ex.id] ?? null]));
     const mcState = get(gradingStore).mcState;
     const mc = Object.fromEntries(exercises.filter(isMcQuestion).map((ex) => [ex.id, mcState[ex.id]]));
+    const parts = get(gradingStore).partInputs;
     gradingStore.setSaving(true);
 
     try {
@@ -208,11 +212,8 @@
       }
       if (ownsStrokes && strokes.length > 0) {
         const annJson = JSON.stringify(strokes);
-        const encAnn = await encrypt(
-          $sessionStore.sessionKey,
-          new TextEncoder().encode(annJson),
-        );
-        sub.annotationCt = encAnn.ciphertext;
+        const encAnn = await sealAnnotation(sub.id, new TextEncoder().encode(annJson), $sessionStore.sessionKey);
+        sub.annotationCt = encAnn.ct;
         sub.annotationIv = encAnn.iv;
       } else if (ownsStrokes) {
         sub.annotationCt = undefined;
@@ -226,7 +227,7 @@
         sub,
         exercises.map((ex) => ex.id),
         values,
-        { mc, existing: loadedScores, clearAnnotations },
+        { mc, existing: loadedScores, clearAnnotations, parts },
       );
       submissions = submissions.map((s) => (s.id === sub.id ? { ...sub } : s));
       if (currentSub?.id === sub.id) {
@@ -321,6 +322,7 @@
       onNext={nextStudent}
       onStayOnLastSub={stayOnLastSub}
       onExerciseSaved={async () => (exercises = await loadExamExercisesEncrypted(examId, get(sessionStore).sessionKey))}
+      {scoreBoxes}
     />
   {/if}
 </div>

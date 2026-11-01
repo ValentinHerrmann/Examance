@@ -1,6 +1,6 @@
 /** IndexedDB record encryption/decryption helpers. Every sensitive payload (LaTeX templates, exercise text, answer keys, scores, fallback codes) is AES-256-GCM encrypted with the in-memory sessionKey, so with the session locked DevTools shows only ciphertext blobs. */
 
-import { encrypt, decrypt } from '#lib/crypto/aesGcm';
+import { encrypt, toArrayBuffer } from '#lib/crypto/aesGcm';
 import {
   assertEncryptable,
   markDecryptFailed,
@@ -31,16 +31,68 @@ async function encryptBytes(key: CryptoKey, bytes: Uint8Array, aad?: Uint8Array)
   return { ct: res.ciphertext, iv: res.iv };
 }
 
-/** Decrypt raw bytes with key. */
-async function decryptBytes(key: CryptoKey, ct: Uint8Array, iv: Uint8Array, fallbackKey?: CryptoKey | null, aad?: Uint8Array): Promise<Uint8Array> {
-  const activeFallbackKey = fallbackKey ?? (typeof window !== 'undefined' ? get(sessionStore).fallbackSessionKey : null);
-  return await decrypt(key, ct, iv, activeFallbackKey, aad);
+/** Associated data binding a ciphertext to its record (S11, issue #178): `<kind>:v1:<id>`, ids lower-cased because the server answers canonical UUIDs. */
+function aadFor(kind: string, ...ids: string[]): Uint8Array {
+  return encoder.encode(`${kind}:v1:${ids.map((id) => String(id).toLowerCase()).join(':')}`);
+}
+
+/** Opens bytes under the primary, fallback and legacy keys in turn, each with the record's AAD and then without it: rows sealed before their codec gained AAD still open, and a legacy multi-MB scan costs two passes, not six. They gain the binding on their next save. */
+async function openBytes(
+  key: CryptoKey,
+  ct: Uint8Array,
+  iv: Uint8Array,
+  aad?: Uint8Array,
+  fallbackKey?: CryptoKey | null
+): Promise<Uint8Array> {
+  const session = typeof window !== 'undefined' ? get(sessionStore) : null;
+  const keys = [key, fallbackKey ?? session?.fallbackSessionKey ?? null, session?.legacySessionKey ?? null];
+  const params = (ad?: Uint8Array): AesGcmParams =>
+    ad ? { name: 'AES-GCM', iv: toArrayBuffer(iv), additionalData: toArrayBuffer(ad) } : { name: 'AES-GCM', iv: toArrayBuffer(iv) };
+  const data = toArrayBuffer(ct);
+  let firstError: unknown = null;
+  for (const candidate of keys.filter((k, i, all): k is CryptoKey => !!k && all.indexOf(k) === i)) {
+    for (const ad of aad ? [aad, undefined] : [undefined]) {
+      try {
+        return new Uint8Array(await crypto.subtle.decrypt(params(ad), candidate, data)); // NOSONAR: tried in order, stopping at the first that opens; a parallel try would decrypt a multi-MB scan up to six times
+      } catch (err) {
+        firstError ??= err;
+      }
+    }
+  }
+  throw firstError;
+}
+
+// ---------------------------------------------------------------------------
+// Scans and annotation layers: bound to their submission
+// ---------------------------------------------------------------------------
+
+/** Seals a submission's scan PDF; mint the submission id first, the ciphertext is bound to it. */
+export async function sealScan(submissionId: string, bytes: Uint8Array, key: CryptoKey | null): Promise<{ ct: Uint8Array; iv: Uint8Array }> {
+  if (!key) throw new MissingSessionKeyError('scan');
+  return encryptBytes(key, bytes, aadFor('scan', submissionId));
+}
+
+/** Opens a submission's scan PDF. @throws when it does not open under this account's keys. */
+export function openScan(submissionId: string, ct: Uint8Array, iv: Uint8Array, key: CryptoKey, fallbackKey?: CryptoKey | null): Promise<Uint8Array> {
+  return openBytes(key, ct, iv, aadFor('scan', submissionId), fallbackKey);
+}
+
+/** Seals a submission's annotation layer (the JSON bytes). */
+export async function sealAnnotation(submissionId: string, bytes: Uint8Array, key: CryptoKey | null): Promise<{ ct: Uint8Array; iv: Uint8Array }> {
+  if (!key) throw new MissingSessionKeyError('annotation');
+  return encryptBytes(key, bytes, aadFor('annotation', submissionId));
+}
+
+/** Opens a submission's annotation layer. @throws when it does not open: callers must then leave the stored layer alone, never save an empty one over it. */
+export function openAnnotation(submissionId: string, ct: Uint8Array, iv: Uint8Array, key: CryptoKey, fallbackKey?: CryptoKey | null): Promise<Uint8Array> {
+  return openBytes(key, ct, iv, aadFor('annotation', submissionId), fallbackKey);
 }
 
 // ---------------------------------------------------------------------------
 // ExerciseResourceRecord — raw file bytes, encrypted like a scan
 // ---------------------------------------------------------------------------
 
+/** Bound to `resource.id`, which stays fixed: `commit()` and `rename()` move rows to another exercise or name without re-sealing. */
 export async function encryptResource(
   resource: ExerciseResourceRecord,
   bytes: Uint8Array,
@@ -50,7 +102,7 @@ export async function encryptResource(
     // Never fall back to raw bytes in `data`: that is plaintext at rest.
     throw new MissingSessionKeyError('exerciseResource');
   }
-  const { ct, iv } = await encryptBytes(key, bytes);
+  const { ct, iv } = await encryptBytes(key, bytes, aadFor('resource', resource.id));
   return { ...resource, data: undefined, dataCt: ct, dataIv: iv };
 }
 
@@ -61,7 +113,7 @@ export async function decryptResourceBytes(
 ): Promise<Uint8Array> {
   if (resource.dataCt && resource.dataIv) {
     if (!key) throw new Error('Session is locked — unlock to read resource files.');
-    return await decryptBytes(key, resource.dataCt, resource.dataIv);
+    return await openBytes(key, resource.dataCt, resource.dataIv, aadFor('resource', resource.id));
   }
   return resource.data ?? new Uint8Array(0);
 }
@@ -72,8 +124,8 @@ interface RecordCodec<T> {
   kind: string;
   plain: readonly (keyof T)[];
   sealed: readonly (keyof T)[];
-  /** Associated data binding the payload to its row: a ciphertext copied onto another row fails to open. */
-  aad?: (record: T) => string;
+  /** Associated data binding the payload to its row: a ciphertext copied onto another row fails to open. Undefined seals without it. */
+  aad?: (record: T) => Uint8Array | undefined;
 }
 
 function pick<T>(record: T, fields: readonly (keyof T)[]): Partial<T> {
@@ -89,8 +141,7 @@ async function sealRecord<T extends MaybeUndecryptable & SealedPayload>(
 ): Promise<T> {
   assertEncryptable(record, key, codec.kind);
   const payload = JSON.stringify(pick(record, codec.sealed));
-  const aad = codec.aad ? encoder.encode(codec.aad(record)) : undefined;
-  const { ct, iv } = await encryptBytes(key, encoder.encode(payload), aad);
+  const { ct, iv } = await encryptBytes(key, encoder.encode(payload), codec.aad?.(record));
   // The whitelist drops every sealed field, which the record types mark optional — so the partial is a complete record for everything required.
   return { ...pick(record, codec.plain), payloadCt: ct, payloadIv: iv } as unknown as T;
 }
@@ -114,21 +165,11 @@ async function openRecord<T extends MaybeUndecryptable & SealedPayload>(
   if (!key) return markDecryptFailed(base, codec.kind, 'locked');
 
   try {
-    const bytes = await openPayload(key, payloadCt, payloadIv, codec.aad ? encoder.encode(codec.aad(record)) : undefined);
+    const bytes = await openBytes(key, payloadCt, payloadIv, codec.aad?.(record));
     return { ...base, ...JSON.parse(decoder.decode(bytes)) };
   } catch (err) {
     console.error(`Failed to decrypt ${codec.kind} record:`, err);
     return markDecryptFailed(base, codec.kind);
-  }
-}
-
-/** Rows sealed before their codec gained AAD still open without it; they gain the binding on their next save. */
-async function openPayload(key: CryptoKey, ct: Uint8Array, iv: Uint8Array, aad?: Uint8Array): Promise<Uint8Array> {
-  if (!aad) return decryptBytes(key, ct, iv);
-  try {
-    return await decryptBytes(key, ct, iv, undefined, aad);
-  } catch {
-    return decryptBytes(key, ct, iv);
   }
 }
 
@@ -139,12 +180,13 @@ interface SealedPayload {
 
 const EXAM: RecordCodec<ExamRecord> = {
   kind: 'exam',
-  plain: ['id', 'teacherId', 'retentionUntil', 'compilationStatus', 'createdAt', 'isDirty'],
+  plain: ['id', 'teacherId', 'retentionUntil', 'compilationStatus', 'createdAt', 'isDirty', 'pseudonymVersion'],
   sealed: [
     'title', 'testart', 'grade', 'klasse', 'datum', 'nr', 'fach', 'topic', 'lehrernachname',
     'infoText', 'latexPreamble', 'latexTemplate', 'numVersions', 'gradingKey', 'latexPackages',
-    'pageBreaks', 'nameLine', 'extraNotes',
+    'pageBreaks', 'nameLine', 'mcCorrectionHint', 'extraNotes',
   ],
+  aad: (r) => aadFor('exam', r.id),
 };
 
 const EXERCISE: RecordCodec<ExerciseRecord> = {
@@ -155,36 +197,41 @@ const EXERCISE: RecordCodec<ExerciseRecord> = {
     'questionType', 'penalty', 'codeWithheld',
   ],
   sealed: ['title', 'name', 'latexBody', 'options', 'correctAnswers'],
+  aad: (r) => aadFor('exercise', r.id),
 };
 
 const SCORE: RecordCodec<ExerciseScoreRecord> = {
   kind: 'score',
   plain: ['id', 'submissionId', 'exerciseId'],
-  sealed: ['score', 'selectedOptions', 'omrMeta'],
+  sealed: ['score', 'selectedOptions', 'omrMeta', 'partScores'],
   // Binds a result to its submission and question (issue #85): a moved row cannot pass as another pupil's. Lower-cased: the server returns canonical UUIDs, so a differently cased local id must still match.
-  aad: (r) => `score:v1:${String(r.submissionId).toLowerCase()}:${String(r.exerciseId).toLowerCase()}`,
+  aad: (r) => aadFor('score', r.submissionId, r.exerciseId),
 };
 
-// Identity fields live only inside the payload — re-emitting them as plain columns was the L17 leak (docs/legal_audit_dsgvo.md).
+// Identity fields, the raw pseudonym included, live only inside the payload — re-emitting them as plain columns was the L17 leak (docs/legal_audit_dsgvo.md).
 const STUDENT: RecordCodec<StudentRecord> = {
   kind: 'student',
-  plain: ['pseudonymId', 'examId', 'piiCt', 'piiIv'],
-  sealed: ['fallbackCode', 'studentName', 'studentNumber'],
+  plain: ['examId', 'pseudonymHmac', 'pseudonymVersion', 'piiCt', 'piiIv'],
+  sealed: ['fallbackCode', 'studentName', 'studentNumber', 'pseudonymRaw', 'pseudonymBase'],
+  // Only keyed rows: a version-1 row is renamed on the server by the re-key, which must not strand its payload.
+  aad: (r) => (r.pseudonymVersion === 2 ? aadFor('student', r.examId, r.pseudonymHmac) : undefined),
 };
 
 const SUBMISSION: RecordCodec<SubmissionRecord> = {
   kind: 'submission',
   plain: [
-    'id', 'examId', 'pseudonymHash', 'scanCt', 'scanIv', 'annotationCt', 'annotationIv',
-    'createdAt',
+    'id', 'examId', 'pseudonymHmac', 'pseudonymVersion', 'scanCt', 'scanIv', 'annotationCt',
+    'annotationIv', 'createdAt',
   ],
   sealed: ['totalScore'],
+  aad: (r) => aadFor('submission', r.id),
 };
 
 const AUDIT: RecordCodec<AuditEntry> = {
   kind: 'auditEntry',
   plain: ['id', 'action', 'targetId', 'timestamp'],
   sealed: ['note'],
+  aad: (r) => aadFor('auditEntry', r.id),
 };
 
 type Key = CryptoKey | null;
@@ -211,7 +258,7 @@ export async function encryptOmrTemplate(
   if (!key) {
     throw new MissingSessionKeyError('omrTemplate');
   }
-  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
+  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)), aadFor('omr', tpl.examId));
 
   return {
     id: tpl.id,
@@ -231,7 +278,7 @@ export async function decryptOmrTemplate(
     return null;
   }
   try {
-    const bytes = await decryptBytes(key, tpl.payloadCt, tpl.payloadIv);
+    const bytes = await openBytes(key, tpl.payloadCt, tpl.payloadIv, aadFor('omr', tpl.examId));
     return JSON.parse(decoder.decode(bytes)) as OmrTemplatePayload;
   } catch (err) {
     console.error('Failed to decrypt OMR template record:', err);
@@ -309,7 +356,7 @@ export async function loadStudentsEncrypted(key: CryptoKey | null): Promise<Stud
 
 export async function saveStudentEncrypted(student: StudentRecord, key: CryptoKey | null): Promise<string> {
   await studentRepository.save(student, key);
-  return student.pseudonymId;
+  return student.pseudonymHmac;
 }
 
 export async function loadSubmissionsEncrypted(

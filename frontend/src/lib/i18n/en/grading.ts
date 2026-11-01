@@ -8,6 +8,7 @@ export const grading: Translations['grading'] = {
         scoresLoadFailed: "This submission's saved scores could not be loaded ({message}). Saving is blocked until they load, so no grading is lost.",
         submissionsLoadFailed: 'The submissions of this exam could not be loaded: {message}. Reload the page.',
         scoresNotLoaded: "This submission's scores are still loading. Please save again in a moment.",
+        annotationsUnreadable: "This submission's corrections do not open with your key. Saving is blocked so they are not overwritten.",
         unsavedNext: 'There are unsaved annotations for this student. Switch to the next student anyway?',
         unsavedPrev: 'There are unsaved annotations for this student. Switch to the previous student anyway?',
     },
@@ -100,6 +101,10 @@ export const grading: Translations['grading'] = {
         stampTarget: 'Stamp target',
         resetTitle: 'Reset to ungraded',
         manualEdit: 'Manually edited',
+        partRowLabel: 'Part {label})',
+        sumOfParts: 'Follows from the parts once all of them are graded',
+        restRowLabel: 'Outside the parts',
+        restOverMax: 'More than the points outside the parts ({max}): stamps without a part?',
     },
     zoom: {
         pagePrevTitle: 'Jump to previous page',

@@ -22,7 +22,9 @@ export class BlindGradeDB extends Dexie {
   exercises!: Table<ExerciseRecord>;
   examExercises!: Table<ExamExerciseRecord>;
   examMcGroups!: Table<ExamMcGroupRecord>;
-  students!: Table<StudentRecord>;
+  /** Pre-v12 student rows keyed by the raw id alone; v12 moves them to `examStudents`. Only rows it could not move stay here (quarantined, wiped with the vault). */
+  students!: Table<Record<string, unknown>>;
+  examStudents!: Table<StudentRecord>;
   submissions!: Table<SubmissionRecord>;
   exerciseScores!: Table<ExerciseScoreRecord>;
   exerciseResources!: Table<ExerciseResourceRecord>;
@@ -153,6 +155,36 @@ export class BlindGradeDB extends Dexie {
     this.version(11).stores({
       offlineQueue: 'id, timestamp, workspaceId',
     });
+
+    // v12 (issue #177): students keyed per exam, `[examId+pseudonymHmac]`, since Dexie cannot change a primary key in place; submissions rename `pseudonymHash`. No key exists during the upgrade, so rows keep their value at version 1 and the post-unlock re-key (services/pseudonymRekey.ts) finishes them.
+    this.version(12)
+      .stores({
+        examStudents: '[examId+pseudonymHmac], examId',
+        // `[examId+pseudonymVersion]` finds rows still to re-key without loading any scan bytes.
+        submissions: 'id, examId, pseudonymHmac, [examId+pseudonymVersion]',
+      })
+      .upgrade(async (tx) => {
+        const legacy = tx.table('students');
+        const moved: Record<string, unknown>[] = [];
+        const movedKeys: unknown[] = [];
+        for (const row of (await legacy.toArray()) as Record<string, unknown>[]) {
+          // A row that cannot be keyed stays behind rather than failing the whole upgrade.
+          if (typeof row.examId !== 'string' || typeof row.pseudonymId !== 'string' || !row.pseudonymId) continue;
+          const { pseudonymId, ...rest } = row;
+          moved.push({ ...rest, pseudonymHmac: pseudonymId, pseudonymVersion: 1 });
+          movedKeys.push(pseudonymId);
+        }
+        await tx.table('examStudents').bulkPut(moved);
+        await legacy.bulkDelete(movedKeys as string[]);
+        await tx
+          .table('submissions')
+          .toCollection()
+          .modify((sub: Record<string, unknown>) => {
+            if (sub.pseudonymHmac === undefined) sub.pseudonymHmac = sub.pseudonymHash ?? '';
+            delete sub.pseudonymHash;
+            sub.pseudonymVersion ??= 1;
+          });
+      });
   }
 }
 
@@ -198,6 +230,7 @@ export function vaultTables(): Table[] {
     db.examExercises,
     db.examMcGroups,
     db.students,
+    db.examStudents,
     db.submissions,
     db.exerciseScores,
     db.auditLog,

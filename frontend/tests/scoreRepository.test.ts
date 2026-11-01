@@ -106,8 +106,8 @@ describe('scoreRepository', () => {
 
   it('scopes an exam read to that exam only', async () => {
     await db.submissions.bulkPut([
-      { id: 'sub-1', examId: 'exam-1', pseudonymHash: 'a', createdAt: '' },
-      { id: 'sub-2', examId: 'exam-2', pseudonymHash: 'b', createdAt: '' },
+      { id: 'sub-1', examId: 'exam-1', pseudonymHmac: 'a', createdAt: '' },
+      { id: 'sub-2', examId: 'exam-2', pseudonymHmac: 'b', createdAt: '' },
     ]);
     await scoreRepository.saveMany(
       'exam-1',

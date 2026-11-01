@@ -76,6 +76,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.storageModes.s2.h", bodyKeys: ["help.topics.storageModes.s2.p1"], docs: "security#encryption" },
       { headingKey: "help.topics.storageModes.s3.h", bodyKeys: ["help.topics.storageModes.s3.p1"], docs: "settings#switching" },
       { headingKey: "help.topics.storageModes.s4.h", bodyKeys: ["help.topics.storageModes.s4.p1"], docs: "settings#notices" },
+      { headingKey: "help.topics.storageModes.s5.h", bodyKeys: ["help.topics.storageModes.s5.p1"], docs: "settings#restore" },
     ],
   },
   {
@@ -134,6 +135,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     sections: [
       { headingKey: "help.topics.grading.s1.h", bodyKeys: ["help.topics.grading.s1.p1"], docs: "grading#blind" },
       { headingKey: "help.topics.grading.s2.h", bodyKeys: ["help.topics.grading.s2.p1", "help.topics.grading.s2.p2"], docs: "grading#tools" },
+      { headingKey: "help.topics.grading.s6.h", bodyKeys: ["help.topics.grading.s6.p1"], docs: "grading#parts" },
       { headingKey: "help.topics.grading.s3.h", bodyKeys: ["help.topics.grading.s3.p1"], docs: "grading#multiple-choice" },
       { headingKey: "help.topics.grading.s4.h", bodyKeys: ["help.topics.grading.s4.p1"], docs: "grading#paper" },
       { headingKey: "help.topics.grading.s5.h", bodyKeys: ["help.topics.grading.s5.p1"], docs: "grading#saving" },

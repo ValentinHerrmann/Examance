@@ -39,7 +39,7 @@ Typical causes are a crumpled or folded corner, a code covered by handwriting, o
 
 ## Verify MC detections {#mc-verification}
 
-Ticked boxes are detected automatically during the import. The **Check MC** step lists every detection in three queues:
+Ticked boxes are detected automatically during the import, including withdrawn crosses (a completely filled box) and boxes chosen again (a cross just left of a filled box); the exam option [How to correct a cross](./exams#mc-hint) prints these rules on every multiple choice task. The **Check MC** step lists every detection in three queues:
 
 - **a) Failed detections**: the page could not be aligned; award these points in the [grading view](./grading#multiple-choice).
 - **b) Unsure / ambiguous detections**: please look at each of them.

@@ -3,6 +3,9 @@ import type { LatexPackageEntry } from '#lib/latex/packages';
 import type { OmrPageStats, OmrRunInfo } from '#lib/grading/omrSettings';
 import type { OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
 
+/** How a pseudonym key was derived: 1 = SHA-256 of the raw value (raw in this browser), 2 = keyed per-exam HMAC (issue #177). */
+export type PseudonymVersion = 1 | 2;
+
 /** IndexedDB schema types for Dexie. SECURITY: all *_ct fields are Uint8Array ciphertext before IDB write; decrypted only at point of use, never stored decrypted. Encryption at rest is the PRIMARY protection on shared machines; the hygiene.ts wipe is best-effort UX. */
 
 export interface GradeCutoff {
@@ -35,6 +38,8 @@ export const DEFAULT_EXTRA_NOTES: ExtraNotes = {
 export interface ExamRecord extends MaybeUndecryptable {
   id: string;            // UUID
   teacherId: string;
+  /** The server rows' pseudonym version (all-server; `mapApiToExamRecord` defaults a missing value to 1). Hybrid rows carry their own. */
+  pseudonymVersion?: PseudonymVersion;
   title?: string;
   testart?: string;
   grade?: string;
@@ -56,6 +61,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   pageBreaks?: string[] | null;
   /** Prints a handwritten name line next to the QR sticker box (issue #127); layout only. */
   nameLine?: boolean;
+  /** Prints the MC correction legend at every MC task (issue #192); layout only. */
+  mcCorrectionHint?: boolean;
   /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */
   extraNotes?: ExtraNotes | null;
   retentionUntil: string;  // ISO date string
@@ -202,7 +209,9 @@ export interface ExerciseScoreRecord extends MaybeUndecryptable {
   score?: number;
   selectedOptions?: number[];
   omrMeta?: OmrScoreMeta;
-  /** AES-256-GCM encrypted payload containing score, selectedOptions, and omrMeta. */
+  /** Scores per part letter (Teilaufgabe, issue #187); when present, `score` is the sum of its non-null values. */
+  partScores?: Record<string, number | null>;
+  /** AES-256-GCM encrypted payload containing score, selectedOptions, omrMeta and partScores. */
   payloadCt?: Uint8Array;
   /** 12-byte GCM IV for payloadCt. */
   payloadIv?: Uint8Array;
@@ -210,9 +219,15 @@ export interface ExerciseScoreRecord extends MaybeUndecryptable {
 
 /** A pupil's identity within one exam. `fallbackCode`, `studentName`, `studentNumber` exist only on records returned by `decryptStudent()`; stored, they live solely inside `payloadCt`. Writing them back as plain columns is the L17 leak (docs/legal_audit_dsgvo.md) that broke Core Invariant 1. */
 export interface StudentRecord extends MaybeUndecryptable {
-  /** Raw pseudonym UUID — only in local IDB, never sent to server. */
-  pseudonymId: string;
   examId: string;
+  /** The row's pseudonym key, the same value the server stores. Version 2 is the keyed per-exam HMAC (`crypto/pseudonymKey.ts`, issue #177); version 1 is what older builds stored: the raw QR value in this browser, its SHA-256 on the server. Compare rows only through `joinKey()`. */
+  pseudonymHmac: string;
+  /** 1 or 2; missing means 1. */
+  pseudonymVersion?: PseudonymVersion;
+  /** The raw value read from the QR code or typed in, when known. Decrypted only (sealed in `payloadCt`), never a plain column. */
+  pseudonymRaw?: string;
+  /** SHA-256 of the raw value (the version-1 form), kept so an archive can re-key into another account. Decrypted only. */
+  pseudonymBase?: string;
   /** Human-readable fallback code (e.g. "A-X7K2M9") for unreadable QR codes. Decrypted only. */
   fallbackCode?: string;
   /** Student full name (e.g. "Erika Mustermann"). Decrypted only. */
@@ -232,8 +247,10 @@ export interface StudentRecord extends MaybeUndecryptable {
 export interface SubmissionRecord extends MaybeUndecryptable {
   id: string;            // UUID
   examId: string;
-  /** HMAC(pseudonymId, archiveSecret) — links to StudentRecord without exposing raw ID. */
-  pseudonymHash: string;
+  /** The student's pseudonym key, as on `StudentRecord.pseudonymHmac`; compare through `joinKey()`. */
+  pseudonymHmac: string;
+  /** 1 or 2; missing means 1. */
+  pseudonymVersion?: PseudonymVersion;
   totalScore?: number;
   isPreliminary?: boolean;
   /** AES-256-GCM ciphertext of scan PDF bytes (native PDF with preserved page structure). */
@@ -270,16 +287,35 @@ export interface OmrFiducialRect {
   rect: [number, number, number, number];
 }
 
+/** Which printed score box: an exercise's box, a part's box, a column of the bottom table, its Σ or its grade cell. */
+export type OmrScoreBoxKind = 'task' | 'part' | 'cell' | 'sum' | 'grade';
+
+/** One printed score box's blank area (issue #187), in PDF points like OmrBubbleRect. */
+export interface OmrScoreBoxRect {
+  box: OmrScoreBoxKind;
+  /** Exam position (`\thePunkte`, 1-based) for task, part and cell boxes. */
+  position?: number;
+  /** Part letter for part boxes. */
+  part?: string;
+  rect: [number, number, number, number];
+}
+
 export interface OmrPageTemplate {
   pageIndex: number;
   pageWidthPt: number;
   pageHeightPt: number;
   fiducials: OmrFiducialRect[];
   bubbles: OmrBubbleRect[];
+  /** Absent on templates captured before version 2. */
+  scoreBoxes?: OmrScoreBoxRect[];
 }
 
 export interface OmrTemplatePayload {
   pages: OmrPageTemplate[];
+  /** Capture format; 2 adds score boxes and `positions`. Absent = 1. */
+  version?: number;
+  /** Exam position -> the exercise ids its score box sums (one, or an MC group's members). Empty when the capture could not map positions safely. */
+  positions?: Record<number, string[]>;
 }
 
 export interface OmrTemplateRecord {

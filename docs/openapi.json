@@ -1317,6 +1317,136 @@
         }
       }
     },
+    "/api/v1/exams/{exam_id}/pseudonyms": {
+      "get": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "List Exam Pseudonyms",
+        "description": "Every pseudonym value of the exam, soft-deleted rows included, and their version: the input of a client-side rekey (issue #177). Reads are never gated.",
+        "operationId": "list_exam_pseudonyms_api_v1_exams__exam_id__pseudonyms_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PseudonymList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/pseudonyms/rekey": {
+      "post": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "Rekey Exam Pseudonyms",
+        "description": "Renames every pseudonym of the exam to the client's keyed HMAC and moves its version (issue #177). Compare-and-set on `from_version`; `changed: false` when already done; 422 unless the pairs cover every value.",
+        "operationId": "rekey_exam_pseudonyms_api_v1_exams__exam_id__pseudonyms_rekey_post",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PseudonymRekey"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PseudonymRekeyResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/latex-assets/index.json": {
       "get": {
         "tags": [
@@ -6350,7 +6480,7 @@
           "user"
         ],
         "summary": "Restore Server Data",
-        "description": "Restore soft-deleted student identities and scan submissions for the current teacher if they are within the 7-day retention grace period.",
+        "description": "Restore the teacher's soft-deleted student identities and scan submissions still inside the grace period, and list the live exams whose older results retention already erased.",
         "operationId": "restore_server_data_api_v1_user_restore_server_data_post",
         "parameters": [
           {
@@ -6376,9 +6506,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Restore Server Data Api V1 User Restore Server Data Post"
+                  "$ref": "#/components/schemas/RestoreServerDataOut"
                 }
               }
             }
@@ -9442,6 +9570,11 @@
             "title": "Name Line",
             "default": false
           },
+          "mc_correction_hint": {
+            "type": "boolean",
+            "title": "Mc Correction Hint",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -9451,6 +9584,15 @@
                 "type": "null"
               }
             ]
+          },
+          "pseudonym_version": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Pseudonym Version",
+            "default": 1
           },
           "exercise_ids": {
             "items": {
@@ -9499,6 +9641,15 @@
             "type": "string",
             "format": "date",
             "title": "Retention Until"
+          },
+          "pseudonym_version": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Pseudonym Version",
+            "default": 1
           }
         },
         "type": "object",
@@ -9854,6 +10005,11 @@
             "title": "Name Line",
             "default": false
           },
+          "mc_correction_hint": {
+            "type": "boolean",
+            "title": "Mc Correction Hint",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -9863,6 +10019,11 @@
                 "type": "null"
               }
             ]
+          },
+          "pseudonym_version": {
+            "type": "integer",
+            "title": "Pseudonym Version",
+            "default": 1
           },
           "exercises": {
             "items": {
@@ -10087,6 +10248,17 @@
               }
             ],
             "title": "Name Line"
+          },
+          "mc_correction_hint": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Correction Hint"
           },
           "extra_notes": {
             "anyOf": [
@@ -12488,6 +12660,129 @@
         ],
         "title": "PresenceCountsResponse"
       },
+      "PseudonymList": {
+        "properties": {
+          "pseudonym_version": {
+            "type": "integer",
+            "title": "Pseudonym Version"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pseudonym_version",
+          "values"
+        ],
+        "title": "PseudonymList",
+        "description": "Every pseudonym value an exam holds, live and soft-deleted, for a client-side rekey (issue #177)."
+      },
+      "PseudonymPair": {
+        "properties": {
+          "old": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Old"
+          },
+          "new": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "New"
+          }
+        },
+        "type": "object",
+        "required": [
+          "old",
+          "new"
+        ],
+        "title": "PseudonymPair"
+      },
+      "PseudonymRekey": {
+        "properties": {
+          "from_version": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "From Version"
+          },
+          "to_version": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "To Version"
+          },
+          "pairs": {
+            "items": {
+              "$ref": "#/components/schemas/PseudonymPair"
+            },
+            "type": "array",
+            "maxItems": 100000,
+            "title": "Pairs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_version",
+          "to_version",
+          "pairs"
+        ],
+        "title": "PseudonymRekey",
+        "description": "Renames an exam's pseudonyms from one version to the next; `pairs` must cover every value the exam holds."
+      },
+      "PseudonymRekeyResult": {
+        "properties": {
+          "changed": {
+            "type": "boolean",
+            "title": "Changed"
+          },
+          "pseudonym_version": {
+            "type": "integer",
+            "title": "Pseudonym Version"
+          },
+          "renamed": {
+            "type": "integer",
+            "title": "Renamed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "changed",
+          "pseudonym_version",
+          "renamed"
+        ],
+        "title": "PseudonymRekeyResult"
+      },
+      "PurgedExamResults": {
+        "properties": {
+          "exam_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Exam Id"
+          },
+          "purged_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Purged At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exam_id",
+          "purged_at"
+        ],
+        "title": "PurgedExamResults",
+        "description": "A live exam whose soft-deleted results retention already erased for good."
+      },
       "RegisterCompleteRequest": {
         "properties": {
           "token": {
@@ -12635,6 +12930,43 @@
           "token"
         ],
         "title": "ResetTokenRequest"
+      },
+      "RestoreServerDataOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok"
+          },
+          "restored_student_identities": {
+            "type": "integer",
+            "title": "Restored Student Identities"
+          },
+          "restored_submissions": {
+            "type": "integer",
+            "title": "Restored Submissions"
+          },
+          "grace_days": {
+            "type": "integer",
+            "title": "Grace Days"
+          },
+          "purged_exams": {
+            "items": {
+              "$ref": "#/components/schemas/PurgedExamResults"
+            },
+            "type": "array",
+            "title": "Purged Exams"
+          }
+        },
+        "type": "object",
+        "required": [
+          "restored_student_identities",
+          "restored_submissions",
+          "grace_days",
+          "purged_exams"
+        ],
+        "title": "RestoreServerDataOut",
+        "description": "Outcome of `POST /user/restore-server-data`, including what could no longer be restored (issue #181)."
       },
       "ResyncOverride": {
         "properties": {
@@ -13036,6 +13368,13 @@
           "encryption_salt_b64": {
             "type": "string",
             "title": "Encryption Salt B64"
+          },
+          "pseudonym_version": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Pseudonym Version",
+            "default": 1
           }
         },
         "type": "object",
@@ -13069,6 +13408,11 @@
           "encryption_salt_b64": {
             "type": "string",
             "title": "Encryption Salt B64"
+          },
+          "pseudonym_version": {
+            "type": "integer",
+            "title": "Pseudonym Version",
+            "default": 1
           }
         },
         "type": "object",
@@ -13160,6 +13504,13 @@
             "type": "boolean",
             "title": "Clear Annotations",
             "default": false
+          },
+          "pseudonym_version": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Pseudonym Version",
+            "default": 1
           }
         },
         "type": "object",
@@ -13183,6 +13534,11 @@
           "pseudonym_hmac": {
             "type": "string",
             "title": "Pseudonym Hmac"
+          },
+          "pseudonym_version": {
+            "type": "integer",
+            "title": "Pseudonym Version",
+            "default": 1
           },
           "total_score": {
             "anyOf": [
@@ -13531,7 +13887,7 @@
     },
     {
       "name": "user",
-      "description": "Teacher data lifecycle management (soft-delete and 7-day retention purge/restore)."
+      "description": "Teacher data lifecycle management (soft-delete, 7-day retention purge, and restore that reports what retention already erased)."
     },
     {
       "name": "mfa",

@@ -26,7 +26,7 @@
   let showBulk = $state(false);
   let bulkText = $state("");
 
-  let editingPseudonymId: string | null = $state(null);
+  let editingPseudonym: string | null = $state(null);
   let editName = $state("");
   let editStudentNumber = $state("");
 
@@ -69,7 +69,7 @@
   }
 
   function startEdit(st: StudentRecord) {
-    editingPseudonymId = st.pseudonymId;
+    editingPseudonym = st.pseudonymHmac;
     editName = st.studentName || "";
     editStudentNumber = st.studentNumber || "";
   }
@@ -83,24 +83,24 @@
       studentNumber: editStudentNumber.trim() || undefined,
     };
     await studentRepository.save(updated, key);
-    editingPseudonymId = null;
+    editingPseudonym = null;
     onRosterChanged();
   }
 
   function cancelEdit() {
-    editingPseudonymId = null;
+    editingPseudonym = null;
   }
 
   async function handleDelete(st: StudentRecord) {
-    if (!confirm(translate("grading.manual.roster.deleteConfirm", { name: st.studentName || st.studentNumber || st.pseudonymId }))) {
+    if (!confirm(translate("grading.manual.roster.deleteConfirm", { name: st.studentName || st.studentNumber || st.pseudonymHmac.slice(0, 8) }))) {
       return;
     }
     const key = get(sessionStore).sessionKey;
-    const sub = submissionMap.get(st.pseudonymId);
+    const sub = submissionMap.get(st.pseudonymHmac);
     if (sub) {
       await submissionRepository.delete(examId, sub.id);
     }
-    await studentRepository.delete(examId, st.pseudonymId);
+    await studentRepository.delete(st);
     onRosterChanged();
   }
 
@@ -187,20 +187,20 @@
           </tr>
         </thead>
         <tbody>
-          {#each students as st, i (st.pseudonymId)}
-            {@const sub = submissionMap.get(st.pseudonymId)}
+          {#each students as st, i (st.pseudonymHmac)}
+            {@const sub = submissionMap.get(st.pseudonymHmac)}
             {@const isScanned = !!(sub?.scanCt || sub?.scanIv || sub?.hasScan)}
             <tr>
               <td>{i + 1}</td>
               <td>
-                {#if editingPseudonymId === st.pseudonymId}
+                {#if editingPseudonym === st.pseudonymHmac}
                   <TextInput size="sm" bind:value={editName} />
                 {:else}
                   <strong>{st.studentName || $t("grading.manual.roster.unnamed")}</strong>
                 {/if}
               </td>
               <td>
-                {#if editingPseudonymId === st.pseudonymId}
+                {#if editingPseudonym === st.pseudonymHmac}
                   <TextInput size="sm" bind:value={editStudentNumber} />
                 {:else}
                   {st.studentNumber || "-"}
@@ -208,7 +208,7 @@
               </td>
               <td>
                 <span class="font-mono text-sm text-muted">
-                  {st.fallbackCode || st.pseudonymId.slice(0, 8)}
+                  {st.fallbackCode || st.pseudonymHmac.slice(0, 8)}
                 </span>
               </td>
               <td>
@@ -220,7 +220,7 @@
               </td>
               <td class="whitespace-nowrap">
                 <div class="flex gap-1.5">
-                  {#if editingPseudonymId === st.pseudonymId}
+                  {#if editingPseudonym === st.pseudonymHmac}
                     <Button size="sm" onClick={() => saveEdit(st)}>{$t("common.save")}</Button>
                     <Button size="sm" variant="outlined" severity="secondary" onClick={cancelEdit}>{$t("common.cancel")}</Button>
                   {:else}

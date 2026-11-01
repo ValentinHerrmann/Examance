@@ -62,11 +62,11 @@ export async function buildGradeRows(
   const ungraded = translate('stats.exportModal.ungraded');
 
   return students.map((st) => {
-    const sub = submissionByStudent.get(st.pseudonymId);
+    const sub = submissionByStudent.get(st.pseudonymHmac);
     const result = sub ? resultBySubmission.get(sub.id) : undefined;
     const grade = result ? calculateGradeFromPercentage(result.percentage, exam?.gradingKey) : null;
     return {
-      studentPseudonymId: st.pseudonymId,
+      studentPseudonymId: st.pseudonymHmac,
       fallbackCode: st.fallbackCode || '',
       studentName: st.studentName || '',
       totalScore: result ? Math.round(result.gradedPoints * 100) / 100 : ungraded,

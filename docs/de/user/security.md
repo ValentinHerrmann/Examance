@@ -82,6 +82,9 @@ Nach mehreren falschen Passwörtern wird das Konto kurzzeitig gesperrt. Die Wart
 
 - Ihr Datenschlüssel wird **im Browser** mit Ihrem Passwort, Passkey oder Wiederherstellungscode entsperrt (Argon2id, HKDF-SHA-256) und nie übertragen.
 - Alles Sensible wird mit AES-256-GCM verschlüsselt, **bevor** es gespeichert oder gesendet wird: Schülerdaten und Namen, Scans, Anmerkungen und Punkte je Aufgabe. Der Server speichert nur Chiffrat, das auch bei einem Einbruch in die Serverdatenbank unlesbar bleibt.
+- Pseudonyme werden nur als Kennung gespeichert, die **je Prüfung** mit Ihrem Datenschlüssel gebildet wird: Der Server kann keine Namen durchprobieren und niemanden über Prüfungen hinweg verknüpfen.
+- Jeder verschlüsselte Datensatz ist an seinen eigenen Platz gebunden; Chiffrat lässt sich nicht unbemerkt zwischen Datensätzen vertauschen.
+- Solange ein Tab entsperrt ist, liegt sein Sitzungsschlüssel versiegelt mit einem Schlüssel, der diesen Tab nicht verlassen kann.
 - Unverschlüsselt gespeichert werden: Aufgaben und Prüfungen (ihr LaTeX-Quelltext), technische Felder wie Kennungen und Reihenfolgen sowie im Modus „Alles auf dem Server“ die Gesamtpunktzahl je Pseudonym.
 
 Die technischen Einzelheiten stehen unter [Datenfluss und Sicherheit (Englisch)](../../data_flow_and_security).

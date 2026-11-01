@@ -1,5 +1,6 @@
 /** Creates an imported .bgproj archive's contents on the server by POSTing everything, never `examRepository.save()`: it PATCHes when a record has an id and the backend answers 401 (not 404) for another account's exam, so its create-fallback never fires. A taken archived id (409) is retried once under a fresh UUID kept in `idMap`; foreign exercises are copied (#65). */
 
+import { rememberServerVersion } from '#lib/services/pseudonymRekey';
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { sessionStore } from '#lib/stores/session';
@@ -218,7 +219,8 @@ export async function importPayloadToServer(
 
     // Breaks name exercises and MC groups, whose ids may have changed above.
     const page_breaks = remapPageBreaks(exam.pageBreaks, idMap, mcGroupIdMap);
-    const body = { ...mapExamRecordToApi(exam), page_breaks, exercise_links, mc_groups };
+    // An imported exam keys its pseudonyms from the start; the importer re-keys the archived ones into it (issue #177).
+    const body = { ...mapExamRecordToApi(exam), page_breaks, exercise_links, mc_groups, pseudonym_version: 2 };
     // ZIP exports carry no retention date; a fresh exam gets a new exam's default.
     if (!body.retention_until) {
       body.retention_until = new Date(Date.now() + DEFAULT_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 10);
@@ -230,6 +232,7 @@ export async function importPayloadToServer(
       bump(report, 'exams', 'failed');
       continue;
     }
+    rememberServerVersion(created.id, 2);
     if (exam.id) {
       createdExamIds.add(exam.id);
       if (created.id !== exam.id) idMap.set(exam.id, created.id);

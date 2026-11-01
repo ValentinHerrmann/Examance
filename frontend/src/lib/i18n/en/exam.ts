@@ -14,7 +14,7 @@ export const exam: Translations['exam'] = {
         },
         omr: {
             checkingExercises: 'Checking MC exercises…',
-            noExercisesError: 'OMR preparation failed: no MC exercises found in this exam.',
+            noExercisesError: 'Scan template failed: this exam has no exercises.',
             invalidExercisesError: 'OMR preparation failed: MC exercise(s) {names} do not contain \\multi or \\Lmulti option bubbles in their LaTeX body. Please check and edit the exercise options.',
             compilingBlank: 'Compiling blank exam…',
             loginRequired: 'Please log in to compile LaTeX on the server.',
@@ -22,7 +22,7 @@ export const exam: Translations['exam'] = {
             extractingBubbles: 'Extracting bubble positions…',
             noBubblesError: 'OMR preparation failed: the compiled exam has no MC bubble markers at all. The LaTeX MC/OMR macros likely failed to render — check that the exam actually contains MC exercises and that sty/Loesung.sty is up to date.',
             shortFiducialsError: 'OMR preparation failed: page(s) {pages} have fewer than 4 corner fiducial markers (needed for scan alignment). The LaTeX fiducial macros likely failed to render on those pages — re-check sty/Schulaufgabe.sty and re-run Prepare OMR.',
-            templateSaved: 'OMR template saved ({pageCount} page(s), {bubbleCount} bubble(s), 4 fiducials/page).',
+            templateSaved: 'Scan template saved ({pageCount} page(s), {bubbleCount} bubble(s), {boxCount} score box(es), 4 fiducials/page).',
             failedGeneric: 'Failed to prepare OMR template.',
             refreshing: 'Refreshing OMR…',
             refreshNow: 'Refresh OMR now',
@@ -113,6 +113,8 @@ export const exam: Translations['exam'] = {
         infoText: 'Info Text (LaTeX list)',
         nameLine: 'Print a name line next to the QR code box',
         nameLineHint: 'Students write their name on the title page. The QR code box stays; its initials field is dropped.',
+        mcCorrectionHint: 'Show how to correct a cross at every multiple-choice task',
+        mcCorrectionHintHint: 'One short line under the task: cross to choose, fill the box to withdraw, cross left of a filled box to choose again. The answer-sheet template is rebuilt.',
     },
     libraryModal: {
         header: 'Link Exercises from Library',
@@ -200,6 +202,7 @@ export const exam: Translations['exam'] = {
         custom: 'Custom',
         gradeLabel: 'Grade {grade}',
         from: 'From',
+        cutoffLabel: 'Minimum percentage for grade {grade}',
     },
     resultsOnly: {
         badge: 'Results only',

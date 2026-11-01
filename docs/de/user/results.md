@@ -49,7 +49,7 @@ Der **CSV-Export** der Noten, zum Beispiel für die Notenverwaltung der Schule, 
 
 | Teil | Enthält |
 |---|---|
-| **Korrigierte Scans (PDF)** | jede Abgabe mit eingezeichneten Korrekturen; auch teilweise korrigierte (Dateiname mit `_partial`, unkorrigierte mit `_ungraded`) |
+| **Korrigierte Scans (PDF)** | jede Abgabe mit eingezeichneten Korrekturen und [ausgefüllten Punktekästchen](./grading#score-boxes); auch teilweise korrigierte (Dateiname mit `_partial`, unkorrigierte mit `_ungraded`) |
 | **LaTeX-Quelltext** | eine eigene ZIP mit Prüfung und Lösung, ihren Dateien und dem Logo, bereit für Overleaf (Compiler XeLaTeX); nur mit diesem Teil lässt sich die ZIP später (ohne Ergebnisse) wieder importieren |
 | **Kompilierte Angabe und Lösung (PDF)** | die Blätter mit Angabe und Lösung (das Kompilieren kann etwas dauern) |
 | **Zusammenfassung (PDF)** | Metadaten, Notenschlüssel in Punkten und Prozent, Durchschnitt, das kombinierte Diagramm und die Schülerliste mit Punkten und Noten, teilweise korrigierte hervorgehoben |

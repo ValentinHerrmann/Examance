@@ -42,6 +42,18 @@ Punkte werden **pro Aufgabe** vergeben. Summe und Note werden laufend aus dem [N
 
 Eine Abgabe gilt als **teilweise korrigiert**, bis jede Aufgabe Punkte hat. Teilweise korrigierte Abgaben erscheinen bereits mit einem vorläufigen Wert in der Statistik, siehe [teilweise korrigierte Abgaben](./results#partial).
 
+## Je Teilaufgabe bewerten {#parts}
+
+Bei einer Aufgabe mit [Teilaufgaben](./exercises#parts) zeigt die Punkteliste unter der Aufgabe eine Zeile je Teilaufgabe (**Teilaufgabe a)**, **Teilaufgabe b)**, …). Ein Klick auf die Zeile einer Teilaufgabe macht sie zum Stempelziel, sodass Stempel für diese Teilaufgabe zählen; Sie können ihre Punkte auch eintippen.
+
+- Das Feld der Aufgabe selbst zeigt dann **Ergibt sich aus den Teilaufgaben, sobald alle bewertet sind**: Die Aufgabe gilt erst als bewertet, wenn jede Teilaufgabe Punkte hat.
+- Punkte außerhalb der Teilaufgaben (etwa eine Bewertungseinheit in der Einleitung oder Stempel, die gesetzt wurden, während die Aufgabe selbst Stempelziel war) sammelt die Zeile **Ohne Teilaufgabe**. Erhält sie mehr Punkte, als die Aufgabe außerhalb ihrer Teilaufgaben hat, warnt die Zeile: Vermutlich ist ein Stempel ohne Teilaufgabe gesetzt worden.
+- Sie können die Aufgabe weiterhin als Ganzes bewerten: Lassen Sie die Zeilen der Teilaufgaben einfach leer.
+
+## Punktekästchen füllen sich selbst {#score-boxes}
+
+Die Prüfung druckt neben jeder Aufgabe und jeder Teilaufgabe ein Punktekästchen und am Ende eine Tabelle mit allen Aufgaben, der Summe (Σ) und der Note. Während Sie korrigieren, trägt Examance die Punkte in diese Kästchen auf dem Scan ein, ebenso im korrigierten PDF, das Sie exportieren oder zurückgeben. Das Kästchen einer Aufgabe wird gefüllt, sobald sie bewertet ist; Summe und Note folgen, wenn die Abgabe vollständig ist. Die Tabelle füllen Sie nie von Hand aus. Wurde die Prüfung nach dem Erzeugen ihrer Antwortbogen-Vorlage geändert, bleiben die Kästchen leer, weil der gedruckte Bogen nicht mehr passt.
+
 ## Multiple Choice beim Korrigieren {#multiple-choice}
 
 Bei Single- und Multiple-Choice-Fragen werden die erkannten Kreuze automatisch übernommen, einschließlich des Punktabzugs der Aufgabe für falsche Kreuze. Sie können sie vor dem Speichern prüfen und korrigieren.

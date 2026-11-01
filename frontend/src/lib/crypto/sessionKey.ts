@@ -23,7 +23,7 @@ export async function deriveSessionKey(
     },
     masterKey,
     { name: 'AES-GCM', length: 256 },
-    true, // extractable for tab session storage
+    true, // extractable: sealed into tab storage (crypto/sessionWrap.ts) and handed to other tabs
     ['encrypt', 'decrypt']
   );
 }

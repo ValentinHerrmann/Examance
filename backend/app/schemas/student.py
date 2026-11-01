@@ -11,6 +11,8 @@ class StudentIdentityCreate(BaseModel):
     pii_ciphertext_b64: str
     iv_b64: str
     encryption_salt_b64: str
+    #: How `pseudonym_hmac` was derived (issue #177); omitted by older clients, which mean 1.
+    pseudonym_version: int = Field(default=1, ge=1, le=2)
 
 
 class StudentIdentityResponse(BaseModel):
@@ -19,3 +21,5 @@ class StudentIdentityResponse(BaseModel):
     pii_ciphertext_b64: str
     iv_b64: str
     encryption_salt_b64: str
+    #: The exam's pseudonym version: how `pseudonym_hmac` was derived (issue #177).
+    pseudonym_version: int = 1

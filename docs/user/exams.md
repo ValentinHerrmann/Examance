@@ -72,6 +72,16 @@ With **Print a name line next to the QR code box** (when creating the exam or un
 
 The solution sheet does not include it.
 
+### How to correct a cross {#mc-hint}
+
+**Show how to correct a cross at every multiple-choice task** (when creating the exam, or under **Edit Exam**) prints one short line at the start of every multiple choice task, in the exam and in the solution:
+
+- **cross** a box to choose an option;
+- **fill** the box completely to withdraw a cross;
+- **cross just left of** a filled box to choose it again.
+
+MC detection reads exactly these marks, see [Verify MC detections](./scanning#mc-verification). Turning the option on or off rebuilds the answer-sheet template, so typeset and print the exam again afterwards.
+
 ### Logo and LaTeX packages {#logo-packages}
 
 Every exam prints a logo at the top left of the first page. Under **Edit Exam** you choose the logo from your settings, no logo, or a logo for this exam only (see [Logo on the exam](./settings#logo)). In the exam overview, every expanded exam shows which logo it prints.

@@ -39,7 +39,7 @@ More: [Print](./exams#print), [Scan the stack](./scanning#scan).
 
 Upload the PDF on the exam's **Scans** step. Examance splits it into submissions along the QR codes and encrypts every page in the browser right away. The QR code points at a pseudonym, not a name. Pages with unreadable codes are assigned by entering the fallback code printed on the sheet.
 
-Ticked multiple choice boxes are detected during import. In the MC verification view you confirm or correct uncertain detections.
+Ticked multiple choice boxes are detected during import. Students withdraw a cross by filling the box completely and choose a filled box again by crossing just left of it; the exam option "Show how to correct a cross at every multiple-choice task" prints this as one short line on each multiple choice task. In the MC verification view you confirm or correct uncertain detections.
 
 More: [Scanning and assignment](./scanning).
 
@@ -47,7 +47,7 @@ More: [Scanning and assignment](./scanning).
 
 ## 5. Grade blind {#grade}
 
-While grading you see the handwriting and the answers, but not the name. Correction marks are drawn on a layer above the scan (the original stays untouched), points are awarded per exercise, and total and grade follow from the grading key. Papers graded without scanning are entered in a score grid or pasted from Excel.
+While grading you see the handwriting and the answers, but not the name. Correction marks are drawn on a layer above the scan (the original stays untouched), points are awarded per exercise or per part (a), b), …), and total and grade follow from the grading key. The score boxes printed on the exam, next to each exercise and part and in the table at the end, fill in automatically on the scan and in the graded PDF. Papers graded without scanning are entered in a score grid or pasted from Excel.
 
 More: [Grading](./grading).
 

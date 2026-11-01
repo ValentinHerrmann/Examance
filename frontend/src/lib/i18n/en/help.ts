@@ -86,6 +86,10 @@ export const help: Translations['help'] = {
                 h: 'Notices about local data',
                 p1: 'A browser’s storage always belongs to exactly one account on one server. If it holds data of another account, from earlier hybrid use or from the former purely local mode, a notice explains what to do.',
             },
+            s5: {
+                h: 'Restoring deleted results',
+                p1: 'Results deleted from the server (single submissions, or the server copy deleted when you switched to “Hybrid”) come back from the settings while their grace period runs. Deleted exams and students erased under the GDPR do not come back.',
+            },
         },
         exercises: {
             title: 'Exercise library',
@@ -101,7 +105,7 @@ export const help: Translations['help'] = {
             s3: {
                 h: 'Scores, part exercises and requirement levels',
                 p1: String.raw`The score is counted from the source: \BE is one point, \hBE half a point, \qBE a quarter, and every correct MC option one. “Score & structure” above the source shows how it is made up and can fix it to a set value.`,
-                p2: '“Add part” splits an exercise into a), b), c). Requirement level and competencies appear only on the solution sheet.',
+                p2: '“Add part” splits an exercise into a), b), c), graded per exercise or per part. Requirement level and competencies appear only on the solution sheet.',
             },
             s4: {
                 h: 'Variants and versions',
@@ -150,7 +154,7 @@ export const help: Translations['help'] = {
             },
             s4: {
                 h: 'Layout options',
-                p1: '“Print a name line next to the QR code box” adds a name line to the title page. “Space for extra solutions at the end” fills the last page with a grid area. Logo and LaTeX packages of a single exam are set under “Edit Exam”.',
+                p1: '“Print a name line next to the QR code box” adds a name line to the title page. “Space for extra solutions at the end” fills the last page with a grid area. “Show how to correct a cross at every multiple-choice task” prints a short line on withdrawing and re-choosing a cross under every multiple choice task. Logo and LaTeX packages of a single exam are set under “Edit Exam”.',
             },
             s5: {
                 h: 'Typeset and print',
@@ -192,6 +196,10 @@ export const help: Translations['help'] = {
                 h: 'Annotating',
                 p1: 'Marks and stamps sit on a layer above the scan; the original stays untouched. Click an exercise in the scoring panel to make it the stamp target. Scroll through the pages; Ctrl + mouse wheel or pinching zooms.',
                 p2: 'Points are awarded per exercise. Total score and grade follow continuously from the grading key.',
+            },
+            s6: {
+                h: 'Parts and score boxes',
+                p1: 'Exercises with parts can be graded part by part; the exercise counts as graded once all of its parts are. The printed score boxes and the table at the end fill in automatically on the scan and in the graded PDF.',
             },
             s3: {
                 h: 'Tick-box exercises',

@@ -39,7 +39,7 @@ Typische Ursachen sind eine geknickte oder gefaltete Ecke, ein von Handschrift v
 
 ## MC-Erkennungen prüfen {#mc-verification}
 
-Angekreuzte Kästchen werden beim Einlesen automatisch erkannt. Der Schritt **MC prüfen** listet jede Erkennung in drei Warteschlangen auf:
+Angekreuzte Kästchen werden beim Einlesen automatisch erkannt, auch zurückgenommene Kreuze (ein ganz ausgemaltes Kästchen) und wieder gewählte Kästchen (ein Kreuz links neben einem ausgemalten Kästchen); die Prüfungsoption [Wie man ein Kreuz korrigiert](./exams#mc-hint) druckt diese Regeln zu jeder Ankreuzaufgabe. Der Schritt **MC prüfen** listet jede Erkennung in drei Warteschlangen auf:
 
 - **a) Fehlgeschlagene Erkennungen**: Die Seite konnte nicht ausgerichtet werden; vergeben Sie diese Punkte in der [Korrekturansicht](./grading#multiple-choice).
 - **b) Unsichere / mehrdeutige Erkennungen**: Bitte sehen Sie sich jede davon an.

@@ -39,7 +39,7 @@ Mehr: [Drucken](./exams#print), [Stapel scannen](./scanning#scan).
 
 Laden Sie das PDF im Schritt **Scans** der Prüfung hoch. Examance trennt es anhand der QR-Codes in Abgaben und verschlüsselt jede Seite sofort im Browser. Der QR-Code verweist auf ein Pseudonym, nicht auf einen Namen. Seiten mit unlesbaren Codes ordnen Sie zu, indem Sie den auf dem Bogen aufgedruckten Ersatzcode eingeben.
 
-Angekreuzte Multiple-Choice-Kästchen werden beim Einlesen erkannt. In der MC-Prüfansicht bestätigen oder korrigieren Sie unsichere Erkennungen.
+Angekreuzte Multiple-Choice-Kästchen werden beim Einlesen erkannt. Ein Kreuz nehmen Schülerinnen und Schüler zurück, indem sie das Kästchen ganz ausmalen; ein ausgemaltes Kästchen wählen sie wieder, indem sie links daneben kreuzen. Die Prüfungsoption „Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert“ druckt das als kurze Zeile zu jeder Ankreuzaufgabe. In der MC-Prüfansicht bestätigen oder korrigieren Sie unsichere Erkennungen.
 
 Mehr: [Scannen und Zuordnen](./scanning).
 
@@ -47,7 +47,7 @@ Mehr: [Scannen und Zuordnen](./scanning).
 
 ## 5. Anonym korrigieren {#grade}
 
-Beim Korrigieren sehen Sie die Handschrift und die Antworten, aber nicht den Namen. Korrekturzeichen entstehen auf einer Ebene über dem Scan (das Original bleibt unverändert), Punkte werden pro Aufgabe vergeben, und Summe und Note ergeben sich aus dem Notenschlüssel. Auf Papier korrigierte Arbeiten tragen Sie in einem Punkteraster ein oder fügen sie aus Excel ein.
+Beim Korrigieren sehen Sie die Handschrift und die Antworten, aber nicht den Namen. Korrekturzeichen entstehen auf einer Ebene über dem Scan (das Original bleibt unverändert), Punkte werden pro Aufgabe oder pro Teilaufgabe (a), b), …) vergeben, und Summe und Note ergeben sich aus dem Notenschlüssel. Die auf der Prüfung gedruckten Punktekästchen neben jeder Aufgabe und Teilaufgabe und in der Tabelle am Ende füllen sich auf dem Scan und im korrigierten PDF automatisch. Auf Papier korrigierte Arbeiten tragen Sie in einem Punkteraster ein oder fügen sie aus Excel ein.
 
 Mehr: [Korrigieren](./grading).
 

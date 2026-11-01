@@ -10,14 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_teacher, get_teaching_teacher, require_not_frozen
+from app.dependencies import DB, get_current_teacher, get_teaching_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.schemas.capabilities import CapabilitiesOut, StorageModeUpdate
-from app.schemas.user import AccountDeletionRequestIn
+from app.schemas.user import AccountDeletionRequestIn, PurgedExamResults, RestoreServerDataOut
 from app.services import account_mail
 from app.services import audit as audit_svc
 from app.services.account_deletion import create_deletion_request, ensure_not_last_admin
@@ -143,24 +143,34 @@ async def purge_server_student_data(
 )
 async def restore_server_data(
     request: Request,
+    db: DB,
     teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
-    """Restore soft-deleted student identities and scan submissions for the current teacher if they are within the 7-day retention grace period."""
+) -> RestoreServerDataOut:
+    """Restore the teacher's soft-deleted student identities and scan submissions still inside the grace period, and list the live exams whose older results retention already erased."""
     today = date.today()
 
     # Never a deleted exam's rows: retention skips deleted exams, so they would stay forever.
-    exam_ids_result = await db.execute(
-        select(Exam.id).where(Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None))
-    )
-    exam_ids = exam_ids_result.scalars().all()
+    exams = (
+        await db.execute(
+            select(Exam.id, Exam.results_purged_at).where(
+                Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None)
+            )
+        )
+    ).all()
+    exam_ids = [row.id for row in exams]
+    purged_exams = [
+        PurgedExamResults(exam_id=row.id, purged_at=row.results_purged_at)
+        for row in exams
+        if row.results_purged_at is not None
+    ]
 
     if not exam_ids:
-        return {
-            "status": "ok",
-            "restored_student_identities": 0,
-            "restored_submissions": 0,
-        }
+        return RestoreServerDataOut(
+            restored_student_identities=0,
+            restored_submissions=0,
+            grace_days=settings.RETENTION_GRACE_DAYS,
+            purged_exams=[],
+        )
 
     students_update = (
         update(StudentIdentity)
@@ -188,11 +198,12 @@ async def restore_server_data(
 
     await audit_svc.log(db, request, teacher, "EXTEND_RETENTION", teacher.id)
 
-    return {
-        "status": "ok",
-        "restored_student_identities": restored_students_count,
-        "restored_submissions": restored_submissions_count,
-    }
+    return RestoreServerDataOut(
+        restored_student_identities=restored_students_count,
+        restored_submissions=restored_submissions_count,
+        grace_days=settings.RETENTION_GRACE_DAYS,
+        purged_exams=purged_exams,
+    )
 
 
 @router.get("/me/export", status_code=status.HTTP_200_OK)

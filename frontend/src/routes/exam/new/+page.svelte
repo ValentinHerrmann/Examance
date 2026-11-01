@@ -29,6 +29,7 @@
   let lehrernachname = $state("");
   let infoText = $state(INFO_TEXT);
   let nameLine = $state(false);
+  let mcCorrectionHint = $state(false);
   let retentionUntil = $state(new Date(Date.now() + RETENTION_DAYS * 86400000).toISOString().slice(0, 10));
   let gradingKey: GradingKeyConfig = $state({ preset: "linear_50", cutoffs: getPresetCutoffs("linear_50") });
   let ready = $state(false);
@@ -62,6 +63,7 @@
       lehrernachname,
       infoText,
       nameLine,
+      mcCorrectionHint,
       gradingKey: $state.snapshot(gradingKey),
       retentionUntil,
       compilationStatus: "pending",
@@ -97,6 +99,7 @@
     bind:editLehrernachname={lehrernachname}
     bind:editInfoText={infoText}
     bind:editNameLine={nameLine}
+    bind:editMcCorrectionHint={mcCorrectionHint}
     bind:editRetentionUntil={retentionUntil}
     bind:editGradingKey={gradingKey}
     onSave={handleCreate}

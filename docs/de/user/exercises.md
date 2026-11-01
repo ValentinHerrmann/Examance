@@ -56,7 +56,7 @@ Die Schaltfläche **Punkte & Aufbau** über dem Quelltext zeigt die aktuelle Pun
 
 ### Teilaufgaben {#parts}
 
-**Teilaufgabe hinzufügen** gliedert eine Aufgabe in a), b), c). Jede Teilaufgabe erhält auf dem Bogen eine eigene Unterüberschrift und ein eigenes Punktekästchen. Die Teilaufgaben ergeben zusammen die Punktzahl der Aufgabe; auch die Punktzahl einer einzelnen Teilaufgabe lässt sich fest vorgeben (ein leeres Feld zählt die Bewertungseinheiten dieser Teilaufgabe). Bewertet wird weiterhin je Aufgabe, nicht je Teilaufgabe.
+**Teilaufgabe hinzufügen** gliedert eine Aufgabe in a), b), c). Jede Teilaufgabe erhält auf dem Bogen eine eigene Unterüberschrift und ein eigenes Punktekästchen. Die Teilaufgaben ergeben zusammen die Punktzahl der Aufgabe; auch die Punktzahl einer einzelnen Teilaufgabe lässt sich fest vorgeben (ein leeres Feld zählt die Bewertungseinheiten dieser Teilaufgabe). Beim Korrigieren vergeben Sie die Punkte je Aufgabe oder [je Teilaufgabe](./grading#parts).
 
 ### Anforderungsbereiche und Kompetenzen {#requirement-levels}
 

@@ -10,6 +10,7 @@ import { offlineQueue } from '../src/lib/services/offlineQueue';
 import { sessionStore } from '../src/lib/stores/session';
 import { storagePolicyStore } from '../src/lib/stores/storagePolicy';
 import { api } from '../src/lib/api/client';
+import { hkdfMasterKey } from './helpers/keys';
 
 vi.mock('../src/lib/api/client', () => ({
   api: {
@@ -34,7 +35,7 @@ async function aesKey(fill: number): Promise<CryptoKey> {
 const newSubmission = (): SubmissionRecord => ({
   id: 'sub-1',
   examId: EXAM,
-  pseudonymHash: 'a'.repeat(64),
+  pseudonymHmac: 'a'.repeat(64),
   createdAt: '2026-08-01T00:00:00Z',
 });
 
@@ -62,7 +63,7 @@ describe('saveSubmissionScores', () => {
     // Hybrid keeps results in IndexedDB.
     storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'local' });
     key = await aesKey(5);
-    await sessionStore.unlock({ masterKey: key, sessionKey: key, sessionNonce: new Uint8Array(12) });
+    await sessionStore.unlock({ masterKey: await hkdfMasterKey(), sessionKey: key, sessionNonce: new Uint8Array(12) });
     sub = newSubmission();
   });
 
@@ -107,6 +108,32 @@ describe('saveSubmissionScores', () => {
     expect(effective.get('ex-1')).toBeNull();
     expect(await stored('ex-1')).toBeUndefined();
     expect(sub.totalScore).toBeUndefined();
+  });
+
+  it('stores live part scores, keeps them while the total matches and drops them when it was overridden (issue #187)', async () => {
+    await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', 3]]), { parts: { 'ex-1': { a: 1, b: 2 } } });
+    expect((await stored('ex-1'))?.partScores).toEqual({ a: 1, b: 2 });
+
+    // A view that edits only totals keeps the stored parts while they still add up.
+    await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', 3]]));
+    expect((await stored('ex-1'))?.partScores).toEqual({ a: 1, b: 2 });
+
+    await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', 4]]));
+    expect((await stored('ex-1'))?.partScores).toBeUndefined();
+    expect((await stored('ex-1'))?.score).toBe(4);
+  });
+
+  it('stores a partly graded exercise without a score and never clears it from a view that only edits totals', async () => {
+    const effective = await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', null]]), { parts: { 'ex-1': { a: 1, b: null } } });
+    expect(effective.get('ex-1')).toBeNull();
+    expect(sub.totalScore).toBeUndefined();
+    expect((await stored('ex-1'))?.partScores).toEqual({ a: 1, b: null });
+    expect((await stored('ex-1'))?.score).toBeUndefined();
+
+    const deleteOne = vi.spyOn(scoreRepository, 'deleteOne');
+    await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', null]]));
+    expect(deleteOne).not.toHaveBeenCalled();
+    expect((await stored('ex-1'))?.partScores).toEqual({ a: 1, b: null });
   });
 
   it('never deletes a row that failed to decrypt', async () => {

@@ -195,6 +195,18 @@ export const settings: Translations['settings'] = {
         privacyNote: 'Details in the privacy policy:',
         privacyLink: 'Privacy',
     },
+    restoreServerData: {
+        heading: 'Restore results deleted from the server',
+        description: 'Deleted results stay on the server for a grace period. Until it ends, this button brings them back: single deleted submissions and the server copy deleted when you switched to “Hybrid”.',
+        notRestored: 'Deleted exams and students erased under the GDPR do not come back.',
+        hybridNote: 'In Hybrid mode your results live in this browser. The restored copy stays on the server until you switch to “All Server”.',
+        button: 'Restore',
+        confirmTitle: 'Restore deleted results?',
+        confirmMessage: 'Every result of this account whose grace period is still running becomes visible again, including submissions you deleted on purpose.',
+        done: 'Restored: {students} students, {submissions} submissions.',
+        purgedHeading: 'No longer restorable, because the {days}-day grace period has ended:',
+        purgedItem: '{title}: older deleted results removed for good on {date}',
+    },
     deleteAccount: {
         heading: 'Delete account',
         description: 'Deletes your account and everything stored with it on the server: exams, grading results, exercise groups and sign-in factors, and your exercises unless you keep them. We email you a link to confirm; nothing is deleted before you open it and confirm.',

@@ -85,6 +85,10 @@ export const help = {
                 h: 'Hinweise zu lokalen Daten',
                 p1: 'Der Browserspeicher gehört immer zu genau einem Konto auf einem Server. Liegen dort Daten eines anderen Kontos, aus früherer Hybrid-Nutzung oder aus dem früheren rein lokalen Modus, erklärt ein Hinweis, was zu tun ist.',
             },
+            s5: {
+                h: 'Gelöschte Ergebnisse wiederherstellen',
+                p1: 'Vom Server gelöschte Ergebnisse (einzelne Abgaben oder die beim Wechsel zu „Hybrid“ gelöschte Server-Kopie) holen Sie in den Einstellungen zurück, solange ihre Übergangsfrist läuft. Gelöschte Prüfungen und nach DSGVO gelöschte Schüler:innen kommen nicht zurück.',
+            },
         },
         exercises: {
             title: 'Aufgabenbibliothek',
@@ -100,7 +104,7 @@ export const help = {
             s3: {
                 h: 'Punkte, Teilaufgaben und Anforderungsbereiche',
                 p1: String.raw`Die Punktzahl wird aus dem Quelltext gezählt: \BE ist ein Punkt, \hBE ein halber, \qBE ein viertel, bei MC jede richtige Option einer. „Punkte & Aufbau“ über dem Quelltext zeigt, wie sie zustande kommt, und kann sie fest setzen.`,
-                p2: '„Teilaufgabe hinzufügen“ teilt eine Aufgabe in a), b), c). Anforderungsbereich und Kompetenzen erscheinen nur im Erwartungshorizont.',
+                p2: '„Teilaufgabe hinzufügen“ teilt eine Aufgabe in a), b), c); bewertet wird je Aufgabe oder je Teilaufgabe. Anforderungsbereich und Kompetenzen erscheinen nur im Erwartungshorizont.',
             },
             s4: {
                 h: 'Varianten und Versionen',
@@ -149,7 +153,7 @@ export const help = {
             },
             s4: {
                 h: 'Layout-Optionen',
-                p1: '„Namenszeile neben dem QR-Code-Feld drucken“ ergänzt eine Namenszeile auf dem Deckblatt. „Platz für weitere Lösungen am Ende“ füllt die letzte Seite mit einem Karobereich. Logo und LaTeX-Pakete einer einzelnen Klausur stellen Sie unter „Prüfung bearbeiten“ ein.',
+                p1: '„Namenszeile neben dem QR-Code-Feld drucken“ ergänzt eine Namenszeile auf dem Deckblatt. „Platz für weitere Lösungen am Ende“ füllt die letzte Seite mit einem Karobereich. „Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert“ druckt unter jede Ankreuzaufgabe eine kurze Anleitung zum Zurücknehmen und erneuten Wählen. Logo und LaTeX-Pakete einer einzelnen Klausur stellen Sie unter „Prüfung bearbeiten“ ein.',
             },
             s5: {
                 h: 'Setzen und drucken',
@@ -191,6 +195,10 @@ export const help = {
                 h: 'Annotieren',
                 p1: 'Korrekturzeichen und Stempel liegen auf einer eigenen Ebene über dem Scan; das Original bleibt unverändert. Ein Klick auf eine Aufgabe in der Punkteliste macht sie zum Stempelziel. Scrollen blättert durch die Seiten, Strg + Mausrad oder Zwei-Finger-Geste zoomt.',
                 p2: 'Punkte werden pro Aufgabe vergeben. Gesamtpunktzahl und Note ergeben sich laufend aus dem Notenschlüssel.',
+            },
+            s6: {
+                h: 'Teilaufgaben und Punktekästchen',
+                p1: 'Aufgaben mit Teilaufgaben lassen sich je Teilaufgabe bewerten; die Aufgabe gilt als bewertet, sobald alle Teilaufgaben bewertet sind. Die gedruckten Punktekästchen und die Tabelle am Ende füllen sich auf dem Scan und im korrigierten PDF automatisch.',
             },
             s3: {
                 h: 'Ankreuzaufgaben',

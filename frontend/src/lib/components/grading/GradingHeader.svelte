@@ -5,7 +5,7 @@
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button } from "#lib/components/ui";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
-  import { ensure64CharHex } from "#lib/crypto/hmac";
+  import { joinKey } from "#lib/crypto/pseudonymKey";
   import { untrack } from "svelte";
 
   interface Props {
@@ -26,19 +26,22 @@
     calculatedGrade
   }: Props = $props();
 
-  // The raw pseudonymHash can be the QR text including the student's name (issue #80): never render it here, only its hash (the same value the server stores).
+  // A version-1 value can be the QR text including the student's name (issue #80): never render it, only the keyed pseudonym (what the server stores once re-keyed).
   let displayId = $state("");
   let idSeq = 0;
 
   $effect.pre(() => {
-    const raw = currentSub?.pseudonymHash;
+    const sub = currentSub;
     untrack(() => {
       const seq = ++idSeq;
       displayId = "";
-      if (!raw) return;
-      ensure64CharHex(raw).then((hex) => {
-        if (seq === idSeq) displayId = hex;
-      });
+      if (!sub?.pseudonymHmac) return;
+      joinKey(sub).then(
+        (hex) => {
+          if (seq === idSeq) displayId = hex;
+        },
+        () => undefined
+      );
     });
   });
 </script>

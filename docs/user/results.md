@@ -49,7 +49,7 @@ The **CSV export** of the grades, for example for the school's grade management,
 
 | Part | Contains |
 |---|---|
-| **Graded scans (PDF)** | each submission with the corrections drawn in; partly graded ones too (file name with `_partial`, ungraded with `_ungraded`) |
+| **Graded scans (PDF)** | each submission with the corrections drawn in and the [score boxes filled in](./grading#score-boxes); partly graded ones too (file name with `_partial`, ungraded with `_ungraded`) |
 | **LaTeX source** | a separate ZIP with exam and solution, their files and logo, ready for Overleaf (compiler XeLaTeX); only with this part can the ZIP be imported again later (without results) |
 | **Compiled exam and solution (PDF)** | the task and solution sheets (compiling may take a while) |
 | **Summary (PDF)** | metadata, grading key in points and percent, average, the combined chart and the student list with points and grades, partly graded ones highlighted |

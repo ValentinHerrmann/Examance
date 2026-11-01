@@ -82,6 +82,9 @@ After several wrong passwords the account is locked briefly. The wait grows with
 
 - Your data key is unlocked **in the browser** with your password, passkey or recovery code (Argon2id, HKDF-SHA-256) and is never transmitted.
 - Everything sensitive is encrypted with AES-256-GCM **before** it is stored or sent: student data and names, scans, annotations and per-exercise scores. The server stores only ciphertext, which stays unreadable even if the server database were breached.
+- Pseudonyms are stored only as a code keyed **per exam** with your data key: the server cannot try out names or link a student across exams.
+- Every encrypted record is bound to its own place, so ciphertext cannot be swapped between records unnoticed.
+- While a tab is unlocked, its session key is kept sealed with a key that cannot leave that tab.
 - Stored unencrypted: exercises and exams (their LaTeX source), technical fields such as ids and ordering, and in "All on the server" mode the total score per pseudonym.
 
 The technical details are in [Data flow and security](../data_flow_and_security).

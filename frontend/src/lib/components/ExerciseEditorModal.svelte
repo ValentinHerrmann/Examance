@@ -656,7 +656,7 @@
       </div>
     {/snippet}
 
-    <div class="flex h-full max-h-full w-full flex-col overflow-hidden border-t border-line">
+    <div class="flex w-full flex-col border-t border-line @3xl:h-full @3xl:max-h-full @3xl:overflow-hidden">
       {#if needsShareConsent}
         <Alert severity="warning" class="mx-4 mt-3 shrink-0">
           <p class="m-0 mb-2">{$t("exercises.sharing.editorShareNotice", { email: $sessionStore.email ?? "" })}</p>
@@ -672,8 +672,8 @@
         </Alert>
       {/if}
 
-      <!-- Phones: one natural scroller (no nested fixed-height panes); from @3xl two fixed columns. -->
-      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 @3xl:flex-row @3xl:gap-3 @3xl:overflow-hidden @3xl:p-3">
+      <!-- Below @3xl the modal body is the one scroller (natural height, no nested pane); from @3xl two fixed columns. -->
+      <div class="flex min-h-0 flex-1 flex-col gap-4 p-4 @3xl:flex-row @3xl:gap-3 @3xl:overflow-hidden @3xl:p-3">
         <div class={editorColumnClass}>
           {#if showLatexPanel}
             <div class="flex w-full shrink-0 items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-2">

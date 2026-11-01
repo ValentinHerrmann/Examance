@@ -42,6 +42,18 @@ Points are awarded **per exercise**. The total and the grade are recalculated co
 
 A submission counts as **partly graded** until every exercise has points. Partly graded submissions already appear in the statistics with a provisional value, see [partially graded submissions](./results#partial).
 
+## Grading part by part {#parts}
+
+For an exercise with [parts](./exercises#parts), the scoring panel shows one row per part (**Part a)**, **Part b)**, …) below the exercise. Click a part's row to make it the stamp target, so stamps count towards that part, or type its points.
+
+- The exercise's own field then reads **Follows from the parts once all of them are graded**: the exercise counts as graded only when every part has points.
+- Points outside the parts (for example a scoring unit in the introduction, or stamps set while the exercise itself was the target) are collected in the row **Outside the parts**. If it gets more points than the exercise has outside its parts, the row warns you: probably a stamp landed without a part.
+- You can still grade the exercise as a whole: just leave the part rows empty.
+
+## Score boxes fill in by themselves {#score-boxes}
+
+The exam prints a score box next to each exercise and each part, and a table at the end with every exercise, the total (Σ) and the grade. While you grade, Examance writes the points into these boxes on the scan, and into the graded PDF you export or hand back. An exercise's box is filled once it is graded; the total and the grade follow when the submission is complete. You never fill in the table by hand. If the exam was changed after its answer-sheet template was created, the boxes stay empty, because the printed sheet no longer matches.
+
 ## Multiple choice while grading {#multiple-choice}
 
 For single and multiple choice questions the detected ticks are applied automatically, including the exercise's penalty for wrong ticks. You can review and correct them before saving.
