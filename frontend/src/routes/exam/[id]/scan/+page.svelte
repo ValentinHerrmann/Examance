@@ -122,15 +122,27 @@
   let omrTemplateHash: string | undefined;
   let omrAvailable = false;
   let omrBanner = $state("");
+  /** Null until `loadOmrContext` knows; without MC the template only serves the score boxes in grading. */
+  let examHasMc: boolean | null = null;
 
-  /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. Exams without MC still get a template: grading fills the printed score boxes from it (issue #187). */
+  /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. Exams without MC skip it here: a visit never compiles, the template follows an upload (`prepareScoreBoxTemplate`). */
   async function loadOmrContext() {
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     const mcExercises = await loadExamMcExercises(examId, key).catch(() => []);
-    await prepareOmrContext(key, mcExercises, mcExercises.length === 0);
-    // Without MC nothing here depends on the template, so a failure only leaves the score boxes empty.
-    if (mcExercises.length === 0) omrAvailable = false;
+    examHasMc = mcExercises.length > 0;
+    if (!examHasMc) {
+      omrAvailable = false;
+      omrBanner = "";
+      return;
+    }
+    await prepareOmrContext(key, mcExercises, false);
+  }
+
+  /** After an upload to an exam without MC: refreshes the template in the background so grading can fill the printed score boxes (issue #187). */
+  function prepareScoreBoxTemplate() {
+    if (examHasMc !== false) return;
+    void prepareOmrContext(get(sessionStore).sessionKey, [], true).finally(() => (omrAvailable = false));
   }
 
   /** `quiet` (exam without MC): the template only serves the score boxes in grading, so its preparation never shows a banner here. */
@@ -526,6 +538,7 @@
         monitor,
         onProgress: showIngestProgress,
       });
+      prepareScoreBoxTemplate();
       await refreshUnmatched();
       await loadScannedSubmissions();
       statusText = translate("scanning.status.complete", {
