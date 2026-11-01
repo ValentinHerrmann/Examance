@@ -22,6 +22,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
+from app.models.trash_item import TrashItem
 from app.services import blob_store, retention
 from app.services.crypto import hash_password
 from tests.factors import sign_in, unique_email
@@ -254,105 +255,36 @@ async def _exam_with_results(client: AsyncClient) -> tuple[str, str, str]:
     return exam_id, pseudonym, submission.json()["id"]
 
 
-async def _children(db: AsyncSession, exam_id: str) -> tuple[StudentIdentity, ScanSubmission]:
-    db.expire_all()
-    exam_uuid = uuid.UUID(exam_id)
-    identity = (
-        await db.execute(select(StudentIdentity).where(StudentIdentity.exam_id == exam_uuid))
-    ).scalar_one()
-    submission = (
-        await db.execute(select(ScanSubmission).where(ScanSubmission.exam_id == exam_uuid))
-    ).scalar_one()
-    return identity, submission
-
-
 @pytest.mark.asyncio
-async def test_deleting_an_exam_starts_the_grace_period_of_its_student_data(
+async def test_deleted_exam_leaves_the_trash_once_its_grace_period_passes(
     client: AsyncClient, retention_db
 ) -> None:
+    """Issue #125: a deleted exam waits in the trash, then retention erases the entry."""
     await sign_in(client, retention_db, unique_email("delete-exam"))
     exam_id, _, _ = await _exam_with_results(client)
 
     deleted = await client.delete(f"/api/v1/exams/{exam_id}")
     assert deleted.status_code == 204
 
-    identity, submission = await _children(retention_db, exam_id)
-    deadline = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
-    assert identity.deleted_at is not None
-    assert identity.retention_until == deadline
-    assert submission.deleted_at is not None
-    assert submission.retention_until == deadline
-
-    # Once the grace period has passed, retention erases them (it used to skip them forever).
-    identity.retention_until = date.today() - timedelta(days=1)
-    submission.retention_until = date.today() - timedelta(days=1)
-    await retention_db.commit()
-    await retention.run()
-
-    retention_db.expire_all()
     exam_uuid = uuid.UUID(exam_id)
+    retention_db.expire_all()
     for model in (StudentIdentity, ScanSubmission):
-        remaining = (
-            await retention_db.execute(select(model).where(model.exam_id == exam_uuid))
-        ).scalar_one_or_none()
-        assert remaining is None
-
-
-@pytest.mark.asyncio
-async def test_deleting_a_submission_sets_its_erasure_deadline(
-    client: AsyncClient, retention_db
-) -> None:
-    await sign_in(client, retention_db, unique_email("delete-submission"))
-    exam_id, _, submission_id = await _exam_with_results(client)
-
-    deleted = await client.delete(f"/api/v1/exams/{exam_id}/submissions/{submission_id}")
-    assert deleted.status_code == 204
-
-    _, submission = await _children(retention_db, exam_id)
-    assert submission.deleted_at is not None
-    assert submission.retention_until == date.today() + timedelta(
-        days=settings.RETENTION_GRACE_DAYS
-    )
-
-
-@pytest.mark.asyncio
-async def test_restore_never_revives_a_deleted_exams_student_data(
-    client: AsyncClient, retention_db
-) -> None:
-    await sign_in(client, retention_db, unique_email("restore-deleted"))
-    exam_id, _, _ = await _exam_with_results(client)
-    assert (await client.delete(f"/api/v1/exams/{exam_id}")).status_code == 204
-
-    restored = await client.post("/api/v1/user/restore-server-data")
-    assert restored.status_code == 200, restored.text
-    assert restored.json()["restored_student_identities"] == 0
-    assert restored.json()["restored_submissions"] == 0
-
-    identity, submission = await _children(retention_db, exam_id)
-    assert identity.deleted_at is not None
-    assert submission.deleted_at is not None
-
-
-@pytest.mark.asyncio
-async def test_restore_reports_an_exam_whose_deleted_results_were_erased(
-    client: AsyncClient, retention_db
-) -> None:
-    """Regression for issue #181: the restore said nothing about results retention had already erased."""
-    await sign_in(client, retention_db, unique_email("restore-purged"))
-    exam_id, _, submission_id = await _exam_with_results(client)
-    assert (
-        await client.delete(f"/api/v1/exams/{exam_id}/submissions/{submission_id}")
-    ).status_code == 204
-    _, submission = await _children(retention_db, exam_id)
-    submission.retention_until = date.today() - timedelta(days=1)
-    await retention_db.commit()
+        rows = await retention_db.execute(select(model).where(model.exam_id == exam_uuid))
+        assert rows.scalar_one_or_none() is None
+    item = (
+        await retention_db.execute(select(TrashItem).where(TrashItem.exam_id == exam_uuid))
+    ).scalar_one()
+    assert item.kind == "exam"
 
     await retention.run()
+    retention_db.expire_all()
+    assert await retention_db.get(TrashItem, item.id) is not None
 
-    body = (await client.post("/api/v1/user/restore-server-data")).json()
-    assert body["restored_submissions"] == 0
-    assert body["grace_days"] == settings.RETENTION_GRACE_DAYS
-    assert [entry["exam_id"] for entry in body["purged_exams"]] == [exam_id]
+    item.purge_after = datetime.now(UTC) - timedelta(minutes=1)
+    await retention_db.commit()
+    await retention.run()
+    retention_db.expire_all()
+    assert await retention_db.get(TrashItem, item.id) is None
 
 
 async def _present(db: AsyncSession, *ids: uuid.UUID) -> set[uuid.UUID]:

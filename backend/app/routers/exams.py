@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import copy
 import uuid
-from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -11,7 +10,6 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_teacher, get_exam_for_teacher, get_teaching_teacher
 from app.middleware.rate_limit import limiter
@@ -20,8 +18,6 @@ from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
 from app.models.exercise import Exercise
 from app.models.logo import ExamLogo
-from app.models.scan_submission import ScanSubmission
-from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.schemas.exam import (
     ExamCreate,
@@ -35,6 +31,7 @@ from app.schemas.exam import (
 )
 from app.schemas.latex_packages import LatexPackageEntry
 from app.services import audit as audit_svc
+from app.services import trash
 from app.services.capabilities import require_server_results_writable
 from app.services.exam_queries import (
     ExerciseRow,
@@ -404,9 +401,29 @@ async def list_exam_exercises(
     return [exercise_response(row) for row in await fetch_exam_exercises(exam.id, db)]
 
 
+async def _trash_dropped_links(
+    body: ExamUpdate, exam: Exam, trash_scope: trash.TrashScope, db: AsyncSession
+) -> None:
+    """Copy the exercise links and MC groups this edit drops into the trash (issue #125)."""
+    kept_groups = {g.id for g in body.mc_groups if g.id} if body.mc_groups is not None else None
+    if body.exercise_links is not None:
+        kept: set[uuid.UUID] | None = {link.exercise_id for link in body.exercise_links}
+    elif body.exercise_ids is not None:
+        kept = set(body.exercise_ids)
+    else:
+        kept = None
+    if kept is None and kept_groups is None:
+        return
+    snap = await trash.snapshot_exam_links(
+        db, exam.id, kept_exercises=kept, kept_groups=kept_groups
+    )
+    await trash_scope.capture(db, "exam_links", snap, label=trash.exam_label(exam), exam_id=exam.id)
+
+
 @router.patch("/{exam_id}", response_model=ExamResponse)
 async def update_exam(
     body: ExamUpdate,
+    trash_scope: trash.Trash,
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
@@ -422,6 +439,7 @@ async def update_exam(
     if "extra_notes" in body.model_fields_set:
         exam.extra_notes = body.extra_notes.model_dump() if body.extra_notes else None
 
+    await _trash_dropped_links(body, exam, trash_scope, db)
     if body.mc_groups is not None:
         # Detach the links before dropping the groups. exam_exercises.mc_group_id is a real FK, so deleting a group would otherwise take its member rows with it — silently removing those exercises from the exam.
         await db.execute(
@@ -464,23 +482,16 @@ async def update_exam(
 
 @router.delete("/{exam_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_exam(
+    trash_scope: trash.Trash,
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Soft-delete an exam and start the erasure grace period of its student data. Retention skips deleted exams and only erases child rows with a deadline, so without the cascade a deleted exam's identities and submissions would be kept forever."""
-    now = datetime.now(tz=UTC)
-    grace_deadline = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
-    exam.deleted_at = now
-    await db.execute(
-        update(StudentIdentity)
-        .where(StudentIdentity.exam_id == exam.id, StudentIdentity.deleted_at.is_(None))
-        .values(deleted_at=now, retention_until=grace_deadline)
-    )
-    await db.execute(
-        update(ScanSubmission)
-        .where(ScanSubmission.exam_id == exam.id, ScanSubmission.deleted_at.is_(None))
-        .values(deleted_at=now, retention_until=grace_deadline)
-    )
+    """Delete an exam with its links, logo and results; the trash keeps a copy for RETENTION_GRACE_DAYS (issue #125). Scan files stay until the trash entry is erased."""
+    snap = await trash.snapshot_exam(db, exam)
+    await trash_scope.capture(db, "exam", snap, label=trash.exam_label(exam), exam_id=exam.id)
+    # Legacy exercises still name their exam (ON DELETE CASCADE) and may be linked elsewhere: detach them, they stay in the library.
+    await db.execute(update(Exercise).where(Exercise.exam_id == exam.id).values(exam_id=None))
+    await snap.delete(db)
 
 
 @router.get("/{exam_id}/pseudonyms")

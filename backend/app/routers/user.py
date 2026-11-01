@@ -1,4 +1,4 @@
-"""User management router — /api/v1/user for storage policy actions (purge/restore)."""
+"""User management router — /api/v1/user for storage policy actions (purge) and account actions."""
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
@@ -10,21 +10,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import DB, get_current_teacher, get_teaching_teacher, require_not_frozen
+from app.dependencies import get_current_teacher, get_teaching_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.schemas.capabilities import CapabilitiesOut, StorageModeUpdate
-from app.schemas.user import AccountDeletionRequestIn, PurgedExamResults, RestoreServerDataOut
+from app.schemas.user import AccountDeletionRequestIn
 from app.services import account_mail
 from app.services import audit as audit_svc
 from app.services.account_deletion import create_deletion_request, ensure_not_last_admin
 from app.services.account_export import build_export
 from app.services.capabilities import (
     capabilities_for,
-    require_server_results_writable,
 )
 from app.services.tokens import rowcount
 
@@ -134,76 +133,6 @@ async def purge_server_student_data(
         "purged_submissions": purged_submissions_count,
         "retention_until": retention_until.isoformat(),
     }
-
-
-@router.post(
-    "/restore-server-data",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_server_results_writable)],
-)
-async def restore_server_data(
-    request: Request,
-    db: DB,
-    teacher: Teacher = Depends(get_teaching_teacher),
-) -> RestoreServerDataOut:
-    """Restore the teacher's soft-deleted student identities and scan submissions still inside the grace period, and list the live exams whose older results retention already erased."""
-    today = date.today()
-
-    # Never a deleted exam's rows: retention skips deleted exams, so they would stay forever.
-    exams = (
-        await db.execute(
-            select(Exam.id, Exam.results_purged_at).where(
-                Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None)
-            )
-        )
-    ).all()
-    exam_ids = [row.id for row in exams]
-    purged_exams = [
-        PurgedExamResults(exam_id=row.id, purged_at=row.results_purged_at)
-        for row in exams
-        if row.results_purged_at is not None
-    ]
-
-    if not exam_ids:
-        return RestoreServerDataOut(
-            restored_student_identities=0,
-            restored_submissions=0,
-            grace_days=settings.RETENTION_GRACE_DAYS,
-            purged_exams=[],
-        )
-
-    students_update = (
-        update(StudentIdentity)
-        .where(
-            StudentIdentity.exam_id.in_(exam_ids),
-            StudentIdentity.deleted_at.isnot(None),
-            StudentIdentity.retention_until >= today,
-        )
-        .values(deleted_at=None, retention_until=None)
-    )
-    students_res = await db.execute(students_update)
-    restored_students_count = rowcount(students_res)
-
-    submissions_update = (
-        update(ScanSubmission)
-        .where(
-            ScanSubmission.exam_id.in_(exam_ids),
-            ScanSubmission.deleted_at.isnot(None),
-            ScanSubmission.retention_until >= today,
-        )
-        .values(deleted_at=None, retention_until=None)
-    )
-    submissions_res = await db.execute(submissions_update)
-    restored_submissions_count = rowcount(submissions_res)
-
-    await audit_svc.log(db, request, teacher, "EXTEND_RETENTION", teacher.id)
-
-    return RestoreServerDataOut(
-        restored_student_identities=restored_students_count,
-        restored_submissions=restored_submissions_count,
-        grace_days=settings.RETENTION_GRACE_DAYS,
-        purged_exams=purged_exams,
-    )
 
 
 @router.get("/me/export", status_code=status.HTTP_200_OK)

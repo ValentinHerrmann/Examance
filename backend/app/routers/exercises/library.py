@@ -33,6 +33,7 @@ from app.schemas.exam import (
     ExerciseUsageResponse,
 )
 from app.services import exercise_sharing as sharing
+from app.services import trash
 from app.services.exercise_library import (
     cascade_group_metadata,
     filtered,
@@ -379,6 +380,7 @@ async def _previous_version(
 @router.delete("/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_exercise(
     exercise_id: uuid.UUID,
+    trash_scope: trash.Trash,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
@@ -392,10 +394,14 @@ async def delete_exercise(
     ex = result.scalar_one_or_none()
     if ex is None:
         return
+    previous = None
     if ex.exercise_group_id is not None and ex.is_current:
         # Under the group lock, so a concurrent new version cannot leave two current rows.
         await get_own_group(ex.exercise_group_id, teacher.id, db, lock=True)
         previous = await _previous_version(ex, teacher, db)
-        if previous is not None:
-            previous.is_current = True
-    await db.delete(ex)
+    # The DB cascade would drop its files, exam links and every score on it: the trash keeps them (issue #125).
+    snap = await trash.snapshot_exercise(db, ex, previous)
+    await trash_scope.capture(db, "exercise", snap, label=trash.exercise_label(ex))
+    if previous is not None:
+        previous.is_current = True
+    await snap.delete(db)

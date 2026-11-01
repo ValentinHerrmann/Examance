@@ -1206,7 +1206,7 @@
           "exams"
         ],
         "summary": "Delete Exam",
-        "description": "Soft-delete an exam and start the erasure grace period of its student data. Retention skips deleted exams and only erases child rows with a deadline, so without the cascade a deleted exam's identities and submissions would be kept forever.",
+        "description": "Delete an exam with its links, logo and results; the trash keeps a copy for RETENTION_GRACE_DAYS (issue #125). Scan files stay until the trash entry is erased.",
         "operationId": "delete_exam_api_v1_exams__exam_id__delete",
         "parameters": [
           {
@@ -1776,7 +1776,7 @@
           "logos"
         ],
         "summary": "Set Account Logo",
-        "description": "Choose the account logo: the bundled default (`default`), none (`none`), or its own file (`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`).",
+        "description": "Choose the account logo: the bundled default (`default`), none (`none`), or its own file (`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`). Dropping an own file keeps a copy in the trash (issue #125).",
         "operationId": "set_account_logo_api_v1_user_logo_put",
         "parameters": [
           {
@@ -1990,7 +1990,7 @@
           "logos"
         ],
         "summary": "Set Exam Logo",
-        "description": "Choose the exam's logo: follow the account (`account`), print none (`none`), or print its own (`custom`, with `content_b64` to replace the stored file).",
+        "description": "Choose the exam's logo: follow the account (`account`), print none (`none`), or print its own (`custom`, with `content_b64` to replace the stored file). Dropping an own file keeps a copy in the trash (issue #125).",
         "operationId": "set_exam_logo_api_v1_exams__exam_id__logo_put",
         "parameters": [
           {
@@ -2434,7 +2434,7 @@
           "exercise-contributions"
         ],
         "summary": "Reject Contribution",
-        "description": "Decline a proposal (owner); its content is dropped at once. Never gated.",
+        "description": "Decline a proposal (owner); its content leaves for the trash (issue #125). Never gated.",
         "operationId": "reject_contribution_api_v1_exercises_contributions__contribution_id__reject_post",
         "parameters": [
           {
@@ -2497,7 +2497,7 @@
           "exercise-contributions"
         ],
         "summary": "Withdraw Contribution",
-        "description": "Take back an own pending proposal; its content is dropped at once. Never gated.",
+        "description": "Take back an own pending proposal; its content leaves for the trash (issue #125). Never gated.",
         "operationId": "withdraw_contribution_api_v1_exercises_contributions__contribution_id__withdraw_post",
         "parameters": [
           {
@@ -4242,7 +4242,7 @@
           "exercises"
         ],
         "summary": "Delete Exercise Resource",
-        "description": "Delete one resource file. Idempotent.",
+        "description": "Delete one resource file; the trash keeps a copy (issue #125). Idempotent.",
         "operationId": "delete_exercise_resource_api_v1_exercises__exercise_id__resources__resource_id__delete",
         "parameters": [
           {
@@ -4437,7 +4437,7 @@
           "students"
         ],
         "summary": "Erase Student Identity",
-        "description": "GDPR Art. 17 Erasure \u2014 hard delete student identity + cascade submissions. Appends an immutable audit log entry.",
+        "description": "Delete a student identity with their submissions and scores. Unless *permanent*, the trash keeps a copy (and the scan files) for RETENTION_GRACE_DAYS (issue #125); *permanent* is the GDPR erasure and is audited.",
         "operationId": "erase_student_identity_api_v1_exams__exam_id__students__pseudonym_hmac__delete",
         "parameters": [
           {
@@ -4458,6 +4458,18 @@
               "format": "uuid",
               "title": "Exam Id"
             }
+          },
+          {
+            "name": "permanent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "GDPR Art. 17 erasure: skip the trash, drop the scan files.",
+              "default": false,
+              "title": "Permanent"
+            },
+            "description": "GDPR Art. 17 erasure: skip the trash, drop the scan files."
           },
           {
             "name": "access_token",
@@ -4711,7 +4723,7 @@
           "submissions"
         ],
         "summary": "Delete Submission",
-        "description": "Soft-delete a scan submission by ID.",
+        "description": "Delete a scan submission and its scores. Unless *permanent*, the trash keeps a copy (and the scan file) for RETENTION_GRACE_DAYS (issue #125).",
         "operationId": "delete_submission_api_v1_exams__exam_id__submissions__sub_id__delete",
         "parameters": [
           {
@@ -4733,6 +4745,18 @@
               "format": "uuid",
               "title": "Exam Id"
             }
+          },
+          {
+            "name": "permanent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Skip the trash (GDPR erasure).",
+              "default": false,
+              "title": "Permanent"
+            },
+            "description": "Skip the trash (GDPR erasure)."
           },
           {
             "name": "access_token",
@@ -4854,7 +4878,7 @@
           "submissions"
         ],
         "summary": "Clear Grading",
-        "description": "Clear all grading data (score + annotations) for a submission.",
+        "description": "Clear all grading data (score + annotations) for a submission; the trash keeps a copy (issue #125).",
         "operationId": "clear_grading_api_v1_exams__exam_id__submissions__sub_id__grading_delete",
         "parameters": [
           {
@@ -5073,6 +5097,16 @@
         "operationId": "delete_all_scores_api_v1_exams__exam_id__submissions__submission_id__scores_delete",
         "parameters": [
           {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
             "name": "submission_id",
             "in": "path",
             "required": true,
@@ -5083,14 +5117,16 @@
             }
           },
           {
-            "name": "exam_id",
-            "in": "path",
-            "required": true,
+            "name": "permanent",
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Exam Id"
-            }
+              "type": "boolean",
+              "description": "Skip the trash (GDPR erasure).",
+              "default": false,
+              "title": "Permanent"
+            },
+            "description": "Skip the trash (GDPR erasure)."
           },
           {
             "name": "access_token",
@@ -5145,6 +5181,16 @@
             }
           },
           {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
             "name": "submission_id",
             "in": "path",
             "required": true,
@@ -5155,14 +5201,16 @@
             }
           },
           {
-            "name": "exam_id",
-            "in": "path",
-            "required": true,
+            "name": "permanent",
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Exam Id"
-            }
+              "type": "boolean",
+              "description": "Skip the trash (GDPR erasure).",
+              "default": false,
+              "title": "Permanent"
+            },
+            "description": "Skip the trash (GDPR erasure)."
           },
           {
             "name": "access_token",
@@ -6474,56 +6522,6 @@
         }
       }
     },
-    "/api/v1/user/restore-server-data": {
-      "post": {
-        "tags": [
-          "user"
-        ],
-        "summary": "Restore Server Data",
-        "description": "Restore the teacher's soft-deleted student identities and scan submissions still inside the grace period, and list the live exams whose older results retention already erased.",
-        "operationId": "restore_server_data_api_v1_user_restore_server_data_post",
-        "parameters": [
-          {
-            "name": "access_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RestoreServerDataOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/user/me/export": {
       "get": {
         "tags": [
@@ -6624,6 +6622,169 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trash": {
+      "get": {
+        "tags": [
+          "trash"
+        ],
+        "summary": "List Trash",
+        "description": "The caller's trash, newest group first.",
+        "operationId": "list_trash_api_v1_trash_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrashListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trash/{group_id}/restore": {
+      "post": {
+        "tags": [
+          "trash"
+        ],
+        "summary": "Restore Trash Group",
+        "description": "Put back what the group deleted, as far as possible, and report what could not come back. Never overwrites live data. Result rows need the `server_results` feature (`403 ERR_FEATURE_NOT_ALLOWED`).",
+        "operationId": "restore_trash_group_api_v1_trash__group_id__restore_post",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrashRestoreOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trash/{group_id}": {
+      "delete": {
+        "tags": [
+          "trash"
+        ],
+        "summary": "Purge Trash Group",
+        "description": "Erase the group for good, scan files included.",
+        "operationId": "purge_trash_group_api_v1_trash__group_id__delete",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -12762,27 +12923,6 @@
         ],
         "title": "PseudonymRekeyResult"
       },
-      "PurgedExamResults": {
-        "properties": {
-          "exam_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Exam Id"
-          },
-          "purged_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Purged At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "exam_id",
-          "purged_at"
-        ],
-        "title": "PurgedExamResults",
-        "description": "A live exam whose soft-deleted results retention already erased for good."
-      },
       "RegisterCompleteRequest": {
         "properties": {
           "token": {
@@ -12930,43 +13070,6 @@
           "token"
         ],
         "title": "ResetTokenRequest"
-      },
-      "RestoreServerDataOut": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "title": "Status",
-            "default": "ok"
-          },
-          "restored_student_identities": {
-            "type": "integer",
-            "title": "Restored Student Identities"
-          },
-          "restored_submissions": {
-            "type": "integer",
-            "title": "Restored Submissions"
-          },
-          "grace_days": {
-            "type": "integer",
-            "title": "Grace Days"
-          },
-          "purged_exams": {
-            "items": {
-              "$ref": "#/components/schemas/PurgedExamResults"
-            },
-            "type": "array",
-            "title": "Purged Exams"
-          }
-        },
-        "type": "object",
-        "required": [
-          "restored_student_identities",
-          "restored_submissions",
-          "grace_days",
-          "purged_exams"
-        ],
-        "title": "RestoreServerDataOut",
-        "description": "Outcome of `POST /user/restore-server-data`, including what could no longer be restored (issue #181)."
       },
       "ResyncOverride": {
         "properties": {
@@ -13813,6 +13916,155 @@
           "retention_days"
         ],
         "title": "TrainingStatus"
+      },
+      "TrashEntryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Label"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At"
+          },
+          "purge_after": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Purge After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "deleted_at",
+          "purge_after"
+        ],
+        "title": "TrashEntryOut",
+        "description": "One delete inside a group. `label` holds ids, plaintext titles, row counts per table and, for results, the sealed student identity the browser decrypts."
+      },
+      "TrashGroupOut": {
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Group Id"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At"
+          },
+          "purge_after": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Purge After"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TrashEntryOut"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_id",
+          "deleted_at",
+          "purge_after",
+          "entries"
+        ],
+        "title": "TrashGroupOut",
+        "description": "Everything one UI action deleted; restored or erased as a whole."
+      },
+      "TrashListOut": {
+        "properties": {
+          "grace_days": {
+            "type": "integer",
+            "title": "Grace Days"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/TrashGroupOut"
+            },
+            "type": "array",
+            "title": "Groups"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grace_days",
+          "groups"
+        ],
+        "title": "TrashListOut"
+      },
+      "TrashRestoreOut": {
+        "properties": {
+          "restored": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Restored"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/TrashSkippedOut"
+            },
+            "type": "array",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "restored",
+          "skipped"
+        ],
+        "title": "TrashRestoreOut"
+      },
+      "TrashSkippedOut": {
+        "properties": {
+          "table": {
+            "type": "string",
+            "title": "Table"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table",
+          "id",
+          "reason"
+        ],
+        "title": "TrashSkippedOut",
+        "description": "A row that did not come back (`parent_missing`, `already_exists`, `changed_since`, `gone`, `pseudonym_changed`) or came back changed (`detached`, `older_version`)."
       },
       "ValidationError": {
         "properties": {

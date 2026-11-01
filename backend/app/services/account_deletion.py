@@ -16,7 +16,8 @@ from app.models.exercise import Exercise
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
-from app.services import account_mail, scan_storage
+from app.models.trash_item import TrashItem
+from app.services import account_mail, scan_storage, trash
 from app.services import audit as audit_svc
 from app.services.account_mail import Mail
 from app.services.tokens import aware, hash_token, rowcount
@@ -162,6 +163,11 @@ async def delete_account(
             .where(Exercise.teacher_id == teacher.id, Exercise.exam_id.is_(None))
             .values(teacher_id=None, exercise_group_id=None, is_public=False, shared_at=None)
         )
+
+    # The trash cascades with the account; its scan files of already deleted exams go now too.
+    await trash.purge(
+        db, list(await db.scalars(select(TrashItem).where(TrashItem.teacher_id == teacher.id)))
+    )
 
     # Written before the row disappears; audit_svc snapshots the email.
     await audit_svc.write(

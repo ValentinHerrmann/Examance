@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import base64
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ from app.models.teacher import Teacher
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
-from app.services import scan_storage
+from app.services import scan_storage, trash
 from app.services.capabilities import require_server_results_writable
 from app.services.pseudonyms import require_pseudonym_version
 
@@ -96,11 +97,15 @@ async def upload_student_identity(
 async def erase_student_identity(
     pseudonym_hmac: str,
     request: Request,
+    trash_scope: trash.Trash,
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
+    permanent: Annotated[
+        bool, Query(description="GDPR Art. 17 erasure: skip the trash, drop the scan files.")
+    ] = False,
 ) -> None:
-    """GDPR Art. 17 Erasure — hard delete student identity + cascade submissions. Appends an immutable audit log entry."""
+    """Delete a student identity with their submissions and scores. Unless *permanent*, the trash keeps a copy (and the scan files) for RETENTION_GRACE_DAYS (issue #125); *permanent* is the GDPR erasure and is audited."""
     result = await db.execute(
         select(StudentIdentity).where(
             StudentIdentity.pseudonym_hmac == pseudonym_hmac,
@@ -113,21 +118,28 @@ async def erase_student_identity(
             status_code=status.HTTP_404_NOT_FOUND, detail="Student identity not found."
         )
 
-    # The FK cascade removes the submissions' rows but never their scan files.
-    submissions = (
-        await db.execute(
-            select(ScanSubmission).where(
-                ScanSubmission.pseudonym_hmac == pseudonym_hmac,
-                ScanSubmission.exam_id == exam.id,
+    snap = await trash.snapshot_student(db, exam, pseudonym_hmac)
+    if permanent:
+        # Every submission of this pseudonym, soft-deleted ones included: their scan files go too.
+        submissions = (
+            await db.execute(
+                select(ScanSubmission).where(
+                    ScanSubmission.pseudonym_hmac == pseudonym_hmac,
+                    ScanSubmission.exam_id == exam.id,
+                )
             )
+        ).scalars().all()
+        scan_storage.forget_scans(db, submissions)
+        await audit_svc.log(db, request, teacher, "DELETE", pseudonym_hmac)
+    else:
+        await trash_scope.capture(
+            db,
+            "student",
+            snap,
+            label=await trash.result_label(db, exam, pseudonym_hmac),
+            exam_id=exam.id,
         )
-    ).scalars().all()
-    scan_storage.forget_scans(db, submissions)
-    for submission in submissions:
-        await db.delete(submission)
-    await db.delete(identity)
-
-    await audit_svc.log(db, request, teacher, "DELETE", pseudonym_hmac)
+    await snap.delete(db)
 
 
 @router.get("", response_model=list[StudentIdentityResponse])

@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import base64
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import delete, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -21,6 +22,7 @@ from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.exercise_score import ExerciseScoreBulkPut, ExerciseScoreResponse
+from app.services import trash
 from app.services.capabilities import require_server_results_writable
 
 router = APIRouter(
@@ -138,28 +140,44 @@ async def put_scores(
 
 
 async def _delete_scores(
-    db: AsyncSession, submission_id: uuid.UUID, exercise_id: uuid.UUID | None = None
+    db: AsyncSession,
+    trash_scope: trash.TrashScope,
+    exam: Exam,
+    submission: ScanSubmission,
+    exercise_id: uuid.UUID | None,
+    permanent: bool,
 ) -> Response:
-    """Idempotent: deleting what is not there is already the requested state."""
-    stmt = delete(ExerciseScore).where(ExerciseScore.submission_id == submission_id)
-    if exercise_id is not None:
-        stmt = stmt.where(ExerciseScore.exercise_id == exercise_id)
-    await db.execute(stmt)
+    """Idempotent: deleting what is not there is already the requested state. Unless *permanent*, the trash keeps a copy (issue #125)."""
+    snap = await trash.snapshot_scores(db, submission.id, exercise_id)
+    if not permanent:
+        label = await trash.result_label(db, exam, submission.pseudonym_hmac)
+        label["submission_id"] = str(submission.id)
+        await trash_scope.capture(db, "scores", snap, label=label, exam_id=exam.id)
+    await snap.delete(db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+_PERMANENT = Query(description="Skip the trash (GDPR erasure).")
 
 
 @router.delete("/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_score(
     exercise_id: uuid.UUID,
+    trash_scope: trash.Trash,
+    exam: Exam = Depends(get_exam_for_teacher),
     submission: ScanSubmission = Depends(get_submission_for_teacher),
     db: AsyncSession = Depends(get_db),
+    permanent: Annotated[bool, _PERMANENT] = False,
 ) -> Response:
-    return await _delete_scores(db, submission.id, exercise_id)
+    return await _delete_scores(db, trash_scope, exam, submission, exercise_id, permanent)
 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_all_scores(
+    trash_scope: trash.Trash,
+    exam: Exam = Depends(get_exam_for_teacher),
     submission: ScanSubmission = Depends(get_submission_for_teacher),
     db: AsyncSession = Depends(get_db),
+    permanent: Annotated[bool, _PERMANENT] = False,
 ) -> Response:
-    return await _delete_scores(db, submission.id)
+    return await _delete_scores(db, trash_scope, exam, submission, None, permanent)

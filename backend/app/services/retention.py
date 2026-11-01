@@ -28,7 +28,8 @@ from app.models.registration_request import RegistrationRequest
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
-from app.services import blob_store, scan_storage
+from app.models.trash_item import TrashItem
+from app.services import blob_store, scan_storage, trash
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,8 @@ async def _sweep_orphan_scans(db: AsyncSession) -> int:
         select(ScanSubmission.scan_path).where(ScanSubmission.scan_path.isnot(None))
     )
     referenced = {path for path in paths if path is not None}
+    # Files of deleted rows stay while their trash entry does (issue #125).
+    referenced |= await trash.all_blob_refs(db)
     try:
         return blob_store.sweep_sync("scans", referenced)
     except blob_store.BlobStoreUnavailable as exc:
@@ -178,6 +181,9 @@ async def run(*, dry_run: bool = False) -> int:
         )
         stale_reset_count = await _count(db, PasswordResetToken, stale_reset_filter)
 
+        # 13. Trash entries past their grace period (issue #125); their scan files go with them.
+        expired_trash = list(await db.scalars(select(TrashItem).where(TrashItem.purge_after < now)))
+
         total_affected = (
             len(expired_exams)
             + len(expired_students)
@@ -192,6 +198,7 @@ async def run(*, dry_run: bool = False) -> int:
             + len(purge_exam_ids)
             + stale_refresh_count
             + stale_reset_count
+            + len(expired_trash)
         )
 
         if dry_run:
@@ -269,6 +276,8 @@ async def run(*, dry_run: bool = False) -> int:
                 update(Exercise).where(Exercise.exam_id.in_(purge_exam_ids)).values(exam_id=None)
             )
             await db.execute(delete(Exam).where(purge_exam_filter))
+
+        await trash.purge(db, expired_trash)
 
         if stale_refresh_count:
             await db.execute(delete(RefreshToken).where(stale_refresh_filter))
