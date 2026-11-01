@@ -12,7 +12,7 @@ There are two backups, fully independent of each other:
 
 | Snapshot tag | Contains | Restore with |
 |---|---|---|
-| `db` | The whole database: accounts, exams, exercises, students, submissions, scores, annotations, logos, audit log | `./restore-backup.sh db <id>` |
+| `db` | The whole database: accounts, exams, exercises, students, submissions, scores, annotations, logos, trash, audit log | `./restore-backup.sh db <id>`; single trash entries: `./restore-backup.sh trash restore <id> <entry-id>...` |
 | `blobs` | The scan files in the blob directory (only when scans are stored as files, `BLOB_STORAGE_BACKEND=fs`) | `./restore-backup.sh scans [<id>]` |
 | `pre-restore` | The database just before a `db` restore (made by the script) | `./restore-backup.sh db <id>` |
 | `maintenance` | The database right before an update or a manual maintenance (also as a local file in `maintenance-backups/`) | `./restore-backup.sh maintenance [latest\|<file>\|<id>]` |
@@ -27,7 +27,7 @@ There are two backups, fully independent of each other:
 
 A scan in the app consists of **two parts**: a database row (the submission, with student, scores and annotations) and the scan **file** in the blob directory. The app shows a scan only when its row exists.
 
-- **Deleting something in the app** (a submission, a student, "delete all submissions", an exam) removes or marks the **rows**. The scan files stay on disk until the next daily retention run notices that no row needs them and removes them. They remain in the backup either way.
+- **Deleting something in the app** (a submission, a student, "delete all submissions", an exam) removes the **rows** and puts a copy in the teacher's **trash** for 7 days (`docs/dev/trash.md`). The scan files stay on disk while the trash entry exists; afterwards the next daily retention run removes them. They remain in the backup either way.
 - **Restoring files brings back nothing the app can show** if the rows are gone. Only a **database** restore brings back rows.
 
 `./restore-backup.sh scans` says which case you are in. If it prints *"N file(s) on disk belong to no database row: deleted in the app, not lost"*, the files are fine and the rows are missing.
@@ -36,7 +36,7 @@ A scan in the app consists of **two parts**: a database row (the submission, wit
 
 | Situation | What is lost | Do this |
 |---|---|---|
-| A teacher deleted something in the app by mistake | Rows (and later the files) | [A](#a-a-teacher-deleted-something-in-the-app) |
+| A teacher deleted something in the app by mistake | Nothing in the first 7 days (the teacher's trash); later the rows and files | [A](#a-a-teacher-deleted-something-in-the-app) |
 | Scans show an error in the app, or files vanished from pCloud or the disk | Files only; the rows are fine | [B](#b-scan-files-are-missing) |
 | The database is broken or empty, or a bad migration or operator mistake happened | Rows of every account | [C](#c-the-database-is-damaged) |
 | A restore was a mistake | — | [D](#d-undo-a-database-restore) |
@@ -53,13 +53,21 @@ All commands run in the stack directory (`~/examance/prod` or `~/examance/previe
 
 ### A. A teacher deleted something in the app
 
-**Results deleted from the server in the last 7 days** (single submissions, or the server copy dropped when the teacher moved results into the browser) come back without you: the teacher clicks "Restore results deleted from the server" in Settings → Storage (`POST /user/restore-server-data`). It lists the exams whose older deleted results the retention run already erased (issue #181). It never brings back a deleted exam or a GDPR erasure.
+**Within 7 days the teacher fixes it alone.** Everything a teacher deletes (exams, students, submissions, scores, cleared grading, library exercises, resource files, logos, dropped exam links) lands in the **Trash** page of the app (account menu) for `RETENTION_GRACE_DAYS` (7). "Restore" puts it back, including the scan files; the page lists what could not come back and why. Nothing to do for the operator. The old Settings card "Restore results deleted from the server" and `POST /user/restore-server-data` are gone. Exceptions: a deletion on request (GDPR erasure in Settings) skips the trash, and results of an account in *hybrid* mode live in the browser, with a matching trash there.
 
-For anything else there is no per-teacher restore yet; the trash in #125 will cover this. Today the only way back is a **full database restore**, and it rolls back **every account** to the snapshot time.
+**Older than 7 days** (the entry was erased by the retention run) the entry is still in the database snapshots from the days before. Copy it back into the live trash, without touching anyone else's data and without stopping the stack:
 
-- **Preview:** usually fine. Run [C](#c-the-database-is-damaged) with a snapshot from before the deletion.
-- **Production:** only if losing everyone else's changes since that snapshot is acceptable (e.g. right after the mistake, outside school hours). Otherwise ask the teacher to re-upload the scans.
-- Scan files usually still exist on disk. If the daily retention run already removed them, run `./restore-backup.sh scans` after the database restore. It finds every file the restored rows need.
+```bash
+./restore-backup.sh trash list latest [teacher-email]   # entries a db snapshot held: id, teacher, kind, title or name, deleted_at
+./restore-backup.sh trash restore <db-id> <entry-id>... [--blobs <blobs-id|latest>]
+```
+
+1. Pick the newest `db` snapshot from **before the retention run erased** the entry (deleted time plus 7 days) and after the deletion. `list` shows the times. Snapshots from before the trash existed say "holds no trash_items table".
+2. `trash list` filters by the teacher's e-mail. The column `in_trash_now` shows entries that are already back.
+3. `trash restore` inserts the chosen entries with a fresh 7 days, only for accounts that still exist, and never overwrites an entry that is already in the trash. Add `--blobs` to also copy the entries' scan files from a `blobs` snapshot if they are gone from disk (never overwriting a file).
+4. Tell the teacher to open **Trash** and restore the group. The app does the rest and reports what could not return (for example because the exam was erased since).
+
+If the deleted data is older than any snapshot, or an entire database state is needed, the only way back is a **full database restore** ([C](#c-the-database-is-damaged)), which rolls back **every account** to the snapshot time. On a preview that is usually fine; on production only if losing everyone else's changes since is acceptable. Scan files usually still exist on disk. If the daily retention run already removed them, run `./restore-backup.sh scans` after the database restore.
 
 ### B. Scan files are missing
 
@@ -130,6 +138,7 @@ COMPOSE="docker compose -p examance-prod -f docker-compose.deploy.yml --env-file
 $COMPOSE logs --tail 50 backup        # "backup service ready", after midnight "db snapshot done", "blob snapshot done", no "failed"
 $COMPOSE logs --tail 20 maintenance-backup   # "maintenance backup ... done" after each update
 ./restore-backup.sh list              # recent db and blobs snapshots
+./restore-backup.sh trash list latest   # read-only: prints the trash entries of the newest snapshot (or says it predates the trash)
 $COMPOSE exec backup sh -c 'psql -d postgres -c "CREATE DATABASE restore_test" && restic dump latest --tag db examance.sql | psql -q -d restore_test && psql -d restore_test -Atc "select count(*) from exams"; psql -d postgres -c "DROP DATABASE restore_test"'
 ```
 
@@ -139,6 +148,7 @@ $COMPOSE exec backup sh -c 'psql -d postgres -c "CREATE DATABASE restore_test" &
 
 - **Backups are encrypted** before upload. The restic password is the only key.
 - **Erased data survives in backups** until the last snapshot holding it expires, at most about `BACKUP_KEEP_MONTHLY_MONTHS` months.
+- **The trash keeps deleted data for 7 days** (encrypted, like the live data). `trash restore` can bring an entry back from an old snapshot only for the teacher it belonged to, on the teacher's request. A GDPR erasure skips the trash.
 - **Restores bring erased data back.** Restoring a snapshot brings back data that was erased in the meantime, including data erased on request. After a database restore, re-run any erasure requests made after the snapshot time. The audit log records `DELETE` actions, but only with hashed ids.
 - **Maintenance backups** in `maintenance-backups/` are unencrypted dumps (mode 600, like `restore-safety/`); erased data survives in them until the newest `BACKUP_KEEP_MAINTENANCE` updates have pushed them out, and in the `maintenance` snapshots as long.
 - `restore-safety/` files are unencrypted. Delete them after the restore.

@@ -32,6 +32,7 @@ export default withMermaid(defineConfig({
         items: [
           { text: 'Getting started', link: '/user/' },
           { text: 'From exercise to analysis', link: '/user/workflow' },
+          { text: 'Undo a delete (Trash)', link: '/user/trash' },
           { text: 'Info material (PDF)', link: '/user/material' },
         ],
       },
@@ -68,6 +69,7 @@ export default withMermaid(defineConfig({
           { text: 'LaTeX in the frontend', link: '/dev/latex' },
           { text: 'LaTeX packages', link: '/dev/latex_packages' },
           { text: 'Exercise sharing', link: '/dev/exercise_sharing' },
+          { text: 'Trash', link: '/dev/trash' },
           { text: 'UI shell and overview lists', link: '/dev/ui_shell' },
           { text: 'Build and CSP', link: '/dev/build_and_csp' },
           { text: 'CI and dependency audit', link: '/dev/ci_and_audit' },

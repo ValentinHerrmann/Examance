@@ -72,12 +72,14 @@ The `backup` service in `deploy/docker-compose.deploy.yml` uses [restic](https:/
   ./restore-backup.sh scans                # copy back the scan files database rows need but are missing
   ./restore-backup.sh scans <id|latest>    # copy back every missing scan file of one snapshot
   ./restore-backup.sh maintenance [latest|<file>|<id>]  # the database as it was before an update
+  ./restore-backup.sh trash list <id|latest> [email]      # trash entries a snapshot holds
+  ./restore-backup.sh trash restore <id|latest> <entry-id>... [--blobs <id|latest>]  # copy erased entries back into the live trash
   ```
   Operator guide with the situations and steps: `docs/backup_and_restore.md`.
   - `db` stops backend, retention-cron and backup. It saves the current state as a restic snapshot tagged `pre-restore` (off-site, listed, restorable with `db <id>`, never picked by `latest`) and as `restore-safety/db-before-restore-<time>.sql` for `undo`. It then loads the snapshot, migrates to the running release and starts the stack. If loading fails, the saved state is put back at once.
   - A database restore rolls back *everything* since the snapshot, for every account. Teachers can read restored data again because their key envelopes are part of the same snapshot.
-  - `scans` without an id reads every `scan_path` from the database, searches all `blobs` snapshots newest first for the missing ones (files are immutable and uniquely named, so any snapshot holding one is right) and reports per file. With an id it copies that snapshot's missing files and reports held/present/copied. It never overwrites or deletes a file. Files no row references are removed by the next retention run.
-  - `scans` cannot undo a deletion in the app: that removes the database rows, while the files usually stay on disk. The script detects this and points to `db`.
+  - `scans` without an id reads every `scan_path` (and every trash entry's `blob_refs`) from the database, searches all `blobs` snapshots newest first for the missing ones (files are immutable and uniquely named, so any snapshot holding one is right) and reports per file. With an id it copies that snapshot's missing files and reports held/present/copied. It never overwrites or deletes a file. Files no row references are removed by the next retention run.
+  - `scans` cannot undo a deletion in the app: that removes the database rows, while the files usually stay on disk. Within 7 days the teacher restores it from the Trash; after that, `trash restore` copies the erased trash entry (and with `--blobs` its scan files) back from a snapshot, and the teacher restores it in the app (`docs/dev/trash.md`).
   - `restore-safety/` holds plaintext dumps: delete them once the restore is confirmed.
   - Every container start takes a snapshot at once, so after a data loss `latest` may already show the damaged state. `--keep-last 10` makes sure the earlier snapshots of the same day survive.
 - **Moving from the earlier rclone backup.** Point `BACKUP_RESTIC_REPOSITORY` at a new prefix, and delete the old rclone prefix once the first snapshots exist.

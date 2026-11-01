@@ -42,5 +42,6 @@ In the still empty exam overview, **Add example data** creates example exercises
 ## Next steps
 
 - [From exercise to analysis](./workflow): the usual workflow, step by step.
+- [Undo a delete (Trash)](./trash): deleted something by mistake? It stays in the trash for 7 days.
 - [Info material](./material): slide decks and posters with a screenshot tour and a detailed explanation of privacy and security, in German.
 - [Data flow and security](../data_flow_and_security): how the encryption works, for the technically curious.

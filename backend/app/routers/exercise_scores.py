@@ -144,7 +144,7 @@ async def _delete_scores(
     trash_scope: trash.TrashScope,
     exam: Exam,
     submission: ScanSubmission,
-    exercise_id: uuid.UUID | None,
+    exercise_id: uuid.UUID,
     permanent: bool,
 ) -> Response:
     """Idempotent: deleting what is not there is already the requested state. Unless *permanent*, the trash keeps a copy (issue #125)."""
@@ -171,13 +171,3 @@ async def delete_score(
 ) -> Response:
     return await _delete_scores(db, trash_scope, exam, submission, exercise_id, permanent)
 
-
-@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_all_scores(
-    trash_scope: trash.Trash,
-    exam: Exam = Depends(get_exam_for_teacher),
-    submission: ScanSubmission = Depends(get_submission_for_teacher),
-    db: AsyncSession = Depends(get_db),
-    permanent: Annotated[bool, _PERMANENT] = False,
-) -> Response:
-    return await _delete_scores(db, trash_scope, exam, submission, None, permanent)

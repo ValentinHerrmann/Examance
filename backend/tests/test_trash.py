@@ -138,8 +138,8 @@ async def test_rows_whose_parent_is_gone_are_reported(
     exam_id, exercise_id, sub_id = await _exam_with_submission(
         client, db, unique_email("trash-parent")
     )
-    await _score(client, exam_id, sub_id, exercise_id)
-    assert (await client.delete(f"/api/v1/exams/{exam_id}/submissions/{sub_id}/scores")).status_code == 204
+    url = await _score(client, exam_id, sub_id, exercise_id)
+    assert (await client.delete(f"{url}/{exercise_id}")).status_code == 204
     (scores_group,) = await _groups(client)
     assert (await client.delete(f"/api/v1/exams/{exam_id}")).status_code == 204
     # Purge the exam's entry for good: the scores now have no submission to return to.
@@ -240,3 +240,19 @@ async def test_trash_keeps_scan_files_until_the_entry_is_erased(
     assert item.blob_refs == [ref]
     assert (await client.delete(f"/api/v1/trash/{group['group_id']}")).status_code == 204
     assert ref not in {r for r, _ in blob_store.iter_refs("scans")}
+
+
+async def test_gdpr_erasure_also_erases_the_students_trash_entries(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    exam_id, exercise_id, sub_id = await _exam_with_submission(
+        client, db, unique_email("trash-gdpr")
+    )
+    url = await _score(client, exam_id, sub_id, exercise_id)
+    assert (await client.delete(f"{url}/{exercise_id}")).status_code == 204
+    assert len(await _groups(client)) == 1
+
+    params = {"permanent": "true"}
+    assert (await client.delete(f"/api/v1/exams/{exam_id}/submissions/{sub_id}", params=params)).status_code == 204
+    assert (await client.delete(f"/api/v1/exams/{exam_id}/students/{'a' * 64}", params=params)).status_code == 204
+    assert await _groups(client) == []

@@ -22,7 +22,7 @@ Exercises live in your library, tagged by grade, subject and topic, so you reuse
 
 **New exam** asks for the header data (subject, class, exam type, date), then opens the exam page, where you pick exercises from the library, order them, group multiple choice questions and set the grading key (linear, upper-secondary points or your own cutoffs). Typesetting produces a print-ready PDF with QR codes, one per exam, variant and student slot. Depending on your installation, it is typeset in your browser or on the server.
 
-**Duplicate** creates a new exam with the same exercises and settings, for example for a parallel class; students and results are never copied.
+**Duplicate** creates a new exam with the same exercises and settings, for example for a parallel class; students and results are never copied. Deleted an exam by mistake? [The trash](./trash) keeps it for 7 days.
 
 ![Exam builder](../screenshots/pitch/04-exam-builder.jpg)
 

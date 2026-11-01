@@ -60,7 +60,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 - The backend automatically creates an initial `admin` user on startup if `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` are configured in `.env`.
 - Admins invite user accounts via `POST /api/v1/admin/users` without specifying passwords. Accounts are created approved, with the chosen role and features, and with uninitialized password hashes (`password_hash = None`); a single-use set-password token is emailed automatically.
 - The bootstrap admin and accounts created with `python -m app.cli create-user` are created approved. `teachers.approved_at` has no default on purpose: a code path that forgets to set it produces a pending account that cannot sign in, never an unvetted one that can.
-- **Admins manage users and the server only** (issue #58). Every endpoint that reads or writes exams, exercises, results or their settings (the compile, exams, logos, LaTeX packages, exercises, contributions, students, submissions and scores routers, `POST /training/omr-samples`, and `/user/storage-mode`, `/user/purge-server-student-data`, `/user/restore-server-data`) requires a teacher account (`get_teaching_teacher`) and answers an admin with `403 ERR_TEACHER_ROLE_REQUIRED`. Admins keep `/admin/*` and their own account endpoints (auth, MFA, passkeys, key envelopes, capabilities, export, deletion). `python -m app.cli set-role` changes a role.
+- **Admins manage users and the server only** (issue #58). Every endpoint that reads or writes exams, exercises, results or their settings (the compile, exams, logos, LaTeX packages, exercises, contributions, students, submissions and scores routers, `POST /training/omr-samples`, and `/user/storage-mode`, `/user/purge-server-student-data`, and the trash router) requires a teacher account (`get_teaching_teacher`) and answers an admin with `403 ERR_TEACHER_ROLE_REQUIRED`. Admins keep `/admin/*` and their own account endpoints (auth, MFA, passkeys, key envelopes, capabilities, export, deletion). `python -m app.cli set-role` changes a role.
 
 ### Single-Use Password Reset Tokens
 - Password reset links carry 32-byte URL-safe raw tokens.
@@ -182,15 +182,15 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `POST` | `/api/v1/exams` | Create Exam | Yes | Creates a new exam with title, template, retention date, and optional exercises. |
 | `GET` | `/api/v1/exams` | List Exams | Yes | Lists all active (non-deleted) exams owned by the authenticated teacher. |
 | `GET` | `/api/v1/exams/{exam_id}` | Get Exam Details | Yes | Retrieves full exam metadata and live-linked exercises. |
-| `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. |
-| `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job, which also erases the exam row and its scan files once that period has passed. |
+| `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. Exercise links and MC groups that the update drops go to the trash. |
+| `DELETE` | `/api/v1/exams/{exam_id}` | Delete Exam | Yes | Deletes the exam with its exercise links, MC groups, logo override, students, submissions and scores. A copy goes to the trash first (§4.10): restorable for `RETENTION_GRACE_DAYS` (7) days; the scan files stay until the entry is restored or erased. Sends `X-Trash-Group` when part of a larger action. Exam expiry through retention (`retention_until`) does not use the trash. |
 | `POST` | `/api/v1/exams/{exam_id}/duplicate` | Duplicate Exam | Yes | Body `{"retention_until"}`. Creates a new exam titled "… (Kopie)" with the same header fields, settings, logo override, MC groups (new ids), page breaks (following those ids) and links to the same library exercises (a legacy exam-bound exercise gets its own copy). Never copies students, submissions or scores; `compilation_status` starts at `pending`. Rate limit 60/hour. |
 | `GET` | `/api/v1/exams/{exam_id}/pseudonyms` | Exam Pseudonyms | Yes | `{pseudonym_version, values}`: every pseudonym value of the exam, soft-deleted rows included, as input for the client-side rekey (issue #177). |
 | `POST` | `/api/v1/exams/{exam_id}/pseudonyms/rekey` | Rekey Exam Pseudonyms | Yes | `{from_version, to_version, pairs: [{old, new}]}`: renames every identity and submission of the exam and moves its `pseudonym_version`; see "Keyed per exam" below. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
 | `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
 | `GET` | `/api/v1/exams/{exam_id}/logo/file` | Exam Logo File | Yes | Bytes of the logo the exam prints; 404 when it prints none. |
-| `PUT` | `/api/v1/exams/{exam_id}/logo` | Set Exam Logo | Yes | `{"mode": "account" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. |
+| `PUT` | `/api/v1/exams/{exam_id}/logo` | Set Exam Logo | Yes | `{"mode": "account" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. An own logo file that the call drops (mode `account` or `none`) goes to the trash. |
 
 #### Exam Query Parameters & Schemas
 - **Query Filters** (`GET /api/v1/exams`): `grade` (string), `subject` (string).
@@ -232,12 +232,12 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `POST` | `/api/v1/exercises/{id}/new-variant` | Create Variant | Yes | Creates a parallel variant within the same exercise group; only from the current row (`409 ERR_EXERCISE_NOT_CURRENT`). |
 | `POST` | `/api/v1/exercises/{id}/duplicate` | Duplicate Exercise | Yes | Copies the current version of every variant of an own exercise group (with its files) into a new private group named "… (Kopie)", version 1, without copy provenance. A duplicate of a copied group stays marked as copied, so it is never shared as one's own. Returns `{group_id, exercises}`. Rate limit 60/hour. |
 | `GET` | `/api/v1/exercises/{id}/usage` | Exercise Usage | Yes | Lists exams referencing this exercise and count. |
-| `DELETE` | `/api/v1/exercises/{id}` | Delete Exercise | Yes | Soft-deletes exercise from the caller's own library. Idempotent (always `204`); a foreign id is a silent no-op. |
+| `DELETE` | `/api/v1/exercises/{id}` | Delete Exercise | Yes | Deletes one version of an exercise from the caller's own library, with its resource files, exam links and scores on it. A copy goes to the trash (restorable for 7 days). Idempotent (always `204`); a foreign id is a silent no-op. |
 | `GET` | `/api/v1/exercises/{id}/resources` | List Resources | Yes | Metadata of the exercise's resource files (no bytes). Readable for own and published exercises. |
 | `POST` | `/api/v1/exercises/{id}/resources` | Upload Resource | Yes | Attaches a file (base64). Re-using a filename replaces that file. Body limit 7 MB; 5 MB per file, 25 MB per exercise. |
 | `GET` | `/api/v1/exercises/{id}/resources/{resource_id}` | Download Resource | Yes | Raw bytes. Only `image/png`, `image/jpeg` and `application/pdf` are served under their own type; anything else is `application/octet-stream` as an attachment, always with `X-Content-Type-Options: nosniff`. |
 | `PATCH` | `/api/v1/exercises/{id}/resources/{resource_id}` | Rename Resource | Yes | Renames the file. The LaTeX source referencing it must be updated separately. |
-| `DELETE` | `/api/v1/exercises/{id}/resources/{resource_id}` | Delete Resource | Yes | Removes one resource file. Idempotent (`204`). |
+| `DELETE` | `/api/v1/exercises/{id}/resources/{resource_id}` | Delete Resource | Yes | Removes one resource file; a copy goes to the trash. Idempotent (`204`). |
 
 #### Exercise Query Parameters
 - **Query Filters** (`GET /api/v1/exercises`): `search` (string), `topic_tag` (string), `grade` (string), `subject` (string).
@@ -257,7 +257,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 |---|---|---|---|---|
 | `POST` | `/api/v1/exams/{exam_id}/students` | Upload Student PII | Yes | Stores/upserts client-side encrypted student PII record. An upsert onto a soft-deleted identity makes it live again (no erasure deadline). |
 | `GET` | `/api/v1/exams/{exam_id}/students` | List Exam Students | Yes | Lists the exam's encrypted student records that are not soft-deleted. |
-| `DELETE` | `/api/v1/exams/{exam_id}/students/{pseudonym_hmac}` | GDPR Erasure | Yes | GDPR Art. 17 right-to-erasure deletion of student record. Scoped to this exam only — see note below. |
+| `DELETE` | `/api/v1/exams/{exam_id}/students/{pseudonym_hmac}` | Delete Student | Yes | Deletes the student's identity with their submissions and scores in this exam only (see note below). A copy goes to the trash (restorable for 7 days). With `?permanent=true` nothing is kept: that is the GDPR Art. 17 right-to-erasure deletion (immediate, audited as `DELETE`, scan files erased). |
 
 > **Identity scope.** A student identity is keyed by `(pseudonym_hmac, exam_id)`, not by
 > `pseudonym_hmac` alone. The same pupil appearing in two exams is two independent
@@ -359,10 +359,11 @@ Two rules the endpoint enforces rather than trusts the client with:
 | `POST` | `/api/v1/exams/{exam_id}/submissions` | Upload Submission | Yes | Stores/upserts encrypted scan submission and anonymized score. An upsert onto a soft-deleted submission makes it live again; a soft-deleted identity of the same pseudonym comes back only as an empty placeholder (its PII is not revived). `409 ERR_SUBMISSION_CONFLICT` when a submission with this id was created in parallel. |
 | `GET` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Get Submission | Yes | Retrieves single encrypted submission payload. |
 | `PATCH` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/score` | Update Score | Yes | Updates the plaintext `total_score` used for server-side statistics. |
-| `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/grading` | Clear Grading | Yes | Clears all grading data (score + annotations) for a submission, without deleting it. |
-| `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Delete Submission | Yes | Soft-deletes the submission; the retention job erases it (with its scores) after the grace period (`RETENTION_GRACE_DAYS`). |
+| `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/grading` | Clear Grading | Yes | Clears all grading data (score + annotations) for a submission, without deleting it. The cleared grading goes to the trash. |
+| `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Delete Submission | Yes | Deletes the submission with its scores. A copy (and the scan file) goes to the trash for `RETENTION_GRACE_DAYS` (7) days. With `?permanent=true` nothing is kept (GDPR erasure, immediate). |
+| `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/scores` and `.../scores/{exercise_id}` | Delete Scores | Yes | Deletes all per-exercise scores of a submission, or one. Idempotent. A copy goes to the trash; `?permanent=true` skips it. |
 
-> **Result writes follow the account's features.** `POST /exams/{id}/students`, `POST /exams/{id}/submissions`, `PATCH /exams/{id}/submissions/{id}/score`, `PUT /exams/{id}/submissions/{id}/scores` and `POST /user/restore-server-data` answer `403 ERR_FEATURE_NOT_ALLOWED` when the account's `server_results` switch is off **and** its stored storage mode is not `all-server`. An account whose switch was revoked while it is still in `all-server` keeps writing until it has moved its results into the browser, because refusing those writes would strand them in the offline queue. Reads and deletes are never gated: the move and GDPR erasure need them.
+> **Result writes follow the account's features.** `POST /exams/{id}/students`, `POST /exams/{id}/submissions`, `PATCH /exams/{id}/submissions/{id}/score`, `PUT /exams/{id}/submissions/{id}/scores` and `POST /trash/{group_id}/restore` (when the group holds results) answer `403 ERR_FEATURE_NOT_ALLOWED` when the account's `server_results` switch is off **and** its stored storage mode is not `all-server`. An account whose switch was revoked while it is still in `all-server` keeps writing until it has moved its results into the browser, because refusing those writes would strand them in the offline queue. Reads and deletes are never gated: the move and GDPR erasure need them.
 
 #### Submission Payload
 ```json
@@ -415,12 +416,11 @@ Two rules the endpoint enforces rather than trusts the client with:
 |---|---|---|---|---|
 | `GET` | `/api/v1/user/capabilities` | Capabilities | Yes | `{"account_id", "storage_mode", "allowed_storage_modes", "features"}`: the account the answer is about (a tab locks itself when it differs from its own sign-in, because the cookie is shared by every tab of a browser), the account's storage mode (null until chosen), the modes it may choose, and its features: `server_results`, `server_latex` (admin switches) and `training_donation` (deployment setting). Built by `capabilities_for(teacher)`; the frontend renders its options from this and nothing else. An admin account gets no modes and no features. |
 | `PUT` | `/api/v1/user/storage-mode` | Set Storage Mode | Yes | `{"mode", "expected"}`: compare-and-set, `409 ERR_STORAGE_MODE_CHANGED` if another browser changed it meanwhile, `403 ERR_STORAGE_MODE_NOT_ALLOWED` if the mode is not allowed for the account (`all-server` without `server_results`). Moving the results happens in the client before this call. |
-| `POST` | `/api/v1/user/purge-server-student-data` | Purge Server Student Data | Yes | Soft-deletes this teacher's server-side student identities and submissions (7-day retention grace) — the local→`all-local` migration step in `data_flow_and_security.md` §5. |
-| `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions of the current teacher's non-deleted exams, if still within the grace period (`grace_days`, 7 by default). Returns `{restored_student_identities, restored_submissions, grace_days, purged_exams}`; `purged_exams` lists `{exam_id, purged_at}` for live exams whose older deleted results the retention run already erased (`exams.results_purged_at`, issue #181), so the client can say what can no longer come back. Deleted exams are never restored, and GDPR erasure is a hard delete. Used by the "Restore results deleted from the server" card in Settings. Subject to the result-write rule in §4.6 (`403 ERR_FEATURE_NOT_ALLOWED`). |
+| `POST` | `/api/v1/user/purge-server-student-data` | Purge Server Student Data | Yes | Soft-deletes this teacher's server-side student identities and submissions (7-day retention grace; does not use the trash) — the local→`all-local` migration step in `data_flow_and_security.md` §5. |
 | `GET` | `/api/v1/user/logo` | Account Logo | Yes | The account's logo setting (`mode`: `default` = bundled MTG logo, `none`, `custom`) and what it prints (`source`: `default`, `account`, `none`, plus type and size). |
 | `GET` | `/api/v1/user/logo/file` | Account Logo File | Yes | Bytes of the logo the account prints (its own or the default), served as `image/png`, `image/jpeg` or `application/pdf` with `nosniff`; 404 for `none`. |
-| `PUT` | `/api/v1/user/logo` | Set Account Logo | Yes | `{"mode": "default" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. Printed on every exam that does not override it. |
-| `DELETE` | `/api/v1/user/logo` | Reset Account Logo | Yes | Back to the default (MTG) logo; same as `PUT {"mode": "default"}`. Returns the new setting. |
+| `PUT` | `/api/v1/user/logo` | Set Account Logo | Yes | `{"mode": "default" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. Printed on every exam that does not override it. An own logo file that the call drops goes to the trash. |
+| `DELETE` | `/api/v1/user/logo` | Reset Account Logo | Yes | Back to the default (MTG) logo; same as `PUT {"mode": "default"}`. Returns the new setting. An own logo file that this drops goes to the trash. |
 | `GET` | `/api/v1/user/latex-packages` | Account LaTeX Packages | Yes | `{"entries": [...]}`: the packages and TikZ/pgfplots libraries added to every document of the account (issue #108). Same entry shape as an exam's `latex_packages`, without `disabled`. |
 | `PUT` | `/api/v1/user/latex-packages` | Set Account LaTeX Packages | Yes | Replaces the list; validated like an exam's `latex_packages` (`422` otherwise). |
 | `GET` | `/api/v1/latex/template-packages` | Template Packages | Yes | What the exam template loads by itself, read from the bundled `.sty` files: `packages` (`name`, the template's `options`, `source` file, `locked` = `layout`/`omr` when its options cannot be changed) and `tikz_libraries`. |
@@ -437,6 +437,24 @@ Two rules the endpoint enforces rather than trusts the client with:
 | `GET` | `/api/v1/privacy/retention` | Retention Periods | No | The configured retention periods the privacy statement (`/legal/datenschutz`) shows: `{"grace_days", "audit_log_days", "registration_link_hours", "pending_account_days", "contribution_days", "contribution_pending_days", "training_sample_days"}`, read from the settings of the same names. Configuration only, no personal data. Rate limit 60/minute per IP. |
 | `GET` | `/api/v1/maintenance` | Maintenance Status | No | `{"phase": "none" \| "scheduled" \| "warning" \| "final" \| "down", "kind", "downtime_class", "revision", "first_warning_at", "second_warning_at", "starts_at", "server_time"}`, polled by every page (issue #130). A valid session cookie of a teacher marks the account as online for the admin's aggregate count (hashed id, 90 s; see `dev/maintenance_mode.md`). Rate limit 600/minute per IP. While a window is open, `/api/*` responses also carry `Maintenance-Revision: <revision>` (when the worker's cache knows it), so active clients refetch this endpoint at once. |
 | `POST` | `/api/v1/maintenance/ready` | Saved My Work | Yes | `{"revision"}`: the teacher confirmed they saved their work for that window (counted for the admin). `204`. |
+
+---
+
+### 4.10 Trash Router (`/api/v1/trash`)
+
+Teacher accounts only (`403 ERR_TEACHER_ROLE_REQUIRED` for admins). Every teacher delete first copies exactly the rows it removes into the trash and keeps the copy for `RETENTION_GRACE_DAYS` (7) days; design and rules in `docs/dev/trash.md`.
+
+| Method | Endpoint | Summary | Auth Required | Description |
+|---|---|---|---|---|
+| `GET` | `/api/v1/trash` | List Trash | Yes | `{"grace_days", "groups": [{"group_id", "deleted_at", "purge_after", "entries": [{"id", "kind", "label", "deleted_at", "purge_after"}]}]}`, newest group first. `kind` is `exam`, `exam_links`, `submission`, `student`, `scores`, `grading`, `annotations`, `exercise`, `resource`, `teacher_logo`, `exam_logo` or `contribution`. `label` carries ids, the plaintext exam title or exercise name, row counts (`counts`) and, for results, the sealed student identity (`pii_ciphertext_b64`, `iv_b64`, `encryption_salt_b64`) that only the browser can decrypt. |
+| `POST` | `/api/v1/trash/{group_id}/restore` | Restore Group | Yes | Puts back what the group deleted and removes its entries from the trash. Returns `{"restored": {table: n}, "skipped": [{"table", "id", "reason"}]}`. Never overwrites live data. `reason`: `already_exists`, `parent_missing`, `detached`, `pseudonym_changed`, `older_version`, `changed_since`, `gone`. Restoring result rows (students, submissions, scores) needs the `server_results` feature (`403 ERR_FEATURE_NOT_ALLOWED`, §4.6). |
+| `DELETE` | `/api/v1/trash/{group_id}` | Erase Group | Yes | Erases the group at once, scan files included (unless a live submission or another entry still uses them). `204`. |
+
+A foreign or missing group answers the same `404 ERR_TRASH_NOT_FOUND`. Audit actions: `TRASH_CAPTURED`, `TRASH_RESTORED`, `TRASH_PURGED`.
+
+> **`X-Trash-Group` header.** One UI action can send several delete requests (a student, their scans, their scores). The client sends the same `X-Trash-Group: <uuid>` on all of them, so they form one trash group that is restored or erased together. Without a valid header, each request is its own group.
+>
+> **`?permanent=true`.** `DELETE /exams/{e}/students/{hmac}`, `DELETE /exams/{e}/submissions/{id}` and the scores deletes accept it to skip the trash: the GDPR Art. 17 erasure (immediate, audited as `DELETE`). Account deletion and the storage-mode move (`POST /user/purge-server-student-data`) never use the trash.
 
 ---
 

@@ -130,6 +130,8 @@ async def erase_student_identity(
             )
         ).scalars().all()
         scan_storage.forget_scans(db, submissions)
+        # Art. 17 covers copies too: earlier trash entries of this student go now.
+        await trash.purge_student(db, teacher, exam.id, pseudonym_hmac)
         await audit_svc.log(db, request, teacher, "DELETE", pseudonym_hmac)
     else:
         await trash_scope.capture(

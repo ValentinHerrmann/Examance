@@ -674,6 +674,19 @@ async def purge(db: AsyncSession, items: Sequence[TrashItem]) -> None:
         await db.execute(delete(TrashItem).where(TrashItem.id.in_(id_list[start : start + _CHUNK])))
 
 
+async def purge_student(
+    db: AsyncSession, teacher: Teacher, exam_id: uuid.UUID, pseudonym_hmac: str
+) -> None:
+    """GDPR erasure: erase the teacher's trash entries about this one student of this exam (whole-exam entries hold other students and stay)."""
+    items = await db.scalars(
+        select(TrashItem).where(TrashItem.teacher_id == teacher.id, TrashItem.exam_id == exam_id)
+    )
+    await purge(
+        db,
+        [i for i in items if i.kind != "exam" and (i.label or {}).get("pseudonym_hmac") == pseudonym_hmac],
+    )
+
+
 async def all_blob_refs(db: AsyncSession) -> set[str]:
     """Every scan file the trash still points at (the blob sweep keeps them)."""
     return {ref for refs in await db.scalars(select(TrashItem.blob_refs)) for ref in (refs or [])}
