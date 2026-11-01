@@ -77,6 +77,7 @@ async def test_purge_and_restore_student_data(client: AsyncClient, db: AsyncSess
     assert restore_body["status"] == "ok"
     assert restore_body["restored_student_identities"] == 1
     assert restore_body["restored_submissions"] == 1
+    assert restore_body["purged_exams"] == []
 
     # Refresh session identity map
     db.expire_all()

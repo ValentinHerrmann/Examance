@@ -107,6 +107,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           "help.topics.storageModes.s3.p2",
           "help.topics.storageModes.s3.p3",
           "help.topics.storageModes.s3.p4",
+          "help.topics.storageModes.s3.p5",
         ],
       },
     ],

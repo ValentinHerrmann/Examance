@@ -33,6 +33,8 @@ class Exam(Base):
     )
     retention_until: Mapped[date] = mapped_column(Date, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Last time retention erased soft-deleted results of this (live) exam for good; reported by restore (issue #181).
+    results_purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     testart: Mapped[str | None] = mapped_column(String(100), nullable=True)
     grade: Mapped[str | None] = mapped_column(String(50), nullable=True)

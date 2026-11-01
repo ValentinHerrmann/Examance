@@ -6350,7 +6350,7 @@
           "user"
         ],
         "summary": "Restore Server Data",
-        "description": "Restore soft-deleted student identities and scan submissions for the current teacher if they are within the 7-day retention grace period.",
+        "description": "Restore the teacher's soft-deleted student identities and scan submissions still inside the grace period, and list the live exams whose older results retention already erased.",
         "operationId": "restore_server_data_api_v1_user_restore_server_data_post",
         "parameters": [
           {
@@ -6376,9 +6376,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Restore Server Data Api V1 User Restore Server Data Post"
+                  "$ref": "#/components/schemas/RestoreServerDataOut"
                 }
               }
             }
@@ -12509,6 +12507,27 @@
         ],
         "title": "PresenceCountsResponse"
       },
+      "PurgedExamResults": {
+        "properties": {
+          "exam_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Exam Id"
+          },
+          "purged_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Purged At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exam_id",
+          "purged_at"
+        ],
+        "title": "PurgedExamResults",
+        "description": "A live exam whose soft-deleted results retention already erased for good."
+      },
       "RegisterCompleteRequest": {
         "properties": {
           "token": {
@@ -12656,6 +12675,43 @@
           "token"
         ],
         "title": "ResetTokenRequest"
+      },
+      "RestoreServerDataOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok"
+          },
+          "restored_student_identities": {
+            "type": "integer",
+            "title": "Restored Student Identities"
+          },
+          "restored_submissions": {
+            "type": "integer",
+            "title": "Restored Submissions"
+          },
+          "grace_days": {
+            "type": "integer",
+            "title": "Grace Days"
+          },
+          "purged_exams": {
+            "items": {
+              "$ref": "#/components/schemas/PurgedExamResults"
+            },
+            "type": "array",
+            "title": "Purged Exams"
+          }
+        },
+        "type": "object",
+        "required": [
+          "restored_student_identities",
+          "restored_submissions",
+          "grace_days",
+          "purged_exams"
+        ],
+        "title": "RestoreServerDataOut",
+        "description": "Outcome of `POST /user/restore-server-data`, including what could no longer be restored (issue #181)."
       },
       "ResyncOverride": {
         "properties": {
@@ -13552,7 +13608,7 @@
     },
     {
       "name": "user",
-      "description": "Teacher data lifecycle management (soft-delete and 7-day retention purge/restore)."
+      "description": "Teacher data lifecycle management (soft-delete, 7-day retention purge, and restore that reports what retention already erased)."
     },
     {
       "name": "mfa",

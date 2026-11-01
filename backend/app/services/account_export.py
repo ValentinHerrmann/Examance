@@ -110,6 +110,7 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
                 "created_at": _iso(exam.created_at),
                 "retention_until": _iso(exam.retention_until),
                 "deleted_at": _iso(exam.deleted_at),
+                "results_purged_at": _iso(exam.results_purged_at),
                 # "account": prints the account's exam_logo; "none": no logo; "custom": own file.
                 "logo": _exam_logo_export(exam_logos.get(exam.id)),
                 # Package entries on top of the account's; null follows the account.

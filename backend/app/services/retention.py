@@ -210,6 +210,17 @@ async def run(*, dry_run: bool = False) -> int:
         for submission in expired_submissions:
             await db.delete(submission)
 
+        # A restore can no longer bring these back: stamp their live exams so it can say so (issue #181).
+        purged_result_exam_ids = {r.exam_id for r in expired_students} | {
+            r.exam_id for r in expired_submissions
+        }
+        if purged_result_exam_ids:
+            await db.execute(
+                update(Exam)
+                .where(Exam.id.in_(purged_result_exam_ids), Exam.deleted_at.is_(None))
+                .values(results_purged_at=now)
+            )
+
         if expired_audit_count:
             await db.execute(delete(AuditLog).where(expired_audit_filter))
 

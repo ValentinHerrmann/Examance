@@ -647,7 +647,11 @@ idempotent upserts and count verification. The account's mode changes only after
 every result has arrived, so an interrupted move leaves the old mode and its
 data intact and can be repeated. Afterwards the user decides each time whether to
 keep or delete the old copy; the server copy is soft-deleted with the existing
-7-day temporary retention. A move is refused while offline-queue writes are
+7-day temporary retention. Within those 7 days Settings → Storage can bring it back
+(`POST /user/restore-server-data`). Once the retention run has erased such rows it
+stamps the live exam (`exams.results_purged_at`, a timestamp only, no content), so
+the restore can name the exams whose older results are gone instead of reporting a
+silent zero (issue #181). A move is refused while offline-queue writes are
 pending, and other tabs are blocked during it. An `all-server` browser that still
 holds local results (a former hybrid browser) shows a banner offering to upload
 them; in `hybrid` mode a browser without results shows a hint that results live

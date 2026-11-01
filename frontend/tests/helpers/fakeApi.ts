@@ -316,6 +316,16 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       state.storageMode = body.mode;
       return ok(capabilities());
     }
+    // The fake purges for good, so a restore finds nothing; it reports no erased exams either.
+    if (method === 'POST' && action === 'restore-server-data') {
+      return ok({
+        status: 'ok',
+        restored_student_identities: 0,
+        restored_submissions: 0,
+        grace_days: 7,
+        purged_exams: [],
+      });
+    }
     if (method === 'POST' && action === 'purge-server-student-data') {
       let students = 0;
       let submissions = 0;
