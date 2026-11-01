@@ -154,7 +154,7 @@ The Datenschutzerklärung template states this with a placeholder for the state-
 
 **Fixed (historical, local vault):** the vault was keyed by a passphrase the user supplied, which is never persisted; only the salt and nonce are stored. Existing vaults are re-encrypted on next unlock.
 
-**Residual risk, stated deliberately:** while a tab is unlocked, the derived session key sits in `sessionStorage` so the workspace survives a page reload. Anyone who can run script on the origin, or who reaches an already-unlocked tab, can read the data. `hybrid` (for its local portion; previously also `all-local`) protects a *stored* device, not an *unattended* one.
+**Residual risk, stated deliberately:** while a tab is unlocked, the derived session key sits in `sessionStorage` so the workspace survives a page reload; since issue #179 only sealed under a non-extractable per-tab key in IndexedDB, which stops passive storage reads but not script on the origin. Anyone who can run script on the origin, or who reaches an already-unlocked tab, can read the data. `hybrid` (for its local portion; previously also `all-local`) protects a *stored* device, not an *unattended* one.
 
 **Open for the controller:** Bavarian rules restrict processing student data on privately owned devices. If teachers use personal laptops, the school must authorise it and set conditions (full-disk encryption, screen lock, no shared profiles). This is an organisational control the software cannot supply.
 

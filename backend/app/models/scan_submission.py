@@ -28,6 +28,8 @@ class ScanSubmission(Base):
             ["pseudonym_hmac", "exam_id"],
             ["student_identities.pseudonym_hmac", "student_identities.exam_id"],
             ondelete="CASCADE",
+            # The pseudonym rekey renames identities; their submissions follow (issue #177).
+            onupdate="CASCADE",
         ),
     )
 

@@ -27,12 +27,12 @@
   import { loadPdfjs } from "#lib/pdf/pdfjs";
   import {
     loadOmrTemplateEncrypted,
+    openScan,
   } from "#lib/db/dbEncryption";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
   import { prepareOmrTemplate, loadExamCompileContext, computeOmrTemplateHash } from "#lib/grading/omrTemplatePrep";
   import { restoreOriginalDetection, type McQuestionType } from "#lib/grading/mcScore";
-  import { decrypt } from "#lib/crypto/aesGcm";
   import type {
     OmrWorkerRequest,
     OmrWorkerResponse,
@@ -227,11 +227,11 @@
             current: processed,
             total: submissions.length,
           });
-          if (!sub.scanCt || !sub.scanIv) continue;
+          if (!sub.scanCt || !sub.scanIv || !key) continue;
 
           let pdfBytes: Uint8Array;
           try {
-            pdfBytes = await decrypt(key, sub.scanCt, sub.scanIv);
+            pdfBytes = await openScan(sub.id, sub.scanCt, sub.scanIv, key);
           } catch (err) {
             console.warn(`Failed to decrypt scan for submission ${sub.id}:`, err);
             continue;

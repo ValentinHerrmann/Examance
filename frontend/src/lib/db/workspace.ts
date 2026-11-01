@@ -73,8 +73,8 @@ export async function workspaceIsEmpty(): Promise<boolean> {
 
 /** Students, submissions and scores held in this browser (what `hybrid` keeps local). */
 export async function localResultCount(): Promise<number> {
-  if (!db.students) return 0;
-  const counts = await Promise.all([db.students.count(), db.submissions.count(), db.exerciseScores.count()]);
+  if (!db.examStudents) return 0;
+  const counts = await Promise.all([db.examStudents.count(), db.submissions.count(), db.exerciseScores.count()]);
   return counts.reduce((a, b) => a + b, 0);
 }
 

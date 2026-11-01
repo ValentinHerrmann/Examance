@@ -154,7 +154,7 @@ def create_app() -> FastAPI:
         {
             "name": "user",
             "description": (
-                "Teacher data lifecycle management (soft-delete and 7-day retention purge/restore)."
+                "Teacher data lifecycle management (soft-delete, 7-day retention purge, and restore that reports what retention already erased)."
             ),
         },
         {

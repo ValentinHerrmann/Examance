@@ -22,13 +22,15 @@ import {
   loadExamsEncrypted,
   loadStudentsEncrypted,
   loadExamExercisesEncrypted,
+  openScan,
 } from '../src/lib/db/dbEncryption';
-import { decrypt, encrypt } from '../src/lib/crypto/aesGcm';
+import { encrypt } from '../src/lib/crypto/aesGcm';
 import { sessionStore } from '../src/lib/stores/session';
 import { storagePolicyStore } from '../src/lib/stores/storagePolicy';
 import { eraseStudent } from '../src/lib/gdpr/erasure';
-import { ensure64CharHex } from '../src/lib/crypto/hmac';
+import { keyFromRaw, pseudonymBase } from '../src/lib/crypto/pseudonymKey';
 import { checkRetention } from '../src/lib/gdpr/retention';
+import { hkdfMasterKey } from './helpers/keys';
 
 const packBlob = async (...args: Parameters<typeof packProject>) => (await packProject(...args)).blob;
 
@@ -51,7 +53,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await db.exams.clear();
     await db.exercises.clear();
     await db.examExercises.clear();
-    await db.students.clear();
+    await db.examStudents.clear();
     await db.submissions.clear();
     await db.exerciseScores.clear();
     await db.auditLog.clear();
@@ -67,7 +69,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
       ['encrypt', 'decrypt']
     );
     sessionStore.unlock({
-      masterKey: testKey,
+      masterKey: await hkdfMasterKey(),
       sessionKey: testKey,
       sessionNonce: new Uint8Array(12),
     });
@@ -77,7 +79,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     const examId = 'exam-uuid-1';
     await saveExamEncrypted(exam(examId, 'Mathematics Final Exam'), testKey);
     await saveStudentEncrypted({
-      pseudonymId: 'student-uuid-99',
+      pseudonymHmac: 'student-uuid-99',
       examId,
       fallbackCode: 'A-X7K2M9',
       piiCt: new Uint8Array([1, 2, 3, 4]),
@@ -90,7 +92,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     // A fresh account on an empty server, and a browser without results.
     fakeServer.reset();
     await db.exams.clear();
-    await db.students.clear();
+    await db.examStudents.clear();
 
     const result = await unpackProject(packedBytes, testPassword);
     expect(result.errors).toEqual([]);
@@ -143,7 +145,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await saveSubmissionEncrypted({
       id: 'sub-scan-1',
       examId,
-      pseudonymHash: 'pseudo-1',
+      pseudonymHmac: 'pseudo-1',
       totalScore: 12,
       createdAt: new Date().toISOString(),
       scanCt: sealed.ciphertext,
@@ -159,8 +161,10 @@ describe('.bgproj Archive Packer and Unpacker', () => {
 
     const restored = await db.submissions.get('sub-scan-1');
     expect(restored?.scanCt).toBeInstanceOf(Uint8Array);
-    const opened = await decrypt(get(sessionStore).sessionKey!, restored!.scanCt!, restored!.scanIv!);
+    const opened = await openScan(restored!.id, restored!.scanCt!, restored!.scanIv!, get(sessionStore).sessionKey!);
     expect(new TextDecoder().decode(opened)).toBe('%PDF-1.7 fake scan');
+    // Re-sealed bound to its submission (issue #178): it does not open as another one.
+    await expect(openScan('other-sub', restored!.scanCt!, restored!.scanIv!, get(sessionStore).sessionKey!)).rejects.toThrow();
   });
 
   it('withholds exercise code from a results-only archive', async () => {
@@ -277,7 +281,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await saveExerciseEncrypted({ id: 'ex-linked', name: 'Linked', maxPoints: 3, questionType: 'free_text', penalty: 0 }, testKey);
     await saveExerciseEncrypted({ id: 'ex-unrelated', name: 'Unrelated', maxPoints: 1, questionType: 'free_text', penalty: 0 }, testKey);
     fakeServer.state.links.set(examId, [{ exercise_id: 'ex-linked', order_index: 1 }]);
-    await saveStudentEncrypted({ pseudonymId: 'stu-r', examId, fallbackCode: 'A-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
+    await saveStudentEncrypted({ pseudonymHmac: 'stu-r', examId, fallbackCode: 'A-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
 
     const { report } = await packProject(testPassword, undefined, { includeExerciseCode: false });
 
@@ -325,8 +329,8 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await saveExerciseEncrypted({ id: 'ex-b', name: 'B1', maxPoints: 1, questionType: 'free_text', penalty: 0 }, testKey);
     fakeServer.state.links.set('exam-a', [{ exercise_id: 'ex-a', order_index: 1 }]);
     fakeServer.state.links.set('exam-b', [{ exercise_id: 'ex-b', order_index: 1 }]);
-    await saveStudentEncrypted({ pseudonymId: 'stu-a', examId: 'exam-a', fallbackCode: 'A-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
-    await saveStudentEncrypted({ pseudonymId: 'stu-b', examId: 'exam-b', fallbackCode: 'B-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
+    await saveStudentEncrypted({ pseudonymHmac: 'stu-a', examId: 'exam-a', fallbackCode: 'A-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
+    await saveStudentEncrypted({ pseudonymHmac: 'stu-b', examId: 'exam-b', fallbackCode: 'B-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
 
     const { blob, report } = await packProject(testPassword, undefined, { examIds: ['exam-a'] });
     expect(count(report, 'exams', 'included')).toBe(1);
@@ -336,7 +340,8 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     const payload = await decryptArchive(new Uint8Array(await blob.arrayBuffer()), testPassword);
     expect(payload.exams.map((e: any) => e.id)).toEqual(['exam-a']);
     expect(payload.exercises.map((e: any) => e.id)).toEqual(['ex-a']);
-    expect(payload.students.map((s: any) => s.pseudonymId)).toEqual(['stu-a']);
+    // Keyed per exam in the archive (payload v5); the raw id travels sealed inside it.
+    expect(payload.students.map((s: any) => s.pseudonymRaw)).toEqual(['stu-a']);
   });
 
   it('links an exercise the account already owns on the server instead of copying it', async () => {
@@ -492,7 +497,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
 
 describe('GDPR Erasure & Retention', () => {
   beforeEach(async () => {
-    await db.students.clear();
+    await db.examStudents.clear();
     await db.submissions.clear();
     await db.auditLog.clear();
   });
@@ -501,8 +506,8 @@ describe('GDPR Erasure & Retention', () => {
     const studentId = 'student-to-erase';
     const examId = 'exam-gdpr-1';
 
-    await db.students.add({
-      pseudonymId: studentId,
+    await db.examStudents.add({
+      pseudonymHmac: studentId,
       examId,
       fallbackCode: 'F-123456',
       piiCt: new Uint8Array([5, 5, 5]),
@@ -512,15 +517,15 @@ describe('GDPR Erasure & Retention', () => {
     await db.submissions.add({
       id: 'sub-1',
       examId,
-      pseudonymHash: 'some-hash',
+      pseudonymHmac: 'some-hash',
       createdAt: new Date().toISOString(),
     });
 
-    const result = await eraseStudent(studentId, examId);
-    expect(result.pseudonymId).toBe(studentId);
+    const result = await eraseStudent({ examId, pseudonymHmac: studentId });
+    expect(result.pseudonymHmac).toBe(await keyFromRaw(examId, studentId));
 
     // Verify student is absent from IDB
-    const student = await db.students.get(studentId);
+    const student = await db.examStudents.get([examId, studentId]);
     expect(student).toBeUndefined();
 
     // Verify audit entry exists
@@ -534,12 +539,12 @@ describe('GDPR Erasure & Retention', () => {
     fakeServer.reset();
     storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
     const examId = 'exam-gdpr-2';
-    const hmac = await ensure64CharHex('student-on-server');
+    const hmac = await pseudonymBase('student-on-server');
     fakeServer.state.exams.set(examId, { id: examId, title: 'GDPR', created_at: new Date().toISOString() });
     fakeServer.state.students.set(examId, [{ pseudonym_hmac: hmac, exam_id: examId }]);
     fakeServer.state.submissions.set(examId, [{ id: 'sub-s', exam_id: examId, pseudonym_hmac: hmac }]);
 
-    const result = await eraseStudent('student-on-server', examId);
+    const result = await eraseStudent({ examId, pseudonymHmac: hmac, pseudonymVersion: 1 });
 
     expect(result.submissionsErased).toBe(1);
     expect(fakeServer.state.students.get(examId)).toEqual([]);

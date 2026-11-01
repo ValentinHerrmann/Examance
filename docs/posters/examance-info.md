@@ -58,6 +58,6 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 </div>
 
 <div class="cols band" style="gap:16px">
-<div class="card warn"><h3>Offen gesagt</h3><p>Sitzungsschlüssel in <code>sessionStorage</code>, solange der Tab entsperrt ist · LaTeX, Klausurmetadaten und Gesamtpunktzahl lesbar auf dem Server · Pseudonym-Kennung noch ungeschlüsselt (Verknüpfung über Klausuren möglich) · TOTP nicht Zero-Knowledge · pseudonym ist nicht anonym.</p></div>
+<div class="card warn"><h3>Offen gesagt</h3><p>Sitzungsschlüssel versiegelt in <code>sessionStorage</code>, solange der Tab entsperrt ist (Skript auf derselben Origin kann ihn nutzen) · LaTeX, Klausurmetadaten und Gesamtpunktzahl lesbar auf dem Server · TOTP nicht Zero-Knowledge · pseudonym ist nicht anonym.</p></div>
 <div class="card tint"><h3>Vor einem Einsatz</h3><p>Rechtsgrundlage, Aufbewahrungsfrist, Betriebsmodell (selbst, Dienstleister, privat), DSFA und Verzeichnis, Regel für private Geräte. Vorlagen liegen bei – Arbeitsvorlagen, keine Rechtsberatung. Vorschlag: erst ein begrenzter Pilot.</p></div>
 </div>

@@ -1,6 +1,6 @@
-# Keyed pseudonym HMAC (S3) and AAD on every codec (S11): design for sign-off
+# Keyed pseudonym HMAC (S3) and AAD on every codec (S11)
 
-Status: **proposal, not implemented.** Both change how existing grading data is sealed and addressed, including hybrid results that exist only in one browser, so they ship together, behind one migration, after sign-off.
+Status: **signed off 2026-10-31, implemented** (issues #177, #178). Both change how existing grading data is sealed and addressed, including hybrid results that exist only in one browser, so they shipped together. The design below is the signed-off proposal; "Implemented with these deltas" at the end lists where the code differs and why.
 
 ## Problem
 
@@ -49,3 +49,47 @@ Rollback: forward only. A failed run leaves exams at version 1, which still work
 
 - Unit: helper vectors (raw, old hash, 64-hex input), AAD round trips and legacy fallback per codec, rekey endpoint (pairs, 409, idempotence, gating).
 - Migration on both modes with a skipped `decryptFailed` row; mover and migration in two tabs (Web Lock); archive export on v1, import into another account on v2.
+
+## Implemented with these deltas
+
+An inventory of the code and an independent review against it changed the following; the key formula `HMAC(K_exam, sha256hex(raw))` stayed.
+
+- **Two helpers, never re-key a stored value** (`frontend/src/lib/crypto/pseudonymKey.ts`).
+  - `keyFromRaw(examId, raw)` is for fresh input (a QR code, a minted id).
+  - `joinKey(row)` is the stored value at version 2 and `keyFromRaw` of it at version 1. Every comparison across versions goes through it.
+  - `base()` keeps the old pass-through of any 64-character value, so rows older builds sent re-key to the same value as their raw id.
+  - Re-keying a stored version-2 value would double-key it: a GDPR erasure would delete nothing and report success. `ensure64CharHex` and `hmacPseudonymId` are gone.
+- **Versions per row, not per exam, in the browser.**
+  - `StudentRecord`/`SubmissionRecord` carry `pseudonymHmac` and `pseudonymVersion`; the raw value and its SHA-256 (`pseudonymRaw`, `pseudonymBase`) live only in the sealed payload.
+  - `ExamRecord.pseudonymVersion` is the server rows' version, since `examSync` overwrites the exam record from the server.
+  - Server responses for students and submissions report the exam's version, so a read never guesses.
+- **Dexie v12**, since v11 is the offline queue. Students move to `examStudents` keyed `[examId+pseudonymHmac]`: Dexie cannot change a primary key in place, and the old key collided across exams. Rows that cannot be keyed stay in `students` (quarantined, wiped with the vault).
+- **Student AAD only at version 2.** A version-1 student keeps no AAD, so the server-side rename never strands its payload; it gains the binding on its next ordinary write. The all-server re-key is rename-only: a re-seal POST could revive a student erased meanwhile.
+- **Server rekey** (`backend/app/services/pseudonyms.py`).
+  - `GET /exams/{id}/pseudonyms` lists every value, soft-deleted rows included, so a restore (issue #181) brings them back consistent.
+  - The rekey compare-and-sets the version first, which takes the exam row lock. It requires pairs that cover every value (422 `ERR_PSEUDONYM_PAIRS` otherwise) and ignores unknown `old` values.
+  - Migration `0048` recreates the identity FK with `ON UPDATE CASCADE`.
+- **Write guard: 422, not 409.** Student and submission uploads carry `pseudonym_version` (absent means 1) and answer `422 ERR_PSEUDONYM_VERSION` on a mismatch. The offline queue counts a POST 409 as applied and would drop the write; a 422 is reported as refused.
+- **Offline queue.**
+  - The all-server re-key runs inside the queue's Web Lock and rewrites queued writes of the exam: paths and bodies.
+  - A queued erasure would otherwise replay as a 404 that counts as done, and a queued upload would be refused.
+- **Other tabs** reload after a re-key (`bg_pseudonyms_rekeyed`, `stores/workspaceSync.ts`). Routes wait for the re-key behind the session gate (root layout and unlock page).
+- **Hybrid re-key** runs in one Dexie transaction per exam.
+  - It compares each stored payload with what it read and skips the exam on a change, retrying at the next unlock.
+  - A raw row and a hash row of the same student are merged: the one with more identity wins.
+  - Rows that do not open are never rewritten. `studentRepository.save()` and `submissionRepository.save()` store keyed rows only, so a record read before the re-key replaces its old row instead of duplicating it.
+- **Mover** (`services/resultsMover.ts`) takes the same Web Lock (`examance-pseudonym-rekey`). It re-keys the server exam (leftover copies included) before writing keyed rows there, verifies on join keys, and re-keys after the move.
+- **Resource AAD** is `resource:v1:<resource.id>`: `commit()`/`rename()` move rows to another exercise or name without re-sealing.
+- **Scans and annotations** go through `sealScan`/`openScan`/`sealAnnotation`/`openAnnotation` (AAD = the submission id). Ids are minted before sealing. `openPayload` tries AAD then the legacy form per key, so a legacy scan costs two passes, not six. The grade page refuses to save over annotations that do not open.
+- **Archives**, payload v5 (`archive/pseudonyms.ts`).
+  - They carry `keyId` plus the stored values, versions and, when known, the sealed raw and base values. The legacy fields `pseudonymId`/`pseudonymHash` repeat the value for older importers.
+  - An import re-keys after the exam ids are remapped:
+    - kept when the account and exam are the same;
+    - otherwise re-keyed from the base;
+    - otherwise kept as an opaque value on students and submissions alike, so the link stays.
+  - Conflicts match students on the keyed value.
+- **Known limits.**
+  - With no bulk re-seal, existing scans and records gain AAD only when written again.
+  - Exam, exercise and resource AAD protect only the browser cache, since the server holds those in plaintext.
+  - An archive keyed by another account without a base value imports opaque values: grading and statistics work, re-matching new QR scans of those students does not.
+  - `existingDataOpens` (`lib/db/workspace.ts`) still bare-decrypts: only pre-v10 workspaces reach it, and they hold no AAD rows.

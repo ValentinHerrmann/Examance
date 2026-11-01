@@ -372,7 +372,7 @@
 
   let totalPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints ?? 0), 0));
   let submissionsCount = $derived(submissions.length);
-  let studentsCount = $derived(new Set(submissions.map((s) => s.pseudonymHash)).size);
+  let studentsCount = $derived(new Set(submissions.map((s) => s.pseudonymHmac)).size);
   let gradedCount = $derived(
     submissions.filter((s) => typeof s.totalScore === "number" && !isNaN(s.totalScore)).length,
   );
@@ -587,7 +587,7 @@
     try {
       for (const sub of submissions) {
         await submissionRepository.delete(exam.id, sub.id);
-        await studentRepository.delete(exam.id, sub.pseudonymHash);
+        await studentRepository.delete(sub);
       }
       submissions = await submissionRepository.getByExamId(
         exam.id,

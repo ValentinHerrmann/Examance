@@ -7,7 +7,7 @@
   import SortHeaderCell from "#lib/components/scanning/SortHeaderCell.svelte";
   interface ScannedSubmissionItem {
     id: string;
-    pseudonymHash: string;
+    pseudonymHmac: string;
     fallbackCode: string;
     studentName?: string;
     studentNumber?: string;
@@ -106,7 +106,7 @@
               <td class="max-w-60 truncate font-semibold" title={$t("scanning.submissionsTable.submissionIdTitle", { id: item.id })}>
                 <CrossLink href={gradeHref(examId, { submissionId: item.id })} class="text-content">{item.studentName || $t("scanning.submissionsTable.unmatchedStudent")}</CrossLink>
               </td>
-              <td class="font-mono font-semibold text-accent" title={$t("scanning.submissionsTable.pseudonymTitle", { hash: item.pseudonymHash })}>
+              <td class="font-mono font-semibold text-accent" title={$t("scanning.submissionsTable.pseudonymTitle", { hash: item.pseudonymHmac })}>
                 {item.studentNumber || "—"}
               </td>
               <td>

@@ -5,7 +5,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Date, DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import JSON, Date, DateTime, Enum, ForeignKey, SmallInteger, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -33,6 +33,12 @@ class Exam(Base):
     )
     retention_until: Mapped[date] = mapped_column(Date, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Last time retention erased soft-deleted results of this (live) exam for good; reported by restore (issue #181).
+    results_purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # How this exam's server rows derive pseudonym_hmac: 1 = SHA-256 of the raw id, 2 = keyed per-exam HMAC (issue #177); changed only by the rekey endpoint.
+    pseudonym_version: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=1, server_default="1"
+    )
 
     testart: Mapped[str | None] = mapped_column(String(100), nullable=True)
     grade: Mapped[str | None] = mapped_column(String(50), nullable=True)

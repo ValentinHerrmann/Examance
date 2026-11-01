@@ -10,6 +10,7 @@ import { offlineQueue } from '../src/lib/services/offlineQueue';
 import { sessionStore } from '../src/lib/stores/session';
 import { storagePolicyStore } from '../src/lib/stores/storagePolicy';
 import { api } from '../src/lib/api/client';
+import { hkdfMasterKey } from './helpers/keys';
 
 vi.mock('../src/lib/api/client', () => ({
   api: {
@@ -34,7 +35,7 @@ async function aesKey(fill: number): Promise<CryptoKey> {
 const newSubmission = (): SubmissionRecord => ({
   id: 'sub-1',
   examId: EXAM,
-  pseudonymHash: 'a'.repeat(64),
+  pseudonymHmac: 'a'.repeat(64),
   createdAt: '2026-08-01T00:00:00Z',
 });
 
@@ -62,7 +63,7 @@ describe('saveSubmissionScores', () => {
     // Hybrid keeps results in IndexedDB.
     storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'local' });
     key = await aesKey(5);
-    await sessionStore.unlock({ masterKey: key, sessionKey: key, sessionNonce: new Uint8Array(12) });
+    await sessionStore.unlock({ masterKey: await hkdfMasterKey(), sessionKey: key, sessionNonce: new Uint8Array(12) });
     sub = newSubmission();
   });
 

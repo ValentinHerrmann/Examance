@@ -202,6 +202,7 @@ export const exam: Translations['exam'] = {
         custom: 'Custom',
         gradeLabel: 'Grade {grade}',
         from: 'From',
+        cutoffLabel: 'Minimum percentage for grade {grade}',
     },
     resultsOnly: {
         badge: 'Results only',

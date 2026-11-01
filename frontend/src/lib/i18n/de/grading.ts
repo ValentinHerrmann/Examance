@@ -6,6 +6,7 @@ export const grading = {
         scoresLoadFailed: 'Die gespeicherten Punkte dieser Abgabe konnten nicht geladen werden ({message}). Speichern ist gesperrt, bis sie geladen sind, damit keine Bewertung verloren geht.',
         submissionsLoadFailed: 'Die Abgaben dieser Prüfung konnten nicht geladen werden: {message}. Laden Sie die Seite neu.',
         scoresNotLoaded: 'Die Punkte dieser Abgabe werden noch geladen. Bitte gleich noch einmal speichern.',
+        annotationsUnreadable: 'Die Korrekturen dieser Abgabe lassen sich mit Ihrem Schlüssel nicht öffnen. Speichern ist gesperrt, damit sie nicht überschrieben werden.',
         unsavedNext: 'Es gibt ungespeicherte Anmerkungen für diesen Schüler. Trotzdem zum nächsten Schüler wechseln?',
         unsavedPrev: 'Es gibt ungespeicherte Anmerkungen für diesen Schüler. Trotzdem zum vorherigen Schüler wechseln?',
     },

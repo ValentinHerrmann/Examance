@@ -47,6 +47,7 @@
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
   import { pendingSwitchStore, switchOwnedHere, requestedModeSwitch } from "#lib/services/storageModeSwitch";
   import { loadWorkspace, localResultCount, openWorkspace, refreshCapabilities } from "#lib/db/workspace";
+  import { runPseudonymRekey } from "#lib/services/pseudonymRekey";
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
@@ -187,7 +188,9 @@
     if (restored && get(isUnlocked)) {
       const mode = get(sessionStore).mode;
       // Before routes read: the session must own this browser's workspace, and the account's storage mode comes from the server (lib/db/workspace.ts). Nothing here changes the mode.
-      await openWorkspace();
+      const workspace = await openWorkspace();
+      // Before routes read results: rows still keyed by SHA-256 move to the keyed per-exam HMAC (issue #177).
+      if (workspace.state === "ok") await runPseudonymRekey();
       await refreshLocalResults();
 
       // Keys are back, so release `awaitSessionReady()` routes before the token refresh below (that refresh is about the access cookie, not the vault; `client.ts` handles the race).

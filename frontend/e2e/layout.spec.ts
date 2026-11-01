@@ -276,8 +276,10 @@ test('[layout] account management fits every tab without sideways scrolling', as
   await visit(page, '/admin/users');
 
   const tabs = page.getByRole('tablist').getByRole('tab');
-  await expect(tabs).toHaveCount(4);
-  for (let i = 0; i < 4; i++) {
+  // Pending, accounts, invite, domains, layout reports and maintenance.
+  const TAB_COUNT = 6;
+  await expect(tabs).toHaveCount(TAB_COUNT);
+  for (let i = 0; i < TAB_COUNT; i++) {
     await tabs.nth(i).click();
     await page.waitForTimeout(300);
     const where = `admin tab ${i + 1}`;

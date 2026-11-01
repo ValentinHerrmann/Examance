@@ -316,6 +316,16 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       state.storageMode = body.mode;
       return ok(capabilities());
     }
+    // The fake purges for good, so a restore finds nothing; it reports no erased exams either.
+    if (method === 'POST' && action === 'restore-server-data') {
+      return ok({
+        status: 'ok',
+        restored_student_identities: 0,
+        restored_submissions: 0,
+        grace_days: 7,
+        purged_exams: [],
+      });
+    }
     if (method === 'POST' && action === 'purge-server-student-data') {
       let students = 0;
       let submissions = 0;
@@ -763,6 +773,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       topic: null,
       latex_packages: null,
       page_breaks: null,
+      pseudonym_version: 1,
       ...exam,
       exercises,
       mc_groups: mcGroups,
@@ -909,6 +920,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       title: `${source.title} (Kopie)`,
       page_breaks: source.page_breaks?.map((item: string) => groupMap.get(item) ?? item) ?? null,
       retention_until: body?.retention_until ?? source.retention_until,
+      pseudonym_version: body?.pseudonym_version ?? 1,
       compilation_status: 'pending',
       created_at: now(),
     });
@@ -925,13 +937,43 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   /* Results (all-server): students, submissions, scores                       */
   /* ------------------------------------------------------------------------ */
 
+  /** The exam's pseudonym version (issue #177): what its rows report, and what a write must match. */
+  const versionOf = (examId: string): number => state.exams.get(examId)?.pseudonym_version ?? 1;
+  const wrongVersion = (examId: string, body: any) =>
+    (body?.pseudonym_version ?? 1) !== versionOf(examId)
+      ? fail(422, "This exam's pseudonyms were re-keyed; reload the page and try again.", 'ERR_PSEUDONYM_VERSION')
+      : undefined;
+
   const studentResponse = (student: any) => ({
     pseudonym_hmac: student.pseudonym_hmac,
     exam_id: student.exam_id,
     pii_ciphertext_b64: student.pii_ciphertext_b64,
     iv_b64: student.iv_b64,
     encryption_salt_b64: student.encryption_salt_b64,
+    pseudonym_version: versionOf(student.exam_id),
   });
+
+  /** `GET /exams/{id}/pseudonyms` and `POST …/rekey`, as `services/pseudonyms.py` does them. */
+  function pseudonyms(method: string, examId: string, rest: string[], body: any): Handled {
+    const values = () => [
+      ...new Set([
+        ...(state.students.get(examId) ?? []).map((row) => row.pseudonym_hmac),
+        ...(state.submissions.get(examId) ?? []).map((row) => row.pseudonym_hmac),
+      ]),
+    ];
+    if (method === 'GET' && rest.length === 0) return ok({ pseudonym_version: versionOf(examId), values: values().sort((a, b) => a.localeCompare(b)) });
+    if (method !== 'POST' || rest[0] !== 'rekey') return undefined;
+    const exam = state.exams.get(examId)!;
+    if (versionOf(examId) === body.to_version) return ok({ changed: false, pseudonym_version: body.to_version, renamed: 0 });
+    if (versionOf(examId) !== body.from_version) return conflict('The exam\'s pseudonym version changed meanwhile.');
+    const renames = new Map<string, string>((body.pairs ?? []).map((p: any) => [p.old, p.new]));
+    if (values().some((v) => !renames.has(v))) return fail(422, 'The pairs do not cover every pseudonym of the exam.', 'ERR_PSEUDONYM_PAIRS');
+    for (const row of [...(state.students.get(examId) ?? []), ...(state.submissions.get(examId) ?? [])]) {
+      row.pseudonym_hmac = renames.get(row.pseudonym_hmac) ?? row.pseudonym_hmac;
+    }
+    exam.pseudonym_version = body.to_version;
+    return ok({ changed: true, pseudonym_version: body.to_version, renamed: values().length });
+  }
 
   function students(method: string, examId: string, rest: string[], body: any): Handled {
     const [hmac] = rest;
@@ -939,6 +981,8 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (!hmac) {
       if (method === 'GET') return ok(rows.map(studentResponse));
       if (method === 'POST') {
+        const refused = wrongVersion(examId, body);
+        if (refused) return refused;
         // Upsert on (exam, pseudonym): the same pupil scanned twice must not duplicate.
         const record = {
           pseudonym_hmac: body.pseudonym_hmac,
@@ -972,6 +1016,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     id: sub.id,
     exam_id: sub.exam_id,
     pseudonym_hmac: sub.pseudonym_hmac,
+    pseudonym_version: versionOf(sub.exam_id),
     total_score: sub.total_score ?? null,
     scan_ciphertext_b64: withScan ? (sub.scan_ciphertext_b64 ?? null) : null,
     scan_iv_b64: withScan ? (sub.scan_iv_b64 ?? null) : null,
@@ -1035,6 +1080,8 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         return ok(rows.map((sub) => submissionResponse(sub, withScans)));
       }
       if (method !== 'POST') return undefined;
+      const refused = wrongVersion(examId, body);
+      if (refused) return refused;
       // A submission for an unknown pseudonym gets a placeholder identity, as the real endpoint does.
       const identities = state.students.get(examId) ?? [];
       if (!identities.some((row) => row.pseudonym_hmac === body.pseudonym_hmac)) {
@@ -1139,6 +1186,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (sub === 'logo' && rest[0] === 'file' && method === 'GET') return notFound('No logo.');
     if (sub === 'students') return students(method, id, rest, body);
     if (sub === 'submissions') return submissions(method, id, rest, query, body);
+    if (sub === 'pseudonyms') return pseudonyms(method, id, rest, body);
     if (sub === 'scores' && method === 'GET' && rest.length === 0) {
       const live = new Set((state.submissions.get(id) ?? []).map((row) => row.id));
       return ok([...live].flatMap((subId) => (state.scores.get(subId) ?? []).map(scoreResponse)));
@@ -1199,6 +1247,19 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         state.adminDomains = state.adminDomains.filter((d) => d.id !== id);
         return noContent();
       }
+    }
+    // The reports and maintenance tabs: nothing reported, no window open.
+    if (resource === 'layout-reports' && method === 'GET' && !id) return ok({ items: [], total: 0, open_count: 0 });
+    if (resource === 'maintenance' && method === 'GET' && !id) {
+      return ok({
+        status: { phase: 'none', kind: null, downtime_class: null, revision: null, first_warning_at: null, second_warning_at: null, starts_at: null, server_time: new Date().toISOString() },
+        backup_wanted: false,
+        backup_state: null,
+        backup_file: null,
+        backup_finished_at: null,
+        offsite_state: null,
+        counts: { online: 1, warned: 0, ready: 0 },
+      });
     }
     return undefined;
   }
