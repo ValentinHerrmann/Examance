@@ -44,14 +44,14 @@
   import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
-  async function handleExportStudent(pseudonymId: string, examId: string) {
+  async function handleExportStudent(student: StudentRecord) {
     statusMsg = "";
     try {
-      const data = await exportStudentData(pseudonymId, examId);
+      const data = await exportStudentData(student);
       const url = URL.createObjectURL(toDownloadableJson(data));
       const link = document.createElement("a");
       link.href = url;
-      link.download = `auskunft-${pseudonymId.slice(0, 8)}.json`;
+      link.download = `auskunft-${data.pseudonymHmac.slice(0, 8)}.json`;
       link.click();
       URL.revokeObjectURL(url);
       statusMsg = translate("settings.status.exportDownloaded");
@@ -128,15 +128,15 @@
     });
   }
 
-  async function handleEraseStudent(pseudonymId: string, examId: string) {
+  async function handleEraseStudent(student: StudentRecord) {
     if (!confirm(translate("settings.alerts.eraseStudentConfirm"))) return;
     isErasing = true;
     try {
-      const result = await eraseStudent(pseudonymId, examId);
-      students = students.filter((s) => s.pseudonymId !== pseudonymId);
+      const result = await eraseStudent(student);
+      students = students.filter((s) => s !== student);
       statusMsg = translate(
         result.status === "pending" ? "settings.status.studentErasurePending" : "settings.status.studentErased",
-        { id: pseudonymId },
+        { id: result.pseudonymHmac.slice(0, 8) },
       );
     } catch (err: any) {
       alert(translate("settings.alerts.eraseFailed", { message: err.message }));

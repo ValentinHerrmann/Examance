@@ -8,16 +8,16 @@ import { currentKeyId } from '#lib/services/keyEnvelopeService';
 import { examRepository } from './examRepository';
 import type { StudentRecord } from '#lib/db/schema';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
-import { ensure64CharHex } from '#lib/crypto/hmac';
+import { joinKey, pseudonymBase, serverVersion } from '#lib/crypto/pseudonymKey';
 
 /** A student row as `GET /exams/{id}/students` returns it, still sealed. */
 export function mapApiToStudentRecord(st: any, fallbackExamId: string): StudentRecord {
   const payloadCt = st.pii_ciphertext_b64 ? base64ToUint8Array(st.pii_ciphertext_b64) : undefined;
   const payloadIv = st.iv_b64 ? base64ToUint8Array(st.iv_b64) : undefined;
   return {
-    pseudonymId: st.pseudonym_hmac || st.pseudonymId,
+    pseudonymHmac: st.pseudonym_hmac,
+    pseudonymVersion: serverVersion(st),
     examId: st.exam_id || fallbackExamId,
-    fallbackCode: st.fallback_code || st.fallbackCode,
     piiCt: payloadCt || new Uint8Array(0),
     piiIv: payloadIv || new Uint8Array(12),
     payloadCt,
@@ -28,8 +28,11 @@ export function mapApiToStudentRecord(st: any, fallbackExamId: string): StudentR
 /** The `POST /exams/{id}/students` body for a decrypted student; seals the identity under `key`. */
 export async function studentServerPayload(student: StudentRecord, key: CryptoKey | null) {
   const encrypted = await encryptStudent(student, key);
+  const version = student.pseudonymVersion ?? 1;
   return {
-    pseudonym_hmac: await ensure64CharHex(student.pseudonymId),
+    // A version-1 value is sent as older builds did: its SHA-256 form.
+    pseudonym_hmac: version === 2 ? student.pseudonymHmac : await pseudonymBase(student.pseudonymHmac),
+    pseudonym_version: version,
     pii_ciphertext_b64: encrypted.payloadCt ? uint8ArrayToBase64(encrypted.payloadCt) : uint8ArrayToBase64(student.piiCt),
     iv_b64: encrypted.payloadIv ? uint8ArrayToBase64(encrypted.payloadIv) : uint8ArrayToBase64(student.piiIv),
     // Not an Argon2id salt: ciphertext is sealed under HKDF(dataKey, sessionNonce). These 16 bytes record *which data-key generation* sealed it, so a later key rotation is diagnosable rather than silently unreadable (formerly 16 hardcoded zero bytes).
@@ -37,10 +40,24 @@ export async function studentServerPayload(student: StudentRecord, key: CryptoKe
   };
 }
 
+/** A version-1 record as its version-2 form, for this browser's store; the raw value moves into the sealed payload. */
+async function asKeyed(student: StudentRecord): Promise<StudentRecord> {
+  if (student.pseudonymVersion === 2) return student;
+  const stored = student.pseudonymHmac;
+  return {
+    ...student,
+    pseudonymHmac: await joinKey(student),
+    pseudonymVersion: 2,
+    // A 64-character value may be a hash already; only a shorter one is certainly the raw id.
+    pseudonymRaw: student.pseudonymRaw ?? (stored.length === 64 ? undefined : stored),
+    pseudonymBase: student.pseudonymBase ?? (await pseudonymBase(stored)),
+  };
+}
+
 export const studentRepository = {
   async getAll(key: CryptoKey | null): Promise<StudentRecord[]> {
     if (resultsAreLocal()) {
-      const raw = await db.students.toArray();
+      const raw = await db.examStudents.toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
       // Per exam: no endpoint lists "every student" (the router is at /exams/{id}/students). A failed read throws; an empty list would let erasure and .bgproj exports run on partial data.
@@ -55,7 +72,7 @@ export const studentRepository = {
 
   async getByExamId(examId: string, key: CryptoKey | null): Promise<StudentRecord[]> {
     if (resultsAreLocal()) {
-      const raw = await db.students.where('examId').equals(examId).toArray();
+      const raw = await db.examStudents.where('examId').equals(examId).toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
       // all-server holds nothing locally, so a local fallback would be a silent empty list: a failed read throws and the caller reports it. silentError because callers show their own error.
@@ -63,83 +80,67 @@ export const studentRepository = {
       const serverStudents = await Promise.all(
         rawList.map((st: any) => decryptStudent(mapApiToStudentRecord(st, examId), key))
       );
-      const localRaw = await db.students.where('examId').equals(examId).toArray();
+      // Leftovers of a former hybrid browser fill in names the server copy lacks; rows meet on their join key, whatever version each was stored at.
+      const localRaw = await db.examStudents.where('examId').equals(examId).toArray();
       const localStudents = await Promise.all(localRaw.map((st) => decryptStudent(st, key)));
-      const combinedMap = new Map<string, StudentRecord>();
-      const hmacToKeyMap = new Map<string, string>();
-
-      for (const st of serverStudents) {
-        combinedMap.set(st.pseudonymId, st);
-        hmacToKeyMap.set(st.pseudonymId, st.pseudonymId);
-      }
-
+      const byKey = new Map<string, StudentRecord>();
+      for (const st of serverStudents) byKey.set(await joinKey(st), st);
       for (const st of localStudents) {
-        const localHmac = await ensure64CharHex(st.pseudonymId);
-        const existingKey = combinedMap.has(st.pseudonymId)
-          ? st.pseudonymId
-          : hmacToKeyMap.get(localHmac);
-
-        if (!existingKey) {
-          combinedMap.set(st.pseudonymId, st);
-          hmacToKeyMap.set(localHmac, st.pseudonymId);
-        } else {
-          const existing = combinedMap.get(existingKey)!;
-          const merged: StudentRecord = {
-            ...existing,
-            pseudonymId: st.pseudonymId || existing.pseudonymId,
-            studentName: st.studentName || existing.studentName,
-            studentNumber: st.studentNumber || existing.studentNumber,
-            fallbackCode: st.fallbackCode || existing.fallbackCode,
-          };
-          combinedMap.delete(existingKey);
-          combinedMap.set(merged.pseudonymId, merged);
-          hmacToKeyMap.set(localHmac, merged.pseudonymId);
-        }
+        const k = await joinKey(st);
+        const existing = byKey.get(k);
+        byKey.set(
+          k,
+          existing
+            ? {
+                ...existing,
+                studentName: st.studentName || existing.studentName,
+                studentNumber: st.studentNumber || existing.studentNumber,
+                fallbackCode: st.fallbackCode || existing.fallbackCode,
+                pseudonymRaw: st.pseudonymRaw || existing.pseudonymRaw,
+              }
+            : st
+        );
       }
-      return Array.from(combinedMap.values());
+      return Array.from(byKey.values());
     }
   },
 
   async save(student: StudentRecord, key: CryptoKey | null): Promise<void> {
-    // `encrypted` deliberately carries no plaintext identity fields — see encryptStudent(). Anything that needs the name reads it back through decryptStudent().
-    const encrypted = await encryptStudent(student, key);
     const policy = get(storagePolicyStore);
 
     // In all-server mode nothing about a pupil is supposed to persist on this device. The local write used to happen before this check, so it did.
     if (policy.storageMode !== 'all-server') {
-      await db.students.put(encrypted);
+      // This browser stores keyed rows only; a record read before the re-key replaces its old row instead of duplicating it.
+      const keyed = await asKeyed(student);
+      // `encrypted` deliberately carries no plaintext identity fields — see encryptStudent(). Anything that needs the name reads it back through decryptStudent().
+      const encrypted = await encryptStudent(keyed, key);
+      await db.transaction('rw', db.examStudents, async () => {
+        if (keyed.pseudonymHmac !== student.pseudonymHmac) {
+          await db.examStudents.delete([student.examId, student.pseudonymHmac]);
+        }
+        await db.examStudents.put(encrypted);
+      });
+      return;
     }
 
-    if (policy.storageMode === 'all-server') {
-      const payload = await studentServerPayload(student, key);
-      try {
-        await api.post(`/exams/${student.examId}/students`, payload, { silentError: true });
-      } catch (err) {
-        enqueueOrThrow(err, `/exams/${student.examId}/students`, 'POST', payload);
-      }
+    const payload = await studentServerPayload(student, key);
+    try {
+      await api.post(`/exams/${student.examId}/students`, payload, { silentError: true });
+    } catch (err) {
+      enqueueOrThrow(err, `/exams/${student.examId}/students`, 'POST', payload);
     }
   },
 
-  /** Students live per exam on the server (`/exams/{id}/students/{hmac}`); there is no exam-less route (F12). */
-  async delete(examId: string, pseudonymId: string): Promise<void> {
-    const pseudonymHmac = await ensure64CharHex(pseudonymId);
+  /** Deletes the student a stored record names (`pseudonymHmac` as stored, never re-keyed). Students live per exam on the server (`/exams/{id}/students/{hmac}`); there is no exam-less route (F12). */
+  async delete(student: Pick<StudentRecord, 'examId' | 'pseudonymHmac' | 'pseudonymVersion'>): Promise<void> {
+    const { examId } = student;
+    const target = await joinKey(student);
 
-    // Delete locally from IndexedDB in all modes to keep local state clean
-    await db.students.delete(pseudonymId);
-    await db.students.delete(pseudonymHmac);
-
-    // Also search local students by examId or full list to catch raw UUID keys matching the HMAC
+    // Locally in all modes, every row of this exam that stands for the same student.
     try {
-      const candidates = await db.students.where('examId').equals(examId).toArray();
+      const candidates = await db.examStudents.where('examId').equals(examId).toArray();
       for (const st of candidates) {
-        if (!st.pseudonymId) continue;
-        if (
-          st.pseudonymId === pseudonymId ||
-          st.pseudonymId === pseudonymHmac ||
-          (await ensure64CharHex(st.pseudonymId)) === pseudonymHmac
-        ) {
-          await db.students.delete(st.pseudonymId);
-        }
+        if ((await joinKey(st)) === target) await db.examStudents.delete([st.examId, st.pseudonymHmac]);
       }
     } catch (err) {
       console.warn('Failed to clean up matching student records from IndexedDB:', err);
@@ -147,7 +148,9 @@ export const studentRepository = {
 
     const policy = get(storagePolicyStore);
     if (policy.storageMode === 'all-server') {
-      const url = `/exams/${examId}/students/${pseudonymHmac}`;
+      const serverValue =
+        (student.pseudonymVersion ?? 1) === 2 ? student.pseudonymHmac : await pseudonymBase(student.pseudonymHmac);
+      const url = `/exams/${examId}/students/${serverValue}`;
       try {
         await api.delete(url, { silentError: true });
       } catch (err) {

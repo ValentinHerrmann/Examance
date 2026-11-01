@@ -7,10 +7,9 @@
   import type { SubmissionRecord, ExerciseRecord } from "#lib/db/schema";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { sessionStore } from "#lib/stores/session";
-  import { decrypt } from "#lib/crypto/aesGcm";
   import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
   import { recalculateAutoScores } from "#lib/grading/autoScore";
-  import { loadLocalMcGroups } from "#lib/db/dbEncryption";
+  import { loadLocalMcGroups, openAnnotation, openScan } from "#lib/db/dbEncryption";
   import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
   import { drawOmrOverlayForPage } from "#lib/grading/omrOverlay";
   import { drawStrokes } from "#lib/grading/strokeRenderer";
@@ -142,7 +141,7 @@
 
   async function decryptAnnotations(sub: SubmissionRecord): Promise<Uint8Array | null> {
     if (!sub.annotationCt || !sub.annotationIv || !$sessionStore.sessionKey) return null;
-    return decrypt($sessionStore.sessionKey, sub.annotationCt, sub.annotationIv, $sessionStore.fallbackSessionKey);
+    return openAnnotation(sub.id, sub.annotationCt, sub.annotationIv, $sessionStore.sessionKey, $sessionStore.fallbackSessionKey);
   }
 
   async function loadSubmissionCanvas(sub: SubmissionRecord) {
@@ -185,12 +184,7 @@
     }
 
     try {
-      const decryptedBytes = await decrypt(
-        $sessionStore.sessionKey,
-        sub.scanCt,
-        sub.scanIv,
-        $sessionStore.fallbackSessionKey
-      );
+      const decryptedBytes = await openScan(sub.id, sub.scanCt, sub.scanIv, $sessionStore.sessionKey, $sessionStore.fallbackSessionKey);
       if (seq !== loadSeq) return;
 
       // Detect format: PDF or PNG

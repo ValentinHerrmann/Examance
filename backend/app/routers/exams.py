@@ -29,9 +29,13 @@ from app.schemas.exam import (
     ExamResponse,
     ExamUpdate,
     ExerciseResponse,
+    PseudonymList,
+    PseudonymRekey,
+    PseudonymRekeyResult,
 )
 from app.schemas.latex_packages import LatexPackageEntry
 from app.services import audit as audit_svc
+from app.services.capabilities import require_server_results_writable
 from app.services.exam_queries import (
     ExerciseRow,
     exam_response,
@@ -44,6 +48,7 @@ from app.services.exam_queries import (
 )
 from app.services.latex_score import parse_exercise_score
 from app.services.logo import get_exam_logo
+from app.services.pseudonyms import exam_pseudonyms, rekey
 
 router = APIRouter(prefix="/exams", tags=["exams"], dependencies=[Depends(get_teaching_teacher)])
 
@@ -206,6 +211,7 @@ async def create_exam(
     kwargs = {
         **{name: getattr(body, name) for name in ("title", "retention_until", *_HEADER_FIELDS)},
         "teacher_id": teacher.id,
+        "pseudonym_version": body.pseudonym_version,
         "latex_packages": _packages_column(body.latex_packages),
         "page_breaks": body.page_breaks,
         "extra_notes": body.extra_notes.model_dump() if body.extra_notes else None,
@@ -315,6 +321,7 @@ async def duplicate_exam(
         teacher_id=teacher.id,
         title=f"{source.title} (Kopie)"[:500],
         retention_until=body.retention_until,
+        pseudonym_version=body.pseudonym_version,
         **{name: copy.deepcopy(getattr(source, name)) for name in _COPIED_FIELDS},
     )
     db.add(exam)
@@ -474,3 +481,28 @@ async def delete_exam(
         .where(ScanSubmission.exam_id == exam.id, ScanSubmission.deleted_at.is_(None))
         .values(deleted_at=now, retention_until=grace_deadline)
     )
+
+
+@router.get("/{exam_id}/pseudonyms")
+async def list_exam_pseudonyms(
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> PseudonymList:
+    """Every pseudonym value of the exam, soft-deleted rows included, and their version: the input of a client-side rekey (issue #177). Reads are never gated."""
+    return PseudonymList(
+        pseudonym_version=exam.pseudonym_version,
+        values=sorted(await exam_pseudonyms(db, exam.id)),
+    )
+
+
+@router.post(
+    "/{exam_id}/pseudonyms/rekey",
+    dependencies=[Depends(require_server_results_writable)],
+)
+async def rekey_exam_pseudonyms(
+    body: PseudonymRekey,
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> PseudonymRekeyResult:
+    """Renames every pseudonym of the exam to the client's keyed HMAC and moves its version (issue #177). Compare-and-set on `from_version`; `changed: false` when already done; 422 unless the pairs cover every value."""
+    return await rekey(db, exam.id, body)

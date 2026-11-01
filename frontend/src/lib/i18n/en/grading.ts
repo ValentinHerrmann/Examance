@@ -8,6 +8,7 @@ export const grading: Translations['grading'] = {
         scoresLoadFailed: "This submission's saved scores could not be loaded ({message}). Saving is blocked until they load, so no grading is lost.",
         submissionsLoadFailed: 'The submissions of this exam could not be loaded: {message}. Reload the page.',
         scoresNotLoaded: "This submission's scores are still loading. Please save again in a moment.",
+        annotationsUnreadable: "This submission's corrections do not open with your key. Saving is blocked so they are not overwritten.",
         unsavedNext: 'There are unsaved annotations for this student. Switch to the next student anyway?',
         unsavedPrev: 'There are unsaved annotations for this student. Switch to the previous student anyway?',
     },

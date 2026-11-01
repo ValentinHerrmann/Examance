@@ -13,11 +13,12 @@
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
+    openAnnotation,
+    sealAnnotation,
   } from "#lib/db/dbEncryption";
   import { calculateGradeDetail } from "#lib/analytics/gradingKey";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
-  import { decrypt, encrypt } from "#lib/crypto/aesGcm";
   import { get } from "svelte/store";
   import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
   import { isMcQuestion } from "#lib/grading/mcScore";
@@ -131,7 +132,16 @@
     if (seq !== loadSeq) return;
 
     // Check strokes/annotations for exercises with active stamps. Read them from `sub` itself: the canvas loads the new submission's strokes asynchronously, so the store still holds the previous student's strokes at this point.
-    const subStrokes = await loadStrokesFor(sub);
+    let subStrokes: VectorStroke[];
+    try {
+      subStrokes = await loadStrokesFor(sub);
+    } catch (err) {
+      if (seq !== loadSeq) return;
+      console.error("[grade] annotations did not open:", err);
+      loadedScores = new Map();
+      scoresLoadError = translate("grading.page.annotationsUnreadable");
+      return;
+    }
     if (seq !== loadSeq) return;
     const exerciseIdsWithStrokes = new Set<string>();
     for (const stroke of subStrokes) {
@@ -163,15 +173,12 @@
   /** Set when the submission list failed to load: shown instead of the "no submissions" text. */
   let submissionsLoadError = $state("");
 
+  /** @throws when the stored layer does not open: reading it as "no strokes" would let a save drop stamp-derived scores. */
   async function loadStrokesFor(sub: SubmissionRecord): Promise<VectorStroke[]> {
     const { sessionKey, fallbackSessionKey } = get(sessionStore);
     if (!sub.annotationCt || !sub.annotationIv || !sessionKey) return [];
-    try {
-      const bytes = await decrypt(sessionKey, sub.annotationCt, sub.annotationIv, fallbackSessionKey);
-      return JSON.parse(new TextDecoder().decode(bytes));
-    } catch {
-      return [];
-    }
+    const bytes = await openAnnotation(sub.id, sub.annotationCt, sub.annotationIv, sessionKey, fallbackSessionKey);
+    return JSON.parse(new TextDecoder().decode(bytes));
   }
 
   function handleSubmissionHydrated(fullSub: SubmissionRecord) {
@@ -208,11 +215,8 @@
       }
       if (ownsStrokes && strokes.length > 0) {
         const annJson = JSON.stringify(strokes);
-        const encAnn = await encrypt(
-          $sessionStore.sessionKey,
-          new TextEncoder().encode(annJson),
-        );
-        sub.annotationCt = encAnn.ciphertext;
+        const encAnn = await sealAnnotation(sub.id, new TextEncoder().encode(annJson), $sessionStore.sessionKey);
+        sub.annotationCt = encAnn.ct;
         sub.annotationIv = encAnn.iv;
       } else if (ownsStrokes) {
         sub.annotationCt = undefined;

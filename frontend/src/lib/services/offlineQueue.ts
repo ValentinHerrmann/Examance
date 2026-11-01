@@ -204,6 +204,28 @@ async function replayExclusively(): Promise<void> {
   });
 }
 
+/** Runs `op` while no tab replays the queue (the replay's own Web Lock), on a freshly read queue, and waits until its rewrites are stored; for the pseudonym re-key (issue #177). Never call `flushOfflineQueue` inside `op`: it waits for this lock. */
+export async function withQueueHeld<T>(op: () => Promise<T>): Promise<T> {
+  const run = async () => {
+    await hydrate();
+    const result = await op();
+    await persisting;
+    return result;
+  };
+  if (typeof navigator === 'undefined' || !navigator.locks) return run();
+  return navigator.locks.request('examance-offline-queue', run);
+}
+
+/** Rewrites queued writes in place, keeping their id and order; `next` returns the new url and body, or null to leave an entry. */
+export function rewriteQueued(next: (req: QueuedRequest) => Pick<QueuedRequest, 'url' | 'body'> | null): void {
+  offlineQueue.update((q) =>
+    q.map((req) => {
+      const changed = next(req);
+      return changed ? { ...req, ...changed } : req;
+    })
+  );
+}
+
 let flushing: Promise<void> | null = null;
 
 /** Replays the current workspace's queued writes in order; concurrent callers share one run. */

@@ -3,6 +3,7 @@
 import { derived, writable } from 'svelte/store';
 import { WORKSPACE_ID_KEY } from '#lib/db/workspace';
 import { MODE_CHANGED_KEY, PENDING_KEY, switchOwnedHere } from '#lib/services/storageModeSwitch';
+import { REKEYED_KEY } from '#lib/services/pseudonymRekey';
 
 /** A switch is pending somewhere (this tab's own store is not told about other tabs' writes). */
 const switchPending = writable(false);
@@ -23,8 +24,8 @@ export function registerWorkspaceSync(): void {
 
   window.addEventListener('storage', (event) => {
     const changed = event.newValue !== event.oldValue;
-    if ((event.key === WORKSPACE_ID_KEY || event.key === MODE_CHANGED_KEY) && changed) {
-      // Another tab replaced the workspace or changed the account's mode: nothing in this tab's memory is valid any more.
+    if ((event.key === WORKSPACE_ID_KEY || event.key === MODE_CHANGED_KEY || event.key === REKEYED_KEY) && changed) {
+      // Another tab replaced the workspace, changed the account's mode or re-keyed the pseudonyms (issue #177): nothing in this tab's memory is valid any more.
       window.location.reload();
       return;
     }

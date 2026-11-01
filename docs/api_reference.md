@@ -185,6 +185,8 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. |
 | `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job, which also erases the exam row and its scan files once that period has passed. |
 | `POST` | `/api/v1/exams/{exam_id}/duplicate` | Duplicate Exam | Yes | Body `{"retention_until"}`. Creates a new exam titled "… (Kopie)" with the same header fields, settings, logo override, MC groups (new ids), page breaks (following those ids) and links to the same library exercises (a legacy exam-bound exercise gets its own copy). Never copies students, submissions or scores; `compilation_status` starts at `pending`. Rate limit 60/hour. |
+| `GET` | `/api/v1/exams/{exam_id}/pseudonyms` | Exam Pseudonyms | Yes | `{pseudonym_version, values}`: every pseudonym value of the exam, soft-deleted rows included, as input for the client-side rekey (issue #177). |
+| `POST` | `/api/v1/exams/{exam_id}/pseudonyms/rekey` | Rekey Exam Pseudonyms | Yes | `{from_version, to_version, pairs: [{old, new}]}`: renames every identity and submission of the exam and moves its `pseudonym_version`; see "Keyed per exam" below. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
 | `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
 | `GET` | `/api/v1/exams/{exam_id}/logo/file` | Exam Logo File | Yes | Bytes of the logo the exam prints; 404 when it prints none. |
@@ -262,13 +264,20 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 > identities, so erasure removes the record for the named exam only. This also allows a
 > workspace archive to be imported into a different account on the same server.
 >
-> **Known gap.** The per-exam derivation described above is not yet implemented on the
-> client: `ensure64CharHex()` (`frontend/src/lib/crypto/hmac.ts`) currently computes an
-> unkeyed SHA-256 of the raw pseudonym UUID, with no exam secret mixed in. The correct
-> helper (`hmacPseudonymId()`) exists but has no call sites. Until that is wired up, the
-> same pupil UUID produces the same `pseudonym_hmac` in every exam, so the server could in
-> principle correlate a pupil across exams. Fixing it requires a re-keying strategy, since
-> the server cannot re-derive the values itself.
+> **Keyed per exam (issue #177).** `pseudonym_hmac` is `HMAC(K_exam, SHA-256(raw))` with
+> `K_exam` derived in the browser from the account's data key and the exam id, so the same
+> pupil gets an unrelated value in every exam and the server cannot test a guessed name. An
+> exam's `pseudonym_version` (in `ExamResponse`, and on every student and submission
+> response) says how its rows were derived: 1 = the older unkeyed SHA-256, 2 = keyed. Student
+> and submission uploads send `pseudonym_version` (absent means 1); a mismatch with the exam
+> answers `422 ERR_PSEUDONYM_VERSION` (not 409, which the offline queue would count as applied).
+> `GET /exams/{exam_id}/pseudonyms` lists the version and every value, soft-deleted rows
+> included; `POST /exams/{exam_id}/pseudonyms/rekey` `{from_version, to_version, pairs: [{old,
+> new}]}` renames them in one transaction: compare-and-set on `from_version` (`409
+> ERR_PSEUDONYM_VERSION_CHANGED`; `{changed: false}` when already at `to_version`), and `422
+> ERR_PSEUDONYM_PAIRS` unless the pairs cover every value. Gated like other result writes. The
+> client runs it after unlock (`frontend/src/lib/services/pseudonymRekey.ts`); details in
+> `docs/dev/pseudonym_hmac_and_aad.md`.
 
 #### Student Identity Payload
 ```json

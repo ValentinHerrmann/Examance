@@ -3,6 +3,7 @@ import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import type { ExerciseScoreRecord, OmrScoreMeta, StudentRecord, SubmissionRecord } from '#lib/db/schema';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
+import { pseudonymFor } from '#lib/services/pseudonymRekey';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
@@ -88,9 +89,9 @@ export async function createStudentWithSubmission(
   identity: Pick<StudentRecord, 'studentName' | 'studentNumber' | 'fallbackCode'>,
 ): Promise<{ student: StudentRecord; submission: SubmissionRecord }> {
   const key = get(sessionStore).sessionKey;
-  const pseudonymId = crypto.randomUUID();
+  const pseudonym = await pseudonymFor(examId, crypto.randomUUID());
   const student: StudentRecord = {
-    pseudonymId,
+    ...pseudonym,
     examId,
     ...identity,
     piiCt: new Uint8Array(0),
@@ -100,7 +101,8 @@ export async function createStudentWithSubmission(
   const submission: SubmissionRecord = {
     id: crypto.randomUUID(),
     examId,
-    pseudonymHash: pseudonymId,
+    pseudonymHmac: pseudonym.pseudonymHmac,
+    pseudonymVersion: pseudonym.pseudonymVersion,
     createdAt: new Date().toISOString(),
   };
   await submissionRepository.save(submission, key);

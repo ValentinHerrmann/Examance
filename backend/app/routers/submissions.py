@@ -26,6 +26,7 @@ from app.models.student_identity import StudentIdentity
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
 from app.services.capabilities import require_server_results_writable
+from app.services.pseudonyms import require_pseudonym_version
 from app.services.scan_storage import has_scan, load_scan, store_scan
 
 
@@ -61,13 +62,18 @@ LiveSubmission = Annotated[ScanSubmission, Depends(_live_submission)]
 
 
 def _to_response(
-    sub: ScanSubmission, *, scan_present: bool | None = None, **overrides: Any
+    sub: ScanSubmission,
+    *,
+    pseudonym_version: int,
+    scan_present: bool | None = None,
+    **overrides: Any,
 ) -> SubmissionResponse:
-    """A submission without scan bytes; *overrides* add them or replace a field. Pass *scan_present* when known: `has_scan` reads a deferred column, which a fresh row lacks."""
+    """A submission without scan bytes; *overrides* add them or replace a field. Pass *scan_present* when known: `has_scan` reads a deferred column, which a fresh row lacks. *pseudonym_version* is the exam's, so a client never guesses how the value was keyed."""
     return SubmissionResponse(
         id=sub.id,
         exam_id=sub.exam_id,
         pseudonym_hmac=sub.pseudonym_hmac,
+        pseudonym_version=pseudonym_version,
         total_score=sub.total_score,
         scan_iv_b64=_b64(sub.scan_iv),
         annotation_ciphertext_b64=_b64(sub.annotation_ciphertext),
@@ -76,6 +82,10 @@ def _to_response(
         has_scan=has_scan(sub) if scan_present is None else scan_present,
         has_annotations=bool(sub.annotation_ciphertext),
     ).model_copy(update=overrides)
+
+
+async def _exam_pseudonym_version(db: AsyncSession, sub: ScanSubmission) -> int:
+    return await db.scalar(select(Exam.pseudonym_version).where(Exam.id == sub.exam_id)) or 1
 
 
 def _echo(body: SubmissionCreate) -> dict[str, str | None]:
@@ -116,6 +126,7 @@ async def list_submissions(
     return [
         _to_response(
             s,
+            pseudonym_version=exam.pseudonym_version,
             scan_ciphertext_b64=_b64(scans.get(s.id)),
             scan_iv_b64=_b64(s.scan_iv) if include_scans else None,
         )
@@ -135,6 +146,7 @@ async def upload_submission(
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """Upload encrypted scan submission."""
+    await require_pseudonym_version(db, exam.id, body.pseudonym_version)
     # Ensure the student identity exists first (foreign key). The FK spans (pseudonym_hmac, exam_id), so the identity is looked up within this exam only: a submission cannot link to another exam's (and tenant's) identity.
     student_res = await db.execute(
         select(StudentIdentity).where(
@@ -219,7 +231,10 @@ async def upload_submission(
             # An absent annotation field means "leave them"; deleting is explicit.
             await db.flush()
             return _to_response(
-                existing_sub, **_echo(body), scan_present=had_scan or scan_bytes is not None
+                existing_sub,
+                pseudonym_version=exam.pseudonym_version,
+                **_echo(body),
+                scan_present=had_scan or scan_bytes is not None,
             )
 
     sub = ScanSubmission(
@@ -240,7 +255,12 @@ async def upload_submission(
         await db.rollback()
         raise _upload_conflict() from None
 
-    return _to_response(sub, **_echo(body), scan_present=scan_bytes is not None)
+    return _to_response(
+        sub,
+        pseudonym_version=exam.pseudonym_version,
+        **_echo(body),
+        scan_present=scan_bytes is not None,
+    )
 
 
 @router.get("/{sub_id}", response_model=SubmissionResponse)
@@ -251,6 +271,7 @@ async def get_submission(
     """Download encrypted scan submission by ID."""
     return _to_response(
         sub,
+        pseudonym_version=await _exam_pseudonym_version(db, sub),
         scan_ciphertext_b64=_b64(await load_scan(db, sub)),
         scan_iv_b64=base64.b64encode(sub.scan_iv).decode(),
     )
@@ -265,7 +286,7 @@ async def update_score(body: SubmissionScoreUpdate, sub: LiveSubmission, db: DB)
     """Update plaintext total score for server-side statistics."""
     sub.total_score = body.total_score
     await db.flush()
-    return _to_response(sub)
+    return _to_response(sub, pseudonym_version=await _exam_pseudonym_version(db, sub))
 
 
 @router.delete("/{sub_id}/grading", status_code=status.HTTP_204_NO_CONTENT)
