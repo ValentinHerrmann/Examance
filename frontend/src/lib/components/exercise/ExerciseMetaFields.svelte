@@ -33,7 +33,8 @@
   }: Props = $props();
 
   const field = "flex min-w-0 flex-col gap-0.5 text-xs";
-  const label = "whitespace-nowrap font-semibold text-muted";
+  // Labels wrap: a nowrap label wider than its `minmax(0,1fr)` column ran into the next one (issue #188).
+  const label = "font-semibold text-muted";
   const suggestClass = `${controlClass} ${controlSmClass}`;
 </script>
 
@@ -57,7 +58,7 @@
       <Badge icon={faBook}>{subject}</Badge>
     {/if}
     <div class="flex items-center gap-1.5 text-xs">
-      <label for="editorVariantKey" class={label}>{$t("exercises.editor.variantKeyLabel")}</label>
+      <label for="editorVariantKey" class="{label} whitespace-nowrap">{$t("exercises.editor.variantKeyLabel")}</label>
       <TextInput id="editorVariantKey" size="sm" bind:value={variantKey} maxlength={100} placeholder={$t("exercises.editor.variantKeyPlaceholder")} />
     </div>
   </div>
