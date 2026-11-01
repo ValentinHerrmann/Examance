@@ -27,7 +27,7 @@ Storage modes (`lib/stores/storagePolicy.ts`, `docs/dev/storage_modes.md`, issue
 | `make migrate` / `make migrate-auto MSG="..."` | apply Alembic migrations / autogenerate one |
 | `make lint` / `make lint-frontend` | `ruff check app && mypy app` / `npm run lint && npm run check` |
 | `make test-backend` / `make test-frontend` / `make test` | pytest / vitest / both |
-| `npm run test:e2e` | Playwright suite (not wired into `make`) |
+| `npm run test:e2e` | Playwright suite (not wired into `make`; CI runs only the layout and a11y specs on three devices) |
 | `npm run sri:verify` | subresource-integrity check (also in CI) |
 
 Prefer `make` over hand-rolled `cd backend && ...`. Deps: `uv` backend, `npm` frontend; no pip, poetry, yarn. mypy needs the dev extras (see `backend/CLAUDE.md`).
