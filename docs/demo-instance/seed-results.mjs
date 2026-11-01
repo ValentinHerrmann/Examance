@@ -2,7 +2,7 @@
 // annotate one showcase booklet, and enter the paper-graded class via the Excel paste import.
 import fs from 'node:fs';
 import path from 'node:path';
-import { open, login, shot, BASE, STATE, readState, writeState } from './lib.mjs';
+import { open, login, shot, BASE, STATE, readState, writeState, openBooklet } from './lib.mjs';
 
 const ids = readState('exams.json', {});
 const done = readState('progress.json', {});
@@ -21,34 +21,42 @@ for (const key of ['10b', '10a']) {
   writeState('progress.json', done);
 }
 
+// The MC group is listed first now (Q1 a-c), so the plan's free exercises q1-q3 are Q2-Q4 on the grade page.
+const LABEL = { q1: 'Q2', q2: 'Q3', q3: 'Q4' };
+// The row label itself opens the exercise editor; click the row's padding to set the stamp target.
+const pick = (q) => page.locator('div[role=button]').filter({ has: page.getByText(q, { exact: true }) }).first().click({ position: { x: 3, y: 3 } });
 const row = (q) => page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first();
 for (const key of ['10b', '10a']) {
   if (done[`graded-${key}`]) continue;
   const plan = JSON.parse(fs.readFileSync(path.join(STATE, `plan-${key}.json`), 'utf8'));
-  await page.goto(`${BASE}/exam/${ids[key]}/grade`);
-  await page.waitForTimeout(6000);
-  const n = Object.keys(plan).length / 2;
-  for (let i = 0; i < n; i++) {
-    if (await page.getByText(/konnten nicht geladen werden/).count()) {
-      await page.getByRole('button', { name: 'Erneut versuchen' }).click();
-      await page.waitForTimeout(2500);
+  const byCode = Object.fromEntries(Object.values(plan).map((p) => [p.code, p]));
+  // Booklets are found by their printed fallback code: the grade page shows only the exam-keyed pseudonym (issue #177).
+  await page.goto(`${BASE}/exam/${ids[key]}/scan`); // NOSONAR: UI steps run in order in one browser
+  await page.waitForTimeout(8000); // NOSONAR: UI steps run in order in one browser
+  const subs = await page.locator('tr:has(td[title^="Abgabe-ID: "])').evaluateAll((trs) => trs.map((tr) => { // NOSONAR: UI steps run in order in one browser
+    const td = [...tr.querySelectorAll('td')];
+    return [td[0].title.replace('Abgabe-ID: ', ''), td[2].innerText.trim()];
+  }));
+  const n = subs.length;
+  for (const [subId, code] of subs) {
+    const entry = byCode[code];
+    if (!entry) throw new Error(`booklet ${code}: not in plan`);
+    await page.goto(`${BASE}/exam/${ids[key]}/grade?submissionId=${subId}`); // NOSONAR: UI steps run in order in one browser
+    await page.waitForTimeout(6000); // NOSONAR: UI steps run in order in one browser
+    for (const [q, v] of Object.entries(entry.scores)) {
+      // An exercise with parts is graded part by part; its own field follows from the parts.
+      const parts = entry.parts?.[q];
+      const cells = parts ? Object.entries(parts).map(([l, p]) => [`Teilaufgabe ${l})`, p]) : [[LABEL[q], v]];
+      for (const [label, value] of cells) {
+        const inp = row(label);
+        await inp.click(); // NOSONAR: UI steps run in order in one browser
+        await inp.fill(String(value)); // NOSONAR: UI steps run in order in one browser
+        await inp.press('Tab'); // NOSONAR: UI steps run in order in one browser
+      }
     }
-    const header = (await page.locator('body').innerText()).split('Stift')[0];
-    const pid = Object.keys(plan).find((p) => header.includes(p));
-    if (!pid) throw new Error(`booklet ${i}: pseudonym not in plan`);
-    for (const [q, v] of Object.entries(plan[pid].scores)) {
-      const inp = row(q.toUpperCase());
-      await inp.click();
-      await inp.fill(String(v));
-      await inp.press('Tab');
-    }
-    await page.waitForTimeout(400);
-    await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
-    await page.waitForTimeout(1500);
-    if (i < n - 1) {
-      await page.getByRole('button', { name: /Nächster/ }).click();
-      await page.waitForTimeout(2500);
-    }
+    await page.waitForTimeout(400); // NOSONAR: UI steps run in order in one browser
+    await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click(); // NOSONAR: UI steps run in order in one browser
+    await page.waitForTimeout(1500); // NOSONAR: UI steps run in order in one browser
   }
   console.log('graded', key, n);
   done[`graded-${key}`] = true;
@@ -56,23 +64,21 @@ for (const key of ['10b', '10a']) {
 }
 
 if (!done.annotated) {
-  // Showcase booklet: correction stamps on page 1 of a mid-range 10b paper.
-  await page.goto(`${BASE}/exam/${ids['10b']}/grade`);
-  await page.waitForTimeout(6000);
-  for (let i = 0; i < 6; i++) { await page.getByRole('button', { name: /Nächster/ }).click(); await page.waitForTimeout(2000); }
+  // Showcase booklet F7A9BG (plan Q2 parts 1.5 + 1, Q3 2.5, Q4 1): stamps on its Q2 answers (page 1, below the MC group) that add up to the plan.
+  const show = Object.values(JSON.parse(fs.readFileSync(path.join(STATE, 'plan-10b.json'), 'utf8'))).find((p) => p.code === 'F7A9BG');
+  await openBooklet(page, ids['10b'], 'F7A9BG');
   const tool = async (n) => { await page.getByRole('button', { name: n }).first().click(); await page.waitForTimeout(300); };
   const at = async (x, y) => { await page.mouse.click(x, y); await page.waitForTimeout(400); };
-  const saved = {};
-  for (const q of ['Q1', 'Q2', 'Q3']) saved[q] = await row(q).inputValue();
-  await page.getByText('Q1', { exact: true }).first().click();
-  await tool(/^\+1\.0|\+1,0/); await at(570, 289); await at(470, 343);
-  await page.getByText('Q2', { exact: true }).first().click();
-  await tool(/^\+1\.0|\+1,0/); await at(452, 508); await at(452, 528);
-  await tool(/Fehlt/); await at(445, 548);
-  await tool(/Falsch/); await at(600, 625);
-  // Stamps rewrite the scores they touch; restore the planned ones.
-  for (const q of ['Q1', 'Q2', 'Q3']) { const inp = row(q); await inp.fill(saved[q]); await inp.press('Tab'); }
-  await page.getByText('Q1', { exact: true }).first().click();
+  await pick('Teilaufgabe a)');
+  await tool(/^(\+1\.0|\+1,0)/); await at(520, 598);
+  await tool(/^(\+0\.5|\+0,5|½)/); await at(470, 617);
+  await pick('Teilaufgabe b)');
+  await tool(/^(\+1\.0|\+1,0)/); await at(515, 712);
+  await tool(/Fehlt/); await at(440, 731);
+  // Stamps rewrite the scores they touch; type the planned ones again.
+  const planned = { 'Teilaufgabe a)': show.parts.q1.a, 'Teilaufgabe b)': show.parts.q1.b, Q3: show.scores.q2, Q4: show.scores.q3 };
+  for (const [q, v] of Object.entries(planned)) { const inp = row(q); await inp.fill(String(v)); await inp.press('Tab'); } // NOSONAR: UI steps run in order in one browser
+  await pick('Teilaufgabe a)');
   await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
   await page.waitForTimeout(2000);
   done.annotated = true;

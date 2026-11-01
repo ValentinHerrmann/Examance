@@ -1,6 +1,6 @@
 // Capture the pitch screenshots from the seeded demo instance into .state/shots/.
 // Usage: node capture.mjs [name ...]   (no names = all). assets.py crops them into docs/screenshots/pitch/.
-import { open, login, shot, BASE, readState, writeState, setCodeMirror } from './lib.mjs';
+import { open, login, shot, BASE, readState, writeState, setCodeMirror, openBooklet } from './lib.mjs';
 
 const ids = readState('exams.json', {});
 const only = process.argv.slice(2);
@@ -14,6 +14,9 @@ async function scrollTo(page, locator, offset = 90) {
   }, offset);
   await page.waitForTimeout(600);
 }
+
+// The MC group is listed first on the grade page, so the free exercises Q1-Q3 are Q2-Q4; the label itself opens the exercise editor, so click the row's padding.
+const pick = (page, q) => page.locator('div[role=button]').filter({ has: page.getByText(q, { exact: true }) }).first().click({ position: { x: 3, y: 3 } });
 
 async function go(page, path, wait = 4500) {
   await page.goto(BASE + path);
@@ -64,8 +67,9 @@ async function teacher() {
     await go(page, '/exam/new');
     await page.getByLabel(/Prüfungstitel/).fill('Leistungsnachweis Informatik 10c');
     await page.getByLabel(/^Klasse \/ Kurs/).fill('c');
-    await page.getByLabel(/Lehrer Nachname/).fill('Berger');
-    await page.getByRole('button', { name: /Aus Bibliothek/ }).click();
+    await page.getByLabel(/Lehrernachname/).fill('Berger');
+    // Current UI: the exam is created first and the library picker opens on its page (delete the exam afterwards).
+    await page.getByRole('button', { name: /Prüfung anlegen und Aufgaben wählen/ }).click();
     const search = page.getByRole('textbox', { name: /Aufgabenbibliothek nach Name/ });
     for (const n of ['Gruppe A', 'Bubblesort', 'Klassendiagramm']) {
       await search.fill(n);
@@ -74,13 +78,12 @@ async function teacher() {
     }
     await search.fill('');
     await page.waitForTimeout(800);
-    await scrollTo(page, page.getByText(/2\. Aufgaben auswählen/), 70);
     await shot(page, 'exam-new');
   }
   if (want('exam-setup')) {
     await go(page, `/exam/${ids['10b']}`);
     await page.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
-    await page.getByText(/OMR-Vorlage gespeichert/).waitFor({ timeout: 300000 });
+    await page.getByText(/Scan-Vorlage gespeichert/).waitFor({ timeout: 300000 });
     const sol = page.getByText('Lösung PDF', { exact: true });
     if (await sol.count()) await sol.first().click();
     await page.waitForTimeout(5000);
@@ -91,9 +94,8 @@ async function teacher() {
     await shot(page, 'scan');
   }
   if (want('grading')) {
-    await go(page, `/exam/${ids['10b']}/grade`, 6000);
-    for (let i = 0; i < 6; i++) { await page.getByRole('button', { name: /Nächster/ }).click(); await page.waitForTimeout(2000); }
-    await page.getByText('Q1', { exact: true }).first().click();
+    await openBooklet(page, ids['10b'], 'F7A9BG'); // the annotated showcase booklet (seed-results.mjs)
+    await pick(page, 'Teilaufgabe a)');
     await page.waitForTimeout(800);
     await shot(page, 'grading');
   }
@@ -118,14 +120,6 @@ async function teacher() {
     await shot(page, 'analytics');
     await scrollTo(page, page.getByText(/Schwierigkeits- & Fairnessvergleich/), 120);
     await shot(page, 'analytics-variants');
-  }
-  if (want('settings')) {
-    await go(page, '/settings');
-    await shot(page, 'settings');
-  }
-  if (want('security')) {
-    await go(page, '/settings#security');
-    await shot(page, 'security');
   }
   if (want('shared')) {
     await go(page, '/exercises');
@@ -243,7 +237,7 @@ async function tour() {
   if (t('exam-new')) {
     await go(page, '/exam/new');
     await page.getByLabel(/Prüfungstitel/).fill('Leistungsnachweis Informatik 10c');
-    await page.getByRole('button', { name: /Aus Bibliothek/ }).click();
+    await page.getByRole('button', { name: /Prüfung anlegen und Aufgaben wählen/ }).click();
     const search = page.getByRole('textbox', { name: /Aufgabenbibliothek nach Name/ });
     for (const n of ['Gruppe A', 'Bubblesort', 'Klassendiagramm']) {
       await search.fill(n);
@@ -252,14 +246,13 @@ async function tour() {
     }
     await search.fill('');
     await page.waitForTimeout(800);
-    await scrollTo(page, page.getByText(/2\. Aufgaben auswählen/), 70);
     await shot(page, 'tour-exam-new');
   }
   if (t('exam-setup')) {
     await page.setViewportSize({ width: 1280, height: 1100 });
     await go(page, `/exam/${ids['10b']}`);
     await page.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
-    await page.getByText(/OMR-Vorlage gespeichert/).waitFor({ timeout: 300000 });
+    await page.getByText(/Scan-Vorlage gespeichert/).waitFor({ timeout: 300000 });
     const sol = page.getByText('Lösung PDF', { exact: true });
     if (await sol.count()) await sol.first().click();
     await page.waitForTimeout(6000);
@@ -268,39 +261,41 @@ async function tour() {
     await page.setViewportSize({ width: 1280, height: 800 });
   }
   if (t('grading')) {
-    // Booklet af14… (plan 3 / 4 / 2.5), zoomed onto tasks 1-2. With stamps a task's score is the sum of its
-    // stamps, so the stamps (set once, persisted) cover Q1-Q3 and add up to the plan.
-    await go(page, `/exam/${ids['10b']}/scan`, 8000);
-    const subId = await page.locator('td[title^="Pseudonym: af14e273c5"]').locator('xpath=ancestor::tr[1]').locator('td[title^="Abgabe-ID: "]').getAttribute('title');
+    // Booklet RPCPDW (af14…; plan Q2-Q4: 3 / 4 / 2.5), zoomed onto the MC group and Q2. Once a booklet has stamps its tasks score the sum of their stamps, so the stamps (set once, persisted) cover Q2-Q4 and add up to the plan.
     const open1 = async () => {
-      await go(page, `/exam/${ids['10b']}/grade?submissionId=${subId.replace('Abgabe-ID: ', '')}`, 9000);
+      await openBooklet(page, ids['10b'], 'RPCPDW');
       for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: /Vergrößern/ }).first().click(); await page.waitForTimeout(500); }
       await page.mouse.move(600, 500);
       await page.mouse.wheel(0, 330);
+      await page.waitForTimeout(800);
+      await page.mouse.wheel(0, 300);
       await page.waitForTimeout(1500);
     };
     await open1();
     const progress = readState('progress.json', {});
     if (!progress['tour-stamps']) {
       const stamp = async (q, tool, pts) => {
-        await page.getByText(q, { exact: true }).first().click();
+        await pick(page, q);
         await page.getByRole('button', { name: tool }).first().click();
         for (const [x, y] of pts) { await page.mouse.click(x, y); await page.waitForTimeout(400); }
       };
-      const ONE = /^\+1\.0|\+1,0/, HALF = /^\+0\.5|\+0,5|½/;
-      await stamp('Q1', ONE, [[448, 166], [275, 234], [358, 337]]);
-      await stamp('Q2', ONE, [[262, 526], [262, 558], [262, 589]]);
-      await page.mouse.move(600, 500); await page.mouse.wheel(0, 120); await page.waitForTimeout(1200);
-      await stamp('Q2', ONE, [[540, 613]]);
-      await page.mouse.click(611, 721); await page.waitForTimeout(3000); // next page
-      await stamp('Q3', ONE, [[506, 256], [602, 290]]);
-      await stamp('Q3', HALF, [[640, 322]]);
+      const ONE = /^(\+1\.0|\+1,0)/, HALF = /^(\+0\.5|\+0,5|½)/;
+      // Q2 is graded part by part: each part's stamps count towards that part.
+      await stamp('Teilaufgabe a)', ONE, [[280, 480]]);
+      await stamp('Teilaufgabe a)', HALF, [[330, 384]]);
+      await stamp('Teilaufgabe b)', ONE, [[370, 588]]);
+      await stamp('Teilaufgabe b)', HALF, [[250, 622]]);
+      await page.mouse.click(611, 721); await page.waitForTimeout(3500); // page 2: Q3 at the top
+      await stamp('Q3', ONE, [[275, 236], [275, 267], [275, 297], [525, 478]]);
+      await page.mouse.move(500, 400); await page.mouse.wheel(0, 300); await page.waitForTimeout(1200); // Q4 below
+      await stamp('Q4', ONE, [[515, 410], [612, 462]]);
+      await stamp('Q4', HALF, [[612, 500]]);
       await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
       await page.waitForTimeout(3000);
       writeState('progress.json', { ...progress, 'tour-stamps': true });
       await open1();
       const v = [];
-      for (const q of ['Q1', 'Q2', 'Q3']) v.push(await page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first().inputValue());
+      for (const q of ['Q2', 'Q3', 'Q4']) v.push(await page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first().inputValue()); // NOSONAR: UI steps run in order in one browser
       console.log('af14 scores after stamping', v.join(' / '));
     }
     await shot(page, 'tour-grading');
@@ -338,8 +333,9 @@ async function tour() {
     const c = await open({ profile: 'berger', width: 760, height: 1150, scale: 3 });
     await login(c.page, 'berger');
     await go(c.page, `/exam/${ids['10b']}/verify`, 7000);
-    const item = c.page.getByText('Personenbezogene Daten a)').locator('xpath=ancestor::*[.//button][1]').filter({ hasText: 'Y5QYAD' });
-    await item.getByRole('button', { name: /Element überprüfen/ }).first().click();
+    // Its question a) (cancelled and faint marks) is the only unsure item, listed first.
+    await c.page.getByText('Y5QYAD', { exact: true }).first().waitFor();
+    await c.page.getByRole('link', { name: /Element überprüfen/ }).first().click();
     await c.page.waitForTimeout(15000);
     await shot(c.page, 'tour-mc-review');
     await c.ctx.close();
@@ -365,9 +361,122 @@ async function tour() {
   }
 }
 
+/** Detail screenshots for the user guide (docs/screenshots/guide/, cropped by assets.py). Saved as guide-<name>.png. */
+async function guide() {
+  const G = ['score', 'ai-prompt', 'compile-error', 'exam-exercises', 'exam-export', 'backup', 'help', 'settings-storage', 'settings-mc', 'settings-packages', 'settings-restore', 'security', 'borderline', 'grading-parts', 'maintenance'];
+  if (!G.some((n) => want('guide-' + n))) return;
+  const g = (n) => want('guide-' + n);
+  const { ctx, page } = await open({ profile: 'berger' });
+  await login(page, 'berger');
+  const editExercise = async (name) => {
+    await go(page, '/exercises');
+    await page.getByRole('heading', { name, level: 3 }).click();
+    await page.waitForTimeout(1200);
+    await page.getByRole('button', { name: /^Bearbeiten$/ }).first().click();
+    await page.waitForTimeout(2500);
+    return page.getByRole('dialog').last();
+  };
+  if (g('score')) {
+    const ed = await editExercise('Bubblesort nachvollziehen');
+    await ed.getByRole('button', { name: /Punkte & Aufbau/ }).click();
+    await page.waitForTimeout(1500);
+    await shot(page, 'guide-score');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Escape');
+  }
+  if (g('ai-prompt')) {
+    const ed = await editExercise('Bubblesort nachvollziehen');
+    await ed.getByRole('button', { name: /KI-Prompt erstellen/ }).click();
+    await page.waitForTimeout(1500);
+    await shot(page, 'guide-ai-prompt');
+    await page.keyboard.press('Escape');
+  }
+  if (g('compile-error')) {
+    // An unknown macro in an unsaved edit; the dialog is closed without saving.
+    const ed = await editExercise('Caesar-Verschlüsselung');
+    const cm = ed.locator('.cm-content').first();
+    await cm.click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.insertText('\n\\Lsungsfeld{3}');
+    await ed.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
+    await page.getByText(/Wahrscheinliche Ursache/).first().waitFor({ timeout: 900000 });
+    await page.waitForTimeout(3000);
+    await shot(page, 'guide-compile-error');
+  }
+  if (g('exam-exercises')) {
+    await go(page, `/exam/${ids['10b']}`);
+    await scrollTo(page, page.getByText(/^Aufgaben \(\d+\)$/), 110);
+    await shot(page, 'guide-exam-exercises');
+  }
+  if (g('exam-export')) {
+    await go(page, `/exam/${ids['10b']}`);
+    await page.getByRole('button', { name: /^Exportieren$/ }).click();
+    await page.waitForTimeout(2000);
+    await shot(page, 'guide-exam-export');
+    await page.keyboard.press('Escape');
+  }
+  if (g('backup')) {
+    await go(page, '/');
+    await page.getByRole('button', { name: /^Arbeitsbereich$/ }).click();
+    await page.waitForTimeout(800);
+    await page.getByText(/Arbeitsbereich sichern oder teilen/).first().click();
+    await page.waitForTimeout(2000);
+    await shot(page, 'guide-backup');
+    await page.keyboard.press('Escape');
+  }
+  if (g('help')) {
+    await go(page, `/exam/${ids['10b']}/scan`);
+    await page.getByRole('button', { name: 'Hilfe öffnen' }).first().click();
+    await page.waitForTimeout(2000);
+    await shot(page, 'guide-help');
+    await page.keyboard.press('Escape');
+  }
+  // The settings section nav scrolls the page itself.
+  for (const [name, link] of [['settings-storage', 'Globale Speicherstrategie'], ['settings-mc', 'MC-Erkennung (OMR) feinjustieren'], ['settings-packages', 'LaTeX-Pakete'], ['security', 'Anmeldung & Sicherheit']]) {
+    if (!g(name)) continue;
+    await go(page, '/settings'); // NOSONAR: UI steps run in order in one browser
+    await page.getByRole('link', { name: link, exact: true }).first().click(); // NOSONAR: UI steps run in order in one browser
+    await page.waitForTimeout(1200); // NOSONAR: UI steps run in order in one browser
+    await shot(page, 'guide-' + name); // NOSONAR: UI steps run in order in one browser
+  }
+  if (g('settings-restore')) {
+    await go(page, '/settings');
+    await scrollTo(page, page.getByText('Vom Server gelöschte Ergebnisse wiederherstellen', { exact: true }), 140);
+    await shot(page, 'guide-settings-restore');
+  }
+  if (g('grading-parts')) {
+    // First booklet: part rows of Q2 in the scoring panel, score boxes filled on the scan.
+    await go(page, `/exam/${ids['10b']}/grade`, 9000);
+    await page.locator('div[role=button]').filter({ has: page.getByText('Teilaufgabe a)', { exact: true }) }).first().click({ position: { x: 3, y: 3 } });
+    await page.waitForTimeout(1500);
+    await shot(page, 'guide-grading-parts');
+  }
+  if (g('borderline')) {
+    await page.setViewportSize({ width: 1600, height: 1400 });
+    await go(page, `/exam/${ids['10b']}/stats`, 6000);
+    await scrollTo(page, page.getByText(/^Plus: höchstens/), 160);
+    await shot(page, 'guide-borderline');
+    await page.setViewportSize({ width: 1600, height: 1000 });
+  }
+  await ctx.close();
+  if (g('maintenance')) {
+    const c = await open({ profile: 'admin' });
+    await login(c.page, 'admin');
+    await c.page.goto(BASE + '/admin/users');
+    await c.page.waitForTimeout(4500);
+    await c.page.getByRole('tab', { name: /^Wartung/ }).or(c.page.getByRole('button', { name: /^Wartung/ })).first().click();
+    await c.page.waitForTimeout(1500);
+    await shot(c.page, 'guide-maintenance');
+    await c.ctx.close();
+  }
+}
+
+if (only.some((n) => n.startsWith('guide'))) { await guide(); process.exit(0); }
 if (only.some((n) => n.startsWith('tour')) || !only.length) await tour();
 if (only.some((n) => n.startsWith('tour'))) process.exit(0);
 await teacher();
 await colleague();
 await onboarding();
 await admin();
+await guide();

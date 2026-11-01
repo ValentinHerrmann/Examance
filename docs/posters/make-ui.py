@@ -16,8 +16,8 @@ S = {
     "setup": ("tour/t-exam-setup.jpg", "Fertige Klausur", "Prüfung und Erwartungshorizont; jeder Haken zeigt, welcher Teil welchen Punkt bringt", "sofort druckbar, auch für Papierkorrektur"),
     "variantdiff": ("tour/t-variant-diff.jpg", "Varianten vergleichen", "Gruppe A und B nebeneinander, Unterschiede markiert", "nur die Zahlen ändern sich, der Aufbau bleibt"),
     "proposal": ("tour/t-proposal.jpg", "Teilen & Vorschläge", "Kollegium schlägt Änderungen vor, die Autorin entscheidet", "gemeinsamer Aufgabenpool der Fachschaft"),
-    "grading": ("tour/t-grading.jpg", "Anonym korrigieren", "QR-Aufkleber statt Name; Haken-Stempel direkt im Scan ergeben die Punkte", "fair, ohne Halo-Effekt"),
-    "mcreview": ("tour/t-mc-review.jpg", "MC-Erkennung", "A richtig, D neu gesetzt und als unsicher markiert: 0,5 von 2 Punkten", "Sie entscheiden im Zweifel"),
+    "grading": ("tour/t-grading.jpg", "Anonym korrigieren", "QR-Aufkleber statt Name; Stempel ergeben die Punkte, die Punktekästchen füllen sich selbst", "fair, ohne Halo-Effekt"),
+    "mcreview": ("tour/t-mc-review.jpg", "MC-Erkennung", "A richtig, D zurückgenommen und neu gekreuzt: 0,5 von 2 Punkten", "Sie entscheiden im Zweifel"),
     "paper": ("tour/t-paper-entry.jpg", "Papierkorrektur", "Punkte tippen oder aus Excel einfügen", "Auswertung auch ohne Scanner"),
     "results": ("tour/t-results.jpg", "Ergebnisse", "Notenspiegel, Schnitt, Grenzfälle", "fertig, sobald die Punkte da sind"),
     "variant": ("09b-variant-comparison.jpg", "Variantenvergleich", "Gruppe B 24 Prozentpunkte schwächer", "unfaire Varianten fallen auf"),
@@ -55,6 +55,19 @@ def row_h(ks):
     return _row_h(tuple(ks))
 
 
+def crypto_fit(rows, total, avail):
+    """Shape the encryption card takes in its row (narrowed until the row takes the leftover height) and whether its text fits that box."""
+    for r in rows:
+        if "crypto" in r and len(r) > 1:
+            others = sum(aspect(k) for k in r if k != "crypto")
+            gaps = W - GAP * (len(r) - 1)
+            target = gaps / (others + CRYPTO_ASPECT) + (avail - total) - 4
+            a = max(0.55, min(3.0, gaps / target - others))
+            h = gaps / (others + a)
+            return a, h >= 0.85 * block_h("crypto", h * a)  # block_h overestimates by ~15 % (the October poster fit at 481 px for an estimate of 563)
+    return CRYPTO_ASPECT, True
+
+
 def layout(items, avail, fixed_last=None, reorder=True, per_row=3):
     """Best order and row split: fill `avail` px without exceeding it, images at least 300 px wide."""
     best = None
@@ -76,7 +89,7 @@ def layout(items, avail, fixed_last=None, reorder=True, per_row=3):
             if any((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) < 260 for r in rows for k in r if k != "crypto"):
                 continue
             total = sum(row_h(r) for r in rows)
-            if total > avail:
+            if total > avail or not crypto_fit(rows, total, avail)[1]:
                 continue
             minw = min((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) for r in rows for k in r if k != "crypto")
             score = (avail - total) - 0.2 * min(minw, 420)
@@ -84,14 +97,8 @@ def layout(items, avail, fixed_last=None, reorder=True, per_row=3):
                 best = (score, rows, total)
     rows, total = best[1], best[2]
     global CRYPTO_ASPECT
-    for r in rows:
-        if "crypto" in r and len(r) > 1:
-            # The card has no intrinsic shape: narrow it until its row takes the leftover height.
-            others = sum(aspect(k) for k in r if k != "crypto")
-            gaps = W - GAP * (len(r) - 1)
-            h_now = gaps / (others + CRYPTO_ASPECT)
-            target = h_now + (avail - total) - 4
-            CRYPTO_ASPECT = max(0.55, min(3.0, gaps / target - others))
+    # The card has no intrinsic shape: narrow it until its row takes the leftover height.
+    CRYPTO_ASPECT = crypto_fit(rows, total, avail)[0]
     print(f"layout {[len(r) for r in rows]} fill {total:.0f}/{avail}, crypto {CRYPTO_ASPECT:.2f}")
     return rows
 
@@ -192,7 +199,7 @@ theme: examance-poster
 size: a3
 paginate: false
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
-footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
+footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 """
 KICKED = 1538 - 180       # content bottom minus where the first row starts (measured in the PDF)
@@ -208,7 +215,7 @@ theme: examance
 paginate: true
 size: 16:9
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
-footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
+footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 """
 

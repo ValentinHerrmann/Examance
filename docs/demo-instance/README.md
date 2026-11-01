@@ -14,7 +14,7 @@ Scripts that rebuild a local Examance instance with **demo data only** and captu
 
 Passwords and roles are in `data/accounts.json` (demo values, local use only). TOTP secrets are enrolled on first sign-in and kept in `.state/totp.json`; `lib.mjs` computes the codes.
 
-Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on that exercise) are scanned and graded on screen; *9c* (24 pupils) was "graded on paper" and pasted from a spreadsheet. Target percentages follow a normal distribution (`data/classes.json`), so every grade from 1 to 5 occurs and the variant comparison shows a real gap. Pupil names exist only in the paper class's spreadsheet; scanned booklets carry pseudonymous `BG:` QR codes. Everything is invented.
+Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on that exercise) are scanned and graded on screen, "Binärzahlen umrechnen" part by part (a, b), with the MC correction line printed; *9c* (24 pupils) was "graded on paper" and pasted from a spreadsheet. Target percentages follow a normal distribution (`data/classes.json`), so every grade from 1 to 5 occurs and the variant comparison shows a real gap. Pupil names exist only in the paper class's spreadsheet; scanned booklets carry pseudonymous `BG:` QR codes. Everything is invented.
 
 ## Run
 
@@ -25,6 +25,10 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 4. Optional, for the in-app example data (issue #120): `node export-example.mjs` writes `frontend/static/example-data/` (plain archive payload `example.json` plus `scans/*.pdf`) from m.berger's library, a few booklets of *10b* (including the annotated showcase) and the paper class *9c*. Only *10b* and *9c* need results, so `seed-results.mjs` may skip *10a* for this. Commit the output; the dashboard's "Add example data" imports it like a `.bgproj` archive.
 
 `./setup.sh --keep` reuses the current database; each seeding step records its progress in `.state/progress.json` and skips what is done. `node capture.mjs grading results` retakes single screenshots; `python assets.py` re-crops them.
+
+`capture.mjs exam-new` (and `tour-exam-new`) creates a real exam "Leistungsnachweis Informatik 10c", because the new-exam flow saves before picking exercises; delete it afterwards. Run `capture.mjs` with one name per group: a failing step aborts the rest. Without Tectonic on the host, set `bg_latex_compilation` to `local` in the Playwright profiles so exams compile in the browser.
+
+The grading seed finds each booklet by its printed fallback code (the plan records it; `openBooklet()` in `lib.mjs`): the grade page shows only the exam-keyed pseudonym. The annotated showcase is booklet F7A9BG, the poster's grading booklet RPCPDW. `mkscans.py` places the handwriting under each prompt as found in the compiled exam and reads the MC boxes from every page, so the exercise order of the exam does not matter. The stamp positions in `seed-results.mjs` (showcase) and `capture.mjs` (`tour-grading`) are screen coordinates for the current layout; check them after a layout change.
 
 The demo exercises put `\BE` inside their solutions (checkmark per scored part). The student sheet counts those only with the `\LSG` fix from PR #84; without it the score boxes read "/ 0".
 
@@ -38,7 +42,7 @@ The demo exercises put `\BE` inside their solutions (checkmark per scored part).
 | `mkscans.py`, `data/answers.json`, `data/classes.json` | Synthetic scans and the grading plan per class |
 | `mkpaper.py` | Spreadsheet for the paper-graded class |
 | `seed-results.mjs` | Scan import, grading, showcase annotations, Excel paste |
-| `capture.mjs`, `assets.py` | Dark-theme screenshots and crops (`node capture.mjs tour-…` for the 1280 px UI tour set) |
+| `capture.mjs`, `assets.py` | Dark-theme screenshots and crops (`node capture.mjs tour-…` for the 1280 px UI tour set; `node capture.mjs guide-…` and `python assets.py guide` for the user-guide set in `docs/screenshots/guide/`) |
 | `relatex.mjs "<name>[|<variant>]" …` | Pushes changed exercise LaTeX from `data/library.json` into an already seeded instance |
 | `export-example.mjs` | Writes the in-app example data (`frontend/static/example-data/`) from the seeded instance |
 | `showcase.mjs <raw> <hash>` | Swaps the MC showcase booklet (`showcase` in `data/classes.json`; `mkscans.py` prints both prefixes) into an already seeded instance |

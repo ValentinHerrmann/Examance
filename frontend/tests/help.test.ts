@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { HELP_TOPICS, getHelpTopic, topicForPath } from '../src/lib/help/topics';
 import { de } from '../src/lib/i18n/de';
 import { en } from '../src/lib/i18n/en';
@@ -49,6 +51,24 @@ describe('help topic registry', () => {
 
   it('looks topics up by id', () => {
     expect(getHelpTopic('grading')?.id).toBe('grading');
+  });
+});
+
+describe('links into the user guide', () => {
+  const guides = {
+    en: fileURLToPath(new URL('../../docs/user/', import.meta.url)),
+    de: fileURLToPath(new URL('../../docs/de/user/', import.meta.url)),
+  };
+  const paths = HELP_TOPICS.flatMap((topic) => [topic.docs, ...topic.sections.map((section) => section.docs)]);
+
+  // A renamed page or anchor on either language side would otherwise turn a help link into a dead end.
+  it.each([...new Set(paths)])('"%s" exists in both languages', (path) => {
+    const [page, anchor] = path.split('#');
+    for (const [lang, dir] of Object.entries(guides)) {
+      const file = `${dir}${page || 'index'}.md`;
+      expect(existsSync(file), `${lang}: ${file}`).toBe(true);
+      if (anchor) expect(readFileSync(file, 'utf8'), `${lang}: ${path}`).toContain(`{#${anchor}}`);
+    }
   });
 });
 

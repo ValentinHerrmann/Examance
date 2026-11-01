@@ -124,3 +124,13 @@ export async function setCodeMirror(page, scope, value, index = 0) {
   await page.keyboard.press('Control+A');
   await page.keyboard.insertText(value);
 }
+
+/** Open a booklet on the grade page by its printed fallback code: the scan list shows it, the grade page only the exam-keyed pseudonym (issue #177). */
+export async function openBooklet(page, examId, code, wait = 9000) {
+  await page.goto(`${BASE}/exam/${examId}/scan`);
+  await page.waitForTimeout(8000);
+  const row = page.locator('tr').filter({ has: page.getByRole('cell', { name: code, exact: true }) });
+  const id = (await row.locator('td[title^="Abgabe-ID: "]').getAttribute('title')).replace('Abgabe-ID: ', '');
+  await page.goto(`${BASE}/exam/${examId}/grade?submissionId=${id}`);
+  await page.waitForTimeout(wait);
+}
