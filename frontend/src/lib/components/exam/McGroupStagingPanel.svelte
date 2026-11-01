@@ -2,7 +2,7 @@
   import { untrack } from "svelte";
   import type { ExerciseRecord } from "#lib/db/schema";
   import type { McGroupDraft } from "#lib/exam/mcGroupStaging";
-  import { canFinalizeGroup } from "#lib/exam/mcGroupStaging";
+  import { canFinalizeGroup, DEFAULT_MC_GROUP_SCORING_TEXT, DEFAULT_MC_GROUP_TITLE } from "#lib/exam/mcGroupStaging";
   import { mcSubLabel } from "#lib/grading/mcGroupLabels";
   import LatexEditor from "#lib/components/LatexEditor.svelte";
   import ExerciseLabel from "#lib/components/exam/ExerciseLabel.svelte";
@@ -20,6 +20,9 @@
     onFinalize: (title: string, scoringText: string) => void;
     /** Opens a staged exercise name in place (editor modal). */
     onOpenExercise?: ((ex: ExerciseRecord) => void) | undefined;
+    /** Draft title and scoring, bindable so the dialog's apply button can commit the pending group (#175). */
+    title?: string;
+    scoringText?: string;
   }
 
   let {
@@ -28,16 +31,11 @@
     onRemove,
     onReorder,
     onFinalize,
-    onOpenExercise = undefined
+    onOpenExercise = undefined,
+    title = $bindable(DEFAULT_MC_GROUP_TITLE),
+    scoringText = $bindable(DEFAULT_MC_GROUP_SCORING_TEXT)
   }: Props = $props();
 
-  // Default group title and scoring sentence are exam CONTENT printed verbatim in the German exam PDF (see i18n brief "Do NOT translate") — not UI strings.
-  const DEFAULT_TITLE = "Grundlagen";
-  const DEFAULT_SCORING_TEXT =
-    "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
-
-  let title = $state(DEFAULT_TITLE);
-  let scoringText = $state(DEFAULT_SCORING_TEXT);
   /** Confirmation after a group was added/updated, so it is clear another one can follow. */
   let notice = $state("");
 
@@ -51,7 +49,7 @@
       ? $t("exam.mcStagingPanel.updatedNotice", { title })
       : $t("exam.mcStagingPanel.addedNotice", { title });
     onFinalize(title, scoringText);
-    title = DEFAULT_TITLE;
+    title = DEFAULT_MC_GROUP_TITLE;
   }
 
   $effect.pre(() => {
@@ -60,8 +58,8 @@
     untrack(() => {
       if (groupId !== loadedGroupId) {
         loadedGroupId = groupId;
-        title = group?.title ?? DEFAULT_TITLE;
-        scoringText = group?.scoringText ?? DEFAULT_SCORING_TEXT;
+        title = group?.title ?? DEFAULT_MC_GROUP_TITLE;
+        scoringText = group?.scoringText ?? DEFAULT_MC_GROUP_SCORING_TEXT;
       }
     });
   });

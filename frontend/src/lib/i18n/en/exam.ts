@@ -124,6 +124,7 @@ export const exam: Translations['exam'] = {
         mcTab: 'MC Groups',
         newExercise: 'New exercise',
         applyButton: 'Apply Linked Exercises',
+        applyWithGroupButton: 'Apply Exercises and MC Group',
     },
     exerciseLabel: {
         untitled: 'Untitled',

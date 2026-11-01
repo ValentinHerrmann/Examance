@@ -6,7 +6,7 @@
   import ExerciseLibraryPicker from '#lib/components/exercise-library/ExerciseLibraryPicker.svelte';
   import ExercisePreviewDrawer from '#lib/components/exercise-library/ExercisePreviewDrawer.svelte';
   import McGroupStagingPanel from '#lib/components/exam/McGroupStagingPanel.svelte';
-  import type { McGroupDraft } from '#lib/exam/mcGroupStaging';
+  import { DEFAULT_MC_GROUP_SCORING_TEXT, DEFAULT_MC_GROUP_TITLE, type McGroupDraft } from '#lib/exam/mcGroupStaging';
   import { t } from '#lib/i18n';
   import { Modal, Button } from '#lib/components/ui';
 
@@ -37,7 +37,8 @@
     onQuickEdit?: ((ex: ExerciseRecord) => void) | undefined;
     /** Write a new exercise right here (M1); the caller selects it once saved. */
     onNewExercise?: () => void;
-    onApply: () => void;
+    /** Receives the MC panel's draft so a staged, not yet added group is committed too (#175). */
+    onApply: (mcDraft: { title: string; scoringText: string }) => void;
     onRequestClose: () => void;
   }
 
@@ -69,6 +70,9 @@
   }: Props = $props();
 
   let activeTab: "normal" | "mc" = $state("normal");
+  // Lives here, not in the panel: the panel unmounts on the normal tab, and the footer needs the draft.
+  let mcDraftTitle = $state(DEFAULT_MC_GROUP_TITLE);
+  let mcDraftScoring = $state(DEFAULT_MC_GROUP_SCORING_TEXT);
 
   let mcStagingExercises = $derived(mcStagingIds
     .map((id) => libraryExercises.find((e) => e.id === id))
@@ -87,6 +91,16 @@
     isPreviewModalOpen = false;
     previewModalEx = null;
   }
+
+  $effect.pre(() => {
+    const open = isOpen;
+    untrack(() => {
+      if (open && !editingMcGroup) {
+        mcDraftTitle = DEFAULT_MC_GROUP_TITLE;
+        mcDraftScoring = DEFAULT_MC_GROUP_SCORING_TEXT;
+      }
+    });
+  });
 
   $effect.pre(() => {
     const group = editingMcGroup;
@@ -152,6 +166,8 @@
           <McGroupStagingPanel
             stagedExercises={mcStagingExercises}
             editingGroup={editingMcGroup}
+            bind:title={mcDraftTitle}
+            bind:scoringText={mcDraftScoring}
             onRemove={onToggleMcStaging}
             onReorder={onReorderMcStaging}
             onFinalize={onFinalizeMcGroup}
@@ -167,7 +183,9 @@
       <Button variant="outlined" icon={faPlus} class="mr-auto" onClick={onNewExercise}>{$t("exam.libraryModal.newExercise")}</Button>
     {/if}
     <Button variant="outlined" severity="secondary" onClick={onRequestClose}>{$t("common.cancel")}</Button>
-    <Button onClick={onApply}>{$t("exam.libraryModal.applyButton")}</Button>
+    <Button onClick={() => onApply({ title: mcDraftTitle, scoringText: mcDraftScoring })}>
+      {mcStagingIds.length > 0 ? $t("exam.libraryModal.applyWithGroupButton") : $t("exam.libraryModal.applyButton")}
+    </Button>
   {/snippet}
 </Modal>
 

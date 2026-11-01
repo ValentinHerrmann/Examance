@@ -9,10 +9,10 @@
   import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import { isAuthenticated, sessionStore } from "#lib/stores/session";
   import {
-    applyGroup,
     buildMcGroupMembership,
-    canFinalizeGroup,
+    commitStagedGroup,
     moveStaged,
+    stagingChanged,
     toggleStaged,
   } from "#lib/exam/mcGroupStaging";
   import { matchesExerciseFilters, uniqueSorted } from "#lib/utils/listFilter";
@@ -49,12 +49,6 @@
   let librarySearch = $state("");
   let activeVariantPerGroup: Record<string, string> = $state.raw({});
 
-  let isLibraryDirty = $derived(
-    isLibraryModalOpen &&
-      (selectedLibraryIds.length !== initialSelectedLibraryIds.length ||
-        selectedLibraryIds.some((id, i) => id !== initialSelectedLibraryIds[i])),
-  );
-
   let mcStagingIds: string[] = $state.raw([]);
   let editingMcGroupId: string | null = $state(null);
   let selectedGradeFilter = $state("ALL");
@@ -78,6 +72,14 @@
 
   let editingMcGroup = $derived(mcGroups.find((g) => g.id === editingMcGroupId) ?? null);
   let mcGroupMembership = $derived(buildMcGroupMembership(mcGroups, editingMcGroupId));
+
+  // Staged MC questions count too: closing would discard them (#175).
+  let isLibraryDirty = $derived(
+    isLibraryModalOpen &&
+      (selectedLibraryIds.length !== initialSelectedLibraryIds.length ||
+        selectedLibraryIds.some((id, i) => id !== initialSelectedLibraryIds[i]) ||
+        stagingChanged(mcStagingIds, editingMcGroup?.memberIds ?? [])),
+  );
 
   function setGroupVariant(groupId: string, vKey: string) {
     activeVariantPerGroup = { ...activeVariantPerGroup, [groupId]: vKey };
@@ -151,15 +153,19 @@
     mcStagingIds = moveStaged(mcStagingIds, index, direction);
   }
 
-  async function finalizeMcGroup(title: string, scoringText: string) {
-    if (!canFinalizeGroup(mcStagingIds)) return;
-    const memberIds = [...mcStagingIds];
-    const previousMemberIds = new Set(editingMcGroup?.memberIds ?? []);
-    mcGroups = applyGroup(mcGroups, { editingId: editingMcGroupId, title, scoringText, memberIds });
-    adoptGroupMembers(memberIds, previousMemberIds);
+  /** Turns the staged questions into a group in local state, without saving; false when nothing is staged. */
+  function stageGroup(title: string, scoringText: string): boolean {
+    const committed = commitStagedGroup(mcGroups, { editingId: editingMcGroupId, staged: mcStagingIds, title, scoringText });
+    if (!committed) return false;
+    mcGroups = committed.groups;
+    adoptGroupMembers(committed.memberIds, committed.previousMemberIds);
     editingMcGroupId = null;
     mcStagingIds = [];
-    await onSaveLinks();
+    return true;
+  }
+
+  async function finalizeMcGroup(title: string, scoringText: string) {
+    if (stageGroup(title, scoringText)) await onSaveLinks();
   }
 
   /** Syncs `exercises` with a group change: new members are linked only as group members (an exercise is linked once), and members dropped from an edited group leave the exam. */
@@ -184,7 +190,9 @@
     }
   }
 
-  async function applyLibrarySelection() {
+  /** Applies the standalone selection and, if questions are still staged, their group too, in one save (#175). */
+  async function applyLibrarySelection(mcDraft: { title: string; scoringText: string }) {
+    stageGroup(mcDraft.title, mcDraft.scoringText);
     const groupedIds = new Set(mcGroups.flatMap((g) => g.memberIds));
     const standalone = selectedLibraryIds
       .filter((id) => !groupedIds.has(id))
@@ -196,6 +204,8 @@
     exercises = [...standalone, ...groupMembers];
     await onSaveLinks();
     isLibraryModalOpen = false;
+    editingMcGroupId = null;
+    mcStagingIds = [];
   }
 </script>
 

@@ -7,6 +7,11 @@ export interface McGroupDraft {
   memberIds: string[];
 }
 
+// Default group title and scoring sentence are exam CONTENT printed verbatim in the German exam PDF (see i18n brief "Do NOT translate"), not UI strings.
+export const DEFAULT_MC_GROUP_TITLE = "Grundlagen";
+export const DEFAULT_MC_GROUP_SCORING_TEXT =
+  "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
+
 /** A group needs at least this many questions. There is no upper limit. */
 export const MC_GROUP_MIN_MEMBERS = 1;
 
@@ -58,4 +63,22 @@ export function applyGroup<G extends McGroupDraft>(
     return groups.map((g) => (g.id === draft.editingId ? { ...g, ...fields } : g));
   }
   return [...groups, { id: newId(), ...fields }];
+}
+
+/** Turns the staged questions into a group (new or `editingId`); `null` when nothing is staged. */
+export function commitStagedGroup<G extends McGroupDraft>(
+  groups: readonly G[],
+  draft: { editingId: string | null; staged: readonly string[]; title: string; scoringText: string },
+  newId?: () => string,
+): { groups: (G | McGroupDraft)[]; memberIds: string[]; previousMemberIds: Set<string> } | null {
+  if (!canFinalizeGroup(draft.staged)) return null;
+  const memberIds = [...draft.staged];
+  const previous = draft.editingId ? groups.find((g) => g.id === draft.editingId)?.memberIds ?? [] : [];
+  const next = applyGroup(groups, { editingId: draft.editingId, title: draft.title, scoringText: draft.scoringText, memberIds }, newId);
+  return { groups: next, memberIds, previousMemberIds: new Set(previous) };
+}
+
+/** True when the staged list differs from the edited group's members (`[]` for a new group), i.e. closing would discard work. */
+export function stagingChanged(staged: readonly string[], editingMemberIds: readonly string[]): boolean {
+  return staged.length !== editingMemberIds.length || staged.some((id, i) => id !== editingMemberIds[i]);
 }

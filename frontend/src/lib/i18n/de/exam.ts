@@ -122,6 +122,7 @@ export const exam = {
         mcTab: 'MC-Gruppen',
         newExercise: 'Neue Aufgabe',
         applyButton: 'Verknüpfte Aufgaben übernehmen',
+        applyWithGroupButton: 'Aufgaben und MC-Gruppe übernehmen',
     },
     exerciseLabel: {
         untitled: 'Unbenannt',
