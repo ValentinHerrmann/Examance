@@ -95,11 +95,15 @@ jobs:
       - name: SRI verification
         run: cd frontend && npm run sri:verify
 
-  # Layout and accessibility on the three main devices (issue #183); the API is the in-memory fake, so no backend runs.
+  # Layout and accessibility on the three main devices (issue #183), one job per device so they run side by side; the API is the in-memory fake, so no backend runs.
   e2e:
-    name: Frontend — layout and accessibility (Playwright)
+    name: Frontend — layout and accessibility (Playwright, ${{ matrix.device }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [desktop, ipad-portrait, phone]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -118,12 +122,12 @@ jobs:
       - name: Layout and a11y specs
         run: >-
           cd frontend && ./node_modules/.bin/playwright test e2e/layout.spec.ts e2e/a11y.spec.ts
-          --project=desktop --project=ipad-portrait --project=phone
+          --project=${{ matrix.device }}
       - name: Upload the Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.device }}
           path: frontend/playwright-report
           retention-days: 7
 
