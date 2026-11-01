@@ -4,7 +4,7 @@ theme: examance
 paginate: true
 size: 16:9
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Funktionsweise, Datenschutz und Sicherheit</em>'
-footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfläche mit Demodaten · Diagramme: vereinfacht, Details in docs/data_flow_and_security.md'
+footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfläche mit Demodaten · Diagramme: vereinfacht, Details in docs/data_flow_and_security.md'
 ---
 
 <!-- _class: title -->
@@ -32,7 +32,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 <div class="card">
 <h3>Ein Werkzeug für Prüfungen auf Papier</h3>
 <dl class="facts">
-<dt>Version</dt><dd>0.2, Beta – für einen begrenzten, begleiteten Einsatz</dd>
+<dt>Version</dt><dd>0.4, Beta – für einen begrenzten, begleiteten Einsatz</dd>
 <dt>Lizenz</dt><dd>MIT, Quellcode vollständig einsehbar, selbst betreibbar</dd>
 <dt>Frontend</dt><dd>SvelteKit / Svelte 5, läuft komplett im Browser</dd>
 <dt>Backend</dt><dd>FastAPI, PostgreSQL, Redis, Docker</dd>

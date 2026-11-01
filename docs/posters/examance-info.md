@@ -4,14 +4,14 @@ theme: examance-poster
 size: a3
 paginate: false
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Funktionsweise, Datenschutz und Sicherheit</em>'
-footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfläche mit Demodaten · Details: docs/data_flow_and_security.md · examance.valentin-herrmann.com'
+footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfläche mit Demodaten · Details: docs/data_flow_and_security.md · examance.valentin-herrmann.com'
 ---
 
 <span class="kicker">Teil 1 · Was Examance tut und wie</span>
 
 # Klausuren in LaTeX setzen, auf Papier schreiben, anonym bewerten.
 
-<p class="lead">Aufgabenbibliothek, Klausursatz und Notenbuch in einem – eine Web-Anwendung unter MIT-Lizenz (Beta 0.2). Korrigiert wird auf Papier oder anonym am Bildschirm; Schülerdaten verschlüsselt der Browser, bevor sie gespeichert werden.</p>
+<p class="lead">Aufgabenbibliothek, Klausursatz und Notenbuch in einem – eine Web-Anwendung unter MIT-Lizenz (Beta 0.4). Korrigiert wird auf Papier oder anonym am Bildschirm; Schülerdaten verschlüsselt der Browser, bevor sie gespeichert werden.</p>
 
 <figure class="diagram" style="margin-top:14px"><img src="../pitches/diagrams/pipeline.svg"></figure>
 

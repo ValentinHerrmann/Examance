@@ -4,7 +4,7 @@ theme: examance
 paginate: true
 size: 16:9
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· examance.valentin-herrmann.com</em>'
-footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
+footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 
 <!-- _class: title -->
@@ -120,7 +120,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demo
 
 ## Anonym korrigieren
 
-<figure><img src="../screenshots/pitch/tour/t-grading.jpg"><figcaption>QR-Aufkleber statt Name; Haken-Stempel direkt im Scan ergeben die Punkte – <em>fair, ohne Halo-Effekt</em></figcaption></figure>
+<figure><img src="../screenshots/pitch/tour/t-grading.jpg"><figcaption>QR-Aufkleber statt Name; Haken-Stempel je Aufgabe oder Teilaufgabe ergeben die Punkte, die Punktekästchen füllen sich selbst – <em>fair, ohne Halo-Effekt</em></figcaption></figure>
 
 ---
 
@@ -130,7 +130,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demo
 
 ## MC-Erkennung
 
-<figure><img src="../screenshots/pitch/tour/t-mc-review.jpg"><figcaption>A richtig, D neu gesetzt und als unsicher markiert: 0,5 von 2 Punkten – <em>Sie entscheiden im Zweifel</em></figcaption></figure>
+<figure><img src="../screenshots/pitch/tour/t-mc-review.jpg"><figcaption>A richtig, D ausgemalt und links daneben neu gekreuzt, als unsicher markiert: 0,5 von 2 Punkten – <em>Sie entscheiden im Zweifel</em></figcaption></figure>
 
 ---
 
