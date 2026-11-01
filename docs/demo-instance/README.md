@@ -14,7 +14,7 @@ Scripts that rebuild a local Examance instance with **demo data only** and captu
 
 Passwords and roles are in `data/accounts.json` (demo values, local use only). TOTP secrets are enrolled on first sign-in and kept in `.state/totp.json`; `lib.mjs` computes the codes.
 
-Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on that exercise) are scanned and graded on screen; *9c* (24 pupils) was "graded on paper" and pasted from a spreadsheet. Target percentages follow a normal distribution (`data/classes.json`), so every grade from 1 to 5 occurs and the variant comparison shows a real gap. Pupil names exist only in the paper class's spreadsheet; scanned booklets carry pseudonymous `BG:` QR codes. Everything is invented.
+Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on that exercise) are scanned and graded on screen, "Binärzahlen umrechnen" part by part (a, b), with the MC correction line printed; *9c* (24 pupils) was "graded on paper" and pasted from a spreadsheet. Target percentages follow a normal distribution (`data/classes.json`), so every grade from 1 to 5 occurs and the variant comparison shows a real gap. Pupil names exist only in the paper class's spreadsheet; scanned booklets carry pseudonymous `BG:` QR codes. Everything is invented.
 
 ## Run
 
@@ -28,7 +28,7 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 
 `capture.mjs exam-new` (and `tour-exam-new`) creates a real exam "Leistungsnachweis Informatik 10c", because the new-exam flow saves before picking exercises; delete it afterwards. Run `capture.mjs` with one name per group: a failing step aborts the rest. Without Tectonic on the host, set `bg_latex_compilation` to `local` in the Playwright profiles so exams compile in the browser.
 
-`mkscans.py` places the handwriting under each prompt as found in the compiled exam and reads the MC boxes from every page, so the exercise order of the exam does not matter. The stamp positions in `seed-results.mjs` (showcase) and `capture.mjs` (`tour-grading`) are screen coordinates for the current layout; check them after a layout change.
+The grading seed finds each booklet by its printed fallback code (the plan records it): the grade page shows only the exam-keyed pseudonym. `mkscans.py` places the handwriting under each prompt as found in the compiled exam and reads the MC boxes from every page, so the exercise order of the exam does not matter. The stamp positions in `seed-results.mjs` (showcase) and `capture.mjs` (`tour-grading`) are screen coordinates for the current layout; check them after a layout change.
 
 The demo exercises put `\BE` inside their solutions (checkmark per scored part). The student sheet counts those only with the `\LSG` fix from PR #84; without it the score boxes read "/ 0".
 

@@ -70,14 +70,19 @@ if (!done.annotated) {
   for (let i = 0; i < 6; i++) { await page.getByRole('button', { name: /Nächster/ }).click(); await page.waitForTimeout(2000); }
   const tool = async (n) => { await page.getByRole('button', { name: n }).first().click(); await page.waitForTimeout(300); };
   const at = async (x, y) => { await page.mouse.click(x, y); await page.waitForTimeout(400); };
+  const rows = ['Teilaufgabe a)', 'Teilaufgabe b)', 'Q3', 'Q4'];
   const saved = {};
-  for (const q of ['Q2', 'Q3', 'Q4']) saved[q] = await row(q).inputValue(); // NOSONAR: UI steps run in order in one browser
-  await pick('Q2');
-  await tool(/^\+1\.0|\+1,0/); await at(505, 557); await at(500, 668);
-  await tool(/Fehlt/); await at(470, 576);
+  for (const q of rows) saved[q] = await row(q).inputValue(); // NOSONAR: UI steps run in order in one browser
+  // Q2 is graded part by part: stamps on each part's answers count towards that part.
+  await pick('Teilaufgabe a)');
+  await tool(/^\+1\.0|\+1,0/); await at(520, 598);
+  await tool(/^\+0\.5|\+0,5|½/); await at(470, 617);
+  await pick('Teilaufgabe b)');
+  await tool(/^\+1\.0|\+1,0/); await at(515, 712);
+  await tool(/Fehlt/); await at(440, 731);
   // Stamps rewrite the scores they touch; restore the planned ones.
-  for (const q of ['Q2', 'Q3', 'Q4']) { const inp = row(q); await inp.fill(saved[q]); await inp.press('Tab'); } // NOSONAR: UI steps run in order in one browser
-  await pick('Q2');
+  for (const q of rows) { const inp = row(q); await inp.fill(saved[q]); await inp.press('Tab'); } // NOSONAR: UI steps run in order in one browser
+  await pick('Teilaufgabe a)');
   await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
   await page.waitForTimeout(2000);
   done.annotated = true;

@@ -284,12 +284,16 @@ async function tour() {
         for (const [x, y] of pts) { await page.mouse.click(x, y); await page.waitForTimeout(400); }
       };
       const ONE = /^\+1\.0|\+1,0/, HALF = /^\+0\.5|\+0,5|½/;
-      await stamp('Q2', ONE, [[290, 405], [365, 500], [245, 535]]);
+      // Q2 is graded part by part: each part's stamps count towards that part.
+      await stamp('Teilaufgabe a)', ONE, [[280, 480]]);
+      await stamp('Teilaufgabe a)', HALF, [[330, 384]]);
+      await stamp('Teilaufgabe b)', ONE, [[370, 588]]);
+      await stamp('Teilaufgabe b)', HALF, [[250, 622]]);
       await page.mouse.click(611, 721); await page.waitForTimeout(3500); // page 2: Q3 at the top
       await stamp('Q3', ONE, [[275, 236], [275, 267], [275, 297], [525, 478]]);
       await page.mouse.move(500, 400); await page.mouse.wheel(0, 300); await page.waitForTimeout(1200); // Q4 below
-      await stamp('Q4', ONE, [[515, 108], [612, 162]]);
-      await stamp('Q4', HALF, [[612, 195]]);
+      await stamp('Q4', ONE, [[515, 410], [612, 462]]);
+      await stamp('Q4', HALF, [[612, 500]]);
       await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
       await page.waitForTimeout(3000);
       writeState('progress.json', { ...progress, 'tour-stamps': true });
