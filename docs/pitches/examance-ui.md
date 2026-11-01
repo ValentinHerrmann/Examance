@@ -120,7 +120,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Dem
 
 ## Anonym korrigieren
 
-<figure><img src="../screenshots/pitch/tour/t-grading.jpg"><figcaption>QR-Aufkleber statt Name; Haken-Stempel je Aufgabe oder Teilaufgabe ergeben die Punkte, die Punktekästchen füllen sich selbst – <em>fair, ohne Halo-Effekt</em></figcaption></figure>
+<figure><img src="../screenshots/pitch/tour/t-grading.jpg"><figcaption>QR-Aufkleber statt Name; Stempel ergeben die Punkte, die Punktekästchen füllen sich selbst – <em>fair, ohne Halo-Effekt</em></figcaption></figure>
 
 ---
 
@@ -130,7 +130,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Dem
 
 ## MC-Erkennung
 
-<figure><img src="../screenshots/pitch/tour/t-mc-review.jpg"><figcaption>A richtig, D ausgemalt und links daneben neu gekreuzt, als unsicher markiert: 0,5 von 2 Punkten – <em>Sie entscheiden im Zweifel</em></figcaption></figure>
+<figure><img src="../screenshots/pitch/tour/t-mc-review.jpg"><figcaption>A richtig, D zurückgenommen und neu gekreuzt: 0,5 von 2 Punkten – <em>Sie entscheiden im Zweifel</em></figcaption></figure>
 
 ---
 
