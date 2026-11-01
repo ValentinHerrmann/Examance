@@ -80,6 +80,8 @@ The solution sheet does not include it.
 - **fill** the box completely to withdraw a cross;
 - **cross just left of** a filled box to choose it again.
 
+![The correction line printed under the MC group heading](../screenshots/guide/exam-mc-hint.jpg)
+
 MC detection reads exactly these marks, see [Verify MC detections](./scanning#mc-verification). Turning the option on or off rebuilds the answer-sheet template, so typeset and print the exam again afterwards.
 
 ### Logo and LaTeX packages {#logo-packages}

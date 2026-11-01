@@ -83,7 +83,7 @@ async function teacher() {
   if (want('exam-setup')) {
     await go(page, `/exam/${ids['10b']}`);
     await page.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
-    await page.getByText(/OMR-Vorlage gespeichert/).waitFor({ timeout: 300000 });
+    await page.getByText(/Scan-Vorlage gespeichert/).waitFor({ timeout: 300000 });
     const sol = page.getByText('Lösung PDF', { exact: true });
     if (await sol.count()) await sol.first().click();
     await page.waitForTimeout(5000);
@@ -253,7 +253,7 @@ async function tour() {
     await page.setViewportSize({ width: 1280, height: 1100 });
     await go(page, `/exam/${ids['10b']}`);
     await page.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
-    await page.getByText(/OMR-Vorlage gespeichert/).waitFor({ timeout: 300000 });
+    await page.getByText(/Scan-Vorlage gespeichert/).waitFor({ timeout: 300000 });
     const sol = page.getByText('Lösung PDF', { exact: true });
     if (await sol.count()) await sol.first().click();
     await page.waitForTimeout(6000);

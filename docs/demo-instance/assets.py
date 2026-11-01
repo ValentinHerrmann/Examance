@@ -21,7 +21,7 @@ GUIDE = {
     "settings-storage": ("guide-settings-storage", (870, 170, 2840, 855)),
     "settings-mc-detection": ("guide-settings-mc", (870, 170, 2840, 1890)),
     "settings-latex-packages": ("guide-settings-packages", (870, 170, 2840, 2000)),
-    "settings-restore": ("guide-settings-restore", None),
+    "settings-restore": ("guide-settings-restore", (870, 235, 2840, 650)),
     "grading-parts": ("guide-grading-parts", None),
     "settings-security": ("guide-security", (870, 120, 2840, 1480)),
     "results-borderline": ("guide-borderline", (365, 385, 3165, 2560)),

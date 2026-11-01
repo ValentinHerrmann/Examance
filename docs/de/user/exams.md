@@ -80,6 +80,8 @@ Der Erwartungshorizont enthält das Feld nicht.
 - Kästchen **ganz ausmalen**, um ein Kreuz zurückzunehmen;
 - **links neben** ein ausgemaltes Kästchen kreuzen, um es wieder zu wählen.
 
+![Die Korrekturzeile unter der Überschrift der Ankreuzaufgaben](../../screenshots/guide/exam-mc-hint.jpg)
+
 Die MC-Erkennung liest genau diese Markierungen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification). Wenn Sie die Option ein- oder ausschalten, wird die Antwortbogen-Vorlage neu erzeugt; setzen und drucken Sie die Prüfung danach erneut.
 
 ### Logo und LaTeX-Pakete {#logo-packages}

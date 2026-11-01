@@ -45,6 +45,8 @@ Results deleted on the server stay there for a **grace period** (7 days unless y
 - single submissions you deleted;
 - the server copy that was deleted when you switched to Hybrid.
 
+![Restoring results deleted from the server](../screenshots/guide/settings-restore.jpg)
+
 Restoring brings back **every** result of your account whose grace period is still running, including submissions you deleted on purpose. Deleted exams and students erased under the GDPR do not come back. If older deleted results of an exam are already gone, the card lists that exam and the date they were removed.
 
 In Hybrid mode your results live in this browser; the restored copy stays on the server until you switch to "All on the server". The card is shown when your account may keep results on the server.

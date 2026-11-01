@@ -45,6 +45,8 @@ Auf dem Server gelöschte Ergebnisse bleiben dort für eine **Übergangsfrist** 
 - einzeln gelöschte Abgaben;
 - die Server-Kopie, die beim Wechsel zu Hybrid gelöscht wurde.
 
+![Vom Server gelöschte Ergebnisse wiederherstellen](../../screenshots/guide/settings-restore.jpg)
+
 Die Wiederherstellung holt **alle** Ergebnisse Ihres Kontos zurück, deren Übergangsfrist noch läuft, auch Abgaben, die Sie absichtlich gelöscht haben. Gelöschte Prüfungen und nach DSGVO gelöschte Schüler:innen kommen nicht zurück. Sind ältere gelöschte Ergebnisse einer Prüfung schon endgültig entfernt, nennt die Karte diese Prüfung und das Datum.
 
 Im Hybrid-Modus liegen Ihre Ergebnisse in diesem Browser; die wiederhergestellte Kopie bleibt auf dem Server, bis Sie zu „Alles auf dem Server“ wechseln. Die Karte erscheint, wenn Ihr Konto Ergebnisse auf dem Server speichern darf.

@@ -46,6 +46,8 @@ A submission counts as **partly graded** until every exercise has points. Partly
 
 For an exercise with [parts](./exercises#parts), the scoring panel shows one row per part (**Part a)**, **Part b)**, …) below the exercise. Click a part's row to make it the stamp target, so stamps count towards that part, or type its points.
 
+![Part rows in the scoring panel and filled score boxes on the scan](../screenshots/guide/grading-parts.jpg)
+
 - The exercise's own field then reads **Follows from the parts once all of them are graded**: the exercise counts as graded only when every part has points.
 - Points outside the parts (for example a scoring unit in the introduction, or stamps set while the exercise itself was the target) are collected in the row **Outside the parts**. If it gets more points than the exercise has outside its parts, the row warns you: probably a stamp landed without a part.
 - You can still grade the exercise as a whole: just leave the part rows empty.
