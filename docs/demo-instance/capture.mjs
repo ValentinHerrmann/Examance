@@ -279,7 +279,7 @@ async function tour() {
         await page.getByRole('button', { name: tool }).first().click();
         for (const [x, y] of pts) { await page.mouse.click(x, y); await page.waitForTimeout(400); }
       };
-      const ONE = /^\+1\.0|\+1,0/, HALF = /^\+0\.5|\+0,5|½/;
+      const ONE = /^(\+1\.0|\+1,0)/, HALF = /^(\+0\.5|\+0,5|½)/;
       // Q2 is graded part by part: each part's stamps count towards that part.
       await stamp('Teilaufgabe a)', ONE, [[280, 480]]);
       await stamp('Teilaufgabe a)', HALF, [[330, 384]]);

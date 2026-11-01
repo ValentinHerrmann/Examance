@@ -60,11 +60,11 @@ for (const e of EXAMS.filter((x) => x.scan)) {
   await page.getByText(/Scan-Vorlage gespeichert/).waitFor({ timeout: 300000 });
   await page.waitForTimeout(3000);
   // The download link points at a blob URL; read it in the page instead of relying on a browser download.
-  const href = await page.getByRole('link', { name: 'Herunterladen' }).first().getAttribute('href');
-  const b64 = await page.evaluate(async (u) => {
+  const href = await page.getByRole('link', { name: 'Herunterladen' }).first().getAttribute('href'); // NOSONAR: UI steps run in order in one browser
+  const b64 = await page.evaluate(async (u) => { // NOSONAR: UI steps run in order in one browser
     const bytes = new Uint8Array(await (await fetch(u)).arrayBuffer());
     let bin = '';
-    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCodePoint(...bytes.subarray(i, i + 0x8000));
     return btoa(bin);
   }, href);
   fs.writeFileSync(pdf, Buffer.from(b64, 'base64'));

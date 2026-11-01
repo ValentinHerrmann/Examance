@@ -31,9 +31,9 @@ for (const key of ['10b', '10a']) {
   const plan = JSON.parse(fs.readFileSync(path.join(STATE, `plan-${key}.json`), 'utf8'));
   const byCode = Object.fromEntries(Object.values(plan).map((p) => [p.code, p]));
   // Booklets are found by their printed fallback code: the grade page shows only the exam-keyed pseudonym (issue #177).
-  await page.goto(`${BASE}/exam/${ids[key]}/scan`);
-  await page.waitForTimeout(8000);
-  const subs = await page.locator('tr:has(td[title^="Abgabe-ID: "])').evaluateAll((trs) => trs.map((tr) => {
+  await page.goto(`${BASE}/exam/${ids[key]}/scan`); // NOSONAR: UI steps run in order in one browser
+  await page.waitForTimeout(8000); // NOSONAR: UI steps run in order in one browser
+  const subs = await page.locator('tr:has(td[title^="Abgabe-ID: "])').evaluateAll((trs) => trs.map((tr) => { // NOSONAR: UI steps run in order in one browser
     const td = [...tr.querySelectorAll('td')];
     return [td[0].title.replace('Abgabe-ID: ', ''), td[2].innerText.trim()];
   }));
@@ -70,10 +70,10 @@ if (!done.annotated) {
   const tool = async (n) => { await page.getByRole('button', { name: n }).first().click(); await page.waitForTimeout(300); };
   const at = async (x, y) => { await page.mouse.click(x, y); await page.waitForTimeout(400); };
   await pick('Teilaufgabe a)');
-  await tool(/^\+1\.0|\+1,0/); await at(520, 598);
-  await tool(/^\+0\.5|\+0,5|½/); await at(470, 617);
+  await tool(/^(\+1\.0|\+1,0)/); await at(520, 598);
+  await tool(/^(\+0\.5|\+0,5|½)/); await at(470, 617);
   await pick('Teilaufgabe b)');
-  await tool(/^\+1\.0|\+1,0/); await at(515, 712);
+  await tool(/^(\+1\.0|\+1,0)/); await at(515, 712);
   await tool(/Fehlt/); await at(440, 731);
   // Stamps rewrite the scores they touch; type the planned ones again.
   const planned = { 'Teilaufgabe a)': show.parts.q1.a, 'Teilaufgabe b)': show.parts.q1.b, Q3: show.scores.q2, Q4: show.scores.q3 };
