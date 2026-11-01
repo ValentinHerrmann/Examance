@@ -7,12 +7,13 @@ export async function buildSubmissionMap(
   students: StudentRecord[] = []
 ): Promise<Map<string, SubmissionRecord>> {
   const present = students.filter(Boolean);
+  const none = Promise.resolve(null);
   // Every key at once: each is an independent HMAC.
   const [subKeys, idKeys, studentKeys, fallbackKeys] = await Promise.all([
-    Promise.all(submissions.map((s) => (s.pseudonymHmac ? joinKey(s) : null))),
-    Promise.all(submissions.map((s) => (s.id ? keyFromRaw(s.examId, s.id) : null))),
-    Promise.all(present.map((st) => (st.pseudonymHmac ? joinKey(st) : null))),
-    Promise.all(present.map((st) => (st.fallbackCode ? keyFromRaw(st.examId, st.fallbackCode) : null))),
+    Promise.all(submissions.map((s) => (s.pseudonymHmac ? joinKey(s) : none))),
+    Promise.all(submissions.map((s) => (s.id ? keyFromRaw(s.examId, s.id) : none))),
+    Promise.all(present.map((st) => (st.pseudonymHmac ? joinKey(st) : none))),
+    Promise.all(present.map((st) => (st.fallbackCode ? keyFromRaw(st.examId, st.fallbackCode) : none))),
   ]);
 
   const map = new Map<string, SubmissionRecord>();
