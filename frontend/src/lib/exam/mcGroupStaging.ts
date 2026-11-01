@@ -65,20 +65,24 @@ export function applyGroup<G extends McGroupDraft>(
   return [...groups, { id: newId(), ...fields }];
 }
 
-/** Turns the staged questions into a group (new or `editingId`); `null` when nothing is staged. */
+/** Commits the draft: a new group, the edited group updated, or the edited group removed once all its questions were unstaged; `null` when there is nothing to commit. */
 export function commitStagedGroup<G extends McGroupDraft>(
   groups: readonly G[],
   draft: { editingId: string | null; staged: readonly string[]; title: string; scoringText: string },
   newId?: () => string,
 ): { groups: (G | McGroupDraft)[]; memberIds: string[]; previousMemberIds: Set<string> } | null {
-  if (!canFinalizeGroup(draft.staged)) return null;
+  const edited = draft.editingId ? groups.find((g) => g.id === draft.editingId) : undefined;
+  const previousMemberIds = new Set(edited?.memberIds ?? []);
+  if (!canFinalizeGroup(draft.staged)) {
+    if (!edited) return null;
+    return { groups: groups.filter((g) => g !== edited), memberIds: [], previousMemberIds };
+  }
   const memberIds = [...draft.staged];
-  const previous = draft.editingId ? groups.find((g) => g.id === draft.editingId)?.memberIds ?? [] : [];
-  const next = applyGroup(groups, { editingId: draft.editingId, title: draft.title, scoringText: draft.scoringText, memberIds }, newId);
-  return { groups: next, memberIds, previousMemberIds: new Set(previous) };
+  const next = applyGroup(groups, { editingId: edited?.id ?? null, title: draft.title, scoringText: draft.scoringText, memberIds }, newId);
+  return { groups: next, memberIds, previousMemberIds };
 }
 
-/** True when the staged list differs from the edited group's members (`[]` for a new group), i.e. closing would discard work. */
-export function stagingChanged(staged: readonly string[], editingMemberIds: readonly string[]): boolean {
-  return staged.length !== editingMemberIds.length || staged.some((id, i) => id !== editingMemberIds[i]);
+/** True when two ordered id lists differ (length, membership or order). */
+export function idsChanged(a: readonly string[], b: readonly string[]): boolean {
+  return a.length !== b.length || a.some((id, i) => id !== b[i]);
 }

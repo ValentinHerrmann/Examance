@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { commitStagedGroup, stagingChanged, type McGroupDraft } from '../src/lib/exam/mcGroupStaging';
+import { commitStagedGroup, idsChanged, type McGroupDraft } from '../src/lib/exam/mcGroupStaging';
 
 const groups: McGroupDraft[] = [
   { id: 'g1', title: 'A', scoringText: 's', memberIds: ['q1', 'q2'] },
@@ -7,8 +7,15 @@ const groups: McGroupDraft[] = [
 ];
 
 describe('commitStagedGroup (#175: applying the dialog adds the staged group)', () => {
-  it('returns null when nothing is staged', () => {
+  it('returns null when nothing is staged for a new group', () => {
     expect(commitStagedGroup(groups, { editingId: null, staged: [], title: 'T', scoringText: 'S' })).toBeNull();
+  });
+
+  it('removes the edited group once all its questions were unstaged', () => {
+    const res = commitStagedGroup(groups, { editingId: 'g1', staged: [], title: 'A', scoringText: 's' });
+    expect(res?.groups.map((g) => g.id)).toEqual(['g2']);
+    expect(res?.memberIds).toEqual([]);
+    expect([...(res?.previousMemberIds ?? [])]).toEqual(['q1', 'q2']);
   });
 
   it('creates a new group with the staged order', () => {
@@ -27,15 +34,15 @@ describe('commitStagedGroup (#175: applying the dialog adds the staged group)', 
   });
 });
 
-describe('stagingChanged', () => {
-  it('is false for an untouched new or edited group', () => {
-    expect(stagingChanged([], [])).toBe(false);
-    expect(stagingChanged(['q1', 'q2'], ['q1', 'q2'])).toBe(false);
+describe('idsChanged', () => {
+  it('is false for equal ordered lists', () => {
+    expect(idsChanged([], [])).toBe(false);
+    expect(idsChanged(['q1', 'q2'], ['q1', 'q2'])).toBe(false);
   });
 
-  it('is true for staged questions, removals and reorders', () => {
-    expect(stagingChanged(['q1'], [])).toBe(true);
-    expect(stagingChanged(['q1'], ['q1', 'q2'])).toBe(true);
-    expect(stagingChanged(['q2', 'q1'], ['q1', 'q2'])).toBe(true);
+  it('is true for additions, removals and reorders', () => {
+    expect(idsChanged(['q1'], [])).toBe(true);
+    expect(idsChanged(['q1'], ['q1', 'q2'])).toBe(true);
+    expect(idsChanged(['q2', 'q1'], ['q1', 'q2'])).toBe(true);
   });
 });

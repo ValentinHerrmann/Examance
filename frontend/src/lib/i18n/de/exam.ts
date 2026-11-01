@@ -132,6 +132,7 @@ export const exam = {
         headingNew: 'Neue MC-Gruppe ({count} Teilaufgaben)',
         headingEdit: 'MC-Gruppe bearbeiten ({count} Teilaufgaben)',
         emptyHint: 'Haken Sie links MC-Fragen an, um daraus eine Gruppe zu bilden. Eine Prüfung kann beliebig viele MC-Gruppen beliebiger Größe enthalten; jede Frage gehört zu höchstens einer Gruppe.',
+        emptyEditHint: 'Ohne Fragen wird diese Gruppe beim Übernehmen samt ihren Fragen aus der Prüfung entfernt.',
         moveUp: 'Nach oben verschieben',
         moveDown: 'Nach unten verschieben',
         remove: 'Entfernen',
