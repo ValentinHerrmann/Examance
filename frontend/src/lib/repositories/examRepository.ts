@@ -56,6 +56,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     latexPackages: packagesField(raw.latex_packages !== undefined ? raw.latex_packages : raw.latexPackages),
     pageBreaks: pageBreaksField(raw.page_breaks !== undefined ? raw.page_breaks : raw.pageBreaks),
     nameLine: (raw.name_line ?? raw.nameLine) === true,
+    mcCorrectionHint: (raw.mc_correction_hint ?? raw.mcCorrectionHint) === true,
     extraNotes: extraNotesField(raw.extra_notes !== undefined ? raw.extra_notes : raw.extraNotes),
     latexPreamble: raw.latex_preamble || raw.latexPreamble,
     latexTemplate: raw.latex_template || raw.latexTemplate,
@@ -87,6 +88,7 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     page_breaks: exam.pageBreaks,
     // Undefined leaves the stored choice alone.
     name_line: exam.nameLine,
+    mc_correction_hint: exam.mcCorrectionHint,
     // null switches the block off, undefined leaves it alone.
     extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,

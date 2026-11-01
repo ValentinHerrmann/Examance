@@ -47,15 +47,17 @@ async def test_exam_patch_null_keeps_plain_columns_but_clears_the_topic(
         info_text="note",
         grading_key={"a": 1},
         name_line=True,
+        mc_correction_hint=True,
     )
     url = f"{EXAMS}/{exam['id']}"
     nulls = dict.fromkeys(
-        ("title", "latex_template", "grade", "klasse", "info_text", "grading_key", "name_line")
+        ("title", "latex_template", "grade", "klasse", "info_text", "grading_key", "name_line", "mc_correction_hint")
     )
 
     body = (await client.patch(url, json={**nulls, "topic": None})).json()
     assert (body["title"], body["grade"], body["klasse"]) == ("Original", "7", "7a")
     assert (body["info_text"], body["grading_key"], body["name_line"]) == ("note", {"a": 1}, True)
+    assert body["mc_correction_hint"] is True
     assert body["topic"] is None  # null (or blank) clears the topic
 
     # Falsy values are values, and a field that is not sent stays as it was.
@@ -117,6 +119,7 @@ async def test_exam_duplicate_copies_every_header_field(
         info_text="note",
         grading_key={"a": [1, 2]},
         name_line=True,
+        mc_correction_hint=True,
         extra_notes=notes,
         latex_packages=[{"kind": "package", "name": "siunitx", "options": "", "disabled": False}],
     )

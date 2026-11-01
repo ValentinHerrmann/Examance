@@ -127,7 +127,7 @@ type OmrLayoutInput = ExamCompileContext & { examItems?: ExamItemRef[] };
 export async function buildOmrBlankTex(ctx: OmrLayoutInput): Promise<string> {
   const { exam, exercises, libraryExercises, mcGroups } = ctx;
   const examItems = ctx.examItems ?? buildExamItems(exercises, mcGroups);
-  const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks);
+  const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks, exam.mcCorrectionHint);
   return buildExamLatex(exam, exerciseInputs, "sans,punkte", await getAccountPackages());
 }
 

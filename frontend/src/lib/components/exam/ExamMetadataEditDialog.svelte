@@ -36,6 +36,7 @@
   let editLehrernachname = $state("");
   let editInfoText = $state("");
   let editNameLine = $state(false);
+  let editMcCorrectionHint = $state(false);
   let editLogoChange: ExamLogoChange | null = $state.raw(null);
   let editLatexPackages: LatexPackageEntry[] | null = $state.raw(null);
   let initialLatexPackages = $state("null");
@@ -57,6 +58,7 @@
     lehrernachname: "",
     infoText: "",
     nameLine: false,
+    mcCorrectionHint: false,
     retentionUntil: "",
   });
   let showMetadataConfirm = $state(false);
@@ -74,6 +76,7 @@
         editLehrernachname !== initialMetadata.lehrernachname ||
         editInfoText !== initialMetadata.infoText ||
         editNameLine !== initialMetadata.nameLine ||
+        editMcCorrectionHint !== initialMetadata.mcCorrectionHint ||
         editLogoChange !== null ||
         JSON.stringify(editLatexPackages) !== initialLatexPackages ||
         editRetentionUntil !== initialMetadata.retentionUntil),
@@ -92,6 +95,7 @@
     editLehrernachname = exam.lehrernachname || "";
     editInfoText = exam.infoText || "";
     editNameLine = exam.nameLine === true;
+    editMcCorrectionHint = exam.mcCorrectionHint === true;
     editRetentionUntil = exam.retentionUntil || "";
     editGradingKey = exam.gradingKey || {
       preset: "linear_50",
@@ -110,6 +114,7 @@
       lehrernachname: editLehrernachname,
       infoText: editInfoText,
       nameLine: editNameLine,
+      mcCorrectionHint: editMcCorrectionHint,
       retentionUntil: editRetentionUntil,
     };
     editLogoChange = null;
@@ -157,6 +162,7 @@
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
           name_line: editNameLine,
+          mc_correction_hint: editMcCorrectionHint,
           grading_key: gradingKey,
           latex_packages: latexPackages,
           retention_until: editRetentionUntil,
@@ -176,6 +182,7 @@
         lehrernachname: editLehrernachname,
         infoText: editInfoText,
         nameLine: editNameLine,
+        mcCorrectionHint: editMcCorrectionHint,
         retentionUntil: editRetentionUntil,
         gradingKey,
         latexPackages,
@@ -216,6 +223,7 @@
   bind:editLehrernachname
   bind:editInfoText
   bind:editNameLine
+  bind:editMcCorrectionHint
   bind:editRetentionUntil
   bind:editGradingKey
   examId={exam.id}

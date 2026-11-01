@@ -111,6 +111,8 @@ export const exam = {
         infoText: 'Infotext (LaTeX-Liste)',
         nameLine: 'Namenszeile neben dem QR-Code-Feld drucken',
         nameLineHint: 'Die Schüler:innen schreiben ihren Namen auf die Titelseite. Das QR-Code-Feld bleibt, das Initialenfeld darin entfällt.',
+        mcCorrectionHint: 'Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert',
+        mcCorrectionHintHint: 'Eine kurze Zeile unter der Aufgabe: ankreuzen zum Wählen, Kästchen ausmalen zum Zurücknehmen, links neben ein ausgemaltes Kästchen kreuzen zum erneuten Wählen. Die Antwortbogen-Vorlage wird neu erzeugt.',
     },
     libraryModal: {
         header: 'Aufgaben aus der Bibliothek verknüpfen',

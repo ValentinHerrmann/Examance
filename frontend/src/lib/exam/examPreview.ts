@@ -3,6 +3,7 @@ import type { McGroup } from "#lib/db/dbEncryption";
 import { compileWithCache, getCachedFor, getLatestForSlot, type CachedCompileEntry } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
 import { escapeLatex, formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
+import { printedMcOptions } from "#lib/latex/mcOptions";
 import type { ExamItemRef } from "#lib/grading/omrTemplatePrep";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
 import { resolveCompileLogo, type CompileLogo } from "#lib/latex/logo";
@@ -20,12 +21,13 @@ export interface ExerciseBlock {
   exerciseIds: string[];
 }
 
-/** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). */
+/** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). `mcCorrectionHint` prints the correction legend at every MC group and every exercise with answer boxes (issue #192). */
 export function buildExerciseBlocks(
   examItems: ExamItemRef[],
   exercises: ExerciseRecord[],
   libraryExercises: ExerciseRecord[],
-  mcGroups: McGroup[]
+  mcGroups: McGroup[],
+  mcCorrectionHint = false
 ): ExerciseBlock[] {
   let exerciseCount = 0;
   const blocks: ExerciseBlock[] = [];
@@ -35,7 +37,8 @@ export function buildExerciseBlocks(
       if (!ex) continue;
       exerciseCount++;
       const title = ex.name || `Aufgabe ${exerciseCount}`;
-      blocks.push({ itemId: item.id, latex: formatExerciseLatex(ex.latexBody, title, ex.id, title), exerciseIds: [ex.id] });
+      const hint = mcCorrectionHint && printedMcOptions(ex.latexBody).length > 0;
+      blocks.push({ itemId: item.id, latex: formatExerciseLatex(ex.latexBody, title, ex.id, title, hint), exerciseIds: [ex.id] });
     } else {
       const group = mcGroups.find((g) => g.id === item.id);
       if (!group) continue;
@@ -45,7 +48,8 @@ export function buildExerciseBlocks(
       const latex = formatMcGroupLatex(
         members.map((m) => ({ id: m.id, latexBody: m.latexBody || "", sourceLabel: m.name || group.title })),
         group.title,
-        group.scoringText
+        group.scoringText,
+        mcCorrectionHint
       );
       blocks.push({ itemId: item.id, latex, exerciseIds: members.map((m) => m.id) });
     }
@@ -59,10 +63,11 @@ export function buildExerciseInputs(
   exercises: ExerciseRecord[],
   libraryExercises: ExerciseRecord[],
   mcGroups: McGroup[],
-  pageBreaks?: readonly string[] | null
+  pageBreaks?: readonly string[] | null,
+  mcCorrectionHint = false
 ): string {
   const breaks = new Set(pageBreaks ?? []);
-  return buildExerciseBlocks(examItems, exercises, libraryExercises, mcGroups)
+  return buildExerciseBlocks(examItems, exercises, libraryExercises, mcGroups, mcCorrectionHint)
     .map((b, i) => (i > 0 && breaks.has(b.itemId) ? `\\newpage\n${b.latex}` : b.latex))
     .join("\n\n");
 }
@@ -177,7 +182,7 @@ export async function prepareExamSources(
   const { exam, exercises, libraryExercises, mcGroups, examItems, key } = input;
   // Results-only imports have no LaTeX: compiling would produce empty exercise blocks.
   if (examHasWithheldCode(exercises)) throw new Error(translate("exam.resultsOnly.noCompile"));
-  const inputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks);
+  const inputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks, exam.mcCorrectionHint);
   const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key, needBytes);
   const accountPackages = await getAccountPackages();
   return {

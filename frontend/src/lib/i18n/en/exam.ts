@@ -113,6 +113,8 @@ export const exam: Translations['exam'] = {
         infoText: 'Info Text (LaTeX list)',
         nameLine: 'Print a name line next to the QR code box',
         nameLineHint: 'Students write their name on the title page. The QR code box stays; its initials field is dropped.',
+        mcCorrectionHint: 'Show how to correct a cross at every multiple-choice task',
+        mcCorrectionHintHint: 'One short line under the task: cross to choose, fill the box to withdraw, cross left of a filled box to choose again. The answer-sheet template is rebuilt.',
     },
     libraryModal: {
         header: 'Link Exercises from Library',
