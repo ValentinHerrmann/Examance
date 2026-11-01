@@ -1,3 +1,5 @@
+import type { GradingState, VectorStroke } from '#lib/grading/gradingStore';
+
 export interface AutoCropBounds {
   x: number;
   y: number;
@@ -76,4 +78,40 @@ export function legacyScanCrop(img: HTMLImageElement, autoCrop: boolean): AutoCr
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(img, 0, 0);
   return getAutoCropBounds(ctx, img.width, img.height);
+}
+
+/** Strokes left after erasing at (x, y) on `page`; null when nothing was hit. */
+export function eraseStrokesAt(strokes: VectorStroke[], page: number, x: number, y: number, radius = 25): VectorStroke[] | null {
+  const remaining = strokes.filter(
+    (s) => (s.pageNumber ?? 1) !== page || !s.points.some((p) => Math.hypot(p.x - x, p.y - y) <= radius)
+  );
+  return remaining.length === strokes.length ? null : remaining;
+}
+
+/** A new stroke of the active tool at `point`. Stamps go to the active exercise (else the first) and its active part; lines and pen keep the active id as is. */
+export function newStroke(
+  state: Pick<GradingState, 'drawTool' | 'penColor' | 'activeExerciseId' | 'activePartLabel'>,
+  exercises: { id: string }[],
+  point: { x: number; y: number },
+  page: number
+): VectorStroke {
+  const tool = state.drawTool;
+  if (tool === 'pen' || tool === 'line') {
+    return {
+      tool,
+      points: tool === 'line' ? [point, { ...point }] : [point],
+      color: state.penColor,
+      exerciseId: state.activeExerciseId || exercises[0]?.id,
+      pageNumber: page,
+    };
+  }
+  const target = exercises.find((ex) => ex.id === state.activeExerciseId) ?? exercises[0];
+  return {
+    tool,
+    points: [point],
+    color: '#ef4444',
+    exerciseId: target?.id,
+    partLabel: target && target.id === state.activeExerciseId ? state.activePartLabel || undefined : undefined,
+    pageNumber: page,
+  };
 }

@@ -127,15 +127,16 @@
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     const mcExercises = await loadExamMcExercises(examId, key).catch(() => []);
-    await prepareOmrContext(key, mcExercises);
+    await prepareOmrContext(key, mcExercises, mcExercises.length === 0);
     // Without MC nothing here depends on the template, so a failure only leaves the score boxes empty.
-    if (mcExercises.length === 0) {
-      omrAvailable = false;
-      omrBanner = "";
-    }
+    if (mcExercises.length === 0) omrAvailable = false;
   }
 
-  async function prepareOmrContext(key: CryptoKey | null, mcExercises: Awaited<ReturnType<typeof loadExamMcExercises>>) {
+  /** `quiet` (exam without MC): the template only serves the score boxes in grading, so its preparation never shows a banner here. */
+  async function prepareOmrContext(key: CryptoKey | null, mcExercises: Awaited<ReturnType<typeof loadExamMcExercises>>, quiet: boolean) {
+    const banner = (message: string) => {
+      if (!quiet) omrBanner = message;
+    };
     try {
       const existing = await loadOmrTemplateEncrypted(examId, key);
       let needsCompile = !existing || !existing.payload;
@@ -153,12 +154,12 @@
       if (needsCompile) {
         if (!compileCtx) {
           omrAvailable = false;
-          omrBanner = translate("scanning.omrBanner.autoPrepareFailed", { message: translate("scanning.examContextNotFound") });
+          banner(translate("scanning.omrBanner.autoPrepareFailed", { message: translate("scanning.examContextNotFound") }));
           return;
         }
 
         try {
-          omrBanner = translate("scanning.omrBanner.autoPreparing");
+          banner(translate("scanning.omrBanner.autoPreparing"));
           const compileRes = await prepareOmrTemplate({
             examId,
             exam: compileCtx.exam,
@@ -166,21 +167,21 @@
             libraryExercises: compileCtx.libraryExercises,
             mcGroups: compileCtx.mcGroups,
             key,
-            onProgress: (msg) => { omrBanner = `${translate("scanning.omrBanner.autoPreparing")} - ${msg}`; }
+            onProgress: (msg) => { banner(`${translate("scanning.omrBanner.autoPreparing")} - ${msg}`); }
           });
 
           if (compileRes.status === 'stale') {
              omrAvailable = false;
-             omrBanner = translate("scanning.omrBanner.autoPrepareFailed", { message: compileRes.message });
+             banner(translate("scanning.omrBanner.autoPrepareFailed", { message: compileRes.message }));
              return;
           }
 
           pages = compileRes.pages;
           omrTemplateHash = compileRes.exercisesHash;
-          omrBanner = translate("scanning.omrBanner.autoPrepared");
+          banner(translate("scanning.omrBanner.autoPrepared"));
         } catch (err: any) {
           omrAvailable = false;
-          omrBanner = translate("scanning.omrBanner.autoPrepareFailed", { message: err.message });
+          banner(translate("scanning.omrBanner.autoPrepareFailed", { message: err.message }));
           return;
         }
       } else {
@@ -197,11 +198,11 @@
         maxPoints: e.maxPoints,
       }));
       omrAvailable = true;
-      if (!needsCompile) omrBanner = "";
+      if (!needsCompile) banner("");
     } catch (err) {
       console.error("Failed to load OMR context:", err);
       omrAvailable = false;
-      omrBanner = "";
+      banner("");
     }
   }
 

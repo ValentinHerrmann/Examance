@@ -8,7 +8,7 @@ import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { sessionStore } from '#lib/stores/session';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
-import { reconcileParts, type PartScores } from '#lib/grading/partScores';
+import { hasPartValues, type PartScores } from '#lib/grading/partScores';
 
 /** Live MC state of the grade page; other views carry the stored row's values forward. */
 export interface McCarry {
@@ -16,7 +16,7 @@ export interface McCarry {
   omrMeta?: OmrScoreMeta;
 }
 
-/** Saves `values` (exercise id -> score; `null` clears, a missing id stays as it is) and the submission's total, which is set only when every exercise of `exerciseIds` has a score. Never deletes a row carrying OMR data or one that failed to decrypt: both only look ungraded (frontend `CLAUDE.md`). Returns the effective score per exercise. */
+/** Saves `values` (exercise id -> score; `null` clears, a missing id stays as it is) and the submission's total, which is set only when every exercise of `exerciseIds` has a score. Never deletes a row carrying OMR data, part scores of a partly graded exercise, or one that failed to decrypt: they only look ungraded (frontend `CLAUDE.md`). Returns the effective score per exercise. */
 export async function saveSubmissionScores(
   examId: string,
   submission: SubmissionRecord,
@@ -26,7 +26,7 @@ export async function saveSubmissionScores(
     mc?: Readonly<Record<string, McCarry | undefined>>;
     existing?: ReadonlyMap<string, ExerciseScoreRecord>;
     clearAnnotations?: boolean;
-    /** Live part scores of the grade page; other views keep the stored parts while they still add up to the total. */
+    /** Live part scores of the grade page. Other views keep the stored parts while the total is unchanged and drop them when it was overridden. */
     parts?: Readonly<Record<string, PartScores | undefined>>;
   } = {},
 ): Promise<Map<string, number | null>> {
@@ -45,20 +45,25 @@ export async function saveSubmissionScores(
       continue;
     }
     const value = values.get(exerciseId);
-    if (typeof value === 'number' && !Number.isNaN(value)) {
-      const mc = opts.mc?.[exerciseId];
+    const isScore = typeof value === 'number' && !Number.isNaN(value);
+    const mc = opts.mc?.[exerciseId];
+    // Stored parts belong to the stored total: a total changed elsewhere (score grid, paste import) drops them.
+    const parts = opts.parts ? opts.parts[exerciseId] : row?.score === (isScore ? value : undefined) ? row?.partScores : undefined;
+    const keptParts = hasPartValues(parts) ? parts : undefined;
+    if (isScore || (opts.parts && keptParts)) {
+      // A partly graded exercise is stored with its parts but without a score.
       toSave.push({
         id: crypto.randomUUID(),
         submissionId: submission.id,
         exerciseId,
-        score: value,
+        score: isScore ? value : undefined,
         selectedOptions: mc?.selectedOptions ?? row?.selectedOptions,
         omrMeta: mc?.omrMeta ?? row?.omrMeta,
-        partScores: reconcileParts(value, opts.parts ? opts.parts[exerciseId] : row?.partScores),
+        partScores: keptParts,
       });
-      effective.set(exerciseId, value);
-    } else if (row?.omrMeta || row?.decryptFailed) {
-      effective.set(exerciseId, row.score ?? null);
+      effective.set(exerciseId, isScore ? value : null);
+    } else if (row?.omrMeta || row?.decryptFailed || keptParts) {
+      effective.set(exerciseId, row?.score ?? null);
     } else {
       toClear.push(exerciseId);
       effective.set(exerciseId, null);

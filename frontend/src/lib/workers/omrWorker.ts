@@ -1,7 +1,7 @@
 /** Web Worker for OMR and fiducial alignment: binarize (Otsu), locate the 4 corner fiducials (largest dark blob per quadrant), homography (4-point DLT, 3-point affine fallback), sample each bubble's fill ratio, score via mcScore.ts. No OpenCV.js: bubble positions come from the PDF's `omr://` link annotations ("Prepare OMR"); only fiducials are detected. */
 
 import type { OmrPageTemplate } from '#lib/db/schema';
-import { buildAffine3, bubbleBBoxInImage, registerPage, transformPoint } from '#lib/grading/omrRegistration';
+import { buildAffine3, bubbleBBoxInImage, registerPage, transformPoint, type Homography } from '#lib/grading/omrRegistration';
 import { computeMcScore, type McQuestionType } from '#lib/grading/mcScore';
 import {
   normalizeOmrParams,
@@ -88,9 +88,40 @@ export type OmrWorkerResponse =
     }
   | { type: 'ERROR'; message: string };
 
+/** Alignment only, for the score boxes of the grading viewer (issue #187): keeps that work off the main thread. */
+export interface OmrRegisterRequest {
+  type: 'REGISTER_PAGE';
+  id: number;
+  imageData: ImageData;
+  pageTemplate: OmrPageTemplate;
+  scanScale: number;
+  params: OmrDetectionParams;
+}
+
+export interface OmrRegisterResponse {
+  type: 'REGISTER_RESULT';
+  id: number;
+  /** Null when fewer than 3 fiducials were found or the worker failed. */
+  homography: Homography | null;
+}
+
+function handleRegister(req: OmrRegisterRequest) {
+  let homography: Homography | null = null;
+  try {
+    homography = registerPage(req.imageData, req.pageTemplate, req.scanScale, normalizeOmrParams(req.params)).H;
+  } catch (err) {
+    console.warn('[omrWorker] registration failed:', err);
+  }
+  self.postMessage({ type: 'REGISTER_RESULT', id: req.id, homography } satisfies OmrRegisterResponse);
+}
+
 // Every threshold below comes from `OmrDetectionParams` (lib/grading/omrSettings.ts), whose defaults are the constants this file used to hardcode.
 
-self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
+self.onmessage = (event: MessageEvent<OmrWorkerRequest | OmrRegisterRequest>) => {
+  if (event.data.type === 'REGISTER_PAGE') {
+    handleRegister(event.data);
+    return;
+  }
   const { imageData, pageTemplate, scanScale, answerKeys } = event.data;
   const params = normalizeOmrParams(event.data.params);
   try {

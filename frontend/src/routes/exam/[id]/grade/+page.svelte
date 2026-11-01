@@ -138,22 +138,12 @@
     // Check strokes/annotations for exercises with active stamps. Read them from `sub` itself: the canvas loads the new submission's strokes asynchronously, so the store still holds the previous student's strokes at this point.
     const subStrokes = await loadStrokesFor(sub);
     if (seq !== loadSeq) return;
-    const exerciseIdsWithStrokes = new Set<string>();
-    for (const stroke of subStrokes) {
-      if (stroke.exerciseId) {
-        exerciseIdsWithStrokes.add(stroke.exerciseId);
-      }
-    }
 
-    const sheet = buildGradingSheet(
-      sub.id,
-      existingScores,
-      exercises,
-      exerciseIdsWithStrokes,
-      get(gradingStore).manualOverride
-    );
+    const sheet = buildGradingSheet(sub.id, existingScores, exercises, subStrokes);
     loadedScores = sheet.loadedScores;
     loadedFor = sub.id;
+    // Typed scores are not stored as such; flag them so the viewer's recalculation keeps them.
+    gradingStore.setManualOverride(sheet.manualOverride);
     gradingStore.setScoreInputs(sheet.scoreInputs);
     gradingStore.setPartInputs(sheet.partInputs);
     gradingStore.setMcState(sheet.mcState);

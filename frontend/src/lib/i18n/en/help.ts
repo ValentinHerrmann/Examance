@@ -200,7 +200,7 @@ export const help: Translations['help'] = {
             s2: {
                 h: 'Annotating',
                 p1: 'Correction marks are drawn on a layer above the scan. The original stays untouched and can be shown without annotations at any time. All pages of a submission are stacked: scroll through them with the mouse wheel or scrollbar, or with two fingers on touch devices (one finger draws). Ctrl + mouse wheel or pinching zooms.',
-                p2: 'Points are awarded per exercise, or per part for exercises with parts (click a part row to count stamps towards it). Total score and grade follow continuously from the configured grading key. The printed score boxes next to exercises and parts and in the table at the end (including the sum and the grade) are filled in on the scan and in the graded PDF automatically.',
+                p2: 'Points are awarded per exercise, or per part for exercises with parts (click a part row to count stamps towards it); the exercise then counts as graded once all of its parts are. Points outside the parts go in the “Outside the parts” row. Total score and grade follow continuously from the configured grading key. The printed score boxes next to exercises and parts and in the table at the end (including the sum and the grade) are filled in on the scan and in the graded PDF automatically.',
             },
             s3: {
                 h: 'Tick-box exercises',

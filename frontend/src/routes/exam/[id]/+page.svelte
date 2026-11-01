@@ -266,7 +266,8 @@
   /** `quiet`: an exam without MC, whose template only fills score boxes; a failure is logged, not shown. */
   async function handlePrepareOmr(quiet = false) {
     if (!exam) return;
-    isPreparingOmr = true;
+    // Quiet runs reuse the preview just compiled and stay out of the compile button's state.
+    if (!quiet) isPreparingOmr = true;
     if (!quiet) errorMsg = "";
 
     try {
@@ -300,7 +301,7 @@
       rememberCompileLog(errorMsg, err);
       omrPrepareMessage = "";
     } finally {
-      isPreparingOmr = false;
+      if (!quiet) isPreparingOmr = false;
     }
   }
 

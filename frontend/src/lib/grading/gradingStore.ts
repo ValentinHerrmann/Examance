@@ -2,7 +2,7 @@
 
 import { writable, get } from 'svelte/store';
 import type { OmrScoreMeta } from '#lib/db/schema';
-import { sumParts, type PartScores } from './partScores';
+import { partTotal, prunePartScores, type PartExercise, type PartScores } from './partScores';
 
 export type ToolType =
   | 'pen'
@@ -46,7 +46,7 @@ export interface GradingState {
   /** Exercise ids, and `partOverrideKey()` for parts, whose score was typed instead of counted from stamps. */
   manualOverride: Record<string, boolean>;
   activeExerciseId: string;
-  /** Part scores per exercise with parts; while any part has a value, `scoreInputs` of that exercise is their sum. */
+  /** Part scores per exercise graded part by part; `scoreInputs` of that exercise is then `partTotal()` (null while a part is missing). */
   partInputs: Record<string, PartScores>;
   /** Part of the active exercise new stamps count towards; '' = the exercise itself. */
   activePartLabel: string;
@@ -144,14 +144,14 @@ function createGradingStore() {
       update((s) => ({ ...s, partInputs }));
     },
 
-    /** A typed part score; the exercise score follows as the sum of its parts. */
-    setPartInput(exerciseId: string, label: string, value: number | null) {
+    /** A typed part score; the exercise score follows from its parts. */
+    setPartInput(exercise: PartExercise, label: string, value: number | null) {
       update((s) => {
-        const parts = { ...s.partInputs[exerciseId], [label]: value };
+        const parts = prunePartScores(exercise, { ...s.partInputs[exercise.id], [label]: value });
         return {
           ...s,
-          partInputs: { ...s.partInputs, [exerciseId]: parts },
-          scoreInputs: { ...s.scoreInputs, [exerciseId]: sumParts(parts) },
+          partInputs: { ...s.partInputs, [exercise.id]: parts },
+          scoreInputs: { ...s.scoreInputs, [exercise.id]: partTotal(exercise, parts) },
           isDirty: true,
         };
       });

@@ -3,12 +3,14 @@
 import { calculateGradeDetail } from "#lib/analytics/gradingKey";
 import { loadOmrTemplateEncrypted } from "#lib/db/dbEncryption";
 import type { GradingKeyConfig, OmrPageTemplate } from "#lib/db/schema";
-import { DEFAULT_OMR_PARAMS } from "./omrSettings";
+import { get } from "svelte/store";
+import { omrSettingsStore } from "#lib/stores/omrSettings";
+import type { OmrDetectionParams } from "./omrSettings";
 import { pdfRectToNormalized, registerPage, type Homography } from "./omrRegistration";
 import { computeOmrTemplateHash, loadExamCompileContext, OMR_TEMPLATE_VERSION } from "./omrTemplatePrep";
 import { formatPoints } from "./omrOverlay";
 import { scoreBoxKey } from "./omrUri";
-import type { PartScores } from "./partScores";
+import { REST_KEY, type PartScores } from "./partScores";
 
 /** Score rendering at the viewer's and export's raster scale (pdf.js scale 2). */
 export const SCORE_BOX_SCAN_SCALE = 2;
@@ -19,6 +21,8 @@ export interface ScoreBoxContext {
   /** Exam position -> exercise ids (OmrTemplatePayload.positions). */
   positions: Record<number, string[]>;
   gradingKey?: GradingKeyConfig;
+  /** The teacher's OMR detection settings, so a scan that aligns for MC detection also aligns here. */
+  params: OmrDetectionParams;
 }
 
 /** The exam's score-box layout, or null when there is none or the template no longer matches the exam (the printed sheet would differ). Never compiles. */
@@ -30,7 +34,7 @@ export async function loadScoreBoxContext(examId: string, key: CryptoKey | null)
     if (!payload.pages.some((p) => (p.scoreBoxes?.length ?? 0) > 0)) return null;
     const ctx = await loadExamCompileContext(examId, key);
     if (!ctx || (await computeOmrTemplateHash(ctx)) !== stored!.record.exercisesHash) return null;
-    return { pages: payload.pages, positions: payload.positions, gradingKey: ctx.exam.gradingKey };
+    return { pages: payload.pages, positions: payload.positions, gradingKey: ctx.exam.gradingKey, params: get(omrSettingsStore).params };
   } catch (err) {
     console.warn("[scoreBoxes] layout unavailable:", err);
     return null;
@@ -63,7 +67,7 @@ export function buildScoreBoxValues(input: ScoreBoxInput): Map<string, string> {
     }
     for (const id of ids) {
       for (const [part, v] of Object.entries(partInputs[id] ?? {})) {
-        if (isNum(v)) values.set(scoreBoxKey({ box: "part", position, part }), formatPoints(v));
+        if (part !== REST_KEY && isNum(v)) values.set(scoreBoxKey({ box: "part", position, part }), formatPoints(v));
       }
     }
   }
@@ -82,7 +86,7 @@ export function buildScoreBoxValues(input: ScoreBoxInput): Map<string, string> {
 export function registerScorePage(ctx: ScoreBoxContext, page: number, image: ImageData): Homography | null {
   const template = ctx.pages[page - 1];
   if (!template?.scoreBoxes?.length) return null;
-  return registerPage(image, template, SCORE_BOX_SCAN_SCALE, DEFAULT_OMR_PARAMS).H;
+  return registerPage(image, template, SCORE_BOX_SCAN_SCALE, ctx.params).H;
 }
 
 /** Writes the values into the boxes of one page; `w`/`h` are the raster size the page was registered at. */

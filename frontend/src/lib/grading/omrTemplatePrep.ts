@@ -19,7 +19,7 @@ import {
   saveOmrTemplateEncrypted 
 } from "#lib/db/dbEncryption";
 import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
-import { compileWithCache } from "#lib/latex/compileCache";
+import { compileWithCache, getCachedFor } from "#lib/latex/compileCache";
 import { buildExamLatex, buildExerciseBlocks, buildExerciseInputs, collectExamResources } from "#lib/exam/examPreview";
 import { parseOmrUri, scoreBoxKey } from "./omrUri";
 import { getAccountPackages } from "#lib/latex/packageSettings";
@@ -90,7 +90,8 @@ export async function loadExamCompileContext(examId: string, key: CryptoKey | nu
 
   if (get(isAuthenticated)) {
     try {
-      const remoteExam = (await api.get(`/exams/${examId}`)) as any;
+      // Silent: the local copy below is the fallback, and score boxes load this in the background (issue #187).
+      const remoteExam = (await api.get(`/exams/${examId}`, { silentError: true })) as any;
       exam = mapApiToExamRecord(remoteExam);
       exercises = remoteExam.exercises.map(mapApiToExerciseRecord);
       if (remoteExam.mc_groups && Array.isArray(remoteExam.mc_groups)) {
@@ -130,12 +131,12 @@ export async function buildOmrBlankTex(ctx: OmrLayoutInput): Promise<string> {
   return buildExamLatex(exam, exerciseInputs, "sans,punkte", await getAccountPackages());
 }
 
-/** Capture format of the template; part of the hash, so templates captured before score boxes (issue #187) turn stale and are rebuilt once. */
+/** Capture format stored in the payload (2 = score boxes, issue #187). Deliberately not part of the hash: a forced re-capture would take the current .sty layout for sheets printed under an older one. */
 export const OMR_TEMPLATE_VERSION = 2;
 
 async function hashOmrTemplate(mcExercises: ExerciseRecord[], mcGroups: McGroup[], blankTex: string): Promise<string> {
   // Unmarked, so stored hashes stay valid and only real document changes mark the template stale.
-  const data = new TextEncoder().encode(`v${OMR_TEMPLATE_VERSION}\n${await computeMcExercisesHash(mcExercises, mcGroups)}\n${stripSourceMarkers(blankTex)}`);
+  const data = new TextEncoder().encode(`${await computeMcExercisesHash(mcExercises, mcGroups)}\n${stripSourceMarkers(blankTex)}`);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -226,7 +227,9 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   const logo = await resolveCompileLogo(examId, useLocal);
   const resourceOptions = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds, logo };
 
-  const result = await compileWithCache(
+  // The blank sheet is the exam's Angabe (same builder, options and resources): reuse a fresh preview compile instead of compiling twice.
+  const preview = await getCachedFor({ kind: "exam", id: examId, variant: "angabe" }, fullTex, useLocal, resourceOptions);
+  const result = preview ?? await compileWithCache(
     { kind: "omr-blank", id: examId, variant: "blank" },
     fullTex,
     useLocal,
@@ -245,7 +248,8 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   onProgress?.(translate("exam.page.omr.extractingBubbles"));
 
   const pdfjsLib = await loadPdfjs();
-  const pdfDoc = await pdfjsLib.getDocument({ data: result.pdfBytes }).promise;
+  // A copy: pdf.js detaches the buffer it is given, which would empty the shared compile-cache entry.
+  const pdfDoc = await pdfjsLib.getDocument({ data: result.pdfBytes.slice() }).promise;
   console.log(`[PrepareOMR] pdfDoc loaded: numPages=${pdfDoc.numPages}`);
 
   const pages: OmrPageTemplate[] = [];
