@@ -218,27 +218,37 @@ export interface ConflictScan {
   ownExamIds: Set<string>;
 }
 
+type KindScan = { conflicts: ArchiveConflict[]; identical: { kind: ConflictKind; id: string }[] };
+
+/** One kind's collisions between the archive's rows and the stored ones. */
+async function scanKind(spec: KindSpec, rows: Row[], key: CryptoKey | null, ownExamIds: Set<string>, sameAccount: boolean): Promise<KindScan> {
+  const out: KindScan = { conflicts: [], identical: [] };
+  if (rows.length === 0) return out;
+  const match = spec.matchKey ?? ((r: Row) => Promise.resolve(spec.id(r)));
+  const stored = await spec.existing(rows, key, ownExamIds);
+  const storedKeys = await Promise.all(stored.map((r) => match(r, 'existing', sameAccount)));
+  const existing = new Map(storedKeys.map((k, i) => [k, stored[i]]));
+  const incomingKeys = await Promise.all(rows.map((r) => match(r, 'incoming', sameAccount)));
+  rows.forEach((incoming, i) => {
+    const current = existing.get(incomingKeys[i]);
+    if (!current) return;
+    const conflict = compare(spec, current, incoming);
+    if (conflict) out.conflicts.push(conflict);
+    else out.identical.push({ kind: spec.kind, id: spec.id(incoming) });
+  });
+  return out;
+}
+
 /** Compares an archive against what the target store holds (via the repositories, so it asks the store the import writes to). Identical collisions are not returned as conflicts; they are listed so the import skips them instead of writing a duplicate. */
 export async function detectConflicts(payload: Row, key: CryptoKey | null): Promise<ConflictScan> {
-  const conflicts: ArchiveConflict[] = [];
-  const identical: { kind: ConflictKind; id: string }[] = [];
   const ownExamIds = new Set((await examRepository.getAll(key)).map((e) => e.id));
   const sameAccount = payload.keyId === archiveKeyId();
-
-  for (const spec of SPECS) {
-    const rows: Row[] = payload[spec.payloadKey] ?? [];
-    if (rows.length === 0) continue;
-    const match = spec.matchKey ?? (async (r: Row) => spec.id(r));
-    const existing = new Map<string, Row>();
-    for (const r of await spec.existing(rows, key, ownExamIds)) existing.set(await match(r, 'existing', sameAccount), r);
-    for (const incoming of rows) {
-      const current = existing.get(await match(incoming, 'incoming', sameAccount));
-      if (!current) continue;
-      const conflict = compare(spec, current, incoming);
-      if (conflict) conflicts.push(conflict);
-      else identical.push({ kind: spec.kind, id: spec.id(incoming) });
-    }
-  }
+  // Kinds are independent reads; the results keep the SPECS order.
+  const scans = await Promise.all(
+    SPECS.map((spec) => scanKind(spec, payload[spec.payloadKey] ?? [], key, ownExamIds, sameAccount))
+  );
+  const conflicts = scans.flatMap((s) => s.conflicts);
+  const identical = scans.flatMap((s) => s.identical);
   return { conflicts, identicalCount: identical.length, identical, ownExamIds };
 }
 

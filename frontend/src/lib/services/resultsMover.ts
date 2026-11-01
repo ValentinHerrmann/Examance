@@ -215,6 +215,33 @@ export async function moveResults(from: StorageMode | null, to: StorageMode): Pr
   return withPseudonymLock(() => moveUnderLock(from, to));
 }
 
+const isGone = (err: unknown) => err instanceof ApiError && err.status === 404;
+
+/** Moves and verifies one exam's results; null when it has nothing to move: deleted meanwhile, or local results of an exam the server no longer knows. Any other failure (an expired session) aborts the move. */
+async function moveExam(examId: string, direction: MoveDirection): Promise<ExamResults | null> {
+  let results: ExamResults;
+  try {
+    results = direction === 'to-browser' ? await readServer(examId) : await readLocal(examId);
+  } catch (err) {
+    if (isGone(err)) return null;
+    throw err;
+  }
+  assertReadable(results);
+  if (direction === 'to-browser') {
+    await writeLocal(results);
+  } else {
+    try {
+      results = await keyedForServer(examId, results);
+      await writeServer(examId, results);
+    } catch (err) {
+      if (isGone(err)) return null;
+      throw err;
+    }
+  }
+  await verify(examId, results, direction);
+  return results;
+}
+
 async function moveUnderLock(from: StorageMode | null, to: StorageMode): Promise<MoveResult> {
   const direction = directionFor(to);
   await flushOfflineQueue();
@@ -225,33 +252,11 @@ async function moveUnderLock(from: StorageMode | null, to: StorageMode): Promise
     moveProgressStore.set({ direction, examsDone: 0, examsTotal: examIds.length, students: 0, submissions: 0, scores: 0 });
 
     for (const examId of examIds) {
-      let results: ExamResults;
-      try {
-        results = direction === 'to-browser' ? await readServer(examId) : await readLocal(examId);
-      } catch (err) {
-        // An exam deleted meanwhile has nothing to move; anything else (an expired session) aborts.
-        if (err instanceof ApiError && err.status === 404) {
-          result.skippedExams.push(examId);
-          continue;
-        }
-        throw err;
+      const results = await moveExam(examId, direction); // NOSONAR: one exam at a time, so an interrupted move leaves whole exams and progress counts per exam
+      if (!results) {
+        result.skippedExams.push(examId);
+        continue;
       }
-      assertReadable(results);
-      if (direction === 'to-browser') await writeLocal(results);
-      else {
-        try {
-          results = await keyedForServer(examId, results);
-          await writeServer(examId, results);
-        } catch (err) {
-          // Local results of an exam the server no longer knows: nothing to attach them to.
-          if (err instanceof ApiError && err.status === 404) {
-            result.skippedExams.push(examId);
-            continue;
-          }
-          throw err;
-        }
-      }
-      await verify(examId, results, direction);
       result.movedExams.push(examId);
       result.students += results.students.length;
       result.submissions += results.submissions.length;

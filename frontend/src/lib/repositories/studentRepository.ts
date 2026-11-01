@@ -8,7 +8,7 @@ import { currentKeyId } from '#lib/services/keyEnvelopeService';
 import { examRepository } from './examRepository';
 import type { StudentRecord } from '#lib/db/schema';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
-import { joinKey, pseudonymBase, serverVersion } from '#lib/crypto/pseudonymKey';
+import { joinKey, joinKeys, pseudonymBase, serverVersion } from '#lib/crypto/pseudonymKey';
 
 /** A student row as `GET /exams/{id}/students` returns it, still sealed. */
 export function mapApiToStudentRecord(st: any, fallbackExamId: string): StudentRecord {
@@ -83,10 +83,10 @@ export const studentRepository = {
       // Leftovers of a former hybrid browser fill in names the server copy lacks; rows meet on their join key, whatever version each was stored at.
       const localRaw = await db.examStudents.where('examId').equals(examId).toArray();
       const localStudents = await Promise.all(localRaw.map((st) => decryptStudent(st, key)));
-      const byKey = new Map<string, StudentRecord>();
-      for (const st of serverStudents) byKey.set(await joinKey(st), st);
-      for (const st of localStudents) {
-        const k = await joinKey(st);
+      const [serverKeys, localKeys] = await Promise.all([joinKeys(serverStudents), joinKeys(localStudents)]);
+      const byKey = new Map<string, StudentRecord>(serverStudents.map((st, i) => [serverKeys[i], st]));
+      localStudents.forEach((st, i) => {
+        const k = localKeys[i];
         const existing = byKey.get(k);
         byKey.set(
           k,
@@ -100,7 +100,7 @@ export const studentRepository = {
               }
             : st
         );
-      }
+      });
       return Array.from(byKey.values());
     }
   },
@@ -139,9 +139,10 @@ export const studentRepository = {
     // Locally in all modes, every row of this exam that stands for the same student.
     try {
       const candidates = await db.examStudents.where('examId').equals(examId).toArray();
-      for (const st of candidates) {
-        if ((await joinKey(st)) === target) await db.examStudents.delete([st.examId, st.pseudonymHmac]);
-      }
+      const keys = await joinKeys(candidates);
+      await db.examStudents.bulkDelete(
+        candidates.filter((_, i) => keys[i] === target).map((st) => [st.examId, st.pseudonymHmac])
+      );
     } catch (err) {
       console.warn('Failed to clean up matching student records from IndexedDB:', err);
     }

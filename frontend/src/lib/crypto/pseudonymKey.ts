@@ -45,7 +45,7 @@ export async function sha256Hex(value: string): Promise<string> {
 
 /** The version-1 form, exactly as older builds sent it: any 64-character value passes through, anything else is hashed. */
 export async function pseudonymBase(value: string): Promise<string> {
-  return value && value.length === 64 ? value : sha256Hex(value || '');
+  return value?.length === 64 ? value : sha256Hex(value ?? '');
 }
 
 /** The version-2 key of a fresh raw value (a QR code, a typed id) or of a version-1 value. */
@@ -60,6 +60,11 @@ export async function joinKey(row: {
   pseudonymVersion?: PseudonymVersion;
 }): Promise<string> {
   return row.pseudonymVersion === 2 ? row.pseudonymHmac : keyFromRaw(row.examId, row.pseudonymHmac);
+}
+
+/** `joinKey` of every row, in order, computed in parallel. */
+export function joinKeys(rows: readonly Parameters<typeof joinKey>[0][]): Promise<string[]> {
+  return Promise.all(rows.map((row) => joinKey(row)));
 }
 
 /** The version a server row or exam reports; older servers send none, which means 1. */

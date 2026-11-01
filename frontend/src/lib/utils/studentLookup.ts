@@ -6,32 +6,36 @@ export async function buildSubmissionMap(
   submissions: SubmissionRecord[],
   students: StudentRecord[] = []
 ): Promise<Map<string, SubmissionRecord>> {
+  const present = students.filter(Boolean);
+  // Every key at once: each is an independent HMAC.
+  const [subKeys, idKeys, studentKeys, fallbackKeys] = await Promise.all([
+    Promise.all(submissions.map((s) => (s.pseudonymHmac ? joinKey(s) : null))),
+    Promise.all(submissions.map((s) => (s.id ? keyFromRaw(s.examId, s.id) : null))),
+    Promise.all(present.map((st) => (st.pseudonymHmac ? joinKey(st) : null))),
+    Promise.all(present.map((st) => (st.fallbackCode ? keyFromRaw(st.examId, st.fallbackCode) : null))),
+  ]);
+
   const map = new Map<string, SubmissionRecord>();
   const byJoin = new Map<string, SubmissionRecord>();
-
-  for (const s of submissions) {
+  submissions.forEach((s, i) => {
     if (s.pseudonymHmac) {
       map.set(s.pseudonymHmac, s);
-      byJoin.set(await joinKey(s), s);
+      byJoin.set(subKeys[i]!, s);
     }
     if (s.id) {
       map.set(s.id, s);
-      const byId = await keyFromRaw(s.examId, s.id);
-      if (!byJoin.has(byId)) byJoin.set(byId, s);
+      if (!byJoin.has(idKeys[i]!)) byJoin.set(idKeys[i]!, s);
     }
-  }
+  });
 
-  for (const st of students) {
-    if (!st) continue;
-    let sub = st.pseudonymHmac ? byJoin.get(await joinKey(st)) : undefined;
-    if (!sub && st.fallbackCode) {
-      sub = map.get(st.fallbackCode) ?? byJoin.get(await keyFromRaw(st.examId, st.fallbackCode));
-    }
+  present.forEach((st, i) => {
+    let sub = studentKeys[i] ? byJoin.get(studentKeys[i]!) : undefined;
+    if (!sub && st.fallbackCode) sub = map.get(st.fallbackCode) ?? byJoin.get(fallbackKeys[i]!);
     if (sub) {
       if (st.pseudonymHmac) map.set(st.pseudonymHmac, sub);
       if (st.fallbackCode) map.set(st.fallbackCode, sub);
     }
-  }
+  });
 
   return map;
 }

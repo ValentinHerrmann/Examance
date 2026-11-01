@@ -52,6 +52,22 @@ async def _sweep_orphan_scans(db: AsyncSession) -> int:
         return 0
 
 
+async def _stamp_purged_results(
+    db: AsyncSession,
+    students: list[StudentIdentity],
+    submissions: list[ScanSubmission],
+    now: datetime,
+) -> None:
+    """A restore can no longer bring these rows back: stamp their live exams so it can say so (issue #181)."""
+    exam_ids = {r.exam_id for r in students} | {r.exam_id for r in submissions}
+    if exam_ids:
+        await db.execute(
+            update(Exam)
+            .where(Exam.id.in_(exam_ids), Exam.deleted_at.is_(None))
+            .values(results_purged_at=now)
+        )
+
+
 async def run(*, dry_run: bool = False) -> int:
     """Apply the retention policy and return the number of affected rows. Idempotent. Steps are numbered inline. Step 1 must cascade a grace deadline onto the exam's student data; step 11 hard-deletes the exam itself once that grace period has passed."""
     today = date.today()
@@ -210,16 +226,7 @@ async def run(*, dry_run: bool = False) -> int:
         for submission in expired_submissions:
             await db.delete(submission)
 
-        # A restore can no longer bring these back: stamp their live exams so it can say so (issue #181).
-        purged_result_exam_ids = {r.exam_id for r in expired_students} | {
-            r.exam_id for r in expired_submissions
-        }
-        if purged_result_exam_ids:
-            await db.execute(
-                update(Exam)
-                .where(Exam.id.in_(purged_result_exam_ids), Exam.deleted_at.is_(None))
-                .values(results_purged_at=now)
-            )
+        await _stamp_purged_results(db, expired_students, expired_submissions, now)
 
         if expired_audit_count:
             await db.execute(delete(AuditLog).where(expired_audit_filter))

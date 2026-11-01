@@ -53,7 +53,7 @@ async function openBytes(
   for (const candidate of keys.filter((k, i, all): k is CryptoKey => !!k && all.indexOf(k) === i)) {
     for (const ad of aad ? [aad, undefined] : [undefined]) {
       try {
-        return new Uint8Array(await crypto.subtle.decrypt(params(ad), candidate, data));
+        return new Uint8Array(await crypto.subtle.decrypt(params(ad), candidate, data)); // NOSONAR: tried in order, stopping at the first that opens; a parallel try would decrypt a multi-MB scan up to six times
       } catch (err) {
         firstError ??= err;
       }

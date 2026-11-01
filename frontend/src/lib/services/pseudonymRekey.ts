@@ -60,21 +60,27 @@ async function withRekeyLock<T>(op: () => Promise<T>): Promise<T> {
   return navigator.locks.request(REKEY_LOCK, op);
 }
 
+/** The pseudonym in a queued erasure's path (`DELETE /exams/{id}/students/{hmac}`). */
+const STUDENT_PATH = /\/students\/([^/?]+)$/;
+
 /** Queued writes of the exam follow the rename: a queued erasure would otherwise replay as a 404 that counts as done, and a queued upload would be refused (422) by the keyed exam. */
 async function rewriteQueuedFor(examId: string, renames: Map<string, string>): Promise<void> {
   const prefix = `/exams/${examId}/`.toLowerCase();
   const ours = get(offlineQueue).filter((req) => req.url.toLowerCase().startsWith(prefix));
-  const keyed = new Map(renames);
+  // Version-1 values the server did not list yet (a student queued offline): keyed the same way.
+  const unlisted = new Set<string>();
   for (const req of ours) {
-    const value = req.url.match(/\/students\/([^/?]+)$/)?.[1] ?? req.body?.pseudonym_hmac;
-    if (typeof value === 'string' && (req.body?.pseudonym_version ?? 1) === 1 && !keyed.has(value)) {
-      keyed.set(value, await keyFromRaw(examId, value));
-    }
+    const value = STUDENT_PATH.exec(req.url)?.[1] ?? req.body?.pseudonym_hmac;
+    if (typeof value === 'string' && (req.body?.pseudonym_version ?? 1) === 1 && !renames.has(value)) unlisted.add(value);
+  }
+  const keyed = new Map(renames);
+  for (const [value, next] of await Promise.all([...unlisted].map(async (v) => [v, await keyFromRaw(examId, v)] as const))) {
+    keyed.set(value, next);
   }
   rewriteQueued((req) => {
     if (!req.url.toLowerCase().startsWith(prefix)) return null;
     let { url, body } = req;
-    const inUrl = url.match(/\/students\/([^/?]+)$/)?.[1];
+    const inUrl = STUDENT_PATH.exec(url)?.[1];
     if (inUrl && keyed.has(inUrl)) url = url.slice(0, url.length - inUrl.length) + keyed.get(inUrl);
     if (typeof body?.pseudonym_hmac === 'string' && (body.pseudonym_version ?? 1) === 1 && keyed.has(body.pseudonym_hmac)) {
       body = { ...body, pseudonym_hmac: keyed.get(body.pseudonym_hmac), pseudonym_version: 2 };
@@ -117,6 +123,29 @@ function sameBytes(a?: Uint8Array, b?: Uint8Array): boolean {
 
 class Changed extends Error {}
 
+/** One student out of the rows that collapse onto key `k` (a raw row and a hash row of the same pupil): the one with the most identity, keyed and sealed with its raw and base value. Null when all rows are keyed already. */
+async function mergedStudent(
+  k: string,
+  rows: StudentRecord[],
+  key: CryptoKey
+): Promise<{ sealed: StudentRecord; replaced: [string, string][] } | null> {
+  if (rows.every((r) => r.pseudonymVersion === 2)) return null;
+  const best = [...rows].sort((a, b) => identityScore(b) - identityScore(a))[0];
+  const legacy = rows.filter((r) => r.pseudonymVersion !== 2).map((r) => r.pseudonymHmac);
+  const sealed = await encryptStudent(
+    {
+      ...best,
+      pseudonymHmac: k,
+      pseudonymVersion: 2,
+      pseudonymRaw: rows.find((r) => r.pseudonymRaw)?.pseudonymRaw ?? legacy.find((v) => v.length !== 64),
+      pseudonymBase: rows.find((r) => r.pseudonymBase)?.pseudonymBase ?? (await pseudonymBase(legacy[0])),
+    },
+    key
+  );
+  const replaced = rows.filter((r) => r.pseudonymHmac !== k).map((r): [string, string] => [r.examId, r.pseudonymHmac]);
+  return { sealed, replaced };
+}
+
 /** Re-keys one exam's rows in this browser in one transaction; rows changed since they were read abort it (retried at the next unlock). @returns true when rows were rewritten. */
 async function rekeyLocalExam(examId: string, key: CryptoKey): Promise<boolean> {
   const studentRows = await db.examStudents.where('examId').equals(examId).toArray();
@@ -132,43 +161,22 @@ async function rekeyLocalExam(examId: string, key: CryptoKey): Promise<boolean> 
   // Never re-seal what did not open: that would replace the real payload with blanks.
   if (students.some((s) => s.decryptFailed)) return false;
 
-  const renames = new Map<string, string>();
-  for (const value of legacyValues) renames.set(value, await keyFromRaw(examId, value));
+  const renames = new Map(
+    await Promise.all([...legacyValues].map(async (v) => [v, await keyFromRaw(examId, v)] as const))
+  );
   const keyOf = (s: StudentRecord) => (s.pseudonymVersion === 2 ? s.pseudonymHmac : renames.get(s.pseudonymHmac)!);
 
-  // A raw row and a hash row of the same student collapse onto one key: keep the one with the most identity.
   const groups = new Map<string, StudentRecord[]>();
   for (const st of students) groups.set(keyOf(st), [...(groups.get(keyOf(st)) ?? []), st]);
-  const sealed: StudentRecord[] = [];
-  const replaced: [string, string][] = [];
-  for (const [k, rows] of groups) {
-    if (rows.every((r) => r.pseudonymVersion === 2)) continue;
-    const best = [...rows].sort((a, b) => identityScore(b) - identityScore(a))[0];
-    const legacy = rows.filter((r) => r.pseudonymVersion !== 2).map((r) => r.pseudonymHmac);
-    const raw = rows.find((r) => r.pseudonymRaw)?.pseudonymRaw ?? legacy.find((v) => v.length !== 64);
-    sealed.push(
-      await encryptStudent(
-        {
-          ...best,
-          pseudonymHmac: k,
-          pseudonymVersion: 2,
-          pseudonymRaw: raw,
-          pseudonymBase: rows.find((r) => r.pseudonymBase)?.pseudonymBase ?? (await pseudonymBase(legacy[0])),
-        },
-        key
-      )
-    );
-    for (const r of rows) if (r.pseudonymHmac !== k) replaced.push([r.examId, r.pseudonymHmac]);
-  }
+  const merged = (await Promise.all([...groups].map(([k, rows]) => mergedStudent(k, rows, key)))).filter((m) => m !== null);
 
   try {
     await db.transaction('rw', [db.examStudents, db.submissions], async () => {
-      for (const r of studentRows) {
-        const now = await db.examStudents.get([r.examId, r.pseudonymHmac]);
-        if (!now || !sameBytes(now.payloadCt, r.payloadCt)) throw new Changed();
-      }
-      await db.examStudents.bulkDelete(replaced);
-      await db.examStudents.bulkPut(sealed);
+      // Compare-and-swap: every row must still be exactly as read.
+      const now = await db.examStudents.bulkGet(studentRows.map((r) => [r.examId, r.pseudonymHmac]));
+      if (now.some((row, i) => !row || !sameBytes(row.payloadCt, studentRows[i].payloadCt))) throw new Changed();
+      await db.examStudents.bulkDelete(merged.flatMap((m) => m.replaced));
+      await db.examStudents.bulkPut(merged.map((m) => m.sealed));
       // Submissions are bound to their id, not to the pseudonym: renaming the plain column needs no re-seal.
       await legacySubs.modify((sub) => {
         const next = renames.get(sub.pseudonymHmac);
@@ -185,41 +193,56 @@ async function rekeyLocalExam(examId: string, key: CryptoKey): Promise<boolean> 
   return true;
 }
 
+/** Exams in this browser with version-1 rows. Index-only for submissions: loading them would read every scan here on each unlock. */
+async function localExamsToRekey(): Promise<Set<string>> {
+  const examIds = new Set(
+    (await db.examStudents.toArray()).filter((r) => r.pseudonymVersion !== 2).map((r) => r.examId)
+  );
+  const withSubmissions = (await db.submissions.orderBy('examId').uniqueKeys()) as string[];
+  const legacyCounts = await Promise.all(
+    withSubmissions.map((examId) => db.submissions.where('[examId+pseudonymVersion]').equals([examId, 1]).count())
+  );
+  withSubmissions.forEach((examId, i) => {
+    if (legacyCounts[i] > 0) examIds.add(examId);
+  });
+  return examIds;
+}
+
+async function rekeyLocal(sessionKey: CryptoKey): Promise<boolean> {
+  let changed = false;
+  for (const examId of await localExamsToRekey()) {
+    try {
+      changed = (await rekeyLocalExam(examId, sessionKey)) || changed; // NOSONAR: one exam's transaction at a time, each loads that exam's scans
+    } catch (err) {
+      console.warn('[pseudonymRekey] exam stays at version 1 in this browser:', err);
+    }
+  }
+  return changed;
+}
+
+async function rekeyServer(): Promise<boolean> {
+  // Best effort: whatever is still queued afterwards is rewritten with the rename.
+  await flushOfflineQueue().catch(() => undefined);
+  const exams = await api.get<{ id: string; pseudonym_version?: number }[]>('/exams', { silentError: true });
+  let changed = false;
+  for (const exam of exams) {
+    const version = serverVersion(exam);
+    rememberServerVersion(exam.id, version);
+    if (version === 2) continue;
+    try {
+      changed = (await rekeyServerExam(exam.id)) || changed; // NOSONAR: each rekey holds the offline queue's Web Lock, so they run one after another anyway
+    } catch (err) {
+      console.warn('[pseudonymRekey] exam stays at version 1 on the server:', err);
+    }
+  }
+  return changed;
+}
+
 /** Re-keys every version-1 exam where results live and tells other tabs to reload; the caller holds the re-key lock. @returns true when anything was re-keyed. */
 export async function rekeyWhereResultsLive(): Promise<boolean> {
   const { masterKey, sessionKey } = get(sessionStore);
   if (!masterKey || !sessionKey) return false;
-  let changed = false;
-  if (resultsAreLocal()) {
-    const examIds = new Set(
-      (await db.examStudents.toArray()).filter((r) => r.pseudonymVersion !== 2).map((r) => r.examId)
-    );
-    // Index-only: loading the submissions themselves would read every scan in this browser on each unlock.
-    for (const examId of (await db.submissions.orderBy('examId').uniqueKeys()) as string[]) {
-      if ((await db.submissions.where('[examId+pseudonymVersion]').equals([examId, 1]).count()) > 0) examIds.add(examId);
-    }
-    for (const examId of examIds) {
-      try {
-        changed = (await rekeyLocalExam(examId, sessionKey)) || changed;
-      } catch (err) {
-        console.warn('[pseudonymRekey] exam stays at version 1 in this browser:', err);
-      }
-    }
-  } else {
-    // Best effort: whatever is still queued afterwards is rewritten with the rename.
-    await flushOfflineQueue().catch(() => undefined);
-    const exams = await api.get<{ id: string; pseudonym_version?: number }[]>('/exams', { silentError: true });
-    for (const exam of exams) {
-      const version = serverVersion(exam);
-      rememberServerVersion(exam.id, version);
-      if (version === 2) continue;
-      try {
-        changed = (await rekeyServerExam(exam.id)) || changed;
-      } catch (err) {
-        console.warn('[pseudonymRekey] exam stays at version 1 on the server:', err);
-      }
-    }
-  }
+  const changed = resultsAreLocal() ? await rekeyLocal(sessionKey) : await rekeyServer();
   if (changed) safeLocalStorage.setItem(REKEYED_KEY, String(Date.now()));
   return changed;
 }

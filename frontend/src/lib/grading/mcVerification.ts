@@ -3,7 +3,7 @@ import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
 import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
 import { submissionRepository } from "#lib/repositories/submissionRepository";
 import { studentRepository } from "#lib/repositories/studentRepository";
-import { joinKey } from "#lib/crypto/pseudonymKey";
+import { joinKey, joinKeys } from "#lib/crypto/pseudonymKey";
 import { loadLocalMcGroups } from "#lib/db/dbEncryption";
 import type { ExerciseRecord, OmrScoreMeta, SubmissionRecord } from "#lib/db/schema";
 import type { OmrRunInfo } from "#lib/grading/omrSettings";
@@ -165,12 +165,13 @@ export async function computeMcVerificationStats(
   const subLetterById = buildSubLabelMap(mcGroups);
 
   const studentMap = new Map<string, string>();
-  for (const st of students) {
+  const studentKeys = await joinKeys(students);
+  students.forEach((st, i) => {
     const label = formatStudentName(st.studentName) || st.fallbackCode || "";
-    if (!label) continue;
-    if (st.pseudonymHmac) studentMap.set(await joinKey(st), label);
+    if (!label) return;
+    if (st.pseudonymHmac) studentMap.set(studentKeys[i], label);
     if (st.fallbackCode) studentMap.set(st.fallbackCode, label);
-  }
+  });
 
   async function labelFor(sub: SubmissionRecord): Promise<string> {
     const label = sub.pseudonymHmac ? studentMap.get(await joinKey(sub)) : undefined;

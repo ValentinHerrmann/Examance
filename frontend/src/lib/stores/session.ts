@@ -224,7 +224,9 @@ function clearSessionStorage(scope: 'all' | 'tab' = 'tab') {
   safeSessionStorage.removeItem(WRAP_STORAGE_KEYS.SEALED);
   const tabId = safeSessionStorage.getItem(WRAP_STORAGE_KEYS.TAB);
   if (!wrapAvailable()) return;
-  const drop = scope === 'all' ? dropAllTabKeys() : tabId ? dropTabKey(tabId) : Promise.resolve();
+  let drop: Promise<void> = Promise.resolve();
+  if (scope === 'all') drop = dropAllTabKeys();
+  else if (tabId) drop = dropTabKey(tabId);
   drop.catch((err) => console.warn('[SessionStore] Could not drop the wrapping key:', err));
 }
 

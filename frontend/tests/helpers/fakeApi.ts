@@ -961,7 +961,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         ...(state.submissions.get(examId) ?? []).map((row) => row.pseudonym_hmac),
       ]),
     ];
-    if (method === 'GET' && rest.length === 0) return ok({ pseudonym_version: versionOf(examId), values: values().sort() });
+    if (method === 'GET' && rest.length === 0) return ok({ pseudonym_version: versionOf(examId), values: values().sort((a, b) => a.localeCompare(b)) });
     if (method !== 'POST' || rest[0] !== 'rekey') return undefined;
     const exam = state.exams.get(examId)!;
     if (versionOf(examId) === body.to_version) return ok({ changed: false, pseudonym_version: body.to_version, renamed: 0 });

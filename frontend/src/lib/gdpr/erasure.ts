@@ -3,7 +3,7 @@
 import { db } from '#lib/db/db';
 import { sessionStore } from '#lib/stores/session';
 import { encryptAuditEntry } from '#lib/db/dbEncryption';
-import { joinKey, pseudonymBase } from '#lib/crypto/pseudonymKey';
+import { joinKey, joinKeys, pseudonymBase } from '#lib/crypto/pseudonymKey';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
@@ -23,6 +23,25 @@ export interface ErasureResult {
 
 type ErasedStudent = Pick<StudentRecord, 'examId' | 'pseudonymHmac' | 'pseudonymVersion' | 'pseudonymBase'>;
 
+/** Hybrid: a server copy can outlive a switch from all-server (the move may keep it), keyed or not yet. Deleted first, so a failure (reported by the caller) leaves everything in place for a retry; 404 means none exists. */
+async function deleteServerCopy(student: ErasedStudent, target: string): Promise<void> {
+  const base = student.pseudonymBase ?? (student.pseudonymVersion === 2 ? null : await pseudonymBase(student.pseudonymHmac));
+  for (const serverValue of new Set([target, ...(base ? [base] : [])])) {
+    try {
+      await api.delete(`/exams/${student.examId}/students/${serverValue}`, { silentError: true }); // NOSONAR: at most two values; the first refusal must stop the erasure
+    } catch (err) {
+      if ((err as { status?: unknown })?.status !== 404) throw err;
+    }
+  }
+}
+
+/** THIS student's submissions only, compared on the join key: a truthiness check would match every submission and erase all students' work. */
+async function submissionsOf(examId: string, target: string, key: CryptoKey | null) {
+  const subs = await submissionRepository.getByExamId(examId, key);
+  const keys = await joinKeys(subs);
+  return subs.filter((sub, i) => sub.pseudonymHmac && keys[i] === target);
+}
+
 /** Permanently erase a student's identity and submissions (the stored record, within its exam) in both storage modes. */
 export async function eraseStudent(student: ErasedStudent): Promise<ErasureResult> {
   const { examId } = student;
@@ -40,23 +59,8 @@ export async function eraseStudent(student: ErasedStudent): Promise<ErasureResul
     note: 'GDPR Art. 17 student erasure',
   }, key);
 
-  // Hybrid: a server copy can outlive a switch from all-server (the move may keep it), keyed or not yet. Delete it first, so a failure (reported by the caller) leaves everything in place for a retry; 404 means none exists.
-  if (resultsAreLocal()) {
-    const base = student.pseudonymBase ?? (student.pseudonymVersion === 2 ? null : await pseudonymBase(student.pseudonymHmac));
-    for (const serverValue of new Set([target, ...(base ? [base] : [])])) {
-      try {
-        await api.delete(`/exams/${examId}/students/${serverValue}`, { silentError: true });
-      } catch (err) {
-        if ((err as { status?: unknown })?.status !== 404) throw err;
-      }
-    }
-  }
-
-  // THIS student's submissions only, compared on the join key: a truthiness check would match every submission and erase all students' work.
-  const matchingSubs: Awaited<ReturnType<typeof submissionRepository.getByExamId>> = [];
-  for (const sub of await submissionRepository.getByExamId(examId, key)) {
-    if (sub.pseudonymHmac && (await joinKey(sub)) === target) matchingSubs.push(sub);
-  }
+  if (resultsAreLocal()) await deleteServerCopy(student, target);
+  const matchingSubs = await submissionsOf(examId, target, key);
 
   // Through the repositories, so each mode's copy goes (scores included); a refused server delete throws. A failed list above throws before anything is deleted, so the caller reports it and a retry is safe.
   for (const sub of matchingSubs) {

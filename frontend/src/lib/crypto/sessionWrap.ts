@@ -29,7 +29,7 @@ function openDb(): Promise<IDBDatabase> {
     const req = indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'tabId' });
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error('Could not open the session-wrap database.'));
   }).catch((err) => {
     dbPromise = null;
     throw err;
@@ -43,8 +43,8 @@ async function run<T>(mode: IDBTransactionMode, op: (store: IDBObjectStore) => I
     const tx = db.transaction(STORE, mode);
     const req = op(tx.objectStore(STORE));
     tx.oncomplete = () => resolve(req.result);
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error('Session-wrap transaction failed.'));
+    tx.onabort = () => reject(tx.error ?? new Error('Session-wrap transaction aborted.'));
   });
 }
 
@@ -155,6 +155,6 @@ export function sweepStaleTabKeys(now = Date.now()): Promise<void> {
     const stale = entries.filter(
       (e) => !live.has(LOCK_PREFIX + e.tabId) && now - e.touchedAt > STALE_AFTER_MS
     );
-    for (const e of stale) await run('readwrite', (s) => s.delete(e.tabId));
+    await Promise.all(stale.map((e) => run('readwrite', (s) => s.delete(e.tabId))));
   });
 }
