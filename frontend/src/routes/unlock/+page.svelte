@@ -47,6 +47,7 @@
   import {
     openWorkspace,
   } from "#lib/db/workspace";
+  import { runPseudonymRekey } from "#lib/services/pseudonymRekey";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
   import { ADMIN_HOME } from "#lib/stores/navigationStore";
   import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
@@ -273,6 +274,8 @@
       isFinishing = false;
       return;
     }
+    // Before any route reads results (issue #177); a failure leaves them at version 1, which keeps working.
+    if (status.state === "ok") await runPseudonymRekey();
     await goto(status.state === "admin" ? ADMIN_HOME : "/");
   }
 

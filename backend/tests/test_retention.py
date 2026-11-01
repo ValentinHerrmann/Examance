@@ -333,6 +333,28 @@ async def test_restore_never_revives_a_deleted_exams_student_data(
     assert submission.deleted_at is not None
 
 
+@pytest.mark.asyncio
+async def test_restore_reports_an_exam_whose_deleted_results_were_erased(
+    client: AsyncClient, retention_db
+) -> None:
+    """Regression for issue #181: the restore said nothing about results retention had already erased."""
+    await sign_in(client, retention_db, unique_email("restore-purged"))
+    exam_id, _, submission_id = await _exam_with_results(client)
+    assert (
+        await client.delete(f"/api/v1/exams/{exam_id}/submissions/{submission_id}")
+    ).status_code == 204
+    _, submission = await _children(retention_db, exam_id)
+    submission.retention_until = date.today() - timedelta(days=1)
+    await retention_db.commit()
+
+    await retention.run()
+
+    body = (await client.post("/api/v1/user/restore-server-data")).json()
+    assert body["restored_submissions"] == 0
+    assert body["grace_days"] == settings.RETENTION_GRACE_DAYS
+    assert [entry["exam_id"] for entry in body["purged_exams"]] == [exam_id]
+
+
 async def _present(db: AsyncSession, *ids: uuid.UUID) -> set[uuid.UUID]:
     db.expire_all()
     return set(await db.scalars(select(Exam.id).where(Exam.id.in_(ids))))

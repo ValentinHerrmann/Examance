@@ -18,6 +18,7 @@ from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
 from app.services import scan_storage
 from app.services.capabilities import require_server_results_writable
+from app.services.pseudonyms import require_pseudonym_version
 
 router = APIRouter(
     prefix="/exams/{exam_id}/students",
@@ -38,6 +39,7 @@ async def upload_student_identity(
     db: AsyncSession = Depends(get_db),
 ) -> StudentIdentityResponse:
     """Upload encrypted student identity ciphertext. Handles upsert for duplicate pseudonym_hmac."""
+    await require_pseudonym_version(db, exam.id, body.pseudonym_version)
     pii_bytes = decode_b64(body.pii_ciphertext_b64, "pii_ciphertext_b64")
     iv_bytes = decode_b64(body.iv_b64, "iv_b64", expected_len=GCM_IV_BYTES)
     salt_bytes = decode_b64(
@@ -67,6 +69,7 @@ async def upload_student_identity(
             pii_ciphertext_b64=body.pii_ciphertext_b64,
             iv_b64=body.iv_b64,
             encryption_salt_b64=body.encryption_salt_b64,
+            pseudonym_version=exam.pseudonym_version,
         )
 
     identity = StudentIdentity(
@@ -85,6 +88,7 @@ async def upload_student_identity(
         pii_ciphertext_b64=body.pii_ciphertext_b64,
         iv_b64=body.iv_b64,
         encryption_salt_b64=body.encryption_salt_b64,
+        pseudonym_version=exam.pseudonym_version,
     )
 
 
@@ -145,6 +149,7 @@ async def list_student_identities(
             pii_ciphertext_b64=base64.b64encode(st.pii_ciphertext).decode(),
             iv_b64=base64.b64encode(st.iv).decode(),
             encryption_salt_b64=base64.b64encode(st.encryption_salt).decode(),
+            pseudonym_version=exam.pseudonym_version,
         )
         for st in identities
     ]

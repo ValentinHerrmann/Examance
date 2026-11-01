@@ -16,13 +16,17 @@ import {
 } from './format';
 import { deriveArgon2Key, generateSalt } from '#lib/crypto/keyDerivation';
 import { deriveSessionKey } from '#lib/crypto/sessionKey';
-import { decrypt, encryptJson, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
+import { encryptJson, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
+import { joinKey } from '#lib/crypto/pseudonymKey';
+import { archiveKeyId } from './pseudonyms';
 import {
   loadExamsEncrypted,
   loadExercisesEncrypted,
   loadStudentsEncrypted,
   loadSubmissionsEncrypted,
   decryptAuditEntry,
+  openAnnotation,
+  openScan,
 } from '#lib/db/dbEncryption';
 import type { ExerciseRecord, ExerciseResourceRecord, SubmissionRecord } from '#lib/db/schema';
 import { exerciseResourceRepository } from '#lib/repositories/exerciseResourceRepository';
@@ -35,8 +39,8 @@ import { addMissing, bump, newReport, type ArchiveReport } from './report';
 import { exportExamLogo, type ArchivedExamLogo } from '#lib/latex/logo';
 import { getAccountPackages } from '#lib/latex/packageSettings';
 
-/** Payload layout version: 2 added `$b64` bytes, decrypted scans, and `codeWithheld`; 3 added `examLogos`; 4 added `accountLatexPackages` on exams that follow their account (issue #108). Older archives import with every exam following the importer's account logo and packages. */
-export const ARCHIVE_PAYLOAD_VERSION = 4;
+/** Payload layout version: 2 added `$b64` bytes, decrypted scans, and `codeWithheld`; 3 added `examLogos`; 4 added `accountLatexPackages` on exams that follow their account (issue #108); 5 keys pseudonyms per exam (`pseudonymHmac`, `pseudonymVersion`, `keyId`, issue #177; `archive/pseudonyms.ts`). Older archives import with every exam following the importer's account logo and packages, and their pseudonyms as version 1. */
+export const ARCHIVE_PAYLOAD_VERSION = 5;
 
 export interface PackOptions {
   /** Include the exercises' LaTeX and resource files (default). Off, the archive carries exams with scans and results plus each exercise's name, points and answer key, but no code: a way to share results with another teacher without handing over the exercises. */
@@ -115,17 +119,17 @@ async function unsealScans(
 ) {
   const { scanCt, scanIv, annotationCt, annotationIv, ...rest } = sub;
   // One unreadable scan must not fail the whole export: leave it out and say so.
-  const open = async (ct?: Uint8Array, iv?: Uint8Array) => {
+  const open = async (opener: typeof openScan, ct?: Uint8Array, iv?: Uint8Array) => {
     if (!ct || !iv || !key) return undefined;
     try {
-      return await decrypt(key, ct, iv);
+      return await opener(sub.id, ct, iv, key);
     } catch {
       addMissing(report, { reason: 'scanUnreadable', exam: examLabel, item: sub.id });
       return undefined;
     }
   };
-  const scanBytes = await open(scanCt, scanIv);
-  const annotationBytes = await open(annotationCt, annotationIv);
+  const scanBytes = await open(openScan, scanCt, scanIv);
+  const annotationBytes = await open(openAnnotation, annotationCt, annotationIv);
   if (scanBytes) bump(report, 'scans', 'included');
   if (annotationBytes) bump(report, 'annotations', 'included');
   return { ...rest, scanBytes, annotationBytes };
@@ -206,7 +210,12 @@ export async function packProject(
   const exerciseScores = await scoreRepository.getAll(exams.map((e) => e.id), key);
   // A single-exam archive keeps only entries about that exam, its students or its submissions.
   const auditTargets = onlyExams
-    ? new Set<string>([...exams.map((e) => e.id), ...students.map((s) => s.pseudonymId), ...submissions.map((s) => s.id)])
+    ? new Set<string>([
+        ...exams.map((e) => e.id),
+        // Audit entries name a student by its join key (gdpr/erasure.ts, subjectAccess.ts).
+        ...(await Promise.all(students.filter((s) => s.pseudonymHmac).map(joinKey))),
+        ...submissions.map((s) => s.id),
+      ])
     : null;
   const auditLogs = await loadAuditLogs(key, auditTargets);
 
@@ -263,14 +272,20 @@ export async function packProject(
   const accountPackages = await getAccountPackages();
   const archivePayload = {
     payloadVersion: ARCHIVE_PAYLOAD_VERSION,
+    // The data-key generation that keyed the pseudonyms: an import into the same account keeps them (issue #177).
+    keyId: archiveKeyId(),
     codeWithheld: !includeExerciseCode,
     exams: exams.map((exam) =>
       exam.latexPackages == null && accountPackages.length ? { ...exam, accountLatexPackages: accountPackages } : exam
     ),
     exercises,
-    students,
+    // `pseudonymId`/`pseudonymHash` repeat the stored value for importers older than payload v5, which would otherwise hash an empty id into one student.
+    students: students.map((s) => ({ ...s, pseudonymId: s.pseudonymHmac })),
     submissions: await Promise.all(
-      submissions.map((sub) => unsealScans(sub, key, report, examLabel.get(sub.examId) ?? sub.examId))
+      submissions.map(async (sub) => ({
+        ...(await unsealScans(sub, key, report, examLabel.get(sub.examId) ?? sub.examId)),
+        pseudonymHash: sub.pseudonymHmac,
+      }))
     ),
     exerciseScores,
     exerciseExams,

@@ -13,7 +13,7 @@ import {
 } from '#lib/db/dbEncryption';
 import type { ExerciseScoreRecord, StudentRecord, SubmissionRecord } from '#lib/db/schema';
 import { applyMode, rememberMode } from '#lib/db/workspace';
-import { ensure64CharHex } from '#lib/crypto/hmac';
+import { joinKey } from '#lib/crypto/pseudonymKey';
 import { mapApiToStudentRecord, studentServerPayload } from '#lib/repositories/studentRepository';
 import { mapApiToSubmissionRecord, submissionServerPayload } from '#lib/repositories/submissionRepository';
 import { fromApi as scoreFromApi, toApi as scoreToApi } from '#lib/repositories/scoreRepository';
@@ -22,6 +22,7 @@ import { sessionStore } from '#lib/stores/session';
 import type { StorageMode } from '#lib/stores/storagePolicy';
 import { flushOfflineQueue } from '#lib/services/offlineQueue';
 import { announceModeChange, beginModeSwitch, finishModeSwitch } from '#lib/services/storageModeSwitch';
+import { rekeyServerExam, rekeyWhereResultsLive, withPseudonymLock } from '#lib/services/pseudonymRekey';
 
 export type MoveDirection = 'to-browser' | 'to-server';
 
@@ -91,7 +92,7 @@ async function readServer(examId: string): Promise<ExamResults> {
 
 async function readLocal(examId: string): Promise<ExamResults> {
   const k = key();
-  const students = await db.students.where('examId').equals(examId).toArray();
+  const students = await db.examStudents.where('examId').equals(examId).toArray();
   const submissions = await db.submissions.where('examId').equals(examId).toArray();
   const scores = await db.exerciseScores.where('submissionId').anyOf(submissions.map((s) => s.id)).toArray();
   return {
@@ -116,8 +117,9 @@ async function writeLocal(results: ExamResults): Promise<void> {
   const students = await Promise.all(results.students.map((s) => encryptStudent(s, k)));
   const submissions = await Promise.all(results.submissions.map((s) => encryptSubmission(s, k)));
   const scores = await Promise.all(results.scores.map((s) => encryptScore(s, k)));
-  await db.transaction('rw', [db.students, db.submissions, db.exerciseScores], async () => {
-    await db.students.bulkPut(students);
+  // Rows keep the server's pseudonym version; the re-key after the move keys any version-1 ones (issue #177).
+  await db.transaction('rw', [db.examStudents, db.submissions, db.exerciseScores], async () => {
+    await db.examStudents.bulkPut(students);
     await db.submissions.bulkPut(submissions);
     // Rows are identified by (submission, exercise) in both stores: keep a local row's id when one exists.
     for (const row of scores) {
@@ -129,6 +131,16 @@ async function writeLocal(results: ExamResults): Promise<void> {
       await db.exerciseScores.put({ ...row, id: existing?.id ?? row.id });
     }
   });
+}
+
+/** Keyed rows need a keyed server exam: its leftover rows (a kept old copy) are re-keyed first, from the server's own list. */
+async function keyedForServer(examId: string, results: ExamResults): Promise<ExamResults> {
+  if (!(await rekeyServerExam(examId))) throw new MoveVerificationError(examId, 'pseudonym re-key');
+  return {
+    students: await Promise.all(results.students.map(async (s) => ({ ...s, pseudonymHmac: await joinKey(s), pseudonymVersion: 2 as const }))),
+    submissions: await Promise.all(results.submissions.map(async (s) => ({ ...s, pseudonymHmac: await joinKey(s), pseudonymVersion: 2 as const }))),
+    scores: results.scores,
+  };
 }
 
 async function writeServer(examId: string, results: ExamResults): Promise<void> {
@@ -156,7 +168,8 @@ async function writeServer(examId: string, results: ExamResults): Promise<void> 
 /** Every record sent must have arrived, by identity, not by count (F11): other rows could make up a count. */
 async function verify(examId: string, sent: ExamResults, direction: MoveDirection): Promise<void> {
   const arrived = direction === 'to-browser' ? await readLocal(examId) : await readServer(examId);
-  const studentKey = (s: StudentRecord) => ensure64CharHex(s.pseudonymId);
+  // Students compare on the join key: the two sides may store different pseudonym versions.
+  const studentKey = (s: StudentRecord) => joinKey(s);
   const scoreKey = (s: ExerciseScoreRecord) => `${s.submissionId}:${s.exerciseId}`;
   const checks: [string, string[], string[]][] = [
     ['submissions', sent.submissions.map((s) => s.id), arrived.submissions.map((s) => s.id)],
@@ -176,14 +189,14 @@ async function examIdsToMove(direction: MoveDirection): Promise<string[]> {
     return exams.map((e) => e.id);
   }
   const ids = new Set<string>();
-  (await db.students.toArray()).forEach((s) => ids.add(s.examId));
+  (await db.examStudents.toArray()).forEach((s) => ids.add(s.examId));
   (await db.submissions.toArray()).forEach((s) => ids.add(s.examId));
   return [...ids];
 }
 
 /** True when the move has anything to carry (decides whether the choice dialog must move at all). */
 export async function hasResultsToMove(direction: MoveDirection): Promise<boolean> {
-  if (direction === 'to-server') return (await db.submissions.count()) + (await db.students.count()) > 0;
+  if (direction === 'to-server') return (await db.submissions.count()) + (await db.examStudents.count()) > 0;
   const examIds = await examIdsToMove('to-browser');
   for (const examId of examIds) {
     const subs = await api.get<any[]>(`/exams/${examId}/submissions`, { silentError: true });
@@ -198,6 +211,38 @@ export async function hasResultsToMove(direction: MoveDirection): Promise<boolea
  * @throws MoveVerificationError or ApiError; the account's mode is unchanged then.
  */
 export async function moveResults(from: StorageMode | null, to: StorageMode): Promise<MoveResult> {
+  // Never interleaved with the pseudonym re-key of another tab (issue #177).
+  return withPseudonymLock(() => moveUnderLock(from, to));
+}
+
+const isGone = (err: unknown) => err instanceof ApiError && err.status === 404;
+
+/** Moves and verifies one exam's results; null when it has nothing to move: deleted meanwhile, or local results of an exam the server no longer knows. Any other failure (an expired session) aborts the move. */
+async function moveExam(examId: string, direction: MoveDirection): Promise<ExamResults | null> {
+  let results: ExamResults;
+  try {
+    results = direction === 'to-browser' ? await readServer(examId) : await readLocal(examId);
+  } catch (err) {
+    if (isGone(err)) return null;
+    throw err;
+  }
+  assertReadable(results);
+  if (direction === 'to-browser') {
+    await writeLocal(results);
+  } else {
+    try {
+      results = await keyedForServer(examId, results);
+      await writeServer(examId, results);
+    } catch (err) {
+      if (isGone(err)) return null;
+      throw err;
+    }
+  }
+  await verify(examId, results, direction);
+  return results;
+}
+
+async function moveUnderLock(from: StorageMode | null, to: StorageMode): Promise<MoveResult> {
   const direction = directionFor(to);
   await flushOfflineQueue();
   beginModeSwitch(from, to);
@@ -207,32 +252,11 @@ export async function moveResults(from: StorageMode | null, to: StorageMode): Pr
     moveProgressStore.set({ direction, examsDone: 0, examsTotal: examIds.length, students: 0, submissions: 0, scores: 0 });
 
     for (const examId of examIds) {
-      let results: ExamResults;
-      try {
-        results = direction === 'to-browser' ? await readServer(examId) : await readLocal(examId);
-      } catch (err) {
-        // An exam deleted meanwhile has nothing to move; anything else (an expired session) aborts.
-        if (err instanceof ApiError && err.status === 404) {
-          result.skippedExams.push(examId);
-          continue;
-        }
-        throw err;
+      const results = await moveExam(examId, direction); // NOSONAR: one exam at a time, so an interrupted move leaves whole exams and progress counts per exam
+      if (!results) {
+        result.skippedExams.push(examId);
+        continue;
       }
-      assertReadable(results);
-      if (direction === 'to-browser') await writeLocal(results);
-      else {
-        try {
-          await writeServer(examId, results);
-        } catch (err) {
-          // Local results of an exam the server no longer knows: nothing to attach them to.
-          if (err instanceof ApiError && err.status === 404) {
-            result.skippedExams.push(examId);
-            continue;
-          }
-          throw err;
-        }
-      }
-      await verify(examId, results, direction);
       result.movedExams.push(examId);
       result.students += results.students.length;
       result.submissions += results.submissions.length;
@@ -249,6 +273,8 @@ export async function moveResults(from: StorageMode | null, to: StorageMode): Pr
     await saveAccountStorageMode(to, from);
     applyMode(to);
     await rememberMode(to);
+    // Rows that arrived at version 1 are keyed where they now live; a failure leaves them at 1, which keeps working.
+    await rekeyWhereResultsLive().catch((err) => console.warn('[resultsMover] re-key after the move failed:', err));
     announceModeChange();
     return result;
   } finally {
@@ -270,9 +296,9 @@ export async function deleteOldCopy(
     return { students: res.purged_student_identities, submissions: res.purged_submissions };
   }
   // Only exams that moved: a skipped exam's results exist nowhere else.
-  return db.transaction('rw', [db.students, db.submissions, db.exerciseScores], async () => {
+  return db.transaction('rw', [db.examStudents, db.submissions, db.exerciseScores], async () => {
     const submissionIds = await db.submissions.where('examId').anyOf(movedExams).primaryKeys();
-    const students = await db.students.where('examId').anyOf(movedExams).delete();
+    const students = await db.examStudents.where('examId').anyOf(movedExams).delete();
     await db.exerciseScores.where('submissionId').anyOf(submissionIds).delete();
     await db.submissions.bulkDelete(submissionIds);
     return { students, submissions: submissionIds.length };

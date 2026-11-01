@@ -206,7 +206,7 @@
     for (const row of parsedRows) {
       let sub: SubmissionRecord | undefined;
       if (row.matchedStudent) {
-        sub = submissionMap.get(row.matchedStudent.pseudonymId);
+        sub = submissionMap.get(row.matchedStudent.pseudonymHmac);
       } else if (autoCreateStudents) {
         const created = await createStudentWithSubmission(examId, {
           studentName: row.rawName,
@@ -216,7 +216,7 @@
         row.matchedStudent = created.student;
         sub = created.submission;
         submissions.push(sub);
-        submissionMap.set(created.student.pseudonymId, sub);
+        submissionMap.set(created.student.pseudonymHmac, sub);
       } else {
         continue;
       }
@@ -225,12 +225,14 @@
         sub = {
           id: crypto.randomUUID(),
           examId,
-          pseudonymHash: row.matchedStudent.pseudonymId,
+          // The student's own stored key and version, so the two rows stay linked.
+          pseudonymHmac: row.matchedStudent.pseudonymHmac,
+          pseudonymVersion: row.matchedStudent.pseudonymVersion,
           createdAt: new Date().toISOString(),
         };
         await submissionRepository.save(sub, key);
         submissions.push(sub);
-        submissionMap.set(row.matchedStudent.pseudonymId, sub);
+        submissionMap.set(row.matchedStudent.pseudonymHmac, sub);
       }
       if (!sub) continue;
 

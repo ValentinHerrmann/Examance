@@ -7,6 +7,9 @@ import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { storedEntries } from '#lib/latex/packages';
 import { remapPageBreaks } from '#lib/exam/pageBreaks';
+import { joinKey } from '#lib/crypto/pseudonymKey';
+import type { StudentRecord } from '#lib/db/schema';
+import { archiveKeyId, archivedJoinKey, archivedPseudonym } from './pseudonyms';
 
 export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission';
 export type ConflictChoice = 'keep-existing' | 'take-imported' | 'import-as-copy';
@@ -59,6 +62,8 @@ interface KindSpec {
   allowTake: boolean;
   /** What the target store already holds, for the rows the archive brings. */
   existing: (rows: Row[], key: CryptoKey | null, ownExamIds: Set<string>) => Promise<Row[]>;
+  /** How an archived row and a stored row are matched, when `id` cannot be compared directly (keyed pseudonyms differ per account). */
+  matchKey?: (row: Row, side: 'existing' | 'incoming', sameAccount: boolean) => Promise<string>;
 }
 
 /** Students and submissions are scoped per exam, so they are loaded per exam, and only for exams this account owns: another account's exam cannot hold this account's results, and asking the server about it answers 401 (which used to raise an error pop-up and a token refresh per exam). */
@@ -139,18 +144,21 @@ const SPECS: KindSpec[] = [
   {
     kind: 'student',
     payloadKey: 'students',
-    id: (r) => r.pseudonymId,
-    title: (r) => r.studentName || r.fallbackCode || r.pseudonymId,
+    // Archived identity (per exam since issue #177); matched on the keyed value below.
+    id: (r) => `${r.examId}:${archivedPseudonym(r).value}`,
+    title: (r) => r.studentName || r.fallbackCode || archivedPseudonym(r).value.slice(0, 8),
     fields: props('studentName', 'studentNumber', 'fallbackCode'),
     allowCopy: false,
     allowTake: true,
     existing: (rows, key, own) => perExam(rows, own, (id) => studentRepository.getByExamId(id, key)),
+    matchKey: async (r, side, sameAccount) =>
+      `${r.examId}:${side === 'existing' ? await joinKey(r as StudentRecord) : (await archivedJoinKey(r, r.examId, sameAccount)).key}`,
   },
   {
     kind: 'submission',
     payloadKey: 'submissions',
     id: (r) => r.id,
-    title: (r) => String(r.pseudonymHash ?? r.id).slice(0, 8),
+    title: (r) => String(r.pseudonymHmac ?? r.pseudonymHash ?? r.id).slice(0, 8),
     fields: {
       ...props('totalScore', 'createdAt'),
       // `scanCt`/`annotationCt` exist only on a full fetch; `hasScan`/`hasAnnotations` are the list endpoint's cheap flags and stay accurate without the bytes (see submissionRepository `includeScans`). Archived submissions carry the decrypted bytes (`scanBytes`/`annotationBytes`) instead.
@@ -210,24 +218,37 @@ export interface ConflictScan {
   ownExamIds: Set<string>;
 }
 
+type KindScan = { conflicts: ArchiveConflict[]; identical: { kind: ConflictKind; id: string }[] };
+
+/** One kind's collisions between the archive's rows and the stored ones. */
+async function scanKind(spec: KindSpec, rows: Row[], key: CryptoKey | null, ownExamIds: Set<string>, sameAccount: boolean): Promise<KindScan> {
+  const out: KindScan = { conflicts: [], identical: [] };
+  if (rows.length === 0) return out;
+  const match = spec.matchKey ?? ((r: Row) => Promise.resolve(spec.id(r)));
+  const stored = await spec.existing(rows, key, ownExamIds);
+  const storedKeys = await Promise.all(stored.map((r) => match(r, 'existing', sameAccount)));
+  const existing = new Map(storedKeys.map((k, i) => [k, stored[i]]));
+  const incomingKeys = await Promise.all(rows.map((r) => match(r, 'incoming', sameAccount)));
+  rows.forEach((incoming, i) => {
+    const current = existing.get(incomingKeys[i]);
+    if (!current) return;
+    const conflict = compare(spec, current, incoming);
+    if (conflict) out.conflicts.push(conflict);
+    else out.identical.push({ kind: spec.kind, id: spec.id(incoming) });
+  });
+  return out;
+}
+
 /** Compares an archive against what the target store holds (via the repositories, so it asks the store the import writes to). Identical collisions are not returned as conflicts; they are listed so the import skips them instead of writing a duplicate. */
 export async function detectConflicts(payload: Row, key: CryptoKey | null): Promise<ConflictScan> {
-  const conflicts: ArchiveConflict[] = [];
-  const identical: { kind: ConflictKind; id: string }[] = [];
   const ownExamIds = new Set((await examRepository.getAll(key)).map((e) => e.id));
-
-  for (const spec of SPECS) {
-    const rows: Row[] = payload[spec.payloadKey] ?? [];
-    if (rows.length === 0) continue;
-    const existing = new Map((await spec.existing(rows, key, ownExamIds)).map((r) => [spec.id(r), r]));
-    for (const incoming of rows) {
-      const current = existing.get(spec.id(incoming));
-      if (!current) continue;
-      const conflict = compare(spec, current, incoming);
-      if (conflict) conflicts.push(conflict);
-      else identical.push({ kind: spec.kind, id: spec.id(incoming) });
-    }
-  }
+  const sameAccount = payload.keyId === archiveKeyId();
+  // Kinds are independent reads; the results keep the SPECS order.
+  const scans = await Promise.all(
+    SPECS.map((spec) => scanKind(spec, payload[spec.payloadKey] ?? [], key, ownExamIds, sameAccount))
+  );
+  const conflicts = scans.flatMap((s) => s.conflicts);
+  const identical = scans.flatMap((s) => s.identical);
   return { conflicts, identicalCount: identical.length, identical, ownExamIds };
 }
 
@@ -284,9 +305,14 @@ export function applyResolutions(
     exams: rewrite('exams', (r) => r.id, (r) => ({ id: remap(r.id), pageBreaks: remapPageBreaks(r.pageBreaks, idMap) })),
     exercises: rewrite('exercises', (r) => r.id, (r) => ({ id: remap(r.id), examId: remap(r.examId) })),
     examMcGroups: rewrite('examMcGroups', (r) => r.id, (r) => ({ id: remap(r.id), examId: remap(r.examId) })),
-    students: rewrite('students', (r) => r.pseudonymId, (r) => ({ examId: remap(r.examId) })),
+    // `keyedExamId` remembers the exam a pseudonym was keyed for, so a copy is re-keyed, not kept (issue #177).
+    students: rewrite('students', (r) => `${r.examId}:${archivedPseudonym(r).value}`, (r) => ({
+      examId: remap(r.examId),
+      keyedExamId: r.keyedExamId ?? r.examId,
+    })),
     submissions: rewrite('submissions', (r) => r.id, (r) => ({
       examId: remap(r.examId),
+      keyedExamId: r.keyedExamId ?? r.examId,
       annotationBytes: remapStrokeExercises(r.annotationBytes, idMap),
     })),
     // Files follow their exercise: a kept or identical one keeps its own, a copy takes the archived ones.

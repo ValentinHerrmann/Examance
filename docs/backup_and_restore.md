@@ -53,7 +53,9 @@ All commands run in the stack directory (`~/examance/prod` or `~/examance/previe
 
 ### A. A teacher deleted something in the app
 
-There is no per-teacher restore yet; the trash in #125 will cover this. Today the only way back is a **full database restore**, and it rolls back **every account** to the snapshot time.
+**Results deleted from the server in the last 7 days** (single submissions, or the server copy dropped when the teacher moved results into the browser) come back without you: the teacher clicks "Restore results deleted from the server" in Settings → Storage (`POST /user/restore-server-data`). It lists the exams whose older deleted results the retention run already erased (issue #181). It never brings back a deleted exam or a GDPR erasure.
+
+For anything else there is no per-teacher restore yet; the trash in #125 will cover this. Today the only way back is a **full database restore**, and it rolls back **every account** to the snapshot time.
 
 - **Preview:** usually fine. Run [C](#c-the-database-is-damaged) with a snapshot from before the deletion.
 - **Production:** only if losing everyone else's changes since that snapshot is acceptable (e.g. right after the mistake, outside school hours). Otherwise ask the teacher to re-upload the scans.

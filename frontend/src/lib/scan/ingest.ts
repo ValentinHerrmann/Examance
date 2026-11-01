@@ -2,8 +2,8 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import type { PDFDocument } from "pdf-lib";
 import { loadPdfjs } from "#lib/pdf/pdfjs";
-import { encrypt } from "#lib/crypto/aesGcm";
-import { saveStudentEncrypted, saveSubmissionEncrypted } from "#lib/db/dbEncryption";
+import { saveStudentEncrypted, saveSubmissionEncrypted, sealScan } from "#lib/db/dbEncryption";
+import { pseudonymFor } from "#lib/services/pseudonymRekey";
 import type { ExerciseScoreRecord, OmrPageTemplate } from "#lib/db/schema";
 import { buildOmrScoreRecord } from "#lib/grading/omrResult";
 import { createOmrRun, type OmrPageStats, type OmrRunInfo, type OmrSettingsProfile } from "#lib/grading/omrSettings";
@@ -316,19 +316,18 @@ export async function saveBooklet(
   }
   const scanBuffer = await assembledPdf.save();
 
+  // The id first: the scan's ciphertext is bound to its submission (AAD, issue #178).
+  const subId: string = crypto.randomUUID();
+  const key = deps.getSessionKey();
   let scanCt: Uint8Array | undefined;
   let scanIv: Uint8Array | undefined;
-  const sealKey = deps.getSessionKey();
-  if (sealKey) {
-    const encRes = await encrypt(sealKey, scanBuffer);
-    scanCt = encRes.ciphertext;
-    scanIv = encRes.iv;
-  }
+  if (key) ({ ct: scanCt, iv: scanIv } = await sealScan(subId, scanBuffer, key));
 
-  const key = deps.getSessionKey();
+  // The raw QR value never becomes a key or a plain column: it is keyed per exam and sealed into the identity (issue #177).
+  const pseudonym = await pseudonymFor(examId, booklet.pseudonymId);
   await saveStudentEncrypted(
     {
-      pseudonymId: booklet.pseudonymId,
+      ...pseudonym,
       examId,
       fallbackCode: booklet.fallbackCode,
       studentName: booklet.studentName,
@@ -339,12 +338,12 @@ export async function saveBooklet(
     key,
   );
 
-  const subId: string = crypto.randomUUID();
   await saveSubmissionEncrypted(
     {
       id: subId,
       examId,
-      pseudonymHash: booklet.pseudonymId,
+      pseudonymHmac: pseudonym.pseudonymHmac,
+      pseudonymVersion: pseudonym.pseudonymVersion,
       scanCt,
       scanIv: scanIv || new Uint8Array(12),
       createdAt: new Date().toISOString(),

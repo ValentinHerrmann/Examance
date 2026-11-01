@@ -1,5 +1,4 @@
-import { decrypt } from '#lib/crypto/aesGcm';
-import { loadExamExercisesEncrypted, loadLocalMcGroups } from '#lib/db/dbEncryption';
+import { loadExamExercisesEncrypted, loadLocalMcGroups, openAnnotation, openScan } from '#lib/db/dbEncryption';
 import type { ExerciseScoreRecord, SubmissionRecord } from '#lib/db/schema';
 import { gradingStore, type VectorStroke } from '#lib/grading/gradingStore';
 import { buildSubLabelMap } from '#lib/grading/mcGroupLabels';
@@ -21,7 +20,7 @@ import { get } from 'svelte/store';
 const RENDER_SCALE = 2;
 
 export interface GradedPdfOptions {
-  /** Legacy-key fallback handed to `decrypt` (the session's `fallbackSessionKey`). */
+  /** Legacy-key fallback handed to `openScan`/`openAnnotation` (the session's `fallbackSessionKey`). */
   fallbackKey?: CryptoKey | null;
   /** Printed score-box layout (`loadScoreBoxContext`), loaded once per exam by batch callers; `undefined` loads it here, `null` skips the boxes. */
   scoreBoxes?: ScoreBoxContext | null;
@@ -53,10 +52,10 @@ export async function renderGradedPdf(
   const { fallbackKey = null } = options;
   if (!submission.scanCt || !submission.scanIv) throw new Error('Scan data not found');
 
-  const scanBytes = await decrypt(key, submission.scanCt, submission.scanIv, fallbackKey);
+  const scanBytes = await openScan(submission.id, submission.scanCt, submission.scanIv, key, fallbackKey);
   let strokes: VectorStroke[] = [];
   if (submission.annotationCt && submission.annotationIv) {
-    const annBytes = await decrypt(key, submission.annotationCt, submission.annotationIv, fallbackKey);
+    const annBytes = await openAnnotation(submission.id, submission.annotationCt, submission.annotationIv, key, fallbackKey);
     strokes = JSON.parse(new TextDecoder().decode(annBytes));
   }
 

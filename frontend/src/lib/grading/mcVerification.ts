@@ -3,9 +3,9 @@ import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
 import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
 import { submissionRepository } from "#lib/repositories/submissionRepository";
 import { studentRepository } from "#lib/repositories/studentRepository";
-import { ensure64CharHex } from "#lib/crypto/hmac";
+import { joinKey, joinKeys } from "#lib/crypto/pseudonymKey";
 import { loadLocalMcGroups } from "#lib/db/dbEncryption";
-import type { ExerciseRecord, OmrScoreMeta } from "#lib/db/schema";
+import type { ExerciseRecord, OmrScoreMeta, SubmissionRecord } from "#lib/db/schema";
 import type { OmrRunInfo } from "#lib/grading/omrSettings";
 import { formatStudentName } from "#lib/utils/studentQr";
 import { translate } from "#lib/i18n";
@@ -165,21 +165,17 @@ export async function computeMcVerificationStats(
   const subLetterById = buildSubLabelMap(mcGroups);
 
   const studentMap = new Map<string, string>();
-  for (const st of students) {
+  const studentKeys = await joinKeys(students);
+  students.forEach((st, i) => {
     const label = formatStudentName(st.studentName) || st.fallbackCode || "";
-    if (!label) continue;
-    if (st.pseudonymId) {
-      studentMap.set(st.pseudonymId, label);
-      studentMap.set(await ensure64CharHex(st.pseudonymId), label);
-    }
+    if (!label) return;
+    if (st.pseudonymHmac) studentMap.set(studentKeys[i], label);
     if (st.fallbackCode) studentMap.set(st.fallbackCode, label);
-  }
+  });
 
-  async function labelFor(sub: { pseudonymHash: string; id: string }): Promise<string> {
-    const direct = studentMap.get(sub.pseudonymHash);
-    if (direct) return direct;
-    const hex = await ensure64CharHex(sub.pseudonymHash);
-    return studentMap.get(hex) || translate("scanning.verifyItem.submissionLabelFallback", { shortId: sub.id.slice(0, 8) });
+  async function labelFor(sub: SubmissionRecord): Promise<string> {
+    const label = sub.pseudonymHmac ? studentMap.get(await joinKey(sub)) : undefined;
+    return label || translate("scanning.verifyItem.submissionLabelFallback", { shortId: sub.id.slice(0, 8) });
   }
 
   // One read for the exam, then grouped in memory, to avoid an N+1 network read per submission now that scores are server-side.

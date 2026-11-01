@@ -322,7 +322,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 
 <div class="cols" style="margin-top:0; gap: 24px">
 <div class="stack">
-<div class="card"><h3>Schlüssel im Tab</h3><p>Damit F5 nicht neu fragt, liegt der Sitzungsschlüssel in <code>sessionStorage</code>; Skript auf derselben Origin kann ihn lesen, solange der Tab entsperrt ist.</p></div>
+<div class="card"><h3>Schlüssel im Tab</h3><p>Damit F5 nicht neu fragt, liegt der Sitzungsschlüssel in <code>sessionStorage</code>, versiegelt mit einem nicht exportierbaren Schlüssel je Tab; Skript auf derselben Origin kann ihn trotzdem nutzen, solange der Tab entsperrt ist.</p></div>
 <div class="card"><h3>Klartext auf dem Server</h3><p>LaTeX-Quelltexte samt Aufgabendateien (Tectonic braucht sie), Klausurmetadaten und die Gesamtpunktzahl je Abgabe.</p></div>
 <div class="card"><h3>Pseudonym-Kennung noch ohne Klausur-Schlüssel</h3><p>Derzeit ein einfacher SHA-256 des Pseudonyms: Der Server könnte dieselbe Person über Klausuren hinweg verknüpfen. Die geschlüsselte Variante ist vorbereitet, nicht aktiv.</p></div>
 </div>

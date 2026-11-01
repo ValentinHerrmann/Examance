@@ -1,7 +1,16 @@
-/** Session store: in-memory key state, persisted per tab via sessionStorage and synced across tabs via BroadcastChannel. SECURITY: no accessToken field; auth tokens live in httpOnly cookies, never read or stored by JS. masterKey (HKDF) and sessionKey (AES-GCM) are wiped on manual lock, 60-minute inactivity (hygiene.ts), tab close or browser quit. */
+/** Session store: in-memory key state, persisted per tab in sessionStorage sealed under a per-tab non-extractable key (issue #179, `crypto/sessionWrap.ts`) and synced across tabs via BroadcastChannel. SECURITY: no accessToken field; auth tokens live in httpOnly cookies, never read or stored by JS. masterKey (HKDF) and sessionKey (AES-GCM) are wiped on manual lock, 60-minute inactivity (hygiene.ts), tab close or browser quit. */
 
 import { writable, derived, get } from 'svelte/store';
 import { uint8ArrayToBase64, base64ToUint8Array, toArrayBuffer } from '#lib/crypto/aesGcm';
+import {
+  claimTab,
+  dropAllTabKeys,
+  dropTabKey,
+  openForTab,
+  sealForTab,
+  sweepStaleTabKeys,
+  wrapAvailable,
+} from '#lib/crypto/sessionWrap';
 import { safeLocalStorage, safeSessionStorage } from '#lib/utils/storage';
 
 export interface SessionState {
@@ -53,6 +62,23 @@ const SESSION_STORAGE_KEYS = {
   MODE: 'bg_session_mode',
   // Written by lib/services/keyEnvelopeService.ts (rememberKeyId), listed here so locking wipes it with everything else. Not secret — a random label for the data-key generation — but it is meaningless once the keys are gone.
   KEY_ID: 'bg_key_id',
+} as const;
+
+/** Key material never stored as such: sealed together into `SEALED` under this tab's wrapping key (issue #179). The names above remain only to remove raw entries an older build wrote. */
+const SECRET_FIELDS = [
+  'MASTER_KEY_RAW',
+  'SESSION_KEY',
+  'FALLBACK_MASTER_KEY_RAW',
+  'FALLBACK_SESSION_KEY',
+  'LEGACY_MASTER_KEY_RAW',
+  'LEGACY_SESSION_KEY',
+] as const satisfies readonly (keyof typeof SESSION_STORAGE_KEYS)[];
+
+const WRAP_STORAGE_KEYS = {
+  /** Random id naming this tab's wrapping key; not secret. */
+  TAB: 'bg_session_tab',
+  /** `SECRET_FIELDS` as JSON, AES-GCM sealed under the tab's wrapping key. */
+  SEALED: 'bg_session_sealed',
 } as const;
 
 /** localStorage keys of the discontinued local passphrase vault (issue #47). Never read for keys any more; only to recognise a browser that still holds such a vault and to remove them with it. */
@@ -133,29 +159,75 @@ async function fromKeyRecord(r: KeyRecord): Promise<Partial<SessionState> | null
   };
 }
 
-function readKeyRecord(): KeyRecord {
+const isSecret = (name: string): boolean => (SECRET_FIELDS as readonly string[]).includes(name);
+
+/** This tab's wrapping-key id: the stored one if this tab owns it, else a fresh one (a duplicated tab never shares, and never deletes, the original's key). */
+async function ownTabId(): Promise<string> {
+  const stored = safeSessionStorage.getItem(WRAP_STORAGE_KEYS.TAB);
+  if (stored && (await claimTab(stored))) return stored;
+  const fresh = crypto.randomUUID();
+  await claimTab(fresh);
+  safeSessionStorage.setItem(WRAP_STORAGE_KEYS.TAB, fresh);
+  return fresh;
+}
+
+interface StoredRecord {
+  record: KeyRecord;
+  /** True when the record must be written again: raw entries of an older build, or a tab id this tab does not own. */
+  rewrap: boolean;
+}
+
+async function readKeyRecord(): Promise<StoredRecord> {
   const record: KeyRecord = {};
   for (const [name, key] of Object.entries(SESSION_STORAGE_KEYS)) {
     record[name as keyof KeyRecord] = safeSessionStorage.getItem(key) ?? undefined;
   }
-  return record;
+  let rewrap = SECRET_FIELDS.some((f) => record[f] !== undefined);
+  const sealed = safeSessionStorage.getItem(WRAP_STORAGE_KEYS.SEALED);
+  const tabId = safeSessionStorage.getItem(WRAP_STORAGE_KEYS.TAB);
+  if (sealed && tabId && wrapAvailable()) {
+    const json = await openForTab(tabId, sealed);
+    if (json) Object.assign(record, JSON.parse(json) as KeyRecord);
+    if (!(await claimTab(tabId))) rewrap = true;
+  }
+  return { record, rewrap };
 }
 
-function writeKeyRecord(record: KeyRecord): void {
+/** Plain fields as they are, key material sealed into one entry; raw key entries never stay behind. Without IndexedDB nothing secret is kept (fail closed). */
+async function writeKeyRecord(record: KeyRecord): Promise<void> {
   if (!safeSessionStorage.isAvailable()) return;
   try {
+    const secrets: KeyRecord = {};
     for (const [name, key] of Object.entries(SESSION_STORAGE_KEYS)) {
       const value = record[name as keyof KeyRecord];
-      if (value === undefined) safeSessionStorage.removeItem(key);
+      if (isSecret(name)) {
+        if (value !== undefined) secrets[name as keyof KeyRecord] = value;
+      } else if (value === undefined) safeSessionStorage.removeItem(key);
       else safeSessionStorage.setItem(key, value);
     }
+    if (Object.keys(secrets).length > 0 && wrapAvailable()) {
+      const sealed = await sealForTab(await ownTabId(), JSON.stringify(secrets));
+      safeSessionStorage.setItem(WRAP_STORAGE_KEYS.SEALED, sealed);
+    } else {
+      safeSessionStorage.removeItem(WRAP_STORAGE_KEYS.SEALED);
+    }
+    // Only after the sealed copy exists, so a crash in between costs a sign-in, never a raw key at rest.
+    SECRET_FIELDS.forEach((f) => safeSessionStorage.removeItem(SESSION_STORAGE_KEYS[f]));
   } catch (err) {
     console.warn('[SessionStore] Could not save keys to sessionStorage:', err);
   }
 }
 
-function clearSessionStorage() {
+/** Synchronous for `lock()`; the wrapping keys go in the background: every tab's on a lock (all tabs lock), only this tab's otherwise. */
+function clearSessionStorage(scope: 'all' | 'tab' = 'tab') {
   Object.values(SESSION_STORAGE_KEYS).forEach((k) => safeSessionStorage.removeItem(k));
+  safeSessionStorage.removeItem(WRAP_STORAGE_KEYS.SEALED);
+  const tabId = safeSessionStorage.getItem(WRAP_STORAGE_KEYS.TAB);
+  if (!wrapAvailable()) return;
+  let drop: Promise<void> = Promise.resolve();
+  if (scope === 'all') drop = dropAllTabKeys();
+  else if (tabId) drop = dropTabKey(tabId);
+  drop.catch((err) => console.warn('[SessionStore] Could not drop the wrapping key:', err));
 }
 
 /** Overwrites the raw key bytes before dropping them (S10); CryptoKey objects cannot be wiped. */
@@ -199,12 +271,12 @@ function initBroadcastChannel(
 function createSessionStore() {
   const { subscribe, set, update } = writable<SessionState>(INITIAL_STATE);
 
-  /** Adopts a record from sessionStorage or another tab; false when it holds no usable session. */
-  async function adopt(record: KeyRecord): Promise<boolean> {
+  /** Adopts a record from sessionStorage or another tab; false when it holds no usable session. `persist` writes it to this tab's storage first (another tab's record, or one that needs re-wrapping). */
+  async function adopt(record: KeyRecord, persist: boolean): Promise<boolean> {
     try {
       const keys = await fromKeyRecord(record);
       if (!keys) return false;
-      writeKeyRecord(record);
+      if (persist) await writeKeyRecord(record);
       update((s) => ({ ...s, ...keys }));
       return true;
     } catch (err) {
@@ -261,16 +333,21 @@ function createSessionStore() {
         role: params.role ?? current.role,
       };
       // Storage first: a reload right after unlock must find the keys.
-      writeKeyRecord(await toKeyRecord(next));
+      const record = await toKeyRecord(next);
+      if (safeSessionStorage.isAvailable()) await writeKeyRecord(record);
       set(next);
     },
 
-    /** Restore session keys from tab-isolated sessionStorage across F5 reloads. */
+    /** Restore session keys from this tab's sealed sessionStorage across F5 reloads. */
     async restoreFromSessionStorage(): Promise<boolean> {
       if (!safeSessionStorage.isAvailable()) return false;
-      const record = readKeyRecord();
-      if (await adopt(record)) return true;
-      if (record.SESSION_KEY) clearSessionStorage();
+      const { record, rewrap } = await readKeyRecord();
+      // After our own claim, so the sweep can tell this tab is alive.
+      if (wrapAvailable()) {
+        sweepStaleTabKeys().catch((err) => console.warn('[SessionStore] Wrapping-key sweep failed:', err));
+      }
+      if (await adopt(record, rewrap)) return true;
+      if (record.SESSION_KEY || safeSessionStorage.getItem(WRAP_STORAGE_KEYS.SEALED)) clearSessionStorage();
       return false;
     },
 
@@ -294,7 +371,7 @@ function createSessionStore() {
           if (data && typeof data === 'object' && data.type === 'PROVIDE_KEYS') {
             clearTimeout(timer);
             ch.removeEventListener('message', handler);
-            resolve(await adopt(data.keys ?? {}));
+            resolve(await adopt(data.keys ?? {}, true));
           }
         };
 
@@ -311,7 +388,8 @@ function createSessionStore() {
     /** Wipe all key material and lock UI across all tabs. */
     lock() {
       safeLocalStorage.setItem('bg_session_locked', 'true');
-      clearSessionStorage();
+      // Every tab locks with this one, so every tab's wrapping key goes.
+      clearSessionStorage('all');
 
       if (syncChannel) {
         try {

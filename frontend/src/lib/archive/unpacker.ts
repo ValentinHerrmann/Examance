@@ -15,7 +15,7 @@ import {
 import { deriveArgon2Key, derivePbkdf2Key } from '#lib/crypto/keyDerivation';
 import { deriveSessionKey } from '#lib/crypto/sessionKey';
 import { api } from '#lib/api/client';
-import { decrypt, encrypt, toArrayBuffer } from '#lib/crypto/aesGcm';
+import { toArrayBuffer } from '#lib/crypto/aesGcm';
 import {
   saveStudentEncrypted,
   saveSubmissionEncrypted,
@@ -23,11 +23,17 @@ import {
   encryptExam,
   encryptExercise,
   encryptScore,
+  openAnnotation,
+  openScan,
+  sealAnnotation,
+  sealScan,
 } from '#lib/db/dbEncryption';
 import { scoreRepository, toApi as scoreToApi } from '#lib/repositories/scoreRepository';
 import { studentServerPayload } from '#lib/repositories/studentRepository';
 import { submissionServerPayload } from '#lib/repositories/submissionRepository';
-import type { AuditEntry, ExerciseScoreRecord, SubmissionRecord } from '#lib/db/schema';
+import type { AuditEntry, ExerciseScoreRecord, PseudonymVersion, SubmissionRecord } from '#lib/db/schema';
+import { writeVersion } from '#lib/services/pseudonymRekey';
+import { archiveKeyId, archivedPseudonym, importedPseudonym } from './pseudonyms';
 import { decodeBinary } from './binary';
 import { importPayloadToServer } from './serverImport';
 import { remapPageBreaks } from '#lib/exam/pageBreaks';
@@ -47,17 +53,14 @@ async function resealScans(
 ): Promise<SubmissionRecord> {
   const { scanBytes, annotationBytes, ...rest } = sub;
   const record: SubmissionRecord = { ...rest };
-  const seal = async (bytes: Uint8Array) => {
-    const { ciphertext, iv } = await encrypt(key, bytes);
-    return { ct: ciphertext, iv };
-  };
+  // Sealed under the submission's id after the remap: the ciphertext is bound to it (AAD, issue #178).
   if (scanBytes instanceof Uint8Array) {
-    const s = await seal(scanBytes);
+    const s = await sealScan(record.id, scanBytes, key);
     record.scanCt = s.ct;
     record.scanIv = s.iv;
   } else if (record.scanCt && record.scanIv) {
     try {
-      await decrypt(key, record.scanCt, record.scanIv);
+      await openScan(record.id, record.scanCt, record.scanIv, key);
     } catch {
       record.scanCt = undefined;
       record.scanIv = undefined;
@@ -66,12 +69,12 @@ async function resealScans(
     }
   }
   if (annotationBytes instanceof Uint8Array) {
-    const a = await seal(annotationBytes);
+    const a = await sealAnnotation(record.id, annotationBytes, key);
     record.annotationCt = a.ct;
     record.annotationIv = a.iv;
   } else if (record.annotationCt && record.annotationIv) {
     try {
-      await decrypt(key, record.annotationCt, record.annotationIv);
+      await openAnnotation(record.id, record.annotationCt, record.annotationIv, key);
     } catch {
       record.annotationCt = undefined;
       record.annotationIv = undefined;
@@ -274,17 +277,46 @@ export async function applyArchive(
   };
 
   // Results go where the account keeps them: this browser in hybrid mode (through the repositories), the server in all-server mode. Server writes are direct, so a rejection is reported here instead of disappearing into the offline queue.
+  // Keyed pseudonyms belong to one exam of one account: re-key into the target exam, the same way for students and their submissions, so the two stay linked (issue #177).
+  const sameAccount = payload.keyId === archiveKeyId();
+  type Pseudonym = { pseudonymHmac: string; pseudonymVersion: PseudonymVersion };
+  const versions = new Map<string, Promise<PseudonymVersion>>();
+  const versionOf = (examId: string) => {
+    if (!versions.has(examId)) versions.set(examId, writeVersion(examId));
+    return versions.get(examId)!;
+  };
+  const rekeyed = new Map<string, Promise<Pseudonym>>();
+  const pseudonymOf = (item: any): Promise<Pseudonym> => {
+    const archived = `${item.examId}:${archivedPseudonym(item).value}`;
+    if (!rekeyed.has(archived)) {
+      const examId = remap(item.examId) as string;
+      // Kept only in the very exam it was keyed for: an exam imported as a copy has another key.
+      const keyedFor = item.keyedExamId ?? item.examId;
+      rekeyed.set(archived, versionOf(examId).then((v) => importedPseudonym(item, examId, v, sameAccount && examId === keyedFor)));
+    }
+    return rekeyed.get(archived)!;
+  };
+  // Every pseudonym up front, in parallel; the rows below are then written one by one.
+  const resultRows = [
+    ...(Array.isArray(payload.students) ? payload.students : []),
+    ...(Array.isArray(payload.submissions) ? payload.submissions : []),
+  ].filter((item: any) => examAvailable(item.examId));
+  const pseudonyms = new Map<any, Pseudonym>(
+    await Promise.all(resultRows.map(async (item: any) => [item, await pseudonymOf(item)] as const))
+  );
+
   if (Array.isArray(payload.students)) {
     for (const item of payload.students) {
       if (skipForMissingExam(item.examId, 'students')) continue;
-      const student = { ...item, examId: remap(item.examId) };
+      const { pseudonymId: _legacy, ...archivedStudent } = item;
+      const student = { ...archivedStudent, ...pseudonyms.get(item), examId: remap(item.examId) };
       try {
         if (local) await saveStudentEncrypted(student, activeKey);
         else
           await api.post(`/exams/${student.examId}/students`, await studentServerPayload(student, activeKey), {
             silentError: true,
           });
-        bump(report, 'students', decided.get(item.pseudonymId) ?? 'created');
+        bump(report, 'students', decided.get(`${item.examId}:${archivedPseudonym(item).value}`) ?? 'created');
       } catch (err) {
         errors.push(`Student of exam ${labelOf(item.examId)}: ${describe(err)}`);
         bump(report, 'students', 'failed');
@@ -295,8 +327,9 @@ export async function applyArchive(
   if (Array.isArray(payload.submissions)) {
     for (const item of payload.submissions) {
       if (skipForMissingExam(item.examId, 'submissions')) continue;
+      const { pseudonymHash: _legacy, ...archivedSub } = item;
       const sub = await resealScans(
-        { ...item, id: remapSubmission(item.id), examId: remap(item.examId) },
+        { ...archivedSub, ...pseudonyms.get(item), id: remapSubmission(item.id), examId: remap(item.examId) },
         activeKey,
         report,
         labelOf(item.examId)

@@ -200,6 +200,7 @@ export const exam = {
         custom: 'Individuell',
         gradeLabel: 'Note {grade}',
         from: 'Ab',
+        cutoffLabel: 'Mindestprozentsatz für Note {grade}',
     },
     resultsOnly: {
         badge: 'Nur Ergebnisse',

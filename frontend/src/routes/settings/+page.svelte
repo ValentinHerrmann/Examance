@@ -18,6 +18,7 @@
   import OmrDetectionSettingsCard from "#lib/components/settings/OmrDetectionSettingsCard.svelte";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import OmrDonationCard from "#lib/components/settings/OmrDonationCard.svelte";
+  import RestoreServerDataCard from "#lib/components/settings/RestoreServerDataCard.svelte";
   import AccountLogoCard from "#lib/components/logo/AccountLogoCard.svelte";
   import AccountPackagesCard from "#lib/components/latex-packages/AccountPackagesCard.svelte";
   import { trainingDonationStore } from "#lib/stores/trainingDonation";
@@ -43,14 +44,14 @@
   import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
-  async function handleExportStudent(pseudonymId: string, examId: string) {
+  async function handleExportStudent(student: StudentRecord) {
     statusMsg = "";
     try {
-      const data = await exportStudentData(pseudonymId, examId);
+      const data = await exportStudentData(student);
       const url = URL.createObjectURL(toDownloadableJson(data));
       const link = document.createElement("a");
       link.href = url;
-      link.download = `auskunft-${pseudonymId.slice(0, 8)}.json`;
+      link.download = `auskunft-${data.pseudonymHmac.slice(0, 8)}.json`;
       link.click();
       URL.revokeObjectURL(url);
       statusMsg = translate("settings.status.exportDownloaded");
@@ -127,15 +128,15 @@
     });
   }
 
-  async function handleEraseStudent(pseudonymId: string, examId: string) {
+  async function handleEraseStudent(student: StudentRecord) {
     if (!confirm(translate("settings.alerts.eraseStudentConfirm"))) return;
     isErasing = true;
     try {
-      const result = await eraseStudent(pseudonymId, examId);
-      students = students.filter((s) => s.pseudonymId !== pseudonymId);
+      const result = await eraseStudent(student);
+      students = students.filter((s) => s !== student);
       statusMsg = translate(
         result.status === "pending" ? "settings.status.studentErasurePending" : "settings.status.studentErased",
-        { id: pseudonymId },
+        { id: result.pseudonymHmac.slice(0, 8) },
       );
     } catch (err: any) {
       alert(translate("settings.alerts.eraseFailed", { message: err.message }));
@@ -229,6 +230,11 @@
           <p class="px-1 text-xs text-muted">
             {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
           </p>
+        {/if}
+
+        <!-- Same rule as the server's result-write gate: server results allowed, or the account still in all-server. -->
+        {#if $allowedStorageModes.includes("all-server") || $storagePolicyStore.storageMode === "all-server"}
+          <RestoreServerDataCard hybrid={$storagePolicyStore.storageMode === "hybrid"} />
         {/if}
 
         <OmrDonationCard
