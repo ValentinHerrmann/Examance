@@ -541,7 +541,7 @@
         getOmrContext: () => (omrAvailable ? { templatePages: omrTemplatePages, answerKeys: omrAnswerKeys } : null),
         omrSettings: get(omrSettingsStore),
         omrTemplateHash,
-        cutStrip: (await examRepository.getById(examId, get(sessionStore).sessionKey))?.cutStrip === true,
+        cutCorner: (await examRepository.getById(examId, get(sessionStore).sessionKey))?.cutCorner === true,
         monitor,
         onProgress: showIngestProgress,
       });

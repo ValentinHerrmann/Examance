@@ -99,7 +99,7 @@ export async function collectExamResources(
   return exerciseResourceRepository.collectForCompile(owners, sessionKey, needBytes);
 }
 
-/** Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own. The exam's own layout options (`namenszeile`, `schnittstreifen`) are added here. */
+/** Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own. The exam's own layout options (`namenszeile`, `schnittecke`) are added here. */
 export function buildExamLatex(
   exam: ExamRecord,
   exerciseInputs: string,
@@ -138,8 +138,8 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
 }
 
 /** Adds the exam's layout switches to the Schulaufgabe.sty options. */
-export function withExamOptions(options: string, layout: Pick<ExamRecord, "nameLine" | "cutStrip">): string {
-  return [options, layout.nameLine && "namenszeile", layout.cutStrip && "schnittstreifen"].filter(Boolean).join(",");
+export function withExamOptions(options: string, layout: Pick<ExamRecord, "nameLine" | "cutCorner">): string {
+  return [options, layout.nameLine && "namenszeile", layout.cutCorner && "schnittecke"].filter(Boolean).join(",");
 }
 
 export interface ExamPreviewInput {

@@ -186,7 +186,7 @@ export const help: Translations['help'] = {
             },
             s6: {
                 h: 'QR codes',
-                p1: 'Without QR codes, Examance cannot assign pages by itself. “Print QR codes” on the exam page prints a label sheet from a list of names, optionally with a personal key each student keeps. Or it prints the codes directly onto the exam copies: the top of page 1 then carries a strip with name and key, which you cut off before handing out.',
+                p1: 'Without QR codes, Examance cannot assign pages by itself. “Print QR codes” on the exam page prints a label sheet from a list of names, optionally with a personal key each student keeps. Or it prints the codes directly onto the exam copies: the top-right corner of page 1 then carries name and key, which you snip off before handing out.',
             },
         },
         grading: {

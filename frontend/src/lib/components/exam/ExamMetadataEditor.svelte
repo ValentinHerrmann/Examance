@@ -29,8 +29,8 @@
     editInfoText: string;
     /** Name line next to the QR box (issue #127). */
     editNameLine?: boolean;
-    /** Free band on top of every page for printed student QR codes (issue #211). */
-    editCutStrip?: boolean;
+    /** Cut-off corner tab on page 1 for printed student QR codes (issue #211). */
+    editCutCorner?: boolean;
     /** MC correction legend at every MC task (issue #192). */
     editMcCorrectionHint?: boolean;
     editRetentionUntil: string;
@@ -65,7 +65,7 @@
     editLehrernachname = $bindable(),
     editInfoText = $bindable(),
     editNameLine = $bindable(false),
-    editCutStrip = $bindable(false),
+    editCutCorner = $bindable(false),
     editMcCorrectionHint = $bindable(false),
     editRetentionUntil = $bindable(),
     editGradingKey = $bindable(),
@@ -180,8 +180,8 @@
     <Checkbox id="editNameLine" bind:checked={editNameLine} label={$t("exam.metadataEditor.nameLine")} />
   </Field>
 
-  <Field hint={$t("exam.metadataEditor.cutStripHint")} class="mb-4">
-    <Checkbox id="editCutStrip" bind:checked={editCutStrip} label={$t("exam.metadataEditor.cutStrip")} />
+  <Field hint={$t("exam.metadataEditor.cutCornerHint")} class="mb-4">
+    <Checkbox id="editCutCorner" bind:checked={editCutCorner} label={$t("exam.metadataEditor.cutCorner")} />
   </Field>
 
   <Field hint={$t("exam.metadataEditor.mcCorrectionHintHint")} class="mb-4">

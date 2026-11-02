@@ -23,12 +23,10 @@
 \newboolean{Namensfeld}
 \setboolean{Namensfeld}{false}
 
-% Free band on top of every page for the cut-off strip of printed student QR codes (issue #211).
-% The band height is mirrored in frontend lib/qr/cutStrip.ts, which draws the strip and covers it on scans.
+% Cut-off corner tab for printed student QR codes (issue #211): page 1 top-right and its back (page 2 top-left) stay free.
+% The reserved zone (a 7.0 x 4.1 cm triangle) is mirrored in frontend lib/qr/cutCorner.ts, which draws the tab and covers it on scans.
 \newboolean{Schnitt}
 \setboolean{Schnitt}{false}
-\newlength{\SchnittBand}
-\setlength{\SchnittBand}{0pt}
 
 \newcounter{Punkte}
 \setcounter{Punkte}{0}
@@ -215,8 +213,8 @@
     \setboolean{Namensfeld}{true}%
 }
 
-% Cut-off strip band on every page, so the back of page 1 is free there too in long-edge duplex (issue #211)
-\DeclareOption{schnittstreifen}{%
+% Cut-off corner tab on page 1; only page 1 and its back change, so booklets and duplex stay safe (issue #211)
+\DeclareOption{schnittecke}{%
     \setboolean{Schnitt}{true}%
 }
 
@@ -229,11 +227,13 @@
 \ExecuteOptions{roman}
 \ProcessOptions\relax
 
-% Same geometry as packages.sty, moved down by the band; the fiducials move with it (section 6b).
-\ifthenelse{\boolean{Schnitt}}{%
-    \setlength{\SchnittBand}{3cm}%
-    \geometry{top=3.4cm}% 0.4cm + band
-}{}
+% Info text next to the QR box; with the corner tab it ends left of the tab's zone.
+\newlength{\SA@infowidth}
+\setlength{\SA@infowidth}{15cm}
+\ifthenelse{\boolean{Schnitt}}{\setlength{\SA@infowidth}{12.5cm}}{}
+
+% Page 2's body starts below the corner tab's zone on its back (tools bundle, in both engines).
+\RequirePackage{afterpage}
 
 % ==============================================================================
 % 6. Name Box (Namenszeile) & Header Setup
@@ -262,7 +262,7 @@
             }
         }
         \end{minipage}% <-- Ein % hier verhindert einen ungewollten Zeilenumbruch/Abstand
-        \begin{minipage}[t]{15cm}
+        \begin{minipage}[t]{\SA@infowidth}
         \vspace{5pt} % Setzt die Grundlinie an die physische Oberkante
         \normalsize
         % Name starts where the info bullets do; the strut is the room to write above the line.
@@ -276,7 +276,10 @@
     \normalsize
 
     \vspace{-0.7cm}
-    \textcolor{lightgray}{\noindent\rule{\textwidth}{0.5pt}}
+    % With the corner tab the rule stops short of the moved top-right fiducial, and the tasks start below it.
+    \ifthenelse{\boolean{Schnitt}}%
+        {\textcolor{lightgray}{\noindent\rule{\dimexpr\textwidth-1cm\relax}{0.5pt}}\par\vspace{0.6cm}}%
+        {\textcolor{lightgray}{\noindent\rule{\textwidth}{0.5pt}}}
     \end{center}
 }
 
@@ -305,28 +308,35 @@
 \AtBeginDocument{
     \fancyheadoffset[L]{5mm}
     \fancyheadoffset[R]{5mm}
+    % With the corner tab, page 1's date and class move under the title and page 2's running head moves right (both corners stay free).
     \lhead{\SA@headreset\ifnum\thepage=1
     {\hspace{1cm}\ExamLogo}
     \else
-    \hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext%Name:
+    \ifthenelse{\boolean{Schnitt}\AND\value{page}=2}{}{\hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext}%Name:
     \fi}
     \rhead{\SA@headreset
     \ifnum\thepage=1
-    {%
+    \ifthenelse{\boolean{Schnitt}}{}{%
     \begin{tabular}[b]{@{}r@{}}
         \Datumtext \\
         Klasse \Klassetext \ (\Lehrernachnametext)
     \end{tabular}\hspace*{1cm}%
-    }
+    }%
     \else
+    \ifthenelse{\boolean{Schnitt}\AND\value{page}=2}{\Nrtext. \Testarttesttext \ in \Fachtext\hspace*{1cm}}{}%
     \fi
     }
     \chead{\SA@headreset
     \ifnum\thepage=1
-    {
+    \ifthenelse{\boolean{Schnitt}}{%
+    \begin{tabular}[b]{@{}c@{}}
+        {\Large \Nrtext. \Testarttesttext \ in \Fachtext} \\
+        \footnotesize \Datumtext, Klasse \Klassetext \ (\Lehrernachnametext)
+    \end{tabular}%
+    }{%
     \Large
     \Nrtext. \Testarttesttext \ in \Fachtext \normalsize
-    }
+    }%
     \else
     \fi
     }
@@ -337,6 +347,7 @@
         {\newcommand{\LFarbe}{blue}}
         {}
         \Namenszeile
+    \ifthenelse{\boolean{Schnitt}}{\afterpage{\vspace*{2.1cm}}}{}%
 }
 
 % ==============================================================================
@@ -379,11 +390,23 @@
     \AtPageLowerLeft{\put(\LenToUnit{#2},\LenToUnit{#3}){\OmrLink{\OmrFiducialSize}{\OmrFiducialSize}{omr://__fid__/#1}\OmrFiducialShape}}%
 }
 
+% With the corner tab, page 1's top-right fiducial moves down the right edge below the tab zone, and page 2's
+% top-left one moves along the top edge to the right of it (mirrored in frontend lib/qr/cutCorner.ts).
+\newcommand{\SA@fidTR}{%
+    \ifthenelse{\boolean{Schnitt}\AND\value{page}=1}%
+    {\OmrFiducialAt{2}{\dimexpr\paperwidth-2mm-\OmrFiducialSize\relax}{\dimexpr\paperheight-46mm-\OmrFiducialSize\relax}}%
+    {\OmrFiducialAt{2}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\dimexpr\paperheight-\OmrFiducialInset-\OmrFiducialSize\relax}}%
+}
+\newcommand{\SA@fidTL}{%
+    \ifthenelse{\boolean{Schnitt}\AND\value{page}=2}%
+    {\OmrFiducialAt{3}{75mm}{\dimexpr\paperheight-\OmrFiducialInset-\OmrFiducialSize\relax}}%
+    {\OmrFiducialAt{3}{\OmrFiducialInset}{\dimexpr\paperheight-\OmrFiducialInset-\OmrFiducialSize\relax}}%
+}
 \AddToShipoutPictureBG{%
     \OmrFiducialAt{0}{\OmrFiducialInset}{\OmrFiducialInset}%
     \OmrFiducialAt{1}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\OmrFiducialInset}%
-    \OmrFiducialAt{2}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\dimexpr\paperheight-\SchnittBand-\OmrFiducialInset-\OmrFiducialSize\relax}%
-    \OmrFiducialAt{3}{\OmrFiducialInset}{\dimexpr\paperheight-\SchnittBand-\OmrFiducialInset-\OmrFiducialSize\relax}%
+    \SA@fidTR
+    \SA@fidTL
 }
 
 % ==============================================================================

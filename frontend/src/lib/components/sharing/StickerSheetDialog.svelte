@@ -21,12 +21,12 @@
     keysOnly?: boolean;
     /** The compiled student sheet; offers printing onto exam copies. */
     loadExamPdf?: () => Promise<Uint8Array>;
-    /** The exam keeps the band for the cut-off strip free, which exam copies need. */
-    cutStrip?: boolean;
+    /** The exam keeps the cut-off corner free, which exam copies need. */
+    cutCorner?: boolean;
     onClose: () => void;
   }
 
-  let { examId, examTitle = "", keysOnly: startKeysOnly = false, loadExamPdf, cutStrip = false, onClose }: Props = $props();
+  let { examId, examTitle = "", keysOnly: startKeysOnly = false, loadExamPdf, cutCorner = false, onClose }: Props = $props();
 
   // The starting choice only; the dialog owns it from then on.
   const initialKeysOnly = untrack(() => startKeysOnly);
@@ -106,8 +106,8 @@
     {/if}
 
     <p class="text-sm text-muted">{copiesMode ? $t("sharing.stickers.copiesIntro") : $t("sharing.stickers.intro")}</p>
-    {#if copiesMode && !cutStrip}
-      <Alert severity="warning">{$t("sharing.stickers.needsCutStrip")}</Alert>
+    {#if copiesMode && !cutCorner}
+      <Alert severity="warning">{$t("sharing.stickers.needsCutCorner")}</Alert>
     {/if}
 
     {#if examId}
@@ -170,6 +170,6 @@
   {#snippet footer()}
     <Button variant="outlined" severity="secondary" disabled={busy} onClick={onClose}>{$t("common.cancel")}</Button>
     {#if progress}<span class="text-sm text-muted" role="status">{progress}</span>{/if}
-    <Button icon={faQrcode} loading={busy} disabled={busy || (copiesMode && !cutStrip)} onClick={download}>{$t("sharing.stickers.download")}</Button>
+    <Button icon={faQrcode} loading={busy} disabled={busy || (copiesMode && !cutCorner)} onClick={download}>{$t("sharing.stickers.download")}</Button>
   {/snippet}
 </Modal>

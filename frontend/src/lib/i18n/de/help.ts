@@ -185,7 +185,7 @@ export const help = {
             },
             s6: {
                 h: 'QR-Codes',
-                p1: 'Ohne QR-Code ordnet Examance die Seiten nicht von selbst zu. „QR-Codes drucken“ auf der Klausurseite druckt einen Etikettenbogen aus einer Namensliste, auf Wunsch mit einem persönlichen Schlüssel, den der Schüler behält. Oder es druckt die Codes direkt auf die Prüfungsexemplare: Oben auf Seite 1 steht dann ein Streifen mit Name und Schlüssel, den Sie vor dem Austeilen abschneiden.',
+                p1: 'Ohne QR-Code ordnet Examance die Seiten nicht von selbst zu. „QR-Codes drucken“ auf der Klausurseite druckt einen Etikettenbogen aus einer Namensliste, auf Wunsch mit einem persönlichen Schlüssel, den der Schüler behält. Oder es druckt die Codes direkt auf die Prüfungsexemplare: Die obere rechte Ecke von Seite 1 trägt dann Name und Schlüssel; Sie schneiden sie vor dem Austeilen ab.',
             },
         },
         grading: {

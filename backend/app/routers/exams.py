@@ -69,7 +69,7 @@ _HEADER_FIELDS = (
     "info_text",
     "grading_key",
     "name_line",
-    "cut_strip",
+    "cut_corner",
     "mc_correction_hint",
 )
 # What a duplicate takes over; the title, retention and page breaks are set separately.

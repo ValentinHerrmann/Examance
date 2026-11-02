@@ -26,13 +26,13 @@ Everything is computed in your browser; no external service draws the codes.
 Instead of stickers, Examance can print each student's QR code **directly onto their own copy** of the exam. With **Print directly onto the exam copies** in the same dialog you get one PDF with a copy per student, in list order:
 
 - The QR code sits in the **QR Code** box on the cover page, exactly where a sticker would go, so scanning works as with stickers.
-- The top of page 1 carries a **strip with the student's name and personal key**, above a dashed line. **Before handing out, cut the strip off** along the line (a short cut to tear it off is enough). The student recognises their copy by the strip and keeps it; the key later opens their [shared result](#share-results).
-- There is plenty of blank room above and below the line, so an imprecise cut touches neither the strip nor the exam.
-- If a strip was not cut off, Examance **covers it when the scans come in**, so the name never shows during grading or in exports.
+- The **top-right corner of page 1** carries the student's **name and personal key** on the far side of a dashed diagonal line. **Before handing out, snip the corner off** along the line with one cut. The student recognises their copy by it and keeps it; the key later opens their [shared result](#share-results).
+- There is blank room around the line, so an imprecise cut touches neither the name nor the exam.
+- If a corner was not cut off, Examance **covers it when the scans come in**, so the name never shows during grading or in exports.
 
-This needs room for the strip: turn on **Leave room for a cut-off strip on top of every page** in the exam details (when creating the exam or under **Edit Exam**). Every page then starts 3 cm lower.
+This needs the corner: turn on **Cut-off corner for printed QR codes** in the exam details (when creating the exam or under **Edit Exam**). Only the top-right corner of page 1 and the corner behind it (page 2, top left) stay free; page 1's date and class move under the title, and page 2 starts about 2 cm lower. All other pages are unchanged.
 
-**Two-sided printing:** keep **For two-sided printing** on and flip on the **long edge**. A copy with an odd number of pages then gets a blank page, so every copy starts on a new sheet, and the back of page 1 is blank where you cut. Print at actual size, without "fit to page".
+**Two-sided and booklet printing:** keep **For two-sided printing** on and flip on the **long edge**: a copy with an odd number of pages then gets a blank page, so every copy starts on a new sheet. In a folded booklet the corner lies on the cover sheet only; cut just that sheet, the pages under it are untouched. Print at actual size, without "fit to page".
 
 ## Personal keys {#personal-keys}
 

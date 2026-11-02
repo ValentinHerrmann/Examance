@@ -8,7 +8,7 @@ import type { ExerciseScoreRecord, OmrPageTemplate } from "#lib/db/schema";
 import { buildOmrScoreRecord } from "#lib/grading/omrResult";
 import { createOmrRun, type OmrPageStats, type OmrRunInfo, type OmrSettingsProfile } from "#lib/grading/omrSettings";
 import { scoreRepository } from "#lib/repositories/scoreRepository";
-import { stripCoverBottom } from "#lib/qr/cutStrip";
+import { cornerCoverPolygon } from "#lib/qr/cutCorner";
 import { parseStudentQr } from "#lib/utils/studentQr";
 import { randomCode } from "#lib/utils/randomCode";
 import type { QrWorkerRequest, QrWorkerResponse } from "#lib/workers/qrWorker";
@@ -85,8 +85,8 @@ export interface IngestDeps {
   /** Snapshotted once into the run stamped on every score row (issue #32). */
   omrSettings: OmrSettingsProfile;
   omrTemplateHash?: string;
-  /** The exam prints a cut-off strip with name and key (issue #211): an uncut one is covered on each booklet's first page. */
-  cutStrip?: boolean;
+  /** The exam prints a cut-off corner tab with name and key (issue #211): its zone is covered on each booklet's first page. */
+  cutCorner?: boolean;
   monitor?: { checkMemoryHealth(): void };
   onProgress?: (progress: IngestProgress) => void;
 }
@@ -222,16 +222,12 @@ async function decodeQr(
   }
 }
 
-/** Paints the band of an uncut strip white on the stored page, so the name and key show in no view of the scan (grading, exports, shared PDFs). The pixels below stay in the sealed original. */
-function coverStrip(imageData: ImageData, pageRef: PdfPageRef, viewport: PageViewport, params: OmrRunInfo["params"], white: Color): void {
-  const bottom = stripCoverBottom(imageData, viewport.scale, params);
-  if (bottom === null) return;
-  const corners = [viewport.convertToPdfPoint(0, 0), viewport.convertToPdfPoint(imageData.width, bottom)];
-  const xs = corners.map(([x]) => x);
-  const ys = corners.map(([, y]) => y);
-  const x = Math.min(...xs);
-  const y = Math.min(...ys);
-  pageRef.doc.getPage(pageRef.index).drawRectangle({ x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y, color: white });
+/** Paints the corner tab's zone white on the stored page, so a name and key that were not cut off show in no view of the scan (grading, exports, shared PDFs). The pixels below stay in the sealed original. */
+function coverCorner(imageData: ImageData, pageRef: PdfPageRef, viewport: PageViewport, params: OmrRunInfo["params"], white: Color): void {
+  const points = cornerCoverPolygon(imageData, viewport.scale, params).map(([x, y]) => viewport.convertToPdfPoint(x, y));
+  // drawSvgPath flips y (SVG points down), so negate it to draw in PDF space from the origin.
+  const path = points.map(([x, y], i) => `${i ? "L" : "M"} ${x} ${-y}`).join(" ") + " Z";
+  pageRef.doc.getPage(pageRef.index).drawSvgPath(path, { x: 0, y: 0, color: white, borderWidth: 0 });
 }
 
 /** PASS 2 state: pages are scanned and grouped one at a time so only one page's pixels are alive. */
@@ -291,7 +287,7 @@ class ScanPass {
     const qr = await decodeQr(this.deps.qrPool, imageData);
     const booklet = this.collector.addPage(qr, pageRef);
     // Before OMR, which may transfer the pixels to its worker.
-    if (this.deps.cutStrip && qr && booklet.pageRefs.length === 1) coverStrip(imageData, pageRef, viewport, this.omrRun.params, this.white!);
+    if (this.deps.cutCorner && qr && booklet.pageRefs.length === 1) coverCorner(imageData, pageRef, viewport, this.omrRun.params, this.white!);
     await this.detectOmr(fileName, imageData, booklet);
     this.deps.monitor?.checkMemoryHealth();
   }
