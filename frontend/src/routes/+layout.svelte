@@ -93,9 +93,11 @@
   let hybridHintDismissed = $state(false);
   let workspaceExportOpen = $state(false);
   let workspaceReady = $derived($workspaceStatusStore.state === "ok" && page.url.pathname !== "/unlock");
-  // Domain move (issue #198): on the old address a hybrid account only takes its results along.
+  // Domain move (issue #198): on the old address a hybrid account only takes its results along; the trash stays reachable, since its browser part cannot move.
   const oldAddress = onOldAddress();
-  let moveHybridResults = $derived(oldAddress && workspaceReady && $storagePolicyStore.storageMode === "hybrid");
+  let moveHybridResults = $derived(
+    oldAddress && workspaceReady && $storagePolicyStore.storageMode === "hybrid" && page.url.pathname !== "/trash",
+  );
   let strayLocalResults = $derived(
     workspaceReady && $storagePolicyStore.storageMode === "all-server" && localResults > 0,
   );

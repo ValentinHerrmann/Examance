@@ -24,6 +24,11 @@
 <Card class="flex flex-col gap-4">
   <h1 class="m-0 text-xl font-medium text-content">{$t("domainMove.hybridTitle", vars)}</h1>
   <p class="m-0 text-sm text-muted">{$t("domainMove.hybridBody", vars)}</p>
+  <!-- The browser trash (lib/trash/localTrash.ts) stays with this origin and can be restored only in hybrid mode. -->
+  <p class="m-0 text-sm text-muted">
+    {$t("domainMove.hybridTrash")}
+    <a href="/trash" class="link">{$t("domainMove.hybridTrashLink")}</a>
+  </p>
 
   <div class="flex flex-col gap-2 sm:flex-row">
     {#if canMove}

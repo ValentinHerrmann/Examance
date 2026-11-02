@@ -5,6 +5,8 @@ export const domainMove = {
     openNew: 'Weiter zu {host}',
     hybridTitle: 'Ergebnisse mitnehmen nach {host}',
     hybridBody: 'Ihre Korrekturergebnisse liegen nur in diesem Browser, und zwar für diese Adresse ({from}). Auf {host} sind sie nicht da. Nehmen Sie sie mit, bevor diese Adresse am {date} auf {host} weiterleitet.',
+    hybridTrash: 'Was Sie in den letzten Tagen gelöscht haben, liegt im Papierkorb dieses Browsers und lässt sich nach dem Umzug nicht mehr wiederherstellen. Stellen Sie vorher wieder her, was Sie noch brauchen.',
+    hybridTrashLink: 'Zum Papierkorb',
     hybridMove: 'Ergebnisse auf den Server verschieben',
     hybridMoveHint: 'Danach geht es automatisch auf {host} weiter. Dort können Sie wieder auf den Hybrid-Modus wechseln.',
     hybridBackup: 'Arbeitsbereich sichern',

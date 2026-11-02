@@ -6,6 +6,8 @@ export const domainMove: Translations['domainMove'] = {
     openNew: 'Continue to {host}',
     hybridTitle: 'Take your results along to {host}',
     hybridBody: 'Your grading results are stored only in this browser, for this address ({from}). They are not on {host}. Take them along before this address starts forwarding to {host} on {date}.',
+    hybridTrash: 'What you deleted in the last few days is in this browser’s trash and cannot be restored after the move. Restore what you still need first.',
+    hybridTrashLink: 'Open the trash',
     hybridMove: 'Move results to the server',
     hybridMoveHint: 'Afterwards you continue on {host} automatically. You can switch back to hybrid mode there.',
     hybridBackup: 'Back up workspace',
