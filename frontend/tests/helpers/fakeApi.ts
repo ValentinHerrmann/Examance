@@ -373,6 +373,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         contribution_pending_days: 180,
         training_sample_days: 730,
         layout_report_days: 90,
+        result_share_max_days: 90,
       });
     }
     return undefined;
@@ -1173,6 +1174,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (sub === 'students') return students(method, id, rest, body);
     if (sub === 'submissions') return submissions(method, id, rest, query, body);
     if (sub === 'pseudonyms') return pseudonyms(method, id, rest, body);
+    // Result shares (issue #207): none exist in the fake, so listing is empty and revoking is a no-op.
+    if (sub === 'shares' && method === 'GET' && rest.length === 0) return ok([]);
+    if (sub === 'shares' && method === 'DELETE') return noContent();
     if (sub === 'scores' && method === 'GET' && rest.length === 0) {
       const live = new Set((state.submissions.get(id) ?? []).map((row) => row.id));
       return ok([...live].flatMap((subId) => (state.scores.get(subId) ?? []).map(scoreResponse)));

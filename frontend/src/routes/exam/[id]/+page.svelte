@@ -35,6 +35,8 @@
   import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
   import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
   import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
+  import ShareResultsDialog from "#lib/components/sharing/ShareResultsDialog.svelte";
+  import StickerSheetDialog from "#lib/components/sharing/StickerSheetDialog.svelte";
   import ExerciseList from "#lib/components/exam/ExerciseList.svelte";
   import ExamMetadataEditDialog from "#lib/components/exam/ExamMetadataEditDialog.svelte";
   import ExamExercisePicker from "#lib/components/exam/ExamExercisePicker.svelte";
@@ -55,6 +57,9 @@
   let submissionsLoadError = $state("");
 
   let exportOpen = $state(false);
+  let shareOpen = $state(false);
+  /** null = closed; "keys" = only the key slips, opened from the share dialog. */
+  let stickers: "all" | "keys" | null = $state(null);
 
   let isPreviewLoading = $state(false);
   let compileNotice = $state("");
@@ -682,6 +687,8 @@
       onEdit={() => metadataDialog?.open()}
       onDelete={handleDeleteExam}
       onExport={() => (exportOpen = true)}
+      onStickers={() => (stickers = "all")}
+      onShare={() => (shareOpen = true)}
       onDeleteAllSubmissions={handleDeleteAllSubmissions}
       onDuplicate={handleDuplicateExam}
       {isDuplicating}
@@ -822,4 +829,10 @@
 
 {#if exportOpen}
   <ExamExportModal {examId} examTitle={exam?.title ?? ""} onClose={() => (exportOpen = false)} />
+{/if}
+{#if shareOpen && !stickers}
+  <ShareResultsDialog {examId} onClose={() => (shareOpen = false)} onPrintKeys={() => (stickers = "keys")} />
+{/if}
+{#if stickers}
+  <StickerSheetDialog {examId} examTitle={exam?.title ?? ""} keysOnly={stickers === "keys"} onClose={() => (stickers = null)} />
 {/if}

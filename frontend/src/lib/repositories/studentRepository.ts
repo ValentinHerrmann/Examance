@@ -1,5 +1,6 @@
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
+import { revokeStudentResultShare } from '#lib/api/resultShares';
 import { db } from '#lib/db/db';
 import { resultsAreLocal, storagePolicyStore } from '#lib/stores/storagePolicy';
 import { encryptStudent, decryptStudent } from '#lib/db/dbEncryption';
@@ -172,5 +173,7 @@ export const studentRepository = {
         enqueueOrThrow(err, url, 'DELETE', undefined, headers);
       }
     }
+    // In every mode: a hybrid delete never reaches the server, and its own cleanup only knows version-2 keys. Best effort; an unrevoked link still expires.
+    await revokeStudentResultShare(examId, target).catch((err) => console.warn('Could not revoke the student\'s result link:', err));
   },
 };

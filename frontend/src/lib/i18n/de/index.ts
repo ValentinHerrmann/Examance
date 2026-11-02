@@ -28,6 +28,7 @@ import { layoutReport } from './layoutReport';
 import { snippets } from './snippets';
 import { domainMove } from './domainMove';
 import { trash } from './trash';
+import { sharing } from './sharing';
 
 export const de = {
     common,
@@ -59,4 +60,5 @@ export const de = {
     snippets,
     domainMove,
     trash,
+    sharing,
 } as const;

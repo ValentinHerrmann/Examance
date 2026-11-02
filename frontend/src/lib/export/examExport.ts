@@ -77,7 +77,7 @@ export async function runExamExport(
   }
   if (has('graded') || has('summary') || has('csv')) {
     progress(translate('export.exam.steps.results'));
-    const results = await loadResults(compileInput, has('graded'));
+    const results = await loadResults(compileInput);
     if (has('csv')) zip.add('grades.csv', buildGradesCsv(results.rows));
     if (has('summary')) {
       await part('export.exam.options.summary', async () => {
@@ -173,48 +173,75 @@ async function addCompiledPdfs(zip: ZipBuilder, input: CompileInput): Promise<st
   return [translate('export.exam.warnings.missingGraphics', { files: [...new Set(res.missingGraphics)].join(', ') })];
 }
 
-type LoadedResults = Awaited<ReturnType<typeof loadResults>>;
+export type LoadedResults = Awaited<ReturnType<typeof loadResults>>;
 
-async function loadResults({ exam, exercises, key }: CompileInput, includeScans: boolean) {
+/** Students, submissions (without scan bytes; `forEachGradedPdf` fetches each), scores and grade rows of an exam, through the repositories (so from wherever the account's mode keeps results); `rows[i]` belongs to `students[i]`. */
+export async function loadResults({ exam, exercises, key }: Pick<CompileInput, 'exam' | 'exercises' | 'key'>) {
   const [submissions, students, scoreRecords] = await Promise.all([
-    submissionRepository.getByExamId(exam.id, key, { includeScans }),
+    submissionRepository.getByExamId(exam.id, key),
     studentRepository.getByExamId(exam.id, key),
     scoreRepository.getByExamId(exam.id, key),
   ]);
   const computed = computeExamResults(exam, exercises, submissions, scoreRecords);
   const rows = await buildGradeRows(exam, students, submissions, computed);
-  return { submissions, scoreRecords, computed, rows };
+  return { submissions, students, scoreRecords, computed, rows };
 }
 
 /** Renders one submission at a time to keep memory bounded; a failing scan becomes a warning. */
-async function addGradedScans(
-  zip: ZipBuilder,
+/** Renders the graded PDF of each submission (one at a time, which keeps memory bounded) and hands it to *onPdf*; a submission without a scan or a failing render becomes a warning. *only* limits it to those submission ids. */
+export async function forEachGradedPdf(
   { submissions, scoreRecords, computed, rows }: LoadedResults,
   key: CryptoKey,
   fallbackKey: CryptoKey | null,
-  progress: ExportProgress
+  onPdf: (pdf: Uint8Array, row: GradeRow | undefined, state: GradingState, name: string) => Promise<void> | void,
+  options: { only?: ReadonlySet<string>; progress?: (done: number, total: number) => void } = {}
 ): Promise<string[]> {
   const warnings: string[] = [];
   const resultBySubmission = new Map(computed.stats.results.map((r) => [r.submissionId, r]));
   const rowBySubmission = new Map<string, GradeRow>(rows.flatMap((r) => (r.submissionId ? [[r.submissionId, r]] : [])));
   const scoresBySubmission = new Map<string, typeof scoreRecords>();
   for (const sc of scoreRecords) scoresBySubmission.set(sc.submissionId, [...(scoresBySubmission.get(sc.submissionId) ?? []), sc]);
-  const scoreBoxes = submissions.length > 0 ? await loadScoreBoxContext(submissions[0].examId, key) : null;
+  const chosen = options.only ? submissions.filter((sub) => options.only?.has(sub.id)) : submissions;
+  const scoreBoxes = chosen.length > 0 ? await loadScoreBoxContext(chosen[0].examId, key) : null;
 
-  for (const [i, sub] of submissions.entries()) {
-    progress(translate('export.exam.steps.graded'), i, submissions.length);
+  for (const [i, sub] of chosen.entries()) {
+    options.progress?.(i, chosen.length);
     const row = rowBySubmission.get(sub.id);
     const name = row?.studentName || row?.fallbackCode || `submission_${sub.id.slice(0, 8)}`;
-    if (!sub.scanCt) {
+    if (!sub.scanCt && !sub.hasScan) {
       warnings.push(translate('export.exam.warnings.noScan', { name }));
       continue;
     }
     try {
-      const pdf = await renderGradedPdf(sub, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes }); // NOSONAR: one scan at a time keeps memory bounded
-      zip.add(`graded/${slug(name)}${GRADED_SUFFIX[gradingState(resultBySubmission.get(sub.id))]}.pdf`, pdf);
+      // Fetched one at a time: memory stays at one scan, and an unreadable scan (a missing file answers 503) costs only this student.
+      const full = sub.scanCt ? sub : await submissionRepository.getById(sub.examId, sub.id, key); // NOSONAR: one scan at a time keeps memory bounded
+      if (!full?.scanCt) {
+        warnings.push(translate('export.exam.warnings.noScan', { name }));
+        continue;
+      }
+      const pdf = await renderGradedPdf(full, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes }); // NOSONAR: one scan at a time keeps memory bounded
+      await onPdf(pdf, row, gradingState(resultBySubmission.get(sub.id)), name);
     } catch (err) {
       warnings.push(translate('export.exam.warnings.gradedOne', { name, error: errorText(err) }));
     }
   }
   return warnings;
+}
+
+function addGradedScans(
+  zip: ZipBuilder,
+  results: LoadedResults,
+  key: CryptoKey,
+  fallbackKey: CryptoKey | null,
+  progress: ExportProgress
+): Promise<string[]> {
+  return forEachGradedPdf(
+    results,
+    key,
+    fallbackKey,
+    (pdf, _row, state, name) => {
+      zip.add(`graded/${slug(name)}${GRADED_SUFFIX[state]}.pdf`, pdf);
+    },
+    { progress: (done, total) => progress(translate('export.exam.steps.graded'), done, total) }
+  );
 }

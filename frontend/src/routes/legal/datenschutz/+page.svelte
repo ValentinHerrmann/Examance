@@ -83,6 +83,7 @@
       </li>
       <li>{$t("legal.datenschutz.section9.donation", { trainingSampleDays: periods.trainingSampleDays })}</li>
       <li>{$t("legal.datenschutz.section9.layoutReports", { layoutReportDays: periods.layoutReportDays })}</li>
+      <li>{$t("legal.datenschutz.section9.resultShares", { resultShareMaxDays: periods.resultShareMaxDays })}</li>
     {/if}
     <li>{$t("legal.datenschutz.section9.counters")}</li>
     <li>{$t("legal.datenschutz.section9.serverLog")}</li>

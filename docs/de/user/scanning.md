@@ -17,8 +17,8 @@ Nach der Prüfung wird der ganze Stapel beschriebener Bögen zu einem PDF. Exama
 
 Im Schritt **Scans** der Prüfung liest **Scan-Dateien auswählen (nur PDF)** die Dateien ein. Examance
 
-1. liest den QR-Code auf jeder Seite,
-2. fasst die Seiten je Schülerplatz zu einer Abgabe („Bogen“) zusammen,
+1. liest den QR-Aufkleber auf dem Deckblatt und ordnet die Seiten dieser Person zu,
+2. fasst die Seiten je Schüler zu einer Abgabe („Bogen“) zusammen,
 3. **verschlüsselt jede Seite im Browser**, bevor sie gespeichert wird.
 
 Im Hybrid-Modus verlassen die Scans Ihr Gerät nie; im Modus „Alles auf dem Server“ erreichen sie den Server nur als Chiffrat. (Die einzige optionale Ausnahme sind anonymisierte Bildausschnitte einzelner Kästchen, wenn Sie [MC-Erkennung verbessern](./settings#donation) eingeschaltet haben.)
@@ -29,13 +29,13 @@ Die Liste darunter zeigt jede eingelesene Abgabe. Von dort aus können Sie einen
 
 ## Pseudonyme statt Namen {#pseudonyms}
 
-Der QR-Code verweist auf ein **Pseudonym**, nicht auf einen Namen. Die Verknüpfung zwischen Person und Abgabe wird getrennt und verschlüsselt gespeichert und erst nach der Korrektur verwendet (für die Notenliste und den Export). Das macht die [anonyme Korrektur](./grading#blind) möglich.
+Der QR-Aufkleber verweist auf ein **Pseudonym**, nicht auf einen Namen. Die Verknüpfung zwischen Person und Abgabe wird getrennt und verschlüsselt gespeichert und erst nach der Korrektur verwendet (für die Notenliste und den Export). Das macht die [anonyme Korrektur](./grading#blind) möglich.
 
 ## Wenn die Zuordnung nicht klappt {#assignment}
 
-Seiten, deren QR-Code unlesbar ist oder fehlt, stehen unter **Nicht zugeordnete Abgaben**. Jedes Deckblatt trägt einen aufgedruckten **Ersatzcode** (etwa `A-X7K2M9`): Geben Sie ihn ein, und **Code verknüpfen** ordnet die Abgabe zu.
+Seiten, deren QR-Aufkleber unlesbar ist oder fehlt, stehen unter **Nicht zugeordnete Abgaben**. Der Prüfungsbogen selbst trägt keinen aufgedruckten Code, nur das leere Feld **QR Code** für den Aufkleber, siehe [QR-Aufkleber](./students#qr-stickers). Geben Sie den Aufkleber-Text (`Nachname, Vorname_ID`) in das Feld ein, und **Code verknüpfen** ordnet die Abgabe zu.
 
-Typische Ursachen sind eine geknickte oder gefaltete Ecke, ein von Handschrift verdeckter Code oder eine skaliert gedruckte Seite.
+Typische Ursachen sind ein vergessener Aufkleber, eine geknickte oder gefaltete Ecke, ein von Handschrift verdeckter Code oder eine skaliert gedruckte Seite.
 
 ## MC-Erkennungen prüfen {#mc-verification}
 

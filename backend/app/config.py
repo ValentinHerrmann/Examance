@@ -92,6 +92,8 @@ class Settings(BaseSettings):
     BODY_LIMIT_TRAINING: int = 1 * 1024 * 1024      # 1 MB
     # Layout report (issue #134): LaTeX sources, two PDFs and resources, base64-inflated.
     BODY_LIMIT_LAYOUT_REPORT: int = 30 * 1024 * 1024  # 30 MB
+    # One shared result PDF (issue #207): RESULT_SHARE_MAX_BYTES raw, base64-inflated, plus JSON slack.
+    BODY_LIMIT_RESULT_SHARE: int = 34 * 1024 * 1024  # 34 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
 
     # Storage partitions (issue #114, docs/dev/storage_partitions.md). "db" keeps scans in Postgres; "fs" writes new ones under BLOB_STORAGE_DIR (local dir or rclone mount). Reads accept both.
@@ -136,6 +138,9 @@ class Settings(BaseSettings):
     # Layout reports (issue #134): plaintext the teacher shared with the admins, dropped this many days after submission; one account may send this many per UTC day.
     LAYOUT_REPORT_RETENTION_DAYS: int = 90
     LAYOUT_REPORTS_PER_TEACHER_PER_DAY: int = 10
+    # Result sharing (issue #207): lifetimes a teacher may pick for a student's link; the ciphertext is deleted when it expires.
+    RESULT_SHARE_EXPIRY_DAYS: list[int] = [7, 14, 30, 90]
+    RESULT_SHARE_MAX_BYTES: int = 25 * 1024 * 1024
 
     # Per-account login throttling (`app.services.login_throttle`): slowapi limits per client IP and misses a distributed guess at one account. Exponential cooloff, capped on purpose so the lock always expires: otherwise anyone who knows an email could lock its owner out.
     LOGIN_THROTTLE_ENABLED: bool | None = None  # defaults to RATE_LIMIT_ENABLED

@@ -20,6 +20,8 @@
     shrinkWhenCollapsed?: boolean;
     /** A slim bar right under the PDFs, for actions about them (e.g. the layout report). */
     footer?: Snippet;
+    /** False hides the download buttons (a student's view-only result page, issue #207). */
+    downloadable?: boolean;
   }
 
   let {
@@ -33,6 +35,7 @@
     placeholderText = undefined,
     shrinkWhenCollapsed = false,
     footer,
+    downloadable = true,
   }: Props = $props();
 
   let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
@@ -117,7 +120,7 @@
                 <span class="truncate text-sm font-medium">{pane.title}</span>
               </button>
               <div class="flex shrink-0 items-center gap-2">
-                {#if pane.url}
+                {#if pane.url && downloadable}
                   <Button
                     variant="outlined"
                     severity="secondary"

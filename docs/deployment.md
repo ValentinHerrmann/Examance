@@ -343,5 +343,14 @@ Defaults built into `frontend/scripts/domain-move.mjs`: redirect date **2026-11-
 
 - Caddy: production `api.examance.de` → `127.0.0.1:9002`, preview `preview-api.examance.de` → `127.0.0.1:9001`, each with the `examance.de` Origin CA certificate; the old API blocks stay until the redirect date.
 - `.env` templates: `deploy/env.prod.example`, `deploy/env.preview.example` (already carry the phase-1 values).
+- Scan stores, for each stack whose `.env` has `BLOB_STORAGE_BACKEND=fs`, right after its restart with the new `FRONTEND_URL`:
+
+  ```bash
+  cd ~/examance/prod && docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env exec backend python -m app.cli init-blob-store --rebind-from https://examance.valentin-herrmann.com
+  ```
+
+  ```bash
+  cd ~/examance/preview && docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env exec backend python -m app.cli init-blob-store --rebind-from https://prev-examance.valentin-herrmann.com
+  ```
 - Redirect rules live in the `valentin-herrmann.com` zone: `examance.valentin-herrmann.com` → `https://examance.de`, `prev-examance.valentin-herrmann.com` → `https://preview.examance.de`.
 - Phase 3 (2027-01-31) also needs a follow-up PR that removes the defaults in `frontend/scripts/domain-move.mjs`.

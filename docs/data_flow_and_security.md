@@ -515,6 +515,17 @@ teacher's consent; stopping the share withdraws it.
   rate-limited (60 per hour) and run in one transaction each; sharing, copying and resync are
   online-only in the client (never in the offline queue).
 
+### Result sharing with students (issue #207)
+
+A teacher can hand each pupil their graded exam PDF through a personal link (`/result#<id>.<token>`), printed as a QR code on a slip. The design keeps the server blind: it stores a ciphertext it can never open. Full design: [dev/result_sharing.md](dev/result_sharing.md).
+
+* **What the server stores** (`result_shares`): the AES-256-GCM ciphertext of the PDF (in the `shares` blob kind or a column, like scans), the SHA-256 of the lookup secret (`lookup_hash`), the protection factor (`none`, `sticker` or `code`), the random Argon2id `kdf_salt`, the IV, the expiry and the pupil's opaque version-2 pseudonym (`student_key`, the exam-keyed HMAC of §3). No name, no plaintext, no key.
+* **What never reaches the server:** the token (16 random bytes, held in the link fragment, which browsers do not send) and the code or sticker key. The content key is `HKDF(token [‖ Argon2id(code, kdf_salt)], salt = share id)`, and the lookup secret is a second, independent HKDF output of the token. The ciphertext is bound to its share id as additional data. Without the link, even the ciphertext cannot be fetched; with a second factor, a forwarded link alone does not open the PDF, and Argon2id makes guessing the 40-bit code offline expensive. Sealing and opening both happen in the browser; the pupil's page decrypts locally and offers the download.
+* **The only unauthenticated data endpoint.** `POST /api/v1/shares/{id}/open` needs no session (the pupil has no account). It is rate-limited to 30 requests per minute and IP, compares the lookup hash, and answers an unknown, expired, revoked or wrong-lookup request with the same `404 ERR_SHARE_NOT_FOUND`, so links cannot be enumerated. The pupil's IP address is processed only for the rate limit. The page sets `noindex` and `no-referrer`.
+* **Hybrid mode.** Results of a `hybrid` account stay in the browser, with one deliberate exception: the teacher's act of sharing uploads the graded PDF, encrypted, to the server. It is the only path on which result data (ciphertext only) reaches the server in `hybrid` mode, and the sharing dialog says so. The endpoints are therefore not gated by `server_results`.
+* **Retention.** The teacher picks 7, 14, 30 or 90 days (`RESULT_SHARE_EXPIRY_DAYS`, default 30 in the dialog, also shown by `GET /privacy/retention` as `result_share_max_days`). The retention job deletes expired shares and sweeps orphaned files. Revoking a link (one pupil, one link or all links of an exam) deletes the ciphertext at once. Deleting the exam or the pupil revokes the links, and deleting the account drops them with the cascade. Sharing a pupil again replaces the old link. Shares are **not** captured into the trash: a restored exam must not revive links.
+* **Recorded in:** [records of processing](records_of_processing_art30.md) and the [DPIA](dpia_art35.md) (risk R15).
+
 ### Layout reports (issue #134)
 
 "Report layout problem" (exam preview, exercise editor) is a deliberate plaintext disclosure to the
@@ -604,6 +615,7 @@ server account.
   the LaTeX of exams/exercises and `total_score`.
 * `hybrid`: exams and exercises live on the server; student data, submissions,
   scans and scores live only in this browser, encrypted in IndexedDB.
+  The one exception is result sharing with students: the graded PDF a teacher shares leaves the browser as ciphertext only (§3 "Result sharing with students").
 
 **The mode belongs to the account.** It is stored on the server
 (`teachers.storage_mode`) and has no default: on first sign-in the user must

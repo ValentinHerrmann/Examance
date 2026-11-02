@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatStudentName, parseStudentQr } from '#lib/utils/studentQr';
+import { formatStudentName, formatStudentQr, parseStudentQr, stickerRawOf } from '#lib/utils/studentQr';
 
 describe('parseStudentQr', () => {
   describe('standard format: "Lastname, Firstname_NumericID"', () => {
@@ -110,5 +110,19 @@ describe('formatStudentName', () => {
     expect(formatStudentName(undefined)).toBe('');
     expect(formatStudentName(null)).toBe('');
     expect(formatStudentName(' , ')).toBe('');
+  });
+});
+
+describe('sticker payloads (issue #207)', () => {
+  it('writes what parseStudentQr reads back', () => {
+    const payload = formatStudentQr(' Doe ,  Jane ', 'AB_12');
+    expect(payload).toBe('Doe, Jane_AB12');
+    expect(parseStudentQr(payload)).toMatchObject({ lastname: 'Doe', firstname: 'Jane', studentNumber: 'AB12' });
+  });
+
+  it('treats minted UUIDs as "no sticker"', () => {
+    expect(stickerRawOf({ pseudonymRaw: crypto.randomUUID() })).toBeNull();
+    expect(stickerRawOf({})).toBeNull();
+    expect(stickerRawOf({ pseudonymRaw: ' Doe, Jane_42 ' })).toBe('Doe, Jane_42');
   });
 });

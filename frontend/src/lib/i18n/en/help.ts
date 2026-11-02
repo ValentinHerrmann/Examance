@@ -51,7 +51,7 @@ export const help: Translations['help'] = {
                 h: 'The usual workflow',
                 l1: 'Create exercises in the library, or reuse existing ones.',
                 l2: 'Assemble an exam, set the grading key and typeset it as a PDF.',
-                l3: 'Have the printed, QR-coded sheets written, then scan the stack into a single PDF.',
+                l3: 'Have the printed sheets, each with its QR sticker, written, then scan the stack into a single PDF.',
                 l4: 'Import the scan — Examance splits and assigns the sheets by their QR codes.',
                 l5: 'Grade anonymously, then analyse or export the results.',
             },
@@ -174,7 +174,7 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'When assignment fails',
-                p1: 'Pages with an unreadable or missing QR code are listed separately. Assign them with the fallback code printed on the sheet.',
+                p1: 'Pages with an unreadable or missing QR code are listed separately. Assign them with the sticker text or a code of your own.',
             },
             s4: {
                 h: 'Verifying MC detection',
@@ -183,6 +183,10 @@ export const help: Translations['help'] = {
             s5: {
                 h: 'Re-running detection',
                 p1: '“Re-run MC detection” evaluates all scans again with the current settings. Verified questions and manually entered scores stay unchanged. The detection method is chosen under Settings → MC detection.',
+            },
+            s6: {
+                h: 'QR stickers',
+                p1: 'Without stickers, Examance cannot assign pages by itself. “QR stickers” on the exam page prints a label sheet from a list of names, optionally with a personal key each student keeps.',
             },
         },
         grading: {
@@ -232,6 +236,10 @@ export const help: Translations['help'] = {
             s4: {
                 h: 'Export',
                 p1: 'The CSV export gives the grades for the school’s grade management. “Export” with “Readable ZIP” bundles graded submissions as PDF, LaTeX source, a summary and the grades. Both contain real names and are unencrypted.',
+            },
+            s5: {
+                h: 'Share with students',
+                p1: '“Share with students” on the exam page gives each student a personal link to their graded exam, printed on slips to hand out. The sample solution can be added. Students only view both in the browser, without a download; encryption happens in the browser, the server cannot read anything, and the links expire.',
             },
         },
         analytics: {

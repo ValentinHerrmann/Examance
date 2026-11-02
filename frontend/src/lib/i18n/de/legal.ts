@@ -89,6 +89,7 @@ export const legal = {
             contributions: 'Änderungsvorschläge: der Inhalt mit der Entscheidung, der Eintrag {contributionDays} Tage danach; unentschiedene Vorschläge nach {contributionPendingDays} Tagen.',
             donation: 'Gespendete Ankreuzfeld-Ausschnitte: {trainingSampleDays} Tage.',
             layoutReports: 'Layout-Meldungen: {layoutReportDays} Tage nach dem Senden.',
+            resultShares: 'Für Schüler geteilte, verschlüsselte Ergebnisse: bis zu dem Ablaufdatum, das die Lehrkraft wählt (höchstens {resultShareMaxDays} Tage), oder bis zum Widerruf.',
             fallback: 'Die genauen Fristen legt der Server dieser Installation fest; sie erscheinen hier, sobald er erreichbar ist. Schülerdaten werden nach Ablauf des von der Lehrkraft festgelegten Aufbewahrungsdatums gelöscht; unbestätigte Registrierungen, nicht freigegebene Konten, das Sicherheitsprotokoll, Änderungsvorschläge, Layout-Meldungen und gespendete Ausschnitte nach festen Fristen.',
             counters: 'Zähler zur Begrenzung von Anfragen und Anmeldeversuchen: höchstens eine Stunde.',
             serverLog: 'Technisches Protokoll des Servers: bis zur nächsten Aktualisierung des Servers.',

@@ -17,7 +17,7 @@ from app.models.teacher import Teacher
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
-from app.services import scan_storage, trash
+from app.services import result_shares, scan_storage, trash
 from app.services.capabilities import require_server_results_writable
 from app.services.pseudonyms import require_pseudonym_version
 
@@ -119,6 +119,8 @@ async def erase_student_identity(
         )
 
     snap = await trash.snapshot_student(db, exam, pseudonym_hmac)
+    # Their result link goes now, trash or not (shares are keyed on the version-2 pseudonym).
+    await result_shares.revoke_student(db, exam.id, pseudonym_hmac)
     if permanent:
         # Every submission of this pseudonym, soft-deleted ones included: their scan files go too.
         submissions = (

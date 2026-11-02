@@ -17,8 +17,8 @@ export const scanning: Translations['scanning'] = {
     },
     unmatchedResolver: {
         title: 'Unmatched Submissions (Fallback Code Entry Needed)',
-        description: 'The following booklet submissions could not read a QR code automatically. Enter the fallback code printed on the cover page.',
-        placeholder: 'Enter printed fallback code (e.g. A-X7K2M9)',
+        description: 'The following booklet submissions could not read a QR code automatically. Enter the sticker text (e.g. “Doe, Jane_1042”) or a code of your own.',
+        placeholder: 'Enter sticker text or code (e.g. Doe, Jane_1042)',
         linkCode: 'Link Code',
     },
     submissionsTable: {

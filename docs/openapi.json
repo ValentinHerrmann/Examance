@@ -7557,6 +7557,325 @@
         }
       }
     },
+    "/api/v1/exams/{exam_id}/shares": {
+      "post": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Create Result Share",
+        "description": "Store one student's sealed result PDF; replaces their earlier share. Allowed in every storage mode: the server can never open it.",
+        "operationId": "create_result_share_api_v1_exams__exam_id__shares_post",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultShareCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultShareOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "List Result Shares",
+        "description": "The exam's live shares (expired ones are gone or about to be).",
+        "operationId": "list_result_shares_api_v1_exams__exam_id__shares_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResultShareOut"
+                  },
+                  "title": "Response List Result Shares Api V1 Exams  Exam Id  Shares Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Revoke All Result Shares",
+        "description": "Revoke every link of the exam, or only one student's.",
+        "operationId": "revoke_all_result_shares_api_v1_exams__exam_id__shares_delete",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "student_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this student's link (a deleted student).",
+              "title": "Student Key"
+            },
+            "description": "Only this student's link (a deleted student)."
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/shares/{share_id}": {
+      "delete": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Revoke Result Share",
+        "description": "Revoke one link; its ciphertext is deleted.",
+        "operationId": "revoke_result_share_api_v1_exams__exam_id__shares__share_id__delete",
+        "parameters": [
+          {
+            "name": "share_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Share Id"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/{share_id}/open": {
+      "post": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Open Result Share",
+        "description": "Public, no session: the ciphertext of a student's result, for the lookup secret their link derives. Decryption happens only in the student's browser.",
+        "operationId": "open_result_share_api_v1_shares__share_id__open_post",
+        "parameters": [
+          {
+            "name": "share_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Share Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultShareOpen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultShareContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/maintenance": {
       "get": {
         "tags": [
@@ -13042,6 +13361,175 @@
         ],
         "title": "ResetTokenRequest"
       },
+      "ResultShareContent": {
+        "properties": {
+          "factor": {
+            "type": "string",
+            "enum": [
+              "none",
+              "sticker",
+              "code"
+            ],
+            "title": "Factor"
+          },
+          "kdf_salt_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kdf Salt B64"
+          },
+          "iv_b64": {
+            "type": "string",
+            "title": "Iv B64"
+          },
+          "ciphertext_b64": {
+            "type": "string",
+            "title": "Ciphertext B64"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "factor",
+          "kdf_salt_b64",
+          "iv_b64",
+          "ciphertext_b64",
+          "expires_at"
+        ],
+        "title": "ResultShareContent"
+      },
+      "ResultShareCreate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "student_key": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Student Key"
+          },
+          "lookup_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Lookup Hash"
+          },
+          "factor": {
+            "type": "string",
+            "enum": [
+              "none",
+              "sticker",
+              "code"
+            ],
+            "title": "Factor"
+          },
+          "kdf_salt_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kdf Salt B64"
+          },
+          "iv_b64": {
+            "type": "string",
+            "title": "Iv B64"
+          },
+          "ciphertext_b64": {
+            "type": "string",
+            "title": "Ciphertext B64"
+          },
+          "expiry_days": {
+            "type": "integer",
+            "title": "Expiry Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "student_key",
+          "lookup_hash",
+          "factor",
+          "iv_b64",
+          "ciphertext_b64",
+          "expiry_days"
+        ],
+        "title": "ResultShareCreate"
+      },
+      "ResultShareOpen": {
+        "properties": {
+          "lookup_b64": {
+            "type": "string",
+            "maxLength": 48,
+            "minLength": 40,
+            "title": "Lookup B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lookup_b64"
+        ],
+        "title": "ResultShareOpen"
+      },
+      "ResultShareOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "student_key": {
+            "type": "string",
+            "title": "Student Key"
+          },
+          "factor": {
+            "type": "string",
+            "enum": [
+              "none",
+              "sticker",
+              "code"
+            ],
+            "title": "Factor"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "student_key",
+          "factor",
+          "size",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "ResultShareOut"
+      },
       "ResyncOverride": {
         "properties": {
           "latex_body": {
@@ -13218,6 +13706,10 @@
           "layout_report_days": {
             "type": "integer",
             "title": "Layout Report Days"
+          },
+          "result_share_max_days": {
+            "type": "integer",
+            "title": "Result Share Max Days"
           }
         },
         "type": "object",
@@ -13229,7 +13721,8 @@
           "contribution_days",
           "contribution_pending_days",
           "training_sample_days",
-          "layout_report_days"
+          "layout_report_days",
+          "result_share_max_days"
         ],
         "title": "RetentionPeriods"
       },

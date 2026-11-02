@@ -9,6 +9,7 @@
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { createStudentWithSubmission } from "#lib/grading/scoreService";
+  import { parseRosterLines } from "#lib/utils/rosterLines";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { t, translate } from "#lib/i18n";
@@ -52,10 +53,7 @@
 
   async function handleAddBulk() {
     if (!bulkText.trim()) return;
-    const lines = bulkText.split("\n").map((l) => l.trim()).filter(Boolean);
-
-    for (const line of lines) {
-      const parts = line.split(/[\t;,]/).map((p) => p.trim());
+    for (const parts of parseRosterLines(bulkText)) {
       const studentName = parts[0];
       if (!studentName) continue;
       await createStudentWithSubmission(examId, {

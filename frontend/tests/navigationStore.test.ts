@@ -12,6 +12,7 @@ describe('navigationStore public path helpers', () => {
     expect(isPublicPath('/forgot-password')).toBe(true);
     expect(isPublicPath('/register')).toBe(true);
     expect(isPublicPath('/verify-email?token=abcdef')).toBe(true);
+    expect(isPublicPath('/result')).toBe(true);
   });
 
   it('rejects protected paths', () => {
@@ -19,6 +20,7 @@ describe('navigationStore public path helpers', () => {
     expect(isPublicPath('/admin/users')).toBe(false);
     expect(isPublicPath('/exam/new')).toBe(false);
     expect(isPublicPath('/exercises')).toBe(false);
+    expect(isPublicPath('/results')).toBe(false);
   });
 
   it('identifies unlock path correctly', () => {

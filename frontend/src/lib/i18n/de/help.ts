@@ -50,7 +50,7 @@ export const help = {
                 h: 'Der typische Ablauf',
                 l1: 'Aufgaben in der Bibliothek anlegen oder vorhandene wiederverwenden.',
                 l2: 'Eine Klausur zusammenstellen, den Notenschlüssel festlegen und als PDF setzen.',
-                l3: 'Die gedruckten Bögen mit QR-Code schreiben lassen und den Stapel als ein PDF scannen.',
+                l3: 'Die gedruckten Bögen mit QR-Aufkleber schreiben lassen und den Stapel als ein PDF scannen.',
                 l4: 'Den Scan einlesen — Examance trennt und ordnet die Bögen anhand der QR-Codes zu.',
                 l5: 'Anonym korrigieren, dann auswerten oder exportieren.',
             },
@@ -173,7 +173,7 @@ export const help = {
             },
             s3: {
                 h: 'Wenn die Zuordnung nicht klappt',
-                p1: 'Seiten mit unlesbarem oder fehlendem QR-Code landen in einer eigenen Liste. Ordnen Sie sie mit dem auf dem Bogen gedruckten Ersatzcode zu.',
+                p1: 'Seiten mit unlesbarem oder fehlendem QR-Code landen in einer eigenen Liste. Ordnen Sie sie mit dem Text des Aufklebers oder einem eigenen Code zu.',
             },
             s4: {
                 h: 'MC-Erkennung prüfen',
@@ -182,6 +182,10 @@ export const help = {
             s5: {
                 h: 'Erkennung erneut ausführen',
                 p1: '„MC-Erkennung erneut ausführen“ wertet alle Scans mit den aktuellen Einstellungen neu aus. Geprüfte Fragen und von Hand eingetragene Punkte bleiben unverändert. Das Erkennungsverfahren wählen Sie unter Einstellungen → MC-Erkennung.',
+            },
+            s6: {
+                h: 'QR-Aufkleber',
+                p1: 'Ohne Aufkleber ordnet Examance die Seiten nicht von selbst zu. „QR-Aufkleber“ auf der Klausurseite druckt einen Etikettenbogen aus einer Namensliste, auf Wunsch mit einem persönlichen Schlüssel, den der Schüler behält.',
             },
         },
         grading: {
@@ -231,6 +235,10 @@ export const help = {
             s4: {
                 h: 'Export',
                 p1: 'Der CSV-Export liefert die Noten für die Notenverwaltung der Schule. „Exportieren“ mit „Lesbares ZIP“ bündelt korrigierte Abgaben als PDF, LaTeX-Quelltext, Zusammenfassung und Noten. Beide enthalten echte Namen und sind unverschlüsselt.',
+            },
+            s5: {
+                h: 'Mit Schülern teilen',
+                p1: '„Mit Schülern teilen“ auf der Klausurseite gibt jedem Schüler einen persönlichen Link zu seiner korrigierten Arbeit, ausgedruckt auf Zetteln zum Austeilen. Auf Wunsch kommt die Musterlösung dazu. Die Schüler sehen beides nur im Browser, ohne Download; verschlüsselt wird im Browser, der Server kann nichts lesen, und die Links laufen ab.',
             },
         },
         analytics: {
