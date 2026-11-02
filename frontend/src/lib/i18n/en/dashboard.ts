@@ -75,7 +75,7 @@ export const dashboard: Translations['dashboard'] = {
         title: 'Delete exam: {title}',
         warningTitle: 'Warning: exam contains submissions',
         usageInfo: 'This exam has {count} submission(s).',
-        usageWarning: 'Deleting permanently removes the exam data and all of its submissions.',
+        usageWarning: 'Deleting moves the exam data and all of its submissions to the trash.',
         confirmPlain: 'Do you really want to delete this exam?',
     },
     error: {

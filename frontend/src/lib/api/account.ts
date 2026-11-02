@@ -27,21 +27,3 @@ export async function previewAccountDeletion(token: string): Promise<AccountDele
 export async function confirmAccountDeletion(token: string): Promise<void> {
   await api.post('/auth/account-deletion/confirm', { token }, { silentError: true });
 }
-
-/** A live exam whose deleted results the retention run already erased for good. */
-export interface PurgedExamResults {
-  exam_id: string;
-  purged_at: string;
-}
-
-export interface RestoreServerDataResult {
-  restored_student_identities: number;
-  restored_submissions: number;
-  grace_days: number;
-  purged_exams: PurgedExamResults[];
-}
-
-/** Brings back the server results deleted within the grace period and says which exams' older ones are gone (issue #181). */
-export async function restoreServerData(): Promise<RestoreServerDataResult> {
-  return api.post<RestoreServerDataResult>('/user/restore-server-data', {}, { silentError: true });
-}

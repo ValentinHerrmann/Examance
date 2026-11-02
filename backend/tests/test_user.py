@@ -1,4 +1,4 @@
-"""Unit tests for /api/v1/user endpoints (student data purge and restore)."""
+"""Unit tests for /api/v1/user endpoints (student data purge)."""
 from __future__ import annotations
 
 import base64
@@ -16,7 +16,7 @@ from tests.test_api import _create_teacher_and_login
 
 
 @pytest.mark.asyncio
-async def test_purge_and_restore_student_data(client: AsyncClient, db: AsyncSession) -> None:
+async def test_purge_student_data(client: AsyncClient, db: AsyncSession) -> None:
     await _create_teacher_and_login(client, db, "purgeteacher@example.com")
 
     # 1. Create exam
@@ -69,23 +69,6 @@ async def test_purge_and_restore_student_data(client: AsyncClient, db: AsyncSess
     sub_row = (await db.execute(select(ScanSubmission).where(ScanSubmission.pseudonym_hmac == pseudo_hmac))).scalar_one()
     assert sub_row.deleted_at is not None
     assert sub_row.retention_until == date.today() + timedelta(days=7)
-
-    # 4. Call restore endpoint
-    restore_resp = await client.post("/api/v1/user/restore-server-data")
-    assert restore_resp.status_code == 200
-    restore_body = restore_resp.json()
-    assert restore_body["status"] == "ok"
-    assert restore_body["restored_student_identities"] == 1
-    assert restore_body["restored_submissions"] == 1
-    assert restore_body["purged_exams"] == []
-
-    # Refresh session identity map
-    db.expire_all()
-
-    # Verify rows are restored (deleted_at and retention_until cleared)
-    st_row_restored = (await db.execute(select(StudentIdentity).where(StudentIdentity.pseudonym_hmac == pseudo_hmac))).scalar_one()
-    assert st_row_restored.deleted_at is None
-    assert st_row_restored.retention_until is None
 
 
 def _student_payload(pseudonym: str, pii: bytes) -> dict[str, str]:

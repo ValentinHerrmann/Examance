@@ -10,6 +10,7 @@ import type {
   ExerciseRecord,
   ExerciseResourceRecord,
   ExerciseScoreRecord,
+  LocalTrashRecord,
   OmrTemplateRecord,
   QueuedRequest,
   StudentRecord,
@@ -32,6 +33,7 @@ export class BlindGradeDB extends Dexie {
   omrTemplates!: Table<OmrTemplateRecord>;
   workspace!: Table<WorkspaceManifestRecord>;
   offlineQueue!: Table<QueuedRequest>;
+  trash!: Table<LocalTrashRecord>;
 
   constructor() {
     super('BlindGrade');
@@ -185,6 +187,11 @@ export class BlindGradeDB extends Dexie {
             sub.pseudonymVersion ??= 1;
           });
       });
+
+    // v13 (issue #125): the browser's trash for hybrid results.
+    this.version(13).stores({
+      trash: 'id, groupId, purgeAfter',
+    });
   }
 }
 
@@ -236,6 +243,7 @@ export function vaultTables(): Table[] {
     db.auditLog,
     db.omrTemplates,
     db.exerciseResources,
+    db.trash,
   ];
 }
 

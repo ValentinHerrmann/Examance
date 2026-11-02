@@ -363,7 +363,7 @@ async function tour() {
 
 /** Detail screenshots for the user guide (docs/screenshots/guide/, cropped by assets.py). Saved as guide-<name>.png. */
 async function guide() {
-  const G = ['score', 'ai-prompt', 'compile-error', 'exam-exercises', 'exam-export', 'backup', 'help', 'settings-storage', 'settings-mc', 'settings-packages', 'settings-restore', 'security', 'borderline', 'grading-parts', 'maintenance'];
+  const G = ['score', 'ai-prompt', 'compile-error', 'exam-exercises', 'exam-export', 'backup', 'help', 'settings-storage', 'settings-mc', 'settings-packages', 'security', 'borderline', 'grading-parts', 'maintenance'];
   if (!G.some((n) => want('guide-' + n))) return;
   const g = (n) => want('guide-' + n);
   const { ctx, page } = await open({ profile: 'berger' });
@@ -439,11 +439,6 @@ async function guide() {
     await page.getByRole('link', { name: link, exact: true }).first().click(); // NOSONAR: UI steps run in order in one browser
     await page.waitForTimeout(1200); // NOSONAR: UI steps run in order in one browser
     await shot(page, 'guide-' + name); // NOSONAR: UI steps run in order in one browser
-  }
-  if (g('settings-restore')) {
-    await go(page, '/settings');
-    await scrollTo(page, page.getByText('Vom Server gelöschte Ergebnisse wiederherstellen', { exact: true }), 140);
-    await shot(page, 'guide-settings-restore');
   }
   if (g('grading-parts')) {
     // First booklet: part rows of Q2 in the scoring panel, score boxes filled on the scan.

@@ -13,6 +13,7 @@
   import { countActiveFilters, facetOptions, matchesExerciseFilters, uniqueSorted } from "#lib/utils/listFilter";
   import { GROUP_SORT_KEYS, SORT_STORAGE, loadSort, saveSort, sortGroups } from "#lib/utils/listSort";
   import { t, translate, type TranslationKey } from "#lib/i18n";
+  import { TRASH_DAYS } from "#lib/trash/localTrash";
 
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ListFilterPanel from "#lib/components/common/ListFilterPanel.svelte";
@@ -952,6 +953,7 @@
   usageHint={$t("exercises.deleteModal.usageWarning")}
   items={deleteExams.map((e) => ({ id: e.id, title: e.title, meta: e.datum }))}
   plainText={$t("exercises.deleteModal.confirmPlain")}
+  restoreHint={$t("common.trashHint", { days: TRASH_DAYS })}
   busy={isDeleting}
   error={deleteError}
   onConfirm={handleConfirmDelete}

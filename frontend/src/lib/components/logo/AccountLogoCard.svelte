@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { faBan, faRotateLeft, faUpload } from "@fortawesome/free-solid-svg-icons";
   import { t, translate, type TranslationKey } from "#lib/i18n";
+  import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { Alert, Badge, Button, Card } from "#lib/components/ui";
   import LogoPreview from "./LogoPreview.svelte";
   import {
@@ -67,13 +68,19 @@
     });
   }
 
+  /** Only an uploaded logo goes to the trash; default and none have nothing to restore. */
+  function confirmWithHint(key: TranslationKey): boolean {
+    const hint = mode === "custom" ? `\n\n${translate("common.trashHint", { days: TRASH_DAYS })}` : "";
+    return confirm(translate(key) + hint);
+  }
+
   function handleNone() {
-    if (!confirm(translate("logo.account.noneConfirm"))) return;
+    if (!confirmWithHint("logo.account.noneConfirm")) return;
     void run(async () => show(await setAccountLogo("none")));
   }
 
   function handleReset() {
-    if (!confirm(translate("logo.account.resetConfirm"))) return;
+    if (!confirmWithHint("logo.account.resetConfirm")) return;
     void run(async () => show(await setAccountLogo("default")));
   }
 

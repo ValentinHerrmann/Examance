@@ -266,6 +266,7 @@ Until the link is used no `teachers` row exists, so that table holds verified ad
 | `omrTemplates` | `id, examId` | Detected bubble/fiducial page rects (`OmrTemplatePayload.pages`), used for MC auto-grading | Opaque Binary Ciphertext / Purged |
 | `exerciseResources` | `id, exerciseId, [exerciseId+filename]` | Raw file bytes (`dataCt`) of a teacher-uploaded LaTeX resource (image, PDF, data file). `filename`, `mimeType` and `byteSize` stay plaintext — they are index/display fields, not content | Opaque Binary Ciphertext / Purged |
 | `auditLog` | `id, action, timestamp` | Action note details | Opaque Binary Ciphertext / Purged |
+| `trash` (Dexie v13, hybrid only; server counterpart `trash_items`, below) | `id, groupId, purgeAfter` (plus kind, exam id, deleted-at) | The deleted `examStudents`, `submissions` and `exerciseScores` rows exactly as they were stored, still sealed under their own row-bound additional data; nothing is decrypted or re-encrypted | Opaque Binary Ciphertext / Purged |
 
 **Pseudonyms are keyed per exam (S3, issue #177).** `pseudonymHmac` is `HMAC(K_exam, SHA-256(raw))`, with `K_exam = HKDF-SHA-256(data key, "examance-pseudonym-v1", examId)` derived in the browser and never sent. The server and the plain IndexedDB columns therefore hold no value that can be tested against a guessed name or school id, and the same pupil gets unrelated values in different exams. Rows of older builds (version 1: the raw value in IndexedDB, its unkeyed SHA-256 on the server) are re-keyed after unlock by `services/pseudonymRekey.ts`; on the server that is a rename the client sends as old/new pairs, so the server learns which old value became which new one, nothing more. Details and limits: [dev/pseudonym_hmac_and_aad.md](dev/pseudonym_hmac_and_aad.md).
 
@@ -273,7 +274,9 @@ Until the link is used no `teachers` row exists, so that table holds verified ad
 
 *Previously broken here (2026-10-03, now fixed):* in the then-existing `all-local` mode, creating an exercise variant in the library (`handleSaveVariant()`, `routes/exercises/+page.svelte`) wrote the new variant, and the base exercise it had just tagged with a group id, to `exercises` without `encryptExercise()`. Name, LaTeX body and answer choices sat in IndexedDB in plaintext. Both writes are now sealed. Rows already affected are re-sealed the next time the library loads under a key (`sealPlaintextRows()` in `exerciseRepository.ts`). This was teacher-authored exercise content on the teacher's own device, not student data, and nothing left the device.
 
-*Where server-side scans are stored (issue #114).* Scan ciphertexts are stored either in Postgres or as files under `BLOB_STORAGE_DIR`, which can be a local directory or an rclone mount on a cloud store. Either way the bytes are the same AES-256-GCM ciphertext from the browser, so the storage provider learns only sizes and timestamps. Erasure follows the rows: replaced and deleted files go after the commit, and the daily retention run sweeps any file no row references. Backups (opt-in, restic, encrypted before upload) keep an erased record for at most about `BACKUP_KEEP_MONTHLY_MONTHS` months. A database restore (`restore-backup.sh db`) leaves an unencrypted dump of the previous state in `restore-safety/` on the server for `undo`; it must be deleted once the restore is confirmed. A database restore also brings back data erased after the snapshot time, so erasure requests made since then must be carried out again (`docs/backup_and_restore.md`). Details: `docs/dev/storage_partitions.md`.
+*Where server-side scans are stored (issue #114).* Scan ciphertexts are stored either in Postgres or as files under `BLOB_STORAGE_DIR`, which can be a local directory or an rclone mount on a cloud store. Either way the bytes are the same AES-256-GCM ciphertext from the browser, so the storage provider learns only sizes and timestamps. Erasure follows the rows: replaced files go after the commit, and the daily retention run sweeps any file no row references. A file whose row a teacher deleted stays until the deleted row's trash entry is restored or erased (at most `RETENTION_GRACE_DAYS`, 7 days; see "Trash" below); the sweep treats every trash entry's file as referenced. Erasure requests (`?permanent=true`) skip the trash and remove the file at once. Backups (opt-in, restic, encrypted before upload) keep an erased record for at most about `BACKUP_KEEP_MONTHLY_MONTHS` months. A database restore (`restore-backup.sh db`) leaves an unencrypted dump of the previous state in `restore-safety/` on the server for `undo`; it must be deleted once the restore is confirmed. A database restore also brings back data erased after the snapshot time, so erasure requests made since then must be carried out again (`docs/backup_and_restore.md`). Details: `docs/dev/storage_partitions.md`.
+
+*Trash on the server (issues #125 and #196).* A teacher's delete (an exam, a student, a submission, scores, cleared grading or annotations, a library exercise or resource file, a logo, a closed exercise proposal, links and MC groups dropped from an exam) first copies exactly the rows it removes into `trash_items`, then deletes them. Encrypted columns stay ciphertext inside the compressed payload, so the trash holds nothing the live tables did not; plaintext fields (exam titles, exercise names and LaTeX) stay plaintext, like in the live tables. The entry's label may carry the sealed student identity so the browser can show the name; the server cannot read it. Entries are kept `RETENTION_GRACE_DAYS` (7) days, then erased by the retention job together with their scan files; the teacher can restore or erase them earlier on the Trash page, and account deletion erases them at once. `?permanent=true` on the student, submission and scores deletes (the GDPR Art. 17 erasure, `frontend/src/lib/gdpr/erasure.ts`) bypasses the trash. In `hybrid` mode the browser keeps the matching local trash (table above). Details: [dev/trash.md](dev/trash.md).
 
 *What the table means per location.* It describes the browser representation (IndexedDB). On the server, everything above is client-side encrypted **except** the LaTeX of exams and exercises and `total_score`, which are plaintext there (see below). In `all-server` mode IndexedDB is only a purged-on-lock cache; in `hybrid` mode `students`, `submissions` and `exerciseScores` exist only in IndexedDB.
 
@@ -395,7 +398,7 @@ editor is saved; closing without saving deletes them.
 
 Teachers are warned in the upload UI not to attach files containing personal data
 of pupils. Resource files follow their exercise's lifecycle (`ON DELETE CASCADE`),
-which — like exercises themselves — is outside the exam retention sweep.
+which — like exercises themselves — is outside the exam retention sweep. A resource file a teacher deletes (alone or with its exercise) is kept in the trash for up to 7 days and then erased.
 
 ### Exam logos on the server
 
@@ -404,7 +407,7 @@ files, for the same reason (Tectonic compiles it): `teacher_logos` holds an acco
 from the default (`none`, or its own file), `exam_logos` an exam's deviation from its account.
 Without a `teacher_logos` row an account prints the bundled default logo (MTG,
 `latex-assets/img/logo_mtg.pdf`), which every exam printed before logos were configurable;
-resetting deletes the row. Only PNG, JPEG and PDF are accepted, detected from the magic bytes, at
+resetting deletes the row (an own file that is dropped stays in the trash for up to 7 days). Only PNG, JPEG and PDF are accepted, detected from the magic bytes, at
 most 2 MB; they are served back only to their owner with `nosniff` and a sandbox CSP. A logo is
 school branding, not personal data of pupils. It follows its owner's lifecycle (`ON DELETE
 CASCADE` from the account or exam) and is part of the account export (`GET /user/me/export`, with
@@ -652,11 +655,12 @@ idempotent upserts and count verification. The account's mode changes only after
 every result has arrived, so an interrupted move leaves the old mode and its
 data intact and can be repeated. Afterwards the user decides each time whether to
 keep or delete the old copy; the server copy is soft-deleted with the existing
-7-day temporary retention. Within those 7 days Settings → Storage can bring it back
-(`POST /user/restore-server-data`). Once the retention run has erased such rows it
-stamps the live exam (`exams.results_purged_at`, a timestamp only, no content), so
-the restore can name the exams whose older results are gone instead of reporting a
-silent zero (issue #181). A move is refused while offline-queue writes are
+7-day temporary retention and is not placed in the trash (the move is a deliberate
+decision, not a delete to undo). The retention run stamps the live exam when it
+erases such rows (`exams.results_purged_at`, a timestamp only, no content), which the
+account export reports. Deletes the teacher makes afterwards are restorable from the
+Trash page (issues #125 and #196; the old Settings card "Restore results deleted from
+the server" is gone). A move is refused while offline-queue writes are
 pending, and other tabs are blocked during it. An `all-server` browser that still
 holds local results (a former hybrid browser) shows a banner offering to upload
 them; in `hybrid` mode a browser without results shows a hint that results live

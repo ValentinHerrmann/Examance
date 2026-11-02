@@ -104,7 +104,7 @@ describe('saveSubmissionScores', () => {
 
     const effective = await saveSubmissionScores(EXAM, sub, ['ex-1'], new Map([['ex-1', null]]));
 
-    expect(deleteOne).toHaveBeenCalledWith(EXAM, 'sub-1', 'ex-1');
+    expect(deleteOne).toHaveBeenCalledWith(EXAM, 'sub-1', 'ex-1', { group: expect.any(String) });
     expect(effective.get('ex-1')).toBeNull();
     expect(await stored('ex-1')).toBeUndefined();
     expect(sub.totalScore).toBeUndefined();
@@ -250,7 +250,7 @@ describe('saveSubmissionScores', () => {
       expect(api.post).toHaveBeenCalledWith(
         `/exams/${EXAM}/submissions`,
         expect.objectContaining({ id: 'sub-1', total_score: 5.5 }),
-        { silentError: true },
+        { silentError: true, headers: { 'X-Trash-Group': expect.any(String) } },
       );
       expect(api.patch).not.toHaveBeenCalled();
     });

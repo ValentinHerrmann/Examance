@@ -11,7 +11,6 @@ Detail captures for the user guide (`docs/user/`, `docs/de/user/`), in the same 
 | `exam-export.jpg` | Export dialog of an exam | `exams#export` |
 | `exam-mc-hint.jpg` | MC correction line, cropped from the compiled exam PDF | `exams#mc-hint` |
 | `grading-parts.jpg` | Grading view: part rows, filled score boxes | `grading#parts` |
-| `settings-restore.jpg` | Restoring results deleted from the server | `settings#restore` |
 | `workspace-backup.jpg` | Workspace backup dialog | `backup#workspace-backup` |
 | `help-dialog.jpg` | In-app help with links into the guide | `index#help-and-docs` |
 | `settings-storage.jpg` | Storage location in the settings | `settings` |

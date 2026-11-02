@@ -15,6 +15,8 @@
     usageHint?: string;
     items?: { id: string; title: string; meta?: string | null }[];
     plainText: string;
+    /** Muted line under the prompt telling the record can be restored from the trash. */
+    restoreHint?: string;
     busy?: boolean;
     error?: string;
     onConfirm: () => void;
@@ -31,6 +33,7 @@
     usageHint = "",
     items = [],
     plainText,
+    restoreHint = "",
     busy = false,
     error = "",
     onConfirm,
@@ -70,4 +73,5 @@
   {:else}
     <p class="m-0">{plainText}</p>
   {/if}
+  {#if restoreHint && !usageLoading}<p class="m-0 mt-3 text-sm text-muted">{restoreHint}</p>{/if}
 </ConfirmDialog>

@@ -70,4 +70,5 @@ In der noch leeren Prüfungsübersicht legt **Beispieldaten hinzufügen** Beispi
 
 - [Von der Aufgabe zur Auswertung](./workflow): der übliche Ablauf, Schritt für Schritt.
 - [Aufgabenbibliothek](./exercises) und [Prüfung erstellen](./exams), um Ihre erste Prüfung vorzubereiten.
+- [Löschen rückgängig machen (Papierkorb)](./trash): versehentlich gelöscht? Es bleibt 7 Tage im Papierkorb.
 - [Datenfluss und Sicherheit (Englisch)](../../data_flow_and_security): wie die Verschlüsselung funktioniert, für technisch Interessierte.

@@ -2,7 +2,7 @@ import type { Locale } from "#lib/i18n";
 import { docsUrl } from "#lib/stores/versionStore";
 
 /** A user-guide page (file name in `docs/user/` and `docs/de/user/`), `""` for the start page. */
-type GuidePage = "" | "workflow" | "exercises" | "sharing" | "exams" | "scanning" | "grading" | "results" | "backup" | "settings" | "security" | "admin" | "material";
+type GuidePage = "" | "workflow" | "exercises" | "sharing" | "exams" | "scanning" | "grading" | "results" | "backup" | "trash" | "settings" | "security" | "admin" | "material";
 
 /** A guide page, optionally with a section anchor: `"exercises#variants"`; anchors are explicit `{#id}` in both languages (guarded by `tests/help.test.ts`). */
 export type DocsPath = GuidePage | `${GuidePage}#${string}`;

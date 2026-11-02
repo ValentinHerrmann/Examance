@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { newTrashGroup } from "#lib/trash/group";
+  import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { untrack } from "svelte";
   import { faPlus } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, EmptyState, Field, Panel, TableScroller, Textarea, TextInput } from "#lib/components/ui";
@@ -92,15 +94,18 @@
   }
 
   async function handleDelete(st: StudentRecord) {
-    if (!confirm(translate("grading.manual.roster.deleteConfirm", { name: st.studentName || st.studentNumber || st.pseudonymHmac.slice(0, 8) }))) {
+    const name = st.studentName || st.studentNumber || st.pseudonymHmac.slice(0, 8);
+    if (!confirm(`${translate("grading.manual.roster.deleteConfirm", { name })}\n\n${translate("common.trashHint", { days: TRASH_DAYS })}`)) {
       return;
     }
     const key = get(sessionStore).sessionKey;
     const sub = submissionMap.get(st.pseudonymHmac);
+    // One trash entry for the student and their submission (issue #125).
+    const group = newTrashGroup();
     if (sub) {
-      await submissionRepository.delete(examId, sub.id);
+      await submissionRepository.delete(examId, sub.id, { group });
     }
-    await studentRepository.delete(st);
+    await studentRepository.delete(st, { group });
     onRosterChanged();
   }
 

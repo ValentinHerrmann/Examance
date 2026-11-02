@@ -70,4 +70,5 @@ In the still empty exam overview, **Add example data** creates example exercises
 
 - [From exercise to analysis](./workflow): the usual workflow, step by step.
 - [Exercise library](./exercises) and [Creating an exam](./exams) to prepare your first exam.
+- [Undo a delete (Trash)](./trash): deleted something by mistake? It stays in the trash for 7 days.
 - [Data flow and security](../data_flow_and_security): how the encryption works, for the technically curious.

@@ -126,7 +126,9 @@ async def test_student_and_submission_upload(client: AsyncClient, db: AsyncSessi
     assert get_del_sub.status_code == 404
 
     # GDPR Student Erasure
-    erase_resp = await client.delete(f"/api/v1/exams/{exam_id}/students/{pseudonym_hmac}")
+    erase_resp = await client.delete(
+        f"/api/v1/exams/{exam_id}/students/{pseudonym_hmac}", params={"permanent": "true"}
+    )
     assert erase_resp.status_code == 204
 
 

@@ -1,5 +1,6 @@
 export const common = {
     cancel: 'Abbrechen',
+    trashHint: 'Sie können es {days} Tage lang im Papierkorb wiederherstellen.',
     save: 'Speichern',
     delete: 'Löschen',
     close: 'Schließen',

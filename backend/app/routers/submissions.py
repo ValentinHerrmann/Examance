@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import base64
 import uuid
-from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -11,7 +10,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database import get_db
 from app.dependencies import (
     DB,
@@ -25,6 +23,7 @@ from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
+from app.services import scan_storage, trash
 from app.services.capabilities import require_server_results_writable
 from app.services.pseudonyms import require_pseudonym_version
 from app.services.scan_storage import has_scan, load_scan, store_scan
@@ -142,6 +141,7 @@ async def list_submissions(
 )
 async def upload_submission(
     body: SubmissionCreate,
+    trash_scope: trash.Trash,
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
@@ -226,6 +226,16 @@ async def upload_submission(
                 existing_sub.annotation_ciphertext = ann_bytes
                 existing_sub.annotation_iv = ann_iv
             elif body.clear_annotations:
+                await trash_scope.capture(
+                    db,
+                    "annotations",
+                    await trash.snapshot_grading(db, existing_sub.id, scores=False),
+                    label={
+                        **await trash.result_label(db, exam, existing_sub.pseudonym_hmac),
+                        "submission_id": str(existing_sub.id),
+                    },
+                    exam_id=exam.id,
+                )
                 existing_sub.annotation_ciphertext = None
                 existing_sub.annotation_iv = None
             # An absent annotation field means "leave them"; deleting is explicit.
@@ -290,8 +300,20 @@ async def update_score(body: SubmissionScoreUpdate, sub: LiveSubmission, db: DB)
 
 
 @router.delete("/{sub_id}/grading", status_code=status.HTTP_204_NO_CONTENT)
-async def clear_grading(sub: LiveSubmission, db: DB) -> Response:
-    """Clear all grading data (score + annotations) for a submission."""
+async def clear_grading(
+    sub: LiveSubmission,
+    trash_scope: trash.Trash,
+    db: DB,
+    exam: Exam = Depends(get_exam_for_teacher),
+) -> Response:
+    """Clear all grading data (score + annotations) for a submission; the trash keeps a copy (issue #125)."""
+    await trash_scope.capture(
+        db,
+        "grading",
+        await trash.snapshot_grading(db, sub.id),
+        label={**await trash.result_label(db, exam, sub.pseudonym_hmac), "submission_id": str(sub.id)},
+        exam_id=exam.id,
+    )
     sub.total_score = None
     sub.annotation_ciphertext = None
     sub.annotation_iv = None
@@ -302,11 +324,27 @@ async def clear_grading(sub: LiveSubmission, db: DB) -> Response:
 
 
 @router.delete("/{sub_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_submission(sub: LiveSubmission, db: DB) -> Response:
-    """Soft-delete a scan submission by ID."""
-    # Retention only erases soft-deleted rows that carry a deadline.
-    sub.deleted_at = datetime.now(UTC)
-    sub.retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
-    await db.flush()
+async def delete_submission(
+    sub: LiveSubmission,
+    trash_scope: trash.Trash,
+    db: DB,
+    exam: Exam = Depends(get_exam_for_teacher),
+    permanent: Annotated[bool, Query(description="Skip the trash (GDPR erasure).")] = False,
+) -> Response:
+    """Delete a scan submission and its scores. Unless *permanent*, the trash keeps a copy (and the scan file) for RETENTION_GRACE_DAYS (issue #125)."""
+    snap = await trash.snapshot_submission(db, exam, sub.id)
+    if permanent:
+        scan_storage.forget_scans(db, [sub])
+    else:
+        await trash_scope.capture(
+            db,
+            "submission",
+            snap,
+            label={
+                **await trash.result_label(db, exam, sub.pseudonym_hmac),
+                "submission_id": str(sub.id),
+            },
+            exam_id=exam.id,
+        )
+    await snap.delete(db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-

@@ -116,10 +116,10 @@ async def test_rekey_is_idempotent_and_refuses_incomplete_pairs(
 
 @pytest.mark.asyncio
 async def test_rekey_renames_soft_deleted_rows_too(client: AsyncClient, db: AsyncSession) -> None:
-    """A restore (issue #181) must bring back rows keyed like the rest of the exam."""
+    """Rows soft-deleted by a storage-mode move stay keyed like the rest of the exam."""
     await sign_in(client, db, unique_email("rekey-deleted"))
     exam_id, named, placeholder, sub = await _seeded(client)
-    assert (await client.delete(f"/api/v1/exams/{exam_id}/submissions/{sub}")).status_code == 204
+    assert (await client.post("/api/v1/user/purge-server-student-data")).status_code == 200
 
     values = (await client.get(f"/api/v1/exams/{exam_id}/pseudonyms")).json()["values"]
     assert set(values) == {named, placeholder}

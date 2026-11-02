@@ -11,6 +11,7 @@ import {
   faLock,
   faPenToSquare,
   faRocket,
+  faTrashCan,
   faUsers,
 } from "@fortawesome/free-solid-svg-icons";
 import type { TranslationKey } from "#lib/i18n";
@@ -26,6 +27,7 @@ export type HelpTopicId =
   | "grading"
   | "stats"
   | "analytics"
+  | "trash"
   | "settings"
   | "security"
   | "accounts"
@@ -76,7 +78,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.storageModes.s2.h", bodyKeys: ["help.topics.storageModes.s2.p1"], docs: "security#encryption" },
       { headingKey: "help.topics.storageModes.s3.h", bodyKeys: ["help.topics.storageModes.s3.p1"], docs: "settings#switching" },
       { headingKey: "help.topics.storageModes.s4.h", bodyKeys: ["help.topics.storageModes.s4.p1"], docs: "settings#notices" },
-      { headingKey: "help.topics.storageModes.s5.h", bodyKeys: ["help.topics.storageModes.s5.p1"], docs: "settings#restore" },
+      { headingKey: "help.topics.storageModes.s5.h", bodyKeys: ["help.topics.storageModes.s5.p1"], docs: "trash" },
     ],
   },
   {
@@ -167,6 +169,19 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
   },
   {
+    id: "trash",
+    icon: faTrashCan,
+    titleKey: "help.topics.trash.title",
+    summaryKey: "help.topics.trash.summary",
+    docs: "trash",
+    sections: [
+      { headingKey: "help.topics.trash.s1.h", bodyKeys: ["help.topics.trash.s1.p1", "help.topics.trash.s1.p2"], docs: "trash#contents" },
+      { headingKey: "help.topics.trash.s2.h", bodyKeys: ["help.topics.trash.s2.p1"], docs: "trash#restore" },
+      { headingKey: "help.topics.trash.s3.h", bodyKeys: ["help.topics.trash.s3.p1"], docs: "trash#hybrid" },
+      { headingKey: "help.topics.trash.s4.h", bodyKeys: ["help.topics.trash.s4.p1", "help.topics.trash.s4.p2"], docs: "trash#gdpr" },
+    ],
+  },
+  {
     id: "settings",
     icon: faGear,
     titleKey: "help.topics.settings.title",
@@ -248,6 +263,7 @@ export function topicForPath(pathname: string): HelpTopicId {
   }
   if (pathname.startsWith("/analytics")) return "analytics";
   if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/trash")) return "trash";
   if (pathname.startsWith("/admin")) return "accounts";
   if (pathname.startsWith("/legal")) return "privacy";
   if (

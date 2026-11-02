@@ -76,6 +76,10 @@ class AuditLog(Base):
             "MAINTENANCE_ENDED",
             # Countdown cut short by an admin (issue #149, migration 0042).
             "MAINTENANCE_STARTED_EARLY",
+            # Trash (issue #125, migration 0049).
+            "TRASH_CAPTURED",
+            "TRASH_RESTORED",
+            "TRASH_PURGED",
             name="audit_action",
         ),
         nullable=False,

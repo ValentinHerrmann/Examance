@@ -23,7 +23,7 @@ More: [Exercise library](./exercises), [Sharing exercises](./sharing).
 
 **New exam** asks for the header data (subject, class, exam type, date), then opens the exam page, where you pick exercises from the library, order them, group multiple choice questions and set the grading key. Typesetting produces a print-ready PDF with QR codes, one per exam, variant and student slot, in your browser or on the server.
 
-**Duplicate** creates a new exam with the same exercises and settings, for example for a parallel class; students and results are never copied.
+**Duplicate** creates a new exam with the same exercises and settings, for example for a parallel class; students and results are never copied. Deleted an exam by mistake? [The trash](./trash) keeps it for 7 days.
 
 More: [Creating an exam](./exams).
 

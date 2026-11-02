@@ -12,6 +12,7 @@ from app.models.exam import Exam
 from app.models.logo import ExamLogo, TeacherLogo
 from app.models.teacher import Teacher
 from app.schemas.logo import AccountLogoInfo, AccountLogoUpdate, ExamLogoInfo, ExamLogoUpdate
+from app.services import trash
 from app.services.latex_resources import resource_response
 from app.services.logo import (
     LogoError,
@@ -54,6 +55,11 @@ def _apply_choice(row: TeacherLogo | ExamLogo, mode: str, content_b64: str | Non
     row.updated_at = datetime.now(UTC)
 
 
+def _drops(row: TeacherLogo | ExamLogo, mode: str, follow: str) -> bool:
+    """Whether choosing *mode* deletes the row or clears its own file (what the trash keeps)."""
+    return mode == follow or (mode == "none" and row.mode == "custom")
+
+
 def _logo_response(logo: ResolvedLogo | None) -> Response:
     if logo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No logo.")
@@ -72,6 +78,13 @@ def _account_info(row: TeacherLogo | None) -> AccountLogoInfo:
         byte_size=len(logo.content) if logo else 0,
         updated_at=row.updated_at if row else None,
     )
+
+
+async def _trash_account_logo(
+    trash_scope: trash.TrashScope, teacher: Teacher, db: AsyncSession
+) -> None:
+    snap = await trash.snapshot_logo(db, TeacherLogo, TeacherLogo.teacher_id == teacher.id)
+    await trash_scope.capture(db, "teacher_logo", snap, label={})
 
 
 @router.get("/user/logo", response_model=AccountLogoInfo)
@@ -96,11 +109,14 @@ async def download_account_logo(
 @router.put("/user/logo", response_model=AccountLogoInfo)
 async def set_account_logo(
     body: AccountLogoUpdate,
+    trash_scope: trash.Trash,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> AccountLogoInfo:
-    """Choose the account logo: the bundled default (`default`), none (`none`), or its own file (`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`)."""
+    """Choose the account logo: the bundled default (`default`), none (`none`), or its own file (`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`). Dropping an own file keeps a copy in the trash (issue #125)."""
     row = await get_teacher_logo(teacher.id, db)
+    if row is not None and _drops(row, body.mode, "default"):
+        await _trash_account_logo(trash_scope, teacher, db)
     if body.mode == "default":
         if row is not None:
             await db.delete(row)
@@ -117,12 +133,14 @@ async def set_account_logo(
 
 @router.delete("/user/logo", response_model=AccountLogoInfo)
 async def reset_account_logo(
+    trash_scope: trash.Trash,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> AccountLogoInfo:
     """Reset the account logo to the default; same as `PUT {"mode": "default"}`."""
     row = await get_teacher_logo(teacher.id, db)
     if row is not None:
+        await _trash_account_logo(trash_scope, teacher, db)
         await db.delete(row)
         await db.flush()
     return _account_info(None)
@@ -173,12 +191,18 @@ async def download_exam_logo(
 @router.put("/exams/{exam_id}/logo", response_model=ExamLogoInfo)
 async def set_exam_logo(
     body: ExamLogoUpdate,
+    trash_scope: trash.Trash,
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExamLogoInfo:
-    """Choose the exam's logo: follow the account (`account`), print none (`none`), or print its own (`custom`, with `content_b64` to replace the stored file)."""
+    """Choose the exam's logo: follow the account (`account`), print none (`none`), or print its own (`custom`, with `content_b64` to replace the stored file). Dropping an own file keeps a copy in the trash (issue #125)."""
     row = await get_exam_logo(exam.id, db)
+    if row is not None and _drops(row, body.mode, "account"):
+        snap = await trash.snapshot_logo(db, ExamLogo, ExamLogo.exam_id == exam.id)
+        await trash_scope.capture(
+            db, "exam_logo", snap, label=trash.exam_label(exam), exam_id=exam.id
+        )
     if body.mode == "account":
         if row is not None:
             await db.delete(row)

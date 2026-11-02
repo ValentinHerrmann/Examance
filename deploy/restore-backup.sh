@@ -11,9 +11,17 @@
 #   ./restore-backup.sh maintenance [latest|<file>|<id>]
 #                                            replace the WHOLE database with a maintenance backup (the
 #                                            one taken before an update or a manual maintenance, issue #130)
+#   ./restore-backup.sh trash list <db-id|latest> [teacher-email]
+#                                            trash entries (issue #125) that snapshot held, also those
+#                                            the app already erased after its 7 days
+#   ./restore-backup.sh trash restore <db-id|latest> <entry-id>... [--blobs <blobs-id|latest>]
+#                                            copy those entries back into the live trash (the teacher
+#                                            then restores them in the app); --blobs also copies their
+#                                            scan files back. Touches no other data, the stack keeps running.
 #
 # Scans deleted in the app lost their DATABASE ROWS; their files may still be on disk. `scans` cannot
-# bring those back, only `db` can (see docs/backup_and_restore.md).
+# bring those back; within 7 days the teacher's trash can, later `trash restore` or `db` (see
+# docs/backup_and_restore.md).
 #
 # Before loading a snapshot, `db` saves the current state twice: as a restic snapshot tagged
 # `pre-restore` (off-site, listed by `list`, restorable with `db <id>`; never picked by `latest`)
@@ -169,7 +177,8 @@ cmd_maintenance() {
 }
 
 # Runs inside the throwaway backup container. /target = the blob dir, /work/refs = scan_path of every
-# row; SNAP set = copy that snapshot's missing files, unset = find the missing referenced files.
+# row; SNAP set = copy that snapshot's missing files (with ONLY set: just the missing referenced ones),
+# unset = find the missing referenced files.
 # File by file on purpose: busybox `cp -n` skips whole existing dirs. Existing files are never touched.
 SCANS_SH='
 cd /work; : > missing; : > copied; : > present
@@ -186,7 +195,14 @@ copy_tree() {  # $1 = snapshot id; copies what /tmp/r holds into /target
 recount_missing() { : > still; while read -r ref; do [ -e "/target/$ref" ] || echo "$ref" >> still; done < missing; mv still missing; }
 echo "$(wc -l < refs) scan file(s) referenced by the database, $(wc -l < missing) of them missing on disk."
 if [ -n "${SNAP:-}" ]; then
-  restic restore "$SNAP" --target /tmp/r --include /data/blobs/scans >/dev/null
+  if [ -n "${ONLY:-}" ]; then
+    if [ -s missing ]; then
+      set --; while read -r ref; do set -- "$@" --include "/data/blobs/$ref"; done < missing
+      restic restore "$SNAP" --target /tmp/r "$@" >/dev/null
+    fi
+  else
+    restic restore "$SNAP" --target /tmp/r --include /data/blobs/scans >/dev/null
+  fi
   total=$(find /tmp/r/data/blobs/scans -type f 2>/dev/null | wc -l)
   copy_tree "$SNAP"
   echo "Snapshot $SNAP holds $total scan file(s): $(wc -l < present) already on disk, $(wc -l < copied) copied back."
@@ -205,6 +221,8 @@ sed "s/^/  restored /" copied
 if [ -s missing ]; then
   echo "Still missing (no snapshot has them; the database rows exist, so the app shows an error for these):"
   sed "s/^/  /" missing
+elif [ -n "${ONLY:-}" ]; then
+  [ -s copied ] || echo "Every scan file of the restored entries is already on disk."
 elif [ ! -s copied ]; then
   echo "Every scan file the database references is on disk, so nothing needed restoring."
   # A loop, not grep -vxFf: busybox treats an empty pattern file as "matches everything".
@@ -230,9 +248,114 @@ cmd_scans() {  # $1 = snapshot id, "latest" or empty
   fi
   work=$(mktemp -d "$PWD/restore-scans.XXXXXX")
   trap 'rm -rf "${work:-}"' EXIT  # global on purpose: a function-local is gone when the trap runs
-  dc exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB" -Atc "select scan_path from scan_submissions where scan_path is not null"' > "$work/refs"
+  dc exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB" -Atc "select scan_path from scan_submissions where scan_path is not null union select json_array_elements_text(blob_refs) from trash_items"' > "$work/refs"
   restic_sh -v "$host_dir:/target" -v "$work:/work" -e "SNAP=$snap" backup -c "$RESTIC_PREP $SCANS_SH"
   echo "Files no database row references are removed again by the next retention run."
+}
+
+# Trash entries (issue #125) out of a `db` snapshot. Runs in the throwaway backup container (PG* env,
+# restic): the snapshot's plain-SQL `COPY public.trash_items` block is loaded into a TEMP table of the
+# live database (gone with the session), then listed or inserted. No awk early exit: pipefail would
+# turn the SIGPIPE into a failure. Env: SNAP, MODE (list|restore), IDS (comma list), EMAIL, GRACE.
+TRASH_SH=
+IFS= read -r -d '' TRASH_SH <<'EOF' || true
+cd /tmp
+restic dump "$SNAP" examance.sql \
+  | awk '/^COPY public\.trash_items \(/ {p=1} p {print} p && $0 == "\\." {p=0}' > block.sql
+if [ ! -s block.sql ]; then
+  echo "Snapshot $SNAP holds no trash_items table: it was taken before the trash existed (issue #125)." >&2
+  exit 1
+fi
+sed 's/^COPY public\.trash_items /COPY trash_restore /' block.sql > load.sql
+if [ "$MODE" = list ]; then
+  cat > query.sql <<'SQL'
+select r.id, coalesce(t.email, '(account gone)') as teacher, r.kind,
+       coalesce(r.label->>'exam_title', r.label->>'exercise_name', '') as label,
+       to_char(r.deleted_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI') as deleted_utc,
+       left(r.group_id::text, 8) as group_id,
+       case when exists (select 1 from trash_items l where l.id = r.id) then 'yes' else '' end as in_trash_now
+from trash_restore r left join teachers t on t.id = r.teacher_id
+where :'email' = '' or lower(t.email) = lower(:'email')
+order by r.deleted_at desc;
+SQL
+else
+  # Only teachers that still exist (the FK would refuse the rest); an entry already in the trash stays untouched.
+  cat > query.sql <<'SQL'
+with ins as (
+  insert into trash_items (id, teacher_id, group_id, kind, exam_id, label, payload, blob_refs, deleted_at, purge_after)
+  select r.id, r.teacher_id, r.group_id, r.kind, r.exam_id, r.label, r.payload, r.blob_refs, r.deleted_at,
+         now() + make_interval(days => :grace)
+  from trash_restore r join teachers t on t.id = r.teacher_id
+  where r.id::text = any(string_to_array(:'ids', ','))
+  on conflict (id) do nothing
+  returning id, teacher_id, kind, blob_refs
+)
+select 'entry', ins.id::text, te.email, ins.kind from ins join teachers te on te.id = ins.teacher_id
+union all
+select 'ref', ref.v, '', '' from ins cross join lateral json_array_elements_text(ins.blob_refs) as ref(v);
+SQL
+fi
+{ echo 'create temp table trash_restore (like trash_items);'; cat load.sql; cat query.sql; } \
+  | psql -q -v ON_ERROR_STOP=1 -v email="$EMAIL" -v ids="$IDS" -v grace="$GRACE" \
+      $( [ "$MODE" = list ] || echo -At -F '|' )
+EOF
+
+cmd_trash_list() {  # $1 = db snapshot id or "latest", $2 = teacher e-mail (optional)
+  need_restic
+  local snap; snap=$(resolve_snapshot "${1:-}" db)
+  echo "Trash entries in snapshot $snap (times UTC; in_trash_now = still in the live trash):"
+  restic_sh -e "SNAP=$snap" -e MODE=list -e "EMAIL=${2:-}" -e IDS= -e GRACE=7 backup -c "$RESTIC_PREP $TRASH_SH"
+  echo "Bring entries back with: ./restore-backup.sh trash restore $snap <entry-id>..."
+}
+
+cmd_trash_restore() {  # <db snapshot|latest> <entry-id>... [--blobs <blobs snapshot|latest>]
+  need_restic
+  local wanted="" blobs="" ids=() arg
+  while [[ $# -gt 0 ]]; do
+    arg="$1"; shift
+    case "$arg" in
+      --yes) YES=1 ;;
+      --blobs) blobs="${1:-}"; [[ -n "$blobs" ]] || { echo "--blobs needs a snapshot id or latest." >&2; exit 1; }; shift ;;
+      *) if [[ -z "$wanted" ]]; then wanted="$arg"
+         elif [[ "$arg" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then ids+=("${arg,,}")
+         else echo "Not an entry id: $arg (see ./restore-backup.sh trash list)" >&2; exit 1; fi ;;
+    esac
+  done
+  [[ -n "$wanted" && ${#ids[@]} -gt 0 ]] \
+    || { echo "Usage: $0 trash restore <db-snapshot-id|latest> <entry-id>... [--blobs <blobs-snapshot-id|latest>] [--yes]" >&2; exit 1; }
+  local snap blobs_snap="" host_dir="" grace
+  snap=$(resolve_snapshot "$wanted" db)
+  if [[ -n "$blobs" ]]; then
+    blobs_snap=$(resolve_snapshot "$blobs" blobs)
+    host_dir=$(envval BLOB_STORAGE_HOST_DIR)
+    [[ -n "$host_dir" && -f "$host_dir/.examance-blobstore" ]] \
+      || { echo "BLOB_STORAGE_HOST_DIR is unset or not a marked blob store (mount down?)." >&2; exit 1; }
+  fi
+  grace=$(envval RETENTION_GRACE_DAYS); [[ "$grace" =~ ^[0-9]+$ ]] || grace=7
+  confirm "This copies ${#ids[@]} trash entry(ies) from snapshot $snap into the live trash of $PROJECT for $grace days${blobs_snap:+, and their scan files from blobs snapshot $blobs_snap}. Nothing else changes; entries already in the trash stay as they are."
+
+  local ids_csv out
+  ids_csv=$(IFS=,; echo "${ids[*]}")
+  out=$(restic_sh -e "SNAP=$snap" -e MODE=restore -e "IDS=$ids_csv" -e EMAIL= -e "GRACE=$grace" backup -c "$RESTIC_PREP $TRASH_SH")
+  local done_ids; done_ids=$(sed -n 's/^entry|\([^|]*\)|.*/\1/p' <<<"$out")
+  if [[ -z "$done_ids" ]]; then
+    echo "Nothing restored: none of the ids is in snapshot $snap, their account no longer exists, or they are in the trash already." >&2
+    exit 1
+  fi
+  echo "Copied back into the trash (the teacher restores them under Trash in the app, within $grace days):"
+  sed -n 's/^entry|\([^|]*\)|\([^|]*\)|\(.*\)$/  \1  \3  (\2)/p' <<<"$out"
+  local id
+  for id in "${ids[@]}"; do grep -qxF "$id" <<<"$done_ids" || echo "  not restored: $id" >&2; done
+
+  local refs; refs=$(sed -n 's/^ref|\([^|]*\)|.*/\1/p' <<<"$out")
+  if [[ -n "$blobs_snap" && -n "$refs" ]]; then
+    work=$(mktemp -d "$PWD/restore-scans.XXXXXX")
+    trap 'rm -rf "${work:-}"' EXIT
+    printf '%s\n' "$refs" > "$work/refs"
+    restic_sh -v "$host_dir:/target" -v "$work:/work" -e "SNAP=$blobs_snap" -e ONLY=1 backup -c "$RESTIC_PREP $SCANS_SH"
+  elif [[ -n "$refs" ]]; then
+    echo "The entries point at $(wc -l <<<"$refs") scan file(s). If the files are gone from disk, run again with --blobs <blobs-snapshot-id|latest>."
+  fi
 }
 
 case "${1:-}" in
@@ -246,9 +369,16 @@ case "${1:-}" in
     arg="${2:-latest}"; [[ "$arg" = --yes ]] && { YES=1; arg=latest; }
     [[ "${3:-}" = --yes ]] && YES=1
     cmd_maintenance "$arg" ;;
+  trash)
+    shift; sub="${1:-}"; shift || true
+    case "$sub" in
+      list) cmd_trash_list "$@" ;;
+      restore) cmd_trash_restore "$@" ;;
+      *) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    esac ;;
   scans)
     arg="${2:-}"; [[ "$arg" = --yes ]] && { YES=1; arg=""; }
     [[ "${3:-}" = --yes ]] && YES=1
     cmd_scans "$arg" ;;
-  *) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
