@@ -184,6 +184,10 @@ export const help: Translations['help'] = {
                 h: 'Re-running detection',
                 p1: '“Re-run MC detection” evaluates all scans again with the current settings. Verified questions and manually entered scores stay unchanged. The detection method is chosen under Settings → MC detection.',
             },
+            s6: {
+                h: 'QR stickers',
+                p1: 'Without stickers, Examance cannot assign pages by itself. “QR stickers” on the exam page prints a label sheet from a list of names, optionally with a personal key each student keeps.',
+            },
         },
         grading: {
             title: 'Grading',
@@ -232,6 +236,10 @@ export const help: Translations['help'] = {
             s4: {
                 h: 'Export',
                 p1: 'The CSV export gives the grades for the school’s grade management. “Export” with “Readable ZIP” bundles graded submissions as PDF, LaTeX source, a summary and the grades. Both contain real names and are unencrypted.',
+            },
+            s5: {
+                h: 'Share with students',
+                p1: '“Share with students” on the exam page gives each student a personal link to their graded exam, printed on slips to hand out. The exams are encrypted in the browser; the server cannot read them, and the links expire.',
             },
         },
         analytics: {

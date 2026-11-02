@@ -183,6 +183,10 @@ export const help = {
                 h: 'Erkennung erneut ausführen',
                 p1: '„MC-Erkennung erneut ausführen“ wertet alle Scans mit den aktuellen Einstellungen neu aus. Geprüfte Fragen und von Hand eingetragene Punkte bleiben unverändert. Das Erkennungsverfahren wählen Sie unter Einstellungen → MC-Erkennung.',
             },
+            s6: {
+                h: 'QR-Aufkleber',
+                p1: 'Ohne Aufkleber ordnet Examance die Seiten nicht von selbst zu. „QR-Aufkleber“ auf der Klausurseite druckt einen Etikettenbogen aus einer Namensliste, auf Wunsch mit einem persönlichen Schlüssel, den der Schüler behält.',
+            },
         },
         grading: {
             title: 'Korrigieren',
@@ -231,6 +235,10 @@ export const help = {
             s4: {
                 h: 'Export',
                 p1: 'Der CSV-Export liefert die Noten für die Notenverwaltung der Schule. „Exportieren“ mit „Lesbares ZIP“ bündelt korrigierte Abgaben als PDF, LaTeX-Quelltext, Zusammenfassung und Noten. Beide enthalten echte Namen und sind unverschlüsselt.',
+            },
+            s5: {
+                h: 'Mit Schülern teilen',
+                p1: '„Mit Schülern teilen“ auf der Klausurseite gibt jedem Schüler einen persönlichen Link zu seiner korrigierten Arbeit, ausgedruckt auf Zetteln zum Austeilen. Die Arbeiten werden im Browser verschlüsselt; der Server kann sie nicht lesen, und die Links laufen ab.',
             },
         },
         analytics: {

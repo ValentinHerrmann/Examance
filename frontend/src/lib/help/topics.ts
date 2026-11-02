@@ -126,6 +126,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.scanning.s3.h", bodyKeys: ["help.topics.scanning.s3.p1"], docs: "scanning#assignment" },
       { headingKey: "help.topics.scanning.s4.h", bodyKeys: ["help.topics.scanning.s4.p1"], docs: "scanning#mc-verification" },
       { headingKey: "help.topics.scanning.s5.h", bodyKeys: ["help.topics.scanning.s5.p1"], docs: "scanning#rerun" },
+      { headingKey: "help.topics.scanning.s6.h", bodyKeys: ["help.topics.scanning.s6.p1"], docs: "students#qr-stickers" },
     ],
   },
   {
@@ -154,6 +155,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.stats.s2.h", bodyKeys: ["help.topics.stats.s2.p1"], docs: "results#borderline" },
       { headingKey: "help.topics.stats.s3.h", bodyKeys: ["help.topics.stats.s3.p1"], docs: "results#partial" },
       { headingKey: "help.topics.stats.s4.h", bodyKeys: ["help.topics.stats.s4.p1"], docs: "results#export" },
+      { headingKey: "help.topics.stats.s5.h", bodyKeys: ["help.topics.stats.s5.p1"], docs: "students#share-results" },
     ],
   },
   {
