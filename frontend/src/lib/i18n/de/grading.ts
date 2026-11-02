@@ -190,6 +190,7 @@ export const grading = {
             colNum: '#',
             colName: 'Schülername',
             colNumber: 'Schüler-ID / Nummer',
+            colEmail: 'E-Mail',
             colPseudonym: 'Pseudonym / Code',
             colType: 'Typ',
             colActions: 'Aktionen',

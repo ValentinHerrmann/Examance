@@ -124,6 +124,7 @@ async def complete_registration(
         teacher.allow_server_results = rule.allow_server_results
         teacher.allow_server_latex = rule.allow_server_latex
         teacher.allow_exercise_sharing = rule.allow_exercise_sharing
+        teacher.allow_result_delivery = rule.allow_result_delivery
     else:
         teacher.approved_at = None
         cleaned = (note or "").strip()

@@ -50,7 +50,12 @@ ADMIN_USERS = "/api/v1/admin/users"
 ADMIN_DOMAINS = "/api/v1/admin/allowed-domains"
 
 WRONG_PASSWORD = "not-the-password-1"  # noqa: S105 - test fixture credential
-ALL_FEATURES = {"server_results": True, "server_latex": True, "exercise_sharing": True}
+ALL_FEATURES = {
+    "server_results": True,
+    "server_latex": True,
+    "exercise_sharing": True,
+    "result_delivery": False,
+}
 
 
 # --------------------------------------------------------------------------------------------
@@ -441,7 +446,7 @@ async def test_approval_applies_features_and_clears_the_note(
     email = _email()
     await _register(visitor, email, note="Physics, grades 10 to 12")
     url = f"{ADMIN_USERS}/{(await _teacher(db, email)).id}/approve"
-    features = {"server_results": False, "server_latex": True, "exercise_sharing": True}
+    features = {**ALL_FEATURES, "server_results": False}
 
     with outbox() as sent:
         resp = await client.post(url, json={"features": features})
@@ -662,6 +667,7 @@ async def test_feature_switches_drive_the_account_capabilities(
         "server_results": False,
         "server_latex": True,
         "exercise_sharing": True,
+        "result_delivery": False,
     }
     caps = await capabilities()
     assert caps["allowed_storage_modes"] == ["hybrid"]
@@ -719,6 +725,7 @@ async def test_allowed_domain_can_be_listed_updated_and_removed(
         "server_results": True,
         "server_latex": False,
         "exercise_sharing": True,
+        "result_delivery": False,
     }
 
     async def listed() -> set[str]:
@@ -734,6 +741,7 @@ async def test_allowed_domain_can_be_listed_updated_and_removed(
         "server_results": False,
         "server_latex": False,
         "exercise_sharing": True,
+        "result_delivery": False,
     }
 
     removed = await client.delete(f"{ADMIN_DOMAINS}/{entry['id']}")

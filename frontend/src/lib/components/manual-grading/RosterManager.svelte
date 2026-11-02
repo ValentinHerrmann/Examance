@@ -32,6 +32,7 @@
   let editingPseudonym: string | null = $state(null);
   let editName = $state("");
   let editStudentNumber = $state("");
+  let editEmail = $state("");
 
   let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
   // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
@@ -72,6 +73,7 @@
     editingPseudonym = st.pseudonymHmac;
     editName = st.studentName || "";
     editStudentNumber = st.studentNumber || "";
+    editEmail = st.email || "";
   }
 
   async function saveEdit(st: StudentRecord) {
@@ -81,6 +83,7 @@
       ...st,
       studentName: editName.trim(),
       studentNumber: editStudentNumber.trim() || undefined,
+      email: editEmail.trim() || undefined,
     };
     await studentRepository.save(updated, key);
     editingPseudonym = null;
@@ -184,6 +187,7 @@
             <th>{$t("grading.manual.roster.colNum")}</th>
             <th>{$t("grading.manual.roster.colName")}</th>
             <th>{$t("grading.manual.roster.colNumber")}</th>
+            <th>{$t("grading.manual.roster.colEmail")}</th>
             <th>{$t("grading.manual.roster.colPseudonym")}</th>
             <th>{$t("grading.manual.roster.colType")}</th>
             <th>{$t("grading.manual.roster.colActions")}</th>
@@ -207,6 +211,13 @@
                   <TextInput size="sm" bind:value={editStudentNumber} />
                 {:else}
                   {st.studentNumber || "-"}
+                {/if}
+              </td>
+              <td>
+                {#if editingPseudonym === st.pseudonymHmac}
+                  <TextInput size="sm" type="email" bind:value={editEmail} />
+                {:else}
+                  <span class="break-all">{st.email || "-"}</span>
                 {/if}
               </td>
               <td>

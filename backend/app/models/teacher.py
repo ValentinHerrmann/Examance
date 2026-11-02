@@ -59,6 +59,10 @@ class Teacher(Base):
     allow_exercise_sharing: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=true()
     )
+    # Sending graded results to students through Artemis / e-mail (issue #209); off until an admin allows it.
+    allow_result_delivery: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     # The teacher's own pause (issue #65): hides everything they share, keeps the per-group choice.
     sharing_paused: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()

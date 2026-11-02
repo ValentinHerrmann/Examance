@@ -37,7 +37,52 @@ The flow lives in `lib/sharing/shareService.ts`:
 - `sticker`: the personal key from the sticker sheet.
 - `code`: a fresh code per student, printed on separate code slips so it can be handed out apart from the link. The code is never stored; if one is lost, share that student again.
 
-**Channels.** `lib/sharing/channels.ts` lists how results reach students. Each channel names the factors it carries and which students it cannot reach. The dialog mutes factors that no chosen student can use, and shows the reason (`incompatibleStudents`). Only `slips` exists today. To add e-mail, Artemis or Moodle/Mebis, register a channel there, give it its own delivery step in `shareService`, and add its compatibility rule (for example, Artemis needs a numeric Artemis user id as the sticker id). E-mail can only send the link: the server cannot attach a PDF it cannot read.
+**Channels.** `lib/sharing/channels.ts` lists how results reach students. Each channel names the factors it carries, which students it cannot reach and the account switch it needs. The dialog mutes factors that no chosen student can use, and shows the reason (`incompatibleStudents`). See [Delivery channels](#delivery-channels).
+
+## Delivery channels
+
+Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis support, modelled on DiRueLei.
+
+| Channel | Delivery (`sharing/delivery.ts`) | Factors | Cannot reach |
+|---|---|---|---|
+| `slips` | link slips PDF | `none`, `sticker`, `code` | nobody |
+| `email` | links collected, sent in batches of 100 via `POST /integrations/mail/results` | `sticker`, `code` | students without `email` |
+| `artemis` | per student `POST /integrations/artemis/messages` (link mode) or `/files` (PDF mode, no share is made) | `sticker`, `code` (ignored in PDF mode) | students without a numeric sticker id (`lmsIdOf`) |
+
+**Why no `none`:** e-mail and Artemis hand the link to a third party: our server, the mail provider and Artemis. With a second factor that party holds the token but not the code, so it still cannot derive the content key. On these channels the code factor prints only the code slips (`renderShareSlips` with `codesOnly`), for handing out in class.
+
+**Student contact data.**
+- `StudentRecord.email` is sealed like the name (`db/dbEncryption.ts`), so it follows the account's storage mode.
+- `lmsIdOf(student)` (`utils/studentQr.ts`) reads the Mebis participant id or Artemis user id from the sticker payload. It strips DiRueLei's `Teilnehmer/in` prefix.
+- Class lists from every source become `Contact[]` (`lib/lms/contacts.ts`):
+  - a Mebis grading worksheet or participant CSV (`contactsFromMebisCsv`);
+  - pasted lines (`contactsFromLines`);
+  - Artemis course members (`fetchArtemisStudents`).
+- `matchContacts` pairs contacts with students by sticker id first, then by unambiguous name. The sticker dialog fills its list from a contact source; the share dialog saves matched addresses (`DeliverySetup.svelte`).
+
+**Preview.** Before an e-mail or Artemis run, `DeliveryPreview.svelte` shows:
+- every student with their recipient and what they get;
+- who is skipped and why;
+- which data goes where.
+
+Nothing is sent before the teacher confirms.
+
+**Artemis relay** (`backend/app/services/artemis.py`, `routers/integrations.py`).
+- It is a fixed client, not a proxy. There is no URL parameter. It calls only hosts in `ARTEMIS_ALLOWED_HOSTS` and only these endpoints:
+  - `core/courses/{id}/students`;
+  - `communication/courses/{id}/one-to-one-chats`;
+  - `core/files/courses/{id}/conversations/{conv}`;
+  - `communication/courses/{id}/messages`.
+- The teacher's token (the `jwt` cookie, pasted per run; host and course id are remembered in the browser) is sent as a bearer. It is never stored or logged.
+- An upstream 401/403 becomes `400 ERR_ARTEMIS_AUTH`. A 401 from our API would read as an expired session.
+
+**Mebis.** There is no API (DiRueLei has none either).
+- The readable exam export has an optional part `mebis`: a nested `<exam>_mebis_feedback.zip` with `Participant_<id>_assignsubmission_file_/<name>_<id>.pdf` per student (`mebisFeedbackPath`).
+- The teacher uploads it under "Upload multiple feedback files in a zip".
+
+**Sticker sheet versus DiRueLei.** Both use the same label stock, so partly used sheets work in either app:
+- A4, 5 × 7 cells of 3.5 cm, 0.5 cm gaps, margins 0.7 cm left and 1 cm top.
+- Examance draws a larger vector QR code with the name above it; DiRueLei draws 2 cm with the name below.
 
 ## Server
 

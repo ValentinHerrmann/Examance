@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from html import escape
 from typing import Literal
 
@@ -33,9 +34,10 @@ def _compose(
     *,
     link: tuple[str, str] | None = None,
     footer: Sequence[str] = (),
+    greeting: str = "Hello,",
 ) -> Mail:
-    text_parts = ["Hello,", *paragraphs]
-    html_parts = ["<p>Hello,</p>", *(f"<p>{escape(p)}</p>" for p in paragraphs)]
+    text_parts = [greeting, *paragraphs]
+    html_parts = [f"<p>{escape(greeting)}</p>", *(f"<p>{escape(p)}</p>" for p in paragraphs)]
     if link is not None:
         label, url = link
         text_parts.append(f"{label}:\n{url}")
@@ -168,6 +170,50 @@ def deletion_mail(email: str, link: str, *, keep_exercises: bool) -> Mail:
             f"This link expires in {settings.ACCOUNT_DELETION_TOKEN_TTL_MINUTES} minutes.",
             "If this was not you, ignore this email and change your password: nothing is "
             "deleted without the link.",
+        ],
+    )
+
+
+def result_link_mail(
+    to: str,
+    exam_title: str,
+    url: str,
+    expires_at: datetime,
+    teacher_name: str | None,
+    locale: Literal["de", "en"],
+) -> Mail:
+    """A student's graded exam link (issue #209). The key or code that opens it is never mailed."""
+    if locale == "de":
+        by = f" von {teacher_name}" if teacher_name else ""
+        return _compose(
+            to,
+            f"Deine korrigierte Prüfung: {exam_title}",
+            [
+                f"Deine Lehrkraft{by} hat dir deine korrigierte Prüfung „{exam_title}“ "
+                "freigegeben.",
+                "Öffne sie über diesen Link. Du brauchst dazu zusätzlich deinen persönlichen "
+                "Schlüssel oder den Code, den du von deiner Lehrkraft bekommen hast.",
+            ],
+            link=("Korrigierte Prüfung öffnen", url),
+            footer=[
+                f"Der Link ist bis {expires_at.strftime('%d.%m.%Y')} gültig. "
+                "Diese E-Mail wurde automatisch von Examance versendet."
+            ],
+            greeting="Hallo,",
+        )
+    by = f" ({teacher_name})" if teacher_name else ""
+    return _compose(
+        to,
+        f"Your graded exam: {exam_title}",
+        [
+            f"Your teacher{by} has released your graded exam \"{exam_title}\" to you.",
+            "Open it with this link. You also need your personal key or the code you got from "
+            "your teacher.",
+        ],
+        link=("Open graded exam", url),
+        footer=[
+            f"The link is valid until {expires_at.strftime('%Y-%m-%d')}. "
+            "This email was sent automatically by Examance."
         ],
     )
 

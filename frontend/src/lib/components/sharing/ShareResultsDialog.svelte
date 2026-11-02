@@ -6,7 +6,11 @@
   import { Alert, Badge, Button, Checkbox, ConfirmDialog, Field, Modal, Radio, Select, Spinner, TableScroller } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { revokeAllResultShares, revokeResultShare } from "#lib/api/resultShares";
-  import { incompatibleStudents, SHARE_CHANNELS, SHARE_FACTORS, type ShareChannelId } from "#lib/sharing/channels";
+  import { availableChannels, incompatibleStudents, SHARE_CHANNELS, SHARE_FACTORS, type ArtemisMode, type ShareChannelId } from "#lib/sharing/channels";
+  import type { ArtemisCourse } from "#lib/api/integrations";
+  import { featuresStore } from "#lib/stores/capabilities";
+  import DeliveryPreview from "./DeliveryPreview.svelte";
+  import DeliverySetup from "./DeliverySetup.svelte";
   import type { ShareFactor } from "#lib/sharing/shareCrypto";
   import {
     DEFAULT_EXPIRY_DAYS,
@@ -41,16 +45,36 @@
   let error = $state("");
   let outcome = $state.raw<ShareOutcome | null>(null);
   let confirmRevokeAll = $state(false);
+  let artemisCourse = $state.raw<ArtemisCourse | null>(null);
+  let artemisMode = $state<ArtemisMode>("link");
+  let previewing = $state(false);
   let revoking = $state(false);
 
   const progressClass =
     "block h-3 w-full appearance-none overflow-hidden rounded-md bg-surface-inset [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-surface-inset [&::-webkit-progress-value]:bg-primary";
   const STATE_BADGE = { complete: "success", partial: "warning", ungraded: "secondary" } as const;
+  const DONE = { slips: "sharing.share.done", email: "sharing.channels.email.done", artemis: "sharing.channels.artemis.done" } as const;
 
-  let currentChannel = $derived(SHARE_CHANNELS.find((c) => c.id === channel) ?? SHARE_CHANNELS[0]);
+  let channels = $derived(availableChannels($featuresStore));
+  let currentChannel = $derived(channels.find((c) => c.id === channel) ?? SHARE_CHANNELS[0]);
+  // Artemis PDF mode makes no link, so neither a factor nor the solution applies.
+  let sendsPdf = $derived(currentChannel.id === "artemis" && artemisMode === "pdf");
+  let setupMissing = $derived(currentChannel.id === "artemis" && !artemisCourse);
   let chosenStudents = $derived(overview?.students.filter((s) => selected.has(s.key)).map((s) => s.student) ?? []);
   let blockedCount = (f: ShareFactor) => incompatibleStudents(f, currentChannel, chosenStudents).length;
   let factorMuted = (f: ShareFactor) => !currentChannel.factors.includes(f) || (chosenStudents.length > 0 && blockedCount(f) === chosenStudents.length);
+
+  function chooseChannel(id: ShareChannelId) {
+    channel = id;
+    const next = channels.find((c) => c.id === id);
+    // Channels through a third party never carry a link that opens alone.
+    if (next && !next.factors.includes(factor)) factor = next.factors.find((f) => !factorMuted(f)) ?? next.factors[0];
+  }
+
+  function run() {
+    if (currentChannel.id === "slips") start();
+    else previewing = true;
+  }
   let activeShares = $derived((overview?.students.filter((s) => s.share).length ?? 0) + (overview?.orphans.length ?? 0));
 
   async function reload() {
@@ -83,12 +107,21 @@
   }
 
   async function start() {
+    previewing = false;
     running = true;
     error = "";
     outcome = null;
     try {
       outcome = await shareResults(
-        { examId, channel, factor, expiryDays: Number(expiry), studentKeys: selected, includeSolution: includeSolution && !!overview?.solutionAvailable },
+        {
+          examId,
+          channel,
+          factor,
+          expiryDays: Number(expiry),
+          studentKeys: selected,
+          includeSolution: includeSolution && !sendsPdf && !!overview?.solutionAvailable,
+          artemis: channel === "artemis" && artemisCourse ? { ...artemisCourse, mode: artemisMode } : undefined,
+        },
         (phase, done = 0, total = 0) =>
           (step = phase === "solution" ? $t("sharing.share.compilingSolution") : $t("sharing.share.running", { done: done + 1, total }))
       );
@@ -135,7 +168,7 @@
     {/if}
 
     {#if outcome}
-      <Alert severity={outcome.warnings.length ? "warning" : "success"} title={$t("sharing.share.done", { count: outcome.shared })}>
+      <Alert severity={outcome.warnings.length ? "warning" : "success"} title={$t(DONE[outcome.channel], { count: outcome.shared })}>
         {#if outcome.warnings.length}
           <p>{$t("sharing.share.doneWithWarnings")}</p>
           <ul class="list-disc pl-5">
@@ -208,14 +241,18 @@
 
       <fieldset class="flex flex-col gap-2" disabled={running}>
         <legend class="mb-2 text-sm text-muted">{$t("sharing.share.channel")}</legend>
-        {#each SHARE_CHANNELS as c (c.id)}
+        {#each channels as c (c.id)}
           <div>
-            <Radio group={channel} value={c.id} name="share-channel" onchange={() => (channel = c.id)} label={$t(c.labelKey)} />
+            <Radio group={channel} value={c.id} name="share-channel" onchange={() => chooseChannel(c.id)} label={$t(c.labelKey)} />
             <p class="ml-7 text-sm text-muted">{$t(c.descriptionKey)}</p>
           </div>
+          {#if c.id === channel && c.id !== "slips"}
+            <DeliverySetup channel={c.id} students={overview.students} disabled={running} bind:artemisCourse bind:artemisMode onSaved={reload} />
+          {/if}
         {/each}
       </fieldset>
 
+      {#if !sendsPdf}
       <fieldset class="flex flex-col gap-2" disabled={running}>
         <legend class="mb-2 text-sm text-muted">{$t("sharing.share.factor")}</legend>
         {#each SHARE_FACTORS as f (f)}
@@ -244,6 +281,7 @@
           {overview.solutionAvailable ? $t("sharing.share.includeSolutionHint") : $t("sharing.share.solutionWithheld")}
         </p>
       </div>
+      {/if}
 
       <Field label={$t("sharing.share.expiry")} hint={$t("sharing.share.replaceNote")}>
         {#snippet children({ id })}
@@ -278,13 +316,24 @@
     <Button
       icon={faShareFromSquare}
       loading={running}
-      disabled={running || loading || !selected.size || factorMuted(factor)}
-      onClick={start}
+      disabled={running || loading || !selected.size || setupMissing || (!sendsPdf && factorMuted(factor))}
+      onClick={run}
     >
-      {$t("sharing.share.run")}
+      {currentChannel.id === "slips" ? $t("sharing.share.run") : $t("sharing.share.runDelivery")}
     </Button>
   {/snippet}
 </Modal>
+
+{#if previewing && overview}
+  <DeliveryPreview
+    channel={currentChannel}
+    students={overview.students.filter((s) => selected.has(s.key))}
+    {factor}
+    artemis={artemisCourse ? { ...artemisCourse, mode: artemisMode } : null}
+    onConfirm={start}
+    onCancel={() => (previewing = false)}
+  />
+{/if}
 
 <ConfirmDialog
   open={confirmRevokeAll}

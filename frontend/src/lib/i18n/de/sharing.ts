@@ -48,6 +48,7 @@ export const sharing = {
         days: '{count} Tage',
         replaceNote: 'Wer schon einen Link hat, bekommt einen neuen; der alte funktioniert dann nicht mehr.',
         run: 'Teilen und Zettel erstellen',
+        runDelivery: 'Weiter zur Vorschau',
         compilingSolution: 'Musterlösung wird kompiliert …',
         includeSolution: 'Musterlösung mitschicken',
         includeSolutionHint: 'Die Schüler sehen auf derselben Seite auch die Musterlösung der Prüfung.',
@@ -67,6 +68,23 @@ export const sharing = {
         slips: {
             label: 'Zettel zum Austeilen',
             description: 'Ein PDF mit einem Zettel pro Schüler: QR-Code und Link zu seiner Arbeit.',
+        },
+        email: {
+            label: 'Per E-Mail',
+            description: 'Jeder Schüler bekommt seinen Link per E-Mail. Zum Öffnen braucht er zusätzlich seinen Schlüssel vom QR-Aufkleber oder einen Code, den Sie getrennt austeilen.',
+            missing: 'keine E-Mail-Adresse hinterlegt',
+            failed: '{name}: E-Mail konnte nicht zugestellt werden.',
+            done: '{count} Link(s) per E-Mail verschickt.',
+        },
+        artemis: {
+            label: 'Über Artemis',
+            description: 'Examance schickt jedem Schüler in Ihrem Artemis-Kurs eine Direktnachricht mit dem Link oder der korrigierten Arbeit als PDF.',
+            missing: 'keine Artemis-Kennung auf dem QR-Aufkleber',
+            setupMissing: 'Artemis-Kurs und Token fehlen.',
+            message: 'Deine korrigierte Prüfung „{exam}“ ist da. Der Link ist bis {date} gültig:',
+            needsKey: 'Zum Öffnen brauchst du zusätzlich deinen persönlichen Schlüssel oder Code.',
+            pdfMessage: 'Deine korrigierte Prüfung „{exam}“:',
+            done: '{count} Arbeit(en) über Artemis verschickt.',
         },
     },
     factor: {

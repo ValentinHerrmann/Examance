@@ -30,6 +30,7 @@ export interface SubjectAccessExport {
   identity: {
     studentName: string | null;
     studentNumber: string | null;
+    email: string | null;
     fallbackCode: string | null;
   };
   submissions: SubjectAccessSubmission[];
@@ -98,6 +99,7 @@ export async function exportStudentData(
     identity: {
       studentName: student.studentName ?? null,
       studentNumber: student.studentNumber ?? null,
+      email: student.email ?? null,
       fallbackCode: student.fallbackCode ?? null,
     },
     submissions,

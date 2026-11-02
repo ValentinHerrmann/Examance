@@ -171,6 +171,7 @@ async def approve_user(
             allow_server_results=body.features.server_results,
             allow_server_latex=body.features.server_latex,
             allow_exercise_sharing=body.features.exercise_sharing,
+            allow_result_delivery=body.features.result_delivery,
         )
     )
     user = await _load_user(db, user_id)

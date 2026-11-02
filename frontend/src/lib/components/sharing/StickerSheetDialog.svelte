@@ -11,6 +11,11 @@
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { formatStudentName, stickerRawOf } from "#lib/utils/studentQr";
+  import ArtemisConnect from "#lib/components/lms/ArtemisConnect.svelte";
+  import ClassListFile from "#lib/components/lms/ClassListFile.svelte";
+  import type { ArtemisStudent } from "#lib/api/integrations";
+  import type { Contact } from "#lib/lms/contacts";
+  import { featuresStore } from "#lib/stores/capabilities";
 
   interface Props {
     /** Offers the exam's students as a source. */
@@ -50,6 +55,15 @@
       examEntries = [];
     }
   });
+
+  let showArtemis = $state(false);
+
+  // An imported list lands in the text field, so the teacher sees and can correct it before printing.
+  function fillRoster(contacts: readonly Contact[]) {
+    roster = contacts.map((c) => (c.id ? `${c.name}; ${c.id}` : c.name)).join("\n");
+  }
+
+  const fromArtemis = (students: ArtemisStudent[]) => fillRoster(students.map((s) => ({ name: s.name, id: String(s.id), email: s.email })));
 
   const clamp = (value: string, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(value) || 0)));
 
@@ -103,6 +117,17 @@
           <Textarea {id} rows={8} bind:value={roster} placeholder={$t("sharing.stickers.rosterPlaceholder")} disabled={busy} />
         {/snippet}
       </Field>
+      <div class="flex flex-col gap-3 rounded-md border border-line p-3">
+        <p class="m-0 text-sm font-semibold">{$t("lms.importTitle")}</p>
+        <ClassListFile disabled={busy} onContacts={(contacts) => fillRoster(contacts)} />
+        {#if $featuresStore.result_delivery}
+          {#if showArtemis}
+            <ArtemisConnect disabled={busy} onLoaded={fromArtemis} />
+          {:else}
+            <div><Button size="sm" variant="text" disabled={busy} onClick={() => (showArtemis = true)}>{$t("lms.artemis.fromCourse")}</Button></div>
+          {/if}
+        {/if}
+      </div>
     {/if}
 
     {#if !onlyKeys}

@@ -29,6 +29,7 @@ import { snippets } from './snippets';
 import { domainMove } from './domainMove';
 import { trash } from './trash';
 import { sharing } from './sharing';
+import { lms } from './lms';
 
 export const en: Translations = {
     common,
@@ -61,4 +62,5 @@ export const en: Translations = {
     domainMove,
     trash,
     sharing,
+    lms,
 };

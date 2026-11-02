@@ -40,6 +40,7 @@ Under **Accounts** you decide for every account what it may use:
 | **Student data and results on the server** | results stay in the teacher's browser (hybrid mode only) |
 | **Compile LaTeX on the server** | the browser compiles |
 | **Share and copy exercises** | no sharing, no copying of shared exercises |
+| **Send graded exams by e-mail and Artemis** | only slips; off by default, because e-mail addresses and Artemis tokens then pass through the server, see [Send by e-mail](./students#email) |
 
 Exams and exercises always live on the server. Options an account may not use show as "not enabled" for the teacher. Features can be changed at any time; turning off "student data on the server" makes the app move that teacher's results into their browser the next time it opens. Nothing is lost.
 

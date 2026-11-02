@@ -16,6 +16,7 @@ import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { randomCode } from '#lib/utils/randomCode';
 import { formatStudentName, stickerRawOf } from '#lib/utils/studentQr';
 import { incompatibleStudents, SHARE_CHANNELS, type ShareChannelId } from './channels';
+import { createDelivery, type ArtemisTarget } from './delivery';
 import { lookupHash, lookupSecret, newShareLink, sealShare, shareUrl, type ShareFactor } from './shareCrypto';
 import { renderShareSlips, type SlipEntry } from './slipsPdf';
 
@@ -47,10 +48,13 @@ export interface ShareRequest {
   studentKeys: ReadonlySet<string>;
   /** Add the exam's sample solution to every student's page. */
   includeSolution: boolean;
+  /** Course, token and mode for the Artemis channel; the token is only passed on. */
+  artemis?: ArtemisTarget;
 }
 
 export interface ShareOutcome {
   shared: number;
+  channel: ShareChannelId;
   warnings: string[];
   slips: Uint8Array | null;
   fileName: string;
@@ -118,10 +122,14 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   const results = await loadResults({ ...ctx, key });
   const keys = await joinKeys(results.students);
   const channel = SHARE_CHANNELS.find((c) => c.id === request.channel);
-  if (!channel?.factors.includes(request.factor)) throw new Error(translate('sharing.errors.factorChannel'));
+  const examTitle = ctx.exam.title || translate('sharing.untitledExam');
+  const expiresAt = new Date(Date.now() + request.expiryDays * 86_400_000);
+  const delivery = createDelivery(request.channel, { examTitle, expiresAt, artemis: request.artemis });
+  // A channel that hands the link to a third party carries only factors with a second secret (docs/dev/result_sharing.md).
+  if (!channel || (!delivery.sendsPdf && !channel.factors.includes(request.factor))) throw new Error(translate('sharing.errors.factorChannel'));
 
   const chosen = results.students.filter((_, i) => request.studentKeys.has(keys[i]));
-  const blocked = incompatibleStudents(request.factor, channel, chosen);
+  const blocked = incompatibleStudents(delivery.sendsPdf ? null : request.factor, channel, chosen);
   const warnings = blocked.map(({ student, reason }) => `${displayName(student)}: ${translate(reason)}`);
   const blockedSet = new Set(blocked.map((b) => b.student));
   const bySubmission = new Map<string, number>();
@@ -134,12 +142,11 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
 
   // Before anything is uploaded: a failed compile ends the run with nothing shared.
   let solution: Uint8Array | undefined;
-  if (request.includeSolution) {
+  if (request.includeSolution && !delivery.sendsPdf) {
     progress('solution');
     solution = await compileSolution(ctx, key, warnings);
   }
 
-  const examTitle = ctx.exam.title || translate('sharing.untitledExam');
   const entries: SlipEntry[] = [];
   await logExportAction(request.examId, 'SHARE', key);
   warnings.push(
@@ -152,10 +159,16 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
         if (index === undefined) return;
         const student = results.students[index];
         const name = displayName(student);
+        const filename = `${slug(examTitle)}_${slug(name)}.pdf`;
+        if (delivery.sendsPdf) {
+          await delivery.deliverPdf(student, name, filename, pdf);
+          entries.push({ name, url: '' });
+          return;
+        }
         const raw = stickerRawOf(student);
         const code = request.factor === 'code' ? randomCode(8) : request.factor === 'sticker' && raw ? await personalKey(raw) : null;
         const link = newShareLink();
-        const sealed = await sealShare(link, request.factor, code, { filename: `${slug(examTitle)}_${slug(name)}.pdf`, examTitle }, { graded: pdf, solution });
+        const sealed = await sealShare(link, request.factor, code, { filename, examTitle }, { graded: pdf, solution });
         await createResultShare(request.examId, {
           id: link.shareId,
           studentKey: keys[index],
@@ -164,18 +177,24 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
           expiryDays: request.expiryDays,
           sealed,
         });
-        entries.push({ name, url: shareUrl(location.origin, link), ...(request.factor === 'code' && code ? { code } : {}) });
+        const url = shareUrl(location.origin, link);
+        await delivery.deliverLink(student, name, url);
+        entries.push({ name, url, ...(request.factor === 'code' && code ? { code } : {}) });
       },
       { only: new Set(bySubmission.keys()), progress: (done, total) => progress('students', done, total) }
     ))
   );
 
-  const expiresAt = new Date(Date.now() + request.expiryDays * 86_400_000);
+  const undelivered = await delivery.finish();
+  warnings.push(...undelivered);
   entries.sort((a, b) => a.name.localeCompare(b.name));
+  // Slips carry the links; on other channels only the codes, which must reach students apart from the link.
+  const printed = request.channel === 'slips' || (request.factor === 'code' && !delivery.sendsPdf);
   return {
-    shared: entries.length,
+    shared: entries.length - undelivered.length,
+    channel: request.channel,
     warnings,
-    slips: entries.length ? await renderShareSlips({ examTitle, expiresAt, factor: request.factor, entries }) : null,
-    fileName: `${slug(examTitle)}_links_${exportDateStamp()}.pdf`,
+    slips: printed && entries.length ? await renderShareSlips({ examTitle, expiresAt, factor: request.factor, entries, codesOnly: request.channel !== 'slips' }) : null,
+    fileName: `${slug(examTitle)}_${request.channel === 'slips' ? 'links' : 'codes'}_${exportDateStamp()}.pdf`,
   };
 }

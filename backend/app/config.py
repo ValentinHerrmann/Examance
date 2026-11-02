@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     BODY_LIMIT_LAYOUT_REPORT: int = 30 * 1024 * 1024  # 30 MB
     # One shared result PDF (issue #207): RESULT_SHARE_MAX_BYTES raw, base64-inflated, plus JSON slack.
     BODY_LIMIT_RESULT_SHARE: int = 34 * 1024 * 1024  # 34 MB
+    # A graded PDF relayed to Artemis (10 MB file plus form fields).
+    BODY_LIMIT_INTEGRATION_FILE: int = 11 * 1024 * 1024  # 11 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
 
     # Storage partitions (issue #114, docs/dev/storage_partitions.md). "db" keeps scans in Postgres; "fs" writes new ones under BLOB_STORAGE_DIR (local dir or rclone mount). Reads accept both.
@@ -141,6 +143,8 @@ class Settings(BaseSettings):
     # Result sharing (issue #207): lifetimes a teacher may pick for a student's link; the ciphertext is deleted when it expires.
     RESULT_SHARE_EXPIRY_DAYS: list[int] = [7, 14, 30, 90]
     RESULT_SHARE_MAX_BYTES: int = 25 * 1024 * 1024
+    # Artemis servers teachers may relay results to (issue #209); the server only ever talks to these hosts, so it cannot be turned into a request proxy.
+    ARTEMIS_ALLOWED_HOSTS: list[str] = ["artemis.tum.de"]
 
     # Per-account login throttling (`app.services.login_throttle`): slowapi limits per client IP and misses a distributed guess at one account. Exponential cooloff, capped on purpose so the lock always expires: otherwise anyone who knows an email could lock its owner out.
     LOGIN_THROTTLE_ENABLED: bool | None = None  # defaults to RATE_LIMIT_ENABLED
@@ -149,7 +153,13 @@ class Settings(BaseSettings):
     LOGIN_LOCKOUT_MAX_SECONDS: int = 3600
     LOGIN_FAIL_WINDOW_SECONDS: int = 900
 
-    @field_validator("ALLOWED_HOSTS", "FRONTEND_ORIGINS", "WEBAUTHN_LEGACY_RP_IDS", mode="before")
+    @field_validator(
+        "ALLOWED_HOSTS",
+        "FRONTEND_ORIGINS",
+        "WEBAUTHN_LEGACY_RP_IDS",
+        "ARTEMIS_ALLOWED_HOSTS",
+        mode="before",
+    )
     @classmethod
     def parse_cors_origins(cls, v: object) -> list[str]:
         if isinstance(v, str):

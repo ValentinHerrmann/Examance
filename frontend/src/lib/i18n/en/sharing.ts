@@ -50,6 +50,7 @@ export const sharing: Translations['sharing'] = {
         days: '{count} days',
         replaceNote: 'Students who already have a link get a new one; the old one stops working.',
         run: 'Share and create slips',
+        runDelivery: 'Continue to preview',
         compilingSolution: 'Compiling the sample solution …',
         includeSolution: 'Include the sample solution',
         includeSolutionHint: 'Students also see the exam’s sample solution on the same page.',
@@ -69,6 +70,23 @@ export const sharing: Translations['sharing'] = {
         slips: {
             label: 'Slips to hand out',
             description: 'A PDF with one slip per student: QR code and link to their exam.',
+        },
+        email: {
+            label: 'By e-mail',
+            description: 'Each student gets their link by e-mail. To open it they also need the key from their QR sticker or a code you hand out separately.',
+            missing: 'no e-mail address on file',
+            failed: '{name}: the e-mail could not be delivered.',
+            done: '{count} link(s) sent by e-mail.',
+        },
+        artemis: {
+            label: 'Through Artemis',
+            description: 'Examance sends each student in your Artemis course a direct message with the link or the graded exam as a PDF.',
+            missing: 'no Artemis id on the QR sticker',
+            setupMissing: 'Artemis course and token are missing.',
+            message: 'Your graded exam “{exam}” is ready. The link is valid until {date}:',
+            needsKey: 'To open it you also need your personal key or code.',
+            pdfMessage: 'Your graded exam “{exam}”:',
+            done: '{count} exam(s) sent through Artemis.',
         },
     },
     factor: {

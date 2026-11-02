@@ -42,6 +42,7 @@ export const admin: Translations['admin'] = {
         server_results: 'Student data and results on the server',
         server_latex: 'Compile LaTeX on the server',
         exercise_sharing: 'Share and copy exercises',
+        result_delivery: 'Send graded exams by e-mail and Artemis',
         exercisesAlways: 'Exams and exercises always live on the server.',
     },
     pending: {
@@ -72,6 +73,7 @@ export const admin: Translations['admin'] = {
         columnResults: 'Results on server',
         columnLatex: 'LaTeX on server',
         columnSharing: 'Exercise sharing',
+        columnDelivery: 'E-mail & Artemis',
         columnActions: 'Actions',
         statusActive: 'Active',
         statusInvited: 'Invited',

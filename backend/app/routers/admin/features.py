@@ -11,6 +11,7 @@ def features_of(row: Teacher | AllowedEmailDomain) -> AccountFeatures:
         server_results=row.allow_server_results,
         server_latex=row.allow_server_latex,
         exercise_sharing=row.allow_exercise_sharing,
+        result_delivery=row.allow_result_delivery,
     )
 
 
@@ -18,6 +19,7 @@ def apply_features(row: Teacher | AllowedEmailDomain, features: AccountFeatures)
     row.allow_server_results = features.server_results
     row.allow_server_latex = features.server_latex
     row.allow_exercise_sharing = features.exercise_sharing
+    row.allow_result_delivery = features.result_delivery
 
 
 def patch_features(row: Teacher | AllowedEmailDomain, change: AccountFeaturesUpdate) -> None:
@@ -28,3 +30,5 @@ def patch_features(row: Teacher | AllowedEmailDomain, change: AccountFeaturesUpd
         row.allow_server_latex = change.server_latex
     if change.exercise_sharing is not None:
         row.allow_exercise_sharing = change.exercise_sharing
+    if change.result_delivery is not None:
+        row.allow_result_delivery = change.result_delivery

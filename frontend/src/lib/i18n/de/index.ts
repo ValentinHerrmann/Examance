@@ -29,6 +29,7 @@ import { snippets } from './snippets';
 import { domainMove } from './domainMove';
 import { trash } from './trash';
 import { sharing } from './sharing';
+import { lms } from './lms';
 
 export const de = {
     common,
@@ -61,4 +62,5 @@ export const de = {
     domainMove,
     trash,
     sharing,
+    lms,
 } as const;

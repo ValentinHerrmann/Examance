@@ -237,7 +237,7 @@ Accounts come from an admin invitation, the CLI or bootstrap, or self-registrati
 | `registration_requests` | E-mail address in plaintext, SHA-256 of the 32-byte random token, expiry, last-sent time. One row per address, until the link is used, replaced or expired (`REGISTRATION_TOKEN_TTL_HOURS`, default 24). | Yes (address) |
 | `teachers.approved_at` | NULL = pending. No default, deliberately: a write path that forgets it fails closed. Migration `0028` backfilled existing accounts with `created_at`. | Account metadata |
 | `teachers.registration_note` | Optional free text (up to 500 characters) for the approving admin. Erased on approval; never stored for an allowlisted address; never put in a mail. | Yes (free text) |
-| `teachers.allow_server_results`, `allow_server_latex`, `allow_exercise_sharing` | The per-account feature switches (§5). | Account metadata |
+| `teachers.allow_server_results`, `allow_server_latex`, `allow_exercise_sharing`, `allow_result_delivery` | The per-account feature switches (§5). | Account metadata |
 | `allowed_email_domains` | The admin's always-allowed domains and their features. | No |
 
 Until the link is used no `teachers` row exists, so that table holds verified addresses only.
@@ -526,6 +526,16 @@ A teacher can hand each pupil their graded exam PDF through a personal link (`/r
 * **Retention.** The teacher picks 7, 14, 30 or 90 days (`RESULT_SHARE_EXPIRY_DAYS`, default 30 in the dialog, also shown by `GET /privacy/retention` as `result_share_max_days`). The retention job deletes expired shares and sweeps orphaned files. Revoking a link (one pupil, one link or all links of an exam) deletes the ciphertext at once. Deleting the exam or the pupil revokes the links, and deleting the account drops them with the cascade. Sharing a pupil again replaces the old link. Shares are **not** captured into the trash: a restored exam must not revive links.
 * **Recorded in:** [records of processing](records_of_processing_art30.md) and the [DPIA](dpia_art35.md) (risk R15).
 
+### Result delivery by e-mail and Artemis (issue #209)
+
+Two more ways to hand a pupil their result, behind the per-account switch `result_delivery` (off by default; `403 ERR_FEATURE_NOT_ALLOWED`). Full design: [dev/result_sharing.md](dev/result_sharing.md#delivery-channels).
+
+* **The link goes through the server, so it never opens alone.** E-mail and Artemis carry only the `sticker` and `code` factors: the server (and Artemis) see the link token, never the second secret, so they still cannot derive the content key.
+* **E-mail** (`POST /api/v1/integrations/mail/results`): the browser sends address, link and expiry; the server builds a fixed mail (no free text) and hands it to `SMTP_HOST`. Only this installation's `/result#…` links are accepted; at most 100 recipients per request, 20 requests per hour. Addresses and links are neither stored nor logged.
+* **Artemis** (`/api/v1/integrations/artemis/*`): a relay to the hosts in `ARTEMIS_ALLOWED_HOSTS`, calling four fixed endpoints (course students, direct chat, file upload, message) with the teacher's Artemis token as bearer. Token, ids, messages and files are passed through in memory and never stored or logged; upstream 401/403 become `400 ERR_ARTEMIS_AUTH`, so the app never mistakes them for its own session. In **PDF mode**, which the teacher chooses explicitly, the graded PDF crosses the server in plaintext and stays stored in Artemis; it is the one path on which a readable result passes the server, and the preview says so.
+* **Pupil e-mail addresses** are a sealed field of the student payload (`email`), encrypted like the name and following the account's storage mode.
+* **Mebis** has no network path: class lists are read from an exported CSV in the browser, and graded PDFs go back as a feedback ZIP in the readable export.
+
 ### Layout reports (issue #134)
 
 "Report layout problem" (exam preview, exercise editor) is a deliberate plaintext disclosure to the
@@ -635,6 +645,8 @@ An admin sets three switches per account (issues #53, #65), and all are enforced
   the app compiles in the browser.
 * `exercise_sharing`: sharing own exercises with, and browsing, copying and
   resyncing exercises from, other accounts (§3 "Exercise sharing").
+* `result_delivery` (off by default): sending result links by e-mail and results through
+  Artemis (§3 "Result delivery by e-mail and Artemis").
 
 Exams and exercises always live on the server and have no switch. An account whose
 stored mode is no longer allowed opens in `needs-choice`, and the choice moves its

@@ -192,6 +192,7 @@ export const grading: Translations['grading'] = {
             colNum: '#',
             colName: 'Student name',
             colNumber: 'Student ID / number',
+            colEmail: 'E-mail',
             colPseudonym: 'Pseudonym / code',
             colType: 'Type',
             colActions: 'Actions',

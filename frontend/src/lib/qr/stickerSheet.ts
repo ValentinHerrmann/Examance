@@ -16,7 +16,7 @@ import {
   type PdfLib,
 } from '#lib/pdf/labelKit';
 import { formatCode } from '#lib/sharing/shareCrypto';
-import { parseRosterLines } from '#lib/utils/rosterLines';
+import { contactsFromLines, type Contact } from '#lib/lms/contacts';
 import { formatStudentName, formatStudentQr } from '#lib/utils/studentQr';
 
 export interface StickerEntry {
@@ -47,14 +47,19 @@ const QR_SIZE = 2.6 * CM;
 const STRIP = 0.95 * CM;
 const QR_WITH_STRIP = 2.2 * CM;
 
-/** Entries from a pasted list: one student per line, `Lastname, Firstname` then an optional id, split on tab or `;`. A missing id becomes the stable `stickerId` of the name. */
-export async function entriesFromRoster(text: string): Promise<StickerEntry[]> {
+/** Entries from a class list (pasted, Mebis CSV or Artemis course; issue #209). A missing id becomes the stable `stickerId` of the name. */
+export async function entriesFromContacts(contacts: readonly Contact[]): Promise<StickerEntry[]> {
   const entries: StickerEntry[] = [];
-  for (const [name, id] of parseRosterLines(text, /[\t;]/)) {
+  for (const { name, id } of contacts) {
     if (!name) continue;
     entries.push({ label: formatStudentName(name), payload: formatStudentQr(name, id || (await stickerId(name))) });
   }
   return entries;
+}
+
+/** Entries from a pasted list: one student per line, `Lastname, Firstname` then an optional id, split on tab or `;`. */
+export async function entriesFromRoster(text: string): Promise<StickerEntry[]> {
+  return entriesFromContacts(contactsFromLines(text));
 }
 
 interface Cell {

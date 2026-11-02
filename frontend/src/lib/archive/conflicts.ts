@@ -147,7 +147,7 @@ const SPECS: KindSpec[] = [
     // Archived identity (per exam since issue #177); matched on the keyed value below.
     id: (r) => `${r.examId}:${archivedPseudonym(r).value}`,
     title: (r) => r.studentName || r.fallbackCode || archivedPseudonym(r).value.slice(0, 8),
-    fields: props('studentName', 'studentNumber', 'fallbackCode'),
+    fields: props('studentName', 'studentNumber', 'email', 'fallbackCode'),
     allowCopy: false,
     allowTake: true,
     existing: (rows, key, own) => perExam(rows, own, (id) => studentRepository.getByExamId(id, key)),

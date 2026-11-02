@@ -98,6 +98,7 @@ export const studentRepository = {
                 ...existing,
                 studentName: st.studentName || existing.studentName,
                 studentNumber: st.studentNumber || existing.studentNumber,
+                email: st.email || existing.email,
                 fallbackCode: st.fallbackCode || existing.fallbackCode,
                 pseudonymRaw: st.pseudonymRaw || existing.pseudonymRaw,
               }

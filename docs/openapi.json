@@ -7876,6 +7876,246 @@
         }
       }
     },
+    "/api/v1/integrations/artemis/students": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Artemis Students",
+        "description": "The students of an Artemis course, for matching them to exam students.",
+        "operationId": "artemis_students_api_v1_integrations_artemis_students_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtemisCourse"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtemisStudents"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/artemis/messages": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Artemis Message",
+        "description": "Send a text message to one student in a one-to-one Artemis chat.",
+        "operationId": "artemis_message_api_v1_integrations_artemis_messages_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtemisMessage"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/artemis/files": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Artemis File",
+        "description": "Upload a graded PDF into a one-to-one Artemis chat. Held in memory only, never stored.",
+        "operationId": "artemis_file_api_v1_integrations_artemis_files_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_artemis_file_api_v1_integrations_artemis_files_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/mail/results": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Mail Results",
+        "description": "Mail each student the link to their sealed result. The key or code is never part of the mail.",
+        "operationId": "mail_results_api_v1_integrations_mail_results_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultMails"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultMailsSent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/maintenance": {
       "get": {
         "tags": [
@@ -8455,12 +8695,17 @@
             "type": "boolean",
             "title": "Exercise Sharing",
             "default": true
+          },
+          "result_delivery": {
+            "type": "boolean",
+            "title": "Result Delivery",
+            "default": false
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "AccountFeatures",
-        "description": "The per-account admin switches (app/services/capabilities.py): server_results (\"all-server\" allowed), server_latex (server-side compile), exercise_sharing (sharing/copying, issue #65)."
+        "description": "The per-account admin switches (app/services/capabilities.py): server_results (\"all-server\" allowed), server_latex (server-side compile), exercise_sharing (sharing/copying, issue #65), result_delivery (Artemis / e-mail delivery, issue #209)."
       },
       "AccountFeaturesUpdate": {
         "properties": {
@@ -8496,6 +8741,17 @@
               }
             ],
             "title": "Exercise Sharing"
+          },
+          "result_delivery": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Delivery"
           }
         },
         "additionalProperties": false,
@@ -8919,6 +9175,133 @@
         ],
         "title": "AllowedDomainResponse"
       },
+      "ArtemisCourse": {
+        "properties": {
+          "host": {
+            "type": "string",
+            "maxLength": 253,
+            "minLength": 1,
+            "title": "Host"
+          },
+          "course_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Course Id"
+          },
+          "jwt": {
+            "type": "string",
+            "maxLength": 8192,
+            "minLength": 1,
+            "title": "Jwt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "host",
+          "course_id",
+          "jwt"
+        ],
+        "title": "ArtemisCourse"
+      },
+      "ArtemisMessage": {
+        "properties": {
+          "host": {
+            "type": "string",
+            "maxLength": 253,
+            "minLength": 1,
+            "title": "Host"
+          },
+          "course_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Course Id"
+          },
+          "jwt": {
+            "type": "string",
+            "maxLength": 8192,
+            "minLength": 1,
+            "title": "Jwt"
+          },
+          "user_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "User Id"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "host",
+          "course_id",
+          "jwt",
+          "user_id",
+          "content"
+        ],
+        "title": "ArtemisMessage"
+      },
+      "ArtemisStudent": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "login": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Login"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "login",
+          "email"
+        ],
+        "title": "ArtemisStudent"
+      },
+      "ArtemisStudents": {
+        "properties": {
+          "students": {
+            "items": {
+              "$ref": "#/components/schemas/ArtemisStudent"
+            },
+            "type": "array",
+            "title": "Students"
+          }
+        },
+        "type": "object",
+        "required": [
+          "students"
+        ],
+        "title": "ArtemisStudents"
+      },
       "AuditLogResponse": {
         "properties": {
           "id": {
@@ -9094,6 +9477,58 @@
           "code"
         ],
         "title": "BackupCodeRequest"
+      },
+      "Body_artemis_file_api_v1_integrations_artemis_files_post": {
+        "properties": {
+          "host": {
+            "type": "string",
+            "maxLength": 253,
+            "minLength": 1,
+            "title": "Host"
+          },
+          "course_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Course Id"
+          },
+          "jwt": {
+            "type": "string",
+            "maxLength": 8192,
+            "minLength": 1,
+            "title": "Jwt"
+          },
+          "user_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "User Id"
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "host",
+          "course_id",
+          "jwt",
+          "user_id",
+          "file"
+        ],
+        "title": "Body_artemis_file_api_v1_integrations_artemis_files_post"
       },
       "BulkSharingResult": {
         "properties": {
@@ -12776,6 +13211,17 @@
         ],
         "title": "MfaStatusResponse"
       },
+      "Ok": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "Ok"
+      },
       "OmrSampleBatch": {
         "properties": {
           "samples": {
@@ -13360,6 +13806,86 @@
           "token"
         ],
         "title": "ResetTokenRequest"
+      },
+      "ResultMails": {
+        "properties": {
+          "exam_title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Exam Title"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "de",
+              "en"
+            ],
+            "title": "Locale"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/ResultRecipient"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Recipients"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exam_title",
+          "locale",
+          "recipients"
+        ],
+        "title": "ResultMails"
+      },
+      "ResultMailsSent": {
+        "properties": {
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          },
+          "failed": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sent",
+          "failed"
+        ],
+        "title": "ResultMailsSent"
+      },
+      "ResultRecipient": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "url",
+          "expires_at"
+        ],
+        "title": "ResultRecipient"
       },
       "ResultShareContent": {
         "properties": {
