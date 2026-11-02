@@ -29,7 +29,7 @@ A personal key is only needed if you later protect result links with it, see [Li
 
 ## Share graded exams with students {#share-results}
 
-After grading, **Share with students** on the exam page gives each student their graded PDF, with your annotations and score.
+After grading, **Share with students** on the exam page gives each student their graded PDF, with your annotations and score, and their name printed in red at the top of every page.
 
 1. **Choose students.** Students with a grading are preselected.
 2. **Choose the way.** Today this is **Slips to hand out**: a PDF with one slip per student, showing a QR code and the link.

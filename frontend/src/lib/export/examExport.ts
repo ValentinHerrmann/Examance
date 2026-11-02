@@ -219,7 +219,7 @@ export async function forEachGradedPdf(
         warnings.push(translate('export.exam.warnings.noScan', { name }));
         continue;
       }
-      const pdf = await renderGradedPdf(full, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes }); // NOSONAR: one scan at a time keeps memory bounded
+      const pdf = await renderGradedPdf(full, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes, studentName: row?.studentName }); // NOSONAR: one scan at a time keeps memory bounded
       await onPdf(pdf, row, gradingState(resultBySubmission.get(sub.id)), name);
     } catch (err) {
       warnings.push(translate('export.exam.warnings.gradedOne', { name, error: errorText(err) }));
