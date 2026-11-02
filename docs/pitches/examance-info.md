@@ -4,7 +4,7 @@ theme: examance
 paginate: true
 size: 16:9
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Funktionsweise, Datenschutz und Sicherheit</em>'
-footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfläche mit Demodaten · Diagramme: vereinfacht, Details in docs/data_flow_and_security.md'
+footer: 'Examance 0.5 (Beta) · Stand November 2026 · Screenshots: echte Oberfläche mit Demodaten · Diagramme: vereinfacht, Details in docs/data_flow_and_security.md'
 ---
 
 <!-- _class: title -->
@@ -32,7 +32,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 <div class="card">
 <h3>Ein Werkzeug für Prüfungen auf Papier</h3>
 <dl class="facts">
-<dt>Version</dt><dd>0.4, Beta – für einen begrenzten, begleiteten Einsatz</dd>
+<dt>Version</dt><dd>0.5, Beta – für einen begrenzten, begleiteten Einsatz</dd>
 <dt>Lizenz</dt><dd>MIT, Quellcode vollständig einsehbar, selbst betreibbar</dd>
 <dt>Frontend</dt><dd>SvelteKit / Svelte 5, läuft komplett im Browser</dd>
 <dt>Backend</dt><dd>FastAPI, PostgreSQL, Redis, Docker</dd>
@@ -84,10 +84,10 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 <figure class="shot"><img src="../screenshots/pitch/tour/t-exam-builder.jpg"><figcaption>Aufgaben und Varianten anhaken</figcaption></figure>
 </div>
 <ul class="small" style="columns: 2; column-gap: 24px; margin-top: 14px">
-<li>MC: Einfach- oder Mehrfachauswahl, Punktabzug für falsche Kreuze, nie unter null; auf Wunsch zeigt eine Zeile an jeder Aufgabe, wie man ein Kreuz zurücknimmt und neu setzt.</li>
+<li>MC: eine oder mehrere richtige Optionen, Punktabzug für falsche Kreuze, nie unter null; auf Wunsch zeigt eine Zeile an jeder Aufgabe, wie man ein Kreuz zurücknimmt und neu setzt.</li>
 <li>Klausur: Kopf mit Fach, Klasse, Datum, Schullogo; Notenschlüssel linear, Oberstufe oder eigene Grenzen.</li>
 <li>Prüfung und Lösungsblatt werden gemeinsam gesetzt, mit QR-Code und Passmarken.</li>
-<li>Satz standardmäßig <strong>im Browser</strong>; auf dem Server nur, wenn die Administration es für das Konto erlaubt.</li>
+<li>Satz standardmäßig <strong>auf dem Server</strong> (Tectonic), wenn die Administration es für das Konto erlaubt, sonst im Browser (XeLaTeX als WebAssembly).</li>
 </ul>
 
 ---
@@ -121,7 +121,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 
 <figure class="shot h300 bottom"><img src="../screenshots/pitch/05-scan-import.jpg"><figcaption>Nach dem Einlesen: jede Abgabe nur mit Pseudonym-Code</figcaption></figure>
 <ul class="small">
-<li>Der QR-Code trägt Pseudonym, Variante und Ersatzcode – keinen Namen. Unlesbare Codes landen in einer Prüfliste.</li>
+<li>Statt des Namens klebt der QR-Aufkleber der Schule im Feld auf dem Deckblatt. Der Browser macht daraus ein Pseudonym je Klausur; nur das erreicht den Server. Nicht zugeordnete Abgaben verknüpft man per Code, zusammengerutschte trennt man.</li>
 <li>Vier Passmarken pro Seite; die Lage der Kästchen stammt aus einem leeren Satz der Klausur. Darüber füllt Examance beim Korrigieren auch die gedruckten Punktekästchen und die Tabelle am Ende aus.</li>
 </ul>
 </div>
@@ -167,7 +167,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 <ul class="small">
 <li>Notenspiegel, Grenzfälle, Aufgabenqualität über Jahre.</li>
 <li><strong>Variantenvergleich</strong>: ab 15 Prozentpunkten Differenz markiert.</li>
-<li>Klassenstatistik erst ab fünf Abgaben (k-Anonymität).</li>
+<li>Statistik und Grenzfälle bleiben anonym; Namen erscheinen erst in Notenliste und Export.</li>
 </ul>
 </div>
 <figure class="shot"><img src="../screenshots/pitch/09b-variant-comparison.jpg"><figcaption>Variantenvergleich aus den Demodaten: Gruppe B fiel 24 Prozentpunkte schwächer aus</figcaption></figure>
@@ -197,7 +197,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 
 <span class="kicker">Verschlüsselung</span>
 
-# Zufälliger Datenschlüssel, je Faktor verpackt
+# Ein Datenschlüssel, je Faktor verpackt
 
 <figure class="diagram"><img src="diagrams/key-hierarchy.svg"></figure>
 
@@ -208,9 +208,9 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 # Warum die Hierarchie so aussieht
 
 <div class="cols3" style="margin-top:8px">
-<div class="card"><h3>Passwort-Reset ohne Datenverlust</h3><p>Der Wiederherstellungscode packt denselben Datenschlüssel neu; nichts wird neu verschlüsselt.</p></div>
+<div class="card"><h3>Passwort-Reset ohne Datenverlust</h3><p>Beim Zurücksetzen packt der Wiederherstellungscode denselben Datenschlüssel neu; Passkey-Verpackungen bleiben gültig, nichts wird neu verschlüsselt.</p></div>
 <div class="card"><h3>Kein stiller Austausch</h3><p>Jede Verpackung ist an Konto, Faktor und Schlüsselgeneration gebunden; der Browser merkt sich einen Fingerabdruck des Satzes und lehnt einen fremden ab.</p></div>
-<div class="card"><h3>Admin ist keine Hintertür</h3><p>Ein Admin-Reset des Passworts macht dessen Verpackung ungültig; ohne Wiederherstellungscode bleiben die Daten verschlossen.</p></div>
+<div class="card"><h3>Admin ist keine Hintertür</h3><p>Ein Admin kann einen Reset-Link schicken und Faktoren zurücksetzen, aber keinen Schlüssel neu verpacken; ohne Faktor der Lehrkraft bleiben die Daten verschlossen.</p></div>
 <div class="card"><h3>Gesperrter Tab ist leer</h3><p>Bei Sperre oder 60 Minuten Inaktivität werden Schlüssel gelöscht; im Server-Modus auch der lokale Zwischenspeicher.</p></div>
 <div class="card"><h3>Ein Ausweichverfahren</h3><p>Fehlt Argon2 als WebAssembly, greift PBKDF2-HMAC-SHA-256 mit 600 000 Iterationen (OWASP 2024).</p></div>
 <div class="card"><h3>Standardbausteine</h3><p>Web Crypto API für AES-GCM und HKDF, Zufall aus <code>crypto.getRandomValues</code>, <code>py_webauthn</code> für Passkeys.</p></div>
@@ -325,7 +325,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 <div class="card"><h3>Löschen mit Frist</h3><p>Vom Server gelöschte Ergebnisse bleiben 7 Tage (einstellbar) verschlüsselt wiederherstellbar, bevor der Server sie endgültig entfernt.</p></div>
 </div>
 <div class="stack">
-<div class="card"><h3>TOTP nicht Zero-Knowledge</h3><p>Der Server muss den Code berechnen; die Geheimnisse liegen mit einem Serverschlüssel verschlüsselt.</p></div>
+<div class="card"><h3>Passwort und TOTP nicht Zero-Knowledge</h3><p>Das Passwort erreicht beim Anmelden den Server (gespeichert nur als Argon2id-Hash); für TOTP liegt das Geheimnis mit einem Serverschlüssel verschlüsselt.</p></div>
 <div class="card"><h3>Hybrid heißt: ein Browser</h3><p>Ergebnisse liegen nur dort. Sicherung über ein verschlüsseltes Archiv.</p></div>
 <div class="card"><h3>Lokaler LaTeX-Satz</h3><p>Der erste Lauf lädt die Engine nach. In Einzelfällen setzt die WASM-Engine Inhalte unvollständig, die auf dem Server korrekt erscheinen – Ursache offen.</p></div>
 </div>

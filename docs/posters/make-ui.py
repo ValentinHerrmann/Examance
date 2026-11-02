@@ -11,7 +11,7 @@ P = "../screenshots/pitch/"
 URL = "examance.de"
 S = {
     "library": ("02-library.jpg", "Aufgabenbibliothek", "Nach Klasse, Fach und Thema filtern; Varianten und Versionen je Aufgabe", "einmal schreiben, immer wieder nutzen"),
-    "editor": ("tour/t-exercise-editor.jpg", "LaTeX-Aufgabeneditor", "Bausteine per Klick, Live-Vorschau; jedes \\BE ist ein Punkt, \\hBE ein halber", "Punktzahl rechnet sich selbst"),
+    "editor": ("tour/t-exercise-editor.jpg", "LaTeX-Aufgabeneditor", "Bausteine per Klick, PDF-Vorschau; \\BE ist ein Punkt, \\hBE ein halber, \\qBE ein viertel", "Punktzahl rechnet sich selbst"),
     "mc": ("tour/t-mc-editor.jpg", "Multiple Choice", "Optionen eintippen, richtige anhaken, Punktabzug wählen", "Kreuze werden später automatisch gelesen"),
     "builder": ("tour/t-exam-builder.jpg", "Klausur zusammenstellen", "Aufgaben und Varianten anhaken", "in Minuten statt Stunden"),
     "setup": ("tour/t-exam-setup.jpg", "Fertige Klausur", "Prüfung und Erwartungshorizont; jeder Haken zeigt, welcher Teil welchen Punkt bringt", "sofort druckbar, auch für Papierkorrektur"),
@@ -173,12 +173,12 @@ def fig(k, col=False):
 
 
 PRIVACY = [
-    ("Ende-zu-Ende verschlüsselt", "Namen, Scans, Punkte und Anmerkungen werden im Browser mit AES-256-GCM verschlüsselt, bevor sie gespeichert werden."),
-    ("Schlüssel bleibt bei Ihnen", "Ein zufälliger 256-Bit-Schlüssel, freigeschaltet durch Ihr Passwort (Argon2id) oder Ihren Passkey. Er verlässt Ihr Gerät nie."),
-    ("Server sieht nur Chiffretext", "Auch die Administration kann keine Noten oder Namen lesen; sie verwaltet nur Konten."),
-    ("Anonym von Anfang an", "Bögen tragen ein Pseudonym im QR-Code; Namen erscheinen erst nach der Korrektur, entschlüsselt auf Ihrem Gerät."),
+    ("Ende-zu-Ende verschlüsselt", "Namen, Scans, Einzelpunkte und Anmerkungen werden im Browser mit AES-256-GCM verschlüsselt, bevor sie gespeichert werden."),
+    ("Schlüssel bleibt bei Ihnen", "Ein 256-Bit-Schlüssel, freigeschaltet durch Ihr Passwort (Argon2id), Ihren Passkey oder den Wiederherstellungscode. Unverpackt verlässt er Ihr Gerät nie."),
+    ("Server sieht keine Schülerdaten", "Lesbar sind nur Aufgaben, Klausurdaten und die pseudonyme Gesamtpunktzahl. Die Administration verwaltet nur Konten."),
+    ("Anonym korrigieren", "Ein QR-Aufkleber ersetzt den Namen; Ihr Browser macht daraus ein Pseudonym je Klausur. Namen sehen Sie erst in Notenliste und Export."),
     ("Sie wählen den Speicherort", "Ergebnisse verschlüsselt auf dem Schulserver oder nur in diesem Browser."),
-    ("Zwei Faktoren", "Anmeldung mit Passwort plus Authenticator-App oder Passkey."),
+    ("Zwei Faktoren", "Passkey allein oder zwei von drei: Passwort, Authenticator-App, Passkey."),
 ]
 
 
@@ -212,7 +212,7 @@ theme: examance-poster
 size: a3
 paginate: false
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
-footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
+footer: 'Examance 0.5 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 """
 PART1 = ["library", "editor", "mc", "builder", "setup", "variantdiff", "proposal", "shared"]
@@ -229,7 +229,7 @@ theme: examance
 paginate: true
 size: 16:9
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
-footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
+footer: 'Examance 0.5 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 """
 
@@ -257,7 +257,7 @@ deck = (DECK_FM + f"""
 
 # Klausuren schreiben, setzen, fair bewerten.
 
-<p class="lead">Aufgabenbibliothek, Klausursatz und Notenbuch in einem – im Browser, mit verschlüsselten Schülerdaten.</p>
+<p class="lead">Aufgabenbibliothek, Klausursatz und anonyme Korrektur in einem – im Browser, mit verschlüsselten Schülerdaten.</p>
 </div>
 <figure class="shot"><img src="{P}{S['setup'][0]}"><figcaption>Fertige Klausur mit Erwartungshorizont</figcaption></figure>
 </div>

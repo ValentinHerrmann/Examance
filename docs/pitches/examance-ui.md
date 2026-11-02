@@ -4,7 +4,7 @@ theme: examance
 paginate: true
 size: 16:9
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· examance.de</em>'
-footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
+footer: 'Examance 0.5 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 
 <!-- _class: title -->
@@ -17,7 +17,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Dem
 
 # Klausuren schreiben, setzen, fair bewerten.
 
-<p class="lead">Aufgabenbibliothek, Klausursatz und Notenbuch in einem – im Browser, mit verschlüsselten Schülerdaten.</p>
+<p class="lead">Aufgabenbibliothek, Klausursatz und anonyme Korrektur in einem – im Browser, mit verschlüsselten Schülerdaten.</p>
 </div>
 <figure class="shot"><img src="../screenshots/pitch/tour/t-exam-setup.jpg"><figcaption>Fertige Klausur mit Erwartungshorizont</figcaption></figure>
 </div>
@@ -50,7 +50,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Dem
 
 ## LaTeX-Aufgabeneditor
 
-<figure><img src="../screenshots/pitch/tour/t-exercise-editor.jpg"><figcaption>Bausteine per Klick, Live-Vorschau; jedes \BE ist ein Punkt, \hBE ein halber – <em>Punktzahl rechnet sich selbst</em></figcaption></figure>
+<figure><img src="../screenshots/pitch/tour/t-exercise-editor.jpg"><figcaption>Bausteine per Klick, PDF-Vorschau; \BE ist ein Punkt, \hBE ein halber, \qBE ein viertel – <em>Punktzahl rechnet sich selbst</em></figcaption></figure>
 
 ---
 
@@ -190,6 +190,6 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Dem
 
 # Schülerdaten sind nur mit Ihrem Schlüssel lesbar.
 
-<div class="cols3" style="margin-top:10px"><div class="card ok"><h3>Ende-zu-Ende verschlüsselt</h3><p class="small" style="margin:0">Namen, Scans, Punkte und Anmerkungen werden im Browser mit AES-256-GCM verschlüsselt, bevor sie gespeichert werden.</p></div><div class="card ok"><h3>Schlüssel bleibt bei Ihnen</h3><p class="small" style="margin:0">Ein zufälliger 256-Bit-Schlüssel, freigeschaltet durch Ihr Passwort (Argon2id) oder Ihren Passkey. Er verlässt Ihr Gerät nie.</p></div><div class="card ok"><h3>Server sieht nur Chiffretext</h3><p class="small" style="margin:0">Auch die Administration kann keine Noten oder Namen lesen; sie verwaltet nur Konten.</p></div><div class="card ok"><h3>Anonym von Anfang an</h3><p class="small" style="margin:0">Bögen tragen ein Pseudonym im QR-Code; Namen erscheinen erst nach der Korrektur, entschlüsselt auf Ihrem Gerät.</p></div><div class="card ok"><h3>Sie wählen den Speicherort</h3><p class="small" style="margin:0">Ergebnisse verschlüsselt auf dem Schulserver oder nur in diesem Browser.</p></div><div class="card ok"><h3>Zwei Faktoren</h3><p class="small" style="margin:0">Anmeldung mit Passwort plus Authenticator-App oder Passkey.</p></div></div>
+<div class="cols3" style="margin-top:10px"><div class="card ok"><h3>Ende-zu-Ende verschlüsselt</h3><p class="small" style="margin:0">Namen, Scans, Einzelpunkte und Anmerkungen werden im Browser mit AES-256-GCM verschlüsselt, bevor sie gespeichert werden.</p></div><div class="card ok"><h3>Schlüssel bleibt bei Ihnen</h3><p class="small" style="margin:0">Ein 256-Bit-Schlüssel, freigeschaltet durch Ihr Passwort (Argon2id), Ihren Passkey oder den Wiederherstellungscode. Unverpackt verlässt er Ihr Gerät nie.</p></div><div class="card ok"><h3>Server sieht keine Schülerdaten</h3><p class="small" style="margin:0">Lesbar sind nur Aufgaben, Klausurdaten und die pseudonyme Gesamtpunktzahl. Die Administration verwaltet nur Konten.</p></div><div class="card ok"><h3>Anonym korrigieren</h3><p class="small" style="margin:0">Ein QR-Aufkleber ersetzt den Namen; Ihr Browser macht daraus ein Pseudonym je Klausur. Namen sehen Sie erst in Notenliste und Export.</p></div><div class="card ok"><h3>Sie wählen den Speicherort</h3><p class="small" style="margin:0">Ergebnisse verschlüsselt auf dem Schulserver oder nur in diesem Browser.</p></div><div class="card ok"><h3>Zwei Faktoren</h3><p class="small" style="margin:0">Passkey allein oder zwei von drei: Passwort, Authenticator-App, Passkey.</p></div></div>
 
 <p class="lead" style="margin-top:18px">Ausprobieren: <strong>examance.de</strong> · Details zu Technik und Datenschutz in der Informationspräsentation.</p>
