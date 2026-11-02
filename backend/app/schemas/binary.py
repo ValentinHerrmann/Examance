@@ -27,3 +27,9 @@ def decode_b64(value: str, field: str, *, expected_len: int | None = None) -> by
             detail=f"Field '{field}' must decode to exactly {expected_len} bytes.",
         )
     return decoded
+
+
+def decode_credential_id(value: str, field: str) -> bytes:
+    """Decode a WebAuthn credential ID sent as standard or URL-safe base64, padded or not (the passkey list and `rawId` use base64url); other characters still fail strictly."""
+    normalized = value.replace("-", "+").replace("_", "/")
+    return decode_b64(normalized + "=" * (-len(normalized) % 4), field)

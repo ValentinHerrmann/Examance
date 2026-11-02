@@ -41,6 +41,7 @@ Background: `docs/data_flow_and_security.md`. Any change here touches auth/crypt
 - A PRF passkey that signs in but cannot open the vault is **healed**: once the vault opens by password/recovery, `finishUnlock` writes a fresh wrap for it (`passkeyToHeal`). `EnvelopeChangedError` is never healed; it is the envelope-substitution alarm. Registration only wraps when the follow-up assertion's `rawId` matches the new credential.
 - "Passkey opens data" = a non-invalidated passkey envelope exists (`passkeyWrapIds`), **never** `supports_prf` (a registration-time guess). Settings' "enable data access" (`enablePasskeyUnlock`) wraps from the open session, ceremony pinned via `allowCredentials`. Passkeys stored in Bitwarden had no PRF as of 2026; they sign in but cannot open data (verify before relying on this).
 - Any server-side password write (admin reset, `cli.py set-password`, completing a reset) must call `invalidate_password_wrap`. The server cannot re-wrap a key it has never seen; marking the wrap stale sends the teacher to the recovery code instead of a vault of blank fields.
+- Credential IDs arrive as standard or base64url (the passkey list and `rawId` use base64url): decode them only with `schemas/binary.decode_credential_id` and compare decoded bytes, never strings.
 - `encryption_salt_b64` on student uploads carries the **`key_id`**, not a salt. The name is historical.
 
 ## Exercise sharing (issue #65)
