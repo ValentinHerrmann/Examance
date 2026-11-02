@@ -430,7 +430,7 @@
       if (!sub) throw new Error("Scan data not found");
       const scores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
 
-      const bytes = await renderGradedPdf(sub, scores, key, { fallbackKey: fallbackSessionKey });
+      const bytes = await renderGradedPdf(sub, scores, key, { fallbackKey: fallbackSessionKey, studentName: item.studentName });
       downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${item.fallbackCode || item.id}_graded.pdf`);
     } catch (err: any) {
       alert(translate("scanning.errorExportPdf", { message: err?.message || err }));

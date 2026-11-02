@@ -29,7 +29,7 @@ Ein persönlicher Schlüssel wird nur gebraucht, wenn Sie Ergebnis-Links später
 
 ## Korrigierte Prüfungen mit Schülern teilen {#share-results}
 
-Nach der Korrektur gibt **Mit Schülern teilen** auf der Prüfungsseite jeder Schülerin und jedem Schüler das korrigierte PDF, mit Ihren Anmerkungen und der Punktzahl.
+Nach der Korrektur gibt **Mit Schülern teilen** auf der Prüfungsseite jeder Schülerin und jedem Schüler das korrigierte PDF, mit Ihren Anmerkungen, der Punktzahl und dem Namen in Rot oben auf jeder Seite.
 
 1. **Schüler auswählen.** Schüler mit einer Korrektur sind vorausgewählt.
 2. **Weg wählen.** Derzeit gibt es **Zettel zum Austeilen** (**Weg zu den Schülern**): ein PDF mit einem Zettel pro Person, auf dem ein QR-Code und der Link stehen.
