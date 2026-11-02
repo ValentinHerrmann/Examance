@@ -27,6 +27,7 @@ import { maintenance } from './maintenance';
 import { layoutReport } from './layoutReport';
 import { snippets } from './snippets';
 import { domainMove } from './domainMove';
+import { trash } from './trash';
 
 export const de = {
     common,
@@ -57,4 +58,5 @@ export const de = {
     layoutReport,
     snippets,
     domainMove,
+    trash,
 } as const;

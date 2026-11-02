@@ -117,7 +117,9 @@ async def test_erasing_a_student_removes_the_scan_files_of_their_submissions(
         assert sub.status_code == 201, sub.text
     assert len(list(blob_store.iter_refs("scans"))) == 2
 
-    erased = await client.delete(f"/api/v1/exams/{exam_id}/students/{'d' * 64}")
+    erased = await client.delete(
+        f"/api/v1/exams/{exam_id}/students/{'d' * 64}", params={"permanent": "true"}
+    )
     assert erased.status_code == 204, erased.text
 
     # The FK cascade drops the row, not the file: only the other student's scan may remain.

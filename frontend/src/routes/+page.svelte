@@ -16,6 +16,7 @@
   import { submissionRepository } from '#lib/repositories/submissionRepository';
   import { goto } from '$app/navigation';
   import { t, translate } from '#lib/i18n';
+  import { TRASH_DAYS } from '#lib/trash/localTrash';
   import { loadSyncedExams } from '#lib/services/examSync';
   import { computeExamStats } from '#lib/utils/examStats';
   import { createExpandSet } from '#lib/utils/expandSet';
@@ -214,8 +215,8 @@
     if (!expiredExam) return;
     const examId = expiredExam.exam.id;
 
-    // Shared cascade so no owned table is missed.
-    await examRepository.deleteLocalCascade(examId);
+    // Shared cascade so no owned table is missed. Expiry, not a teacher's delete: no trash entry.
+    await examRepository.deleteLocalCascade(examId, { permanent: true });
     expiredExam = null;
     await refreshExams();
   }
@@ -424,6 +425,7 @@
   usageText={deletingExam && deletingExam.submissionCount > 0 ? $t('dashboard.deleteModal.usageInfo', { count: deletingExam.submissionCount }) : ''}
   usageHint={$t('dashboard.deleteModal.usageWarning')}
   plainText={$t('dashboard.deleteModal.confirmPlain')}
+  restoreHint={$t('common.trashHint', { days: TRASH_DAYS })}
   busy={isDeleting}
   error={deleteError}
   onConfirm={handleConfirmDeleteExam}

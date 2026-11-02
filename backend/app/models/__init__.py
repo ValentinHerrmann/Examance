@@ -22,6 +22,7 @@ from app.models.registration_request import RegistrationRequest
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
+from app.models.trash_item import TrashItem
 from app.models.webauthn_credential import WebAuthnCredential
 
 __all__ = [
@@ -53,4 +54,5 @@ __all__ = [
     "MaintenanceWindow",
     "LayoutReport",
     "LayoutReportFile",
+    "TrashItem",
 ]

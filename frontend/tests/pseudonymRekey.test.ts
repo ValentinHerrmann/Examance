@@ -104,5 +104,18 @@ describe('runPseudonymRekey', () => {
       expect(fakeServer.state.submissions.get(EXAM)?.map((r: any) => r.pseudonym_hmac)).toEqual([keyed]);
       expect(get(offlineQueue).map((q) => q.url)).toEqual([`/exams/${EXAM}/students/${keyed}`]);
     });
+
+    it('keeps the query of a queued permanent erasure when rewriting it', async () => {
+      const base = await pseudonymBase('erased-student');
+      fakeServer.state.exams.set(EXAM, { id: EXAM, title: 'Server', created_at: '' });
+      fakeServer.state.students.set(EXAM, [{ pseudonym_hmac: base, exam_id: EXAM }]);
+      // Issue #125: the GDPR erasure skips the trash with ?permanent=true; a rewrite that dropped it would trash the student instead.
+      offlineQueue.set([{ id: 'q1', url: `/exams/${EXAM}/students/${base}?permanent=true`, method: 'DELETE', timestamp: 1 }]);
+
+      expect(await runPseudonymRekey()).toBe(true);
+
+      const keyed = await keyFromRaw(EXAM, base);
+      expect(get(offlineQueue).map((q) => q.url)).toEqual([`/exams/${EXAM}/students/${keyed}?permanent=true`]);
+    });
   });
 });

@@ -65,7 +65,7 @@ export const scanning = {
     examContextNotFound: 'Prüfungsdaten konnten nicht geladen werden.',
     confirmDeleteScan: 'Möchten Sie diese Scan-Abgabe wirklich löschen?',
     confirmDeleteGrading: 'Möchten Sie die Bewertung für diese Abgabe wirklich löschen? Dadurch werden alle Anmerkungen und die Punktzahl gelöscht.',
-    confirmDeleteAllScans: 'Möchten Sie wirklich ALLE {count} eingelesenen Scan(s) für diese Prüfung löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+    confirmDeleteAllScans: 'Möchten Sie wirklich ALLE {count} eingelesenen Scan(s) für diese Prüfung löschen?',
     errorDeleteScan: 'Scan konnte nicht gelöscht werden: {message}',
     errorDeleteGrading: 'Bewertung konnte nicht gelöscht werden: {message}',
     errorLoadSubmissions: 'Die Abgaben konnten nicht geladen werden: {message}',

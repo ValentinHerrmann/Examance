@@ -87,8 +87,8 @@ export const help: Translations['help'] = {
                 p1: 'A browser’s storage always belongs to exactly one account on one server. If it holds data of another account, from earlier hybrid use or from the former purely local mode, a notice explains what to do.',
             },
             s5: {
-                h: 'Restoring deleted results',
-                p1: 'Results deleted from the server (single submissions, or the server copy deleted when you switched to “Hybrid”) come back from the settings while their grace period runs. Deleted exams and students erased under the GDPR do not come back.',
+                h: 'Getting deleted data back',
+                p1: 'Whatever you delete spends 7 days in the trash (account menu), where you can restore it. The server copy left behind by a switch to “Hybrid” is removed after 7 days and cannot be brought back from the app.',
             },
         },
         exercises: {
@@ -129,7 +129,7 @@ export const help: Translations['help'] = {
             },
             s9: {
                 h: 'Proposing changes to the original',
-                p1: '“Propose to original…” suggests your improvement to the person who shares the exercise. They review it under “Proposals”, can edit it, and accept or reject it; accepting always adds a new version or variant.',
+                p1: '“Propose to original…” suggests your improvement to the person who shares the exercise. They review it under “Proposals”, can edit it, and accept or reject it; accepting always adds a new version or variant. A rejected or withdrawn proposal stays in the trash for 7 days.',
             },
             s10: {
                 h: 'Exporting (ZIP)',
@@ -250,6 +250,28 @@ export const help: Translations['help'] = {
                 p1: 'For exercises with variants it compares whether one phrasing was systematically harder than the other. That is the basis for reworking an unfair variant.',
             },
         },
+        trash: {
+            title: 'Trash',
+            summary: 'Get back anything deleted by mistake for 7 days.',
+            s1: {
+                h: 'What goes to the trash',
+                p1: 'Almost everything you delete first spends 7 days in the trash: exams with their results, exercises of the library (also single versions) and their resource files, logos you remove or reset, single students, scans and submissions, scores, cleared gradings and annotations, exercises removed from an exam, and rejected or withdrawn proposals for shared exercises. Whatever you delete in one go shows up as one entry.',
+                p2: 'Open the trash from the account menu next to the settings, or from the navigation menu on small screens.',
+            },
+            s2: {
+                h: 'Restore or delete permanently',
+                p1: '“Restore” brings back what is missing. It never overwrites anything you have now: if you created the same thing again in the meantime, the current version stays. When something could not come back, such as a scan whose exam no longer exists, the page tells you what and why. “Delete permanently” removes an entry at once, scans included; without it, the entry disappears by itself after 7 days.',
+            },
+            s3: {
+                h: 'Hybrid mode',
+                p1: 'In hybrid mode your results live only in this browser, and so does their trash. It appears on the same page, but you can restore it only in this browser and only while your account stays in hybrid mode. It is no replacement for a .examance backup.',
+            },
+            s4: {
+                h: 'What is deleted immediately',
+                p1: 'Erasing a student under the GDPR in the settings takes effect at once and does not go through the trash, and neither do deleting your account and clearing the local workspace. Results whose retention period expires are removed directly as well.',
+                p2: 'For older entries, ask your administrator: they can copy entries from the nightly backup back into your trash as long as a backup from that time still exists. You then restore them from there as usual.',
+            },
+        },
         settings: {
             title: 'Settings',
             summary: 'Storage strategy, LaTeX compilation, exam logo, language, MC detection and data deletion.',
@@ -279,7 +301,7 @@ export const help: Translations['help'] = {
             },
             s7: {
                 h: 'Session and deletion',
-                p1: 'The session locks itself after a period of inactivity. Data deletion removes individual student records (GDPR requests); “Delete account” deletes your whole account after confirmation by email. Deletion is final.',
+                p1: 'The session locks itself after a period of inactivity. Data deletion removes individual student records (GDPR requests); “Delete account” deletes your whole account after confirmation by email. Both are final and bypass the trash.',
             },
             s8: {
                 h: 'Updates and maintenance',
@@ -371,7 +393,7 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'Retention',
-                p1: 'Exams carry a retention period, after which they can be removed. Student-related data can be deleted individually without losing the exam’s statistics.',
+                p1: 'Exams carry a retention period, after which they can be removed. Student-related data can be deleted individually without losing the exam’s statistics. Deleted items first sit in the trash for 7 days; the GDPR erasure in the settings, by contrast, takes effect at once.',
             },
             s4: {
                 h: 'No password, no data',

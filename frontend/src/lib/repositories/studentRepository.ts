@@ -7,6 +7,8 @@ import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { currentKeyId } from '#lib/services/keyEnvelopeService';
 import { examRepository } from './examRepository';
 import type { StudentRecord } from '#lib/db/schema';
+import { deleteUrl, trashHeaders, type DeleteOptions } from '#lib/trash/group';
+import { captureLocal } from '#lib/trash/localTrash';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import { joinKey, joinKeys, pseudonymBase, serverVersion } from '#lib/crypto/pseudonymKey';
 
@@ -132,7 +134,11 @@ export const studentRepository = {
   },
 
   /** Deletes the student a stored record names (`pseudonymHmac` as stored, never re-keyed). Students live per exam on the server (`/exams/{id}/students/{hmac}`); there is no exam-less route (F12). */
-  async delete(student: Pick<StudentRecord, 'examId' | 'pseudonymHmac' | 'pseudonymVersion'>): Promise<void> {
+  /** Unless `opts.permanent` (GDPR erasure), the identity goes to the trash: the server's, or this browser's in hybrid mode (issue #125). */
+  async delete(
+    student: Pick<StudentRecord, 'examId' | 'pseudonymHmac' | 'pseudonymVersion'>,
+    opts: DeleteOptions = {}
+  ): Promise<void> {
     const { examId } = student;
     const target = await joinKey(student);
 
@@ -140,9 +146,16 @@ export const studentRepository = {
     try {
       const candidates = await db.examStudents.where('examId').equals(examId).toArray();
       const keys = await joinKeys(candidates);
-      await db.examStudents.bulkDelete(
-        candidates.filter((_, i) => keys[i] === target).map((st) => [st.examId, st.pseudonymHmac])
-      );
+      const matching = candidates.filter((_, i) => keys[i] === target);
+      if (resultsAreLocal()) {
+        await captureLocal(opts, {
+          kind: 'student',
+          examId,
+          pseudonymHmac: student.pseudonymHmac,
+          rows: { examStudents: matching },
+        });
+      }
+      await db.examStudents.bulkDelete(matching.map((st) => [st.examId, st.pseudonymHmac]));
     } catch (err) {
       console.warn('Failed to clean up matching student records from IndexedDB:', err);
     }
@@ -151,11 +164,12 @@ export const studentRepository = {
     if (policy.storageMode === 'all-server') {
       const serverValue =
         (student.pseudonymVersion ?? 1) === 2 ? student.pseudonymHmac : await pseudonymBase(student.pseudonymHmac);
-      const url = `/exams/${examId}/students/${serverValue}`;
+      const url = deleteUrl(`/exams/${examId}/students/${serverValue}`, opts);
+      const headers = trashHeaders(opts);
       try {
-        await api.delete(url, { silentError: true });
+        await api.delete(url, { silentError: true, headers });
       } catch (err) {
-        enqueueOrThrow(err, url, 'DELETE');
+        enqueueOrThrow(err, url, 'DELETE', undefined, headers);
       }
     }
   },

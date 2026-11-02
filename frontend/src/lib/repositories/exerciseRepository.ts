@@ -2,6 +2,7 @@ import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { decryptExercise } from '#lib/db/dbEncryption';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
+import { trashHeaders, type DeleteOptions } from '#lib/trash/group';
 import type { ExerciseRecord } from '#lib/db/schema';
 import { normalizeMcExercise, serializeMcAnswers } from '#lib/grading/mcExerciseHash';
 import { invalidateOwner } from '#lib/latex/compileCache';
@@ -122,12 +123,14 @@ export const exerciseRepository = {
     return { groupId: res.group_id, exercises: res.exercises.map(mapApiToExerciseRecord) };
   },
 
-  async delete(id: string): Promise<void> {
+  /** The server keeps the deleted version, its files, exam links and scores in its trash (issue #125). */
+  async delete(id: string, opts: DeleteOptions = {}): Promise<void> {
     invalidateOwner('exercise', id);
+    const headers = trashHeaders(opts);
     try {
-      await api.delete(`/exercises/${id}`, { silentError: true });
+      await api.delete(`/exercises/${id}`, { silentError: true, headers });
     } catch (err: any) {
-      enqueueOrThrow(err, `/exercises/${id}`, 'DELETE');
+      enqueueOrThrow(err, `/exercises/${id}`, 'DELETE', undefined, headers);
     } finally {
       // The server cascades its own rows; drop the local mirror either way, or an IndexedDB fallback would bring the exercise back.
       await db.exercises.delete(id);

@@ -76,6 +76,8 @@ This was the most serious compliance defect found: the application's central sto
 
 *Follow-up (issue #69):* the same gap remained for deliberate deletion. `DELETE /exams/{id}` soft-deleted only the exam (which the job then skips) and `DELETE …/submissions/{id}` set no deadline, so that data was never erased either. Both now stamp the grace deadline, restore no longer revives a deleted exam's rows, and migration `0034_deleted_exam_retention` backfilled the rows deleted before.
 
+*Follow-up (issues #125 and #196, trash):* deliberate deletes no longer use the soft delete. A teacher's delete removes the live data at once and keeps an encrypted copy in the teacher's trash for `RETENTION_GRACE_DAYS` (7 days), erased by retention step 13 (scan files included), by the teacher, or at account deletion. A deletion on request (Art. 17: the student and submission erasures in `lib/gdpr/erasure.ts`, sent with `?permanent=true`) bypasses the trash and is immediate. Deleted data therefore survives for at most the grace period in the trash and, as before, in backups.
+
 ### L2 — Erasing one student deleted every student's submissions · Art. 5(1)(d), 17 · [C+P] · **Fixed**
 
 `lib/gdpr/erasure.ts` selected the submissions to delete with `allSubs.filter((s) => s.pseudonymHash)` — a truthiness test, not an identity comparison. Every submission in the exam carries a `pseudonymHash`, so an Art. 17 request from one pupil destroyed the graded work of the entire class.

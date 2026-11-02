@@ -27,6 +27,7 @@ from app.schemas.exercise_contributions import (
 )
 from app.services import audit as audit_svc
 from app.services import exercise_contributions as contrib
+from app.services import trash
 from app.services.capabilities import require_exercise_sharing
 from app.services.exercise_sharing import resource_digests
 from app.services.latex_resources import resource_response
@@ -257,18 +258,38 @@ async def accept_contribution(
     return summary
 
 
+async def _trash_contribution(
+    trash_scope: trash.TrashScope,
+    snap: trash.Snapshot,
+    contribution_id: uuid.UUID,
+    db: AsyncSession,
+) -> None:
+    """Stored only after the decision went through, i.e. for the owner or contributor who made it."""
+    row = await db.get(ExerciseContribution, contribution_id)
+    target = await db.get(Exercise, row.target_exercise_id) if row and row.target_exercise_id else None
+    label = {
+        "contribution_id": str(contribution_id),
+        "exercise_name": target.name if target else None,
+        "variant_key": row.variant_key if row else None,
+    }
+    await trash_scope.capture(db, "contribution", snap, label=label)
+
+
 @router.post("/{contribution_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
 async def reject_contribution(
     request: Request,
     contribution_id: uuid.UUID,
     body: ContributionReject,
+    trash_scope: trash.Trash,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Decline a proposal (owner); its content is dropped at once. Never gated."""
+    """Decline a proposal (owner); its content leaves for the trash (issue #125). Never gated."""
+    snap = await trash.snapshot_contribution(db, contribution_id, "rejected")
     await contrib.decide_without_merge(
         teacher, contribution_id, db, status="rejected", note=body.note
     )
+    await _trash_contribution(trash_scope, snap, contribution_id, db)
     await audit_svc.log(db, request, teacher, "CONTRIBUTION_REJECTED", contribution_id)
 
 
@@ -276,9 +297,12 @@ async def reject_contribution(
 async def withdraw_contribution(
     request: Request,
     contribution_id: uuid.UUID,
+    trash_scope: trash.Trash,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Take back an own pending proposal; its content is dropped at once. Never gated."""
+    """Take back an own pending proposal; its content leaves for the trash (issue #125). Never gated."""
+    snap = await trash.snapshot_contribution(db, contribution_id, "withdrawn")
     await contrib.decide_without_merge(teacher, contribution_id, db, status="withdrawn")
+    await _trash_contribution(trash_scope, snap, contribution_id, db)
     await audit_svc.log(db, request, teacher, "CONTRIBUTION_WITHDRAWN", contribution_id)

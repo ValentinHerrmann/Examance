@@ -129,7 +129,7 @@ export const exercises = {
         checkingUsage: 'Aufgabennutzung in Prüfungen wird geprüft...',
         warningTitle: 'Warnung: Aufgabe wird verwendet',
         usageInfo: 'Diese Aufgabe wird derzeit in {count} Prüfung(en) verwendet:',
-        usageWarning: 'Beim Löschen wird sie dauerhaft aus der Bibliothek entfernt und aus diesen Prüfungen entfernt.',
+        usageWarning: 'Beim Löschen wird sie aus der Bibliothek und aus diesen Prüfungen entfernt.',
         confirmPlain: 'Möchten Sie diese Aufgabe wirklich aus Ihrer Bibliothek löschen?',
     },
     diffModal: {

@@ -1,4 +1,5 @@
 /** The one score-save path of every grading view (M2): grade page, both manual grids and the paste import. Rows go through `scoreRepository`, the total through `submissionRepository`, so both follow the storage mode. */
+import { newTrashGroup } from '#lib/trash/group';
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import type { ExerciseScoreRecord, OmrScoreMeta, StudentRecord, SubmissionRecord } from '#lib/db/schema';
@@ -96,10 +97,12 @@ export async function saveSubmissionScores(
   }
 
   await scoreRepository.saveMany(examId, submission.id, toSave, key);
-  await Promise.all(toClear.map((exerciseId) => scoreRepository.deleteOne(examId, submission.id, exerciseId)));
+  // Cleared scores and annotations of one save are one trash entry (issue #125).
+  const group = newTrashGroup();
+  await Promise.all(toClear.map((exerciseId) => scoreRepository.deleteOne(examId, submission.id, exerciseId, { group })));
 
   submission.totalScore = totalOf([...effective.values()]);
-  await submissionRepository.save(submission, key, { clearAnnotations: opts.clearAnnotations });
+  await submissionRepository.save(submission, key, { clearAnnotations: opts.clearAnnotations, group });
   // The upsert above only ever sets a total; clearing one needs its own request.
   if (!resultsAreLocal() && submission.totalScore === undefined) {
     const url = `/exams/${examId}/submissions/${submission.id}/score`;

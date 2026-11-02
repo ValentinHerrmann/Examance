@@ -2,14 +2,16 @@
 
 Privacy-first anonymous exam grading. Teachers write LaTeX exams, print QR-coded sheets, scan and grade the submissions against a pseudonym rather than a name, and analyse the results. Student identities, scans and annotations are encrypted in the browser before they reach a server. The repository name `BlindGrade` is legacy; the product is Examance.
 
-## Documentation
+## Information & Documentation
 
-**<https://valentinherrmann.github.io/Examance/>**, built from `docs/` for the latest release:
+**<https://valentin-herrmann.com/examance/>**: Information page
 
-- [User guide](https://valentinherrmann.github.io/Examance/user/) and [info material](https://valentinherrmann.github.io/Examance/user/material) (slide decks and posters, German)
-- [Host Examance](https://valentinherrmann.github.io/Examance/hosting) on your own server
-- [Develop](https://valentinherrmann.github.io/Examance/data_flow_and_security): architecture, encryption, API, data model
-- [Legal and compliance](https://valentinherrmann.github.io/Examance/legal_audit_dsgvo) (DSGVO): audit, records of processing, DPIA, DPA template, breach response
+**<https://docs.examance.de/>**: Documentation built from `/docs` of latest Release
+
+- [User guide](https://docs.examance.de/user/) and [info material](https://docs.examance.de/user/material) (slide decks and posters, German)
+- [Host Examance](https://docs.examance.de/hosting) on your own server
+- [Develop](https://docs.examance.de/data_flow_and_security): architecture, encryption, API, data model
+- [Legal and compliance](https://docs.examance.de/legal_audit_dsgvo) (DSGVO): audit, records of processing, DPIA, DPA template, breach response
 
 ## Development quickstart
 

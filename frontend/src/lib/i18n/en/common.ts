@@ -2,6 +2,7 @@ import type { Translations } from '../types';
 
 export const common: Translations['common'] = {
     cancel: 'Cancel',
+    trashHint: 'You can restore it from the trash for {days} days.',
     save: 'Save',
     delete: 'Delete',
     close: 'Close',

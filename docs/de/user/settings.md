@@ -27,7 +27,7 @@ Sie können jederzeit wechseln. Der Wechsel **verschiebt die Ergebnisse direkt**
 
 - **Noch nicht übertragene Änderungen** müssen zuerst gesendet werden (**Jetzt senden**), sonst wird der Wechsel abgelehnt.
 - **Andere geöffnete Tabs** sind währenddessen gesperrt und laden danach neu.
-- **Die alte Kopie**: Examance fragt, ob Sie sie behalten oder löschen möchten. Beim Wechsel zu Hybrid wird die Kopie auf dem Server zum Löschen vorgemerkt (mit 7 Tagen Frist, in der Sie sie [wiederherstellen](#restore) können); beim Wechsel zu „Alles auf dem Server“ wird die lokale Kopie für jede vollständig angekommene Prüfung geleert. Eine Prüfung, die nicht verschoben werden konnte, behält ihre lokale Kopie.
+- **Die alte Kopie**: Examance fragt, ob Sie sie behalten oder löschen möchten. Beim Wechsel zu Hybrid wird die Kopie auf dem Server zum Löschen vorgemerkt: Sie wird nach 7 Tagen Frist entfernt und lässt sich in der App nicht zurückholen ([Details](#restore)); beim Wechsel zu „Alles auf dem Server“ wird die lokale Kopie für jede vollständig angekommene Prüfung geleert. Eine Prüfung, die nicht verschoben werden konnte, behält ihre lokale Kopie.
 
 Schaltet eine Administratorin oder ein Administrator „Schülerdaten auf dem Server“ für Ihr Konto ab, bittet die App Sie beim nächsten Öffnen, Ihre Ergebnisse in den Browser zu verschieben. Dabei geht nichts verloren.
 
@@ -38,18 +38,9 @@ Schaltet eine Administratorin oder ein Administrator „Schülerdaten auf dem Se
 - Der lokale Speicher eines Browsers gehört genau **einem Konto auf einem Server**. Daten eines anderen Kontos werden nicht geöffnet; der Hinweis erklärt, wie Sie sich mit dem passenden Konto anmelden oder den Speicher zurücksetzen.
 - Daten aus dem früheren rein lokalen Modus (ohne Konto) lassen sich nicht mehr öffnen. Sie können sie löschen und weiterarbeiten; sie werden nicht übernommen.
 
-### Vom Server gelöschte Ergebnisse wiederherstellen {#restore}
+### Gelöschtes zurückholen {#restore}
 
-Auf dem Server gelöschte Ergebnisse bleiben dort für eine **Übergangsfrist** (7 Tage, sofern Ihre Installation nichts anderes festlegt), bevor sie endgültig entfernt werden. Bis dahin holt **Wiederherstellen** unter **Vom Server gelöschte Ergebnisse wiederherstellen** sie zurück:
-
-- einzeln gelöschte Abgaben;
-- die Server-Kopie, die beim Wechsel zu Hybrid gelöscht wurde.
-
-![Vom Server gelöschte Ergebnisse wiederherstellen](../../screenshots/guide/settings-restore.jpg)
-
-Die Wiederherstellung holt **alle** Ergebnisse Ihres Kontos zurück, deren Übergangsfrist noch läuft, auch Abgaben, die Sie absichtlich gelöscht haben. Gelöschte Prüfungen und nach DSGVO gelöschte Schüler:innen kommen nicht zurück. Sind ältere gelöschte Ergebnisse einer Prüfung schon endgültig entfernt, nennt die Karte diese Prüfung und das Datum.
-
-Im Hybrid-Modus liegen Ihre Ergebnisse in diesem Browser; die wiederhergestellte Kopie bleibt auf dem Server, bis Sie zu „Alles auf dem Server“ wechseln. Die Karte erscheint, wenn Ihr Konto Ergebnisse auf dem Server speichern darf.
+Was Sie in der App löschen (Prüfungen, Aufgaben, Dateien, Logos, Schüler:innen, Scans, Punkte und Bewertungen), liegt 7 Tage lang im [Papierkorb](./trash) und lässt sich dort wiederherstellen. Anders ist es mit der **Kopie auf dem Server, die nach einem Wechsel zu Hybrid übrig bleibt**: Sie wird zur Sicherheit ebenfalls 7 Tage aufbewahrt, liegt aber nicht im Papierkorb und lässt sich in der App nicht zurückholen. Ihre Ergebnisse sind nach dem Wechsel in diesem Browser, es geht also nichts verloren.
 
 ## LaTeX-Kompilierung {#latex}
 
@@ -101,7 +92,7 @@ Die Sitzung **sperrt sich nach einer Zeit der Inaktivität selbst**; danach sind
 - **Einzelne Schülerinnen und Schüler**: Löschen Sie einen Schülerdatensatz, zum Beispiel bei einem Auskunfts- oder Löschersuchen nach DSGVO. Vor dem Löschen steht ein Auskunftsexport zur Verfügung. Die Statistik der Prüfung bleibt erhalten.
 - **Sitzungsdaten bereinigen**: leert alles, was in diesem Browser zwischengespeichert ist.
 
-Das Löschen ist endgültig und kann nicht rückgängig gemacht werden.
+Diese Löschungen sind endgültig und laufen nicht über den [Papierkorb](./trash).
 
 ### Konto löschen {#delete-account}
 

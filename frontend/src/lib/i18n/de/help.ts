@@ -86,8 +86,8 @@ export const help = {
                 p1: 'Der Browserspeicher gehört immer zu genau einem Konto auf einem Server. Liegen dort Daten eines anderen Kontos, aus früherer Hybrid-Nutzung oder aus dem früheren rein lokalen Modus, erklärt ein Hinweis, was zu tun ist.',
             },
             s5: {
-                h: 'Gelöschte Ergebnisse wiederherstellen',
-                p1: 'Vom Server gelöschte Ergebnisse (einzelne Abgaben oder die beim Wechsel zu „Hybrid“ gelöschte Server-Kopie) holen Sie in den Einstellungen zurück, solange ihre Übergangsfrist läuft. Gelöschte Prüfungen und nach DSGVO gelöschte Schüler:innen kommen nicht zurück.',
+                h: 'Gelöschtes zurückholen',
+                p1: 'Was Sie löschen, liegt 7 Tage im Papierkorb (Kontomenü) und lässt sich dort wiederherstellen. Die Server-Kopie, die nach einem Wechsel zu „Hybrid“ übrig bleibt, wird nach 7 Tagen entfernt und lässt sich in der App nicht zurückholen.',
             },
         },
         exercises: {
@@ -128,7 +128,7 @@ export const help = {
             },
             s9: {
                 h: 'Änderungen dem Original vorschlagen',
-                p1: '„Dem Original vorschlagen…“ schlägt Ihre Verbesserung der Person vor, die die Aufgabe teilt. Sie prüft den Vorschlag unter „Vorschläge“, kann ihn bearbeiten und annehmen oder ablehnen; Annehmen legt immer eine neue Version oder Variante an.',
+                p1: '„Dem Original vorschlagen…“ schlägt Ihre Verbesserung der Person vor, die die Aufgabe teilt. Sie prüft den Vorschlag unter „Vorschläge“, kann ihn bearbeiten und annehmen oder ablehnen; Annehmen legt immer eine neue Version oder Variante an. Ein abgelehnter oder zurückgezogener Vorschlag liegt 7 Tage im Papierkorb.',
             },
             s10: {
                 h: 'Exportieren (ZIP)',
@@ -249,6 +249,28 @@ export const help = {
                 p1: 'Bei Aufgaben mit Varianten vergleicht sie, ob eine Fassung systematisch schwerer war als die andere. Das ist die Grundlage, um eine unfaire Variante zu überarbeiten.',
             },
         },
+        trash: {
+            title: 'Papierkorb',
+            summary: 'Versehentlich Gelöschtes 7 Tage lang zurückholen.',
+            s1: {
+                h: 'Was im Papierkorb landet',
+                p1: 'Fast alles, was Sie löschen, liegt zuerst 7 Tage im Papierkorb: Klausuren mit ihren Ergebnissen, Aufgaben der Bibliothek (auch einzelne Versionen) und ihre Ressourcendateien, Logos, die Sie entfernen oder zurücksetzen, einzelne Schüler, Scans und Abgaben, Punkte, zurückgesetzte Bewertungen und Anmerkungen, aus einer Klausur entfernte Aufgaben sowie abgelehnte oder zurückgezogene Vorschläge zu geteilten Aufgaben. Was Sie in einem Zug löschen, erscheint als ein Eintrag.',
+                p2: 'Den Papierkorb öffnen Sie im Kontomenü neben den Einstellungen, auf kleinen Bildschirmen im Navigationsmenü.',
+            },
+            s2: {
+                h: 'Wiederherstellen oder endgültig löschen',
+                p1: '„Wiederherstellen“ bringt zurück, was fehlt. Vorhandenes wird nie überschrieben: Haben Sie dasselbe inzwischen neu angelegt, bleibt die aktuelle Fassung. Konnte etwas nicht zurückkommen, etwa ein Scan, dessen Klausur nicht mehr existiert, nennt die Seite, was und warum. „Endgültig löschen“ entfernt einen Eintrag sofort samt Scans; ohne das verschwindet er nach 7 Tagen von selbst.',
+            },
+            s3: {
+                h: 'Hybrid-Modus',
+                p1: 'Im Hybrid-Modus liegen die Ergebnisse nur in diesem Browser, und ihr Papierkorb ebenfalls. Er erscheint auf derselben Seite, lässt sich aber nur in diesem Browser und nur so lange wiederherstellen, wie Ihr Konto im Hybrid-Modus bleibt. Er ersetzt keine .examance-Sicherung.',
+            },
+            s4: {
+                h: 'Was sofort gelöscht wird',
+                p1: 'Die Löschung einer Schülerin oder eines Schülers nach DSGVO in den Einstellungen wirkt sofort und läuft nicht über den Papierkorb, ebenso das Löschen des Kontos und das Leeren des lokalen Arbeitsbereichs. Auch Ergebnisse, deren Aufbewahrungsfrist abläuft, werden direkt entfernt.',
+                p2: 'Für ältere Einträge wenden Sie sich an Ihre Administration: Sie kann Einträge aus der nächtlichen Sicherung in Ihren Papierkorb zurückkopieren, solange eine Sicherung aus dieser Zeit noch existiert. Von dort stellen Sie sie wie gewohnt wieder her.',
+            },
+        },
         settings: {
             title: 'Einstellungen',
             summary: 'Speicherstrategie, LaTeX-Kompilierung, Klausur-Logo, Sprache, MC-Erkennung und Datenlöschung.',
@@ -278,7 +300,7 @@ export const help = {
             },
             s7: {
                 h: 'Sitzung und Löschung',
-                p1: 'Die Sitzung sperrt sich nach einer Weile ohne Aktivität. Unter Datenlöschung entfernen Sie einzelne Schülerdatensätze (DSGVO-Anfragen); „Konto löschen“ löscht nach Bestätigung per E-Mail Ihr ganzes Konto. Löschen ist endgültig.',
+                p1: 'Die Sitzung sperrt sich nach einer Weile ohne Aktivität. Unter Datenlöschung entfernen Sie einzelne Schülerdatensätze (DSGVO-Anfragen); „Konto löschen“ löscht nach Bestätigung per E-Mail Ihr ganzes Konto. Beides ist endgültig und läuft nicht über den Papierkorb.',
             },
             s8: {
                 h: 'Updates und Wartung',
@@ -370,7 +392,7 @@ export const help = {
             },
             s3: {
                 h: 'Aufbewahrung',
-                p1: 'Klausuren tragen eine Aufbewahrungsfrist, nach der sie entfernt werden können. Schülerbezogene Daten lassen sich einzeln löschen, ohne die Statistik der Klausur zu verlieren.',
+                p1: 'Klausuren tragen eine Aufbewahrungsfrist, nach der sie entfernt werden können. Schülerbezogene Daten lassen sich einzeln löschen, ohne die Statistik der Klausur zu verlieren. Gelöschtes liegt zunächst 7 Tage im Papierkorb; die DSGVO-Löschung in den Einstellungen wirkt dagegen sofort.',
             },
             s4: {
                 h: 'Kein Passwort, keine Daten',

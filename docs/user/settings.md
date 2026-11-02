@@ -27,7 +27,7 @@ You can switch at any time. The switch **moves the results directly**, exam by e
 
 - **Changes not yet sent** must be sent first (**Send now**), otherwise the switch is refused.
 - **Other open tabs** are blocked while it runs and reload afterwards.
-- **The old copy**: Examance asks whether to keep or delete it. Switching to Hybrid marks the server copy for deletion (with a 7-day grace period, during which you can [restore it](#restore)); switching to "All on the server" clears the local copy for every exam that arrived completely. An exam that could not be moved keeps its local copy.
+- **The old copy**: Examance asks whether to keep or delete it. Switching to Hybrid marks the server copy for deletion: it is erased after a 7-day grace period and cannot be brought back from the app ([details](#restore)); switching to "All on the server" clears the local copy for every exam that arrived completely. An exam that could not be moved keeps its local copy.
 
 If an administrator turns off "student data on the server" for your account, the app asks you to move your results into the browser the next time it opens. Nothing is lost.
 
@@ -38,18 +38,9 @@ If an administrator turns off "student data on the server" for your account, the
 - A browser's local storage belongs to exactly **one account on one server**. Data of another account is not opened; the notice explains how to sign in with the matching account or reset the storage.
 - Data from the former purely local mode (without an account) can no longer be opened. You can delete it and carry on; it is not migrated.
 
-### Restore results deleted from the server {#restore}
+### Getting deleted data back {#restore}
 
-Results deleted on the server stay there for a **grace period** (7 days unless your installation sets another value) before they are removed for good. Until then, **Restore** under **Restore results deleted from the server** brings them back:
-
-- single submissions you deleted;
-- the server copy that was deleted when you switched to Hybrid.
-
-![Restoring results deleted from the server](../screenshots/guide/settings-restore.jpg)
-
-Restoring brings back **every** result of your account whose grace period is still running, including submissions you deleted on purpose. Deleted exams and students erased under the GDPR do not come back. If older deleted results of an exam are already gone, the card lists that exam and the date they were removed.
-
-In Hybrid mode your results live in this browser; the restored copy stays on the server until you switch to "All on the server". The card is shown when your account may keep results on the server.
+Whatever you delete in the app (exams, exercises, files, logos, students, scans, points and grading) stays in the [Trash](./trash) for 7 days, where you can restore it. The **server copy left behind by a switch to Hybrid** is different: it is kept for the same 7 days as a safety net, but it is not in the trash and cannot be restored from the app. Your results are in this browser after the switch, so nothing is lost.
 
 ## LaTeX compilation {#latex}
 
@@ -101,7 +92,7 @@ The session **locks itself** after a period of inactivity; afterwards the conten
 - **Single students**: erase a student record, for example for a GDPR access or erasure request. A subject access export is available before you erase. The exam's statistics stay intact.
 - **Session data hygiene**: clears everything cached in this browser.
 
-Deletion is final and cannot be undone.
+These deletions are final and do not go through the [Trash](./trash).
 
 ### Delete your account {#delete-account}
 

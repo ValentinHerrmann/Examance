@@ -21,6 +21,7 @@ from app.schemas.resource import (
     ExerciseResourceResponse,
 )
 from app.services import exercise_sharing as sharing
+from app.services import trash
 from app.services.blob_validation import (
     UploadRejected,
     check_upload,
@@ -172,10 +173,11 @@ async def rename_exercise_resource(
 )
 async def delete_exercise_resource(
     resource_id: uuid.UUID,
+    trash_scope: trash.Trash,
     ex: Exercise = Depends(get_exercise_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete one resource file. Idempotent."""
+    """Delete one resource file; the trash keeps a copy (issue #125). Idempotent."""
     result = await db.execute(
         select(ExerciseResource).where(
             ExerciseResource.id == resource_id,
@@ -184,4 +186,7 @@ async def delete_exercise_resource(
     )
     doomed: ExerciseResource | None = result.scalar_one_or_none()
     if doomed is not None:
-        await db.delete(doomed)
+        snap = await trash.snapshot_resource(db, doomed.id)
+        label = {**trash.exercise_label(ex), "filename": doomed.filename}
+        await trash_scope.capture(db, "resource", snap, label=label)
+        await snap.delete(db)

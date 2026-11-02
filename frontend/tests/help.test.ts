@@ -86,6 +86,7 @@ describe('topicForPath', () => {
     ['/exam/abc-123/stats', 'stats'],
     ['/analytics', 'analytics'],
     ['/settings', 'settings'],
+    ['/trash', 'trash'],
     ['/admin/users', 'accounts'],
     ['/legal/datenschutz', 'privacy'],
     ['/unlock', 'accounts'],

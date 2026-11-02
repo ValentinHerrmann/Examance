@@ -60,8 +60,8 @@ async function withRekeyLock<T>(op: () => Promise<T>): Promise<T> {
   return navigator.locks.request(REKEY_LOCK, op);
 }
 
-/** The pseudonym in a queued erasure's path (`DELETE /exams/{id}/students/{hmac}`). */
-const STUDENT_PATH = /\/students\/([^/?]+)$/;
+/** The pseudonym in a queued delete's path (`DELETE /exams/{id}/students/{hmac}`, optionally `?permanent=true`). */
+const STUDENT_PATH = /\/students\/([^/?]+)(\?[^/]*)?$/;
 
 /** Queued writes of the exam follow the rename: a queued erasure would otherwise replay as a 404 that counts as done, and a queued upload would be refused (422) by the keyed exam. */
 async function rewriteQueuedFor(examId: string, renames: Map<string, string>): Promise<void> {
@@ -80,8 +80,9 @@ async function rewriteQueuedFor(examId: string, renames: Map<string, string>): P
   rewriteQueued((req) => {
     if (!req.url.toLowerCase().startsWith(prefix)) return null;
     let { url, body } = req;
-    const inUrl = STUDENT_PATH.exec(url)?.[1];
-    if (inUrl && keyed.has(inUrl)) url = url.slice(0, url.length - inUrl.length) + keyed.get(inUrl);
+    const match = STUDENT_PATH.exec(url);
+    const inUrl = match?.[1];
+    if (match && inUrl && keyed.has(inUrl)) url = `${url.slice(0, match.index)}/students/${keyed.get(inUrl)}${match[2] ?? ''}`;
     if (typeof body?.pseudonym_hmac === 'string' && (body.pseudonym_version ?? 1) === 1 && keyed.has(body.pseudonym_hmac)) {
       body = { ...body, pseudonym_hmac: keyed.get(body.pseudonym_hmac), pseudonym_version: 2 };
     }

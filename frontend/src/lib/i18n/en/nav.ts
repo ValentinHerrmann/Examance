@@ -6,6 +6,7 @@ export const nav: Translations['nav'] = {
     analytics: 'Analytics',
     userManagement: 'User Management',
     settings: 'Settings',
+    trash: 'Trash',
     workspace: 'Workspace',
     menuLabel: 'Main menu',
     logoAlt: 'Examance logo',
