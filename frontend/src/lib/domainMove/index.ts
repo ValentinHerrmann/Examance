@@ -36,6 +36,11 @@ export function onNewAddress(): boolean {
 }
 
 /** Host of the new address, for messages. */
+/** The sign-in offers the old address's passkey: only on the new address during a move. */
+export function showsOldAddressPasskey(): boolean {
+  return domainMove !== null && onNewAddress();
+}
+
 export function newHost(): string {
   return domainMove ? new URL(domainMove.to).host : "";
 }

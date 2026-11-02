@@ -47,7 +47,7 @@ Any static host for the frontend and any reverse proxy for the backend ([Host Ex
   - `PUBLIC_DOMAIN_MOVE_REDIRECT_DATE=<redirect date>`
   - `PUBLIC_API_URL` only if the new API is not `api.new.example.org`
 - [ ] Check: `curl -s https://old.example.org/.well-known/webauthn` lists `https://new.example.org`.
-- [ ] Check in Chrome: the old address shows the move notice; the new address offers "Use the passkey from old.example.org" at sign-in and then asks for a new passkey; the new passkey opens your data after signing out and in again.
+- [ ] Check in Chrome: the old address shows the move notice; the new address offers "Use your previous passkey" at sign-in and then asks for a new passkey; the new passkey opens your data after signing out and in again.
 
 ### Phase 2: forward (on the redirect date)
 

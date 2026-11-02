@@ -3,6 +3,7 @@
   import { faBookOpen, faKey, faLightbulb, faUserPlus } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, Card, Field, TextInput } from "#lib/components/ui";
   import OldAddressPasskey from "./OldAddressPasskey.svelte";
+  import { showsOldAddressPasskey } from "#lib/domainMove";
 
   interface Props {
     email: string;
@@ -90,9 +91,11 @@
         <Button variant="outlined" severity="secondary" block icon={faKey} disabled={isLoading} onClick={onPasskey}>
           {$t("security.passkey.signIn")}
         </Button>
-        <p class="m-0 text-center text-xs text-muted">{$t("auth.unlock.cloud.passkeyHint")}</p>
-        {#if onLegacyPasskey}
+        <!-- During a domain move the old-passkey line takes the hint's place, so the page does not grow and scroll. -->
+        {#if onLegacyPasskey && showsOldAddressPasskey()}
           <OldAddressPasskey onClick={onLegacyPasskey} disabled={isLoading} />
+        {:else}
+          <p class="m-0 text-center text-xs text-muted">{$t("auth.unlock.cloud.passkeyHint")}</p>
         {/if}
       {/if}
 

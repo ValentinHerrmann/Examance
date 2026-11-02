@@ -18,13 +18,13 @@ export default withMermaid(defineConfig({
   },
   vite: { plugins: [siteFilesDevServer(BASE)] },
   buildEnd: (siteConfig) => copySiteFiles(siteConfig.outDir),
-  // German exists only for the user guide (docs/de/user/, same file names and {#anchors} as docs/user/, linked from the in-app help); operator and developer pages stay English.
+  // German is the default start page (theme/index.ts redirects the bare root) and exists for the start page and the user guide (docs/de/user/, same file names and {#anchors} as docs/user/, linked from the in-app help); operator and developer pages stay English.
   locales: {
     root: { label: 'English', lang: 'en' },
     de: {
       label: 'Deutsch',
       lang: 'de',
-      link: '/de/user/',
+      link: '/de/',
       description: 'Anonyme, datenschutzfreundliche Korrektur von Prüfungen: Benutzerhandbuch.',
       themeConfig: {
         nav: [
