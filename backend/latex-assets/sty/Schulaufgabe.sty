@@ -23,8 +23,8 @@
 \newboolean{Namensfeld}
 \setboolean{Namensfeld}{false}
 
-% Cut-off corner tab for printed student QR codes (issue #211): a guillotine through the stack cuts the top-right corner of odd pages in every print mode and,
-% on even pages, the top-right (single-sided) or top-left one (duplex, booklet). So odd pages keep the top-left corner for the header; even pages keep both free.
+% Cut-off corner tab for printed student QR codes (issue #211): a guillotine through a long-edge duplex or booklet stack cuts each page's outer top corner,
+% top right on odd pages and top left on even ones. Only that corner stays free; the header mirrors on even pages.
 % The reserved zone (an 86.6 x 23.1 mm triangle per corner) is mirrored in frontend lib/qr/cutCorner.ts, which draws the tab and covers it on scans.
 \newboolean{Schnitt}
 \setboolean{Schnitt}{false}
@@ -214,7 +214,7 @@
     \setboolean{Namensfeld}{true}%
 }
 
-% Cut-off corner tab on page 1; every page keeps the corners a guillotine may cut free (issue #211)
+% Cut-off corner tab on page 1; every page keeps its outer top corner free (issue #211)
 \DeclareOption{schnittecke}{%
     \setboolean{Schnitt}{true}%
 }
@@ -228,7 +228,7 @@
 \ExecuteOptions{roman}
 \ProcessOptions\relax
 
-% With the corner tab the header row starts at 10.5mm, so on every page the body (about 21.1mm) begins below the corner zones (20.4mm deep at the text margin).
+% With the corner tab the header row starts at 10.5mm, so on every page the body (about 21.1mm) begins below the corner zone (20.4mm deep at the text margin).
 \ifthenelse{\boolean{Schnitt}}{\geometry{top=10.5mm}}{}
 
 % ==============================================================================
@@ -302,15 +302,15 @@
 \AtBeginDocument{
     \fancyheadoffset[L]{5mm}
     \fancyheadoffset[R]{5mm}
-    % With the corner tab, cells on a side that may be cut keep 57mm clear of the edge (outside the zone and the moved fiducial):
-    % the right cell on page 1 and the left one on even pages; odd pages keep the usual left indent. Page 1's title rises above the row.
+    % With the corner tab the header mirrors on even pages: the running head sits on the inner (uncut) side at the usual 1cm, and page 1's date keeps
+    % 57mm clear of the cut corner (outside the zone and the moved fiducial). Page 1's title rises above the row.
     \ifthenelse{\boolean{Schnitt}}{\setlength{\SA@headindent}{5.2cm}}{\setlength{\SA@headindent}{1cm}}%
     % The head rule then spans only the text width: its ends at 5mm would cross both zones' tips.
     \ifthenelse{\boolean{Schnitt}}{\renewcommand{\headrule}{\hbox to\headwidth{\hskip5mm\leaders\hrule height\headrulewidth\hfill\hskip5mm}\vskip-\headrulewidth}}{}%
     \lhead{\SA@headreset\ifnum\thepage=1
     {\hspace{1cm}\ExamLogo}
     \else
-    \hspace{\ifodd\value{page}1cm\else\SA@headindent\fi}\Nrtext. \Testarttesttext \ in \Fachtext%Name:
+    \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{}{\hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext}%Name:
     \fi}
     \rhead{\SA@headreset
     \ifnum\thepage=1
@@ -321,6 +321,7 @@
     \end{tabular}\hspace*{\SA@headindent}%
     }
     \else
+    \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{\Nrtext. \Testarttesttext \ in \Fachtext\hspace*{1cm}}{}%
     \fi
     }
     \chead{\SA@headreset
@@ -385,23 +386,22 @@
     \AtPageLowerLeft{\put(\LenToUnit{#2},\LenToUnit{#3}){\OmrLink{\OmrFiducialSize}{\OmrFiducialSize}{omr://__fid__/#1}\OmrFiducialShape}}%
 }
 
-% With the corner tab the top-right marker sits 46mm from the side and 12mm from the top on every page, outside the zone; the top-left one does
-% the same on even pages and stays in its corner on odd pages, whose top-left corner is never cut. The same in every print mode, so one
-% OMR template fits all prints (mirrored in frontend lib/qr/cutCorner.ts).
+% With the corner tab both top markers sit 12mm from the top: the one by the cut corner (right on odd pages, left on even ones) 46mm from
+% its side, outside the zone; the other in its corner at the usual inset (mirrored in frontend lib/qr/cutCorner.ts).
 \newlength{\SA@fidTopX}
 \newlength{\SA@fidTopY}
 \ifthenelse{\boolean{Schnitt}}%
     {\setlength{\SA@fidTopX}{46mm}\setlength{\SA@fidTopY}{12mm}}%
     {\setlength{\SA@fidTopX}{\OmrFiducialInset}\setlength{\SA@fidTopY}{\OmrFiducialInset}}
+\newlength{\SA@fidTRX}
 \newlength{\SA@fidTLX}
-\newlength{\SA@fidTLY}
 \AddToShipoutPictureBG{%
-    \ifodd\value{page}\setlength{\SA@fidTLX}{\OmrFiducialInset}\setlength{\SA@fidTLY}{\OmrFiducialInset}%
-    \else\setlength{\SA@fidTLX}{\SA@fidTopX}\setlength{\SA@fidTLY}{\SA@fidTopY}\fi
+    \setlength{\SA@fidTRX}{\SA@fidTopX}\setlength{\SA@fidTLX}{\SA@fidTopX}%
+    \ifthenelse{\boolean{Schnitt}}{\ifodd\value{page}\setlength{\SA@fidTLX}{\OmrFiducialInset}\else\setlength{\SA@fidTRX}{\OmrFiducialInset}\fi}{}%
     \OmrFiducialAt{0}{\OmrFiducialInset}{\OmrFiducialInset}%
     \OmrFiducialAt{1}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\OmrFiducialInset}%
-    \OmrFiducialAt{2}{\dimexpr\paperwidth-\SA@fidTopX-\OmrFiducialSize\relax}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
-    \OmrFiducialAt{3}{\SA@fidTLX}{\dimexpr\paperheight-\SA@fidTLY-\OmrFiducialSize\relax}%
+    \OmrFiducialAt{2}{\dimexpr\paperwidth-\SA@fidTRX-\OmrFiducialSize\relax}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
+    \OmrFiducialAt{3}{\SA@fidTLX}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
 }
 
 % ==============================================================================

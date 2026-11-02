@@ -11,7 +11,7 @@ import type { StickerEntry } from './stickerSheet';
 
 export interface ExamCopiesOptions {
   examTitle: string;
-  /** Pads every copy to an even page count, so each student starts on a new sheet; even pages get their cut line top left. */
+  /** Pads every copy to an even page count, so each student starts on a new sheet, and prints the cut line on every page (even pages top left). */
   duplex: boolean;
 }
 
@@ -99,8 +99,8 @@ async function addCopy(lib: PdfLib, out: PDFDocument, src: PDFDocument, fonts: L
   const size = Math.min(QR_SIZE, x1 - x0 - 0.3 * CM, y1 - y0 - 0.3 * CM);
   drawQr(lib, first, entry.payload, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size);
   drawCornerTab(lib, first, fonts, entry, await personalKey(entry.payload));
-  // Every page shows where the cut runs: a duplex or booklet back loses its top-left corner, a single-sided page its top-right one.
-  for (let i = 1; i < pages.length; i++) drawCutLine(lib, pages[i], options.duplex && i % 2 === 1 ? 'left' : 'right');
+  // A duplex or booklet stack is cut through every sheet, so each page shows its outer corner's line; single-sided, only the cover sheet is cut (the mirrored even pages keep content top right).
+  if (options.duplex) for (let i = 1; i < pages.length; i++) drawCutLine(lib, pages[i], i % 2 === 1 ? 'left' : 'right');
   if (options.duplex && pages.length % 2 === 1) {
     const { width, height } = pages[pages.length - 1].getSize();
     out.addPage([width, height]);

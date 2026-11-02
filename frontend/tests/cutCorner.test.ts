@@ -34,12 +34,12 @@ function page(fiducials: boolean): ImageData {
 describe("corner tab cover (issue #211)", () => {
   it("places page 1's fiducials where Schulaufgabe.sty puts them under schnittecke", () => {
     const rects = Object.fromEntries(cutCornerTemplate().fiducials.map(({ corner, rect }) => [corner, rect.map((v) => Math.round((v / MM) * 10) / 10)]));
-    // In mm from the bottom-left corner, as page 1's omr://__fid__ links report them: only the top-right marker moves inward.
+    // In mm from the bottom-left corner, as page 1's omr://__fid__ links report them: the top pair at one height, the top-right one moved inward.
     expect(rects).toEqual({
       0: [5, 5, 13, 13],
       1: [197, 5, 205, 13],
       2: [156, 277, 164, 285],
-      3: [5, 284, 13, 292],
+      3: [5, 277, 13, 285],
     });
   });
 
