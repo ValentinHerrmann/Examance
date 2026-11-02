@@ -10,12 +10,14 @@ HERE = Path(__file__).resolve().parent
 P = "../screenshots/pitch/"
 URL = "examance.de"
 S = {
+    "library": ("02-library.jpg", "Aufgabenbibliothek", "Nach Klasse, Fach und Thema filtern; Varianten und Versionen je Aufgabe", "einmal schreiben, immer wieder nutzen"),
     "editor": ("tour/t-exercise-editor.jpg", "LaTeX-Aufgabeneditor", "Bausteine per Klick, Live-Vorschau; jedes \\BE ist ein Punkt, \\hBE ein halber", "Punktzahl rechnet sich selbst"),
     "mc": ("tour/t-mc-editor.jpg", "Multiple Choice", "Optionen eintippen, richtige anhaken, Punktabzug wählen", "Kreuze werden später automatisch gelesen"),
     "builder": ("tour/t-exam-builder.jpg", "Klausur zusammenstellen", "Aufgaben und Varianten anhaken", "in Minuten statt Stunden"),
     "setup": ("tour/t-exam-setup.jpg", "Fertige Klausur", "Prüfung und Erwartungshorizont; jeder Haken zeigt, welcher Teil welchen Punkt bringt", "sofort druckbar, auch für Papierkorrektur"),
     "variantdiff": ("tour/t-variant-diff.jpg", "Varianten vergleichen", "Gruppe A und B nebeneinander, Unterschiede markiert", "nur die Zahlen ändern sich, der Aufbau bleibt"),
     "proposal": ("tour/t-proposal.jpg", "Teilen & Vorschläge", "Kollegium schlägt Änderungen vor, die Autorin entscheidet", "gemeinsamer Aufgabenpool der Fachschaft"),
+    "shared": ("19-shared-library.jpg", "Geteilte Aufgaben", "Aufgaben aus dem Kollegium in die eigene Bibliothek übernehmen", "nur Aufgabentexte, nie Schülerdaten"),
     "grading": ("tour/t-grading.jpg", "Anonym korrigieren", "QR-Aufkleber statt Name; Stempel ergeben die Punkte, die Punktekästchen füllen sich selbst", "fair, ohne Halo-Effekt"),
     "mcreview": ("tour/t-mc-review.jpg", "MC-Erkennung", "A richtig, D zurückgenommen und neu gekreuzt: 0,5 von 2 Punkten", "Sie entscheiden im Zweifel"),
     "paper": ("tour/t-paper-entry.jpg", "Papierkorrektur", "Punkte tippen oder aus Excel einfügen", "Auswertung auch ohne Scanner"),
@@ -190,7 +192,16 @@ def rows_md(rows):
     md = "".join('<div class="jrow">' + "".join(crypto() if k == "crypto" else fig(k) for k in r) + "</div>\n" for r in rows)
     CRYPTO_ASPECT = 1.0
     return md
-    return "".join('<div class="jrow">' + "".join(crypto() if k == "crypto" else fig(k) for k in r) + "</div>\n" for r in rows)
+
+
+def page_md(items, avail):
+    """Two columns or justified rows, whichever leaves less blank space on the page."""
+    a, b, wa, wb = masonry(items, avail)
+    mwaste = avail - max(col_h(a, wa), col_h(b, wb)) + max(0, W - CGAP - wa - wb) * 1.5
+    rows = layout(items, avail)
+    rwaste = avail - sum(row_h(r) for r in rows)
+    print(f"page: masonry waste {mwaste:.0f}, rows waste {rwaste:.0f}")
+    return masonry_md(items, avail) if mwaste <= rwaste else rows_md(rows)
 
 
 FM = f"""---
@@ -202,9 +213,10 @@ header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
 footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 """
+PART1 = ["library", "editor", "mc", "builder", "setup", "variantdiff", "proposal", "shared"]
 KICKED = 1538 - 180       # content bottom minus where the first row starts (measured in the PDF)
 poster = (FM + '\n<!-- _class: tour -->\n\n<span class="kicker">Teil 1 · Erstellen</span>\n\n# Von der Aufgabe zur druckfertigen Klausur.\n\n'
-          + masonry_md(["editor", "mc", "builder", "setup", "variantdiff", "proposal"], KICKED)
+          + page_md(PART1, KICKED - 16)  # the caption estimate runs short over eight captions in a column
           + '\n---\n\n<!-- _class: tour -->\n\n<span class="kicker">Teil 2 · Korrigieren und auswerten</span>\n\n# Anonym bewerten, fair vergleichen.\n\n'
           + rows_md(layout(["grading", "mcreview", "paper", "results", "variant", "crypto"], KICKED, "crypto")))
 (HERE / "examance-ui.md").write_text(poster)
@@ -249,7 +261,7 @@ deck = (DECK_FM + f"""
 </div>
 """
         + divider(1, "Von der Aufgabe zur druckfertigen Klausur.", "Aufgaben einmal schreiben, in Minuten zur Klausur zusammenstellen, mit dem Kollegium teilen.")
-        + "".join(shot_slide(k, "Teil 1 · Erstellen") for k in ["editor", "mc", "builder", "setup", "variantdiff", "proposal"])
+        + "".join(shot_slide(k, "Teil 1 · Erstellen") for k in PART1)
         + divider(2, "Anonym bewerten, fair vergleichen.", "Auf Papier oder am Bildschirm korrigieren – beide Wege enden in derselben Auswertung.")
         + "".join(shot_slide(k, "Teil 2 · Korrigieren und auswerten") for k in ["paper", "grading", "mcreview", "results", "variant"])
         + f"""

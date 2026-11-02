@@ -79,18 +79,16 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 
 <span class="kicker">Erstellen · Multiple Choice und Klausursatz</span>
 
-<div class="cols" style="grid-template-columns: 4fr 4fr 5fr; gap: 24px">
-<figure class="shot h460"><img src="../screenshots/pitch/03b-mc-editor.jpg"><figcaption>Strukturierter MC-Editor, ohne LaTeX-Kenntnisse</figcaption></figure>
-<figure class="shot h460"><img src="../screenshots/pitch/04-exam-builder.jpg"><figcaption>Aufgaben und Varianten anhaken</figcaption></figure>
-<div class="stack">
-<ul class="small">
+<div class="cols" style="gap: 24px">
+<figure class="shot"><img src="../screenshots/pitch/tour/t-mc-editor.jpg"><figcaption>Strukturierter MC-Editor, ohne LaTeX-Kenntnisse</figcaption></figure>
+<figure class="shot"><img src="../screenshots/pitch/tour/t-exam-builder.jpg"><figcaption>Aufgaben und Varianten anhaken</figcaption></figure>
+</div>
+<ul class="small" style="columns: 2; column-gap: 24px; margin-top: 14px">
 <li>MC: Einfach- oder Mehrfachauswahl, Punktabzug für falsche Kreuze, nie unter null; auf Wunsch zeigt eine Zeile an jeder Aufgabe, wie man ein Kreuz zurücknimmt und neu setzt.</li>
 <li>Klausur: Kopf mit Fach, Klasse, Datum, Schullogo; Notenschlüssel linear, Oberstufe oder eigene Grenzen.</li>
 <li>Prüfung und Lösungsblatt werden gemeinsam gesetzt, mit QR-Code und Passmarken.</li>
 <li>Satz standardmäßig <strong>im Browser</strong>; auf dem Server nur, wenn die Administration es für das Konto erlaubt.</li>
 </ul>
-</div>
-</div>
 
 ---
 
@@ -133,13 +131,11 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 
 <span class="kicker">Korrigieren · Multiple Choice</span>
 
-<div class="cols" style="grid-template-columns: 3fr 9fr; gap: 28px">
-<figure class="shot"><img src="../screenshots/pitch/18-scanned-sheet-mc.jpg"><figcaption>Synthetischer Scan: Korrekturzeile, Kreuz zurückgenommen und neu gesetzt</figcaption></figure>
-<div class="stack">
-
 ## Messung plus menschliche Prüfung
 
-<figure class="shot h300"><img src="../screenshots/pitch/07-mc-review.jpg"><figcaption>Prüfansicht: Scan-Ausschnitt, erkannte Kreuze, Punkte nach aktuellem Schlüssel</figcaption></figure>
+<div class="cols" style="grid-template-columns: 5fr 7fr; gap: 28px">
+<div class="stack">
+<figure class="shot"><img src="../screenshots/pitch/18-scanned-sheet-mc.jpg"><figcaption>Synthetischer Scan: Korrekturzeile, Kreuz zurückgenommen und neu gesetzt</figcaption></figure>
 
 <ul class="small">
 <li>Zwei Verfahren laufen mit: <strong>v4</strong> (Strichform, Standard) und <strong>v2</strong> (Füllgrad); die Prüfansicht zeigt, welches bei Ihren Daten öfter richtig lag.</li>
@@ -147,6 +143,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 <li>Übermalte und blasse Kreuze werden als unsicher vorgelegt; Stichproben auch bei sicheren Erkennungen.</li>
 </ul>
 </div>
+<figure class="shot"><img src="../screenshots/pitch/07-mc-review.jpg"><figcaption>Prüfansicht: Scan-Ausschnitt, erkannte Kreuze, Punkte nach aktuellem Schlüssel</figcaption></figure>
 </div>
 
 ---
@@ -231,7 +228,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 
 <span class="kicker">Anmeldung · Details</span>
 
-<div class="cols l">
+<div class="cols l center">
 <div class="stack">
 
 ## Was Angreifer nicht bekommen
@@ -246,7 +243,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 </ul>
 </div>
 <div class="stack">
-<figure class="shot"><img src="../screenshots/pitch/12-signin-second-factor.jpg"><figcaption>Erste Anmeldung: der zweite Faktor ist Pflicht</figcaption></figure>
+<figure class="shot"><img src="../screenshots/pitch/12-signin-second-factor.jpg"><figcaption>Erste Anmeldung: der zweite Faktor ist Pflicht – Passkey oder Authenticator-App</figcaption></figure>
 </div>
 </div>
 

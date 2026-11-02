@@ -38,6 +38,16 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Dem
 
 <span class="kicker">Teil 1 · Erstellen</span>
 
+## Aufgabenbibliothek
+
+<figure><img src="../screenshots/pitch/02-library.jpg"><figcaption>Nach Klasse, Fach und Thema filtern; Varianten und Versionen je Aufgabe – <em>einmal schreiben, immer wieder nutzen</em></figcaption></figure>
+
+---
+
+<!-- _class: shotslide -->
+
+<span class="kicker">Teil 1 · Erstellen</span>
+
 ## LaTeX-Aufgabeneditor
 
 <figure><img src="../screenshots/pitch/tour/t-exercise-editor.jpg"><figcaption>Bausteine per Klick, Live-Vorschau; jedes \BE ist ein Punkt, \hBE ein halber – <em>Punktzahl rechnet sich selbst</em></figcaption></figure>
@@ -91,6 +101,16 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Dem
 ## Teilen & Vorschläge
 
 <figure><img src="../screenshots/pitch/tour/t-proposal.jpg"><figcaption>Kollegium schlägt Änderungen vor, die Autorin entscheidet – <em>gemeinsamer Aufgabenpool der Fachschaft</em></figcaption></figure>
+
+---
+
+<!-- _class: shotslide -->
+
+<span class="kicker">Teil 1 · Erstellen</span>
+
+## Geteilte Aufgaben
+
+<figure><img src="../screenshots/pitch/19-shared-library.jpg"><figcaption>Aufgaben aus dem Kollegium in die eigene Bibliothek übernehmen – <em>nur Aufgabentexte, nie Schülerdaten</em></figcaption></figure>
 
 ---
 
