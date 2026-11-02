@@ -38,7 +38,6 @@
   let keys = $state(true);
   let keysOnly = $state(initialKeysOnly);
   let output = $state<"stickers" | "copies">("stickers");
-  let duplex = $state(true);
   let busy = $state(false);
   let progress = $state("");
   let copiesMode = $derived(output === "copies");
@@ -73,7 +72,7 @@
       }
       if (copiesMode && loadExamPdf) {
         progress = $t("sharing.stickers.compiling");
-        const pdf = await renderExamCopies(await loadExamPdf(), entries, { examTitle, duplex });
+        const pdf = await renderExamCopies(await loadExamPdf(), entries, { examTitle });
         downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(examTitle || $t("sharing.stickers.copiesTitle"))}_copies.pdf`);
         onClose();
         return;
@@ -134,10 +133,7 @@
     {/if}
 
     {#if copiesMode}
-      <div>
-        <Checkbox bind:checked={duplex} label={$t("sharing.stickers.duplex")} disabled={busy} />
-        <p class="ml-7 text-sm text-muted">{$t("sharing.stickers.duplexHint")}</p>
-      </div>
+      <p class="text-sm text-muted">{$t("sharing.stickers.copiesPrintHint")}</p>
     {:else if !onlyKeys}
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label={$t("sharing.stickers.copies")}>

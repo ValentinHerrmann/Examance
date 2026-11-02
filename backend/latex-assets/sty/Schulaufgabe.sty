@@ -293,6 +293,16 @@
 % The output routine typesets the header inside whatever group the page broke in, so a task's local
 % settings (e.g. \arraystretch) used to stretch the header (issue #137). Every header cell resets them.
 \newlength{\SA@headindent}
+% Page 1's header with the corner tab: logo, the title in the room up to the date (scaled down only if it does not fit), date and class.
+\newsavebox{\SA@logobox}
+\newsavebox{\SA@datebox}
+\newlength{\SA@titlewidth}
+\newcommand{\SA@firsthead}{%
+    \sbox{\SA@logobox}{\ExamLogo}%
+    \sbox{\SA@datebox}{\begin{tabular}[b]{@{}r@{}}\Datumtext \\ Klasse \Klassetext \ (\Lehrernachnametext)\end{tabular}}%
+    \setlength{\SA@titlewidth}{\dimexpr\headwidth-1cm-\wd\SA@logobox-\wd\SA@datebox-\SA@headindent-8mm\relax}%
+    \makebox[\headwidth][l]{\hspace{1cm}\usebox{\SA@logobox}\hfill\adjustbox{max width=\SA@titlewidth}{\Large \Nrtext. \Testarttesttext \ in \Fachtext}\hfill\usebox{\SA@datebox}\hspace*{\SA@headindent}}%
+}
 \newcommand{\SA@headreset}{%
     \normalfont\normalsize\normalcolor
     \renewcommand{\arraystretch}{1}\setlength{\extrarowheight}{0pt}\setlength{\tabcolsep}{6pt}%
@@ -302,33 +312,33 @@
 \AtBeginDocument{
     \fancyheadoffset[L]{5mm}
     \fancyheadoffset[R]{5mm}
-    % With the corner tab the header mirrors on even pages: the running head sits on the inner (uncut) side at the usual 1cm, and page 1's date keeps
-    % 57mm clear of the cut corner (outside the zone and the moved fiducial). Page 1's title rises above the row.
+    % With the corner tab the header mirrors on even pages: the running head sits on the uncut side at the usual 1cm. Page 1 is one line
+    % (\SA@firsthead) whose date keeps 57mm clear of the cut corner (outside the zone and the moved fiducial).
     \ifthenelse{\boolean{Schnitt}}{\setlength{\SA@headindent}{5.2cm}}{\setlength{\SA@headindent}{1cm}}%
     % The head rule then spans only the text width: its ends at 5mm would cross both zones' tips.
     \ifthenelse{\boolean{Schnitt}}{\renewcommand{\headrule}{\hbox to\headwidth{\hskip5mm\leaders\hrule height\headrulewidth\hfill\hskip5mm}\vskip-\headrulewidth}}{}%
     \lhead{\SA@headreset\ifnum\thepage=1
-    {\hspace{1cm}\ExamLogo}
+    \ifthenelse{\boolean{Schnitt}}{\SA@firsthead}{{\hspace{1cm}\ExamLogo}}
     \else
     \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{}{\hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext}%Name:
     \fi}
     \rhead{\SA@headreset
     \ifnum\thepage=1
+    \ifthenelse{\boolean{Schnitt}}{}{%
     {%
     \begin{tabular}[b]{@{}r@{}}
         \Datumtext \\
         Klasse \Klassetext \ (\Lehrernachnametext)
     \end{tabular}\hspace*{\SA@headindent}%
     }
+    }%
     \else
     \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{\Nrtext. \Testarttesttext \ in \Fachtext\hspace*{1cm}}{}%
     \fi
     }
     \chead{\SA@headreset
     \ifnum\thepage=1
-    \ifthenelse{\boolean{Schnitt}}{%
-    \raisebox{11mm}[0pt][0pt]{\adjustbox{max width=80mm}{\Large \Nrtext. \Testarttesttext \ in \Fachtext}}%
-    }{%
+    \ifthenelse{\boolean{Schnitt}}{}{%
     {
     \Large
     \Nrtext. \Testarttesttext \ in \Fachtext \normalsize

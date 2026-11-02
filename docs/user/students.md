@@ -30,9 +30,9 @@ Instead of stickers, Examance can print each student's QR code **directly onto t
 - There is blank room around the line, so an imprecise cut touches neither the name nor the exam.
 - If a corner was not cut off, Examance **covers it when the scans come in**, so the name never shows during grading or in exports.
 
-This needs the corner: turn on **Cut-off corner for printed QR codes** in the exam details (when creating the exam or under **Edit Exam**). Then every page keeps its **outer top corner** free: top right on odd pages, top left on even pages, which is the corner a cut through a double-sided or booklet stack removes. The header is mirrored on even pages and uses the other corner as usual. The text of every page starts about 7 mm lower; page 1's title moves up above the header row.
+This needs the corner: turn on **Cut-off corner for printed QR codes** in the exam details (when creating the exam or under **Edit Exam**). Then every page keeps its **outer top corner** free: top right on odd pages, top left on even pages, which is the corner a cut through a double-sided or booklet stack removes. The header is mirrored on even pages and uses the other corner as usual. The text of every page starts about 7 mm lower.
 
-**Two-sided and booklet printing:** keep **For two-sided printing** on and flip on the **long edge**: every page then shows the dashed cut line at its outer corner, so you can cut the whole stack at once with a guillotine along the line on the top sheet. A copy with an odd number of pages gets a blank page, so every copy starts on a new sheet. **Single-sided printing:** turn the option off; the line is then printed on page 1 only. Cut just the cover sheets (not the whole stack), because even pages carry their running head in the top-right corner. Print at actual size, without "fit to page".
+**Printing and cutting:** print the copies **double-sided, flipping on the long edge**, or as a booklet. Every page shows the dashed cut line at its outer corner, so you can cut the whole stack at once with a guillotine along the line on the top sheet. A copy with an odd number of pages gets a blank page, so every copy starts on a new sheet. Print at actual size, without "fit to page".
 
 ## Personal keys {#personal-keys}
 

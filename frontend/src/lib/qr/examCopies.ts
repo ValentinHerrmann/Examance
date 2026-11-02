@@ -11,8 +11,6 @@ import type { StickerEntry } from './stickerSheet';
 
 export interface ExamCopiesOptions {
   examTitle: string;
-  /** Pads every copy to an even page count, so each student starts on a new sheet, and prints the cut line on every page (even pages top left). */
-  duplex: boolean;
 }
 
 type Rect = [number, number, number, number];
@@ -91,7 +89,7 @@ function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: Sti
   });
 }
 
-async function addCopy(lib: PdfLib, out: PDFDocument, src: PDFDocument, fonts: LabelFonts, entry: StickerEntry, qrBox: Rect, options: ExamCopiesOptions): Promise<void> {
+async function addCopy(lib: PdfLib, out: PDFDocument, src: PDFDocument, fonts: LabelFonts, entry: StickerEntry, qrBox: Rect): Promise<void> {
   const pages = await out.copyPages(src, src.getPageIndices());
   for (const page of pages) out.addPage(page);
   const first = pages[0];
@@ -99,9 +97,9 @@ async function addCopy(lib: PdfLib, out: PDFDocument, src: PDFDocument, fonts: L
   const size = Math.min(QR_SIZE, x1 - x0 - 0.3 * CM, y1 - y0 - 0.3 * CM);
   drawQr(lib, first, entry.payload, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size);
   drawCornerTab(lib, first, fonts, entry, await personalKey(entry.payload));
-  // A duplex or booklet stack is cut through every sheet, so each page shows its outer corner's line; single-sided, only the cover sheet is cut (the mirrored even pages keep content top right).
-  if (options.duplex) for (let i = 1; i < pages.length; i++) drawCutLine(lib, pages[i], i % 2 === 1 ? 'left' : 'right');
-  if (options.duplex && pages.length % 2 === 1) {
+  // Copies are printed long-edge duplex or as booklets and cut as one stack: each page shows its outer corner's line, and an odd copy gets a blank back so the next starts on a new sheet.
+  for (let i = 1; i < pages.length; i++) drawCutLine(lib, pages[i], i % 2 === 1 ? 'left' : 'right');
+  if (pages.length % 2 === 1) {
     const { width, height } = pages[pages.length - 1].getSize();
     out.addPage([width, height]);
   }
@@ -116,6 +114,6 @@ export async function renderExamCopies(examPdf: Uint8Array, entries: readonly St
   const out = await lib.PDFDocument.create();
   out.setTitle(options.examTitle || translate('sharing.stickers.copiesTitle'));
   const fonts = await embedLabelFonts(lib, out);
-  for (const entry of entries) await addCopy(lib, out, src, fonts, entry, qrBox, options);
+  for (const entry of entries) await addCopy(lib, out, src, fonts, entry, qrBox);
   return out.save();
 }
