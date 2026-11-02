@@ -103,22 +103,22 @@
         <span class="text-sm text-muted">{$t("sharing.portal.expires", { date: formatDate(expiresAt) })}</span>
       {/if}
     </header>
-    <div class="h-[75dvh] min-h-0 min-w-0">
-      {#if solutionUrl}
-        <DualPdfPreview
-          previewPdfUrl={gradedUrl}
-          previewSolutionPdfUrl={solutionUrl}
-          showLoesungPreview={true}
-          titleAngabe={$t("sharing.portal.gradedTitle")}
-          titleLoesung={$t("sharing.portal.solutionTitle")}
-          downloadable={false}
-        />
-      {:else}
-        <div class="h-full overflow-hidden rounded-md border border-line bg-surface-viewer">
-          <PdfEmbedViewer src={gradedUrl} />
-        </div>
-      {/if}
-    </div>
+    {#if solutionUrl}
+      <!-- A definite height, not "100%" of a wrapper: below lg the pane otherwise collapses to its 18rem minimum (issue #210). -->
+      <DualPdfPreview
+        previewPdfUrl={gradedUrl}
+        previewSolutionPdfUrl={solutionUrl}
+        showLoesungPreview={true}
+        titleAngabe={$t("sharing.portal.gradedTitle")}
+        titleLoesung={$t("sharing.portal.solutionTitle")}
+        downloadable={false}
+        height="75dvh"
+      />
+    {:else}
+      <div class="h-[75dvh] min-h-0 min-w-0 overflow-hidden rounded-md border border-line bg-surface-viewer">
+        <PdfEmbedViewer src={gradedUrl} />
+      </div>
+    {/if}
     <p class="m-0 text-xs text-subtle">{$t("sharing.portal.privacy")}</p>
   </PageShell>
 {:else}
