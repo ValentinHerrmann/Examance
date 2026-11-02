@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Domain move (issue #198, docs/hosting.md "Moving to a new domain"). Old address: a notice before sign-in, and anyone with nothing to take along is sent on; hybrid accounts get `DomainMoveHybridPanel`. New address: an account whose passkeys all belong to the old address must create one here. */
+  /** Domain move (issue #198, docs/domain_move.md). Old address: a notice before sign-in, and anyone with nothing to take along is sent on; hybrid accounts get `DomainMoveHybridPanel`. New address: an account whose passkeys all belong to the old address must create one here. */
   import { faArrowUpRightFromSquare, faKey } from "@fortawesome/free-solid-svg-icons";
   import { untrack } from "svelte";
   import { page } from "$app/state";

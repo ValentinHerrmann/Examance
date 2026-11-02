@@ -215,7 +215,7 @@ code twice, and Argon2 hashing runs off the event loop.
 
 The browser reaches the API at `https://api.<frontend host>`, or at the build's `PUBLIC_API_URL` (`frontend/src/lib/api/origin.ts`); either must share the frontend's registrable domain. There is no user-configurable server address any more. Because the API is same-site, the session cookies are `SameSite=Strict`, so no other site can make the browser send them. CORS admits only `FRONTEND_ORIGINS` (default: the origin of `FRONTEND_URL`, no pattern), the origin guard refuses state-changing requests from any other `Origin`, and the page's CSP `connect-src` names the exact API origin when the build knows it (`PUBLIC_API_URL`), otherwise `https:`. The client address comes from the reverse proxy as before (`PROXY_ALLOWED_IPS`).
 
-A domain move keeps passkeys of the old domain usable on the new one through WebAuthn related origins: the old domain serves `/.well-known/webauthn` listing the new origin, the backend accepts the old RP ID only for ceremonies that ask for it (`WEBAUTHN_LEGACY_RP_IDS`), and the client then insists on a new passkey. Procedure: `docs/hosting.md` §7.1.
+A domain move keeps passkeys of the old domain usable on the new one through WebAuthn related origins: the old domain serves `/.well-known/webauthn` listing the new origin, the backend accepts the old RP ID only for ceremonies that ask for it (`WEBAUTHN_LEGACY_RP_IDS`), and the client then insists on a new passkey. Procedure: [Move to another domain](domain_move.md).
 
 ### Maintenance mode (issue #130)
 

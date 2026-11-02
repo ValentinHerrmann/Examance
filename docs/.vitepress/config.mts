@@ -55,6 +55,7 @@ export default withMermaid(defineConfig({
             text: 'Betrieb & Entwicklung (Englisch)',
             items: [
               { text: 'Installation und Updates', link: '/hosting' },
+              { text: 'Domainumzug', link: '/domain_move' },
               { text: 'Datenfluss und Sicherheit', link: '/data_flow_and_security' },
               { text: 'Rechtliches (DSGVO)', link: '/legal_audit_dsgvo' },
             ],
@@ -110,6 +111,7 @@ export default withMermaid(defineConfig({
               { text: 'Setup and updates', link: '/hosting' },
               { text: 'Accounts and administration', link: '/account_creation_and_management' },
               { text: 'Backup and restore', link: '/backup_and_restore' },
+              { text: 'Move to another domain', link: '/domain_move' },
               { text: 'Maintenance mode', link: '/dev/maintenance_mode' },
               { text: 'Storage partitions', link: '/dev/storage_partitions' },
             ],

@@ -1,4 +1,4 @@
-/** Domain move (issue #198, docs/hosting.md "Moving to a new domain"): the build names the address it retires (`scripts/domain-move.mjs`); this page runs on the old one, the new one, or neither. */
+/** Domain move (issue #198, docs/domain_move.md): the build names the address it retires (`scripts/domain-move.mjs`); this page runs on the old one, the new one, or neither. */
 
 export interface DomainMove {
   /** Host of the old frontend, also the RP ID of its passkeys. */

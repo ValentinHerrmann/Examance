@@ -326,7 +326,7 @@ docker volume ls | grep examance   # expect <project>_pg_data, _tectonic_cache, 
 
 ## 8. Domain move to examance.de (issue #198) {#domain-move-to-examance-de}
 
-The general procedure and its reasons: [Moving to a new domain](hosting.md#_7-1-moving-to-a-new-domain). The maintainer's values:
+Follow the [Cloudflare checklist](domain_move.md#cloudflare-like-the-maintainer) with these values:
 
 | | Old (until the redirect) | New |
 |---|---|---|
@@ -339,32 +339,9 @@ Until the redirect, the old frontends keep calling their old APIs (`fromApiUrl` 
 
 Defaults built into `frontend/scripts/domain-move.mjs`: redirect date **2026-11-23** (`PUBLIC_DOMAIN_MOVE_REDIRECT_DATE` overrides it). Old passkeys are accepted until `WEBAUTHN_LEGACY_RP_IDS` is emptied, planned for **2027-01-31**.
 
-**Phase 1, before deploying the release**
+**Maintainer-specific steps**
 
-- [ ] DNS (Cloudflare): `api.examance.de` and `preview-api.examance.de` to the server. `examance.de` and `preview.examance.de` are created by Pages when the custom domains are added.
-- [ ] Pages → Custom domains: add `examance.de` (release) and `preview.examance.de` (preview). **Keep the old domains attached.**
-- [ ] Pages → Variables, per environment: `PUBLIC_API_URL` = `https://api.examance.de` (production) / `https://preview-api.examance.de` (preview); delete `PUBLIC_DEFAULT_BACKEND_URL`.
-- [ ] GitHub → Environments: `BACKEND_PUBLIC_URL` = `https://api.examance.de/` / `https://preview-api.examance.de/`.
-- [ ] Caddy: add site blocks `api.examance.de` and `preview-api.examance.de` with the existing `reverse_proxy`; **keep** the old API site blocks until the redirect date.
-- [ ] Each stack's `.env` (templates: `deploy/env.prod.example`, `deploy/env.preview.example`):
-  - `FRONTEND_URL=https://examance.de/` (preview: `https://preview.examance.de/`)
-  - `FRONTEND_ORIGINS=["https://examance.de","https://examance.valentin-herrmann.com"]` (preview: the two preview origins)
-  - `WEBAUTHN_LEGACY_RP_IDS=["examance.valentin-herrmann.com"]` (preview: `["prev-examance.valentin-herrmann.com"]`)
-  - `ALLOWED_HOSTS=["api.examance.de","api-examance.valentin-herrmann.com","127.0.0.1","localhost"]` (preview: `preview-api.examance.de`, `prev-api-examance.valentin-herrmann.com`)
-  - **delete** `CORS_ALLOWED_ORIGINS` and `CORS_ALLOWED_ORIGIN_REGEX` (both are gone and ignored)
-  - optional: `SMTP_FROM_EMAIL` on `examance.de` with SPF/DKIM
-
-**Phase 2, on the redirect date**
-
-- [ ] Cloudflare → `valentin-herrmann.com` zone → Rules → Redirect Rules, one per environment:
-  - expression `(http.host eq "examance.valentin-herrmann.com" and http.request.uri.path ne "/.well-known/webauthn")`
-  - dynamic target `concat("https://examance.de", http.request.uri.path)`, status 301, preserve query string
-  - preview: the same with `prev-examance.valentin-herrmann.com` and `https://preview.examance.de`
-- [ ] `.env`: remove the old origin from `FRONTEND_ORIGINS` and the old API host from `ALLOWED_HOSTS`, restart; drop the old API site blocks from Caddy and their DNS records.
-- [ ] `curl -sI https://examance.valentin-herrmann.com/.well-known/webauthn` answers 200 JSON without `Location`; any other path 301.
-
-**Phase 3, 2027-01-31**
-
-- [ ] `.env`: `WEBAUTHN_LEGACY_RP_IDS=[]`, restart. Delete the redirect rules' exception, or the old domains.
-- [ ] Follow-up PR: remove the defaults in `frontend/scripts/domain-move.mjs`.
-
+- Caddy: production `api.examance.de` → `127.0.0.1:9002`, preview `preview-api.examance.de` → `127.0.0.1:9001`, each with the `examance.de` Origin CA certificate; the old API blocks stay until the redirect date.
+- `.env` templates: `deploy/env.prod.example`, `deploy/env.preview.example` (already carry the phase-1 values).
+- Redirect rules live in the `valentin-herrmann.com` zone: `examance.valentin-herrmann.com` → `https://examance.de`, `prev-examance.valentin-herrmann.com` → `https://preview.examance.de`.
+- Phase 3 (2027-01-31) also needs a follow-up PR that removes the defaults in `frontend/scripts/domain-move.mjs`.

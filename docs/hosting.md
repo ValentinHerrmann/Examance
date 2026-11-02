@@ -97,7 +97,7 @@ Fill in `.env`. The template explains every setting; these are the ones you must
 | `SECRET_KEY` | `openssl rand -hex 32` | Signs all sessions. Changing it signs everyone out. Never share it between installations. |
 | `POSTGRES_PASSWORD` | `openssl rand -hex 24` | Database password; the database is reachable only inside the stack. |
 | `FRONTEND_URL` | `https://examance.example.org/` | Used in e-mailed links, and its host name is the passkey relying party. Never a `*.pages.dev` address: that domain is on URL blocklists, so mail servers reject the e-mails (`550 5.7.1 … (B-URL)`), and the backend refuses to start with one when SMTP is configured. Serving it from the same domain as `SMTP_FROM_EMAIL` also keeps spam filters calm. |
-| `FRONTEND_ORIGINS` | empty, or `["https://examance.example.org"]` | The frontend origins: the only ones CORS, the CSRF guard and passkey ceremonies accept. Empty means the origin of `FRONTEND_URL`, which is all a normal installation needs; a domain move adds the old origin (section 7.1). No wildcard or pattern. |
+| `FRONTEND_ORIGINS` | empty, or `["https://examance.example.org"]` | The frontend origins: the only ones CORS, the CSRF guard and passkey ceremonies accept. Empty means the origin of `FRONTEND_URL`, which is all a normal installation needs; a domain move adds the old origin ([Move to another domain](domain_move.md)). No wildcard or pattern. |
 | `ALLOWED_HOSTS` | `["api.examance.example.org","127.0.0.1","localhost"]` | Host names the API answers to (the API host, plus the old one during a domain move); loopback keeps the health checks working. |
 | `APP_PORT` | `8000` | Loopback port the reverse proxy forwards to. |
 | `NETWORK_SUBNET` | e.g. `172.23.0.0/16` | Fixed subnet of the stack's network, so the proxy address below stays stable. |
@@ -105,7 +105,7 @@ Fill in `.env`. The template explains every setting; these are the ones you must
 | `SMTP_*` | your mail account | Without SMTP, links are only written to the log. |
 | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | your admin account | Creates the first admin on startup if it does not exist yet ([details](account_creation_and_management.md#_1-initial-admin-bootstrap-automatic-startup)). Remove the password afterwards. |
 
-Passkeys belong to the host name in `FRONTEND_URL`: a passkey created on one installation or domain does not work on another, by design of WebAuthn. To move an installation to a new domain without locking teachers out, follow [Moving to a new domain](#_7-1-moving-to-a-new-domain) (`WEBAUTHN_LEGACY_RP_IDS`).
+Passkeys belong to the host name in `FRONTEND_URL`: a passkey created on one installation or domain does not work on another, by design of WebAuthn. To move an installation to a new domain without locking teachers out, follow [Move to another domain](domain_move.md) (`WEBAUTHN_LEGACY_RP_IDS`).
 
 Self-registration needs nothing beyond SMTP; its token lifetimes and the retention of unapproved accounts have defaults that only need an entry to change. Approval, features and allowed domains: [Accounts and administration](account_creation_and_management.md#_7-self-registration-approval-and-features).
 
@@ -178,7 +178,7 @@ Set them in the build environment or in `frontend/.env` (template: `frontend/.en
 | `VITE_LEGAL_NAME`, `VITE_LEGAL_STREET`, `VITE_LEGAL_POSTCODE_CITY`, `VITE_LEGAL_EMAIL`, optional `VITE_LEGAL_PHONE` | Operator details on the legal notice and privacy policy (`/legal/impressum`, `/legal/datenschutz`). They are built into the public pages, not stored in the repository. Without them both pages show marked placeholders and a "not configured" banner. Retention periods on the privacy page come from the backend at runtime. |
 | `PUBLIC_DOCS_URL` | Optional: base URL of this documentation site, for the footer's "Documentation" link and the in-app help's links to user-guide sections (default: `https://docs.examance.de/`). |
 | `BUSYTEX_MIRROR_URL` | Optional: a mirror of the LaTeX engine files that speeds up builds ([maintainer setup](deployment.md#busytex-mirror-cloudflare-r2)). |
-| `PUBLIC_DOMAIN_MOVE_FROM`, `PUBLIC_DOMAIN_MOVE_FROM_API_URL`, `PUBLIC_DOMAIN_MOVE_TO`, `PUBLIC_DOMAIN_MOVE_REDIRECT_DATE` | Only while moving to a new domain: the old frontend host, the API it keeps using until the redirect, the new origin and the day the old host starts forwarding (section 7.1). |
+| `PUBLIC_DOMAIN_MOVE_FROM`, `PUBLIC_DOMAIN_MOVE_FROM_API_URL`, `PUBLIC_DOMAIN_MOVE_TO`, `PUBLIC_DOMAIN_MOVE_REDIRECT_DATE` | Only while moving to a new domain: the old frontend host, the API it keeps using until the redirect, the new origin and the day the old host starts forwarding ([Move to another domain](domain_move.md)). |
 
 ### 5.2 Serve
 
@@ -255,56 +255,7 @@ Before rolling back:
 
 ### 7.1 Moving to a new domain
 
-A move keeps every account, exam and exercise: they live on the server, and the backend stays the same. What does not move by itself is bound to the browser's origin or to the domain:
-
-- **Passkeys** belong to the domain they were made for (the WebAuthn relying party, the host of `FRONTEND_URL`). Browsers with *related origins* (Chrome, Edge and Safari as of 2026; not Firefox) can still use them on the new domain, as long as the old domain answers `/.well-known/webauthn`. Examance lets each teacher sign in **once** that way and then asks for a new passkey. In Firefox, teachers sign in with password and authenticator code instead.
-- **Results in hybrid mode** live in the browser storage of the old origin. The new origin cannot read them, so they must be moved to the server or exported first.
-- **Browser-only things**: saved passwords in password managers, theme and other local preferences, installed apps.
-
-Move in three phases. The example moves `old.example.org` to `new.example.org`.
-
-**Phase 1, both addresses run** (about two weeks)
-
-1. Point the new host names at the same installation: the frontend (static host or Pages custom domain) and its API host (`api.new.example.org`, or what `PUBLIC_API_URL` names) with a reverse-proxy site as in section 4.4. Keep the old frontend and its old API host: until the redirect, the old frontend keeps talking to the old API, so its cookies stay on its own site.
-2. Backend `.env`, then restart:
-   - `FRONTEND_URL=https://new.example.org/` (moves the passkey relying party and the e-mail links)
-   - `FRONTEND_ORIGINS=["https://new.example.org","https://old.example.org"]`
-   - `WEBAUTHN_LEGACY_RP_IDS=["old.example.org"]` (if `WEBAUTHN_RP_ID` was set explicitly, set it to the new host and put the old value here)
-   - `ALLOWED_HOSTS`: the new API host and the old one.
-3. Frontend build variables (section 5.1): `PUBLIC_DOMAIN_MOVE_FROM=old.example.org`, `PUBLIC_DOMAIN_MOVE_FROM_API_URL=<the old API, e.g. https://api.old.example.org>`, `PUBLIC_DOMAIN_MOVE_TO=https://new.example.org`, `PUBLIC_DOMAIN_MOVE_REDIRECT_DATE=<first day of phase 2>`, and `PUBLIC_API_URL` if the new API is not `api.new.example.org`. Rebuild and deploy; the build then also contains `/.well-known/webauthn`.
-
-On the old address, the app now sends everyone with nothing to take along to the new one, and offers hybrid accounts to move their results to the server or to back them up. On the new address it offers "Use the passkey from old.example.org" at sign-in and then asks for a new passkey. New passkeys can no longer be made on the old address.
-
-**Phase 2, forward**
-
-From the redirect date, answer every request to the old host with a permanent redirect to the same path on the new host, **except `/.well-known/webauthn`**: browsers fetch that file without following redirects, so it must still be served as JSON from the old host.
-
-```
-old.example.org {
-    handle /.well-known/webauthn {
-        root * /srv/examance
-        header Content-Type application/json
-        file_server
-    }
-    handle {
-        redir https://new.example.org{uri} permanent
-    }
-}
-```
-
-With nginx: `location = /.well-known/webauthn { root /srv/examance; default_type application/json; }` and `location / { return 301 https://new.example.org$request_uri; }`. With Cloudflare, use a Redirect Rule whose expression excludes that path, and keep the old domain attached to the Pages project ([the maintainer's rule](deployment.md#domain-move-to-examance-de)). Then remove the old origin from `FRONTEND_ORIGINS`; the old API host is no longer called and can go (drop it from `ALLOWED_HOSTS` and the reverse proxy).
-
-Check:
-
-```bash
-curl -s https://api.new.example.org/api/health
-curl -sI https://old.example.org/.well-known/webauthn   # 200, application/json, no Location
-curl -sI https://old.example.org/exams                  # 301 to https://new.example.org/exams
-```
-
-**Phase 3, finish** (once teachers had time to sign in once, e.g. after two months)
-
-Empty `WEBAUTHN_LEGACY_RP_IDS` and restart; old passkeys then no longer sign in. Remove the `/.well-known/webauthn` exception (the whole old host may now redirect, or go), and drop the `PUBLIC_DOMAIN_MOVE_*` variables.
+A move keeps every account, exam and exercise, but passkeys belong to the old domain and hybrid results live in the old origin's browser storage. Examance bridges both in three phases (both addresses run, the old one forwards, old passkeys end): follow the checklist in [Move to another domain](domain_move.md), with a generic and a Cloudflare variant.
 
 ## 8. Legal responsibilities
 
