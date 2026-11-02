@@ -1,4 +1,4 @@
-/** The cut-off corner tab of printed student copies (issue #211): geometry mirrored from Schulaufgabe.sty `schnittecke`, and where the tab lies on a scan so ingest can cover it. The sty keeps both top corners of every page free, so a guillotine may cut a whole stack in any print mode. */
+/** The cut-off corner tab of printed student copies (issue #211): geometry mirrored from Schulaufgabe.sty `schnittecke`, and where the tab lies on a scan so ingest can cover it. A guillotine through the stack cuts the top-right corner of odd pages in every print mode and, on even pages, the top-right (single-sided) or top-left one (duplex, booklet): the sty keeps those free and gives odd pages' top-left corner to the header. */
 
 import type { OmrPageTemplate } from '#lib/db/schema';
 import type { OmrDetectionParams } from '#lib/grading/omrSettings';
@@ -32,14 +32,15 @@ export function zonePolygon(): Point[] {
 
 const FIDUCIAL_INSET = 5 * MM;
 const FIDUCIAL_SIZE = 8 * MM;
-/** The top pair under `schnittecke`, on every page: this far from each side and from the top edge (`\SA@fidTopX`, `\SA@fidTopY`). */
+/** Top markers outside a corner that may be cut (`\SA@fidTopX`, `\SA@fidTopY`): top right on every page, top left on even pages. */
 export const TOP_FIDUCIAL_SIDE = 46 * MM;
 export const TOP_FIDUCIAL_TOP = 12 * MM;
 
-/** A page as the scanner sees it: the bottom fiducials in the corners, the top pair moved inward beside the header row, outside both zones. */
+/** Page 1 as the scanner sees it: three markers in their corners, the top-right one moved inward beside the header row, outside the zone. */
 export function cutCornerTemplate(): OmrPageTemplate {
   const right = A4.width - FIDUCIAL_INSET - FIDUCIAL_SIZE;
   const top = A4.height - TOP_FIDUCIAL_TOP - FIDUCIAL_SIZE;
+  const corner = A4.height - FIDUCIAL_INSET - FIDUCIAL_SIZE;
   const at = (corner: 0 | 1 | 2 | 3, x: number, y: number) => ({ corner, rect: [x, y, x + FIDUCIAL_SIZE, y + FIDUCIAL_SIZE] as [number, number, number, number] });
   return {
     pageIndex: 0,
@@ -49,7 +50,7 @@ export function cutCornerTemplate(): OmrPageTemplate {
       at(0, FIDUCIAL_INSET, FIDUCIAL_INSET),
       at(1, right, FIDUCIAL_INSET),
       at(2, A4.width - TOP_FIDUCIAL_SIDE - FIDUCIAL_SIZE, top),
-      at(3, TOP_FIDUCIAL_SIDE, top),
+      at(3, FIDUCIAL_INSET, corner),
     ],
     bubbles: [],
   };

@@ -114,7 +114,7 @@ export const exam: Translations['exam'] = {
         infoText: 'Info Text (LaTeX list)',
         nameLine: 'Print a name line next to the QR code box',
         cutCorner: 'Cut-off corner for printed QR codes',
-        cutCornerHint: 'For copies with a printed QR code: the top-right corner of page 1 carries name and personal key; you cut it off before handing out and the students keep it. Both top corners of every page stay free (about 7 mm less room per page), so you may cut the whole stack at once with a guillotine, for single-sided, double-sided and booklet prints.',
+        cutCornerHint: 'For copies with a printed QR code: the top-right corner of page 1 carries name and personal key; you cut it off before handing out and the students keep it. Every page keeps free the corners a cut through the whole stack can remove (about 7 mm less room per page), for single-sided, double-sided and booklet prints.',
         nameLineHint: 'Students write their name on the title page. The QR code box stays; its initials field is dropped.',
         mcCorrectionHint: 'Show how to correct a cross at every multiple-choice task',
         mcCorrectionHintHint: 'One short line under the task: cross to choose, fill the box to withdraw, cross left of a filled box to choose again. The answer-sheet template is rebuilt.',

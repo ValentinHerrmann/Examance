@@ -11,7 +11,7 @@ import type { StickerEntry } from './stickerSheet';
 
 export interface ExamCopiesOptions {
   examTitle: string;
-  /** Pads every copy to an even page count, so each student starts on a new sheet. */
+  /** Pads every copy to an even page count, so each student starts on a new sheet; even pages get their cut line top left. */
   duplex: boolean;
 }
 
@@ -64,16 +64,18 @@ function drawTabRow(page: PDFPage, font: PDFFont, text: string, row: { depth: nu
   page.drawText(line, { x: width - EDGE - font.widthOfTextAtSize(line, size), y: height - row.depth, size, font });
 }
 
+/** The dashed cut line in a top corner; the guillotine follows it through the whole stack. */
+function drawCutLine(lib: PdfLib, page: PDFPage, side: 'left' | 'right'): void {
+  const { width, height } = page.getSize();
+  const top = side === 'right' ? width - TAB_TOP : TAB_TOP;
+  const edge = side === 'right' ? width : 0;
+  page.drawLine({ start: { x: top, y: height }, end: { x: edge, y: height - TAB_SIDE }, thickness: 0.6, color: lib.rgb(0.5, 0.5, 0.5), dashArray: [4, 3] });
+}
+
 /** The corner tab on page 1: a dashed diagonal, name and key horizontal in the corner at least 3 mm from the line and 4 mm from the edges, and a hint along the line on the side that stays. */
 function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: StickerEntry, key: string): void {
   const { width, height } = page.getSize();
-  page.drawLine({
-    start: { x: width - TAB_TOP, y: height },
-    end: { x: width, y: height - TAB_SIDE },
-    thickness: 0.6,
-    color: lib.rgb(0.5, 0.5, 0.5),
-    dashArray: [4, 3],
-  });
+  drawCutLine(lib, page, 'right');
   drawTabRow(page, fonts.bold, fonts.safe(entry.label), NAME_ROW);
   drawTabRow(page, fonts.monoBold, formatCode(key), KEY_ROW);
   const hint = fitText(fonts.regular, fonts.safe(translate('sharing.stickers.cornerHint')), HINT_SIZE, HYPOTENUSE - 2 * EDGE / SIN);
@@ -97,6 +99,8 @@ async function addCopy(lib: PdfLib, out: PDFDocument, src: PDFDocument, fonts: L
   const size = Math.min(QR_SIZE, x1 - x0 - 0.3 * CM, y1 - y0 - 0.3 * CM);
   drawQr(lib, first, entry.payload, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size);
   drawCornerTab(lib, first, fonts, entry, await personalKey(entry.payload));
+  // Every page shows where the cut runs: a duplex or booklet back loses its top-left corner, a single-sided page its top-right one.
+  for (let i = 1; i < pages.length; i++) drawCutLine(lib, pages[i], options.duplex && i % 2 === 1 ? 'left' : 'right');
   if (options.duplex && pages.length % 2 === 1) {
     const { width, height } = pages[pages.length - 1].getSize();
     out.addPage([width, height]);
