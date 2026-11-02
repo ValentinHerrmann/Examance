@@ -25,14 +25,14 @@ Everything is computed in your browser; no external service draws the codes.
 
 Instead of stickers, Examance can print each student's QR code **directly onto their own copy** of the exam. With **Print directly onto the exam copies** in the same dialog you get one PDF with a copy per student, in list order:
 
-- The QR code sits in the **QR Code** box on the cover page, exactly where a sticker would go, so scanning works as with stickers.
-- The **top-right corner of page 1** carries the student's **name and personal key** on the far side of a dashed diagonal line. **Before handing out, snip the corner off** along the line with one cut. The student recognises their copy by it and keeps it; the key later opens their [shared result](#share-results).
+- The QR code sits in the QR box on the cover page, exactly where a sticker would go, so scanning works as with stickers.
+- The **top-right corner of page 1** carries the student's **name and personal key** on the far side of a dashed diagonal line. **Before handing out, cut the corner off** along the line. You may cut the whole stack at once with a guillotine. The student recognises their copy by it and keeps it; the key later opens their [shared result](#share-results).
 - There is blank room around the line, so an imprecise cut touches neither the name nor the exam.
 - If a corner was not cut off, Examance **covers it when the scans come in**, so the name never shows during grading or in exports.
 
-This needs the corner: turn on **Cut-off corner for printed QR codes** in the exam details (when creating the exam or under **Edit Exam**). Only the top-right corner of page 1 and the corner behind it (page 2, top left) stay free; page 1's date and class move under the title, and page 2 starts about 2 cm lower. All other pages are unchanged.
+This needs the corner: turn on **Cut-off corner for printed QR codes** in the exam details (when creating the exam or under **Edit Exam**). Then **both top corners of every page** stay free, so a cut through the whole stack never touches a task, whichever corner of a sheet it removes. The text of every page starts about 1.4 cm lower; page 1's title moves up between the two corners.
 
-**Two-sided and booklet printing:** keep **For two-sided printing** on and flip on the **long edge**: a copy with an odd number of pages then gets a blank page, so every copy starts on a new sheet. In a folded booklet the corner lies on the cover sheet only; cut just that sheet, the pages under it are untouched. Print at actual size, without "fit to page".
+**Two-sided and booklet printing:** keep **For two-sided printing** on and flip on the **long edge**: a copy with an odd number of pages then gets a blank page, so every copy starts on a new sheet. A cut through the stack then removes the outer top corner of every leaf (top right on odd pages, top left on even pages), and that corner is free on every page. The same holds for folded booklets. Print at actual size, without "fit to page".
 
 ## Personal keys {#personal-keys}
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cornerCoverPolygon, cutCornerTemplate, ZONE_SIDE, ZONE_TOP } from "../src/lib/qr/cutCorner";
+import { cornerCoverPolygon, cutCornerTemplate, MM, ZONE_SIDE, ZONE_TOP } from "../src/lib/qr/cutCorner";
 import { withExamOptions } from "../src/lib/exam/examPreview";
 import { DEFAULT_OMR_PARAMS } from "../src/lib/grading/omrSettings";
 import { A4 } from "../src/lib/pdf/labelKit";
@@ -32,6 +32,17 @@ function page(fiducials: boolean): ImageData {
 }
 
 describe("corner tab cover (issue #211)", () => {
+  it("places the fiducials where Schulaufgabe.sty puts them under schnittecke", () => {
+    const rects = Object.fromEntries(cutCornerTemplate().fiducials.map(({ corner, rect }) => [corner, rect.map((v) => Math.round((v / MM) * 10) / 10)]));
+    // In mm from the bottom-left corner, as the compiled PDF's omr://__fid__ links report them; the top pair is symmetric on every page.
+    expect(rects).toEqual({
+      0: [5, 5, 13, 13],
+      1: [197, 5, 205, 13],
+      2: [166, 270.5, 174, 278.5],
+      3: [36, 270.5, 44, 278.5],
+    });
+  });
+
   for (const aligned of [true, false]) {
     it(`covers the reserved corner of ${aligned ? "an aligned" : "an unaligned"} page`, () => {
       const img = page(aligned);

@@ -1,15 +1,18 @@
-/** The cut-off corner tab of printed student copies (issue #211): geometry mirrored from Schulaufgabe.sty `schnittecke`, and where the tab lies on a scan so ingest can cover it. Only page 1 (top-right) and its back (page 2, top-left) are reserved, so booklets and duplex prints lose nothing elsewhere. */
+/** The cut-off corner tab of printed student copies (issue #211): geometry mirrored from Schulaufgabe.sty `schnittecke`, and where the tab lies on a scan so ingest can cover it. The sty keeps both top corners of every page free, so a guillotine may cut a whole stack in any print mode. */
 
 import type { OmrPageTemplate } from '#lib/db/schema';
 import type { OmrDetectionParams } from '#lib/grading/omrSettings';
 import { pdfPointToExpectedPixel, registerPage, transformPoint } from '#lib/grading/omrRegistration';
 import { A4, CM } from '#lib/pdf/labelKit';
 
+export const MM = CM / 10;
+
+// Mirrored in Schulaufgabe.sty (`Schnitt`: \geometry top, header indents, \OmrFiducialAt corners 2 and 3); change both together.
 /** The dashed cut line runs from TAB_TOP left of the corner on the top edge to TAB_SIDE down the right edge. */
-export const TAB_TOP = 6 * CM;
-export const TAB_SIDE = 3.5 * CM;
-/** Perpendicular room beyond the line for an imprecise snip; the sty keeps this whole zone (7.0 × 4.1 cm) free. */
-export const TAB_TOLERANCE = 0.5 * CM;
+export const TAB_TOP = 70 * MM;
+export const TAB_SIDE = 25 * MM;
+/** Perpendicular room beyond the line for an imprecise cut; the sty keeps this whole zone (84.9 × 30.3 mm) free in both top corners. */
+export const TAB_TOLERANCE = 5 * MM;
 
 const HYPOTENUSE = Math.hypot(TAB_TOP, TAB_SIDE);
 /** Legs of the reserved triangle: the cut line moved outward by the tolerance. */
@@ -18,7 +21,7 @@ export const ZONE_SIDE = TAB_SIDE + (TAB_TOLERANCE * HYPOTENUSE) / TAB_TOP;
 
 type Point = [number, number];
 
-/** The reserved triangle on page 1, in PDF points (origin bottom-left). */
+/** The reserved triangle at page 1's top-right corner, in PDF points (origin bottom-left). */
 export function zonePolygon(): Point[] {
   return [
     [A4.width - ZONE_TOP, A4.height],
@@ -27,13 +30,16 @@ export function zonePolygon(): Point[] {
   ];
 }
 
-const FIDUCIAL_INSET = 0.5 * CM;
-const FIDUCIAL_SIZE = 0.8 * CM;
+const FIDUCIAL_INSET = 5 * MM;
+const FIDUCIAL_SIZE = 8 * MM;
+/** The top pair under `schnittecke`, on every page: this far from each side and from the top edge (`\SA@fidTopX`, `\SA@fidTopY`). */
+export const TOP_FIDUCIAL_SIDE = 36 * MM;
+export const TOP_FIDUCIAL_TOP = 18.5 * MM;
 
-/** Page 1 as the scanner sees it: the four corner fiducials (`\OmrFiducialAt`), the top-right one moved down the right edge below the zone (`\SA@fidTR`). */
+/** A page as the scanner sees it: the bottom fiducials in the corners, the top pair moved inward beside the header row, outside both zones. */
 export function cutCornerTemplate(): OmrPageTemplate {
   const right = A4.width - FIDUCIAL_INSET - FIDUCIAL_SIZE;
-  const top = A4.height - FIDUCIAL_INSET - FIDUCIAL_SIZE;
+  const top = A4.height - TOP_FIDUCIAL_TOP - FIDUCIAL_SIZE;
   const at = (corner: 0 | 1 | 2 | 3, x: number, y: number) => ({ corner, rect: [x, y, x + FIDUCIAL_SIZE, y + FIDUCIAL_SIZE] as [number, number, number, number] });
   return {
     pageIndex: 0,
@@ -42,8 +48,8 @@ export function cutCornerTemplate(): OmrPageTemplate {
     fiducials: [
       at(0, FIDUCIAL_INSET, FIDUCIAL_INSET),
       at(1, right, FIDUCIAL_INSET),
-      at(2, A4.width - 0.2 * CM - FIDUCIAL_SIZE, A4.height - 4.6 * CM - FIDUCIAL_SIZE),
-      at(3, FIDUCIAL_INSET, top),
+      at(2, A4.width - TOP_FIDUCIAL_SIDE - FIDUCIAL_SIZE, top),
+      at(3, TOP_FIDUCIAL_SIDE, top),
     ],
     bubbles: [],
   };
