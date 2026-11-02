@@ -30,7 +30,7 @@ const LINE = [0.8, 0.8, 0.8] as const;
 const PARTIAL_FILL = [1, 0.95, 0.78] as const;
 
 /** Letters outside WinAnsi (Helvetica's encoding) would make pdf-lib throw, so they become "?". */
-function makeSafeText(font: PDFFont): (text: string) => string {
+export function makeSafeText(font: PDFFont): (text: string) => string {
   const ok = new Map<string, boolean>();
   const encodable = (ch: string) => {
     let known = ok.get(ch);

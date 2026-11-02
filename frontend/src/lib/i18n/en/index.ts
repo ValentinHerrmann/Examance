@@ -28,6 +28,7 @@ import { layoutReport } from './layoutReport';
 import { snippets } from './snippets';
 import { domainMove } from './domainMove';
 import { trash } from './trash';
+import { sharing } from './sharing';
 
 export const en: Translations = {
     common,
@@ -59,4 +60,5 @@ export const en: Translations = {
     snippets,
     domainMove,
     trash,
+    sharing,
 };

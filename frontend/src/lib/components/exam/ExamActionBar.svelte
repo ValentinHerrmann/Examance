@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
   import { gradeHref, scanHref, statsHref } from "#lib/utils/links";
-  import { faCopy, faFileZipper } from "@fortawesome/free-solid-svg-icons";
+  import { faCopy, faFileZipper, faQrcode, faShareFromSquare } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "#lib/components/ui";
 
   interface Props {
@@ -9,6 +9,8 @@
     onEdit: () => void;
     onDelete: () => void;
     onExport: () => void;
+    onStickers: () => void;
+    onShare: () => void;
     onDeleteAllSubmissions: () => void;
     onDuplicate: () => void;
     isDuplicating?: boolean;
@@ -19,6 +21,8 @@
     onEdit,
     onDelete,
     onExport,
+    onStickers,
+    onShare,
     onDeleteAllSubmissions,
     onDuplicate,
     isDuplicating = false
@@ -42,6 +46,12 @@
     </Button>
     <Button size="sm" variant="outlined" severity="secondary" icon={faFileZipper} onClick={onExport}>
       {$t("common.export")}
+    </Button>
+    <Button size="sm" variant="outlined" severity="secondary" icon={faQrcode} onClick={onStickers}>
+      {$t("sharing.actions.stickers")}
+    </Button>
+    <Button size="sm" variant="outlined" severity="secondary" icon={faShareFromSquare} onClick={onShare}>
+      {$t("sharing.actions.share")}
     </Button>
     <Button
       size="sm"

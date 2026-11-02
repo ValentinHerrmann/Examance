@@ -136,8 +136,8 @@ async def revoke(db: AsyncSession, exam_id: uuid.UUID, share_ids: Iterable[uuid.
     return len(shares)
 
 
-async def revoke_student(db: AsyncSession, exam_id: uuid.UUID, student_key: str) -> None:
-    """For deleting a student: their link stops working with them."""
+async def revoke_student(db: AsyncSession, exam_id: uuid.UUID, student_key: str) -> int:
+    """For deleting a student: their link stops working with them; returns how many."""
     shares = (
         await db.execute(
             select(ResultShare).where(
@@ -148,6 +148,7 @@ async def revoke_student(db: AsyncSession, exam_id: uuid.UUID, student_key: str)
     _forget(db, shares)
     for share in shares:
         await db.delete(share)
+    return len(shares)
 
 
 def forget_exams(db: AsyncSession, exam_ids: list[uuid.UUID]) -> None:

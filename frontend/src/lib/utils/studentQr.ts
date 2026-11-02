@@ -62,3 +62,16 @@ export function parseStudentQr(
     displayName,
   };
 }
+
+/** The sticker payload `parseStudentQr` reads back (and DiRueLei prints): `Lastname, Firstname_ID`; underscores in the id would move the split, so they are dropped. */
+export function formatStudentQr(name: string, id: string): string {
+  return `${formatStudentName(name)}_${id.replace(/_/g, '').trim()}`;
+}
+
+const UUID_RAW = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The QR text a student's sticker carried, or null for students added by hand or from unmatched pages (their raw id is a minted UUID): only a sticker can carry a personal key. */
+export function stickerRawOf(student: { pseudonymRaw?: string }): string | null {
+  const raw = student.pseudonymRaw?.trim();
+  return raw && !UUID_RAW.test(raw) ? raw : null;
+}

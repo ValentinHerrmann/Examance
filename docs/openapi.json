@@ -7693,7 +7693,7 @@
           "result-shares"
         ],
         "summary": "Revoke All Result Shares",
-        "description": "Revoke every link of the exam.",
+        "description": "Revoke every link of the exam, or only one student's.",
         "operationId": "revoke_all_result_shares_api_v1_exams__exam_id__shares_delete",
         "parameters": [
           {
@@ -7705,6 +7705,25 @@
               "format": "uuid",
               "title": "Exam Id"
             }
+          },
+          {
+            "name": "student_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this student's link (a deleted student).",
+              "title": "Student Key"
+            },
+            "description": "Only this student's link (a deleted student)."
           },
           {
             "name": "access_token",

@@ -37,7 +37,7 @@ export function isUnlockPath(pathname: string): boolean {
   return pathname === "/unlock";
 }
 
-/** Paths that must render without an unlocked session: Impressum and Datenschutzerklärung (§ 5 DDG, Art. 12 DSGVO; redirecting to /unlock would defeat them), password reset and self-registration pages, the manual and the info posters (no data, most useful before signing in). */
+/** Paths that must render without an unlocked session: Impressum and Datenschutzerklärung (§ 5 DDG, Art. 12 DSGVO; redirecting to /unlock would defeat them), password reset and self-registration pages, the manual and the info posters (no data, most useful before signing in), and the page that opens a student's shared result. */
 export function isPublicPath(pathname: string): boolean {
   return (
     isUnlockPath(pathname) ||
@@ -48,7 +48,9 @@ export function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/verify-email") ||
     pathname.startsWith("/delete-account") ||
     pathname.startsWith("/help") ||
-    pathname.startsWith("/about")
+    pathname.startsWith("/about") ||
+    // A student's result link (issue #207); exact, because "/r..." prefixes also match "/reset-password".
+    pathname === "/result"
   );
 }
 

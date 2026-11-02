@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import base64
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -76,9 +77,17 @@ async def revoke_all_result_shares(
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
+    student_key: Annotated[
+        str | None,
+        Query(pattern=r"^[0-9a-f]{64}$", description="Only this student's link (a deleted student)."),
+    ] = None,
 ) -> None:
-    """Revoke every link of the exam."""
-    if await result_shares.revoke(db, exam.id, None):
+    """Revoke every link of the exam, or only one student's."""
+    if student_key is not None:
+        revoked = await result_shares.revoke_student(db, exam.id, student_key)
+    else:
+        revoked = await result_shares.revoke(db, exam.id, None)
+    if revoked:
         await audit_svc.log(db, request, teacher, "RESULT_SHARE_REVOKED", exam.id)
 
 
