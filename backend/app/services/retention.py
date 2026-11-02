@@ -25,11 +25,12 @@ from app.models.omr_training_sample import OmrTrainingSample
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.registration_request import RegistrationRequest
+from app.models.result_share import ResultShare
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.models.trash_item import TrashItem
-from app.services import blob_store, scan_storage, trash
+from app.services import blob_store, result_shares, scan_storage, trash
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +184,8 @@ async def run(*, dry_run: bool = False) -> int:
 
         # 13. Trash entries past their grace period (issue #125); their scan files go with them.
         expired_trash = list(await db.scalars(select(TrashItem).where(TrashItem.purge_after < now)))
+        # 14. Students' result links past their expiry (issue #207); their ciphertext goes with them.
+        expired_share_count = await _count(db, ResultShare, ResultShare.expires_at <= now)
 
         total_affected = (
             len(expired_exams)
@@ -199,6 +202,7 @@ async def run(*, dry_run: bool = False) -> int:
             + stale_refresh_count
             + stale_reset_count
             + len(expired_trash)
+            + expired_share_count
         )
 
         if dry_run:
@@ -207,6 +211,9 @@ async def run(*, dry_run: bool = False) -> int:
         # Soft-delete the exams and cascade the deadline onto their child rows, so the next run (after the grace period) erases them for good.
         for exam in expired_exams:
             exam.deleted_at = now
+        # An exam past its retention takes its students' links with it at once.
+        await result_shares.drop_exams(db, list(expired_exam_ids))
+        await result_shares.purge_expired(db, now)
 
         if expired_exam_ids:
             await db.execute(
@@ -272,6 +279,7 @@ async def run(*, dry_run: bool = False) -> int:
         if purge_exam_ids:
             # The exam's rows cascade in the DB, so its scan files are dropped explicitly. Legacy exercises still name their exam (`exercises.exam_id`, ON DELETE CASCADE) and may be linked into other exams: detach them first, they stay in the library.
             scan_storage.forget_scans_of_exams(db, purge_exam_ids)
+            result_shares.forget_exams(db, purge_exam_ids)
             await db.execute(
                 update(Exercise).where(Exercise.exam_id.in_(purge_exam_ids)).values(exam_id=None)
             )
@@ -311,7 +319,8 @@ async def run(*, dry_run: bool = False) -> int:
         )
         await db.commit()
 
-        # 9. Scan files no row references.
+        # 9. Scan and share files no row references.
         total_affected += await _sweep_orphan_scans(db)
+        total_affected += await result_shares.sweep_orphan_files(db)
 
     return total_affected

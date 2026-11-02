@@ -19,6 +19,7 @@ from app.models.omr_training_sample import OmrTrainingSample
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.registration_request import RegistrationRequest
+from app.models.result_share import ResultShare
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
@@ -33,6 +34,7 @@ __all__ = [
     "AllowedEmailDomain",
     "RefreshToken",
     "Exam",
+    "ResultShare",
     "Exercise",
     "ExerciseGroup",
     "ExerciseContribution",

@@ -13,3 +13,5 @@ class RetentionPeriods(BaseModel):
     contribution_pending_days: int
     training_sample_days: int
     layout_report_days: int
+    # Longest lifetime a teacher may give a student's result link (issue #207).
+    result_share_max_days: int

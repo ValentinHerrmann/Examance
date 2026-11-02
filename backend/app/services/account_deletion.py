@@ -17,7 +17,7 @@ from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.models.trash_item import TrashItem
-from app.services import account_mail, scan_storage, trash
+from app.services import account_mail, result_shares, scan_storage, trash
 from app.services import audit as audit_svc
 from app.services.account_mail import Mail
 from app.services.tokens import aware, hash_token, rowcount
@@ -131,6 +131,7 @@ async def delete_account(
     if exam_ids:
         # Deleting the teacher cascades to the scan rows; their files follow the commit.
         scan_storage.forget_scans_of_exams(db, list(exam_ids))
+        result_shares.forget_exams(db, list(exam_ids))
         students_res = await db.execute(
             update(StudentIdentity)
             .where(

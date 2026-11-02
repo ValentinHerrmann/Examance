@@ -80,6 +80,9 @@ class AuditLog(Base):
             "TRASH_CAPTURED",
             "TRASH_RESTORED",
             "TRASH_PURGED",
+            # Result sharing with students (issue #207, migration 0051).
+            "RESULT_SHARED",
+            "RESULT_SHARE_REVOKED",
             name="audit_action",
         ),
         nullable=False,
