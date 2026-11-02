@@ -1,5 +1,6 @@
 /** Layout regression suite, run on every device project: asserts geometry, not behaviour (no document scroll, no horizontal overflow, one h1, 44px touch targets, breakpoints, dialog widths). Soft assertions in the per-route loops list every offending route. */
 import type { Locator, Page } from '@playwright/test';
+import { PDFDocument } from 'pdf-lib';
 import { test, expect } from './helpers/guards';
 import { label } from './helpers/i18n';
 import { chooseTheme, header, openHelp, openWorkspaceMenu } from './helpers/nav';
@@ -83,6 +84,51 @@ test('[layout] the unlock page fits when locked', async ({ page }) => {
   expect.soft(m.docH, 'unlock: document scrolls horizontally').toBeLessThanOrEqual(0);
   expect.soft(m.mainH, 'unlock: .app-main overflows horizontally').toBeLessThanOrEqual(1);
   expect.soft(m.h1, 'unlock: number of h1').toBe(1);
+});
+
+test('[layout] a shared result fills the screen with its PDF (issue #210)', async ({ page, backend }) => {
+  const doc = await PDFDocument.create();
+  doc.addPage([595, 842]);
+  const pdf = Array.from(await doc.save());
+
+  // Sealed in the page with the app's own share crypto (served by Vite), so the test never re-implements it.
+  await page.goto('/unlock');
+  const share = await page.evaluate(async (bytes) => {
+    // Module URLs as variables: they exist only on the Vite server, never for TypeScript here.
+    const shareModule = '/src/lib/sharing/shareCrypto.ts';
+    const aesModule = '/src/lib/crypto/aesGcm.ts';
+    const sc = await import(/* @vite-ignore */ shareModule);
+    const { uint8ArrayToBase64 } = await import(/* @vite-ignore */ aesModule);
+    const link = sc.newShareLink();
+    const body = new Uint8Array(bytes);
+    const sealed = await sc.sealShare(link, 'none', null, { filename: 'graded.pdf', examTitle: 'Layout check' }, { graded: body, solution: body });
+    return {
+      id: link.shareId,
+      path: sc.shareUrl('', link),
+      lookupB64: uint8ArrayToBase64(await sc.lookupSecret(link)),
+      ivB64: uint8ArrayToBase64(sealed.iv),
+      ciphertextB64: uint8ArrayToBase64(sealed.ciphertext),
+    };
+  }, pdf);
+  backend.state.resultShares.set(share.id, {
+    lookupB64: share.lookupB64,
+    content: { factor: 'none', kdf_salt_b64: null, iv_b64: share.ivB64, ciphertext_b64: share.ciphertextB64, expires_at: '2099-01-01T00:00:00Z' },
+  });
+
+  await page.goto(share.path);
+  await expect(page.getByRole('heading', { level: 1, name: 'Layout check' })).toBeVisible();
+  const viewer = page.locator('.embed-pdf-viewer').first();
+  await expect(viewer).toBeVisible();
+  await page.waitForTimeout(300);
+
+  const m = await page.evaluate(() => {
+    const doc = document.scrollingElement!;
+    const host = document.querySelector('.embed-pdf-viewer')!.getBoundingClientRect();
+    return { viewerH: host.height, viewportH: window.innerHeight, docH: doc.scrollWidth - doc.clientWidth };
+  });
+  // The bug left the PDF at its 160px minimum inside an 18rem pane on phones.
+  expect.soft(m.viewerH / m.viewportH, `PDF height ${m.viewerH}px of ${m.viewportH}px`).toBeGreaterThanOrEqual(0.55);
+  expect.soft(m.docH, 'result: document scrolls horizontally').toBeLessThanOrEqual(0);
 });
 
 /* -------------------------------------------------------------------------- */

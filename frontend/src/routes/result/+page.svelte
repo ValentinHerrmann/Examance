@@ -103,8 +103,9 @@
         <span class="text-sm text-muted">{$t("sharing.portal.expires", { date: formatDate(expiresAt) })}</span>
       {/if}
     </header>
-    <div class="h-[75dvh] min-h-0 min-w-0">
-      {#if solutionUrl}
+    {#if solutionUrl}
+      <!-- A flex column with a fixed height: DualPdfPreview's flex-1 fills it, while a content-sized parent shrinks it to its minimum (issue #210). -->
+      <div class="flex h-[75dvh] min-h-0 min-w-0 flex-col">
         <DualPdfPreview
           previewPdfUrl={gradedUrl}
           previewSolutionPdfUrl={solutionUrl}
@@ -113,12 +114,12 @@
           titleLoesung={$t("sharing.portal.solutionTitle")}
           downloadable={false}
         />
-      {:else}
-        <div class="h-full overflow-hidden rounded-md border border-line bg-surface-viewer">
-          <PdfEmbedViewer src={gradedUrl} />
-        </div>
-      {/if}
-    </div>
+      </div>
+    {:else}
+      <div class="h-[75dvh] min-h-0 min-w-0 overflow-hidden rounded-md border border-line bg-surface-viewer">
+        <PdfEmbedViewer src={gradedUrl} />
+      </div>
+    {/if}
     <p class="m-0 text-xs text-subtle">{$t("sharing.portal.privacy")}</p>
   </PageShell>
 {:else}
