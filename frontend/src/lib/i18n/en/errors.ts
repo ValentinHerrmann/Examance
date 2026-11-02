@@ -7,6 +7,7 @@ export const errors: Translations['errors'] = {
     httpFallback: 'HTTP Error',
 
     code: {
+        ERR_BLOB_STORE_UNAVAILABLE: 'Stored scans cannot be read right now (the server’s file storage is unreachable or a file is missing). Please contact your administrator.',
         ERR_INVALID_TOKEN: 'Invalid or expired password reset link.',
         ERR_PASSWORD_NOT_SET: 'No password has been set for this account yet. Please use the link sent to your email.',
         ERR_INVALID_CREDENTIALS: 'Invalid credentials.',

@@ -33,6 +33,8 @@ class BlobStoreUnavailable(HTTPException):
         super().__init__(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="ERR_BLOB_STORE_UNAVAILABLE",
+            # Clients translate by the code header, like every other error.
+            headers={"code": "ERR_BLOB_STORE_UNAVAILABLE"},
         )
         self.reason = reason
 

@@ -77,7 +77,7 @@ export async function runExamExport(
   }
   if (has('graded') || has('summary') || has('csv')) {
     progress(translate('export.exam.steps.results'));
-    const results = await loadResults(compileInput, has('graded'));
+    const results = await loadResults(compileInput);
     if (has('csv')) zip.add('grades.csv', buildGradesCsv(results.rows));
     if (has('summary')) {
       await part('export.exam.options.summary', async () => {
@@ -175,13 +175,10 @@ async function addCompiledPdfs(zip: ZipBuilder, input: CompileInput): Promise<st
 
 export type LoadedResults = Awaited<ReturnType<typeof loadResults>>;
 
-/** Students, submissions, scores and grade rows of an exam, through the repositories (so from wherever the account's mode keeps results); `rows[i]` belongs to `students[i]`. */
-export async function loadResults(
-  { exam, exercises, key }: Pick<CompileInput, 'exam' | 'exercises' | 'key'>,
-  includeScans: boolean
-) {
+/** Students, submissions (without scan bytes; `forEachGradedPdf` fetches each), scores and grade rows of an exam, through the repositories (so from wherever the account's mode keeps results); `rows[i]` belongs to `students[i]`. */
+export async function loadResults({ exam, exercises, key }: Pick<CompileInput, 'exam' | 'exercises' | 'key'>) {
   const [submissions, students, scoreRecords] = await Promise.all([
-    submissionRepository.getByExamId(exam.id, key, { includeScans }),
+    submissionRepository.getByExamId(exam.id, key),
     studentRepository.getByExamId(exam.id, key),
     scoreRepository.getByExamId(exam.id, key),
   ]);
@@ -211,12 +208,18 @@ export async function forEachGradedPdf(
     options.progress?.(i, chosen.length);
     const row = rowBySubmission.get(sub.id);
     const name = row?.studentName || row?.fallbackCode || `submission_${sub.id.slice(0, 8)}`;
-    if (!sub.scanCt) {
+    if (!sub.scanCt && !sub.hasScan) {
       warnings.push(translate('export.exam.warnings.noScan', { name }));
       continue;
     }
     try {
-      const pdf = await renderGradedPdf(sub, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes }); // NOSONAR: one scan at a time keeps memory bounded
+      // Fetched one at a time: memory stays at one scan, and an unreadable scan (a missing file answers 503) costs only this student.
+      const full = sub.scanCt ? sub : await submissionRepository.getById(sub.examId, sub.id, key); // NOSONAR: one scan at a time keeps memory bounded
+      if (!full?.scanCt) {
+        warnings.push(translate('export.exam.warnings.noScan', { name }));
+        continue;
+      }
+      const pdf = await renderGradedPdf(full, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes }); // NOSONAR: one scan at a time keeps memory bounded
       await onPdf(pdf, row, gradingState(resultBySubmission.get(sub.id)), name);
     } catch (err) {
       warnings.push(translate('export.exam.warnings.gradedOne', { name, error: errorText(err) }));

@@ -7,6 +7,7 @@ export const errors = {
 
     /** Keyed by the machine-readable `code` the backend sends alongside its English `detail`, so error text can be localized without touching the API. */
     code: {
+        ERR_BLOB_STORE_UNAVAILABLE: 'Gespeicherte Scans sind gerade nicht lesbar (Dateispeicher des Servers nicht erreichbar oder Datei fehlt). Bitte wenden Sie sich an die Administration.',
         ERR_INVALID_TOKEN: 'Ungültiger oder abgelaufener Link zum Zurücksetzen des Passworts.',
         ERR_PASSWORD_NOT_SET: 'Für dieses Konto wurde noch kein Passwort gesetzt. Bitte nutzen Sie den per E-Mail zugesandten Link.',
         ERR_INVALID_CREDENTIALS: 'Ungültige Anmeldedaten.',

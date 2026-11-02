@@ -15,7 +15,7 @@ Issues #207 and #83. Teachers print QR name stickers for the exam sheets and lat
 
 The flow lives in `lib/sharing/shareService.ts`:
 
-1. `loadResults` and `forEachGradedPdf` from `export/examExport.ts` render each chosen student's PDF with `renderGradedPdf`. The ZIP export uses the same loop. Results come through the repositories, so sharing works in both storage modes.
+1. `loadResults` and `forEachGradedPdf` from `export/examExport.ts` render each chosen student's PDF with `renderGradedPdf`. The ZIP export uses the same loop. Scans are fetched one submission at a time (`submissionRepository.getById`), so memory holds one scan and an unreadable scan (a missing file answers 503 `ERR_BLOB_STORE_UNAVAILABLE`) becomes a warning for that student instead of failing the run. Results come through the repositories, so sharing works in both storage modes.
 2. `shareCrypto.ts` mints a link `/result#<shareId>.<token>` (16 random bytes) and seals the PDF.
 3. `api/resultShares.ts` uploads the ciphertext with `POST /exams/{id}/shares`.
 4. `slipsPdf.ts` prints one slip per student with the link's QR code.

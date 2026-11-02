@@ -73,7 +73,7 @@ const displayName = (st: StudentRecord) => formatStudentName(st.studentName) || 
 export async function loadShareOverview(examId: string): Promise<ShareOverview> {
   const { key } = await sessionKeys();
   const ctx = await loadExam(examId, key);
-  const [results, shares] = await Promise.all([loadResults({ ...ctx, key }, false), listResultShares(examId)]);
+  const [results, shares] = await Promise.all([loadResults({ ...ctx, key }), listResultShares(examId)]);
   const keys = await joinKeys(results.students);
   const shareByKey = new Map(shares.map((s) => [s.studentKey, s]));
   const students = results.students.map((student, i) => ({
@@ -95,7 +95,7 @@ export async function shareResults(
 ): Promise<ShareOutcome> {
   const { key, fallbackSessionKey } = await sessionKeys();
   const ctx = await loadExam(request.examId, key);
-  const results = await loadResults({ ...ctx, key }, true);
+  const results = await loadResults({ ...ctx, key });
   const keys = await joinKeys(results.students);
   const channel = SHARE_CHANNELS.find((c) => c.id === request.channel);
   if (!channel?.factors.includes(request.factor)) throw new Error(translate('sharing.errors.factorChannel'));
