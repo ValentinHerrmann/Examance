@@ -18,6 +18,7 @@
   import { compileExamPreview, getCurrentExamPreview } from "#lib/exam/examPreview";
   import { loadExamData, loadExamSubmissions, loadLibraryExercises, type ExamLoadTarget } from "#lib/exam/loadExam";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
+  import { getLatestForSlot } from "#lib/latex/compileCache";
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
@@ -71,8 +72,12 @@
   let previewSolutionPdfUrl: string | null = $state(null);
   let showAngabePreview = $state(true);
   let showLoesungPreview = $state(false);
+  /** The shown preview no longer matches the sources; never recompiled automatically, the user presses compile (issue #197). */
+  let previewOutdated = $state(false);
+  // Bumped by every layout edit, so a compile that started before an edit leaves the preview marked as outdated.
+  let layoutEditSeq = 0;
 
-  /** Shows this session's last compile only if it matches the current sources; an outdated one is recompiled (issue #135). */
+  /** Shows this session's last compile; one that no longer matches the sources is shown marked as outdated (issues #135, #197). */
   async function restoreCachedPreviews() {
     if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
     let cached: Awaited<ReturnType<typeof getCurrentExamPreview>>;
@@ -93,36 +98,32 @@
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewPdfUrl = previewSolutionPdfUrl = null;
+      previewOutdated = false;
       return;
     }
-    if (cached === "stale") {
-      await handlePreviewExam();
-      return;
-    }
+    const id = exam.id;
+    const shown =
+      cached === "stale"
+        ? {
+            angabe: getLatestForSlot({ kind: "exam", id, variant: "angabe" }),
+            loesung: getLatestForSlot({ kind: "exam", id, variant: "loesung" }),
+          }
+        : cached;
+    previewOutdated = cached === "stale";
     if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-    previewPdfUrl = pdfBytesToUrl(cached.angabe.pdfBytes);
+    previewPdfUrl = shown.angabe ? pdfBytesToUrl(shown.angabe.pdfBytes) : null;
     if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-    previewSolutionPdfUrl = pdfBytesToUrl(cached.loesung.pdfBytes);
+    previewSolutionPdfUrl = shown.loesung ? pdfBytesToUrl(shown.loesung.pdfBytes) : null;
   }
 
-  let previewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /** After an edit that changes the printed exam: re-check the OMR template and recompile a shown preview (debounced). */
+  /** After an edit that changes the printed exam: re-check the OMR template and mark a shown preview as outdated (no auto-compile, issue #197). */
   function afterLayoutChange() {
     if (exam) void checkOmrTemplateStatus(exam.id);
-    if (!previewPdfUrl && !previewSolutionPdfUrl) return;
-    if (previewRefreshTimer) clearTimeout(previewRefreshTimer);
-    previewRefreshTimer = setTimeout(runPreviewRefresh, 1000);
-  }
-
-  function runPreviewRefresh() {
-    // A compile in flight used the old sources; try again once it is done.
-    previewRefreshTimer = isPreviewLoading ? setTimeout(runPreviewRefresh, 1000) : null;
-    if (!previewRefreshTimer) void handlePreviewExam();
+    layoutEditSeq++;
+    if (previewPdfUrl || previewSolutionPdfUrl) previewOutdated = true;
   }
 
   onDestroy(() => {
-    if (previewRefreshTimer) clearTimeout(previewRefreshTimer);
     if (previewPdfUrl) {
       URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = null;
@@ -322,6 +323,7 @@
     compileNotice = "";
     errorMsg = "";
     let compileSucceeded = false;
+    const editSeqAtStart = layoutEditSeq;
 
     try {
       await refreshExamSources();
@@ -353,6 +355,7 @@
 
       compileNotice = "";
       compileSucceeded = true;
+      previewOutdated = layoutEditSeq !== editSeqAtStart;
     } catch (err: any) {
       errorMsg = translate("exam.page.preview.failed", {
         message: err.message || translate("exam.page.preview.unknownError"),
@@ -736,6 +739,9 @@
           <Alert severity="info" class="mt-3">{omrPrepareMessage}</Alert>
         {/if}
 
+        {#if previewOutdated && (previewPdfUrl || previewSolutionPdfUrl)}
+          <Alert severity="info" class="mt-3">{$t("exam.page.preview.outdated")}</Alert>
+        {/if}
         {#if previewPdfUrl || previewSolutionPdfUrl}
           <div class="mt-4">
             <DualPdfPreview
