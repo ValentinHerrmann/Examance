@@ -14,7 +14,7 @@
     showLoesungPreview?: boolean;
     titleAngabe?: string | undefined;
     titleLoesung?: string | undefined;
-    /** Must resolve to a definite height (`75dvh`, `600px`, or a `%` of a parent with a fixed height); otherwise the phone pane collapses to 18rem (issue #210). */
+    /** Inside a flex column the root's (and below lg the pane's) flex-1 overrides this, so give that parent a fixed height; a content-sized one shrinks the PDF to its minimum (issue #210). */
     height?: string;
     placeholderText?: string | undefined;
     /** Desktop: with every pane collapsed, shrink to the collapsed strips and give the rest of the row back. */

@@ -104,16 +104,17 @@
       {/if}
     </header>
     {#if solutionUrl}
-      <!-- A definite height, not "100%" of a wrapper: below lg the pane otherwise collapses to its 18rem minimum (issue #210). -->
-      <DualPdfPreview
-        previewPdfUrl={gradedUrl}
-        previewSolutionPdfUrl={solutionUrl}
-        showLoesungPreview={true}
-        titleAngabe={$t("sharing.portal.gradedTitle")}
-        titleLoesung={$t("sharing.portal.solutionTitle")}
-        downloadable={false}
-        height="75dvh"
-      />
+      <!-- A flex column with a fixed height: DualPdfPreview's flex-1 fills it, while a content-sized parent shrinks it to its minimum (issue #210). -->
+      <div class="flex h-[75dvh] min-h-0 min-w-0 flex-col">
+        <DualPdfPreview
+          previewPdfUrl={gradedUrl}
+          previewSolutionPdfUrl={solutionUrl}
+          showLoesungPreview={true}
+          titleAngabe={$t("sharing.portal.gradedTitle")}
+          titleLoesung={$t("sharing.portal.solutionTitle")}
+          downloadable={false}
+        />
+      </div>
     {:else}
       <div class="h-[75dvh] min-h-0 min-w-0 overflow-hidden rounded-md border border-line bg-surface-viewer">
         <PdfEmbedViewer src={gradedUrl} />
