@@ -1,4 +1,5 @@
 import { derived, get, writable, type Readable } from 'svelte/store';
+import { apiUrl } from '#lib/api/origin';
 
 /** Maintenance and deployment windows (issue #130), polled from the public GET /api/v1/maintenance. A passive probe like refreshBackendVersion: bare fetch, never the HTTP error modal; a failed poll keeps the last known window (the backend is unreachable exactly while it restarts). */
 
@@ -85,7 +86,7 @@ export function refreshMaintenance(): Promise<void> {
   inFlight = (async () => {
     try {
       const sentAt = Date.now();
-      const response = await fetch('/api/v1/maintenance', { credentials: 'include' });
+      const response = await fetch(apiUrl('/api/v1/maintenance'), { credentials: 'include' });
       if (response.status === 404) {
         // A backend older than this feature: no maintenance announcements.
         maintenanceStore.set({ status: null, offsetMs: 0, reachable: true, checked: true });

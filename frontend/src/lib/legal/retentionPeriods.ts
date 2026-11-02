@@ -1,4 +1,5 @@
 
+import { apiUrl } from '#lib/api/origin';
 /** Retention periods the configured backend enforces (`GET /privacy/retention`), shown in the privacy statement. */
 export interface RetentionPeriods {
   graceDays: number;
@@ -25,7 +26,7 @@ const FIELDS: Record<keyof RetentionPeriods, string> = {
 /** Null when the backend is unreachable or answers incompletely; the page then states the criteria instead. A plain public fetch: no session needed, and a failure must not open the global error dialog. */
 export async function fetchRetentionPeriods(): Promise<RetentionPeriods | null> {
   try {
-    const res = await fetch('/api/v1/privacy/retention', { credentials: 'omit' });
+    const res = await fetch(apiUrl('/api/v1/privacy/retention'), { credentials: 'omit' });
     if (!res.ok) return null;
     const body: Record<string, unknown> = await res.json();
     const periods = {} as RetentionPeriods;

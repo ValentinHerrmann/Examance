@@ -1,15 +1,17 @@
 # Host Examance
 
-How to run your own Examance installation: one backend stack on a Linux server and the frontend as a static build, both on **one origin**: the browser loads the app from `https://examance.example.org/` and reaches the API at `https://examance.example.org/api/`, never at another host. To run it exactly like the maintainer's installation (two stacks, deployed automatically by GitHub Actions on every release and pull request), set up what this page describes and then follow [Host it like the maintainer: GitHub Actions](deployment.md).
+How to run your own Examance installation: one backend stack on a Linux server and the frontend on any static host, **on one site**: the browser loads the app from `https://examance.example.org/` and reaches the API at `https://api.examance.example.org/` (or another address on the same registrable domain, section 5.1). To run it exactly like the maintainer's installation (two stacks, deployed automatically by GitHub Actions on every release and pull request), set up what this page describes and then follow [Host it like the maintainer: GitHub Actions](deployment.md).
 
 ## 1. What you run
 
 ```mermaid
 flowchart LR
   B["Browser"]
+  subgraph FH["Static host"]
+    FE["Frontend<br/>examance.example.org"]
+  end
   subgraph S["Linux server"]
-    RP["Reverse proxy (TLS)<br/>examance.example.org"]
-    FE["frontend/build<br/>(static files)"]
+    RP["Reverse proxy (TLS)<br/>api.examance.example.org"]
     subgraph C["docker compose -p examance"]
       BE["backend<br/>127.0.0.1:8000"]
       LX["latex worker"]
@@ -18,8 +20,8 @@ flowchart LR
       RC["retention-cron"]
     end
   end
-  B -->|"HTTPS /"| RP --> FE
-  B -->|"HTTPS /api/*"| RP --> BE
+  B -->|"HTML, JS, WASM"| FE
+  B -->|"HTTPS /api/v1"| RP --> BE
   BE --> LX
   BE --> DB
   BE --> RD
@@ -27,13 +29,13 @@ flowchart LR
 ```
 
 - **Frontend**: a static build (HTML, JavaScript, WebAssembly). Encryption, decryption, scan processing and the browser LaTeX engine run in the browser, so the frontend host never sees plaintext.
-- **One origin**: the reverse proxy serves the static files and forwards `/api/*` to the backend (section 4.4). Alternatively the static files sit on Cloudflare Pages, whose bundled Function forwards `/api/*` to the backend host (section 5.2). There is no CORS, and the session cookies are `SameSite=Strict`.
+- **One site**: the API is at `api.` plus the frontend's host unless the build sets `PUBLIC_API_URL` (section 5.1). Either way it shares the frontend's registrable domain, because the session cookies are `SameSite=Strict`. CORS admits only the frontend's origins (`FRONTEND_ORIGINS`).
 - **Backend stack** (`deploy/docker-compose.deploy.yml`): the API, a separate LaTeX worker without secrets or database access, Postgres, Redis, a daily retention job, and optionally encrypted backups. Postgres and Redis publish no ports; the API binds only to loopback, behind your reverse proxy.
 
 ## 2. Requirements
 
 - A Linux server with Docker and the Compose plugin, with a correct clock (NTP): sign-in codes from authenticator apps are time-based, so a drifting clock rejects correct codes.
-- One host name with HTTPS for the whole installation (for example `examance.example.org`); the API lives under its `/api` path. With the frontend on Cloudflare Pages, a second host name for the backend that only the Pages Function calls (for example `backend.example.org`).
+- Two host names with HTTPS on the same registrable domain: one for the frontend and one for the API, by default `api.` plus the frontend's host (for example `examance.example.org` and `api.examance.example.org`). To avoid a second subdomain level, any other API host on the same domain works with `PUBLIC_API_URL` (for example `examance-api.example.org`).
 - A reverse proxy that terminates TLS on the server. [Caddy](https://caddyserver.com) gets and renews certificates by itself; the examples use it.
 - An SMTP account. Self-registration, invitations and password resets send links by e-mail.
 - Outbound internet access for the server: the LaTeX worker downloads TeX bundle files on demand, and image builds need `relay.fullyjustified.net`.
@@ -95,9 +97,8 @@ Fill in `.env`. The template explains every setting; these are the ones you must
 | `SECRET_KEY` | `openssl rand -hex 32` | Signs all sessions. Changing it signs everyone out. Never share it between installations. |
 | `POSTGRES_PASSWORD` | `openssl rand -hex 24` | Database password; the database is reachable only inside the stack. |
 | `FRONTEND_URL` | `https://examance.example.org/` | Used in e-mailed links, and its host name is the passkey relying party. Never a `*.pages.dev` address: that domain is on URL blocklists, so mail servers reject the e-mails (`550 5.7.1 … (B-URL)`), and the backend refuses to start with one when SMTP is configured. Serving it from the same domain as `SMTP_FROM_EMAIL` also keeps spam filters calm. |
-| `FRONTEND_ORIGINS` | empty, or `["https://examance.example.org"]` | Origins whose state-changing requests the API accepts (CSRF guard) and passkey ceremonies are verified against. Empty means the origin of `FRONTEND_URL`, which is all a normal installation needs; a domain move adds the old origin (section 7.1). No wildcard or pattern. |
-| `ALLOWED_HOSTS` | `["examance.example.org","127.0.0.1","localhost"]` | Host names the API answers to: the host your reverse proxy forwards with (behind the Pages Function: its `BACKEND_ORIGIN` host); loopback keeps the health checks working. |
-| `PROXY_SHARED_SECRET` | only behind the Pages Function: `openssl rand -hex 32` | The same value as the Function's `BACKEND_PROXY_SECRET`. With it set, the backend answers only requests that carry it (plus `GET /api/health`) and takes the client address from the Function; without it anyone who finds the backend host could claim any address. Leave it empty behind a plain reverse proxy. |
+| `FRONTEND_ORIGINS` | empty, or `["https://examance.example.org"]` | The frontend origins: the only ones CORS, the CSRF guard and passkey ceremonies accept. Empty means the origin of `FRONTEND_URL`, which is all a normal installation needs; a domain move adds the old origin (section 7.1). No wildcard or pattern. |
+| `ALLOWED_HOSTS` | `["api.examance.example.org","127.0.0.1","localhost"]` | Host names the API answers to (the API host, plus the old one during a domain move); loopback keeps the health checks working. |
 | `APP_PORT` | `8000` | Loopback port the reverse proxy forwards to. |
 | `NETWORK_SUBNET` | e.g. `172.23.0.0/16` | Fixed subnet of the stack's network, so the proxy address below stays stable. |
 | `PROXY_ALLOWED_IPS` | the network's gateway, see 4.3 | Addresses whose `X-Forwarded-For` the backend trusts. **Never `*`**: anyone could then fake their address, escape rate limits and falsify the audit log. |
@@ -127,27 +128,15 @@ The project name (`-p examance`) prefixes the containers and volumes. Use a diff
 
 ### 4.4 Reverse proxy
 
-One site serves the app and forwards the API. With Caddy, after copying `frontend/build/` to `/srv/examance` (section 5):
-
 ```
-examance.example.org {
-    handle /api/* {
-        reverse_proxy 127.0.0.1:8000
-    }
-    handle {
-        root * /srv/examance
-        try_files {path} /index.html
-        file_server
-        # plus the headers of build/_headers, above all the Content-Security-Policy (section 5.2)
-    }
+api.examance.example.org {
+    reverse_proxy 127.0.0.1:8000
 }
 ```
 
-The frontend may also live on Cloudflare Pages instead (section 5.2); then this site only forwards to the backend, under the host name the Function's `BACKEND_ORIGIN` names.
+No timeout tuning is needed. Server-side LaTeX compiles run as background jobs that the browser polls with short requests, so no request comes near the 100 s limit of proxies such as Cloudflare. Do not set a response timeout shorter than `COMPILE_TIMEOUT_SECONDS` plus a margin: a proxy that answers first sends its own error page without CORS headers, and the browser then reports a CORS error instead of a timeout.
 
-No timeout tuning is needed. Server-side LaTeX compiles run as background jobs that the browser polls with short requests, so no request comes near the 100 s limit of proxies such as Cloudflare. Do not set a response timeout shorter than `COMPILE_TIMEOUT_SECONDS` plus a margin: a proxy that answers first sends its own error page, which the app can only report as a failed request.
-
-Check: `curl -s https://examance.example.org/api/health`.
+Check: `curl -s https://api.examance.example.org/api/health`.
 
 ### 4.5 LaTeX worker and cache
 
@@ -185,23 +174,15 @@ Set them in the build environment or in `frontend/.env` (template: `frontend/.en
 
 | Build variable | Purpose |
 |---|---|
+| `PUBLIC_API_URL` | Optional: the API's address. Empty means `https://api.` plus the frontend's host, worked out in the browser. Set it to avoid a second subdomain level (`preview.example.org` → `https://preview-api.example.org` instead of `api.preview.example.org`, which many wildcard certificates do not cover). It must share the frontend's registrable domain, or the `SameSite=Strict` session cookies are not sent. Setting it also puts the exact origin into the Content Security Policy's `connect-src` (otherwise it allows any `https:` address). |
 | `VITE_LEGAL_NAME`, `VITE_LEGAL_STREET`, `VITE_LEGAL_POSTCODE_CITY`, `VITE_LEGAL_EMAIL`, optional `VITE_LEGAL_PHONE` | Operator details on the legal notice and privacy policy (`/legal/impressum`, `/legal/datenschutz`). They are built into the public pages, not stored in the repository. Without them both pages show marked placeholders and a "not configured" banner. Retention periods on the privacy page come from the backend at runtime. |
 | `PUBLIC_DOCS_URL` | Optional: base URL of this documentation site, for the footer's "Documentation" link and the in-app help's links to user-guide sections (default: `https://docs.examance.de/`). |
 | `BUSYTEX_MIRROR_URL` | Optional: a mirror of the LaTeX engine files that speeds up builds ([maintainer setup](deployment.md#busytex-mirror-cloudflare-r2)). |
-| `PUBLIC_DOMAIN_MOVE_FROM`, `PUBLIC_DOMAIN_MOVE_TO`, `PUBLIC_DOMAIN_MOVE_REDIRECT_DATE` | Only while moving to a new domain: the old frontend host, the new origin and the day the old host starts forwarding (section 7.1). |
+| `PUBLIC_DOMAIN_MOVE_FROM`, `PUBLIC_DOMAIN_MOVE_FROM_API_URL`, `PUBLIC_DOMAIN_MOVE_TO`, `PUBLIC_DOMAIN_MOVE_REDIRECT_DATE` | Only while moving to a new domain: the old frontend host, the API it keeps using until the redirect, the new origin and the day the old host starts forwarding (section 7.1). |
 
 ### 5.2 Serve
 
-Serve `frontend/build/` from the same origin as the API: either from the reverse proxy of section 4.4, or from a static host that forwards `/api/*` itself. On **Cloudflare Pages** the build ships that forwarder (`frontend/functions/api`, limited to `/api/*` by `_routes.json`); set two variables in the Pages project, per environment:
-
-| Pages variable | Value |
-|---|---|
-| `BACKEND_ORIGIN` | the backend host behind your reverse proxy, e.g. `https://backend.example.org` (put that host into `ALLOWED_HOSTS`) |
-| `BACKEND_PROXY_SECRET` | a secret, the same value as the backend's `PROXY_SHARED_SECRET` |
-
-Requests through the Function count against the Pages Functions quota of your Cloudflare plan, and a request body may be at most 100 MB (the largest upload, a scan, is 50 MB).
-
-In every case serve it with:
+Serve `frontend/build/` with:
 
 - **A fallback to `index.html`** for paths that are not files (the app routes in the browser).
 - **The response headers from `build/_headers`**, above all the Content Security Policy. Its script hashes are computed for each build, so take the file from every new build. Cloudflare Pages and Netlify apply it as is; on nginx, Caddy or Apache, translate it into header directives.
@@ -253,7 +234,7 @@ Migrations run forward only: going back to an older image does not undo them.
 $COMPOSE logs --tail 200 backend
 ```
 
-**What is deployed**: `curl -s https://examance.example.org/api/health`.
+**What is deployed**: `curl -s https://api.examance.example.org/api/health`.
 
 **Rollback**
 
@@ -284,13 +265,13 @@ Move in three phases. The example moves `old.example.org` to `new.example.org`.
 
 **Phase 1, both addresses run** (about two weeks)
 
-1. Point the new host name at the same installation: DNS, TLS, and the reverse-proxy site of section 4.4 (or the Pages custom domain). Keep the old one.
+1. Point the new host names at the same installation: the frontend (static host or Pages custom domain) and its API host (`api.new.example.org`, or what `PUBLIC_API_URL` names) with a reverse-proxy site as in section 4.4. Keep the old frontend and its old API host: until the redirect, the old frontend keeps talking to the old API, so its cookies stay on its own site.
 2. Backend `.env`, then restart:
    - `FRONTEND_URL=https://new.example.org/` (moves the passkey relying party and the e-mail links)
    - `FRONTEND_ORIGINS=["https://new.example.org","https://old.example.org"]`
    - `WEBAUTHN_LEGACY_RP_IDS=["old.example.org"]` (if `WEBAUTHN_RP_ID` was set explicitly, set it to the new host and put the old value here)
-   - `ALLOWED_HOSTS`: add the new host name if the reverse proxy forwards it.
-3. Frontend build variables (section 5.1): `PUBLIC_DOMAIN_MOVE_FROM=old.example.org`, `PUBLIC_DOMAIN_MOVE_TO=https://new.example.org`, `PUBLIC_DOMAIN_MOVE_REDIRECT_DATE=<first day of phase 2>`. Rebuild and deploy; the build then also contains `/.well-known/webauthn`.
+   - `ALLOWED_HOSTS`: the new API host and the old one.
+3. Frontend build variables (section 5.1): `PUBLIC_DOMAIN_MOVE_FROM=old.example.org`, `PUBLIC_DOMAIN_MOVE_FROM_API_URL=<the old API, e.g. https://api.old.example.org>`, `PUBLIC_DOMAIN_MOVE_TO=https://new.example.org`, `PUBLIC_DOMAIN_MOVE_REDIRECT_DATE=<first day of phase 2>`, and `PUBLIC_API_URL` if the new API is not `api.new.example.org`. Rebuild and deploy; the build then also contains `/.well-known/webauthn`.
 
 On the old address, the app now sends everyone with nothing to take along to the new one, and offers hybrid accounts to move their results to the server or to back them up. On the new address it offers "Use the passkey from old.example.org" at sign-in and then asks for a new passkey. New passkeys can no longer be made on the old address.
 
@@ -311,12 +292,12 @@ old.example.org {
 }
 ```
 
-With nginx: `location = /.well-known/webauthn { root /srv/examance; default_type application/json; }` and `location / { return 301 https://new.example.org$request_uri; }`. With Cloudflare, use a Redirect Rule whose expression excludes that path, and keep the old domain attached to the Pages project ([the maintainer's rule](deployment.md#domain-move-to-examance-de)). Then remove the old origin from `FRONTEND_ORIGINS`.
+With nginx: `location = /.well-known/webauthn { root /srv/examance; default_type application/json; }` and `location / { return 301 https://new.example.org$request_uri; }`. With Cloudflare, use a Redirect Rule whose expression excludes that path, and keep the old domain attached to the Pages project ([the maintainer's rule](deployment.md#domain-move-to-examance-de)). Then remove the old origin from `FRONTEND_ORIGINS`; the old API host is no longer called and can go (drop it from `ALLOWED_HOSTS` and the reverse proxy).
 
 Check:
 
 ```bash
-curl -s https://new.example.org/api/health
+curl -s https://api.new.example.org/api/health
 curl -sI https://old.example.org/.well-known/webauthn   # 200, application/json, no Location
 curl -sI https://old.example.org/exams                  # 301 to https://new.example.org/exams
 ```

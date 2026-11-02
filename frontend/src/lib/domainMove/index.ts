@@ -3,6 +3,8 @@
 export interface DomainMove {
   /** Host of the old frontend, also the RP ID of its passkeys. */
   from: string;
+  /** API the old frontend keeps using until the redirect: same site as `from`, so its cookies stay first-party. */
+  fromApiUrl: string;
   /** Origin of the new frontend. */
   to: string;
   /** ISO date from which the old address forwards to the new one. */

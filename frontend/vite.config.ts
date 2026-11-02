@@ -114,8 +114,14 @@ function computeCommitSha(): string {
   return process.env.CF_PAGES_COMMIT_SHA ?? '';
 }
 
-// The API is always this origin's /api (issue #198): dev and `vite preview` proxy it to the local backend; production uses a reverse proxy or functions/api.
+// On loopback the app calls its own /api (lib/api/origin.ts), which dev and `vite preview` proxy to the local backend.
 const API_PROXY = { '/api': { target: 'http://localhost:8000', changeOrigin: true } };
+
+/** PUBLIC_API_URL as an origin; '' means the default `api.<frontend host>`, decided in the browser. */
+function computeApiUrl(env: BuildEnv): string {
+  const raw = env.PUBLIC_API_URL?.trim();
+  return raw ? new URL(raw).origin : '';
+}
 
 export default defineConfig(({ mode }) => {
   const env: BuildEnv = { ...loadEnv(mode, import.meta.dirname, 'PUBLIC_'), ...process.env };
@@ -143,6 +149,7 @@ export default defineConfig(({ mode }) => {
       __REPO_URL__: JSON.stringify(REPO_URL),
       __DOCS_URL__: JSON.stringify(computeDocsUrl(env)),
       __DOMAIN_MOVE__: JSON.stringify(computeDomainMove(env, process.env.CF_PAGES_BRANCH)),
+      __API_URL__: JSON.stringify(computeApiUrl(env)),
     },
     test: {
       // Vitest must only pick up unit tests: the Playwright specs under e2e/ are named *.spec.ts, which Vitest's default include pattern also matches.

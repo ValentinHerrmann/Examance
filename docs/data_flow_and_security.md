@@ -211,9 +211,9 @@ second factor: only a sign-in that ends in a session clears it
 codes are spent with conditional `UPDATE`s, so two parallel requests cannot use one
 code twice, and Argon2 hashing runs off the event loop.
 
-### One origin for app and API (issue #198)
+### API on the frontend's site (issue #198)
 
-The browser reaches the API only at the web interface's own origin, under `/api`: a reverse proxy serves both, or, on Cloudflare Pages, the bundled Function (`frontend/functions/api`) forwards `/api/*` to the backend host. There is no CORS middleware and no user-configurable server address; the session cookies are `SameSite=Strict`, the page's CSP allows `connect-src 'self'` only, and the origin guard accepts state-changing requests only from `FRONTEND_ORIGINS`. Behind the Function the backend host is reachable from the internet, so `PROXY_SHARED_SECRET` makes it answer only requests carrying the Function's secret (`GET /api/health` excepted), and only then does it take the client address from the Function's header: rate limits, login throttling and the audit log see the teacher's address, and a direct caller can neither bypass the Function nor claim another address (`middleware/proxy_auth.py`).
+The browser reaches the API at `https://api.<frontend host>`, or at the build's `PUBLIC_API_URL` (`frontend/src/lib/api/origin.ts`); either must share the frontend's registrable domain. There is no user-configurable server address any more. Because the API is same-site, the session cookies are `SameSite=Strict`, so no other site can make the browser send them. CORS admits only `FRONTEND_ORIGINS` (default: the origin of `FRONTEND_URL`, no pattern), the origin guard refuses state-changing requests from any other `Origin`, and the page's CSP `connect-src` names the exact API origin when the build knows it (`PUBLIC_API_URL`), otherwise `https:`. The client address comes from the reverse proxy as before (`PROXY_ALLOWED_IPS`).
 
 A domain move keeps passkeys of the old domain usable on the new one through WebAuthn related origins: the old domain serves `/.well-known/webauthn` listing the new origin, the backend accepts the old RP ID only for ceremonies that ask for it (`WEBAUTHN_LEGACY_RP_IDS`), and the client then insists on a new passkey. Procedure: `docs/hosting.md` §7.1.
 

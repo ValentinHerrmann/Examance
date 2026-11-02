@@ -12,10 +12,8 @@ x-backend-env: &backend-env
   JWT_ALGORITHM: HS256
   ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
   REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
-  # Origins the API accepts (it is served at the frontend's /api, so no CORS); empty = FRONTEND_URL's.
+  # Frontend origins for CORS, the CSRF guard and passkeys (no wildcard); empty = FRONTEND_URL's.
   FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-[]}
-  # Shared with the Cloudflare Pages Function in front of the API (BACKEND_PROXY_SECRET there).
-  PROXY_SHARED_SECRET: ${PROXY_SHARED_SECRET:-}
   ALLOWED_HOSTS: ${ALLOWED_HOSTS:-[]}
   ENVIRONMENT: ${ENVIRONMENT:-production}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}

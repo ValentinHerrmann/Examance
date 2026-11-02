@@ -3,6 +3,7 @@
 import { get } from 'svelte/store';
 import { sessionStore } from '#lib/stores/session';
 import { translate, translateOptional } from '#lib/i18n';
+import { apiUrl } from '#lib/api/origin';
 import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { loginLockout } from '#lib/stores/loginLockout';
 import { noteMaintenanceRevision, refreshMaintenance } from '#lib/stores/maintenanceStore';
@@ -17,11 +18,9 @@ function withTimeoutSignal(timeoutMs: number): { signal: AbortSignal; cancel: ()
   return { signal: controller.signal, cancel: () => clearTimeout(timer) };
 }
 
-/** The API always lives at this page's own origin (issue #198): Vite proxies it in dev, a reverse proxy or the Pages Function (`functions/api`) in production. */
-const API_BASE = '/api/v1';
-
+/** The API origin comes only from `apiOrigin()` (issue #198): `api.<this host>`, PUBLIC_API_URL, or this origin through Vite's proxy in dev. */
 function getBaseUrl(): string {
-  return API_BASE;
+  return apiUrl('/api/v1');
 }
 
 export class ApiError extends Error {

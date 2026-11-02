@@ -8,7 +8,9 @@ declare const __RELEASE_NOTES__: string;
 declare const __REPO_URL__: string;
 declare const __DOCS_URL__: string;
 /** Old address this build retires, or null (scripts/domain-move.mjs, issue #198). */
-declare const __DOMAIN_MOVE__: { from: string; to: string; redirectDate: string } | null;
+declare const __DOMAIN_MOVE__: { from: string; fromApiUrl: string; to: string; redirectDate: string } | null;
+/** PUBLIC_API_URL as an origin, '' for the default `api.<frontend host>` (lib/api/origin.ts). */
+declare const __API_URL__: string;
 
 /** Operator details for the legal pages, inlined from the build environment the same way (docs/hosting.md section 5.1); never committed. */
 interface ImportMetaEnv {

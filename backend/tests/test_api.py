@@ -731,11 +731,24 @@ async def test_exercise_usage_and_deletion(client: AsyncClient, db: AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_no_cors_answers(client: AsyncClient) -> None:
-    """The API is same-origin with the frontend (issue #198): no origin, listed or not, gets a CORS grant."""
+async def test_cors_preflight_origins(client: AsyncClient) -> None:
+    """Only the frontend's origins (FRONTEND_ORIGINS, issue #198) get a CORS grant; driven off `settings`, since CI narrows FRONTEND_URL to localhost."""
     from app.config import settings
 
-    for origin in [settings.FRONTEND_ORIGINS[0], "https://unauthorized-domain.com"]:
+    allowed = settings.FRONTEND_ORIGINS[0]
+    resp = await client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": allowed,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("access-control-allow-origin") == allowed
+
+    # Neither an unlisted origin nor a suffix-extended listed one is echoed back.
+    for origin in ["https://unauthorized-domain.com", f"{allowed}.attacker.test"]:
         resp = await client.options(
             "/api/v1/auth/login",
             headers={"Origin": origin, "Access-Control-Request-Method": "POST"},

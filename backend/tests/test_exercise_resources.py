@@ -10,7 +10,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
-from app.middleware.origin_guard import is_allowed_origin
+from app.middleware.cors import is_allowed_origin
 
 from .factors import compile_job, sign_in
 
@@ -229,10 +229,10 @@ async def test_engine_unavailable_is_503_not_500(client: AsyncClient, db: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_unhandled_error_answers_without_cors(
+async def test_unhandled_error_still_carries_cors_headers(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """The API is same-origin since issue #198: a 500 grants no CORS and still reaches the client as ERR_INTERNAL. The shared client re-raises exceptions; this one lets the stack turn them into a response, as uvicorn does in production."""
+    """A 500 is produced outside CORSMiddleware, so it needs its own CORS headers or the browser reports a CORS failure and hides the fault. The shared client re-raises exceptions; this one lets the stack turn them into a response, as uvicorn does in production."""
     await _login(client, db, "res-cors@example.com")
     origin = "http://localhost:5173"
 
@@ -247,8 +247,8 @@ async def test_unhandled_error_answers_without_cors(
             )
 
     assert resp.status_code == 500
-    assert resp.headers.get("access-control-allow-origin") is None
-    assert resp.headers.get("access-control-allow-credentials") is None
+    assert resp.headers.get("access-control-allow-origin") == origin
+    assert resp.headers.get("access-control-allow-credentials") == "true"
     assert resp.json()["code"] == "ERR_INTERNAL"
 
 
@@ -256,7 +256,7 @@ async def test_unhandled_error_answers_without_cors(
 async def test_unlisted_origin_never_reaches_the_handler(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """The origin guard rejects a foreign origin before any handler runs."""
+    """The origin guard rejects it first, and the 500 handler would not echo it."""
     await _login(client, db, "res-cors-evil@example.com")
 
     resp = await compile_job(

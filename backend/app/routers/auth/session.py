@@ -60,7 +60,7 @@ class _CookieFlags(TypedDict):
     samesite: Literal["lax", "strict", "none"]
 
 
-# Strict, because the API is same-origin with the frontend (issue #198): no other site can make the browser send these cookies.
+# Strict, because the API is on the frontend's site (api.<host> or PUBLIC_API_URL, issue #198): no other site can make the browser send these cookies.
 _COOKIE_KWARGS: _CookieFlags = {"httponly": True, "secure": True, "samesite": "strict"}
 
 

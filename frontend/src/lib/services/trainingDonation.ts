@@ -1,6 +1,7 @@
 /** Opt-in donation of teacher-verified checkbox crops (see docs/data_flow_and_security.md). Privacy rules, keep them: send only when opted in (default off) AND signed in, only `isMcReviewed` questions, with a random per-box token (the account counts for the daily quota only, never stored with a sample); drop unsent data on withdrawal/sign-out, never retry failures. */
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
+import { apiUrl } from '#lib/api/origin';
 import type { ExerciseScoreRecord } from '#lib/db/schema';
 import { isMcReviewed } from '#lib/grading/mcVerification';
 import {
@@ -70,7 +71,7 @@ isAuthenticated.subscribe((signedIn) => {
 /** Whether the server accepts donations. Public; cached for the page's lifetime. */
 export function fetchDonationStatus(): Promise<DonationStatus> {
   const off: DonationStatus = { enabled: false, retentionDays: null };
-  status ??= fetch('/api/v1/training/status', { credentials: 'omit' })
+  status ??= fetch(apiUrl('/api/v1/training/status'), { credentials: 'omit' })
     .then((r) => (r.ok ? r.json() : {}))
     .then((body: { enabled?: boolean; retention_days?: number }) => ({
       enabled: body.enabled === true,

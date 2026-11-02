@@ -1,4 +1,5 @@
 import { derived, writable, type Readable } from 'svelte/store';
+import { apiUrl } from '#lib/api/origin';
 
 /** Build version of this bundle, inlined by Vite (vite.config.ts): bare semver in production ("1.4.0"), "1.4.0-PR#123 [18.08.2026 | 14:32]" for previews, "0.0.0-dev" locally. */
 export const frontendVersion: string = __APP_VERSION__;
@@ -87,14 +88,14 @@ export const displayVersionUrl: Readable<string | null> = derived(
 
 let inFlight: Promise<void> | null = null;
 
-/** Read the server's version from GET /api/health (same origin). Deliberately bypasses `#lib/api/client` (it appends /api/v1; health sits outside). A passive probe: every failure collapses to 'unknown', none surface as user errors. */
+/** Read the server's version from GET /api/health. Deliberately bypasses `#lib/api/client` (it appends /api/v1; health sits outside). A passive probe: every failure collapses to 'unknown', none surface as user errors. */
 export function refreshBackendVersion(): Promise<void> {
     if (inFlight) return inFlight;
 
     inFlight = (async () => {
         let result: string | null = null;
         try {
-            const response = await fetch('/api/health', {
+            const response = await fetch(apiUrl('/api/health'), {
                 credentials: 'include',
             });
             if (response.ok) {

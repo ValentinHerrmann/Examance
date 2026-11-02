@@ -51,11 +51,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_TTL_MINUTES: int = 15
     REFRESH_TOKEN_TTL_DAYS: int = 7
 
-    # The API is served at the frontend's own origin under /api (issue #198), so there is no CORS. These are the origins the origin guard and WebAuthn accept; empty means the origin of FRONTEND_URL. A domain move adds the old frontend origin until its redirect. Loopback origins on any port are added in development only (`dev_origin_regex`).
+    # The frontend's origins: the only ones CORS, the origin guard and WebAuthn accept (issue #198); empty means the origin of FRONTEND_URL. A domain move adds the old frontend origin until its redirect. There is deliberately no pattern: cookies go to every origin a wildcard admits. Loopback origins on any port are added in development only (`dev_origin_regex`).
     FRONTEND_ORIGINS: list[str] = []
-
-    # Shared with the edge proxy in front of the API (Cloudflare Pages Function, `frontend/functions/api`). When set, every request but GET /api/health must carry it, and only then is the proxy's client-IP header believed (`middleware/proxy_auth.py`). Unset behind a plain reverse proxy.
-    PROXY_SHARED_SECRET: str | None = None
 
     # Host header allowlist (Host-spoofing protection). Deployment-specific, so it stays opt-in: TrustedHostMiddleware is only registered when non-empty.
     ALLOWED_HOSTS: list[str] = []

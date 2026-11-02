@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { apiHost } from "#lib/api/origin";
   import { goto } from "$app/navigation";
   import { db } from "#lib/db/db";
   import { eraseStudent } from "#lib/gdpr/erasure";
@@ -71,7 +72,7 @@
       ? ""
       : translate("storagePolicy.workspace.ownerAccount", {
           account: $sessionStore.email ?? owner.accountEmail ?? owner.accountId ?? "?",
-          server: location.host,
+          server: apiHost(),
         });
   }
   let donationAvailable = $state(false);
@@ -232,7 +233,7 @@
           enabled={$trainingDonationStore.enabled}
           available={donationAvailable && $featuresStore.training_donation === true}
           signedIn={$isAuthenticated}
-          host={location.host}
+          host={apiHost()}
           onChange={(enabled) => trainingDonationStore.setEnabled(enabled)}
         />
         {/if}

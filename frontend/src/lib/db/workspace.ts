@@ -1,5 +1,6 @@
 /** The workspace manifest: one IndexedDB row saying whose key sealed the data and the last storage mode (an offline copy only). A session opens the workspace only if it owns it; a workspace from the discontinued local mode is never opened, only deleted. Invariants and detail: docs/dev/storage_modes.md ("Workspace manifest and owner binding"). */
 
+import { apiOrigin } from '#lib/api/origin';
 import { get } from 'svelte/store';
 import { db, vaultTables } from './db';
 import type { WorkspaceManifestRecord, WorkspaceOwner } from './schema';
@@ -127,8 +128,8 @@ function sessionIdentity(): WorkspaceOwner {
   return {
     kind: 'account',
     accountId: s.teacherId ?? s.email,
-    // Informational only: the API is always this page's origin (issue #198), which already scopes IndexedDB.
-    backendOrigin: typeof location === 'undefined' ? null : location.origin,
+    // Informational only (issue #198): this browser origin already scopes IndexedDB, and the API follows from it.
+    backendOrigin: apiOrigin() || (typeof location === 'undefined' ? null : location.origin),
     accountEmail: s.email,
   };
 }

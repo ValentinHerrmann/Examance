@@ -44,7 +44,7 @@ All API v1 endpoints are served relative to the root URL path:
 ## 2. Security & Session Management
 
 ### Cookie-Based Authentication
-Examance uses `Secure`, `HttpOnly`, `SameSite=Strict` cookies for session management. The API is always served at the web interface's own origin under `/api` (issue #198), so the cookies never travel cross-site:
+Examance uses `Secure`, `HttpOnly`, `SameSite=Strict` cookies for session management. The API is served on the web interface's site (`api.<frontend host>` or the build's `PUBLIC_API_URL`, issue #198), so the cookies never travel cross-site:
 - **`access_token`**: Short-lived JWT (15-minute validity) used for API authorization.
 - **`refresh_token`**: Long-lived JWT (7-day validity) used to obtain new access tokens.
 
@@ -68,8 +68,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 - Completing a password reset (`POST /api/v1/auth/reset-password`) sets the new password and revokes all active refresh tokens for the user account.
 
 ### Origin & Security Policies
-- **No CORS**: the API grants no cross-origin access. State-changing requests whose `Origin` is not in `FRONTEND_ORIGINS` (default: the origin of `FRONTEND_URL`) answer `403 ERR_ORIGIN_REJECTED`.
-- **Edge proxy**: with `PROXY_SHARED_SECRET` set, requests without the proxy's secret answer `403 ERR_PROXY_REJECTED` (except `GET /api/health`), and only the proxy may name the client address.
+- **CORS Allowed Origins**: only `FRONTEND_ORIGINS` (default: the origin of `FRONTEND_URL`); there is no origin pattern, every origin is named. State-changing requests from any other `Origin` answer `403 ERR_ORIGIN_REJECTED`.
 - **Security Headers**: Middleware enforces strict Content Security Policy (CSP), anti-clickjacking frame options, and rate limits via `slowapi`.
 
 ---
@@ -167,7 +166,8 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 - **Response**: Binary stream (`application/pdf`).
 - **Errors**: `403 ERR_FEATURE_NOT_ALLOWED` (the account's `server_latex` switch is off), `422 ERR_COMPILE_FAILED` (TeX diagnostics), `422 ERR_RESOURCE_INVALID` (a resource
   name is not usable), `503 ERR_COMPILE_UNAVAILABLE` (the engine itself is missing or cannot
-  run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL`.
+  run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL` **with** CORS
+  headers, so a browser reports the status rather than a phantom CORS failure.
 - **Limits**: this route is rate-limited to 10
   per minute per IP (`429`). At most `LATEX_MAX_CONCURRENT_COMPILES` (default 2) Tectonic runs
   happen at once per LaTeX worker; a request waits for a slot up to its own compile timeout

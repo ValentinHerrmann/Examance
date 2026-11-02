@@ -1,11 +1,19 @@
 // Domain move (issue #198, docs/hosting.md "Moving to a new domain"): which old address this build retires, where to, and from when it forwards. Read by vite.config.ts (`__DOMAIN_MOVE__`) and related-origins.mjs (`/.well-known/webauthn`). Delete the defaults once old passkeys are no longer accepted.
 
-/** @typedef {{ from: string, to: string, redirectDate: string }} DomainMove */
+/** @typedef {{ from: string, fromApiUrl: string, to: string, redirectDate: string }} DomainMove */
 
 /** @type {Record<'release' | 'preview', Omit<DomainMove, 'redirectDate'>>} */
 const DEFAULTS = {
-  release: { from: 'examance.valentin-herrmann.com', to: 'https://examance.de' },
-  preview: { from: 'prev-examance.valentin-herrmann.com', to: 'https://preview.examance.de' },
+  release: {
+    from: 'examance.valentin-herrmann.com',
+    fromApiUrl: 'https://api-examance.valentin-herrmann.com',
+    to: 'https://examance.de',
+  },
+  preview: {
+    from: 'prev-examance.valentin-herrmann.com',
+    fromApiUrl: 'https://prev-api-examance.valentin-herrmann.com',
+    to: 'https://preview.examance.de',
+  },
 };
 
 /** The day the old address starts forwarding (ISO date, Europe/Berlin); until then it serves only hybrid accounts taking their results along. */
@@ -31,8 +39,11 @@ export function computeDomainMove(env, branch) {
   const from = env.PUBLIC_DOMAIN_MOVE_FROM ?? fallback?.from ?? '';
   const to = env.PUBLIC_DOMAIN_MOVE_TO ?? fallback?.to ?? '';
   if (!from || !to) return null;
+  // The old frontend keeps its old API until the redirect, so its cookies stay same-site.
+  const fromApiUrl = env.PUBLIC_DOMAIN_MOVE_FROM_API_URL ?? fallback?.fromApiUrl ?? '';
   return {
     from,
+    fromApiUrl: fromApiUrl ? new URL(fromApiUrl).origin : '',
     to: new URL(to).origin,
     redirectDate: env.PUBLIC_DOMAIN_MOVE_REDIRECT_DATE ?? DEFAULT_REDIRECT_DATE,
   };
