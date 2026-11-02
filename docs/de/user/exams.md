@@ -42,6 +42,8 @@ Soll eine Aufgabe auf einer neuen Seite beginnen, fügen Sie zwischen zwei Aufga
 
 Mehrere Ankreuzaufgaben können gemeinsam als **MC-Gruppe** gedruckt werden. Gruppen legen und bearbeiten Sie auf der Prüfungsseite (**MC-Gruppen**). Eine Prüfung kann beliebig viele Gruppen beliebiger Größe enthalten; jede Frage gehört zu höchstens einer Gruppe.
 
+Haken Sie im Aufgabendialog auf dem Reiter **MC-Gruppen** die Fragen an und geben Sie der Gruppe einen Titel. **Aufgaben und MC-Gruppe übernehmen** fügt die Gruppe zusammen mit den übrigen Aufgaben hinzu. Für mehrere Gruppen auf einmal klicken Sie nach jeder Gruppe auf **MC-Gruppe zur Prüfung hinzufügen**.
+
 Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Frage.
 
 ## Notenschlüssel {#grading-key}
