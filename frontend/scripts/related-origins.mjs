@@ -15,4 +15,5 @@ if (!move) {
 
 fs.mkdirSync(path.dirname(target), { recursive: true });
 fs.writeFileSync(target, JSON.stringify({ origins: [move.to] }, null, 2) + '\n');
-console.log(`✓ Related origins for passkeys of ${move.from}: ${move.to}`);
+// No host names: CodeQL flags logging values read from the build environment.
+console.log('✓ /.well-known/webauthn written for the domain move');
