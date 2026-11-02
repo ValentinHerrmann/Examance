@@ -39,6 +39,19 @@ def test_foreign_stack_dir_is_refused(store: Path, monkeypatch: pytest.MonkeyPat
         blob_store.root()
 
 
+def test_rebind_after_domain_move_only_from_the_named_address(store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: a domain move changed FRONTEND_URL and every scan read failed with 503."""
+    old = settings.FRONTEND_URL.rstrip("/")
+    monkeypatch.setattr(settings, "FRONTEND_URL", "https://new.example")
+    with pytest.raises(blob_store.BlobStoreUnavailable):
+        blob_store.root()
+    with pytest.raises(blob_store.BlobStoreUnavailable):
+        blob_store.rebind("https://someone-else.example")
+    assert blob_store.rebind(old + "/") == store
+    assert blob_store.root() == store
+    assert blob_store.rebind(old) == store  # idempotent once moved
+
+
 def test_put_get_and_ref_escape(store: Path) -> None:
     ref = blob_store.put_sync("scans", "e", "s", b"data")
     assert blob_store.get_sync(ref) == b"data"

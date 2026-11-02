@@ -29,6 +29,7 @@ Without configuration (`BLOB_STORAGE_BACKEND=db`, no `BLOB_STORAGE_DIR`), everyt
   - During the move, a still-running old backend shows moved scans as missing. This is a display issue only, and it ends when the new backend starts.
 - **Switching later.** `cli.py move-blobs --to fs|db` uses the same code and verification. Set `BLOB_STORAGE_BACKEND` to the target first.
 - **Back to the DB.** `move-blobs --to db`, or an Alembic downgrade below 0038, copies files back and leaves them for the sweep. To stop using the partition, keep `BLOB_STORAGE_DIR` set until one retention run has emptied it.
+- **Domain moves.** The sentinel names the stack's `FRONTEND_URL`, so a new address makes every read fail until `init-blob-store --rebind-from <old FRONTEND_URL>` moves it (`blob_store.rebind`, which refuses a store that names any other address). Step in `docs/domain_move.md`.
 - **Result shares** (issue #207) use the kind `shares` (`shares/<exam_id>/<share_id>-<random>.bin`), written and read only by `services/result_shares.py`, which follows `BLOB_STORAGE_BACKEND` like scans; the retention run deletes expired shares and sweeps orphaned share files. They expire within 90 days, so `blob_migration` does not move them.
 - **Exercise resources later.** Use a new `kind` (`resources`) and a resource equivalent of `scan_storage`/`blob_migration`. `blob_store` is not tied to scans.
 

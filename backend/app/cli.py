@@ -256,12 +256,18 @@ def run_retention(dry_run: bool) -> None:
 
 @cli.command("init-blob-store")
 @click.option("--force", is_flag=True, default=False, help="Accept a non-empty directory.")
-def init_blob_store(force: bool) -> None:
+@click.option(
+    "--rebind-from",
+    default=None,
+    metavar="OLD_FRONTEND_URL",
+    help="After a domain move: re-mark a store that names this old address (docs/domain_move.md).",
+)
+def init_blob_store(force: bool, rebind_from: str | None) -> None:
     """Mark BLOB_STORAGE_DIR as this stack's file partition (docs/dev/storage_partitions.md). Run once, with the mount up. Without the marker every scan read/write fails instead of silently landing on the local disk under a dropped mount."""
     from app.services import blob_store
 
     try:
-        path = blob_store.init(force=force)
+        path = blob_store.rebind(rebind_from) if rebind_from else blob_store.init(force=force)
     except blob_store.BlobStoreUnavailable as exc:
         raise click.ClickException(exc.reason) from None
     click.echo(f"Blob store ready: {path}")

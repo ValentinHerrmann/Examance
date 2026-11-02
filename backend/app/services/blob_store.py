@@ -70,6 +70,7 @@ def root() -> Path:
     if data.get("identity") != _identity():
         raise BlobStoreUnavailable(
             f"{base} belongs to {data.get('identity')!r}, not {_identity()!r}"
+            " (after a domain move: `cli.py init-blob-store --rebind-from <old FRONTEND_URL>`)"
         )
     return base
 
@@ -93,6 +94,27 @@ def init(*, force: bool = False) -> Path:
         raise BlobStoreUnavailable(
             f"cannot write {sentinel}: {exc.strerror} (the dir must be writable by uid 10001)"
         ) from None
+    return base
+
+
+def rebind(old_identity: str) -> Path:
+    """Move the marker to this stack's FRONTEND_URL after a domain move; only when it still names *old_identity*, so a stack can never take over another stack's store."""
+    if not settings.BLOB_STORAGE_DIR:
+        raise BlobStoreUnavailable("BLOB_STORAGE_DIR is not set")
+    base = Path(settings.BLOB_STORAGE_DIR)
+    sentinel = base / SENTINEL
+    try:
+        current = json.loads(sentinel.read_text(encoding="utf-8")).get("identity")
+    except (OSError, ValueError):
+        raise BlobStoreUnavailable(f"{sentinel} missing or unreadable (mount down?)") from None
+    if current == _identity():
+        return base
+    if current != old_identity.rstrip("/"):
+        raise BlobStoreUnavailable(f"{base} belongs to {current!r}, not {old_identity!r}; nothing changed")
+    try:
+        sentinel.write_text(json.dumps({"identity": _identity()}), encoding="utf-8")
+    except OSError as exc:
+        raise BlobStoreUnavailable(f"cannot write {sentinel}: {exc.strerror}") from None
     return base
 
 

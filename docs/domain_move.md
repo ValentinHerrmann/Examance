@@ -40,6 +40,7 @@ Any static host for the frontend and any reverse proxy for the backend ([Host Ex
   - `ALLOWED_HOSTS`: the new API host and the old one
   - delete `CORS_ALLOWED_ORIGINS` and `CORS_ALLOWED_ORIGIN_REGEX` if still present (ignored since the move support)
   - optional: `SMTP_FROM_EMAIL` on the new domain, with SPF and DKIM
+- [ ] **Scan files** (only with `BLOB_STORAGE_BACKEND=fs`): the file store is marked with the stack's `FRONTEND_URL`, so after the restart every scan read fails with `ERR_BLOB_STORE_UNAVAILABLE`. Right after the restart, move the mark: `docker compose … exec backend python -m app.cli init-blob-store --rebind-from https://old.example.org`. It only changes a store that still names that old address. With scans in the database (`db`, the default) there is nothing to do.
 - [ ] **Frontend build variables** ([section 5.1](hosting.md#_5-1-build)), then rebuild and deploy to **both** hosts:
   - `PUBLIC_DOMAIN_MOVE_FROM=old.example.org`
   - `PUBLIC_DOMAIN_MOVE_FROM_API_URL=https://api.old.example.org`
@@ -139,6 +140,7 @@ api.new.example.org {
 |---|---|
 | `curl` to the new API answers **520** (Cloudflare) | TLS between Cloudflare and the server fails: the Origin CA certificate does not cover the new host, or Authenticated Origin Pulls is off in the new zone while Caddy requires it. |
 | Browser: "No 'Access-Control-Allow-Origin' header" on the API | Usually the API is not reached at all (check `/api/health` first). Otherwise the frontend's origin is missing from `FRONTEND_ORIGINS`, or the backend was not restarted. |
+| Opening a scan fails: "Gespeicherte Scans sind gerade nicht lesbar", log `… belongs to 'https://old…', not 'https://new…'` | The scan-store step was skipped: run `init-blob-store --rebind-from <old FRONTEND_URL>` ([Phase 1](#generic)). Nothing is lost; the files are untouched. |
 | Report-only CSP warning `connect-src 'none'` | Not from Examance; a Cloudflare zone feature or a browser extension. Harmless while report-only. |
 | The new address does not offer the old passkey | Firefox (no related origins), or `/.well-known/webauthn` on the old host is redirected, missing, or not `application/json`. |
 | The new passkey signs in but does not open data | The authenticator has no PRF support; the teacher opens data with password and recovery code, or another passkey. |
