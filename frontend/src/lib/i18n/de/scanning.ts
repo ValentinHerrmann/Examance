@@ -15,8 +15,8 @@ export const scanning = {
     },
     unmatchedResolver: {
         title: 'Nicht zugeordnete Abgaben (Fallback-Code erforderlich)',
-        description: 'Bei den folgenden Heft-Abgaben konnte automatisch kein QR-Code gelesen werden. Geben Sie den auf der Titelseite aufgedruckten Fallback-Code ein.',
-        placeholder: 'Aufgedruckten Fallback-Code eingeben (z. B. A-X7K2M9)',
+        description: 'Bei den folgenden Heft-Abgaben konnte automatisch kein QR-Code gelesen werden. Geben Sie den Text des Aufklebers ein (z. B. „Muster, Max_1042“) oder einen eigenen Code.',
+        placeholder: 'Aufklebertext oder Code eingeben (z. B. Muster, Max_1042)',
         linkCode: 'Code verknüpfen',
     },
     submissionsTable: {

@@ -21,7 +21,7 @@ Mehr: [Aufgabenbibliothek](./exercises), [Aufgaben teilen](./sharing).
 
 ## 2. Prüfung zusammenstellen und setzen {#exam}
 
-**Neue Prüfung** fragt die Kopfdaten ab (Fach, Klasse, Testart, Datum) und öffnet dann die Prüfungsseite. Dort wählen Sie Aufgaben aus der Bibliothek, ordnen sie, fassen Multiple-Choice-Fragen zu Gruppen zusammen und legen den Notenschlüssel fest. Beim Setzen entsteht ein druckfertiges PDF mit QR-Codes, je einer pro Prüfung, Variante und Schülerplatz, in Ihrem Browser oder auf dem Server.
+**Neue Prüfung** fragt die Kopfdaten ab (Fach, Klasse, Testart, Datum) und öffnet dann die Prüfungsseite. Dort wählen Sie Aufgaben aus der Bibliothek, ordnen sie, fassen Multiple-Choice-Fragen zu Gruppen zusammen und legen den Notenschlüssel fest. Beim Setzen entsteht ein druckfertiges PDF in Ihrem Browser oder auf dem Server; sein Deckblatt hat ein leeres Feld „QR Code“ für den [QR-Aufkleber](./students#qr-stickers) der Schülerin oder des Schülers.
 
 **Duplizieren** legt eine neue Prüfung mit denselben Aufgaben und Einstellungen an, zum Beispiel für eine Parallelklasse; Schülerdaten und Ergebnisse werden nie mitkopiert.
 
@@ -31,13 +31,13 @@ Mehr: [Prüfung erstellen](./exams).
 
 ## 3. Drucken, schreiben, scannen {#print}
 
-Drucken Sie die Bögen genau so, wie sie gesetzt wurden (ohne Skalierung); die QR-Codes müssen lesbar bleiben. Scannen Sie nach der Prüfung den ganzen Stapel am Schulkopierer in ein einziges PDF.
+Drucken Sie die Bögen genau so, wie sie gesetzt wurden (ohne Skalierung); der QR-Aufkleber muss lesbar bleiben. Die Aufkleber drucken Sie vorher mit **QR-Aufkleber** auf der Prüfungsseite ([QR-Aufkleber](./students#qr-stickers)); jede Schülerin und jeder Schüler klebt seinen in das Feld „QR Code“ auf dem Deckblatt. Scannen Sie nach der Prüfung den ganzen Stapel am Schulkopierer in ein einziges PDF.
 
 Mehr: [Drucken](./exams#print), [Stapel scannen](./scanning#scan).
 
 ## 4. Scan einlesen {#scan}
 
-Laden Sie das PDF im Schritt **Scans** der Prüfung hoch. Examance trennt es anhand der QR-Codes in Abgaben und verschlüsselt jede Seite sofort im Browser. Der QR-Code verweist auf ein Pseudonym, nicht auf einen Namen. Seiten mit unlesbaren Codes ordnen Sie zu, indem Sie den auf dem Bogen aufgedruckten Ersatzcode eingeben.
+Laden Sie das PDF im Schritt **Scans** der Prüfung hoch. Examance trennt es anhand der QR-Aufkleber in Abgaben und verschlüsselt jede Seite sofort im Browser. Der QR-Aufkleber verweist auf ein Pseudonym, nicht auf einen Namen. Seiten mit unlesbaren Aufklebern ordnen Sie zu, indem Sie den Aufkleber-Text eingeben.
 
 Angekreuzte Multiple-Choice-Kästchen werden beim Einlesen erkannt. Ein Kreuz nehmen Schülerinnen und Schüler zurück, indem sie das Kästchen ganz ausmalen; ein ausgemaltes Kästchen wählen sie wieder, indem sie links daneben kreuzen. Die Prüfungsoption „Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert“ druckt das als kurze Zeile zu jeder Ankreuzaufgabe. In der MC-Prüfansicht bestätigen oder korrigieren Sie unsichere Erkennungen.
 

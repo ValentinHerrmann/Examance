@@ -17,8 +17,8 @@ After the exam, the whole stack of written sheets becomes one PDF. Examance spli
 
 On the exam's **Scans** step, **Select Scan Files (PDF only)** reads the files. Examance
 
-1. reads the QR code on every page,
-2. groups the pages into one submission ("booklet") per student slot,
+1. reads the QR code sticker on the cover page and assigns the pages to that student,
+2. groups the pages into one submission ("booklet") per student,
 3. **encrypts every page in the browser** before it is stored.
 
 In hybrid mode the scans never leave your device; in "All on the server" mode they reach the server only as ciphertext. (The one optional exception are anonymised crops of single tick boxes, if you switched on [Improve MC detection](./settings#donation).)
@@ -29,13 +29,13 @@ The list below shows every imported submission. From there you can preview a sca
 
 ## Pseudonyms, not names {#pseudonyms}
 
-The QR code points at a **pseudonym**, not at a name. The link between person and submission is stored separately, encrypted, and is used only after grading (for the grade list and the export). That is what makes [blind grading](./grading#blind) possible.
+The QR sticker points at a **pseudonym**, not at a name. The link between person and submission is stored separately, encrypted, and is used only after grading (for the grade list and the export). That is what makes [blind grading](./grading#blind) possible.
 
 ## When assignment fails {#assignment}
 
-Pages whose QR code is unreadable or missing are listed under **Unmatched Submissions**. Each cover page carries a printed **fallback code** (such as `A-X7K2M9`): type it in and **Link Code** assigns the submission.
+Pages whose QR sticker is unreadable or missing are listed under **Unmatched Submissions**. The exam sheet itself carries no printed code, only the empty **QR Code** box for the sticker, see [QR stickers](./students#qr-stickers). Type the student's sticker text (`Lastname, Firstname_ID`) into the field and **Link Code** assigns the submission.
 
-Typical causes are a crumpled or folded corner, a code covered by handwriting, or a page printed with scaling.
+Typical causes are a forgotten sticker, a crumpled or folded corner, a code covered by handwriting, or a page printed with scaling.
 
 ## Verify MC detections {#mc-verification}
 

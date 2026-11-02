@@ -4,7 +4,7 @@ editLink: false
 
 # Creating an exam
 
-An exam is a selection of exercises from your library plus header data, a grading key and a few layout options. Examance typesets it as a print-ready PDF with a QR code on every sheet, so the scans can later be assigned automatically and anonymously.
+An exam is a selection of exercises from your library plus header data, a grading key and a few layout options. Examance typesets it as a print-ready PDF whose cover page has an empty **QR Code** box: each student sticks a QR name sticker into it (see [QR stickers](./students#qr-stickers)), so the scans can later be assigned automatically and anonymously.
 
 ## Create a new exam {#new-exam}
 
@@ -94,7 +94,7 @@ Under **Edit Exam** you can also add LaTeX packages for this exam only or leave 
 
 ## Typeset {#typeset}
 
-**Live Preview PDF** typesets the exam and the solution sheet. The run produces a print-ready PDF with QR codes, one per exam, variant and student slot. Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
+**Live Preview PDF** typesets the exam and the solution sheet. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
 
 Depending on your settings and your account, the exam is typeset
 
@@ -111,13 +111,13 @@ In the exam overview, **Preview** in an expanded entry opens the last compiled P
 
 ## Print {#print}
 
-Print the sheets **exactly as typeset**: no "fit to page", no scaling, no cropping. The QR codes and the corner marks must stay readable, otherwise the scan cannot be assigned automatically and ticked boxes cannot be detected.
+Print the sheets **exactly as typeset**: no "fit to page", no scaling, no cropping. The QR sticker and the corner marks must stay readable, otherwise the scan cannot be assigned automatically and ticked boxes cannot be detected.
 
 After the exam, continue with [Scanning and assignment](./scanning).
 
 ## Duplicate an exam {#duplicate}
 
-**Duplicate** (in the exam overview and on the exam page) creates a new exam with the same header, exercises, MC groups, grading key and settings, for example for a parallel class or the next school year. Students, scans and results are never copied; the copy gets its own QR codes.
+**Duplicate** (in the exam overview and on the exam page) creates a new exam with the same header, exercises, MC groups, grading key and settings, for example for a parallel class or the next school year. Students, scans and results are never copied; the copy starts without them.
 
 ## Export {#export}
 

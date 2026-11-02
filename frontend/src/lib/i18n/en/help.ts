@@ -51,7 +51,7 @@ export const help: Translations['help'] = {
                 h: 'The usual workflow',
                 l1: 'Create exercises in the library, or reuse existing ones.',
                 l2: 'Assemble an exam, set the grading key and typeset it as a PDF.',
-                l3: 'Have the printed, QR-coded sheets written, then scan the stack into a single PDF.',
+                l3: 'Have the printed sheets, each with its QR sticker, written, then scan the stack into a single PDF.',
                 l4: 'Import the scan — Examance splits and assigns the sheets by their QR codes.',
                 l5: 'Grade anonymously, then analyse or export the results.',
             },
@@ -174,7 +174,7 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'When assignment fails',
-                p1: 'Pages with an unreadable or missing QR code are listed separately. Assign them with the fallback code printed on the sheet.',
+                p1: 'Pages with an unreadable or missing QR code are listed separately. Assign them with the sticker text or a code of your own.',
             },
             s4: {
                 h: 'Verifying MC detection',

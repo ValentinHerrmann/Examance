@@ -21,7 +21,7 @@ More: [Exercise library](./exercises), [Sharing exercises](./sharing).
 
 ## 2. Assemble and typeset the exam {#exam}
 
-**New exam** asks for the header data (subject, class, exam type, date), then opens the exam page, where you pick exercises from the library, order them, group multiple choice questions and set the grading key. Typesetting produces a print-ready PDF with QR codes, one per exam, variant and student slot, in your browser or on the server.
+**New exam** asks for the header data (subject, class, exam type, date), then opens the exam page, where you pick exercises from the library, order them, group multiple choice questions and set the grading key. Typesetting produces a print-ready PDF in your browser or on the server; its cover page has an empty QR Code box for the student's [QR sticker](./students#qr-stickers).
 
 **Duplicate** creates a new exam with the same exercises and settings, for example for a parallel class; students and results are never copied. Deleted an exam by mistake? [The trash](./trash) keeps it for 7 days.
 
@@ -31,13 +31,13 @@ More: [Creating an exam](./exams).
 
 ## 3. Print, write, scan {#print}
 
-Print the sheets exactly as typeset (no scaling); the QR codes must stay readable. After the exam, scan the whole stack into one PDF on the school copier.
+Print the sheets exactly as typeset (no scaling); the QR sticker must stay readable. Print the stickers beforehand with **QR stickers** on the exam page ([QR stickers](./students#qr-stickers)); every student sticks theirs into the QR Code box on the cover page. After the exam, scan the whole stack into one PDF on the school copier.
 
 More: [Print](./exams#print), [Scan the stack](./scanning#scan).
 
 ## 4. Import the scan {#scan}
 
-Upload the PDF on the exam's **Scans** step. Examance splits it into submissions along the QR codes and encrypts every page in the browser right away. The QR code points at a pseudonym, not a name. Pages with unreadable codes are assigned by entering the fallback code printed on the sheet.
+Upload the PDF on the exam's **Scans** step. Examance splits it into submissions along the QR stickers and encrypts every page in the browser right away. The QR sticker points at a pseudonym, not a name. Pages with unreadable stickers are assigned by typing in the sticker text.
 
 Ticked multiple choice boxes are detected during import. Students withdraw a cross by filling the box completely and choose a filled box again by crossing just left of it; the exam option "Show how to correct a cross at every multiple-choice task" prints this as one short line on each multiple choice task. In the MC verification view you confirm or correct uncertain detections.
 

@@ -50,7 +50,7 @@ export const help = {
                 h: 'Der typische Ablauf',
                 l1: 'Aufgaben in der Bibliothek anlegen oder vorhandene wiederverwenden.',
                 l2: 'Eine Klausur zusammenstellen, den Notenschlüssel festlegen und als PDF setzen.',
-                l3: 'Die gedruckten Bögen mit QR-Code schreiben lassen und den Stapel als ein PDF scannen.',
+                l3: 'Die gedruckten Bögen mit QR-Aufkleber schreiben lassen und den Stapel als ein PDF scannen.',
                 l4: 'Den Scan einlesen — Examance trennt und ordnet die Bögen anhand der QR-Codes zu.',
                 l5: 'Anonym korrigieren, dann auswerten oder exportieren.',
             },
@@ -173,7 +173,7 @@ export const help = {
             },
             s3: {
                 h: 'Wenn die Zuordnung nicht klappt',
-                p1: 'Seiten mit unlesbarem oder fehlendem QR-Code landen in einer eigenen Liste. Ordnen Sie sie mit dem auf dem Bogen gedruckten Ersatzcode zu.',
+                p1: 'Seiten mit unlesbarem oder fehlendem QR-Code landen in einer eigenen Liste. Ordnen Sie sie mit dem Text des Aufklebers oder einem eigenen Code zu.',
             },
             s4: {
                 h: 'MC-Erkennung prüfen',

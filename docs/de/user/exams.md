@@ -4,7 +4,7 @@ editLink: false
 
 # Prüfung erstellen
 
-Eine Prüfung besteht aus einer Auswahl von Aufgaben aus Ihrer Bibliothek, Kopfdaten, einem Notenschlüssel und einigen Layout-Optionen. Examance setzt sie als druckfertiges PDF mit einem QR-Code auf jedem Bogen, sodass sich die Scans später automatisch und anonym zuordnen lassen.
+Eine Prüfung besteht aus einer Auswahl von Aufgaben aus Ihrer Bibliothek, Kopfdaten, einem Notenschlüssel und einigen Layout-Optionen. Examance setzt sie als druckfertiges PDF, dessen Deckblatt ein leeres Feld **QR Code** hat: Jede Schülerin und jeder Schüler klebt dort einen QR-Namensaufkleber ein (siehe [QR-Aufkleber](./students#qr-stickers)), sodass sich die Scans später automatisch und anonym zuordnen lassen.
 
 ## Eine neue Prüfung anlegen {#new-exam}
 
@@ -94,7 +94,7 @@ Unter **Prüfung bearbeiten** können Sie außerdem LaTeX-Pakete nur für diese 
 
 ## Setzen {#typeset}
 
-**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Dabei entsteht ein druckfertiges PDF mit QR-Codes, je einer pro Prüfung, Variante und Schülerplatz. Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.
+**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.
 
 Je nach Ihren Einstellungen und Ihrem Konto wird die Prüfung
 
@@ -111,13 +111,13 @@ In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag d
 
 ## Drucken {#print}
 
-Drucken Sie die Bögen **genau so, wie sie gesetzt wurden**: nicht „An Seite anpassen“, keine Skalierung, kein Beschneiden. Die QR-Codes und die Eckmarken müssen lesbar bleiben, sonst lässt sich der Scan nicht automatisch zuordnen und angekreuzte Kästchen werden nicht erkannt.
+Drucken Sie die Bögen **genau so, wie sie gesetzt wurden**: nicht „An Seite anpassen“, keine Skalierung, kein Beschneiden. Der QR-Aufkleber und die Eckmarken müssen lesbar bleiben, sonst lässt sich der Scan nicht automatisch zuordnen und angekreuzte Kästchen werden nicht erkannt.
 
 Nach der Prüfung geht es weiter mit [Scannen und Zuordnen](./scanning).
 
 ## Eine Prüfung duplizieren {#duplicate}
 
-**Duplizieren** (in der Prüfungsübersicht und auf der Prüfungsseite) legt eine neue Prüfung mit denselben Kopfdaten, Aufgaben, MC-Gruppen, demselben Notenschlüssel und denselben Einstellungen an, zum Beispiel für eine Parallelklasse oder das nächste Schuljahr. Schülerdaten, Scans und Ergebnisse werden nie mitkopiert; die Kopie erhält eigene QR-Codes.
+**Duplizieren** (in der Prüfungsübersicht und auf der Prüfungsseite) legt eine neue Prüfung mit denselben Kopfdaten, Aufgaben, MC-Gruppen, demselben Notenschlüssel und denselben Einstellungen an, zum Beispiel für eine Parallelklasse oder das nächste Schuljahr. Schülerdaten, Scans und Ergebnisse werden nie mitkopiert; die Kopie beginnt ohne sie.
 
 ## Exportieren {#export}
 
