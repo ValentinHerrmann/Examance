@@ -41,6 +41,7 @@ export const errors = {
         ERR_ARTEMIS_HOST_NOT_ALLOWED: 'Diese Artemis-Adresse ist auf diesem Server nicht freigegeben.',
         ERR_ARTEMIS_AUTH: 'Artemis hat das Token abgelehnt. Bitte kopieren Sie ein aktuelles Token aus Artemis.',
         ERR_ARTEMIS_UPSTREAM: 'Artemis ist gerade nicht erreichbar oder hat einen Fehler gemeldet.',
+        ERR_ARTEMIS_TIMEOUT: 'Artemis hat nicht rechtzeitig geantwortet. Bitte versuchen Sie es erneut.',
         ERR_RESULT_LINK_INVALID: 'Der Link zur Arbeit ist ungültig.',
         ERR_MAIL_UNAVAILABLE: 'Auf diesem Server ist kein E-Mail-Versand eingerichtet.',
         ERR_EXAM_NOT_FOUND: 'Diese Prüfung gibt es nicht (mehr), oder sie gehört zu einem anderen Konto.',

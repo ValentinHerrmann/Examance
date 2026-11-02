@@ -54,7 +54,7 @@ ALL_FEATURES = {
     "server_results": True,
     "server_latex": True,
     "exercise_sharing": True,
-    "result_delivery": False,
+    "result_delivery": True,
 }
 
 
@@ -667,7 +667,7 @@ async def test_feature_switches_drive_the_account_capabilities(
         "server_results": False,
         "server_latex": True,
         "exercise_sharing": True,
-        "result_delivery": False,
+        "result_delivery": True,
     }
     caps = await capabilities()
     assert caps["allowed_storage_modes"] == ["hybrid"]
@@ -725,7 +725,7 @@ async def test_allowed_domain_can_be_listed_updated_and_removed(
         "server_results": True,
         "server_latex": False,
         "exercise_sharing": True,
-        "result_delivery": False,
+        "result_delivery": True,
     }
 
     async def listed() -> set[str]:
@@ -741,7 +741,7 @@ async def test_allowed_domain_can_be_listed_updated_and_removed(
         "server_results": False,
         "server_latex": False,
         "exercise_sharing": True,
-        "result_delivery": False,
+        "result_delivery": True,
     }
 
     removed = await client.delete(f"{ADMIN_DOMAINS}/{entry['id']}")

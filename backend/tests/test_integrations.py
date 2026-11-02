@@ -1,7 +1,9 @@
 """Result delivery (issue #209): the feature gate, the Artemis relay and the result-link mail."""
 from __future__ import annotations
 
+import asyncio
 import logging
+import ssl
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
@@ -27,11 +29,10 @@ Handler = Callable[[httpx.Request], httpx.Response]
 
 async def _teacher(client: AsyncClient, db: AsyncSession, email: str, *, on: bool = True) -> None:
     teacher = await sign_in(client, db, email)
-    if on:
-        await db.execute(
-            update(Teacher).where(Teacher.id == teacher.id).values(allow_result_delivery=True)
-        )
-        await db.commit()
+    await db.execute(
+        update(Teacher).where(Teacher.id == teacher.id).values(allow_result_delivery=on)
+    )
+    await db.commit()
 
 
 def _mock_artemis(monkeypatch: pytest.MonkeyPatch, handler: Handler) -> None:
@@ -103,8 +104,9 @@ async def test_students_are_mapped(
 @pytest.mark.parametrize(("upstream", "status", "code"), [
     (401, 400, "ERR_ARTEMIS_AUTH"),
     (403, 400, "ERR_ARTEMIS_AUTH"),
-    (500, 502, "ERR_ARTEMIS_UPSTREAM"),
-    (302, 502, "ERR_ARTEMIS_UPSTREAM"),
+    (302, 400, "ERR_ARTEMIS_AUTH"),
+    (500, 424, "ERR_ARTEMIS_UPSTREAM"),
+    (404, 424, "ERR_ARTEMIS_UPSTREAM"),
 ])
 async def test_upstream_errors_never_become_401(
     client: AsyncClient,
@@ -120,6 +122,47 @@ async def test_upstream_errors_never_become_401(
     assert resp.status_code == status
     assert resp.headers["code"] == code
     assert JWT not in resp.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("error", [httpx.ConnectError("dns"), ssl.SSLError("bad cert"), OSError("reset")])
+async def test_transport_failures_answer_with_our_own_code(
+    client: AsyncClient,
+    db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    error: Exception,
+) -> None:
+    """Regression (#209 on preview): a 5xx from us was swapped by the proxy for a page without CORS headers; failures must be 4xx, coded and logged by step."""
+    await _teacher(client, db, f"tr{type(error).__name__}@example.com")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise error
+
+    _mock_artemis(monkeypatch, handler)
+    with caplog.at_level(logging.INFO):
+        resp = await client.post(API + "/artemis/students", json=COURSE)
+    assert resp.status_code == 424
+    assert resp.headers["code"] == "ERR_ARTEMIS_UPSTREAM"
+    assert "students" in caplog.text and HOST in caplog.text
+    assert JWT not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_slow_artemis_ends_within_the_deadline(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _teacher(client, db, "slow@example.com")
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(5)
+        return httpx.Response(200, json=[])
+
+    _mock_artemis(monkeypatch, handler)  # type: ignore[arg-type]
+    monkeypatch.setattr(artemis, "DEADLINE_SECONDS", 0.1)
+    resp = await client.post(API + "/artemis/messages", json={**COURSE, "user_id": 5, "content": "Hi"})
+    assert resp.status_code == 424
+    assert resp.headers["code"] == "ERR_ARTEMIS_TIMEOUT"
 
 
 @pytest.mark.asyncio

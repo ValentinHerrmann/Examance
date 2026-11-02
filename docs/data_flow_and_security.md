@@ -528,7 +528,7 @@ A teacher can hand each pupil their graded exam PDF through a personal link (`/r
 
 ### Result delivery by e-mail and Artemis (issue #209)
 
-Two more ways to hand a pupil their result, behind the per-account switch `result_delivery` (off by default; `403 ERR_FEATURE_NOT_ALLOWED`). Full design: [dev/result_sharing.md](dev/result_sharing.md#delivery-channels).
+Two more ways to hand a pupil their result, behind the per-account switch `result_delivery` (on by default like the other switches; off answers `403 ERR_FEATURE_NOT_ALLOWED`). Full design: [dev/result_sharing.md](dev/result_sharing.md#delivery-channels).
 
 * **The link goes through the server, so it never opens alone.** E-mail and Artemis carry only the `sticker` and `code` factors: the server (and Artemis) see the link token, never the second secret, so they still cannot derive the content key.
 * **E-mail** (`POST /api/v1/integrations/mail/results`): the browser sends address, link and expiry; the server builds a fixed mail (no free text) and hands it to `SMTP_HOST`. Only this installation's `/result#…` links are accepted; at most 100 recipients per request, 20 requests per hour. Addresses and links are neither stored nor logged.
@@ -645,7 +645,7 @@ An admin sets three switches per account (issues #53, #65), and all are enforced
   the app compiles in the browser.
 * `exercise_sharing`: sharing own exercises with, and browsing, copying and
   resyncing exercises from, other accounts (§3 "Exercise sharing").
-* `result_delivery` (off by default): sending result links by e-mail and results through
+* `result_delivery`: sending result links by e-mail and results through
   Artemis (§3 "Result delivery by e-mail and Artemis").
 
 Exams and exercises always live on the server and have no switch. An account whose

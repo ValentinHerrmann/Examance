@@ -26,7 +26,7 @@ class AccountFeatures(BaseModel):
     server_results: bool = True
     server_latex: bool = True
     exercise_sharing: bool = True
-    result_delivery: bool = False
+    result_delivery: bool = True
 
 
 class AccountFeaturesUpdate(BaseModel):

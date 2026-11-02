@@ -39,7 +39,7 @@ Nach der Korrektur gibt **Mit Schülern teilen** auf der Prüfungsseite jeder Sc
    - **Per E-Mail**, siehe [Per E-Mail verschicken](#email).
    - **Über Artemis**, siehe [Mebis und Artemis](#artemis).
 
-   E-Mail und Artemis erscheinen nur, wenn Ihre Administration sie für Ihr Konto freigeschaltet hat.
+   E-Mail und Artemis fehlen nur, wenn Ihre Administration sie für Ihr Konto abgeschaltet hat.
 3. **Schutz der Links wählen**, siehe [unten](#link-protection).
 4. **Gültigkeit wählen** („Gültig für“): 7, 14, 30 oder 90 Tage (standardmäßig 30).
 5. Optional **Musterlösung mitschicken** ankreuzen: Die Schüler sehen dann auf derselben Seite auch die Musterlösung der Prüfung. Sie wird einmal für alle kompiliert. Bei Prüfungen, deren Aufgaben ohne Code importiert wurden, ist das nicht möglich.

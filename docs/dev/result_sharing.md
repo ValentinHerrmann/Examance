@@ -74,7 +74,9 @@ Nothing is sent before the teacher confirms.
   - `core/files/courses/{id}/conversations/{conv}`;
   - `communication/courses/{id}/messages`.
 - The teacher's token (the `jwt` cookie, pasted per run; host and course id are remembered in the browser) is sent as a bearer. It is never stored or logged.
-- An upstream 401/403 becomes `400 ERR_ARTEMIS_AUTH`. A 401 from our API would read as an expired session.
+- An upstream 401/403 or redirect becomes `400 ERR_ARTEMIS_AUTH`. A 401 from our API would read as an expired session.
+- Every other failure becomes `424 ERR_ARTEMIS_UPSTREAM`, or `ERR_ARTEMIS_TIMEOUT` after the 20 s deadline per operation. It is never a 502 or 504: a proxy in front (Cloudflare, Caddy) may swap those for its own page without CORS headers, and the browser then reports a CORS error instead of the cause.
+- Each failure logs the step (`students`, `chat`, `upload`, `message`), the host, and the upstream status or error class. Grep the backend log for `Artemis relay`.
 
 **Mebis.** There is no API (DiRueLei has none either).
 - The readable exam export has an optional part `mebis`: a nested `<exam>_mebis_feedback.zip` with `Participant_<id>_assignsubmission_file_/<name>_<id>.pdf` per student (`mebisFeedbackPath`).

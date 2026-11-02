@@ -8699,7 +8699,7 @@
           "result_delivery": {
             "type": "boolean",
             "title": "Result Delivery",
-            "default": false
+            "default": true
           }
         },
         "additionalProperties": false,

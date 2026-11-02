@@ -1,6 +1,9 @@
 """Relay to an Artemis server (issue #209): student list, one-to-one chat messages and PDF uploads. The teacher's Artemis JWT lives only in the request: never log, store or echo it, and never log response bodies."""
 from __future__ import annotations
 
+import asyncio
+import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
@@ -8,7 +11,14 @@ from fastapi import HTTPException, status
 
 from app.config import settings
 
-_TIMEOUT = 30.0
+logger = logging.getLogger(__name__)
+
+# Per phase, plus a deadline per operation below the frontend's 25 s request timeout and any proxy limit.
+_TIMEOUT = httpx.Timeout(15.0, connect=8.0)
+DEADLINE_SECONDS = 20.0
+
+# Upstream failures answer 424, never 502/504: a proxy in front (Cloudflare, Caddy) may replace a 5xx with its own page without CORS headers, and the browser then shows a CORS error instead of the cause.
+_UPSTREAM_STATUS = status.HTTP_424_FAILED_DEPENDENCY
 
 
 def _error(status_code: int, detail: str, code: str) -> HTTPException:
@@ -32,14 +42,29 @@ def base_url(host: str) -> str:
     return f"https://{check_host(host)}/api/"
 
 
+def _upstream_error(detail: str = "Artemis returned an error.") -> HTTPException:
+    return _error(_UPSTREAM_STATUS, detail, "ERR_ARTEMIS_UPSTREAM")
+
+
+async def _within_deadline[T](host: str, run: Callable[[], Awaitable[T]]) -> T:
+    """Runs one relay operation so it always ends in time with a coded answer of our own."""
+    try:
+        async with asyncio.timeout(DEADLINE_SECONDS):
+            return await run()
+    except TimeoutError:
+        logger.warning("Artemis relay: no answer from %s within %ss", host, DEADLINE_SECONDS)
+        raise _error(_UPSTREAM_STATUS, "Artemis did not answer in time.", "ERR_ARTEMIS_TIMEOUT") from None
+
+
 def _client() -> httpx.AsyncClient:
     return httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=False)
 
 
 async def _call(
-    client: httpx.AsyncClient, method: str, url: str, jwt: str, **kwargs: Any
+    client: httpx.AsyncClient, step: str, method: str, url: str, jwt: str, **kwargs: Any
 ) -> httpx.Response:
-    """One upstream request; 401/403 become `ERR_ARTEMIS_AUTH` (400, never 401: the app would read that as an expired session), anything else that fails 502."""
+    """One upstream request; 401/403 and login redirects become `ERR_ARTEMIS_AUTH` (400, never 401: the app would read that as an expired session), anything else `ERR_ARTEMIS_UPSTREAM`. Logs the step and status or error class only, never the token or a body."""
+    host = httpx.URL(url).host
     try:
         response = await client.request(
             method,
@@ -47,20 +72,19 @@ async def _call(
             headers={"Authorization": f"Bearer {jwt}", "Accept": "application/json"},
             **kwargs,
         )
-    except httpx.HTTPError:
-        raise _error(
-            status.HTTP_502_BAD_GATEWAY, "Artemis is unreachable.", "ERR_ARTEMIS_UPSTREAM"
-        ) from None
-    if response.status_code in (401, 403):
+    except Exception as exc:  # noqa: BLE001 - every transport failure (DNS, TLS, proxy, reset) must end as our own coded answer
+        logger.warning("Artemis relay %s on %s failed: %s", step, host, type(exc).__name__)
+        raise _upstream_error("Artemis is unreachable.") from None
+    if response.status_code in (401, 403) or response.is_redirect:
+        logger.info("Artemis relay %s on %s: token refused (%s)", step, host, response.status_code)
         raise _error(
             status.HTTP_400_BAD_REQUEST,
             "Artemis rejected the token.",
             "ERR_ARTEMIS_AUTH",
         )
     if not response.is_success:
-        raise _error(
-            status.HTTP_502_BAD_GATEWAY, "Artemis returned an error.", "ERR_ARTEMIS_UPSTREAM"
-        )
+        logger.warning("Artemis relay %s on %s: upstream status %s", step, host, response.status_code)
+        raise _upstream_error()
     return response
 
 
@@ -68,9 +92,7 @@ def _json(response: httpx.Response) -> Any:
     try:
         return response.json()
     except ValueError:
-        raise _error(
-            status.HTTP_502_BAD_GATEWAY, "Artemis returned an error.", "ERR_ARTEMIS_UPSTREAM"
-        ) from None
+        raise _upstream_error() from None
 
 
 def _student(raw: object) -> dict[str, Any] | None:
@@ -93,15 +115,18 @@ def _student(raw: object) -> dict[str, Any] | None:
 async def list_students(host: str, course_id: int, jwt: str) -> list[dict[str, Any]]:
     """The course's students as `{id, name, login, email}`."""
     base = base_url(host)
-    async with _client() as client:
-        response = await _call(client, "GET", f"{base}core/courses/{course_id}/students", jwt)
-    data = _json(response)
+
+    async def run() -> httpx.Response:
+        async with _client() as client:
+            return await _call(
+                client, "students", "GET", f"{base}core/courses/{course_id}/students", jwt
+            )
+
+    data = _json(await _within_deadline(host, run))
     if isinstance(data, dict):
         data = data.get("content", data.get("students", []))
     if not isinstance(data, list):
-        raise _error(
-            status.HTTP_502_BAD_GATEWAY, "Artemis returned an error.", "ERR_ARTEMIS_UPSTREAM"
-        )
+        raise _upstream_error()
     return [s for s in map(_student, data) if s is not None]
 
 
@@ -111,6 +136,7 @@ async def open_chat(
     """Open (or fetch) the one-to-one chat with *user_id*; its conversation id."""
     response = await _call(
         client,
+        "chat",
         "POST",
         f"{base}communication/courses/{course_id}/one-to-one-chats",
         jwt,
@@ -118,9 +144,7 @@ async def open_chat(
     )
     data = _json(response)
     if not isinstance(data, dict) or not isinstance(data.get("id"), int):
-        raise _error(
-            status.HTTP_502_BAD_GATEWAY, "Artemis returned an error.", "ERR_ARTEMIS_UPSTREAM"
-        )
+        raise _upstream_error()
     return int(data["id"])
 
 
@@ -134,6 +158,7 @@ async def post_message(
 ) -> None:
     await _call(
         client,
+        "message",
         "POST",
         f"{base}communication/courses/{course_id}/messages",
         jwt,
@@ -158,6 +183,7 @@ async def upload_file(
     """Upload a PDF into the conversation; the path Artemis stored it under."""
     response = await _call(
         client,
+        "upload",
         "POST",
         f"{base}core/files/courses/{course_id}/conversations/{conversation_id}",
         jwt,
@@ -171,18 +197,20 @@ async def upload_file(
     if not isinstance(path, str):
         path = response.text.strip().strip('"')
     if not path:
-        raise _error(
-            status.HTTP_502_BAD_GATEWAY, "Artemis returned an error.", "ERR_ARTEMIS_UPSTREAM"
-        )
+        raise _upstream_error()
     return path
 
 
 async def send_message(host: str, course_id: int, jwt: str, user_id: int, content: str) -> None:
     """Send *content* to the student in a one-to-one chat."""
     base = base_url(host)
-    async with _client() as client:
-        conversation = await open_chat(client, base, course_id, jwt, user_id)
-        await post_message(client, base, course_id, jwt, conversation, content)
+
+    async def run() -> None:
+        async with _client() as client:
+            conversation = await open_chat(client, base, course_id, jwt, user_id)
+            await post_message(client, base, course_id, jwt, conversation, content)
+
+    await _within_deadline(host, run)
 
 
 async def send_file(
@@ -196,9 +224,13 @@ async def send_file(
 ) -> None:
     """Upload the PDF into the chat and post a message linking it (with the optional *message* above)."""
     base = base_url(host)
-    async with _client() as client:
-        conversation = await open_chat(client, base, course_id, jwt, user_id)
-        path = await upload_file(client, base, course_id, jwt, conversation, filename, data)
-        link = f"[{filename}]({path})"
-        content = f"{message}\n\n{link}" if message else link
-        await post_message(client, base, course_id, jwt, conversation, content)
+
+    async def run() -> None:
+        async with _client() as client:
+            conversation = await open_chat(client, base, course_id, jwt, user_id)
+            path = await upload_file(client, base, course_id, jwt, conversation, filename, data)
+            link = f"[{filename}]({path})"
+            content = f"{message}\n\n{link}" if message else link
+            await post_message(client, base, course_id, jwt, conversation, content)
+
+    await _within_deadline(host, run)

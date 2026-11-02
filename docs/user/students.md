@@ -39,7 +39,7 @@ After grading, **Share with students** on the exam page gives each student their
    - **By e-mail**, see [Send by e-mail](#email).
    - **Through Artemis**, see [Mebis and Artemis](#artemis).
 
-   E-mail and Artemis appear only if your administrator enabled them for your account.
+   E-mail and Artemis are missing only if your administrator turned them off for your account.
 3. **Choose the link protection**, see [below](#link-protection).
 4. **Choose the validity**: 7, 14, 30 or 90 days (30 by default).
 5. Optionally tick **Include the sample solution**: students then see the exam's sample solution on the same page. It is compiled once for all students. Exams imported without their exercise code cannot include it.

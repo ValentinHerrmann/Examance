@@ -1,4 +1,4 @@
-"""result delivery (#209): per-account admin switch, off by default
+"""result delivery (#209): per-account admin switch, on by default like the other switches
 
 Revision ID: 0052_result_delivery
 Revises: 0051_result_shares
@@ -22,7 +22,7 @@ def upgrade() -> None:
         op.add_column(
             table,
             sa.Column(
-                "allow_result_delivery", sa.Boolean(), nullable=False, server_default=sa.false()
+                "allow_result_delivery", sa.Boolean(), nullable=False, server_default=sa.true()
             ),
         )
 

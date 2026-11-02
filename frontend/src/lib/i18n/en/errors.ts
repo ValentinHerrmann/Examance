@@ -40,6 +40,7 @@ export const errors: Translations['errors'] = {
         ERR_ARTEMIS_HOST_NOT_ALLOWED: 'This Artemis address is not allowed on this server.',
         ERR_ARTEMIS_AUTH: 'Artemis rejected the token. Please copy a current token from Artemis.',
         ERR_ARTEMIS_UPSTREAM: 'Artemis is unreachable right now or reported an error.',
+        ERR_ARTEMIS_TIMEOUT: 'Artemis did not answer in time. Please try again.',
         ERR_RESULT_LINK_INVALID: 'The link to the exam is invalid.',
         ERR_MAIL_UNAVAILABLE: 'E-mail sending is not set up on this server.',
         ERR_EXAM_NOT_FOUND: 'This exam does not exist (any more), or it belongs to another account.',
