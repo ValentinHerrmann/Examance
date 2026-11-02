@@ -9,10 +9,10 @@ export const MM = CM / 10;
 
 // Mirrored in Schulaufgabe.sty (`Schnitt`: \geometry top, header indents, \OmrFiducialAt corners 2 and 3); change both together.
 /** The dashed cut line runs from TAB_TOP left of the corner on the top edge to TAB_SIDE down the right edge. */
-export const TAB_TOP = 70 * MM;
-export const TAB_SIDE = 25 * MM;
-/** Perpendicular room beyond the line for an imprecise cut; the sty keeps this whole zone (84.9 × 30.3 mm) free in both top corners. */
-export const TAB_TOLERANCE = 5 * MM;
+export const TAB_TOP = 75 * MM;
+export const TAB_SIDE = 20 * MM;
+/** Perpendicular room beyond the line for an imprecise cut; the sty keeps this whole zone (86.6 × 23.1 mm) free in both top corners. */
+export const TAB_TOLERANCE = 3 * MM;
 
 const HYPOTENUSE = Math.hypot(TAB_TOP, TAB_SIDE);
 /** Legs of the reserved triangle: the cut line moved outward by the tolerance. */
@@ -33,8 +33,8 @@ export function zonePolygon(): Point[] {
 const FIDUCIAL_INSET = 5 * MM;
 const FIDUCIAL_SIZE = 8 * MM;
 /** The top pair under `schnittecke`, on every page: this far from each side and from the top edge (`\SA@fidTopX`, `\SA@fidTopY`). */
-export const TOP_FIDUCIAL_SIDE = 36 * MM;
-export const TOP_FIDUCIAL_TOP = 18.5 * MM;
+export const TOP_FIDUCIAL_SIDE = 46 * MM;
+export const TOP_FIDUCIAL_TOP = 12 * MM;
 
 /** A page as the scanner sees it: the bottom fiducials in the corners, the top pair moved inward beside the header row, outside both zones. */
 export function cutCornerTemplate(): OmrPageTemplate {

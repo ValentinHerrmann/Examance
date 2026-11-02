@@ -23,14 +23,15 @@ const HYPOTENUSE = Math.hypot(TAB_TOP, TAB_SIDE);
 const ANGLE = (Math.atan2(TAB_SIDE, TAB_TOP) * 180) / Math.PI;
 const SIN = TAB_SIDE / HYPOTENUSE;
 const COS = TAB_TOP / HYPOTENUSE;
-/** Clearance of the tab text from the cut line (perpendicular) and from the paper edges. */
-const CLEAR = 4 * MM;
+/** Clearance of the tab text from the cut line (perpendicular) and from the paper edges (unprintable margin). */
+const CLEAR = 3 * MM;
+const EDGE = 4 * MM;
 /** Name and key rows: baseline depth below the top edge, preferred and smallest font size. */
-const NAME_ROW = { depth: 8 * MM, size: 9, minSize: 7 };
-const KEY_ROW = { depth: 13 * MM, size: 8.5, minSize: 7 };
+const NAME_ROW = { depth: 6.5 * MM, size: 9, minSize: 7 };
+const KEY_ROW = { depth: 10.7 * MM, size: 8.5, minSize: 7 };
 const HINT_SIZE = 5.5;
-/** The hint's baseline outside the cut line, so the hint sits in the tolerance zone with its glyphs rising towards the line. */
-const HINT_OFFSET = 2.4 * MM;
+/** The hint's baseline outside the cut line, so the hint sits in the 3 mm tolerance zone with its glyphs rising towards the line. */
+const HINT_OFFSET = 2.2 * MM;
 
 /** The sticker box of page 1 (`omr://__qr__` in Schulaufgabe.sty), in PDF points. */
 async function findQrBox(examPdf: Uint8Array): Promise<Rect | null> {
@@ -47,9 +48,9 @@ async function findQrBox(examPdf: Uint8Array): Promise<Rect | null> {
   }
 }
 
-/** Width a horizontal line may take at *descent* below the top edge: right-aligned CLEAR from the right edge, its lower left corner CLEAR (perpendicular) from the cut line. */
+/** Width a horizontal line may take at *descent* below the top edge: right-aligned EDGE from the right edge, its lower left corner CLEAR (perpendicular) from the cut line. */
 function roomAt(descent: number): number {
-  return TAB_TOP * (1 - descent / TAB_SIDE) - CLEAR / SIN - CLEAR;
+  return TAB_TOP * (1 - descent / TAB_SIDE) - CLEAR / SIN - EDGE;
 }
 
 /** One right-aligned row of the tab; a long text shrinks in 0.5 pt steps down to the row's smallest size before it is shortened. */
@@ -60,10 +61,10 @@ function drawTabRow(page: PDFPage, font: PDFFont, text: string, row: { depth: nu
   let size = row.size;
   while (size > row.minSize && font.widthOfTextAtSize(text, size) > room(size)) size -= 0.5;
   const line = fitText(font, text, size, room(size));
-  page.drawText(line, { x: width - CLEAR - font.widthOfTextAtSize(line, size), y: height - row.depth, size, font });
+  page.drawText(line, { x: width - EDGE - font.widthOfTextAtSize(line, size), y: height - row.depth, size, font });
 }
 
-/** The corner tab on page 1: a dashed diagonal, name and key horizontal in the corner at least 4 mm from the line and the edges, and a hint along the line on the side that stays. */
+/** The corner tab on page 1: a dashed diagonal, name and key horizontal in the corner at least 3 mm from the line and 4 mm from the edges, and a hint along the line on the side that stays. */
 function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: StickerEntry, key: string): void {
   const { width, height } = page.getSize();
   page.drawLine({
@@ -75,7 +76,7 @@ function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: Sti
   });
   drawTabRow(page, fonts.bold, fonts.safe(entry.label), NAME_ROW);
   drawTabRow(page, fonts.monoBold, formatCode(key), KEY_ROW);
-  const hint = fitText(fonts.regular, fonts.safe(translate('sharing.stickers.cornerHint')), HINT_SIZE, HYPOTENUSE - 2 * CLEAR / SIN);
+  const hint = fitText(fonts.regular, fonts.safe(translate('sharing.stickers.cornerHint')), HINT_SIZE, HYPOTENUSE - 2 * EDGE / SIN);
   const along = (HYPOTENUSE - fonts.regular.widthOfTextAtSize(hint, HINT_SIZE)) / 2;
   // Along the line (COS, -SIN) from its top end, then outward (-SIN, -COS), away from the corner.
   page.drawText(hint, {

@@ -24,7 +24,7 @@
 \setboolean{Namensfeld}{false}
 
 % Cut-off corner tab for printed student QR codes (issue #211): both top corners of every page stay free, so a guillotine may cut a whole stack in any print mode.
-% The reserved zone (an 84.9 x 30.3 mm triangle per corner) is mirrored in frontend lib/qr/cutCorner.ts, which draws the tab and covers it on scans.
+% The reserved zone (an 86.6 x 23.1 mm triangle per corner) is mirrored in frontend lib/qr/cutCorner.ts, which draws the tab and covers it on scans.
 \newboolean{Schnitt}
 \setboolean{Schnitt}{false}
 
@@ -227,8 +227,8 @@
 \ExecuteOptions{roman}
 \ProcessOptions\relax
 
-% With the corner tab the header row starts at 17.5mm, so on every page the body (about 28.1mm) begins below both corner zones (26.7mm deep at the text margin).
-\ifthenelse{\boolean{Schnitt}}{\geometry{top=17.5mm}}{}
+% With the corner tab the header row starts at 10.5mm, so on every page the body (about 21.1mm) begins below both corner zones (20.4mm deep at the text margin).
+\ifthenelse{\boolean{Schnitt}}{\geometry{top=10.5mm}}{}
 
 % ==============================================================================
 % 6. Name Box (Namenszeile) & Header Setup
@@ -301,9 +301,9 @@
 \AtBeginDocument{
     \fancyheadoffset[L]{5mm}
     \fancyheadoffset[R]{5mm}
-    % With the corner tab the side cells keep 47mm clear of each paper edge (outside the zones and the moved top fiducials),
+    % With the corner tab the side cells keep 57mm clear of each paper edge (outside the zones and the moved top fiducials),
     % and page 1's title rises into the free band between the two zones, adding no header height.
-    \ifthenelse{\boolean{Schnitt}}{\setlength{\SA@headindent}{4.2cm}}{\setlength{\SA@headindent}{1cm}}%
+    \ifthenelse{\boolean{Schnitt}}{\setlength{\SA@headindent}{5.2cm}}{\setlength{\SA@headindent}{1cm}}%
     % The head rule then spans only the text width: its ends at 5mm would cross both zones' tips.
     \ifthenelse{\boolean{Schnitt}}{\renewcommand{\headrule}{\hbox to\headwidth{\hskip5mm\leaders\hrule height\headrulewidth\hfill\hskip5mm}\vskip-\headrulewidth}}{}%
     \lhead{\SA@headreset\ifnum\thepage=1
@@ -325,7 +325,7 @@
     \chead{\SA@headreset
     \ifnum\thepage=1
     \ifthenelse{\boolean{Schnitt}}{%
-    \raisebox{13mm}[0pt][0pt]{\adjustbox{max width=88mm}{\Large \Nrtext. \Testarttesttext \ in \Fachtext}}%
+    \raisebox{11mm}[0pt][0pt]{\adjustbox{max width=80mm}{\Large \Nrtext. \Testarttesttext \ in \Fachtext}}%
     }{%
     {
     \Large
@@ -384,12 +384,12 @@
     \AtPageLowerLeft{\put(\LenToUnit{#2},\LenToUnit{#3}){\OmrLink{\OmrFiducialSize}{\OmrFiducialSize}{omr://__fid__/#1}\OmrFiducialShape}}%
 }
 
-% With the corner tab the top pair sits 36mm from each side and 18.5mm from the top on every page: outside both zones,
+% With the corner tab the top pair sits 46mm from each side and 12mm from the top on every page: outside both zones,
 % beside the header row, symmetric (mirrored in frontend lib/qr/cutCorner.ts).
 \newlength{\SA@fidTopX}
 \newlength{\SA@fidTopY}
 \ifthenelse{\boolean{Schnitt}}%
-    {\setlength{\SA@fidTopX}{36mm}\setlength{\SA@fidTopY}{18.5mm}}%
+    {\setlength{\SA@fidTopX}{46mm}\setlength{\SA@fidTopY}{12mm}}%
     {\setlength{\SA@fidTopX}{\OmrFiducialInset}\setlength{\SA@fidTopY}{\OmrFiducialInset}}
 \AddToShipoutPictureBG{%
     \OmrFiducialAt{0}{\OmrFiducialInset}{\OmrFiducialInset}%

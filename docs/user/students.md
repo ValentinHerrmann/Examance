@@ -30,7 +30,7 @@ Instead of stickers, Examance can print each student's QR code **directly onto t
 - There is blank room around the line, so an imprecise cut touches neither the name nor the exam.
 - If a corner was not cut off, Examance **covers it when the scans come in**, so the name never shows during grading or in exports.
 
-This needs the corner: turn on **Cut-off corner for printed QR codes** in the exam details (when creating the exam or under **Edit Exam**). Then **both top corners of every page** stay free, so a cut through the whole stack never touches a task, whichever corner of a sheet it removes. The text of every page starts about 1.4 cm lower; page 1's title moves up between the two corners.
+This needs the corner: turn on **Cut-off corner for printed QR codes** in the exam details (when creating the exam or under **Edit Exam**). Then **both top corners of every page** stay free, so a cut through the whole stack never touches a task, whichever corner of a sheet it removes. The text of every page starts about 7 mm lower; page 1's title moves up between the two corners.
 
 **Two-sided and booklet printing:** keep **For two-sided printing** on and flip on the **long edge**: a copy with an odd number of pages then gets a blank page, so every copy starts on a new sheet. A cut through the stack then removes the outer top corner of every leaf (top right on odd pages, top left on even pages), and that corner is free on every page. The same holds for folded booklets. Print at actual size, without "fit to page".
 
