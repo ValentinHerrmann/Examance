@@ -18,7 +18,7 @@ _EXEMPT = {("GET", "/api/health"), ("HEAD", "/api/health")}
 def _client_ip(value: bytes) -> str | None:
     try:
         return str(ipaddress.ip_address(value.decode("ascii").strip()))
-    except (UnicodeDecodeError, ValueError):
+    except ValueError:  # UnicodeDecodeError included
         return None
 
 

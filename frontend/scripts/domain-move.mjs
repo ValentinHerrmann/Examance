@@ -12,13 +12,22 @@ const DEFAULTS = {
 const DEFAULT_REDIRECT_DATE = '2026-11-23';
 
 /**
+ * Defaults for a Pages branch: `release` is production, every other branch a preview; none outside Pages.
+ * @param {string | undefined} branch
+ */
+function defaultsFor(branch) {
+  if (!branch) return null;
+  return branch === 'release' ? DEFAULTS.release : DEFAULTS.preview;
+}
+
+/**
  * The move this build announces, or null. Pages builds of `release` and `preview` get the defaults above; `PUBLIC_DOMAIN_MOVE_*` override them, and an empty `PUBLIC_DOMAIN_MOVE_FROM` switches the move off.
  * @param {Record<string, string | undefined>} env
  * @param {string | undefined} branch Cloudflare Pages branch (`CF_PAGES_BRANCH`).
  * @returns {DomainMove | null}
  */
 export function computeDomainMove(env, branch) {
-  const fallback = branch === 'release' ? DEFAULTS.release : branch ? DEFAULTS.preview : null;
+  const fallback = defaultsFor(branch);
   const from = env.PUBLIC_DOMAIN_MOVE_FROM ?? fallback?.from ?? '';
   const to = env.PUBLIC_DOMAIN_MOVE_TO ?? fallback?.to ?? '';
   if (!from || !to) return null;
