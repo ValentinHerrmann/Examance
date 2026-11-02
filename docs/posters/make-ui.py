@@ -10,13 +10,16 @@ HERE = Path(__file__).resolve().parent
 P = "../screenshots/pitch/"
 URL = "examance.de"
 S = {
-    "editor": ("tour/t-exercise-editor.jpg", "LaTeX-Aufgabeneditor", "Bausteine per Klick, Live-Vorschau; jedes \\BE ist ein Punkt, \\hBE ein halber", "Punktzahl rechnet sich selbst"),
+    "library": ("02-library.jpg", "Aufgabenbibliothek", "Nach Klasse, Fach und Thema filtern; Varianten und Versionen je Aufgabe", "einmal schreiben, immer wieder nutzen"),
+    "editor": ("tour/t-exercise-editor.jpg", "LaTeX-Aufgabeneditor", "Bausteine per Klick, PDF-Vorschau; \\BE ist ein Punkt, \\hBE ein halber, \\qBE ein viertel", "Punktzahl rechnet sich selbst"),
     "mc": ("tour/t-mc-editor.jpg", "Multiple Choice", "Optionen eintippen, richtige anhaken, Punktabzug wählen", "Kreuze werden später automatisch gelesen"),
     "builder": ("tour/t-exam-builder.jpg", "Klausur zusammenstellen", "Aufgaben und Varianten anhaken", "in Minuten statt Stunden"),
     "setup": ("tour/t-exam-setup.jpg", "Fertige Klausur", "Prüfung und Erwartungshorizont; jeder Haken zeigt, welcher Teil welchen Punkt bringt", "sofort druckbar, auch für Papierkorrektur"),
     "variantdiff": ("tour/t-variant-diff.jpg", "Varianten vergleichen", "Gruppe A und B nebeneinander, Unterschiede markiert", "nur die Zahlen ändern sich, der Aufbau bleibt"),
     "proposal": ("tour/t-proposal.jpg", "Teilen & Vorschläge", "Kollegium schlägt Änderungen vor, die Autorin entscheidet", "gemeinsamer Aufgabenpool der Fachschaft"),
-    "grading": ("tour/t-grading.jpg", "Anonym korrigieren", "QR-Aufkleber statt Name; Stempel ergeben die Punkte, die Punktekästchen füllen sich selbst", "fair, ohne Halo-Effekt"),
+    "shared": ("19-shared-library.jpg", "Geteilte Aufgaben", "Aufgaben aus dem Kollegium in die eigene Bibliothek übernehmen", "nur Aufgabentexte, nie Schülerdaten"),
+    "grading": ("tour/t-grading.jpg", "Anonym korrigieren", "QR-Aufkleber statt Name; Stempel ergeben die Punkte", "fair, ohne Halo-Effekt"),
+    "boxes": ("tour/t-score-boxes.jpg", "Punktekästchen füllen sich selbst", "Examance trägt die Punkte je Aufgabe und Teilaufgabe in die gedruckten Kästchen und die Tabelle am Ende ein", "kein Zusammenzählen von Hand"),
     "mcreview": ("tour/t-mc-review.jpg", "MC-Erkennung", "A richtig, D zurückgenommen und neu gekreuzt: 0,5 von 2 Punkten", "Sie entscheiden im Zweifel"),
     "paper": ("tour/t-paper-entry.jpg", "Papierkorrektur", "Punkte tippen oder aus Excel einfügen", "Auswertung auch ohne Scanner"),
     "results": ("tour/t-results.jpg", "Ergebnisse", "Notenspiegel, Schnitt, Grenzfälle", "fertig, sobald die Punkte da sind"),
@@ -26,6 +29,7 @@ S = {
 
 W = 1123 - 2 * 28          # content width (section.tour padding)
 GAP, ROWGAP, LINE = 16, 14, 18.5
+MINW = {"grading": 440, "boxes": 440, "mcreview": 380}  # minimum widths (px) for images whose detail must stay legible
 CRYPTO_ASPECT = 1.0       # the encryption card behaves like an image of this shape
 
 
@@ -86,7 +90,7 @@ def layout(items, avail, fixed_last=None, reorder=True, per_row=3):
             rows.append(cur)
             if any(len(r) > per_row for r in rows):
                 continue
-            if any((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) < 260 for r in rows for k in r if k != "crypto"):
+            if any((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) < MINW.get(k, 260) for r in rows for k in r if k != "crypto"):
                 continue
             total = sum(row_h(r) for r in rows)
             if total > avail or not crypto_fit(rows, total, avail)[1]:
@@ -169,12 +173,12 @@ def fig(k, col=False):
 
 
 PRIVACY = [
-    ("Ende-zu-Ende verschlüsselt", "Namen, Scans, Punkte und Anmerkungen werden im Browser mit AES-256-GCM verschlüsselt, bevor sie gespeichert werden."),
-    ("Schlüssel bleibt bei Ihnen", "Ein zufälliger 256-Bit-Schlüssel, freigeschaltet durch Ihr Passwort (Argon2id) oder Ihren Passkey. Er verlässt Ihr Gerät nie."),
-    ("Server sieht nur Chiffretext", "Auch die Administration kann keine Noten oder Namen lesen; sie verwaltet nur Konten."),
-    ("Anonym von Anfang an", "Bögen tragen ein Pseudonym im QR-Code; Namen erscheinen erst nach der Korrektur, entschlüsselt auf Ihrem Gerät."),
+    ("Ende-zu-Ende verschlüsselt", "Namen, Scans, Einzelpunkte und Anmerkungen werden im Browser mit AES-256-GCM verschlüsselt, bevor sie gespeichert werden."),
+    ("Schlüssel bleibt bei Ihnen", "Ein 256-Bit-Schlüssel, freigeschaltet durch Ihr Passwort (Argon2id), Ihren Passkey oder den Wiederherstellungscode. Unverpackt verlässt er Ihr Gerät nie."),
+    ("Server sieht keine Schülerdaten", "Lesbar sind nur Aufgaben, Klausurdaten und die pseudonyme Gesamtpunktzahl. Die Administration verwaltet nur Konten."),
+    ("Anonym korrigieren", "Ein QR-Aufkleber ersetzt den Namen; Ihr Browser macht daraus ein Pseudonym je Klausur. Namen sehen Sie erst in Notenliste und Export."),
     ("Sie wählen den Speicherort", "Ergebnisse verschlüsselt auf dem Schulserver oder nur in diesem Browser."),
-    ("Zwei Faktoren", "Anmeldung mit Passwort plus Authenticator-App oder Passkey."),
+    ("Zwei Faktoren", "Passkey allein oder zwei von drei: Passwort, Authenticator-App, Passkey."),
 ]
 
 
@@ -190,7 +194,16 @@ def rows_md(rows):
     md = "".join('<div class="jrow">' + "".join(crypto() if k == "crypto" else fig(k) for k in r) + "</div>\n" for r in rows)
     CRYPTO_ASPECT = 1.0
     return md
-    return "".join('<div class="jrow">' + "".join(crypto() if k == "crypto" else fig(k) for k in r) + "</div>\n" for r in rows)
+
+
+def page_md(items, avail):
+    """Two columns or justified rows, whichever leaves less blank space on the page."""
+    a, b, wa, wb = masonry(items, avail)
+    mwaste = avail - max(col_h(a, wa), col_h(b, wb)) + max(0, W - CGAP - wa - wb) * 1.5
+    rows = layout(items, avail)
+    rwaste = avail - sum(row_h(r) for r in rows)
+    print(f"page: masonry waste {mwaste:.0f}, rows waste {rwaste:.0f}")
+    return masonry_md(items, avail) if mwaste <= rwaste else rows_md(rows)
 
 
 FM = f"""---
@@ -199,14 +212,15 @@ theme: examance-poster
 size: a3
 paginate: false
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
-footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
+footer: 'Examance 0.5 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 """
+PART1 = ["library", "editor", "mc", "builder", "setup", "variantdiff", "proposal", "shared"]
 KICKED = 1538 - 180       # content bottom minus where the first row starts (measured in the PDF)
 poster = (FM + '\n<!-- _class: tour -->\n\n<span class="kicker">Teil 1 · Erstellen</span>\n\n# Von der Aufgabe zur druckfertigen Klausur.\n\n'
-          + masonry_md(["editor", "mc", "builder", "setup", "variantdiff", "proposal"], KICKED)
+          + page_md(PART1, KICKED - 16)  # the caption estimate runs short over eight captions in a column
           + '\n---\n\n<!-- _class: tour -->\n\n<span class="kicker">Teil 2 · Korrigieren und auswerten</span>\n\n# Anonym bewerten, fair vergleichen.\n\n'
-          + rows_md(layout(["grading", "mcreview", "paper", "results", "variant", "crypto"], KICKED, "crypto")))
+          + rows_md(layout(["grading", "boxes", "mcreview", "paper", "results", "variant", "crypto"], KICKED, "crypto")))
 (HERE / "examance-ui.md").write_text(poster)
 
 DECK_FM = f"""---
@@ -215,7 +229,7 @@ theme: examance
 paginate: true
 size: 16:9
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
-footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
+footer: 'Examance 0.5 (Beta) · Stand November 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 """
 
@@ -243,15 +257,15 @@ deck = (DECK_FM + f"""
 
 # Klausuren schreiben, setzen, fair bewerten.
 
-<p class="lead">Aufgabenbibliothek, Klausursatz und Notenbuch in einem – im Browser, mit verschlüsselten Schülerdaten.</p>
+<p class="lead">Aufgabenbibliothek, Klausursatz und anonyme Korrektur in einem – im Browser, mit verschlüsselten Schülerdaten.</p>
 </div>
 <figure class="shot"><img src="{P}{S['setup'][0]}"><figcaption>Fertige Klausur mit Erwartungshorizont</figcaption></figure>
 </div>
 """
         + divider(1, "Von der Aufgabe zur druckfertigen Klausur.", "Aufgaben einmal schreiben, in Minuten zur Klausur zusammenstellen, mit dem Kollegium teilen.")
-        + "".join(shot_slide(k, "Teil 1 · Erstellen") for k in ["editor", "mc", "builder", "setup", "variantdiff", "proposal"])
+        + "".join(shot_slide(k, "Teil 1 · Erstellen") for k in PART1)
         + divider(2, "Anonym bewerten, fair vergleichen.", "Auf Papier oder am Bildschirm korrigieren – beide Wege enden in derselben Auswertung.")
-        + "".join(shot_slide(k, "Teil 2 · Korrigieren und auswerten") for k in ["paper", "grading", "mcreview", "results", "variant"])
+        + "".join(shot_slide(k, "Teil 2 · Korrigieren und auswerten") for k in ["paper", "grading", "boxes", "mcreview", "results", "variant"])
         + f"""
 ---
 

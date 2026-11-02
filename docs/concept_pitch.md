@@ -30,6 +30,8 @@ npx @marp-team/marp-cli <source.md> --pdf --html --allow-local-files \
   --theme-set ../pitches/examance-theme.css --theme-set ../posters/examance-poster.css -o <source.pdf>
 ```
 
+Layouts depend on the screenshots' aspect ratios: after retaking screenshots, rerun `posters/make-ui.py`, re-render all four PDFs and compare every page with the previous PDF (no blank bands, nothing running into the footer) before committing.
+
 Posters use the `examance-poster` theme (A3, `size: a3`), which imports the slide theme and overrides the colours with a higher-contrast print palette (dark greys print muddy on office printers).
 
 The app ships the two committed poster PDFs on its public posters page (`/about`, linked from the sign-in page as "Posters: features & privacy"; `frontend/src/lib/about/posters.ts`, issue #119). They are bundled at build time, so re-render and commit the PDF whenever a poster's `.md` changes; the next deployment picks it up.

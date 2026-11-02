@@ -96,6 +96,13 @@ TOUR = {
 (OUT / "tour").mkdir(exist_ok=True)
 for name, (src, crop) in TOUR.items():
     Image.open(SHOTS / f"{src}.png").convert("RGB").crop(crop).save(OUT / "tour" / f"{name}.jpg", quality=88, optimize=True)
+# Score boxes: the booklet page with the filled boxes next to the part rows of the scoring panel, the empty gap between them cut out.
+g = Image.open(OUT / "06-grading.jpg")
+page, panel = g.crop((530, 80, 1480, 1000)), g.crop((1905, 80, 2400, 1000))
+boxes = Image.new("RGB", (page.width + 20 + panel.width, page.height), (14, 15, 19))
+boxes.paste(page, (0, 0))
+boxes.paste(panel, (page.width + 20, 0))
+boxes.save(OUT / "tour" / "t-score-boxes.jpg", quality=88, optimize=True)
 # MC check: one contiguous crop of the stacked narrow-window layout (scan crop above the answer panel).
 Image.open(SHOTS / "tour-mc-review.png").convert("RGB").crop((120, 1380, 2160, 3100)).save(OUT / "tour" / "t-mc-review.jpg", quality=88, optimize=True)
-print("assets", len(SPEC) + 2 + len(TOUR) + 1)
+print("assets", len(SPEC) + 2 + len(TOUR) + 2)

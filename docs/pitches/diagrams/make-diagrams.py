@@ -114,12 +114,12 @@ def pipeline():
     x = [12 + i * step for i in range(6)]
     s.box(x[0], 20, W, 150, "Aufgabe", ["LaTeX aus der Bibliothek", "jedes \\BE = ein Punkt", "Varianten A/B"])
     s.box(x[1], 20, W, 150, "Klausur setzen", ["XeLaTeX im Browser (WASM)", "oder Tectonic auf dem", "Server, falls erlaubt"])
-    s.box(x[2], 20, W, 150, "Drucken, schreiben", ["QR-Code mit Pseudonym", "und Passmarken –", "kein Name auf dem Bogen"])
+    s.box(x[2], 20, W, 150, "Drucken, schreiben", ["Feld für QR-Aufkleber", "und Passmarken –", "kein Name auf dem Bogen"])
     s.box(x[3], 20, x[4] + W - x[3], 150, "Weg A · Auf Papier korrigieren", ["Rotstift wie gewohnt; Punkte je Aufgabe", "eintippen oder aus Excel einfügen"])
     s.box(x[2], 240, W, 150, "Scannen", ["ein PDF für den", "ganzen Stapel,", "Schulkopierer genügt"])
-    s.box(x[3], 240, W, 150, "Zuordnen", ["QR-Codes lesen, Seiten", "sortieren; Unlesbares", "kommt in eine Prüfliste"])
+    s.box(x[3], 240, W, 150, "Zuordnen", ["Aufkleber lesen →", "Pseudonym je Klausur;", "Rest von Hand zuordnen"])
     s.box(x[4], 240, W, 150, "Korrigieren", ["anonym, mit Stempeln;", "MC-Kreuze gelesen,", "Unsicheres vorgelegt"])
-    s.box(x[5], 20, W, 370, "Ergebnisse", ["Namen erst jetzt –", "im Browser entschlüsselt", "", "Notenspiegel,", "Grenzfälle,", "Variantenvergleich,", "Aufgabenqualität,", "Export"], kind="ok")
+    s.box(x[5], 20, W, 370, "Ergebnisse", ["Namen nur in Notenliste", "und Export, im Browser", "entschlüsselt", "", "Notenspiegel,", "Grenzfälle,", "Variantenvergleich,", "Aufgabenqualität,", "Export"], kind="ok")
     for i in (0, 1):
         s.arrow([(x[i] + W + 2, 95), (x[i + 1] - 4, 95)])
     s.arrow([(x[2] + W + 2, 95), (x[3] - 4, 95)])
@@ -140,24 +140,24 @@ def key_hierarchy():
     s.box(fx, 56, fw, 78, "Passwort", ["Argon2id + HKDF"], "key")
     s.box(fx, 148, fw, 78, "Passkey", ["PRF-Erweiterung + HKDF"], "key")
     s.box(fx, 240, fw, 78, "Wiederherstellungscode", ["auf Papier · Argon2id + HKDF"], "key")
-    s.box(360, 56, 262, 262, "Je Faktor ein KEK", ["Schlüssel-Verschlüs-", "selungsschlüssel", "", "Argon2id: t=3, 64 MB,", "p=4, eigener Salt", "je Faktor"])
+    s.box(360, 56, 262, 262, "Je Faktor ein KEK", ["Schlüssel-Verschlüs-", "selungsschlüssel", "", "Passwort und Code:", "Argon2id t=3, 64 MB, p=4,", "eigener Salt je Faktor"])
     for y in (95, 187, 279):
         s.arrow([(fx + fw + 2, y), (356, y)])
-    s.box(700, 110, 250, 150, "Datenschlüssel", ["zufällige 32 Byte,", "je Faktor einmal", "verpackt (AES-GCM)"], "ok")
+    s.box(700, 110, 250, 150, "Datenschlüssel", ["32 Byte, je Faktor", "einmal verpackt", "(AES-GCM)"], "ok")
     s.arrow([(624, 185), (696, 185)], "(ent)packt", ly=172)
     s.box(1024, 96, 342, 178, "Schlüsselverpackungen", ["je Faktor: verpackter", "Datenschlüssel, Salt,", "KDF-Parameter; an Konto", "und Faktor gebunden"])
     s.arrow([(952, 160), (1020, 160)], "speichern", ly=150)
     s.arrow([(1020, 215), (952, 215)], "laden", ly=238)
     # session key and record encryption
     s.box(34, 380, 250, 130, "Sitzungs-Nonce", ["aus der E-Mail-Adresse", "abgeleitet (kein", "Geheimnis, nur Salt)"])
-    s.box(340, 380, 280, 130, "Sitzungsschlüssel", ["HKDF-SHA-256; lebt nur", "in diesem Tab, gelöscht", "bei Sperre und Inaktivität"], "key")
+    s.box(340, 380, 280, 130, "Sitzungsschlüssel", ["HKDF-SHA-256; nur in ent-", "sperrten Tabs, versiegelt;", "weg bei Sperre, Inaktivität"], "key")
     s.box(680, 380, 270, 130, "AES-256-GCM", ["frischer 12-Byte-IV", "pro Vorgang"], "key")
     s.arrow([(825, 262), (825, 340), (480, 340), (480, 376)])
     s.arrow([(286, 445), (336, 445)])
     s.arrow([(622, 445), (676, 445)])
     s.box(1024, 360, 342, 170, "Datensätze", ["Namen, Scans, Anmerkungen,", "Einzelpunkte, MC-Daten:", "nur als Chiffrat (Hybrid:", "nur in IndexedDB)"], "ok")
     s.arrow([(952, 445), (1020, 445)], "Chiffrat", ly=435)
-    s.text(500, 568, "Passwort-Reset durch Admin: Die Passwort-Verpackung wird ungültig, nur der Wiederherstellungscode öffnet die Daten wieder.",
+    s.text(500, 568, "Passwort vergessen: Der Wiederherstellungscode packt den Schlüssel neu. Admins können die Daten nicht öffnen.",
            15, C["warn"], 600, "middle")
     s.write("key-hierarchy")
 
@@ -178,11 +178,10 @@ def sign_in():
 
 def pseudonym():
     sequence("pseudonym", 1300, [("Browser der Lehrkraft", "ok"), ("Papier und Kopierer", None), ("Server", None)], [
-        ("self", 0, "Schülerliste: je Person ein zufälliges Pseudonym"),
-        ("msg", 0, 2, "Name, Nummer verschlüsselt; Kennung je Klausur geschlüsselt (HMAC)"),
-        ("msg", 0, 1, "Klausur-PDF: QR mit Pseudonym, Variante, Ersatzcode"),
-        ("msg", 1, 0, "ein Scan-PDF für den ganzen Stapel"),
-        ("self", 0, "QR lesen, Seiten zuordnen, Kreuze messen (Web Worker)"),
+        ("msg", 0, 1, "Klausur-PDF: Feld für den QR-Aufkleber der Schule, kein Name"),
+        ("msg", 1, 0, "ein Scan-PDF für den ganzen Stapel, Aufkleber im Feld"),
+        ("self", 0, "Aufkleber lesen → Pseudonym je Klausur (HMAC); Seiten zuordnen, Kreuze messen"),
+        ("msg", 0, 2, "nur das Pseudonym; Name und Nummer verschlüsselt"),
         ("self", 0, "korrigieren: „Anonymer Schüler #7 von 26“"),
         ("msg", 0, 2, "Scan, Anmerkungen, Einzelpunkte als Chiffrat; Gesamtpunktzahl"),
         ("self", 0, "danach: Namen im Browser entschlüsseln und zuordnen"),
@@ -198,10 +197,10 @@ def what_server_sees():
             "Punkte je Aufgabe, MC-Kreuze,", "  Erkennungsdaten", "Im Hybrid-Modus: gar nicht", "  auf dem Server"]),
         ("Lesbar auf dem Server", "warn", "nötig für Bibliothek, Satz und Konto", [
             "Aufgaben- und Klausurtexte (LaTeX)", "  samt Dateien der Aufgaben", "Klausurdaten: Titel, Klasse, Fach,",
-            "  Datum, Nachname der Lehrkraft", "Gesamtpunktzahl je Abgabe (pseudonym)", "E-Mail, Rolle, Freischaltungen",
+            "  Datum, Nachname der Lehrkraft,", "  Notenschlüssel, Hinweise, Logos", "Gesamtpunktzahl je Abgabe (pseudonym)", "E-Mail, Rolle, Freischaltungen",
             "Passwort nur als Argon2id-Hash"]),
         ("Nie auf dem Server", "key", "bleibt beim Menschen oder im Browser", [
-            "Datenschlüssel und Sitzungsschlüssel", "Wiederherstellungscode", "Zuordnung Pseudonym → Name",
+            "Daten- und Sitzungsschlüssel", "  unverpackt", "Wiederherstellungscode", "Zuordnung Pseudonym → Name",
             "  im Klartext", "Im Hybrid-Modus: Schülerdaten,", "  Scans und Punkte"]),
     ]
     w = 448
