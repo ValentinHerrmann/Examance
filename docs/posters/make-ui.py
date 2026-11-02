@@ -18,7 +18,8 @@ S = {
     "variantdiff": ("tour/t-variant-diff.jpg", "Varianten vergleichen", "Gruppe A und B nebeneinander, Unterschiede markiert", "nur die Zahlen ändern sich, der Aufbau bleibt"),
     "proposal": ("tour/t-proposal.jpg", "Teilen & Vorschläge", "Kollegium schlägt Änderungen vor, die Autorin entscheidet", "gemeinsamer Aufgabenpool der Fachschaft"),
     "shared": ("19-shared-library.jpg", "Geteilte Aufgaben", "Aufgaben aus dem Kollegium in die eigene Bibliothek übernehmen", "nur Aufgabentexte, nie Schülerdaten"),
-    "grading": ("tour/t-grading.jpg", "Anonym korrigieren", "QR-Aufkleber statt Name; Stempel ergeben die Punkte, die Punktekästchen füllen sich selbst", "fair, ohne Halo-Effekt"),
+    "grading": ("tour/t-grading.jpg", "Anonym korrigieren", "QR-Aufkleber statt Name; Stempel ergeben die Punkte", "fair, ohne Halo-Effekt"),
+    "boxes": ("tour/t-score-boxes.jpg", "Punktekästchen füllen sich selbst", "Examance trägt die Punkte je Aufgabe und Teilaufgabe in die gedruckten Kästchen und die Tabelle am Ende ein", "kein Zusammenzählen von Hand"),
     "mcreview": ("tour/t-mc-review.jpg", "MC-Erkennung", "A richtig, D zurückgenommen und neu gekreuzt: 0,5 von 2 Punkten", "Sie entscheiden im Zweifel"),
     "paper": ("tour/t-paper-entry.jpg", "Papierkorrektur", "Punkte tippen oder aus Excel einfügen", "Auswertung auch ohne Scanner"),
     "results": ("tour/t-results.jpg", "Ergebnisse", "Notenspiegel, Schnitt, Grenzfälle", "fertig, sobald die Punkte da sind"),
@@ -28,6 +29,7 @@ S = {
 
 W = 1123 - 2 * 28          # content width (section.tour padding)
 GAP, ROWGAP, LINE = 16, 14, 18.5
+MINW = {"grading": 440, "boxes": 440, "mcreview": 380}  # minimum widths (px) for images whose detail must stay legible
 CRYPTO_ASPECT = 1.0       # the encryption card behaves like an image of this shape
 
 
@@ -88,7 +90,7 @@ def layout(items, avail, fixed_last=None, reorder=True, per_row=3):
             rows.append(cur)
             if any(len(r) > per_row for r in rows):
                 continue
-            if any((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) < 260 for r in rows for k in r if k != "crypto"):
+            if any((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) < MINW.get(k, 260) for r in rows for k in r if k != "crypto"):
                 continue
             total = sum(row_h(r) for r in rows)
             if total > avail or not crypto_fit(rows, total, avail)[1]:
@@ -218,7 +220,7 @@ KICKED = 1538 - 180       # content bottom minus where the first row starts (mea
 poster = (FM + '\n<!-- _class: tour -->\n\n<span class="kicker">Teil 1 · Erstellen</span>\n\n# Von der Aufgabe zur druckfertigen Klausur.\n\n'
           + page_md(PART1, KICKED - 16)  # the caption estimate runs short over eight captions in a column
           + '\n---\n\n<!-- _class: tour -->\n\n<span class="kicker">Teil 2 · Korrigieren und auswerten</span>\n\n# Anonym bewerten, fair vergleichen.\n\n'
-          + rows_md(layout(["grading", "mcreview", "paper", "results", "variant", "crypto"], KICKED, "crypto")))
+          + rows_md(layout(["grading", "boxes", "mcreview", "paper", "results", "variant", "crypto"], KICKED, "crypto")))
 (HERE / "examance-ui.md").write_text(poster)
 
 DECK_FM = f"""---
@@ -263,7 +265,7 @@ deck = (DECK_FM + f"""
         + divider(1, "Von der Aufgabe zur druckfertigen Klausur.", "Aufgaben einmal schreiben, in Minuten zur Klausur zusammenstellen, mit dem Kollegium teilen.")
         + "".join(shot_slide(k, "Teil 1 · Erstellen") for k in PART1)
         + divider(2, "Anonym bewerten, fair vergleichen.", "Auf Papier oder am Bildschirm korrigieren – beide Wege enden in derselben Auswertung.")
-        + "".join(shot_slide(k, "Teil 2 · Korrigieren und auswerten") for k in ["paper", "grading", "mcreview", "results", "variant"])
+        + "".join(shot_slide(k, "Teil 2 · Korrigieren und auswerten") for k in ["paper", "grading", "boxes", "mcreview", "results", "variant"])
         + f"""
 ---
 

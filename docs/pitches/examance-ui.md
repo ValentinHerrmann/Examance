@@ -140,7 +140,17 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Echte Oberfläche mit Dem
 
 ## Anonym korrigieren
 
-<figure><img src="../screenshots/pitch/tour/t-grading.jpg"><figcaption>QR-Aufkleber statt Name; Stempel ergeben die Punkte, die Punktekästchen füllen sich selbst – <em>fair, ohne Halo-Effekt</em></figcaption></figure>
+<figure><img src="../screenshots/pitch/tour/t-grading.jpg"><figcaption>QR-Aufkleber statt Name; Stempel ergeben die Punkte – <em>fair, ohne Halo-Effekt</em></figcaption></figure>
+
+---
+
+<!-- _class: shotslide -->
+
+<span class="kicker">Teil 2 · Korrigieren und auswerten</span>
+
+## Punktekästchen füllen sich selbst
+
+<figure><img src="../screenshots/pitch/tour/t-score-boxes.jpg"><figcaption>Examance trägt die Punkte je Aufgabe und Teilaufgabe in die gedruckten Kästchen und die Tabelle am Ende ein – <em>kein Zusammenzählen von Hand</em></figcaption></figure>
 
 ---
 

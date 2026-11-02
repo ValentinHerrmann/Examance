@@ -31,7 +31,7 @@ footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 
 <div class="cols band" style="gap:18px; grid-template-columns: 1fr 1fr">
 <figure class="shot"><img style="height:200px; object-fit:cover; object-position:top left" src="../screenshots/pitch/03-exercise-editor.jpg"><figcaption>Aufgabeneditor: LaTeX links, gesetzte Aufgabe rechts</figcaption></figure>
-<figure class="shot"><img style="height:200px; object-fit:cover; object-position:top left" src="../screenshots/pitch/06-grading.jpg"><figcaption>Anonyme Korrektur: nur Laufnummer und Pseudonym</figcaption></figure>
+<figure class="shot"><img style="height:200px; object-fit:cover; object-position:top left" src="../screenshots/pitch/tour/t-score-boxes.jpg"><figcaption>Korrektur ohne Namen: Punkte landen je Teilaufgabe in den gedruckten Kästchen</figcaption></figure>
 <figure class="shot"><img style="height:200px; object-fit:cover; object-position:top left" src="../screenshots/pitch/07-mc-review.jpg"><figcaption>MC-Erkennung: Scan-Ausschnitt, erkannte Kreuze, Ihre Entscheidung</figcaption></figure>
 <figure class="shot"><img style="height:200px; object-fit:cover; object-position:top left" src="../screenshots/pitch/09b-variant-comparison.jpg"><figcaption>Variantenvergleich: Gruppe B 24 Prozentpunkte schwächer</figcaption></figure>
 </div>
