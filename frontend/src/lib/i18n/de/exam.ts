@@ -111,6 +111,8 @@ export const exam = {
         retentionUntil: 'Aufbewahren bis',
         infoText: 'Infotext (LaTeX-Liste)',
         nameLine: 'Namenszeile neben dem QR-Code-Feld drucken',
+        cutStrip: 'Platz für einen Abschneidestreifen oben auf jeder Seite lassen',
+        cutStripHint: 'Für Exemplare mit aufgedrucktem QR-Code: Oben auf Seite 1 stehen Name und persönlicher Schlüssel auf einem Streifen, den Sie vor dem Austeilen abschneiden und den die Schüler:innen behalten. Jede Seite verliert dafür 3 cm.',
         nameLineHint: 'Die Schüler:innen schreiben ihren Namen auf die Titelseite. Das QR-Code-Feld bleibt, das Initialenfeld darin entfällt.',
         mcCorrectionHint: 'Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert',
         mcCorrectionHintHint: 'Eine kurze Zeile unter der Aufgabe: ankreuzen zum Wählen, Kästchen ausmalen zum Zurücknehmen, links neben ein ausgemaltes Kästchen kreuzen zum erneuten Wählen. Die Antwortbogen-Vorlage wird neu erzeugt.',

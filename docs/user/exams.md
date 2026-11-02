@@ -65,6 +65,8 @@ While grading, the current grade and the points to the next grade are shown live
 
 With **Print a name line next to the QR code box** (when creating the exam or under **Edit Exam**), the title page gets a line for the student's name. The QR code box stays where it is, so scanning and assignment work as before; only the initials field inside the box is dropped.
 
+**Leave room for a cut-off strip on top of every page** keeps a 3 cm band free on every page. It is needed to print the QR codes [directly onto the exam copies](./students#printed-copies): page 1 then carries a strip with name and personal key that you cut off before handing out.
+
 ### Space for extra solutions {#extra-space}
 
 **Space for extra solutions at the end** (below the exercise list) ends the student sheet with a grid area for additional solutions:

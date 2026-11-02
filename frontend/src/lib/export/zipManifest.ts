@@ -62,6 +62,7 @@ export interface ZipExamSettings {
   accountLatexPackages?: LatexPackageEntry[];
   pageBreaks?: string[] | null;
   nameLine?: boolean;
+  cutStrip?: boolean;
   mcCorrectionHint?: boolean;
   extraNotes?: ExtraNotes | null;
 }

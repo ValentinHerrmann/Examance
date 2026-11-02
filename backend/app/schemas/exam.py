@@ -211,6 +211,7 @@ class ExamCreate(BaseModel):
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
     name_line: bool = False
+    cut_strip: bool = False
     mc_correction_hint: bool = False
     extra_notes: ExtraNotes | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
@@ -256,6 +257,7 @@ class ExamUpdate(BaseModel):
     # Absent keeps the stored breaks; null or [] clears them.
     page_breaks: list[str] | None = None
     name_line: bool | None = None
+    cut_strip: bool | None = None
     mc_correction_hint: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
@@ -290,6 +292,7 @@ class ExamResponse(BaseModel):
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
     name_line: bool = False
+    cut_strip: bool = False
     mc_correction_hint: bool = False
     extra_notes: ExtraNotes | None = None
     pseudonym_version: int = 1

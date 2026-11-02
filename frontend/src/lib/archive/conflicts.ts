@@ -107,6 +107,7 @@ const SPECS: KindSpec[] = [
       latexPackages: (r) => packageSummary(r.latexPackages),
       // Layout switches travel with the exam; without them a layout-only change counted as "identical" and was dropped.
       nameLine: (r) => r.nameLine === true,
+      cutStrip: (r) => r.cutStrip === true,
       mcCorrectionHint: (r) => r.mcCorrectionHint === true,
       extraNotes: (r) => extraNotesSummary(r.extraNotes),
       pageBreaks: (r) => pageBreaksSummary(r.pageBreaks),

@@ -4,13 +4,13 @@ editLink: false
 
 # QR stickers and results for students
 
-Two things belong together here: **QR stickers** that students put on their exam sheet so Examance knows whose paper it is, and **personal links** with which each student later downloads their graded exam. Both buttons are on the exam page.
+Two things belong together here: **QR codes**, as stickers that students put on their exam sheet or printed directly onto it, so Examance knows whose paper it is, and **personal links** with which each student later downloads their graded exam. Both buttons are on the exam page.
 
 ## QR stickers {#qr-stickers}
 
 The printed exam has an empty box labelled **QR Code** on its cover page. Each student sticks a QR name sticker into it. When you scan, Examance reads the sticker and assigns the pages to that student automatically, see [Scanning and assignment](./scanning#import).
 
-**QR stickers** on the exam page opens a dialog that prints an A4 sheet of **5 × 7 labels**:
+**Print QR codes** on the exam page opens a dialog. With **Sticker sheet** it prints an A4 sheet of **5 × 7 labels**:
 
 1. Choose where the names come from: **paste a list** (one line per student, `Lastname, Firstname`, optionally followed by a tab or `;` and an ID, for example a school number), or take the **students of the exam**.
 2. Without an ID, Examance derives a stable one from the name. Printing the same list again therefore gives the same stickers.
@@ -20,6 +20,19 @@ The printed exam has an empty box labelled **QR Code** on its cover page. Each s
 Stickers made by other tools in the format `Lastname, Firstname_ID` work as well. Students you added by hand or from unmatched pages have no sticker.
 
 Everything is computed in your browser; no external service draws the codes.
+
+## QR codes printed on the exam copies {#printed-copies}
+
+Instead of stickers, Examance can print each student's QR code **directly onto their own copy** of the exam. With **Print directly onto the exam copies** in the same dialog you get one PDF with a copy per student, in list order:
+
+- The QR code sits in the **QR Code** box on the cover page, exactly where a sticker would go, so scanning works as with stickers.
+- The top of page 1 carries a **strip with the student's name and personal key**, above a dashed line. **Before handing out, cut the strip off** along the line (a short cut to tear it off is enough). The student recognises their copy by the strip and keeps it; the key later opens their [shared result](#share-results).
+- There is plenty of blank room above and below the line, so an imprecise cut touches neither the strip nor the exam.
+- If a strip was not cut off, Examance **covers it when the scans come in**, so the name never shows during grading or in exports.
+
+This needs room for the strip: turn on **Leave room for a cut-off strip on top of every page** in the exam details (when creating the exam or under **Edit Exam**). Every page then starts 3 cm lower.
+
+**Two-sided printing:** keep **For two-sided printing** on and flip on the **long edge**. A copy with an odd number of pages then gets a blank page, so every copy starts on a new sheet, and the back of page 1 is blank where you cut. Print at actual size, without "fit to page".
 
 ## Personal keys {#personal-keys}
 

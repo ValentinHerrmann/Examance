@@ -29,6 +29,8 @@
     editInfoText: string;
     /** Name line next to the QR box (issue #127). */
     editNameLine?: boolean;
+    /** Free band on top of every page for printed student QR codes (issue #211). */
+    editCutStrip?: boolean;
     /** MC correction legend at every MC task (issue #192). */
     editMcCorrectionHint?: boolean;
     editRetentionUntil: string;
@@ -63,6 +65,7 @@
     editLehrernachname = $bindable(),
     editInfoText = $bindable(),
     editNameLine = $bindable(false),
+    editCutStrip = $bindable(false),
     editMcCorrectionHint = $bindable(false),
     editRetentionUntil = $bindable(),
     editGradingKey = $bindable(),
@@ -175,6 +178,10 @@
 
   <Field hint={$t("exam.metadataEditor.nameLineHint")} class="mb-4">
     <Checkbox id="editNameLine" bind:checked={editNameLine} label={$t("exam.metadataEditor.nameLine")} />
+  </Field>
+
+  <Field hint={$t("exam.metadataEditor.cutStripHint")} class="mb-4">
+    <Checkbox id="editCutStrip" bind:checked={editCutStrip} label={$t("exam.metadataEditor.cutStrip")} />
   </Field>
 
   <Field hint={$t("exam.metadataEditor.mcCorrectionHintHint")} class="mb-4">

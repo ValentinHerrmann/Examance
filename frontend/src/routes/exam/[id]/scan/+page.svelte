@@ -44,6 +44,7 @@
     OmrExerciseAnswerKey,
   } from "#lib/workers/omrWorker";
   import { parseStudentQr } from "#lib/utils/studentQr";
+  import { examRepository } from "#lib/repositories/examRepository";
   import { ingestScans, type IngestProgress, type OmrSummary } from "#lib/scan/ingest";
   import HardwareProfileCard from "#lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "#lib/components/scanning/UploadPanel.svelte";
@@ -540,6 +541,7 @@
         getOmrContext: () => (omrAvailable ? { templatePages: omrTemplatePages, answerKeys: omrAnswerKeys } : null),
         omrSettings: get(omrSettingsStore),
         omrTemplateHash,
+        cutStrip: (await examRepository.getById(examId, get(sessionStore).sessionKey))?.cutStrip === true,
         monitor,
         onProgress: showIngestProgress,
       });

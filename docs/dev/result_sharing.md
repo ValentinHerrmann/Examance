@@ -11,6 +11,14 @@ Issues #207 and #83. Teachers print QR name stickers for the exam sheets and lat
 - `K_sticker = HKDF-SHA-256(data key, salt "examance-sticker-v1", info "sticker")`. Ids and keys are HMACs under it, so only this account can reproduce them, and a reprint always matches.
 - Students added by hand or opened from unmatched pages have a minted UUID as their raw id. They carry no sticker, so `stickerRawOf` returns null for them.
 
+## QR codes printed on exam copies
+
+Issue #211. Instead of stickers, `lib/qr/examCopies.ts` (`renderExamCopies`) stamps each student's code onto a copy of the compiled student sheet; the sticker dialog offers it as a second output.
+
+- **Layout.** The exam option `cut_strip` (Schulaufgabe.sty `schnittstreifen`) keeps a 3 cm band free on top of **every** page, so in long-edge duplex the back of page 1 is blank where the cut goes. The top fiducials move down with it, and the QR box drops its caption. Geometry constants live in `lib/qr/cutStrip.ts` and mirror `\SchnittBand`.
+- **Stamping.** The sticker box is found through its `omr://__qr__` link (`parseOmrUri` ignores it). The payload is the sticker payload, so personal keys and sharing are unchanged. The strip carries the name and `personalKey`, above a dashed line at 1.9 cm; the 11 mm below the line stay blank as cut tolerance. With duplex, odd copies get a blank page.
+- **Covering.** On ingest (`scan/ingest.ts`, `IngestDeps.cutStrip`), each booklet's QR page is aligned against the band-shifted fiducials (`stripCoverBottom`). The band down to `COVER_DEPTH` is painted white on the stored page, so no view shows an uncut strip; a cut page only loses blank band. An unaligned page counts as uncut while it is A4-tall (privacy first). The original pixels stay under the white box inside the sealed scan.
+
 ## Sharing
 
 The flow lives in `lib/sharing/shareService.ts`:

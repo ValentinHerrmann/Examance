@@ -4,13 +4,13 @@ editLink: false
 
 # QR-Aufkleber und Ergebnisse für Schüler
 
-Zwei Dinge gehören hier zusammen: **QR-Aufkleber**, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Beide Schaltflächen finden Sie auf der Prüfungsseite.
+Zwei Dinge gehören hier zusammen: **QR-Codes**, als Aufkleber, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, oder direkt aufgedruckt, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Beide Schaltflächen finden Sie auf der Prüfungsseite.
 
 ## QR-Aufkleber {#qr-stickers}
 
 Die gedruckte Prüfung hat auf dem Deckblatt ein leeres Feld mit der Beschriftung **QR Code**. Jede Schülerin und jeder Schüler klebt dort einen QR-Namensaufkleber ein. Beim Scannen liest Examance den Aufkleber und ordnet die Seiten automatisch dieser Person zu, siehe [Scannen und Zuordnen](./scanning#import).
 
-**QR-Aufkleber** auf der Prüfungsseite öffnet einen Dialog, der einen A4-Bogen mit **5 × 7 Etiketten** druckt:
+**QR-Codes drucken** auf der Prüfungsseite öffnet einen Dialog. Mit **Aufkleberbogen** druckt er einen A4-Bogen mit **5 × 7 Etiketten**:
 
 1. Wählen Sie, woher die Namen kommen: aus einer **eingefügten Liste** (**Namensliste einfügen**: eine Zeile pro Person, `Nachname, Vorname`, optional gefolgt von Tabulator oder `;` und einer ID, zum Beispiel einer Schülernummer) oder die **Schüler dieser Prüfung**.
 2. Ohne ID leitet Examance aus dem Namen eine stabile ID ab. Ein erneuter Druck derselben Liste ergibt deshalb dieselben Aufkleber.
@@ -20,6 +20,19 @@ Die gedruckte Prüfung hat auf dem Deckblatt ein leeres Feld mit der Beschriftun
 Aufkleber anderer Programme im Format `Nachname, Vorname_ID` funktionieren ebenfalls. Von Hand oder aus nicht zugeordneten Seiten angelegte Schüler haben keinen Aufkleber.
 
 Alles wird in Ihrem Browser berechnet; kein externer Dienst zeichnet die Codes.
+
+## QR-Codes direkt auf den Prüfungsexemplaren {#printed-copies}
+
+Statt Aufklebern kann Examance den QR-Code jedes Schülers **direkt auf sein eigenes Prüfungsexemplar** drucken. Mit **Direkt auf die Prüfungsexemplare drucken** im selben Dialog erhalten Sie ein PDF mit einem Exemplar pro Schüler, in der Reihenfolge der Liste:
+
+- Der QR-Code steht im Feld **QR Code** auf dem Deckblatt, genau dort, wo sonst der Aufkleber hinkommt; das Scannen funktioniert also wie mit Aufklebern.
+- Oben auf Seite 1 steht über einer gestrichelten Linie ein **Streifen mit Name und persönlichem Schlüssel**. **Schneiden Sie den Streifen vor dem Austeilen** an der Linie ab (ein kurzer Anschnitt zum Abreißen genügt). Der Schüler erkennt daran sein Exemplar und behält den Streifen; mit dem Schlüssel öffnet er später sein [geteiltes Ergebnis](#share-results).
+- Über und unter der Linie ist reichlich freier Platz, ein ungenauer Schnitt trifft also weder den Streifen noch die Prüfung.
+- Wurde ein Streifen nicht abgeschnitten, **deckt Examance ihn beim Einlesen der Scans ab**; der Name ist dann weder beim Korrigieren noch in Exporten zu sehen.
+
+Dafür braucht die Prüfung Platz für den Streifen: Schalten Sie in den Prüfungsdaten (beim Anlegen oder unter **Prüfung bearbeiten**) **Platz für einen Abschneidestreifen oben auf jeder Seite lassen** ein. Jede Seite beginnt dann 3 cm tiefer.
+
+**Beidseitiger Druck:** Lassen Sie **Für beidseitigen Druck** eingeschaltet und wenden Sie an der **langen Kante**. Ein Exemplar mit ungerader Seitenzahl bekommt dann eine leere Seite, sodass jedes Exemplar auf einem neuen Blatt beginnt, und die Rückseite von Seite 1 ist dort frei, wo geschnitten wird. Drucken Sie in Originalgröße, ohne „An Seite anpassen“.
 
 ## Persönliche Schlüssel {#personal-keys}
 

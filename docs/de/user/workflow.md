@@ -31,7 +31,7 @@ Mehr: [Prüfung erstellen](./exams).
 
 ## 3. Drucken, schreiben, scannen {#print}
 
-Drucken Sie die Bögen genau so, wie sie gesetzt wurden (ohne Skalierung); der QR-Aufkleber muss lesbar bleiben. Die Aufkleber drucken Sie vorher mit **QR-Aufkleber** auf der Prüfungsseite ([QR-Aufkleber](./students#qr-stickers)); jede Schülerin und jeder Schüler klebt seinen in das Feld „QR Code“ auf dem Deckblatt. Scannen Sie nach der Prüfung den ganzen Stapel am Schulkopierer in ein einziges PDF.
+Drucken Sie die Bögen genau so, wie sie gesetzt wurden (ohne Skalierung); der QR-Aufkleber muss lesbar bleiben. Die Aufkleber drucken Sie vorher mit **QR-Codes drucken** auf der Prüfungsseite ([QR-Aufkleber](./students#qr-stickers)); jede Schülerin und jeder Schüler klebt seinen in das Feld „QR Code“ auf dem Deckblatt. Oder Sie drucken die Codes [direkt auf die Prüfungsexemplare](./students#printed-copies) und schneiden vor dem Austeilen den Namensstreifen ab. Scannen Sie nach der Prüfung den ganzen Stapel am Schulkopierer in ein einziges PDF.
 
 Mehr: [Drucken](./exams#print), [Stapel scannen](./scanning#scan).
 

@@ -23,6 +23,13 @@
 \newboolean{Namensfeld}
 \setboolean{Namensfeld}{false}
 
+% Free band on top of every page for the cut-off strip of printed student QR codes (issue #211).
+% The band height is mirrored in frontend lib/qr/cutStrip.ts, which draws the strip and covers it on scans.
+\newboolean{Schnitt}
+\setboolean{Schnitt}{false}
+\newlength{\SchnittBand}
+\setlength{\SchnittBand}{0pt}
+
 \newcounter{Punkte}
 \setcounter{Punkte}{0}
 
@@ -208,6 +215,11 @@
     \setboolean{Namensfeld}{true}%
 }
 
+% Cut-off strip band on every page, so the back of page 1 is free there too in long-edge duplex (issue #211)
+\DeclareOption{schnittstreifen}{%
+    \setboolean{Schnitt}{true}%
+}
+
 % Global indentation option
 \newif\if@neverindent\@neverindentfalse
 \DeclareOption{neverindent}{%
@@ -216,6 +228,12 @@
 
 \ExecuteOptions{roman}
 \ProcessOptions\relax
+
+% Same geometry as packages.sty, moved down by the band; the fiducials move with it (section 6b).
+\ifthenelse{\boolean{Schnitt}}{%
+    \setlength{\SchnittBand}{3cm}%
+    \geometry{top=3.4cm}% 0.4cm + band
+}{}
 
 % ==============================================================================
 % 6. Name Box (Namenszeile) & Header Setup
@@ -232,10 +250,12 @@
         \begin{minipage}[t]{3.5cm}
         \vspace{0pt} % Setzt die Grundlinie an die physische Oberkante
         \textcolor{gray}{
-            \dashbox{0.2}(3.5,3.5){
+            % Where printed student copies stamp the QR code (frontend lib/qr/examCopies.ts).
+            \OmrLink{3.5cm}{3.5cm}{omr://__qr__}\dashbox{0.2}(3.5,3.5){
                 \parbox{3.5cm}{
-                    \centering QR Code
-                    \ifthenelse{\boolean{Namensfeld}}{}{\\
+                    % Printed copies put the code here, so the box stays empty under it.
+                    \ifthenelse{\boolean{Schnitt}}{}{\centering QR Code}
+                    \ifthenelse{\boolean{Namensfeld}\OR\boolean{Schnitt}}{}{\\
                     \normalsize \vspace{0.8cm}\LoesungLuecke{}{2.5cm}\\$\uparrow$~Deine Initialen~$\uparrow$\\
                     (falls QR-Code abfällt)}
                 }
@@ -362,8 +382,8 @@
 \AddToShipoutPictureBG{%
     \OmrFiducialAt{0}{\OmrFiducialInset}{\OmrFiducialInset}%
     \OmrFiducialAt{1}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\OmrFiducialInset}%
-    \OmrFiducialAt{2}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\dimexpr\paperheight-\OmrFiducialInset-\OmrFiducialSize\relax}%
-    \OmrFiducialAt{3}{\OmrFiducialInset}{\dimexpr\paperheight-\OmrFiducialInset-\OmrFiducialSize\relax}%
+    \OmrFiducialAt{2}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\dimexpr\paperheight-\SchnittBand-\OmrFiducialInset-\OmrFiducialSize\relax}%
+    \OmrFiducialAt{3}{\OmrFiducialInset}{\dimexpr\paperheight-\SchnittBand-\OmrFiducialInset-\OmrFiducialSize\relax}%
 }
 
 % ==============================================================================

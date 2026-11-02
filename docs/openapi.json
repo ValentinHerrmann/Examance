@@ -10021,6 +10021,11 @@
             "title": "Name Line",
             "default": false
           },
+          "cut_strip": {
+            "type": "boolean",
+            "title": "Cut Strip",
+            "default": false
+          },
           "mc_correction_hint": {
             "type": "boolean",
             "title": "Mc Correction Hint",
@@ -10456,6 +10461,11 @@
             "title": "Name Line",
             "default": false
           },
+          "cut_strip": {
+            "type": "boolean",
+            "title": "Cut Strip",
+            "default": false
+          },
           "mc_correction_hint": {
             "type": "boolean",
             "title": "Mc Correction Hint",
@@ -10699,6 +10709,17 @@
               }
             ],
             "title": "Name Line"
+          },
+          "cut_strip": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cut Strip"
           },
           "mc_correction_hint": {
             "anyOf": [
