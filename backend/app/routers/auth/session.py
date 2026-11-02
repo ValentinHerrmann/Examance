@@ -60,7 +60,8 @@ class _CookieFlags(TypedDict):
     samesite: Literal["lax", "strict", "none"]
 
 
-_COOKIE_KWARGS: _CookieFlags = {"httponly": True, "secure": True, "samesite": "none"}
+# Strict, because the API is on the frontend's site (api.<host> or PUBLIC_API_URL, issue #198): no other site can make the browser send these cookies.
+_COOKIE_KWARGS: _CookieFlags = {"httponly": True, "secure": True, "samesite": "strict"}
 
 
 def _set_auth_cookies(
@@ -100,7 +101,7 @@ def _set_pending_cookie(response: Response, token: str, scope: str) -> None:
 
 
 def clear_auth_cookies(response: Response) -> None:
-    """Clear both auth cookies. The delete must repeat the attributes the cookie was set with: Chrome and Firefox reject a `SameSite=None` cookie sent without `Secure`, silently leaving the access cookie in place."""
+    """Clear both auth cookies. The delete repeats the attributes the cookie was set with: a browser may refuse a delete whose attributes differ, silently leaving the access cookie in place."""
     response.delete_cookie(ACCESS_COOKIE, path="/", **_COOKIE_KWARGS)
     response.delete_cookie(
         REFRESH_COOKIE,

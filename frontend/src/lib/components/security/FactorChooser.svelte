@@ -6,6 +6,7 @@
   import type { FactorKind } from "#lib/api/mfa";
   import PasswordFactor from "./PasswordFactor.svelte";
   import TotpFactor from "./TotpFactor.svelte";
+  import OldAddressPasskey from "#lib/components/unlock/OldAddressPasskey.svelte";
 
   interface Props {
     /** Straight from the server's `available`, minus anything the caller cannot offer. */
@@ -13,6 +14,8 @@
     onTotp: (code: string, useBackupCode: boolean) => Promise<void>;
     onPassword: (password: string) => Promise<void>;
     onPasskey: () => Promise<void>;
+    /** Passkey of the old address during a domain move (issue #198); shown only on the new address. */
+    onLegacyPasskey?: () => Promise<void>;
     errorMsg?: string;
     /** The page's automatic passkey prompt is open. */
     passkeyPending?: boolean;
@@ -23,6 +26,7 @@
     onTotp,
     onPassword,
     onPasskey,
+    onLegacyPasskey,
     errorMsg = "",
     passkeyPending = false
   }: Props = $props();
@@ -54,6 +58,17 @@
     isWorking = true;
     try {
       await onPasskey();
+    } finally {
+      isWorking = false;
+    }
+  }
+
+  async function chooseLegacyPasskey() {
+    if (!onLegacyPasskey) return;
+    errorMsg = "";
+    isWorking = true;
+    try {
+      await onLegacyPasskey();
     } finally {
       isWorking = false;
     }
@@ -116,6 +131,9 @@
         </li>
       {/each}
     </ul>
+    {#if onLegacyPasskey && available.includes("passkey")}
+      <OldAddressPasskey onClick={chooseLegacyPasskey} disabled={isWorking || passkeyPending} />
+    {/if}
   </div>
 {/if}
 

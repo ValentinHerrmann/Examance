@@ -10,7 +10,6 @@
   import { Alert, Button } from "#lib/components/ui";
   import AuthCard from "#lib/components/unlock/AuthCard.svelte";
   import { currentManifest, replaceWorkspace } from "#lib/db/workspace";
-  import { backendStore } from "#lib/stores/backendStore";
   import { clearCapabilities } from "#lib/stores/capabilities";
   import { sessionStore } from "#lib/stores/session";
 
@@ -55,7 +54,7 @@
       sessionStore.lock();
     }
     const owner = (await currentManifest())?.owner;
-    if (ownsWorkspace || (same(owner?.accountEmail) && owner?.backendOrigin === (get(backendStore) || null))) {
+    if (ownsWorkspace || same(owner?.accountEmail)) {
       await replaceWorkspace(null);
     }
   }

@@ -16,7 +16,7 @@ class CSPMiddleware(BaseHTTPMiddleware):
         return (
             "default-src 'none'; "
             "script-src 'self'; "
-            f"connect-src 'self' {' '.join(settings.CORS_ALLOWED_ORIGINS)}; "
+            f"connect-src 'self' {' '.join(settings.FRONTEND_ORIGINS)}; "
             "worker-src 'self'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; "

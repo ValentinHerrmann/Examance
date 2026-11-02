@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import { PLACEHOLDER, htmlFiles, inlineScriptHashes } from './generate-csp-headers.mjs';
+import { API_PLACEHOLDER } from './api-origins.mjs';
 
 const buildDir = resolve(process.argv[2] ?? 'build');
 const headersPath = join(buildDir, '_headers');
@@ -19,7 +20,9 @@ function fail(message) {
 
 if (!existsSync(headersPath)) fail(`${headersPath} not found — run the build first.`);
 const headers = readFileSync(headersPath, 'utf-8');
-if (headers.includes(PLACEHOLDER)) fail('Placeholder still in build/_headers — csp:headers did not run.');
+if (headers.includes(PLACEHOLDER) || headers.includes(API_PLACEHOLDER)) {
+  fail('Placeholder still in build/_headers — csp:headers did not run.');
+}
 
 const pages = htmlFiles(buildDir);
 const missing = pages.flatMap((page) =>

@@ -18,6 +18,8 @@ export interface PasskeySummary {
   prf_salt_b64: string;
   created_at: string;
   last_used_at: string | null;
+  /** Made for the old address of a domain move (issue #198); it stops working with that address. */
+  legacy: boolean;
 }
 
 export async function registrationOptions(): Promise<CeremonyOptions> {
@@ -36,8 +38,11 @@ export async function verifyRegistration(payload: {
   return api.post<PasskeySummary>('/webauthn/register/verify', payload, { silentError: true });
 }
 
-export async function loginOptions(): Promise<CeremonyOptions> {
-  return api.post<CeremonyOptions>('/webauthn/login/options', undefined, { silentError: true });
+/** `legacy` asks for a passkey of the old address from the new one (domain move, issue #198). */
+export async function loginOptions(opts: { legacy?: boolean } = {}): Promise<CeremonyOptions> {
+  return api.post<CeremonyOptions>('/webauthn/login/options', opts.legacy ? { legacy: true } : undefined, {
+    silentError: true,
+  });
 }
 
 export async function verifyLogin(payload: {

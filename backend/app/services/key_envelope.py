@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
-from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
+from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64, decode_credential_id
 from app.schemas.key_envelope import KEY_ID_BYTES, KeyEnvelopeSetIn
 
 
@@ -61,7 +61,7 @@ async def replace_envelope_set(
     """Replace a teacher's whole envelope set, validating it first. Wholesale by design: merging could pair a new data key in the password wrap with the old one in the recovery wrap. Shared with password reset, which writes the new wrap in the same transaction as the new password."""
     key_id = decode_b64(body.key_id_b64, "key_id_b64", expected_len=KEY_ID_BYTES)
 
-    seen: set[tuple[str, str | None]] = set()
+    seen: set[tuple[str, bytes | None]] = set()
     rows: list[KeyEnvelope] = []
     for envelope in body.envelopes:
         salt = decode_b64(
@@ -78,7 +78,7 @@ async def replace_envelope_set(
 
         credential_id: bytes | None = None
         if envelope.credential_id_b64 is not None:
-            credential_id = decode_b64(envelope.credential_id_b64, "credential_id_b64")
+            credential_id = decode_credential_id(envelope.credential_id_b64, "credential_id_b64")
             if not credential_id or len(credential_id) > MAX_CREDENTIAL_ID_BYTES:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -92,7 +92,7 @@ async def replace_envelope_set(
                 headers={"code": "ERR_BAD_REQUEST"},
             )
 
-        factor = (envelope.kind, envelope.credential_id_b64)
+        factor = (envelope.kind, credential_id)
         if factor in seen:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

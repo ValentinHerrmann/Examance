@@ -2,12 +2,8 @@ import { safeLocalStorage } from './storage';
 
 const PREFIX = 'bg_recent:';
 
-function cleanRecentValue(fieldKey: string, val: string): string {
-  const trimmed = val.trim();
-  if (fieldKey === 'backend.url') {
-    return trimmed.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-  }
-  return trimmed;
+function cleanRecentValue(_fieldKey: string, val: string): string {
+  return val.trim();
 }
 
 /**
@@ -20,12 +16,7 @@ export function getRecentValues(fieldKey: string): string[] {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      const items = parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
-      if (fieldKey === 'backend.url') {
-        const cleaned = items.map((i) => cleanRecentValue(fieldKey, i)).filter(Boolean);
-        return Array.from(new Set(cleaned));
-      }
-      return items;
+      return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
     }
   } catch {
     // Ignore corrupt storage entries

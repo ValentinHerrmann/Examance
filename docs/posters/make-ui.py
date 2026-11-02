@@ -8,7 +8,7 @@ from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 P = "../screenshots/pitch/"
-URL = "examance.valentin-herrmann.com"
+URL = "examance.de"
 S = {
     "editor": ("tour/t-exercise-editor.jpg", "LaTeX-Aufgabeneditor", "Bausteine per Klick, Live-Vorschau; jedes \\BE ist ein Punkt, \\hBE ein halber", "Punktzahl rechnet sich selbst"),
     "mc": ("tour/t-mc-editor.jpg", "Multiple Choice", "Optionen eintippen, richtige anhaken, Punktabzug wählen", "Kreuze werden später automatisch gelesen"),

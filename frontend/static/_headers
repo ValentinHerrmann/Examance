@@ -19,11 +19,10 @@
 # (issue #59; image only, sent without Referer — see docs/legal_audit_dsgvo.md L16).
 # camera=(self) keeps QR scanning working; every other permission is denied.
 #
-# connect-src must allow connection to the backend server origins configured by
-# users in server mode: local loopback backends (http://localhost:*, http://127.0.0.1:*)
-# as permitted by backendStore, plus any HTTPS backend. IPv6 loopback (::1) is
-# intentionally omitted — Chrome's CSP parser rejects the [::1]:* form, and
-# real users always connect to localhost or 127.0.0.1 rather than ::1.
+# connect-src adds the API: `__API_ORIGINS__` is filled at build by
+# scripts/generate-csp-headers.mjs (scripts/api-origins.mjs) with the exact API
+# origin(s) when PUBLIC_API_URL is set, else with `https:` (the default
+# api.<frontend host> is only known in the browser). Issue #198.
 #
 # THIS FILE IS A TEMPLATE. The `__INLINE_SCRIPT_HASHES__` token in script-src
 # is replaced during `npm run build` by scripts/generate-csp-headers.mjs, which
@@ -46,7 +45,7 @@
 # most-specific — Pages applies every matching rule and the later one wins.
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' __INLINE_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://http.cat; font-src 'self'; connect-src 'self' blob: https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' __INLINE_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://http.cat; font-src 'self'; connect-src 'self' blob: __API_ORIGINS__; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -87,3 +86,8 @@
 
 /wasm/*.wasm
   Content-Type: application/wasm
+
+# Related origins for passkeys during a domain move (scripts/related-origins.mjs,
+# issue #198); browsers read it as JSON.
+/.well-known/webauthn
+  Content-Type: application/json

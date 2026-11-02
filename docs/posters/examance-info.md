@@ -4,7 +4,7 @@ theme: examance-poster
 size: a3
 paginate: false
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Funktionsweise, Datenschutz und Sicherheit</em>'
-footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfläche mit Demodaten · Details: docs/data_flow_and_security.md · examance.valentin-herrmann.com'
+footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfläche mit Demodaten · Details: docs/data_flow_and_security.md · examance.de'
 ---
 
 <span class="kicker">Teil 1 · Was Examance tut und wie</span>

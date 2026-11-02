@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inlineScriptHashes, PLACEHOLDER } from '../scripts/generate-csp-headers.mjs';
+import { API_PLACEHOLDER, apiConnectSources } from '../scripts/api-origins.mjs';
 
 const headersTemplate = readFileSync(
   fileURLToPath(new URL('../static/_headers', import.meta.url)),
@@ -43,6 +44,16 @@ describe('CSP header generation', () => {
       '<script type="module">export default 1;</script>',
     ].join('');
     expect(inlineScriptHashes(html)).toHaveLength(1);
+  });
+
+  it('lets the build fill in the API origins for connect-src (issue #198)', () => {
+    expect(headersTemplate).toMatch(new RegExp(`connect-src 'self' blob: ${API_PLACEHOLDER};`));
+    // Exact when the build knows the API; `https:` only for the browser-side default api.<host>.
+    expect(apiConnectSources({}, undefined)).toBe('https:');
+    expect(apiConnectSources({ PUBLIC_API_URL: 'https://api.example.org/' }, undefined)).toBe('https://api.example.org');
+    expect(
+      apiConnectSources({ PUBLIC_API_URL: 'https://api.examance.de', PUBLIC_DOMAIN_MOVE_FROM: 'old.example.org', PUBLIC_DOMAIN_MOVE_FROM_API_URL: 'https://api.old.example.org', PUBLIC_DOMAIN_MOVE_TO: 'https://examance.de' }, undefined),
+    ).toBe('https://api.examance.de https://api.old.example.org');
   });
 
   it('keeps the placeholder in static/_headers so the build can fill it in', () => {

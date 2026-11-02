@@ -1,10 +1,10 @@
 /** The workspace manifest: one IndexedDB row saying whose key sealed the data and the last storage mode (an offline copy only). A session opens the workspace only if it owns it; a workspace from the discontinued local mode is never opened, only deleted. Invariants and detail: docs/dev/storage_modes.md ("Workspace manifest and owner binding"). */
 
+import { apiOrigin } from '#lib/api/origin';
 import { get } from 'svelte/store';
 import { db, vaultTables } from './db';
 import type { WorkspaceManifestRecord, WorkspaceOwner } from './schema';
 import { decrypt, encrypt } from '#lib/crypto/aesGcm';
-import { backendStore } from '#lib/stores/backendStore';
 import { hasLegacyLocalVault, removeLegacyLocalVault, sessionStore } from '#lib/stores/session';
 import {
   armStorageModeSwitch,
@@ -128,7 +128,8 @@ function sessionIdentity(): WorkspaceOwner {
   return {
     kind: 'account',
     accountId: s.teacherId ?? s.email,
-    backendOrigin: get(backendStore) || null,
+    // Informational only (issue #198): this browser origin already scopes IndexedDB, and the API follows from it.
+    backendOrigin: apiOrigin() || (typeof location === 'undefined' ? null : location.origin),
     accountEmail: s.email,
   };
 }
@@ -179,9 +180,8 @@ async function existingDataOpens(): Promise<boolean> {
 
 function sameAccount(a: WorkspaceOwner | null, b: WorkspaceOwner): boolean {
   if (!a) return false;
-  // A tab restored before teacherId was shared across tabs may only know the e-mail; either matches.
-  const sameId = a.accountId === b.accountId || (!!a.accountEmail && a.accountEmail === b.accountEmail);
-  return sameId && a.backendOrigin === b.backendOrigin;
+  // A tab restored before teacherId was shared across tabs may only know the e-mail; either matches. `backendOrigin` is not compared: older manifests hold the API host of a server address that no longer exists (issue #198).
+  return a.accountId === b.accountId || (!!a.accountEmail && a.accountEmail === b.accountEmail);
 }
 
 function isLegacyLocal(manifest: WorkspaceManifestRecord): boolean {

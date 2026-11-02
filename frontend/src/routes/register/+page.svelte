@@ -1,15 +1,11 @@
 <script lang="ts">
   // Self-registration, step one (issue #53): ask for a verification link. The server answers the same whether or not the address already has an account, so this page cannot say which it was either.
-  import { get } from "svelte/store";
   import { apiErrorMessage, ApiError } from "#lib/api/client";
   import { requestRegistration } from "#lib/api/registration";
   import { t, translate } from "#lib/i18n";
-  import { backendStore } from "#lib/stores/backendStore";
-  import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
   import { Alert, Button, Field, TextInput } from "#lib/components/ui";
   import AuthCard from "#lib/components/unlock/AuthCard.svelte";
 
-  let backendUrl = $state(get(backendStore));
   let email = $state("");
   let isSubmitting = $state(false);
   let errorMsg = $state("");
@@ -23,26 +19,12 @@
       errorMsg = translate("auth.register.errors.enterEmail");
       return;
     }
-    const trimmedBackendUrl = backendUrl.trim();
-    if (!trimmedBackendUrl) {
-      errorMsg = translate("auth.unlock.errors.enterServerAddress");
-      return;
-    }
-    try {
-      backendStore.setTransient(trimmedBackendUrl);
-    } catch (err: any) {
-      errorMsg = err?.message ?? translate("auth.unlock.errors.invalidBackendUrl");
-      return;
-    }
-
     isSubmitting = true;
     try {
       await requestRegistration(normalizedEmail);
-      backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
       sentTo = normalizedEmail;
       sent = true;
     } catch (err: unknown) {
-      backendStore.restoreSavedUrl();
       // The rate limiter's 429 carries no code of its own.
       errorMsg =
         err instanceof ApiError && err.status === 429
@@ -72,18 +54,6 @@
     {/if}
 
     <form onsubmit={(e) => { e.preventDefault(); handleRegister(); }} class="flex flex-col gap-5">
-      <Field forId="backendUrl" label={$t("auth.unlock.cloud.backendUrl")}>
-        {#snippet children({ id })}
-          <BackendUrlInput
-            {id}
-            bind:value={backendUrl}
-            placeholder={$t("auth.unlock.cloud.backendUrlPlaceholder")}
-            required
-            disabled={isSubmitting}
-          />
-        {/snippet}
-      </Field>
-
       <Field forId="email" label={$t("auth.register.emailLabel")} hint={$t("auth.register.emailHint")}>
         {#snippet children({ id })}
           <TextInput

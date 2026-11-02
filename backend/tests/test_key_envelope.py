@@ -165,3 +165,52 @@ async def test_enrolling_session_may_add_passkey_wraps_but_not_replace_secret_wr
     assert refused.status_code == 403
     other_key = dict(_payload(*base), key_id_b64=_b64(b"\x08" * 16))
     assert (await client.put("/api/v1/keys/envelopes", json=other_key)).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_passkey_wrap_accepts_base64url_credential_id(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    # Regression: the passkey list hands out base64url IDs; a strict standard-alphabet decode refused them.
+    await _login(client, db, "envelope-url@example.com")
+    raw = b"\xfb\xff\xbf" * 6
+    passkey = _envelope("passkey", credential_id=raw)
+    passkey["credential_id_b64"] = base64.urlsafe_b64encode(raw).decode().rstrip("=")
+    put = await client.put(
+        "/api/v1/keys/envelopes",
+        json=_payload(_envelope("password"), _envelope("recovery"), passkey),
+    )
+    assert put.status_code == 200, put.text
+    got = (await client.get("/api/v1/keys/envelopes")).json()
+    ids = {e["credential_id_b64"] for e in got["envelopes"] if e["kind"] == "passkey"}
+    assert ids == {_b64(raw)}
+
+
+@pytest.mark.asyncio
+async def test_credential_id_spellings_count_as_one_factor(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _login(client, db, "envelope-dup@example.com")
+    raw = b"\xfb\xff\xbf" * 6
+    standard = _envelope("passkey", credential_id=raw)
+    urlsafe = _envelope("passkey", credential_id=raw)
+    urlsafe["credential_id_b64"] = base64.urlsafe_b64encode(raw).decode()
+    put = await client.put(
+        "/api/v1/keys/envelopes",
+        json=_payload(_envelope("password"), _envelope("recovery"), standard, urlsafe),
+    )
+    assert put.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_credential_id_outside_both_alphabets_is_rejected(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _login(client, db, "envelope-bad@example.com")
+    passkey = _envelope("passkey", credential_id=b"x" * 16)
+    passkey["credential_id_b64"] = "abc$def*"
+    put = await client.put(
+        "/api/v1/keys/envelopes",
+        json=_payload(_envelope("password"), _envelope("recovery"), passkey),
+    )
+    assert put.status_code == 400

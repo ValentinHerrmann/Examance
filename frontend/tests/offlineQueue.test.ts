@@ -17,7 +17,7 @@ describe('offline queue error classes', () => {
     expect(replayOutcome({ method: 'PUT' }, apiError(502))).toBe('keep');
     expect(replayOutcome({ method: 'PUT' }, apiError(401))).toBe('keep');
     expect(replayOutcome({ method: 'PUT' }, apiError(403, 'ERR_MFA_REQUIRED'))).toBe('keep');
-    expect(replayOutcome({ method: 'POST' }, apiError(0, 'ERR_NO_SERVER_URL'))).toBe('keep');
+    expect(replayOutcome({ method: 'POST' }, apiError(0, 'ERR_NETWORK'))).toBe('keep');
     expect(replayOutcome({ method: 'POST' }, apiError(409))).toBe('applied');
     expect(replayOutcome({ method: 'DELETE' }, apiError(404))).toBe('applied');
     expect(replayOutcome({ method: 'PUT' }, apiError(404))).toBe('rejected');

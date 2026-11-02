@@ -20,7 +20,6 @@
   } from "#lib/stores/storagePolicy";
   import { safeLocalStorage } from "#lib/utils/storage";
   import { registerCspDiagnostics } from "#lib/utils/cspDiagnostics";
-  import { effectiveBackendStore } from "#lib/stores/backendStore";
   import {
     frontendVersion,
     displayVersionUrl,
@@ -63,6 +62,9 @@
   import { Alert, Button, PageShell } from "#lib/components/ui";
   import UpdateNotice from "#lib/components/layout/UpdateNotice.svelte";
   import MaintenanceNotice from "#lib/components/layout/MaintenanceNotice.svelte";
+  import DomainMoveNotice from "#lib/components/layout/DomainMoveNotice.svelte";
+  import DomainMoveHybridPanel from "#lib/components/layout/DomainMoveHybridPanel.svelte";
+  import { onOldAddress } from "#lib/domainMove";
   import StorageChoiceModal from "#lib/components/storage/StorageChoiceModal.svelte";
   import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "#lib/components/HttpCatModal.svelte";
@@ -91,6 +93,11 @@
   let hybridHintDismissed = $state(false);
   let workspaceExportOpen = $state(false);
   let workspaceReady = $derived($workspaceStatusStore.state === "ok" && page.url.pathname !== "/unlock");
+  // Domain move (issue #198): on the old address a hybrid account only takes its results along; the trash stays reachable, since its browser part cannot move.
+  const oldAddress = onOldAddress();
+  let moveHybridResults = $derived(
+    oldAddress && workspaceReady && $storagePolicyStore.storageMode === "hybrid" && page.url.pathname !== "/trash",
+  );
   let strayLocalResults = $derived(
     workspaceReady && $storagePolicyStore.storageMode === "all-server" && localResults > 0,
   );
@@ -126,14 +133,6 @@
   let showExamSidebar = $derived(
     showFullNav && !!$examNavContext && page.url.pathname.startsWith(`/exam/${$examNavContext.examId}`),
   );
-
-  function handleFooterClick() {
-    if (get(isUnlocked)) {
-      void goto("/settings#backend");
-    } else {
-      window.location.href = "/unlock";
-    }
-  }
 
   /** F1 and "?" open help; both are ignored in text fields ("?" is ordinary in a LaTeX body). */
   function handleGlobalKeydown(event: KeyboardEvent) {
@@ -258,11 +257,10 @@
     }
   });
 
-  // Re-probe the server's version whenever the address changes or the session unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the overlap with the onMount call below is harmless.
+  // Re-probe the server's version whenever the session unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the overlap with the onMount call below is harmless.
   $effect.pre(() => {
-    const backend = $effectiveBackendStore;
     const unlocked = $isUnlocked;
-    if (typeof window !== "undefined" && (backend || unlocked)) {
+    if (typeof window !== "undefined" && unlocked) {
       untrack(() => void refreshBackendVersion());
     }
   });
@@ -344,6 +342,7 @@
 
   <UpdateNotice />
   <MaintenanceNotice />
+  <DomainMoveNotice />
 
   {#if $versionStatus === "incompatible"}
     <!-- A differing major version means frontend and backend disagree on the API; saving may fail. Not dismissible, and visible without scrolling. -->
@@ -428,6 +427,10 @@
         <PageShell width="medium" center>
           <WorkspaceBlocked reason={$workspaceStatusStore.reason} />
         </PageShell>
+      {:else if moveHybridResults}
+        <PageShell width="medium" center>
+          <DomainMoveHybridPanel onBackup={() => (workspaceExportOpen = true)} />
+        </PageShell>
       {:else if mustChooseMode}
         <!-- No storage mode yet: routes stay unmounted until the account has chosen one (modal below). -->
         <PageShell width="narrow" center>
@@ -440,9 +443,6 @@
       {/if}
 
       <AppFooter
-        onBackendClick={handleFooterClick}
-        backendLabel={$effectiveBackendStore || ""}
-        unlocked={$isUnlocked}
         {frontendVersion}
         versionUrl={$displayVersionUrl}
         backendVersion={$backendVersionStore}

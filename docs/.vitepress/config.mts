@@ -18,13 +18,13 @@ export default withMermaid(defineConfig({
   },
   vite: { plugins: [siteFilesDevServer(BASE)] },
   buildEnd: (siteConfig) => copySiteFiles(siteConfig.outDir),
-  // German exists only for the user guide (docs/de/user/, same file names and {#anchors} as docs/user/, linked from the in-app help); operator and developer pages stay English.
+  // German is the default start page (theme/index.ts redirects the bare root) and exists for the start page and the user guide (docs/de/user/, same file names and {#anchors} as docs/user/, linked from the in-app help); operator and developer pages stay English.
   locales: {
     root: { label: 'English', lang: 'en' },
     de: {
       label: 'Deutsch',
       lang: 'de',
-      link: '/de/user/',
+      link: '/de/',
       description: 'Anonyme, datenschutzfreundliche Korrektur von Prüfungen: Benutzerhandbuch.',
       themeConfig: {
         nav: [
@@ -55,6 +55,7 @@ export default withMermaid(defineConfig({
             text: 'Betrieb & Entwicklung (Englisch)',
             items: [
               { text: 'Installation und Updates', link: '/hosting' },
+              { text: 'Domainumzug', link: '/domain_move' },
               { text: 'Datenfluss und Sicherheit', link: '/data_flow_and_security' },
               { text: 'Rechtliches (DSGVO)', link: '/legal_audit_dsgvo' },
             ],
@@ -110,6 +111,7 @@ export default withMermaid(defineConfig({
               { text: 'Setup and updates', link: '/hosting' },
               { text: 'Accounts and administration', link: '/account_creation_and_management' },
               { text: 'Backup and restore', link: '/backup_and_restore' },
+              { text: 'Move to another domain', link: '/domain_move' },
               { text: 'Maintenance mode', link: '/dev/maintenance_mode' },
               { text: 'Storage partitions', link: '/dev/storage_partitions' },
             ],

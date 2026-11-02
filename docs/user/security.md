@@ -92,3 +92,13 @@ The technical details are in [Data flow and security](../data_flow_and_security)
 ## Retention {#retention}
 
 Exams carry a retention period, after which they can be removed. Student-related data can be deleted individually without losing the exam's statistics, see [Deleting data](./settings#deletion). The retention periods of your installation are listed in its privacy policy (**Privacy** in the footer).
+
+## Moving to a new address {#domain-move}
+
+When your installation moves to a new address (for example from `examance.valentin-herrmann.com` to `examance.de`), your account, exams and exercises come along: they are on the server. Only a few things belong to the old address itself.
+
+1. **Hybrid mode only: take your results along first.** Results stored only in this browser belong to the old address. Signed in there, Examance shows nothing but a page to take them along: **Move results to the server** (you continue on the new address automatically and can switch back to hybrid there), or **Back up workspace** and [import](./backup#import) the file on the new address. Restore anything you still need from the [trash](./trash#hybrid) first: what you deleted in hybrid mode stays in this browser's trash and cannot be restored after the move. After a cut-over date the old address forwards to the new one, and results left behind can no longer be reached.
+2. **Everyone else is forwarded.** If you sign in on the old address with nothing to take along, Examance opens the new one. Sign in there with the same e-mail address; your password manager has the password saved under the old address, so look it up there if it is not suggested.
+3. **Your passkey works once more.** Passkeys belong to their address. On the new address, **Use your previous passkey** (below the passkey button) signs you in with your existing passkey in Chrome, Edge and Safari and opens your data as before. Examance then asks you to **create a passkey for the new address** before you continue. Firefox cannot use the old passkey: sign in with your password and authenticator code instead.
+4. **Renew bookmarks and the installed app.** Settings only the browser keeps (such as the theme) need to be set once more.
+5. Later, remove the passkeys marked "Old address" under [Sign-in & security](#security-page) and the old entry in your password manager.

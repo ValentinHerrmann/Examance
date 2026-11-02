@@ -44,7 +44,7 @@ All API v1 endpoints are served relative to the root URL path:
 ## 2. Security & Session Management
 
 ### Cookie-Based Authentication
-Examance uses secure, HttpOnly, SameSite-protected cookies for session management:
+Examance uses `Secure`, `HttpOnly`, `SameSite=Strict` cookies for session management. The API is served on the web interface's site (`api.<frontend host>` or the build's `PUBLIC_API_URL`, issue #198), so the cookies never travel cross-site:
 - **`access_token`**: Short-lived JWT (15-minute validity) used for API authorization.
 - **`refresh_token`**: Long-lived JWT (7-day validity) used to obtain new access tokens.
 
@@ -67,8 +67,8 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 - The server stores only SHA-256 hashes of reset tokens. Tokens expire after a configurable duration (default 24 hours) and are invalidated immediately upon use.
 - Completing a password reset (`POST /api/v1/auth/reset-password`) sets the new password and revokes all active refresh tokens for the user account.
 
-### CORS & Security Policies
-- **CORS Allowed Origins**: Explicitly restricted to configured origins (e.g., `https://examance.pages.dev`, `http://localhost:5173`, and `*.valentin-herrmann.com` subdomains).
+### Origin & Security Policies
+- **CORS Allowed Origins**: only `FRONTEND_ORIGINS` (default: the origin of `FRONTEND_URL`); there is no origin pattern, every origin is named. State-changing requests from any other `Origin` answer `403 ERR_ORIGIN_REJECTED`.
 - **Security Headers**: Middleware enforces strict Content Security Policy (CSP), anti-clickjacking frame options, and rate limits via `slowapi`.
 
 ---

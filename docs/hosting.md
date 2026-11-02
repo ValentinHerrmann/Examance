@@ -1,6 +1,6 @@
 # Host Examance
 
-How to run your own Examance installation: one backend stack on a Linux server and the frontend on any static host. To run it exactly like the maintainer's installation (two stacks, deployed automatically by GitHub Actions on every release and pull request), set up what this page describes and then follow [Host it like the maintainer: GitHub Actions](deployment.md).
+How to run your own Examance installation: one backend stack on a Linux server and the frontend on any static host, **on one site**: the browser loads the app from `https://examance.example.org/` and reaches the API at `https://api.examance.example.org/` (or another address on the same registrable domain, section 5.1). To run it exactly like the maintainer's installation (two stacks, deployed automatically by GitHub Actions on every release and pull request), set up what this page describes and then follow [Host it like the maintainer: GitHub Actions](deployment.md).
 
 ## 1. What you run
 
@@ -11,7 +11,7 @@ flowchart LR
     FE["Frontend<br/>examance.example.org"]
   end
   subgraph S["Linux server"]
-    RP["Reverse proxy (TLS)<br/>api.example.org"]
+    RP["Reverse proxy (TLS)<br/>api.examance.example.org"]
     subgraph C["docker compose -p examance"]
       BE["backend<br/>127.0.0.1:8000"]
       LX["latex worker"]
@@ -29,12 +29,13 @@ flowchart LR
 ```
 
 - **Frontend**: a static build (HTML, JavaScript, WebAssembly). Encryption, decryption, scan processing and the browser LaTeX engine run in the browser, so the frontend host never sees plaintext.
+- **One site**: the API is at `api.` plus the frontend's host unless the build sets `PUBLIC_API_URL` (section 5.1). Either way it shares the frontend's registrable domain, because the session cookies are `SameSite=Strict`. CORS admits only the frontend's origins (`FRONTEND_ORIGINS`).
 - **Backend stack** (`deploy/docker-compose.deploy.yml`): the API, a separate LaTeX worker without secrets or database access, Postgres, Redis, a daily retention job, and optionally encrypted backups. Postgres and Redis publish no ports; the API binds only to loopback, behind your reverse proxy.
 
 ## 2. Requirements
 
 - A Linux server with Docker and the Compose plugin, with a correct clock (NTP): sign-in codes from authenticator apps are time-based, so a drifting clock rejects correct codes.
-- Two host names with HTTPS, one for the frontend and one for the API (for example `examance.example.org` and `api.example.org`).
+- Two host names with HTTPS on the same registrable domain: one for the frontend and one for the API, by default `api.` plus the frontend's host (for example `examance.example.org` and `api.examance.example.org`). To avoid a second subdomain level, any other API host on the same domain works with `PUBLIC_API_URL` (for example `examance-api.example.org`).
 - A reverse proxy that terminates TLS on the server. [Caddy](https://caddyserver.com) gets and renews certificates by itself; the examples use it.
 - An SMTP account. Self-registration, invitations and password resets send links by e-mail.
 - Outbound internet access for the server: the LaTeX worker downloads TeX bundle files on demand, and image builds need `relay.fullyjustified.net`.
@@ -54,15 +55,12 @@ The frontend probes it and shows the result in its footer:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> NoServer
-    NoServer: no-server — grey<br/>no backend configured
+    [*] --> Unknown
     Unknown: unknown — grey<br/>server unreachable or reports no version
     Match: match — normal<br/>identical version strings (a preview's [built-at] stamp is ignored)
     Mismatch: mismatch — amber<br/>same major, out of sync
     Incompatible: incompatible — red, bold<br/>different major
 
-    NoServer --> Unknown: address configured, probe fails
-    NoServer --> Match: probe succeeds, versions equal
     Unknown --> Match: probe succeeds, versions equal
     Unknown --> Mismatch: same major
     Unknown --> Incompatible: different major
@@ -99,15 +97,15 @@ Fill in `.env`. The template explains every setting; these are the ones you must
 | `SECRET_KEY` | `openssl rand -hex 32` | Signs all sessions. Changing it signs everyone out. Never share it between installations. |
 | `POSTGRES_PASSWORD` | `openssl rand -hex 24` | Database password; the database is reachable only inside the stack. |
 | `FRONTEND_URL` | `https://examance.example.org/` | Used in e-mailed links, and its host name is the passkey relying party. Never a `*.pages.dev` address: that domain is on URL blocklists, so mail servers reject the e-mails (`550 5.7.1 … (B-URL)`), and the backend refuses to start with one when SMTP is configured. Serving it from the same domain as `SMTP_FROM_EMAIL` also keeps spam filters calm. |
-| `CORS_ALLOWED_ORIGINS` | `["https://examance.example.org"]` | The frontend origins allowed to call the API; no wildcard, and empty means the backend does not start. |
-| `ALLOWED_HOSTS` | `["api.example.org","127.0.0.1","localhost"]` | Host names the API answers to; loopback keeps the health checks working. |
+| `FRONTEND_ORIGINS` | empty, or `["https://examance.example.org"]` | The frontend origins: the only ones CORS, the CSRF guard and passkey ceremonies accept. Empty means the origin of `FRONTEND_URL`, which is all a normal installation needs; a domain move adds the old origin ([Move to another domain](domain_move.md)). No wildcard or pattern. |
+| `ALLOWED_HOSTS` | `["api.examance.example.org","127.0.0.1","localhost"]` | Host names the API answers to (the API host, plus the old one during a domain move); loopback keeps the health checks working. |
 | `APP_PORT` | `8000` | Loopback port the reverse proxy forwards to. |
 | `NETWORK_SUBNET` | e.g. `172.23.0.0/16` | Fixed subnet of the stack's network, so the proxy address below stays stable. |
 | `PROXY_ALLOWED_IPS` | the network's gateway, see 4.3 | Addresses whose `X-Forwarded-For` the backend trusts. **Never `*`**: anyone could then fake their address, escape rate limits and falsify the audit log. |
 | `SMTP_*` | your mail account | Without SMTP, links are only written to the log. |
 | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | your admin account | Creates the first admin on startup if it does not exist yet ([details](account_creation_and_management.md#_1-initial-admin-bootstrap-automatic-startup)). Remove the password afterwards. |
 
-Passkeys belong to the host name in `FRONTEND_URL`: a passkey created on one installation or domain does not work on another, by design of WebAuthn.
+Passkeys belong to the host name in `FRONTEND_URL`: a passkey created on one installation or domain does not work on another, by design of WebAuthn. To move an installation to a new domain without locking teachers out, follow [Move to another domain](domain_move.md) (`WEBAUTHN_LEGACY_RP_IDS`).
 
 Self-registration needs nothing beyond SMTP; its token lifetimes and the retention of unapproved accounts have defaults that only need an entry to change. Approval, features and allowed domains: [Accounts and administration](account_creation_and_management.md#_7-self-registration-approval-and-features).
 
@@ -131,14 +129,14 @@ The project name (`-p examance`) prefixes the containers and volumes. Use a diff
 ### 4.4 Reverse proxy
 
 ```
-api.example.org {
+api.examance.example.org {
     reverse_proxy 127.0.0.1:8000
 }
 ```
 
 No timeout tuning is needed. Server-side LaTeX compiles run as background jobs that the browser polls with short requests, so no request comes near the 100 s limit of proxies such as Cloudflare. Do not set a response timeout shorter than `COMPILE_TIMEOUT_SECONDS` plus a margin: a proxy that answers first sends its own error page without CORS headers, and the browser then reports a CORS error instead of a timeout.
 
-Check: `curl -s https://api.example.org/api/health`.
+Check: `curl -s https://api.examance.example.org/api/health`.
 
 ### 4.5 LaTeX worker and cache
 
@@ -166,7 +164,6 @@ Build from the same release tag as the backend, with the Node version in `fronte
 git clone --branch 1.4.0 --depth 1 https://github.com/ValentinHerrmann/Examance.git
 cd Examance/frontend
 npm ci
-PUBLIC_DEFAULT_BACKEND_URL=https://api.example.org \
 VITE_LEGAL_NAME="…" VITE_LEGAL_STREET="…" VITE_LEGAL_POSTCODE_CITY="…" VITE_LEGAL_EMAIL="…" \
 npm run build
 ```
@@ -177,10 +174,11 @@ Set them in the build environment or in `frontend/.env` (template: `frontend/.en
 
 | Build variable | Purpose |
 |---|---|
-| `PUBLIC_DEFAULT_BACKEND_URL` | API address a new browser starts with. Teachers can still change it; a saved address wins. |
+| `PUBLIC_API_URL` | Optional: the API's address. Empty means `https://api.` plus the frontend's host, worked out in the browser. Set it to avoid a second subdomain level (`preview.example.org` → `https://preview-api.example.org` instead of `api.preview.example.org`, which many wildcard certificates do not cover). It must share the frontend's registrable domain, or the `SameSite=Strict` session cookies are not sent. Setting it also puts the exact origin into the Content Security Policy's `connect-src` (otherwise it allows any `https:` address). |
 | `VITE_LEGAL_NAME`, `VITE_LEGAL_STREET`, `VITE_LEGAL_POSTCODE_CITY`, `VITE_LEGAL_EMAIL`, optional `VITE_LEGAL_PHONE` | Operator details on the legal notice and privacy policy (`/legal/impressum`, `/legal/datenschutz`). They are built into the public pages, not stored in the repository. Without them both pages show marked placeholders and a "not configured" banner. Retention periods on the privacy page come from the backend at runtime. |
 | `PUBLIC_DOCS_URL` | Optional: base URL of this documentation site, for the footer's "Documentation" link and the in-app help's links to user-guide sections (default: `https://docs.examance.de/`). |
 | `BUSYTEX_MIRROR_URL` | Optional: a mirror of the LaTeX engine files that speeds up builds ([maintainer setup](deployment.md#busytex-mirror-cloudflare-r2)). |
+| `PUBLIC_DOMAIN_MOVE_FROM`, `PUBLIC_DOMAIN_MOVE_FROM_API_URL`, `PUBLIC_DOMAIN_MOVE_TO`, `PUBLIC_DOMAIN_MOVE_REDIRECT_DATE` | Only while moving to a new domain: the old frontend host, the API it keeps using until the redirect, the new origin and the day the old host starts forwarding ([Move to another domain](domain_move.md)). |
 
 ### 5.2 Serve
 
@@ -190,7 +188,7 @@ Serve `frontend/build/` with:
 - **The response headers from `build/_headers`**, above all the Content Security Policy. Its script hashes are computed for each build, so take the file from every new build. Cloudflare Pages and Netlify apply it as is; on nginx, Caddy or Apache, translate it into header directives.
 - **Nothing injected into the HTML.** Analytics snippets, Cloudflare Web Analytics, Rocket Loader and e-mail obfuscation rewrite the pages after the build, so their scripts don't match the policy (see 5.3). Turn them off: they would also send visitor data to a third party, which the privacy policy rules out.
 
-The frontend must be served from the origin you put in `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`, on its own domain rather than a shared `*.pages.dev` address (see 4.2).
+The frontend must be served from the origin you put in `FRONTEND_URL`, on its own domain rather than a shared `*.pages.dev` address (see 4.2).
 
 ### 5.3 Troubleshooting: "Executing inline script violates … Content Security Policy"
 
@@ -201,7 +199,7 @@ Executing inline script violates the following Content Security Policy directive
 'script-src 'self' 'wasm-unsafe-eval' 'sha256-…''
 ```
 
-**It is neither a CORS error nor a failed build**, though it reads like both. Work through it in this order:
+**It is not a failed build**, though it reads like one. Work through it in this order:
 
 1. **Does the host inject anything?** On Cloudflare that is Web Analytics, Rocket Loader or Email Obfuscation, the cause in every case so far. They change the HTML after the build hashed it. The app's own script still matches, so the page works and the console noise is the only symptom. Turn the feature off.
 2. **Does the served `_headers` still contain `__INLINE_SCRIPT_HASHES__`?** Then the header step of the build did not run and every inline script is blocked: the page stays blank. `npm run build` checks this itself and fails, so a deploy should never get this far.
@@ -236,7 +234,7 @@ Migrations run forward only: going back to an older image does not undo them.
 $COMPOSE logs --tail 200 backend
 ```
 
-**What is deployed**: `curl -s https://api.example.org/api/health`.
+**What is deployed**: `curl -s https://api.examance.example.org/api/health`.
 
 **Rollback**
 
@@ -254,6 +252,10 @@ Before rolling back:
 **Restore from backup**: `./restore-backup.sh` in the stack directory. `list` shows the snapshots, `db <id|latest>` replaces the whole database (the state before is kept for `undo`), `scans <id|latest>` copies missing scan files back. A database restore rolls back every account, so use it for disasters, not for one teacher's mistake. Step by step per situation: [Backup and restore](backup_and_restore.md).
 
 **Accounts**: invitations, approvals, password resets and the management CLI: [Accounts and administration](account_creation_and_management.md).
+
+### 7.1 Moving to a new domain
+
+A move keeps every account, exam and exercise, but passkeys belong to the old domain and hybrid results live in the old origin's browser storage. Examance bridges both in three phases (both addresses run, the old one forwards, old passkeys end): follow the checklist in [Move to another domain](domain_move.md), with a generic and a Cloudflare variant.
 
 ## 8. Legal responsibilities
 

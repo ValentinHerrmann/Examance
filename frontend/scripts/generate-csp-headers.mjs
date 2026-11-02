@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-/** Rewrites the `__INLINE_SCRIPT_HASHES__` placeholder in `build/_headers` with the SHA-256 of every inline <script> (SvelteKit's bootstrap hash changes with any bundle). Fail-closed: if never run, the script stays blocked and the app breaks loudly. Usage: node scripts/generate-csp-headers.mjs [buildDir] */
+/** Rewrites the `__INLINE_SCRIPT_HASHES__` placeholder in `build/_headers` with the SHA-256 of every inline <script> (SvelteKit's bootstrap hash changes with any bundle), and `__API_ORIGINS__` with the API's origin(s) (`api-origins.mjs`). Fail-closed: if never run, the script stays blocked and the app breaks loudly. Usage: node scripts/generate-csp-headers.mjs [buildDir] */
 
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadEnv } from 'vite';
+import { API_PLACEHOLDER, apiConnectSources } from './api-origins.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const buildDir = resolve(root, process.argv[2] ?? 'build');
@@ -97,11 +99,16 @@ function main() {
   }
 
   const sorted = [...hashes].sort();
+  const env = { ...loadEnv('production', root, 'PUBLIC_'), ...process.env };
+  const connect = apiConnectSources(env, process.env.CF_PAGES_BRANCH);
   writeFileSync(
     headersPath,
-    template.replaceAll(PLACEHOLDER, sorted.map((hash) => `'${hash}'`).join(' ')),
+    template
+      .replaceAll(PLACEHOLDER, sorted.map((hash) => `'${hash}'`).join(' '))
+      .replaceAll(API_PLACEHOLDER, connect),
     'utf-8'
   );
+  console.log(`[CSP] connect-src API sources: ${connect === 'https:' ? 'https: (PUBLIC_API_URL unset)' : 'exact'}`);
 
   console.log(
     `[CSP] Pinned ${sorted.length} inline script hash(es) from ${pages.length} HTML file(s):`

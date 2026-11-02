@@ -1,0 +1,28 @@
+import type { Translations } from '../types';
+
+export const domainMove: Translations['domainMove'] = {
+    title: 'Examance has moved to {host}',
+    body: 'Only sign in here if your results are stored only in this browser (hybrid mode), to take them along. Everyone else continues straight on {host}.',
+    openNew: 'Continue to {host}',
+    hybridTitle: 'Take your results along to {host}',
+    hybridBody: 'Your grading results are stored only in this browser, for this address ({from}). They are not on {host}. Take them along before this address starts forwarding to {host} on {date}.',
+    hybridTrash: 'What you deleted in the last few days is in this browser’s trash and cannot be restored after the move. Restore what you still need first.',
+    hybridTrashLink: 'Open the trash',
+    hybridMove: 'Move results to the server',
+    hybridMoveHint: 'Afterwards you continue on {host} automatically. You can switch back to hybrid mode there.',
+    hybridBackup: 'Back up workspace',
+    hybridBackupOnly: 'Create a backup and import the file on {host}.',
+    hybridSaved: 'I have saved my results',
+    legacyLine: 'Moved here from {from}?',
+    legacyLink: 'Use your previous passkey',
+    legacyUnsupported: 'This browser cannot use the old address’s passkey here. Sign in with your password and authenticator code, or once in Chrome, Edge or Safari.',
+    newPasskeyTitle: 'Create a new passkey for {host}',
+    newPasskeyForced: 'You signed in with the passkey of the old address {from}. Create a passkey for {host} now to continue; it also opens your encrypted data.',
+    newPasskeyBody: 'Your passkeys belong to the old address {from}. Create a passkey for {host}; it also opens your encrypted data.',
+    createPasskey: 'Create passkey',
+    createFailed: 'The passkey could not be created. Please try again.',
+    signOut: 'Sign out',
+    later: 'Later',
+    passkeyOld: 'Old address ({from}): create a new passkey for this address.',
+    addPasskeyThere: 'Create new passkeys on {host}; passkeys for this address would go away with it.',
+};

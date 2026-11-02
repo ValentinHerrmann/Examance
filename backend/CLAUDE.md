@@ -13,9 +13,9 @@ Python 3.12, FastAPI (async), SQLAlchemy 2.0, Alembic, PostgreSQL (asyncpg; psyc
 
 ## Environment
 
-`backend/.env.example` → `backend/.env`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`; `CORS_ALLOWED_ORIGIN_REGEX` has no default (credentialed `SameSite=None` cookies: never admit a wildcard subdomain). With `ENVIRONMENT=development`, `effective_cors_origin_regex` also allows arbitrary loopback ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `app/config.py`).
+`backend/.env.example` → `backend/.env`. **The API lives on the frontend's site** (issue #198): `https://api.<frontend host>` by default, or the frontend build's `PUBLIC_API_URL`, which must share the frontend's registrable domain, so auth cookies can be `SameSite=Strict`. `FRONTEND_ORIGINS` (default: the origin of `FRONTEND_URL`) is the one list CORS (`middleware/cors.py`), the origin guard (`is_allowed_origin`) and WebAuthn accept; never add an origin pattern (credentialed cookies: every origin a wildcard admits could act as the teacher), and only `ENVIRONMENT=development` admits loopback ports (`dev_origin_regex`). No wildcard fallback.
 
-`WEBAUTHN_RP_ID` is per stack: a passkey registered against production does not work against preview. Rotating `SECRET_KEY` invalidates every TOTP enrollment.
+`WEBAUTHN_RP_ID` is per stack: a passkey registered against production does not work against preview. During a domain move `WEBAUTHN_LEGACY_RP_IDS` names the old RP ID: ceremonies pick the RP ID from the request `Origin` (`services/webauthn.rp_id_for_origin`) and carry it in the challenge handle, new passkeys are refused on the old address, and `{"legacy": true}` asks for old passkeys from the new one via related origins (`docs/domain_move.md`). Rotating `SECRET_KEY` invalidates every TOTP enrollment.
 
 ## Authentication and the data key
 
@@ -41,6 +41,7 @@ Background: `docs/data_flow_and_security.md`. Any change here touches auth/crypt
 - A PRF passkey that signs in but cannot open the vault is **healed**: once the vault opens by password/recovery, `finishUnlock` writes a fresh wrap for it (`passkeyToHeal`). `EnvelopeChangedError` is never healed; it is the envelope-substitution alarm. Registration only wraps when the follow-up assertion's `rawId` matches the new credential.
 - "Passkey opens data" = a non-invalidated passkey envelope exists (`passkeyWrapIds`), **never** `supports_prf` (a registration-time guess). Settings' "enable data access" (`enablePasskeyUnlock`) wraps from the open session, ceremony pinned via `allowCredentials`. Passkeys stored in Bitwarden had no PRF as of 2026; they sign in but cannot open data (verify before relying on this).
 - Any server-side password write (admin reset, `cli.py set-password`, completing a reset) must call `invalidate_password_wrap`. The server cannot re-wrap a key it has never seen; marking the wrap stale sends the teacher to the recovery code instead of a vault of blank fields.
+- Credential IDs arrive as standard or base64url (the passkey list and `rawId` use base64url): decode them only with `schemas/binary.decode_credential_id` and compare decoded bytes, never strings.
 - `encryption_salt_b64` on student uploads carries the **`key_id`**, not a salt. The name is historical.
 
 ## Exercise sharing (issue #65)
