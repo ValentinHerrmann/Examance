@@ -734,8 +734,8 @@
                   onShowLatex={() => (latexSourceOpen = true)}
                 />
               {:else}
-                <!-- Phones: natural height. From @3xl the code area absorbs all free space, so folding any panel enlarges it. -->
-                <div class="flex flex-col @3xl:min-h-[18rem] @3xl:flex-1">
+                <!-- From @3xl the code area absorbs all free space; no explicit min-height, so its minimum stays palette + code rows and it never paints over the panels (issue #188). -->
+                <div class="flex flex-col @3xl:flex-1">
                   <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
                 </div>
               {/if}

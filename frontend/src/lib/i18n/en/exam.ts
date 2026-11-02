@@ -36,6 +36,7 @@ export const exam: Translations['exam'] = {
             failed: 'Preview failed: {message}',
             unknownError: 'Unknown compilation error',
             liveButton: 'Live Preview PDF',
+            outdated: 'The exam has changed since this preview. Click “Live Preview PDF” to compile it again.',
         },
         metadata: {
             saveSuccess: 'Exam details updated successfully.',
@@ -124,6 +125,7 @@ export const exam: Translations['exam'] = {
         mcTab: 'MC Groups',
         newExercise: 'New exercise',
         applyButton: 'Apply Linked Exercises',
+        applyWithGroupButton: 'Apply Exercises and MC Group',
     },
     exerciseLabel: {
         untitled: 'Untitled',
@@ -133,6 +135,7 @@ export const exam: Translations['exam'] = {
         headingNew: 'New MC group ({count} sub-exercises)',
         headingEdit: 'Edit MC group ({count} sub-exercises)',
         emptyHint: 'Tick MC questions on the left to build a group from them. An exam can hold any number of MC groups of any size; each question belongs to at most one group.',
+        emptyEditHint: 'Without questions, applying removes this group and its questions from the exam.',
         moveUp: 'Move up',
         moveDown: 'Move down',
         remove: 'Remove',

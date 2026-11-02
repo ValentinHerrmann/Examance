@@ -2,7 +2,9 @@
   import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon, Modal, TextInput } from "#lib/components/ui";
-  import { t } from "#lib/i18n";
+  import { faUpRightFromSquare } from "@fortawesome/free-solid-svg-icons";
+  import { locale, t } from "#lib/i18n";
+  import { docsHref } from "#lib/help/docsLink";
   import { HELP_TOPICS, getHelpTopic, type HelpTopic } from "#lib/help/topics";
   import { helpStore, closeHelp, selectHelpTopic } from "#lib/stores/helpStore";
   import HelpTopicContent from "./HelpTopicContent.svelte";
@@ -98,6 +100,17 @@
   </div>
 
   {#snippet footer()}
+    {#if activeTopic}
+      <Button
+        href={docsHref(activeTopic.docs, $locale)}
+        target="_blank"
+        rel="noopener noreferrer"
+        variant="text"
+        iconRight={faUpRightFromSquare}
+      >
+        {$t("help.ui.docsTopic")}
+      </Button>
+    {/if}
     <Button href="/help" variant="text" iconRight={faArrowRight} onClick={handleClose}>
       {$t("help.ui.openManual")}
     </Button>

@@ -4,7 +4,7 @@ theme: examance
 paginate: true
 size: 16:9
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Funktionsweise, Datenschutz und Sicherheit</em>'
-footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfläche mit Demodaten · Diagramme: vereinfacht, Details in docs/data_flow_and_security.md'
+footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfläche mit Demodaten · Diagramme: vereinfacht, Details in docs/data_flow_and_security.md'
 ---
 
 <!-- _class: title -->
@@ -32,7 +32,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 <div class="card">
 <h3>Ein Werkzeug für Prüfungen auf Papier</h3>
 <dl class="facts">
-<dt>Version</dt><dd>0.2, Beta – für einen begrenzten, begleiteten Einsatz</dd>
+<dt>Version</dt><dd>0.4, Beta – für einen begrenzten, begleiteten Einsatz</dd>
 <dt>Lizenz</dt><dd>MIT, Quellcode vollständig einsehbar, selbst betreibbar</dd>
 <dt>Frontend</dt><dd>SvelteKit / Svelte 5, läuft komplett im Browser</dd>
 <dt>Backend</dt><dd>FastAPI, PostgreSQL, Redis, Docker</dd>
@@ -84,7 +84,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 <figure class="shot h460"><img src="../screenshots/pitch/04-exam-builder.jpg"><figcaption>Aufgaben und Varianten anhaken</figcaption></figure>
 <div class="stack">
 <ul class="small">
-<li>MC: Einfach- oder Mehrfachauswahl, Punktabzug für falsche Kreuze, nie unter null.</li>
+<li>MC: Einfach- oder Mehrfachauswahl, Punktabzug für falsche Kreuze, nie unter null; auf Wunsch zeigt eine Zeile an jeder Aufgabe, wie man ein Kreuz zurücknimmt und neu setzt.</li>
 <li>Klausur: Kopf mit Fach, Klasse, Datum, Schullogo; Notenschlüssel linear, Oberstufe oder eigene Grenzen.</li>
 <li>Prüfung und Lösungsblatt werden gemeinsam gesetzt, mit QR-Code und Passmarken.</li>
 <li>Satz standardmäßig <strong>im Browser</strong>; auf dem Server nur, wenn die Administration es für das Konto erlaubt.</li>
@@ -124,7 +124,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 <figure class="shot h300 bottom"><img src="../screenshots/pitch/05-scan-import.jpg"><figcaption>Nach dem Einlesen: jede Abgabe nur mit Pseudonym-Code</figcaption></figure>
 <ul class="small">
 <li>Der QR-Code trägt Pseudonym, Variante und Ersatzcode – keinen Namen. Unlesbare Codes landen in einer Prüfliste.</li>
-<li>Vier Passmarken pro Seite; die Lage der Kästchen stammt aus einem leeren Satz der Klausur.</li>
+<li>Vier Passmarken pro Seite; die Lage der Kästchen stammt aus einem leeren Satz der Klausur. Darüber füllt Examance beim Korrigieren auch die gedruckten Punktekästchen und die Tabelle am Ende aus.</li>
 </ul>
 </div>
 </div>
@@ -134,7 +134,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 <span class="kicker">Korrigieren · Multiple Choice</span>
 
 <div class="cols" style="grid-template-columns: 3fr 9fr; gap: 28px">
-<figure class="shot"><img src="../screenshots/pitch/18-scanned-sheet-mc.jpg"><figcaption>Synthetischer Scan, Seite 2</figcaption></figure>
+<figure class="shot"><img src="../screenshots/pitch/18-scanned-sheet-mc.jpg"><figcaption>Synthetischer Scan: Korrekturzeile, Kreuz zurückgenommen und neu gesetzt</figcaption></figure>
 <div class="stack">
 
 ## Messung plus menschliche Prüfung
@@ -143,7 +143,8 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 
 <ul class="small">
 <li>Zwei Verfahren laufen mit: <strong>v4</strong> (Strichform, Standard) und <strong>v2</strong> (Füllgrad); die Prüfansicht zeigt, welches bei Ihren Daten öfter richtig lag.</li>
-<li>Zurückgenommene, übermalte und blasse Kreuze werden als unsicher vorgelegt; Stichproben auch bei sicheren Erkennungen.</li>
+<li>Ausmalen nimmt ein Kreuz zurück, ein Kreuz links daneben wählt es neu; die Erkennung liest genau diese Zeichen.</li>
+<li>Übermalte und blasse Kreuze werden als unsicher vorgelegt; Stichproben auch bei sicheren Erkennungen.</li>
 </ul>
 </div>
 </div>
@@ -324,7 +325,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 <div class="stack">
 <div class="card"><h3>Schlüssel im Tab</h3><p>Damit F5 nicht neu fragt, liegt der Sitzungsschlüssel in <code>sessionStorage</code>, versiegelt mit einem nicht exportierbaren Schlüssel je Tab; Skript auf derselben Origin kann ihn trotzdem nutzen, solange der Tab entsperrt ist.</p></div>
 <div class="card"><h3>Klartext auf dem Server</h3><p>LaTeX-Quelltexte samt Aufgabendateien (Tectonic braucht sie), Klausurmetadaten und die Gesamtpunktzahl je Abgabe.</p></div>
-<div class="card"><h3>Pseudonym-Kennung noch ohne Klausur-Schlüssel</h3><p>Derzeit ein einfacher SHA-256 des Pseudonyms: Der Server könnte dieselbe Person über Klausuren hinweg verknüpfen. Die geschlüsselte Variante ist vorbereitet, nicht aktiv.</p></div>
+<div class="card"><h3>Löschen mit Frist</h3><p>Vom Server gelöschte Ergebnisse bleiben 7 Tage (einstellbar) verschlüsselt wiederherstellbar, bevor der Server sie endgültig entfernt.</p></div>
 </div>
 <div class="stack">
 <div class="card"><h3>TOTP nicht Zero-Knowledge</h3><p>Der Server muss den Code berechnen; die Geheimnisse liegen mit einem Serverschlüssel verschlüsselt.</p></div>

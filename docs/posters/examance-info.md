@@ -4,14 +4,14 @@ theme: examance-poster
 size: a3
 paginate: false
 header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Funktionsweise, Datenschutz und Sicherheit</em>'
-footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfläche mit Demodaten · Details: docs/data_flow_and_security.md · examance.valentin-herrmann.com'
+footer: 'Examance 0.4 (Beta) · Stand November 2026 · Screenshots: echte Oberfläche mit Demodaten · Details: docs/data_flow_and_security.md · examance.valentin-herrmann.com'
 ---
 
 <span class="kicker">Teil 1 · Was Examance tut und wie</span>
 
 # Klausuren in LaTeX setzen, auf Papier schreiben, anonym bewerten.
 
-<p class="lead">Aufgabenbibliothek, Klausursatz und Notenbuch in einem – eine Web-Anwendung unter MIT-Lizenz (Beta 0.2). Korrigiert wird auf Papier oder anonym am Bildschirm; Schülerdaten verschlüsselt der Browser, bevor sie gespeichert werden.</p>
+<p class="lead">Aufgabenbibliothek, Klausursatz und Notenbuch in einem – eine Web-Anwendung unter MIT-Lizenz (Beta 0.4). Korrigiert wird auf Papier oder anonym am Bildschirm; Schülerdaten verschlüsselt der Browser, bevor sie gespeichert werden.</p>
 
 <figure class="diagram" style="margin-top:14px"><img src="../pitches/diagrams/pipeline.svg"></figure>
 
@@ -23,7 +23,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Screenshots: echte Oberfl�
 <div class="card"><span class="tag blue">Erstellen</span><h3>Bibliothek und Editor</h3><p>LaTeX mit Bausteinen per Klick und Live-Vorschau; Punkte im Text, Varianten A/B und Versionen.</p></div>
 <div class="card"><span class="tag blue">Erstellen</span><h3>Klausur setzen</h3><p>Aufgaben anhaken, Notenschlüssel wählen – Prüfung und Lösung als PDF, im Browser gesetzt.</p></div>
 <div class="card"><span class="tag teal">Gemeinsam</span><h3>Teilen und Vorschläge</h3><p>Nur Aufgabentexte, nie Schülerdaten. Kopien übernehmen, Verbesserungen vorschlagen, die Autorin entscheidet.</p></div>
-<div class="card"><span class="tag amber">Korrigieren</span><h3>Papier oder Scan</h3><p>Punkte eintippen oder aus Excel einfügen – oder ein Scan-PDF: QR-Zuordnung, Stempel, MC-Erkennung mit Prüfansicht.</p></div>
+<div class="card"><span class="tag amber">Korrigieren</span><h3>Papier oder Scan</h3><p>Punkte eintippen oder aus Excel einfügen – oder ein Scan-PDF: QR-Zuordnung, Stempel je Aufgabe oder Teilaufgabe, Punktekästchen füllen sich selbst, MC-Erkennung mit Prüfansicht.</p></div>
 <div class="card"><span class="tag green">Auswerten</span><h3>Statistik im Browser</h3><p>Notenspiegel, Grenzfälle, Aufgabenqualität, Variantenvergleich; Klassenstatistik erst ab fünf Abgaben.</p></div>
 <div class="card"><span class="tag red">Betrieb</span><h3>Offen und selbst betreibbar</h3><p>SvelteKit im Browser; FastAPI, PostgreSQL, Redis in Docker. LaTeX als WASM oder mit Tectonic.</p></div>
 </div>

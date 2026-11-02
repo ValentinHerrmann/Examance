@@ -21,9 +21,10 @@ const touch = (width: number, height: number, mobile: boolean, dsf: number) => (
   isMobile: mobile,
   deviceScaleFactor: dsf,
 });
-const pointer = (width: number, height: number) => ({
+const pointer = (width: number, height: number, dsf = 1) => ({
   ...devices['Desktop Chrome'],
   viewport: { width, height },
+  deviceScaleFactor: dsf,
 });
 
 export default defineConfig({
@@ -95,6 +96,8 @@ export default defineConfig({
     { name: 'ipad-landscape', testMatch: DEVICE_SPECS, use: touch(1366, 1024, false, 2) },
     // Laptops with OS scaling: 1920x1080 at 150% / 125% minus browser chrome.
     { name: 'laptop-150', testMatch: DEVICE_SPECS, use: pointer(1280, 600) },
+    // 2560×1600 at 200% Windows scaling (issue #188).
+    { name: 'laptop-200', testMatch: DEVICE_SPECS, use: pointer(1280, 800, 2) },
     { name: 'laptop-125', testMatch: DEVICE_SPECS, use: pointer(1536, 730) },
     { name: 'desktop-fullscreen', testMatch: DEVICE_SPECS, use: pointer(1920, 1080) },
     { name: 'desktop-wide', testMatch: DEVICE_SPECS, use: pointer(2560, 1300) },

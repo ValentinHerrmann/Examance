@@ -3,7 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './helpers/guards';
 import { label } from './helpers/i18n';
 import { chooseTheme, header, openHelp, openWorkspaceMenu } from './helpers/nav';
-import { exerciseEditor, signInFirstTime } from './helpers/flows';
+import { exerciseEditor, signInFirstTime, unfoldEditorDetails } from './helpers/flows';
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';
 
 const projectName = () => test.info().project.name;
@@ -237,6 +237,44 @@ async function expectDialogFits(page: Page, dialog: Locator, size: keyof typeof 
   expect.soft(nested, `${what}: nested scroller inside the modal body`).toEqual([]);
 }
 
+type Box = { x: number; y: number; width: number; height: number };
+const intersects = (a: Box, b: Box) =>
+  a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1;
+
+/** Exercise editor with the palette and both panels open: code area, palette and panels must not paint over each other (issue #188). */
+async function expectEditorPanelsApart(page: Page, editor: Locator) {
+  const unfold = async (toggle: Locator) => {
+    // dispatchEvent: an overlapping code area would swallow a real click, and the geometry asserts below should report that.
+    if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.dispatchEvent('click');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  };
+  const paletteToggle = editor.getByRole('button', { name: label('editor.quickInsertToggle', undefined, 'en') });
+  // The accessible name flips from "Show …" to "Hide …" once open.
+  const either = (ns: string) => new RegExp(`${label(`${ns}.show`, undefined, 'en').source}|${label(`${ns}.hide`, undefined, 'en').source}`, 'i');
+  const resourcesToggle = editor.getByRole('button', { name: either('editor.resources') });
+  const packagesToggle = editor.getByRole('button', { name: either('latexPackages.exercise') });
+  await unfold(paletteToggle);
+  await unfold(resourcesToggle);
+  await unfold(packagesToggle);
+  await page.waitForTimeout(300);
+
+  const code = (await editor.locator('.cm-editor').first().boundingBox())!;
+  const palette = (await paletteToggle.locator('xpath=../following-sibling::div[1]').boundingBox())!;
+  for (const [name, toggle] of [['files', resourcesToggle], ['packages', packagesToggle]] as const) {
+    const panel = (await toggle.locator('xpath=..').boundingBox())!;
+    expect.soft(intersects(code, panel), `exercise editor: code area overlaps the ${name} panel`).toBe(false);
+    expect.soft(intersects(palette, panel), `exercise editor: snippet palette overlaps the ${name} panel`).toBe(false);
+  }
+}
+
+/** No metadata label of the exercise editor may spill out of its column into the next field (issue #188). */
+async function expectMetaLabelsFit(editor: Locator) {
+  const spilled = await editor.locator('label[for^="editor"]').evaluateAll((els) =>
+    els.filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => el.textContent?.trim()),
+  );
+  expect.soft(spilled, 'exercise editor: metadata label wider than its column').toEqual([]);
+}
+
 test('[layout] main dialogs are as wide as their size token and have no nested scroller', async ({ page }) => {
   const examId = await seedWorkspace(page);
 
@@ -254,6 +292,8 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
   await expect(editor).toBeVisible();
   await page.waitForTimeout(800);
   await expectDialogFits(page, editor, 'full', 'exercise editor');
+  await expectEditorPanelsApart(page, editor);
+  await expectMetaLabelsFit(editor);
   await page.keyboard.press('Escape');
   await expect(editor).toBeHidden();
 
@@ -263,6 +303,21 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
   const library = page.getByRole('dialog', { name: label('exam.libraryModal.header', undefined, 'en') });
   await expect(library).toBeVisible();
   await expectDialogFits(page, library, 'large', 'exam library');
+});
+
+test.describe('German labels', () => {
+  test.use({ appLocale: 'de' });
+
+  // German labels are the longest ("Varianten-Schlüssel" ran into "Aufgabentyp:", issue #188).
+  test('[layout] exercise editor metadata labels stay in their columns (de)', async ({ page }) => {
+    await signInFirstTime(page);
+    await visit(page, '/exercises');
+    await page.getByRole('button', { name: label('exercises.page.createButton', undefined, 'de') }).click();
+    const editor = await exerciseEditor(page);
+    await expect(editor).toBeVisible();
+    await unfoldEditorDetails(page, editor);
+    await expectMetaLabelsFit(editor);
+  });
 });
 
 /* -------------------------------------------------------------------------- */

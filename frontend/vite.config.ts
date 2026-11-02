@@ -5,6 +5,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 // vitest/config's defineConfig knows about the `test` block below.
 import { defineConfig, type Plugin } from 'vitest/config';
+import { loadEnv } from 'vite';
 import wasm from 'vite-plugin-wasm';
 import tailwindcss from '@tailwindcss/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
@@ -97,8 +98,15 @@ function computeIsPreview(): boolean {
 /** Linked next to the version tag: release builds link their GitHub Release, others their commit. */
 const REPO_URL = 'https://github.com/ValentinHerrmann/Examance';
 
-/** Documentation site (GitHub Pages, published from `release` by .github/workflows/docs.yml); linked in the footer. */
-const DOCS_URL = process.env.PUBLIC_DOCS_URL ?? 'https://valentinherrmann.github.io/Examance/';
+/** Build variables from frontend/.env (template: .env.example) and the environment; the environment wins, so hosting settings override the file. */
+type BuildEnv = Record<string, string | undefined>;
+
+/** Documentation site (VitePress, docs/); linked in the footer and, per section, from the in-app help (lib/help/docsLink.ts). */
+function computeDocsUrl(env: BuildEnv): string {
+  const url = env.PUBLIC_DOCS_URL || 'https://docs.examance.de/';
+  // docsHref resolves "user/…" against it, which would drop a last path segment without the slash.
+  return url.endsWith('/') ? url : `${url}/`;
+}
 
 /** Full commit SHA of this build, when Cloudflare Pages provides one. */
 function computeCommitSha(): string {
@@ -106,87 +114,88 @@ function computeCommitSha(): string {
 }
 
 // Default backend for a fresh profile (production vs preview API); still revalidated and user-changeable.
-const PROD_BACKEND_URL =
-  process.env.PUBLIC_PROD_BACKEND_URL ?? 'https://api-examance.valentin-herrmann.com';
-const PREVIEW_BACKEND_URL =
-  process.env.PUBLIC_PREVIEW_BACKEND_URL ?? 'https://prev-api-examance.valentin-herrmann.com';
+const prodBackendUrl = (env: BuildEnv) => env.PUBLIC_PROD_BACKEND_URL ?? 'https://api-examance.valentin-herrmann.com';
+const previewBackendUrl = (env: BuildEnv) => env.PUBLIC_PREVIEW_BACKEND_URL ?? 'https://prev-api-examance.valentin-herrmann.com';
 
-function computeDefaultBackendUrl(): string {
-  if (process.env.PUBLIC_DEFAULT_BACKEND_URL) {
-    return process.env.PUBLIC_DEFAULT_BACKEND_URL;
+function computeDefaultBackendUrl(env: BuildEnv): string {
+  if (env.PUBLIC_DEFAULT_BACKEND_URL) {
+    return env.PUBLIC_DEFAULT_BACKEND_URL;
   }
   const branch = process.env.CF_PAGES_BRANCH;
-  if (branch === 'release') return PROD_BACKEND_URL;
-  if (branch) return PREVIEW_BACKEND_URL;
+  if (branch === 'release') return prodBackendUrl(env);
+  if (branch) return previewBackendUrl(env);
   return '';
 }
 
-export default defineConfig({
-  plugins: [
-    tailwindcss(),
-    wasm(),
-    argon2BundlePlugin(),
-    pdfjsWasmPlugin(),
-    // SvelteKit 3 reads its config here (svelte.config.js is gone). `version.name` stays at its default so "new deployment" detection works; the CSP hash comes from the build output.
-    sveltekit({
-      adapter: adapter({ pages: 'build', assets: 'build', fallback: 'index.html', precompress: false, strict: true }),
-      preprocess: vitePreprocess(),
-      // Installed (PWA) apps stay open for days: poll for new deployments so UpdateNotice can prompt a reload.
-      version: { pollInterval: 5 * 60 * 1000 },
-    }),
-    // No-op outside Vitest; inside it, resolves Svelte's browser build for jsdom.
-    svelteTesting(),
-  ],
-  define: {
-    __APP_VERSION__: JSON.stringify(computeAppVersion()),
-    __IS_PREVIEW__: JSON.stringify(computeIsPreview()),
-    __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
-    __RELEASE_NOTES__: JSON.stringify(readReleaseNotes()),
-    __REPO_URL__: JSON.stringify(REPO_URL),
-    __DOCS_URL__: JSON.stringify(DOCS_URL),
-    __DEFAULT_BACKEND_URL__: JSON.stringify(computeDefaultBackendUrl()),
-    __PROD_BACKEND_URL__: JSON.stringify(PROD_BACKEND_URL),
-    __PREVIEW_BACKEND_URL__: JSON.stringify(PREVIEW_BACKEND_URL),
-  },
-  test: {
-    // Vitest must only pick up unit tests: the Playwright specs under e2e/ are named *.spec.ts, which Vitest's default include pattern also matches.
-    include: ['tests/**/*.test.ts'],
-    alias: {
-      'argon2-browser/dist/argon2-bundled.min.js': fileURLToPath(
-        new URL('./tests/mocks/argon2Mock.ts', import.meta.url)
-      ),
-      'argon2-browser': fileURLToPath(new URL('./tests/mocks/argon2Mock.ts', import.meta.url)),
+export default defineConfig(({ mode }) => {
+  const env: BuildEnv = { ...loadEnv(mode, import.meta.dirname, 'PUBLIC_'), ...process.env };
+  return {
+    plugins: [
+      tailwindcss(),
+      wasm(),
+      argon2BundlePlugin(),
+      pdfjsWasmPlugin(),
+      // SvelteKit 3 reads its config here (svelte.config.js is gone). `version.name` stays at its default so "new deployment" detection works; the CSP hash comes from the build output.
+      sveltekit({
+        adapter: adapter({ pages: 'build', assets: 'build', fallback: 'index.html', precompress: false, strict: true }),
+        preprocess: vitePreprocess(),
+        // Installed (PWA) apps stay open for days: poll for new deployments so UpdateNotice can prompt a reload.
+        version: { pollInterval: 5 * 60 * 1000 },
+      }),
+      // No-op outside Vitest; inside it, resolves Svelte's browser build for jsdom.
+      svelteTesting(),
+    ],
+    define: {
+      __APP_VERSION__: JSON.stringify(computeAppVersion()),
+      __IS_PREVIEW__: JSON.stringify(computeIsPreview()),
+      __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
+      __RELEASE_NOTES__: JSON.stringify(readReleaseNotes()),
+      __REPO_URL__: JSON.stringify(REPO_URL),
+      __DOCS_URL__: JSON.stringify(computeDocsUrl(env)),
+      __DEFAULT_BACKEND_URL__: JSON.stringify(computeDefaultBackendUrl(env)),
+      __PROD_BACKEND_URL__: JSON.stringify(prodBackendUrl(env)),
+      __PREVIEW_BACKEND_URL__: JSON.stringify(previewBackendUrl(env)),
     },
-  },
-  worker: {
-    format: 'es',
-  },
-  optimizeDeps: {
-    exclude: ['argon2-browser'],
-    include: ['texlyre-busytex'],
-  },
-  ssr: {
-    external: ['argon2-browser'],
-  },
-  build: {
-    // ES2022 includes native top-level await, so no TLA transform plugin is needed — vite-plugin-top-level-await re-parsed every chunk with SWC and cost ~10 s per Cloudflare Pages build.
-    target: 'es2022',
-    // Gzip-sizing every chunk only feeds the build log and cost ~9 s per Cloudflare Pages build.
-    reportCompressedSize: false,
-    rolldownOptions: {
-      external: [/.*\.wasm$/],
-      // No `output.*FileNames` overrides here — SvelteKit owns the output layout and ignores them, always emitting under `_app/immutable/`, which is what `static/_headers` targets.
-    },
-  },
-  server: {
-    port: 5173,
-    // The info posters are bundled from the repo's docs (src/lib/about/posters.ts), the LaTeX package rules from the backend.
-    fs: { allow: ['.', '../docs/posters', '../backend/app/services/latex_package_rules.json'] },
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
+    test: {
+      // Vitest must only pick up unit tests: the Playwright specs under e2e/ are named *.spec.ts, which Vitest's default include pattern also matches.
+      include: ['tests/**/*.test.ts'],
+      alias: {
+        'argon2-browser/dist/argon2-bundled.min.js': fileURLToPath(
+          new URL('./tests/mocks/argon2Mock.ts', import.meta.url)
+        ),
+        'argon2-browser': fileURLToPath(new URL('./tests/mocks/argon2Mock.ts', import.meta.url)),
       },
     },
-  },
+    worker: {
+      format: 'es',
+    },
+    optimizeDeps: {
+      exclude: ['argon2-browser'],
+      include: ['texlyre-busytex'],
+    },
+    ssr: {
+      external: ['argon2-browser'],
+    },
+    build: {
+      // ES2022 includes native top-level await, so no TLA transform plugin is needed — vite-plugin-top-level-await re-parsed every chunk with SWC and cost ~10 s per Cloudflare Pages build.
+      target: 'es2022',
+      // Gzip-sizing every chunk only feeds the build log and cost ~9 s per Cloudflare Pages build.
+      reportCompressedSize: false,
+      rolldownOptions: {
+        external: [/.*\.wasm$/],
+        // No `output.*FileNames` overrides here — SvelteKit owns the output layout and ignores them, always emitting under `_app/immutable/`, which is what `static/_headers` targets.
+      },
+    },
+    server: {
+      port: 5173,
+      // The info posters are bundled from the repo's docs (src/lib/about/posters.ts), the LaTeX package rules from the backend.
+      fs: { allow: ['.', '../docs/posters', '../backend/app/services/latex_package_rules.json'] },
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+      },
+    },
+  };
 });

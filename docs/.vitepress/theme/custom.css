@@ -13,3 +13,29 @@
 :root {
   --vp-layout-max-width: 100vw;
 }
+
+/* Wide screens: the text column grows into the free space so screenshots are readable (VitePress caps it at 688 px); #VPContent outranks the theme's scoped rules. */
+@media (min-width: 1280px) {
+  #VPContent .VPDoc.has-aside .content-container {
+    max-width: 1200px;
+  }
+
+  /* Prose keeps its usual line length (~700 px); images (wrapped in a <p>), tables and code use the full width. */
+  .vp-doc p:not(:has(img)),
+  .vp-doc ul,
+  .vp-doc ol,
+  .vp-doc blockquote,
+  .vp-doc .custom-block {
+    max-width: 70ch;
+  }
+}
+
+/* Click-to-zoom (theme/index.ts): above the navigation bar. */
+.medium-zoom-overlay,
+.medium-zoom-image--opened {
+  z-index: 100;
+}
+
+.vp-doc img:not(a img) {
+  cursor: zoom-in;
+}
