@@ -238,7 +238,7 @@ export const help = {
             },
             s5: {
                 h: 'Mit Schülern teilen',
-                p1: '„Mit Schülern teilen“ auf der Klausurseite gibt jedem Schüler einen persönlichen Link zu seiner korrigierten Arbeit, ausgedruckt auf Zetteln zum Austeilen. Die Arbeiten werden im Browser verschlüsselt; der Server kann sie nicht lesen, und die Links laufen ab.',
+                p1: '„Mit Schülern teilen“ auf der Klausurseite gibt jedem Schüler einen persönlichen Link zu seiner korrigierten Arbeit, ausgedruckt auf Zetteln zum Austeilen. Auf Wunsch kommt die Musterlösung dazu. Die Schüler sehen beides nur im Browser, ohne Download; verschlüsselt wird im Browser, der Server kann nichts lesen, und die Links laufen ab.',
             },
         },
         analytics: {

@@ -23,9 +23,9 @@ Everything is computed in your browser; no external service draws the codes.
 
 ## Personal keys {#personal-keys}
 
-With **Also print a personal key**, every student gets a **key slip** after their stickers. The student keeps it. The key belongs to that sticker and is the same on every reprint, so nothing needs to be stored.
+With **Also print a personal key**, each student's first sticker carries a **strip with their name and key** above the QR code, separated by a dashed line. No extra label is used. **Cut the strip off and hand it to the student before the sticker goes onto the exam**; the student keeps it. The QR code below still identifies the student without the strip. The key belongs to that sticker and is the same on every reprint, so nothing needs to be stored.
 
-A personal key is only needed if you later protect result links with it, see [Link protection](#link-protection). If students already carry a sticker (from an earlier sheet or another tool), choose **Print only the key slips**: you get the key slips for the exam's students without new stickers.
+A personal key is only needed if you later protect result links with it, see [Link protection](#link-protection). If students already carry a sticker (from an earlier sheet or another tool), choose **Print only the key slips**: the keys of the exam's students are printed as small slips on **plain paper**, so no labels are used.
 
 ## Share graded exams with students {#share-results}
 
@@ -35,7 +35,8 @@ After grading, **Share with students** on the exam page gives each student their
 2. **Choose the way.** Today this is **Slips to hand out**: a PDF with one slip per student, showing a QR code and the link.
 3. **Choose the link protection**, see [below](#link-protection).
 4. **Choose the validity**: 7, 14, 30 or 90 days (30 by default).
-5. **Share and create slips** prepares the graded PDFs in your browser, uploads them encrypted and downloads the slip PDF. Print it and cut the slips apart.
+5. Optionally tick **Include the sample solution**: students then see the exam's sample solution on the same page. It is compiled once for all students. Exams imported without their exercise code cannot include it.
+6. **Share and create slips** prepares the graded PDFs in your browser, uploads them encrypted and downloads the slip PDF. Print it and cut the slips apart.
 
 Sharing a student **again** creates a new link; the old one stops working. This is how you replace a lost slip or a corrected grading.
 
@@ -57,7 +58,7 @@ Options that do not fit your selection are greyed out and the dialog says why. F
 
 ## What students see {#student-view}
 
-Students scan the QR code or type the link (an address beginning with `/result#`). A page opens that asks for the key or code if the protection needs one. After that, the student downloads their graded PDF. A wrong key is simply reported as incorrect.
+Students scan the QR code or type the link (an address beginning with `/result#`). A page opens that asks for the key or code if the protection needs one. After that, the graded exam, and the sample solution if you included it, is shown **in the browser, view only**: there is no download button. This stops casual downloading, not a determined student, who can still take screenshots. A wrong key is simply reported as incorrect.
 
 No sign-in and no account are needed. The PDF is decrypted only in the student's browser.
 

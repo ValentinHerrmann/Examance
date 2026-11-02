@@ -1,7 +1,8 @@
 /** Drawing helpers for printed labels and slips (sticker sheet, share slips; issue #207): vector QR codes, text that fits its box, cut lines. pdf-lib is passed in so callers load it lazily. */
 
-import type { PDFFont, PDFPage } from 'pdf-lib';
+import type { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import QRCode from 'qrcode';
+import { makeSafeText } from '#lib/export/summaryPdf';
 
 export type PdfLib = typeof import('pdf-lib');
 
@@ -80,4 +81,91 @@ export function cutFrame(lib: PdfLib, page: PDFPage, x: number, y: number, width
     borderWidth: 0.4,
     borderDashArray: [3, 3],
   });
+}
+
+export interface LabelFonts {
+  regular: PDFFont;
+  bold: PDFFont;
+  mono: PDFFont;
+  monoBold: PDFFont;
+  /** Replaces letters outside WinAnsi, which pdf-lib's standard fonts cannot draw. */
+  safe: (text: string) => string;
+}
+
+export async function embedLabelFonts(lib: PdfLib, pdf: PDFDocument): Promise<LabelFonts> {
+  const regular = await pdf.embedFont(lib.StandardFonts.Helvetica);
+  return {
+    regular,
+    bold: await pdf.embedFont(lib.StandardFonts.HelveticaBold),
+    mono: await pdf.embedFont(lib.StandardFonts.Courier),
+    monoBold: await pdf.embedFont(lib.StandardFonts.CourierBold),
+    safe: makeSafeText(regular),
+  };
+}
+
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Small slips with a name and a code (`drawKeySlip`), 24 per A4 page. */
+export const KEY_SLIP_GRID = { cols: 3, rows: 8 } as const;
+
+/** Draws *count* items onto as many A4 pages of a *cols* × *rows* grid as they need. */
+export function placeOnPages(
+  lib: PdfLib,
+  pdf: PDFDocument,
+  grid: { cols: number; rows: number },
+  count: number,
+  draw: (page: PDFPage, box: Box, index: number) => void
+): void {
+  const place = slipGrid(grid.cols, grid.rows);
+  const perPage = grid.cols * grid.rows;
+  let page: PDFPage | null = null;
+  for (let i = 0; i < count; i++) {
+    const slot = i % perPage;
+    if (!page || slot === 0) page = pdf.addPage([A4.width, A4.height]);
+    draw(page, place(slot), i);
+  }
+}
+
+/** Slots of an A4 page split into *cols* × *rows* slips inside a 1 cm margin, numbered row by row. */
+export function slipGrid(cols: number, rows: number, margin = CM): (slot: number) => Box {
+  const w = (A4.width - 2 * margin) / cols;
+  const h = (A4.height - 2 * margin) / rows;
+  return (slot) => ({ x: margin + (slot % cols) * w, y: A4.height - margin - (Math.floor(slot / cols) + 1) * h, w, h });
+}
+
+export interface KeySlip {
+  name: string;
+  /** e.g. the exam title. */
+  subtitle?: string;
+  title: string;
+  /** Printed as `ABCD-EFGH`. */
+  code: string;
+  note?: string;
+}
+
+/** A small cut-out slip with a name and a code to keep: the share codes and the sticker keys both use it. */
+export function drawKeySlip(lib: PdfLib, page: PDFPage, fonts: LabelFonts, slip: KeySlip, box: Box, formatCode: (code: string) => string): void {
+  cutFrame(lib, page, box.x, box.y, box.w, box.h);
+  const pad = 8;
+  const width = box.w - 2 * pad;
+  let y = box.y + box.h - pad - 8;
+  page.drawText(fitText(fonts.bold, fonts.safe(slip.name), 8, width), { x: box.x + pad, y, size: 8, font: fonts.bold });
+  if (slip.subtitle) {
+    y -= 10;
+    page.drawText(fitText(fonts.regular, fonts.safe(slip.subtitle), 6.5, width), { x: box.x + pad, y, size: 6.5, font: fonts.regular });
+  }
+  y -= 12;
+  page.drawText(fitText(fonts.regular, fonts.safe(slip.title), 6.5, width), { x: box.x + pad, y, size: 6.5, font: fonts.regular });
+  const code = formatCode(slip.code);
+  const codeY = slip.note ? box.y + pad + 16 : box.y + pad + 4;
+  page.drawText(code, { x: box.x + (box.w - fonts.monoBold.widthOfTextAtSize(code, 13)) / 2, y: codeY, size: 13, font: fonts.monoBold });
+  if (slip.note) {
+    const line = fitText(fonts.regular, fonts.safe(slip.note), 5.5, width);
+    page.drawText(line, { x: box.x + pad, y: box.y + pad, size: 5.5, font: fonts.regular });
+  }
 }

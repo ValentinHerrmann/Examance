@@ -23,9 +23,9 @@ Alles wird in Ihrem Browser berechnet; kein externer Dienst zeichnet die Codes.
 
 ## Persönliche Schlüssel {#personal-keys}
 
-Mit **Persönlichen Schlüssel dazudrucken** erhält jede Schülerin und jeder Schüler nach den Aufklebern einen **Schlüsselabschnitt**, den sie oder er aufbewahrt. Der Schlüssel gehört zum Aufkleber und ist bei jedem erneuten Druck derselbe, es muss also nichts gespeichert werden.
+Mit **Persönlichen Schlüssel dazudrucken** trägt der erste Aufkleber jeder Schülerin und jedes Schülers über dem QR-Code einen **Streifen mit Name und Schlüssel**, abgetrennt durch eine gestrichelte Linie. Es wird kein zusätzliches Etikett verbraucht. **Schneiden Sie den Streifen ab und geben Sie ihn der Person, bevor der Aufkleber auf die Arbeit kommt**; sie bewahrt ihn auf. Der QR-Code darunter ordnet die Arbeit auch ohne Streifen zu. Der Schlüssel gehört zum Aufkleber und ist bei jedem erneuten Druck derselbe, es muss also nichts gespeichert werden.
 
-Ein persönlicher Schlüssel wird nur gebraucht, wenn Sie Ergebnis-Links später damit schützen, siehe [Linkschutz](#link-protection). Tragen Schüler bereits einen Aufkleber (von einem früheren Bogen oder einem anderen Programm), wählen Sie **Nur die Schlüsselabschnitte drucken**: Sie erhalten die Schlüsselabschnitte der Schüler der Prüfung ohne neue Aufkleber.
+Ein persönlicher Schlüssel wird nur gebraucht, wenn Sie Ergebnis-Links später damit schützen, siehe [Linkschutz](#link-protection). Tragen Schüler bereits einen Aufkleber (von einem früheren Bogen oder einem anderen Programm), wählen Sie **Nur die Schlüsselabschnitte drucken**: Die Schlüssel der Schüler der Prüfung werden als kleine Zettel auf **normales Papier** gedruckt, es werden keine Etiketten verbraucht.
 
 ## Korrigierte Prüfungen mit Schülern teilen {#share-results}
 
@@ -35,7 +35,8 @@ Nach der Korrektur gibt **Mit Schülern teilen** auf der Prüfungsseite jeder Sc
 2. **Weg wählen.** Derzeit gibt es **Zettel zum Austeilen** (**Weg zu den Schülern**): ein PDF mit einem Zettel pro Person, auf dem ein QR-Code und der Link stehen.
 3. **Schutz der Links wählen**, siehe [unten](#link-protection).
 4. **Gültigkeit wählen** („Gültig für“): 7, 14, 30 oder 90 Tage (standardmäßig 30).
-5. **Teilen und Zettel erstellen** bereitet die korrigierten PDFs in Ihrem Browser vor, lädt sie verschlüsselt hoch und lädt das Zettel-PDF herunter. Drucken Sie es und schneiden Sie die Zettel auseinander.
+5. Optional **Musterlösung mitschicken** ankreuzen: Die Schüler sehen dann auf derselben Seite auch die Musterlösung der Prüfung. Sie wird einmal für alle kompiliert. Bei Prüfungen, deren Aufgaben ohne Code importiert wurden, ist das nicht möglich.
+6. **Teilen und Zettel erstellen** bereitet die korrigierten PDFs in Ihrem Browser vor, lädt sie verschlüsselt hoch und lädt das Zettel-PDF herunter. Drucken Sie es und schneiden Sie die Zettel auseinander.
 
 Teilen Sie eine Person **erneut**, entsteht ein neuer Link; der alte funktioniert nicht mehr. So ersetzen Sie einen verlorenen Zettel oder eine korrigierte Bewertung.
 
@@ -57,7 +58,7 @@ Optionen, die nicht zu Ihrer Auswahl passen, sind ausgegraut, und der Dialog nen
 
 ## Was Schüler sehen {#student-view}
 
-Schüler scannen den QR-Code oder geben den Link ein (eine Adresse, die mit `/result#` beginnt). Es öffnet sich eine Seite, die nach dem Schlüssel oder Code fragt, falls der Schutz einen braucht (Feld **Schlüssel**, dann **Öffnen**). Danach laden sie ihr korrigiertes PDF herunter. Ein falscher Schlüssel wird einfach als falsch gemeldet.
+Schüler scannen den QR-Code oder geben den Link ein (eine Adresse, die mit `/result#` beginnt). Es öffnet sich eine Seite, die nach dem Schlüssel oder Code fragt, falls der Schutz einen braucht (Feld **Schlüssel**, dann **Öffnen**). Danach wird die korrigierte Arbeit, und falls mitgeschickt die Musterlösung, **im Browser angezeigt, nur zum Ansehen**: Es gibt keinen Download-Knopf. Das verhindert beiläufiges Herunterladen, aber nicht entschlossene Schüler, die weiterhin Bildschirmfotos machen können. Ein falscher Schlüssel wird einfach als falsch gemeldet.
 
 Eine Anmeldung oder ein Konto ist nicht nötig. Das PDF wird nur im Browser der Schülerin oder des Schülers entschlüsselt.
 

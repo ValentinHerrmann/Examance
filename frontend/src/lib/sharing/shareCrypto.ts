@@ -92,35 +92,62 @@ async function contentKey(link: ShareLink, factor: ShareFactor, code: string | n
 
 const aad = (link: ShareLink) => encoder.encode(`share:v1:${link.shareId}`);
 
-/** `[u32 header length][header JSON][pdf]`, sealed with AES-256-GCM bound to the share id. */
+export type ShareDocumentKind = 'graded' | 'solution';
+
+export interface ShareDocuments {
+  graded: Uint8Array;
+  solution?: Uint8Array;
+}
+
+interface StoredHeader extends ShareHeader {
+  /** v2: the documents after the header, in order; absent (v1) means one graded PDF. */
+  documents?: { kind: ShareDocumentKind; length: number }[];
+}
+
+/** `[u32 header length][header JSON][documents…]`, sealed with AES-256-GCM bound to the share id. */
 export async function sealShare(
   link: ShareLink,
   factor: ShareFactor,
   code: string | null,
   header: ShareHeader,
-  pdf: Uint8Array
+  docs: ShareDocuments
 ): Promise<SealedShare> {
   const kdfSalt = factor === 'none' ? null : crypto.getRandomValues(new Uint8Array(16));
   const key = await contentKey(link, factor, code, kdfSalt);
-  const head = encoder.encode(JSON.stringify(header));
-  const plain = new Uint8Array(4 + head.length + pdf.length);
+  const parts: [ShareDocumentKind, Uint8Array][] = [['graded', docs.graded]];
+  if (docs.solution) parts.push(['solution', docs.solution]);
+  const stored: StoredHeader = { ...header, documents: parts.map(([kind, bytes]) => ({ kind, length: bytes.length })) };
+  const head = encoder.encode(JSON.stringify(stored));
+  const plain = new Uint8Array(4 + head.length + parts.reduce((n, [, b]) => n + b.length, 0));
   new DataView(plain.buffer).setUint32(0, head.length);
   plain.set(head, 4);
-  plain.set(pdf, 4 + head.length);
+  let offset = 4 + head.length;
+  for (const [, bytes] of parts) {
+    plain.set(bytes, offset);
+    offset += bytes.length;
+  }
   const { ciphertext, iv } = await encrypt(key, plain, undefined, aad(link));
   return { ciphertext, iv, kdfSalt };
 }
 
-/** Opens a share in the student's browser; throws on a wrong code (GCM authentication fails). */
+/** Opens a share in the student's browser; throws on a wrong code (GCM authentication fails). Reads v1 payloads (one PDF) too. */
 export async function openSealedShare(
   link: ShareLink,
   factor: ShareFactor,
   code: string | null,
   sealed: SealedShare
-): Promise<{ header: ShareHeader; pdf: Uint8Array }> {
+): Promise<{ header: ShareHeader; documents: ShareDocuments }> {
   const key = await contentKey(link, factor, code, sealed.kdfSalt);
   const plain = await decrypt(key, sealed.ciphertext, sealed.iv, null, aad(link));
   const headLength = new DataView(plain.buffer, plain.byteOffset, plain.byteLength).getUint32(0);
-  const header = JSON.parse(new TextDecoder().decode(plain.subarray(4, 4 + headLength))) as ShareHeader;
-  return { header, pdf: plain.slice(4 + headLength) };
+  const { documents: layout, ...header } = JSON.parse(new TextDecoder().decode(plain.subarray(4, 4 + headLength))) as StoredHeader;
+  let offset = 4 + headLength;
+  if (!layout) return { header, documents: { graded: plain.slice(offset) } };
+  const found: Partial<ShareDocuments> = {};
+  for (const { kind, length } of layout) {
+    found[kind] = plain.slice(offset, offset + length);
+    offset += length;
+  }
+  if (!found.graded) throw new Error('Share holds no graded PDF.');
+  return { header, documents: { graded: found.graded, solution: found.solution } };
 }

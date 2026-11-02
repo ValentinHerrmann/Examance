@@ -7,7 +7,7 @@ Issues #207 and #83. Teachers print QR name stickers for the exam sheets and lat
 - `lib/qr/stickerSheet.ts` (`renderStickerSheet`, `entriesFromRoster`) draws an A4 sheet of 5 × 7 labels with pdf-lib. QR codes are vector modules from the bundled `qrcode` package (`lib/pdf/labelKit.ts` `drawQr`); there is no external QR service, because the CSP allows `script-src 'self'` only.
 - The payload is `Lastname, Firstname_ID` (`formatStudentQr` in `utils/studentQr.ts`), which is also the DiRueLei format. `parseStudentQr` reads it back, and the scanner stores the whole text as the student's raw id (`pseudonymRaw`).
 - If a pasted line has no id, `stickerId(name)` (`crypto/stickerKey.ts`) derives a stable 6-character id from the name, so a reprint gives the same sticker.
-- **Personal key slips.** With the option on, each student gets a key cell after their stickers. The key is `personalKey(raw)`, so it needs no storage. Students who already carry a sticker (made by DiRueLei or an older sheet) can get key slips only, from the exam's students ("print only the key slips").
+- **Personal keys.** With the option on, each student's first sticker carries a strip with name and key (`personalKey(raw)`, so no storage) above the QR code, behind a dashed cut line; the teacher cuts it off before the sticker goes onto the paper, so no label is spent on the key. Students who already carry a sticker (DiRueLei or an older sheet) get key slips only, on plain paper (`renderKeySlips`). Key slips and the share code slips are drawn by one `labelKit.drawKeySlip`.
 - `K_sticker = HKDF-SHA-256(data key, salt "examance-sticker-v1", info "sticker")`. Ids and keys are HMACs under it, so only this account can reproduce them, and a reprint always matches.
 - Students added by hand or opened from unmatched pages have a minted UUID as their raw id. They carry no sticker, so `stickerRawOf` returns null for them.
 
@@ -28,7 +28,7 @@ The flow lives in `lib/sharing/shareService.ts`:
 | content key, factor `none` | `HKDF(token, salt = shareId, info "examance-share-key:v1:none")` | the link |
 | content key, `sticker`/`code` | `HKDF(token ‖ Argon2id(code, kdf_salt), salt = shareId, info "examance-share-key:v1:<factor>")` | link plus code; `kdf_salt` is random and stored with the share |
 
-**Sealing.** AES-256-GCM, AAD `share:v1:<shareId>`. The plaintext is `[u32 header length][header JSON {filename, examTitle}][pdf]`.
+**Sealing.** AES-256-GCM, AAD `share:v1:<shareId>`. The plaintext is `[u32 header length][header JSON {filename, examTitle, documents: [{kind, length}]}][documents…]`: the graded PDF, then the sample solution when the teacher ticked it (compiled once per run with `compileExamPreview`; a failed compile ends the run before anything is uploaded). A header without `documents` (v1) is one graded PDF.
 
 **Codes** have 8 characters from the `randomCode` alphabet (32 letters, 40 bits) and are printed as `ABCD-EFGH`. The token carries the security: someone without the link cannot even fetch the ciphertext. The code protects against a forwarded link, and Argon2id makes guessing it offline expensive.
 
@@ -64,6 +64,6 @@ The flow lives in `lib/sharing/shareService.ts`:
 1. Parse the fragment.
 2. Derive the lookup and fetch the ciphertext.
 3. Ask for the code when the factor needs one.
-4. Decrypt in the browser and offer the PDF as a download.
+4. Decrypt in the browser and show the PDFs view-only: `PdfEmbedViewer`, or `DualPdfPreview` with `downloadable={false}` when a solution is included (EmbedPDF's export and print are disabled). This deters casual downloading only; the bytes are in the student's browser.
 
 A wrong code fails GCM authentication and shows "key incorrect". The page sets `noindex` and `no-referrer`.

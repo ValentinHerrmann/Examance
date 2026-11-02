@@ -9,7 +9,8 @@ import type { StudentRecord } from '#lib/db/schema';
 import { forEachGradedPdf, loadResults } from '#lib/export/examExport';
 import { exportDateStamp, slug } from '#lib/export/zip';
 import { logExportAction } from '#lib/gdpr/exportAudit';
-import { loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
+import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
+import { compileExamPreview, examHasWithheldCode } from '#lib/exam/examPreview';
 import { translate } from '#lib/i18n';
 import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { randomCode } from '#lib/utils/randomCode';
@@ -33,6 +34,8 @@ export interface ShareOverview {
   students: ShareStudent[];
   /** Live shares whose student is no longer in the exam. */
   orphans: ResultShareInfo[];
+  /** False when exercise texts are withheld: the solution cannot be built. */
+  solutionAvailable: boolean;
 }
 
 export interface ShareRequest {
@@ -42,6 +45,8 @@ export interface ShareRequest {
   expiryDays: number;
   /** `ShareStudent.key` of every student to share with. */
   studentKeys: ReadonlySet<string>;
+  /** Add the exam's sample solution to every student's page. */
+  includeSolution: boolean;
 }
 
 export interface ShareOutcome {
@@ -85,14 +90,29 @@ export async function loadShareOverview(examId: string): Promise<ShareOverview> 
     share: shareByKey.get(keys[i]),
   }));
   const known = new Set(keys);
-  return { examTitle: ctx.exam.title ?? '', students, orphans: shares.filter((s) => !known.has(s.studentKey)) };
+  return {
+    examTitle: ctx.exam.title ?? '',
+    students,
+    orphans: shares.filter((s) => !known.has(s.studentKey)),
+    solutionAvailable: !examHasWithheldCode(ctx.exercises),
+  };
 }
 
 /** Shares the chosen students' graded PDFs and returns the slips to print. A student who cannot be served, or whose PDF fails, becomes a warning. */
-export async function shareResults(
-  request: ShareRequest,
-  progress: (done: number, total: number) => void
-): Promise<ShareOutcome> {
+/** The sample solution as a PDF, or an error the dialog shows: a requested solution is never silently left out. */
+async function compileSolution(ctx: Awaited<ReturnType<typeof loadExam>>, key: CryptoKey, warnings: string[]): Promise<Uint8Array> {
+  if (examHasWithheldCode(ctx.exercises)) throw new Error(translate('sharing.share.solutionWithheld'));
+  const res = await compileExamPreview({ ...ctx, examItems: buildExamItems(ctx.exercises, ctx.mcGroups), key });
+  if (res.missingGraphics.length) {
+    warnings.push(translate('export.exam.warnings.missingGraphics', { files: [...new Set(res.missingGraphics)].join(', ') }));
+  }
+  return res.loesung.pdfBytes;
+}
+
+/** *step* names the phase; while the students' exams are sealed, *done* of *total* counts them. */
+export type ShareProgress = (step: 'solution' | 'students', done?: number, total?: number) => void;
+
+export async function shareResults(request: ShareRequest, progress: ShareProgress): Promise<ShareOutcome> {
   const { key, fallbackSessionKey } = await sessionKeys();
   const ctx = await loadExam(request.examId, key);
   const results = await loadResults({ ...ctx, key });
@@ -112,6 +132,13 @@ export async function shareResults(
     if (request.studentKeys.has(keys[i]) && !results.rows[i].submissionId) warnings.push(translate('sharing.errors.noSubmission', { name: displayName(student) }));
   }
 
+  // Before anything is uploaded: a failed compile ends the run with nothing shared.
+  let solution: Uint8Array | undefined;
+  if (request.includeSolution) {
+    progress('solution');
+    solution = await compileSolution(ctx, key, warnings);
+  }
+
   const examTitle = ctx.exam.title || translate('sharing.untitledExam');
   const entries: SlipEntry[] = [];
   await logExportAction(request.examId, 'SHARE', key);
@@ -128,7 +155,7 @@ export async function shareResults(
         const raw = stickerRawOf(student);
         const code = request.factor === 'code' ? randomCode(8) : request.factor === 'sticker' && raw ? await personalKey(raw) : null;
         const link = newShareLink();
-        const sealed = await sealShare(link, request.factor, code, { filename: `${slug(examTitle)}_${slug(name)}.pdf`, examTitle }, pdf);
+        const sealed = await sealShare(link, request.factor, code, { filename: `${slug(examTitle)}_${slug(name)}.pdf`, examTitle }, { graded: pdf, solution });
         await createResultShare(request.examId, {
           id: link.shareId,
           studentKey: keys[index],
@@ -139,7 +166,7 @@ export async function shareResults(
         });
         entries.push({ name, url: shareUrl(location.origin, link), ...(request.factor === 'code' && code ? { code } : {}) });
       },
-      { only: new Set(bySubmission.keys()), progress }
+      { only: new Set(bySubmission.keys()), progress: (done, total) => progress('students', done, total) }
     ))
   );
 

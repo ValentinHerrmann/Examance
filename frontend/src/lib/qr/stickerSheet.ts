@@ -1,10 +1,20 @@
-/** QR name stickers for exam sheets (issues #83, #207): A4 label sheet, 5 × 7 cells, DiRueLei-compatible payload (`Lastname, Firstname_ID`, read back by `parseStudentQr`). With personal keys, each student also gets a key slip to keep, which unlocks a result link shared with the `sticker` factor. */
+/** QR name stickers for exam sheets (issues #83, #207): A4 label sheet, 5 × 7 cells, DiRueLei-compatible payload (`Lastname, Firstname_ID`, read back by `parseStudentQr`). With personal keys, the first sticker of each student carries a strip with name and key above the QR code: cut it off and hand it over before the sticker goes onto the paper (labels are expensive). Key slips alone go on plain paper. */
 
-import type { PDFFont, PDFPage } from 'pdf-lib';
+import type { PDFPage } from 'pdf-lib';
 import { personalKey, stickerId } from '#lib/crypto/stickerKey';
-import { makeSafeText } from '#lib/export/summaryPdf';
 import { translate } from '#lib/i18n';
-import { A4, CM, cutFrame, drawQr, fitText, wrapText, type PdfLib } from '#lib/pdf/labelKit';
+import {
+  A4,
+  CM,
+  drawKeySlip,
+  drawQr,
+  embedLabelFonts,
+  fitText,
+  KEY_SLIP_GRID,
+  placeOnPages,
+  type LabelFonts,
+  type PdfLib,
+} from '#lib/pdf/labelKit';
 import { formatCode } from '#lib/sharing/shareCrypto';
 import { parseRosterLines } from '#lib/utils/rosterLines';
 import { formatStudentName, formatStudentQr } from '#lib/utils/studentQr';
@@ -21,9 +31,9 @@ export interface StickerSheetOptions {
   skip: number;
   /** QR stickers per student (an exam with several sheets needs several). */
   copies: number;
-  /** Add a personal key slip per student. */
+  /** Put name and personal key on a strip above each student's first QR code. */
   keys: boolean;
-  /** Only the key slips, for students who already carry a sticker. */
+  /** Only the key slips, on plain paper, for students who already carry a sticker. */
   keysOnly: boolean;
 }
 
@@ -33,6 +43,9 @@ const TOP = 1 * CM;
 const PITCH = 4 * CM;
 const CELL = 3.5 * CM;
 const QR_SIZE = 2.6 * CM;
+/** With a key strip: the strip's height and the smaller QR below it (DiRueLei prints 2 cm). */
+const STRIP = 0.95 * CM;
+const QR_WITH_STRIP = 2.2 * CM;
 
 /** Entries from a pasted list: one student per line, `Lastname, Firstname` then an optional id, split on tab or `;`. A missing id becomes the stable `stickerId` of the name. */
 export async function entriesFromRoster(text: string): Promise<StickerEntry[]> {
@@ -44,54 +57,67 @@ export async function entriesFromRoster(text: string): Promise<StickerEntry[]> {
   return entries;
 }
 
-type Cell = { kind: 'qr'; entry: StickerEntry } | { kind: 'key'; entry: StickerEntry; key: string };
+interface Cell {
+  entry: StickerEntry;
+  /** The key on this sticker's cut-off strip, only on a student's first copy. */
+  key: string | null;
+}
 
 async function cellsFor(entries: readonly StickerEntry[], options: StickerSheetOptions): Promise<Cell[]> {
   const cells: Cell[] = [];
   for (const entry of entries) {
-    if (!options.keysOnly) for (let i = 0; i < Math.max(1, options.copies); i++) cells.push({ kind: 'qr', entry });
-    if (options.keys || options.keysOnly) cells.push({ kind: 'key', entry, key: await personalKey(entry.payload) });
+    const key = options.keys ? await personalKey(entry.payload) : null;
+    for (let i = 0; i < Math.max(1, options.copies); i++) cells.push({ entry, key: i === 0 ? key : null });
   }
   return cells;
 }
 
-interface Fonts {
-  regular: PDFFont;
-  bold: PDFFont;
-  mono: PDFFont;
-  safe: (text: string) => string;
-}
-
-function drawQrCell(lib: PdfLib, page: PDFPage, fonts: Fonts, entry: StickerEntry, x: number, y: number): void {
-  const label = fitText(fonts.regular, fonts.safe(entry.label), 7, CELL - 6);
-  page.drawText(label, { x: x + (CELL - fonts.regular.widthOfTextAtSize(label, 7)) / 2, y: y + CELL - 11, size: 7, font: fonts.regular });
-  drawQr(lib, page, entry.payload, x + (CELL - QR_SIZE) / 2, y + (CELL - QR_SIZE) / 2 - 6, QR_SIZE);
-}
-
-function drawKeyCell(lib: PdfLib, page: PDFPage, fonts: Fonts, entry: StickerEntry, key: string, x: number, y: number): void {
-  cutFrame(lib, page, x, y, CELL, CELL);
-  const inner = CELL - 8;
-  const name = fitText(fonts.bold, fonts.safe(entry.label), 7, inner);
-  page.drawText(name, { x: x + 4, y: y + CELL - 12, size: 7, font: fonts.bold });
-  const title = fitText(fonts.regular, fonts.safe(translate('sharing.stickers.keyTitle')), 6.5, inner);
-  page.drawText(title, { x: x + 4, y: y + CELL - 24, size: 6.5, font: fonts.regular });
+function drawQrCell(lib: PdfLib, page: PDFPage, fonts: LabelFonts, { entry, key }: Cell, x: number, y: number): void {
+  if (!key) {
+    const label = fitText(fonts.regular, fonts.safe(entry.label), 7, CELL - 6);
+    page.drawText(label, { x: x + (CELL - fonts.regular.widthOfTextAtSize(label, 7)) / 2, y: y + CELL - 11, size: 7, font: fonts.regular });
+    drawQr(lib, page, entry.payload, x + (CELL - QR_SIZE) / 2, y + (CELL - QR_SIZE) / 2 - 6, QR_SIZE);
+    return;
+  }
+  // Strip: name and key, above a dashed cut line; the QR part below goes onto the paper.
+  const name = fitText(fonts.bold, fonts.safe(entry.label), 7, CELL - 6);
+  page.drawText(name, { x: x + (CELL - fonts.bold.widthOfTextAtSize(name, 7)) / 2, y: y + CELL - 10, size: 7, font: fonts.bold });
   const code = formatCode(key);
-  page.drawText(code, { x: x + (CELL - fonts.mono.widthOfTextAtSize(code, 12)) / 2, y: y + CELL / 2 - 2, size: 12, font: fonts.mono });
-  const note = wrapText(fonts.regular, fonts.safe(translate('sharing.stickers.keyNote')), 5.5, inner);
-  note.slice(0, 4).forEach((line, i) => page.drawText(line, { x: x + 4, y: y + 22 - i * 7, size: 5.5, font: fonts.regular }));
+  page.drawText(code, { x: x + (CELL - fonts.monoBold.widthOfTextAtSize(code, 10)) / 2, y: y + CELL - 22, size: 10, font: fonts.monoBold });
+  const cutY = y + CELL - STRIP;
+  page.drawLine({
+    start: { x, y: cutY },
+    end: { x: x + CELL, y: cutY },
+    thickness: 0.5,
+    color: lib.rgb(0.55, 0.55, 0.55),
+    dashArray: [2, 2],
+  });
+  const below = CELL - STRIP;
+  drawQr(lib, page, entry.payload, x + (CELL - QR_WITH_STRIP) / 2, y + (below - QR_WITH_STRIP) / 2, QR_WITH_STRIP);
+}
+
+/** Key slips on plain paper: name, key and a note to keep it, for students whose sticker is already in use. */
+async function renderKeySlips(entries: readonly StickerEntry[]): Promise<Uint8Array> {
+  const lib = await import('pdf-lib');
+  const pdf = await lib.PDFDocument.create();
+  pdf.setTitle(translate('sharing.stickers.keyTitle'));
+  const fonts = await embedLabelFonts(lib, pdf);
+  const keys = await Promise.all(entries.map((e) => personalKey(e.payload)));
+  const title = translate('sharing.stickers.keyTitle');
+  const note = translate('sharing.stickers.keyNoteShort');
+  placeOnPages(lib, pdf, KEY_SLIP_GRID, entries.length, (page, box, i) =>
+    drawKeySlip(lib, page, fonts, { name: entries[i].label, title, code: keys[i], note }, box, formatCode)
+  );
+  if (pdf.getPageCount() === 0) pdf.addPage([A4.width, A4.height]);
+  return pdf.save();
 }
 
 export async function renderStickerSheet(entries: readonly StickerEntry[], options: StickerSheetOptions): Promise<Uint8Array> {
+  if (options.keysOnly) return renderKeySlips(entries);
   const lib = await import('pdf-lib');
   const pdf = await lib.PDFDocument.create();
   pdf.setTitle(translate('sharing.stickers.pdfTitle'));
-  const regular = await pdf.embedFont(lib.StandardFonts.Helvetica);
-  const fonts: Fonts = {
-    regular,
-    bold: await pdf.embedFont(lib.StandardFonts.HelveticaBold),
-    mono: await pdf.embedFont(lib.StandardFonts.CourierBold),
-    safe: makeSafeText(regular),
-  };
+  const fonts = await embedLabelFonts(lib, pdf);
   const perPage = STICKER_GRID.cols * STICKER_GRID.rows;
   const cells = await cellsFor(entries, options);
   let page: PDFPage | null = null;
@@ -101,10 +127,7 @@ export async function renderStickerSheet(entries: readonly StickerEntry[], optio
     if (!page || slot === 0) page = pdf.addPage([A4.width, A4.height]);
     const col = slot % STICKER_GRID.cols;
     const row = Math.floor(slot / STICKER_GRID.cols);
-    const x = LEFT + col * PITCH;
-    const y = A4.height - TOP - row * PITCH - CELL;
-    if (cell.kind === 'qr') drawQrCell(lib, page, fonts, cell.entry, x, y);
-    else drawKeyCell(lib, page, fonts, cell.entry, cell.key, x, y);
+    drawQrCell(lib, page, fonts, cell, LEFT + col * PITCH, A4.height - TOP - row * PITCH - CELL);
   });
   if (!page) pdf.addPage([A4.width, A4.height]);
   return pdf.save();

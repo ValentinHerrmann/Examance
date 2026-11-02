@@ -33,6 +33,8 @@
   let keys = $state(true);
   let keysOnly = $state(initialKeysOnly);
   let busy = $state(false);
+  // Key slips alone print on plain paper: no labels, so no copies or used cells.
+  let onlyKeys = $derived(source === "exam" && keysOnly);
   let error = $state("");
 
   onMount(async () => {
@@ -64,9 +66,9 @@
         copies: clamp(copies, 1, 10),
         skip: clamp(skip, 0, STICKER_GRID.cols * STICKER_GRID.rows - 1),
         keys,
-        keysOnly: source === "exam" && keysOnly,
+        keysOnly: onlyKeys,
       });
-      downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(examTitle || $t("sharing.stickers.pdfTitle"))}_qr.pdf`);
+      downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(examTitle || $t("sharing.stickers.pdfTitle"))}${onlyKeys ? "_keys" : "_qr"}.pdf`);
       onClose();
     } catch (err) {
       error = `${$t("sharing.errors.stickers")} ${err instanceof Error ? err.message : ""}`.trim();
@@ -103,22 +105,24 @@
       </Field>
     {/if}
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <Field label={$t("sharing.stickers.copies")}>
-        {#snippet children({ id })}
-          <TextInput {id} type="number" min="1" max="10" bind:value={copies} disabled={busy || (source === "exam" && keysOnly)} />
-        {/snippet}
-      </Field>
-      <Field label={$t("sharing.stickers.skip")}>
-        {#snippet children({ id })}
-          <TextInput {id} type="number" min="0" max={STICKER_GRID.cols * STICKER_GRID.rows - 1} bind:value={skip} disabled={busy} />
-        {/snippet}
-      </Field>
-    </div>
+    {#if !onlyKeys}
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label={$t("sharing.stickers.copies")}>
+          {#snippet children({ id })}
+            <TextInput {id} type="number" min="1" max="10" bind:value={copies} disabled={busy} />
+          {/snippet}
+        </Field>
+        <Field label={$t("sharing.stickers.skip")}>
+          {#snippet children({ id })}
+            <TextInput {id} type="number" min="0" max={STICKER_GRID.cols * STICKER_GRID.rows - 1} bind:value={skip} disabled={busy} />
+          {/snippet}
+        </Field>
+      </div>
+    {/if}
 
     <div class="flex flex-col gap-3">
       <div>
-        <Checkbox bind:checked={keys} label={$t("sharing.stickers.keys")} disabled={busy || (source === "exam" && keysOnly)} />
+        <Checkbox bind:checked={keys} label={$t("sharing.stickers.keys")} disabled={busy || onlyKeys} />
         <p class="ml-7 text-sm text-muted">{$t("sharing.stickers.keysHint")}</p>
       </div>
       {#if source === "exam"}

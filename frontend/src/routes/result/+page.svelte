@@ -1,12 +1,14 @@
 <script lang="ts">
-  // A student's shared result (issue #207, docs/dev/result_sharing.md): public, no session. The link fragment never reaches the server; the PDF is decrypted only here.
+  // A student's shared result (issue #207, docs/dev/result_sharing.md): public, no session. The link fragment never reaches the server; the PDFs are decrypted only here and shown view-only (no download button; a determined student can still capture the screen).
   import { onDestroy, onMount } from "svelte";
-  import { faDownload, faLock } from "@fortawesome/free-solid-svg-icons";
+  import { faLock } from "@fortawesome/free-solid-svg-icons";
   import { ApiError } from "#lib/api/client";
   import { openResultShare } from "#lib/api/resultShares";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Field, Spinner, TextInput } from "#lib/components/ui";
+  import { Alert, Button, Field, PageShell, Spinner, TextInput } from "#lib/components/ui";
   import AuthCard from "#lib/components/unlock/AuthCard.svelte";
+  import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
+  import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import {
     lookupSecret,
     openSealedShare,
@@ -27,18 +29,20 @@
   let factor = $state<ShareFactor>("none");
   let expiresAt = $state("");
   let examTitle = $state("");
-  let filename = $state("");
-  let pdfUrl = $state("");
+  let gradedUrl = $state("");
+  let solutionUrl = $state("");
   let link: ShareLink | null = null;
   let sealed: SealedShare | null = null;
+
+  const pdfUrl = (bytes: Uint8Array) => URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
 
   async function decryptWith(input: string | null): Promise<boolean> {
     if (!link || !sealed) return false;
     try {
-      const { header, pdf } = await openSealedShare(link, factor, input, sealed);
+      const { header, documents } = await openSealedShare(link, factor, input, sealed);
       examTitle = header.examTitle;
-      filename = header.filename || "result.pdf";
-      pdfUrl = URL.createObjectURL(new Blob([pdf as BlobPart], { type: "application/pdf" }));
+      gradedUrl = pdfUrl(documents.graded);
+      if (documents.solution) solutionUrl = pdfUrl(documents.solution);
       phase = "ready";
       return true;
     } catch {
@@ -72,7 +76,8 @@
   });
 
   onDestroy(() => {
-    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    if (gradedUrl) URL.revokeObjectURL(gradedUrl);
+    if (solutionUrl) URL.revokeObjectURL(solutionUrl);
   });
 
   async function unlock() {
@@ -90,42 +95,66 @@
   <meta name="referrer" content="no-referrer" />
 </svelte:head>
 
-<AuthCard title={$t("sharing.portal.title")} subtitle={examTitle || undefined}>
-  {#if phase === "loading"}
-    <div class="flex items-center gap-2 text-sm text-muted"><Spinner />{$t("sharing.portal.loading")}</div>
-  {:else if phase === "error"}
-    <Alert severity="danger">{message}</Alert>
-  {:else if phase === "code"}
-    <form onsubmit={(e) => { e.preventDefault(); unlock(); }} class="flex flex-col gap-5">
-      <p class="m-0 text-sm text-content">
-        {factor === "sticker" ? $t("sharing.portal.stickerPrompt") : $t("sharing.portal.codePrompt")}
-      </p>
-      <Field forId="share-code" label={$t("sharing.portal.codeLabel")} error={codeError || undefined}>
-        {#snippet children({ id })}
-          <TextInput
-            {id}
-            bind:value={code}
-            placeholder="ABCD-EFGH"
-            autocomplete="off"
-            autocapitalize="characters"
-            spellcheck={false}
-            invalid={!!codeError}
-            disabled={unlocking}
-            class="font-mono tracking-widest"
-          />
-        {/snippet}
-      </Field>
-      <Button type="submit" block icon={faLock} loading={unlocking} disabled={unlocking || !code.trim()}>
-        {$t("sharing.portal.unlock")}
-      </Button>
-    </form>
-  {:else}
-    <Alert severity="success" class="mb-5">{$t("sharing.portal.ready")}</Alert>
-    <Button href={pdfUrl} download={filename} block icon={faDownload}>{$t("sharing.portal.download")}</Button>
-  {/if}
-
-  {#if expiresAt && phase !== "error"}
-    <p class="m-0 mt-5 text-sm text-muted">{$t("sharing.portal.expires", { date: formatDate(expiresAt) })}</p>
-  {/if}
-  <p class="m-0 mt-2 text-xs text-subtle">{$t("sharing.portal.privacy")}</p>
-</AuthCard>
+{#if phase === "ready"}
+  <PageShell width="full" class="flex flex-col gap-3">
+    <header class="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <h1 class="m-0 min-w-0 truncate text-xl font-semibold">{examTitle || $t("sharing.portal.title")}</h1>
+      {#if expiresAt}
+        <span class="text-sm text-muted">{$t("sharing.portal.expires", { date: formatDate(expiresAt) })}</span>
+      {/if}
+    </header>
+    <div class="h-[75dvh] min-h-0 min-w-0">
+      {#if solutionUrl}
+        <DualPdfPreview
+          previewPdfUrl={gradedUrl}
+          previewSolutionPdfUrl={solutionUrl}
+          showLoesungPreview={true}
+          titleAngabe={$t("sharing.portal.gradedTitle")}
+          titleLoesung={$t("sharing.portal.solutionTitle")}
+          downloadable={false}
+        />
+      {:else}
+        <div class="h-full overflow-hidden rounded-md border border-line bg-surface-viewer">
+          <PdfEmbedViewer src={gradedUrl} />
+        </div>
+      {/if}
+    </div>
+    <p class="m-0 text-xs text-subtle">{$t("sharing.portal.privacy")}</p>
+  </PageShell>
+{:else}
+  <AuthCard title={$t("sharing.portal.title")}>
+    {#if phase === "loading"}
+      <div class="flex items-center gap-2 text-sm text-muted"><Spinner />{$t("sharing.portal.loading")}</div>
+    {:else if phase === "error"}
+      <Alert severity="danger">{message}</Alert>
+    {:else}
+      <form onsubmit={(e) => { e.preventDefault(); unlock(); }} class="flex flex-col gap-5">
+        <p class="m-0 text-sm text-content">
+          {factor === "sticker" ? $t("sharing.portal.stickerPrompt") : $t("sharing.portal.codePrompt")}
+        </p>
+        <Field forId="share-code" label={$t("sharing.portal.codeLabel")} error={codeError || undefined}>
+          {#snippet children({ id })}
+            <TextInput
+              {id}
+              bind:value={code}
+              placeholder="ABCD-EFGH"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck={false}
+              invalid={!!codeError}
+              disabled={unlocking}
+              class="font-mono tracking-widest"
+            />
+          {/snippet}
+        </Field>
+        <Button type="submit" block icon={faLock} loading={unlocking} disabled={unlocking || !code.trim()}>
+          {$t("sharing.portal.unlock")}
+        </Button>
+      </form>
+    {/if}
+    {#if expiresAt && phase !== "error"}
+      <p class="m-0 mt-5 text-sm text-muted">{$t("sharing.portal.expires", { date: formatDate(expiresAt) })}</p>
+    {/if}
+    <p class="m-0 mt-2 text-xs text-subtle">{$t("sharing.portal.privacy")}</p>
+  </AuthCard>
+{/if}

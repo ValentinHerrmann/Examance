@@ -34,6 +34,7 @@
   let channel = $state<ShareChannelId>("slips");
   let factor = $state<ShareFactor>("none");
   let expiry = $state(String(DEFAULT_EXPIRY_DAYS));
+  let includeSolution = $state(false);
   let loading = $state(true);
   let running = $state(false);
   let step = $state("");
@@ -87,8 +88,9 @@
     outcome = null;
     try {
       outcome = await shareResults(
-        { examId, channel, factor, expiryDays: Number(expiry), studentKeys: selected },
-        (done, total) => (step = $t("sharing.share.running", { done: done + 1, total }))
+        { examId, channel, factor, expiryDays: Number(expiry), studentKeys: selected, includeSolution: includeSolution && !!overview?.solutionAvailable },
+        (phase, done = 0, total = 0) =>
+          (step = phase === "solution" ? $t("sharing.share.compilingSolution") : $t("sharing.share.running", { done: done + 1, total }))
       );
       if (outcome.slips) downloadBlob(new Blob([outcome.slips as BlobPart], { type: "application/pdf" }), outcome.fileName);
       await reload();
@@ -231,6 +233,17 @@
           </div>
         {/each}
       </fieldset>
+
+      <div>
+        <Checkbox
+          bind:checked={includeSolution}
+          label={$t("sharing.share.includeSolution")}
+          disabled={running || !overview.solutionAvailable}
+        />
+        <p class="ml-7 text-sm text-muted">
+          {overview.solutionAvailable ? $t("sharing.share.includeSolutionHint") : $t("sharing.share.solutionWithheld")}
+        </p>
+      </div>
 
       <Field label={$t("sharing.share.expiry")} hint={$t("sharing.share.replaceNote")}>
         {#snippet children({ id })}
