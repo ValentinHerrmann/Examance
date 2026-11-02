@@ -65,9 +65,7 @@ export async function eraseStudent(student: ErasedStudent): Promise<ErasureResul
 
   // Through the repositories, so each mode's copy goes (scores included); a refused server delete throws. A failed list above throws before anything is deleted, so the caller reports it and a retry is safe.
   // Permanent: an erasure never goes to the trash, and earlier trash entries of this student go too (issue #125).
-  for (const sub of matchingSubs) {
-    await submissionRepository.delete(examId, sub.id, { permanent: true });
-  }
+  await Promise.all(matchingSubs.map((sub) => submissionRepository.delete(examId, sub.id, { permanent: true })));
   await studentRepository.delete(student, { permanent: true });
   await purgeLocalStudent(examId, target);
 

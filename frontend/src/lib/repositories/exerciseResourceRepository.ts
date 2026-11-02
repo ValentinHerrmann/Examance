@@ -152,15 +152,13 @@ export const exerciseResourceRepository = {
     const stagedNames = new Set(staged.map((r) => r.filename));
     // Files removed while editing go to the trash as one action (issue #125).
     const headers = trashHeaders({ group: newTrashGroup() });
-    for (const row of remote) {
-      if (!stagedNames.has(row.filename) && row.remoteId) {
-        try {
-          await api.delete(`/exercises/${exerciseId}/resources/${row.remoteId}`, { ...QUIET, headers });
-        } catch {
-          // Already gone, or gone by someone else's hand — nothing to undo.
-        }
-      }
-    }
+    const stale = remote.filter((row) => !stagedNames.has(row.filename) && row.remoteId);
+    await Promise.all(
+      stale.map((row) =>
+        // A failure means already gone, or gone by someone else's hand: nothing to undo.
+        api.delete(`/exercises/${exerciseId}/resources/${row.remoteId}`, { ...QUIET, headers }).catch(() => undefined)
+      )
+    );
 
     for (const row of staged) {
       const unchanged =

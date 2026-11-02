@@ -17,5 +17,7 @@ export function trashHeaders(opts: DeleteOptions = {}): Record<string, string> |
 
 /** Appends `permanent=true` to a delete URL when the delete must skip the trash. */
 export function deleteUrl(path: string, opts: DeleteOptions = {}): string {
-  return opts.permanent ? `${path}${path.includes('?') ? '&' : '?'}permanent=true` : path;
+  if (!opts.permanent) return path;
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}permanent=true`;
 }

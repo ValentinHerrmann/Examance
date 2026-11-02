@@ -250,7 +250,7 @@ describe('saveSubmissionScores', () => {
       expect(api.post).toHaveBeenCalledWith(
         `/exams/${EXAM}/submissions`,
         expect.objectContaining({ id: 'sub-1', total_score: 5.5 }),
-        { silentError: true },
+        { silentError: true, headers: { 'X-Trash-Group': expect.any(String) } },
       );
       expect(api.patch).not.toHaveBeenCalled();
     });

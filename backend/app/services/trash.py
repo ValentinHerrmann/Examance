@@ -441,7 +441,7 @@ def _parse_group(raw: str | None) -> uuid.UUID:
         return uuid.uuid4()
 
 
-async def trash_scope(
+def trash_scope(
     request: Request,
     teacher: Teacher = Depends(get_teaching_teacher),
     x_trash_group: str | None = Header(default=None, include_in_schema=False),

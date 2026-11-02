@@ -42,9 +42,11 @@ describe('browser trash (issue #125)', () => {
   it('never overwrites a row that exists again and skips rows of a deleted exam', async () => {
     await submissionRepository.delete(EXAM, 'sub-1', { group: 'g-2' });
     await db.submissions.put({ ...submission, totalScore: 3 });
+    await db.exerciseScores.put({ ...score, payloadCt: new Uint8Array([2]) });
     const kept = await restoreLocalGroup('g-2', null, async () => true);
     expect(kept.skipped.map((s) => s.reason)).toEqual(['already_exists', 'already_exists']);
     expect((await db.submissions.get('sub-1'))?.totalScore).toBe(3);
+    expect((await db.exerciseScores.get('score-1'))?.payloadCt).toEqual(new Uint8Array([2]));
 
     await submissionRepository.delete(EXAM, 'sub-1', { group: 'g-3' });
     const orphan = await restoreLocalGroup('g-3', null, async () => false);

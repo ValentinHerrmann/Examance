@@ -11,7 +11,7 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
@@ -275,16 +275,22 @@ async def test_deleted_exam_leaves_the_trash_once_its_grace_period_passes(
         await retention_db.execute(select(TrashItem).where(TrashItem.exam_id == exam_uuid))
     ).scalar_one()
     assert item.kind == "exam"
+    # Read before expire_all(): touching an expired instance lazy-loads outside the async context.
+    item_id = item.id
 
     await retention.run()
     retention_db.expire_all()
-    assert await retention_db.get(TrashItem, item.id) is not None
+    assert await retention_db.get(TrashItem, item_id) is not None
 
-    item.purge_after = datetime.now(UTC) - timedelta(minutes=1)
+    await retention_db.execute(
+        update(TrashItem)
+        .where(TrashItem.id == item_id)
+        .values(purge_after=datetime.now(UTC) - timedelta(minutes=1))
+    )
     await retention_db.commit()
     await retention.run()
     retention_db.expire_all()
-    assert await retention_db.get(TrashItem, item.id) is None
+    assert await retention_db.get(TrashItem, item_id) is None
 
 
 async def _present(db: AsyncSession, *ids: uuid.UUID) -> set[uuid.UUID]:

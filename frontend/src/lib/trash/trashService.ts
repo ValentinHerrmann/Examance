@@ -6,7 +6,7 @@ import { decryptStudent } from '#lib/db/dbEncryption';
 import type { LocalTrashRecord, StudentRecord } from '#lib/db/schema';
 import { examRepository } from '#lib/repositories/examRepository';
 import { mapApiToStudentRecord } from '#lib/repositories/studentRepository';
-import { listServerTrash, purgeServerGroup, restoreServerGroup, type RestoreResult, type ServerTrashEntry } from './api';
+import { listServerTrash, purgeServerGroup, restoreServerGroup, type RestoreResult, type ServerTrashEntry, type ServerTrashList } from './api';
 import { listLocalTrash, purgeLocalGroup, restoreLocalGroup, sweepLocalTrash, LOCAL_TRASH_DAYS } from './localTrash';
 
 export interface TrashItemView {
@@ -77,21 +77,26 @@ async function localItem(entry: LocalTrashRecord, titles: Map<string, string>, k
   };
 }
 
+/** Exam titles for browser entries, which carry none: their exams are live or in the server trash. */
+async function examTitles(server: ServerTrashList, key: CryptoKey | null): Promise<Map<string, string>> {
+  const titles = new Map<string, string>();
+  for (const exam of await examRepository.getAll(key)) if (exam.id) titles.set(exam.id, exam.title ?? '');
+  for (const entry of server.groups.flatMap((group) => group.entries)) {
+    if (entry.kind === 'exam' && entry.label?.exam_id) titles.set(entry.label.exam_id, entry.label.exam_title);
+  }
+  return titles;
+}
+
 /** Both trashes, newest group first. Old browser entries are swept first. */
 export async function loadTrash(): Promise<TrashView> {
   await sweepLocalTrash();
   const key = get(sessionStore).sessionKey;
   const [server, local] = await Promise.all([listServerTrash(), listLocalTrash()]);
-  // Browser entries carry no title; the exams they belong to are live or in the server trash.
-  const titles = new Map<string, string>();
-  if (local.length) {
-    for (const exam of await examRepository.getAll(key)) if (exam.id) titles.set(exam.id, exam.title ?? "");
-    for (const group of server.groups) {
-      for (const entry of group.entries) {
-        if (entry.kind === 'exam' && entry.label?.exam_id) titles.set(entry.label.exam_id, entry.label.exam_title);
-      }
-    }
-  }
+  const titles = local.length ? await examTitles(server, key) : new Map<string, string>();
+  const [serverItems, localItems] = await Promise.all([
+    Promise.all(server.groups.map((g) => Promise.all(g.entries.map((entry) => serverItem(entry, key))))),
+    Promise.all(local.map((entry) => localItem(entry, titles, key))),
+  ]);
 
   const groups = new Map<string, TrashGroupView>();
   const groupOf = (groupId: string, deletedAt: string, purgeAfter: string) => {
@@ -104,16 +109,16 @@ export async function loadTrash(): Promise<TrashView> {
     if (purgeAfter < group.purgeAfter) group.purgeAfter = purgeAfter;
     return group;
   };
-  for (const g of server.groups) {
+  server.groups.forEach((g, i) => {
     const group = groupOf(g.group_id, g.deleted_at, g.purge_after);
     group.hasServer = true;
-    for (const entry of g.entries) group.items.push(await serverItem(entry, key));
-  }
-  for (const entry of local) {
+    group.items.push(...serverItems[i]);
+  });
+  local.forEach((entry, i) => {
     const group = groupOf(entry.groupId, entry.deletedAt, entry.purgeAfter);
     group.hasLocal = true;
-    group.items.push(await localItem(entry, titles, key));
-  }
+    group.items.push(localItems[i]);
+  });
   return {
     graceDays: server.grace_days ?? LOCAL_TRASH_DAYS,
     groups: [...groups.values()].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt)),

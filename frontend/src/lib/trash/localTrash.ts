@@ -135,6 +135,28 @@ async function refill(row: SubmissionRecord, key: CryptoKey | null, result: Rest
   tally(result, 'scan_submissions');
 }
 
+/** Runs one table's restores together; rows of one table are independent, duplicates across entries are restored once. */
+async function restoreAll<T>(rows: T[], keyOf: (row: T) => string, restore: (row: T) => Promise<void>): Promise<void> {
+  const unique = [...new Map(rows.map((row) => [keyOf(row), row])).values()];
+  await Promise.all(unique.map(restore));
+}
+
+/** Entries whose exam still exists; the others are reported as `parent_missing`. */
+async function withLiveExam(
+  items: LocalTrashRecord[],
+  examExists: (examId: string) => Promise<boolean>,
+  result: RestoreResult
+): Promise<LocalTrashRecord[]> {
+  const examIds = [...new Set(items.map((item) => item.examId))];
+  const exists = await Promise.all(examIds.map(examExists));
+  const live = new Map(examIds.map((id, i) => [id, exists[i]]));
+  return items.filter((item) => {
+    if (live.get(item.examId)) return true;
+    result.skipped.push({ table: 'exams', id: item.examId, reason: 'parent_missing' });
+    return false;
+  });
+}
+
 /** Restores one group's local entries: missing rows only, parents first; the entries leave the trash. */
 export async function restoreLocalGroup(
   groupId: string,
@@ -144,42 +166,41 @@ export async function restoreLocalGroup(
   const result: RestoreResult = { restored: {}, skipped: [] };
   if (!hasTrash()) return result;
   const items = await db.trash.where('groupId').equals(groupId).toArray();
-  const live = new Map<string, boolean>();
-  for (const item of items) {
-    if (!live.has(item.examId)) live.set(item.examId, await examExists(item.examId));
-  }
-  const usable = items.filter((item) => {
-    if (live.get(item.examId)) return true;
-    result.skipped.push({ table: 'exams', id: item.examId, reason: 'parent_missing' });
-    return false;
-  });
-  for (const item of usable) for (const row of item.rows.examStudents ?? []) await restoreStudent(row, result);
-  for (const item of usable) for (const row of item.rows.submissions ?? []) await restoreSubmission(row, result);
-  for (const item of usable) for (const row of item.rows.exerciseScores ?? []) await restoreScore(row, result);
-  for (const item of usable) for (const row of item.cleared ?? []) await refill(row, key, result);
+  const usable = await withLiveExam(items, examExists, result);
+  // Tables one after another, so a score finds its submission and a submission its student.
+  const students = usable.flatMap((item) => item.rows.examStudents ?? []);
+  await restoreAll(students, (row) => `${row.examId}|${row.pseudonymHmac}`, (row) => restoreStudent(row, result));
+  const submissions = usable.flatMap((item) => item.rows.submissions ?? []);
+  await restoreAll(submissions, (row) => row.id, (row) => restoreSubmission(row, result));
+  const scores = usable.flatMap((item) => item.rows.exerciseScores ?? []);
+  await restoreAll(scores, (row) => `${row.submissionId}|${row.exerciseId}`, (row) => restoreScore(row, result));
+  const cleared = usable.flatMap((item) => item.cleared ?? []);
+  await restoreAll(cleared, (row) => row.id, (row) => refill(row, key, result));
   await db.trash.bulkDelete(items.map((item) => item.id));
   return result;
+}
+
+/** Drops one student's rows from one trash entry; deletes the entry when nothing is left. */
+async function purgeStudentFromItem(item: LocalTrashRecord, target: string): Promise<void> {
+  const students = item.rows.examStudents ?? [];
+  const subs = [...(item.rows.submissions ?? []), ...(item.cleared ?? [])];
+  const [studentKeys, subKeys] = await Promise.all([joinKeys(students), joinKeys(subs)]);
+  const erasedSubs = new Set(subs.filter((_, i) => subKeys[i] === target).map((s) => s.id));
+  if (erasedSubs.size === 0 && !studentKeys.includes(target)) return;
+  const rows: LocalTrashRecord['rows'] = {
+    examStudents: students.filter((_, i) => studentKeys[i] !== target),
+    submissions: (item.rows.submissions ?? []).filter((s) => !erasedSubs.has(s.id)),
+    exerciseScores: (item.rows.exerciseScores ?? []).filter((s) => !erasedSubs.has(s.submissionId)),
+  };
+  const cleared = (item.cleared ?? []).filter((s) => !erasedSubs.has(s.id));
+  const left = Object.values(rows).some((list) => list && list.length > 0) || cleared.length > 0;
+  if (left) await db.trash.put({ ...item, rows, cleared });
+  else await db.trash.delete(item.id);
 }
 
 /** GDPR erasure: drops every row of one student (compared by join key) from this browser's trash. */
 export async function purgeLocalStudent(examId: string, target: string): Promise<void> {
   if (!hasTrash()) return;
   const items = (await db.trash.toArray()).filter((item) => item.examId === examId);
-  for (const item of items) {
-    const students = item.rows.examStudents ?? [];
-    const subs = [...(item.rows.submissions ?? []), ...(item.cleared ?? [])];
-    const studentKeys = await joinKeys(students);
-    const subKeys = await joinKeys(subs);
-    const erasedSubs = new Set(subs.filter((_, i) => subKeys[i] === target).map((s) => s.id));
-    if (erasedSubs.size === 0 && !studentKeys.includes(target)) continue;
-    const rows: LocalTrashRecord['rows'] = {
-      examStudents: students.filter((_, i) => studentKeys[i] !== target),
-      submissions: (item.rows.submissions ?? []).filter((s) => !erasedSubs.has(s.id)),
-      exerciseScores: (item.rows.exerciseScores ?? []).filter((s) => !erasedSubs.has(s.submissionId)),
-    };
-    const cleared = (item.cleared ?? []).filter((s) => !erasedSubs.has(s.id));
-    const left = Object.values(rows).some((list) => list && list.length > 0) || cleared.length > 0;
-    if (left) await db.trash.put({ ...item, rows, cleared });
-    else await db.trash.delete(item.id);
-  }
+  await Promise.all(items.map((item) => purgeStudentFromItem(item, target)));
 }
