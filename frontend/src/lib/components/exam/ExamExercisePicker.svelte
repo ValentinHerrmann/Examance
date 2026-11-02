@@ -9,12 +9,16 @@
   import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import { isAuthenticated, sessionStore } from "#lib/stores/session";
   import {
-    applyGroup,
     buildMcGroupMembership,
-    canFinalizeGroup,
+    commitStagedGroup,
+    DEFAULT_MC_GROUP_SCORING_TEXT,
+    DEFAULT_MC_GROUP_TITLE,
+    idsChanged,
     moveStaged,
     toggleStaged,
+    type McGroupDraft,
   } from "#lib/exam/mcGroupStaging";
+  import { createDirtyClose } from "#lib/utils/dirtyClose.svelte";
   import { matchesExerciseFilters, uniqueSorted } from "#lib/utils/listFilter";
   import { ConfirmDialog } from "#lib/components/ui";
   import ExamLibraryModal from "#lib/components/exam/ExamLibraryModal.svelte";
@@ -45,17 +49,13 @@
   let isLibraryModalOpen = $state(false);
   let selectedLibraryIds: string[] = $state.raw([]);
   let initialSelectedLibraryIds: string[] = $state.raw([]);
-  let showLibraryConfirm = $state(false);
   let librarySearch = $state("");
   let activeVariantPerGroup: Record<string, string> = $state.raw({});
 
-  let isLibraryDirty = $derived(
-    isLibraryModalOpen &&
-      (selectedLibraryIds.length !== initialSelectedLibraryIds.length ||
-        selectedLibraryIds.some((id, i) => id !== initialSelectedLibraryIds[i])),
-  );
-
+  // The whole MC draft (questions, title, scoring) lives here: the footer's apply commits it and the dirty check compares it (#175).
   let mcStagingIds: string[] = $state.raw([]);
+  let mcDraftTitle = $state(DEFAULT_MC_GROUP_TITLE);
+  let mcDraftScoring = $state(DEFAULT_MC_GROUP_SCORING_TEXT);
   let editingMcGroupId: string | null = $state(null);
   let selectedGradeFilter = $state("ALL");
   let selectedSubjectFilter = $state("ALL");
@@ -79,15 +79,40 @@
   let editingMcGroup = $derived(mcGroups.find((g) => g.id === editingMcGroupId) ?? null);
   let mcGroupMembership = $derived(buildMcGroupMembership(mcGroups, editingMcGroupId));
 
+  /** A new group is pending once questions are staged; an edited one once its questions, title or scoring differ. */
+  let mcDraftDirty = $derived(
+    editingMcGroup
+      ? idsChanged(mcStagingIds, editingMcGroup.memberIds) ||
+          mcDraftTitle !== editingMcGroup.title ||
+          mcDraftScoring !== editingMcGroup.scoringText
+      : mcStagingIds.length > 0,
+  );
+  /** Whether the footer's apply also commits a group (a new one, or the edited one, which an empty draft removes). */
+  let mcGroupPending = $derived(Boolean(editingMcGroup) || mcStagingIds.length > 0);
+
+  const libraryClose = createDirtyClose({
+    isDirty: () => idsChanged(selectedLibraryIds, initialSelectedLibraryIds) || mcDraftDirty,
+    onClose: () => {
+      isLibraryModalOpen = false;
+      resetMcDraft(null);
+    },
+  });
+
+  /** Loads `group` into the draft for editing, or clears it for a new group. */
+  function resetMcDraft(group: McGroupDraft | null) {
+    editingMcGroupId = group?.id ?? null;
+    mcStagingIds = [...(group?.memberIds ?? [])];
+    mcDraftTitle = group?.title ?? DEFAULT_MC_GROUP_TITLE;
+    mcDraftScoring = group?.scoringText ?? DEFAULT_MC_GROUP_SCORING_TEXT;
+  }
+
   function setGroupVariant(groupId: string, vKey: string) {
     activeVariantPerGroup = { ...activeVariantPerGroup, [groupId]: vKey };
   }
 
   /** Loads the library and opens the dialog with the exam's standalone exercises ticked. */
   export async function open() {
-    if (!editingMcGroupId) {
-      mcStagingIds = [];
-    }
+    if (!editingMcGroupId) resetMcDraft(null);
     const key = get(sessionStore).sessionKey;
     try {
       if ($isAuthenticated) {
@@ -107,7 +132,7 @@
           activeVariantPerGroup = { ...activeVariantPerGroup, [groupId]: ex.variantKey };
         }
       }
-      showLibraryConfirm = false;
+      libraryClose.cancel();
       isLibraryModalOpen = true;
     } catch (err) {
       console.error("Failed to load library exercises:", err);
@@ -122,25 +147,10 @@
 
   /** Opens the dialog on the MC tab with the group's members staged. */
   export function editMcGroup(groupId: string) {
-    if (!mcGroups.some((g) => g.id === groupId)) return;
-    editingMcGroupId = groupId;
-    mcStagingIds = [...(mcGroups.find((g) => g.id === groupId)?.memberIds ?? [])];
+    const group = mcGroups.find((g) => g.id === groupId);
+    if (!group) return;
+    resetMcDraft(group);
     open();
-  }
-
-  function requestCloseLibraryModal() {
-    if (isLibraryDirty) {
-      showLibraryConfirm = true;
-    } else {
-      forceCloseLibraryModal();
-    }
-  }
-
-  function forceCloseLibraryModal() {
-    showLibraryConfirm = false;
-    isLibraryModalOpen = false;
-    editingMcGroupId = null;
-    mcStagingIds = [];
   }
 
   function toggleMcStaging(id: string) {
@@ -151,15 +161,25 @@
     mcStagingIds = moveStaged(mcStagingIds, index, direction);
   }
 
-  async function finalizeMcGroup(title: string, scoringText: string) {
-    if (!canFinalizeGroup(mcStagingIds)) return;
-    const memberIds = [...mcStagingIds];
-    const previousMemberIds = new Set(editingMcGroup?.memberIds ?? []);
-    mcGroups = applyGroup(mcGroups, { editingId: editingMcGroupId, title, scoringText, memberIds });
-    adoptGroupMembers(memberIds, previousMemberIds);
-    editingMcGroupId = null;
-    mcStagingIds = [];
-    await onSaveLinks();
+  /** Commits the MC draft to `mcGroups` without saving; false when there was nothing to commit. The scoring stays for the next group. */
+  function stageGroup(): boolean {
+    const committed = commitStagedGroup(mcGroups, {
+      editingId: editingMcGroupId,
+      staged: mcStagingIds,
+      title: mcDraftTitle,
+      scoringText: mcDraftScoring,
+    });
+    if (!committed) return false;
+    mcGroups = committed.groups;
+    adoptGroupMembers(committed.memberIds, committed.previousMemberIds);
+    const scoring = mcDraftScoring;
+    resetMcDraft(null);
+    mcDraftScoring = scoring;
+    return true;
+  }
+
+  async function finalizeMcGroup() {
+    if (stageGroup()) await onSaveLinks();
   }
 
   /** Syncs `exercises` with a group change: new members are linked only as group members (an exercise is linked once), and members dropped from an edited group leave the exam. */
@@ -184,7 +204,9 @@
     }
   }
 
+  /** Applies the standalone selection and, if questions are still staged, their group too, in one save (#175). */
   async function applyLibrarySelection() {
+    stageGroup();
     const groupedIds = new Set(mcGroups.flatMap((g) => g.memberIds));
     const standalone = selectedLibraryIds
       .filter((id) => !groupedIds.has(id))
@@ -195,7 +217,7 @@
 
     exercises = [...standalone, ...groupMembers];
     await onSaveLinks();
-    isLibraryModalOpen = false;
+    libraryClose.force();
   }
 </script>
 
@@ -213,6 +235,9 @@
   {activeVariantPerGroup}
   {libraryExercises}
   {mcStagingIds}
+  bind:mcDraftTitle
+  bind:mcDraftScoring
+  {mcGroupPending}
   {editingMcGroup}
   {mcGroupMembership}
   onToggleMcStaging={toggleMcStaging}
@@ -221,19 +246,19 @@
   onToggleSelection={toggleLibrarySelection}
   onSetGroupVariant={setGroupVariant}
   onApply={applyLibrarySelection}
-  onRequestClose={requestCloseLibraryModal}
+  onRequestClose={libraryClose.request}
   {onQuickEdit}
   {onNewExercise}
 />
 
 <ConfirmDialog
-  open={showLibraryConfirm}
+  open={libraryClose.confirming}
   title={$t("exam.page.library.discardTitle")}
   message={$t("exam.page.library.discardMessage")}
   confirmText={$t("exam.page.metadata.discardConfirm")}
   cancelText={$t("exam.page.metadata.discardKeepEditing")}
   severity="danger"
   role="dialog"
-  onConfirm={forceCloseLibraryModal}
-  onCancel={() => (showLibraryConfirm = false)}
+  onConfirm={libraryClose.force}
+  onCancel={libraryClose.cancel}
 />

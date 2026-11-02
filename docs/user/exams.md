@@ -42,6 +42,8 @@ If you change page breaks after you created the answer-sheet template for MC det
 
 Several tick-box exercises can be printed together as an **MC group**. Create and edit groups on the exam page (**MC Groups**). An exam can hold any number of groups of any size; each question belongs to at most one group.
 
+In the exercise dialog, tick the questions on the **MC Groups** tab and give the group a title. **Apply Exercises and MC Group** adds the group together with the other exercises. To build several groups in one go, click **Add MC group to exam** after each one.
+
 Groups are layout only: grading and statistics stay strictly per question.
 
 ## Grading key {#grading-key}
@@ -92,7 +94,7 @@ Under **Edit Exam** you can also add LaTeX packages for this exam only or leave 
 
 ## Typeset {#typeset}
 
-**Live Preview PDF** typesets the exam and the solution sheet. The run produces a print-ready PDF with QR codes, one per exam, variant and student slot.
+**Live Preview PDF** typesets the exam and the solution sheet. The run produces a print-ready PDF with QR codes, one per exam, variant and student slot. Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
 
 Depending on your settings and your account, the exam is typeset
 
