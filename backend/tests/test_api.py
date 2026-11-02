@@ -729,58 +729,16 @@ async def test_exercise_usage_and_deletion(client: AsyncClient, db: AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_cors_preflight_origins(client: AsyncClient) -> None:
-    """Preflight must reflect whatever origin allowlist is configured. Driven off `settings`, not hardcoded hostnames: CI narrows CORS_ALLOWED_ORIGINS to localhost."""
+async def test_no_cors_answers(client: AsyncClient) -> None:
+    """The API is same-origin with the frontend (issue #198): no origin, listed or not, gets a CORS grant."""
     from app.config import settings
 
-    allowed = settings.CORS_ALLOWED_ORIGINS[0]
-
-    # 1. An explicitly allowlisted origin is echoed back.
-    resp = await client.options(
-        "/api/v1/auth/login",
-        headers={
-            "Origin": allowed,
-            "Access-Control-Request-Method": "POST",
-            "Access-Control-Request-Headers": "content-type",
-        },
-    )
-    assert resp.status_code == 200
-    assert resp.headers.get("access-control-allow-origin") == allowed
-
-    # 2. An origin matching effective_cors_origin_regex, when one is configured.
-    if settings.effective_cors_origin_regex:
-        resp_sub = await client.options(
+    for origin in [settings.FRONTEND_ORIGINS[0], "https://unauthorized-domain.com"]:
+        resp = await client.options(
             "/api/v1/auth/login",
-            headers={
-                "Origin": "http://127.0.0.1:4173",
-                "Access-Control-Request-Method": "POST",
-            },
+            headers={"Origin": origin, "Access-Control-Request-Method": "POST"},
         )
-        assert resp_sub.status_code == 200
-        assert (
-            resp_sub.headers.get("access-control-allow-origin")
-            == "http://127.0.0.1:4173"
-        )
-
-    # 3. An unlisted origin is never echoed back.
-    resp_unauth = await client.options(
-        "/api/v1/auth/login",
-        headers={
-            "Origin": "https://unauthorized-domain.com",
-            "Access-Control-Request-Method": "POST",
-        },
-    )
-    assert resp_unauth.headers.get("access-control-allow-origin") is None
-
-    # 4. The regex must not be suffix-extendable.
-    resp_suffix = await client.options(
-        "/api/v1/auth/login",
-        headers={
-            "Origin": "https://sub.valentin-herrmann.com.attacker.test",
-            "Access-Control-Request-Method": "POST",
-        },
-    )
-    assert resp_suffix.headers.get("access-control-allow-origin") is None
+        assert resp.headers.get("access-control-allow-origin") is None
 
 
 async def test_list_student_identities(

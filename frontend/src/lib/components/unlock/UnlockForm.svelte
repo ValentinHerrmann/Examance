@@ -1,14 +1,10 @@
 <script lang="ts">
-  import { untrack } from "svelte";
-  import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
   import { t } from "#lib/i18n";
-  import { stripBackendProtocol } from "#lib/stores/backendStore";
   import { faBookOpen, faKey, faLightbulb, faUserPlus } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, Card, Field, TextInput } from "#lib/components/ui";
   import OldAddressPasskey from "./OldAddressPasskey.svelte";
 
   interface Props {
-    backendUrl: string;
     email: string;
     password: string;
     errorMsg: string;
@@ -23,7 +19,6 @@
   }
 
   let {
-    backendUrl = $bindable(),
     email = $bindable(),
     password = $bindable(),
     errorMsg,
@@ -33,9 +28,6 @@
     onPasskey,
     onLegacyPasskey,
   }: Props = $props();
-
-  // A remembered server is shown as one line so the page fits on one screen (issue #128).
-  let editServer = $state(untrack(() => !backendUrl.trim()));
 </script>
 
 <div class="mb-3 text-center">
@@ -54,31 +46,6 @@
 <div class="mx-auto w-full max-w-form">
   <Card padded={false} class="flex flex-col p-5 sm:p-6">
     <form onsubmit={(e) => { e.preventDefault(); onUnlock(); }} class="flex flex-col gap-3">
-      {#if editServer}
-        <Field forId="backendUrl" label={$t("auth.unlock.cloud.backendUrl")}>
-          {#snippet children({ id })}
-            <BackendUrlInput
-              {id}
-              bind:value={backendUrl}
-              placeholder={$t("auth.unlock.cloud.backendUrlPlaceholder")}
-              required
-            />
-          {/snippet}
-        </Field>
-      {:else}
-        <p class="m-0 flex min-w-0 items-center gap-2 text-sm text-muted">
-          <span class="shrink-0">{$t("auth.unlock.cloud.serverSummary")}</span>
-          <span class="min-w-0 truncate font-mono text-content">{stripBackendProtocol(backendUrl)}</span>
-          <button
-            type="button"
-            class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-accent hover:underline pointer-coarse:min-h-11"
-            onclick={() => (editServer = true)}
-          >
-            {$t("auth.unlock.cloud.changeServer")}
-          </button>
-        </p>
-      {/if}
-
       <Field forId="email" label={$t("auth.unlock.cloud.email")}>
         {#snippet children({ id })}
           <TextInput

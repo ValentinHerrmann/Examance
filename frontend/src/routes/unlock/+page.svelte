@@ -10,7 +10,6 @@
   import { api, ApiError } from "#lib/api/client";
   import { httpErrorStore } from "#lib/stores/httpErrorStore";
   import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
-  import { backendStore } from "#lib/stores/backendStore";
   import { get } from "svelte/store";
   import { Alert, Card, PageShell } from "#lib/components/ui";
   import UnlockForm from "#lib/components/unlock/UnlockForm.svelte";
@@ -27,6 +26,7 @@
   } from "#lib/components/security";
   import { submitBackupCode, submitPassword, submitPasswordFactor, submitTotp, type AuthStep } from "#lib/api/mfa";
   import { isSupported as passkeysSupported } from "#lib/webauthn/client";
+  import { rememberOldPasskeySignIn } from "#lib/domainMove";
   import {
     codeFactorError,
     passkeyAssertion,
@@ -58,7 +58,6 @@
 
   let password = $state("");
   let email = $state("");
-  let backendUrl = $state(get(backendStore));
   let errorMsg = $state("");
   let envelopeDialog: EnvelopeChangedDialog;
   // Lets each open path ask once whether a changed key copy is the teacher's own doing (issue #180).
@@ -106,12 +105,6 @@
     errorMsg = "";
     infoMsg = "";
     factorNotice = "";
-    const trimmedBackendUrl = backendUrl.trim();
-    if (!trimmedBackendUrl) {
-      errorMsg = translate("auth.unlock.errors.enterServerAddress");
-      return;
-    }
-
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
       errorMsg = translate("auth.unlock.errors.enterEmail");
@@ -122,18 +115,11 @@
       return;
     }
 
-    // Set transient backend URL for authentication attempt. Validated before use — credentials are about to be posted to whatever this points at.
-    try {
-      backendStore.setTransient(trimmedBackendUrl);
-    } catch (err: any) {
-      errorMsg = err?.message ?? translate("auth.unlock.errors.invalidBackendUrl");
-      return;
-    }
-
     isLoading = true;
     passwordVerified = false;
     passkeyUnwrap = null;
     passkeyToHeal = null;
+    rememberOldPasskeySignIn(false);
     try {
       // Starting a sign-in demotes the access cookie and clears the refresh cookie, so client state must follow, or an unlocked tab keeps rendering and every request 403s (seen on back-navigation).
       sessionStore.lock();
@@ -142,13 +128,8 @@
       const step = await submitPassword(normalizedEmail, password);
       passwordVerified = true;
 
-      // Save backend URL to localStorage ONLY after a factor was accepted
-      backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
-
       await handleAuthStep(step);
     } catch (err: any) {
-      // Revert store to last saved URL if authentication failed
-      backendStore.restoreSavedUrl();
       showInvalidCredentialsPopup(err);
       if (err instanceof ApiError && err.code === 'ERR_ACCOUNT_LOCKED') {
         errorMsg = translate("errors.code.ERR_ACCOUNT_LOCKED");
@@ -157,7 +138,7 @@
       } else if (err instanceof EnvelopeFactorMissingError) {
         errorMsg = translate("security.envelope.missingPassword");
       } else {
-        // "Failed to fetch" is the browser's opaque network error for CORS preflight rejections. Give users a concrete hint.
+        // "Failed to fetch" is the browser's opaque network error: the server could not be reached.
         const raw: string = err.message || '';
         errorMsg =
           raw === 'Failed to fetch'
@@ -339,25 +320,9 @@
         sessionStore.lock();
       }
 
-      const trimmedBackendUrl = backendUrl.trim();
-      if (trimmedBackendUrl) {
-        try {
-          backendStore.setTransient(trimmedBackendUrl);
-        } catch (err: any) {
-          const errText = err?.message ?? translate("auth.unlock.errors.invalidBackendUrl");
-          if (inProgress) {
-            factorErrorMsg = errText;
-          } else {
-            errorMsg = errText;
-          }
-          return;
-        }
-      }
-
       const { step, unwrap } = await signInWithPasskey({ legacy: opts.legacy });
-      if (trimmedBackendUrl) {
-        backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
-      }
+      // A passkey of the old address signs in once; the layout then insists on a new one (issue #198).
+      rememberOldPasskeySignIn(opts.legacy === true);
       if (unwrap) passkeyUnwrap = unwrap;
       await handleAuthStep(step);
     } catch (err: any) {
@@ -658,7 +623,6 @@
   {:else}
     <MaintenanceSignInNotice />
     <UnlockForm
-      bind:backendUrl
       bind:email
       bind:password
       {errorMsg}

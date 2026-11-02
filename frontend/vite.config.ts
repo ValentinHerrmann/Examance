@@ -114,19 +114,8 @@ function computeCommitSha(): string {
   return process.env.CF_PAGES_COMMIT_SHA ?? '';
 }
 
-// Default backend for a fresh profile (production vs preview API); still revalidated and user-changeable.
-const prodBackendUrl = (env: BuildEnv) => env.PUBLIC_PROD_BACKEND_URL ?? 'https://api.examance.de';
-const previewBackendUrl = (env: BuildEnv) => env.PUBLIC_PREVIEW_BACKEND_URL ?? 'https://preview-api.examance.de';
-
-function computeDefaultBackendUrl(env: BuildEnv): string {
-  if (env.PUBLIC_DEFAULT_BACKEND_URL) {
-    return env.PUBLIC_DEFAULT_BACKEND_URL;
-  }
-  const branch = process.env.CF_PAGES_BRANCH;
-  if (branch === 'release') return prodBackendUrl(env);
-  if (branch) return previewBackendUrl(env);
-  return '';
-}
+// The API is always this origin's /api (issue #198): dev and `vite preview` proxy it to the local backend; production uses a reverse proxy or functions/api.
+const API_PROXY = { '/api': { target: 'http://localhost:8000', changeOrigin: true } };
 
 export default defineConfig(({ mode }) => {
   const env: BuildEnv = { ...loadEnv(mode, import.meta.dirname, 'PUBLIC_'), ...process.env };
@@ -153,9 +142,6 @@ export default defineConfig(({ mode }) => {
       __RELEASE_NOTES__: JSON.stringify(readReleaseNotes()),
       __REPO_URL__: JSON.stringify(REPO_URL),
       __DOCS_URL__: JSON.stringify(computeDocsUrl(env)),
-      __DEFAULT_BACKEND_URL__: JSON.stringify(computeDefaultBackendUrl(env)),
-      __PROD_BACKEND_URL__: JSON.stringify(prodBackendUrl(env)),
-      __PREVIEW_BACKEND_URL__: JSON.stringify(previewBackendUrl(env)),
       __DOMAIN_MOVE__: JSON.stringify(computeDomainMove(env, process.env.CF_PAGES_BRANCH)),
     },
     test: {
@@ -192,12 +178,8 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       // The info posters are bundled from the repo's docs (src/lib/about/posters.ts), the LaTeX package rules from the backend.
       fs: { allow: ['.', '../docs/posters', '../backend/app/services/latex_package_rules.json'] },
-      proxy: {
-        '/api': {
-          target: 'http://localhost:8000',
-          changeOrigin: true,
-        },
-      },
+      proxy: API_PROXY,
     },
+    preview: { proxy: API_PROXY },
   };
 });

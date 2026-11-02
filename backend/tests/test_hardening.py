@@ -60,10 +60,10 @@ def test_rate_limit_storage_defaults_to_memory_in_dev() -> None:
     assert settings.RATE_LIMIT_STORAGE_URI == "memory://"
 
 
-def test_effective_cors_origin_regex_in_dev() -> None:
+def test_dev_origin_regex_in_dev() -> None:
     settings = Settings(_env_file=None, ENVIRONMENT="development")
-    assert settings.effective_cors_origin_regex is not None
-    pattern = re.compile(settings.effective_cors_origin_regex)
+    assert settings.dev_origin_regex is not None
+    pattern = re.compile(settings.dev_origin_regex)
     assert pattern.fullmatch("http://localhost:8000")
     assert pattern.fullmatch("http://127.0.0.1:9999")
     assert not pattern.fullmatch("https://sub.valentin-herrmann.com")
@@ -71,16 +71,33 @@ def test_effective_cors_origin_regex_in_dev() -> None:
 
 
 def test_production_allows_only_listed_origins_by_default() -> None:
-    """S7: no wildcard subdomain may receive credentialed CORS answers."""
+    """S7: no wildcard subdomain may pass the origin guard."""
     settings = Settings(_env_file=None, ENVIRONMENT="production", SECRET_KEY=STRONG_KEY)
-    assert settings.effective_cors_origin_regex is None
+    assert settings.dev_origin_regex is None
 
 
-def test_a_leftover_origin_pattern_admits_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Issue #198 dropped CORS_ALLOWED_ORIGIN_REGEX; an old .env that still sets it must not widen CORS."""
+def test_frontend_origins_default_to_frontend_url() -> None:
+    settings = Settings(
+        _env_file=None,
+        ENVIRONMENT="production",
+        SECRET_KEY=STRONG_KEY,
+        FRONTEND_URL="https://examance.example.org/",
+    )
+    assert settings.FRONTEND_ORIGINS == ["https://examance.example.org"]
+
+
+def test_leftover_cors_settings_admit_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Issue #198 dropped CORS_ALLOWED_ORIGINS and CORS_ALLOWED_ORIGIN_REGEX; an old .env that still sets them must not widen what the origin guard accepts."""
     monkeypatch.setenv("CORS_ALLOWED_ORIGIN_REGEX", r"https://.*")
-    settings = Settings(_env_file=None, ENVIRONMENT="production", SECRET_KEY=STRONG_KEY)
-    assert settings.effective_cors_origin_regex is None
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", '["https://attacker.example"]')
+    settings = Settings(
+        _env_file=None,
+        ENVIRONMENT="production",
+        SECRET_KEY=STRONG_KEY,
+        FRONTEND_URL="https://examance.example.org/",
+    )
+    assert settings.dev_origin_regex is None
+    assert settings.FRONTEND_ORIGINS == ["https://examance.example.org"]
 
 
 def test_production_rejects_short_initial_admin_password() -> None:
@@ -182,7 +199,7 @@ async def test_login_does_not_enforce_a_password_minimum(client: AsyncClient) ->
 async def test_logout_clears_cookies_with_matching_attributes(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """A SameSite=None cookie deleted without Secure is dropped by the browser, leaving the session alive. The delete must repeat the set attributes."""
+    """A cookie delete whose attributes differ from the set can be refused, leaving the session alive. The delete must repeat the set attributes (Secure, SameSite=Strict, HttpOnly)."""
     teacher = Teacher(
         email="logout-attrs@example.com",
         password_hash=hash_password("twelve-chars-plus"),
@@ -206,7 +223,7 @@ async def test_logout_clears_cookies_with_matching_attributes(
     for header in set_cookies:
         lowered = header.lower()
         assert "secure" in lowered, header
-        assert "samesite=none" in lowered, header
+        assert "samesite=strict" in lowered, header
         assert "httponly" in lowered, header
 
 

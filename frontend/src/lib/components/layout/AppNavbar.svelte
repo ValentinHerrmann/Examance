@@ -54,7 +54,7 @@
     userEmail = null,
     storageMode = null,
     latexCompilation = "local",
-    versionStatus = "no-server",
+    versionStatus = "unknown",
     helpUnseen = false,
     onHelpClick = () => {},
     onOpenArchive = () => {},

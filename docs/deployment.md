@@ -71,8 +71,8 @@ flowchart LR
   WREL -.->|"ssh: pull, migrate, up -d"| SP
   WPRE -.->|"ssh: pull, migrate, up -d"| SV
 
-  CFP -->|"HTTPS /api/v1"| SP
-  CFV -->|"HTTPS /api/v1"| SV
+  CFP -->|"Function /api/* → HTTPS"| SP
+  CFV -->|"Function /api/* → HTTPS"| SV
 ```
 
 Each environment is a complete, isolated stack. The compose **project name** namespaces both container names and named volumes, so the two databases can never collide and **no preview process can reach production data**.
@@ -242,7 +242,9 @@ Everything that differs per environment is a GitHub **Environment variable** (Se
 | Environment variable | Production | Preview |
 |---|---|---|
 | `DEPLOY_APP_DIR` | `/home/deploy/examance` | `/home/deploy/examance` |
-| `BACKEND_PUBLIC_URL` | `https://api.examance.…` | `https://api-preview.examance.…` |
+| `BACKEND_PUBLIC_URL` | `https://api.examance.de/` | `https://preview-api.examance.de/` |
+
+`BACKEND_PUBLIC_URL` is the backend host the Pages Function forwards to (its `BACKEND_ORIGIN`). Browsers never call it; the deploy health check does, and `GET /api/health` is the one path the backend answers there without the proxy secret.
 
 Per-environment `SECRET_KEY` and `POSTGRES_PASSWORD` live **only** in the server's `.env` files and never pass through CI. Production and preview must use **different** values for both — sharing a `SECRET_KEY` would let a preview build mint tokens production accepts.
 
@@ -252,9 +254,9 @@ One Pages project builds the frontend for both stacks. What each build variable 
 
 - Root directory `frontend/`, build command `npm run build`, output `build/`.
 - Production branch: `release`.
-- Preview branches: **only** `preview` (Settings → Builds → "Include only certain branches"). This keeps every feature branch from consuming build minutes and gives preview a stable URL, `preview.examance.de`, which must be listed in the preview `CORS_ALLOWED_ORIGINS` (there is no wildcard default).
-- **Custom domains for both environments** (Settings → Custom domains): `examance.de` for `release`, `preview.examance.de` for `preview` (plus the old `*.valentin-herrmann.com` domains until the end of the [domain move](domain_move.md)), APIs at `api.examance.de` and `preview-api.examance.de`. Each stack's `FRONTEND_URL` points at its domain, never at `*.pages.dev` ([why](hosting.md#_4-2-settings)).
-- Variables (Settings → Variables and Secrets), per environment: `PUBLIC_DEFAULT_BACKEND_URL` (that environment's API origin), and for **both** environments the `VITE_LEGAL_*` operator details, since the legal pages are public on both stacks. Optional `BUSYTEX_MIRROR_URL` for both (see below).
+- Preview branches: **only** `preview` (Settings → Builds → "Include only certain branches"). This keeps every feature branch from consuming build minutes and gives preview a stable URL, `preview.examance.de`.
+- **Custom domains for both environments** (Settings → Custom domains): `examance.de` for `release`, `preview.examance.de` for `preview`, plus the old `*.valentin-herrmann.com` domains until the end of the [domain move](#domain-move-to-examance-de). Each stack's `FRONTEND_URL` points at its domain, never at `*.pages.dev` ([why](hosting.md#_4-2-settings)).
+- **The API is the site's own `/api`** (`frontend/functions/api`, [why](hosting.md#_5-2-serve)). Variables (Settings → Variables and Secrets), per environment: `BACKEND_ORIGIN` (`https://api.examance.de` / `https://preview-api.examance.de`) and the secret `BACKEND_PROXY_SECRET` (the stack's `PROXY_SHARED_SECRET`, different per environment), and for **both** environments the `VITE_LEGAL_*` operator details, since the legal pages are public on both stacks. Optional `BUSYTEX_MIRROR_URL` for both (see below).
 - **Web Analytics, Rocket Loader and Email Obfuscation stay off**: they inject scripts after the build, which the Content Security Policy blocks ([troubleshooting](hosting.md#_5-3-troubleshooting-executing-inline-script-violates-content-security-policy)).
 
 ### BusyTeX mirror (Cloudflare R2)
@@ -286,9 +288,9 @@ Set up each stack as in [Host Examance, section 4](hosting.md#_4-backend), with 
 
 - **Directories**: `$DEPLOY_APP_DIR/prod` and `$DEPLOY_APP_DIR/preview`, each with its own `.env` from `deploy/env.prod.example` / `deploy/env.preview.example` (mode 0600, never committed). Nothing else: every deploy writes `docker-compose.deploy.yml` and `restore-backup.sh` next to `.env` and sets `BACKEND_IMAGE`.
 - **Project names** `examance-prod` and `examance-preview`, so containers and volumes never mix and no preview process can reach production data.
-- **Different values** for `SECRET_KEY` and `POSTGRES_PASSWORD` (a shared key would let preview mint tokens production accepts), `APP_PORT`, `NETWORK_SUBNET` and therefore `PROXY_ALLOWED_IPS`, `FRONTEND_URL` (so each stack has its own passkeys), `CORS_ALLOWED_ORIGINS` and `ALLOWED_HOSTS`; with backups, a separate blob directory, restic repository prefix and password per stack.
+- **Different values** for `SECRET_KEY` and `POSTGRES_PASSWORD` (a shared key would let preview mint tokens production accepts), `APP_PORT`, `NETWORK_SUBNET` and therefore `PROXY_ALLOWED_IPS`, `FRONTEND_URL` (so each stack has its own passkeys), `FRONTEND_ORIGINS`, `PROXY_SHARED_SECRET` and `ALLOWED_HOSTS`; with backups, a separate blob directory, restic repository prefix and password per stack.
 - **First boot by hand** (pull, migrate, `up -d`, gateway into `PROXY_ALLOWED_IPS`) as in [section 4.3](hosting.md#_4-3-first-start), with `-p examance-prod` / `-p examance-preview`. Afterwards every deploy does pull, migrate and restart itself, plus the cache warm-up in the `latex` container (bounded to 300 s, non-fatal).
-- **Caddy** has one site block per stack, each a plain `reverse_proxy` to its `APP_PORT`. It is managed on the host and deliberately **not** touched by the workflows.
+- **Caddy** has one site block per stack (`api.examance.de`, `preview-api.examance.de`), each a plain `reverse_proxy` to its `APP_PORT`; only the Pages Functions call them. It is managed on the host and deliberately **not** touched by the workflows.
 
 ---
 
@@ -303,7 +305,7 @@ Generic operations (logs, rollback, restore): [Host Examance, section 7](hosting
 **Check what is actually deployed**
 
 ```bash
-curl -s https://api.examance.de/api/health
+curl -s https://examance.de/api/health   # through the Pages Function
 # {"status":"ok","version":"1.4.0"}
 ```
 
@@ -319,3 +321,48 @@ docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env 
 ```bash
 docker volume ls | grep examance   # expect <project>_pg_data, _tectonic_cache, _blob_data (and _restic_cache with backups) for prod and preview
 ```
+
+---
+
+## 8. Domain move to examance.de (issue #198) {#domain-move-to-examance-de}
+
+The general procedure and its reasons: [Moving to a new domain](hosting.md#_7-1-moving-to-a-new-domain). The maintainer's values:
+
+| | Old (until the redirect) | New |
+|---|---|---|
+| Production app | `examance.valentin-herrmann.com` | `examance.de` |
+| Preview app | `prev-examance.valentin-herrmann.com` | `preview.examance.de` |
+| Backend hosts (only the Pages Function calls them) | `api-examance…`, `prev-api-examance…` (dropped) | `api.examance.de`, `preview-api.examance.de` |
+
+Defaults built into `frontend/scripts/domain-move.mjs`: redirect date **2026-11-23** (`PUBLIC_DOMAIN_MOVE_REDIRECT_DATE` overrides it). Old passkeys are accepted until `WEBAUTHN_LEGACY_RP_IDS` is emptied, planned for **2027-01-31**.
+
+**Phase 1, before deploying the release**
+
+- [ ] DNS (Cloudflare): `api.examance.de` and `preview-api.examance.de` to the server. `examance.de` and `preview.examance.de` are created by Pages when the custom domains are added.
+- [ ] Pages → Custom domains: add `examance.de` (release) and `preview.examance.de` (preview). **Keep the old domains attached.**
+- [ ] Pages → Variables, per environment: `BACKEND_ORIGIN`, secret `BACKEND_PROXY_SECRET` (`openssl rand -hex 32`, different per environment); delete `PUBLIC_DEFAULT_BACKEND_URL`.
+- [ ] GitHub → Environments: `BACKEND_PUBLIC_URL` = `https://api.examance.de/` / `https://preview-api.examance.de/`.
+- [ ] Caddy: site blocks `api.examance.de` and `preview-api.examance.de` with the existing `reverse_proxy`; the old API site blocks can go once the release is live.
+- [ ] Each stack's `.env` (templates: `deploy/env.prod.example`, `deploy/env.preview.example`):
+  - `FRONTEND_URL=https://examance.de/` (preview: `https://preview.examance.de/`)
+  - `FRONTEND_ORIGINS=["https://examance.de","https://examance.valentin-herrmann.com"]` (preview: the two preview origins)
+  - `WEBAUTHN_LEGACY_RP_IDS=["examance.valentin-herrmann.com"]` (preview: `["prev-examance.valentin-herrmann.com"]`)
+  - `PROXY_SHARED_SECRET=` the environment's `BACKEND_PROXY_SECRET`
+  - `ALLOWED_HOSTS=["api.examance.de","127.0.0.1","localhost"]` (preview: `preview-api.examance.de`)
+  - **delete** `CORS_ALLOWED_ORIGINS` and `CORS_ALLOWED_ORIGIN_REGEX` (both are gone and ignored)
+  - optional: `SMTP_FROM_EMAIL` on `examance.de` with SPF/DKIM
+
+**Phase 2, on the redirect date**
+
+- [ ] Cloudflare → `valentin-herrmann.com` zone → Rules → Redirect Rules, one per environment:
+  - expression `(http.host eq "examance.valentin-herrmann.com" and http.request.uri.path ne "/.well-known/webauthn")`
+  - dynamic target `concat("https://examance.de", http.request.uri.path)`, status 301, preserve query string
+  - preview: the same with `prev-examance.valentin-herrmann.com` and `https://preview.examance.de`
+- [ ] `.env`: remove the old origin from `FRONTEND_ORIGINS`, restart.
+- [ ] `curl -sI https://examance.valentin-herrmann.com/.well-known/webauthn` answers 200 JSON without `Location`; any other path 301.
+
+**Phase 3, 2027-01-31**
+
+- [ ] `.env`: `WEBAUTHN_LEGACY_RP_IDS=[]`, restart. Delete the redirect rules' exception, or the old domains.
+- [ ] Follow-up PR: remove the defaults in `frontend/scripts/domain-move.mjs`.
+

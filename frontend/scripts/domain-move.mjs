@@ -1,23 +1,15 @@
-// Domain move (issue #198, docs/domain_move.md): which old address this build retires, where to, and by when. Read by vite.config.ts (`__DOMAIN_MOVE__`, the in-app notice) and by related-origins.mjs (`/.well-known/webauthn`). Delete the defaults once the old addresses are switched off.
+// Domain move (issue #198, docs/hosting.md "Moving to a new domain"): which old address this build retires, where to, and from when it forwards. Read by vite.config.ts (`__DOMAIN_MOVE__`) and related-origins.mjs (`/.well-known/webauthn`). Delete the defaults once old passkeys are no longer accepted.
 
-/** @typedef {{ from: string, fromBackendUrl: string, to: string, deadline: string }} DomainMove */
+/** @typedef {{ from: string, to: string, redirectDate: string }} DomainMove */
 
-/** @type {Record<'release' | 'preview', Omit<DomainMove, 'deadline'>>} */
+/** @type {Record<'release' | 'preview', Omit<DomainMove, 'redirectDate'>>} */
 const DEFAULTS = {
-  release: {
-    from: 'examance.valentin-herrmann.com',
-    fromBackendUrl: 'https://api-examance.valentin-herrmann.com',
-    to: 'https://examance.de',
-  },
-  preview: {
-    from: 'prev-examance.valentin-herrmann.com',
-    fromBackendUrl: 'https://prev-api-examance.valentin-herrmann.com',
-    to: 'https://preview.examance.de',
-  },
+  release: { from: 'examance.valentin-herrmann.com', to: 'https://examance.de' },
+  preview: { from: 'prev-examance.valentin-herrmann.com', to: 'https://preview.examance.de' },
 };
 
-/** The day the old addresses stop working (ISO date, Europe/Berlin). */
-const DEFAULT_DEADLINE = '2026-12-07';
+/** The day the old address starts forwarding (ISO date, Europe/Berlin); until then it serves only hybrid accounts taking their results along. */
+const DEFAULT_REDIRECT_DATE = '2026-11-23';
 
 /**
  * The move this build announces, or null. Pages builds of `release` and `preview` get the defaults above; `PUBLIC_DOMAIN_MOVE_*` override them, and an empty `PUBLIC_DOMAIN_MOVE_FROM` switches the move off.
@@ -32,8 +24,7 @@ export function computeDomainMove(env, branch) {
   if (!from || !to) return null;
   return {
     from,
-    fromBackendUrl: env.PUBLIC_DOMAIN_MOVE_FROM_BACKEND_URL ?? fallback?.fromBackendUrl ?? '',
     to: new URL(to).origin,
-    deadline: env.PUBLIC_DOMAIN_MOVE_DEADLINE ?? DEFAULT_DEADLINE,
+    redirectDate: env.PUBLIC_DOMAIN_MOVE_REDIRECT_DATE ?? DEFAULT_REDIRECT_DATE,
   };
 }

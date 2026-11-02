@@ -14,10 +14,10 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import settings
 from app.middleware.body_limit import BodyLimitMiddleware
-from app.middleware.cors import add_cors_middleware, is_allowed_origin
 from app.middleware.csp import CSPMiddleware
 from app.middleware.maintenance_header import MaintenanceHeaderMiddleware
 from app.middleware.origin_guard import OriginGuardMiddleware
+from app.middleware.proxy_auth import ProxyAuthMiddleware
 from app.middleware.rate_limit import limiter
 from app.routers import (
     admin,
@@ -221,20 +221,12 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        # Runs in ServerErrorMiddleware, outside CORSMiddleware, so a 500 would reach the browser without Access-Control-Allow-Origin and look like a CORS error, hiding the real fault. Headers are added by hand, for allowlisted origins only.
         logging.getLogger("app.main").exception(
             "Unhandled exception on %s %s", request.method, request.url.path
         )
-        headers: dict[str, str] = {}
-        origin = request.headers.get("origin")
-        if is_allowed_origin(origin) and origin is not None:
-            headers["Access-Control-Allow-Origin"] = origin
-            headers["Access-Control-Allow-Credentials"] = "true"
-            headers["Vary"] = "Origin"
         return JSONResponse(
             status_code=500,
             content={"detail": "Internal server error", "code": "ERR_INTERNAL"},
-            headers=headers,
         )
 
     # Middleware — registration order matters (last added = outermost)
@@ -246,7 +238,8 @@ def create_app() -> FastAPI:
     app.add_middleware(OriginGuardMiddleware)
     app.add_middleware(CSPMiddleware)
     app.add_middleware(MaintenanceHeaderMiddleware)
-    add_cors_middleware(app)  # Must be after BodyLimit so CORS headers appear on 413 too
+    # Outermost: everything inside, rate limits included, sees the proxy's client address.
+    app.add_middleware(ProxyAuthMiddleware)
 
     # Routers
     API_PREFIX = "/api/v1"

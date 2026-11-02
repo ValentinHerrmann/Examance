@@ -12,9 +12,10 @@ x-backend-env: &backend-env
   JWT_ALGORITHM: HS256
   ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
   REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
-  # Required — the app refuses to start on an empty list, and there is no
-  # wildcard fallback. Must name the frontend origin for THIS environment.
-  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS must be set}
+  # Origins the API accepts (it is served at the frontend's /api, so no CORS); empty = FRONTEND_URL's.
+  FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-[]}
+  # Shared with the Cloudflare Pages Function in front of the API (BACKEND_PROXY_SECRET there).
+  PROXY_SHARED_SECRET: ${PROXY_SHARED_SECRET:-}
   ALLOWED_HOSTS: ${ALLOWED_HOSTS:-[]}
   ENVIRONMENT: ${ENVIRONMENT:-production}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -23,7 +24,7 @@ x-backend-env: &backend-env
   # Default must stay off *.pages.dev — that domain is URL-blocklisted and mail
   # relays reject password-reset links pointing at it (see config.py).
   FRONTEND_URL: ${FRONTEND_URL:-https://examance.de}
-  # Domain move (issue #198, docs/domain_move.md): passkeys of the old domain keep signing in until this is emptied.
+  # Domain move (issue #198, docs/hosting.md, "Moving to a new domain"): passkeys of the old domain keep signing in until this is emptied.
   WEBAUTHN_LEGACY_RP_IDS: ${WEBAUTHN_LEGACY_RP_IDS:-[]}
   SMTP_HOST: ${SMTP_HOST:-}
   SMTP_PORT: ${SMTP_PORT:-587}

@@ -3,11 +3,8 @@
   import { locale, t } from "#lib/i18n";
   import { docsHref } from "#lib/help/docsLink";
 
-  /** Slim page footer (Artemis): legal links, docs link, server address, version, pinned to the bottom by `mt-auto`. Renders on the grade page too (section 5 DDG: Impressum reachable from every page). The backend's version wins when known (the server is the source of truth for compatibility); mismatches are also flagged in the navbar. */
+  /** Slim page footer (Artemis): legal links, docs link, version, pinned to the bottom by `mt-auto`. Renders on the grade page too (section 5 DDG: Impressum reachable from every page). The backend's version wins when known (the server is the source of truth for compatibility); mismatches are also flagged in the navbar. */
   interface Props {
-    onBackendClick: () => void;
-    backendLabel?: string;
-    unlocked?: boolean;
     frontendVersion?: string;
     backendVersion?: string | null;
     versionStatus?: VersionStatus;
@@ -15,12 +12,9 @@
   }
 
   let {
-    onBackendClick,
-    backendLabel = "",
-    unlocked = true,
     frontendVersion = "",
     backendVersion = null,
-    versionStatus = "no-server",
+    versionStatus = "unknown",
     versionUrl = null,
   }: Props = $props();
 
@@ -30,7 +24,6 @@
     mismatch: $t("statusBar.versionMismatch", { version: displayVersion }),
     incompatible: $t("statusBar.versionIncompatible", { version: displayVersion }),
     unknown: $t("statusBar.versionUnknown", { version: displayVersion }),
-    "no-server": $t("statusBar.versionNoServer", { version: displayVersion }),
   }[versionStatus]);
 
   // Bare semver is a tagged release; PR builds link to the PR, others to the commit. Said in the tooltip.
@@ -49,7 +42,6 @@
     mismatch: "text-warning-fg font-semibold",
     incompatible: "text-danger-fg font-semibold",
     unknown: "text-muted",
-    "no-server": "text-muted",
   };
 
   const item = "inline-flex min-h-6 items-center whitespace-nowrap text-muted no-underline hover:text-content hover:underline";
@@ -68,14 +60,6 @@
   <a href={docsHref("", $locale)} class={item} target="_blank" rel="noopener noreferrer">{$t("nav.docs")}</a>
 
   <div class="ml-auto flex min-w-0 items-center gap-x-4">
-    <button
-      type="button"
-      class="{item} min-w-0 cursor-pointer border-0 bg-transparent p-0"
-      title={unlocked ? $t("statusBar.backendConfigureHint") : $t("statusBar.backendCurrent")}
-      onclick={onBackendClick}
-    >
-      <span class="max-w-[24ch] truncate sm:max-w-[40ch]">{backendLabel || $t("statusBar.noServer")}</span>
-    </button>
     {#if versionUrl}
       <a
         href={versionUrl}

@@ -1,8 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readable } from 'svelte/store';
-
-vi.mock('../src/lib/stores/backendStore', () => ({ backendStore: readable('https://api.test') }));
-
 import { api, ApiError } from '../src/lib/api/client';
 
 describe('api client retry after a token refresh', () => {

@@ -15,7 +15,8 @@
 </script>
 
 {#if show && domainMove}
-  <Button variant="text" severity="secondary" size="sm" block {disabled} {onClick}>
+  <p class="m-0 text-center text-xs text-muted">{$t("domainMove.legacyHint", { from: domainMove.from })}</p>
+  <Button variant="outlined" severity="secondary" size="sm" block {disabled} {onClick}>
     {$t("domainMove.legacyPasskey", { from: domainMove.from })}
   </Button>
 {/if}

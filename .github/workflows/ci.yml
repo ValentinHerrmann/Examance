@@ -58,7 +58,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://blindgrade:blindgrade@localhost:5432/blindgrade_test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-not-for-production
-          CORS_ALLOWED_ORIGINS: '["http://localhost:5173"]'
+          FRONTEND_URL: http://localhost:5173
         run: cd backend && pytest --cov=app --cov-report=xml
       # pip-audit has no --severity flag and -r needs a requirements file, so audit the
       # project path: it checks the declared dependencies and fails on ANY known advisory.

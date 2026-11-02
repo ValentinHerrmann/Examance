@@ -6,23 +6,16 @@
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
   import { ApiError } from "#lib/api/client";
+  import { deletePasskey, type PasskeySummary } from "#lib/api/webauthn";
+  import { isSupported } from "#lib/webauthn/client";
   import {
-    deletePasskey,
-    loginOptions,
-    registrationOptions,
-    verifyRegistration,
-    type PasskeySummary,
-  } from "#lib/api/webauthn";
-  import { authenticate, isSupported, register } from "#lib/webauthn/client";
-  import {
-    addPasskeyWrap,
     enablePasskeyUnlock,
     passkeyWrapIds,
     PrfUnavailableError,
     sameCredential,
-    vaultFromSession,
   } from "#lib/services/keyEnvelopeService";
-  import { deadlineDate, domainMove, newHost, onOldAddress } from "#lib/domainMove";
+  import { addPasskey } from "#lib/services/passkeyRegistration";
+  import { domainMove, newHost, onOldAddress } from "#lib/domainMove";
 
   interface Props {
     teacherId: string;
@@ -87,7 +80,6 @@
   const supported = isSupported();
   // Domain move (issue #198): the old address makes no new passkeys, they would stop working with it.
   const oldAddress = onOldAddress();
-  const moveDeadline = deadlineDate();
 
   async function add() {
     if (isWorking) {
@@ -96,42 +88,14 @@
     isWorking = true;
     errorMsg = "";
     try {
-      const options = await registrationOptions();
-      // Both ceremonies use the app-wide PRF input, which keeps the secret reproducible at sign-in.
-      const result = await register(options);
-
-      const summary = await verifyRegistration({
-        handle: options.handle,
-        challenge_b64: options.challenge_b64,
-        credential_json: result.credentialJson,
-        supports_prf: result.supportsPrf,
-        nickname: nickname.trim() || null,
-      });
-
+      const { summary, wrap } = await addPasskey(teacherId, nickname.trim() || null);
       nickname = "";
       noticeMsg = "";
-
-      const vault = vaultFromSession();
-      if (vault) {
-        // Wrap the data key under the PRF secret. Providers that evaluate PRF at creation need no second prompt (issue #71); the others get one, pinned to the new credential so no other passkey seals it.
-        try {
-          const prfOutput =
-            result.prfOutput ??
-            (
-              await authenticate(await loginOptions(), {
-                credentialIdB64: summary.credential_id_b64,
-                transports: result.transports,
-              })
-            ).prfOutput;
-          if (prfOutput) {
-            await addPasskeyWrap(teacherId, vault, summary.credential_id_b64, prfOutput);
-          } else {
-            unlockNotes = { ...unlockNotes, [summary.credential_id_b64]: "noPrf" };
-          }
-        } catch {
-          // Registered all the same; only the wrap is outstanding.
-          noticeMsg = $t("security.passkey.addedUnlockPending");
-        }
+      if (wrap === "noPrf") {
+        unlockNotes = { ...unlockNotes, [summary.credential_id_b64]: "noPrf" };
+      } else if (wrap === "pending") {
+        // Registered all the same; only the wrap is outstanding.
+        noticeMsg = $t("security.passkey.addedUnlockPending");
       }
 
       onChanged();
@@ -203,10 +167,8 @@
                     })
                   : $t("security.passkey.neverUsed")}
               </p>
-              {#if passkey.legacy && domainMove && moveDeadline}
-                <p class="m-0 mt-1 text-xs text-warning-fg">
-                  {$t("domainMove.passkeyOld", { from: domainMove.from, date: $fmt.date(moveDeadline) })}
-                </p>
+              {#if passkey.legacy && domainMove}
+                <p class="m-0 mt-1 text-xs text-warning-fg">{$t("domainMove.passkeyOld", { from: domainMove.from })}</p>
               {/if}
               {#if wrapIds !== null}
                 {#if opensData(passkey.credential_id_b64, wrapIds)}

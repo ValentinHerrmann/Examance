@@ -21,14 +21,18 @@
     primary: Action;
     /** Outlined button; also what closing the dialog does. */
     secondary: Action;
+    /** The primary action is running: it shows a spinner and both buttons wait. */
+    busy?: boolean;
+    /** Shown as an alert above the actions (Modal's `error`). */
+    error?: string;
   }
 
-  let { open, icon, tone, title, body, primary, secondary }: Props = $props();
+  let { open, icon, tone, title, body, primary, secondary, busy = false, error = "" }: Props = $props();
 
   const badge = { danger: "bg-danger/20 text-danger-fg", info: "bg-info/20 text-info-fg" };
 </script>
 
-<Modal {open} size="small" onClose={secondary.onClick} bare>
+<Modal {open} size="small" onClose={busy ? undefined : secondary.onClick} {error} bare>
   <div class="flex flex-col items-center gap-4 p-8 text-center">
     <div class="flex size-14 items-center justify-center rounded-full text-2xl {badge[tone]}">
       <Icon {icon} />
@@ -36,10 +40,10 @@
     <h3 class="m-0 text-xl font-semibold text-content">{title}</h3>
     <p class="m-0 text-sm text-muted">{body}</p>
     <div class="mt-2 flex w-full flex-col gap-2">
-      <Button severity={tone === "danger" ? "danger" : "primary"} block href={primary.href} onClick={primary.onClick}>
+      <Button severity={tone === "danger" ? "danger" : "primary"} block href={primary.href} onClick={primary.onClick} loading={busy}>
         {primary.label}
       </Button>
-      <Button variant="outlined" severity="secondary" block href={secondary.href} onClick={secondary.onClick}>
+      <Button variant="outlined" severity="secondary" block href={secondary.href} onClick={secondary.onClick} disabled={busy}>
         {secondary.label}
       </Button>
     </div>

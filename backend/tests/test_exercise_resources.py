@@ -10,7 +10,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
-from app.middleware.cors import is_allowed_origin
+from app.middleware.origin_guard import is_allowed_origin
 
 from .factors import compile_job, sign_in
 

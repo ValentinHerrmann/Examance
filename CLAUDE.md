@@ -2,7 +2,7 @@
 
 > Start every response with "Vale". Tripwire: if it stops, this file stopped being read.
 
-Examance = product name. "BlindGrade" = old name, still the repo name and some internal identifiers (DB user, default CORS origin). Legacy, not bugs — don't "fix".
+Examance = product name. "BlindGrade" = old name, still the repo name and some internal identifiers (DB user). Legacy, not bugs — don't "fix".
 
 Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-decoded pseudonymous submissions, canvas-annotation grading, analytics. Client-side encryption at rest: Argon2id + HKDF-SHA-256 + AES-256-GCM (`docs/data_flow_and_security.md`).
 

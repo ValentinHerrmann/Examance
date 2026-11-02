@@ -1,14 +1,12 @@
-/** Domain move (issue #198, docs/domain_move.md): the build names the address it retires (`scripts/domain-move.mjs`); this page runs on the old one, the new one, or neither. */
+/** Domain move (issue #198, docs/hosting.md "Moving to a new domain"): the build names the address it retires (`scripts/domain-move.mjs`); this page runs on the old one, the new one, or neither. */
 
 export interface DomainMove {
   /** Host of the old frontend, also the RP ID of its passkeys. */
   from: string;
-  /** API the old frontend keeps using: same site as `from`, so its cookies stay first-party. */
-  fromBackendUrl: string;
   /** Origin of the new frontend. */
   to: string;
-  /** ISO date from which the old address no longer works. */
-  deadline: string;
+  /** ISO date from which the old address forwards to the new one. */
+  redirectDate: string;
 }
 
 export const domainMove: DomainMove | null = (() => {
@@ -18,6 +16,8 @@ export const domainMove: DomainMove | null = (() => {
     return null;
   }
 })();
+
+const LEGACY_SIGN_IN_KEY = "examance.signedInWithOldPasskey";
 
 function currentHost(): string {
   return typeof location === "undefined" ? "" : location.hostname;
@@ -38,7 +38,30 @@ export function newHost(): string {
   return domainMove ? new URL(domainMove.to).host : "";
 }
 
-/** Deadline as a local date (midnight), for `$fmt.date`. */
-export function deadlineDate(): Date | null {
-  return domainMove ? new Date(`${domainMove.deadline}T00:00:00`) : null;
+/** The same page on the new address. */
+export function newAddressHref(path: string): string {
+  return domainMove ? new URL(path, domainMove.to).href : path;
+}
+
+/** Redirect date as a local date (midnight), for `$fmt.date`. */
+export function redirectDate(): Date | null {
+  return domainMove ? new Date(`${domainMove.redirectDate}T00:00:00`) : null;
+}
+
+/** Marks this tab's sign-in as made with a passkey of the old address: it must be replaced before going on. */
+export function rememberOldPasskeySignIn(value: boolean): void {
+  try {
+    if (value) sessionStorage.setItem(LEGACY_SIGN_IN_KEY, "1");
+    else sessionStorage.removeItem(LEGACY_SIGN_IN_KEY);
+  } catch {
+    // Storage may be blocked; the dialog then offers "Later" instead of insisting.
+  }
+}
+
+export function signedInWithOldPasskey(): boolean {
+  try {
+    return sessionStorage.getItem(LEGACY_SIGN_IN_KEY) === "1";
+  } catch {
+    return false;
+  }
 }

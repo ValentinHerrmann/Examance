@@ -51,10 +51,8 @@ def _challenge_bytes(value: str) -> bytes:
 
 
 def _expected_origins() -> list[str]:
-    origins = list(settings.CORS_ALLOWED_ORIGINS)
-    if settings.FRONTEND_URL and settings.FRONTEND_URL not in origins:
-        origins.append(settings.FRONTEND_URL.rstrip("/"))
-    return origins
+    # FRONTEND_ORIGINS already contains FRONTEND_URL's origin unless it is set explicitly; during a domain move it also holds the old frontend.
+    return list(settings.FRONTEND_ORIGINS)
 
 
 class LegacyAddressError(ValueError):

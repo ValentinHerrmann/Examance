@@ -23,7 +23,6 @@
   import AccountPackagesCard from "#lib/components/latex-packages/AccountPackagesCard.svelte";
   import { trainingDonationStore } from "#lib/stores/trainingDonation";
   import { fetchDonationAvailable } from "#lib/services/trainingDonation";
-  import { backendStore, extractHostname } from "#lib/stores/backendStore";
   import { exportStudentData, toDownloadableJson } from "#lib/gdpr/subjectAccess";
   import {
     locale,
@@ -38,7 +37,6 @@
   import SecuritySection from "#lib/components/security/SecuritySection.svelte";
   import SettingsGroupHeading from "#lib/components/settings/SettingsGroupHeading.svelte";
   import DeleteAccountCard from "#lib/components/settings/DeleteAccountCard.svelte";
-  import BackendUrlCard from "#lib/components/settings/BackendUrlCard.svelte";
   import { requestedModeSwitch } from "#lib/services/storageModeSwitch";
   import { currentManifest, refreshCapabilities } from "#lib/db/workspace";
   import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
@@ -74,7 +72,7 @@
       ? ""
       : translate("storagePolicy.workspace.ownerAccount", {
           account: $sessionStore.email ?? owner.accountEmail ?? owner.accountId ?? "?",
-          server: extractHostname(owner.backendOrigin ?? ""),
+          server: location.host,
         });
   }
   let donationAvailable = $state(false);
@@ -161,7 +159,6 @@
     { id: "group-general", label: $t("settings.groups.general"), group: true },
     { id: "language", label: $t("settings.language.heading") },
     { id: "theme", label: $t("settings.theme.heading") },
-    { id: "backend", label: $t("settings.backend.heading") },
     { id: "group-account", label: $t("settings.groups.account"), group: true },
     ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
     ...(isAdmin ? [] : [
@@ -241,7 +238,7 @@
           enabled={$trainingDonationStore.enabled}
           available={donationAvailable && $featuresStore.training_donation === true}
           signedIn={$isAuthenticated}
-          host={extractHostname($backendStore)}
+          host={location.host}
           onChange={(enabled) => trainingDonationStore.setEnabled(enabled)}
         />
         {/if}
@@ -259,8 +256,6 @@
           allowedModes={$allowedStorageModes}
           serverLatexEnabled={$featuresStore.server_latex === true}
         />
-
-        <BackendUrlCard />
 
         <SettingsGroupHeading id="group-account" title={$t("settings.groups.account")} />
 

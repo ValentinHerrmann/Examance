@@ -18,7 +18,7 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 
 ## Run
 
-1. Start the dev stack: PostgreSQL with user/database `blindgrade` (`CREATEDB` right), Redis, `backend/.env` from `.env.example` with `http://localhost:4173` in `CORS_ALLOWED_ORIGINS`, `uvicorn app.main:app --port 8000` in `backend/`, and `npx vite dev --port 4173` in `frontend/`. The frontend needs the BusyTeX assets (`node scripts/fetch-busytex.mjs static/core && node scripts/process-large-files.mjs static`), because the exams are compiled in the browser.
+1. Start the dev stack: PostgreSQL with user/database `blindgrade` (`CREATEDB` right), Redis, `backend/.env` from `.env.example` (development accepts any loopback port; Vite proxies `/api` to the backend), `uvicorn app.main:app --port 8000` in `backend/`, and `npx vite dev --port 4173` in `frontend/`. The frontend needs the BusyTeX assets (`node scripts/fetch-busytex.mjs static/core && node scripts/process-large-files.mjs static`), because the exams are compiled in the browser.
 2. Python with `pymupdf pillow qrcode numpy` for the scan generator (`DEMO_PYTHON=/path/to/python`).
 3. `./setup.sh` (about 40 minutes, mostly scan import and grading). `CHROMIUM_PATH` points Playwright at a browser if its own is not installed.
 

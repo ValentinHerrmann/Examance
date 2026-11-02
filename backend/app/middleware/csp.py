@@ -5,18 +5,16 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.config import settings
-
 
 class CSPMiddleware(BaseHTTPMiddleware):
     """Inject a strict Content-Security-Policy header on every response."""
 
     def _build_csp(self) -> str:
-        # Inline styles only for SvelteKit hydration; script-src 'self' (no eval, no inline scripts). connect-src covers only the API's own responses; CORS preflight is CORSMiddleware's job.
+        # Inline styles only for SvelteKit hydration; script-src 'self' (no eval, no inline scripts). The API is same-origin with the frontend (issue #198), so connect-src is 'self'.
         return (
             "default-src 'none'; "
             "script-src 'self'; "
-            f"connect-src 'self' {' '.join(settings.CORS_ALLOWED_ORIGINS)}; "
+            "connect-src 'self'; "
             "worker-src 'self'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; "

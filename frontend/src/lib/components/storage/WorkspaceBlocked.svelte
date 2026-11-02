@@ -5,7 +5,6 @@
   import { Alert, Button, Checkbox } from '#lib/components/ui';
   import { lockSession } from '#lib/db/hygiene';
   import { describeWorkspace, resetWorkspaceForCurrentSession, type WorkspaceSummary } from '#lib/db/workspace';
-  import { extractHostname } from '#lib/stores/backendStore';
   import type { WorkspaceBlockReason } from '#lib/stores/workspaceState';
 
   interface Props {
@@ -57,13 +56,7 @@
     return summary?.accountEmail ? 'accountOwned' : 'unknownOwner';
   });
   let copy = $derived(COPY[variant]);
-  let owner = $derived(
-    summary?.accountEmail
-      ? summary.backendOrigin
-        ? `${summary.accountEmail} (${extractHostname(summary.backendOrigin)})`
-        : summary.accountEmail
-      : '?',
-  );
+  let owner = $derived(summary?.accountEmail ?? '?');
   // Results kept only in this browser are lost for good by a reset.
   let losesLocalResults = $derived((summary?.localResults ?? 0) > 0);
 

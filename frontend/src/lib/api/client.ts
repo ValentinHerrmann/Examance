@@ -3,7 +3,6 @@
 import { get } from 'svelte/store';
 import { sessionStore } from '#lib/stores/session';
 import { translate, translateOptional } from '#lib/i18n';
-import { backendStore } from '#lib/stores/backendStore';
 import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { loginLockout } from '#lib/stores/loginLockout';
 import { noteMaintenanceRevision, refreshMaintenance } from '#lib/stores/maintenanceStore';
@@ -18,12 +17,11 @@ function withTimeoutSignal(timeoutMs: number): { signal: AbortSignal; cancel: ()
   return { signal: controller.signal, cancel: () => clearTimeout(timer) };
 }
 
+/** The API always lives at this page's own origin (issue #198): Vite proxies it in dev, a reverse proxy or the Pages Function (`functions/api`) in production. */
+const API_BASE = '/api/v1';
+
 function getBaseUrl(): string {
-  const url = get(backendStore);
-  if (!url) {
-    throw new ApiError(0, 'ERR_NO_SERVER_URL', 'Backend server address is not configured. Please enter a server address.');
-  }
-  return `${url.replace(/\/$/, '')}/api/v1`;
+  return API_BASE;
 }
 
 export class ApiError extends Error {

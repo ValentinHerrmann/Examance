@@ -28,7 +28,7 @@ BLOCKLISTED_LINK_DOMAINS = (
 )
 
 # Loopback origins on arbitrary ports (http/https on localhost or 127.0.0.1). Allowed ONLY when ENVIRONMENT == "development" to permit local frontend debugging without enabling local CSRF in production.
-LOCALHOST_CORS_ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
+LOCALHOST_ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
 
 
 class Settings(BaseSettings):
@@ -51,9 +51,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_TTL_MINUTES: int = 15
     REFRESH_TOKEN_TTL_DAYS: int = 7
 
-    # CORS — required; app refuses to start if unset or empty
-    CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "https://examance.pages.dev"]
-    # There is deliberately no origin pattern (issue #198): credentialed cookies are SameSite=None, so every subdomain a wildcard admits could act as the teacher. Loopback origins on any port are added by `effective_cors_origin_regex` in development only.
+    # The API is served at the frontend's own origin under /api (issue #198), so there is no CORS. These are the origins the origin guard and WebAuthn accept; empty means the origin of FRONTEND_URL. A domain move adds the old frontend origin until its redirect. Loopback origins on any port are added in development only (`dev_origin_regex`).
+    FRONTEND_ORIGINS: list[str] = []
+
+    # Shared with the edge proxy in front of the API (Cloudflare Pages Function, `frontend/functions/api`). When set, every request but GET /api/health must carry it, and only then is the proxy's client-IP header believed (`middleware/proxy_auth.py`). Unset behind a plain reverse proxy.
+    PROXY_SHARED_SECRET: str | None = None
 
     # Host header allowlist (Host-spoofing protection). Deployment-specific, so it stays opt-in: TrustedHostMiddleware is only registered when non-empty.
     ALLOWED_HOSTS: list[str] = []
@@ -116,7 +118,7 @@ class Settings(BaseSettings):
 
     # WebAuthn relying party; defaults to the FRONTEND_URL host. A passkey is bound to its RP ID, so production and preview (different domains) each need their own value *and* enrollments.
     WEBAUTHN_RP_ID: str = ""
-    # RP IDs of earlier frontend domains whose passkeys still sign in during a domain move (issue #198, docs/domain_move.md); new passkeys are only made for WEBAUTHN_RP_ID.
+    # RP IDs of earlier frontend domains whose passkeys still sign in during a domain move (issue #198, docs/hosting.md, "Moving to a new domain"); new passkeys are only made for WEBAUTHN_RP_ID.
     WEBAUTHN_LEGACY_RP_IDS: list[str] = []
     WEBAUTHN_RP_NAME: str = "Examance"
 
@@ -145,7 +147,7 @@ class Settings(BaseSettings):
     LOGIN_LOCKOUT_MAX_SECONDS: int = 3600
     LOGIN_FAIL_WINDOW_SECONDS: int = 900
 
-    @field_validator("ALLOWED_HOSTS", "CORS_ALLOWED_ORIGINS", "WEBAUTHN_LEGACY_RP_IDS", mode="before")
+    @field_validator("ALLOWED_HOSTS", "FRONTEND_ORIGINS", "WEBAUTHN_LEGACY_RP_IDS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: object) -> list[str]:
         if isinstance(v, str):
@@ -159,12 +161,17 @@ class Settings(BaseSettings):
         return v  # type: ignore[return-value]
 
     @model_validator(mode="after")
-    def require_cors_origins(self) -> Settings:
-        if not self.CORS_ALLOWED_ORIGINS:
-            raise ValueError(
-                "CORS_ALLOWED_ORIGINS must be set and non-empty. "
-                "App refuses to start without an explicit origin allowlist."
-            )
+    def derive_frontend_origins(self) -> Settings:
+        """Default the accepted origins to FRONTEND_URL's; entries are compared as bare origins, so a trailing slash or path is dropped."""
+        origins = self.FRONTEND_ORIGINS or [self.FRONTEND_URL]
+        normalized: list[str] = []
+        for value in origins:
+            parsed = urlparse(value.strip())
+            if parsed.scheme and parsed.netloc:
+                origin = f"{parsed.scheme}://{parsed.netloc}"
+                if origin not in normalized:
+                    normalized.append(origin)
+        self.FRONTEND_ORIGINS = normalized
         return self
 
     @model_validator(mode="after")
@@ -267,9 +274,9 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT == "development"
 
     @property
-    def effective_cors_origin_regex(self) -> str | None:
-        """The only CORS origin pattern: any port on localhost/127.0.0.1 in development. Hosted instances name every origin in CORS_ALLOWED_ORIGINS, to keep local-dev CSRF vectors away from them."""
-        return LOCALHOST_CORS_ORIGIN_REGEX if self.is_dev else None
+    def dev_origin_regex(self) -> str | None:
+        """The only origin pattern: any port on localhost/127.0.0.1 in development. Hosted instances name every origin in FRONTEND_ORIGINS, to keep local-dev CSRF vectors away from them."""
+        return LOCALHOST_ORIGIN_REGEX if self.is_dev else None
 
 
 settings = Settings()

@@ -1,42 +1,54 @@
 <script lang="ts">
-  /** Domain move (issue #198, docs/domain_move.md). Old address: a warning with the deadline and a move checklist. New address: a reminder while the account has only passkeys of the old one. */
-  import { faArrowUpRightFromSquare, faListCheck } from "@fortawesome/free-solid-svg-icons";
+  /** Domain move (issue #198, docs/hosting.md "Moving to a new domain"). Old address: a notice before sign-in, and anyone with nothing to take along is sent on; hybrid accounts get `DomainMoveHybridPanel`. New address: an account whose passkeys all belong to the old address must create one here. */
+  import { faArrowUpRightFromSquare, faKey } from "@fortawesome/free-solid-svg-icons";
   import { untrack } from "svelte";
-  import { Alert, Button, Modal } from "#lib/components/ui";
-  import { locale, t } from "#lib/i18n";
-  import { fmt } from "#lib/utils/format";
-  import { docsHref } from "#lib/help/docsLink";
+  import { page } from "$app/state";
+  import { Alert, Button, HeroDialog } from "#lib/components/ui";
+  import { t, translate } from "#lib/i18n";
   import { listPasskeys } from "#lib/api/webauthn";
-  import { isUnlocked } from "#lib/stores/session";
+  import { lockSession } from "#lib/db/hygiene";
+  import { addPasskey } from "#lib/services/passkeyRegistration";
+  import { isUnlocked, sessionStore } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
-  import { deadlineDate, domainMove, newHost, onNewAddress, onOldAddress } from "#lib/domainMove";
+  import { workspaceStatusStore } from "#lib/stores/workspaceState";
+  import {
+    domainMove,
+    newAddressHref,
+    newHost,
+    onNewAddress,
+    onOldAddress,
+    rememberOldPasskeySignIn,
+    signedInWithOldPasskey,
+  } from "#lib/domainMove";
 
-  const DISMISSED_KEY = "examance.domainMoveDismissed";
+  const DEFERRED_KEY = "examance.domainMovePasskeyLater";
 
   const oldAddress = onOldAddress();
   const newAddress = onNewAddress();
-  const deadline = deadlineDate();
-  const newOrigin = domainMove?.to ?? "";
 
-  function readDismissed(): boolean {
-    try { return sessionStorage.getItem(DISMISSED_KEY) === "1"; } catch { return false; }
+  /** New address: every passkey of the account belongs to the old address. */
+  let onlyOldPasskeys = $state(false);
+  let deferred = $state(readDeferred());
+  let creating = $state(false);
+  let createError = $state("");
+
+  let vars = $derived({ from: domainMove?.from ?? "", host: newHost() });
+  // Forced after a sign-in with an old passkey; otherwise it may wait for later (once per tab).
+  let forced = $derived($isUnlocked && signedInWithOldPasskey());
+  let dialogOpen = $derived(newAddress && $isUnlocked && onlyOldPasskeys && (forced || !deferred));
+
+  function readDeferred(): boolean {
+    try { return sessionStorage.getItem(DEFERRED_KEY) === "1"; } catch { return false; }
   }
 
-  let dismissed = $state(readDismissed());
-  let guideOpen = $state(false);
-  /** New address only: the account signs in with passkeys, all of them made for the old address. */
-  let onlyOldPasskeys = $state(false);
+  function later() {
+    deferred = true;
+    try { sessionStorage.setItem(DEFERRED_KEY, "1"); } catch { /* storage may be blocked */ }
+  }
 
-  let vars = $derived({
-    from: domainMove?.from ?? "",
-    host: newHost(),
-    date: deadline ? $fmt.date(deadline) : "",
-  });
-  let hybrid = $derived($isUnlocked && $storagePolicyStore.storageMode === "hybrid");
-
-  function dismiss() {
-    dismissed = true;
-    try { sessionStorage.setItem(DISMISSED_KEY, "1"); } catch { /* storage may be blocked */ }
+  async function signOut() {
+    rememberOldPasskeySignIn(false);
+    await lockSession();
   }
 
   async function checkPasskeys() {
@@ -48,7 +60,27 @@
     }
   }
 
-  const STEPS = ["results", "signIn", "passkey", "dataAccess", "bookmarks", "cleanup"] as const;
+  async function createPasskey() {
+    const teacherId = $sessionStore.teacherId;
+    if (creating || !teacherId) return;
+    creating = true;
+    createError = "";
+    try {
+      await addPasskey(teacherId, null);
+      rememberOldPasskeySignIn(false);
+      onlyOldPasskeys = false;
+    } catch {
+      createError = translate("domainMove.createFailed");
+    } finally {
+      creating = false;
+    }
+  }
+
+  /** Old address: forward everyone whose work is all on the server; hybrid accounts stay until their results are taken along. */
+  function forwardIfNothingToTake(state: string, mode: string | null) {
+    const nothingHere = state === "admin" || state === "needs-choice" || (state === "ok" && mode === "all-server");
+    if (nothingHere) location.replace(newAddressHref(page.url.pathname + page.url.search + page.url.hash));
+  }
 
   $effect.pre(() => {
     const signedIn = $isUnlocked;
@@ -57,42 +89,32 @@
       else onlyOldPasskeys = false;
     });
   });
+
+  $effect.pre(() => {
+    const state = $workspaceStatusStore.state;
+    const mode = $storagePolicyStore.storageMode;
+    const signedIn = $isUnlocked;
+    if (oldAddress && signedIn) untrack(() => forwardIfNothingToTake(state, mode));
+  });
 </script>
 
-{#if domainMove && oldAddress && !dismissed}
-  <Alert severity="warning" title={$t("domainMove.title", vars)} class="mx-3 mt-2 sm:mx-4" onDismiss={dismiss}>
+{#if domainMove && oldAddress && !$isUnlocked}
+  <Alert severity="warning" title={$t("domainMove.title", vars)} class="mx-3 mt-2 sm:mx-4">
     {$t("domainMove.body", vars)}
     {#snippet actions()}
-      <Button icon={faListCheck} onClick={() => (guideOpen = true)}>{$t("domainMove.howTo")}</Button>
-      <Button variant="outlined" severity="secondary" icon={faArrowUpRightFromSquare} href={newOrigin} target="_blank" rel="noopener">
-        {$t("domainMove.openNew", vars)}
-      </Button>
-    {/snippet}
-  </Alert>
-{:else if domainMove && newAddress && onlyOldPasskeys && !dismissed}
-  <Alert severity="info" title={$t("domainMove.newPasskeyTitle", vars)} class="mx-3 mt-2 sm:mx-4" onDismiss={dismiss}>
-    {$t("domainMove.newPasskeyBody", vars)}
-    {#snippet actions()}
-      <Button href="/settings#security">{$t("domainMove.toSecurity")}</Button>
+      <Button icon={faArrowUpRightFromSquare} href={newAddressHref("/unlock")}>{$t("domainMove.openNew", vars)}</Button>
     {/snippet}
   </Alert>
 {/if}
 
-<Modal open={guideOpen} title={$t("domainMove.guideTitle", vars)} onClose={() => (guideOpen = false)}>
-  <p class="mt-0 text-sm text-muted">{$t("domainMove.guideIntro", vars)}</p>
-  <ol class="m-0 flex flex-col gap-3 pl-5 text-sm text-content">
-    {#each STEPS as step (step)}
-      <li class={step === "results" && hybrid ? "border-l-4 border-warning pl-2" : ""}>
-        <strong class="block">{$t(`domainMove.steps.${step}.title`, vars)}</strong>
-        <span class="text-muted">{$t(`domainMove.steps.${step}.body`, vars)}</span>
-      </li>
-    {/each}
-  </ol>
-  {#snippet footer()}
-    <a href={docsHref("security#domain-move", $locale)} class="link mr-auto text-sm" target="_blank" rel="noopener noreferrer">
-      {$t("domainMove.docs")}
-    </a>
-    <Button variant="outlined" severity="secondary" onClick={() => (guideOpen = false)}>{$t("domainMove.close")}</Button>
-    <Button icon={faArrowUpRightFromSquare} href={newOrigin} target="_blank" rel="noopener">{$t("domainMove.openNew", vars)}</Button>
-  {/snippet}
-</Modal>
+<HeroDialog
+  open={dialogOpen}
+  icon={faKey}
+  tone="info"
+  title={$t("domainMove.newPasskeyTitle", vars)}
+  body={$t(forced ? "domainMove.newPasskeyForced" : "domainMove.newPasskeyBody", vars)}
+  primary={{ label: $t("domainMove.createPasskey", vars), onClick: createPasskey }}
+  secondary={forced ? { label: $t("domainMove.signOut"), onClick: signOut } : { label: $t("domainMove.later"), onClick: later }}
+  busy={creating}
+  error={createError}
+/>

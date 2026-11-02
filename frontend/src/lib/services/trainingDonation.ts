@@ -10,7 +10,6 @@ import {
   type OmrTrainingSampleIn,
 } from '#lib/grading/omrTrainingSample';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
-import { backendStore } from '#lib/stores/backendStore';
 import { isAuthenticated, sessionStore } from '#lib/stores/session';
 import { trainingDonationStore } from '#lib/stores/trainingDonation';
 
@@ -44,7 +43,7 @@ export interface DonationStatus {
 const staged = new Map<string, Staged>();
 let outbox: Pending[] = [];
 let uploading: Promise<void> | null = null;
-let status: { url: string; promise: Promise<DonationStatus> } | null = null;
+let status: Promise<DonationStatus> | null = null;
 /** Tokens handed out this page session, by question — survives a row saved from a stale copy. */
 const knownTokens = new Map<string, Record<number, string>>();
 
@@ -68,25 +67,17 @@ isAuthenticated.subscribe((signedIn) => {
   if (!signedIn) dropPending();
 });
 
-/** Whether the configured backend accepts donations. Public; cached per backend URL. */
+/** Whether the server accepts donations. Public; cached for the page's lifetime. */
 export function fetchDonationStatus(): Promise<DonationStatus> {
-  const url = get(backendStore);
-  if (!status || status.url !== url) {
-    const off: DonationStatus = { enabled: false, retentionDays: null };
-    status = {
-      url,
-      promise: !url
-        ? Promise.resolve(off)
-        : fetch(`${url.replace(/\/$/, '')}/api/v1/training/status`, { credentials: 'omit' })
-            .then((r) => (r.ok ? r.json() : {}))
-            .then((body: { enabled?: boolean; retention_days?: number }) => ({
-              enabled: body.enabled === true,
-              retentionDays: typeof body.retention_days === 'number' ? body.retention_days : null,
-            }))
-            .catch(() => off),
-    };
-  }
-  return status.promise;
+  const off: DonationStatus = { enabled: false, retentionDays: null };
+  status ??= fetch('/api/v1/training/status', { credentials: 'omit' })
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((body: { enabled?: boolean; retention_days?: number }) => ({
+      enabled: body.enabled === true,
+      retentionDays: typeof body.retention_days === 'number' ? body.retention_days : null,
+    }))
+    .catch(() => off);
+  return status;
 }
 
 export async function fetchDonationAvailable(): Promise<boolean> {
