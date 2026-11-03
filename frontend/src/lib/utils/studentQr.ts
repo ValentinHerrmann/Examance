@@ -94,7 +94,19 @@ export function normalizeLmsId(value: string | null | undefined): string | null 
   return /^\d+$/.test(id) ? id : null;
 }
 
-/** The numeric LMS id on a student's sticker (Mebis participant or Artemis user, issue #209); which one depends on the course the stickers came from. */
-export function lmsIdOf(student: { pseudonymRaw?: string }): string | null {
+/** The numeric id in a student's sticker payload; which LMS it belongs to depends on the list the stickers came from. */
+export function stickerLmsId(student: { pseudonymRaw?: string }): string | null {
   return normalizeLmsId(parseStudentQr(stickerRawOf(student))?.studentNumber);
+}
+
+type WithIds = { pseudonymRaw?: string; mebisId?: string; artemisId?: string };
+
+/** The Mebis participant id (issue #209): the stored one, else the sticker's (stickers printed from a Mebis list carry it). */
+export function mebisIdOf(student: WithIds): string | null {
+  return normalizeLmsId(student.mebisId) ?? stickerLmsId(student);
+}
+
+/** The Artemis user id: the stored one, else the sticker's (stickers printed from an Artemis course carry it). */
+export function artemisIdOf(student: WithIds): string | null {
+  return normalizeLmsId(student.artemisId) ?? stickerLmsId(student);
 }

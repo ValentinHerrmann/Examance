@@ -3,7 +3,7 @@
 import type { StudentRecord } from '#lib/db/schema';
 import type { TranslationKey } from '#lib/i18n/types';
 import type { FeatureName } from '#lib/stores/capabilities';
-import { lmsIdOf, stickerRawOf } from '#lib/utils/studentQr';
+import { artemisIdOf, mebisIdOf, stickerRawOf } from '#lib/utils/studentQr';
 import type { ShareFactor } from './shareCrypto';
 
 export type ShareChannelId = 'slips' | 'email' | 'artemis' | 'mebis';
@@ -46,7 +46,7 @@ export const SHARE_CHANNELS: readonly ShareChannel[] = [
     descriptionKey: 'sharing.channels.artemis.description',
     factors: ['sticker', 'code'],
     requires: [SWITCH],
-    unreachable: (student) => (lmsIdOf(student) ? null : 'sharing.channels.artemis.missing'),
+    unreachable: (student) => (artemisIdOf(student) ? null : 'sharing.channels.artemis.missing'),
   },
   {
     // The graded PDFs themselves, zipped for the Mebis assignment's feedback upload; made in the browser, so no switch applies.
@@ -54,7 +54,7 @@ export const SHARE_CHANNELS: readonly ShareChannel[] = [
     labelKey: 'sharing.channels.mebis.label',
     descriptionKey: 'sharing.channels.mebis.description',
     factors: [],
-    unreachable: (student) => (lmsIdOf(student) ? null : 'sharing.channels.mebis.missing'),
+    unreachable: (student) => (mebisIdOf(student) ? null : 'sharing.channels.mebis.missing'),
   },
 ];
 

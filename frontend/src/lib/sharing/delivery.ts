@@ -7,7 +7,7 @@ import { exportDateStamp, slug, ZipBuilder } from '#lib/export/zip';
 import { translate, translateIn } from '#lib/i18n';
 import type { Locale } from '#lib/i18n/types';
 import { formatDate } from '#lib/utils/format';
-import { lmsIdOf } from '#lib/utils/studentQr';
+import { artemisIdOf, mebisIdOf } from '#lib/utils/studentQr';
 import { sendsPdf, type ArtemisMode, type ShareChannelId } from './channels';
 import { formatCode } from './shareCrypto';
 
@@ -37,7 +37,7 @@ export interface DeliveryFile {
 const MAIL_BATCH = 20;
 
 const artemisUser = (student: StudentRecord): number => {
-  const id = lmsIdOf(student);
+  const id = artemisIdOf(student);
   if (!id) throw new Error(translate('sharing.channels.artemis.missing'));
   return Number(id);
 };
@@ -86,7 +86,7 @@ export function createDelivery(
       sendsPdf: true,
       deliverLink: none,
       deliverPdf(student, name, _filename, pdf) {
-        const id = lmsIdOf(student);
+        const id = mebisIdOf(student);
         if (!id) return Promise.reject(new Error(translate('sharing.channels.mebis.missing')));
         zip.add(mebisFeedbackPath(name, id), pdf);
         count++;

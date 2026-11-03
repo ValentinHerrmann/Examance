@@ -2,7 +2,7 @@
 
 import type { StudentRecord } from '#lib/db/schema';
 import { parseRosterLines } from '#lib/utils/rosterLines';
-import { formatStudentName, lmsIdOf, normalizeLmsId } from '#lib/utils/studentQr';
+import { artemisIdOf, formatStudentName, mebisIdOf, normalizeLmsId, stickerLmsId } from '#lib/utils/studentQr';
 
 export interface Contact {
   /** As the source writes it: "Lastname, Firstname" or "Firstname Lastname". */
@@ -10,7 +10,11 @@ export interface Contact {
   /** Sticker id: the Mebis participant or Artemis user id, or a pasted one. */
   id: string | null;
   email: string | null;
+  /** Where the id comes from: it is stored as the Mebis or Artemis id; a plain list's id only goes into the sticker. */
+  source: ContactSource;
 }
+
+export type ContactSource = 'mebis' | 'artemis' | 'list';
 
 /** One `@`, a dotted domain, no whitespace; checked without a regex, which would backtrack super-linearly on long input. */
 export function isEmail(value: string | null | undefined): value is string {
@@ -28,7 +32,7 @@ export function contactsFromLines(text: string): Contact[] {
     if (!name) return [];
     const email = rest.find(isEmail) ?? null;
     const id = rest.find((cell) => cell && cell !== email) ?? null;
-    return [{ name, id, email }];
+    return [{ name, id, email, source: 'list' as const }];
   });
 }
 
@@ -87,7 +91,7 @@ export function contactsFromMebisCsv(text: string): Contact[] | null {
     const name = fullCol >= 0 ? row[fullCol] : formatStudentName(`${row[lastCol] ?? ''}, ${row[firstCol] ?? ''}`);
     if (!name) return [];
     const email = mailCol >= 0 && isEmail(row[mailCol]) ? row[mailCol].trim() : null;
-    return [{ name, id: idCol >= 0 ? normalizeLmsId(row[idCol]) : null, email }];
+    return [{ name, id: idCol >= 0 ? normalizeLmsId(row[idCol]) : null, email, source: 'mebis' as const }];
   });
 }
 
@@ -107,17 +111,30 @@ export interface ContactMatch {
   contact: Contact;
 }
 
-/** Pairs students with contacts: by the sticker's LMS id first, then by name when exactly one contact carries it. */
+/** A student's id in the contact's source: Mebis and Artemis ids are compared only with their own kind; a plain list's id with the sticker's. */
+export function studentIdFor(source: ContactSource, student: StudentRecord): string | null {
+  if (source === 'mebis') return mebisIdOf(student);
+  if (source === 'artemis') return artemisIdOf(student);
+  return stickerLmsId(student);
+}
+
+/** Pairs students with contacts: by the id of the contact's source first, then by unambiguous name. */
 export function matchContacts(
   students: readonly StudentRecord[],
   contacts: readonly Contact[]
 ): { matches: ContactMatch[]; unmatchedStudents: StudentRecord[]; unmatchedContacts: Contact[] } {
   const left = new Set(contacts);
-  const byId = new Map(contacts.flatMap((c) => (c.id ? [[normalizeLmsId(c.id) ?? c.id, c] as const] : [])));
+  const idKey = (source: ContactSource, id: string) => `${source}:${normalizeLmsId(id) ?? id}`;
+  const byId = new Map(contacts.flatMap((c) => (c.id ? [[idKey(c.source, c.id), c] as const] : [])));
   const matches: ContactMatch[] = [];
   const pending: StudentRecord[] = [];
   for (const student of students) {
-    const contact = byId.get(lmsIdOf(student) ?? '');
+    const contact = (['mebis', 'artemis', 'list'] as const)
+      .map((source) => {
+        const id = studentIdFor(source, student);
+        return id ? byId.get(idKey(source, id)) : undefined;
+      })
+      .find((c) => c !== undefined && left.has(c));
     if (contact && left.has(contact)) {
       matches.push({ student, contact });
       left.delete(contact);

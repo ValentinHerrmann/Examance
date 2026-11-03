@@ -9,6 +9,9 @@ The exam's **Students page** (`routes/exam/[id]/students`, `lib/students/classLi
 - **Pre-created students.** `listedStudent` makes an ordinary `StudentRecord` before any scan: `pseudonymFor(examId, formatStudentQr(name, id || stickerId(name)))`, so the raw value is exactly the sticker payload. Sealed `fromList: true` marks it. `planImport` (new, updated, unchanged, via `matchContacts`) runs before `applyImport` writes through `studentRepository`, so it follows the storage mode.
 - **Scan merge.** A student save replaces the whole sealed record (locally and in the server upsert). `ingestScans` therefore reads the exam's students once and `mergeScannedStudent` keeps name, e-mail and `fromList` of a matching row (by `joinKey`); the scan only fills empty fields. Never save a scanned student without this merge.
 - **Scan deletion** keeps `fromList` students and deletes only the submission (`scan/+page.svelte` `deleteScanOf`).
+- **Deleting** a student goes through `StudentDeleteDialog`: a student with a scan takes the scan, all grading and share links along, which the dialog states (with the number of graded ones) and confirms only after a tick; one trash group. If a duplicate exists, it offers merging instead.
+- **Bulk edit** (`StudentBulkEdit`, `bulkEditWarnings`): name, Mebis ID, Artemis ID and e-mail for the selected rows. Warnings (renamed scanned student, changed or removed id, duplicate id or name, removed address) need "save anyway"; only an empty name blocks.
+- **Merge** (`mergeStudents`, `applyMerge`, `StudentMergeDialog`; suggestions from `duplicateCandidates`: two rows with the same `nameKey`): the row with the scan stays, else the non-list (sticker) row, and its pseudonym and raw value never change, so the printed code and personal key stay valid. Empty fields are filled from the other row, so a Mebis row and an Artemis row end up with both ids; differing values are conflicts the teacher picks per field. Two scanned rows are refused. The dropped row goes to the trash.
 - **Grade rows** (`buildGradeRows`) mark a student without a submission as "no exam scanned" instead of "ungraded".
 
 ## QR name stickers
@@ -69,7 +72,7 @@ Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis suppo
 |---|---|---|---|
 | `slips` | link slips PDF | `none`, `sticker`, `code` | nobody |
 | `email` | links collected, sent in batches of 100 via `POST /integrations/mail/results` | `sticker`, `code` | students without `email` |
-| `artemis` | per student `POST /integrations/artemis/messages` (link mode) or `/files` (PDF mode, no share is made) | `sticker`, `code` (ignored in PDF mode) | students without a numeric sticker id (`lmsIdOf`) |
+| `artemis` | per student `POST /integrations/artemis/messages` (link mode) or `/files` (PDF mode, no share is made) | `sticker`, `code` (ignored in PDF mode) | students without an Artemis id (`artemisIdOf`) |
 | `mebis` | graded PDFs zipped in the browser at `mebisFeedbackPath` (the same helper as the export's Mebis part), downloaded at the end; no share is made | none (`sendsPdf`) | students without a numeric sticker id |
 
 `result_mail` (capabilities, server-derived like `training_donation`) is `result_delivery` and a configured SMTP host (`mail_configured()`, also checked by the mail endpoint); without it e-mail is greyed out with the reason.
@@ -78,7 +81,7 @@ Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis suppo
 
 **Student contact data.**
 - `StudentRecord.email` is sealed like the name (`db/dbEncryption.ts`), so it follows the account's storage mode.
-- `lmsIdOf(student)` (`utils/studentQr.ts`) reads the Mebis participant id or Artemis user id from the sticker payload. It strips DiRueLei's `Teilnehmer/in` prefix.
+- `mebisIdOf`/`artemisIdOf` (`utils/studentQr.ts`) return the sealed `mebisId`/`artemisId` the class list stored (each from a contact of that `source`), else the numeric id in the sticker payload (stickers printed from that list carry it). `normalizeLmsId` strips DiRueLei's `Teilnehmer/in` prefix. A Mebis id is never compared with an Artemis id: `matchContacts` matches a contact by the id of its own source, then by name, so a Mebis list and an Artemis course of one class meet on the same rows.
 - Class lists from every source become `Contact[]` (`lib/lms/contacts.ts`):
   - a Mebis grading worksheet or participant CSV (`contactsFromMebisCsv`);
   - pasted lines (`contactsFromLines`);

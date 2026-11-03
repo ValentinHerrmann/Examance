@@ -23,7 +23,7 @@
   } from "#lib/sharing/shareService";
   import { resultsAreLocal } from "#lib/stores/storagePolicy";
   import { formatDate } from "#lib/utils/format";
-  import { lmsIdOf } from "#lib/utils/studentQr";
+  import { artemisIdOf, mebisIdOf } from "#lib/utils/studentQr";
   import { LOCALE_LABELS, LOCALES } from "#lib/i18n";
   import type { Locale } from "#lib/i18n/types";
 
@@ -218,7 +218,8 @@
               <tr>
                 <th class="w-8"><span class="sr-only">{$t("sharing.share.colSelect")}</span></th>
                 <th>{$t("sharing.share.colName")}</th>
-                <th>{$t("sharing.share.colLmsId")}</th>
+                <th>{$t("sharing.share.colMebisId")}</th>
+                <th>{$t("sharing.share.colArtemisId")}</th>
                 <th>{$t("sharing.share.colEmail")}</th>
                 <th>{$t("sharing.share.colState")}</th>
                 <th colspan="2"><span class="sr-only">{$t("sharing.share.colShare")}</span></th>
@@ -236,7 +237,8 @@
                     />
                   </td>
                   <td class="min-w-0">{s.name}</td>
-                  <td class="text-sm text-muted tabular-nums">{lmsIdOf(s.student) ?? ""}</td>
+                  <td class="text-sm text-muted tabular-nums">{mebisIdOf(s.student) ?? ""}</td>
+                  <td class="text-sm text-muted tabular-nums">{artemisIdOf(s.student) ?? ""}</td>
                   <td class="min-w-0 text-sm break-all text-muted">{s.student.email ?? ""}</td>
                   <td><Badge size="xs" severity={s.hasSubmission ? STATE_BADGE[s.state] : "secondary"}>{stateLabel(s)}</Badge></td>
                   <td class="text-sm text-muted">
@@ -255,6 +257,7 @@
                 <tr>
                   <td></td>
                   <td class="text-muted italic">{$t("sharing.share.removedStudent")}</td>
+                  <td></td>
                   <td></td>
                   <td></td>
                   <td></td>

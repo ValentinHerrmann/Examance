@@ -33,7 +33,7 @@
     pending = { plan: planImport(students, contacts), source };
   }
 
-  const fromArtemis = (list: ArtemisStudent[]) => received(list.map((s) => ({ name: s.name, id: String(s.id), email: s.email })), "Artemis");
+  const fromArtemis = (list: ArtemisStudent[]) => received(list.map((s) => ({ name: s.name, id: String(s.id), email: s.email, source: "artemis" as const })), "Artemis");
 
   async function apply() {
     if (!pending) return;
@@ -77,7 +77,7 @@
         {#if plan.update.length}
           <ul class="m-0 max-h-40 list-none overflow-auto p-0">
             {#each plan.update as u (u.student.pseudonymHmac)}
-              <li class="flex flex-wrap gap-x-2"><span>{formatStudentName(u.student.studentName)}</span><span class="text-muted">{u.email ?? ""}</span></li>
+              <li class="flex flex-wrap gap-x-2"><span>{formatStudentName(u.student.studentName)}</span><span class="text-muted">{[u.changes.mebisId && `Mebis ${u.changes.mebisId}`, u.changes.artemisId && `Artemis ${u.changes.artemisId}`, u.changes.email].filter(Boolean).join(" · ")}</span></li>
             {/each}
           </ul>
         {/if}

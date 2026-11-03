@@ -3,7 +3,7 @@ import type { StudentRecord } from '#lib/db/schema';
 import { contactsFromLines, contactsFromMebisCsv, matchContacts, nameKey, parseCsv } from '#lib/lms/contacts';
 import { channelUnavailable, incompatibleStudents, sendsPdf, SHARE_CHANNELS } from '#lib/sharing/channels';
 import { mebisFeedbackPath } from '#lib/export/examExport';
-import { lmsIdOf, normalizeLmsId } from '#lib/utils/studentQr';
+import { artemisIdOf, mebisIdOf, normalizeLmsId } from '#lib/utils/studentQr';
 
 const student = (name: string, raw?: string, email?: string): StudentRecord => ({
   examId: 'e1',
@@ -23,9 +23,16 @@ describe('LMS ids', () => {
   });
 
   it('reads the id from a sticker, never from a minted UUID', () => {
-    expect(lmsIdOf({ pseudonymRaw: 'Muster, Max_Teilnehmer/in6028356' })).toBe('6028356');
-    expect(lmsIdOf({ pseudonymRaw: 'Muster, Max_123' })).toBe('123');
-    expect(lmsIdOf({ pseudonymRaw: '0b8f2a51-5c1e-4b8e-9a51-1f2e3d4c5b6a' })).toBeNull();
+    expect(mebisIdOf({ pseudonymRaw: 'Muster, Max_Teilnehmer/in6028356' })).toBe('6028356');
+    expect(artemisIdOf({ pseudonymRaw: 'Muster, Max_123' })).toBe('123');
+    expect(mebisIdOf({ pseudonymRaw: '0b8f2a51-5c1e-4b8e-9a51-1f2e3d4c5b6a' })).toBeNull();
+  });
+
+  it('prefers the stored Mebis and Artemis ids over the sticker one, each of its own kind', () => {
+    const st = { pseudonymRaw: 'Muster, Max_ABC123', mebisId: '6028356', artemisId: '42' };
+    expect(mebisIdOf(st)).toBe('6028356');
+    expect(artemisIdOf(st)).toBe('42');
+    expect(artemisIdOf({ pseudonymRaw: 'Muster, Max_ABC123', mebisId: '6028356' })).toBeNull();
   });
 });
 
@@ -37,12 +44,12 @@ describe('class list import', () => {
 
   it('reads a Mebis grading worksheet', () => {
     const csv = '﻿ID,"Vollständiger Name",E-Mail-Adresse,Status\n"Teilnehmer/in6028356","Max Muster",max@schule.de,Abgegeben\n';
-    expect(contactsFromMebisCsv(csv)).toEqual([{ name: 'Max Muster', id: '6028356', email: 'max@schule.de' }]);
+    expect(contactsFromMebisCsv(csv)).toEqual([{ name: 'Max Muster', id: '6028356', email: 'max@schule.de', source: 'mebis' }]);
   });
 
   it('reads a participant list with first and last name', () => {
     const csv = 'Vorname;Nachname;E-Mail-Adresse\nErika;Beispiel;erika@schule.de';
-    expect(contactsFromMebisCsv(csv)).toEqual([{ name: 'Beispiel, Erika', id: null, email: 'erika@schule.de' }]);
+    expect(contactsFromMebisCsv(csv)).toEqual([{ name: 'Beispiel, Erika', id: null, email: 'erika@schule.de', source: 'mebis' }]);
   });
 
   it('is null for a file without name columns', () => {
@@ -51,8 +58,8 @@ describe('class list import', () => {
 
   it('takes id and address from pasted lines in any order', () => {
     expect(contactsFromLines('Muster, Max; 1042; max@schule.de\nBeispiel, Erika\tanna@x.de')).toEqual([
-      { name: 'Muster, Max', id: '1042', email: 'max@schule.de' },
-      { name: 'Beispiel, Erika', id: null, email: 'anna@x.de' },
+      { name: 'Muster, Max', id: '1042', email: 'max@schule.de', source: 'list' },
+      { name: 'Beispiel, Erika', id: null, email: 'anna@x.de', source: 'list' },
     ]);
   });
 });
@@ -63,9 +70,9 @@ describe('matchContacts', () => {
     const b = student('Beispiel, Erika');
     const c = student('Neu, Nora');
     const result = matchContacts([a, b, c], [
-      { name: 'Somebody Else', id: '7', email: 'max@x.de' },
-      { name: 'Erika Beispiel', id: null, email: 'erika@x.de' },
-      { name: 'Unknown', id: '9', email: 'u@x.de' },
+      { name: 'Somebody Else', id: '7', email: 'max@x.de', source: 'list' },
+      { name: 'Erika Beispiel', id: null, email: 'erika@x.de', source: 'list' },
+      { name: 'Unknown', id: '9', email: 'u@x.de', source: 'list' },
     ]);
     expect(result.matches.map((m) => [m.student, m.contact.email])).toEqual([
       [a, 'max@x.de'],

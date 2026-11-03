@@ -16,7 +16,7 @@ vi.mock('#lib/api/integrations', async (importOriginal) => ({
   }),
 }));
 
-const { planImport, listedStudent } = await import('#lib/students/classList');
+const { planImport, listedStudent, mergeStudents, duplicateCandidates, bulkEditWarnings } = await import('#lib/students/classList');
 const { shareCode } = await import('#lib/sharing/shareService');
 const { createDelivery } = await import('#lib/sharing/delivery');
 const { setLocale } = await import('#lib/i18n');
@@ -33,26 +33,84 @@ const student = (name: string, raw?: string, extra: Partial<StudentRecord> = {})
 
 describe('class list import', () => {
   it('adds unknown names, updates changed addresses and leaves the rest', () => {
-    const anna = student('Muster, Anna', 'Muster, Anna_6028356', { email: 'old@x.de', fromList: true });
-    const ben = student('Beispiel, Ben', 'Beispiel, Ben_7', { email: 'ben@x.de', fromList: true });
+    const anna = student('Muster, Anna', 'Muster, Anna_6028356', { email: 'old@x.de', fromList: true, mebisId: '6028356' });
+    const ben = student('Beispiel, Ben', 'Beispiel, Ben_7', { email: 'ben@x.de', fromList: true, mebisId: '7' });
     const plan = planImport(
       [anna, ben],
       [
-        { name: 'Muster, Anna', id: '6028356', email: 'anna@x.de' },
-        { name: 'Beispiel, Ben', id: '7', email: 'ben@x.de' },
-        { name: 'Neu, Nora', id: null, email: null },
+        { name: 'Muster, Anna', id: '6028356', email: 'anna@x.de', source: 'mebis' },
+        { name: 'Beispiel, Ben', id: '7', email: 'ben@x.de', source: 'mebis' },
+        { name: 'Neu, Nora', id: null, email: null, source: 'list' },
       ]
     );
     expect(plan.add.map((c) => c.name)).toEqual(['Neu, Nora']);
-    expect(plan.update).toEqual([{ student: anna, email: 'anna@x.de' }]);
+    expect(plan.update).toEqual([{ student: anna, changes: { email: 'anna@x.de' } }]);
     expect(plan.unchanged).toBe(1);
   });
 
+  it('adds the Artemis id to a student imported from Mebis instead of a second row', () => {
+    const anna = student('Muster, Anna', 'Muster, Anna_6028356', { fromList: true, mebisId: '6028356' });
+    const plan = planImport([anna], [{ name: 'Anna Muster', id: '4711', email: 'anna@tum.de', source: 'artemis' }]);
+    expect(plan.add).toEqual([]);
+    expect(plan.update).toEqual([{ student: anna, changes: { email: 'anna@tum.de', artemisId: '4711' } }]);
+  });
+
   it('keys a listed student by the sticker payload a scan reads back', async () => {
-    const withId = await listedStudent('e1', { name: 'Muster, Anna', id: '6028356', email: 'a@x.de' });
-    expect(withId).toMatchObject({ pseudonymRaw: 'Muster, Anna_6028356', email: 'a@x.de', fromList: true, studentName: 'Muster, Anna' });
-    const withoutId = await listedStudent('e1', { name: 'Neu, Nora', id: null, email: null });
+    const withId = await listedStudent('e1', { name: 'Muster, Anna', id: '6028356', email: 'a@x.de', source: 'mebis' });
+    expect(withId).toMatchObject({ pseudonymRaw: 'Muster, Anna_6028356', email: 'a@x.de', fromList: true, studentName: 'Muster, Anna', mebisId: '6028356' });
+    const withoutId = await listedStudent('e1', { name: 'Neu, Nora', id: null, email: null, source: 'list' });
     expect(withoutId.pseudonymRaw).toBe('Neu, Nora_NAMEID');
+  });
+});
+
+describe('merging duplicates', () => {
+  // The user's case: stickers printed without an LMS id, the list imported afterwards, then the scan.
+  const scanned = student('Muster, Anna', 'Muster, Anna_K7Q2XZ');
+  const listed = student('Anna Muster', 'Muster, Anna_6028356', { fromList: true, mebisId: '6028356', email: 'anna@x.de' });
+  const has = (st: StudentRecord) => st === scanned;
+
+  it('keeps the scanned row and its sticker, and takes id and address from the list row', () => {
+    const plan = mergeStudents(listed, scanned, has);
+    if ('refused' in plan) throw new Error('refused');
+    expect(plan.keep).toBe(scanned);
+    expect(plan.drop).toBe(listed);
+    expect(plan.merged).toMatchObject({ pseudonymHmac: scanned.pseudonymHmac, pseudonymRaw: 'Muster, Anna_K7Q2XZ', mebisId: '6028356', email: 'anna@x.de', fromList: true });
+    expect(plan.conflicts).toEqual([]);
+  });
+
+  it('gives a Mebis row and an Artemis row of one student both ids, and reports conflicting values', () => {
+    const mebis = student('Muster, Anna', 'Muster, Anna_6028356', { fromList: true, mebisId: '6028356', email: 'a@schule.de' });
+    const artemis = student('Anna Muster', 'Muster, Anna_4711', { fromList: true, artemisId: '4711', email: 'a@tum.de' });
+    const plan = mergeStudents(mebis, artemis, () => false);
+    if ('refused' in plan) throw new Error('refused');
+    expect(plan.merged).toMatchObject({ mebisId: '6028356', artemisId: '4711' });
+    expect(plan.conflicts).toEqual([{ field: 'email', keepValue: 'a@schule.de', otherValue: 'a@tum.de' }]);
+  });
+
+  it('refuses two scanned rows', () => {
+    expect(mergeStudents(scanned, listed, () => true)).toEqual({ refused: 'lms.students.merge.bothScanned' });
+  });
+
+  it('suggests pairs with the same name', () => {
+    const other = student('Beispiel, Ben', 'Beispiel, Ben_7');
+    expect(duplicateCandidates([scanned, other, listed], has)).toEqual([[scanned, listed]]);
+  });
+});
+
+describe('bulk edit warnings', () => {
+  it('warn about side effects and block only an empty name', () => {
+    const scanned = student('Muster, Anna', 'Muster, Anna_1', { mebisId: '1', email: 'a@x.de' });
+    const ben = student('Beispiel, Ben', 'Beispiel, Ben_2', { mebisId: '2' });
+    const after = [{ ...scanned, studentName: 'Muster, Anne', mebisId: '2', email: undefined }];
+    const keys = bulkEditWarnings([scanned], after, [after[0], ben], (st) => st.pseudonymHmac === scanned.pseudonymHmac).map((n) => n.key);
+    expect(keys).toEqual([
+      'lms.students.bulk.warn.renamedScanned',
+      'lms.students.bulk.warn.idChanged',
+      'lms.students.bulk.warn.duplicateId',
+      'lms.students.bulk.warn.emailRemoved',
+    ]);
+    const empty = bulkEditWarnings([ben], [{ ...ben, studentName: ' ' }], [ben], () => false);
+    expect(empty).toEqual([{ key: 'lms.students.bulk.warn.emptyName', name: 'Beispiel, Ben', blocking: true }]);
   });
 });
 

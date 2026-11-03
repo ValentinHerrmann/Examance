@@ -9,7 +9,7 @@
   import type { ShareFactor } from "#lib/sharing/shareCrypto";
   import type { ShareStudent } from "#lib/sharing/shareService";
   import { resultsAreLocal } from "#lib/stores/storagePolicy";
-  import { lmsIdOf } from "#lib/utils/studentQr";
+  import { artemisIdOf } from "#lib/utils/studentQr";
 
   interface Props {
     channel: ShareChannel;
@@ -29,7 +29,7 @@
   let blocked = $derived(new Map(incompatibleStudents(sendsPdf ? null : factor, channel, students.map((s) => s.student)).map((b) => [b.student, b.reason])));
   let reachable = $derived(students.filter((s) => !blocked.has(s.student)));
 
-  const recipient = (s: ShareStudent) => (channel.id === "email" ? (s.student.email ?? "") : `${$t("lms.preview.artemisUser")} ${lmsIdOf(s.student) ?? ""}`);
+  const recipient = (s: ShareStudent) => (channel.id === "email" ? (s.student.email ?? "") : `${$t("lms.preview.artemisUser")} ${artemisIdOf(s.student) ?? ""}`);
   let what = $derived(sendsPdf ? $t("lms.preview.whatPdf") : $t(factor === "code" ? "lms.preview.whatLinkCode" : "lms.preview.whatLinkSticker"));
 </script>
 

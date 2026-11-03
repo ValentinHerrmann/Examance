@@ -11,7 +11,13 @@
   import { createStudentWithSubmission } from "#lib/grading/scoreService";
   import { parseRosterLines } from "#lib/utils/rosterLines";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
-  import { lmsIdOf } from "#lib/utils/studentQr";
+  import { artemisIdOf, formatStudentName, mebisIdOf } from "#lib/utils/studentQr";
+  import { duplicateCandidates } from "#lib/students/classList";
+  import { faCodeMerge, faPen, faTrash } from "@fortawesome/free-solid-svg-icons";
+  import Checkbox from "#lib/components/ui/Checkbox.svelte";
+  import StudentBulkEdit from "#lib/components/students/StudentBulkEdit.svelte";
+  import StudentDeleteDialog from "#lib/components/students/StudentDeleteDialog.svelte";
+  import StudentMergeDialog from "#lib/components/students/StudentMergeDialog.svelte";
   import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { t, translate } from "#lib/i18n";
 
@@ -97,19 +103,28 @@
     editingPseudonym = null;
   }
 
-  async function handleDelete(st: StudentRecord) {
-    const name = st.studentName || st.studentNumber || st.pseudonymHmac.slice(0, 8);
-    if (!confirm(`${translate("grading.manual.roster.deleteConfirm", { name })}\n\n${translate("common.trashHint", { days: TRASH_DAYS })}`)) {
-      return;
-    }
-    const key = get(sessionStore).sessionKey;
-    const sub = submissionMap.get(st.pseudonymHmac);
-    // One trash entry for the student and their submission (issue #125).
-    const group = newTrashGroup();
-    if (sub) {
-      await submissionRepository.delete(examId, sub.id, { group });
-    }
-    await studentRepository.delete(st, { group });
+  // Deleting, bulk edits and merges each open a dialog that says what they affect (issue #209).
+  let deleting = $state.raw<StudentRecord[] | null>(null);
+  let bulkEditing = $state.raw<StudentRecord[] | null>(null);
+  let merging = $state.raw<[StudentRecord, StudentRecord] | null>(null);
+  let selected = $state.raw(new Set<string>());
+
+  const submissionOf = (st: StudentRecord) => submissionMap.get(st.pseudonymHmac);
+  const hasSubmission = (st: StudentRecord) => submissionMap.has(st.pseudonymHmac);
+  let chosen = $derived(students.filter((st) => selected.has(st.pseudonymHmac)));
+  let duplicates = $derived(listMode ? duplicateCandidates(students, hasSubmission) : []);
+  const duplicateOf = (st: StudentRecord) => duplicates.find((pair) => pair.includes(st));
+
+  function toggle(st: StudentRecord, on: boolean) {
+    const next = new Set(selected);
+    if (on) next.add(st.pseudonymHmac);
+    else next.delete(st.pseudonymHmac);
+    selected = next;
+  }
+
+  function finished() {
+    deleting = bulkEditing = merging = null;
+    selected = new Set();
     onRosterChanged();
   }
 
@@ -182,17 +197,50 @@
   </Panel>
   {/if}
 
+  {#if duplicates.length}
+    <Panel title={$t("lms.students.duplicates.title", { count: duplicates.length })}>
+      <p class="m-0 mb-3 text-sm text-muted">{$t("lms.students.duplicates.intro")}</p>
+      <ul class="m-0 flex list-none flex-col gap-2 p-0">
+        {#each duplicates as pair (pair[0].pseudonymHmac + pair[1].pseudonymHmac)}
+          <li class="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span>
+              <strong>{formatStudentName(pair[0].studentName)}</strong>
+              <span class="text-muted">({pair.map((st) => (hasSubmission(st) ? $t("grading.manual.roster.scanned") : st.fromList ? $t("lms.students.fromList") : $t("lms.students.sticker"))).join(" + ")})</span>
+            </span>
+            <Button size="sm" variant="outlined" icon={faCodeMerge} onClick={() => (merging = pair)}>{$t("lms.students.merge.action")}</Button>
+          </li>
+        {/each}
+      </ul>
+    </Panel>
+  {/if}
+
   {#if students.length === 0}
     <EmptyState title={$t("grading.manual.roster.emptyState")} />
   {:else}
+    {#if chosen.length}
+      <div class="flex flex-wrap items-center gap-2 rounded-md border border-line p-2 text-sm" role="toolbar" aria-label={$t("lms.students.selection", { count: chosen.length })}>
+        <span class="mr-2">{$t("lms.students.selection", { count: chosen.length })}</span>
+        <Button size="sm" variant="outlined" icon={faPen} onClick={() => (bulkEditing = chosen)}>{$t("lms.students.bulk.action")}</Button>
+        <Button size="sm" variant="outlined" icon={faCodeMerge} disabled={chosen.length !== 2} title={$t("lms.students.merge.needTwo")} onClick={() => (merging = [chosen[0], chosen[1]])}>{$t("lms.students.merge.action")}</Button>
+        <Button size="sm" variant="outlined" severity="danger" icon={faTrash} onClick={() => (deleting = chosen)}>{$t("common.delete")}</Button>
+        <Button size="sm" variant="text" severity="secondary" onClick={() => (selected = new Set())}>{$t("sharing.share.selectNone")}</Button>
+      </div>
+    {/if}
     <TableScroller>
       <table class="data-table data-table-compact data-table-sticky data-table-hover">
         <thead>
           <tr>
+            <th class="w-8">
+              <Checkbox
+                checked={chosen.length > 0 && chosen.length === students.length}
+                onChange={(on) => (selected = on ? new Set(students.map((st) => st.pseudonymHmac)) : new Set())}
+                aria-label={$t("lms.students.selectAll")}
+              />
+            </th>
             <th>{$t("grading.manual.roster.colNum")}</th>
             <th>{$t("grading.manual.roster.colName")}</th>
             <th>{$t("grading.manual.roster.colNumber")}</th>
-            {#if listMode}<th>{$t("lms.students.colLmsId")}</th>{/if}
+            {#if listMode}<th>{$t("lms.students.colMebisId")}</th><th>{$t("lms.students.colArtemisId")}</th>{/if}
             <th>{$t("grading.manual.roster.colEmail")}</th>
             <th>{$t("grading.manual.roster.colPseudonym")}</th>
             <th>{$t("grading.manual.roster.colType")}</th>
@@ -204,6 +252,7 @@
             {@const sub = submissionMap.get(st.pseudonymHmac)}
             {@const isScanned = !!(sub?.scanCt || sub?.scanIv || sub?.hasScan)}
             <tr>
+              <td><Checkbox checked={selected.has(st.pseudonymHmac)} onChange={(on) => toggle(st, on)} aria-label={st.studentName || st.fallbackCode || ""} /></td>
               <td>{i + 1}</td>
               <td>
                 {#if editingPseudonym === st.pseudonymHmac}
@@ -219,7 +268,7 @@
                   {st.studentNumber || "-"}
                 {/if}
               </td>
-              {#if listMode}<td class="tabular-nums">{lmsIdOf(st) ?? "-"}</td>{/if}
+              {#if listMode}<td class="tabular-nums">{mebisIdOf(st) ?? "-"}</td><td class="tabular-nums">{artemisIdOf(st) ?? "-"}</td>{/if}
               <td>
                 {#if editingPseudonym === st.pseudonymHmac}
                   <TextInput size="sm" type="email" bind:value={editEmail} />
@@ -248,7 +297,7 @@
                     <Button size="sm" variant="outlined" severity="secondary" onClick={cancelEdit}>{$t("common.cancel")}</Button>
                   {:else}
                     <Button size="sm" variant="outlined" severity="secondary" onClick={() => startEdit(st)}>{$t("common.edit")}</Button>
-                    <Button size="sm" variant="outlined" severity="danger" onClick={() => handleDelete(st)}>{$t("common.delete")}</Button>
+                    <Button size="sm" variant="outlined" severity="danger" onClick={() => (deleting = [st])}>{$t("common.delete")}</Button>
                   {/if}
                 </div>
               </td>
@@ -259,3 +308,21 @@
     </TableScroller>
   {/if}
 </div>
+
+{#if deleting}
+  {@const single = deleting.length === 1 ? duplicateOf(deleting[0]) : undefined}
+  <StudentDeleteDialog
+    {examId}
+    students={deleting}
+    {submissionOf}
+    onMergeInstead={single ? () => ((merging = single), (deleting = null)) : undefined}
+    onDone={finished}
+    onCancel={() => (deleting = null)}
+  />
+{/if}
+{#if bulkEditing}
+  <StudentBulkEdit students={bulkEditing} all={students} {hasSubmission} onSaved={finished} onClose={() => (bulkEditing = null)} />
+{/if}
+{#if merging}
+  <StudentMergeDialog {examId} pair={merging} {hasSubmission} onDone={finished} onClose={() => (merging = null)} />
+{/if}

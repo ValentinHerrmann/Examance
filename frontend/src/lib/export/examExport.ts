@@ -22,7 +22,7 @@ import { addExerciseFolder } from './exerciseExport';
 import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExamZipManifest } from './zipManifest';
 import { examRepository } from '#lib/repositories/examRepository';
 import { getAccountPackages } from '#lib/latex/packageSettings';
-import { lmsIdOf } from '#lib/utils/studentQr';
+import { mebisIdOf } from '#lib/utils/studentQr';
 
 export type ExamExportPart = 'graded' | 'mebis' | 'latex' | 'pdf' | 'summary' | 'csv';
 
@@ -250,7 +250,7 @@ async function addMebisFeedback(
   const warnings: string[] = [];
   results.rows.forEach((row, i) => {
     if (!row.submissionId) return;
-    const id = lmsIdOf(results.students[i]);
+    const id = mebisIdOf(results.students[i]);
     if (id) idBySubmission.set(row.submissionId, id);
     else warnings.push(translate('export.exam.warnings.noMebisId', { name: row.studentName || row.fallbackCode || '?' }));
   });

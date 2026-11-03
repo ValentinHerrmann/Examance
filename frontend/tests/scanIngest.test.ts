@@ -350,12 +350,12 @@ describe("ingestScans", () => {
   // Regression: the save replaces the whole sealed record, so a scan erased the e-mail imported on the Students page.
   it("keeps a listed student's e-mail, name and list flag when their sticker is scanned", async () => {
     existingStudents.rows = [
-      { examId: "exam-1", pseudonymHmac: "keyed:Muster, Anna_1", pseudonymVersion: 2, studentName: "Muster, Anna-Lena", email: "anna@schule.de", fromList: true },
+      { examId: "exam-1", pseudonymHmac: "keyed:Muster, Anna_1", pseudonymVersion: 2, studentName: "Muster, Anna-Lena", email: "anna@schule.de", mebisId: "6028356", artemisId: "4711", fromList: true },
     ];
     const { deps } = makeDeps();
     await ingestScans([await pdfFile("a.pdf", 4)], deps);
     const anna = saved.students.find((st) => st.pseudonymHmac === "keyed:Muster, Anna_1");
-    expect(anna).toMatchObject({ email: "anna@schule.de", fromList: true, studentName: "Muster, Anna-Lena", pseudonymRaw: "Muster, Anna_1" });
+    expect(anna).toMatchObject({ email: "anna@schule.de", mebisId: "6028356", artemisId: "4711", fromList: true, studentName: "Muster, Anna-Lena", pseudonymRaw: "Muster, Anna_1" });
     const ben = saved.students.find((st) => st.pseudonymHmac === "keyed:Beispiel, Ben_2");
     expect(ben?.email).toBeUndefined();
   });
