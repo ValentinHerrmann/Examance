@@ -152,6 +152,7 @@ All paths below are under `frontend/src/` unless they start with `docs/` or `fro
 
 - 2026-11-03: all items done; PR ready for review on the preview. Follow-ups after the owner's review: delete the hidden roster (`lib/grading/manualRoster.ts`), refresh screenshots from `docs/demo-instance/`.
 - CI fix: "Playwright (phone, routes)" failed on `/results/share` (`.app-main` 77px too wide). Cause: absolutely positioned `sr-only` header labels in the student table took `.app-main` as containing block and escaped `TableScroller`'s clipping; `TableScroller` is now `relative` (fixes every table), and the sticky send bar lost its `-mx-1`.
+- SonarCloud: fixed its 2 new issues (nested ternary in `newListedStudent`, optional chain in `omrTemplateStatus`).
 
 - 2026-11-03: design agreed, code map and checklist written.
 - 1.1–1.2 done: the sidebar already links `/content`, `/print`, `/results`, which exist only after 2.4, 3.4 and 4.1 (intermediate commits have dead step links; fine on a draft PR).

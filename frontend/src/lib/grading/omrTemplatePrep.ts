@@ -154,7 +154,7 @@ export type OmrTemplateStatus = "none" | "ready" | "stale";
 export async function omrTemplateStatus(ctx: OmrLayoutInput, key: CryptoKey | null): Promise<OmrTemplateStatus> {
   if (resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups).length === 0) return "none";
   const existing = await loadOmrTemplateEncrypted(ctx.exam.id, key);
-  if (!existing || !existing.payload) return "none";
+  if (!existing?.payload) return "none";
   return existing.record.exercisesHash === (await computeOmrTemplateHash(ctx)) ? "ready" : "stale";
 }
 

@@ -65,7 +65,9 @@ export async function listedStudent(examId: string, contact: Contact): Promise<S
 export async function newListedStudent(examId: string, fields: Partial<Record<EditableField, string>>): Promise<StudentRecord> {
   const mebisId = normalizeLmsId(fields.mebisId);
   const artemisId = normalizeLmsId(fields.artemisId);
-  const source: ContactSource = mebisId ? 'mebis' : artemisId ? 'artemis' : 'list';
+  let source: ContactSource = 'list';
+  if (mebisId) source = 'mebis';
+  else if (artemisId) source = 'artemis';
   const student = await listedStudent(examId, { name: fields.studentName ?? '', id: mebisId ?? artemisId ?? null, email: fields.email?.trim() || null, source });
   return {
     ...student,
