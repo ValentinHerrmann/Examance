@@ -1,4 +1,4 @@
-"""What an account may use (issue #53), decided only here. Admin switches: `allow_server_results` (all-server), `allow_server_latex`, `allow_exercise_sharing` (issue #65). The frontend renders from `capabilities_for`; endpoints enforce it."""
+"""What an account may use (issue #53), decided only here. Admin switches: `allow_server_results` (all-server), `allow_server_latex`, `allow_exercise_sharing` (issue #65), `allow_result_delivery` (issue #209). The frontend renders from `capabilities_for`; endpoints enforce it."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -10,7 +10,7 @@ from app.dependencies import get_teaching_teacher
 from app.models.teacher import STORAGE_MODES, Teacher
 
 # The switches an admin can set per account, by their API name. Order is display order.
-ACCOUNT_FEATURES = ("server_results", "server_latex", "exercise_sharing")
+ACCOUNT_FEATURES = ("server_results", "server_latex", "exercise_sharing", "result_delivery")
 
 
 @dataclass(frozen=True)
@@ -19,12 +19,18 @@ class Capabilities:
     features: dict[str, bool] = field(default_factory=dict)
 
 
+def mail_configured() -> bool:
+    """Whether this server can send result mails (an SMTP host, or dev, which logs them)."""
+    return bool(settings.SMTP_HOST) or settings.is_dev
+
+
 def account_features(teacher: Teacher) -> dict[str, bool]:
     """The admin-set switches of *teacher*, keyed as in `ACCOUNT_FEATURES`."""
     return {
         "server_results": teacher.allow_server_results,
         "server_latex": teacher.allow_server_latex,
         "exercise_sharing": teacher.allow_exercise_sharing,
+        "result_delivery": teacher.allow_result_delivery,
     }
 
 
@@ -33,7 +39,7 @@ def capabilities_for(teacher: Teacher) -> Capabilities:
     if teacher.role != "teacher":
         return Capabilities(
             allowed_storage_modes=(),
-            features={name: False for name in (*ACCOUNT_FEATURES, "training_donation")},
+            features=dict.fromkeys((*ACCOUNT_FEATURES, "training_donation", "result_mail"), False),
         )
     return Capabilities(
         allowed_storage_modes=(
@@ -42,6 +48,7 @@ def capabilities_for(teacher: Teacher) -> Capabilities:
         features={
             **account_features(teacher),
             "training_donation": settings.TRAINING_DONATION_ENABLED,
+            "result_mail": teacher.allow_result_delivery and mail_configured(),
         },
     )
 
@@ -70,6 +77,13 @@ def ensure_exercise_sharing(teacher: Teacher) -> None:
 async def require_exercise_sharing(teacher: Teacher = Depends(get_teaching_teacher)) -> Teacher:
     """The signed-in teacher, if their account may share, browse, copy and resync exercises."""
     ensure_exercise_sharing(teacher)
+    return teacher
+
+
+def require_result_delivery(teacher: Teacher = Depends(get_teaching_teacher)) -> Teacher:
+    """The signed-in teacher, if their account may send graded results to students (Artemis, e-mail)."""
+    if not teacher.allow_result_delivery:
+        raise _not_allowed("Result delivery is not enabled for this account.")
     return teacher
 
 

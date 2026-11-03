@@ -93,6 +93,11 @@ export function translate(key: TranslationKey, vars?: TranslationVars): string {
     return lookup(get(locale), key, vars);
 }
 
+/** Translator for text in a fixed language whatever the UI shows, e.g. a message to students. */
+export function translateIn(lang: Locale, key: TranslationKey, vars?: TranslationVars): string {
+    return lookup(lang, key, vars);
+}
+
 /** Translate a key that is only known at runtime (e.g. a backend error code), returning `undefined` when no catalog entry exists so the caller can fall back to the server-supplied text. */
 export function translateOptional(key: string, vars?: TranslationVars): string | undefined {
     const template = resolve(catalogs[get(locale)], key) ?? resolve(de, key);

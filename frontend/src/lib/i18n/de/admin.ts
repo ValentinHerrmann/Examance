@@ -40,6 +40,7 @@ export const admin = {
         server_results: 'Schülerdaten und Ergebnisse auf dem Server',
         server_latex: 'LaTeX auf dem Server kompilieren',
         exercise_sharing: 'Aufgaben teilen und übernehmen',
+        result_delivery: 'Korrigierte Arbeiten per E-Mail und Artemis verschicken',
         exercisesAlways: 'Prüfungen und Aufgaben liegen immer auf dem Server.',
     },
     pending: {
@@ -70,6 +71,7 @@ export const admin = {
         columnResults: 'Ergebnisse auf Server',
         columnLatex: 'LaTeX auf Server',
         columnSharing: 'Aufgaben teilen',
+        columnDelivery: 'E-Mail & Artemis',
         columnActions: 'Aktionen',
         statusActive: 'Aktiv',
         statusInvited: 'Eingeladen',

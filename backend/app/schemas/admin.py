@@ -19,13 +19,14 @@ class AuditLogResponse(BaseModel):
 
 
 class AccountFeatures(BaseModel):
-    """The per-account admin switches (app/services/capabilities.py): server_results ("all-server" allowed), server_latex (server-side compile), exercise_sharing (sharing/copying, issue #65)."""
+    """The per-account admin switches (app/services/capabilities.py): server_results ("all-server" allowed), server_latex (server-side compile), exercise_sharing (sharing/copying, issue #65), result_delivery (Artemis / e-mail delivery, issue #209)."""
 
     model_config = ConfigDict(extra="forbid")
 
     server_results: bool = True
     server_latex: bool = True
     exercise_sharing: bool = True
+    result_delivery: bool = True
 
 
 class AccountFeaturesUpdate(BaseModel):
@@ -36,6 +37,7 @@ class AccountFeaturesUpdate(BaseModel):
     server_results: bool | None = None
     server_latex: bool | None = None
     exercise_sharing: bool | None = None
+    result_delivery: bool | None = None
 
 
 class AdminCreateUserRequest(BaseModel):

@@ -45,7 +45,7 @@ Derived from the backend models and `data_flow_and_security.md` §3. "Pseudonymo
 
 | Data | Category | Where | Encrypted at rest? |
 | :--- | :--- | :--- | :--- |
-| Student name, student number | Personal, of a minor | Browser IndexedDB; server only in `all-server` mode | Yes — AES-256-GCM, key never leaves the browser |
+| Student name, student number, e-mail address (optional, for result delivery, issue #209) | Personal, of a minor | Browser IndexedDB; server only in `all-server` mode | Yes — AES-256-GCM, key never leaves the browser |
 | Submission scan (exam paper) | Personal, of a minor | as above | Yes |
 | Grading annotations | Personal, of a minor | as above | Yes |
 | `total_score` per submission | **Pseudonymous, plaintext** | Server (`scan_submissions`) | **No** |
@@ -221,6 +221,16 @@ Issue #53 lets anyone register for an account (always available). That adds data
 - **Complete `records_of_processing_art30.md` and the DPIA** for the new categories and for the mail provider behind `SMTP_HOST`, which registration now makes mandatory.
 - **Allowlist is a trust decision.** An admin who lists a public mail provider approves everyone there. The Admin UI warns; nothing else prevents it (R12).
 
+### L19 — Result delivery by e-mail and Artemis sends pupil data through the server · Art. 5(1)(c), 13, 28, 30, 35 · [C+P] · **Open (notice, records, DPIA)**
+
+Issue #209 lets a teacher send each pupil their result link by e-mail, or through a direct message in Artemis (link or, if chosen, the plain graded PDF). Both pass through the backend: pupil e-mail addresses and links go to the mail provider behind `SMTP_HOST`; the teacher's Artemis token, the pupils' Artemis ids and messages (and in PDF mode the graded exam in plaintext) go to the Artemis instance.
+
+*What the code does about it.* A per-account admin switch `result_delivery` (on by default like the other switches) lets an admin withhold it. The relay forwards only to hosts in `ARTEMIS_ALLOWED_HOSTS` and only to four fixed Artemis endpoints; it stores and logs neither token, address, link nor PDF. The mail endpoint accepts only this installation's `/result#…` links and builds a fixed text (no free text, so it is no spam relay), at most 100 recipients per request and 20 requests per hour. Links sent this way always need a second factor (sticker key or code), so neither the server nor Artemis can open the PDF. Pupil e-mail addresses are stored sealed with the pupil like the name (§3). A mandatory preview shows the teacher which data goes where before anything is sent; PDF mode is labelled as plaintext to Artemis.
+
+*Key in the message.* The teacher may opt in to sending the pupil's key or code inside the e-mail or Artemis message; then the recipient channel (mail provider, Artemis) could open the result. The dialog and preview warn; the privacy statement and DPIA should name this option.
+
+*Open.* The privacy statement (`frontend/src/lib/i18n/de/legal.ts`, binding German text, never machine-translated) does not yet describe e-mail delivery to pupils or the transfer to Artemis; the operator must add it before enabling the switch. Extend the Art. 30 record and the DPIA for the new recipients (mail provider as processor; the Artemis operator, which the school or university must already have a basis for).
+
 ---
 
 ## 5. Honest caveats
@@ -251,6 +261,7 @@ Ordered by what blocks a school deployment.
 7. **Set a real `SECRET_KEY`** and confirm the app refuses to start without one — it now does.
 8. **Consider enforcing SRI** (§5) by vendoring and hashing the WASM binaries.
 9. **Self-registration (issue #53), which has no switch:** extend the Art. 30 record and the DPIA (L18). The privacy statement covers it for shape C since issue #61.
+10. **Result delivery (issue #209):** before teachers use it in production (the switch is on by default), extend the privacy statement, the Art. 30 record and the DPIA (L19).
 
 ---
 

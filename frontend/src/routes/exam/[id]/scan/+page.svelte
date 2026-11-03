@@ -96,6 +96,8 @@
     totalScore?: number;
     annotationCt?: Uint8Array;
     annotationIv?: Uint8Array;
+    /** The student came from the Students page: deleting the scan keeps them. */
+    fromList?: boolean;
   }
 
   // Raw: records go back to repositories; UnmatchedResolver binds item.newCode on the shared objects.
@@ -302,6 +304,7 @@
           totalScore: sub.totalScore,
           annotationCt: sub.annotationCt,
           annotationIv: sub.annotationIv,
+          fromList: st?.fromList,
         });
       }
 
@@ -388,13 +391,17 @@
     previewError = "";
   }
 
+  /** Deletes a scan and, unless the student came from the Students page, its student record (an orphaned UNMATCHED entry otherwise). */
+  async function deleteScanOf(item: ScannedSubmissionItem, group: string) {
+    await submissionRepository.delete(examId, item.id, { group });
+    if (!item.fromList) await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion }, { group });
+  }
+
   async function handleDeleteScan(item: ScannedSubmissionItem) {
     if (!confirm(`${translate("scanning.confirmDeleteScan")}\n\n${translate("common.trashHint", { days: TRASH_DAYS })}`)) return;
     try {
       const group = newTrashGroup();
-      await submissionRepository.delete(examId, item.id, { group });
-      // Also remove the associated student record to prevent orphaned UNMATCHED entries
-      await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion }, { group });
+      await deleteScanOf(item, group);
       await refreshUnmatched();
       await loadScannedSubmissions();
     } catch (err: any) {
@@ -452,9 +459,7 @@
       // One trash entry for the whole action (issue #125).
       const group = newTrashGroup();
       for (const item of scannedSubmissions) {
-        await submissionRepository.delete(examId, item.id, { group });
-        // Also remove the associated student record to prevent orphaned UNMATCHED entries
-        await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion }, { group });
+        await deleteScanOf(item, group);
       }
       await refreshUnmatched();
       await loadScannedSubmissions();

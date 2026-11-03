@@ -3,11 +3,12 @@ import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './guards';
 import { DEFAULT_LOCALE, label, labelExact, type Locale } from './i18n';
 
-export type ExamTab = 'setup' | 'scan' | 'verify' | 'grade' | 'manual' | 'stats';
+export type ExamTab = 'setup' | 'students' | 'scan' | 'verify' | 'grade' | 'manual' | 'stats';
 export type LegalPage = 'impressum' | 'datenschutz';
 
 const EXAM_TAB_KEYS: Record<ExamTab, string> = {
   setup: 'exam.sidebar.setup',
+  students: 'exam.sidebar.students',
   scan: 'exam.sidebar.scan',
   verify: 'exam.sidebar.verify',
   grade: 'exam.sidebar.grade',
@@ -17,6 +18,7 @@ const EXAM_TAB_KEYS: Record<ExamTab, string> = {
 
 const EXAM_TAB_PATH: Record<ExamTab, string> = {
   setup: '',
+  students: '/students',
   scan: '/scan',
   verify: '/verify',
   grade: '/grade',

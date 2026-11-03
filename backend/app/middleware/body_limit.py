@@ -23,6 +23,8 @@ class BodyLimitMiddleware(BaseHTTPMiddleware):
             return settings.BODY_LIMIT_LAYOUT_REPORT
         if path.endswith("/resources") or "/resources/" in path or path.endswith("/logo"):
             return settings.BODY_LIMIT_RESOURCE
+        if path == "/api/v1/integrations/artemis/files":
+            return settings.BODY_LIMIT_INTEGRATION_FILE
         if path.endswith("/shares") and method == "POST":
             return settings.BODY_LIMIT_RESULT_SHARE
         if "/submissions" in path and method == "POST":

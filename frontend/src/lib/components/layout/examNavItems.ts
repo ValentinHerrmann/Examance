@@ -6,11 +6,12 @@ import {
     faPenToSquare,
     faSliders,
     faTableCells,
+    faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 import type { TranslationKey } from '#lib/i18n';
 
 /** Exam steps shared by the desktop sidebar and the phone drawer. */
-export type ExamStep = 'setup' | 'scan' | 'verify' | 'grade' | 'manual' | 'stats';
+export type ExamStep = 'setup' | 'students' | 'scan' | 'verify' | 'grade' | 'manual' | 'stats';
 
 export interface ExamNavItem {
     step: ExamStep;
@@ -22,6 +23,7 @@ export interface ExamNavItem {
 
 const STEPS: { step: ExamStep; suffix: string; labelKey: TranslationKey; icon: IconDefinition }[] = [
     { step: 'setup', suffix: '', labelKey: 'exam.sidebar.setup', icon: faSliders },
+    { step: 'students', suffix: '/students', labelKey: 'exam.sidebar.students', icon: faUsers },
     { step: 'scan', suffix: '/scan', labelKey: 'exam.sidebar.scan', icon: faFileLines },
     { step: 'verify', suffix: '/verify', labelKey: 'exam.sidebar.verify', icon: faListCheck },
     { step: 'grade', suffix: '/grade', labelKey: 'exam.sidebar.grade', icon: faPenToSquare },

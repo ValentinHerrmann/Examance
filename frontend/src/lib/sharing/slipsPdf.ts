@@ -33,6 +33,8 @@ export interface SlipsInput {
   expiresAt: Date;
   factor: ShareFactor;
   entries: readonly SlipEntry[];
+  /** Only the code slips: the links went out another way (e-mail, Artemis; issue #209). */
+  codesOnly?: boolean;
 }
 
 const LINK_GRID = { cols: 2, rows: 4 };
@@ -76,7 +78,7 @@ export async function renderShareSlips(input: SlipsInput): Promise<Uint8Array> {
   const pdf = await lib.PDFDocument.create();
   pdf.setTitle(translate('sharing.slips.pdfTitle', { exam: input.examTitle }));
   const fonts = await embedLabelFonts(lib, pdf);
-  placeOnPages(lib, pdf, LINK_GRID, input.entries.length, (page, box, i) => drawLinkSlip(lib, page, fonts, input, input.entries[i], box));
+  if (!input.codesOnly) placeOnPages(lib, pdf, LINK_GRID, input.entries.length, (page, box, i) => drawLinkSlip(lib, page, fonts, input, input.entries[i], box));
   if (input.factor === 'code') {
     const codeTitle = translate('sharing.slips.codeTitle');
     placeOnPages(lib, pdf, KEY_SLIP_GRID, input.entries.length, (page, box, i) =>

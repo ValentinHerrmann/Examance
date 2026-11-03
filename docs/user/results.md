@@ -50,6 +50,7 @@ The **CSV export** of the grades, for example for the school's grade management,
 | Part | Contains |
 |---|---|
 | **Graded scans (PDF)** | each submission with the corrections drawn in and the [score boxes filled in](./grading#score-boxes); partly graded ones too (file name with `_partial`, ungraded with `_ungraded`); the student's name is printed in red at the top of every page |
+| **Mebis feedback files (ZIP)** | the graded scans as a separate ZIP in Mebis' feedback layout, to upload in the Mebis assignment, see [Mebis and Artemis](./students#lms); not ticked by default |
 | **LaTeX source** | a separate ZIP with exam and solution, their files and logo, ready for Overleaf (compiler XeLaTeX); only with this part can the ZIP be imported again later (without results) |
 | **Compiled exam and solution (PDF)** | the task and solution sheets (compiling may take a while) |
 | **Summary (PDF)** | metadata, grading key in points and percent, average, the combined chart and the student list with points and grades, partly graded ones highlighted |

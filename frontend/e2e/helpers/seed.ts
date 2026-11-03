@@ -45,6 +45,7 @@ export function mainRoutes(examId: string): RouteSpec[] {
     { name: 'impressum', path: '/legal/impressum' },
     { name: 'exam-new', path: '/exam/new' },
     { name: 'exam-setup', path: `/exam/${examId}`, workspace: true },
+    { name: 'exam-students', path: `/exam/${examId}/students` },
     { name: 'exam-scan', path: `/exam/${examId}/scan`, workspace: true },
     { name: 'exam-verify', path: `/exam/${examId}/verify`, workspace: true },
     { name: 'exam-grade', path: `/exam/${examId}/grade` },

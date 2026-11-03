@@ -173,6 +173,7 @@ export const exam = {
         label: 'Prüfungsnavigation',
         back: 'Zu den Prüfungen',
         setup: 'Einrichtung',
+        students: 'Schüler',
         scan: 'Scans',
         verify: 'MC prüfen',
         grade: 'Korrektur',

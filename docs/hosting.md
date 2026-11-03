@@ -103,6 +103,7 @@ Fill in `.env`. The template explains every setting; these are the ones you must
 | `NETWORK_SUBNET` | e.g. `172.23.0.0/16` | Fixed subnet of the stack's network, so the proxy address below stays stable. |
 | `PROXY_ALLOWED_IPS` | the network's gateway, see 4.3 | Addresses whose `X-Forwarded-For` the backend trusts. **Never `*`**: anyone could then fake their address, escape rate limits and falsify the audit log. |
 | `SMTP_*` | your mail account | Without SMTP, links are only written to the log. |
+| `ARTEMIS_ALLOWED_HOSTS` | `artemis.tum.de` (default) | Artemis servers teachers may send graded results to (comma list or JSON array, bare host names). The backend only talks to these hosts. The "result delivery" switch per account (admin) enables it; e-mailing result links additionally needs SMTP. |
 | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | your admin account | Creates the first admin on startup if it does not exist yet ([details](account_creation_and_management.md#_1-initial-admin-bootstrap-automatic-startup)). Remove the password afterwards. |
 
 Passkeys belong to the host name in `FRONTEND_URL`: a passkey created on one installation or domain does not work on another, by design of WebAuthn. To move an installation to a new domain without locking teachers out, follow [Move to another domain](domain_move.md) (`WEBAUTHN_LEGACY_RP_IDS`).

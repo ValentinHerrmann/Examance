@@ -156,7 +156,7 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  options: { binary?: boolean; silentError?: boolean; pendingOn202?: boolean; headers?: Record<string, string> } = {}
+  options: { binary?: boolean; longTimeout?: boolean; silentError?: boolean; pendingOn202?: boolean; headers?: Record<string, string> } = {}
 ): Promise<T> {
   const headers: Record<string, string> = { ...options.headers };
   // The server answers 409 ERR_ACCOUNT_MISMATCH when the cookie now belongs to another account (S12).
@@ -168,13 +168,16 @@ async function request<T>(
     if (body instanceof Uint8Array || body instanceof ArrayBuffer) {
       headers['Content-Type'] = 'application/octet-stream';
       bodyInit = body as BodyInit;
+    } else if (body instanceof FormData) {
+      // The browser sets the multipart boundary itself.
+      bodyInit = body;
     } else {
       headers['Content-Type'] = 'application/json';
       bodyInit = JSON.stringify(body);
     }
   }
 
-  const timeoutMs = options.binary ? BINARY_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
+  const timeoutMs = options.binary || options.longTimeout ? BINARY_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
 
   // Used for the first attempt and the retry after a refresh alike, so both fail as ERR_NETWORK.
   const send = async (): Promise<Response> => {
@@ -283,6 +286,9 @@ export const api = {
   patch: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>('PATCH', path, body, options),
   put: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>('PUT', path, body, options),
   delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, options),
+  /** Multipart upload with a JSON answer, on the long timeout. */
+  postForm: <T>(path: string, form: FormData, options?: RequestOptions) =>
+    request<T>('POST', path, form, { ...options, longTimeout: true }),
   postBinary: (path: string, data: Uint8Array) =>
     request<ArrayBuffer>('POST', path, data, { binary: true }),
   getBinary: (path: string, options?: { silentError?: boolean }) =>

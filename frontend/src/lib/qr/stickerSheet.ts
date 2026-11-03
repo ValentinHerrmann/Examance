@@ -1,7 +1,7 @@
-/** QR name stickers for exam sheets (issues #83, #207): A4 label sheet, 5 × 7 cells, DiRueLei-compatible payload (`Lastname, Firstname_ID`, read back by `parseStudentQr`). With personal keys, the first sticker of each student carries a strip with name and key above the QR code: cut it off and hand it over before the sticker goes onto the paper (labels are expensive). Key slips alone go on plain paper. */
+/** QR name stickers for exam sheets (issues #83, #207): A4 label sheet, 5 × 7 cells, DiRueLei-compatible payload (`Lastname, Firstname_ID`, read back by `parseStudentQr`; entries come from the exam's students, `lib/students/classList.ts`). With personal keys, the first sticker of each student carries a strip with name and key above the QR code: cut it off and hand it over before the sticker goes onto the paper (labels are expensive). Key slips alone go on plain paper. */
 
 import type { PDFPage } from 'pdf-lib';
-import { personalKey, stickerId } from '#lib/crypto/stickerKey';
+import { personalKey } from '#lib/crypto/stickerKey';
 import { translate } from '#lib/i18n';
 import {
   A4,
@@ -16,8 +16,6 @@ import {
   type PdfLib,
 } from '#lib/pdf/labelKit';
 import { formatCode } from '#lib/sharing/shareCrypto';
-import { parseRosterLines } from '#lib/utils/rosterLines';
-import { formatStudentName, formatStudentQr } from '#lib/utils/studentQr';
 
 export interface StickerEntry {
   /** Printed above the QR code and on the key slip. */
@@ -46,16 +44,6 @@ const QR_SIZE = 2.6 * CM;
 /** With a key strip: the strip's height and the smaller QR below it (DiRueLei prints 2 cm). */
 const STRIP = 0.95 * CM;
 const QR_WITH_STRIP = 2.2 * CM;
-
-/** Entries from a pasted list: one student per line, `Lastname, Firstname` then an optional id, split on tab or `;`. A missing id becomes the stable `stickerId` of the name. */
-export async function entriesFromRoster(text: string): Promise<StickerEntry[]> {
-  const entries: StickerEntry[] = [];
-  for (const [name, id] of parseRosterLines(text, /[\t;]/)) {
-    if (!name) continue;
-    entries.push({ label: formatStudentName(name), payload: formatStudentQr(name, id || (await stickerId(name))) });
-  }
-  return entries;
-}
 
 interface Cell {
   entry: StickerEntry;

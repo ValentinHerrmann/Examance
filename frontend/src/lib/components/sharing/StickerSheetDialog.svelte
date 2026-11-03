@@ -1,21 +1,22 @@
 <script lang="ts">
-  /** Prints QR name stickers, optionally with personal key slips (issues #83, #207), or the QR codes directly onto personalised exam copies (issue #211). From an exam it can also start from the exam's students, e.g. to print only the keys for stickers already in use. */
+  /** Prints QR name stickers, optionally with personal key slips (issues #83, #207), or the QR codes directly onto personalised exam copies (issue #211). It prints the exam's students as entered on the Students page, or only their key slips (reprint of lost keys). */
   import { onMount, untrack } from "svelte";
   import { get } from "svelte/store";
   import { faQrcode } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { Button, Checkbox, Field, Modal, Radio, Textarea, TextInput } from "#lib/components/ui";
+  import { Button, Checkbox, Field, Modal, Radio, TextInput } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug } from "#lib/export/zip";
   import { renderExamCopies } from "#lib/qr/examCopies";
-  import { entriesFromRoster, renderStickerSheet, STICKER_GRID, type StickerEntry } from "#lib/qr/stickerSheet";
+  import { renderStickerSheet, STICKER_GRID, type StickerEntry } from "#lib/qr/stickerSheet";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { formatStudentName, stickerRawOf } from "#lib/utils/studentQr";
+  import { studentsHref } from "#lib/utils/links";
 
   interface Props {
-    /** Offers the exam's students as a source. */
-    examId?: string;
+    /** Prints the exam's students (entered on the Students page). */
+    examId: string;
     examTitle?: string;
     /** Starts with the exam's students and only the key slips (from the share dialog). */
     keysOnly?: boolean;
@@ -29,8 +30,6 @@
 
   // The starting choice only; the dialog owns it from then on.
   const initialKeysOnly = untrack(() => startKeysOnly);
-  let source = $state<"roster" | "exam">(initialKeysOnly ? "exam" : "roster");
-  let roster = $state("");
   let examEntries = $state.raw<StickerEntry[]>([]);
   let copies = $state("1");
   let skip = $state("0");
@@ -41,11 +40,10 @@
   let progress = $state("");
   let copiesMode = $derived(output === "copies");
   // Key slips alone print on plain paper: no labels, so no copies or used cells.
-  let onlyKeys = $derived(!copiesMode && source === "exam" && keysOnly);
+  let onlyKeys = $derived(!copiesMode && keysOnly);
   let error = $state("");
 
   onMount(async () => {
-    if (!examId) return;
     try {
       await awaitSessionReady();
       const students = await studentRepository.getByExamId(examId, get(sessionStore).sessionKey);
@@ -64,7 +62,7 @@
     busy = true;
     error = "";
     try {
-      const entries = source === "exam" ? examEntries : await entriesFromRoster(roster);
+      const entries = examEntries;
       if (!entries.length) {
         error = $t("sharing.stickers.empty");
         return;
@@ -105,28 +103,15 @@
 
     <p class="text-sm text-muted">{copiesMode ? $t("sharing.stickers.copiesIntro") : $t("sharing.stickers.intro")}</p>
 
-    {#if examId}
-      <fieldset class="flex flex-col gap-2" disabled={busy}>
-        <legend class="mb-2 text-sm text-muted">{$t("sharing.stickers.source")}</legend>
-        <Radio group={source} value="roster" name="sticker-source" onchange={() => (source = "roster")} label={$t("sharing.stickers.sourceRoster")} />
-        <Radio
-          group={source}
-          value="exam"
-          name="sticker-source"
-          onchange={() => (source = "exam")}
-          disabled={!examEntries.length}
-          label={examEntries.length ? $t("sharing.stickers.examCount", { count: examEntries.length }) : $t("sharing.stickers.examNone")}
-        />
-      </fieldset>
-    {/if}
-
-    {#if source === "roster"}
-      <Field label={$t("sharing.stickers.rosterLabel")} hint={$t("sharing.stickers.rosterHint")}>
-        {#snippet children({ id })}
-          <Textarea {id} rows={8} bind:value={roster} placeholder={$t("sharing.stickers.rosterPlaceholder")} disabled={busy} />
-        {/snippet}
-      </Field>
-    {/if}
+    <!-- Student data is entered only on the Students page; this dialog prints what is there. -->
+    <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
+      {#if examEntries.length}
+        <span>{$t("sharing.stickers.examCount", { count: examEntries.length })}</span>
+      {:else}
+        <span class="text-warning-fg">{$t("lms.students.noneYet")}</span>
+      {/if}
+      <Button size="sm" variant="text" href={studentsHref(examId)}>{$t("lms.students.manage")}</Button>
+    </div>
 
     {#if copiesMode}
       <p class="text-sm text-muted">{$t("sharing.stickers.copiesPrintHint")}</p>
@@ -150,12 +135,10 @@
         <Checkbox bind:checked={keys} label={$t("sharing.stickers.keys")} disabled={busy || onlyKeys} />
         <p class="ml-7 text-sm text-muted">{$t("sharing.stickers.keysHint")}</p>
       </div>
-      {#if source === "exam"}
-        <div>
-          <Checkbox bind:checked={keysOnly} label={$t("sharing.stickers.keysOnly")} disabled={busy} />
-          <p class="ml-7 text-sm text-muted">{$t("sharing.stickers.keysOnlyHint")}</p>
-        </div>
-      {/if}
+      <div>
+        <Checkbox bind:checked={keysOnly} label={$t("sharing.stickers.keysOnly")} disabled={busy} />
+        <p class="ml-7 text-sm text-muted">{$t("sharing.stickers.keysOnlyHint")}</p>
+      </div>
     </div>
   </div>
 

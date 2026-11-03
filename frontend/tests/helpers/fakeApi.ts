@@ -137,17 +137,17 @@ function withDefaults<T extends object>(base: T, over: Record<string, any>): T {
 
 /** Accounts the admin page lists: one pending registration, one active teacher, one open invitation (long addresses on purpose). */
 function seedAdminUsers(): any[] {
-  const all = { server_results: true, server_latex: true, exercise_sharing: true };
+  const all = { server_results: true, server_latex: true, exercise_sharing: true, result_delivery: true };
   return [
     { id: 'u-pending', email: 'very.long.firstname.lastname@grundschule-am-beispielweg.example', role: 'teacher', created_at: '2026-10-01T08:00:00Z', approved_at: null, registration_note: 'Mathematik und Physik, Klasse 9b — bitte freischalten.', features: all, password_set: true },
     { id: 'u-active', email: 'teacher@e2e.example', role: 'teacher', created_at: '2026-09-01T08:00:00Z', approved_at: '2026-09-01T08:00:00Z', registration_note: null, features: all, password_set: true },
-    { id: 'u-invited', email: 'neue.kollegin.mit.langem.namen@gymnasium-beispielstadt.example', role: 'admin', created_at: '2026-09-20T08:00:00Z', approved_at: '2026-09-20T08:00:00Z', registration_note: null, features: { server_results: false, server_latex: true, exercise_sharing: false }, password_set: false },
+    { id: 'u-invited', email: 'neue.kollegin.mit.langem.namen@gymnasium-beispielstadt.example', role: 'admin', created_at: '2026-09-20T08:00:00Z', approved_at: '2026-09-20T08:00:00Z', registration_note: null, features: { server_results: false, server_latex: true, exercise_sharing: false, result_delivery: false }, password_set: false },
   ];
 }
 
 function seedAdminDomains(): any[] {
   return [
-    { id: 'd-1', domain: 'gymnasium-beispielstadt.example', features: { server_results: true, server_latex: false, exercise_sharing: true }, created_at: '2026-09-01T08:00:00Z' },
+    { id: 'd-1', domain: 'gymnasium-beispielstadt.example', features: { server_results: true, server_latex: false, exercise_sharing: true, result_delivery: false }, created_at: '2026-09-01T08:00:00Z' },
   ];
 }
 
@@ -282,8 +282,8 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     allowed_storage_modes: state.role === 'admin' ? [] : [...ALLOWED_MODES],
     features:
       state.role === 'admin'
-        ? { server_results: false, server_latex: false, training_donation: false }
-        : { server_results: true, server_latex: true, training_donation: true },
+        ? { server_results: false, server_latex: false, result_delivery: false, result_mail: false, training_donation: false }
+        : { server_results: true, server_latex: true, result_delivery: true, result_mail: true, training_donation: true },
   });
 
   function user(method: string, parts: string[], body: any): Handled {

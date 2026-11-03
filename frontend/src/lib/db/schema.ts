@@ -234,6 +234,14 @@ export interface StudentRecord extends MaybeUndecryptable {
   studentName?: string;
   /** Student ID number (e.g. "123456"). Decrypted only. */
   studentNumber?: string;
+  /** E-mail address for sending a result link (issue #209). Decrypted only. */
+  email?: string;
+  /** Mebis participant id, from a Mebis class list (issue #209). Decrypted only. */
+  mebisId?: string;
+  /** Artemis user id, from an Artemis course. Decrypted only. */
+  artemisId?: string;
+  /** Entered on the Students page (class list), not created by a scan: deleting a scan keeps the student. Decrypted only. */
+  fromList?: boolean;
   /** AES-256-GCM ciphertext of PII (name, student number, etc.). */
   piiCt: Uint8Array;
   /** 12-byte GCM IV for piiCt. */

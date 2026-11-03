@@ -40,6 +40,7 @@ Unter **Konten** legen Sie für jedes Konto fest, was es nutzen darf:
 | **Schülerdaten und Ergebnisse auf dem Server** | Ergebnisse bleiben im Browser der Lehrkraft (nur Hybrid-Modus) |
 | **LaTeX auf dem Server kompilieren** | der Browser kompiliert |
 | **Aufgaben teilen und übernehmen** | kein Teilen, kein Übernehmen geteilter Aufgaben |
+| **Korrigierte Arbeiten per E-Mail und Artemis verschicken** | nur Zettel; eingeschaltet laufen E-Mail-Adressen und Artemis-Tokens über den Server, siehe [Per E-Mail verschicken](./students#email); E-Mail braucht außerdem einen auf dieser Installation eingerichteten Mailserver (sonst sehen Lehrkräfte sie ausgegraut) |
 
 Prüfungen und Aufgaben liegen immer auf dem Server. Optionen, die ein Konto nicht nutzen darf, zeigt die App der Lehrkraft als „nicht freigeschaltet“ an. Funktionen lassen sich jederzeit ändern; schalten Sie „Schülerdaten auf dem Server“ ab, verschiebt die App die Ergebnisse dieser Lehrkraft beim nächsten Öffnen in ihren Browser. Dabei geht nichts verloren.
 

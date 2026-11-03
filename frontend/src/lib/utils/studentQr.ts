@@ -84,3 +84,29 @@ export function stickerRawOf(student: { pseudonymRaw?: string }): string | null 
   const raw = student.pseudonymRaw?.trim();
   return raw && !UUID_RAW.test(raw) ? raw : null;
 }
+
+/** Prefixes Mebis puts before a participant id (`Teilnehmer/in6028356`, `Participant 6028356`); DiRueLei stickers printed them into the QR code. */
+const LMS_ID_PREFIX = /^(?:teilnehmer\/?in|teilnehmer|participant)\s*/i;
+
+/** A Mebis participant id or Artemis user id as plain digits, or null when *value* is not one. */
+export function normalizeLmsId(value: string | null | undefined): string | null {
+  const id = (value ?? '').trim().replace(LMS_ID_PREFIX, '');
+  return /^\d+$/.test(id) ? id : null;
+}
+
+/** The numeric id in a student's sticker payload; which LMS it belongs to depends on the list the stickers came from. */
+export function stickerLmsId(student: { pseudonymRaw?: string }): string | null {
+  return normalizeLmsId(parseStudentQr(stickerRawOf(student))?.studentNumber);
+}
+
+type WithIds = { pseudonymRaw?: string; mebisId?: string; artemisId?: string };
+
+/** The Mebis participant id (issue #209): the stored one, else the sticker's (stickers printed from a Mebis list carry it). */
+export function mebisIdOf(student: WithIds): string | null {
+  return normalizeLmsId(student.mebisId) ?? stickerLmsId(student);
+}
+
+/** The Artemis user id: the stored one, else the sticker's (stickers printed from an Artemis course carry it). */
+export function artemisIdOf(student: WithIds): string | null {
+  return normalizeLmsId(student.artemisId) ?? stickerLmsId(student);
+}
