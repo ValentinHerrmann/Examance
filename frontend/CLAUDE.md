@@ -52,7 +52,7 @@ UI text lives in typed catalogs under `src/lib/i18n/`.
 
 - Grading and statistics are strictly per question (`exerciseId`); `ExamMcGroup` is only LaTeX layout metadata.
 - **Group membership lives on the junction row** (`examExercises.mcGroupId`/`subIndex`, Dexie key `[examId+exerciseId]`): a `put`/`bulkPut` that omits them silently dissolves the group. Merge onto the stored record.
-- `PATCH /exams/{id}` replaces `mc_groups` and `exercise_links` wholesale; `buildExamLinkPayload()` in `exam/[id]/+page.svelte` is the single builder of both.
+- `PATCH /exams/{id}` replaces `mc_groups` and `exercise_links` wholesale; `buildExamLinkPayload()` in `exam/[id]/content/+page.svelte` is the single builder of both.
 - The editor's MC question is LaTeX, never escaped; options and answer key are read from the LaTeX (`printedMcOptions`), the stored `correct_answers` is only a fallback.
 - `routes/exam/new` only creates an empty exam (`ExamMetadataEditor` in `create` mode); selection, groups, order, preview, logo and packages live on the exam page. There is no second preamble builder.
 

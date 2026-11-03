@@ -186,6 +186,20 @@ export const exam: Translations['exam'] = {
         collapse: 'Collapse sidebar',
         expand: 'Expand sidebar',
     },
+    layout: {
+        saved: 'Layout saved.',
+        discard: 'Discard changes',
+    },
+    content: {
+        tabsLabel: 'Edit exam',
+        tabExercises: 'Exercises',
+        tabLayout: 'Layout',
+        tabPreview: 'Preview',
+        unsavedTitle: 'Unsaved layout',
+        unsavedMessage: 'The layout changes are not saved yet. Leave the page anyway?',
+        unsavedLeave: 'Leave',
+        unsavedStay: 'Keep editing',
+    },
     flow: {
         done: 'done',
         next: 'Next: {step}',

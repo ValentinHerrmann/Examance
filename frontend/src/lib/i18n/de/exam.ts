@@ -184,6 +184,20 @@ export const exam = {
         collapse: 'Seitenleiste einklappen',
         expand: 'Seitenleiste ausklappen',
     },
+    layout: {
+        saved: 'Layout gespeichert.',
+        discard: 'Änderungen verwerfen',
+    },
+    content: {
+        tabsLabel: 'Prüfung bearbeiten',
+        tabExercises: 'Aufgaben',
+        tabLayout: 'Layout',
+        tabPreview: 'Vorschau',
+        unsavedTitle: 'Ungespeichertes Layout',
+        unsavedMessage: 'Die Layout-Änderungen sind noch nicht gespeichert. Seite trotzdem verlassen?',
+        unsavedLeave: 'Verlassen',
+        unsavedStay: 'Weiter bearbeiten',
+    },
     flow: {
         done: 'erledigt',
         next: 'Weiter: {step}',
