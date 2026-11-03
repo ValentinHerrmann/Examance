@@ -217,6 +217,10 @@ export const exam = {
         qrIntro: 'QR-Aufkleber, QR-Codes direkt auf den Exemplaren oder Schlüsselzettel für die Schüler aus der Schülerliste.',
         failed: 'Die PDFs konnten nicht erstellt werden: {message}',
     },
+    results: {
+        tabStats: 'Statistik',
+        tabShare: 'Teilen',
+    },
     flow: {
         done: 'erledigt',
         next: 'Weiter: {step}',

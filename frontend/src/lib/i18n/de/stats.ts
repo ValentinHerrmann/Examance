@@ -1,4 +1,8 @@
 export const stats = {
+    gradingKey: {
+        intro: 'Änderungen wirken sofort auf die Notenverteilung; gespeichert wird erst mit „Speichern“.',
+        saved: 'Notenschlüssel gespeichert.',
+    },
     page: {
         title: 'Notenübersicht & Export',
         statusBanner: 'Status: {graded} von {total} Abgaben mit mindestens einer korrigierten Aufgabe.',

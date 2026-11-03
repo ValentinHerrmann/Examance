@@ -219,6 +219,10 @@ export const exam: Translations['exam'] = {
         qrIntro: 'QR stickers, QR codes printed onto the copies, or key slips for the students on the Students page.',
         failed: 'The PDFs could not be created: {message}',
     },
+    results: {
+        tabStats: 'Statistics',
+        tabShare: 'Share',
+    },
     flow: {
         done: 'done',
         next: 'Next: {step}',

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { t, type TranslationKey } from '#lib/i18n';
   import { fmt } from '#lib/utils/format';
   import type { ExamRecord } from '#lib/db/schema';
@@ -23,6 +24,8 @@
     onOpenExport: () => void;
     onConfirmExport: () => void;
     onCancelExport: () => void;
+    /** The grading-key editor, shown under the heading (issue #212). */
+    gradingKeyPanel?: Snippet;
   }
 
   let {
@@ -35,7 +38,8 @@
     showConfirmModal,
     onOpenExport,
     onConfirmExport,
-    onCancelExport
+    onCancelExport,
+    gradingKeyPanel
   }: Props = $props();
 
   const PRESETS: Record<string, TranslationKey> = {
@@ -65,6 +69,7 @@
 
 <PageShell width="full">
   <PageHeader title={$t('stats.page.title')} />
+  {#if gradingKeyPanel}<div class="mb-6">{@render gradingKeyPanel()}</div>{/if}
 
   {#if submissionCount > 0}
     <div class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">

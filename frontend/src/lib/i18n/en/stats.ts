@@ -1,6 +1,10 @@
 import type { Translations } from '../types';
 
 export const stats: Translations['stats'] = {
+    gradingKey: {
+        intro: 'Changes show in the grade distribution right away; they are stored only when you save.',
+        saved: 'Grading key saved.',
+    },
     page: {
         title: 'Grade Analytics & Export',
         statusBanner: 'Status: {graded} of {total} submissions with at least one graded exercise.',
