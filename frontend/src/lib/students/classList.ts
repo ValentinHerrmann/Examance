@@ -61,6 +61,20 @@ export async function listedStudent(examId: string, contact: Contact): Promise<S
   };
 }
 
+/** A student added by hand on the Students page (issue #212): a listed student like an imported one, so it gets a sticker payload and personal key; the sticker id is the Mebis id, else the Artemis id, else a stable one from the name. */
+export async function newListedStudent(examId: string, fields: Partial<Record<EditableField, string>>): Promise<StudentRecord> {
+  const mebisId = normalizeLmsId(fields.mebisId);
+  const artemisId = normalizeLmsId(fields.artemisId);
+  const source: ContactSource = mebisId ? 'mebis' : artemisId ? 'artemis' : 'list';
+  const student = await listedStudent(examId, { name: fields.studentName ?? '', id: mebisId ?? artemisId ?? null, email: fields.email?.trim() || null, source });
+  return {
+    ...student,
+    ...(fields.studentNumber?.trim() ? { studentNumber: fields.studentNumber.trim() } : {}),
+    ...(mebisId ? { mebisId } : {}),
+    ...(artemisId ? { artemisId } : {}),
+  };
+}
+
 /** Writes *plan* through the student repository (sealed, following the storage mode). */
 export async function applyImport(examId: string, plan: ImportPlan, key: CryptoKey | null): Promise<void> {
   for (const { student, changes } of plan.update) await studentRepository.save({ ...student, ...changes }, key); // NOSONAR: one row at a time keeps the order and the error report simple

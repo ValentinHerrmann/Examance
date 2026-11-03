@@ -5,7 +5,8 @@
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { t } from "#lib/i18n";
-  import { Alert, PageHeader, PageShell, Spinner } from "#lib/components/ui";
+  import { Alert, Button, PageHeader, PageShell, Spinner, actionIcons } from "#lib/components/ui";
+  import StudentEditDialog from "#lib/components/students/StudentEditDialog.svelte";
   import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
   import RosterManager from "#lib/components/manual-grading/RosterManager.svelte";
   import StudentImport from "#lib/components/students/StudentImport.svelte";
@@ -19,6 +20,7 @@
   let submissions = $state.raw<SubmissionRecord[]>([]);
   let loading = $state(true);
   let error = $state("");
+  let adding = $state(false);
 
   async function load() {
     const key = get(sessionStore).sessionKey;
@@ -49,7 +51,11 @@
 
 <PageShell width="wide">
   <div class="flex min-w-0 flex-col gap-6">
-    <PageHeader title={$t("exam.sidebar.students")} subtitle={$t("lms.students.intro")} />
+    <PageHeader title={$t("exam.sidebar.students")} subtitle={$t("lms.students.intro")}>
+      {#snippet actions()}
+        <Button icon={actionIcons.add} disabled={loading || !!error} onClick={() => (adding = true)}>{$t("lms.students.add.action")}</Button>
+      {/snippet}
+    </PageHeader>
 
     {#if error}
       <Alert severity="danger">{error}</Alert>
@@ -62,3 +68,17 @@
   </div>
   <ExamStepFooter {examId} step="students" />
 </PageShell>
+
+{#if adding}
+  <StudentEditDialog
+    students={[]}
+    all={students}
+    hasSubmission={(st) => submissions.some((sub) => sub.pseudonymHmac === st.pseudonymHmac)}
+    createIn={examId}
+    onSaved={() => {
+      adding = false;
+      void load();
+    }}
+    onClose={() => (adding = false)}
+  />
+{/if}

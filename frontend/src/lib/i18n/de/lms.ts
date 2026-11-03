@@ -37,6 +37,12 @@ export const lms = {
             understood: 'Ich verstehe, dass Scan und Korrektur gelöscht werden.',
             confirmScanned: 'Mit Scan und Korrektur löschen',
         },
+        add: {
+            action: 'Schüler hinzufügen',
+            title: 'Schüler hinzufügen',
+            duplicateName: '{name}: Ein Schüler mit diesem Namen steht schon in der Liste.',
+            save: 'Hinzufügen',
+        },
         edit: {
             action: 'Bearbeiten',
             titleOne: 'Schüler bearbeiten',

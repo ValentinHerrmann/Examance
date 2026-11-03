@@ -39,6 +39,12 @@ export const lms: Translations['lms'] = {
             understood: 'I understand that the scan and grading will be deleted.',
             confirmScanned: 'Delete with scan and grading',
         },
+        add: {
+            action: 'Add student',
+            title: 'Add student',
+            duplicateName: '{name}: a student with this name is already on the list.',
+            save: 'Add',
+        },
         edit: {
             action: 'Edit',
             titleOne: 'Edit student',
