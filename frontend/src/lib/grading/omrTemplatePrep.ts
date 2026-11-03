@@ -16,7 +16,8 @@ import {
   loadExamExercisesEncrypted, 
   loadLocalMcGroups, 
   loadExercisesEncrypted, 
-  saveOmrTemplateEncrypted 
+  saveOmrTemplateEncrypted,
+  loadOmrTemplateEncrypted
 } from "#lib/db/dbEncryption";
 import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
 import { compileWithCache, getCachedFor } from "#lib/latex/compileCache";
@@ -145,6 +146,16 @@ async function hashOmrTemplate(mcExercises: ExerciseRecord[], mcGroups: McGroup[
 export async function computeOmrTemplateHash(ctx: OmrLayoutInput): Promise<string> {
   const mcExercises = resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups);
   return hashOmrTemplate(mcExercises, ctx.mcGroups, await buildOmrBlankTex(ctx));
+}
+
+export type OmrTemplateStatus = "none" | "ready" | "stale";
+
+/** Whether the stored OMR template still matches the printed layout (same hash as the scan/verify checks); never regenerates one. */
+export async function omrTemplateStatus(ctx: OmrLayoutInput, key: CryptoKey | null): Promise<OmrTemplateStatus> {
+  if (resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups).length === 0) return "none";
+  const existing = await loadOmrTemplateEncrypted(ctx.exam.id, key);
+  if (!existing || !existing.payload) return "none";
+  return existing.record.exercisesHash === (await computeOmrTemplateHash(ctx)) ? "ready" : "stale";
 }
 
 export interface PrepareOmrTemplateArgs {
