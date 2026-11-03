@@ -4,7 +4,17 @@ editLink: false
 
 # QR stickers and results for students
 
-Two things belong together here: **QR codes**, as stickers that students put on their exam sheet or printed directly onto it, so Examance knows whose paper it is, and **personal links** with which each student later downloads their graded exam. Both buttons are on the exam page.
+Two things belong together here: **QR codes**, as stickers that students put on their exam sheet or printed directly onto it, so Examance knows whose paper it is, and **personal links** with which each student later downloads their graded exam. The students themselves, with their Mebis or Artemis ID and e-mail address, are kept in one place: the exam's **Students** page.
+
+## Student data {#student-data}
+
+**Students** (in the exam's sidebar, or the button on the exam page) holds the exam's class list: names, the Mebis or Artemis ID and the e-mail address. Everything else only reads it: the QR stickers, the printed exam copies, and sharing results by e-mail, Artemis or Mebis.
+
+- **Use a class list**: **Choose file** reads a Mebis grading worksheet or participant list (CSV) or a plain list; **Or paste a list** takes typed or pasted lines (`Lastname, Firstname; ID; address`, one per student); **Load from an Artemis course** fetches the course members. Examance shows what would change (new, updated, unchanged) and saves only after **Apply**. Students already in the list are recognised by their ID, otherwise by name, so importing the same list again only adds addresses.
+- **Edit** a row to correct a name or an e-mail address.
+- Students without an ID get a stable one derived from the name.
+
+The list is stored **encrypted** with the exam, like the results (in hybrid mode only in this browser). When the scans come in, every page is matched to its student by the QR code; a student's address and name stay as entered. Deleting a scan keeps the student on the list.
 
 ## QR stickers {#qr-stickers}
 
@@ -12,12 +22,9 @@ The printed exam has an empty box labelled **QR Code** on its cover page. Each s
 
 **Print QR codes** on the exam page opens a dialog. With **Sticker sheet** it prints an A4 sheet of **5 × 7 labels**:
 
-1. Choose where the names come from: **paste a list** (one line per student, `Lastname, Firstname`, optionally followed by a tab or `;` and an ID, for example a school number), or take the **students of the exam**.
-2. Without an ID, Examance derives a stable one from the name. Printing the same list again therefore gives the same stickers.
-3. Set the **number of stickers per student** and how many labels of the first sheet are **already used**, so a partly used sheet is not wasted.
-4. Print the sheet at 100 % (no "fit to page") and cut or peel the labels.
-
-**From Mebis or Artemis.** Below the list, **Choose file** reads a Mebis export, or **Load from an Artemis course** fetches the course members; both fill the list, so you can check it before printing. See [Mebis and Artemis](#lms).
+1. The stickers are made for the students on the [Students page](#student-data); add them there first. Printing again gives the same stickers.
+2. Set the **number of stickers per student** and how many labels of the first sheet are **already used**, so a partly used sheet is not wasted.
+3. Print the sheet at 100 % (no "fit to page") and cut or peel the labels.
 
 Stickers made by other tools in the format `Lastname, Firstname_ID` work as well. Students you added by hand or from unmatched pages have no sticker.
 
@@ -73,20 +80,24 @@ The link itself already protects the PDF: without it, nobody can even fetch it. 
 |---|---|
 | **Link only** | the link or the QR code on the slip |
 | **Link plus the key from the QR sticker** | the link and the personal key from their sticker sheet, see [Personal keys](#personal-keys) |
-| **Link plus a code on a separate slip** | the link and an eight-character code (such as `ABCD-EFGH`) that you hand out separately |
+| **Link plus a code on a separate slip** | the link and an eight-character code (such as `ABCD-EFGH`) on a slip you hand out separately |
 
-Options that do not fit your selection are greyed out and the dialog says why. For example, students without a QR sticker cannot use the sticker key; **Print keys** helps there. A code is created fresh for every student and never stored: if one is lost, share that student again.
+The code on the separate slip **is the student's personal key**, the same one printed with their QR sticker or on their exam copy. The code slips therefore also replace a lost key. Only students without a sticker get a newly created code.
+
+Options that do not fit your selection are greyed out and the dialog says why. For example, students without a QR sticker cannot use the sticker key; **Print keys** helps there.
+
+**Key in the message.** For e-mail and Artemis you can tick **Put the key or code into the message**. The link then opens without slip or sticker, which helps students who lost their key. It is less safe: whoever can read the message (the mail provider, Artemis, anyone with access to the mailbox) can open the exam. It is off by default.
+
+**Language.** E-mails and Artemis messages to students are written in German unless you choose English in **Language of the message**.
 
 ## Send by e-mail {#email}
 
 Each student gets an e-mail with their link. For that, the students of the exam need an e-mail address:
 
-- In the sharing dialog under **By e-mail**, **Choose file** reads a Mebis export or a list (`Lastname, Firstname; ID; address`, one line per student), or paste or type such a list into **Or paste a list** and click **Apply**. Examance matches the addresses to the students by the ID on their QR sticker, otherwise by name, shows the result, and saves them with **Use … addresses**.
-- Or enter an address per student in the roster (**Edit**).
+- Add them on the [Students page](#student-data): from a Mebis list, an Artemis course or a pasted list, or per student with **Edit**. Under **By e-mail** the sharing dialog shows how many students have an address and links there.
+- The sharing dialog's student list shows each student's Mebis/Artemis ID and e-mail address; an empty cell means none is known.
 
-The address is stored **encrypted** with the student, like their name.
-
-Because the mail goes through the Examance server, a link sent by e-mail must never open the exam on its own: only **key from the QR sticker** and **code on a separate slip** are offered. With codes, the code slips are downloaded at the end; hand them out in class.
+Because the mail goes through the Examance server, a link sent by e-mail must never open the exam on its own: only **key from the QR sticker** and **code on a separate slip** are offered (unless you put the key into the message yourself, see [Link protection](#link-protection)). With codes, the code slips are downloaded at the end; hand them out in class.
 
 ## Mebis and Artemis {#lms}
 
@@ -95,7 +106,7 @@ Examance works with Mebis and Artemis in the same way as DiRueLei.
 **Mebis** has no connection; you exchange files:
 
 1. In the Mebis assignment, download the **grading worksheet** (or export the participant list as CSV). It contains the students' Mebis IDs and e-mail addresses.
-2. Print the [QR stickers](#qr-stickers) from this file: the Mebis ID goes into each sticker.
+2. Import this file on the [Students page](#student-data) and print the [QR stickers](#qr-stickers) or copies: the Mebis ID goes into each code.
 3. After grading, choose **Feedback files for Mebis (download)** in **Share with students**, or tick **Mebis feedback files (ZIP)** in the [export](./results#export). Either way you get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
 
 Students whose sticker carries no Mebis ID are listed in the export warnings.
@@ -107,7 +118,7 @@ Students whose sticker carries no Mebis ID are listed in the export warnings.
 - **Course ID**: the number in the course address (`…/courses/123`).
 - **Artemis token**: the value of the `jwt` cookie of your signed-in Artemis (browser developer tools → storage → cookies). It is used only for this run and stored nowhere.
 
-With it you can **load the course members for the QR stickers** (each sticker then carries the Artemis user ID) and later **send results through Artemis**: every student gets a direct message from you, either
+With it you can **load the course members on the [Students page](#student-data)** (each QR code then carries the Artemis user ID) and later **send results through Artemis**: every student gets a direct message from you, either
 
 - with the **link** (protected by sticker key or code, as with e-mail; the exam stays encrypted, expires and can be revoked), or
 - with the **graded exam as a PDF**: then the PDF goes unencrypted to Artemis and stays stored there; expiry and revoking do not apply.

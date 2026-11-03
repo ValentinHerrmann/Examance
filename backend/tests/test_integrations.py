@@ -354,3 +354,28 @@ async def test_capabilities_tell_whether_mail_can_be_sent(
     monkeypatch.setattr(settings, "SMTP_HOST", smtp)
     caps = await client.get("/api/v1/user/capabilities")
     assert caps.json()["features"]["result_mail"] is expected
+
+
+@pytest.mark.asyncio
+async def test_mail_carries_the_code_only_when_asked(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _teacher(client, db, "code@example.com")
+    sent: list[account_mail.Mail] = []
+
+    async def fake_send(mail: account_mail.Mail) -> bool:
+        sent.append(mail)
+        return True
+
+    monkeypatch.setattr(account_mail, "send", fake_send)
+    plain = _mail_body()
+    assert (await client.post(API + "/mail/results", json=plain)).status_code == 200
+    with_code = _mail_body()
+    with_code["recipients"][0]["code"] = "ABCD-2345"  # type: ignore[index]
+    assert (await client.post(API + "/mail/results", json=with_code)).status_code == 200
+    assert "ABCD-2345" not in sent[0].text
+    assert "Schlüssel ein: ABCD-2345" in sent[1].text
+    assert sent[1].subject.startswith("Deine korrigierte Prüfung")
+    bad = _mail_body()
+    bad["recipients"][0]["code"] = "<script>"  # type: ignore[index]
+    assert (await client.post(API + "/mail/results", json=bad)).status_code == 422

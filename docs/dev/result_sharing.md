@@ -2,11 +2,20 @@
 
 Issues #207 and #83. Teachers print QR name stickers for the exam sheets and later give each student their graded PDF through a personal link. The server only ever stores ciphertext it cannot open.
 
+## Student data (class list)
+
+The exam's **Students page** (`routes/exam/[id]/students`, `lib/students/classList.ts`, `components/students/StudentImport.svelte`, the table is `manual-grading/RosterManager` with `listMode`) is the only place where student data is entered: names, LMS ids, e-mail addresses. The sticker dialog, the exam copies and the share dialog only read the exam's students; a later cross-exam student management feeds the same import.
+
+- **Pre-created students.** `listedStudent` makes an ordinary `StudentRecord` before any scan: `pseudonymFor(examId, formatStudentQr(name, id || stickerId(name)))`, so the raw value is exactly the sticker payload. Sealed `fromList: true` marks it. `planImport` (new, updated, unchanged, via `matchContacts`) runs before `applyImport` writes through `studentRepository`, so it follows the storage mode.
+- **Scan merge.** A student save replaces the whole sealed record (locally and in the server upsert). `ingestScans` therefore reads the exam's students once and `mergeScannedStudent` keeps name, e-mail and `fromList` of a matching row (by `joinKey`); the scan only fills empty fields. Never save a scanned student without this merge.
+- **Scan deletion** keeps `fromList` students and deletes only the submission (`scan/+page.svelte` `deleteScanOf`).
+- **Grade rows** (`buildGradeRows`) mark a student without a submission as "no exam scanned" instead of "ungraded".
+
 ## QR name stickers
 
-- `lib/qr/stickerSheet.ts` (`renderStickerSheet`, `entriesFromRoster`) draws an A4 sheet of 5 × 7 labels with pdf-lib. QR codes are vector modules from the bundled `qrcode` package (`lib/pdf/labelKit.ts` `drawQr`); there is no external QR service, because the CSP allows `script-src 'self'` only.
+- `lib/qr/stickerSheet.ts` (`renderStickerSheet`) draws an A4 sheet of 5 × 7 labels with pdf-lib. QR codes are vector modules from the bundled `qrcode` package (`lib/pdf/labelKit.ts` `drawQr`); there is no external QR service, because the CSP allows `script-src 'self'` only.
 - The payload is `Lastname, Firstname_ID` (`formatStudentQr` in `utils/studentQr.ts`), which is also the DiRueLei format. `parseStudentQr` reads it back, and the scanner stores the whole text as the student's raw id (`pseudonymRaw`).
-- If a pasted line has no id, `stickerId(name)` (`crypto/stickerKey.ts`) derives a stable 6-character id from the name, so a reprint gives the same sticker.
+- If a listed student has no id, `stickerId(name)` (`crypto/stickerKey.ts`) derives a stable 6-character id from the name, so a reprint gives the same sticker.
 - **Personal keys.** With the option on, each student's first sticker carries a strip with name and key (`personalKey(raw)`, so no storage) above the QR code, behind a dashed cut line; the teacher cuts it off before the sticker goes onto the paper, so no label is spent on the key. Students who already carry a sticker (DiRueLei or an older sheet) get key slips only, on plain paper (`renderKeySlips`). Key slips and the share code slips are drawn by one `labelKit.drawKeySlip`.
 - `K_sticker = HKDF-SHA-256(data key, salt "examance-sticker-v1", info "sticker")`. Ids and keys are HMACs under it, so only this account can reproduce them, and a reprint always matches.
 - Students added by hand or opened from unmatched pages have a minted UUID as their raw id. They carry no sticker, so `stickerRawOf` returns null for them.
@@ -44,7 +53,11 @@ The flow lives in `lib/sharing/shareService.ts`:
 **Factors**, chosen per share in the dialog:
 - `none`: the link alone opens the PDF.
 - `sticker`: the personal key from the sticker sheet.
-- `code`: a fresh code per student, printed on separate code slips so it can be handed out apart from the link. The code is never stored; if one is lost, share that student again.
+- `code`: printed on separate code slips so it can be handed out apart from the link. `shareCode` uses the student's personal key (`personalKey(raw)`, the one on their sticker or copy), so the slips double as a reprint of a lost key; only students without a sticker get a fresh `randomCode`, which is never stored.
+
+**Code in the message** (opt-in, e-mail and Artemis link mode). `ShareRequest.includeCode` hands the code to `deliverLink`; the mail endpoint takes an optional `code` (`^[A-Z0-9-]{1,16}$`) and `result_link_mail` writes it instead of the "you also need your key" sentence; the Artemis text uses `withKey`. The dialog and the delivery preview warn that whoever reads the message can open the exam. It is the teacher's documented choice; the default stays a separate factor.
+
+**Language.** Messages to students use `ShareRequest.language` (default `de`), not the UI locale: `translateIn(language, …)` for Artemis, the request `locale` for the mail.
 
 **Channels.** `lib/sharing/channels.ts` lists how results reach students. Each channel names the factors it carries, which students it cannot reach and what it `requires` (account switch, server mail), each with a reason. The dialog never hides a channel: `channelUnavailable` greys it out with that reason inline (visible without hover, for touch). It mutes factors that no chosen student can use, and shows the reason (`incompatibleStudents`). See [Delivery channels](#delivery-channels).
 
@@ -70,7 +83,7 @@ Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis suppo
   - a Mebis grading worksheet or participant CSV (`contactsFromMebisCsv`);
   - pasted lines (`contactsFromLines`);
   - Artemis course members (`fetchArtemisStudents`).
-- `matchContacts` pairs contacts with students by sticker id first, then by unambiguous name. The sticker dialog fills its list from a contact source; the share dialog saves matched addresses (`DeliverySetup.svelte`).
+- `matchContacts` pairs contacts with students by sticker id first, then by unambiguous name. Only the Students page imports (see [Student data](#student-data-class-list)); the share dialog shows each student's LMS id and address and links to the page.
 
 **Preview.** Before an e-mail or Artemis run, `DeliveryPreview.svelte` shows:
 - every student with their recipient and what they get;

@@ -1,4 +1,5 @@
 """Delivery of graded results to students (issue #209): an Artemis relay and result-link e-mail. Stateless: the Artemis token, files and addresses live only in the request and are never logged or stored."""
+
 from __future__ import annotations
 
 import re
@@ -59,6 +60,8 @@ class ResultRecipient(BaseModel):
     email: EmailStr
     url: str
     expires_at: datetime
+    # The key or code, only when the teacher chose to send it along (weaker than a separate factor).
+    code: Annotated[str | None, Field(default=None, max_length=16, pattern=r"^[A-Z0-9-]+$")] = None
 
 
 class ResultMails(BaseModel):
@@ -89,9 +92,7 @@ async def artemis_message(request: Request, body: ArtemisMessage) -> Ok:
 
 
 def _bad_request(detail: str) -> HTTPException:
-    return HTTPException(
-        status.HTTP_400_BAD_REQUEST, detail, headers={"code": "ERR_BAD_REQUEST"}
-    )
+    return HTTPException(status.HTTP_400_BAD_REQUEST, detail, headers={"code": "ERR_BAD_REQUEST"})
 
 
 def _safe_filename(name: str | None) -> str:
@@ -158,7 +159,13 @@ async def mail_results(request: Request, body: ResultMails) -> ResultMailsSent:
     failed: list[int] = []
     for index, recipient in enumerate(body.recipients):
         mail = account_mail.result_link_mail(
-            recipient.email, body.exam_title, recipient.url, recipient.expires_at, None, body.locale
+            recipient.email,
+            body.exam_title,
+            recipient.url,
+            recipient.expires_at,
+            None,
+            body.locale,
+            code=recipient.code,
         )
         if not await account_mail.send(mail):
             failed.append(index)

@@ -1,7 +1,26 @@
 import type { Translations } from '../types';
 
 export const lms: Translations['lms'] = {
-    importTitle: 'Use a class list',
+    students: {
+        title: 'Students: {exam}',
+        intro: "Keep this exam's students here: names, Mebis or Artemis ID and e-mail address. QR stickers, printed copies and sharing results use this list. Scanned exams are matched to the students by their QR code.",
+        open: 'Students',
+        loadFailed: 'The students could not be loaded.',
+        manage: 'Manage students',
+        noneYet: 'This exam has no students yet. Add them on the Students page (Mebis list, Artemis course or a pasted list).',
+        import: {
+            title: 'Use a class list',
+            intro: 'A Mebis grading worksheet or participant list, a pasted list, or an Artemis course. Existing students are recognised by their ID, otherwise by name.',
+            preview: 'From {source}:',
+            counts: '{add} new, {update} updated, {unchanged} unchanged.',
+            newNames: 'New: {names}',
+            storedNote: 'Names, IDs and e-mail addresses are stored encrypted with the exam, like the results.',
+            apply: 'Apply',
+            failed: 'The class list could not be saved.',
+        },
+        colLmsId: 'Mebis/Artemis ID',
+        notScanned: 'not scanned yet',
+    },
     file: {
         pick: 'Choose file (Mebis CSV or list)',
         hint: 'Mebis: in the assignment, "Download grading worksheet", or export the participant list as CSV. The file is read in this browser only.',
@@ -34,11 +53,6 @@ export const lms: Translations['lms'] = {
     },
     email: {
         count: '{count} of {total} students have an e-mail address.',
-        matched: '{count} address(es) from "{file}" matched:',
-        unmatched: 'Left without an address: {names}',
-        storedNote: 'The addresses are stored encrypted with the student of this exam, like their name.',
-        save: 'Use {count} address(es)',
-        saveFailed: 'The addresses could not be saved.',
     },
     preview: {
         title: 'Preview: what goes to whom?',
@@ -63,6 +77,8 @@ export const lms: Translations['lms'] = {
         secondSticker: 'The link alone opens nothing: students need the key from their QR sticker, which neither the server nor Artemis knows.',
         secondCode: 'The link alone opens nothing: the codes are on code slips, downloaded next, which you hand out separately.',
         ciphertext: 'The exams themselves are stored on the server only in encrypted form and deleted when they expire.',
+        language: 'Language of the message: {language}.',
+        codeIncluded: 'The key or code is in the message: whoever can read it can open the exam.',
         hybrid: 'Your results otherwise stay in this browser; for this delivery the data above leaves the browser.',
         send: 'Send to {count} students',
     },

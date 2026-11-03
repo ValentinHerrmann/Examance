@@ -12,6 +12,7 @@ import { logExportAction } from '#lib/gdpr/exportAudit';
 import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 import { compileExamPreview, examHasWithheldCode } from '#lib/exam/examPreview';
 import { translate } from '#lib/i18n';
+import type { Locale } from '#lib/i18n/types';
 import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { randomCode } from '#lib/utils/randomCode';
 import { formatStudentName, stickerRawOf } from '#lib/utils/studentQr';
@@ -50,6 +51,10 @@ export interface ShareRequest {
   includeSolution: boolean;
   /** Course, token and mode for the Artemis channel; the token is only passed on. */
   artemis?: ArtemisTarget;
+  /** Language of the message to students (e-mail, Artemis). */
+  language: Locale;
+  /** Send the key or code along with the link (teacher's opt-in; weaker than a separate factor). */
+  includeCode: boolean;
 }
 
 export interface ShareOutcome {
@@ -77,6 +82,13 @@ async function loadExam(examId: string, key: CryptoKey) {
 }
 
 const displayName = (st: StudentRecord) => formatStudentName(st.studentName) || st.fallbackCode || '?';
+
+/** The second secret of a share: the student's personal key from their sticker or exam copy, for the code factor too, so code slips double as a reprint of a lost key; a fresh code only for students without a sticker. */
+export async function shareCode(factor: ShareFactor, raw: string | null): Promise<string | null> {
+  if (factor === 'none') return null;
+  if (raw) return personalKey(raw);
+  return factor === 'code' ? randomCode(8) : null;
+}
 
 /** Students with their grading state and live share, for the dialog. */
 export async function loadShareOverview(examId: string): Promise<ShareOverview> {
@@ -124,7 +136,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   const channel = SHARE_CHANNELS.find((c) => c.id === request.channel);
   const examTitle = ctx.exam.title || translate('sharing.untitledExam');
   const expiresAt = new Date(Date.now() + request.expiryDays * 86_400_000);
-  const delivery = createDelivery(request.channel, { examTitle, expiresAt, artemis: request.artemis });
+  const delivery = createDelivery(request.channel, { examTitle, expiresAt, artemis: request.artemis, language: request.language });
   // A channel that hands the link to a third party carries only factors with a second secret (docs/dev/result_sharing.md).
   if (!channel || (!delivery.sendsPdf && !channel.factors.includes(request.factor))) throw new Error(translate('sharing.errors.factorChannel'));
 
@@ -165,8 +177,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
           entries.push({ name, url: '' });
           return;
         }
-        const raw = stickerRawOf(student);
-        const code = request.factor === 'code' ? randomCode(8) : request.factor === 'sticker' && raw ? await personalKey(raw) : null;
+        const code = await shareCode(request.factor, stickerRawOf(student));
         const link = newShareLink();
         const sealed = await sealShare(link, request.factor, code, { filename, examTitle }, { graded: pdf, solution });
         await createResultShare(request.examId, {
@@ -178,7 +189,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
           sealed,
         });
         const url = shareUrl(location.origin, link);
-        await delivery.deliverLink(student, name, url);
+        await delivery.deliverLink(student, name, url, request.includeCode ? code : null);
         entries.push({ name, url, ...(request.factor === 'code' && code ? { code } : {}) });
       },
       { only: new Set(bySubmission.keys()), progress: (done, total) => progress('students', done, total) }

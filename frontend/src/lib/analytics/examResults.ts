@@ -73,7 +73,8 @@ export async function buildGradeRows(
       maxPoints: totalMaxPoints ?? '',
       percentage: result ? Math.round(result.percentage * 10) / 10 : ungraded,
       grade: grade?.grade ?? ungraded,
-      status: result && !result.isComplete ? translate('stats.exportModal.provisional') : '',
+      // Students from the class list exist before their exam is scanned; they are not "ungraded".
+      status: !sub ? translate('stats.exportModal.notScanned') : result && !result.isComplete ? translate('stats.exportModal.provisional') : '',
       submissionId: sub?.id,
       state: gradingState(result),
     };

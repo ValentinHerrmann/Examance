@@ -1,4 +1,5 @@
 """Account mails: set-password (reset / invite), registration, approval and report notices. Rendering only; delivery is `app.services.email.send_email`. Every interpolated value is HTML-escaped in the HTML part, and nothing a registrant typed (the note) is ever put in a mail; the only free text mailed is an admin's resolution note to a layout reporter."""
+
 from __future__ import annotations
 
 import logging
@@ -181,18 +182,25 @@ def result_link_mail(
     expires_at: datetime,
     teacher_name: str | None,
     locale: Literal["de", "en"],
+    *,
+    code: str | None = None,
 ) -> Mail:
-    """A student's graded exam link (issue #209). The key or code that opens it is never mailed."""
+    """A student's graded exam link (issue #209). The key or code is mailed only when the teacher opted in."""
     if locale == "de":
         by = f" von {teacher_name}" if teacher_name else ""
+        second = (
+            f"Öffne sie über diesen Link und gib diesen Schlüssel ein: {code}"
+            if code
+            else "Öffne sie über diesen Link. Du brauchst dazu zusätzlich deinen persönlichen "
+            "Schlüssel oder den Code, den du von deiner Lehrkraft bekommen hast."
+        )
         return _compose(
             to,
             f"Deine korrigierte Prüfung: {exam_title}",
             [
                 f"Deine Lehrkraft{by} hat dir deine korrigierte Prüfung „{exam_title}“ "
                 "freigegeben.",
-                "Öffne sie über diesen Link. Du brauchst dazu zusätzlich deinen persönlichen "
-                "Schlüssel oder den Code, den du von deiner Lehrkraft bekommen hast.",
+                second,
             ],
             link=("Korrigierte Prüfung öffnen", url),
             footer=[
@@ -206,9 +214,11 @@ def result_link_mail(
         to,
         f"Your graded exam: {exam_title}",
         [
-            f"Your teacher{by} has released your graded exam \"{exam_title}\" to you.",
-            "Open it with this link. You also need your personal key or the code you got from "
-            "your teacher.",
+            f'Your teacher{by} has released your graded exam "{exam_title}" to you.',
+            f"Open it with this link and enter this key: {code}"
+            if code
+            else "Open it with this link. You also need your personal key or the code you got "
+            "from your teacher.",
         ],
         link=("Open graded exam", url),
         footer=[

@@ -227,6 +227,8 @@ Issue #209 lets a teacher send each pupil their result link by e-mail, or throug
 
 *What the code does about it.* A per-account admin switch `result_delivery` (on by default like the other switches) lets an admin withhold it. The relay forwards only to hosts in `ARTEMIS_ALLOWED_HOSTS` and only to four fixed Artemis endpoints; it stores and logs neither token, address, link nor PDF. The mail endpoint accepts only this installation's `/result#…` links and builds a fixed text (no free text, so it is no spam relay), at most 100 recipients per request and 20 requests per hour. Links sent this way always need a second factor (sticker key or code), so neither the server nor Artemis can open the PDF. Pupil e-mail addresses are stored sealed with the pupil like the name (§3). A mandatory preview shows the teacher which data goes where before anything is sent; PDF mode is labelled as plaintext to Artemis.
 
+*Key in the message.* The teacher may opt in to sending the pupil's key or code inside the e-mail or Artemis message; then the recipient channel (mail provider, Artemis) could open the result. The dialog and preview warn; the privacy statement and DPIA should name this option.
+
 *Open.* The privacy statement (`frontend/src/lib/i18n/de/legal.ts`, binding German text, never machine-translated) does not yet describe e-mail delivery to pupils or the transfer to Artemis; the operator must add it before enabling the switch. Extend the Art. 30 record and the DPIA for the new recipients (mail provider as processor; the Artemis operator, which the school or university must already have a basis for).
 
 ---

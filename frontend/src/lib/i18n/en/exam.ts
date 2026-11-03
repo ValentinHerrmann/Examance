@@ -175,6 +175,7 @@ export const exam: Translations['exam'] = {
         label: 'Exam navigation',
         back: 'Back to exams',
         setup: 'Setup',
+        students: 'Students',
         scan: 'Scans',
         verify: 'Check MC',
         grade: 'Grading',

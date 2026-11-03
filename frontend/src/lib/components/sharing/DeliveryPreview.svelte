@@ -1,7 +1,8 @@
 <script lang="ts">
   /** The last step before results leave Examance by e-mail or Artemis (issue #209): who gets what at which address, who is skipped and why, and which data is used, passed on and stored where. */
   import { faPaperPlane } from "@fortawesome/free-solid-svg-icons";
-  import { t } from "#lib/i18n";
+  import { LOCALE_LABELS, t } from "#lib/i18n";
+  import type { Locale } from "#lib/i18n/types";
   import { Alert, Button, Modal, TableScroller } from "#lib/components/ui";
   import type { ArtemisCourse } from "#lib/api/integrations";
   import { incompatibleStudents, sendsPdf as channelSendsPdf, type ArtemisMode, type ShareChannel } from "#lib/sharing/channels";
@@ -14,12 +15,15 @@
     channel: ShareChannel;
     students: readonly ShareStudent[];
     factor: ShareFactor;
+    language: Locale;
+    /** The key or code goes into the message itself. */
+    includeCode: boolean;
     artemis: (ArtemisCourse & { mode: ArtemisMode }) | null;
     onConfirm: () => void;
     onCancel: () => void;
   }
 
-  let { channel, students, factor, artemis, onConfirm, onCancel }: Props = $props();
+  let { channel, students, factor, language, includeCode, artemis, onConfirm, onCancel }: Props = $props();
 
   let sendsPdf = $derived(channelSendsPdf(channel.id, artemis?.mode ?? "link"));
   let blocked = $derived(new Map(incompatibleStudents(sendsPdf ? null : factor, channel, students.map((s) => s.student)).map((b) => [b.student, b.reason])));
@@ -65,7 +69,11 @@
           <li>{$t("lms.preview.artemisToken")}</li>
           <li>{sendsPdf ? $t("lms.preview.artemisPdf") : $t("lms.preview.artemisLink")}</li>
         {/if}
-        {#if !sendsPdf}
+        <li>{$t("lms.preview.language", { language: LOCALE_LABELS[language] })}</li>
+        {#if !sendsPdf && includeCode}
+          <li class="text-warning-fg">{$t("lms.preview.codeIncluded")}</li>
+          <li>{$t("lms.preview.ciphertext")}</li>
+        {:else if !sendsPdf}
           <li>{factor === "code" ? $t("lms.preview.secondCode") : $t("lms.preview.secondSticker")}</li>
           <li>{$t("lms.preview.ciphertext")}</li>
         {/if}

@@ -11,6 +11,7 @@
   import { createStudentWithSubmission } from "#lib/grading/scoreService";
   import { parseRosterLines } from "#lib/utils/rosterLines";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
+  import { lmsIdOf } from "#lib/utils/studentQr";
   import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { t, translate } from "#lib/i18n";
 
@@ -19,9 +20,11 @@
     students?: StudentRecord[];
     submissions?: SubmissionRecord[];
     onRosterChanged?: () => void;
+    /** The Students page's class list: no manual-grading add panel (the import does that), the Mebis/Artemis ID column, and unscanned students shown as such. */
+    listMode?: boolean;
   }
 
-  let { examId, students = [], submissions = [], onRosterChanged = () => {} }: Props = $props();
+  let { examId, students = [], submissions = [], onRosterChanged = () => {}, listMode = false }: Props = $props();
 
   let newName = $state("");
   let newStudentNumber = $state("");
@@ -125,6 +128,7 @@
 </script>
 
 <div class="flex min-w-0 flex-col gap-6">
+  {#if !listMode}
   <Panel title={$t("grading.manual.roster.addTitle")}>
     <form onsubmit={(e) => { e.preventDefault(); handleAddSingle(); }} class="flex flex-wrap items-end gap-4">
       <Field label={$t("grading.manual.roster.nameLabel")} class="min-w-[min(11rem,100%)] flex-1">
@@ -176,6 +180,7 @@
       </div>
     {/if}
   </Panel>
+  {/if}
 
   {#if students.length === 0}
     <EmptyState title={$t("grading.manual.roster.emptyState")} />
@@ -187,6 +192,7 @@
             <th>{$t("grading.manual.roster.colNum")}</th>
             <th>{$t("grading.manual.roster.colName")}</th>
             <th>{$t("grading.manual.roster.colNumber")}</th>
+            {#if listMode}<th>{$t("lms.students.colLmsId")}</th>{/if}
             <th>{$t("grading.manual.roster.colEmail")}</th>
             <th>{$t("grading.manual.roster.colPseudonym")}</th>
             <th>{$t("grading.manual.roster.colType")}</th>
@@ -213,6 +219,7 @@
                   {st.studentNumber || "-"}
                 {/if}
               </td>
+              {#if listMode}<td class="tabular-nums">{lmsIdOf(st) ?? "-"}</td>{/if}
               <td>
                 {#if editingPseudonym === st.pseudonymHmac}
                   <TextInput size="sm" type="email" bind:value={editEmail} />
@@ -228,6 +235,8 @@
               <td>
                 {#if isScanned}
                   <Badge severity="info" size="xs">{$t("grading.manual.roster.scanned")}</Badge>
+                {:else if listMode && !sub}
+                  <Badge severity="secondary" size="xs">{$t("lms.students.notScanned")}</Badge>
                 {:else}
                   <Badge severity="success" size="xs">{$t("grading.manual.roster.manual")}</Badge>
                 {/if}

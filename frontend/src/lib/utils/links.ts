@@ -5,6 +5,7 @@ const q = encodeURIComponent;
 export const examHref = (examId: string) => `/exam/${q(examId)}`;
 export const scanHref = (examId: string) => `/exam/${q(examId)}/scan`;
 export const statsHref = (examId: string) => `/exam/${q(examId)}/stats`;
+export const studentsHref = (examId: string) => `/exam/${q(examId)}/students`;
 
 /** Parameters are read by `routes/exam/[id]/grade/+page.svelte`. */
 export function gradeHref(examId: string, opts: { submissionId?: string; exerciseId?: string } = {}): string {

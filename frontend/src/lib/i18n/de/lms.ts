@@ -1,5 +1,24 @@
 export const lms = {
-    importTitle: 'Klassenliste übernehmen',
+    students: {
+        title: 'Schüler: {exam}',
+        intro: 'Hier pflegen Sie die Schüler dieser Prüfung: Namen, Mebis- bzw. Artemis-ID und E-Mail-Adresse. QR-Aufkleber, gedruckte Exemplare und das Teilen der Ergebnisse verwenden diese Liste. Eingescannte Arbeiten werden den Schülern über ihren QR-Code zugeordnet.',
+        open: 'Schüler',
+        loadFailed: 'Die Schüler konnten nicht geladen werden.',
+        manage: 'Schüler verwalten',
+        noneYet: 'Diese Prüfung hat noch keine Schüler. Legen Sie sie auf der Schüler-Seite an (Mebis-Liste, Artemis-Kurs oder eingefügte Liste).',
+        import: {
+            title: 'Klassenliste übernehmen',
+            intro: 'Mebis-Bewertungstabelle oder Teilnehmerliste, eine eingefügte Liste oder ein Artemis-Kurs. Vorhandene Schüler werden über ihre ID, sonst über den Namen erkannt.',
+            preview: 'Aus {source}:',
+            counts: '{add} neu, {update} aktualisiert, {unchanged} unverändert.',
+            newNames: 'Neu: {names}',
+            storedNote: 'Namen, IDs und E-Mail-Adressen werden verschlüsselt bei der Prüfung gespeichert, wie die Ergebnisse.',
+            apply: 'Übernehmen',
+            failed: 'Die Klassenliste konnte nicht gespeichert werden.',
+        },
+        colLmsId: 'Mebis-/Artemis-ID',
+        notScanned: 'noch nicht eingescannt',
+    },
     file: {
         pick: 'Datei wählen (Mebis-CSV oder Liste)',
         hint: 'Mebis: In der Aufgabe „Bewertungstabelle herunterladen“ oder die Teilnehmerliste als CSV exportieren. Die Datei wird nur in diesem Browser gelesen.',
@@ -32,11 +51,6 @@ export const lms = {
     },
     email: {
         count: '{count} von {total} Schülern haben eine E-Mail-Adresse.',
-        matched: '{count} Adresse(n) aus „{file}“ zugeordnet:',
-        unmatched: 'Ohne Adresse bleiben: {names}',
-        storedNote: 'Die Adressen werden verschlüsselt beim Schüler dieser Prüfung gespeichert, wie sein Name.',
-        save: '{count} Adresse(n) übernehmen',
-        saveFailed: 'Die Adressen konnten nicht gespeichert werden.',
     },
     preview: {
         title: 'Vorschau: Was wird an wen verschickt?',
@@ -61,6 +75,8 @@ export const lms = {
         secondSticker: 'Der Link allein öffnet nichts: Schüler brauchen ihren Schlüssel vom QR-Aufkleber, den weder der Server noch Artemis kennt.',
         secondCode: 'Der Link allein öffnet nichts: Die Codes stehen auf Code-Zetteln, die gleich heruntergeladen werden und die Sie getrennt austeilen.',
         ciphertext: 'Die Arbeiten selbst liegen nur verschlüsselt auf dem Server und werden nach Ablauf gelöscht.',
+        language: 'Sprache der Nachricht: {language}.',
+        codeIncluded: 'Schlüssel bzw. Code stehen in der Nachricht: Wer sie lesen kann, kann die Arbeit öffnen.',
         hybrid: 'Ihre Ergebnisse liegen sonst nur in diesem Browser; für diesen Versand verlassen die genannten Daten den Browser.',
         send: 'An {count} Schüler senden',
     },

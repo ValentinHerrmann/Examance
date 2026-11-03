@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
-  import { gradeHref, scanHref, statsHref } from "#lib/utils/links";
-  import { faCopy, faFileZipper, faQrcode, faShareFromSquare } from "@fortawesome/free-solid-svg-icons";
+  import { gradeHref, scanHref, statsHref, studentsHref } from "#lib/utils/links";
+  import { faCopy, faFileZipper, faQrcode, faShareFromSquare, faUsers } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "#lib/components/ui";
 
   interface Props {
@@ -46,6 +46,10 @@
     </Button>
     <Button size="sm" variant="outlined" severity="secondary" icon={faFileZipper} onClick={onExport}>
       {$t("common.export")}
+    </Button>
+    <!-- Student data lives on its own page; QR printing and sharing only read it. -->
+    <Button size="sm" variant="outlined" severity="secondary" icon={faUsers} href={studentsHref(examId)}>
+      {$t("lms.students.open")}
     </Button>
     <Button size="sm" variant="outlined" severity="secondary" icon={faQrcode} onClick={onStickers}>
       {$t("sharing.actions.stickers")}

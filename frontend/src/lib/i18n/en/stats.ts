@@ -35,6 +35,7 @@ export const stats: Translations['stats'] = {
         confirmButton: 'I confirm I am authorized to export this data',
         ungraded: 'Ungraded',
         provisional: 'Partially graded',
+        notScanned: 'No exam scanned',
     },
     gradeDistribution: {
         title: 'Grade Distribution',

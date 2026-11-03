@@ -53,6 +53,8 @@ export interface ResultMail {
   email: string;
   url: string;
   expiresAt: Date;
+  /** The key or code, only when the teacher chose to send it along. */
+  code?: string;
 }
 
 /** Sends each student their result link; returns the indexes of *recipients* the mail server refused. */
@@ -62,7 +64,7 @@ export async function sendResultMails(examTitle: string, locale: string, recipie
     {
       exam_title: examTitle,
       locale: locale === 'en' ? 'en' : 'de',
-      recipients: recipients.map((r) => ({ email: r.email, url: r.url, expires_at: r.expiresAt.toISOString() })),
+      recipients: recipients.map((r) => ({ email: r.email, url: r.url, expires_at: r.expiresAt.toISOString(), ...(r.code ? { code: r.code } : {}) })),
     },
     quiet
   );

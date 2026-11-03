@@ -23,6 +23,9 @@
   } from "#lib/sharing/shareService";
   import { resultsAreLocal } from "#lib/stores/storagePolicy";
   import { formatDate } from "#lib/utils/format";
+  import { lmsIdOf } from "#lib/utils/studentQr";
+  import { LOCALE_LABELS, LOCALES } from "#lib/i18n";
+  import type { Locale } from "#lib/i18n/types";
 
   interface Props {
     examId: string;
@@ -39,6 +42,9 @@
   let factor = $state<ShareFactor>("none");
   let expiry = $state(String(DEFAULT_EXPIRY_DAYS));
   let includeSolution = $state(false);
+  // Students are addressed in German unless the teacher picks otherwise; the UI language does not decide it.
+  let language = $state<Locale>("de");
+  let includeCode = $state(false);
   let loading = $state(true);
   let running = $state(false);
   let step = $state("");
@@ -60,6 +66,8 @@
   let currentChannel = $derived(SHARE_CHANNELS.find((c) => c.id === channel && !unavailable.get(c.id)) ?? SHARE_CHANNELS[0]);
   // Artemis PDF mode makes no link, so neither a factor nor the solution applies.
   let sendsPdf = $derived(channelSendsPdf(currentChannel.id, artemisMode));
+  // E-mail and Artemis write a message to each student; slips and the Mebis ZIP do not.
+  let sendsMessage = $derived(currentChannel.id === "email" || currentChannel.id === "artemis");
   let setupMissing = $derived(currentChannel.id === "artemis" && !artemisCourse);
   let chosenStudents = $derived(overview?.students.filter((s) => selected.has(s.key)).map((s) => s.student) ?? []);
   let blockedCount = (f: ShareFactor) => incompatibleStudents(f, currentChannel, chosenStudents).length;
@@ -123,6 +131,8 @@
           studentKeys: selected,
           includeSolution: includeSolution && !sendsPdf && !!overview?.solutionAvailable,
           artemis: currentChannel.id === "artemis" && artemisCourse ? { ...artemisCourse, mode: artemisMode } : undefined,
+          language,
+          includeCode: sendsMessage && !sendsPdf && factor !== "none" && includeCode,
         },
         (phase, done = 0, total = 0) =>
           (step = phase === "solution" ? $t("sharing.share.compilingSolution") : $t("sharing.share.running", { done: done + 1, total }))
@@ -204,6 +214,16 @@
         </div>
         <TableScroller maxHeight="max-h-72">
           <table class="data-table data-table-compact w-full">
+            <thead>
+              <tr>
+                <th class="w-8"><span class="sr-only">{$t("sharing.share.colSelect")}</span></th>
+                <th>{$t("sharing.share.colName")}</th>
+                <th>{$t("sharing.share.colLmsId")}</th>
+                <th>{$t("sharing.share.colEmail")}</th>
+                <th>{$t("sharing.share.colState")}</th>
+                <th colspan="2"><span class="sr-only">{$t("sharing.share.colShare")}</span></th>
+              </tr>
+            </thead>
             <tbody>
               {#each overview.students as s (s.key)}
                 <tr>
@@ -216,6 +236,8 @@
                     />
                   </td>
                   <td class="min-w-0">{s.name}</td>
+                  <td class="text-sm text-muted tabular-nums">{lmsIdOf(s.student) ?? ""}</td>
+                  <td class="min-w-0 text-sm break-all text-muted">{s.student.email ?? ""}</td>
                   <td><Badge size="xs" severity={s.hasSubmission ? STATE_BADGE[s.state] : "secondary"}>{stateLabel(s)}</Badge></td>
                   <td class="text-sm text-muted">
                     {#if s.share}{$t("sharing.share.sharedUntil", { date: formatDate(s.share.expiresAt) })}{/if}
@@ -233,6 +255,8 @@
                 <tr>
                   <td></td>
                   <td class="text-muted italic">{$t("sharing.share.removedStudent")}</td>
+                  <td></td>
+                  <td></td>
                   <td></td>
                   <td class="text-sm text-muted">{$t("sharing.share.sharedUntil", { date: formatDate(orphan.expiresAt) })}</td>
                   <td class="text-right">
@@ -257,10 +281,20 @@
             {/if}
           </div>
           {#if c.id === currentChannel.id && (c.id === "email" || c.id === "artemis")}
-            <DeliverySetup channel={c.id} students={overview.students} disabled={running} bind:artemisCourse bind:artemisMode onSaved={reload} />
+            <DeliverySetup {examId} channel={c.id} students={overview.students} disabled={running} bind:artemisCourse bind:artemisMode />
           {/if}
         {/each}
       </fieldset>
+
+      {#if sendsMessage}
+        <Field label={$t("sharing.share.language")} hint={$t("sharing.share.languageHint")}>
+          {#snippet children({ id })}
+            <Select {id} bind:value={language} disabled={running}>
+              {#each LOCALES as l (l)}<option value={l}>{LOCALE_LABELS[l]}</option>{/each}
+            </Select>
+          {/snippet}
+        </Field>
+      {/if}
 
       {#if !sendsPdf}
       <fieldset class="flex flex-col gap-2" disabled={running}>
@@ -280,6 +314,16 @@
           </div>
         {/each}
       </fieldset>
+
+      {#if sendsMessage && factor !== "none"}
+        <div>
+          <Checkbox bind:checked={includeCode} label={$t("sharing.share.includeCode")} disabled={running} />
+          <p class="ml-7 text-sm text-muted">{$t("sharing.share.includeCodeHint")}</p>
+          {#if includeCode}
+            <p class="ml-7 text-sm text-warning-fg">{$t("sharing.share.includeCodeWarning")}</p>
+          {/if}
+        </div>
+      {/if}
 
       <div>
         <Checkbox
@@ -339,6 +383,8 @@
     channel={currentChannel}
     students={overview.students.filter((s) => selected.has(s.key))}
     {factor}
+    {language}
+    includeCode={includeCode && factor !== "none" && !sendsPdf}
     artemis={artemisCourse ? { ...artemisCourse, mode: artemisMode } : null}
     onConfirm={start}
     onCancel={() => (previewing = false)}

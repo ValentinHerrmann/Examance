@@ -236,6 +236,8 @@ export interface StudentRecord extends MaybeUndecryptable {
   studentNumber?: string;
   /** E-mail address for sending a result link (issue #209). Decrypted only. */
   email?: string;
+  /** Entered on the Students page (class list), not created by a scan: deleting a scan keeps the student. Decrypted only. */
+  fromList?: boolean;
   /** AES-256-GCM ciphertext of PII (name, student number, etc.). */
   piiCt: Uint8Array;
   /** 12-byte GCM IV for piiCt. */

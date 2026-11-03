@@ -33,6 +33,7 @@ export const stats = {
         confirmButton: 'Ich bestätige, dass ich zum Export dieser Daten berechtigt bin',
         ungraded: 'Nicht bewertet',
         provisional: 'Teilweise korrigiert',
+        notScanned: 'Keine Arbeit eingescannt',
     },
     gradeDistribution: {
         title: 'Notenverteilung',

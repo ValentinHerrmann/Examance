@@ -13877,6 +13877,19 @@
             "type": "string",
             "format": "date-time",
             "title": "Expires At"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16,
+                "pattern": "^[A-Z0-9-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
           }
         },
         "type": "object",

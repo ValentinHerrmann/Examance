@@ -4,7 +4,17 @@ editLink: false
 
 # QR-Aufkleber und Ergebnisse für Schüler
 
-Zwei Dinge gehören hier zusammen: **QR-Codes**, als Aufkleber, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, oder direkt aufgedruckt, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Beide Schaltflächen finden Sie auf der Prüfungsseite.
+Zwei Dinge gehören hier zusammen: **QR-Codes**, als Aufkleber, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, oder direkt aufgedruckt, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Beide Schaltflächen finden Sie auf der Prüfungsseite. Die Schüler selbst, mit Mebis- bzw. Artemis-ID und E-Mail-Adresse, pflegen Sie an einer Stelle: auf der Seite **Schüler** der Prüfung.
+
+## Schülerdaten {#student-data}
+
+**Schüler** (in der Seitenleiste der Prüfung oder als Schaltfläche auf der Prüfungsseite) enthält die Klassenliste der Prüfung: Namen, Mebis- bzw. Artemis-ID und E-Mail-Adresse. Alles andere liest nur daraus: die QR-Aufkleber, die bedruckten Prüfungsexemplare und das Teilen der Ergebnisse per E-Mail, Artemis oder Mebis.
+
+- **Klassenliste übernehmen**: **Datei wählen** liest eine Mebis-Bewertungstabelle oder Teilnehmerliste (CSV) oder eine einfache Liste; **Oder Liste einfügen** nimmt getippte oder eingefügte Zeilen (`Nachname, Vorname; ID; Adresse`, eine pro Person); **Aus einem Artemis-Kurs laden** holt die Kursmitglieder. Examance zeigt, was sich ändert (neu, aktualisiert, unverändert), und speichert erst nach **Übernehmen**. Schüler, die schon in der Liste stehen, werden über ihre ID erkannt, sonst über den Namen; dieselbe Liste noch einmal zu übernehmen, ergänzt also nur Adressen.
+- Mit **Bearbeiten** korrigieren Sie in einer Zeile Namen oder E-Mail-Adresse.
+- Schüler ohne ID bekommen eine feste, aus dem Namen abgeleitete ID.
+
+Die Liste wird **verschlüsselt** bei der Prüfung gespeichert, wie die Ergebnisse (im Hybridmodus nur in diesem Browser). Beim Einscannen wird jede Seite über den QR-Code ihrer Person zugeordnet; Adresse und Name bleiben, wie eingetragen. Wird ein Scan gelöscht, bleibt die Person in der Liste.
 
 ## QR-Aufkleber {#qr-stickers}
 
@@ -12,12 +22,9 @@ Die gedruckte Prüfung hat auf dem Deckblatt ein leeres Feld mit der Beschriftun
 
 **QR-Codes drucken** auf der Prüfungsseite öffnet einen Dialog. Mit **Aufkleberbogen** druckt er einen A4-Bogen mit **5 × 7 Etiketten**:
 
-1. Wählen Sie, woher die Namen kommen: aus einer **eingefügten Liste** (**Namensliste einfügen**: eine Zeile pro Person, `Nachname, Vorname`, optional gefolgt von Tabulator oder `;` und einer ID, zum Beispiel einer Schülernummer) oder die **Schüler dieser Prüfung**.
-2. Ohne ID leitet Examance aus dem Namen eine stabile ID ab. Ein erneuter Druck derselben Liste ergibt deshalb dieselben Aufkleber.
-3. Legen Sie die **Aufkleber pro Schüler** fest und wie viele Etiketten **schon benutzt** auf dem ersten Bogen sind, damit ein angebrochener Bogen nicht verschwendet wird.
-4. Drucken Sie den Bogen mit 100 % (nicht „An Seite anpassen“) und schneiden Sie die Etiketten aus oder ziehen Sie sie ab.
-
-**Aus Mebis oder Artemis.** Unter der Liste liest **Datei wählen** einen Mebis-Export, oder **Aus einem Artemis-Kurs laden** holt die Kursmitglieder; beides füllt die Liste, sodass Sie sie vor dem Druck prüfen können. Siehe [Mebis und Artemis](#lms).
+1. Die Aufkleber entstehen für die Schüler auf der Seite [Schüler](#student-data); legen Sie sie zuerst dort an. Ein erneuter Druck ergibt dieselben Aufkleber.
+2. Legen Sie die **Aufkleber pro Schüler** fest und wie viele Etiketten **schon benutzt** auf dem ersten Bogen sind, damit ein angebrochener Bogen nicht verschwendet wird.
+3. Drucken Sie den Bogen mit 100 % (nicht „An Seite anpassen“) und schneiden Sie die Etiketten aus oder ziehen Sie sie ab.
 
 Aufkleber anderer Programme im Format `Nachname, Vorname_ID` funktionieren ebenfalls. Von Hand oder aus nicht zugeordneten Seiten angelegte Schüler haben keinen Aufkleber.
 
@@ -73,20 +80,24 @@ Schon der Link schützt das PDF: Ohne ihn kann es niemand abrufen. Sie können e
 |---|---|
 | **Nur der Link** | den Link oder den QR-Code auf dem Zettel |
 | **Link und Schlüssel vom QR-Aufkleber** | den Link und den persönlichen Schlüssel von ihrem oder seinem Aufkleberbogen, siehe [Persönliche Schlüssel](#personal-keys) |
-| **Link und Code auf eigenem Zettel** | den Link und einen achtstelligen Code (etwa `ABCD-EFGH`), den Sie getrennt austeilen |
+| **Link und Code auf eigenem Zettel** | den Link und einen achtstelligen Code (etwa `ABCD-EFGH`) auf einem Zettel, den Sie getrennt austeilen |
 
-Optionen, die nicht zu Ihrer Auswahl passen, sind ausgegraut, und der Dialog nennt den Grund. Schüler ohne QR-Aufkleber können zum Beispiel den Aufkleberschlüssel nicht verwenden; hier hilft **Schlüssel drucken**. Ein Code wird für jede Person neu erzeugt und nie gespeichert: Geht einer verloren, teilen Sie diese Person erneut.
+Der Code auf dem eigenen Zettel **ist der persönliche Schlüssel** der Person, derselbe wie beim QR-Aufkleber bzw. auf dem Prüfungsexemplar. Die Code-Zettel ersetzen also auch einen verlorenen Schlüssel. Nur wer keinen Aufkleber hat, bekommt einen neu erzeugten Code.
+
+Optionen, die nicht zu Ihrer Auswahl passen, sind ausgegraut, und der Dialog nennt den Grund. Schüler ohne QR-Aufkleber können zum Beispiel den Aufkleberschlüssel nicht verwenden; hier hilft **Schlüssel drucken**.
+
+**Schlüssel in der Nachricht.** Bei E-Mail und Artemis können Sie **Schlüssel bzw. Code in die Nachricht schreiben** ankreuzen. Der Link öffnet sich dann ohne Zettel oder Aufkleber, was Schülern hilft, die ihren Schlüssel verloren haben. Das ist weniger sicher: Wer die Nachricht lesen kann (Mailanbieter, Artemis, jemand mit Zugriff auf das Postfach), kann die Arbeit öffnen. Standardmäßig ist es aus.
+
+**Sprache.** E-Mails und Artemis-Nachrichten an die Schüler sind deutsch, außer Sie wählen unter **Sprache der Nachricht** Englisch.
 
 ## Per E-Mail verschicken {#email}
 
 Jede Schülerin und jeder Schüler bekommt eine E-Mail mit dem Link. Dafür brauchen die Schüler der Prüfung eine E-Mail-Adresse:
 
-- Im Teilen-Dialog unter **Per E-Mail** liest **Datei wählen** einen Mebis-Export oder eine Liste (`Nachname, Vorname; ID; Adresse`, eine Zeile pro Person), oder Sie fügen eine solche Liste unter **Oder Liste einfügen** ein bzw. tippen sie und klicken auf **Übernehmen**. Examance ordnet die Adressen über die ID auf dem QR-Aufkleber zu, sonst über den Namen, zeigt das Ergebnis und speichert sie mit **… Adresse(n) übernehmen**.
-- Oder tragen Sie die Adresse in der Schülerliste ein (**Bearbeiten**).
+- Tragen Sie sie auf der Seite [Schüler](#student-data) ein: aus einer Mebis-Liste, einem Artemis-Kurs oder einer eingefügten Liste, oder einzeln mit **Bearbeiten**. Unter **Per E-Mail** zeigt der Teilen-Dialog, wie viele Schüler eine Adresse haben, und verlinkt dorthin.
+- Die Schülerliste im Teilen-Dialog zeigt die Mebis-/Artemis-ID und die E-Mail-Adresse jeder Person; ein leeres Feld heißt, dass keine bekannt ist.
 
-Die Adresse wird **verschlüsselt** beim Schüler gespeichert, wie sein Name.
-
-Weil die E-Mail über den Examance-Server geht, darf ein per E-Mail verschickter Link die Arbeit nie allein öffnen: Es gibt nur **Schlüssel vom QR-Aufkleber** und **Code auf eigenem Zettel**. Mit Codes werden am Ende die Code-Zettel heruntergeladen; teilen Sie sie im Unterricht aus.
+Weil die E-Mail über den Examance-Server geht, darf ein per E-Mail verschickter Link die Arbeit nie allein öffnen: Es gibt nur **Schlüssel vom QR-Aufkleber** und **Code auf eigenem Zettel** (außer Sie schreiben den Schlüssel selbst in die Nachricht, siehe [Linkschutz](#link-protection)). Mit Codes werden am Ende die Code-Zettel heruntergeladen; teilen Sie sie im Unterricht aus.
 
 ## Mebis und Artemis {#lms}
 
@@ -95,7 +106,7 @@ Examance arbeitet mit Mebis und Artemis so zusammen wie DiRueLei.
 **Mebis** hat keine direkte Verbindung; Sie tauschen Dateien aus:
 
 1. Laden Sie in der Mebis-Aufgabe die **Bewertungstabelle** herunter (oder exportieren Sie die Teilnehmerliste als CSV). Sie enthält die Mebis-Kennungen und E-Mail-Adressen der Schüler.
-2. Drucken Sie mit dieser Datei die [QR-Aufkleber](#qr-stickers): Die Mebis-Kennung steckt dann in jedem Aufkleber.
+2. Übernehmen Sie diese Datei auf der Seite [Schüler](#student-data) und drucken Sie die [QR-Aufkleber](#qr-stickers) oder Exemplare: Die Mebis-Kennung steckt dann in jedem Code.
 3. Wählen Sie nach der Korrektur unter **Mit Schülern teilen** den Weg **Rückmeldedateien für Mebis (Download)**, oder kreuzen Sie im [Export](./results#export) **Mebis-Rückmeldedateien (ZIP)** an. Beide Wege liefern eine `…_mebis_feedback.zip`. Laden Sie sie in der Mebis-Aufgabe unter **Mehrere Feedbackdateien in einer ZIP-Datei hochladen** hoch. Jeder Schüler sieht seine korrigierte Arbeit dann als Feedback.
 
 Schüler, deren Aufkleber keine Mebis-Kennung trägt, stehen in den Hinweisen des Exports.
@@ -107,7 +118,7 @@ Schüler, deren Aufkleber keine Mebis-Kennung trägt, stehen in den Hinweisen de
 - **Kurs-ID**: die Zahl in der Kurs-Adresse (`…/courses/123`).
 - **Artemis-Token**: der Wert des Cookies `jwt` aus Ihrem angemeldeten Artemis (Entwicklerwerkzeuge des Browsers → Speicher → Cookies). Er wird nur für diesen Vorgang verwendet und nirgends gespeichert.
 
-Damit können Sie **die Kursmitglieder für die QR-Aufkleber laden** (jeder Aufkleber trägt dann die Artemis-Nutzerkennung) und später **Ergebnisse über Artemis verschicken**: Jede Person bekommt eine Direktnachricht von Ihnen, entweder
+Damit können Sie **die Kursmitglieder auf der Seite [Schüler](#student-data) laden** (jeder QR-Code trägt dann die Artemis-Nutzerkennung) und später **Ergebnisse über Artemis verschicken**: Jede Person bekommt eine Direktnachricht von Ihnen, entweder
 
 - mit dem **Link** (geschützt durch Aufkleber-Schlüssel oder Code wie bei E-Mail; die Arbeit bleibt verschlüsselt, läuft ab und lässt sich widerrufen), oder
 - mit der **korrigierten Arbeit als PDF**: Dann geht das PDF unverschlüsselt an Artemis und bleibt dort gespeichert; Ablauf und Widerruf gelten dafür nicht.

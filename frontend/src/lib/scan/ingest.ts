@@ -4,7 +4,9 @@ import type { PDFDocument } from "pdf-lib";
 import { loadPdfjs } from "#lib/pdf/pdfjs";
 import { saveStudentEncrypted, saveSubmissionEncrypted, sealScan } from "#lib/db/dbEncryption";
 import { pseudonymFor } from "#lib/services/pseudonymRekey";
-import type { ExerciseScoreRecord, OmrPageTemplate } from "#lib/db/schema";
+import { joinKey, joinKeys } from "#lib/crypto/pseudonymKey";
+import { studentRepository } from "#lib/repositories/studentRepository";
+import type { ExerciseScoreRecord, OmrPageTemplate, StudentRecord } from "#lib/db/schema";
 import { buildOmrScoreRecord } from "#lib/grading/omrResult";
 import { createOmrRun, type OmrPageStats, type OmrRunInfo, type OmrSettingsProfile } from "#lib/grading/omrSettings";
 import { scoreRepository } from "#lib/repositories/scoreRepository";
@@ -301,12 +303,26 @@ class ScanPass {
   }
 }
 
-/** Assembles the booklet PDF, seals it and writes student, submission and OMR scores through their repositories. */
+/** The student row a scan writes: a student already in the exam (from the Students page) keeps name, e-mail and list flag, and the scan only fills what is empty. The save replaces the whole sealed record, so without this a scan would erase an imported address. */
+export function mergeScannedStudent(existing: StudentRecord | undefined, scanned: StudentRecord): StudentRecord {
+  if (!existing) return scanned;
+  return {
+    ...scanned,
+    studentName: existing.studentName || scanned.studentName,
+    studentNumber: existing.studentNumber || scanned.studentNumber,
+    fallbackCode: existing.fallbackCode || scanned.fallbackCode,
+    email: existing.email,
+    fromList: existing.fromList,
+  };
+}
+
+/** Assembles the booklet PDF, seals it and writes student, submission and OMR scores through their repositories. *known* holds the exam's students by join key. */
 export async function saveBooklet(
   booklet: StudentBooklet,
   deps: Pick<IngestDeps, "examId" | "getSessionKey">,
   omrRun: OmrRunInfo,
   omrResults: { result: OmrExerciseResult; pageStats: OmrPageStats }[],
+  known: ReadonlyMap<string, StudentRecord> = new Map(),
 ): Promise<void> {
   const { examId } = deps;
   const { PDFDocument: PDFDocClass } = await import("pdf-lib");
@@ -326,18 +342,16 @@ export async function saveBooklet(
 
   // The raw QR value never becomes a key or a plain column: it is keyed per exam and sealed into the identity (issue #177).
   const pseudonym = await pseudonymFor(examId, booklet.pseudonymId);
-  await saveStudentEncrypted(
-    {
-      ...pseudonym,
-      examId,
-      fallbackCode: booklet.fallbackCode,
-      studentName: booklet.studentName,
-      studentNumber: booklet.studentNumber,
-      piiCt: new Uint8Array([0]),
-      piiIv: new Uint8Array(12),
-    },
-    key,
-  );
+  const scanned: StudentRecord = {
+    ...pseudonym,
+    examId,
+    fallbackCode: booklet.fallbackCode,
+    studentName: booklet.studentName,
+    studentNumber: booklet.studentNumber,
+    piiCt: new Uint8Array([0]),
+    piiIv: new Uint8Array(12),
+  };
+  await saveStudentEncrypted(mergeScannedStudent(known.get(await joinKey(scanned)), scanned), key);
 
   await saveSubmissionEncrypted(
     {
@@ -372,6 +386,10 @@ export async function ingestScans(files: File[], deps: IngestDeps): Promise<Inge
   for (const source of sources) await pass.scan(source);
 
   const { booklets } = pass.collector;
+  // Read once before writing: a failed read throws, so an imported class list is never overwritten blindly.
+  const existing = booklets.length ? await studentRepository.getByExamId(deps.examId, deps.getSessionKey()) : [];
+  const existingKeys = await joinKeys(existing);
+  const known = new Map(existing.map((st, i) => [existingKeys[i], st]));
   let bookletCount = 0;
   for (let bIdx = 0; bIdx < booklets.length; bIdx++) {
     const booklet = booklets[bIdx];
@@ -382,7 +400,7 @@ export async function ingestScans(files: File[], deps: IngestDeps): Promise<Inge
       total: booklets.length,
       pages: booklet.pageRefs.length,
     });
-    await saveBooklet(booklet, deps, omrRun, pass.omr.resultsFor(booklet.pseudonymId));
+    await saveBooklet(booklet, deps, omrRun, pass.omr.resultsFor(booklet.pseudonymId), known);
     bookletCount++;
   }
 
