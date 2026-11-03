@@ -213,7 +213,7 @@ def test_result_mail_goes_out_from_the_result_mailbox(monkeypatch: pytest.Monkey
     monkeypatch.setattr(settings, "RESULT_MAIL_PASSWORD", "secret")
     monkeypatch.setattr(settings, "RESULT_MAIL_IMAP_HOST", "imap.example.com")
     monkeypatch.setattr(email_svc.smtplib, "SMTP", _FakeSmtp)
-    _FakeSmtp.sent = []
+    monkeypatch.setattr(_FakeSmtp, "sent", [])
     sender = email_svc.result_sender()
     assert sender is not None
     assert email_svc._send_sync("s@example.org", "x", "body", None, email_svc.Envelope(sender=sender))
@@ -252,4 +252,5 @@ def test_student_mail_asks_not_to_reply() -> None:
         mail = account_mail.result_link_mail(
             "s@example.org", "Analysis", "https://x/result#a", datetime.now(UTC), None, locale  # type: ignore[arg-type]
         )
-        assert phrase in mail.text and phrase in mail.html
+        assert phrase in mail.text
+        assert phrase in mail.html

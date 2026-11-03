@@ -152,7 +152,14 @@ export async function watchBounces(
     if (left <= 0) break;
     await new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, Math.min(BOUNCE_POLL_MS, left));
-      signal.addEventListener('abort', () => (clearTimeout(timer), resolve()), { once: true });
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        { once: true }
+      );
     });
     if (signal.aborted) break;
     try {

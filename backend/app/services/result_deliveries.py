@@ -108,6 +108,14 @@ async def by_token(db: AsyncSession, token: str) -> ResultDelivery | None:
     return await db.scalar(select(ResultDelivery).where(ResultDelivery.mail_token == token))
 
 
+def window_open(row: ResultDelivery) -> bool:
+    """Whether the teacher's dialog still waits for this row; SQLite returns naive datetimes, which are UTC."""
+    until = row.watch_until
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=UTC)
+    return until > datetime.now(UTC)
+
+
 def apply_bounce(row: ResultDelivery, action: str, smtp_status: str | None) -> None:
     """Mark *row* bounced or delayed; a later "delayed" never hides a bounce."""
     if action == "delayed" and row.status == "bounced":

@@ -7,7 +7,6 @@ import logging
 import re
 import secrets
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from email import message_from_bytes
 from email.message import Message
 from email.policy import compat32
@@ -122,7 +121,7 @@ async def _handle(db: AsyncSession, raw: bytes, counts: _Counts) -> bool:
         return False
     result_deliveries.apply_bounce(row, bounce.action, bounce.status)
     counts.matched += 1
-    if row.watch_until > datetime.now(UTC) or bounce.action == "delayed":
+    if result_deliveries.window_open(row) or bounce.action == "delayed":
         # The open dialog shows it; a mere delay is not worth a mail.
         return True
     teacher = await db.get(Teacher, row.teacher_id)
@@ -181,8 +180,9 @@ async def poll_bounces(db: AsyncSession) -> bool:
     try:
         try:
             imap, messages = await asyncio.to_thread(_fetch_unseen)
-        except (OSError, imaplib.IMAP4.error) as exc:
-            logger.error("Result mailbox unreachable: %s", type(exc).__name__)
+        except (OSError, imaplib.IMAP4.error):
+            # The traceback names the server's answer, never a message body or a student address.
+            logger.exception("Result mailbox unreachable")
             return False
         done: list[str] = []
         try:

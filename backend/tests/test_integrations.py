@@ -407,7 +407,8 @@ async def test_mail_records_each_students_status(
     outcomes = iter([True, False])
 
     async def fake_send(mail: account_mail.Mail) -> bool:
-        assert mail.envelope is not None and mail.envelope.message_id
+        assert mail.envelope is not None
+        assert mail.envelope.message_id is not None
         assert mail.envelope.message_id.startswith("<examance-r.")
         return next(outcomes)
 
