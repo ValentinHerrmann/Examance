@@ -113,6 +113,15 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     SMTP_FROM_EMAIL: str = "noreply@examance.com"
     SMTP_USE_TLS: bool = True
+    # Dedicated bounce mailbox (issue #221, docs/hosting.md): result mails use it as envelope sender, and `poll-bounces` reads only this mailbox over IMAP, empties it and forwards what it cannot place to SMTP_FROM_EMAIL.
+    SMTP_BOUNCE_ADDRESS: str | None = None
+    BOUNCE_IMAP_HOST: str | None = None
+    BOUNCE_IMAP_PORT: int = 993
+    BOUNCE_IMAP_USERNAME: str | None = None
+    BOUNCE_IMAP_PASSWORD: str | None = None
+    BOUNCE_IMAP_FOLDER: str = "INBOX"
+    # Per-student delivery statuses of result mails and Artemis messages (no addresses) are deleted after this many days.
+    DELIVERY_STATUS_RETENTION_DAYS: int = 30
 
     # Frontend base URL for email link generation
     FRONTEND_URL: str = "http://localhost:5173"

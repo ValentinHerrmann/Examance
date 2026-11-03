@@ -24,4 +24,5 @@ async def retention_periods(request: Request) -> RetentionPeriods:  # request: r
         training_sample_days=settings.TRAINING_SAMPLE_RETENTION_DAYS,
         layout_report_days=settings.LAYOUT_REPORT_RETENTION_DAYS,
         result_share_max_days=max(settings.RESULT_SHARE_EXPIRY_DAYS),
+        delivery_status_days=settings.DELIVERY_STATUS_RETENTION_DAYS,
     )

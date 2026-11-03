@@ -15,3 +15,5 @@ class RetentionPeriods(BaseModel):
     layout_report_days: int
     # Longest lifetime a teacher may give a student's result link (issue #207).
     result_share_max_days: int
+    # How long per-student delivery statuses of result mails and Artemis messages are kept (issue #221).
+    delivery_status_days: int

@@ -1,4 +1,4 @@
-"""Result sharing with students (issue #207): the teacher's endpoints under /exams/{id}/shares and the public, session-less open endpoint under /shares."""
+"""Result sharing with students (issue #207): the teacher's endpoints under /exams/{id}/shares and /exams/{id}/deliveries (delivery status, issue #221) and the public, session-less open endpoint under /shares."""
 from __future__ import annotations
 
 import base64
@@ -14,13 +14,14 @@ from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.teacher import Teacher
 from app.schemas.result_share import (
+    ResultDeliveryOut,
     ResultShareContent,
     ResultShareCreate,
     ResultShareOpen,
     ResultShareOut,
 )
 from app.services import audit as audit_svc
-from app.services import result_shares
+from app.services import bounces, result_deliveries, result_shares
 
 router = APIRouter(
     prefix="/exams/{exam_id}/shares",
@@ -108,3 +109,41 @@ async def open_result_share(
         ciphertext_b64=_b64(data),
         expires_at=share.expires_at,
     )
+
+
+deliveries_router = APIRouter(
+    prefix="/exams/{exam_id}/deliveries",
+    tags=["result-shares"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
+
+
+@deliveries_router.get("")
+async def list_result_deliveries(
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> list[ResultDeliveryOut]:
+    """Each student's delivery status for result mails and Artemis messages (issue #221)."""
+    return [result_deliveries.to_out(d) for d in await result_deliveries.list_for_exam(db, exam.id)]
+
+
+@deliveries_router.post("/check")
+@limiter.limit("30/minute")
+async def check_result_deliveries(
+    request: Request,  # required by slowapi
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> list[ResultDeliveryOut]:
+    """Read the bounce mailbox now (while the share dialog waits), then list the statuses."""
+    await bounces.poll_bounces(db)
+    return [result_deliveries.to_out(d) for d in await result_deliveries.list_for_exam(db, exam.id)]
+
+
+@deliveries_router.post("/close", status_code=status.HTTP_204_NO_CONTENT)
+async def close_result_deliveries(
+    exam: Exam = Depends(get_exam_for_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """The share dialog stopped waiting: bounces from now on are forwarded to the teacher by mail."""
+    await result_deliveries.close_window(db, exam.id, teacher.id)

@@ -24,6 +24,16 @@ def mail_configured() -> bool:
     return bool(settings.SMTP_HOST) or settings.is_dev
 
 
+def bounce_configured() -> bool:
+    """Whether a bounce mailbox is set up: an envelope sender and the IMAP account that reads it (issue #221)."""
+    return bool(
+        settings.SMTP_BOUNCE_ADDRESS
+        and settings.BOUNCE_IMAP_HOST
+        and settings.BOUNCE_IMAP_USERNAME
+        and settings.BOUNCE_IMAP_PASSWORD
+    )
+
+
 def account_features(teacher: Teacher) -> dict[str, bool]:
     """The admin-set switches of *teacher*, keyed as in `ACCOUNT_FEATURES`."""
     return {
@@ -39,7 +49,9 @@ def capabilities_for(teacher: Teacher) -> Capabilities:
     if teacher.role != "teacher":
         return Capabilities(
             allowed_storage_modes=(),
-            features=dict.fromkeys((*ACCOUNT_FEATURES, "training_donation", "result_mail"), False),
+            features=dict.fromkeys(
+                (*ACCOUNT_FEATURES, "training_donation", "result_mail", "result_bounces"), False
+            ),
         )
     return Capabilities(
         allowed_storage_modes=(
@@ -49,6 +61,10 @@ def capabilities_for(teacher: Teacher) -> Capabilities:
             **account_features(teacher),
             "training_donation": settings.TRAINING_DONATION_ENABLED,
             "result_mail": teacher.allow_result_delivery and mail_configured(),
+            # Whether the share dialog waits for bounces after an e-mail run (issue #221).
+            "result_bounces": teacher.allow_result_delivery
+            and mail_configured()
+            and bounce_configured(),
         },
     )
 
