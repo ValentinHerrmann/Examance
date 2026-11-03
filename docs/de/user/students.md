@@ -127,7 +127,7 @@ Damit können Sie **die Kursmitglieder auf der Seite [Schüler](#student-data) l
 
 ### Vorschau vor dem Versand {#delivery-preview}
 
-Bevor etwas per E-Mail oder Artemis verschickt wird, zeigt eine **Vorschau** jede Person mit Empfänger (Adresse oder Artemis-Nutzer) und was sie bekommt, nennt übersprungene Schüler mit Grund und sagt, welche Daten verwendet werden, wohin sie gehen und wo sie gespeichert sind. Erst nach Ihrer Bestätigung wird gesendet.
+Bevor etwas per E-Mail oder Artemis verschickt wird, zeigt eine **Vorschau** jede Person mit Empfänger (Adresse oder Artemis-Nutzer) und was sie bekommt, nennt übersprungene Schüler mit Grund und sagt, welche Daten verwendet werden, wohin sie gehen und wo sie gespeichert sind. Erst nach Ihrer Bestätigung wird gesendet. Während des Versands zeigt der Dialog den Fortschritt (zum Beispiel „20 von 25 E-Mails verschickt“) mit einem Balken; lassen Sie den Tab offen, bis alles fertig ist.
 
 ## Was Schüler sehen {#student-view}
 

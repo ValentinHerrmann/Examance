@@ -127,7 +127,7 @@ With it you can **load the course members on the [Students page](#student-data)*
 
 ### Preview before sending {#delivery-preview}
 
-Before anything is sent by e-mail or Artemis, a **preview** lists every student with the recipient (address or Artemis user) and what they get, names the students who are skipped and why, and states which data is used, where it goes and where it is stored. Nothing is sent until you confirm.
+Before anything is sent by e-mail or Artemis, a **preview** lists every student with the recipient (address or Artemis user) and what they get, names the students who are skipped and why, and states which data is used, where it goes and where it is stored. Nothing is sent until you confirm. While sending, the dialog shows how far it is (for example "20 of 25 e-mails sent") with a filling bar; keep the tab open until it has finished.
 
 ## What students see {#student-view}
 

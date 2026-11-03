@@ -95,6 +95,8 @@ Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis suppo
 
 Nothing is sent before the teacher confirms.
 
+**Progress.** `shareResults` reports `SharePhase` with done/total: `preparing` (encrypt and upload links), `sending` (Artemis per student inside the loop, e-mail per batch from `Delivery.finish(progress)`), `packing` (Mebis) and `solution`. The dialog shows a filling bar with "x of y" and a percentage, and a `beforeunload` guard asks before the tab closes mid-run.
+
 **Artemis relay** (`backend/app/services/artemis.py`, `routers/integrations.py`).
 - It is a fixed client, not a proxy. There is no URL parameter. It calls only hosts in `ARTEMIS_ALLOWED_HOSTS` and only these endpoints:
   - `course/courses/{id}/students`, falling back to the older `core/courses/{id}/students` on a 404: Artemis moved it to its `course` module in 2026, and other instances update later;

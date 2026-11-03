@@ -18,6 +18,7 @@
     SHARE_EXPIRY_DAYS,
     shareResults,
     type ShareOutcome,
+    type SharePhase,
     type ShareOverview,
     type ShareStudent,
   } from "#lib/sharing/shareService";
@@ -47,7 +48,8 @@
   let includeCode = $state(false);
   let loading = $state(true);
   let running = $state(false);
-  let step = $state("");
+  // Sending a class can take minutes: phase and count drive a filling bar and an "x of y" label.
+  let progress = $state<{ phase: SharePhase; done: number; total: number } | null>(null);
   let error = $state("");
   let outcome = $state.raw<ShareOutcome | null>(null);
   let confirmRevokeAll = $state(false);
@@ -119,6 +121,8 @@
   async function start() {
     previewing = false;
     running = true;
+    // Closing the tab mid-run would leave some students unserved.
+    window.addEventListener("beforeunload", keepOpen);
     error = "";
     outcome = null;
     try {
@@ -134,8 +138,7 @@
           language,
           includeCode: sendsMessage && !sendsPdf && factor !== "none" && includeCode,
         },
-        (phase, done = 0, total = 0) =>
-          (step = phase === "solution" ? $t("sharing.share.compilingSolution") : $t("sharing.share.running", { done: done + 1, total }))
+        (phase, done = 0, total = 0) => (progress = { phase, done, total })
       );
       saveDownload(outcome);
       await reload();
@@ -143,8 +146,21 @@
       error = `${$t("sharing.errors.share")} ${err instanceof Error ? err.message : ""}`.trim();
     } finally {
       running = false;
-      step = "";
+      progress = null;
+      window.removeEventListener("beforeunload", keepOpen);
     }
+  }
+
+  function keepOpen(event: BeforeUnloadEvent) {
+    event.preventDefault();
+  }
+
+  function progressLabel(p: { phase: SharePhase; done: number; total: number }): string {
+    if (p.phase === "solution") return $t("sharing.share.progress.solution");
+    const vars = { done: p.done, total: p.total };
+    if (p.phase === "packing") return $t("sharing.share.progress.packing", vars);
+    if (p.phase === "sending") return currentChannel.id === "email" ? $t("sharing.share.progress.sendingEmail", vars) : $t("sharing.share.progress.sendingArtemis", vars);
+    return currentChannel.id === "email" ? $t("sharing.share.progress.preparing", vars) : $t("sharing.share.progress.encrypting", vars);
   }
 
   function saveDownload(result: ShareOutcome) {
@@ -361,9 +377,19 @@
     {/if}
 
     {#if running}
+      {@const label = progress ? progressLabel(progress) : ""}
+      {@const known = progress && progress.phase !== "solution" && progress.total > 0}
       <div aria-live="polite">
-        <progress class={progressClass} aria-label={step}></progress>
-        <p class="mt-2 text-sm text-muted">{step}</p>
+        {#if known && progress}
+          <progress class={progressClass} value={progress.done} max={progress.total} aria-label={label}></progress>
+        {:else}
+          <progress class={progressClass} aria-label={label}></progress>
+        {/if}
+        <p class="mt-2 flex flex-wrap justify-between gap-2 text-sm">
+          <span>{label}</span>
+          {#if known && progress}<span class="tabular-nums text-muted">{Math.round((progress.done / progress.total) * 100)} %</span>{/if}
+        </p>
+        <p class="m-0 text-sm text-muted">{$t("sharing.share.progress.keepOpen")}</p>
       </div>
     {/if}
   </div>

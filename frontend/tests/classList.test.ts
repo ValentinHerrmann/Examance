@@ -14,6 +14,7 @@ vi.mock('#lib/api/integrations', async (importOriginal) => ({
   sendArtemisMessage: vi.fn(async (_t: unknown, _u: number, text: string) => {
     artemis.messages.push(text);
   }),
+  sendResultMails: vi.fn(async () => []),
 }));
 
 const { planImport, listedStudent, mergeStudents, duplicateCandidates, editWarnings } = await import('#lib/students/classList');
@@ -149,5 +150,16 @@ describe('Artemis messages', () => {
     expect(artemis.messages[0]).toContain('Deine korrigierte Prüfung');
     expect(artemis.messages[0]).not.toContain('ABCD');
     expect(artemis.messages[1]).toContain('ABCD-2345');
+  });
+});
+
+describe('e-mail progress', () => {
+  // Sending a class takes a while: the dialog shows "x of y sent" per batch of 20.
+  it('reports the mails sent after each batch', async () => {
+    const delivery = createDelivery('email', { examTitle: 'Analysis', expiresAt: new Date(), language: 'de' });
+    for (let i = 0; i < 45; i++) await delivery.deliverLink(student(`S${i}`, undefined, { email: `s${i}@x.de` }), `S${i}`, 'https://x/result#a.b', null);
+    const seen: [number, number][] = [];
+    expect(await delivery.finish((done, total) => seen.push([done, total]))).toEqual([]);
+    expect(seen).toEqual([[0, 45], [20, 45], [40, 45], [45, 45]]);
   });
 });

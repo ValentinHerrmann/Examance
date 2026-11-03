@@ -21,8 +21,8 @@ export interface Delivery {
   /** *code* is set only when the teacher chose to send the key or code along with the link. */
   deliverLink(student: StudentRecord, name: string, url: string, code: string | null): Promise<void>;
   deliverPdf(student: StudentRecord, name: string, filename: string, pdf: Uint8Array): Promise<void>;
-  /** Sends what was collected; returns a warning per student it could not reach. */
-  finish(): Promise<string[]>;
+  /** Sends what was collected, reporting how many are sent of how many; returns a warning per student it could not reach. */
+  finish(progress?: (done: number, total: number) => void): Promise<string[]>;
   /** A file for the teacher to save once finished (the Mebis ZIP), if the channel makes one. */
   download?(): DeliveryFile | null;
 }
@@ -63,8 +63,9 @@ export function createDelivery(
         return Promise.resolve();
       },
       deliverPdf: none,
-      async finish() {
+      async finish(progress) {
         const warnings: string[] = [];
+        progress?.(0, queued.length);
         for (let i = 0; i < queued.length; i += MAIL_BATCH) {
           const batch = queued.slice(i, i + MAIL_BATCH);
           try {
@@ -74,6 +75,7 @@ export function createDelivery(
             const reason = err instanceof Error ? err.message : '';
             for (const q of batch) warnings.push(`${translate('sharing.channels.email.failed', { name: q.name })} ${reason}`.trim());
           }
+          progress?.(Math.min(i + MAIL_BATCH, queued.length), queued.length);
         }
         return warnings;
       },

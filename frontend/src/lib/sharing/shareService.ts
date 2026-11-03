@@ -125,8 +125,9 @@ async function compileSolution(ctx: Awaited<ReturnType<typeof loadExam>>, key: C
   return res.loesung.pdfBytes;
 }
 
-/** *step* names the phase; while the students' exams are sealed, *done* of *total* counts them. */
-export type ShareProgress = (step: 'solution' | 'students', done?: number, total?: number) => void;
+/** *phase* names what runs: compiling the solution, preparing (encrypt and upload) links, sending (Artemis per student, e-mail per batch) or packing the Mebis ZIP; *done* of *total* counts finished ones. */
+export type SharePhase = 'solution' | 'preparing' | 'sending' | 'packing';
+export type ShareProgress = (phase: SharePhase, done?: number, total?: number) => void;
 
 export async function shareResults(request: ShareRequest, progress: ShareProgress): Promise<ShareOutcome> {
   const { key, fallbackSessionKey } = await sessionKeys();
@@ -159,6 +160,10 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
     solution = await compileSolution(ctx, key, warnings);
   }
 
+  // Artemis sends inside the per-student loop, Mebis packs there; slips and e-mail prepare links (e-mail sends at the end).
+  let loopPhase: SharePhase = 'preparing';
+  if (request.channel === 'artemis') loopPhase = 'sending';
+  else if (request.channel === 'mebis') loopPhase = 'packing';
   const entries: SlipEntry[] = [];
   await logExportAction(request.examId, 'SHARE', key);
   warnings.push(
@@ -192,11 +197,12 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
         await delivery.deliverLink(student, name, url, request.includeCode ? code : null);
         entries.push({ name, url, ...(request.factor === 'code' && code ? { code } : {}) });
       },
-      { only: new Set(bySubmission.keys()), progress: (done, total) => progress('students', done, total) }
+      { only: new Set(bySubmission.keys()), progress: (done, total) => progress(loopPhase, done, total) }
     ))
   );
+  progress(loopPhase, bySubmission.size, bySubmission.size);
 
-  const undelivered = await delivery.finish();
+  const undelivered = await delivery.finish((done, total) => progress('sending', done, total));
   warnings.push(...undelivered);
   entries.sort((a, b) => a.name.localeCompare(b.name));
   // Slips carry the links; on other channels only the codes, which must reach students apart from the link.
