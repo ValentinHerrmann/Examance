@@ -348,9 +348,11 @@
     }
     }%
     \else
+    \ifthenelse{\boolean{Schnitt}}{\thepage}{}%
     \fi
     }
-    \cfoot{\SA@headreset\thepage}
+    % With the corner tab the page number sits in the header: the strip between the bottom markers holds the score table.
+    \ifthenelse{\boolean{Schnitt}}{\cfoot{}}{\cfoot{\SA@headreset\thepage}}
 
     \ifthenelse
         {\isundefined{\LFarbe}}
@@ -421,6 +423,13 @@
 % 7. Points Table Generation at Document End
 % ==============================================================================
 
+% The points table of width #1, from the rows \AtEndDocument collects.
+\newcommand{\SA@scoretable}[1]{\begin{tabularx}{#1}{|*{\N}{C|}C|C|}\hline
+    \the\cols & $\sum$ & Note\\\hline
+    \the\scorecols & \formatScore{\TotalScoreG} & \OmrScoreCell{grade}\\\cline{1-\theNotenzeile}
+    \the\last & \OmrScoreCell{sum} & \OmrScoreCell{grade}\\\hline
+\end{tabularx}}
+
 \AtEndDocument{%
     \vfill
     \ifthenelse{\boolean{Pkt}}{%
@@ -447,11 +456,13 @@
                 \stepcounter{i}%
         \repeat
 
-        \noindent\hspace{3mm}\begin{tabularx}{\dimexpr\textwidth-6mm\relax}{|*{\N}{C|}C|C|}\hline
-            \the\cols & $\sum$ & Note\\\hline
-            \the\scorecols & \formatScore{\TotalScoreG} & \OmrScoreCell{grade}\\\cline{1-\theNotenzeile}
-            \the\last & \OmrScoreCell{sum} & \OmrScoreCell{grade}\\\hline
-        \end{tabularx}%
+        % With the corner tab the table fills the strip between the bottom markers (1.5mm clear of them) and ends level with their bottom edge, 9mm below the body; zero declared depth keeps the page breaks unchanged.
+        \ifthenelse{\boolean{Schnitt}}{%
+            \@tempdima=\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep-\textheight-\OmrFiducialInset\relax
+            \makebox[\textwidth]{\raisebox{\dimexpr\depth-\@tempdima\relax}[\dimexpr\height+\depth-\@tempdima\relax][0pt]{\SA@scoretable{\dimexpr\paperwidth-2\OmrFiducialInset-2\OmrFiducialSize-3mm\relax}}}%
+        }{%
+            \hspace{3mm}\SA@scoretable{\dimexpr\textwidth-6mm\relax}%
+        }%
         \normalsize
     }{}%
 }
@@ -534,7 +545,7 @@
         \setbox\z@\vbox{\hsize\textwidth\EN@head{#1}{#2}}%
         \EN@title=\dimexpr\ht\z@+\dp\z@+5mm\relax
         \ifdim\pagegoal=\maxdimen \EN@avail=\textheight \else \EN@avail=\dimexpr\pagegoal-\pagetotal\relax \fi
-        \ifthenelse{\boolean{Pkt}}{\advance\EN@avail by -36mm}{}%
+        \ifthenelse{\boolean{Pkt}}{\ifthenelse{\boolean{Schnitt}}{\advance\EN@avail by -27mm}{\advance\EN@avail by -36mm}}{}%
         \EN@fill=\dimexpr\EN@avail-\EN@title\relax
         \ifdim\EN@fill<#3cm
             \newpage
