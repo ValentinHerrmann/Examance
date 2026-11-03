@@ -54,12 +54,12 @@ export function nextStep(step: ExamStep): ExamStep | null {
 
 const CONTINUE_ORDER: ExamStep[] = ['content', 'students', 'print', 'scan', 'grade', 'results'];
 
-/** The first step of the main path that is not done yet; unknown counts as not done. Results when everything is. */
+/** The first step of the main path that is known and not done; unknown steps (a failed or skipped read) are skipped. Results when everything is done. */
 export function continueStep(progress: ExamProgress): ExamStep {
     for (const step of CONTINUE_ORDER) {
-        if (step === 'students' && progress.students?.done === undefined) continue; // optional: an unknown list never blocks
         if (step === 'results') return step;
-        if (!progress[step]?.done) return step;
+        const status = progress[step];
+        if (status && !status.done) return step;
     }
     return 'results';
 }

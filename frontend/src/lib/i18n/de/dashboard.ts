@@ -55,6 +55,8 @@ export const dashboard = {
         noExercises: 'Keine Aufgaben zugeordnet.',
         loadingExercises: 'Aufgaben werden geladen…',
         untitledExercise: 'Unbenannte Aufgabe',
+        progress: 'Fortschritt',
+        duplicating: 'Wird dupliziert …',
         duplicateHint: 'Kopie mit denselben Aufgaben und Einstellungen anlegen, ohne Schüler und Ergebnisse',
     },
     retentionModal: {

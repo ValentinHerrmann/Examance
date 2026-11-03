@@ -3,16 +3,23 @@
   import type { LazyEntry } from "#lib/utils/lazyMap";
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
-  import { examNavItems } from "#lib/components/layout/examNavItems";
-  import { faCopy, faEye, faFileZipper, faTrash } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Card, EmptyState, ExpandableCard } from "#lib/components/ui";
+  import { EXAM_STEPS, examStepHref, type ExamStep } from "#lib/components/layout/examNavItems";
+  import ExamStepBadge from "#lib/components/layout/ExamStepBadge.svelte";
+  import { continueStep, examProgress, type ExamProgress } from "#lib/exam/examProgress";
+  import type { ExamStats } from "#lib/utils/examStats";
+  import { faEye } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Card, EmptyState, ExpandableCard, Icon, Menu, MenuItem, actionIcons } from "#lib/components/ui";
   import ExamSummary from "#lib/components/exam/ExamSummary.svelte";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import type { ExamLogoPreview } from "#lib/latex/logo";
 
   interface Props {
     exams: ExamRecord[];
-    examStatsMap: Map<string, { avgScore: number | null; count: number }>;
+    examStatsMap: Map<string, ExamStats>;
+    /** Students per exam; an exam without an entry has none, unless `statsKnown` is false. */
+    studentCounts?: Map<string, number>;
+    /** False when the submissions could not be read: the progress row then shows nothing it does not know. */
+    statsKnown?: boolean;
     /** Lazily loaded per exam on first expand; absent = not requested yet. */
     exerciseMap?: Map<string, LazyEntry<ExerciseRecord[]>>;
     /** The header logo per exam, loaded on first expand like the exercises. */
@@ -33,6 +40,8 @@
   let {
     exams,
     examStatsMap,
+    studentCounts = new Map(),
+    statsKnown = true,
     exerciseMap = new Map(),
     logoMap = new Map(),
     isLoading = false,
@@ -48,6 +57,20 @@
 
   const previewPill = "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
   let editEx = $state.raw<ExerciseRecord | null>(null);
+
+  // The same cheap statuses as the exam sidebar (issue #212); exercises are known once the card was expanded.
+  function progressOf(exam: ExamRecord): ExamProgress {
+    const stats = examStatsMap.get(exam.id);
+    const exercises = exerciseMap.get(exam.id);
+    return examProgress({
+      exerciseCount: exercises?.status === "ready" ? exercises.value.length : undefined,
+      studentCount: statsKnown ? (studentCounts.get(exam.id) ?? 0) : undefined,
+      submissionCount: statsKnown ? (stats?.submissionCount ?? 0) : undefined,
+      gradedCount: statsKnown ? (stats?.count ?? 0) : undefined,
+    });
+  }
+  const ROW_STEPS: ExamStep[] = ["content", "students", "scan", "grade"];
+  const stepEntry = (step: ExamStep) => EXAM_STEPS.find((s) => s.step === step)!;
 </script>
 
 {#if isLoading}
@@ -84,36 +107,38 @@
             onOpenExercise={(ex) => (editEx = ex)}
           >
             {#snippet actions()}
-              {#each examNavItems(exam.id, "") as item (item.step)}
-                <Button href={item.href} variant="outlined" severity="secondary" size="sm" icon={item.icon}>
-                  {$t(item.labelKey)}
-                </Button>
-              {/each}
+              {@const progress = progressOf(exam)}
+              {@const next = continueStep(progress)}
+              <ul class="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm text-muted" aria-label={$t("dashboard.examList.progress")}>
+                {#each ROW_STEPS as step (step)}
+                  {#if progress[step]}
+                    <li class="inline-flex items-center gap-1.5">
+                      <Icon icon={stepEntry(step).icon} class="w-3.5" />
+                      <span>{$t(stepEntry(step).labelKey)}</span>
+                      <ExamStepBadge status={progress[step]} />
+                    </li>
+                  {/if}
+                {/each}
+              </ul>
+              <Button href={examStepHref(exam.id, next)} size="sm" iconRight={actionIcons.next}>
+                {$t("exam.flow.continue", { step: $t(stepEntry(next).labelKey) })}
+              </Button>
             {/snippet}
           </ExamSummary>
         {/snippet}
 
         {#snippet footer()}
-          <Button variant="outlined" severity="secondary" size="sm" icon={faEye} onClick={() => onPreview(exam)}>{$t("common.preview")}</Button>
-          <Button variant="outlined" severity="secondary" size="sm" icon={faFileZipper} onClick={() => onExport(exam)}>{$t("common.export")}</Button>
-          <Button
-            variant="outlined"
-            severity="secondary"
-            size="sm"
-            icon={faCopy}
-            loading={duplicatingId === exam.id}
-            disabled={!!duplicatingId}
-            title={$t("dashboard.examList.duplicateHint")}
-            onClick={() => onDuplicate(exam)}
-          >{$t("common.duplicate")}</Button>
-          <Button href="/exam/{exam.id}" size="sm">{$t("dashboard.examList.openExam")}</Button>
-          <Button
-            variant="outlined"
-            severity="danger"
-            size="sm"
-            icon={faTrash}
-            onClick={() => onDelete(exam.id, exam.title)}
-          >{$t("common.delete")}</Button>
+          <Button href="/exam/{exam.id}" variant="outlined" severity="secondary" size="sm">{$t("dashboard.examList.openExam")}</Button>
+          <Menu label={$t("exam.overview.more")} icon={actionIcons.more} align="end">
+            {#snippet children({ close })}
+              <MenuItem icon={faEye} onSelect={() => { close(); onPreview(exam); }}>{$t("common.preview")}</MenuItem>
+              <MenuItem icon={actionIcons.export} onSelect={() => { close(); onExport(exam); }}>{$t("common.export")}</MenuItem>
+              <MenuItem icon={actionIcons.duplicate} disabled={!!duplicatingId} onSelect={() => { close(); onDuplicate(exam); }}>
+                {duplicatingId === exam.id ? $t("dashboard.examList.duplicating") : $t("common.duplicate")}
+              </MenuItem>
+              <MenuItem icon={actionIcons.delete} danger onSelect={() => { close(); onDelete(exam.id, exam.title); }}>{$t("common.delete")}</MenuItem>
+            {/snippet}
+          </Menu>
         {/snippet}
       </ExpandableCard>
     {/each}

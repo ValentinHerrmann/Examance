@@ -57,6 +57,8 @@ export const dashboard: Translations['dashboard'] = {
         noExercises: 'No exercises assigned.',
         loadingExercises: 'Loading exercises…',
         untitledExercise: 'Untitled exercise',
+        progress: 'Progress',
+        duplicating: 'Duplicating …',
         duplicateHint: 'Create a copy with the same exercises and settings, without students or results',
     },
     retentionModal: {
