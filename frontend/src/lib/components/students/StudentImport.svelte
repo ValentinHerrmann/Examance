@@ -61,7 +61,7 @@
       {:else}
         <div><Button size="sm" variant="text" disabled={saving || !$featuresStore.result_delivery} onClick={() => (showArtemis = true)}>{$t("lms.artemis.fromCourse")}</Button></div>
         {#if !$featuresStore.result_delivery}
-          <p class="m-0 flex items-start gap-1.5 text-sm text-muted"><Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{$t("sharing.channels.unavailable.switchOff")}</p>
+          <p class="m-0 flex items-start gap-1.5 text-sm text-muted"><Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{$t("lms.artemis.importDisabled")}</p>
         {/if}
       {/if}
     </div>

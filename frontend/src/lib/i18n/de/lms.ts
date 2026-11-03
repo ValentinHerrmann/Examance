@@ -109,6 +109,7 @@ export const lms = {
         empty: 'In der Liste wurden keine Schüler gefunden.',
     },
     artemis: {
+        importDisabled: 'Die Artemis-Anbindung ist von der Administration nicht freigeschaltet.',
         fromCourse: 'Aus einem Artemis-Kurs laden',
         host: 'Artemis-Adresse',
         courseId: 'Kurs-ID',

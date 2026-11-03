@@ -111,6 +111,7 @@ export const lms: Translations['lms'] = {
         empty: 'No students found in the list.',
     },
     artemis: {
+        importDisabled: 'The Artemis connection is not enabled by the admin.',
         fromCourse: 'Load from an Artemis course',
         host: 'Artemis address',
         courseId: 'Course ID',

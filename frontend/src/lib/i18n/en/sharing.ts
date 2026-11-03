@@ -130,7 +130,7 @@ export const sharing: Translations['sharing'] = {
         artemis: {
             label: 'Through Artemis',
             description: 'Examance sends each student in your Artemis course a direct message with the link or the graded exam as a PDF.',
-            missing: 'no Artemis id on the QR sticker',
+            missing: 'no Artemis id (neither from the class list nor on the QR sticker)',
             setupMissing: 'Artemis course and token are missing.',
             message: 'Your graded exam “{exam}” is ready. The link is valid until {date}:',
             needsKey: 'To open it you also need your personal key or code.',
@@ -141,7 +141,7 @@ export const sharing: Translations['sharing'] = {
         mebis: {
             label: 'Feedback files for Mebis (download)',
             description: "A ZIP file with each student's graded exam as a PDF. Upload it in the Mebis assignment under “Upload multiple feedback files in a zip”. It needs QR stickers made from a Mebis participant list.",
-            missing: 'no Mebis participant ID on the QR sticker',
+            missing: 'no Mebis participant ID (neither from the class list nor on the QR sticker)',
             done: '{count} exam(s) packed into the Mebis ZIP file.',
             run: 'Create ZIP file',
         },

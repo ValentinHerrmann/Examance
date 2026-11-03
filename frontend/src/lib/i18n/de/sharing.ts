@@ -128,7 +128,7 @@ export const sharing = {
         artemis: {
             label: 'Über Artemis',
             description: 'Examance schickt jedem Schüler in Ihrem Artemis-Kurs eine Direktnachricht mit dem Link oder der korrigierten Arbeit als PDF.',
-            missing: 'keine Artemis-Kennung auf dem QR-Aufkleber',
+            missing: 'keine Artemis-Kennung (weder aus der Klassenliste noch auf dem QR-Aufkleber)',
             setupMissing: 'Artemis-Kurs und Token fehlen.',
             message: 'Deine korrigierte Prüfung „{exam}“ ist da. Der Link ist bis {date} gültig:',
             needsKey: 'Zum Öffnen brauchst du zusätzlich deinen persönlichen Schlüssel oder Code.',
@@ -139,7 +139,7 @@ export const sharing = {
         mebis: {
             label: 'Rückmeldedateien für Mebis (Download)',
             description: 'Eine ZIP-Datei mit der korrigierten Arbeit jedes Schülers als PDF. Laden Sie sie in der Mebis-Aufgabe unter „Mehrere Feedbackdateien in einer ZIP-Datei hochladen“ hoch. Sie braucht QR-Aufkleber aus einer Mebis-Teilnehmerliste.',
-            missing: 'keine Mebis-Teilnehmer-ID auf dem QR-Aufkleber',
+            missing: 'keine Mebis-Teilnehmer-ID (weder aus der Klassenliste noch auf dem QR-Aufkleber)',
             done: '{count} Arbeit(en) in die Mebis-ZIP-Datei gepackt.',
             run: 'ZIP-Datei erstellen',
         },
