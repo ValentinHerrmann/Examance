@@ -402,7 +402,7 @@ export async function ingestScans(files: File[], deps: IngestDeps): Promise<Inge
       total: booklets.length,
       pages: booklet.pageRefs.length,
     });
-    await saveBooklet(booklet, deps, omrRun, pass.omr.resultsFor(booklet.pseudonymId), known);
+    await saveBooklet(booklet, deps, omrRun, pass.omr.resultsFor(booklet.pseudonymId), known); // NOSONAR: one booklet at a time keeps memory bounded and leaves the earlier ones saved when a later one fails
     bookletCount++;
   }
 

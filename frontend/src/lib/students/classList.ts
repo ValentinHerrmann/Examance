@@ -3,7 +3,7 @@
 import { stickerId } from '#lib/crypto/stickerKey';
 import type { StudentRecord } from '#lib/db/schema';
 import type { TranslationKey } from '#lib/i18n/types';
-import { matchContacts, nameKey, type Contact } from '#lib/lms/contacts';
+import { matchContacts, nameKey, type Contact, type ContactSource } from '#lib/lms/contacts';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { pseudonymFor } from '#lib/services/pseudonymRekey';
 import { newTrashGroup } from '#lib/trash/group';
@@ -22,8 +22,8 @@ export interface ImportPlan {
   unchanged: number;
 }
 
-const idField = (contact: Contact): 'mebisId' | 'artemisId' | null =>
-  contact.source === 'mebis' ? 'mebisId' : contact.source === 'artemis' ? 'artemisId' : null;
+const ID_FIELD: Partial<Record<ContactSource, 'mebisId' | 'artemisId'>> = { mebis: 'mebisId', artemis: 'artemisId' };
+const idField = (contact: Contact): 'mebisId' | 'artemisId' | null => ID_FIELD[contact.source] ?? null;
 
 /** What importing *contacts* would change: matched students (by id of the same source, else by name) get the list's address and id, the rest becomes new students. A Mebis list and an Artemis course for the same class therefore meet on one row each. */
 export function planImport(students: readonly StudentRecord[], contacts: readonly Contact[]): ImportPlan {
@@ -88,8 +88,12 @@ export interface MergePlan {
   filled: EditableField[];
 }
 
-const same = (field: EditableField, a: string, b: string) =>
-  field === 'mebisId' || field === 'artemisId' ? normalizeLmsId(a) === normalizeLmsId(b) : field === 'studentName' ? nameKey(a) === nameKey(b) : a.trim().toLowerCase() === b.trim().toLowerCase();
+/** Same value in another spelling: ids without prefix, names in any order, other text ignoring case. */
+function same(field: EditableField, a: string, b: string): boolean {
+  if (field === 'mebisId' || field === 'artemisId') return normalizeLmsId(a) === normalizeLmsId(b);
+  if (field === 'studentName') return nameKey(a) === nameKey(b);
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
 
 /** Merges two rows of one student (issue #209): e.g. a sticker printed without LMS id and the imported list row, or a Mebis and an Artemis row. The row with a scanned exam stays; two scanned rows are refused. */
 export function mergeStudents(
@@ -135,6 +139,18 @@ export function duplicateCandidates(
   return [...byName.values()].flatMap((rows) => (rows.length === 2 && !(hasSubmission(rows[0]) && hasSubmission(rows[1])) ? [[rows[0], rows[1]] as [StudentRecord, StudentRecord]] : []));
 }
 
+/** Changed, removed and duplicate Mebis/Artemis ids of one edited row. */
+function idNotices(prev: StudentRecord, next: StudentRecord, name: string, count: (field: EditableField, value: string) => number): EditNotice[] {
+  const notices: EditNotice[] = [];
+  for (const field of ['mebisId', 'artemisId'] as const) {
+    const was = prev[field] ?? '';
+    const now = next[field] ?? '';
+    if (was && was !== now) notices.push({ key: now ? 'lms.students.edit.warn.idChanged' : 'lms.students.edit.warn.idRemoved', name });
+    if (now && count(field, now) > 1) notices.push({ key: 'lms.students.edit.warn.duplicateId', name });
+  }
+  return notices;
+}
+
 export interface EditNotice {
   key: TranslationKey;
   name: string;
@@ -159,12 +175,7 @@ export function editWarnings(
       return;
     }
     if (hasSubmission(prev) && !same('studentName', prev.studentName ?? '', next.studentName)) notices.push({ key: 'lms.students.edit.warn.renamedScanned', name });
-    for (const field of ['mebisId', 'artemisId'] as const) {
-      const was = prev[field] ?? '';
-      const now = next[field] ?? '';
-      if (was && was !== now) notices.push({ key: now ? 'lms.students.edit.warn.idChanged' : 'lms.students.edit.warn.idRemoved', name });
-      if (now && count(field, now) > 1) notices.push({ key: 'lms.students.edit.warn.duplicateId', name });
-    }
+    notices.push(...idNotices(prev, next, name, count));
     if (prev.email && !next.email) notices.push({ key: 'lms.students.edit.warn.emailRemoved', name });
     if (count('studentName', next.studentName) > 1) notices.push({ key: 'lms.students.edit.warn.duplicateName', name });
   });

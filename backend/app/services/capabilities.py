@@ -39,7 +39,7 @@ def capabilities_for(teacher: Teacher) -> Capabilities:
     if teacher.role != "teacher":
         return Capabilities(
             allowed_storage_modes=(),
-            features={name: False for name in (*ACCOUNT_FEATURES, "training_donation", "result_mail")},
+            features=dict.fromkeys((*ACCOUNT_FEATURES, "training_donation", "result_mail"), False),
         )
     return Capabilities(
         allowed_storage_modes=(

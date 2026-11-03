@@ -50,6 +50,13 @@ export interface GradeRow extends CsvExportRow {
   state: GradingState;
 }
 
+/** Students from the class list exist before their exam is scanned; they are not "ungraded". */
+function rowStatus(scanned: boolean, result: ExamResult | undefined): string {
+  if (!scanned) return translate('stats.exportModal.notScanned');
+  if (result && !result.isComplete) return translate('stats.exportModal.provisional');
+  return '';
+}
+
 /** One row per student, ungraded ones included. */
 export async function buildGradeRows(
   exam: ExamRecord | null,
@@ -73,8 +80,7 @@ export async function buildGradeRows(
       maxPoints: totalMaxPoints ?? '',
       percentage: result ? Math.round(result.percentage * 10) / 10 : ungraded,
       grade: grade?.grade ?? ungraded,
-      // Students from the class list exist before their exam is scanned; they are not "ungraded".
-      status: !sub ? translate('stats.exportModal.notScanned') : result && !result.isComplete ? translate('stats.exportModal.provisional') : '',
+      status: rowStatus(Boolean(sub), result),
       submissionId: sub?.id,
       state: gradingState(result),
     };
