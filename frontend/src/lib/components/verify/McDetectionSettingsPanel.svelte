@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
-  import { Button, Card } from "#lib/components/ui";
+  import { Button, Card, actionIcons } from "#lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
   import { diffOmrParams, type OmrSettingsProfile } from "#lib/grading/omrSettings";
   import type { McAlgorithmScore, McDetectionRunSummary } from "#lib/grading/mcVerification";
@@ -69,7 +69,7 @@
           {$t("scanning.verify.settingsPanel.showAll")}
         </Button>
       {/if}
-      <Button variant="text" size="sm" href="/settings#omr">{$t("scanning.verify.settingsPanel.editSettings")}</Button>
+      <Button variant="text" size="sm" icon={actionIcons.edit} href="/settings#omr">{$t("scanning.verify.settingsPanel.editSettings")}</Button>
     </div>
 
     {#if comparison.length > 0}

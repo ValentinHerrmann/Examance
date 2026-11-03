@@ -14,7 +14,7 @@
   import ExtraNotesField from '#lib/components/exam/ExtraNotesField.svelte';
   import { t } from '#lib/i18n';
   import { faArrowUp, faArrowDown, faXmark } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Card } from '#lib/components/ui';
+  import { Badge, Button, Card, actionIcons } from '#lib/components/ui';
 
   interface McGroup {
     id: string;
@@ -175,7 +175,7 @@
 <Card title={$t("exam.exerciseList.heading", { count: totalItemCount })}>
   {#snippet actions()}
     {#if onAddExercises}
-      <Button size="sm" onClick={onAddExercises}>{$t("exam.actionBar.addExercises")}</Button>
+      <Button size="sm" icon={actionIcons.add} onClick={onAddExercises}>{$t("exam.exerciseList.addExercises")}</Button>
     {/if}
   {/snippet}
 

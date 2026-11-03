@@ -70,7 +70,6 @@ export const exam = {
         },
     },
     actionBar: {
-        addExercises: '+ Aufgaben hinzufügen',
         deleteSubmissions: 'Abgaben löschen',
         delete: 'Löschen',
     },
@@ -141,6 +140,7 @@ export const exam = {
         updatedNotice: 'MC-Gruppe „{title}“ aktualisiert.',
     },
     exerciseList: {
+        addExercises: 'Aufgaben hinzufügen',
         heading: 'Aufgaben ({count})',
         untitled: 'Unbenannt',
         points: 'Pkt',

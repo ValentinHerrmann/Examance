@@ -72,7 +72,6 @@ export const exam: Translations['exam'] = {
         },
     },
     actionBar: {
-        addExercises: '+ Add Exercises',
         deleteSubmissions: 'Delete Submissions',
         delete: 'Delete',
     },
@@ -143,6 +142,7 @@ export const exam: Translations['exam'] = {
         updatedNotice: 'MC group “{title}” updated.',
     },
     exerciseList: {
+        addExercises: 'Add exercises',
         heading: 'Exercises ({count})',
         untitled: 'Untitled',
         points: 'pts',

@@ -4,7 +4,7 @@
   import { fmt } from '#lib/utils/format';
   import type { ExamRecord } from '#lib/db/schema';
   import type { ExamStats } from '#lib/analytics/stats';
-  import { Alert, PageShell, PageHeader, Button, Card, ConfirmDialog } from '#lib/components/ui';
+  import { Alert, PageShell, PageHeader, Button, Card, ConfirmDialog, actionIcons } from '#lib/components/ui';
   import StatsCards from './StatsCards.svelte';
   import BorderlineCases from './BorderlineCases.svelte';
   import ChartCard from './ChartCard.svelte';
@@ -146,7 +146,7 @@
 
   {#if !loadError}
     <div class="mt-6">
-      <Button variant="outlined" severity="secondary" onClick={onOpenExport}>
+      <Button variant="outlined" severity="secondary" icon={actionIcons.download} onClick={onOpenExport}>
         {$t('stats.page.exportButton')}
       </Button>
     </div>

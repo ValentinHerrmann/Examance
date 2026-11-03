@@ -1,9 +1,10 @@
 <script lang="ts">
+  import { faCheck } from "@fortawesome/free-solid-svg-icons";
   /** Imports a class list into the exam's students (issue #209): a Mebis CSV, a pasted or typed list, or an Artemis course. Shows what changes before anything is written. */
   import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
   import { get } from "svelte/store";
   import { t } from "#lib/i18n";
-  import { Button, Icon, Panel } from "#lib/components/ui";
+  import { Button, Icon, Panel, actionIcons } from "#lib/components/ui";
   import ArtemisConnect from "#lib/components/lms/ArtemisConnect.svelte";
   import ClassListFile from "#lib/components/lms/ClassListFile.svelte";
   import type { ArtemisStudent } from "#lib/api/integrations";
@@ -59,7 +60,7 @@
       {#if showArtemis && $featuresStore.result_delivery}
         <ArtemisConnect disabled={saving} onLoaded={fromArtemis} />
       {:else}
-        <div><Button size="sm" variant="text" disabled={saving || !$featuresStore.result_delivery} onClick={() => (showArtemis = true)}>{$t("lms.artemis.fromCourse")}</Button></div>
+        <div><Button size="sm" variant="text" icon={actionIcons.download} disabled={saving || !$featuresStore.result_delivery} onClick={() => (showArtemis = true)}>{$t("lms.artemis.fromCourse")}</Button></div>
         {#if !$featuresStore.result_delivery}
           <p class="m-0 flex items-start gap-1.5 text-sm text-muted"><Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{$t("lms.artemis.importDisabled")}</p>
         {/if}
@@ -83,7 +84,7 @@
         {/if}
         <p class="m-0 text-muted">{$t("lms.students.import.storedNote")}</p>
         <div class="flex flex-wrap gap-2">
-          <Button size="sm" loading={saving} disabled={saving || !(plan.add.length + plan.update.length)} onClick={apply}>{$t("lms.students.import.apply")}</Button>
+          <Button size="sm" icon={faCheck} loading={saving} disabled={saving || !(plan.add.length + plan.update.length)} onClick={apply}>{$t("lms.students.import.apply")}</Button>
           <Button size="sm" variant="text" severity="secondary" disabled={saving} onClick={() => (pending = null)}>{$t("common.cancel")}</Button>
         </div>
       </div>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { faArrowsRotate, faLayerGroup, faRotateLeft, faShuffle } from "@fortawesome/free-solid-svg-icons";
+  import { contentHref } from "#lib/utils/links";
   import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
   import { goto, afterNavigate } from "$app/navigation";
   import { page } from "$app/state";
@@ -7,7 +9,7 @@
   import { get } from "svelte/store";
   import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, EmptyState, PageHeader, PageShell, Spinner } from "#lib/components/ui";
+  import { Alert, Button, EmptyState, PageHeader, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import {
     computeMcVerificationStats,
     mcQueue,
@@ -454,6 +456,7 @@
         <Button
           variant="outlined" severity="secondary"
           size="sm"
+          icon={faRotateLeft}
           onClick={handleResetAllReviews}
           disabled={isRerunningMc || isResettingReviews || loading}
         >
@@ -461,6 +464,7 @@
         </Button>
         <Button
           size="sm"
+          icon={actionIcons.compile}
           onClick={requestRerunMcDetection}
           disabled={isRerunningMc || isResettingReviews || loading || !stats}
           loading={isRerunningMc}
@@ -470,6 +474,7 @@
         <Button
           variant="outlined" severity="secondary"
           size="sm"
+          icon={faArrowsRotate}
           onClick={refresh}
           disabled={loading || isRerunningMc || isResettingReviews}
         >
@@ -499,8 +504,8 @@
       {#if stats.totalQuestions === 0}
         <EmptyState title={$t("scanning.verify.emptyTitle")} description={$t("scanning.verify.emptyDescription")}>
           {#snippet actions()}
-            <Button variant="outlined" severity="secondary" href={`/exam/${examId}`}>{$t("scanning.verify.examSetup")}</Button>
-            <Button href={`/exam/${examId}/scan`}>{$t("scanning.verify.goToScan")}</Button>
+            <Button variant="outlined" severity="secondary" icon={faLayerGroup} href={contentHref(examId)}>{$t("scanning.verify.examSetup")}</Button>
+            <Button icon={actionIcons.next} href={`/exam/${examId}/scan`}>{$t("scanning.verify.goToScan")}</Button>
           {/snippet}
         </EmptyState>
       {:else}
@@ -532,7 +537,7 @@
 
         {#if otherItems.some((i) => !i.isReviewed)}
           <div class="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted">
-            <Button variant="outlined" severity="secondary" size="sm" onClick={openRandomConfidentItem}>
+            <Button variant="outlined" severity="secondary" size="sm" icon={faShuffle} onClick={openRandomConfidentItem}>
               {$t("scanning.verify.randomSample")}
             </Button>
             <span>{$t("scanning.verify.randomSampleHint")}</span>

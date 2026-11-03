@@ -3,7 +3,7 @@
   import { untrack } from "svelte";
   import { get } from "svelte/store";
   import { t } from "#lib/i18n";
-  import { Alert, Button, Checkbox, Modal, TableScroller, TextInput } from "#lib/components/ui";
+  import { Alert, Button, Checkbox, Modal, TableScroller, TextInput, actionIcons } from "#lib/components/ui";
   import type { StudentRecord } from "#lib/db/schema";
   import { editWarnings, EDITABLE_FIELDS, newListedStudent, type EditableField } from "#lib/students/classList";
   import { nameKey } from "#lib/lms/contacts";
@@ -117,8 +117,8 @@
   </div>
 
   {#snippet footer()}
-    <Button variant="outlined" severity="secondary" disabled={busy} onClick={onClose}>{$t("common.cancel")}</Button>
-    <Button loading={busy} disabled={busy || (!createIn && !changed.length) || blocking || (warnings.length > 0 && !accepted)} onClick={save}>
+    <Button variant="outlined" severity="secondary" icon={actionIcons.remove} disabled={busy} onClick={onClose}>{$t("common.cancel")}</Button>
+    <Button icon={createIn ? actionIcons.add : actionIcons.edit} loading={busy} disabled={busy || (!createIn && !changed.length) || blocking || (warnings.length > 0 && !accepted)} onClick={save}>
       {createIn ? $t("lms.students.add.save") : $t("lms.students.edit.save", { count: changed.length })}
     </Button>
   {/snippet}
