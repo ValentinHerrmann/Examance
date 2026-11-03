@@ -33,7 +33,7 @@ The QR sticker points at a **pseudonym**, not at a name. The link between person
 
 ## When assignment fails {#assignment}
 
-Pages whose QR sticker is unreadable or missing are listed under **Unmatched Submissions**. The exam sheet itself carries no printed code, only the empty **QR Code** box for the sticker, see [QR stickers](./students#qr-stickers). Type the student's sticker text (`Lastname, Firstname_ID`) into the field and **Link Code** assigns the submission.
+Pages whose QR sticker is unreadable or missing are listed under **Unmatched Submissions**. The QR code is either a sticker in the **QR Code** box or printed into it, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies). Type the student's sticker text (`Lastname, Firstname_ID`) into the field and **Link Code** assigns the submission.
 
 Typical causes are a forgotten sticker, a crumpled or folded corner, a code covered by handwriting, or a page printed with scaling.
 

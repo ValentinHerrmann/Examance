@@ -324,6 +324,14 @@
     libraryExercises = ctx.libraryExercises;
   }
 
+  /** The printable student sheet for personalised copies (issue #211); the compile cache makes a repeat free. */
+  async function studentSheetPdf(): Promise<Uint8Array> {
+    await refreshExamSources();
+    if (!exam) throw new Error(translate("exam.page.examNotFoundOrDeleted"));
+    const res = await compileExamPreview({ exam, exercises, libraryExercises, mcGroups, examItems, key: get(sessionStore).sessionKey });
+    return res.angabe.pdfBytes;
+  }
+
   async function handlePreviewExam() {
     if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
     isPreviewLoading = true;
@@ -834,5 +842,11 @@
   <ShareResultsDialog {examId} onClose={() => (shareOpen = false)} onPrintKeys={() => (stickers = "keys")} />
 {/if}
 {#if stickers}
-  <StickerSheetDialog {examId} examTitle={exam?.title ?? ""} keysOnly={stickers === "keys"} onClose={() => (stickers = null)} />
+  <StickerSheetDialog
+    {examId}
+    examTitle={exam?.title ?? ""}
+    keysOnly={stickers === "keys"}
+    loadExamPdf={studentSheetPdf}
+    onClose={() => (stickers = null)}
+  />
 {/if}

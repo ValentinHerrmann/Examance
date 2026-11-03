@@ -6,8 +6,9 @@
   import SuggestField from '#lib/components/common/SuggestField.svelte';
   import { recordValue } from '#lib/utils/recentValues';
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
-  import { t } from '#lib/i18n';
-  import { Modal, Button, Checkbox, Field, controlClass } from '#lib/components/ui';
+  import { t, locale } from '#lib/i18n';
+  import { Modal, Button, Checkbox, CrossLink, Field, controlClass } from '#lib/components/ui';
+  import { docsHref } from '#lib/help/docsLink';
   import ExamLogoField from '#lib/components/logo/ExamLogoField.svelte';
   import ExamPackagesField from '#lib/components/latex-packages/ExamPackagesField.svelte';
   import type { LatexPackageEntry } from '#lib/latex/packages';
@@ -176,6 +177,12 @@
   <Field hint={$t("exam.metadataEditor.nameLineHint")} class="mb-4">
     <Checkbox id="editNameLine" bind:checked={editNameLine} label={$t("exam.metadataEditor.nameLine")} />
   </Field>
+
+  <!-- Every exam keeps the cut-off corner (issue #211); the guide's sketch shows the usable space. -->
+  <div class="mb-4 flex flex-col gap-1.5">
+    <p class="m-0 text-sm text-muted">{$t("exam.metadataEditor.pageLayoutHint")}</p>
+    <CrossLink href={docsHref("exams#cut-corner", $locale)} class="self-start text-sm">{$t("exam.metadataEditor.cutCornerLayout")}</CrossLink>
+  </div>
 
   <Field hint={$t("exam.metadataEditor.mcCorrectionHintHint")} class="mb-4">
     <Checkbox id="editMcCorrectionHint" bind:checked={editMcCorrectionHint} label={$t("exam.metadataEditor.mcCorrectionHint")} />

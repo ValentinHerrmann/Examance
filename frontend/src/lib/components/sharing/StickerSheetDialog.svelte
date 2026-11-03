@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Prints QR name stickers, optionally with personal key slips (issues #83, #207). From an exam it can also start from the exam's students, e.g. to print only the keys for stickers already in use. */
+  /** Prints QR name stickers, optionally with personal key slips (issues #83, #207), or the QR codes directly onto personalised exam copies (issue #211). From an exam it can also start from the exam's students, e.g. to print only the keys for stickers already in use. */
   import { onMount, untrack } from "svelte";
   import { get } from "svelte/store";
   import { faQrcode } from "@fortawesome/free-solid-svg-icons";
@@ -7,6 +7,7 @@
   import { Button, Checkbox, Field, Modal, Radio, Textarea, TextInput } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug } from "#lib/export/zip";
+  import { renderExamCopies } from "#lib/qr/examCopies";
   import { entriesFromRoster, renderStickerSheet, STICKER_GRID, type StickerEntry } from "#lib/qr/stickerSheet";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
@@ -18,10 +19,13 @@
     examTitle?: string;
     /** Starts with the exam's students and only the key slips (from the share dialog). */
     keysOnly?: boolean;
+    /** The compiled student sheet; offers printing onto exam copies. */
+    loadExamPdf?: () => Promise<Uint8Array>;
+    /** The exam keeps the cut-off corner free, which exam copies need. */
     onClose: () => void;
   }
 
-  let { examId, examTitle = "", keysOnly: startKeysOnly = false, onClose }: Props = $props();
+  let { examId, examTitle = "", keysOnly: startKeysOnly = false, loadExamPdf, onClose }: Props = $props();
 
   // The starting choice only; the dialog owns it from then on.
   const initialKeysOnly = untrack(() => startKeysOnly);
@@ -32,9 +36,12 @@
   let skip = $state("0");
   let keys = $state(true);
   let keysOnly = $state(initialKeysOnly);
+  let output = $state<"stickers" | "copies">("stickers");
   let busy = $state(false);
+  let progress = $state("");
+  let copiesMode = $derived(output === "copies");
   // Key slips alone print on plain paper: no labels, so no copies or used cells.
-  let onlyKeys = $derived(source === "exam" && keysOnly);
+  let onlyKeys = $derived(!copiesMode && source === "exam" && keysOnly);
   let error = $state("");
 
   onMount(async () => {
@@ -62,6 +69,13 @@
         error = $t("sharing.stickers.empty");
         return;
       }
+      if (copiesMode && loadExamPdf) {
+        progress = $t("sharing.stickers.compiling");
+        const pdf = await renderExamCopies(await loadExamPdf(), entries, { examTitle });
+        downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(examTitle || $t("sharing.stickers.copiesTitle"))}_copies.pdf`);
+        onClose();
+        return;
+      }
       const pdf = await renderStickerSheet(entries, {
         copies: clamp(copies, 1, 10),
         skip: clamp(skip, 0, STICKER_GRID.cols * STICKER_GRID.rows - 1),
@@ -74,13 +88,22 @@
       error = `${$t("sharing.errors.stickers")} ${err instanceof Error ? err.message : ""}`.trim();
     } finally {
       busy = false;
+      progress = "";
     }
   }
 </script>
 
 <Modal open={true} size="medium" title={$t("sharing.stickers.title")} onClose={busy ? undefined : onClose} closeOnEscape={!busy} {error}>
   <div class="flex flex-col gap-5">
-    <p class="text-sm text-muted">{$t("sharing.stickers.intro")}</p>
+    {#if loadExamPdf && !initialKeysOnly}
+      <fieldset class="flex flex-col gap-2" disabled={busy}>
+        <legend class="mb-2 text-sm text-muted">{$t("sharing.stickers.output")}</legend>
+        <Radio group={output} value="stickers" name="sticker-output" onchange={() => (output = "stickers")} label={$t("sharing.stickers.outputStickers")} />
+        <Radio group={output} value="copies" name="sticker-output" onchange={() => (output = "copies")} label={$t("sharing.stickers.outputCopies")} />
+      </fieldset>
+    {/if}
+
+    <p class="text-sm text-muted">{copiesMode ? $t("sharing.stickers.copiesIntro") : $t("sharing.stickers.intro")}</p>
 
     {#if examId}
       <fieldset class="flex flex-col gap-2" disabled={busy}>
@@ -105,7 +128,9 @@
       </Field>
     {/if}
 
-    {#if !onlyKeys}
+    {#if copiesMode}
+      <p class="text-sm text-muted">{$t("sharing.stickers.copiesPrintHint")}</p>
+    {:else if !onlyKeys}
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label={$t("sharing.stickers.copies")}>
           {#snippet children({ id })}
@@ -120,7 +145,7 @@
       </div>
     {/if}
 
-    <div class="flex flex-col gap-3">
+    <div class="flex flex-col gap-3" class:hidden={copiesMode}>
       <div>
         <Checkbox bind:checked={keys} label={$t("sharing.stickers.keys")} disabled={busy || onlyKeys} />
         <p class="ml-7 text-sm text-muted">{$t("sharing.stickers.keysHint")}</p>
@@ -136,6 +161,7 @@
 
   {#snippet footer()}
     <Button variant="outlined" severity="secondary" disabled={busy} onClick={onClose}>{$t("common.cancel")}</Button>
+    {#if progress}<span class="text-sm text-muted" role="status">{progress}</span>{/if}
     <Button icon={faQrcode} loading={busy} disabled={busy} onClick={download}>{$t("sharing.stickers.download")}</Button>
   {/snippet}
 </Modal>

@@ -99,7 +99,7 @@ export async function collectExamResources(
   return exerciseResourceRepository.collectForCompile(owners, sessionKey, needBytes);
 }
 
-/** Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own. The exam's own layout options (`namenszeile`) are added here. */
+/** Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own. The exam's own layout options (`namenszeile`, `schnittecke`) are added here. */
 export function buildExamLatex(
   exam: ExamRecord,
   exerciseInputs: string,
@@ -107,7 +107,7 @@ export function buildExamLatex(
   accountPackages: readonly LatexPackageEntry[]
 ): string {
   const doc = `\\documentclass[a4paper]{article}
-\\usepackage[${withExamOptions(options, exam.nameLine)}]{sty/Schulaufgabe}
+\\usepackage[${withExamOptions(options, exam)}]{sty/Schulaufgabe}
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
 \\Lehrernachname{${exam.lehrernachname || ""}}
@@ -138,8 +138,8 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
 }
 
 /** Adds the exam's layout switches to the Schulaufgabe.sty options. */
-export function withExamOptions(options: string, nameLine: boolean | undefined): string {
-  return nameLine ? `${options},namenszeile` : options;
+export function withExamOptions(options: string, layout: Pick<ExamRecord, "nameLine">): string {
+  return [options, layout.nameLine && "namenszeile"].filter(Boolean).join(",");
 }
 
 export interface ExamPreviewInput {

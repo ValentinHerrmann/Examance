@@ -23,6 +23,10 @@
 \newboolean{Namensfeld}
 \setboolean{Namensfeld}{false}
 
+% Every exam keeps each page's outer top corner free for the cut-off tab of printed student copies (issue #211): a guillotine through a long-edge duplex or
+% booklet stack cuts it, top right on odd pages and top left on even ones; the header mirrors on even pages. One layout for every exam, so the OMR template never
+% depends on how a sheet was printed. The reserved zone (an 86.6 x 23.1 mm triangle per corner) is mirrored in frontend lib/qr/cutCorner.ts, which draws the tab and covers it on scans.
+
 \newcounter{Punkte}
 \setcounter{Punkte}{0}
 
@@ -208,6 +212,9 @@
     \setboolean{Namensfeld}{true}%
 }
 
+% Former opt-in for the cut-off corner, now the only layout; accepted so sources written before still compile.
+\DeclareOption{schnittecke}{}
+
 % Global indentation option
 \newif\if@neverindent\@neverindentfalse
 \DeclareOption{neverindent}{%
@@ -216,6 +223,9 @@
 
 \ExecuteOptions{roman}
 \ProcessOptions\relax
+
+% The text reaches the markers' outer edges (5mm) and the header row starts at 11.9mm, so on every page the body (22.4mm) begins below the corner zone (21.8mm deep at the text edge).
+\geometry{top=11.9mm,left=5mm,right=5mm}
 
 % ==============================================================================
 % 6. Name Box (Namenszeile) & Header Setup
@@ -232,8 +242,10 @@
         \begin{minipage}[t]{3.5cm}
         \vspace{0pt} % Setzt die Grundlinie an die physische Oberkante
         \textcolor{gray}{
-            \dashbox{0.2}(3.5,3.5){
+            % Where printed student copies stamp the QR code (frontend lib/qr/examCopies.ts).
+            \OmrLink{3.5cm}{3.5cm}{omr://__qr__}\dashbox{0.2}(3.5,3.5){
                 \parbox{3.5cm}{
+                    % Printed copies blank this text under their code; spare plain copies keep it for a sticker.
                     \centering QR Code
                     \ifthenelse{\boolean{Namensfeld}}{}{\\
                     \normalsize \vspace{0.8cm}\LoesungLuecke{}{2.5cm}\\$\uparrow$~Deine Initialen~$\uparrow$\\
@@ -242,7 +254,9 @@
             }
         }
         \end{minipage}% <-- Ein % hier verhindert einen ungewollten Zeilenumbruch/Abstand
-        \begin{minipage}[t]{15cm}
+        \hspace{5mm}%
+        % Box, gap and info fill the text width exactly, so the box starts at the text edge, flush with the corner markers.
+        \begin{minipage}[t]{\dimexpr\textwidth-3.5cm-5mm\relax}
         \vspace{5pt} % Setzt die Grundlinie an die physische Oberkante
         \normalsize
         % Name starts where the info bullets do; the strut is the room to write above the line.
@@ -276,6 +290,27 @@
 
 % The output routine typesets the header inside whatever group the page broke in, so a task's local
 % settings (e.g. \arraystretch) used to stretch the header (issue #137). Every header cell resets them.
+\newlength{\SA@headindent}
+% Distance of the header cells from the head edge, so they keep 20mm from the paper edge either way.
+\newlength{\SA@headgap}
+% Page 1's header with the corner tab: logo, then the title with date, class and teacher in one line centred under it, in the room up to 62mm from the cut side (each scaled down only if it does not fit).
+\newsavebox{\SA@logobox}
+\newlength{\SA@titlewidth}
+% Date, class and teacher as separate items, joined with a centred dot; empty ones are left out.
+\newsavebox{\SA@itembox}
+\newcommand{\SA@infoitem}[1]{\sbox{\SA@itembox}{#1}\ifdim\wd\SA@itembox>\z@\SA@infosep\usebox{\SA@itembox}\def\SA@infosep{\ \textperiodcentered\ }\fi}
+% \Datum carries the duration in brackets ("02.11.2026 (45 min)", frontend formatDatumAndDauer); split here, so exam sources (and their OMR template hashes) stay as they are.
+\def\SA@splitdatum#1(#2)#3\@nil{\SA@infoitem{#1\unskip}\SA@infoitem{#2}}
+% Order: course, date, duration, teacher.
+\newcommand{\SA@infoline}{{\def\SA@infosep{}\SA@infoitem{\Klassetext}\expandafter\SA@splitdatum\Datumtext()\@nil\SA@infoitem{\Lehrernachnametext}}}
+\newcommand{\SA@firsthead}{%
+    \sbox{\SA@logobox}{\ExamLogo}%
+    \setlength{\SA@titlewidth}{\dimexpr\headwidth-\SA@headgap-\wd\SA@logobox-\SA@headindent-8mm\relax}%
+    \makebox[\headwidth][l]{\hspace{\SA@headgap}\usebox{\SA@logobox}\hfill\begin{tabular}[b]{@{}c@{}}%
+        \adjustbox{max width=\SA@titlewidth}{\Large \Nrtext. \Testarttesttext \ in \Fachtext}\\[-1pt]%
+        \adjustbox{max width=\SA@titlewidth}{\small \SA@infoline}%
+    \end{tabular}\hfill\hspace*{\SA@headindent}}%
+}
 \newcommand{\SA@headreset}{%
     \normalfont\normalsize\normalcolor
     \renewcommand{\arraystretch}{1}\setlength{\extrarowheight}{0pt}\setlength{\tabcolsep}{6pt}%
@@ -283,34 +318,27 @@
 
 % Setup headers and footers at document start
 \AtBeginDocument{
-    \fancyheadoffset[L]{5mm}
-    \fancyheadoffset[R]{5mm}
+    % The head spans the text, which already reaches 5mm from the edges.
+    \fancyheadoffset[L]{0mm}\fancyheadoffset[R]{0mm}%
+    % The header mirrors on even pages: the title on the uncut side, "Seite X" on the cut side, both 20mm from the paper edge (below the zone). Page 1 (\SA@firsthead)
+    % has the logo and the title over one info line, kept 62mm from the cut side (outside the zone and 8mm clear of the moved fiducial).
+    \setlength{\SA@headindent}{5.7cm}\setlength{\SA@headgap}{1.5cm}%
+    % The head rule spans the head minus 5mm per side: ends at the text edge would cross the zone's tip. \nointerlineskip keeps it where fancyhdr's plain \hrule sits.
+    \renewcommand{\headrule}{\nointerlineskip\hbox to\headwidth{\hskip5mm\leaders\hrule height\headrulewidth\hfill\hskip5mm}\vskip-\headrulewidth}%
     \lhead{\SA@headreset\ifnum\thepage=1
-    {\hspace{1cm}\ExamLogo}
+    % No space after \SA@firsthead: it fills the whole head width, and a trailing space would wrap the cell and push the header down.
+    \SA@firsthead
     \else
-    \hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext%Name:
+    \ifthenelse{\isodd{\value{page}}}{\hspace{\SA@headgap}\Nrtext. \Testarttesttext \ in \Fachtext}{\hspace{\SA@headgap}Seite \thepage}%
     \fi}
     \rhead{\SA@headreset
-    \ifnum\thepage=1
-    {%
-    \begin{tabular}[b]{@{}r@{}}
-        \Datumtext \\
-        Klasse \Klassetext \ (\Lehrernachnametext)
-    \end{tabular}\hspace*{1cm}%
-    }
-    \else
+    \ifnum\thepage=1\else
+    \ifthenelse{\isodd{\value{page}}}{Seite \thepage}{\Nrtext. \Testarttesttext \ in \Fachtext}\hspace*{\SA@headgap}%
     \fi
     }
-    \chead{\SA@headreset
-    \ifnum\thepage=1
-    {
-    \Large
-    \Nrtext. \Testarttesttext \ in \Fachtext \normalsize
-    }
-    \else
-    \fi
-    }
-    \cfoot{\SA@headreset\thepage}
+    \chead{}
+    % The page number is in the header: the strip between the bottom markers holds the score table.
+    \cfoot{}
 
     \ifthenelse
         {\isundefined{\LFarbe}}
@@ -359,16 +387,35 @@
     \AtPageLowerLeft{\put(\LenToUnit{#2},\LenToUnit{#3}){\OmrLink{\OmrFiducialSize}{\OmrFiducialSize}{omr://__fid__/#1}\OmrFiducialShape}}%
 }
 
+% Both top markers sit 12mm from the top: the one by the cut corner (right on odd pages, left on even ones) 46mm from its side,
+% outside the zone; the other in its corner at the usual inset (mirrored in frontend lib/qr/cutCorner.ts).
+\newlength{\SA@fidTopX}
+\newlength{\SA@fidTopY}
+\setlength{\SA@fidTopX}{46mm}
+\setlength{\SA@fidTopY}{12mm}
+\newlength{\SA@fidTRX}
+\newlength{\SA@fidTLX}
 \AddToShipoutPictureBG{%
+    \setlength{\SA@fidTRX}{\SA@fidTopX}\setlength{\SA@fidTLX}{\SA@fidTopX}%
+    \ifodd\value{page}\setlength{\SA@fidTLX}{\OmrFiducialInset}\else\setlength{\SA@fidTRX}{\OmrFiducialInset}\fi
+    % The tab (75 x 20 mm at the outer top corner) is tinted light grey, so an unpersonalised sheet shows what a cut would remove; printed copies stamp over it on page 1.
+    \AtPageUpperLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]\ifodd\value{page}\fill[black!7] (\paperwidth-75mm,0) -- (\paperwidth,0) -- (\paperwidth,-20mm) -- cycle;\else\fill[black!7] (75mm,0) -- (0,0) -- (0,-20mm) -- cycle;\fi\end{tikzpicture}}%
     \OmrFiducialAt{0}{\OmrFiducialInset}{\OmrFiducialInset}%
     \OmrFiducialAt{1}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\OmrFiducialInset}%
-    \OmrFiducialAt{2}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\dimexpr\paperheight-\OmrFiducialInset-\OmrFiducialSize\relax}%
-    \OmrFiducialAt{3}{\OmrFiducialInset}{\dimexpr\paperheight-\OmrFiducialInset-\OmrFiducialSize\relax}%
+    \OmrFiducialAt{2}{\dimexpr\paperwidth-\SA@fidTRX-\OmrFiducialSize\relax}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
+    \OmrFiducialAt{3}{\SA@fidTLX}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
 }
 
 % ==============================================================================
 % 7. Points Table Generation at Document End
 % ==============================================================================
+
+% The points table of width #1, from the rows \AtEndDocument collects.
+\newcommand{\SA@scoretable}[1]{\begin{tabularx}{#1}{|*{\N}{C|}C|C|}\hline
+    \the\cols & $\sum$ & Note\\\hline
+    \the\scorecols & \formatScore{\TotalScoreG} & \OmrScoreCell{grade}\\\cline{1-\theNotenzeile}
+    \the\last & \OmrScoreCell{sum} & \OmrScoreCell{grade}\\\hline
+\end{tabularx}}
 
 \AtEndDocument{%
     \vfill
@@ -396,11 +443,9 @@
                 \stepcounter{i}%
         \repeat
 
-        \noindent\hspace{3mm}\begin{tabularx}{\dimexpr\textwidth-6mm\relax}{|*{\N}{C|}C|C|}\hline
-            \the\cols & $\sum$ & Note\\\hline
-            \the\scorecols & \formatScore{\TotalScoreG} & \OmrScoreCell{grade}\\\cline{1-\theNotenzeile}
-            \the\last & \OmrScoreCell{sum} & \OmrScoreCell{grade}\\\hline
-        \end{tabularx}%
+        % The table fills the strip between the bottom markers (1.5mm clear of them) and ends level with their bottom edge, 9mm below the body; zero declared depth keeps the page breaks unchanged.
+        \@tempdima=\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep-\textheight-\OmrFiducialInset\relax
+        \makebox[\textwidth]{\raisebox{\dimexpr\depth-\@tempdima\relax}[\dimexpr\height+\depth-\@tempdima\relax][0pt]{\SA@scoretable{\dimexpr\paperwidth-2\OmrFiducialInset-2\OmrFiducialSize-3mm\relax}}}%
         \normalsize
     }{}%
 }
@@ -483,7 +528,7 @@
         \setbox\z@\vbox{\hsize\textwidth\EN@head{#1}{#2}}%
         \EN@title=\dimexpr\ht\z@+\dp\z@+5mm\relax
         \ifdim\pagegoal=\maxdimen \EN@avail=\textheight \else \EN@avail=\dimexpr\pagegoal-\pagetotal\relax \fi
-        \ifthenelse{\boolean{Pkt}}{\advance\EN@avail by -36mm}{}%
+        \ifthenelse{\boolean{Pkt}}{\advance\EN@avail by -27mm}{}%
         \EN@fill=\dimexpr\EN@avail-\EN@title\relax
         \ifdim\EN@fill<#3cm
             \newpage

@@ -33,7 +33,7 @@ export const help = {
         requirementLevel: 'Anforderungsbereich I: Wiedergeben, II: Anwenden und Übertragen, III: Reflektieren und Problemlösen. Erscheint nur im Erwartungshorizont.',
         partExercises: 'Teilaufgaben a), b), c) erhalten eine eigene Unterüberschrift und ein eigenes Punktekästchen. Eine leere Punktzahl zählt die Bewertungseinheiten der Teilaufgabe.',
         blindGrading: 'Während der Korrektur wird nur das Pseudonym angezeigt, nie der Name. Erst nach dem Korrekturgang werden Ergebnis und Person wieder verknüpft.',
-        pseudonymQr: 'Jeder Bogen trägt einen QR-Code für Klausur, Variante und Schülerplatz. Beim Scannen wird der Stapel daran automatisch getrennt und zugeordnet.',
+        pseudonymQr: 'Auf dem Deckblatt jeder Arbeit steht der QR-Code des Schülers, als Aufkleber oder direkt aufgedruckt. Beim Scannen wird der Stapel daran automatisch getrennt und zugeordnet.',
         gradingKey: 'Der Notenschlüssel bestimmt, ab welcher Punktzahl welche Note gilt — linear, Oberstufen-gewichtet oder mit eigenen Grenzen.',
     },
     topics: {
@@ -157,7 +157,7 @@ export const help = {
             },
             s5: {
                 h: 'Setzen und drucken',
-                p1: 'Der Satzlauf erzeugt ein druckfertiges PDF mit QR-Codes für Klausur, Variante und Schülerplatz. Drucken Sie die Bögen genau so, ohne Skalierung: Der QR-Code muss lesbar bleiben, sonst lässt sich der Scan später nicht automatisch zuordnen.',
+                p1: 'Der Satzlauf erzeugt ein druckfertiges PDF mit einem Feld für den QR-Code auf dem Deckblatt. Drucken Sie die Bögen genau so, ohne Skalierung: Der QR-Code muss lesbar bleiben, sonst lässt sich der Scan später nicht automatisch zuordnen.',
             },
         },
         scanning: {
@@ -184,8 +184,8 @@ export const help = {
                 p1: '„MC-Erkennung erneut ausführen“ wertet alle Scans mit den aktuellen Einstellungen neu aus. Geprüfte Fragen und von Hand eingetragene Punkte bleiben unverändert. Das Erkennungsverfahren wählen Sie unter Einstellungen → MC-Erkennung.',
             },
             s6: {
-                h: 'QR-Aufkleber',
-                p1: 'Ohne Aufkleber ordnet Examance die Seiten nicht von selbst zu. „QR-Aufkleber“ auf der Klausurseite druckt einen Etikettenbogen aus einer Namensliste, auf Wunsch mit einem persönlichen Schlüssel, den der Schüler behält.',
+                h: 'QR-Codes',
+                p1: 'Ohne QR-Code ordnet Examance die Seiten nicht von selbst zu. „QR-Codes drucken“ auf der Klausurseite druckt einen Etikettenbogen aus einer Namensliste, auf Wunsch mit einem persönlichen Schlüssel, den der Schüler behält. Oder es druckt die Codes direkt auf die Prüfungsexemplare: Die obere rechte Ecke von Seite 1 trägt dann Name und Schlüssel; Sie schneiden sie vor dem Austeilen ab.',
             },
         },
         grading: {

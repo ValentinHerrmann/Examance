@@ -19,5 +19,6 @@ Detail captures for the user guide (`docs/user/`, `docs/de/user/`), in the same 
 | `settings-security.jpg` | Sign-in factors in the settings | `security#security-page` |
 | `results-borderline.jpg` | Borderline table and grade distribution | `results#borderline` |
 | `admin-maintenance.jpg` | Admin maintenance tab | `admin#maintenance` |
+| `cut-corner-layout-{de,en}.{pdf,png}` | True-scale sketch of the usable space on every exam page (not a capture): `python3 cut-corner-layout.py de > out.tex`, compile with Tectonic, PNG = both pages side by side at 90 dpi. Its numbers mirror `Schulaufgabe.sty` and `lib/qr/cutCorner.ts`; regenerate when they change | `exams#cut-corner` |
 
 Never use real pupil data or a production account.

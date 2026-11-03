@@ -4,13 +4,13 @@ editLink: false
 
 # QR-Aufkleber und Ergebnisse für Schüler
 
-Zwei Dinge gehören hier zusammen: **QR-Aufkleber**, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Beide Schaltflächen finden Sie auf der Prüfungsseite.
+Zwei Dinge gehören hier zusammen: **QR-Codes**, als Aufkleber, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, oder direkt aufgedruckt, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Beide Schaltflächen finden Sie auf der Prüfungsseite.
 
 ## QR-Aufkleber {#qr-stickers}
 
 Die gedruckte Prüfung hat auf dem Deckblatt ein leeres Feld mit der Beschriftung **QR Code**. Jede Schülerin und jeder Schüler klebt dort einen QR-Namensaufkleber ein. Beim Scannen liest Examance den Aufkleber und ordnet die Seiten automatisch dieser Person zu, siehe [Scannen und Zuordnen](./scanning#import).
 
-**QR-Aufkleber** auf der Prüfungsseite öffnet einen Dialog, der einen A4-Bogen mit **5 × 7 Etiketten** druckt:
+**QR-Codes drucken** auf der Prüfungsseite öffnet einen Dialog. Mit **Aufkleberbogen** druckt er einen A4-Bogen mit **5 × 7 Etiketten**:
 
 1. Wählen Sie, woher die Namen kommen: aus einer **eingefügten Liste** (**Namensliste einfügen**: eine Zeile pro Person, `Nachname, Vorname`, optional gefolgt von Tabulator oder `;` und einer ID, zum Beispiel einer Schülernummer) oder die **Schüler dieser Prüfung**.
 2. Ohne ID leitet Examance aus dem Namen eine stabile ID ab. Ein erneuter Druck derselben Liste ergibt deshalb dieselben Aufkleber.
@@ -20,6 +20,19 @@ Die gedruckte Prüfung hat auf dem Deckblatt ein leeres Feld mit der Beschriftun
 Aufkleber anderer Programme im Format `Nachname, Vorname_ID` funktionieren ebenfalls. Von Hand oder aus nicht zugeordneten Seiten angelegte Schüler haben keinen Aufkleber.
 
 Alles wird in Ihrem Browser berechnet; kein externer Dienst zeichnet die Codes.
+
+## QR-Codes direkt auf den Prüfungsexemplaren {#printed-copies}
+
+Statt Aufklebern kann Examance den QR-Code jedes Schülers **direkt auf sein eigenes Prüfungsexemplar** drucken. Mit **Direkt auf die Prüfungsexemplare drucken** im selben Dialog erhalten Sie ein PDF mit einem Exemplar pro Schüler, in der Reihenfolge der Liste:
+
+- Der QR-Code steht im QR-Feld auf dem Deckblatt, genau dort, wo sonst der Aufkleber hinkommt; das Scannen funktioniert also wie mit Aufklebern. Ersatzexemplare aus dem normalen Prüfungs-PDF behalten Beschriftung und Initialenfeld des Felds, so dass eine Schülerin oder ein Schüler, die ein neues Blatt braucht, stattdessen einen Aufkleber bekommt.
+- Die **obere rechte Ecke von Seite 1** trägt jenseits einer gestrichelten Diagonale mit kleiner Schere **Name und persönlichen Schlüssel**. **Schneiden Sie die Ecke vor dem Austeilen** an der Linie ab. Den ganzen Stapel dürfen Sie auf einmal mit der Schneidemaschine schneiden. Der Schüler erkennt daran sein Exemplar und behält die Ecke; mit dem Schlüssel öffnet er später sein [geteiltes Ergebnis](#share-results).
+- Rund um die Linie ist freier Platz, ein ungenauer Schnitt trifft also weder den Namen noch die Prüfung.
+- Wurde eine Ecke nicht abgeschnitten, **deckt Examance sie beim Einlesen der Scans ab**; der Name ist dann weder beim Korrigieren noch in Exporten zu sehen.
+
+Jede Prüfung hält diese Ecke auf jeder Seite frei ([Layout](./exams#cut-corner)): auf ungeraden Seiten oben rechts, auf geraden oben links, also die Ecke, die ein Schnitt durch einen beidseitig oder als Broschüre gedruckten Stapel abtrennt. Im normalen Prüfungs-PDF bleibt sie leer und hellgrau.
+
+**Drucken und Schneiden:** Drucken Sie die Exemplare **beidseitig mit Wenden an der langen Kante** oder als Broschüre. Jede Seite zeigt die gestrichelte Schnittlinie an ihrer äußeren Ecke, so dass Sie den ganzen Stapel auf einmal mit der Schneidemaschine entlang der Linie auf dem obersten Blatt schneiden können. Ein Exemplar mit ungerader Seitenzahl bekommt eine leere Seite, sodass jedes Exemplar auf einem neuen Blatt beginnt. Drucken Sie in Originalgröße, ohne „An Seite anpassen“.
 
 ## Persönliche Schlüssel {#personal-keys}
 

@@ -3,12 +3,20 @@ import type { Translations } from '../types';
 export const sharing: Translations['sharing'] = {
     untitledExam: 'Exam',
     actions: {
-        stickers: 'QR stickers',
+        stickers: 'Print QR codes',
         share: 'Share with students',
     },
     stickers: {
-        title: 'Print QR name stickers',
+        title: 'Print QR codes',
         intro: 'Creates a sheet of QR stickers (A4, 5 × 7 labels). Each student puts their sticker into the “QR Code” box on the cover page; when the scans come in, Examance assigns the pages by itself.',
+        output: 'Output',
+        outputStickers: 'Sticker sheet',
+        outputCopies: 'Print directly onto the exam copies',
+        copiesIntro: 'One copy per student, in list order: the QR code sits in the QR box, and the top-right corner of page 1 carries name and personal key. Before handing out, cut the corner off along the dashed line; students recognise their copy by it and keep it. A corner that was not cut off is covered when the scans come in. Print at actual size.',
+        copiesPrintHint: 'Print double-sided, flipping on the long edge, or as a booklet: every page shows the cut line at its outer corner (top right on odd pages, top left on even ones), so the whole stack can be cut at once with a guillotine. A copy with an odd page count gets a blank page, so every copy starts on a new sheet.',
+        compiling: 'Compiling the exam …',
+        copiesTitle: 'Exam copies',
+        noQrBox: 'The compiled student sheet has no QR code box.',
         source: 'Names',
         sourceRoster: 'Paste a list of names',
         sourceExam: 'Students of this exam',

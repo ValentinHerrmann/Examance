@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatStudentName, formatStudentQr, parseStudentQr, stickerRawOf } from '#lib/utils/studentQr';
+import { abbreviateGivenNames, formatStudentName, formatStudentQr, parseStudentQr, stickerRawOf } from '#lib/utils/studentQr';
 
 describe('parseStudentQr', () => {
   describe('standard format: "Lastname, Firstname_NumericID"', () => {
@@ -124,5 +124,17 @@ describe('sticker payloads (issue #207)', () => {
     expect(stickerRawOf({ pseudonymRaw: crypto.randomUUID() })).toBeNull();
     expect(stickerRawOf({})).toBeNull();
     expect(stickerRawOf({ pseudonymRaw: ' Doe, Jane_42 ' })).toBe('Doe, Jane_42');
+  });
+});
+
+describe('abbreviateGivenNames', () => {
+  it('cuts given names to initials and keeps the surname whole', () => {
+    expect(abbreviateGivenNames('Maximilian Mustermann-Müller')).toBe('M. Mustermann-Müller');
+    expect(abbreviateGivenNames('Anna-Lena Sophie Maier')).toBe('A.-L. S. Maier');
+    expect(abbreviateGivenNames('Mustermann-Müller, Maximilian')).toBe('Mustermann-Müller, M.');
+  });
+  it('leaves names without given names unchanged', () => {
+    expect(abbreviateGivenNames('Mustermann')).toBe('Mustermann');
+    expect(abbreviateGivenNames('Mustermann,')).toBe('Mustermann');
   });
 });

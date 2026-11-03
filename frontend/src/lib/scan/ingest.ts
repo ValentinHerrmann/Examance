@@ -1,6 +1,6 @@
 /** Scan ingest: uploaded PDFs -> QR decode (+ OMR) per page -> one encrypted booklet per student. No UI here (no dialogs, no component state): the scan page renders `onProgress` and the result. */
-import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
-import type { PDFDocument } from "pdf-lib";
+import type { PageViewport, PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import type { Color, PDFDocument } from "pdf-lib";
 import { loadPdfjs } from "#lib/pdf/pdfjs";
 import { saveStudentEncrypted, saveSubmissionEncrypted, sealScan } from "#lib/db/dbEncryption";
 import { pseudonymFor } from "#lib/services/pseudonymRekey";
@@ -8,6 +8,7 @@ import type { ExerciseScoreRecord, OmrPageTemplate } from "#lib/db/schema";
 import { buildOmrScoreRecord } from "#lib/grading/omrResult";
 import { createOmrRun, type OmrPageStats, type OmrRunInfo, type OmrSettingsProfile } from "#lib/grading/omrSettings";
 import { scoreRepository } from "#lib/repositories/scoreRepository";
+import { cornerCoverPolygon } from "#lib/qr/cutCorner";
 import { parseStudentQr } from "#lib/utils/studentQr";
 import { randomCode } from "#lib/utils/randomCode";
 import type { QrWorkerRequest, QrWorkerResponse } from "#lib/workers/qrWorker";
@@ -197,8 +198,7 @@ async function openSource(file: File): Promise<{ source?: ScanSource; warning?: 
   }
 }
 
-async function renderPage(page: PDFPageProxy, scale: number): Promise<ImageData> {
-  const viewport = page.getViewport({ scale });
+async function renderPage(page: PDFPageProxy, viewport: PageViewport): Promise<ImageData> {
   const canvas = document.createElement("canvas");
   canvas.width = viewport.width;
   canvas.height = viewport.height;
@@ -220,11 +220,20 @@ async function decodeQr(
   }
 }
 
+/** Paints the corner tab's zone white on the stored page, so a name and key that were not cut off show in no view of the scan (grading, exports, shared PDFs). The pixels below stay in the sealed original. */
+function coverCorner(imageData: ImageData, pageRef: PdfPageRef, viewport: PageViewport, params: OmrRunInfo["params"], white: Color): void {
+  const points = cornerCoverPolygon(imageData, viewport.scale, params).map(([x, y]) => viewport.convertToPdfPoint(x, y));
+  // drawSvgPath flips y (SVG points down), so negate it to draw in PDF space from the origin.
+  const path = points.map(([x, y], i) => `${i ? "L" : "M"} ${x} ${-y}`).join(" ") + " Z";
+  pageRef.doc.getPage(pageRef.index).drawSvgPath(path, { x: 0, y: 0, color: white, borderWidth: 0 });
+}
+
 /** PASS 2 state: pages are scanned and grouped one at a time so only one page's pixels are alive. */
 class ScanPass {
   readonly collector = new BookletCollector();
   readonly omr = new OmrAccumulator();
   processedPages = 0;
+  private white: Color | null = null;
 
   constructor(
     private readonly deps: IngestDeps,
@@ -244,16 +253,18 @@ class ScanPass {
 
     // Load the same file with pdf-lib for page copying
     const fileBytes = await source.file.arrayBuffer();
-    const { PDFDocument: PDFDocClass } = await import("pdf-lib");
+    const { PDFDocument: PDFDocClass, rgb } = await import("pdf-lib");
+    this.white = rgb(1, 1, 1);
     const pdfLibDoc = await PDFDocClass.load(fileBytes, { ignoreEncryption: true });
 
     for (let pIdx = 1; pIdx <= source.pdf.numPages; pIdx++) {
       const page = await source.pdf.getPage(pIdx);
       // ~200 DPI; must equal the scanScale the OMR worker is told, or bubble geometry breaks.
-      const imageData = await renderPage(page, this.omrRun.params.scanScale);
+      const viewport = page.getViewport({ scale: this.omrRun.params.scanScale });
+      const imageData = await renderPage(page, viewport); // NOSONAR: one page at a time keeps only one page's pixels alive
 
       // Scan and group immediately, dropping imageData after use
-      await this.processPage(fileName, imageData, { doc: pdfLibDoc, index: pIdx - 1 });
+      await this.processPage(fileName, imageData, { doc: pdfLibDoc, index: pIdx - 1 }, viewport); // NOSONAR: one page at a time keeps only one page's pixels alive
 
       page.cleanup();
     }
@@ -261,7 +272,7 @@ class ScanPass {
     await source.loadingTask.destroy();
   }
 
-  private async processPage(fileName: string, imageData: ImageData, pageRef: PdfPageRef): Promise<void> {
+  private async processPage(fileName: string, imageData: ImageData, pageRef: PdfPageRef, viewport: PageViewport): Promise<void> {
     this.processedPages++;
     this.deps.onProgress?.({
       phase: "scanning",
@@ -273,6 +284,9 @@ class ScanPass {
 
     const qr = await decodeQr(this.deps.qrPool, imageData);
     const booklet = this.collector.addPage(qr, pageRef);
+    // Before OMR, which may transfer the pixels to its worker.
+    // Every sheet keeps the corner zone free, so it is always covered on a booklet's first page: an uncut personalised copy shows name and key there (issue #211).
+    if (qr && booklet.pageRefs.length === 1) coverCorner(imageData, pageRef, viewport, this.omrRun.params, this.white!);
     await this.detectOmr(fileName, imageData, booklet);
     this.deps.monitor?.checkMemoryHealth();
   }
