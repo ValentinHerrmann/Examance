@@ -323,7 +323,7 @@
     % No space after \SA@firsthead: it fills the whole head width, and a trailing space would wrap the cell and push the header down.
     \ifthenelse{\boolean{Schnitt}}{\SA@firsthead}{{\hspace{1cm}\ExamLogo} }%
     \else
-    \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{}{\hspace{\SA@headgap}\Nrtext. \Testarttesttext \ in \Fachtext}%Name:
+    \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{\hspace{\SA@headgap}Seite \thepage}{\hspace{\SA@headgap}\Nrtext. \Testarttesttext \ in \Fachtext}%Name:
     \fi}
     \rhead{\SA@headreset
     \ifnum\thepage=1
@@ -336,7 +336,7 @@
     }
     }%
     \else
-    \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{\Nrtext. \Testarttesttext \ in \Fachtext\hspace*{\SA@headgap}}{}%
+    \ifthenelse{\boolean{Schnitt}}{\ifthenelse{\isodd{\value{page}}}{Seite \thepage}{\Nrtext. \Testarttesttext \ in \Fachtext}\hspace*{\SA@headgap}}{}%
     \fi
     }
     \chead{\SA@headreset
@@ -348,10 +348,9 @@
     }
     }%
     \else
-    \ifthenelse{\boolean{Schnitt}}{\thepage}{}%
     \fi
     }
-    % With the corner tab the page number sits in the header: the strip between the bottom markers holds the score table.
+    % With the corner tab "Seite X" sits on the cut side of the header, mirroring the title (20mm from the edge, below the zone): the strip between the bottom markers holds the score table.
     \ifthenelse{\boolean{Schnitt}}{\cfoot{}}{\cfoot{\SA@headreset\thepage}}
 
     \ifthenelse

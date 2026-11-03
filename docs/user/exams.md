@@ -65,7 +65,13 @@ While grading, the current grade and the points to the next grade are shown live
 
 With **Print a name line next to the QR code box** (when creating the exam or under **Edit Exam**), the title page gets a line for the student's name. The QR code box stays where it is, so scanning and assignment work as before; only the initials field inside the box is dropped.
 
+### Cut-off corner {#cut-corner}
+
 **Cut-off corner for printed QR codes** keeps each page's outer top corner free (right on odd pages, left on even ones; the text starts about 8 mm lower on each page but runs 1 cm wider, out to the corner markers; the score table fills the strip between the bottom markers and the page numbers move into the header). It is needed to print the QR codes [directly onto the exam copies](./students#printed-copies): page 1's top-right corner then carries name and personal key, and you cut it off before handing out, for double-sided and booklet prints also with a guillotine through the whole stack.
+
+The sketch shows the usable space on odd and even pages: text area, header, score table, the cut-off tab with its tolerance, and the corner markers. The [PDF](../screenshots/guide/cut-corner-layout-en.pdf) is drawn at true scale on A4, so measurements on a 100 % print are real millimetres.
+
+![Usable space with the cut-off corner: odd page (left) and even page (right)](../screenshots/guide/cut-corner-layout-en.png)
 
 ### Space for extra solutions {#extra-space}
 

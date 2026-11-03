@@ -65,7 +65,13 @@ Beim Korrigieren werden die aktuelle Note und die Punkte bis zur nächsten Note 
 
 Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung oder unter **Prüfung bearbeiten**) erhält die Titelseite eine Zeile für den Namen der Schülerin oder des Schülers. Das QR-Code-Feld bleibt an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; nur das Initialenfeld im Feld entfällt.
 
+### Abschneide-Ecke {#cut-corner}
+
 **Abschneide-Ecke für aufgedruckte QR-Codes** hält auf jeder Seite die äußere obere Ecke frei (ungerade Seiten rechts, gerade links; der Text beginnt auf jeder Seite etwa 8 mm tiefer, reicht dafür 1 cm breiter bis an die Eckmarkierungen; die Punktetabelle füllt den Streifen zwischen den unteren Markierungen, die Seitenzahlen wandern in die Kopfzeile). Das braucht es, um die QR-Codes [direkt auf die Prüfungsexemplare](./students#printed-copies) zu drucken: Die obere rechte Ecke von Seite 1 trägt dann Name und persönlichen Schlüssel, und Sie schneiden sie vor dem Austeilen ab, bei beidseitigem und Broschürendruck auch mit der Schneidemaschine durch den ganzen Stapel.
+
+Die Skizze zeigt den nutzbaren Platz auf ungeraden und geraden Seiten: Textbereich, Kopfzeile, Punktetabelle, den Abschnitt mit seiner Toleranz und die Eckmarkierungen. Das [PDF](../../screenshots/guide/cut-corner-layout-de.pdf) ist in Originalgröße auf A4 gezeichnet; Maße auf einem Ausdruck in 100 % sind echte Millimeter.
+
+![Nutzbarer Platz mit Abschneide-Ecke: ungerade Seite (links) und gerade Seite (rechts)](../../screenshots/guide/cut-corner-layout-de.png)
 
 ### Platz für weitere Lösungen {#extra-space}
 

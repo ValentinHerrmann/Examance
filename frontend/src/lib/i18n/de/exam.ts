@@ -112,6 +112,7 @@ export const exam = {
         infoText: 'Infotext (LaTeX-Liste)',
         nameLine: 'Namenszeile neben dem QR-Code-Feld drucken',
         cutCorner: 'Abschneide-Ecke für aufgedruckte QR-Codes',
+        cutCornerLayout: 'Nutzbaren Platz im Handbuch ansehen (Skizze in Originalgröße)',
         cutCornerHint: 'Für Exemplare mit aufgedrucktem QR-Code: Die obere rechte Ecke von Seite 1 trägt Name und persönlichen Schlüssel; Sie schneiden sie vor dem Austeilen ab, die Schüler:innen behalten sie. Jede Seite hält ihre äußere obere Ecke frei (ungerade Seiten rechts, gerade links; der Text beginnt etwa 8 mm tiefer, ist dafür 1 cm breiter), so dass Sie einen beidseitig oder als Broschüre gedruckten Stapel auf einmal mit der Schneidemaschine schneiden können.',
         nameLineHint: 'Die Schüler:innen schreiben ihren Namen auf die Titelseite. Das QR-Code-Feld bleibt, das Initialenfeld darin entfällt.',
         mcCorrectionHint: 'Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert',

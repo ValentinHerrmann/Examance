@@ -6,8 +6,9 @@
   import SuggestField from '#lib/components/common/SuggestField.svelte';
   import { recordValue } from '#lib/utils/recentValues';
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
-  import { t } from '#lib/i18n';
-  import { Modal, Button, Checkbox, Field, controlClass } from '#lib/components/ui';
+  import { t, locale } from '#lib/i18n';
+  import { Modal, Button, Checkbox, CrossLink, Field, controlClass } from '#lib/components/ui';
+  import { docsHref } from '#lib/help/docsLink';
   import ExamLogoField from '#lib/components/logo/ExamLogoField.svelte';
   import ExamPackagesField from '#lib/components/latex-packages/ExamPackagesField.svelte';
   import type { LatexPackageEntry } from '#lib/latex/packages';
@@ -182,6 +183,7 @@
 
   <Field hint={$t("exam.metadataEditor.cutCornerHint")} class="mb-4">
     <Checkbox id="editCutCorner" bind:checked={editCutCorner} label={$t("exam.metadataEditor.cutCorner")} />
+    <CrossLink href={docsHref("exams#cut-corner", $locale)} class="self-start text-sm">{$t("exam.metadataEditor.cutCornerLayout")}</CrossLink>
   </Field>
 
   <Field hint={$t("exam.metadataEditor.mcCorrectionHintHint")} class="mb-4">
