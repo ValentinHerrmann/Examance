@@ -59,7 +59,8 @@ vi.mock("../src/lib/repositories/scoreRepository", () => ({
 vi.mock("../src/lib/pdf/pdfjs", async () => {
   const { PDFDocument: Doc } = await import("pdf-lib");
   const page = {
-    getViewport: () => ({ width: 2, height: 2 }),
+    // Like pdf.js's PageViewport: ingest converts the corner cover's pixels to PDF points.
+    getViewport: () => ({ width: 2, height: 2, scale: 1, convertToPdfPoint: (x: number, y: number) => [x, 2 - y] }),
     render: () => ({ promise: Promise.resolve() }),
     cleanup: () => {},
   };

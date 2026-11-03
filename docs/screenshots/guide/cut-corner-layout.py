@@ -30,7 +30,7 @@ TEXT = {
         "legend": "Legende",
         "items": [
             "Inhalt: Aufgaben, Lösungsfelder, Karos (Seite 1 auch QR-Feld und Hinweise)",
-            "Kopfzeile: Logo, Titel, Datum $\\cdot$ Klasse $\\cdot$ Lehrkraft auf Seite 1; sonst Titel und Seitenzahl",
+            "Kopfzeile: Logo, Titel, Kurs $\\cdot$ Datum $\\cdot$ Dauer $\\cdot$ Lehrkraft auf Seite 1; sonst Titel und Seitenzahl",
             "Punktetabelle (letzte Seite): 1,5 mm Abstand zu den Markierungen",
             "Abschnitt: hellgrau; direkt bedruckte Exemplare tragen hier auf Seite 1 Name und Schlüssel",
             "Schnitttoleranz: bleibt immer leer",
@@ -58,7 +58,7 @@ TEXT = {
         "legend": "Legend",
         "items": [
             "Content: tasks, answer fields, grids (page 1 also the QR box and info text)",
-            "Header row: logo, title, date $\\cdot$ class $\\cdot$ teacher on page 1; else title and page number",
+            "Header row: logo, title, course $\\cdot$ date $\\cdot$ duration $\\cdot$ teacher on page 1; else title and page number",
             "Score table (last page): 1.5 mm clear of the markers",
             "Cut-off tab: light grey; copies printed with the QR code carry name and key here on page 1",
             "Cut tolerance: always stays empty",

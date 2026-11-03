@@ -254,7 +254,9 @@
             }
         }
         \end{minipage}% <-- Ein % hier verhindert einen ungewollten Zeilenumbruch/Abstand
-        \begin{minipage}[t]{15cm}
+        \hspace{5mm}%
+        % Box, gap and info fill the text width exactly, so the box starts at the text edge, flush with the corner markers.
+        \begin{minipage}[t]{\dimexpr\textwidth-3.5cm-5mm\relax}
         \vspace{5pt} % Setzt die Grundlinie an die physische Oberkante
         \normalsize
         % Name starts where the info bullets do; the strut is the room to write above the line.
@@ -297,7 +299,10 @@
 % Date, class and teacher as separate items, joined with a centred dot; empty ones are left out.
 \newsavebox{\SA@itembox}
 \newcommand{\SA@infoitem}[1]{\sbox{\SA@itembox}{#1}\ifdim\wd\SA@itembox>\z@\SA@infosep\usebox{\SA@itembox}\def\SA@infosep{\ \textperiodcentered\ }\fi}
-\newcommand{\SA@infoline}{{\def\SA@infosep{}\SA@infoitem{\Datumtext}\SA@infoitem{\Klassetext}\SA@infoitem{\Lehrernachnametext}}}
+% \Datum carries the duration in brackets ("02.11.2026 (45 min)", frontend formatDatumAndDauer); split here, so exam sources (and their OMR template hashes) stay as they are.
+\def\SA@splitdatum#1(#2)#3\@nil{\SA@infoitem{#1\unskip}\SA@infoitem{#2}}
+% Order: course, date, duration, teacher.
+\newcommand{\SA@infoline}{{\def\SA@infosep{}\SA@infoitem{\Klassetext}\expandafter\SA@splitdatum\Datumtext()\@nil\SA@infoitem{\Lehrernachnametext}}}
 \newcommand{\SA@firsthead}{%
     \sbox{\SA@logobox}{\ExamLogo}%
     \setlength{\SA@titlewidth}{\dimexpr\headwidth-\SA@headgap-\wd\SA@logobox-\SA@headindent-8mm\relax}%
