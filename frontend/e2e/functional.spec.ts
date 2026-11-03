@@ -293,6 +293,7 @@ test.describe('exam', () => {
     // The dashboard lists the new exam and opens it again.
     await gotoDashboard(page);
     await openExamFromDashboard(page, 'Exam with MC group');
+    await gotoExamTab(page, 'content');
     await expectLinked();
   });
 
@@ -305,8 +306,9 @@ test.describe('exam', () => {
     await createExam(page, { title: 'Original title', exercises: ['Linked first'] });
     const examId = currentExamId(page);
 
-    // --- metadata modal ---
-    await page.getByRole('button', { name: labelExact('exam.actionBar.edit') }).click();
+    // --- details dialog (Overview) ---
+    await gotoExamTab(page, 'overview');
+    await page.getByRole('button', { name: await t(page, 'exam.overview.editDetails') }).click();
     const metadata = page.getByRole('dialog', { name: await t(page, 'exam.metadataEditor.heading') });
     await expect(metadata).toBeVisible();
     await metadata.getByLabel(await t(page, 'exam.metadataEditor.examTitle')).fill('Renamed title');
@@ -317,8 +319,9 @@ test.describe('exam', () => {
     await expect(page.getByRole('heading', { name: literal('Renamed title') })).toBeVisible();
     await expect(page.getByRole('heading', { name: literal('Original title') })).toHaveCount(0);
 
-    // --- exam library modal ---
-    await page.getByRole('button', { name: await t(page, 'exam.actionBar.addExercises') }).click();
+    // --- exam library modal (Exam step) ---
+    await gotoExamTab(page, 'content');
+    await page.getByRole('button', { name: await t(page, 'exam.exerciseList.addExercises') }).click();
     const library = page.getByRole('dialog', { name: await t(page, 'exam.libraryModal.header') });
     await expect(library).toBeVisible();
     await library
@@ -378,10 +381,14 @@ test.describe('exam', () => {
     await gotoDashboard(page);
     await createExam(page, { title: 'Grid exam', exercises: ['Grid exercise'] });
 
+    // Students come from the Students page (the Paper & Excel roster is hidden, issue #212).
+    await gotoExamTab(page, 'students');
+    await page.getByRole('button', { name: await t(page, 'lms.students.add.action') }).click();
+    const add = page.getByRole('dialog', { name: await t(page, 'lms.students.add.title') });
+    await add.getByRole('textbox', { name: await t(page, 'lms.students.colName') }).fill('Sample, Karin');
+    await add.getByRole('button', { name: await t(page, 'lms.students.add.save') }).click();
+    await expect(add).toBeHidden();
     await gotoExamTab(page, 'manual');
-    await page.getByRole('tab', { name: stem('grading.manual.container.tabRoster') }).click();
-    await page.getByLabel(await t(page, 'grading.manual.roster.nameLabel')).fill('Sample, Karin');
-    await page.getByRole('button', { name: await t(page, 'grading.manual.roster.addButton') }).click();
 
     // The rows render before the async submission map: binding them used to throw props_invalid_value.
     await page.getByRole('tab', { name: await t(page, 'grading.manual.container.tabStudentFirst') }).click();

@@ -270,7 +270,8 @@ export async function createExam(page: Page, spec: ExamSpec): Promise<void> {
   await page.getByLabel(await l(page, 'exam.metadataEditor.examTitle')).fill(spec.title);
   await page.getByLabel(await l(page, 'exam.metadataEditor.lehrernachname')).fill(spec.teacher ?? 'Tester');
   await page.getByRole('button', { name: await l(page, 'exam.metadataEditor.createButton') }).click();
-  await page.waitForURL((url) => /^\/exam\/[^/]+$/.test(url.pathname) && url.pathname !== '/exam/new');
+  // A new exam opens on its Exam step with the library (issue #212).
+  await page.waitForURL((url) => /^\/exam\/[^/]+\/content$/.test(url.pathname));
 
   const library = page.getByRole('dialog', { name: await l(page, 'exam.libraryModal.header') });
   await expect(library).toBeVisible();

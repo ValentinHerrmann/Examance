@@ -211,7 +211,7 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
 
   // Desktop: workspace content uses the available width.
   if (name === 'desktop') {
-    for (const p of ['', '/scan', '/verify', '/manual', '/stats']) {
+    for (const p of ['', '/content', '/scan', '/verify', '/manual', '/results']) {
       await visit(page, `/exam/${examId}${p}`);
       const ratio = await page.evaluate(() => {
         const main = document.querySelector('.app-main')!;
@@ -344,8 +344,8 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
   await expect(editor).toBeHidden();
 
   // Exam library (large).
-  await visit(page, `/exam/${examId}`);
-  await page.getByRole('button', { name: label('exam.actionBar.addExercises', undefined, 'en') }).click();
+  await visit(page, `/exam/${examId}/content`);
+  await page.getByRole('button', { name: label('exam.exerciseList.addExercises', undefined, 'en') }).click();
   const library = page.getByRole('dialog', { name: label('exam.libraryModal.header', undefined, 'en') });
   await expect(library).toBeVisible();
   await expectDialogFits(page, library, 'large', 'exam library');
