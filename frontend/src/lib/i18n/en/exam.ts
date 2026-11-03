@@ -40,8 +40,6 @@ export const exam: Translations['exam'] = {
         },
         metadata: {
             saveFailed: 'Failed to save exam details: {message}',
-            discardTitle: 'Discard Metadata Changes?',
-            discardMessage: 'You have unsaved changes in metadata fields. Are you sure you want to discard them?',
             discardConfirm: 'Discard Changes',
             discardKeepEditing: 'Keep Editing',
         },
@@ -195,9 +193,10 @@ export const exam: Translations['exam'] = {
         unsavedStay: 'Keep editing',
     },
     overview: {
+        unsavedTitle: 'Unsaved details',
+        unsavedMessage: 'The changes to the details are not saved yet. Leave the page anyway?',
         details: 'Details',
         keyFigures: 'Key figures',
-        editDetails: 'Edit details',
         more: 'More actions',
         exercises: 'Exercises',
         average: 'Average',

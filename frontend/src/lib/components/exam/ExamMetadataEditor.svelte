@@ -4,7 +4,7 @@
   import { recordValue } from '#lib/utils/recentValues';
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
   import { t } from '#lib/i18n';
-  import { Modal, Button, Field, actionIcons, controlClass } from '#lib/components/ui';
+  import { Alert, Modal, Button, Field, actionIcons, controlClass } from '#lib/components/ui';
 
   interface Props {
     isOpen?: boolean;
@@ -25,6 +25,10 @@
     /** Inline error (e.g. a refused create). */
     error?: string;
     busy?: boolean;
+    /** Renders the fields in place (the Overview page, issue #212) instead of a dialog; the buttons then read "Save" and "Discard changes". */
+    inline?: boolean;
+    /** Inline mode: Save and Discard stay disabled while nothing changed. */
+    dirty?: boolean;
     onSave: () => void;
     onCancel: () => void;
   }
@@ -45,6 +49,8 @@
     create = false,
     error = "",
     busy = false,
+    inline = false,
+    dirty = true,
     onSave,
     onCancel
   }: Props = $props();
@@ -86,13 +92,7 @@
   });
 </script>
 
-<Modal
-  open={isOpen}
-  size="large"
-  title={create ? $t("exam.metadataEditor.createHeading") : $t("exam.metadataEditor.heading")}
-  {error}
-  onClose={onCancel}
->
+{#snippet fields()}
   <div class="mb-4 grid grid-cols-1 gap-4 @3xl:grid-cols-2">
     <Field label={$t("exam.metadataEditor.examTitle")} forId="editTitle">
       {#snippet children({ id })}
@@ -141,10 +141,31 @@
     />
   </div>
 
-  {#snippet footer()}
+  {/snippet}
+
+{#if inline}
+  <div class="@container">
+    {@render fields()}
+    {#if error}<Alert severity="danger" class="mb-4">{error}</Alert>{/if}
+    <div class="flex flex-wrap justify-end gap-2">
+      <Button variant="outlined" severity="secondary" icon={actionIcons.remove} disabled={busy || !dirty} onClick={onCancel}>{$t("exam.layout.discard")}</Button>
+      <Button loading={busy} disabled={busy || !dirty || !editTitle.trim()} onClick={handleSave}>{$t("common.save")}</Button>
+    </div>
+  </div>
+{:else}
+<Modal
+  open={isOpen}
+  size="large"
+  title={create ? $t("exam.metadataEditor.createHeading") : $t("exam.metadataEditor.heading")}
+  {error}
+  onClose={onCancel}
+>
+  {@render fields()}
+{#snippet footer()}
     <Button variant="outlined" severity="secondary" icon={actionIcons.remove} onClick={onCancel}>{$t("common.cancel")}</Button>
     <Button onClick={handleSave} loading={busy} disabled={busy || (create && !editTitle.trim())}>
       {create ? $t("exam.metadataEditor.createButton") : $t("common.save")}
     </Button>
   {/snippet}
 </Modal>
+{/if}

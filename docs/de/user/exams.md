@@ -16,7 +16,7 @@ Eine Prüfung besteht aus einer Auswahl von Aufgaben aus Ihrer Bibliothek, Kopfd
 
 Das optionale **Thema** (zum Beispiel „Rekursion“) ordnet Ihre Prüfungen in der Übersicht, wo Sie danach filtern und suchen können. Es wird nie gedruckt. Die Übersicht lässt sich außerdem nach Datum, Titel, Jahrgang oder Fach sortieren.
 
-Um die Kopfdaten später zu ändern, wählen Sie **Angaben bearbeiten** in der **Übersicht**. Der Dialog enthält nur die Angaben der Prüfung: Titel, Testart, Jahrgang/Klasse, Datum, Dauer, Nummer, Fach, Lehrkraft, Thema und das Aufbewahrungsdatum. Layout-Einstellungen finden Sie auf dem [Reiter Layout](#layout), den Notenschlüssel unter [Ergebnisse](./results#grading-key).
+Um die Kopfdaten später zu ändern, bearbeiten Sie sie direkt in der Karte **Angaben** der **Übersicht** und wählen **Speichern** (**Änderungen verwerfen** nimmt sie zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt). Die Karte enthält nur die Angaben der Prüfung: Titel, Testart, Jahrgang/Klasse, Datum, Dauer, Nummer, Fach, Lehrkraft, Thema und das Aufbewahrungsdatum. Layout-Einstellungen finden Sie auf dem [Reiter Layout](#layout), den Notenschlüssel unter [Ergebnisse](./results#grading-key).
 
 ## Die Schritte einer Prüfung {#steps}
 
@@ -36,7 +36,7 @@ Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten 
 
 ## Übersicht {#overview}
 
-Die **Übersicht** (erster, nicht nummerierter Eintrag der Seitenleiste) zeigt die Angaben und Kennzahlen der Prüfung. **Weiter mit: …** (gefolgt vom Namen des Schritts) öffnet den Schritt, den Sie am ehesten als Nächstes brauchen. **Angaben bearbeiten** ändert die Kopfdaten, **Exportieren** lädt die Prüfung herunter (siehe [Exportieren](#export)), und das Menü **⋯** (**Weitere Aktionen**) enthält **Duplizieren**, **Abgaben löschen** und **Löschen** (die Prüfung).
+Die **Übersicht** (erster, nicht nummerierter Eintrag der Seitenleiste) zeigt die Angaben und Kennzahlen der Prüfung. **Weiter mit: …** (gefolgt vom Namen des Schritts) öffnet den Schritt, den Sie am ehesten als Nächstes brauchen. Die Karte **Angaben** ändert die Kopfdaten direkt, **Exportieren** lädt die Prüfung herunter (siehe [Exportieren](#export)), und das Menü **⋯** (**Weitere Aktionen**) enthält **Duplizieren**, **Abgaben löschen** und **Löschen** (die Prüfung).
 
 
 ## Aufgaben zusammenstellen {#assemble}

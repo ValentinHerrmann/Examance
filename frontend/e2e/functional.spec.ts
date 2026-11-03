@@ -306,14 +306,12 @@ test.describe('exam', () => {
     await createExam(page, { title: 'Original title', exercises: ['Linked first'] });
     const examId = currentExamId(page);
 
-    // --- details dialog (Overview) ---
+    // --- details, edited in place on the Overview ---
     await gotoExamTab(page, 'overview');
-    await page.getByRole('button', { name: await t(page, 'exam.overview.editDetails') }).click();
-    const metadata = page.getByRole('dialog', { name: await t(page, 'exam.metadataEditor.heading') });
-    await expect(metadata).toBeVisible();
-    await metadata.getByLabel(await t(page, 'exam.metadataEditor.examTitle')).fill('Renamed title');
-    await metadata.getByRole('button', { name: labelExact('common.save') }).click();
-    await expect(metadata).toBeHidden();
+    const main = page.getByRole('main');
+    await main.getByLabel(await t(page, 'exam.metadataEditor.examTitle')).fill('Renamed title');
+    await main.getByRole('button', { name: labelExact('common.save') }).click();
+    await expect(main.getByText(await t(page, 'exam.overview.saved'))).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole('heading', { name: literal('Renamed title') })).toBeVisible();
@@ -335,7 +333,6 @@ test.describe('exam', () => {
     await library.getByRole('button', { name: await t(page, 'exam.libraryModal.applyButton') }).click();
     await expect(library).toBeHidden();
 
-    const main = page.getByRole('main');
     await expect(main.getByText('Linked first').first()).toBeVisible();
     await expect(main.getByText('Linked second').first()).toBeVisible();
 

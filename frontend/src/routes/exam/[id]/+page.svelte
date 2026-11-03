@@ -3,7 +3,7 @@
   import { page } from "$app/state";
   import { untrack } from "svelte";
   import { browser } from "$app/env";
-  import { goto } from "$app/navigation";
+  import { beforeNavigate, goto } from "$app/navigation";
   import { get } from "svelte/store";
   import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
   import { loadExamEncrypted, loadExamExercisesEncrypted } from "#lib/db/dbEncryption";
@@ -20,7 +20,7 @@
   import { formatExamCourse } from "#lib/utils/examLabel";
   import { computeExamStats } from "#lib/utils/examStats";
   import { fmt } from "#lib/utils/format";
-  import ExamMetadataEditDialog from "#lib/components/exam/ExamMetadataEditDialog.svelte";
+  import ExamDetailsForm from "#lib/components/exam/ExamDetailsForm.svelte";
   import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
   import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
   import { t, translate, type TranslationKey } from "#lib/i18n";
@@ -37,7 +37,8 @@
   let notice = $state("");
   let actionError = $state("");
 
-  let metadataDialog: ReturnType<typeof ExamMetadataEditDialog> | undefined = $state();
+  let detailsDirty = $state(false);
+  let pendingLeave: URL | null = $state(null);
   let exportOpen = $state(false);
   let confirming: "exam" | "submissions" | null = $state(null);
   let busy = $state(false);
@@ -83,20 +84,6 @@
     exam?.gradingKey ? $t(GRADING_KEY_LABELS[exam.gradingKey.preset] ?? "exam.metadata.gradeType.custom") : null,
   );
 
-  let details = $derived(
-    exam
-      ? ([
-          ["exam.metadataEditor.testart", exam.testart],
-          ["exam.metadataEditor.klasse", course],
-          ["exam.metadataEditor.fach", exam.fach],
-          ["exam.metadataEditor.datum", exam.datum],
-          ["exam.metadataEditor.nr", exam.nr],
-          ["exam.metadataEditor.lehrernachname", exam.lehrernachname],
-          ["exam.metadataEditor.topic", exam.topic],
-          ["exam.metadataEditor.retentionUntil", exam.retentionUntil ? $fmt.date(exam.retentionUntil) : ""],
-        ] as [TranslationKey, string | undefined][])
-      : [],
-  );
 
   const missing = (value: number | null | undefined) => (value === null || value === undefined ? $t("exam.overview.noValue") : String(value));
 
@@ -161,6 +148,13 @@
     }
   }
 
+  // Unsaved detail edits: ask before leaving the page (in-app navigation).
+  beforeNavigate((nav) => {
+    if (!detailsDirty || !nav.to || nav.type === "leave") return;
+    nav.cancel();
+    pendingLeave = nav.to.url;
+  });
+
   $effect.pre(() => {
     const id = examId;
     if (browser && id) untrack(() => void load(id));
@@ -171,9 +165,6 @@
   <PageHeader title={$t("exam.sidebar.overview")} subtitle={subtitle || undefined}>
     {#snippet actions()}
       {#if exam}
-        <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.edit} onClick={() => metadataDialog?.open()}>
-          {$t("exam.overview.editDetails")}
-        </Button>
         <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.export} onClick={() => (exportOpen = true)}>
           {$t("common.export")}
         </Button>
@@ -218,18 +209,22 @@
       </div>
     {/if}
 
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-2">
+    <!-- The details are edited in place: the page has the room, a dialog would only hide them (issue #212). -->
+    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <Card title={$t("exam.overview.details")}>
-        <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          {#each details as [labelKey, value] (labelKey)}
-            <dt class="text-muted">{$t(labelKey)}</dt>
-            <dd class="m-0 min-w-0 break-words">{value || $t("exam.overview.noValue")}</dd>
-          {/each}
-        </dl>
+        <ExamDetailsForm
+          {exam}
+          {exercises}
+          bind:dirty={detailsDirty}
+          onSaved={(updated) => {
+            exam = updated;
+            notice = translate("exam.overview.saved");
+          }}
+        />
       </Card>
 
       <Card title={$t("exam.overview.keyFigures")}>
-        <dl class="m-0 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <dl class="m-0 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2">
           {#each figures as [labelKey, value] (labelKey)}
             <div class="min-w-0 rounded-md bg-surface-inset px-3 py-2">
               <dt class="truncate text-xs text-muted">{$t(labelKey)}</dt>
@@ -242,21 +237,27 @@
 
     <ExamStepFooter {examId} step="overview" />
 
-    <ExamMetadataEditDialog
-      bind:this={metadataDialog}
-      {exam}
-      {exercises}
-      onSaved={(updated) => {
-        exam = updated;
-        notice = translate("exam.overview.saved");
-      }}
-    />
   {/if}
 </PageShell>
 
 {#if exportOpen}
   <ExamExportModal {examId} examTitle={exam?.title ?? ""} onClose={() => (exportOpen = false)} />
 {/if}
+
+<ConfirmDialog
+  open={pendingLeave !== null}
+  title={$t("exam.overview.unsavedTitle")}
+  message={$t("exam.overview.unsavedMessage")}
+  confirmText={$t("exam.content.unsavedLeave")}
+  cancelText={$t("exam.content.unsavedStay")}
+  onConfirm={() => {
+    const to = pendingLeave;
+    pendingLeave = null;
+    detailsDirty = false;
+    if (to) void goto(to);
+  }}
+  onCancel={() => (pendingLeave = null)}
+/>
 
 <ConfirmDialog
   open={confirming === "exam"}

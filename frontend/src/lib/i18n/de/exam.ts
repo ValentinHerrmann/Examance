@@ -38,8 +38,6 @@ export const exam = {
         },
         metadata: {
             saveFailed: 'Speichern der Prüfungsdetails fehlgeschlagen: {message}',
-            discardTitle: 'Änderungen der Metadaten verwerfen?',
-            discardMessage: 'Es gibt ungespeicherte Änderungen in den Metadatenfeldern. Möchten Sie diese wirklich verwerfen?',
             discardConfirm: 'Änderungen verwerfen',
             discardKeepEditing: 'Weiter bearbeiten',
         },
@@ -193,9 +191,10 @@ export const exam = {
         unsavedStay: 'Weiter bearbeiten',
     },
     overview: {
+        unsavedTitle: 'Ungespeicherte Angaben',
+        unsavedMessage: 'Die Änderungen an den Angaben sind noch nicht gespeichert. Seite trotzdem verlassen?',
         details: 'Angaben',
         keyFigures: 'Kennzahlen',
-        editDetails: 'Angaben bearbeiten',
         more: 'Weitere Aktionen',
         exercises: 'Aufgaben',
         average: 'Durchschnitt',

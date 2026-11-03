@@ -16,7 +16,7 @@ An exam is a selection of exercises from your library plus header data, a gradin
 
 The optional **topic** (for example "Recursion") organises your exams in the overview, where you can filter and search by it. It is never printed. The overview can also be sorted by date, title, grade or subject.
 
-To change the header data later, choose **Edit details** on the **Overview**. The dialog holds only the exam's details: title, test type, grade/class, date, duration, number, subject, teacher, topic and the retention date. Layout settings are on the [Layout tab](#layout), the grading key under [Results](./results#grading-key).
+To change the header data later, edit them directly in the **Details** card on the **Overview** and choose **Save** (**Discard changes** goes back; leaving the page with unsaved changes asks first). The card holds only the exam's details: title, test type, grade/class, date, duration, number, subject, teacher, topic and the retention date. Layout settings are on the [Layout tab](#layout), the grading key under [Results](./results#grading-key).
 
 ## The exam's steps {#steps}
 
@@ -36,7 +36,7 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 
 ## Overview {#overview}
 
-**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details and key figures. **Continue: …** (followed by the step's name) opens the step you most likely need next. **Edit details** changes the header data, **Export** downloads the exam (see [Export](#export)), and the **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
+**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details and key figures. **Continue: …** (followed by the step's name) opens the step you most likely need next. The **Details** card edits the header data in place, **Export** downloads the exam (see [Export](#export)), and the **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
 
 ## Assemble the exercises {#assemble}
 
