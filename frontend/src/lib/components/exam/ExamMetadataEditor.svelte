@@ -1,18 +1,10 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { GradingKeyConfig } from '#lib/db/schema';
-  import GradingKeyEditor from '#lib/components/GradingKeyEditor.svelte';
-  import LatexEditor from '#lib/components/LatexEditor.svelte';
   import SuggestField from '#lib/components/common/SuggestField.svelte';
   import { recordValue } from '#lib/utils/recentValues';
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
-  import { t, locale } from '#lib/i18n';
-  import { Modal, Button, Checkbox, CrossLink, Field, controlClass } from '#lib/components/ui';
-  import { docsHref } from '#lib/help/docsLink';
-  import ExamLogoField from '#lib/components/logo/ExamLogoField.svelte';
-  import ExamPackagesField from '#lib/components/latex-packages/ExamPackagesField.svelte';
-  import type { LatexPackageEntry } from '#lib/latex/packages';
-  import type { ExamLogoChange } from '#lib/latex/logo';
+  import { t } from '#lib/i18n';
+  import { Modal, Button, Field, actionIcons, controlClass } from '#lib/components/ui';
 
   interface Props {
     isOpen?: boolean;
@@ -27,21 +19,8 @@
     /** Topics of the exam's exercises, offered next to the previously used exam topics. */
     topicSuggestions?: string[];
     editLehrernachname: string;
-    editInfoText: string;
-    /** Name line next to the QR box (issue #127). */
-    editNameLine?: boolean;
-    /** MC correction legend at every MC task (issue #192). */
-    editMcCorrectionHint?: boolean;
     editRetentionUntil: string;
-    editGradingKey: GradingKeyConfig;
-    /** Exam whose logo choice is edited; the staged choice lands in `logoChange`. */
-    examId?: string;
-    logoChange?: ExamLogoChange | null;
-    /** The exam's LaTeX package additions (issue #108); null follows the account. */
-    editLatexPackages?: LatexPackageEntry[] | null;
-    /** The exam's exercises, for the package result. */
-    packageSources?: { label: string; latex: string }[];
-    /** Create mode ("New exam", M1): own heading and save label, logo and packages come later in the editor. */
+    /** Create mode ("New exam", M1): own heading and save label; layout and grading key are set later on the Exam and Results pages (issue #212). */
     create?: boolean;
     /** Inline error (e.g. a refused create). */
     error?: string;
@@ -62,15 +41,7 @@
     editTopic = $bindable(""),
     topicSuggestions = [],
     editLehrernachname = $bindable(),
-    editInfoText = $bindable(),
-    editNameLine = $bindable(false),
-    editMcCorrectionHint = $bindable(false),
     editRetentionUntil = $bindable(),
-    editGradingKey = $bindable(),
-    examId = undefined,
-    logoChange = $bindable(null),
-    editLatexPackages = $bindable(null),
-    packageSources = [],
     create = false,
     error = "",
     busy = false,
@@ -170,39 +141,8 @@
     />
   </div>
 
-  <Field label={$t("exam.metadataEditor.infoText")} class="mb-4">
-    <LatexEditor bind:value={editInfoText} rows={4} />
-  </Field>
-
-  <Field hint={$t("exam.metadataEditor.nameLineHint")} class="mb-4">
-    <Checkbox id="editNameLine" bind:checked={editNameLine} label={$t("exam.metadataEditor.nameLine")} />
-  </Field>
-
-  <!-- Every exam keeps the cut-off corner (issue #211); the guide's sketch shows the usable space. -->
-  <div class="mb-4 flex flex-col gap-1.5">
-    <p class="m-0 text-sm text-muted">{$t("exam.metadataEditor.pageLayoutHint")}</p>
-    <CrossLink href={docsHref("exams#cut-corner", $locale)} class="self-start text-sm">{$t("exam.metadataEditor.cutCornerLayout")}</CrossLink>
-  </div>
-
-  <Field hint={$t("exam.metadataEditor.mcCorrectionHintHint")} class="mb-4">
-    <Checkbox id="editMcCorrectionHint" bind:checked={editMcCorrectionHint} label={$t("exam.metadataEditor.mcCorrectionHint")} />
-  </Field>
-
-  {#if examId && isOpen}
-    <div class="mb-4">
-      <ExamLogoField {examId} bind:change={logoChange} />
-    </div>
-    <div class="mb-4">
-      <ExamPackagesField bind:packages={editLatexPackages} exerciseSources={packageSources} />
-    </div>
-  {/if}
-
-  <div class="mt-2">
-    <GradingKeyEditor bind:gradingKey={editGradingKey} />
-  </div>
-
   {#snippet footer()}
-    <Button variant="outlined" severity="secondary" onClick={onCancel}>{$t("common.cancel")}</Button>
+    <Button variant="outlined" severity="secondary" icon={actionIcons.remove} onClick={onCancel}>{$t("common.cancel")}</Button>
     <Button onClick={handleSave} loading={busy} disabled={busy || (create && !editTitle.trim())}>
       {create ? $t("exam.metadataEditor.createButton") : $t("common.save")}
     </Button>

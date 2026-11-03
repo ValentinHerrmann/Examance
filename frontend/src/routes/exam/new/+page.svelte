@@ -1,5 +1,5 @@
 <script lang="ts">
-  // "New exam" (M1): the exam's data dialog in create mode. The exam is created empty and opens in the exam editor with the library, so exercises, MC groups, order, preview and logo live in one place.
+  // "New exam" (M1): the exam's details dialog in create mode. The exam is created empty and opens on the Exam page with the library, so exercises, MC groups, order, layout and preview live in one place.
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { get } from "svelte/store";
@@ -27,11 +27,12 @@
   let fach = $state("Informatik");
   let topic = $state("");
   let lehrernachname = $state("");
-  let infoText = $state(INFO_TEXT);
-  let nameLine = $state(false);
-  let mcCorrectionHint = $state(false);
+  const infoText = INFO_TEXT;
+  const nameLine = false;
+  const mcCorrectionHint = false;
   let retentionUntil = $state(new Date(Date.now() + RETENTION_DAYS * 86400000).toISOString().slice(0, 10));
-  let gradingKey: GradingKeyConfig = $state({ preset: "linear_50", cutoffs: getPresetCutoffs("linear_50") });
+  // Layout and grading key start with these defaults; they are edited on the Exam and Statistics pages (issue #212).
+  const gradingKey: GradingKeyConfig = { preset: "linear_50", cutoffs: getPresetCutoffs("linear_50") };
   let ready = $state(false);
   let busy = $state(false);
   let error = $state("");
@@ -64,14 +65,14 @@
       infoText,
       nameLine,
       mcCorrectionHint,
-      gradingKey: $state.snapshot(gradingKey),
+      gradingKey,
       retentionUntil,
       compilationStatus: "pending",
       createdAt: new Date().toISOString(),
     };
     try {
       await examRepository.create(exam, { exercise_links: [], mc_groups: [] });
-      await goto(`/exam/${exam.id}?library=open`);
+      await goto(`/exam/${exam.id}/content?library=open`);
     } catch (err) {
       error = translate("exam.metadataEditor.createFailed") + (err instanceof Error ? ` ${err.message}` : "");
     } finally {
@@ -97,11 +98,7 @@
     bind:editFach={fach}
     bind:editTopic={topic}
     bind:editLehrernachname={lehrernachname}
-    bind:editInfoText={infoText}
-    bind:editNameLine={nameLine}
-    bind:editMcCorrectionHint={mcCorrectionHint}
     bind:editRetentionUntil={retentionUntil}
-    bind:editGradingKey={gradingKey}
     onSave={handleCreate}
     onCancel={() => goto("/")}
   />

@@ -1,247 +1,137 @@
 <script lang="ts">
   import { get } from "svelte/store";
   import { api } from "#lib/api/client";
-  import { getPresetCutoffs } from "#lib/analytics/gradingKey";
   import { saveExamEncrypted } from "#lib/db/dbEncryption";
-  import type { ExamRecord, ExerciseRecord, GradingKeyConfig } from "#lib/db/schema";
+  import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
   import { t, translate } from "#lib/i18n";
-  import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
-  import { entriesError, type LatexPackageEntry } from "#lib/latex/packages";
   import { isAuthenticated, sessionStore } from "#lib/stores/session";
   import { exerciseTopicSuggestions } from "#lib/utils/examLabel";
   import { ConfirmDialog } from "#lib/components/ui";
   import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
 
+  /** The exam's details (title, class, date, teacher, topic, retention). Print layout is edited on the Exam page, the grading key on Statistics (issue #212). */
   interface Props {
     exam: ExamRecord;
-    /** The exam's exercises: topic suggestions and the package result. */
+    /** The exam's exercises: topic suggestions. */
     exercises: ExerciseRecord[];
-    /** The updated exam, handed over before it is persisted so the page shows it right away. */
-    onExamChange: (exam: ExamRecord) => void;
-    /** The printed exam changed: the page re-checks the OMR template and refreshes a shown preview. */
-    onLayoutChange: () => void;
+    /** The saved exam; the page shows it and its success notice. */
+    onSaved: (exam: ExamRecord) => void;
   }
 
-  let { exam, exercises, onExamChange, onLayoutChange }: Props = $props();
+  let { exam, exercises, onSaved }: Props = $props();
 
-  let isEditingMetadata = $state(false);
-  let editTitle = $state("");
-  let editTestart = $state("");
-  let editGrade = $state("");
-  let editKlasse = $state("");
-  let editDatum = $state("");
-  let editNr = $state("");
-  let editFach = $state("");
-  let editTopic = $state("");
-  let editLehrernachname = $state("");
-  let editInfoText = $state("");
-  let editNameLine = $state(false);
-  let editMcCorrectionHint = $state(false);
-  let editLogoChange: ExamLogoChange | null = $state.raw(null);
-  let editLatexPackages: LatexPackageEntry[] | null = $state.raw(null);
-  let initialLatexPackages = $state("null");
-  let editRetentionUntil = $state("");
-  let editGradingKey: GradingKeyConfig = $state({
-    preset: "linear_50",
-    cutoffs: getPresetCutoffs("linear_50"),
-  });
+  type Fields = {
+    title: string;
+    testart: string;
+    grade: string;
+    klasse: string;
+    datum: string;
+    nr: string;
+    fach: string;
+    topic: string;
+    lehrernachname: string;
+    retentionUntil: string;
+  };
+  const blank: Fields = { title: "", testart: "", grade: "", klasse: "", datum: "", nr: "", fach: "", topic: "", lehrernachname: "", retentionUntil: "" };
 
-  let initialMetadata = $state({
-    title: "",
-    testart: "",
-    grade: "",
-    klasse: "",
-    datum: "",
-    nr: "",
-    fach: "",
-    topic: "",
-    lehrernachname: "",
-    infoText: "",
-    nameLine: false,
-    mcCorrectionHint: false,
-    retentionUntil: "",
-  });
-  let showMetadataConfirm = $state(false);
+  let isOpen = $state(false);
+  let edit: Fields = $state({ ...blank });
+  let initial: Fields = $state({ ...blank });
+  let busy = $state(false);
+  let error = $state("");
+  let showDiscardConfirm = $state(false);
 
-  let isMetadataDirty = $derived(
-    isEditingMetadata &&
-      (editTitle !== initialMetadata.title ||
-        editTestart !== initialMetadata.testart ||
-        editGrade !== initialMetadata.grade ||
-        editKlasse !== initialMetadata.klasse ||
-        editDatum !== initialMetadata.datum ||
-        editNr !== initialMetadata.nr ||
-        editFach !== initialMetadata.fach ||
-        editTopic !== initialMetadata.topic ||
-        editLehrernachname !== initialMetadata.lehrernachname ||
-        editInfoText !== initialMetadata.infoText ||
-        editNameLine !== initialMetadata.nameLine ||
-        editMcCorrectionHint !== initialMetadata.mcCorrectionHint ||
-        editLogoChange !== null ||
-        JSON.stringify(editLatexPackages) !== initialLatexPackages ||
-        editRetentionUntil !== initialMetadata.retentionUntil),
-  );
+  let isDirty = $derived(isOpen && (Object.keys(edit) as (keyof Fields)[]).some((k) => edit[k] !== initial[k]));
 
   /** Fills the edit buffers from the exam and shows the editor. */
   export function open() {
-    editTitle = exam.title || "";
-    editTestart = exam.testart || "Kurzarbeit";
-    editGrade = exam.grade || "";
-    editKlasse = exam.klasse || "";
-    editDatum = exam.datum || "";
-    editNr = exam.nr || "1";
-    editFach = exam.fach || "Informatik";
-    editTopic = exam.topic || "";
-    editLehrernachname = exam.lehrernachname || "";
-    editInfoText = exam.infoText || "";
-    editNameLine = exam.nameLine === true;
-    editMcCorrectionHint = exam.mcCorrectionHint === true;
-    editRetentionUntil = exam.retentionUntil || "";
-    editGradingKey = exam.gradingKey || {
-      preset: "linear_50",
-      cutoffs: getPresetCutoffs("linear_50"),
+    edit = {
+      title: exam.title || "",
+      testart: exam.testart || "Kurzarbeit",
+      grade: exam.grade || "",
+      klasse: exam.klasse || "",
+      datum: exam.datum || "",
+      nr: exam.nr || "1",
+      fach: exam.fach || "Informatik",
+      topic: exam.topic || "",
+      lehrernachname: exam.lehrernachname || "",
+      retentionUntil: exam.retentionUntil || "",
     };
-
-    initialMetadata = {
-      title: editTitle,
-      testart: editTestart,
-      grade: editGrade,
-      klasse: editKlasse,
-      datum: editDatum,
-      nr: editNr,
-      fach: editFach,
-      topic: editTopic,
-      lehrernachname: editLehrernachname,
-      infoText: editInfoText,
-      nameLine: editNameLine,
-      mcCorrectionHint: editMcCorrectionHint,
-      retentionUntil: editRetentionUntil,
-    };
-    editLogoChange = null;
-    editLatexPackages = exam.latexPackages ?? null;
-    initialLatexPackages = JSON.stringify(editLatexPackages);
-    showMetadataConfirm = false;
-    isEditingMetadata = true;
+    initial = { ...edit };
+    error = "";
+    showDiscardConfirm = false;
+    isOpen = true;
   }
 
-  function requestCancelMetadata() {
-    if (isMetadataDirty) {
-      showMetadataConfirm = true;
-    } else {
-      forceCancelMetadata();
-    }
+  function requestCancel() {
+    if (isDirty) showDiscardConfirm = true;
+    else close();
   }
 
-  function forceCancelMetadata() {
-    showMetadataConfirm = false;
-    isEditingMetadata = false;
+  function close() {
+    showDiscardConfirm = false;
+    isOpen = false;
   }
 
-  async function handleSaveMetadata() {
-    // editGradingKey is a deep edit buffer (GradingKeyEditor mutates it); persist a plain copy.
-    const gradingKey = $state.snapshot(editGradingKey);
+  async function save() {
     // Sent even when empty: "" is how the server learns the topic was cleared.
-    const topic = editTopic.trim();
-    if (editLatexPackages && entriesError(editLatexPackages)) {
-      alert(translate("latexPackages.exam.invalid"));
-      return;
-    }
-    // An empty override prints the same as none; the server stores both as "follows the account".
-    const latexPackages = editLatexPackages?.length ? editLatexPackages : null;
+    const topic = edit.topic.trim();
+    busy = true;
+    error = "";
     try {
-      if ($isAuthenticated) {
+      if (get(isAuthenticated)) {
         await api.patch(`/exams/${exam.id}`, {
-          title: editTitle,
-          testart: editTestart,
-          grade: editGrade,
-          klasse: editKlasse,
-          datum: editDatum,
-          nr: editNr,
-          fach: editFach,
+          title: edit.title,
+          testart: edit.testart,
+          grade: edit.grade,
+          klasse: edit.klasse,
+          datum: edit.datum,
+          nr: edit.nr,
+          fach: edit.fach,
           topic,
-          lehrernachname: editLehrernachname,
-          info_text: editInfoText,
-          name_line: editNameLine,
-          mc_correction_hint: editMcCorrectionHint,
-          grading_key: gradingKey,
-          latex_packages: latexPackages,
-          retention_until: editRetentionUntil,
+          lehrernachname: edit.lehrernachname,
+          retention_until: edit.retentionUntil,
         });
       }
-
-      const updated: ExamRecord = {
-        ...exam,
-        title: editTitle,
-        testart: editTestart,
-        grade: editGrade,
-        klasse: editKlasse,
-        datum: editDatum,
-        nr: editNr,
-        fach: editFach,
-        topic,
-        lehrernachname: editLehrernachname,
-        infoText: editInfoText,
-        nameLine: editNameLine,
-        mcCorrectionHint: editMcCorrectionHint,
-        retentionUntil: editRetentionUntil,
-        gradingKey,
-        latexPackages,
-      };
-      onExamChange(updated);
-      const key = get(sessionStore).sessionKey;
-      await saveExamEncrypted(updated, key);
-
-      if (editLogoChange) {
-        try {
-          await setExamLogo(updated.id, editLogoChange.mode, editLogoChange.bytes);
-        } catch (err: any) {
-          alert(translate("logo.exam.saveFailed", { message: err.message }));
-          return;
-        }
-      }
-
-      forceCancelMetadata();
-      onLayoutChange();
-      alert(translate("exam.page.metadata.saveSuccess"));
+      const updated: ExamRecord = { ...exam, ...edit, topic };
+      await saveExamEncrypted(updated, get(sessionStore).sessionKey);
+      onSaved(updated);
+      close();
     } catch (err: any) {
-      alert(translate("exam.page.metadata.saveFailed", { message: err.message }));
+      error = translate("exam.page.metadata.saveFailed", { message: err.message });
+    } finally {
+      busy = false;
     }
   }
 </script>
 
 <ExamMetadataEditor
-  isOpen={isEditingMetadata}
-  bind:editTitle
-  bind:editTestart
-  bind:editGrade
-  bind:editKlasse
-  bind:editDatum
-  bind:editNr
-  bind:editFach
-  bind:editTopic
+  {isOpen}
+  {busy}
+  {error}
+  bind:editTitle={edit.title}
+  bind:editTestart={edit.testart}
+  bind:editGrade={edit.grade}
+  bind:editKlasse={edit.klasse}
+  bind:editDatum={edit.datum}
+  bind:editNr={edit.nr}
+  bind:editFach={edit.fach}
+  bind:editTopic={edit.topic}
   topicSuggestions={exerciseTopicSuggestions(exercises)}
-  bind:editLehrernachname
-  bind:editInfoText
-  bind:editNameLine
-  bind:editMcCorrectionHint
-  bind:editRetentionUntil
-  bind:editGradingKey
-  examId={exam.id}
-  bind:logoChange={editLogoChange}
-  bind:editLatexPackages
-  packageSources={exercises.map((ex) => ({ label: ex.name || "", latex: ex.latexBody || "" }))}
-  onSave={handleSaveMetadata}
-  onCancel={requestCancelMetadata}
+  bind:editLehrernachname={edit.lehrernachname}
+  bind:editRetentionUntil={edit.retentionUntil}
+  onSave={save}
+  onCancel={requestCancel}
 />
 
 <ConfirmDialog
-  open={showMetadataConfirm}
+  open={showDiscardConfirm}
   title={$t("exam.page.metadata.discardTitle")}
   message={$t("exam.page.metadata.discardMessage")}
   confirmText={$t("exam.page.metadata.discardConfirm")}
   cancelText={$t("exam.page.metadata.discardKeepEditing")}
   severity="danger"
   role="dialog"
-  onConfirm={forceCancelMetadata}
-  onCancel={() => (showMetadataConfirm = false)}
+  onConfirm={close}
+  onCancel={() => (showDiscardConfirm = false)}
 />
