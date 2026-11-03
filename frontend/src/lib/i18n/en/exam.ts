@@ -227,20 +227,9 @@ export const exam: Translations['exam'] = {
         done: 'done',
         next: 'Next: {step}',
         continue: 'Continue: {step}',
-        step: 'Step {n}',
     },
     nav: {
-        tabsLabel: 'Exam workflow',
         examFallback: 'Exam',
-        backToDashboard: 'Back to Dashboard',
-        tabs: {
-            setup: '1. Setup & Exercises',
-            scan: '2. Scan Ingestion ({count})',
-            verify: '3. Verify MC Detections',
-            grade: '4. Anonymous Grading',
-            manual: '5. Paper & Excel Entry',
-            stats: '6. Analysis & Statistics',
-        },
     },
     gradingKeyEditor: {
         heading: 'Grading Scale (Grades 1 to 6)',

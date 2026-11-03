@@ -1,7 +1,6 @@
 export const lms = {
     students: {
         intro: 'Hier pflegen Sie die Schüler dieser Prüfung: Namen, Mebis- bzw. Artemis-ID und E-Mail-Adresse. QR-Aufkleber, gedruckte Exemplare und das Teilen der Ergebnisse verwenden diese Liste. Eingescannte Arbeiten werden den Schülern über ihren QR-Code zugeordnet.',
-        open: 'Schüler',
         loadFailed: 'Die Schüler konnten nicht geladen werden.',
         manage: 'Schüler verwalten',
         noneYet: 'Diese Prüfung hat noch keine Schüler. Legen Sie sie auf der Schüler-Seite an (Mebis-Liste, Artemis-Kurs oder eingefügte Liste).',

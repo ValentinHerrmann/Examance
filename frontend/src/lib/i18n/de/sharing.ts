@@ -1,9 +1,5 @@
 export const sharing = {
     untitledExam: 'Prüfung',
-    actions: {
-        stickers: 'QR-Codes drucken',
-        share: 'Mit Schülern teilen',
-    },
     page: {
         selectedCount: '{count} von {total} ausgewählt',
         options: 'Schutz und Optionen',

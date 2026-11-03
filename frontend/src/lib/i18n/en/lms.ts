@@ -3,7 +3,6 @@ import type { Translations } from '../types';
 export const lms: Translations['lms'] = {
     students: {
         intro: "Keep this exam's students here: names, Mebis or Artemis ID and e-mail address. QR stickers, printed copies and sharing results use this list. Scanned exams are matched to the students by their QR code.",
-        open: 'Students',
         loadFailed: 'The students could not be loaded.',
         manage: 'Manage students',
         noneYet: 'This exam has no students yet. Add them on the Students page (Mebis list, Artemis course or a pasted list).',

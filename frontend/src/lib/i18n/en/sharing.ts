@@ -2,10 +2,6 @@ import type { Translations } from '../types';
 
 export const sharing: Translations['sharing'] = {
     untitledExam: 'Exam',
-    actions: {
-        stickers: 'Print QR codes',
-        share: 'Share with students',
-    },
     page: {
         selectedCount: '{count} of {total} selected',
         options: 'Protection and options',

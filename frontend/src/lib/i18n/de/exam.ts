@@ -225,20 +225,9 @@ export const exam = {
         done: 'erledigt',
         next: 'Weiter: {step}',
         continue: 'Weiter mit: {step}',
-        step: 'Schritt {n}',
     },
     nav: {
-        tabsLabel: 'Prüfungsschritte',
         examFallback: 'Prüfung',
-        backToDashboard: 'Zurück zum Dashboard',
-        tabs: {
-            setup: '1. Einrichtung & Aufgaben',
-            scan: '2. Scan-Erfassung ({count})',
-            verify: '3. MC-Erkennung prüfen',
-            grade: '4. Anonyme Korrektur',
-            manual: '5. Papier- & Excel-Eingabe',
-            stats: '6. Auswertung & Statistik',
-        },
     },
     gradingKeyEditor: {
         heading: 'Notenschlüssel (Noten 1 bis 6)',
