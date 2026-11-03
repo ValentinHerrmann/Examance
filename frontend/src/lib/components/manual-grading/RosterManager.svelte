@@ -1,25 +1,18 @@
 <script lang="ts">
-  import { newTrashGroup } from "#lib/trash/group";
-  import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { untrack } from "svelte";
-  import { faPlus } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, EmptyState, Field, Panel, TableScroller, Textarea, TextInput } from "#lib/components/ui";
-  import { get } from "svelte/store";
-  import { sessionStore } from "#lib/stores/session";
-  import { studentRepository } from "#lib/repositories/studentRepository";
-  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { Badge, Button, EmptyState, Field, Icon, Panel, TableScroller, Textarea, TextInput } from "#lib/components/ui";
   import { createStudentWithSubmission } from "#lib/grading/scoreService";
   import { parseRosterLines } from "#lib/utils/rosterLines";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import { artemisIdOf, formatStudentName, mebisIdOf } from "#lib/utils/studentQr";
   import { duplicateCandidates } from "#lib/students/classList";
-  import { faCodeMerge, faPen, faTrash } from "@fortawesome/free-solid-svg-icons";
+  import { faCircleInfo, faCodeMerge, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
   import Checkbox from "#lib/components/ui/Checkbox.svelte";
-  import StudentBulkEdit from "#lib/components/students/StudentBulkEdit.svelte";
+  import StudentEditDialog from "#lib/components/students/StudentEditDialog.svelte";
   import StudentDeleteDialog from "#lib/components/students/StudentDeleteDialog.svelte";
   import StudentMergeDialog from "#lib/components/students/StudentMergeDialog.svelte";
   import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
-  import { t, translate } from "#lib/i18n";
+  import { t } from "#lib/i18n";
 
   interface Props {
     examId: string;
@@ -38,10 +31,6 @@
   let showBulk = $state(false);
   let bulkText = $state("");
 
-  let editingPseudonym: string | null = $state(null);
-  let editName = $state("");
-  let editStudentNumber = $state("");
-  let editEmail = $state("");
 
   let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
   // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
@@ -78,34 +67,10 @@
     onRosterChanged();
   }
 
-  function startEdit(st: StudentRecord) {
-    editingPseudonym = st.pseudonymHmac;
-    editName = st.studentName || "";
-    editStudentNumber = st.studentNumber || "";
-    editEmail = st.email || "";
-  }
-
-  async function saveEdit(st: StudentRecord) {
-    if (!editName.trim()) return;
-    const key = get(sessionStore).sessionKey;
-    const updated: StudentRecord = {
-      ...st,
-      studentName: editName.trim(),
-      studentNumber: editStudentNumber.trim() || undefined,
-      email: editEmail.trim() || undefined,
-    };
-    await studentRepository.save(updated, key);
-    editingPseudonym = null;
-    onRosterChanged();
-  }
-
-  function cancelEdit() {
-    editingPseudonym = null;
-  }
 
   // Deleting, bulk edits and merges each open a dialog that says what they affect (issue #209).
   let deleting = $state.raw<StudentRecord[] | null>(null);
-  let bulkEditing = $state.raw<StudentRecord[] | null>(null);
+  let editing = $state.raw<StudentRecord[] | null>(null);
   let merging = $state.raw<[StudentRecord, StudentRecord] | null>(null);
   let selected = $state.raw(new Set<string>());
 
@@ -123,7 +88,7 @@
   }
 
   function finished() {
-    deleting = bulkEditing = merging = null;
+    deleting = editing = merging = null;
     selected = new Set();
     onRosterChanged();
   }
@@ -217,15 +182,21 @@
   {#if students.length === 0}
     <EmptyState title={$t("grading.manual.roster.emptyState")} />
   {:else}
-    {#if chosen.length}
-      <div class="flex flex-wrap items-center gap-2 rounded-md border border-line p-2 text-sm" role="toolbar" aria-label={$t("lms.students.selection", { count: chosen.length })}>
-        <span class="mr-2">{$t("lms.students.selection", { count: chosen.length })}</span>
-        <Button size="sm" variant="outlined" icon={faPen} onClick={() => (bulkEditing = chosen)}>{$t("lms.students.bulk.action")}</Button>
-        <Button size="sm" variant="outlined" icon={faCodeMerge} disabled={chosen.length !== 2} title={$t("lms.students.merge.needTwo")} onClick={() => (merging = [chosen[0], chosen[1]])}>{$t("lms.students.merge.action")}</Button>
-        <Button size="sm" variant="outlined" severity="danger" icon={faTrash} onClick={() => (deleting = chosen)}>{$t("common.delete")}</Button>
-        <Button size="sm" variant="text" severity="secondary" onClick={() => (selected = new Set())}>{$t("sharing.share.selectNone")}</Button>
+    <!-- Always shown; actions that need a selection are greyed out with the reason (works without hover). -->
+    <div class="flex flex-col gap-1 rounded-md border border-line p-2 text-sm">
+      <div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label={$t("lms.students.toolbarHint")}>
+        <span class="mr-2">{chosen.length ? $t("lms.students.selection", { count: chosen.length }) : $t("lms.students.toolbarHint")}</span>
+        <Button size="sm" variant="outlined" icon={faPen} disabled={!chosen.length} onClick={() => (editing = chosen)}>{$t("lms.students.edit.action")}</Button>
+        <Button size="sm" variant="outlined" icon={faCodeMerge} disabled={chosen.length !== 2} onClick={() => (merging = [chosen[0], chosen[1]])}>{$t("lms.students.merge.action")}</Button>
+        <Button size="sm" variant="outlined" severity="danger" icon={faTrash} disabled={!chosen.length} onClick={() => (deleting = chosen)}>{$t("common.delete")}</Button>
+        <Button size="sm" variant="text" severity="secondary" disabled={!chosen.length} onClick={() => (selected = new Set())}>{$t("sharing.share.selectNone")}</Button>
       </div>
-    {/if}
+      {#if chosen.length !== 2}
+        <p class="m-0 flex items-start gap-1.5 text-muted">
+          <Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{chosen.length ? $t("lms.students.merge.needTwo") : $t("lms.students.needOne")}
+        </p>
+      {/if}
+    </div>
     <TableScroller>
       <table class="data-table data-table-compact data-table-sticky data-table-hover">
         <thead>
@@ -255,26 +226,14 @@
               <td><Checkbox checked={selected.has(st.pseudonymHmac)} onChange={(on) => toggle(st, on)} aria-label={st.studentName || st.fallbackCode || ""} /></td>
               <td>{i + 1}</td>
               <td>
-                {#if editingPseudonym === st.pseudonymHmac}
-                  <TextInput size="sm" bind:value={editName} />
-                {:else}
-                  <strong>{st.studentName || $t("grading.manual.roster.unnamed")}</strong>
-                {/if}
+                <strong>{st.studentName || $t("grading.manual.roster.unnamed")}</strong>
               </td>
               <td>
-                {#if editingPseudonym === st.pseudonymHmac}
-                  <TextInput size="sm" bind:value={editStudentNumber} />
-                {:else}
-                  {st.studentNumber || "-"}
-                {/if}
+                {st.studentNumber || "-"}
               </td>
               {#if listMode}<td class="tabular-nums">{mebisIdOf(st) ?? "-"}</td><td class="tabular-nums">{artemisIdOf(st) ?? "-"}</td>{/if}
               <td>
-                {#if editingPseudonym === st.pseudonymHmac}
-                  <TextInput size="sm" type="email" bind:value={editEmail} />
-                {:else}
-                  <span class="break-all">{st.email || "-"}</span>
-                {/if}
+                <span class="break-all">{st.email || "-"}</span>
               </td>
               <td>
                 <span class="font-mono text-sm text-muted">
@@ -292,13 +251,9 @@
               </td>
               <td class="whitespace-nowrap">
                 <div class="flex gap-1.5">
-                  {#if editingPseudonym === st.pseudonymHmac}
-                    <Button size="sm" onClick={() => saveEdit(st)}>{$t("common.save")}</Button>
-                    <Button size="sm" variant="outlined" severity="secondary" onClick={cancelEdit}>{$t("common.cancel")}</Button>
-                  {:else}
-                    <Button size="sm" variant="outlined" severity="secondary" onClick={() => startEdit(st)}>{$t("common.edit")}</Button>
-                    <Button size="sm" variant="outlined" severity="danger" onClick={() => (deleting = [st])}>{$t("common.delete")}</Button>
-                  {/if}
+                  <!-- The same dialog as the bulk edit, so one row gets the same fields and warnings. -->
+                  <Button size="sm" variant="outlined" severity="secondary" onClick={() => (editing = [st])}>{$t("common.edit")}</Button>
+                  <Button size="sm" variant="outlined" severity="danger" onClick={() => (deleting = [st])}>{$t("common.delete")}</Button>
                 </div>
               </td>
             </tr>
@@ -320,8 +275,8 @@
     onCancel={() => (deleting = null)}
   />
 {/if}
-{#if bulkEditing}
-  <StudentBulkEdit students={bulkEditing} all={students} {hasSubmission} onSaved={finished} onClose={() => (bulkEditing = null)} />
+{#if editing}
+  <StudentEditDialog students={editing} all={students} {hasSubmission} onSaved={finished} onClose={() => (editing = null)} />
 {/if}
 {#if merging}
   <StudentMergeDialog {examId} pair={merging} {hasSubmission} onDone={finished} onClose={() => (merging = null)} />

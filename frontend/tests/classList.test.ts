@@ -16,7 +16,7 @@ vi.mock('#lib/api/integrations', async (importOriginal) => ({
   }),
 }));
 
-const { planImport, listedStudent, mergeStudents, duplicateCandidates, bulkEditWarnings } = await import('#lib/students/classList');
+const { planImport, listedStudent, mergeStudents, duplicateCandidates, editWarnings } = await import('#lib/students/classList');
 const { shareCode } = await import('#lib/sharing/shareService');
 const { createDelivery } = await import('#lib/sharing/delivery');
 const { setLocale } = await import('#lib/i18n');
@@ -75,7 +75,8 @@ describe('merging duplicates', () => {
     expect(plan.keep).toBe(scanned);
     expect(plan.drop).toBe(listed);
     expect(plan.merged).toMatchObject({ pseudonymHmac: scanned.pseudonymHmac, pseudonymRaw: 'Muster, Anna_K7Q2XZ', mebisId: '6028356', email: 'anna@x.de', fromList: true });
-    expect(plan.conflicts).toEqual([]);
+    expect(plan.choices).toEqual([{ field: 'studentName', keepValue: 'Muster, Anna', otherValue: 'Anna Muster', equivalent: true }]);
+    expect(plan.filled).toEqual(['mebisId', 'email']);
   });
 
   it('gives a Mebis row and an Artemis row of one student both ids, and reports conflicting values', () => {
@@ -84,7 +85,10 @@ describe('merging duplicates', () => {
     const plan = mergeStudents(mebis, artemis, () => false);
     if ('refused' in plan) throw new Error('refused');
     expect(plan.merged).toMatchObject({ mebisId: '6028356', artemisId: '4711' });
-    expect(plan.conflicts).toEqual([{ field: 'email', keepValue: 'a@schule.de', otherValue: 'a@tum.de' }]);
+    expect(plan.choices).toEqual([
+      { field: 'studentName', keepValue: 'Muster, Anna', otherValue: 'Anna Muster', equivalent: true },
+      { field: 'email', keepValue: 'a@schule.de', otherValue: 'a@tum.de', equivalent: false },
+    ]);
   });
 
   it('refuses two scanned rows', () => {
@@ -102,15 +106,20 @@ describe('bulk edit warnings', () => {
     const scanned = student('Muster, Anna', 'Muster, Anna_1', { mebisId: '1', email: 'a@x.de' });
     const ben = student('Beispiel, Ben', 'Beispiel, Ben_2', { mebisId: '2' });
     const after = [{ ...scanned, studentName: 'Muster, Anne', mebisId: '2', email: undefined }];
-    const keys = bulkEditWarnings([scanned], after, [after[0], ben], (st) => st.pseudonymHmac === scanned.pseudonymHmac).map((n) => n.key);
+    const keys = editWarnings([scanned], after, [after[0], ben], (st) => st.pseudonymHmac === scanned.pseudonymHmac).map((n) => n.key);
+    const filledNumber = mergeStudents(student('X, Y', 'X, Y_1', { studentNumber: '17' }), student('X, Y', 'X, Y_2', { fromList: true }), () => false);
+    if (!('refused' in filledNumber)) expect(filledNumber.merged.studentNumber).toBe('17');
     expect(keys).toEqual([
-      'lms.students.bulk.warn.renamedScanned',
-      'lms.students.bulk.warn.idChanged',
-      'lms.students.bulk.warn.duplicateId',
-      'lms.students.bulk.warn.emailRemoved',
+      'lms.students.edit.warn.renamedScanned',
+      'lms.students.edit.warn.idChanged',
+      'lms.students.edit.warn.duplicateId',
+      'lms.students.edit.warn.emailRemoved',
     ]);
-    const empty = bulkEditWarnings([ben], [{ ...ben, studentName: ' ' }], [ben], () => false);
-    expect(empty).toEqual([{ key: 'lms.students.bulk.warn.emptyName', name: 'Beispiel, Ben', blocking: true }]);
+    // A single-row edit gets the same warnings (one dialog for one or many rows).
+    const single = editWarnings([scanned], [{ ...scanned, studentName: 'Muster, Annika' }], [scanned], () => true);
+    expect(single.map((n) => n.key)).toEqual(['lms.students.edit.warn.renamedScanned']);
+    const empty = editWarnings([ben], [{ ...ben, studentName: ' ' }], [ben], () => false);
+    expect(empty).toEqual([{ key: 'lms.students.edit.warn.emptyName', name: 'Beispiel, Ben', blocking: true }]);
   });
 });
 

@@ -10,8 +10,8 @@ import { newTrashGroup } from '#lib/trash/group';
 import { formatStudentName, formatStudentQr, normalizeLmsId } from '#lib/utils/studentQr';
 
 /** The fields a teacher edits; everything else (pseudonym, raw sticker value) is never touched here. */
-export type EditableField = 'studentName' | 'mebisId' | 'artemisId' | 'email';
-export const EDITABLE_FIELDS: readonly EditableField[] = ['studentName', 'mebisId', 'artemisId', 'email'];
+export type EditableField = 'studentName' | 'studentNumber' | 'mebisId' | 'artemisId' | 'email';
+export const EDITABLE_FIELDS: readonly EditableField[] = ['studentName', 'studentNumber', 'mebisId', 'artemisId', 'email'];
 
 export interface ImportPlan {
   /** Contacts that become new students. */
@@ -67,10 +67,13 @@ export async function applyImport(examId: string, plan: ImportPlan, key: CryptoK
   for (const contact of plan.add) await studentRepository.save(await listedStudent(examId, contact), key); // NOSONAR: as above
 }
 
-export interface MergeConflict {
+/** A field both rows fill with different text: the teacher picks the value (a merge only happens when something already went wrong, so nothing is decided silently). */
+export interface MergeChoice {
   field: EditableField;
   keepValue: string;
   otherValue: string;
+  /** Same value in another spelling ("Muster, Anna" / "Anna Muster", an id prefix, e-mail case). */
+  equivalent: boolean;
 }
 
 export interface MergePlan {
@@ -78,9 +81,11 @@ export interface MergePlan {
   keep: StudentRecord;
   /** The row that goes to the trash. */
   drop: StudentRecord;
-  /** *keep* with the other row's data filled in; conflicting fields keep *keep*'s value until the teacher picks. */
+  /** *keep* with the other row's data filled in; fields in *choices* keep *keep*'s value until the teacher picks. */
   merged: StudentRecord;
-  conflicts: MergeConflict[];
+  choices: MergeChoice[];
+  /** Fields only the dropped row had, taken over into *merged*. */
+  filled: EditableField[];
 }
 
 const same = (field: EditableField, a: string, b: string) =>
@@ -97,15 +102,18 @@ export function mergeStudents(
   const keepA = hasSubmission(a) || (!hasSubmission(b) && (!a.fromList || !!b.fromList));
   const [keep, drop] = keepA ? [a, b] : [b, a];
   const merged: StudentRecord = { ...keep, fromList: !!(keep.fromList || drop.fromList) };
-  const conflicts: MergeConflict[] = [];
+  const choices: MergeChoice[] = [];
+  const filled: EditableField[] = [];
   for (const field of EDITABLE_FIELDS) {
     const kept = keep[field]?.trim();
     const other = drop[field]?.trim();
     if (!other) continue;
-    if (!kept) merged[field] = other;
-    else if (!same(field, kept, other)) conflicts.push({ field, keepValue: kept, otherValue: other });
+    if (!kept) {
+      merged[field] = other;
+      filled.push(field);
+    } else if (kept !== other) choices.push({ field, keepValue: kept, otherValue: other, equivalent: same(field, kept, other) });
   }
-  return { keep, drop, merged, conflicts };
+  return { keep, drop, merged, choices, filled };
 }
 
 /** Saves the merged row, then moves the other one to the trash (restorable). */
@@ -134,8 +142,8 @@ export interface EditNotice {
   blocking?: boolean;
 }
 
-/** What a bulk edit may cause beyond the edited cells, per edited row: *all* is the whole list after the edit, so duplicates across rows are found. */
-export function bulkEditWarnings(
+/** What an edit (one row or many) may cause beyond the edited cells, per edited row: *all* is the whole list after the edit, so duplicates across rows are found. */
+export function editWarnings(
   before: readonly StudentRecord[],
   after: readonly StudentRecord[],
   all: readonly StudentRecord[],
@@ -147,18 +155,18 @@ export function bulkEditWarnings(
     const prev = before[i];
     const name = formatStudentName(next.studentName) || formatStudentName(prev.studentName) || '?';
     if (!next.studentName?.trim()) {
-      notices.push({ key: 'lms.students.bulk.warn.emptyName', name: formatStudentName(prev.studentName) || '?', blocking: true });
+      notices.push({ key: 'lms.students.edit.warn.emptyName', name: formatStudentName(prev.studentName) || '?', blocking: true });
       return;
     }
-    if (hasSubmission(prev) && !same('studentName', prev.studentName ?? '', next.studentName)) notices.push({ key: 'lms.students.bulk.warn.renamedScanned', name });
+    if (hasSubmission(prev) && !same('studentName', prev.studentName ?? '', next.studentName)) notices.push({ key: 'lms.students.edit.warn.renamedScanned', name });
     for (const field of ['mebisId', 'artemisId'] as const) {
       const was = prev[field] ?? '';
       const now = next[field] ?? '';
-      if (was && was !== now) notices.push({ key: now ? 'lms.students.bulk.warn.idChanged' : 'lms.students.bulk.warn.idRemoved', name });
-      if (now && count(field, now) > 1) notices.push({ key: 'lms.students.bulk.warn.duplicateId', name });
+      if (was && was !== now) notices.push({ key: now ? 'lms.students.edit.warn.idChanged' : 'lms.students.edit.warn.idRemoved', name });
+      if (now && count(field, now) > 1) notices.push({ key: 'lms.students.edit.warn.duplicateId', name });
     }
-    if (prev.email && !next.email) notices.push({ key: 'lms.students.bulk.warn.emailRemoved', name });
-    if (count('studentName', next.studentName) > 1) notices.push({ key: 'lms.students.bulk.warn.duplicateName', name });
+    if (prev.email && !next.email) notices.push({ key: 'lms.students.edit.warn.emailRemoved', name });
+    if (count('studentName', next.studentName) > 1) notices.push({ key: 'lms.students.edit.warn.duplicateName', name });
   });
   return notices;
 }

@@ -1,11 +1,11 @@
 <script lang="ts">
-  /** Edits several students at once (issue #209): name, Mebis ID, Artemis ID and e-mail per row. Side effects (renamed scanned students, changed IDs, duplicates, removed addresses) are listed before saving; the teacher may save anyway, only an empty name blocks. */
+  /** The one place to edit students, one or many at once (issue #209): name, student number, Mebis ID, Artemis ID and e-mail per row. Side effects (renamed scanned students, changed IDs, duplicates, removed addresses) are listed before saving; the teacher may save anyway, only an empty name blocks. */
   import { untrack } from "svelte";
   import { get } from "svelte/store";
   import { t } from "#lib/i18n";
   import { Alert, Button, Checkbox, Modal, TableScroller, TextInput } from "#lib/components/ui";
   import type { StudentRecord } from "#lib/db/schema";
-  import { bulkEditWarnings, EDITABLE_FIELDS, type EditableField } from "#lib/students/classList";
+  import { editWarnings, EDITABLE_FIELDS, type EditableField } from "#lib/students/classList";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { sessionStore } from "#lib/stores/session";
 
@@ -28,6 +28,7 @@
 
   const COLUMNS: Record<EditableField, Parameters<typeof $t>[0]> = {
     studentName: "lms.students.colName",
+    studentNumber: "lms.students.colNumber",
     mebisId: "lms.students.colMebisId",
     artemisId: "lms.students.colArtemisId",
     email: "lms.students.colEmail",
@@ -47,7 +48,7 @@
   let notices = $derived.by(() => {
     const byKey = new Map(after.map((st) => [st.pseudonymHmac, st]));
     const whole = all.map((st) => byKey.get(st.pseudonymHmac) ?? st);
-    return bulkEditWarnings(students, after, whole, hasSubmission);
+    return editWarnings(students, after, whole, hasSubmission);
   });
   let blocking = $derived(notices.some((n) => n.blocking));
   let warnings = $derived(notices.filter((n) => !n.blocking));
@@ -60,14 +61,14 @@
       for (const st of changed) await studentRepository.save(st, key); // NOSONAR: one row at a time keeps the error report simple
       onSaved();
     } catch (err) {
-      error = `${$t("lms.students.bulk.failed")} ${err instanceof Error ? err.message : ""}`.trim();
+      error = `${$t("lms.students.edit.failed")} ${err instanceof Error ? err.message : ""}`.trim();
     } finally {
       busy = false;
     }
   }
 </script>
 
-<Modal open={true} size="large" title={$t("lms.students.bulk.title", { count: students.length })} onClose={busy ? undefined : onClose} {error}>
+<Modal open={true} size="large" title={students.length === 1 ? $t("lms.students.edit.titleOne") : $t("lms.students.edit.title", { count: students.length })} onClose={busy ? undefined : onClose} {error}>
   <div class="flex min-w-0 flex-col gap-4">
     <TableScroller maxHeight="max-h-96">
       <table class="data-table data-table-compact w-full">
@@ -87,13 +88,13 @@
     </TableScroller>
 
     {#if notices.length}
-      <Alert severity={blocking ? "danger" : "warning"} title={$t("lms.students.bulk.warnTitle")}>
+      <Alert severity={blocking ? "danger" : "warning"} title={$t("lms.students.edit.warnTitle")}>
         <ul class="m-0 list-disc pl-5">
           {#each notices as n, i (i)}<li>{$t(n.key, { name: n.name })}</li>{/each}
         </ul>
       </Alert>
       {#if warnings.length && !blocking}
-        <Checkbox bind:checked={accepted} label={$t("lms.students.bulk.accept")} disabled={busy} />
+        <Checkbox bind:checked={accepted} label={$t("lms.students.edit.accept")} disabled={busy} />
       {/if}
     {/if}
   </div>
@@ -101,7 +102,7 @@
   {#snippet footer()}
     <Button variant="outlined" severity="secondary" disabled={busy} onClick={onClose}>{$t("common.cancel")}</Button>
     <Button loading={busy} disabled={busy || !changed.length || blocking || (warnings.length > 0 && !accepted)} onClick={save}>
-      {$t("lms.students.bulk.save", { count: changed.length })}
+      {$t("lms.students.edit.save", { count: changed.length })}
     </Button>
   {/snippet}
 </Modal>
