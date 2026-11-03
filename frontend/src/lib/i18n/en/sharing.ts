@@ -7,6 +7,8 @@ export const sharing: Translations['sharing'] = {
         share: 'Share with students',
     },
     stickers: {
+        loadFailed: 'The student list could not be loaded.',
+        copiesResultsOnly: 'This exam was imported without exercise texts and cannot be compiled; print stickers instead of copies.',
         title: 'Print QR codes',
         intro: 'Creates a sheet of QR stickers (A4, 5 × 7 labels). Each student puts their sticker into the “QR Code” box on the cover page; when the scans come in, Examance assigns the pages by itself.',
         output: 'Output',

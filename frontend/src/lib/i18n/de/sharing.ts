@@ -5,6 +5,8 @@ export const sharing = {
         share: 'Mit Schülern teilen',
     },
     stickers: {
+        loadFailed: 'Die Schülerliste konnte nicht geladen werden.',
+        copiesResultsOnly: 'Diese Prüfung wurde ohne Aufgabentexte importiert und kann nicht gesetzt werden; drucke Aufkleber statt Exemplaren.',
         title: 'QR-Codes drucken',
         intro: 'Erzeugt einen Bogen QR-Aufkleber (A4, 5 × 7 Etiketten). Jeder Schüler klebt seinen Aufkleber in das Feld „QR Code“ auf dem Deckblatt; beim Einscannen ordnet Examance die Seiten dann von selbst zu.',
         output: 'Ausgabe',
