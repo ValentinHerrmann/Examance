@@ -4,6 +4,12 @@ export const sharing = {
         stickers: 'QR-Codes drucken',
         share: 'Mit Schülern teilen',
     },
+    page: {
+        selectedCount: '{count} von {total} ausgewählt',
+        options: 'Schutz und Optionen',
+        send: 'Vorschau und Senden',
+        pdfNoOptions: 'Dieser Weg verschickt das PDF selbst: Es gibt keinen Link, also keinen Linkschutz und keine Musterlösung.',
+    },
     stickers: {
         loadFailed: 'Die Schülerliste konnte nicht geladen werden.',
         copiesResultsOnly: 'Diese Prüfung wurde ohne Aufgabentexte importiert und kann nicht gesetzt werden; drucke Aufkleber statt Exemplaren.',

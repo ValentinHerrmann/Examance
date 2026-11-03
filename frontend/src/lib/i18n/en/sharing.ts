@@ -6,6 +6,12 @@ export const sharing: Translations['sharing'] = {
         stickers: 'Print QR codes',
         share: 'Share with students',
     },
+    page: {
+        selectedCount: '{count} of {total} selected',
+        options: 'Protection and options',
+        send: 'Preview and send',
+        pdfNoOptions: 'This way sends the PDF itself: there is no link, so no link protection and no sample solution.',
+    },
     stickers: {
         loadFailed: 'The student list could not be loaded.',
         copiesResultsOnly: 'This exam was imported without exercise texts and cannot be compiled; print stickers instead of copies.',
