@@ -2,6 +2,10 @@
 
 The agreed target design for the pages under `/exam/...`, the map of today's code, and the progress log of the makeover PR ([#224](https://github.com/ValentinHerrmann/Examance/pull/224), branch `claude/peaceful-hopper-mo0rft`). The owner settled every decision below in a Q&A; do not re-open one without asking. This page is written so a new session needs nothing else: paths, function names and current behaviour are listed here, so look them up only to edit them.
 
+## Status
+
+All items below are done and ticked; CI and SonarCloud are green on `95c874e`. What remains is the owner's review on the preview (see the PR) and the follow-ups in the Progress notes.
+
 ## Hand-over protocol (read first)
 
 - Read the root `CLAUDE.md` and `frontend/CLAUDE.md` (always loaded) and this page. Read `docs/dev/ui_shell.md` and `docs/dev/result_sharing.md` only when the item says so.
@@ -34,9 +38,9 @@ A failed read leaves its badge out, never shows 0. "Next" of a step is simply th
 
 **Overview** (`/exam/[id]`): header with the exam title and one metadata line (testart, class via `formatExamCourse(grade, klasse)` from `lib/utils/examLabel`, subject `fach`, date `datum`). Header actions: "Export" (opens `ExamExportModal`) as `Button`s with icons, and a ⋯ `ui/Menu` with Duplicate, Delete all submissions, Delete exam (both deletes through `ui/ConfirmDialog`, never native `confirm()`/`alert()`). Cards: "Details" (the metadata form in place, incl. teacher `lehrernachname`, topic, retention `retentionUntil`; changed after review: no dialog) and "Key figures" (total points, exercises, students, scans, graded, average, grading key name). A primary button "Continue: ‹next unfinished step›" (from `examProgress`). No list of step links: that would duplicate the sidebar again. Keep the existing alerts (local fallback, results-only, submissions load error).
 
-**Exam step = one page** for arranging exercises and print layout, with the PDF preview. Layout from `@6xl` (container query; the exam layout root is `@container`): two columns. Left: `ui/Tabs` "Exercises" (the existing `ExerciseList` with MC groups, page breaks, extra notes, "Add exercises" opening the picker) and "Layout" (info text, name line, cut-corner hint, MC correction hint, logo, LaTeX packages; explicit Save button, unsaved-changes guard via `beforeNavigate`). Right: the preview panel (compile button, task/solution PDFs, layout report, compile errors, OMR template status), sticky on desktop. Below `@6xl` one column with a third tab "Preview".
+**Exam step = one page** for arranging exercises and print layout, with the PDF preview. Layout from `xl` (viewport, via `minWidth("xl")` because the tab set changes): two columns. Left: `ui/Tabs` "Exercises" (the existing `ExerciseList` with MC groups, page breaks, extra notes, "Add exercises" opening the picker) and "Layout" (info text, name line, cut-corner hint, MC correction hint, logo, LaTeX packages; explicit Save button, unsaved-changes guard via `beforeNavigate`). Right: the preview panel (compile button, task/solution PDFs, layout report, compile errors, OMR template status), sticky on desktop. Below `xl` one column with a third tab "Preview".
 
-**Metadata dialog** keeps metadata only: title, testart, grade, klasse, datum with duration (`editDauer`, combined via `parseDatumAndDauer`/`formatDatumAndDauer` in `lib/utils/examLabel`), nr, fach, lehrernachname, topic, retention. The **grading key** moves to Results → Statistics, next to the distribution it changes.
+**Exam details are edited inline** on the Overview (owner decision after review: the page has the room, no dialog): the Details card is `exam/ExamDetailsForm` over `ExamMetadataEditor` `inline`, with Save, Discard changes and a `beforeNavigate` leave guard. Fields: title, testart, grade, klasse, datum with duration (`editDauer`, combined via `parseDatumAndDauer`/`formatDatumAndDauer` in `lib/utils/examLabel`), nr, fach, lehrernachname, topic, retention. `ExamMetadataEditor` is a dialog only on `/exam/new`. The **grading key** moves to Results → Statistics, next to the distribution it changes.
 
 **Print step**: card "Exam PDFs" (download task and solution sheet from the compile cache; compile if needed; OMR template status with "Refresh"), card "QR codes" (the sticker form inline: sticker sheet, onto exam copies, key slips).
 
@@ -48,7 +52,7 @@ A failed read leaves its badge out, never shows 0. "Next" of a step is simply th
 
 **Also decided:** Mebis is dropped from the ZIP export (the Share page's Mebis channel stays the one place that builds the Mebis ZIP). The Artemis class-list import keeps its `result_delivery` gating but explains it as "Artemis connection not enabled by the admin". `/exam/[id]/stats` redirects (308) to `/results`. `?library=open` moves to `/content`, and `/exam/new` redirects there. No crypto, auth or retention logic changes: share and sticker code is only moved (`lib/sharing/shareCrypto.ts`, `lib/crypto/stickerKey.ts` stay untouched).
 
-## Current code map (at `361dde5`)
+## Current code map (before the makeover, at `361dde5`; historical, the Progress notes say what replaced what)
 
 All paths below are under `frontend/src/` unless they start with `docs/` or `frontend/`.
 
@@ -147,6 +151,11 @@ All paths below are under `frontend/src/` unless they start with `docs/` or `fro
 - [x] **8.1** `git grep -n "ExamActionBar\|ShareResultsDialog\|statsHref\|ExamMetadata\b\|exam.sidebar.setup\|options.mebis"` finds nothing.
 - [x] **8.2** `npx svelte-check --threshold error`, `npm run lint` (frontend) and `npm run docs:build` (docs) are clean.
 - [x] **8.3** Mark the PR ready and update its description with the preview checks: Overview, Exam and Print on phone, iPad portrait and 1920×1080; the "Next" chain from Overview to Results; `/stats` redirect; Share → Print keys keeps the selection; Roster tab hidden; screenshots to refresh.
+
+### 9. After the owner's review
+- [x] **9.1** CI "Playwright (phone, routes)": `/results/share` overflowed; `TableScroller` is `relative` (`ed229b2`).
+- [x] **9.2** SonarCloud: 2 new issues fixed (`b4cd49d`); 0 open since.
+- [x] **9.3** Exam details inline on the Overview instead of a dialog (`95c874e`).
 
 ## Progress notes
 
