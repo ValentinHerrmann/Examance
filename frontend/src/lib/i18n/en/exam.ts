@@ -207,6 +207,18 @@ export const exam: Translations['exam'] = {
         saved: 'Details saved.',
         noValue: '–',
     },
+    print: {
+        pdfsTitle: 'Exam PDFs',
+        pdfsIntro: 'Task sheet and solution for printing, built from the current exercises and layout.',
+        preparePdfs: 'Create PDFs',
+        downloadTask: 'Download task sheet',
+        downloadSolution: 'Download solution',
+        omrReady: 'The scan template matches the current layout.',
+        omrNone: 'No scan template yet: create the PDFs before you print.',
+        qrTitle: 'QR codes for students',
+        qrIntro: 'QR stickers, QR codes printed onto the copies, or key slips for the students on the Students page.',
+        failed: 'The PDFs could not be created: {message}',
+    },
     flow: {
         done: 'done',
         next: 'Next: {step}',

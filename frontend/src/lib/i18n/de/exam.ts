@@ -205,6 +205,18 @@ export const exam = {
         saved: 'Angaben gespeichert.',
         noValue: '–',
     },
+    print: {
+        pdfsTitle: 'Prüfungs-PDFs',
+        pdfsIntro: 'Angabe und Lösung zum Drucken. Gesetzt wird mit dem aktuellen Stand der Aufgaben und des Layouts.',
+        preparePdfs: 'PDFs erstellen',
+        downloadTask: 'Angabe herunterladen',
+        downloadSolution: 'Lösung herunterladen',
+        omrReady: 'Die Scan-Vorlage passt zum aktuellen Layout.',
+        omrNone: 'Noch keine Scan-Vorlage: Erstelle die PDFs, bevor du druckst.',
+        qrTitle: 'QR-Codes für Schüler',
+        qrIntro: 'QR-Aufkleber, QR-Codes direkt auf den Exemplaren oder Schlüsselzettel für die Schüler aus der Schülerliste.',
+        failed: 'Die PDFs konnten nicht erstellt werden: {message}',
+    },
     flow: {
         done: 'erledigt',
         next: 'Weiter: {step}',
