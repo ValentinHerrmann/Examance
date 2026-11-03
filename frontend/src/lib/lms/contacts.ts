@@ -12,9 +12,15 @@ export interface Contact {
   email: string | null;
 }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export const isEmail = (value: string | null | undefined): value is string => EMAIL.test((value ?? '').trim());
+/** One `@`, a dotted domain, no whitespace; checked without a regex, which would backtrack super-linearly on long input. */
+export function isEmail(value: string | null | undefined): value is string {
+  const text = (value ?? '').trim();
+  const at = text.indexOf('@');
+  if (at < 1 || at !== text.lastIndexOf('@') || /\s/.test(text)) return false;
+  const domain = text.slice(at + 1);
+  const dot = domain.lastIndexOf('.');
+  return dot > 0 && dot < domain.length - 1;
+}
 
 /** A pasted list, one student per line: the name, then optionally an id and an e-mail address, split on tab or `;` (so "Lastname, Firstname" stays whole); a cell with an `@` is the address. */
 export function contactsFromLines(text: string): Contact[] {
@@ -26,6 +32,24 @@ export function contactsFromLines(text: string): Contact[] {
   });
 }
 
+/** One cell starting at *start*: its value, where the next cell starts, and whether a line ends after it. Quoted cells may hold separators, line breaks and doubled quotes. */
+function readCell(text: string, start: number, sep: string): { value: string; next: number; lineEnd: boolean } {
+  let value = '';
+  let i = start;
+  if (text[i] === '"') {
+    i++;
+    while (i < text.length && !(text[i] === '"' && text[i + 1] !== '"')) {
+      value += text[i];
+      i += text[i] === '"' ? 2 : 1;
+    }
+    i++;
+  }
+  while (i < text.length && text[i] !== sep && text[i] !== '\n' && text[i] !== '\r') value += text[i++];
+  const lineEnd = i >= text.length || text[i] !== sep;
+  const next = text[i] === '\r' && text[i + 1] === '\n' ? i + 2 : i + 1;
+  return { value: value.trim(), next, lineEnd };
+}
+
 /** The cells of a CSV text: quoted fields with doubled quotes, `,` or `;` as separator (whichever the header line uses more). */
 export function parseCsv(text: string): string[][] {
   const clean = text.replace(/^\uFEFF/, '');
@@ -33,29 +57,16 @@ export function parseCsv(text: string): string[][] {
   const sep = (header.match(/;/g)?.length ?? 0) > (header.match(/,/g)?.length ?? 0) ? ';' : ',';
   const rows: string[][] = [];
   let row: string[] = [];
-  let cell = '';
-  let quoted = false;
-  for (let i = 0; i < clean.length; i++) {
-    const ch = clean[i];
-    if (quoted) {
-      if (ch === '"' && clean[i + 1] === '"') {
-        cell += '"';
-        i++;
-      } else if (ch === '"') quoted = false;
-      else cell += ch;
-    } else if (ch === '"') quoted = true;
-    else if (ch === sep) {
-      row.push(cell.trim());
-      cell = '';
-    } else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && clean[i + 1] === '\n') i++;
-      row.push(cell.trim());
+  let i = 0;
+  while (i < clean.length) {
+    const cell = readCell(clean, i, sep);
+    row.push(cell.value);
+    i = cell.next;
+    if (cell.lineEnd) {
       if (row.some(Boolean)) rows.push(row);
       row = [];
-      cell = '';
-    } else cell += ch;
+    }
   }
-  row.push(cell.trim());
   if (row.some(Boolean)) rows.push(row);
   return rows;
 }
@@ -87,7 +98,7 @@ export function nameKey(name: string | null | undefined): string {
     .normalize('NFC')
     .split(/[\s,]+/)
     .filter(Boolean)
-    .sort()
+    .sort((a, b) => a.localeCompare(b, 'de'))
     .join(' ');
 }
 

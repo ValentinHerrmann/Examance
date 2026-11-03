@@ -74,7 +74,7 @@ async def require_exercise_sharing(teacher: Teacher = Depends(get_teaching_teach
     return teacher
 
 
-async def require_result_delivery(teacher: Teacher = Depends(get_teaching_teacher)) -> Teacher:
+def require_result_delivery(teacher: Teacher = Depends(get_teaching_teacher)) -> Teacher:
     """The signed-in teacher, if their account may send graded results to students (Artemis, e-mail)."""
     if not teacher.allow_result_delivery:
         raise _not_allowed("Result delivery is not enabled for this account.")

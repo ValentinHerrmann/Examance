@@ -72,7 +72,8 @@ async def _call(
             headers={"Authorization": f"Bearer {jwt}", "Accept": "application/json"},
             **kwargs,
         )
-    except Exception as exc:  # noqa: BLE001 - every transport failure (DNS, TLS, proxy, reset) must end as our own coded answer
+    # Every transport failure (DNS, TLS, proxy, reset) must end as our own coded answer.
+    except Exception as exc:
         logger.warning("Artemis relay %s on %s failed: %s", step, host, type(exc).__name__)
         raise _upstream_error("Artemis is unreachable.") from None
     if response.status_code in (401, 403) or response.is_redirect:

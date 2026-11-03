@@ -34,14 +34,15 @@ export function createDelivery(
   channel: ShareChannelId,
   context: { examTitle: string; expiresAt: Date; artemis?: ArtemisTarget }
 ): Delivery {
-  const none = async () => {};
+  const none = () => Promise.resolve();
   if (channel === 'email') {
     const queued: { mail: ResultMail; name: string }[] = [];
     return {
       sendsPdf: false,
-      async deliverLink(student, name, url) {
-        if (!student.email) throw new Error(translate('sharing.channels.email.missing'));
+      deliverLink(student, name, url) {
+        if (!student.email) return Promise.reject(new Error(translate('sharing.channels.email.missing')));
         queued.push({ mail: { email: student.email, url, expiresAt: context.expiresAt }, name });
+        return Promise.resolve();
       },
       deliverPdf: none,
       async finish() {
@@ -49,7 +50,7 @@ export function createDelivery(
         for (let i = 0; i < queued.length; i += MAIL_BATCH) {
           const batch = queued.slice(i, i + MAIL_BATCH);
           try {
-            const failed = await sendResultMails(context.examTitle, get(locale), batch.map((q) => q.mail));
+            const failed = await sendResultMails(context.examTitle, get(locale), batch.map((q) => q.mail)); // NOSONAR: batches go one after another, so the mail server and the rate limit see a steady flow
             for (const index of failed) warnings.push(translate('sharing.channels.email.failed', { name: batch[index]?.name ?? '?' }));
           } catch (err) {
             const reason = err instanceof Error ? err.message : '';
@@ -72,8 +73,8 @@ export function createDelivery(
       async deliverPdf(student, _name, filename, pdf) {
         await sendArtemisFile(target, artemisUser(student), filename, pdf, translate('sharing.channels.artemis.pdfMessage', { exam: context.examTitle }));
       },
-      finish: async () => [],
+      finish: () => Promise.resolve([]),
     };
   }
-  return { sendsPdf: false, deliverLink: none, deliverPdf: none, finish: async () => [] };
+  return { sendsPdf: false, deliverLink: none, deliverPdf: none, finish: () => Promise.resolve([]) };
 }

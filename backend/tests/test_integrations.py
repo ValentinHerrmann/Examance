@@ -144,7 +144,8 @@ async def test_transport_failures_answer_with_our_own_code(
         resp = await client.post(API + "/artemis/students", json=COURSE)
     assert resp.status_code == 424
     assert resp.headers["code"] == "ERR_ARTEMIS_UPSTREAM"
-    assert "students" in caplog.text and HOST in caplog.text
+    assert "students" in caplog.text
+    assert HOST in caplog.text
     assert JWT not in caplog.text
 
 
