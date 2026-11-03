@@ -101,10 +101,10 @@ async def _delivery(
 def mailbox(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     """A fake bounce mailbox: `inbox` holds the raw messages, `deleted` and `sent` record the outcome."""
     state: dict[str, Any] = {"inbox": [], "deleted": [], "sent": [], "send_ok": True}
-    monkeypatch.setattr(settings, "SMTP_BOUNCE_ADDRESS", "bounces@example.com")
-    monkeypatch.setattr(settings, "BOUNCE_IMAP_HOST", "imap.example.com")
-    monkeypatch.setattr(settings, "BOUNCE_IMAP_USERNAME", "bounces@example.com")
-    monkeypatch.setattr(settings, "BOUNCE_IMAP_PASSWORD", "secret")
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
+    monkeypatch.setattr(settings, "RESULT_MAIL_ADDRESS", "results@example.com")
+    monkeypatch.setattr(settings, "RESULT_MAIL_PASSWORD", "secret")
+    monkeypatch.setattr(settings, "RESULT_MAIL_IMAP_HOST", "imap.example.com")
     monkeypatch.setattr(
         bounces,
         "_fetch_unseen",
@@ -173,5 +173,83 @@ async def test_failed_forward_stays_for_retry(db: AsyncSession, mailbox: dict[st
 
 @pytest.mark.asyncio
 async def test_without_a_bounce_mailbox_nothing_is_read(db: AsyncSession) -> None:
-    assert settings.BOUNCE_IMAP_HOST is None
+    assert settings.RESULT_MAIL_IMAP_HOST is None
     assert not await bounces.poll_bounces(db)
+
+
+class _FakeSmtp:
+    """Records what smtplib would send."""
+
+    sent: list[tuple[str, Any]] = []
+
+    def __init__(self, host: str, port: int, timeout: int) -> None:
+        self.host = host
+        self.login_as: str | None = None
+
+    def __enter__(self) -> _FakeSmtp:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+    def starttls(self) -> None:
+        return None
+
+    def login(self, user: str, _password: str) -> None:
+        self.login_as = user
+
+    def send_message(self, msg: Any) -> None:
+        _FakeSmtp.sent.append((f"{self.host}|{self.login_as}", msg))
+
+
+def test_result_mail_goes_out_from_the_result_mailbox(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Sent as the result mailbox with its own login, so the envelope sender and its bounces need no send-as permission.
+    from app.services import email as email_svc
+
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
+    monkeypatch.setattr(settings, "SMTP_USERNAME", "account@example.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "account-secret")
+    monkeypatch.setattr(settings, "RESULT_MAIL_ADDRESS", "results@example.com")
+    monkeypatch.setattr(settings, "RESULT_MAIL_PASSWORD", "secret")
+    monkeypatch.setattr(settings, "RESULT_MAIL_IMAP_HOST", "imap.example.com")
+    monkeypatch.setattr(email_svc.smtplib, "SMTP", _FakeSmtp)
+    _FakeSmtp.sent = []
+    sender = email_svc.result_sender()
+    assert sender is not None
+    assert email_svc._send_sync("s@example.org", "x", "body", None, email_svc.Envelope(sender=sender))
+    assert email_svc._send_sync("t@example.org", "y", "body")
+    (first_via, first), (second_via, second) = _FakeSmtp.sent
+    assert (first_via, first["From"]) == ("smtp.example.com|results@example.com", "results@example.com")
+    assert (second_via, second["From"]) == ("smtp.example.com|account@example.com", settings.SMTP_FROM_EMAIL)
+
+
+def test_result_mailbox_needs_every_part(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.services import email as email_svc
+
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
+    monkeypatch.setattr(settings, "RESULT_MAIL_ADDRESS", "results@example.com")
+    monkeypatch.setattr(settings, "RESULT_MAIL_PASSWORD", "secret")
+    assert email_svc.result_sender() is None  # no IMAP host: nothing could watch its bounces
+    monkeypatch.setattr(settings, "RESULT_MAIL_IMAP_HOST", "imap.example.com")
+    assert email_svc.result_sender() == email_svc.Sender(
+        "results@example.com", "smtp.example.com", "results@example.com", "secret"
+    )
+
+
+def test_result_mailbox_must_differ_from_the_sender_address() -> None:
+    from app.config import Settings
+
+    with pytest.raises(ValueError, match="RESULT_MAIL_ADDRESS"):
+        Settings(
+            ENVIRONMENT="development",
+            SMTP_FROM_EMAIL="Same@example.com",
+            RESULT_MAIL_ADDRESS="same@example.com",
+        )
+
+
+def test_student_mail_asks_not_to_reply() -> None:
+    for locale, phrase in (("de", "Bitte antworte nicht"), ("en", "Please do not reply")):
+        mail = account_mail.result_link_mail(
+            "s@example.org", "Analysis", "https://x/result#a", datetime.now(UTC), None, locale  # type: ignore[arg-type]
+        )
+        assert phrase in mail.text and phrase in mail.html

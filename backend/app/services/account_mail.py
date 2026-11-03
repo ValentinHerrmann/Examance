@@ -221,7 +221,9 @@ def _result_link_mail(
             link=("Korrigierte Prüfung öffnen", url),
             footer=[
                 f"Der Link ist bis {expires_at.strftime('%d.%m.%Y')} gültig. "
-                "Diese E-Mail wurde automatisch von Examance versendet."
+                "Diese E-Mail wurde automatisch von Examance versendet.",
+                "Bitte antworte nicht auf diese E-Mail: Antworten erreichen deine Lehrkraft "
+                "nicht. Wende dich bei Fragen auf anderem Weg an sie, etwa im Unterricht.",
             ],
             greeting="Hallo,",
         )
@@ -239,7 +241,9 @@ def _result_link_mail(
         link=("Open graded exam", url),
         footer=[
             f"The link is valid until {expires_at.strftime('%Y-%m-%d')}. "
-            "This email was sent automatically by Examance."
+            "This email was sent automatically by Examance.",
+            "Please do not reply to this email: replies do not reach your teacher. If you "
+            "have questions, contact your teacher another way, for example in class.",
         ],
     )
 
@@ -279,7 +283,6 @@ def bounce_forward_mail(to: str, exam_link: str | None, raw: bytes, message_id: 
         html=mail.html,
         envelope=email_svc.Envelope(
             message_id=message_id,
-            bounce_to=settings.SMTP_BOUNCE_ADDRESS,
             attachment=raw,
             headers=(("X-Examance-Forwarded", "bounce"),),
         ),

@@ -11,7 +11,6 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel, EmailStr, Field
 
-from app.config import settings
 from app.dependencies import DB, TeachingTeacher
 from app.middleware.rate_limit import limiter
 from app.services import account_mail, artemis, bounces, result_deliveries
@@ -227,7 +226,7 @@ async def mail_results(
             code=recipient.code,
             envelope=email_svc.Envelope(
                 message_id=bounces.result_message_id(token),
-                bounce_to=settings.SMTP_BOUNCE_ADDRESS,
+                sender=email_svc.result_sender(),
             ),
         )
         sent = await account_mail.send(mail)

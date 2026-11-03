@@ -75,7 +75,7 @@ export const legal: Translations['legal'] = {
         },
         section6: {
             heading: '6. E-Mail-Versand',
-            text: 'Für E-Mails wie Bestätigungs- und Einladungslinks, das Zurücksetzen des Passworts, die Bestätigung einer Kontolöschung und Benachrichtigungen nutzt der Betreiber einen E-Mail-Dienstleister als Auftragsverarbeiter (Art. 28 DSGVO). Verarbeitet werden E-Mail-Adresse und Inhalt der Nachricht; Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. Kommt eine E-Mail mit einem Ergebnislink als unzustellbar zurück, liest Examance die Rückmeldung aus einem eigens dafür bestimmten Postfach, vermerkt den Zustellstatus nur unter dem Pseudonym des Schülers, leitet die Rückmeldung gegebenenfalls an die versendende Lehrkraft weiter und löscht sie anschließend aus dem Postfach.',
+            text: 'Für E-Mails wie Bestätigungs- und Einladungslinks, das Zurücksetzen des Passworts, die Bestätigung einer Kontolöschung und Benachrichtigungen nutzt der Betreiber einen E-Mail-Dienstleister als Auftragsverarbeiter (Art. 28 DSGVO). Verarbeitet werden E-Mail-Adresse und Inhalt der Nachricht; Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. E-Mails mit Ergebnislinks an Schüler versendet Examance aus einem eigens dafür bestimmten Postfach. Kommt eine davon als unzustellbar zurück, liest Examance die Rückmeldung aus diesem Postfach, vermerkt den Zustellstatus nur unter dem Pseudonym des Schülers, leitet die Rückmeldung gegebenenfalls an die versendende Lehrkraft weiter und löscht sie anschließend aus dem Postfach.',
         },
         section7: {
             heading: '7. Fehlerbilder von http.cat',

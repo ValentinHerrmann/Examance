@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, status
 from app.config import settings
 from app.dependencies import get_teaching_teacher
 from app.models.teacher import STORAGE_MODES, Teacher
+from app.services import email as email_svc
 
 # The switches an admin can set per account, by their API name. Order is display order.
 ACCOUNT_FEATURES = ("server_results", "server_latex", "exercise_sharing", "result_delivery")
@@ -24,14 +25,9 @@ def mail_configured() -> bool:
     return bool(settings.SMTP_HOST) or settings.is_dev
 
 
-def bounce_configured() -> bool:
-    """Whether a bounce mailbox is set up: an envelope sender and the IMAP account that reads it (issue #221)."""
-    return bool(
-        settings.SMTP_BOUNCE_ADDRESS
-        and settings.BOUNCE_IMAP_HOST
-        and settings.BOUNCE_IMAP_USERNAME
-        and settings.BOUNCE_IMAP_PASSWORD
-    )
+def result_mailbox_configured() -> bool:
+    """Whether the result mailbox is set up: result mails are sent from it and its bounces are watched (issue #221)."""
+    return email_svc.result_sender() is not None
 
 
 def account_features(teacher: Teacher) -> dict[str, bool]:
@@ -64,7 +60,7 @@ def capabilities_for(teacher: Teacher) -> Capabilities:
             # Whether the share dialog waits for bounces after an e-mail run (issue #221).
             "result_bounces": teacher.allow_result_delivery
             and mail_configured()
-            and bounce_configured(),
+            and result_mailbox_configured(),
         },
     )
 

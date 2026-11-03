@@ -140,9 +140,11 @@ After sending by e-mail or Artemis, the share dialog shows a **Delivery** column
 | **Not delivered** | The e-mail came back, for example because the address does not exist or the mailbox is full. Hover the badge for the mail server's code. |
 | **Failed** | The message could not be sent at all; the dialog listed the reason when you sent it. |
 
+If your installation has its own mailbox for result mails, they are sent from it, and they ask students not to reply but to contact you another way: replies do not reach you.
+
 After an e-mail run the dialog waits about 30 seconds and checks for returned mails. You can close it earlier: e-mails that come back later are forwarded to your own address, and the share button of the exam then shows how many students were not reached. To send again, correct the address or Artemis id on the [Students page](#student-data), open the dialog, choose **Select students not reached** and send.
 
-If the dialog says that returned e-mails are not monitored, your installation has no bounce mailbox: then "Sent" only means that the mail server accepted the message.
+If the dialog says that returned e-mails are not monitored, your installation has no result mailbox: then "Sent" only means that the mail server accepted the message.
 
 ## What students see {#student-view}
 

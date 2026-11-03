@@ -30,12 +30,13 @@ x-backend-env: &backend-env
   SMTP_PASSWORD: ${SMTP_PASSWORD:-}
   SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@examance.com}
   SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
-  SMTP_BOUNCE_ADDRESS: ${SMTP_BOUNCE_ADDRESS:-}
-  BOUNCE_IMAP_HOST: ${BOUNCE_IMAP_HOST:-}
-  BOUNCE_IMAP_PORT: ${BOUNCE_IMAP_PORT:-993}
-  BOUNCE_IMAP_USERNAME: ${BOUNCE_IMAP_USERNAME:-}
-  BOUNCE_IMAP_PASSWORD: ${BOUNCE_IMAP_PASSWORD:-}
-  BOUNCE_IMAP_FOLDER: ${BOUNCE_IMAP_FOLDER:-INBOX}
+  RESULT_MAIL_ADDRESS: ${RESULT_MAIL_ADDRESS:-}
+  RESULT_MAIL_USERNAME: ${RESULT_MAIL_USERNAME:-}
+  RESULT_MAIL_PASSWORD: ${RESULT_MAIL_PASSWORD:-}
+  RESULT_MAIL_SMTP_HOST: ${RESULT_MAIL_SMTP_HOST:-}
+  RESULT_MAIL_IMAP_HOST: ${RESULT_MAIL_IMAP_HOST:-}
+  RESULT_MAIL_IMAP_PORT: ${RESULT_MAIL_IMAP_PORT:-993}
+  RESULT_MAIL_IMAP_FOLDER: ${RESULT_MAIL_IMAP_FOLDER:-INBOX}
   DELIVERY_STATUS_RETENTION_DAYS: ${DELIVERY_STATUS_RETENTION_DAYS:-30}
   PASSWORD_RESET_TOKEN_TTL_HOURS: ${PASSWORD_RESET_TOKEN_TTL_HOURS:-24}
   REGISTRATION_TOKEN_TTL_HOURS: ${REGISTRATION_TOKEN_TTL_HOURS:-24}
@@ -178,8 +179,8 @@ services:
           sleep 86400
         done
 
-  # Reads the dedicated bounce mailbox every 5 minutes (issue #221), for bounces that arrive after the
-  # share dialog stopped waiting; does nothing while no bounce mailbox is configured.
+  # Reads the dedicated result mailbox every 5 minutes (issue #221), for bounces that arrive after the
+  # share dialog stopped waiting; does nothing while no result mailbox is configured.
   bounce-cron:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
     restart: unless-stopped

@@ -140,9 +140,11 @@ Nach dem Versand per E-Mail oder Artemis zeigt der Teilen-Dialog je Schüler ein
 | **Nicht zugestellt** | Die E-Mail kam zurück, etwa weil die Adresse nicht existiert oder das Postfach voll ist. Fahre über das Abzeichen, um den Code des Mailservers zu sehen. |
 | **Fehlgeschlagen** | Die Nachricht konnte gar nicht verschickt werden; den Grund hat der Dialog beim Senden angezeigt. |
 
+Hat deine Installation ein eigenes Postfach für Ergebnis-Mails, werden sie von dort verschickt und bitten die Schüler, nicht zu antworten, sondern sich auf anderem Weg an dich zu wenden: Antworten erreichen dich nicht.
+
 Nach einem E-Mail-Versand wartet der Dialog etwa 30 Sekunden und prüft, ob E-Mails zurückkommen. Du kannst ihn vorher schließen: Später zurückkommende E-Mails werden an deine eigene Adresse weitergeleitet, und der Teilen-Knopf der Prüfung zeigt dann, wie viele Schüler nicht erreicht wurden. Zum erneuten Senden korrigierst du die Adresse oder Artemis-ID auf der [Schülerseite](#student-data), öffnest den Dialog, wählst **Nicht erreichte auswählen** und sendest.
 
-Sagt der Dialog, dass zurückkommende E-Mails nicht überwacht werden, hat deine Installation kein Rückläufer-Postfach: Dann heißt „Gesendet“ nur, dass der Mailserver die Nachricht angenommen hat.
+Sagt der Dialog, dass zurückkommende E-Mails nicht überwacht werden, hat deine Installation kein eigenes Postfach für Ergebnis-Mails: Dann heißt „Gesendet“ nur, dass der Mailserver die Nachricht angenommen hat.
 
 ## Was Schüler sehen {#student-view}
 

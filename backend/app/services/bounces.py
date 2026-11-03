@@ -1,4 +1,4 @@
-"""Bounce monitoring for result mails (issue #221, docs/dev/result_sharing.md). Reads only the dedicated bounce mailbox, matches each report to a result mail by the token in its Message-ID, then empties the mailbox. Never logs an address or a message body."""
+"""Bounce monitoring for result mails (issue #221, docs/dev/result_sharing.md). Reads only the dedicated result mailbox (the one result mails are sent from), matches each report to a result mail by the token in its Message-ID, then empties the mailbox. Never logs an address or a message body."""
 from __future__ import annotations
 
 import asyncio
@@ -18,7 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.teacher import Teacher
 from app.services import account_mail, ephemeral_store, result_deliveries
-from app.services.capabilities import bounce_configured
+from app.services import email as email_svc
+from app.services.capabilities import result_mailbox_configured
 
 logger = logging.getLogger(__name__)
 
@@ -138,9 +139,14 @@ async def _handle(db: AsyncSession, raw: bytes, counts: _Counts) -> bool:
 
 
 def _fetch_unseen() -> tuple[imaplib.IMAP4_SSL, list[tuple[str, bytes]]]:
-    imap = imaplib.IMAP4_SSL(settings.BOUNCE_IMAP_HOST or "", settings.BOUNCE_IMAP_PORT, timeout=20)
-    imap.login(settings.BOUNCE_IMAP_USERNAME or "", settings.BOUNCE_IMAP_PASSWORD or "")
-    imap.select(settings.BOUNCE_IMAP_FOLDER)
+    sender = email_svc.result_sender()
+    if sender is None:
+        raise imaplib.IMAP4.error("result mailbox not configured")
+    imap = imaplib.IMAP4_SSL(
+        settings.RESULT_MAIL_IMAP_HOST or "", settings.RESULT_MAIL_IMAP_PORT, timeout=20
+    )
+    imap.login(sender.username, sender.password)
+    imap.select(settings.RESULT_MAIL_IMAP_FOLDER)
     _, data = imap.uid("SEARCH", "UNSEEN")
     messages: list[tuple[str, bytes]] = []
     for uid in bytes(data[0] or b"").decode().split():
@@ -165,8 +171,8 @@ def _finish(imap: imaplib.IMAP4_SSL, done: list[str]) -> None:
 
 
 async def poll_bounces(db: AsyncSession) -> bool:
-    """Read the bounce mailbox once and commit the status changes; False when not configured or another poll is running."""
-    if not bounce_configured():
+    """Read the result mailbox once and commit the status changes; False when not configured or another poll is running."""
+    if not result_mailbox_configured():
         return False
     # One reader at a time across dialogs and the cron; the TTL frees a lock a crashed poll left behind.
     if await ephemeral_store.incr(_LOCK, _LOCK_SECONDS) != 1:
@@ -176,7 +182,7 @@ async def poll_bounces(db: AsyncSession) -> bool:
         try:
             imap, messages = await asyncio.to_thread(_fetch_unseen)
         except (OSError, imaplib.IMAP4.error) as exc:
-            logger.error("Bounce mailbox unreachable: %s", type(exc).__name__)
+            logger.error("Result mailbox unreachable: %s", type(exc).__name__)
             return False
         done: list[str] = []
         try:
@@ -192,7 +198,7 @@ async def poll_bounces(db: AsyncSession) -> bool:
             await asyncio.to_thread(_finish, imap, done)
         if messages:
             logger.info(
-                "Bounce mailbox: %d matched, %d forwarded to teachers, %d to the sender, "
+                "Result mailbox: %d matched, %d forwarded to teachers, %d to the sender, "
                 "%d own forwards dropped, %d kept for retry",
                 counts.matched,
                 counts.forwarded_teacher,
