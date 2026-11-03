@@ -1,111 +1,153 @@
 # Exam pages: structure and makeover (issue #212)
 
-This page is the agreed target design for the pages under `/exam/...`, and the progress log of the makeover PR. The design was settled with the owner in a Q&A session; the decisions are listed under "Decisions" and are not to be re-opened without asking.
+The agreed target design for the pages under `/exam/...`, the map of today's code, and the progress log of the makeover PR ([#224](https://github.com/ValentinHerrmann/Examance/pull/224), branch `claude/peaceful-hopper-mo0rft`). The owner settled every decision below in a Q&A; do not re-open one without asking. This page is written so a new session needs nothing else: paths, function names and current behaviour are listed here, so look them up only to edit them.
 
 ## Hand-over protocol (read first)
 
-The work may be continued by another agent session at any time.
+- Read the root `CLAUDE.md` and `frontend/CLAUDE.md` (always loaded) and this page. Read `docs/dev/ui_shell.md` and `docs/dev/result_sharing.md` only when the item says so.
+- Work top to bottom through the checklist. Tick a box (`[x]`) in the commit that finishes the item. **Commit and push after every item** (`git push -u origin claude/peaceful-hopper-mo0rft`); commit a half-done item too, with a line under "Progress notes" saying exactly what is left. Quota can end any session at any moment.
+- `git log --oneline origin/main..HEAD` shows what earlier sessions did; the progress notes say what is in flight.
+- Verification is basic only (root `CLAUDE.md`): `cd frontend && npx svelte-check --threshold error` after each section, `npm run lint` and `cd docs && npm run docs:build` at the end. Write the named regression tests in `frontend/tests/` (vitest), don't run them. Don't start dev servers.
+- Line numbers below are from commit `361dde5` and drift; grep the quoted symbol.
+- Every new user-visible string goes into `src/lib/i18n/de/<ns>.ts` (source of truth) and `en/<ns>.ts`. Every page root is `ui/PageShell`; headings use `ui/PageHeader`.
+- PR title (already set, user-facing): "Clearer exam pages: numbered steps with progress and a 'Next' button, one page for exercises, layout and preview, a Print step for PDFs and QR codes, and a guided page for sending results (#212)". Leave the PR as draft until section 8.
 
-- Work top to bottom through the checklist. Tick a box (`[x]`) in the same commit that finishes the item, and commit and push after every item or every few files (`git push -u origin claude/peaceful-hopper-mo0rft`). Never leave more than one item half-done.
-- If an item is only partly done, write what is left under "Progress notes" before committing.
-- Before starting, read the root `CLAUDE.md`, `frontend/CLAUDE.md`, `docs/dev/ui_shell.md` and `docs/dev/result_sharing.md`.
-- Verification is basic only (no unit-test runs): `cd frontend && npx svelte-check --threshold error`, `npm run lint`, and `cd docs && npm run docs:build`. Write regression tests, don't run them.
-- One PR for everything (draft until the checklist is done). PR title (user-facing): "Clearer exam pages: numbered steps with progress and a 'Next' button, one page for exercises, layout and preview, a Print step for PDFs and QR codes, and a guided page for sending results (#212)".
+## Decisions (target design)
 
-## Problems (from the issue and the code review)
+**Navigation.** Keep the exam sidebar (desktop, from `lg`) and the phone drawer. Each step gets a number, an icon and a status badge. Every step page except grade ends with a "Next: <step>" button. The Overview has no number. The page's action bar loses all navigation buttons.
 
-- The Setup page's action bar (`exam/ExamActionBar.svelte`) repeats Scan, Grade, Statistics and Students from the sidebar, in another order and without Check MC or Paper & Excel.
-- One modal (`ExamMetadataEditor`) mixes metadata (title, class, date, teacher, retention), print layout (info text, name line, cut corner, MC hint, logo, packages) and the grading key; page breaks and extra notes are edited inline on the page instead.
-- The page heading says "Setup"; testart, class, subject and date are only visible in the expanded desktop sidebar.
-- Icons on some buttons only; a "+" glyph in "Add exercises"; three different delete icons.
-- No sense of flow: steps are unnumbered and nothing says what is done or what comes next.
-- QR stickers and result sharing are dialogs off the action bar; "Print keys" inside the share dialog discards its state (selection, channel, Artemis token).
-- Manual grading's Roster tab and `PasteImportModal` create students with random ids (no sticker, no personal key), contradicting "student data only on the Students page".
-- The exam-list cards list seven plain step links with no status.
+**Steps** (one list in `layout/examNavItems.ts`, feeding sidebar, drawer, "Next" button and exam-list cards):
 
-## Decisions
+| # | Step (de / en label) | Route | Status badge (cheap counts only) |
+|---|---|---|---|
+| – | Übersicht / Overview | `/exam/[id]` | – |
+| 1 | Prüfung / Exam (exercises, layout, preview) | `/exam/[id]/content` (new) | exercise count |
+| 2 | Schüler / Students | `/exam/[id]/students` | student count |
+| 3 | Drucken / Print | `/exam/[id]/print` (new) | check mark when the OMR template exists |
+| 4 | Scans | `/exam/[id]/scan` | submission count |
+| 5 | MC prüfen / Check MC | `/exam/[id]/verify` | failed + unsure count, only once the verify page computed it in this session |
+| 6 | Korrektur / Grading | `/exam/[id]/grade` | graded/submissions, e.g. "12/27" |
+| 7 | Paper & Excel | `/exam/[id]/manual` | – |
+| 8 | Ergebnisse / Results | `/exam/[id]/results` (Statistics), `/exam/[id]/results/share` (Share) | active share count; red "n not reached" only with feature `result_delivery` |
 
-- **Navigation:** keep `ExamSidebar` (from `lg`) and the `NavDrawer` (below). Steps get a number, an icon and a status badge; every step page except grade ends with a "Next: …" button. The Overview has no number.
-- **Steps** (`layout/examNavItems.ts` stays the single list):
+A failed read leaves its badge out, never shows 0. "Next" of a step is simply the following row; Paper & Excel's next is Results; Results has none.
 
-  | # | Step | Route | Status badge (cheap counts only) |
-  |---|---|---|---|
-  | – | Overview | `/exam/[id]` | – |
-  | 1 | Exam (exercises, layout, preview) | `/exam/[id]/content` (new) | exercise count |
-  | 2 | Students | `/exam/[id]/students` | student count |
-  | 3 | Print | `/exam/[id]/print` (new) | ready when the OMR template exists |
-  | 4 | Scans | `/exam/[id]/scan` | submission count |
-  | 5 | Check MC | `/exam/[id]/verify` | open count, only once the verify page computed it this session |
-  | 6 | Grading | `/exam/[id]/grade` | graded x/y |
-  | 7 | Paper & Excel | `/exam/[id]/manual` | – |
-  | 8 | Results | `/exam/[id]/results` (Statistics), `/exam/[id]/results/share` (Share) | shared count; not-reached badge only with `result_delivery` |
+**Overview** (`/exam/[id]`): header with the exam title and one metadata line (testart, class via `formatExamCourse(grade, klasse)` from `lib/utils/examLabel`, subject `fach`, date `datum`). Header actions: "Edit details" (opens the metadata dialog) and "Export" (opens `ExamExportModal`) as `Button`s with icons, and a ⋯ `ui/Menu` with Duplicate, Delete all submissions, Delete exam (both deletes through `ui/ConfirmDialog`, never native `confirm()`/`alert()`). Cards: "Details" (read-only: everything from the metadata dialog incl. teacher `lehrernachname`, topic, retention `retentionUntil`) and "Key figures" (total points, exercises, students, scans, graded, average, grading key name). A primary button "Continue: <next unfinished step>" (from `examProgress`). No list of step links: that would duplicate the sidebar again. Keep the existing alerts (local fallback, results-only, submissions load error).
 
-  A failed read leaves its badge out (never a 0).
-- **Overview:** header with title and a metadata line (testart, class, subject, date, duration); actions "Edit details" and "Export" as icon buttons, and a ⋯ `ui/Menu` with Duplicate, Delete submissions, Delete exam (all through `ui/ConfirmDialog`, no native `confirm()`/`alert()`). Cards: Details (read-only metadata incl. teacher, topic, retention) and Key figures (points, exercises, students, scans, graded, average, grading key). Primary button "Continue: <next step>". No list of step links (that would duplicate the sidebar).
-- **Exam step = one page** for arranging exercises and print layout, with the PDF preview. Left column: `ui/Tabs` "Exercises" (list, MC groups, page breaks, extra notes, "Add exercises") and "Layout" (info text, name line, cut corner, MC hint, logo, packages; explicit Save and an unsaved-changes guard). Right column: the preview panel (compile, task/solution, layout report, OMR template status). Below `@6xl` the preview becomes a third tab.
-- **Metadata dialog** keeps metadata and retention only. **Grading key** moves to Results → Statistics, next to the distribution it changes.
-- **Print step:** exam PDFs (download task and solution; OMR template status and refresh) and QR codes inline (sticker sheet, onto copies, key slips).
-- **Results step:** `ui/Tabs` with href "Statistics | Share". Share is a page, not a modal: four numbered sections top to bottom (students, channel and setup, protection and options, preview and send) with a sticky "Preview & send (n)" footer, then delivery status and "Revoke all". Channels stay greyed out with the reason, never hidden. "Print keys" opens the sticker dialog on top, so the page state survives.
-- **Roster tab:** hidden behind `const SHOW_ROSTER_TAB = false` (code kept until the owner approves on the preview; then a follow-up deletes it). Paste-import does not create unknown students while the flag is off. The Students page gets "Add student".
-- **Exam-list cards:** progress row from the same status helper, primary "Continue: <step>", "Open overview", ⋯ menu (Preview, Export, Duplicate, Delete). The step links go.
-- **Mebis** is dropped from the ZIP export (only the Share channel builds the Mebis ZIP).
-- **Artemis class-list import** keeps the `result_delivery` gating but explains it as "Artemis connection not enabled by the admin".
-- **Old URLs:** `/exam/[id]/stats` redirects (308, like `verify-item`) to `/results`; `?library=open` now targets `/content`, and `/exam/new` redirects there.
-- No crypto, auth or retention logic changes: share and sticker code is only moved (`shareCrypto`, `stickerKey` untouched).
+**Exam step = one page** for arranging exercises and print layout, with the PDF preview. Layout from `@6xl` (container query; the exam layout root is `@container`): two columns. Left: `ui/Tabs` "Exercises" (the existing `ExerciseList` with MC groups, page breaks, extra notes, "Add exercises" opening the picker) and "Layout" (info text, name line, cut-corner hint, MC correction hint, logo, LaTeX packages; explicit Save button, unsaved-changes guard via `beforeNavigate`). Right: the preview panel (compile button, task/solution PDFs, layout report, compile errors, OMR template status), sticky on desktop. Below `@6xl` one column with a third tab "Preview".
+
+**Metadata dialog** keeps metadata only: title, testart, grade, klasse, datum with duration (`editDauer`, combined via `parseDatumAndDauer`/`formatDatumAndDauer` in `lib/utils/examLabel`), nr, fach, lehrernachname, topic, retention. The **grading key** moves to Results → Statistics, next to the distribution it changes.
+
+**Print step**: card "Exam PDFs" (download task and solution sheet from the compile cache; compile if needed; OMR template status with "Refresh"), card "QR codes" (the sticker form inline: sticker sheet, onto exam copies, key slips).
+
+**Results step**: `ui/Tabs` with `href` items "Statistics | Share" in `results/+layout.svelte`. Share is a page, not a modal: four numbered sections top to bottom (1 students, 2 channel and its setup, 3 protection and options, 4 preview and send) with a sticky footer button "Preview & send (n)", then the delivery-status list and "Revoke all". Channels stay greyed out with their reason, never hidden. "Print keys" opens the sticker dialog on top of the page, so the page's state (selection, channel, Artemis token) survives.
+
+**Roster tab** in Paper & Excel: hidden behind `const SHOW_ROSTER_TAB = false`; the code stays until the owner approves on the preview, a follow-up PR deletes it. With the flag off, paste-import creates no students. The Students page gets "Add student".
+
+**Exam-list cards** (dashboard): a progress row from the same status helper, primary "Continue: <step>", "Open overview", ⋯ menu (Preview, Export, Duplicate, Delete). The seven step links go.
+
+**Also decided:** Mebis is dropped from the ZIP export (the Share page's Mebis channel stays the one place that builds the Mebis ZIP). The Artemis class-list import keeps its `result_delivery` gating but explains it as "Artemis connection not enabled by the admin". `/exam/[id]/stats` redirects (308) to `/results`. `?library=open` moves to `/content`, and `/exam/new` redirects there. No crypto, auth or retention logic changes: share and sticker code is only moved (`lib/sharing/shareCrypto.ts`, `lib/crypto/stickerKey.ts` stay untouched).
+
+## Current code map (at `361dde5`)
+
+All paths below are under `frontend/src/` unless they start with `docs/` or `frontend/`.
+
+**Navigation**
+- `lib/components/layout/examNavItems.ts`: `ExamStep = 'setup'|'students'|'scan'|'verify'|'grade'|'manual'|'stats'`, a `STEPS` array `{ step, suffix, labelKey, icon }` and `examNavItems(examId, pathname)` returning `{ step, href, labelKey, icon, active }` ("setup" active on exact match, others `startsWith`). Labels `exam.sidebar.*` in `lib/i18n/{de,en}/exam.ts`.
+- `lib/components/layout/ExamSidebar.svelte` (99 lines): `hidden lg:flex`, `w-16` rail or `w-41` (164px) open; back link, meta lines (testart, course + subject, date), the items, collapse toggle (`sidebarPreference`/`setSidebarCollapsed` from `lib/stores/shell.ts`). Only badge: `context.submissionCount` on "scan".
+- `lib/components/layout/NavDrawer.svelte`: phone drawer (`xl:hidden`); renders `examNavItems` when `$examNavContext` is set, same scan badge.
+- `lib/stores/shell.ts`: `interface ExamNavContext { examId, exam, submissionCount }`, `examNavContext` writable.
+- `routes/+layout.svelte`: mounts `ExamSidebar` when `examNavContext` matches the path (`showExamSidebar`).
+- `routes/exam/[id]/+layout.svelte` (79 lines): loads `loadExamEncrypted(id, key)` and `submissionRepository.getByExamId(id, key)` in `loadExamHeaderData` (on `afterNavigate` and an `$effect.pre`), publishes `examNavContext`, renders an `h2` with the title on every step except grade.
+- `lib/utils/links.ts`: `examHref`, `scanHref`, `statsHref`, `studentsHref`, `gradeHref(examId, opts)`, `verifyHref(examId, item?)`.
+- Shared primitives (`lib/components/ui/index.ts`): `Tabs` (`items: { id, label, href?, icon?, count? }[]`, `value`, `onChange`, `compact`, `label`), `Menu` (`label`, `icon`, `showLabel`, `align`, children snippet `{ close }`) + `MenuItem` (`icon`, `href`, `danger`, `disabled`, `onSelect`; used in `layout/AppNavbar.svelte`, `exercise-library/ExerciseGroupList.svelte`), `Button` (`icon`, `href`, `size`, `variant`, `severity`, `loading`), `ConfirmDialog`, `Card`, `Badge`, `Alert`, `PageHeader`, `PageShell`, `Icon`. No stepper primitive exists; none is needed.
+
+**Setup page `routes/exam/[id]/+page.svelte` (853 lines)**, top to bottom: `PageHeader title={exam.sidebar.setup}`; alerts; `exam/ExamMetadata.svelte` (row: teacher, points, submissions, students, graded, grading key type); `exam/ExamActionBar.svelte` (Scan, Grade, Stats, Edit, Export, Students, Print QR codes, Share + not-reached badge, Duplicate, Delete submissions, Delete; it loads the not-reached count via `listResultDeliveries` + `latestDeliveries`/`undelivered` from `lib/sharing/shareService.ts`); hidden `ExamMetadataEditDialog`; a `@6xl:grid-cols-2` grid with the compile `Card` and `ExerciseList`; then `ExamExercisePicker`, `ExerciseEditorModal`, `ExamExportModal` (`exportOpen`), `ShareResultsDialog` (`shareOpen && !stickers`), `StickerSheetDialog` (`stickers: "all"|"keys"|null`, `loadExamPdf={studentSheetPdf}`).
+- Script state and functions to move: `exam`, `exercises`, `libraryExercises`, `mcGroups`, `examItems`, `submissions` (all `$state.raw`); `loadExam(id)` via `loadExamData`/`loadExamSubmissions`/`loadLibraryExercises` from `lib/exam/loadExam.ts` (`loadTarget: ExamLoadTarget`, `loadSeq` guard); preview: `restoreCachedPreviews`, `afterLayoutChange` (`layoutEditSeq`), `handlePreviewExam`, `previewPdfUrl`/`previewSolutionPdfUrl`, `previewOutdated`, `compileLog`/`rememberCompileLog`, `refreshExamSources`, `studentSheetPdf`; OMR: `collectMcExercises`, `computeExercisesHash`, `checkOmrTemplateStatus(id)` (status `none|ready|stale|checking`), `handlePrepareOmr(quiet)`, all over `computeOmrTemplateHash`/`prepareOmrTemplate`/`loadExamCompileContext` in `lib/grading/omrTemplatePrep.ts` and `loadOmrTemplateEncrypted` in `lib/db/dbEncryption.ts`; exercises: `moveExamItem`, `toggleExamPageBreak`, `saveExtraNotes`, `moveExerciseOrder`, `removeExerciseLink`, `removeMcGroup`, `computeExamItems`, `getEffectiveExamItems`, **`buildExamLinkPayload()` (the single builder of `mc_groups` + `exercise_links`, which `PATCH /exams/{id}` replaces wholesale)**, `saveExerciseLinks`; exam actions: `handleDeleteExam` (native `confirm`), `handleDuplicateExam`, `handleDeleteAllSubmissions` (native `confirm`); derived counts `totalPoints`, `submissionsCount`, `studentsCount`, `gradedCount`; `?library=open` handled with `takeUrlParam` to open the picker.
+- `lib/components/exam/ExamMetadataEditor.svelte` (210 lines) holds metadata **and** `editInfoText`, `editNameLine`, `editMcCorrectionHint`, the cut-corner hint/link, `ExamLogoField` (`logoChange`), `ExamPackagesField` (`editLatexPackages`) and `GradingKeyEditor` (`editGradingKey`); `mode` create for `/exam/new`.
+- `lib/components/exam/ExamMetadataEditDialog.svelte` (247 lines, exported `open()`): `handleSaveMetadata` validates packages (`entriesError`), `api.patch('/exams/{id}', {title, testart, grade, klasse, datum, nr, fach, topic, lehrernachname, info_text, name_line, mc_correction_hint, grading_key, latex_packages, retention_until})` when authenticated, then `saveExamEncrypted({...exam, …}, key)`, then `setExamLogo(id, mode, bytes)` if the logo changed, then `onLayoutChange()` and `alert(saveSuccess)`. The new layout form and the grading-key panel reuse exactly this pattern with their own field subsets (a PATCH with only the fields it owns, then `saveExamEncrypted` of the merged record).
+- `routes/exam/new/+page.svelte` (108 lines): `ExamMetadataEditor` in create mode, then `goto('/exam/{id}?library=open')`.
+
+**Other steps**
+- `routes/exam/[id]/students/+page.svelte` (67 lines): `students/StudentImport.svelte` (file/paste via `lms/ClassListFile`, Artemis via `lms/ArtemisConnect`, gated `result_delivery`, plan → apply through `lib/students/classList.ts` `planImport`/`applyImport`) and `manual-grading/RosterManager` `listMode`. Uses a raw `<h1>`. `students/StudentEditDialog.svelte` props: `students` (rows to edit), `all`, `hasSubmission`, `onSaved`, `onClose`; edit-only today.
+- `routes/exam/[id]/verify/+page.svelte` (557 lines): `stats: McVerificationStats`, `failedItems`/`unsureItems` = `mcQueue(stats.items, "failed"|"unsure")`.
+- `routes/exam/[id]/stats/+page.svelte` (89 lines): `loadStats(id)` loads exam, exercises, submissions, students, scores, `computeExamResults(exam, exercises, submissions, scores)`; renders `stats/StatsPage.svelte` (props `exam`, `stats`, `loadError`, `totalMaxPoints`, `submissionCount`, `submissionIds`, CSV-export confirm props).
+- `lib/components/GradingKeyEditor.svelte`: `gradingKey` `$bindable` (`GradingKeyConfig`), mutates it deeply; persist `$state.snapshot`.
+- `routes/exam/[id]/manual/+page.svelte` → `manual-grading/ManualGradingContainer.svelte`: `activeTab: "roster"|"exercise-first"|"student-first"`, `Tabs` items incl. `{ id: "roster", label: grading.manual.container.tabRoster }`, `RosterManager` (not `listMode`) for roster, child views get `onOpenRoster={() => (activeTab = "roster")}`.
+- `manual-grading/PasteImportModal.svelte`: rows with `isNew` create students via `createStudentWithSubmission` (`lib/grading/scoreService.ts`), warning `grading.manual.paste.newStudentsWarning`.
+- `routes/exam/[id]/verify-item/+page.ts`: the 308 redirect pattern to copy for `/stats`.
+
+**QR stickers and sharing**
+- `lib/components/sharing/StickerSheetDialog.svelte` (150 lines): props `examId`, `loadExamPdf?`, keys-only mode, `onClose`. `onMount` reads `studentRepository.getByExamId` and maps `stickerRawOf(st)` to entries; **its `catch` sets `examEntries = []` (bug: a failed read looks like "no students")**. Options: output `stickers|copies` (copies only with `loadExamPdf`), stickers per student, used labels, "also print a personal key", "only key slips"; renders via `lib/qr/stickerSheet.ts`, `lib/qr/examCopies.ts`, `lib/pdf/labelKit.ts`.
+- `lib/components/sharing/ShareResultsDialog.svelte` (525 lines, one `Modal`): intro + hybrid note (`resultsAreLocal()`), outcome alert, bounce-wait progress, not-reached alert with "select students not reached", student table (checkbox, name, Mebis/Artemis id, e-mail, grading state, delivery badge, shared until, revoke; orphaned shares), channel radios (+ `DeliverySetup.svelte` inline), message language, factor radios (`sticker` factor shows "Print keys" → `onPrintKeys`), include code, include solution, validity 7/14/30/90, active links + revoke all (`ConfirmDialog`), footer: slips/Mebis run at once, e-mail/Artemis open `DeliveryPreview.svelte`. Logic lives in `lib/sharing/` (`channels.ts` `channelUnavailable`/`sendsPdf`/`factorUnavailable`, `shareService.ts` `loadShareOverview`/`shareResults`/`latestDeliveries`/`undelivered`, `delivery.ts`, `shareCrypto.ts`); API in `lib/api/resultShares.ts` (`listResultShares`, `listResultDeliveries`, `revokeAllResultShares`, …). Keep all of that; only the markup moves.
+- Capabilities: `featuresStore` from `lib/stores/capabilities.ts` (`$featuresStore.result_delivery`, `result_mail`, `result_bounces`).
+- Mebis export: option `{ key: "mebis" }` in `lib/components/exam/ExamExportModal.svelte`; `ExamExportPart` includes `'mebis'` and `addMebisFeedback` in `lib/export/examExport.ts`; `mebisFeedbackPath` stays (used by `lib/sharing/delivery.ts`).
+
+**Dashboard**
+- `routes/+page.svelte`: `computeExamStats` (`lib/utils/examStats.ts`, returns `Map<examId, { avgScore, count }>` where count = graded only); `handleDeleteDashboardExam` passes `examStatsMap.get(id)?.count` as `submissionCount` (**bug: ungraded scans are left out of the delete warning**); `handleDuplicateExam` goes to `/exam/{copy.id}`.
+- `lib/components/dashboard/ExamList.svelte`: `ExpandableCard` per exam; props `exams`, `examStatsMap`, `exerciseMap`, `logoMap`, `expandedExams`, `onToggleExam`, `onDelete`, `onPreview`, `onExport`, `onDuplicate`, `duplicatingId`; body `exam/ExamSummary.svelte`; step links from `examNavItems(exam.id, "")`; footer Preview, Export, Duplicate, Open, Delete.
+- `studentRepository.getAll(key)` exists (`lib/repositories/studentRepository.ts`) for the cards' student counts.
+
+**Docs, help, e2e touched later**
+- User guide (en `docs/user/`, de `docs/de/user/`, same names and `{#anchors}`): `workflow.md`, `exams.md` (`#header`, `#assemble`, `#grading-key`, `#layout`, `#typeset`, `#cut-corner`), `students.md` (`#student-data`, `#qr-stickers`, `#printed-copies`, `#personal-keys`, `#share-results`, `#link-protection`, `#email`, `#lms`, `#artemis`, `#delivery-preview`, `#delivery-status`, `#revoke`), `results.md` (`#distribution`, `#export`, …), `scanning.md`.
+- In-app help: `lib/help/topics.ts` (`docs: "exams#grading-key"`, `"students#share-results"`, `"results#export"`, …); `PageHeader helpTopic="…"`.
+- E2E: `frontend/e2e/helpers/nav.ts` (step-to-label map, `gotoExamTab` finds links in the landmark named `exam.sidebar.label`), `frontend/e2e/helpers/seed.ts` `mainRoutes`, `frontend/e2e/layout.spec.ts` (sidebar hidden < 1024, 64px rail at 1024–1279 and on grade, 164px from 1280), `frontend/e2e/functional.spec.ts` (`gotoExamTab` callers), fake API `frontend/tests/helpers/fakeApi.ts`.
 
 ## Checklist
 
 ### 1. Shared building blocks
-- [ ] `lib/exam/examProgress.ts`: pure function from `{ exercises, students, submissions, omrReady, mcOpen?, shares? }` to a status per `ExamStep`, plus `nextStep(current)`; unit test in `frontend/tests/`.
-- [ ] `layout/examNavItems.ts`: new step list and routes (overview, content, students, print, scan, verify, grade, manual, results) with numbers; `lib/utils/links.ts` hrefs (`contentHref`, `printHref`, `resultsHref`, `shareHref`; drop `statsHref` after moving callers).
-- [ ] `stores/shell.ts` `ExamNavContext` gains `progress`; `routes/exam/[id]/+layout.svelte` loads students (`studentRepository.getByExamId`), OMR template presence and, with `result_delivery`, `listResultDeliveries` (`latestDeliveries`/`undelivered`) after each navigation; the verify page publishes its open count.
-- [ ] `ExamSidebar` and `NavDrawer`: number, icon, label, status badge (widen the open sidebar if needed and update `e2e/layout.spec.ts`).
-- [ ] Action icons: check `lib/` for an existing verb-to-icon map; else add `components/ui/actionIcons.ts` (edit, delete, export, duplicate, add, external link, download, print, send); add it to the reuse map in `frontend/CLAUDE.md`.
-- [ ] `exam/ExamStepFooter.svelte`: "Next: <step>" (`Button href`, same tab) from `examProgress`/`examNavItems`.
+- [ ] **1.1 `lib/exam/examProgress.ts`** (new, pure): `type StepStatus = { count?: number; total?: number; done?: boolean; alert?: number }`; `examProgress(input): Partial<Record<ExamStep, StepStatus>>` with `input = { exerciseCount, studentCount?, submissionCount?, gradedCount?, omrReady?, mcOpen?, sharedCount?, notReached? }` (absent = unknown → no badge); `nextStep(step): ExamStep | null` (following row of `STEPS`); `continueStep(progress)` (first of content → students → print → scan → grade → results that is not done; "done" rules: content has ≥1 exercise, print `omrReady`, scan ≥1 submission, grade graded = submissions). Regression test `frontend/tests/examProgress.test.ts`.
+- [ ] **1.2 Steps and links**: in `examNavItems.ts` set `ExamStep = 'overview'|'content'|'students'|'print'|'scan'|'verify'|'grade'|'manual'|'results'`, add `number` (null for overview) and the new suffixes (`/content`, `/print`, `/results`); "results" active for `/results` and `/results/share`. In `lib/utils/links.ts` add `contentHref`, `printHref`, `resultsHref`, `shareHref`; move every `statsHref` caller to `resultsHref` and delete `statsHref`. Labels `exam.sidebar.{overview,content,students,print,scan,verify,grade,manual,results}` (de/en), delete `exam.sidebar.setup`/`stats`.
+- [ ] **1.3 Context with progress**: `ExamNavContext` gains `progress: Partial<Record<ExamStep, StepStatus>>` and `setMcOpen(n)`-style writer (or a field the verify page sets via `examNavContext.update`). In `routes/exam/[id]/+layout.svelte` `loadExamHeaderData` additionally reads exam exercises count (`exam` record's links or `loadExamExercisesEncrypted`), `studentRepository.getByExamId`, OMR template presence (`loadOmrTemplateEncrypted` → `!!payload`), and with `$featuresStore.result_delivery` `listResultShares` + `listResultDeliveries` (`latestDeliveries`/`undelivered`); each read in its own try so one failure drops only its badge. The verify page writes `failedItems.length + unsureItems.length` into the context after computing.
+- [ ] **1.4 Sidebar and drawer**: `ExamSidebar` and `NavDrawer` render number (e.g. a small `1` before the label, hidden in the 64px rail where the icon stays), icon, label and the badge from `progress` (`count`, `count/total`, check icon for `done`, danger badge for `alert`); widen the open sidebar if needed and update the width check in `frontend/e2e/layout.spec.ts`.
+- [ ] **1.5 Action icons**: add `lib/components/ui/actionIcons.ts` exporting one FontAwesome icon per verb: `edit: faPen`, `delete: faTrash`, `remove: faXmark`, `export: faFileZipper`, `duplicate: faCopy`, `add: faPlus`, `externalLink: faArrowUpRightFromSquare`, `download: faDownload`, `print: faPrint`, `qr: faQrcode`, `send: faPaperPlane`, `share: faShareFromSquare`, `more: faEllipsisVertical`, `next: faArrowRight`, `compile: faRotate` (re-export from `ui/index.ts`); add it to the reuse map in `frontend/CLAUDE.md` ("button icons through `ui/actionIcons`").
+- [ ] **1.6 `exam/ExamStepFooter.svelte`** (new): props `examId`, `step`; renders a right-aligned `Button href` "Next: <label>" with `next` icon from `nextStep(step)`; nothing when null. Same-tab link (`docs/dev/ui_shell.md`: page-flow navigation uses `Button href`).
 
-### 2. Overview and Exam pages (split the 853-line `routes/exam/[id]/+page.svelte`)
-- [ ] `lib/exam/omrTemplate.ts`: OMR prepare/stale logic out of the page (`checkOmrTemplateStatus`, `handlePrepareOmr`, `computeExercisesHash`), usable by the Exam and Print pages.
-- [ ] `exam/ExamPreviewPanel.svelte`: compile card (compile, `DualPdfPreview`, layout report, notices, `CompileErrorHelp`, OMR status); keep `layoutEditSeq`, `loadSeq` and `restoreCachedPreviews`.
-- [ ] `exam/ExamLayoutSettings.svelte`: layout fields moved out of `ExamMetadataEditor` (info text, name line, cut corner, MC hint, `ExamLogoField`, `ExamPackagesField`); saves through `saveExamEncrypted` merged onto the stored record (never sends links or MC groups); dirty guard.
-- [ ] `routes/exam/[id]/content/+page.svelte`: data via `lib/exam/loadExam.ts`, exercise list, picker (`?library=open`), editor modal, `buildExamLinkPayload()` (stays the single builder; update its path in `frontend/CLAUDE.md`), tabs and preview; under ~600 lines.
-- [ ] `ExamMetadataEditor`/`ExamMetadataEditDialog`: metadata and retention only; success `alert()` becomes an inline notice; `/exam/new` redirects to `/content?library=open`.
-- [ ] `routes/exam/[id]/+page.svelte` becomes the Overview (header, actions with `ui/Menu`, Details and Key figures cards, deletes through `ConfirmDialog`, "Continue"); delete `ExamActionBar.svelte` and `ExamMetadata.svelte` once unused.
+### 2. Overview and Exam pages (split the 853-line page)
+- [ ] **2.1 OMR status helper**: move `checkOmrTemplateStatus` into `lib/grading/omrTemplatePrep.ts` as `omrTemplateStatus({ exam, exercises, libraryExercises, mcGroups, examItems, key }): Promise<'none'|'ready'|'stale'>` (same logic: no MC exercises → none; no stored payload → none; hash match → ready, else stale).
+- [ ] **2.2 `exam/ExamPreviewPanel.svelte`** (new): the compile `Card` markup and its script (`restoreCachedPreviews`, `handlePreviewExam`, preview URLs, `previewOutdated`, `compileLog`, `CompileErrorHelp`, `DualPdfPreview` with `LayoutReportButton`, OMR stale alert with refresh, `handlePrepareOmr`). Props: the exam sources (`exam`, `exercises`, `libraryExercises`, `mcGroups`, `examItems`) and a `layoutVersion` number the page bumps on every layout edit (replaces `afterLayoutChange`/`layoutEditSeq` there); exported `refresh()` if the page needs it. Keep the `loadSeq`/`layoutEditSeq` guards inside.
+- [ ] **2.3 `exam/ExamLayoutSettings.svelte`** (new): moves `editInfoText` (its textarea as today), `editNameLine`, `editMcCorrectionHint`, the cut-corner hint/link, `ExamLogoField`, `ExamPackagesField` out of `ExamMetadataEditor`. Save: validate packages (`entriesError`), `api.patch('/exams/{id}', { info_text, name_line, mc_correction_hint, latex_packages })` when authenticated, `saveExamEncrypted({...exam, infoText, nameLine, mcCorrectionHint, latexPackages}, key)`, `setExamLogo` when changed; inline success/error `Alert`; `onSaved(updated)` so the page bumps `layoutVersion`. Dirty flag for the page's `beforeNavigate` confirm (`ui/ConfirmDialog`).
+- [ ] **2.4 `routes/exam/[id]/content/+page.svelte`** (new): moves data loading (`loadExam`, `loadTarget`, `loadSeq`), the exercise functions incl. `buildExamLinkPayload()` and `saveExerciseLinks`, `ExerciseList`, `ExamExercisePicker` (+ `?library=open`), `ExerciseEditorModal`; tabs as in "Decisions"; `ExamStepFooter step="content"`. Stay under ~600 lines (move pure helpers such as `computeExamItems` to `lib/exam/` if needed). Update the `buildExamLinkPayload()` path in `frontend/CLAUDE.md` ("Exams and MC").
+- [ ] **2.5 Metadata dialog**: remove layout fields and `GradingKeyEditor` from `ExamMetadataEditor`/`ExamMetadataEditDialog` (PATCH and merged record only carry metadata fields: title, testart, grade, klasse, datum, nr, fach, topic, lehrernachname, retention_until); replace the `alert()`s with the `Modal` `error` prop and an `onSaved` callback the Overview shows as an inline notice. Create mode: `/exam/new` keeps the grading-key default as today (the editor's default `linear_50` stays in the created record) and redirects to `/exam/{id}/content?library=open`.
+- [ ] **2.6 Overview** (`routes/exam/[id]/+page.svelte` rewritten, small): as in "Decisions"; reuse `handleDeleteExam`, `handleDuplicateExam`, `handleDeleteAllSubmissions` with `ConfirmDialog` (keep `newTrashGroup()` and the `TRASH_DAYS` wording); `ExamStepFooter step="overview"`. Delete `exam/ExamActionBar.svelte` and `exam/ExamMetadata.svelte` and their i18n keys (`exam.actionBar.*`, `exam.metadata.*` that went unused). Remove `ShareResultsDialog`/`StickerSheetDialog` from this page.
+- [ ] **2.7 Exam layout heading**: `routes/exam/[id]/+layout.svelte` keeps the exam title `h2`; pages use `PageHeader` with the step label (Students page: replace its raw `<h1>` with `PageHeader`).
 
 ### 3. Print step
-- [ ] `sharing/StickerSheetForm.svelte` extracted from `StickerSheetDialog` (the dialog wraps it).
-- [ ] Fix: a failed student read shows an error, not "no students yet" (regression test).
-- [ ] Fix: "onto copies" disabled with its reason for results-only exams (`codeWithheld`) and without a compiled PDF; helper plus regression test.
-- [ ] `routes/exam/[id]/print/+page.svelte`: exam PDFs, OMR status and refresh, `StickerSheetForm` inline, footer.
+- [ ] **3.1 `sharing/StickerSheetForm.svelte`** (new): the body and script of `StickerSheetDialog` (options, `download()`, progress, error), props `examId`, `loadExamPdf?`, `copiesUnavailable?: string` (reason), `keysOnly?`; `StickerSheetDialog` becomes a `Modal` wrapping it (used by the Share page's "Print keys").
+- [ ] **3.2 Fix swallowed read**: the form's student read shows `Alert severity="danger"` with the error (new key `sharing.stickers.loadFailed`) instead of `examEntries = []`. Regression test: extract the read into a small function in `lib/sharing/` (e.g. `stickerEntries(students)` plus a loader that rethrows) and test that a rejecting repository is reported, not mapped to `[]`.
+- [ ] **3.3 Fix copies on results-only exams**: helper `copiesUnavailable(exercises): string | null` (in `lib/qr/examCopies.ts` or `lib/sharing/`) returns the reason key when any exercise has `codeWithheld`; the form disables the "onto copies" radio with the reason. Regression test.
+- [ ] **3.4 `routes/exam/[id]/print/+page.svelte`** (new): loads like the stats route (`loadExamCompileContext`); card "Exam PDFs" with download buttons for task and solution (use `compileExamPreview`, which hits the compile cache; turn bytes into a URL with `pdfBytesToUrl` from `lib/latex/pdfPreview` and offer them like `DualPdfPreview` does: `Button href={url} download="<title>.pdf"`), OMR status via `omrTemplateStatus` with refresh (`prepareOmrTemplate`); card "QR codes" with `StickerSheetForm` (`loadExamPdf` = the `studentSheetPdf` logic moved here). `PageHeader helpTopic` as the Setup page had; `ExamStepFooter step="print"`.
 
 ### 4. Results step
-- [ ] Move `routes/exam/[id]/stats` to `routes/exam/[id]/results` with `results/+layout.svelte` (`ui/Tabs` href); `stats/+page.ts` 308 redirect.
-- [ ] `StatsPage`: grading-key panel (`GradingKeyEditor`, live recompute, save merged onto the exam).
-- [ ] Split `ShareResultsDialog` into `sharing/ShareStudents`, `ShareChannel` (with `DeliverySetup`), `ShareOptions` and the existing `DeliveryPreview`; `routes/exam/[id]/results/share/+page.svelte` with numbered sections, sticky footer, delivery status, "Revoke all"; sticker dialog on top keeps the state; delete `ShareResultsDialog.svelte`.
-- [ ] Drop Mebis from the export: `ExamExportModal` option, `export/examExport.ts` mebis code, i18n keys, `docs/{,de/}user/results.md#export`, `docs/dev/result_sharing.md`.
-- [ ] Artemis import reason text (own i18n key, en and de).
-- [ ] Fix outdated "id from the QR sticker" texts: `sharing.channels.mebis.missing`, `sharing.channels.artemis.missing` (en, de), `docs/{,de/}user/students.md`.
+- [ ] **4.1 Routes**: move `routes/exam/[id]/stats/+page.svelte` to `routes/exam/[id]/results/+page.svelte`; add `routes/exam/[id]/results/+layout.svelte` with `Tabs` items `[{ id: "stats", href: resultsHref }, { id: "share", href: shareHref }]`; add `routes/exam/[id]/stats/+page.ts` with a 308 redirect to `/exam/[id]/results` (copy `verify-item/+page.ts`).
+- [ ] **4.2 Grading key on Statistics**: `StatsPage` gets a card with `GradingKeyEditor` bound to a `$state` copy of `exam.gradingKey`; on change recompute (`computeExamResults` with the edited key) live; "Save" does `api.patch('/exams/{id}', { grading_key })` + `saveExamEncrypted({...exam, gradingKey: $state.snapshot(edit)})`.
+- [ ] **4.3 Share sections**: split `ShareResultsDialog.svelte` into `sharing/ShareStudents.svelte` (table and "select not reached"), `sharing/ShareChannel.svelte` (channel radios, `DeliverySetup`, message language), `sharing/ShareOptions.svelte` (factor, include code, solution, validity) and keep `DeliveryPreview.svelte`; state stays in the page and is passed with `$bindable` props.
+- [ ] **4.4 `routes/exam/[id]/results/share/+page.svelte`** (new): numbered section cards 1–4, sticky footer "Preview & send (n)" with the dialog's disabled rules, outcome and bounce-wait alerts, delivery status and "Revoke all"; "Print keys" opens `StickerSheetDialog` (keys mode) on top without unmounting anything. Delete `ShareResultsDialog.svelte`. Read `docs/dev/result_sharing.md` first and update its UI description.
+- [ ] **4.5 Drop Mebis from the export**: remove the `mebis` option from `ExamExportModal`, `'mebis'` from `ExamExportPart`, `addMebisFeedback` and its warnings from `lib/export/examExport.ts` (keep `mebisFeedbackPath`), the i18n keys `export.exam.options.mebis`, `mebisHint`, `warnings.noMebisId`, `steps.mebis`; docs `docs/{,de/}user/results.md#export`, `docs/dev/result_sharing.md` (Mebis section says "also offered in the export").
+- [ ] **4.6 Artemis import reason**: in `students/StudentImport.svelte` the greyed-out Artemis source shows a new key `lms.import.artemisDisabled` ("Die Artemis-Anbindung ist von der Administration nicht freigeschaltet." / "The Artemis connection is not enabled by the admin.").
+- [ ] **4.7 Outdated sticker texts**: `sharing.channels.mebis.missing` and `sharing.channels.artemis.missing` (de/en) say "no Mebis/Artemis id (from the class list or the QR sticker)"; same in `docs/{,de/}user/students.md` (around `#lms`).
 
 ### 5. Manual grading and Students
-- [ ] `ManualGradingContainer`: `SHOW_ROSTER_TAB = false` (comment: delete in a follow-up once approved on the preview) and a link to the Students page.
-- [ ] `PasteImportModal`: with the flag off, unknown names are listed as "not on the Students page" and skipped.
-- [ ] Students page: "Add student" through `StudentEditDialog` (create mode) and `lib/students/classList.ts`, so the row gets a sticker payload.
+- [ ] **5.1 Roster flag**: in `ManualGradingContainer.svelte` add `const SHOW_ROSTER_TAB = false; // Hidden for review on the preview (issue #212); delete the roster tab and its code once approved.` Filter the roster item out of `Tabs`, and replace `onOpenRoster` targets with a link to `studentsHref(examId)`.
+- [ ] **5.2 Paste import**: pass the flag (or import it from a tiny shared module) to `PasteImportModal`; with it off, rows with `isNew` are listed as "not on the Students page" (new key) and skipped instead of `createStudentWithSubmission`.
+- [ ] **5.3 Add student**: extend `StudentEditDialog` with a create mode (`students: []` + `create: true`, or a `mode` prop) that saves through `lib/students/classList.ts` (`applyImport` of a one-row plan, so the row gets the sticker payload from `listedStudent`); a "Add student" button (icon `add`) on the Students page.
 
 ### 6. Exam-list cards
-- [ ] `dashboard/ExamList.svelte`/`ExamSummary`: progress row from `examProgress`, "Continue: <step>", "Open overview", ⋯ menu (Preview, Export, Duplicate, Delete); drop the step links.
-- [ ] Fix: `routes/+page.svelte` passes the count of all submissions (not only graded) to `DeleteWithUsageModal`; `examStats` gets `submissionCount`; regression test.
+- [ ] **6.1 Cards**: `ExamList.svelte` gets a `progressMap: Map<examId, progress>` from `routes/+page.svelte` (`examProgress` over the submissions it already loads, `studentRepository.getAll(key)` once for student counts, exercise counts from the exam record's links); replace the step links with the progress row (`Badge`s with step icons), "Continue: <step>" (primary, `continueStep`), "Open overview", and a ⋯ `Menu` with Preview, Export, Duplicate, Delete.
+- [ ] **6.2 Fix delete warning**: `computeExamStats` also returns `submissionCount` (all submissions of the exam); `handleDeleteDashboardExam` passes it. Regression test in `frontend/tests/examStats.test.ts`.
 
 ### 7. Icons, i18n, docs, e2e
-- [ ] Every button on the exam pages has an icon from the action-icon map; "+" glyph removed from "Add exercises"; delete icons unified.
-- [ ] i18n en/de for all new keys; delete orphaned keys (`exam.actionBar.*`, the Setup label, mebis export keys).
-- [ ] `docs/dev/ui_shell.md` (exam steps), `frontend/CLAUDE.md` reuse map (`ExamPreviewPanel`, `ExamLayoutSettings`, `examProgress`, `StickerSheetForm`, share sections, action icons).
-- [ ] User guide en and de (same file names and anchors): `workflow.md`, `exams.md`, `students.md`, `results.md`, `scanning.md`; in-app help `lib/help/topics.ts` anchors; note in the PR that screenshots need a refresh from the demo instance.
-- [ ] E2E: `e2e/helpers/nav.ts` step map, `e2e/helpers/seed.ts` `mainRoutes` (add content, print, results, results/share), `layout.spec.ts` sidebar checks, `functional.spec.ts` `gotoExamTab` callers, `tests/helpers/fakeApi.ts` for new reads.
+- [ ] **7.1 Icons everywhere on exam pages**: every button on the exam pages and their dialogs gets an icon from `ui/actionIcons` (known gaps: compile and OMR refresh, verify header buttons, the 7 buttons of `scanning/ScannedSubmissionsTable`, metadata save/cancel, stats export, `verify/McDetectionSettingsPanel`, `verify/McRerunDialog`, `students/StudentEditDialog`); the "Add exercises" button in `exam/ExerciseList.svelte` uses `exam.actionBar.addExercises` ("+ Add Exercises"): move the key to `exam.exerciseList.addExercises` without the "+" (de/en) and use the `add` icon; delete icons: `delete` for destructive deletes, `remove` only for "take out of the list".
+- [ ] **7.2 i18n cleanup**: every new key in de and en; `git grep` each removed key namespace (`exam.actionBar`, `exam.sidebar.setup`, `exam.sidebar.stats`, `exam.metadata`, mebis export) and delete orphans (keep `exam.actionBar.addExercises` only until 7.1 moved it).
+- [ ] **7.3 Developer docs**: `docs/dev/ui_shell.md` (the exam-steps paragraph: new step list, numbers, status, `ExamStepFooter`); `frontend/CLAUDE.md` reuse map (`ExamPreviewPanel`, `ExamLayoutSettings`, `examProgress`, `StickerSheetForm`, the share sections, `ui/actionIcons`; the "routes/exam/new only creates" line now says the content page; the sticker/share dialog wording).
+- [ ] **7.4 User guide** (en and de, same anchors; German is the default): `workflow.md` (new step order), `exams.md` (Overview vs Exam page; grading key moves to `results.md`, keep the `#grading-key` anchor id there and update links), `students.md` (Print step for stickers, Share page instead of the dialog), `results.md` (Statistics/Share tabs, no Mebis in export), `scanning.md` if it names the old buttons. Update `lib/help/topics.ts` `docs:` anchors that moved. Mention in the PR that screenshots in `docs/screenshots/` need a refresh from `docs/demo-instance/`.
+- [ ] **7.5 E2E**: `e2e/helpers/nav.ts` step map and labels; `e2e/helpers/seed.ts` `mainRoutes` (add `/content`, `/print`, `/results`, `/results/share`; drop `/stats`); `layout.spec.ts` sidebar and content-width checks (route list `''`, `/content`, `/scan`, `/verify`, `/manual`, `/results`); `functional.spec.ts` `gotoExamTab` callers (setup actions now live on `/content` or the Overview); extend `tests/helpers/fakeApi.ts` for any read the fake cannot answer.
 
 ### 8. Finish
-- [ ] `git grep` for removed names (`ExamActionBar`, `ShareResultsDialog`, `statsHref`, mebis export keys): nothing orphaned.
-- [ ] `npx svelte-check --threshold error`, `npm run lint`, `cd docs && npm run docs:build` clean.
-- [ ] PR out of draft, description lists what to check on the preview: Overview, Exam and Print on phone, iPad portrait and 1920×1080; the "Next" chain from Overview to Results; `/stats` redirect; Share → Print keys keeps the selection; Roster tab hidden.
+- [ ] **8.1** `git grep -n "ExamActionBar\|ShareResultsDialog\|statsHref\|ExamMetadata\b\|exam.sidebar.setup\|options.mebis"` finds nothing.
+- [ ] **8.2** `npx svelte-check --threshold error`, `npm run lint` (frontend) and `npm run docs:build` (docs) are clean.
+- [ ] **8.3** Mark the PR ready and update its description with the preview checks: Overview, Exam and Print on phone, iPad portrait and 1920×1080; the "Next" chain from Overview to Results; `/stats` redirect; Share → Print keys keeps the selection; Roster tab hidden; screenshots to refresh.
 
 ## Progress notes
 
-- 2026-11-03: design agreed, checklist written. No code changes yet.
+- 2026-11-03: design agreed, code map and checklist written. No code changes yet; start at 1.1.
