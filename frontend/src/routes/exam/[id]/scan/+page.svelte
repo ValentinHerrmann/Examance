@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
   import { newTrashGroup } from "#lib/trash/group";
   import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { randomCode } from "#lib/utils/randomCode";
@@ -755,6 +756,7 @@
       onDeleteAll={handleDeleteAllScans}
     />
   {/if}
+  <ExamStepFooter {examId} step="scan" />
 </PageShell>
 
 <ScanPreviewModal

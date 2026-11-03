@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { onMount } from "svelte";
@@ -31,4 +32,5 @@
   {#if initialized && examId}
     <ManualGradingContainer {examId} />
   {/if}
+  <ExamStepFooter {examId} step="manual" />
 </PageShell>

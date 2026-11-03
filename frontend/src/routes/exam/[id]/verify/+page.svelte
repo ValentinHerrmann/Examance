@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
   import { goto, afterNavigate } from "$app/navigation";
   import { page } from "$app/state";
   import { onMount, untrack } from "svelte";
@@ -562,4 +563,5 @@
       onCancel={() => (showRerunDialog = false)}
     />
   {/if}
+  <ExamStepFooter {examId} step="verify" />
 </PageShell>
