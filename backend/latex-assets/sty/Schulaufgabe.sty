@@ -228,8 +228,8 @@
 \ExecuteOptions{roman}
 \ProcessOptions\relax
 
-% With the corner tab the header row starts at 10.5mm, so on every page the body (about 21.1mm) begins below the corner zone (20.4mm deep at the text margin).
-\ifthenelse{\boolean{Schnitt}}{\geometry{top=10.5mm}}{}
+% With the corner tab the text reaches the markers' outer edges (5mm) and the header row starts at 11.9mm, so on every page the body (22.4mm) begins below the corner zone (21.8mm deep at the text edge).
+\ifthenelse{\boolean{Schnitt}}{\geometry{top=11.9mm,left=5mm,right=5mm}}{}
 
 % ==============================================================================
 % 6. Name Box (Namenszeile) & Header Setup
@@ -249,9 +249,9 @@
             % Where printed student copies stamp the QR code (frontend lib/qr/examCopies.ts).
             \OmrLink{3.5cm}{3.5cm}{omr://__qr__}\dashbox{0.2}(3.5,3.5){
                 \parbox{3.5cm}{
-                    % Printed copies put the code here, so the box stays empty under it.
-                    \ifthenelse{\boolean{Schnitt}}{}{\centering QR Code}
-                    \ifthenelse{\boolean{Namensfeld}\OR\boolean{Schnitt}}{}{\\
+                    % Printed copies blank this text under their code; spare plain copies keep it for a sticker.
+                    \centering QR Code
+                    \ifthenelse{\boolean{Namensfeld}}{}{\\
                     \normalsize \vspace{0.8cm}\LoesungLuecke{}{2.5cm}\\$\uparrow$~Deine Initialen~$\uparrow$\\
                     (falls QR-Code abfällt)}
                 }
@@ -293,6 +293,8 @@
 % The output routine typesets the header inside whatever group the page broke in, so a task's local
 % settings (e.g. \arraystretch) used to stretch the header (issue #137). Every header cell resets them.
 \newlength{\SA@headindent}
+% Distance of the header cells from the head edge, so they keep 20mm from the paper edge either way.
+\newlength{\SA@headgap}
 % Page 1's header with the corner tab: logo, the title in the room up to the date (scaled down only if it does not fit), date and class.
 \newsavebox{\SA@logobox}
 \newsavebox{\SA@datebox}
@@ -300,8 +302,8 @@
 \newcommand{\SA@firsthead}{%
     \sbox{\SA@logobox}{\ExamLogo}%
     \sbox{\SA@datebox}{\begin{tabular}[b]{@{}r@{}}\Datumtext \\ Klasse \Klassetext \ (\Lehrernachnametext)\end{tabular}}%
-    \setlength{\SA@titlewidth}{\dimexpr\headwidth-1cm-\wd\SA@logobox-\wd\SA@datebox-\SA@headindent-8mm\relax}%
-    \makebox[\headwidth][l]{\hspace{1cm}\usebox{\SA@logobox}\hfill\adjustbox{max width=\SA@titlewidth}{\Large \Nrtext. \Testarttesttext \ in \Fachtext}\hfill\usebox{\SA@datebox}\hspace*{\SA@headindent}}%
+    \setlength{\SA@titlewidth}{\dimexpr\headwidth-\SA@headgap-\wd\SA@logobox-\wd\SA@datebox-\SA@headindent-8mm\relax}%
+    \makebox[\headwidth][l]{\hspace{\SA@headgap}\usebox{\SA@logobox}\hfill\adjustbox{max width=\SA@titlewidth}{\Large \Nrtext. \Testarttesttext \ in \Fachtext}\hfill\usebox{\SA@datebox}\hspace*{\SA@headindent}}%
 }
 \newcommand{\SA@headreset}{%
     \normalfont\normalsize\normalcolor
@@ -310,18 +312,18 @@
 
 % Setup headers and footers at document start
 \AtBeginDocument{
-    \fancyheadoffset[L]{5mm}
-    \fancyheadoffset[R]{5mm}
-    % With the corner tab the header mirrors on even pages: the running head sits on the uncut side at the usual 1cm. Page 1 is one line
-    % (\SA@firsthead) whose date keeps 57mm clear of the cut corner (outside the zone and the moved fiducial).
-    \ifthenelse{\boolean{Schnitt}}{\setlength{\SA@headindent}{5.2cm}}{\setlength{\SA@headindent}{1cm}}%
+    % The header keeps its 5mm edge distance: with the corner tab the text itself is that wide.
+    \ifthenelse{\boolean{Schnitt}}{\fancyheadoffset[L]{0mm}\fancyheadoffset[R]{0mm}}{\fancyheadoffset[L]{5mm}\fancyheadoffset[R]{5mm}}%
+    % With the corner tab the header mirrors on even pages: the running head sits on the uncut side, 20mm from the paper edge like without the option. Page 1 is one line
+    % (\SA@firsthead) whose date keeps 62mm from the cut side (outside the zone and 8mm clear of the moved fiducial).
+    \ifthenelse{\boolean{Schnitt}}{\setlength{\SA@headindent}{5.7cm}\setlength{\SA@headgap}{1.5cm}}{\setlength{\SA@headindent}{1cm}\setlength{\SA@headgap}{1cm}}%
     % The head rule then spans only the text width: its ends at 5mm would cross the zone's tip. \nointerlineskip keeps it where fancyhdr's plain \hrule sits.
     \ifthenelse{\boolean{Schnitt}}{\renewcommand{\headrule}{\nointerlineskip\hbox to\headwidth{\hskip5mm\leaders\hrule height\headrulewidth\hfill\hskip5mm}\vskip-\headrulewidth}}{}%
     \lhead{\SA@headreset\ifnum\thepage=1
     % No space after \SA@firsthead: it fills the whole head width, and a trailing space would wrap the cell and push the header down.
     \ifthenelse{\boolean{Schnitt}}{\SA@firsthead}{{\hspace{1cm}\ExamLogo} }%
     \else
-    \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{}{\hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext}%Name:
+    \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{}{\hspace{\SA@headgap}\Nrtext. \Testarttesttext \ in \Fachtext}%Name:
     \fi}
     \rhead{\SA@headreset
     \ifnum\thepage=1
@@ -334,7 +336,7 @@
     }
     }%
     \else
-    \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{\Nrtext. \Testarttesttext \ in \Fachtext\hspace*{1cm}}{}%
+    \ifthenelse{\boolean{Schnitt}\AND\NOT\isodd{\value{page}}}{\Nrtext. \Testarttesttext \ in \Fachtext\hspace*{\SA@headgap}}{}%
     \fi
     }
     \chead{\SA@headreset

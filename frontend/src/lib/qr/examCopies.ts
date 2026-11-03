@@ -102,6 +102,9 @@ async function addCopy(lib: PdfLib, out: PDFDocument, src: PDFDocument, fonts: L
   const first = pages[0];
   const [x0, y0, x1, y1] = qrBox;
   const size = Math.min(QR_SIZE, x1 - x0 - 0.3 * CM, y1 - y0 - 0.3 * CM);
+  // The box's sticker instructions stay for spare plain copies; on a personalised copy they would show through the code.
+  const pad = 0.1 * CM;
+  first.drawRectangle({ x: x0 + pad, y: y0 + pad, width: x1 - x0 - 2 * pad, height: y1 - y0 - 2 * pad, color: lib.rgb(1, 1, 1) });
   drawQr(lib, first, entry.payload, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size);
   drawCornerTab(lib, first, fonts, entry, await personalKey(entry.payload));
   // Copies are printed long-edge duplex or as booklets and cut as one stack: each page shows its outer corner's line, and an odd copy gets a blank back so the next starts on a new sheet.
