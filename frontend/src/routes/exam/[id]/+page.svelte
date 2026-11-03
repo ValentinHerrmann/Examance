@@ -1,607 +1,134 @@
 <script lang="ts">
-  import { newTrashGroup } from "#lib/trash/group";
-  import { TRASH_DAYS } from "#lib/trash/localTrash";
+  // The exam's Overview (issue #212): its details, key figures, the exam-wide actions and "Continue" into the next unfinished step. Navigation lives in the sidebar only.
   import { page } from "$app/state";
-  import { onDestroy, untrack } from "svelte";
+  import { untrack } from "svelte";
   import { browser } from "$app/env";
-  import { db } from "#lib/db/db";
-  import type { ExamRecord, ExerciseRecord, SubmissionRecord, ExtraNotes } from "#lib/db/schema";
-  import { saveExamEncrypted, loadOmrTemplateEncrypted, type McGroup } from "#lib/db/dbEncryption";
-  import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
-  import {
-    computeOmrTemplateHash,
-    loadExamCompileContext,
-    prepareOmrTemplate,
-    type ExamItemRef,
-  } from "#lib/grading/omrTemplatePrep";
-  import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
-  import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
-  import { prunePageBreaks, togglePageBreak } from "#lib/exam/pageBreaks";
-  import { compileExamPreview, getCurrentExamPreview } from "#lib/exam/examPreview";
-  import { loadExamData, loadExamSubmissions, loadLibraryExercises, type ExamLoadTarget } from "#lib/exam/loadExam";
-  import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
-  import { getLatestForSlot } from "#lib/latex/compileCache";
-  import { api } from "#lib/api/client";
+  import { goto } from "$app/navigation";
+  import { get } from "svelte/store";
+  import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
+  import { loadExamEncrypted, loadExamExercisesEncrypted } from "#lib/db/dbEncryption";
+  import { loadExamSubmissions } from "#lib/exam/loadExam";
+  import { continueStep } from "#lib/exam/examProgress";
+  import { EXAM_STEPS, examStepHref } from "#lib/components/layout/examNavItems";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { examRepository } from "#lib/repositories/examRepository";
-  import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
-  import { get } from "svelte/store";
-  import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
-  import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
-  import { examReportFiles } from "#lib/layout-report/collect";
-  import { goto } from "$app/navigation";
-  import { takeUrlParam } from "#lib/utils/urlToken";
-  import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
-  import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
-  import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
-  import ShareResultsDialog from "#lib/components/sharing/ShareResultsDialog.svelte";
-  import StickerSheetDialog from "#lib/components/sharing/StickerSheetDialog.svelte";
-  import ExerciseList from "#lib/components/exam/ExerciseList.svelte";
+  import { newTrashGroup } from "#lib/trash/group";
+  import { TRASH_DAYS } from "#lib/trash/localTrash";
+  import { sessionStore, awaitSessionReady } from "#lib/stores/session";
+  import { examNavContext } from "#lib/stores/shell";
+  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { computeExamStats } from "#lib/utils/examStats";
+  import { fmt } from "#lib/utils/format";
   import ExamMetadataEditDialog from "#lib/components/exam/ExamMetadataEditDialog.svelte";
-  import ExamExercisePicker from "#lib/components/exam/ExamExercisePicker.svelte";
-  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
-  import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Card, PageHeader, PageShell } from "#lib/components/ui";
+  import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
+  import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
+  import { t, translate, type TranslationKey } from "#lib/i18n";
+  import { Alert, Button, Card, ConfirmDialog, Menu, MenuItem, PageHeader, PageShell, actionIcons } from "#lib/components/ui";
 
   let examId = $derived(page.params.id || "");
 
-  // Raw: these records go to Dexie, encryption, the API and buildExamLinkPayload(); update immutably.
-  let exam: ExamRecord | null = $state.raw(null);
+  let exam = $state.raw<ExamRecord | null>(null);
   let exercises: ExerciseRecord[] = $state.raw([]);
-  let libraryExercises: ExerciseRecord[] = $state.raw([]);
-  let mcGroups: McGroup[] = $state.raw([]);
-  let examItems: ExamItemRef[] = $state.raw([]);
   let submissions: SubmissionRecord[] = $state.raw([]);
   // Set when the submission read failed: counts show "–" and "delete all" is off, never "no submissions".
   let submissionsLoadError = $state("");
+  let loadError = $state("");
+  let notice = $state("");
+  let actionError = $state("");
 
+  let metadataDialog: ReturnType<typeof ExamMetadataEditDialog> | undefined = $state();
   let exportOpen = $state(false);
-  let shareOpen = $state(false);
-  /** null = closed; "keys" = only the key slips, opened from the share dialog. */
-  let stickers: "all" | "keys" | null = $state(null);
+  let confirming: "exam" | "submissions" | null = $state(null);
+  let busy = $state(false);
+  let isDuplicating = $state(false);
 
-  let isPreviewLoading = $state(false);
-  let compileNotice = $state("");
-  let errorMsg = $state("");
-  // The full LaTeX log of the compile that produced `message` (shown only while errorMsg is that message).
-  let compileLog = $state<{ message: string; failure: CompileFailure } | null>(null);
-  function rememberCompileLog(message: string, err: unknown) {
-    const failure = compileFailure(err);
-    compileLog = failure ? { message, failure } : null;
-  }
-
-  let isPreparingOmr = $state(false);
-  let omrPrepareMessage = $state("");
-  let omrTemplateStatus: "none" | "ready" | "stale" | "checking" = $state("checking");
-
-  let previewPdfUrl: string | null = $state(null);
-  let previewSolutionPdfUrl: string | null = $state(null);
-  let showAngabePreview = $state(true);
-  let showLoesungPreview = $state(false);
-  /** The shown preview no longer matches the sources; never recompiled automatically, the user presses compile (issue #197). */
-  let previewOutdated = $state(false);
-  // Bumped by every layout edit, so a compile that started before an edit leaves the preview marked as outdated.
-  let layoutEditSeq = 0;
-
-  /** Shows this session's last compile; one that no longer matches the sources is shown marked as outdated (issues #135, #197). */
-  async function restoreCachedPreviews() {
-    if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
-    let cached: Awaited<ReturnType<typeof getCurrentExamPreview>>;
-    try {
-      cached = await getCurrentExamPreview({
-        exam,
-        exercises,
-        libraryExercises,
-        mcGroups,
-        examItems: getEffectiveExamItems(),
-        key: get(sessionStore).sessionKey,
-      });
-    } catch {
-      return; // e.g. results-only import: nothing to preview
-    }
-    if (cached === null) {
-      // Never compiled in this session; also drops a preview left over from the previously open exam.
-      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-      if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewPdfUrl = previewSolutionPdfUrl = null;
-      previewOutdated = false;
-      return;
-    }
-    const id = exam.id;
-    const shown =
-      cached === "stale"
-        ? {
-            angabe: getLatestForSlot({ kind: "exam", id, variant: "angabe" }),
-            loesung: getLatestForSlot({ kind: "exam", id, variant: "loesung" }),
-          }
-        : cached;
-    previewOutdated = cached === "stale";
-    if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-    previewPdfUrl = shown.angabe ? pdfBytesToUrl(shown.angabe.pdfBytes) : null;
-    if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-    previewSolutionPdfUrl = shown.loesung ? pdfBytesToUrl(shown.loesung.pdfBytes) : null;
-  }
-
-  /** After an edit that changes the printed exam: re-check the OMR template and mark a shown preview as outdated (no auto-compile, issue #197). */
-  function afterLayoutChange() {
-    if (exam) void checkOmrTemplateStatus(exam.id);
-    layoutEditSeq++;
-    if (previewPdfUrl || previewSolutionPdfUrl) previewOutdated = true;
-  }
-
-  onDestroy(() => {
-    if (previewPdfUrl) {
-      URL.revokeObjectURL(previewPdfUrl);
-      previewPdfUrl = null;
-    }
-    if (previewSolutionPdfUrl) {
-      URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = null;
-    }
-  });
-
-  let isLocalFallback = $state(false);
-
-  // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's examMcGroups/examExercises rows, which left the local MC groups empty.
   let loadSeq = 0;
-
-  // loadExamData() writes straight into the page state, so a load that fails midway keeps what it had set.
-  const loadTarget: ExamLoadTarget = {
-    get exam() { return exam; },
-    set exam(value) { exam = value; },
-    get exercises() { return exercises; },
-    set exercises(value) { exercises = value; },
-    get mcGroups() { return mcGroups; },
-    set mcGroups(value) { mcGroups = value; },
-    get examItems() { return examItems; },
-    set examItems(value) { examItems = value; },
-    get isLocalFallback() { return isLocalFallback; },
-    set isLocalFallback(value) { isLocalFallback = value; },
-    get errorMsg() { return errorMsg; },
-    set errorMsg(value) { errorMsg = value; },
-  };
-
-  async function loadExam(id: string) {
+  async function load(id: string) {
     await awaitSessionReady();
     const seq = ++loadSeq;
     const isStale = () => seq !== loadSeq;
     const key = get(sessionStore).sessionKey;
+    loadError = "";
     try {
-      if (!(await loadExamData(id, { key, authenticated: $isAuthenticated, isStale }, loadTarget))) return;
-      const library = await loadLibraryExercises(key);
-      if (library) libraryExercises = library;
-      const loadedSubmissions = await loadExamSubmissions(id, key, isStale);
-      if (!loadedSubmissions) return;
-      submissions = loadedSubmissions.submissions;
-      submissionsLoadError = loadedSubmissions.error;
-      await checkOmrTemplateStatus(id);
+      const record = (await loadExamEncrypted(id, key)) || null;
+      const exs = await loadExamExercisesEncrypted(id, key);
       if (isStale()) return;
-      await restoreCachedPreviews();
+      exam = record;
+      exercises = exs;
+      if (!record) loadError = translate("exam.page.examNotFoundOrDeleted");
     } catch (err) {
-      console.error("Failed to load exam from DB:", err);
+      if (!isStale()) loadError = err instanceof Error ? err.message : String(err);
     }
-  }
-
-  // Quick exercise editor (opened from exercise names and the library picker).
-  let quickEditEx: ExerciseRecord | null = $state.raw(null);
-  let creatingExercise = $state(false);
-  // Dialog flows that live in components; the page opens them through these refs.
-  let metadataDialog: ReturnType<typeof ExamMetadataEditDialog> | undefined = $state();
-  let picker: ReturnType<typeof ExamExercisePicker> | undefined = $state();
-
-  /** Reload via loadExam so the junction fields (group, sub-index, order) stay intact. */
-  /** A new exercise from the library dialog joins the library list and the selection (M1). */
-  async function handleEditorSaved({ exercise }: { exercise: ExerciseRecord }) {
-    if (!creatingExercise) return loadExam(examId);
-    creatingExercise = false;
-    picker?.addCreatedExercise(exercise);
-  }
-
-  /** MC exercises in exam order from one merged lookup (`exercises` wins over `libraryExercises`), so the answer-key hash is stable across calls and no spurious "stale" banner appears. */
-  function collectMcExercises(): ExerciseRecord[] {
-    return resolveMcExercises(exercises, libraryExercises, mcGroups);
-  }
-
-  /** Template hash shared with the scan/verify checks (`computeOmrTemplateHash`): answer key plus the printed layout. Detects a stale OMR template; on this page never used to silently regenerate one. */
-  async function computeExercisesHash(): Promise<string> {
-    if (!exam) return "";
-    return computeOmrTemplateHash({ exam, exercises, libraryExercises, mcGroups, examItems: getEffectiveExamItems() });
-  }
-
-  async function checkOmrTemplateStatus(id: string) {
-    omrTemplateStatus = "checking";
-    try {
-      const mcExercises = collectMcExercises();
-      if (mcExercises.length === 0) {
-        omrTemplateStatus = "none";
-        return;
-      }
-      const key = get(sessionStore).sessionKey;
-      const existing = await loadOmrTemplateEncrypted(id, key);
-      if (!existing || !existing.payload) {
-        omrTemplateStatus = "none";
-        return;
-      }
-      const currentHash = await computeExercisesHash();
-      omrTemplateStatus = existing.record.exercisesHash === currentHash ? "ready" : "stale";
-    } catch (err) {
-      console.error("Failed to check OMR template status:", err);
-      omrTemplateStatus = "none";
-    }
-  }
-
-  async function handleDeleteExam() {
-    if (!exam) return;
-    if (
-      !confirm(
-        translate("exam.page.delete.confirmMessage", { title: exam.title }) + "\n\n" + translate("common.trashHint", { days: TRASH_DAYS }),
-      )
-    )
-      return;
-
-    try {
-      // One cascade, shared with the dashboard and the repository, so no owned table is missed.
-      await examRepository.delete(exam.id);
-
-      window.location.href = "/";
-    } catch (err: any) {
-      alert(translate("exam.page.delete.failed", { message: err.message }));
-    }
-  }
-
-  let isDuplicating = $state(false);
-
-  /** A copy with the same exercises and settings but no results (issue #121), opened right away. */
-  async function handleDuplicateExam() {
-    if (!exam) return;
-    isDuplicating = true;
-    try {
-      const copy = await examRepository.duplicate(exam.id);
-      await goto(`/exam/${copy.id}`);
-    } catch (err: any) {
-      alert(translate("dashboard.duplicateFailed", { message: err?.message ?? "" }));
-    } finally {
-      isDuplicating = false;
-    }
-  }
-
-  async function removeMcGroup(groupId: string) {
-    mcGroups = mcGroups.filter((g) => g.id !== groupId);
-    await saveExerciseLinks();
-  }
-
-  /** `quiet`: an exam without MC, whose template only fills score boxes; a failure is logged, not shown. */
-  async function handlePrepareOmr(quiet = false) {
-    if (!exam) return;
-    // Quiet runs reuse the preview just compiled and stay out of the compile button's state.
-    if (!quiet) isPreparingOmr = true;
-    if (!quiet) errorMsg = "";
-
-    try {
-      const result = await prepareOmrTemplate({
-        examId: exam.id,
-        exam,
-        exercises,
-        libraryExercises,
-        mcGroups,
-        examItems,
-        key: get(sessionStore).sessionKey,
-        onProgress: (msg) => { if (!quiet) omrPrepareMessage = msg; }
-      });
-      if (quiet) {
-        if (result.status === 'stale') console.warn("[PrepareOMR]", result.message);
-        return;
-      }
-      omrTemplateStatus = result.status;
-      if (result.status === 'stale') {
-        omrPrepareMessage = "";
-        errorMsg = result.message;
-      } else {
-        omrPrepareMessage = result.message;
-      }
-    } catch (err: any) {
-      if (quiet) {
-        console.warn("[PrepareOMR]", err);
-        return;
-      }
-      errorMsg = err.message || translate("exam.page.omr.failedGeneric");
-      rememberCompileLog(errorMsg, err);
-      omrPrepareMessage = "";
-    } finally {
-      if (!quiet) isPreparingOmr = false;
-    }
-  }
-
-  /** Reloads exercises and MC groups: they may have been edited elsewhere (another tab, the library) since this page loaded, and compiling the old copies would just hit the compile cache again (issue #135). */
-  async function refreshExamSources() {
-    if (!exam) return;
-    const ctx = await loadExamCompileContext(exam.id, get(sessionStore).sessionKey);
-    if (!ctx) return;
-    exam = ctx.exam;
-    exercises = ctx.exercises;
-    mcGroups = ctx.mcGroups;
-    libraryExercises = ctx.libraryExercises;
-  }
-
-  /** The printable student sheet for personalised copies (issue #211); the compile cache makes a repeat free. */
-  async function studentSheetPdf(): Promise<Uint8Array> {
-    await refreshExamSources();
-    if (!exam) throw new Error(translate("exam.page.examNotFoundOrDeleted"));
-    const res = await compileExamPreview({ exam, exercises, libraryExercises, mcGroups, examItems, key: get(sessionStore).sessionKey });
-    return res.angabe.pdfBytes;
-  }
-
-  async function handlePreviewExam() {
-    if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
-    isPreviewLoading = true;
-    compileNotice = "";
-    errorMsg = "";
-    let compileSucceeded = false;
-    const editSeqAtStart = layoutEditSeq;
-
-    try {
-      await refreshExamSources();
-      if (!exam) return;
-      const res = await compileExamPreview({
-        exam,
-        exercises,
-        libraryExercises,
-        mcGroups,
-        examItems,
-        key: get(sessionStore).sessionKey,
-        onStatus: (status) => {
-          if (status === 'downloading') {
-            compileNotice = translate("exam.page.preview.loadingCompiler");
-          } else if (status === 'compiling') {
-            compileNotice = translate("exam.page.preview.compiling");
-          }
-        },
-      });
-
-      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-      previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
-      if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
-
-      if (res.missingGraphics.length > 0) {
-        errorMsg = translate("common.previewMissingGraphic", { name: res.missingGraphics[0] });
-      }
-
-      compileNotice = "";
-      compileSucceeded = true;
-      previewOutdated = layoutEditSeq !== editSeqAtStart;
-    } catch (err: any) {
-      errorMsg = translate("exam.page.preview.failed", {
-        message: err.message || translate("exam.page.preview.unknownError"),
-      });
-      rememberCompileLog(errorMsg, err);
-    } finally {
-      isPreviewLoading = false;
-    }
-
-    // Refresh the scan template after every successful compile so it never drifts from the layout. Without MC it only serves the score boxes (issue #187), so it refreshes quietly.
-    if (compileSucceeded && collectMcExercises().length > 0) {
-      await handlePrepareOmr();
-    } else if (compileSucceeded && exercises.length > 0) {
-      await handlePrepareOmr(true);
-    }
+    const loaded = await loadExamSubmissions(id, key, isStale);
+    if (!loaded) return;
+    submissions = loaded.submissions;
+    submissionsLoadError = loaded.error;
   }
 
   let totalPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints ?? 0), 0));
-  let submissionsCount = $derived(submissions.length);
-  let studentsCount = $derived(new Set(submissions.map((s) => s.pseudonymHmac)).size);
-  let gradedCount = $derived(
-    submissions.filter((s) => typeof s.totalScore === "number" && !isNaN(s.totalScore)).length,
+  let stats = $derived(computeExamStats(submissions).get(examId));
+  let progress = $derived($examNavContext?.examId === examId ? $examNavContext.progress : {});
+  let next = $derived(continueStep(progress));
+  let nextLabel = $derived(EXAM_STEPS.find((s) => s.step === next)?.labelKey);
+  let course = $derived(exam ? formatExamCourse(exam.grade, exam.klasse) : "");
+  let subtitle = $derived(exam ? [exam.testart, [course, exam.fach].filter(Boolean).join(", "), exam.datum].filter(Boolean).join(" · ") : "");
+
+  const GRADING_KEY_LABELS: Record<string, TranslationKey> = {
+    linear_50: "exam.metadata.gradeType.linear50",
+    linear_40: "exam.metadata.gradeType.linear40",
+    even_split: "exam.metadata.gradeType.even",
+  };
+  let gradingKeyLabel = $derived(
+    exam?.gradingKey ? $t(GRADING_KEY_LABELS[exam.gradingKey.preset] ?? "exam.metadata.gradeType.custom") : null,
   );
 
-  async function moveExamItem(index: number, direction: "up" | "down") {
-    const targetIdx = direction === "up" ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= examItems.length) return;
-    const copy = [...examItems];
-    [copy[index], copy[targetIdx]] = [copy[targetIdx], copy[index]];
-    examItems = copy;
-    await saveExerciseLinks();
-  }
+  let details = $derived(
+    exam
+      ? ([
+          ["exam.metadataEditor.testart", exam.testart],
+          ["exam.metadataEditor.klasse", course],
+          ["exam.metadataEditor.fach", exam.fach],
+          ["exam.metadataEditor.datum", exam.datum],
+          ["exam.metadataEditor.nr", exam.nr],
+          ["exam.metadataEditor.lehrernachname", exam.lehrernachname],
+          ["exam.metadataEditor.topic", exam.topic],
+          ["exam.metadataEditor.retentionUntil", exam.retentionUntil ? $fmt.date(exam.retentionUntil) : ""],
+        ] as [TranslationKey, string | undefined][])
+      : [],
+  );
 
-  /** A break belongs to the item id, so it follows the item through reordering. */
-  async function toggleExamPageBreak(itemId: string) {
+  const missing = (value: number | null | undefined) => (value === null || value === undefined ? $t("exam.overview.noValue") : String(value));
+
+  let figures = $derived([
+    ["common.points", String(totalPoints)],
+    ["exam.overview.exercises", String(exercises.length)],
+    ["common.students", missing(progress.students?.count)],
+    ["exam.metadata.submissions", submissionsLoadError ? missing(null) : String(submissions.length)],
+    ["exam.metadata.graded", submissionsLoadError ? missing(null) : String(stats?.count ?? 0)],
+    ["exam.overview.average", stats?.avgScore != null ? $fmt.number(stats.avgScore) : missing(null)],
+    ["exam.overview.gradingKey", gradingKeyLabel ?? missing(null)],
+  ] as [TranslationKey, string][]);
+
+  async function deleteExam() {
     if (!exam) return;
-    const next = togglePageBreak(exam.pageBreaks, itemId);
-    exam = { ...exam, pageBreaks: prunePageBreaks(next, getEffectiveExamItems().map((i) => i.id)) };
+    busy = true;
+    actionError = "";
     try {
-      await saveExamEncrypted(exam, get(sessionStore).sessionKey);
-      errorMsg = "";
-      afterLayoutChange();
-    } catch (err) {
-      console.error("Failed to save page breaks:", err);
-      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
+      // One cascade, shared with the dashboard and the repository, so no owned table is missed.
+      await examRepository.delete(exam.id);
+      window.location.href = "/";
+    } catch (err: any) {
+      actionError = translate("exam.page.delete.failed", { message: err.message });
+    } finally {
+      busy = false;
     }
   }
 
-  async function saveExtraNotes(next: ExtraNotes | null) {
-    if (!exam) return;
-    exam = { ...exam, extraNotes: next };
-    try {
-      await saveExamEncrypted(exam, get(sessionStore).sessionKey);
-      errorMsg = "";
-      afterLayoutChange();
-    } catch (err) {
-      console.error("Failed to save extra notes:", err);
-      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
-    }
-  }
-
-  async function moveExerciseOrder(index: number, direction: "up" | "down") {
-    await moveExamItem(index, direction);
-  }
-
-  async function removeExerciseLink(id: string) {
-    exercises = exercises.filter((ex) => ex.id !== id);
-    examItems = examItems.filter((item) => !(item.type === "exercise" && item.id === id));
-    await saveExerciseLinks();
-  }
-
-  function computeExamItems(
-    current: ExamItemRef[],
-    exs: ExerciseRecord[],
-    groups: McGroup[],
-  ): ExamItemRef[] {
-    const validIds = new Set([...exs.map((e) => e.id), ...groups.map((g) => g.id)]);
-    const currentItems = current.filter((item) => validIds.has(item.id));
-    const currentItemIds = new Set(currentItems.map((item) => item.id));
-
-    const missingExercises = exs
-      .filter((e) => !groups.some((g) => g.memberIds.includes(e.id)) && !currentItemIds.has(e.id))
-      .map((e) => ({ type: "exercise" as const, id: e.id }));
-
-    const missingGroups = groups
-      .filter((g) => !currentItemIds.has(g.id))
-      .map((g) => ({ type: "mc_group" as const, id: g.id }));
-
-    return [...currentItems, ...missingExercises, ...missingGroups];
-  }
-
-  function getEffectiveExamItems(): ExamItemRef[] {
-    return computeExamItems(examItems, exercises, mcGroups);
-  }
-
-  interface ExamLinkPayload {
-    mcGroupsPayload: any[];
-    exerciseLinksPayload: any[];
-    mcGroupRecords: any[];
-    examExerciseRecords: any[];
-    items: ExamItemRef[];
-  }
-
-  /** Single builder for both the Dexie records and the server payload. MC group members are emitted only under their group: listing them standalone too duplicated the (exam, exercise) primary key. */
-  function buildExamLinkPayload(): ExamLinkPayload {
-    const currentExamId = exam?.id ?? "";
-    const items = getEffectiveExamItems();
-    const mcGroupsPayload: any[] = [];
-    const exerciseLinksPayload: any[] = [];
-    const mcGroupRecords: any[] = [];
-    const examExerciseRecords: any[] = [];
-    const linkedExerciseIds = new Set<string>();
-    let order = 1;
-
-    for (const item of items) {
-      if (item.type === "exercise") {
-        if (linkedExerciseIds.has(item.id)) continue;
-        linkedExerciseIds.add(item.id);
-        exerciseLinksPayload.push({ exercise_id: item.id, order_index: order });
-        examExerciseRecords.push({
-          examId: currentExamId,
-          exerciseId: item.id,
-          orderIndex: order,
-        });
-        order++;
-      } else if (item.type === "mc_group") {
-        const group = mcGroups.find((g) => g.id === item.id);
-        if (!group) continue;
-        mcGroupsPayload.push({
-          id: group.id,
-          title: group.title,
-          scoring_text: group.scoringText,
-          order_index: order,
-        });
-        mcGroupRecords.push({
-          id: group.id,
-          examId: currentExamId,
-          title: group.title,
-          scoringText: group.scoringText,
-          orderIndex: order,
-        });
-        let subIndex = 1;
-        for (const exId of group.memberIds) {
-          if (linkedExerciseIds.has(exId)) continue;
-          linkedExerciseIds.add(exId);
-          exerciseLinksPayload.push({
-            exercise_id: exId,
-            order_index: order,
-            mc_group_id: group.id,
-            sub_index: subIndex,
-          });
-          examExerciseRecords.push({
-            examId: currentExamId,
-            exerciseId: exId,
-            orderIndex: order,
-            mcGroupId: group.id,
-            subIndex,
-          });
-          subIndex++;
-        }
-        order++;
-      }
-    }
-
-    return { mcGroupsPayload, exerciseLinksPayload, mcGroupRecords, examExerciseRecords, items };
-  }
-
-  async function saveExerciseLinks() {
-    if (!exam) return;
-    const currentExamId = exam.id;
-    const { mcGroupsPayload, exerciseLinksPayload, mcGroupRecords, examExerciseRecords, items } =
-      buildExamLinkPayload();
-    examItems = items;
-    // Breaks of removed items go with them; the server is told only when the list changed.
-    const pageBreaks = prunePageBreaks(exam.pageBreaks, items.map((i) => i.id));
-    const breaksChanged = JSON.stringify(pageBreaks) !== JSON.stringify(exam.pageBreaks ?? null);
-    if (breaksChanged) exam = { ...exam, pageBreaks };
-
-    try {
-      // One transaction: this is a delete-then-reinsert of the exam's entire link set, and an interruption between the two would leave the exam with zero exercises and zero MC groups.
-      await db.transaction("rw", [db.examExercises, db.examMcGroups], async () => {
-        await db.examExercises.where("examId").equals(currentExamId).delete();
-        await db.examExercises.bulkPut(examExerciseRecords);
-
-        // Groups after the links: exam_exercises rows reference them.
-        await db.examMcGroups.where("examId").equals(currentExamId).delete();
-        if (mcGroupRecords.length > 0) {
-          await db.examMcGroups.bulkPut(mcGroupRecords);
-        }
-      });
-    } catch (err) {
-      console.error("Failed to update local exercise links:", err);
-      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
-      return;
-    }
-
-    try {
-      // silentError: the failure is reported inline below, and the global HTTP error modal on top of an autosave is pure noise.
-      await api.patch(
-        `/exams/${currentExamId}`,
-        {
-          mc_groups: mcGroupsPayload,
-          exercise_links: exerciseLinksPayload,
-          ...(breaksChanged ? { page_breaks: pageBreaks } : {}),
-        },
-        { silentError: true },
-      );
-      errorMsg = "";
-    } catch (err) {
-      console.error("Failed to sync exercise links to server:", err);
-      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
-    }
-    afterLayoutChange();
-  }
-
-  let isDeletingAllSubmissions = false;
-
-  async function handleDeleteAllSubmissions() {
+  async function deleteAllSubmissions() {
     if (!exam || submissionsLoadError) return;
-    if (submissions.length === 0) {
-      alert(translate("exam.page.submissions.noneToDelete"));
-      return;
-    }
-    if (
-      !confirm(
-        translate("exam.page.submissions.confirmDeleteAll", { count: submissions.length }) + "\n\n" + translate("common.trashHint", { days: TRASH_DAYS }),
-      )
-    )
-      return;
-
-    isDeletingAllSubmissions = true;
+    busy = true;
+    actionError = "";
     try {
       // One trash entry for the whole action (issue #125).
       const group = newTrashGroup();
@@ -609,245 +136,150 @@
         await submissionRepository.delete(exam.id, sub.id, { group });
         await studentRepository.delete(sub, { group });
       }
-      submissions = await submissionRepository.getByExamId(
-        exam.id,
-        get(sessionStore).sessionKey,
-      );
-      alert(translate("exam.page.submissions.allDeleted"));
+      submissions = await submissionRepository.getByExamId(exam.id, get(sessionStore).sessionKey);
+      confirming = null;
+      notice = translate("exam.page.submissions.allDeleted");
     } catch (err: any) {
-      alert(translate("exam.page.submissions.deleteFailed", { message: err.message }));
+      actionError = translate("exam.page.submissions.deleteFailed", { message: err.message });
     } finally {
-      isDeletingAllSubmissions = false;
+      busy = false;
     }
   }
 
-  // Keeps examItems in step with exercises/mcGroups (drops vanished refs, appends new ones). Shares computeExamItems() with getEffectiveExamItems(), so rendered and stored order agree. Also tracks examItems; it only writes when the result differs, so it settles.
-  $effect.pre(() => {
-    const items = examItems;
-    const nextItems = computeExamItems(items, exercises, mcGroups);
-    if (nextItems.length !== items.length || nextItems.some((item, i) => item.id !== items[i]?.id)) {
-      untrack(() => (examItems = nextItems));
+  /** A copy with the same exercises and settings but no results (issue #121), opened right away. */
+  async function duplicateExam() {
+    if (!exam) return;
+    isDuplicating = true;
+    notice = "";
+    try {
+      const copy = await examRepository.duplicate(exam.id);
+      await goto(`/exam/${copy.id}`);
+    } catch (err: any) {
+      loadError = translate("dashboard.duplicateFailed", { message: err?.message ?? "" });
+    } finally {
+      isDuplicating = false;
     }
-  });
+  }
 
   $effect.pre(() => {
     const id = examId;
-    if (browser && id) {
-      untrack(async () => {
-        await loadExam(id);
-        // A just-created exam ("New exam") opens with the library (M1).
-        if (exam && takeUrlParam("library") === "open") await picker?.open();
-      });
-    }
+    if (browser && id) untrack(() => void load(id));
   });
 </script>
 
-{#snippet layoutReport()}
-  {#if exam}
-    <LayoutReportButton
-      kind="exam"
-      title={exam.title ?? ""}
-      compileError={errorMsg || null}
-      disabled={isPreviewLoading}
-      collectFiles={() =>
-        examReportFiles(
-          { exam: exam!, exercises, libraryExercises, mcGroups, examItems, key: get(sessionStore).sessionKey },
-          previewPdfUrl,
-          previewSolutionPdfUrl
-        )}
-    />
-  {/if}
-{/snippet}
-
 <PageShell width="fluid">
-  <PageHeader title={$t("exam.sidebar.overview")} />
+  <PageHeader title={$t("exam.sidebar.overview")} subtitle={subtitle || undefined}>
+    {#snippet actions()}
+      {#if exam}
+        <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.edit} onClick={() => metadataDialog?.open()}>
+          {$t("exam.overview.editDetails")}
+        </Button>
+        <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.export} onClick={() => (exportOpen = true)}>
+          {$t("common.export")}
+        </Button>
+        <Menu label={$t("exam.overview.more")} icon={actionIcons.more} align="end">
+          {#snippet children({ close })}
+            <MenuItem icon={actionIcons.duplicate} disabled={isDuplicating} onSelect={() => { close(); void duplicateExam(); }}>
+              {$t("common.duplicate")}
+            </MenuItem>
+            <MenuItem
+              icon={actionIcons.delete}
+              danger
+              disabled={!!submissionsLoadError || submissions.length === 0}
+              onSelect={() => { close(); confirming = "submissions"; }}
+            >
+              {$t("exam.actionBar.deleteSubmissions")}
+            </MenuItem>
+            <MenuItem icon={actionIcons.delete} danger onSelect={() => { close(); confirming = "exam"; }}>
+              {$t("exam.actionBar.delete")}
+            </MenuItem>
+          {/snippet}
+        </Menu>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
-  {#if isLocalFallback}
-    <Alert severity="warning" class="mb-6">
-      {$t("exam.page.localFallback.banner")}
-    </Alert>
-  {/if}
-
+  {#if loadError}<Alert severity="danger" class="mb-6">{loadError}</Alert>{/if}
+  {#if submissionsLoadError}<Alert severity="danger" class="mb-6">{submissionsLoadError}</Alert>{/if}
+  {#if notice}<Alert severity="success" class="mb-6">{notice}</Alert>{/if}
   {#if exercises.some((ex) => ex.codeWithheld)}
     <!-- Imported from another teacher's results-only archive: grading and statistics work, compiling doesn't. -->
-    <Alert severity="info" title={$t("exam.resultsOnly.badge")} class="mb-6">
-      {$t("exam.resultsOnly.noCompile")}
-    </Alert>
+    <Alert severity="info" title={$t("exam.resultsOnly.badge")} class="mb-6">{$t("exam.resultsOnly.noCompile")}</Alert>
   {/if}
 
-  {#if submissionsLoadError}
-    <Alert severity="danger" class="mb-6">{submissionsLoadError}</Alert>
-  {/if}
-
-  {#if !exam}
+  {#if !exam && !loadError}
     <div class="text-muted">{$t("exam.page.loading")}</div>
-  {:else}
-    <ExamMetadata
-      {exam}
-      {totalPoints}
-      submissionsCount={submissionsLoadError ? null : submissionsCount}
-      studentsCount={submissionsLoadError ? null : studentsCount}
-      gradedCount={submissionsLoadError ? null : gradedCount}
-    />
+  {:else if exam}
+    {#if nextLabel}
+      <div class="mb-6">
+        <Button href={examStepHref(examId, next)} iconRight={actionIcons.next}>
+          {$t("exam.flow.continue", { step: $t(nextLabel) })}
+        </Button>
+      </div>
+    {/if}
 
-    <ExamActionBar
-      {examId}
-      onEdit={() => metadataDialog?.open()}
-      onDelete={handleDeleteExam}
-      onExport={() => (exportOpen = true)}
-      onStickers={() => (stickers = "all")}
-      onShare={() => (shareOpen = true)}
-      sharing={shareOpen}
-      onDeleteAllSubmissions={handleDeleteAllSubmissions}
-      onDuplicate={handleDuplicateExam}
-      {isDuplicating}
-    />
+    <div class="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-2">
+      <Card title={$t("exam.overview.details")}>
+        <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+          {#each details as [labelKey, value] (labelKey)}
+            <dt class="text-muted">{$t(labelKey)}</dt>
+            <dd class="m-0 min-w-0 break-words">{value || $t("exam.overview.noValue")}</dd>
+          {/each}
+        </dl>
+      </Card>
+
+      <Card title={$t("exam.overview.keyFigures")}>
+        <dl class="m-0 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {#each figures as [labelKey, value] (labelKey)}
+            <div class="min-w-0 rounded-md bg-surface-inset px-3 py-2">
+              <dt class="truncate text-xs text-muted">{$t(labelKey)}</dt>
+              <dd class="m-0 truncate text-lg font-semibold tabular-nums">{value}</dd>
+            </div>
+          {/each}
+        </dl>
+      </Card>
+    </div>
+
+    <ExamStepFooter {examId} step="overview" />
 
     <ExamMetadataEditDialog
       bind:this={metadataDialog}
       {exam}
       {exercises}
-      onExamChange={(next) => (exam = next)}
-      onLayoutChange={afterLayoutChange}
+      onSaved={(updated) => {
+        exam = updated;
+        notice = translate("exam.overview.saved");
+      }}
     />
-
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 @6xl:grid-cols-2">
-      <Card title={$t("exam.page.compileSection.heading")}>
-        <p class="mb-4 text-sm text-muted">
-          {$t("exam.page.compileSection.description")}
-        </p>
-
-        <div class="flex flex-wrap items-center gap-4">
-          <Button
-            onClick={handlePreviewExam}
-            loading={isPreviewLoading || isPreparingOmr}
-            disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
-            title={$t("exam.page.compileSection.liveTooltip")}
-          >
-            {isPreviewLoading
-              ? $t("exam.page.preview.compilingPreviews")
-              : isPreparingOmr
-                ? $t("exam.page.omr.preparing")
-                : $t("exam.page.preview.liveButton")}
-          </Button>
-        </div>
-
-        {#if exercises.length === 0 && mcGroups.length === 0}
-          <p class="mt-3 text-sm text-muted">{$t("exam.page.compileSection.emptyHint")}</p>
-        {/if}
-
-        {#if omrTemplateStatus === "stale"}
-          <Alert severity="warning" class="mt-3">
-            {$t("exam.page.omr.staleWarning")}
-            {#snippet actions()}
-              <Button
-                size="sm"
-                variant="outlined"
-                severity="warning"
-                onClick={async () => {
-                  await refreshExamSources();
-                  await handlePrepareOmr();
-                }}
-                disabled={isPreparingOmr}
-              >
-                {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
-              </Button>
-            {/snippet}
-          </Alert>
-        {/if}
-        {#if omrPrepareMessage}
-          <Alert severity="info" class="mt-3">{omrPrepareMessage}</Alert>
-        {/if}
-
-        {#if previewOutdated && (previewPdfUrl || previewSolutionPdfUrl)}
-          <Alert severity="info" class="mt-3">{$t("exam.page.preview.outdated")}</Alert>
-        {/if}
-        {#if previewPdfUrl || previewSolutionPdfUrl}
-          <div class="mt-4">
-            <DualPdfPreview
-              {previewPdfUrl}
-              {previewSolutionPdfUrl}
-              bind:showAngabePreview
-              bind:showLoesungPreview
-              titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
-              titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
-              height="550px"
-              placeholderText={$t("exam.page.pdfPreview.placeholder")}
-            >
-              {#snippet footer()}{@render layoutReport()}{/snippet}
-            </DualPdfPreview>
-          </div>
-        {/if}
-
-        {#if compileNotice}
-          <Alert severity="info" class="mt-3">{compileNotice}</Alert>
-        {/if}
-        {#if errorMsg}
-          <Alert severity="danger" class="mt-4">
-            <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
-            {#if compileLog && compileLog.message === errorMsg}<CompileErrorHelp failure={compileLog.failure} class="mt-2" />{/if}
-          </Alert>
-        {/if}
-        {#if errorMsg && !previewPdfUrl && !previewSolutionPdfUrl}
-          <div class="mt-2 flex justify-end">{@render layoutReport()}</div>
-        {/if}
-      </Card>
-
-      <ExerciseList
-        {exercises}
-        {mcGroups}
-        {libraryExercises}
-        {examItems}
-        onRemove={removeExerciseLink}
-        onAddExercises={() => picker?.open()}
-        onMoveUp={(idx) => moveExerciseOrder(idx, "up")}
-        onMoveDown={(idx) => moveExerciseOrder(idx, "down")}
-        onMoveExamItem={moveExamItem}
-        onRemoveMcGroup={removeMcGroup}
-        onEditMcGroup={(groupId) => picker?.editMcGroup(groupId)}
-        pageBreaks={exam.pageBreaks ?? []}
-        onTogglePageBreak={toggleExamPageBreak}
-        extraNotes={exam.extraNotes ?? null}
-        onChangeExtraNotes={saveExtraNotes}
-        onOpenExercise={(ex) => (quickEditEx = ex)}
-      />
-    </div>
   {/if}
 </PageShell>
-
-<ExamExercisePicker
-  bind:this={picker}
-  bind:exercises
-  bind:mcGroups
-  bind:examItems
-  bind:libraryExercises
-  onSaveLinks={saveExerciseLinks}
-  onQuickEdit={(ex) => (quickEditEx = ex)}
-  onNewExercise={() => (creatingExercise = true)}
-/>
-
-<ExerciseEditorModal
-  isOpen={quickEditEx !== null || creatingExercise}
-  editingExercise={quickEditEx}
-  onClose={() => {
-    quickEditEx = null;
-    creatingExercise = false;
-  }}
-  onSave={handleEditorSaved}
-/>
 
 {#if exportOpen}
   <ExamExportModal {examId} examTitle={exam?.title ?? ""} onClose={() => (exportOpen = false)} />
 {/if}
-{#if shareOpen && !stickers}
-  <ShareResultsDialog {examId} onClose={() => (shareOpen = false)} onPrintKeys={() => (stickers = "keys")} />
-{/if}
-{#if stickers}
-  <StickerSheetDialog
-    {examId}
-    examTitle={exam?.title ?? ""}
-    keysOnly={stickers === "keys"}
-    loadExamPdf={studentSheetPdf}
-    onClose={() => (stickers = null)}
-  />
-{/if}
+
+<ConfirmDialog
+  open={confirming === "exam"}
+  title={$t("exam.overview.deleteTitle")}
+  message={translate("exam.page.delete.confirmMessage", { title: exam?.title ?? "" }) + " " + translate("common.trashHint", { days: TRASH_DAYS })}
+  confirmText={$t("exam.actionBar.delete")}
+  cancelText={$t("common.cancel")}
+  severity="danger"
+  {busy}
+  error={confirming === "exam" ? actionError : ""}
+  onConfirm={deleteExam}
+  onCancel={() => (confirming = null)}
+/>
+
+<ConfirmDialog
+  open={confirming === "submissions"}
+  title={$t("exam.overview.deleteSubmissionsTitle")}
+  message={translate("exam.page.submissions.confirmDeleteAll", { count: submissions.length }) + " " + translate("common.trashHint", { days: TRASH_DAYS })}
+  confirmText={$t("exam.actionBar.deleteSubmissions")}
+  cancelText={$t("common.cancel")}
+  severity="danger"
+  {busy}
+  error={confirming === "submissions" ? actionError : ""}
+  onConfirm={deleteAllSubmissions}
+  onCancel={() => (confirming = null)}
+/>

@@ -37,7 +37,6 @@ export const exam = {
             outdated: 'Die Prüfung wurde seit dieser Vorschau geändert. Klicken Sie auf „Live-Vorschau PDF“, um sie neu zu kompilieren.',
         },
         metadata: {
-            saveSuccess: 'Prüfungsdetails erfolgreich aktualisiert.',
             saveFailed: 'Speichern der Prüfungsdetails fehlgeschlagen: {message}',
             discardTitle: 'Änderungen der Metadaten verwerfen?',
             discardMessage: 'Es gibt ungespeicherte Änderungen in den Metadatenfeldern. Möchten Sie diese wirklich verwerfen?',
@@ -48,7 +47,6 @@ export const exam = {
             saveFailed: 'Aufgabenverknüpfungen konnten nicht lokal gespeichert werden. Bitte erneut versuchen.',
         },
         submissions: {
-            noneToDelete: 'Keine Abgaben zum Löschen vorhanden.',
             confirmDeleteAll: 'Möchten Sie wirklich alle {count} Abgabe(n) für diese Prüfung löschen?',
             allDeleted: 'Alle Abgaben wurden gelöscht.',
             deleteFailed: 'Löschen der Abgaben fehlgeschlagen: {message}',
@@ -73,10 +71,6 @@ export const exam = {
     },
     actionBar: {
         addExercises: '+ Aufgaben hinzufügen',
-        scan: 'Scannen',
-        grade: 'Korrigieren',
-        stats: 'Statistik',
-        edit: 'Bearbeiten',
         deleteSubmissions: 'Abgaben löschen',
         delete: 'Löschen',
     },
@@ -197,6 +191,19 @@ export const exam = {
         unsavedMessage: 'Die Layout-Änderungen sind noch nicht gespeichert. Seite trotzdem verlassen?',
         unsavedLeave: 'Verlassen',
         unsavedStay: 'Weiter bearbeiten',
+    },
+    overview: {
+        details: 'Angaben',
+        keyFigures: 'Kennzahlen',
+        editDetails: 'Angaben bearbeiten',
+        more: 'Weitere Aktionen',
+        exercises: 'Aufgaben',
+        average: 'Durchschnitt',
+        gradingKey: 'Notenschlüssel',
+        deleteTitle: 'Prüfung löschen?',
+        deleteSubmissionsTitle: 'Alle Abgaben löschen?',
+        saved: 'Angaben gespeichert.',
+        noValue: '–',
     },
     flow: {
         done: 'erledigt',

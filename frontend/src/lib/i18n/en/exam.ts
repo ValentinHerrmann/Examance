@@ -39,7 +39,6 @@ export const exam: Translations['exam'] = {
             outdated: 'The exam has changed since this preview. Click “Live Preview PDF” to compile it again.',
         },
         metadata: {
-            saveSuccess: 'Exam details updated successfully.',
             saveFailed: 'Failed to save exam details: {message}',
             discardTitle: 'Discard Metadata Changes?',
             discardMessage: 'You have unsaved changes in metadata fields. Are you sure you want to discard them?',
@@ -50,7 +49,6 @@ export const exam: Translations['exam'] = {
             saveFailed: 'Failed to save exercise links locally. Please retry.',
         },
         submissions: {
-            noneToDelete: 'No submissions to delete.',
             confirmDeleteAll: 'Are you sure you want to delete all {count} submission(s) for this exam?',
             allDeleted: 'All submissions deleted.',
             deleteFailed: 'Failed to delete submissions: {message}',
@@ -75,10 +73,6 @@ export const exam: Translations['exam'] = {
     },
     actionBar: {
         addExercises: '+ Add Exercises',
-        scan: 'Scan',
-        grade: 'Grade',
-        stats: 'Statistics',
-        edit: 'Edit',
         deleteSubmissions: 'Delete Submissions',
         delete: 'Delete',
     },
@@ -199,6 +193,19 @@ export const exam: Translations['exam'] = {
         unsavedMessage: 'The layout changes are not saved yet. Leave the page anyway?',
         unsavedLeave: 'Leave',
         unsavedStay: 'Keep editing',
+    },
+    overview: {
+        details: 'Details',
+        keyFigures: 'Key figures',
+        editDetails: 'Edit details',
+        more: 'More actions',
+        exercises: 'Exercises',
+        average: 'Average',
+        gradingKey: 'Grading key',
+        deleteTitle: 'Delete exam?',
+        deleteSubmissionsTitle: 'Delete all submissions?',
+        saved: 'Details saved.',
+        noValue: '–',
     },
     flow: {
         done: 'done',
