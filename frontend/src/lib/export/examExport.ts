@@ -22,9 +22,8 @@ import { addExerciseFolder } from './exerciseExport';
 import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExamZipManifest } from './zipManifest';
 import { examRepository } from '#lib/repositories/examRepository';
 import { getAccountPackages } from '#lib/latex/packageSettings';
-import { mebisIdOf } from '#lib/utils/studentQr';
 
-export type ExamExportPart = 'graded' | 'mebis' | 'latex' | 'pdf' | 'summary' | 'csv';
+export type ExamExportPart = 'graded' | 'latex' | 'pdf' | 'summary' | 'csv';
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 const GRADED_SUFFIX: Record<GradingState, string> = { complete: '', partial: '_partial', ungraded: '_ungraded' };
@@ -76,7 +75,7 @@ export async function runExamExport(
       warnings.push(...(await addCompiledPdfs(zip, compileInput)));
     });
   }
-  if (has('graded') || has('mebis') || has('summary') || has('csv')) {
+  if (has('graded') || has('summary') || has('csv')) {
     progress(translate('export.exam.steps.results'));
     const results = await loadResults(compileInput);
     if (has('csv')) zip.add('grades.csv', buildGradesCsv(results.rows));
@@ -93,11 +92,6 @@ export async function runExamExport(
       });
     }
     if (has('graded')) warnings.push(...(await addGradedScans(zip, results, key, fallbackSessionKey, progress)));
-    if (has('mebis')) {
-      const feedback = new ZipBuilder();
-      warnings.push(...(await addMebisFeedback(feedback, results, key, fallbackSessionKey, progress)));
-      zip.add(`${examSlug}_mebis_feedback.zip`, feedback.toBytes());
-    }
   }
 
   return { zip, fileName: `${examSlug}_${exportDateStamp()}.zip`, warnings };
@@ -234,39 +228,9 @@ export async function forEachGradedPdf(
   return warnings;
 }
 
-/** Moodle's "upload multiple feedback files in a zip" layout, as DiRueLei writes it (issue #209): one `Participant_<id>_assignsubmission_file_` folder per student, the id from the sticker. Students without a numeric id are skipped with a warning. */
+/** Moodle's "upload multiple feedback files in a zip" layout, as DiRueLei writes it (issue #209): one `Participant_<id>_assignsubmission_file_` folder per student; used by the Share page's Mebis channel (`lib/sharing/delivery.ts`). Students without a numeric id are skipped with a warning. */
 export function mebisFeedbackPath(name: string, participantId: string): string {
   return `Participant_${participantId}_assignsubmission_file_/${slug(name)}_${participantId}.pdf`;
-}
-
-async function addMebisFeedback(
-  zip: ZipBuilder,
-  results: LoadedResults,
-  key: CryptoKey,
-  fallbackKey: CryptoKey | null,
-  progress: ExportProgress
-): Promise<string[]> {
-  const idBySubmission = new Map<string, string>();
-  const warnings: string[] = [];
-  results.rows.forEach((row, i) => {
-    if (!row.submissionId) return;
-    const id = mebisIdOf(results.students[i]);
-    if (id) idBySubmission.set(row.submissionId, id);
-    else warnings.push(translate('export.exam.warnings.noMebisId', { name: row.studentName || row.fallbackCode || '?' }));
-  });
-  warnings.push(
-    ...(await forEachGradedPdf(
-      results,
-      key,
-      fallbackKey,
-      (pdf, row, _state, name) => {
-        const id = row?.submissionId ? idBySubmission.get(row.submissionId) : undefined;
-        if (id) zip.add(mebisFeedbackPath(name, id), pdf);
-      },
-      { only: new Set(idBySubmission.keys()), progress: (done, total) => progress(translate('export.exam.steps.mebis'), done, total) }
-    ))
-  );
-  return warnings;
 }
 
 function addGradedScans(

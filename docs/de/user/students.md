@@ -109,9 +109,9 @@ Examance arbeitet mit Mebis und Artemis so zusammen wie DiRueLei.
 
 1. Laden Sie in der Mebis-Aufgabe die **Bewertungstabelle** herunter (oder exportieren Sie die Teilnehmerliste als CSV). Sie enthält die Mebis-Kennungen und E-Mail-Adressen der Schüler.
 2. Übernehmen Sie diese Datei auf der Seite [Schüler](#student-data) und drucken Sie die [QR-Aufkleber](#qr-stickers) oder Exemplare: Die Mebis-Kennung steckt dann in jedem Code.
-3. Wählen Sie nach der Korrektur unter **Mit Schülern teilen** den Weg **Rückmeldedateien für Mebis (Download)**, oder kreuzen Sie im [Export](./results#export) **Mebis-Rückmeldedateien (ZIP)** an. Beide Wege liefern eine `…_mebis_feedback.zip`. Laden Sie sie in der Mebis-Aufgabe unter **Mehrere Feedbackdateien in einer ZIP-Datei hochladen** hoch. Jeder Schüler sieht seine korrigierte Arbeit dann als Feedback.
+3. Wählen Sie nach der Korrektur unter **Ergebnisse → Teilen** den Weg **Rückmeldedateien für Mebis (Download)**. Sie erhalten eine `…_mebis_feedback.zip`. Laden Sie sie in der Mebis-Aufgabe unter **Mehrere Feedbackdateien in einer ZIP-Datei hochladen** hoch. Jeder Schüler sieht seine korrigierte Arbeit dann als Feedback.
 
-Schüler, deren Aufkleber keine Mebis-Kennung trägt, stehen in den Hinweisen des Exports.
+Schüler ohne Mebis-ID (weder aus der Klassenliste noch im QR-Aufkleber) werden übersprungen und nach dem Download in den Hinweisen genannt.
 
 ### Artemis {#artemis}
 

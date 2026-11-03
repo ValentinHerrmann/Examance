@@ -109,9 +109,9 @@ Examance works with Mebis and Artemis in the same way as DiRueLei.
 
 1. In the Mebis assignment, download the **grading worksheet** (or export the participant list as CSV). It contains the students' Mebis IDs and e-mail addresses.
 2. Import this file on the [Students page](#student-data) and print the [QR stickers](#qr-stickers) or copies: the Mebis ID goes into each code.
-3. After grading, choose **Feedback files for Mebis (download)** in **Share with students**, or tick **Mebis feedback files (ZIP)** in the [export](./results#export). Either way you get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
+3. After grading, choose **Feedback files for Mebis (download)** on **Results → Share**. You get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
 
-Students whose sticker carries no Mebis ID are listed in the export warnings.
+Students with no Mebis ID (neither from the class list nor in their QR sticker) are skipped and listed in the notes after the download.
 
 ### Artemis {#artemis}
 

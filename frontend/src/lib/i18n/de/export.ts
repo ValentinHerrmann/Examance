@@ -35,8 +35,6 @@ export const exportNs = {
         options: {
             graded: 'Korrigierte Scans (PDF)',
             gradedHint: 'Mit eingebrannten Anmerkungen, auch teilweise korrigierte Abgaben (Dateiname mit _partial, unkorrigierte mit _ungraded).',
-            mebis: 'Mebis-Rückmeldedateien (ZIP)',
-            mebisHint: 'Korrigierte Scans in einer eigenen ZIP, die Sie in der Mebis-Aufgabe unter „Mehrere Feedbackdateien in einer ZIP-Datei hochladen“ einspielen. Braucht QR-Aufkleber aus der Mebis-Bewertungstabelle.',
             latex: 'LaTeX-Quelltext',
             latexHint: 'Eigene ZIP mit Angabe (main.tex) und Lösung (solution.tex) samt Dateien und Logo: direkt bei Overleaf hochladen (Compiler XeLaTeX). Dazu kommen die Aufgaben und Einstellungen der Prüfung in importierbarer Form: Nur mit dieser Option lässt sich die ZIP später wieder importieren, z. B. in einer anderen Examance-Instanz (ohne Ergebnisse).',
             pdf: 'Kompilierte Angabe und Lösung (PDF)',
@@ -54,13 +52,11 @@ export const exportNs = {
             compiling: 'Angabe und Lösung werden kompiliert …',
             summary: 'Zusammenfassung wird erstellt …',
             graded: 'Korrigierte Scans werden erstellt …',
-            mebis: 'Mebis-Rückmeldedateien werden erstellt …',
         },
         warnings: {
             failed: '{part} konnte nicht exportiert werden: {error}',
             gradedOne: 'Scan von {name} konnte nicht exportiert werden: {error}',
             noScan: 'Für {name} ist kein Scan vorhanden.',
-            noMebisId: '{name}: keine Mebis-Kennung auf dem QR-Aufkleber, nicht in der Mebis-ZIP.',
             missingGraphics: 'Fehlende Grafiken im kompilierten PDF: {files}',
         },
         summary: {

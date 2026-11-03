@@ -31,7 +31,6 @@
 
   let options: ExportOption[] = $derived([
     { key: "graded", label: $t("export.exam.options.graded"), hint: $t("export.exam.options.gradedHint") },
-    { key: "mebis", label: $t("export.exam.options.mebis"), hint: $t("export.exam.options.mebisHint"), checked: false },
     {
       key: "latex",
       label: $t("export.exam.options.latex"),

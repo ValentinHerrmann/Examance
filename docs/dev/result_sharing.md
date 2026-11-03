@@ -126,7 +126,7 @@ Nothing is sent before the teacher confirms.
 - Lifetime: retention step 15 deletes rows older than `DELIVERY_STATUS_RETENTION_DAYS` (30, on the privacy page). Exam deletes drop them like shares, so a restored exam starts without statuses.
 
 **Mebis.** There is no API (DiRueLei has none either).
-- The readable exam export has an optional part `mebis`: a nested `<exam>_mebis_feedback.zip` with `Participant_<id>_assignsubmission_file_/<name>_<id>.pdf` per student (`mebisFeedbackPath`).
+- The Share page's Mebis channel is the only place that builds the Mebis ZIP (`Participant_<id>_assignsubmission_file_/<name>_<id>.pdf` per student, `mebisFeedbackPath`); the readable export dropped its Mebis part (issue #212).
 - The teacher uploads it under "Upload multiple feedback files in a zip".
 
 **Sticker sheet versus DiRueLei.** Both use the same label stock, so partly used sheets work in either app:

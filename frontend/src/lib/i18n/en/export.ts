@@ -36,8 +36,6 @@ export const exportNs: Translations['export'] = {
         options: {
             graded: 'Graded scans (PDF)',
             gradedHint: 'With annotations burned in, including partly graded submissions (file name with _partial, ungraded ones with _ungraded).',
-            mebis: 'Mebis feedback files (ZIP)',
-            mebisHint: 'Graded scans in a separate ZIP to upload in the Mebis assignment under "Upload multiple feedback files in a zip". Needs QR stickers made from the Mebis grading worksheet.',
             latex: 'LaTeX source',
             latexHint: 'A separate ZIP with the exam (main.tex) and solution (solution.tex), their files and logo: upload it to Overleaf as is (compiler XeLaTeX). Also adds the exam’s exercises and settings in importable form: only with this option can the ZIP be imported again later, e.g. into another Examance instance (without results).',
             pdf: 'Compiled exam and solution (PDF)',
@@ -55,13 +53,11 @@ export const exportNs: Translations['export'] = {
             compiling: 'Compiling exam and solution …',
             summary: 'Creating summary …',
             graded: 'Creating graded scans …',
-            mebis: 'Creating Mebis feedback files …',
         },
         warnings: {
             failed: '{part} could not be exported: {error}',
             gradedOne: 'The scan of {name} could not be exported: {error}',
             noScan: 'There is no scan for {name}.',
-            noMebisId: '{name}: no Mebis id on the QR sticker, left out of the Mebis ZIP.',
             missingGraphics: 'Missing graphics in the compiled PDF: {files}',
         },
         summary: {
