@@ -1,12 +1,12 @@
 <script lang="ts">
   /** Shares graded PDFs with students through personal encrypted links and prints the slips (issue #207, docs/dev/result_sharing.md). Options that do not fit the chosen students are muted with the reason. */
   import { onMount } from "svelte";
-  import { faShareFromSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
+  import { faCircleInfo, faShareFromSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { Alert, Badge, Button, Checkbox, ConfirmDialog, Field, Modal, Radio, Select, Spinner, TableScroller } from "#lib/components/ui";
+  import { Alert, Badge, Button, Checkbox, ConfirmDialog, Field, Icon, Modal, Radio, Select, Spinner, TableScroller } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { revokeAllResultShares, revokeResultShare } from "#lib/api/resultShares";
-  import { availableChannels, incompatibleStudents, SHARE_CHANNELS, SHARE_FACTORS, type ArtemisMode, type ShareChannelId } from "#lib/sharing/channels";
+  import { channelUnavailable, incompatibleStudents, sendsPdf as channelSendsPdf, SHARE_CHANNELS, SHARE_FACTORS, type ArtemisMode, type ShareChannelId } from "#lib/sharing/channels";
   import type { ArtemisCourse } from "#lib/api/integrations";
   import { featuresStore } from "#lib/stores/capabilities";
   import DeliveryPreview from "./DeliveryPreview.svelte";
@@ -53,12 +53,13 @@
   const progressClass =
     "block h-3 w-full appearance-none overflow-hidden rounded-md bg-surface-inset [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-surface-inset [&::-webkit-progress-value]:bg-primary";
   const STATE_BADGE = { complete: "success", partial: "warning", ungraded: "secondary" } as const;
-  const DONE = { slips: "sharing.share.done", email: "sharing.channels.email.done", artemis: "sharing.channels.artemis.done" } as const;
+  const DONE = { slips: "sharing.share.done", email: "sharing.channels.email.done", artemis: "sharing.channels.artemis.done", mebis: "sharing.channels.mebis.done" } as const;
 
-  let channels = $derived(availableChannels($featuresStore));
-  let currentChannel = $derived(channels.find((c) => c.id === channel) ?? SHARE_CHANNELS[0]);
+  // Every channel is listed; one the account or server cannot use is greyed out with its reason.
+  let unavailable = $derived(new Map(SHARE_CHANNELS.map((c) => [c.id, channelUnavailable(c, $featuresStore)])));
+  let currentChannel = $derived(SHARE_CHANNELS.find((c) => c.id === channel && !unavailable.get(c.id)) ?? SHARE_CHANNELS[0]);
   // Artemis PDF mode makes no link, so neither a factor nor the solution applies.
-  let sendsPdf = $derived(currentChannel.id === "artemis" && artemisMode === "pdf");
+  let sendsPdf = $derived(channelSendsPdf(currentChannel.id, artemisMode));
   let setupMissing = $derived(currentChannel.id === "artemis" && !artemisCourse);
   let chosenStudents = $derived(overview?.students.filter((s) => selected.has(s.key)).map((s) => s.student) ?? []);
   let blockedCount = (f: ShareFactor) => incompatibleStudents(f, currentChannel, chosenStudents).length;
@@ -66,13 +67,14 @@
 
   function chooseChannel(id: ShareChannelId) {
     channel = id;
-    const next = channels.find((c) => c.id === id);
-    // Channels through a third party never carry a link that opens alone.
-    if (next && !next.factors.includes(factor)) factor = next.factors.find((f) => !factorMuted(f)) ?? next.factors[0];
+    const next = SHARE_CHANNELS.find((c) => c.id === id);
+    // Channels through a third party never carry a link that opens alone; a PDF channel has no factor to pick.
+    if (next?.factors.length && !next.factors.includes(factor)) factor = next.factors.find((f) => !factorMuted(f)) ?? next.factors[0];
   }
 
   function run() {
-    if (currentChannel.id === "slips") start();
+    // Slips and the Mebis ZIP stay with the teacher, so there is nothing to preview before sending.
+    if (currentChannel.id === "slips" || currentChannel.id === "mebis") start();
     else previewing = true;
   }
   let activeShares = $derived((overview?.students.filter((s) => s.share).length ?? 0) + (overview?.orphans.length ?? 0));
@@ -115,17 +117,17 @@
       outcome = await shareResults(
         {
           examId,
-          channel,
+          channel: currentChannel.id,
           factor,
           expiryDays: Number(expiry),
           studentKeys: selected,
           includeSolution: includeSolution && !sendsPdf && !!overview?.solutionAvailable,
-          artemis: channel === "artemis" && artemisCourse ? { ...artemisCourse, mode: artemisMode } : undefined,
+          artemis: currentChannel.id === "artemis" && artemisCourse ? { ...artemisCourse, mode: artemisMode } : undefined,
         },
         (phase, done = 0, total = 0) =>
           (step = phase === "solution" ? $t("sharing.share.compilingSolution") : $t("sharing.share.running", { done: done + 1, total }))
       );
-      if (outcome.slips) downloadBlob(new Blob([outcome.slips as BlobPart], { type: "application/pdf" }), outcome.fileName);
+      saveDownload(outcome);
       await reload();
     } catch (err) {
       error = `${$t("sharing.errors.share")} ${err instanceof Error ? err.message : ""}`.trim();
@@ -133,6 +135,10 @@
       running = false;
       step = "";
     }
+  }
+
+  function saveDownload(result: ShareOutcome) {
+    if (result.download) downloadBlob(new Blob([result.download.bytes as BlobPart], { type: result.download.type }), result.download.fileName);
   }
 
   async function revoke(shareId: string) {
@@ -176,8 +182,8 @@
           </ul>
         {/if}
         {#snippet actions()}
-          {#if outcome?.slips}
-            <Button size="sm" variant="outlined" severity="secondary" onClick={() => outcome?.slips && downloadBlob(new Blob([outcome.slips as BlobPart], { type: "application/pdf" }), outcome.fileName)}>
+          {#if outcome?.download}
+            <Button size="sm" variant="outlined" severity="secondary" onClick={() => outcome && saveDownload(outcome)}>
               {$t("sharing.share.downloadAgain")}
             </Button>
           {/if}
@@ -241,12 +247,16 @@
 
       <fieldset class="flex flex-col gap-2" disabled={running}>
         <legend class="mb-2 text-sm text-muted">{$t("sharing.share.channel")}</legend>
-        {#each channels as c (c.id)}
-          <div>
-            <Radio group={channel} value={c.id} name="share-channel" onchange={() => chooseChannel(c.id)} label={$t(c.labelKey)} />
+        {#each SHARE_CHANNELS as c (c.id)}
+          {@const reason = unavailable.get(c.id)}
+          <div class={reason ? "opacity-60" : ""}>
+            <Radio group={currentChannel.id} value={c.id} name="share-channel" disabled={!!reason} onchange={() => chooseChannel(c.id)} label={$t(c.labelKey)} />
             <p class="ml-7 text-sm text-muted">{$t(c.descriptionKey)}</p>
+            {#if reason}
+              <p class="ml-7 flex items-start gap-1.5 text-sm text-muted"><Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{$t(reason)}</p>
+            {/if}
           </div>
-          {#if c.id === channel && c.id !== "slips"}
+          {#if c.id === currentChannel.id && (c.id === "email" || c.id === "artemis")}
             <DeliverySetup channel={c.id} students={overview.students} disabled={running} bind:artemisCourse bind:artemisMode onSaved={reload} />
           {/if}
         {/each}
@@ -319,7 +329,7 @@
       disabled={running || loading || !selected.size || setupMissing || (!sendsPdf && factorMuted(factor))}
       onClick={run}
     >
-      {currentChannel.id === "slips" ? $t("sharing.share.run") : $t("sharing.share.runDelivery")}
+      {currentChannel.id === "slips" ? $t("sharing.share.run") : currentChannel.id === "mebis" ? $t("sharing.channels.mebis.run") : $t("sharing.share.runDelivery")}
     </Button>
   {/snippet}
 </Modal>

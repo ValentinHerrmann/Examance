@@ -30,7 +30,7 @@ Instead of stickers, Examance can print each student's QR code **directly onto t
 - The QR code sits in the QR box on the cover page, exactly where a sticker would go, so scanning works as with stickers. Spare copies printed from the plain exam PDF keep the box's label and initials field, so a student who needs a new sheet gets a sticker instead.
 - The **top-right corner of page 1** carries the student's **name and personal key** on the far side of a dashed diagonal line with small scissors. **Before handing out, cut the corner off** along the line. You may cut the whole stack at once with a guillotine. The student recognises their copy by it and keeps it; the key later opens their [shared result](#share-results).
 - There is blank room around the line, so an imprecise cut touches neither the name nor the exam.
-- If a corner was not cut off, Examance **covers it when the scans come in**, so the name never shows during grading or in exports.
+- Cut the corners off **before scanning**. Examance stores every page exactly as scanned and never covers anything, so a corner that was not cut off shows the name during grading and in exports.
 
 Every exam keeps this corner free on each page ([layout](./exams#cut-corner)): top right on odd pages, top left on even pages, which is the corner a cut through a double-sided or booklet stack removes. On the plain exam PDF it stays empty and lightly grey.
 
@@ -51,8 +51,9 @@ After grading, **Share with students** on the exam page gives each student their
    - **Slips to hand out**: a PDF with one slip per student, showing a QR code and the link.
    - **By e-mail**, see [Send by e-mail](#email).
    - **Through Artemis**, see [Mebis and Artemis](#artemis).
+   - **Feedback files for Mebis (download)**: a ZIP with each student's graded PDF to upload in the Mebis assignment, see [Mebis and Artemis](#lms).
 
-   E-mail and Artemis are missing only if your administrator turned them off for your account.
+   A way that is not available is greyed out, with the reason below it: your administrator has not enabled sending for your account, or no mail server is set up for e-mail.
 3. **Choose the link protection**, see [below](#link-protection).
 4. **Choose the validity**: 7, 14, 30 or 90 days (30 by default).
 5. Optionally tick **Include the sample solution**: students then see the exam's sample solution on the same page. It is compiled once for all students. Exams imported without their exercise code cannot include it.
@@ -80,7 +81,7 @@ Options that do not fit your selection are greyed out and the dialog says why. F
 
 Each student gets an e-mail with their link. For that, the students of the exam need an e-mail address:
 
-- In the sharing dialog under **By e-mail**, **Choose file** reads a Mebis export or a list (`Lastname, Firstname; ID; address`, one line per student). Examance matches the addresses to the students by the ID on their QR sticker, otherwise by name, shows the result, and saves them with **Use … addresses**.
+- In the sharing dialog under **By e-mail**, **Choose file** reads a Mebis export or a list (`Lastname, Firstname; ID; address`, one line per student), or paste or type such a list into **Or paste a list** and click **Apply**. Examance matches the addresses to the students by the ID on their QR sticker, otherwise by name, shows the result, and saves them with **Use … addresses**.
 - Or enter an address per student in the roster (**Edit**).
 
 The address is stored **encrypted** with the student, like their name.
@@ -95,7 +96,7 @@ Examance works with Mebis and Artemis in the same way as DiRueLei.
 
 1. In the Mebis assignment, download the **grading worksheet** (or export the participant list as CSV). It contains the students' Mebis IDs and e-mail addresses.
 2. Print the [QR stickers](#qr-stickers) from this file: the Mebis ID goes into each sticker.
-3. After grading, tick **Mebis feedback files (ZIP)** in the [export](./results#export). The download contains a separate `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
+3. After grading, choose **Feedback files for Mebis (download)** in **Share with students**, or tick **Mebis feedback files (ZIP)** in the [export](./results#export). Either way you get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
 
 Students whose sticker carries no Mebis ID are listed in the export warnings.
 

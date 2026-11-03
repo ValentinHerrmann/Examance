@@ -30,7 +30,7 @@ Statt Aufklebern kann Examance den QR-Code jedes Schülers **direkt auf sein eig
 - Der QR-Code steht im QR-Feld auf dem Deckblatt, genau dort, wo sonst der Aufkleber hinkommt; das Scannen funktioniert also wie mit Aufklebern. Ersatzexemplare aus dem normalen Prüfungs-PDF behalten Beschriftung und Initialenfeld des Felds, so dass eine Schülerin oder ein Schüler, die ein neues Blatt braucht, stattdessen einen Aufkleber bekommt.
 - Die **obere rechte Ecke von Seite 1** trägt jenseits einer gestrichelten Diagonale mit kleiner Schere **Name und persönlichen Schlüssel**. **Schneiden Sie die Ecke vor dem Austeilen** an der Linie ab. Den ganzen Stapel dürfen Sie auf einmal mit der Schneidemaschine schneiden. Der Schüler erkennt daran sein Exemplar und behält die Ecke; mit dem Schlüssel öffnet er später sein [geteiltes Ergebnis](#share-results).
 - Rund um die Linie ist freier Platz, ein ungenauer Schnitt trifft also weder den Namen noch die Prüfung.
-- Wurde eine Ecke nicht abgeschnitten, **deckt Examance sie beim Einlesen der Scans ab**; der Name ist dann weder beim Korrigieren noch in Exporten zu sehen.
+- Schneiden Sie die Ecken **vor dem Einscannen** ab. Examance speichert jede Seite genau so, wie sie gescannt wurde, und deckt nichts ab: Bei einer nicht abgeschnittenen Ecke ist der Name beim Korrigieren und in Exporten zu sehen.
 
 Jede Prüfung hält diese Ecke auf jeder Seite frei ([Layout](./exams#cut-corner)): auf ungeraden Seiten oben rechts, auf geraden oben links, also die Ecke, die ein Schnitt durch einen beidseitig oder als Broschüre gedruckten Stapel abtrennt. Im normalen Prüfungs-PDF bleibt sie leer und hellgrau.
 
@@ -51,8 +51,9 @@ Nach der Korrektur gibt **Mit Schülern teilen** auf der Prüfungsseite jeder Sc
    - **Zettel zum Austeilen**: ein PDF mit einem Zettel pro Person, auf dem ein QR-Code und der Link stehen.
    - **Per E-Mail**, siehe [Per E-Mail verschicken](#email).
    - **Über Artemis**, siehe [Mebis und Artemis](#artemis).
+   - **Rückmeldedateien für Mebis (Download)**: eine ZIP-Datei mit der korrigierten Arbeit jedes Schülers als PDF zum Hochladen in der Mebis-Aufgabe, siehe [Mebis und Artemis](#lms).
 
-   E-Mail und Artemis fehlen nur, wenn Ihre Administration sie für Ihr Konto abgeschaltet hat.
+   Ein Weg, der nicht verfügbar ist, wird ausgegraut und darunter begründet: Ihre Administration hat das Versenden für Ihr Konto nicht freigeschaltet, oder für E-Mail ist kein Mailserver eingerichtet.
 3. **Schutz der Links wählen**, siehe [unten](#link-protection).
 4. **Gültigkeit wählen** („Gültig für“): 7, 14, 30 oder 90 Tage (standardmäßig 30).
 5. Optional **Musterlösung mitschicken** ankreuzen: Die Schüler sehen dann auf derselben Seite auch die Musterlösung der Prüfung. Sie wird einmal für alle kompiliert. Bei Prüfungen, deren Aufgaben ohne Code importiert wurden, ist das nicht möglich.
@@ -80,7 +81,7 @@ Optionen, die nicht zu Ihrer Auswahl passen, sind ausgegraut, und der Dialog nen
 
 Jede Schülerin und jeder Schüler bekommt eine E-Mail mit dem Link. Dafür brauchen die Schüler der Prüfung eine E-Mail-Adresse:
 
-- Im Teilen-Dialog unter **Per E-Mail** liest **Datei wählen** einen Mebis-Export oder eine Liste (`Nachname, Vorname; ID; Adresse`, eine Zeile pro Person). Examance ordnet die Adressen über die ID auf dem QR-Aufkleber zu, sonst über den Namen, zeigt das Ergebnis und speichert sie mit **… Adresse(n) übernehmen**.
+- Im Teilen-Dialog unter **Per E-Mail** liest **Datei wählen** einen Mebis-Export oder eine Liste (`Nachname, Vorname; ID; Adresse`, eine Zeile pro Person), oder Sie fügen eine solche Liste unter **Oder Liste einfügen** ein bzw. tippen sie und klicken auf **Übernehmen**. Examance ordnet die Adressen über die ID auf dem QR-Aufkleber zu, sonst über den Namen, zeigt das Ergebnis und speichert sie mit **… Adresse(n) übernehmen**.
 - Oder tragen Sie die Adresse in der Schülerliste ein (**Bearbeiten**).
 
 Die Adresse wird **verschlüsselt** beim Schüler gespeichert, wie sein Name.
@@ -95,7 +96,7 @@ Examance arbeitet mit Mebis und Artemis so zusammen wie DiRueLei.
 
 1. Laden Sie in der Mebis-Aufgabe die **Bewertungstabelle** herunter (oder exportieren Sie die Teilnehmerliste als CSV). Sie enthält die Mebis-Kennungen und E-Mail-Adressen der Schüler.
 2. Drucken Sie mit dieser Datei die [QR-Aufkleber](#qr-stickers): Die Mebis-Kennung steckt dann in jedem Aufkleber.
-3. Kreuzen Sie nach der Korrektur im [Export](./results#export) **Mebis-Rückmeldedateien (ZIP)** an. Der Download enthält eine eigene `…_mebis_feedback.zip`. Laden Sie sie in der Mebis-Aufgabe unter **Mehrere Feedbackdateien in einer ZIP-Datei hochladen** hoch. Jeder Schüler sieht seine korrigierte Arbeit dann als Feedback.
+3. Wählen Sie nach der Korrektur unter **Mit Schülern teilen** den Weg **Rückmeldedateien für Mebis (Download)**, oder kreuzen Sie im [Export](./results#export) **Mebis-Rückmeldedateien (ZIP)** an. Beide Wege liefern eine `…_mebis_feedback.zip`. Laden Sie sie in der Mebis-Aufgabe unter **Mehrere Feedbackdateien in einer ZIP-Datei hochladen** hoch. Jeder Schüler sieht seine korrigierte Arbeit dann als Feedback.
 
 Schüler, deren Aufkleber keine Mebis-Kennung trägt, stehen in den Hinweisen des Exports.
 

@@ -63,7 +63,7 @@
 <div class="ml-7 flex min-w-0 flex-col gap-3 rounded-md border border-line p-3">
   {#if channel === "email"}
     <p class="m-0 text-sm">{$t("lms.email.count", { count: withEmail, total: students.length })}</p>
-    <ClassListFile disabled={disabled || saving} onContacts={imported} />
+    <ClassListFile paste disabled={disabled || saving} onContacts={imported} />
     {#if pending}
       <div class="flex flex-col gap-2 text-sm">
         <p class="m-0">{$t("lms.email.matched", { count: pending.matches.length, file: pending.fileName })}</p>

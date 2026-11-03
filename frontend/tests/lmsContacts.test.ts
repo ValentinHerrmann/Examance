@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { StudentRecord } from '#lib/db/schema';
 import { contactsFromLines, contactsFromMebisCsv, matchContacts, nameKey, parseCsv } from '#lib/lms/contacts';
-import { incompatibleStudents, SHARE_CHANNELS } from '#lib/sharing/channels';
+import { channelUnavailable, incompatibleStudents, sendsPdf, SHARE_CHANNELS } from '#lib/sharing/channels';
 import { mebisFeedbackPath } from '#lib/export/examExport';
 import { lmsIdOf, normalizeLmsId } from '#lib/utils/studentQr';
 
@@ -94,6 +94,26 @@ describe('delivery channels', () => {
     const without = student('B');
     expect(incompatibleStudents('code', email, [withMail, without]).map((b) => b.student)).toEqual([without]);
     expect(incompatibleStudents(null, artemis, [withMail, without]).map((b) => b.student)).toEqual([without]);
+  });
+
+  // Regression: unavailable channels were hidden; they are listed greyed out with the reason instead.
+  it('name why a channel is unavailable instead of hiding it', () => {
+    const mebis = SHARE_CHANNELS.find((c) => c.id === 'mebis')!;
+    const off = { result_delivery: false, result_mail: false };
+    expect(channelUnavailable(email, off)).toBe('sharing.channels.unavailable.switchOff');
+    expect(channelUnavailable(artemis, off)).toBe('sharing.channels.unavailable.switchOff');
+    expect(channelUnavailable(email, { result_delivery: true, result_mail: false })).toBe('sharing.channels.unavailable.noMailServer');
+    expect(channelUnavailable(email, { result_delivery: true, result_mail: true })).toBeNull();
+    expect(channelUnavailable(mebis, off)).toBeNull();
+  });
+
+  it('send the Mebis PDFs themselves and skip students without a Mebis id', () => {
+    const mebis = SHARE_CHANNELS.find((c) => c.id === 'mebis')!;
+    expect(sendsPdf('mebis', 'link')).toBe(true);
+    expect(sendsPdf('artemis', 'link')).toBe(false);
+    const withId = student('A', 'A_6028356');
+    const without = student('B');
+    expect(incompatibleStudents(null, mebis, [withId, without]).map((b) => b.student)).toEqual([without]);
   });
 });
 

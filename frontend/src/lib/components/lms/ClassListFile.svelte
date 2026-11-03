@@ -1,19 +1,22 @@
 <script lang="ts">
-  /** Picks a class list file: a Mebis (Moodle) CSV export, or a plain list with one student per line (issue #209). Read in the browser only. */
+  /** Picks a class list: a Mebis (Moodle) CSV export or a plain list with one student per line, from a file or, with `paste`, typed or pasted (issue #209). Read in the browser only. */
   import { faFileCsv } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { Button } from "#lib/components/ui";
+  import { Button, Field, Textarea } from "#lib/components/ui";
   import { contactsFromLines, contactsFromMebisCsv, type Contact } from "#lib/lms/contacts";
 
   interface Props {
     disabled?: boolean;
-    onContacts: (contacts: Contact[], fileName: string) => void;
+    /** Also offer a text box for a typed or pasted list. */
+    paste?: boolean;
+    onContacts: (contacts: Contact[], source: string) => void;
   }
 
-  let { disabled = false, onContacts }: Props = $props();
+  let { disabled = false, paste = false, onContacts }: Props = $props();
 
   let fileInput: HTMLInputElement | undefined = $state();
   let error = $state("");
+  let pasted = $state("");
 
   async function picked(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
@@ -30,6 +33,12 @@
       error = $t("lms.file.unreadable");
     }
   }
+
+  function applyPasted() {
+    const contacts = contactsFromMebisCsv(pasted) ?? contactsFromLines(pasted);
+    error = contacts.length ? "" : $t("lms.paste.empty");
+    if (contacts.length) onContacts(contacts, $t("lms.paste.source"));
+  }
 </script>
 
 <div class="flex flex-col gap-1">
@@ -38,5 +47,17 @@
     <Button size="sm" variant="outlined" icon={faFileCsv} {disabled} onClick={() => fileInput?.click()}>{$t("lms.file.pick")}</Button>
   </div>
   <p class="m-0 text-sm text-muted">{$t("lms.file.hint")}</p>
+  {#if paste}
+    <div class="mt-2 flex flex-col gap-2">
+      <Field label={$t("lms.paste.label")} hint={$t("lms.paste.hint")}>
+        {#snippet children({ id })}
+          <Textarea {id} rows={5} bind:value={pasted} placeholder={$t("lms.paste.placeholder")} {disabled} />
+        {/snippet}
+      </Field>
+      <div>
+        <Button size="sm" variant="outlined" disabled={disabled || !pasted.trim()} onClick={applyPasted}>{$t("lms.paste.apply")}</Button>
+      </div>
+    </div>
+  {/if}
   {#if error}<p class="m-0 text-sm text-danger-fg" role="alert">{error}</p>{/if}
 </div>

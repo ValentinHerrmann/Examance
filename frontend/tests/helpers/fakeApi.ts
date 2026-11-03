@@ -282,8 +282,8 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     allowed_storage_modes: state.role === 'admin' ? [] : [...ALLOWED_MODES],
     features:
       state.role === 'admin'
-        ? { server_results: false, server_latex: false, training_donation: false }
-        : { server_results: true, server_latex: true, training_donation: true },
+        ? { server_results: false, server_latex: false, result_delivery: false, result_mail: false, training_donation: false }
+        : { server_results: true, server_latex: true, result_delivery: true, result_mail: true, training_donation: true },
   });
 
   function user(method: string, parts: string[], body: any): Handled {

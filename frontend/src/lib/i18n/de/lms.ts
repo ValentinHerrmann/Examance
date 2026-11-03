@@ -6,6 +6,14 @@ export const lms = {
         empty: 'In der Datei wurden keine Schüler gefunden.',
         unreadable: 'Die Datei konnte nicht gelesen werden.',
     },
+    paste: {
+        label: 'Oder Liste einfügen',
+        hint: 'Ein Schüler pro Zeile: Name, dann Tab oder Semikolon, dann die E-Mail-Adresse (z. B. aus einer Tabelle kopiert).',
+        placeholder: 'Mustermann, Erika; erika@schule.de',
+        apply: 'Übernehmen',
+        source: 'eingefügte Liste',
+        empty: 'In der Liste wurden keine Schüler gefunden.',
+    },
     artemis: {
         fromCourse: 'Aus einem Artemis-Kurs laden',
         host: 'Artemis-Adresse',

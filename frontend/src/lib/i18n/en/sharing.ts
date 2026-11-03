@@ -12,7 +12,7 @@ export const sharing: Translations['sharing'] = {
         output: 'Output',
         outputStickers: 'Sticker sheet',
         outputCopies: 'Print directly onto the exam copies',
-        copiesIntro: 'One copy per student, in list order: the QR code sits in the QR box, and the top-right corner of page 1 carries name and personal key. Before handing out, cut the corner off along the dashed line; students recognise their copy by it and keep it. A corner that was not cut off is covered when the scans come in. Print at actual size.',
+        copiesIntro: 'One copy per student, in list order: the QR code sits in the QR box, and the top-right corner of page 1 carries name and personal key. Before handing out, cut the corner off along the dashed line; students recognise their copy by it and keep it. Cut it off before scanning: Examance keeps the scan unchanged, so a corner that was not cut off stays visible. Print at actual size.',
         copiesPrintHint: 'Print double-sided, flipping on the long edge, or as a booklet: every page shows the cut line at its outer corner (top right on odd pages, top left on even ones), so the whole stack can be cut at once with a guillotine. A copy with an odd page count gets a blank page, so every copy starts on a new sheet.',
         compiling: 'Compiling the exam …',
         copiesTitle: 'Exam copies',
@@ -95,6 +95,17 @@ export const sharing: Translations['sharing'] = {
             needsKey: 'To open it you also need your personal key or code.',
             pdfMessage: 'Your graded exam “{exam}”:',
             done: '{count} exam(s) sent through Artemis.',
+        },
+        mebis: {
+            label: 'Feedback files for Mebis (download)',
+            description: "A ZIP file with each student's graded exam as a PDF. Upload it in the Mebis assignment under “Upload multiple feedback files in a zip”. It needs QR stickers made from a Mebis participant list.",
+            missing: 'no Mebis participant ID on the QR sticker',
+            done: '{count} exam(s) packed into the Mebis ZIP file.',
+            run: 'Create ZIP file',
+        },
+        unavailable: {
+            switchOff: 'Not available: your administrator has not enabled sending results for your account.',
+            noMailServer: 'Not available: no mail server is set up on this server. Please contact your administrator.',
         },
     },
     factor: {

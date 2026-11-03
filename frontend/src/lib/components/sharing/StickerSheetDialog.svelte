@@ -2,9 +2,9 @@
   /** Prints QR name stickers, optionally with personal key slips (issues #83, #207), or the QR codes directly onto personalised exam copies (issue #211). From an exam it can also start from the exam's students, e.g. to print only the keys for stickers already in use. */
   import { onMount, untrack } from "svelte";
   import { get } from "svelte/store";
-  import { faQrcode } from "@fortawesome/free-solid-svg-icons";
+  import { faCircleInfo, faQrcode } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { Button, Checkbox, Field, Modal, Radio, Textarea, TextInput } from "#lib/components/ui";
+  import { Button, Checkbox, Field, Icon, Modal, Radio, Textarea, TextInput } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug } from "#lib/export/zip";
   import { renderExamCopies } from "#lib/qr/examCopies";
@@ -143,11 +143,13 @@
       <div class="flex flex-col gap-3 rounded-md border border-line p-3">
         <p class="m-0 text-sm font-semibold">{$t("lms.importTitle")}</p>
         <ClassListFile disabled={busy} onContacts={(contacts) => fillRoster(contacts)} />
-        {#if $featuresStore.result_delivery}
-          {#if showArtemis}
-            <ArtemisConnect disabled={busy} onLoaded={fromArtemis} />
-          {:else}
-            <div><Button size="sm" variant="text" disabled={busy} onClick={() => (showArtemis = true)}>{$t("lms.artemis.fromCourse")}</Button></div>
+        <!-- Shown even when the switch is off, greyed out with the reason (never hidden). -->
+        {#if showArtemis && $featuresStore.result_delivery}
+          <ArtemisConnect disabled={busy} onLoaded={fromArtemis} />
+        {:else}
+          <div><Button size="sm" variant="text" disabled={busy || !$featuresStore.result_delivery} onClick={() => (showArtemis = true)}>{$t("lms.artemis.fromCourse")}</Button></div>
+          {#if !$featuresStore.result_delivery}
+            <p class="m-0 flex items-start gap-1.5 text-sm text-muted"><Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{$t("sharing.channels.unavailable.switchOff")}</p>
           {/if}
         {/if}
       </div>

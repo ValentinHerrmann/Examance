@@ -8,11 +8,10 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel, EmailStr, Field
 
-from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.services import account_mail, artemis
 from app.services.blob_validation import check_upload, payload_too_large
-from app.services.capabilities import require_result_delivery
+from app.services.capabilities import mail_configured, require_result_delivery
 
 router = APIRouter(
     prefix="/integrations",
@@ -150,7 +149,7 @@ async def mail_results(request: Request, body: ResultMails) -> ResultMailsSent:
             or any(c.isspace() for c in url)
         ):
             raise _link_invalid()
-    if not settings.SMTP_HOST and not settings.is_dev:
+    if not mail_configured():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="E-mail delivery is not configured on this server.",

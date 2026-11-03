@@ -4,7 +4,7 @@
   import { t } from "#lib/i18n";
   import { Alert, Button, Modal, TableScroller } from "#lib/components/ui";
   import type { ArtemisCourse } from "#lib/api/integrations";
-  import { incompatibleStudents, type ArtemisMode, type ShareChannel } from "#lib/sharing/channels";
+  import { incompatibleStudents, sendsPdf as channelSendsPdf, type ArtemisMode, type ShareChannel } from "#lib/sharing/channels";
   import type { ShareFactor } from "#lib/sharing/shareCrypto";
   import type { ShareStudent } from "#lib/sharing/shareService";
   import { resultsAreLocal } from "#lib/stores/storagePolicy";
@@ -21,7 +21,7 @@
 
   let { channel, students, factor, artemis, onConfirm, onCancel }: Props = $props();
 
-  let sendsPdf = $derived(channel.id === "artemis" && artemis?.mode === "pdf");
+  let sendsPdf = $derived(channelSendsPdf(channel.id, artemis?.mode ?? "link"));
   let blocked = $derived(new Map(incompatibleStudents(sendsPdf ? null : factor, channel, students.map((s) => s.student)).map((b) => [b.student, b.reason])));
   let reachable = $derived(students.filter((s) => !blocked.has(s.student)));
 

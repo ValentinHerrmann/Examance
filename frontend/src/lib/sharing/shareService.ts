@@ -16,7 +16,7 @@ import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { randomCode } from '#lib/utils/randomCode';
 import { formatStudentName, stickerRawOf } from '#lib/utils/studentQr';
 import { incompatibleStudents, SHARE_CHANNELS, type ShareChannelId } from './channels';
-import { createDelivery, type ArtemisTarget } from './delivery';
+import { createDelivery, type ArtemisTarget, type DeliveryFile } from './delivery';
 import { lookupHash, lookupSecret, newShareLink, sealShare, shareUrl, type ShareFactor } from './shareCrypto';
 import { renderShareSlips, type SlipEntry } from './slipsPdf';
 
@@ -56,8 +56,8 @@ export interface ShareOutcome {
   shared: number;
   channel: ShareChannelId;
   warnings: string[];
-  slips: Uint8Array | null;
-  fileName: string;
+  /** What the teacher saves: the slips or code slips PDF, or the Mebis ZIP. */
+  download: DeliveryFile | null;
 }
 
 export const SHARE_EXPIRY_DAYS = [7, 14, 30, 90] as const;
@@ -190,11 +190,13 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   entries.sort((a, b) => a.name.localeCompare(b.name));
   // Slips carry the links; on other channels only the codes, which must reach students apart from the link.
   const printed = request.channel === 'slips' || (request.factor === 'code' && !delivery.sendsPdf);
+  const slips = printed && entries.length ? await renderShareSlips({ examTitle, expiresAt, factor: request.factor, entries, codesOnly: request.channel !== 'slips' }) : null;
   return {
     shared: entries.length - undelivered.length,
     channel: request.channel,
     warnings,
-    slips: printed && entries.length ? await renderShareSlips({ examTitle, expiresAt, factor: request.factor, entries, codesOnly: request.channel !== 'slips' }) : null,
-    fileName: `${slug(examTitle)}_${request.channel === 'slips' ? 'links' : 'codes'}_${exportDateStamp()}.pdf`,
+    download: slips
+      ? { bytes: slips, type: 'application/pdf', fileName: `${slug(examTitle)}_${request.channel === 'slips' ? 'links' : 'codes'}_${exportDateStamp()}.pdf` }
+      : (delivery.download?.() ?? null),
   };
 }

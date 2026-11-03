@@ -6,7 +6,7 @@ import type { FeatureName } from '#lib/stores/capabilities';
 import { lmsIdOf, stickerRawOf } from '#lib/utils/studentQr';
 import type { ShareFactor } from './shareCrypto';
 
-export type ShareChannelId = 'slips' | 'email' | 'artemis';
+export type ShareChannelId = 'slips' | 'email' | 'artemis' | 'mebis';
 
 /** Artemis delivers either the link or the graded PDF itself (then Artemis stores the plain PDF). */
 export type ArtemisMode = 'link' | 'pdf';
@@ -16,11 +16,13 @@ export interface ShareChannel {
   labelKey: TranslationKey;
   descriptionKey: TranslationKey;
   factors: readonly ShareFactor[];
-  /** The account switch the channel needs, if any. */
-  feature?: FeatureName;
+  /** What the account and server must allow, each with the reason shown when it does not. */
+  requires?: readonly { feature: FeatureName; reason: TranslationKey }[];
   /** Why this channel cannot reach *student*, or null when it can. */
   unreachable(student: StudentRecord): TranslationKey | null;
 }
+
+const SWITCH = { feature: 'result_delivery', reason: 'sharing.channels.unavailable.switchOff' } as const;
 
 export const SHARE_CHANNELS: readonly ShareChannel[] = [
   {
@@ -35,7 +37,7 @@ export const SHARE_CHANNELS: readonly ShareChannel[] = [
     labelKey: 'sharing.channels.email.label',
     descriptionKey: 'sharing.channels.email.description',
     factors: ['sticker', 'code'],
-    feature: 'result_delivery',
+    requires: [SWITCH, { feature: 'result_mail', reason: 'sharing.channels.unavailable.noMailServer' }],
     unreachable: (student) => (student.email ? null : 'sharing.channels.email.missing'),
   },
   {
@@ -43,14 +45,27 @@ export const SHARE_CHANNELS: readonly ShareChannel[] = [
     labelKey: 'sharing.channels.artemis.label',
     descriptionKey: 'sharing.channels.artemis.description',
     factors: ['sticker', 'code'],
-    feature: 'result_delivery',
+    requires: [SWITCH],
     unreachable: (student) => (lmsIdOf(student) ? null : 'sharing.channels.artemis.missing'),
+  },
+  {
+    // The graded PDFs themselves, zipped for the Mebis assignment's feedback upload; made in the browser, so no switch applies.
+    id: 'mebis',
+    labelKey: 'sharing.channels.mebis.label',
+    descriptionKey: 'sharing.channels.mebis.description',
+    factors: [],
+    unreachable: (student) => (lmsIdOf(student) ? null : 'sharing.channels.mebis.missing'),
   },
 ];
 
-/** The channels this account may use. */
-export function availableChannels(features: Partial<Record<FeatureName, boolean>>): ShareChannel[] {
-  return SHARE_CHANNELS.filter((c) => !c.feature || features[c.feature] === true);
+/** Why this account or server cannot use *channel*, or null when it can: the dialog greys it out with the reason instead of hiding it. */
+export function channelUnavailable(channel: ShareChannel, features: Partial<Record<FeatureName, boolean>>): TranslationKey | null {
+  return channel.requires?.find((r) => features[r.feature] !== true)?.reason ?? null;
+}
+
+/** Channels that send the PDF itself rather than a link: no factor and no solution apply. */
+export function sendsPdf(channel: ShareChannelId, artemisMode: ArtemisMode): boolean {
+  return channel === 'mebis' || (channel === 'artemis' && artemisMode === 'pdf');
 }
 
 export const SHARE_FACTORS: readonly ShareFactor[] = ['none', 'sticker', 'code'];

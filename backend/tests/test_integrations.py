@@ -1,4 +1,5 @@
 """Result delivery (issue #209): the feature gate, the Artemis relay and the result-link mail."""
+
 from __future__ import annotations
 
 import asyncio
@@ -83,7 +84,13 @@ async def test_students_are_mapped(
         return httpx.Response(
             200,
             json=[
-                {"id": 1, "firstName": "Ada", "lastName": "Lovelace", "login": "ga1", "email": "a@x"},
+                {
+                    "id": 1,
+                    "firstName": "Ada",
+                    "lastName": "Lovelace",
+                    "login": "ga1",
+                    "email": "a@x",
+                },
                 {"id": 2, "name": "Only Name"},
                 {"firstName": "No id"},
             ],
@@ -166,13 +173,16 @@ async def test_server_error_is_not_retried_on_the_legacy_path(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("upstream", "status", "code"), [
-    (401, 400, "ERR_ARTEMIS_AUTH"),
-    (403, 400, "ERR_ARTEMIS_AUTH"),
-    (302, 400, "ERR_ARTEMIS_AUTH"),
-    (500, 424, "ERR_ARTEMIS_UPSTREAM"),
-    (404, 424, "ERR_ARTEMIS_UPSTREAM"),
-])
+@pytest.mark.parametrize(
+    ("upstream", "status", "code"),
+    [
+        (401, 400, "ERR_ARTEMIS_AUTH"),
+        (403, 400, "ERR_ARTEMIS_AUTH"),
+        (302, 400, "ERR_ARTEMIS_AUTH"),
+        (500, 424, "ERR_ARTEMIS_UPSTREAM"),
+        (404, 424, "ERR_ARTEMIS_UPSTREAM"),
+    ],
+)
 async def test_upstream_errors_never_become_401(
     client: AsyncClient,
     db: AsyncSession,
@@ -190,7 +200,9 @@ async def test_upstream_errors_never_become_401(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("error", [httpx.ConnectError("dns"), ssl.SSLError("bad cert"), OSError("reset")])
+@pytest.mark.parametrize(
+    "error", [httpx.ConnectError("dns"), ssl.SSLError("bad cert"), OSError("reset")]
+)
 async def test_transport_failures_answer_with_our_own_code(
     client: AsyncClient,
     db: AsyncSession,
@@ -226,7 +238,9 @@ async def test_slow_artemis_ends_within_the_deadline(
 
     _mock_artemis(monkeypatch, handler)  # type: ignore[arg-type]
     monkeypatch.setattr(artemis, "DEADLINE_SECONDS", 0.1)
-    resp = await client.post(API + "/artemis/messages", json={**COURSE, "user_id": 5, "content": "Hi"})
+    resp = await client.post(
+        API + "/artemis/messages", json={**COURSE, "user_id": 5, "content": "Hi"}
+    )
     assert resp.status_code == 424
     assert resp.headers["code"] == "ERR_ARTEMIS_TIMEOUT"
 
@@ -319,3 +333,24 @@ async def test_mail_unavailable_in_production_without_smtp(
     resp = await client.post(API + "/mail/results", json=_mail_body())
     assert resp.status_code == 503
     assert resp.headers["code"] == "ERR_MAIL_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("smtp", "on", "expected"),
+    [(None, True, False), ("smtp.example.com", True, True), ("smtp.example.com", False, False)],
+)
+async def test_capabilities_tell_whether_mail_can_be_sent(
+    client: AsyncClient,
+    db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    smtp: str | None,
+    on: bool,
+    expected: bool,
+) -> None:
+    # The share dialog greys out e-mail with a reason instead of failing on send.
+    await _teacher(client, db, f"caps-{smtp}-{on}@example.com", on=on)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "SMTP_HOST", smtp)
+    caps = await client.get("/api/v1/user/capabilities")
+    assert caps.json()["features"]["result_mail"] is expected

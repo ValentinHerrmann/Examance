@@ -6,7 +6,7 @@ import { sessionStore } from '#lib/stores/session';
 import { isStorageMode, storagePolicyStore, type StorageMode } from '#lib/stores/storagePolicy';
 import { safeSessionStorage } from '#lib/utils/storage';
 
-export type FeatureName = 'server_results' | 'server_latex' | 'exercise_sharing' | 'result_delivery' | 'training_donation';
+export type FeatureName = 'server_results' | 'server_latex' | 'exercise_sharing' | 'result_delivery' | 'result_mail' | 'training_donation';
 
 export interface Capabilities {
   /** The account the answer is about; null in a cache written before the server sent it. */

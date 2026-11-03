@@ -8,6 +8,14 @@ export const lms: Translations['lms'] = {
         empty: 'No students found in the file.',
         unreadable: 'The file could not be read.',
     },
+    paste: {
+        label: 'Or paste a list',
+        hint: 'One student per line: the name, then a tab or semicolon, then the e-mail address (e.g. copied from a spreadsheet).',
+        placeholder: 'Doe, Jane; jane@school.org',
+        apply: 'Apply',
+        source: 'pasted list',
+        empty: 'No students found in the list.',
+    },
     artemis: {
         fromCourse: 'Load from an Artemis course',
         host: 'Artemis address',

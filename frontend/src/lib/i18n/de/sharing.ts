@@ -10,7 +10,7 @@ export const sharing = {
         output: 'Ausgabe',
         outputStickers: 'Aufkleberbogen',
         outputCopies: 'Direkt auf die Prüfungsexemplare drucken',
-        copiesIntro: 'Ein Exemplar pro Schüler, in der Reihenfolge der Liste: Der QR-Code steht im QR-Feld, die obere rechte Ecke von Seite 1 trägt Name und persönlichen Schlüssel. Schneiden Sie die Ecke vor dem Austeilen an der gestrichelten Linie ab; der Schüler erkennt daran sein Exemplar und behält sie. Eine nicht abgeschnittene Ecke wird beim Einscannen abgedeckt. Drucken Sie in Originalgröße.',
+        copiesIntro: 'Ein Exemplar pro Schüler, in der Reihenfolge der Liste: Der QR-Code steht im QR-Feld, die obere rechte Ecke von Seite 1 trägt Name und persönlichen Schlüssel. Schneiden Sie die Ecke vor dem Austeilen an der gestrichelten Linie ab; der Schüler erkennt daran sein Exemplar und behält sie. Schneiden Sie sie vor dem Einscannen ab: Examance übernimmt den Scan unverändert, eine nicht abgeschnittene Ecke bleibt also sichtbar. Drucken Sie in Originalgröße.',
         copiesPrintHint: 'Drucken Sie beidseitig mit Wenden an der langen Kante oder als Broschüre: Jede Seite zeigt die Schnittlinie an ihrer äußeren Ecke (ungerade Seiten oben rechts, gerade oben links), so dass Sie den ganzen Stapel auf einmal mit der Schneidemaschine schneiden können. Ein Exemplar mit ungerader Seitenzahl bekommt eine leere Seite, damit jedes auf einem neuen Blatt beginnt.',
         compiling: 'Prüfung wird kompiliert …',
         copiesTitle: 'Prüfungsexemplare',
@@ -93,6 +93,17 @@ export const sharing = {
             needsKey: 'Zum Öffnen brauchst du zusätzlich deinen persönlichen Schlüssel oder Code.',
             pdfMessage: 'Deine korrigierte Prüfung „{exam}“:',
             done: '{count} Arbeit(en) über Artemis verschickt.',
+        },
+        mebis: {
+            label: 'Rückmeldedateien für Mebis (Download)',
+            description: 'Eine ZIP-Datei mit der korrigierten Arbeit jedes Schülers als PDF. Laden Sie sie in der Mebis-Aufgabe unter „Mehrere Feedbackdateien in einer ZIP-Datei hochladen“ hoch. Sie braucht QR-Aufkleber aus einer Mebis-Teilnehmerliste.',
+            missing: 'keine Mebis-Teilnehmer-ID auf dem QR-Aufkleber',
+            done: '{count} Arbeit(en) in die Mebis-ZIP-Datei gepackt.',
+            run: 'ZIP-Datei erstellen',
+        },
+        unavailable: {
+            switchOff: 'Nicht verfügbar: Ihr Administrator hat das Versenden von Ergebnissen für Ihr Konto nicht freigeschaltet.',
+            noMailServer: 'Nicht verfügbar: Auf diesem Server ist kein Mailserver eingerichtet. Wenden Sie sich an Ihren Administrator.',
         },
     },
     factor: {

@@ -19,6 +19,11 @@ class Capabilities:
     features: dict[str, bool] = field(default_factory=dict)
 
 
+def mail_configured() -> bool:
+    """Whether this server can send result mails (an SMTP host, or dev, which logs them)."""
+    return bool(settings.SMTP_HOST) or settings.is_dev
+
+
 def account_features(teacher: Teacher) -> dict[str, bool]:
     """The admin-set switches of *teacher*, keyed as in `ACCOUNT_FEATURES`."""
     return {
@@ -34,7 +39,7 @@ def capabilities_for(teacher: Teacher) -> Capabilities:
     if teacher.role != "teacher":
         return Capabilities(
             allowed_storage_modes=(),
-            features={name: False for name in (*ACCOUNT_FEATURES, "training_donation")},
+            features={name: False for name in (*ACCOUNT_FEATURES, "training_donation", "result_mail")},
         )
     return Capabilities(
         allowed_storage_modes=(
@@ -43,6 +48,7 @@ def capabilities_for(teacher: Teacher) -> Capabilities:
         features={
             **account_features(teacher),
             "training_donation": settings.TRAINING_DONATION_ENABLED,
+            "result_mail": teacher.allow_result_delivery and mail_configured(),
         },
     )
 
