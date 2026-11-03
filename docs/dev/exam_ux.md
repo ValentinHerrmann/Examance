@@ -144,13 +144,14 @@ All paths below are under `frontend/src/` unless they start with `docs/` or `fro
 - [x] **7.5 E2E**: `e2e/helpers/nav.ts` step map and labels; `e2e/helpers/seed.ts` `mainRoutes` (add `/content`, `/print`, `/results`, `/results/share`; drop `/stats`); `layout.spec.ts` sidebar and content-width checks (route list `''`, `/content`, `/scan`, `/verify`, `/manual`, `/results`); `functional.spec.ts` `gotoExamTab` callers (setup actions now live on `/content` or the Overview); extend `tests/helpers/fakeApi.ts` for any read the fake cannot answer.
 
 ### 8. Finish
-- [ ] **8.1** `git grep -n "ExamActionBar\|ShareResultsDialog\|statsHref\|ExamMetadata\b\|exam.sidebar.setup\|options.mebis"` finds nothing.
-- [ ] **8.2** `npx svelte-check --threshold error`, `npm run lint` (frontend) and `npm run docs:build` (docs) are clean.
-- [ ] **8.3** Mark the PR ready and update its description with the preview checks: Overview, Exam and Print on phone, iPad portrait and 1920×1080; the "Next" chain from Overview to Results; `/stats` redirect; Share → Print keys keeps the selection; Roster tab hidden; screenshots to refresh.
+- [x] **8.1** `git grep -n "ExamActionBar\|ShareResultsDialog\|statsHref\|ExamMetadata\b\|exam.sidebar.setup\|options.mebis"` finds nothing.
+- [x] **8.2** `npx svelte-check --threshold error`, `npm run lint` (frontend) and `npm run docs:build` (docs) are clean.
+- [x] **8.3** Mark the PR ready and update its description with the preview checks: Overview, Exam and Print on phone, iPad portrait and 1920×1080; the "Next" chain from Overview to Results; `/stats` redirect; Share → Print keys keeps the selection; Roster tab hidden; screenshots to refresh.
 
 ## Progress notes
 
 - 2026-11-03: all items done; PR ready for review on the preview. Follow-ups after the owner's review: delete the hidden roster (`lib/grading/manualRoster.ts`), refresh screenshots from `docs/demo-instance/`.
+- CI fix: "Playwright (phone, routes)" failed on `/results/share` (`.app-main` 77px too wide). Cause: absolutely positioned `sr-only` header labels in the student table took `.app-main` as containing block and escaped `TableScroller`'s clipping; `TableScroller` is now `relative` (fixes every table), and the sticky send bar lost its `-mx-1`.
 
 - 2026-11-03: design agreed, code map and checklist written.
 - 1.1–1.2 done: the sidebar already links `/content`, `/print`, `/results`, which exist only after 2.4, 3.4 and 4.1 (intermediate commits have dead step links; fine on a draft PR).

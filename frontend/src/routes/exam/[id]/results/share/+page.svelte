@@ -339,7 +339,7 @@
       </Card>
 
       <!-- Step 4 stays in view while scrolling through the steps above. -->
-      <div class="sticky bottom-0 z-[1] -mx-1 rounded-xl border border-line bg-surface-raised p-4 shadow-sm">
+      <div class="sticky bottom-0 z-[1] rounded-xl border border-line bg-surface-raised p-4 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="m-0 text-base font-semibold">{@render step(4, $t("sharing.page.send"))}</h2>
           <Button icon={sendsMessage ? actionIcons.send : actionIcons.share} loading={running} disabled={!canRun} onClick={run}>
