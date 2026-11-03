@@ -6,10 +6,15 @@
   import { afterNavigate } from "$app/navigation";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
-  import { loadExamEncrypted } from "#lib/db/dbEncryption";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import type { ExamRecord } from "#lib/db/schema";
-  import { examNavContext } from "#lib/stores/shell";
+  import { examNavContext, examMcOpen } from "#lib/stores/shell";
+  import { loadExamEncrypted, loadExamExercisesEncrypted, loadOmrTemplateEncrypted } from "#lib/db/dbEncryption";
+  import { studentRepository } from "#lib/repositories/studentRepository";
+  import { listResultDeliveries, listResultShares } from "#lib/api/resultShares";
+  import { latestDeliveries, undelivered } from "#lib/sharing/shareService";
+  import { featuresStore } from "#lib/stores/capabilities";
+  import { examProgress, type ExamProgressInput } from "#lib/exam/examProgress";
   import { t } from "#lib/i18n";
 
   interface Props {
@@ -25,6 +30,8 @@
   // Raw: the record is handed to examNavContext, which must not receive a proxy.
   let exam: ExamRecord | null = $state.raw(null);
   let submissionCount = $state(0);
+  // Raw: handed to the store like the record. Each count is read on its own, so a failed read drops only its badge.
+  let counts: ExamProgressInput = $state.raw({});
 
   afterNavigate(() => {
     if (examId && $sessionStore.sessionKey) {
@@ -32,17 +39,38 @@
     }
   });
 
-  async function loadExamHeaderData(id: string) {
-    const key = get(sessionStore).sessionKey;
+  async function attempt<T>(read: () => Promise<T>): Promise<T | undefined> {
     try {
-      exam = (await loadExamEncrypted(id, key)) || null;
-      const subs = await submissionRepository.getByExamId(id, key);
-      submissionCount = subs.length;
+      return await read();
     } catch (e) {
       console.error(e);
-      // The count is only a sidebar badge: hide it (never a stale or zero count); each page reports its own failed reads.
-      submissionCount = 0;
+      return undefined;
     }
+  }
+
+  async function loadExamHeaderData(id: string) {
+    const key = get(sessionStore).sessionKey;
+    const next: ExamProgressInput = {};
+    exam = (await attempt(() => loadExamEncrypted(id, key))) || null;
+    const subs = await attempt(() => submissionRepository.getByExamId(id, key));
+    // The counts are only sidebar badges: a failed read hides its badge (never a stale or zero count); each page reports its own failed reads.
+    submissionCount = subs?.length ?? 0;
+    if (subs) {
+      next.submissionCount = subs.length;
+      next.gradedCount = subs.filter((s) => typeof s.totalScore === "number" && !isNaN(s.totalScore)).length;
+    }
+    next.exerciseCount = (await attempt(() => loadExamExercisesEncrypted(id, key)))?.length;
+    next.studentCount = (await attempt(() => studentRepository.getByExamId(id, key)))?.length;
+    const omr = await attempt(() => loadOmrTemplateEncrypted(id, key));
+    if (omr !== undefined) next.omrReady = !!omr?.payload;
+    const shares = await attempt(() => listResultShares(id));
+    // Students with a link that still opens; a replaced link leaves an older row, so count students, not rows.
+    if (shares) next.sharedCount = new Set(shares.filter((sh) => Date.parse(sh.expiresAt) > Date.now()).map((sh) => sh.studentKey)).size;
+    if (get(featuresStore).result_delivery) {
+      const deliveries = await attempt(() => listResultDeliveries(id));
+      if (deliveries) next.notReached = [...latestDeliveries(deliveries).values()].filter(undelivered).length;
+    }
+    if (id === examId) counts = next;
   }
 
   onDestroy(() => examNavContext.set(null));
@@ -61,8 +89,11 @@
     const id = examId;
     const current = exam;
     const count = submissionCount;
+    const input = counts;
+    const mc = $examMcOpen;
     if (browser && id) {
-      untrack(() => examNavContext.set({ examId: id, exam: current && current.id === id ? current : null, submissionCount: count }));
+      const progress = examProgress({ ...input, mcOpen: mc && mc.examId === id ? mc.open : undefined });
+      untrack(() => examNavContext.set({ examId: id, exam: current && current.id === id ? current : null, submissionCount: count, progress }));
     }
   });
 </script>

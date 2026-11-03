@@ -40,6 +40,7 @@
   } from "#lib/workers/omrWorker";
   import type { ExerciseScoreRecord } from "#lib/db/schema";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
+  import { examMcOpen } from "#lib/stores/shell";
 
   let examId = $derived(page.params.id || "");
   // Set = one item (M5, formerly `/verify-item`); the stats below serve both views.
@@ -423,6 +424,13 @@
       lastRefreshedKey = key;
       untrack(refresh);
     }
+  });
+
+  // Step badge: unreviewed failed and unsure detections (issue #212).
+  $effect.pre(() => {
+    const id = examId;
+    const open = stats ? [...failedItems, ...unsureItems].filter((i) => !i.isReviewed).length : null;
+    if (open !== null) untrack(() => examMcOpen.set({ examId: id, open }));
   });
 </script>
 

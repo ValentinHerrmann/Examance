@@ -1,3 +1,4 @@
+import type { ExamProgress } from '#lib/exam/examProgress';
 import { writable } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
 import type { ExamRecord } from '#lib/db/schema';
@@ -31,6 +32,11 @@ export interface ExamNavContext {
     examId: string;
     exam: ExamRecord | null;
     submissionCount: number;
+    /** Step badges (issue #212); a step without an entry shows none. */
+    progress: ExamProgress;
 }
 
 export const examNavContext = writable<ExamNavContext | null>(null);
+
+/** Open MC checks, known only once the verify page computed its queues: published here for the step badge. */
+export const examMcOpen = writable<{ examId: string; open: number } | null>(null);
