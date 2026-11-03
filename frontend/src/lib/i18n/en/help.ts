@@ -34,7 +34,7 @@ export const help: Translations['help'] = {
         requirementLevel: 'Requirement level I: reproduce, II: apply and transfer, III: reflect and solve problems. Shown only on the solution sheet.',
         partExercises: 'Parts a), b), c) get their own subtitle and score box. An empty score counts the part’s scoring units.',
         blindGrading: 'During grading only the pseudonym is shown, never the name. Result and person are re-linked only after the grading pass.',
-        pseudonymQr: 'Every sheet carries a QR code for exam, variant and student slot. Scanning splits the stack along those codes and assigns the pages automatically.',
+        pseudonymQr: 'The cover page of every exam carries the student’s QR code, as a sticker or printed directly. Scanning splits the stack along those codes and assigns the pages automatically.',
         gradingKey: 'The grading key decides which score earns which grade — linear, upper-secondary weighted, or with your own cutoffs.',
     },
     topics: {
@@ -158,7 +158,7 @@ export const help: Translations['help'] = {
             },
             s5: {
                 h: 'Typeset and print',
-                p1: 'The run produces a print-ready PDF with QR codes for exam, variant and student slot. Print the sheets exactly as typeset, without scaling: the QR code has to stay readable, otherwise the scan cannot be assigned automatically later.',
+                p1: 'The run produces a print-ready PDF with a box for the QR code on the cover page. Print the sheets exactly as typeset, without scaling: the QR code has to stay readable, otherwise the scan cannot be assigned automatically later.',
             },
         },
         scanning: {
@@ -185,8 +185,8 @@ export const help: Translations['help'] = {
                 p1: '“Re-run MC detection” evaluates all scans again with the current settings. Verified questions and manually entered scores stay unchanged. The detection method is chosen under Settings → MC detection.',
             },
             s6: {
-                h: 'QR stickers',
-                p1: 'Without stickers, Examance cannot assign pages by itself. “QR stickers” on the exam page prints a label sheet from a list of names, optionally with a personal key each student keeps.',
+                h: 'QR codes',
+                p1: 'Without QR codes, Examance cannot assign pages by itself. “Print QR codes” on the exam page prints a label sheet from a list of names, optionally with a personal key each student keeps. Or it prints the codes directly onto the exam copies: the top-right corner of page 1 then carries name and key, which you snip off before handing out.',
             },
         },
         grading: {

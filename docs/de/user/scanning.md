@@ -33,7 +33,7 @@ Der QR-Aufkleber verweist auf ein **Pseudonym**, nicht auf einen Namen. Die Verk
 
 ## Wenn die Zuordnung nicht klappt {#assignment}
 
-Seiten, deren QR-Aufkleber unlesbar ist oder fehlt, stehen unter **Nicht zugeordnete Abgaben**. Der Prüfungsbogen selbst trägt keinen aufgedruckten Code, nur das leere Feld **QR Code** für den Aufkleber, siehe [QR-Aufkleber](./students#qr-stickers). Geben Sie den Aufkleber-Text (`Nachname, Vorname_ID`) in das Feld ein, und **Code verknüpfen** ordnet die Abgabe zu.
+Seiten, deren QR-Aufkleber unlesbar ist oder fehlt, stehen unter **Nicht zugeordnete Abgaben**. Der QR-Code klebt entweder als Aufkleber im Feld **QR Code** oder ist dort aufgedruckt, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies). Geben Sie den Aufkleber-Text (`Nachname, Vorname_ID`) in das Feld ein, und **Code verknüpfen** ordnet die Abgabe zu.
 
 Typische Ursachen sind ein vergessener Aufkleber, eine geknickte oder gefaltete Ecke, ein von Handschrift verdeckter Code oder eine skaliert gedruckte Seite.
 

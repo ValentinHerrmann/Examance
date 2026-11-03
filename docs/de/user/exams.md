@@ -65,6 +65,16 @@ Beim Korrigieren werden die aktuelle Note und die Punkte bis zur nächsten Note 
 
 Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung oder unter **Prüfung bearbeiten**) erhält die Titelseite eine Zeile für den Namen der Schülerin oder des Schülers. Das QR-Code-Feld bleibt an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; nur das Initialenfeld im Feld entfällt.
 
+### Abschneide-Ecke {#cut-corner}
+
+Jede Prüfung hält auf jeder Seite die **äußere obere Ecke** frei: auf ungeraden Seiten oben rechts, auf geraden oben links. Auf geraden Seiten ist die Kopfzeile gespiegelt. Im normalen Prüfungs-PDF bleibt die Ecke leer und ist hellgrau getönt. Drucken Sie die QR-Codes [direkt auf die Prüfungsexemplare](./students#printed-copies), trägt die Ecke auf Seite 1 Name und persönlichen Schlüssel, und eine gestrichelte Linie mit kleiner Schere zeigt, wo Sie sie vor dem Austeilen abschneiden. Bei beidseitigem und Broschürendruck können Sie auch den ganzen Stapel auf einmal mit der Schneidemaschine schneiden. Alle Prüfungen haben dieses Layout, so findet das Einlesen die Eckmarkierungen immer an denselben Stellen, egal wie die Blätter gedruckt wurden.
+
+Der Text und auf Seite 1 das QR-Feld mit den Hinweisen daneben reichen bis an die Eckmarkierungen. Die Kopfzeile von Seite 1 zeigt das Logo, dann den Titel und darunter in einer Zeile Kurs, Datum, Dauer und Lehrkraft; die anderen Seiten zeigen den Titel und „Seite X“. Die Punktetabelle füllt den Streifen zwischen den unteren Markierungen.
+
+Die Skizze zeigt den nutzbaren Platz auf ungeraden und geraden Seiten: Textbereich, Kopfzeile, Punktetabelle, den Abschnitt mit seiner Toleranz und die Eckmarkierungen. Das [PDF](../../screenshots/guide/cut-corner-layout-de.pdf) ist in Originalgröße auf A4 gezeichnet; Maße auf einem Ausdruck in 100 % sind echte Millimeter.
+
+![Nutzbarer Platz mit Abschneide-Ecke: ungerade Seite (links) und gerade Seite (rechts)](../../screenshots/guide/cut-corner-layout-de.png)
+
 ### Platz für weitere Lösungen {#extra-space}
 
 **Platz für weitere Lösungen am Ende** (unter der Aufgabenliste) lässt den Schülerbogen mit einem Karo-Feld für zusätzliche Lösungen enden:

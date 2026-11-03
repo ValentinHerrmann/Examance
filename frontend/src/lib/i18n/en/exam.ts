@@ -113,6 +113,8 @@ export const exam: Translations['exam'] = {
         retentionUntil: 'Retention Until',
         infoText: 'Info Text (LaTeX list)',
         nameLine: 'Print a name line next to the QR code box',
+        cutCornerLayout: 'See the usable space in the user guide (true-scale sketch)',
+        pageLayoutHint: 'Every page keeps its outer top corner free (right on odd pages, left on even ones). On copies printed with the QR code it carries name and personal key on page 1; you cut it off before handing out, for double-sided or booklet prints with a guillotine through the whole stack.',
         nameLineHint: 'Students write their name on the title page. The QR code box stays; its initials field is dropped.',
         mcCorrectionHint: 'Show how to correct a cross at every multiple-choice task',
         mcCorrectionHintHint: 'One short line under the task: cross to choose, fill the box to withdraw, cross left of a filled box to choose again. The answer-sheet template is rebuilt.',

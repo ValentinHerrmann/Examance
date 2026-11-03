@@ -14,6 +14,7 @@
     showLoesungPreview?: boolean;
     titleAngabe?: string | undefined;
     titleLoesung?: string | undefined;
+    /** Inside a flex column the root's (and below lg the pane's) flex-1 overrides this, so give that parent a fixed height; a content-sized one shrinks the PDF to its minimum (issue #210). */
     height?: string;
     placeholderText?: string | undefined;
     /** Desktop: with every pane collapsed, shrink to the collapsed strips and give the rest of the row back. */

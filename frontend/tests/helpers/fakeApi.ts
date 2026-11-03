@@ -58,6 +58,8 @@ export interface FakeApiState {
   unhandled: string[];
   /** The account's LaTeX package list (`/user/latex-packages`, issue #108). */
   latexPackages: any[];
+  /** Result shares a student can open (`POST /shares/:id/open`, issue #207): the expected `lookup_b64` and the content the server answers with. */
+  resultShares: Map<string, { lookupB64: string; content: any }>;
 }
 
 export interface FakeApi {
@@ -172,6 +174,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     requests: [],
     unhandled: [],
     latexPackages: [],
+    resultShares: new Map(),
   };
 
   function reset(): void {
@@ -194,6 +197,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.requests.length = 0;
     state.unhandled.length = 0;
     state.latexPackages = [];
+    state.resultShares.clear();
   }
 
   /* ------------------------------------------------------------------------ */
@@ -1307,6 +1311,14 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       case 'latex':
         if (verb === 'GET' && parts[1] === 'template-packages') handled = ok(TEMPLATE_PACKAGES);
         break;
+      case 'shares': {
+        // The student's session-less open (issue #207): a wrong lookup answers 404 like an unknown share.
+        const share = state.resultShares.get(parts[1] ?? '');
+        if (verb === 'POST' && parts[2] === 'open' && parts.length === 3) {
+          handled = share && share.lookupB64 === payload.lookup_b64 ? ok(share.content) : fail(404, 'Share not found', 'ERR_NOT_FOUND');
+        }
+        break;
+      }
       case 'trash':
         // The fake deletes for good, so its trash is always empty (issue #125).
         if (verb === 'GET' && parts.length === 1) handled = ok({ grace_days: 7, groups: [] });

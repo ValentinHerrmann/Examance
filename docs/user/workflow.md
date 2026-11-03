@@ -31,7 +31,7 @@ More: [Creating an exam](./exams).
 
 ## 3. Print, write, scan {#print}
 
-Print the sheets exactly as typeset (no scaling); the QR sticker must stay readable. Print the stickers beforehand with **QR stickers** on the exam page ([QR stickers](./students#qr-stickers)); every student sticks theirs into the QR Code box on the cover page. After the exam, scan the whole stack into one PDF on the school copier.
+Print the sheets exactly as typeset (no scaling); the QR sticker must stay readable. Print the stickers beforehand with **Print QR codes** on the exam page ([QR stickers](./students#qr-stickers)); every student sticks theirs into the QR Code box on the cover page. Or print the codes [directly onto the exam copies](./students#printed-copies) and snip off the name corner before handing out. After the exam, scan the whole stack into one PDF on the school copier.
 
 More: [Print](./exams#print), [Scan the stack](./scanning#scan).
 

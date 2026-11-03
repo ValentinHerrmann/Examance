@@ -1,12 +1,20 @@
 export const sharing = {
     untitledExam: 'Prüfung',
     actions: {
-        stickers: 'QR-Aufkleber',
+        stickers: 'QR-Codes drucken',
         share: 'Mit Schülern teilen',
     },
     stickers: {
-        title: 'QR-Namensaufkleber drucken',
+        title: 'QR-Codes drucken',
         intro: 'Erzeugt einen Bogen QR-Aufkleber (A4, 5 × 7 Etiketten). Jeder Schüler klebt seinen Aufkleber in das Feld „QR Code“ auf dem Deckblatt; beim Einscannen ordnet Examance die Seiten dann von selbst zu.',
+        output: 'Ausgabe',
+        outputStickers: 'Aufkleberbogen',
+        outputCopies: 'Direkt auf die Prüfungsexemplare drucken',
+        copiesIntro: 'Ein Exemplar pro Schüler, in der Reihenfolge der Liste: Der QR-Code steht im QR-Feld, die obere rechte Ecke von Seite 1 trägt Name und persönlichen Schlüssel. Schneiden Sie die Ecke vor dem Austeilen an der gestrichelten Linie ab; der Schüler erkennt daran sein Exemplar und behält sie. Eine nicht abgeschnittene Ecke wird beim Einscannen abgedeckt. Drucken Sie in Originalgröße.',
+        copiesPrintHint: 'Drucken Sie beidseitig mit Wenden an der langen Kante oder als Broschüre: Jede Seite zeigt die Schnittlinie an ihrer äußeren Ecke (ungerade Seiten oben rechts, gerade oben links), so dass Sie den ganzen Stapel auf einmal mit der Schneidemaschine schneiden können. Ein Exemplar mit ungerader Seitenzahl bekommt eine leere Seite, damit jedes auf einem neuen Blatt beginnt.',
+        compiling: 'Prüfung wird kompiliert …',
+        copiesTitle: 'Prüfungsexemplare',
+        noQrBox: 'Im kompilierten Schülerblatt fehlt das QR-Code-Feld.',
         source: 'Namen',
         sourceRoster: 'Namensliste einfügen',
         sourceExam: 'Schüler dieser Prüfung',

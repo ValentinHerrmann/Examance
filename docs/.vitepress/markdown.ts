@@ -15,7 +15,7 @@ const EXCLUDED_DIRS = ['demo-instance/', 'pitches/', 'posters/', 'screenshots/']
 
 /** Files served by the site itself (opened in the browser, not GitHub's viewer), as paths relative to docs/. */
 export const SITE_FILES: string[] = [
-  ...['pitches', 'posters'].flatMap((dir) =>
+  ...['pitches', 'posters', 'screenshots/guide'].flatMap((dir) =>
     readdirSync(resolve(DOCS_ROOT, dir)).filter((f) => f.endsWith('.pdf')).map((f) => `${dir}/${f}`),
   ),
   'openapi.json',
