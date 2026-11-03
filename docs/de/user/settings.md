@@ -57,7 +57,7 @@ Was Sie in der App löschen (Prüfungen, Aufgaben, Dateien, Logos, Schüler:inne
 
 *Gehört zu Ihrem Konto.* Oben links auf der ersten Seite jeder Prüfung wird ein Logo gedruckt. Unter **Logo für Klausuren** laden Sie ein eigenes hoch (PNG, JPEG oder PDF, höchstens 2 MB), wählen **Kein Logo** oder setzen auf das Standardlogo zurück. Ohne Logo bleibt die Stelle frei; das Seitenlayout und die Lage der Antwortkästchen ändern sich dadurch nicht.
 
-Eine einzelne Prüfung kann das Logo unter **Prüfung bearbeiten** überschreiben, siehe [Logo und LaTeX-Pakete](./exams#logo-packages).
+Eine einzelne Prüfung kann das Logo auf dem Reiter **Layout** der Prüfung überschreiben, siehe [Logo und LaTeX-Pakete](./exams#logo-packages).
 
 ## LaTeX-Pakete {#packages}
 

@@ -8,9 +8,7 @@ Eine Prüfung besteht aus einer Auswahl von Aufgaben aus Ihrer Bibliothek, Kopfd
 
 ## Eine neue Prüfung anlegen {#new-exam}
 
-**Neue Prüfung** (auf der Startseite) fragt nur die Kopfdaten ab, legt die Prüfung an und öffnet sie auf der Prüfungsseite. Alles Weitere (Aufgaben, Reihenfolge, MC-Gruppen, Logo, Pakete, Vorschau) erledigen Sie dort.
-
-Die Prüfungsseite ist in Schritte gegliedert, die als Tabs (auf breiten Bildschirmen als Seitenleiste) angezeigt werden: **Einrichtung & Aufgaben**, **Scans**, **MC prüfen**, **Korrektur**, **Papier & Excel**, **Auswertung**.
+**Neue Prüfung** (auf der Startseite) fragt nur die Kopfdaten ab, legt die Prüfung an und öffnet sie im Schritt **Prüfung** mit der Aufgabenbibliothek. Alles Weitere (Aufgaben, Reihenfolge, MC-Gruppen, Layout, Logo, Pakete, Vorschau) erledigen Sie dort.
 
 ### Kopfdaten {#header}
 
@@ -18,11 +16,32 @@ Die Prüfungsseite ist in Schritte gegliedert, die als Tabs (auf breiten Bildsch
 
 Das optionale **Thema** (zum Beispiel „Rekursion“) ordnet Ihre Prüfungen in der Übersicht, wo Sie danach filtern und suchen können. Es wird nie gedruckt. Die Übersicht lässt sich außerdem nach Datum, Titel, Jahrgang oder Fach sortieren.
 
-Um die Kopfdaten später zu ändern, öffnen Sie **Prüfung bearbeiten** auf der Prüfungsseite.
+Um die Kopfdaten später zu ändern, wählen Sie **Angaben bearbeiten** in der **Übersicht**. Der Dialog enthält nur die Angaben der Prüfung: Titel, Testart, Jahrgang/Klasse, Datum, Dauer, Nummer, Fach, Lehrkraft, Thema und das Aufbewahrungsdatum. Layout-Einstellungen finden Sie auf dem [Reiter Layout](#layout), den Notenschlüssel unter [Ergebnisse](./results#grading-key).
+
+## Die Schritte einer Prüfung {#steps}
+
+Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten Schritten. Jeder Schritt trägt ein Abzeichen, das zeigt, wo Sie stehen: Zahl der Aufgaben, Schüler oder Scans, korrigiert x/y, offene MC-Prüfungen, geteilte Ergebnisse (rot: die Zahl der Ergebnis-E-Mails, die nicht angekommen sind). Jede Schrittseite endet mit einer Schaltfläche **Weiter: …**, die zum nächsten Schritt führt.
+
+| Schritt | Was Sie dort tun |
+|---|---|
+| **Übersicht** | Angaben und Kennzahlen der Prüfung, siehe [unten](#overview) |
+| 1 **Prüfung** | Aufgaben, Layout und Vorschau, siehe [Aufgaben zusammenstellen](#assemble) und [Layout-Optionen](#layout) |
+| 2 **Schüler** | Die Klassenliste, siehe [Schülerdaten](./students#student-data) |
+| 3 **Drucken** | PDFs und QR-Codes erstellen, siehe [Drucken](#print) |
+| 4 **Scans** | Die gescannten Bögen einlesen, siehe [Scannen und Zuordnen](./scanning) |
+| 5 **MC prüfen** | Multiple-Choice-Erkennungen prüfen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification) |
+| 6 **Korrektur** | Abgaben korrigieren, siehe [Korrigieren](./grading) |
+| 7 **Papier & Excel** | Punkte für ohne Scan korrigierte Arbeiten eintragen, siehe [Auf Papier korrigierte Klassen](./grading#paper) |
+| 8 **Ergebnisse** | Reiter **Statistik** und **Teilen**, siehe [Ergebnisse und Auswertung](./results) |
+
+## Übersicht {#overview}
+
+Die **Übersicht** (erster, nicht nummerierter Eintrag der Seitenleiste) zeigt die Angaben und Kennzahlen der Prüfung. **Weiter mit: …** (gefolgt vom Namen des Schritts) öffnet den Schritt, den Sie am ehesten als Nächstes brauchen. **Angaben bearbeiten** ändert die Kopfdaten, **Exportieren** lädt die Prüfung herunter (siehe [Exportieren](#export)), und das Menü **⋯** (**Weitere Aktionen**) enthält **Duplizieren**, **Abgaben löschen** und **Löschen** (die Prüfung).
+
 
 ## Aufgaben zusammenstellen {#assemble}
 
-Auf der Prüfungsseite wählen Sie Aufgaben aus der Bibliothek (**Aufgaben hinzufügen**), jeweils mit der gewünschten Variante. Mit **Neue Aufgabe** schreiben Sie direkt dort eine neue; sie wird in Ihrer Bibliothek gespeichert und sofort ausgewählt.
+Im Schritt **Prüfung** listet der Reiter **Aufgaben** die Aufgaben der Prüfung. Dort wählen Sie Aufgaben aus der Bibliothek (**Aufgaben hinzufügen**), jeweils mit der gewünschten Variante. Mit **Neue Aufgabe** schreiben Sie direkt dort eine neue; sie wird in Ihrer Bibliothek gespeichert und sofort ausgewählt.
 
 - Mit den Pfeilen ändern Sie die Reihenfolge der Aufgaben.
 - Die Gesamtpunktzahl wird laufend neu berechnet.
@@ -40,30 +59,19 @@ Soll eine Aufgabe auf einer neuen Seite beginnen, fügen Sie zwischen zwei Aufga
 
 ### MC-Gruppen {#mc-groups}
 
-Mehrere Ankreuzaufgaben können gemeinsam als **MC-Gruppe** gedruckt werden. Gruppen legen und bearbeiten Sie auf der Prüfungsseite (**MC-Gruppen**). Eine Prüfung kann beliebig viele Gruppen beliebiger Größe enthalten; jede Frage gehört zu höchstens einer Gruppe.
+Mehrere Ankreuzaufgaben können gemeinsam als **MC-Gruppe** gedruckt werden. Gruppen legen und bearbeiten Sie auf dem Reiter **Aufgaben** (**MC-Gruppen**). Eine Prüfung kann beliebig viele Gruppen beliebiger Größe enthalten; jede Frage gehört zu höchstens einer Gruppe.
 
 Haken Sie im Aufgabendialog auf dem Reiter **MC-Gruppen** die Fragen an und geben Sie der Gruppe einen Titel. **Aufgaben und MC-Gruppe übernehmen** fügt die Gruppe zusammen mit den übrigen Aufgaben hinzu. Für mehrere Gruppen auf einmal klicken Sie nach jeder Gruppe auf **MC-Gruppe zur Prüfung hinzufügen**.
 
 Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Frage.
 
-## Notenschlüssel {#grading-key}
-
-Der Notenschlüssel legt fest, welcher Prozentwert welche Note (1 bis 6) ergibt. Wählen Sie eine Voreinstellung oder legen Sie eigene Grenzen fest:
-
-| Voreinstellung | Note 4 ab |
-|---|---|
-| **Klassisch** | 50 % |
-| **Oberstufe** | 40 % |
-| **Gleichmäßig** | gleichmäßig verteilte Grenzen |
-| **Individuell** | Ihr eigener Mindestprozentwert je Note |
-
-Beim Korrigieren werden die aktuelle Note und die Punkte bis zur nächsten Note laufend angezeigt. Die Statistik verwendet denselben Schlüssel.
-
 ## Layout-Optionen {#layout}
+
+Layout-Einstellungen liegen auf dem Reiter **Layout** im Schritt **Prüfung**: Infotext, Namenszeile, Hinweis zur Abschneide-Ecke, Korrekturhinweis für Multiple-Choice, Logo und LaTeX-Pakete. **Speichern** übernimmt sie, **Änderungen verwerfen** kehrt zum gespeicherten Stand zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
 
 ### Namenszeile {#name-line}
 
-Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung oder unter **Prüfung bearbeiten**) erhält die Titelseite eine Zeile für den Namen der Schülerin oder des Schülers. Das QR-Code-Feld bleibt an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; nur das Initialenfeld im Feld entfällt.
+Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung oder auf dem Reiter **Layout**) erhält die Titelseite eine Zeile für den Namen der Schülerin oder des Schülers. Das QR-Code-Feld bleibt an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; nur das Initialenfeld im Feld entfällt.
 
 ### Abschneide-Ecke {#cut-corner}
 
@@ -86,7 +94,7 @@ Der Erwartungshorizont enthält das Feld nicht.
 
 ### Wie man ein Kreuz korrigiert {#mc-hint}
 
-**Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert** (beim Anlegen der Prüfung oder unter **Prüfung bearbeiten**) druckt zu Beginn jeder Multiple-Choice-Aufgabe eine kurze Zeile, in der Prüfung und im Erwartungshorizont:
+**Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert** (beim Anlegen der Prüfung oder auf dem Reiter **Layout**) druckt zu Beginn jeder Multiple-Choice-Aufgabe eine kurze Zeile, in der Prüfung und im Erwartungshorizont:
 
 - Kästchen **ankreuzen**, um eine Option zu wählen;
 - Kästchen **ganz ausmalen**, um ein Kreuz zurückzunehmen;
@@ -98,13 +106,13 @@ Die MC-Erkennung liest genau diese Markierungen, siehe [MC-Erkennungen prüfen](
 
 ### Logo und LaTeX-Pakete {#logo-packages}
 
-Jede Prüfung druckt oben links auf der ersten Seite ein Logo. Unter **Prüfung bearbeiten** wählen Sie das Logo aus Ihren Einstellungen, kein Logo oder ein Logo nur für diese Prüfung (siehe [Logo auf der Prüfung](./settings#logo)). In der Prüfungsübersicht zeigt jede aufgeklappte Prüfung, welches Logo sie druckt.
+Jede Prüfung druckt oben links auf der ersten Seite ein Logo. Auf dem Reiter **Layout** wählen Sie das Logo aus Ihren Einstellungen, kein Logo oder ein Logo nur für diese Prüfung (siehe [Logo auf der Prüfung](./settings#logo)). In der Prüfungsübersicht zeigt jede aufgeklappte Prüfung, welches Logo sie druckt.
 
-Unter **Prüfung bearbeiten** können Sie außerdem LaTeX-Pakete nur für diese Prüfung hinzufügen oder Pakete Ihres Kontos weglassen (siehe [LaTeX-Pakete](./exercises#packages)).
+Auf demselben Reiter können Sie außerdem LaTeX-Pakete nur für diese Prüfung hinzufügen oder Pakete Ihres Kontos weglassen (siehe [LaTeX-Pakete](./exercises#packages)).
 
 ## Setzen {#typeset}
 
-**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.
+**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Auf breiten Bildschirmen steht die Vorschau neben Aufgaben und Layout; auf kleineren ist sie ein dritter Reiter, **Vorschau**, neben **Aufgaben** und **Layout**. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.
 
 Je nach Ihren Einstellungen und Ihrem Konto wird die Prüfung
 
@@ -121,16 +129,22 @@ In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag d
 
 ## Drucken {#print}
 
-Drucken Sie die Bögen **genau so, wie sie gesetzt wurden**: nicht „An Seite anpassen“, keine Skalierung, kein Beschneiden. Der QR-Aufkleber und die Eckmarken müssen lesbar bleiben, sonst lässt sich der Scan nicht automatisch zuordnen und angekreuzte Kästchen werden nicht erkannt.
+Der Schritt **Drucken** hat zwei Karten.
+
+**Prüfungs-PDFs**: **PDFs erstellen** setzt die Prüfung, danach liefern **Angabe herunterladen** und **Lösung herunterladen** die Dateien. Beim Erstellen wird auch die Scan-Vorlage für die MC-Erkennung aufgefrischt, und Sie erfahren, ob sie noch zur Prüfung passt.
+
+**QR-Codes für Schüler**: die Optionen für den Aufkleberbogen oder für Prüfungsexemplare mit aufgedruckten Codes, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies).
+
+Drucken Sie die Bögen **genau so, wie sie gesetzt wurden**: nicht „An Seite anpassen“, keine Skalierung, kein Beschneiden. Der QR-Aufkleber und die Eckmarken müssen lesbar bleiben, sonst lässt sich der Scan nicht automatisch zuordnen und angekreuzte Kästchen nicht erkennen.
 
 Nach der Prüfung geht es weiter mit [Scannen und Zuordnen](./scanning).
 
 ## Eine Prüfung duplizieren {#duplicate}
 
-**Duplizieren** (in der Prüfungsübersicht und auf der Prüfungsseite) legt eine neue Prüfung mit denselben Kopfdaten, Aufgaben, MC-Gruppen, demselben Notenschlüssel und denselben Einstellungen an, zum Beispiel für eine Parallelklasse oder das nächste Schuljahr. Schülerdaten, Scans und Ergebnisse werden nie mitkopiert; die Kopie beginnt ohne sie.
+**Duplizieren** (in der Prüfungsliste und im Menü **⋯** der **Übersicht** der Prüfung) legt eine neue Prüfung mit denselben Kopfdaten, Aufgaben, MC-Gruppen, demselben Notenschlüssel und denselben Einstellungen an, zum Beispiel für eine Parallelklasse oder das nächste Schuljahr. Schülerdaten, Scans und Ergebnisse werden nie mitkopiert; die Kopie beginnt ohne sie.
 
 ## Exportieren {#export}
 
-**Exportieren** an einer Prüfung (Startseite oder Prüfungsseite) lädt sie entweder als lesbares ZIP oder als passwortgeschützte Sicherung herunter, siehe [Ergebnisse exportieren](./results#export) und [Sicherung und Übertragung](./backup#exam-backup).
+**Exportieren** an einer Prüfung (Startseite oder **Übersicht** der Prüfung) lädt sie entweder als lesbares ZIP oder als passwortgeschützte Sicherung herunter, siehe [Ergebnisse exportieren](./results#export) und [Sicherung und Übertragung](./backup#exam-backup).
 
 ![Prüfung exportieren](../../screenshots/guide/exam-export.jpg)

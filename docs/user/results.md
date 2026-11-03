@@ -4,9 +4,22 @@ editLink: false
 
 # Results and analysis
 
-Each exam has a **Statistics** step with the grade distribution, key figures and borderline cases. **Analytics** in the navigation bar combines several exams. Both read the same encrypted results; nothing is computed on the server.
+Each exam has a **Results** step (the last one in the sidebar) with two tabs: **Statistics** shows the grade distribution, key figures and borderline cases, **Share** hands the graded exams to the students, see [Share results](#share). **Analytics** in the navigation bar combines several exams. Both read the same encrypted results; nothing is computed on the server.
 
 ![Exam results](../screenshots/pitch/08-results.jpg)
+
+## Grading key {#grading-key}
+
+The grading key decides which percentage earns which grade (1 to 6). You edit it on **Results → Statistics**, above the distribution; changes show in the charts immediately and are stored with **Save**. Choose a preset or set your own thresholds:
+
+| Preset | Grade 4 from |
+|---|---|
+| **Standard** | 50 % |
+| **Upper secondary** | 40 % |
+| **Even split** | evenly spaced thresholds |
+| **Custom** | your own minimum percentage per grade |
+
+While grading, the current grade and the points to the next grade are shown live. The statistics use the same key.
 
 ## Exam statistics {#distribution}
 
@@ -45,7 +58,7 @@ The **SVG**, **PDF** and **PNG** buttons download each chart with a transparent 
 
 The **CSV export** of the grades, for example for the school's grade management, contains pseudonym, fallback code, name, score, maximum points, percentage and grade.
 
-**Export** on an exam (dashboard or exam page) with the format **Readable ZIP** bundles one exam into a single ZIP. Pick the parts you need:
+**Export** on an exam (dashboard or the exam's **Overview**) with the format **Readable ZIP** bundles one exam into a single ZIP. Pick the parts you need:
 
 | Part | Contains |
 |---|---|
@@ -59,7 +72,13 @@ The **CSV export** of the grades, for example for the school's grade management,
 CSV and ZIP contain **real names** and are **not encrypted**. Store them only in safe places and delete them after use. Every ZIP export is logged.
 :::
 
+The ZIP has no Mebis option: feedback files for Mebis come only from [Share results](#share).
+
 For an encrypted copy that can be imported again, choose **Re-importable, password-protected backup** instead, see [Backup and transfer](./backup#exam-backup).
+
+## Share results {#share}
+
+The **Share** tab of **Results** gives each student their graded exam. It is a page with four numbered steps: 1 the students, 2 the channel (slips to hand out, e-mail, Artemis or Mebis files) with its setup and the language of the message, 3 protection and options (link protection, key or code in the message, sample solution, validity), 4 preview and send; the send button stays visible at the bottom. Below, the active links are listed and can be revoked, with **Revoke all** for all of them. Details: [Share graded exams with students](./students#share-results).
 
 ## Analytics across exams {#analytics}
 

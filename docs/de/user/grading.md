@@ -38,7 +38,7 @@ Sie können die Punkte einer Aufgabe auch direkt eintippen. **Als unkorrigiert z
 
 ## Punkte, Summe und Note {#scores}
 
-Punkte werden **pro Aufgabe** vergeben. Summe und Note werden laufend aus dem [Notenschlüssel](./exams#grading-key) der Prüfung neu berechnet. Neben der Note zeigt Examance, wie viele Punkte bis zur nächstbesseren Note fehlen und wie groß der Puffer vor der nächstschlechteren ist.
+Punkte werden **pro Aufgabe** vergeben. Summe und Note werden laufend aus dem [Notenschlüssel](./results#grading-key) der Prüfung neu berechnet. Neben der Note zeigt Examance, wie viele Punkte bis zur nächstbesseren Note fehlen und wie groß der Puffer vor der nächstschlechteren ist.
 
 Eine Abgabe gilt als **teilweise korrigiert**, bis jede Aufgabe Punkte hat. Teilweise korrigierte Abgaben erscheinen bereits mit einem vorläufigen Wert in der Statistik, siehe [teilweise korrigierte Abgaben](./results#partial).
 
@@ -68,8 +68,8 @@ Nicht jede Prüfung braucht Scans. Im Schritt **Papier & Excel** tragen Sie Punk
 
 - **Aufgabenweise Eingabe**: alle Schülerinnen und Schüler für eine Aufgabe, dann die nächste Aufgabe.
 - **Schülerweise Eingabe**: alle Aufgaben einer Schülerin oder eines Schülers, dann die nächste Person.
-- **Schülerliste**: Schülerinnen und Schüler einzeln hinzufügen oder eine ganze Liste einfügen.
-- **Aus Excel importieren (Strg+V)**: Markieren Sie die Zellen in Excel oder Google Tabellen, kopieren Sie sie und fügen Sie sie hier ein. Examance zeigt eine Vorschau, kann fehlende Schülerinnen und Schüler automatisch in der Liste anlegen und füllt dann das Raster.
+- **Schüler**: Die Schüler der Prüfung stammen von der [Seite Schüler](./students#student-data); fehlende legen Sie dort an.
+- **Aus Excel importieren (Strg+V)**: Markieren Sie die Zellen in Excel oder Google Tabellen, kopieren Sie sie und fügen Sie sie hier ein. Examance zeigt eine Vorschau und füllt dann das Raster. Eingefügte Zeilen, die zu keinem Schüler auf der Seite Schüler passen, werden übersprungen, mit einem Hinweis.
 
 Diese Ergebnisse fließen wie gescannte in Statistik, Auswertung und Export ein.
 

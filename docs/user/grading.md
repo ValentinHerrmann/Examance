@@ -38,7 +38,7 @@ You can also type an exercise's points directly. **Reset to ungraded** clears a 
 
 ## Points, total and grade {#scores}
 
-Points are awarded **per exercise**. The total and the grade are recalculated continuously from the exam's [grading key](./exams#grading-key). Next to the grade, Examance shows how many points are missing for the next better grade, and the buffer before the next worse one.
+Points are awarded **per exercise**. The total and the grade are recalculated continuously from the exam's [grading key](./results#grading-key). Next to the grade, Examance shows how many points are missing for the next better grade, and the buffer before the next worse one.
 
 A submission counts as **partly graded** until every exercise has points. Partly graded submissions already appear in the statistics with a provisional value, see [partially graded submissions](./results#partial).
 
@@ -68,8 +68,8 @@ Not every exam needs scans. On the **Paper & Excel** step you enter points direc
 
 - **Exercise-first entry**: all students for one exercise, then the next exercise.
 - **Student-first entry**: all exercises of one student, then the next student.
-- **Student roster**: add students one by one or paste a whole list.
-- **Import from Excel (Ctrl+V)**: select the cells in Excel or Google Sheets, copy them and paste them here. Examance shows a preview, can create missing students in the roster automatically, and then fills the grid.
+- **Students**: the exam's students come from the [Students page](./students#student-data); add missing ones there.
+- **Import from Excel (Ctrl+V)**: select the cells in Excel or Google Sheets, copy them and paste them here. Examance shows a preview and then fills the grid. Pasted rows that match no student on the Students page are skipped, with a hint.
 
 These results take part in statistics, analytics and export like scanned ones.
 

@@ -4,7 +4,7 @@ editLink: false
 
 # From exercise to analysis
 
-The usual path of an exam through Examance, in six steps. Each step links to its detailed page.
+The usual path of an exam through Examance, in six stages. Each stage links to its detailed page. Inside an exam, the sidebar lists the steps in this order: **Exam**, **Students**, **Print**, **Scans**, **Check MC**, **Grading**, **Paper & Excel**, **Results**; each has a status badge and ends with a **Next: …** button, see [The exam's steps](./exams#steps).
 
 ## 1. Collect exercises in the library {#library}
 
@@ -21,7 +21,7 @@ More: [Exercise library](./exercises), [Sharing exercises](./sharing).
 
 ## 2. Assemble and typeset the exam {#exam}
 
-**New exam** asks for the header data (subject, class, exam type, date), then opens the exam page, where you pick exercises from the library, order them, group multiple choice questions and set the grading key. Typesetting produces a print-ready PDF in your browser or on the server; its cover page has an empty QR Code box for the student's [QR sticker](./students#qr-stickers).
+**New exam** asks for the header data (subject, class, exam type, date), then opens the **Exam** step, where you pick exercises from the library, order them, group multiple choice questions and set the layout. The grading key is set later, under **Results → Statistics**. The class list belongs to the **Students** step. Typesetting produces a print-ready PDF in your browser or on the server; its cover page has an empty QR Code box for the student's [QR sticker](./students#qr-stickers).
 
 **Duplicate** creates a new exam with the same exercises and settings, for example for a parallel class; students and results are never copied. Deleted an exam by mistake? [The trash](./trash) keeps it for 7 days.
 
@@ -31,7 +31,7 @@ More: [Creating an exam](./exams).
 
 ## 3. Print, write, scan {#print}
 
-Print the sheets exactly as typeset (no scaling); the QR sticker must stay readable. Print the stickers beforehand with **Print QR codes** on the exam page ([QR stickers](./students#qr-stickers)); every student sticks theirs into the QR Code box on the cover page. Or print the codes [directly onto the exam copies](./students#printed-copies) and snip off the name corner before handing out. After the exam, scan the whole stack into one PDF on the school copier.
+Print the sheets exactly as typeset (no scaling); the QR sticker must stay readable. Print the stickers beforehand on the **Print** step, card **QR codes for students** ([QR stickers](./students#qr-stickers)); every student sticks theirs into the QR Code box on the cover page. Or print the codes [directly onto the exam copies](./students#printed-copies) and snip off the name corner before handing out. After the exam, scan the whole stack into one PDF on the school copier.
 
 More: [Print](./exams#print), [Scan the stack](./scanning#scan).
 
@@ -54,6 +54,8 @@ More: [Grading](./grading).
 ![Grading](../screenshots/pitch/06-grading.jpg)
 
 ## 6. Results, analysis and export {#results}
+
+- **Share with students**: **Results → Share** gives every student their graded exam through an encrypted link, by e-mail, Artemis or Mebis files, see [Share graded exams](./students#share-results).
 
 - **Exam statistics**: grade and percentage distributions, average, pass rate, borderline cases, per-exercise analysis and variant comparison.
 - **Analytics across exams**: topic heatmaps, exercise quality and variant fairness over time, grades and subjects.

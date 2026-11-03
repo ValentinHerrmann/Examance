@@ -4,9 +4,22 @@ editLink: false
 
 # Ergebnisse und Auswertung
 
-Jede Prüfung hat einen Schritt **Auswertung** mit der Notenverteilung, Kennzahlen und Grenzfällen. Die **Auswertung** in der Navigationsleiste fasst mehrere Prüfungen zusammen. Beide lesen dieselben verschlüsselten Ergebnisse; auf dem Server wird nichts berechnet.
+Jede Prüfung hat einen Schritt **Ergebnisse** (der letzte in der Seitenleiste) mit zwei Reitern: **Statistik** zeigt die Notenverteilung, Kennzahlen und Grenzfälle, **Teilen** gibt die korrigierten Prüfungen an die Schüler weiter, siehe [Ergebnisse teilen](#share). Die **Auswertung** in der Navigationsleiste fasst mehrere Prüfungen zusammen. Beide lesen dieselben verschlüsselten Ergebnisse; auf dem Server wird nichts berechnet.
 
 ![Prüfungsergebnisse](../../screenshots/pitch/08-results.jpg)
+
+## Notenschlüssel {#grading-key}
+
+Der Notenschlüssel legt fest, welcher Prozentwert welche Note (1 bis 6) ergibt. Sie bearbeiten ihn unter **Ergebnisse → Statistik**, über der Verteilung; Änderungen zeigen sich sofort in den Diagrammen und werden mit **Speichern** gesichert. Wählen Sie eine Voreinstellung oder legen Sie eigene Grenzen fest:
+
+| Voreinstellung | Note 4 ab |
+|---|---|
+| **Klassisch** | 50 % |
+| **Oberstufe** | 40 % |
+| **Gleichmäßig** | gleichmäßig verteilte Grenzen |
+| **Individuell** | Ihr eigener Mindestprozentwert je Note |
+
+Beim Korrigieren werden die aktuelle Note und die Punkte bis zur nächsten Note laufend angezeigt. Die Statistik verwendet denselben Schlüssel.
 
 ## Prüfungsstatistik {#distribution}
 
@@ -45,7 +58,7 @@ Die Schaltflächen **SVG**, **PDF** und **PNG** laden jedes Diagramm mit transpa
 
 Der **CSV-Export** der Noten, zum Beispiel für die Notenverwaltung der Schule, enthält Pseudonym, Ersatzcode, Name, Punkte, Maximalpunktzahl, Prozentwert und Note.
 
-**Exportieren** an einer Prüfung (Startseite oder Prüfungsseite) mit dem Format **Lesbares ZIP** bündelt eine Prüfung in einer einzigen ZIP. Wählen Sie die Teile, die Sie brauchen:
+**Exportieren** an einer Prüfung (Startseite oder **Übersicht** der Prüfung) mit dem Format **Lesbares ZIP** bündelt eine Prüfung in einer einzigen ZIP. Wählen Sie die Teile, die Sie brauchen:
 
 | Teil | Enthält |
 |---|---|
@@ -59,7 +72,13 @@ Der **CSV-Export** der Noten, zum Beispiel für die Notenverwaltung der Schule, 
 CSV und ZIP enthalten **Klarnamen** und sind **nicht verschlüsselt**. Bewahren Sie sie nur an sicheren Orten auf und löschen Sie sie nach der Verwendung. Jeder ZIP-Export wird protokolliert.
 :::
 
+Die ZIP enthält keine Mebis-Option: Rückmeldedateien für Mebis gibt es nur unter [Ergebnisse teilen](#share).
+
 Für eine verschlüsselte Kopie, die sich wieder importieren lässt, wählen Sie stattdessen **Wieder importierbare, passwortgeschützte Sicherung**, siehe [Sicherung und Übertragung](./backup#exam-backup).
+
+## Ergebnisse teilen {#share}
+
+Der Reiter **Teilen** unter **Ergebnisse** gibt jeder Schülerin und jedem Schüler die korrigierte Prüfung. Er ist eine Seite mit vier nummerierten Schritten: 1 die Schüler, 2 der Weg (Zettel zum Austeilen, E-Mail, Artemis oder Mebis-Dateien) mit seiner Einrichtung und der Sprache der Nachricht, 3 Schutz und Optionen (Linkschutz, Schlüssel bzw. Code in der Nachricht, Musterlösung, Gültigkeit), 4 Vorschau und Versand; die Schaltfläche zum Senden bleibt unten sichtbar. Darunter stehen die aktiven Links, die sich widerrufen lassen, alle auf einmal mit **Alle Links widerrufen**. Einzelheiten: [Korrigierte Prüfungen mit Schülern teilen](./students#share-results).
 
 ## Auswertung über mehrere Prüfungen {#analytics}
 

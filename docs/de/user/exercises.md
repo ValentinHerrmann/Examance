@@ -17,7 +17,7 @@ Jede Aufgabe ist mit **Jahrgang**, **Fach** und **Thema** verschlagwortet. Die F
 - Klappen Sie einen Eintrag auf, sehen Sie je Variante, in welchen Prüfungen die Aufgabe verwendet wird. Ein Klick auf eine Prüfung zeigt eine kurze Übersicht, von der aus Sie sie in einem neuen Tab öffnen können.
 - **Vorschau** zeigt das zuletzt kompilierte PDF. Gibt es noch keines, fragt Examance, ob es jetzt kompiliert werden soll.
 
-Aufgabennamen sind fast überall in der App anklickbar (auf der Prüfungsseite, beim Korrigieren, in der Auswertung) und öffnen die Aufgabe direkt im Editor.
+Aufgabennamen sind fast überall in der App anklickbar (im Schritt **Prüfung**, beim Korrigieren, in der Auswertung) und öffnen die Aufgabe direkt im Editor.
 
 ## Der Editor {#editor}
 
@@ -76,7 +76,7 @@ Examance hält Zusammengehöriges automatisch zusammen:
 - eine Teilaufgabe wird nicht getrennt, solange sie auf eine Seite passt;
 - ein Bild bleibt beim Text danach.
 
-Umbrochen wird zwischen den Teilaufgaben. Wo das nicht passt, erzwingt `\Seitenumbruch` (in der Palette **Allgemein**) an dieser Stelle eine neue Seite. Seitenumbrüche *zwischen Aufgaben* legen Sie auf der Prüfungsseite fest, siehe [Prüfung erstellen](./exams#page-breaks).
+Umbrochen wird zwischen den Teilaufgaben. Wo das nicht passt, erzwingt `\Seitenumbruch` (in der Palette **Allgemein**) an dieser Stelle eine neue Seite. Seitenumbrüche *zwischen Aufgaben* legen Sie im Schritt **Prüfung** der Prüfung fest, siehe [Prüfung erstellen](./exams#page-breaks).
 
 ## Varianten und Versionen {#variants}
 
@@ -94,7 +94,7 @@ Eine Aufgabe kann **Freitext**, **Single Choice** oder **Multiple Choice** sein.
 
 Angekreuzte Kästchen werden beim Einlesen der Scans automatisch erkannt, siehe [MC-Prüfung](./scanning#mc-verification).
 
-Mehrere Ankreuzaufgaben lassen sich auf der Prüfungsseite zu einer **MC-Gruppe** zusammenfassen. Das ist reine Layout-Information für den Ausdruck, siehe [MC-Gruppen](./exams#mc-groups).
+Mehrere Ankreuzaufgaben lassen sich im Schritt **Prüfung** zu einer **MC-Gruppe** zusammenfassen. Das ist reine Layout-Information für den Ausdruck, siehe [MC-Gruppen](./exams#mc-groups).
 
 ![Multiple-Choice-Editor](../../screenshots/pitch/03b-mc-editor.jpg)
 
@@ -112,7 +112,7 @@ Pakete stammen aus drei Quellen, und Examance lädt jedes Paket nur einmal:
 2. **Ihr Konto**: Im selben Abschnitt der Einstellungen fügen Sie Pakete und TikZ-Bibliotheken für alle Prüfungen hinzu und geben Vorlagenpaketen Optionen mit (zum Beispiel `dvipsnames` für `xcolor`).
 3. **Eine einzelne Aufgabe**: **Pakete dieser Aufgabe** im Editor speichert eine `\usepackage`-Zeile am Anfang des Quelltexts, sodass das Paket mit der Aufgabe reist. Solche Zeilen dürfen Sie auch von Hand schreiben.
 
-Unter **Prüfung bearbeiten** passen Sie die Pakete einer einzelnen Prüfung an oder lassen für sie Pakete Ihres Kontos weg.
+Auf dem Reiter **Layout** der Prüfung passen Sie die Pakete einer einzelnen Prüfung an oder lassen für sie Pakete Ihres Kontos weg.
 
 Optionen werden zusammengeführt, sodass keine Optionskonflikte entstehen. Setzen zwei Aufgaben dieselbe Option unterschiedlich, zeigt **Ergebnis** den Konflikt und welcher Wert gilt.
 
@@ -145,7 +145,7 @@ Examance sendet nie selbst etwas an einen KI-Dienst. Es bereitet einen Prompt vo
 
 ## Ein Layoutproblem melden {#layout-reports}
 
-Sieht ein PDF falsch aus oder lässt es sich nicht kompilieren, obwohl der Code in Ordnung scheint, nutzen Sie **LaTeX-Layoutproblem melden** direkt unter der PDF-Vorschau (im Aufgaben-Editor oder auf der Prüfungsseite):
+Sieht ein PDF falsch aus oder lässt es sich nicht kompilieren, obwohl der Code in Ordnung scheint, nutzen Sie **LaTeX-Layoutproblem melden** direkt unter der PDF-Vorschau (im Aufgaben-Editor oder im Schritt **Prüfung** der Prüfung):
 
 1. Beschreiben Sie kurz, was falsch ist und wie es aussehen sollte.
 2. Mit Ihrer Einwilligung werden LaTeX-Code, PDFs und Dateien **unverschlüsselt** an die Administration Ihrer Installation gesendet.

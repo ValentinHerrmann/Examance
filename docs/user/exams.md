@@ -8,9 +8,7 @@ An exam is a selection of exercises from your library plus header data, a gradin
 
 ## Create a new exam {#new-exam}
 
-**New exam** (on the dashboard) asks only for the header data, creates the exam and opens it on the exam page. Everything else (exercises, order, MC groups, logo, packages, preview) is done there.
-
-The exam page is organised in steps, shown as tabs (or a sidebar on wide screens): **Setup & Exercises**, **Scans**, **Check MC**, **Grading**, **Paper & Excel**, **Statistics**.
+**New exam** (on the dashboard) asks only for the header data, creates the exam and opens it on the **Exam** step with the exercise library. Everything else (exercises, order, MC groups, layout, logo, packages, preview) is done there.
 
 ### Header data {#header}
 
@@ -18,11 +16,31 @@ The exam page is organised in steps, shown as tabs (or a sidebar on wide screens
 
 The optional **topic** (for example "Recursion") organises your exams in the overview, where you can filter and search by it. It is never printed. The overview can also be sorted by date, title, grade or subject.
 
-To change the header data later, open **Edit Exam** on the exam page.
+To change the header data later, choose **Edit details** on the **Overview**. The dialog holds only the exam's details: title, test type, grade/class, date, duration, number, subject, teacher, topic and the retention date. Layout settings are on the [Layout tab](#layout), the grading key under [Results](./results#grading-key).
+
+## The exam's steps {#steps}
+
+Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand: the number of exercises, students or scans, graded x/y, open MC checks, shared results (in red, the number of result e-mails that did not arrive). Every step page ends with a **Next: …** button that leads to the following step.
+
+| Step | What you do there |
+|---|---|
+| **Overview** | Details and key figures of the exam, see [below](#overview) |
+| 1 **Exam** | Exercises, layout and preview, see [Assemble the exercises](#assemble) and [Layout options](#layout) |
+| 2 **Students** | The class list, see [Student data](./students#student-data) |
+| 3 **Print** | Create the PDFs and the QR codes, see [Print](#print) |
+| 4 **Scans** | Import the scanned sheets, see [Scanning and assignment](./scanning) |
+| 5 **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
+| 6 **Grading** | Correct the submissions, see [Grading](./grading) |
+| 7 **Paper & Excel** | Enter points for papers graded without scanning, see [Classes graded on paper](./grading#paper) |
+| 8 **Results** | Tabs **Statistics** and **Share**, see [Results and analysis](./results) |
+
+## Overview {#overview}
+
+**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details and key figures. **Continue: …** (followed by the step's name) opens the step you most likely need next. **Edit details** changes the header data, **Export** downloads the exam (see [Export](#export)), and the **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
 
 ## Assemble the exercises {#assemble}
 
-On the exam page, **Add exercises** picks exercises from the library, with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
+On the **Exam** step, the **Exercises** tab lists the exam's exercises. **Add exercises** picks exercises from the library, with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
 
 - The arrows reorder the exercises.
 - The total score is recalculated as you go.
@@ -40,30 +58,19 @@ If you change page breaks after you created the answer-sheet template for MC det
 
 ### MC groups {#mc-groups}
 
-Several tick-box exercises can be printed together as an **MC group**. Create and edit groups on the exam page (**MC Groups**). An exam can hold any number of groups of any size; each question belongs to at most one group.
+Several tick-box exercises can be printed together as an **MC group**. Create and edit groups on the **Exercises** tab (**MC Groups**). An exam can hold any number of groups of any size; each question belongs to at most one group.
 
 In the exercise dialog, tick the questions on the **MC Groups** tab and give the group a title. **Apply Exercises and MC Group** adds the group together with the other exercises. To build several groups in one go, click **Add MC group to exam** after each one.
 
 Groups are layout only: grading and statistics stay strictly per question.
 
-## Grading key {#grading-key}
-
-The grading key decides which percentage earns which grade (1 to 6). Choose a preset or set your own thresholds:
-
-| Preset | Grade 4 from |
-|---|---|
-| **Standard** | 50 % |
-| **Upper secondary** | 40 % |
-| **Even split** | evenly spaced thresholds |
-| **Custom** | your own minimum percentage per grade |
-
-While grading, the current grade and the points to the next grade are shown live. The statistics use the same key.
-
 ## Layout options {#layout}
+
+Layout settings live on the **Layout** tab of the **Exam** step: info text, name line, cut-off corner hint, the multiple choice correction legend, logo and LaTeX packages. **Save** stores them, **Discard changes** returns to the saved state; leaving the page with unsaved changes asks first. Changes only show in the PDF after you compile again.
 
 ### Name line {#name-line}
 
-With **Print a name line next to the QR code box** (when creating the exam or under **Edit Exam**), the title page gets a line for the student's name. The QR code box stays where it is, so scanning and assignment work as before; only the initials field inside the box is dropped.
+With **Print a name line next to the QR code box** (when creating the exam or on the **Layout** tab), the title page gets a line for the student's name. The QR code box stays where it is, so scanning and assignment work as before; only the initials field inside the box is dropped.
 
 ### Cut-off corner {#cut-corner}
 
@@ -86,7 +93,7 @@ The solution sheet does not include it.
 
 ### How to correct a cross {#mc-hint}
 
-**Show how to correct a cross at every multiple-choice task** (when creating the exam, or under **Edit Exam**) prints one short line at the start of every multiple choice task, in the exam and in the solution:
+**Show how to correct a cross at every multiple-choice task** (when creating the exam, or on the **Layout** tab) prints one short line at the start of every multiple choice task, in the exam and in the solution:
 
 - **cross** a box to choose an option;
 - **fill** the box completely to withdraw a cross;
@@ -98,13 +105,13 @@ MC detection reads exactly these marks, see [Verify MC detections](./scanning#mc
 
 ### Logo and LaTeX packages {#logo-packages}
 
-Every exam prints a logo at the top left of the first page. Under **Edit Exam** you choose the logo from your settings, no logo, or a logo for this exam only (see [Logo on the exam](./settings#logo)). In the exam overview, every expanded exam shows which logo it prints.
+Every exam prints a logo at the top left of the first page. On the **Layout** tab you choose the logo from your settings, no logo, or a logo for this exam only (see [Logo on the exam](./settings#logo)). In the exam overview, every expanded exam shows which logo it prints.
 
-Under **Edit Exam** you can also add LaTeX packages for this exam only or leave out packages of your account (see [LaTeX packages](./exercises#packages)).
+On the same tab you can also add LaTeX packages for this exam only or leave out packages of your account (see [LaTeX packages](./exercises#packages)).
 
 ## Typeset {#typeset}
 
-**Live Preview PDF** typesets the exam and the solution sheet. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
+**Live Preview PDF** typesets the exam and the solution sheet. On wide screens the preview sits next to the exercises and the layout; on smaller screens it is a third tab, **Preview**, beside **Exercises** and **Layout**. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
 
 Depending on your settings and your account, the exam is typeset
 
@@ -121,16 +128,22 @@ In the exam overview, **Preview** in an expanded entry opens the last compiled P
 
 ## Print {#print}
 
+The **Print** step has two cards.
+
+**Exam PDFs**: **Create PDFs** typesets the exam, then **Download task sheet** and **Download solution** give you the files. Creating the PDFs also refreshes the scan template for MC detection and tells you whether it still matches the exam.
+
+**QR codes for students**: the options of the QR sticker sheet or of the exam copies with the codes printed on, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies).
+
 Print the sheets **exactly as typeset**: no "fit to page", no scaling, no cropping. The QR sticker and the corner marks must stay readable, otherwise the scan cannot be assigned automatically and ticked boxes cannot be detected.
 
 After the exam, continue with [Scanning and assignment](./scanning).
 
 ## Duplicate an exam {#duplicate}
 
-**Duplicate** (in the exam overview and on the exam page) creates a new exam with the same header, exercises, MC groups, grading key and settings, for example for a parallel class or the next school year. Students, scans and results are never copied; the copy starts without them.
+**Duplicate** (in the exam list and in the **⋯** menu of the exam's **Overview**) creates a new exam with the same header, exercises, MC groups, grading key and settings, for example for a parallel class or the next school year. Students, scans and results are never copied; the copy starts without them.
 
 ## Export {#export}
 
-**Export** on an exam (dashboard or exam page) downloads it either as a readable ZIP or as a password-protected backup, see [Exporting results](./results#export) and [Backup and transfer](./backup#exam-backup).
+**Export** on an exam (dashboard or the exam's **Overview**) downloads it either as a readable ZIP or as a password-protected backup, see [Exporting results](./results#export) and [Backup and transfer](./backup#exam-backup).
 
 ![Exporting an exam](../screenshots/guide/exam-export.jpg)

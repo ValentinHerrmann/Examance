@@ -22,7 +22,7 @@ Nicht enthalten sind MC-Antwortbogen-Vorlagen (sie werden neu erzeugt) und Ihre 
 
 ## Eine einzelne Prüfung sichern {#exam-backup}
 
-**Exportieren** an einer Prüfung (Startseite oder Prüfungsseite) mit dem Format **Wieder importierbare, passwortgeschützte Sicherung** erzeugt ein `.examance-exam`-Archiv, das nur diese Prüfung enthält, dazu ihre Aufgaben mit deren Dateien und ihre Ergebnisse.
+**Exportieren** an einer Prüfung (Startseite oder **Übersicht** der Prüfung) mit dem Format **Wieder importierbare, passwortgeschützte Sicherung** erzeugt ein `.examance-exam`-Archiv, das nur diese Prüfung enthält, dazu ihre Aufgaben mit deren Dateien und ihre Ergebnisse.
 
 Die Dateiendung zeigt den Umfang: `.examance` für einen ganzen Arbeitsbereich, `.examance-exam` für eine einzelne Prüfung. Ältere `.bgproj`-Sicherungen lassen sich weiterhin importieren.
 
