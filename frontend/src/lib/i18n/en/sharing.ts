@@ -87,6 +87,26 @@ export const sharing: Translations['sharing'] = {
         includeCodeHint: 'Handy when students lost their key: the link then opens without slip or sticker.',
         includeCodeWarning: 'Less safe: whoever can read the message (mail provider, Artemis, anyone with access to the mailbox) can open the exam.',
     },
+    delivery: {
+        col: 'Delivery',
+        status: {
+            sent: 'Sent',
+            delayed: 'Delayed',
+            bounced: 'Not delivered',
+            failed: 'Failed',
+        },
+        viaEmail: 'By e-mail',
+        viaArtemis: 'Through Artemis',
+        waiting: 'Checking for returned e-mails …',
+        secondsLeft: '{count} s left',
+        closeHint: 'You can close: Examance e-mails you about mails that come back later.',
+        stopWaiting: 'Stop waiting',
+        undelivered: '{count} students not reached',
+        undeliveredHint: 'The message did not reach them. Correct the address or Artemis id on the Students page and send to them again.',
+        selectUndelivered: 'Select students not reached',
+        notMonitored: 'This server does not watch for returned e-mails. "Sent" only means the mail server accepted the message.',
+        badge: '{count} not reached',
+    },
     channels: {
         slips: {
             label: 'Slips to hand out',

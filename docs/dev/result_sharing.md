@@ -110,6 +110,21 @@ Nothing is sent before the teacher confirms.
 - The 424 detail says `Artemis returned HTTP <status> (<step>)`, plus Artemis's own `errorKey`. The dialog shows it next to the translated message (`artemisErrorText`), so an endpoint move shows up without server logs.
 - **When Artemis moves an endpoint again**, look it up in `ls1intum/Artemis`: the `@RequestMapping` prefix of the `*/web/*Resource.java` class plus the method mapping.
 
+**Delivery status and bounces** (issue #221).
+- `result_deliveries` (`models/result_delivery.py`, read and written only by `services/result_deliveries.py`) holds one row per exam, student (`student_key`, the `joinKey` pseudonym) and channel (`email`, `artemis`): `status` (`sent`, `failed`, `bounced`, `delayed`), an address-free `detail` (SMTP status such as `5.1.1`, or the relay's error text), `mail_token` and `watch_until`. A resend replaces the row. No address, name or link is ever stored.
+- The mail endpoint takes `exam_id` and a `student_key` per recipient; the Artemis `messages` and `files` endpoints take both optionally. Each records its outcome; a failed Artemis send is committed before the error is raised (`get_db` rolls back on errors). SMTP refusal texts can contain the address, so a failed mail keeps only `detail = "SMTP"`.
+- Result mails carry `<examance-r.{token}@domain>` as Message-ID and are sent **from the result mailbox** (`RESULT_MAIL_*`, `email.result_sender()` passed as `Envelope.sender`): its own address in `From:` and its own SMTP login, so the envelope sender is the mailbox and bounces return there without send-as permission or subaddressing. The token lives only in the Message-ID, which every delivery report quotes back. The mail tells students not to reply. Without a complete result mailbox they go out from `SMTP_FROM_EMAIL` as before. Account mails and forwards always use `SMTP_FROM_EMAIL`; the settings refuse `RESULT_MAIL_ADDRESS == SMTP_FROM_EMAIL`, since the unmatched forwards would land in the mailbox that is emptied.
+- `services/bounces.py` reads only the result mailbox (IMAP, `UNSEEN`, `BODY.PEEK`). `parse_bounce` reads the RFC 3464 report (Action, Status), falling back to the first enhanced status code for non-standard bounces. Routing:
+  - matched, `now < watch_until`: status only, the open dialog shows it;
+  - matched after the window: status, and the report is forwarded to the sending teacher (`bounce_forward_mail`, German and English, original attached as `message/rfc822`); a `delayed` is never forwarded and never overrides `bounced`;
+  - unmatched: forwarded unchanged to `SMTP_FROM_EMAIL`;
+  - our own forward coming back (`X-Examance-Forwarded`, `<examance-fwd.…>`): dropped, which prevents loops.
+
+  Handled messages are deleted (they hold students' addresses); a failed forward or a failed commit leaves the message unread for the next poll. Logs carry counts only. One poll runs at a time (`ephemeral_store.incr` lock, 120 s TTL).
+- Polls run from `POST /exams/{id}/deliveries/check` (the share dialog, every `BOUNCE_POLL_MS` = 5 s until `watch_until`, `BOUNCE_WATCH_SECONDS` = 30 s after sending) and from `python -m app.cli poll-bounces` (the `bounce-cron` service, every 5 minutes). Closing the dialog early calls `POST /exams/{id}/deliveries/close`, which ends the window so later bounces go to the teacher's inbox. `GET /exams/{id}/deliveries` lists the statuses; the exam's share button (`ExamActionBar`) counts the students not reached.
+- Capability `result_bounces` = `result_mail` and a configured result mailbox (`result_mailbox_configured()`); without it the dialog does not wait and says that bounces are not watched.
+- Lifetime: retention step 15 deletes rows older than `DELIVERY_STATUS_RETENTION_DAYS` (30, on the privacy page). Exam deletes drop them like shares, so a restored exam starts without statuses.
+
 **Mebis.** There is no API (DiRueLei has none either).
 - The readable exam export has an optional part `mebis`: a nested `<exam>_mebis_feedback.zip` with `Participant_<id>_assignsubmission_file_/<name>_<id>.pdf` per student (`mebisFeedbackPath`).
 - The teacher uploads it under "Upload multiple feedback files in a zip".

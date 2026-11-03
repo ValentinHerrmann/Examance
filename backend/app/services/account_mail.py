@@ -21,6 +21,8 @@ class Mail:
     subject: str
     text: str
     html: str
+    # Transport details for result mails and bounce forwards (issue #221); None for every other mail.
+    envelope: email_svc.Envelope | None = None
 
 
 def frontend_link(path: str) -> str:
@@ -184,8 +186,22 @@ def result_link_mail(
     locale: Literal["de", "en"],
     *,
     code: str | None = None,
+    envelope: email_svc.Envelope | None = None,
 ) -> Mail:
-    """A student's graded exam link (issue #209). The key or code is mailed only when the teacher opted in."""
+    """A student's graded exam link (issue #209). The key or code is mailed only when the teacher opted in; *envelope* carries the bounce token (issue #221)."""
+    mail = _result_link_mail(to, exam_title, url, expires_at, teacher_name, locale, code)
+    return Mail(to=mail.to, subject=mail.subject, text=mail.text, html=mail.html, envelope=envelope)
+
+
+def _result_link_mail(
+    to: str,
+    exam_title: str,
+    url: str,
+    expires_at: datetime,
+    teacher_name: str | None,
+    locale: Literal["de", "en"],
+    code: str | None,
+) -> Mail:
     if locale == "de":
         by = f" von {teacher_name}" if teacher_name else ""
         second = (
@@ -205,7 +221,9 @@ def result_link_mail(
             link=("Korrigierte Prüfung öffnen", url),
             footer=[
                 f"Der Link ist bis {expires_at.strftime('%d.%m.%Y')} gültig. "
-                "Diese E-Mail wurde automatisch von Examance versendet."
+                "Diese E-Mail wurde automatisch von Examance versendet.",
+                "Bitte antworte nicht auf diese E-Mail: Antworten erreichen deine Lehrkraft "
+                "nicht. Wende dich bei Fragen auf anderem Weg an sie, etwa im Unterricht.",
             ],
             greeting="Hallo,",
         )
@@ -223,8 +241,51 @@ def result_link_mail(
         link=("Open graded exam", url),
         footer=[
             f"The link is valid until {expires_at.strftime('%Y-%m-%d')}. "
-            "This email was sent automatically by Examance."
+            "This email was sent automatically by Examance.",
+            "Please do not reply to this email: replies do not reach your teacher. If you "
+            "have questions, contact your teacher another way, for example in class.",
         ],
+    )
+
+
+def bounce_forward_mail(to: str, exam_link: str | None, raw: bytes, message_id: str) -> Mail:
+    """A returned result mail, forwarded with the original bounce attached (issue #221): to the teacher after the share dialog closed (*exam_link* set), or to SMTP_FROM_EMAIL when Examance cannot place it. The teacher's language is unknown to the server, so it is German and English."""
+    if exam_link is None:
+        mail = _compose(
+            to,
+            "Examance: unassigned message in the bounce mailbox",
+            [
+                "Examance received this message in its bounce mailbox and could not match it "
+                "to a result mail. It is attached unchanged and has been removed from the "
+                "bounce mailbox.",
+            ],
+        )
+    else:
+        mail = _compose(
+            to,
+            "Examance: Eine Ergebnis-Mail kam nicht an / A result mail was not delivered",
+            [
+                "Eine E-Mail mit dem Link zu einer korrigierten Prüfung konnte nicht zugestellt "
+                "werden. Die Rückmeldung des Mailservers ist angehängt. Unter „Ergebnisse "
+                "teilen“ siehst du, wen es betrifft; korrigiere die Adresse auf der Schülerseite "
+                "und sende erneut.",
+                "An e-mail with the link to a graded exam could not be delivered. The mail "
+                "server's report is attached. Share results shows who is affected; correct the "
+                "address on the Students page and send again.",
+            ],
+            link=("Prüfung öffnen / Open exam", exam_link),
+            greeting="Hallo / Hello,",
+        )
+    return Mail(
+        to=mail.to,
+        subject=mail.subject,
+        text=mail.text,
+        html=mail.html,
+        envelope=email_svc.Envelope(
+            message_id=message_id,
+            attachment=raw,
+            headers=(("X-Examance-Forwarded", "bounce"),),
+        ),
     )
 
 
@@ -244,8 +305,9 @@ def rejected_mail(email: str) -> Mail:
 async def send(mail: Mail) -> bool:
     """Deliver *mail*; never raises."""
     try:
+        extra = {"envelope": mail.envelope} if mail.envelope is not None else {}
         return await email_svc.send_email(
-            to_email=mail.to, subject=mail.subject, body_text=mail.text, body_html=mail.html
+            to_email=mail.to, subject=mail.subject, body_text=mail.text, body_html=mail.html, **extra
         )
     except Exception:
         logger.exception("Sending '%s' failed", mail.subject)

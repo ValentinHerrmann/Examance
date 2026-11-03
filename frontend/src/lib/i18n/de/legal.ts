@@ -69,7 +69,7 @@ export const legal = {
         },
         section6: {
             heading: '6. E-Mail-Versand',
-            text: 'Für E-Mails wie Bestätigungs- und Einladungslinks, das Zurücksetzen des Passworts, die Bestätigung einer Kontolöschung und Benachrichtigungen nutzt der Betreiber einen E-Mail-Dienstleister als Auftragsverarbeiter (Art. 28 DSGVO). Verarbeitet werden E-Mail-Adresse und Inhalt der Nachricht; Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
+            text: 'Für E-Mails wie Bestätigungs- und Einladungslinks, das Zurücksetzen des Passworts, die Bestätigung einer Kontolöschung und Benachrichtigungen nutzt der Betreiber einen E-Mail-Dienstleister als Auftragsverarbeiter (Art. 28 DSGVO). Verarbeitet werden E-Mail-Adresse und Inhalt der Nachricht; Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. E-Mails mit Ergebnislinks an Schüler versendet Examance aus einem eigens dafür bestimmten Postfach. Kommt eine davon als unzustellbar zurück, liest Examance die Rückmeldung aus diesem Postfach, vermerkt den Zustellstatus nur unter dem Pseudonym des Schülers, leitet die Rückmeldung gegebenenfalls an die versendende Lehrkraft weiter und löscht sie anschließend aus dem Postfach.',
         },
         section7: {
             heading: '7. Fehlerbilder von http.cat',
@@ -90,6 +90,7 @@ export const legal = {
             donation: 'Gespendete Ankreuzfeld-Ausschnitte: {trainingSampleDays} Tage.',
             layoutReports: 'Layout-Meldungen: {layoutReportDays} Tage nach dem Senden.',
             resultShares: 'Für Schüler geteilte, verschlüsselte Ergebnisse: bis zu dem Ablaufdatum, das die Lehrkraft wählt (höchstens {resultShareMaxDays} Tage), oder bis zum Widerruf.',
+            deliveryStatus: 'Zustellstatus von Ergebnis-E-Mails und Artemis-Nachrichten (ohne Adressen, nur unter dem Pseudonym des Schülers): {deliveryStatusDays} Tage nach der letzten Änderung.',
             fallback: 'Die genauen Fristen legt der Server dieser Installation fest; sie erscheinen hier, sobald er erreichbar ist. Schülerdaten werden nach Ablauf des von der Lehrkraft festgelegten Aufbewahrungsdatums gelöscht; unbestätigte Registrierungen, nicht freigegebene Konten, das Sicherheitsprotokoll, Änderungsvorschläge, Layout-Meldungen und gespendete Ausschnitte nach festen Fristen.',
             counters: 'Zähler zur Begrenzung von Anfragen und Anmeldeversuchen: höchstens eine Stunde.',
             serverLog: 'Technisches Protokoll des Servers: bis zur nächsten Aktualisierung des Servers.',

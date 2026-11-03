@@ -31,7 +31,7 @@ from app.schemas.exam import (
 )
 from app.schemas.latex_packages import LatexPackageEntry
 from app.services import audit as audit_svc
-from app.services import result_shares, trash
+from app.services import result_deliveries, result_shares, trash
 from app.services.capabilities import require_server_results_writable
 from app.services.exam_queries import (
     ExerciseRow,
@@ -493,6 +493,7 @@ async def delete_exam(
     await db.execute(update(Exercise).where(Exercise.exam_id == exam.id).values(exam_id=None))
     # Students' result links are not captured: restoring the exam must not revive them (issue #207).
     await result_shares.drop_exams(db, [exam.id])
+    await result_deliveries.drop_exams(db, [exam.id])
     await snap.delete(db)
 
 

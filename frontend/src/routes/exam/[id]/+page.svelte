@@ -697,6 +697,7 @@
       onExport={() => (exportOpen = true)}
       onStickers={() => (stickers = "all")}
       onShare={() => (shareOpen = true)}
+      sharing={shareOpen}
       onDeleteAllSubmissions={handleDeleteAllSubmissions}
       onDuplicate={handleDuplicateExam}
       {isDuplicating}

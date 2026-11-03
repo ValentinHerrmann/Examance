@@ -7876,6 +7876,187 @@
         }
       }
     },
+    "/api/v1/exams/{exam_id}/deliveries": {
+      "get": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "List Result Deliveries",
+        "description": "Each student's delivery status for result mails and Artemis messages (issue #221).",
+        "operationId": "list_result_deliveries_api_v1_exams__exam_id__deliveries_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResultDeliveryOut"
+                  },
+                  "title": "Response List Result Deliveries Api V1 Exams  Exam Id  Deliveries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/deliveries/check": {
+      "post": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Check Result Deliveries",
+        "description": "Read the bounce mailbox now (while the share dialog waits), then list the statuses.",
+        "operationId": "check_result_deliveries_api_v1_exams__exam_id__deliveries_check_post",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResultDeliveryOut"
+                  },
+                  "title": "Response Check Result Deliveries Api V1 Exams  Exam Id  Deliveries Check Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/deliveries/close": {
+      "post": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Close Result Deliveries",
+        "description": "The share dialog stopped waiting: bounces from now on are forwarded to the teacher by mail.",
+        "operationId": "close_result_deliveries_api_v1_exams__exam_id__deliveries_close_post",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/artemis/students": {
       "post": {
         "tags": [
@@ -9232,6 +9413,30 @@
             "maxLength": 4000,
             "minLength": 1,
             "title": "Content"
+          },
+          "exam_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Id"
+          },
+          "student_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Student Key"
           }
         },
         "type": "object",
@@ -9518,6 +9723,30 @@
               }
             ],
             "title": "Message"
+          },
+          "exam_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Id"
+          },
+          "student_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Student Key"
           }
         },
         "type": "object",
@@ -13807,8 +14036,71 @@
         ],
         "title": "ResetTokenRequest"
       },
+      "ResultDeliveryOut": {
+        "properties": {
+          "student_key": {
+            "type": "string",
+            "title": "Student Key"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "email",
+              "artemis"
+            ],
+            "title": "Channel"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "sent",
+              "failed",
+              "bounced",
+              "delayed"
+            ],
+            "title": "Status"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "watch_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Watch Until"
+          }
+        },
+        "type": "object",
+        "required": [
+          "student_key",
+          "channel",
+          "status",
+          "detail",
+          "updated_at",
+          "watch_until"
+        ],
+        "title": "ResultDeliveryOut",
+        "description": "One student's delivery status (issue #221); no address, only the pseudonym."
+      },
       "ResultMails": {
         "properties": {
+          "exam_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Exam Id"
+          },
           "exam_title": {
             "type": "string",
             "maxLength": 200,
@@ -13835,6 +14127,7 @@
         },
         "type": "object",
         "required": [
+          "exam_id",
           "exam_title",
           "locale",
           "recipients"
@@ -13869,6 +14162,11 @@
             "format": "email",
             "title": "Email"
           },
+          "student_key": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Student Key"
+          },
           "url": {
             "type": "string",
             "title": "Url"
@@ -13895,6 +14193,7 @@
         "type": "object",
         "required": [
           "email",
+          "student_key",
           "url",
           "expires_at"
         ],
@@ -14249,6 +14548,10 @@
           "result_share_max_days": {
             "type": "integer",
             "title": "Result Share Max Days"
+          },
+          "delivery_status_days": {
+            "type": "integer",
+            "title": "Delivery Status Days"
           }
         },
         "type": "object",
@@ -14261,7 +14564,8 @@
           "contribution_pending_days",
           "training_sample_days",
           "layout_report_days",
-          "result_share_max_days"
+          "result_share_max_days",
+          "delivery_status_days"
         ],
         "title": "RetentionPeriods"
       },

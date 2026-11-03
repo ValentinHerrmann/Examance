@@ -282,8 +282,8 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     allowed_storage_modes: state.role === 'admin' ? [] : [...ALLOWED_MODES],
     features:
       state.role === 'admin'
-        ? { server_results: false, server_latex: false, result_delivery: false, result_mail: false, training_donation: false }
-        : { server_results: true, server_latex: true, result_delivery: true, result_mail: true, training_donation: true },
+        ? { server_results: false, server_latex: false, result_delivery: false, result_mail: false, result_bounces: false, training_donation: false }
+        : { server_results: true, server_latex: true, result_delivery: true, result_mail: true, result_bounces: false, training_donation: true },
   });
 
   function user(method: string, parts: string[], body: any): Handled {
@@ -378,6 +378,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         training_sample_days: 730,
         layout_report_days: 90,
         result_share_max_days: 90,
+        delivery_status_days: 30,
       });
     }
     return undefined;
@@ -1181,6 +1182,10 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     // Result shares (issue #207): none exist in the fake, so listing is empty and revoking is a no-op.
     if (sub === 'shares' && method === 'GET' && rest.length === 0) return ok([]);
     if (sub === 'shares' && method === 'DELETE') return noContent();
+    // Delivery statuses (issue #221): nothing was sent in the fake, and no bounce mailbox exists.
+    if (sub === 'deliveries' && method === 'GET' && rest.length === 0) return ok([]);
+    if (sub === 'deliveries' && method === 'POST' && rest[0] === 'check') return ok([]);
+    if (sub === 'deliveries' && method === 'POST' && rest[0] === 'close') return noContent();
     if (sub === 'scores' && method === 'GET' && rest.length === 0) {
       const live = new Set((state.submissions.get(id) ?? []).map((row) => row.id));
       return ok([...live].flatMap((subId) => (state.scores.get(subId) ?? []).map(scoreResponse)));

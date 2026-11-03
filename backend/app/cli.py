@@ -254,6 +254,22 @@ def run_retention(dry_run: bool) -> None:
         click.echo(f"Retention run complete: {count} record(s) affected.")
 
 
+@cli.command("poll-bounces")
+def poll_bounces() -> None:
+    """Read the dedicated result mailbox once (issue #221): update result-mail statuses, forward late bounces to the teacher and unmatched mail to SMTP_FROM_EMAIL, then empty it. Run it from external cron; without a bounce mailbox it does nothing."""
+    from app.services.bounces import poll_bounces as _poll
+    from app.services.capabilities import result_mailbox_configured
+
+    if not result_mailbox_configured():
+        click.echo("No result mailbox configured; nothing to do.")
+        return
+    try:
+        ran = asyncio.run(in_session(_poll))
+    except (OperationalError, ProgrammingError) as exc:
+        raise_schema_hint(exc)
+    click.echo("Result mailbox read." if ran else "Result mailbox not read (busy or unreachable).")
+
+
 @cli.command("init-blob-store")
 @click.option("--force", is_flag=True, default=False, help="Accept a non-empty directory.")
 @click.option(

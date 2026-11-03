@@ -113,6 +113,18 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     SMTP_FROM_EMAIL: str = "noreply@examance.com"
     SMTP_USE_TLS: bool = True
+    # Dedicated result mailbox (issue #221, docs/hosting.md): result mails to students are sent from it (own SMTP login), so their bounces return to it; `poll-bounces` reads only this mailbox over IMAP, empties it and forwards what it cannot place to SMTP_FROM_EMAIL. Used only when address, password and IMAP host are set.
+    RESULT_MAIL_ADDRESS: str | None = None
+    # Login for SMTP and IMAP; defaults to RESULT_MAIL_ADDRESS.
+    RESULT_MAIL_USERNAME: str | None = None
+    RESULT_MAIL_PASSWORD: str | None = None
+    # SMTP relay for result mails; defaults to SMTP_HOST (SMTP_PORT and SMTP_USE_TLS apply).
+    RESULT_MAIL_SMTP_HOST: str | None = None
+    RESULT_MAIL_IMAP_HOST: str | None = None
+    RESULT_MAIL_IMAP_PORT: int = 993
+    RESULT_MAIL_IMAP_FOLDER: str = "INBOX"
+    # Per-student delivery statuses of result mails and Artemis messages (no addresses) are deleted after this many days.
+    DELIVERY_STATUS_RETENTION_DAYS: int = 30
 
     # Frontend base URL for email link generation
     FRONTEND_URL: str = "http://localhost:5173"
@@ -231,6 +243,17 @@ class Settings(BaseSettings):
                 "URL blocklists; outbound mail relays reject password-reset links pointing "
                 "there. Point FRONTEND_URL at a custom domain (ideally sharing the registrable "
                 "domain of SMTP_FROM_EMAIL), or leave SMTP_HOST unset to disable email delivery."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def separate_result_mailbox(self) -> Settings:
+        """The result mailbox is emptied by `poll-bounces` and forwards what it cannot place to SMTP_FROM_EMAIL: the same address would delete those messages unseen (issue #221)."""
+        result = (self.RESULT_MAIL_ADDRESS or "").strip().lower()
+        if result and result == self.SMTP_FROM_EMAIL.strip().lower():
+            raise ValueError(
+                "RESULT_MAIL_ADDRESS must be a mailbox of its own, not SMTP_FROM_EMAIL: "
+                "Examance empties it and forwards unmatched mail to SMTP_FROM_EMAIL."
             )
         return self
 

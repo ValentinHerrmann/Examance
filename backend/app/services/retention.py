@@ -30,7 +30,7 @@ from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.models.trash_item import TrashItem
-from app.services import blob_store, result_shares, scan_storage, trash
+from app.services import blob_store, result_deliveries, result_shares, scan_storage, trash
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +186,11 @@ async def run(*, dry_run: bool = False) -> int:
         expired_trash = list(await db.scalars(select(TrashItem).where(TrashItem.purge_after < now)))
         # 14. Students' result links past their expiry (issue #207); their ciphertext goes with them.
         expired_share_count = await _count(db, ResultShare, ResultShare.expires_at <= now)
+        # 15. Delivery statuses of result mails and Artemis messages (issue #221).
+        delivery_cutoff = now - timedelta(days=settings.DELIVERY_STATUS_RETENTION_DAYS)
+        stale_delivery_count = await result_deliveries.purge_older_than(
+            db, delivery_cutoff, dry_run=True
+        )
 
         total_affected = (
             len(expired_exams)
@@ -203,6 +208,7 @@ async def run(*, dry_run: bool = False) -> int:
             + stale_reset_count
             + len(expired_trash)
             + expired_share_count
+            + stale_delivery_count
         )
 
         if dry_run:
@@ -214,6 +220,8 @@ async def run(*, dry_run: bool = False) -> int:
         # An exam past its retention takes its students' links with it at once.
         await result_shares.drop_exams(db, list(expired_exam_ids))
         await result_shares.purge_expired(db, now)
+        await result_deliveries.drop_exams(db, list(expired_exam_ids))
+        await result_deliveries.purge_older_than(db, delivery_cutoff)
 
         if expired_exam_ids:
             await db.execute(

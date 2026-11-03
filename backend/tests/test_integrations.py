@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import ssl
+import uuid
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 import pytest
@@ -44,12 +45,27 @@ def _mock_artemis(monkeypatch: pytest.MonkeyPatch, handler: Handler) -> None:
     )
 
 
-def _mail_body(url: str = RESULT_URL) -> dict[str, object]:
+STUDENT = "b" * 64
+
+
+async def _exam(client: AsyncClient) -> str:
+    resp = await client.post(
+        "/api/v1/exams",
+        json={"title": "Analysis I", "retention_until": (date.today() + timedelta(days=30)).isoformat()},
+    )
+    assert resp.status_code == 201, resp.text
+    return str(resp.json()["id"])
+
+
+def _mail_body(url: str = RESULT_URL, exam_id: str | None = None) -> dict[str, object]:
     expires = (datetime.now(UTC) + timedelta(days=30)).isoformat()
     return {
+        "exam_id": exam_id or str(uuid.uuid4()),
         "exam_title": "Analysis I",
         "locale": "de",
-        "recipients": [{"email": "student@example.com", "url": url, "expires_at": expires}],
+        "recipients": [
+            {"email": "student@example.com", "student_key": STUDENT, "url": url, "expires_at": expires}
+        ],
     }
 
 
@@ -312,7 +328,7 @@ async def test_mail_is_sent_and_failures_are_counted(
         return len(sent) != 2
 
     monkeypatch.setattr(account_mail, "send", fake_send)
-    body = _mail_body()
+    body = _mail_body(exam_id=await _exam(client))
     recipients = body["recipients"]
     assert isinstance(recipients, list)
     body["recipients"] = [recipients[0], recipients[0]]
@@ -368,9 +384,10 @@ async def test_mail_carries_the_code_only_when_asked(
         return True
 
     monkeypatch.setattr(account_mail, "send", fake_send)
-    plain = _mail_body()
+    exam_id = await _exam(client)
+    plain = _mail_body(exam_id=exam_id)
     assert (await client.post(API + "/mail/results", json=plain)).status_code == 200
-    with_code = _mail_body()
+    with_code = _mail_body(exam_id=exam_id)
     with_code["recipients"][0]["code"] = "ABCD-2345"  # type: ignore[index]
     assert (await client.post(API + "/mail/results", json=with_code)).status_code == 200
     assert "ABCD-2345" not in sent[0].text
@@ -379,3 +396,42 @@ async def test_mail_carries_the_code_only_when_asked(
     bad = _mail_body()
     bad["recipients"][0]["code"] = "<script>"  # type: ignore[index]
     assert (await client.post(API + "/mail/results", json=bad)).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_mail_records_each_students_status(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Issue #221: the dialog shows who was not reached, under the pseudonym only.
+    await _teacher(client, db, "status@example.com")
+    outcomes = iter([True, False])
+
+    async def fake_send(mail: account_mail.Mail) -> bool:
+        assert mail.envelope is not None
+        assert mail.envelope.message_id is not None
+        assert mail.envelope.message_id.startswith("<examance-r.")
+        return next(outcomes)
+
+    monkeypatch.setattr(account_mail, "send", fake_send)
+    exam_id = await _exam(client)
+    body = _mail_body(exam_id=exam_id)
+    recipients = body["recipients"]
+    assert isinstance(recipients, list)
+    body["recipients"] = [recipients[0], {**recipients[0], "student_key": "c" * 64}]
+    assert (await client.post(API + "/mail/results", json=body)).status_code == 200
+    listed = (await client.get(f"/api/v1/exams/{exam_id}/deliveries")).json()
+    assert {(d["student_key"], d["status"]) for d in listed} == {
+        (STUDENT, "sent"),
+        ("c" * 64, "failed"),
+    }
+    assert all("@" not in (d["detail"] or "") for d in listed)
+
+
+@pytest.mark.asyncio
+async def test_mail_for_a_foreign_exam_is_refused(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _teacher(client, db, "foreign@example.com")
+    monkeypatch.setattr(account_mail, "send", lambda _mail: asyncio.sleep(0, True))
+    resp = await client.post(API + "/mail/results", json=_mail_body())
+    assert resp.status_code == 404

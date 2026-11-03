@@ -1,6 +1,7 @@
 /** The delivery step of each share channel (issue #209): what happens with a student's link, or with the PDF itself (Artemis PDF mode, Mebis), once it is ready. Slips need nothing here; e-mail collects the links and sends them in batches at the end; Mebis collects the PDFs into a ZIP to download. */
 
 import { artemisErrorText, sendArtemisFile, sendArtemisMessage, sendResultMails, type ArtemisCourse, type ResultMail } from '#lib/api/integrations';
+import { checkResultDeliveries, type ResultDeliveryInfo } from '#lib/api/resultShares';
 import type { StudentRecord } from '#lib/db/schema';
 import { mebisFeedbackPath } from '#lib/export/examExport';
 import { exportDateStamp, slug, ZipBuilder } from '#lib/export/zip';
@@ -18,9 +19,9 @@ export interface ArtemisTarget extends ArtemisCourse {
 export interface Delivery {
   /** True when the channel sends the graded PDF itself, so no link is made. */
   sendsPdf: boolean;
-  /** *code* is set only when the teacher chose to send the key or code along with the link. */
-  deliverLink(student: StudentRecord, name: string, url: string, code: string | null): Promise<void>;
-  deliverPdf(student: StudentRecord, name: string, filename: string, pdf: Uint8Array): Promise<void>;
+  /** *key* is the student's `joinKey`, under which the server records the outcome; *code* is set only when the teacher chose to send the key or code along with the link. */
+  deliverLink(student: StudentRecord, key: string, name: string, url: string, code: string | null): Promise<void>;
+  deliverPdf(student: StudentRecord, key: string, name: string, filename: string, pdf: Uint8Array): Promise<void>;
   /** Sends what was collected, reporting how many are sent of how many; returns a warning per student it could not reach. */
   finish(progress?: (done: number, total: number) => void): Promise<string[]>;
   /** A file for the teacher to save once finished (the Mebis ZIP), if the channel makes one. */
@@ -50,16 +51,16 @@ const withArtemisDetail = (sending: Promise<void>): Promise<void> =>
 
 export function createDelivery(
   channel: ShareChannelId,
-  context: { examTitle: string; expiresAt: Date; artemis?: ArtemisTarget; language: Locale }
+  context: { examId: string; examTitle: string; expiresAt: Date; artemis?: ArtemisTarget; language: Locale }
 ): Delivery {
   const none = () => Promise.resolve();
   if (channel === 'email') {
     const queued: { mail: ResultMail; name: string }[] = [];
     return {
       sendsPdf: false,
-      deliverLink(student, name, url, code) {
+      deliverLink(student, key, name, url, code) {
         if (!student.email) return Promise.reject(new Error(translate('sharing.channels.email.missing')));
-        queued.push({ mail: { email: student.email, url, expiresAt: context.expiresAt, ...(code ? { code: formatCode(code) } : {}) }, name });
+        queued.push({ mail: { email: student.email, studentKey: key, url, expiresAt: context.expiresAt, ...(code ? { code: formatCode(code) } : {}) }, name });
         return Promise.resolve();
       },
       deliverPdf: none,
@@ -69,7 +70,7 @@ export function createDelivery(
         for (let i = 0; i < queued.length; i += MAIL_BATCH) {
           const batch = queued.slice(i, i + MAIL_BATCH);
           try {
-            const failed = await sendResultMails(context.examTitle, context.language, batch.map((q) => q.mail)); // NOSONAR: batches go one after another, so the mail server and the rate limit see a steady flow
+            const failed = await sendResultMails(context.examId, context.examTitle, context.language, batch.map((q) => q.mail)); // NOSONAR: batches go one after another, so the mail server and the rate limit see a steady flow
             for (const index of failed) warnings.push(translate('sharing.channels.email.failed', { name: batch[index]?.name ?? '?' }));
           } catch (err) {
             const reason = err instanceof Error ? err.message : '';
@@ -87,7 +88,7 @@ export function createDelivery(
     return {
       sendsPdf: true,
       deliverLink: none,
-      deliverPdf(student, name, _filename, pdf) {
+      deliverPdf(student, _key, name, _filename, pdf) {
         const id = mebisIdOf(student);
         if (!id) return Promise.reject(new Error(translate('sharing.channels.mebis.missing')));
         zip.add(mebisFeedbackPath(name, id), pdf);
@@ -106,18 +107,67 @@ export function createDelivery(
     const intro = say('sharing.channels.artemis.message', { exam: context.examTitle, date: formatDate(context.expiresAt, context.language) });
     return {
       sendsPdf: sendsPdf(channel, target.mode),
-      deliverLink: (student, _name, url, code) =>
+      deliverLink: (student, key, _name, url, code) =>
         withArtemisDetail(
           sendArtemisMessage(
             target,
             artemisUser(student),
-            `${intro}\n\n${url}\n\n${code ? say('sharing.channels.artemis.withKey', { key: formatCode(code) }) : say('sharing.channels.artemis.needsKey')}`
+            `${intro}\n\n${url}\n\n${code ? say('sharing.channels.artemis.withKey', { key: formatCode(code) }) : say('sharing.channels.artemis.needsKey')}`,
+            { examId: context.examId, studentKey: key }
           )
         ),
-      deliverPdf: (student, _name, filename, pdf) =>
-        withArtemisDetail(sendArtemisFile(target, artemisUser(student), filename, pdf, say('sharing.channels.artemis.pdfMessage', { exam: context.examTitle }))),
+      deliverPdf: (student, key, _name, filename, pdf) =>
+        withArtemisDetail(
+          sendArtemisFile(target, artemisUser(student), filename, pdf, say('sharing.channels.artemis.pdfMessage', { exam: context.examTitle }), {
+            examId: context.examId,
+            studentKey: key,
+          })
+        ),
       finish: () => Promise.resolve([]),
     };
   }
   return { sendsPdf: false, deliverLink: none, deliverPdf: none, finish: () => Promise.resolve([]) };
+}
+
+/** How often the dialog has the server read the bounce mailbox while it waits after an e-mail run (issue #221). */
+export const BOUNCE_POLL_MS = 5000;
+
+/** The bounce window ends at the latest `watchUntil` the server set (30 s after sending); null when nothing is watched. */
+export function bounceWindowEnd(deliveries: readonly ResultDeliveryInfo[]): number | null {
+  const ends = deliveries.filter((d) => d.channel === 'email').map((d) => Date.parse(d.watchUntil));
+  const end = Math.max(...ends);
+  return ends.length && end > Date.now() ? end : null;
+}
+
+/** Reads the bounce mailbox every BOUNCE_POLL_MS until the window ends or *signal* aborts, reporting statuses and seconds left. A failed check is skipped: the next one, or the teacher's forwarded mail, catches up. */
+export async function watchBounces(
+  examId: string,
+  initial: readonly ResultDeliveryInfo[],
+  onUpdate: (deliveries: ResultDeliveryInfo[], secondsLeft: number) => void,
+  signal: AbortSignal
+): Promise<void> {
+  let end = bounceWindowEnd(initial);
+  while (end !== null && !signal.aborted) {
+    const left = end - Date.now();
+    if (left <= 0) break;
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, Math.min(BOUNCE_POLL_MS, left));
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        { once: true }
+      );
+    });
+    if (signal.aborted) break;
+    try {
+      const deliveries = await checkResultDeliveries(examId); // NOSONAR: one check after another, never in parallel
+      end = bounceWindowEnd(deliveries) ?? end;
+      onUpdate(deliveries, Math.max(0, Math.ceil((end - Date.now()) / 1000)));
+    } catch {
+      // Skipped on purpose (see above).
+    }
+  }
 }

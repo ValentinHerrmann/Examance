@@ -42,3 +42,18 @@ class ResultShareContent(BaseModel):
     iv_b64: str
     ciphertext_b64: str
     expires_at: datetime
+
+
+DeliveryChannel = Literal["email", "artemis"]
+DeliveryStatus = Literal["sent", "failed", "bounced", "delayed"]
+
+
+class ResultDeliveryOut(BaseModel):
+    """One student's delivery status (issue #221); no address, only the pseudonym."""
+
+    student_key: str
+    channel: DeliveryChannel
+    status: DeliveryStatus
+    detail: str | None
+    updated_at: datetime
+    watch_until: datetime

@@ -1,8 +1,12 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { t } from "#lib/i18n";
+  import { listResultDeliveries } from "#lib/api/resultShares";
+  import { latestDeliveries, undelivered } from "#lib/sharing/shareService";
+  import { featuresStore } from "#lib/stores/capabilities";
   import { gradeHref, scanHref, statsHref, studentsHref } from "#lib/utils/links";
   import { faCopy, faFileZipper, faQrcode, faShareFromSquare, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Button } from "#lib/components/ui";
+  import { Badge, Button } from "#lib/components/ui";
 
   interface Props {
     examId: string;
@@ -11,6 +15,8 @@
     onExport: () => void;
     onStickers: () => void;
     onShare: () => void;
+    /** True while the share dialog is open; on close the delivery badge is refreshed. */
+    sharing?: boolean;
     onDeleteAllSubmissions: () => void;
     onDuplicate: () => void;
     isDuplicating?: boolean;
@@ -23,10 +29,31 @@
     onExport,
     onStickers,
     onShare,
+    sharing = false,
     onDeleteAllSubmissions,
     onDuplicate,
     isDuplicating = false
   }: Props = $props();
+
+  // Students a result mail or Artemis message did not reach (issue #221), so late bounces show without opening the dialog.
+  let notReached = $state(0);
+
+  async function loadNotReached(id: string) {
+    try {
+      notReached = [...latestDeliveries(await listResultDeliveries(id)).values()].filter(undelivered).length;
+    } catch {
+      notReached = 0;
+    }
+  }
+
+  $effect.pre(() => {
+    const id = examId;
+    const open = sharing;
+    const enabled = $featuresStore.result_delivery;
+    untrack(() => {
+      if (enabled && !open) void loadNotReached(id);
+    });
+  });
 </script>
 
 <!-- Two groups, each on its own line on phones: regular actions, then the destructive pair pushed right from `sm`. -->
@@ -56,6 +83,7 @@
     </Button>
     <Button size="sm" variant="outlined" severity="secondary" icon={faShareFromSquare} onClick={onShare}>
       {$t("sharing.actions.share")}
+      {#if notReached}<Badge size="xs" severity="danger">{$t("sharing.delivery.badge", { count: notReached })}</Badge>{/if}
     </Button>
     <Button
       size="sm"
