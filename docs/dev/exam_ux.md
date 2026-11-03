@@ -128,8 +128,8 @@ All paths below are under `frontend/src/` unless they start with `docs/` or `fro
 - [x] **4.7 Outdated sticker texts**: `sharing.channels.mebis.missing` and `sharing.channels.artemis.missing` (de/en) say "no Mebis/Artemis id (from the class list or the QR sticker)"; same in `docs/{,de/}user/students.md` (around `#lms`).
 
 ### 5. Manual grading and Students
-- [ ] **5.1 Roster flag**: in `ManualGradingContainer.svelte` add `const SHOW_ROSTER_TAB = false; // Hidden for review on the preview (issue #212); delete the roster tab and its code once approved.` Filter the roster item out of `Tabs`, and replace `onOpenRoster` targets with a link to `studentsHref(examId)`.
-- [ ] **5.2 Paste import**: pass the flag (or import it from a tiny shared module) to `PasteImportModal`; with it off, rows with `isNew` are listed as "not on the Students page" (new key) and skipped instead of `createStudentWithSubmission`.
+- [x] **5.1 Roster flag**: in `ManualGradingContainer.svelte` add `const SHOW_ROSTER_TAB = false; // Hidden for review on the preview (issue #212); delete the roster tab and its code once approved.` Filter the roster item out of `Tabs`, and replace `onOpenRoster` targets with a link to `studentsHref(examId)`.
+- [x] **5.2 Paste import**: pass the flag (or import it from a tiny shared module) to `PasteImportModal`; with it off, rows with `isNew` are listed as "not on the Students page" (new key) and skipped instead of `createStudentWithSubmission`.
 - [ ] **5.3 Add student**: extend `StudentEditDialog` with a create mode (`students: []` + `create: true`, or a `mode` prop) that saves through `lib/students/classList.ts` (`applyImport` of a one-row plan, so the row gets the sticker payload from `listedStudent`); a "Add student" button (icon `add`) on the Students page.
 
 ### 6. Exam-list cards

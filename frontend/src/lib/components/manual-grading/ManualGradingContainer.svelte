@@ -21,6 +21,9 @@
   import ScoreGrid from "./ScoreGrid.svelte";
   import PasteImportModal from "./PasteImportModal.svelte";
   import { t } from "#lib/i18n";
+  import { goto } from "$app/navigation";
+  import { SHOW_ROSTER_TAB } from "#lib/grading/manualRoster";
+  import { studentsHref } from "#lib/utils/links";
 
   interface Props {
     examId: string;
@@ -104,6 +107,12 @@
     activeTab = id as typeof activeTab;
   }
 
+  // Students are added on the Students page while the roster tab is hidden.
+  function openRoster() {
+    if (SHOW_ROSTER_TAB) activeTab = "roster";
+    else void goto(studentsHref(examId));
+  }
+
   async function handleDataChanged() {
     await refreshAllData();
   }
@@ -125,7 +134,7 @@
     items={[
       { id: "exercise-first", label: $t("grading.manual.container.tabExerciseFirst"), icon: faPen },
       { id: "student-first", label: $t("grading.manual.container.tabStudentFirst"), icon: faUser },
-      { id: "roster", label: $t("grading.manual.container.tabRoster", { count: students.length }), icon: faUsers },
+      ...(SHOW_ROSTER_TAB ? [{ id: "roster", label: $t("grading.manual.container.tabRoster", { count: students.length }), icon: faUsers }] : []),
     ]}
     value={activeTab}
     onChange={onTabChange}
@@ -141,7 +150,7 @@
           <Button variant="outlined" severity="danger" size="sm" onClick={refreshAllData}>{$t("common.retry")}</Button>
         {/snippet}
       </Alert>
-    {:else if activeTab === "roster"}
+    {:else if SHOW_ROSTER_TAB && activeTab === "roster"}
       <RosterManager
         {examId}
         {students}
@@ -157,7 +166,7 @@
         {submissions}
         {scoresMap}
         onScoresChanged={handleDataChanged}
-        onOpenRoster={() => (activeTab = "roster")}
+        onOpenRoster={openRoster}
       />
     {:else if activeTab === "student-first"}
       <ScoreGrid
@@ -169,7 +178,7 @@
         {submissions}
         {scoresMap}
         onScoresChanged={handleDataChanged}
-        onOpenRoster={() => (activeTab = "roster")}
+        onOpenRoster={openRoster}
       />
     {/if}
   </Card>
