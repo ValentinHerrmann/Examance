@@ -16,6 +16,15 @@ export function formatStudentName(name: string | null | undefined): string {
     .join(', ');
 }
 
+/** A name with its given names cut to initials (`Anna-Lena Maier` → `A.-L. Maier`, `Maier, Anna` → `Maier, A.`), so a long name printed in little room (the copies' corner tab) keeps its surname whole; the name itself if nothing shortens. */
+export function abbreviateGivenNames(name: string): string {
+  const initials = (given: string) => given.split(/\s+/).filter(Boolean).map((w) => w.split('-').map((p) => `${p.charAt(0)}.`).join('-')).join(' ');
+  const comma = name.indexOf(',');
+  if (comma >= 0) return `${name.slice(0, comma).trim()}, ${initials(name.slice(comma + 1))}`.trim().replace(/,$/, '');
+  const words = name.trim().split(/\s+/);
+  return words.length < 2 ? name : `${initials(words.slice(0, -1).join(' '))} ${words[words.length - 1]}`;
+}
+
 export function parseStudentQr(
   qrString: string | null | undefined,
 ): ParsedStudentQr | null {

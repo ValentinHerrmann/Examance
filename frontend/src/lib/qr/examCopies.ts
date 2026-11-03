@@ -6,6 +6,7 @@ import { translate } from '#lib/i18n';
 import { CM, drawQr, embedLabelFonts, fitText, type LabelFonts, type PdfLib } from '#lib/pdf/labelKit';
 import { loadPdfjs } from '#lib/pdf/pdfjs';
 import { formatCode } from '#lib/sharing/shareCrypto';
+import { abbreviateGivenNames } from '#lib/utils/studentQr';
 import { MM, TAB_SIDE, TAB_TOP } from './cutCorner';
 import type { StickerEntry } from './stickerSheet';
 
@@ -24,9 +25,11 @@ const COS = TAB_TOP / HYPOTENUSE;
 /** Clearance of the tab text from the cut line (perpendicular) and from the paper edges (unprintable margin). */
 const CLEAR = 3 * MM;
 const EDGE = 4 * MM;
-/** Name and key rows: baseline depth below the top edge, preferred and smallest font size. */
-const NAME_ROW = { depth: 6.5 * MM, size: 9, minSize: 7 };
-const KEY_ROW = { depth: 10.7 * MM, size: 8.5, minSize: 7 };
+/** Distance from the cut line to the paper corner. */
+const ALTITUDE = (TAB_TOP * TAB_SIDE) / HYPOTENUSE;
+/** Name and key rows parallel to the cut line: baseline distance from it, preferred and smallest font size. The name's descender (0.7 mm at 9 pt) stays CLEAR off the line; the key sits above the name's ascender. */
+const NAME_ROW = { dist: CLEAR + 0.7 * MM, size: 9, minSize: 7 };
+const KEY_ROW = { dist: CLEAR + 4.7 * MM, size: 8.5, minSize: 7 };
 const HINT_SIZE = 5.5;
 /** The hint's baseline outside the cut line, so the hint sits in the 3 mm tolerance zone with its glyphs rising towards the line. */
 const HINT_OFFSET = 2.2 * MM;
@@ -46,20 +49,23 @@ async function findQrBox(examPdf: Uint8Array): Promise<Rect | null> {
   }
 }
 
-/** Width a horizontal line may take at *descent* below the top edge: right-aligned EDGE from the right edge, its lower left corner CLEAR (perpendicular) from the cut line. */
-function roomAt(descent: number): number {
-  return TAB_TOP * (1 - descent / TAB_SIDE) - CLEAR / SIN - EDGE;
-}
-
-/** One right-aligned row of the tab; a long text shrinks in 0.5 pt steps down to the row's smallest size before it is shortened. */
-function drawTabRow(page: PDFPage, font: PDFFont, text: string, row: { depth: number; size: number; minSize: number }): void {
+/** One row of the tab parallel to the cut line, centred where its glyphs stay EDGE clear of both paper edges. The first text that fits at a size down to the row's smallest (0.5 pt steps) wins; only the last one is shortened. */
+function drawTabRow(lib: PdfLib, page: PDFPage, font: PDFFont, texts: readonly string[], row: { dist: number; size: number; minSize: number }): void {
   const { width, height } = page.getSize();
-  // The lowest glyph point is the one closest to the line, so the room is measured at the font's descender.
-  const room = (size: number) => roomAt(row.depth + font.heightAtSize(size) - font.heightAtSize(size, { descender: false }));
-  let size = row.size;
-  while (size > row.minSize && font.widthOfTextAtSize(text, size) > room(size)) size -= 0.5;
-  const line = fitText(font, text, size, room(size));
-  page.drawText(line, { x: width - EDGE - font.widthOfTextAtSize(line, size), y: height - row.depth, size, font });
+  const scale = 1 - row.dist / ALTITUDE;
+  // Glyphs rise towards the corner: by `rise·cos` towards the top edge where the row starts, by `rise·sin` towards the right edge where it ends.
+  const rise = (size: number) => font.heightAtSize(size, { descender: false });
+  const start = (size: number) => (EDGE + rise(size) * COS) / SIN;
+  const room = (size: number) => scale * HYPOTENUSE - start(size) - (EDGE + rise(size) * SIN) / COS;
+  const sizeFor = (text: string): number | null => {
+    for (let size = row.size; size >= row.minSize; size -= 0.5) if (font.widthOfTextAtSize(text, size) <= room(size)) return size;
+    return null;
+  };
+  const fitting = texts.map((text) => ({ text, size: sizeFor(text) })).find((c) => c.size !== null);
+  const size = fitting?.size ?? row.minSize;
+  const line = fitText(font, fitting?.text ?? texts[texts.length - 1], size, room(size));
+  const along = start(size) + (room(size) - font.widthOfTextAtSize(line, size)) / 2;
+  page.drawText(line, { x: width - scale * TAB_TOP + COS * along, y: height - SIN * along, size, font, rotate: lib.degrees(-ANGLE) });
 }
 
 /** The dashed cut line in a top corner; the guillotine follows it through the whole stack. */
@@ -70,12 +76,13 @@ function drawCutLine(lib: PdfLib, page: PDFPage, side: 'left' | 'right'): void {
   page.drawLine({ start: { x: top, y: height }, end: { x: edge, y: height - TAB_SIDE }, thickness: 0.6, color: lib.rgb(0.5, 0.5, 0.5), dashArray: [4, 3] });
 }
 
-/** The corner tab on page 1: a dashed diagonal, name and key horizontal in the corner at least 3 mm from the line and 4 mm from the edges, and a hint along the line on the side that stays. */
+/** The corner tab on page 1: a dashed diagonal, name and key parallel to it in the corner at least 3 mm from the line and 4 mm from the edges, and a hint along the line on the side that stays. */
 function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: StickerEntry, key: string): void {
   const { width, height } = page.getSize();
   drawCutLine(lib, page, 'right');
-  drawTabRow(page, fonts.bold, fonts.safe(entry.label), NAME_ROW);
-  drawTabRow(page, fonts.monoBold, formatCode(key), KEY_ROW);
+  const name = fonts.safe(entry.label);
+  drawTabRow(lib, page, fonts.bold, [name, abbreviateGivenNames(name)], NAME_ROW);
+  drawTabRow(lib, page, fonts.monoBold, [formatCode(key)], KEY_ROW);
   const hint = fitText(fonts.regular, fonts.safe(translate('sharing.stickers.cornerHint')), HINT_SIZE, HYPOTENUSE - 2 * EDGE / SIN);
   const along = (HYPOTENUSE - fonts.regular.widthOfTextAtSize(hint, HINT_SIZE)) / 2;
   // Along the line (COS, -SIN) from its top end, then outward (-SIN, -COS), away from the corner.
