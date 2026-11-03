@@ -77,7 +77,7 @@ export const exam: Translations['exam'] = {
         addExercises: '+ Add Exercises',
         scan: 'Scan',
         grade: 'Grade',
-        stats: 'Statistics',
+        results: 'Results',
         edit: 'Edit',
         deleteSubmissions: 'Delete Submissions',
         delete: 'Delete',
@@ -174,8 +174,10 @@ export const exam: Translations['exam'] = {
     sidebar: {
         label: 'Exam navigation',
         back: 'Back to exams',
-        setup: 'Setup',
+        overview: 'Overview',
+        content: 'Exam',
         students: 'Students',
+        print: 'Print',
         scan: 'Scans',
         verify: 'Check MC',
         grade: 'Grading',
@@ -183,6 +185,11 @@ export const exam: Translations['exam'] = {
         stats: 'Statistics',
         collapse: 'Collapse sidebar',
         expand: 'Expand sidebar',
+    },
+    flow: {
+        next: 'Next: {step}',
+        continue: 'Continue: {step}',
+        step: 'Step {n}',
     },
     nav: {
         tabsLabel: 'Exam workflow',

@@ -660,7 +660,7 @@
 {/snippet}
 
 <PageShell width="fluid">
-  <PageHeader title={$t("exam.sidebar.setup")} />
+  <PageHeader title={$t("exam.sidebar.overview")} />
 
   {#if isLocalFallback}
     <Alert severity="warning" class="mb-6">

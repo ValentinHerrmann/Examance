@@ -4,7 +4,7 @@
   import { listResultDeliveries } from "#lib/api/resultShares";
   import { latestDeliveries, undelivered } from "#lib/sharing/shareService";
   import { featuresStore } from "#lib/stores/capabilities";
-  import { gradeHref, scanHref, statsHref, studentsHref } from "#lib/utils/links";
+  import { gradeHref, scanHref, resultsHref, studentsHref } from "#lib/utils/links";
   import { faCopy, faFileZipper, faQrcode, faShareFromSquare, faUsers } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button } from "#lib/components/ui";
 
@@ -65,7 +65,7 @@
     <Button size="sm" variant="outlined" severity="secondary" href={gradeHref(examId)}>
       {$t("exam.actionBar.grade")}
     </Button>
-    <Button size="sm" variant="outlined" severity="secondary" href={statsHref(examId)}>
+    <Button size="sm" variant="outlined" severity="secondary" href={resultsHref(examId)}>
       {$t("exam.actionBar.stats")}
     </Button>
     <Button size="sm" variant="outlined" severity="secondary" onClick={onEdit}>

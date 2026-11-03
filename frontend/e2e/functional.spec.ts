@@ -361,10 +361,10 @@ test.describe('exam', () => {
     await gotoExamTab(page, 'manual');
     await expect(page.getByRole('heading', { name: await t(page, 'grading.manual.container.title') })).toBeVisible();
 
-    await gotoExamTab(page, 'stats');
+    await gotoExamTab(page, 'results');
     await expect(page.getByRole('heading', { name: await t(page, 'stats.page.title') })).toBeVisible();
 
-    await gotoExamTab(page, 'setup');
+    await gotoExamTab(page, 'overview');
     await expect(page.getByRole('heading', { name: literal('Tab exam') })).toBeVisible();
 
     await gotoExamTab(page, 'grade');

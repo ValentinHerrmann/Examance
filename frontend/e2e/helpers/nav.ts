@@ -3,27 +3,31 @@ import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './guards';
 import { DEFAULT_LOCALE, label, labelExact, type Locale } from './i18n';
 
-export type ExamTab = 'setup' | 'students' | 'scan' | 'verify' | 'grade' | 'manual' | 'stats';
+export type ExamTab = 'overview' | 'content' | 'students' | 'print' | 'scan' | 'verify' | 'grade' | 'manual' | 'results';
 export type LegalPage = 'impressum' | 'datenschutz';
 
 const EXAM_TAB_KEYS: Record<ExamTab, string> = {
-  setup: 'exam.sidebar.setup',
+  overview: 'exam.sidebar.overview',
+  content: 'exam.sidebar.content',
   students: 'exam.sidebar.students',
+  print: 'exam.sidebar.print',
   scan: 'exam.sidebar.scan',
   verify: 'exam.sidebar.verify',
   grade: 'exam.sidebar.grade',
   manual: 'exam.sidebar.manual',
-  stats: 'exam.sidebar.stats',
+  results: 'exam.sidebar.results',
 };
 
 const EXAM_TAB_PATH: Record<ExamTab, string> = {
-  setup: '',
+  overview: '',
+  content: '/content',
   students: '/students',
+  print: '/print',
   scan: '/scan',
   verify: '/verify',
   grade: '/grade',
   manual: '/manual',
-  stats: '/stats',
+  results: '/results',
 };
 
 /* -------------------------------------------------------------------------- */
