@@ -150,6 +150,8 @@ All paths below are under `frontend/src/` unless they start with `docs/` or `fro
 
 ## Progress notes
 
+- 2026-11-03: all items done; PR ready for review on the preview. Follow-ups after the owner's review: delete the hidden roster (`lib/grading/manualRoster.ts`), refresh screenshots from `docs/demo-instance/`.
+
 - 2026-11-03: design agreed, code map and checklist written.
 - 1.1–1.2 done: the sidebar already links `/content`, `/print`, `/results`, which exist only after 2.4, 3.4 and 4.1 (intermediate commits have dead step links; fine on a draft PR).
 - 2.2: `ExamPreviewPanel` written; `lib/exam/examItems.ts` holds `computeExamItems`. `routes/exam/[id]/content/+page.svelte` is so far a plain copy of the old Setup page: 2.6 rewrites `+page.svelte` as the Overview.
