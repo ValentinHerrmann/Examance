@@ -1,11 +1,12 @@
 <script lang="ts">
   /** Shares graded PDFs with students through personal encrypted links and prints the slips (issue #207, docs/dev/result_sharing.md). Options that do not fit the chosen students are muted with the reason. */
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { faCircleInfo, faShareFromSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
   import { Alert, Badge, Button, Checkbox, ConfirmDialog, Field, Icon, Modal, Radio, Select, Spinner, TableScroller } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
-  import { revokeAllResultShares, revokeResultShare } from "#lib/api/resultShares";
+  import { closeResultDeliveries, revokeAllResultShares, revokeResultShare, type ResultDeliveryInfo } from "#lib/api/resultShares";
+  import { watchBounces } from "#lib/sharing/delivery";
   import { channelUnavailable, incompatibleStudents, sendsPdf as channelSendsPdf, SHARE_CHANNELS, SHARE_FACTORS, type ArtemisMode, type ShareChannelId } from "#lib/sharing/channels";
   import type { ArtemisCourse } from "#lib/api/integrations";
   import { featuresStore } from "#lib/stores/capabilities";
@@ -16,7 +17,9 @@
     DEFAULT_EXPIRY_DAYS,
     loadShareOverview,
     SHARE_EXPIRY_DAYS,
+    latestDeliveries,
     shareResults,
+    undelivered,
     type ShareOutcome,
     type SharePhase,
     type ShareOverview,
@@ -57,10 +60,14 @@
   let artemisMode = $state<ArtemisMode>("link");
   let previewing = $state(false);
   let revoking = $state(false);
+  // After an e-mail run the dialog waits for returned mails (issue #221); later ones are mailed to the teacher.
+  let waiting = $state<{ secondsLeft: number } | null>(null);
+  let waitAbort: AbortController | null = null;
 
   const progressClass =
     "block h-3 w-full appearance-none overflow-hidden rounded-md bg-surface-inset [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-surface-inset [&::-webkit-progress-value]:bg-primary";
   const STATE_BADGE = { complete: "success", partial: "warning", ungraded: "secondary" } as const;
+  const DELIVERY_BADGE = { sent: "secondary", delayed: "warning", bounced: "danger", failed: "danger" } as const;
   const DONE = { slips: "sharing.share.done", email: "sharing.channels.email.done", artemis: "sharing.channels.artemis.done", mebis: "sharing.channels.mebis.done" } as const;
 
   // Every channel is listed; one the account or server cannot use is greyed out with its reason.
@@ -87,6 +94,7 @@
     if (currentChannel.id === "slips" || currentChannel.id === "mebis") start();
     else previewing = true;
   }
+  let undeliveredCount = $derived(overview?.students.filter((s) => undelivered(s.delivery)).length ?? 0);
   let activeShares = $derived((overview?.students.filter((s) => s.share).length ?? 0) + (overview?.orphans.length ?? 0));
 
   async function reload() {
@@ -109,6 +117,55 @@
     else next.delete(student.key);
     selected = next;
   }
+
+  function selectUndelivered() {
+    selected = new Set(overview?.students.filter((s) => s.hasSubmission && undelivered(s.delivery)).map((s) => s.key) ?? []);
+  }
+
+  function deliveryTitle(d: ResultDeliveryInfo): string {
+    const channelLabel = $t(d.channel === "email" ? "sharing.delivery.viaEmail" : "sharing.delivery.viaArtemis");
+    return d.detail ? `${channelLabel}: ${d.detail}` : channelLabel;
+  }
+
+  /** Shows returned mails live while the server watches (30 s), reading the mailbox every few seconds. */
+  async function waitForBounces() {
+    if (!overview || !$featuresStore.result_bounces) return;
+    waitAbort = new AbortController();
+    waiting = { secondsLeft: 0 };
+    window.addEventListener("beforeunload", keepOpen);
+    try {
+      await watchBounces(
+        examId,
+        overview.deliveries,
+        (deliveries, secondsLeft) => {
+          waiting = { secondsLeft };
+          if (overview) {
+            const byKey = latestDeliveries(deliveries);
+            overview = { ...overview, deliveries, students: overview.students.map((s) => ({ ...s, delivery: byKey.get(s.key) ?? s.delivery })) };
+          }
+        },
+        waitAbort.signal
+      );
+    } finally {
+      waiting = null;
+      waitAbort = null;
+      window.removeEventListener("beforeunload", keepOpen);
+    }
+  }
+
+  /** Closing mid-wait hands later bounces to the teacher's inbox. */
+  function stopWaiting() {
+    if (!waitAbort) return;
+    waitAbort.abort();
+    closeResultDeliveries(examId).catch((err) => console.warn("Could not end the bounce window:", err));
+  }
+
+  function close() {
+    stopWaiting();
+    onClose();
+  }
+
+  onDestroy(stopWaiting);
 
   function selectGraded() {
     selected = new Set(overview?.students.filter((s) => s.hasSubmission && s.state !== "ungraded").map((s) => s.key) ?? []);
@@ -142,6 +199,7 @@
       );
       saveDownload(outcome);
       await reload();
+      if (outcome.channel === "email") void waitForBounces();
     } catch (err) {
       error = `${$t("sharing.errors.share")} ${err instanceof Error ? err.message : ""}`.trim();
     } finally {
@@ -192,7 +250,7 @@
   }
 </script>
 
-<Modal open={true} size="large" title={$t("sharing.share.title")} onClose={running ? undefined : onClose} closeOnEscape={!running} {error}>
+<Modal open={true} size="large" title={$t("sharing.share.title")} onClose={running ? undefined : close} closeOnEscape={!running} {error}>
   <div class="flex flex-col gap-5">
     <p class="text-sm text-muted">{$t("sharing.share.intro")}</p>
     {#if resultsAreLocal()}
@@ -207,12 +265,38 @@
             {#each outcome.warnings as warning}<li>{warning}</li>{/each}
           </ul>
         {/if}
+        {#if outcome.channel === "email" && !$featuresStore.result_bounces}
+          <p class="text-sm">{$t("sharing.delivery.notMonitored")}</p>
+        {/if}
         {#snippet actions()}
           {#if outcome?.download}
             <Button size="sm" variant="outlined" severity="secondary" onClick={() => outcome && saveDownload(outcome)}>
               {$t("sharing.share.downloadAgain")}
             </Button>
           {/if}
+        {/snippet}
+      </Alert>
+    {/if}
+
+    {#if waiting}
+      <div aria-live="polite" class="flex flex-col gap-2">
+        <progress class={progressClass} aria-label={$t("sharing.delivery.waiting")}></progress>
+        <p class="m-0 flex flex-wrap justify-between gap-2 text-sm">
+          <span>{$t("sharing.delivery.waiting")}</span>
+          {#if waiting.secondsLeft}<span class="tabular-nums text-muted">{$t("sharing.delivery.secondsLeft", { count: waiting.secondsLeft })}</span>{/if}
+        </p>
+        <p class="m-0 flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
+          {$t("sharing.delivery.closeHint")}
+          <Button size="sm" variant="text" onClick={stopWaiting}>{$t("sharing.delivery.stopWaiting")}</Button>
+        </p>
+      </div>
+    {/if}
+
+    {#if undeliveredCount && !running}
+      <Alert severity="warning" title={$t("sharing.delivery.undelivered", { count: undeliveredCount })}>
+        <p>{$t("sharing.delivery.undeliveredHint")}</p>
+        {#snippet actions()}
+          <Button size="sm" variant="outlined" severity="secondary" disabled={!!waiting} onClick={selectUndelivered}>{$t("sharing.delivery.selectUndelivered")}</Button>
         {/snippet}
       </Alert>
     {/if}
@@ -238,6 +322,7 @@
                 <th>{$t("sharing.share.colArtemisId")}</th>
                 <th>{$t("sharing.share.colEmail")}</th>
                 <th>{$t("sharing.share.colState")}</th>
+                <th>{$t("sharing.delivery.col")}</th>
                 <th colspan="2"><span class="sr-only">{$t("sharing.share.colShare")}</span></th>
               </tr>
             </thead>
@@ -257,6 +342,11 @@
                   <td class="text-sm text-muted tabular-nums">{artemisIdOf(s.student) ?? ""}</td>
                   <td class="min-w-0 text-sm break-all text-muted">{s.student.email ?? ""}</td>
                   <td><Badge size="xs" severity={s.hasSubmission ? STATE_BADGE[s.state] : "secondary"}>{stateLabel(s)}</Badge></td>
+                  <td>
+                    {#if s.delivery}
+                      <Badge size="xs" severity={DELIVERY_BADGE[s.delivery.status]} title={deliveryTitle(s.delivery)}>{$t(`sharing.delivery.status.${s.delivery.status}`)}</Badge>
+                    {/if}
+                  </td>
                   <td class="text-sm text-muted">
                     {#if s.share}{$t("sharing.share.sharedUntil", { date: formatDate(s.share.expiresAt) })}{/if}
                   </td>
@@ -273,6 +363,7 @@
                 <tr>
                   <td></td>
                   <td class="text-muted italic">{$t("sharing.share.removedStudent")}</td>
+                  <td></td>
                   <td></td>
                   <td></td>
                   <td></td>
@@ -395,11 +486,11 @@
   </div>
 
   {#snippet footer()}
-    <Button variant="outlined" severity="secondary" disabled={running} onClick={onClose}>{$t("common.close")}</Button>
+    <Button variant="outlined" severity="secondary" disabled={running} onClick={close}>{$t("common.close")}</Button>
     <Button
       icon={faShareFromSquare}
       loading={running}
-      disabled={running || loading || !selected.size || setupMissing || (!sendsPdf && factorMuted(factor))}
+      disabled={running || !!waiting || loading || !selected.size || setupMissing || (!sendsPdf && factorMuted(factor))}
       onClick={run}
     >
       {currentChannel.id === "slips" ? $t("sharing.share.run") : currentChannel.id === "mebis" ? $t("sharing.channels.mebis.run") : $t("sharing.share.runDelivery")}

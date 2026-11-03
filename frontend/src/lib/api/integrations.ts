@@ -28,29 +28,40 @@ export interface ArtemisStudent {
 
 const course = (c: ArtemisCourse) => ({ host: c.host, course_id: c.courseId, jwt: c.jwt });
 
+/** Which exam and student a send is for, so the server keeps its outcome as the student's delivery status (issue #221). */
+export interface DeliveryTarget {
+  examId: string;
+  /** `joinKey` of the student. */
+  studentKey: string;
+}
+
 export async function fetchArtemisStudents(c: ArtemisCourse): Promise<ArtemisStudent[]> {
   return (await api.post<{ students: ArtemisStudent[] }>('/integrations/artemis/students', course(c), quiet)).students;
 }
 
 /** Posts *content* into the teacher's direct chat with the student. */
-export async function sendArtemisMessage(c: ArtemisCourse, userId: number, content: string): Promise<void> {
-  await api.post('/integrations/artemis/messages', { ...course(c), user_id: userId, content }, quiet);
+export async function sendArtemisMessage(c: ArtemisCourse, userId: number, content: string, target: DeliveryTarget): Promise<void> {
+  await api.post('/integrations/artemis/messages', { ...course(c), user_id: userId, content, exam_id: target.examId, student_key: target.studentKey }, quiet);
 }
 
 /** Uploads a PDF into the direct chat with the student, with *message* above the attachment. */
-export async function sendArtemisFile(c: ArtemisCourse, userId: number, filename: string, pdf: Uint8Array, message: string): Promise<void> {
+export async function sendArtemisFile(c: ArtemisCourse, userId: number, filename: string, pdf: Uint8Array, message: string, target: DeliveryTarget): Promise<void> {
   const form = new FormData();
   form.append('host', c.host);
   form.append('course_id', String(c.courseId));
   form.append('jwt', c.jwt);
   form.append('user_id', String(userId));
   form.append('message', message);
+  form.append('exam_id', target.examId);
+  form.append('student_key', target.studentKey);
   form.append('file', new Blob([pdf as BlobPart], { type: 'application/pdf' }), filename);
   await api.postForm('/integrations/artemis/files', form, quiet);
 }
 
 export interface ResultMail {
   email: string;
+  /** `joinKey` of the student; the server records the outcome under it. */
+  studentKey: string;
   url: string;
   expiresAt: Date;
   /** The key or code, only when the teacher chose to send it along. */
@@ -58,13 +69,14 @@ export interface ResultMail {
 }
 
 /** Sends each student their result link; returns the indexes of *recipients* the mail server refused. */
-export async function sendResultMails(examTitle: string, locale: string, recipients: readonly ResultMail[]): Promise<number[]> {
+export async function sendResultMails(examId: string, examTitle: string, locale: string, recipients: readonly ResultMail[]): Promise<number[]> {
   const res = await api.post<{ sent: number; failed: number[] }>(
     '/integrations/mail/results',
     {
+      exam_id: examId,
       exam_title: examTitle,
       locale: locale === 'en' ? 'en' : 'de',
-      recipients: recipients.map((r) => ({ email: r.email, url: r.url, expires_at: r.expiresAt.toISOString(), ...(r.code ? { code: r.code } : {}) })),
+      recipients: recipients.map((r) => ({ email: r.email, student_key: r.studentKey, url: r.url, expires_at: r.expiresAt.toISOString(), ...(r.code ? { code: r.code } : {}) })),
     },
     quiet
   );

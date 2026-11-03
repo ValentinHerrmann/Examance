@@ -85,6 +85,26 @@ export const sharing = {
         includeCodeHint: 'Praktisch, wenn Schüler ihren Schlüssel verloren haben: Der Link öffnet sich dann ohne Zettel oder Aufkleber.',
         includeCodeWarning: 'Weniger sicher: Wer die Nachricht lesen kann (Mailanbieter, Artemis, jemand mit Zugriff auf das Postfach), kann die Arbeit öffnen.',
     },
+    delivery: {
+        col: 'Zustellung',
+        status: {
+            sent: 'Gesendet',
+            delayed: 'Verzögert',
+            bounced: 'Nicht zugestellt',
+            failed: 'Fehlgeschlagen',
+        },
+        viaEmail: 'Per E-Mail',
+        viaArtemis: 'Über Artemis',
+        waiting: 'Prüfe auf zurückgekommene E-Mails …',
+        secondsLeft: 'noch {count} s',
+        closeHint: 'Du kannst schließen: Später zurückkommende E-Mails schickt Examance dir per E-Mail.',
+        stopWaiting: 'Nicht mehr warten',
+        undelivered: '{count} Schüler nicht erreicht',
+        undeliveredHint: 'Die Nachricht kam bei ihnen nicht an. Korrigiere die Adresse oder Artemis-ID auf der Schülerseite und sende ihnen erneut.',
+        selectUndelivered: 'Nicht erreichte auswählen',
+        notMonitored: 'Dieser Server überwacht keine zurückkommenden E-Mails. „Gesendet“ heißt nur, dass der Mailserver die Nachricht angenommen hat.',
+        badge: '{count} nicht erreicht',
+    },
     channels: {
         slips: {
             label: 'Zettel zum Austeilen',

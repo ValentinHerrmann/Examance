@@ -95,3 +95,49 @@ export async function openResultShare(
     },
   };
 }
+
+/** One student's delivery status for result mails and Artemis messages (issue #221). "sent" only means no bounce came back. */
+export type DeliveryStatus = 'sent' | 'failed' | 'bounced' | 'delayed';
+
+export interface ResultDeliveryInfo {
+  studentKey: string;
+  channel: 'email' | 'artemis';
+  status: DeliveryStatus;
+  /** SMTP status such as `5.1.1`, or the Artemis relay's error text; never an address. */
+  detail: string | null;
+  updatedAt: string;
+  /** Until then the open dialog waits for bounces; later ones are mailed to the teacher. */
+  watchUntil: string;
+}
+
+interface ResultDeliveryOut {
+  student_key: string;
+  channel: 'email' | 'artemis';
+  status: DeliveryStatus;
+  detail: string | null;
+  updated_at: string;
+  watch_until: string;
+}
+
+const mapDelivery = (d: ResultDeliveryOut): ResultDeliveryInfo => ({
+  studentKey: d.student_key,
+  channel: d.channel,
+  status: d.status,
+  detail: d.detail,
+  updatedAt: d.updated_at,
+  watchUntil: d.watch_until,
+});
+
+export async function listResultDeliveries(examId: string): Promise<ResultDeliveryInfo[]> {
+  return (await api.get<ResultDeliveryOut[]>(`/exams/${examId}/deliveries`, quiet)).map(mapDelivery);
+}
+
+/** Has the server read the bounce mailbox now, then lists the statuses. */
+export async function checkResultDeliveries(examId: string): Promise<ResultDeliveryInfo[]> {
+  return (await api.post<ResultDeliveryOut[]>(`/exams/${examId}/deliveries/check`, {}, quiet)).map(mapDelivery);
+}
+
+/** The dialog stops waiting: bounces from now on are mailed to the teacher. */
+export async function closeResultDeliveries(examId: string): Promise<void> {
+  await api.post(`/exams/${examId}/deliveries/close`, {}, quiet);
+}

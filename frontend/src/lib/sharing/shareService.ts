@@ -2,7 +2,7 @@
 
 import { get } from 'svelte/store';
 import type { GradingState } from '#lib/analytics/examResults';
-import { createResultShare, listResultShares, type ResultShareInfo } from '#lib/api/resultShares';
+import { createResultShare, listResultDeliveries, listResultShares, type ResultDeliveryInfo, type ResultShareInfo } from '#lib/api/resultShares';
 import { joinKeys } from '#lib/crypto/pseudonymKey';
 import { personalKey } from '#lib/crypto/stickerKey';
 import type { StudentRecord } from '#lib/db/schema';
@@ -29,6 +29,8 @@ export interface ShareStudent {
   state: GradingState;
   hasSubmission: boolean;
   share?: ResultShareInfo;
+  /** The latest e-mail or Artemis delivery status (issue #221). */
+  delivery?: ResultDeliveryInfo;
 }
 
 export interface ShareOverview {
@@ -36,6 +38,8 @@ export interface ShareOverview {
   students: ShareStudent[];
   /** Live shares whose student is no longer in the exam. */
   orphans: ResultShareInfo[];
+  /** Every delivery status of the exam, for the bounce window. */
+  deliveries: ResultDeliveryInfo[];
   /** False when exercise texts are withheld: the solution cannot be built. */
   solutionAvailable: boolean;
 }
@@ -90,13 +94,22 @@ export async function shareCode(factor: ShareFactor, raw: string | null): Promis
   return factor === 'code' ? randomCode(8) : null;
 }
 
-/** Students with their grading state and live share, for the dialog. */
+/** The newest status per student across channels (the list is ordered by update time). */
+export function latestDeliveries(deliveries: readonly ResultDeliveryInfo[]): Map<string, ResultDeliveryInfo> {
+  return new Map(deliveries.map((d) => [d.studentKey, d]));
+}
+
+/** Statuses that need the teacher: the message did not reach the student. */
+export const undelivered = (d: ResultDeliveryInfo | undefined): boolean => d?.status === 'bounced' || d?.status === 'failed';
+
+/** Students with their grading state, live share and delivery status, for the dialog. */
 export async function loadShareOverview(examId: string): Promise<ShareOverview> {
   const { key } = await sessionKeys();
   const ctx = await loadExam(examId, key);
-  const [results, shares] = await Promise.all([loadResults({ ...ctx, key }), listResultShares(examId)]);
+  const [results, shares, deliveries] = await Promise.all([loadResults({ ...ctx, key }), listResultShares(examId), listResultDeliveries(examId)]);
   const keys = await joinKeys(results.students);
   const shareByKey = new Map(shares.map((s) => [s.studentKey, s]));
+  const deliveryByKey = latestDeliveries(deliveries);
   const students = results.students.map((student, i) => ({
     student,
     key: keys[i],
@@ -104,12 +117,14 @@ export async function loadShareOverview(examId: string): Promise<ShareOverview> 
     state: results.rows[i].state,
     hasSubmission: Boolean(results.rows[i].submissionId),
     share: shareByKey.get(keys[i]),
+    delivery: deliveryByKey.get(keys[i]),
   }));
   const known = new Set(keys);
   return {
     examTitle: ctx.exam.title ?? '',
     students,
     orphans: shares.filter((s) => !known.has(s.studentKey)),
+    deliveries,
     solutionAvailable: !examHasWithheldCode(ctx.exercises),
   };
 }
@@ -137,7 +152,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   const channel = SHARE_CHANNELS.find((c) => c.id === request.channel);
   const examTitle = ctx.exam.title || translate('sharing.untitledExam');
   const expiresAt = new Date(Date.now() + request.expiryDays * 86_400_000);
-  const delivery = createDelivery(request.channel, { examTitle, expiresAt, artemis: request.artemis, language: request.language });
+  const delivery = createDelivery(request.channel, { examId: request.examId, examTitle, expiresAt, artemis: request.artemis, language: request.language });
   // A channel that hands the link to a third party carries only factors with a second secret (docs/dev/result_sharing.md).
   if (!channel || (!delivery.sendsPdf && !channel.factors.includes(request.factor))) throw new Error(translate('sharing.errors.factorChannel'));
 
@@ -178,7 +193,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
         const name = displayName(student);
         const filename = `${slug(examTitle)}_${slug(name)}.pdf`;
         if (delivery.sendsPdf) {
-          await delivery.deliverPdf(student, name, filename, pdf);
+          await delivery.deliverPdf(student, keys[index], name, filename, pdf);
           entries.push({ name, url: '' });
           return;
         }
@@ -194,7 +209,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
           sealed,
         });
         const url = shareUrl(location.origin, link);
-        await delivery.deliverLink(student, name, url, request.includeCode ? code : null);
+        await delivery.deliverLink(student, keys[index], name, url, request.includeCode ? code : null);
         entries.push({ name, url, ...(request.factor === 'code' && code ? { code } : {}) });
       },
       { only: new Set(bySubmission.keys()), progress: (done, total) => progress(loopPhase, done, total) }
