@@ -96,8 +96,73 @@ async def test_students_are_mapped(
         {"id": 1, "name": "Lovelace, Ada", "login": "ga1", "email": "a@x"},
         {"id": 2, "name": "Only Name", "login": None, "email": None},
     ]
-    assert str(seen[0].url) == "https://artemis.tum.de/api/core/courses/7/students"
+    # Current Artemis serves the list from its `course` module; no legacy call is needed.
+    assert [str(r.url) for r in seen] == ["https://artemis.tum.de/api/course/courses/7/students"]
     assert seen[0].headers["authorization"] == f"Bearer {JWT}"
+    assert seen[0].headers["user-agent"].startswith("Examance")
+
+
+@pytest.mark.asyncio
+async def test_students_fall_back_to_the_legacy_path(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression (#209): Artemis moved the endpoint; older instances only know the `core` path."""
+    await _teacher(client, db, "legacy@example.com")
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        if request.url.path.startswith("/api/course/"):
+            return httpx.Response(404, json={"errorKey": "error.http.404"})
+        return httpx.Response(200, json=[{"id": 3, "name": "Old Artemis"}])
+
+    _mock_artemis(monkeypatch, handler)
+    resp = await client.post(API + "/artemis/students", json=COURSE)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["students"][0]["id"] == 3
+    assert seen == ["/api/course/courses/7/students", "/api/core/courses/7/students"]
+
+
+@pytest.mark.asyncio
+async def test_missing_endpoint_names_status_step_and_error_key(
+    client: AsyncClient,
+    db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    await _teacher(client, db, "gone@example.com")
+    _mock_artemis(
+        monkeypatch,
+        lambda request: httpx.Response(404, json={"errorKey": "courseNotFound", "detail": JWT}),
+    )
+    with caplog.at_level(logging.INFO):
+        resp = await client.post(API + "/artemis/students", json=COURSE)
+    assert resp.status_code == 424
+    detail = resp.json()["detail"]
+    assert "HTTP 404" in detail
+    assert "students" in detail
+    assert "courseNotFound" in detail
+    assert JWT not in resp.text
+    assert JWT not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_server_error_is_not_retried_on_the_legacy_path(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _teacher(client, db, "busy@example.com")
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        return httpx.Response(500, text="stack trace")
+
+    _mock_artemis(monkeypatch, handler)
+    resp = await client.post(API + "/artemis/students", json=COURSE)
+    assert resp.status_code == 424
+    assert "HTTP 500" in resp.json()["detail"]
+    assert "stack trace" not in resp.text
+    assert seen == ["/api/course/courses/7/students"]
 
 
 @pytest.mark.asyncio

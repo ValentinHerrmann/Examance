@@ -1,7 +1,7 @@
 /** The delivery step of each share channel (issue #209): what happens with a student's link, or with the PDF itself in Artemis PDF mode, once it is ready. Slips need nothing here; e-mail collects the links and sends them in batches at the end. */
 
 import { get } from 'svelte/store';
-import { sendArtemisFile, sendArtemisMessage, sendResultMails, type ArtemisCourse, type ResultMail } from '#lib/api/integrations';
+import { artemisErrorText, sendArtemisFile, sendArtemisMessage, sendResultMails, type ArtemisCourse, type ResultMail } from '#lib/api/integrations';
 import type { StudentRecord } from '#lib/db/schema';
 import { locale, translate } from '#lib/i18n';
 import { formatDate } from '#lib/utils/format';
@@ -29,6 +29,12 @@ const artemisUser = (student: StudentRecord): number => {
   if (!id) throw new Error(translate('sharing.channels.artemis.missing'));
   return Number(id);
 };
+
+/** Per-student warnings carry Artemis's status and step, not only the generic message. */
+const withArtemisDetail = (sending: Promise<void>): Promise<void> =>
+  sending.catch((err: unknown) => {
+    throw new Error(artemisErrorText(err));
+  });
 
 export function createDelivery(
   channel: ShareChannelId,
@@ -67,12 +73,10 @@ export function createDelivery(
     const intro = translate('sharing.channels.artemis.message', { exam: context.examTitle, date: formatDate(context.expiresAt) });
     return {
       sendsPdf: target.mode === 'pdf',
-      async deliverLink(student, _name, url) {
-        await sendArtemisMessage(target, artemisUser(student), `${intro}\n\n${url}\n\n${translate('sharing.channels.artemis.needsKey')}`);
-      },
-      async deliverPdf(student, _name, filename, pdf) {
-        await sendArtemisFile(target, artemisUser(student), filename, pdf, translate('sharing.channels.artemis.pdfMessage', { exam: context.examTitle }));
-      },
+      deliverLink: (student, _name, url) =>
+        withArtemisDetail(sendArtemisMessage(target, artemisUser(student), `${intro}\n\n${url}\n\n${translate('sharing.channels.artemis.needsKey')}`)),
+      deliverPdf: (student, _name, filename, pdf) =>
+        withArtemisDetail(sendArtemisFile(target, artemisUser(student), filename, pdf, translate('sharing.channels.artemis.pdfMessage', { exam: context.examTitle }))),
       finish: () => Promise.resolve([]),
     };
   }

@@ -1,8 +1,15 @@
 /** Delivery of results outside Examance (issue #209): Artemis through the server's allow-listed relay and result links by e-mail. Online-only and `silentError`: the share dialog reports per student. The Artemis token passes through and is never stored, here or on the server. */
 
-import { api } from './client';
+import { api, ApiError } from './client';
 
 const quiet = { silentError: true } as const;
+
+/** The localized message, plus the server's diagnostic detail (HTTP status, step, Artemis error key) when Artemis itself failed, so an endpoint move shows in the dialog without server logs. */
+export function artemisErrorText(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const detail = err instanceof ApiError && err.code === 'ERR_ARTEMIS_UPSTREAM' ? err.body?.detail : undefined;
+  return typeof detail === 'string' && detail !== err.message ? `${err.message} (${detail})` : err.message;
+}
 
 export interface ArtemisCourse {
   /** Host name of the Artemis instance, e.g. `artemis.tum.de`; the server allows only its configured hosts. */

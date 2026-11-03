@@ -78,7 +78,7 @@ Nothing is sent before the teacher confirms.
 
 **Artemis relay** (`backend/app/services/artemis.py`, `routers/integrations.py`).
 - It is a fixed client, not a proxy. There is no URL parameter. It calls only hosts in `ARTEMIS_ALLOWED_HOSTS` and only these endpoints:
-  - `core/courses/{id}/students`;
+  - `course/courses/{id}/students`, falling back to the older `core/courses/{id}/students` on a 404: Artemis moved it to its `course` module in 2026, and other instances update later;
   - `communication/courses/{id}/one-to-one-chats`;
   - `core/files/courses/{id}/conversations/{conv}`;
   - `communication/courses/{id}/messages`.
@@ -86,6 +86,8 @@ Nothing is sent before the teacher confirms.
 - An upstream 401/403 or redirect becomes `400 ERR_ARTEMIS_AUTH`. A 401 from our API would read as an expired session.
 - Every other failure becomes `424 ERR_ARTEMIS_UPSTREAM`, or `ERR_ARTEMIS_TIMEOUT` after the 20 s deadline per operation. It is never a 502 or 504: a proxy in front (Cloudflare, Caddy) may swap those for its own page without CORS headers, and the browser then reports a CORS error instead of the cause.
 - Each failure logs the step (`students`, `chat`, `upload`, `message`), the host, and the upstream status or error class. Grep the backend log for `Artemis relay`.
+- The 424 detail says `Artemis returned HTTP <status> (<step>)`, plus Artemis's own `errorKey`. The dialog shows it next to the translated message (`artemisErrorText`), so an endpoint move shows up without server logs.
+- **When Artemis moves an endpoint again**, look it up in `ls1intum/Artemis`: the `@RequestMapping` prefix of the `*/web/*Resource.java` class plus the method mapping.
 
 **Mebis.** There is no API (DiRueLei has none either).
 - The readable exam export has an optional part `mebis`: a nested `<exam>_mebis_feedback.zip` with `Participant_<id>_assignsubmission_file_/<name>_<id>.pdf` per student (`mebisFeedbackPath`).

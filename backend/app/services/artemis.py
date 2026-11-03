@@ -20,6 +20,12 @@ DEADLINE_SECONDS = 20.0
 # Upstream failures answer 424, never 502/504: a proxy in front (Cloudflare, Caddy) may replace a 5xx with its own page without CORS headers, and the browser then shows a CORS error instead of the cause.
 _UPSTREAM_STATUS = status.HTTP_424_FAILED_DEPENDENCY
 
+# Artemis moved the course-students endpoint to its `course` module in 2026; older instances still serve the `core` path, so try the new one first.
+_STUDENT_PATHS = ("course/courses/{course_id}/students", "core/courses/{course_id}/students")
+
+_USER_AGENT = "Examance (result delivery)"
+_ERROR_KEY_MAX = 80
+
 
 def _error(status_code: int, detail: str, code: str) -> HTTPException:
     return HTTPException(status_code=status_code, detail=detail, headers={"code": code})
@@ -60,16 +66,41 @@ def _client() -> httpx.AsyncClient:
     return httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=False)
 
 
+def _error_key(response: httpx.Response) -> str:
+    """Artemis's own short error key (`errorKey`, else `title`) from a JSON problem body, printable and capped; never other body text."""
+    try:
+        body = response.json()
+    except ValueError:
+        return ""
+    if not isinstance(body, dict):
+        return ""
+    key = body.get("errorKey") or body.get("title")
+    if not isinstance(key, str):
+        return ""
+    return "".join(c for c in key if c.isprintable())[:_ERROR_KEY_MAX]
+
+
 async def _call(
-    client: httpx.AsyncClient, step: str, method: str, url: str, jwt: str, **kwargs: Any
-) -> httpx.Response:
+    client: httpx.AsyncClient,
+    step: str,
+    method: str,
+    url: str,
+    jwt: str,
+    *,
+    allow_404: bool = False,
+    **kwargs: Any,
+) -> httpx.Response | None:
     """One upstream request; 401/403 and login redirects become `ERR_ARTEMIS_AUTH` (400, never 401: the app would read that as an expired session), anything else `ERR_ARTEMIS_UPSTREAM`. Logs the step and status or error class only, never the token or a body."""
     host = httpx.URL(url).host
     try:
         response = await client.request(
             method,
             url,
-            headers={"Authorization": f"Bearer {jwt}", "Accept": "application/json"},
+            headers={
+                "Authorization": f"Bearer {jwt}",
+                "Accept": "application/json",
+                "User-Agent": _USER_AGENT,
+            },
             **kwargs,
         )
     # Every transport failure (DNS, TLS, proxy, reset) must end as our own coded answer.
@@ -83,8 +114,24 @@ async def _call(
             "Artemis rejected the token.",
             "ERR_ARTEMIS_AUTH",
         )
+    if allow_404 and response.status_code == 404:
+        return None
     if not response.is_success:
-        logger.warning("Artemis relay %s on %s: upstream status %s", step, host, response.status_code)
+        key = _error_key(response)
+        logger.warning(
+            "Artemis relay %s on %s: upstream status %s %s", step, host, response.status_code, key
+        )
+        suffix = f": {key}" if key else ""
+        raise _upstream_error(f"Artemis returned HTTP {response.status_code} ({step}){suffix}.")
+    return response
+
+
+async def _call_ok(
+    client: httpx.AsyncClient, step: str, method: str, url: str, jwt: str, **kwargs: Any
+) -> httpx.Response:
+    """`_call` for a request whose 404 is an error like any other."""
+    response = await _call(client, step, method, url, jwt, **kwargs)
+    if response is None:  # pragma: no cover - only `allow_404` returns None
         raise _upstream_error()
     return response
 
@@ -119,9 +166,14 @@ async def list_students(host: str, course_id: int, jwt: str) -> list[dict[str, A
 
     async def run() -> httpx.Response:
         async with _client() as client:
-            return await _call(
-                client, "students", "GET", f"{base}core/courses/{course_id}/students", jwt
-            )
+            *newer, legacy = _STUDENT_PATHS
+            for path in newer:
+                url = base + path.format(course_id=course_id)
+                found = await _call(client, "students", "GET", url, jwt, allow_404=True)
+                if found is not None:
+                    return found
+            url = base + legacy.format(course_id=course_id)
+            return await _call_ok(client, "students", "GET", url, jwt)
 
     data = _json(await _within_deadline(host, run))
     if isinstance(data, dict):
@@ -135,7 +187,7 @@ async def open_chat(
     client: httpx.AsyncClient, base: str, course_id: int, jwt: str, user_id: int
 ) -> int:
     """Open (or fetch) the one-to-one chat with *user_id*; its conversation id."""
-    response = await _call(
+    response = await _call_ok(
         client,
         "chat",
         "POST",
@@ -157,7 +209,7 @@ async def post_message(
     conversation_id: int,
     content: str,
 ) -> None:
-    await _call(
+    await _call_ok(
         client,
         "message",
         "POST",
@@ -182,7 +234,7 @@ async def upload_file(
     data: bytes,
 ) -> str:
     """Upload a PDF into the conversation; the path Artemis stored it under."""
-    response = await _call(
+    response = await _call_ok(
         client,
         "upload",
         "POST",

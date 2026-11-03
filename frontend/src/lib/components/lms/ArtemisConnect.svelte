@@ -3,7 +3,7 @@
   import { faCloudArrowDown } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
   import { Button, Field, TextInput } from "#lib/components/ui";
-  import { fetchArtemisStudents, type ArtemisCourse, type ArtemisStudent } from "#lib/api/integrations";
+  import { artemisErrorText, fetchArtemisStudents, type ArtemisCourse, type ArtemisStudent } from "#lib/api/integrations";
   import { safeLocalStorage } from "#lib/utils/storage";
 
   interface Props {
@@ -54,7 +54,7 @@
       loadedCount = students.length;
       onLoaded(students);
     } catch (err) {
-      error = `${$t("lms.artemis.loadFailed")} ${err instanceof Error ? err.message : ""}`.trim();
+      error = `${$t("lms.artemis.loadFailed")} ${artemisErrorText(err)}`.trim();
     } finally {
       loading = false;
     }
