@@ -129,6 +129,21 @@ With it you can **load the course members on the [Students page](#student-data)*
 
 Before anything is sent by e-mail or Artemis, a **preview** lists every student with the recipient (address or Artemis user) and what they get, names the students who are skipped and why, and states which data is used, where it goes and where it is stored. Nothing is sent until you confirm. While sending, the dialog shows how far it is (for example "20 of 25 e-mails sent") with a filling bar; keep the tab open until it has finished.
 
+## Did it arrive? {#delivery-status}
+
+After sending by e-mail or Artemis, the share dialog shows a **Delivery** column per student:
+
+| Status | Meaning |
+|---|---|
+| **Sent** | The mail server or Artemis accepted the message. Nothing came back, which is no proof that the student read it. |
+| **Delayed** | The receiving mail server is still trying. |
+| **Not delivered** | The e-mail came back, for example because the address does not exist or the mailbox is full. Hover the badge for the mail server's code. |
+| **Failed** | The message could not be sent at all; the dialog listed the reason when you sent it. |
+
+After an e-mail run the dialog waits about 30 seconds and checks for returned mails. You can close it earlier: e-mails that come back later are forwarded to your own address, and the share button of the exam then shows how many students were not reached. To send again, correct the address or Artemis id on the [Students page](#student-data), open the dialog, choose **Select students not reached** and send.
+
+If the dialog says that returned e-mails are not monitored, your installation has no bounce mailbox: then "Sent" only means that the mail server accepted the message.
+
 ## What students see {#student-view}
 
 Students scan the QR code or type the link (an address beginning with `/result#`). A page opens that asks for the key or code if the protection needs one. After that, the graded exam, and the sample solution if you included it, is shown **in the browser, view only**: there is no download button. This stops casual downloading, not a determined student, who can still take screenshots. A wrong key is simply reported as incorrect.

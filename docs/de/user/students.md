@@ -129,6 +129,21 @@ Damit können Sie **die Kursmitglieder auf der Seite [Schüler](#student-data) l
 
 Bevor etwas per E-Mail oder Artemis verschickt wird, zeigt eine **Vorschau** jede Person mit Empfänger (Adresse oder Artemis-Nutzer) und was sie bekommt, nennt übersprungene Schüler mit Grund und sagt, welche Daten verwendet werden, wohin sie gehen und wo sie gespeichert sind. Erst nach Ihrer Bestätigung wird gesendet. Während des Versands zeigt der Dialog den Fortschritt (zum Beispiel „20 von 25 E-Mails verschickt“) mit einem Balken; lassen Sie den Tab offen, bis alles fertig ist.
 
+## Ist es angekommen? {#delivery-status}
+
+Nach dem Versand per E-Mail oder Artemis zeigt der Teilen-Dialog je Schüler eine Spalte **Zustellung**:
+
+| Status | Bedeutung |
+|---|---|
+| **Gesendet** | Der Mailserver oder Artemis hat die Nachricht angenommen. Es kam nichts zurück; dass der Schüler sie gelesen hat, ist damit nicht gesagt. |
+| **Verzögert** | Der empfangende Mailserver versucht es noch. |
+| **Nicht zugestellt** | Die E-Mail kam zurück, etwa weil die Adresse nicht existiert oder das Postfach voll ist. Fahre über das Abzeichen, um den Code des Mailservers zu sehen. |
+| **Fehlgeschlagen** | Die Nachricht konnte gar nicht verschickt werden; den Grund hat der Dialog beim Senden angezeigt. |
+
+Nach einem E-Mail-Versand wartet der Dialog etwa 30 Sekunden und prüft, ob E-Mails zurückkommen. Du kannst ihn vorher schließen: Später zurückkommende E-Mails werden an deine eigene Adresse weitergeleitet, und der Teilen-Knopf der Prüfung zeigt dann, wie viele Schüler nicht erreicht wurden. Zum erneuten Senden korrigierst du die Adresse oder Artemis-ID auf der [Schülerseite](#student-data), öffnest den Dialog, wählst **Nicht erreichte auswählen** und sendest.
+
+Sagt der Dialog, dass zurückkommende E-Mails nicht überwacht werden, hat deine Installation kein Rückläufer-Postfach: Dann heißt „Gesendet“ nur, dass der Mailserver die Nachricht angenommen hat.
+
 ## Was Schüler sehen {#student-view}
 
 Schüler scannen den QR-Code oder geben den Link ein (eine Adresse, die mit `/result#` beginnt). Es öffnet sich eine Seite, die nach dem Schlüssel oder Code fragt, falls der Schutz einen braucht (Feld **Schlüssel**, dann **Öffnen**). Danach wird die korrigierte Arbeit, und falls mitgeschickt die Musterlösung, **im Browser angezeigt, nur zum Ansehen**: Es gibt keinen Download-Knopf. Das verhindert beiläufiges Herunterladen, aber nicht entschlossene Schüler, die weiterhin Bildschirmfotos machen können. Ein falscher Schlüssel wird einfach als falsch gemeldet.

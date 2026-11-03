@@ -378,6 +378,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         training_sample_days: 730,
         layout_report_days: 90,
         result_share_max_days: 90,
+        delivery_status_days: 30,
       });
     }
     return undefined;

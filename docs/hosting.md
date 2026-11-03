@@ -103,10 +103,21 @@ Fill in `.env`. The template explains every setting; these are the ones you must
 | `NETWORK_SUBNET` | e.g. `172.23.0.0/16` | Fixed subnet of the stack's network, so the proxy address below stays stable. |
 | `PROXY_ALLOWED_IPS` | the network's gateway, see 4.3 | Addresses whose `X-Forwarded-For` the backend trusts. **Never `*`**: anyone could then fake their address, escape rate limits and falsify the audit log. |
 | `SMTP_*` | your mail account | Without SMTP, links are only written to the log. |
+| `SMTP_BOUNCE_ADDRESS`, `BOUNCE_IMAP_*` | optional: a dedicated bounce mailbox, e.g. `examance-noreply@example.org` | Lets teachers see which result mails came back ([below](#bounce-mailbox)). Leave empty to switch it off. |
 | `ARTEMIS_ALLOWED_HOSTS` | `artemis.tum.de` (default) | Artemis servers teachers may send graded results to (comma list or JSON array, bare host names). The backend only talks to these hosts. The "result delivery" switch per account (admin) enables it; e-mailing result links additionally needs SMTP. |
 | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | your admin account | Creates the first admin on startup if it does not exist yet ([details](account_creation_and_management.md#_1-initial-admin-bootstrap-automatic-startup)). Remove the password afterwards. |
 
 Passkeys belong to the host name in `FRONTEND_URL`: a passkey created on one installation or domain does not work on another, by design of WebAuthn. To move an installation to a new domain without locking teachers out, follow [Move to another domain](domain_move.md) (`WEBAUTHN_LEGACY_RP_IDS`).
+
+#### Bounce mailbox
+
+Result mails can come back (unknown address, full mailbox). Examance can watch for that and tell the teacher, without reading the sender's inbox (issue #221):
+
+- Create a **separate mailbox** for bounces only, e.g. `examance-noreply@example.org`, and set `SMTP_BOUNCE_ADDRESS` to it plus `BOUNCE_IMAP_HOST`, `BOUNCE_IMAP_PORT` (993, TLS), `BOUNCE_IMAP_USERNAME`, `BOUNCE_IMAP_PASSWORD` and optionally `BOUNCE_IMAP_FOLDER` (`INBOX`). The IMAP password is a secret like `SMTP_PASSWORD`.
+- Result mails go out with that address as **envelope sender** (Return-Path); the visible sender stays `SMTP_FROM_EMAIL`. Each mail carries a random token in its Message-ID, so no subaddressing (`+tag`) is needed. If your provider refuses a foreign envelope sender, a mail rule that forwards delivery reports to the bounce mailbox works too.
+- Examance reads only unread messages of that mailbox: while a teacher's share dialog waits (30 s after sending, every 5 s) and every 5 minutes from the `bounce-cron` service. Every message it handles is **deleted** from the mailbox, because bounces contain students' addresses. A bounce that arrives after the dialog closed is forwarded to the teacher who sent the mail; a message Examance cannot match (a reply, spam, a bounce of an account mail) is forwarded to `SMTP_FROM_EMAIL`. A message whose forward fails stays unread and is retried.
+- Never point it at a mailbox people use: Examance empties it.
+- The server keeps only each student's status (sent, failed, delayed, not delivered) under their pseudonym, for `DELIVERY_STATUS_RETENTION_DAYS` (30) days; addresses and bounce texts are never stored or logged.
 
 Self-registration needs nothing beyond SMTP; its token lifetimes and the retention of unapproved accounts have defaults that only need an entry to change. Approval, features and allowed domains: [Accounts and administration](account_creation_and_management.md#_7-self-registration-approval-and-features).
 
