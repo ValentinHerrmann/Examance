@@ -187,6 +187,7 @@ export const exam: Translations['exam'] = {
         expand: 'Expand sidebar',
     },
     flow: {
+        done: 'done',
         next: 'Next: {step}',
         continue: 'Continue: {step}',
         step: 'Step {n}',

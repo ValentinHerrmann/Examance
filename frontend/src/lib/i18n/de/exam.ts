@@ -185,6 +185,7 @@ export const exam = {
         expand: 'Seitenleiste ausklappen',
     },
     flow: {
+        done: 'erledigt',
         next: 'Weiter: {step}',
         continue: 'Weiter mit: {step}',
         step: 'Schritt {n}',

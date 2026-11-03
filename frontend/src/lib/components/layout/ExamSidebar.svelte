@@ -4,8 +4,9 @@
   import { formatExamCourse } from "#lib/utils/examLabel";
   import { minWidth } from "#lib/stores/viewport";
   import { sidebarPreference, setSidebarCollapsed, type ExamNavContext } from "#lib/stores/shell";
-  import { Badge, Icon, Tooltip } from "#lib/components/ui";
+  import { Icon, Tooltip } from "#lib/components/ui";
   import { examNavItems } from "./examNavItems";
+  import ExamStepBadge from "./ExamStepBadge.svelte";
 
   /** Exam navigation (Artemis course sidebar): exam context, the exam's steps, a collapse toggle (64px rail). Shown from `lg`; below that the items live in the nav drawer. Without a saved preference: rail at `lg` and on the grade page, open from `xl`. */
   interface Props {
@@ -31,7 +32,7 @@
 <aside
   class="hidden shrink-0 flex-col border-r border-line bg-surface-raised transition-[width] duration-200 motion-reduce:transition-none lg:flex {collapsed
     ? 'w-16'
-    : 'w-41'}"
+    : 'w-52'}"
   aria-label={$t("exam.sidebar.label")}
 >
   <div class="flex flex-col gap-2 border-b border-line px-2 py-3">
@@ -69,10 +70,10 @@
             >
               <Icon icon={item.icon} class="w-4 text-base" />
               {#if !collapsed}
-                <span class="min-w-0 flex-1 truncate">{$t(item.labelKey)}</span>
-                {#if item.step === "scan" && context.submissionCount > 0}
-                  <Badge size="xs" severity="secondary">{context.submissionCount}</Badge>
-                {/if}
+                <span class="min-w-0 flex-1 truncate">
+                  {#if item.number}<span class="mr-1 tabular-nums opacity-70">{item.number}</span>{/if}{$t(item.labelKey)}
+                </span>
+                <ExamStepBadge status={context.progress[item.step]} />
               {/if}
             </a>
           </Tooltip>

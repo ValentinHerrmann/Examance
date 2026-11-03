@@ -184,7 +184,7 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
     await page.keyboard.press('Escape');
   }
 
-  // Exam sidebar: rail 64 at 1024-1279 and on grade, 164 from 1280, none on phones.
+  // Exam sidebar: rail 64 at 1024-1279 and on grade, 208 from 1280, none on phones.
   const sidebar = page.locator('aside');
   await visit(page, `/exam/${examId}`);
   if (width < 1024) {
@@ -192,7 +192,7 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
   } else {
     await expect(sidebar).toBeVisible();
     const w = (await sidebar.boundingBox())!.width;
-    expect(w, `sidebar width on setup at ${width}px`).toBeCloseTo(width >= 1280 ? 164 : 64, -1);
+    expect(w, `sidebar width on overview at ${width}px`).toBeCloseTo(width >= 1280 ? 208 : 64, -1);
     await visit(page, `/exam/${examId}/grade`);
     if (await sidebar.isVisible()) {
       expect((await sidebar.boundingBox())!.width, 'sidebar is a rail on grade').toBeCloseTo(64, -1);

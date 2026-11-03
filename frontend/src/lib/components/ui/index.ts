@@ -31,3 +31,4 @@ export { default as TextInput } from "./TextInput.svelte";
 export { default as Textarea } from "./Textarea.svelte";
 export { default as Tooltip } from "./Tooltip.svelte";
 export { controlClass, controlSmClass } from "./inputStyles";
+export { actionIcons } from "./actionIcons";

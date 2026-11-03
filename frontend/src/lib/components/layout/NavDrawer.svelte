@@ -10,8 +10,9 @@
   import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
   import { mobileNavOpen, examNavContext } from "#lib/stores/shell";
   import { lockScroll } from "#lib/utils/scrollLock";
-  import { Badge, Button, Icon } from "#lib/components/ui";
+  import { Button, Icon } from "#lib/components/ui";
   import { examNavItems } from "./examNavItems";
+  import ExamStepBadge from "./ExamStepBadge.svelte";
   import { ADMIN_HOME } from "#lib/stores/navigationStore";
 
   /** Navigation drawer below `xl`, opened by the navbar burger. Lists the current exam's steps first (phones have no exam sidebar), then the main links; workspace and account actions stay in the navbar menus. */
@@ -103,10 +104,10 @@
                 class="{row} {item.active ? 'bg-highlight text-on-highlight' : 'text-content hover:bg-surface-inset'}"
               >
                 <Icon icon={item.icon} class="w-5 text-muted" />
-                <span class="min-w-0 flex-1 truncate">{$t(item.labelKey)}</span>
-                {#if item.step === "scan" && $examNavContext.submissionCount > 0}
-                  <Badge size="xs">{$examNavContext.submissionCount}</Badge>
-                {/if}
+                <span class="min-w-0 flex-1 truncate">
+                  {#if item.number}<span class="mr-1 tabular-nums text-muted">{item.number}</span>{/if}{$t(item.labelKey)}
+                </span>
+                <ExamStepBadge status={$examNavContext.progress[item.step]} />
               </a>
             </li>
           {/each}
