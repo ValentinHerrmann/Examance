@@ -85,8 +85,6 @@ export interface IngestDeps {
   /** Snapshotted once into the run stamped on every score row (issue #32). */
   omrSettings: OmrSettingsProfile;
   omrTemplateHash?: string;
-  /** The exam prints a cut-off corner tab with name and key (issue #211): its zone is covered on each booklet's first page. */
-  cutCorner?: boolean;
   monitor?: { checkMemoryHealth(): void };
   onProgress?: (progress: IngestProgress) => void;
 }
@@ -263,10 +261,10 @@ class ScanPass {
       const page = await source.pdf.getPage(pIdx);
       // ~200 DPI; must equal the scanScale the OMR worker is told, or bubble geometry breaks.
       const viewport = page.getViewport({ scale: this.omrRun.params.scanScale });
-      const imageData = await renderPage(page, viewport);
+      const imageData = await renderPage(page, viewport); // NOSONAR: one page at a time keeps only one page's pixels alive
 
       // Scan and group immediately, dropping imageData after use
-      await this.processPage(fileName, imageData, { doc: pdfLibDoc, index: pIdx - 1 }, viewport);
+      await this.processPage(fileName, imageData, { doc: pdfLibDoc, index: pIdx - 1 }, viewport); // NOSONAR: one page at a time keeps only one page's pixels alive
 
       page.cleanup();
     }
@@ -287,7 +285,8 @@ class ScanPass {
     const qr = await decodeQr(this.deps.qrPool, imageData);
     const booklet = this.collector.addPage(qr, pageRef);
     // Before OMR, which may transfer the pixels to its worker.
-    if (this.deps.cutCorner && qr && booklet.pageRefs.length === 1) coverCorner(imageData, pageRef, viewport, this.omrRun.params, this.white!);
+    // Every sheet keeps the corner zone free, so it is always covered on a booklet's first page: an uncut personalised copy shows name and key there (issue #211).
+    if (qr && booklet.pageRefs.length === 1) coverCorner(imageData, pageRef, viewport, this.omrRun.params, this.white!);
     await this.detectOmr(fileName, imageData, booklet);
     this.deps.monitor?.checkMemoryHealth();
   }

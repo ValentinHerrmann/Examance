@@ -61,8 +61,6 @@ export interface ExamRecord extends MaybeUndecryptable {
   pageBreaks?: string[] | null;
   /** Prints a handwritten name line next to the QR sticker box (issue #127); layout only. */
   nameLine?: boolean;
-  /** Keeps page 1's top-right corner (and its back) free for the cut-off tab of printed student QR codes (issue #211); layout only. */
-  cutCorner?: boolean;
   /** Prints the MC correction legend at every MC task (issue #192); layout only. */
   mcCorrectionHint?: boolean;
   /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */

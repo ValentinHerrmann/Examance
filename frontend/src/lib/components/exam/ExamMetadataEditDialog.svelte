@@ -36,7 +36,6 @@
   let editLehrernachname = $state("");
   let editInfoText = $state("");
   let editNameLine = $state(false);
-  let editCutCorner = $state(false);
   let editMcCorrectionHint = $state(false);
   let editLogoChange: ExamLogoChange | null = $state.raw(null);
   let editLatexPackages: LatexPackageEntry[] | null = $state.raw(null);
@@ -59,7 +58,6 @@
     lehrernachname: "",
     infoText: "",
     nameLine: false,
-    cutCorner: false,
     mcCorrectionHint: false,
     retentionUntil: "",
   });
@@ -78,7 +76,6 @@
         editLehrernachname !== initialMetadata.lehrernachname ||
         editInfoText !== initialMetadata.infoText ||
         editNameLine !== initialMetadata.nameLine ||
-        editCutCorner !== initialMetadata.cutCorner ||
         editMcCorrectionHint !== initialMetadata.mcCorrectionHint ||
         editLogoChange !== null ||
         JSON.stringify(editLatexPackages) !== initialLatexPackages ||
@@ -98,7 +95,6 @@
     editLehrernachname = exam.lehrernachname || "";
     editInfoText = exam.infoText || "";
     editNameLine = exam.nameLine === true;
-    editCutCorner = exam.cutCorner === true;
     editMcCorrectionHint = exam.mcCorrectionHint === true;
     editRetentionUntil = exam.retentionUntil || "";
     editGradingKey = exam.gradingKey || {
@@ -118,7 +114,6 @@
       lehrernachname: editLehrernachname,
       infoText: editInfoText,
       nameLine: editNameLine,
-      cutCorner: editCutCorner,
       mcCorrectionHint: editMcCorrectionHint,
       retentionUntil: editRetentionUntil,
     };
@@ -167,7 +162,6 @@
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
           name_line: editNameLine,
-          cut_corner: editCutCorner,
           mc_correction_hint: editMcCorrectionHint,
           grading_key: gradingKey,
           latex_packages: latexPackages,
@@ -188,7 +182,6 @@
         lehrernachname: editLehrernachname,
         infoText: editInfoText,
         nameLine: editNameLine,
-        cutCorner: editCutCorner,
         mcCorrectionHint: editMcCorrectionHint,
         retentionUntil: editRetentionUntil,
         gradingKey,
@@ -230,7 +223,6 @@
   bind:editLehrernachname
   bind:editInfoText
   bind:editNameLine
-  bind:editCutCorner
   bind:editMcCorrectionHint
   bind:editRetentionUntil
   bind:editGradingKey

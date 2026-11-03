@@ -30,8 +30,6 @@
     editInfoText: string;
     /** Name line next to the QR box (issue #127). */
     editNameLine?: boolean;
-    /** Cut-off corner tab on page 1 for printed student QR codes (issue #211). */
-    editCutCorner?: boolean;
     /** MC correction legend at every MC task (issue #192). */
     editMcCorrectionHint?: boolean;
     editRetentionUntil: string;
@@ -66,7 +64,6 @@
     editLehrernachname = $bindable(),
     editInfoText = $bindable(),
     editNameLine = $bindable(false),
-    editCutCorner = $bindable(false),
     editMcCorrectionHint = $bindable(false),
     editRetentionUntil = $bindable(),
     editGradingKey = $bindable(),
@@ -181,10 +178,11 @@
     <Checkbox id="editNameLine" bind:checked={editNameLine} label={$t("exam.metadataEditor.nameLine")} />
   </Field>
 
-  <Field hint={$t("exam.metadataEditor.cutCornerHint")} class="mb-4">
-    <Checkbox id="editCutCorner" bind:checked={editCutCorner} label={$t("exam.metadataEditor.cutCorner")} />
+  <!-- Every exam keeps the cut-off corner (issue #211); the guide's sketch shows the usable space. -->
+  <div class="mb-4 flex flex-col gap-1.5">
+    <p class="m-0 text-sm text-muted">{$t("exam.metadataEditor.pageLayoutHint")}</p>
     <CrossLink href={docsHref("exams#cut-corner", $locale)} class="self-start text-sm">{$t("exam.metadataEditor.cutCornerLayout")}</CrossLink>
-  </Field>
+  </div>
 
   <Field hint={$t("exam.metadataEditor.mcCorrectionHintHint")} class="mb-4">
     <Checkbox id="editMcCorrectionHint" bind:checked={editMcCorrectionHint} label={$t("exam.metadataEditor.mcCorrectionHint")} />

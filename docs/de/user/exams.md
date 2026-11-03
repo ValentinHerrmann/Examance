@@ -67,7 +67,9 @@ Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung od
 
 ### Abschneide-Ecke {#cut-corner}
 
-**Abschneide-Ecke für aufgedruckte QR-Codes** hält auf jeder Seite die äußere obere Ecke frei (ungerade Seiten rechts, gerade links; der Text beginnt auf jeder Seite etwa 8 mm tiefer, reicht dafür 1 cm breiter bis an die Eckmarkierungen; die Punktetabelle füllt den Streifen zwischen den unteren Markierungen, die Seitenzahlen wandern in die Kopfzeile). Das braucht es, um die QR-Codes [direkt auf die Prüfungsexemplare](./students#printed-copies) zu drucken: Die obere rechte Ecke von Seite 1 trägt dann Name und persönlichen Schlüssel, und Sie schneiden sie vor dem Austeilen ab, bei beidseitigem und Broschürendruck auch mit der Schneidemaschine durch den ganzen Stapel.
+Jede Prüfung hält auf jeder Seite die **äußere obere Ecke** frei: auf ungeraden Seiten oben rechts, auf geraden oben links. Auf geraden Seiten ist die Kopfzeile gespiegelt. Im normalen Prüfungs-PDF bleibt die Ecke leer und ist hellgrau getönt. Drucken Sie die QR-Codes [direkt auf die Prüfungsexemplare](./students#printed-copies), trägt die Ecke auf Seite 1 Name und persönlichen Schlüssel, und eine gestrichelte Linie mit kleiner Schere zeigt, wo Sie sie vor dem Austeilen abschneiden. Bei beidseitigem und Broschürendruck können Sie auch den ganzen Stapel auf einmal mit der Schneidemaschine schneiden. Alle Prüfungen haben dieses Layout, so findet das Einlesen die Eckmarkierungen immer an denselben Stellen, egal wie die Blätter gedruckt wurden.
+
+Der Text reicht bis an die Eckmarkierungen. Die Kopfzeile von Seite 1 zeigt das Logo, dann den Titel und darunter in einer Zeile Datum, Klasse und Lehrkraft; die anderen Seiten zeigen den Titel und „Seite X“. Die Punktetabelle füllt den Streifen zwischen den unteren Markierungen.
 
 Die Skizze zeigt den nutzbaren Platz auf ungeraden und geraden Seiten: Textbereich, Kopfzeile, Punktetabelle, den Abschnitt mit seiner Toleranz und die Eckmarkierungen. Das [PDF](../../screenshots/guide/cut-corner-layout-de.pdf) ist in Originalgröße auf A4 gezeichnet; Maße auf einem Ausdruck in 100 % sind echte Millimeter.
 

@@ -138,8 +138,8 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
 }
 
 /** Adds the exam's layout switches to the Schulaufgabe.sty options. */
-export function withExamOptions(options: string, layout: Pick<ExamRecord, "nameLine" | "cutCorner">): string {
-  return [options, layout.nameLine && "namenszeile", layout.cutCorner && "schnittecke"].filter(Boolean).join(",");
+export function withExamOptions(options: string, layout: Pick<ExamRecord, "nameLine">): string {
+  return [options, layout.nameLine && "namenszeile"].filter(Boolean).join(",");
 }
 
 export interface ExamPreviewInput {

@@ -846,7 +846,6 @@
     {examId}
     examTitle={exam?.title ?? ""}
     keysOnly={stickers === "keys"}
-    cutCorner={exam?.cutCorner === true}
     loadExamPdf={studentSheetPdf}
     onClose={() => (stickers = null)}
   />

@@ -1,4 +1,4 @@
-/** The cut-off corner tab of printed student copies (issue #211): geometry mirrored from Schulaufgabe.sty `schnittecke`, and where the tab lies on a scan so ingest can cover it. A guillotine through a long-edge duplex or booklet stack cuts each page's outer top corner (top right on odd pages, top left on even ones); the sty keeps only that corner free and mirrors the header on even pages. */
+/** The cut-off corner tab of printed student copies (issue #211): geometry mirrored from Schulaufgabe.sty (every exam's layout), and where the tab lies on a scan so ingest can cover it. A guillotine through a long-edge duplex or booklet stack cuts each page's outer top corner (top right on odd pages, top left on even ones); the sty keeps only that corner free and mirrors the header on even pages. */
 
 import type { OmrPageTemplate } from '#lib/db/schema';
 import type { OmrDetectionParams } from '#lib/grading/omrSettings';

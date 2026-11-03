@@ -67,7 +67,9 @@ With **Print a name line next to the QR code box** (when creating the exam or un
 
 ### Cut-off corner {#cut-corner}
 
-**Cut-off corner for printed QR codes** keeps each page's outer top corner free (right on odd pages, left on even ones; the text starts about 8 mm lower on each page but runs 1 cm wider, out to the corner markers; the score table fills the strip between the bottom markers and the page numbers move into the header). It is needed to print the QR codes [directly onto the exam copies](./students#printed-copies): page 1's top-right corner then carries name and personal key, and you cut it off before handing out, for double-sided and booklet prints also with a guillotine through the whole stack.
+Every exam keeps each page's **outer top corner** free: top right on odd pages, top left on even ones. The header is mirrored on even pages. On the plain exam PDF the corner is empty and lightly tinted grey. When you print the QR codes [directly onto the exam copies](./students#printed-copies), page 1's corner carries name and personal key, and a dashed line with small scissors shows where to cut it off before handing out. For double-sided and booklet prints you can also cut the whole stack at once with a guillotine. All exams share this layout, so scanning always finds the corner markers in the same places, however the sheets were printed.
+
+The text runs out to the corner markers. Page 1's header shows the logo, then the title with date, class and teacher in one line under it; the other pages show the title and "Seite X". The score table fills the strip between the bottom markers.
 
 The sketch shows the usable space on odd and even pages: text area, header, score table, the cut-off tab with its tolerance, and the corner markers. The [PDF](../screenshots/guide/cut-corner-layout-en.pdf) is drawn at true scale on A4, so measurements on a 100 % print are real millimetres.
 

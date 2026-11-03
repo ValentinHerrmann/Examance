@@ -117,7 +117,6 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
                 "latex_packages": exam.latex_packages,
                 "page_breaks": exam.page_breaks,
                 "name_line": exam.name_line,
-                "cut_corner": exam.cut_corner,
                 "mc_correction_hint": exam.mc_correction_hint,
                 "extra_notes": exam.extra_notes,
             }

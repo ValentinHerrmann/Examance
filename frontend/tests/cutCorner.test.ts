@@ -32,7 +32,7 @@ function page(fiducials: boolean): ImageData {
 }
 
 describe("corner tab cover (issue #211)", () => {
-  it("places page 1's fiducials where Schulaufgabe.sty puts them under schnittecke", () => {
+  it("places page 1's fiducials where Schulaufgabe.sty puts them", () => {
     const rects = Object.fromEntries(cutCornerTemplate().fiducials.map(({ corner, rect }) => [corner, rect.map((v) => Math.round((v / MM) * 10) / 10)]));
     // In mm from the bottom-left corner, as page 1's omr://__fid__ links report them: the top pair at one height, the top-right one moved inward.
     expect(rects).toEqual({
@@ -58,8 +58,8 @@ describe("corner tab cover (issue #211)", () => {
 });
 
 describe("withExamOptions", () => {
-  it("adds the name line and the corner tab", () => {
+  it("adds the name line; the corner tab is no option any more", () => {
     expect(withExamOptions("sans,punkte", {})).toBe("sans,punkte");
-    expect(withExamOptions("sans,punkte", { nameLine: true, cutCorner: true })).toBe("sans,punkte,namenszeile,schnittecke");
+    expect(withExamOptions("sans,punkte", { nameLine: true })).toBe("sans,punkte,namenszeile");
   });
 });

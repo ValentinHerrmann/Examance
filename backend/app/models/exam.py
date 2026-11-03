@@ -56,8 +56,6 @@ class Exam(Base):
     page_breaks: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     # Adds a handwritten name line next to the QR sticker box (issue #127).
     name_line: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
-    # Keeps page 1's top-right corner (and its back) free for the cut-off tab of printed student QR codes (issue #211).
-    cut_corner: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # Prints a correction legend at every MC task (issue #192).
     mc_correction_hint: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.

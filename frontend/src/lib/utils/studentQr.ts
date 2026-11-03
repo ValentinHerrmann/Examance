@@ -22,7 +22,7 @@ export function abbreviateGivenNames(name: string): string {
   const comma = name.indexOf(',');
   if (comma >= 0) return `${name.slice(0, comma).trim()}, ${initials(name.slice(comma + 1))}`.trim().replace(/,$/, '');
   const words = name.trim().split(/\s+/);
-  return words.length < 2 ? name : `${initials(words.slice(0, -1).join(' '))} ${words[words.length - 1]}`;
+  return words.length < 2 ? name : `${initials(words.slice(0, -1).join(' '))} ${words.at(-1)}`;
 }
 
 export function parseStudentQr(

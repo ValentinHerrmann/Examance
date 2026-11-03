@@ -1,4 +1,4 @@
-/** Personalised exam copies (issue #211): the compiled student sheet once per student, with their QR code in the sticker box and a cut-off corner tab with name and personal key at page 1's top-right corner. Same payload as a sticker, so scans, keys and result sharing work unchanged. */
+/** Personalised exam copies (issue #211): the compiled student sheet once per student, with their QR code in the sticker box, name and personal key on page 1's cut-off corner tab, and the cut line with scissors on every page. Same payload as a sticker, so scans, keys and result sharing work unchanged. */
 
 import type { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import { personalKey } from '#lib/crypto/stickerKey';
@@ -30,9 +30,11 @@ const ALTITUDE = (TAB_TOP * TAB_SIDE) / HYPOTENUSE;
 /** Name and key rows parallel to the cut line: baseline distance from it, preferred and smallest font size. The name's descender (0.7 mm at 9 pt) stays CLEAR off the line; the key sits above the name's ascender. */
 const NAME_ROW = { dist: CLEAR + 0.7 * MM, size: 9, minSize: 7 };
 const KEY_ROW = { dist: CLEAR + 4.7 * MM, size: 8.5, minSize: 7 };
-const HINT_SIZE = 5.5;
-/** The hint's baseline outside the cut line, so the hint sits in the 3 mm tolerance zone with its glyphs rising towards the line. */
-const HINT_OFFSET = 2.2 * MM;
+/** Scissors on the cut line, as vector paths (no font needed) around their centre, blades pointing along +x: handle rings and two crossing blades, about 3.5 mm long; the centre sits this far from the line's top end, 5 mm clear of the top edge (unprintable margin). */
+const SCISSORS_RINGS = 'M -1.7 -2 a 1.5 1.5 0 1 0 -3 0 a 1.5 1.5 0 1 0 3 0 M -1.7 2 a 1.5 1.5 0 1 0 -3 0 a 1.5 1.5 0 1 0 3 0';
+const SCISSORS_BLADES = 'M -2 -1.6 L 5.2 1.5 L -1.4 -0.6 Z M -2 1.6 L 5.2 -1.5 L -1.4 0.6 Z';
+const SCISSORS_AT = 25 * MM;
+const SCISSORS_GAP = 3 * MM;
 
 /** The sticker box of page 1 (`omr://__qr__` in Schulaufgabe.sty), in PDF points. */
 async function findQrBox(examPdf: Uint8Array): Promise<Rect | null> {
@@ -63,41 +65,38 @@ function drawTabRow(lib: PdfLib, page: PDFPage, font: PDFFont, texts: readonly s
   };
   const fitting = texts.map((text) => ({ text, size: sizeFor(text) })).find((c) => c.size !== null);
   const size = fitting?.size ?? row.minSize;
-  const line = fitText(font, fitting?.text ?? texts[texts.length - 1], size, room(size));
+  const line = fitText(font, fitting?.text ?? texts.at(-1) ?? '', size, room(size));
   const along = start(size) + (room(size) - font.widthOfTextAtSize(line, size)) / 2;
   page.drawText(line, { x: width - scale * TAB_TOP + COS * along, y: height - SIN * along, size, font, rotate: lib.degrees(-ANGLE) });
 }
 
-/** The dashed cut line in a top corner; the guillotine follows it through the whole stack. */
+/** The dashed cut line in a top corner, interrupted by small scissors near its top end; the guillotine follows it through the whole stack. */
 function drawCutLine(lib: PdfLib, page: PDFPage, side: 'left' | 'right'): void {
   const { width, height } = page.getSize();
-  const top = side === 'right' ? width - TAB_TOP : TAB_TOP;
-  const edge = side === 'right' ? width : 0;
-  page.drawLine({ start: { x: top, y: height }, end: { x: edge, y: height - TAB_SIDE }, thickness: 0.6, color: lib.rgb(0.5, 0.5, 0.5), dashArray: [4, 3] });
+  const right = side === 'right';
+  // From the line's top end along it, mirrored on the left page.
+  const point = (along: number) => ({ x: right ? width - TAB_TOP + COS * along : TAB_TOP - COS * along, y: height - SIN * along });
+  const grey = lib.rgb(0.5, 0.5, 0.5);
+  for (const [from, to] of [[0, SCISSORS_AT - SCISSORS_GAP], [SCISSORS_AT + SCISSORS_GAP, HYPOTENUSE]]) {
+    page.drawLine({ start: point(from), end: point(to), thickness: 0.6, color: grey, dashArray: [4, 3] });
+  }
+  // Blades point along the line towards the side edge.
+  const at = { ...point(SCISSORS_AT), rotate: lib.degrees(right ? -ANGLE : 180 + ANGLE) };
+  page.drawSvgPath(SCISSORS_RINGS, { ...at, borderColor: grey, borderWidth: 0.7 });
+  page.drawSvgPath(SCISSORS_BLADES, { ...at, color: grey });
 }
 
-/** The corner tab on page 1: a dashed diagonal, name and key parallel to it in the corner at least 3 mm from the line and 4 mm from the edges, and a hint along the line on the side that stays. */
+/** The corner tab on page 1: blanked (the sheet tints it grey), the cut line, and name and key parallel to it in the corner at least 3 mm from the line and 4 mm from the edges. */
 function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: StickerEntry, key: string): void {
-  const { width, height } = page.getSize();
+  const { height } = page.getSize();
+  page.drawSvgPath(`M ${page.getWidth() - TAB_TOP} 0 L ${page.getWidth()} 0 L ${page.getWidth()} ${TAB_SIDE} Z`, { x: 0, y: height, color: lib.rgb(1, 1, 1) });
   drawCutLine(lib, page, 'right');
   const name = fonts.safe(entry.label);
   drawTabRow(lib, page, fonts.bold, [name, abbreviateGivenNames(name)], NAME_ROW);
   drawTabRow(lib, page, fonts.monoBold, [formatCode(key)], KEY_ROW);
-  const hint = fitText(fonts.regular, fonts.safe(translate('sharing.stickers.cornerHint')), HINT_SIZE, HYPOTENUSE - 2 * EDGE / SIN);
-  const along = (HYPOTENUSE - fonts.regular.widthOfTextAtSize(hint, HINT_SIZE)) / 2;
-  // Along the line (COS, -SIN) from its top end, then outward (-SIN, -COS), away from the corner.
-  page.drawText(hint, {
-    x: width - TAB_TOP + COS * along - SIN * HINT_OFFSET,
-    y: height - SIN * along - COS * HINT_OFFSET,
-    size: HINT_SIZE,
-    font: fonts.regular,
-    color: lib.rgb(0.4, 0.4, 0.4),
-    rotate: lib.degrees(-ANGLE),
-  });
 }
 
-async function addCopy(lib: PdfLib, out: PDFDocument, src: PDFDocument, fonts: LabelFonts, entry: StickerEntry, qrBox: Rect): Promise<void> {
-  const pages = await out.copyPages(src, src.getPageIndices());
+function addCopy(lib: PdfLib, out: PDFDocument, pages: PDFPage[], fonts: LabelFonts, entry: StickerEntry, key: string, qrBox: Rect): void {
   for (const page of pages) out.addPage(page);
   const first = pages[0];
   const [x0, y0, x1, y1] = qrBox;
@@ -106,16 +105,16 @@ async function addCopy(lib: PdfLib, out: PDFDocument, src: PDFDocument, fonts: L
   const pad = 0.1 * CM;
   first.drawRectangle({ x: x0 + pad, y: y0 + pad, width: x1 - x0 - 2 * pad, height: y1 - y0 - 2 * pad, color: lib.rgb(1, 1, 1) });
   drawQr(lib, first, entry.payload, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size);
-  drawCornerTab(lib, first, fonts, entry, await personalKey(entry.payload));
+  drawCornerTab(lib, first, fonts, entry, key);
   // Copies are printed long-edge duplex or as booklets and cut as one stack: each page shows its outer corner's line, and an odd copy gets a blank back so the next starts on a new sheet.
   for (let i = 1; i < pages.length; i++) drawCutLine(lib, pages[i], i % 2 === 1 ? 'left' : 'right');
   if (pages.length % 2 === 1) {
-    const { width, height } = pages[pages.length - 1].getSize();
+    const { width, height } = first.getSize();
     out.addPage([width, height]);
   }
 }
 
-/** One PDF with a copy of *examPdf* (the student sheet, compiled with the exam's `cutCorner` option) per entry, in list order. */
+/** One PDF with a copy of *examPdf* (the compiled student sheet) per entry, in list order. */
 export async function renderExamCopies(examPdf: Uint8Array, entries: readonly StickerEntry[], options: ExamCopiesOptions): Promise<Uint8Array> {
   const qrBox = await findQrBox(examPdf);
   if (!qrBox) throw new Error(translate('sharing.stickers.noQrBox'));
@@ -124,6 +123,11 @@ export async function renderExamCopies(examPdf: Uint8Array, entries: readonly St
   const out = await lib.PDFDocument.create();
   out.setTitle(options.examTitle || translate('sharing.stickers.copiesTitle'));
   const fonts = await embedLabelFonts(lib, out);
-  for (const entry of entries) await addCopy(lib, out, src, fonts, entry, qrBox);
+  // Copied and keyed up front, each copy with its own page objects; pages are then added in list order.
+  const [copies, keys] = await Promise.all([
+    Promise.all(entries.map(() => out.copyPages(src, src.getPageIndices()))),
+    Promise.all(entries.map((entry) => personalKey(entry.payload))),
+  ]);
+  entries.forEach((entry, i) => addCopy(lib, out, copies[i], fonts, entry, keys[i], qrBox));
   return out.save();
 }

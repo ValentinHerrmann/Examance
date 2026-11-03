@@ -1,9 +1,10 @@
-"""Writes the true-scale A4 sketch of the usable space with the cut-off corner (odd and even page) as LaTeX: `python3 cut-corner-layout.py de|en out.tex`."""
+"""Prints the true-scale A4 sketch of the usable space on an exam page (odd and even) as LaTeX: `python3 cut-corner-layout.py de|en > out.tex`."""
 
 import math
 import sys
+from dataclasses import dataclass
 
-# Mirrors Schulaufgabe.sty `schnittecke` and frontend lib/qr/cutCorner.ts; update together.
+# Mirrors Schulaufgabe.sty and frontend lib/qr/cutCorner.ts; update together.
 W, H = 210, 297
 TAB_TOP, TAB_SIDE, TOL = 75, 20, 3
 HYP = math.hypot(TAB_TOP, TAB_SIDE)
@@ -11,7 +12,6 @@ ZT, ZS = TAB_TOP + TOL * HYP / TAB_SIDE, TAB_SIDE + TOL * HYP / TAB_TOP
 TOP = 11.9
 BODY = TOP + 30 / 72.27 * 25.4
 BOTTOM = H - 14
-PLAIN_TOP, PLAIN_AREA = 14.56, 190 * (283 - 14.56)
 ANGLE = math.degrees(math.atan2(TAB_SIDE, TAB_TOP))
 
 TEXT = {
@@ -30,15 +30,15 @@ TEXT = {
         "legend": "Legende",
         "items": [
             "Inhalt: Aufgaben, Lösungsfelder, Karos (Seite 1 auch QR-Feld und Hinweise)",
-            "Kopfzeile: Logo, Titel, Datum, Klasse auf Seite 1; sonst Titel und Seitenzahl",
+            "Kopfzeile: Logo, Titel, Datum $\\cdot$ Klasse $\\cdot$ Lehrkraft auf Seite 1; sonst Titel und Seitenzahl",
             "Punktetabelle (letzte Seite): 1,5 mm Abstand zu den Markierungen",
-            "Abschnitt: auf Seite 1 Name und Schlüssel; wird auf jeder Seite abgeschnitten",
-            "Schnitttoleranz: bleibt leer (Seite 1 trägt hier den kleinen Schnitthinweis)",
+            "Abschnitt: hellgrau; direkt bedruckte Exemplare tragen hier auf Seite 1 Name und Schlüssel",
+            "Schnitttoleranz: bleibt immer leer",
             "Eckmarkierungen für den Scan, 8 mm (frei halten)",
         ],
         "notes": [
-            "Schnittlinie (gestrichelt): 75 mm entlang der Oberkante, 20 mm die Seite hinab; auf jeder Seite gedruckt.",
-            r"Ohne die Option: 190 $\times$ 268,44 mm ab y = 14,56 mm; mit ihr {lower} mm tiefer, aber 10 mm breiter ({gain} \% Fläche).",
+            "Schnittlinie mit Schere (nur auf direkt bedruckten Exemplaren): 75 mm entlang der Oberkante, 20 mm die Seite hinab.",
+            "Jede Prüfung hat dieses Layout, auch ohne aufgedruckte QR-Codes.",
             "Der Textbereich bleibt rechteckig: Text kann nicht um Ecken einer Seite fließen.",
             "In Originalgröße auf A4 gezeichnet: Maße auf einem Ausdruck in 100 \\% sind echte Millimeter.",
         ],
@@ -58,26 +58,22 @@ TEXT = {
         "legend": "Legend",
         "items": [
             "Content: tasks, answer fields, grids (page 1 also the QR box and info text)",
-            "Header row: logo, title, date, class on page 1; else title and page number",
+            "Header row: logo, title, date $\\cdot$ class $\\cdot$ teacher on page 1; else title and page number",
             "Score table (last page): 1.5 mm clear of the markers",
-            "Cut-off tab: page 1 prints name and key here; cut away on every page",
-            "Cut tolerance: stays empty (page 1 prints the small cut hint here)",
+            "Cut-off tab: light grey; copies printed with the QR code carry name and key here on page 1",
+            "Cut tolerance: always stays empty",
             "Corner markers for scanning, 8 mm (keep clear)",
         ],
         "notes": [
-            "Cut line (dashed): 75 mm along the top edge, 20 mm down the side; printed on every page.",
-            r"Without the option: 190 $\times$ 268.44 mm from y = 14.56 mm; with it {lower} mm lower but 10 mm wider ({gain} \% area).",
+            "Cut line with scissors (only on copies printed with the QR code): 75 mm along the top edge, 20 mm down the side.",
+            "Every exam has this layout, also without printed QR codes.",
             "The text area stays rectangular: text cannot flow around the corners of a page.",
             "Drawn at true scale on A4: measurements on a 100 \\% print are real millimetres.",
         ],
     },
 }
 COLOURS = ["green!22", "blue!22", "violet!30", "orange!40", "red!35", "black"]
-
-
-def num(v: float, lang: str) -> str:
-    s = f"{v:.2f}"
-    return s.replace(".", ",") if lang == "de" else s
+MARKERS = [(5, 12), (W - 54, 12), (5, 284), (W - 13, 284)]
 
 
 def zone_width(y: float) -> float:
@@ -85,51 +81,82 @@ def zone_width(y: float) -> float:
     return ZT * (1 - y / ZS)
 
 
-def page(odd: bool, lang: str) -> str:
-    t = TEXT[lang]
-    n = lambda v: num(v, lang)  # noqa: E731
-    mirror = (lambda x: x) if odd else (lambda x: W - x)
-    P = lambda x, y: f"({mirror(x):.2f},{y:.2f})"  # noqa: E731
-    near, far = ("north west", "north east") if odd else ("north east", "north west")
-    rot = f"{'-' if odd else ''}{ANGLE:.1f}"
-    o = [r"\begin{tikzpicture}[remember picture,overlay,x=1mm,y=-1mm,shift={(current page.north west)}]"]
-    o.append(rf"\fill[green!22] {P(5, BODY)} rectangle {P(205, BOTTOM)};")
-    o.append(rf"\fill[blue!22] {P(5, TOP)} -- {P(W - zone_width(TOP), TOP)} -- {P(W - zone_width(BODY), BODY)} -- {P(5, BODY)} -- cycle;")
-    o.append(rf"\fill[violet!30] {P(14.5, BOTTOM - 12)} rectangle {P(195.5, 292)};")
-    o.append(rf"\draw[violet!70,dashed] {P(14.5, BOTTOM - 12)} rectangle {P(195.5, 292)};")
-    o.append(rf"\fill[orange!40] {P(W - TAB_TOP, 0)} -- {P(W, 0)} -- {P(W, TAB_SIDE)} -- cycle;")
-    o.append(rf"\fill[red!35] {P(W - ZT, 0)} -- {P(W - TAB_TOP, 0)} -- {P(W, TAB_SIDE)} -- {P(W, ZS)} -- cycle;")
-    o.append(rf"\draw[dashed,thick,black!60] {P(W - TAB_TOP, 0)} -- {P(W, TAB_SIDE)};")
-    for x, y in [(5, 12), (W - 54, 12), (5, 284), (W - 13, 284)]:
-        o.append(rf"\fill[black] {P(x, y)} rectangle {P(x + 8, y + 8)}; \fill[white] {P(x + 1.6, y + 1.6)} rectangle {P(x + 6.4, y + 6.4)}; \fill[black] {P(x + 2.8, y + 2.8)} rectangle {P(x + 5.2, y + 5.2)};")
-    o.append(rf"\node[anchor={near},font=\scriptsize\bfseries,blue!60!black] at {P(15, TOP + 0.6)} {{{t['header']}}};")
-    o.append(rf"\node[anchor={near},font=\tiny,blue!60!black,align={'left' if odd else 'right'}] at {P(15, TOP + 3.6)} {{{t['header_sub'].format(hh=n(BODY - TOP), top=n(TOP), body=n(BODY))}}};")
-    o.append(rf"\node[anchor={'south east' if odd else 'south west'},font=\footnotesize,blue!60!black] at {P(W - 20, BODY - 0.8)} {{{t['page']}}};")
-    o.append(rf"\node[anchor={'south west' if odd else 'south east'},font=\footnotesize,blue!60!black] at {P(80, BODY - 0.8)} {{{t['title']}}};")
-    o.append(rf"\node[font=\scriptsize\bfseries,orange!50!black,rotate={rot}] at {P(W - TAB_TOP * 0.45, TAB_SIDE * 0.45 - 2.5)} {{{t['tab']}}};")
-    o.append(rf"\node[font=\tiny,red!60!black,rotate={rot}] at {P(W - TAB_TOP * 0.8 + 1.3, TAB_SIDE * 0.2 + 1.3)} {{{t['tol']}}};")
-    o.append(rf"\node[anchor=north,font=\Large\bfseries,green!40!black] at {P(105, BODY + 18)} {{{t['content']}}};")
-    o.append(rf"\node[anchor=north,font=\small,green!40!black] at {P(105, BODY + 26)} {{{t['size'].format(w=n(200), h=n(BOTTOM - BODY), top=n(BODY), bottom=n(BOTTOM))}}};")
-    o.append(rf"\node[anchor=north,font=\small\itshape] at {P(105, BODY + 35)} {{{t['odd' if odd else 'even']}}};")
-    o.append(rf"\node[font=\scriptsize\bfseries,violet!60!black] at {P(105, BOTTOM - 6)} {{{t['table']}}};")
-    for y in (TOP, BODY, BOTTOM):
-        o.append(rf"\draw[black!50] {P(0, y)} -- {P(3, y)}; \node[anchor={'west' if odd else 'east'},font=\tiny,black!60] at {P(14 if y == TOP else 1, y + (1.6 if y == BODY else -1.2))} {{y = {n(y)} mm}};")
-    o.append(rf"\node[anchor=north,font=\tiny,red!60!black] at {P(W - ZT / 2 - 6, 0.3)} {{{n(ZT)} mm}};")
-    o.append(rf"\node[anchor={'east' if odd else 'west'},font=\tiny,red!60!black] at {P(W - 0.5, ZS + 1.8)} {{{n(ZS)} mm}};")
-    x0, ly = (40 if odd else W - 170), BODY + 52
-    o.append(rf"\node[anchor=north west,font=\small\bfseries] at ({x0},{ly - 7}) {{{t['legend']}}};")
-    for i, (c, label) in enumerate(zip(COLOURS, t["items"], strict=True)):
-        y = ly + i * 7
-        o.append(rf"\fill[{c}] ({x0},{y}) rectangle ({x0 + 6},{y + 4.5}); \draw[black!40] ({x0},{y}) rectangle ({x0 + 6},{y + 4.5}); \node[anchor=west,font=\footnotesize] at ({x0 + 8},{y + 2.25}) {{{label}}};")
-    gain = n(200 * (BOTTOM - BODY) / PLAIN_AREA * 100 - 100)
-    for i, note in enumerate(t["notes"]):
-        o.append(rf"\node[anchor=west,font=\footnotesize\itshape,black!70] at ({x0},{ly + 48 + i * 5.5}) {{{note.format(lower=n(BODY - PLAIN_TOP), gain=gain)}}};")
-    o.append(r"\end{tikzpicture}\null\newpage")
-    return "\n".join(o)
+@dataclass
+class Page:
+    """One sketch page: odd pages cut the top-right corner, even pages are mirrored."""
+
+    odd: bool
+    lang: str
+
+    def n(self, v: float) -> str:
+        s = f"{v:.2f}"
+        return s.replace(".", ",") if self.lang == "de" else s
+
+    def p(self, x: float, y: float) -> str:
+        return f"({x if self.odd else W - x:.2f},{y:.2f})"
+
+    def areas(self) -> list[str]:
+        p = self.p
+        return [
+            rf"\fill[green!22] {p(5, BODY)} rectangle {p(205, BOTTOM)};",
+            rf"\fill[blue!22] {p(5, TOP)} -- {p(W - zone_width(TOP), TOP)} -- {p(W - zone_width(BODY), BODY)} -- {p(5, BODY)} -- cycle;",
+            rf"\fill[violet!30] {p(14.5, BOTTOM - 12)} rectangle {p(195.5, 292)};",
+            rf"\draw[violet!70,dashed] {p(14.5, BOTTOM - 12)} rectangle {p(195.5, 292)};",
+            rf"\fill[orange!40] {p(W - TAB_TOP, 0)} -- {p(W, 0)} -- {p(W, TAB_SIDE)} -- cycle;",
+            rf"\fill[red!35] {p(W - ZT, 0)} -- {p(W - TAB_TOP, 0)} -- {p(W, TAB_SIDE)} -- {p(W, ZS)} -- cycle;",
+            rf"\draw[dashed,thick,black!60] {p(W - TAB_TOP, 0)} -- {p(W, TAB_SIDE)};",
+        ] + [
+            rf"\fill[black] {p(x, y)} rectangle {p(x + 8, y + 8)}; \fill[white] {p(x + 1.6, y + 1.6)} rectangle {p(x + 6.4, y + 6.4)}; \fill[black] {p(x + 2.8, y + 2.8)} rectangle {p(x + 5.2, y + 5.2)};"
+            for x, y in MARKERS
+        ]
+
+    def labels(self) -> list[str]:
+        t, p, n, odd = TEXT[self.lang], self.p, self.n, self.odd
+        near = "north west" if odd else "north east"
+        rot = f"{'-' if odd else ''}{ANGLE:.1f}"
+        out = [
+            rf"\node[anchor={near},font=\scriptsize\bfseries,blue!60!black] at {p(15, TOP + 0.6)} {{{t['header']}}};",
+            rf"\node[anchor={near},font=\tiny,blue!60!black,align={'left' if odd else 'right'}] at {p(15, TOP + 3.6)} {{{t['header_sub'].format(hh=n(BODY - TOP), top=n(TOP), body=n(BODY))}}};",
+            rf"\node[anchor={'south east' if odd else 'south west'},font=\footnotesize,blue!60!black] at {p(W - 20, BODY - 0.8)} {{{t['page']}}};",
+            rf"\node[anchor={'south west' if odd else 'south east'},font=\footnotesize,blue!60!black] at {p(80, BODY - 0.8)} {{{t['title']}}};",
+            rf"\node[font=\scriptsize\bfseries,orange!50!black,rotate={rot}] at {p(W - TAB_TOP * 0.45, TAB_SIDE * 0.45 - 2.5)} {{{t['tab']}}};",
+            rf"\node[font=\tiny,red!60!black,rotate={rot}] at {p(W - TAB_TOP * 0.8 + 1.3, TAB_SIDE * 0.2 + 1.3)} {{{t['tol']}}};",
+            rf"\node[anchor=north,font=\Large\bfseries,green!40!black] at {p(105, BODY + 18)} {{{t['content']}}};",
+            rf"\node[anchor=north,font=\small,green!40!black] at {p(105, BODY + 26)} {{{t['size'].format(w=n(200), h=n(BOTTOM - BODY), top=n(BODY), bottom=n(BOTTOM))}}};",
+            rf"\node[anchor=north,font=\small\itshape] at {p(105, BODY + 35)} {{{t['odd' if odd else 'even']}}};",
+            rf"\node[font=\scriptsize\bfseries,violet!60!black] at {p(105, BOTTOM - 6)} {{{t['table']}}};",
+            rf"\node[anchor=north,font=\tiny,red!60!black] at {p(W - ZT / 2 - 6, 0.3)} {{{n(ZT)} mm}};",
+            rf"\node[anchor={'east' if odd else 'west'},font=\tiny,red!60!black] at {p(W - 0.5, ZS + 1.8)} {{{n(ZS)} mm}};",
+        ]
+        side = "west" if odd else "east"
+        out.extend(
+            rf"\draw[black!50] {p(0, y)} -- {p(3, y)}; \node[anchor={side},font=\tiny,black!60] at {p(14 if y == TOP else 1, y + (1.6 if y == BODY else -1.2))} {{y = {n(y)} mm}};"
+            for y in (TOP, BODY, BOTTOM)
+        )
+        return out
+
+    def legend(self) -> list[str]:
+        t = TEXT[self.lang]
+        x0, ly = (40 if self.odd else W - 170), BODY + 52
+        out = [rf"\node[anchor=north west,font=\small\bfseries] at ({x0},{ly - 7}) {{{t['legend']}}};"]
+        out.extend(
+            rf"\fill[{c}] ({x0},{ly + i * 7}) rectangle ({x0 + 6},{ly + i * 7 + 4.5}); \draw[black!40] ({x0},{ly + i * 7}) rectangle ({x0 + 6},{ly + i * 7 + 4.5}); \node[anchor=west,font=\footnotesize] at ({x0 + 8},{ly + i * 7 + 2.25}) {{{label}}};"
+            for i, (c, label) in enumerate(zip(COLOURS, t["items"], strict=True))
+        )
+        out.extend(rf"\node[anchor=west,font=\footnotesize\itshape,black!70] at ({x0},{ly + 48 + i * 5.5}) {{{note}}};" for i, note in enumerate(t["notes"]))
+        return out
+
+    def tex(self) -> str:
+        body = self.areas() + self.labels() + self.legend()
+        return "\n".join([r"\begin{tikzpicture}[remember picture,overlay,x=1mm,y=-1mm,shift={(current page.north west)}]", *body, r"\end{tikzpicture}\null\newpage"])
+
+
+def document(lang: str) -> str:
+    head = "\\documentclass{article}\n\\usepackage[a4paper,margin=0mm]{geometry}\n\\usepackage{tikz}\n\\pagestyle{empty}\\parindent0pt\n\\begin{document}\n"
+    return head + Page(True, lang).tex() + "\n" + Page(False, lang).tex() + "\n\\end{document}\n"
 
 
 if __name__ == "__main__":
-    lang, out = sys.argv[1], sys.argv[2]
-    head = "\\documentclass{article}\n\\usepackage[a4paper,margin=0mm]{geometry}\n\\usepackage{tikz}\n\\pagestyle{empty}\\parindent0pt\n\\begin{document}\n"
-    with open(out, "w", encoding="utf-8") as f:
-        f.write(head + page(True, lang) + "\n" + page(False, lang) + "\n\\end{document}\n")
+    if len(sys.argv) != 2 or sys.argv[1] not in TEXT:
+        sys.exit(f"usage: {sys.argv[0]} {'|'.join(TEXT)} > out.tex")
+    sys.stdout.write(document(sys.argv[1]))

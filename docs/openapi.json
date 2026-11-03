@@ -10021,11 +10021,6 @@
             "title": "Name Line",
             "default": false
           },
-          "cut_corner": {
-            "type": "boolean",
-            "title": "Cut Corner",
-            "default": false
-          },
           "mc_correction_hint": {
             "type": "boolean",
             "title": "Mc Correction Hint",
@@ -10461,11 +10456,6 @@
             "title": "Name Line",
             "default": false
           },
-          "cut_corner": {
-            "type": "boolean",
-            "title": "Cut Corner",
-            "default": false
-          },
           "mc_correction_hint": {
             "type": "boolean",
             "title": "Mc Correction Hint",
@@ -10709,17 +10699,6 @@
               }
             ],
             "title": "Name Line"
-          },
-          "cut_corner": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cut Corner"
           },
           "mc_correction_hint": {
             "anyOf": [

@@ -4,7 +4,7 @@
   import { get } from "svelte/store";
   import { faQrcode } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { Alert, Button, Checkbox, Field, Modal, Radio, Textarea, TextInput } from "#lib/components/ui";
+  import { Button, Checkbox, Field, Modal, Radio, Textarea, TextInput } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug } from "#lib/export/zip";
   import { renderExamCopies } from "#lib/qr/examCopies";
@@ -22,11 +22,10 @@
     /** The compiled student sheet; offers printing onto exam copies. */
     loadExamPdf?: () => Promise<Uint8Array>;
     /** The exam keeps the cut-off corner free, which exam copies need. */
-    cutCorner?: boolean;
     onClose: () => void;
   }
 
-  let { examId, examTitle = "", keysOnly: startKeysOnly = false, loadExamPdf, cutCorner = false, onClose }: Props = $props();
+  let { examId, examTitle = "", keysOnly: startKeysOnly = false, loadExamPdf, onClose }: Props = $props();
 
   // The starting choice only; the dialog owns it from then on.
   const initialKeysOnly = untrack(() => startKeysOnly);
@@ -105,9 +104,6 @@
     {/if}
 
     <p class="text-sm text-muted">{copiesMode ? $t("sharing.stickers.copiesIntro") : $t("sharing.stickers.intro")}</p>
-    {#if copiesMode && !cutCorner}
-      <Alert severity="warning">{$t("sharing.stickers.needsCutCorner")}</Alert>
-    {/if}
 
     {#if examId}
       <fieldset class="flex flex-col gap-2" disabled={busy}>
@@ -166,6 +162,6 @@
   {#snippet footer()}
     <Button variant="outlined" severity="secondary" disabled={busy} onClick={onClose}>{$t("common.cancel")}</Button>
     {#if progress}<span class="text-sm text-muted" role="status">{progress}</span>{/if}
-    <Button icon={faQrcode} loading={busy} disabled={busy || (copiesMode && !cutCorner)} onClick={download}>{$t("sharing.stickers.download")}</Button>
+    <Button icon={faQrcode} loading={busy} disabled={busy} onClick={download}>{$t("sharing.stickers.download")}</Button>
   {/snippet}
 </Modal>
