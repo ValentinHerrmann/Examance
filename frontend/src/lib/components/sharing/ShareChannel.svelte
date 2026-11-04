@@ -45,9 +45,10 @@
     <legend class="sr-only">{$t("sharing.share.channel")}</legend>
     {#each SHARE_CHANNELS as c (c.id)}
       {@const reason = unavailable.get(c.id)}
-      <div class={reason ? "opacity-60" : ""}>
+      <!-- Only the chosen way shows its description (the others on hover), so the column stays short (issue #212). -->
+      <div class={reason ? "opacity-60" : ""} title={c.id === channel ? undefined : $t(c.descriptionKey)}>
         <Radio group={channel} value={c.id} name="share-channel" disabled={!!reason} onchange={() => onChoose(c.id)} label={$t(c.labelKey)} />
-        <p class="ml-7 text-sm text-muted">{$t(c.descriptionKey)}</p>
+        {#if c.id === channel}<p class="m-0 ml-7 text-sm text-muted">{$t(c.descriptionKey)}</p>{/if}
         {#if reason}
           <p class="ml-7 flex items-start gap-1.5 text-sm text-muted"><Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{$t(reason)}</p>
         {/if}

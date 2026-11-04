@@ -4,7 +4,7 @@ editLink: false
 
 # Von der Aufgabe zur Auswertung
 
-Der übliche Weg einer Prüfung durch Examance in sechs Abschnitten. Jeder Abschnitt verweist auf seine ausführliche Seite. Innerhalb einer Prüfung listet die Seitenleiste die Schritte in dieser Reihenfolge: **Prüfung**, **Schüler**, **Drucken**, **Scans**, **MC prüfen**, **Scankorrektur**, **Papierkorrektur**, **Ergebnisse**; jeder hat ein Status-Abzeichen und endet mit einer Schaltfläche **Weiter: …**, siehe [Die Schritte einer Prüfung](./exams#steps).
+Der übliche Weg einer Prüfung durch Examance in sechs Abschnitten. Jeder Abschnitt verweist auf seine ausführliche Seite. Innerhalb einer Prüfung listet die Seitenleiste die Schritte in dieser Reihenfolge: **Prüfung**, **Schüler**, **Drucken**, **Scans**, **MC prüfen**, **Scankorrektur**, **Papierkorrektur**, **Ergebnisse**; jeder hat ein Status-Abzeichen und oben rechts eine Schaltfläche **Weiter: …**, siehe [Die Schritte einer Prüfung](./exams#steps).
 
 ## 1. Aufgaben in der Bibliothek sammeln {#library}
 

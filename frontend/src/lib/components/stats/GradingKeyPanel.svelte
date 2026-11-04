@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { onDestroy, untrack } from "svelte";
   import { beforeNavigate, goto } from "$app/navigation";
   import { get } from "svelte/store";
@@ -92,8 +93,11 @@
   });
 </script>
 
-<Card title={$t("exam.overview.gradingKey")}>
-  <p class="mt-0 mb-4 text-sm text-muted">{$t("stats.gradingKey.intro")}</p>
+<Card>
+  <div class="mb-3 flex items-center gap-2">
+    <h2 class="m-0 text-base font-semibold text-content">{$t("exam.overview.gradingKey")}</h2>
+    <InfoTip text={$t("stats.gradingKey.intro")} />
+  </div>
   {#if dirty}
     <Alert severity="warning" class="mb-4" title={$t("stats.gradingKey.draftTitle")}>{$t("stats.gradingKey.draftText")}</Alert>
   {/if}

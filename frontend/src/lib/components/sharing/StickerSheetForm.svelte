@@ -11,6 +11,7 @@
   import { loadStickerEntries } from "#lib/sharing/stickerEntries";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { studentsHref } from "#lib/utils/links";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
 
   interface Props {
     /** Prints the exam's students (entered on the Students page). */
@@ -112,7 +113,7 @@
   }
 </script>
 
-<div class="flex flex-col gap-5">
+<div class="flex flex-col {fixedOutput ? 'gap-3' : 'gap-5'}">
   {#if loadExamPdf && !initialKeysOnly && !fixedOutput}
     <fieldset class="flex flex-col gap-2" disabled={busy}>
       <legend class="mb-2 text-sm text-muted">{$t("sharing.stickers.output")}</legend>
@@ -166,14 +167,15 @@
     </div>
   {/if}
 
-  <div class="flex flex-col gap-3" class:hidden={copiesMode}>
-    <div>
+  <div class="flex flex-col gap-2" class:hidden={copiesMode}>
+    <!-- The explanations sit behind info icons: the options stay on two short lines. -->
+    <div class="flex items-center gap-1">
       <Checkbox bind:checked={keys} label={$t("sharing.stickers.keys")} disabled={busy || onlyKeys} />
-      <p class="ml-7 text-sm text-muted">{$t("sharing.stickers.keysHint")}</p>
+      <InfoTip text={$t("sharing.stickers.keysHint")} />
     </div>
-    <div>
+    <div class="flex items-center gap-1">
       <Checkbox bind:checked={keysOnly} label={$t("sharing.stickers.keysOnly")} disabled={busy} />
-      <p class="ml-7 text-sm text-muted">{$t("sharing.stickers.keysOnlyHint")}</p>
+      <InfoTip text={$t("sharing.stickers.keysOnlyHint")} />
     </div>
   </div>
 

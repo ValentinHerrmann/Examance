@@ -93,7 +93,7 @@
 </script>
 
 {#snippet fields()}
-  <div class="mb-4 grid grid-cols-1 gap-4 @3xl:grid-cols-2">
+  <div class="mb-4 grid grid-cols-1 gap-4 @3xl:grid-cols-2 @4xl:grid-cols-3">
     <Field label={$t("exam.metadataEditor.examTitle")} forId="editTitle">
       {#snippet children({ id })}
         <input {id} type="text" bind:value={editTitle} maxlength={500} class={controlClass} />
@@ -103,7 +103,7 @@
     <SuggestField id="editGrade" label={$t("exam.metadataEditor.grade")} storageKey="exam.grade" bind:value={editGrade} maxlength={50} placeholder="10" />
     <SuggestField id="editKlasse" label={$t("exam.metadataEditor.klasse")} storageKey="exam.klasse" bind:value={editKlasse} maxlength={50} placeholder="a" />
     {#if fullCoursePreview}
-      <div class="flex flex-col gap-1 @3xl:col-span-2">
+      <div class="flex flex-col gap-1 @3xl:col-span-2 @4xl:col-span-3">
         <div class="mt-1 flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface-raised px-3 py-2 text-sm text-muted">
           <span>{$t("exam.metadataEditor.coursePreview")} <code class="rounded-sm bg-highlight px-1.5 py-0.5 font-mono text-accent">\Klasse&#123;{fullCoursePreview}&#125;</code>:</span>
           <span class="rounded-md bg-highlight px-2 py-0.5 font-semibold text-accent">{fullCoursePreview}</span>
@@ -123,7 +123,7 @@
     </Field>
     <SuggestField id="editFach" label={$t("exam.metadataEditor.fach")} storageKey="exam.fach" bind:value={editFach} maxlength={100} />
     <SuggestField id="editLehrernachname" label={$t("exam.metadataEditor.lehrernachname")} storageKey="exam.lehrernachname" bind:value={editLehrernachname} maxlength={100} />
-    <Field label={$t("exam.metadataEditor.retentionUntil")} hint={$t("exam.metadataEditor.retentionHint")} forId="editRetention">
+    <Field label={$t("exam.metadataEditor.retentionUntil")} info={$t("exam.metadataEditor.retentionHint")} forId="editRetention">
       {#snippet children({ id })}
         <input {id} type="date" bind:value={editRetentionUntil} class={controlClass} />
       {/snippet}
@@ -131,13 +131,13 @@
     <SuggestField
       id="editTopic"
       label={$t("exam.metadataEditor.topic")}
-      hint={$t("exam.metadataEditor.topicHint")}
+      info={$t("exam.metadataEditor.topicHint")}
       storageKey="exam.topic"
       extraSuggestions={topicSuggestions}
       bind:value={editTopic}
       maxlength={200}
       placeholder={$t("exam.metadataEditor.topicPlaceholder")}
-      class="@3xl:col-span-2"
+      class="@3xl:col-span-2 @4xl:col-span-3"
     />
   </div>
 

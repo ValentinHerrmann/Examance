@@ -7,14 +7,15 @@
   interface Props extends Omit<ComponentProps<typeof SuggestInput>, "class"> {
     label: string;
     hint?: string | undefined;
+    info?: string | undefined;
     /** Classes of the field box (spacing, column span). */
     class?: string;
   }
 
-  let { label, hint = undefined, id = undefined, value = $bindable(""), class: className = "", ...rest }: Props = $props();
+  let { label, hint = undefined, info = undefined, id = undefined, value = $bindable(""), class: className = "", ...rest }: Props = $props();
 </script>
 
-<Field {label} {hint} forId={id} class={className}>
+<Field {label} {hint} {info} forId={id} class={className}>
   {#snippet children({ id: fieldId })}
     <SuggestInput id={fieldId} bind:value class={controlClass} {...rest} />
   {/snippet}

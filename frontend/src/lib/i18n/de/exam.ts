@@ -285,7 +285,7 @@ export const exam = {
         gradedDownload: 'Druck-PDF herunterladen',
         gradedFile: 'Korrigierte Arbeiten',
         zipTitle: 'Archiv als ZIP',
-        zipIntro: 'Wählen Sie, was in das ZIP kommen soll.',
+        zipNoticeShort: 'Enthält unverschlüsselte personenbezogene Daten',
     },
     results: {
         tabStats: 'Statistik',

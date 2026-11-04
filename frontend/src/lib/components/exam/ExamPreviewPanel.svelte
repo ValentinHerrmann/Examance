@@ -325,7 +325,7 @@
         bind:showLoesungPreview
         titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
         titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
-        height="max(24rem, calc(100dvh - 15rem))"
+        height="max(22rem, calc(100dvh - 19rem))"
         placeholderText={$t("exam.page.pdfPreview.placeholder")}
       >
         {#snippet footer()}{@render layoutReport()}{/snippet}

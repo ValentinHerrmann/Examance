@@ -4,7 +4,7 @@ editLink: false
 
 # From exercise to analysis
 
-The usual path of an exam through Examance, in six stages. Each stage links to its detailed page. Inside an exam, the sidebar lists the steps in this order: **Exam**, **Students**, **Print**, **Scans**, **Check MC**, **Scan grading**, **Paper grading**, **Results**; each has a status badge and ends with a **Next: …** button, see [The exam's steps](./exams#steps).
+The usual path of an exam through Examance, in six stages. Each stage links to its detailed page. Inside an exam, the sidebar lists the steps in this order: **Exam**, **Students**, **Print**, **Scans**, **Check MC**, **Scan grading**, **Paper grading**, **Results**; each has a status badge and a **Next: …** button at the top right, see [The exam's steps](./exams#steps).
 
 ## 1. Collect exercises in the library {#library}
 

@@ -32,7 +32,7 @@
 <aside
   class="hidden shrink-0 flex-col border-r border-line bg-surface-raised transition-[width] duration-200 motion-reduce:transition-none lg:flex {collapsed
     ? 'w-16'
-    : 'w-52'}"
+    : 'w-56'}"
   aria-label={$t("exam.sidebar.label")}
 >
   <div class="flex flex-col gap-2 border-b border-line px-2 py-3">

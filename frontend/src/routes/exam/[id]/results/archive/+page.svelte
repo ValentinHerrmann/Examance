@@ -5,9 +5,9 @@
   import { onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
   import { get } from "svelte/store";
-  import { faFileZipper } from "@fortawesome/free-solid-svg-icons";
+  import { faFileZipper, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Checkbox, PageShell, Spinner, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, Checkbox, Icon, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import ExportOptionList from "#lib/components/export/ExportOptionList.svelte";
@@ -207,7 +207,8 @@
   <Button size="sm" icon={faFileZipper} loading={running} disabled={running || selected.size === 0} onClick={download}>{$t("export.dialog.download")}</Button>
 {/snippet}
 {#snippet zipControls()}
-  <span class="text-muted">{$t("exam.archive.zipIntro")}</span>
+  <span class="flex items-center gap-1.5 text-warning-fg"><Icon icon={faTriangleExclamation} />{$t("exam.archive.zipNoticeShort")}</span>
+  <InfoTip text={$t("export.exam.notice")} />
 {/snippet}
 {#snippet zipBody()}
   <div class="min-h-0 flex-1 overflow-auto">
@@ -220,7 +221,6 @@
       <ul class="list-disc pl-5">{#each warnings as w}<li>{w}</li>{/each}</ul>
     </Alert>
   {/if}
-  <Alert severity="warning">{$t("export.exam.notice")}</Alert>
 {/snippet}
 
 <PageShell width="fluid">
@@ -232,7 +232,7 @@
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
     <!-- From 2xl one row of fixed height: equal boxes; the PDFs and the option list fill and scroll inside. -->
-    <div class="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 2xl:h-[max(32rem,calc(100dvh-11rem))] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(20rem,0.8fr)]">
+    <div class="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 2xl:h-[max(32rem,calc(100dvh-15.5rem))] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(20rem,0.8fr)]">
       {@render box($t("exam.archive.sheetTitle"), $t("exam.archive.sheetIntro"), sheetAction, sheetControls, sheetBody)}
       {@render box($t("exam.archive.gradedTitle"), $t("exam.archive.gradedIntro"), gradedAction, gradedControls, gradedBody)}
       {@render box($t("exam.archive.zipTitle"), "", zipAction, zipControls, zipBody, "lg:col-span-2 2xl:col-span-1")}

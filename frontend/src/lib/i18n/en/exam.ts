@@ -287,7 +287,7 @@ export const exam: Translations['exam'] = {
         gradedDownload: 'Download print PDF',
         gradedFile: 'Graded papers',
         zipTitle: 'Archive as ZIP',
-        zipIntro: 'Choose what goes into the ZIP.',
+        zipNoticeShort: 'Contains unencrypted personal data',
     },
     results: {
         tabStats: 'Statistics',

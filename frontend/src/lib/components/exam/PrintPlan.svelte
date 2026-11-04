@@ -21,6 +21,7 @@
   import type { StickerEntry } from "#lib/qr/stickerSheet";
   import type { ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import StickerSheetForm from "#lib/components/sharing/StickerSheetForm.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { Alert, Badge, Button, Card, Checkbox, Icon, Radio, actionIcons } from "#lib/components/ui";
 
   /** The Print step (issue #212): the teacher picks how they print, the page lists the print jobs that follow, each with its readiness, its PDF and a "printed" tick that is only offered once that PDF exists for the current content. */
@@ -97,20 +98,24 @@
 </script>
 
 <div class="flex min-w-0 flex-col gap-6">
-  <Card title={$t("exam.print.planTitle")}>
-    <p class="mt-0 mb-4 text-sm text-muted">{$t("exam.print.planIntro")}</p>
-    <div class="grid grid-cols-1 gap-6 2xl:grid-cols-2">
+  <Card>
+    <div class="mb-3 flex items-center gap-2">
+      <h2 class="m-0 text-base font-semibold text-content">{$t("exam.print.planTitle")}</h2>
+      <InfoTip text={$t("exam.print.planIntro")} />
+    </div>
+    <div class="grid grid-cols-1 gap-4 2xl:grid-cols-2">
       <fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" disabled={busy || !cs}>
         <legend class="mb-2 text-sm font-medium">{$t("exam.print.modeLegend")}</legend>
-        <div>
+        <!-- Only the chosen mode shows its description (the other on hover). -->
+        <div title={plan.mode === "stickers" ? undefined : $t("exam.print.modeStickersHint")}>
           <Radio group={plan.mode} value="stickers" name="print-mode" onchange={() => setPlan({ mode: "stickers" })} label={$t("exam.print.modeStickers")} />
-          <p class="m-0 ms-7 text-xs text-muted">{$t("exam.print.modeStickersHint")}</p>
+          {#if plan.mode === "stickers"}<p class="m-0 ms-7 text-xs text-muted">{$t("exam.print.modeStickersHint")}</p>{/if}
         </div>
-        <div>
+        <div title={plan.mode === "copies" ? undefined : (copiesUnavailable ?? $t("exam.print.modeCopiesHint"))}>
           <Radio group={plan.mode} value="copies" name="print-mode" disabled={!!copiesUnavailable} onchange={() => setPlan({ mode: "copies" })} label={$t("exam.print.modeCopies")} />
-          <p class="m-0 ms-7 text-xs text-muted">{copiesUnavailable ?? $t("exam.print.modeCopiesHint")}</p>
+          {#if plan.mode === "copies" || copiesUnavailable}<p class="m-0 ms-7 text-xs text-muted">{copiesUnavailable ?? $t("exam.print.modeCopiesHint")}</p>{/if}
         </div>
-        <Checkbox class="mt-2" checked={plan.solution} disabled={busy || !cs} onChange={(on) => setPlan({ solution: on })} label={$t("exam.print.withSolution")} />
+        <Checkbox class="mt-1" checked={plan.solution} disabled={busy || !cs} onChange={(on) => setPlan({ solution: on })} label={$t("exam.print.withSolution")} />
       </fieldset>
 
       <section class="min-w-0" aria-labelledby="print-ready-title">
@@ -129,7 +134,7 @@
     {#if error}<Alert severity="danger" class="mt-4">{error}</Alert>{/if}
   </Card>
 
-  <ol class="m-0 flex list-none flex-col gap-4 p-0">
+  <ol class="m-0 flex list-none flex-col gap-3 p-0">
     {#each jobs as job, i (job)}
       {@const valid = !!stamps && printCheckValid(cs?.checks, job, stamps)}
       {@const changed = !!stamps && printCheckChanged(cs?.checks, job, stamps)}

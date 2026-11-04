@@ -47,9 +47,9 @@
     <fieldset class="flex flex-col gap-2" disabled={running}>
       <legend class="mb-2 text-sm text-muted">{$t("sharing.share.factor")}</legend>
       {#each SHARE_FACTORS as f (f)}
-        <div class={factorMuted(f) ? "opacity-60" : ""}>
+        <div class={factorMuted(f) ? "opacity-60" : ""} title={f === factor ? undefined : $t(`sharing.factor.${f}Hint`)}>
           <Radio group={factor} value={f} name="share-factor" disabled={factorMuted(f)} onchange={() => (factor = f)} label={$t(`sharing.factor.${f}`)} />
-          <p class="ml-7 text-sm text-muted">{$t(`sharing.factor.${f}Hint`)}</p>
+          {#if f === factor}<p class="m-0 ml-7 text-sm text-muted">{$t(`sharing.factor.${f}Hint`)}</p>{/if}
           {#if f === "sticker" && chosenCount > 0 && blockedCount(f) > 0}
             <p class="ml-7 flex flex-wrap items-center gap-2 text-sm text-warning-fg">
               {factorMuted(f) ? $t("sharing.factor.noStickerAny") : $t("sharing.factor.someNoSticker", { count: blockedCount(f) })}

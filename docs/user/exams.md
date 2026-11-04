@@ -20,7 +20,7 @@ To change the header data later, edit them directly in the **Details** card on t
 
 ## The exam's steps {#steps}
 
-Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand (hover it for what it counts): the number of exercises, students or scans, graded x/y, the printed **Print** jobs, open MC checks, shared results (in red, the number of result e-mails that did not arrive). The number before a step's name is only its place in the flow. On the exams list, every step of an exam is shown in its card and opens that step. Every step page ends with a **Next: …** button that leads to the following step.
+Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand (hover it for what it counts): the number of exercises, students or scans, graded x/y, the printed **Print** jobs, open MC checks, shared results (in red, the number of result e-mails that did not arrive). The number before a step's name is only its place in the flow. On the exams list, every step of an exam is shown in its card and opens that step. At the top right of every step page, next to the exam name and the step title, a **Next: …** button leads to the following step; explanations sit behind the ⓘ icons.
 
 | Step | What you do there |
 |---|---|
