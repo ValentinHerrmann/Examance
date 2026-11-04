@@ -178,6 +178,17 @@ export const exam: Translations['exam'] = {
         results: 'Results',
         collapse: 'Collapse sidebar',
         expand: 'Expand sidebar',
+        legend: 'Number before the name: order of the steps. Number or check after it: progress of the step.',
+        stepNumber: 'Step {number}',
+        badge: {
+            content: 'Exercises in the exam: {count}',
+            students: 'Students in the list: {count}',
+            scan: 'Scanned submissions: {count}',
+            verify: 'MC detections still to check: {count}',
+            grade: 'Graded: {count} of {total}',
+            results: 'Sent to students: {count}',
+            done: 'Done',
+        },
     },
     layout: {
         saved: 'Layout saved.',

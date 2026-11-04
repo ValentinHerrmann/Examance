@@ -176,6 +176,17 @@ export const exam = {
         results: 'Ergebnisse',
         collapse: 'Seitenleiste einklappen',
         expand: 'Seitenleiste ausklappen',
+        legend: 'Zahl vor dem Namen: Reihenfolge der Schritte. Zahl oder Haken dahinter: Fortschritt des Schritts.',
+        stepNumber: 'Schritt {number}',
+        badge: {
+            content: 'Aufgaben in der Prüfung: {count}',
+            students: 'Schüler in der Liste: {count}',
+            scan: 'Gescannte Abgaben: {count}',
+            verify: 'Noch zu prüfende MC-Erkennungen: {count}',
+            grade: 'Korrigiert: {count} von {total}',
+            results: 'An Schüler gesendet: {count}',
+            done: 'Erledigt',
+        },
     },
     layout: {
         saved: 'Layout gespeichert.',

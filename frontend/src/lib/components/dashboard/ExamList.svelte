@@ -121,7 +121,7 @@
                       >
                         <Icon icon={entry.icon} class="w-3.5" />
                         <span class="group-hover:underline group-focus-visible:underline">{$t(entry.labelKey)}</span>
-                        <ExamStepBadge status={progress[step]} />
+                        <ExamStepBadge status={progress[step]} {step} />
                         <Icon icon={faChevronRight} class="w-2.5 text-xs opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
                       </a>
                     </Tooltip>

@@ -105,9 +105,9 @@
               >
                 <Icon icon={item.icon} class="w-5 text-muted" />
                 <span class="min-w-0 flex-1 truncate">
-                  {#if item.number}<span class="mr-1 tabular-nums text-muted">{item.number}</span>{/if}{$t(item.labelKey)}
+                  {#if item.number}<span class="mr-1 tabular-nums text-muted" title={$t("exam.sidebar.stepNumber", { number: item.number })}>{item.number}</span>{/if}{$t(item.labelKey)}
                 </span>
-                <ExamStepBadge status={$examNavContext.progress[item.step]} />
+                <ExamStepBadge status={$examNavContext.progress[item.step]} step={item.step} />
               </a>
             </li>
           {/each}

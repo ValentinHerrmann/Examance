@@ -56,6 +56,7 @@
   </div>
 
   <nav class="scroll-pane min-h-0 flex-1 overflow-y-auto py-2" aria-label={$t("exam.sidebar.label")}>
+    {#if !collapsed}<p class="m-0 mb-1 px-5 text-xs leading-snug text-muted">{$t("exam.sidebar.legend")}</p>{/if}
     <ul class="m-0 flex list-none flex-col gap-0.5 p-0 px-2">
       {#each items as item (item.step)}
         <li>
@@ -71,9 +72,9 @@
               <Icon icon={item.icon} class="w-4 text-base" />
               {#if !collapsed}
                 <span class="min-w-0 flex-1 truncate">
-                  {#if item.number}<span class="mr-1 tabular-nums opacity-70">{item.number}</span>{/if}{$t(item.labelKey)}
+                  {#if item.number}<span class="mr-1 tabular-nums opacity-70" title={$t("exam.sidebar.stepNumber", { number: item.number })}>{item.number}</span>{/if}{$t(item.labelKey)}
                 </span>
-                <ExamStepBadge status={context.progress[item.step]} />
+                <ExamStepBadge status={context.progress[item.step]} step={item.step} />
               {/if}
             </a>
           </Tooltip>
