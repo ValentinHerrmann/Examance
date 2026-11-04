@@ -91,7 +91,9 @@ The technical details are in [Data flow and security](../data_flow_and_security)
 
 ## Retention {#retention}
 
-Exams carry a retention period, after which they can be removed. Student-related data can be deleted individually without losing the exam's statistics, see [Deleting data](./settings#deletion). The retention periods of your installation are listed in its privacy policy (**Privacy** in the footer).
+Exams carry a retention period, after which they can be removed. Student-related data can be deleted individually without losing the exam's statistics, see [Deleting data](./settings#deletion).
+
+After an exam's retention date the installation deletes it automatically: the exam, its student list, scans and results are removed at the next nightly run and erased permanently after another 7 days. Exercises in your library are kept. The retention periods of your installation are listed in its privacy policy (**Privacy** in the footer).
 
 ## Moving to a new address {#domain-move}
 

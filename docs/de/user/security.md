@@ -91,7 +91,9 @@ Die technischen Einzelheiten stehen unter [Datenfluss und Sicherheit (Englisch)]
 
 ## Aufbewahrung {#retention}
 
-Prüfungen tragen eine Aufbewahrungsfrist, nach deren Ablauf sie entfernt werden können. Schülerbezogene Daten lassen sich einzeln löschen, ohne die Statistik der Prüfung zu verlieren, siehe [Daten löschen](./settings#deletion). Die Aufbewahrungsfristen Ihrer Installation stehen in deren Datenschutzerklärung (**Datenschutz** in der Fußzeile).
+Prüfungen tragen eine Aufbewahrungsfrist, nach deren Ablauf sie entfernt werden können. Schülerbezogene Daten lassen sich einzeln löschen, ohne die Statistik der Prüfung zu verlieren, siehe [Daten löschen](./settings#deletion).
+
+Nach dem Aufbewahrungsdatum einer Prüfung löscht die Installation sie automatisch: Prüfung, Schülerliste, Scans und Ergebnisse werden beim nächsten nächtlichen Lauf entfernt und nach weiteren 7 Tagen endgültig gelöscht. Aufgaben in Ihrer Bibliothek bleiben erhalten. Die Aufbewahrungsfristen Ihrer Installation stehen in deren Datenschutzerklärung (**Datenschutz** in der Fußzeile).
 
 ## Umzug auf eine neue Adresse {#domain-move}
 

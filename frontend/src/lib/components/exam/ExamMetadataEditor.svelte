@@ -123,7 +123,7 @@
     </Field>
     <SuggestField id="editFach" label={$t("exam.metadataEditor.fach")} storageKey="exam.fach" bind:value={editFach} maxlength={100} />
     <SuggestField id="editLehrernachname" label={$t("exam.metadataEditor.lehrernachname")} storageKey="exam.lehrernachname" bind:value={editLehrernachname} maxlength={100} />
-    <Field label={$t("exam.metadataEditor.retentionUntil")} forId="editRetention">
+    <Field label={$t("exam.metadataEditor.retentionUntil")} hint={$t("exam.metadataEditor.retentionHint")} forId="editRetention">
       {#snippet children({ id })}
         <input {id} type="date" bind:value={editRetentionUntil} class={controlClass} />
       {/snippet}

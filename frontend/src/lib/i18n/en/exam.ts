@@ -102,6 +102,7 @@ export const exam: Translations['exam'] = {
         topicHint: 'For organising your exams in the overview (filter and search). Not printed on the exam.',
         lehrernachname: "Teacher's Last Name",
         retentionUntil: 'Retention Until',
+        retentionHint: 'After this date the exam with its student list, scans and results is deleted automatically (at the next nightly run; permanently after another 7 days). Exercises in your library are kept.',
         infoText: 'Info Text (LaTeX list)',
         nameLine: 'Print a name line next to the QR code box',
         cutCornerLayout: 'See the usable space in the user guide (true-scale sketch)',

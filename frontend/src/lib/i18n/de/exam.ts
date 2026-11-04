@@ -100,6 +100,7 @@ export const exam = {
         topicHint: 'Zur Organisation in der Übersicht (Filter und Suche). Wird nicht auf die Prüfung gedruckt.',
         lehrernachname: 'Lehrernachname',
         retentionUntil: 'Aufbewahren bis',
+        retentionHint: 'Nach diesem Datum werden die Prüfung samt Schülerliste, Scans und Ergebnissen automatisch gelöscht (beim nächsten nächtlichen Lauf; nach weiteren 7 Tagen endgültig). Aufgaben in Ihrer Bibliothek bleiben erhalten.',
         infoText: 'Infotext (LaTeX-Liste)',
         nameLine: 'Namenszeile neben dem QR-Code-Feld drucken',
         cutCornerLayout: 'Nutzbaren Platz im Handbuch ansehen (Skizze in Originalgröße)',
