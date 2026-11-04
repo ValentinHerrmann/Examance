@@ -9,6 +9,7 @@
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { copiesUnavailable } from "#lib/sharing/stickerEntries";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
+  import PrintChecklist from "#lib/components/exam/PrintChecklist.svelte";
   import StickerSheetForm from "#lib/components/sharing/StickerSheetForm.svelte";
   import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
   import { t, translate } from "#lib/i18n";
@@ -144,6 +145,7 @@
         <p class="mt-0 mb-4 text-sm text-muted">{$t("exam.print.qrIntro")}</p>
         <StickerSheetForm {examId} examTitle={ctx.exam.title} loadExamPdf={studentSheetPdf} copiesUnavailable={withheld} />
       </Card>
+      <div class="min-w-0 lg:col-span-2"><PrintChecklist {examId} /></div>
     </div>
   {/if}
 
