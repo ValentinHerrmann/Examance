@@ -36,6 +36,8 @@ export const exportNs: Translations['export'] = {
         options: {
             graded: 'Graded scans (PDF)',
             gradedHint: 'With annotations burned in, including partly graded submissions (file name with _partial, ungraded ones with _ungraded).',
+            gradedCombined: 'All graded papers in one PDF (for printing)',
+            gradedCombinedHint: 'One file sorted by name; every paper starts on a new sheet for two-sided printing. The usual way to archive on paper.',
             latex: 'LaTeX source',
             latexHint: 'A separate ZIP with the exam (main.tex) and solution (solution.tex), their files and logo: upload it to Overleaf as is (compiler XeLaTeX). Also adds the exam’s exercises and settings in importable form: only with this option can the ZIP be imported again later, e.g. into another Examance instance (without results).',
             pdf: 'Compiled exam and solution (PDF)',

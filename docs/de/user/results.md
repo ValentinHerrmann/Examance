@@ -82,7 +82,7 @@ Der Reiter **An Schüler senden** unter **Ergebnisse** gibt jeder Schülerin und
 
 ## Prüfung archivieren {#archive}
 
-Der Reiter **Archivieren** unter **Ergebnisse** sammelt, was Sie für Ihre Unterlagen aufbewahren möchten. Das **Übersichtsblatt der Ergebnisse** (Prüfungsdaten, Notenschlüssel, Statistik und das Ergebnis jeder Schülerin und jedes Schülers) sehen Sie als Vorschau und laden es einzeln als PDF herunter. Darunter wählen Sie per Häkchen, was in ein ZIP kommt: korrigierte Prüfungen, LaTeX-Code, erstellte PDFs, das Übersichtsblatt und die Noten als CSV. Das ZIP enthält personenbezogene Daten Ihrer Schüler; bewahren Sie es so sorgfältig auf wie die Prüfung selbst.
+Der Reiter **Archivieren** unter **Ergebnisse** sammelt, was Sie für Ihre Unterlagen aufbewahren möchten. Das **Übersichtsblatt der Ergebnisse** (Prüfungsdaten, Notenschlüssel, Statistik und das Ergebnis jeder Schülerin und jedes Schülers) sehen Sie als Vorschau und laden es einzeln als PDF herunter. Daneben fasst **Alle korrigierten Arbeiten (Druck-PDF)** alle korrigierten Scans mit eingebrannten Anmerkungen in einer nach Namen sortierten Datei zusammen, fertig zum Ausdrucken für die Ablage; mit **Jede Arbeit auf einem neuen Blatt beginnen** fängt beim beidseitigen Druck jede Arbeit auf einer Vorderseite an. Sie entsteht erst mit **PDF erstellen**, weil dafür jeder Scan gelesen wird. Zuletzt wählen Sie per Häkchen, was in ein ZIP kommt: korrigierte Prüfungen (einzeln und/oder alle in einer Druck-PDF), LaTeX-Code, erstellte PDFs, das Übersichtsblatt und die Noten als CSV. Das ZIP enthält personenbezogene Daten Ihrer Schüler; bewahren Sie es so sorgfältig auf wie die Prüfung selbst.
 
 ## Auswertung über mehrere Prüfungen {#analytics}
 

@@ -35,6 +35,8 @@ export const exportNs = {
         options: {
             graded: 'Korrigierte Scans (PDF)',
             gradedHint: 'Mit eingebrannten Anmerkungen, auch teilweise korrigierte Abgaben (Dateiname mit _partial, unkorrigierte mit _ungraded).',
+            gradedCombined: 'Alle korrigierten Arbeiten in einer PDF (zum Ausdrucken)',
+            gradedCombinedHint: 'Eine Datei, nach Namen sortiert; jede Arbeit beginnt für den beidseitigen Druck auf einem neuen Blatt. Üblich für die Archivierung auf Papier.',
             latex: 'LaTeX-Quelltext',
             latexHint: 'Eigene ZIP mit Angabe (main.tex) und Lösung (solution.tex) samt Dateien und Logo: direkt bei Overleaf hochladen (Compiler XeLaTeX). Dazu kommen die Aufgaben und Einstellungen der Prüfung in importierbarer Form: Nur mit dieser Option lässt sich die ZIP später wieder importieren, z. B. in einer anderen Examance-Instanz (ohne Ergebnisse).',
             pdf: 'Kompilierte Angabe und Lösung (PDF)',

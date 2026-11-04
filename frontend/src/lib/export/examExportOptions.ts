@@ -4,6 +4,7 @@ import type { ExportOption } from '#lib/components/export/ExportOptionsModal.sve
 export function examExportOptions(withheld: boolean, tr: (key: any) => string): ExportOption[] {
     return [
         { key: 'graded', label: tr('export.exam.options.graded'), hint: tr('export.exam.options.gradedHint') },
+        { key: 'gradedCombined', label: tr('export.exam.options.gradedCombined'), hint: tr('export.exam.options.gradedCombinedHint') },
         {
             key: 'latex',
             label: tr('export.exam.options.latex'),

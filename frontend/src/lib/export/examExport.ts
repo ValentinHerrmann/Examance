@@ -23,7 +23,7 @@ import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExamZipManifest } fro
 import { examRepository } from '#lib/repositories/examRepository';
 import { getAccountPackages } from '#lib/latex/packageSettings';
 
-export type ExamExportPart = 'graded' | 'latex' | 'pdf' | 'summary' | 'csv';
+export type ExamExportPart = 'graded' | 'gradedCombined' | 'latex' | 'pdf' | 'summary' | 'csv';
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 const GRADED_SUFFIX: Record<GradingState, string> = { complete: '', partial: '_partial', ungraded: '_ungraded' };
@@ -75,7 +75,7 @@ export async function runExamExport(
       warnings.push(...(await addCompiledPdfs(zip, compileInput)));
     });
   }
-  if (has('graded') || has('summary') || has('csv')) {
+  if (has('graded') || has('gradedCombined') || has('summary') || has('csv')) {
     progress(translate('export.exam.steps.results'));
     const results = await loadResults(compileInput);
     if (has('csv')) zip.add('grades.csv', buildGradesCsv(results.rows));
@@ -85,7 +85,12 @@ export async function runExamExport(
         zip.add('summary.pdf', await renderSummaryPdf(summaryInput(ctx.exam, results)));
       });
     }
-    if (has('graded')) warnings.push(...(await addGradedScans(zip, results, key, fallbackSessionKey, progress)));
+    if (has('graded') || has('gradedCombined')) {
+      // One render pass feeds both the single files and the combined print file.
+      const combined = has('gradedCombined') ? await pdfCollector(ctx.exam.title || 'exam', true) : null;
+      warnings.push(...(await addGradedScans(zip, results, key, fallbackSessionKey, progress, has('graded'), combined)));
+      if (combined && combined.pageCount > 0) zip.add(`${examSlug}_graded_all.pdf`, await combined.save());
+    }
   }
 
   return { zip, fileName: `${examSlug}_${exportDateStamp()}.zip`, warnings };
@@ -252,15 +257,66 @@ function addGradedScans(
   results: LoadedResults,
   key: CryptoKey,
   fallbackKey: CryptoKey | null,
-  progress: ExportProgress
+  progress: ExportProgress,
+  singleFiles: boolean,
+  combined: PdfCollector | null
 ): Promise<string[]> {
   return forEachGradedPdf(
-    results,
+    combined ? byStudentName(results) : results,
     key,
     fallbackKey,
-    (pdf, _row, state, name) => {
-      zip.add(`graded/${slug(name)}${GRADED_SUFFIX[state]}.pdf`, pdf);
+    async (pdf, _row, state, name) => {
+      if (singleFiles) zip.add(`graded/${slug(name)}${GRADED_SUFFIX[state]}.pdf`, pdf);
+      await combined?.add(pdf);
     },
     { progress: (done, total) => progress(translate('export.exam.steps.graded'), done, total) }
   );
+}
+
+type PdfCollector = Awaited<ReturnType<typeof pdfCollector>>;
+
+/** Appends PDFs into one document; `duplex` pads each to an even page count, so two-sided printing starts every student on a new sheet. */
+async function pdfCollector(title: string, duplex: boolean) {
+  const lib = await import('pdf-lib');
+  const out = await lib.PDFDocument.create();
+  out.setTitle(title);
+  return {
+    async add(bytes: Uint8Array) {
+      const src = await lib.PDFDocument.load(bytes);
+      const pages = await out.copyPages(src, src.getPageIndices());
+      for (const page of pages) out.addPage(page);
+      if (duplex && pages.length % 2 === 1) {
+        const { width, height } = pages[pages.length - 1].getSize();
+        out.addPage([width, height]);
+      }
+    },
+    get pageCount() {
+      return out.getPageCount();
+    },
+    save: () => out.save(),
+  };
+}
+
+/** The results with submissions in the order of the student names (a print stack sorted like the class list). */
+function byStudentName(results: LoadedResults): LoadedResults {
+  const nameOf = new Map(results.rows.flatMap((r) => (r.submissionId ? [[r.submissionId, r.studentName || r.fallbackCode || '']] : [])));
+  const submissions = [...results.submissions].sort((a, b) => (nameOf.get(a.id) ?? '').localeCompare(nameOf.get(b.id) ?? '', undefined, { sensitivity: 'base' }));
+  return { ...results, submissions };
+}
+
+/** Every graded PDF of the exam in one file, sorted by name, for printing and archiving (Archive tab, issue #212); null when no submission has a scan. Writes the export audit entry, as the ZIP does. */
+export async function renderCombinedGradedPdf(
+  examId: string,
+  options: { duplex?: boolean; progress?: (done: number, total: number) => void } = {}
+): Promise<{ pdf: Uint8Array | null; pageCount: number; warnings: string[] }> {
+  await awaitSessionReady();
+  const { sessionKey: key, fallbackSessionKey } = get(sessionStore);
+  if (!key) throw new Error(translate('dashboard.sessionState.lockedTitle'));
+  const ctx = await loadExamCompileContext(examId, key);
+  if (!ctx) throw new Error(translate('exam.page.examNotFoundOrDeleted'));
+  await logExportAction(examId, 'PDF', key);
+  const results = await loadResults({ exam: ctx.exam, exercises: ctx.exercises, key });
+  const combined = await pdfCollector(ctx.exam.title || 'exam', options.duplex ?? true);
+  const warnings = await forEachGradedPdf(byStudentName(results), key, fallbackSessionKey, (pdf) => combined.add(pdf), { progress: options.progress });
+  return { pdf: combined.pageCount > 0 ? await combined.save() : null, pageCount: combined.pageCount, warnings };
 }

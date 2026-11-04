@@ -1,9 +1,9 @@
 export const stats = {
     gradingKey: {
         draftTitle: 'Vorschau, noch nicht gespeichert',
-        draftText: 'Die Statistik zeigt den bearbeiteten Notenschlüssel. Er gilt erst, wenn du speicherst; sonst wird er beim Verlassen der Seite verworfen.',
+        draftText: 'Die Statistik zeigt den bearbeiteten Notenschlüssel. Er gilt erst, wenn Sie speichern; sonst wird er beim Verlassen der Seite verworfen.',
         leaveTitle: 'Notenschlüssel nicht gespeichert',
-        leaveMessage: 'Der geänderte Notenschlüssel ist nur eine Vorschau und wird verworfen, wenn du die Seite verlässt.',
+        leaveMessage: 'Der geänderte Notenschlüssel ist nur eine Vorschau und wird verworfen, wenn Sie die Seite verlassen.',
         leaveDiscard: 'Verwerfen und verlassen',
         leaveStay: 'Zurück zum Notenschlüssel',
         intro: 'Änderungen wirken sofort auf die Notenverteilung; gespeichert wird erst mit „Speichern“.',
@@ -14,7 +14,7 @@ export const stats = {
         statusBanner: 'Status: {graded} von {total} Abgaben mit mindestens einer korrigierten Aufgabe.',
         partialIndicator: '({partial} teilweise korrigiert, {full} vollständig)',
         pendingIndicator: '({pending} noch nicht begonnen)',
-        emptyStats: 'Noch keine Aufgaben korrigiert. Die Statistiken erscheinen hier, sobald du mit der Korrektur beginnst.',
+        emptyStats: 'Noch keine Aufgaben korrigiert. Die Statistiken erscheinen hier, sobald Sie mit der Korrektur beginnen.',
         loadFailed: 'Die Ergebnisse dieser Prüfung konnten nicht geladen werden: {message}',
         exportButton: 'Noten als CSV exportieren (Excel-kompatibel)',
     },

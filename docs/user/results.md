@@ -82,7 +82,7 @@ The **Send to students** tab of **Results** gives each student their graded exam
 
 ## Archive an exam {#archive}
 
-The **Archive** tab of **Results** collects what you may want to keep for your records. The **results overview sheet** (exam details, grading key, statistics and every student's result) is shown as a preview and can be downloaded as a PDF on its own. Below it, tick what should go into a ZIP: graded exams, LaTeX code, compiled PDFs, the overview sheet and the grades as CSV. The ZIP contains personal data of your students, so store it as carefully as the exam itself.
+The **Archive** tab of **Results** collects what you may want to keep for your records. The **results overview sheet** (exam details, grading key, statistics and every student's result) is shown as a preview and can be downloaded as a PDF on its own. Next to it, **All graded papers (print PDF)** puts every graded scan with its annotations into one file sorted by name, ready to print for your files; with **Start every paper on a new sheet** each paper begins on a front page when printing two-sided. It is created when you click **Create PDF**, because it reads every scan. Last, tick what should go into a ZIP: graded exams (one file each and/or all in one print PDF), LaTeX code, compiled PDFs, the overview sheet and the grades as CSV. The ZIP contains personal data of your students, so store it as carefully as the exam itself.
 
 ## Analytics across exams {#analytics}
 

@@ -172,6 +172,7 @@ All paths below are under `frontend/src/` unless they start with `docs/` or `fro
 ### 10. Third review round
 - [x] **10.1** Step 7 is "Enter paper grades" / "Papierkorrektur eintragen" with a hover hint (`EXAM_STEPS` `hintKey`, `exam.sidebar.manualHint`).
 - [x] **10.2** MC step: the teacher chooses how sure detections are checked (`step_checks.mc.mode`: all, samples 5–30 %, none; `mcSureTarget`), "mark all sure as reviewed" with an exact undo (`lib/grading/mcBulkReview.ts`: rows share one `reviewedAt`, recorded in `step_checks.mc.bulk`; the old "reset all reviews" uses the same module). Verify page: queues left, check card and detection settings right from `xl`, calibration stats below.
+- [x] **10.3** Archive: all graded papers as one print PDF, sorted by name, optional padding for two-sided printing (`renderCombinedGradedPdf`, ZIP part `gradedCombined`; one render pass feeds both graded parts; writes the export audit entry). Archive tab is fluid: overview sheet | print PDF | ZIP from `2xl`.
 
 ## Progress notes
 
