@@ -720,13 +720,13 @@
 <PageShell width="fluid">
   <ExamPageHeader {examId} step="scan" title={$t("scanning.pageTitle")} helpTopic="scanning" />
 
-  <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
-
   {#if omrBanner}
     <Alert severity="warning" class="my-4">{omrBanner}</Alert>
   {/if}
 
-  <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload} />
+  <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload}>
+    <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
+  </UploadPanel>
 
   {#if readError}
     <Alert severity="danger" class="my-4" onDismiss={() => (readError = "")}>{readError}</Alert>

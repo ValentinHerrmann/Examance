@@ -5,6 +5,9 @@ export const lms = {
         manage: 'Schüler verwalten',
         noneYet: 'Diese Prüfung hat noch keine Schüler. Legen Sie sie auf der Schüler-Seite an (Mebis-Liste, Artemis-Kurs oder eingefügte Liste).',
         import: {
+            sourceFile: 'Datei',
+            sourcePaste: 'Einfügen',
+            sourceArtemis: 'Artemis-Kurs',
             title: 'Klassenliste übernehmen',
             intro: 'Mebis-Bewertungstabelle oder Teilnehmerliste, eine eingefügte Liste oder ein Artemis-Kurs. Vorhandene Schüler werden über ihre ID, sonst über den Namen erkannt.',
             preview: 'Aus {source}:',

@@ -210,12 +210,12 @@
             </th>
             <th>{$t("grading.manual.roster.colNum")}</th>
             <th>{$t("grading.manual.roster.colName")}</th>
-            <th>{$t("grading.manual.roster.colNumber")}</th>
-            {#if listMode}<th>{$t("lms.students.colMebisId")}</th><th>{$t("lms.students.colArtemisId")}</th>{/if}
+            <th class="w-px whitespace-normal">{$t("grading.manual.roster.colNumber")}</th>
+            {#if listMode}<th class="w-px whitespace-normal">{$t("lms.students.colMebisId")}</th><th class="w-px whitespace-normal">{$t("lms.students.colArtemisId")}</th>{/if}
             <th>{$t("grading.manual.roster.colEmail")}</th>
             <th>{$t("grading.manual.roster.colPseudonym")}</th>
             <th>{$t("grading.manual.roster.colType")}</th>
-            <th>{$t("grading.manual.roster.colActions")}</th>
+            <th class="w-px"><span class="sr-only">{$t("grading.manual.roster.colActions")}</span></th>
           </tr>
         </thead>
         <tbody>
@@ -226,17 +226,13 @@
               <td><Checkbox checked={selected.has(st.pseudonymHmac)} onChange={(on) => toggle(st, on)} aria-label={st.studentName || st.fallbackCode || ""} /></td>
               <td>{i + 1}</td>
               <td>
-                <strong>{st.studentName || $t("grading.manual.roster.unnamed")}</strong>
+                <strong class="whitespace-nowrap">{st.studentName || $t("grading.manual.roster.unnamed")}</strong>
               </td>
-              <td>
-                {st.studentNumber || "-"}
-              </td>
+              <td class="whitespace-nowrap tabular-nums">{st.studentNumber || "-"}</td>
               {#if listMode}<td class="tabular-nums">{mebisIdOf(st) ?? "-"}</td><td class="tabular-nums">{artemisIdOf(st) ?? "-"}</td>{/if}
+              <td class="whitespace-nowrap">{st.email || "-"}</td>
               <td>
-                <span class="break-all">{st.email || "-"}</span>
-              </td>
-              <td>
-                <span class="font-mono text-sm text-muted">
+                <span class="block max-w-[16ch] truncate font-mono text-sm text-muted" title={st.fallbackCode || st.pseudonymHmac.slice(0, 8)}>
                   {st.fallbackCode || st.pseudonymHmac.slice(0, 8)}
                 </span>
               </td>
@@ -250,10 +246,10 @@
                 {/if}
               </td>
               <td class="whitespace-nowrap">
-                <div class="flex gap-1.5">
+                <div class="flex gap-0.5">
                   <!-- The same dialog as the bulk edit, so one row gets the same fields and warnings. -->
-                  <Button size="sm" variant="outlined" severity="secondary" onClick={() => (editing = [st])}>{$t("common.edit")}</Button>
-                  <Button size="sm" variant="outlined" severity="danger" onClick={() => (deleting = [st])}>{$t("common.delete")}</Button>
+                  <Button size="sm" variant="text" severity="secondary" iconOnly icon={faPen} ariaLabel={$t("common.edit")} title={$t("common.edit")} onClick={() => (editing = [st])} />
+                  <Button size="sm" variant="text" severity="danger" iconOnly icon={faTrash} ariaLabel={$t("common.delete")} title={$t("common.delete")} onClick={() => (deleting = [st])} />
                 </div>
               </td>
             </tr>

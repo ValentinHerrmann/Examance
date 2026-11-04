@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { faArrowLeft, faCircleInfo } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   import HelpButton from "#lib/components/help/HelpButton.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import type { HelpTopicId } from "#lib/help/topics";
   import Icon from "./Icon.svelte";
-  import Tooltip from "./Tooltip.svelte";
 
   /** Page/section title bar. Wraps on narrow screens; never accent-coloured. */
   interface Props {
@@ -55,11 +55,7 @@
         {:else}
           <h2 class="m-0 min-w-0 text-xl font-semibold break-words text-content">{title}</h2>
         {/if}
-        {#if hint}
-          <Tooltip text={hint}>
-            <span class="inline-flex cursor-help text-muted" role="img" aria-label={hint}><Icon icon={faCircleInfo} class="text-sm" /></span>
-          </Tooltip>
-        {/if}
+        {#if hint}<InfoTip text={hint} />{/if}
         {#if helpTopic}
           <HelpButton topic={helpTopic} />
         {/if}

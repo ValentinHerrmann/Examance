@@ -24,8 +24,8 @@
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { examReportFiles } from "#lib/layout-report/collect";
   import { t, translate } from "#lib/i18n";
-  import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, Card, Icon, Tooltip, actionIcons } from "#lib/components/ui";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
+  import { Alert, Button, Card, actionIcons } from "#lib/components/ui";
 
   /** The exam's compile card (issue #212): compile, task/solution preview, layout report, compile errors and the OMR template status. Never compiles on its own: an edit only marks the shown preview as outdated (issue #197). */
   interface Props {
@@ -267,9 +267,7 @@
   <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
     <div class="flex min-w-0 items-center gap-2">
       <h2 class="m-0 text-base font-semibold text-content">{$t("exam.page.compileSection.heading")}</h2>
-      <Tooltip text={$t("exam.page.compileSection.description")}>
-        <span class="inline-flex cursor-help text-muted" role="img" aria-label={$t("exam.page.compileSection.description")}><Icon icon={faCircleInfo} class="text-sm" /></span>
-      </Tooltip>
+      <InfoTip text={$t("exam.page.compileSection.description")} />
     </div>
     <Button
       size="sm"

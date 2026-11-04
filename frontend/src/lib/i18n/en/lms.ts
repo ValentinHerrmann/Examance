@@ -7,6 +7,9 @@ export const lms: Translations['lms'] = {
         manage: 'Manage students',
         noneYet: 'This exam has no students yet. Add them on the Students page (Mebis list, Artemis course or a pasted list).',
         import: {
+            sourceFile: 'File',
+            sourcePaste: 'Paste',
+            sourceArtemis: 'Artemis course',
             title: 'Use a class list',
             intro: 'A Mebis grading worksheet or participant list, a pasted list, or an Artemis course. Existing students are recognised by their ID, otherwise by name.',
             preview: 'From {source}:',
