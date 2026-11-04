@@ -3,7 +3,7 @@
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
   import { gradeHref } from "#lib/utils/links";
-  import { Button, Badge, CrossLink, Spinner, TableScroller, actionIcons } from "#lib/components/ui";
+  import { Button, Badge, CrossLink, Menu, MenuItem, Spinner, TableScroller, actionIcons } from "#lib/components/ui";
   import { compareText } from "#lib/utils/listSort";
   import SortHeaderCell from "#lib/components/scanning/SortHeaderCell.svelte";
   interface ScannedSubmissionItem {
@@ -117,15 +117,29 @@
               </td>
               <td class="whitespace-nowrap text-muted">{$fmt.dateTime(item.createdAt)}</td>
               <td>
-                <div class="flex min-w-72 flex-wrap items-center gap-2">
-                  <Button size="sm" variant="outlined" icon={faEye} onClick={() => onPreview(item)}>{$t("scanning.submissionsTable.preview")}</Button>
+                <!-- Everyday actions as buttons, rare and destructive ones behind ⋯, so a row stays one line (issue #212). -->
+                <div class="flex items-center gap-1.5 whitespace-nowrap">
+                  <Button size="sm" variant="outlined" severity="secondary" icon={faEye} onClick={() => onPreview(item)}>{$t("scanning.submissionsTable.preview")}</Button>
                   <Button size="sm" icon={faPenToSquare} href={gradeHref(examId, { submissionId: item.id })}>{$t("scanning.submissionsTable.goToGrading")}</Button>
-                  <Button size="sm" variant="outlined" severity="success" icon={actionIcons.download} disabled={exportingId === item.id} onClick={() => onExportPdf(item)}>
-                    {exportingId === item.id ? $t("scanning.submissionsTable.exporting") : $t("scanning.submissionsTable.exportPdf")}
-                  </Button>
-                  <Button size="sm" variant="outlined" severity="warning" icon={faScissors} onClick={() => onSplit(item)}>{$t("scanning.submissionsTable.split")}</Button>
-                  <Button size="sm" variant="outlined" severity="warning" icon={faEraser} disabled={!isGraded(item)} onClick={() => onDeleteGrading(item)}>{$t("scanning.submissionsTable.deleteGrading")}</Button>
-                  <Button size="sm" variant="outlined" severity="danger" icon={actionIcons.delete} onClick={() => onDelete(item)}>{$t("scanning.submissionsTable.delete")}</Button>
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    severity="secondary"
+                    iconOnly
+                    icon={actionIcons.download}
+                    loading={exportingId === item.id}
+                    disabled={exportingId === item.id}
+                    ariaLabel={$t("scanning.submissionsTable.exportPdf")}
+                    title={$t("scanning.submissionsTable.exportPdf")}
+                    onClick={() => onExportPdf(item)}
+                  />
+                  <Menu label={$t("scanning.submissionsTable.more")} icon={actionIcons.more} align="end">
+                    {#snippet children({ close })}
+                      <MenuItem icon={faScissors} onSelect={() => { close(); onSplit(item); }}>{$t("scanning.submissionsTable.split")}</MenuItem>
+                      <MenuItem icon={faEraser} disabled={!isGraded(item)} onSelect={() => { close(); onDeleteGrading(item); }}>{$t("scanning.submissionsTable.deleteGrading")}</MenuItem>
+                      <MenuItem icon={actionIcons.delete} danger onSelect={() => { close(); onDelete(item); }}>{$t("scanning.submissionsTable.delete")}</MenuItem>
+                    {/snippet}
+                  </Menu>
                 </div>
               </td>
             </tr>

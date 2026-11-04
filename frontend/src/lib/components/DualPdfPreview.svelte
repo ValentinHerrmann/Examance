@@ -21,6 +21,8 @@
     shrinkWhenCollapsed?: boolean;
     /** A slim bar right under the PDFs, for actions about them (e.g. the layout report). */
     footer?: Snippet;
+    /** Controls in the header of the first open pane (the exam's compile button), so no extra row sits above the PDFs. */
+    paneActions?: Snippet;
     /** False hides the download buttons (a student's view-only result page, issue #207). */
     downloadable?: boolean;
   }
@@ -36,6 +38,7 @@
     placeholderText = undefined,
     shrinkWhenCollapsed = false,
     footer,
+    paneActions,
     downloadable = true,
   }: Props = $props();
 
@@ -88,6 +91,7 @@
   }
 
   let allCollapsed = $derived(!showAngabePreview && !showLoesungPreview);
+  let firstShown = $derived(showAngabePreview ? "angabe" : showLoesungPreview ? "loesung" : null);
   // Both panes folded to strips leave no room for the bar.
   let showFooter = $derived(!!footer && !(shrinkWhenCollapsed && allCollapsed));
 
@@ -106,6 +110,7 @@
     class="flex min-w-0 flex-col gap-1.5 {shrinkWhenCollapsed && allCollapsed ? 'flex-none' : 'w-full flex-1'}"
     style="height: {height};"
   >
+    {#if allCollapsed && paneActions}<div class="flex shrink-0 justify-end">{@render paneActions()}</div>{/if}
     <div class="flex min-h-0 min-w-0 flex-1 gap-2 overflow-hidden">
       {#each panes as pane (pane.id)}
         <div class="{paneShell} {pane.shown ? 'min-w-0 flex-1' : 'w-10 shrink-0'}">
@@ -121,6 +126,7 @@
                 <span class="truncate text-xs font-medium text-muted">{pane.title}</span>
               </button>
               <div class="flex shrink-0 items-center gap-0.5">
+                {#if pane.id === firstShown}{@render paneActions?.()}{/if}
                 {#if pane.url && downloadable}
                   <Button
                     variant="text"
@@ -174,6 +180,7 @@
   </div>
 {:else}
   <div class="flex w-full min-w-0 flex-1 flex-col gap-1.5">
+    {#if paneActions}<div class="flex shrink-0 justify-end">{@render paneActions()}</div>{/if}
     <div
       class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-surface-viewer"
       style="height: min(70dvh, {height}); min-height: 18rem;"

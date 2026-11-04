@@ -51,9 +51,7 @@ export const exam = {
             loadFailed: 'Die Abgaben dieser Prüfung konnten nicht geladen werden: {message}. Die Zahlen oben fehlen deshalb; laden Sie die Seite neu.',
         },
         compileSection: {
-            heading: 'PDF-Vorschau',
             emptyHint: 'Die Prüfung hat noch keine Aufgaben. Fügen Sie über „Aufgaben hinzufügen“ welche aus der Bibliothek hinzu oder schreiben Sie eine neue.',
-            description: 'Druckfertige A4-PDF-Prüfungen mit dem Schulaufgabe-Vorlagenlayout erzeugen.',
             liveTooltip: 'Kompiliert das Prüfungs-PDF und aktualisiert danach (falls MC-Aufgaben vorhanden sind) automatisch die OMR-Antwortblasen-Vorlage.',
         },
         library: {
@@ -62,6 +60,7 @@ export const exam = {
             untitled: 'Unbenannt',
         },
         pdfPreview: {
+            notCompiled: 'Noch keine Vorschau: „Live-Vorschau PDF“ oben rechts drücken.',
             titleAngabe: 'Prüfung',
             titleLoesung: 'Lösung',
             placeholder: "Auf 'Live-Vorschau PDF' klicken, um zu rendern",
@@ -146,7 +145,6 @@ export const exam = {
         mcGroupLabel: 'MC-Gruppe: {title}',
         subExercisesCount: 'MC ({count} Teilaufgaben)',
         editGroup: 'MC-Gruppe bearbeiten',
-        editGroupButton: 'Bearbeiten',
         empty: 'Noch keine Aufgaben hinzugefügt.',
     },
     extraNotes: {

@@ -23,7 +23,7 @@ Im Schritt **Scans** der Prüfung liest **Scan-Dateien auswählen (nur PDF)** di
 
 Im Hybrid-Modus verlassen die Scans Ihr Gerät nie; im Modus „Alles auf dem Server“ erreichen sie den Server nur als Chiffrat. (Die einzige optionale Ausnahme sind anonymisierte Bildausschnitte einzelner Kästchen, wenn Sie [MC-Erkennung verbessern](./settings#donation) eingeschaltet haben.)
 
-Die Liste darunter zeigt jede eingelesene Abgabe. Von dort aus können Sie einen Scan ansehen, als PDF exportieren, einen versehentlich zusammengeführten Bogen **Teilen**, eine Bewertung löschen oder den Scan löschen.
+Die Liste darunter zeigt jede eingelesene Abgabe. Jede Zeile hat **Vorschau**, **Korrigieren** und das Download-Symbol (PDF-Export); im Menü ⋯ liegen **Aufteilen** (ein versehentlich zusammengeführter Bogen), **Bewertung löschen** und **Löschen**.
 
 ![Scan-Import](../../screenshots/pitch/05-scan-import.jpg)
 

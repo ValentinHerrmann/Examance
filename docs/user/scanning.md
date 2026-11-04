@@ -23,7 +23,7 @@ On the exam's **Scans** step, **Select Scan Files (PDF only)** reads the files. 
 
 In hybrid mode the scans never leave your device; in "All on the server" mode they reach the server only as ciphertext. (The one optional exception are anonymised crops of single tick boxes, if you switched on [Improve MC detection](./settings#donation).)
 
-The list below shows every imported submission. From there you can preview a scan, export it as a PDF, **Split** a booklet that was merged by mistake, delete a grading or delete the scan.
+The list below shows every imported submission. Each row has **Preview**, **Grade** and the download icon (PDF export); the ⋯ menu holds **Split** (a booklet that was merged by mistake), **Delete Grading** and **Delete**.
 
 ![Scan import](../screenshots/pitch/05-scan-import.jpg)
 

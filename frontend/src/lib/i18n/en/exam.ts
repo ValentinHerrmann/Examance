@@ -53,9 +53,7 @@ export const exam: Translations['exam'] = {
             loadFailed: 'The submissions of this exam could not be loaded: {message}. The figures above are missing; reload the page.',
         },
         compileSection: {
-            heading: 'PDF preview',
             emptyHint: 'This exam has no exercises yet. Add some from the library with "Add exercises" or write a new one.',
-            description: 'Generate printable A4 PDF exams using the Schulaufgabe template layout.',
             liveTooltip: 'Compiles the exam PDF and (if it has MC exercises) automatically refreshes the OMR bubble template right after.',
         },
         library: {
@@ -64,6 +62,7 @@ export const exam: Translations['exam'] = {
             untitled: 'Untitled',
         },
         pdfPreview: {
+            notCompiled: 'No preview yet: press "Live Preview PDF" at the top right.',
             titleAngabe: 'Exam',
             titleLoesung: 'Answer Key',
             placeholder: "Click 'Live Preview PDF' to render",
@@ -148,7 +147,6 @@ export const exam: Translations['exam'] = {
         mcGroupLabel: 'MC Group: {title}',
         subExercisesCount: 'MC ({count} sub-exercises)',
         editGroup: 'Edit MC Group',
-        editGroupButton: 'Edit',
         empty: 'No exercises added yet.',
     },
     extraNotes: {

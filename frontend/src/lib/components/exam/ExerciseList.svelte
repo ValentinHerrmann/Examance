@@ -78,49 +78,36 @@
     );
   }
 
-  // Rows are subgrids of one list grid, so number, points and controls line up across all rows. On phones the controls drop to their own line (3 tracks); from `sm` they take the fourth track.
-  const listClass = "grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-2 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto]";
-  const rowClass = "col-span-3 grid grid-cols-subgrid items-center gap-y-1 rounded-md border border-line bg-surface-inset px-3 py-2 sm:col-span-4";
-  const numberClass = "text-right font-semibold text-muted tabular-nums";
-  const titleClass = "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-content";
-  const pointsClass = "text-right text-sm whitespace-nowrap text-muted tabular-nums";
-  const actionsClass = "col-span-2 col-start-2 flex justify-self-end gap-1 sm:col-span-1 sm:col-start-4 sm:row-start-1";
-  const subItemsClass = "col-span-2 col-start-2 m-0 pl-4 text-sm text-muted sm:col-span-3";
+  // One card per item: number, then name (wraps, never cut off) with a small badge line under it, then points and icon buttons on the right.
+  const listClass = "flex flex-col";
+  const rowClass = "flex min-w-0 items-start gap-2 rounded-md border border-line bg-surface-inset px-3 py-2";
+  const numberClass = "w-6 shrink-0 pt-0.5 text-right font-semibold text-muted tabular-nums";
+  const bodyClass = "min-w-0 flex-1";
+  const pointsClass = "shrink-0 pt-0.5 text-sm whitespace-nowrap text-muted tabular-nums";
+  const actionsClass = "-my-1 flex shrink-0 items-center";
+  const subItemsClass = "m-0 mt-1.5 flex list-none flex-col gap-1 p-0 text-sm";
 
   let totalItemCount = $derived(examItems.length > 0 ? examItems.length : exercises.length + mcGroups.length);
 </script>
 
+{#snippet moveButtons(idx: number, count: number, up: () => void, down: () => void)}
+  <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp} ariaLabel={$t("exam.mcStagingPanel.moveUp")} title={$t("exam.mcStagingPanel.moveUp")} onClick={up} disabled={idx === 0} />
+  <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown} ariaLabel={$t("exam.mcStagingPanel.moveDown")} title={$t("exam.mcStagingPanel.moveDown")} onClick={down} disabled={idx === count - 1} />
+{/snippet}
+
 {#snippet exerciseRow(exercise: ExerciseRecord, idx: number, count: number, up: () => void, down: () => void)}
   <div class={rowClass}>
     <span class={numberClass}>{idx + 1}.</span>
-    <div class={titleClass}>
-      <ExerciseLabel {exercise} onOpen={onOpenExercise ? () => onOpenExercise(exercise) : undefined} />
-      {#if exercise.topicTag}
-        <Badge severity="secondary">{exercise.topicTag}</Badge>
-      {/if}
-      {#if exercise.questionType && exercise.questionType !== 'free_text'}
-        <Badge severity="primary">{exercise.questionType.toUpperCase()}</Badge>
-      {/if}
+    <div class={bodyClass}>
+      <ExerciseLabel stacked {exercise} onOpen={onOpenExercise ? () => onOpenExercise(exercise) : undefined}>
+        {#if exercise.topicTag}<Badge size="xs" severity="secondary">{exercise.topicTag}</Badge>{/if}
+        {#if exercise.questionType && exercise.questionType !== 'free_text'}<Badge size="xs" severity="primary">{exercise.questionType.toUpperCase()}</Badge>{/if}
+      </ExerciseLabel>
     </div>
     <span class={pointsClass}>{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
     <div class={actionsClass}>
-      <Button
-        size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp}
-        ariaLabel={$t("exam.mcStagingPanel.moveUp")}
-        onClick={up}
-        disabled={idx === 0}
-      />
-      <Button
-        size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown}
-        ariaLabel={$t("exam.mcStagingPanel.moveDown")}
-        onClick={down}
-        disabled={idx === count - 1}
-      />
-      <Button
-        size="sm" variant="text" severity="danger" iconOnly icon={faXmark}
-        ariaLabel={$t("exam.mcStagingPanel.remove")}
-        onClick={() => onRemove(exercise.id)}
-      />
+      {@render moveButtons(idx, count, up, down)}
+      <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} title={$t("exam.mcStagingPanel.remove")} onClick={() => onRemove(exercise.id)} />
     </div>
   </div>
 {/snippet}
@@ -129,44 +116,27 @@
 {#snippet groupRow(group: McGroup, idx: number | null)}
   <div class={rowClass}>
     <span class={numberClass}>{idx === null ? "" : `${idx + 1}.`}</span>
-    <div class={titleClass}>
-      <strong class="min-w-0">{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</strong>
-      <Badge severity="primary">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</Badge>
+    <div class={bodyClass}>
+      <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        <strong class="min-w-0 break-words text-content">{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</strong>
+        <Badge size="xs" severity="primary">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</Badge>
+      </div>
+      <ul class={subItemsClass}>
+        {#each memberExercises(group) as ex, i}
+          <li class="flex min-w-0 items-baseline gap-1.5"><span class="shrink-0 text-muted">{mcSubLabel(i, group.memberIds.length)})</span><ExerciseLabel exercise={ex} onOpen={onOpenExercise ? () => onOpenExercise(ex) : undefined} /></li>
+        {/each}
+      </ul>
     </div>
     <span class={pointsClass}>{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
-    <ul class={subItemsClass}>
-      {#each memberExercises(group) as ex, i}
-        <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} onOpen={onOpenExercise ? () => onOpenExercise(ex) : undefined} /></li>
-      {/each}
-    </ul>
     <div class={actionsClass}>
       {#if onEditMcGroup}
-        <Button
-          size="sm" variant="text"
-          onClick={() => onEditMcGroup(group.id)}
-          title={$t("exam.exerciseList.editGroup")}
-        >{$t("exam.exerciseList.editGroupButton")}</Button>
+        <Button size="sm" variant="text" severity="secondary" iconOnly icon={actionIcons.edit} ariaLabel={$t("exam.exerciseList.editGroup")} title={$t("exam.exerciseList.editGroup")} onClick={() => onEditMcGroup(group.id)} />
       {/if}
       {#if idx !== null && onMoveExamItem}
-        <Button
-          size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp}
-          ariaLabel={$t("exam.mcStagingPanel.moveUp")}
-          onClick={() => onMoveExamItem(idx, "up")}
-          disabled={idx === 0}
-        />
-        <Button
-          size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown}
-          ariaLabel={$t("exam.mcStagingPanel.moveDown")}
-          onClick={() => onMoveExamItem(idx, "down")}
-          disabled={idx === examItems.length - 1}
-        />
+        {@render moveButtons(idx, examItems.length, () => onMoveExamItem(idx, "up"), () => onMoveExamItem(idx, "down"))}
       {/if}
       {#if onRemoveMcGroup}
-        <Button
-          size="sm" variant="text" severity="danger" iconOnly icon={faXmark}
-          ariaLabel={$t("exam.mcStagingPanel.remove")}
-          onClick={() => onRemoveMcGroup(group.id)}
-        />
+        <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} title={$t("exam.mcStagingPanel.remove")} onClick={() => onRemoveMcGroup(group.id)} />
       {/if}
     </div>
   </div>
@@ -182,7 +152,7 @@
   {#if totalItemCount === 0}
     <p class="m-0 rounded-md border border-dashed border-line-strong p-8 text-center text-muted">{$t("exam.exerciseList.empty")}</p>
   {:else}
-    <div class={listClass}>
+    <div class="{listClass} {onTogglePageBreak ? '' : 'gap-2'}">
       {#if examItems.length > 0}
         {#each examItems as item, idx (item.id)}
           {#if item.type === "exercise"}

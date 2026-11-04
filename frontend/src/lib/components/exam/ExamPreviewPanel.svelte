@@ -24,8 +24,7 @@
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { examReportFiles } from "#lib/layout-report/collect";
   import { t, translate } from "#lib/i18n";
-  import InfoTip from "#lib/components/help/InfoTip.svelte";
-  import { Alert, Button, Card, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, actionIcons } from "#lib/components/ui";
 
   /** The exam's compile card (issue #212): compile, task/solution preview, layout report, compile errors and the OMR template status. Never compiles on its own: an edit only marks the shown preview as outdated (issue #197). */
   interface Props {
@@ -262,35 +261,54 @@
   />
 {/snippet}
 
-<Card class={className}>
-  <!-- One slim row: the PDFs get the height (issue #212). -->
-  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-    <div class="flex min-w-0 items-center gap-2">
-      <h2 class="m-0 text-base font-semibold text-content">{$t("exam.page.compileSection.heading")}</h2>
-      <InfoTip text={$t("exam.page.compileSection.description")} />
-    </div>
-    <Button
-      size="sm"
-      icon={actionIcons.compile}
-      onClick={handlePreviewExam}
-      loading={isPreviewLoading || isPreparingOmr}
-      disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
-      title={$t("exam.page.compileSection.liveTooltip")}
-    >
-      {isPreviewLoading
-        ? $t("exam.page.preview.compilingPreviews")
-        : isPreparingOmr
-          ? $t("exam.page.omr.preparing")
-          : $t("exam.page.preview.liveButton")}
-    </Button>
-  </div>
+{#snippet compileButton()}
+  <Button
+    size="sm"
+    icon={actionIcons.compile}
+    onClick={handlePreviewExam}
+    loading={isPreviewLoading || isPreparingOmr}
+    disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
+    title={$t("exam.page.compileSection.liveTooltip")}
+  >
+    {isPreviewLoading
+      ? $t("exam.page.preview.compilingPreviews")
+      : isPreparingOmr
+        ? $t("exam.page.omr.preparing")
+        : $t("exam.page.preview.liveButton")}
+  </Button>
+{/snippet}
 
+<!-- No card or title: the PDFs start at the column's top, level with the content beside them (issue #212); the compile button sits in the pane header. -->
+<div class="flex min-w-0 flex-col gap-2 {className}">
   {#if exercises.length === 0 && mcGroups.length === 0}
-    <p class="mt-3 text-sm text-muted">{$t("exam.page.compileSection.emptyHint")}</p>
+    <div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line p-3">
+      <p class="m-0 text-sm text-muted">{$t("exam.page.compileSection.emptyHint")}</p>
+      {@render compileButton()}
+    </div>
+  {:else}
+    <!-- A fixed-height parent: inside this flex column the preview's own height would be overridden (issue #210). -->
+    <div class="flex min-h-0 flex-col" style="height: max(22rem, calc(100dvh - 14rem));">
+    <DualPdfPreview
+      {previewPdfUrl}
+      {previewSolutionPdfUrl}
+      bind:showAngabePreview
+      bind:showLoesungPreview
+      titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
+      titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
+      height="100%"
+      placeholderText={$t("exam.page.pdfPreview.notCompiled")}
+      paneActions={compileButton}
+    >
+      {#snippet footer()}{@render layoutReport()}{/snippet}
+    </DualPdfPreview>
+    </div>
   {/if}
 
+  {#if previewOutdated && (previewPdfUrl || previewSolutionPdfUrl)}
+    <Alert severity="info">{$t("exam.page.preview.outdated")}</Alert>
+  {/if}
   {#if omrStatus === "stale"}
-    <Alert severity="warning" class="mt-3">
+    <Alert severity="warning">
       {$t("exam.page.omr.staleWarning")}
       {#snippet actions()}
         <Button
@@ -310,39 +328,19 @@
     </Alert>
   {/if}
   {#if omrPrepareMessage}
-    <Alert severity="info" class="mt-3">{omrPrepareMessage}</Alert>
-  {/if}
-
-  {#if previewOutdated && (previewPdfUrl || previewSolutionPdfUrl)}
-    <Alert severity="info" class="mt-3">{$t("exam.page.preview.outdated")}</Alert>
-  {/if}
-  {#if previewPdfUrl || previewSolutionPdfUrl}
-    <div>
-      <DualPdfPreview
-        {previewPdfUrl}
-        {previewSolutionPdfUrl}
-        bind:showAngabePreview
-        bind:showLoesungPreview
-        titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
-        titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
-        height="max(22rem, calc(100dvh - 19rem))"
-        placeholderText={$t("exam.page.pdfPreview.placeholder")}
-      >
-        {#snippet footer()}{@render layoutReport()}{/snippet}
-      </DualPdfPreview>
-    </div>
+    <Alert severity="info">{omrPrepareMessage}</Alert>
   {/if}
 
   {#if compileNotice}
-    <Alert severity="info" class="mt-3">{compileNotice}</Alert>
+    <Alert severity="info">{compileNotice}</Alert>
   {/if}
   {#if errorMsg}
-    <Alert severity="danger" class="mt-4">
+    <Alert severity="danger">
       <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
       {#if compileLog && compileLog.message === errorMsg}<CompileErrorHelp failure={compileLog.failure} class="mt-2" />{/if}
     </Alert>
   {/if}
   {#if errorMsg && !previewPdfUrl && !previewSolutionPdfUrl}
-    <div class="mt-2 flex justify-end">{@render layoutReport()}</div>
+    <div class="flex justify-end">{@render layoutReport()}</div>
   {/if}
-</Card>
+</div>

@@ -12,7 +12,8 @@
   let { active, onToggle }: Props = $props();
 </script>
 
-<div class="col-span-3 flex items-center justify-center gap-2 sm:col-span-4">
+<!-- A slim gap between two cards: the toggle stays one click away without a row of its own. -->
+<div class="flex h-6 items-center justify-center gap-2 pointer-coarse:h-11">
   {#if active}
     <div class="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted">
       <span class="flex-1 border-t border-dashed border-line-strong"></span>
@@ -28,7 +29,7 @@
   {:else}
     <Button
       size="sm" variant="text" severity="secondary" icon={faFileLines}
-      class="text-xs pointer-coarse:min-h-11"
+      class="min-h-0 py-0 text-xs text-muted pointer-coarse:min-h-11"
       onClick={onToggle}
     >{$t("exam.pageBreak.insert")}</Button>
   {/if}
