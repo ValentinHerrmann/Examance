@@ -154,13 +154,13 @@
   }
 
   async function mount(url: string) {
-    const { labelPageImages, mountEmbedPdf } = await import("#lib/pdf/embedpdf");
+    const { patchEmbedPdfA11y, mountEmbedPdf } = await import("#lib/pdf/embedpdf");
     // A src change (or unmount racing a fast page switch) may land here after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
     destroy();
     if (!containerEl) return;
     viewer = mountEmbedPdf({ target: containerEl, src: url, theme: effectiveTheme, zoomLevel }) ?? null;
-    stopLabels = labelPageImages(containerEl, $t("common.pdfPage"));
+    stopLabels = patchEmbedPdfA11y(containerEl, { pageLabel: $t("common.pdfPage"), regionLabel: $t("common.pdfPreview") });
     mountedSrc = url;
     containerEl.addEventListener("wheel", handleWheel, { capture: true, passive: false });
 
@@ -283,13 +283,12 @@
     animation: zoom-overlay-fade-in 0.15s ease-out;
   }
 
+  /* Slide only, no fade: a half-transparent frame has too little contrast (axe catches it mid-animation). */
   @keyframes zoom-overlay-fade-in {
     from {
-      opacity: 0;
       transform: translateY(-2px);
     }
     to {
-      opacity: 1;
       transform: translateY(0);
     }
   }

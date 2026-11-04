@@ -14,9 +14,11 @@
     onSelect: (next: Set<string>) => void;
     onSelectGraded: () => void;
     onRevoke: (shareId: string) => void;
+    /** From xl, fill the parent's height and scroll the table inside it (the Share page's left column). */
+    fill?: boolean;
   }
 
-  let { overview, selected, running, onSelect, onSelectGraded, onRevoke }: Props = $props();
+  let { overview, selected, running, onSelect, onSelectGraded, onRevoke, fill = false }: Props = $props();
 
   const STATE_BADGE = { complete: "success", partial: "warning", ungraded: "secondary" } as const;
   const DELIVERY_BADGE = { sent: "secondary", delayed: "warning", bounced: "danger", failed: "danger" } as const;
@@ -38,7 +40,7 @@
   }
 </script>
 
-<div class="flex min-w-0 flex-col gap-2">
+<div class="flex min-w-0 flex-col gap-2 {fill ? 'xl:min-h-0 xl:flex-1' : ''}">
   <div class="flex flex-wrap items-center justify-between gap-2">
     <span class="text-sm text-muted">{$t("sharing.page.selectedCount", { count: selected.size, total: overview.students.length })}</span>
     <div class="flex gap-2">
@@ -46,7 +48,7 @@
       <Button size="sm" variant="text" disabled={running} onClick={() => onSelect(new Set())}>{$t("sharing.share.selectNone")}</Button>
     </div>
   </div>
-  <TableScroller maxHeight="max-h-96">
+  <TableScroller maxHeight={fill ? "max-h-96 xl:max-h-none" : "max-h-96"} class={fill ? "xl:min-h-0 xl:flex-1" : ""}>
     <table class="data-table data-table-compact w-full">
       <thead>
         <tr>

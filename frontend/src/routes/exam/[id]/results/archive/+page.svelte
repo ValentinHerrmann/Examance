@@ -7,7 +7,8 @@
   import { get } from "svelte/store";
   import { faFileZipper } from "@fortawesome/free-solid-svg-icons";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Card, Checkbox, PageShell, Spinner, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, Checkbox, PageShell, Spinner, actionIcons } from "#lib/components/ui";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import ExportOptionList from "#lib/components/export/ExportOptionList.svelte";
   import ExportProgressBar from "#lib/components/export/ExportProgressBar.svelte";
@@ -139,8 +140,23 @@
   });
 </script>
 
+<!-- All three boxes share one structure (header row with the main action, one control row, then the body that fills the rest), so their contents start and end at the same height (issue #212). -->
+{#snippet box(title: string, intro: string, action: import("svelte").Snippet, controls: import("svelte").Snippet, body: import("svelte").Snippet, cls = "")}
+  <section class="flex min-h-0 min-w-0 flex-col gap-3 rounded-xl bg-surface-raised p-4 shadow-sm {cls}">
+    <header class="flex min-h-9 flex-wrap items-center justify-between gap-2">
+      <div class="flex min-w-0 items-center gap-2">
+        <h2 class="m-0 truncate text-base font-semibold text-content">{title}</h2>
+        {#if intro}<InfoTip text={intro} />{/if}
+      </div>
+      <div class="flex flex-wrap items-center gap-2">{@render action()}</div>
+    </header>
+    <div class="flex min-h-8 flex-wrap items-center gap-2 text-sm">{@render controls()}</div>
+    <div class="flex min-h-0 flex-1 flex-col gap-3">{@render body()}</div>
+  </section>
+{/snippet}
+
 {#snippet pdfPane(busy: boolean, busyText: string, url: string | null, empty: string)}
-  <div class="h-[60dvh] min-h-72 overflow-hidden rounded-md border border-line bg-surface-inset 2xl:h-[70dvh]">
+  <div class="min-h-72 flex-1 overflow-hidden rounded-md border border-line bg-surface-inset lg:min-h-[28rem]">
     {#if busy}
       <div class="flex h-full items-center justify-center gap-2 p-4 text-center text-sm text-muted"><Spinner />{busyText}</div>
     {:else if url}
@@ -151,6 +167,62 @@
   </div>
 {/snippet}
 
+{#snippet sheetAction()}
+  {#if sheetUrl}
+    <Button size="sm" icon={actionIcons.download} href={sheetUrl} download={`${fileTitle} – ${$t("exam.archive.sheetFile")}.pdf`}>{$t("exam.archive.sheetDownload")}</Button>
+  {/if}
+{/snippet}
+{#snippet sheetControls()}
+  <Button size="sm" variant="outlined" severity="secondary" loading={sheetBusy} disabled={sheetBusy} onClick={() => renderSheet(examId)}>{$t("exam.archive.sheetRefresh")}</Button>
+{/snippet}
+{#snippet sheetBody()}
+  {#if sheetError}<Alert severity="danger">{sheetError}</Alert>{/if}
+  {@render pdfPane(sheetBusy, $t("exam.archive.sheetBusy"), sheetUrl, "")}
+{/snippet}
+
+{#snippet gradedAction()}
+  {#if gradedUrl}
+    <Button size="sm" icon={actionIcons.download} href={gradedUrl} download={`${fileTitle} – ${$t("exam.archive.gradedFile")}.pdf`}>{$t("exam.archive.gradedDownload")}</Button>
+  {/if}
+  <Button size="sm" variant={gradedUrl ? "outlined" : "solid"} severity={gradedUrl ? "secondary" : "primary"} icon={actionIcons.print} loading={gradedBusy} disabled={gradedBusy} onClick={renderGraded}>
+    {gradedUrl ? $t("exam.archive.gradedRecreate") : $t("exam.archive.gradedCreate")}
+  </Button>
+{/snippet}
+{#snippet gradedControls()}
+  <Checkbox bind:checked={duplex} disabled={gradedBusy} label={$t("exam.archive.gradedDuplex")} />
+  {#if gradedUrl}<span class="text-xs text-muted">{$t("exam.archive.gradedPages", { count: gradedPages })}</span>{/if}
+{/snippet}
+{#snippet gradedBody()}
+  {#if gradedError}<Alert severity="danger">{gradedError}</Alert>{/if}
+  {#if gradedBusy}<ExportProgressBar step={$t("exam.archive.gradedBusy")} fraction={gradedFraction} />{/if}
+  {@render pdfPane(gradedBusy, $t("exam.archive.gradedBusy"), gradedUrl, gradedNone ? $t("exam.archive.gradedNone") : $t("exam.archive.gradedEmpty"))}
+  {#if gradedWarnings.length}
+    <Alert severity="warning" title={$t("export.dialog.doneWithWarnings")}>
+      <ul class="list-disc pl-5">{#each gradedWarnings as w}<li>{w}</li>{/each}</ul>
+    </Alert>
+  {/if}
+{/snippet}
+
+{#snippet zipAction()}
+  <Button size="sm" icon={faFileZipper} loading={running} disabled={running || selected.size === 0} onClick={download}>{$t("export.dialog.download")}</Button>
+{/snippet}
+{#snippet zipControls()}
+  <span class="text-muted">{$t("exam.archive.zipIntro")}</span>
+{/snippet}
+{#snippet zipBody()}
+  <div class="min-h-0 flex-1 overflow-auto">
+    <ExportOptionList {options} bind:checked disabled={running} />
+  </div>
+  {#if running}<ExportProgressBar {step} {fraction} />{/if}
+  {#if error}<Alert severity="danger">{error}</Alert>{/if}
+  {#if done && warnings.length}
+    <Alert severity="warning" title={$t("export.dialog.doneWithWarnings")}>
+      <ul class="list-disc pl-5">{#each warnings as w}<li>{w}</li>{/each}</ul>
+    </Alert>
+  {/if}
+  <Alert severity="warning">{$t("export.exam.notice")}</Alert>
+{/snippet}
+
 <PageShell width="fluid">
   <ExamPageHeader {examId} step="results" title={$t("exam.archive.title")} hint={$t("exam.archive.intro")} helpTopic="stats" />
 
@@ -159,56 +231,11 @@
   {:else if !ready}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(20rem,0.8fr)]">
-      <Card title={$t("exam.archive.sheetTitle")} class="min-w-0">
-        <p class="mt-0 mb-4 text-sm text-muted">{$t("exam.archive.sheetIntro")}</p>
-        {#if sheetError}<Alert severity="danger" class="mb-4">{sheetError}</Alert>{/if}
-        {@render pdfPane(sheetBusy, $t("exam.archive.sheetBusy"), sheetUrl, "")}
-        <div class="mt-4 flex flex-wrap gap-2">
-          {#if sheetUrl}
-            <Button icon={actionIcons.download} href={sheetUrl} download={`${fileTitle} – ${$t("exam.archive.sheetFile")}.pdf`}>{$t("exam.archive.sheetDownload")}</Button>
-          {/if}
-          <Button variant="outlined" severity="secondary" loading={sheetBusy} disabled={sheetBusy} onClick={() => renderSheet(examId)}>{$t("exam.archive.sheetRefresh")}</Button>
-        </div>
-      </Card>
-
-      <Card title={$t("exam.archive.gradedTitle")} class="min-w-0">
-        <p class="mt-0 mb-3 text-sm text-muted">{$t("exam.archive.gradedIntro")}</p>
-        <Checkbox class="mb-4" bind:checked={duplex} disabled={gradedBusy} label={$t("exam.archive.gradedDuplex")} />
-        {#if gradedError}<Alert severity="danger" class="mb-4">{gradedError}</Alert>{/if}
-        {#if gradedBusy}<ExportProgressBar class="mb-3" step={$t("exam.archive.gradedBusy")} fraction={gradedFraction} />{/if}
-        {@render pdfPane(gradedBusy, $t("exam.archive.gradedBusy"), gradedUrl, gradedNone ? $t("exam.archive.gradedNone") : $t("exam.archive.gradedEmpty"))}
-        {#if gradedWarnings.length}
-          <Alert severity="warning" class="mt-4" title={$t("export.dialog.doneWithWarnings")}>
-            <ul class="list-disc pl-5">{#each gradedWarnings as w}<li>{w}</li>{/each}</ul>
-          </Alert>
-        {/if}
-        <div class="mt-4 flex flex-wrap items-center gap-2">
-          {#if gradedUrl}
-            <Button icon={actionIcons.download} href={gradedUrl} download={`${fileTitle} – ${$t("exam.archive.gradedFile")}.pdf`}>{$t("exam.archive.gradedDownload")}</Button>
-            <span class="text-xs text-muted">{$t("exam.archive.gradedPages", { count: gradedPages })}</span>
-          {/if}
-          <Button variant={gradedUrl ? "outlined" : "solid"} severity={gradedUrl ? "secondary" : "primary"} icon={actionIcons.print} loading={gradedBusy} disabled={gradedBusy} onClick={renderGraded}>
-            {gradedUrl ? $t("exam.archive.gradedRecreate") : $t("exam.archive.gradedCreate")}
-          </Button>
-        </div>
-      </Card>
-
-      <Card title={$t("exam.archive.zipTitle")} class="min-w-0 lg:col-span-2 2xl:col-span-1">
-        <p class="mt-0 mb-4 text-sm text-muted">{$t("exam.archive.zipIntro")}</p>
-        <Alert severity="warning" class="mb-4">{$t("export.exam.notice")}</Alert>
-        <ExportOptionList {options} bind:checked disabled={running} />
-        {#if running}<ExportProgressBar class="mt-4" {step} {fraction} />{/if}
-        {#if error}<Alert severity="danger" class="mt-4">{error}</Alert>{/if}
-        {#if done && warnings.length}
-          <Alert severity="warning" class="mt-4" title={$t("export.dialog.doneWithWarnings")}>
-            <ul class="list-disc pl-5">{#each warnings as w}<li>{w}</li>{/each}</ul>
-          </Alert>
-        {/if}
-        <div class="mt-4 flex justify-end">
-          <Button icon={faFileZipper} loading={running} disabled={running || selected.size === 0} onClick={download}>{$t("export.dialog.download")}</Button>
-        </div>
-      </Card>
+    <!-- From 2xl one row of fixed height: equal boxes; the PDFs and the option list fill and scroll inside. -->
+    <div class="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 2xl:h-[max(32rem,calc(100dvh-11rem))] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(20rem,0.8fr)]">
+      {@render box($t("exam.archive.sheetTitle"), $t("exam.archive.sheetIntro"), sheetAction, sheetControls, sheetBody)}
+      {@render box($t("exam.archive.gradedTitle"), $t("exam.archive.gradedIntro"), gradedAction, gradedControls, gradedBody)}
+      {@render box($t("exam.archive.zipTitle"), "", zipAction, zipControls, zipBody, "lg:col-span-2 2xl:col-span-1")}
     </div>
   {/if}
 </PageShell>

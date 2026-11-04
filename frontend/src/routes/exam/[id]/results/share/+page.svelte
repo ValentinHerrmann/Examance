@@ -75,6 +75,8 @@
   let chosenStudents = $derived(overview?.students.filter((s) => selected.has(s.key)).map((s) => s.student) ?? []);
   let blockedCount = (f: ShareFactor) => incompatibleStudents(f, currentChannel, chosenStudents).length;
   let factorMuted = (f: ShareFactor) => !currentChannel.factors.includes(f) || (chosenStudents.length > 0 && blockedCount(f) === chosenStudents.length);
+  // Dismissing hides the banner until the number of failed deliveries changes.
+  let undeliveredDismissed = $state<number | null>(null);
   let undeliveredCount = $derived(overview?.students.filter((s) => undelivered(s.delivery)).length ?? 0);
   let activeShares = $derived((overview?.students.filter((s) => s.share).length ?? 0) + (overview?.orphans.length ?? 0));
   let canRun = $derived(!running && !waiting && !loading && selected.size > 0 && !setupMissing && (sendsPdf || !factorMuted(factor)));
@@ -281,8 +283,8 @@
       </div>
     {/if}
 
-    {#if undeliveredCount && !running}
-      <Alert severity="warning" title={$t("sharing.delivery.undelivered", { count: undeliveredCount })}>
+    {#if undeliveredCount && !running && undeliveredDismissed !== undeliveredCount}
+      <Alert severity="warning" title={$t("sharing.delivery.undelivered", { count: undeliveredCount })} onDismiss={() => (undeliveredDismissed = undeliveredCount)}>
         <p>{$t("sharing.delivery.undeliveredHint")}</p>
         {#snippet actions()}
           <Button size="sm" variant="outlined" severity="secondary" disabled={!!waiting} onClick={selectUndelivered}>{$t("sharing.delivery.selectUndelivered")}</Button>
@@ -294,11 +296,13 @@
       <div class="flex items-center gap-2 text-sm text-muted"><Spinner />{$t("sharing.share.loading")}</div>
     {:else if overview}
       <!-- From xl the student list is on the left, channel, options and send on the right. -->
-      <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
-        <div class="min-w-0">
-      <Card>
+      <!-- The right column sets the height; the list fills it and scrolls inside, so both columns end together. -->
+      <div class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
+        <div class="relative min-w-0 xl:min-h-[24rem]">
+      <Card class="flex flex-col xl:absolute xl:inset-0">
         <h2 class="mt-0 mb-4 text-base font-semibold">{@render step(1, $t("sharing.share.students"))}</h2>
         <ShareStudents
+          fill
           {overview}
           {selected}
           {running}

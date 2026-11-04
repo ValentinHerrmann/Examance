@@ -64,12 +64,24 @@ export function mountEmbedPdf(opts: EmbedPdfMountOptions): EmbedPdfContainer | u
   return EmbedPDF.init({ type: "container", target: opts.target, ...config });
 }
 
-/** EmbedPDF renders pages as `<img>` without `alt` inside its open shadow root; this gives each one `label` (screen readers, axe `image-alt`). Returns the stop function. */
-export function labelPageImages(target: Element, label: string): () => void {
+/** EmbedPDF's open shadow root lacks two a11y basics: page `<img>`s without `alt`, and a scroll container that the keyboard cannot reach. This adds both (`pageLabel`, `regionLabel`) and keeps them as pages render. Returns the stop function. */
+export function patchEmbedPdfA11y(target: Element, labels: { pageLabel: string; regionLabel: string }): () => void {
   let observer: MutationObserver | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const fill = (root: ParentNode) => {
-    for (const img of root.querySelectorAll('img:not([alt])')) img.setAttribute('alt', label);
+  let frame = 0;
+  const scrolls = (el: Element) => {
+    const style = getComputedStyle(el);
+    return /(auto|scroll)/.test(style.overflowY + style.overflowX);
+  };
+  const fill = (root: ShadowRoot) => {
+    frame = 0;
+    for (const img of root.querySelectorAll('img:not([alt])')) img.setAttribute('alt', labels.pageLabel);
+    for (const el of root.querySelectorAll('div:not([tabindex])')) {
+      if (!scrolls(el)) continue;
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('role', 'region');
+      el.setAttribute('aria-label', labels.regionLabel);
+    }
   };
   const attach = () => {
     const root = target.querySelector('embedpdf-container')?.shadowRoot;
@@ -78,12 +90,15 @@ export function labelPageImages(target: Element, label: string): () => void {
       return;
     }
     fill(root);
-    observer = new MutationObserver(() => fill(root));
+    observer = new MutationObserver(() => {
+      frame ||= requestAnimationFrame(() => fill(root));
+    });
     observer.observe(root, { childList: true, subtree: true });
   };
   attach();
   return () => {
     if (timer) clearTimeout(timer);
+    if (frame) cancelAnimationFrame(frame);
     observer?.disconnect();
   };
 }
