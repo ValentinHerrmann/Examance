@@ -78,7 +78,8 @@ const byCodeUnits = (a: string, b: string): number => Number(a > b) - Number(a <
 /** What the QR stickers, copies and key slips depend on: the exam's students and their names. */
 export function studentsStamp(students: StudentRecord[]): string {
     const rows = students.map((s) => JSON.stringify([s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '']));
-    return fingerprint(rows.sort(byCodeUnits).join('\n'));
+    rows.sort(byCodeUnits);
+    return fingerprint(rows.join('\n'));
 }
 
 export type PrintStamps = Record<PrintJobId, string>;
