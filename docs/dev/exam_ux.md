@@ -31,10 +31,10 @@ All items below are done and ticked; CI and SonarCloud were green on `95c874e`; 
 | 4 | Scans | `/exam/[id]/scan` | submission count |
 | 5 | MC prüfen / Check MC | `/exam/[id]/verify` | failed + unsure count, only once the verify page computed it in this session |
 | 6 | Korrektur / Grading | `/exam/[id]/grade` | graded/submissions, e.g. "12/27" |
-| 7 | Paper & Excel | `/exam/[id]/manual` | – |
+| 7 | Enter paper grades (was "Paper & Excel") | `/exam/[id]/manual` | – |
 | 8 | Ergebnisse / Results | `/exam/[id]/results` (Statistics), `/exam/[id]/results/share` (Share) | active share count; red "n not reached" only with feature `result_delivery` |
 
-A failed read leaves its badge out, never shows 0. "Next" of a step is simply the following row; Paper & Excel's next is Results; Results has none.
+A failed read leaves its badge out, never shows 0. "Next" of a step is simply the following row; Enter paper grades' next is Results; Results has none.
 
 **Overview** (`/exam/[id]`): header with the exam title and one metadata line (testart, class via `formatExamCourse(grade, klasse)` from `lib/utils/examLabel`, subject `fach`, date `datum`). Header actions: "Export" (opens `ExamExportModal`) as `Button`s with icons, and a ⋯ `ui/Menu` with Duplicate, Delete all submissions, Delete exam (both deletes through `ui/ConfirmDialog`, never native `confirm()`/`alert()`). Cards: "Details" (the metadata form in place, incl. teacher `lehrernachname`, topic, retention `retentionUntil`; changed after review: no dialog) and "Key figures" (total points, exercises, students, scans, graded, average, grading key name). A primary button "Continue: ‹next unfinished step›" (from `examProgress`). No list of step links: that would duplicate the sidebar again. Keep the existing alerts (local fallback, results-only, submissions load error).
 
@@ -168,6 +168,9 @@ All paths below are under `frontend/src/` unless they start with `docs/` or `fro
 - [x] **9.12** Results: unsaved grading key preview has a banner, a dot on the Statistics tab (`Tabs` item `dirty`, store `gradingKeyDirty`) and a leave confirm.
 - [x] **9.13** Results tabs: Statistics | Send to students | Archive; docs and page titles renamed.
 - [x] **9.14** Archive tab (`results/archive`): overview sheet preview and download (`renderExamSummaryPdf`), ZIP options as checkboxes (shared `ExportOptionList`, `ExportProgressBar`, `runZipExport`, `examExportOptions`).
+
+### 10. Third review round
+- [x] **10.1** Step 7 is "Enter paper grades" / "Papierkorrektur eintragen" with a hover hint (`EXAM_STEPS` `hintKey`, `exam.sidebar.manualHint`).
 
 ## Progress notes
 

@@ -21,11 +21,13 @@ export interface ExamNavItem {
     number: number | null;
     href: string;
     labelKey: TranslationKey;
+    /** A longer explanation shown on hover, for a step whose short name needs it. */
+    hintKey?: TranslationKey;
     icon: IconDefinition;
     active: boolean;
 }
 
-export const EXAM_STEPS: { step: ExamStep; suffix: string; labelKey: TranslationKey; icon: IconDefinition }[] = [
+export const EXAM_STEPS: { step: ExamStep; suffix: string; labelKey: TranslationKey; hintKey?: TranslationKey; icon: IconDefinition }[] = [
     { step: 'overview', suffix: '', labelKey: 'exam.sidebar.overview', icon: faHouse },
     { step: 'content', suffix: '/content', labelKey: 'exam.sidebar.content', icon: faLayerGroup },
     { step: 'students', suffix: '/students', labelKey: 'exam.sidebar.students', icon: faUsers },
@@ -33,7 +35,7 @@ export const EXAM_STEPS: { step: ExamStep; suffix: string; labelKey: Translation
     { step: 'scan', suffix: '/scan', labelKey: 'exam.sidebar.scan', icon: faFileLines },
     { step: 'verify', suffix: '/verify', labelKey: 'exam.sidebar.verify', icon: faListCheck },
     { step: 'grade', suffix: '/grade', labelKey: 'exam.sidebar.grade', icon: faPenToSquare },
-    { step: 'manual', suffix: '/manual', labelKey: 'exam.sidebar.manual', icon: faTableCells },
+    { step: 'manual', suffix: '/manual', labelKey: 'exam.sidebar.manual', hintKey: 'exam.sidebar.manualHint', icon: faTableCells },
     { step: 'results', suffix: '/results', labelKey: 'exam.sidebar.results', icon: faChartColumn },
 ];
 
@@ -44,10 +46,10 @@ export function examStepHref(examId: string, step: ExamStep): string {
 
 export function examNavItems(examId: string, pathname: string): ExamNavItem[] {
     const base = `/exam/${encodeURIComponent(examId)}`;
-    return EXAM_STEPS.map(({ step, suffix, labelKey, icon }, index) => {
+    return EXAM_STEPS.map(({ step, suffix, labelKey, hintKey, icon }, index) => {
         const href = base + suffix;
         const active =
             step === 'overview' ? pathname === base || pathname === `${base}/` : pathname.startsWith(href);
-        return { step, number: index === 0 ? null : index, href, labelKey, icon, active };
+        return { step, number: index === 0 ? null : index, href, labelKey, hintKey, icon, active };
     });
 }

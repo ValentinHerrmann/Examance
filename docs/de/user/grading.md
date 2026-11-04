@@ -64,7 +64,7 @@ Der gründliche Weg, Erkennungen zu prüfen, ist der Schritt **MC prüfen**, der
 
 ## Auf Papier korrigierte Klassen {#paper}
 
-Nicht jede Prüfung braucht Scans. Im Schritt **Papier & Excel** tragen Sie Punkte direkt ein:
+Nicht jede Prüfung braucht Scans. Im Schritt **Papierkorrektur eintragen** tragen Sie Punkte direkt ein:
 
 - **Aufgabenweise Eingabe**: alle Schülerinnen und Schüler für eine Aufgabe, dann die nächste Aufgabe.
 - **Schülerweise Eingabe**: alle Aufgaben einer Schülerin oder eines Schülers, dann die nächste Person.

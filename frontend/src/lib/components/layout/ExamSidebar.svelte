@@ -60,7 +60,7 @@
     <ul class="m-0 flex list-none flex-col gap-0.5 p-0 px-2">
       {#each items as item (item.step)}
         <li>
-          <Tooltip text={$t(item.labelKey)} placement="right" disabled={!collapsed} wrapperClass="flex w-full">
+          <Tooltip text={item.hintKey ? $t(item.hintKey) : $t(item.labelKey)} placement="right" disabled={!collapsed && !item.hintKey} wrapperClass="flex w-full">
             <a
               href={item.href}
               aria-current={item.active ? "page" : undefined}

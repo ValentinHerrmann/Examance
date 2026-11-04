@@ -101,6 +101,7 @@
               <a
                 href={item.href}
                 aria-current={item.active ? "page" : undefined}
+                title={item.hintKey ? $t(item.hintKey) : undefined}
                 class="{row} {item.active ? 'bg-highlight text-on-highlight' : 'text-content hover:bg-surface-inset'}"
               >
                 <Icon icon={item.icon} class="w-5 text-muted" />

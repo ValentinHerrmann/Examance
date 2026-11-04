@@ -64,7 +64,7 @@ The thorough way to check detections is the **Check MC** step, which lists unsur
 
 ## Classes graded on paper {#paper}
 
-Not every exam needs scans. On the **Paper & Excel** step you enter points directly:
+Not every exam needs scans. On the **Enter paper grades** step you enter points directly:
 
 - **Exercise-first entry**: all students for one exercise, then the next exercise.
 - **Student-first entry**: all exercises of one student, then the next student.
