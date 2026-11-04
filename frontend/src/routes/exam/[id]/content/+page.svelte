@@ -302,7 +302,7 @@
   {#if !exam}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2">
+    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
       <div class="flex min-w-0 flex-col gap-4 {shownTab === 'preview' ? 'hidden xl:flex' : ''}">
         <Tabs items={tabItems} value={shownTab} label={$t("exam.content.tabsLabel")} onChange={(id) => (tab = id as typeof tab)} />
         <!-- Both panels stay mounted, so switching tabs keeps unsaved layout edits. -->
