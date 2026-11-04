@@ -224,7 +224,7 @@
   <div bind:this={containerEl} class="embed-pdf-viewer absolute inset-0 flex"></div>
   {#if src && isOverlayVisible}
     <div
-      class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar/90 px-2 py-1 text-xs font-medium text-navbar-muted shadow-md backdrop-blur-sm"
+      class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar px-2 py-1 text-xs font-medium text-navbar-muted shadow-md"
       onmouseenter={handleOverlayMouseEnter}
       onmouseleave={handleOverlayMouseLeave}
       role="toolbar"
