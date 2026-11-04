@@ -20,7 +20,7 @@ To change the header data later, edit them directly in the **Details** card on t
 
 ## The exam's steps {#steps}
 
-Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand: the number of exercises, students or scans, graded x/y, open MC checks, shared results (in red, the number of result e-mails that did not arrive). Every step page ends with a **Next: …** button that leads to the following step.
+Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand (hover it for what it counts): the number of exercises, students or scans, graded x/y, the **Print** checklist, open MC checks, shared results (in red, the number of result e-mails that did not arrive). The number before a step's name is only its place in the flow. On the exams list, every step of an exam is shown in its card and opens that step. Every step page ends with a **Next: …** button that leads to the following step.
 
 | Step | What you do there |
 |---|---|
@@ -128,11 +128,13 @@ In the exam overview, **Preview** in an expanded entry opens the last compiled P
 
 ## Print {#print}
 
-The **Print** step has two cards.
+The **Print** step has two cards and a checklist.
 
 **Exam PDFs**: **Create PDFs** typesets the exam, then **Download task sheet** and **Download solution** give you the files. Creating the PDFs also refreshes the scan template for MC detection and tells you whether it still matches the exam.
 
 **QR codes for students**: the options of the QR sticker sheet or of the exam copies with the codes printed on, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies).
+
+**What is already printed?**: a checklist you tick yourself (exam, solution, QR codes, key slips; the solution and the key slips are optional). Only you set these ticks: creating the PDFs ticks nothing, and the step's badge in the sidebar shows how many are ticked. A tick goes away only when what it was set for changes: the exam's content or layout for the exam and solution, the student list for the QR codes and key slips.
 
 Print the sheets **exactly as typeset**: no "fit to page", no scaling, no cropping. The QR sticker and the corner marks must stay readable, otherwise the scan cannot be assigned automatically and ticked boxes cannot be detected.
 

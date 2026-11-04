@@ -129,11 +129,13 @@ In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag d
 
 ## Drucken {#print}
 
-Der Schritt **Drucken** hat zwei Karten.
+Der Schritt **Drucken** hat zwei Karten und eine Checkliste.
 
 **Prüfungs-PDFs**: **PDFs erstellen** setzt die Prüfung, danach liefern **Angabe herunterladen** und **Lösung herunterladen** die Dateien. Beim Erstellen wird auch die Scan-Vorlage für die MC-Erkennung aufgefrischt, und Sie erfahren, ob sie noch zur Prüfung passt.
 
 **QR-Codes für Schüler**: die Optionen für den Aufkleberbogen oder für Prüfungsexemplare mit aufgedruckten Codes, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies).
+
+**Was ist schon gedruckt?**: eine Checkliste, die Sie selbst abhaken (Prüfung, Lösung, QR-Codes, Schlüsselzettel; Lösung und Schlüsselzettel sind optional). Nur Sie setzen diese Haken: das Erstellen der PDFs hakt nichts ab, und das Zeichen des Schritts in der Seitenleiste zeigt, wie viele abgehakt sind. Ein Haken verschwindet nur, wenn sich ändert, wofür er gesetzt wurde: Inhalt oder Layout der Prüfung bei Prüfung und Lösung, die Schülerliste bei QR-Codes und Schlüsselzetteln.
 
 Drucken Sie die Bögen **genau so, wie sie gesetzt wurden**: nicht „An Seite anpassen“, keine Skalierung, kein Beschneiden. Der QR-Aufkleber und die Eckmarken müssen lesbar bleiben, sonst lässt sich der Scan nicht automatisch zuordnen und angekreuzte Kästchen nicht erkennen.
 

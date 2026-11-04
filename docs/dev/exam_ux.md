@@ -4,7 +4,7 @@ The agreed target design for the pages under `/exam/...`, the map of today's cod
 
 ## Status
 
-All items below are done and ticked; CI and SonarCloud are green on `95c874e`. What remains is the owner's review on the preview (see the PR) and the follow-ups in the Progress notes.
+All items below are done and ticked; CI and SonarCloud were green on `95c874e`; section 9 collects the changes after the owner's reviews (the second review's are 9.4–9.14, pending CI). What remains is the owner's review on the preview (see the PR) and the follow-ups in the Progress notes.
 
 ## Hand-over protocol (read first)
 
@@ -157,8 +157,21 @@ All paths below are under `frontend/src/` unless they start with `docs/` or `fro
 - [x] **9.2** SonarCloud: 2 new issues fixed (`b4cd49d`); 0 open since.
 - [x] **9.3** Exam details inline on the Overview instead of a dialog (`95c874e`).
 
+- [x] **9.4** Exam list: every step is listed and links to its page (hover underline + chevron + tooltip), Preview is a visible button (`ExamList.svelte`).
+- [x] **9.5** Overview: hint under "Aufbewahren bis" says what the retention date deletes (`retentionHint`; backend `services/retention.py`).
+- [x] **9.6** Exam tab: preview column 3/5 from `xl`, 2/3 from `2xl`, height follows the viewport (`ExamPreviewPanel`).
+- [x] **9.7** Sidebar numbers and badges are explained: legend line, titles per badge kind (`ExamStepBadge` `step` prop, `exam.sidebar.badge.*`).
+- [x] **9.8** Hand-set ticks: `exams.step_checks` (JSON, migration 0056), `lib/exam/examChecks.ts` (stamps, `printStatus`, `mcStatus`), `examChecksState`/`examMcState` in `stores/shell.ts`; written only by `examRepository.saveStepChecks` so a stale `save()` cannot overwrite them.
+- [x] **9.9** Print checklist (`exam/PrintChecklist`): exam, solution, QR codes, key slips; compiling ticks nothing; a tick resets only when its own stamp changes (content for exam/solution, students for QR/keys).
+- [x] **9.10** MC step: the layout reads the scans (`computeMcVerificationStats`), the verify page shows `verify/McSureCheck` (open failed/unsure, sure looked at n/m, manual "sure detections checked" tick tied to the sure set's stamp).
+- [x] **9.11** Paper & Excel page title and subtitle say it is for exams graded on paper.
+- [x] **9.12** Results: unsaved grading key preview has a banner, a dot on the Statistics tab (`Tabs` item `dirty`, store `gradingKeyDirty`) and a leave confirm.
+- [x] **9.13** Results tabs: Statistics | Send to students | Archive; docs and page titles renamed.
+- [x] **9.14** Archive tab (`results/archive`): overview sheet preview and download (`renderExamSummaryPdf`), ZIP options as checkboxes (shared `ExportOptionList`, `ExportProgressBar`, `runZipExport`, `examExportOptions`).
+
 ## Progress notes
 
+- 2026-11-04: second review round done (9.4–9.14). Not run locally: Playwright and unit tests; backend test `test_exam_step_checks_stay_unless_sent_and_clear_on_empty` added, `docs/openapi.json` regenerated. Open for the owner: whether the Print checklist's optional boxes (solution, key slips) should count differently.
 - 2026-11-03: all items done; PR ready for review on the preview. Follow-ups after the owner's review: delete the hidden roster (`lib/grading/manualRoster.ts`), refresh screenshots from `docs/demo-instance/`.
 - CI fix: "Playwright (phone, routes)" failed on `/results/share` (`.app-main` 77px too wide). Cause: absolutely positioned `sr-only` header labels in the student table took `.app-main` as containing block and escaped `TableScroller`'s clipping; `TableScroller` is now `relative` (fixes every table), and the sticky send bar lost its `-mx-1`.
 - Owner request after review: the details are edited inline on the Overview (Details card = `exam/ExamDetailsForm`, `ExamMetadataEditor` `inline` mode, `beforeNavigate` guard), not in a dialog; `ExamMetadataEditDialog` and "Edit details" are gone. `ExamMetadataEditor` stays a dialog only for `/exam/new`.

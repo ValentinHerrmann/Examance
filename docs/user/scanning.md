@@ -43,7 +43,9 @@ Ticked boxes are detected automatically during the import, including withdrawn c
 
 - **a) Failed detections**: the page could not be aligned; award these points in the [grading view](./grading#multiple-choice).
 - **b) Unsure / ambiguous detections**: please look at each of them.
-- **c) All other detections**: confident ones; no action needed.
+- **c) All other detections**: confident ones. Looking at them is up to you (a random sample button helps).
+
+Above the queues, the progress shows how many failed and unsure detections are still open and how many sure ones you have looked at. Opening the page marks nothing. The step's badge shows a check once nothing is open and the sure detections are either all looked at or ticked as **Sure detections are checked**; that tick holds until new scans or a new detection change the sure detections.
 
 Open an item to see the crop of the question on the scan, the answer options as printed and the detected marks. Confirm the reading, or toggle boxes to correct it. Every confirmed or corrected question counts as **verified**.
 

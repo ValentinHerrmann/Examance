@@ -43,7 +43,9 @@ Angekreuzte Kästchen werden beim Einlesen automatisch erkannt, auch zurückgeno
 
 - **a) Fehlgeschlagene Erkennungen**: Die Seite konnte nicht ausgerichtet werden; vergeben Sie diese Punkte in der [Korrekturansicht](./grading#multiple-choice).
 - **b) Unsichere / mehrdeutige Erkennungen**: Bitte sehen Sie sich jede davon an.
-- **c) Alle übrigen Erkennungen**: sichere; kein Handeln nötig.
+- **c) Alle übrigen Erkennungen**: sichere. Ob Sie sie ansehen, entscheiden Sie (eine Stichproben-Schaltfläche hilft).
+
+Über den Listen zeigt der Stand, wie viele nicht erkannte und unsichere Erkennungen noch offen sind und wie viele sichere Sie angesehen haben. Das Öffnen der Seite hakt nichts ab. Das Zeichen des Schritts wird zum Haken, sobald nichts mehr offen ist und die sicheren Erkennungen entweder alle angesehen oder mit **Sichere Erkennungen sind geprüft** abgehakt sind; dieser Haken gilt, bis neue Scans oder eine neue Erkennung die sicheren Erkennungen ändern.
 
 Öffnen Sie einen Eintrag, sehen Sie den Ausschnitt der Frage auf dem Scan, die Antwortoptionen wie gedruckt und die erkannten Markierungen. Bestätigen Sie die Erkennung oder schalten Sie Kästchen um, um sie zu korrigieren. Jede bestätigte oder korrigierte Frage gilt als **geprüft**.
 
