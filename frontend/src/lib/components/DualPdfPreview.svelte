@@ -156,7 +156,7 @@
               {#if pane.url}
                 <PdfEmbedViewer src={pane.url} />
               {:else}
-                <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
+                <div class="flex h-full items-center justify-center p-4 text-center text-sm text-content">
                   {placeholder}
                 </div>
               {/if}
@@ -196,7 +196,7 @@
         {#if activePane.url}
           <PdfEmbedViewer src={activePane.url} />
         {:else}
-          <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
+          <div class="flex h-full items-center justify-center p-4 text-center text-sm text-content">
             {placeholder}
           </div>
         {/if}
