@@ -68,7 +68,13 @@
 </script>
 
 <PageShell width="fluid">
-  <PageHeader title={$t('stats.page.title')} />
+  <PageHeader title={$t('stats.page.title')} context={exam?.title || undefined}>
+    {#snippet actions()}
+      {#if !loadError}
+        <Button variant="outlined" severity="secondary" icon={actionIcons.download} onClick={onOpenExport}>{$t('stats.page.exportButton')}</Button>
+      {/if}
+    {/snippet}
+  </PageHeader>
   <!-- From xl the grading key sits beside the charts, which then lay out in two columns (container queries on the main column). -->
   <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">
   {#if gradingKeyPanel}<div class="min-w-0 xl:order-2">{@render gradingKeyPanel()}</div>{/if}
@@ -147,13 +153,6 @@
     <Card class="text-sm text-muted">{$t('stats.page.emptyStats')}</Card>
   {/if}
 
-  {#if !loadError}
-    <div class="mt-6">
-      <Button variant="outlined" severity="secondary" icon={actionIcons.download} onClick={onOpenExport}>
-        {$t('stats.page.exportButton')}
-      </Button>
-    </div>
-  {/if}
   </div>
   </div>
 </PageShell>

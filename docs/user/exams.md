@@ -30,8 +30,8 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 | 3 **Print** | Create the PDFs and the QR codes, see [Print](#print) |
 | 4 **Scans** | Import the scanned sheets, see [Scanning and assignment](./scanning) |
 | 5 **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
-| 6 **Grading** | Correct the submissions, see [Grading](./grading) |
-| 7 **Paper grades** | Enter points for papers graded without scanning, see [Classes graded on paper](./grading#paper) |
+| 6 **Scan grading** | Correct the submissions, see [Grading](./grading) |
+| 7 **Paper grading** | Enter points for papers graded without scanning, see [Classes graded on paper](./grading#paper) |
 | 8 **Results** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
 
 ## Overview {#overview}

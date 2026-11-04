@@ -1,7 +1,7 @@
 <script lang="ts">
   import { faArrowsRotate, faLayerGroup, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
   import { contentHref } from "#lib/utils/links";
-  import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { goto, afterNavigate } from "$app/navigation";
   import { page } from "$app/state";
   import { onMount, untrack } from "svelte";
@@ -9,7 +9,7 @@
   import { get } from "svelte/store";
   import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, EmptyState, PageHeader, PageShell, Spinner, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, EmptyState, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import {
     computeMcVerificationStats,
     mcQueue,
@@ -423,9 +423,11 @@
       <div class="p-12 text-center text-sm text-muted">{$t("scanning.verifyItem.loading")}</div>
     {/if}
   {:else}
-    <PageHeader
+    <ExamPageHeader
+      {examId}
+      step="verify"
       title={$t("scanning.verify.heading")}
-      subtitle={$t("scanning.verify.description")}
+      hint={$t("scanning.verify.description")}
       helpTopic="scanning"
     >
       {#snippet actions()}
@@ -457,7 +459,7 @@
           {loading ? $t("scanning.verify.refreshing") : $t("scanning.verify.refresh")}
         </Button>
       {/snippet}
-    </PageHeader>
+    </ExamPageHeader>
 
     {#if rerunMcMessage}
       <Alert severity="info" class="mb-6">{rerunMcMessage}</Alert>
@@ -546,5 +548,4 @@
       onCancel={() => (showRerunDialog = false)}
     />
   {/if}
-  <ExamStepFooter {examId} step="verify" />
 </PageShell>

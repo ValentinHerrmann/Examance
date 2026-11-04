@@ -1,11 +1,12 @@
 <script lang="ts">
   // Share results with students (issues #207, #212, docs/dev/result_sharing.md): a guided page in four numbered steps, then the delivery status and the active links. Options that do not fit the chosen students are muted with the reason.
   import { page } from "$app/state";
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
   import { t } from "#lib/i18n";
   import type { Locale } from "#lib/i18n/types";
-  import { Alert, Button, Card, ConfirmDialog, PageHeader, PageShell, Spinner, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, Card, ConfirmDialog, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { closeResultDeliveries, revokeAllResultShares, revokeResultShare } from "#lib/api/resultShares";
   import type { ArtemisCourse } from "#lib/api/integrations";
@@ -237,7 +238,7 @@
 {/snippet}
 
 <PageShell width="fluid">
-  <PageHeader title={$t("sharing.share.title")} subtitle={$t("sharing.share.intro")} helpTopic="stats" />
+  <ExamPageHeader {examId} step="results" title={$t("sharing.share.title")} hint={$t("sharing.share.intro")} helpTopic="stats" />
 
   <div class="flex min-w-0 flex-col gap-6">
     {#if resultsAreLocal()}

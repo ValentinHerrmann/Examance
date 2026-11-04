@@ -14,9 +14,9 @@
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import ExamPreviewPanel, { type ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import PrintPlan from "#lib/components/exam/PrintPlan.svelte";
-  import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { t, translate } from "#lib/i18n";
-  import { Alert, PageHeader, PageShell } from "#lib/components/ui";
+  import { Alert, PageShell } from "#lib/components/ui";
 
   let examId = $derived(page.params.id || "");
   let ctx = $state.raw<ExamCompileContext | null>(null);
@@ -78,7 +78,7 @@
 </script>
 
 <PageShell width="fluid">
-  <PageHeader title={$t("exam.sidebar.print")} helpTopic="examCreation" />
+  <ExamPageHeader {examId} step="print" title={$t("exam.sidebar.print")} helpTopic="examCreation" />
 
   {#if loadError}
     <Alert severity="danger" class="mb-6">{loadError}</Alert>
@@ -117,6 +117,4 @@
       </div>
     </div>
   {/if}
-
-  <ExamStepFooter {examId} step="print" />
 </PageShell>

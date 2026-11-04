@@ -1,6 +1,7 @@
 <script lang="ts">
   import { faClipboard, faPen, faUser, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, Card, PageHeader, Tabs } from "#lib/components/ui";
+  import { Alert, Button, Card, Tabs } from "#lib/components/ui";
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
@@ -119,16 +120,18 @@
 </script>
 
 <div class="flex min-w-0 flex-col gap-4">
-  <PageHeader
+  <ExamPageHeader
+    {examId}
+    step="manual"
     title={$t("grading.manual.container.title")}
-    subtitle={$t("grading.manual.container.subtitle")}
+    hint={$t("grading.manual.container.subtitle")}
   >
     {#snippet actions()}
       <Button icon={faClipboard} onClick={() => (showImportModal = true)}>
         {$t("grading.manual.container.importButton")}
       </Button>
     {/snippet}
-  </PageHeader>
+  </ExamPageHeader>
 
   <Tabs
     items={[

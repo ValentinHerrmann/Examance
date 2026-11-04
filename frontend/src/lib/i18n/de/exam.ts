@@ -51,7 +51,7 @@ export const exam = {
             loadFailed: 'Die Abgaben dieser Prüfung konnten nicht geladen werden: {message}. Die Zahlen oben fehlen deshalb; laden Sie die Seite neu.',
         },
         compileSection: {
-            heading: 'LaTeX-Prüfungskompilierung & Download',
+            heading: 'PDF-Vorschau',
             emptyHint: 'Die Prüfung hat noch keine Aufgaben. Fügen Sie über „Aufgaben hinzufügen“ welche aus der Bibliothek hinzu oder schreiben Sie eine neue.',
             description: 'Druckfertige A4-PDF-Prüfungen mit dem Schulaufgabe-Vorlagenlayout erzeugen.',
             liveTooltip: 'Kompiliert das Prüfungs-PDF und aktualisiert danach (falls MC-Aufgaben vorhanden sind) automatisch die OMR-Antwortblasen-Vorlage.',
@@ -171,7 +171,7 @@ export const exam = {
         print: 'Drucken',
         scan: 'Scans',
         verify: 'MC prüfen',
-        grade: 'Korrektur',
+        grade: 'Scankorrektur',
         manual: 'Papierkorrektur',
         manualHint: 'Punkte von auf Papier korrigierten Arbeiten eintippen oder aus Excel einfügen, ohne Scans',
         results: 'Ergebnisse',

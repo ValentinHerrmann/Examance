@@ -30,7 +30,7 @@ Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten 
 | 3 **Drucken** | PDFs und QR-Codes erstellen, siehe [Drucken](#print) |
 | 4 **Scans** | Die gescannten Bögen einlesen, siehe [Scannen und Zuordnen](./scanning) |
 | 5 **MC prüfen** | Multiple-Choice-Erkennungen prüfen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification) |
-| 6 **Korrektur** | Abgaben korrigieren, siehe [Korrigieren](./grading) |
+| 6 **Scankorrektur** | Abgaben korrigieren, siehe [Korrigieren](./grading) |
 | 7 **Papierkorrektur** | Punkte für ohne Scan korrigierte Arbeiten eintragen, siehe [Auf Papier korrigierte Klassen](./grading#paper) |
 | 8 **Ergebnisse** | Reiter **Statistik**, **An Schüler senden** und **Archivieren**, siehe [Ergebnisse und Auswertung](./results) |
 

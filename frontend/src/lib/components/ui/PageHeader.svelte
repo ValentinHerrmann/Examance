@@ -1,9 +1,10 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowLeft, faCircleInfo } from "@fortawesome/free-solid-svg-icons";
   import HelpButton from "#lib/components/help/HelpButton.svelte";
   import type { HelpTopicId } from "#lib/help/topics";
   import Icon from "./Icon.svelte";
+  import Tooltip from "./Tooltip.svelte";
 
   /** Page/section title bar. Wraps on narrow screens; never accent-coloured. */
   interface Props {
@@ -14,6 +15,10 @@
     helpTopic?: HelpTopicId | undefined;
     /** Link above the title, e.g. back to the parent list. */
     back?: { href: string; label: string } | undefined;
+    /** Muted prefix on the title's line, e.g. the exam a step page belongs to. */
+    context?: string | undefined;
+    /** An explanation shown behind an info icon instead of a subtitle line (saves a row). */
+    hint?: string | undefined;
     meta?: Snippet;
     actions?: Snippet;
   }
@@ -24,6 +29,8 @@
     level = "h1",
     helpTopic = undefined,
     back = undefined,
+    context = undefined,
+    hint = undefined,
     meta,
     actions,
   }: Props = $props();
@@ -42,9 +49,16 @@
     <div class="min-w-0 flex-1">
       <div class="flex min-w-0 items-center gap-2">
         {#if level === "h1"}
-          <h1 class="m-0 min-w-0 text-2xl font-normal break-words text-content">{title}</h1>
+          <h1 class="m-0 flex min-w-0 items-baseline gap-2 text-2xl font-normal break-words text-content">
+            {#if context}<span class="max-w-[24ch] truncate text-base text-muted" title={context}>{context}</span><span class="text-base text-muted" aria-hidden="true">/</span>{/if}<span class="min-w-0">{title}</span>
+          </h1>
         {:else}
           <h2 class="m-0 min-w-0 text-xl font-semibold break-words text-content">{title}</h2>
+        {/if}
+        {#if hint}
+          <Tooltip text={hint}>
+            <span class="inline-flex cursor-help text-muted" role="img" aria-label={hint}><Icon icon={faCircleInfo} class="text-sm" /></span>
+          </Tooltip>
         {/if}
         {#if helpTopic}
           <HelpButton topic={helpTopic} />

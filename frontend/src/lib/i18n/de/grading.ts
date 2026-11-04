@@ -125,7 +125,7 @@ export const grading = {
     },
     manual: {
         container: {
-            title: 'Auf Papier korrigiert: Punkte von Hand eintragen',
+            title: 'Papierkorrektur: Punkte von Hand eintragen',
             subtitle: 'Für Prüfungen, die Sie auf Papier korrigiert haben: Tragen Sie die Punkte pro Aufgabe selbst ein oder fügen Sie sie aus Excel ein. Scannen und Korrigieren am Bildschirm sind dafür nicht nötig.',
             importButton: 'Aus Excel importieren (Strg+V)',
             tabExerciseFirst: 'Aufgabenweise Eingabe (alle Schüler pro Aufgabe)',

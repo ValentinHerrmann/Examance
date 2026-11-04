@@ -20,10 +20,10 @@
   import ExamExercisePicker from "#lib/components/exam/ExamExercisePicker.svelte";
   import ExamPreviewPanel from "#lib/components/exam/ExamPreviewPanel.svelte";
   import ExamLayoutSettings from "#lib/components/exam/ExamLayoutSettings.svelte";
-  import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Card, ConfirmDialog, PageHeader, PageShell, Tabs } from "#lib/components/ui";
+  import { Alert, Card, ConfirmDialog, PageShell, Tabs } from "#lib/components/ui";
   import { faEye, faLayerGroup, faSliders } from "@fortawesome/free-solid-svg-icons";
 
   let examId = $derived(page.params.id || "");
@@ -284,7 +284,7 @@
 </script>
 
 <PageShell width="fluid">
-  <PageHeader title={$t("exam.sidebar.content")} helpTopic="examCreation" />
+  <ExamPageHeader {examId} step="content" title={$t("exam.sidebar.content")} helpTopic="examCreation" />
 
   {#if isLocalFallback}
     <Alert severity="warning" class="mb-6">{$t("exam.page.localFallback.banner")}</Alert>
@@ -357,8 +357,6 @@
         />
       </div>
     </div>
-
-    <ExamStepFooter {examId} step="content" />
   {/if}
 </PageShell>
 

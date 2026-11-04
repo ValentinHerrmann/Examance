@@ -115,11 +115,5 @@
 
 <!-- Size container (columns follow `@3xl:` container variants, not the viewport). The grade page fills the space above the footer; other pages grow so the main area scrolls. -->
 <div class="@container flex w-full min-w-0 flex-col {isGradeActive ? 'min-h-0 flex-1' : 'grow'}">
-  {#if exam && exam.id === examId && !isGradeActive}
-    <!-- The exam's name, as a heading at every width: the sidebar can be collapsed or absent (below `lg`), so it cannot be the one place that names the exam. -->
-    <h2 class="m-0 truncate px-4 pt-3 text-base font-semibold text-content sm:px-6" title={exam.title}>
-      {exam.title || $t("exam.nav.examFallback")}
-    </h2>
-  {/if}
   {@render children?.()}
 </div>

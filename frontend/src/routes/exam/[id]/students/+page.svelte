@@ -5,9 +5,9 @@
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { t } from "#lib/i18n";
-  import { Alert, Button, PageHeader, PageShell, Spinner, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import StudentEditDialog from "#lib/components/students/StudentEditDialog.svelte";
-  import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import RosterManager from "#lib/components/manual-grading/RosterManager.svelte";
   import StudentImport from "#lib/components/students/StudentImport.svelte";
   import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
@@ -51,11 +51,11 @@
 
 <PageShell width="fluid">
   <div class="flex min-w-0 flex-col gap-6">
-    <PageHeader title={$t("exam.sidebar.students")} subtitle={$t("lms.students.intro")}>
+    <ExamPageHeader {examId} step="students" title={$t("exam.sidebar.students")} hint={$t("lms.students.intro")}>
       {#snippet actions()}
         <Button icon={actionIcons.add} disabled={loading || !!error} onClick={() => (adding = true)}>{$t("lms.students.add.action")}</Button>
       {/snippet}
-    </PageHeader>
+    </ExamPageHeader>
 
     {#if error}
       <Alert severity="danger">{error}</Alert>
@@ -69,7 +69,6 @@
       </div>
     {/if}
   </div>
-  <ExamStepFooter {examId} step="students" />
 </PageShell>
 
 {#if adding}

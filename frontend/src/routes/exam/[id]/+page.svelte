@@ -22,9 +22,9 @@
   import { fmt } from "#lib/utils/format";
   import ExamDetailsForm from "#lib/components/exam/ExamDetailsForm.svelte";
   import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
-  import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { t, translate, type TranslationKey } from "#lib/i18n";
-  import { Alert, Button, Card, ConfirmDialog, Menu, MenuItem, PageHeader, PageShell, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, Card, ConfirmDialog, Menu, MenuItem, PageShell, actionIcons } from "#lib/components/ui";
 
   let examId = $derived(page.params.id || "");
 
@@ -162,7 +162,7 @@
 </script>
 
 <PageShell width="fluid">
-  <PageHeader title={$t("exam.sidebar.overview")} subtitle={subtitle || undefined}>
+  <ExamPageHeader {examId} step="overview" title={$t("exam.sidebar.overview")} hint={subtitle || undefined} next={false}>
     {#snippet actions()}
       {#if exam}
         <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.export} onClick={() => (exportOpen = true)}>
@@ -186,9 +186,12 @@
             </MenuItem>
           {/snippet}
         </Menu>
+        {#if nextLabel}
+          <Button href={examStepHref(examId, next)} iconRight={actionIcons.next}>{$t("exam.flow.continue", { step: $t(nextLabel) })}</Button>
+        {/if}
       {/if}
     {/snippet}
-  </PageHeader>
+  </ExamPageHeader>
 
   {#if loadError}<Alert severity="danger" class="mb-6">{loadError}</Alert>{/if}
   {#if submissionsLoadError}<Alert severity="danger" class="mb-6">{submissionsLoadError}</Alert>{/if}
@@ -201,14 +204,6 @@
   {#if !exam && !loadError}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else if exam}
-    {#if nextLabel}
-      <div class="mb-6">
-        <Button href={examStepHref(examId, next)} iconRight={actionIcons.next}>
-          {$t("exam.flow.continue", { step: $t(nextLabel) })}
-        </Button>
-      </div>
-    {/if}
-
     <!-- The details are edited in place: the page has the room, a dialog would only hide them (issue #212). -->
     <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <Card title={$t("exam.overview.details")}>
@@ -234,8 +229,6 @@
         </dl>
       </Card>
     </div>
-
-    <ExamStepFooter {examId} step="overview" />
 
   {/if}
 </PageShell>

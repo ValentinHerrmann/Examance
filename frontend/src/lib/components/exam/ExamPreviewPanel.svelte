@@ -24,7 +24,8 @@
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { examReportFiles } from "#lib/layout-report/collect";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Card, actionIcons } from "#lib/components/ui";
+  import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Button, Card, Icon, Tooltip, actionIcons } from "#lib/components/ui";
 
   /** The exam's compile card (issue #212): compile, task/solution preview, layout report, compile errors and the OMR template status. Never compiles on its own: an edit only marks the shown preview as outdated (issue #197). */
   interface Props {
@@ -261,13 +262,17 @@
   />
 {/snippet}
 
-<Card title={$t("exam.page.compileSection.heading")} class={className}>
-  <p class="mb-4 text-sm text-muted">
-    {$t("exam.page.compileSection.description")}
-  </p>
-
-  <div class="flex flex-wrap items-center gap-4">
+<Card class={className}>
+  <!-- One slim row: the PDFs get the height (issue #212). -->
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div class="flex min-w-0 items-center gap-2">
+      <h2 class="m-0 text-base font-semibold text-content">{$t("exam.page.compileSection.heading")}</h2>
+      <Tooltip text={$t("exam.page.compileSection.description")}>
+        <span class="inline-flex cursor-help text-muted" role="img" aria-label={$t("exam.page.compileSection.description")}><Icon icon={faCircleInfo} class="text-sm" /></span>
+      </Tooltip>
+    </div>
     <Button
+      size="sm"
       icon={actionIcons.compile}
       onClick={handlePreviewExam}
       loading={isPreviewLoading || isPreparingOmr}
@@ -314,7 +319,7 @@
     <Alert severity="info" class="mt-3">{$t("exam.page.preview.outdated")}</Alert>
   {/if}
   {#if previewPdfUrl || previewSolutionPdfUrl}
-    <div class="mt-4">
+    <div>
       <DualPdfPreview
         {previewPdfUrl}
         {previewSolutionPdfUrl}
@@ -322,7 +327,7 @@
         bind:showLoesungPreview
         titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
         titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
-        height="max(28rem, calc(100dvh - 16rem))"
+        height="max(24rem, calc(100dvh - 15rem))"
         placeholderText={$t("exam.page.pdfPreview.placeholder")}
       >
         {#snippet footer()}{@render layoutReport()}{/snippet}

@@ -1,12 +1,13 @@
 <script lang="ts">
   // The Archive tab of Results (issue #212): the overview results sheet and all graded papers as one print PDF, each with a preview, and the rest of an exam's raw export as checkboxes.
   import { page } from "$app/state";
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
   import { get } from "svelte/store";
   import { faFileZipper } from "@fortawesome/free-solid-svg-icons";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Card, Checkbox, PageHeader, PageShell, Spinner, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, Card, Checkbox, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import ExportOptionList from "#lib/components/export/ExportOptionList.svelte";
   import ExportProgressBar from "#lib/components/export/ExportProgressBar.svelte";
@@ -151,7 +152,7 @@
 {/snippet}
 
 <PageShell width="fluid">
-  <PageHeader title={$t("exam.archive.title")} subtitle={$t("exam.archive.intro")} helpTopic="stats" />
+  <ExamPageHeader {examId} step="results" title={$t("exam.archive.title")} hint={$t("exam.archive.intro")} helpTopic="stats" />
 
   {#if loadError}
     <Alert severity="danger">{loadError}</Alert>

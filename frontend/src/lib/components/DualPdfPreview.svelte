@@ -110,29 +110,29 @@
       {#each panes as pane (pane.id)}
         <div class="{paneShell} {pane.shown ? 'min-w-0 flex-1' : 'w-10 shrink-0'}">
           {#if pane.shown}
-            <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-content">
+            <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-sunken px-2 py-0.5 text-content">
               <button
                 type="button"
                 class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate border-0 bg-transparent p-0 text-left text-content"
                 onclick={pane.toggle}
                 title={$t("editor.pdfPreview.collapse", { title: pane.title })}
               >
-                <Icon icon={pane.icon} class="text-muted" />
-                <span class="truncate text-sm font-medium">{pane.title}</span>
+                <Icon icon={pane.icon} class="text-xs text-muted" />
+                <span class="truncate text-xs font-medium text-muted">{pane.title}</span>
               </button>
-              <div class="flex shrink-0 items-center gap-2">
+              <div class="flex shrink-0 items-center gap-0.5">
                 {#if pane.url && downloadable}
                   <Button
-                    variant="outlined"
+                    variant="text"
                     severity="secondary"
                     size="sm"
+                    iconOnly
                     icon={faDownload}
                     href={pane.url}
                     download={`${pane.title}.pdf`}
+                    ariaLabel={$t("common.download")}
                     title={$t("common.download")}
-                  >
-                    {$t("common.download")}
-                  </Button>
+                  />
                 {/if}
                 <Button
                   variant="text"
