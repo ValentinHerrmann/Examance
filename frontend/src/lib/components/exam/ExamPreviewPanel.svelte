@@ -1,3 +1,12 @@
+<script lang="ts" module>
+  /** What the panel shows, for a page that builds on it (the Print step's readiness). */
+  export interface ExamPreviewStatus {
+    pdf: "none" | "current" | "stale";
+    omr: "none" | "ready" | "stale" | "checking";
+    busy: boolean;
+  }
+</script>
+
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
@@ -31,10 +40,23 @@
     layoutVersion: number;
     /** Reloads the sources into the page (they may have changed elsewhere, issue #135); the props carry the result. */
     refreshSources: () => Promise<void>;
+    /** Out: the preview's and the scan template's state. */
+    status?: ExamPreviewStatus;
     class?: string;
   }
 
-  let { exam, exercises, libraryExercises, mcGroups, examItems, loaded, layoutVersion, refreshSources, class: className = "" }: Props = $props();
+  let {
+    exam,
+    exercises,
+    libraryExercises,
+    mcGroups,
+    examItems,
+    loaded,
+    layoutVersion,
+    refreshSources,
+    status = $bindable(),
+    class: className = "",
+  }: Props = $props();
 
   let isPreviewLoading = $state(false);
   let compileNotice = $state("");
@@ -217,6 +239,15 @@
       }
       seenVersion = version;
     });
+  });
+
+  $effect.pre(() => {
+    const next: ExamPreviewStatus = {
+      pdf: !previewPdfUrl && !previewSolutionPdfUrl ? "none" : previewOutdated ? "stale" : "current",
+      omr: omrStatus,
+      busy: isPreviewLoading || isPreparingOmr,
+    };
+    untrack(() => (status = next));
   });
 </script>
 

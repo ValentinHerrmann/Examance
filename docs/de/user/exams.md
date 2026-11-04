@@ -129,13 +129,11 @@ In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag d
 
 ## Drucken {#print}
 
-Der Schritt **Drucken** hat zwei Karten und eine Checkliste.
+Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die gesetzte Prüfung, dieselbe Vorschau wie im Schritt **Prüfung**: **Live-Vorschau PDF** setzt Angabe und Lösung und frischt die Scan-Vorlage für die MC-Erkennung auf.
 
-**Prüfungs-PDFs**: **PDFs erstellen** setzt die Prüfung, danach liefern **Angabe herunterladen** und **Lösung herunterladen** die Dateien. Beim Erstellen wird auch die Scan-Vorlage für die MC-Erkennung aufgefrischt, und Sie erfahren, ob sie noch zur Prüfung passt.
+Im Druckplan wählen Sie, wie Sie drucken: **Normale Exemplare und ein QR-Aufkleberbogen** oder **Personalisierte Exemplare mit aufgedrucktem QR-Code** (ein Exemplar pro Schüler mit QR-Code, Name und persönlichem Schlüssel, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies)), und ob die **Lösung** mitgedruckt wird. **Bereit zum Drucken?** prüft von selbst, ob die Prüfung Aufgaben hat, die Schülerliste gefüllt ist, die PDFs zum aktuellen Stand passen und, bei MC-Aufgaben, die Scan-Vorlage aktuell ist.
 
-**QR-Codes für Schüler**: die Optionen für den Aufkleberbogen oder für Prüfungsexemplare mit aufgedruckten Codes, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies).
-
-**Was ist schon gedruckt?**: eine Checkliste, die Sie selbst abhaken (Prüfung, Lösung, QR-Codes, Schlüsselzettel; Lösung und Schlüsselzettel sind optional). Nur Sie setzen diese Haken: das Erstellen der PDFs hakt nichts ab, und das Zeichen des Schritts in der Seitenleiste zeigt, wie viele abgehakt sind. Ein Haken verschwindet nur, wenn sich ändert, wofür er gesetzt wurde: Inhalt oder Layout der Prüfung bei Prüfung und Lösung, die Schülerliste bei QR-Codes und Schlüsselzetteln.
+Darunter stehen genau die Druckaufträge Ihres Plans (Exemplare und Aufkleberbogen oder die personalisierten Exemplare, dazu die Lösung), jeweils mit PDF und dem Haken **gedruckt**. Nur Sie setzen die Haken, und erst, wenn die PDF des Auftrags zum aktuellen Stand existiert: bei Angabe und Lösung die aktuelle Vorschau, bei Aufklebern und personalisierten Exemplaren eine hier erstellte PDF. Ein Haken verschwindet nur, wenn sich ändert, wofür er gesetzt wurde: Inhalt oder Layout bei Angabe und Lösung, die Schülerliste beim Aufkleberbogen, beides bei personalisierten Exemplaren. Das Zeichen des Schritts in der Seitenleiste zeigt, wie viele Aufträge abgehakt sind.
 
 Drucken Sie die Bögen **genau so, wie sie gesetzt wurden**: nicht „An Seite anpassen“, keine Skalierung, kein Beschneiden. Der QR-Aufkleber und die Eckmarken müssen lesbar bleiben, sonst lässt sich der Scan nicht automatisch zuordnen und angekreuzte Kästchen nicht erkennen.
 

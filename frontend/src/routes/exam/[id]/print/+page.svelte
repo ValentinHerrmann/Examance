@@ -1,102 +1,75 @@
 <script lang="ts">
-  // The Print step (issue #212): the exam PDFs with the scan template, and the students' QR codes (stickers, onto copies, key slips).
+  // The Print step (issue #212): the print plan with its jobs and ticks beside the compiled exam (the Exam tab's compile card).
   import { page } from "$app/state";
-  import { onDestroy, untrack } from "svelte";
+  import { untrack } from "svelte";
   import { browser } from "$app/env";
   import { get } from "svelte/store";
-  import { buildExamItems, loadExamCompileContext, omrTemplateStatus, prepareOmrTemplate, type ExamCompileContext, type OmrTemplateStatus } from "#lib/grading/omrTemplatePrep";
-  import { compileExamPreview } from "#lib/exam/examPreview";
-  import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
-  import { copiesUnavailable } from "#lib/sharing/stickerEntries";
+  import { buildExamItems, loadExamCompileContext, type ExamCompileContext } from "#lib/grading/omrTemplatePrep";
+  import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
+  import { getCurrentExamPreview } from "#lib/exam/examPreview";
+  import { copiesUnavailable, loadStickerEntries } from "#lib/sharing/stickerEntries";
+  import type { StickerEntry } from "#lib/qr/stickerSheet";
+  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import { slug } from "#lib/export/zip";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
-  import PrintChecklist from "#lib/components/exam/PrintChecklist.svelte";
-  import StickerSheetForm from "#lib/components/sharing/StickerSheetForm.svelte";
+  import ExamPreviewPanel, { type ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
+  import PrintPlan from "#lib/components/exam/PrintPlan.svelte";
   import ExamStepFooter from "#lib/components/exam/ExamStepFooter.svelte";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Card, PageHeader, PageShell, actionIcons } from "#lib/components/ui";
+  import { Alert, PageHeader, PageShell } from "#lib/components/ui";
 
   let examId = $derived(page.params.id || "");
   let ctx = $state.raw<ExamCompileContext | null>(null);
   let loadError = $state("");
-  let omr = $state<OmrTemplateStatus | "checking">("checking");
-  let busy = $state(false);
-  let progress = $state("");
-  let error = $state("");
-  let taskUrl: string | null = $state(null);
-  let solutionUrl: string | null = $state(null);
+  let entries = $state.raw<StickerEntry[] | null>(null);
+  let entriesError = $state("");
+  let preview = $state<ExamPreviewStatus | undefined>(undefined);
 
   const key = () => get(sessionStore).sessionKey;
-  const withItems = (c: ExamCompileContext) => ({ ...c, examItems: buildExamItems(c.exercises, c.mcGroups) });
-  let title = $derived(ctx?.exam.title || $t("exam.nav.examFallback"));
+  let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
   let withheld = $derived(ctx ? copiesUnavailable(ctx.exercises) : null);
+  let hasMc = $derived(ctx ? resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups).length > 0 : false);
+  let title = $derived(ctx?.exam.title || $t("exam.nav.examFallback"));
 
   async function load(id: string) {
     await awaitSessionReady();
     loadError = "";
     try {
       ctx = await loadExamCompileContext(id, key());
-      if (!ctx) {
-        loadError = translate("exam.page.examNotFoundOrDeleted");
-        return;
-      }
-      omr = await omrTemplateStatus(withItems(ctx), key());
+      if (!ctx) loadError = translate("exam.page.examNotFoundOrDeleted");
     } catch (err) {
       loadError = err instanceof Error ? err.message : String(err);
-      omr = "none";
     }
-  }
-
-  function revoke() {
-    if (taskUrl) URL.revokeObjectURL(taskUrl);
-    if (solutionUrl) URL.revokeObjectURL(solutionUrl);
-    taskUrl = solutionUrl = null;
-  }
-
-  /** Compiles from freshly read sources (the compile cache makes a repeat free) and refreshes the scan template, as the Exam page's compile does. */
-  async function compile(): Promise<Uint8Array | null> {
-    const fresh = await loadExamCompileContext(examId, key());
-    if (!fresh) throw new Error(translate("exam.page.examNotFoundOrDeleted"));
-    ctx = fresh;
-    const res = await compileExamPreview({
-      ...withItems(fresh),
-      key: key(),
-      onStatus: (status) => {
-        if (status === "downloading") progress = translate("exam.page.preview.loadingCompiler");
-        else if (status === "compiling") progress = translate("exam.page.preview.compiling");
-      },
-    });
-    revoke();
-    taskUrl = pdfBytesToUrl(res.angabe.pdfBytes);
-    solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);
-    if (fresh.exercises.length > 0) {
-      const result = await prepareOmrTemplate({ examId, ...withItems(fresh), key: key(), onProgress: (msg) => (progress = msg) });
-      omr = result.status;
-      if (result.status === "stale") error = result.message;
-    }
-    return res.angabe.pdfBytes;
-  }
-
-  async function createPdfs() {
-    busy = true;
-    error = "";
     try {
-      await compile();
+      entries = await loadStickerEntries(id, key());
     } catch (err) {
-      error = translate("exam.print.failed", { message: err instanceof Error ? err.message : String(err) });
-    } finally {
-      busy = false;
-      progress = "";
+      // A failed read is reported, never shown as "no students yet".
+      entriesError = err instanceof Error ? err.message : String(err);
     }
   }
 
-  /** The printable student sheet for personalised copies (issue #211). */
-  async function studentSheetPdf(): Promise<Uint8Array> {
-    const pdf = await compile();
-    if (!pdf) throw new Error(translate("exam.page.examNotFoundOrDeleted"));
-    return pdf;
+  /** The compile card reloads the sources before compiling (they may have changed in another tab). */
+  async function refreshSources() {
+    const fresh = await loadExamCompileContext(examId, key());
+    if (fresh) ctx = fresh;
   }
 
-  onDestroy(revoke);
+  /** The current compiled sheets; the job rows only offer them while the preview is current. */
+  async function currentPdfs() {
+    if (!ctx) throw new Error(translate("exam.page.examNotFoundOrDeleted"));
+    const cached = await getCurrentExamPreview({ ...ctx, examItems, key: key() });
+    if (!cached || cached === "stale") throw new Error(translate("exam.print.ready.pdfStale"));
+    return cached;
+  }
+
+  const loadExamPdf = async () => (await currentPdfs()).angabe.pdfBytes;
+
+  async function downloadPdf(variant: "angabe" | "loesung") {
+    const pdfs = await currentPdfs();
+    const bytes = variant === "angabe" ? pdfs.angabe.pdfBytes : pdfs.loesung.pdfBytes;
+    const suffix = variant === "angabe" ? "" : `_${slug($t("exam.page.pdfPreview.titleLoesung"))}`;
+    downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${slug(title)}${suffix}.pdf`);
+  }
 
   $effect.pre(() => {
     const id = examId;
@@ -104,7 +77,7 @@
   });
 </script>
 
-<PageShell width="wide">
+<PageShell width="fluid">
   <PageHeader title={$t("exam.sidebar.print")} helpTopic="examCreation" />
 
   {#if loadError}
@@ -112,40 +85,36 @@
   {:else if !ctx}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-2">
-      <Card title={$t("exam.print.pdfsTitle")}>
-        <p class="mt-0 mb-4 text-sm text-muted">{$t("exam.print.pdfsIntro")}</p>
+    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <PrintPlan
+        {examId}
+        examTitle={ctx.exam.title ?? ""}
+        exerciseCount={ctx.exercises.length}
+        {entries}
+        {entriesError}
+        {preview}
+        {hasMc}
+        copiesUnavailable={withheld}
+        {loadExamPdf}
+        {downloadPdf}
+      />
+      <div class="min-w-0 xl:sticky xl:top-4">
         {#if withheld}
           <Alert severity="info" title={$t("exam.resultsOnly.badge")}>{$t("exam.resultsOnly.noCompile")}</Alert>
-        {:else if ctx.exercises.length === 0}
-          <p class="m-0 text-sm text-muted">{$t("exam.page.compileSection.emptyHint")}</p>
         {:else}
-          <div class="flex flex-wrap items-center gap-2">
-            <Button icon={actionIcons.compile} loading={busy} disabled={busy} onClick={createPdfs}>{$t("exam.print.preparePdfs")}</Button>
-            {#if taskUrl}
-              <Button variant="outlined" severity="secondary" icon={actionIcons.download} href={taskUrl} download={`${title}.pdf`}>{$t("exam.print.downloadTask")}</Button>
-            {/if}
-            {#if solutionUrl}
-              <Button variant="outlined" severity="secondary" icon={actionIcons.download} href={solutionUrl} download={`${title} – ${$t("exam.page.pdfPreview.titleLoesung")}.pdf`}>{$t("exam.print.downloadSolution")}</Button>
-            {/if}
-          </div>
-          {#if progress}<p class="mt-3 mb-0 text-sm text-muted" role="status">{progress}</p>{/if}
-          {#if omr === "ready"}
-            <Alert severity="success" class="mt-4">{$t("exam.print.omrReady")}</Alert>
-          {:else if omr === "stale"}
-            <Alert severity="warning" class="mt-4">{$t("exam.page.omr.staleWarning")}</Alert>
-          {:else if omr === "none"}
-            <Alert severity="info" class="mt-4">{$t("exam.print.omrNone")}</Alert>
-          {/if}
+          <ExamPreviewPanel
+            exam={ctx.exam}
+            exercises={ctx.exercises}
+            libraryExercises={ctx.libraryExercises}
+            mcGroups={ctx.mcGroups}
+            {examItems}
+            loaded
+            layoutVersion={0}
+            {refreshSources}
+            bind:status={preview}
+          />
         {/if}
-        {#if error}<Alert severity="danger" class="mt-4">{error}</Alert>{/if}
-      </Card>
-
-      <Card title={$t("exam.print.qrTitle")}>
-        <p class="mt-0 mb-4 text-sm text-muted">{$t("exam.print.qrIntro")}</p>
-        <StickerSheetForm {examId} examTitle={ctx.exam.title} loadExamPdf={studentSheetPdf} copiesUnavailable={withheld} />
-      </Card>
-      <div class="min-w-0 lg:col-span-2"><PrintChecklist {examId} /></div>
+      </div>
     </div>
   {/if}
 

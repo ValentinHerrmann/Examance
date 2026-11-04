@@ -17,6 +17,7 @@
   const badgeKeys: Partial<Record<ExamStep, TranslationKey>> = {
     content: "exam.sidebar.badge.content",
     students: "exam.sidebar.badge.students",
+    print: "exam.sidebar.badge.print",
     scan: "exam.sidebar.badge.scan",
     verify: "exam.sidebar.badge.verify",
     grade: "exam.sidebar.badge.grade",

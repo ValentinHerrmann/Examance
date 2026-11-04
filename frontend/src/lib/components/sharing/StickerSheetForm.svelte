@@ -24,11 +24,25 @@
     copiesUnavailable?: string | null;
     /** True while a PDF is being made; a dialog keeps itself open meanwhile. */
     busy?: boolean;
-    /** A PDF was handed to the browser. */
-    onDone?: () => void;
+    /** Fixes the output (the Print step's job rows): no choice shown, and the student count line is left to the page. */
+    output?: "stickers" | "copies";
+    /** The students, when the page already read them (else the form reads them). */
+    entries?: StickerEntry[];
+    /** A PDF was handed to the browser: which kind. */
+    onDone?: (kind: "stickers" | "copies" | "keys") => void;
   }
 
-  let { examId, examTitle = "", keysOnly: startKeysOnly = false, loadExamPdf, copiesUnavailable = null, busy = $bindable(false), onDone }: Props = $props();
+  let {
+    examId,
+    examTitle = "",
+    keysOnly: startKeysOnly = false,
+    loadExamPdf,
+    copiesUnavailable = null,
+    busy = $bindable(false),
+    output: fixedOutput,
+    entries,
+    onDone,
+  }: Props = $props();
 
   // The starting choice only; the form owns it from then on.
   const initialKeysOnly = untrack(() => startKeysOnly);
@@ -39,7 +53,8 @@
   let skip = $state("0");
   let keys = $state(true);
   let keysOnly = $state(initialKeysOnly);
-  let output = $state<"stickers" | "copies">("stickers");
+  let chosenOutput = $state<"stickers" | "copies">("stickers");
+  let output = $derived(fixedOutput ?? chosenOutput);
   let progress = $state("");
   let copiesMode = $derived(output === "copies" && !copiesUnavailable);
   // Key slips alone print on plain paper: no labels, so no copies or used cells.
@@ -47,6 +62,10 @@
   let error = $state("");
 
   onMount(async () => {
+    if (entries) {
+      loading = false;
+      return;
+    }
     try {
       await awaitSessionReady();
       examEntries = await loadStickerEntries(examId, get(sessionStore).sessionKey);
@@ -64,26 +83,26 @@
     busy = true;
     error = "";
     try {
-      const entries = examEntries;
-      if (!entries.length) {
+      const list = entries ?? examEntries;
+      if (!list.length) {
         error = $t("sharing.stickers.empty");
         return;
       }
       if (copiesMode && loadExamPdf) {
         progress = $t("sharing.stickers.compiling");
-        const pdf = await renderExamCopies(await loadExamPdf(), entries, { examTitle });
+        const pdf = await renderExamCopies(await loadExamPdf(), list, { examTitle });
         downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(examTitle || $t("sharing.stickers.copiesTitle"))}_copies.pdf`);
-        onDone?.();
+        onDone?.("copies");
         return;
       }
-      const pdf = await renderStickerSheet(entries, {
+      const pdf = await renderStickerSheet(list, {
         copies: clamp(copies, 1, 10),
         skip: clamp(skip, 0, STICKER_GRID.cols * STICKER_GRID.rows - 1),
         keys,
         keysOnly: onlyKeys,
       });
       downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(examTitle || $t("sharing.stickers.pdfTitle"))}${onlyKeys ? "_keys" : "_qr"}.pdf`);
-      onDone?.();
+      onDone?.(onlyKeys ? "keys" : "stickers");
     } catch (err) {
       error = `${$t("sharing.errors.stickers")} ${err instanceof Error ? err.message : ""}`.trim();
     } finally {
@@ -94,22 +113,23 @@
 </script>
 
 <div class="flex flex-col gap-5">
-  {#if loadExamPdf && !initialKeysOnly}
+  {#if loadExamPdf && !initialKeysOnly && !fixedOutput}
     <fieldset class="flex flex-col gap-2" disabled={busy}>
       <legend class="mb-2 text-sm text-muted">{$t("sharing.stickers.output")}</legend>
-      <Radio group={output} value="stickers" name="sticker-output" onchange={() => (output = "stickers")} label={$t("sharing.stickers.outputStickers")} />
+      <Radio group={output} value="stickers" name="sticker-output" onchange={() => (chosenOutput = "stickers")} label={$t("sharing.stickers.outputStickers")} />
       <Radio
         group={output}
         value="copies"
         name="sticker-output"
         disabled={!!copiesUnavailable}
-        onchange={() => (output = "copies")}
+        onchange={() => (chosenOutput = "copies")}
         label={$t("sharing.stickers.outputCopies")}
       />
       {#if copiesUnavailable}<p class="ml-7 text-sm text-muted">{copiesUnavailable}</p>{/if}
     </fieldset>
   {/if}
 
+  {#if !fixedOutput}
   <p class="m-0 text-sm text-muted">{copiesMode ? $t("sharing.stickers.copiesIntro") : $t("sharing.stickers.intro")}</p>
 
   <!-- Student data is entered only on the Students page; this form prints what is there. -->
@@ -125,6 +145,9 @@
     {/if}
     <Button size="sm" variant="text" icon={actionIcons.edit} href={studentsHref(examId)}>{$t("lms.students.manage")}</Button>
   </div>
+  {:else if loadError}
+    <Alert severity="danger">{loadError}</Alert>
+  {/if}
 
   {#if copiesMode}
     <p class="m-0 text-sm text-muted">{$t("sharing.stickers.copiesPrintHint")}</p>
@@ -158,6 +181,6 @@
 
   <div class="flex flex-wrap items-center justify-end gap-2">
     {#if progress}<span class="text-sm text-muted" role="status">{progress}</span>{/if}
-    <Button icon={actionIcons.qr} loading={busy} disabled={busy || !!loadError || loading} onClick={download}>{$t("sharing.stickers.download")}</Button>
+    <Button icon={actionIcons.qr} loading={busy} disabled={busy || !!loadError || loading || (fixedOutput !== undefined && !(entries ?? examEntries).length)} onClick={download}>{$t("sharing.stickers.download")}</Button>
   </div>
 </div>
