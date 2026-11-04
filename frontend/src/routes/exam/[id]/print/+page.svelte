@@ -98,7 +98,7 @@
         {loadExamPdf}
         {downloadPdf}
       />
-      <div class="min-w-0 xl:sticky xl:top-4">
+      <div class="min-w-0 2xl:sticky 2xl:top-4">
         {#if withheld}
           <Alert severity="info" title={$t("exam.resultsOnly.badge")}>{$t("exam.resultsOnly.noCompile")}</Alert>
         {:else}

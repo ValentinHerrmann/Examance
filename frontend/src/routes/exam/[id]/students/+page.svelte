@@ -49,7 +49,7 @@
   });
 </script>
 
-<PageShell width="wide">
+<PageShell width="fluid">
   <div class="flex min-w-0 flex-col gap-6">
     <PageHeader title={$t("exam.sidebar.students")} subtitle={$t("lms.students.intro")}>
       {#snippet actions()}
@@ -62,8 +62,11 @@
     {:else if loading}
       <div class="flex items-center gap-2 text-sm text-muted"><Spinner />{$t("sharing.share.loading")}</div>
     {:else}
-      <StudentImport {examId} {students} onImported={load} />
-      <RosterManager {examId} {students} {submissions} listMode onRosterChanged={load} />
+      <!-- From xl the import sits beside the list instead of pushing it down. -->
+      <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
+        <div class="min-w-0 xl:order-2"><StudentImport {examId} {students} onImported={load} /></div>
+        <div class="min-w-0 xl:order-1"><RosterManager {examId} {students} {submissions} listMode onRosterChanged={load} /></div>
+      </div>
     {/if}
   </div>
   <ExamStepFooter {examId} step="students" />

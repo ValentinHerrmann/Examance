@@ -135,19 +135,19 @@
       {@const changed = !!stamps && printCheckChanged(cs?.checks, job, stamps)}
       {@const canTick = valid || made(job)}
       <li class="min-w-0 rounded-xl border border-line bg-surface-raised p-4 {valid ? 'border-success' : ''}">
-        <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-          <div class="min-w-0">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0 flex-1">
             <h3 class="m-0 text-base font-semibold"><span class="me-1.5 text-muted tabular-nums">{i + 1}.</span>{$t(`exam.print.job.${job}`)}</h3>
             <p class="m-0 mt-0.5 text-sm text-muted">
               {#if job === "exam"}{studentCount > 0 ? $t("exam.print.job.examHint", { count: studentCount }) : $t("exam.print.job.examHintNoCount")}{:else}{$t(`exam.print.job.${job}Hint`)}{/if}
             </p>
           </div>
-          <div class="flex flex-col items-end gap-1">
+          <div class="flex shrink-0 flex-col items-end gap-1 text-end">
             <Checkbox checked={valid} disabled={busy || !stamps || !canTick} onChange={(on) => tick(job, on)} label={$t("exam.print.job.printed")} />
             {#if valid}
               <Badge size="xs" severity="success">{$t("exam.print.job.printedAt", { date: $fmt.date(cs?.checks.print?.[job]?.at ?? "") })}</Badge>
             {:else if !canTick}
-              <span class="text-xs text-muted">{changed ? $t("exam.print.job.needsFresh") : $t("exam.print.job.needsPdf")}</span>
+              <span class="max-w-48 text-xs text-muted">{changed ? $t("exam.print.job.needsFresh") : $t("exam.print.job.needsPdf")}</span>
             {/if}
           </div>
         </div>

@@ -52,7 +52,7 @@ In der noch leeren Prüfungsübersicht legt **Beispieldaten hinzufügen** Beispi
 ## Sich zurechtfinden {#navigation}
 
 - Die **Navigationsleiste** führt zu den Prüfungen (Startseite), zur Aufgabenbibliothek, zur Auswertung, zu den Einstellungen und zum Hilfebereich. Dort lassen sich auch Sprache und Farbschema umschalten.
-- Jede Prüfung hat eigene nummerierte Schritte in einer Seitenleiste (auf dem Handy: dem Menü), jeweils mit einem Status-Abzeichen: **Prüfung**, **Schüler**, **Drucken**, **Scans**, **MC prüfen**, **Korrektur**, **Papierkorrektur eintragen**, **Ergebnisse**; darüber zeigt die **Übersicht** die Angaben der Prüfung. Jeder Schritt endet mit einer Schaltfläche **Weiter: …**. Siehe [Die Schritte einer Prüfung](./exams#steps).
+- Jede Prüfung hat eigene nummerierte Schritte in einer Seitenleiste (auf dem Handy: dem Menü), jeweils mit einem Status-Abzeichen: **Prüfung**, **Schüler**, **Drucken**, **Scans**, **MC prüfen**, **Korrektur**, **Papierkorrektur**, **Ergebnisse**; darüber zeigt die **Übersicht** die Angaben der Prüfung. Jeder Schritt endet mit einer Schaltfläche **Weiter: …**. Siehe [Die Schritte einer Prüfung](./exams#steps).
 - **Viele Namen sind anklickbar.** Aufgaben öffnen sich überall direkt im Editor (im Schritt **Prüfung**, beim Korrigieren, in der Auswertung); Prüfungen in der Bibliothek öffnen sich als Übersicht mit **In neuem Tab öffnen**. Namen mit dem Symbol **↗**, etwa Schülerinnen und Schüler, öffnen sich in einem neuen Tab, damit ungespeicherte Arbeit im aktuellen Tab erhalten bleibt.
 - Das **Arbeitsbereich-Menü** enthält Import, Sicherung und Export Ihres gesamten Arbeitsbereichs.
 

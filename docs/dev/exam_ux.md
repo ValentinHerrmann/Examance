@@ -31,10 +31,10 @@ All items below are done and ticked; CI and SonarCloud were green on `95c874e`; 
 | 4 | Scans | `/exam/[id]/scan` | submission count |
 | 5 | MC prüfen / Check MC | `/exam/[id]/verify` | failed + unsure count, only once the verify page computed it in this session |
 | 6 | Korrektur / Grading | `/exam/[id]/grade` | graded/submissions, e.g. "12/27" |
-| 7 | Enter paper grades (was "Paper & Excel") | `/exam/[id]/manual` | – |
+| 7 | Paper grades (was "Paper & Excel") | `/exam/[id]/manual` | – |
 | 8 | Ergebnisse / Results | `/exam/[id]/results` (Statistics), `/exam/[id]/results/share` (Share) | active share count; red "n not reached" only with feature `result_delivery` |
 
-A failed read leaves its badge out, never shows 0. "Next" of a step is simply the following row; Enter paper grades' next is Results; Results has none.
+A failed read leaves its badge out, never shows 0. "Next" of a step is simply the following row; Paper grades' next is Results; Results has none.
 
 **Overview** (`/exam/[id]`): header with the exam title and one metadata line (testart, class via `formatExamCourse(grade, klasse)` from `lib/utils/examLabel`, subject `fach`, date `datum`). Header actions: "Export" (opens `ExamExportModal`) as `Button`s with icons, and a ⋯ `ui/Menu` with Duplicate, Delete all submissions, Delete exam (both deletes through `ui/ConfirmDialog`, never native `confirm()`/`alert()`). Cards: "Details" (the metadata form in place, incl. teacher `lehrernachname`, topic, retention `retentionUntil`; changed after review: no dialog) and "Key figures" (total points, exercises, students, scans, graded, average, grading key name). A primary button "Continue: ‹next unfinished step›" (from `examProgress`). No list of step links: that would duplicate the sidebar again. Keep the existing alerts (local fallback, results-only, submissions load error).
 
@@ -170,13 +170,15 @@ All paths below are under `frontend/src/` unless they start with `docs/` or `fro
 - [x] **9.14** Archive tab (`results/archive`): overview sheet preview and download (`renderExamSummaryPdf`), ZIP options as checkboxes (shared `ExportOptionList`, `ExportProgressBar`, `runZipExport`, `examExportOptions`).
 
 ### 10. Third review round
-- [x] **10.1** Step 7 is "Enter paper grades" / "Papierkorrektur eintragen" with a hover hint (`EXAM_STEPS` `hintKey`, `exam.sidebar.manualHint`).
+- [x] **10.1** Step 7 is "Paper grades" / "Papierkorrektur" (the first try "Enter paper grades" was truncated in the sidebar) with a hover hint (`EXAM_STEPS` `hintKey`, `exam.sidebar.manualHint`).
 - [x] **10.2** MC step: the teacher chooses how sure detections are checked (`step_checks.mc.mode`: all, samples 5–30 %, none; `mcSureTarget`), "mark all sure as reviewed" with an exact undo (`lib/grading/mcBulkReview.ts`: rows share one `reviewedAt`, recorded in `step_checks.mc.bulk`; the old "reset all reviews" uses the same module). Verify page: queues left, check card and detection settings right from `xl`, calibration stats below.
 - [x] **10.3** Archive: all graded papers as one print PDF, sorted by name, optional padding for two-sided printing (`renderCombinedGradedPdf`, ZIP part `gradedCombined`; one render pass feeds both graded parts; writes the export audit entry). Archive tab is fluid: overview sheet | print PDF | ZIP from `2xl`.
 - [x] **10.4** Print step rebuilt as a print plan (`exam/PrintPlan`, replaces `PrintChecklist`): mode (stickers + plain copies, or personalised copies) and solution in `step_checks.printPlan`; jobs from `printJobs()`; automatic readiness (exercises, students, preview current, scan template); a job's tick is offered only once its PDF exists for the current stamp (preview current for exam/solution, `step_checks.printMade` for stickers/copies); compile and preview through `ExamPreviewPanel` (new bindable `status`), the page's own compile code is gone; `StickerSheetForm` got `output`, `entries` and `onDone(kind)`.
+- [x] **10.5** Width pass: Print, Students, Send to students, Archive and Statistics are `fluid`; side columns from `xl` (Students: import beside the list; Send: list left, channel/options/send right; Statistics: grading key beside the charts, whose `@container` queries now apply, so charts and key figures go two-up); `layout.spec.ts` checks the width ratio on these pages too. Sticky only where the column fits the screen (`2xl` on Print).
 
 ## Progress notes
 
+- 2026-11-04: third review round (10.1–10.5). Checked with screenshots at 1920×1080 and 1536×730 (local `@screens` run with the system Chromium); unit tests and the other specs not run.
 - 2026-11-04: second review round done (9.4–9.14). Not run locally: Playwright and unit tests; backend test `test_exam_step_checks_stay_unless_sent_and_clear_on_empty` added, `docs/openapi.json` regenerated. Open for the owner: whether the Print checklist's optional boxes (solution, key slips) should count differently.
 - 2026-11-03: all items done; PR ready for review on the preview. Follow-ups after the owner's review: delete the hidden roster (`lib/grading/manualRoster.ts`), refresh screenshots from `docs/demo-instance/`.
 - CI fix: "Playwright (phone, routes)" failed on `/results/share` (`.app-main` 77px too wide). Cause: absolutely positioned `sr-only` header labels in the student table took `.app-main` as containing block and escaped `TableScroller`'s clipping; `TableScroller` is now `relative` (fixes every table), and the sticky send bar lost its `-mx-1`.

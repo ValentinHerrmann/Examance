@@ -31,7 +31,7 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 | 4 **Scans** | Import the scanned sheets, see [Scanning and assignment](./scanning) |
 | 5 **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
 | 6 **Grading** | Correct the submissions, see [Grading](./grading) |
-| 7 **Enter paper grades** | Enter points for papers graded without scanning, see [Classes graded on paper](./grading#paper) |
+| 7 **Paper grades** | Enter points for papers graded without scanning, see [Classes graded on paper](./grading#paper) |
 | 8 **Results** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
 
 ## Overview {#overview}

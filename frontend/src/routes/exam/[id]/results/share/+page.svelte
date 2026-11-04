@@ -236,7 +236,7 @@
   </span>
 {/snippet}
 
-<PageShell width="wide">
+<PageShell width="fluid">
   <PageHeader title={$t("sharing.share.title")} subtitle={$t("sharing.share.intro")} helpTopic="stats" />
 
   <div class="flex min-w-0 flex-col gap-6">
@@ -292,6 +292,9 @@
     {#if loading && !overview}
       <div class="flex items-center gap-2 text-sm text-muted"><Spinner />{$t("sharing.share.loading")}</div>
     {:else if overview}
+      <!-- From xl the student list is on the left, channel, options and send on the right. -->
+      <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
+        <div class="min-w-0">
       <Card>
         <h2 class="mt-0 mb-4 text-base font-semibold">{@render step(1, $t("sharing.share.students"))}</h2>
         <ShareStudents
@@ -304,6 +307,8 @@
         />
       </Card>
 
+        </div>
+        <div class="flex min-w-0 flex-col gap-6">
       <Card>
         <h2 class="mt-0 mb-4 text-base font-semibold">{@render step(2, $t("sharing.share.channel"))}</h2>
         <ShareChannel
@@ -339,7 +344,7 @@
       </Card>
 
       <!-- Step 4 stays in view while scrolling through the steps above. -->
-      <div class="sticky bottom-0 z-[1] rounded-xl border border-line bg-surface-raised p-4 shadow-sm">
+      <div class="sticky bottom-0 z-[1] rounded-xl xl:static border border-line bg-surface-raised p-4 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="m-0 text-base font-semibold">{@render step(4, $t("sharing.page.send"))}</h2>
           <Button icon={sendsMessage ? actionIcons.send : actionIcons.share} loading={running} disabled={!canRun} onClick={run}>
@@ -364,6 +369,8 @@
         {/if}
       </div>
 
+        </div>
+      </div>
       <div class="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
         <span class="text-sm text-muted">{$t("sharing.share.active")}: {activeShares || $t("sharing.share.activeNone")}</span>
         {#if activeShares}

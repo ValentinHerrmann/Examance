@@ -67,9 +67,12 @@
   let full = $derived(stats?.results.filter((r) => r.isComplete).length ?? 0);
 </script>
 
-<PageShell width="full">
+<PageShell width="fluid">
   <PageHeader title={$t('stats.page.title')} />
-  {#if gradingKeyPanel}<div class="mb-6">{@render gradingKeyPanel()}</div>{/if}
+  <!-- From xl the grading key sits beside the charts, which then lay out in two columns (container queries on the main column). -->
+  <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">
+  {#if gradingKeyPanel}<div class="min-w-0 xl:order-2">{@render gradingKeyPanel()}</div>{/if}
+  <div class="@container min-w-0 xl:order-1">
 
   {#if submissionCount > 0}
     <div class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
@@ -151,6 +154,8 @@
       </Button>
     </div>
   {/if}
+  </div>
+  </div>
 </PageShell>
 
 <ConfirmDialog

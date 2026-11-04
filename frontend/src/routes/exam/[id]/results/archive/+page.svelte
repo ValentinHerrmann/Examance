@@ -176,7 +176,7 @@
         <Checkbox class="mb-4" bind:checked={duplex} disabled={gradedBusy} label={$t("exam.archive.gradedDuplex")} />
         {#if gradedError}<Alert severity="danger" class="mb-4">{gradedError}</Alert>{/if}
         {#if gradedBusy}<ExportProgressBar class="mb-3" step={$t("exam.archive.gradedBusy")} fraction={gradedFraction} />{/if}
-        {@render pdfPane(gradedBusy, $t("exam.archive.gradedBusy"), gradedUrl, gradedNone ? $t("exam.archive.gradedNone") : "")}
+        {@render pdfPane(gradedBusy, $t("exam.archive.gradedBusy"), gradedUrl, gradedNone ? $t("exam.archive.gradedNone") : $t("exam.archive.gradedEmpty"))}
         {#if gradedWarnings.length}
           <Alert severity="warning" class="mt-4" title={$t("export.dialog.doneWithWarnings")}>
             <ul class="list-disc pl-5">{#each gradedWarnings as w}<li>{w}</li>{/each}</ul>
