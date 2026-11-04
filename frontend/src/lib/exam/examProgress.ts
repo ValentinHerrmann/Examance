@@ -16,7 +16,8 @@ export interface ExamProgressInput {
     studentCount?: number;
     submissionCount?: number;
     gradedCount?: number;
-    omrReady?: boolean;
+    /** The hand-set print checklist (`printStatus`); compiling never sets it. */
+    print?: StepStatus;
     mcOpen?: number;
     sharedCount?: number;
     notReached?: number;
@@ -27,7 +28,7 @@ export function examProgress(input: ExamProgressInput): ExamProgress {
     const p: ExamProgress = {};
     if (input.exerciseCount !== undefined) p.content = { count: input.exerciseCount, done: input.exerciseCount > 0 };
     if (input.studentCount !== undefined) p.students = { count: input.studentCount, done: input.studentCount > 0 };
-    if (input.omrReady !== undefined) p.print = { done: input.omrReady };
+    if (input.print !== undefined) p.print = input.print;
     if (input.submissionCount !== undefined) p.scan = { count: input.submissionCount, done: input.submissionCount > 0 };
     if (input.mcOpen !== undefined) p.verify = { count: input.mcOpen, done: input.mcOpen === 0 };
     if (input.gradedCount !== undefined && input.submissionCount !== undefined) {

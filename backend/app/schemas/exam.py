@@ -213,6 +213,7 @@ class ExamCreate(BaseModel):
     name_line: bool = False
     mc_correction_hint: bool = False
     extra_notes: ExtraNotes | None = None
+    step_checks: dict[str, Any] | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
     pseudonym_version: PseudonymVersion = 1
     exercise_ids: list[uuid.UUID] = []
@@ -259,6 +260,8 @@ class ExamUpdate(BaseModel):
     mc_correction_hint: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
+    # Absent keeps the stored ticks; null or {} clears them.
+    step_checks: dict[str, Any] | None = None
     exercise_ids: list[uuid.UUID] | None = None
     exercise_links: list[ExerciseLinkCreate] | None = None
     mc_groups: list[ExamMcGroupCreate] | None = None
@@ -292,6 +295,7 @@ class ExamResponse(BaseModel):
     name_line: bool = False
     mc_correction_hint: bool = False
     extra_notes: ExtraNotes | None = None
+    step_checks: dict[str, Any] | None = None
     pseudonym_version: int = 1
     exercises: list[ExerciseResponse] = []
     mc_groups: list[ExamMcGroupResponse] = []

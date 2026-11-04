@@ -8,13 +8,14 @@
   import { sessionStore } from "#lib/stores/session";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import type { ExamRecord } from "#lib/db/schema";
-  import { examNavContext, examMcOpen } from "#lib/stores/shell";
-  import { loadExamEncrypted, loadExamExercisesEncrypted, loadOmrTemplateEncrypted } from "#lib/db/dbEncryption";
+  import { examNavContext, examMcOpen, examChecksState } from "#lib/stores/shell";
+  import { loadExamEncrypted, loadExamExercisesEncrypted } from "#lib/db/dbEncryption";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { listResultDeliveries, listResultShares } from "#lib/api/resultShares";
   import { latestDeliveries, undelivered } from "#lib/sharing/shareService";
   import { featuresStore } from "#lib/stores/capabilities";
   import { examProgress, type ExamProgressInput } from "#lib/exam/examProgress";
+  import { contentStamp, fingerprint, printStamps, printStatus, studentsStamp } from "#lib/exam/examChecks";
   import { t } from "#lib/i18n";
 
   interface Props {
@@ -59,10 +60,13 @@
       next.submissionCount = subs.length;
       next.gradedCount = subs.filter((s) => typeof s.totalScore === "number" && !isNaN(s.totalScore)).length;
     }
-    next.exerciseCount = (await attempt(() => loadExamExercisesEncrypted(id, key)))?.length;
-    next.studentCount = (await attempt(() => studentRepository.getByExamId(id, key)))?.length;
-    const omr = await attempt(() => loadOmrTemplateEncrypted(id, key));
-    if (omr !== undefined) next.omrReady = !!omr?.payload;
+    const exercises = await attempt(() => loadExamExercisesEncrypted(id, key));
+    next.exerciseCount = exercises?.length;
+    const students = await attempt(() => studentRepository.getByExamId(id, key));
+    next.studentCount = students?.length;
+    const stamps = exam && exercises && students ? { content: contentStamp(exam, exercises), students: studentsStamp(students) } : null;
+    const scansStamp = subs ? fingerprint(subs.map((s) => s.id).sort().join(",")) : null;
+    const checks = exam?.stepChecks ?? {};
     const shares = await attempt(() => listResultShares(id));
     // Students with a link that still opens; a replaced link leaves an older row, so count students, not rows.
     if (shares) next.sharedCount = new Set(shares.filter((sh) => Date.parse(sh.expiresAt) > Date.now()).map((sh) => sh.studentKey)).size;
@@ -70,7 +74,10 @@
       const deliveries = await attempt(() => listResultDeliveries(id));
       if (deliveries) next.notReached = [...latestDeliveries(deliveries).values()].filter(undelivered).length;
     }
-    if (id === examId) counts = next;
+    if (id === examId) {
+      counts = next;
+      examChecksState.set({ examId: id, checks, stamps, scansStamp });
+    }
   }
 
   onDestroy(() => examNavContext.set(null));
@@ -91,8 +98,13 @@
     const count = submissionCount;
     const input = counts;
     const mc = $examMcOpen;
+    const cs = $examChecksState;
     if (browser && id) {
-      const progress = examProgress({ ...input, mcOpen: mc && mc.examId === id ? mc.open : undefined });
+      const progress = examProgress({
+        ...input,
+        mcOpen: mc && mc.examId === id ? mc.open : undefined,
+        print: cs && cs.examId === id && cs.stamps ? printStatus(cs.checks, printStamps(cs.stamps.content, cs.stamps.students)) : undefined,
+      });
       untrack(() => examNavContext.set({ examId: id, exam: current && current.id === id ? current : null, submissionCount: count, progress }));
     }
   });

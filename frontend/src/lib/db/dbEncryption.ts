@@ -184,7 +184,7 @@ const EXAM: RecordCodec<ExamRecord> = {
   sealed: [
     'title', 'testart', 'grade', 'klasse', 'datum', 'nr', 'fach', 'topic', 'lehrernachname',
     'infoText', 'latexPreamble', 'latexTemplate', 'numVersions', 'gradingKey', 'latexPackages',
-    'pageBreaks', 'nameLine', 'mcCorrectionHint', 'extraNotes',
+    'pageBreaks', 'nameLine', 'mcCorrectionHint', 'extraNotes', 'stepChecks',
   ],
   aad: (r) => aadFor('exam', r.id),
 };

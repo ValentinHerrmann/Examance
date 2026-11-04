@@ -10700,6 +10700,18 @@
               }
             ]
           },
+          "step_checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Checks"
+          },
           "pseudonym_version": {
             "type": "integer",
             "enum": [
@@ -11135,6 +11147,18 @@
               }
             ]
           },
+          "step_checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Checks"
+          },
           "pseudonym_version": {
             "type": "integer",
             "title": "Pseudonym Version",
@@ -11384,6 +11408,18 @@
                 "type": "null"
               }
             ]
+          },
+          "step_checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Checks"
           },
           "exercise_ids": {
             "anyOf": [

@@ -1,4 +1,5 @@
 import type { ExamProgress } from '#lib/exam/examProgress';
+import type { StepChecks } from '#lib/exam/examChecks';
 import { writable } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
 import type { ExamRecord } from '#lib/db/schema';
@@ -35,6 +36,18 @@ export interface ExamNavContext {
     /** Step badges (issue #212); a step without an entry shows none. */
     progress: ExamProgress;
 }
+
+/** The open exam's hand-set ticks and the fingerprints they are checked against (issue #212); the layout loads them, the Print and MC pages change them. */
+export interface ExamChecksState {
+    examId: string;
+    checks: StepChecks;
+    /** Fingerprints of the exam content and of its students; null while a read failed. */
+    stamps: { content: string; students: string } | null;
+    /** Fingerprint of the exam's scans (the sure MC detections depend on them); null while unknown. */
+    scansStamp: string | null;
+}
+
+export const examChecksState = writable<ExamChecksState | null>(null);
 
 export const examNavContext = writable<ExamNavContext | null>(null);
 

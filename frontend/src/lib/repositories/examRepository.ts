@@ -9,6 +9,7 @@ import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord, ExtraNotes } fr
 import { invalidateOwner } from '#lib/latex/compileCache';
 import { newTrashGroup, trashHeaders, type DeleteOptions } from '#lib/trash/group';
 import { captureLocal, storedExamRows } from '#lib/trash/localTrash';
+import { stepChecksField, type StepChecks } from '#lib/exam/examChecks';
 import { storedEntries, type LatexPackageEntry } from '#lib/latex/packages';
 
 /** Undefined (unknown) stays undefined, so a later save leaves the server's value alone. */
@@ -62,6 +63,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     mcCorrectionHint: (raw.mc_correction_hint ?? raw.mcCorrectionHint) === true,
     pseudonymVersion: raw.pseudonymVersion === 2 ? 2 : serverVersion(raw),
     extraNotes: extraNotesField(raw.extra_notes !== undefined ? raw.extra_notes : raw.extraNotes),
+    stepChecks: stepChecksField(raw.step_checks !== undefined ? raw.step_checks : raw.stepChecks),
     latexPreamble: raw.latex_preamble || raw.latexPreamble,
     latexTemplate: raw.latex_template || raw.latexTemplate,
     numVersions: raw.num_versions || raw.numVersions || 1,
@@ -166,6 +168,16 @@ export const examRepository = {
       const raw = await db.exams.get(id);
       if (raw) return decryptExam(raw, key);
       return undefined;
+    }
+  },
+
+  /** Writes only the hand-set ticks, so a page holding an older copy of the exam can never overwrite them with its save(). */
+  async saveStepChecks(examId: string, checks: StepChecks): Promise<void> {
+    const payload = { step_checks: checks };
+    try {
+      await api.patch(`/exams/${examId}`, payload, { silentError: true });
+    } catch (err: any) {
+      enqueueOrThrow(err, `/exams/${examId}`, 'PATCH', payload);
     }
   },
 

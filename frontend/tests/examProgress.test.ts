@@ -30,8 +30,8 @@ describe('step order', () => {
 
   it('continues at the first unfinished step', () => {
     expect(continueStep(examProgress({ exerciseCount: 0 }))).toBe('content');
-    expect(continueStep(examProgress({ exerciseCount: 2, studentCount: 20, omrReady: true, submissionCount: 0, gradedCount: 0 }))).toBe('scan');
-    expect(continueStep(examProgress({ exerciseCount: 2, omrReady: true, submissionCount: 3, gradedCount: 1 }))).toBe('grade');
-    expect(continueStep(examProgress({ exerciseCount: 2, studentCount: 3, omrReady: true, submissionCount: 3, gradedCount: 3 }))).toBe('results');
+    expect(continueStep(examProgress({ exerciseCount: 2, studentCount: 20, print: { done: true }, submissionCount: 0, gradedCount: 0 }))).toBe('scan');
+    expect(continueStep(examProgress({ exerciseCount: 2, print: { done: true }, submissionCount: 3, gradedCount: 1 }))).toBe('grade');
+    expect(continueStep(examProgress({ exerciseCount: 2, studentCount: 3, print: { done: true }, submissionCount: 3, gradedCount: 3 }))).toBe('results');
   });
 });
