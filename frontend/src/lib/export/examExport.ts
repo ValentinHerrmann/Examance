@@ -76,24 +76,39 @@ export async function runExamExport(
     });
   }
   if (has('graded') || has('gradedCombined') || has('summary') || has('csv')) {
-    progress(translate('export.exam.steps.results'));
-    const results = await loadResults(compileInput);
-    if (has('csv')) zip.add('grades.csv', buildGradesCsv(results.rows));
-    if (has('summary')) {
-      await part('export.exam.options.summary', async () => {
-        progress(translate('export.exam.steps.summary'));
-        zip.add('summary.pdf', await renderSummaryPdf(summaryInput(ctx.exam, results)));
-      });
-    }
-    if (has('graded') || has('gradedCombined')) {
-      // One render pass feeds both the single files and the combined print file.
-      const combined = has('gradedCombined') ? await pdfCollector(ctx.exam.title || 'exam', true) : null;
-      warnings.push(...(await addGradedScans(zip, results, key, fallbackSessionKey, progress, has('graded'), combined)));
-      if (combined && combined.pageCount > 0) zip.add(`${examSlug}_graded_all.pdf`, await combined.save());
-    }
+    await addResultParts({ zip, ctx, compileInput, examSlug, key, fallbackKey: fallbackSessionKey, has, part, progress, warnings });
   }
 
   return { zip, fileName: `${examSlug}_${exportDateStamp()}.zip`, warnings };
+}
+
+/** The parts built from the results: grades CSV, summary and the graded scans (one render pass feeds both the single files and the combined print file). */
+async function addResultParts(o: {
+  zip: ZipBuilder;
+  ctx: ExamContext;
+  compileInput: CompileInput;
+  examSlug: string;
+  key: CryptoKey;
+  fallbackKey: CryptoKey | null;
+  has: (p: ExamExportPart) => boolean;
+  part: (name: TranslationKey, run: () => Promise<void>) => Promise<void>;
+  progress: ExportProgress;
+  warnings: string[];
+}): Promise<void> {
+  const { zip, ctx, has, progress } = o;
+  progress(translate('export.exam.steps.results'));
+  const results = await loadResults(o.compileInput);
+  if (has('csv')) zip.add('grades.csv', buildGradesCsv(results.rows));
+  if (has('summary')) {
+    await o.part('export.exam.options.summary', async () => {
+      progress(translate('export.exam.steps.summary'));
+      zip.add('summary.pdf', await renderSummaryPdf(summaryInput(ctx.exam, results)));
+    });
+  }
+  if (!has('graded') && !has('gradedCombined')) return;
+  const combined = has('gradedCombined') ? await pdfCollector(ctx.exam.title || 'exam', true) : null;
+  o.warnings.push(...(await addGradedScans(zip, results, o.key, o.fallbackKey, progress, has('graded'), combined)));
+  if (combined && combined.pageCount > 0) zip.add(`${o.examSlug}_graded_all.pdf`, await combined.save());
 }
 
 /** `manifest.json` plus one `exercises/<name>/` folder per linked exercise, read back by `archive/zipImport.ts`. Settings only: results, scans and the logo never go into a re-importable ZIP. */

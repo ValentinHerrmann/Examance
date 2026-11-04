@@ -7,5 +7,5 @@ import type { StepChecks } from './examChecks';
 export async function saveExamChecks(examId: string, checks: StepChecks): Promise<void> {
     await examRepository.saveStepChecks(examId, checks);
     const state = get(examChecksState);
-    if (state && state.examId === examId) examChecksState.set({ ...state, checks });
+    if (state?.examId === examId) examChecksState.set({ ...state, checks });
 }

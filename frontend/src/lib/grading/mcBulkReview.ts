@@ -18,7 +18,7 @@ async function rewriteScores(
     }
     let count = 0;
     for (const [submissionId, scores] of bySubmission) {
-        await scoreRepository.saveMany(examId, submissionId, scores, key);
+        await scoreRepository.saveMany(examId, submissionId, scores, key); // NOSONAR: one write per submission in order, as the reset of all reviews does; parallel writes would flood the API for a large class
         count += scores.length;
     }
     return count;

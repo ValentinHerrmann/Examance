@@ -51,7 +51,7 @@ export function fingerprint(text: string): string {
     let h1 = 0xdeadbeef;
     let h2 = 0x41c6ce57;
     for (let i = 0; i < text.length; i++) {
-        const ch = text.charCodeAt(i);
+        const ch = text.codePointAt(i) ?? 0;
         h1 = Math.imul(h1 ^ ch, 2654435761);
         h2 = Math.imul(h2 ^ ch, 1597334677);
     }
@@ -72,10 +72,13 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
     return fingerprint(JSON.stringify([head, body]));
 }
 
+/** Locale-independent order, so the same list always gives the same stamp. */
+const byCodeUnits = (a: string, b: string): number => Number(a > b) - Number(a < b);
+
 /** What the QR stickers, copies and key slips depend on: the exam's students and their names. */
 export function studentsStamp(students: StudentRecord[]): string {
-    const rows = students.map((s) => [s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '']).sort();
-    return fingerprint(JSON.stringify(rows));
+    const rows = students.map((s) => JSON.stringify([s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '']));
+    return fingerprint(rows.sort(byCodeUnits).join('\n'));
 }
 
 export type PrintStamps = Record<PrintJobId, string>;
