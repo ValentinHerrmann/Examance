@@ -15,6 +15,7 @@ export const common = {
     previewCompile: 'Kompilieren',
     previewMissingGraphic: 'Vorschau erstellt, aber eine Grafik konnte nicht geladen werden: {name}',
     previewFailed: 'Vorschau fehlgeschlagen: {message}',
+    pdfPage: 'Seite des PDF-Dokuments',
     zoomControls: 'Zoom',
     zoomFitWidth: 'An Seitenbreite anpassen',
     zoomFitPage: 'Ganze Seite anzeigen',

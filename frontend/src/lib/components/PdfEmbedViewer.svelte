@@ -132,7 +132,11 @@
     });
   }
 
+  let stopLabels: (() => void) | null = null;
+
   function destroy() {
+    stopLabels?.();
+    stopLabels = null;
     if (overlayTimeout) clearTimeout(overlayTimeout);
     if (unsubscribeZoom) {
       unsubscribeZoom();
@@ -150,12 +154,13 @@
   }
 
   async function mount(url: string) {
-    const { mountEmbedPdf } = await import("#lib/pdf/embedpdf");
+    const { labelPageImages, mountEmbedPdf } = await import("#lib/pdf/embedpdf");
     // A src change (or unmount racing a fast page switch) may land here after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
     destroy();
     if (!containerEl) return;
     viewer = mountEmbedPdf({ target: containerEl, src: url, theme: effectiveTheme, zoomLevel }) ?? null;
+    stopLabels = labelPageImages(containerEl, $t("common.pdfPage"));
     mountedSrc = url;
     containerEl.addEventListener("wheel", handleWheel, { capture: true, passive: false });
 

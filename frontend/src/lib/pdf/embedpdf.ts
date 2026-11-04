@@ -63,3 +63,27 @@ export function mountEmbedPdf(opts: EmbedPdfMountOptions): EmbedPdfContainer | u
 
   return EmbedPDF.init({ type: "container", target: opts.target, ...config });
 }
+
+/** EmbedPDF renders pages as `<img>` without `alt` inside its open shadow root; this gives each one `label` (screen readers, axe `image-alt`). Returns the stop function. */
+export function labelPageImages(target: Element, label: string): () => void {
+  let observer: MutationObserver | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const fill = (root: ParentNode) => {
+    for (const img of root.querySelectorAll('img:not([alt])')) img.setAttribute('alt', label);
+  };
+  const attach = () => {
+    const root = target.querySelector('embedpdf-container')?.shadowRoot;
+    if (!root) {
+      timer = setTimeout(attach, 100);
+      return;
+    }
+    fill(root);
+    observer = new MutationObserver(() => fill(root));
+    observer.observe(root, { childList: true, subtree: true });
+  };
+  attach();
+  return () => {
+    if (timer) clearTimeout(timer);
+    observer?.disconnect();
+  };
+}
