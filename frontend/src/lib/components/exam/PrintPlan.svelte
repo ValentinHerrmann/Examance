@@ -21,7 +21,6 @@
   import type { StickerEntry } from "#lib/qr/stickerSheet";
   import type { ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import StickerSheetForm from "#lib/components/sharing/StickerSheetForm.svelte";
-  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { Alert, Badge, Button, Card, Checkbox, Icon, Radio, actionIcons } from "#lib/components/ui";
 
   /** The Print step (issue #212): the teacher picks how they print, the page lists the print jobs that follow, each with its readiness, its PDF and a "printed" tick that is only offered once that PDF exists for the current content. */
@@ -39,9 +38,10 @@
     /** The current task sheet (personalised copies are made from it). */
     loadExamPdf: () => Promise<Uint8Array>;
     downloadPdf: (variant: "angabe" | "loesung") => Promise<void>;
+    class?: string;
   }
 
-  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf }: Props = $props();
+  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, class: className = "" }: Props = $props();
 
   let cs = $derived($examChecksState && $examChecksState.examId === examId ? $examChecksState : null);
   let stamps = $derived(cs?.stamps ? printStamps(cs.stamps.content, cs.stamps.students) : null);
@@ -97,12 +97,9 @@
   };
 </script>
 
-<div class="flex min-w-0 flex-col gap-6">
+<div class="flex min-w-0 flex-col gap-4 {className}">
+  <!-- The plan's heading sits in the page's top row, level with the preview toolbar. -->
   <Card>
-    <div class="mb-3 flex items-center gap-2">
-      <h2 class="m-0 text-base font-semibold text-content">{$t("exam.print.planTitle")}</h2>
-      <InfoTip text={$t("exam.print.planIntro")} />
-    </div>
     <div class="grid grid-cols-1 gap-4 2xl:grid-cols-2">
       <fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" disabled={busy || !cs}>
         <legend class="mb-2 text-sm font-medium">{$t("exam.print.modeLegend")}</legend>

@@ -128,7 +128,7 @@ In the exam overview, **Preview** in an expanded entry opens the last compiled P
 
 ## Print {#print}
 
-The **Print** step has the **print plan** on the left and the compiled exam on the right (on smaller screens below it), the same preview as on the **Exam** step: **Live Preview PDF** typesets the task sheet and solution and refreshes the scan template for MC detection.
+The **Print** step has the **print plan** on the left and the compiled exam on the right (on smaller screens below it), the same preview as on the **Exam** step: above the preview a status line says whether it is current, and **Live Preview PDF** typesets the task sheet and solution and refreshes the scan template for MC detection.
 
 In the print plan you choose how you print: **Plain copies and a QR sticker sheet**, or **Personalised copies with the QR code printed on** (one copy per student with QR code, name and personal key, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies)), and whether the **solution** is printed too. **Ready to print?** checks automatically whether the exam has exercises, the student list is filled, the PDFs match the current state and, with MC questions, the scan template is up to date.
 

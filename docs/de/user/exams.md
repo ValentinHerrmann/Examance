@@ -129,7 +129,7 @@ In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag d
 
 ## Drucken {#print}
 
-Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die gesetzte Prüfung, dieselbe Vorschau wie im Schritt **Prüfung**: **Live-Vorschau PDF** setzt Angabe und Lösung und frischt die Scan-Vorlage für die MC-Erkennung auf.
+Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die gesetzte Prüfung, dieselbe Vorschau wie im Schritt **Prüfung**: über der Vorschau zeigt eine Statuszeile, ob sie aktuell ist, und **Live-Vorschau PDF** setzt Angabe und Lösung und frischt die Scan-Vorlage für die MC-Erkennung auf.
 
 Im Druckplan wählen Sie, wie Sie drucken: **Normale Exemplare und ein QR-Aufkleberbogen** oder **Personalisierte Exemplare mit aufgedrucktem QR-Code** (ein Exemplar pro Schüler mit QR-Code, Name und persönlichem Schlüssel, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies)), und ob die **Lösung** mitgedruckt wird. **Bereit zum Drucken?** prüft von selbst, ob die Prüfung Aufgaben hat, die Schülerliste gefüllt ist, die PDFs zum aktuellen Stand passen und, bei MC-Aufgaben, die Scan-Vorlage aktuell ist.
 

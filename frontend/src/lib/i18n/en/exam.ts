@@ -30,6 +30,9 @@ export const exam: Translations['exam'] = {
             staleWarning: 'MC answer key changed since the OMR template was captured — auto-grading may be inaccurate until you refresh the OMR template.',
         },
         preview: {
+            statusCurrent: 'Preview up to date',
+            statusStale: 'Preview out of date – create it again',
+            statusNone: 'No preview yet',
             loadingCompiler: 'Loading local LaTeX compiler… (One-time download of about 500 MB, progress shown at the bottom left)',
             compiling: 'Compiling PDF…',
             compilingPreviews: 'Compiling Previews…',
@@ -62,7 +65,8 @@ export const exam: Translations['exam'] = {
             untitled: 'Untitled',
         },
         pdfPreview: {
-            notCompiled: 'No preview yet: press "Live Preview PDF" at the top right.',
+            emptyTitle: 'No preview yet',
+            emptyHint: 'Create the task sheet and solution as PDFs; this also refreshes the scan template.',
             titleAngabe: 'Exam',
             titleLoesung: 'Answer Key',
             placeholder: "Click 'Live Preview PDF' to render",
@@ -145,8 +149,11 @@ export const exam: Translations['exam'] = {
         untitled: 'Untitled',
         points: 'pts',
         mcGroupLabel: 'MC Group: {title}',
-        subExercisesCount: 'MC ({count} sub-exercises)',
+        subExercisesCount: 'MC · {count} sub-exercises',
         editGroup: 'Edit MC Group',
+        editExercise: 'Edit exercise',
+        topicTitle: 'Topic',
+        typeTitle: 'Question type',
         empty: 'No exercises added yet.',
     },
     extraNotes: {

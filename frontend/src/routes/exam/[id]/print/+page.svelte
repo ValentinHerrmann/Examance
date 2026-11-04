@@ -14,6 +14,7 @@
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import ExamPreviewPanel, { type ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import PrintPlan from "#lib/components/exam/PrintPlan.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { t, translate } from "#lib/i18n";
   import { Alert, PageShell } from "#lib/components/ui";
@@ -85,8 +86,14 @@
   {:else if !ctx}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <!-- From xl a two-row grid: the plan's heading beside the preview toolbar, the plan beside the PDF (issue #212). -->
+    <div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] xl:grid-rows-[auto_1fr]">
+      <div class="flex min-h-12 min-w-0 items-center gap-2 xl:col-start-1 xl:row-start-1 xl:self-end">
+        <h2 class="m-0 text-base font-semibold text-content">{$t("exam.print.planTitle")}</h2>
+        <InfoTip text={$t("exam.print.planIntro")} />
+      </div>
       <PrintPlan
+        class="xl:col-start-1 xl:row-start-2"
         {examId}
         examTitle={ctx.exam.title ?? ""}
         exerciseCount={ctx.exercises.length}
@@ -98,9 +105,9 @@
         {loadExamPdf}
         {downloadPdf}
       />
-      <div class="min-w-0 2xl:sticky 2xl:top-4">
+      <div class="min-w-0 xl:contents">
         {#if withheld}
-          <Alert severity="info" title={$t("exam.resultsOnly.badge")}>{$t("exam.resultsOnly.noCompile")}</Alert>
+          <Alert class="xl:col-start-2 xl:row-start-2" severity="info" title={$t("exam.resultsOnly.badge")}>{$t("exam.resultsOnly.noCompile")}</Alert>
         {:else}
           <ExamPreviewPanel
             exam={ctx.exam}

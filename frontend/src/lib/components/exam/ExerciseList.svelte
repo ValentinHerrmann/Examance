@@ -9,11 +9,11 @@
   import type { ExerciseRecord, ExtraNotes } from '#lib/db/schema';
   import { parseExerciseScore } from '#lib/latex/scoreParser';
   import { mcSubLabel } from '#lib/grading/mcGroupLabels';
-  import ExerciseLabel from '#lib/components/exam/ExerciseLabel.svelte';
+  import { variantOf, versionOf } from '#lib/components/exam/ExerciseLabel.svelte';
   import PageBreakDivider from '#lib/components/exam/PageBreakDivider.svelte';
   import ExtraNotesField from '#lib/components/exam/ExtraNotesField.svelte';
   import { t } from '#lib/i18n';
-  import { faArrowUp, faArrowDown, faXmark } from '@fortawesome/free-solid-svg-icons';
+  import { faArrowUp, faArrowDown, faCodeBranch, faTag, faXmark } from '@fortawesome/free-solid-svg-icons';
   import { Badge, Button, Card, actionIcons } from '#lib/components/ui';
 
   interface McGroup {
@@ -78,14 +78,12 @@
     );
   }
 
-  // One card per item: number, then name (wraps, never cut off) with a small badge line under it, then points and icon buttons on the right.
-  const listClass = "flex flex-col";
-  const rowClass = "flex min-w-0 items-start gap-2 rounded-md border border-line bg-surface-inset px-3 py-2";
-  const numberClass = "w-6 shrink-0 pt-0.5 text-right font-semibold text-muted tabular-nums";
-  const bodyClass = "min-w-0 flex-1";
-  const pointsClass = "shrink-0 pt-0.5 text-sm whitespace-nowrap text-muted tabular-nums";
-  const actionsClass = "-my-1 flex shrink-0 items-center";
-  const subItemsClass = "m-0 mt-1.5 flex list-none flex-col gap-1 p-0 text-sm";
+  // Card per item (issue #212): number dot, name in the text colour (wraps, never cut off) and points on the first line; coloured chips with icons and the actions on the second, so on a phone the name gets the full width.
+  const cardClass = "flex min-w-0 flex-col gap-2 rounded-lg border border-line bg-surface-raised px-3 py-2.5 transition-colors hover:border-line-strong";
+  const numberClass = "flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-accent tabular-nums";
+  const nameClass = "min-w-0 flex-1 break-words text-left font-semibold text-content";
+  const pointsClass = "shrink-0 rounded-md bg-surface-inset px-2 py-0.5 text-sm font-semibold whitespace-nowrap text-content tabular-nums";
+  const actionsClass = "-my-1 ml-auto flex shrink-0 items-center";
 
   let totalItemCount = $derived(examItems.length > 0 ? examItems.length : exercises.length + mcGroups.length);
 </script>
@@ -95,54 +93,81 @@
   <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown} ariaLabel={$t("exam.mcStagingPanel.moveDown")} title={$t("exam.mcStagingPanel.moveDown")} onClick={down} disabled={idx === count - 1} />
 {/snippet}
 
+{#snippet name(exercise: ExerciseRecord, cls: string)}
+  {#if onOpenExercise}
+    <button type="button" class="{cls} cursor-pointer border-0 bg-transparent p-0 hover:underline" onclick={() => onOpenExercise(exercise)}>{exercise.name || $t("exam.exerciseLabel.untitled")}</button>
+  {:else}
+    <span class={cls}>{exercise.name || $t("exam.exerciseLabel.untitled")}</span>
+  {/if}
+{/snippet}
+
+<!-- Variant, version, topic and question type, each with its own colour and icon. -->
+{#snippet chips(exercise: ExerciseRecord, withTopic = true)}
+  {@const variant = variantOf(exercise)}
+  {@const version = versionOf(exercise)}
+  {#if exercise.questionType && exercise.questionType !== 'free_text'}
+    <Badge severity="primary" title={$t("exam.exerciseList.typeTitle")}>{exercise.questionType.toUpperCase()}</Badge>
+  {/if}
+  {#if variant}<Badge severity="info" icon={faCodeBranch} title={$t("exam.exerciseLabel.variantTitle")}>{variant}</Badge>{/if}
+  {#if version}<Badge severity="secondary">v{version}</Badge>{/if}
+  {#if withTopic && exercise.topicTag}<Badge severity="success" icon={faTag} title={$t("exam.exerciseList.topicTitle")}>{exercise.topicTag}</Badge>{/if}
+{/snippet}
+
 {#snippet exerciseRow(exercise: ExerciseRecord, idx: number, count: number, up: () => void, down: () => void)}
-  <div class={rowClass}>
-    <span class={numberClass}>{idx + 1}.</span>
-    <div class={bodyClass}>
-      <ExerciseLabel stacked {exercise} onOpen={onOpenExercise ? () => onOpenExercise(exercise) : undefined}>
-        {#if exercise.topicTag}<Badge size="xs" severity="secondary">{exercise.topicTag}</Badge>{/if}
-        {#if exercise.questionType && exercise.questionType !== 'free_text'}<Badge size="xs" severity="primary">{exercise.questionType.toUpperCase()}</Badge>{/if}
-      </ExerciseLabel>
+  <div class={cardClass}>
+    <div class="flex min-w-0 items-center gap-2.5">
+      <span class={numberClass}>{idx + 1}</span>
+      {@render name(exercise, nameClass)}
+      <span class={pointsClass}>{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
     </div>
-    <span class={pointsClass}>{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
-    <div class={actionsClass}>
-      {@render moveButtons(idx, count, up, down)}
-      <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} title={$t("exam.mcStagingPanel.remove")} onClick={() => onRemove(exercise.id)} />
+    <div class="flex min-w-0 flex-wrap items-center gap-1.5 sm:pl-8.5">
+      {@render chips(exercise)}
+      <div class={actionsClass}>
+        {#if onOpenExercise}
+          <Button size="sm" variant="text" severity="secondary" iconOnly icon={actionIcons.edit} ariaLabel={$t("exam.exerciseList.editExercise")} title={$t("exam.exerciseList.editExercise")} onClick={() => onOpenExercise(exercise)} />
+        {/if}
+        {@render moveButtons(idx, count, up, down)}
+        <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} title={$t("exam.mcStagingPanel.remove")} onClick={() => onRemove(exercise.id)} />
+      </div>
     </div>
   </div>
 {/snippet}
 
 <!-- `idx` is null in the unordered fallback list: no number, no move buttons. -->
 {#snippet groupRow(group: McGroup, idx: number | null)}
-  <div class={rowClass}>
-    <span class={numberClass}>{idx === null ? "" : `${idx + 1}.`}</span>
-    <div class={bodyClass}>
-      <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <strong class="min-w-0 break-words text-content">{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</strong>
-        <Badge size="xs" severity="primary">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</Badge>
+  <div class={cardClass}>
+    <div class="flex min-w-0 items-center gap-2.5">
+      <span class={numberClass}>{idx === null ? "" : idx + 1}</span>
+      <span class={nameClass}>{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</span>
+      <span class={pointsClass}>{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
+    </div>
+    <div class="flex min-w-0 flex-wrap items-center gap-1.5 sm:pl-8.5">
+      <Badge severity="primary">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</Badge>
+      <div class={actionsClass}>
+        {#if onEditMcGroup}
+          <Button size="sm" variant="text" severity="secondary" iconOnly icon={actionIcons.edit} ariaLabel={$t("exam.exerciseList.editGroup")} title={$t("exam.exerciseList.editGroup")} onClick={() => onEditMcGroup(group.id)} />
+        {/if}
+        {#if idx !== null && onMoveExamItem}
+          {@render moveButtons(idx, examItems.length, () => onMoveExamItem(idx, "up"), () => onMoveExamItem(idx, "down"))}
+        {/if}
+        {#if onRemoveMcGroup}
+          <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} title={$t("exam.mcStagingPanel.remove")} onClick={() => onRemoveMcGroup(group.id)} />
+        {/if}
       </div>
-      <ul class={subItemsClass}>
-        {#each memberExercises(group) as ex, i}
-          <li class="flex min-w-0 items-baseline gap-1.5"><span class="shrink-0 text-muted">{mcSubLabel(i, group.memberIds.length)})</span><ExerciseLabel exercise={ex} onOpen={onOpenExercise ? () => onOpenExercise(ex) : undefined} /></li>
-        {/each}
-      </ul>
     </div>
-    <span class={pointsClass}>{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
-    <div class={actionsClass}>
-      {#if onEditMcGroup}
-        <Button size="sm" variant="text" severity="secondary" iconOnly icon={actionIcons.edit} ariaLabel={$t("exam.exerciseList.editGroup")} title={$t("exam.exerciseList.editGroup")} onClick={() => onEditMcGroup(group.id)} />
-      {/if}
-      {#if idx !== null && onMoveExamItem}
-        {@render moveButtons(idx, examItems.length, () => onMoveExamItem(idx, "up"), () => onMoveExamItem(idx, "down"))}
-      {/if}
-      {#if onRemoveMcGroup}
-        <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} title={$t("exam.mcStagingPanel.remove")} onClick={() => onRemoveMcGroup(group.id)} />
-      {/if}
-    </div>
+    <ul class="m-0 flex list-none sm:ml-8.5 flex-col gap-1.5 border-l-2 border-primary/40 p-0 pl-3">
+      {#each memberExercises(group) as ex, i}
+        <li class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <span class="font-semibold text-muted">{mcSubLabel(i, group.memberIds.length)})</span>
+          {@render name(ex, "min-w-0 break-words text-left text-content")}
+          {@render chips(ex, false)}
+        </li>
+      {/each}
+    </ul>
   </div>
 {/snippet}
 
-<Card title={$t("exam.exerciseList.heading", { count: totalItemCount })}>
+<Card padded={false} class="p-3 sm:p-5" title={$t("exam.exerciseList.heading", { count: totalItemCount })}>
   {#snippet actions()}
     {#if onAddExercises}
       <Button size="sm" icon={actionIcons.add} onClick={onAddExercises}>{$t("exam.exerciseList.addExercises")}</Button>
@@ -152,7 +177,7 @@
   {#if totalItemCount === 0}
     <p class="m-0 rounded-md border border-dashed border-line-strong p-8 text-center text-muted">{$t("exam.exerciseList.empty")}</p>
   {:else}
-    <div class="{listClass} {onTogglePageBreak ? '' : 'gap-2'}">
+    <div class="flex flex-col {onTogglePageBreak ? '' : 'gap-2'}">
       {#if examItems.length > 0}
         {#each examItems as item, idx (item.id)}
           {#if item.type === "exercise"}

@@ -46,11 +46,11 @@
     </a>
   {/if}
   <div class="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-    <div class="min-w-0 flex-1">
+    <div class="min-w-40 flex-1">
       <div class="flex min-w-0 items-center gap-2">
         {#if level === "h1"}
-          <h1 class="m-0 flex min-w-0 items-baseline gap-2 text-2xl font-normal break-words text-content">
-            {#if context}<span class="max-w-[24ch] truncate text-base text-muted" title={context}>{context}</span><span class="text-base text-muted" aria-hidden="true">/</span>{/if}<span class="min-w-0">{title}</span>
+          <h1 class="m-0 flex min-w-0 items-baseline gap-2 text-2xl font-normal text-content">
+            {#if context}<span class="sr-only max-w-[24ch] truncate text-base text-muted sm:not-sr-only" title={context}>{context}</span><span class="hidden text-base text-muted sm:inline" aria-hidden="true">/</span>{/if}<span class="min-w-0 break-normal">{title}</span>
           </h1>
         {:else}
           <h2 class="m-0 min-w-0 text-xl font-semibold break-words text-content">{title}</h2>

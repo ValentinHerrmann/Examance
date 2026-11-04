@@ -24,7 +24,8 @@
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { examReportFiles } from "#lib/layout-report/collect";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, actionIcons } from "#lib/components/ui";
+  import { faCircleCheck, faFilePdf, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Button, EmptyState, Icon, actionIcons } from "#lib/components/ui";
 
   /** The exam's compile card (issue #212): compile, task/solution preview, layout report, compile errors and the OMR template status. Never compiles on its own: an edit only marks the shown preview as outdated (issue #197). */
   interface Props {
@@ -80,6 +81,9 @@
   let previewOutdated = $state(false);
 
   const key = () => get(sessionStore).sessionKey;
+  let hasPdf = $derived(!!(previewPdfUrl || previewSolutionPdfUrl));
+  // Fills the viewport under the page header and the toolbar row.
+  const previewHeight = "max(22rem, calc(100dvh - 16rem))";
   const sources = () => ({ exam, exercises, libraryExercises, mcGroups, examItems });
 
   async function checkOmrStatus() {
@@ -278,58 +282,72 @@
   </Button>
 {/snippet}
 
-<!-- No card or title: the PDFs start at the column's top, level with the content beside them (issue #212); the compile button sits in the pane header. -->
-<div class="flex min-w-0 flex-col gap-2 {className}">
-  {#if exercises.length === 0 && mcGroups.length === 0}
-    <div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line p-3">
-      <p class="m-0 text-sm text-muted">{$t("exam.page.compileSection.emptyHint")}</p>
-      {@render compileButton()}
-    </div>
-  {:else}
-    <!-- A fixed-height parent: inside this flex column the preview's own height would be overridden (issue #210). -->
-    <div class="flex min-h-0 flex-col" style="height: max(22rem, calc(100dvh - 14rem));">
-    <DualPdfPreview
-      {previewPdfUrl}
-      {previewSolutionPdfUrl}
-      bind:showAngabePreview
-      bind:showLoesungPreview
-      titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
-      titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
-      height="100%"
-      placeholderText={$t("exam.page.pdfPreview.notCompiled")}
-      paneActions={compileButton}
-    >
-      {#snippet footer()}{@render layoutReport()}{/snippet}
-    </DualPdfPreview>
-    </div>
-  {/if}
+<!-- Two parts: a toolbar row and the body. From xl the root is `contents`, so a page grid can place them level with its own top row and main card (issue #212). -->
+<div class="flex min-w-0 flex-col gap-2 xl:contents {className}">
+  <div class="flex min-h-12 min-w-0 flex-wrap items-center justify-between gap-2 xl:col-start-2 xl:row-start-1 xl:self-end">
+    <span class="flex min-w-0 items-center gap-1.5 text-sm {hasPdf && !previewOutdated ? 'text-success-fg' : 'text-muted'}">
+      <Icon icon={hasPdf ? (previewOutdated ? faTriangleExclamation : faCircleCheck) : faFilePdf} />
+      {hasPdf ? (previewOutdated ? $t("exam.page.preview.statusStale") : $t("exam.page.preview.statusCurrent")) : $t("exam.page.preview.statusNone")}
+    </span>
+    {#if hasPdf}{@render compileButton()}{/if}
+  </div>
 
-  {#if previewOutdated && (previewPdfUrl || previewSolutionPdfUrl)}
-    <Alert severity="info">{$t("exam.page.preview.outdated")}</Alert>
-  {/if}
-  {#if omrStatus === "stale"}
-    <Alert severity="warning">
-      {$t("exam.page.omr.staleWarning")}
-      {#snippet actions()}
-        <Button
-          size="sm"
-          variant="outlined"
-          severity="warning"
-          icon={actionIcons.compile}
-          onClick={async () => {
-            await refreshSources();
-            await handlePrepareOmr();
-          }}
-          disabled={isPreparingOmr}
+  <div class="flex min-w-0 flex-col gap-2 xl:sticky xl:top-4 xl:col-start-2 xl:row-start-2 xl:self-start">
+    {#if exercises.length === 0 && mcGroups.length === 0}
+      <div class="rounded-xl border border-dashed border-line-strong bg-surface-raised">
+        <EmptyState icon={faFilePdf} title={$t("exam.page.pdfPreview.emptyTitle")} description={$t("exam.page.compileSection.emptyHint")} />
+      </div>
+    {:else if !hasPdf}
+      <!-- Light like the rest of the page; the dark viewer only appears once there is a PDF. -->
+      <div class="flex flex-col justify-center rounded-xl border border-dashed border-line-strong bg-surface-raised" style="height: {previewHeight};">
+        <EmptyState icon={faFilePdf} title={$t("exam.page.pdfPreview.emptyTitle")} description={$t("exam.page.pdfPreview.emptyHint")}>
+          {#snippet actions()}{@render compileButton()}{/snippet}
+        </EmptyState>
+      </div>
+    {:else}
+      <!-- A fixed-height parent: inside this flex column the preview's own height would be overridden (issue #210). -->
+      <div class="flex min-h-0 flex-col" style="height: {previewHeight};">
+        <DualPdfPreview
+          {previewPdfUrl}
+          {previewSolutionPdfUrl}
+          bind:showAngabePreview
+          bind:showLoesungPreview
+          titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
+          titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
+          height="100%"
+          placeholderText={$t("exam.page.pdfPreview.placeholder")}
         >
-          {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
-        </Button>
-      {/snippet}
-    </Alert>
-  {/if}
-  {#if omrPrepareMessage}
-    <Alert severity="info">{omrPrepareMessage}</Alert>
-  {/if}
+          {#snippet footer()}{@render layoutReport()}{/snippet}
+        </DualPdfPreview>
+      </div>
+    {/if}
+
+    {#if previewOutdated && hasPdf}
+      <Alert severity="info">{$t("exam.page.preview.outdated")}</Alert>
+    {/if}
+    {#if omrStatus === "stale"}
+      <Alert severity="warning">
+        {$t("exam.page.omr.staleWarning")}
+        {#snippet actions()}
+          <Button
+            size="sm"
+            variant="outlined"
+            severity="warning"
+            icon={actionIcons.compile}
+            onClick={async () => {
+              await refreshSources();
+              await handlePrepareOmr();
+            }}
+            disabled={isPreparingOmr}
+          >
+            {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
+          </Button>
+        {/snippet}
+      </Alert>
+    {/if}
+    {#if omrPrepareMessage}
+      <Alert severity="info">{omrPrepareMessage}</Alert>
+    {/if}
 
   {#if compileNotice}
     <Alert severity="info">{compileNotice}</Alert>
@@ -343,4 +361,5 @@
   {#if errorMsg && !previewPdfUrl && !previewSolutionPdfUrl}
     <div class="flex justify-end">{@render layoutReport()}</div>
   {/if}
+  </div>
 </div>

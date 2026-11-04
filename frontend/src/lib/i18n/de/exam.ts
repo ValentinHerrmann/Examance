@@ -28,6 +28,9 @@ export const exam = {
             staleWarning: 'Der MC-Lösungsschlüssel hat sich seit der Erfassung der OMR-Vorlage geändert — die automatische Korrektur kann ungenau sein, bis Sie die OMR-Vorlage aktualisieren.',
         },
         preview: {
+            statusCurrent: 'Vorschau aktuell',
+            statusStale: 'Vorschau veraltet – neu erstellen',
+            statusNone: 'Noch keine Vorschau',
             loadingCompiler: 'Lokaler LaTeX-Compiler wird geladen… (Einmaliger Download von ca. 500 MB, Fortschritt siehe unten links)',
             compiling: 'PDF wird kompiliert…',
             compilingPreviews: 'Vorschauen werden kompiliert…',
@@ -60,7 +63,8 @@ export const exam = {
             untitled: 'Unbenannt',
         },
         pdfPreview: {
-            notCompiled: 'Noch keine Vorschau: „Live-Vorschau PDF“ oben rechts drücken.',
+            emptyTitle: 'Noch keine Vorschau',
+            emptyHint: 'Erstellen Sie Angabe und Lösung als PDF; dabei wird auch die Scan-Vorlage aufgefrischt.',
             titleAngabe: 'Prüfung',
             titleLoesung: 'Lösung',
             placeholder: "Auf 'Live-Vorschau PDF' klicken, um zu rendern",
@@ -143,8 +147,11 @@ export const exam = {
         untitled: 'Unbenannt',
         points: 'Pkt',
         mcGroupLabel: 'MC-Gruppe: {title}',
-        subExercisesCount: 'MC ({count} Teilaufgaben)',
+        subExercisesCount: 'MC · {count} Teilaufgaben',
         editGroup: 'MC-Gruppe bearbeiten',
+        editExercise: 'Aufgabe bearbeiten',
+        topicTitle: 'Thema',
+        typeTitle: 'Fragetyp',
         empty: 'Noch keine Aufgaben hinzugefügt.',
     },
     extraNotes: {

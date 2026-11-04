@@ -302,11 +302,12 @@
   {#if !exam}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-      <div class="flex min-w-0 flex-col gap-4 {shownTab === 'preview' ? 'hidden xl:flex' : ''}">
-        <Tabs items={tabItems} value={shownTab} label={$t("exam.content.tabsLabel")} onChange={(id) => (tab = id as typeof tab)} />
+    <!-- From xl a two-row grid: tabs beside the preview toolbar, the card beside the PDF, so both columns line up (issue #212). -->
+    <div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] xl:grid-rows-[auto_1fr] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div class="flex min-w-0 flex-col gap-4 xl:contents {shownTab === 'preview' ? 'hidden' : ''}">
+        <Tabs class="xl:col-start-1 xl:row-start-1 xl:self-end" items={tabItems} value={shownTab} label={$t("exam.content.tabsLabel")} onChange={(id) => (tab = id as typeof tab)} />
         <!-- Both panels stay mounted, so switching tabs keeps unsaved layout edits. -->
-        <div class={shownTab === "exercises" ? "" : "hidden"}>
+        <div class="min-w-0 xl:col-start-1 xl:row-start-2 {shownTab === 'exercises' ? '' : 'hidden'}">
           <ExerciseList
             {exercises}
             {mcGroups}
@@ -326,7 +327,7 @@
             onOpenExercise={(ex) => (quickEditEx = ex)}
           />
         </div>
-        <div class={shownTab === "layout" ? "" : "hidden"}>
+        <div class="min-w-0 xl:col-start-1 xl:row-start-2 {shownTab === 'layout' ? '' : 'hidden'}">
           <Card title={$t("exam.content.tabLayout")}>
             <ExamLayoutSettings
               {exam}
@@ -341,7 +342,7 @@
         </div>
       </div>
 
-      <div class="min-w-0 xl:sticky xl:top-4 {shownTab === 'preview' ? '' : 'hidden xl:block'}">
+      <div class="min-w-0 xl:contents {shownTab === 'preview' ? '' : 'hidden'}">
         {#if shownTab === "preview"}
           <Tabs items={tabItems} value={shownTab} label={$t("exam.content.tabsLabel")} onChange={(id) => (tab = id as typeof tab)} class="mb-4 xl:hidden" />
         {/if}
