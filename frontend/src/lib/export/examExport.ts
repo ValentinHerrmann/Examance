@@ -16,7 +16,7 @@ import { renderGradedPdf } from './gradedPdf';
 import { loadScoreBoxContext } from '#lib/grading/scoreBoxes';
 import { addLatexProjectFiles } from './latexAssets';
 import type { ExportProgress, ExportResult } from './progress';
-import { renderSummaryPdf } from './summaryPdf';
+import { renderSummaryPdf, type SummaryInput } from './summaryPdf';
 import { exportDateStamp, firstFree, slug, ZipBuilder } from './zip';
 import { addExerciseFolder } from './exerciseExport';
 import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExamZipManifest } from './zipManifest';
@@ -82,13 +82,7 @@ export async function runExamExport(
     if (has('summary')) {
       await part('export.exam.options.summary', async () => {
         progress(translate('export.exam.steps.summary'));
-        zip.add('summary.pdf', await renderSummaryPdf({
-          exam: ctx.exam,
-          stats: results.computed.stats,
-          totalMaxPoints: results.computed.totalMaxPoints,
-          rows: results.rows,
-          submissionCount: results.submissions.length,
-        }));
+        zip.add('summary.pdf', await renderSummaryPdf(summaryInput(ctx.exam, results)));
       });
     }
     if (has('graded')) warnings.push(...(await addGradedScans(zip, results, key, fallbackSessionKey, progress)));
@@ -171,6 +165,26 @@ async function addCompiledPdfs(zip: ZipBuilder, input: CompileInput): Promise<st
   zip.add('pdf/solution.pdf', res.loesung.pdfBytes);
   if (!res.missingGraphics.length) return [];
   return [translate('export.exam.warnings.missingGraphics', { files: [...new Set(res.missingGraphics)].join(', ') })];
+}
+
+function summaryInput(exam: ExamContext['exam'], results: LoadedResults): SummaryInput {
+  return {
+    exam,
+    stats: results.computed.stats,
+    totalMaxPoints: results.computed.totalMaxPoints,
+    rows: results.rows,
+    submissionCount: results.submissions.length,
+  };
+}
+
+/** The overview results sheet on its own (the Archive tab previews and downloads it, issue #212); the ZIP's `summary.pdf` is the same document. */
+export async function renderExamSummaryPdf(examId: string): Promise<Uint8Array> {
+  await awaitSessionReady();
+  const key = get(sessionStore).sessionKey;
+  if (!key) throw new Error(translate('dashboard.sessionState.lockedTitle'));
+  const ctx = await loadExamCompileContext(examId, key);
+  if (!ctx) throw new Error(translate('exam.page.examNotFoundOrDeleted'));
+  return renderSummaryPdf(summaryInput(ctx.exam, await loadResults({ exam: ctx.exam, exercises: ctx.exercises, key })));
 }
 
 export type LoadedResults = Awaited<ReturnType<typeof loadResults>>;

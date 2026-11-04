@@ -4,7 +4,7 @@ editLink: false
 
 # Results and analysis
 
-Each exam has a **Results** step (the last one in the sidebar) with two tabs: **Statistics** shows the grade distribution, key figures and borderline cases, **Share** hands the graded exams to the students, see [Share results](#share). **Analytics** in the navigation bar combines several exams. Both read the same encrypted results; nothing is computed on the server.
+Each exam has a **Results** step (the last one in the sidebar) with three tabs: **Statistics** shows the grade distribution, key figures and borderline cases, **Send to students** hands the graded exams to the students, see [Share results](#share), and **Archive** exports the overview sheet, graded exams and more for your records, see [Archive an exam](#archive). **Analytics** in the navigation bar combines several exams. Both read the same encrypted results; nothing is computed on the server.
 
 ![Exam results](../screenshots/pitch/08-results.jpg)
 
@@ -78,7 +78,11 @@ For an encrypted copy that can be imported again, choose **Re-importable, passwo
 
 ## Share results {#share}
 
-The **Share** tab of **Results** gives each student their graded exam. It is a page with four numbered steps: 1 the students, 2 the channel (slips to hand out, e-mail, Artemis or Mebis files) with its setup and the language of the message, 3 protection and options (link protection, key or code in the message, sample solution, validity), 4 preview and send; the send button stays visible at the bottom. Below, the active links are listed and can be revoked, with **Revoke all** for all of them. Details: [Share graded exams with students](./students#share-results).
+The **Send to students** tab of **Results** gives each student their graded exam. It is a page with four numbered steps: 1 the students, 2 the channel (slips to hand out, e-mail, Artemis or Mebis files) with its setup and the language of the message, 3 protection and options (link protection, key or code in the message, sample solution, validity), 4 preview and send; the send button stays visible at the bottom. Below, the active links are listed and can be revoked, with **Revoke all** for all of them. Details: [Share graded exams with students](./students#share-results).
+
+## Archive an exam {#archive}
+
+The **Archive** tab of **Results** collects what you may want to keep for your records. The **results overview sheet** (exam details, grading key, statistics and every student's result) is shown as a preview and can be downloaded as a PDF on its own. Below it, tick what should go into a ZIP: graded exams, LaTeX code, compiled PDFs, the overview sheet and the grades as CSV. The ZIP contains personal data of your students, so store it as carefully as the exam itself.
 
 ## Analytics across exams {#analytics}
 

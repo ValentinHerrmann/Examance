@@ -55,7 +55,7 @@ More: [Grading](./grading).
 
 ## 6. Results, analysis and export {#results}
 
-- **Share with students**: **Results → Share** gives every student their graded exam through an encrypted link, by e-mail, Artemis or Mebis files, see [Share graded exams](./students#share-results).
+- **Share with students**: **Results → Send to students** gives every student their graded exam through an encrypted link, by e-mail, Artemis or Mebis files, see [Share graded exams](./students#share-results).
 
 - **Exam statistics**: grade and percentage distributions, average, pass rate, borderline cases, per-exercise analysis and variant comparison.
 - **Analytics across exams**: topic heatmaps, exercise quality and variant fairness over time, grades and subjects.

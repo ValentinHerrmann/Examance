@@ -32,7 +32,7 @@ Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten 
 | 5 **MC prüfen** | Multiple-Choice-Erkennungen prüfen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification) |
 | 6 **Korrektur** | Abgaben korrigieren, siehe [Korrigieren](./grading) |
 | 7 **Papier & Excel** | Punkte für ohne Scan korrigierte Arbeiten eintragen, siehe [Auf Papier korrigierte Klassen](./grading#paper) |
-| 8 **Ergebnisse** | Reiter **Statistik** und **Teilen**, siehe [Ergebnisse und Auswertung](./results) |
+| 8 **Ergebnisse** | Reiter **Statistik**, **An Schüler senden** und **Archivieren**, siehe [Ergebnisse und Auswertung](./results) |
 
 ## Übersicht {#overview}
 

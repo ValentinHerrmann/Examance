@@ -34,7 +34,7 @@ export const sharing = {
         keyNoteShort: 'Gut aufheben: öffnet deine korrigierte Arbeit.',
     },
     share: {
-        title: 'Korrigierte Arbeiten mit Schülern teilen',
+        title: 'Korrigierte Arbeiten an die Schüler senden',
         intro: 'Jeder Schüler bekommt einen persönlichen Link zu seiner korrigierten Arbeit. Examance verschlüsselt jede Arbeit in diesem Browser; der Server speichert nur Daten, die er selbst nicht lesen kann, und löscht sie, wenn der Link abläuft.',
         hybridNote: 'Ihre Ergebnisse liegen nur in diesem Browser. Zum Teilen werden die korrigierten Arbeiten verschlüsselt auf den Server geladen; öffnen kann sie nur, wer den Link hat.',
         loading: 'Schüler werden geladen …',

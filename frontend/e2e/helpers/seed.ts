@@ -54,6 +54,7 @@ export function mainRoutes(examId: string): RouteSpec[] {
     { name: 'exam-manual', path: `/exam/${examId}/manual`, workspace: true },
     { name: 'exam-results', path: `/exam/${examId}/results`, workspace: true },
     { name: 'exam-share', path: `/exam/${examId}/results/share` },
+    { name: 'exam-archive', path: `/exam/${examId}/results/archive` },
   ];
 }
 

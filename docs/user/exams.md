@@ -32,7 +32,7 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 | 5 **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
 | 6 **Grading** | Correct the submissions, see [Grading](./grading) |
 | 7 **Paper & Excel** | Enter points for papers graded without scanning, see [Classes graded on paper](./grading#paper) |
-| 8 **Results** | Tabs **Statistics** and **Share**, see [Results and analysis](./results) |
+| 8 **Results** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
 
 ## Overview {#overview}
 

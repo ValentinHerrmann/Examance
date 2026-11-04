@@ -248,9 +248,22 @@ export const exam = {
             keysChanged: 'Die Schülerliste wurde seit dem Abhaken geändert. Es fehlen eventuell Zettel für neue Schüler.',
         },
     },
+    archive: {
+        title: 'Prüfung archivieren',
+        intro: 'Alles, was du für deine Unterlagen aufbewahren möchtest, auf einen Blick: das Übersichtsblatt der Ergebnisse und, nach Auswahl, korrigierte Prüfungen, Aufgaben und Noten als ZIP.',
+        sheetTitle: 'Übersichtsblatt der Ergebnisse',
+        sheetIntro: 'Prüfungsdaten, Notenschlüssel, Statistik und die Ergebnisse aller Schüler als ein PDF. Die Vorschau zeigt den aktuellen Stand.',
+        sheetBusy: 'Übersichtsblatt wird erstellt …',
+        sheetDownload: 'Übersichtsblatt herunterladen',
+        sheetRefresh: 'Vorschau aktualisieren',
+        sheetFile: 'Übersicht',
+        zipTitle: 'Archiv als ZIP',
+        zipIntro: 'Wähle, was in das ZIP kommen soll.',
+    },
     results: {
         tabStats: 'Statistik',
-        tabShare: 'Teilen',
+        tabShare: 'An Schüler senden',
+        tabArchive: 'Archivieren',
         unsavedKey: 'Notenschlüssel nicht gespeichert',
     },
     flow: {

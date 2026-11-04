@@ -250,9 +250,22 @@ export const exam: Translations['exam'] = {
             keysChanged: 'The student list changed after you ticked this. New students may be missing slips.',
         },
     },
+    archive: {
+        title: 'Archive the exam',
+        intro: 'Everything you may want to keep for your records in one place: the results overview sheet and, as you choose, graded exams, exercises and grades as a ZIP.',
+        sheetTitle: 'Results overview sheet',
+        sheetIntro: 'Exam details, grading key, statistics and every student\'s result as one PDF. The preview shows the current state.',
+        sheetBusy: 'Creating the overview sheet …',
+        sheetDownload: 'Download overview sheet',
+        sheetRefresh: 'Refresh preview',
+        sheetFile: 'Overview',
+        zipTitle: 'Archive as ZIP',
+        zipIntro: 'Choose what goes into the ZIP.',
+    },
     results: {
         tabStats: 'Statistics',
-        tabShare: 'Share',
+        tabShare: 'Send to students',
+        tabArchive: 'Archive',
         unsavedKey: 'Grading key not saved',
     },
     flow: {

@@ -56,7 +56,7 @@ A personal key is only needed if you later protect result links with it, see [Li
 
 ## Share graded exams with students {#share-results}
 
-After grading, **Results → Share** gives each student their graded PDF, with your annotations and score, and their name printed in red at the top of every page. It is a page with four numbered steps and a send button that stays visible at the bottom:
+After grading, **Results → Send to students** gives each student their graded PDF, with your annotations and score, and their name printed in red at the top of every page. It is a page with four numbered steps and a send button that stays visible at the bottom:
 
 1. **Choose students.** Students with a grading are preselected.
 2. **Choose the way**:
@@ -111,7 +111,7 @@ Examance works with Mebis and Artemis in the same way as DiRueLei.
 
 1. In the Mebis assignment, download the **grading worksheet** (or export the participant list as CSV). It contains the students' Mebis IDs and e-mail addresses.
 2. Import this file on the [Students page](#student-data) and print the [QR stickers](#qr-stickers) or copies: the Mebis ID goes into each code.
-3. After grading, choose **Feedback files for Mebis (download)** on **Results → Share**. You get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
+3. After grading, choose **Feedback files for Mebis (download)** on **Results → Send to students**. You get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
 
 Students with no Mebis ID (neither from the class list nor in their QR sticker) are skipped and listed in the notes after the download.
 
@@ -144,7 +144,7 @@ After sending by e-mail or Artemis, the share page shows a **Delivery** column p
 
 If your installation has its own mailbox for result mails, they are sent from it, and they ask students not to reply but to contact you another way: replies do not reach you.
 
-After an e-mail run the page waits about 30 seconds and checks for returned mails. You can leave earlier: e-mails that come back later are forwarded to your own address, and the **Share** badge of the exam's **Results** step then shows in red how many students were not reached. To send again, correct the address or Artemis id on the [Students page](#student-data), open **Results → Share**, choose **Select students not reached** and send.
+After an e-mail run the page waits about 30 seconds and checks for returned mails. You can leave earlier: e-mails that come back later are forwarded to your own address, and the **Share** badge of the exam's **Results** step then shows in red how many students were not reached. To send again, correct the address or Artemis id on the [Students page](#student-data), open **Results → Send to students**, choose **Select students not reached** and send.
 
 If the page says that returned e-mails are not monitored, your installation has no result mailbox: then "Sent" only means that the mail server accepted the message.
 
@@ -156,7 +156,7 @@ No sign-in and no account are needed. The PDF is decrypted only in the student's
 
 ## Revoke links and expiry {#revoke}
 
-**Results → Share** lists the **active links**. You can **revoke** one link, or use **Revoke all**; revoked links stop working immediately and their data is deleted.
+**Results → Send to students** lists the **active links**. You can **revoke** one link, or use **Revoke all**; revoked links stop working immediately and their data is deleted.
 
 Links also end by themselves:
 

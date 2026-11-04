@@ -55,7 +55,7 @@ Mehr: [Korrigieren](./grading).
 
 ## 6. Ergebnisse, Auswertung und Export {#results}
 
-- **Mit Schülern teilen**: **Ergebnisse → Teilen** gibt jeder Schülerin und jedem Schüler die korrigierte Prüfung über einen verschlüsselten Link, per E-Mail, Artemis oder Mebis-Dateien, siehe [Korrigierte Prüfungen teilen](./students#share-results).
+- **Mit Schülern teilen**: **Ergebnisse → An Schüler senden** gibt jeder Schülerin und jedem Schüler die korrigierte Prüfung über einen verschlüsselten Link, per E-Mail, Artemis oder Mebis-Dateien, siehe [Korrigierte Prüfungen teilen](./students#share-results).
 
 - **Prüfungsstatistik**: Noten- und Prozentverteilung, Durchschnitt, Bestehensquote, Grenzfälle, Analyse je Aufgabe und Variantenvergleich.
 - **Auswertung über mehrere Prüfungen**: Themen-Heatmaps, Aufgabenqualität und Variantenfairness im Zeitverlauf, Noten und Fächer.

@@ -4,7 +4,7 @@ editLink: false
 
 # Ergebnisse und Auswertung
 
-Jede Prüfung hat einen Schritt **Ergebnisse** (der letzte in der Seitenleiste) mit zwei Reitern: **Statistik** zeigt die Notenverteilung, Kennzahlen und Grenzfälle, **Teilen** gibt die korrigierten Prüfungen an die Schüler weiter, siehe [Ergebnisse teilen](#share). Die **Auswertung** in der Navigationsleiste fasst mehrere Prüfungen zusammen. Beide lesen dieselben verschlüsselten Ergebnisse; auf dem Server wird nichts berechnet.
+Jede Prüfung hat einen Schritt **Ergebnisse** (der letzte in der Seitenleiste) mit drei Reitern: **Statistik** zeigt die Notenverteilung, Kennzahlen und Grenzfälle, **An Schüler senden** gibt die korrigierten Prüfungen an die Schüler weiter, siehe [Ergebnisse teilen](#share), und **Archivieren** exportiert Übersichtsblatt, korrigierte Prüfungen und mehr für Ihre Unterlagen, siehe [Prüfung archivieren](#archive). Die **Auswertung** in der Navigationsleiste fasst mehrere Prüfungen zusammen. Beide lesen dieselben verschlüsselten Ergebnisse; auf dem Server wird nichts berechnet.
 
 ![Prüfungsergebnisse](../../screenshots/pitch/08-results.jpg)
 
@@ -78,7 +78,11 @@ Für eine verschlüsselte Kopie, die sich wieder importieren lässt, wählen Sie
 
 ## Ergebnisse teilen {#share}
 
-Der Reiter **Teilen** unter **Ergebnisse** gibt jeder Schülerin und jedem Schüler die korrigierte Prüfung. Er ist eine Seite mit vier nummerierten Schritten: 1 die Schüler, 2 der Weg (Zettel zum Austeilen, E-Mail, Artemis oder Mebis-Dateien) mit seiner Einrichtung und der Sprache der Nachricht, 3 Schutz und Optionen (Linkschutz, Schlüssel bzw. Code in der Nachricht, Musterlösung, Gültigkeit), 4 Vorschau und Versand; die Schaltfläche zum Senden bleibt unten sichtbar. Darunter stehen die aktiven Links, die sich widerrufen lassen, alle auf einmal mit **Alle Links widerrufen**. Einzelheiten: [Korrigierte Prüfungen mit Schülern teilen](./students#share-results).
+Der Reiter **An Schüler senden** unter **Ergebnisse** gibt jeder Schülerin und jedem Schüler die korrigierte Prüfung. Er ist eine Seite mit vier nummerierten Schritten: 1 die Schüler, 2 der Weg (Zettel zum Austeilen, E-Mail, Artemis oder Mebis-Dateien) mit seiner Einrichtung und der Sprache der Nachricht, 3 Schutz und Optionen (Linkschutz, Schlüssel bzw. Code in der Nachricht, Musterlösung, Gültigkeit), 4 Vorschau und Versand; die Schaltfläche zum Senden bleibt unten sichtbar. Darunter stehen die aktiven Links, die sich widerrufen lassen, alle auf einmal mit **Alle Links widerrufen**. Einzelheiten: [Korrigierte Prüfungen mit Schülern teilen](./students#share-results).
+
+## Prüfung archivieren {#archive}
+
+Der Reiter **Archivieren** unter **Ergebnisse** sammelt, was Sie für Ihre Unterlagen aufbewahren möchten. Das **Übersichtsblatt der Ergebnisse** (Prüfungsdaten, Notenschlüssel, Statistik und das Ergebnis jeder Schülerin und jedes Schülers) sehen Sie als Vorschau und laden es einzeln als PDF herunter. Darunter wählen Sie per Häkchen, was in ein ZIP kommt: korrigierte Prüfungen, LaTeX-Code, erstellte PDFs, das Übersichtsblatt und die Noten als CSV. Das ZIP enthält personenbezogene Daten Ihrer Schüler; bewahren Sie es so sorgfältig auf wie die Prüfung selbst.
 
 ## Auswertung über mehrere Prüfungen {#analytics}
 

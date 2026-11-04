@@ -4,7 +4,7 @@ editLink: false
 
 # QR-Aufkleber und Ergebnisse für Schüler
 
-Zwei Dinge gehören hier zusammen: **QR-Codes**, als Aufkleber, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, oder direkt aufgedruckt, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Die QR-Codes erstellen Sie im Schritt **Drucken**, die Links unter **Ergebnisse → Teilen**. Die Schüler selbst, mit Mebis- bzw. Artemis-ID und E-Mail-Adresse, pflegen Sie an einer Stelle: auf der Seite **Schüler** der Prüfung.
+Zwei Dinge gehören hier zusammen: **QR-Codes**, als Aufkleber, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, oder direkt aufgedruckt, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Die QR-Codes erstellen Sie im Schritt **Drucken**, die Links unter **Ergebnisse → An Schüler senden**. Die Schüler selbst, mit Mebis- bzw. Artemis-ID und E-Mail-Adresse, pflegen Sie an einer Stelle: auf der Seite **Schüler** der Prüfung.
 
 ## Schülerdaten {#student-data}
 
@@ -56,7 +56,7 @@ Ein persönlicher Schlüssel wird nur gebraucht, wenn Sie Ergebnis-Links später
 
 ## Korrigierte Prüfungen mit Schülern teilen {#share-results}
 
-Nach der Korrektur gibt **Ergebnisse → Teilen** jeder Schülerin und jedem Schüler das korrigierte PDF, mit Ihren Anmerkungen, der Punktzahl und dem Namen in Rot oben auf jeder Seite. Es ist eine Seite mit vier nummerierten Schritten und einer Schaltfläche zum Senden, die unten sichtbar bleibt:
+Nach der Korrektur gibt **Ergebnisse → An Schüler senden** jeder Schülerin und jedem Schüler das korrigierte PDF, mit Ihren Anmerkungen, der Punktzahl und dem Namen in Rot oben auf jeder Seite. Es ist eine Seite mit vier nummerierten Schritten und einer Schaltfläche zum Senden, die unten sichtbar bleibt:
 
 1. **Schüler auswählen.** Schüler mit einer Korrektur sind vorausgewählt.
 2. **Weg wählen** (**Weg zu den Schülern**):
@@ -98,8 +98,8 @@ Optionen, die nicht zu Ihrer Auswahl passen, sind ausgegraut, und die Seite nenn
 
 Jede Schülerin und jeder Schüler bekommt eine E-Mail mit dem Link. Dafür brauchen die Schüler der Prüfung eine E-Mail-Adresse:
 
-- Tragen Sie sie auf der Seite [Schüler](#student-data) ein: aus einer Mebis-Liste, einem Artemis-Kurs oder einer eingefügten Liste, oder einzeln mit **Bearbeiten**. Unter **Per E-Mail** zeigt die Teilen-Seite, wie viele Schüler eine Adresse haben, und verlinkt dorthin.
-- Die Schülerliste auf der Teilen-Seite zeigt die Mebis-/Artemis-ID und die E-Mail-Adresse jeder Person; ein leeres Feld heißt, dass keine bekannt ist.
+- Tragen Sie sie auf der Seite [Schüler](#student-data) ein: aus einer Mebis-Liste, einem Artemis-Kurs oder einer eingefügten Liste, oder einzeln mit **Bearbeiten**. Unter **Per E-Mail** zeigt die Seite **An Schüler senden**, wie viele Schüler eine Adresse haben, und verlinkt dorthin.
+- Die Schülerliste auf der Seite **An Schüler senden** zeigt die Mebis-/Artemis-ID und die E-Mail-Adresse jeder Person; ein leeres Feld heißt, dass keine bekannt ist.
 
 Weil die E-Mail über den Examance-Server geht, darf ein per E-Mail verschickter Link die Arbeit nie allein öffnen: Es gibt nur **Schlüssel vom QR-Aufkleber** und **Code auf eigenem Zettel** (außer Sie schreiben den Schlüssel selbst in die Nachricht, siehe [Linkschutz](#link-protection)). Mit Codes werden am Ende die Code-Zettel heruntergeladen; teilen Sie sie im Unterricht aus.
 
@@ -111,7 +111,7 @@ Examance arbeitet mit Mebis und Artemis so zusammen wie DiRueLei.
 
 1. Laden Sie in der Mebis-Aufgabe die **Bewertungstabelle** herunter (oder exportieren Sie die Teilnehmerliste als CSV). Sie enthält die Mebis-Kennungen und E-Mail-Adressen der Schüler.
 2. Übernehmen Sie diese Datei auf der Seite [Schüler](#student-data) und drucken Sie die [QR-Aufkleber](#qr-stickers) oder Exemplare: Die Mebis-Kennung steckt dann in jedem Code.
-3. Wählen Sie nach der Korrektur unter **Ergebnisse → Teilen** den Weg **Rückmeldedateien für Mebis (Download)**. Sie erhalten eine `…_mebis_feedback.zip`. Laden Sie sie in der Mebis-Aufgabe unter **Mehrere Feedbackdateien in einer ZIP-Datei hochladen** hoch. Jeder Schüler sieht seine korrigierte Arbeit dann als Feedback.
+3. Wählen Sie nach der Korrektur unter **Ergebnisse → An Schüler senden** den Weg **Rückmeldedateien für Mebis (Download)**. Sie erhalten eine `…_mebis_feedback.zip`. Laden Sie sie in der Mebis-Aufgabe unter **Mehrere Feedbackdateien in einer ZIP-Datei hochladen** hoch. Jeder Schüler sieht seine korrigierte Arbeit dann als Feedback.
 
 Schüler ohne Mebis-ID (weder aus der Klassenliste noch im QR-Aufkleber) werden übersprungen und nach dem Download in den Hinweisen genannt.
 
@@ -133,7 +133,7 @@ Bevor etwas per E-Mail oder Artemis verschickt wird, zeigt eine **Vorschau** jed
 
 ## Ist es angekommen? {#delivery-status}
 
-Nach dem Versand per E-Mail oder Artemis zeigt die Teilen-Seite je Schüler eine Spalte **Zustellung**:
+Nach dem Versand per E-Mail oder Artemis zeigt die Seite **An Schüler senden** je Schüler eine Spalte **Zustellung**:
 
 | Status | Bedeutung |
 |---|---|
@@ -144,7 +144,7 @@ Nach dem Versand per E-Mail oder Artemis zeigt die Teilen-Seite je Schüler eine
 
 Hat deine Installation ein eigenes Postfach für Ergebnis-Mails, werden sie von dort verschickt und bitten die Schüler, nicht zu antworten, sondern sich auf anderem Weg an dich zu wenden: Antworten erreichen dich nicht.
 
-Nach einem E-Mail-Versand wartet die Seite etwa 30 Sekunden und prüft, ob E-Mails zurückkommen. Du kannst sie vorher verlassen: Später zurückkommende E-Mails werden an deine eigene Adresse weitergeleitet, und das Abzeichen des Schritts **Ergebnisse** zeigt dann rot, wie viele Schüler nicht erreicht wurden. Zum erneuten Senden korrigierst du die Adresse oder Artemis-ID auf der [Schülerseite](#student-data), öffnest **Ergebnisse → Teilen**, wählst **Nicht erreichte auswählen** und sendest.
+Nach einem E-Mail-Versand wartet die Seite etwa 30 Sekunden und prüft, ob E-Mails zurückkommen. Du kannst sie vorher verlassen: Später zurückkommende E-Mails werden an deine eigene Adresse weitergeleitet, und das Abzeichen des Schritts **Ergebnisse** zeigt dann rot, wie viele Schüler nicht erreicht wurden. Zum erneuten Senden korrigierst du die Adresse oder Artemis-ID auf der [Schülerseite](#student-data), öffnest **Ergebnisse → An Schüler senden**, wählst **Nicht erreichte auswählen** und sendest.
 
 Sagt die Seite, dass zurückkommende E-Mails nicht überwacht werden, hat deine Installation kein eigenes Postfach für Ergebnis-Mails: Dann heißt „Gesendet“ nur, dass der Mailserver die Nachricht angenommen hat.
 
@@ -156,7 +156,7 @@ Eine Anmeldung oder ein Konto ist nicht nötig. Das PDF wird nur im Browser der 
 
 ## Links widerrufen und Ablauf {#revoke}
 
-**Ergebnisse → Teilen** listet die **aktiven Links** auf. Mit **Widerrufen** beenden Sie einen Link, mit **Alle Links widerrufen** alle auf einmal; widerrufene Links funktionieren sofort nicht mehr, und ihre Daten werden gelöscht.
+**Ergebnisse → An Schüler senden** listet die **aktiven Links** auf. Mit **Widerrufen** beenden Sie einen Link, mit **Alle Links widerrufen** alle auf einmal; widerrufene Links funktionieren sofort nicht mehr, und ihre Daten werden gelöscht.
 
 Links enden auch von selbst:
 
