@@ -48,6 +48,9 @@ export interface ExamChecksState {
 
 export const examChecksState = writable<ExamChecksState | null>(null);
 
+/** True while the Results page holds a grading key edit that is previewed but not saved (issue #212): the tab strip shows a dot and leaving asks first. */
+export const gradingKeyDirty = writable(false);
+
 export const examNavContext = writable<ExamNavContext | null>(null);
 
 /** The MC step's counts, set by the layout (from the scans) and refreshed by the verify page after each review. */

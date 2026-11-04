@@ -251,6 +251,7 @@ export const exam = {
     results: {
         tabStats: 'Statistik',
         tabShare: 'Teilen',
+        unsavedKey: 'Notenschlüssel nicht gespeichert',
     },
     flow: {
         done: 'erledigt',

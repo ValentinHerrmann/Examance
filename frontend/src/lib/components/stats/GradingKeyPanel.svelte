@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onDestroy, untrack } from "svelte";
+  import { beforeNavigate, goto } from "$app/navigation";
   import { get } from "svelte/store";
   import { api } from "#lib/api/client";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
   import { saveExamEncrypted } from "#lib/db/dbEncryption";
   import type { ExamRecord, GradingKeyConfig } from "#lib/db/schema";
   import { isAuthenticated, sessionStore } from "#lib/stores/session";
+  import { gradingKeyDirty } from "#lib/stores/shell";
   import { t, translate } from "#lib/i18n";
   import GradingKeyEditor from "#lib/components/GradingKeyEditor.svelte";
-  import { Alert, Button, Card } from "#lib/components/ui";
+  import { Alert, Button, Card, ConfirmDialog } from "#lib/components/ui";
 
   /** The exam's grading key next to the distribution it changes (issue #212): edits recompute the statistics live, Save stores them. */
   interface Props {
@@ -55,6 +57,23 @@
     }
   }
 
+  let pendingLeave = $state<URL | null>(null);
+  // An unsaved key is previewed in the statistics; leaving would drop it silently, so ask first (a closed tab uses the browser's own prompt).
+  beforeNavigate((nav) => {
+    if (!dirty || !nav.to) return;
+    if (nav.type === "leave") {
+      nav.cancel();
+      return;
+    }
+    nav.cancel();
+    pendingLeave = nav.to.url;
+  });
+  $effect.pre(() => {
+    const d = dirty;
+    untrack(() => gradingKeyDirty.set(d));
+  });
+  onDestroy(() => gradingKeyDirty.set(false));
+
   let loadedFor = "";
   $effect.pre(() => {
     const id = exam.id;
@@ -75,11 +94,29 @@
 
 <Card title={$t("exam.overview.gradingKey")}>
   <p class="mt-0 mb-4 text-sm text-muted">{$t("stats.gradingKey.intro")}</p>
+  {#if dirty}
+    <Alert severity="warning" class="mb-4" title={$t("stats.gradingKey.draftTitle")}>{$t("stats.gradingKey.draftText")}</Alert>
+  {/if}
   <GradingKeyEditor bind:gradingKey={edit} />
   {#if error}<Alert severity="danger" class="mt-4">{error}</Alert>{/if}
   {#if saved}<Alert severity="success" class="mt-4">{$t("stats.gradingKey.saved")}</Alert>{/if}
   <div class="mt-4 flex flex-wrap justify-end gap-2">
     <Button variant="outlined" severity="secondary" disabled={!dirty || busy} onClick={reset}>{$t("exam.layout.discard")}</Button>
-    <Button loading={busy} disabled={!dirty || busy} onClick={save}>{$t("common.save")}</Button>
+    <Button loading={busy} disabled={!dirty || busy} severity={dirty ? "primary" : "secondary"} onClick={save}>{$t("common.save")}</Button>
   </div>
 </Card>
+
+<ConfirmDialog
+  open={pendingLeave !== null}
+  title={$t("stats.gradingKey.leaveTitle")}
+  message={$t("stats.gradingKey.leaveMessage")}
+  confirmText={$t("stats.gradingKey.leaveDiscard")}
+  cancelText={$t("stats.gradingKey.leaveStay")}
+  onConfirm={() => {
+    const to = pendingLeave;
+    pendingLeave = null;
+    reset();
+    if (to) void goto(to);
+  }}
+  onCancel={() => (pendingLeave = null)}
+/>

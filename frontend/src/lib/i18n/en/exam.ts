@@ -253,6 +253,7 @@ export const exam: Translations['exam'] = {
     results: {
         tabStats: 'Statistics',
         tabShare: 'Share',
+        unsavedKey: 'Grading key not saved',
     },
     flow: {
         done: 'done',
