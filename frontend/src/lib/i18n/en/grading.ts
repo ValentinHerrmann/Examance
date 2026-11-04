@@ -127,8 +127,8 @@ export const grading: Translations['grading'] = {
     },
     manual: {
         container: {
-            title: 'Paper & Excel grade entry',
-            subtitle: 'Enter exam points directly without scanning paper booklets, or paste score matrices from Excel.',
+            title: 'Graded on paper: enter the points by hand',
+            subtitle: 'For exams you graded on paper: type in the points per exercise yourself or paste them from Excel. Scanning and grading on screen are not needed for this.',
             importButton: 'Import from Excel (Ctrl+V)',
             tabExerciseFirst: 'Exercise-first entry (all students per exercise)',
             tabStudentFirst: 'Student-first entry (all exercises per student)',

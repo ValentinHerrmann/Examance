@@ -125,8 +125,8 @@ export const grading = {
     },
     manual: {
         container: {
-            title: 'Papier- & Excel-Noteneingabe',
-            subtitle: 'Prüfungspunkte direkt eingeben, ohne Papierhefte zu scannen, oder Punktematrizen aus Excel einfügen.',
+            title: 'Auf Papier korrigiert: Punkte von Hand eintragen',
+            subtitle: 'Für Prüfungen, die du auf Papier korrigiert hast: Trage die Punkte pro Aufgabe selbst ein oder füge sie aus Excel ein. Scannen und Korrigieren am Bildschirm sind dafür nicht nötig.',
             importButton: 'Aus Excel importieren (Strg+V)',
             tabExerciseFirst: 'Aufgabenweise Eingabe (alle Schüler pro Aufgabe)',
             tabStudentFirst: 'Schülerweise Eingabe (alle Aufgaben pro Schüler)',
