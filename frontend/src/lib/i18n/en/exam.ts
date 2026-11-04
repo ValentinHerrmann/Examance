@@ -187,6 +187,7 @@ export const exam: Translations['exam'] = {
             verify: 'MC detections still to check: {count}',
             grade: 'Graded: {count} of {total}',
             results: 'Sent to students: {count}',
+            verifySure: 'Sure MC detections looked at: {count} of {total}',
             done: 'Done',
         },
     },

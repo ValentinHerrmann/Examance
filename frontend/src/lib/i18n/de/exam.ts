@@ -185,6 +185,7 @@ export const exam = {
             verify: 'Noch zu prüfende MC-Erkennungen: {count}',
             grade: 'Korrigiert: {count} von {total}',
             results: 'An Schüler gesendet: {count}',
+            verifySure: 'Sichere MC-Erkennungen angesehen: {count} von {total}',
             done: 'Erledigt',
         },
     },

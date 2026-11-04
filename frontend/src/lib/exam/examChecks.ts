@@ -87,6 +87,17 @@ export function withPrintCheck(checks: StepChecks | null | undefined, id: PrintC
     return { ...checks, print };
 }
 
+/** Sidebar status of the MC step: open uncertain/failed items first, then the sure ones looked at; done needs both, or the manual "sure detections checked" tick. */
+export function mcStatus(
+    summary: { open: number; sureTotal: number; sureReviewed: number; sureStamp: string },
+    checks: StepChecks | null | undefined,
+): { count: number; total?: number; done: boolean } {
+    if (summary.open > 0) return { count: summary.open, done: false };
+    const manual = checks?.mc?.sure?.stamp === summary.sureStamp;
+    if (manual || summary.sureReviewed >= summary.sureTotal) return { count: 0, done: true };
+    return { count: summary.sureReviewed, total: summary.sureTotal, done: false };
+}
+
 /** The checks with the manual "sure detections checked" tick set or cleared. */
 export function withMcSureCheck(checks: StepChecks | null | undefined, stamp: string | null): StepChecks {
     return { ...checks, mc: stamp === null ? {} : { sure: { at: new Date().toISOString(), stamp } } };

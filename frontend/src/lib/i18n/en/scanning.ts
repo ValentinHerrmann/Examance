@@ -85,6 +85,14 @@ export const scanning: Translations['scanning'] = {
     fallbackCodeUpdated: 'Updated fallback code to "{code}"',
     pageTitle: 'Scan Ingestion Pipeline',
     verify: {
+        check: {
+            title: 'MC check progress',
+            failedOpen: 'Not detected, still open: {count}',
+            unsureOpen: 'Uncertain, still open: {count}',
+            sureLooked: 'Sure detections looked at: {count} of {total}',
+            sureDone: 'Sure detections are checked',
+            sureHint: 'Opening this page ticks nothing. Tick this when you have looked at the sure detections (for example a sample); the tick holds until new scans or a new detection change the sure detections.',
+        },
         heading: 'Verify MC Detections',
         description: 'Review automatically detected multiple choice answers. Confirm uncertain readings or jump to manual grading.',
         rerunning: 'Re-running MC detection...',

@@ -24,7 +24,7 @@
   };
   let title = $derived(
     step && status && badgeKeys[step] && status.count !== undefined
-      ? $t(badgeKeys[step], { count: status.count, total: status.total ?? 0 })
+      ? $t(step === "verify" && status.total !== undefined ? "exam.sidebar.badge.verifySure" : badgeKeys[step], { count: status.count, total: status.total ?? 0 })
       : status?.done
         ? $t("exam.sidebar.badge.done")
         : undefined,

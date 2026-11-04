@@ -18,7 +18,8 @@ export interface ExamProgressInput {
     gradedCount?: number;
     /** The hand-set print checklist (`printStatus`); compiling never sets it. */
     print?: StepStatus;
-    mcOpen?: number;
+    /** Open MC items and the sure ones looked at (`mcStatus`); a page visit alone changes nothing. */
+    verify?: StepStatus;
     sharedCount?: number;
     notReached?: number;
 }
@@ -30,7 +31,7 @@ export function examProgress(input: ExamProgressInput): ExamProgress {
     if (input.studentCount !== undefined) p.students = { count: input.studentCount, done: input.studentCount > 0 };
     if (input.print !== undefined) p.print = input.print;
     if (input.submissionCount !== undefined) p.scan = { count: input.submissionCount, done: input.submissionCount > 0 };
-    if (input.mcOpen !== undefined) p.verify = { count: input.mcOpen, done: input.mcOpen === 0 };
+    if (input.verify !== undefined) p.verify = input.verify;
     if (input.gradedCount !== undefined && input.submissionCount !== undefined) {
         p.grade = {
             count: input.gradedCount,

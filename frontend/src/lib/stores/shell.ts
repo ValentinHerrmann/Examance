@@ -1,4 +1,5 @@
 import type { ExamProgress } from '#lib/exam/examProgress';
+import type { McCheckSummary } from '#lib/grading/mcVerification';
 import type { StepChecks } from '#lib/exam/examChecks';
 import { writable } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
@@ -43,13 +44,11 @@ export interface ExamChecksState {
     checks: StepChecks;
     /** Fingerprints of the exam content and of its students; null while a read failed. */
     stamps: { content: string; students: string } | null;
-    /** Fingerprint of the exam's scans (the sure MC detections depend on them); null while unknown. */
-    scansStamp: string | null;
 }
 
 export const examChecksState = writable<ExamChecksState | null>(null);
 
 export const examNavContext = writable<ExamNavContext | null>(null);
 
-/** Open MC checks, known only once the verify page computed its queues: published here for the step badge. */
-export const examMcOpen = writable<{ examId: string; open: number } | null>(null);
+/** The MC step's counts, set by the layout (from the scans) and refreshed by the verify page after each review. */
+export const examMcState = writable<({ examId: string } & McCheckSummary) | null>(null);

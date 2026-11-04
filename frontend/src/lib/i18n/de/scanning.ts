@@ -83,6 +83,14 @@ export const scanning = {
     fallbackCodeUpdated: 'Fallback-Code auf „{code}" aktualisiert',
     pageTitle: 'Scan-Einlese-Pipeline',
     verify: {
+        check: {
+            title: 'Stand der MC-Prüfung',
+            failedOpen: 'Nicht erkannt, noch offen: {count}',
+            unsureOpen: 'Unsicher, noch offen: {count}',
+            sureLooked: 'Sichere Erkennungen angesehen: {count} von {total}',
+            sureDone: 'Sichere Erkennungen sind geprüft',
+            sureHint: 'Das Öffnen dieser Seite hakt nichts ab. Hake hier ab, wenn du die sicheren Erkennungen (zum Beispiel stichprobenartig) angesehen hast; der Haken gilt, bis neue Scans oder eine neue Erkennung die sicheren Erkennungen ändern.',
+        },
         heading: 'MC-Erkennungen überprüfen',
         description: 'Überprüfen Sie automatisch erkannte Multiple-Choice-Antworten. Bestätigen Sie unsichere Lesungen oder springen Sie zur manuellen Bewertung.',
         rerunning: 'MC-Erkennung wird erneut ausgeführt…',

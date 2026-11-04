@@ -8,14 +8,15 @@
   import { sessionStore } from "#lib/stores/session";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import type { ExamRecord } from "#lib/db/schema";
-  import { examNavContext, examMcOpen, examChecksState } from "#lib/stores/shell";
+  import { examNavContext, examMcState, examChecksState } from "#lib/stores/shell";
   import { loadExamEncrypted, loadExamExercisesEncrypted } from "#lib/db/dbEncryption";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { listResultDeliveries, listResultShares } from "#lib/api/resultShares";
   import { latestDeliveries, undelivered } from "#lib/sharing/shareService";
   import { featuresStore } from "#lib/stores/capabilities";
   import { examProgress, type ExamProgressInput } from "#lib/exam/examProgress";
-  import { contentStamp, fingerprint, printStamps, printStatus, studentsStamp } from "#lib/exam/examChecks";
+  import { contentStamp, mcStatus, printStamps, printStatus, studentsStamp } from "#lib/exam/examChecks";
+  import { computeMcVerificationStats, summarizeMcCheck } from "#lib/grading/mcVerification";
   import { t } from "#lib/i18n";
 
   interface Props {
@@ -65,7 +66,6 @@
     const students = await attempt(() => studentRepository.getByExamId(id, key));
     next.studentCount = students?.length;
     const stamps = exam && exercises && students ? { content: contentStamp(exam, exercises), students: studentsStamp(students) } : null;
-    const scansStamp = subs ? fingerprint(subs.map((s) => s.id).sort().join(",")) : null;
     const checks = exam?.stepChecks ?? {};
     const shares = await attempt(() => listResultShares(id));
     // Students with a link that still opens; a replaced link leaves an older row, so count students, not rows.
@@ -74,9 +74,12 @@
       const deliveries = await attempt(() => listResultDeliveries(id));
       if (deliveries) next.notReached = [...latestDeliveries(deliveries).values()].filter(undelivered).length;
     }
+    // Only a read of the scans' MC items tells what is open; a page visit never does. No scans or no MC question: no badge.
+    const mc = subs && subs.length > 0 ? await attempt(() => computeMcVerificationStats(id, key)) : undefined;
     if (id === examId) {
       counts = next;
-      examChecksState.set({ examId: id, checks, stamps, scansStamp });
+      examChecksState.set({ examId: id, checks, stamps });
+      examMcState.set(mc && mc.totalQuestions > 0 ? { examId: id, ...summarizeMcCheck(mc.items) } : null);
     }
   }
 
@@ -97,12 +100,12 @@
     const current = exam;
     const count = submissionCount;
     const input = counts;
-    const mc = $examMcOpen;
+    const mc = $examMcState;
     const cs = $examChecksState;
     if (browser && id) {
       const progress = examProgress({
         ...input,
-        mcOpen: mc && mc.examId === id ? mc.open : undefined,
+        verify: mc && mc.examId === id ? mcStatus(mc, cs?.examId === id ? cs.checks : null) : undefined,
         print: cs && cs.examId === id && cs.stamps ? printStatus(cs.checks, printStamps(cs.stamps.content, cs.stamps.students)) : undefined,
       });
       untrack(() => examNavContext.set({ examId: id, exam: current && current.id === id ? current : null, submissionCount: count, progress }));

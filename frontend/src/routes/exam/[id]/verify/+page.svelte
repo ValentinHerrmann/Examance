@@ -13,6 +13,7 @@
   import {
     computeMcVerificationStats,
     mcQueue,
+    summarizeMcCheck,
     isMcReviewed,
     type McVerificationStats,
     type McDetectionItem,
@@ -43,7 +44,8 @@
   } from "#lib/workers/omrWorker";
   import type { ExerciseScoreRecord } from "#lib/db/schema";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
-  import { examMcOpen } from "#lib/stores/shell";
+  import { examMcState } from "#lib/stores/shell";
+  import McSureCheck from "#lib/components/verify/McSureCheck.svelte";
 
   let examId = $derived(page.params.id || "");
   // Set = one item (M5, formerly `/verify-item`); the stats below serve both views.
@@ -429,11 +431,12 @@
     }
   });
 
-  // Step badge: unreviewed failed and unsure detections (issue #212).
+  let summary = $derived(stats ? summarizeMcCheck(stats.items) : null);
+  // Step badge: the same counts the layout reads from the scans, kept current while reviewing (issue #212).
   $effect.pre(() => {
     const id = examId;
-    const open = stats ? [...failedItems, ...unsureItems].filter((i) => !i.isReviewed).length : null;
-    if (open !== null) untrack(() => examMcOpen.set({ examId: id, open }));
+    const s = summary;
+    if (s) untrack(() => examMcState.set({ examId: id, ...s }));
   });
 </script>
 
@@ -516,6 +519,15 @@
         />
 
         <McVerificationOverview {stats} />
+
+        {#if summary}
+          <McSureCheck
+            {examId}
+            {summary}
+            failedOpen={failedItems.filter((i) => !i.isReviewed).length}
+            unsureOpen={unsureItems.filter((i) => !i.isReviewed).length}
+          />
+        {/if}
 
         <McVerificationQueue
           {examId}
