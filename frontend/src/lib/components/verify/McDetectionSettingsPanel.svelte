@@ -27,7 +27,7 @@
 </script>
 
 {#if latest}
-  <Card class="mb-6">
+  <Card>
     <h2 class="m-0 text-base font-semibold text-content">{$t("scanning.verify.settingsPanel.heading")}</h2>
     <p class="mt-1 mb-3 text-xs text-muted">{$t("scanning.verify.settingsPanel.description")}</p>
 

@@ -1,5 +1,4 @@
 import { scoreRepository } from "#lib/repositories/scoreRepository";
-import { fingerprint } from "#lib/exam/examChecks";
 import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
 import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
 import { submissionRepository } from "#lib/repositories/submissionRepository";
@@ -77,12 +76,11 @@ export function mcQueue(items: McDetectionItem[], category: McQueueCategory): Mc
   return items.filter((i) => categorizeMcItem(i) === category);
 }
 
-/** What the MC step shows: open failed/unsure items, the sure ones looked at, and a fingerprint of the sure set (a new scan or a re-run changes it). */
+/** What the MC step shows: open failed/unsure items and the sure ones looked at. */
 export interface McCheckSummary {
   open: number;
   sureTotal: number;
   sureReviewed: number;
-  sureStamp: string;
 }
 
 export function summarizeMcCheck(items: McDetectionItem[]): McCheckSummary {
@@ -91,7 +89,6 @@ export function summarizeMcCheck(items: McDetectionItem[]): McCheckSummary {
     open: [...mcQueue(items, "failed"), ...mcQueue(items, "unsure")].filter((i) => !i.isReviewed).length,
     sureTotal: sure.length,
     sureReviewed: sure.filter((i) => i.isReviewed).length,
-    sureStamp: fingerprint(sure.map((i) => `${i.submissionId}:${i.exerciseId}`).sort().join(",")),
   };
 }
 

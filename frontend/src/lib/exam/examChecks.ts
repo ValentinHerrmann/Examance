@@ -11,10 +11,23 @@ export type PrintCheckId = (typeof PRINT_CHECKS)[number];
 /** Printing the exam and the QR codes is required; the solution and the key slips only count once ticked. */
 export const PRINT_REQUIRED: readonly PrintCheckId[] = ['exam', 'qr'];
 
-/** The ticks of the Print and MC steps; only the teacher sets them, a compile or a page visit never does. */
+/** How the teacher checks the sure MC detections: every one, a share of random samples, or not at all. */
+export type McSureMode = 'all' | 'sample' | 'none';
+export const MC_SAMPLE_PERCENTS = [5, 10, 20, 30] as const;
+export const MC_SAMPLE_DEFAULT = 10;
+
+export interface McChecks {
+    /** Unset = not chosen yet, counted like `all`. */
+    mode?: McSureMode;
+    samplePercent?: number;
+    /** The last "mark all sure as reviewed": its `reviewedAt` stamp, so an undo touches exactly those rows. */
+    bulk?: { at: string; count: number };
+}
+
+/** The ticks and choices of the Print and MC steps; only the teacher sets them, a compile or a page visit never does. */
 export interface StepChecks {
     print?: Partial<Record<PrintCheckId, StepCheck>>;
-    mc?: { sure?: StepCheck };
+    mc?: McChecks;
 }
 
 /** Fast non-cryptographic fingerprint (cyrb53); it only has to notice a change. */
@@ -87,20 +100,38 @@ export function withPrintCheck(checks: StepChecks | null | undefined, id: PrintC
     return { ...checks, print };
 }
 
-/** Sidebar status of the MC step: open uncertain/failed items first, then the sure ones looked at; done needs both, or the manual "sure detections checked" tick. */
+/** How many sure detections the chosen mode wants looked at. */
+export function mcSureTarget(sureTotal: number, mc: McChecks | undefined): number {
+    if (mc?.mode === 'none') return 0;
+    if (mc?.mode === 'sample') return Math.min(sureTotal, Math.ceil((sureTotal * (mc.samplePercent ?? MC_SAMPLE_DEFAULT)) / 100));
+    return sureTotal;
+}
+
+/** Sidebar status of the MC step: open uncertain/failed items first, then the sure ones looked at against the mode's target. */
 export function mcStatus(
-    summary: { open: number; sureTotal: number; sureReviewed: number; sureStamp: string },
+    summary: { open: number; sureTotal: number; sureReviewed: number },
     checks: StepChecks | null | undefined,
 ): { count: number; total?: number; done: boolean } {
     if (summary.open > 0) return { count: summary.open, done: false };
-    const manual = checks?.mc?.sure?.stamp === summary.sureStamp;
-    if (manual || summary.sureReviewed >= summary.sureTotal) return { count: 0, done: true };
-    return { count: summary.sureReviewed, total: summary.sureTotal, done: false };
+    const target = mcSureTarget(summary.sureTotal, checks?.mc);
+    if (summary.sureReviewed >= target) return { count: 0, done: true };
+    return { count: summary.sureReviewed, total: target, done: false };
 }
 
-/** The checks with the manual "sure detections checked" tick set or cleared. */
-export function withMcSureCheck(checks: StepChecks | null | undefined, stamp: string | null): StepChecks {
-    return { ...checks, mc: stamp === null ? {} : { sure: { at: new Date().toISOString(), stamp } } };
+/** The checks with the MC part changed (mode, sample share or bulk marker). */
+export function withMcChecks(checks: StepChecks | null | undefined, patch: Partial<McChecks>): StepChecks {
+    const mc: McChecks = { ...checks?.mc, ...patch };
+    for (const k of Object.keys(mc) as (keyof McChecks)[]) if (mc[k] === undefined) delete mc[k];
+    return { ...checks, mc };
+}
+
+function mcField(raw: Record<string, unknown> | undefined): McChecks {
+    const mc: McChecks = {};
+    if (raw?.mode === 'all' || raw?.mode === 'sample' || raw?.mode === 'none') mc.mode = raw.mode;
+    if (typeof raw?.samplePercent === 'number' && raw.samplePercent > 0 && raw.samplePercent <= 100) mc.samplePercent = raw.samplePercent;
+    const bulk = raw?.bulk as { at?: unknown; count?: unknown } | undefined;
+    if (bulk && typeof bulk.at === 'string' && typeof bulk.count === 'number') mc.bulk = { at: bulk.at, count: bulk.count };
+    return mc;
 }
 
 function checkField(value: unknown): StepCheck | undefined {
@@ -111,12 +142,11 @@ function checkField(value: unknown): StepCheck | undefined {
 /** Accepts the stored JSON of any shape; undefined stays undefined (unknown), junk becomes empty checks. */
 export function stepChecksField(value: unknown): StepChecks | undefined {
     if (value === undefined) return undefined;
-    const raw = (value && typeof value === 'object' ? value : {}) as { print?: Record<string, unknown>; mc?: { sure?: unknown } };
+    const raw = (value && typeof value === 'object' ? value : {}) as { print?: Record<string, unknown>; mc?: Record<string, unknown> };
     const print: StepChecks['print'] = {};
     for (const id of PRINT_CHECKS) {
         const c = checkField(raw.print?.[id]);
         if (c) print[id] = c;
     }
-    const sure = checkField(raw.mc?.sure);
-    return { print, mc: sure ? { sure } : {} };
+    return { print, mc: mcField(raw.mc) };
 }
