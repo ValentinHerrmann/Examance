@@ -56,6 +56,7 @@ export const dashboard = {
         loadingExercises: 'Aufgaben werden geladen…',
         untitledExercise: 'Unbenannte Aufgabe',
         progress: 'Fortschritt',
+        openStep: 'Öffnen: {step}',
         duplicating: 'Wird dupliziert …',
     },
     retentionModal: {

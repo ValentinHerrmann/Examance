@@ -7,8 +7,8 @@
   import ExamStepBadge from "#lib/components/layout/ExamStepBadge.svelte";
   import { continueStep, examProgress, type ExamProgress } from "#lib/exam/examProgress";
   import type { ExamStats } from "#lib/utils/examStats";
-  import { faEye } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Card, EmptyState, ExpandableCard, Icon, Menu, MenuItem, actionIcons } from "#lib/components/ui";
+  import { faChevronRight, faEye } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Card, EmptyState, ExpandableCard, Icon, Menu, MenuItem, Tooltip, actionIcons } from "#lib/components/ui";
   import ExamSummary from "#lib/components/exam/ExamSummary.svelte";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import type { ExamLogoPreview } from "#lib/latex/logo";
@@ -69,7 +69,8 @@
       gradedCount: statsKnown ? (stats?.count ?? 0) : undefined,
     });
   }
-  const ROW_STEPS: ExamStep[] = ["content", "students", "scan", "grade"];
+  // Every step of the flow is listed (unknown status = no badge), each one a link to that step.
+  const ROW_STEPS: ExamStep[] = EXAM_STEPS.filter((s) => s.step !== "overview").map((s) => s.step);
   const stepEntry = (step: ExamStep) => EXAM_STEPS.find((s) => s.step === step)!;
 </script>
 
@@ -111,13 +112,20 @@
               {@const next = continueStep(progress)}
               <ul class="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm text-muted" aria-label={$t("dashboard.examList.progress")}>
                 {#each ROW_STEPS as step (step)}
-                  {#if progress[step]}
-                    <li class="inline-flex items-center gap-1.5">
-                      <Icon icon={stepEntry(step).icon} class="w-3.5" />
-                      <span>{$t(stepEntry(step).labelKey)}</span>
-                      <ExamStepBadge status={progress[step]} />
-                    </li>
-                  {/if}
+                  {@const entry = stepEntry(step)}
+                  <li class="min-w-0">
+                    <Tooltip text={$t("dashboard.examList.openStep", { step: $t(entry.labelKey) })}>
+                      <a
+                        href={examStepHref(exam.id, step)}
+                        class="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-muted no-underline transition-colors hover:bg-surface-sunken hover:text-accent focus-visible:bg-surface-sunken focus-visible:text-accent"
+                      >
+                        <Icon icon={entry.icon} class="w-3.5" />
+                        <span class="group-hover:underline group-focus-visible:underline">{$t(entry.labelKey)}</span>
+                        <ExamStepBadge status={progress[step]} />
+                        <Icon icon={faChevronRight} class="w-2.5 text-xs opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+                      </a>
+                    </Tooltip>
+                  </li>
                 {/each}
               </ul>
               <Button href={examStepHref(exam.id, next)} size="sm" iconRight={actionIcons.next}>
@@ -129,9 +137,9 @@
 
         {#snippet footer()}
           <Button href="/exam/{exam.id}" variant="outlined" severity="secondary" size="sm">{$t("dashboard.examList.openExam")}</Button>
+          <Button variant="outlined" severity="secondary" size="sm" icon={faEye} onClick={() => onPreview(exam)}>{$t("common.preview")}</Button>
           <Menu label={$t("exam.overview.more")} icon={actionIcons.more} align="end">
             {#snippet children({ close })}
-              <MenuItem icon={faEye} onSelect={() => { close(); onPreview(exam); }}>{$t("common.preview")}</MenuItem>
               <MenuItem icon={actionIcons.export} onSelect={() => { close(); onExport(exam); }}>{$t("common.export")}</MenuItem>
               <MenuItem icon={actionIcons.duplicate} disabled={!!duplicatingId} onSelect={() => { close(); onDuplicate(exam); }}>
                 {duplicatingId === exam.id ? $t("dashboard.examList.duplicating") : $t("common.duplicate")}

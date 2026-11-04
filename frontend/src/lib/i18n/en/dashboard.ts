@@ -58,6 +58,7 @@ export const dashboard: Translations['dashboard'] = {
         loadingExercises: 'Loading exercises…',
         untitledExercise: 'Untitled exercise',
         progress: 'Progress',
+        openStep: 'Open: {step}',
         duplicating: 'Duplicating …',
     },
     retentionModal: {
