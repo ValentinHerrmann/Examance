@@ -8,6 +8,9 @@ import { exerciseEditor, signInFirstTime, unfoldEditorDetails } from './helpers/
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';
 
 const projectName = () => test.info().project.name;
+/** Desktop heights with the browser bar subtracted, where a page must fit or scroll by at least `SLIVER_MIN` px. */
+const SLIVER_CHECKED = ['desktop', 'laptop-166'];
+const SLIVER_MIN = 120;
 const isTouch = () => Boolean(test.info().project.use.hasTouch);
 const viewportWidth = (page: Page) => page.viewportSize()!.width;
 
@@ -50,6 +53,7 @@ for (const theme of THEMES) {
           docV: doc.scrollHeight - doc.clientHeight,
           docH: doc.scrollWidth - doc.clientWidth,
           mainH: main ? main.scrollWidth - main.clientWidth : 0,
+          mainV: main ? main.scrollHeight - main.clientHeight : 0,
           outside,
           h1: document.querySelectorAll('h1').length,
           theme: document.documentElement.dataset.theme,
@@ -62,6 +66,10 @@ for (const theme of THEMES) {
       expect.soft(m.outside, `${where}: elements stick out of the viewport`).toEqual([]);
       expect.soft(m.h1, `${where}: number of h1`).toBe(1);
       expect.soft(m.theme, `${where}: <html data-theme>`).toBe(theme);
+      // No sliver scrolling (frontend/CLAUDE.md): a page fits or scrolls by real content.
+      if (SLIVER_CHECKED.includes(projectName())) {
+        expect.soft(m.mainV === 0 || m.mainV >= SLIVER_MIN, `${where}: .app-main scrolls by only ${m.mainV}px`).toBe(true);
+      }
     }
   });
 }

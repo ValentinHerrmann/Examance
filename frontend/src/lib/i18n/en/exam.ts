@@ -273,7 +273,7 @@ export const exam: Translations['exam'] = {
             examHint: 'Print {count} copies of the task sheet.',
             examHintNoCount: 'Print one copy per student.',
             qr: 'QR sticker sheet',
-            qrHint: 'One sheet with the QR codes of every student in the list; settings below.',
+            qrHint: 'One sheet with the QR codes of every student in the list.',
             copies: 'Personalised copies',
             copiesHint: 'One PDF with a copy per student, in list order.',
             solution: 'Solution',

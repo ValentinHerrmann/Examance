@@ -104,10 +104,13 @@
   <GradingKeyEditor bind:gradingKey={edit} />
   {#if error}<Alert severity="danger" class="mt-4">{error}</Alert>{/if}
   {#if saved}<Alert severity="success" class="mt-4">{$t("stats.gradingKey.saved")}</Alert>{/if}
-  <div class="mt-4 flex flex-wrap justify-end gap-2">
-    <Button variant="outlined" severity="secondary" disabled={!dirty || busy} onClick={reset}>{$t("exam.layout.discard")}</Button>
-    <Button loading={busy} disabled={!dirty || busy} severity={dirty ? "primary" : "secondary"} onClick={save}>{$t("common.save")}</Button>
-  </div>
+  {#if dirty || busy}
+    <!-- Only once something changed, so the unchanged card stays short (no sliver scrolling, issue #212). -->
+    <div class="mt-3 flex flex-wrap justify-end gap-2 border-t border-line pt-3">
+      <Button size="sm" variant="outlined" severity="secondary" disabled={busy} onClick={reset}>{$t("exam.layout.discard")}</Button>
+      <Button size="sm" loading={busy} disabled={busy} onClick={save}>{$t("common.save")}</Button>
+    </div>
+  {/if}
 </Card>
 
 <ConfirmDialog

@@ -271,7 +271,7 @@ export const exam = {
             examHint: 'Drucken Sie {count} Exemplare der Angabe.',
             examHintNoCount: 'Drucken Sie ein Exemplar pro Schüler.',
             qr: 'QR-Aufkleberbogen',
-            qrHint: 'Ein Bogen mit den QR-Codes aller Schüler der Liste; Einstellungen unten.',
+            qrHint: 'Ein Bogen mit den QR-Codes aller Schüler der Liste.',
             copies: 'Personalisierte Exemplare',
             copiesHint: 'Eine PDF mit einem Exemplar pro Schüler, in der Reihenfolge der Liste.',
             solution: 'Lösung',

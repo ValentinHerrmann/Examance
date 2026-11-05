@@ -130,7 +130,7 @@
   });
 </script>
 
-<div class="flex flex-col {fixedOutput ? 'gap-3' : 'gap-5'}">
+<div class="flex flex-col gap-3">
   {#if loadExamPdf && !initialKeysOnly && !fixedOutput}
     <fieldset class="flex flex-col gap-2" disabled={busy}>
       <legend class="mb-2 text-sm text-muted">{$t("sharing.stickers.output")}</legend>
@@ -193,6 +193,7 @@
           <span class="w-16 shrink-0"><TextInput size="sm" type="number" min="0" max={STICKER_GRID.cols * STICKER_GRID.rows - 1} bind:value={skip} disabled={busy} /></span>
           {$t("sharing.stickers.skip")}
         </label>
+        <InfoTip text={$t("sharing.stickers.skipHint")} />
       </div>
     {/if}
   {/if}
