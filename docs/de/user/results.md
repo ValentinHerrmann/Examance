@@ -4,13 +4,13 @@ editLink: false
 
 # Ergebnisse und Auswertung
 
-Jede Prüfung hat einen Schritt **Ergebnisse** (der letzte in der Seitenleiste) mit drei Reitern: **Statistik** zeigt die Notenverteilung, Kennzahlen und Grenzfälle, **An Schüler senden** gibt die korrigierten Prüfungen an die Schüler weiter, siehe [Ergebnisse teilen](#share), und **Archivieren** exportiert Übersichtsblatt, korrigierte Prüfungen und mehr für Ihre Unterlagen, siehe [Prüfung archivieren](#archive). Die **Auswertung** in der Navigationsleiste fasst mehrere Prüfungen zusammen. Beide lesen dieselben verschlüsselten Ergebnisse; auf dem Server wird nichts berechnet.
+Jede Prüfung hat einen Schritt **Ergebnisse & Export** (der letzte in der Seitenleiste) mit drei Reitern: **Statistik** zeigt die Notenverteilung, Kennzahlen und Grenzfälle, **An Schüler senden** gibt die korrigierten Prüfungen an die Schüler weiter, siehe [Ergebnisse teilen](#share), und **Archivieren** exportiert Übersichtsblatt, korrigierte Prüfungen und mehr für Ihre Unterlagen, siehe [Prüfung archivieren](#archive). Die **Auswertung** in der Navigationsleiste fasst mehrere Prüfungen zusammen. Beide lesen dieselben verschlüsselten Ergebnisse; auf dem Server wird nichts berechnet.
 
 ![Prüfungsergebnisse](../../screenshots/pitch/08-results.jpg)
 
 ## Notenschlüssel {#grading-key}
 
-Der Notenschlüssel legt fest, welcher Prozentwert welche Note (1 bis 6) ergibt. Sie bearbeiten ihn unter **Ergebnisse → Statistik**, über der Verteilung; Änderungen zeigen sich sofort in den Diagrammen und werden mit **Speichern** gesichert. Wählen Sie eine Voreinstellung oder legen Sie eigene Grenzen fest:
+Der Notenschlüssel legt fest, welcher Prozentwert welche Note (1 bis 6) ergibt. Sie bearbeiten ihn unter **Ergebnisse & Export → Statistik**, über der Verteilung; Änderungen zeigen sich sofort in den Diagrammen und werden mit **Speichern** gesichert. Wählen Sie eine Voreinstellung oder legen Sie eigene Grenzen fest:
 
 | Voreinstellung | Note 4 ab |
 |---|---|
@@ -58,7 +58,7 @@ Die Schaltflächen **SVG**, **PDF** und **PNG** laden jedes Diagramm mit transpa
 
 Der **CSV-Export** der Noten, zum Beispiel für die Notenverwaltung der Schule, enthält Pseudonym, Ersatzcode, Name, Punkte, Maximalpunktzahl, Prozentwert und Note.
 
-**Exportieren** an einer Prüfung (Startseite oder **Übersicht** der Prüfung) mit dem Format **Lesbares ZIP** bündelt eine Prüfung in einer einzigen ZIP. Wählen Sie die Teile, die Sie brauchen:
+**Sichern / Weitergeben** an einer Prüfung (im Menü ihrer Karte auf der Startseite oder in der **Übersicht** der Prüfung) mit dem Format **Lesbares ZIP** bündelt eine Prüfung in einer einzigen ZIP. Wählen Sie die Teile, die Sie brauchen:
 
 | Teil | Enthält |
 |---|---|
@@ -78,11 +78,11 @@ Für eine verschlüsselte Kopie, die sich wieder importieren lässt, wählen Sie
 
 ## Ergebnisse teilen {#share}
 
-Der Reiter **An Schüler senden** unter **Ergebnisse** gibt jeder Schülerin und jedem Schüler die korrigierte Prüfung. Er ist eine Seite mit vier nummerierten Schritten: 1 die Schüler, 2 der Weg (Zettel zum Austeilen, E-Mail, Artemis oder Mebis-Dateien) mit seiner Einrichtung und der Sprache der Nachricht, 3 Schutz und Optionen (Linkschutz, Schlüssel bzw. Code in der Nachricht, Musterlösung, Gültigkeit), 4 Vorschau und Versand; die Schaltfläche zum Senden bleibt unten sichtbar. Darunter stehen die aktiven Links, die sich widerrufen lassen, alle auf einmal mit **Alle Links widerrufen**. Einzelheiten: [Korrigierte Prüfungen mit Schülern teilen](./students#share-results).
+Der Reiter **An Schüler senden** unter **Ergebnisse & Export** gibt jeder Schülerin und jedem Schüler die korrigierte Prüfung. Er ist eine Seite mit vier nummerierten Schritten: 1 die Schüler, 2 der Weg (Zettel zum Austeilen, E-Mail, Artemis oder Mebis-Dateien) mit seiner Einrichtung und der Sprache der Nachricht, 3 Schutz und Optionen (Linkschutz, Schlüssel bzw. Code in der Nachricht, Musterlösung, Gültigkeit), 4 Vorschau und Versand; die Schaltfläche zum Senden bleibt unten sichtbar. Darunter stehen die aktiven Links, die sich widerrufen lassen, alle auf einmal mit **Alle Links widerrufen**. Einzelheiten: [Korrigierte Prüfungen mit Schülern teilen](./students#share-results).
 
 ## Prüfung archivieren {#archive}
 
-Der Reiter **Archivieren** unter **Ergebnisse** sammelt, was Sie für Ihre Unterlagen aufbewahren möchten. Das **Übersichtsblatt der Ergebnisse** (Prüfungsdaten, Notenschlüssel, Statistik und das Ergebnis jeder Schülerin und jedes Schülers) sehen Sie als Vorschau und laden es einzeln als PDF herunter. Die Schaltflächen im Kopf jeder Karte sind Symbole (der Name erscheint beim Darüberfahren): herunterladen, aktualisieren bzw. neu erstellen und das ZIP-Symbol für das ZIP. Daneben fasst **Alle korrigierten Arbeiten (Druck-PDF)** alle korrigierten Scans mit eingebrannten Anmerkungen in einer nach Namen sortierten Datei zusammen, fertig zum Ausdrucken für die Ablage; mit **Jede Arbeit auf einem neuen Blatt beginnen** fängt beim beidseitigen Druck jede Arbeit auf einer Vorderseite an. Sie entsteht erst mit **PDF erstellen**, weil dafür jeder Scan gelesen wird. Zuletzt wählen Sie per Häkchen, was in ein ZIP kommt: korrigierte Prüfungen (einzeln und/oder alle in einer Druck-PDF), LaTeX-Code, erstellte PDFs, das Übersichtsblatt und die Noten als CSV. Das ZIP enthält personenbezogene Daten Ihrer Schüler; bewahren Sie es so sorgfältig auf wie die Prüfung selbst.
+Der Reiter **Archivieren** unter **Ergebnisse & Export** sammelt, was Sie für Ihre Unterlagen aufbewahren möchten. Das **Übersichtsblatt der Ergebnisse** (Prüfungsdaten, Notenschlüssel, Statistik und das Ergebnis jeder Schülerin und jedes Schülers) sehen Sie als Vorschau und laden es einzeln als PDF herunter. Jede Karte hat dieselben Symbole im Kopf (der Name erscheint beim Darüberfahren): den Download-Pfeil, ausgegraut, solange es die Datei noch nicht gibt, und die Kreispfeile zum Erstellen bzw. Aktualisieren. Daneben fasst **Alle korrigierten Arbeiten (Druck-PDF)** alle korrigierten Scans mit eingebrannten Anmerkungen in einer nach Namen sortierten Datei zusammen, fertig zum Ausdrucken für die Ablage; mit **Jede Arbeit auf einem neuen Blatt beginnen** fängt beim beidseitigen Druck jede Arbeit auf einer Vorderseite an. Sie entsteht erst mit **PDF erstellen**, weil dafür jeder Scan gelesen wird. Zuletzt wählen Sie per Häkchen, was in ein ZIP kommt: korrigierte Prüfungen (einzeln und/oder alle in einer Druck-PDF), LaTeX-Code, erstellte PDFs, das Übersichtsblatt und die Noten als CSV. Das ZIP enthält personenbezogene Daten Ihrer Schüler; bewahren Sie es so sorgfältig auf wie die Prüfung selbst.
 
 ## Auswertung über mehrere Prüfungen {#analytics}
 

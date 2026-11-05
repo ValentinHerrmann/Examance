@@ -32,11 +32,11 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 | 5 **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
 | 6 **Scan grading** | Correct the submissions, see [Grading](./grading) |
 | 7 **Paper grading** | Enter points for papers graded without scanning, see [Classes graded on paper](./grading#paper) |
-| 8 **Results** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
+| 8 **Results & Export** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
 
 ## Overview {#overview}
 
-**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details and key figures. **Continue: …** (followed by the step's name) opens the step you most likely need next. The **Details** card edits the header data in place, **Export** downloads the exam (see [Export](#export)), and the **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
+**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details, a few key figures (points, average, grading key) and, at the bottom, the **Workflow**: every step in order with its badge, each one a link; the step you most likely need next is highlighted. **Continue: …** (followed by the step's name) opens that step. The **Details** card edits the header data in place, **Back up / transfer** packs the exam as a readable ZIP or a password-protected backup that Examance can import again, for moving or sharing it (see [Export](#export)); to keep the results for your records, use **Results & Export → Archive** instead. The **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
 
 ## Assemble the exercises {#assemble}
 
@@ -144,6 +144,6 @@ After the exam, continue with [Scanning and assignment](./scanning).
 
 ## Export {#export}
 
-**Export** on an exam (dashboard or the exam's **Overview**) downloads it either as a readable ZIP or as a password-protected backup, see [Exporting results](./results#export) and [Backup and transfer](./backup#exam-backup).
+**Back up / transfer** on an exam (the menu of its card on the dashboard, or the exam's **Overview**) downloads it either as a readable ZIP or as a password-protected backup, see [Exporting results](./results#export) and [Backup and transfer](./backup#exam-backup).
 
 ![Exporting an exam](../screenshots/guide/exam-export.jpg)

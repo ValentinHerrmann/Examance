@@ -4,13 +4,13 @@ editLink: false
 
 # Results and analysis
 
-Each exam has a **Results** step (the last one in the sidebar) with three tabs: **Statistics** shows the grade distribution, key figures and borderline cases, **Send to students** hands the graded exams to the students, see [Share results](#share), and **Archive** exports the overview sheet, graded exams and more for your records, see [Archive an exam](#archive). **Analytics** in the navigation bar combines several exams. Both read the same encrypted results; nothing is computed on the server.
+Each exam has a **Results & Export** step (the last one in the sidebar) with three tabs: **Statistics** shows the grade distribution, key figures and borderline cases, **Send to students** hands the graded exams to the students, see [Share results](#share), and **Archive** exports the overview sheet, graded exams and more for your records, see [Archive an exam](#archive). **Analytics** in the navigation bar combines several exams. Both read the same encrypted results; nothing is computed on the server.
 
 ![Exam results](../screenshots/pitch/08-results.jpg)
 
 ## Grading key {#grading-key}
 
-The grading key decides which percentage earns which grade (1 to 6). You edit it on **Results → Statistics**, above the distribution; changes show in the charts immediately and are stored with **Save**. Choose a preset or set your own thresholds:
+The grading key decides which percentage earns which grade (1 to 6). You edit it on **Results & Export → Statistics**, above the distribution; changes show in the charts immediately and are stored with **Save**. Choose a preset or set your own thresholds:
 
 | Preset | Grade 4 from |
 |---|---|
@@ -58,7 +58,7 @@ The **SVG**, **PDF** and **PNG** buttons download each chart with a transparent 
 
 The **CSV export** of the grades, for example for the school's grade management, contains pseudonym, fallback code, name, score, maximum points, percentage and grade.
 
-**Export** on an exam (dashboard or the exam's **Overview**) with the format **Readable ZIP** bundles one exam into a single ZIP. Pick the parts you need:
+**Back up / transfer** on an exam (the menu of its card on the dashboard, or the exam's **Overview**) with the format **Readable ZIP** bundles one exam into a single ZIP. Pick the parts you need:
 
 | Part | Contains |
 |---|---|
@@ -78,11 +78,11 @@ For an encrypted copy that can be imported again, choose **Re-importable, passwo
 
 ## Share results {#share}
 
-The **Send to students** tab of **Results** gives each student their graded exam. It is a page with four numbered steps: 1 the students, 2 the channel (slips to hand out, e-mail, Artemis or Mebis files) with its setup and the language of the message, 3 protection and options (link protection, key or code in the message, sample solution, validity), 4 preview and send; the send button stays visible at the bottom. Below, the active links are listed and can be revoked, with **Revoke all** for all of them. Details: [Share graded exams with students](./students#share-results).
+The **Send to students** tab of **Results & Export** gives each student their graded exam. It is a page with four numbered steps: 1 the students, 2 the channel (slips to hand out, e-mail, Artemis or Mebis files) with its setup and the language of the message, 3 protection and options (link protection, key or code in the message, sample solution, validity), 4 preview and send; the send button stays visible at the bottom. Below, the active links are listed and can be revoked, with **Revoke all** for all of them. Details: [Share graded exams with students](./students#share-results).
 
 ## Archive an exam {#archive}
 
-The **Archive** tab of **Results** collects what you may want to keep for your records. The **results overview sheet** (exam details, grading key, statistics and every student's result) is shown as a preview and can be downloaded as a PDF on its own. The buttons in each card's header are icons (hover them for their name): download, refresh or create again, and the ZIP icon for the ZIP. Next to it, **All graded papers (print PDF)** puts every graded scan with its annotations into one file sorted by name, ready to print for your files; with **Start every paper on a new sheet** each paper begins on a front page when printing two-sided. It is created when you click **Create PDF**, because it reads every scan. Last, tick what should go into a ZIP: graded exams (one file each and/or all in one print PDF), LaTeX code, compiled PDFs, the overview sheet and the grades as CSV. The ZIP contains personal data of your students, so store it as carefully as the exam itself.
+The **Archive** tab of **Results & Export** collects what you may want to keep for your records. The **results overview sheet** (exam details, grading key, statistics and every student's result) is shown as a preview and can be downloaded as a PDF on its own. Every card has the same icons in its header (hover them for their name): the download arrow, greyed out until the file exists, and the looped arrows to create or refresh it. Next to it, **All graded papers (print PDF)** puts every graded scan with its annotations into one file sorted by name, ready to print for your files; with **Start every paper on a new sheet** each paper begins on a front page when printing two-sided. It is created when you click **Create PDF**, because it reads every scan. Last, tick what should go into a ZIP: graded exams (one file each and/or all in one print PDF), LaTeX code, compiled PDFs, the overview sheet and the grades as CSV. The ZIP contains personal data of your students, so store it as carefully as the exam itself.
 
 ## Analytics across exams {#analytics}
 

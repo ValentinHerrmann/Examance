@@ -32,11 +32,11 @@ Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten 
 | 5 **MC prüfen** | Multiple-Choice-Erkennungen prüfen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification) |
 | 6 **Scankorrektur** | Abgaben korrigieren, siehe [Korrigieren](./grading) |
 | 7 **Papierkorrektur** | Punkte für ohne Scan korrigierte Arbeiten eintragen, siehe [Auf Papier korrigierte Klassen](./grading#paper) |
-| 8 **Ergebnisse** | Reiter **Statistik**, **An Schüler senden** und **Archivieren**, siehe [Ergebnisse und Auswertung](./results) |
+| 8 **Ergebnisse & Export** | Reiter **Statistik**, **An Schüler senden** und **Archivieren**, siehe [Ergebnisse und Auswertung](./results) |
 
 ## Übersicht {#overview}
 
-Die **Übersicht** (erster, nicht nummerierter Eintrag der Seitenleiste) zeigt die Angaben und Kennzahlen der Prüfung. **Weiter mit: …** (gefolgt vom Namen des Schritts) öffnet den Schritt, den Sie am ehesten als Nächstes brauchen. Die Karte **Angaben** ändert die Kopfdaten direkt, **Exportieren** lädt die Prüfung herunter (siehe [Exportieren](#export)), und das Menü **⋯** (**Weitere Aktionen**) enthält **Duplizieren**, **Abgaben löschen** und **Löschen** (die Prüfung).
+Die **Übersicht** (erster, nicht nummerierter Eintrag der Seitenleiste) zeigt die Angaben der Prüfung, einige Kennzahlen (Punkte, Durchschnitt, Notenschlüssel) und unten den **Ablauf**: alle Schritte der Reihe nach mit ihrem Abzeichen, jeder ein Link; der Schritt, den Sie am ehesten als Nächstes brauchen, ist hervorgehoben. **Weiter mit: …** (gefolgt vom Namen des Schritts) öffnet diesen Schritt. Die Karte **Angaben** ändert die Kopfdaten direkt. **Sichern / Weitergeben** packt die Prüfung als lesbares ZIP oder als passwortgeschützte Sicherung, die Examance wieder importieren kann, zum Umziehen oder Weitergeben (siehe [Exportieren](#export)); zum Aufbewahren der Ergebnisse für Ihre Unterlagen nutzen Sie stattdessen **Ergebnisse & Export → Archivieren**. Das Menü **⋯** (**Weitere Aktionen**) enthält **Duplizieren**, **Abgaben löschen** und **Löschen** (die Prüfung).
 
 
 ## Aufgaben zusammenstellen {#assemble}
@@ -145,6 +145,6 @@ Nach der Prüfung geht es weiter mit [Scannen und Zuordnen](./scanning).
 
 ## Exportieren {#export}
 
-**Exportieren** an einer Prüfung (Startseite oder **Übersicht** der Prüfung) lädt sie entweder als lesbares ZIP oder als passwortgeschützte Sicherung herunter, siehe [Ergebnisse exportieren](./results#export) und [Sicherung und Übertragung](./backup#exam-backup).
+**Sichern / Weitergeben** an einer Prüfung (im Menü ihrer Karte auf der Startseite oder in der **Übersicht** der Prüfung) lädt sie entweder als lesbares ZIP oder als passwortgeschützte Sicherung herunter, siehe [Ergebnisse exportieren](./results#export) und [Sicherung und Übertragung](./backup#exam-backup).
 
 ![Prüfung exportieren](../../screenshots/guide/exam-export.jpg)
