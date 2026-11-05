@@ -40,7 +40,7 @@
     {#each rows as row (row.kind)}
       <div class="min-w-0">
         <div class="mb-1 flex items-center justify-between gap-2 text-xs">
-          <span class="font-medium {row.tone.text}">{row.label}</span>
+          <span class="font-medium {row.tone.text}">{$t(row.label)}</span>
           <span class="font-mono text-muted">
             {$t("scanning.overview.progressReviewedOf", { reviewed: row.reviewed, total: row.total })}
             {#if row.remaining > 0}
