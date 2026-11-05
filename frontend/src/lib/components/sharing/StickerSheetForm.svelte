@@ -9,7 +9,7 @@
   import { renderExamCopies } from "#lib/qr/examCopies";
   import { imposeBooklet, splitCopies } from "#lib/qr/booklet";
   import { renderStickerSheet, STICKER_GRID, type StickerEntry } from "#lib/qr/stickerSheet";
-  import { loadStickerEntries } from "#lib/sharing/stickerEntries";
+  import { loadStickerEntries, stickerIdIssues } from "#lib/sharing/stickerEntries";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { studentsHref } from "#lib/utils/links";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -82,6 +82,8 @@
   let copiesMode = $derived(output === "copies" && !copiesUnavailable);
   // Key slips alone print on plain paper: no labels, so no copies or used cells.
   let onlyKeys = $derived(!copiesMode && keysOnly);
+  // Personalised page codes name the student by sticker ID (issue #220): a shared ID blocks copies, a missing one leaves only the cover code.
+  let idIssues = $derived(copiesMode ? stickerIdIssues(entries ?? examEntries) : null);
   let error = $state("");
 
   onMount(async () => {
@@ -111,6 +113,8 @@
 
   /** The copies as the chosen print way needs them: A4 one after the other, A3 booklets, or (for the printer's booklet function) a ZIP with one A4 file per student. */
   async function deliverCopies(list: StickerEntry[], examPdf: Uint8Array) {
+    const issues = stickerIdIssues(list);
+    if (issues.duplicates.length) throw new Error($t("sharing.stickers.idDuplicates", { names: issues.duplicates.join(", ") }));
     const { pdf, pagesPerCopy } = await renderExamCopies(examPdf, list, { examTitle, examId });
     const base = slug(examTitle || $t("sharing.stickers.copiesTitle"));
     if (booklet === "impose") {
@@ -206,6 +210,12 @@
   </div>
   {:else if loadError}
     <Alert severity="danger">{loadError}</Alert>
+  {/if}
+
+  {#if idIssues?.duplicates.length}
+    <Alert severity="danger">{$t("sharing.stickers.idDuplicates", { names: idIssues.duplicates.join(", ") })} <a href={studentsHref(examId)}>{$t("lms.students.manage")}</a></Alert>
+  {:else if idIssues?.missing.length}
+    <Alert severity="warning">{$t("sharing.stickers.idMissing", { names: idIssues.missing.join(", ") })} <a href={studentsHref(examId)}>{$t("lms.students.manage")}</a></Alert>
   {/if}
 
   {#if copiesMode}

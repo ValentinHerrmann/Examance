@@ -1,29 +1,48 @@
-/** Multi-sheet print layout of an exam (issue #220, docs/dev/multi_sheet_exams.md): page codes, duplex or booklet, filler pages, sticker box per sheet. */
+/** Multi-sheet print settings of an exam (issue #220, docs/dev/multi_sheet_exams.md): page codes and filler pages (Layout tab), print mode, duplex or booklet and sticker spots (Print step). Each works on its own. */
 
 import type { ExamRecord } from '#lib/db/schema';
 
 export type PrintLayout = 'duplex' | 'booklet';
-export type PaddingPages = 'blank' | 'workspace';
+export type PaddingPages = 'none' | 'blank' | 'workspace';
+/** Where stickers go in sticker mode: the cover only, every sheet front (duplex), every A3 sheet or every cut A4 leaf (booklet). */
+export type StickerSpots = 'cover' | 'sheet' | 'a3' | 'leaf';
+export type PrintMode = 'stickers' | 'copies';
 
 export interface PrintSettings {
-  /** A page code on every page; off keeps the pre-#220 layout of older exams. */
   pageCodes: boolean;
-  layout: PrintLayout;
   padding: PaddingPages;
-  /** A sticker box on the front of every sheet (duplex only; a booklet is one stapled unit). */
-  sheetStickers: boolean;
+  layout: PrintLayout;
+  mode: PrintMode;
+  stickerSpots: StickerSpots;
 }
 
-/** What a new exam starts with; older exams read as `pageCodes: false` until the teacher switches. */
-export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', paddingPages: 'workspace', sheetStickers: true } as const satisfies Partial<ExamRecord>;
+type PrintFields = Pick<ExamRecord, 'pageCodes' | 'paddingPages' | 'printLayout' | 'printMode' | 'stickerSpots'>;
 
-export function printSettingsOf(exam: Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'paddingPages' | 'sheetStickers'>): PrintSettings {
+/** What a new exam starts with; older exams read as no page codes, no filler pages and a cover sticker. */
+export const NEW_EXAM_PRINT = { pageCodes: true, paddingPages: 'workspace', printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet' } as const satisfies PrintFields;
+
+const SPOTS: readonly StickerSpots[] = ['cover', 'sheet', 'a3', 'leaf'];
+
+export function printSettingsOf(exam: PrintFields): PrintSettings {
+  const layout: PrintLayout = exam.printLayout === 'booklet' ? 'booklet' : 'duplex';
+  const spots = SPOTS.includes(exam.stickerSpots as StickerSpots) ? (exam.stickerSpots as StickerSpots) : 'cover';
   return {
     pageCodes: exam.pageCodes === true,
-    layout: exam.printLayout === 'booklet' ? 'booklet' : 'duplex',
-    padding: exam.paddingPages === 'workspace' ? 'workspace' : 'blank',
-    sheetStickers: exam.sheetStickers === true,
+    padding: exam.paddingPages === 'workspace' || exam.paddingPages === 'blank' ? exam.paddingPages : 'none',
+    layout,
+    mode: exam.printMode === 'copies' ? 'copies' : 'stickers',
+    stickerSpots: spotsFor(layout, spots),
   };
+}
+
+/** The spot choices a layout offers; a choice of the other layout falls back to its nearest one. */
+export function spotChoices(layout: PrintLayout): StickerSpots[] {
+  return layout === 'booklet' ? ['cover', 'a3', 'leaf'] : ['cover', 'sheet'];
+}
+
+function spotsFor(layout: PrintLayout, spots: StickerSpots): StickerSpots {
+  if (spotChoices(layout).includes(spots)) return spots;
+  return spots === 'cover' ? 'cover' : layout === 'booklet' ? 'leaf' : 'sheet';
 }
 
 /** Pages per printed sheet: 2 for duplex, 4 for a folded A3 booklet sheet. */
@@ -31,8 +50,16 @@ export function pagesPerSheet(layout: PrintLayout): number {
   return layout === 'booklet' ? 4 : 2;
 }
 
-/** How many sticker boxes one copy of *pageCount* pages has: one per sheet front with sticker boxes on every sheet, else only the cover's. */
-export function stickerBoxesPerCopy(settings: PrintSettings, pageCount: number): number {
-  if (!settings.pageCodes || !settings.sheetStickers || settings.layout === 'booklet') return 1;
-  return Math.max(1, Math.ceil(pageCount / 2));
+/** The pages that carry a sticker spot (page 1 always has its QR box); personalised copies need none, every page code names the student. */
+export function stickerPagesOf(settings: PrintSettings, pageCount: number): number[] {
+  if (settings.mode === 'copies' || settings.stickerSpots === 'cover') return [];
+  const pages: number[] = [];
+  // Mirrors Schulaufgabe.sty \SA@checkspot: odd pages from 3; for A3 sheets only each sheet's front right page 2s+1 (2p + 2 <= total).
+  for (let p = 3; p <= pageCount; p += 2) if (settings.stickerSpots !== 'a3' || 2 * p + 2 <= pageCount) pages.push(p);
+  return pages;
+}
+
+/** Stickers each student needs: the cover's plus one per spot. */
+export function stickersPerCopy(settings: PrintSettings, pageCount: number): number {
+  return 1 + stickerPagesOf(settings, pageCount).length;
 }

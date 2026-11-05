@@ -7,10 +7,15 @@ describe('page codes (issue #220)', () => {
     expect(examTag('1a2b3c4d-5e6f-7a8b-9c0d-ef1234567890')).toBe('1A2B3C4D');
   });
 
-  it('round-trips plain and personalised codes, sticker text with colons included', () => {
+  it('round-trips plain and personalised codes', () => {
     expect(parsePageCode(pageCodeText({ tag: '1A2B3C4D', page: 7 }))).toEqual({ tag: '1A2B3C4D', page: 7 });
-    const sticker = 'Muster: Mann, Max_ABC123';
-    expect(parsePageCode(pageCodeText({ tag: '1A2B3C4D', page: 2, sticker }))).toEqual({ tag: '1A2B3C4D', page: 2, sticker });
+    expect(parsePageCode(pageCodeText({ tag: '1A2B3C4D', page: 2, id: 'ABC123' }))).toEqual({ tag: '1A2B3C4D', page: 2, id: 'ABC123' });
+  });
+
+  it('keeps personalised codes at QR version 2 with level Q, for sticker and LMS ids (readable at 200 ppi, 14 mm)', () => {
+    for (const id of ['A1B2C3', 'x7k2pq', '1234567890']) {
+      expect(QRCode.create(pageCodeText({ tag: '1A2B3C4D', page: 38, id }), { errorCorrectionLevel: 'Q' }).version).toBeLessThanOrEqual(2);
+    }
   });
 
   it('leaves name stickers and malformed codes alone', () => {
@@ -20,12 +25,12 @@ describe('page codes (issue #220)', () => {
   });
 
   it('keeps the plain code in the smallest symbol', () => {
-    expect(QRCode.create(pageCodeText({ tag: '1A2B3C4D', page: 40 }), { errorCorrectionLevel: 'M' }).version).toBe(1);
+    expect(QRCode.create(pageCodeText({ tag: '1A2B3C4D', page: 40 }), { errorCorrectionLevel: 'Q' }).version).toBe(1);
   });
 
   it('draws every dark module exactly once, from the lower left', () => {
     const text = pageCodeText({ tag: '1A2B3C4D', page: 3 });
-    const { modules } = QRCode.create(text, { errorCorrectionLevel: 'M' });
+    const { modules } = QRCode.create(text, { errorCorrectionLevel: 'Q' });
     const { grid, runs } = qrRuns(text);
     expect(grid).toBe(modules.size + 2);
     const dark = new Set<string>();

@@ -1,4 +1,5 @@
 import { get } from 'svelte/store';
+import { printSettingsOf } from '#lib/exam/printLayout';
 import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { resultsAreLocal, storagePolicyStore } from '#lib/stores/storagePolicy';
@@ -42,6 +43,18 @@ export function extraNotesToApi(
   return value ? { title: value.title, description: value.description ?? '', min_height_cm: value.minHeightCm, max_height_cm: value.maxHeightCm } : null;
 }
 
+/** The multi-sheet print fields (issue #220), from the API's snake_case or a stored camelCase record; normalised by `printSettingsOf`. */
+function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'paddingPages' | 'stickerSpots' | 'printMode'> {
+  const s = printSettingsOf({
+    pageCodes: raw.page_codes ?? raw.pageCodes,
+    printLayout: raw.print_layout ?? raw.printLayout,
+    paddingPages: raw.padding_pages ?? raw.paddingPages,
+    stickerSpots: raw.sticker_spots ?? raw.stickerSpots,
+    printMode: raw.print_mode ?? raw.printMode,
+  });
+  return { pageCodes: s.pageCodes, printLayout: s.layout, paddingPages: s.padding, stickerSpots: s.stickerSpots, printMode: s.mode };
+}
+
 export function mapApiToExamRecord(raw: any): ExamRecord {
   return {
     id: raw.id,
@@ -62,10 +75,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     pageBreaks: pageBreaksField(raw.page_breaks !== undefined ? raw.page_breaks : raw.pageBreaks),
     nameLine: (raw.name_line ?? raw.nameLine) === true,
     mcCorrectionHint: (raw.mc_correction_hint ?? raw.mcCorrectionHint) === true,
-    pageCodes: (raw.page_codes ?? raw.pageCodes) === true,
-    printLayout: (raw.print_layout ?? raw.printLayout) === 'booklet' ? 'booklet' : 'duplex',
-    paddingPages: (raw.padding_pages ?? raw.paddingPages) === 'workspace' ? 'workspace' : 'blank',
-    sheetStickers: (raw.sheet_stickers ?? raw.sheetStickers) === true,
+    ...printFieldsOf(raw),
     pseudonymVersion: raw.pseudonymVersion === 2 ? 2 : serverVersion(raw),
     extraNotes: extraNotesField(raw.extra_notes !== undefined ? raw.extra_notes : raw.extraNotes),
     stepChecks: stepChecksField(raw.step_checks !== undefined ? raw.step_checks : raw.stepChecks),
@@ -107,7 +117,8 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     page_codes: exam.pageCodes,
     print_layout: exam.printLayout,
     padding_pages: exam.paddingPages,
-    sheet_stickers: exam.sheetStickers,
+    sticker_spots: exam.stickerSpots,
+    print_mode: exam.printMode,
     // null switches the block off, undefined leaves it alone.
     extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,

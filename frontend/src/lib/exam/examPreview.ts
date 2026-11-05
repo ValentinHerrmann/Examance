@@ -139,21 +139,22 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
-type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "paddingPages" | "sheetStickers">;
+type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "paddingPages" | "printMode" | "stickerSpots">;
 
-/** Adds the exam's layout switches to the Schulaufgabe.sty options; the multi-sheet ones only with page codes, so older exams compile unchanged (issue #220). */
+/** Adds the exam's layout switches to the Schulaufgabe.sty options. Each multi-sheet option stands alone and older exams set none, so they compile unchanged (issue #220). */
 export function withExamOptions(options: string, layout: LayoutFields): string {
   const print = printSettingsOf(layout);
-  const multiSheet = print.pageCodes
-    ? ["seitencode", print.layout === "booklet" && "broschuere", print.padding === "workspace" && "fuellplatz", print.sheetStickers && "bogenaufkleber"]
-    : [];
+  const filler = { none: "", blank: "fuellleer", workspace: "fuellplatz" }[print.padding];
+  const multiSheet = [print.pageCodes && "seitencode", print.layout === "booklet" && "broschuere", filler];
   return [options, layout.nameLine && "namenszeile", ...multiSheet].filter(Boolean).join(",");
 }
 
-/** The page codes of the student sheet (lib/exam/pageCodes.ts); the solution carries none. */
+/** The student sheet's page codes (lib/exam/pageCodes.ts) and sticker spots (sticker mode only, `stickerPagesOf`); the solution carries neither. */
 function pageCodeDefinitions(exam: ExamRecord, options: string): string {
-  if (!exam.pageCodes || options.split(",").includes("antworten")) return "";
-  return `\n${pageCodesLatex(exam.id)}`;
+  if (options.split(",").includes("antworten")) return "";
+  const print = printSettingsOf(exam);
+  const spots = print.mode === "stickers" && print.stickerSpots !== "cover" ? (print.stickerSpots === "a3" ? "a3" : "bogen") : "";
+  return [print.pageCodes && pageCodesLatex(exam.id), spots && `\\Aufkleberseiten{${spots}}`].filter(Boolean).map((line) => `\n${line}`).join("");
 }
 
 export interface ExamPreviewInput {
@@ -166,11 +167,14 @@ export interface ExamPreviewInput {
   onStatus?: (status: string) => void;
   /** Called as soon as the Angabe is ready, before the Lösung compile starts. */
   onAngabe?: (angabe: CompileResult) => void;
+  /** False skips the Lösung (the Print step without a solution, issue #220); default true. */
+  solution?: boolean;
 }
 
 export interface ExamPreviewResult {
   angabe: CompileResult;
-  loesung: CompileResult;
+  /** Null only when `solution: false` asked to skip it. */
+  loesung: CompileResult | null;
   missingGraphics: string[];
 }
 
@@ -208,7 +212,9 @@ export async function prepareExamSources(
   };
 }
 
-/** Compiles the Angabe and Lösung PDFs of an exam into the compile cache. */
+/** Compiles the Angabe and Lösung PDFs of an exam into the compile cache; `solution: false` compiles only the Angabe. */
+export function compileExamPreview(input: ExamPreviewInput & { solution?: true }): Promise<ExamPreviewResult & { loesung: CompileResult }>;
+export function compileExamPreview(input: ExamPreviewInput): Promise<ExamPreviewResult>;
 export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamPreviewResult> {
   const { exam } = input;
   const useLocal = effectiveLatexCompilation() === "local";
@@ -224,6 +230,7 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
     opts
   );
   input.onAngabe?.(angabe);
+  if (input.solution === false) return { angabe, loesung: null, missingGraphics: angabe.missingGraphics ?? [] };
   const loesung = await compileWithCache(
     { kind: "exam", id: exam.id, variant: "loesung" },
     src.loesungTex,
@@ -237,6 +244,17 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
     loesung,
     missingGraphics: [...(angabe.missingGraphics ?? []), ...(loesung.missingGraphics ?? [])],
   };
+}
+
+/** The cached PDF of one variant if it was compiled from the exam's current sources, else null (the Print step needs only what it prints). */
+export async function getCurrentExamVariant(
+  input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">,
+  variant: "angabe" | "loesung"
+): Promise<CachedCompileEntry | null> {
+  const useLocal = effectiveLatexCompilation() === "local";
+  const src = await prepareExamSources(input, useLocal);
+  const opts = { resources: src.resources, resourceExerciseIds: src.resourceExerciseIds, logo: src.logo };
+  return (await getCachedFor({ kind: "exam", id: input.exam.id, variant }, variant === "angabe" ? src.angabeTex : src.loesungTex, useLocal, opts)) ?? null;
 }
 
 /** The cached Angabe/Lösung if they were compiled from the exam's current sources; "stale" when this exam was compiled before but its exercises, order or header changed since (issue #135); null when never compiled. */

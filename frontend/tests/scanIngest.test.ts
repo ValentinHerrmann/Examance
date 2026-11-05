@@ -6,6 +6,7 @@ import {
   bookletLayout,
   classifyCodes,
   ingestScans,
+  stickerIdMap,
   isPdfFile,
   type IngestDeps,
   type IngestProgress,
@@ -388,7 +389,17 @@ describe("page codes (issue #220)", () => {
   it("reads the student from a sticker or a personalised page code, and the page number", () => {
     expect(classifyCodes([code(3)], TAG)).toMatchObject({ student: null, page: 3, foreign: false });
     expect(classifyCodes(["Muster, Anna_1", code(1)], TAG)).toMatchObject({ student: { pseudonymId: "Muster, Anna_1" }, page: 1 });
-    expect(classifyCodes([code(2, "Muster, Anna_1")], TAG)).toMatchObject({ student: { pseudonymId: "Muster, Anna_1" }, page: 2 });
+    expect(classifyCodes([code(2, "1")], TAG, new Map([["1", "Muster, Anna_1"]]))).toMatchObject({ student: { pseudonymId: "Muster, Anna_1" }, page: 2 });
+  });
+
+  it("reports a personalised page code whose ID no student has", () => {
+    expect(classifyCodes([code(2, "999")], TAG, new Map())).toMatchObject({ student: null, page: 2, unknownId: "999" });
+  });
+
+  it("maps sticker IDs to payloads, but never an ID two students share", () => {
+    const st = (raw: string) => ({ pseudonymRaw: raw }) as never;
+    const ids = stickerIdMap([st("Muster, Anna_1"), st("Beispiel, Ben_2"), st("Zweit, Zoe_2")]);
+    expect([...ids]).toEqual([["1", "Muster, Anna_1"]]);
   });
 
   it("flags a page code of another exam", () => {

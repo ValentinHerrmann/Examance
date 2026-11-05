@@ -10719,16 +10719,32 @@
           "padding_pages": {
             "type": "string",
             "enum": [
+              "none",
               "blank",
               "workspace"
             ],
             "title": "Padding Pages",
-            "default": "blank"
+            "default": "none"
           },
-          "sheet_stickers": {
-            "type": "boolean",
-            "title": "Sheet Stickers",
-            "default": false
+          "sticker_spots": {
+            "type": "string",
+            "enum": [
+              "cover",
+              "sheet",
+              "a3",
+              "leaf"
+            ],
+            "title": "Sticker Spots",
+            "default": "cover"
+          },
+          "print_mode": {
+            "type": "string",
+            "enum": [
+              "stickers",
+              "copies"
+            ],
+            "title": "Print Mode",
+            "default": "stickers"
           },
           "extra_notes": {
             "anyOf": [
@@ -11205,16 +11221,32 @@
           "padding_pages": {
             "type": "string",
             "enum": [
+              "none",
               "blank",
               "workspace"
             ],
             "title": "Padding Pages",
-            "default": "blank"
+            "default": "none"
           },
-          "sheet_stickers": {
-            "type": "boolean",
-            "title": "Sheet Stickers",
-            "default": false
+          "sticker_spots": {
+            "type": "string",
+            "enum": [
+              "cover",
+              "sheet",
+              "a3",
+              "leaf"
+            ],
+            "title": "Sticker Spots",
+            "default": "cover"
+          },
+          "print_mode": {
+            "type": "string",
+            "enum": [
+              "stickers",
+              "copies"
+            ],
+            "title": "Print Mode",
+            "default": "stickers"
           },
           "extra_notes": {
             "anyOf": [
@@ -11521,6 +11553,7 @@
               {
                 "type": "string",
                 "enum": [
+                  "none",
                   "blank",
                   "workspace"
                 ]
@@ -11531,16 +11564,37 @@
             ],
             "title": "Padding Pages"
           },
-          "sheet_stickers": {
+          "sticker_spots": {
             "anyOf": [
               {
-                "type": "boolean"
+                "type": "string",
+                "enum": [
+                  "cover",
+                  "sheet",
+                  "a3",
+                  "leaf"
+                ]
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Sheet Stickers"
+            "title": "Sticker Spots"
+          },
+          "print_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stickers",
+                  "copies"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Print Mode"
           },
           "extra_notes": {
             "anyOf": [

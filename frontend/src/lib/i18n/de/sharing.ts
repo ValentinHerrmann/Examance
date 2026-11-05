@@ -19,6 +19,8 @@ export const sharing = {
         copiesBookletHint: 'Broschüren: Die Exemplare sind so angeordnet, wie Sie es im Druckplan gewählt haben. Schneiden Sie die Ecke durch den gefalteten Stapel; die Schnittlinie liegt an der äußeren oberen Ecke jeder Seite. Auf den A3-Bögen von Examance zeigen Markierungen oben und unten in der Mitte die Falz.',
         compiling: 'Prüfung wird kompiliert …',
         copiesTitle: 'Prüfungsexemplare',
+        idDuplicates: 'Diese Schüler teilen sich eine ID, die Seitencodes könnten sie nicht unterscheiden: {names}. Geben Sie jedem eine eigene ID.',
+        idMissing: 'Ohne ID tragen nur die Titelseiten dieser Schüler ihren Code, die übrigen Seiten werden über die Reihenfolge zugeordnet: {names}.',
         noQrBox: 'Im kompilierten Schülerblatt fehlt das QR-Code-Feld.',
         sourceExam: 'Schüler dieser Prüfung',
         examCount: '{count} Schüler von der Schüler-Seite',

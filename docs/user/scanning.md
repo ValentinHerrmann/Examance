@@ -10,10 +10,10 @@ After the exam, the whole stack of written sheets becomes one PDF. Examance spli
 
 - Scan the **whole stack into one PDF** on the school copier. Several PDFs work too; you can upload them together or one after the other.
 - Scan **double-sided**.
-- With [page codes](./exams#multi-sheet) the order does not matter: Examance sorts the pages by their page code, and the codes tell it which page belongs to whom.
-- Older exams without page codes carry the QR code only on the cover page. There, each student's pages must stay together, in order, with the cover first.
-- **Booklets** can be scanned two ways: cut along the fold and scan the A4 leaves, or scan the unfolded A3 sheets. Examance splits each A3 page into its two halves and keeps the original A3 scan attached to the student's scan PDF (it travels with graded PDFs).
-- No scanned page is ever dropped. Pages scanned twice or without a readable page code are kept after the exam pages; pages of another exam become an unmatched submission.
+- With [page codes](./exams#multi-sheet) the order does not matter: Examance sorts the pages by their page code, and the codes tell it which page belongs to whom. Page codes are reliable from 200 ppi; 300 ppi is better.
+- Older exams without page codes carry the code only on the cover page. There, each student's pages must stay together, in order, with the cover first.
+- **Booklets** can be scanned two ways: cut along the fold (anywhere inside the grey band next to the fold, see [booklet cut zone](./exams#multi-sheet-print)) and scan the A4 leaves, or scan the unfolded A3 sheets. Examance splits each A3 sheet into its pages and keeps the original A3 scan with the student's scan (it travels with graded PDFs).
+- No scanned page is ever dropped. Pages scanned twice or without a readable page code come after the exam pages; pages of another exam, or with an ID no student has, become an unmatched submission.
 - A missing page gets a placeholder page "Seite n fehlt / Page n missing" and a warning after the upload. Scanning that page later replaces the placeholder automatically.
 
 ![Synthetic scanned exam page](../screenshots/pitch/17-scanned-sheet.jpg)

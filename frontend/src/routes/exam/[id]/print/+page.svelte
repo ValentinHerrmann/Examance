@@ -6,7 +6,10 @@
   import { get } from "svelte/store";
   import { buildExamItems, loadExamCompileContext, type ExamCompileContext } from "#lib/grading/omrTemplatePrep";
   import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
-  import { getCurrentExamPreview } from "#lib/exam/examPreview";
+  import { getCurrentExamVariant } from "#lib/exam/examPreview";
+  import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
+  import { contentStamp } from "#lib/exam/examChecks";
+  import { examChecksState } from "#lib/stores/shell";
   import { copiesUnavailable, loadStickerEntries } from "#lib/sharing/stickerEntries";
   import type { StickerEntry } from "#lib/qr/stickerSheet";
   import { downloadBlob } from "#lib/components/stats/chartExport";
@@ -25,7 +28,9 @@
   let entries = $state.raw<StickerEntry[] | null>(null);
   let entriesError = $state("");
   let preview = $state<ExamPreviewStatus | undefined>(undefined);
-  let compile = $state<(() => Promise<void>) | undefined>(undefined);
+  let compile = $state<((opts?: { solution?: boolean }) => Promise<void>) | undefined>(undefined);
+  // Bumped when the print settings change, so the preview marks itself outdated.
+  let layoutVersion = $state(0);
   // Sticker or copies PDFs made in the plan, shown as extra panes beside task sheet and solution.
   let jobUrls = $state<Partial<Record<"qr" | "copies", string>>>({});
   let extraPanes = $derived(
@@ -61,19 +66,29 @@
     if (fresh) ctx = fresh;
   }
 
-  /** The current compiled sheets; the job rows only offer them while the preview is current. */
-  async function currentPdfs() {
+  /** One current compiled sheet; the job rows only offer it while it is current (the solution may be skipped). */
+  async function currentPdf(variant: "angabe" | "loesung"): Promise<Uint8Array> {
     if (!ctx) throw new Error(translate("exam.page.examNotFoundOrDeleted"));
-    const cached = await getCurrentExamPreview({ ...ctx, examItems, key: key() });
-    if (!cached || cached === "stale") throw new Error(translate("exam.print.ready.pdfStale"));
-    return cached;
+    const cached = await getCurrentExamVariant({ ...ctx, examItems, key: key() }, variant);
+    if (!cached) throw new Error(translate("exam.print.ready.pdfStale"));
+    return cached.pdfBytes;
   }
 
-  const loadExamPdf = async () => (await currentPdfs()).angabe.pdfBytes;
+  const loadExamPdf = () => currentPdf("angabe");
+
+  /** Print settings live on the exam (issue #220): the sheet's sticker spots and filler pages follow them, so the preview turns outdated. */
+  async function savePrint(patch: ExamLayoutPatch) {
+    if (!ctx) return;
+    const exam = await saveExamLayout(ctx.exam, patch);
+    ctx = { ...ctx, exam };
+    layoutVersion++;
+    // The made PDFs and ticks are checked against the content stamp, which covers the print settings.
+    const exercises = ctx.exercises;
+    examChecksState.update((cs) => (cs && cs.examId === exam.id && cs.stamps ? { ...cs, stamps: { ...cs.stamps, content: contentStamp(exam, exercises) } } : cs));
+  }
 
   async function downloadPdf(variant: "angabe" | "loesung") {
-    const pdfs = await currentPdfs();
-    const bytes = variant === "angabe" ? pdfs.angabe.pdfBytes : pdfs.loesung.pdfBytes;
+    const bytes = await currentPdf(variant);
     const suffix = variant === "angabe" ? "" : `_${slug($t("exam.page.pdfPreview.titleLoesung"))}`;
     downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${slug(title)}${suffix}.pdf`);
   }
@@ -108,6 +123,7 @@
         {downloadPdf}
         {compile}
         print={printSettingsOf(ctx.exam)}
+        onPrintChange={savePrint}
         onJobPdf={(job, url) => {
           if (job === "qr" || job === "copies") jobUrls = { ...jobUrls, [job]: url ?? undefined };
         }}
@@ -123,7 +139,7 @@
             mcGroups={ctx.mcGroups}
             {examItems}
             loaded
-            layoutVersion={0}
+            {layoutVersion}
             {refreshSources}
             toolbar={false}
             {extraPanes}

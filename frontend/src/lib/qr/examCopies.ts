@@ -6,8 +6,8 @@ import { translate } from '#lib/i18n';
 import { CM, drawQr, embedLabelFonts, fitText, type LabelFonts, type PdfLib } from '#lib/pdf/labelKit';
 import { loadPdfjs } from '#lib/pdf/pdfjs';
 import { formatCode } from '#lib/sharing/shareCrypto';
-import { abbreviateGivenNames } from '#lib/utils/studentQr';
-import { examTag, pageCodeText } from '#lib/exam/pageCodes';
+import { abbreviateGivenNames, parseStudentQr } from '#lib/utils/studentQr';
+import { PAGE_CODE_EC, examTag, pageCodeText } from '#lib/exam/pageCodes';
 import { MM, TAB_SIDE, TAB_TOP } from './cutCorner';
 import type { StickerEntry } from './stickerSheet';
 
@@ -71,11 +71,11 @@ async function findStampTargets(examPdf: Uint8Array): Promise<StampTargets[]> {
 }
 
 /** Blanks *box* (keeping a thin rim) and draws *text*'s QR code centred in it, at most *max* wide. */
-function stampQr(lib: PdfLib, page: PDFPage, box: Rect, text: string, max: number, pad: number): void {
+function stampQr(lib: PdfLib, page: PDFPage, box: Rect, text: string, max: number, pad: number, ecLevel: 'M' | 'Q' = 'M'): void {
   const [x0, y0, x1, y1] = box;
   const size = Math.min(max, x1 - x0 - 2 * pad, y1 - y0 - 2 * pad);
   page.drawRectangle({ x: x0 + pad, y: y0 + pad, width: x1 - x0 - 2 * pad, height: y1 - y0 - 2 * pad, color: lib.rgb(1, 1, 1) });
-  drawQr(lib, page, text, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size);
+  drawQr(lib, page, text, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size, ecLevel);
 }
 
 /** One row of the tab parallel to the cut line, centred where its glyphs stay EDGE clear of both paper edges. The first text that fits at a size down to the row's smallest (0.5 pt steps) wins; only the last one is shortened. */
@@ -126,11 +126,13 @@ function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: Sti
 function addCopy(lib: PdfLib, out: PDFDocument, pages: PDFPage[], fonts: LabelFonts, entry: StickerEntry, key: string, targets: StampTargets[], tag: string): void {
   for (const page of pages) out.addPage(page);
   const first = pages[0];
+  // A student without a sticker ID keeps the plain page codes: only the cover names them (the Print step warns).
+  const id = parseStudentQr(entry.payload)?.studentNumber;
   pages.forEach((page, i) => {
     // The box's sticker instructions stay for spare plain copies; on a personalised copy they would show through the code.
     for (const box of targets[i]?.qrBoxes ?? []) stampQr(lib, page, box, entry.payload, QR_SIZE, 0.1 * CM);
     const code = targets[i]?.pageCode;
-    if (code) stampQr(lib, page, code, pageCodeText({ tag, page: i + 1, sticker: entry.payload }), code[2] - code[0], 0);
+    if (code && id) stampQr(lib, page, code, pageCodeText({ tag, page: i + 1, id }), code[2] - code[0], 0, PAGE_CODE_EC);
   });
   drawCornerTab(lib, first, fonts, entry, key);
   // Copies are printed long-edge duplex or as booklets and cut as one stack: each page shows its outer corner's line.

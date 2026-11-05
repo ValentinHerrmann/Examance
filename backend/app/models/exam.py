@@ -64,10 +64,12 @@ class Exam(Base):
     page_codes: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # "duplex" (2 pages per sheet) or "booklet" (4 per folded A3 sheet); sets the padding multiple.
     print_layout: Mapped[str] = mapped_column(String(10), nullable=False, default="duplex", server_default="duplex")
-    # Filler pages up to the next full sheet: "blank" (left empty on purpose) or "workspace" (room for side calculations).
-    padding_pages: Mapped[str] = mapped_column(String(10), nullable=False, default="blank", server_default="blank")
-    # A sticker box on the front of every sheet, not only on page 1.
-    sheet_stickers: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    # Filler pages up to the next full sheet: "none", "blank" (left empty on purpose) or "workspace" (room for side calculations).
+    padding_pages: Mapped[str] = mapped_column(String(10), nullable=False, default="none", server_default="none")
+    # Sticker spots in sticker mode: "cover", "sheet" (every sheet front), "a3" (every booklet sheet), "leaf" (every cut booklet leaf).
+    sticker_spots: Mapped[str] = mapped_column(String(10), nullable=False, default="cover", server_default="cover")
+    # "stickers" (plain sheet + QR stickers) or "copies" (personalised copies); the sheet's sticker spots follow it.
+    print_mode: Mapped[str] = mapped_column(String(10), nullable=False, default="stickers", server_default="stickers")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Ticks the teacher sets by hand per step (print checklist, MC check); the client owns the shape.

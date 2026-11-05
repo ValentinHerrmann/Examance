@@ -106,7 +106,7 @@
       const progress = examProgress({
         ...input,
         verify: mc && mc.examId === id ? mcStatus(mc, cs?.examId === id ? cs.checks : null) : undefined,
-        print: cs && cs.examId === id && cs.stamps ? printStatus(cs.checks, printStamps(cs.stamps.content, cs.stamps.students)) : undefined,
+        print: cs && cs.examId === id && cs.stamps ? printStatus(cs.checks, printStamps(cs.stamps.content, cs.stamps.students), current?.printMode) : undefined,
       });
       untrack(() => examNavContext.set({ examId: id, exam: current && current.id === id ? current : null, submissionCount: count, progress }));
     }

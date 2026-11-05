@@ -10,7 +10,7 @@ import type { ExerciseScoreRecord, OmrPageTemplate, StudentRecord, SubmissionRec
 import { buildOmrScoreRecord } from "#lib/grading/omrResult";
 import { createOmrRun, type OmrPageStats, type OmrRunInfo, type OmrSettingsProfile } from "#lib/grading/omrSettings";
 import { scoreRepository } from "#lib/repositories/scoreRepository";
-import { parseStudentQr } from "#lib/utils/studentQr";
+import { parseStudentQr, stickerRawOf } from "#lib/utils/studentQr";
 import { randomCode } from "#lib/utils/randomCode";
 import type { QrWorkerRequest, QrWorkerResponse } from "#lib/workers/qrWorker";
 import { qrResultOf, type QrResult } from "#lib/scan/qrText";
@@ -61,6 +61,8 @@ export type IngestWarning =
   | { kind: "omrFailed"; fileName: string; error: unknown }
   /** A page code of another exam: the page went to its own unmatched booklet. */
   | { kind: "foreignPage"; fileName: string }
+  /** A personalised page code whose sticker ID no student of the exam has: the page went to an unmatched booklet named by the ID. */
+  | { kind: "unknownId"; fileName: string; id: string }
   /** A student's scan lacks printed pages: placeholders stand in until they are scanned. */
   | { kind: "missingPages"; student: string; pages: number[] }
   /** Pages scanned twice or without a readable page code: kept after the exam's pages. */
@@ -103,6 +105,8 @@ export interface IngestDeps {
   omrTemplateHash?: string;
   monitor?: { checkMemoryHealth(): void };
   onProgress?: (progress: IngestProgress) => void;
+  /** The exam prints page codes: a page whose code the full-page pass missed gets a closer look at the code's spot (issue #220). */
+  pageCodes?: boolean;
 }
 
 export function isPdfFile(file: Pick<File, "name" | "type">): boolean {
@@ -114,10 +118,13 @@ export class BookletCollector {
   readonly booklets: StudentBooklet[] = [];
   private current: StudentBooklet | null = null;
 
-  /** A QR page joins the booklet of its pseudonym (current one first, then any earlier one) or opens a new one. A page without QR continues the current booklet, or opens an unmatched one if there is none yet. A page of another exam (`foreign`) opens its own unmatched booklet. */
-  addPage(qr: QrResult | null, pageRef: PdfPageRef, opts: { foreign?: boolean } = {}): StudentBooklet {
+  /** A QR page joins the booklet of its pseudonym (current one first, then any earlier one) or opens a new one. A page without QR continues the current booklet, or opens an unmatched one if there is none yet. A page of another exam (`foreign`) opens its own unmatched booklet; a page code with an ID nobody has joins the unmatched booklet of that ID. */
+  addPage(qr: QrResult | null, pageRef: PdfPageRef, opts: { foreign?: boolean; unknownId?: string } = {}): StudentBooklet {
     if (opts.foreign) {
       this.current = this.openUnmatched();
+    } else if (opts.unknownId) {
+      const code = `ID-${opts.unknownId}`;
+      this.current = this.booklets.find((b) => b.isUnmatched && b.fallbackCode === code) ?? this.openUnmatched(code);
     } else if (qr) {
       if (this.current?.pseudonymId !== qr.pseudonymId) {
         this.current = this.booklets.find((b) => b.pseudonymId === qr.pseudonymId) ?? this.open(bookletFromQr(qr));
@@ -129,8 +136,8 @@ export class BookletCollector {
     return this.current;
   }
 
-  private openUnmatched(): StudentBooklet {
-    return this.open({ pseudonymId: crypto.randomUUID(), fallbackCode: `UNMATCHED-${randomCode()}`, isUnmatched: true, pageRefs: [] });
+  private openUnmatched(fallbackCode = `UNMATCHED-${randomCode()}`): StudentBooklet {
+    return this.open({ pseudonymId: crypto.randomUUID(), fallbackCode, isUnmatched: true, pageRefs: [] });
   }
 
   private open(booklet: StudentBooklet): StudentBooklet {
@@ -224,17 +231,20 @@ async function renderPage(page: PDFPageProxy, viewport: PageViewport): Promise<I
   return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
-/** What a page's QR codes say: the student (a sticker, or the name in a personalised page code), its printed page number, and whether the page code belongs to another exam. */
+/** What a page's QR codes say: the student (a sticker, or the ID in a personalised page code), its printed page number, whether the page code belongs to another exam, and an ID no student has. */
 export interface PageCodes {
   student: QrResult | null;
   page?: number;
   foreign: boolean;
+  unknownId?: string;
 }
 
-export function classifyCodes(texts: readonly string[], tag: string): PageCodes {
+/** *ids* maps sticker IDs to the students' sticker payloads (`stickerIdMap`). */
+export function classifyCodes(texts: readonly string[], tag: string, ids: ReadonlyMap<string, string> = new Map()): PageCodes {
   let student: QrResult | null = null;
   let page: number | undefined;
   let foreign = false;
+  let unknownId: string | undefined;
   for (const text of texts) {
     const code = parsePageCode(text);
     if (!code) {
@@ -246,9 +256,47 @@ export function classifyCodes(texts: readonly string[], tag: string): PageCodes 
       continue;
     }
     page ??= code.page;
-    if (code.sticker) student = qrResultOf(code.sticker);
+    if (!code.id) continue;
+    const raw = ids.get(code.id);
+    if (raw) student = qrResultOf(raw);
+    else unknownId = code.id;
   }
-  return { student: foreign && page === undefined ? null : student, page, foreign: foreign && page === undefined };
+  const own = page !== undefined;
+  return { student: foreign && !own ? null : student, page, foreign: foreign && !own, ...(unknownId && !student ? { unknownId } : {}) };
+}
+
+/** Sticker ID -> sticker payload of the exam's students, for personalised page codes; an ID two students share maps to neither. */
+export function stickerIdMap(students: readonly StudentRecord[]): Map<string, string> {
+  const ids = new Map<string, string>();
+  const shared = new Set<string>();
+  for (const st of students) {
+    const raw = stickerRawOf(st);
+    const id = raw ? parseStudentQr(raw)?.studentNumber?.trim() : undefined;
+    if (!raw || !id) continue;
+    if (ids.has(id) && ids.get(id) !== raw) shared.add(id);
+    ids.set(id, raw);
+  }
+  for (const id of shared) ids.delete(id);
+  return ids;
+}
+
+/** Where a page code can sit, as fractions of an A4 page with a margin for skewed scans: 77-91 mm from the cut side, 6-20 mm from the top (Schulaufgabe.sty section 11, lib/qr/cutCorner.ts PAGE_CODE). */
+const CODE_SPOT = { from: 69 / 210, to: 99 / 210, top: 0, bottom: 28 / 297 };
+/** Render scale of the closer look: about 430 dpi. */
+const CODE_SPOT_SCALE = 6;
+
+async function renderCodeSpot(page: PDFPageProxy, side: "left" | "right"): Promise<ImageData> {
+  const base = page.getViewport({ scale: CODE_SPOT_SCALE });
+  const x0 = Math.round(base.width * (side === "left" ? CODE_SPOT.from : 1 - CODE_SPOT.to));
+  const w = Math.round(base.width * (CODE_SPOT.to - CODE_SPOT.from));
+  const h = Math.round(base.height * CODE_SPOT.bottom);
+  const viewport = page.getViewport({ scale: CODE_SPOT_SCALE, offsetX: -x0, offsetY: 0 });
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  await page.render({ canvasContext: ctx, canvas, viewport } as any).promise;
+  return ctx.getImageData(0, 0, w, h);
 }
 
 async function decodeQr(pool: IngestDeps["qrPool"], imageData: ImageData): Promise<string[]> {
@@ -272,6 +320,8 @@ class ScanPass {
     private readonly omrRun: OmrRunInfo,
     private readonly totalPages: number,
     private readonly warnings: IngestWarning[],
+    /** Sticker ID -> sticker payload, for personalised page codes. */
+    private readonly ids: ReadonlyMap<string, string> = new Map(),
   ) {}
 
   async scan(source: ScanSource): Promise<void> {
@@ -302,11 +352,12 @@ class ScanPass {
         halves ??= await PDFDocClass.create();
         const [left, right] = await splitA3(halves, libPage); // NOSONAR: sequential on purpose
         const original = { doc: pdfLibDoc, index: pIdx - 1 };
-        await this.processPage(fileName, halfImage(imageData, "left"), { doc: halves, index: left, original }); // NOSONAR: one page at a time
-        await this.processPage(fileName, halfImage(imageData, "right"), { doc: halves, index: right, original }, false); // NOSONAR: one page at a time
+        // Right half first: a sheet's front right page (2s+1) carries its sticker spot, so its left half follows the right student.
+        await this.processPage(fileName, halfImage(imageData, "right"), { doc: halves, index: right, original }); // NOSONAR: one page at a time
+        await this.processPage(fileName, halfImage(imageData, "left"), { doc: halves, index: left, original }, false); // NOSONAR: one page at a time
       } else {
         // Scan and group immediately, dropping imageData after use
-        await this.processPage(fileName, imageData, { doc: pdfLibDoc, index: pIdx - 1 }); // NOSONAR: one page at a time keeps only one page's pixels alive
+        await this.processPage(fileName, imageData, { doc: pdfLibDoc, index: pIdx - 1 }, true, () => this.decodeCodeSpots(page)); // NOSONAR: one page at a time keeps only one page's pixels alive
       }
 
       page.cleanup();
@@ -315,8 +366,15 @@ class ScanPass {
     await source.loadingTask.destroy();
   }
 
-  /** *counts* is false for the second half of a split A3 page, so progress and page counts follow the uploaded pages. */
-  private async processPage(fileName: string, imageData: ImageData, pageRef: PdfPageRef, counts = true): Promise<void> {
+  /** Renders the page code's two possible spots (odd and even pages) closer and decodes them: a code the full-page pass missed is usually read there. */
+  private async decodeCodeSpots(page: PDFPageProxy): Promise<string[]> {
+    const texts: string[] = [];
+    for (const side of ["left", "right"] as const) texts.push(...(await decodeQr(this.deps.qrPool, await renderCodeSpot(page, side)))); // NOSONAR: one spot at a time
+    return texts;
+  }
+
+  /** *counts* is false for the second half of a split A3 page, so progress and page counts follow the uploaded pages. *retry* decodes the page code's spots when the first pass found no page code. */
+  private async processPage(fileName: string, imageData: ImageData, pageRef: PdfPageRef, counts = true, retry?: () => Promise<string[]>): Promise<void> {
     if (counts) this.processedPages++;
     this.deps.onProgress?.({
       phase: "scanning",
@@ -326,11 +384,15 @@ class ScanPass {
       fileName,
     });
 
-    const codes = classifyCodes(await decodeQr(this.deps.qrPool, imageData), examTag(this.deps.examId));
+    const tag = examTag(this.deps.examId);
+    let texts = await decodeQr(this.deps.qrPool, imageData);
+    if (this.deps.pageCodes && retry && !texts.some((t) => parsePageCode(t))) texts = [...texts, ...(await retry())];
+    const codes = classifyCodes(texts, tag, this.ids);
     if (codes.foreign) this.warnings.push({ kind: "foreignPage", fileName });
+    if (codes.unknownId) this.warnings.push({ kind: "unknownId", fileName, id: codes.unknownId });
     if (codes.page !== undefined) pageRef.page = codes.page;
     // Pages are stored exactly as scanned, never painted over: an uncut name corner stays visible, as exports must show the original (issue #211).
-    const booklet = this.collector.addPage(codes.student, pageRef, { foreign: codes.foreign });
+    const booklet = this.collector.addPage(codes.student, pageRef, { foreign: codes.foreign, unknownId: codes.unknownId });
     await this.detectOmr(fileName, imageData, booklet, pageRef);
     this.deps.monitor?.checkMemoryHealth();
   }
@@ -507,12 +569,12 @@ export async function ingestScans(files: File[], deps: IngestDeps): Promise<Inge
   report?.({ phase: "analyzing", progress: 0 });
   const { sources, totalPages } = await openSources(files, warnings);
 
-  const pass = new ScanPass(deps, omrRun, totalPages, warnings);
+  // Read once, before scanning (personalised page codes name students by sticker ID) and before writing: a failed read throws, so an imported class list is never overwritten blindly.
+  const existing = sources.length ? await studentRepository.getByExamId(deps.examId, deps.getSessionKey()) : [];
+  const pass = new ScanPass(deps, omrRun, totalPages, warnings, stickerIdMap(existing));
   for (const source of sources) await pass.scan(source);
 
   const { booklets } = pass.collector;
-  // Read once before writing: a failed read throws, so an imported class list is never overwritten blindly.
-  const existing = booklets.length ? await studentRepository.getByExamId(deps.examId, deps.getSessionKey()) : [];
   const existingKeys = await joinKeys(existing);
   const known = new Map(existing.map((st, i) => [existingKeys[i], st]));
   // Earlier scans with placeholders get filled (issue #220); read once, and only for page-coded uploads.

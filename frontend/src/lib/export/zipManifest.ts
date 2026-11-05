@@ -67,8 +67,9 @@ export interface ZipExamSettings {
   /** Multi-sheet layout (issue #220); absent in older ZIPs, read as the old layout. */
   pageCodes?: boolean;
   printLayout?: 'duplex' | 'booklet';
-  paddingPages?: 'blank' | 'workspace';
-  sheetStickers?: boolean;
+  paddingPages?: 'none' | 'blank' | 'workspace';
+  stickerSpots?: 'cover' | 'sheet' | 'a3' | 'leaf';
+  printMode?: 'stickers' | 'copies';
   extraNotes?: ExtraNotes | null;
 }
 

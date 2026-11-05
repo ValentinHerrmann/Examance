@@ -1,8 +1,10 @@
-/** Page codes (issue #220, docs/dev/multi_sheet_exams.md): the QR code on every page of an exam with the multi-sheet layout. Plain sheets carry `EXM1:<exam tag>:<page>`; printed copies append `:<sticker text>`, so any page alone names its student. */
+/** Page codes (issue #220, docs/dev/multi_sheet_exams.md): the QR code on every page of an exam with page codes. Plain sheets carry `EXM1:<exam tag>:<page>`; personalised copies append `:<sticker ID>` (never the name), which the scan maps to the student through the exam's list. Level Q keeps them readable through pen marks; a short ID keeps them at QR version 2, readable from 200 ppi at 14 mm. */
 
 import QRCode from 'qrcode';
 
 const PREFIX = 'EXM1';
+/** Error correction of page codes: Q (25 %) survives a pen stroke across the code. */
+export const PAGE_CODE_EC = 'Q';
 /** Pages that get a code; later pages of a longer exam are matched by position, as before. */
 export const MAX_PAGE_CODES = 40;
 
@@ -11,8 +13,8 @@ export interface PageCode {
   tag: string;
   /** 1-based page of the printed exam. */
   page: number;
-  /** The student's sticker text on printed copies (`formatStudentQr`), absent on plain sheets. */
-  sticker?: string;
+  /** The student's sticker ID on personalised copies (`parseStudentQr(...).studentNumber`), absent on plain sheets. */
+  id?: string;
 }
 
 /** Eight upper-case hex characters of the exam id: upper case keeps the plain code in QR alphanumeric mode (the smallest symbol). */
@@ -22,21 +24,21 @@ export function examTag(examId: string): string {
 
 export function pageCodeText(code: PageCode): string {
   const base = `${PREFIX}:${code.tag}:${code.page}`;
-  return code.sticker ? `${base}:${code.sticker}` : base;
+  return code.id ? `${base}:${code.id}` : base;
 }
 
-/** The page code in a decoded QR text, or null for any other code (a name sticker). The sticker text may itself contain colons. */
+/** The page code in a decoded QR text, or null for any other code (a name sticker). */
 export function parsePageCode(text: string): PageCode | null {
   const m = /^EXM1:([0-9A-F]{1,16}):(\d{1,4})(?::([\s\S]+))?$/.exec(text.trim());
   if (!m) return null;
   const page = Number(m[2]);
   if (page < 1) return null;
-  return m[3] ? { tag: m[1], page, sticker: m[3] } : { tag: m[1], page };
+  return m[3] ? { tag: m[1], page, id: m[3] } : { tag: m[1], page };
 }
 
 /** Dark-module runs of *text*'s QR code as `x/y/w` from the lower left, one quiet module around; `grid` counts the quiet zone. */
 export function qrRuns(text: string): { grid: number; runs: string } {
-  const { modules } = QRCode.create(text, { errorCorrectionLevel: 'M' });
+  const { modules } = QRCode.create(text, { errorCorrectionLevel: PAGE_CODE_EC });
   const n = modules.size;
   const runs: string[] = [];
   for (let row = 0; row < n; row++) {

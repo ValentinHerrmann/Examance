@@ -2,6 +2,8 @@
   /** What the panel shows, for a page that builds on it (the Print step's readiness). */
   export interface ExamPreviewStatus {
     pdf: "none" | "current" | "stale";
+    /** The solution on its own: the Print step may compile only the task sheet (issue #220). */
+    solution: "none" | "current" | "stale";
     omr: "none" | "ready" | "stale" | "checking";
     busy: boolean;
   }
@@ -47,7 +49,7 @@
     /** The status line with the compile button above the PDFs (Exam step). Without it (Print step) the page drives `compile` and shows the state itself. */
     toolbar?: boolean;
     /** Out: starts a compile, for a page that puts the button elsewhere. */
-    compile?: () => Promise<void>;
+    compile?: (opts?: { solution?: boolean }) => Promise<void>;
     /** More PDFs beside task sheet and solution (the Print step's sticker sheet). */
     extraPanes?: { id: string; title: string; url: string | null }[];
     class?: string;
@@ -89,6 +91,8 @@
   let showLoesungPreview = $state(false);
   /** The shown preview no longer matches the sources; never recompiled automatically, the user presses compile (issue #197). */
   let previewOutdated = $state(false);
+  // Set when a compile skipped the solution: the shown solution may be older than the task sheet.
+  let solutionOutdated = $state(false);
 
   const key = () => get(sessionStore).sessionKey;
   let hasPdf = $derived(!!(previewPdfUrl || previewSolutionPdfUrl));
@@ -133,6 +137,7 @@
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewPdfUrl = previewSolutionPdfUrl = null;
       previewOutdated = false;
+      solutionOutdated = false;
       return;
     }
     const id = exam.id;
@@ -144,6 +149,7 @@
           }
         : cached;
     previewOutdated = cached === "stale";
+    solutionOutdated = false;
     if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
     previewPdfUrl = shown.angabe ? pdfBytesToUrl(shown.angabe.pdfBytes) : null;
     if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
@@ -187,7 +193,8 @@
     }
   }
 
-  async function handlePreviewExam() {
+  /** `solution: false` compiles only the task sheet (the Print step without a solution). */
+  async function handlePreviewExam(opts: { solution?: boolean } = {}) {
     if (exercises.length === 0 && mcGroups.length === 0) return;
     isPreviewLoading = true;
     compileNotice = "";
@@ -200,6 +207,7 @@
       const res = await compileExamPreview({
         ...sources(),
         key: key(),
+        solution: opts.solution !== false,
         onStatus: (status) => {
           if (status === "downloading") compileNotice = translate("exam.page.preview.loadingCompiler");
           else if (status === "compiling") compileNotice = translate("exam.page.preview.compiling");
@@ -208,8 +216,11 @@
 
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
-      if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
+      if (res.loesung) {
+        if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
+        previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
+      }
+      solutionOutdated = !res.loesung;
 
       if (res.missingGraphics.length > 0) {
         errorMsg = translate("common.previewMissingGraphic", { name: res.missingGraphics[0] });
@@ -274,7 +285,8 @@
 
   $effect.pre(() => {
     const next: ExamPreviewStatus = {
-      pdf: !previewPdfUrl && !previewSolutionPdfUrl ? "none" : previewOutdated ? "stale" : "current",
+      pdf: !previewPdfUrl ? "none" : previewOutdated ? "stale" : "current",
+      solution: !previewSolutionPdfUrl ? "none" : previewOutdated || solutionOutdated ? "stale" : "current",
       omr: omrStatus,
       busy: isPreviewLoading || isPreparingOmr,
     };
@@ -297,7 +309,7 @@
   <Button
     size="sm"
     icon={actionIcons.compile}
-    onClick={handlePreviewExam}
+    onClick={() => handlePreviewExam()}
     loading={isPreviewLoading || isPreparingOmr}
     disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
     title={$t("exam.page.compileSection.liveTooltip")}

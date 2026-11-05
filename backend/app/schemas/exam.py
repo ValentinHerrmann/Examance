@@ -76,7 +76,9 @@ QuestionType = Literal["free_text", "mc", "sc", "tf"]
 PseudonymVersion = Literal[1, 2]
 # Multi-sheet print layout (issue #220).
 PrintLayout = Literal["duplex", "booklet"]
-PaddingPages = Literal["blank", "workspace"]
+PaddingPages = Literal["none", "blank", "workspace"]
+StickerSpots = Literal["cover", "sheet", "a3", "leaf"]
+PrintMode = Literal["stickers", "copies"]
 _MAX_POSITION = 10_000
 
 
@@ -219,8 +221,9 @@ class ExamCreate(BaseModel):
     # Multi-sheet layout (issue #220); older clients omit it and keep the old layout.
     page_codes: bool = False
     print_layout: PrintLayout = "duplex"
-    padding_pages: PaddingPages = "blank"
-    sheet_stickers: bool = False
+    padding_pages: PaddingPages = "none"
+    sticker_spots: StickerSpots = "cover"
+    print_mode: PrintMode = "stickers"
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
@@ -271,7 +274,8 @@ class ExamUpdate(BaseModel):
     page_codes: bool | None = None
     print_layout: PrintLayout | None = None
     padding_pages: PaddingPages | None = None
-    sheet_stickers: bool | None = None
+    sticker_spots: StickerSpots | None = None
+    print_mode: PrintMode | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     # Absent keeps the stored ticks; null or {} clears them.
@@ -311,8 +315,9 @@ class ExamResponse(BaseModel):
     mc_correction_hint: bool = False
     page_codes: bool = False
     print_layout: PrintLayout = "duplex"
-    padding_pages: PaddingPages = "blank"
-    sheet_stickers: bool = False
+    padding_pages: PaddingPages = "none"
+    sticker_spots: StickerSpots = "cover"
+    print_mode: PrintMode = "stickers"
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     pseudonym_version: int = 1

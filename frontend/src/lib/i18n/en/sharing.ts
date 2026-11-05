@@ -21,6 +21,8 @@ export const sharing: Translations['sharing'] = {
         copiesBookletHint: 'Booklets: the copies are arranged the way you chose in the print plan. Cut the corner through the folded stack; the cut line sits at the outer top corner of every page. On A3 sheets arranged by Examance, marks at the top and bottom middle show the fold.',
         compiling: 'Compiling the exam …',
         copiesTitle: 'Exam copies',
+        idDuplicates: 'These students share an ID, so the page codes could not tell them apart: {names}. Give each their own ID.',
+        idMissing: 'Without an ID only the cover pages of these students carry their code; their other pages are matched by order: {names}.',
         noQrBox: 'The compiled student sheet has no QR code box.',
         sourceExam: 'Students of this exam',
         examCount: '{count} students from the Students page',

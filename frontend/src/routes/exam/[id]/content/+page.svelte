@@ -46,6 +46,8 @@
   let tab = $state<ContentTab>("exercises");
   let shownTab: ContentTab = $derived(tab === "preview" && $isXl ? "exercises" : tab);
   let layoutDirty = $state(false);
+  // The Layout card saves itself; its header shows "Saving…" / "Saved".
+  let layoutStatus = $state("");
   let pendingLeave: URL | null = $state(null);
 
   // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's examMcGroups/examExercises rows, which left the local MC groups empty.
@@ -329,10 +331,14 @@
         </div>
         <div class="min-w-0 xl:col-start-1 xl:row-start-2 {shownTab === 'layout' ? '' : 'hidden'}">
           <Card title={$t("exam.content.tabLayout")}>
+            {#snippet actions()}
+              {#if layoutStatus}<span class="text-sm text-muted" role="status">{layoutStatus}</span>{/if}
+            {/snippet}
             <ExamLayoutSettings
               {exam}
               {exercises}
               bind:dirty={layoutDirty}
+              bind:status={layoutStatus}
               onSaved={(updated) => {
                 exam = updated;
                 afterLayoutChange();

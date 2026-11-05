@@ -1,6 +1,5 @@
-/** Booklet printing (issue #220, docs/dev/multi_sheet_exams.md): A4 copies imposed two-up onto A3 in saddle-stitch order, or split into one file per copy for a printer's own booklet function. */
+/** Booklet printing (issue #220, docs/dev/multi_sheet_exams.md): A4 copies imposed two-up onto A3 in saddle-stitch order, or split into one file per copy for a printer's own booklet function. The fold's cut zone is part of every page (Schulaufgabe.sty). */
 
-import type { PDFPage } from 'pdf-lib';
 import { MM } from './cutCorner';
 
 /** One side of an A3 sheet: the 1-based A4 pages on its left and right half (0 = blank). */
@@ -21,16 +20,6 @@ export function bookletSides(n: number): BookletSide[] {
   return sides;
 }
 
-/** Short fold marks at the middle of the top and bottom edge, inside the printable area, so the fold and a later cut along it stay clear of writing. */
-function drawFoldMarks(lib: typeof import('pdf-lib'), page: PDFPage): void {
-  const { width, height } = page.getSize();
-  const x = width / 2;
-  const grey = lib.rgb(0.45, 0.45, 0.45);
-  for (const [from, to] of [[5 * MM, 12 * MM], [height - 12 * MM, height - 5 * MM]]) {
-    page.drawLine({ start: { x, y: from }, end: { x, y: to }, thickness: 0.6, color: grey });
-  }
-}
-
 /** *pdf* holds copies of *pagesPerCopy* A4 pages each; the result has every copy as its own A3 booklet, one after the other. */
 export async function imposeBooklet(pdf: Uint8Array, pagesPerCopy: number): Promise<Uint8Array> {
   const lib = await import('pdf-lib');
@@ -46,7 +35,6 @@ export async function imposeBooklet(pdf: Uint8Array, pagesPerCopy: number): Prom
       const sheet = out.addPage([2 * w, h]);
       if (side.left) sheet.drawPage(embedded[start + side.left - 1], { x: 0, y: 0 });
       if (side.right) sheet.drawPage(embedded[start + side.right - 1], { x: w, y: 0 });
-      drawFoldMarks(lib, sheet);
     }
   }
   return out.save();

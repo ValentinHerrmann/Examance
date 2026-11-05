@@ -47,6 +47,7 @@
   import { parseStudentQr } from "#lib/utils/studentQr";
   import { ingestScans, type IngestProgress, type IngestWarning, type OmrSummary } from "#lib/scan/ingest";
   import { carryAttachments } from "#lib/scan/scanPdf";
+  import { examNavContext } from "#lib/stores/shell";
   import HardwareProfileCard from "#lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "#lib/components/scanning/UploadPanel.svelte";
   import { Alert, Button, PageShell } from "#lib/components/ui";
@@ -559,6 +560,7 @@
         omrTemplateHash,
         monitor,
         onProgress: showIngestProgress,
+        pageCodes: get(examNavContext)?.exam?.pageCodes === true,
       });
       prepareScoreBoxTemplate();
       await refreshUnmatched();
