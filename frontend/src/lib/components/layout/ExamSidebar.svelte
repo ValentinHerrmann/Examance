@@ -71,7 +71,7 @@
             >
               <Icon icon={item.icon} class="w-4 text-base" />
               {#if !collapsed}
-                <span class="min-w-0 flex-1 truncate">
+                <span class="min-w-0 flex-1 py-1 leading-tight">
                   {#if item.number}<span class="mr-1 tabular-nums opacity-70" title={$t("exam.sidebar.stepNumber", { number: item.number })}>{item.number}</span>{/if}{$t(item.labelKey)}
                 </span>
                 <ExamStepBadge status={context.progress[item.step]} step={item.step} />

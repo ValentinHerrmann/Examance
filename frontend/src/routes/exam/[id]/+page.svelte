@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The exam's Overview (issue #212): its details, key figures, the exam-wide actions and "Continue" into the next unfinished step. Navigation lives in the sidebar only.
+  // The exam's Overview (issue #212): its details, the key figures the step badges don't show, the linked workflow, the exam-wide actions and "Continue" into the next unfinished step. Navigation lives in the sidebar only.
   import { page } from "$app/state";
   import { untrack } from "svelte";
   import { browser } from "$app/env";
@@ -23,6 +23,8 @@
   import ExamDetailsForm from "#lib/components/exam/ExamDetailsForm.svelte";
   import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
+  import ExamStepLinks from "#lib/components/exam/ExamStepLinks.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { t, translate, type TranslationKey } from "#lib/i18n";
   import { Alert, Button, Card, ConfirmDialog, Menu, MenuItem, PageShell, actionIcons } from "#lib/components/ui";
 
@@ -89,10 +91,6 @@
 
   let figures = $derived([
     ["common.points", String(totalPoints)],
-    ["exam.overview.exercises", String(exercises.length)],
-    ["common.students", missing(progress.students?.count)],
-    ["exam.metadata.submissions", submissionsLoadError ? missing(null) : String(submissions.length)],
-    ["exam.metadata.graded", submissionsLoadError ? missing(null) : String(stats?.count ?? 0)],
     ["exam.overview.average", stats?.avgScore != null ? $fmt.number(stats.avgScore) : missing(null)],
     ["exam.overview.gradingKey", gradingKeyLabel ?? missing(null)],
   ] as [TranslationKey, string][]);
@@ -165,9 +163,12 @@
   <ExamPageHeader {examId} step="overview" title={$t("exam.sidebar.overview")} hint={subtitle || undefined} next={false}>
     {#snippet actions()}
       {#if exam}
-        <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.export} onClick={() => (exportOpen = true)}>
-          {$t("common.export")}
-        </Button>
+        <span class="inline-flex items-center gap-1">
+          <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.export} onClick={() => (exportOpen = true)}>
+            {$t("exam.overview.backup")}
+          </Button>
+          <InfoTip text={$t("exam.overview.backupHint")} />
+        </span>
         <Menu label={$t("exam.overview.more")} icon={actionIcons.more} align="end">
           {#snippet children({ close })}
             <MenuItem icon={actionIcons.duplicate} disabled={isDuplicating} onSelect={() => { close(); void duplicateExam(); }}>
@@ -219,7 +220,8 @@
       </Card>
 
       <Card title={$t("exam.overview.keyFigures")}>
-        <dl class="m-0 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2">
+        <!-- Only what the workflow badges below don't already show. -->
+        <dl class="m-0 grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-1">
           {#each figures as [labelKey, value] (labelKey)}
             <div class="min-w-0 rounded-md bg-surface-inset px-3 py-2">
               <dt class="truncate text-xs text-muted">{$t(labelKey)}</dt>
@@ -227,6 +229,10 @@
             </div>
           {/each}
         </dl>
+      </Card>
+
+      <Card class="xl:col-span-2" title={$t("exam.overview.workflow")}>
+        <ExamStepLinks {examId} {progress} layout="stepper" />
       </Card>
     </div>
 

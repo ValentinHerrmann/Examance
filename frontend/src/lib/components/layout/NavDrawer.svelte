@@ -105,7 +105,7 @@
                 class="{row} {item.active ? 'bg-highlight text-on-highlight' : 'text-content hover:bg-surface-inset'}"
               >
                 <Icon icon={item.icon} class="w-5 text-muted" />
-                <span class="min-w-0 flex-1 truncate">
+                <span class="min-w-0 flex-1 py-1 leading-tight">
                   {#if item.number}<span class="mr-1 tabular-nums text-muted" title={$t("exam.sidebar.stepNumber", { number: item.number })}>{item.number}</span>{/if}{$t(item.labelKey)}
                 </span>
                 <ExamStepBadge status={$examNavContext.progress[item.step]} step={item.step} />

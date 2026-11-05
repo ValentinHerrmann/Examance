@@ -9,6 +9,7 @@
   import { runExamExport } from "#lib/export/examExport";
   import { examExportOptions } from "#lib/export/examExportOptions";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
+  import { examStepHref } from "#lib/components/layout/examNavItems";
 
   interface Props {
     examId: string;
@@ -42,6 +43,10 @@
     {onClose}
   >
     {#snippet notice()}
+      <Alert severity="info" class="mb-4">
+        {$t("exam.overview.backupHint")}
+        <a href={`${examStepHref(examId, "results")}/archive`} onclick={onClose}>{$t("exam.overview.backupArchiveLink")}</a>
+      </Alert>
       <Alert severity="warning" class="mb-4">{$t("export.exam.notice")}</Alert>
     {/snippet}
   </ExportOptionsModal>
