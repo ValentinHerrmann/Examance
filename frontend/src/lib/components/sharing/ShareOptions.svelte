@@ -76,13 +76,16 @@
     </div>
   {/if}
 
-  <Field label={$t("sharing.share.expiry")} hint={$t("sharing.share.replaceNote")}>
-    {#snippet children({ id })}
-      <Select {id} bind:value={expiry} disabled={running}>
-        {#each SHARE_EXPIRY_DAYS as days (days)}
-          <option value={String(days)}>{$t("sharing.share.days", { count: days })}</option>
-        {/each}
-      </Select>
-    {/snippet}
-  </Field>
+  <!-- A PDF sent directly has no link, so there is nothing to expire: no option that does nothing. -->
+  {#if !sendsPdf}
+    <Field label={$t("sharing.share.expiry")} hint={$t("sharing.share.replaceNote")}>
+      {#snippet children({ id })}
+        <Select {id} bind:value={expiry} disabled={running}>
+          {#each SHARE_EXPIRY_DAYS as days (days)}
+            <option value={String(days)}>{$t("sharing.share.days", { count: days })}</option>
+          {/each}
+        </Select>
+      {/snippet}
+    </Field>
+  {/if}
 </div>

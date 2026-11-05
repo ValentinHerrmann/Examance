@@ -6,6 +6,7 @@
   import type { ShareOverview, ShareStudent } from "#lib/sharing/shareService";
   import { formatDate } from "#lib/utils/format";
   import { artemisIdOf, mebisIdOf } from "#lib/utils/studentQr";
+  import { deliveryBadge } from "#lib/sharing/deliveryBadge";
 
   interface Props {
     overview: ShareOverview;
@@ -21,7 +22,7 @@
   let { overview, selected, running, onSelect, onSelectGraded, onRevoke, fill = false }: Props = $props();
 
   const STATE_BADGE = { complete: "success", partial: "warning", ungraded: "secondary" } as const;
-  const DELIVERY_BADGE = { sent: "secondary", delayed: "warning", bounced: "danger", failed: "danger" } as const;
+  const DELIVERY_BADGE = { sent: "secondary", delayed: "warning", bounced: "danger", failed: "danger", revoked: "secondary" } as const;
 
   function toggle(student: ShareStudent, on: boolean) {
     const next = new Set(selected);
@@ -59,11 +60,12 @@
           <th>{$t("sharing.share.colEmail")}</th>
           <th>{$t("sharing.share.colState")}</th>
           <th>{$t("sharing.delivery.col")}</th>
-          <th colspan="2"><span class="sr-only">{$t("sharing.share.colShare")}</span></th>
+          <th class="w-px"><span class="sr-only">{$t("sharing.share.colShare")}</span></th>
         </tr>
       </thead>
       <tbody>
         {#each overview.students as s (s.key)}
+          {@const badge = deliveryBadge(s)}
           <tr>
             <td class="w-8">
               <Checkbox checked={selected.has(s.key)} onChange={(on) => toggle(s, on)} disabled={running || !s.hasSubmission} aria-label={s.name} />
@@ -71,21 +73,18 @@
             <td class="min-w-0">{s.name}</td>
             <td class="text-sm text-muted tabular-nums">{mebisIdOf(s.student) ?? ""}</td>
             <td class="text-sm text-muted tabular-nums">{artemisIdOf(s.student) ?? ""}</td>
-            <td class="min-w-0 text-sm break-all text-muted">{s.student.email ?? ""}</td>
+            <td class="text-sm whitespace-nowrap text-muted">{s.student.email ?? ""}</td>
             <td><Badge size="xs" severity={s.hasSubmission ? STATE_BADGE[s.state] : "secondary"}>{stateLabel(s)}</Badge></td>
-            <td>
-              {#if s.delivery}
-                <Badge size="xs" severity={DELIVERY_BADGE[s.delivery.status]} title={deliveryTitle(s.delivery)}>{$t(`sharing.delivery.status.${s.delivery.status}`)}</Badge>
+            <!-- Delivery state with the link's expiry under it: no extra columns appear after a send, so the widths stay (issue #212). -->
+            <td class="whitespace-nowrap">
+              {#if badge}
+                <Badge size="xs" severity={DELIVERY_BADGE[badge]} title={s.delivery ? deliveryTitle(s.delivery) : undefined}>{$t(`sharing.delivery.status.${badge}`)}</Badge>
               {/if}
-            </td>
-            <td class="text-sm text-muted">
-              {#if s.share}{$t("sharing.share.sharedUntil", { date: formatDate(s.share.expiresAt) })}{/if}
+              {#if s.share}<div class="text-xs text-muted">{$t("sharing.share.sharedUntil", { date: formatDate(s.share.expiresAt) })}</div>{/if}
             </td>
             <td class="text-right">
               {#if s.share}
-                <Button size="sm" variant="text" severity="danger" icon={actionIcons.remove} disabled={running} onClick={() => s.share && onRevoke(s.share.id)}>
-                  {$t("sharing.share.revoke")}
-                </Button>
+                <Button size="sm" variant="text" severity="danger" iconOnly icon={actionIcons.remove} ariaLabel={$t("sharing.share.revokeLink")} title={$t("sharing.share.revokeLink")} disabled={running} onClick={() => s.share && onRevoke(s.share.id)} />
               {/if}
             </td>
           </tr>
@@ -98,10 +97,9 @@
             <td></td>
             <td></td>
             <td></td>
-            <td></td>
-            <td class="text-sm text-muted">{$t("sharing.share.sharedUntil", { date: formatDate(orphan.expiresAt) })}</td>
+            <td class="text-xs whitespace-nowrap text-muted">{$t("sharing.share.sharedUntil", { date: formatDate(orphan.expiresAt) })}</td>
             <td class="text-right">
-              <Button size="sm" variant="text" severity="danger" icon={actionIcons.remove} disabled={running} onClick={() => onRevoke(orphan.id)}>{$t("sharing.share.revoke")}</Button>
+              <Button size="sm" variant="text" severity="danger" iconOnly icon={actionIcons.remove} ariaLabel={$t("sharing.share.revokeLink")} title={$t("sharing.share.revokeLink")} disabled={running} onClick={() => onRevoke(orphan.id)} />
             </td>
           </tr>
         {/each}
