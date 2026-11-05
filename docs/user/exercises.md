@@ -145,7 +145,7 @@ Examance never sends anything to an AI service itself. It prepares a prompt that
 
 ## Report a layout problem {#layout-reports}
 
-If a PDF looks wrong or fails to compile although the code seems right, use **Report LaTeX layout problem** right below the PDF preview (in the exercise editor or on the exam's **Exam** step):
+If a PDF looks wrong or fails to compile although the code seems right, use **Report LaTeX error**, the bug icon in the header of each PDF preview (in the exercise editor, on the exam's **Exam** and **Print** steps and in the preview dialogs):
 
 1. Briefly describe what is wrong and what it should look like.
 2. With your consent, the LaTeX code, the PDFs and the files are sent **unencrypted** to the administrators of your installation.

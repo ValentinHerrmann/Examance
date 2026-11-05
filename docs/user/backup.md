@@ -22,7 +22,7 @@ Not included: MC answer-sheet templates (they are rebuilt) and your account sett
 
 ## Back up one exam {#exam-backup}
 
-**Back up / transfer** on an exam (the menu of its card on the dashboard, or the exam's **Overview**) with the format **Re-importable, password-protected backup** creates a `.examance-exam` archive with only that exam, its exercises with their files, and its results.
+**Back up / transfer** on an exam (the menu of its card on the dashboard, or the exam's **Overview**) with the format **Re-importable, password-protected backup** creates a `.examance-exam` archive with only that exam, its exercises with their files, and its results. The same backup is also an entry of the export list on **Results & Export → Archive**.
 
 The file extension shows the scope: `.examance` for a whole workspace, `.examance-exam` for a single exam. Older `.bgproj` backups can still be imported.
 

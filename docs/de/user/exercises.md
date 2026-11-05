@@ -145,7 +145,7 @@ Examance sendet nie selbst etwas an einen KI-Dienst. Es bereitet einen Prompt vo
 
 ## Ein Layoutproblem melden {#layout-reports}
 
-Sieht ein PDF falsch aus oder lässt es sich nicht kompilieren, obwohl der Code in Ordnung scheint, nutzen Sie **LaTeX-Layoutproblem melden** direkt unter der PDF-Vorschau (im Aufgaben-Editor oder im Schritt **Prüfung** der Prüfung):
+Sieht ein PDF falsch aus oder lässt es sich nicht kompilieren, obwohl der Code in Ordnung scheint, nutzen Sie **LaTeX-Fehler melden**, das Käfer-Symbol im Kopf jeder PDF-Vorschau (im Aufgaben-Editor, in den Schritten **Prüfung** und **Drucken** und in den Vorschau-Dialogen):
 
 1. Beschreiben Sie kurz, was falsch ist und wie es aussehen sollte.
 2. Mit Ihrer Einwilligung werden LaTeX-Code, PDFs und Dateien **unverschlüsselt** an die Administration Ihrer Installation gesendet.
