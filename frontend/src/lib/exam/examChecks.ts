@@ -67,6 +67,8 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
         e.title, e.testart, e.grade, e.klasse, e.datum, e.nr, e.fach, e.lehrernachname, e.infoText,
         e.latexPreamble, e.latexTemplate, e.numVersions, e.latexPackages, e.pageBreaks, e.nameLine,
         e.mcCorrectionHint, e.extraNotes,
+        // Only when set, so stamps of exams without an override (all older ones) stay as they were.
+        ...(e.course ? [e.course] : []),
     ];
     const body = exercises.map((x) => [x.id, x.version, x.orderIndex, x.mcGroupId, x.subIndex, x.maxPoints, x.latexBody]);
     return fingerprint(JSON.stringify([head, body]));

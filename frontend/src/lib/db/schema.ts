@@ -45,6 +45,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   testart?: string;
   grade?: string;
   klasse?: string;
+  /** Printed course (`\Klasse`) when set; empty means grade + klasse (`examCourse`). */
+  course?: string;
   datum?: string;
   nr?: string;
   fach?: string;

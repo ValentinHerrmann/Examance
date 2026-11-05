@@ -17,7 +17,7 @@
   import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { sessionStore, awaitSessionReady } from "#lib/stores/session";
   import { examNavContext } from "#lib/stores/shell";
-  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { examCourse } from "#lib/utils/examLabel";
   import { computeExamStats } from "#lib/utils/examStats";
   import { fmt } from "#lib/utils/format";
   import ExamDetailsForm from "#lib/components/exam/ExamDetailsForm.svelte";
@@ -74,7 +74,7 @@
   let progress = $derived($examNavContext?.examId === examId ? $examNavContext.progress : {});
   let next = $derived(continueStep(progress));
   let nextLabel = $derived(EXAM_STEPS.find((s) => s.step === next)?.labelKey);
-  let course = $derived(exam ? formatExamCourse(exam.grade, exam.klasse) : "");
+  let course = $derived(exam ? examCourse(exam) : "");
   let subtitle = $derived(exam ? [exam.testart, [course, exam.fach].filter(Boolean).join(", "), exam.datum].filter(Boolean).join(" · ") : "");
 
   const GRADING_KEY_LABELS: Record<string, TranslationKey> = {

@@ -137,6 +137,7 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
       testart: exam.testart,
       grade: exam.grade,
       klasse: exam.klasse,
+      course: exam.course,
       datum: exam.datum,
       nr: exam.nr,
       fach: exam.fach,

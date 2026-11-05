@@ -1,7 +1,7 @@
 <script lang="ts">
   import { faAnglesLeft, faAnglesRight, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { examCourse } from "#lib/utils/examLabel";
   import { minWidth } from "#lib/stores/viewport";
   import { sidebarPreference, setSidebarCollapsed, type ExamNavContext } from "#lib/stores/shell";
   import { Icon, Tooltip } from "#lib/components/ui";
@@ -25,7 +25,7 @@
 
   let items = $derived(examNavItems(context.examId, pathname));
   let exam = $derived(context.exam);
-  let course = $derived(exam ? formatExamCourse(exam.grade, exam.klasse) : "");
+  let course = $derived(exam ? examCourse(exam) : "");
   let metaLines = $derived(exam ? [exam.testart, [course, exam.fach].filter(Boolean).join(", "), exam.datum].filter(Boolean) : []);
 </script>
 
