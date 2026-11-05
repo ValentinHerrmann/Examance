@@ -254,7 +254,7 @@ export const exam = {
             copiesNeedPdf: 'Erst die Angabe erstellen (erstes Symbol oben rechts), dann die Exemplare.',
             changed: 'Seit dem Druck geändert: neu drucken und erneut abhaken.',
             printed: 'gedruckt',
-            printedAt: 'gedruckt am {date}',
+            printedAt: 'gedruckt {date}',
             needsPdf: 'Erst die PDF erstellen, dann abhaken.',
             exam: 'Prüfungsexemplare (Angabe)',
             examHint: 'Drucken Sie {count} Exemplare der Angabe.',

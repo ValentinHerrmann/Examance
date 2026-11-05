@@ -238,7 +238,7 @@
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3">
           <Checkbox checked={valid} disabled={busy || !stamps || !canTick} onChange={(on) => tick(job, on)} label={$t("exam.print.job.printed")} />
           {#if valid}
-            <Badge size="xs" severity="success">{$t("exam.print.job.printedAt", { date: $fmt.date(cs?.checks.print?.[job]?.at ?? "") })}</Badge>
+            <Badge size="xs" severity="success">{$t("exam.print.job.printedAt", { date: $fmt.dateTime(cs?.checks.print?.[job]?.at ?? "") })}</Badge>
           {:else if changed}
             <span class="text-xs text-warning-fg">{$t("exam.print.job.changed")}</span>
           {:else if !canTick}

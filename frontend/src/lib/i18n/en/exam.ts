@@ -256,7 +256,7 @@ export const exam: Translations['exam'] = {
             copiesNeedPdf: 'Create the task sheet first (first icon at the top right), then the copies.',
             changed: 'Changed since printing: print again and tick again.',
             printed: 'printed',
-            printedAt: 'printed on {date}',
+            printedAt: 'printed {date}',
             needsPdf: 'Create the PDF first, then tick.',
             exam: 'Exam copies (task sheet)',
             examHint: 'Print {count} copies of the task sheet.',
