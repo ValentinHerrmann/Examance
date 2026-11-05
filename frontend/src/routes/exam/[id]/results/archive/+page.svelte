@@ -5,7 +5,7 @@
   import { onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
   import { get } from "svelte/store";
-  import { faArrowsRotate, faFileCirclePlus, faFileZipper, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowsRotate, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, Checkbox, Icon, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -168,9 +168,7 @@
 {/snippet}
 
 {#snippet sheetAction()}
-  {#if sheetUrl}
-    <Button size="sm" iconOnly icon={actionIcons.download} href={sheetUrl} download={`${fileTitle} – ${$t("exam.archive.sheetFile")}.pdf`} ariaLabel={$t("exam.archive.sheetDownload")} title={$t("exam.archive.sheetDownload")} />
-  {/if}
+  <Button size="sm" iconOnly icon={actionIcons.download} href={sheetUrl || "#"} disabled={!sheetUrl} download={`${fileTitle} – ${$t("exam.archive.sheetFile")}.pdf`} ariaLabel={$t("exam.archive.sheetDownload")} title={$t("exam.archive.sheetDownload")} />
   <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={faArrowsRotate} loading={sheetBusy} disabled={sheetBusy} ariaLabel={$t("exam.archive.sheetRefresh")} title={$t("exam.archive.sheetRefresh")} onClick={() => renderSheet(examId)} />
 {/snippet}
 {#snippet sheetControls()}{/snippet}
@@ -180,15 +178,13 @@
 {/snippet}
 
 {#snippet gradedAction()}
-  {#if gradedUrl}
-    <Button size="sm" iconOnly icon={actionIcons.download} href={gradedUrl} download={`${fileTitle} – ${$t("exam.archive.gradedFile")}.pdf`} ariaLabel={$t("exam.archive.gradedDownload")} title={$t("exam.archive.gradedDownload")} />
-  {/if}
+  <Button size="sm" iconOnly icon={actionIcons.download} href={gradedUrl || "#"} disabled={!gradedUrl} download={`${fileTitle} – ${$t("exam.archive.gradedFile")}.pdf`} ariaLabel={$t("exam.archive.gradedDownload")} title={$t("exam.archive.gradedDownload")} />
   <Button
     size="sm"
     variant={gradedUrl ? "outlined" : "solid"}
     severity={gradedUrl ? "secondary" : "primary"}
     iconOnly
-    icon={gradedUrl ? faArrowsRotate : faFileCirclePlus}
+    icon={faArrowsRotate}
     loading={gradedBusy}
     disabled={gradedBusy}
     ariaLabel={gradedUrl ? $t("exam.archive.gradedRecreate") : $t("exam.archive.gradedCreate")}
@@ -207,7 +203,7 @@
     <!-- Before the first run the pane itself offers the labelled button. -->
     <div class="flex min-h-72 flex-1 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-line-strong p-4 text-center text-sm text-muted lg:min-h-[28rem]">
       {$t("exam.archive.gradedEmpty")}
-      <Button size="sm" icon={faFileCirclePlus} onClick={renderGraded}>{$t("exam.archive.gradedCreate")}</Button>
+      <Button size="sm" icon={faArrowsRotate} onClick={renderGraded}>{$t("exam.archive.gradedCreate")}</Button>
     </div>
   {:else}
     {@render pdfPane(gradedBusy, $t("exam.archive.gradedBusy"), gradedUrl, gradedNone ? $t("exam.archive.gradedNone") : "")}
@@ -220,7 +216,7 @@
 {/snippet}
 
 {#snippet zipAction()}
-  <Button size="sm" iconOnly icon={faFileZipper} loading={running} disabled={running || selected.size === 0} ariaLabel={$t("exam.archive.zipDownload")} title={$t("exam.archive.zipDownload")} onClick={download} />
+  <Button size="sm" iconOnly icon={actionIcons.download} loading={running} disabled={running || selected.size === 0} ariaLabel={$t("exam.archive.zipDownload")} title={$t("exam.archive.zipDownload")} onClick={download} />
 {/snippet}
 {#snippet zipControls()}
   <span class="flex items-center gap-1.5 text-warning-fg"><Icon icon={faTriangleExclamation} />{$t("exam.archive.zipNoticeShort")}</span>
