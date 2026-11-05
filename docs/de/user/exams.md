@@ -161,7 +161,7 @@ In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag d
 
 ## Drucken {#print}
 
-Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die PDFs. Die Vorschau zeigt nur, was der Plan druckt, und nur, wenn es aktuell ist: bei personalisierten Exemplaren ohne Lösung also nur die personalisierten Exemplare. Eine Schaltfläche, **Druckdateien erstellen**, setzt, was der Plan druckt, frischt die Scan-Vorlage für die MC-Erkennung auf und erstellt die PDF mit Aufklebern oder Exemplaren.
+Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die PDFs. Die Vorschau zeigt nur, was der Plan druckt, und nur, wenn es aktuell ist: bei personalisierten Exemplaren ohne Lösung also nur die personalisierten Exemplare. Ordnet Examance eine Broschüre an, zeigt sie die A3-Bögen genau so, wie sie gedruckt werden. Eine Schaltfläche, **Druckdateien erstellen**, setzt, was der Plan druckt, frischt die Scan-Vorlage für die MC-Erkennung auf und erstellt die PDF mit Aufklebern oder Exemplaren.
 
 Im Druckplan wählen Sie, wie Sie drucken: **Normale Exemplare und ein QR-Aufkleberbogen** oder **Personalisierte Exemplare mit aufgedrucktem QR-Code** (ein Exemplar pro Schüler mit QR-Code, Name und persönlichem Schlüssel, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies)), und ob die **Lösung** mitgedruckt wird. Bei mehreren Blättern enthält der Plan auch, [wie Sie drucken](#multi-sheet-print). **Bereit zum Drucken?** prüft von selbst, ob die Prüfung Aufgaben hat, die Schülerliste gefüllt ist, die PDFs zum aktuellen Stand passen und, bei MC-Aufgaben, die Scan-Vorlage aktuell ist.
 

@@ -313,6 +313,7 @@ export const exam: Translations['exam'] = {
             printedAt: 'printed {date}',
             needsPdf: 'Create the PDF first, then tick.',
             exam: 'Exam copies (task sheet)',
+            examBooklet: 'Exam copies (A3 booklet)',
             examHint: 'Print {count} copies of the task sheet.',
             examHintNoCount: 'Print one copy per student.',
             qr: 'QR sticker sheet',

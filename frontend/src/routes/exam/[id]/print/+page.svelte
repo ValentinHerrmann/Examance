@@ -33,7 +33,8 @@
   let layoutVersion = $state(0);
   // Only what the plan prints: the planned sheets while current, made sticker or copies PDFs as extra panes.
   let shown = $state<PrintPreviews | undefined>(undefined);
-  let extraPanes = $derived((["qr", "copies"] as const).flatMap((job) => (shown?.jobs[job] ? [{ id: job, title: $t(`exam.print.job.${job}`), url: shown.jobs[job] ?? null }] : [])));
+  const paneTitle = { exam: "exam.print.job.examBooklet", qr: "exam.print.job.qr", copies: "exam.print.job.copies" } as const;
+  let extraPanes = $derived((["exam", "qr", "copies"] as const).flatMap((job) => (shown?.jobs[job] ? [{ id: job, title: $t(paneTitle[job]), url: shown.jobs[job] ?? null }] : [])));
 
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);

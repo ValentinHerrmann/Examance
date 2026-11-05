@@ -6,6 +6,8 @@
     solution: "none" | "current" | "stale";
     omr: "none" | "ready" | "stale" | "checking";
     busy: boolean;
+    /** Counts every task sheet shown, so a file derived from it (page count, imposed booklet) knows when to follow. */
+    version: number;
   }
 </script>
 
@@ -100,6 +102,7 @@
   let showLoesungPreview = $state(false);
   /** The shown preview no longer matches the sources; never recompiled automatically, the user presses compile (issue #197). */
   let previewOutdated = $state(false);
+  let pdfVersion = $state(0);
   // Set when a compile skipped the solution: the shown solution may be older than the task sheet.
   let solutionOutdated = $state(false);
 
@@ -165,6 +168,7 @@
     solutionOutdated = false;
     if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
     previewPdfUrl = shown.angabe ? pdfBytesToUrl(shown.angabe.pdfBytes) : null;
+    pdfVersion++;
     if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
     previewSolutionPdfUrl = shown.loesung ? pdfBytesToUrl(shown.loesung.pdfBytes) : null;
   }
@@ -229,6 +233,7 @@
 
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
+      pdfVersion++;
       if (res.loesung) {
         if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
         previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
@@ -302,6 +307,7 @@
       solution: !previewSolutionPdfUrl ? "none" : previewOutdated || solutionOutdated ? "stale" : "current",
       omr: omrStatus,
       busy: isPreviewLoading || isPreparingOmr,
+      version: pdfVersion,
     };
     untrack(() => (status = next));
   });

@@ -16,6 +16,7 @@
   import { featuresStore } from "#lib/stores/capabilities";
   import { examProgress, type ExamProgressInput } from "#lib/exam/examProgress";
   import { contentStamp, mcStatus, printStamps, printStatus, studentsStamp } from "#lib/exam/examChecks";
+  import { printSettingsOf } from "#lib/exam/printLayout";
   import { computeMcVerificationStats, summarizeMcCheck } from "#lib/grading/mcVerification";
   import { t } from "#lib/i18n";
 
@@ -106,7 +107,7 @@
       const progress = examProgress({
         ...input,
         verify: mc && mc.examId === id ? mcStatus(mc, cs?.examId === id ? cs.checks : null) : undefined,
-        print: cs && cs.examId === id && cs.stamps ? printStatus(cs.checks, printStamps(cs.stamps.content, cs.stamps.students), current?.printMode) : undefined,
+        print: cs && cs.examId === id && cs.stamps ? printStatus(cs.checks, printStamps(cs.stamps.content, cs.stamps.students, current ? printSettingsOf(current) : undefined), current?.printMode) : undefined,
       });
       untrack(() => examNavContext.set({ examId: id, exam: current && current.id === id ? current : null, submissionCount: count, progress }));
     }

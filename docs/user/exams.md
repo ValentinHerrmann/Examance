@@ -160,7 +160,7 @@ In the exam overview, **Preview** in an expanded entry opens the last compiled P
 
 ## Print {#print}
 
-The **Print** step has the **print plan** on the left and the PDFs on the right (on smaller screens below it). The preview shows only what the plan prints, and only once it is up to date: for personalised copies without the solution, just the personalised copies. One button, **Create print files**, typesets what the plan prints, refreshes the scan template for MC detection and makes the sticker or copies PDF.
+The **Print** step has the **print plan** on the left and the PDFs on the right (on smaller screens below it). The preview shows only what the plan prints, and only once it is up to date: for personalised copies without the solution, just the personalised copies. When Examance arranges a booklet, it shows the A3 sheets exactly as they will be printed. One button, **Create print files**, typesets what the plan prints, refreshes the scan template for MC detection and makes the sticker or copies PDF.
 
 In the print plan you choose how you print: **Plain copies and a QR sticker sheet**, or **Personalised copies with the QR code printed on** (one copy per student with QR code, name and personal key, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies)), and whether the **solution** is printed too. For several sheets the plan also holds [how you print](#multi-sheet-print). **Ready to print?** checks automatically whether the exam has exercises, the student list is filled, the PDFs match the current state and, with MC questions, the scan template is up to date.
 

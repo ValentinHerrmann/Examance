@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
+  import { locale } from "#lib/i18n";
   import Icon from "./Icon.svelte";
 
   /** One choice of a radio group as a bordered tile (icon, title, one short line), highlighted while selected: Settings and the Print step. */
@@ -26,16 +27,18 @@
   let { name, value, checked, title, text = undefined, icon = undefined, disabled = false, compact = false, onchange, onclick, titleExtra, class: className = "" }: Props = $props();
 </script>
 
+<!-- `lang` lets long German words hyphenate instead of overflowing a narrow tile. -->
 <label
-  class="flex min-w-0 items-start rounded-md border border-line-strong bg-surface-sunken has-[:checked]:border-primary has-[:checked]:bg-highlight {compact
+  lang={$locale}
+  class="flex h-full min-w-0 items-start rounded-md border border-line-strong bg-surface-sunken has-[:checked]:border-primary has-[:checked]:bg-highlight {compact
     ? 'gap-2 p-2.5'
     : 'gap-3 p-4'} {disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-line-hover'} {className}"
 >
   <input class="mt-0.5 shrink-0 cursor-[inherit] accent-primary {compact ? 'size-4' : 'size-5'}" type="radio" {name} {value} {checked} {disabled} {onchange} {onclick} />
-  <span class="min-w-0">
-    <span class="flex items-center gap-1.5 font-medium text-content {compact ? 'text-sm' : 'text-base'}">
+  <span class="min-w-0 flex-1">
+    <span class="flex flex-wrap items-center gap-x-1.5 font-medium break-words hyphens-auto text-content {compact ? 'text-sm' : 'text-base'}">
       {#if icon}<Icon {icon} class="shrink-0 text-muted" />{/if}<span class="min-w-0">{title}</span>{@render titleExtra?.()}
     </span>
-    {#if text}<span class="block text-muted {compact ? 'mt-0.5 text-xs' : 'mt-1 text-sm'}">{text}</span>{/if}
+    {#if text}<span class="block break-words hyphens-auto text-muted {compact ? 'mt-0.5 text-xs' : 'mt-1 text-sm'}">{text}</span>{/if}
   </span>
 </label>

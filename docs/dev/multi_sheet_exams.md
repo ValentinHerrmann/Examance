@@ -60,6 +60,11 @@ All settings are plain `exams` columns (migrations 0058 and 0059). `printSetting
   - it compiles the solution only when the plan prints it (`compileExamPreview({ solution: false })`; `ExamPreviewStatus.solution` tracks it separately; unchanged sources come from the compile cache);
   - then it makes the sticker or copies PDF unless the current one is still valid (`printMadeValid`).
   - Job cards keep only download and the "printed" tick.
+- **Made files follow the settings, not only the content**:
+  - `printFileKey` (layout arranging, sticker count) is stored with each file made in this visit; a file under another key is outdated, hidden and remade.
+  - With Examance arranging a booklet, `prepare()` imposes the current task sheet (`imposeBooklet`); preview pane and download are those A3 sheets, keyed to the compiled sheet's `ExamPreviewStatus.version`.
+  - The `qr` stamp also covers the content while later sheets get sticker spots (`printStamps(…, print)`): the count follows the pages.
+  - `prepare()` counts the compiled sheet's pages itself and waits a tick, so the sticker form has the new count before it makes its PDF.
 - **Options as tiles** (`ui/OptionTile`, shared with Settings): each group has a small heading and its explanation behind (i); the tiles carry a title and one short line.
 - **The preview shows only what will be printed** (`PrintPlan` `bind:shown` → `ExamPreviewPanel` `sheets` + `currentOnly`, `DualPdfPreview` `hideEmpty`): the task sheet only when plain copies are printed, the solution only when planned, each only while it matches the sources; sticker and copies PDFs only while they were made for the current content. With nothing ready the area asks for "Create print files".
 - **Booklets** (`lib/qr/booklet.ts`):

@@ -64,3 +64,9 @@ export function stickerPagesOf(settings: PrintSettings, pageCount: number): numb
 export function stickersPerCopy(settings: PrintSettings, pageCount: number): number {
   return 1 + stickerPagesOf(settings, pageCount).length;
 }
+
+/** What shapes a made print file besides content and students: a file made under another key is outdated (Print step). */
+export function printFileKey(job: 'exam' | 'qr' | 'copies', booklet: 'impose' | 'printer' | null, stickers: number): string {
+  if (job === 'qr') return `qr:${stickers}`;
+  return `${job}:${booklet ?? 'a4'}`;
+}

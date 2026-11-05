@@ -1,5 +1,5 @@
 import type { ExamRecord, ExerciseRecord, StudentRecord } from '#lib/db/schema';
-import { printSettingsOf } from '#lib/exam/printLayout';
+import { printSettingsOf, type PrintSettings } from '#lib/exam/printLayout';
 
 /** One tick the teacher set by hand: when, and the fingerprint of what it was set for (issue #212). */
 export interface StepCheck {
@@ -92,9 +92,10 @@ export function studentsStamp(students: StudentRecord[]): string {
 
 export type PrintStamps = Record<PrintJobId, string>;
 
-/** The exam and solution follow the content, the sticker sheet the student list, personalised copies both. */
-export function printStamps(content: string, students: string): PrintStamps {
-    return { exam: content, solution: content, qr: students, copies: fingerprint(`${content}:${students}`) };
+/** The exam and solution follow the content, the sticker sheet the student list (and the content too while later sheets get sticker spots: their count follows the pages), personalised copies both. */
+export function printStamps(content: string, students: string, print?: Pick<PrintSettings, 'mode' | 'stickerSpots'>): PrintStamps {
+    const spots = print?.mode === 'stickers' && print.stickerSpots !== 'cover';
+    return { exam: content, solution: content, qr: spots ? fingerprint(`${students}:${content}`) : students, copies: fingerprint(`${content}:${students}`) };
 }
 
 /** A tick counts only while the content it was set for is unchanged. */

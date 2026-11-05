@@ -311,6 +311,7 @@ export const exam = {
             printedAt: 'gedruckt {date}',
             needsPdf: 'Erst die PDF erstellen, dann abhaken.',
             exam: 'Prüfungsexemplare (Angabe)',
+            examBooklet: 'Prüfungsexemplare (Broschüre A3)',
             examHint: 'Drucken Sie {count} Exemplare der Angabe.',
             examHintNoCount: 'Drucken Sie ein Exemplar pro Schüler.',
             qr: 'QR-Aufkleberbogen',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
+import { printFileKey, printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
+import { printStamps } from '../src/lib/exam/examChecks';
 
 const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, padding: 'workspace', layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', ...patch });
 
@@ -27,5 +28,19 @@ describe('print settings (issue #220)', () => {
     expect(stickerPagesOf(settings({ stickerSpots: 'cover' }), 8)).toEqual([]);
     expect(stickerPagesOf(settings({ mode: 'copies' }), 8)).toEqual([]);
     expect(stickersPerCopy(settings({}), 6)).toBe(3);
+  });
+
+  it('outdates a made file when the arranging or the sticker count changes', () => {
+    expect(printFileKey('copies', 'impose', 1)).not.toBe(printFileKey('copies', 'printer', 1));
+    expect(printFileKey('copies', null, 1)).not.toBe(printFileKey('copies', 'printer', 1));
+    expect(printFileKey('qr', null, 2)).not.toBe(printFileKey('qr', null, 3));
+  });
+
+  it('ties the sticker stamp to the content only while later sheets get spots', () => {
+    const plain = (content: string) => printStamps(content, 'students', settings({ stickerSpots: 'cover' })).qr;
+    const spots = (content: string) => printStamps(content, 'students', settings({ stickerSpots: 'sheet' })).qr;
+    expect(plain('a')).toBe(plain('b'));
+    expect(plain('a')).toBe(printStamps('a', 'students').qr);
+    expect(spots('a')).not.toBe(spots('b'));
   });
 });
