@@ -46,20 +46,12 @@ export const EXAM_STEPS: { step: ExamStep; suffix: string; labelKey: Translation
 
 /** The step's number as shown ("1"…"3", "4A"…"6A", "B", "7"); null for the overview. Branch B replaces the whole of A, so it has a letter only and the steps after it count on from A. */
 export function stepNumber(step: ExamStep): string | null {
-    let n = 0;
-    for (const entry of EXAM_STEPS) {
-        if (entry.step === 'overview') {
-            if (step === 'overview') return null;
-            continue;
-        }
-        if (entry.branch === 'B') {
-            if (entry.step === step) return 'B';
-            continue;
-        }
-        n++;
-        if (entry.step === step) return entry.branch ? `${n}${entry.branch}` : String(n);
-    }
-    return null;
+    const index = EXAM_STEPS.findIndex((s) => s.step === step);
+    const entry = EXAM_STEPS[index];
+    if (!entry || step === 'overview') return null;
+    if (entry.branch === 'B') return 'B';
+    const n = EXAM_STEPS.slice(1, index + 1).filter((s) => s.branch !== 'B').length;
+    return entry.branch ? `${n}${entry.branch}` : String(n);
 }
 
 export function examStepHref(examId: string, step: ExamStep): string {
