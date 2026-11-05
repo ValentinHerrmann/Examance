@@ -16,7 +16,7 @@ An exam is a selection of exercises from your library plus header data, a gradin
 
 The **title** is made from these details (for example "Kurzarbeit 1 · Informatik 10a · 05.11.2026") and follows them while you edit. It is shown in Examance only, not printed. Click the pen next to it to set your own title: it is then marked **custom title** and no longer changes with the details; ↺ makes it generated again.
 
-The **printed class** (`\Klasse` on the cover sheet) is made from grade and class (10 and a give "10a") and shows as a small chip at the end of the **Class** field. Click it to print something else instead, for example "Q11 Inf"; it is then marked as your own entry, and ↺ goes back to grade and class.
+The **printed class** (`\Klasse` on the cover sheet) is made from grade and class (10 and a give "10a") and shows as a small line under the **Class** field ("Printed: 10a"). Click it to print something else instead, for example "Q11 Inf"; it is then marked as your own entry, and ↺ goes back to grade and class.
 
 **Save** and **Discard changes** appear only once you have changed something.
 

@@ -134,7 +134,7 @@
     onReset={() => (editTitle = generatedTitle)}
   />
   <!-- 12 columns on wide cards: short fields (number, grade, class) get narrow cells (issue #212). -->
-  <div class="mb-1 grid grid-cols-2 gap-x-3 gap-y-2.5 @lg:grid-cols-6 @2xl:grid-cols-12">
+  <div class="mb-1 grid grid-cols-2 items-start gap-x-3 gap-y-2.5 @lg:grid-cols-6 @2xl:grid-cols-12">
     <SuggestField compact id="editTestart" class="{field} @lg:col-span-2 @2xl:col-span-3" label={$t("exam.metadataEditor.testart")} storageKey="exam.testart" bind:value={editTestart} maxlength={100} />
     <Field compact class="{field} @2xl:col-span-1" label={$t("exam.metadataEditor.nr")} forId="editNr">
       {#snippet children({ id })}
@@ -143,12 +143,11 @@
     </Field>
     <SuggestField compact id="editFach" class="{field} @lg:col-span-2 @2xl:col-span-3" label={$t("exam.metadataEditor.fach")} storageKey="exam.fach" bind:value={editFach} maxlength={100} />
     <SuggestField compact id="editGrade" class="{field} @2xl:col-span-1" label={$t("exam.metadataEditor.grade")} storageKey="exam.grade" bind:value={editGrade} maxlength={50} placeholder="10" />
-    <div class="{field} relative @lg:col-span-2 [&_input]:pr-20">
+    <div class="{field} flex flex-col gap-1 @lg:col-span-2">
       <SuggestField compact id="editKlasse" label={$t("exam.metadataEditor.klasse")} storageKey="exam.klasse" bind:value={editKlasse} maxlength={50} placeholder="a" />
-      <!-- The printed course sits at the end of the Class input; the pen sets an own value (\Klasse). -->
+      <!-- The printed course (\Klasse) as a small line under Class; the pen sets an own value. -->
       <OverridableText
-        variant="chip"
-        class="absolute top-6 right-1.5"
+        variant="hint"
         text={courseCustom ? editCourse.trim() : derivedCourse}
         custom={courseCustom}
         maxlength={50}

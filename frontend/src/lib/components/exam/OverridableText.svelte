@@ -3,7 +3,7 @@
   import { faPen, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
   import { Icon, Tooltip, controlClass, controlCompactClass } from "#lib/components/ui";
 
-  /** A value that is generated unless the teacher overrides it (issue #212): shown as text with a pen, edited in place, custom state marked with ↺ back to generated. `line` for the exam title, `chip` for the printed course inside the Class field. */
+  /** A value that is generated unless the teacher overrides it (issue #212): shown as text with a pen, edited in place, custom state marked with ↺ back to generated. `line` for the exam title, `hint` for the printed course as a small line under the Class field. */
   interface Props {
     /** The value shown: the override when custom, else the generated one. */
     text: string;
@@ -14,11 +14,11 @@
     label: string;
     editLabel: string;
     resetLabel: string;
-    /** Text of the custom mark ("eigener Titel"); `chip` shows it as tooltip only. */
+    /** Text of the custom mark ("eigener Titel", "eigene Angabe"). */
     customLabel: string;
     /** Explanation shown on hover. */
     hint?: string;
-    variant?: "line" | "chip";
+    variant?: "line" | "hint";
     maxlength?: number;
     class?: string;
   }
@@ -53,48 +53,51 @@
     }
   }
 
-  const iconButton = "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-xs text-muted hover:bg-surface-inset hover:text-accent pointer-coarse:size-9";
+  // Slim controls: the global 44px touch rule is lifted (`min-h-0!`) and an invisible `after:` box keeps the tap area large instead.
+  const hit = "relative min-h-0! after:absolute after:-inset-x-1 after:-inset-y-3 after:content-['']";
+  const iconButton = `${hit} inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-xs text-muted hover:bg-surface-inset hover:text-accent`;
 </script>
 
 {#if variant === "line"}
-  <div class="flex min-h-8 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 {className}">
-    <span class="shrink-0 text-xs font-medium text-muted">{label}</span>
+  <div class="flex min-w-0 items-start gap-2 {className}">
+    <span class="shrink-0 pt-1 text-xs font-medium text-muted">{label}</span>
     {#if editing}
-      <input bind:this={input} bind:value={draft} {maxlength} aria-label={label} class="{controlClass} {controlCompactClass} flex-1" onblur={commit} onkeydown={onKey} />
+      <input bind:this={input} bind:value={draft} {maxlength} aria-label={label} class="{controlClass} {controlCompactClass} min-w-0 flex-1" onblur={commit} onkeydown={onKey} />
     {:else}
-      <Tooltip text={hint ?? editLabel} wrapperClass="min-w-0">
-        <button type="button" class="group flex min-w-0 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-1 py-0.5 text-left text-base font-medium text-content hover:bg-surface-inset" aria-label="{editLabel}: {text}" onclick={start}>
-          <span class="min-w-0 truncate">{text}</span>
-          <Icon icon={faPen} class="w-3 shrink-0 text-xs text-muted group-hover:text-accent" />
-        </button>
-      </Tooltip>
-      {#if custom}
-        <span class="shrink-0 rounded-full border border-primary bg-highlight px-2 py-0.5 text-xs font-medium text-on-highlight">{customLabel}</span>
-        <Tooltip text={resetLabel}>
-          <button type="button" class={iconButton} aria-label={resetLabel} onclick={onReset}><Icon icon={faRotateLeft} /></button>
+      <!-- One wrapping text block: the title breaks inside the card, the pen follows its last word. -->
+      <div class="min-w-0 flex-1 leading-snug">
+        <Tooltip text={hint ?? editLabel} wrapperClass="inline">
+          <button type="button" class="{hit} group inline cursor-pointer rounded-md border-0 bg-transparent p-0 text-left text-base font-medium break-words text-content hover:text-accent" aria-label="{editLabel}: {text}" onclick={start}>
+            {text}<Icon icon={faPen} class="ml-1.5 inline w-3 align-baseline text-xs text-muted group-hover:text-accent" />
+          </button>
         </Tooltip>
-      {/if}
+        {#if custom}
+          <span class="ml-1.5 inline-block rounded-full border border-primary bg-highlight px-2 text-xs font-medium text-on-highlight">{customLabel}</span>
+          <Tooltip text={resetLabel} wrapperClass="inline-flex align-middle">
+            <button type="button" class={iconButton} aria-label={resetLabel} onclick={onReset}><Icon icon={faRotateLeft} /></button>
+          </Tooltip>
+        {/if}
+      </div>
     {/if}
   </div>
 {:else}
-  <div class="flex items-center gap-0.5 {className}">
+  <div class="flex min-w-0 items-center gap-1.5 text-xs {className}">
+    <span class="shrink-0 text-muted">{label}</span>
     {#if editing}
-      <input bind:this={input} bind:value={draft} {maxlength} aria-label={label} class="{controlClass} {controlCompactClass} w-28 py-0.5" onblur={commit} onkeydown={onKey} />
+      <input bind:this={input} bind:value={draft} {maxlength} aria-label={label} class="{controlClass} {controlCompactClass} w-full max-w-40 py-0.5!" onblur={commit} onkeydown={onKey} />
     {:else}
-      <Tooltip text={custom ? `${hint ?? label} (${customLabel})` : (hint ?? label)}>
+      <Tooltip text={custom ? `${hint ?? label} (${customLabel})` : (hint ?? label)} wrapperClass="inline-flex min-w-0">
         <button
           type="button"
-          class="flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold {custom
-            ? 'border-primary bg-highlight text-on-highlight'
-            : 'border-transparent bg-surface-inset text-accent'}"
-          aria-label="{editLabel}: {text}"
+          class="{hit} inline-flex min-w-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-xs {custom ? 'font-semibold text-accent' : 'text-content'} hover:text-accent"
+          aria-label="{editLabel}: {text}{custom ? ` (${customLabel})` : ''}"
           onclick={start}
         >
-          {text || "–"}<Icon icon={faPen} class="w-2.5 text-[0.6rem] opacity-70" />
+          <span class="min-w-0 truncate">{text || "–"}</span><Icon icon={faPen} class="w-2.5 shrink-0 text-[0.6rem] text-muted" />
         </button>
       </Tooltip>
       {#if custom}
-        <Tooltip text={resetLabel}>
+        <Tooltip text={resetLabel} wrapperClass="inline-flex shrink-0">
           <button type="button" class={iconButton} aria-label={resetLabel} onclick={onReset}><Icon icon={faRotateLeft} /></button>
         </Tooltip>
       {/if}

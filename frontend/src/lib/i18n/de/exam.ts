@@ -96,7 +96,7 @@ export const exam = {
         testart: 'Testart',
         grade: 'Jgst.',
         klasse: 'Klasse',
-        course: 'Gedruckte Klasse',
+        course: 'Gedruckt:',
         courseEdit: 'Gedruckte Klasse ändern',
         courseCustom: 'eigene Angabe',
         courseReset: 'Wieder aus Jahrgangsstufe und Klasse bilden',

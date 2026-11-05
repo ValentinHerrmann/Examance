@@ -98,7 +98,7 @@ export const exam: Translations['exam'] = {
         testart: 'Exam type',
         grade: 'Grade',
         klasse: 'Class',
-        course: 'Printed class',
+        course: 'Printed:',
         courseEdit: 'Change printed class',
         courseCustom: 'custom',
         courseReset: 'Build from grade and class again',
