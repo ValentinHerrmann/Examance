@@ -11,6 +11,23 @@ export function formatExamCourse(grade?: string | null, klasse?: string | null):
   return g || k || '';
 }
 
+/** The printed course (`\Klasse`): the exam's own `course` when set, else grade + klasse. The only course builder. */
+export function examCourse(exam: { grade?: string | null; klasse?: string | null; course?: string | null }): string {
+  return exam.course?.trim() || formatExamCourse(exam.grade, exam.klasse);
+}
+
+/** The generated exam title "Kurzarbeit 1 · Informatik 10a · 05.11.2026" (issue #212); empty parts are skipped, `fallback` when all are empty. The only title builder. */
+export function generatedExamTitle(
+  exam: { testart?: string | null; nr?: string | null; fach?: string | null; grade?: string | null; klasse?: string | null; course?: string | null; datum?: string | null },
+  fallback: string,
+): string {
+  const join = (...parts: (string | null | undefined)[]) => parts.map((p) => (p ?? '').trim()).filter(Boolean).join(' ');
+  const title = [join(exam.testart, exam.nr), join(exam.fach, examCourse(exam)), parseDatumAndDauer(exam.datum).datumDate]
+    .filter(Boolean)
+    .join(' · ');
+  return title || fallback;
+}
+
 /** Distinct exercise topics as exam-topic suggestions; "_General" is the editor's default, not a topic. */
 export function exerciseTopicSuggestions(exercises: { topicTag?: string | null }[]): string[] {
   const topics = exercises.map((e) => e.topicTag?.trim()).filter((t): t is string => !!t && t !== '_General');

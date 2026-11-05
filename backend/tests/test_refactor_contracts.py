@@ -295,3 +295,18 @@ def test_callers_keep_their_own_exception_types() -> None:
     too_big_resource = b"x" * (MAX_RESOURCE_BYTES + 1)
     with pytest.raises(ResourceError, match="'a.png' is larger than 5 MB"):
         validate_resource("a.png", too_big_resource)
+
+
+@pytest.mark.asyncio
+async def test_exam_step_checks_stay_unless_sent_and_clear_on_empty(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await sign_in(client, db, "step-checks@example.com")
+    exam = await _exam(client)
+    url = f"{EXAMS}/{exam['id']}"
+    checks = {"print": {"exam": {"at": "2026-11-04", "stamp": "abc"}}}
+
+    saved = (await client.patch(url, json={"step_checks": checks})).json()
+    assert saved["step_checks"] == checks
+    assert (await client.patch(url, json={"nr": "2"})).json()["step_checks"] == checks
+    assert (await client.patch(url, json={"step_checks": {}})).json()["step_checks"] is None

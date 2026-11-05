@@ -127,8 +127,8 @@ export const grading: Translations['grading'] = {
     },
     manual: {
         container: {
-            title: 'Paper & Excel grade entry',
-            subtitle: 'Enter exam points directly without scanning paper booklets, or paste score matrices from Excel.',
+            title: 'Paper grading: enter the points by hand',
+            subtitle: 'For exams you graded on paper: type in the points per exercise yourself or paste them from Excel. Scanning and grading on screen are not needed for this.',
             importButton: 'Import from Excel (Ctrl+V)',
             tabExerciseFirst: 'Exercise-first entry (all students per exercise)',
             tabStudentFirst: 'Student-first entry (all exercises per student)',
@@ -141,7 +141,7 @@ export const grading: Translations['grading'] = {
             noStudents: 'No students in the roster for this exam.',
             openRoster: 'Open student roster to add students',
             noExercises: 'No exercises have been defined for this exam yet.',
-            goToSetup: 'Go to setup & exercises',
+            goToSetup: 'Go to the Exam page',
             colNum: '#',
             unnamed: '(Unnamed)',
             ungraded: 'Ungraded',
@@ -217,6 +217,7 @@ export const grading: Translations['grading'] = {
             skipped: 'Skipped',
             readyTitle: 'Ready to import',
             importingRecords: '{count} student records will be imported into the exam scores.',
+            notOnStudentsPage: '{count} row(s) match no student on the Students page and are skipped. Add the students there first.',
             newStudentsWarning: '️ {count} new students will be added to the roster.',
             nextPreview: 'Next: Preview & match',
             back: 'Back',

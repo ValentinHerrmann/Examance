@@ -4,7 +4,7 @@ Issues #207 and #83. Teachers print QR name stickers for the exam sheets and lat
 
 ## Student data (class list)
 
-The exam's **Students page** (`routes/exam/[id]/students`, `lib/students/classList.ts`, `components/students/StudentImport.svelte`, the table is `manual-grading/RosterManager` with `listMode`) is the only place where student data is entered: names, LMS ids, e-mail addresses. The sticker dialog, the exam copies and the share dialog only read the exam's students; a later cross-exam student management feeds the same import.
+The exam's **Students page** (`routes/exam/[id]/students`, `lib/students/classList.ts`, `components/students/StudentImport.svelte`, the table is `manual-grading/RosterManager` with `listMode`) is the only place where student data is entered: names, LMS ids, e-mail addresses. The Print step's sticker form, the exam copies and the Share page only read the exam's students; a later cross-exam student management feeds the same import.
 
 - **Pre-created students.** `listedStudent` makes an ordinary `StudentRecord` before any scan: `pseudonymFor(examId, formatStudentQr(name, id || stickerId(name)))`, so the raw value is exactly the sticker payload. Sealed `fromList: true` marks it. `planImport` (new, updated, unchanged, via `matchContacts`) runs before `applyImport` writes through `studentRepository`, so it follows the storage mode.
 - **Scan merge.** A student save replaces the whole sealed record (locally and in the server upsert). `ingestScans` therefore reads the exam's students once and `mergeScannedStudent` keeps name, e-mail and `fromList` of a matching row (by `joinKey`); the scan only fills empty fields. Never save a scanned student without this merge.
@@ -25,7 +25,7 @@ The exam's **Students page** (`routes/exam/[id]/students`, `lib/students/classLi
 
 ## QR codes printed on exam copies
 
-Issue #211. Instead of stickers, `lib/qr/examCopies.ts` (`renderExamCopies`) stamps each student's code onto a copy of the compiled student sheet; the sticker dialog offers it as a second output.
+Issue #211. Instead of stickers, `lib/qr/examCopies.ts` (`renderExamCopies`) stamps each student's code onto a copy of the compiled student sheet; the sticker form (`sharing/StickerSheetForm`, on the Print step `routes/exam/[id]/print`) offers it as a second output, greyed out for results-only exams (`copiesUnavailable`).
 
 - **Layout.** Every exam (Schulaufgabe.sty; there is no option, so the OMR template never depends on how sheets were printed: the former opt-in `schnittecke` is a no-op and `exams.cut_corner` was dropped in 0053) keeps each page's outer top corner free (top right on odd pages, top left on even ones), the corner a guillotine through a long-edge duplex or booklet stack cuts. Copies are always printed that way (there is no single-sided option: a single-sided stack would cut the mirrored even pages' header). The cut line runs from 75 mm left of the corner to 20 mm down the side; moved 3 mm outward as tolerance it gives an 86.6 × 23.1 mm triangle. `\geometry{top=11.9mm,left=5mm,right=5mm}` (headheight 30pt, headsep 0) widens the text to the markers' outer edges (200 mm) and starts the body at 22.4 mm, below the zone (21.8 mm deep at the 5 mm text edge): 7.9 mm lower than the former layout, 10 mm wider. The fancyhdr offsets drop to 0, so the head keeps its 5 mm edge distance, and `\SA@headgap` (1.5 cm) keeps the header cells 20 mm from the paper edge. The body cannot wrap around the markers or the zone (a diagonal top or bottom notches): TeX builds lines before it breaks pages, so it cannot know which lines land in a page corner (wrapfig works only because its figure is anchored in the text), and answer boxes, grids and MC tables span the full width. The points table is the one known block at a known place: it fills the strip between the bottom markers (181 mm wide, 1.5 mm clear of them, so the scanner never sees a merged blob) and ends level with their bottom edge, lowered 9 mm with zero declared depth so page breaks stay put (`\SA@scoretable`; `\ExamNotes` reserves 9 mm less). The page number therefore moves into the header as "Seite X" on the cut side, 20 mm from the edge like the title opposite (none on page 1). The guide's true-scale sketch (`docs/screenshots/guide/cut-corner-layout.py`, `exams#cut-corner`, linked from the exam editor) mirrors these numbers; regenerate it when they change. The 3 mm tolerance and 3 mm text clearance are what keep this small. The header mirrors on even pages (running head on the uncut side); page 1's header (`\SA@firsthead`) has the logo, then the title with course, date, duration and teacher in one smaller line centred under it (separate items joined by a centred dot, empty ones left out: `\SA@infoline`; `\SA@splitdatum` splits the duration off `\Datum`'s brackets inside the sty, so exam sources and their OMR template hashes stay unchanged). The QR box and the info text fill the text width, the box flush with the markers' outer edge (`\Namenszeile`), in the room up to 62 mm from the cut side (each scaled down only if it does not fit). The head rule spans only the text width. Both top markers sit 12–20 mm from the top: the one by the cut corner 46–54 mm from its side, the other at the usual 5 mm inset; the bottom pair is unchanged. All four stay: with three, registration falls back to an affine fit that the OMR worker always flags as uncertain, and template prep rejects pages with fewer than four. The QR box keeps its caption and initials field for spare plain copies; `examCopies.ts` blanks them under the stamped code. The tab is tinted light grey (`black!7`) on every page; personalised copies blank page 1's tab under name and key, and their cut line carries vector scissors (no font) instead of a text hint. Exams printed under the former layout keep their stored OMR template until an edit re-captures it (the hash covers `main.tex`, not the `.sty`). Geometry constants live in `lib/qr/cutCorner.ts` and mirror the sty.
 - **Tab.** `drawCornerTab` (`qr/examCopies.ts`) draws page 1's tab: the dashed line, then name (Helvetica-Bold 9 pt) and key (Courier-Bold 8.5 pt) parallel to it on the corner side, each row's descender 3 mm (perpendicular) from the line and its ascender 4 mm from both paper edges, centred in the room that leaves. A long name shrinks to 7 pt, then its given names become initials (`abbreviateGivenNames`, `utils/studentQr.ts`: "M. Mustermann-Müller"), and only then is it shortened; the key always fits. A small rotated hint sits in the tolerance band outside the line. Every other page gets only the dashed line at its outer corner (`drawCutLine`), and an odd copy gets a blank back page.
@@ -53,16 +53,16 @@ The flow lives in `lib/sharing/shareService.ts`:
 
 **Codes** have 8 characters from the `randomCode` alphabet (32 letters, 40 bits) and are printed as `ABCD-EFGH`. The token carries the security: someone without the link cannot even fetch the ciphertext. The code protects against a forwarded link, and Argon2id makes guessing it offline expensive.
 
-**Factors**, chosen per share in the dialog:
+**Factors**, chosen per share on the Share page (`routes/exam/[id]/results/share`, issue #212: four numbered steps `ShareStudents`, `ShareChannel`, `ShareOptions`, then preview and send; key slips print in `StickerSheetDialog` on top of the page so its state survives):
 - `none`: the link alone opens the PDF.
 - `sticker`: the personal key from the sticker sheet.
 - `code`: printed on separate code slips so it can be handed out apart from the link. `shareCode` uses the student's personal key (`personalKey(raw)`, the one on their sticker or copy), so the slips double as a reprint of a lost key; only students without a sticker get a fresh `randomCode`, which is never stored.
 
-**Code in the message** (opt-in, e-mail and Artemis link mode). `ShareRequest.includeCode` hands the code to `deliverLink`; the mail endpoint takes an optional `code` (`^[A-Z0-9-]{1,16}$`) and `result_link_mail` writes it instead of the "you also need your key" sentence; the Artemis text uses `withKey`. The dialog and the delivery preview warn that whoever reads the message can open the exam. It is the teacher's documented choice; the default stays a separate factor.
+**Code in the message** (opt-in, e-mail and Artemis link mode). `ShareRequest.includeCode` hands the code to `deliverLink`; the mail endpoint takes an optional `code` (`^[A-Z0-9-]{1,16}$`) and `result_link_mail` writes it instead of the "you also need your key" sentence; the Artemis text uses `withKey`. The Share page and the delivery preview warn that whoever reads the message can open the exam. It is the teacher's documented choice; the default stays a separate factor.
 
 **Language.** Messages to students use `ShareRequest.language` (default `de`), not the UI locale: `translateIn(language, …)` for Artemis, the request `locale` for the mail.
 
-**Channels.** `lib/sharing/channels.ts` lists how results reach students. Each channel names the factors it carries, which students it cannot reach and what it `requires` (account switch, server mail), each with a reason. The dialog never hides a channel: `channelUnavailable` greys it out with that reason inline (visible without hover, for touch). It mutes factors that no chosen student can use, and shows the reason (`incompatibleStudents`). See [Delivery channels](#delivery-channels).
+**Channels.** `lib/sharing/channels.ts` lists how results reach students. Each channel names the factors it carries, which students it cannot reach and what it `requires` (account switch, server mail), each with a reason. The Share page never hides a channel: `channelUnavailable` greys it out with that reason inline (visible without hover, for touch). It mutes factors that no chosen student can use, and shows the reason (`incompatibleStudents`). See [Delivery channels](#delivery-channels).
 
 ## Delivery channels
 
@@ -73,7 +73,7 @@ Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis suppo
 | `slips` | link slips PDF | `none`, `sticker`, `code` | nobody |
 | `email` | links collected, sent in batches of 100 via `POST /integrations/mail/results` | `sticker`, `code` | students without `email` |
 | `artemis` | per student `POST /integrations/artemis/messages` (link mode) or `/files` (PDF mode, no share is made) | `sticker`, `code` (ignored in PDF mode) | students without an Artemis id (`artemisIdOf`) |
-| `mebis` | graded PDFs zipped in the browser at `mebisFeedbackPath` (the same helper as the export's Mebis part), downloaded at the end; no share is made | none (`sendsPdf`) | students without a numeric sticker id |
+| `mebis` | graded PDFs zipped in the browser at `mebisFeedbackPath` (the only Mebis ZIP; the ZIP export has no Mebis part since issue #212), downloaded at the end; no share is made | none (`sendsPdf`) | students without a numeric sticker id |
 
 `result_mail` (capabilities, server-derived like `training_donation`) is `result_delivery` and a configured SMTP host (`mail_configured()`, also checked by the mail endpoint); without it e-mail is greyed out with the reason.
 
@@ -86,7 +86,7 @@ Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis suppo
   - a Mebis grading worksheet or participant CSV (`contactsFromMebisCsv`);
   - pasted lines (`contactsFromLines`);
   - Artemis course members (`fetchArtemisStudents`).
-- `matchContacts` pairs contacts with students by sticker id first, then by unambiguous name. Only the Students page imports (see [Student data](#student-data-class-list)); the share dialog shows each student's LMS id and address and links to the page.
+- `matchContacts` pairs contacts with students by sticker id first, then by unambiguous name. Only the Students page imports (see [Student data](#student-data-class-list)); the Share page shows each student's LMS id and address and links to the page.
 
 **Preview.** Before an e-mail or Artemis run, `DeliveryPreview.svelte` shows:
 - every student with their recipient and what they get;
@@ -95,7 +95,7 @@ Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis suppo
 
 Nothing is sent before the teacher confirms.
 
-**Progress.** `shareResults` reports `SharePhase` with done/total: `preparing` (encrypt and upload links), `sending` (Artemis per student inside the loop, e-mail per batch from `Delivery.finish(progress)`), `packing` (Mebis) and `solution`. The dialog shows a filling bar with "x of y" and a percentage, and a `beforeunload` guard asks before the tab closes mid-run.
+**Progress.** `shareResults` reports `SharePhase` with done/total: `preparing` (encrypt and upload links), `sending` (Artemis per student inside the loop, e-mail per batch from `Delivery.finish(progress)`), `packing` (Mebis) and `solution`. The page shows a filling bar with "x of y" and a percentage, and a `beforeunload` guard asks before the tab closes mid-run.
 
 **Artemis relay** (`backend/app/services/artemis.py`, `routers/integrations.py`).
 - It is a fixed client, not a proxy. There is no URL parameter. It calls only hosts in `ARTEMIS_ALLOWED_HOSTS` and only these endpoints:
@@ -107,7 +107,7 @@ Nothing is sent before the teacher confirms.
 - An upstream 401/403 or redirect becomes `400 ERR_ARTEMIS_AUTH`. A 401 from our API would read as an expired session.
 - Every other failure becomes `424 ERR_ARTEMIS_UPSTREAM`, or `ERR_ARTEMIS_TIMEOUT` after the 20 s deadline per operation. It is never a 502 or 504: a proxy in front (Cloudflare, Caddy) may swap those for its own page without CORS headers, and the browser then reports a CORS error instead of the cause.
 - Each failure logs the step (`students`, `chat`, `upload`, `message`), the host, and the upstream status or error class. Grep the backend log for `Artemis relay`.
-- The 424 detail says `Artemis returned HTTP <status> (<step>)`, plus Artemis's own `errorKey`. The dialog shows it next to the translated message (`artemisErrorText`), so an endpoint move shows up without server logs.
+- The 424 detail says `Artemis returned HTTP <status> (<step>)`, plus Artemis's own `errorKey`. The page shows it next to the translated message (`artemisErrorText`), so an endpoint move shows up without server logs.
 - **When Artemis moves an endpoint again**, look it up in `ls1intum/Artemis`: the `@RequestMapping` prefix of the `*/web/*Resource.java` class plus the method mapping.
 
 **Delivery status and bounces** (issue #221).
@@ -115,18 +115,18 @@ Nothing is sent before the teacher confirms.
 - The mail endpoint takes `exam_id` and a `student_key` per recipient; the Artemis `messages` and `files` endpoints take both optionally. Each records its outcome; a failed Artemis send is committed before the error is raised (`get_db` rolls back on errors). SMTP refusal texts can contain the address, so a failed mail keeps only `detail = "SMTP"`.
 - Result mails carry `<examance-r.{token}@domain>` as Message-ID and are sent **from the result mailbox** (`RESULT_MAIL_*`, `email.result_sender()` passed as `Envelope.sender`): its own address in `From:` and its own SMTP login, so the envelope sender is the mailbox and bounces return there without send-as permission or subaddressing. The token lives only in the Message-ID, which every delivery report quotes back. The mail tells students not to reply. Without a complete result mailbox they go out from `SMTP_FROM_EMAIL` as before. Account mails and forwards always use `SMTP_FROM_EMAIL`; the settings refuse `RESULT_MAIL_ADDRESS == SMTP_FROM_EMAIL`, since the unmatched forwards would land in the mailbox that is emptied.
 - `services/bounces.py` reads only the result mailbox (IMAP, `UNSEEN`, `BODY.PEEK`). `parse_bounce` reads the RFC 3464 report (Action, Status), falling back to the first enhanced status code for non-standard bounces. Routing:
-  - matched, `now < watch_until`: status only, the open dialog shows it;
+  - matched, `now < watch_until`: status only, the open Share page shows it;
   - matched after the window: status, and the report is forwarded to the sending teacher (`bounce_forward_mail`, German and English, original attached as `message/rfc822`); a `delayed` is never forwarded and never overrides `bounced`;
   - unmatched: forwarded unchanged to `SMTP_FROM_EMAIL`;
   - our own forward coming back (`X-Examance-Forwarded`, `<examance-fwd.…>`): dropped, which prevents loops.
 
   Handled messages are deleted (they hold students' addresses); a failed forward or a failed commit leaves the message unread for the next poll. Logs carry counts only. One poll runs at a time (`ephemeral_store.incr` lock, 120 s TTL).
-- Polls run from `POST /exams/{id}/deliveries/check` (the share dialog, every `BOUNCE_POLL_MS` = 5 s until `watch_until`, `BOUNCE_WATCH_SECONDS` = 30 s after sending) and from `python -m app.cli poll-bounces` (the `bounce-cron` service, every 5 minutes). Closing the dialog early calls `POST /exams/{id}/deliveries/close`, which ends the window so later bounces go to the teacher's inbox. `GET /exams/{id}/deliveries` lists the statuses; the exam's share button (`ExamActionBar`) counts the students not reached.
-- Capability `result_bounces` = `result_mail` and a configured result mailbox (`result_mailbox_configured()`); without it the dialog does not wait and says that bounces are not watched.
+- Polls run from `POST /exams/{id}/deliveries/check` (the Share page, every `BOUNCE_POLL_MS` = 5 s until `watch_until`, `BOUNCE_WATCH_SECONDS` = 30 s after sending) and from `python -m app.cli poll-bounces` (the `bounce-cron` service, every 5 minutes). Leaving the page early calls `POST /exams/{id}/deliveries/close`, which ends the window so later bounces go to the teacher's inbox. `GET /exams/{id}/deliveries` lists the statuses; the exam sidebar's Results badge (`routes/exam/[id]/+layout.svelte`) counts the students not reached.
+- Capability `result_bounces` = `result_mail` and a configured result mailbox (`result_mailbox_configured()`); without it the page does not wait and says that bounces are not watched.
 - Lifetime: retention step 15 deletes rows older than `DELIVERY_STATUS_RETENTION_DAYS` (30, on the privacy page). Exam deletes drop them like shares, so a restored exam starts without statuses.
 
 **Mebis.** There is no API (DiRueLei has none either).
-- The readable exam export has an optional part `mebis`: a nested `<exam>_mebis_feedback.zip` with `Participant_<id>_assignsubmission_file_/<name>_<id>.pdf` per student (`mebisFeedbackPath`).
+- The Share page's Mebis channel is the only place that builds the Mebis ZIP (`Participant_<id>_assignsubmission_file_/<name>_<id>.pdf` per student, `mebisFeedbackPath`); the readable export dropped its Mebis part (issue #212).
 - The teacher uploads it under "Upload multiple feedback files in a zip".
 
 **Sticker sheet versus DiRueLei.** Both use the same label stock, so partly used sheets work in either app:
@@ -149,7 +149,7 @@ Nothing is sent before the teacher confirms.
   - Deleting an exam deletes its shares outright. They are not captured into the trash, because a restored exam must not revive links.
   - Deleting a student revokes their link: server side for version-2 keys, and from the client in every mode (`studentRepository.delete`), because a hybrid delete never reaches the server.
   - Account deletion drops the files with the cascade.
-- **Hybrid accounts.** This is the only path on which result data, as ciphertext only, reaches the server in `hybrid` mode. The dialog says so.
+- **Hybrid accounts.** This is the only path on which result data, as ciphertext only, reaches the server in `hybrid` mode. The Share page says so.
 
 ## Student page
 

@@ -12,9 +12,12 @@
   import { untrack, type Snippet } from "svelte";
   import { faFileZipper, faLock } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { Alert, Button, Checkbox, Field, Modal, Radio, TextInput } from "#lib/components/ui";
-  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import { Alert, Button, Modal, Radio } from "#lib/components/ui";
   import type { ExportProgress, ExportResult } from "#lib/export/progress";
+  import { runZipExport } from "#lib/export/runZipExport";
+  import ExportOptionList from "./ExportOptionList.svelte";
+  import ExportProgressBar from "./ExportProgressBar.svelte";
+  import BackupFields, { backupReady } from "./BackupFields.svelte";
   import { exportBgprojArchive, type ArchiveExportOptions } from "#lib/services/archiveService";
   import { showArchiveReport } from "#lib/stores/archiveReport";
 
@@ -35,7 +38,6 @@
   let password = $state("");
   let passwordRepeat = $state("");
   let withoutCode = $state(false);
-  let mismatch = $derived(passwordRepeat !== "" && password !== passwordRepeat);
 
   // Initial selection only; the options list is fixed while the dialog is open.
   let checked = $state<Record<string, boolean>>(
@@ -47,9 +49,6 @@
   let error = $state("");
   let warnings = $state<string[]>([]);
   let finished = $state(false);
-
-  const progressClass =
-    "block h-3 w-full appearance-none overflow-hidden rounded-md bg-surface-inset [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-surface-inset [&::-webkit-progress-value]:bg-primary";
 
   let selected = $derived(new Set(options.filter((o) => !o.disabled && checked[o.key]).map((o) => o.key)));
 
@@ -71,10 +70,7 @@
         await showArchiveReport(report);
         return;
       }
-      const result = await run!(selected, progress);
-      progress($t("export.dialog.packing"));
-      downloadBlob(result.zip.toBlob(), result.fileName);
-      warnings = result.warnings;
+      warnings = await runZipExport(run!, selected, progress);
       if (warnings.length) finished = true;
       else onClose();
     } catch (err) {
@@ -101,48 +97,16 @@
       </fieldset>
     {/if}
     {#if format === "backup"}
-      <div class="flex flex-col gap-4">
-        <p class="text-sm text-muted">{$t("export.backup.intro")}</p>
-        <Field label={$t("export.backup.password")} hint={$t("export.backup.passwordHint")}>
-          {#snippet children({ id })}
-            <TextInput {id} type="password" autocomplete="new-password" bind:value={password} disabled={running} />
-          {/snippet}
-        </Field>
-        <Field label={$t("export.backup.passwordRepeat")} error={mismatch ? $t("export.backup.mismatch") : undefined}>
-          {#snippet children({ id })}
-            <TextInput {id} type="password" autocomplete="new-password" bind:value={passwordRepeat} invalid={mismatch} disabled={running} />
-          {/snippet}
-        </Field>
-        <div>
-          <Checkbox bind:checked={withoutCode} label={$t("export.backup.withoutCode")} disabled={running} />
-          <p class="ml-7 text-sm text-muted">{$t("export.backup.withoutCodeHint")}</p>
-        </div>
-      </div>
+      <BackupFields bind:password bind:passwordRepeat bind:withoutCode disabled={running} />
     {:else}
       {@render notice?.()}
     {/if}
     {#if format === "zip" && options.length}
-      <fieldset class="flex flex-col gap-3" disabled={running}>
-        <legend class="mb-2 text-sm text-muted">{$t("export.dialog.chooseParts")}</legend>
-        {#each options as option (option.key)}
-          <div>
-            <Checkbox bind:checked={checked[option.key]} label={option.label} disabled={option.disabled || running} />
-            {#if option.hint}<p class="ml-7 text-sm text-muted">{option.hint}</p>{/if}
-          </div>
-        {/each}
-      </fieldset>
+      <ExportOptionList {options} bind:checked disabled={running} />
     {/if}
 
     {#if running}
-      <div class="mt-6" aria-live="polite">
-        <!-- No value = indeterminate (the step count is unknown, e.g. while compiling). -->
-        {#if fraction === null}
-          <progress class={progressClass} aria-label={step}></progress>
-        {:else}
-          <progress class={progressClass} aria-label={step} max="100" value={Math.round(fraction * 100)}></progress>
-        {/if}
-        <p class="mt-2 text-sm text-muted">{step}</p>
-      </div>
+      <ExportProgressBar class="mt-6" {step} {fraction} />
     {/if}
   {/if}
 
@@ -152,7 +116,7 @@
     {:else}
       <Button variant="outlined" severity="secondary" disabled={running} onClick={onClose}>{$t("common.cancel")}</Button>
       {#if format === "backup"}
-        <Button icon={faLock} loading={running} disabled={running || !password || password !== passwordRepeat} onClick={start}>
+        <Button icon={faLock} loading={running} disabled={running || !backupReady(password, passwordRepeat)} onClick={start}>
           {$t("export.backup.download")}
         </Button>
       {:else}

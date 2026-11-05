@@ -182,9 +182,9 @@ const EXAM: RecordCodec<ExamRecord> = {
   kind: 'exam',
   plain: ['id', 'teacherId', 'retentionUntil', 'compilationStatus', 'createdAt', 'isDirty', 'pseudonymVersion'],
   sealed: [
-    'title', 'testart', 'grade', 'klasse', 'datum', 'nr', 'fach', 'topic', 'lehrernachname',
+    'title', 'testart', 'grade', 'klasse', 'course', 'datum', 'nr', 'fach', 'topic', 'lehrernachname',
     'infoText', 'latexPreamble', 'latexTemplate', 'numVersions', 'gradingKey', 'latexPackages',
-    'pageBreaks', 'nameLine', 'mcCorrectionHint', 'extraNotes',
+    'pageBreaks', 'nameLine', 'mcCorrectionHint', 'extraNotes', 'stepChecks',
   ],
   aad: (r) => aadFor('exam', r.id),
 };

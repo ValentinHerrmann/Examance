@@ -81,7 +81,7 @@ async function teacher() {
     await shot(page, 'exam-new');
   }
   if (want('exam-setup')) {
-    await go(page, `/exam/${ids['10b']}`);
+    await go(page, `/exam/${ids['10b']}/content`);
     await page.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
     await page.getByText(/Scan-Vorlage gespeichert/).waitFor({ timeout: 300000 });
     const sol = page.getByText('Lösung PDF', { exact: true });
@@ -108,7 +108,7 @@ async function teacher() {
     await page.setViewportSize({ width: 1600, height: 1000 });
   }
   if (want('results')) {
-    await go(page, `/exam/${ids['10b']}/stats`, 6000);
+    await go(page, `/exam/${ids['10b']}/results`, 6000);
     await shot(page, 'results');
   }
   if (want('paper')) {
@@ -250,7 +250,7 @@ async function tour() {
   }
   if (t('exam-setup')) {
     await page.setViewportSize({ width: 1280, height: 1100 });
-    await go(page, `/exam/${ids['10b']}`);
+    await go(page, `/exam/${ids['10b']}/content`);
     await page.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
     await page.getByText(/Scan-Vorlage gespeichert/).waitFor({ timeout: 300000 });
     const sol = page.getByText('Lösung PDF', { exact: true });
@@ -301,7 +301,7 @@ async function tour() {
     await shot(page, 'tour-grading');
   }
   if (t('results')) {
-    await go(page, `/exam/${ids['10b']}/stats`, 6000);
+    await go(page, `/exam/${ids['10b']}/results`, 6000);
     await shot(page, 'tour-results');
   }
   if (t('analytics-variants')) {
@@ -405,7 +405,7 @@ async function guide() {
     await shot(page, 'guide-compile-error');
   }
   if (g('exam-exercises')) {
-    await go(page, `/exam/${ids['10b']}`);
+    await go(page, `/exam/${ids['10b']}/content`);
     await scrollTo(page, page.getByText(/^Aufgaben \(\d+\)$/), 110);
     await shot(page, 'guide-exam-exercises');
   }
@@ -449,7 +449,7 @@ async function guide() {
   }
   if (g('borderline')) {
     await page.setViewportSize({ width: 1600, height: 1400 });
-    await go(page, `/exam/${ids['10b']}/stats`, 6000);
+    await go(page, `/exam/${ids['10b']}/results`, 6000);
     await scrollTo(page, page.getByText(/^Plus: höchstens/), 160);
     await shot(page, 'guide-borderline');
     await page.setViewportSize({ width: 1600, height: 1000 });

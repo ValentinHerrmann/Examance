@@ -4,7 +4,7 @@ editLink: false
 
 # Von der Aufgabe zur Auswertung
 
-Der übliche Weg einer Prüfung durch Examance in sechs Schritten. Jeder Schritt verweist auf seine ausführliche Seite.
+Der übliche Weg einer Prüfung durch Examance in sechs Abschnitten. Jeder Abschnitt verweist auf seine ausführliche Seite. Innerhalb einer Prüfung listet die Seitenleiste die Schritte in dieser Reihenfolge: **Prüfung**, **Schüler**, **Drucken**, **Scans**, **MC prüfen**, **Digitale Korrektur** oder **Papierkorrektur**, **Ergebnisse & Export**; jeder hat ein Status-Abzeichen und oben rechts eine Schaltfläche **Weiter: …**, siehe [Die Schritte einer Prüfung](./exams#steps).
 
 ## 1. Aufgaben in der Bibliothek sammeln {#library}
 
@@ -21,7 +21,7 @@ Mehr: [Aufgabenbibliothek](./exercises), [Aufgaben teilen](./sharing).
 
 ## 2. Prüfung zusammenstellen und setzen {#exam}
 
-**Neue Prüfung** fragt die Kopfdaten ab (Fach, Klasse, Testart, Datum) und öffnet dann die Prüfungsseite. Dort wählen Sie Aufgaben aus der Bibliothek, ordnen sie, fassen Multiple-Choice-Fragen zu Gruppen zusammen und legen den Notenschlüssel fest. Beim Setzen entsteht ein druckfertiges PDF in Ihrem Browser oder auf dem Server; sein Deckblatt hat ein leeres Feld „QR Code“ für den [QR-Aufkleber](./students#qr-stickers) der Schülerin oder des Schülers.
+**Neue Prüfung** fragt die Kopfdaten ab (Fach, Klasse, Testart, Datum) und öffnet dann den Schritt **Prüfung**. Dort wählen Sie Aufgaben aus der Bibliothek, ordnen sie, fassen Multiple-Choice-Fragen zu Gruppen zusammen und legen das Layout fest. Der Notenschlüssel folgt später unter **Ergebnisse & Export → Statistik**. Die Klassenliste gehört zum Schritt **Schüler**. Beim Setzen entsteht ein druckfertiges PDF in Ihrem Browser oder auf dem Server; sein Deckblatt hat ein leeres Feld „QR Code“ für den [QR-Aufkleber](./students#qr-stickers) der Schülerin oder des Schülers.
 
 **Duplizieren** legt eine neue Prüfung mit denselben Aufgaben und Einstellungen an, zum Beispiel für eine Parallelklasse; Schülerdaten und Ergebnisse werden nie mitkopiert.
 
@@ -31,7 +31,7 @@ Mehr: [Prüfung erstellen](./exams).
 
 ## 3. Drucken, schreiben, scannen {#print}
 
-Drucken Sie die Bögen genau so, wie sie gesetzt wurden (ohne Skalierung); der QR-Aufkleber muss lesbar bleiben. Die Aufkleber drucken Sie vorher mit **QR-Codes drucken** auf der Prüfungsseite ([QR-Aufkleber](./students#qr-stickers)); jede Schülerin und jeder Schüler klebt seinen in das Feld „QR Code“ auf dem Deckblatt. Oder Sie drucken die Codes [direkt auf die Prüfungsexemplare](./students#printed-copies) und schneiden vor dem Austeilen die Namensecke ab. Scannen Sie nach der Prüfung den ganzen Stapel am Schulkopierer in ein einziges PDF.
+Drucken Sie die Bögen genau so, wie sie gesetzt wurden (ohne Skalierung); der QR-Aufkleber muss lesbar bleiben. Die Aufkleber drucken Sie vorher im Schritt **Drucken**, Karte **QR-Codes für Schüler** ([QR-Aufkleber](./students#qr-stickers)); jede Schülerin und jeder Schüler klebt seinen in das Feld „QR Code“ auf dem Deckblatt. Oder Sie drucken die Codes [direkt auf die Prüfungsexemplare](./students#printed-copies) und schneiden vor dem Austeilen die Namensecke ab. Scannen Sie nach der Prüfung den ganzen Stapel am Schulkopierer in ein einziges PDF.
 
 Mehr: [Drucken](./exams#print), [Stapel scannen](./scanning#scan).
 
@@ -54,6 +54,8 @@ Mehr: [Korrigieren](./grading).
 ![Korrektur](../../screenshots/pitch/06-grading.jpg)
 
 ## 6. Ergebnisse, Auswertung und Export {#results}
+
+- **Mit Schülern teilen**: **Ergebnisse & Export → An Schüler senden** gibt jeder Schülerin und jedem Schüler die korrigierte Prüfung über einen verschlüsselten Link, per E-Mail, Artemis oder Mebis-Dateien, siehe [Korrigierte Prüfungen teilen](./students#share-results).
 
 - **Prüfungsstatistik**: Noten- und Prozentverteilung, Durchschnitt, Bestehensquote, Grenzfälle, Analyse je Aufgabe und Variantenvergleich.
 - **Auswertung über mehrere Prüfungen**: Themen-Heatmaps, Aufgabenqualität und Variantenfairness im Zeitverlauf, Noten und Fächer.

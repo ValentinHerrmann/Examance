@@ -19,7 +19,7 @@
     error?: string;
     /** The full LaTeX log behind `error` (issue #166). */
     errorLog?: CompileFailure | null;
-    /** Actions about the PDFs (layout report), in the bar under them. */
+    /** The LaTeX error report, shown in the PDF pane headers. */
     report?: Snippet;
     onClose: () => void;
   }
@@ -68,7 +68,7 @@
       showAngabePreview={true}
       bind:showLoesungPreview={showLoesung}
       height="65dvh"
-      footer={report}
+      {report}
     />
   {/if}
   {#snippet footer()}

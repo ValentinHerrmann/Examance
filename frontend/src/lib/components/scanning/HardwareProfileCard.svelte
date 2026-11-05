@@ -11,23 +11,12 @@
   let { hwProfile, inConstrainedMode = false }: Props = $props();
 </script>
 
-<div class="mb-8 min-w-0 rounded-md border border-line bg-surface-raised p-5">
-  <h3 class="m-0 text-base font-semibold text-content">{$t("scanning.hardwareCard.title")}</h3>
-  <div class="mt-2 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-    <div>{$t("scanning.hardwareCard.cpuCores")} <strong>{hwProfile.logicalCores}</strong></div>
-    <div>{$t("scanning.hardwareCard.ramEstimate")} <strong>{hwProfile.estimatedRAMGB} GB</strong></div>
-    <div>
-      {$t("scanning.hardwareCard.wasmSimd")} <strong
-        >{hwProfile.simdSupported ? $t("scanning.hardwareCard.supported") : $t("scanning.hardwareCard.notSupported")}</strong
-      >
-    </div>
-    <div>
-      {$t("scanning.hardwareCard.activeMode")}
-      <Badge severity={inConstrainedMode ? "warning" : "primary"}>
-        {inConstrainedMode
-          ? $t("scanning.hardwareCard.modeConstrained")
-          : $t("scanning.hardwareCard.modeParallel")}
-      </Badge>
-    </div>
-  </div>
-</div>
+<!-- One line under the upload button: it only explains the speed, so it gets no card of its own (issue #212). -->
+<p class="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted" aria-label={$t("scanning.hardwareCard.title")}>
+  <span>{$t("scanning.hardwareCard.cpuCores")} <strong class="text-content">{hwProfile.logicalCores}</strong></span>
+  <span>{$t("scanning.hardwareCard.ramEstimate")} <strong class="text-content">{hwProfile.estimatedRAMGB} GB</strong></span>
+  <span>{$t("scanning.hardwareCard.wasmSimd")} <strong class="text-content">{hwProfile.simdSupported ? $t("scanning.hardwareCard.supported") : $t("scanning.hardwareCard.notSupported")}</strong></span>
+  <Badge size="xs" severity={inConstrainedMode ? "warning" : "primary"}>
+    {inConstrainedMode ? $t("scanning.hardwareCard.modeConstrained") : $t("scanning.hardwareCard.modeParallel")}
+  </Badge>
+</p>

@@ -4,7 +4,7 @@
   import type { LazyEntry } from "#lib/utils/lazyMap";
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
-  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { examCourse } from "#lib/utils/examLabel";
   import { Badge, LinkButton } from "#lib/components/ui";
   import LogoPreview from "#lib/components/logo/LogoPreview.svelte";
   import type { ExamLogoPreview, LogoSource } from "#lib/latex/logo";
@@ -40,7 +40,7 @@
 </script>
 
 {#if part === "badges"}
-  {@const courseLabel = formatExamCourse(exam.grade, exam.klasse)}
+  {@const courseLabel = examCourse(exam)}
   {#if courseLabel}
     <Badge severity="info">{$t("dashboard.examList.classLabel", { course: courseLabel })}</Badge>
   {/if}

@@ -61,6 +61,7 @@ _HEADER_FIELDS = (
     "testart",
     "grade",
     "klasse",
+    "course",
     "datum",
     "nr",
     "fach",
@@ -212,6 +213,7 @@ async def create_exam(
         "latex_packages": _packages_column(body.latex_packages),
         "page_breaks": body.page_breaks,
         "extra_notes": body.extra_notes.model_dump() if body.extra_notes else None,
+        "step_checks": body.step_checks,
     }
     if body.id:
         kwargs["id"] = body.id
@@ -436,6 +438,8 @@ async def update_exam(
         exam.latex_packages = _packages_column(body.latex_packages)
     if "page_breaks" in body.model_fields_set:
         exam.page_breaks = body.page_breaks or None
+    if "step_checks" in body.model_fields_set:
+        exam.step_checks = body.step_checks or None
     if "extra_notes" in body.model_fields_set:
         exam.extra_notes = body.extra_notes.model_dump() if body.extra_notes else None
 

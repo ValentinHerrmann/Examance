@@ -43,6 +43,8 @@ class Exam(Base):
     testart: Mapped[str | None] = mapped_column(String(100), nullable=True)
     grade: Mapped[str | None] = mapped_column(String(50), nullable=True)
     klasse: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Printed course (\Klasse) when set; empty means grade + klasse (issue #212).
+    course: Mapped[str | None] = mapped_column(String(50), nullable=True)
     datum: Mapped[str | None] = mapped_column(String(100), nullable=True)
     nr: Mapped[str | None] = mapped_column(String(10), nullable=True)
     fach: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -60,6 +62,8 @@ class Exam(Base):
     mc_correction_hint: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # Ticks the teacher sets by hand per step (print checklist, MC check); the client owns the shape.
+    step_checks: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     exercises: Mapped[list[Exercise]] = relationship(
         "Exercise", backref="exam", cascade="all, delete-orphan"

@@ -39,7 +39,7 @@
   });
 </script>
 
-<div class="my-4 flex flex-col gap-5 rounded-md border border-line bg-surface-sunken p-4">
+<div class="my-3 flex flex-col gap-3 rounded-md border border-line bg-surface-sunken p-3">
   <div class="flex flex-wrap items-center justify-between gap-4">
     <div class="flex flex-col gap-1">
       <h3 class="m-0 flex items-center gap-2 text-base font-semibold text-content">
@@ -70,9 +70,9 @@
   </div>
 
   <!-- Cutoffs Grid -->
-  <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
+  <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
     {#each gradingKey.cutoffs as cutoff, idx}
-      <div class="flex flex-col gap-2 rounded-md border border-line bg-surface-raised p-3">
+      <div class="flex flex-col gap-1.5 rounded-md border border-line bg-surface-raised p-2.5">
         <div class="flex items-center justify-between">
           <Badge severity="info">{$t("exam.gradingKeyEditor.gradeLabel", { grade: cutoff.grade })}</Badge>
           <span class="text-xs font-medium text-content">{cutoff.label}</span>

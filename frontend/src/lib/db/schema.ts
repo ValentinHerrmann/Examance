@@ -1,4 +1,5 @@
 import type { MaybeUndecryptable } from './decryptGuard';
+import type { StepChecks } from '#lib/exam/examChecks';
 import type { LatexPackageEntry } from '#lib/latex/packages';
 import type { OmrPageStats, OmrRunInfo } from '#lib/grading/omrSettings';
 import type { OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
@@ -44,6 +45,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   testart?: string;
   grade?: string;
   klasse?: string;
+  /** Printed course (`\Klasse`) when set; empty means grade + klasse (`examCourse`). */
+  course?: string;
   datum?: string;
   nr?: string;
   fach?: string;
@@ -65,6 +68,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   mcCorrectionHint?: boolean;
   /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */
   extraNotes?: ExtraNotes | null;
+  /** Ticks the teacher set by hand on the Print and MC steps (issue #212); written only through `examRepository.saveStepChecks`, never with the rest of the record. */
+  stepChecks?: StepChecks;
   retentionUntil: string;  // ISO date string
   compilationStatus: 'pending' | 'compiled' | 'failed';
   createdAt: string;

@@ -10,8 +10,9 @@
   import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
   import { mobileNavOpen, examNavContext } from "#lib/stores/shell";
   import { lockScroll } from "#lib/utils/scrollLock";
-  import { Badge, Button, Icon } from "#lib/components/ui";
+  import { Button, Icon } from "#lib/components/ui";
   import { examNavItems } from "./examNavItems";
+  import ExamStepBadge from "./ExamStepBadge.svelte";
   import { ADMIN_HOME } from "#lib/stores/navigationStore";
 
   /** Navigation drawer below `xl`, opened by the navbar burger. Lists the current exam's steps first (phones have no exam sidebar), then the main links; workspace and account actions stay in the navbar menus. */
@@ -96,17 +97,23 @@
         </p>
         <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
           {#each examItems as item (item.step)}
+            {#if item.branch === "B"}
+              <li aria-hidden="true" class="flex items-center gap-2 px-3 py-0.5 text-xs text-muted" title={$t("exam.sidebar.orHint")}>
+                <span class="h-px flex-1 bg-line"></span><span>{$t("exam.sidebar.or")}</span><span class="h-px flex-1 bg-line"></span>
+              </li>
+            {/if}
             <li>
               <a
                 href={item.href}
                 aria-current={item.active ? "page" : undefined}
+                title={item.hintKey ? $t(item.hintKey) : undefined}
                 class="{row} {item.active ? 'bg-highlight text-on-highlight' : 'text-content hover:bg-surface-inset'}"
               >
                 <Icon icon={item.icon} class="w-5 text-muted" />
-                <span class="min-w-0 flex-1 truncate">{$t(item.labelKey)}</span>
-                {#if item.step === "scan" && $examNavContext.submissionCount > 0}
-                  <Badge size="xs">{$examNavContext.submissionCount}</Badge>
-                {/if}
+                <span class="min-w-0 flex-1 py-1 leading-tight">
+                  {#if item.number}<span class="mr-1 tabular-nums text-muted" title={$t("exam.sidebar.stepNumber", { number: item.number })}>{item.number}</span>{/if}{$t(item.labelKey)}
+                </span>
+                <ExamStepBadge status={$examNavContext.progress[item.step]} step={item.step} />
               </a>
             </li>
           {/each}

@@ -8,21 +8,45 @@ An exam is a selection of exercises from your library plus header data, a gradin
 
 ## Create a new exam {#new-exam}
 
-**New exam** (on the dashboard) asks only for the header data, creates the exam and opens it on the exam page. Everything else (exercises, order, MC groups, logo, packages, preview) is done there.
-
-The exam page is organised in steps, shown as tabs (or a sidebar on wide screens): **Setup & Exercises**, **Scans**, **Check MC**, **Grading**, **Paper & Excel**, **Statistics**.
+**New exam** (on the dashboard) asks only for the header data, creates the exam and opens it on the **Exam** step with the exercise library. Everything else (exercises, order, MC groups, layout, logo, packages, preview) is done there.
 
 ### Header data {#header}
 
 **Subject**, **class**, **exam type**, **date** and **number** appear on the cover sheet. They are exam content and are therefore always printed in German, whatever language the interface is in.
 
+The **title** is made from these details (for example "Kurzarbeit 1 · Informatik 10a · 05.11.2026") and follows them while you edit. It is shown in Examance only, not printed. Click the pen next to it to set your own title: it is then marked **custom title** and no longer changes with the details; ↺ makes it generated again.
+
+The **printed class** (`\Klasse` on the cover sheet) is made from grade and class (10 and a give "10a") and shows as a small line under the **Class** field ("Printed: 10a"). Click it to print something else instead, for example "Q11 Inf"; it is then marked as your own entry, and ↺ goes back to grade and class.
+
+**Save** and **Discard changes** appear only once you have changed something.
+
 The optional **topic** (for example "Recursion") organises your exams in the overview, where you can filter and search by it. It is never printed. The overview can also be sorted by date, title, grade or subject.
 
-To change the header data later, open **Edit Exam** on the exam page.
+To change the header data later, edit them directly in the **Details** card on the **Overview** and choose **Save** (**Discard changes** goes back; leaving the page with unsaved changes asks first). The card holds only the exam's details: title, test type, grade/class, date, duration, number, subject, teacher, topic and the retention date. Layout settings are on the [Layout tab](#layout), the grading key under [Results](./results#grading-key).
+
+## The exam's steps {#steps}
+
+Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand (hover it for what it counts): the number of exercises, students or scans, graded x/y, the printed **Print** jobs, open MC checks, shared results (in red, the number of result e-mails that did not arrive). The number before a step's name is only its place in the flow. Steps 4A–6A (scans, MC check, digital grading) and B (paper grading) are alternatives: use B for a class graded on paper, without scans; you never need both. On the exams list, every step of an exam is shown in its card and opens that step. At the top right of every step page, next to the exam name and the step title, a **Next: …** button leads to the following step; explanations sit behind the ⓘ icons.
+
+| Step | What you do there |
+|---|---|
+| **Overview** | Details and key figures of the exam, see [below](#overview) |
+| 1 **Exam** | Exercises, layout and preview, see [Assemble the exercises](#assemble) and [Layout options](#layout) |
+| 2 **Students** | The class list, see [Student data](./students#student-data) |
+| 3 **Print** | Create the PDFs and the QR codes, see [Print](#print) |
+| 4A **Scans** | Import the scanned sheets, see [Scanning and assignment](./scanning) |
+| 5A **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
+| 6A **Digital grading** | Correct the scanned submissions, see [Grading](./grading) |
+| B **Paper grading** | Instead of 4A–6A: enter points for papers graded on paper, without scanning, see [Classes graded on paper](./grading#paper) |
+| 7 **Results & Export** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
+
+## Overview {#overview}
+
+**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details, a few key figures (points, average, grading key) and, at the bottom, the **Workflow**: every step in order with its badge, each one a link; the step you most likely need next is highlighted. **Continue: …** (followed by the step's name) opens that step. The **Details** card edits the header data in place, **Back up / transfer** packs the exam as a readable ZIP or a password-protected backup that Examance can import again, for moving or sharing it (see [Export](#export)); to keep the results for your records, use **Results & Export → Archive** instead. The **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
 
 ## Assemble the exercises {#assemble}
 
-On the exam page, **Add exercises** picks exercises from the library, with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
+On the **Exam** step, the **Exercises** tab lists the exam's exercises. **Add exercises** picks exercises from the library, with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
 
 - The arrows reorder the exercises.
 - The total score is recalculated as you go.
@@ -40,30 +64,19 @@ If you change page breaks after you created the answer-sheet template for MC det
 
 ### MC groups {#mc-groups}
 
-Several tick-box exercises can be printed together as an **MC group**. Create and edit groups on the exam page (**MC Groups**). An exam can hold any number of groups of any size; each question belongs to at most one group.
+Several tick-box exercises can be printed together as an **MC group**. Create and edit groups on the **Exercises** tab (**MC Groups**). An exam can hold any number of groups of any size; each question belongs to at most one group.
 
 In the exercise dialog, tick the questions on the **MC Groups** tab and give the group a title. **Apply Exercises and MC Group** adds the group together with the other exercises. To build several groups in one go, click **Add MC group to exam** after each one.
 
 Groups are layout only: grading and statistics stay strictly per question.
 
-## Grading key {#grading-key}
-
-The grading key decides which percentage earns which grade (1 to 6). Choose a preset or set your own thresholds:
-
-| Preset | Grade 4 from |
-|---|---|
-| **Standard** | 50 % |
-| **Upper secondary** | 40 % |
-| **Even split** | evenly spaced thresholds |
-| **Custom** | your own minimum percentage per grade |
-
-While grading, the current grade and the points to the next grade are shown live. The statistics use the same key.
-
 ## Layout options {#layout}
+
+Layout settings live on the **Layout** tab of the **Exam** step: info text, name line, cut-off corner hint, the multiple choice correction legend, logo and LaTeX packages. **Save** stores them, **Discard changes** returns to the saved state; leaving the page with unsaved changes asks first. Changes only show in the PDF after you compile again.
 
 ### Name line {#name-line}
 
-With **Print a name line next to the QR code box** (when creating the exam or under **Edit Exam**), the title page gets a line for the student's name. The QR code box stays where it is, so scanning and assignment work as before; only the initials field inside the box is dropped.
+With **Print a name line next to the QR code box** (when creating the exam or on the **Layout** tab), the title page gets a line for the student's name. The QR code box stays where it is, so scanning and assignment work as before; only the initials field inside the box is dropped.
 
 ### Cut-off corner {#cut-corner}
 
@@ -86,7 +99,7 @@ The solution sheet does not include it.
 
 ### How to correct a cross {#mc-hint}
 
-**Show how to correct a cross at every multiple-choice task** (when creating the exam, or under **Edit Exam**) prints one short line at the start of every multiple choice task, in the exam and in the solution:
+**Show how to correct a cross at every multiple-choice task** (when creating the exam, or on the **Layout** tab) prints one short line at the start of every multiple choice task, in the exam and in the solution:
 
 - **cross** a box to choose an option;
 - **fill** the box completely to withdraw a cross;
@@ -98,13 +111,13 @@ MC detection reads exactly these marks, see [Verify MC detections](./scanning#mc
 
 ### Logo and LaTeX packages {#logo-packages}
 
-Every exam prints a logo at the top left of the first page. Under **Edit Exam** you choose the logo from your settings, no logo, or a logo for this exam only (see [Logo on the exam](./settings#logo)). In the exam overview, every expanded exam shows which logo it prints.
+Every exam prints a logo at the top left of the first page. On the **Layout** tab you choose the logo from your settings, no logo, or a logo for this exam only (see [Logo on the exam](./settings#logo)). In the exam overview, every expanded exam shows which logo it prints.
 
-Under **Edit Exam** you can also add LaTeX packages for this exam only or leave out packages of your account (see [LaTeX packages](./exercises#packages)).
+On the same tab you can also add LaTeX packages for this exam only or leave out packages of your account (see [LaTeX packages](./exercises#packages)).
 
 ## Typeset {#typeset}
 
-**Live Preview PDF** typesets the exam and the solution sheet. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
+**Live Preview PDF** typesets the exam and the solution sheet. On wide screens the preview sits next to the exercises and the layout; on smaller screens it is a third tab, **Preview**, beside **Exercises** and **Layout**. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
 
 Depending on your settings and your account, the exam is typeset
 
@@ -121,16 +134,22 @@ In the exam overview, **Preview** in an expanded entry opens the last compiled P
 
 ## Print {#print}
 
+The **Print** step has the **print plan** on the left and the compiled PDFs on the right (on smaller screens below it), the same preview as on the **Exam** step. The compile button sits in the first print job: it typesets the task sheet and solution and refreshes the scan template for MC detection.
+
+In the print plan you choose how you print: **Plain copies and a QR sticker sheet**, or **Personalised copies with the QR code printed on** (one copy per student with QR code, name and personal key, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies)), and whether the **solution** is printed too. **Ready to print?** checks automatically whether the exam has exercises, the student list is filled, the PDFs match the current state and, with MC questions, the scan template is up to date.
+
+Below it are exactly the print jobs of your plan (exam copies and sticker sheet, or the personalised copies; plus the solution). Every job works the same way: icons in its header create or refresh its PDF and download it, its options sit below (for stickers: how many per student, labels already used and **What to print?**, see [QR stickers](./students#qr-stickers)), and a **printed** tick closes it. A sticker sheet or set of personalised copies you create appears as a further pane next to task sheet and solution. Only you set the ticks, and only once the job's PDF exists for the current state: for the task sheet and solution the current preview, for stickers and personalised copies a PDF made here. A tick goes away only when what it was set for changes: content or layout for the exam and solution, the student list for the stickers, both for personalised copies. The step's badge in the sidebar shows how many jobs are ticked.
+
 Print the sheets **exactly as typeset**: no "fit to page", no scaling, no cropping. The QR sticker and the corner marks must stay readable, otherwise the scan cannot be assigned automatically and ticked boxes cannot be detected.
 
 After the exam, continue with [Scanning and assignment](./scanning).
 
 ## Duplicate an exam {#duplicate}
 
-**Duplicate** (in the exam overview and on the exam page) creates a new exam with the same header, exercises, MC groups, grading key and settings, for example for a parallel class or the next school year. Students, scans and results are never copied; the copy starts without them.
+**Duplicate** (in the exam list and in the **⋯** menu of the exam's **Overview**) creates a new exam with the same header, exercises, MC groups, grading key and settings, for example for a parallel class or the next school year. Students, scans and results are never copied; the copy starts without them.
 
 ## Export {#export}
 
-**Export** on an exam (dashboard or exam page) downloads it either as a readable ZIP or as a password-protected backup, see [Exporting results](./results#export) and [Backup and transfer](./backup#exam-backup).
+**Back up / transfer** on an exam (the menu of its card on the dashboard, or the exam's **Overview**) downloads it either as a readable ZIP or as a password-protected backup, see [Exporting results](./results#export) and [Backup and transfer](./backup#exam-backup).
 
 ![Exporting an exam](../screenshots/guide/exam-export.jpg)

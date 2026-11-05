@@ -1,3 +1,6 @@
+import type { ExamProgress } from '#lib/exam/examProgress';
+import type { McCheckSummary } from '#lib/grading/mcVerification';
+import type { StepChecks } from '#lib/exam/examChecks';
 import { writable } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
 import type { ExamRecord } from '#lib/db/schema';
@@ -31,6 +34,24 @@ export interface ExamNavContext {
     examId: string;
     exam: ExamRecord | null;
     submissionCount: number;
+    /** Step badges (issue #212); a step without an entry shows none. */
+    progress: ExamProgress;
 }
 
+/** The open exam's hand-set ticks and the fingerprints they are checked against (issue #212); the layout loads them, the Print and MC pages change them. */
+export interface ExamChecksState {
+    examId: string;
+    checks: StepChecks;
+    /** Fingerprints of the exam content and of its students; null while a read failed. */
+    stamps: { content: string; students: string } | null;
+}
+
+export const examChecksState = writable<ExamChecksState | null>(null);
+
+/** True while the Results page holds a grading key edit that is previewed but not saved (issue #212): the tab strip shows a dot and leaving asks first. */
+export const gradingKeyDirty = writable(false);
+
 export const examNavContext = writable<ExamNavContext | null>(null);
+
+/** The MC step's counts, set by the layout (from the scans) and refreshed by the verify page after each review. */
+export const examMcState = writable<({ examId: string } & McCheckSummary) | null>(null);

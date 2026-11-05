@@ -132,7 +132,11 @@
     });
   }
 
+  let stopLabels: (() => void) | null = null;
+
   function destroy() {
+    stopLabels?.();
+    stopLabels = null;
     if (overlayTimeout) clearTimeout(overlayTimeout);
     if (unsubscribeZoom) {
       unsubscribeZoom();
@@ -150,12 +154,13 @@
   }
 
   async function mount(url: string) {
-    const { mountEmbedPdf } = await import("#lib/pdf/embedpdf");
+    const { patchEmbedPdfA11y, mountEmbedPdf } = await import("#lib/pdf/embedpdf");
     // A src change (or unmount racing a fast page switch) may land here after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
     destroy();
     if (!containerEl) return;
     viewer = mountEmbedPdf({ target: containerEl, src: url, theme: effectiveTheme, zoomLevel }) ?? null;
+    stopLabels = patchEmbedPdfA11y(containerEl, { pageLabel: $t("common.pdfPage"), regionLabel: $t("common.pdfPreview") });
     mountedSrc = url;
     containerEl.addEventListener("wheel", handleWheel, { capture: true, passive: false });
 
@@ -224,7 +229,7 @@
   <div bind:this={containerEl} class="embed-pdf-viewer absolute inset-0 flex"></div>
   {#if src && isOverlayVisible}
     <div
-      class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar/90 px-2 py-1 text-xs font-medium text-navbar-muted shadow-md backdrop-blur-sm"
+      class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar px-2 py-1 text-xs font-medium text-navbar-muted shadow-md"
       onmouseenter={handleOverlayMouseEnter}
       onmouseleave={handleOverlayMouseLeave}
       role="toolbar"
@@ -278,13 +283,12 @@
     animation: zoom-overlay-fade-in 0.15s ease-out;
   }
 
+  /* Slide only, no fade: a half-transparent frame has too little contrast (axe catches it mid-animation). */
   @keyframes zoom-overlay-fade-in {
     from {
-      opacity: 0;
       transform: translateY(-2px);
     }
     to {
-      opacity: 1;
       transform: translateY(0);
     }
   }

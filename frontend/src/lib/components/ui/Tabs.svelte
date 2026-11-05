@@ -2,7 +2,7 @@
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import Icon from "./Icon.svelte";
 
-  type Item = { id: string; label: string; href?: string; icon?: IconDefinition; count?: number };
+  type Item = { id: string; label: string; href?: string; icon?: IconDefinition; count?: number; /** Unsaved changes behind this tab: a dot, with this text for screen readers and as hover title. */ dirty?: string };
 
   /** Tab strip. Items are buttons; an item with `href` renders a link (route-driven tabs) and `value` marks the selected one. */
   interface Props {
@@ -75,7 +75,7 @@
       >
         {#if item.icon}<Icon icon={item.icon} />{/if}<span class={compact ? "sr-only sm:not-sr-only" : ""}>{item.label}</span>{#if item.count !== undefined}<span
             class="rounded-md bg-surface-inset px-1.5 text-sm font-normal text-muted">{item.count}</span
-          >{/if}
+          >{/if}{#if item.dirty}<span class="size-2 rounded-full bg-warning" title={item.dirty} role="img" aria-label={item.dirty}></span>{/if}
       </a>
     {:else}
       <button
@@ -88,7 +88,7 @@
       >
         {#if item.icon}<Icon icon={item.icon} />{/if}<span class={compact ? "sr-only sm:not-sr-only" : ""}>{item.label}</span>{#if item.count !== undefined}<span
             class="rounded-md bg-surface-inset px-1.5 text-sm font-normal text-muted">{item.count}</span
-          >{/if}
+          >{/if}{#if item.dirty}<span class="size-2 rounded-full bg-warning" title={item.dirty} role="img" aria-label={item.dirty}></span>{/if}
       </button>
     {/if}
   {/each}

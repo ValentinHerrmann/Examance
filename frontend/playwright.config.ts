@@ -99,6 +99,8 @@ export default defineConfig({
     // 2560×1600 at 200% Windows scaling (issue #188).
     { name: 'laptop-200', testMatch: DEVICE_SPECS, use: pointer(1280, 800, 2) },
     { name: 'laptop-125', testMatch: DEVICE_SPECS, use: pointer(1536, 730) },
+    // 2880×1800 at 166 % minus browser chrome (the maintainer's laptop; no sliver scrolling).
+    { name: 'laptop-166', testMatch: DEVICE_SPECS, use: pointer(1735, 950) },
     { name: 'desktop-fullscreen', testMatch: DEVICE_SPECS, use: pointer(1920, 1080) },
     { name: 'desktop-wide', testMatch: DEVICE_SPECS, use: pointer(2560, 1300) },
   ],

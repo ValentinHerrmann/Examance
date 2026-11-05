@@ -37,8 +37,8 @@ for (const theme of THEMES) {
     await page.screenshot({ path: shot('modal-exercise-editor') });
     await page.keyboard.press('Escape');
 
-    await visit(page, `/exam/${examId}`);
-    await page.getByRole('button', { name: label('exam.actionBar.addExercises', undefined, 'en') }).click();
+    await visit(page, `/exam/${examId}/content`);
+    await page.getByRole('button', { name: label('exam.exerciseList.addExercises', undefined, 'en') }).click();
     await page.getByRole('dialog', { name: label('exam.libraryModal.header', undefined, 'en') }).waitFor();
     await page.screenshot({ path: shot('modal-exam-library') });
   });

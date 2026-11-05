@@ -47,6 +47,7 @@ export interface ZipExamSettings {
   testart?: string;
   grade?: string;
   klasse?: string;
+  course?: string;
   datum?: string;
   nr?: string;
   fach?: string;

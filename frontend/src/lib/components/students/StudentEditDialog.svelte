@@ -3,9 +3,10 @@
   import { untrack } from "svelte";
   import { get } from "svelte/store";
   import { t } from "#lib/i18n";
-  import { Alert, Button, Checkbox, Modal, TableScroller, TextInput } from "#lib/components/ui";
+  import { Alert, Button, Checkbox, Modal, TableScroller, TextInput, actionIcons } from "#lib/components/ui";
   import type { StudentRecord } from "#lib/db/schema";
-  import { editWarnings, EDITABLE_FIELDS, type EditableField } from "#lib/students/classList";
+  import { editWarnings, EDITABLE_FIELDS, newListedStudent, type EditableField } from "#lib/students/classList";
+  import { nameKey } from "#lib/lms/contacts";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { sessionStore } from "#lib/stores/session";
 
@@ -16,12 +17,17 @@
     hasSubmission: (student: StudentRecord) => boolean;
     onSaved: () => void;
     onClose: () => void;
+    /** Adds one new student to this exam instead of editing `students` (issue #212); it gets a sticker payload like an imported one. */
+    createIn?: string;
   }
 
-  let { students, all, hasSubmission, onSaved, onClose }: Props = $props();
+  let { students, all, hasSubmission, onSaved, onClose, createIn }: Props = $props();
 
+  const blankRow = () => Object.fromEntries(EDITABLE_FIELDS.map((f) => [f, ""])) as Record<EditableField, string>;
   // Local edit buffer: one plain object per row.
-  let rows = $state(untrack(() => students).map((st) => Object.fromEntries(EDITABLE_FIELDS.map((f) => [f, st[f] ?? ""])) as Record<EditableField, string>));
+  let rows = $state(
+    untrack(() => (createIn ? [blankRow()] : students.map((st) => Object.fromEntries(EDITABLE_FIELDS.map((f) => [f, st[f] ?? ""])) as Record<EditableField, string>))),
+  );
   let accepted = $state(false);
   let busy = $state(false);
   let error = $state("");
@@ -45,7 +51,13 @@
 
   let after = $derived(edited());
   let changed = $derived(after.filter((st, i) => EDITABLE_FIELDS.some((f) => (st[f] ?? "") !== (students[i][f] ?? ""))));
+  let createNotices = $derived.by(() => {
+    const name = rows[0]?.studentName.trim() ?? "";
+    if (!name) return [{ key: "lms.students.edit.warn.emptyName" as const, name: "", blocking: true }];
+    return all.some((st) => nameKey(st.studentName) === nameKey(name)) ? [{ key: "lms.students.add.duplicateName" as const, name, blocking: false }] : [];
+  });
   let notices = $derived.by(() => {
+    if (createIn) return createNotices;
     const byKey = new Map(after.map((st) => [st.pseudonymHmac, st]));
     const whole = all.map((st) => byKey.get(st.pseudonymHmac) ?? st);
     return editWarnings(students, after, whole, hasSubmission);
@@ -58,6 +70,11 @@
     error = "";
     try {
       const key = get(sessionStore).sessionKey;
+      if (createIn) {
+        await studentRepository.save(await newListedStudent(createIn, rows[0]), key);
+        onSaved();
+        return;
+      }
       for (const st of changed) await studentRepository.save(st, key); // NOSONAR: one row at a time keeps the error report simple
       onSaved();
     } catch (err) {
@@ -68,7 +85,7 @@
   }
 </script>
 
-<Modal open={true} size="large" title={students.length === 1 ? $t("lms.students.edit.titleOne") : $t("lms.students.edit.title", { count: students.length })} onClose={busy ? undefined : onClose} {error}>
+<Modal open={true} size="large" title={createIn ? $t("lms.students.add.title") : students.length === 1 ? $t("lms.students.edit.titleOne") : $t("lms.students.edit.title", { count: students.length })} onClose={busy ? undefined : onClose} {error}>
   <div class="flex min-w-0 flex-col gap-4">
     <TableScroller maxHeight="max-h-96">
       <table class="data-table data-table-compact w-full">
@@ -76,7 +93,7 @@
           <tr>{#each EDITABLE_FIELDS as f (f)}<th>{$t(COLUMNS[f])}</th>{/each}</tr>
         </thead>
         <tbody>
-          {#each rows as row, i (students[i].pseudonymHmac)}
+          {#each rows as row, i (createIn ? i : students[i].pseudonymHmac)}
             <tr>
               {#each EDITABLE_FIELDS as f (f)}
                 <td><TextInput size="sm" type={f === "email" ? "email" : "text"} bind:value={row[f]} aria-label={$t(COLUMNS[f])} disabled={busy} /></td>
@@ -100,9 +117,9 @@
   </div>
 
   {#snippet footer()}
-    <Button variant="outlined" severity="secondary" disabled={busy} onClick={onClose}>{$t("common.cancel")}</Button>
-    <Button loading={busy} disabled={busy || !changed.length || blocking || (warnings.length > 0 && !accepted)} onClick={save}>
-      {$t("lms.students.edit.save", { count: changed.length })}
+    <Button variant="outlined" severity="secondary" icon={actionIcons.remove} disabled={busy} onClick={onClose}>{$t("common.cancel")}</Button>
+    <Button icon={createIn ? actionIcons.add : actionIcons.edit} loading={busy} disabled={busy || (!createIn && !changed.length) || blocking || (warnings.length > 0 && !accepted)} onClick={save}>
+      {createIn ? $t("lms.students.add.save") : $t("lms.students.edit.save", { count: changed.length })}
     </Button>
   {/snippet}
 </Modal>

@@ -10569,6 +10569,18 @@
             ],
             "title": "Klasse"
           },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
+          },
           "datum": {
             "anyOf": [
               {
@@ -10699,6 +10711,18 @@
                 "type": "null"
               }
             ]
+          },
+          "step_checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Checks"
           },
           "pseudonym_version": {
             "type": "integer",
@@ -11009,6 +11033,17 @@
             ],
             "title": "Klasse"
           },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
+          },
           "datum": {
             "anyOf": [
               {
@@ -11135,6 +11170,18 @@
               }
             ]
           },
+          "step_checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Checks"
+          },
           "pseudonym_version": {
             "type": "integer",
             "title": "Pseudonym Version",
@@ -11241,6 +11288,18 @@
               }
             ],
             "title": "Klasse"
+          },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
           },
           "datum": {
             "anyOf": [
@@ -11384,6 +11443,18 @@
                 "type": "null"
               }
             ]
+          },
+          "step_checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Checks"
           },
           "exercise_ids": {
             "anyOf": [

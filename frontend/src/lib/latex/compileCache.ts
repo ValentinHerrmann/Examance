@@ -178,6 +178,7 @@ export function invalidateOwner(kind: CompileKind, id: string): void {
  */
 export function clearCompileCache(): void {
   cache.clear();
+  lastInputs.clear();
   clearLogoCache();
   clearPackageSettingsCache();
   currentTotalBytes = 0;
@@ -194,6 +195,35 @@ export function getCompileCacheStats(): { entryCount: number; totalBytes: number
 }
 
 type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo };
+
+/** What each slot was last compiled from, to say which input changed when a lookup misses (issue #212: a PDF compiled on one exam tab counted as stale on another). Same lifetime as the cache. */
+type InputSummary = { latex: string; resources: string; exIds: string; engine: string; logo: string };
+const lastInputs = new Map<string, InputSummary>();
+
+function summarize(latexSource: string, useLocal: boolean, opts: CompileOpts): InputSummary {
+  return {
+    latex: latexSource,
+    resources: mergeResources(opts.resources ?? []).map((r) => `${r.filename}:${r.content.length}`).sort((a, b) => a.localeCompare(b)).join(','),
+    exIds: [...(opts.resourceExerciseIds ?? [])].sort((a, b) => a.localeCompare(b)).join(','),
+    engine: useLocal ? 'local' : 'server',
+    logo: opts.logo?.fingerprint ?? '',
+  };
+}
+
+/** Logs (info level) which input differs from the slot's last compile, with the first differing spot of the LaTeX. */
+function explainMiss(key: CompileCacheKey, now: InputSummary): void {
+  const before = lastInputs.get(makeSlotKey(key));
+  if (!before) return;
+  const changed = (Object.keys(now) as (keyof InputSummary)[]).filter((k) => now[k] !== before[k]);
+  if (changed.length === 0) return;
+  let detail = '';
+  if (changed.includes('latex')) {
+    let i = 0;
+    while (i < now.latex.length && now.latex[i] === before.latex[i]) i++;
+    detail = ` at ${i}: was ${JSON.stringify(before.latex.slice(Math.max(0, i - 40), i + 40))}, now ${JSON.stringify(now.latex.slice(Math.max(0, i - 40), i + 40))}`;
+  }
+  console.info(`[compileCache] ${makeSlotKey(key)} is stale: ${changed.join(', ')} changed${detail}`);
+}
 
 /** The one hash recipe for a compile, shared by `compileWithCache` and `getCachedFor`. */
 function hashFor(latexSource: string, useLocal: boolean, opts: CompileOpts): Promise<string> {
@@ -214,7 +244,9 @@ export async function getCachedFor(
   opts: CompileOpts = {}
 ): Promise<CachedCompileEntry | undefined> {
   if (!cache.has(makeSlotKey(key))) return undefined;
-  return getCached(key, await hashFor(latexSource, useLocal, opts));
+  const hit = getCached(key, await hashFor(latexSource, useLocal, opts));
+  if (!hit) explainMiss(key, summarize(latexSource, useLocal, opts));
+  return hit;
 }
 
 /** Compiles LaTeX with cache support: returns a hit for the key and content hash, else runs `compileLatex` and caches it. */
@@ -239,5 +271,6 @@ export async function compileWithCache(
 
   const result = await compileLatex(latexSource, useLocal, onStatus, promptFallback, opts);
   setCached(key, hash, result);
+  lastInputs.set(makeSlotKey(key), summarize(latexSource, useLocal, opts));
   return result;
 }

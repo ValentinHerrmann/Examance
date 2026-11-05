@@ -76,6 +76,22 @@ export function mcQueue(items: McDetectionItem[], category: McQueueCategory): Mc
   return items.filter((i) => categorizeMcItem(i) === category);
 }
 
+/** What the MC step shows: open failed/unsure items and the sure ones looked at. */
+export interface McCheckSummary {
+  open: number;
+  sureTotal: number;
+  sureReviewed: number;
+}
+
+export function summarizeMcCheck(items: McDetectionItem[]): McCheckSummary {
+  const sure = mcQueue(items, "confident");
+  return {
+    open: [...mcQueue(items, "failed"), ...mcQueue(items, "unsure")].filter((i) => !i.isReviewed).length,
+    sureTotal: sure.length,
+    sureReviewed: sure.filter((i) => i.isReviewed).length,
+  };
+}
+
 export interface DetectionConfidenceQuality {
   total: number;
   reviewed: number;

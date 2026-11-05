@@ -1,11 +1,12 @@
 <script lang="ts">
   import { faAnglesLeft, faAnglesRight, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { examCourse } from "#lib/utils/examLabel";
   import { minWidth } from "#lib/stores/viewport";
   import { sidebarPreference, setSidebarCollapsed, type ExamNavContext } from "#lib/stores/shell";
-  import { Badge, Icon, Tooltip } from "#lib/components/ui";
+  import { Icon, Tooltip } from "#lib/components/ui";
   import { examNavItems } from "./examNavItems";
+  import ExamStepBadge from "./ExamStepBadge.svelte";
 
   /** Exam navigation (Artemis course sidebar): exam context, the exam's steps, a collapse toggle (64px rail). Shown from `lg`; below that the items live in the nav drawer. Without a saved preference: rail at `lg` and on the grade page, open from `xl`. */
   interface Props {
@@ -24,14 +25,14 @@
 
   let items = $derived(examNavItems(context.examId, pathname));
   let exam = $derived(context.exam);
-  let course = $derived(exam ? formatExamCourse(exam.grade, exam.klasse) : "");
+  let course = $derived(exam ? examCourse(exam) : "");
   let metaLines = $derived(exam ? [exam.testart, [course, exam.fach].filter(Boolean).join(", "), exam.datum].filter(Boolean) : []);
 </script>
 
 <aside
   class="hidden shrink-0 flex-col border-r border-line bg-surface-raised transition-[width] duration-200 motion-reduce:transition-none lg:flex {collapsed
     ? 'w-16'
-    : 'w-41'}"
+    : 'w-56'}"
   aria-label={$t("exam.sidebar.label")}
 >
   <div class="flex flex-col gap-2 border-b border-line px-2 py-3">
@@ -55,10 +56,17 @@
   </div>
 
   <nav class="scroll-pane min-h-0 flex-1 overflow-y-auto py-2" aria-label={$t("exam.sidebar.label")}>
+    {#if !collapsed}<p class="m-0 mb-1 px-5 text-xs leading-snug text-muted">{$t("exam.sidebar.legend")}</p>{/if}
     <ul class="m-0 flex list-none flex-col gap-0.5 p-0 px-2">
       {#each items as item (item.step)}
+        {#if item.branch === "B"}
+          <!-- B replaces 4A–6A: a separator says so before it. -->
+          <li aria-hidden="true" class="flex items-center gap-2 px-3 py-0.5 text-xs text-muted" title={$t("exam.sidebar.orHint")}>
+            <span class="h-px flex-1 bg-line"></span>{#if !collapsed}<span>{$t("exam.sidebar.or")}</span><span class="h-px flex-1 bg-line"></span>{/if}
+          </li>
+        {/if}
         <li>
-          <Tooltip text={$t(item.labelKey)} placement="right" disabled={!collapsed} wrapperClass="flex w-full">
+          <Tooltip text={item.hintKey ? $t(item.hintKey) : $t(item.labelKey)} placement="right" disabled={!collapsed && !item.hintKey} wrapperClass="flex w-full">
             <a
               href={item.href}
               aria-current={item.active ? "page" : undefined}
@@ -69,10 +77,10 @@
             >
               <Icon icon={item.icon} class="w-4 text-base" />
               {#if !collapsed}
-                <span class="min-w-0 flex-1 truncate">{$t(item.labelKey)}</span>
-                {#if item.step === "scan" && context.submissionCount > 0}
-                  <Badge size="xs" severity="secondary">{context.submissionCount}</Badge>
-                {/if}
+                <span class="min-w-0 flex-1 py-1 leading-tight">
+                  {#if item.number}<span class="mr-1 tabular-nums {item.active ? '' : 'text-muted'}" title={$t("exam.sidebar.stepNumber", { number: item.number })}>{item.number}</span>{/if}{$t(item.labelKey)}
+                </span>
+                <ExamStepBadge status={context.progress[item.step]} step={item.step} />
               {/if}
             </a>
           </Tooltip>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { t } from "#lib/i18n";
   import { faFileArrowUp } from "@fortawesome/free-solid-svg-icons";
   import { Icon } from "#lib/components/ui";
@@ -8,17 +9,21 @@
     progress?: number;
     statusText?: string;
     onFileUpload: (event: Event) => void;
+    /** A line under the button, e.g. the hardware profile. */
+    children?: Snippet;
   }
 
   let {
     isProcessing = false,
     progress = 0,
     statusText = "",
-    onFileUpload
+    onFileUpload,
+    children,
   }: Props = $props();
 </script>
 
-<div class="rounded-xl border-2 border-dashed border-line-strong bg-surface-raised p-6 text-center sm:p-12">
+<div class="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-line-strong bg-surface-raised p-4 text-center">
+  <div>
   <input
     type="file"
     id="scanFiles"
@@ -36,10 +41,12 @@
     {$t("scanning.uploadPanel.selectFiles")}
   </label>
   <InfoTip class="ml-2 align-middle" text={$t("help.tips.pseudonymQr")} topic="scanning" />
+  </div>
+  {@render children?.()}
 </div>
 
 {#if isProcessing}
-  <div class="mt-8">
+  <div class="mt-3">
     <div
       class="h-3 overflow-hidden rounded-md bg-surface-inset"
       role="progressbar"
@@ -52,5 +59,5 @@
     <p class="mt-2 text-sm text-muted">{statusText}</p>
   </div>
 {:else if statusText}
-  <p class="mt-4 text-sm text-muted">{statusText}</p>
+  <p class="mt-2 mb-0 text-sm text-muted">{statusText}</p>
 {/if}

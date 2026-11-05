@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { newTrashGroup } from "#lib/trash/group";
   import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { randomCode } from "#lib/utils/randomCode";
@@ -47,7 +48,7 @@
   import { ingestScans, type IngestProgress, type OmrSummary } from "#lib/scan/ingest";
   import HardwareProfileCard from "#lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "#lib/components/scanning/UploadPanel.svelte";
-  import { Alert, Button, PageHeader, PageShell } from "#lib/components/ui";
+  import { Alert, Button, PageShell } from "#lib/components/ui";
   import UnmatchedResolver from "#lib/components/scanning/UnmatchedResolver.svelte";
   import ScannedSubmissionsTable from "#lib/components/scanning/ScannedSubmissionsTable.svelte";
   import ScanPreviewModal from "#lib/components/scanning/ScanPreviewModal.svelte";
@@ -717,15 +718,15 @@
 </script>
 
 <PageShell width="fluid">
-  <PageHeader title={$t("scanning.pageTitle")} helpTopic="scanning" />
-
-  <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
+  <ExamPageHeader {examId} step="scan" title={$t("scanning.pageTitle")} helpTopic="scanning" />
 
   {#if omrBanner}
     <Alert severity="warning" class="my-4">{omrBanner}</Alert>
   {/if}
 
-  <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload} />
+  <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload}>
+    <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
+  </UploadPanel>
 
   {#if readError}
     <Alert severity="danger" class="my-4" onDismiss={() => (readError = "")}>{readError}</Alert>

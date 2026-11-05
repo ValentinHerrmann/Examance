@@ -400,7 +400,7 @@ export const exercises: Translations['exercises'] = {
     },
     suggestInput: {
         noEntries: 'No previous entries yet',
-        removeEntry: 'Remove entry',
+        removeEntry: 'Remove entry (Shift+Delete)',
     },
     confirmDiscard: {
         confirmText: 'Discard changes',

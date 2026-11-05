@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import { untrack, type Snippet } from "svelte";
   import { t } from "#lib/i18n";
   import { isDesktop } from "#lib/stores/viewport";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
@@ -19,10 +19,12 @@
     placeholderText?: string | undefined;
     /** Desktop: with every pane collapsed, shrink to the collapsed strips and give the rest of the row back. */
     shrinkWhenCollapsed?: boolean;
-    /** A slim bar right under the PDFs, for actions about them (e.g. the layout report). */
-    footer?: Snippet;
+    /** Icon action in every open pane's header (and once beside the phone tabs): the LaTeX error report. Kept out of a row under the PDFs to save height. */
+    report?: Snippet;
     /** False hides the download buttons (a student's view-only result page, issue #207). */
     downloadable?: boolean;
+    /** More PDFs beside task sheet and solution (the Print step's sticker sheet). Collapsed until their URL first appears or changes; then they open. */
+    extraPanes?: { id: string; title: string; url: string | null }[];
   }
 
   let {
@@ -35,8 +37,9 @@
     height = "100%",
     placeholderText = undefined,
     shrinkWhenCollapsed = false,
-    footer,
+    report,
     downloadable = true,
+    extraPanes = [],
   }: Props = $props();
 
   let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
@@ -52,8 +55,10 @@
   }
 
   // Below `lg` the split becomes a segmented switch over a single pane; height is capped to the viewport.
-  type PaneId = "angabe" | "loesung";
+  type PaneId = string;
   let mobilePane: PaneId = $state("angabe");
+  let extraOpen = $state<Record<string, boolean>>({});
+  let extraSeenUrl: Record<string, string | null> = {};
 
   let panes = $derived([
     {
@@ -72,6 +77,14 @@
       shown: showLoesungPreview,
       toggle: handleToggleLoesung,
     },
+    ...extraPanes.map((x) => ({
+      id: x.id,
+      title: x.title,
+      icon: faFilePdf,
+      url: x.url,
+      shown: !!extraOpen[x.id],
+      toggle: () => (extraOpen = { ...extraOpen, [x.id]: !extraOpen[x.id] }),
+    })),
   ]);
 
   let activePane = $derived(panes.find((p) => p.id === mobilePane) ?? panes[0]);
@@ -85,21 +98,28 @@
     if (id === "loesung" && !showLoesungPreview) {
       handleToggleLoesung();
     }
+    if (id !== "angabe" && id !== "loesung" && !extraOpen[id]) extraOpen = { ...extraOpen, [id]: true };
   }
 
-  let allCollapsed = $derived(!showAngabePreview && !showLoesungPreview);
-  // Both panes folded to strips leave no room for the bar.
-  let showFooter = $derived(!!footer && !(shrinkWhenCollapsed && allCollapsed));
+  let allCollapsed = $derived(panes.every((p) => !p.shown));
+
+  // A new or changed extra PDF opens its pane (and selects it on phones), so what was just made is in view.
+  $effect.pre(() => {
+    const urls = extraPanes.map((x) => [x.id, x.url] as const);
+    untrack(() => {
+      for (const [id, url] of urls) {
+        if (url && url !== extraSeenUrl[id]) {
+          extraOpen = { ...extraOpen, [id]: true };
+          mobilePane = id;
+        }
+        extraSeenUrl[id] = url;
+      }
+    });
+  });
 
   const paneShell =
     "flex flex-col overflow-hidden rounded-md border border-line bg-surface-viewer transition-all duration-200";
 </script>
-
-{#snippet footerBar()}
-  {#if showFooter}
-    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">{@render footer?.()}</div>
-  {/if}
-{/snippet}
 
 {#if $isDesktop}
   <div
@@ -110,29 +130,30 @@
       {#each panes as pane (pane.id)}
         <div class="{paneShell} {pane.shown ? 'min-w-0 flex-1' : 'w-10 shrink-0'}">
           {#if pane.shown}
-            <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-content">
+            <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-sunken px-2 py-0.5 text-content">
               <button
                 type="button"
                 class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate border-0 bg-transparent p-0 text-left text-content"
                 onclick={pane.toggle}
                 title={$t("editor.pdfPreview.collapse", { title: pane.title })}
               >
-                <Icon icon={pane.icon} class="text-muted" />
-                <span class="truncate text-sm font-medium">{pane.title}</span>
+                <Icon icon={pane.icon} class="text-xs text-muted" />
+                <span class="truncate text-xs font-medium text-muted">{pane.title}</span>
               </button>
-              <div class="flex shrink-0 items-center gap-2">
+              <div class="flex shrink-0 items-center gap-0.5">
+                {@render report?.()}
                 {#if pane.url && downloadable}
                   <Button
-                    variant="outlined"
+                    variant="text"
                     severity="secondary"
                     size="sm"
+                    iconOnly
                     icon={faDownload}
                     href={pane.url}
                     download={`${pane.title}.pdf`}
+                    ariaLabel={$t("common.download")}
                     title={$t("common.download")}
-                  >
-                    {$t("common.download")}
-                  </Button>
+                  />
                 {/if}
                 <Button
                   variant="text"
@@ -150,7 +171,7 @@
               {#if pane.url}
                 <PdfEmbedViewer src={pane.url} />
               {:else}
-                <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
+                <div class="flex h-full items-center justify-center p-4 text-center text-sm text-content">
                   {placeholder}
                 </div>
               {/if}
@@ -170,7 +191,6 @@
         </div>
       {/each}
     </div>
-    {@render footerBar()}
   </div>
 {:else}
   <div class="flex w-full min-w-0 flex-1 flex-col gap-1.5">
@@ -178,23 +198,25 @@
       class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-surface-viewer"
       style="height: min(70dvh, {height}); min-height: 18rem;"
     >
-      <Tabs
-        class="shrink-0 bg-surface-raised"
-        items={panes.map((p) => ({ id: p.id, label: p.title, icon: p.icon }))}
-        value={mobilePane}
-        onChange={(id) => selectMobilePane(id === "loesung" ? "loesung" : "angabe")}
-      />
+      <div class="flex shrink-0 items-center bg-surface-raised">
+        <Tabs
+          class="min-w-0 flex-1"
+          items={panes.map((p) => ({ id: p.id, label: p.title, icon: p.icon }))}
+          value={mobilePane}
+          onChange={(id) => selectMobilePane(id)}
+        />
+        {#if report}<div class="shrink-0 px-1">{@render report()}</div>{/if}
+      </div>
 
       <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}>
         {#if activePane.url}
           <PdfEmbedViewer src={activePane.url} />
         {:else}
-          <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
+          <div class="flex h-full items-center justify-center p-4 text-center text-sm text-content">
             {placeholder}
           </div>
         {/if}
       </div>
     </div>
-    {@render footerBar()}
   </div>
 {/if}
