@@ -15,8 +15,6 @@
   interface Props {
     examId: string;
     summary: McCheckSummary;
-    failedOpen: number;
-    unsureOpen: number;
     /** The sure detections not looked at yet (bulk confirm and random samples). */
     sureOpen: McDetectionItem[];
     onOpenSample: () => void;
@@ -25,7 +23,7 @@
     class?: string;
   }
 
-  let { examId, summary, failedOpen, unsureOpen, sureOpen, onOpenSample, onChanged, class: className = "" }: Props = $props();
+  let { examId, summary, sureOpen, onOpenSample, onChanged, class: className = "" }: Props = $props();
 
   let checks = $derived($examChecksState && $examChecksState.examId === examId ? $examChecksState.checks : null);
   let mode = $derived<McSureMode>(checks?.mc?.mode ?? "all");
@@ -75,14 +73,6 @@
 </script>
 
 <Card class={className} title={$t("scanning.verify.check.title")}>
-  <dl class="m-0 mb-4 grid grid-cols-3 gap-2 text-center">
-    {#each [{ label: $t("scanning.verify.check.failed"), value: String(failedOpen), warn: failedOpen > 0 }, { label: $t("scanning.verify.check.unsure"), value: String(unsureOpen), warn: unsureOpen > 0 }, { label: $t("scanning.verify.check.sure"), value: `${summary.sureReviewed}/${target}`, warn: !sureDone }] as tile (tile.label)}
-      <div class="rounded-md border border-line bg-surface-sunken px-2 py-2">
-        <dt class="text-xs text-muted">{tile.label}</dt>
-        <dd class="m-0 text-lg font-semibold tabular-nums {tile.warn ? 'text-warning-fg' : 'text-success-fg'}">{tile.value}</dd>
-      </div>
-    {/each}
-  </dl>
 
   {#if summary.sureTotal > 0}
     <fieldset class="m-0 flex flex-col gap-2 border-0 p-0" disabled={busy || !checks}>

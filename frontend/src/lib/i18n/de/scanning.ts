@@ -85,9 +85,6 @@ export const scanning = {
     verify: {
         check: {
             title: 'Stand der MC-Prüfung',
-            failed: 'Nicht erkannt, offen',
-            unsure: 'Unsicher, offen',
-            sure: 'Sichere angesehen',
             modeLegend: 'Wie prüfen Sie die sicheren Erkennungen?',
             modeAll: 'Alle einzeln ansehen ({total})',
             modeSample: 'Stichproben',
@@ -157,6 +154,7 @@ export const scanning = {
             legacyRow: '{items} Frage(n) · Einstellungen nicht erfasst · {reviewed} geprüft',
             editSettings: 'Einstellungen ändern',
             showAll: 'Alle Einstellungen anzeigen',
+            showLess: 'Nur geänderte Einstellungen anzeigen',
             comparisonHeading: 'Verfahren im Vergleich an {boxes} geprüften Kästchen:',
             comparisonRow: 'v{algorithm}: {percent} richtig ({correct}/{boxes}), {unsure} unsicher',
             comparisonHint: 'Fett = aktuell eingestelltes Verfahren. Umschalten unter Einstellungen → MC-Erkennung.',

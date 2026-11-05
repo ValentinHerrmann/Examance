@@ -87,9 +87,6 @@ export const scanning: Translations['scanning'] = {
     verify: {
         check: {
             title: 'MC check progress',
-            failed: 'Not read, open',
-            unsure: 'Unsure, open',
-            sure: 'Sure looked at',
             modeLegend: 'How do you check the sure detections?',
             modeAll: 'Look at every one ({total})',
             modeSample: 'Spot checks',
@@ -159,6 +156,7 @@ export const scanning: Translations['scanning'] = {
             legacyRow: '{items} question(s) · settings not recorded · {reviewed} verified',
             editSettings: 'Change settings',
             showAll: 'Show all settings',
+            showLess: 'Show changed settings only',
             comparisonHeading: 'Methods compared on {boxes} verified boxes:',
             comparisonRow: 'v{algorithm}: {percent} correct ({correct}/{boxes}), {unsure} unsure',
             comparisonHint: 'Bold = currently selected method. Switch under Settings → MC detection.',

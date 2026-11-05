@@ -46,6 +46,7 @@
   import { scoreRepository } from "#lib/repositories/scoreRepository";
   import { examMcState } from "#lib/stores/shell";
   import McSureCheck from "#lib/components/verify/McSureCheck.svelte";
+  import McReviewProgress from "#lib/components/verify/McReviewProgress.svelte";
 
   let examId = $derived(page.params.id || "");
   // Set = one item (M5, formerly `/verify-item`); the stats below serve both views.
@@ -487,14 +488,14 @@
           {/snippet}
         </EmptyState>
       {:else}
+        <McReviewProgress class="mb-6" {stats} />
+
         <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)]">
           <div class="flex min-w-0 flex-col gap-4 xl:order-2">
             {#if summary}
               <McSureCheck
                 {examId}
                 {summary}
-                failedOpen={failedItems.filter((i) => !i.isReviewed).length}
-                unsureOpen={unsureItems.filter((i) => !i.isReviewed).length}
                 sureOpen={otherItems.filter((i) => !i.isReviewed)}
                 onOpenSample={openRandomConfidentItem}
                 onChanged={refresh}

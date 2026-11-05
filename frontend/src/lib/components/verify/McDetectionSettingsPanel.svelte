@@ -64,9 +64,10 @@
     {/if}
 
     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-      {#if latestParams && !showAll}
-        <Button variant="text" size="sm" onClick={() => (showAll = true)}>
-          {$t("scanning.verify.settingsPanel.showAll")}
+      {#if latestParams}
+        <!-- A toggle: what can be expanded can be collapsed again. -->
+        <Button variant="text" size="sm" aria-expanded={showAll} onClick={() => (showAll = !showAll)}>
+          {showAll ? $t("scanning.verify.settingsPanel.showLess") : $t("scanning.verify.settingsPanel.showAll")}
         </Button>
       {/if}
       <Button variant="text" size="sm" icon={actionIcons.edit} href="/settings#omr">{$t("scanning.verify.settingsPanel.editSettings")}</Button>
