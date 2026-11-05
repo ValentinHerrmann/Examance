@@ -10,7 +10,7 @@ Each exam has a **Results & Export** step (the last one in the sidebar) with thr
 
 ## Grading key {#grading-key}
 
-The grading key decides which percentage earns which grade (1 to 6). You edit it on **Results & Export → Statistics**, above the distribution; changes show in the charts immediately and are stored with **Save**. Choose a preset or set your own thresholds:
+The grading key decides which percentage earns which grade (1 to 6). You edit it on **Results & Export → Statistics**, above the distribution; changes show in the charts immediately and are stored with **Save**, which appears once you change something. Choose a preset or set your own thresholds:
 
 | Preset | Grade 4 from |
 |---|---|

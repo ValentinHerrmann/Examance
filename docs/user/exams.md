@@ -14,6 +14,12 @@ An exam is a selection of exercises from your library plus header data, a gradin
 
 **Subject**, **class**, **exam type**, **date** and **number** appear on the cover sheet. They are exam content and are therefore always printed in German, whatever language the interface is in.
 
+The **title** is made from these details (for example "Kurzarbeit 1 · Informatik 10a · 05.11.2026") and follows them while you edit. It is shown in Examance only, not printed. Click the pen next to it to set your own title: it is then marked **custom title** and no longer changes with the details; ↺ makes it generated again.
+
+The **printed class** (`\Klasse` on the cover sheet) is made from grade and class (10 and a give "10a") and shows as a small chip at the end of the **Class** field. Click it to print something else instead, for example "Q11 Inf"; it is then marked as your own entry, and ↺ goes back to grade and class.
+
+**Save** and **Discard changes** appear only once you have changed something.
+
 The optional **topic** (for example "Recursion") organises your exams in the overview, where you can filter and search by it. It is never printed. The overview can also be sorted by date, title, grade or subject.
 
 To change the header data later, edit them directly in the **Details** card on the **Overview** and choose **Save** (**Discard changes** goes back; leaving the page with unsaved changes asks first). The card holds only the exam's details: title, test type, grade/class, date, duration, number, subject, teacher, topic and the retention date. Layout settings are on the [Layout tab](#layout), the grading key under [Results](./results#grading-key).

@@ -10,7 +10,7 @@ Jede Prüfung hat einen Schritt **Ergebnisse & Export** (der letzte in der Seite
 
 ## Notenschlüssel {#grading-key}
 
-Der Notenschlüssel legt fest, welcher Prozentwert welche Note (1 bis 6) ergibt. Sie bearbeiten ihn unter **Ergebnisse & Export → Statistik**, über der Verteilung; Änderungen zeigen sich sofort in den Diagrammen und werden mit **Speichern** gesichert. Wählen Sie eine Voreinstellung oder legen Sie eigene Grenzen fest:
+Der Notenschlüssel legt fest, welcher Prozentwert welche Note (1 bis 6) ergibt. Sie bearbeiten ihn unter **Ergebnisse & Export → Statistik**, über der Verteilung; Änderungen zeigen sich sofort in den Diagrammen und werden mit **Speichern** gesichert, das erscheint, sobald Sie etwas ändern. Wählen Sie eine Voreinstellung oder legen Sie eigene Grenzen fest:
 
 | Voreinstellung | Note 4 ab |
 |---|---|

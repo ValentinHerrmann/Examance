@@ -14,6 +14,12 @@ Eine Prüfung besteht aus einer Auswahl von Aufgaben aus Ihrer Bibliothek, Kopfd
 
 **Fach**, **Klasse**, **Testart**, **Datum** und **Nummer** erscheinen auf dem Deckblatt. Sie sind Prüfungsinhalt und werden deshalb immer auf Deutsch gedruckt, unabhängig von der Sprache der Oberfläche.
 
+Der **Titel** entsteht aus diesen Angaben (zum Beispiel „Kurzarbeit 1 · Informatik 10a · 05.11.2026“) und ändert sich beim Bearbeiten mit. Er ist nur in Examance zu sehen und wird nicht gedruckt. Mit dem Stift daneben setzen Sie einen eigenen Titel: Er ist dann als **eigener Titel** markiert und ändert sich nicht mehr mit den Angaben; ↺ lässt ihn wieder automatisch entstehen.
+
+Die **gedruckte Klasse** (`\Klasse` auf dem Deckblatt) entsteht aus Jahrgangsstufe und Klasse (10 und a ergeben „10a“) und steht als kleines Feld am Ende des Felds **Klasse**. Ein Klick darauf lässt Sie stattdessen etwas anderes drucken, zum Beispiel „Q11 Inf“; das ist dann als eigene Angabe markiert, und ↺ kehrt zu Jahrgangsstufe und Klasse zurück.
+
+**Speichern** und **Änderungen verwerfen** erscheinen erst, wenn Sie etwas geändert haben.
+
 Das optionale **Thema** (zum Beispiel „Rekursion“) ordnet Ihre Prüfungen in der Übersicht, wo Sie danach filtern und suchen können. Es wird nie gedruckt. Die Übersicht lässt sich außerdem nach Datum, Titel, Jahrgang oder Fach sortieren.
 
 Um die Kopfdaten später zu ändern, bearbeiten Sie sie direkt in der Karte **Angaben** der **Übersicht** und wählen **Speichern** (**Änderungen verwerfen** nimmt sie zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt). Die Karte enthält nur die Angaben der Prüfung: Titel, Testart, Jahrgang/Klasse, Datum, Dauer, Nummer, Fach, Lehrkraft, Thema und das Aufbewahrungsdatum. Layout-Einstellungen finden Sie auf dem [Reiter Layout](#layout), den Notenschlüssel unter [Ergebnisse](./results#grading-key).
