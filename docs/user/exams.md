@@ -26,7 +26,7 @@ To change the header data later, edit them directly in the **Details** card on t
 
 ## The exam's steps {#steps}
 
-Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand (hover it for what it counts): the number of exercises, students or scans, graded x/y, the printed **Print** jobs, open MC checks, shared results (in red, the number of result e-mails that did not arrive). The number before a step's name is only its place in the flow. On the exams list, every step of an exam is shown in its card and opens that step. At the top right of every step page, next to the exam name and the step title, a **Next: …** button leads to the following step; explanations sit behind the ⓘ icons.
+Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand (hover it for what it counts): the number of exercises, students or scans, graded x/y, the printed **Print** jobs, open MC checks, shared results (in red, the number of result e-mails that did not arrive). The number before a step's name is only its place in the flow. Steps 4A–6A (scans, MC check, digital grading) and B (paper grading) are alternatives: use B for a class graded on paper, without scans; you never need both. On the exams list, every step of an exam is shown in its card and opens that step. At the top right of every step page, next to the exam name and the step title, a **Next: …** button leads to the following step; explanations sit behind the ⓘ icons.
 
 | Step | What you do there |
 |---|---|
@@ -34,11 +34,11 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 | 1 **Exam** | Exercises, layout and preview, see [Assemble the exercises](#assemble) and [Layout options](#layout) |
 | 2 **Students** | The class list, see [Student data](./students#student-data) |
 | 3 **Print** | Create the PDFs and the QR codes, see [Print](#print) |
-| 4 **Scans** | Import the scanned sheets, see [Scanning and assignment](./scanning) |
-| 5 **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
-| 6 **Scan grading** | Correct the submissions, see [Grading](./grading) |
-| 7 **Paper grading** | Enter points for papers graded without scanning, see [Classes graded on paper](./grading#paper) |
-| 8 **Results & Export** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
+| 4A **Scans** | Import the scanned sheets, see [Scanning and assignment](./scanning) |
+| 5A **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
+| 6A **Digital grading** | Correct the scanned submissions, see [Grading](./grading) |
+| B **Paper grading** | Instead of 4A–6A: enter points for papers graded on paper, without scanning, see [Classes graded on paper](./grading#paper) |
+| 7 **Results & Export** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
 
 ## Overview {#overview}
 

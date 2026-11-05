@@ -26,7 +26,7 @@ Um die Kopfdaten später zu ändern, bearbeiten Sie sie direkt in der Karte **An
 
 ## Die Schritte einer Prüfung {#steps}
 
-Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten Schritten. Jeder Schritt trägt ein Abzeichen, das zeigt, wo Sie stehen: Zahl der Aufgaben, Schüler oder Scans, korrigiert x/y, offene MC-Prüfungen, geteilte Ergebnisse (rot: die Zahl der Ergebnis-E-Mails, die nicht angekommen sind). Oben rechts auf jeder Schrittseite, neben Prüfungsname und Schritttitel, führt eine Schaltfläche **Weiter: …** zum nächsten Schritt; Erklärungen liegen hinter den ⓘ-Symbolen.
+Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten Schritten. Jeder Schritt trägt ein Abzeichen, das zeigt, wo Sie stehen: Zahl der Aufgaben, Schüler oder Scans, korrigiert x/y, offene MC-Prüfungen, geteilte Ergebnisse (rot: die Zahl der Ergebnis-E-Mails, die nicht angekommen sind). Die Schritte 4A–6A (Scans, MC prüfen, digitale Korrektur) und B (Papierkorrektur) sind Alternativen: B nutzen Sie für eine auf Papier korrigierte Klasse ohne Scans; beides brauchen Sie nie. Oben rechts auf jeder Schrittseite, neben Prüfungsname und Schritttitel, führt eine Schaltfläche **Weiter: …** zum nächsten Schritt; Erklärungen liegen hinter den ⓘ-Symbolen.
 
 | Schritt | Was Sie dort tun |
 |---|---|
@@ -34,11 +34,11 @@ Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten 
 | 1 **Prüfung** | Aufgaben, Layout und Vorschau, siehe [Aufgaben zusammenstellen](#assemble) und [Layout-Optionen](#layout) |
 | 2 **Schüler** | Die Klassenliste, siehe [Schülerdaten](./students#student-data) |
 | 3 **Drucken** | PDFs und QR-Codes erstellen, siehe [Drucken](#print) |
-| 4 **Scans** | Die gescannten Bögen einlesen, siehe [Scannen und Zuordnen](./scanning) |
-| 5 **MC prüfen** | Multiple-Choice-Erkennungen prüfen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification) |
-| 6 **Scankorrektur** | Abgaben korrigieren, siehe [Korrigieren](./grading) |
-| 7 **Papierkorrektur** | Punkte für ohne Scan korrigierte Arbeiten eintragen, siehe [Auf Papier korrigierte Klassen](./grading#paper) |
-| 8 **Ergebnisse & Export** | Reiter **Statistik**, **An Schüler senden** und **Archivieren**, siehe [Ergebnisse und Auswertung](./results) |
+| 4A **Scans** | Die gescannten Bögen einlesen, siehe [Scannen und Zuordnen](./scanning) |
+| 5A **MC prüfen** | Multiple-Choice-Erkennungen prüfen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification) |
+| 6A **Digitale Korrektur** | Die gescannten Abgaben korrigieren, siehe [Korrigieren](./grading) |
+| B **Papierkorrektur** | Statt 4A–6A: Punkte für auf Papier korrigierte Arbeiten eintragen, ohne Scans, siehe [Auf Papier korrigierte Klassen](./grading#paper) |
+| 7 **Ergebnisse & Export** | Reiter **Statistik**, **An Schüler senden** und **Archivieren**, siehe [Ergebnisse und Auswertung](./results) |
 
 ## Übersicht {#overview}
 
