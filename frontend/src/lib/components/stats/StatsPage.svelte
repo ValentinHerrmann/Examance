@@ -1,9 +1,10 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { t, type TranslationKey } from '#lib/i18n';
   import { fmt } from '#lib/utils/format';
   import type { ExamRecord } from '#lib/db/schema';
   import type { ExamStats } from '#lib/analytics/stats';
-  import { Alert, PageShell, PageHeader, Button, Card, ConfirmDialog } from '#lib/components/ui';
+  import { Alert, PageShell, PageHeader, Button, Card, ConfirmDialog, actionIcons } from '#lib/components/ui';
   import StatsCards from './StatsCards.svelte';
   import BorderlineCases from './BorderlineCases.svelte';
   import ChartCard from './ChartCard.svelte';
@@ -23,6 +24,8 @@
     onOpenExport: () => void;
     onConfirmExport: () => void;
     onCancelExport: () => void;
+    /** The grading-key editor, shown under the heading (issue #212). */
+    gradingKeyPanel?: Snippet;
   }
 
   let {
@@ -35,7 +38,8 @@
     showConfirmModal,
     onOpenExport,
     onConfirmExport,
-    onCancelExport
+    onCancelExport,
+    gradingKeyPanel
   }: Props = $props();
 
   const PRESETS: Record<string, TranslationKey> = {
@@ -63,8 +67,18 @@
   let full = $derived(stats?.results.filter((r) => r.isComplete).length ?? 0);
 </script>
 
-<PageShell width="full">
-  <PageHeader title={$t('stats.page.title')} />
+<PageShell width="fluid">
+  <PageHeader title={$t('stats.page.title')} context={exam?.title || undefined}>
+    {#snippet actions()}
+      {#if !loadError}
+        <Button variant="outlined" severity="secondary" icon={actionIcons.download} onClick={onOpenExport}>{$t('stats.page.exportButton')}</Button>
+      {/if}
+    {/snippet}
+  </PageHeader>
+  <!-- From xl the grading key sits beside the charts, which then lay out in two columns (container queries on the main column). -->
+  <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">
+  {#if gradingKeyPanel}<div class="min-w-0 xl:order-2">{@render gradingKeyPanel()}</div>{/if}
+  <div class="@container min-w-0 xl:order-1">
 
   {#if submissionCount > 0}
     <div class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
@@ -139,13 +153,8 @@
     <Card class="text-sm text-muted">{$t('stats.page.emptyStats')}</Card>
   {/if}
 
-  {#if !loadError}
-    <div class="mt-6">
-      <Button variant="outlined" severity="secondary" onClick={onOpenExport}>
-        {$t('stats.page.exportButton')}
-      </Button>
-    </div>
-  {/if}
+  </div>
+  </div>
 </PageShell>
 
 <ConfirmDialog

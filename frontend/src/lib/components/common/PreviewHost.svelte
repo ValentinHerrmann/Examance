@@ -46,6 +46,7 @@
 
 {#snippet layoutReport()}
   <LayoutReportButton
+    compact
     {kind}
     title={$flow.title}
     compileError={$flow.error || null}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ExamRecord, SubmissionRecord } from "#lib/db/schema";
-  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { examCourse } from "#lib/utils/examLabel";
   import { t } from "#lib/i18n";
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button } from "#lib/components/ui";
@@ -61,7 +61,7 @@
     <div class="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
       <h1 class="m-0 min-w-0 overflow-hidden text-ellipsis text-base font-semibold text-content">{exam?.title || $t("grading.header.examFallback")}</h1>
       <span class="text-xs text-muted">
-        {exam?.testart || "Kurzarbeit"} • {$t("grading.header.classLabel")} {formatExamCourse(exam?.grade, exam?.klasse) || "-"} • {$t("grading.header.subjectLabel")} {exam?.fach || "-"}
+        {exam?.testart || "Kurzarbeit"} • {$t("grading.header.classLabel")} {(exam ? examCourse(exam) : "") || "-"} • {$t("grading.header.subjectLabel")} {exam?.fach || "-"}
       </span>
     </div>
   </div>

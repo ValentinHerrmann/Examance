@@ -9,7 +9,7 @@ import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRe
 import { resolveCompileLogo, type CompileLogo } from "#lib/latex/logo";
 import type { LatexResourceFile } from "#lib/latex/resources";
 import { effectiveLatexCompilation } from "#lib/stores/capabilities";
-import { formatExamCourse } from "#lib/utils/examLabel";
+import { examCourse } from "#lib/utils/examLabel";
 import { documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex/packages";
 import { getAccountPackages } from "#lib/latex/packageSettings";
 import { translate } from "#lib/i18n";
@@ -118,7 +118,7 @@ export function buildExamLatex(
 \\WarningsOff
 \\begin{document}
 \\Testart{${exam.testart || "Kurzarbeit"}}
-\\Klasse{${formatExamCourse(exam.grade, exam.klasse)}}
+\\Klasse{${examCourse(exam)}}
 \\Datum{${exam.datum || ""}}
 \\Nr{${exam.nr || "1"}}
 

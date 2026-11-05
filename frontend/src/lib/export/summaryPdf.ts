@@ -11,7 +11,7 @@ import type { ExamRecord } from '#lib/db/schema';
 import { t, translate } from '#lib/i18n';
 import type { TranslationKey } from '#lib/i18n/types';
 import { formatDateTime, formatNumber, formatPercent, fmt } from '#lib/utils/format';
-import { formatExamCourse } from '#lib/utils/examLabel';
+import { examCourse } from '#lib/utils/examLabel';
 
 export interface SummaryInput {
   exam: ExamRecord;
@@ -205,7 +205,7 @@ function drawMetadata(doc: SummaryDoc, { exam, totalMaxPoints }: SummaryInput) {
   doc.heading(translate('export.exam.summary.metadata'));
   doc.keyValues([
     [translate('export.exam.summary.testart'), exam.testart ?? ''],
-    [translate('export.exam.summary.course'), formatExamCourse(exam.grade, exam.klasse)],
+    [translate('export.exam.summary.course'), examCourse(exam)],
     [translate('export.exam.summary.subject'), exam.fach ?? ''],
     [translate('export.exam.summary.date'), exam.datum ?? ''],
     [translate('export.exam.summary.teacher'), exam.lehrernachname ?? ''],

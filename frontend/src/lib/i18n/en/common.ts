@@ -17,6 +17,8 @@ export const common: Translations['common'] = {
     previewCompile: 'Compile',
     previewMissingGraphic: 'Preview rendered, but a graphic could not be loaded: {name}',
     previewFailed: 'Preview failed: {message}',
+    pdfPreview: 'PDF preview',
+    pdfPage: 'Page of the PDF document',
     zoomControls: 'Zoom',
     zoomFitWidth: 'Fit to page width',
     zoomFitPage: 'Show whole page',

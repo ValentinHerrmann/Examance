@@ -57,7 +57,7 @@ Whatever you delete in the app (exams, exercises, files, logos, students, scans,
 
 *Belongs to your account.* A logo is printed at the top left of the first page of every exam. Under **Exam logo** you can upload your own (PNG, JPEG or PDF, at most 2 MB), choose **No logo**, or reset to the default logo. Without a logo the spot stays empty; the page layout and the position of the answer boxes do not change.
 
-A single exam can override the logo under **Edit Exam**, see [Logo and LaTeX packages](./exams#logo-packages).
+A single exam can override the logo on the exam's **Layout** tab, see [Logo and LaTeX packages](./exams#logo-packages).
 
 ## LaTeX packages {#packages}
 

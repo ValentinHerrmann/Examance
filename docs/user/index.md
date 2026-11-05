@@ -52,8 +52,8 @@ In the still empty exam overview, **Add example data** creates example exercises
 ## Finding your way {#navigation}
 
 - The **navigation bar** leads to the exams (dashboard), the exercise library, analytics, settings and the help panel. Language and colour scheme can be switched there too.
-- Each exam has its own steps: **Setup & Exercises**, **Scans**, **Check MC**, **Grading**, **Paper & Excel**, **Statistics**.
-- **Many names are clickable.** Exercises open straight in the editor everywhere (on the exam page, while grading, in analytics); exams in the library open as an overview with **Open in new tab**. Names marked with **↗**, such as students, open in a new tab, so unsaved work in the current tab stays where it is.
+- Each exam has its own numbered steps in a sidebar (on a phone: the menu), each with a status badge: **Exam**, **Students**, **Print**, **Scans**, **Check MC**, **Digital grading** or **Paper grading**, **Results & Export**; the **Overview** above them shows the exam's details. Every step has a **Next: …** button at the top right. See [The exam's steps](./exams#steps).
+- **Many names are clickable.** Exercises open straight in the editor everywhere (on the **Exam** step, while grading, in analytics); exams in the library open as an overview with **Open in new tab**. Names marked with **↗**, such as students, open in a new tab, so unsaved work in the current tab stays where it is.
 - The **workspace menu** holds import, backup and export of your whole workspace.
 
 ## Help and documentation {#help-and-docs}

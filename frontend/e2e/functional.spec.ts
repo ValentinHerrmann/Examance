@@ -6,6 +6,7 @@ import {
   createExercise,
   createExerciseInLibrary,
   currentExamId,
+  openTitleEditor,
   exerciseBody,
   exerciseGroupHeading,
   expandExerciseGroup,
@@ -293,6 +294,7 @@ test.describe('exam', () => {
     // The dashboard lists the new exam and opens it again.
     await gotoDashboard(page);
     await openExamFromDashboard(page, 'Exam with MC group');
+    await gotoExamTab(page, 'content');
     await expectLinked();
   });
 
@@ -305,20 +307,22 @@ test.describe('exam', () => {
     await createExam(page, { title: 'Original title', exercises: ['Linked first'] });
     const examId = currentExamId(page);
 
-    // --- metadata modal ---
-    await page.getByRole('button', { name: labelExact('exam.actionBar.edit') }).click();
-    const metadata = page.getByRole('dialog', { name: await t(page, 'exam.metadataEditor.heading') });
-    await expect(metadata).toBeVisible();
-    await metadata.getByLabel(await t(page, 'exam.metadataEditor.examTitle')).fill('Renamed title');
-    await metadata.getByRole('button', { name: labelExact('common.save') }).click();
-    await expect(metadata).toBeHidden();
+    // --- details, edited in place on the Overview ---
+    await gotoExamTab(page, 'overview');
+    const main = page.getByRole('main');
+    const titleInput = await openTitleEditor(page, main);
+    await titleInput.fill('Renamed title');
+    await titleInput.press('Enter');
+    await main.getByRole('button', { name: labelExact('common.save') }).click();
+    await expect(main.getByText(await t(page, 'exam.overview.saved'))).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole('heading', { name: literal('Renamed title') })).toBeVisible();
     await expect(page.getByRole('heading', { name: literal('Original title') })).toHaveCount(0);
 
-    // --- exam library modal ---
-    await page.getByRole('button', { name: await t(page, 'exam.actionBar.addExercises') }).click();
+    // --- exam library modal (Exam step) ---
+    await gotoExamTab(page, 'content');
+    await page.getByRole('button', { name: await t(page, 'exam.exerciseList.addExercises') }).click();
     const library = page.getByRole('dialog', { name: await t(page, 'exam.libraryModal.header') });
     await expect(library).toBeVisible();
     await library
@@ -332,7 +336,6 @@ test.describe('exam', () => {
     await library.getByRole('button', { name: await t(page, 'exam.libraryModal.applyButton') }).click();
     await expect(library).toBeHidden();
 
-    const main = page.getByRole('main');
     await expect(main.getByText('Linked first').first()).toBeVisible();
     await expect(main.getByText('Linked second').first()).toBeVisible();
 
@@ -361,10 +364,10 @@ test.describe('exam', () => {
     await gotoExamTab(page, 'manual');
     await expect(page.getByRole('heading', { name: await t(page, 'grading.manual.container.title') })).toBeVisible();
 
-    await gotoExamTab(page, 'stats');
+    await gotoExamTab(page, 'results');
     await expect(page.getByRole('heading', { name: await t(page, 'stats.page.title') })).toBeVisible();
 
-    await gotoExamTab(page, 'setup');
+    await gotoExamTab(page, 'overview');
     await expect(page.getByRole('heading', { name: literal('Tab exam') })).toBeVisible();
 
     await gotoExamTab(page, 'grade');
@@ -378,10 +381,14 @@ test.describe('exam', () => {
     await gotoDashboard(page);
     await createExam(page, { title: 'Grid exam', exercises: ['Grid exercise'] });
 
+    // Students come from the Students page (the Paper & Excel roster is hidden, issue #212).
+    await gotoExamTab(page, 'students');
+    await page.getByRole('button', { name: await t(page, 'lms.students.add.action') }).click();
+    const add = page.getByRole('dialog', { name: await t(page, 'lms.students.add.title') });
+    await add.getByRole('textbox', { name: await t(page, 'lms.students.colName') }).fill('Sample, Karin');
+    await add.getByRole('button', { name: await t(page, 'lms.students.add.save') }).click();
+    await expect(add).toBeHidden();
     await gotoExamTab(page, 'manual');
-    await page.getByRole('tab', { name: stem('grading.manual.container.tabRoster') }).click();
-    await page.getByLabel(await t(page, 'grading.manual.roster.nameLabel')).fill('Sample, Karin');
-    await page.getByRole('button', { name: await t(page, 'grading.manual.roster.addButton') }).click();
 
     // The rows render before the async submission map: binding them used to throw props_invalid_value.
     await page.getByRole('tab', { name: await t(page, 'grading.manual.container.tabStudentFirst') }).click();
@@ -488,7 +495,7 @@ test.describe('help', () => {
 
     // "?" and F1 must not steal keystrokes from a text field (a LaTeX body can contain "?").
     await page.goto('/exam/new');
-    const title = page.getByLabel(await t(page, 'exam.metadataEditor.examTitle'));
+    const title = await openTitleEditor(page);
     await title.focus();
     await page.keyboard.press('F1');
     await expect(await helpDialog(page)).toBeHidden();

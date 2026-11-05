@@ -4,9 +4,22 @@ editLink: false
 
 # Ergebnisse und Auswertung
 
-Jede Prüfung hat einen Schritt **Auswertung** mit der Notenverteilung, Kennzahlen und Grenzfällen. Die **Auswertung** in der Navigationsleiste fasst mehrere Prüfungen zusammen. Beide lesen dieselben verschlüsselten Ergebnisse; auf dem Server wird nichts berechnet.
+Jede Prüfung hat einen Schritt **Ergebnisse & Export** (der letzte in der Seitenleiste) mit drei Reitern: **Statistik** zeigt die Notenverteilung, Kennzahlen und Grenzfälle, **An Schüler senden** gibt die korrigierten Prüfungen an die Schüler weiter, siehe [Ergebnisse teilen](#share), und **Archivieren** exportiert Übersichtsblatt, korrigierte Prüfungen und mehr für Ihre Unterlagen, siehe [Prüfung archivieren](#archive). Die **Auswertung** in der Navigationsleiste fasst mehrere Prüfungen zusammen. Beide lesen dieselben verschlüsselten Ergebnisse; auf dem Server wird nichts berechnet.
 
 ![Prüfungsergebnisse](../../screenshots/pitch/08-results.jpg)
+
+## Notenschlüssel {#grading-key}
+
+Der Notenschlüssel legt fest, welcher Prozentwert welche Note (1 bis 6) ergibt. Sie bearbeiten ihn unter **Ergebnisse & Export → Statistik**, über der Verteilung; Änderungen zeigen sich sofort in den Diagrammen und werden mit **Speichern** gesichert, das erscheint, sobald Sie etwas ändern. Wählen Sie eine Voreinstellung oder legen Sie eigene Grenzen fest:
+
+| Voreinstellung | Note 4 ab |
+|---|---|
+| **Klassisch** | 50 % |
+| **Oberstufe** | 40 % |
+| **Gleichmäßig** | gleichmäßig verteilte Grenzen |
+| **Individuell** | Ihr eigener Mindestprozentwert je Note |
+
+Beim Korrigieren werden die aktuelle Note und die Punkte bis zur nächsten Note laufend angezeigt. Die Statistik verwendet denselben Schlüssel.
 
 ## Prüfungsstatistik {#distribution}
 
@@ -45,12 +58,11 @@ Die Schaltflächen **SVG**, **PDF** und **PNG** laden jedes Diagramm mit transpa
 
 Der **CSV-Export** der Noten, zum Beispiel für die Notenverwaltung der Schule, enthält Pseudonym, Ersatzcode, Name, Punkte, Maximalpunktzahl, Prozentwert und Note.
 
-**Exportieren** an einer Prüfung (Startseite oder Prüfungsseite) mit dem Format **Lesbares ZIP** bündelt eine Prüfung in einer einzigen ZIP. Wählen Sie die Teile, die Sie brauchen:
+**Sichern / Weitergeben** an einer Prüfung (im Menü ihrer Karte auf der Startseite oder in der **Übersicht** der Prüfung) mit dem Format **Lesbares ZIP** bündelt eine Prüfung in einer einzigen ZIP. Wählen Sie die Teile, die Sie brauchen:
 
 | Teil | Enthält |
 |---|---|
 | **Korrigierte Scans (PDF)** | jede Abgabe mit eingezeichneten Korrekturen und [ausgefüllten Punktekästchen](./grading#score-boxes); auch teilweise korrigierte (Dateiname mit `_partial`, unkorrigierte mit `_ungraded`); der Name steht in Rot oben auf jeder Seite |
-| **Mebis-Rückmeldedateien (ZIP)** | die korrigierten Scans als eigene ZIP im Rückmelde-Format von Mebis, zum Hochladen in der Mebis-Aufgabe, siehe [Mebis und Artemis](./students#lms); standardmäßig nicht angekreuzt |
 | **LaTeX-Quelltext** | eine eigene ZIP mit Prüfung und Lösung, ihren Dateien und dem Logo, bereit für Overleaf (Compiler XeLaTeX); nur mit diesem Teil lässt sich die ZIP später (ohne Ergebnisse) wieder importieren |
 | **Kompilierte Angabe und Lösung (PDF)** | die Blätter mit Angabe und Lösung (das Kompilieren kann etwas dauern) |
 | **Zusammenfassung (PDF)** | Metadaten, Notenschlüssel in Punkten und Prozent, Durchschnitt, das kombinierte Diagramm und die Schülerliste mit Punkten und Noten, teilweise korrigierte hervorgehoben |
@@ -60,7 +72,17 @@ Der **CSV-Export** der Noten, zum Beispiel für die Notenverwaltung der Schule, 
 CSV und ZIP enthalten **Klarnamen** und sind **nicht verschlüsselt**. Bewahren Sie sie nur an sicheren Orten auf und löschen Sie sie nach der Verwendung. Jeder ZIP-Export wird protokolliert.
 :::
 
+Die ZIP enthält keine Mebis-Option: Rückmeldedateien für Mebis gibt es nur unter [Ergebnisse teilen](#share).
+
 Für eine verschlüsselte Kopie, die sich wieder importieren lässt, wählen Sie stattdessen **Wieder importierbare, passwortgeschützte Sicherung**, siehe [Sicherung und Übertragung](./backup#exam-backup).
+
+## Ergebnisse teilen {#share}
+
+Der Reiter **An Schüler senden** unter **Ergebnisse & Export** gibt jeder Schülerin und jedem Schüler die korrigierte Prüfung. Er ist eine Seite mit vier nummerierten Schritten: 1 die Schüler, 2 der Weg (Zettel zum Austeilen, E-Mail, Artemis oder Mebis-Dateien) mit seiner Einrichtung und der Sprache der Nachricht, 3 Schutz und Optionen (Linkschutz, Schlüssel bzw. Code in der Nachricht, Musterlösung, Gültigkeit), 4 Vorschau und Versand; die Schaltfläche zum Senden bleibt unten sichtbar. Darunter stehen die aktiven Links, die sich widerrufen lassen, alle auf einmal mit **Alle Links widerrufen**. Einzelheiten: [Korrigierte Prüfungen mit Schülern teilen](./students#share-results).
+
+## Prüfung archivieren {#archive}
+
+Der Reiter **Archivieren** unter **Ergebnisse & Export** sammelt, was Sie für Ihre Unterlagen aufbewahren möchten. Das **Übersichtsblatt der Ergebnisse** (Prüfungsdaten, Notenschlüssel, Statistik und das Ergebnis jeder Schülerin und jedes Schülers) sehen Sie als Vorschau und laden es einzeln als PDF herunter. Jede Karte hat dieselben Symbole im Kopf (der Name erscheint beim Darüberfahren): den Download-Pfeil, ausgegraut, solange es die Datei noch nicht gibt, und die Kreispfeile zum Erstellen bzw. Aktualisieren. Daneben fasst **Alle korrigierten Arbeiten (Druck-PDF)** alle korrigierten Scans mit eingebrannten Anmerkungen in einer nach Namen sortierten Datei zusammen, fertig zum Ausdrucken für die Ablage; mit **Jede Arbeit auf einem neuen Blatt beginnen** fängt beim beidseitigen Druck jede Arbeit auf einer Vorderseite an. Sie entsteht erst mit **PDF erstellen**, weil dafür jeder Scan gelesen wird. Zuletzt wählen Sie per Häkchen, was in ein ZIP kommt: korrigierte Prüfungen (einzeln und/oder alle in einer Druck-PDF), LaTeX-Code, erstellte PDFs, das Übersichtsblatt und die Noten als CSV. Der letzte Eintrag, **Wieder importierbare Sicherung (passwortgeschützt, eigene Datei)**, lädt zusätzlich eine `.examance-exam`-Datei herunter, die Examance wieder importieren kann (siehe [Sicherung und Übertragung](./backup#exam-backup)); dafür vergeben Sie ein Passwort. Das ZIP enthält personenbezogene Daten Ihrer Schüler; bewahren Sie es so sorgfältig auf wie die Prüfung selbst.
 
 ## Auswertung über mehrere Prüfungen {#analytics}
 

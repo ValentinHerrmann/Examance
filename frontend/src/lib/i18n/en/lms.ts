@@ -2,13 +2,14 @@ import type { Translations } from '../types';
 
 export const lms: Translations['lms'] = {
     students: {
-        title: 'Students: {exam}',
         intro: "Keep this exam's students here: names, Mebis or Artemis ID and e-mail address. QR stickers, printed copies and sharing results use this list. Scanned exams are matched to the students by their QR code.",
-        open: 'Students',
         loadFailed: 'The students could not be loaded.',
         manage: 'Manage students',
         noneYet: 'This exam has no students yet. Add them on the Students page (Mebis list, Artemis course or a pasted list).',
         import: {
+            sourceFile: 'File',
+            sourcePaste: 'Paste',
+            sourceArtemis: 'Artemis course',
             title: 'Use a class list',
             intro: 'A Mebis grading worksheet or participant list, a pasted list, or an Artemis course. Existing students are recognised by their ID, otherwise by name.',
             preview: 'From {source}:',
@@ -39,6 +40,12 @@ export const lms: Translations['lms'] = {
             duplicateHint: 'This student is listed twice. Do you want to merge the two entries instead?',
             understood: 'I understand that the scan and grading will be deleted.',
             confirmScanned: 'Delete with scan and grading',
+        },
+        add: {
+            action: 'Add student',
+            title: 'Add student',
+            duplicateName: '{name}: a student with this name is already on the list.',
+            save: 'Add',
         },
         edit: {
             action: 'Edit',
@@ -112,6 +119,7 @@ export const lms: Translations['lms'] = {
         empty: 'No students found in the list.',
     },
     artemis: {
+        importDisabled: 'The Artemis connection is not enabled by the admin.',
         fromCourse: 'Load from an Artemis course',
         host: 'Artemis address',
         courseId: 'Course ID',

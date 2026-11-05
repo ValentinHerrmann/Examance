@@ -43,6 +43,7 @@ describe('examRepository mapping & saving', () => {
       testart: 'Schulaufgabe',
       grade: '10',
       klasse: 'a',
+      course: 'Q10 Mathe',
       datum: '14.08.2026',
       nr: '1',
       fach: 'Mathematik',
@@ -55,6 +56,7 @@ describe('examRepository mapping & saving', () => {
     expect(record.id).toBe('ex-123');
     expect(record.grade).toBe('10');
     expect(record.klasse).toBe('a');
+    expect(record.course).toBe('Q10 Mathe');
     expect(record.infoText).toBe('Calculator allowed');
     expect(record.gradingKey).toEqual({ preset: 'linear_40', cutoffs: [] });
   });
@@ -82,6 +84,7 @@ describe('examRepository mapping & saving', () => {
     expect(payload.id).toBe('ex-123');
     expect(payload.grade).toBe('10');
     expect(payload.klasse).toBe('a');
+    expect(payload.course).toBe('');
     expect(payload.info_text).toBe('Calculator allowed');
     expect(payload.grading_key).toEqual({ preset: 'linear_40', cutoffs: [] });
   });

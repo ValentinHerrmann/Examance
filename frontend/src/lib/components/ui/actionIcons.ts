@@ -1,0 +1,36 @@
+import {
+    faArrowRight,
+    faArrowUpRightFromSquare,
+    faCopy,
+    faDownload,
+    faEllipsisVertical,
+    faFileZipper,
+    faPaperPlane,
+    faPen,
+    faPlus,
+    faPrint,
+    faQrcode,
+    faRotate,
+    faShareFromSquare,
+    faTrash,
+    faXmark,
+} from '@fortawesome/free-solid-svg-icons';
+
+/** One icon per button verb, so the same action looks the same everywhere (issue #212). `remove` takes a thing out of a list; `delete` destroys it. */
+export const actionIcons = {
+    edit: faPen,
+    delete: faTrash,
+    remove: faXmark,
+    export: faFileZipper,
+    duplicate: faCopy,
+    add: faPlus,
+    externalLink: faArrowUpRightFromSquare,
+    download: faDownload,
+    print: faPrint,
+    qr: faQrcode,
+    send: faPaperPlane,
+    share: faShareFromSquare,
+    more: faEllipsisVertical,
+    next: faArrowRight,
+    compile: faRotate,
+} as const;

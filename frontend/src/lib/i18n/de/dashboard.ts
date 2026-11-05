@@ -55,7 +55,9 @@ export const dashboard = {
         noExercises: 'Keine Aufgaben zugeordnet.',
         loadingExercises: 'Aufgaben werden geladen…',
         untitledExercise: 'Unbenannte Aufgabe',
-        duplicateHint: 'Kopie mit denselben Aufgaben und Einstellungen anlegen, ohne Schüler und Ergebnisse',
+        progress: 'Fortschritt',
+        openStep: 'Öffnen: {step}',
+        duplicating: 'Wird dupliziert …',
     },
     retentionModal: {
         title: 'DSGVO-Aufbewahrungswarnung (Art. 5)',

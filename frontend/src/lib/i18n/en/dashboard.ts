@@ -57,7 +57,9 @@ export const dashboard: Translations['dashboard'] = {
         noExercises: 'No exercises assigned.',
         loadingExercises: 'Loading exercises…',
         untitledExercise: 'Untitled exercise',
-        duplicateHint: 'Create a copy with the same exercises and settings, without students or results',
+        progress: 'Progress',
+        openStep: 'Open: {step}',
+        duplicating: 'Duplicating …',
     },
     retentionModal: {
         title: 'GDPR Retention Warning (Art. 5)',

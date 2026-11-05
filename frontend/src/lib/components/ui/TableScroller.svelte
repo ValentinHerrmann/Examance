@@ -18,9 +18,10 @@
   }: Props = $props();
 </script>
 
+<!-- `relative` so absolutely positioned content (sr-only header labels) is clipped here, not by `.app-main`, where it widened the page on phones. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-  class="scroll-pane w-full min-w-0 {maxHeight ? `overflow-auto ${maxHeight}` : "overflow-x-auto overflow-y-hidden overscroll-x-contain"} {className}"
+  class="scroll-pane relative w-full min-w-0 {maxHeight ? `overflow-auto ${maxHeight}` : "overflow-x-auto overflow-y-hidden overscroll-x-contain"} {className}"
   role="region"
   aria-label={label}
   tabindex="0"

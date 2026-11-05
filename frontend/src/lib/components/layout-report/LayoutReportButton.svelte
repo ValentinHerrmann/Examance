@@ -17,9 +17,11 @@
     collectFiles: () => Promise<LayoutReportFileData[]>;
     compileError?: string | null;
     disabled?: boolean;
+    /** Short label for the PDF pane headers ("LaTeX-Fehler"); the full label is the tooltip and accessible name. */
+    compact?: boolean;
   }
 
-  let { kind, title, collectFiles, compileError = null, disabled = false }: Props = $props();
+  let { kind, title, collectFiles, compileError = null, disabled = false, compact = false }: Props = $props();
 
   let open = $state(false);
   let problem = $state("");
@@ -101,9 +103,15 @@
   }
 </script>
 
-<Button size="sm" variant="text" severity="secondary" icon={faBug} {disabled} onClick={openDialog}>
-  {$t("layoutReport.button")}
-</Button>
+{#if compact}
+  <Button size="sm" variant="text" severity="secondary" icon={faBug} {disabled} ariaLabel={$t("layoutReport.button")} title={$t("layoutReport.button")} onClick={openDialog}>
+    <span class="whitespace-nowrap text-xs">{$t("layoutReport.short")}</span>
+  </Button>
+{:else}
+  <Button size="sm" variant="text" severity="secondary" icon={faBug} {disabled} onClick={openDialog}>
+    {$t("layoutReport.button")}
+  </Button>
+{/if}
 
 <Modal {open} size="medium" title={$t("layoutReport.dialog.title")} onClose={close} {error}>
   {#if sent}

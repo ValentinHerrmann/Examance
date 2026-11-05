@@ -4,7 +4,11 @@ const q = encodeURIComponent;
 
 export const examHref = (examId: string) => `/exam/${q(examId)}`;
 export const scanHref = (examId: string) => `/exam/${q(examId)}/scan`;
-export const statsHref = (examId: string) => `/exam/${q(examId)}/stats`;
+export const contentHref = (examId: string) => `/exam/${q(examId)}/content`;
+export const printHref = (examId: string) => `/exam/${q(examId)}/print`;
+export const resultsHref = (examId: string) => `/exam/${q(examId)}/results`;
+export const archiveHref = (examId: string) => `/exam/${q(examId)}/results/archive`;
+export const shareHref = (examId: string) => `/exam/${q(examId)}/results/share`;
 export const studentsHref = (examId: string) => `/exam/${q(examId)}/students`;
 
 /** Parameters are read by `routes/exam/[id]/grade/+page.svelte`. */

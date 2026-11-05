@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
-  import { Alert, Button, Modal } from "#lib/components/ui";
+  import { Alert, Button, Modal, actionIcons } from "#lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
   import {
     diffOmrParams,
@@ -69,8 +69,8 @@
 
   {#snippet footer()}
 
-      <Button variant="outlined" severity="secondary" onClick={onCancel}>{$t("scanning.verify.rerunDialog.cancel")}</Button>
-      <Button onClick={onConfirm}>{$t("scanning.verify.rerunDialog.confirm")}</Button>
+      <Button variant="outlined" severity="secondary" icon={actionIcons.remove} onClick={onCancel}>{$t("scanning.verify.rerunDialog.cancel")}</Button>
+      <Button icon={actionIcons.compile} onClick={onConfirm}>{$t("scanning.verify.rerunDialog.confirm")}</Button>
 
   {/snippet}
 </Modal>

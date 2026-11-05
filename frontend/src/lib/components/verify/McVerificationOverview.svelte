@@ -15,76 +15,9 @@
     return a.exerciseLabel.localeCompare(b.exerciseLabel);
   }));
 
-  interface ProgressRow {
-    label: string;
-    reviewed: number;
-    total: number;
-    barColor: string;
-    textColor: string;
-  }
-
-  let progressRows = $derived([
-    {
-      label: $t("scanning.overview.progressFailedLabel"),
-      reviewed: stats.qualityStats.failedConfidence.reviewed,
-      total: stats.qualityStats.failedConfidence.total,
-      barColor: "bg-danger",
-      textColor: "text-danger-fg",
-    },
-    {
-      label: $t("scanning.overview.progressUnsureLabel"),
-      reviewed: stats.qualityStats.ambiguousConfidence.reviewed,
-      total: stats.qualityStats.ambiguousConfidence.total,
-      barColor: "bg-warning",
-      textColor: "text-warning-fg",
-    },
-    {
-      label: $t("scanning.overview.progressHighLabel"),
-      reviewed: stats.qualityStats.highConfidence.reviewed,
-      total: stats.qualityStats.highConfidence.total,
-      barColor: "bg-success",
-      textColor: "text-success-fg",
-    },
-  ] satisfies ProgressRow[]);
 </script>
 
 <div class="space-y-6 mb-8">
-  <!-- Verification Progress -->
-  <div class="rounded-md border border-line bg-surface-raised p-5 space-y-4">
-    <h2 class="text-sm font-semibold text-content">{$t("scanning.overview.progressHeading")}</h2>
-
-    <div class="space-y-3">
-      {#each progressRows as row}
-        {@const pct = row.total > 0 ? Math.round((row.reviewed / row.total) * 100) : 100}
-        {@const remaining = row.total - row.reviewed}
-        <div>
-          <div class="flex items-center justify-between gap-2 mb-1">
-            <span class="text-xs font-medium {row.textColor}">{row.label}</span>
-            <span class="text-xs font-mono text-muted">
-              {$t("scanning.overview.progressReviewedOf", { reviewed: row.reviewed, total: row.total })}
-              {#if remaining > 0}
-                <span class="ml-1.5 px-1.5 py-0.5 rounded-md bg-surface-inset/80 text-content font-semibold">
-                  {$t("scanning.overview.progressRemaining", { count: remaining })}
-                </span>
-              {:else if row.total > 0}
-                <span class="ml-1.5 px-1.5 py-0.5 rounded-md bg-success/20 text-success-fg font-semibold">
-                  {$t("scanning.overview.progressDone")}
-                </span>
-              {/if}
-            </span>
-          </div>
-          <div class="h-1.5 w-full rounded-full bg-surface-inset overflow-hidden">
-            <div class="h-full rounded-full {row.barColor} transition-all" style="width: {pct}%"></div>
-          </div>
-        </div>
-      {/each}
-    </div>
-
-    <p class="text-xs text-muted pt-1 border-t border-line">
-      {$t("scanning.overview.progressOverall", { reviewed: stats.qualityStats.totalReviewed, total: stats.totalQuestions })}
-    </p>
-  </div>
-
   <p class="text-xs text-muted">
     {$t("scanning.overview.markedBoxesSummary", { markedBoxes: stats.totalMarkedBoxes, totalQuestions: stats.totalQuestions })}
   </p>

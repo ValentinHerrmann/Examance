@@ -8,9 +8,10 @@ Two things belong together here: **QR codes**, as stickers that students put on 
 
 ## Student data {#student-data}
 
-**Students** (in the exam's sidebar, or the button on the exam page) holds the exam's class list: names, the Mebis or Artemis ID and the e-mail address. Everything else only reads it: the QR stickers, the printed exam copies, and sharing results by e-mail, Artemis or Mebis.
+**Students** (step 2 in the exam's sidebar) holds the exam's class list: names, the Mebis or Artemis ID and the e-mail address. Everything else only reads it: the QR stickers, the printed exam copies, and sharing results by e-mail, Artemis or Mebis.
 
-- **Use a class list**: **Choose file** reads a Mebis grading worksheet or participant list (CSV) or a plain list; **Or paste a list** takes typed or pasted lines (`Lastname, Firstname; ID; address`, one per student); **Load from an Artemis course** fetches the course members. Examance shows what would change (new, updated, unchanged) and saves only after **Apply**. Students already in the list are recognised by their ID, otherwise by name, so importing the same list again only adds addresses.
+- **Add student** adds a single student by hand; like imported ones, the student gets a QR code and a personal key.
+- **Use a class list**: pick one of three ways at the top of the box. **File** reads a Mebis grading worksheet or participant list (CSV) or a plain list; **Paste** takes typed or pasted lines (`Lastname, Firstname; ID; address`, one per student); **Artemis course** fetches the course members. Examance shows what would change (new, updated, unchanged) and saves only after **Apply**. Students already in the list are recognised by their ID, otherwise by name, so importing the same list again only adds addresses. In the list, the pencil and bin icons edit or delete a single student; for several at once, tick them and use the buttons above the list.
 - **Edit** a row to correct a name or an e-mail address. The same dialog edits several at once: tick their rows and choose **Edit** in the toolbar above the table (its buttons are greyed out until the selection fits, with the reason below); you edit name, student number, Mebis ID, Artemis ID and e-mail in one table. Examance lists possible side effects first (for example a renamed student whose exam is already scanned, a changed ID, a removed address, an ID used twice); you can still save with **Save anyway**.
 - **Possible duplicates.** If a student is listed twice (for example stickers printed without an ID, the Mebis or Artemis list imported later, then scanned; or one entry from Mebis and one from Artemis), the page suggests the pairs. **Merge** keeps the entry with the scanned exam, so its QR code and key stay valid, and takes over the other entry's IDs and address. Wherever both entries have a value, you choose which one to keep. Before merging, Examance shows the resulting entry and whether the student is then reachable through Mebis, Artemis and e-mail; you merge only after ticking **I checked the result**. You can also tick exactly two rows and choose **Merge**. The merged-in entry goes to the trash.
 - **Delete** says what goes with a student: if their exam is scanned, the scan and all grading are deleted too, and shared links stop working. You have to confirm this explicitly; everything goes to the trash and can be restored there.
@@ -22,7 +23,7 @@ The list is stored **encrypted** with the exam, like the results (in hybrid mode
 
 The printed exam has an empty box labelled **QR Code** on its cover page. Each student sticks a QR name sticker into it. When you scan, Examance reads the sticker and assigns the pages to that student automatically, see [Scanning and assignment](./scanning#import).
 
-**Print QR codes** on the exam page opens a dialog. With **Sticker sheet** it prints an A4 sheet of **5 × 7 labels**:
+The card **QR codes for students** on the exam's **Print** step prepares the stickers. With **Sticker sheet** it prints an A4 sheet of **5 × 7 labels**:
 
 1. The stickers are made for the students on the [Students page](#student-data); add them there first. Printing again gives the same stickers.
 2. Set the **number of stickers per student** and how many labels of the first sheet are **already used**, so a partly used sheet is not wasted.
@@ -34,12 +35,14 @@ Everything is computed in your browser; no external service draws the codes.
 
 ## QR codes printed on the exam copies {#printed-copies}
 
-Instead of stickers, Examance can print each student's QR code **directly onto their own copy** of the exam. With **Print directly onto the exam copies** in the same dialog you get one PDF with a copy per student, in list order:
+Instead of stickers, Examance can print each student's QR code **directly onto their own copy** of the exam. With **Print directly onto the exam copies** on the same card you get one PDF with a copy per student, in list order:
 
 - The QR code sits in the QR box on the cover page, exactly where a sticker would go, so scanning works as with stickers. Spare copies printed from the plain exam PDF keep the box's label and initials field, so a student who needs a new sheet gets a sticker instead.
 - The **top-right corner of page 1** carries the student's **name and personal key** on the far side of a dashed diagonal line with small scissors. **Before handing out, cut the corner off** along the line. You may cut the whole stack at once with a guillotine. The student recognises their copy by it and keeps it; the key later opens their [shared result](#share-results).
 - There is blank room around the line, so an imprecise cut touches neither the name nor the exam.
 - Cut the corners off **before scanning**. Examance stores every page exactly as scanned and never covers anything, so a corner that was not cut off shows the name during grading and in exports.
+
+**Print directly onto the exam copies** is greyed out for exams imported without their exercise texts.
 
 Every exam keeps this corner free on each page ([layout](./exams#cut-corner)): top right on odd pages, top left on even pages, which is the corner a cut through a double-sided or booklet stack removes. On the plain exam PDF it stays empty and lightly grey.
 
@@ -47,13 +50,13 @@ Every exam keeps this corner free on each page ([layout](./exams#cut-corner)): t
 
 ## Personal keys {#personal-keys}
 
-With **Also print a personal key**, each student's first sticker carries a **strip with their name and key** above the QR code, separated by a dashed line. No extra label is used. **Cut the strip off and hand it to the student before the sticker goes onto the exam**; the student keeps it. The QR code below still identifies the student without the strip. The key belongs to that sticker and is the same on every reprint, so nothing needs to be stored.
+Under **What to print?** you choose one of three options. With **Stickers with personal key** (the default), each student's first sticker carries a **strip with their name and key** above the QR code, separated by a dashed line. No extra label is used. **Cut the strip off and hand it to the student before the sticker goes onto the exam**; the student keeps it. The QR code below still identifies the student without the strip. The key belongs to that sticker and is the same on every reprint, so nothing needs to be stored.
 
-A personal key is only needed if you later protect result links with it, see [Link protection](#link-protection). If students already carry a sticker (from an earlier sheet or another tool), choose **Print only the key slips**: the keys of the exam's students are printed as small slips on **plain paper**, so no labels are used.
+A personal key is only needed if you later protect result links with it, see [Link protection](#link-protection). **Stickers only** prints the QR codes without keys. If students already carry a sticker (from an earlier sheet or another tool), choose **Key slips only (plain paper)**: the keys of the exam's students are printed as small slips on **plain paper**, so no labels are used.
 
 ## Share graded exams with students {#share-results}
 
-After grading, **Share with students** on the exam page gives each student their graded PDF, with your annotations and score, and their name printed in red at the top of every page.
+After grading, **Results & Export → Send to students** gives each student their graded PDF, with your annotations and score, and their name printed in red at the top of every page. It is a page with four numbered steps and a send button that stays visible at the bottom:
 
 1. **Choose students.** Students with a grading are preselected.
 2. **Choose the way**:
@@ -63,15 +66,14 @@ After grading, **Share with students** on the exam page gives each student their
    - **Feedback files for Mebis (download)**: a ZIP with each student's graded PDF to upload in the Mebis assignment, see [Mebis and Artemis](#lms).
 
    A way that is not available is greyed out, with the reason below it: your administrator has not enabled sending for your account, or no mail server is set up for e-mail.
-3. **Choose the link protection**, see [below](#link-protection).
-4. **Choose the validity**: 7, 14, 30 or 90 days (30 by default).
-5. Optionally tick **Include the sample solution**: students then see the exam's sample solution on the same page. It is compiled once for all students. Exams imported without their exercise code cannot include it.
-6. **Share and create slips** prepares the graded PDFs in your browser, uploads them encrypted and downloads the slip PDF. Print it and cut the slips apart.
+   The channel's setup (for example the Artemis course) and the **Language of the message** are part of this step.
+3. **Protection and options**: the link protection, see [below](#link-protection), and the validity of 7, 14, 30 or 90 days (30 by default). Optionally tick **Include the sample solution**: students then see the exam's sample solution on the same page. It is compiled once for all students. Exams imported without their exercise code cannot include it. **Print keys** from this step opens on top of the page and keeps all your choices.
+4. **Preview and send**: check the preview, then send. For slips, **Share and create slips** prepares the graded PDFs in your browser, uploads them encrypted and downloads the slip PDF. Print it and cut the slips apart.
 
 Sharing a student **again** creates a new link; the old one stops working. This is how you replace a lost slip or a corrected grading.
 
 ::: tip Hybrid mode
-If your results are kept only in this browser, sharing is the one exception: the graded PDFs are uploaded to the server, **encrypted**, so that students can fetch them. The dialog tells you so. Only people who hold the link can open them.
+If your results are kept only in this browser, sharing is the one exception: the graded PDFs are uploaded to the server, **encrypted**, so that students can fetch them. The page tells you so. Only people who hold the link can open them.
 :::
 
 ## Link protection {#link-protection}
@@ -86,18 +88,18 @@ The link itself already protects the PDF: without it, nobody can even fetch it. 
 
 The code on the separate slip **is the student's personal key**, the same one printed with their QR sticker or on their exam copy. The code slips therefore also replace a lost key. Only students without a sticker get a newly created code.
 
-Options that do not fit your selection are greyed out and the dialog says why. For example, students without a QR sticker cannot use the sticker key; **Print keys** helps there.
+Options that do not fit your selection are greyed out and the page says why. For example, students without a QR sticker cannot use the sticker key; **Print keys** helps there; it opens on top and keeps all your choices.
 
 **Key in the message.** For e-mail and Artemis you can tick **Put the key or code into the message**. The link then opens without slip or sticker, which helps students who lost their key. It is less safe: whoever can read the message (the mail provider, Artemis, anyone with access to the mailbox) can open the exam. It is off by default.
 
-**Language.** E-mails and Artemis messages to students are written in German unless you choose English in **Language of the message**.
+**Language.** E-mails and Artemis messages to students are written in German unless you choose English in **Language of the message** (step 2).
 
 ## Send by e-mail {#email}
 
 Each student gets an e-mail with their link. For that, the students of the exam need an e-mail address:
 
-- Add them on the [Students page](#student-data): from a Mebis list, an Artemis course or a pasted list, or per student with **Edit**. Under **By e-mail** the sharing dialog shows how many students have an address and links there.
-- The sharing dialog's student list shows each student's Mebis/Artemis ID and e-mail address; an empty cell means none is known.
+- Add them on the [Students page](#student-data): from a Mebis list, an Artemis course or a pasted list, or per student with **Edit**. Under **By e-mail** the share page shows how many students have an address and links there.
+- The share page's student list shows each student's Mebis/Artemis ID and e-mail address; an empty cell means none is known.
 
 Because the mail goes through the Examance server, a link sent by e-mail must never open the exam on its own: only **key from the QR sticker** and **code on a separate slip** are offered (unless you put the key into the message yourself, see [Link protection](#link-protection)). With codes, the code slips are downloaded at the end; hand them out in class.
 
@@ -109,9 +111,9 @@ Examance works with Mebis and Artemis in the same way as DiRueLei.
 
 1. In the Mebis assignment, download the **grading worksheet** (or export the participant list as CSV). It contains the students' Mebis IDs and e-mail addresses.
 2. Import this file on the [Students page](#student-data) and print the [QR stickers](#qr-stickers) or copies: the Mebis ID goes into each code.
-3. After grading, choose **Feedback files for Mebis (download)** in **Share with students**, or tick **Mebis feedback files (ZIP)** in the [export](./results#export). Either way you get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
+3. After grading, choose **Feedback files for Mebis (download)** on **Results & Export → Send to students**. You get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
 
-Students whose sticker carries no Mebis ID are listed in the export warnings.
+Students with no Mebis ID (neither from the class list nor in their QR sticker) are skipped and listed in the notes after the download.
 
 ### Artemis {#artemis}
 
@@ -123,28 +125,29 @@ Students whose sticker carries no Mebis ID are listed in the export warnings.
 With it you can **load the course members on the [Students page](#student-data)** (each QR code then carries the Artemis user ID) and later **send results through Artemis**: every student gets a direct message from you, either
 
 - with the **link** (protected by sticker key or code, as with e-mail; the exam stays encrypted, expires and can be revoked), or
-- with the **graded exam as a PDF**: then the PDF goes unencrypted to Artemis and stays stored there; expiry and revoking do not apply.
+- with the **graded exam as a PDF**: then the PDF goes unencrypted to Artemis and stays stored there; expiry and revoking do not apply, so the page hides the **Valid for** option.
 
 ### Preview before sending {#delivery-preview}
 
-Before anything is sent by e-mail or Artemis, a **preview** lists every student with the recipient (address or Artemis user) and what they get, names the students who are skipped and why, and states which data is used, where it goes and where it is stored. Nothing is sent until you confirm. While sending, the dialog shows how far it is (for example "20 of 25 e-mails sent") with a filling bar; keep the tab open until it has finished.
+Before anything is sent by e-mail or Artemis, a **preview** lists every student with the recipient (address or Artemis user) and what they get, names the students who are skipped and why, and states which data is used, where it goes and where it is stored. Nothing is sent until you confirm. While sending, the page shows how far it is (for example "20 of 25 e-mails sent") with a filling bar; keep the tab open until it has finished.
 
 ## Did it arrive? {#delivery-status}
 
-After sending by e-mail or Artemis, the share dialog shows a **Delivery** column per student:
+After sending by e-mail or Artemis, the share page shows a **Delivery** column per student:
 
 | Status | Meaning |
 |---|---|
 | **Sent** | The mail server or Artemis accepted the message. Nothing came back, which is no proof that the student read it. |
 | **Delayed** | The receiving mail server is still trying. |
 | **Not delivered** | The e-mail came back, for example because the address does not exist or the mailbox is full. Hover the badge for the mail server's code. |
-| **Failed** | The message could not be sent at all; the dialog listed the reason when you sent it. |
+| **Failed** | The message could not be sent at all; the page listed the reason when you sent it. |
+| **Link revoked** | The message was sent, but the link in it no longer works: you revoked it or it has expired. Send again to give the student a new link. |
 
 If your installation has its own mailbox for result mails, they are sent from it, and they ask students not to reply but to contact you another way: replies do not reach you.
 
-After an e-mail run the dialog waits about 30 seconds and checks for returned mails. You can close it earlier: e-mails that come back later are forwarded to your own address, and the share button of the exam then shows how many students were not reached. To send again, correct the address or Artemis id on the [Students page](#student-data), open the dialog, choose **Select students not reached** and send.
+After an e-mail run the page waits about 30 seconds and checks for returned mails. You can leave earlier: e-mails that come back later are forwarded to your own address, and the **Share** badge of the exam's **Results** step then shows in red how many students were not reached. To send again, correct the address or Artemis id on the [Students page](#student-data), open **Results & Export → Send to students**, choose **Select students not reached** and send.
 
-If the dialog says that returned e-mails are not monitored, your installation has no result mailbox: then "Sent" only means that the mail server accepted the message.
+If the page says that returned e-mails are not monitored, your installation has no result mailbox: then "Sent" only means that the mail server accepted the message.
 
 ## What students see {#student-view}
 
@@ -154,7 +157,7 @@ No sign-in and no account are needed. The PDF is decrypted only in the student's
 
 ## Revoke links and expiry {#revoke}
 
-The sharing dialog lists the **active links**. You can **revoke** one link, or **all of them** at once; revoked links stop working immediately and their data is deleted.
+**Results & Export → Send to students** lists the **active links**. You can **revoke** one link (the icon in its row), or use **Revoke all**; revoked links stop working immediately and their data is deleted.
 
 Links also end by themselves:
 

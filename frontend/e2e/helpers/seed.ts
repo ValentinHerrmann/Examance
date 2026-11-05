@@ -44,13 +44,17 @@ export function mainRoutes(examId: string): RouteSpec[] {
     { name: 'help', path: '/help' },
     { name: 'impressum', path: '/legal/impressum' },
     { name: 'exam-new', path: '/exam/new' },
-    { name: 'exam-setup', path: `/exam/${examId}`, workspace: true },
-    { name: 'exam-students', path: `/exam/${examId}/students` },
+    { name: 'exam-overview', path: `/exam/${examId}`, workspace: true },
+    { name: 'exam-content', path: `/exam/${examId}/content`, workspace: true },
+    { name: 'exam-students', path: `/exam/${examId}/students`, workspace: true },
+    { name: 'exam-print', path: `/exam/${examId}/print`, workspace: true },
     { name: 'exam-scan', path: `/exam/${examId}/scan`, workspace: true },
     { name: 'exam-verify', path: `/exam/${examId}/verify`, workspace: true },
     { name: 'exam-grade', path: `/exam/${examId}/grade` },
     { name: 'exam-manual', path: `/exam/${examId}/manual`, workspace: true },
-    { name: 'exam-stats', path: `/exam/${examId}/stats`, workspace: true },
+    { name: 'exam-results', path: `/exam/${examId}/results`, workspace: true },
+    { name: 'exam-share', path: `/exam/${examId}/results/share`, workspace: true },
+    { name: 'exam-archive', path: `/exam/${examId}/results/archive`, workspace: true },
   ];
 }
 

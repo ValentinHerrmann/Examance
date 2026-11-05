@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contentHref } from "#lib/utils/links";
   import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Badge, Button, CrossLink, EmptyState, LinkButton, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
@@ -219,7 +220,7 @@
     </EmptyState>
   {:else if emptyKind === "exercises"}
     <EmptyState title={$t("grading.manual.grid.noExercises")}>
-      <Button href="/exam/{examId}" variant="text">{$t("grading.manual.grid.goToSetup")}</Button>
+      <Button href={contentHref(examId)} variant="text">{$t("grading.manual.grid.goToSetup")}</Button>
     </EmptyState>
   {:else}
     <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-sunken p-3">

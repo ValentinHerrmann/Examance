@@ -102,7 +102,7 @@ const SPECS: KindSpec[] = [
     id: (r) => r.id,
     title: (r) => r.title || r.id,
     fields: {
-      ...props('title', 'testart', 'fach', 'topic', 'grade', 'klasse', 'datum', 'nr', 'numVersions', 'retentionUntil'),
+      ...props('title', 'testart', 'fach', 'topic', 'grade', 'klasse', 'course', 'datum', 'nr', 'numVersions', 'retentionUntil'),
       gradingKey: (r) => r.gradingKey?.preset,
       latexPackages: (r) => packageSummary(r.latexPackages),
       // Layout switches travel with the exam; without them a layout-only change counted as "identical" and was dropped.

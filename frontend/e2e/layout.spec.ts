@@ -8,6 +8,9 @@ import { exerciseEditor, signInFirstTime, unfoldEditorDetails } from './helpers/
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';
 
 const projectName = () => test.info().project.name;
+/** Desktop heights with the browser bar subtracted, where a page must fit or scroll by at least `SLIVER_MIN` px. */
+const SLIVER_CHECKED = ['desktop', 'laptop-166'];
+const SLIVER_MIN = 120;
 const isTouch = () => Boolean(test.info().project.use.hasTouch);
 const viewportWidth = (page: Page) => page.viewportSize()!.width;
 
@@ -50,6 +53,7 @@ for (const theme of THEMES) {
           docV: doc.scrollHeight - doc.clientHeight,
           docH: doc.scrollWidth - doc.clientWidth,
           mainH: main ? main.scrollWidth - main.clientWidth : 0,
+          mainV: main ? main.scrollHeight - main.clientHeight : 0,
           outside,
           h1: document.querySelectorAll('h1').length,
           theme: document.documentElement.dataset.theme,
@@ -62,6 +66,10 @@ for (const theme of THEMES) {
       expect.soft(m.outside, `${where}: elements stick out of the viewport`).toEqual([]);
       expect.soft(m.h1, `${where}: number of h1`).toBe(1);
       expect.soft(m.theme, `${where}: <html data-theme>`).toBe(theme);
+      // No sliver scrolling (frontend/CLAUDE.md): a page fits or scrolls by real content.
+      if (SLIVER_CHECKED.includes(projectName())) {
+        expect.soft(m.mainV === 0 || m.mainV >= SLIVER_MIN, `${where}: .app-main scrolls by only ${m.mainV}px`).toBe(true);
+      }
     }
   });
 }
@@ -184,7 +192,7 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
     await page.keyboard.press('Escape');
   }
 
-  // Exam sidebar: rail 64 at 1024-1279 and on grade, 164 from 1280, none on phones.
+  // Exam sidebar: rail 64 at 1024-1279 and on grade, 224 from 1280, none on phones.
   const sidebar = page.locator('aside');
   await visit(page, `/exam/${examId}`);
   if (width < 1024) {
@@ -192,7 +200,7 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
   } else {
     await expect(sidebar).toBeVisible();
     const w = (await sidebar.boundingBox())!.width;
-    expect(w, `sidebar width on setup at ${width}px`).toBeCloseTo(width >= 1280 ? 164 : 64, -1);
+    expect(w, `sidebar width on overview at ${width}px`).toBeCloseTo(width >= 1280 ? 224 : 64, -1);
     await visit(page, `/exam/${examId}/grade`);
     if (await sidebar.isVisible()) {
       expect((await sidebar.boundingBox())!.width, 'sidebar is a rail on grade').toBeCloseTo(64, -1);
@@ -211,7 +219,7 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
 
   // Desktop: workspace content uses the available width.
   if (name === 'desktop') {
-    for (const p of ['', '/scan', '/verify', '/manual', '/stats']) {
+    for (const p of ['', '/content', '/students', '/print', '/scan', '/verify', '/manual', '/results', '/results/share', '/results/archive']) {
       await visit(page, `/exam/${examId}${p}`);
       const ratio = await page.evaluate(() => {
         const main = document.querySelector('.app-main')!;
@@ -344,8 +352,8 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
   await expect(editor).toBeHidden();
 
   // Exam library (large).
-  await visit(page, `/exam/${examId}`);
-  await page.getByRole('button', { name: label('exam.actionBar.addExercises', undefined, 'en') }).click();
+  await visit(page, `/exam/${examId}/content`);
+  await page.getByRole('button', { name: label('exam.exerciseList.addExercises', undefined, 'en') }).click();
   const library = page.getByRole('dialog', { name: label('exam.libraryModal.header', undefined, 'en') });
   await expect(library).toBeVisible();
   await expectDialogFits(page, library, 'large', 'exam library');

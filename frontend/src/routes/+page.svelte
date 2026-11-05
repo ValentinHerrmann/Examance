@@ -18,7 +18,8 @@
   import { t, translate } from '#lib/i18n';
   import { TRASH_DAYS } from '#lib/trash/localTrash';
   import { loadSyncedExams } from '#lib/services/examSync';
-  import { computeExamStats } from '#lib/utils/examStats';
+  import { computeExamStats, type ExamStats } from '#lib/utils/examStats';
+  import { studentRepository } from '#lib/repositories/studentRepository';
   import { createExpandSet } from '#lib/utils/expandSet';
   import { createLazyMap } from '#lib/utils/lazyMap';
   import { loadExamLogoPreview, type ExamLogoPreview } from '#lib/latex/logo';
@@ -50,7 +51,9 @@
   let examsLoadFailed = $state(false);
   // The submission read failed: the per-exam figures are unknown, which is not "no submissions".
   let statsLoadFailed = $state(false);
-  let examStatsMap = $state.raw(new Map<string, { avgScore: number | null; count: number }>());
+  let examStatsMap = $state.raw(new Map<string, ExamStats>());
+  // Students per exam for the cards' progress row; empty when the read failed (the row then leaves students out).
+  let studentCounts = $state.raw(new Map<string, number>());
   let isImporting = $state(false);
   let importStatus = $state('');
   let isInitializing = $state(true);
@@ -163,6 +166,14 @@
       console.warn('Could not load submission stats for dashboard:', e);
       examStatsMap = new Map();
       statsLoadFailed = true;
+    }
+    try {
+      const counts = new Map<string, number>();
+      for (const st of await studentRepository.getAll(key)) counts.set(st.examId, (counts.get(st.examId) ?? 0) + 1);
+      studentCounts = counts;
+    } catch (e) {
+      console.warn('Could not load students for dashboard:', e);
+      studentCounts = new Map();
     }
 
     for (const exam of exams) {
@@ -281,7 +292,7 @@
   }
 
   function handleDeleteDashboardExam(id: string, title?: string) {
-    deletingExam = { id, title, submissionCount: examStatsMap.get(id)?.count ?? 0 };
+    deletingExam = { id, title, submissionCount: examStatsMap.get(id)?.submissionCount ?? 0 };
     deleteError = '';
     isDeleteModalOpen = true;
   }
@@ -395,6 +406,8 @@
         <ExamList
           exams={filteredExams}
           {examStatsMap}
+          {studentCounts}
+          statsKnown={!statsLoadFailed}
           exerciseMap={$exerciseMap}
           logoMap={$logoMap}
           isLoading={isRefreshing && exams.length === 0}

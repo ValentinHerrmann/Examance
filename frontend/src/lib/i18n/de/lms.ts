@@ -1,12 +1,13 @@
 export const lms = {
     students: {
-        title: 'Schüler: {exam}',
         intro: 'Hier pflegen Sie die Schüler dieser Prüfung: Namen, Mebis- bzw. Artemis-ID und E-Mail-Adresse. QR-Aufkleber, gedruckte Exemplare und das Teilen der Ergebnisse verwenden diese Liste. Eingescannte Arbeiten werden den Schülern über ihren QR-Code zugeordnet.',
-        open: 'Schüler',
         loadFailed: 'Die Schüler konnten nicht geladen werden.',
         manage: 'Schüler verwalten',
         noneYet: 'Diese Prüfung hat noch keine Schüler. Legen Sie sie auf der Schüler-Seite an (Mebis-Liste, Artemis-Kurs oder eingefügte Liste).',
         import: {
+            sourceFile: 'Datei',
+            sourcePaste: 'Einfügen',
+            sourceArtemis: 'Artemis-Kurs',
             title: 'Klassenliste übernehmen',
             intro: 'Mebis-Bewertungstabelle oder Teilnehmerliste, eine eingefügte Liste oder ein Artemis-Kurs. Vorhandene Schüler werden über ihre ID, sonst über den Namen erkannt.',
             preview: 'Aus {source}:',
@@ -37,6 +38,12 @@ export const lms = {
             duplicateHint: 'Diese Person steht doppelt in der Liste. Wollen Sie die beiden Einträge stattdessen zusammenführen?',
             understood: 'Ich verstehe, dass Scan und Korrektur gelöscht werden.',
             confirmScanned: 'Mit Scan und Korrektur löschen',
+        },
+        add: {
+            action: 'Schüler hinzufügen',
+            title: 'Schüler hinzufügen',
+            duplicateName: '{name}: Ein Schüler mit diesem Namen steht schon in der Liste.',
+            save: 'Hinzufügen',
         },
         edit: {
             action: 'Bearbeiten',
@@ -110,6 +117,7 @@ export const lms = {
         empty: 'In der Liste wurden keine Schüler gefunden.',
     },
     artemis: {
+        importDisabled: 'Die Artemis-Anbindung ist von der Administration nicht freigeschaltet.',
         fromCourse: 'Aus einem Artemis-Kurs laden',
         host: 'Artemis-Adresse',
         courseId: 'Kurs-ID',

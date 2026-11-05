@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { SHOW_ROSTER_TAB } from "#lib/grading/manualRoster";
+  import { studentsHref } from "#lib/utils/links";
   import { untrack } from "svelte";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
@@ -14,7 +16,7 @@
   } from "#lib/db/schema";
   import { t } from "#lib/i18n";
   import { faArrowLeft, faArrowRight, faCheck } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, Checkbox, Modal, TableScroller, Textarea } from "#lib/components/ui";
+  import { Alert, Badge, Button, Checkbox, Modal, TableScroller, Textarea } from "#lib/components/ui";
 
   interface Props {
     examId: string;
@@ -40,7 +42,8 @@
   // Mapping configurations
   let nameColIdx = 0;
   let numberColIdx = -1;
-  let autoCreateStudents = $state(true);
+  // Off while the roster tab is hidden: unknown names are skipped, students come from the Students page (issue #212).
+  let autoCreateStudents = $state(SHOW_ROSTER_TAB);
 
   interface ParsedRow {
     rawName: string;
@@ -280,9 +283,18 @@
     </div>
   {:else if step === 2}
     <div>
-      <div class="mb-3 flex items-center gap-4">
-        <Checkbox bind:checked={autoCreateStudents} label={$t("grading.manual.paste.autoCreate")} />
-      </div>
+      {#if SHOW_ROSTER_TAB}
+        <div class="mb-3 flex items-center gap-4">
+          <Checkbox bind:checked={autoCreateStudents} label={$t("grading.manual.paste.autoCreate")} />
+        </div>
+      {:else if parsedRows.some((r) => !r.matchedStudent)}
+        <Alert severity="info" class="mb-3">
+          {$t("grading.manual.paste.notOnStudentsPage", { count: parsedRows.filter((r) => !r.matchedStudent).length })}
+          {#snippet actions()}
+            <Button size="sm" variant="outlined" severity="secondary" href={studentsHref(examId)}>{$t("lms.students.manage")}</Button>
+          {/snippet}
+        </Alert>
+      {/if}
 
       <TableScroller maxHeight="max-h-96" class="rounded-md border border-line">
         <table class="data-table data-table-compact data-table-sticky">

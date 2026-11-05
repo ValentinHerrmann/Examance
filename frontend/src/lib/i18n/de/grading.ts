@@ -125,8 +125,8 @@ export const grading = {
     },
     manual: {
         container: {
-            title: 'Papier- & Excel-Noteneingabe',
-            subtitle: 'Prüfungspunkte direkt eingeben, ohne Papierhefte zu scannen, oder Punktematrizen aus Excel einfügen.',
+            title: 'Papierkorrektur: Punkte von Hand eintragen',
+            subtitle: 'Für Prüfungen, die Sie auf Papier korrigiert haben: Tragen Sie die Punkte pro Aufgabe selbst ein oder fügen Sie sie aus Excel ein. Scannen und Korrigieren am Bildschirm sind dafür nicht nötig.',
             importButton: 'Aus Excel importieren (Strg+V)',
             tabExerciseFirst: 'Aufgabenweise Eingabe (alle Schüler pro Aufgabe)',
             tabStudentFirst: 'Schülerweise Eingabe (alle Aufgaben pro Schüler)',
@@ -139,7 +139,7 @@ export const grading = {
             noStudents: 'Keine Schüler in der Liste dieser Prüfung.',
             openRoster: 'Schülerliste öffnen, um Schüler hinzuzufügen',
             noExercises: 'Für diese Prüfung sind noch keine Aufgaben definiert.',
-            goToSetup: 'Zu Einrichtung & Aufgaben',
+            goToSetup: 'Zur Seite Prüfung',
             colNum: '#',
             unnamed: '(Unbenannt)',
             ungraded: 'Unkorrigiert',
@@ -215,6 +215,7 @@ export const grading = {
             skipped: 'Übersprungen',
             readyTitle: 'Bereit zum Importieren',
             importingRecords: 'Es werden {count} Schülerdatensätze in die Prüfungspunkte importiert.',
+            notOnStudentsPage: '{count} Zeile(n) passen zu keinem Schüler der Schülerliste und werden übersprungen. Lege die Schüler zuerst auf der Seite Schüler an.',
             newStudentsWarning: '️ {count} neue Schüler werden zur Liste hinzugefügt.',
             nextPreview: 'Weiter: Vorschau & Zuordnung',
             back: 'Zurück',

@@ -23,7 +23,7 @@ Im Schritt **Scans** der Prüfung liest **Scan-Dateien auswählen (nur PDF)** di
 
 Im Hybrid-Modus verlassen die Scans Ihr Gerät nie; im Modus „Alles auf dem Server“ erreichen sie den Server nur als Chiffrat. (Die einzige optionale Ausnahme sind anonymisierte Bildausschnitte einzelner Kästchen, wenn Sie [MC-Erkennung verbessern](./settings#donation) eingeschaltet haben.)
 
-Die Liste darunter zeigt jede eingelesene Abgabe. Von dort aus können Sie einen Scan ansehen, als PDF exportieren, einen versehentlich zusammengeführten Bogen **Teilen**, eine Bewertung löschen oder den Scan löschen.
+Die Liste darunter zeigt jede eingelesene Abgabe. Jede Zeile hat **Vorschau**, **Korrigieren** und das Download-Symbol (PDF-Export); im Menü ⋯ liegen **Aufteilen** (ein versehentlich zusammengeführter Bogen), **Bewertung löschen** und **Löschen**.
 
 ![Scan-Import](../../screenshots/pitch/05-scan-import.jpg)
 
@@ -43,7 +43,9 @@ Angekreuzte Kästchen werden beim Einlesen automatisch erkannt, auch zurückgeno
 
 - **a) Fehlgeschlagene Erkennungen**: Die Seite konnte nicht ausgerichtet werden; vergeben Sie diese Punkte in der [Korrekturansicht](./grading#multiple-choice).
 - **b) Unsichere / mehrdeutige Erkennungen**: Bitte sehen Sie sich jede davon an.
-- **c) Alle übrigen Erkennungen**: sichere; kein Handeln nötig.
+- **c) Alle übrigen Erkennungen**: sichere. Ob Sie sie ansehen, entscheiden Sie (eine Stichproben-Schaltfläche hilft).
+
+Oben auf der Seite zeigen drei Balken, wie viele nicht erkannte, unsichere und sichere Erkennungen Sie geprüft haben; ein Balken wird grün, sobald in seiner Liste nichts mehr offen ist. Das Öffnen der Seite hakt nichts ab. Im **Stand der MC-Prüfung** wählen Sie, wie Sie die sicheren Erkennungen prüfen: **Alle einzeln ansehen**, **Stichproben** (5–30 %; **Stichprobe prüfen** öffnet eine zufällige ungeprüfte) oder **Nicht prüfen, der Erkennung vertrauen**. Das Zeichen des Schritts wird zum Haken, sobald nichts Unsicheres mehr offen ist und so viele sichere angesehen sind, wie die Wahl verlangt. **Alle sicheren als geprüft markieren** bestätigt alle noch ungeprüften sicheren Erkennungen auf einmal, ohne Punkte zu ändern; **Rückgängig** nimmt genau diese Sammel-Markierung zurück, einzeln geprüfte bleiben geprüft.
 
 Öffnen Sie einen Eintrag, sehen Sie den Ausschnitt der Frage auf dem Scan, die Antwortoptionen wie gedruckt und die erkannten Markierungen. Bestätigen Sie die Erkennung oder schalten Sie Kästchen um, um sie zu korrigieren. Jede bestätigte oder korrigierte Frage gilt als **geprüft**.
 
@@ -81,4 +83,4 @@ Unter **Einstellungen → MC-Erkennung** wählen Sie das Verfahren:
 - **v4** (Standard) analysiert die Strichform;
 - **v2** (älter) misst den Füllgrad; seine Formanalyse lässt sich abschalten.
 
-Das jeweils andere Verfahren läuft immer mit. Der Bereich **Erkennungseinstellungen** der Prüfansicht zeigt, wie viele Ihrer geprüften Kästchen jedes Verfahren richtig erkannt hätte, und vergleicht die Einstellungen des letzten Laufs mit denen, die ein erneuter Lauf verwenden würde. Wie Sie die Schwellenwerte feinjustieren: [MC-Erkennung feinjustieren](./settings#mc-detection).
+Das jeweils andere Verfahren läuft immer mit. Der Bereich **Erkennungseinstellungen** der Prüfansicht (aufklappen mit **Alle Einstellungen anzeigen**, wieder einklappen mit **Nur geänderte Einstellungen anzeigen**) zeigt, wie viele Ihrer geprüften Kästchen jedes Verfahren richtig erkannt hätte, und vergleicht die Einstellungen des letzten Laufs mit denen, die ein erneuter Lauf verwenden würde. Wie Sie die Schwellenwerte feinjustieren: [MC-Erkennung feinjustieren](./settings#mc-detection).

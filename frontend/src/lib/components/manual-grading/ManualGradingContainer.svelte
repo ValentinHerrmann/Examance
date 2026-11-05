@@ -1,6 +1,7 @@
 <script lang="ts">
   import { faClipboard, faPen, faUser, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, Card, PageHeader, Tabs } from "#lib/components/ui";
+  import { Alert, Button, Card, Tabs } from "#lib/components/ui";
+  import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
@@ -21,6 +22,9 @@
   import ScoreGrid from "./ScoreGrid.svelte";
   import PasteImportModal from "./PasteImportModal.svelte";
   import { t } from "#lib/i18n";
+  import { goto } from "$app/navigation";
+  import { SHOW_ROSTER_TAB } from "#lib/grading/manualRoster";
+  import { studentsHref } from "#lib/utils/links";
 
   interface Props {
     examId: string;
@@ -104,28 +108,36 @@
     activeTab = id as typeof activeTab;
   }
 
+  // Students are added on the Students page while the roster tab is hidden.
+  function openRoster() {
+    if (SHOW_ROSTER_TAB) activeTab = "roster";
+    else void goto(studentsHref(examId));
+  }
+
   async function handleDataChanged() {
     await refreshAllData();
   }
 </script>
 
 <div class="flex min-w-0 flex-col gap-4">
-  <PageHeader
+  <ExamPageHeader
+    {examId}
+    step="manual"
     title={$t("grading.manual.container.title")}
-    subtitle={$t("grading.manual.container.subtitle")}
+    hint={$t("grading.manual.container.subtitle")}
   >
     {#snippet actions()}
       <Button icon={faClipboard} onClick={() => (showImportModal = true)}>
         {$t("grading.manual.container.importButton")}
       </Button>
     {/snippet}
-  </PageHeader>
+  </ExamPageHeader>
 
   <Tabs
     items={[
       { id: "exercise-first", label: $t("grading.manual.container.tabExerciseFirst"), icon: faPen },
       { id: "student-first", label: $t("grading.manual.container.tabStudentFirst"), icon: faUser },
-      { id: "roster", label: $t("grading.manual.container.tabRoster", { count: students.length }), icon: faUsers },
+      ...(SHOW_ROSTER_TAB ? [{ id: "roster", label: $t("grading.manual.container.tabRoster", { count: students.length }), icon: faUsers }] : []),
     ]}
     value={activeTab}
     onChange={onTabChange}
@@ -141,7 +153,7 @@
           <Button variant="outlined" severity="danger" size="sm" onClick={refreshAllData}>{$t("common.retry")}</Button>
         {/snippet}
       </Alert>
-    {:else if activeTab === "roster"}
+    {:else if SHOW_ROSTER_TAB && activeTab === "roster"}
       <RosterManager
         {examId}
         {students}
@@ -157,7 +169,7 @@
         {submissions}
         {scoresMap}
         onScoresChanged={handleDataChanged}
-        onOpenRoster={() => (activeTab = "roster")}
+        onOpenRoster={openRoster}
       />
     {:else if activeTab === "student-first"}
       <ScoreGrid
@@ -169,7 +181,7 @@
         {submissions}
         {scoresMap}
         onScoresChanged={handleDataChanged}
-        onOpenRoster={() => (activeTab = "roster")}
+        onOpenRoster={openRoster}
       />
     {/if}
   </Card>
