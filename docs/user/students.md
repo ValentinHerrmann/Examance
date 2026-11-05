@@ -50,9 +50,9 @@ Every exam keeps this corner free on each page ([layout](./exams#cut-corner)): t
 
 ## Personal keys {#personal-keys}
 
-With **Also print a personal key**, each student's first sticker carries a **strip with their name and key** above the QR code, separated by a dashed line. No extra label is used. **Cut the strip off and hand it to the student before the sticker goes onto the exam**; the student keeps it. The QR code below still identifies the student without the strip. The key belongs to that sticker and is the same on every reprint, so nothing needs to be stored.
+Under **What to print?** you choose one of three options. With **Stickers with personal key** (the default), each student's first sticker carries a **strip with their name and key** above the QR code, separated by a dashed line. No extra label is used. **Cut the strip off and hand it to the student before the sticker goes onto the exam**; the student keeps it. The QR code below still identifies the student without the strip. The key belongs to that sticker and is the same on every reprint, so nothing needs to be stored.
 
-A personal key is only needed if you later protect result links with it, see [Link protection](#link-protection). If students already carry a sticker (from an earlier sheet or another tool), choose **Print only the key slips**: the keys of the exam's students are printed as small slips on **plain paper**, so no labels are used.
+A personal key is only needed if you later protect result links with it, see [Link protection](#link-protection). **Stickers only** prints the QR codes without keys. If students already carry a sticker (from an earlier sheet or another tool), choose **Key slips only (plain paper)**: the keys of the exam's students are printed as small slips on **plain paper**, so no labels are used.
 
 ## Share graded exams with students {#share-results}
 
@@ -125,7 +125,7 @@ Students with no Mebis ID (neither from the class list nor in their QR sticker) 
 With it you can **load the course members on the [Students page](#student-data)** (each QR code then carries the Artemis user ID) and later **send results through Artemis**: every student gets a direct message from you, either
 
 - with the **link** (protected by sticker key or code, as with e-mail; the exam stays encrypted, expires and can be revoked), or
-- with the **graded exam as a PDF**: then the PDF goes unencrypted to Artemis and stays stored there; expiry and revoking do not apply.
+- with the **graded exam as a PDF**: then the PDF goes unencrypted to Artemis and stays stored there; expiry and revoking do not apply, so the page hides the **Valid for** option.
 
 ### Preview before sending {#delivery-preview}
 
@@ -141,6 +141,7 @@ After sending by e-mail or Artemis, the share page shows a **Delivery** column p
 | **Delayed** | The receiving mail server is still trying. |
 | **Not delivered** | The e-mail came back, for example because the address does not exist or the mailbox is full. Hover the badge for the mail server's code. |
 | **Failed** | The message could not be sent at all; the page listed the reason when you sent it. |
+| **Link revoked** | The message was sent, but the link in it no longer works: you revoked it or it has expired. Send again to give the student a new link. |
 
 If your installation has its own mailbox for result mails, they are sent from it, and they ask students not to reply but to contact you another way: replies do not reach you.
 
@@ -156,7 +157,7 @@ No sign-in and no account are needed. The PDF is decrypted only in the student's
 
 ## Revoke links and expiry {#revoke}
 
-**Results → Send to students** lists the **active links**. You can **revoke** one link, or use **Revoke all**; revoked links stop working immediately and their data is deleted.
+**Results → Send to students** lists the **active links**. You can **revoke** one link (the icon in its row), or use **Revoke all**; revoked links stop working immediately and their data is deleted.
 
 Links also end by themselves:
 

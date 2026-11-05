@@ -50,9 +50,9 @@ Jede Prüfung hält diese Ecke auf jeder Seite frei ([Layout](./exams#cut-corner
 
 ## Persönliche Schlüssel {#personal-keys}
 
-Mit **Persönlichen Schlüssel dazudrucken** trägt der erste Aufkleber jeder Schülerin und jedes Schülers über dem QR-Code einen **Streifen mit Name und Schlüssel**, abgetrennt durch eine gestrichelte Linie. Es wird kein zusätzliches Etikett verbraucht. **Schneiden Sie den Streifen ab und geben Sie ihn der Person, bevor der Aufkleber auf die Arbeit kommt**; sie bewahrt ihn auf. Der QR-Code darunter ordnet die Arbeit auch ohne Streifen zu. Der Schlüssel gehört zum Aufkleber und ist bei jedem erneuten Druck derselbe, es muss also nichts gespeichert werden.
+Unter **Was drucken?** wählen Sie eine von drei Möglichkeiten. Mit **Aufkleber mit persönlichem Schlüssel** (Voreinstellung) trägt der erste Aufkleber jeder Schülerin und jedes Schülers über dem QR-Code einen **Streifen mit Name und Schlüssel**, abgetrennt durch eine gestrichelte Linie. Es wird kein zusätzliches Etikett verbraucht. **Schneiden Sie den Streifen ab und geben Sie ihn der Person, bevor der Aufkleber auf die Arbeit kommt**; sie bewahrt ihn auf. Der QR-Code darunter ordnet die Arbeit auch ohne Streifen zu. Der Schlüssel gehört zum Aufkleber und ist bei jedem erneuten Druck derselbe, es muss also nichts gespeichert werden.
 
-Ein persönlicher Schlüssel wird nur gebraucht, wenn Sie Ergebnis-Links später damit schützen, siehe [Linkschutz](#link-protection). Tragen Schüler bereits einen Aufkleber (von einem früheren Bogen oder einem anderen Programm), wählen Sie **Nur die Schlüsselabschnitte drucken**: Die Schlüssel der Schüler der Prüfung werden als kleine Zettel auf **normales Papier** gedruckt, es werden keine Etiketten verbraucht.
+Ein persönlicher Schlüssel wird nur gebraucht, wenn Sie Ergebnis-Links später damit schützen, siehe [Linkschutz](#link-protection). **Nur Aufkleber** druckt die QR-Codes ohne Schlüssel. Tragen Schüler bereits einen Aufkleber (von einem früheren Bogen oder einem anderen Programm), wählen Sie **Nur Schlüsselzettel (auf normales Papier)**: Die Schlüssel der Schüler der Prüfung werden als kleine Zettel auf **normales Papier** gedruckt, es werden keine Etiketten verbraucht.
 
 ## Korrigierte Prüfungen mit Schülern teilen {#share-results}
 
@@ -125,7 +125,7 @@ Schüler ohne Mebis-ID (weder aus der Klassenliste noch im QR-Aufkleber) werden 
 Damit können Sie **die Kursmitglieder auf der Seite [Schüler](#student-data) laden** (jeder QR-Code trägt dann die Artemis-Nutzerkennung) und später **Ergebnisse über Artemis verschicken**: Jede Person bekommt eine Direktnachricht von Ihnen, entweder
 
 - mit dem **Link** (geschützt durch Aufkleber-Schlüssel oder Code wie bei E-Mail; die Arbeit bleibt verschlüsselt, läuft ab und lässt sich widerrufen), oder
-- mit der **korrigierten Arbeit als PDF**: Dann geht das PDF unverschlüsselt an Artemis und bleibt dort gespeichert; Ablauf und Widerruf gelten dafür nicht.
+- mit der **korrigierten Arbeit als PDF**: Dann geht das PDF unverschlüsselt an Artemis und bleibt dort gespeichert; Ablauf und Widerruf gelten dafür nicht, deshalb blendet die Seite **Gültig für** aus.
 
 ### Vorschau vor dem Versand {#delivery-preview}
 
@@ -141,6 +141,7 @@ Nach dem Versand per E-Mail oder Artemis zeigt die Seite **An Schüler senden** 
 | **Verzögert** | Der empfangende Mailserver versucht es noch. |
 | **Nicht zugestellt** | Die E-Mail kam zurück, etwa weil die Adresse nicht existiert oder das Postfach voll ist. Fahre über das Abzeichen, um den Code des Mailservers zu sehen. |
 | **Fehlgeschlagen** | Die Nachricht konnte gar nicht verschickt werden; den Grund hat die Seite beim Senden angezeigt. |
+| **Link widerrufen** | Die Nachricht wurde verschickt, aber der Link darin funktioniert nicht mehr: Sie haben ihn widerrufen oder er ist abgelaufen. Senden Sie erneut, um einen neuen Link zu verschicken. |
 
 Hat deine Installation ein eigenes Postfach für Ergebnis-Mails, werden sie von dort verschickt und bitten die Schüler, nicht zu antworten, sondern sich auf anderem Weg an dich zu wenden: Antworten erreichen dich nicht.
 
@@ -156,7 +157,7 @@ Eine Anmeldung oder ein Konto ist nicht nötig. Das PDF wird nur im Browser der 
 
 ## Links widerrufen und Ablauf {#revoke}
 
-**Ergebnisse → An Schüler senden** listet die **aktiven Links** auf. Mit **Widerrufen** beenden Sie einen Link, mit **Alle Links widerrufen** alle auf einmal; widerrufene Links funktionieren sofort nicht mehr, und ihre Daten werden gelöscht.
+**Ergebnisse → An Schüler senden** listet die **aktiven Links** auf. Mit dem Symbol in seiner Zeile widerrufen Sie einen Link, mit **Alle Links widerrufen** alle auf einmal; widerrufene Links funktionieren sofort nicht mehr, und ihre Daten werden gelöscht.
 
 Links enden auch von selbst:
 

@@ -45,7 +45,7 @@ Ticked boxes are detected automatically during the import, including withdrawn c
 - **b) Unsure / ambiguous detections**: please look at each of them.
 - **c) All other detections**: confident ones. Looking at them is up to you (a random sample button helps).
 
-Beside the queues, **MC check progress** shows how many failed and unsure detections are still open and how many sure ones you have looked at. Opening the page marks nothing. Choose there how you check the sure detections: **Look at every one**, **Spot checks** (5–30 %; **Spot-check** opens a random unreviewed one) or **Do not check, trust the detection**. The step's badge turns into a check once nothing unsure is open and as many sure ones are looked at as your choice asks for. **Mark all sure as reviewed** confirms every sure detection not yet reviewed at once, without changing points; **Undo** takes back exactly that bulk mark, ones reviewed one by one stay reviewed.
+At the top of the page, three bars show how many failed, unsure and sure detections you have checked; a bar turns green once its queue has nothing left open. Opening the page marks nothing. In **MC check progress** you choose how you check the sure detections: **Look at every one**, **Spot checks** (5–30 %; **Spot-check** opens a random unreviewed one) or **Do not check, trust the detection**. The step's badge turns into a check once nothing unsure is open and as many sure ones are looked at as your choice asks for. **Mark all sure as reviewed** confirms every sure detection not yet reviewed at once, without changing points; **Undo** takes back exactly that bulk mark, ones reviewed one by one stay reviewed.
 
 Open an item to see the crop of the question on the scan, the answer options as printed and the detected marks. Confirm the reading, or toggle boxes to correct it. Every confirmed or corrected question counts as **verified**.
 
@@ -83,4 +83,4 @@ Under **Settings → MC detection** you choose the method:
 - **v4** (default) analyses the stroke shape;
 - **v2** (older) measures the fill level; its shape analysis can be switched off.
 
-The other method always runs alongside. The **Detection settings** panel of the verification view shows how many of your verified boxes each method would have read correctly, and compares the settings of the latest run with the ones a re-run would use. How to fine-tune the thresholds: [Fine-tuning MC detection](./settings#mc-detection).
+The other method always runs alongside. The **Detection settings** panel of the verification view (expand it with **Show all settings**, collapse it again with **Show changed settings only**) shows how many of your verified boxes each method would have read correctly, and compares the settings of the latest run with the ones a re-run would use. How to fine-tune the thresholds: [Fine-tuning MC detection](./settings#mc-detection).
