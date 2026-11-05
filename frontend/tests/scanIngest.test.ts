@@ -3,6 +3,8 @@ import { PDFDocument } from "pdf-lib";
 import {
   BookletCollector,
   OmrAccumulator,
+  bookletLayout,
+  classifyCodes,
   ingestScans,
   isPdfFile,
   type IngestDeps,
@@ -59,6 +61,11 @@ vi.mock("../src/lib/repositories/scoreRepository", () => ({
       saved.scores.push({ examId, subId, scores, key });
     }),
   },
+}));
+
+// No earlier scans to fill: every coded upload starts a new submission.
+vi.mock("../src/lib/repositories/submissionRepository", () => ({
+  submissionRepository: { getByExamId: vi.fn(async () => []), getById: vi.fn(async () => null) },
 }));
 
 // The fake document reports the real page count of the uploaded bytes, so no rendering is needed.
@@ -231,7 +238,7 @@ describe("ingestScans", () => {
         dispatch: vi.fn(async () => {
           const answer = qrAnswers[qrCall++];
           if (!answer) throw new Error("no QR");
-          return answer;
+          return { type: "QR_CODES" as const, texts: [answer.pseudonymId] };
         }),
       },
       omrPool: null,
@@ -341,7 +348,7 @@ describe("ingestScans", () => {
 
     expect(result.fileCount).toBe(3);
     expect(result.bookletCount).toBe(1);
-    expect(result.warnings.map((w) => [w.kind, w.fileName])).toEqual([
+    expect(result.warnings.map((w) => [w.kind, "fileName" in w ? w.fileName : ""])).toEqual([
       ["pdfUnreadable", "broken.pdf"],
       ["unsupportedFile", "photo.png"],
     ]);
@@ -371,5 +378,42 @@ describe("ingestScans", () => {
     const { deps } = makeDeps();
     await expect(ingestScans([await pdfFile("a.pdf", 3)], deps)).rejects.toThrow("quota");
     expect(calls).toEqual(["student:Muster, Anna", "submission", "scores:0", "student:Beispiel, Ben"]);
+  });
+});
+
+describe("page codes (issue #220)", () => {
+  const TAG = "1A2B3C4D";
+  const code = (page: number, sticker?: string) => `EXM1:${TAG}:${page}${sticker ? `:${sticker}` : ""}`;
+
+  it("reads the student from a sticker or a personalised page code, and the page number", () => {
+    expect(classifyCodes([code(3)], TAG)).toMatchObject({ student: null, page: 3, foreign: false });
+    expect(classifyCodes(["Muster, Anna_1", code(1)], TAG)).toMatchObject({ student: { pseudonymId: "Muster, Anna_1" }, page: 1 });
+    expect(classifyCodes([code(2, "Muster, Anna_1")], TAG)).toMatchObject({ student: { pseudonymId: "Muster, Anna_1" }, page: 2 });
+  });
+
+  it("flags a page code of another exam", () => {
+    expect(classifyCodes(["EXM1:ABCDEF01:2"], TAG)).toMatchObject({ student: null, foreign: true });
+  });
+
+  const ref = (page?: number): PdfPageRef => ({ doc: {} as PDFDocument, index: 0, page });
+
+  it("orders pages by code, holds a place for a missing page and keeps duplicates and code-less pages", () => {
+    const p3 = ref(3), p1 = ref(1), dup = ref(1), none = ref(), p4 = ref(4);
+    const { slots, extras } = bookletLayout([p3, p1, dup, none, p4], 4);
+    expect(slots).toEqual([p1, 2, p3, p4]);
+    expect(extras).toEqual([dup, none]);
+  });
+
+  it("never drops a page: every scanned page is a slot or an extra", () => {
+    const refs = [ref(5), ref(2), ref(2), ref(), ref(9)];
+    const { slots, extras } = bookletLayout(refs, 4);
+    const placed = [...slots.filter((s) => typeof s !== "number"), ...extras];
+    expect(placed).toHaveLength(refs.length);
+    expect(new Set(placed)).toEqual(new Set(refs));
+  });
+
+  it("keeps scan order without codes (older exams)", () => {
+    const refs = [ref(), ref(), ref()];
+    expect(bookletLayout(refs, 2)).toEqual({ slots: refs, extras: [] });
   });
 });

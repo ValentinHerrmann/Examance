@@ -73,7 +73,7 @@ Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Fra
 
 ## Layout-Optionen {#layout}
 
-Layout-Einstellungen liegen auf dem Reiter **Layout** im Schritt **Prüfung**: Infotext, Namenszeile, Hinweis zur Abschneide-Ecke, Korrekturhinweis für Multiple-Choice, Logo und LaTeX-Pakete. **Speichern** übernimmt sie, **Änderungen verwerfen** kehrt zum gespeicherten Stand zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
+Layout-Einstellungen liegen auf dem Reiter **Layout** im Schritt **Prüfung**: Infotext, Namenszeile, Hinweis zur Abschneide-Ecke, Korrekturhinweis für Multiple-Choice, [Drucken mit mehreren Blättern](#multi-sheet), Logo und LaTeX-Pakete. **Speichern** übernimmt sie, **Änderungen verwerfen** kehrt zum gespeicherten Stand zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
 
 ### Namenszeile {#name-line}
 
@@ -115,6 +115,24 @@ Die MC-Erkennung liest genau diese Markierungen, siehe [MC-Erkennungen prüfen](
 Jede Prüfung druckt oben links auf der ersten Seite ein Logo. Auf dem Reiter **Layout** wählen Sie das Logo aus Ihren Einstellungen, kein Logo oder ein Logo nur für diese Prüfung (siehe [Logo auf der Prüfung](./settings#logo)). In der Prüfungsübersicht zeigt jede aufgeklappte Prüfung, welches Logo sie druckt.
 
 Auf demselben Reiter können Sie außerdem LaTeX-Pakete nur für diese Prüfung hinzufügen oder Pakete Ihres Kontos weglassen (siehe [LaTeX-Pakete](./exercises#packages)).
+
+## Mehrere Blätter {#multi-sheet}
+
+Eine Prüfung über mehrere Blätter lässt sich leichter handhaben, wenn jede Seite weiß, wer und was sie ist. Dafür gibt es auf dem Reiter **Layout** die Gruppe **Drucken mit mehreren Blättern**:
+
+- **Seitencode auf jeder Seite.** Ein kleiner QR-Code oben auf jeder Seite, auf der Seite der Abschneide-Ecke zwischen „Seite X“ und der Eckmarkierung, sagt dem Scanner, welche Seite es ist. Auf [personalisierten Exemplaren](./students#printed-copies) sagt er auch, wessen Seite es ist. Dadurch spielt die Reihenfolge der gescannten Blätter keine Rolle mehr, fehlende Seiten werden gemeldet und lose Blätter finden ihren Schüler. Für neue Prüfungen ist die Option voreingestellt. Ältere Prüfungen behalten ihr bisheriges Layout, bis Sie sie einschalten; das ändert das Seitenlayout, früher gedruckte Exemplare passen dann nicht mehr.
+- **Drucken.** **Beidseitig (A4)** setzt 2 Seiten auf ein Blatt (Wenden an der langen Kante); **Broschüre (gefaltetes A3)** setzt 4 Seiten auf ein gefaltetes A3-Blatt. Wenn Examance die A3-Bögen anordnet, zeigen kurze Markierungen oben und unten in der Mitte, wo gefaltet wird (und wo Sie schneiden, wenn Sie einzelne Blätter scannen).
+- **Füllseiten.** Jedes Exemplar wird auf ganze Blätter aufgefüllt (gerade Seitenzahl bei beidseitig, Vielfaches von 4 bei Broschüren), so dass jedes Exemplar auf einem neuen Blatt beginnt. Die Füllseiten sind entweder **Platz für Nebenrechnungen** (Voreinstellung für neue Prüfungen) oder **Absichtlich leer**. Sie werden wie jede andere Seite gescannt, archiviert und exportiert.
+- **Aufkleberfeld auf jedem Blatt.** Nur bei beidseitigem Druck (eine Broschüre ist geheftet, dort genügt das Feld auf dem Deckblatt). Ab Blatt 2 bekommt die Vorderseite jedes Blatts oben ein QR-Aufkleberfeld, auf der Seite gegenüber der Abschneide-Ecke, so dass lose Blätter ihren Schüler finden. Für neue Prüfungen voreingestellt. Ohne diese Option gehören Blätter ohne Aufkleber zum zuletzt gescannten Aufkleber; die Blätter einer Person müssen dann zusammenbleiben. Der Aufkleberbogen schlägt dann einen Aufkleber pro Blatt und Schüler vor.
+
+### So drucken Sie {#multi-sheet-print}
+
+Der Schritt **Drucken** zeigt unter dem Plan eine Zeile, die sagt, wie Sie für Ihr Layout drucken. Bei Broschürenprüfungen wählen Sie außerdem **Broschüre: Wer ordnet die Seiten an?**:
+
+- **Examance (A3-Blätter, funktioniert auf jedem Drucker).** Das PDF enthält die A3-Blätter schon in Broschürenreihenfolge. Drucken Sie auf A3, beidseitig, Wenden an der kurzen Kante, in Originalgröße. In der Mitte falten (kleine Markierungen oben und unten an der Mittellinie) und heften. Im Aufkleber-Modus ist der Download der Angabe eine A3-Broschüre; drucken Sie sie so oft wie nötig.
+- **Broschürenfunktion meines Druckers (eine Datei pro Exemplar).** Bei personalisierten Exemplaren ist der Download ein ZIP mit einer A4-PDF pro Schüler. Drucken Sie jede Datei einzeln mit der Broschürenfunktion des Druckers.
+
+Wie Sie diese Blätter scannen: [Den Stapel scannen](./scanning#scan).
 
 ## Setzen {#typeset}
 

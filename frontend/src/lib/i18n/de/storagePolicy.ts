@@ -150,6 +150,7 @@ export const storagePolicy = {
             latexPackages: 'LaTeX-Pakete',
             nameLine: 'Namenszeile',
             mcCorrectionHint: 'MC-Korrekturhinweis',
+            printLayout: 'Drucklayout (Seitencodes, Duplex/Broschüre)',
             extraNotes: 'Platz für weitere Lösungen',
             pageBreaks: 'Seitenumbrüche (Anzahl)',
             name: 'Name',

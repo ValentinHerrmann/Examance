@@ -71,6 +71,10 @@ _HEADER_FIELDS = (
     "grading_key",
     "name_line",
     "mc_correction_hint",
+    "page_codes",
+    "print_layout",
+    "padding_pages",
+    "sheet_stickers",
 )
 # What a duplicate takes over; the title, retention and page breaks are set separately.
 _COPIED_FIELDS = (*_HEADER_FIELDS, "extra_notes", "latex_packages")

@@ -60,6 +60,14 @@ class Exam(Base):
     name_line: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # Prints a correction legend at every MC task (issue #192).
     mc_correction_hint: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    # Multi-sheet layout (issue #220): a page code on every page; off keeps the pre-#220 layout of older exams.
+    page_codes: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    # "duplex" (2 pages per sheet) or "booklet" (4 per folded A3 sheet); sets the padding multiple.
+    print_layout: Mapped[str] = mapped_column(String(10), nullable=False, default="duplex", server_default="duplex")
+    # Filler pages up to the next full sheet: "blank" (left empty on purpose) or "workspace" (room for side calculations).
+    padding_pages: Mapped[str] = mapped_column(String(10), nullable=False, default="blank", server_default="blank")
+    # A sticker box on the front of every sheet, not only on page 1.
+    sheet_stickers: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Ticks the teacher sets by hand per step (print checklist, MC check); the client owns the shape.

@@ -5,8 +5,9 @@
   import { t } from "#lib/i18n";
   import { Alert, Button, Radio, TextInput, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
-  import { slug } from "#lib/export/zip";
+  import { slug, ZipBuilder } from "#lib/export/zip";
   import { renderExamCopies } from "#lib/qr/examCopies";
+  import { imposeBooklet, splitCopies } from "#lib/qr/booklet";
   import { renderStickerSheet, STICKER_GRID, type StickerEntry } from "#lib/qr/stickerSheet";
   import { loadStickerEntries } from "#lib/sharing/stickerEntries";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
@@ -29,10 +30,14 @@
     output?: "stickers" | "copies";
     /** The students, when the page already read them (else the form reads them). */
     entries?: StickerEntry[];
+    /** Booklet exams (issue #220): copies imposed onto A3 by Examance, or one file per student for the printer's booklet function; null prints A4 copies as they are. */
+    booklet?: "impose" | "printer" | null;
+    /** Stickers each student needs (one per sheet with a sticker box on every sheet); the starting value of the count field. */
+    stickersPerStudent?: number;
     /** A PDF was handed to the browser: which kind. */
     onDone?: (kind: "stickers" | "copies" | "keys") => void;
-    /** Instead of downloading, hand the made PDF to the page (the Print step previews it and offers the download itself); the form then shows no button of its own and the page calls `create`. */
-    onPdf?: (pdf: Uint8Array, kind: "stickers" | "copies" | "keys", fileName: string) => void;
+    /** Instead of downloading, hand the made PDF to the page (the Print step previews it and offers the download itself); the form then shows no button of its own and the page calls `create`. `download` replaces the PDF as the file to save (the per-student ZIP). */
+    onPdf?: (pdf: Uint8Array, kind: "stickers" | "copies" | "keys", fileName: string, download?: SavedFile) => void;
     /** Out: makes the PDF (with `onPdf`). */
     create?: () => Promise<void>;
   }
@@ -46,17 +51,25 @@
     busy = $bindable(false),
     output: fixedOutput,
     entries,
+    booklet = null,
+    stickersPerStudent = 1,
     onDone,
     onPdf,
     create = $bindable(),
   }: Props = $props();
+
+  interface SavedFile {
+    bytes: Uint8Array;
+    fileName: string;
+    type: string;
+  }
 
   // The starting choice only; the form owns it from then on.
   const initialKeysOnly = untrack(() => startKeysOnly);
   let examEntries = $state.raw<StickerEntry[]>([]);
   let loadError = $state("");
   let loading = $state(true);
-  let copies = $state("1");
+  let copies = $state(String(untrack(() => stickersPerStudent)));
   let skip = $state("0");
   // One choice instead of two checkboxes that exclude each other (issue #212).
   type What = "stickers" | "stickersKeys" | "keys";
@@ -89,10 +102,29 @@
 
   const clamp = (value: string, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(value) || 0)));
 
-  function deliver(pdf: Uint8Array, kind: "stickers" | "copies" | "keys", fileName: string) {
-    if (onPdf) onPdf(pdf, kind, fileName);
+  function deliver(pdf: Uint8Array, kind: "stickers" | "copies" | "keys", fileName: string, download?: SavedFile) {
+    if (onPdf) onPdf(pdf, kind, fileName, download);
+    else if (download) downloadBlob(new Blob([download.bytes as BlobPart], { type: download.type }), download.fileName);
     else downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), fileName);
     onDone?.(kind);
+  }
+
+  /** The copies as the chosen print way needs them: A4 one after the other, A3 booklets, or (for the printer's booklet function) a ZIP with one A4 file per student. */
+  async function deliverCopies(list: StickerEntry[], examPdf: Uint8Array) {
+    const { pdf, pagesPerCopy } = await renderExamCopies(examPdf, list, { examTitle, examId });
+    const base = slug(examTitle || $t("sharing.stickers.copiesTitle"));
+    if (booklet === "impose") {
+      deliver(await imposeBooklet(pdf, pagesPerCopy), "copies", `${base}_booklets.pdf`);
+      return;
+    }
+    if (booklet === "printer") {
+      const zip = new ZipBuilder();
+      const files = await splitCopies(pdf, pagesPerCopy, list.map((e, i) => `${String(i + 1).padStart(3, "0")}_${slug(e.label)}`));
+      for (const file of files) zip.add(`${file.name}.pdf`, file.pdf);
+      deliver(pdf, "copies", `${base}_copies.pdf`, { bytes: zip.toBytes(), fileName: `${base}_copies.zip`, type: "application/zip" });
+      return;
+    }
+    deliver(pdf, "copies", `${base}_copies.pdf`);
   }
 
   async function download() {
@@ -106,8 +138,7 @@
       }
       if (copiesMode && loadExamPdf) {
         progress = $t("sharing.stickers.compiling");
-        const pdf = await renderExamCopies(await loadExamPdf(), list, { examTitle });
-        deliver(pdf, "copies", `${slug(examTitle || $t("sharing.stickers.copiesTitle"))}_copies.pdf`);
+        await deliverCopies(list, await loadExamPdf());
         return;
       }
       const pdf = await renderStickerSheet(list, {
@@ -127,6 +158,16 @@
 
   $effect.pre(() => {
     untrack(() => (create = download));
+  });
+
+  // The page learns the sheet count after its PDF loads: the count field follows until it is edited.
+  let suggested = untrack(() => stickersPerStudent);
+  $effect.pre(() => {
+    const next = stickersPerStudent;
+    untrack(() => {
+      if (copies === String(suggested)) copies = String(next);
+      suggested = next;
+    });
   });
 </script>
 
@@ -168,7 +209,7 @@
   {/if}
 
   {#if copiesMode}
-    <p class="m-0 text-sm text-muted">{$t("sharing.stickers.copiesPrintHint")}</p>
+    <p class="m-0 text-sm text-muted">{$t(booklet ? "sharing.stickers.copiesBookletHint" : "sharing.stickers.copiesPrintHint")}</p>
   {:else}
     <fieldset class="m-0 flex flex-col gap-1.5 border-0 p-0" disabled={busy}>
       <legend class="mb-1 text-sm font-medium">{$t("sharing.stickers.what")}</legend>

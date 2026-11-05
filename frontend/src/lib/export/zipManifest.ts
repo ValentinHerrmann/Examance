@@ -64,6 +64,11 @@ export interface ZipExamSettings {
   pageBreaks?: string[] | null;
   nameLine?: boolean;
   mcCorrectionHint?: boolean;
+  /** Multi-sheet layout (issue #220); absent in older ZIPs, read as the old layout. */
+  pageCodes?: boolean;
+  printLayout?: 'duplex' | 'booklet';
+  paddingPages?: 'blank' | 'workspace';
+  sheetStickers?: boolean;
   extraNotes?: ExtraNotes | null;
 }
 

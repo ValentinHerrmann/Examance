@@ -118,6 +118,10 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
                 "page_breaks": exam.page_breaks,
                 "name_line": exam.name_line,
                 "mc_correction_hint": exam.mc_correction_hint,
+                "page_codes": exam.page_codes,
+                "print_layout": exam.print_layout,
+                "padding_pages": exam.padding_pages,
+                "sheet_stickers": exam.sheet_stickers,
                 "extra_notes": exam.extra_notes,
                 "step_checks": exam.step_checks,
             }

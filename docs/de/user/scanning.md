@@ -9,7 +9,12 @@ Nach der Prüfung wird der ganze Stapel beschriebener Bögen zu einem PDF. Exama
 ## Den Stapel scannen {#scan}
 
 - Scannen Sie den **ganzen Stapel am Schulkopierer in ein einziges PDF**. Mehrere PDFs funktionieren ebenfalls; Sie können sie zusammen oder nacheinander hochladen.
-- Die Reihenfolge spielt keine Rolle: Die QR-Codes sagen Examance, welche Seite zu wem gehört.
+- Scannen Sie **beidseitig**.
+- Mit [Seitencodes](./exams#multi-sheet) spielt die Reihenfolge keine Rolle: Examance sortiert die Seiten nach ihrem Seitencode, und die Codes sagen ihm, welche Seite zu wem gehört.
+- Ältere Prüfungen ohne Seitencodes tragen den QR-Code nur auf dem Deckblatt. Dort müssen die Seiten jedes Schülers zusammenbleiben, in der richtigen Reihenfolge, das Deckblatt zuerst.
+- **Broschüren** lassen sich auf zwei Arten scannen: entlang der Falz aufschneiden und die A4-Blätter scannen, oder die aufgeklappten A3-Blätter scannen. Examance teilt jede A3-Seite in ihre zwei Hälften und hängt den originalen A3-Scan an das Scan-PDF des Schülers (er wandert mit den korrigierten PDFs mit).
+- Keine gescannte Seite geht verloren. Doppelt gescannte Seiten oder Seiten ohne lesbaren Seitencode bleiben hinter den Prüfungsseiten erhalten; Seiten einer anderen Prüfung werden zu einer nicht zugeordneten Abgabe.
+- Für eine fehlende Seite gibt es eine Platzhalterseite „Seite n fehlt / Page n missing“ und nach dem Hochladen eine Warnung. Wird die Seite später gescannt, ersetzt sie den Platzhalter automatisch.
 
 ![Synthetisch gescannte Prüfungsseite](../../screenshots/pitch/17-scanned-sheet.jpg)
 

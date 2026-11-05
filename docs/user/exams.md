@@ -72,7 +72,7 @@ Groups are layout only: grading and statistics stay strictly per question.
 
 ## Layout options {#layout}
 
-Layout settings live on the **Layout** tab of the **Exam** step: info text, name line, cut-off corner hint, the multiple choice correction legend, logo and LaTeX packages. **Save** stores them, **Discard changes** returns to the saved state; leaving the page with unsaved changes asks first. Changes only show in the PDF after you compile again.
+Layout settings live on the **Layout** tab of the **Exam** step: info text, name line, cut-off corner hint, the multiple choice correction legend, [printing on several sheets](#multi-sheet), logo and LaTeX packages. **Save** stores them, **Discard changes** returns to the saved state; leaving the page with unsaved changes asks first. Changes only show in the PDF after you compile again.
 
 ### Name line {#name-line}
 
@@ -114,6 +114,24 @@ MC detection reads exactly these marks, see [Verify MC detections](./scanning#mc
 Every exam prints a logo at the top left of the first page. On the **Layout** tab you choose the logo from your settings, no logo, or a logo for this exam only (see [Logo on the exam](./settings#logo)). In the exam overview, every expanded exam shows which logo it prints.
 
 On the same tab you can also add LaTeX packages for this exam only or leave out packages of your account (see [LaTeX packages](./exercises#packages)).
+
+## Several sheets {#multi-sheet}
+
+An exam that runs over several sheets of paper is easier to handle when every page knows who and what it is. The **Layout** tab has a group **Printing on several sheets** for this:
+
+- **Page code on every page.** A small QR code at the top of every page, on the side of the cut-off corner between "Seite X" and the corner marker, tells the scanner which page it is. On [personalised copies](./students#printed-copies) it also says whose page it is. So the order of the scanned sheets no longer matters, missing pages are reported and loose sheets find their student. It is on by default for new exams. Older exams keep their old layout until you switch it on; that changes the page layout, so copies printed before no longer match.
+- **Printing.** **Double-sided (A4)** puts 2 pages on a sheet (flip on the long edge); **Booklet (folded A3)** puts 4 pages on a folded A3 sheet. When Examance arranges the A3 sheets, short marks at the middle of the top and bottom edge show where to fold (and where to cut if you scan cut leaves).
+- **Filler pages.** Every copy is filled up to whole sheets (an even page count for double-sided, a multiple of 4 for booklets), so each copy starts on a new sheet. The filler pages are either **Space for side calculations** (default for new exams) or **Intentionally blank**. They are scanned, archived and exported like every other page.
+- **Sticker box on every sheet.** Double-sided only (in a booklet, which is stapled, the cover box is enough). From sheet 2 on, the front of every sheet gets a QR sticker box at the top, on the side away from the cut corner, so loose sheets find their student. On by default for new exams. Without it, sheets without a sticker belong to the last sticker scanned, so the sheets of one student must stay together. The sticker sheet then suggests one sticker per sheet and student.
+
+### How to print {#multi-sheet-print}
+
+The **Print** step shows a line under the plan that says how to print for your layout. For booklet exams you also choose **Booklet: who arranges the pages?**:
+
+- **Examance (A3 sheets, works on any printer).** The PDF already has the A3 sheets in booklet order. Print on A3, double-sided, flipping on the short edge, at actual size. Fold in the middle (small marks at the top and bottom of the middle line) and staple. With sticker mode the task sheet download is one A3 booklet; print it as often as needed.
+- **My printer's booklet function (one file per copy).** For personalised copies the download is a ZIP with one A4 PDF per student. Print each file on its own with the printer's booklet function.
+
+How to scan these sheets: [Scan the stack](./scanning#scan).
 
 ## Typeset {#typeset}
 

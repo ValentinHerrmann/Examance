@@ -22,7 +22,8 @@ export function parseOmrUri(uri: string): OmrUri | null {
   const m = BUBBLE_RE.exec(uri);
   if (!m) return null;
   const [, token, idxStr, redo] = m;
-  if (token === "__box__") return null;
+  // Page codes (issue #220) are stamped and read as QR codes, not OMR marks.
+  if (token === "__box__" || token === "__page__") return null;
   if (token === "__fid__") {
     const corner = Number(idxStr);
     return corner === 0 || corner === 1 || corner === 2 || corner === 3 ? { kind: "fiducial", corner } : null;

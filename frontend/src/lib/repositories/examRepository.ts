@@ -62,6 +62,10 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     pageBreaks: pageBreaksField(raw.page_breaks !== undefined ? raw.page_breaks : raw.pageBreaks),
     nameLine: (raw.name_line ?? raw.nameLine) === true,
     mcCorrectionHint: (raw.mc_correction_hint ?? raw.mcCorrectionHint) === true,
+    pageCodes: (raw.page_codes ?? raw.pageCodes) === true,
+    printLayout: (raw.print_layout ?? raw.printLayout) === 'booklet' ? 'booklet' : 'duplex',
+    paddingPages: (raw.padding_pages ?? raw.paddingPages) === 'workspace' ? 'workspace' : 'blank',
+    sheetStickers: (raw.sheet_stickers ?? raw.sheetStickers) === true,
     pseudonymVersion: raw.pseudonymVersion === 2 ? 2 : serverVersion(raw),
     extraNotes: extraNotesField(raw.extra_notes !== undefined ? raw.extra_notes : raw.extraNotes),
     stepChecks: stepChecksField(raw.step_checks !== undefined ? raw.step_checks : raw.stepChecks),
@@ -100,6 +104,10 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     // Undefined leaves the stored choice alone.
     name_line: exam.nameLine,
     mc_correction_hint: exam.mcCorrectionHint,
+    page_codes: exam.pageCodes,
+    print_layout: exam.printLayout,
+    padding_pages: exam.paddingPages,
+    sheet_stickers: exam.sheetStickers,
     // null switches the block off, undefined leaves it alone.
     extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,

@@ -9,7 +9,12 @@ After the exam, the whole stack of written sheets becomes one PDF. Examance spli
 ## Scan the stack {#scan}
 
 - Scan the **whole stack into one PDF** on the school copier. Several PDFs work too; you can upload them together or one after the other.
-- Order does not matter: the QR codes tell Examance which page belongs to whom.
+- Scan **double-sided**.
+- With [page codes](./exams#multi-sheet) the order does not matter: Examance sorts the pages by their page code, and the codes tell it which page belongs to whom.
+- Older exams without page codes carry the QR code only on the cover page. There, each student's pages must stay together, in order, with the cover first.
+- **Booklets** can be scanned two ways: cut along the fold and scan the A4 leaves, or scan the unfolded A3 sheets. Examance splits each A3 page into its two halves and keeps the original A3 scan attached to the student's scan PDF (it travels with graded PDFs).
+- No scanned page is ever dropped. Pages scanned twice or without a readable page code are kept after the exam pages; pages of another exam become an unmatched submission.
+- A missing page gets a placeholder page "Seite n fehlt / Page n missing" and a warning after the upload. Scanning that page later replaces the placeholder automatically.
 
 ![Synthetic scanned exam page](../screenshots/pitch/17-scanned-sheet.jpg)
 

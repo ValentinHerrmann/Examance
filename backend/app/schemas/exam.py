@@ -74,6 +74,9 @@ def check_page_breaks(value: list[str] | None) -> list[str] | None:
 QuestionType = Literal["free_text", "mc", "sc", "tf"]
 # 1 = SHA-256 of the raw pseudonym, 2 = keyed per-exam HMAC (issue #177).
 PseudonymVersion = Literal[1, 2]
+# Multi-sheet print layout (issue #220).
+PrintLayout = Literal["duplex", "booklet"]
+PaddingPages = Literal["blank", "workspace"]
 _MAX_POSITION = 10_000
 
 
@@ -213,6 +216,11 @@ class ExamCreate(BaseModel):
     page_breaks: list[str] | None = None
     name_line: bool = False
     mc_correction_hint: bool = False
+    # Multi-sheet layout (issue #220); older clients omit it and keep the old layout.
+    page_codes: bool = False
+    print_layout: PrintLayout = "duplex"
+    padding_pages: PaddingPages = "blank"
+    sheet_stickers: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
@@ -260,6 +268,10 @@ class ExamUpdate(BaseModel):
     page_breaks: list[str] | None = None
     name_line: bool | None = None
     mc_correction_hint: bool | None = None
+    page_codes: bool | None = None
+    print_layout: PrintLayout | None = None
+    padding_pages: PaddingPages | None = None
+    sheet_stickers: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     # Absent keeps the stored ticks; null or {} clears them.
@@ -297,6 +309,10 @@ class ExamResponse(BaseModel):
     page_breaks: list[str] | None = None
     name_line: bool = False
     mc_correction_hint: bool = False
+    page_codes: bool = False
+    print_layout: PrintLayout = "duplex"
+    padding_pages: PaddingPages = "blank"
+    sheet_stickers: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     pseudonym_version: int = 1

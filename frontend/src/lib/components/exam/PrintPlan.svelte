@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { faArrowsRotate, faCircleCheck, faCircleInfo, faFileCirclePlus, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -22,6 +22,9 @@
     type PrintPlan,
   } from "#lib/exam/examChecks";
   import type { StickerEntry } from "#lib/qr/stickerSheet";
+  import { imposeBooklet } from "#lib/qr/booklet";
+  import { slug } from "#lib/export/zip";
+  import { stickerBoxesPerCopy, type PrintSettings } from "#lib/exam/printLayout";
   import type { ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import StickerSheetForm from "#lib/components/sharing/StickerSheetForm.svelte";
   import { Alert, Badge, Button, Card, Checkbox, Icon, Radio, actionIcons } from "#lib/components/ui";
@@ -43,12 +46,14 @@
     downloadPdf: (variant: "angabe" | "loesung") => Promise<void>;
     /** Compiles task sheet and solution (the preview beside the plan shows them). */
     compile: (() => Promise<void>) | undefined;
+    /** The exam's multi-sheet layout (issue #220): page codes, duplex or booklet, sticker box per sheet. */
+    print: PrintSettings;
     /** A sticker or copies PDF was made (or dropped): the page shows it as an extra preview pane. */
     onJobPdf: (job: PrintJobId, url: string | null) => void;
     class?: string;
   }
 
-  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, compile, onJobPdf, class: className = "" }: Props = $props();
+  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, compile, print, onJobPdf, class: className = "" }: Props = $props();
 
   let cs = $derived($examChecksState && $examChecksState.examId === examId ? $examChecksState : null);
   let stamps = $derived(cs?.stamps ? printStamps(cs.stamps.content, cs.stamps.students) : null);
@@ -58,6 +63,11 @@
   let error = $state("");
 
   let pdfCurrent = $derived(preview?.pdf === "current");
+  let booklet = $derived(print.pageCodes && print.layout === "booklet" ? (plan.booklet ?? "impose") : null);
+  // How to print and fold; older exams without page codes keep the duplex hint.
+  let howTo = $derived<"bookletImpose" | "bookletPrinter" | "duplex">(booklet === "impose" ? "bookletImpose" : booklet === "printer" ? "bookletPrinter" : "duplex");
+  // Stickers per student follow the compiled sheet's page count when every sheet has a box.
+  let pageCount = $state(0);
   let studentCount = $derived(entries?.length ?? 0);
 
   type Level = "ok" | "warn" | "info";
@@ -98,7 +108,8 @@
   }
 
   // The made sticker or copies PDF, kept for its download; the page previews it.
-  let jobPdf = $state.raw<Partial<Record<PrintJobId, { url: string; bytes: Uint8Array; fileName: string }>>>({});
+  type SavedFile = { bytes: Uint8Array; fileName: string; type: string };
+  let jobPdf = $state.raw<Partial<Record<PrintJobId, { url: string; bytes: Uint8Array; fileName: string; download?: SavedFile }>>>({});
   let creators = $state<Partial<Record<PrintJobId, () => Promise<void>>>>({});
   let making = $state<PrintJobId | null>(null);
   let compiling = $state(false);
@@ -124,18 +135,29 @@
     }
   }
 
-  function gotPdf(job: PrintJobId, pdf: Uint8Array, fileName: string) {
+  function gotPdf(job: PrintJobId, pdf: Uint8Array, fileName: string, download?: SavedFile) {
     const old = jobPdf[job];
     if (old) URL.revokeObjectURL(old.url);
     const url = URL.createObjectURL(new Blob([pdf as BlobPart], { type: "application/pdf" }));
-    jobPdf = { ...jobPdf, [job]: { url, bytes: pdf, fileName } };
+    jobPdf = { ...jobPdf, [job]: { url, bytes: pdf, fileName, download } };
     onJobPdf(job, url);
     recordMade(job);
   }
 
   function downloadJob(job: PrintJobId) {
     const made = jobPdf[job];
-    if (made) downloadBlob(new Blob([made.bytes as BlobPart], { type: "application/pdf" }), made.fileName);
+    if (!made) return;
+    const file = made.download ?? { bytes: made.bytes, fileName: made.fileName, type: "application/pdf" };
+    downloadBlob(new Blob([file.bytes as BlobPart], { type: file.type }), file.fileName);
+  }
+
+  /** The plain task sheet; for a booklet Examance imposes, one A3 booklet the teacher prints as often as needed. */
+  async function downloadSheet(job: "exam" | "solution") {
+    if (job === "solution" || booklet !== "impose") return downloadPdf(job === "exam" ? "angabe" : "loesung");
+    const pdf = await loadExamPdf();
+    const lib = await import("pdf-lib");
+    const pages = (await lib.PDFDocument.load(pdf)).getPageCount();
+    downloadBlob(new Blob([(await imposeBooklet(pdf, pages)) as BlobPart], { type: "application/pdf" }), `${slug(examTitle || "exam")}_booklet.pdf`);
   }
 
   onDestroy(() => {
@@ -147,6 +169,20 @@
   const recordMade = (job: PrintJobId) => {
     if (cs && stamps && !printMadeValid(cs.checks, job, stamps)) void save(withPrintMade(cs.checks, job, stamps[job]));
   };
+
+  let countedFor = "";
+  $effect.pre(() => {
+    const want = print.pageCodes && print.sheetStickers && pdfCurrent;
+    const at = preview?.pdf ?? "";
+    untrack(() => {
+      if (!want || countedFor === at) return;
+      countedFor = at;
+      void loadExamPdf()
+        .then(async (pdf) => (await import("pdf-lib")).PDFDocument.load(pdf))
+        .then((doc) => (pageCount = doc.getPageCount()))
+        .catch(() => (pageCount = 0));
+    });
+  });
 </script>
 
 <div class="flex min-w-0 flex-col gap-4 {className}">
@@ -168,6 +204,15 @@
           {#if plan.mode === "copies" || copiesUnavailable}<p class="m-0 ms-7 text-xs text-muted">{copiesUnavailable ?? $t("exam.print.modeCopiesHint")}</p>{/if}
         </div>
         <Checkbox class="mt-1" checked={plan.solution} disabled={busy || !cs} onChange={(on) => setPlan({ solution: on })} label={$t("exam.print.withSolution")} />
+        {#if booklet}
+          <!-- Booklet exams (issue #220): who arranges the pages onto A3. -->
+          <div class="mt-2 flex flex-col gap-1">
+            <span class="text-sm font-medium">{$t("exam.print.booklet.legend")}</span>
+            <Radio group={booklet} value="impose" name="print-booklet" onchange={() => setPlan({ booklet: "impose" })} label={$t("exam.print.booklet.impose")} />
+            <Radio group={booklet} value="printer" name="print-booklet" onchange={() => setPlan({ booklet: "printer" })} label={$t("exam.print.booklet.printer")} />
+          </div>
+        {/if}
+        <p class="m-0 mt-1 text-xs text-muted">{$t(`exam.print.howTo.${howTo}`)}</p>
       </fieldset>
 
       <section class="min-w-0" aria-labelledby="print-ready-title">
@@ -210,7 +255,7 @@
               <Button size="sm" variant={made(job) ? "outlined" : "solid"} severity={made(job) ? "secondary" : "primary"} iconOnly icon={made(job) ? faArrowsRotate : faFileCirclePlus} loading={making === job} disabled={!!making || blocked || !entries?.length} ariaLabel={$t("exam.print.job.create")} title={$t("exam.print.job.create")} onClick={() => make(job)} />
             {/if}
             {#if sheet}
-              <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={actionIcons.download} disabled={!pdfCurrent} ariaLabel={$t("exam.print.job.download")} title={$t("exam.print.job.download")} onClick={() => downloadPdf(job === "exam" ? "angabe" : "loesung")} />
+              <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={actionIcons.download} disabled={!pdfCurrent} ariaLabel={$t("exam.print.job.download")} title={$t("exam.print.job.download")} onClick={() => downloadSheet(job === "exam" ? "exam" : "solution")} />
             {:else}
               <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={actionIcons.download} disabled={!jobPdf[job]} ariaLabel={$t("exam.print.job.download")} title={$t("exam.print.job.download")} onClick={() => downloadJob(job)} />
             {/if}
@@ -229,8 +274,10 @@
               {entries}
               output={job === "copies" ? "copies" : "stickers"}
               loadExamPdf={job === "copies" ? loadExamPdf : undefined}
+              booklet={job === "copies" ? booklet : null}
+              stickersPerStudent={stickerBoxesPerCopy(print, pageCount)}
               bind:create={creators[job]}
-              onPdf={(pdf, _kind, fileName) => gotPdf(job, pdf, fileName)}
+              onPdf={(pdf, _kind, fileName, download) => gotPdf(job, pdf, fileName, download)}
             />
           {/if}
         {/if}

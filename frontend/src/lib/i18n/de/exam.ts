@@ -209,6 +209,23 @@ export const exam = {
     layout: {
         saved: 'Layout gespeichert.',
         discard: 'Änderungen verwerfen',
+        print: {
+            title: 'Drucken mit mehreren Blättern',
+            pageCodes: 'Seitencode auf jeder Seite',
+            pageCodesHint: 'Ein kleiner QR-Code oben auf jeder Seite sagt beim Scannen, welche Seite es ist, auf direkt bedruckten Exemplaren auch, wem sie gehört. Dann ist die Reihenfolge der gescannten Blätter egal, fehlende Seiten fallen auf, und lose Blätter finden ihre:n Schüler:in. Ändert das Seitenlayout: bereits gedruckte Exemplare passen nicht mehr zur neuen Vorlage.',
+            layout: 'Druckart',
+            layoutInfo: 'Beidseitig: zwei Seiten pro Blatt, an der langen Kante wenden. Broschüre: vier Seiten pro gefaltetem A3-Blatt; Examance ordnet die Seiten beim Drucken für Sie an oder gibt eine Datei pro Schüler:in für die Broschürenfunktion des Druckers aus. Die Exemplare werden auf volle Blätter aufgefüllt.',
+            duplex: 'Beidseitig (A4)',
+            booklet: 'Broschüre (A3 gefaltet)',
+            padding: 'Füllseiten bis zum vollen Blatt',
+            paddingInfo: 'Damit jedes Exemplar auf einem neuen Blatt beginnt, füllt Examance mit Seiten auf (bei beidseitigem Druck auf eine gerade Seitenzahl, bei Broschüren auf ein Vielfaches von 4). Füllseiten werden wie jede andere Seite gescannt, archiviert und exportiert.',
+            paddingWorkspace: 'Platz für Nebenrechnungen',
+            paddingBlank: 'Absichtlich leer',
+            sheetStickers: 'Aufkleberfeld auf jedem Blatt',
+            sheetStickersHint: 'Jede Blattvorderseite bekommt ein QR-Code-Feld, damit lose Blätter beim Scannen ihre:n Schüler:in finden. Ohne: Blätter ohne Aufkleber gehören zum zuletzt gescannten Aufkleber, die Blätter müssen also zusammenbleiben.',
+            sheetStickersBooklet: 'Eine Broschüre ist geheftet: das Feld auf der Titelseite genügt.',
+            guide: 'Mehrere Blätter im Handbuch',
+        },
     },
     content: {
         tabsLabel: 'Prüfung bearbeiten',
@@ -245,6 +262,16 @@ export const exam = {
         modeStickersHint: 'Jeder Schüler klebt seinen Aufkleber auf das Deckblatt. Alle Exemplare sind gleich.',
         modeCopies: 'Personalisierte Exemplare mit aufgedrucktem QR-Code',
         modeCopiesHint: 'Ein Exemplar pro Schüler mit QR-Code, Name und persönlichem Schlüssel; keine Aufkleber nötig.',
+        booklet: {
+            legend: 'Broschüre: Wer ordnet die Seiten an?',
+            impose: 'Examance (A3-Bögen, auf jedem Drucker)',
+            printer: 'Broschürenfunktion meines Druckers (eine Datei pro Exemplar)',
+        },
+        howTo: {
+            duplex: 'Drucken: beidseitig, an der langen Kante wenden, in Originalgröße.',
+            bookletImpose: 'Drucken: auf A3, beidseitig, an der kurzen Kante wenden, in Originalgröße; dann in der Mitte falten (Markierungen oben und unten) und heften.',
+            bookletPrinter: 'Drucken: jede Datei einzeln mit der Broschürenfunktion des Druckers (A4-Seiten auf A3), falten und heften. Bei direkt bedruckten Exemplaren lädt der Download eine ZIP-Datei mit einer PDF pro Schüler:in.',
+        },
         withSolution: 'Lösung ebenfalls drucken',
         ready: {
             title: 'Bereit zum Drucken?',

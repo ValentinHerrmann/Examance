@@ -12,9 +12,10 @@
   import LatexEditor from "#lib/components/LatexEditor.svelte";
   import ExamLogoField from "#lib/components/logo/ExamLogoField.svelte";
   import ExamPackagesField from "#lib/components/latex-packages/ExamPackagesField.svelte";
-  import { Alert, Button, Checkbox, CrossLink, Field } from "#lib/components/ui";
+  import { printSettingsOf, type PrintSettings } from "#lib/exam/printLayout";
+  import { Alert, Button, Checkbox, CrossLink, Field, Radio } from "#lib/components/ui";
 
-  /** The exam's print layout (issue #212): info text, name line, cut-corner hint, MC correction legend, logo and LaTeX packages. Edited inline on the Exam page next to its preview; metadata lives in the details dialog. */
+  /** The exam's print layout (issue #212): info text, name line, cut-corner hint, MC correction legend, multi-sheet printing (issue #220), logo and LaTeX packages. Edited inline on the Exam page next to its preview; metadata lives in the details dialog. */
   interface Props {
     exam: ExamRecord;
     /** The exam's exercises, for the package result. */
@@ -30,9 +31,10 @@
   let infoText = $state("");
   let nameLine = $state(false);
   let mcCorrectionHint = $state(false);
+  let print: PrintSettings = $state({ pageCodes: false, layout: "duplex", padding: "blank", sheetStickers: false });
   let logoChange: ExamLogoChange | null = $state.raw(null);
   let latexPackages: LatexPackageEntry[] | null = $state.raw(null);
-  let initial = $state({ infoText: "", nameLine: false, mcCorrectionHint: false, latexPackages: "null" });
+  let initial = $state({ infoText: "", nameLine: false, mcCorrectionHint: false, print: "", latexPackages: "null" });
   let busy = $state(false);
   let error = $state("");
   let saved = $state(false);
@@ -43,9 +45,10 @@
     infoText = exam.infoText || "";
     nameLine = exam.nameLine === true;
     mcCorrectionHint = exam.mcCorrectionHint === true;
+    print = printSettingsOf(exam);
     latexPackages = exam.latexPackages ?? null;
     logoChange = null;
-    initial = { infoText, nameLine, mcCorrectionHint, latexPackages: JSON.stringify(latexPackages) };
+    initial = { infoText, nameLine, mcCorrectionHint, print: JSON.stringify(print), latexPackages: JSON.stringify(latexPackages) };
     error = "";
     resetSeq++;
   }
@@ -54,6 +57,7 @@
     infoText !== initial.infoText ||
       nameLine !== initial.nameLine ||
       mcCorrectionHint !== initial.mcCorrectionHint ||
+      JSON.stringify(print) !== initial.print ||
       logoChange !== null ||
       JSON.stringify(latexPackages) !== initial.latexPackages,
   );
@@ -74,10 +78,15 @@
           info_text: infoText,
           name_line: nameLine,
           mc_correction_hint: mcCorrectionHint,
+          page_codes: print.pageCodes,
+          print_layout: print.layout,
+          padding_pages: print.padding,
+          sheet_stickers: print.sheetStickers,
           latex_packages: packages,
         });
       }
-      const updated: ExamRecord = { ...exam, infoText, nameLine, mcCorrectionHint, latexPackages: packages };
+      const printFields = { pageCodes: print.pageCodes, printLayout: print.layout, paddingPages: print.padding, sheetStickers: print.sheetStickers };
+      const updated: ExamRecord = { ...exam, infoText, nameLine, mcCorrectionHint, ...printFields, latexPackages: packages };
       await saveExamEncrypted(updated, get(sessionStore).sessionKey);
       if (logoChange) {
         try {
@@ -131,6 +140,32 @@
   <Field hint={$t("exam.metadataEditor.mcCorrectionHintHint")}>
     <Checkbox id="layoutMcCorrectionHint" bind:checked={mcCorrectionHint} label={$t("exam.metadataEditor.mcCorrectionHint")} />
   </Field>
+
+  <!-- Multi-sheet printing (issue #220): page codes, duplex or booklet, filler pages, sticker box per sheet. -->
+  <fieldset class="m-0 flex flex-col gap-3 rounded-md border border-border p-3">
+    <legend class="px-1 text-sm font-semibold">{$t("exam.layout.print.title")}</legend>
+    <Field hint={$t("exam.layout.print.pageCodesHint")}>
+      <Checkbox id="layoutPageCodes" bind:checked={print.pageCodes} label={$t("exam.layout.print.pageCodes")} />
+    </Field>
+    {#if print.pageCodes}
+      <Field label={$t("exam.layout.print.layout")} info={$t("exam.layout.print.layoutInfo")}>
+        <div class="flex flex-wrap gap-x-4 gap-y-1">
+          <Radio group={print.layout} value="duplex" name="print-layout" onchange={() => (print.layout = "duplex")} label={$t("exam.layout.print.duplex")} />
+          <Radio group={print.layout} value="booklet" name="print-layout" onchange={() => (print.layout = "booklet")} label={$t("exam.layout.print.booklet")} />
+        </div>
+      </Field>
+      <Field label={$t("exam.layout.print.padding")} info={$t("exam.layout.print.paddingInfo")}>
+        <div class="flex flex-wrap gap-x-4 gap-y-1">
+          <Radio group={print.padding} value="workspace" name="print-padding" onchange={() => (print.padding = "workspace")} label={$t("exam.layout.print.paddingWorkspace")} />
+          <Radio group={print.padding} value="blank" name="print-padding" onchange={() => (print.padding = "blank")} label={$t("exam.layout.print.paddingBlank")} />
+        </div>
+      </Field>
+      <Field hint={$t(print.layout === "booklet" ? "exam.layout.print.sheetStickersBooklet" : "exam.layout.print.sheetStickersHint")}>
+        <Checkbox id="layoutSheetStickers" bind:checked={print.sheetStickers} disabled={print.layout === "booklet"} label={$t("exam.layout.print.sheetStickers")} />
+      </Field>
+    {/if}
+    <CrossLink href={docsHref("exams#multi-sheet", $locale)} class="self-start text-sm">{$t("exam.layout.print.guide")}</CrossLink>
+  </fieldset>
 
   {#key resetSeq}
     <ExamLogoField examId={exam.id} bind:change={logoChange} />

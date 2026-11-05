@@ -13,6 +13,8 @@ import { examCourse } from "#lib/utils/examLabel";
 import { documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex/packages";
 import { getAccountPackages } from "#lib/latex/packageSettings";
 import { translate } from "#lib/i18n";
+import { printSettingsOf } from "#lib/exam/printLayout";
+import { pageCodesLatex } from "#lib/exam/pageCodes";
 
 /** One `\Aufgabe` block of the exam and the exercise ids it scores (several for an MC group); block i is exam position i + 1 (`\thePunkte`). */
 export interface ExerciseBlock {
@@ -107,7 +109,7 @@ export function buildExamLatex(
   accountPackages: readonly LatexPackageEntry[]
 ): string {
   const doc = `\\documentclass[a4paper]{article}
-\\usepackage[${withExamOptions(options, exam)}]{sty/Schulaufgabe}
+\\usepackage[${withExamOptions(options, exam)}]{sty/Schulaufgabe}${pageCodeDefinitions(exam, options)}
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
 \\Lehrernachname{${exam.lehrernachname || ""}}
@@ -137,9 +139,21 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
-/** Adds the exam's layout switches to the Schulaufgabe.sty options. */
-export function withExamOptions(options: string, layout: Pick<ExamRecord, "nameLine">): string {
-  return [options, layout.nameLine && "namenszeile"].filter(Boolean).join(",");
+type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "paddingPages" | "sheetStickers">;
+
+/** Adds the exam's layout switches to the Schulaufgabe.sty options; the multi-sheet ones only with page codes, so older exams compile unchanged (issue #220). */
+export function withExamOptions(options: string, layout: LayoutFields): string {
+  const print = printSettingsOf(layout);
+  const multiSheet = print.pageCodes
+    ? ["seitencode", print.layout === "booklet" && "broschuere", print.padding === "workspace" && "fuellplatz", print.sheetStickers && "bogenaufkleber"]
+    : [];
+  return [options, layout.nameLine && "namenszeile", ...multiSheet].filter(Boolean).join(",");
+}
+
+/** The page codes of the student sheet (lib/exam/pageCodes.ts); the solution carries none. */
+function pageCodeDefinitions(exam: ExamRecord, options: string): string {
+  if (!exam.pageCodes || options.split(",").includes("antworten")) return "";
+  return `\n${pageCodesLatex(exam.id)}`;
 }
 
 export interface ExamPreviewInput {

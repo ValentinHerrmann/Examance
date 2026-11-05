@@ -1,4 +1,5 @@
 import type { ExamRecord, ExerciseRecord, StudentRecord } from '#lib/db/schema';
+import { printSettingsOf } from '#lib/exam/printLayout';
 
 /** One tick the teacher set by hand: when, and the fingerprint of what it was set for (issue #212). */
 export interface StepCheck {
@@ -14,6 +15,8 @@ export type PrintJobId = (typeof PRINT_JOBS)[number];
 export interface PrintPlan {
     mode: 'stickers' | 'copies';
     solution: boolean;
+    /** Booklet exams (issue #220): Examance imposes A3 sheets, or the printer's booklet function gets one A4 file per copy; unset = impose. */
+    booklet?: 'impose' | 'printer';
 }
 export const DEFAULT_PRINT_PLAN: PrintPlan = { mode: 'stickers', solution: false };
 
@@ -69,6 +72,7 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
         e.mcCorrectionHint, e.extraNotes,
         // Only when set, so stamps of exams without an override (all older ones) stay as they were.
         ...(e.course ? [e.course] : []),
+        ...(e.pageCodes ? [printSettingsOf(e)] : []),
     ];
     const body = exercises.map((x) => [x.id, x.version, x.orderIndex, x.mcGroupId, x.subIndex, x.maxPoints, x.latexBody]);
     return fingerprint(JSON.stringify([head, body]));

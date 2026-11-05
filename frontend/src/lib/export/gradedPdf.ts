@@ -1,4 +1,5 @@
 import { loadExamExercisesEncrypted, loadLocalMcGroups, openAnnotation, openScan } from '#lib/db/dbEncryption';
+import { carryAttachments } from '#lib/scan/scanPdf';
 import type { ExerciseScoreRecord, SubmissionRecord } from '#lib/db/schema';
 import { gradingStore, type VectorStroke } from '#lib/grading/gradingStore';
 import { buildSubLabelMap } from '#lib/grading/mcGroupLabels';
@@ -120,7 +121,8 @@ export async function renderGradedPdf(
         const viewport = page.getViewport({ scale: RENDER_SCALE });
         const canvas = newCanvas(viewport.width, viewport.height);
         await page.render({ canvasContext: canvas.getContext('2d')!, canvas, viewport }).promise; // NOSONAR
-        await addPage(canvas, n, 1 / RENDER_SCALE, doc.numPages === boxes?.pages.length); // NOSONAR
+        // The template's pages come first; extra pages after them get no score boxes (issue #220).
+        await addPage(canvas, n, 1 / RENDER_SCALE, !!boxes && doc.numPages >= boxes.pages.length && n <= boxes.pages.length); // NOSONAR
       }
     } finally {
       await doc.loadingTask.destroy();
@@ -134,5 +136,7 @@ export async function renderGradedPdf(
     await addPage(canvas, 1, 72 / 192);
   }
 
+  // The original A3 booklet scan attached at ingest travels with every graded copy (issue #220): no scanned page is ever dropped.
+  if (isPdfBytes(scanBytes)) await carryAttachments(lib, await lib.PDFDocument.load(scanBytes, { ignoreEncryption: true }), out);
   return out.save();
 }

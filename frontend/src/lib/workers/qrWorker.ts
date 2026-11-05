@@ -6,43 +6,37 @@ export interface QrWorkerRequest {
   imageData: ImageData;
 }
 
-export type QrWorkerResponse =
-  | { type: 'QR_RESULT'; pseudonymId: string; version: string; fallbackCode?: string; rawText?: string }
-  | { type: 'ERROR'; message: string };
+/** Every QR text on the page: a name sticker and, on multi-sheet exams, the page code (issue #220). */
+export type QrWorkerResponse = { type: 'QR_CODES'; texts: string[] } | { type: 'ERROR'; message: string };
+
+/** A page holds at most a sticker, the cover's printed code and the page code. */
+const MAX_SYMBOLS = 4;
 
 // Self-hosted: the library's default fetches the WASM from jsDelivr, which CSP connect-src blocks (no QR was ever read) and which would leak the user's IP.
 setZXingModuleOverrides({
   locateFile: (path: string, prefix: string) => (path.endsWith('.wasm') ? new URL(wasmUrl, self.location.href).href : prefix + path),
 });
 
-/** `BG:pseudonym:version:fallback` codes split into parts; any other payload (a name sticker) is its own pseudonym. */
-export function qrResultOf(rawValue: string): QrWorkerResponse {
-  const parts = rawValue.split(':');
-  if (parts[0] === 'BG' && parts.length >= 3) {
-    return { type: 'QR_RESULT', pseudonymId: parts[1], version: parts[2], fallbackCode: parts[3], rawText: rawValue };
-  }
-  return { type: 'QR_RESULT', pseudonymId: rawValue, version: 'A', fallbackCode: rawValue, rawText: rawValue };
-}
-
-async function decode(imageData: ImageData): Promise<string | null> {
+async function decode(imageData: ImageData): Promise<string[]> {
   try {
-    const results = await readBarcodesFromImageData(imageData, { formats: ['QRCode'], maxNumberOfSymbols: 1 });
-    if (results.length > 0) return results[0].text;
+    const results = await readBarcodesFromImageData(imageData, { formats: ['QRCode'], maxNumberOfSymbols: MAX_SYMBOLS });
+    if (results.length > 0) return results.map((r) => r.text);
   } catch (wasmErr) {
     console.warn('ZXing-wasm decode error, trying BarcodeDetector fallback:', wasmErr);
   }
   if ('BarcodeDetector' in self) {
     const detector = new (self as any).BarcodeDetector({ formats: ['qr_code'] });
-    const barcodes = await detector.detect(imageData);
-    if (barcodes.length > 0) return barcodes[0].rawValue;
+    const barcodes: { rawValue: string }[] = await detector.detect(imageData);
+    return barcodes.map((b) => b.rawValue);
   }
-  return null;
+  return [];
 }
 
 self.onmessage = async (event: MessageEvent<QrWorkerRequest>) => {
   try {
-    const rawValue = await decode(event.data.imageData);
-    self.postMessage(rawValue === null ? { type: 'ERROR', message: 'No readable QR code found on page.' } : qrResultOf(rawValue));
+    const texts = await decode(event.data.imageData);
+    const response: QrWorkerResponse = texts.length ? { type: 'QR_CODES', texts } : { type: 'ERROR', message: 'No readable QR code found on page.' };
+    self.postMessage(response);
   } catch (err: any) {
     self.postMessage({ type: 'ERROR', message: err.message || 'QR decoding error' });
   }

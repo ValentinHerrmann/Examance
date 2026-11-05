@@ -10702,6 +10702,34 @@
             "title": "Mc Correction Hint",
             "default": false
           },
+          "page_codes": {
+            "type": "boolean",
+            "title": "Page Codes",
+            "default": false
+          },
+          "print_layout": {
+            "type": "string",
+            "enum": [
+              "duplex",
+              "booklet"
+            ],
+            "title": "Print Layout",
+            "default": "duplex"
+          },
+          "padding_pages": {
+            "type": "string",
+            "enum": [
+              "blank",
+              "workspace"
+            ],
+            "title": "Padding Pages",
+            "default": "blank"
+          },
+          "sheet_stickers": {
+            "type": "boolean",
+            "title": "Sheet Stickers",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11160,6 +11188,34 @@
             "title": "Mc Correction Hint",
             "default": false
           },
+          "page_codes": {
+            "type": "boolean",
+            "title": "Page Codes",
+            "default": false
+          },
+          "print_layout": {
+            "type": "string",
+            "enum": [
+              "duplex",
+              "booklet"
+            ],
+            "title": "Print Layout",
+            "default": "duplex"
+          },
+          "padding_pages": {
+            "type": "string",
+            "enum": [
+              "blank",
+              "workspace"
+            ],
+            "title": "Padding Pages",
+            "default": "blank"
+          },
+          "sheet_stickers": {
+            "type": "boolean",
+            "title": "Sheet Stickers",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11433,6 +11489,58 @@
               }
             ],
             "title": "Mc Correction Hint"
+          },
+          "page_codes": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Codes"
+          },
+          "print_layout": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "duplex",
+                  "booklet"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Print Layout"
+          },
+          "padding_pages": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "blank",
+                  "workspace"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Padding Pages"
+          },
+          "sheet_stickers": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet Stickers"
           },
           "extra_notes": {
             "anyOf": [

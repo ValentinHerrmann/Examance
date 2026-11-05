@@ -29,6 +29,8 @@ The card **QR codes for students** on the exam's **Print** step prepares the sti
 2. Set the **number of stickers per student** and how many labels of the first sheet are **already used**, so a partly used sheet is not wasted.
 3. Print the sheet at 100 % (no "fit to page") and cut or peel the labels.
 
+If the exam has a [sticker box on every sheet](./exams#multi-sheet), the sheet suggests one sticker per sheet and student.
+
 Stickers made by other tools in the format `Lastname, Firstname_ID` work as well. Students you added by hand or from unmatched pages have no sticker.
 
 Everything is computed in your browser; no external service draws the codes.
@@ -46,7 +48,7 @@ Instead of stickers, Examance can print each student's QR code **directly onto t
 
 Every exam keeps this corner free on each page ([layout](./exams#cut-corner)): top right on odd pages, top left on even pages, which is the corner a cut through a double-sided or booklet stack removes. On the plain exam PDF it stays empty and lightly grey.
 
-**Printing and cutting:** print the copies **double-sided, flipping on the long edge**, or as a booklet. Every page shows the dashed cut line at its outer corner, so you can cut the whole stack at once with a guillotine along the line on the top sheet. A copy with an odd number of pages gets a blank page, so every copy starts on a new sheet. Print at actual size, without "fit to page".
+**Printing and cutting:** print the copies **double-sided, flipping on the long edge**, or as a booklet. Every page shows the dashed cut line at its outer corner, so you can cut the whole stack at once with a guillotine along the line on the top sheet. In exams without page codes, a copy with an odd number of pages gets a blank page, so every copy starts on a new sheet. With [page codes](./exams#multi-sheet), every copy is filled up to whole sheets (or folded A3 sheets for booklets) with filler pages that are part of the exam and are scanned like every other page. For booklets, the **Print** step also lets you choose who arranges the pages. Print at actual size, without "fit to page".
 
 ## Personal keys {#personal-keys}
 

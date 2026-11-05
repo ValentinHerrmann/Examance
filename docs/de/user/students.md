@@ -29,6 +29,8 @@ Die Karte **QR-Codes für Schüler** im Schritt **Drucken** bereitet die Aufkleb
 2. Legen Sie die **Aufkleber pro Schüler** fest und wie viele Etiketten **schon benutzt** auf dem ersten Bogen sind, damit ein angebrochener Bogen nicht verschwendet wird.
 3. Drucken Sie den Bogen mit 100 % (nicht „An Seite anpassen“) und schneiden Sie die Etiketten aus oder ziehen Sie sie ab.
 
+Hat die Prüfung ein [Aufkleberfeld auf jedem Blatt](./exams#multi-sheet), schlägt der Bogen einen Aufkleber pro Blatt und Schüler vor.
+
 Aufkleber anderer Programme im Format `Nachname, Vorname_ID` funktionieren ebenfalls. Von Hand oder aus nicht zugeordneten Seiten angelegte Schüler haben keinen Aufkleber.
 
 Alles wird in Ihrem Browser berechnet; kein externer Dienst zeichnet die Codes.
@@ -46,7 +48,7 @@ Die Option ist bei Prüfungen, die ohne Aufgabentexte importiert wurden, ausgegr
 
 Jede Prüfung hält diese Ecke auf jeder Seite frei ([Layout](./exams#cut-corner)): auf ungeraden Seiten oben rechts, auf geraden oben links, also die Ecke, die ein Schnitt durch einen beidseitig oder als Broschüre gedruckten Stapel abtrennt. Im normalen Prüfungs-PDF bleibt sie leer und hellgrau.
 
-**Drucken und Schneiden:** Drucken Sie die Exemplare **beidseitig mit Wenden an der langen Kante** oder als Broschüre. Jede Seite zeigt die gestrichelte Schnittlinie an ihrer äußeren Ecke, so dass Sie den ganzen Stapel auf einmal mit der Schneidemaschine entlang der Linie auf dem obersten Blatt schneiden können. Ein Exemplar mit ungerader Seitenzahl bekommt eine leere Seite, sodass jedes Exemplar auf einem neuen Blatt beginnt. Drucken Sie in Originalgröße, ohne „An Seite anpassen“.
+**Drucken und Schneiden:** Drucken Sie die Exemplare **beidseitig mit Wenden an der langen Kante** oder als Broschüre. Jede Seite zeigt die gestrichelte Schnittlinie an ihrer äußeren Ecke, so dass Sie den ganzen Stapel auf einmal mit der Schneidemaschine entlang der Linie auf dem obersten Blatt schneiden können. Bei Prüfungen ohne Seitencodes bekommt ein Exemplar mit ungerader Seitenzahl eine leere Seite, sodass jedes Exemplar auf einem neuen Blatt beginnt. Mit [Seitencodes](./exams#multi-sheet) wird jedes Exemplar mit Füllseiten auf ganze Blätter (bei Broschüren auf gefaltete A3-Blätter) aufgefüllt; die Füllseiten gehören zur Prüfung und werden wie jede andere Seite gescannt. Bei Broschüren können Sie im Schritt **Drucken** außerdem wählen, wer die Seiten anordnet. Drucken Sie in Originalgröße, ohne „An Seite anpassen“.
 
 ## Persönliche Schlüssel {#personal-keys}
 

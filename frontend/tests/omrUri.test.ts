@@ -21,6 +21,10 @@ describe('parseOmrUri', () => {
     expect(parseOmrUri('omr://__box__/7')).toBeNull();
   });
 
+  it('never reads a page-code link as a bubble (issue #220)', () => {
+    expect(parseOmrUri('omr://__page__/3')).toBeNull();
+  });
+
   it('rejects malformed links', () => {
     expect(parseOmrUri('omr://__fid__/9')).toBeNull();
     expect(parseOmrUri('omr://__box__/part/2')).toBeNull();

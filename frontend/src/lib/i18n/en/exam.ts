@@ -211,6 +211,23 @@ export const exam: Translations['exam'] = {
     layout: {
         saved: 'Layout saved.',
         discard: 'Discard changes',
+        print: {
+            title: 'Printing on several sheets',
+            pageCodes: 'Page code on every page',
+            pageCodesHint: 'A small QR code at the top of every page tells the scanner which page it is, and on printed copies also whose it is. The order of scanned sheets then does not matter, missing pages are reported and loose sheets find their student. Changes the page layout: copies printed before no longer match the new template.',
+            layout: 'Printing',
+            layoutInfo: 'Double-sided: two pages per sheet, flipped on the long edge. Booklet: four pages per folded A3 sheet; Examance arranges the pages for you when printing, or gives one file per student for your printer\'s booklet function. Copies are filled up to full sheets.',
+            duplex: 'Double-sided (A4)',
+            booklet: 'Booklet (folded A3)',
+            padding: 'Filler pages up to a full sheet',
+            paddingInfo: 'So that every copy starts on a new sheet, Examance adds pages (an even page count for double-sided printing, a multiple of 4 for booklets). Filler pages are scanned, archived and exported like every other page.',
+            paddingWorkspace: 'Space for side calculations',
+            paddingBlank: 'Intentionally blank',
+            sheetStickers: 'Sticker box on every sheet',
+            sheetStickersHint: 'Every sheet front gets a QR code box, so loose sheets find their student when scanned. Without: sheets without a sticker belong to the last sticker scanned, so sheets must stay together.',
+            sheetStickersBooklet: 'A booklet is stapled: the box on the cover page is enough.',
+            guide: 'Several sheets in the guide',
+        },
     },
     content: {
         tabsLabel: 'Edit exam',
@@ -247,6 +264,16 @@ export const exam: Translations['exam'] = {
         modeStickersHint: 'Each student sticks their sticker onto the cover page. All copies are the same.',
         modeCopies: 'Personalised copies with the QR code printed on',
         modeCopiesHint: 'One copy per student with QR code, name and personal key; no stickers needed.',
+        booklet: {
+            legend: 'Booklet: who arranges the pages?',
+            impose: 'Examance (A3 sheets, works on any printer)',
+            printer: 'My printer\'s booklet function (one file per copy)',
+        },
+        howTo: {
+            duplex: 'Printing: double-sided, flip on the long edge, at actual size.',
+            bookletImpose: 'Printing: on A3, double-sided, flip on the short edge, at actual size; then fold in the middle (marks at top and bottom) and staple.',
+            bookletPrinter: 'Printing: each file on its own with the printer\'s booklet function (A4 pages onto A3), fold and staple. For printed copies the download is a ZIP file with one PDF per student.',
+        },
         withSolution: 'Also print the solution',
         ready: {
             title: 'Ready to print?',

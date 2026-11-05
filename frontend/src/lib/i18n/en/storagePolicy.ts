@@ -152,6 +152,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
             latexPackages: 'LaTeX packages',
             nameLine: 'Name line',
             mcCorrectionHint: 'MC correction legend',
+            printLayout: 'Print layout (page codes, duplex/booklet)',
             extraNotes: 'Space for extra solutions',
             pageBreaks: 'Page breaks (count)',
             name: 'Name',

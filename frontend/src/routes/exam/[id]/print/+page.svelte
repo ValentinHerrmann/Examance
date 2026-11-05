@@ -14,6 +14,7 @@
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import ExamPreviewPanel, { type ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import PrintPlan from "#lib/components/exam/PrintPlan.svelte";
+  import { printSettingsOf } from "#lib/exam/printLayout";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { t, translate } from "#lib/i18n";
   import { Alert, PageShell } from "#lib/components/ui";
@@ -106,6 +107,7 @@
         {loadExamPdf}
         {downloadPdf}
         {compile}
+        print={printSettingsOf(ctx.exam)}
         onJobPdf={(job, url) => {
           if (job === "qr" || job === "copies") jobUrls = { ...jobUrls, [job]: url ?? undefined };
         }}
