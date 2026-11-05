@@ -51,7 +51,11 @@ export function examProgress(input: ExamProgressInput): ExamProgress {
 /** The step after this one in the flow, or null after the last. */
 export function nextStep(step: ExamStep): ExamStep | null {
     const i = EXAM_STEPS.findIndex((s) => s.step === step);
-    return i >= 0 && i + 1 < EXAM_STEPS.length ? EXAM_STEPS[i + 1].step : null;
+    if (i < 0) return null;
+    // The end of branch A (digital grading) skips branch B (paper grading): they are alternatives.
+    let j = i + 1;
+    while (j < EXAM_STEPS.length && EXAM_STEPS[i].branch === 'A' && EXAM_STEPS[j].branch === 'B') j++;
+    return j < EXAM_STEPS.length ? EXAM_STEPS[j].step : null;
 }
 
 const CONTINUE_ORDER: ExamStep[] = ['content', 'students', 'print', 'scan', 'grade', 'results'];

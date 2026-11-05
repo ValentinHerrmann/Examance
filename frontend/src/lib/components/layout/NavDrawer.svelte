@@ -97,6 +97,11 @@
         </p>
         <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
           {#each examItems as item (item.step)}
+            {#if item.branch === "B"}
+              <li aria-hidden="true" class="flex items-center gap-2 px-3 py-0.5 text-xs text-muted" title={$t("exam.sidebar.orHint")}>
+                <span class="h-px flex-1 bg-line"></span><span>{$t("exam.sidebar.or")}</span><span class="h-px flex-1 bg-line"></span>
+              </li>
+            {/if}
             <li>
               <a
                 href={item.href}

@@ -59,6 +59,12 @@
     {#if !collapsed}<p class="m-0 mb-1 px-5 text-xs leading-snug text-muted">{$t("exam.sidebar.legend")}</p>{/if}
     <ul class="m-0 flex list-none flex-col gap-0.5 p-0 px-2">
       {#each items as item (item.step)}
+        {#if item.branch === "B"}
+          <!-- B replaces 4A–6A: a separator says so before it. -->
+          <li aria-hidden="true" class="flex items-center gap-2 px-3 py-0.5 text-xs text-muted" title={$t("exam.sidebar.orHint")}>
+            <span class="h-px flex-1 bg-line"></span>{#if !collapsed}<span>{$t("exam.sidebar.or")}</span><span class="h-px flex-1 bg-line"></span>{/if}
+          </li>
+        {/if}
         <li>
           <Tooltip text={item.hintKey ? $t(item.hintKey) : $t(item.labelKey)} placement="right" disabled={!collapsed && !item.hintKey} wrapperClass="flex w-full">
             <a
@@ -72,7 +78,7 @@
               <Icon icon={item.icon} class="w-4 text-base" />
               {#if !collapsed}
                 <span class="min-w-0 flex-1 py-1 leading-tight">
-                  {#if item.number}<span class="mr-1 tabular-nums opacity-70" title={$t("exam.sidebar.stepNumber", { number: item.number })}>{item.number}</span>{/if}{$t(item.labelKey)}
+                  {#if item.number}<span class="mr-1 tabular-nums {item.active ? '' : 'text-muted'}" title={$t("exam.sidebar.stepNumber", { number: item.number })}>{item.number}</span>{/if}{$t(item.labelKey)}
                 </span>
                 <ExamStepBadge status={context.progress[item.step]} step={item.step} />
               {/if}
