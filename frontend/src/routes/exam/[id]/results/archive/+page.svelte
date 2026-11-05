@@ -12,6 +12,9 @@
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import ExportOptionList from "#lib/components/export/ExportOptionList.svelte";
   import ExportProgressBar from "#lib/components/export/ExportProgressBar.svelte";
+  import BackupFields, { backupReady } from "#lib/components/export/BackupFields.svelte";
+  import { exportBgprojArchive } from "#lib/services/archiveService";
+  import { showArchiveReport } from "#lib/stores/archiveReport";
   import { loadExamEncrypted, loadExamExercisesEncrypted } from "#lib/db/dbEncryption";
   import { examHasWithheldCode } from "#lib/exam/examPreview";
   import { renderCombinedGradedPdf, renderExamSummaryPdf, runExamExport } from "#lib/export/examExport";
@@ -46,6 +49,12 @@
 
   let options = $derived(examExportOptions(withheld, $t));
   let selected = $derived(new Set(options.filter((o) => !o.disabled && checked[o.key]).map((o) => o.key)));
+  // The re-importable, password-protected backup: its own file next to the ZIP.
+  let backup = $state(false);
+  let password = $state("");
+  let passwordRepeat = $state("");
+  let withoutCode = $state(false);
+  let canDownload = $derived((selected.size > 0 || backup) && (!backup || backupReady(password, passwordRepeat)));
   let fileTitle = $derived(title || translate("dashboard.examList.untitledExam"));
 
   function revoke() {
@@ -122,10 +131,19 @@
     error = "";
     warnings = [];
     try {
-      warnings = await runZipExport((sel, progress) => runExamExport(examId, sel, progress), selected, (s, d, total) => {
-        step = s;
-        fraction = total ? Math.min(1, (d ?? 0) / total) : null;
-      });
+      if (selected.size > 0) {
+        warnings = await runZipExport((sel, progress) => runExamExport(examId, sel, progress), selected, (s, d, total) => {
+          step = s;
+          fraction = total ? Math.min(1, (d ?? 0) / total) : null;
+        });
+      }
+      if (backup) {
+        step = translate("export.backup.encrypting");
+        fraction = null;
+        const report = await exportBgprojArchive(password, { examIds: [examId], name: fileTitle, includeExerciseCode: !withoutCode });
+        password = passwordRepeat = "";
+        await showArchiveReport(report);
+      }
       done = true;
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
@@ -216,7 +234,7 @@
 {/snippet}
 
 {#snippet zipAction()}
-  <Button size="sm" iconOnly icon={actionIcons.download} loading={running} disabled={running || selected.size === 0} ariaLabel={$t("exam.archive.zipDownload")} title={$t("exam.archive.zipDownload")} onClick={download} />
+  <Button size="sm" iconOnly icon={actionIcons.download} loading={running} disabled={running || !canDownload} ariaLabel={$t("exam.archive.zipDownload")} title={$t("exam.archive.zipDownload")} onClick={download} />
 {/snippet}
 {#snippet zipControls()}
   <span class="flex items-center gap-1.5 text-warning-fg"><Icon icon={faTriangleExclamation} />{$t("exam.archive.zipNoticeShort")}</span>
@@ -225,6 +243,13 @@
 {#snippet zipBody()}
   <div class="min-h-0 flex-1 overflow-auto">
     <ExportOptionList {options} bind:checked disabled={running} />
+    <div class="mt-3 border-t border-line pt-3">
+      <div class="flex items-center gap-1">
+        <Checkbox bind:checked={backup} disabled={running} label={$t("exam.archive.backupOption")} />
+        <InfoTip text={$t("export.backup.intro")} />
+      </div>
+      {#if backup}<BackupFields class="mt-3 ml-7" intro={false} bind:password bind:passwordRepeat bind:withoutCode disabled={running} />{/if}
+    </div>
   </div>
   {#if running}<ExportProgressBar {step} {fraction} />{/if}
   {#if error}<Alert severity="danger">{error}</Alert>{/if}

@@ -12,11 +12,12 @@
   import { untrack, type Snippet } from "svelte";
   import { faFileZipper, faLock } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { Alert, Button, Checkbox, Field, Modal, Radio, TextInput } from "#lib/components/ui";
+  import { Alert, Button, Modal, Radio } from "#lib/components/ui";
   import type { ExportProgress, ExportResult } from "#lib/export/progress";
   import { runZipExport } from "#lib/export/runZipExport";
   import ExportOptionList from "./ExportOptionList.svelte";
   import ExportProgressBar from "./ExportProgressBar.svelte";
+  import BackupFields, { backupReady } from "./BackupFields.svelte";
   import { exportBgprojArchive, type ArchiveExportOptions } from "#lib/services/archiveService";
   import { showArchiveReport } from "#lib/stores/archiveReport";
 
@@ -37,7 +38,6 @@
   let password = $state("");
   let passwordRepeat = $state("");
   let withoutCode = $state(false);
-  let mismatch = $derived(passwordRepeat !== "" && password !== passwordRepeat);
 
   // Initial selection only; the options list is fixed while the dialog is open.
   let checked = $state<Record<string, boolean>>(
@@ -97,23 +97,7 @@
       </fieldset>
     {/if}
     {#if format === "backup"}
-      <div class="flex flex-col gap-4">
-        <p class="text-sm text-muted">{$t("export.backup.intro")}</p>
-        <Field label={$t("export.backup.password")} hint={$t("export.backup.passwordHint")}>
-          {#snippet children({ id })}
-            <TextInput {id} type="password" autocomplete="new-password" bind:value={password} disabled={running} />
-          {/snippet}
-        </Field>
-        <Field label={$t("export.backup.passwordRepeat")} error={mismatch ? $t("export.backup.mismatch") : undefined}>
-          {#snippet children({ id })}
-            <TextInput {id} type="password" autocomplete="new-password" bind:value={passwordRepeat} invalid={mismatch} disabled={running} />
-          {/snippet}
-        </Field>
-        <div>
-          <Checkbox bind:checked={withoutCode} label={$t("export.backup.withoutCode")} disabled={running} />
-          <p class="ml-7 text-sm text-muted">{$t("export.backup.withoutCodeHint")}</p>
-        </div>
-      </div>
+      <BackupFields bind:password bind:passwordRepeat bind:withoutCode disabled={running} />
     {:else}
       {@render notice?.()}
     {/if}
@@ -132,7 +116,7 @@
     {:else}
       <Button variant="outlined" severity="secondary" disabled={running} onClick={onClose}>{$t("common.cancel")}</Button>
       {#if format === "backup"}
-        <Button icon={faLock} loading={running} disabled={running || !password || password !== passwordRepeat} onClick={start}>
+        <Button icon={faLock} loading={running} disabled={running || !backupReady(password, passwordRepeat)} onClick={start}>
           {$t("export.backup.download")}
         </Button>
       {:else}
