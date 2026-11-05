@@ -5,7 +5,7 @@
   import { onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
   import { get } from "svelte/store";
-  import { faFileZipper, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowsRotate, faFileCirclePlus, faFileZipper, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, Checkbox, Icon, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -169,12 +169,11 @@
 
 {#snippet sheetAction()}
   {#if sheetUrl}
-    <Button size="sm" icon={actionIcons.download} href={sheetUrl} download={`${fileTitle} – ${$t("exam.archive.sheetFile")}.pdf`}>{$t("exam.archive.sheetDownload")}</Button>
+    <Button size="sm" iconOnly icon={actionIcons.download} href={sheetUrl} download={`${fileTitle} – ${$t("exam.archive.sheetFile")}.pdf`} ariaLabel={$t("exam.archive.sheetDownload")} title={$t("exam.archive.sheetDownload")} />
   {/if}
+  <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={faArrowsRotate} loading={sheetBusy} disabled={sheetBusy} ariaLabel={$t("exam.archive.sheetRefresh")} title={$t("exam.archive.sheetRefresh")} onClick={() => renderSheet(examId)} />
 {/snippet}
-{#snippet sheetControls()}
-  <Button size="sm" variant="outlined" severity="secondary" loading={sheetBusy} disabled={sheetBusy} onClick={() => renderSheet(examId)}>{$t("exam.archive.sheetRefresh")}</Button>
-{/snippet}
+{#snippet sheetControls()}{/snippet}
 {#snippet sheetBody()}
   {#if sheetError}<Alert severity="danger">{sheetError}</Alert>{/if}
   {@render pdfPane(sheetBusy, $t("exam.archive.sheetBusy"), sheetUrl, "")}
@@ -182,11 +181,20 @@
 
 {#snippet gradedAction()}
   {#if gradedUrl}
-    <Button size="sm" icon={actionIcons.download} href={gradedUrl} download={`${fileTitle} – ${$t("exam.archive.gradedFile")}.pdf`}>{$t("exam.archive.gradedDownload")}</Button>
+    <Button size="sm" iconOnly icon={actionIcons.download} href={gradedUrl} download={`${fileTitle} – ${$t("exam.archive.gradedFile")}.pdf`} ariaLabel={$t("exam.archive.gradedDownload")} title={$t("exam.archive.gradedDownload")} />
   {/if}
-  <Button size="sm" variant={gradedUrl ? "outlined" : "solid"} severity={gradedUrl ? "secondary" : "primary"} icon={actionIcons.print} loading={gradedBusy} disabled={gradedBusy} onClick={renderGraded}>
-    {gradedUrl ? $t("exam.archive.gradedRecreate") : $t("exam.archive.gradedCreate")}
-  </Button>
+  <Button
+    size="sm"
+    variant={gradedUrl ? "outlined" : "solid"}
+    severity={gradedUrl ? "secondary" : "primary"}
+    iconOnly
+    icon={gradedUrl ? faArrowsRotate : faFileCirclePlus}
+    loading={gradedBusy}
+    disabled={gradedBusy}
+    ariaLabel={gradedUrl ? $t("exam.archive.gradedRecreate") : $t("exam.archive.gradedCreate")}
+    title={gradedUrl ? $t("exam.archive.gradedRecreate") : $t("exam.archive.gradedCreate")}
+    onClick={renderGraded}
+  />
 {/snippet}
 {#snippet gradedControls()}
   <Checkbox bind:checked={duplex} disabled={gradedBusy} label={$t("exam.archive.gradedDuplex")} />
@@ -195,7 +203,15 @@
 {#snippet gradedBody()}
   {#if gradedError}<Alert severity="danger">{gradedError}</Alert>{/if}
   {#if gradedBusy}<ExportProgressBar step={$t("exam.archive.gradedBusy")} fraction={gradedFraction} />{/if}
-  {@render pdfPane(gradedBusy, $t("exam.archive.gradedBusy"), gradedUrl, gradedNone ? $t("exam.archive.gradedNone") : $t("exam.archive.gradedEmpty"))}
+  {#if !gradedUrl && !gradedBusy && !gradedNone}
+    <!-- Before the first run the pane itself offers the labelled button. -->
+    <div class="flex min-h-72 flex-1 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-line-strong p-4 text-center text-sm text-muted lg:min-h-[28rem]">
+      {$t("exam.archive.gradedEmpty")}
+      <Button size="sm" icon={faFileCirclePlus} onClick={renderGraded}>{$t("exam.archive.gradedCreate")}</Button>
+    </div>
+  {:else}
+    {@render pdfPane(gradedBusy, $t("exam.archive.gradedBusy"), gradedUrl, gradedNone ? $t("exam.archive.gradedNone") : "")}
+  {/if}
   {#if gradedWarnings.length}
     <Alert severity="warning" title={$t("export.dialog.doneWithWarnings")}>
       <ul class="list-disc pl-5">{#each gradedWarnings as w}<li>{w}</li>{/each}</ul>
@@ -204,7 +220,7 @@
 {/snippet}
 
 {#snippet zipAction()}
-  <Button size="sm" icon={faFileZipper} loading={running} disabled={running || selected.size === 0} onClick={download}>{$t("export.dialog.download")}</Button>
+  <Button size="sm" iconOnly icon={faFileZipper} loading={running} disabled={running || selected.size === 0} ariaLabel={$t("exam.archive.zipDownload")} title={$t("exam.archive.zipDownload")} onClick={download} />
 {/snippet}
 {#snippet zipControls()}
   <span class="flex items-center gap-1.5 text-warning-fg"><Icon icon={faTriangleExclamation} />{$t("exam.archive.zipNoticeShort")}</span>
