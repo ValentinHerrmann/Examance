@@ -398,7 +398,7 @@ export const exercises = {
     },
     suggestInput: {
         noEntries: 'Noch keine früheren Einträge',
-        removeEntry: 'Eintrag entfernen',
+        removeEntry: 'Eintrag entfernen (Umschalt+Entf)',
     },
     confirmDiscard: {
         confirmText: 'Änderungen verwerfen',

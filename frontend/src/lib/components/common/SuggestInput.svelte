@@ -115,7 +115,7 @@
     inputEl?.focus();
   }
 
-  function handleRemove(e: MouseEvent, suggestion: string) {
+  function handleRemove(e: MouseEvent | KeyboardEvent, suggestion: string) {
     e.preventDefault();
     e.stopPropagation();
     if (storageKey) {
@@ -172,6 +172,10 @@
         e.preventDefault();
         selectSuggestion(filteredSuggestions[highlightedIndex]);
       }
+    } else if (e.key === "Delete" && e.shiftKey) {
+      // Shift+Delete removes a remembered entry, as in browser autocomplete (the mouse uses the × in the row).
+      const s = filteredSuggestions[highlightedIndex];
+      if (s && storageKey && recentList.includes(s)) handleRemove(e, s);
     } else if (e.key === "Escape") {
       closeDropdown();
     }
@@ -243,15 +247,15 @@
           >
             <span class="truncate">{suggestion}</span>
             {#if storageKey && recentList.includes(suggestion)}
-              <button
-                type="button"
+              <!-- Not a button: an option must not contain a control (axe nested-interactive); keyboard users press Shift+Delete. -->
+              <span
+                aria-hidden="true"
                 title={$t("exercises.suggestInput.removeEntry")}
-                aria-label={$t("exercises.suggestInput.removeEntry")}
                 class="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-xs text-muted opacity-60 transition-opacity hover:bg-danger/30 hover:text-danger-fg group-hover:opacity-100"
                 onmousedown={(e) => handleRemove(e, suggestion)}
               >
                 <Icon icon={faXmark} />
-              </button>
+              </span>
             {/if}
           </li>
         {/each}
