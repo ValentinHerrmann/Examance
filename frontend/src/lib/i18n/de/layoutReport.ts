@@ -1,5 +1,5 @@
 export const layoutReport = {
-    button: 'LaTeX-Layoutproblem melden',
+    button: 'LaTeX-Fehler melden',
     dialog: {
         title: 'LaTeX-Layoutproblem melden',
         intro: 'Sieht das PDF falsch aus oder lässt es sich nicht erstellen? Beschreiben Sie kurz, was nicht stimmt. Die Administration prüft die Meldung und meldet sich per E-Mail, sobald das Problem gelöst ist.',

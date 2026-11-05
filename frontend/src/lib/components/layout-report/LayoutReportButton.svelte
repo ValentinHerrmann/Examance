@@ -17,9 +17,11 @@
     collectFiles: () => Promise<LayoutReportFileData[]>;
     compileError?: string | null;
     disabled?: boolean;
+    /** Bug icon only (the PDF pane headers); the label becomes its tooltip. */
+    iconOnly?: boolean;
   }
 
-  let { kind, title, collectFiles, compileError = null, disabled = false }: Props = $props();
+  let { kind, title, collectFiles, compileError = null, disabled = false, iconOnly = false }: Props = $props();
 
   let open = $state(false);
   let problem = $state("");
@@ -101,9 +103,13 @@
   }
 </script>
 
-<Button size="sm" variant="text" severity="secondary" icon={faBug} {disabled} onClick={openDialog}>
-  {$t("layoutReport.button")}
-</Button>
+{#if iconOnly}
+  <Button size="sm" variant="text" severity="secondary" iconOnly icon={faBug} {disabled} ariaLabel={$t("layoutReport.button")} title={$t("layoutReport.button")} onClick={openDialog} />
+{:else}
+  <Button size="sm" variant="text" severity="secondary" icon={faBug} {disabled} onClick={openDialog}>
+    {$t("layoutReport.button")}
+  </Button>
+{/if}
 
 <Modal {open} size="medium" title={$t("layoutReport.dialog.title")} onClose={close} {error}>
   {#if sent}

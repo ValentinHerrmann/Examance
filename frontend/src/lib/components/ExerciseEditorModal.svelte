@@ -596,6 +596,7 @@
 
 {#snippet layoutReport()}
   <LayoutReportButton
+    iconOnly
     kind="exercise"
     title={editorName}
     compileError={previewError || null}
@@ -777,7 +778,7 @@
           titleLoesung={$t("exercises.editor.previewLoesungTitle")}
           placeholderText={$t("exercises.editor.previewPlaceholder")}
           shrinkWhenCollapsed={showLatexPanel}
-          footer={previewPdfUrl || previewSolutionPdfUrl || previewError ? layoutReport : undefined}
+          report={previewPdfUrl || previewSolutionPdfUrl || previewError ? layoutReport : undefined}
         />
       </div>
     </div>

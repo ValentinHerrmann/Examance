@@ -284,6 +284,7 @@
 
 {#snippet layoutReport()}
   <LayoutReportButton
+    iconOnly
     kind="exam"
     title={exam.title ?? ""}
     compileError={errorMsg || null}
@@ -362,9 +363,8 @@
           titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
           height="100%"
           placeholderText={$t("exam.page.pdfPreview.placeholder")}
-        >
-          {#snippet footer()}{@render layoutReport()}{/snippet}
-        </DualPdfPreview>
+          report={layoutReport}
+        />
       </div>
     {/if}
 

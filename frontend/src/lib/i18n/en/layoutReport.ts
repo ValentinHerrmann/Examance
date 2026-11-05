@@ -1,7 +1,7 @@
 import type { Translations } from '../types';
 
 export const layoutReport: Translations['layoutReport'] = {
-    button: 'Report LaTeX layout problem',
+    button: 'Report LaTeX error',
     dialog: {
         title: 'Report a LaTeX layout problem',
         intro: 'Does the PDF look wrong or does it fail to compile? Briefly describe what is wrong. The administrators review the report and you get an e-mail once the problem is resolved.',

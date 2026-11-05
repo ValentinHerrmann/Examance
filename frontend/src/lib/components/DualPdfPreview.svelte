@@ -19,8 +19,8 @@
     placeholderText?: string | undefined;
     /** Desktop: with every pane collapsed, shrink to the collapsed strips and give the rest of the row back. */
     shrinkWhenCollapsed?: boolean;
-    /** A slim bar right under the PDFs, for actions about them (e.g. the layout report). */
-    footer?: Snippet;
+    /** Icon action in every open pane's header (and once beside the phone tabs): the LaTeX error report. Kept out of a row under the PDFs to save height. */
+    report?: Snippet;
     /** False hides the download buttons (a student's view-only result page, issue #207). */
     downloadable?: boolean;
     /** More PDFs beside task sheet and solution (the Print step's sticker sheet). Collapsed until their URL first appears or changes; then they open. */
@@ -37,7 +37,7 @@
     height = "100%",
     placeholderText = undefined,
     shrinkWhenCollapsed = false,
-    footer,
+    report,
     downloadable = true,
     extraPanes = [],
   }: Props = $props();
@@ -103,9 +103,6 @@
 
   let allCollapsed = $derived(panes.every((p) => !p.shown));
 
-  // Both panes folded to strips leave no room for the bar.
-  let showFooter = $derived(!!footer && !(shrinkWhenCollapsed && allCollapsed));
-
   // A new or changed extra PDF opens its pane (and selects it on phones), so what was just made is in view.
   $effect.pre(() => {
     const urls = extraPanes.map((x) => [x.id, x.url] as const);
@@ -123,12 +120,6 @@
   const paneShell =
     "flex flex-col overflow-hidden rounded-md border border-line bg-surface-viewer transition-all duration-200";
 </script>
-
-{#snippet footerBar()}
-  {#if showFooter}
-    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">{@render footer?.()}</div>
-  {/if}
-{/snippet}
 
 {#if $isDesktop}
   <div
@@ -150,6 +141,7 @@
                 <span class="truncate text-xs font-medium text-muted">{pane.title}</span>
               </button>
               <div class="flex shrink-0 items-center gap-0.5">
+                {@render report?.()}
                 {#if pane.url && downloadable}
                   <Button
                     variant="text"
@@ -199,7 +191,6 @@
         </div>
       {/each}
     </div>
-    {@render footerBar()}
   </div>
 {:else}
   <div class="flex w-full min-w-0 flex-1 flex-col gap-1.5">
@@ -207,12 +198,15 @@
       class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-surface-viewer"
       style="height: min(70dvh, {height}); min-height: 18rem;"
     >
-      <Tabs
-        class="shrink-0 bg-surface-raised"
-        items={panes.map((p) => ({ id: p.id, label: p.title, icon: p.icon }))}
-        value={mobilePane}
-        onChange={(id) => selectMobilePane(id)}
-      />
+      <div class="flex shrink-0 items-center bg-surface-raised">
+        <Tabs
+          class="min-w-0 flex-1"
+          items={panes.map((p) => ({ id: p.id, label: p.title, icon: p.icon }))}
+          value={mobilePane}
+          onChange={(id) => selectMobilePane(id)}
+        />
+        {#if report}<div class="shrink-0 px-1">{@render report()}</div>{/if}
+      </div>
 
       <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}>
         {#if activePane.url}
@@ -224,6 +218,5 @@
         {/if}
       </div>
     </div>
-    {@render footerBar()}
   </div>
 {/if}
