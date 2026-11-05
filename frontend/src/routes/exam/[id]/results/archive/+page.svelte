@@ -54,6 +54,12 @@
   let password = $state("");
   let passwordRepeat = $state("");
   let withoutCode = $state(false);
+  // Scrolls only the list's own box, never `.app-main` (scrollIntoView would move the shell).
+  const revealInList = (el: HTMLElement) => {
+    const box = el.closest<HTMLElement>(".overflow-auto");
+    const below = box ? el.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom : 0;
+    if (box && below > 0) box.scrollTop += below;
+  };
   let canDownload = $derived((selected.size > 0 || backup) && (!backup || backupReady(password, passwordRepeat)));
   let fileTitle = $derived(title || translate("dashboard.examList.untitledExam"));
 
@@ -248,7 +254,7 @@
         <Checkbox bind:checked={backup} disabled={running} label={$t("exam.archive.backupOption")} />
         <InfoTip text={$t("export.backup.intro")} />
       </div>
-      {#if backup}<BackupFields class="mt-3 ml-7" intro={false} bind:password bind:passwordRepeat bind:withoutCode disabled={running} />{/if}
+      {#if backup}<div {@attach revealInList}><BackupFields class="mt-3 ml-7" intro={false} bind:password bind:passwordRepeat bind:withoutCode disabled={running} /></div>{/if}
     </div>
   </div>
   {#if running}<ExportProgressBar {step} {fraction} />{/if}
