@@ -61,6 +61,7 @@ _HEADER_FIELDS = (
     "testart",
     "grade",
     "klasse",
+    "course",
     "datum",
     "nr",
     "fach",

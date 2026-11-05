@@ -200,6 +200,7 @@ class ExamCreate(BaseModel):
     testart: str | None = Field(default=None, max_length=100)
     grade: str | None = Field(default=None, max_length=50)
     klasse: str | None = Field(default=None, max_length=50)
+    course: str | None = Field(default=None, max_length=50)
     datum: str | None = Field(default=None, max_length=100)
     nr: str | None = Field(default=None, max_length=10)
     fach: str | None = Field(default=None, max_length=100)
@@ -244,6 +245,7 @@ class ExamUpdate(BaseModel):
     testart: str | None = Field(default=None, max_length=100)
     grade: str | None = Field(default=None, max_length=50)
     klasse: str | None = Field(default=None, max_length=50)
+    course: str | None = Field(default=None, max_length=50)
     datum: str | None = Field(default=None, max_length=100)
     nr: str | None = Field(default=None, max_length=10)
     fach: str | None = Field(default=None, max_length=100)
@@ -283,6 +285,7 @@ class ExamResponse(BaseModel):
     testart: str | None = None
     grade: str | None = None
     klasse: str | None = None
+    course: str | None = None
     datum: str | None = None
     nr: str | None = None
     fach: str | None = None

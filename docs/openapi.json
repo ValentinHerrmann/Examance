@@ -10569,6 +10569,18 @@
             ],
             "title": "Klasse"
           },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
+          },
           "datum": {
             "anyOf": [
               {
@@ -11021,6 +11033,17 @@
             ],
             "title": "Klasse"
           },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
+          },
           "datum": {
             "anyOf": [
               {
@@ -11265,6 +11288,18 @@
               }
             ],
             "title": "Klasse"
+          },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
           },
           "datum": {
             "anyOf": [

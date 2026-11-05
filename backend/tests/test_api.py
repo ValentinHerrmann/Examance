@@ -924,6 +924,7 @@ async def test_new_version_takes_the_answer_key_from_the_body(
         {"nr": "x" * 11},
         {"fach": "x" * 101},
         {"klasse": "x" * 51},
+        {"course": "x" * 51},
         {"exercises": [{"question_type": "essay"}]},
         {"exercises": [{"name": "x" * 201}]},
         {"exercises": [{"order_index": -1}]},

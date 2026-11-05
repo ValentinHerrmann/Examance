@@ -43,6 +43,8 @@ class Exam(Base):
     testart: Mapped[str | None] = mapped_column(String(100), nullable=True)
     grade: Mapped[str | None] = mapped_column(String(50), nullable=True)
     klasse: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Printed course (\Klasse) when set; empty means grade + klasse (issue #212).
+    course: Mapped[str | None] = mapped_column(String(50), nullable=True)
     datum: Mapped[str | None] = mapped_column(String(100), nullable=True)
     nr: Mapped[str | None] = mapped_column(String(10), nullable=True)
     fach: Mapped[str | None] = mapped_column(String(100), nullable=True)
