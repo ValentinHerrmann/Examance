@@ -13,12 +13,12 @@ export function fillViewport(node: HTMLElement, options: { min?: number } = {}) 
     const top = node.getBoundingClientRect().top - mainTop + main.scrollTop;
     let below = 0;
     for (let el = node.nextElementSibling; el; el = el.nextElementSibling) below += (el as HTMLElement).offsetHeight;
-    const gap = parseFloat(getComputedStyle(node.parentElement ?? node).rowGap) || 0;
+    const gap = Number.parseFloat(getComputedStyle(node.parentElement ?? node).rowGap) || 0;
     if (node.nextElementSibling) below += gap * countSiblingsAfter(node);
     const footer = main.querySelector<HTMLElement>(':scope > footer')?.offsetHeight ?? 0;
     // PageShell's root (`mx-auto w-full`) carries the page's bottom padding.
     const shell = node.closest<HTMLElement>('.mx-auto.w-full');
-    const pad = shell ? parseFloat(getComputedStyle(shell).paddingBottom) || 0 : 0;
+    const pad = shell ? Number.parseFloat(getComputedStyle(shell).paddingBottom) || 0 : 0;
     const next = Math.max(min, Math.floor(main.clientHeight - top - below - footer - pad));
     if (Math.abs(node.offsetHeight - next) > 1) node.style.height = `${next}px`;
   };

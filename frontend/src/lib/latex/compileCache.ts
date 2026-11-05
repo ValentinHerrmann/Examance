@@ -203,8 +203,8 @@ const lastInputs = new Map<string, InputSummary>();
 function summarize(latexSource: string, useLocal: boolean, opts: CompileOpts): InputSummary {
   return {
     latex: latexSource,
-    resources: mergeResources(opts.resources ?? []).map((r) => `${r.filename}:${r.content.length}`).sort().join(','),
-    exIds: [...(opts.resourceExerciseIds ?? [])].sort().join(','),
+    resources: mergeResources(opts.resources ?? []).map((r) => `${r.filename}:${r.content.length}`).sort((a, b) => a.localeCompare(b)).join(','),
+    exIds: [...(opts.resourceExerciseIds ?? [])].sort((a, b) => a.localeCompare(b)).join(','),
     engine: useLocal ? 'local' : 'server',
     logo: opts.logo?.fingerprint ?? '',
   };
