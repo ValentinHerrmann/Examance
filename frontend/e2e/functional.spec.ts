@@ -6,6 +6,7 @@ import {
   createExercise,
   createExerciseInLibrary,
   currentExamId,
+  openTitleEditor,
   exerciseBody,
   exerciseGroupHeading,
   expandExerciseGroup,
@@ -309,7 +310,9 @@ test.describe('exam', () => {
     // --- details, edited in place on the Overview ---
     await gotoExamTab(page, 'overview');
     const main = page.getByRole('main');
-    await main.getByLabel(await t(page, 'exam.metadataEditor.examTitle')).fill('Renamed title');
+    const titleInput = await openTitleEditor(page, main);
+    await titleInput.fill('Renamed title');
+    await titleInput.press('Enter');
     await main.getByRole('button', { name: labelExact('common.save') }).click();
     await expect(main.getByText(await t(page, 'exam.overview.saved'))).toBeVisible();
 
@@ -492,7 +495,7 @@ test.describe('help', () => {
 
     // "?" and F1 must not steal keystrokes from a text field (a LaTeX body can contain "?").
     await page.goto('/exam/new');
-    const title = page.getByLabel(await t(page, 'exam.metadataEditor.examTitle'));
+    const title = await openTitleEditor(page);
     await title.focus();
     await page.keyboard.press('F1');
     await expect(await helpDialog(page)).toBeHidden();

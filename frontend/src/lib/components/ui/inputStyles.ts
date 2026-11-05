@@ -4,3 +4,6 @@ export const controlClass =
 
 /** Compact variant (`size="sm"`): dense desktop toolbars and table cells. */
 export const controlSmClass = "px-2.5 py-1.5 text-sm";
+
+/** Dense form variant (`Field compact`): small from `sm` on, 16px on phones so iOS does not zoom; `!` because `controlClass`'s padding comes later in the CSS. */
+export const controlCompactClass = "px-2.5! py-1.5! sm:text-sm";

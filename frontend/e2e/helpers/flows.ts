@@ -262,12 +262,20 @@ async function tickOnlyMatch(page: Page, scope: Locator, checkboxKey: string): P
   await box.check();
 }
 
+/** The exam title is generated until changed (issue #212): opens it with its pen and returns the input. */
+export async function openTitleEditor(page: Page, scope: Page | Locator = page): Promise<Locator> {
+  await scope.getByRole('button', { name: await l(page, 'exam.metadataEditor.titleEdit') }).click();
+  return scope.getByLabel(await l(page, 'exam.metadataEditor.examTitle'));
+}
+
 /** Create an exam: "New exam" asks for the header data, then the exam page opens with the library, where the exercises and optional MC groups are picked (M1). Exercises must already exist. */
 export async function createExam(page: Page, spec: ExamSpec): Promise<void> {
   await page.getByRole('link', { name: await l(page, 'dashboard.header.createButton') }).click();
   await page.waitForURL((url) => url.pathname === '/exam/new');
 
-  await page.getByLabel(await l(page, 'exam.metadataEditor.examTitle')).fill(spec.title);
+  const title = await openTitleEditor(page);
+  await title.fill(spec.title);
+  await title.press('Enter');
   await page.getByLabel(await l(page, 'exam.metadataEditor.lehrernachname')).fill(spec.teacher ?? 'Tester');
   await page.getByRole('button', { name: await l(page, 'exam.metadataEditor.createButton') }).click();
   // A new exam opens on its Exam step with the library (issue #212).

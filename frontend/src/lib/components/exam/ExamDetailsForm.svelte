@@ -27,6 +27,7 @@
     testart: string;
     grade: string;
     klasse: string;
+    course: string;
     datum: string;
     nr: string;
     fach: string;
@@ -40,6 +41,7 @@
     testart: e.testart || "Kurzarbeit",
     grade: e.grade || "",
     klasse: e.klasse || "",
+    course: e.course || "",
     datum: e.datum || "",
     nr: e.nr || "1",
     fach: e.fach || "Informatik",
@@ -73,6 +75,7 @@
           testart: edit.testart,
           grade: edit.grade,
           klasse: edit.klasse,
+          course: edit.course.trim(),
           datum: edit.datum,
           nr: edit.nr,
           fach: edit.fach,
@@ -117,6 +120,7 @@
   bind:editTestart={edit.testart}
   bind:editGrade={edit.grade}
   bind:editKlasse={edit.klasse}
+  bind:editCourse={edit.course}
   bind:editDatum={edit.datum}
   bind:editNr={edit.nr}
   bind:editFach={edit.fach}
