@@ -284,7 +284,7 @@
 
 {#snippet layoutReport()}
   <LayoutReportButton
-    iconOnly
+    compact
     kind="exam"
     title={exam.title ?? ""}
     compileError={errorMsg || null}

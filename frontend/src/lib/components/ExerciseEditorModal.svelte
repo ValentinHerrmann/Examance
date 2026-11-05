@@ -596,7 +596,7 @@
 
 {#snippet layoutReport()}
   <LayoutReportButton
-    iconOnly
+    compact
     kind="exercise"
     title={editorName}
     compileError={previewError || null}
