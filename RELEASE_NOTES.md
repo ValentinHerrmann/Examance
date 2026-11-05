@@ -1,15 +1,10 @@
-## What's new in 0.5.0
+## What's Changed
+* Print QR name stickers with a personal key and share graded exams with students through personal encrypted links, view-only and optionally with the sample solution (#207) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/208
+* Graded PDFs show the student's name in red at the top of every page, when exporting one student, exporting all students as ZIP, and sharing results with students (#213) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/214
+* Print each student's QR code directly on their exam copy, with a cut-off corner carrying their name and personal key (the whole stack can be cut at once with a guillotine); every exam gets a new page layout with a free corner, wider text and the page number in the header (#211) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/218
+* New Students page per exam (import from Mebis, Artemis or a pasted list, edit, merge duplicates), send graded exams by e-mail or Artemis (in German, optionally with the key) or as a Mebis feedback ZIP, and QR codes are read again when scanning (#209) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/217
+* See which students did not receive their graded exam by e-mail or Artemis, with returned-mail detection, notifications and resending (#221) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/222
+* Clearer exam pages: numbered steps with progress and a 'Next' button, one page for exercises, layout and preview, a Print step for PDFs and QR codes, and a guided page for sending results (#212) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/224
 
-* **New address: examance.de.** Sign in there once with your old passkey, then create a new one. If your results are stored only in your browser, the old address helps you take them along first. The server address is now set by your administrator, so you no longer enter it yourself. (#204)
-* **Trash:** anything you delete can be restored with one click for 7 days, or deleted for good right away. Admins can recover older items from the nightly backup. (#201)
-* **Scores fill in on the scanned exam:** points appear next to each exercise and part, and the total and grade in the table at the end. Parts (a, b, …) can be graded one by one. Scans from more scanners now import correctly. (#191)
-* **Simpler "New exam":** enter the exam details first, then add exercises in the editor. Ticked multiple-choice questions are added as a group automatically. (#173, #203)
-* **One export dialog**, including a password-protected backup that can leave out the exercise texts. **One score table** for grading by student or by exercise. (#173)
-* **PDF preview only on request:** exams are compiled when you click "Live Preview PDF". After a change, the old preview stays visible and is marked as outdated. (#202)
-* **Multiple choice:** an optional short line tells students how to withdraw a cross and choose a box again. (#193)
-* **Better protection for your data:** students' pseudonyms and encrypted records are better protected, and you confirm once in this browser after changing your password, recovery code or passkeys on another device. Results deleted from the server can be restored from Settings. (#189, #195)
-* **New documentation website** with a user guide in German and English, linked in the app footer. The in-app help is shorter and links straight to the matching section: https://docs.examance.de (#184, #186)
-* **Smaller fixes:** the exercise editor no longer overlaps on small or zoomed screens, and grading checkmarks keep their size in scaled drawings. (#190, #200)
-* **Behind the scenes:** server-side PDF compiling runs in the background so long exams no longer time out, plus security hardening, automated layout and accessibility checks, and dependency updates. (#185, #194, #195)
 
-**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.4.4...0.5.0
+**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.5.0...0.6.0
