@@ -135,6 +135,7 @@ export default withMermaid(defineConfig({
           { text: 'Session keys across reloads', link: '/dev/session_key_wrap' },
           { text: 'MC and exam data model', link: '/dev/mc_model' },
           { text: 'MC detection (OMR)', link: '/dev/omr' },
+          { text: 'Exams with several sheets', link: '/dev/multi_sheet_exams' },
           { text: 'LaTeX in the frontend', link: '/dev/latex' },
           { text: 'LaTeX packages', link: '/dev/latex_packages' },
           { text: 'Exercise sharing', link: '/dev/exercise_sharing' },

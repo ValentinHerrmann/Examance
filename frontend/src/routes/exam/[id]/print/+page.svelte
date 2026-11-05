@@ -6,14 +6,18 @@
   import { get } from "svelte/store";
   import { buildExamItems, loadExamCompileContext, type ExamCompileContext } from "#lib/grading/omrTemplatePrep";
   import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
-  import { getCurrentExamPreview } from "#lib/exam/examPreview";
+  import { getCurrentExamVariant } from "#lib/exam/examPreview";
+  import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
+  import { contentStamp } from "#lib/exam/examChecks";
+  import { examChecksState } from "#lib/stores/shell";
   import { copiesUnavailable, loadStickerEntries } from "#lib/sharing/stickerEntries";
   import type { StickerEntry } from "#lib/qr/stickerSheet";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug } from "#lib/export/zip";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import ExamPreviewPanel, { type ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
-  import PrintPlan from "#lib/components/exam/PrintPlan.svelte";
+  import PrintPlan, { type PrintPreviews } from "#lib/components/exam/PrintPlan.svelte";
+  import { printSettingsOf } from "#lib/exam/printLayout";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { t, translate } from "#lib/i18n";
   import { Alert, PageShell } from "#lib/components/ui";
@@ -24,12 +28,13 @@
   let entries = $state.raw<StickerEntry[] | null>(null);
   let entriesError = $state("");
   let preview = $state<ExamPreviewStatus | undefined>(undefined);
-  let compile = $state<(() => Promise<void>) | undefined>(undefined);
-  // Sticker or copies PDFs made in the plan, shown as extra panes beside task sheet and solution.
-  let jobUrls = $state<Partial<Record<"qr" | "copies", string>>>({});
-  let extraPanes = $derived(
-    (["qr", "copies"] as const).flatMap((job) => (jobUrls[job] ? [{ id: job, title: $t(`exam.print.job.${job}`), url: jobUrls[job] ?? null }] : [])),
-  );
+  let compile = $state<((opts?: { solution?: boolean }) => Promise<void>) | undefined>(undefined);
+  // Bumped when the print settings change, so the preview marks itself outdated.
+  let layoutVersion = $state(0);
+  // Only what the plan prints: the planned sheets while current, made sticker or copies PDFs as extra panes.
+  let shown = $state<PrintPreviews | undefined>(undefined);
+  const paneTitle = { exam: "exam.print.job.examBooklet", qr: "exam.print.job.qr", copies: "exam.print.job.copies" } as const;
+  let extraPanes = $derived((["exam", "qr", "copies"] as const).flatMap((job) => (shown?.jobs[job] ? [{ id: job, title: $t(paneTitle[job]), url: shown.jobs[job] ?? null }] : [])));
 
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
@@ -60,19 +65,29 @@
     if (fresh) ctx = fresh;
   }
 
-  /** The current compiled sheets; the job rows only offer them while the preview is current. */
-  async function currentPdfs() {
+  /** One current compiled sheet; the job rows only offer it while it is current (the solution may be skipped). */
+  async function currentPdf(variant: "angabe" | "loesung"): Promise<Uint8Array> {
     if (!ctx) throw new Error(translate("exam.page.examNotFoundOrDeleted"));
-    const cached = await getCurrentExamPreview({ ...ctx, examItems, key: key() });
-    if (!cached || cached === "stale") throw new Error(translate("exam.print.ready.pdfStale"));
-    return cached;
+    const cached = await getCurrentExamVariant({ ...ctx, examItems, key: key() }, variant);
+    if (!cached) throw new Error(translate("exam.print.ready.pdfStale"));
+    return cached.pdfBytes;
   }
 
-  const loadExamPdf = async () => (await currentPdfs()).angabe.pdfBytes;
+  const loadExamPdf = () => currentPdf("angabe");
+
+  /** Print settings live on the exam (issue #220): the sheet's sticker spots and filler pages follow them, so the preview turns outdated. */
+  async function savePrint(patch: ExamLayoutPatch) {
+    if (!ctx) return;
+    const exam = await saveExamLayout(ctx.exam, patch);
+    ctx = { ...ctx, exam };
+    layoutVersion++;
+    // The made PDFs and ticks are checked against the content stamp, which covers the print settings.
+    const exercises = ctx.exercises;
+    examChecksState.update((cs) => (cs && cs.examId === exam.id && cs.stamps ? { ...cs, stamps: { ...cs.stamps, content: contentStamp(exam, exercises) } } : cs));
+  }
 
   async function downloadPdf(variant: "angabe" | "loesung") {
-    const pdfs = await currentPdfs();
-    const bytes = variant === "angabe" ? pdfs.angabe.pdfBytes : pdfs.loesung.pdfBytes;
+    const bytes = await currentPdf(variant);
     const suffix = variant === "angabe" ? "" : `_${slug($t("exam.page.pdfPreview.titleLoesung"))}`;
     downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${slug(title)}${suffix}.pdf`);
   }
@@ -91,7 +106,7 @@
   {:else if !ctx}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
-    <!-- One row: the plan beside the PDFs; the compile button sits in the plan's first job (issue #212). -->
+    <!-- One row: the plan beside the PDFs, which show only what the plan prints (issues #212, #220). -->
     <div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <PrintPlan
         class="xl:col-start-1 xl:row-start-1"
@@ -106,9 +121,9 @@
         {loadExamPdf}
         {downloadPdf}
         {compile}
-        onJobPdf={(job, url) => {
-          if (job === "qr" || job === "copies") jobUrls = { ...jobUrls, [job]: url ?? undefined };
-        }}
+        print={printSettingsOf(ctx.exam)}
+        onPrintChange={savePrint}
+        bind:shown
       />
       <div class="min-w-0 xl:contents">
         {#if withheld}
@@ -121,10 +136,13 @@
             mcGroups={ctx.mcGroups}
             {examItems}
             loaded
-            layoutVersion={0}
+            {layoutVersion}
             {refreshSources}
             toolbar={false}
             {extraPanes}
+            sheets={{ angabe: shown?.angabe ?? false, loesung: shown?.loesung ?? false }}
+            currentOnly
+            emptyHint={$t("exam.print.previewEmpty")}
             bind:compile
             bind:status={preview}
           />

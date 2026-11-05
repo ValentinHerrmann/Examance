@@ -13,6 +13,8 @@ import { examCourse } from "#lib/utils/examLabel";
 import { documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex/packages";
 import { getAccountPackages } from "#lib/latex/packageSettings";
 import { translate } from "#lib/i18n";
+import { printSettingsOf } from "#lib/exam/printLayout";
+import { pageCodesLatex } from "#lib/exam/pageCodes";
 
 /** One `\Aufgabe` block of the exam and the exercise ids it scores (several for an MC group); block i is exam position i + 1 (`\thePunkte`). */
 export interface ExerciseBlock {
@@ -107,7 +109,7 @@ export function buildExamLatex(
   accountPackages: readonly LatexPackageEntry[]
 ): string {
   const doc = `\\documentclass[a4paper]{article}
-\\usepackage[${withExamOptions(options, exam)}]{sty/Schulaufgabe}
+\\usepackage[${withExamOptions(options, exam)}]{sty/Schulaufgabe}${pageCodeDefinitions(exam, options)}
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
 \\Lehrernachname{${exam.lehrernachname || ""}}
@@ -137,10 +139,27 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
-/** Adds the exam's layout switches to the Schulaufgabe.sty options. */
-export function withExamOptions(options: string, layout: Pick<ExamRecord, "nameLine">): string {
-  return [options, layout.nameLine && "namenszeile"].filter(Boolean).join(",");
+type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "paddingPages" | "printMode" | "stickerSpots">;
+
+/** Adds the exam's layout switches to the Schulaufgabe.sty options. Each multi-sheet option stands alone and older exams set none, so they compile unchanged (issue #220). */
+export function withExamOptions(options: string, layout: LayoutFields): string {
+  const print = printSettingsOf(layout);
+  const filler = { none: "", blank: "fuellleer", workspace: "fuellplatz" }[print.padding];
+  const multiSheet = [print.pageCodes && "seitencode", print.layout === "booklet" && "broschuere", filler];
+  return [options, layout.nameLine && "namenszeile", ...multiSheet].filter(Boolean).join(",");
 }
+
+/** The student sheet's page codes (lib/exam/pageCodes.ts) and sticker spots (sticker mode only, `stickerPagesOf`); the solution carries neither. */
+function pageCodeDefinitions(exam: ExamRecord, options: string): string {
+  if (options.split(",").includes("antworten")) return "";
+  const print = printSettingsOf(exam);
+  let spots = "";
+  if (print.mode === "stickers" && print.stickerSpots !== "cover") spots = print.stickerSpots === "a3" ? "a3" : "bogen";
+  return [print.pageCodes && pageCodesLatex(exam.id), spots && String.raw`\Aufkleberseiten{${spots}}`].filter(Boolean).map((line) => `\n${line}`).join("");
+}
+
+/** What the sheet builders read: the exam's sources and the session key. */
+type ExamSourceInput = Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">;
 
 export interface ExamPreviewInput {
   exam: ExamRecord;
@@ -152,11 +171,14 @@ export interface ExamPreviewInput {
   onStatus?: (status: string) => void;
   /** Called as soon as the Angabe is ready, before the Lösung compile starts. */
   onAngabe?: (angabe: CompileResult) => void;
+  /** False skips the Lösung (the Print step without a solution, issue #220); default true. */
+  solution?: boolean;
 }
 
 export interface ExamPreviewResult {
   angabe: CompileResult;
-  loesung: CompileResult;
+  /** Null only when `solution: false` asked to skip it. */
+  loesung: CompileResult | null;
   missingGraphics: string[];
 }
 
@@ -176,7 +198,7 @@ export interface ExamSources {
 
 /** `needBytes` loads resource and logo bytes (local engine, raw export); otherwise the server resolves them by id. */
 export async function prepareExamSources(
-  input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">,
+  input: ExamSourceInput,
   needBytes: boolean
 ): Promise<ExamSources> {
   const { exam, exercises, libraryExercises, mcGroups, examItems, key } = input;
@@ -194,7 +216,9 @@ export async function prepareExamSources(
   };
 }
 
-/** Compiles the Angabe and Lösung PDFs of an exam into the compile cache. */
+/** Compiles the Angabe and Lösung PDFs of an exam into the compile cache; `solution: false` compiles only the Angabe. */
+export function compileExamPreview(input: ExamPreviewInput & { solution?: true }): Promise<ExamPreviewResult & { loesung: CompileResult }>;
+export function compileExamPreview(input: ExamPreviewInput): Promise<ExamPreviewResult>;
 export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamPreviewResult> {
   const { exam } = input;
   const useLocal = effectiveLatexCompilation() === "local";
@@ -210,6 +234,7 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
     opts
   );
   input.onAngabe?.(angabe);
+  if (input.solution === false) return { angabe, loesung: null, missingGraphics: angabe.missingGraphics ?? [] };
   const loesung = await compileWithCache(
     { kind: "exam", id: exam.id, variant: "loesung" },
     src.loesungTex,
@@ -225,9 +250,20 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
   };
 }
 
+/** The cached PDF of one variant if it was compiled from the exam's current sources, else null (the Print step needs only what it prints). */
+export async function getCurrentExamVariant(
+  input: ExamSourceInput,
+  variant: "angabe" | "loesung"
+): Promise<CachedCompileEntry | null> {
+  const useLocal = effectiveLatexCompilation() === "local";
+  const src = await prepareExamSources(input, useLocal);
+  const opts = { resources: src.resources, resourceExerciseIds: src.resourceExerciseIds, logo: src.logo };
+  return (await getCachedFor({ kind: "exam", id: input.exam.id, variant }, variant === "angabe" ? src.angabeTex : src.loesungTex, useLocal, opts)) ?? null;
+}
+
 /** The cached Angabe/Lösung if they were compiled from the exam's current sources; "stale" when this exam was compiled before but its exercises, order or header changed since (issue #135); null when never compiled. */
 export async function getCurrentExamPreview(
-  input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">
+  input: ExamSourceInput
 ): Promise<{ angabe: CachedCompileEntry; loesung: CachedCompileEntry } | "stale" | null> {
   const id = input.exam.id;
   const hadAny =

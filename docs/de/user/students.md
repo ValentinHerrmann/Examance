@@ -29,6 +29,8 @@ Die Karte **QR-Codes für Schüler** im Schritt **Drucken** bereitet die Aufkleb
 2. Legen Sie die **Aufkleber pro Schüler** fest und wie viele Etiketten **schon benutzt** auf dem ersten Bogen sind, damit ein angebrochener Bogen nicht verschwendet wird.
 3. Drucken Sie den Bogen mit 100 % (nicht „An Seite anpassen“) und schneiden Sie die Etiketten aus oder ziehen Sie sie ab.
 
+Bei mehreren Blättern können Sie im Schritt **Drucken** ([Mehrere Blätter drucken](./exams#multi-sheet-print)) die **Aufkleber pro Schüler** wählen: einen für die ganze Prüfung (Deckblatt) oder einen pro Blatt; bei Broschüren einen für die ganze Prüfung, einen pro A3-Blatt oder einen pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine sehr hellgraue, unbeschriftete Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Der Bogen schlägt einen Aufkleber pro Stelle plus das Deckblatt vor.
+
 Aufkleber anderer Programme im Format `Nachname, Vorname_ID` funktionieren ebenfalls. Von Hand oder aus nicht zugeordneten Seiten angelegte Schüler haben keinen Aufkleber.
 
 Alles wird in Ihrem Browser berechnet; kein externer Dienst zeichnet die Codes.
@@ -46,7 +48,9 @@ Die Option ist bei Prüfungen, die ohne Aufgabentexte importiert wurden, ausgegr
 
 Jede Prüfung hält diese Ecke auf jeder Seite frei ([Layout](./exams#cut-corner)): auf ungeraden Seiten oben rechts, auf geraden oben links, also die Ecke, die ein Schnitt durch einen beidseitig oder als Broschüre gedruckten Stapel abtrennt. Im normalen Prüfungs-PDF bleibt sie leer und hellgrau.
 
-**Drucken und Schneiden:** Drucken Sie die Exemplare **beidseitig mit Wenden an der langen Kante** oder als Broschüre. Jede Seite zeigt die gestrichelte Schnittlinie an ihrer äußeren Ecke, so dass Sie den ganzen Stapel auf einmal mit der Schneidemaschine entlang der Linie auf dem obersten Blatt schneiden können. Ein Exemplar mit ungerader Seitenzahl bekommt eine leere Seite, sodass jedes Exemplar auf einem neuen Blatt beginnt. Drucken Sie in Originalgröße, ohne „An Seite anpassen“.
+**Drucken und Schneiden:** Drucken Sie die Exemplare **beidseitig mit Wenden an der langen Kante** oder als Broschüre. Jede Seite zeigt die gestrichelte Schnittlinie an ihrer äußeren Ecke, so dass Sie den ganzen Stapel auf einmal mit der Schneidemaschine entlang der Linie auf dem obersten Blatt schneiden können. Bei Prüfungen ohne Seitencodes bekommt ein Exemplar mit ungerader Seitenzahl eine leere Seite, sodass jedes Exemplar auf einem neuen Blatt beginnt. Mit [Seitencodes](./exams#multi-sheet) wird jedes Exemplar mit Füllseiten auf ganze Blätter (bei Broschüren auf gefaltete A3-Blätter) aufgefüllt; die Füllseiten gehören zur Prüfung und werden wie jede andere Seite gescannt. Jeder Seitencode enthält die ID des Schülers (nie den Namen), personalisierte Exemplare brauchen also keine zusätzlichen Aufkleber. Bei Broschüren können Sie im Schritt **Drucken** außerdem wählen, [wer die Seiten anordnet](./exams#multi-sheet-print). Drucken Sie in Originalgröße, ohne „An Seite anpassen“.
+
+Vor den personalisierten Exemplaren warnt der Schritt **Drucken** vor Schülern ohne ID: Nur ihr Deckblatt trägt den Code, ihre übrigen Seiten werden nach der Reihenfolge zugeordnet. Er sperrt die Exemplare, wenn zwei Schüler dieselbe ID haben; beheben Sie das auf der Seite Schüler ([mögliche doppelte Einträge](#student-data)).
 
 ## Persönliche Schlüssel {#personal-keys}
 

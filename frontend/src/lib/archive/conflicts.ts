@@ -10,6 +10,7 @@ import { remapPageBreaks } from '#lib/exam/pageBreaks';
 import { joinKey } from '#lib/crypto/pseudonymKey';
 import type { StudentRecord } from '#lib/db/schema';
 import { archiveKeyId, archivedJoinKey, archivedPseudonym } from './pseudonyms';
+import { printSettingsOf } from '#lib/exam/printLayout';
 
 export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission';
 export type ConflictChoice = 'keep-existing' | 'take-imported' | 'import-as-copy';
@@ -108,6 +109,7 @@ const SPECS: KindSpec[] = [
       // Layout switches travel with the exam; without them a layout-only change counted as "identical" and was dropped.
       nameLine: (r) => r.nameLine === true,
       mcCorrectionHint: (r) => r.mcCorrectionHint === true,
+      printLayout: (r) => JSON.stringify(printSettingsOf(r)),
       extraNotes: (r) => extraNotesSummary(r.extraNotes),
       pageBreaks: (r) => pageBreaksSummary(r.pageBreaks),
     },

@@ -25,6 +25,8 @@
     downloadable?: boolean;
     /** More PDFs beside task sheet and solution (the Print step's sticker sheet). Collapsed until their URL first appears or changes; then they open. */
     extraPanes?: { id: string; title: string; url: string | null }[];
+    /** Drops panes without a PDF instead of showing their placeholder (the Print step shows only what will be printed). */
+    hideEmpty?: boolean;
   }
 
   let {
@@ -40,6 +42,7 @@
     report,
     downloadable = true,
     extraPanes = [],
+    hideEmpty = false,
   }: Props = $props();
 
   let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
@@ -60,7 +63,7 @@
   let extraOpen = $state<Record<string, boolean>>({});
   let extraSeenUrl: Record<string, string | null> = {};
 
-  let panes = $derived([
+  let allPanes = $derived([
     {
       id: "angabe" as PaneId,
       title: angabeTitle,
@@ -86,6 +89,8 @@
       toggle: () => (extraOpen = { ...extraOpen, [x.id]: !extraOpen[x.id] }),
     })),
   ]);
+
+  let panes = $derived(hideEmpty ? allPanes.filter((p) => p.url) : allPanes);
 
   let activePane = $derived(panes.find((p) => p.id === mobilePane) ?? panes[0]);
 

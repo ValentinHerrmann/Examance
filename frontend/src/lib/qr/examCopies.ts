@@ -1,4 +1,4 @@
-/** Personalised exam copies (issue #211): the compiled student sheet once per student, with their QR code in the sticker box, name and personal key on page 1's cut-off corner tab, and the cut line with scissors on every page. Same payload as a sticker, so scans, keys and result sharing work unchanged. */
+/** Personalised exam copies (issue #211): the compiled student sheet once per student, with their QR code in every sticker box, name and personal key on page 1's cut-off corner tab, and the cut line with scissors on every page. Same payload as a sticker, so scans, keys and result sharing work unchanged. With page codes (issue #220) every page's code also names the student. */
 
 import type { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import { personalKey } from '#lib/crypto/stickerKey';
@@ -6,12 +6,21 @@ import { translate } from '#lib/i18n';
 import { CM, drawQr, embedLabelFonts, fitText, type LabelFonts, type PdfLib } from '#lib/pdf/labelKit';
 import { loadPdfjs } from '#lib/pdf/pdfjs';
 import { formatCode } from '#lib/sharing/shareCrypto';
-import { abbreviateGivenNames } from '#lib/utils/studentQr';
+import { abbreviateGivenNames, parseStudentQr } from '#lib/utils/studentQr';
+import { PAGE_CODE_EC, examTag, pageCodeText } from '#lib/exam/pageCodes';
 import { MM, TAB_SIDE, TAB_TOP } from './cutCorner';
 import type { StickerEntry } from './stickerSheet';
 
 export interface ExamCopiesOptions {
   examTitle: string;
+  /** The exam, for the tag in personalised page codes. */
+  examId: string;
+}
+
+export interface ExamCopies {
+  pdf: Uint8Array;
+  /** Pages of each copy: every copy has the same count, so booklets and per-student files split the PDF by it. */
+  pagesPerCopy: number;
 }
 
 type Rect = [number, number, number, number];
@@ -36,19 +45,38 @@ const SCISSORS_BLADES = 'M -2 -1.6 L 5.2 1.5 L -1.4 -0.6 Z M -2 1.6 L 5.2 -1.5 L
 const SCISSORS_AT = 25 * MM;
 const SCISSORS_GAP = 3 * MM;
 
-/** The sticker box of page 1 (`omr://__qr__` in Schulaufgabe.sty), in PDF points. */
-async function findQrBox(examPdf: Uint8Array): Promise<Rect | null> {
+/** Where a page gets stamped, in PDF points: its sticker boxes (`omr://__qr__`, page 1 and, with a box per sheet, every later sheet front) and its page code (`omr://__page__/<n>`, Schulaufgabe.sty section 11). */
+interface StampTargets {
+  qrBoxes: Rect[];
+  pageCode: Rect | null;
+}
+
+async function findStampTargets(examPdf: Uint8Array): Promise<StampTargets[]> {
   const pdfjs = await loadPdfjs();
   // A copy: pdf.js detaches the buffer it is given, which would empty the caller's (cached) bytes.
   const task = pdfjs.getDocument({ data: examPdf.slice() });
   const doc = await task.promise;
   try {
-    const annotations = await (await doc.getPage(1)).getAnnotations();
-    const link = annotations.find((a) => a.subtype === 'Link' && (a.unsafeUrl ?? a.url) === 'omr://__qr__');
-    return link ? (link.rect as Rect) : null;
+    // Annotations only, no rendering: reading every page at once is cheap.
+    return await Promise.all(
+      Array.from({ length: doc.numPages }, async (_, k) => {
+        const links = (await (await doc.getPage(k + 1)).getAnnotations()).filter((a) => a.subtype === 'Link');
+        const url = (a: (typeof links)[number]): string => a.unsafeUrl ?? a.url ?? '';
+        const code = links.find((a) => url(a).startsWith('omr://__page__/'));
+        return { qrBoxes: links.filter((a) => url(a) === 'omr://__qr__').map((a) => a.rect as Rect), pageCode: code ? (code.rect as Rect) : null };
+      }),
+    );
   } finally {
     await task.destroy();
   }
+}
+
+/** Blanks *box* (keeping a thin rim) and draws *text*'s QR code centred in it, at most *max* wide. */
+function stampQr(lib: PdfLib, page: PDFPage, box: Rect, text: string, max: number, pad: number, ecLevel: 'M' | 'Q' = 'M'): void {
+  const [x0, y0, x1, y1] = box;
+  const size = Math.min(max, x1 - x0 - 2 * pad, y1 - y0 - 2 * pad);
+  page.drawRectangle({ x: x0 + pad, y: y0 + pad, width: x1 - x0 - 2 * pad, height: y1 - y0 - 2 * pad, color: lib.rgb(1, 1, 1) });
+  drawQr(lib, page, text, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size, ecLevel);
 }
 
 /** One row of the tab parallel to the cut line, centred where its glyphs stay EDGE clear of both paper edges. The first text that fits at a size down to the row's smallest (0.5 pt steps) wins; only the last one is shortened. */
@@ -96,28 +124,41 @@ function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: Sti
   drawTabRow(lib, page, fonts.monoBold, [formatCode(key)], KEY_ROW);
 }
 
-function addCopy(lib: PdfLib, out: PDFDocument, pages: PDFPage[], fonts: LabelFonts, entry: StickerEntry, key: string, qrBox: Rect): void {
+/** What every copy of one sheet shares. */
+interface CopyContext {
+  lib: PdfLib;
+  out: PDFDocument;
+  fonts: LabelFonts;
+  targets: StampTargets[];
+  tag: string;
+}
+
+function addCopy({ lib, out, fonts, targets, tag }: CopyContext, pages: PDFPage[], entry: StickerEntry, key: string): void {
   for (const page of pages) out.addPage(page);
   const first = pages[0];
-  const [x0, y0, x1, y1] = qrBox;
-  const size = Math.min(QR_SIZE, x1 - x0 - 0.3 * CM, y1 - y0 - 0.3 * CM);
-  // The box's sticker instructions stay for spare plain copies; on a personalised copy they would show through the code.
-  const pad = 0.1 * CM;
-  first.drawRectangle({ x: x0 + pad, y: y0 + pad, width: x1 - x0 - 2 * pad, height: y1 - y0 - 2 * pad, color: lib.rgb(1, 1, 1) });
-  drawQr(lib, first, entry.payload, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size);
+  // A student without a sticker ID keeps the plain page codes: only the cover names them (the Print step warns).
+  const id = parseStudentQr(entry.payload)?.studentNumber;
+  pages.forEach((page, i) => {
+    // The box's sticker instructions stay for spare plain copies; on a personalised copy they would show through the code.
+    for (const box of targets[i]?.qrBoxes ?? []) stampQr(lib, page, box, entry.payload, QR_SIZE, 0.1 * CM);
+    const code = targets[i]?.pageCode;
+    if (code && id) stampQr(lib, page, code, pageCodeText({ tag, page: i + 1, id }), code[2] - code[0], 0, PAGE_CODE_EC);
+  });
   drawCornerTab(lib, first, fonts, entry, key);
-  // Copies are printed long-edge duplex or as booklets and cut as one stack: each page shows its outer corner's line, and an odd copy gets a blank back so the next starts on a new sheet.
+  // Copies are printed long-edge duplex or as booklets and cut as one stack: each page shows its outer corner's line.
   for (let i = 1; i < pages.length; i++) drawCutLine(lib, pages[i], i % 2 === 1 ? 'left' : 'right');
-  if (pages.length % 2 === 1) {
+  // With page codes the sheet already fills whole sheets (Schulaufgabe.sty); older sheets get a blank back so the next copy starts on a new sheet.
+  if (!targets.some((t) => t.pageCode) && pages.length % 2 === 1) {
     const { width, height } = first.getSize();
     out.addPage([width, height]);
   }
 }
 
 /** One PDF with a copy of *examPdf* (the compiled student sheet) per entry, in list order. */
-export async function renderExamCopies(examPdf: Uint8Array, entries: readonly StickerEntry[], options: ExamCopiesOptions): Promise<Uint8Array> {
-  const qrBox = await findQrBox(examPdf);
-  if (!qrBox) throw new Error(translate('sharing.stickers.noQrBox'));
+export async function renderExamCopies(examPdf: Uint8Array, entries: readonly StickerEntry[], options: ExamCopiesOptions): Promise<ExamCopies> {
+  const targets = await findStampTargets(examPdf);
+  if (!targets[0]?.qrBoxes.length) throw new Error(translate('sharing.stickers.noQrBox'));
+  const tag = examTag(options.examId);
   const lib = await import('pdf-lib');
   const src = await lib.PDFDocument.load(examPdf);
   const out = await lib.PDFDocument.create();
@@ -128,6 +169,8 @@ export async function renderExamCopies(examPdf: Uint8Array, entries: readonly St
     Promise.all(entries.map(() => out.copyPages(src, src.getPageIndices()))),
     Promise.all(entries.map((entry) => personalKey(entry.payload))),
   ]);
-  entries.forEach((entry, i) => addCopy(lib, out, copies[i], fonts, entry, keys[i], qrBox));
-  return out.save();
+  const ctx: CopyContext = { lib, out, fonts, targets, tag };
+  entries.forEach((entry, i) => addCopy(ctx, copies[i], entry, keys[i]));
+  const pagesPerCopy = entries.length ? out.getPageCount() / entries.length : src.getPageCount();
+  return { pdf: await out.save(), pagesPerCopy };
 }

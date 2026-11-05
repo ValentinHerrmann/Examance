@@ -2,8 +2,12 @@
   /** What the panel shows, for a page that builds on it (the Print step's readiness). */
   export interface ExamPreviewStatus {
     pdf: "none" | "current" | "stale";
+    /** The solution on its own: the Print step may compile only the task sheet (issue #220). */
+    solution: "none" | "current" | "stale";
     omr: "none" | "ready" | "stale" | "checking";
     busy: boolean;
+    /** Counts every task sheet shown, so a file derived from it (page count, imposed booklet) knows when to follow. */
+    version: number;
   }
 </script>
 
@@ -47,9 +51,15 @@
     /** The status line with the compile button above the PDFs (Exam step). Without it (Print step) the page drives `compile` and shows the state itself. */
     toolbar?: boolean;
     /** Out: starts a compile, for a page that puts the button elsewhere. */
-    compile?: () => Promise<void>;
+    compile?: (opts?: { solution?: boolean }) => Promise<void>;
     /** More PDFs beside task sheet and solution (the Print step's sticker sheet). */
     extraPanes?: { id: string; title: string; url: string | null }[];
+    /** Which sheets get a pane (the Print step shows only what it prints). */
+    sheets?: { angabe: boolean; loesung: boolean };
+    /** Shows a sheet only while it matches the sources and drops panes without a PDF: no outdated file is ever shown (Print step). */
+    currentOnly?: boolean;
+    /** The empty state's text when nothing is shown; without the toolbar there is no compile button in it either. */
+    emptyHint?: string;
     class?: string;
   }
 
@@ -66,6 +76,9 @@
     toolbar = true,
     compile = $bindable(),
     extraPanes = [],
+    sheets = { angabe: true, loesung: true },
+    currentOnly = false,
+    emptyHint = undefined,
     class: className = "",
   }: Props = $props();
 
@@ -89,9 +102,16 @@
   let showLoesungPreview = $state(false);
   /** The shown preview no longer matches the sources; never recompiled automatically, the user presses compile (issue #197). */
   let previewOutdated = $state(false);
+  let pdfVersion = $state(0);
+  // Set when a compile skipped the solution: the shown solution may be older than the task sheet.
+  let solutionOutdated = $state(false);
 
   const key = () => get(sessionStore).sessionKey;
   let hasPdf = $derived(!!(previewPdfUrl || previewSolutionPdfUrl));
+  // The sheets the panes show: all of them on the Exam step; on the Print step only the planned ones while current.
+  let shownAngabe = $derived(sheets.angabe && !(currentOnly && previewOutdated) ? previewPdfUrl : null);
+  let shownLoesung = $derived(sheets.loesung && !(currentOnly && (previewOutdated || solutionOutdated)) ? previewSolutionPdfUrl : null);
+  let showsAnything = $derived(currentOnly ? !!(shownAngabe || shownLoesung || extraPanes.some((x) => x.url)) : hasPdf || extraPanes.some((x) => x.url));
   // One status line instead of stacked notices, so nothing pushes the page into scrolling (issue #212).
   type Tone = "info" | "success" | "warning" | "muted";
   let statusLine = $derived.by((): { tone: Tone; text: string } => {
@@ -133,6 +153,7 @@
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewPdfUrl = previewSolutionPdfUrl = null;
       previewOutdated = false;
+      solutionOutdated = false;
       return;
     }
     const id = exam.id;
@@ -144,8 +165,10 @@
           }
         : cached;
     previewOutdated = cached === "stale";
+    solutionOutdated = false;
     if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
     previewPdfUrl = shown.angabe ? pdfBytesToUrl(shown.angabe.pdfBytes) : null;
+    pdfVersion++;
     if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
     previewSolutionPdfUrl = shown.loesung ? pdfBytesToUrl(shown.loesung.pdfBytes) : null;
   }
@@ -187,7 +210,8 @@
     }
   }
 
-  async function handlePreviewExam() {
+  /** `solution: false` compiles only the task sheet (the Print step without a solution). */
+  async function handlePreviewExam(opts: { solution?: boolean } = {}) {
     if (exercises.length === 0 && mcGroups.length === 0) return;
     isPreviewLoading = true;
     compileNotice = "";
@@ -200,6 +224,7 @@
       const res = await compileExamPreview({
         ...sources(),
         key: key(),
+        solution: opts.solution !== false,
         onStatus: (status) => {
           if (status === "downloading") compileNotice = translate("exam.page.preview.loadingCompiler");
           else if (status === "compiling") compileNotice = translate("exam.page.preview.compiling");
@@ -208,8 +233,12 @@
 
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
-      if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
+      pdfVersion++;
+      if (res.loesung) {
+        if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
+        previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
+      }
+      solutionOutdated = !res.loesung;
 
       if (res.missingGraphics.length > 0) {
         errorMsg = translate("common.previewMissingGraphic", { name: res.missingGraphics[0] });
@@ -274,9 +303,11 @@
 
   $effect.pre(() => {
     const next: ExamPreviewStatus = {
-      pdf: !previewPdfUrl && !previewSolutionPdfUrl ? "none" : previewOutdated ? "stale" : "current",
+      pdf: !previewPdfUrl ? "none" : previewOutdated ? "stale" : "current",
+      solution: !previewSolutionPdfUrl ? "none" : previewOutdated || solutionOutdated ? "stale" : "current",
       omr: omrStatus,
       busy: isPreviewLoading || isPreparingOmr,
+      version: pdfVersion,
     };
     untrack(() => (status = next));
   });
@@ -297,7 +328,7 @@
   <Button
     size="sm"
     icon={actionIcons.compile}
-    onClick={handlePreviewExam}
+    onClick={() => handlePreviewExam()}
     loading={isPreviewLoading || isPreparingOmr}
     disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
     title={$t("exam.page.compileSection.liveTooltip")}
@@ -343,20 +374,21 @@
       <div class="rounded-xl border border-dashed border-line-strong bg-surface-raised">
         <EmptyState icon={faFilePdf} title={$t("exam.page.pdfPreview.emptyTitle")} description={$t("exam.page.compileSection.emptyHint")} />
       </div>
-    {:else if !hasPdf && !extraPanes.some((x) => x.url)}
+    {:else if !showsAnything}
       <!-- Light like the rest of the page; the dark viewer only appears once there is a PDF. -->
       <div class="flex flex-col justify-center rounded-xl border border-dashed border-line-strong bg-surface-raised" use:fillViewport>
-        <EmptyState icon={faFilePdf} title={$t("exam.page.pdfPreview.emptyTitle")} description={$t("exam.page.pdfPreview.emptyHint")}>
-          {#snippet actions()}{@render compileButton()}{/snippet}
+        <EmptyState icon={faFilePdf} title={$t("exam.page.pdfPreview.emptyTitle")} description={emptyHint ?? $t("exam.page.pdfPreview.emptyHint")}>
+          {#snippet actions()}{#if toolbar}{@render compileButton()}{/if}{/snippet}
         </EmptyState>
       </div>
     {:else}
       <!-- A fixed-height parent: inside this flex column the preview's own height would be overridden (issue #210). Its height is what is left on screen. -->
       <div class="flex min-h-0 flex-col" use:fillViewport>
         <DualPdfPreview
-          {previewPdfUrl}
-          {previewSolutionPdfUrl}
+          previewPdfUrl={shownAngabe}
+          previewSolutionPdfUrl={shownLoesung}
           {extraPanes}
+          hideEmpty={currentOnly}
           bind:showAngabePreview
           bind:showLoesungPreview
           titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}

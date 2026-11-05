@@ -2,7 +2,7 @@
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { t, LOCALES, LOCALE_LABELS, type Locale } from "#lib/i18n";
   import { themePreference, setThemePreference, THEME_PREFERENCES } from "#lib/stores/theme";
-  import { Icon, Card } from "#lib/components/ui";
+  import { Card, OptionTile } from "#lib/components/ui";
   import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
   import HelpButton from "#lib/components/help/HelpButton.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -43,11 +43,6 @@
 
   const sectionId = "scroll-mt-16 lg:scroll-mt-4";
   const options = "flex flex-col gap-3";
-  const option =
-    "flex min-w-0 cursor-pointer items-start gap-3 rounded-md border border-line-strong bg-surface-sunken p-4 hover:border-line-hover has-[:checked]:border-primary has-[:checked]:bg-highlight";
-  const radio = "mt-0.5 size-5 shrink-0 cursor-pointer accent-primary";
-  const optionTitle = "m-0 flex items-center gap-1.5 text-base font-medium text-content";
-  const optionText = "m-0 mt-1 text-sm text-muted";
   const description = "mt-0 mb-4 text-sm text-muted";
 
   /** The radios never select themselves: a mode change runs through the move dialog (and may be cancelled). Cancelling the native toggle keeps the checked dot on what is actually in effect; the store moves it once a change is committed. */
@@ -66,37 +61,30 @@
     </h2>
     <p class={description}>{$t("settings.storage.description")}</p>
     <div class={options}>
-      <label class="{option} {allowedModes.includes("all-server") ? '' : 'cursor-not-allowed opacity-60'}">
-        <input
-          class={radio}
-          type="radio"
-          name="storageMode"
-          value="all-server"
-          checked={storageMode === "all-server"}
-          disabled={!allowedModes.includes("all-server")}
-          onclick={(e) => gated(e, () => onStorageModeChange("all-server"))}
-        />
-        <div class="min-w-0">
-          <p class={optionTitle}><Icon icon={dataPlaceIcons["all-server"]} class="text-muted" />{$t("settings.storage.allServerTitle")}<InfoTip text={$t("help.tips.storageServer")} topic="storageModes" /></p>
-          <p class={optionText}>{$t("settings.storage.allServerText")}</p>
-        </div>
-      </label>
-
-      <label class="{option} {allowedModes.includes("hybrid") ? '' : 'cursor-not-allowed opacity-60'}">
-        <input
-          class={radio}
-          type="radio"
-          name="storageMode"
-          value="hybrid"
-          checked={storageMode === "hybrid"}
-          disabled={!allowedModes.includes("hybrid")}
-          onclick={(e) => gated(e, () => onStorageModeChange("hybrid"))}
-        />
-        <div class="min-w-0">
-          <p class={optionTitle}><Icon icon={dataPlaceIcons.hybrid} class="text-muted" />{$t("settings.storage.hybridTitle")}<InfoTip text={$t("help.tips.storageHybrid")} topic="storageModes" /></p>
-          <p class={optionText}>{$t("settings.storage.hybridText")}</p>
-        </div>
-      </label>
+      <OptionTile
+        name="storageMode"
+        value="all-server"
+        checked={storageMode === "all-server"}
+        disabled={!allowedModes.includes("all-server")}
+        icon={dataPlaceIcons["all-server"]}
+        title={$t("settings.storage.allServerTitle")}
+        text={$t("settings.storage.allServerText")}
+        onclick={(e) => gated(e, () => onStorageModeChange("all-server"))}
+      >
+        {#snippet titleExtra()}<InfoTip text={$t("help.tips.storageServer")} topic="storageModes" />{/snippet}
+      </OptionTile>
+      <OptionTile
+        name="storageMode"
+        value="hybrid"
+        checked={storageMode === "hybrid"}
+        disabled={!allowedModes.includes("hybrid")}
+        icon={dataPlaceIcons.hybrid}
+        title={$t("settings.storage.hybridTitle")}
+        text={$t("settings.storage.hybridText")}
+        onclick={(e) => gated(e, () => onStorageModeChange("hybrid"))}
+      >
+        {#snippet titleExtra()}<InfoTip text={$t("help.tips.storageHybrid")} topic="storageModes" />{/snippet}
+      </OptionTile>
     </div>
     {#if allowedModes.length < 2}
       <p class="m-0 mt-3 text-xs text-muted">{$t("storagePolicy.notEnabled")}</p>
@@ -113,35 +101,29 @@
     </h2>
     <p class={description}>{$t("settings.latex.description")}</p>
     <div class={options}>
-      <label class={option}>
-        <input
-          class={radio}
-          type="radio"
-          name="latexCompilation"
-          value="local"
-          checked={latexCompilation === "local"}
-          onclick={(e) => gated(e, () => onLatexChange("local"))}
-        />
-        <div class="min-w-0">
-          <p class={optionTitle}><Icon icon={latexPlaceIcons.local} class="text-muted" />{$t("settings.latex.localTitle")}<InfoTip text={$t("help.tips.latexLocal")} topic="settings" /></p>
-          <p class={optionText}>{$t("settings.latex.localText")}</p>
-        </div>
-      </label>
-      <label class="{option} {serverLatexEnabled ? '' : 'cursor-not-allowed opacity-60'}">
-        <input
-          class={radio}
-          type="radio"
-          name="latexCompilation"
-          value="server"
-          checked={latexCompilation === "server"}
-          disabled={!serverLatexEnabled}
-          onclick={(e) => gated(e, () => onLatexChange("server"))}
-        />
-        <div class="min-w-0">
-          <p class={optionTitle}><Icon icon={latexPlaceIcons.server} class="text-muted" />{$t("settings.latex.serverTitle")}<InfoTip text={$t("help.tips.latexServer")} topic="settings" /></p>
-          <p class={optionText}>{$t("settings.latex.serverText")}</p>
-        </div>
-      </label>
+      <OptionTile
+        name="latexCompilation"
+        value="local"
+        checked={latexCompilation === "local"}
+        icon={latexPlaceIcons.local}
+        title={$t("settings.latex.localTitle")}
+        text={$t("settings.latex.localText")}
+        onclick={(e) => gated(e, () => onLatexChange("local"))}
+      >
+        {#snippet titleExtra()}<InfoTip text={$t("help.tips.latexLocal")} topic="settings" />{/snippet}
+      </OptionTile>
+      <OptionTile
+        name="latexCompilation"
+        value="server"
+        checked={latexCompilation === "server"}
+        disabled={!serverLatexEnabled}
+        icon={latexPlaceIcons.server}
+        title={$t("settings.latex.serverTitle")}
+        text={$t("settings.latex.serverText")}
+        onclick={(e) => gated(e, () => onLatexChange("server"))}
+      >
+        {#snippet titleExtra()}<InfoTip text={$t("help.tips.latexServer")} topic="settings" />{/snippet}
+      </OptionTile>
     </div>
     {#if !serverLatexEnabled}
       <p class="m-0 mt-3 text-xs text-muted">{$t("storagePolicy.notEnabled")}</p>
@@ -155,20 +137,7 @@
     <p class={description}>{$t("settings.language.description")}</p>
     <div class={options}>
       {#each LOCALES as code (code)}
-        <label class={option}>
-          <input
-            class={radio}
-            type="radio"
-            name="uiLocale"
-            value={code}
-            checked={uiLocale === code}
-            onchange={() => onLocaleChange(code)}
-          />
-          <div class="min-w-0">
-            <p class={optionTitle}>{LOCALE_LABELS[code]}</p>
-            <p class={optionText}>{$t("settings.language.hint")}</p>
-          </div>
-        </label>
+        <OptionTile name="uiLocale" value={code} checked={uiLocale === code} title={LOCALE_LABELS[code]} text={$t("settings.language.hint")} onchange={() => onLocaleChange(code)} />
       {/each}
     </div>
   </Card>
@@ -181,20 +150,14 @@
     <p class={description}>{$t("settings.theme.description")}</p>
     <div class={options}>
       {#each THEME_PREFERENCES as pref (pref)}
-        <label class={option}>
-          <input
-            class={radio}
-            type="radio"
-            name="uiTheme"
-            value={pref}
-            checked={$themePreference === pref}
-            onchange={() => setThemePreference(pref)}
-          />
-          <div class="min-w-0">
-            <p class={optionTitle}>{$t(themeLabels[pref])}</p>
-            {#if pref === "system"}<p class={optionText}>{$t("settings.theme.hint")}</p>{/if}
-          </div>
-        </label>
+        <OptionTile
+          name="uiTheme"
+          value={pref}
+          checked={$themePreference === pref}
+          title={$t(themeLabels[pref])}
+          text={pref === "system" ? $t("settings.theme.hint") : undefined}
+          onchange={() => setThemePreference(pref)}
+        />
       {/each}
     </div>
   </Card>

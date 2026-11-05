@@ -10702,6 +10702,50 @@
             "title": "Mc Correction Hint",
             "default": false
           },
+          "page_codes": {
+            "type": "boolean",
+            "title": "Page Codes",
+            "default": false
+          },
+          "print_layout": {
+            "type": "string",
+            "enum": [
+              "duplex",
+              "booklet"
+            ],
+            "title": "Print Layout",
+            "default": "duplex"
+          },
+          "padding_pages": {
+            "type": "string",
+            "enum": [
+              "none",
+              "blank",
+              "workspace"
+            ],
+            "title": "Padding Pages",
+            "default": "none"
+          },
+          "sticker_spots": {
+            "type": "string",
+            "enum": [
+              "cover",
+              "sheet",
+              "a3",
+              "leaf"
+            ],
+            "title": "Sticker Spots",
+            "default": "cover"
+          },
+          "print_mode": {
+            "type": "string",
+            "enum": [
+              "stickers",
+              "copies"
+            ],
+            "title": "Print Mode",
+            "default": "stickers"
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11160,6 +11204,50 @@
             "title": "Mc Correction Hint",
             "default": false
           },
+          "page_codes": {
+            "type": "boolean",
+            "title": "Page Codes",
+            "default": false
+          },
+          "print_layout": {
+            "type": "string",
+            "enum": [
+              "duplex",
+              "booklet"
+            ],
+            "title": "Print Layout",
+            "default": "duplex"
+          },
+          "padding_pages": {
+            "type": "string",
+            "enum": [
+              "none",
+              "blank",
+              "workspace"
+            ],
+            "title": "Padding Pages",
+            "default": "none"
+          },
+          "sticker_spots": {
+            "type": "string",
+            "enum": [
+              "cover",
+              "sheet",
+              "a3",
+              "leaf"
+            ],
+            "title": "Sticker Spots",
+            "default": "cover"
+          },
+          "print_mode": {
+            "type": "string",
+            "enum": [
+              "stickers",
+              "copies"
+            ],
+            "title": "Print Mode",
+            "default": "stickers"
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11433,6 +11521,80 @@
               }
             ],
             "title": "Mc Correction Hint"
+          },
+          "page_codes": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Codes"
+          },
+          "print_layout": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "duplex",
+                  "booklet"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Print Layout"
+          },
+          "padding_pages": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "blank",
+                  "workspace"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Padding Pages"
+          },
+          "sticker_spots": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cover",
+                  "sheet",
+                  "a3",
+                  "leaf"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sticker Spots"
+          },
+          "print_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stickers",
+                  "copies"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Print Mode"
           },
           "extra_notes": {
             "anyOf": [

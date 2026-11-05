@@ -215,6 +215,20 @@
 % Former opt-in for the cut-off corner, now the only layout; accepted so sources written before still compile.
 \DeclareOption{schnittecke}{}
 
+% Multi-sheet layout (issue #220, docs/dev/multi_sheet_exams.md); older exams set none of these, so they keep their layout.
+% seitencode: a page code (QR, \Seitencode) on every page and the cut-side top marker further in.
+\newboolean{SA@seitencode}
+\DeclareOption{seitencode}{\setboolean{SA@seitencode}{true}}
+% broschuere: filler pages up to a multiple of 4 (else 2) and the cut zone along the fold.
+\newboolean{SA@broschuere}
+\DeclareOption{broschuere}{\setboolean{SA@broschuere}{true}}
+% fuellleer / fuellplatz: filler pages up to whole sheets, left blank on purpose or as space for side calculations.
+\newboolean{SA@fuellen}
+\newboolean{SA@fuellplatz}
+\DeclareOption{fuellleer}{\setboolean{SA@fuellen}{true}}
+\DeclareOption{fuellplatz}{\setboolean{SA@fuellen}{true}\setboolean{SA@fuellplatz}{true}}
+% Sticker spots come from \Aufkleberseiten (section 11), not an option: the builder knows the pages.
+
 % Global indentation option
 \newif\if@neverindent\@neverindentfalse
 \DeclareOption{neverindent}{%
@@ -226,6 +240,9 @@
 
 % The text reaches the markers' outer edges (5mm) and the header row starts at 11.9mm, so on every page the body (22.4mm) begins below the corner zone (21.8mm deep at the text edge).
 \geometry{top=11.9mm,left=5mm,right=5mm}
+% Booklets keep the 6mm cut strip along the fold free (section 11): text and the fold-side markers start 8mm from the fold (left on odd pages, right on even ones).
+\newlength{\SA@foldinset}
+\ifthenelse{\boolean{SA@broschuere}}{\geometry{twoside,inner=8mm,outer=5mm}\setlength{\SA@foldinset}{8mm}}{\setlength{\SA@foldinset}{5mm}}
 
 % ==============================================================================
 % 6. Name Box (Namenszeile) & Header Setup
@@ -322,7 +339,8 @@
     \fancyheadoffset[L]{0mm}\fancyheadoffset[R]{0mm}%
     % The header mirrors on even pages: the title on the uncut side, "Seite X" on the cut side, both 20mm from the paper edge (below the zone). Page 1 (\SA@firsthead)
     % has the logo and the title over one info line, kept 62mm from the cut side (outside the zone and 8mm clear of the moved fiducial).
-    \setlength{\SA@headindent}{5.7cm}\setlength{\SA@headgap}{1.5cm}%
+    % With page codes the title also clears the marker moved to 66mm and the code beside it (77-91mm; issue #220).
+    \ifthenelse{\boolean{SA@seitencode}}{\setlength{\SA@headindent}{9.1cm}}{\setlength{\SA@headindent}{5.7cm}}\setlength{\SA@headgap}{1.5cm}%
     % The head rule spans the head minus 5mm per side: ends at the text edge would cross the zone's tip. \nointerlineskip keeps it where fancyhdr's plain \hrule sits.
     \renewcommand{\headrule}{\nointerlineskip\hbox to\headwidth{\hskip5mm\leaders\hrule height\headrulewidth\hfill\hskip5mm}\vskip-\headrulewidth}%
     \lhead{\SA@headreset\ifnum\thepage=1
@@ -387,21 +405,26 @@
     \AtPageLowerLeft{\put(\LenToUnit{#2},\LenToUnit{#3}){\OmrLink{\OmrFiducialSize}{\OmrFiducialSize}{omr://__fid__/#1}\OmrFiducialShape}}%
 }
 
-% Both top markers sit 12mm from the top: the one by the cut corner (right on odd pages, left on even ones) 46mm from its side,
-% outside the zone; the other in its corner at the usual inset (mirrored in frontend lib/qr/cutCorner.ts).
+% Both top markers sit 12mm from the top: the one by the cut corner (right on odd pages, left on even ones) 46mm from its side (66mm with page codes, section 11),
+% outside the zone; the other in its corner at the usual inset, 8mm from a booklet's fold (mirrored in frontend lib/qr/cutCorner.ts).
 \newlength{\SA@fidTopX}
 \newlength{\SA@fidTopY}
 \setlength{\SA@fidTopX}{46mm}
 \setlength{\SA@fidTopY}{12mm}
 \newlength{\SA@fidTRX}
 \newlength{\SA@fidTLX}
+\newlength{\SA@fidBLX}
+\newlength{\SA@fidBRX}
 \AddToShipoutPictureBG{%
     \setlength{\SA@fidTRX}{\SA@fidTopX}\setlength{\SA@fidTLX}{\SA@fidTopX}%
-    \ifodd\value{page}\setlength{\SA@fidTLX}{\OmrFiducialInset}\else\setlength{\SA@fidTRX}{\OmrFiducialInset}\fi
+    \ifodd\value{page}\setlength{\SA@fidTLX}{\SA@foldinset}\else\setlength{\SA@fidTRX}{\SA@foldinset}\fi
     % The tab (75 x 20 mm at the outer top corner) is tinted light grey, so an unpersonalised sheet shows what a cut would remove; printed copies stamp over it on page 1.
     \AtPageUpperLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]\ifodd\value{page}\fill[black!7] (\paperwidth-75mm,0) -- (\paperwidth,0) -- (\paperwidth,-20mm) -- cycle;\else\fill[black!7] (75mm,0) -- (0,0) -- (0,-20mm) -- cycle;\fi\end{tikzpicture}}%
-    \OmrFiducialAt{0}{\OmrFiducialInset}{\OmrFiducialInset}%
-    \OmrFiducialAt{1}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\OmrFiducialInset}%
+    % The bottom marker on the fold side keeps clear of a booklet's cut strip (\SA@foldinset equals the inset otherwise).
+    \setlength{\SA@fidBLX}{\OmrFiducialInset}\setlength{\SA@fidBRX}{\OmrFiducialInset}%
+    \ifodd\value{page}\setlength{\SA@fidBLX}{\SA@foldinset}\else\setlength{\SA@fidBRX}{\SA@foldinset}\fi
+    \OmrFiducialAt{0}{\SA@fidBLX}{\OmrFiducialInset}%
+    \OmrFiducialAt{1}{\dimexpr\paperwidth-\SA@fidBRX-\OmrFiducialSize\relax}{\OmrFiducialInset}%
     \OmrFiducialAt{2}{\dimexpr\paperwidth-\SA@fidTRX-\OmrFiducialSize\relax}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
     \OmrFiducialAt{3}{\SA@fidTLX}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
 }
@@ -443,9 +466,9 @@
                 \stepcounter{i}%
         \repeat
 
-        % The table fills the strip between the bottom markers (1.5mm clear of them) and ends level with their bottom edge, 9mm below the body; zero declared depth keeps the page breaks unchanged.
+        % The table fills the strip between the bottom markers (1.5mm clear of them, also with a booklet's fold-side marker at 8mm) and ends level with their bottom edge, 9mm below the body; zero declared depth keeps the page breaks unchanged.
         \@tempdima=\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep-\textheight-\OmrFiducialInset\relax
-        \makebox[\textwidth]{\raisebox{\dimexpr\depth-\@tempdima\relax}[\dimexpr\height+\depth-\@tempdima\relax][0pt]{\SA@scoretable{\dimexpr\paperwidth-2\OmrFiducialInset-2\OmrFiducialSize-3mm\relax}}}%
+        \makebox[\textwidth]{\raisebox{\dimexpr\depth-\@tempdima\relax}[\dimexpr\height+\depth-\@tempdima\relax][0pt]{\SA@scoretable{\dimexpr\paperwidth-\OmrFiducialInset-\SA@foldinset-2\OmrFiducialSize-3mm\relax}}}%
         \normalsize
     }{}%
 }
@@ -705,5 +728,118 @@
 \ExplSyntaxOff
 \AddToHook{begindocument/end}{\let\usepackage\SchulaufgabeBodyUsepackage}
 \fi
+
+% ==============================================================================
+% 11. Multi-sheet layout (issue #220, docs/dev/multi_sheet_exams.md)
+% ==============================================================================
+% Each option works on its own and none is set for exams compiled before, so they keep their layout and OMR template.
+\ifthenelse{\boolean{SA@seitencode}}{\setlength{\SA@fidTopX}{66mm}}{}
+
+% Page codes: the exam builder (frontend lib/exam/pageCodes.ts) defines one per page as \Seitencode{page}{grid}{runs}: a QR code of
+% grid x grid modules (quiet zone included), drawn as dark runs x/y/w from the lower left; pages past the last definition get none.
+\newcommand{\Seitencode}[3]{\expandafter\gdef\csname SA@pc@#1\endcsname{\SA@pcdraw{#2}{#3}}}
+\newlength{\SA@pcsize}
+\setlength{\SA@pcsize}{14mm}
+\newlength{\SA@pcmod}
+\newcommand{\SA@pcdraw}[2]{%
+    \setlength{\SA@pcmod}{\dimexpr\SA@pcsize/#1\relax}%
+    \begin{tikzpicture}[x=\SA@pcmod,y=\SA@pcmod]%
+        \fill[white] (0,0) rectangle (#1,#1);%
+        \foreach \x/\y/\w in {#2} {\fill[black] (\x,\y) rectangle ++(\w,1);}%
+    \end{tikzpicture}%
+}
+% The code sits on the inner side of the cut-side top marker (66-74mm), 77-91mm from the cut side, its bottom edge level with the
+% marker's (20mm from the top); there the cut zone is only 2.6mm deep, and the head band keeps its height. Its invisible link lets
+% printed copies (lib/qr/examCopies.ts) stamp the student's code over it; the scan reads it (lib/exam/pageCodes.ts, lib/scan/ingest.ts).
+\newcommand{\SA@pagecode}{%
+    \@ifundefined{SA@pc@\the\value{page}}{}{%
+        \ifodd\value{page}\@tempdima=\dimexpr\paperwidth-77mm-\SA@pcsize\relax\else\@tempdima=77mm\fi
+        \AtPageLowerLeft{\put(\LenToUnit{\@tempdima},\LenToUnit{\dimexpr\paperheight-20mm\relax}){%
+            \OmrLink{\SA@pcsize}{\SA@pcsize}{omr://__page__/\the\value{page}}\csname SA@pc@\the\value{page}\endcsname}}%
+    }%
+}
+
+% Sticker spots (\Aufkleberseiten{bogen} on every sheet front from page 3, {a3} on each A3 booklet sheet's front right page 2s+1, i.e.
+% page p with 2p+2 <= total pages; frontend stickerPagesOf). A 35mm sticker goes over the header on the uncut side, 10mm beside that side's
+% marker (15-50mm from the edge, 18-53mm on booklets) and 3-38mm from the top, on a faint unlabelled spot; only a 17mm strip at the top of the body stays free. The kernel's column height shrinks for such a page and
+% \@makecol puts the room back as space above the text, so page breaks know it. The total comes from the previous pass's .aux.
+\newlength{\SA@spotroom}
+\setlength{\SA@spotroom}{17mm}
+\newif\ifSA@spotpage
+\def\SA@total{999}
+\def\SA@spotathree{a3}
+\newcommand{\SA@checkspot}{%
+    \global\SA@spotpagefalse
+    \ifodd\value{page}\ifnum\value{page}>2
+        \ifx\SA@spotmode\SA@spotathree
+            \ifnum\numexpr2*\value{page}+2\relax>\SA@total\relax\else\global\SA@spotpagetrue\fi
+        \else\global\SA@spotpagetrue\fi
+    \fi\fi
+    \ifSA@spotpage\global\advance\@colht-\SA@spotroom\fi
+}
+\newcommand{\Aufkleberseiten}[1]{%
+    \gdef\SA@spotmode{#1}%
+    \apptocmd{\@outputpage}{\SA@checkspot}{}{\PackageWarning{Schulaufgabe}{Could not reserve room for sticker spots}}%
+    \pretocmd{\@makecol}{\ifSA@spotpage\global\advance\@colht\SA@spotroom\fi}{}{}%
+    \def\@texttop{\ifSA@spotpage\vskip\SA@spotroom\fi}%
+    % After the filler pages; the \clearpage ships the last page first, so the counter is one past the total.
+    \AtEndDocument{\clearpage\if@filesw\immediate\write\@auxout{\gdef\string\SA@total{\the\numexpr\value{page}-1\relax}}\fi}%
+}
+\newcommand{\SA@stickerspot}{%
+    \ifodd\value{page}\@tempdima=\dimexpr\SA@foldinset+10mm\relax\else\@tempdima=\dimexpr\paperwidth-\SA@foldinset-45mm\relax\fi
+    \AtPageLowerLeft{\put(\LenToUnit{\@tempdima},\LenToUnit{\dimexpr\paperheight-38mm\relax}){%
+        \begin{tikzpicture}%
+            \fill[black!4,rounded corners=1mm] (0,0) rectangle (35mm,35mm);%
+        \end{tikzpicture}}}%
+}
+
+% Booklets: a cut line with scissors 6mm from the fold edge (left on odd pages, right on even ones) and the strip beyond it tinted like
+% the corner tab, so a cut along the fold has 6mm either side and nobody writes there; text and fold-side markers start at 8mm (\SA@foldinset, lib/qr/cutCorner.ts FOLD_STRIP).
+\newcommand{\SA@foldzone}{%
+    \AtPageLowerLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]%
+        \ifodd\value{page}\def\SA@fx{0}\def\SA@lx{6}\else\def\SA@fx{\paperwidth}\def\SA@lx{\paperwidth-6mm}\fi
+        \fill[black!7] (\SA@fx,0) rectangle (\SA@lx,\paperheight);%
+        \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,0) -- (\SA@lx,\paperheight-11mm) (\SA@lx,\paperheight-5mm) -- (\SA@lx,\paperheight);%
+        % Scissors in the gap of the line, blades pointing down along it.
+        \begin{scope}[shift={(\SA@lx,\paperheight-8mm)},rotate=-90,x=0.3mm,y=0.3mm,black!50]%
+            \draw[line width=0.5pt] (-3.2,-2) circle (1.5) (-3.2,2) circle (1.5);%
+            \fill (-2,-1.6) -- (5.2,1.5) -- (-1.4,-0.6) -- cycle (-2,1.6) -- (5.2,-1.5) -- (-1.4,0.6) -- cycle;%
+        \end{scope}%
+    \end{tikzpicture}}%
+}
+
+\AddToShipoutPictureBG{%
+    \ifthenelse{\boolean{SA@broschuere}}{\SA@foldzone}{}%
+    % Page codes and sticker spots only on the student sheet.
+    \ifthenelse{\boolean{Antworten}}{}{%
+        \ifthenelse{\boolean{SA@seitencode}}{\SA@pagecode}{}%
+        \ifSA@spotpage\SA@stickerspot\fi
+    }%
+}
+
+% Filler pages after the points table, so every copy fills whole sheets (2 pages, or 4 for a booklet). They carry markers (and page
+% codes) like any page and are part of the OMR template, so a scanned filler page is an ordinary page (never dropped).
+\newcount\SA@pages
+\newif\ifSA@pad
+\newcommand{\SA@fillerpage}{%
+    \null
+    \ifthenelse{\boolean{SA@fuellplatz}}%
+        {\noindent{\large\bfseries Platz für Nebenrechnungen}\par}%
+        {\vfill\begin{center}\color{gray}\large Diese Seite bleibt absichtlich leer.\end{center}\vfill}%
+    \clearpage
+}
+\newcommand{\SA@fillsheets}{%
+    \clearpage
+    \SA@pages=\numexpr\value{page}-1\relax
+    \ifthenelse{\boolean{SA@broschuere}}{\def\SA@persheet{4}}{\def\SA@persheet{2}}%
+    \loop
+        % Exact multiples are the only values the rounding division gives back unchanged.
+        \ifnum\numexpr\SA@pages/\SA@persheet*\SA@persheet\relax=\SA@pages\relax\SA@padfalse\else\SA@padtrue\fi
+    \ifSA@pad
+        \SA@fillerpage
+        \advance\SA@pages by 1
+    \repeat
+}
+\ifthenelse{\boolean{SA@fuellen}}{\AtEndDocument{\ifthenelse{\boolean{Antworten}}{}{\SA@fillsheets}}}{}
 
 \endinput

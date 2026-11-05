@@ -72,7 +72,7 @@ Groups are layout only: grading and statistics stay strictly per question.
 
 ## Layout options {#layout}
 
-Layout settings live on the **Layout** tab of the **Exam** step: info text, name line, cut-off corner hint, the multiple choice correction legend, logo and LaTeX packages. **Save** stores them, **Discard changes** returns to the saved state; leaving the page with unsaved changes asks first. Changes only show in the PDF after you compile again.
+Layout settings live on the **Layout** tab of the **Exam** step: info text, name line, cut-off corner hint, the multiple choice correction legend, [printing on several sheets](#multi-sheet), logo and LaTeX packages. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
 
 ### Name line {#name-line}
 
@@ -115,6 +115,32 @@ Every exam prints a logo at the top left of the first page. On the **Layout** ta
 
 On the same tab you can also add LaTeX packages for this exam only or leave out packages of your account (see [LaTeX packages](./exercises#packages)).
 
+## Several sheets {#multi-sheet}
+
+An exam that runs over several sheets of paper is easier to handle when every page knows who and what it is. The **Layout** tab has two options for this:
+
+- **Page code on every page.** A small QR code (14 mm) at the top of every page, on the side of the cut-off corner, just inside the corner marker, tells the scanner which page it is. On [personalised copies](./students#printed-copies) it also carries the student's ID (the short sticker ID or the Mebis or Artemis ID, never the name). So the order of the scanned sheets no longer matters, missing pages are reported and loose sheets find their student. The code is reliable from 200 ppi scans; 300 ppi is better. It is on by default for new exams. Older exams keep their layout until you switch it on; that changes the page layout, so copies printed before no longer match.
+- **Filler pages up to a full sheet.** Every copy is filled up to whole sheets (an even page count when printed double-sided, a multiple of 4 as a booklet), so each copy starts on a new sheet. The filler pages are **Space for side calculations** (default for new exams), **Intentionally blank**, or **None**. They are scanned, archived and exported like every other page.
+
+How you print these sheets (double-sided or booklet, stickers per sheet) is chosen in the [Print step](#multi-sheet-print).
+
+### Printing several sheets {#multi-sheet-print}
+
+The print plan of the **Print** step holds these choices:
+
+- **Personalised copies** or **Plain copies + stickers**.
+- **How do you print?** **Double-sided (A4, two pages per sheet)** or **Booklet (folded A3, four pages per sheet)**.
+- For booklets, **Who arranges the pages?** **Examance (A3 sheets, any printer)**: print on A3, double-sided, flip on the short edge, at actual size, fold in the middle and staple. Or **My printer's booklet function**: personalised copies then download as a ZIP with one PDF per student, which you print one by one.
+- **Stickers per student** (only for plain copies + stickers). Double-sided: one for the whole exam (on the cover page) or one per sheet. Booklet: one for the whole exam, one per A3 sheet, or one per A4 leaf after cutting. Stickers on later sheets go onto a faint, unlabelled grey 35 × 35 mm spot at the top of the page, on the side away from the cut corner, over the page header. Personalised copies need no extra stickers: every page code names the student.
+
+**Create print files** typesets what the plan prints (the solution only when **with solution** is ticked; unchanged parts are reused) and makes the sticker sheet or the personalised copies. Each job card then only has the download and the **printed** tick.
+
+Before it makes personalised copies, the step warns about students without an ID (only their cover carries their code; their other pages are matched by order) and blocks the copies when two students share an ID. Fix both on the [Students page](./students#student-data).
+
+**Booklet cut zone.** Every booklet page has a dashed cut line with scissors 6 mm from the fold and a light grey strip between the line and the fold. Nobody writes there, and you can cut the booklet open along the fold anywhere inside this 12 mm band, so a slightly crooked cut does no harm. The text starts 8 mm from the fold. The cut-off corner is cut as before.
+
+How to scan these sheets: [Scan the stack](./scanning#scan).
+
 ## Typeset {#typeset}
 
 **Live Preview PDF** typesets the exam and the solution sheet. On wide screens the preview sits next to the exercises and the layout; on smaller screens it is a third tab, **Preview**, beside **Exercises** and **Layout**. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
@@ -134,11 +160,11 @@ In the exam overview, **Preview** in an expanded entry opens the last compiled P
 
 ## Print {#print}
 
-The **Print** step has the **print plan** on the left and the compiled PDFs on the right (on smaller screens below it), the same preview as on the **Exam** step. The compile button sits in the first print job: it typesets the task sheet and solution and refreshes the scan template for MC detection.
+The **Print** step has the **print plan** on the left and the PDFs on the right (on smaller screens below it). The preview shows only what the plan prints, and only once it is up to date: for personalised copies without the solution, just the personalised copies. When Examance arranges a booklet, it shows the A3 sheets exactly as they will be printed. One button, **Create print files**, typesets what the plan prints, refreshes the scan template for MC detection and makes the sticker or copies PDF.
 
-In the print plan you choose how you print: **Plain copies and a QR sticker sheet**, or **Personalised copies with the QR code printed on** (one copy per student with QR code, name and personal key, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies)), and whether the **solution** is printed too. **Ready to print?** checks automatically whether the exam has exercises, the student list is filled, the PDFs match the current state and, with MC questions, the scan template is up to date.
+In the print plan you choose how you print: **Plain copies and a QR sticker sheet**, or **Personalised copies with the QR code printed on** (one copy per student with QR code, name and personal key, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies)), and whether the **solution** is printed too. For several sheets the plan also holds [how you print](#multi-sheet-print). **Ready to print?** checks automatically whether the exam has exercises, the student list is filled, the PDFs match the current state and, with MC questions, the scan template is up to date.
 
-Below it are exactly the print jobs of your plan (exam copies and sticker sheet, or the personalised copies; plus the solution). Every job works the same way: icons in its header create or refresh its PDF and download it, its options sit below (for stickers: how many per student, labels already used and **What to print?**, see [QR stickers](./students#qr-stickers)), and a **printed** tick closes it. A sticker sheet or set of personalised copies you create appears as a further pane next to task sheet and solution. Only you set the ticks, and only once the job's PDF exists for the current state: for the task sheet and solution the current preview, for stickers and personalised copies a PDF made here. A tick goes away only when what it was set for changes: content or layout for the exam and solution, the student list for the stickers, both for personalised copies. The step's badge in the sidebar shows how many jobs are ticked.
+Below it are exactly the print jobs of your plan (exam copies and sticker sheet, or the personalised copies; plus the solution). Every job works the same way: its header has the download, its options sit below (for stickers: how many per student, labels already used and **What to print?**, see [QR stickers](./students#qr-stickers)), and a **printed** tick closes it. A sticker sheet or set of personalised copies you create appears as a further pane next to task sheet and solution. Only you set the ticks, and only once the job's PDF exists for the current state: for the task sheet and solution the current preview, for stickers and personalised copies a PDF made here. A tick goes away only when what it was set for changes: content or layout for the exam and solution, the student list for the stickers, both for personalised copies. The step's badge in the sidebar shows how many jobs are ticked.
 
 Print the sheets **exactly as typeset**: no "fit to page", no scaling, no cropping. The QR sticker and the corner marks must stay readable, otherwise the scan cannot be assigned automatically and ticked boxes cannot be detected.
 

@@ -11,8 +11,9 @@ export const CM = 28.3465;
 export const A4 = { width: 595.28, height: 841.89 };
 
 /** Draws *text* as a QR code with its bottom-left corner at (x, y): vector modules, so it scans sharply at any print size. Level M, like the scanner expects of stickers. */
-export function drawQr(lib: PdfLib, page: PDFPage, text: string, x: number, y: number, size: number): void {
-  const { modules } = QRCode.create(text, { errorCorrectionLevel: 'M' });
+/** `ecLevel` Q for codes that must survive pen marks (page codes, issue #220); stickers keep M. */
+export function drawQr(lib: PdfLib, page: PDFPage, text: string, x: number, y: number, size: number, ecLevel: 'M' | 'Q' = 'M'): void {
+  const { modules } = QRCode.create(text, { errorCorrectionLevel: ecLevel });
   const quiet = 1;
   const cell = size / (modules.size + 2 * quiet);
   const black = lib.rgb(0, 0, 0);

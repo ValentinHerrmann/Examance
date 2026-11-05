@@ -66,6 +66,16 @@ export interface ExamRecord extends MaybeUndecryptable {
   nameLine?: boolean;
   /** Prints the MC correction legend at every MC task (issue #192); layout only. */
   mcCorrectionHint?: boolean;
+  /** Multi-sheet layout (issue #220, `lib/exam/printLayout.ts`): a page code on every page; absent/false keeps the pre-#220 layout. */
+  pageCodes?: boolean;
+  /** 'duplex' (2 pages per sheet) or 'booklet' (4 per folded A3 sheet); only with `pageCodes`. */
+  printLayout?: 'duplex' | 'booklet';
+  /** Filler pages up to the next full sheet: 'blank' or 'workspace'; only with `pageCodes`. */
+  paddingPages?: 'none' | 'blank' | 'workspace';
+  /** Sticker spots in sticker mode: 'cover', 'sheet', 'a3' or 'leaf' (`stickerPagesOf`). */
+  stickerSpots?: 'cover' | 'sheet' | 'a3' | 'leaf';
+  /** 'stickers' or 'copies' (personalised copies); the compiled sheet's sticker spots follow it. */
+  printMode?: 'stickers' | 'copies';
   /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */
   extraNotes?: ExtraNotes | null;
   /** Ticks the teacher set by hand on the Print and MC steps (issue #212); written only through `examRepository.saveStepChecks`, never with the rest of the record. */

@@ -17,6 +17,7 @@ export { default as LinkButton } from "./LinkButton.svelte";
 export { default as Menu } from "./Menu.svelte";
 export { default as MenuItem } from "./MenuItem.svelte";
 export { default as Modal } from "./Modal.svelte";
+export { default as OptionTile } from "./OptionTile.svelte";
 export { default as PageHeader } from "./PageHeader.svelte";
 export { default as PageShell } from "./PageShell.svelte";
 export { default as Panel } from "./Panel.svelte";

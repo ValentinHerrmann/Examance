@@ -73,7 +73,7 @@ Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Fra
 
 ## Layout-Optionen {#layout}
 
-Layout-Einstellungen liegen auf dem Reiter **Layout** im Schritt **Prüfung**: Infotext, Namenszeile, Hinweis zur Abschneide-Ecke, Korrekturhinweis für Multiple-Choice, Logo und LaTeX-Pakete. **Speichern** übernimmt sie, **Änderungen verwerfen** kehrt zum gespeicherten Stand zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
+Layout-Einstellungen liegen auf dem Reiter **Layout** im Schritt **Prüfung**: Infotext, Namenszeile, Hinweis zur Abschneide-Ecke, Korrekturhinweis für Multiple-Choice, [Drucken mit mehreren Blättern](#multi-sheet), Logo und LaTeX-Pakete. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
 
 ### Namenszeile {#name-line}
 
@@ -116,6 +116,32 @@ Jede Prüfung druckt oben links auf der ersten Seite ein Logo. Auf dem Reiter **
 
 Auf demselben Reiter können Sie außerdem LaTeX-Pakete nur für diese Prüfung hinzufügen oder Pakete Ihres Kontos weglassen (siehe [LaTeX-Pakete](./exercises#packages)).
 
+## Mehrere Blätter {#multi-sheet}
+
+Eine Prüfung über mehrere Blätter lässt sich leichter handhaben, wenn jede Seite weiß, wer und was sie ist. Dafür gibt es auf dem Reiter **Layout** zwei Optionen:
+
+- **Seitencode auf jeder Seite.** Ein kleiner QR-Code (14 mm) oben auf jeder Seite, auf der Seite der Abschneide-Ecke, direkt innerhalb der Eckmarkierung, sagt dem Scanner, welche Seite es ist. Auf [personalisierten Exemplaren](./students#printed-copies) enthält er auch die ID der Person (die kurze Aufkleber-ID oder die Mebis- bzw. Artemis-ID, nie den Namen). Dadurch spielt die Reihenfolge der gescannten Blätter keine Rolle mehr, fehlende Seiten werden gemeldet und lose Blätter finden ihren Schüler. Der Code ist ab 200 ppi zuverlässig lesbar; 300 ppi ist besser. Für neue Prüfungen ist die Option voreingestellt. Ältere Prüfungen behalten ihr Layout, bis Sie sie einschalten; das ändert das Seitenlayout, früher gedruckte Exemplare passen dann nicht mehr.
+- **Füllseiten bis zu einem vollen Blatt.** Jedes Exemplar wird auf ganze Blätter aufgefüllt (gerade Seitenzahl bei beidseitigem Druck, Vielfaches von 4 als Broschüre), so dass jedes Exemplar auf einem neuen Blatt beginnt. Die Füllseiten sind **Platz für Nebenrechnungen** (Voreinstellung für neue Prüfungen), **Absichtlich leer** oder **Keine**. Sie werden wie jede andere Seite gescannt, archiviert und exportiert.
+
+Wie Sie diese Blätter drucken (beidseitig oder als Broschüre, Aufkleber pro Blatt), wählen Sie im [Schritt Drucken](#multi-sheet-print).
+
+### Mehrere Blätter drucken {#multi-sheet-print}
+
+Der Druckplan im Schritt **Drucken** enthält diese Auswahl:
+
+- **Personalisierte Exemplare** oder **Normale Exemplare + Aufkleber**.
+- **Wie drucken Sie?** **Beidseitig (A4, zwei Seiten pro Blatt)** oder **Broschüre (gefaltetes A3, vier Seiten pro Blatt)**.
+- Bei Broschüren **Wer ordnet die Seiten an?** **Examance (A3-Blätter, jeder Drucker)**: auf A3 drucken, beidseitig, Wenden an der kurzen Kante, in Originalgröße, in der Mitte falten und heften. Oder **Broschürenfunktion meines Druckers**: Personalisierte Exemplare laden Sie dann als ZIP mit einer PDF pro Schüler herunter und drucken sie einzeln.
+- **Aufkleber pro Schüler** (nur bei normalen Exemplaren + Aufklebern). Beidseitig: einer für die ganze Prüfung (auf dem Deckblatt) oder einer pro Blatt. Broschüre: einer für die ganze Prüfung, einer pro A3-Blatt oder einer pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine sehr hellgraue, unbeschriftete Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Personalisierte Exemplare brauchen keine zusätzlichen Aufkleber: Jeder Seitencode nennt den Schüler.
+
+**Druckdateien erstellen** setzt, was der Plan druckt (die Lösung nur bei angekreuztem **mit Lösung**; unveränderte Teile werden wiederverwendet) und erstellt den Aufkleberbogen oder die personalisierten Exemplare. Jede Auftragskarte hat danach nur noch den Download und den Haken **gedruckt**.
+
+Vor den personalisierten Exemplaren warnt der Schritt vor Schülern ohne ID (nur ihr Deckblatt trägt den Code; ihre übrigen Seiten werden nach der Reihenfolge zugeordnet) und sperrt die Exemplare, wenn zwei Schüler dieselbe ID haben. Beides beheben Sie auf der Seite [Schüler](./students#student-data).
+
+**Schnittzone bei Broschüren.** Jede Broschürenseite hat eine gestrichelte Schnittlinie mit Schere 6 mm von der Falz und einen hellgrauen Streifen zwischen Linie und Falz. Dort schreibt niemand, und Sie können die Broschüre an beliebiger Stelle innerhalb dieses 12-mm-Bands entlang der Falz aufschneiden; ein leicht schiefer Schnitt schadet also nicht. Der Text beginnt 8 mm von der Falz. Die Abschneide-Ecke wird wie bisher abgeschnitten.
+
+Wie Sie diese Blätter scannen: [Den Stapel scannen](./scanning#scan).
+
 ## Setzen {#typeset}
 
 **Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Auf breiten Bildschirmen steht die Vorschau neben Aufgaben und Layout; auf kleineren ist sie ein dritter Reiter, **Vorschau**, neben **Aufgaben** und **Layout**. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.
@@ -135,11 +161,11 @@ In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag d
 
 ## Drucken {#print}
 
-Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die gesetzten PDFs, dieselbe Vorschau wie im Schritt **Prüfung**. Die Schaltfläche zum Setzen sitzt im ersten Druckauftrag: Sie setzt Angabe und Lösung und frischt die Scan-Vorlage für die MC-Erkennung auf.
+Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die PDFs. Die Vorschau zeigt nur, was der Plan druckt, und nur, wenn es aktuell ist: bei personalisierten Exemplaren ohne Lösung also nur die personalisierten Exemplare. Ordnet Examance eine Broschüre an, zeigt sie die A3-Bögen genau so, wie sie gedruckt werden. Eine Schaltfläche, **Druckdateien erstellen**, setzt, was der Plan druckt, frischt die Scan-Vorlage für die MC-Erkennung auf und erstellt die PDF mit Aufklebern oder Exemplaren.
 
-Im Druckplan wählen Sie, wie Sie drucken: **Normale Exemplare und ein QR-Aufkleberbogen** oder **Personalisierte Exemplare mit aufgedrucktem QR-Code** (ein Exemplar pro Schüler mit QR-Code, Name und persönlichem Schlüssel, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies)), und ob die **Lösung** mitgedruckt wird. **Bereit zum Drucken?** prüft von selbst, ob die Prüfung Aufgaben hat, die Schülerliste gefüllt ist, die PDFs zum aktuellen Stand passen und, bei MC-Aufgaben, die Scan-Vorlage aktuell ist.
+Im Druckplan wählen Sie, wie Sie drucken: **Normale Exemplare und ein QR-Aufkleberbogen** oder **Personalisierte Exemplare mit aufgedrucktem QR-Code** (ein Exemplar pro Schüler mit QR-Code, Name und persönlichem Schlüssel, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies)), und ob die **Lösung** mitgedruckt wird. Bei mehreren Blättern enthält der Plan auch, [wie Sie drucken](#multi-sheet-print). **Bereit zum Drucken?** prüft von selbst, ob die Prüfung Aufgaben hat, die Schülerliste gefüllt ist, die PDFs zum aktuellen Stand passen und, bei MC-Aufgaben, die Scan-Vorlage aktuell ist.
 
-Darunter stehen genau die Druckaufträge Ihres Plans (Exemplare und Aufkleberbogen oder die personalisierten Exemplare, dazu die Lösung). Jeder Auftrag funktioniert gleich: Symbole in seinem Kopf erstellen bzw. aktualisieren seine PDF und laden sie herunter, darunter stehen seine Optionen (bei Aufklebern: wie viele pro Schüler, schon verbrauchte Etiketten und **Was drucken?**, siehe [QR-Aufkleber](./students#qr-stickers)), und der Haken **gedruckt** schließt ihn ab. Ein erstellter Aufkleberbogen oder die personalisierten Exemplare erscheinen als weiterer Bereich neben Angabe und Lösung. Nur Sie setzen die Haken, und erst, wenn die PDF des Auftrags zum aktuellen Stand existiert: bei Angabe und Lösung die aktuelle Vorschau, bei Aufklebern und personalisierten Exemplaren eine hier erstellte PDF. Ein Haken verschwindet nur, wenn sich ändert, wofür er gesetzt wurde: Inhalt oder Layout bei Angabe und Lösung, die Schülerliste beim Aufkleberbogen, beides bei personalisierten Exemplaren. Das Zeichen des Schritts in der Seitenleiste zeigt, wie viele Aufträge abgehakt sind.
+Darunter stehen genau die Druckaufträge Ihres Plans (Exemplare und Aufkleberbogen oder die personalisierten Exemplare, dazu die Lösung). Jeder Auftrag funktioniert gleich: sein Kopf hat den Download, darunter stehen seine Optionen (bei Aufklebern: wie viele pro Schüler, schon verbrauchte Etiketten und **Was drucken?**, siehe [QR-Aufkleber](./students#qr-stickers)), und der Haken **gedruckt** schließt ihn ab. Ein erstellter Aufkleberbogen oder die personalisierten Exemplare erscheinen als weiterer Bereich neben Angabe und Lösung. Nur Sie setzen die Haken, und erst, wenn die PDF des Auftrags zum aktuellen Stand existiert: bei Angabe und Lösung die aktuelle Vorschau, bei Aufklebern und personalisierten Exemplaren eine hier erstellte PDF. Ein Haken verschwindet nur, wenn sich ändert, wofür er gesetzt wurde: Inhalt oder Layout bei Angabe und Lösung, die Schülerliste beim Aufkleberbogen, beides bei personalisierten Exemplaren. Das Zeichen des Schritts in der Seitenleiste zeigt, wie viele Aufträge abgehakt sind.
 
 Drucken Sie die Bögen **genau so, wie sie gesetzt wurden**: nicht „An Seite anpassen“, keine Skalierung, kein Beschneiden. Der QR-Aufkleber und die Eckmarken müssen lesbar bleiben, sonst lässt sich der Scan nicht automatisch zuordnen und angekreuzte Kästchen nicht erkennen.
 

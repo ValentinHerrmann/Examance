@@ -10,6 +10,7 @@
   import { t, translate } from "#lib/i18n";
   import { PageShell } from "#lib/components/ui";
   import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
+  import { NEW_EXAM_PRINT } from "#lib/exam/printLayout";
 
   const RETENTION_DAYS = 365;
   // Exam content printed in the German PDF, not UI copy: deliberately not translated.
@@ -67,6 +68,7 @@
       infoText,
       nameLine,
       mcCorrectionHint,
+      ...NEW_EXAM_PRINT,
       gradingKey,
       retentionUntil,
       compilationStatus: "pending",

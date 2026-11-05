@@ -45,7 +45,9 @@
     OmrExerciseAnswerKey,
   } from "#lib/workers/omrWorker";
   import { parseStudentQr } from "#lib/utils/studentQr";
-  import { ingestScans, type IngestProgress, type OmrSummary } from "#lib/scan/ingest";
+  import { ingestScans, type IngestProgress, type IngestWarning, type OmrSummary } from "#lib/scan/ingest";
+  import { carryAttachments } from "#lib/scan/scanPdf";
+  import { examNavContext } from "#lib/stores/shell";
   import HardwareProfileCard from "#lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "#lib/components/scanning/UploadPanel.svelte";
   import { Alert, Button, PageShell } from "#lib/components/ui";
@@ -127,6 +129,8 @@
   let omrTemplateHash: string | undefined;
   let omrAvailable = false;
   let omrBanner = $state("");
+  // Pages the last upload could not place (issue #220): missing, extra or of another exam. Every page was kept.
+  let pageNotes = $state.raw<string[]>([]);
   /** Null until `loadOmrContext` knows; without MC the template only serves the score boxes in grading. */
   let examHasMc: boolean | null = null;
 
@@ -522,6 +526,13 @@
     }
   }
 
+  function pageNote(w: IngestWarning): string | null {
+    if (w.kind === "missingPages") return translate("scanning.pageNotes.missing", { student: w.student, pages: w.pages.join(", ") });
+    if (w.kind === "extraPages") return translate("scanning.pageNotes.extra", { student: w.student, count: w.count });
+    if (w.kind === "foreignPage") return translate("scanning.pageNotes.foreign", { fileName: w.fileName });
+    return null;
+  }
+
   function alignmentBanner(omr: OmrSummary): string {
     const fiducialDetail =
       omr.minFiducialsFound !== null
@@ -537,6 +548,7 @@
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
     isProcessing = true;
+    pageNotes = [];
     try {
       const result = await ingestScans(Array.from(input.files), {
         examId,
@@ -548,6 +560,7 @@
         omrTemplateHash,
         monitor,
         onProgress: showIngestProgress,
+        pageCodes: get(examNavContext)?.exam?.pageCodes === true,
       });
       prepareScoreBoxTemplate();
       await refreshUnmatched();
@@ -558,6 +571,7 @@
         bookletCount: result.bookletCount,
       });
       if (omrAvailable && result.omr.alignmentFailures > 0) omrBanner = alignmentBanner(result.omr);
+      pageNotes = [...new Set(result.warnings.map(pageNote).filter((n): n is string => n !== null))];
     } catch (err) {
       console.error("[scan] ingest failed:", err);
       statusText = translate("scanning.status.failed", { message: err instanceof Error ? err.message : String(err) });
@@ -631,7 +645,8 @@
       const activeKey = (key || fallbackKey)!;
       const decryptedBytes = await openScan(item.id, scanCt, scanIv, activeKey, fallbackKey);
 
-      const { PDFDocument } = await import("pdf-lib");
+      const pdfLib = await import("pdf-lib");
+      const { PDFDocument } = pdfLib;
       const srcPdf = await PDFDocument.load(decryptedBytes, { ignoreEncryption: true });
       const totalPages = srcPdf.getPageCount();
 
@@ -645,6 +660,8 @@
       const indices1 = Array.from({ length: splitPage - 1 }, (_, i) => i);
       const copied1 = await pdf1.copyPages(srcPdf, indices1);
       copied1.forEach((p) => pdf1.addPage(p));
+      // Both parts keep the attached original A3 scan (issue #220): it is never dropped.
+      await carryAttachments(pdfLib, srcPdf, pdf1);
       const buf1 = await pdf1.save();
 
       // PDF 2: pages splitPage - 1 to totalPages - 1
@@ -652,6 +669,7 @@
       const indices2 = Array.from({ length: totalPages - splitPage + 1 }, (_, i) => i + splitPage - 1);
       const copied2 = await pdf2.copyPages(srcPdf, indices2);
       copied2.forEach((p) => pdf2.addPage(p));
+      await carryAttachments(pdfLib, srcPdf, pdf2);
       const buf2 = await pdf2.save();
 
       // Ids first: each part's ciphertext is bound to its submission (AAD, issue #178).
@@ -722,6 +740,11 @@
 
   {#if omrBanner}
     <Alert severity="warning" class="my-4">{omrBanner}</Alert>
+  {/if}
+  {#if pageNotes.length}
+    <Alert severity="warning" class="my-4" title={$t("scanning.pageNotes.title")}>
+      <ul class="m-0 ps-5">{#each pageNotes as note (note)}<li>{note}</li>{/each}</ul>
+    </Alert>
   {/if}
 
   <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload}>

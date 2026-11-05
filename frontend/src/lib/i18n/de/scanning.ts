@@ -55,6 +55,12 @@ export const scanning = {
         failed: 'Import abgebrochen: {message}. Prüfen Sie die Liste unten und laden Sie fehlende Dateien erneut hoch.',
         complete: 'Fertig! {fileCount} Datei(en) ({pageCount} Seite(n)) in {bookletCount} Schülerabgabe(n) eingelesen.',
     },
+    pageNotes: {
+        title: 'Nicht alle Seiten passten zur Prüfung. Jede Seite wurde gespeichert.',
+        missing: '{student}: Seite(n) {pages} fehlen. Platzhalter stehen an ihrer Stelle und werden ersetzt, sobald Sie die Seiten nachscannen.',
+        extra: '{student}: {count} Seite(n) doppelt gescannt oder ohne lesbaren Seitencode; sie stehen nach den Prüfungsseiten.',
+        foreign: '{fileName}: Seite(n) einer anderen Prüfung; sie stehen als nicht zugeordnete Abgabe in der Liste.',
+    },
     omrBanner: {
         alignmentFailed: 'OMR-Ausrichtung auf {count} Seite(n) fehlgeschlagen{fiducialDetail} — diese MC-Aufgaben wurden ohne Bewertung importiert und müssen manuell bewertet werden. Prüfen Sie die Scanqualität (Beschnitt/Schräglage/Druckränder) in der Nähe der Seitenecken.',
         alignmentFiducialDetail: '(nur {found}/4 Eckmarkierungen erkannt, fehlend: {missing})',

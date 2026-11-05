@@ -1,4 +1,5 @@
 import type { ExamRecord, ExerciseRecord, StudentRecord } from '#lib/db/schema';
+import { printSettingsOf, type PrintSettings } from '#lib/exam/printLayout';
 
 /** One tick the teacher set by hand: when, and the fingerprint of what it was set for (issue #212). */
 export interface StepCheck {
@@ -10,17 +11,18 @@ export interface StepCheck {
 export const PRINT_JOBS = ['exam', 'qr', 'copies', 'solution'] as const;
 export type PrintJobId = (typeof PRINT_JOBS)[number];
 
-/** How the teacher prints: plain copies plus a QR sticker sheet, or personalised copies; the solution only when wanted. */
+/** Hand-set print choices that do not shape the sheet: the solution only when wanted, and who arranges booklet pages. Plain copies with stickers vs personalised copies is the exam's `printMode` (issue #220). */
 export interface PrintPlan {
-    mode: 'stickers' | 'copies';
     solution: boolean;
+    /** Booklet exams (issue #220): Examance imposes A3 sheets, or the printer's booklet function gets one A4 file per copy; unset = impose. */
+    booklet?: 'impose' | 'printer';
 }
-export const DEFAULT_PRINT_PLAN: PrintPlan = { mode: 'stickers', solution: false };
+export const DEFAULT_PRINT_PLAN: PrintPlan = { solution: false };
 
-/** The print jobs a plan asks for, in print order. */
-export function printJobs(plan: PrintPlan | undefined): PrintJobId[] {
+/** The print jobs of a plan and print mode, in print order. */
+export function printJobs(plan: PrintPlan | undefined, mode: 'stickers' | 'copies' = 'stickers'): PrintJobId[] {
     const p = plan ?? DEFAULT_PRINT_PLAN;
-    return [...(p.mode === 'copies' ? (['copies'] as const) : (['exam', 'qr'] as const)), ...(p.solution ? (['solution'] as const) : [])];
+    return [...(mode === 'copies' ? (['copies'] as const) : (['exam', 'qr'] as const)), ...(p.solution ? (['solution'] as const) : [])];
 }
 
 /** How the teacher checks the sure MC detections: every one, a share of random samples, or not at all. */
@@ -60,6 +62,8 @@ export function fingerprint(text: string): string {
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
+const LEGACY_PRINT = JSON.stringify(printSettingsOf({}));
+
 /** What the printed exam and solution depend on: the exam's content and layout fields and its exercises in order. */
 export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): string {
     const e = exam;
@@ -69,6 +73,8 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
         e.mcCorrectionHint, e.extraNotes,
         // Only when set, so stamps of exams without an override (all older ones) stay as they were.
         ...(e.course ? [e.course] : []),
+        // Only when they differ from the old layout, so stamps of older exams stay as they were.
+        ...(JSON.stringify(printSettingsOf(e)) === LEGACY_PRINT ? [] : [printSettingsOf(e)]),
     ];
     const body = exercises.map((x) => [x.id, x.version, x.orderIndex, x.mcGroupId, x.subIndex, x.maxPoints, x.latexBody]);
     return fingerprint(JSON.stringify([head, body]));
@@ -86,9 +92,10 @@ export function studentsStamp(students: StudentRecord[]): string {
 
 export type PrintStamps = Record<PrintJobId, string>;
 
-/** The exam and solution follow the content, the sticker sheet the student list, personalised copies both. */
-export function printStamps(content: string, students: string): PrintStamps {
-    return { exam: content, solution: content, qr: students, copies: fingerprint(`${content}:${students}`) };
+/** The exam and solution follow the content, the sticker sheet the student list (and the content too while later sheets get sticker spots: their count follows the pages), personalised copies both. */
+export function printStamps(content: string, students: string, print?: Pick<PrintSettings, 'mode' | 'stickerSpots'>): PrintStamps {
+    const spots = print?.mode === 'stickers' && print.stickerSpots !== 'cover';
+    return { exam: content, solution: content, qr: spots ? fingerprint(`${students}:${content}`) : students, copies: fingerprint(`${content}:${students}`) };
 }
 
 /** A tick counts only while the content it was set for is unchanged. */
@@ -109,8 +116,8 @@ export function printMadeValid(checks: StepChecks | null | undefined, id: PrintJ
 }
 
 /** Sidebar status of the Print step: valid ticks over the jobs of the plan. */
-export function printStatus(checks: StepChecks | null | undefined, stamps: PrintStamps): { count: number; total: number; done: boolean } {
-    const jobs = printJobs(checks?.printPlan);
+export function printStatus(checks: StepChecks | null | undefined, stamps: PrintStamps, mode: 'stickers' | 'copies' = 'stickers'): { count: number; total: number; done: boolean } {
+    const jobs = printJobs(checks?.printPlan, mode);
     const count = jobs.filter((id) => printCheckValid(checks, id, stamps)).length;
     return { count, total: jobs.length, done: count === jobs.length };
 }
@@ -189,7 +196,7 @@ export function stepChecksField(value: unknown): StepChecks | undefined {
         if (typeof made === 'string') printMade[id] = made;
     }
     const plan = raw.printPlan;
-    const printPlan: PrintPlan | undefined =
-        plan && (plan.mode === 'stickers' || plan.mode === 'copies') ? { mode: plan.mode, solution: plan.solution === true } : undefined;
+    const booklet = plan?.booklet === 'impose' || plan?.booklet === 'printer' ? { booklet: plan.booklet } : {};
+    const printPlan: PrintPlan | undefined = plan && typeof plan === 'object' ? { solution: plan.solution === true, ...booklet } : undefined;
     return { print, ...(printPlan ? { printPlan } : {}), printMade, mc: mcField(raw.mc) };
 }

@@ -9,7 +9,8 @@ vi.mock('zxing-wasm/reader', () => ({
 }));
 vi.stubGlobal('self', { location: { href: 'https://app.example.test/_app/immutable/workers/qrWorker.js' } });
 
-const { qrResultOf } = await import('#lib/workers/qrWorker');
+await import('#lib/workers/qrWorker');
+const { qrResultOf } = await import('#lib/scan/qrText');
 
 describe('qrWorker', () => {
   // Regression: left at its default, zxing-wasm fetched the WASM from jsDelivr, CSP blocked it and no QR code was ever read.
