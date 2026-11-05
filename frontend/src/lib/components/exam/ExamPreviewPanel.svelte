@@ -52,6 +52,12 @@
     compile?: (opts?: { solution?: boolean }) => Promise<void>;
     /** More PDFs beside task sheet and solution (the Print step's sticker sheet). */
     extraPanes?: { id: string; title: string; url: string | null }[];
+    /** Which sheets get a pane (the Print step shows only what it prints). */
+    sheets?: { angabe: boolean; loesung: boolean };
+    /** Shows a sheet only while it matches the sources and drops panes without a PDF: no outdated file is ever shown (Print step). */
+    currentOnly?: boolean;
+    /** The empty state's text when nothing is shown; without the toolbar there is no compile button in it either. */
+    emptyHint?: string;
     class?: string;
   }
 
@@ -68,6 +74,9 @@
     toolbar = true,
     compile = $bindable(),
     extraPanes = [],
+    sheets = { angabe: true, loesung: true },
+    currentOnly = false,
+    emptyHint = undefined,
     class: className = "",
   }: Props = $props();
 
@@ -96,6 +105,10 @@
 
   const key = () => get(sessionStore).sessionKey;
   let hasPdf = $derived(!!(previewPdfUrl || previewSolutionPdfUrl));
+  // The sheets the panes show: all of them on the Exam step; on the Print step only the planned ones while current.
+  let shownAngabe = $derived(sheets.angabe && !(currentOnly && previewOutdated) ? previewPdfUrl : null);
+  let shownLoesung = $derived(sheets.loesung && !(currentOnly && (previewOutdated || solutionOutdated)) ? previewSolutionPdfUrl : null);
+  let showsAnything = $derived(currentOnly ? !!(shownAngabe || shownLoesung || extraPanes.some((x) => x.url)) : hasPdf || extraPanes.some((x) => x.url));
   // One status line instead of stacked notices, so nothing pushes the page into scrolling (issue #212).
   type Tone = "info" | "success" | "warning" | "muted";
   let statusLine = $derived.by((): { tone: Tone; text: string } => {
@@ -355,20 +368,21 @@
       <div class="rounded-xl border border-dashed border-line-strong bg-surface-raised">
         <EmptyState icon={faFilePdf} title={$t("exam.page.pdfPreview.emptyTitle")} description={$t("exam.page.compileSection.emptyHint")} />
       </div>
-    {:else if !hasPdf && !extraPanes.some((x) => x.url)}
+    {:else if !showsAnything}
       <!-- Light like the rest of the page; the dark viewer only appears once there is a PDF. -->
       <div class="flex flex-col justify-center rounded-xl border border-dashed border-line-strong bg-surface-raised" use:fillViewport>
-        <EmptyState icon={faFilePdf} title={$t("exam.page.pdfPreview.emptyTitle")} description={$t("exam.page.pdfPreview.emptyHint")}>
-          {#snippet actions()}{@render compileButton()}{/snippet}
+        <EmptyState icon={faFilePdf} title={$t("exam.page.pdfPreview.emptyTitle")} description={emptyHint ?? $t("exam.page.pdfPreview.emptyHint")}>
+          {#snippet actions()}{#if toolbar}{@render compileButton()}{/if}{/snippet}
         </EmptyState>
       </div>
     {:else}
       <!-- A fixed-height parent: inside this flex column the preview's own height would be overridden (issue #210). Its height is what is left on screen. -->
       <div class="flex min-h-0 flex-col" use:fillViewport>
         <DualPdfPreview
-          {previewPdfUrl}
-          {previewSolutionPdfUrl}
+          previewPdfUrl={shownAngabe}
+          previewSolutionPdfUrl={shownLoesung}
           {extraPanes}
+          hideEmpty={currentOnly}
           bind:showAngabePreview
           bind:showLoesungPreview
           titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}

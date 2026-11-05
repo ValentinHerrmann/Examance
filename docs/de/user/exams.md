@@ -132,13 +132,13 @@ Der Druckplan im Schritt **Drucken** enthält diese Auswahl:
 - **Personalisierte Exemplare** oder **Normale Exemplare + Aufkleber**.
 - **Wie drucken Sie?** **Beidseitig (A4, zwei Seiten pro Blatt)** oder **Broschüre (gefaltetes A3, vier Seiten pro Blatt)**.
 - Bei Broschüren **Wer ordnet die Seiten an?** **Examance (A3-Blätter, jeder Drucker)**: auf A3 drucken, beidseitig, Wenden an der kurzen Kante, in Originalgröße, in der Mitte falten und heften. Oder **Broschürenfunktion meines Druckers**: Personalisierte Exemplare laden Sie dann als ZIP mit einer PDF pro Schüler herunter und drucken sie einzeln.
-- **Aufkleber pro Schüler** (nur bei normalen Exemplaren + Aufklebern). Beidseitig: einer für die ganze Prüfung (auf dem Deckblatt) oder einer pro Blatt. Broschüre: einer für die ganze Prüfung, einer pro A3-Blatt oder einer pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine hellgraue Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Personalisierte Exemplare brauchen keine zusätzlichen Aufkleber: Jeder Seitencode nennt den Schüler.
+- **Aufkleber pro Schüler** (nur bei normalen Exemplaren + Aufklebern). Beidseitig: einer für die ganze Prüfung (auf dem Deckblatt) oder einer pro Blatt. Broschüre: einer für die ganze Prüfung, einer pro A3-Blatt oder einer pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine sehr hellgraue, unbeschriftete Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Personalisierte Exemplare brauchen keine zusätzlichen Aufkleber: Jeder Seitencode nennt den Schüler.
 
 **Druckdateien erstellen** setzt, was der Plan druckt (die Lösung nur bei angekreuztem **mit Lösung**; unveränderte Teile werden wiederverwendet) und erstellt den Aufkleberbogen oder die personalisierten Exemplare. Jede Auftragskarte hat danach nur noch den Download und den Haken **gedruckt**.
 
 Vor den personalisierten Exemplaren warnt der Schritt vor Schülern ohne ID (nur ihr Deckblatt trägt den Code; ihre übrigen Seiten werden nach der Reihenfolge zugeordnet) und sperrt die Exemplare, wenn zwei Schüler dieselbe ID haben. Beides beheben Sie auf der Seite [Schüler](./students#student-data).
 
-**Schnittzone bei Broschüren.** Jede Broschürenseite hat eine gestrichelte Schnittlinie mit Schere 3 mm von der Falz und einen hellgrauen Streifen zwischen Linie und Falz. Dort schreibt niemand, und Sie können die Broschüre an beliebiger Stelle innerhalb dieses 6-mm-Bands entlang der Falz aufschneiden. Die Abschneide-Ecke wird wie bisher abgeschnitten.
+**Schnittzone bei Broschüren.** Jede Broschürenseite hat eine gestrichelte Schnittlinie mit Schere 6 mm von der Falz und einen hellgrauen Streifen zwischen Linie und Falz. Dort schreibt niemand, und Sie können die Broschüre an beliebiger Stelle innerhalb dieses 12-mm-Bands entlang der Falz aufschneiden; ein leicht schiefer Schnitt schadet also nicht. Der Text beginnt 8 mm von der Falz. Die Abschneide-Ecke wird wie bisher abgeschnitten.
 
 Wie Sie diese Blätter scannen: [Den Stapel scannen](./scanning#scan).
 
@@ -161,7 +161,7 @@ In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag d
 
 ## Drucken {#print}
 
-Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die gesetzten PDFs, dieselbe Vorschau wie im Schritt **Prüfung**. Eine Schaltfläche, **Druckdateien erstellen**, setzt, was der Plan druckt, frischt die Scan-Vorlage für die MC-Erkennung auf und erstellt die PDF mit Aufklebern oder Exemplaren.
+Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die PDFs. Die Vorschau zeigt nur, was der Plan druckt, und nur, wenn es aktuell ist: bei personalisierten Exemplaren ohne Lösung also nur die personalisierten Exemplare. Eine Schaltfläche, **Druckdateien erstellen**, setzt, was der Plan druckt, frischt die Scan-Vorlage für die MC-Erkennung auf und erstellt die PDF mit Aufklebern oder Exemplaren.
 
 Im Druckplan wählen Sie, wie Sie drucken: **Normale Exemplare und ein QR-Aufkleberbogen** oder **Personalisierte Exemplare mit aufgedrucktem QR-Code** (ein Exemplar pro Schüler mit QR-Code, Name und persönlichem Schlüssel, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies)), und ob die **Lösung** mitgedruckt wird. Bei mehreren Blättern enthält der Plan auch, [wie Sie drucken](#multi-sheet-print). **Bereit zum Drucken?** prüft von selbst, ob die Prüfung Aufgaben hat, die Schülerliste gefüllt ist, die PDFs zum aktuellen Stand passen und, bei MC-Aufgaben, die Scan-Vorlage aktuell ist.
 

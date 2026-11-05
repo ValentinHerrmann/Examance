@@ -41,16 +41,16 @@ All settings are plain `exams` columns (migrations 0058 and 0059). `printSetting
 ## Filler pages, sticker spots, fold cut zone
 
 - **Filler pages**: after the points table, `\SA@fillsheets` adds pages until the count is a multiple of 2 (or 4 with `broschuere`). They read "Platz für Nebenrechnungen" or "Diese Seite bleibt absichtlich leer." They carry markers and codes and are part of the OMR template. Personalised copies of these exams get no extra blank back from `examCopies.ts`.
-- **Sticker spots** (sticker mode, `stickerPagesOf`): sticker labels are 35 mm, so a spot is a light grey 35×35 mm square over the header.
-  - Position: on the uncut side, 15–50 mm from the edge and 3–38 mm from the top.
+- **Sticker spots** (sticker mode, `stickerPagesOf`): sticker labels are 35 mm, so a spot is a faint (`black!4`), unlabelled 35×35 mm square over the header.
+  - Position: on the uncut side, 10 mm beside that side's top marker (15–50 mm from the edge, 18–53 mm on booklets) and 3–38 mm from the top.
   - Only a 17 mm full-width strip at the top of the body stays free. `\@outputpage` lowers `\@colht` for such a page, and `\@makecol` and `\@texttop` give the room back as space above the text, so page breaks know about it.
   - `bogen`: every odd page from page 3.
   - `a3`: the front-right page of each A3 sheet, i.e. odd page `p` with `2p + 2 <=` the total. The total comes from the previous pass's `.aux`, as `\SA@total`.
   - Personalised copies get none: every page code names the student.
 - **Fold cut zone** (`broschuere`):
-  - a dashed cut line with scissors 3 mm from the fold edge (left on odd pages, right on even pages);
-  - a `black!7` strip between the line and the fold. On an A3 sheet that gives a 6 mm band where a cut along the fold is safe and nobody writes.
-  - Text and markers start at 5 mm. `lib/qr/cutCorner.ts` `FOLD_STRIP` mirrors the number.
+  - a dashed cut line with scissors 6 mm from the fold edge (left on odd pages, right on even pages);
+  - a `black!7` strip between the line and the fold. On an A3 sheet that gives a 12 mm band where a slightly crooked cut along the fold is still safe and nobody writes.
+  - Text and the fold-side markers start 8 mm from the fold (`\SA@foldinset`; the geometry is `twoside` with `inner=8mm`, `outer=5mm`). The outer side keeps 5 mm, the points table stays 1.5 mm clear of both bottom markers. `lib/qr/cutCorner.ts` `FOLD_STRIP`/`FOLD_INSET` mirror the numbers; registration reads the markers' positions per page from the template.
 
 ## Print step (`components/exam/PrintPlan.svelte`)
 
@@ -60,6 +60,8 @@ All settings are plain `exams` columns (migrations 0058 and 0059). `printSetting
   - it compiles the solution only when the plan prints it (`compileExamPreview({ solution: false })`; `ExamPreviewStatus.solution` tracks it separately; unchanged sources come from the compile cache);
   - then it makes the sticker or copies PDF unless the current one is still valid (`printMadeValid`).
   - Job cards keep only download and the "printed" tick.
+- **Options as tiles** (`ui/OptionTile`, shared with Settings): each group has a small heading and its explanation behind (i); the tiles carry a title and one short line.
+- **The preview shows only what will be printed** (`PrintPlan` `bind:shown` → `ExamPreviewPanel` `sheets` + `currentOnly`, `DualPdfPreview` `hideEmpty`): the task sheet only when plain copies are printed, the solution only when planned, each only while it matches the sources; sticker and copies PDFs only while they were made for the current content. With nothing ready the area asks for "Create print files".
 - **Booklets** (`lib/qr/booklet.ts`):
   - `imposeBooklet` lays each copy two-up on A3 in saddle-stitch order;
   - `splitCopies` makes one A4 PDF per student for the printer's booklet function (ZIP).

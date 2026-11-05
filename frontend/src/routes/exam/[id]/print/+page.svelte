@@ -16,7 +16,7 @@
   import { slug } from "#lib/export/zip";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import ExamPreviewPanel, { type ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
-  import PrintPlan from "#lib/components/exam/PrintPlan.svelte";
+  import PrintPlan, { type PrintPreviews } from "#lib/components/exam/PrintPlan.svelte";
   import { printSettingsOf } from "#lib/exam/printLayout";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { t, translate } from "#lib/i18n";
@@ -31,11 +31,9 @@
   let compile = $state<((opts?: { solution?: boolean }) => Promise<void>) | undefined>(undefined);
   // Bumped when the print settings change, so the preview marks itself outdated.
   let layoutVersion = $state(0);
-  // Sticker or copies PDFs made in the plan, shown as extra panes beside task sheet and solution.
-  let jobUrls = $state<Partial<Record<"qr" | "copies", string>>>({});
-  let extraPanes = $derived(
-    (["qr", "copies"] as const).flatMap((job) => (jobUrls[job] ? [{ id: job, title: $t(`exam.print.job.${job}`), url: jobUrls[job] ?? null }] : [])),
-  );
+  // Only what the plan prints: the planned sheets while current, made sticker or copies PDFs as extra panes.
+  let shown = $state<PrintPreviews | undefined>(undefined);
+  let extraPanes = $derived((["qr", "copies"] as const).flatMap((job) => (shown?.jobs[job] ? [{ id: job, title: $t(`exam.print.job.${job}`), url: shown.jobs[job] ?? null }] : [])));
 
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
@@ -107,7 +105,7 @@
   {:else if !ctx}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
-    <!-- One row: the plan beside the PDFs; the compile button sits in the plan's first job (issue #212). -->
+    <!-- One row: the plan beside the PDFs, which show only what the plan prints (issues #212, #220). -->
     <div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <PrintPlan
         class="xl:col-start-1 xl:row-start-1"
@@ -124,9 +122,7 @@
         {compile}
         print={printSettingsOf(ctx.exam)}
         onPrintChange={savePrint}
-        onJobPdf={(job, url) => {
-          if (job === "qr" || job === "copies") jobUrls = { ...jobUrls, [job]: url ?? undefined };
-        }}
+        bind:shown
       />
       <div class="min-w-0 xl:contents">
         {#if withheld}
@@ -143,6 +139,9 @@
             {refreshSources}
             toolbar={false}
             {extraPanes}
+            sheets={{ angabe: shown?.angabe ?? false, loesung: shown?.loesung ?? false }}
+            currentOnly
+            emptyHint={$t("exam.print.previewEmpty")}
             bind:compile
             bind:status={preview}
           />

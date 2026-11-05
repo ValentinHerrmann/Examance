@@ -29,7 +29,7 @@ Die Karte **QR-Codes für Schüler** im Schritt **Drucken** bereitet die Aufkleb
 2. Legen Sie die **Aufkleber pro Schüler** fest und wie viele Etiketten **schon benutzt** auf dem ersten Bogen sind, damit ein angebrochener Bogen nicht verschwendet wird.
 3. Drucken Sie den Bogen mit 100 % (nicht „An Seite anpassen“) und schneiden Sie die Etiketten aus oder ziehen Sie sie ab.
 
-Bei mehreren Blättern können Sie im Schritt **Drucken** ([Mehrere Blätter drucken](./exams#multi-sheet-print)) die **Aufkleber pro Schüler** wählen: einen für die ganze Prüfung (Deckblatt) oder einen pro Blatt; bei Broschüren einen für die ganze Prüfung, einen pro A3-Blatt oder einen pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine hellgraue Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Der Bogen schlägt einen Aufkleber pro Stelle plus das Deckblatt vor.
+Bei mehreren Blättern können Sie im Schritt **Drucken** ([Mehrere Blätter drucken](./exams#multi-sheet-print)) die **Aufkleber pro Schüler** wählen: einen für die ganze Prüfung (Deckblatt) oder einen pro Blatt; bei Broschüren einen für die ganze Prüfung, einen pro A3-Blatt oder einen pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine sehr hellgraue, unbeschriftete Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Der Bogen schlägt einen Aufkleber pro Stelle plus das Deckblatt vor.
 
 Aufkleber anderer Programme im Format `Nachname, Vorname_ID` funktionieren ebenfalls. Von Hand oder aus nicht zugeordneten Seiten angelegte Schüler haben keinen Aufkleber.
 

@@ -50,7 +50,7 @@ export function readAttachments(lib: PdfLib, doc: PDFDocument): { name: string; 
 
 /** Re-attaches every file of *src* to *dst*: a scan rebuilt from pages (split, merge) keeps its original A3 pages. */
 export async function carryAttachments(lib: PdfLib, src: PDFDocument, dst: PDFDocument): Promise<void> {
-  for (const file of readAttachments(lib, src)) await dst.attach(file.bytes, file.name, { mimeType: 'application/pdf' });
+  for (const file of readAttachments(lib, src)) await dst.attach(file.bytes, file.name, { mimeType: 'application/pdf' }); // NOSONAR: attachments keep their order
 }
 
 /** Attaches the original A3 pages *refs* (each once, in scan order) as `ORIGINAL_SCAN_NAME`, merged with any original the scan already carries. */
@@ -58,15 +58,15 @@ export async function attachOriginals(lib: PdfLib, doc: PDFDocument, refs: reado
   if (!refs.length) return;
   const original = await lib.PDFDocument.create();
   for (const prior of earlier ? readAttachments(lib, earlier).filter((f) => f.name === ORIGINAL_SCAN_NAME) : []) {
-    const src = await lib.PDFDocument.load(prior.bytes);
-    for (const page of await original.copyPages(src, src.getPageIndices())) original.addPage(page);
+    const src = await lib.PDFDocument.load(prior.bytes); // NOSONAR: earlier originals first, in order
+    for (const page of await original.copyPages(src, src.getPageIndices())) original.addPage(page); // NOSONAR: as above
   }
   const seen = new Set<string>();
   for (const ref of refs) {
     const id = `${docId(ref.doc)}:${ref.index}`;
     if (seen.has(id)) continue;
     seen.add(id);
-    const [page] = await original.copyPages(ref.doc, [ref.index]);
+    const [page] = await original.copyPages(ref.doc, [ref.index]); // NOSONAR: scan order is the archive's order
     original.addPage(page);
   }
   await doc.attach(await original.save(), ORIGINAL_SCAN_NAME, { mimeType: 'application/pdf', description: 'Original A3 scan (unsplit)' });

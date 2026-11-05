@@ -14,8 +14,7 @@ export function bookletSides(n: number): BookletSide[] {
   const page = (p: number) => (p <= n ? p : 0);
   const sides: BookletSide[] = [];
   for (let s = 0; s < total / 4; s++) {
-    sides.push({ left: page(total - 2 * s), right: page(2 * s + 1) });
-    sides.push({ left: page(2 * s + 2), right: page(total - 2 * s - 1) });
+    sides.push({ left: page(total - 2 * s), right: page(2 * s + 1) }, { left: page(2 * s + 2), right: page(total - 2 * s - 1) });
   }
   return sides;
 }
@@ -46,10 +45,10 @@ export async function splitCopies(pdf: Uint8Array, pagesPerCopy: number, names: 
   const src = await lib.PDFDocument.load(pdf);
   const files: { name: string; pdf: Uint8Array }[] = [];
   for (let start = 0, i = 0; start < src.getPageCount(); start += pagesPerCopy, i++) {
-    const doc = await lib.PDFDocument.create();
+    const doc = await lib.PDFDocument.create(); // NOSONAR: one copy's file at a time keeps memory flat for large classes
     const indices = Array.from({ length: Math.min(pagesPerCopy, src.getPageCount() - start) }, (_, k) => start + k);
-    for (const page of await doc.copyPages(src, indices)) doc.addPage(page);
-    files.push({ name: names[i] ?? String(i + 1), pdf: await doc.save() });
+    for (const page of await doc.copyPages(src, indices)) doc.addPage(page); // NOSONAR: as above
+    files.push({ name: names[i] ?? String(i + 1), pdf: await doc.save() }); // NOSONAR: as above
   }
   return files;
 }

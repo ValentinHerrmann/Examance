@@ -131,13 +131,13 @@ The print plan of the **Print** step holds these choices:
 - **Personalised copies** or **Plain copies + stickers**.
 - **How do you print?** **Double-sided (A4, two pages per sheet)** or **Booklet (folded A3, four pages per sheet)**.
 - For booklets, **Who arranges the pages?** **Examance (A3 sheets, any printer)**: print on A3, double-sided, flip on the short edge, at actual size, fold in the middle and staple. Or **My printer's booklet function**: personalised copies then download as a ZIP with one PDF per student, which you print one by one.
-- **Stickers per student** (only for plain copies + stickers). Double-sided: one for the whole exam (on the cover page) or one per sheet. Booklet: one for the whole exam, one per A3 sheet, or one per A4 leaf after cutting. Stickers on later sheets go onto a light grey 35 × 35 mm spot at the top of the page, on the side away from the cut corner, over the page header. Personalised copies need no extra stickers: every page code names the student.
+- **Stickers per student** (only for plain copies + stickers). Double-sided: one for the whole exam (on the cover page) or one per sheet. Booklet: one for the whole exam, one per A3 sheet, or one per A4 leaf after cutting. Stickers on later sheets go onto a faint, unlabelled grey 35 × 35 mm spot at the top of the page, on the side away from the cut corner, over the page header. Personalised copies need no extra stickers: every page code names the student.
 
 **Create print files** typesets what the plan prints (the solution only when **with solution** is ticked; unchanged parts are reused) and makes the sticker sheet or the personalised copies. Each job card then only has the download and the **printed** tick.
 
 Before it makes personalised copies, the step warns about students without an ID (only their cover carries their code; their other pages are matched by order) and blocks the copies when two students share an ID. Fix both on the [Students page](./students#student-data).
 
-**Booklet cut zone.** Every booklet page has a dashed cut line with scissors 3 mm from the fold and a light grey strip between the line and the fold. Nobody writes there, and you can cut the booklet open along the fold anywhere inside this 6 mm band. The cut-off corner is cut as before.
+**Booklet cut zone.** Every booklet page has a dashed cut line with scissors 6 mm from the fold and a light grey strip between the line and the fold. Nobody writes there, and you can cut the booklet open along the fold anywhere inside this 12 mm band, so a slightly crooked cut does no harm. The text starts 8 mm from the fold. The cut-off corner is cut as before.
 
 How to scan these sheets: [Scan the stack](./scanning#scan).
 
@@ -160,7 +160,7 @@ In the exam overview, **Preview** in an expanded entry opens the last compiled P
 
 ## Print {#print}
 
-The **Print** step has the **print plan** on the left and the compiled PDFs on the right (on smaller screens below it), the same preview as on the **Exam** step. One button, **Create print files**, typesets what the plan prints, refreshes the scan template for MC detection and makes the sticker or copies PDF.
+The **Print** step has the **print plan** on the left and the PDFs on the right (on smaller screens below it). The preview shows only what the plan prints, and only once it is up to date: for personalised copies without the solution, just the personalised copies. One button, **Create print files**, typesets what the plan prints, refreshes the scan template for MC detection and makes the sticker or copies PDF.
 
 In the print plan you choose how you print: **Plain copies and a QR sticker sheet**, or **Personalised copies with the QR code printed on** (one copy per student with QR code, name and personal key, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies)), and whether the **solution** is printed too. For several sheets the plan also holds [how you print](#multi-sheet-print). **Ready to print?** checks automatically whether the exam has exercises, the student list is filled, the PDFs match the current state and, with MC questions, the scan template is up to date.
 

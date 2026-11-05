@@ -57,14 +57,15 @@ async function findStampTargets(examPdf: Uint8Array): Promise<StampTargets[]> {
   const task = pdfjs.getDocument({ data: examPdf.slice() });
   const doc = await task.promise;
   try {
-    const pages: StampTargets[] = [];
-    for (let i = 1; i <= doc.numPages; i++) {
-      const links = (await (await doc.getPage(i)).getAnnotations()).filter((a) => a.subtype === 'Link');
-      const url = (a: (typeof links)[number]): string => a.unsafeUrl ?? a.url ?? '';
-      const code = links.find((a) => url(a).startsWith('omr://__page__/'));
-      pages.push({ qrBoxes: links.filter((a) => url(a) === 'omr://__qr__').map((a) => a.rect as Rect), pageCode: code ? (code.rect as Rect) : null });
-    }
-    return pages;
+    // Annotations only, no rendering: reading every page at once is cheap.
+    return await Promise.all(
+      Array.from({ length: doc.numPages }, async (_, k) => {
+        const links = (await (await doc.getPage(k + 1)).getAnnotations()).filter((a) => a.subtype === 'Link');
+        const url = (a: (typeof links)[number]): string => a.unsafeUrl ?? a.url ?? '';
+        const code = links.find((a) => url(a).startsWith('omr://__page__/'));
+        return { qrBoxes: links.filter((a) => url(a) === 'omr://__qr__').map((a) => a.rect as Rect), pageCode: code ? (code.rect as Rect) : null };
+      }),
+    );
   } finally {
     await task.destroy();
   }
@@ -123,7 +124,16 @@ function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: Sti
   drawTabRow(lib, page, fonts.monoBold, [formatCode(key)], KEY_ROW);
 }
 
-function addCopy(lib: PdfLib, out: PDFDocument, pages: PDFPage[], fonts: LabelFonts, entry: StickerEntry, key: string, targets: StampTargets[], tag: string): void {
+/** What every copy of one sheet shares. */
+interface CopyContext {
+  lib: PdfLib;
+  out: PDFDocument;
+  fonts: LabelFonts;
+  targets: StampTargets[];
+  tag: string;
+}
+
+function addCopy({ lib, out, fonts, targets, tag }: CopyContext, pages: PDFPage[], entry: StickerEntry, key: string): void {
   for (const page of pages) out.addPage(page);
   const first = pages[0];
   // A student without a sticker ID keeps the plain page codes: only the cover names them (the Print step warns).
@@ -159,7 +169,8 @@ export async function renderExamCopies(examPdf: Uint8Array, entries: readonly St
     Promise.all(entries.map(() => out.copyPages(src, src.getPageIndices()))),
     Promise.all(entries.map((entry) => personalKey(entry.payload))),
   ]);
-  entries.forEach((entry, i) => addCopy(lib, out, copies[i], fonts, entry, keys[i], targets, tag));
+  const ctx: CopyContext = { lib, out, fonts, targets, tag };
+  entries.forEach((entry, i) => addCopy(ctx, copies[i], entry, keys[i]));
   const pagesPerCopy = entries.length ? out.getPageCount() / entries.length : src.getPageCount();
   return { pdf: await out.save(), pagesPerCopy };
 }

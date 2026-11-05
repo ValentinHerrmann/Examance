@@ -21,11 +21,11 @@ type PrintFields = Pick<ExamRecord, 'pageCodes' | 'paddingPages' | 'printLayout'
 /** What a new exam starts with; older exams read as no page codes, no filler pages and a cover sticker. */
 export const NEW_EXAM_PRINT = { pageCodes: true, paddingPages: 'workspace', printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet' } as const satisfies PrintFields;
 
-const SPOTS: readonly StickerSpots[] = ['cover', 'sheet', 'a3', 'leaf'];
+const SPOTS: ReadonlySet<string> = new Set<StickerSpots>(['cover', 'sheet', 'a3', 'leaf']);
 
 export function printSettingsOf(exam: PrintFields): PrintSettings {
   const layout: PrintLayout = exam.printLayout === 'booklet' ? 'booklet' : 'duplex';
-  const spots = SPOTS.includes(exam.stickerSpots as StickerSpots) ? (exam.stickerSpots as StickerSpots) : 'cover';
+  const spots = SPOTS.has(exam.stickerSpots ?? '') ? (exam.stickerSpots as StickerSpots) : 'cover';
   return {
     pageCodes: exam.pageCodes === true,
     padding: exam.paddingPages === 'workspace' || exam.paddingPages === 'blank' ? exam.paddingPages : 'none',
@@ -42,7 +42,8 @@ export function spotChoices(layout: PrintLayout): StickerSpots[] {
 
 function spotsFor(layout: PrintLayout, spots: StickerSpots): StickerSpots {
   if (spotChoices(layout).includes(spots)) return spots;
-  return spots === 'cover' ? 'cover' : layout === 'booklet' ? 'leaf' : 'sheet';
+  if (spots === 'cover') return 'cover';
+  return layout === 'booklet' ? 'leaf' : 'sheet';
 }
 
 /** Pages per printed sheet: 2 for duplex, 4 for a folded A3 booklet sheet. */

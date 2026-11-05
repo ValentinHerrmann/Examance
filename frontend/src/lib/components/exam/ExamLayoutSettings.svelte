@@ -10,6 +10,7 @@
   import LatexEditor from "#lib/components/LatexEditor.svelte";
   import ExamLogoField from "#lib/components/logo/ExamLogoField.svelte";
   import ExamPackagesField from "#lib/components/latex-packages/ExamPackagesField.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { Alert, Checkbox, CrossLink, Field, Radio } from "#lib/components/ui";
 
   /** The exam's page layout (issues #212, #220): info text, name line, cut-corner hint, MC correction legend, page codes, filler pages, logo and LaTeX packages. Every change saves itself (no buttons); how the exam is printed lives on the Print step. */
@@ -178,8 +179,12 @@
   </Field>
 
   <!-- Multi-sheet layout (issue #220): page codes and filler pages shape every printed sheet; how it is printed (double-sided or booklet, stickers) is set on the Print step. -->
+  <h3 class="m-0 mt-2 text-xs font-semibold tracking-wide text-muted uppercase">{$t("exam.layout.print.heading")}</h3>
   <Field hint={$t("exam.layout.print.pageCodesHint")}>
-    <Checkbox id="layoutPageCodes" bind:checked={pageCodes} label={$t("exam.layout.print.pageCodes")} />
+    <span class="flex items-center gap-1.5">
+      <Checkbox id="layoutPageCodes" bind:checked={pageCodes} label={$t("exam.layout.print.pageCodes")} />
+      <InfoTip text={$t("exam.layout.print.pageCodesInfo")} />
+    </span>
   </Field>
   <Field label={$t("exam.layout.print.padding")} info={$t("exam.layout.print.paddingInfo")}>
     <div class="flex flex-wrap gap-x-4 gap-y-1">

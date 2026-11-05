@@ -153,9 +153,13 @@ export function withExamOptions(options: string, layout: LayoutFields): string {
 function pageCodeDefinitions(exam: ExamRecord, options: string): string {
   if (options.split(",").includes("antworten")) return "";
   const print = printSettingsOf(exam);
-  const spots = print.mode === "stickers" && print.stickerSpots !== "cover" ? (print.stickerSpots === "a3" ? "a3" : "bogen") : "";
-  return [print.pageCodes && pageCodesLatex(exam.id), spots && `\\Aufkleberseiten{${spots}}`].filter(Boolean).map((line) => `\n${line}`).join("");
+  let spots = "";
+  if (print.mode === "stickers" && print.stickerSpots !== "cover") spots = print.stickerSpots === "a3" ? "a3" : "bogen";
+  return [print.pageCodes && pageCodesLatex(exam.id), spots && String.raw`\Aufkleberseiten{${spots}}`].filter(Boolean).map((line) => `\n${line}`).join("");
 }
+
+/** What the sheet builders read: the exam's sources and the session key. */
+type ExamSourceInput = Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">;
 
 export interface ExamPreviewInput {
   exam: ExamRecord;
@@ -194,7 +198,7 @@ export interface ExamSources {
 
 /** `needBytes` loads resource and logo bytes (local engine, raw export); otherwise the server resolves them by id. */
 export async function prepareExamSources(
-  input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">,
+  input: ExamSourceInput,
   needBytes: boolean
 ): Promise<ExamSources> {
   const { exam, exercises, libraryExercises, mcGroups, examItems, key } = input;
@@ -248,7 +252,7 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
 
 /** The cached PDF of one variant if it was compiled from the exam's current sources, else null (the Print step needs only what it prints). */
 export async function getCurrentExamVariant(
-  input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">,
+  input: ExamSourceInput,
   variant: "angabe" | "loesung"
 ): Promise<CachedCompileEntry | null> {
   const useLocal = effectiveLatexCompilation() === "local";
@@ -259,7 +263,7 @@ export async function getCurrentExamVariant(
 
 /** The cached Angabe/Lösung if they were compiled from the exam's current sources; "stale" when this exam was compiled before but its exercises, order or header changed since (issue #135); null when never compiled. */
 export async function getCurrentExamPreview(
-  input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">
+  input: ExamSourceInput
 ): Promise<{ angabe: CachedCompileEntry; loesung: CachedCompileEntry } | "stale" | null> {
   const id = input.exam.id;
   const hadAny =

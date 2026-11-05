@@ -62,7 +62,7 @@ export function pageCodesLatex(examId: string, pages = MAX_PAGE_CODES): string {
   const lines: string[] = [];
   for (let page = 1; page <= pages; page++) {
     const { grid, runs } = qrRuns(pageCodeText({ tag, page }));
-    lines.push(`\\Seitencode{${page}}{${grid}}{${runs}}`);
+    lines.push(String.raw`\Seitencode{${page}}{${grid}}{${runs}}`);
   }
   return lines.join('\n');
 }

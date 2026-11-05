@@ -2,7 +2,7 @@
 import type { PageViewport, PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import type { PDFDocument } from "pdf-lib";
 import { loadPdfjs } from "#lib/pdf/pdfjs";
-import { saveStudentEncrypted, saveSubmissionEncrypted, sealScan } from "#lib/db/dbEncryption";
+import { openScan, saveStudentEncrypted, saveSubmissionEncrypted, sealScan } from "#lib/db/dbEncryption";
 import { pseudonymFor } from "#lib/services/pseudonymRekey";
 import { joinKey, joinKeys } from "#lib/crypto/pseudonymKey";
 import { studentRepository } from "#lib/repositories/studentRepository";
@@ -16,7 +16,6 @@ import type { QrWorkerRequest, QrWorkerResponse } from "#lib/workers/qrWorker";
 import { qrResultOf, type QrResult } from "#lib/scan/qrText";
 import { examTag, parsePageCode } from "#lib/exam/pageCodes";
 import { submissionRepository } from "#lib/repositories/submissionRepository";
-import { openScan } from "#lib/db/dbEncryption";
 import { addPlaceholderPage, attachOriginals, carryAttachments, halfImage, isA3Landscape, placeholderOf, splitA3 } from "#lib/scan/scanPdf";
 import type {
   OmrExerciseAnswerKey,
@@ -349,7 +348,7 @@ class ScanPass {
 
       if (isA3Landscape(libPage)) {
         // An unfolded booklet sheet: each half is its own page; the A3 original stays with the scan.
-        halves ??= await PDFDocClass.create();
+        halves ??= await PDFDocClass.create(); // NOSONAR: one shared document for every split half
         const [left, right] = await splitA3(halves, libPage); // NOSONAR: sequential on purpose
         const original = { doc: pdfLibDoc, index: pIdx - 1 };
         // Right half first: a sheet's front right page (2s+1) carries its sticker spot, so its left half follows the right student.
@@ -467,6 +466,41 @@ async function submissionWithPlaceholders(examId: string, pseudonymHmac: string,
   return null;
 }
 
+const copyPage = async (doc: PDFDocument, ref: PdfPageRef) => doc.addPage((await doc.copyPages(ref.doc, [ref.index]))[0]);
+
+/** A first scan: the pages in slot order, a placeholder for each missing slot, then the extras. Returns the missing page numbers. */
+async function fillSlots(lib: typeof import("pdf-lib"), out: PDFDocument, slots: (PdfPageRef | number)[], extras: PdfPageRef[]): Promise<number[]> {
+  const missing: number[] = [];
+  for (const slot of slots) {
+    if (typeof slot === "number") {
+      await addPlaceholderPage(lib, out, slot); // NOSONAR: page order matters
+      missing.push(slot);
+    } else await copyPage(out, slot); // NOSONAR: page order matters
+  }
+  for (const ref of extras) await copyPage(out, ref); // NOSONAR: page order matters
+  return missing;
+}
+
+/** A later scan: earlier pages stay where they are, a placeholder gives way to its page from this scan, every other new page goes after them. Returns the page numbers still missing. */
+async function fillEarlier(lib: typeof import("pdf-lib"), out: PDFDocument, earlier: PDFDocument, slots: (PdfPageRef | number)[], refs: PdfPageRef[]): Promise<number[]> {
+  const fresh = new Map(slots.filter((s): s is PdfPageRef => typeof s !== "number").map((r) => [r.page, r]));
+  const used = new Set<PdfPageRef>();
+  const missing: number[] = [];
+  for (const [i, page] of earlier.getPages().entries()) {
+    const wanted = placeholderOf(lib, page);
+    const ref = wanted === null ? undefined : fresh.get(wanted);
+    if (ref) {
+      await copyPage(out, ref); // NOSONAR: page order matters
+      used.add(ref);
+    } else {
+      out.addPage((await out.copyPages(earlier, [i]))[0]); // NOSONAR: page order matters
+      if (wanted !== null) missing.push(wanted);
+    }
+  }
+  for (const ref of refs) if (!used.has(ref)) await copyPage(out, ref); // NOSONAR: page order matters
+  return missing;
+}
+
 /** Assembles the booklet PDF (filling an earlier scan's placeholders when there is one), seals it and writes student, submission and OMR scores through their repositories. *known* holds the exam's students by join key; *templatePages* is the exam's page count when known. */
 export async function saveBooklet(
   booklet: StudentBooklet,
@@ -487,33 +521,7 @@ export async function saveBooklet(
 
   const assembledPdf = await lib.PDFDocument.create();
   const { slots, extras } = bookletLayout(booklet.pageRefs, templatePages);
-  const missing: number[] = [];
-  const copy = async (ref: PdfPageRef) => assembledPdf.addPage((await assembledPdf.copyPages(ref.doc, [ref.index]))[0]);
-  if (earlier) {
-    // Earlier pages stay where they are; a placeholder gives way to its page from this scan. Every other new page goes after them.
-    const fresh = new Map(slots.filter((s): s is PdfPageRef => typeof s !== "number").map((r) => [r.page, r]));
-    const used = new Set<PdfPageRef>();
-    for (const [i, page] of earlier.doc.getPages().entries()) {
-      const wanted = placeholderOf(lib, page);
-      const ref = wanted === null ? undefined : fresh.get(wanted);
-      if (ref) {
-        await copy(ref); // NOSONAR: page order matters
-        used.add(ref);
-      } else {
-        assembledPdf.addPage((await assembledPdf.copyPages(earlier.doc, [i]))[0]);
-        if (wanted !== null) missing.push(wanted);
-      }
-    }
-    for (const ref of booklet.pageRefs) if (!used.has(ref)) await copy(ref); // NOSONAR: page order matters
-  } else {
-    for (const slot of slots) {
-      if (typeof slot === "number") {
-        await addPlaceholderPage(lib, assembledPdf, slot); // NOSONAR: page order matters
-        missing.push(slot);
-      } else await copy(slot); // NOSONAR: page order matters
-    }
-    for (const ref of extras) await copy(ref); // NOSONAR: page order matters
-  }
+  const missing = earlier ? await fillEarlier(lib, assembledPdf, earlier.doc, slots, booklet.pageRefs) : await fillSlots(lib, assembledPdf, slots, extras);
   // The unsplit A3 sheets stay with the student's scan (exported and erased with it).
   const originals = booklet.pageRefs.flatMap((r) => (r.original ? [r.original] : []));
   if (originals.length) await attachOriginals(lib, assembledPdf, originals, earlier?.doc ?? null);

@@ -29,7 +29,7 @@ The card **QR codes for students** on the exam's **Print** step prepares the sti
 2. Set the **number of stickers per student** and how many labels of the first sheet are **already used**, so a partly used sheet is not wasted.
 3. Print the sheet at 100 % (no "fit to page") and cut or peel the labels.
 
-For several sheets, the **Print** step ([Printing several sheets](./exams#multi-sheet-print)) lets you choose **Stickers per student**: one for the whole exam (cover page) or one per sheet; for booklets one for the whole exam, one per A3 sheet or one per A4 leaf after cutting. Stickers on later sheets go onto a light grey 35 × 35 mm spot at the top of the page, on the side away from the cut corner, over the page header. The sticker sheet suggests one sticker per spot plus the cover.
+For several sheets, the **Print** step ([Printing several sheets](./exams#multi-sheet-print)) lets you choose **Stickers per student**: one for the whole exam (cover page) or one per sheet; for booklets one for the whole exam, one per A3 sheet or one per A4 leaf after cutting. Stickers on later sheets go onto a faint, unlabelled grey 35 × 35 mm spot at the top of the page, on the side away from the cut corner, over the page header. The sticker sheet suggests one sticker per spot plus the cover.
 
 Stickers made by other tools in the format `Lastname, Firstname_ID` work as well. Students you added by hand or from unmatched pages have no sticker.
 

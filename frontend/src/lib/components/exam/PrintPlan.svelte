@@ -1,6 +1,15 @@
+<script lang="ts" module>
+  /** The panes of the Print step's preview. */
+  export interface PrintPreviews {
+    angabe: boolean;
+    loesung: boolean;
+    jobs: Partial<Record<"qr" | "copies", string>>;
+  }
+</script>
+
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
-  import { faArrowsRotate, faCircleCheck, faCircleInfo, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowsRotate, faBookOpen, faCircleCheck, faCircleInfo, faCopy, faPrint, faTag, faTriangleExclamation, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { t } from "#lib/i18n";
@@ -28,7 +37,7 @@
   import type { ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import type { ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import StickerSheetForm from "#lib/components/sharing/StickerSheetForm.svelte";
-  import { Alert, Badge, Button, Card, Checkbox, Icon, Radio, actionIcons } from "#lib/components/ui";
+  import { Alert, Badge, Button, Card, Checkbox, Icon, OptionTile, Radio, actionIcons } from "#lib/components/ui";
 
   /** The Print step (issue #212): the teacher picks how they print, the page lists the print jobs that follow, each with its readiness, its PDF and a "printed" tick that is only offered once that PDF exists for the current content. */
   interface Props {
@@ -51,12 +60,12 @@
     print: PrintSettings;
     /** Saves a print setting on the exam (mode, layout, sticker spots); the sheet follows it. */
     onPrintChange: (patch: ExamLayoutPatch) => Promise<void>;
-    /** A sticker or copies PDF was made (or dropped): the page shows it as an extra preview pane. */
-    onJobPdf: (job: PrintJobId, url: string | null) => void;
+    /** Out: what the preview shows, only the planned jobs (sheets while current, sticker or copies PDFs while made for the current content). */
+    shown?: PrintPreviews;
     class?: string;
   }
 
-  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, compile, print, onPrintChange, onJobPdf, class: className = "" }: Props = $props();
+  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, compile, print, onPrintChange, shown = $bindable(), class: className = "" }: Props = $props();
 
   let cs = $derived($examChecksState && $examChecksState.examId === examId ? $examChecksState : null);
   let stamps = $derived(cs?.stamps ? printStamps(cs.stamps.content, cs.stamps.students) : null);
@@ -141,7 +150,6 @@
     if (old) URL.revokeObjectURL(old.url);
     const url = URL.createObjectURL(new Blob([pdf as BlobPart], { type: "application/pdf" }));
     jobPdf = { ...jobPdf, [job]: { url, bytes: pdf, fileName, download } };
-    onJobPdf(job, url);
     recordMade(job);
   }
 
@@ -197,7 +205,28 @@
         .catch(() => (pageCount = 0));
     });
   });
+  // The preview shows only what the plan prints, and only while it fits the current content.
+  $effect.pre(() => {
+    const next: PrintPreviews = {
+      angabe: jobs.includes("exam"),
+      loesung: jobs.includes("solution"),
+      jobs: Object.fromEntries(
+        (["qr", "copies"] as const).flatMap((job) => {
+          const url = jobPdf[job]?.url;
+          return url && jobs.includes(job) && made(job) ? [[job, url]] : [];
+        }),
+      ),
+    };
+    untrack(() => (shown = next));
+  });
 </script>
+
+{#snippet heading(id: string, label: string, info: string)}
+  <span class="flex items-center gap-1.5">
+    <span {id} class="text-xs font-semibold tracking-wide text-muted uppercase">{label}</span>
+    <InfoTip text={info} />
+  </span>
+{/snippet}
 
 <div class="flex min-w-0 flex-col gap-4 {className}">
   <Card>
@@ -206,41 +235,51 @@
       <InfoTip text={$t("exam.print.planIntro")} />
     </div>
     <div class="grid grid-cols-1 gap-4 2xl:grid-cols-2">
-      <fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" disabled={busy || saving || !cs}>
-        <legend class="mb-2 text-sm font-medium">{$t("exam.print.modeLegend")}</legend>
-        <!-- Only the chosen mode shows its description (the other on hover). Mode, layout and spots shape the sheet, so they live on the exam (issue #220). -->
-        <div title={print.mode === "stickers" ? undefined : $t("exam.print.modeStickersHint")}>
-          <Radio group={print.mode} value="stickers" name="print-mode" onchange={() => change({ printMode: "stickers" })} label={$t("exam.print.modeStickers")} />
-          {#if print.mode === "stickers"}<p class="m-0 ms-7 text-xs text-muted">{$t("exam.print.modeStickersHint")}</p>{/if}
-        </div>
-        <div title={print.mode === "copies" ? undefined : (copiesUnavailable ?? $t("exam.print.modeCopiesHint"))}>
-          <Radio group={print.mode} value="copies" name="print-mode" disabled={!!copiesUnavailable} onchange={() => change({ printMode: "copies" })} label={$t("exam.print.modeCopies")} />
-          {#if print.mode === "copies" || copiesUnavailable}<p class="m-0 ms-7 text-xs text-muted">{copiesUnavailable ?? $t("exam.print.modeCopiesHint")}</p>{/if}
+      <fieldset class="m-0 flex min-w-0 flex-col gap-3 border-0 p-0" disabled={busy || saving || !cs}>
+        <legend class="sr-only">{$t("exam.print.planTitle")}</legend>
+        <!-- Mode, layout and spots shape the sheet, so they live on the exam (issue #220); the booklet arranging and the solution are print-plan choices. -->
+        <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="print-mode-label">
+          {@render heading("print-mode-label", $t("exam.print.modeLegend"), $t("exam.print.modeInfo"))}
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <OptionTile compact name="print-mode" value="stickers" checked={print.mode === "stickers"} icon={faTag} title={$t("exam.print.modeStickers")} text={$t("exam.print.modeStickersText")} onchange={() => change({ printMode: "stickers" })} />
+            <OptionTile compact name="print-mode" value="copies" checked={print.mode === "copies"} disabled={!!copiesUnavailable} icon={faUser} title={$t("exam.print.modeCopies")} text={copiesUnavailable ?? $t("exam.print.modeCopiesText")} onchange={() => change({ printMode: "copies" })} />
+          </div>
         </div>
 
-        <span class="mt-2 text-sm font-medium">{$t("exam.print.layoutLegend")}</span>
-        <div class="flex flex-wrap gap-x-4 gap-y-1">
-          <Radio group={print.layout} value="duplex" name="print-layout" onchange={() => change({ printLayout: "duplex" })} label={$t("exam.print.duplex")} />
-          <Radio group={print.layout} value="booklet" name="print-layout" onchange={() => change({ printLayout: "booklet" })} label={$t("exam.print.booklet.label")} />
+        <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="print-layout-label">
+          {@render heading("print-layout-label", $t("exam.print.layoutLegend"), $t("exam.print.layoutInfo"))}
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <OptionTile compact name="print-layout" value="duplex" checked={print.layout === "duplex"} icon={faCopy} title={$t("exam.print.duplex")} text={$t("exam.print.duplexText")} onchange={() => change({ printLayout: "duplex" })} />
+            <OptionTile compact name="print-layout" value="booklet" checked={print.layout === "booklet"} icon={faBookOpen} title={$t("exam.print.booklet.label")} text={$t("exam.print.booklet.text")} onchange={() => change({ printLayout: "booklet" })} />
+          </div>
         </div>
+
         {#if booklet}
-          <div class="ms-7 flex flex-col gap-1">
-            <span class="text-xs text-muted">{$t("exam.print.booklet.legend")}</span>
-            <Radio group={booklet} value="impose" name="print-booklet" onchange={() => setPlan({ booklet: "impose" })} label={$t("exam.print.booklet.impose")} />
-            <Radio group={booklet} value="printer" name="print-booklet" onchange={() => setPlan({ booklet: "printer" })} label={$t("exam.print.booklet.printer")} />
+          <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="print-booklet-label">
+            {@render heading("print-booklet-label", $t("exam.print.booklet.legend"), $t("exam.print.booklet.info"))}
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <OptionTile compact name="print-booklet" value="impose" checked={booklet === "impose"} icon={faWandMagicSparkles} title={$t("exam.print.booklet.impose")} text={$t("exam.print.booklet.imposeText")} onchange={() => setPlan({ booklet: "impose" })} />
+              <OptionTile compact name="print-booklet" value="printer" checked={booklet === "printer"} icon={faPrint} title={$t("exam.print.booklet.printer")} text={$t("exam.print.booklet.printerText")} onchange={() => setPlan({ booklet: "printer" })} />
+            </div>
           </div>
         {/if}
 
         {#if print.mode === "stickers"}
-          <span class="mt-2 text-sm font-medium">{$t("exam.print.spots.legend")}</span>
-          {#each spotChoices(print.layout) as spot (spot)}
-            <Radio group={print.stickerSpots} value={spot} name="print-spots" onchange={() => change({ stickerSpots: spot })} label={$t(`exam.print.spots.${spot}`)} />
-          {/each}
+          <div class="flex flex-col gap-1" role="radiogroup" aria-labelledby="print-spots-label">
+            {@render heading("print-spots-label", $t("exam.print.spots.legend"), $t("exam.print.spots.info"))}
+            <div class="flex flex-wrap gap-x-4 gap-y-1">
+              {#each spotChoices(print.layout) as spot (spot)}
+                <Radio group={print.stickerSpots} value={spot} name="print-spots" onchange={() => change({ stickerSpots: spot })} label={$t(`exam.print.spots.${spot}`)} />
+              {/each}
+            </div>
+          </div>
         {/if}
 
-        <Checkbox class="mt-2" checked={plan.solution} disabled={busy || !cs} onChange={(on) => setPlan({ solution: on })} label={$t("exam.print.withSolution")} />
-        <p class="m-0 mt-1 text-xs text-muted">{$t(`exam.print.howTo.${howTo}`)}</p>
-        <Button class="mt-2 self-start" icon={faArrowsRotate} loading={preparing || !!preview?.busy} disabled={preparing || !!preview?.busy || !compile} onClick={prepare}>{$t("exam.print.prepare")}</Button>
+        <Checkbox checked={plan.solution} disabled={busy || !cs} onChange={(on) => setPlan({ solution: on })} label={$t("exam.print.withSolution")} />
+        <p class="m-0 flex items-start gap-2 rounded-md bg-surface-sunken p-2 text-sm text-content">
+          <Icon icon={faPrint} class="mt-0.5 shrink-0 text-muted" />{$t(`exam.print.howTo.${howTo}`)}
+        </p>
+        <Button class="self-start" icon={faArrowsRotate} loading={preparing || !!preview?.busy} disabled={preparing || !!preview?.busy || !compile} onClick={prepare}>{$t("exam.print.prepare")}</Button>
       </fieldset>
 
       <section class="min-w-0" aria-labelledby="print-ready-title">

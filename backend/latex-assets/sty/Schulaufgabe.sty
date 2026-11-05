@@ -240,6 +240,9 @@
 
 % The text reaches the markers' outer edges (5mm) and the header row starts at 11.9mm, so on every page the body (22.4mm) begins below the corner zone (21.8mm deep at the text edge).
 \geometry{top=11.9mm,left=5mm,right=5mm}
+% Booklets keep the 6mm cut strip along the fold free (section 11): text and the fold-side markers start 8mm from the fold (left on odd pages, right on even ones).
+\newlength{\SA@foldinset}
+\ifthenelse{\boolean{SA@broschuere}}{\geometry{twoside,inner=8mm,outer=5mm}\setlength{\SA@foldinset}{8mm}}{\setlength{\SA@foldinset}{5mm}}
 
 % ==============================================================================
 % 6. Name Box (Namenszeile) & Header Setup
@@ -403,20 +406,25 @@
 }
 
 % Both top markers sit 12mm from the top: the one by the cut corner (right on odd pages, left on even ones) 46mm from its side (66mm with page codes, section 11),
-% outside the zone; the other in its corner at the usual inset (mirrored in frontend lib/qr/cutCorner.ts).
+% outside the zone; the other in its corner at the usual inset, 8mm from a booklet's fold (mirrored in frontend lib/qr/cutCorner.ts).
 \newlength{\SA@fidTopX}
 \newlength{\SA@fidTopY}
 \setlength{\SA@fidTopX}{46mm}
 \setlength{\SA@fidTopY}{12mm}
 \newlength{\SA@fidTRX}
 \newlength{\SA@fidTLX}
+\newlength{\SA@fidBLX}
+\newlength{\SA@fidBRX}
 \AddToShipoutPictureBG{%
     \setlength{\SA@fidTRX}{\SA@fidTopX}\setlength{\SA@fidTLX}{\SA@fidTopX}%
-    \ifodd\value{page}\setlength{\SA@fidTLX}{\OmrFiducialInset}\else\setlength{\SA@fidTRX}{\OmrFiducialInset}\fi
+    \ifodd\value{page}\setlength{\SA@fidTLX}{\SA@foldinset}\else\setlength{\SA@fidTRX}{\SA@foldinset}\fi
     % The tab (75 x 20 mm at the outer top corner) is tinted light grey, so an unpersonalised sheet shows what a cut would remove; printed copies stamp over it on page 1.
     \AtPageUpperLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]\ifodd\value{page}\fill[black!7] (\paperwidth-75mm,0) -- (\paperwidth,0) -- (\paperwidth,-20mm) -- cycle;\else\fill[black!7] (75mm,0) -- (0,0) -- (0,-20mm) -- cycle;\fi\end{tikzpicture}}%
-    \OmrFiducialAt{0}{\OmrFiducialInset}{\OmrFiducialInset}%
-    \OmrFiducialAt{1}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\OmrFiducialInset}%
+    % The bottom marker on the fold side keeps clear of a booklet's cut strip (\SA@foldinset equals the inset otherwise).
+    \setlength{\SA@fidBLX}{\OmrFiducialInset}\setlength{\SA@fidBRX}{\OmrFiducialInset}%
+    \ifodd\value{page}\setlength{\SA@fidBLX}{\SA@foldinset}\else\setlength{\SA@fidBRX}{\SA@foldinset}\fi
+    \OmrFiducialAt{0}{\SA@fidBLX}{\OmrFiducialInset}%
+    \OmrFiducialAt{1}{\dimexpr\paperwidth-\SA@fidBRX-\OmrFiducialSize\relax}{\OmrFiducialInset}%
     \OmrFiducialAt{2}{\dimexpr\paperwidth-\SA@fidTRX-\OmrFiducialSize\relax}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
     \OmrFiducialAt{3}{\SA@fidTLX}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
 }
@@ -458,9 +466,9 @@
                 \stepcounter{i}%
         \repeat
 
-        % The table fills the strip between the bottom markers (1.5mm clear of them) and ends level with their bottom edge, 9mm below the body; zero declared depth keeps the page breaks unchanged.
+        % The table fills the strip between the bottom markers (1.5mm clear of them, also with a booklet's fold-side marker at 8mm) and ends level with their bottom edge, 9mm below the body; zero declared depth keeps the page breaks unchanged.
         \@tempdima=\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep-\textheight-\OmrFiducialInset\relax
-        \makebox[\textwidth]{\raisebox{\dimexpr\depth-\@tempdima\relax}[\dimexpr\height+\depth-\@tempdima\relax][0pt]{\SA@scoretable{\dimexpr\paperwidth-2\OmrFiducialInset-2\OmrFiducialSize-3mm\relax}}}%
+        \makebox[\textwidth]{\raisebox{\dimexpr\depth-\@tempdima\relax}[\dimexpr\height+\depth-\@tempdima\relax][0pt]{\SA@scoretable{\dimexpr\paperwidth-\OmrFiducialInset-\SA@foldinset-2\OmrFiducialSize-3mm\relax}}}%
         \normalsize
     }{}%
 }
@@ -752,8 +760,8 @@
 }
 
 % Sticker spots (\Aufkleberseiten{bogen} on every sheet front from page 3, {a3} on each A3 booklet sheet's front right page 2s+1, i.e.
-% page p with 2p+2 <= total pages; frontend stickerPagesOf). A 35mm sticker goes over the header on the uncut side, 15-50mm from the edge
-% and 3-38mm from the top; only a 17mm strip at the top of the body stays free. The kernel's column height shrinks for such a page and
+% page p with 2p+2 <= total pages; frontend stickerPagesOf). A 35mm sticker goes over the header on the uncut side, 10mm beside that side's
+% marker (15-50mm from the edge, 18-53mm on booklets) and 3-38mm from the top, on a faint unlabelled spot; only a 17mm strip at the top of the body stays free. The kernel's column height shrinks for such a page and
 % \@makecol puts the room back as space above the text, so page breaks know it. The total comes from the previous pass's .aux.
 \newlength{\SA@spotroom}
 \setlength{\SA@spotroom}{17mm}
@@ -778,19 +786,18 @@
     \AtEndDocument{\clearpage\if@filesw\immediate\write\@auxout{\gdef\string\SA@total{\the\numexpr\value{page}-1\relax}}\fi}%
 }
 \newcommand{\SA@stickerspot}{%
-    \ifodd\value{page}\@tempdima=15mm\else\@tempdima=\dimexpr\paperwidth-50mm\relax\fi
+    \ifodd\value{page}\@tempdima=\dimexpr\SA@foldinset+10mm\relax\else\@tempdima=\dimexpr\paperwidth-\SA@foldinset-45mm\relax\fi
     \AtPageLowerLeft{\put(\LenToUnit{\@tempdima},\LenToUnit{\dimexpr\paperheight-38mm\relax}){%
         \begin{tikzpicture}%
-            \fill[black!6,rounded corners=1mm] (0,0) rectangle (35mm,35mm);%
-            \node[black!35] at (17.5mm,17.5mm) {\Large Aufkleber};%
+            \fill[black!4,rounded corners=1mm] (0,0) rectangle (35mm,35mm);%
         \end{tikzpicture}}}%
 }
 
-% Booklets: a cut line with scissors 3mm from the fold edge (left on odd pages, right on even ones) and the strip beyond it tinted like
-% the corner tab, so a cut along the fold has 3mm either side and nobody writes there; text and markers start at 5mm (lib/qr/cutCorner.ts FOLD_STRIP).
+% Booklets: a cut line with scissors 6mm from the fold edge (left on odd pages, right on even ones) and the strip beyond it tinted like
+% the corner tab, so a cut along the fold has 6mm either side and nobody writes there; text and fold-side markers start at 8mm (\SA@foldinset, lib/qr/cutCorner.ts FOLD_STRIP).
 \newcommand{\SA@foldzone}{%
     \AtPageLowerLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]%
-        \ifodd\value{page}\def\SA@fx{0}\def\SA@lx{3}\else\def\SA@fx{\paperwidth}\def\SA@lx{\paperwidth-3mm}\fi
+        \ifodd\value{page}\def\SA@fx{0}\def\SA@lx{6}\else\def\SA@fx{\paperwidth}\def\SA@lx{\paperwidth-6mm}\fi
         \fill[black!7] (\SA@fx,0) rectangle (\SA@lx,\paperheight);%
         \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,0) -- (\SA@lx,\paperheight-11mm) (\SA@lx,\paperheight-5mm) -- (\SA@lx,\paperheight);%
         % Scissors in the gap of the line, blades pointing down along it.
