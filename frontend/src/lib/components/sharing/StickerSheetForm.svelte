@@ -3,7 +3,7 @@
   import { onMount, untrack } from "svelte";
   import { get } from "svelte/store";
   import { t } from "#lib/i18n";
-  import { Alert, Button, Checkbox, Field, Radio, TextInput, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, Radio, TextInput, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug } from "#lib/export/zip";
   import { renderExamCopies } from "#lib/qr/examCopies";
@@ -31,6 +31,10 @@
     entries?: StickerEntry[];
     /** A PDF was handed to the browser: which kind. */
     onDone?: (kind: "stickers" | "copies" | "keys") => void;
+    /** Instead of downloading, hand the made PDF to the page (the Print step previews it and offers the download itself); the form then shows no button of its own and the page calls `create`. */
+    onPdf?: (pdf: Uint8Array, kind: "stickers" | "copies" | "keys", fileName: string) => void;
+    /** Out: makes the PDF (with `onPdf`). */
+    create?: () => Promise<void>;
   }
 
   let {
@@ -43,6 +47,8 @@
     output: fixedOutput,
     entries,
     onDone,
+    onPdf,
+    create = $bindable(),
   }: Props = $props();
 
   // The starting choice only; the form owns it from then on.
@@ -52,8 +58,11 @@
   let loading = $state(true);
   let copies = $state("1");
   let skip = $state("0");
-  let keys = $state(true);
-  let keysOnly = $state(initialKeysOnly);
+  // One choice instead of two checkboxes that exclude each other (issue #212).
+  type What = "stickers" | "stickersKeys" | "keys";
+  let what = $state<What>(initialKeysOnly ? "keys" : "stickersKeys");
+  let keys = $derived(what !== "stickers");
+  let keysOnly = $derived(what === "keys");
   let chosenOutput = $state<"stickers" | "copies">("stickers");
   let output = $derived(fixedOutput ?? chosenOutput);
   let progress = $state("");
@@ -80,6 +89,12 @@
 
   const clamp = (value: string, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(value) || 0)));
 
+  function deliver(pdf: Uint8Array, kind: "stickers" | "copies" | "keys", fileName: string) {
+    if (onPdf) onPdf(pdf, kind, fileName);
+    else downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), fileName);
+    onDone?.(kind);
+  }
+
   async function download() {
     busy = true;
     error = "";
@@ -92,8 +107,7 @@
       if (copiesMode && loadExamPdf) {
         progress = $t("sharing.stickers.compiling");
         const pdf = await renderExamCopies(await loadExamPdf(), list, { examTitle });
-        downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(examTitle || $t("sharing.stickers.copiesTitle"))}_copies.pdf`);
-        onDone?.("copies");
+        deliver(pdf, "copies", `${slug(examTitle || $t("sharing.stickers.copiesTitle"))}_copies.pdf`);
         return;
       }
       const pdf = await renderStickerSheet(list, {
@@ -102,8 +116,7 @@
         keys,
         keysOnly: onlyKeys,
       });
-      downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(examTitle || $t("sharing.stickers.pdfTitle"))}${onlyKeys ? "_keys" : "_qr"}.pdf`);
-      onDone?.(onlyKeys ? "keys" : "stickers");
+      deliver(pdf, onlyKeys ? "keys" : "stickers", `${slug(examTitle || $t("sharing.stickers.pdfTitle"))}${onlyKeys ? "_keys" : "_qr"}.pdf`);
     } catch (err) {
       error = `${$t("sharing.errors.stickers")} ${err instanceof Error ? err.message : ""}`.trim();
     } finally {
@@ -111,6 +124,10 @@
       progress = "";
     }
   }
+
+  $effect.pre(() => {
+    untrack(() => (create = download));
+  });
 </script>
 
 <div class="flex flex-col {fixedOutput ? 'gap-3' : 'gap-5'}">
@@ -152,37 +169,42 @@
 
   {#if copiesMode}
     <p class="m-0 text-sm text-muted">{$t("sharing.stickers.copiesPrintHint")}</p>
-  {:else if !onlyKeys}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <Field label={$t("sharing.stickers.copies")}>
-        {#snippet children({ id })}
-          <TextInput {id} type="number" min="1" max="10" bind:value={copies} disabled={busy} />
-        {/snippet}
-      </Field>
-      <Field label={$t("sharing.stickers.skip")}>
-        {#snippet children({ id })}
-          <TextInput {id} type="number" min="0" max={STICKER_GRID.cols * STICKER_GRID.rows - 1} bind:value={skip} disabled={busy} />
-        {/snippet}
-      </Field>
-    </div>
+  {:else}
+    <fieldset class="m-0 flex flex-col gap-1.5 border-0 p-0" disabled={busy}>
+      <legend class="mb-1 text-sm font-medium">{$t("sharing.stickers.what")}</legend>
+      <div class="flex items-center gap-1">
+        <Radio group={what} value="stickersKeys" name="sticker-what-{examId}" onchange={() => (what = "stickersKeys")} label={$t("sharing.stickers.whatStickersKeys")} />
+        <InfoTip text={$t("sharing.stickers.keysHint")} />
+      </div>
+      <Radio group={what} value="stickers" name="sticker-what-{examId}" onchange={() => (what = "stickers")} label={$t("sharing.stickers.whatStickers")} />
+      <div class="flex items-center gap-1">
+        <Radio group={what} value="keys" name="sticker-what-{examId}" onchange={() => (what = "keys")} label={$t("sharing.stickers.whatKeys")} />
+        <InfoTip text={$t("sharing.stickers.keysOnlyHint")} />
+      </div>
+    </fieldset>
+    {#if !onlyKeys}
+      <!-- Two small number fields on one line. -->
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+        <label class="flex items-center gap-2 whitespace-nowrap">
+          <span class="w-16 shrink-0"><TextInput size="sm" type="number" min="1" max="10" bind:value={copies} disabled={busy} /></span>
+          {$t("sharing.stickers.copies")}
+        </label>
+        <label class="flex items-center gap-2 whitespace-nowrap">
+          <span class="w-16 shrink-0"><TextInput size="sm" type="number" min="0" max={STICKER_GRID.cols * STICKER_GRID.rows - 1} bind:value={skip} disabled={busy} /></span>
+          {$t("sharing.stickers.skip")}
+        </label>
+      </div>
+    {/if}
   {/if}
-
-  <div class="flex flex-col gap-2" class:hidden={copiesMode}>
-    <!-- The explanations sit behind info icons: the options stay on two short lines. -->
-    <div class="flex items-center gap-1">
-      <Checkbox bind:checked={keys} label={$t("sharing.stickers.keys")} disabled={busy || onlyKeys} />
-      <InfoTip text={$t("sharing.stickers.keysHint")} />
-    </div>
-    <div class="flex items-center gap-1">
-      <Checkbox bind:checked={keysOnly} label={$t("sharing.stickers.keysOnly")} disabled={busy} />
-      <InfoTip text={$t("sharing.stickers.keysOnlyHint")} />
-    </div>
-  </div>
 
   {#if error}<Alert severity="danger">{error}</Alert>{/if}
 
+  {#if onPdf}
+    {#if progress}<span class="text-sm text-muted" role="status">{progress}</span>{/if}
+  {:else}
   <div class="flex flex-wrap items-center justify-end gap-2">
     {#if progress}<span class="text-sm text-muted" role="status">{progress}</span>{/if}
     <Button icon={actionIcons.qr} loading={busy} disabled={busy || !!loadError || loading || (fixedOutput !== undefined && !(entries ?? examEntries).length)} onClick={download}>{$t("sharing.stickers.download")}</Button>
   </div>
+  {/if}
 </div>

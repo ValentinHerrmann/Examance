@@ -14,7 +14,6 @@
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import ExamPreviewPanel, { type ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import PrintPlan from "#lib/components/exam/PrintPlan.svelte";
-  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { t, translate } from "#lib/i18n";
   import { Alert, PageShell } from "#lib/components/ui";
@@ -25,6 +24,12 @@
   let entries = $state.raw<StickerEntry[] | null>(null);
   let entriesError = $state("");
   let preview = $state<ExamPreviewStatus | undefined>(undefined);
+  let compile = $state<(() => Promise<void>) | undefined>(undefined);
+  // Sticker or copies PDFs made in the plan, shown as extra panes beside task sheet and solution.
+  let jobUrls = $state<Partial<Record<"qr" | "copies", string>>>({});
+  let extraPanes = $derived(
+    (["qr", "copies"] as const).flatMap((job) => (jobUrls[job] ? [{ id: job, title: $t(`exam.print.job.${job}`), url: jobUrls[job] ?? null }] : [])),
+  );
 
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
@@ -86,14 +91,10 @@
   {:else if !ctx}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
-    <!-- From xl a two-row grid: the plan's heading beside the preview toolbar, the plan beside the PDF (issue #212). -->
-    <div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] xl:grid-rows-[auto_1fr]">
-      <div class="flex min-h-12 min-w-0 items-center gap-2 xl:col-start-1 xl:row-start-1 xl:self-end">
-        <h2 class="m-0 text-base font-semibold text-content">{$t("exam.print.planTitle")}</h2>
-        <InfoTip text={$t("exam.print.planIntro")} />
-      </div>
+    <!-- One row: the plan beside the PDFs; the compile button sits in the plan's first job (issue #212). -->
+    <div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <PrintPlan
-        class="xl:col-start-1 xl:row-start-2"
+        class="xl:col-start-1 xl:row-start-1"
         {examId}
         examTitle={ctx.exam.title ?? ""}
         exerciseCount={ctx.exercises.length}
@@ -104,10 +105,14 @@
         copiesUnavailable={withheld}
         {loadExamPdf}
         {downloadPdf}
+        {compile}
+        onJobPdf={(job, url) => {
+          if (job === "qr" || job === "copies") jobUrls = { ...jobUrls, [job]: url ?? undefined };
+        }}
       />
       <div class="min-w-0 xl:contents">
         {#if withheld}
-          <Alert class="xl:col-start-2 xl:row-start-2" severity="info" title={$t("exam.resultsOnly.badge")}>{$t("exam.resultsOnly.noCompile")}</Alert>
+          <Alert class="xl:col-start-2 xl:row-start-1" severity="info" title={$t("exam.resultsOnly.badge")}>{$t("exam.resultsOnly.noCompile")}</Alert>
         {:else}
           <ExamPreviewPanel
             exam={ctx.exam}
@@ -118,6 +123,9 @@
             loaded
             layoutVersion={0}
             {refreshSources}
+            toolbar={false}
+            {extraPanes}
+            bind:compile
             bind:status={preview}
           />
         {/if}

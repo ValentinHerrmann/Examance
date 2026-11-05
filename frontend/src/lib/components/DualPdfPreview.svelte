@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import { untrack, type Snippet } from "svelte";
   import { t } from "#lib/i18n";
   import { isDesktop } from "#lib/stores/viewport";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
@@ -23,6 +23,8 @@
     footer?: Snippet;
     /** False hides the download buttons (a student's view-only result page, issue #207). */
     downloadable?: boolean;
+    /** More PDFs beside task sheet and solution (the Print step's sticker sheet). Collapsed until their URL first appears or changes; then they open. */
+    extraPanes?: { id: string; title: string; url: string | null }[];
   }
 
   let {
@@ -37,6 +39,7 @@
     shrinkWhenCollapsed = false,
     footer,
     downloadable = true,
+    extraPanes = [],
   }: Props = $props();
 
   let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
@@ -52,8 +55,10 @@
   }
 
   // Below `lg` the split becomes a segmented switch over a single pane; height is capped to the viewport.
-  type PaneId = "angabe" | "loesung";
+  type PaneId = string;
   let mobilePane: PaneId = $state("angabe");
+  let extraOpen = $state<Record<string, boolean>>({});
+  let extraSeenUrl: Record<string, string | null> = {};
 
   let panes = $derived([
     {
@@ -72,6 +77,14 @@
       shown: showLoesungPreview,
       toggle: handleToggleLoesung,
     },
+    ...extraPanes.map((x) => ({
+      id: x.id,
+      title: x.title,
+      icon: faFilePdf,
+      url: x.url,
+      shown: !!extraOpen[x.id],
+      toggle: () => (extraOpen = { ...extraOpen, [x.id]: !extraOpen[x.id] }),
+    })),
   ]);
 
   let activePane = $derived(panes.find((p) => p.id === mobilePane) ?? panes[0]);
@@ -85,12 +98,27 @@
     if (id === "loesung" && !showLoesungPreview) {
       handleToggleLoesung();
     }
+    if (id !== "angabe" && id !== "loesung" && !extraOpen[id]) extraOpen = { ...extraOpen, [id]: true };
   }
 
-  let allCollapsed = $derived(!showAngabePreview && !showLoesungPreview);
+  let allCollapsed = $derived(panes.every((p) => !p.shown));
 
   // Both panes folded to strips leave no room for the bar.
   let showFooter = $derived(!!footer && !(shrinkWhenCollapsed && allCollapsed));
+
+  // A new or changed extra PDF opens its pane (and selects it on phones), so what was just made is in view.
+  $effect.pre(() => {
+    const urls = extraPanes.map((x) => [x.id, x.url] as const);
+    untrack(() => {
+      for (const [id, url] of urls) {
+        if (url && url !== extraSeenUrl[id]) {
+          extraOpen = { ...extraOpen, [id]: true };
+          mobilePane = id;
+        }
+        extraSeenUrl[id] = url;
+      }
+    });
+  });
 
   const paneShell =
     "flex flex-col overflow-hidden rounded-md border border-line bg-surface-viewer transition-all duration-200";
@@ -183,7 +211,7 @@
         class="shrink-0 bg-surface-raised"
         items={panes.map((p) => ({ id: p.id, label: p.title, icon: p.icon }))}
         value={mobilePane}
-        onChange={(id) => selectMobilePane(id === "loesung" ? "loesung" : "angabe")}
+        onChange={(id) => selectMobilePane(id)}
       />
 
       <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}>

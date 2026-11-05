@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { faCircleCheck, faCircleInfo, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+  import { onDestroy } from "svelte";
+  import { faArrowsRotate, faCircleCheck, faCircleInfo, faFileCirclePlus, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
   import { contentHref, studentsHref } from "#lib/utils/links";
@@ -38,10 +41,14 @@
     /** The current task sheet (personalised copies are made from it). */
     loadExamPdf: () => Promise<Uint8Array>;
     downloadPdf: (variant: "angabe" | "loesung") => Promise<void>;
+    /** Compiles task sheet and solution (the preview beside the plan shows them). */
+    compile: (() => Promise<void>) | undefined;
+    /** A sticker or copies PDF was made (or dropped): the page shows it as an extra preview pane. */
+    onJobPdf: (job: PrintJobId, url: string | null) => void;
     class?: string;
   }
 
-  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, class: className = "" }: Props = $props();
+  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, compile, onJobPdf, class: className = "" }: Props = $props();
 
   let cs = $derived($examChecksState && $examChecksState.examId === examId ? $examChecksState : null);
   let stamps = $derived(cs?.stamps ? printStamps(cs.stamps.content, cs.stamps.students) : null);
@@ -90,6 +97,51 @@
     }
   }
 
+  // The made sticker or copies PDF, kept for its download; the page previews it.
+  let jobPdf = $state.raw<Partial<Record<PrintJobId, { url: string; bytes: Uint8Array; fileName: string }>>>({});
+  let creators = $state<Partial<Record<PrintJobId, () => Promise<void>>>>({});
+  let making = $state<PrintJobId | null>(null);
+  let compiling = $state(false);
+
+  async function runCompile() {
+    if (!compile || compiling) return;
+    compiling = true;
+    try {
+      await compile();
+    } finally {
+      compiling = false;
+    }
+  }
+
+  async function make(job: PrintJobId) {
+    const create = creators[job];
+    if (!create || making) return;
+    making = job;
+    try {
+      await create();
+    } finally {
+      making = null;
+    }
+  }
+
+  function gotPdf(job: PrintJobId, pdf: Uint8Array, fileName: string) {
+    const old = jobPdf[job];
+    if (old) URL.revokeObjectURL(old.url);
+    const url = URL.createObjectURL(new Blob([pdf as BlobPart], { type: "application/pdf" }));
+    jobPdf = { ...jobPdf, [job]: { url, bytes: pdf, fileName } };
+    onJobPdf(job, url);
+    recordMade(job);
+  }
+
+  function downloadJob(job: PrintJobId) {
+    const made = jobPdf[job];
+    if (made) downloadBlob(new Blob([made.bytes as BlobPart], { type: "application/pdf" }), made.fileName);
+  }
+
+  onDestroy(() => {
+    for (const made of Object.values(jobPdf)) if (made) URL.revokeObjectURL(made.url);
+  });
+
   const setPlan = (patch: Partial<PrintPlan>) => cs && save(withPrintPlan(cs.checks, { ...plan, ...patch }));
   const tick = (job: PrintJobId, on: boolean) => cs && stamps && save(withPrintCheck(cs.checks, job, on ? stamps[job] : null));
   const recordMade = (job: PrintJobId) => {
@@ -98,8 +150,11 @@
 </script>
 
 <div class="flex min-w-0 flex-col gap-4 {className}">
-  <!-- The plan's heading sits in the page's top row, level with the preview toolbar. -->
   <Card>
+    <div class="mb-3 flex items-center gap-2">
+      <h2 class="m-0 text-base font-semibold text-content">{$t("exam.print.planTitle")}</h2>
+      <InfoTip text={$t("exam.print.planIntro")} />
+    </div>
     <div class="grid grid-cols-1 gap-4 2xl:grid-cols-2">
       <fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" disabled={busy || !cs}>
         <legend class="mb-2 text-sm font-medium">{$t("exam.print.modeLegend")}</legend>
@@ -131,46 +186,42 @@
     {#if error}<Alert severity="danger" class="mt-4">{error}</Alert>{/if}
   </Card>
 
+  <!-- Every job works the same way: header with its icon actions (make or refresh, download), options, then the "printed" tick (issue #212). -->
   <ol class="m-0 flex list-none flex-col gap-3 p-0">
     {#each jobs as job, i (job)}
       {@const valid = !!stamps && printCheckValid(cs?.checks, job, stamps)}
       {@const changed = !!stamps && printCheckChanged(cs?.checks, job, stamps)}
       {@const canTick = valid || made(job)}
-      <li class="min-w-0 rounded-xl border border-line bg-surface-raised p-4 {valid ? 'border-success' : ''}">
-        <div class="flex items-start justify-between gap-4">
+      {@const sheet = job === "exam" || job === "solution"}
+      {@const blocked = job === "copies" && (!!copiesUnavailable || !pdfCurrent)}
+      <li class="flex min-w-0 flex-col gap-3 rounded-xl border bg-surface-raised p-4 {valid ? 'border-success' : 'border-line'}">
+        <div class="flex items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
             <h3 class="m-0 text-base font-semibold"><span class="me-1.5 text-muted tabular-nums">{i + 1}.</span>{$t(`exam.print.job.${job}`)}</h3>
             <p class="m-0 mt-0.5 text-sm text-muted">
               {#if job === "exam"}{studentCount > 0 ? $t("exam.print.job.examHint", { count: studentCount }) : $t("exam.print.job.examHintNoCount")}{:else}{$t(`exam.print.job.${job}Hint`)}{/if}
             </p>
           </div>
-          <div class="flex shrink-0 flex-col items-end gap-1 text-end">
-            <Checkbox checked={valid} disabled={busy || !stamps || !canTick} onChange={(on) => tick(job, on)} label={$t("exam.print.job.printed")} />
-            {#if valid}
-              <Badge size="xs" severity="success">{$t("exam.print.job.printedAt", { date: $fmt.date(cs?.checks.print?.[job]?.at ?? "") })}</Badge>
-            {:else if !canTick}
-              <span class="max-w-48 text-xs text-muted">{changed ? $t("exam.print.job.needsFresh") : $t("exam.print.job.needsPdf")}</span>
+          <div class="flex shrink-0 items-center gap-1">
+            {#if job === "exam" || job === "copies"}
+              <Button size="sm" variant={pdfCurrent ? "outlined" : "solid"} severity={pdfCurrent ? "secondary" : "primary"} iconOnly icon={actionIcons.compile} loading={compiling || preview?.busy} disabled={compiling || !!preview?.busy || !compile} ariaLabel={$t("exam.print.job.compile")} title={$t("exam.print.job.compile")} onClick={runCompile} />
+            {/if}
+            {#if !sheet}
+              <Button size="sm" variant={made(job) ? "outlined" : "solid"} severity={made(job) ? "secondary" : "primary"} iconOnly icon={made(job) ? faArrowsRotate : faFileCirclePlus} loading={making === job} disabled={!!making || blocked || !entries?.length} ariaLabel={$t("exam.print.job.create")} title={$t("exam.print.job.create")} onClick={() => make(job)} />
+            {/if}
+            {#if sheet}
+              <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={actionIcons.download} disabled={!pdfCurrent} ariaLabel={$t("exam.print.job.download")} title={$t("exam.print.job.download")} onClick={() => downloadPdf(job === "exam" ? "angabe" : "loesung")} />
+            {:else}
+              <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={actionIcons.download} disabled={!jobPdf[job]} ariaLabel={$t("exam.print.job.download")} title={$t("exam.print.job.download")} onClick={() => downloadJob(job)} />
             {/if}
           </div>
         </div>
-        {#if changed}<Alert severity="warning" class="mt-3">{$t("exam.print.job.changed")}</Alert>{/if}
 
-        <div class="mt-3">
-          {#if job === "exam" || job === "solution"}
-            <Button
-              size="sm"
-              variant="outlined"
-              severity="secondary"
-              icon={actionIcons.download}
-              disabled={!pdfCurrent}
-              onClick={() => downloadPdf(job === "exam" ? "angabe" : "loesung")}
-            >
-              {job === "exam" ? $t("exam.print.job.download") : $t("exam.print.job.downloadSolution")}
-            </Button>
-          {:else if job === "copies" && copiesUnavailable}
-            <Alert severity="warning">{copiesUnavailable}</Alert>
+        {#if !sheet}
+          {#if job === "copies" && copiesUnavailable}
+            <p class="m-0 text-sm text-warning-fg">{copiesUnavailable}</p>
           {:else if job === "copies" && !pdfCurrent}
-            <p class="m-0 text-sm text-muted">{$t(preview?.pdf === "stale" ? "exam.print.ready.pdfStale" : "exam.print.ready.pdfNone")}</p>
+            <p class="m-0 text-sm text-muted">{$t("exam.print.job.copiesNeedPdf")}</p>
           {:else if entries}
             <StickerSheetForm
               {examId}
@@ -178,10 +229,20 @@
               {entries}
               output={job === "copies" ? "copies" : "stickers"}
               loadExamPdf={job === "copies" ? loadExamPdf : undefined}
-              onDone={(kind) => {
-                if (kind !== "keys") recordMade(job);
-              }}
+              bind:create={creators[job]}
+              onPdf={(pdf, _kind, fileName) => gotPdf(job, pdf, fileName)}
             />
+          {/if}
+        {/if}
+
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3">
+          <Checkbox checked={valid} disabled={busy || !stamps || !canTick} onChange={(on) => tick(job, on)} label={$t("exam.print.job.printed")} />
+          {#if valid}
+            <Badge size="xs" severity="success">{$t("exam.print.job.printedAt", { date: $fmt.date(cs?.checks.print?.[job]?.at ?? "") })}</Badge>
+          {:else if changed}
+            <span class="text-xs text-warning-fg">{$t("exam.print.job.changed")}</span>
+          {:else if !canTick}
+            <span class="text-xs text-muted">{$t("exam.print.job.needsPdf")}</span>
           {/if}
         </div>
       </li>
