@@ -2,8 +2,10 @@ import 'fake-indexeddb/auto'; // In-memory IndexedDB — must precede the Dexie 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { db } from '../src/lib/db/db';
-import { saveSubmissionScores } from '../src/lib/grading/scoreService';
-import type { ExerciseScoreRecord, SubmissionRecord } from '../src/lib/db/schema';
+import { saveSubmissionScores, submissionForStudent } from '../src/lib/grading/scoreService';
+import type { ExerciseScoreRecord, StudentRecord, SubmissionRecord } from '../src/lib/db/schema';
+import { buildSubmissionMap } from '../src/lib/utils/studentLookup';
+import { pseudonymFor } from '../src/lib/services/pseudonymRekey';
 import { scoreRepository } from '../src/lib/repositories/scoreRepository';
 import { submissionRepository } from '../src/lib/repositories/submissionRepository';
 import { offlineQueue } from '../src/lib/services/offlineQueue';
@@ -69,6 +71,28 @@ describe('saveSubmissionScores', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  // Regression: paper grading dropped the scores of students entered on the Students page, who had no submission yet.
+  it('gives a listed student without a scan a submission that keeps their scores', async () => {
+    // An unkeyed (version 1) student: hybrid stores the submission re-keyed, and the grid must still find it after its reload.
+    const student = { examId: EXAM, pseudonymHmac: 'b'.repeat(64) } as StudentRecord;
+    const created = await submissionForStudent(EXAM, student);
+    await saveSubmissionScores(EXAM, created, ['ex-1'], new Map([['ex-1', 4]]));
+    const map = await buildSubmissionMap(await submissionRepository.getByExamId(EXAM, key), [student]);
+    const found = map.get(student.pseudonymHmac);
+    expect(found?.id).toBe(created.id);
+    const rows = await scoreRepository.getBySubmissionId(EXAM, created.id, key);
+    expect(rows.map((r) => [r.exerciseId, r.score])).toEqual([['ex-1', 4]]);
+  });
+
+  // Hybrid: extra paper and later pages join the earlier scan by comparing a fresh pseudonym with the stored rows (ingest submissionToJoin).
+  it('stores a scanned pseudonym in the form a later scan of the same student compares with', async () => {
+    const fresh = await pseudonymFor(EXAM, 'Max Muster:42');
+    await submissionRepository.save({ id: 'sub-scan', examId: EXAM, ...fresh, createdAt: '2026-11-06T00:00:00Z' }, key);
+    const again = await pseudonymFor(EXAM, 'Max Muster:42');
+    const stored = await submissionRepository.getByExamId(EXAM, key);
+    expect(stored.filter((s) => s.pseudonymHmac === again.pseudonymHmac).map((s) => s.id)).toEqual(['sub-scan']);
   });
 
   it('keeps an OMR row whose value is null and counts its score toward the total', async () => {

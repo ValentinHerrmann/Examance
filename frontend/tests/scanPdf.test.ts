@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as lib from 'pdf-lib';
-import { ORIGINAL_SCAN_NAME, addPlaceholderPage, attachOriginals, carryAttachments, halfImage, isA3Landscape, placeholderOf, readAttachments, splitA3 } from '../src/lib/scan/scanPdf';
+import { ORIGINAL_SCAN_NAME, addPlaceholderPage, attachOriginals, carryAttachments, halfImage, isA3Landscape, isLandscape, placeholderOf, readAttachments, splitA3 } from '../src/lib/scan/scanPdf';
 
 const A3: [number, number] = [1190.55, 841.89];
 
@@ -37,6 +37,22 @@ describe('scan PDFs (issue #220)', () => {
     const [left, right] = await splitA3(halves, a3);
     expect([left, right]).toEqual([0, 1]);
     expect(halves.getPage(0).getSize().width).toBeCloseTo(A3[0] / 2);
+  });
+
+  // Regression: a scanner stored the uncut sheet as a portrait media box with /Rotate 90, so it was never split.
+  it('splits rotated and non-A3 landscape scans along the displayed width', async () => {
+    const doc = await lib.PDFDocument.create();
+    const rotated = doc.addPage([A3[1], A3[0]]);
+    rotated.setRotation(lib.degrees(90));
+    const a4Landscape = doc.addPage([841.89, 595.28]);
+    const portrait = doc.addPage([595.28, 841.89]);
+    expect(isA3Landscape(rotated)).toBe(true);
+    expect([isLandscape(a4Landscape), isLandscape(portrait)]).toEqual([true, false]);
+    const halves = await lib.PDFDocument.create();
+    await splitA3(halves, rotated);
+    const half = halves.getPage(0);
+    expect(half.getRotation().angle).toBe(90);
+    expect(half.getSize().height).toBeCloseTo(A3[0] / 2);
   });
 
   it('cuts the left and right half of a rendered page', () => {

@@ -1,8 +1,10 @@
-/** Page codes (issue #220, docs/dev/multi_sheet_exams.md): the QR code on every page of an exam with page codes. Plain sheets carry `EXM1:<exam tag>:<page>`; personalised copies append `:<sticker ID>` (never the name), which the scan maps to the student through the exam's list. Level Q keeps them readable through pen marks; a short ID keeps them at QR version 2, readable from 200 ppi at 14 mm. */
+/** Page codes (issue #220, docs/dev/multi_sheet_exams.md): the QR code on every page of an exam with page codes. Plain sheets carry `EXM1:<exam tag>:<page>`; personalised copies append `:<sticker ID>` (never the name), which the scan maps to the student through the exam's list. Extra sheets carry `EXM1:X` (issue #228): no exam, no page, so one printed stack serves every exam and the sticker names the student. Level Q keeps them readable through pen marks; a short ID keeps them at QR version 2, readable from 200 ppi at 14 mm. */
 
 import QRCode from 'qrcode';
 
 const PREFIX = 'EXM1';
+/** The whole payload of an extra sheet's page code. */
+export const EXTRA_SHEET_CODE = `${PREFIX}:X`;
 /** Error correction of page codes: Q (25 %) survives a pen stroke across the code. */
 export const PAGE_CODE_EC = 'Q';
 /** Pages that get a code; later pages of a longer exam are matched by position, as before. */
@@ -27,7 +29,12 @@ export function pageCodeText(code: PageCode): string {
   return code.id ? `${base}:${code.id}` : base;
 }
 
-/** The page code in a decoded QR text, or null for any other code (a name sticker). */
+/** True for the page code of an extra sheet (`EXTRA_SHEET_CODE`). */
+export function isExtraSheetCode(text: string): boolean {
+  return text.trim() === EXTRA_SHEET_CODE;
+}
+
+/** The page code in a decoded QR text, or null for any other code (a name sticker or an extra sheet's code). */
 export function parsePageCode(text: string): PageCode | null {
   const m = /^EXM1:([0-9A-F]{1,16}):(\d{1,4})(?::([\s\S]+))?$/.exec(text.trim());
   if (!m) return null;
@@ -56,13 +63,21 @@ export function qrRuns(text: string): { grid: number; runs: string } {
   return { grid: n + 2, runs: runs.join(',') };
 }
 
+/** One `\Seitencode` definition of *text* for *page*. */
+function seitencode(page: number, text: string): string {
+  const { grid, runs } = qrRuns(text);
+  return String.raw`\Seitencode{${page}}{${grid}}{${runs}}`;
+}
+
+/** The extra sheet's two `\Seitencode` definitions (front and back carry the same code). */
+export function extraSheetCodesLatex(): string {
+  return [1, 2].map((page) => seitencode(page, EXTRA_SHEET_CODE)).join('\n');
+}
+
 /** The `\Seitencode` definitions of an exam's student sheet (Schulaufgabe.sty section 11), one per page up to `MAX_PAGE_CODES`. */
 export function pageCodesLatex(examId: string, pages = MAX_PAGE_CODES): string {
   const tag = examTag(examId);
   const lines: string[] = [];
-  for (let page = 1; page <= pages; page++) {
-    const { grid, runs } = qrRuns(pageCodeText({ tag, page }));
-    lines.push(String.raw`\Seitencode{${page}}{${grid}}{${runs}}`);
-  }
+  for (let page = 1; page <= pages; page++) lines.push(seitencode(page, pageCodeText({ tag, page })));
   return lines.join('\n');
 }

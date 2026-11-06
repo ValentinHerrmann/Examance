@@ -3,7 +3,7 @@
   import { page } from "$app/state";
   import { untrack } from "svelte";
   import { browser } from "$app/env";
-  import { beforeNavigate, goto } from "$app/navigation";
+  import { goto } from "$app/navigation";
   import { get } from "svelte/store";
   import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
   import { loadExamEncrypted, loadExamExercisesEncrypted } from "#lib/db/dbEncryption";
@@ -26,7 +26,8 @@
   import ExamStepLinks from "#lib/components/exam/ExamStepLinks.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { t, translate, type TranslationKey } from "#lib/i18n";
-  import { Alert, Button, Card, ConfirmDialog, Menu, MenuItem, PageShell, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, Card, ConfirmDialog, Menu, MenuItem, PageShell, SaveStatus, actionIcons } from "#lib/components/ui";
+  import { IDLE_SAVE, type AutosaveStatus } from "#lib/utils/autosave";
 
   let examId = $derived(page.params.id || "");
 
@@ -39,8 +40,7 @@
   let notice = $state("");
   let actionError = $state("");
 
-  let detailsDirty = $state(false);
-  let pendingLeave: URL | null = $state(null);
+  let detailsStatus = $state<AutosaveStatus>(IDLE_SAVE);
   let exportOpen = $state(false);
   let confirming: "exam" | "submissions" | null = $state(null);
   let busy = $state(false);
@@ -146,13 +146,6 @@
     }
   }
 
-  // Unsaved detail edits: ask before leaving the page (in-app navigation).
-  beforeNavigate((nav) => {
-    if (!detailsDirty || !nav.to || nav.type === "leave") return;
-    nav.cancel();
-    pendingLeave = nav.to.url;
-  });
-
   $effect.pre(() => {
     const id = examId;
     if (browser && id) untrack(() => void load(id));
@@ -208,14 +201,12 @@
     <!-- The details are edited in place: the page has the room, a dialog would only hide them (issue #212). -->
     <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <Card title={$t("exam.overview.details")}>
+        {#snippet actions()}<SaveStatus status={detailsStatus} />{/snippet}
         <ExamDetailsForm
           {exam}
           {exercises}
-          bind:dirty={detailsDirty}
-          onSaved={(updated) => {
-            exam = updated;
-            notice = translate("exam.overview.saved");
-          }}
+          bind:status={detailsStatus}
+          onSaved={(updated) => (exam = updated)}
         />
       </Card>
 
@@ -243,20 +234,6 @@
   <ExamExportModal {examId} examTitle={exam?.title ?? ""} onClose={() => (exportOpen = false)} />
 {/if}
 
-<ConfirmDialog
-  open={pendingLeave !== null}
-  title={$t("exam.overview.unsavedTitle")}
-  message={$t("exam.overview.unsavedMessage")}
-  confirmText={$t("exam.content.unsavedLeave")}
-  cancelText={$t("exam.content.unsavedStay")}
-  onConfirm={() => {
-    const to = pendingLeave;
-    pendingLeave = null;
-    detailsDirty = false;
-    if (to) void goto(to);
-  }}
-  onCancel={() => (pendingLeave = null)}
-/>
 
 <ConfirmDialog
   open={confirming === "exam"}

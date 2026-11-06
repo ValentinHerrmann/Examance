@@ -4,7 +4,6 @@
   import { page } from "$app/state";
   import { faBoxArchive, faChartColumn } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { gradingKeyDirty } from "#lib/stores/shell";
   import { Tabs, actionIcons } from "#lib/components/ui";
   import { archiveHref, resultsHref, shareHref } from "#lib/utils/links";
 
@@ -21,7 +20,7 @@
     label={$t("exam.sidebar.results")}
     value={active}
     items={[
-      { id: "stats", label: $t("exam.results.tabStats"), href: resultsHref(examId), icon: faChartColumn, dirty: $gradingKeyDirty ? $t("exam.results.unsavedKey") : undefined },
+      { id: "stats", label: $t("exam.results.tabStats"), href: resultsHref(examId), icon: faChartColumn },
       { id: "share", label: $t("exam.results.tabShare"), href: shareHref(examId), icon: actionIcons.share },
       { id: "archive", label: $t("exam.results.tabArchive"), href: archiveHref(examId), icon: faBoxArchive },
     ]}

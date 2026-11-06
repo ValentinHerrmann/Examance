@@ -6,8 +6,10 @@ import { mergeResources, type LatexResourceFile } from './resources';
 import { clearLogoCache, type CompileLogo } from './logo';
 import { clearPackageSettingsCache } from './packageSettings';
 
-export type CompileKind = 'exam' | 'exercise' | 'omr-blank';
-export type CompileVariant = 'angabe' | 'loesung' | 'blank';
+/** `extra-sheet` is the exam-independent extra sheet (issue #228), keyed by its paper style. */
+export type CompileKind = 'exam' | 'exercise' | 'omr-blank' | 'extra-sheet';
+/** `draft` is the Exam step's task sheet without the extra pages that fill whole sheets (issue #228). */
+export type CompileVariant = 'angabe' | 'loesung' | 'blank' | 'draft';
 
 export interface CompileCacheKey {
   kind: CompileKind;

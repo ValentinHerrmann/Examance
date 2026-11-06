@@ -1,7 +1,8 @@
 <script lang="ts">
   /** Step 3 of sharing results (issue #212): link protection, the code in the message, the sample solution and how long links stay valid. */
   import { t } from "#lib/i18n";
-  import { Button, Checkbox, Field, Radio, Select, actionIcons } from "#lib/components/ui";
+  import { faFileCircleCheck, faKey, faLink, faTag } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Field, OptionTile, Select, actionIcons } from "#lib/components/ui";
   import { SHARE_FACTORS } from "#lib/sharing/channels";
   import type { ShareFactor } from "#lib/sharing/shareCrypto";
   import { SHARE_EXPIRY_DAYS } from "#lib/sharing/shareService";
@@ -38,6 +39,8 @@
     includeSolution = $bindable(false),
     expiry = $bindable("14"),
   }: Props = $props();
+
+  const factorIcon: Record<ShareFactor, typeof faLink> = { none: faLink, sticker: faTag, code: faKey };
 </script>
 
 <div class="flex flex-col gap-5">
@@ -47,11 +50,10 @@
     <fieldset class="flex flex-col gap-2" disabled={running}>
       <legend class="mb-2 text-sm text-muted">{$t("sharing.share.factor")}</legend>
       {#each SHARE_FACTORS as f (f)}
-        <div class={factorMuted(f) ? "opacity-60" : ""} title={f === factor ? undefined : $t(`sharing.factor.${f}Hint`)}>
-          <Radio group={factor} value={f} name="share-factor" disabled={factorMuted(f)} onchange={() => (factor = f)} label={$t(`sharing.factor.${f}`)} />
-          {#if f === factor}<p class="m-0 ml-7 text-sm text-muted">{$t(`sharing.factor.${f}Hint`)}</p>{/if}
+        <div class="flex flex-col gap-1">
+          <OptionTile compact name="share-factor" value={f} checked={factor === f} disabled={factorMuted(f)} icon={factorIcon[f]} title={$t(`sharing.factor.${f}`)} text={$t(`sharing.factor.${f}Hint`)} onchange={() => (factor = f)} />
           {#if f === "sticker" && chosenCount > 0 && blockedCount(f) > 0}
-            <p class="ml-7 flex flex-wrap items-center gap-2 text-sm text-warning-fg">
+            <p class="m-0 flex flex-wrap items-center gap-2 text-sm text-warning-fg">
               {factorMuted(f) ? $t("sharing.factor.noStickerAny") : $t("sharing.factor.someNoSticker", { count: blockedCount(f) })}
               <Button size="sm" variant="text" icon={actionIcons.print} onClick={onPrintKeys}>{$t("sharing.factor.printKeys")}</Button>
             </p>
@@ -61,19 +63,15 @@
     </fieldset>
 
     {#if sendsMessage && factor !== "none"}
-      <div>
-        <Checkbox bind:checked={includeCode} label={$t("sharing.share.includeCode")} disabled={running} />
-        <p class="ml-7 text-sm text-muted">{$t("sharing.share.includeCodeHint")}</p>
+      <div class="flex flex-col gap-1">
+        <OptionTile type="checkbox" compact checked={includeCode} disabled={running} icon={faKey} title={$t("sharing.share.includeCode")} text={$t("sharing.share.includeCodeHint")} onToggle={(on) => (includeCode = on)} />
         {#if includeCode}
-          <p class="ml-7 text-sm text-warning-fg">{$t("sharing.share.includeCodeWarning")}</p>
+          <p class="m-0 text-sm text-warning-fg">{$t("sharing.share.includeCodeWarning")}</p>
         {/if}
       </div>
     {/if}
 
-    <div>
-      <Checkbox bind:checked={includeSolution} label={$t("sharing.share.includeSolution")} disabled={running || !solutionAvailable} />
-      <p class="ml-7 text-sm text-muted">{solutionAvailable ? $t("sharing.share.includeSolutionHint") : $t("sharing.share.solutionWithheld")}</p>
-    </div>
+    <OptionTile type="checkbox" compact checked={includeSolution} disabled={running || !solutionAvailable} icon={faFileCircleCheck} title={$t("sharing.share.includeSolution")} text={solutionAvailable ? $t("sharing.share.includeSolutionHint") : $t("sharing.share.solutionWithheld")} onToggle={(on) => (includeSolution = on)} />
   {/if}
 
   <!-- A PDF sent directly has no link, so there is nothing to expire: no option that does nothing. -->

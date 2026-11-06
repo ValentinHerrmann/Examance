@@ -8,8 +8,10 @@ export const exportNs: Translations['export'] = {
         packing: 'Packing ZIP …',
         doneWithWarnings: 'The download was created, but not everything could be exported:',
         format: 'Format',
-        formatZip: 'Readable ZIP (PDFs, LaTeX, grades as CSV)',
-        formatBackup: 'Re-importable, password-protected backup',
+        formatZip: 'Readable ZIP',
+        formatZipText: 'PDFs, LaTeX, grades as CSV',
+        formatBackup: 'Backup',
+        formatBackupText: 'Re-importable, password-protected',
     },
     backup: {
         intro: 'Encrypts everything selected with exercises, image files, scans and grades. “Import” reads the file back in, also on another device or in another Examance instance.',

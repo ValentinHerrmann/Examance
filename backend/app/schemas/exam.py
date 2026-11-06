@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta
-from typing import TYPE_CHECKING, Any, Literal, Self
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -40,12 +40,14 @@ def normalize_topic(value: Any) -> Any:
 
 
 class ExtraNotes(BaseModel):
-    """Karo block at the end of the exam; heights in cm, the layout fills the page within them."""
+    """The writing space's heading and note and the rest-of-page area (issues #156, #228); heights in cm, the layout fills the page within them."""
 
     title: str = Field(max_length=200)
     description: str = Field(default="", max_length=500)
     min_height_cm: float = Field(ge=1, le=25)
     max_height_cm: float = Field(ge=1, le=25)
+    # False keeps only the heading for extra pages; older clients omit it and keep the area.
+    fill: bool = True
 
     @model_validator(mode="after")
     def _ordered(self) -> Self:
@@ -76,9 +78,12 @@ QuestionType = Literal["free_text", "mc", "sc", "tf"]
 PseudonymVersion = Literal[1, 2]
 # Multi-sheet print layout (issue #220).
 PrintLayout = Literal["duplex", "booklet"]
-PaddingPages = Literal["none", "blank", "workspace"]
 StickerSpots = Literal["cover", "sheet", "a3", "leaf"]
 PrintMode = Literal["stickers", "copies"]
+# Extra paper (issue #228).
+PaperStyle = Literal["empty", "squared", "lined"]
+ExtraPages = Annotated[int, Field(ge=0, le=20)]
+BookletOffset = Annotated[float, Field(ge=-10, le=10)]
 _MAX_POSITION = 10_000
 
 
@@ -221,9 +226,13 @@ class ExamCreate(BaseModel):
     # Multi-sheet layout (issue #220); older clients omit it and keep the old layout.
     page_codes: bool = False
     print_layout: PrintLayout = "duplex"
-    padding_pages: PaddingPages = "none"
     sticker_spots: StickerSpots = "cover"
     print_mode: PrintMode = "stickers"
+    paper_style: PaperStyle = "empty"
+    extra_pages: ExtraPages = 0
+    booklet_offset_mm: BookletOffset = 0
+    digital_grading: bool = True
+    results_qr_box: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
@@ -273,9 +282,13 @@ class ExamUpdate(BaseModel):
     mc_correction_hint: bool | None = None
     page_codes: bool | None = None
     print_layout: PrintLayout | None = None
-    padding_pages: PaddingPages | None = None
     sticker_spots: StickerSpots | None = None
     print_mode: PrintMode | None = None
+    paper_style: PaperStyle | None = None
+    extra_pages: ExtraPages | None = None
+    booklet_offset_mm: BookletOffset | None = None
+    digital_grading: bool | None = None
+    results_qr_box: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     # Absent keeps the stored ticks; null or {} clears them.
@@ -315,9 +328,13 @@ class ExamResponse(BaseModel):
     mc_correction_hint: bool = False
     page_codes: bool = False
     print_layout: PrintLayout = "duplex"
-    padding_pages: PaddingPages = "none"
     sticker_spots: StickerSpots = "cover"
     print_mode: PrintMode = "stickers"
+    paper_style: PaperStyle = "empty"
+    extra_pages: ExtraPages = 0
+    booklet_offset_mm: BookletOffset = 0
+    digital_grading: bool = True
+    results_qr_box: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     pseudonym_version: int = 1

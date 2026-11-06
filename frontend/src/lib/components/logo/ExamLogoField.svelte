@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { faUpload } from "@fortawesome/free-solid-svg-icons";
+  import { faBan, faGear, faImage, faUpload } from "@fortawesome/free-solid-svg-icons";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Radio } from "#lib/components/ui";
+  import { Alert, Button, OptionTile } from "#lib/components/ui";
   import LogoPreview from "./LogoPreview.svelte";
   import {
     LOGO_ACCEPT,
@@ -96,53 +96,35 @@
     <Alert severity="danger" onDismiss={() => (error = "")}>{error}</Alert>
   {/if}
 
-  <div class="flex flex-col gap-2">
-    <Radio
-      name="examLogoMode"
-      value="account"
-      group={mode}
-      onchange={() => selectMode("account")}
-      label={$t("logo.exam.account")}
-    />
-    {#if mode === "account"}
-      <div class="ml-7 flex flex-wrap items-center gap-3">
-        <LogoPreview bytes={accountBytes} mime={accountMime} />
-        {#if !loading && !accountBytes}
-          <span class="text-xs text-muted">
-            {$t("logo.exam.noAccountLogo")}
-            <a href="/settings#logo" class="link">{$t("logo.exam.toSettings")}</a>
-          </span>
-        {/if}
-      </div>
-    {/if}
-
-    <Radio
-      name="examLogoMode"
-      value="none"
-      group={mode}
-      onchange={() => selectMode("none")}
-      label={$t("logo.exam.none")}
-    />
-
-    <Radio
-      name="examLogoMode"
-      value="custom"
-      group={mode}
-      onchange={() => selectMode("custom")}
-      label={$t("logo.exam.custom")}
-    />
-    {#if mode === "custom"}
-      <div class="ml-7 flex flex-wrap items-center gap-3">
-        <LogoPreview bytes={customBytes} mime={customMime} />
-        <Button variant="outlined" size="sm" icon={faUpload} onClick={() => fileInput?.click()}>
-          {customBytes ? $t("logo.replace") : $t("logo.upload")}
-        </Button>
-      </div>
-      {#if needsFile}
-        <p class="m-0 ml-7 text-xs text-warning-fg">{$t("logo.exam.needsFile")}</p>
-      {/if}
-    {/if}
+  <!-- Choices as tiles like every setting (issue #228); what the chosen one needs shows under them. -->
+  <div class="@container" role="radiogroup" aria-label={$t("logo.exam.heading")}>
+    <div class="grid grid-cols-1 gap-2 @xs:grid-cols-3">
+      <OptionTile compact name="examLogoMode" value="account" checked={mode === "account"} icon={faGear} title={$t("logo.exam.account")} text={$t("logo.exam.accountText")} onchange={() => selectMode("account")} />
+      <OptionTile compact name="examLogoMode" value="none" checked={mode === "none"} icon={faBan} title={$t("logo.exam.none")} text={$t("logo.exam.noneText")} onchange={() => selectMode("none")} />
+      <OptionTile compact name="examLogoMode" value="custom" checked={mode === "custom"} icon={faImage} title={$t("logo.exam.custom")} text={$t("logo.exam.customText")} onchange={() => selectMode("custom")} />
+    </div>
   </div>
+  {#if mode === "account"}
+    <div class="flex flex-wrap items-center gap-3">
+      <LogoPreview bytes={accountBytes} mime={accountMime} />
+      {#if !loading && !accountBytes}
+        <span class="text-xs text-muted">
+          {$t("logo.exam.noAccountLogo")}
+          <a href="/settings#logo" class="link">{$t("logo.exam.toSettings")}</a>
+        </span>
+      {/if}
+    </div>
+  {:else if mode === "custom"}
+    <div class="flex flex-wrap items-center gap-3">
+      <LogoPreview bytes={customBytes} mime={customMime} />
+      <Button variant="outlined" size="sm" icon={faUpload} onClick={() => fileInput?.click()}>
+        {customBytes ? $t("logo.replace") : $t("logo.upload")}
+      </Button>
+    </div>
+    {#if needsFile}
+      <p class="m-0 text-xs text-warning-fg">{$t("logo.exam.needsFile")}</p>
+    {/if}
+  {/if}
 
   <input bind:this={fileInput} type="file" accept={LOGO_ACCEPT} class="hidden" onchange={handleFile} />
   <p class="m-0 text-xs text-muted">{$t("logo.formats")}</p>

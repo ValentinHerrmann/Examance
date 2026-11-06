@@ -3,16 +3,19 @@
   export interface PrintPreviews {
     angabe: boolean;
     loesung: boolean;
-    jobs: Partial<Record<"exam" | "qr" | "copies", string>>;
+    /** `extra` is the exam-independent extra sheet (issue #228). */
+    jobs: Partial<Record<"exam" | "qr" | "copies" | "extra", string>>;
   }
 </script>
 
 <script lang="ts">
   import { onDestroy, tick, untrack } from "svelte";
-  import { faArrowsRotate, faBookOpen, faCircleCheck, faCircleInfo, faCopy, faPrint, faTag, faTriangleExclamation, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowsRotate, faBookOpen, faCircleCheck, faCircleInfo, faCopy, faFileLines, faKey, faNoteSticky, faPrint, faScissors, faTag, faTriangleExclamation, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
-  import { t } from "#lib/i18n";
+  import SectionHeading from "#lib/components/help/SectionHeading.svelte";
+  import { t, translate } from "#lib/i18n";
+  import { compileExtraSheet } from "#lib/exam/examPreview";
   import { fmt } from "#lib/utils/format";
   import { contentHref, studentsHref } from "#lib/utils/links";
   import { examChecksState } from "#lib/stores/shell";
@@ -31,13 +34,14 @@
     type PrintPlan,
   } from "#lib/exam/examChecks";
   import type { StickerEntry } from "#lib/qr/stickerSheet";
-  import { imposeBooklet } from "#lib/qr/booklet";
+  import { bookletTestSheet, imposeBooklet } from "#lib/qr/booklet";
   import { slug } from "#lib/export/zip";
-  import { printFileKey, spotChoices, stickersPerCopy, type PrintSettings } from "#lib/exam/printLayout";
+  import { clampBookletOffset, MAX_BOOKLET_OFFSET, printFileKey, spotChoices, stickersPerCopy, type PrintSettings } from "#lib/exam/printLayout";
   import type { ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import type { ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import StickerSheetForm from "#lib/components/sharing/StickerSheetForm.svelte";
-  import { Alert, Badge, Button, Card, Checkbox, Icon, OptionTile, Radio, actionIcons } from "#lib/components/ui";
+  import { Alert, Badge, Button, Card, Checkbox, Field, Icon, OptionTile, SaveStatus, actionIcons, controlClass, controlCompactClass } from "#lib/components/ui";
+  import { createAutosave } from "#lib/utils/autosave";
 
   /** The Print step (issue #212): the teacher picks how they print, the page lists the print jobs that follow, each with its readiness, its PDF and a "printed" tick that is only offered once that PDF exists for the current content. */
   interface Props {
@@ -102,12 +106,13 @@
     if (print.mode === "copies" && copiesUnavailable) rows.push({ level: "warn", text: copiesUnavailable });
     return rows;
   });
+  const spotIcon = { cover: faFileLines, sheet: faCopy, a3: faBookOpen, leaf: faScissors } as const;
   const levelIcon = { ok: faCircleCheck, warn: faTriangleExclamation, info: faCircleInfo };
   const levelClass = { ok: "text-success-fg", warn: "text-warning-fg", info: "text-muted" };
 
   /** The key a made file must carry to be current (layout, arranging, sticker count; the imposed sheet also the compiled sheet it came from). */
   function fileKey(job: "exam" | "qr" | "copies"): string {
-    const key = printFileKey(job, booklet, stickers);
+    const key = printFileKey(job, booklet, stickers, "empty", print.bookletOffsetMm);
     return job === "exam" ? `${key}:${preview?.version ?? 0}` : key;
   }
 
@@ -120,13 +125,15 @@
     return !!stamps && printMadeValid(cs?.checks, job, stamps) && (!file || file.key === fileKey(job));
   }
 
+  /** Plan choices, ticks and print settings save at once; the card header shows the status (issue #228). */
+  const autosave = createAutosave({ run: async () => {} });
+
   async function save(next: Parameters<typeof saveExamChecks>[1]) {
     busy = true;
-    error = "";
     try {
-      await saveExamChecks(examId, next);
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      await autosave.track(saveExamChecks(examId, next));
+    } catch {
+      // Shown in the header's save status.
     } finally {
       busy = false;
     }
@@ -138,6 +145,22 @@
   let creators = $state<Partial<Record<PrintJobId, () => Promise<void>>>>({});
 
   let preparing = $state(false);
+
+  // The extra sheet (issue #228): no exam content and no "printed" tick, it is printed in stock; current while made for the chosen paper.
+  let extraSheet = $state.raw<{ url: string; bytes: Uint8Array; key: string } | null>(null);
+  let extraKey = $derived(printFileKey("extra", null, 0, print.paperStyle));
+  let extraMade = $derived(extraSheet?.key === extraKey);
+
+  async function makeExtraSheet() {
+    const key = extraKey;
+    const { pdfBytes } = await compileExtraSheet(print.paperStyle);
+    if (extraSheet) URL.revokeObjectURL(extraSheet.url);
+    extraSheet = { url: URL.createObjectURL(new Blob([pdfBytes as BlobPart], { type: "application/pdf" })), bytes: pdfBytes, key };
+  }
+
+  function downloadExtraSheet() {
+    if (extraSheet) downloadBlob(new Blob([extraSheet.bytes as BlobPart], { type: "application/pdf" }), `${slug(translate("exam.print.extra.fileName"))}_${print.paperStyle}.pdf`);
+  }
 
   /** The one action of the Print step: compiles what the plan prints (the solution only when it is printed; unchanged sources come from the compile cache), then makes the sticker or copies PDF unless the current one is still valid. */
   async function prepare() {
@@ -159,6 +182,7 @@
         if (job === "exam" && imposed && !made("exam")) await imposeSheet(); // NOSONAR: one PDF at a time
         if ((job === "qr" || job === "copies") && !(made(job) && jobPdf[job])) await creators[job]?.(); // NOSONAR: one PDF at a time
       }
+      if (!extraMade) await makeExtraSheet();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -183,7 +207,7 @@
     const pdf = await loadExamPdf();
     const lib = await import("pdf-lib");
     const pages = (await lib.PDFDocument.load(pdf)).getPageCount();
-    keep("exam", await imposeBooklet(pdf, pages), `${slug(examTitle || "exam")}_booklet.pdf`);
+    keep("exam", await imposeBooklet(pdf, pages, print.bookletOffsetMm), `${slug(examTitle || "exam")}_booklet.pdf`);
   }
 
   async function countPages() {
@@ -210,17 +234,34 @@
 
   onDestroy(() => {
     for (const made of Object.values(jobPdf)) if (made) URL.revokeObjectURL(made.url);
+    if (extraSheet) URL.revokeObjectURL(extraSheet.url);
   });
+
+  let testing = $state(false);
+  /** The two-sided A3 sheet that shows how far off-centre the printer prints (`bookletTestSheet`). */
+  async function downloadTestSheet() {
+    testing = true;
+    try {
+      const pdf = await bookletTestSheet({
+        title: translate("exam.print.booklet.testTitle"),
+        steps: [translate("exam.print.booklet.testStep1"), translate("exam.print.booklet.testStep2"), translate("exam.print.booklet.testStep3")],
+        front: translate("exam.print.booklet.testFront"),
+        back: translate("exam.print.booklet.testBack"),
+      });
+      downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(translate("exam.print.booklet.testTitle"))}.pdf`);
+    } finally {
+      testing = false;
+    }
+  }
 
   const setPlan = (patch: Partial<PrintPlan>) => cs && save(withPrintPlan(cs.checks, { ...plan, ...patch }));
   let saving = $state(false);
   async function change(patch: ExamLayoutPatch) {
     saving = true;
-    error = "";
     try {
-      await onPrintChange(patch);
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      await autosave.track(onPrintChange(patch));
+    } catch {
+      // Shown in the header's save status.
     } finally {
       saving = false;
     }
@@ -246,29 +287,26 @@
     const next: PrintPreviews = {
       angabe: jobs.includes("exam") && !imposed,
       loesung: jobs.includes("solution"),
-      jobs: Object.fromEntries(
-        (["exam", "qr", "copies"] as const).flatMap((job) => {
-          const url = jobPdf[job]?.url;
-          return url && jobs.includes(job) && made(job) ? [[job, url]] : [];
-        }),
-      ),
+      jobs: {
+        ...Object.fromEntries(
+          (["exam", "qr", "copies"] as const).flatMap((job) => {
+            const url = jobPdf[job]?.url;
+            return url && jobs.includes(job) && made(job) ? [[job, url]] : [];
+          }),
+        ),
+        ...(extraMade && extraSheet ? { extra: extraSheet.url } : {}),
+      },
     };
     untrack(() => (shown = next));
   });
 </script>
-
-{#snippet heading(id: string, label: string, info: string)}
-  <span class="flex items-center gap-1.5">
-    <span {id} class="text-xs font-semibold tracking-wide text-muted uppercase">{label}</span>
-    <InfoTip text={info} />
-  </span>
-{/snippet}
 
 <div class="flex min-w-0 flex-col gap-4 {className}">
   <Card>
     <div class="mb-3 flex items-center gap-2">
       <h2 class="m-0 text-base font-semibold text-content">{$t("exam.print.planTitle")}</h2>
       <InfoTip text={$t("exam.print.planIntro")} />
+      <SaveStatus status={$autosave} class="ml-auto" />
     </div>
     <!-- Two columns where the card is wide: the choices that shape the files on the left, the rest and the readiness on the right. -->
     <div class="@container">
@@ -277,7 +315,7 @@
           <legend class="sr-only">{$t("exam.print.planTitle")}</legend>
           <!-- Mode, layout and spots shape the sheet, so they live on the exam (issue #220); the booklet arranging and the solution are print-plan choices. -->
           <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="print-mode-label">
-            {@render heading("print-mode-label", $t("exam.print.modeLegend"), $t("exam.print.modeInfo"))}
+            <SectionHeading id="print-mode-label" label={$t("exam.print.modeLegend")} info={$t("exam.print.modeInfo")} />
             <div class="@container">
               <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
                 <OptionTile compact name="print-mode" value="stickers" checked={print.mode === "stickers"} icon={faTag} title={$t("exam.print.modeStickers")} text={$t("exam.print.modeStickersText")} onchange={() => change({ printMode: "stickers" })} />
@@ -287,7 +325,7 @@
           </div>
 
           <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="print-layout-label">
-            {@render heading("print-layout-label", $t("exam.print.layoutLegend"), $t("exam.print.layoutInfo"))}
+            <SectionHeading id="print-layout-label" label={$t("exam.print.layoutLegend")} info={$t("exam.print.layoutInfo")} />
             <div class="@container">
               <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
                 <OptionTile compact name="print-layout" value="duplex" checked={print.layout === "duplex"} icon={faCopy} title={$t("exam.print.duplex")} text={$t("exam.print.duplexText")} onchange={() => change({ printLayout: "duplex" })} />
@@ -298,7 +336,7 @@
 
           {#if booklet}
             <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="print-booklet-label">
-              {@render heading("print-booklet-label", $t("exam.print.booklet.legend"), $t("exam.print.booklet.info"))}
+              <SectionHeading id="print-booklet-label" label={$t("exam.print.booklet.legend")} info={$t("exam.print.booklet.info")} />
               <div class="@container">
                 <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
                   <OptionTile compact name="print-booklet" value="impose" checked={booklet === "impose"} icon={faWandMagicSparkles} title={$t("exam.print.booklet.impose")} text={$t("exam.print.booklet.imposeText")} onchange={() => setPlan({ booklet: "impose" })} />
@@ -306,20 +344,46 @@
                 </div>
               </div>
             </div>
+            {#if booklet === "impose"}
+              <!-- A printer that prints off-centre moves the fold away from the paper's middle; the shift puts it back (issue #228). -->
+              <div class="flex flex-wrap items-end gap-2">
+                <Field compact label={$t("exam.print.booklet.offset")} forId="print-booklet-offset" info={$t("exam.print.booklet.offsetInfo")} class="w-40">
+                  <input
+                    id="print-booklet-offset"
+                    type="number"
+                    min={-MAX_BOOKLET_OFFSET}
+                    max={MAX_BOOKLET_OFFSET}
+                    step="0.5"
+                    value={print.bookletOffsetMm}
+                    onchange={(e) => {
+                      const next = clampBookletOffset(e.currentTarget.value);
+                      e.currentTarget.value = String(next);
+                      if (next !== print.bookletOffsetMm) void change({ bookletOffsetMm: next });
+                    }}
+                    class="{controlClass} {controlCompactClass}"
+                  />
+                </Field>
+                <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.download} loading={testing} disabled={testing} onClick={downloadTestSheet}>{$t("exam.print.booklet.testSheet")}</Button>
+              </div>
+            {/if}
           {/if}
         </fieldset>
 
         <div class="flex min-w-0 flex-col gap-3">
           {#if print.mode === "stickers"}
-            <fieldset class="m-0 flex min-w-0 flex-col gap-1 border-0 p-0" disabled={busy || saving || !cs} aria-labelledby="print-spots-label">
-              {@render heading("print-spots-label", $t("exam.print.spots.legend"), $t("exam.print.spots.info"))}
-              {#each spotChoices(print.layout) as spot (spot)}
-                <Radio group={print.stickerSpots} value={spot} name="print-spots" onchange={() => change({ stickerSpots: spot })} label={$t(`exam.print.spots.${spot}`)} />
-              {/each}
+            <fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" disabled={busy || saving || !cs} aria-labelledby="print-spots-label">
+              <SectionHeading id="print-spots-label" label={$t("exam.print.spots.legend")} info={$t("exam.print.spots.info")} />
+              <div class="@container">
+                <div class="grid grid-cols-1 gap-2 {spotChoices(print.layout).length > 2 ? '@xs:grid-cols-3' : '@xs:grid-cols-2'}">
+                  {#each spotChoices(print.layout) as spot (spot)}
+                    <OptionTile compact name="print-spots" value={spot} checked={print.stickerSpots === spot} icon={spotIcon[spot]} title={$t(`exam.print.spots.${spot}`)} text={$t(`exam.print.spots.${spot}Text`)} onchange={() => change({ stickerSpots: spot })} />
+                  {/each}
+                </div>
+              </div>
             </fieldset>
           {/if}
 
-          <Checkbox checked={plan.solution} disabled={busy || saving || !cs} onChange={(on) => setPlan({ solution: on })} label={$t("exam.print.withSolution")} />
+          <OptionTile type="checkbox" compact checked={plan.solution} disabled={busy || saving || !cs} icon={faKey} title={$t("exam.print.withSolution")} text={$t("exam.print.withSolutionText")} onToggle={(on) => setPlan({ solution: on })} />
           <p class="m-0 flex items-start gap-2 rounded-md bg-surface-sunken p-2 text-sm text-content">
             <Icon icon={faPrint} class="mt-0.5 shrink-0 text-muted" />{$t(`exam.print.howTo.${howTo}`)}
           </p>
@@ -378,6 +442,7 @@
               output={job === "copies" ? "copies" : "stickers"}
               loadExamPdf={job === "copies" ? loadExamPdf : undefined}
               booklet={job === "copies" ? booklet : null}
+              bookletOffsetMm={print.bookletOffsetMm}
               stickersPerStudent={stickers}
               bind:create={creators[job]}
               onPdf={(pdf, _kind, fileName, download) => gotPdf(job === "copies" ? "copies" : "qr", pdf, fileName, download)}
@@ -397,5 +462,15 @@
         </div>
       </li>
     {/each}
+    <li class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-raised p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <h3 class="m-0 flex items-center gap-1.5 text-base font-semibold"><Icon icon={faNoteSticky} class="text-muted" />{$t("exam.print.extra.title")}</h3>
+          <p class="m-0 mt-0.5 text-sm text-muted">{$t("exam.print.extra.hint", { paper: $t(`exam.layout.paper.${print.paperStyle}`) })}</p>
+        </div>
+        <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={actionIcons.download} disabled={!extraMade} ariaLabel={$t("exam.print.job.download")} title={$t("exam.print.job.download")} onClick={downloadExtraSheet} />
+      </div>
+      {#if !extraMade}<span class="text-xs text-muted">{$t("exam.print.extra.needsPdf")}</span>{/if}
+    </li>
   </ol>
 </div>

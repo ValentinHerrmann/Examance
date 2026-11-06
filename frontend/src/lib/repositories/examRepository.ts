@@ -34,25 +34,37 @@ function extraNotesField(value: any): ExtraNotes | null | undefined {
     description: String(value.description ?? ''),
     minHeightCm: Number(value.min_height_cm ?? value.minHeightCm),
     maxHeightCm: Number(value.max_height_cm ?? value.maxHeightCm),
+    // Only off is stored: absent means on, so blocks saved before issue #228 read the same.
+    ...(value.fill === false ? { fill: false } : {}),
   };
 }
 
 export function extraNotesToApi(
   value: ExtraNotes | null,
-): { title: string; description: string; min_height_cm: number; max_height_cm: number } | null {
-  return value ? { title: value.title, description: value.description ?? '', min_height_cm: value.minHeightCm, max_height_cm: value.maxHeightCm } : null;
+): { title: string; description: string; min_height_cm: number; max_height_cm: number; fill: boolean } | null {
+  return value
+    ? { title: value.title, description: value.description ?? '', min_height_cm: value.minHeightCm, max_height_cm: value.maxHeightCm, fill: value.fill !== false }
+    : null;
 }
 
 /** The multi-sheet print fields (issue #220), from the API's snake_case or a stored camelCase record; normalised by `printSettingsOf`. */
-function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'paddingPages' | 'stickerSpots' | 'printMode'> {
+function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox'> {
   const s = printSettingsOf({
     pageCodes: raw.page_codes ?? raw.pageCodes,
     printLayout: raw.print_layout ?? raw.printLayout,
-    paddingPages: raw.padding_pages ?? raw.paddingPages,
     stickerSpots: raw.sticker_spots ?? raw.stickerSpots,
     printMode: raw.print_mode ?? raw.printMode,
+    paperStyle: raw.paper_style ?? raw.paperStyle,
+    extraPages: raw.extra_pages ?? raw.extraPages,
+    bookletOffsetMm: raw.booklet_offset_mm ?? raw.bookletOffsetMm,
+    digitalGrading: raw.digital_grading ?? raw.digitalGrading,
+    resultsQrBox: raw.results_qr_box ?? raw.resultsQrBox,
   });
-  return { pageCodes: s.pageCodes, printLayout: s.layout, paddingPages: s.padding, stickerSpots: s.stickerSpots, printMode: s.mode };
+  return {
+    pageCodes: s.pageCodes, printLayout: s.layout, stickerSpots: s.stickerSpots, printMode: s.mode,
+    paperStyle: s.paperStyle, extraPages: s.extraPages, bookletOffsetMm: s.bookletOffsetMm,
+    digitalGrading: s.digitalGrading, resultsQrBox: s.resultsQrBox,
+  };
 }
 
 export function mapApiToExamRecord(raw: any): ExamRecord {
@@ -116,9 +128,13 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     mc_correction_hint: exam.mcCorrectionHint,
     page_codes: exam.pageCodes,
     print_layout: exam.printLayout,
-    padding_pages: exam.paddingPages,
     sticker_spots: exam.stickerSpots,
     print_mode: exam.printMode,
+    paper_style: exam.paperStyle,
+    extra_pages: exam.extraPages,
+    booklet_offset_mm: exam.bookletOffsetMm,
+    digital_grading: exam.digitalGrading,
+    results_qr_box: exam.resultsQrBox,
     // null switches the block off, undefined leaves it alone.
     extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,

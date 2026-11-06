@@ -84,8 +84,12 @@ async def test_exam_patch_clears_the_special_columns_only_when_sent(
 
     untouched = (await client.patch(url, json={"nr": "2"})).json()
     assert untouched["page_breaks"] == ["a", "b"]
-    assert untouched["extra_notes"] == notes
+    # A client that omits `fill` (issue #228) keeps the rest-of-page area on.
+    assert untouched["extra_notes"] == {**notes, "fill": True}
     assert [p["name"] for p in untouched["latex_packages"]] == ["siunitx"]
+
+    heading_only = (await client.patch(url, json={"extra_notes": {**notes, "fill": False}})).json()
+    assert heading_only["extra_notes"] == {**notes, "fill": False}
 
     cleared = (
         await client.patch(
@@ -97,6 +101,21 @@ async def test_exam_patch_clears_the_special_columns_only_when_sent(
         None,
         None,
     )
+
+
+@pytest.mark.asyncio
+async def test_exam_booklet_offset_round_trips_within_bounds(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await sign_in(client, db, "booklet-offset@example.com")
+    exam = await _exam(client)
+    url = f"{EXAMS}/{exam['id']}"
+    assert exam["booklet_offset_mm"] == 0
+
+    # Issue #228: the shift that centres imposed A3 sheets on an off-centre printer.
+    body = (await client.patch(url, json={"booklet_offset_mm": -2.5})).json()
+    assert body["booklet_offset_mm"] == -2.5
+    assert (await client.patch(url, json={"booklet_offset_mm": 11})).status_code == 422
 
 
 @pytest.mark.asyncio
@@ -310,3 +329,15 @@ async def test_exam_step_checks_stay_unless_sent_and_clear_on_empty(
     assert saved["step_checks"] == checks
     assert (await client.patch(url, json={"nr": "2"})).json()["step_checks"] == checks
     assert (await client.patch(url, json={"step_checks": {}})).json()["step_checks"] is None
+
+
+@pytest.mark.asyncio
+async def test_exam_digital_grading_switch_round_trips(client: AsyncClient, db: AsyncSession) -> None:
+    await sign_in(client, db, "digital-grading@example.com")
+    exam = await _exam(client)
+    assert (exam["digital_grading"], exam["results_qr_box"]) == (True, False)
+
+    # Issue #228: an exam graded outside Examance prints no scan aids.
+    url = f"{EXAMS}/{exam['id']}"
+    body = (await client.patch(url, json={"digital_grading": False, "results_qr_box": True})).json()
+    assert (body["digital_grading"], body["results_qr_box"]) == (False, True)

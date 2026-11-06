@@ -222,12 +222,27 @@
 % broschuere: filler pages up to a multiple of 4 (else 2) and the cut zone along the fold.
 \newboolean{SA@broschuere}
 \DeclareOption{broschuere}{\setboolean{SA@broschuere}{true}}
-% fuellleer / fuellplatz: filler pages up to whole sheets, left blank on purpose or as space for side calculations.
+% fuellen: extra pages up to whole sheets (2 pages, or 4 for a booklet; issue #228). fuellleer/fuellplatz are the older names, kept so
+% sources written before still compile; their pages are extra pages now too.
 \newboolean{SA@fuellen}
-\newboolean{SA@fuellplatz}
+\DeclareOption{fuellen}{\setboolean{SA@fuellen}{true}}
 \DeclareOption{fuellleer}{\setboolean{SA@fuellen}{true}}
-\DeclareOption{fuellplatz}{\setboolean{SA@fuellen}{true}\setboolean{SA@fuellplatz}{true}}
+\DeclareOption{fuellplatz}{\setboolean{SA@fuellen}{true}}
 % Sticker spots come from \Aufkleberseiten (section 11), not an option: the builder knows the pages.
+% Extra paper (issue #228): papierkaro (5mm squares) or papierlinien (8mm lines) on every writing page; neither leaves them empty.
+\def\SA@paper{leer}
+\DeclareOption{papierkaro}{\def\SA@paper{karo}}
+\DeclareOption{papierlinien}{\def\SA@paper{linien}}
+% zusatzblatt: the exam-independent extra sheet (\Zusatzblatt), no cover and no exam title.
+\newboolean{SA@zusatzblatt}
+\DeclareOption{zusatzblatt}{\setboolean{SA@zusatzblatt}{true}}
+
+% ohnescan: grading outside Examance; no corner markers, page codes, cut lines or sticker spots, everything else in place (room kept).
+% ergebnisqr: with ohnescan, page 1 keeps the dashed box for one results QR sticker.
+\newboolean{SA@ohnescan}
+\DeclareOption{ohnescan}{\setboolean{SA@ohnescan}{true}}
+\newboolean{SA@ergebnisqr}
+\DeclareOption{ergebnisqr}{\setboolean{SA@ergebnisqr}{true}}
 
 % Global indentation option
 \newif\if@neverindent\@neverindentfalse
@@ -258,18 +273,19 @@
         \centering
         \begin{minipage}[t]{3.5cm}
         \vspace{0pt} % Setzt die Grundlinie an die physische Oberkante
+        \ifthenelse{\boolean{SA@ohnescan}\AND\NOT\boolean{SA@ergebnisqr}}{\rule{0pt}{3.5cm}}{%
         \textcolor{gray}{
             % Where printed student copies stamp the QR code (frontend lib/qr/examCopies.ts).
             \OmrLink{3.5cm}{3.5cm}{omr://__qr__}\dashbox{0.2}(3.5,3.5){
                 \parbox{3.5cm}{
                     % Printed copies blank this text under their code; spare plain copies keep it for a sticker.
                     \centering QR Code
-                    \ifthenelse{\boolean{Namensfeld}}{}{\\
+                    \ifthenelse{\boolean{Namensfeld}\OR\boolean{SA@ohnescan}}{}{\\
                     \normalsize \vspace{0.8cm}\LoesungLuecke{}{2.5cm}\\$\uparrow$~Deine Initialen~$\uparrow$\\
                     (falls QR-Code abfällt)}
                 }
             }
-        }
+        }}
         \end{minipage}% <-- Ein % hier verhindert einen ungewollten Zeilenumbruch/Abstand
         \hspace{5mm}%
         % Box, gap and info fill the text width exactly, so the box starts at the text edge, flush with the corner markers.
@@ -343,6 +359,8 @@
     \ifthenelse{\boolean{SA@seitencode}}{\setlength{\SA@headindent}{9.1cm}}{\setlength{\SA@headindent}{5.7cm}}\setlength{\SA@headgap}{1.5cm}%
     % The head rule spans the head minus 5mm per side: ends at the text edge would cross the zone's tip. \nointerlineskip keeps it where fancyhdr's plain \hrule sits.
     \renewcommand{\headrule}{\nointerlineskip\hbox to\headwidth{\hskip5mm\leaders\hrule height\headrulewidth\hfill\hskip5mm}\vskip-\headrulewidth}%
+    % An extra sheet names no exam: "Zusatzblatt" in the middle, clear of the sticker spot and the page code.
+    \ifthenelse{\boolean{SA@zusatzblatt}}{\lhead{}\rhead{}\chead{\SA@headreset\bfseries Zusatzblatt}}{%
     \lhead{\SA@headreset\ifnum\thepage=1
     % No space after \SA@firsthead: it fills the whole head width, and a trailing space would wrap the cell and push the header down.
     \SA@firsthead
@@ -354,7 +372,7 @@
     \ifthenelse{\isodd{\value{page}}}{Seite \thepage}{\Nrtext. \Testarttesttext \ in \Fachtext}\hspace*{\SA@headgap}%
     \fi
     }
-    \chead{}
+    \chead{}}%
     % The page number is in the header: the strip between the bottom markers holds the score table.
     \cfoot{}
 
@@ -362,7 +380,7 @@
         {\isundefined{\LFarbe}}
         {\newcommand{\LFarbe}{blue}}
         {}
-        \Namenszeile
+    \ifthenelse{\boolean{SA@zusatzblatt}}{}{\Namenszeile}
 }
 
 % ==============================================================================
@@ -418,15 +436,27 @@
 \AddToShipoutPictureBG{%
     \setlength{\SA@fidTRX}{\SA@fidTopX}\setlength{\SA@fidTLX}{\SA@fidTopX}%
     \ifodd\value{page}\setlength{\SA@fidTLX}{\SA@foldinset}\else\setlength{\SA@fidTRX}{\SA@foldinset}\fi
-    % The tab (75 x 20 mm at the outer top corner) is tinted light grey, so an unpersonalised sheet shows what a cut would remove; printed copies stamp over it on page 1.
-    \AtPageUpperLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]\ifodd\value{page}\fill[black!7] (\paperwidth-75mm,0) -- (\paperwidth,0) -- (\paperwidth,-20mm) -- cycle;\else\fill[black!7] (75mm,0) -- (0,0) -- (0,-20mm) -- cycle;\fi\end{tikzpicture}}%
+    % The tab (75 x 20 mm at the outer top corner) is tinted light grey, so an unpersonalised sheet shows what a cut would remove, with the
+    % dashed cut line and two scissors on it, blades towards the side edge (mirrored in lib/qr/examCopies.ts, which redraws page 1's tab).
+    \ifthenelse{\boolean{SA@ohnescan}}{}{%
+    \AtPageUpperLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]%
+        \ifodd\value{page}%
+            \fill[black!7] (\paperwidth-75mm,0) -- (\paperwidth,0) -- (\paperwidth,-20mm) -- cycle;%
+            \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\paperwidth-75mm,0) -- (\paperwidth,-20mm);%
+            \foreach \SA@t in {0.33,0.67} {\SA@scissors{({\paperwidth-75mm+\SA@t*75mm},{-\SA@t*20mm})}{-14.93}}%
+        \else%
+            \fill[black!7] (75mm,0) -- (0,0) -- (0,-20mm) -- cycle;%
+            \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (75mm,0) -- (0,-20mm);%
+            \foreach \SA@t in {0.33,0.67} {\SA@scissors{({75mm-\SA@t*75mm},{-\SA@t*20mm})}{194.93}}%
+        \fi%
+    \end{tikzpicture}}%
     % The bottom marker on the fold side keeps clear of a booklet's cut strip (\SA@foldinset equals the inset otherwise).
     \setlength{\SA@fidBLX}{\OmrFiducialInset}\setlength{\SA@fidBRX}{\OmrFiducialInset}%
     \ifodd\value{page}\setlength{\SA@fidBLX}{\SA@foldinset}\else\setlength{\SA@fidBRX}{\SA@foldinset}\fi
     \OmrFiducialAt{0}{\SA@fidBLX}{\OmrFiducialInset}%
     \OmrFiducialAt{1}{\dimexpr\paperwidth-\SA@fidBRX-\OmrFiducialSize\relax}{\OmrFiducialInset}%
     \OmrFiducialAt{2}{\dimexpr\paperwidth-\SA@fidTRX-\OmrFiducialSize\relax}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
-    \OmrFiducialAt{3}{\SA@fidTLX}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
+    \OmrFiducialAt{3}{\SA@fidTLX}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}}%
 }
 
 % ==============================================================================
@@ -532,16 +562,15 @@
 % Teacher override: a page break exactly here; the blocks on both sides keep their rules.
 \newcommand{\Seitenumbruch}{\par\ifSA@inblock\SA@blockend\newpage\SA@blockbegin\z@\else\newpage\fi}
 
-% Karo block for extra solutions as the last item of the exam (issue #156): #1 title, #2 description (may be
-% empty), #3/#4 min/max height in cm. Fills the space left on the page (minus the points table \AtEndDocument sets at
-% the bottom) within min..max; a new page only when min does not fit. Student sheet only, never in the solution.
+% Rest-of-page writing area as the last item of the exam (issues #156, #228): #1 title, #2 note (may be empty), #3/#4 min/max height
+% in cm, drawn in the exam's paper (\SA@pattern). Fills the space left on the page (minus the points table \AtEndDocument sets at the
+% bottom) within min..max; when min does not fit it takes a whole new page instead (an implicit extra page). Student sheet only.
 \newdimen\EN@avail
 \newdimen\EN@title
 \newdimen\EN@fill
-\newcount\EN@rows
+% Heading and note share one line, each in its own size; a long note wraps under it.
 \newcommand{\EN@head}[2]{%
-    {\large\bfseries\noindent #1\par}
-    \if\relax\detokenize{#2}\relax\else{\small\noindent #2\par}\fi
+    \noindent{\large\bfseries #1}\if\relax\detokenize{#2}\relax\else\quad{\small #2}\fi\par
 }
 \newcommand{\ExamNotes}[4]{%
     \ifthenelse{\boolean{Antworten}}{}{%
@@ -551,21 +580,22 @@
         \setbox\z@\vbox{\hsize\textwidth\EN@head{#1}{#2}}%
         \EN@title=\dimexpr\ht\z@+\dp\z@+5mm\relax
         \ifdim\pagegoal=\maxdimen \EN@avail=\textheight \else \EN@avail=\dimexpr\pagegoal-\pagetotal\relax \fi
+        % A sticker spot page loses 17mm to the spot (section 11); counting it here keeps the area on its page.
+        \ifSA@spotpage\advance\EN@avail by -\SA@spotroom\fi
         \ifthenelse{\boolean{Pkt}}{\advance\EN@avail by -27mm}{}%
         \EN@fill=\dimexpr\EN@avail-\EN@title\relax
         \ifdim\EN@fill<#3cm
             \newpage
             \EN@fill=\dimexpr\textheight-\EN@title\relax
+            \ifSA@spotpage\advance\EN@fill by -\SA@spotroom\fi
             \ifthenelse{\boolean{Pkt}}{\advance\EN@fill by -36mm}{}%
+        \else
+            \ifdim\EN@fill>#4cm \EN@fill=#4cm \fi
         \fi
-        \ifdim\EN@fill>#4cm \EN@fill=#4cm \fi
-        \ifdim\EN@fill<#3cm \EN@fill=#3cm \fi
-        \EN@rows=\EN@fill
-        \divide\EN@rows by \number\dimexpr0.5cm\relax
-        \ifnum\EN@rows<\@ne \EN@rows=\@ne \fi
+        \ifdim\EN@fill<5mm \EN@fill=5mm \fi
         \vspace{3mm}%
         \EN@head{#1}{#2}\nobreak\vspace{2mm}%
-        \noindent\kariert[0.5cm]{\the\EN@rows}\par
+        \noindent\SA@pattern{\linewidth}{\EN@fill}\par
         \endgroup
     }%
 }
@@ -793,41 +823,131 @@
         \end{tikzpicture}}}%
 }
 
-% Booklets: a cut line with scissors 6mm from the fold edge (left on odd pages, right on even ones) and the strip beyond it tinted like
-% the corner tab, so a cut along the fold has 6mm either side and nobody writes there; text and fold-side markers start at 8mm (\SA@foldinset, lib/qr/cutCorner.ts FOLD_STRIP).
+% Small scissors centred at #1, blades pointing along the angle #2 (degrees); the same shape as lib/qr/examCopies.ts.
+\newcommand{\SA@scissors}[2]{%
+    \begin{scope}[shift={#1},rotate=#2,x=0.3mm,y=0.3mm,black!50]%
+        \draw[line width=0.5pt] (-3.2,-2) circle (1.5) (-3.2,2) circle (1.5);%
+        \fill (-2,-1.6) -- (5.2,1.5) -- (-1.4,-0.6) -- cycle (-2,1.6) -- (5.2,-1.5) -- (-1.4,0.6) -- cycle;%
+    \end{scope}%
+}
+
+% Booklets: a cut line 6mm from the fold edge (left on odd pages, right on even ones) with six scissors spread over its height, and the
+% strip beyond it tinted like the corner tab, so a cut along the fold has 6mm either side and nobody writes there; text and fold-side
+% markers start at 8mm (\SA@foldinset, lib/qr/cutCorner.ts FOLD_STRIP). The outer scissors sit 8mm from the paper edges (unprintable margin).
 \newcommand{\SA@foldzone}{%
     \AtPageLowerLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]%
         \ifodd\value{page}\def\SA@fx{0}\def\SA@lx{6}\else\def\SA@fx{\paperwidth}\def\SA@lx{\paperwidth-6mm}\fi
         \fill[black!7] (\SA@fx,0) rectangle (\SA@lx,\paperheight);%
-        \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,0) -- (\SA@lx,\paperheight-11mm) (\SA@lx,\paperheight-5mm) -- (\SA@lx,\paperheight);%
-        % Scissors in the gap of the line, blades pointing down along it.
-        \begin{scope}[shift={(\SA@lx,\paperheight-8mm)},rotate=-90,x=0.3mm,y=0.3mm,black!50]%
-            \draw[line width=0.5pt] (-3.2,-2) circle (1.5) (-3.2,2) circle (1.5);%
-            \fill (-2,-1.6) -- (5.2,1.5) -- (-1.4,-0.6) -- cycle (-2,1.6) -- (5.2,-1.5) -- (-1.4,0.6) -- cycle;%
-        \end{scope}%
+        \pgfmathsetmacro\SA@fstep{(\paperheight-16mm)/5}%
+        % Dashes between the scissors' gaps (3mm either side of each), then the scissors, blades pointing down along the line.
+        \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,0) -- (\SA@lx,5mm);%
+        \foreach \SA@i in {0,...,4} {%
+            \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,{8mm+\SA@i*\SA@fstep+3mm}) -- (\SA@lx,{8mm+(\SA@i+1)*\SA@fstep-3mm});%
+        }%
+        \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,\paperheight-5mm) -- (\SA@lx,\paperheight);%
+        \foreach \SA@i in {0,...,5} {\SA@scissors{(\SA@lx,{8mm+\SA@i*\SA@fstep})}{-90}}%
     \end{tikzpicture}}%
 }
 
 \AddToShipoutPictureBG{%
-    \ifthenelse{\boolean{SA@broschuere}}{\SA@foldzone}{}%
-    % Page codes and sticker spots only on the student sheet.
+    \ifthenelse{\boolean{SA@broschuere}\AND\NOT\boolean{SA@ohnescan}}{\SA@foldzone}{}%
+    % Page codes and sticker spots only on the student sheet; without scanning their room stays empty.
     \ifthenelse{\boolean{Antworten}}{}{%
-        \ifthenelse{\boolean{SA@seitencode}}{\SA@pagecode}{}%
-        \ifSA@spotpage\SA@stickerspot\fi
+        \ifthenelse{\boolean{SA@seitencode}\AND\NOT\boolean{SA@ohnescan}}{\SA@pagecode}{}%
+        \ifthenelse{\boolean{SA@ohnescan}}{}{\ifSA@spotpage\SA@stickerspot\fi}%
+        \ifthenelse{\boolean{SA@zusatzblatt}}{\ifnum\value{page}=1 \SA@stickerspot\fi}{}%
+        \ifSA@wp\SA@wpdraw\global\SA@wpfalse\fi
     }%
 }
 
-% Filler pages after the points table, so every copy fills whole sheets (2 pages, or 4 for a booklet). They carry markers (and page
-% codes) like any page and are part of the OMR template, so a scanned filler page is an ordinary page (never dropped).
-\newcount\SA@pages
-\newif\ifSA@pad
-\newcommand{\SA@fillerpage}{%
+% Writing paper (issue #228): \SA@pattern{width}{height} draws the exam's paper (\SA@paper) in whole 5mm squares or 8mm lines, light
+% enough to write over; empty paper is blank space. The rest-of-page area (\ExamNotes) and full writing pages share it.
+\newdimen\SA@wph
+\def\SA@paperkaro{karo}
+\def\SA@paperlinien{linien}
+\def\SA@paperleer{leer}
+\newcommand{\SA@pattern}[2]{%
+    \SA@wph=#2\relax
+    \ifx\SA@paper\SA@paperkaro
+        \begin{tikzpicture}%
+            \pgfmathtruncatemacro\SA@nx{#1/5mm}\pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/5mm)}%
+            \draw[black!30,line width=0.3pt,step=5mm] (0,0) grid (\SA@nx*5mm,\SA@ny*5mm);%
+        \end{tikzpicture}%
+    \else\ifx\SA@paper\SA@paperlinien
+        \begin{tikzpicture}%
+            \pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/8mm)}%
+            \path (0,0) rectangle (#1,\SA@ny*8mm);%
+            \foreach \SA@li in {1,...,\SA@ny} {\draw[black!35,line width=0.4pt] (0,\SA@li*8mm) -- (#1,\SA@li*8mm);}%
+        \end{tikzpicture}%
+    \else\rule{\z@}{\SA@wph}\fi\fi
+}
+
+% A full writing page: heading #1 and note #2 (either may be empty) in the flow, the pattern at shipout over the text area below them.
+% Drawn in the background, never in the flow, so it cannot spill onto a new page (a sticker spot page has 17mm less room than the
+% page builder reports). Empty paper draws nothing, so workspace filler pages of older exams stay exactly as they were.
+\newif\ifSA@wp
+\newdimen\SA@wphead
+\newcommand{\SA@wphd}[2]{%
+    \if\relax\detokenize{#1#2}\relax\else\EN@head{#1}{#2}\fi
+}
+\newcommand{\SA@writingpage}[2]{%
     \null
-    \ifthenelse{\boolean{SA@fuellplatz}}%
-        {\noindent{\large\bfseries Platz für Nebenrechnungen}\par}%
-        {\vfill\begin{center}\color{gray}\large Diese Seite bleibt absichtlich leer.\end{center}\vfill}%
+    \setbox\z@\vbox{\hsize\textwidth\SA@wphd{#1}{#2}}%
+    \global\SA@wphead=\dimexpr\ht\z@+\dp\z@\relax
+    \SA@wphd{#1}{#2}%
+    \global\SA@wptrue
     \clearpage
 }
+% The text area of this page: its top (from the page's lower left) and its left edge; booklets (twoside) mirror the margins.
+\newdimen\SA@wptop
+\newdimen\SA@wpleft
+\newdimen\SA@wpoff
+\newcommand{\SA@wpdraw}{%
+    \ifx\SA@paper\SA@paperleer\else
+        \SA@wptop=\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep\relax
+        \SA@wpleft=\dimexpr1in+\hoffset+\oddsidemargin\relax
+        \if@twoside\ifodd\value{page}\else\SA@wpleft=\dimexpr1in+\hoffset+\evensidemargin\relax\fi\fi
+        % Below the heading (with room for its first line's skip), and below a sticker spot on this page.
+        \ifdim\SA@wphead>\z@ \SA@wpoff=\dimexpr\SA@wphead+\topskip+3mm\relax \else \SA@wpoff=\z@ \fi
+        \ifSA@spotpage\advance\SA@wpoff by \SA@spotroom\fi
+        \ifthenelse{\boolean{SA@zusatzblatt}}{\ifnum\value{page}=1 \advance\SA@wpoff by \SA@spotroom\fi}{}%
+        \setbox\tw@\hbox{\SA@pattern{\textwidth}{\dimexpr\textheight-\SA@wpoff\relax}}%
+        % Hangs from the top: the pattern's top edge sits right below the heading, whatever whole number of rows fits.
+        \AtPageLowerLeft{\put(\LenToUnit{\SA@wpleft},\LenToUnit{\dimexpr\SA@wptop-\SA@wpoff-\ht\tw@\relax}){\box\tw@}}%
+    \fi
+}
+
+% Extra pages in every copy (\Zusatzseiten{n}{title}{note}, issue #228): writing pages with the rest-of-page area's heading, after the
+% points table and before the filler pages. They carry markers, page codes and sticker spots like any page, so they are part of the
+% OMR template and personalised copies need nothing extra.
+\def\SA@extracount{0}
+% Without \Zusatzseiten the pages that fill whole sheets still get a heading.
+\def\SA@extrapage{\SA@writingpage{Platz für weitere Lösungen}{}}
+\newcommand{\Zusatzseiten}[3]{\gdef\SA@extracount{#1}\gdef\SA@extrapage{\SA@writingpage{#2}{#3}}}
+\newcount\SA@extrai
+\newcommand{\SA@extrapages}{%
+    \ifnum\SA@extracount>\z@
+        \clearpage
+        \SA@extrai=\z@
+        \loop\ifnum\SA@extrai<\SA@extracount
+            \SA@extrapage
+            \advance\SA@extrai by \@ne
+        \repeat
+    \fi
+}
+\AtEndDocument{\ifthenelse{\boolean{Antworten}}{}{\SA@extrapages}}
+
+% The extra sheet (option zusatzblatt, issue #228): one sheet of writing paper, a sticker spot on the front (it names the student)
+% and the code EXM1:X on both sides (frontend lib/exam/pageCodes.ts), so one printed stack serves every exam.
+\newcommand{\Zusatzblatt}{%
+    \SA@writingpage{}{}%
+    \SA@writingpage{}{}%
+}
+
+% Filling up to whole sheets (2 pages, or 4 for a booklet): more extra pages after the asked ones. They carry markers (and page
+% codes) like any page and are part of the OMR template, so a scanned one is an ordinary page (never dropped).
+\newcount\SA@pages
+\newif\ifSA@pad
 \newcommand{\SA@fillsheets}{%
     \clearpage
     \SA@pages=\numexpr\value{page}-1\relax
@@ -836,7 +956,7 @@
         % Exact multiples are the only values the rounding division gives back unchanged.
         \ifnum\numexpr\SA@pages/\SA@persheet*\SA@persheet\relax=\SA@pages\relax\SA@padfalse\else\SA@padtrue\fi
     \ifSA@pad
-        \SA@fillerpage
+        \SA@extrapage
         \advance\SA@pages by 1
     \repeat
 }

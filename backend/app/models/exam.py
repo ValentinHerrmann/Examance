@@ -64,12 +64,20 @@ class Exam(Base):
     page_codes: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # "duplex" (2 pages per sheet) or "booklet" (4 per folded A3 sheet); sets the padding multiple.
     print_layout: Mapped[str] = mapped_column(String(10), nullable=False, default="duplex", server_default="duplex")
-    # Filler pages up to the next full sheet: "none", "blank" (left empty on purpose) or "workspace" (room for side calculations).
-    padding_pages: Mapped[str] = mapped_column(String(10), nullable=False, default="none", server_default="none")
     # Sticker spots in sticker mode: "cover", "sheet" (every sheet front), "a3" (every booklet sheet), "leaf" (every cut booklet leaf).
     sticker_spots: Mapped[str] = mapped_column(String(10), nullable=False, default="cover", server_default="cover")
     # "stickers" (plain sheet + QR stickers) or "copies" (personalised copies); the sheet's sticker spots follow it.
     print_mode: Mapped[str] = mapped_column(String(10), nullable=False, default="stickers", server_default="stickers")
+    # Pattern of every page meant for writing (issue #228): "empty", "squared" (5 mm) or "lined" (8 mm).
+    paper_style: Mapped[str] = mapped_column(String(10), nullable=False, default="empty", server_default="empty")
+    # Writing pages after the points table in every copy (issue #228), page-coded like any page.
+    extra_pages: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    # Horizontal shift of imposed A3 booklet sheets in mm (issue #228), so a printer that prints off-centre comes out centred.
+    booklet_offset_mm: Mapped[float] = mapped_column(nullable=False, default=0.0, server_default="0")
+    # False when graded outside Examance (issue #228): no scan aids printed, a name line instead.
+    digital_grading: Mapped[bool] = mapped_column(nullable=False, default=True, server_default="true")
+    # Without digital grading: page 1 keeps one box for a results QR sticker.
+    results_qr_box: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Ticks the teacher sets by hand per step (print checklist, MC check); the client owns the shape.

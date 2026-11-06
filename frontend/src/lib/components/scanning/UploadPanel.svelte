@@ -6,6 +6,8 @@
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   interface Props {
     isProcessing?: boolean;
+    /** The reason uploads are off (an exam graded outside Examance); shown above the greyed-out button. */
+    disabledReason?: string;
     progress?: number;
     statusText?: string;
     onFileUpload: (event: Event) => void;
@@ -15,6 +17,7 @@
 
   let {
     isProcessing = false,
+    disabledReason = "",
     progress = 0,
     statusText = "",
     onFileUpload,
@@ -23,6 +26,7 @@
 </script>
 
 <div class="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-line-strong bg-surface-raised p-4 text-center">
+  {#if disabledReason}<p class="m-0 text-sm text-muted">{disabledReason}</p>{/if}
   <div>
   <input
     type="file"
@@ -30,7 +34,7 @@
     multiple
     accept="application/pdf"
     onchange={onFileUpload}
-    disabled={isProcessing}
+    disabled={isProcessing || !!disabledReason}
     class="peer sr-only"
   />
   <label

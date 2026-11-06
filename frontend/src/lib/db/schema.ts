@@ -20,14 +20,23 @@ export interface GradingKeyConfig {
   cutoffs: GradeCutoff[];
 }
 
-/** Optional karo block at the end of an exam (issue #156); the printed title stays German. */
+/** The writing space's heading and note, and the rest-of-page area (issues #156, #228); the printed text stays German. Extra pages print the heading even when the area is off. */
 export interface ExtraNotes {
   title: string;
   /** Printed below the title, smaller; may be empty. */
   description: string;
   minHeightCm: number;
   maxHeightCm: number;
+  /** False keeps only the heading for extra pages, without the rest-of-page area; absent = true (every block stored before #228). */
+  fill?: boolean;
 }
+
+/** Whether the exam ends with the rest-of-page writing area. */
+export const fillsLastPage = (notes: ExtraNotes | null | undefined): boolean => !!notes && notes.fill !== false;
+
+/** Compares writing-space settings as stored (`fill` absent means on), so an autosave sees no change where the store only normalised. */
+export const extraNotesKey = (notes: ExtraNotes | null | undefined): string =>
+  JSON.stringify(notes ? { title: notes.title, description: notes.description ?? '', minHeightCm: notes.minHeightCm, maxHeightCm: notes.maxHeightCm, fill: notes.fill !== false } : null);
 
 export const DEFAULT_EXTRA_NOTES: ExtraNotes = {
   title: 'Platz für weitere Lösungen',
@@ -70,12 +79,20 @@ export interface ExamRecord extends MaybeUndecryptable {
   pageCodes?: boolean;
   /** 'duplex' (2 pages per sheet) or 'booklet' (4 per folded A3 sheet); only with `pageCodes`. */
   printLayout?: 'duplex' | 'booklet';
-  /** Filler pages up to the next full sheet: 'blank' or 'workspace'; only with `pageCodes`. */
-  paddingPages?: 'none' | 'blank' | 'workspace';
   /** Sticker spots in sticker mode: 'cover', 'sheet', 'a3' or 'leaf' (`stickerPagesOf`). */
   stickerSpots?: 'cover' | 'sheet' | 'a3' | 'leaf';
   /** 'stickers' or 'copies' (personalised copies); the compiled sheet's sticker spots follow it. */
   printMode?: 'stickers' | 'copies';
+  /** Pattern of writing pages (issue #228): 'empty', 'squared' (5 mm) or 'lined' (8 mm); absent = 'empty'. */
+  paperStyle?: 'empty' | 'squared' | 'lined';
+  /** Writing pages after the points table in every copy (issue #228), 0..20. */
+  extraPages?: number;
+  /** Shift of imposed A3 booklet sheets in mm, positive to the right (issue #228); absent = 0. */
+  bookletOffsetMm?: number;
+  /** False when the exam is graded outside Examance: no corner markers, page codes, cut lines or sticker spots, a name line instead (issue #228); absent = true. */
+  digitalGrading?: boolean;
+  /** Without digital grading: page 1 keeps one box for a results QR sticker (DiRueLei); absent = false. */
+  resultsQrBox?: boolean;
   /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */
   extraNotes?: ExtraNotes | null;
   /** Ticks the teacher set by hand on the Print and MC steps (issue #212); written only through `examRepository.saveStepChecks`, never with the rest of the record. */

@@ -75,28 +75,23 @@ Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Fra
 
 Layout-Einstellungen liegen auf dem Reiter **Layout** im Schritt **Prüfung**: Infotext, Namenszeile, Hinweis zur Abschneide-Ecke, Korrekturhinweis für Multiple-Choice, [Drucken mit mehreren Blättern](#multi-sheet), Logo und LaTeX-Pakete. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
 
+### Korrektur außerhalb von Examance {#digital-grading}
+
+Wenn Sie die Arbeit nur mit Examance erstellen und auf Papier korrigieren, schalten Sie oben auf dem Reiter **Layout** **In Examance korrigieren** aus. Die Arbeit druckt dann keine Eckmarkierungen, Seitencodes, Schnittlinien oder Aufkleberfelder, und Seite 1 bekommt eine Namenszeile. Alles andere bleibt genau an seinem Platz. Mit **Feld für einen Ergebnis-QR-Code** behält Seite 1 ein Aufkleberfeld, z. B. um Ergebnisse mit DiRueLei zu verschicken. Scannen und personalisierte Exemplare sind für eine solche Arbeit ausgegraut. Die Papier-Korrektur und die Statistik bleiben verfügbar.
+
 ### Namenszeile {#name-line}
 
 Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung oder auf dem Reiter **Layout**) erhält die Titelseite eine Zeile für den Namen der Schülerin oder des Schülers. Das QR-Code-Feld bleibt an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; nur das Initialenfeld im Feld entfällt.
 
 ### Abschneide-Ecke {#cut-corner}
 
-Jede Prüfung hält auf jeder Seite die **äußere obere Ecke** frei: auf ungeraden Seiten oben rechts, auf geraden oben links. Auf geraden Seiten ist die Kopfzeile gespiegelt. Im normalen Prüfungs-PDF bleibt die Ecke leer und ist hellgrau getönt. Drucken Sie die QR-Codes [direkt auf die Prüfungsexemplare](./students#printed-copies), trägt die Ecke auf Seite 1 Name und persönlichen Schlüssel, und eine gestrichelte Linie mit kleiner Schere zeigt, wo Sie sie vor dem Austeilen abschneiden. Bei beidseitigem und Broschürendruck können Sie auch den ganzen Stapel auf einmal mit der Schneidemaschine schneiden. Alle Prüfungen haben dieses Layout, so findet das Einlesen die Eckmarkierungen immer an denselben Stellen, egal wie die Blätter gedruckt wurden.
+Jede Prüfung hält auf jeder Seite die **äußere obere Ecke** frei: auf ungeraden Seiten oben rechts, auf geraden oben links. Auf geraden Seiten ist die Kopfzeile gespiegelt. Im normalen Prüfungs-PDF bleibt die Ecke leer und ist hellgrau getönt. Drucken Sie die QR-Codes [direkt auf die Prüfungsexemplare](./students#printed-copies), trägt die Ecke auf Seite 1 Name und persönlichen Schlüssel, und eine gestrichelte Linie mit zwei kleinen Scheren zeigt, wo Sie sie vor dem Austeilen abschneiden; alle anderen Seiten zeigen dieselbe Linie, so ist der ganze Stapel markiert. Bei beidseitigem und Broschürendruck können Sie auch den ganzen Stapel auf einmal mit der Schneidemaschine schneiden. Alle Prüfungen haben dieses Layout, so findet das Einlesen die Eckmarkierungen immer an denselben Stellen, egal wie die Blätter gedruckt wurden.
 
 Der Text und auf Seite 1 das QR-Feld mit den Hinweisen daneben reichen bis an die Eckmarkierungen. Die Kopfzeile von Seite 1 zeigt das Logo, dann den Titel und darunter in einer Zeile Kurs, Datum, Dauer und Lehrkraft; die anderen Seiten zeigen den Titel und „Seite X“. Die Punktetabelle füllt den Streifen zwischen den unteren Markierungen.
 
 Die Skizze zeigt den nutzbaren Platz auf ungeraden und geraden Seiten: Textbereich, Kopfzeile, Punktetabelle, den Abschnitt mit seiner Toleranz und die Eckmarkierungen. Das [PDF](../../screenshots/guide/cut-corner-layout-de.pdf) ist in Originalgröße auf A4 gezeichnet; Maße auf einem Ausdruck in 100 % sind echte Millimeter.
 
 ![Nutzbarer Platz mit Abschneide-Ecke: ungerade Seite (links) und gerade Seite (rechts)](../../screenshots/guide/cut-corner-layout-de.png)
-
-### Platz für weitere Lösungen {#extra-space}
-
-**Platz für weitere Lösungen am Ende** (unter der Aufgabenliste) lässt den Schülerbogen mit einem Karo-Feld für zusätzliche Lösungen enden:
-
-- eine Überschrift und darunter ein kleinerer Hinweis (mit Standardtexten vorbelegt, auf Deutsch gedruckt);
-- eine **Mindesthöhe** und eine **Maximalhöhe** in cm. Das Feld füllt den Rest der letzten Seite; es beginnt nur dann eine neue Seite, wenn selbst die Mindesthöhe nicht mehr passt.
-
-Der Erwartungshorizont enthält das Feld nicht.
 
 ### Wie man ein Kreuz korrigiert {#mc-hint}
 
@@ -118,10 +113,10 @@ Auf demselben Reiter können Sie außerdem LaTeX-Pakete nur für diese Prüfung 
 
 ## Mehrere Blätter {#multi-sheet}
 
-Eine Prüfung über mehrere Blätter lässt sich leichter handhaben, wenn jede Seite weiß, wer und was sie ist. Dafür gibt es auf dem Reiter **Layout** zwei Optionen:
+Eine Prüfung über mehrere Blätter lässt sich leichter handhaben, wenn jede Seite weiß, wer und was sie ist. Dafür gibt es auf dem Reiter **Layout** eine Option, und die gedruckten Exemplare füllen immer ganze Blätter:
 
 - **Seitencode auf jeder Seite.** Ein kleiner QR-Code (14 mm) oben auf jeder Seite, auf der Seite der Abschneide-Ecke, direkt innerhalb der Eckmarkierung, sagt dem Scanner, welche Seite es ist. Auf [personalisierten Exemplaren](./students#printed-copies) enthält er auch die ID der Person (die kurze Aufkleber-ID oder die Mebis- bzw. Artemis-ID, nie den Namen). Dadurch spielt die Reihenfolge der gescannten Blätter keine Rolle mehr, fehlende Seiten werden gemeldet und lose Blätter finden ihren Schüler. Der Code ist ab 200 ppi zuverlässig lesbar; 300 ppi ist besser. Für neue Prüfungen ist die Option voreingestellt. Ältere Prüfungen behalten ihr Layout, bis Sie sie einschalten; das ändert das Seitenlayout, früher gedruckte Exemplare passen dann nicht mehr.
-- **Füllseiten bis zu einem vollen Blatt.** Jedes Exemplar wird auf ganze Blätter aufgefüllt (gerade Seitenzahl bei beidseitigem Druck, Vielfaches von 4 als Broschüre), so dass jedes Exemplar auf einem neuen Blatt beginnt. Die Füllseiten sind **Platz für Nebenrechnungen** (Voreinstellung für neue Prüfungen), **Absichtlich leer** oder **Keine**. Sie werden wie jede andere Seite gescannt, archiviert und exportiert.
+- **Ganze Blätter.** Jedes gedruckte Exemplar wird auf ganze Blätter aufgefüllt (gerade Seitenzahl bei beidseitigem Druck, Vielfaches von 4 als Broschüre), so dass jedes Exemplar auf einem neuen Blatt beginnt. Die ergänzten Seiten sind [Zusatzseiten](#extra-paper) zum Schreiben. Welches Vielfache gilt, folgt aus der Druckart, die Sie im Schritt Drucken wählen; deshalb lässt die Vorschau im Schritt **Prüfung** diese Seiten weg, der Schritt Drucken zeigt sie. Sie werden wie jede andere Seite gescannt, archiviert und exportiert.
 
 Wie Sie diese Blätter drucken (beidseitig oder als Broschüre, Aufkleber pro Blatt), wählen Sie im [Schritt Drucken](#multi-sheet-print).
 
@@ -131,16 +126,32 @@ Der Druckplan im Schritt **Drucken** enthält diese Auswahl:
 
 - **Personalisierte Exemplare** oder **Normale Exemplare + Aufkleber**.
 - **Wie drucken Sie?** **Beidseitig (A4, zwei Seiten pro Blatt)** oder **Broschüre (gefaltetes A3, vier Seiten pro Blatt)**.
-- Bei Broschüren **Wer ordnet die Seiten an?** **Examance (A3-Blätter, jeder Drucker)**: auf A3 drucken, beidseitig, Wenden an der kurzen Kante, in Originalgröße, in der Mitte falten und heften. Oder **Broschürenfunktion meines Druckers**: Personalisierte Exemplare laden Sie dann als ZIP mit einer PDF pro Schüler herunter und drucken sie einzeln.
+- Bei Broschüren **Wer ordnet die Seiten an?** **Examance (A3-Blätter, jeder Drucker)**: auf A3 drucken, beidseitig, Wenden an der kurzen Kante, in Originalgröße (100 %, „An Seite anpassen“, „Auf Seitengröße skalieren“ und automatisches Zentrieren ausgeschaltet), an der gedruckten Mittellinie falten und heften. Druckt Ihr Drucker die Bögen trotzdem außermittig, hilft **Verschiebung (mm)** darunter: Drucken Sie einmal den **Testbogen**, falten Sie ihn Kante auf Kante, lesen Sie ab, wo der Knick das Lineal kreuzt (rechts der Mitte positiv), und tragen Sie diesen Wert ein. Er wird mit der Prüfung gespeichert, und Examance verschiebt jeden A3-Bogen darum. Oder **Broschürenfunktion meines Druckers**: Personalisierte Exemplare laden Sie dann als ZIP mit einer PDF pro Schüler herunter und drucken sie einzeln.
 - **Aufkleber pro Schüler** (nur bei normalen Exemplaren + Aufklebern). Beidseitig: einer für die ganze Prüfung (auf dem Deckblatt) oder einer pro Blatt. Broschüre: einer für die ganze Prüfung, einer pro A3-Blatt oder einer pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine sehr hellgraue, unbeschriftete Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Personalisierte Exemplare brauchen keine zusätzlichen Aufkleber: Jeder Seitencode nennt den Schüler.
 
 **Druckdateien erstellen** setzt, was der Plan druckt (die Lösung nur bei angekreuztem **mit Lösung**; unveränderte Teile werden wiederverwendet) und erstellt den Aufkleberbogen oder die personalisierten Exemplare. Jede Auftragskarte hat danach nur noch den Download und den Haken **gedruckt**.
 
 Vor den personalisierten Exemplaren warnt der Schritt vor Schülern ohne ID (nur ihr Deckblatt trägt den Code; ihre übrigen Seiten werden nach der Reihenfolge zugeordnet) und sperrt die Exemplare, wenn zwei Schüler dieselbe ID haben. Beides beheben Sie auf der Seite [Schüler](./students#student-data).
 
-**Schnittzone bei Broschüren.** Jede Broschürenseite hat eine gestrichelte Schnittlinie mit Schere 6 mm von der Falz und einen hellgrauen Streifen zwischen Linie und Falz. Dort schreibt niemand, und Sie können die Broschüre an beliebiger Stelle innerhalb dieses 12-mm-Bands entlang der Falz aufschneiden; ein leicht schiefer Schnitt schadet also nicht. Der Text beginnt 8 mm von der Falz. Die Abschneide-Ecke wird wie bisher abgeschnitten.
+**Schnittzone bei Broschüren.** Jede Broschürenseite hat 6 mm von der Falz eine gestrichelte Schnittlinie mit sechs Scheren über die ganze Höhe und einen hellgrauen Streifen zwischen Linie und Falz. Bögen, die Examance anordnet, tragen zusätzlich eine dünne durchgezogene Linie genau auf der Falz mit kräftigeren Strichen oben und unten: Schneiden und falten Sie an ihr, statt vom Papierrand aus zu messen, den ein Drucker verschoben haben kann. Dort schreibt niemand, und Sie können die Broschüre an beliebiger Stelle innerhalb dieses 12-mm-Bands entlang der Falz aufschneiden; ein leicht schiefer Schnitt schadet also nicht. Der Text beginnt 8 mm von der Falz. Die Abschneide-Ecke wird wie bisher abgeschnitten.
 
 Wie Sie diese Blätter scannen: [Den Stapel scannen](./scanning#scan).
+
+## Zusatzpapier {#extra-paper}
+
+Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Reiter **Layout** die Gruppe **Schreibplatz**:
+
+- **Papier zum Schreiben**: **Kariert** (5 mm, Standard für neue Prüfungen), **Liniert** (8 mm) oder **Leer**. Es gilt für jeden Schreibplatz: den Rest der letzten Seite, die Zusatzseiten und die Zusatzblätter. Das Muster ist hellgrau, darüber Geschriebenes bleibt gut lesbar.
+- **Überschrift** und **Hinweis** des Schreibplatzes (vorbelegt mit „Platz für weitere Lösungen“ und einem kurzen Hinweis, auf Deutsch gedruckt). Sie stehen über dem Feld am Ende und über jeder Zusatzseite; der Hinweis steht in der Zeile der Überschrift.
+- <a id="extra-space"></a>**Rest der letzten Seite füllen**: Der Schülerbogen endet mit einem Schreibfeld zwischen einer **Mindesthöhe** und einer **Maximalhöhe** in cm. Es füllt den Rest der letzten Seite. Passt nicht einmal die Mindesthöhe, nimmt es stattdessen eine ganze neue Seite ein. Der Erwartungshorizont enthält es nicht.
+- **Zusatzseiten (mindestens)** (0 bis 20): ganze Seiten zum Schreiben nach der Punktetabelle, für Lehrkräfte, die eine kompakte Angabe und freies Papier für die Lösungen bevorzugen. Das ist ein Mindestwert: Das gedruckte Exemplar bekommt weitere, bis es ganze Blätter füllt (siehe [Mehrere Blätter](#multi-sheet)). Sie gehören zu jedem Exemplar wie jede andere Seite: Seitencodes, Aufkleberfelder, personalisierte Exemplare und der Scan behandeln sie als Prüfungsseiten.
+**Zusatzblätter auf Vorrat.** Der Schritt **Drucken** zeigt immer die Karte **Zusatzblatt (Vorrat)**. **Druckdateien erstellen** erzeugt dabei auch ein beidseitiges Blatt im Papier der Prüfung; drucken Sie so viele, wie Sie möchten, und bewahren Sie sie für jede Prüfung auf. Das Blatt trägt keinen Prüfungstitel. Sein Code oben sagt nur „Zusatzblatt“; der QR-Aufkleber des Schülers vorne sagt, wem es gehört.
+
+**Loses Papier geht auch.** Ein Schüler kann auch auf ein beliebiges Blatt schreiben, solange sein QR-Aufkleber darauf klebt. In Prüfungen mit Seitencode steht es nach den Prüfungsseiten dieses Schülers, und der Scan meldet es als angehängte Seite.
+
+**Aufkleber für Zusatzpapier.** Der Aufkleberbogen enthält dafür keine Reserve. Nimmt ein Schüler Zusatzpapier, drucken Sie ihm einen neuen Aufkleber; ein Nachdruck ergibt immer denselben Code.
+
+**Zusatzpapier scannen.** Scannen Sie Zusatzblätter mit der Prüfung oder später für sich. Sie stehen immer nach den Prüfungsseiten des Schülers; später gescannte Seiten werden an seinen vorhandenen Scan angehängt, die Korrektur bleibt erhalten. Die Rückseite eines Zusatzblatts hat kein Aufkleberfeld und folgt ihrer Vorderseite: Scannen Sie beide Seiten zusammen.
 
 ## Setzen {#typeset}
 

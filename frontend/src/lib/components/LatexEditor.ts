@@ -96,8 +96,9 @@ export const latexHighlightStyle = HighlightStyle.define([
 export function createLatexTheme(dark: boolean): Extension {
   return EditorView.theme(
     {
+      // The OptionTile look (issue #228): sunken box, focused like a selected tile.
       "&": {
-        backgroundColor: "var(--color-control)",
+        backgroundColor: "var(--color-surface-sunken)",
         color: "var(--color-content)",
         borderRadius: "0.375rem",
         border: "1px solid var(--color-line-strong)",
@@ -105,7 +106,9 @@ export function createLatexTheme(dark: boolean): Extension {
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
       },
       "&.cm-focused": {
-        outline: "2px solid var(--color-focus)",
+        backgroundColor: "var(--color-highlight)",
+        borderColor: "var(--color-primary)",
+        outline: "2px solid var(--color-primary)",
         outlineOffset: "-1px"
       },
       ".cm-content": {
@@ -117,7 +120,7 @@ export function createLatexTheme(dark: boolean): Extension {
         lineHeight: "1.5rem"
       },
       ".cm-gutters": {
-        backgroundColor: "var(--color-control)",
+        backgroundColor: "transparent",
         color: "var(--color-muted)",
         borderRight: "1px solid var(--color-line-strong)",
         borderRadius: "0.375rem 0 0 0.375rem"

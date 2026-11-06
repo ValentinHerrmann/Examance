@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { printFileKey, printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
+import { clampBookletOffset, clampExtraPages, printFileKey, printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
 import { printStamps } from '../src/lib/exam/examChecks';
 
-const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, padding: 'workspace', layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', ...patch });
+const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false, ...patch });
 
 describe('print settings (issue #220)', () => {
   it('reads older exams as the old layout', () => {
-    expect(printSettingsOf({})).toEqual({ pageCodes: false, padding: 'none', layout: 'duplex', mode: 'stickers', stickerSpots: 'cover' });
+    expect(printSettingsOf({})).toEqual({ pageCodes: false, layout: 'duplex', mode: 'stickers', stickerSpots: 'cover', paperStyle: 'empty', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false });
   });
 
   it('falls back to a spot choice the layout offers', () => {
@@ -42,5 +42,41 @@ describe('print settings (issue #220)', () => {
     expect(plain('a')).toBe(plain('b'));
     expect(plain('a')).toBe(printStamps('a', 'students').qr);
     expect(spots('a')).not.toBe(spots('b'));
+  });
+});
+
+describe('extra paper settings (issue #228)', () => {
+  it('reads unknown paper as empty and clamps the extra pages to 0..20', () => {
+    expect(printSettingsOf({ paperStyle: 'dotted' as never }).paperStyle).toBe('empty');
+    expect(printSettingsOf({ paperStyle: 'lined' }).paperStyle).toBe('lined');
+    expect([clampExtraPages(-3), clampExtraPages('4'), clampExtraPages(2.7), clampExtraPages(99), clampExtraPages('x')]).toEqual([0, 4, 2, 20, 0]);
+  });
+
+  it('keys the extra sheet by its paper', () => {
+    expect(printFileKey('extra', null, 0, 'lined')).not.toBe(printFileKey('extra', null, 0, 'squared'));
+  });
+});
+
+describe('booklet offset (issue #228)', () => {
+  it('keeps the shift in half millimetres within ±10 mm', () => {
+    expect(clampBookletOffset('1,3')).toBe(1.5);
+    expect(clampBookletOffset(-14)).toBe(-10);
+    expect(clampBookletOffset('x')).toBe(0);
+    expect(Object.is(clampBookletOffset('-0.1'), -0)).toBe(false);
+  });
+
+  it('makes imposed sheets again for a new shift, other files not', () => {
+    expect(printFileKey('exam', 'impose', 0, 'empty', 1.5)).not.toBe(printFileKey('exam', 'impose', 0, 'empty', 0));
+    expect(printFileKey('exam', 'printer', 0, 'empty', 1.5)).toBe(printFileKey('exam', 'printer', 0, 'empty', 0));
+  });
+});
+
+describe('digital grading off (issue #228)', () => {
+  it('prints no scan aids, a name line and no personalised copies', async () => {
+    const { withExamOptions } = await import('../src/lib/exam/examPreview');
+    const exam = { pageCodes: true, printMode: 'copies', digitalGrading: false, resultsQrBox: true } as const;
+    expect(printSettingsOf(exam).mode).toBe('stickers');
+    expect(withExamOptions('sans', exam).split(',')).toEqual(expect.arrayContaining(['namenszeile', 'ohnescan', 'ergebnisqr']));
+    expect(withExamOptions('sans', { pageCodes: true })).not.toContain('ohnescan');
   });
 });

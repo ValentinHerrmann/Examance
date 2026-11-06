@@ -10716,16 +10716,6 @@
             "title": "Print Layout",
             "default": "duplex"
           },
-          "padding_pages": {
-            "type": "string",
-            "enum": [
-              "none",
-              "blank",
-              "workspace"
-            ],
-            "title": "Padding Pages",
-            "default": "none"
-          },
           "sticker_spots": {
             "type": "string",
             "enum": [
@@ -10745,6 +10735,40 @@
             ],
             "title": "Print Mode",
             "default": "stickers"
+          },
+          "paper_style": {
+            "type": "string",
+            "enum": [
+              "empty",
+              "squared",
+              "lined"
+            ],
+            "title": "Paper Style",
+            "default": "empty"
+          },
+          "extra_pages": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Extra Pages",
+            "default": 0
+          },
+          "booklet_offset_mm": {
+            "type": "number",
+            "maximum": 10.0,
+            "minimum": -10.0,
+            "title": "Booklet Offset Mm",
+            "default": 0
+          },
+          "digital_grading": {
+            "type": "boolean",
+            "title": "Digital Grading",
+            "default": true
+          },
+          "results_qr_box": {
+            "type": "boolean",
+            "title": "Results Qr Box",
+            "default": false
           },
           "extra_notes": {
             "anyOf": [
@@ -11218,16 +11242,6 @@
             "title": "Print Layout",
             "default": "duplex"
           },
-          "padding_pages": {
-            "type": "string",
-            "enum": [
-              "none",
-              "blank",
-              "workspace"
-            ],
-            "title": "Padding Pages",
-            "default": "none"
-          },
           "sticker_spots": {
             "type": "string",
             "enum": [
@@ -11247,6 +11261,40 @@
             ],
             "title": "Print Mode",
             "default": "stickers"
+          },
+          "paper_style": {
+            "type": "string",
+            "enum": [
+              "empty",
+              "squared",
+              "lined"
+            ],
+            "title": "Paper Style",
+            "default": "empty"
+          },
+          "extra_pages": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Extra Pages",
+            "default": 0
+          },
+          "booklet_offset_mm": {
+            "type": "number",
+            "maximum": 10.0,
+            "minimum": -10.0,
+            "title": "Booklet Offset Mm",
+            "default": 0
+          },
+          "digital_grading": {
+            "type": "boolean",
+            "title": "Digital Grading",
+            "default": true
+          },
+          "results_qr_box": {
+            "type": "boolean",
+            "title": "Results Qr Box",
+            "default": false
           },
           "extra_notes": {
             "anyOf": [
@@ -11548,22 +11596,6 @@
             ],
             "title": "Print Layout"
           },
-          "padding_pages": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "none",
-                  "blank",
-                  "workspace"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Padding Pages"
-          },
           "sticker_spots": {
             "anyOf": [
               {
@@ -11595,6 +11627,70 @@
               }
             ],
             "title": "Print Mode"
+          },
+          "paper_style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "empty",
+                  "squared",
+                  "lined"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Style"
+          },
+          "extra_pages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Pages"
+          },
+          "booklet_offset_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10.0,
+                "minimum": -10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booklet Offset Mm"
+          },
+          "digital_grading": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digital Grading"
+          },
+          "results_qr_box": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Results Qr Box"
           },
           "extra_notes": {
             "anyOf": [
@@ -12639,6 +12735,11 @@
             "maximum": 25.0,
             "minimum": 1.0,
             "title": "Max Height Cm"
+          },
+          "fill": {
+            "type": "boolean",
+            "title": "Fill",
+            "default": true
           }
         },
         "type": "object",
@@ -12648,7 +12749,7 @@
           "max_height_cm"
         ],
         "title": "ExtraNotes",
-        "description": "Karo block at the end of the exam; heights in cm, the layout fills the page within them."
+        "description": "The writing space's heading and note and the rest-of-page area (issues #156, #228); heights in cm, the layout fills the page within them."
       },
       "ForgotPasswordRequest": {
         "properties": {

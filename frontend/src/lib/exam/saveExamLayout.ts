@@ -5,6 +5,7 @@ import { api } from '#lib/api/client';
 import { saveExamEncrypted } from '#lib/db/dbEncryption';
 import type { ExamRecord } from '#lib/db/schema';
 import { isAuthenticated, sessionStore } from '#lib/stores/session';
+import { extraNotesToApi } from '#lib/repositories/examRepository';
 
 const API_FIELDS = {
   infoText: 'info_text',
@@ -12,10 +13,15 @@ const API_FIELDS = {
   mcCorrectionHint: 'mc_correction_hint',
   latexPackages: 'latex_packages',
   pageCodes: 'page_codes',
-  paddingPages: 'padding_pages',
   printLayout: 'print_layout',
   printMode: 'print_mode',
   stickerSpots: 'sticker_spots',
+  paperStyle: 'paper_style',
+  extraPages: 'extra_pages',
+  bookletOffsetMm: 'booklet_offset_mm',
+  digitalGrading: 'digital_grading',
+  resultsQrBox: 'results_qr_box',
+  extraNotes: 'extra_notes',
 } as const satisfies Partial<Record<keyof ExamRecord, string>>;
 
 export type ExamLayoutPatch = Partial<Pick<ExamRecord, keyof typeof API_FIELDS>>;
@@ -25,6 +31,7 @@ export async function saveExamLayout(exam: ExamRecord, patch: ExamLayoutPatch): 
   if (get(isAuthenticated)) {
     const body: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(patch)) body[API_FIELDS[field as keyof typeof API_FIELDS]] = value;
+    if (patch.extraNotes !== undefined) body.extra_notes = extraNotesToApi(patch.extraNotes);
     await api.patch(`/exams/${exam.id}`, body);
   }
   const updated: ExamRecord = { ...exam, ...patch };

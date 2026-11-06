@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Badge, Radio, Switch } from "#lib/components/ui";
+  import { faGear, faSliders } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Badge, OptionTile, Switch } from "#lib/components/ui";
   import { exerciseEntries, type LatexPackageEntry, type PackageLayer } from "#lib/latex/packages";
   import { fetchAccountPackages } from "#lib/latex/packageSettings";
   import PackageEntriesEditor from "./PackageEntriesEditor.svelte";
@@ -69,24 +70,14 @@
     <Alert severity="danger" onDismiss={() => (error = "")}>{error}</Alert>
   {/if}
 
-  <div class="flex flex-col gap-2">
-    <Radio
-      name="examPackageMode"
-      value="account"
-      group={custom ? "custom" : "account"}
-      onchange={() => (packages = null)}
-      label={$t("latexPackages.exam.account")}
-    />
-    <Radio
-      name="examPackageMode"
-      value="custom"
-      group={custom ? "custom" : "account"}
-      onchange={() => (packages = packages ?? [])}
-      label={$t("latexPackages.exam.custom")}
-    />
+  <div class="@container" role="radiogroup" aria-label={$t("latexPackages.exam.heading")}>
+    <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
+      <OptionTile compact name="examPackageMode" value="account" checked={!custom} icon={faGear} title={$t("latexPackages.exam.account")} text={$t("latexPackages.exam.accountText")} onchange={() => (packages = null)} />
+      <OptionTile compact name="examPackageMode" value="custom" checked={custom} icon={faSliders} title={$t("latexPackages.exam.custom")} text={$t("latexPackages.exam.customText")} onchange={() => (packages = packages ?? [])} />
+    </div>
   </div>
 
-  <div class="ml-7 flex min-w-0 flex-col gap-3">
+  <div class="flex min-w-0 flex-col gap-3">
     <div class="flex min-w-0 flex-col gap-1">
       <p class="m-0 text-xs font-medium text-muted">{$t("latexPackages.exam.inherited")}</p>
       {#if account.length === 0}
