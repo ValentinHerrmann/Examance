@@ -84,8 +84,12 @@ async def test_exam_patch_clears_the_special_columns_only_when_sent(
 
     untouched = (await client.patch(url, json={"nr": "2"})).json()
     assert untouched["page_breaks"] == ["a", "b"]
-    assert untouched["extra_notes"] == notes
+    # A client that omits `fill` (issue #228) keeps the rest-of-page area on.
+    assert untouched["extra_notes"] == {**notes, "fill": True}
     assert [p["name"] for p in untouched["latex_packages"]] == ["siunitx"]
+
+    heading_only = (await client.patch(url, json={"extra_notes": {**notes, "fill": False}})).json()
+    assert heading_only["extra_notes"] == {**notes, "fill": False}
 
     cleared = (
         await client.patch(
