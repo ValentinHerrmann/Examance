@@ -15,7 +15,7 @@
   import ExtraNotesField from "#lib/components/exam/ExtraNotesField.svelte";
   import { extraNotesKey, type ExtraNotes } from "#lib/db/schema";
   import SectionHeading from "#lib/components/help/SectionHeading.svelte";
-  import { faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faSignature, faTableCells, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
+  import { faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faSignature, faSquare, faTableCells, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import { CrossLink, Field, OptionTile, TextInput } from "#lib/components/ui";
 
   /** The exam's page layout (issues #212, #220, #228): info text, name line, cut-corner hint, MC correction legend, page codes, filler pages, extra paper, logo and LaTeX packages. Every change saves itself (no buttons); how the exam is printed lives on the Print step. */
@@ -37,6 +37,8 @@
   let nameLine = $state(false);
   let mcCorrectionHint = $state(false);
   let pageCodes = $state(false);
+  let digitalGrading = $state(true);
+  let resultsQrBox = $state(false);
   let paperStyle = $state<PaperStyle>("empty");
   /** The number field's text; saved clamped to 0..MAX_EXTRA_PAGES. */
   let extraPagesText = $state("0");
@@ -55,6 +57,8 @@
     mcCorrectionHint = exam.mcCorrectionHint === true;
     const print = printSettingsOf(exam);
     pageCodes = print.pageCodes;
+    digitalGrading = print.digitalGrading;
+    resultsQrBox = print.resultsQrBox;
     paperStyle = print.paperStyle;
     extraPagesText = String(print.extraPages);
     extraNotes = exam.extraNotes ?? null;
@@ -77,6 +81,8 @@
       nameLine: rec?.nameLine === true,
       mcCorrectionHint: rec?.mcCorrectionHint === true,
       pageCodes: print.pageCodes,
+      digitalGrading: print.digitalGrading,
+      resultsQrBox: print.resultsQrBox,
       paperStyle: print.paperStyle,
       extraPages: print.extraPages,
       extraNotes: extraNotesKey(rec?.extraNotes),
@@ -91,6 +97,8 @@
     if (nameLine !== saved.nameLine) patch.nameLine = nameLine;
     if (mcCorrectionHint !== saved.mcCorrectionHint) patch.mcCorrectionHint = mcCorrectionHint;
     if (pageCodes !== saved.pageCodes) patch.pageCodes = pageCodes;
+    if (digitalGrading !== saved.digitalGrading) patch.digitalGrading = digitalGrading;
+    if (resultsQrBox !== saved.resultsQrBox) patch.resultsQrBox = resultsQrBox;
     if (paperStyle !== saved.paperStyle) patch.paperStyle = paperStyle;
     if (extraPages !== saved.extraPages) patch.extraPages = extraPages;
     if (extraNotesKey(extraNotes) !== saved.extraNotes) patch.extraNotes = extraNotes;
@@ -99,7 +107,7 @@
   }
 
   // Every edit changes the key, so an edit made during a save schedules the next one (the hang of issue #228).
-  let editKey = $derived(JSON.stringify([infoText, nameLine, mcCorrectionHint, pageCodes, paperStyle, extraPages, extraNotesKey(extraNotes), packagesOf(latexPackages)]));
+  let editKey = $derived(JSON.stringify([infoText, nameLine, mcCorrectionHint, pageCodes, digitalGrading, resultsQrBox, paperStyle, extraPages, extraNotesKey(extraNotes), packagesOf(latexPackages)]));
   let pending = $derived(Object.keys(changes()).length > 0 || logoChange !== null);
 
   async function save() {
@@ -158,21 +166,31 @@
   });
 </script>
 
-{#snippet pair(id: string, legend: string, info: string, on: boolean, set: (on: boolean) => void, off: { title: string; text: string; icon: IconDefinition }, yes: { title: string; text: string; icon: IconDefinition })}
+{#snippet pair(id: string, legend: string, info: string, on: boolean, set: (on: boolean) => void, off: { title: string; text: string; icon: IconDefinition }, yes: { title: string; text: string; icon: IconDefinition }, disabled = false)}
   <!-- An on/off setting whose two cases need a word each (issue #228): two tiles, the "off" case first. -->
   <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby={id}>
     <SectionHeading {id} label={legend} {info} />
     <div class="@container">
       <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
-        <OptionTile compact name={id} value="off" checked={!on} icon={off.icon} title={off.title} text={off.text} onchange={() => set(false)} />
-        <OptionTile compact name={id} value="on" checked={on} icon={yes.icon} title={yes.title} text={yes.text} onchange={() => set(true)} />
+        <OptionTile compact name={id} value="off" checked={!on} {disabled} icon={off.icon} title={off.title} text={off.text} onchange={() => set(false)} />
+        <OptionTile compact name={id} value="on" checked={on} {disabled} icon={yes.icon} title={yes.title} text={yes.text} onchange={() => set(true)} />
       </div>
     </div>
   </div>
 {/snippet}
 
 <!-- Sections like the Print step's plan card (issue #228): a small heading with its explanation behind ⓘ, choices as tiles, two columns where the card is wide. -->
-<div class="@container">
+<div class="@container flex flex-col gap-5">
+  <!-- Teachers who grade on paper elsewhere print no scan aids (issue #228); everything else stays where it is. -->
+  <section class="flex flex-col gap-2" aria-labelledby="layout-grading">
+    <SectionHeading id="layout-grading" tag="h3" label={$t("exam.layout.grading.heading")} info={$t("exam.layout.grading.info")} />
+    <div class="grid grid-cols-1 gap-2 @3xl:grid-cols-2">
+      <OptionTile type="checkbox" compact checked={digitalGrading} icon={faQrcode} title={$t("exam.layout.grading.digital")} text={$t("exam.layout.grading.digitalText")} onToggle={(on) => (digitalGrading = on)} />
+      {#if !digitalGrading}
+        <OptionTile type="checkbox" compact checked={resultsQrBox} icon={faSquare} title={$t("exam.layout.grading.resultsQr")} text={$t("exam.layout.grading.resultsQrText")} onToggle={(on) => (resultsQrBox = on)} />
+      {/if}
+    </div>
+  </section>
   <div class="grid grid-cols-1 gap-x-6 gap-y-5 @3xl:grid-cols-2">
     <div class="flex min-w-0 flex-col gap-5">
       <section class="flex flex-col gap-3" aria-labelledby="layout-cover">
@@ -180,7 +198,7 @@
         <Field label={$t("exam.metadataEditor.infoText")}>
           <LatexEditor bind:value={infoText} rows={4} />
         </Field>
-        {@render pair("layout-name", $t("exam.layout.choices.nameLegend"), $t("exam.metadataEditor.nameLineHint"), nameLine, (on) => (nameLine = on), { title: $t("exam.layout.choices.nameQr"), text: $t("exam.layout.choices.nameQrText"), icon: faQrcode }, { title: $t("exam.layout.choices.nameLine"), text: $t("exam.layout.choices.nameLineText"), icon: faSignature })}
+        {@render pair("layout-name", $t("exam.layout.choices.nameLegend"), $t("exam.metadataEditor.nameLineHint"), nameLine || !digitalGrading, (on) => (nameLine = on), { title: $t("exam.layout.choices.nameQr"), text: $t("exam.layout.choices.nameQrText"), icon: faQrcode }, { title: $t("exam.layout.choices.nameLine"), text: $t("exam.layout.choices.nameLineText"), icon: faSignature }, !digitalGrading)}
         {#key resetSeq}
           <ExamLogoField examId={exam.id} bind:change={logoChange} />
         {/key}
@@ -189,7 +207,7 @@
       <!-- Every exam keeps the cut-off corner (issue #211); page codes shape every sheet (issue #220); how it is printed is set on the Print step. -->
       <section class="flex flex-col gap-3" aria-labelledby="layout-sheet">
         <SectionHeading id="layout-sheet" tag="h3" label={$t("exam.layout.sections.sheet")} info={$t("exam.layout.sections.sheetInfo")} />
-        {@render pair("layout-codes", $t("exam.layout.choices.codesLegend"), $t("exam.layout.print.pageCodesInfo"), pageCodes, (on) => (pageCodes = on), { title: $t("exam.layout.choices.codesCover"), text: $t("exam.layout.choices.codesCoverText"), icon: faFileLines }, { title: $t("exam.layout.choices.codesAll"), text: $t("exam.layout.choices.codesAllText"), icon: faQrcode })}
+        {@render pair("layout-codes", $t("exam.layout.choices.codesLegend"), $t("exam.layout.print.pageCodesInfo"), pageCodes, (on) => (pageCodes = on), { title: $t("exam.layout.choices.codesCover"), text: $t("exam.layout.choices.codesCoverText"), icon: faFileLines }, { title: $t("exam.layout.choices.codesAll"), text: $t("exam.layout.choices.codesAllText"), icon: faQrcode }, !digitalGrading)}
         <OptionTile type="checkbox" compact checked={mcCorrectionHint} icon={faPenToSquare} title={$t("exam.layout.choices.mcHint")} text={$t("exam.layout.choices.mcHintText")} onToggle={(on) => (mcCorrectionHint = on)}>
           {#snippet titleExtra()}<InfoTip text={$t("exam.metadataEditor.mcCorrectionHintHint")} />{/snippet}
         </OptionTile>

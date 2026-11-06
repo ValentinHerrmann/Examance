@@ -81,21 +81,38 @@ function docId(doc: PDFDocument): number {
   return nextDocId;
 }
 
-/** True for an unrotated landscape page of about A3 size: an unfolded booklet sheet holding two A4 pages. A4 landscape (842 pt wide) stays whole. */
-export function isA3Landscape(page: PDFPage): boolean {
+/** The page as displayed (after its /Rotate) is wider than tall: possibly an uncut booklet sheet, whatever size the scanner stored. */
+export function isLandscape(page: PDFPage): boolean {
   const { width, height } = page.getSize();
-  return page.getRotation().angle % 360 === 0 && width > height && width > 1000 && Math.abs(width / height - Math.SQRT2) < 0.08;
+  const turned = Math.abs(page.getRotation().angle % 180) === 90;
+  return (turned ? height : width) > (turned ? width : height) * 1.2;
 }
 
-/** The two A4 halves of an A3 page, appended to *into* as lossless page embeds (nothing re-rendered); left half first. */
+/** True for a landscape page of about A3 size: an unfolded booklet sheet holding two A4 pages, split without looking at its codes. A4 landscape (842 pt wide) stays whole. */
+export function isA3Landscape(page: PDFPage): boolean {
+  const { width, height } = page.getSize();
+  const turned = Math.abs(page.getRotation().angle % 180) === 90;
+  const [w, h] = turned ? [height, width] : [width, height];
+  return w > h && w > 1000 && Math.abs(w / h - Math.SQRT2) < 0.08;
+}
+
+/** The displayed left and right halves of a landscape page, appended to *into* as lossless page embeds (nothing re-rendered) that keep the page's rotation; left half first. */
 export async function splitA3(into: PDFDocument, page: PDFPage): Promise<[number, number]> {
   const { width, height } = page.getSize();
-  const half = width / 2;
-  const [left, right] = await into.embedPages([page, page], [
-    { left: 0, bottom: 0, right: half, top: height },
-    { left: half, bottom: 0, right: width, top: height },
-  ]);
-  for (const part of [left, right]) into.addPage([half, height]).drawPage(part, { x: 0, y: 0 });
+  const angle = ((page.getRotation().angle % 360) + 360) % 360;
+  // Media-box halves holding the displayed left and right halves for each rotation.
+  const byX = angle === 0 || angle === 180;
+  const low = byX ? { left: 0, bottom: 0, right: width / 2, top: height } : { left: 0, bottom: 0, right: width, top: height / 2 };
+  const high = byX ? { left: width / 2, bottom: 0, right: width, top: height } : { left: 0, bottom: height / 2, right: width, top: height };
+  const [first, second] = angle === 0 || angle === 90 ? [low, high] : [high, low];
+  const size: [number, number] = byX ? [width / 2, height] : [width, height / 2];
+  const { degrees } = await import('pdf-lib');
+  const [left, right] = await into.embedPages([page, page], [first, second]);
+  for (const part of [left, right]) {
+    const half = into.addPage(size);
+    half.drawPage(part, { x: 0, y: 0 });
+    if (angle) half.setRotation(degrees(angle));
+  }
   const last = into.getPageCount();
   return [last - 2, last - 1];
 }

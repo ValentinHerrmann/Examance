@@ -16,7 +16,7 @@ import type { QrWorkerRequest, QrWorkerResponse } from "#lib/workers/qrWorker";
 import { qrResultOf, type QrResult } from "#lib/scan/qrText";
 import { examTag, isExtraSheetCode, parsePageCode } from "#lib/exam/pageCodes";
 import { submissionRepository } from "#lib/repositories/submissionRepository";
-import { addPlaceholderPage, attachOriginals, carryAttachments, halfImage, isA3Landscape, placeholderOf, splitA3 } from "#lib/scan/scanPdf";
+import { addPlaceholderPage, attachOriginals, carryAttachments, halfImage, isA3Landscape, isLandscape, placeholderOf, splitA3 } from "#lib/scan/scanPdf";
 import type {
   OmrExerciseAnswerKey,
   OmrExerciseResult,
@@ -362,14 +362,19 @@ class ScanPass {
       const imageData = await renderPage(page, viewport); // NOSONAR: one page at a time keeps only one page's pixels alive
       const libPage = pdfLibDoc.getPage(pIdx - 1);
 
-      if (isA3Landscape(libPage)) {
+      // Right half first: a sheet's front right page (2s+1) carries its sticker spot, so its left half follows the right student.
+      const landscape = isLandscape(libPage);
+      const rightImage = landscape ? halfImage(imageData, "right") : null;
+      const leftImage = landscape ? halfImage(imageData, "left") : null;
+      // Any other landscape scan is a booklet sheet when both halves carry a page code (scanners store A3 rotated, scaled or cropped).
+      const spread = rightImage && leftImage && (isA3Landscape(libPage) || (await this.halvesCoded(rightImage, leftImage)));
+      if (rightImage && leftImage && spread) {
         // An unfolded booklet sheet: each half is its own page; the A3 original stays with the scan.
         halves ??= await PDFDocClass.create(); // NOSONAR: one shared document for every split half
         const [left, right] = await splitA3(halves, libPage); // NOSONAR: sequential on purpose
         const original = { doc: pdfLibDoc, index: pIdx - 1 };
-        // Right half first: a sheet's front right page (2s+1) carries its sticker spot, so its left half follows the right student.
-        await this.processPage(fileName, halfImage(imageData, "right"), { doc: halves, index: right, original }); // NOSONAR: one page at a time
-        await this.processPage(fileName, halfImage(imageData, "left"), { doc: halves, index: left, original }, false); // NOSONAR: one page at a time
+        await this.processPage(fileName, rightImage, { doc: halves, index: right, original }); // NOSONAR: one page at a time
+        await this.processPage(fileName, leftImage, { doc: halves, index: left, original }, false); // NOSONAR: one page at a time
       } else {
         // Scan and group immediately, dropping imageData after use
         await this.processPage(fileName, imageData, { doc: pdfLibDoc, index: pIdx - 1 }, true, () => this.decodeCodeSpots(page)); // NOSONAR: one page at a time keeps only one page's pixels alive
@@ -379,6 +384,15 @@ class ScanPass {
     }
 
     await source.loadingTask.destroy();
+  }
+
+  /** Both halves of a landscape scan hold a page code of any exam. */
+  private async halvesCoded(right: ImageData, left: ImageData): Promise<boolean> {
+    if (!this.deps.qrPool) return false;
+    for (const half of [right, left]) {
+      if (!(await decodeQr(this.deps.qrPool, half)).some((t) => parsePageCode(t))) return false; // NOSONAR: one half at a time
+    }
+    return true;
   }
 
   /** Renders the page code's two possible spots (odd and even pages) closer and decodes them: a code the full-page pass missed is usually read there. */

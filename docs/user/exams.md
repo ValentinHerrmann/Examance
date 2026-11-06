@@ -74,6 +74,10 @@ Groups are layout only: grading and statistics stay strictly per question.
 
 Layout settings live on the **Layout** tab of the **Exam** step: info text, name line, cut-off corner hint, the multiple choice correction legend, [printing on several sheets](#multi-sheet), logo and LaTeX packages. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
 
+### Grading outside Examance {#digital-grading}
+
+If you only create the exam with Examance and grade it on paper, switch off **Grade in Examance** at the top of the **Layout** tab. The exam then prints no corner markers, page codes, cut lines or sticker spots, and page 1 gets a name line. Everything else stays exactly where it is. With **Box for a results QR code** page 1 keeps one sticker box, for example to send results with DiRueLei. Scanning and personalised copies are greyed out for such an exam. Paper grading and the statistics stay available.
+
 ### Name line {#name-line}
 
 With **Print a name line next to the QR code box** (when creating the exam or on the **Layout** tab), the title page gets a line for the student's name. The QR code box stays where it is, so scanning and assignment work as before; only the initials field inside the box is dropped.

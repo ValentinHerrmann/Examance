@@ -15,6 +15,8 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 | `paper_style` | `empty`, `squared`, `lined` | `squared` | Layout tab | `papierkaro` / `papierlinien` |
 | `extra_pages` | int 0–20 | `0` | Layout tab | `\Zusatzseiten{n}` |
 | `booklet_offset_mm` | float −10…10 | `0` | Print step | none (applied by `imposeBooklet`) |
+| `digital_grading` | bool | `true` | Layout tab | off: `ohnescan` + `namenszeile` (no markers, page codes, cut lines, sticker spots; their room is kept) |
+| `results_qr_box` | bool | `false` | Layout tab (only when `digital_grading` is off) | `ergebnisqr` (page 1 keeps the dashed box) |
 
 - The server defaults are the old layout, so older exams compile unchanged. Migration 0059 also:
   - moves the old print-plan mode (`step_checks.printPlan.mode`, issue #212) into `print_mode`;
@@ -106,6 +108,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
     - a page of another exam: its own unmatched booklet;
     - an extra sheet (`EXM1:X`): `extra`; never foreign, never read as a sticker, the student comes from the sticker or, on the back, from the page before;
     - an ID nobody has: an unmatched booklet `ID-<id>`, plus a warning.
+- **Uncut booklet sheets**: a page that looks like A3 (after its `/Rotate`) is split straight away. Any other landscape page is split when both halves of its render carry a page code, so rotated, scaled or cropped scanner output works too (`isLandscape`, `ScanPass.halvesCoded`).
 - **A3 sheets** are split into lossless A4 halves, right half first. The front-right page carries the sticker spot, so the left half follows the right student. The A3 originals are attached to the student's scan as `original-scan.pdf`. Every rebuild copies the attachment: the manual split, and `renderGradedPdf`.
 - **Order** (`bookletLayout`):
   - pages go to slot `page`;

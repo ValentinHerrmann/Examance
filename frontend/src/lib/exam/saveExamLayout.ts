@@ -19,6 +19,8 @@ const API_FIELDS = {
   paperStyle: 'paper_style',
   extraPages: 'extra_pages',
   bookletOffsetMm: 'booklet_offset_mm',
+  digitalGrading: 'digital_grading',
+  resultsQrBox: 'results_qr_box',
   extraNotes: 'extra_notes',
 } as const satisfies Partial<Record<keyof ExamRecord, string>>;
 

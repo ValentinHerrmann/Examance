@@ -329,3 +329,15 @@ async def test_exam_step_checks_stay_unless_sent_and_clear_on_empty(
     assert saved["step_checks"] == checks
     assert (await client.patch(url, json={"nr": "2"})).json()["step_checks"] == checks
     assert (await client.patch(url, json={"step_checks": {}})).json()["step_checks"] is None
+
+
+@pytest.mark.asyncio
+async def test_exam_digital_grading_switch_round_trips(client: AsyncClient, db: AsyncSession) -> None:
+    await sign_in(client, db, "digital-grading@example.com")
+    exam = await _exam(client)
+    assert (exam["digital_grading"], exam["results_qr_box"]) == (True, False)
+
+    # Issue #228: an exam graded outside Examance prints no scan aids.
+    url = f"{EXAMS}/{exam['id']}"
+    body = (await client.patch(url, json={"digital_grading": False, "results_qr_box": True})).json()
+    assert (body["digital_grading"], body["results_qr_box"]) == (False, True)

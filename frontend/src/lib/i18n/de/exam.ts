@@ -232,6 +232,15 @@ export const exam = {
             sheet: 'Antwortbogen',
             sheetInfo: 'Was jede Seite für den Scan trägt: den Hinweis, wie man ein Kreuz korrigiert, und den Seitencode. Jede Seite behält die Abschneide-Ecke; wie gedruckt wird (beidseitig oder Broschüre, Aufkleber), wählen Sie im Schritt Drucken.',
         },
+        grading: {
+            heading: 'Bewertung',
+            info: 'Ausgeschaltet druckt die Arbeit keine Eckmarkierungen, Seitencodes, Schnittlinien oder Aufkleberfelder, und auf Seite 1 steht eine Namenszeile. Alles andere bleibt an seinem Platz. Scannen und automatische MC-Auswertung sind dann für diese Arbeit nicht verfügbar.',
+            digital: 'In Examance korrigieren',
+            digitalText: 'QR-Codes, Eckmarkierungen und Schnittlinien zum Scannen',
+            resultsQr: 'Feld für einen Ergebnis-QR-Code',
+            resultsQrText: 'Ein Aufkleberfeld auf Seite 1, um Ergebnisse z. B. mit DiRueLei zu verschicken',
+            off: 'Für diese Arbeit ist die Korrektur in Examance ausgeschaltet (Schritt Layout).',
+        },
         paper: {
             heading: 'Schreibplatz',
             style: 'Papier zum Schreiben',

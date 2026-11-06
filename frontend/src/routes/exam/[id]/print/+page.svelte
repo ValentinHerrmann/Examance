@@ -38,7 +38,8 @@
 
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
-  let withheld = $derived(ctx ? copiesUnavailable(ctx.exercises) : null);
+  // Personalised copies stamp page codes and QR codes, which an exam graded outside Examance does not print.
+  let withheld = $derived(ctx?.exam.digitalGrading === false ? translate("exam.layout.grading.off") : ctx ? copiesUnavailable(ctx.exercises) : null);
   let hasMc = $derived(ctx ? resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups).length > 0 : false);
   let title = $derived(ctx?.exam.title || $t("exam.nav.examFallback"));
 

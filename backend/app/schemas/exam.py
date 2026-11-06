@@ -231,6 +231,8 @@ class ExamCreate(BaseModel):
     paper_style: PaperStyle = "empty"
     extra_pages: ExtraPages = 0
     booklet_offset_mm: BookletOffset = 0
+    digital_grading: bool = True
+    results_qr_box: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
@@ -285,6 +287,8 @@ class ExamUpdate(BaseModel):
     paper_style: PaperStyle | None = None
     extra_pages: ExtraPages | None = None
     booklet_offset_mm: BookletOffset | None = None
+    digital_grading: bool | None = None
+    results_qr_box: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     # Absent keeps the stored ticks; null or {} clears them.
@@ -329,6 +333,8 @@ class ExamResponse(BaseModel):
     paper_style: PaperStyle = "empty"
     extra_pages: ExtraPages = 0
     booklet_offset_mm: BookletOffset = 0
+    digital_grading: bool = True
+    results_qr_box: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     pseudonym_version: int = 1

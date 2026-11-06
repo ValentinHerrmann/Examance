@@ -74,6 +74,9 @@ export interface ZipExamSettings {
   extraPages?: number;
   /** Booklet print shift in mm (issue #228); absent = 0. */
   bookletOffsetMm?: number;
+  /** Graded outside Examance when false (issue #228); absent = true. */
+  digitalGrading?: boolean;
+  resultsQrBox?: boolean;
   extraNotes?: ExtraNotes | null;
 }
 

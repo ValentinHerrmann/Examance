@@ -21,12 +21,16 @@ export interface PrintSettings {
   extraPages: number;
   /** Shift of imposed A3 booklet sheets in mm, positive to the right, within ±MAX_BOOKLET_OFFSET (issue #228). */
   bookletOffsetMm: number;
+  /** Graded in Examance (scans, OMR); false prints no scan aids (issue #228). */
+  digitalGrading: boolean;
+  /** Without digital grading: one results QR sticker box on page 1. */
+  resultsQrBox: boolean;
 }
 
-type PrintFields = Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm'>;
+type PrintFields = Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox'>;
 
 /** What a new exam starts with; older exams read as no page codes, a cover sticker and empty writing paper. */
-export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0 } as const satisfies PrintFields;
+export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false } as const satisfies PrintFields;
 
 const SPOTS: ReadonlySet<string> = new Set<StickerSpots>(['cover', 'sheet', 'a3', 'leaf']);
 const PAPER: ReadonlySet<string> = new Set<PaperStyle>(['empty', 'squared', 'lined']);
@@ -52,11 +56,14 @@ export function printSettingsOf(exam: PrintFields): PrintSettings {
   return {
     pageCodes: exam.pageCodes === true,
     layout,
-    mode: exam.printMode === 'copies' ? 'copies' : 'stickers',
+    // Personalised copies need the scan aids an exam graded outside Examance leaves out.
+    mode: exam.printMode === 'copies' && exam.digitalGrading !== false ? 'copies' : 'stickers',
     stickerSpots: spotsFor(layout, spots),
     paperStyle: PAPER.has(exam.paperStyle ?? '') ? (exam.paperStyle as PaperStyle) : 'empty',
     extraPages: clampExtraPages(exam.extraPages),
     bookletOffsetMm: clampBookletOffset(exam.bookletOffsetMm),
+    digitalGrading: exam.digitalGrading !== false,
+    resultsQrBox: exam.digitalGrading === false && exam.resultsQrBox === true,
   };
 }
 

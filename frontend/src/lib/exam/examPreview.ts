@@ -140,7 +140,7 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
-type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "printMode" | "stickerSpots" | "paperStyle" | "extraPages">;
+type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "printMode" | "stickerSpots" | "paperStyle" | "extraPages" | "digitalGrading" | "resultsQrBox">;
 
 /** The Schulaufgabe.sty option of a writing-paper pattern (issue #228); empty paper sets none. */
 const PAPER_OPTION: Record<PaperStyle, string> = { empty: "", squared: "papierkaro", lined: "papierlinien" };
@@ -150,7 +150,9 @@ export function withExamOptions(options: string, layout: LayoutFields, { fill = 
   const print = printSettingsOf(layout);
   const filler = fill && !options.split(",").includes("antworten") && "fuellen";
   const multiSheet = [print.pageCodes && "seitencode", print.layout === "booklet" && "broschuere", filler, PAPER_OPTION[print.paperStyle]];
-  return [options, layout.nameLine && "namenszeile", ...multiSheet].filter(Boolean).join(",");
+  // Graded outside Examance: the scan aids go (their room stays), the student writes their name.
+  const offline = print.digitalGrading ? [] : ["ohnescan", print.resultsQrBox && "ergebnisqr"];
+  return [options, (layout.nameLine || !print.digitalGrading) && "namenszeile", ...multiSheet, ...offline].filter(Boolean).join(",");
 }
 
 /** The student sheet's page codes (lib/exam/pageCodes.ts) and sticker spots (sticker mode only, `stickerPagesOf`); the solution carries neither. */

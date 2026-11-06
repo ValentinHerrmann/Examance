@@ -160,6 +160,8 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
       paperStyle: exam.paperStyle ?? 'empty',
       extraPages: exam.extraPages ?? 0,
       bookletOffsetMm: exam.bookletOffsetMm ?? 0,
+      digitalGrading: exam.digitalGrading !== false,
+      resultsQrBox: exam.resultsQrBox ?? false,
       extraNotes: exam.extraNotes ?? null,
     },
     exercises: entries,

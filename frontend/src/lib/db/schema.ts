@@ -89,6 +89,10 @@ export interface ExamRecord extends MaybeUndecryptable {
   extraPages?: number;
   /** Shift of imposed A3 booklet sheets in mm, positive to the right (issue #228); absent = 0. */
   bookletOffsetMm?: number;
+  /** False when the exam is graded outside Examance: no corner markers, page codes, cut lines or sticker spots, a name line instead (issue #228); absent = true. */
+  digitalGrading?: boolean;
+  /** Without digital grading: page 1 keeps one box for a results QR sticker (DiRueLei); absent = false. */
+  resultsQrBox?: boolean;
   /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */
   extraNotes?: ExtraNotes | null;
   /** Ticks the teacher set by hand on the Print and MC steps (issue #212); written only through `examRepository.saveStepChecks`, never with the rest of the record. */

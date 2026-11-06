@@ -75,6 +75,10 @@ Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Fra
 
 Layout-Einstellungen liegen auf dem Reiter **Layout** im Schritt **Prüfung**: Infotext, Namenszeile, Hinweis zur Abschneide-Ecke, Korrekturhinweis für Multiple-Choice, [Drucken mit mehreren Blättern](#multi-sheet), Logo und LaTeX-Pakete. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
 
+### Korrektur außerhalb von Examance {#digital-grading}
+
+Wenn Sie die Arbeit nur mit Examance erstellen und auf Papier korrigieren, schalten Sie oben auf dem Reiter **Layout** **In Examance korrigieren** aus. Die Arbeit druckt dann keine Eckmarkierungen, Seitencodes, Schnittlinien oder Aufkleberfelder, und Seite 1 bekommt eine Namenszeile. Alles andere bleibt genau an seinem Platz. Mit **Feld für einen Ergebnis-QR-Code** behält Seite 1 ein Aufkleberfeld, z. B. um Ergebnisse mit DiRueLei zu verschicken. Scannen und personalisierte Exemplare sind für eine solche Arbeit ausgegraut. Die Papier-Korrektur und die Statistik bleiben verfügbar.
+
 ### Namenszeile {#name-line}
 
 Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung oder auf dem Reiter **Layout**) erhält die Titelseite eine Zeile für den Namen der Schülerin oder des Schülers. Das QR-Code-Feld bleibt an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; nur das Initialenfeld im Feld entfällt.

@@ -125,6 +125,8 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
                 "paper_style": exam.paper_style,
                 "extra_pages": exam.extra_pages,
                 "booklet_offset_mm": exam.booklet_offset_mm,
+                "digital_grading": exam.digital_grading,
+                "results_qr_box": exam.results_qr_box,
                 "extra_notes": exam.extra_notes,
                 "step_checks": exam.step_checks,
             }

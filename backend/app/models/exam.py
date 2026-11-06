@@ -74,6 +74,10 @@ class Exam(Base):
     extra_pages: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     # Horizontal shift of imposed A3 booklet sheets in mm (issue #228), so a printer that prints off-centre comes out centred.
     booklet_offset_mm: Mapped[float] = mapped_column(nullable=False, default=0.0, server_default="0")
+    # False when graded outside Examance (issue #228): no scan aids printed, a name line instead.
+    digital_grading: Mapped[bool] = mapped_column(nullable=False, default=True, server_default="true")
+    # Without digital grading: page 1 keeps one box for a results QR sticker.
+    results_qr_box: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Ticks the teacher sets by hand per step (print checklist, MC check); the client owns the shape.

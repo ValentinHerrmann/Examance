@@ -10760,6 +10760,16 @@
             "title": "Booklet Offset Mm",
             "default": 0
           },
+          "digital_grading": {
+            "type": "boolean",
+            "title": "Digital Grading",
+            "default": true
+          },
+          "results_qr_box": {
+            "type": "boolean",
+            "title": "Results Qr Box",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11276,6 +11286,16 @@
             "title": "Booklet Offset Mm",
             "default": 0
           },
+          "digital_grading": {
+            "type": "boolean",
+            "title": "Digital Grading",
+            "default": true
+          },
+          "results_qr_box": {
+            "type": "boolean",
+            "title": "Results Qr Box",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11649,6 +11669,28 @@
               }
             ],
             "title": "Booklet Offset Mm"
+          },
+          "digital_grading": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digital Grading"
+          },
+          "results_qr_box": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Results Qr Box"
           },
           "extra_notes": {
             "anyOf": [

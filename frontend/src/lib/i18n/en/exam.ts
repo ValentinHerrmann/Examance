@@ -234,6 +234,15 @@ export const exam: Translations['exam'] = {
             sheet: 'Answer sheet',
             sheetInfo: 'What every page carries for the scan: how to correct a cross, and the page code. Every page keeps the cut-off corner; how it is printed (double-sided or booklet, stickers) is chosen in the Print step.',
         },
+        grading: {
+            heading: 'Grading',
+            info: 'When off, the exam prints no corner markers, page codes, cut lines or sticker spots, and page 1 gets a name line. Everything else stays where it is. Scanning and automatic MC grading are then unavailable for this exam.',
+            digital: 'Grade in Examance',
+            digitalText: 'QR codes, corner markers and cut lines for scanning',
+            resultsQr: 'Box for a results QR code',
+            resultsQrText: 'One sticker box on page 1, to send results with e.g. DiRueLei',
+            off: 'Grading in Examance is off for this exam (Layout step).',
+        },
         paper: {
             heading: 'Writing space',
             style: 'Paper for writing',

@@ -237,6 +237,13 @@
 \newboolean{SA@zusatzblatt}
 \DeclareOption{zusatzblatt}{\setboolean{SA@zusatzblatt}{true}}
 
+% ohnescan: grading outside Examance; no corner markers, page codes, cut lines or sticker spots, everything else in place (room kept).
+% ergebnisqr: with ohnescan, page 1 keeps the dashed box for one results QR sticker.
+\newboolean{SA@ohnescan}
+\DeclareOption{ohnescan}{\setboolean{SA@ohnescan}{true}}
+\newboolean{SA@ergebnisqr}
+\DeclareOption{ergebnisqr}{\setboolean{SA@ergebnisqr}{true}}
+
 % Global indentation option
 \newif\if@neverindent\@neverindentfalse
 \DeclareOption{neverindent}{%
@@ -266,18 +273,19 @@
         \centering
         \begin{minipage}[t]{3.5cm}
         \vspace{0pt} % Setzt die Grundlinie an die physische Oberkante
+        \ifthenelse{\boolean{SA@ohnescan}\AND\NOT\boolean{SA@ergebnisqr}}{\rule{0pt}{3.5cm}}{%
         \textcolor{gray}{
             % Where printed student copies stamp the QR code (frontend lib/qr/examCopies.ts).
             \OmrLink{3.5cm}{3.5cm}{omr://__qr__}\dashbox{0.2}(3.5,3.5){
                 \parbox{3.5cm}{
                     % Printed copies blank this text under their code; spare plain copies keep it for a sticker.
                     \centering QR Code
-                    \ifthenelse{\boolean{Namensfeld}}{}{\\
+                    \ifthenelse{\boolean{Namensfeld}\OR\boolean{SA@ohnescan}}{}{\\
                     \normalsize \vspace{0.8cm}\LoesungLuecke{}{2.5cm}\\$\uparrow$~Deine Initialen~$\uparrow$\\
                     (falls QR-Code abfällt)}
                 }
             }
-        }
+        }}
         \end{minipage}% <-- Ein % hier verhindert einen ungewollten Zeilenumbruch/Abstand
         \hspace{5mm}%
         % Box, gap and info fill the text width exactly, so the box starts at the text edge, flush with the corner markers.
@@ -430,6 +438,7 @@
     \ifodd\value{page}\setlength{\SA@fidTLX}{\SA@foldinset}\else\setlength{\SA@fidTRX}{\SA@foldinset}\fi
     % The tab (75 x 20 mm at the outer top corner) is tinted light grey, so an unpersonalised sheet shows what a cut would remove, with the
     % dashed cut line and two scissors on it, blades towards the side edge (mirrored in lib/qr/examCopies.ts, which redraws page 1's tab).
+    \ifthenelse{\boolean{SA@ohnescan}}{}{%
     \AtPageUpperLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]%
         \ifodd\value{page}%
             \fill[black!7] (\paperwidth-75mm,0) -- (\paperwidth,0) -- (\paperwidth,-20mm) -- cycle;%
@@ -447,7 +456,7 @@
     \OmrFiducialAt{0}{\SA@fidBLX}{\OmrFiducialInset}%
     \OmrFiducialAt{1}{\dimexpr\paperwidth-\SA@fidBRX-\OmrFiducialSize\relax}{\OmrFiducialInset}%
     \OmrFiducialAt{2}{\dimexpr\paperwidth-\SA@fidTRX-\OmrFiducialSize\relax}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
-    \OmrFiducialAt{3}{\SA@fidTLX}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}%
+    \OmrFiducialAt{3}{\SA@fidTLX}{\dimexpr\paperheight-\SA@fidTopY-\OmrFiducialSize\relax}}%
 }
 
 % ==============================================================================
@@ -841,11 +850,11 @@
 }
 
 \AddToShipoutPictureBG{%
-    \ifthenelse{\boolean{SA@broschuere}}{\SA@foldzone}{}%
-    % Page codes and sticker spots only on the student sheet.
+    \ifthenelse{\boolean{SA@broschuere}\AND\NOT\boolean{SA@ohnescan}}{\SA@foldzone}{}%
+    % Page codes and sticker spots only on the student sheet; without scanning their room stays empty.
     \ifthenelse{\boolean{Antworten}}{}{%
-        \ifthenelse{\boolean{SA@seitencode}}{\SA@pagecode}{}%
-        \ifSA@spotpage\SA@stickerspot\fi
+        \ifthenelse{\boolean{SA@seitencode}\AND\NOT\boolean{SA@ohnescan}}{\SA@pagecode}{}%
+        \ifthenelse{\boolean{SA@ohnescan}}{}{\ifSA@spotpage\SA@stickerspot\fi}%
         \ifthenelse{\boolean{SA@zusatzblatt}}{\ifnum\value{page}=1 \SA@stickerspot\fi}{}%
         \ifSA@wp\SA@wpdraw\global\SA@wpfalse\fi
     }%

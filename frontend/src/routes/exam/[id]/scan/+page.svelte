@@ -755,7 +755,7 @@
     </Alert>
   {/if}
 
-  <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload}>
+  <UploadPanel {isProcessing} {progress} {statusText} disabledReason={$examNavContext?.exam?.digitalGrading === false ? $t("exam.layout.grading.off") : ""} onFileUpload={handleFileUpload}>
     <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
   </UploadPanel>
 
