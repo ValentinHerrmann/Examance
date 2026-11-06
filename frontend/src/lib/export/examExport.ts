@@ -159,6 +159,7 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
       printMode: exam.printMode ?? 'stickers',
       paperStyle: exam.paperStyle ?? 'empty',
       extraPages: exam.extraPages ?? 0,
+      bookletOffsetMm: exam.bookletOffsetMm ?? 0,
       extraNotes: exam.extraNotes ?? null,
     },
     exercises: entries,

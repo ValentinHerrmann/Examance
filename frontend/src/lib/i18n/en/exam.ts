@@ -210,9 +210,6 @@ export const exam: Translations['exam'] = {
         },
     },
     layout: {
-        saved: 'Layout saved.',
-        saving: 'Saving…',
-        discard: 'Discard changes',
         print: {
             pageCodesInfo: 'A small QR code at the top of every page tells the scanner which page it is, and on printed copies also whose it is. The order of scanned sheets then does not matter, missing pages are reported and loose sheets find their student. Changes the page layout: copies printed before no longer match the new template.',
             guide: 'Several sheets in the guide',
@@ -276,7 +273,6 @@ export const exam: Translations['exam'] = {
         gradingKey: 'Grading key',
         deleteTitle: 'Delete exam?',
         deleteSubmissionsTitle: 'Delete all submissions?',
-        saved: 'Details saved.',
         noValue: '–',
     },
     print: {
@@ -315,10 +311,19 @@ export const exam: Translations['exam'] = {
             imposeText: 'Finished A3 sheets, any printer',
             printer: 'Printer',
             printerText: 'Booklet function, one file per copy',
+            offset: 'Shift (mm)',
+            offsetInfo: 'Many printers do not print exactly centred: the fold then lies beside the middle of the paper, and the booklet is hard to cut. Print the test sheet once like a booklet, fold it edge to edge and enter the value where the crease crosses the ruler (right of the centre is positive). Examance then shifts every sheet by that value.',
+            testSheet: 'Test sheet',
+            testTitle: 'Booklet test sheet',
+            testStep1: '1. Print on A3, double-sided, flip on the short edge, at actual size (100 %, no "fit to page").',
+            testStep2: '2. Fold the sheet edge to edge so that the paper edges lie exactly on top of each other.',
+            testStep3: '3. Read where the crease crosses the ruler (right of the centre line is positive) and enter that value as the shift.',
+            testFront: 'Front',
+            testBack: 'Back',
         },
         howTo: {
             duplex: 'Print double-sided, flip on the long edge, at actual size.',
-            bookletImpose: 'Print on A3, double-sided, flip on the short edge, at actual size; fold in the middle and staple.',
+            bookletImpose: 'Print on A3, double-sided, flip on the short edge, at actual size (100 %, no "fit to page" or centring); fold or cut along the printed centre line and staple.',
             bookletPrinter: 'Print each file on its own with the printer\'s booklet function (A4 pages onto A3), fold and staple.',
         },
         withSolution: 'Also print the solution',
@@ -397,7 +402,6 @@ export const exam: Translations['exam'] = {
         tabStats: 'Statistics',
         tabShare: 'Send to students',
         tabArchive: 'Archive',
-        unsavedKey: 'Grading key not saved',
     },
     flow: {
         done: 'done',

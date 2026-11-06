@@ -72,6 +72,8 @@ class Exam(Base):
     paper_style: Mapped[str] = mapped_column(String(10), nullable=False, default="empty", server_default="empty")
     # Writing pages after the points table in every copy (issue #228), page-coded like any page.
     extra_pages: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    # Horizontal shift of imposed A3 booklet sheets in mm (issue #228), so a printer that prints off-centre comes out centred.
+    booklet_offset_mm: Mapped[float] = mapped_column(nullable=False, default=0.0, server_default="0")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Ticks the teacher sets by hand per step (print checklist, MC check); the client owns the shape.

@@ -208,9 +208,6 @@ export const exam = {
         },
     },
     layout: {
-        saved: 'Layout gespeichert.',
-        saving: 'Wird gespeichert …',
-        discard: 'Änderungen verwerfen',
         print: {
             pageCodesInfo: 'Ein kleiner QR-Code oben auf jeder Seite sagt beim Scannen, welche Seite es ist, auf direkt bedruckten Exemplaren auch, wem sie gehört. Dann ist die Reihenfolge der gescannten Blätter egal, fehlende Seiten fallen auf, und lose Blätter finden ihren Schüler. Ändert das Seitenlayout: bereits gedruckte Exemplare passen nicht mehr zur neuen Vorlage.',
             guide: 'Mehrere Blätter im Handbuch',
@@ -274,7 +271,6 @@ export const exam = {
         gradingKey: 'Notenschlüssel',
         deleteTitle: 'Prüfung löschen?',
         deleteSubmissionsTitle: 'Alle Abgaben löschen?',
-        saved: 'Angaben gespeichert.',
         noValue: '–',
     },
     print: {
@@ -313,10 +309,19 @@ export const exam = {
             imposeText: 'Fertige A3-Bögen, jeder Drucker',
             printer: 'Drucker',
             printerText: 'Broschürenfunktion, eine Datei pro Exemplar',
+            offset: 'Verschiebung (mm)',
+            offsetInfo: 'Viele Drucker drucken nicht genau mittig: Dann liegt die Falz neben der Papiermitte, und die Broschüre lässt sich schwer schneiden. Drucken Sie einmal den Testbogen wie eine Broschüre, falten Sie ihn Kante auf Kante und tragen Sie den Wert ein, an dem der Knick das Lineal kreuzt (rechts der Mitte positiv). Examance verschiebt dann jeden Bogen um diesen Wert.',
+            testSheet: 'Testbogen',
+            testTitle: 'Testbogen Broschüre',
+            testStep1: '1. Auf A3 beidseitig drucken, an der kurzen Kante wenden, Originalgröße (100 %, ohne „An Seite anpassen“).',
+            testStep2: '2. Den Bogen Kante auf Kante falten, sodass die Papierränder genau aufeinanderliegen.',
+            testStep3: '3. Ablesen, wo der Knick das Lineal kreuzt (rechts der Mittellinie positiv), und diesen Wert als Verschiebung eintragen.',
+            testFront: 'Vorderseite',
+            testBack: 'Rückseite',
         },
         howTo: {
             duplex: 'Beidseitig drucken, an der langen Kante wenden, Originalgröße.',
-            bookletImpose: 'Auf A3 beidseitig drucken, an der kurzen Kante wenden, Originalgröße; in der Mitte falten und heften.',
+            bookletImpose: 'Auf A3 beidseitig drucken, an der kurzen Kante wenden, in Originalgröße (100 %, ohne „An Seite anpassen“ oder Zentrieren); an der gedruckten Mittellinie falten oder schneiden und heften.',
             bookletPrinter: 'Jede Datei einzeln mit der Broschürenfunktion des Druckers drucken (A4-Seiten auf A3), falten und heften.',
         },
         withSolution: 'Lösung ebenfalls drucken',
@@ -395,7 +400,6 @@ export const exam = {
         tabStats: 'Statistik',
         tabShare: 'An Schüler senden',
         tabArchive: 'Archivieren',
-        unsavedKey: 'Notenschlüssel nicht gespeichert',
     },
     flow: {
         done: 'erledigt',

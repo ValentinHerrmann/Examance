@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
+  import { createAutosave, IDLE_SAVE, type AutosaveStatus } from "#lib/utils/autosave";
   import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
   import { t, locale, translate } from "#lib/i18n";
   import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
@@ -12,10 +13,10 @@
   import ExamPackagesField from "#lib/components/latex-packages/ExamPackagesField.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import ExtraNotesField from "#lib/components/exam/ExtraNotesField.svelte";
-  import type { ExtraNotes } from "#lib/db/schema";
+  import { extraNotesKey, type ExtraNotes } from "#lib/db/schema";
   import SectionHeading from "#lib/components/help/SectionHeading.svelte";
   import { faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faSignature, faTableCells, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, CrossLink, Field, OptionTile, TextInput } from "#lib/components/ui";
+  import { CrossLink, Field, OptionTile, TextInput } from "#lib/components/ui";
 
   /** The exam's page layout (issues #212, #220, #228): info text, name line, cut-corner hint, MC correction legend, page codes, filler pages, extra paper, logo and LaTeX packages. Every change saves itself (no buttons); how the exam is printed lives on the Print step. */
   interface Props {
@@ -26,14 +27,11 @@
     onSaved: (exam: ExamRecord) => void;
     /** A change is waiting for or in its save, for the page's leave guard. */
     dirty?: boolean;
-    /** Out: "", saving, saved or the error, for the card header. */
-    status?: string;
+    /** Out: the autosave status, for the card header's `SaveStatus`. */
+    status?: AutosaveStatus;
   }
 
-  let { exam, exercises, onSaved, dirty = $bindable(false), status = $bindable("") }: Props = $props();
-
-  /** Autosave waits this long after the last edit (typing in the info text). */
-  const SAVE_DELAY_MS = 800;
+  let { exam, exercises, onSaved, dirty = $bindable(false), status = $bindable(IDLE_SAVE) }: Props = $props();
 
   let infoText = $state("");
   let nameLine = $state(false);
@@ -47,11 +45,7 @@
   let extraPages = $derived(clampExtraPages(extraPagesText));
   let logoChange: ExamLogoChange | null = $state.raw(null);
   let latexPackages: LatexPackageEntry[] | null = $state.raw(null);
-  let saved = $state({ infoText: "", nameLine: false, mcCorrectionHint: false, pageCodes: false, paperStyle: "empty", extraPages: 0, extraNotes: "null", latexPackages: "null" });
-  let error = $state("");
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let saving = $state(false);
-  let savedOnce = $state(false);
+  let saved = $state(savedOf(null));
   // Bumped on load so the logo field drops a staged choice.
   let resetSeq = $state(0);
 
@@ -67,22 +61,26 @@
     latexPackages = exam.latexPackages ?? null;
     logoChange = null;
     saved = savedOf(exam);
-    error = "";
     resetSeq++;
   }
 
-  /** What a saved record holds, to compare edits against. */
-  function savedOf(rec: ExamRecord) {
-    const print = printSettingsOf(rec);
+  /** An empty override prints the same as none; the server stores both as "follows the account". */
+  function packagesOf(list: LatexPackageEntry[] | null | undefined) {
+    return list?.length ? list : null;
+  }
+
+  /** What a saved record holds, in the stored form, to compare edits against. */
+  function savedOf(rec: ExamRecord | null) {
+    const print = printSettingsOf(rec ?? {});
     return {
-      infoText: rec.infoText || "",
-      nameLine: rec.nameLine === true,
-      mcCorrectionHint: rec.mcCorrectionHint === true,
+      infoText: rec?.infoText || "",
+      nameLine: rec?.nameLine === true,
+      mcCorrectionHint: rec?.mcCorrectionHint === true,
       pageCodes: print.pageCodes,
       paperStyle: print.paperStyle,
       extraPages: print.extraPages,
-      extraNotes: JSON.stringify(rec.extraNotes ?? null),
-      latexPackages: JSON.stringify(rec.latexPackages ?? null),
+      extraNotes: extraNotesKey(rec?.extraNotes),
+      latexPackages: JSON.stringify(packagesOf(rec?.latexPackages)),
     };
   }
 
@@ -95,67 +93,39 @@
     if (pageCodes !== saved.pageCodes) patch.pageCodes = pageCodes;
     if (paperStyle !== saved.paperStyle) patch.paperStyle = paperStyle;
     if (extraPages !== saved.extraPages) patch.extraPages = extraPages;
-    if (JSON.stringify(extraNotes) !== saved.extraNotes) patch.extraNotes = extraNotes;
-    // An empty override prints the same as none; the server stores both as "follows the account".
-    if (JSON.stringify(latexPackages) !== saved.latexPackages) patch.latexPackages = latexPackages?.length ? latexPackages : null;
+    if (extraNotesKey(extraNotes) !== saved.extraNotes) patch.extraNotes = extraNotes;
+    if (JSON.stringify(packagesOf(latexPackages)) !== saved.latexPackages) patch.latexPackages = packagesOf(latexPackages);
     return patch;
   }
 
-  let pending = $derived(
-    infoText !== saved.infoText ||
-      nameLine !== saved.nameLine ||
-      mcCorrectionHint !== saved.mcCorrectionHint ||
-      pageCodes !== saved.pageCodes ||
-      paperStyle !== saved.paperStyle ||
-      extraPages !== saved.extraPages ||
-      JSON.stringify(extraNotes) !== saved.extraNotes ||
-      logoChange !== null ||
-      JSON.stringify(latexPackages) !== saved.latexPackages,
-  );
+  // Every edit changes the key, so an edit made during a save schedules the next one (the hang of issue #228).
+  let editKey = $derived(JSON.stringify([infoText, nameLine, mcCorrectionHint, pageCodes, paperStyle, extraPages, extraNotesKey(extraNotes), packagesOf(latexPackages)]));
+  let pending = $derived(Object.keys(changes()).length > 0 || logoChange !== null);
 
   async function save() {
-    timer = null;
-    if (saving) return void schedule();
-    if (latexPackages && entriesError(latexPackages)) {
-      error = translate("latexPackages.exam.invalid");
-      return;
-    }
+    if (latexPackages && entriesError(latexPackages)) throw new Error(translate("latexPackages.exam.invalid"));
     const patch = changes();
     const logo = logoChange;
-    saving = true;
-    error = "";
-    try {
-      const updated = Object.keys(patch).length ? await saveExamLayout(exam, patch) : exam;
-      saved = savedOf(updated);
-      if (logo) {
-        try {
-          await setExamLogo(updated.id, logo.mode, logo.bytes);
-          if (logoChange === logo) logoChange = null;
-        } catch (err: any) {
-          error = translate("logo.exam.saveFailed", { message: err.message });
-        }
+    if (!Object.keys(patch).length && !logo) return;
+    const updated = Object.keys(patch).length ? await saveExamLayout(exam, patch) : exam;
+    saved = savedOf(updated);
+    let logoError = "";
+    if (logo) {
+      try {
+        await setExamLogo(updated.id, logo.mode, logo.bytes);
+        if (logoChange === logo) logoChange = null;
+      } catch (err: any) {
+        logoError = translate("logo.exam.saveFailed", { message: err.message });
       }
-      savedOnce = true;
-      onSaved(updated);
-    } catch (err: any) {
-      error = translate("exam.page.metadata.saveFailed", { message: err.message });
-    } finally {
-      saving = false;
     }
+    onSaved(updated);
+    if (logoError) throw new Error(logoError);
   }
 
-  function schedule() {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => void save(), SAVE_DELAY_MS);
-  }
+  const autosave = createAutosave({ run: save });
 
-  onDestroy(() => {
-    // Leaving the tab still saves what was typed.
-    if (timer) {
-      clearTimeout(timer);
-      void save();
-    }
-  });
+  // Leaving the tab still saves what was typed.
+  onDestroy(() => autosave.dispose());
 
   let loadedFor = "";
   $effect.pre(() => {
@@ -168,23 +138,22 @@
 
   // Every edit schedules a save; a logo choice saves at once.
   $effect.pre(() => {
+    void editKey;
     const p = pending;
     const logo = logoChange;
     untrack(() => {
       if (!p) return;
-      if (logo) {
-        if (timer) clearTimeout(timer);
-        void save();
-      } else schedule();
+      if (logo) void autosave.flush();
+      else autosave.schedule();
     });
   });
 
   $effect.pre(() => {
-    const d = pending || saving;
-    const text = error ? "" : saving || pending ? $t("exam.layout.saving") : savedOnce ? $t("exam.layout.saved") : "";
+    const s = $autosave;
+    const p = pending;
     untrack(() => {
-      dirty = d;
-      status = text;
+      dirty = p || autosave.busy;
+      status = s;
     });
   });
 </script>
@@ -254,5 +223,4 @@
     </section>
   </div>
 
-  {#if error}<Alert severity="danger" class="mt-4">{error}</Alert>{/if}
 </div>

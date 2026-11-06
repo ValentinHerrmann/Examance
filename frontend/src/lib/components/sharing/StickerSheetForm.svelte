@@ -33,6 +33,8 @@
     entries?: StickerEntry[];
     /** Booklet exams (issue #220): copies imposed onto A3 by Examance, or one file per student for the printer's booklet function; null prints A4 copies as they are. */
     booklet?: "impose" | "printer" | null;
+    /** Shift of imposed A3 sheets in mm (issue #228). */
+    bookletOffsetMm?: number;
     /** Stickers each student needs (one per sheet with a sticker box on every sheet); the starting value of the count field. */
     stickersPerStudent?: number;
     /** A PDF was handed to the browser: which kind. */
@@ -53,6 +55,7 @@
     output: fixedOutput,
     entries,
     booklet = null,
+    bookletOffsetMm = 0,
     stickersPerStudent = 1,
     onDone,
     onPdf,
@@ -119,7 +122,7 @@
     const { pdf, pagesPerCopy } = await renderExamCopies(examPdf, list, { examTitle, examId });
     const base = slug(examTitle || $t("sharing.stickers.copiesTitle"));
     if (booklet === "impose") {
-      deliver(await imposeBooklet(pdf, pagesPerCopy), "copies", `${base}_booklets.pdf`);
+      deliver(await imposeBooklet(pdf, pagesPerCopy, bookletOffsetMm), "copies", `${base}_booklets.pdf`);
       return;
     }
     if (booklet === "printer") {

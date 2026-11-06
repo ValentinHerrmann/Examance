@@ -14,6 +14,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 | `sticker_spots` | `cover`, `sheet`, `a3`, `leaf` | `sheet` | Print step (sticker mode) | `\Aufkleberseiten{bogen|a3}` |
 | `paper_style` | `empty`, `squared`, `lined` | `squared` | Layout tab | `papierkaro` / `papierlinien` |
 | `extra_pages` | int 0–20 | `0` | Layout tab | `\Zusatzseiten{n}` |
+| `booklet_offset_mm` | float −10…10 | `0` | Print step | none (applied by `imposeBooklet`) |
 
 - The server defaults are the old layout, so older exams compile unchanged. Migration 0059 also:
   - moves the old print-plan mode (`step_checks.printPlan.mode`, issue #212) into `print_mode`;
@@ -51,7 +52,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
   - `a3`: the front-right page of each A3 sheet, i.e. odd page `p` with `2p + 2 <=` the total. The total comes from the previous pass's `.aux`, as `\SA@total`.
   - Personalised copies get none: every page code names the student.
 - **Fold cut zone** (`broschuere`):
-  - a dashed cut line with scissors 6 mm from the fold edge (left on odd pages, right on even pages);
+  - a dashed cut line with six scissors over its height 6 mm from the fold edge (left on odd pages, right on even pages; `\SA@scissors` is the one scissors shape, also on the corner line);
   - a `black!7` strip between the line and the fold. On an A3 sheet that gives a 12 mm band where a slightly crooked cut along the fold is still safe and nobody writes.
   - Text and the fold-side markers start 8 mm from the fold (`\SA@foldinset`; the geometry is `twoside` with `inner=8mm`, `outer=5mm`). The outer side keeps 5 mm, the points table stays 1.5 mm clear of both bottom markers. `lib/qr/cutCorner.ts` `FOLD_STRIP`/`FOLD_INSET` mirror the numbers; registration reads the markers' positions per page from the template.
 
@@ -92,7 +93,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 - **Options as tiles** (`ui/OptionTile`, shared with Settings): each group has a small heading and its explanation behind (i); the tiles carry a title and one short line.
 - **The preview shows only what will be printed** (`PrintPlan` `bind:shown` → `ExamPreviewPanel` `sheets` + `currentOnly`, `DualPdfPreview` `hideEmpty`): the task sheet only when plain copies are printed, the solution only when planned, each only while it matches the sources; sticker and copies PDFs only while they were made for the current content. With nothing ready the area asks for "Create print files".
 - **Booklets** (`lib/qr/booklet.ts`):
-  - `imposeBooklet` lays each copy two-up on A3 in saddle-stitch order;
+  - `imposeBooklet` lays each copy two-up on A3 in saddle-stitch order, draws the fold mark (a thin line on the fold, heavier ticks at top and bottom) and shifts each sheet by the exam's `booklet_offset_mm` (±10 mm, Print step; `printFileKey` includes it, so a new shift re-makes the imposed files). `bookletTestSheet` is the two-sided A3 calibration sheet: folded edge to edge, the crease crosses a ruler around the printed centre;
   - `splitCopies` makes one A4 PDF per student for the printer's booklet function (ZIP).
 
 ## Scanning (`lib/scan/ingest.ts`, `lib/scan/scanPdf.ts`)

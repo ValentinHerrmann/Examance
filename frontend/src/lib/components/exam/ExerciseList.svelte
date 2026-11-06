@@ -14,7 +14,8 @@
   import { t } from '#lib/i18n';
   import { faArrowUp, faArrowDown, faCodeBranch, faPlus, faTag, faXmark } from '@fortawesome/free-solid-svg-icons';
   import InfoTip from '#lib/components/help/InfoTip.svelte';
-  import { Badge, Button, Card, Icon, actionIcons } from '#lib/components/ui';
+  import { Badge, Button, Card, Icon, SaveStatus, actionIcons } from '#lib/components/ui';
+  import { IDLE_SAVE, type AutosaveStatus } from '#lib/utils/autosave';
 
   interface McGroup {
     id: string;
@@ -40,6 +41,8 @@
     onTogglePageBreak?: ((itemId: string) => void) | undefined;
     /** Opens an exercise name in place (editor modal). */
     onOpenExercise?: ((ex: ExerciseRecord) => void) | undefined;
+    /** The tab's save status (it saves every change at once, issue #228). */
+    saveStatus?: AutosaveStatus;
   }
 
   let {
@@ -56,7 +59,8 @@
     onEditMcGroup = undefined,
     pageBreaks = [],
     onTogglePageBreak = undefined,
-    onOpenExercise = undefined
+    onOpenExercise = undefined,
+    saveStatus = IDLE_SAVE
   }: Props = $props();
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
@@ -170,6 +174,7 @@
 
 <Card padded={false} class="p-3 sm:p-5" title={$t("exam.exerciseList.heading", { count: totalItemCount })}>
   {#snippet actions()}
+    <SaveStatus status={saveStatus} />
     <!-- Guidance behind ⓘ, like the Print step (issue #228). -->
     <InfoTip text={$t("exam.exerciseList.info")} />
     {#if onAddExercises && totalItemCount > 0}

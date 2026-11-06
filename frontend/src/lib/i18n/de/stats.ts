@@ -1,13 +1,6 @@
 export const stats = {
     gradingKey: {
-        draftTitle: 'Vorschau, noch nicht gespeichert',
-        draftText: 'Die Statistik zeigt den bearbeiteten Notenschlüssel. Er gilt erst, wenn Sie speichern; sonst wird er beim Verlassen der Seite verworfen.',
-        leaveTitle: 'Notenschlüssel nicht gespeichert',
-        leaveMessage: 'Der geänderte Notenschlüssel ist nur eine Vorschau und wird verworfen, wenn Sie die Seite verlassen.',
-        leaveDiscard: 'Verwerfen und verlassen',
-        leaveStay: 'Zurück zum Notenschlüssel',
-        intro: 'Änderungen wirken sofort auf die Notenverteilung; gespeichert wird erst mit „Speichern“.',
-        saved: 'Notenschlüssel gespeichert.',
+        intro: 'Änderungen wirken sofort auf die Notenverteilung und werden automatisch gespeichert.',
     },
     page: {
         title: 'Notenübersicht & Export',

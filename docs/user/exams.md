@@ -80,7 +80,7 @@ With **Print a name line next to the QR code box** (when creating the exam or on
 
 ### Cut-off corner {#cut-corner}
 
-Every exam keeps each page's **outer top corner** free: top right on odd pages, top left on even ones. The header is mirrored on even pages. On the plain exam PDF the corner is empty and lightly tinted grey. When you print the QR codes [directly onto the exam copies](./students#printed-copies), page 1's corner carries name and personal key, and a dashed line with small scissors shows where to cut it off before handing out. For double-sided and booklet prints you can also cut the whole stack at once with a guillotine. All exams share this layout, so scanning always finds the corner markers in the same places, however the sheets were printed.
+Every exam keeps each page's **outer top corner** free: top right on odd pages, top left on even ones. The header is mirrored on even pages. On the plain exam PDF the corner is empty and lightly tinted grey. When you print the QR codes [directly onto the exam copies](./students#printed-copies), page 1's corner carries name and personal key, and a dashed line with two small scissors shows where to cut it off before handing out; every other page shows the same line, so the whole stack is marked. For double-sided and booklet prints you can also cut the whole stack at once with a guillotine. All exams share this layout, so scanning always finds the corner markers in the same places, however the sheets were printed.
 
 The text, and on page 1 the QR box and the information next to it, run out to the corner markers. Page 1's header shows the logo, then the title with course, date, duration and teacher in one line under it; the other pages show the title and "Seite X". The score table fills the strip between the bottom markers.
 
@@ -121,14 +121,14 @@ The print plan of the **Print** step holds these choices:
 
 - **Personalised copies** or **Plain copies + stickers**.
 - **How do you print?** **Double-sided (A4, two pages per sheet)** or **Booklet (folded A3, four pages per sheet)**.
-- For booklets, **Who arranges the pages?** **Examance (A3 sheets, any printer)**: print on A3, double-sided, flip on the short edge, at actual size, fold in the middle and staple. Or **My printer's booklet function**: personalised copies then download as a ZIP with one PDF per student, which you print one by one.
+- For booklets, **Who arranges the pages?** **Examance (A3 sheets, any printer)**: print on A3, double-sided, flip on the short edge, at actual size (100 %, with "fit to page", "scale to fit" and auto-centring turned off), fold along the printed centre line and staple. If your printer prints the sheets off-centre anyway, use **Shift (mm)** below it: print the **Test sheet** once, fold it edge to edge, read where the crease crosses the ruler (right of the centre is positive) and enter that value. It is saved with the exam, and Examance shifts every A3 sheet by it. Or **My printer's booklet function**: personalised copies then download as a ZIP with one PDF per student, which you print one by one.
 - **Stickers per student** (only for plain copies + stickers). Double-sided: one for the whole exam (on the cover page) or one per sheet. Booklet: one for the whole exam, one per A3 sheet, or one per A4 leaf after cutting. Stickers on later sheets go onto a faint, unlabelled grey 35 × 35 mm spot at the top of the page, on the side away from the cut corner, over the page header. Personalised copies need no extra stickers: every page code names the student.
 
 **Create print files** typesets what the plan prints (the solution only when **with solution** is ticked; unchanged parts are reused) and makes the sticker sheet or the personalised copies. Each job card then only has the download and the **printed** tick.
 
 Before it makes personalised copies, the step warns about students without an ID (only their cover carries their code; their other pages are matched by order) and blocks the copies when two students share an ID. Fix both on the [Students page](./students#student-data).
 
-**Booklet cut zone.** Every booklet page has a dashed cut line with scissors 6 mm from the fold and a light grey strip between the line and the fold. Nobody writes there, and you can cut the booklet open along the fold anywhere inside this 12 mm band, so a slightly crooked cut does no harm. The text starts 8 mm from the fold. The cut-off corner is cut as before.
+**Booklet cut zone.** Every booklet page has a dashed cut line with six scissors over its height 6 mm from the fold, and a light grey strip between the line and the fold. Sheets Examance arranges also carry a thin solid line exactly on the fold, with heavier ticks at the top and bottom: cut and fold on it rather than measuring from the paper edge, which a printer may have shifted. Nobody writes there, and you can cut the booklet open along the fold anywhere inside this 12 mm band, so a slightly crooked cut does no harm. The text starts 8 mm from the fold. The cut-off corner is cut as before.
 
 How to scan these sheets: [Scan the stack](./scanning#scan).
 

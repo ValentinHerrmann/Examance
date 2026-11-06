@@ -428,8 +428,19 @@
 \AddToShipoutPictureBG{%
     \setlength{\SA@fidTRX}{\SA@fidTopX}\setlength{\SA@fidTLX}{\SA@fidTopX}%
     \ifodd\value{page}\setlength{\SA@fidTLX}{\SA@foldinset}\else\setlength{\SA@fidTRX}{\SA@foldinset}\fi
-    % The tab (75 x 20 mm at the outer top corner) is tinted light grey, so an unpersonalised sheet shows what a cut would remove; printed copies stamp over it on page 1.
-    \AtPageUpperLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]\ifodd\value{page}\fill[black!7] (\paperwidth-75mm,0) -- (\paperwidth,0) -- (\paperwidth,-20mm) -- cycle;\else\fill[black!7] (75mm,0) -- (0,0) -- (0,-20mm) -- cycle;\fi\end{tikzpicture}}%
+    % The tab (75 x 20 mm at the outer top corner) is tinted light grey, so an unpersonalised sheet shows what a cut would remove, with the
+    % dashed cut line and two scissors on it, blades towards the side edge (mirrored in lib/qr/examCopies.ts, which redraws page 1's tab).
+    \AtPageUpperLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]%
+        \ifodd\value{page}%
+            \fill[black!7] (\paperwidth-75mm,0) -- (\paperwidth,0) -- (\paperwidth,-20mm) -- cycle;%
+            \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\paperwidth-75mm,0) -- (\paperwidth,-20mm);%
+            \foreach \SA@t in {0.33,0.67} {\SA@scissors{({\paperwidth-75mm+\SA@t*75mm},{-\SA@t*20mm})}{-14.93}}%
+        \else%
+            \fill[black!7] (75mm,0) -- (0,0) -- (0,-20mm) -- cycle;%
+            \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (75mm,0) -- (0,-20mm);%
+            \foreach \SA@t in {0.33,0.67} {\SA@scissors{({75mm-\SA@t*75mm},{-\SA@t*20mm})}{194.93}}%
+        \fi%
+    \end{tikzpicture}}%
     % The bottom marker on the fold side keeps clear of a booklet's cut strip (\SA@foldinset equals the inset otherwise).
     \setlength{\SA@fidBLX}{\OmrFiducialInset}\setlength{\SA@fidBRX}{\OmrFiducialInset}%
     \ifodd\value{page}\setlength{\SA@fidBLX}{\SA@foldinset}\else\setlength{\SA@fidBRX}{\SA@foldinset}\fi
@@ -803,18 +814,29 @@
         \end{tikzpicture}}}%
 }
 
-% Booklets: a cut line with scissors 6mm from the fold edge (left on odd pages, right on even ones) and the strip beyond it tinted like
-% the corner tab, so a cut along the fold has 6mm either side and nobody writes there; text and fold-side markers start at 8mm (\SA@foldinset, lib/qr/cutCorner.ts FOLD_STRIP).
+% Small scissors centred at #1, blades pointing along the angle #2 (degrees); the same shape as lib/qr/examCopies.ts.
+\newcommand{\SA@scissors}[2]{%
+    \begin{scope}[shift={#1},rotate=#2,x=0.3mm,y=0.3mm,black!50]%
+        \draw[line width=0.5pt] (-3.2,-2) circle (1.5) (-3.2,2) circle (1.5);%
+        \fill (-2,-1.6) -- (5.2,1.5) -- (-1.4,-0.6) -- cycle (-2,1.6) -- (5.2,-1.5) -- (-1.4,0.6) -- cycle;%
+    \end{scope}%
+}
+
+% Booklets: a cut line 6mm from the fold edge (left on odd pages, right on even ones) with six scissors spread over its height, and the
+% strip beyond it tinted like the corner tab, so a cut along the fold has 6mm either side and nobody writes there; text and fold-side
+% markers start at 8mm (\SA@foldinset, lib/qr/cutCorner.ts FOLD_STRIP). The outer scissors sit 8mm from the paper edges (unprintable margin).
 \newcommand{\SA@foldzone}{%
     \AtPageLowerLeft{\begin{tikzpicture}[overlay,x=1mm,y=1mm]%
         \ifodd\value{page}\def\SA@fx{0}\def\SA@lx{6}\else\def\SA@fx{\paperwidth}\def\SA@lx{\paperwidth-6mm}\fi
         \fill[black!7] (\SA@fx,0) rectangle (\SA@lx,\paperheight);%
-        \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,0) -- (\SA@lx,\paperheight-11mm) (\SA@lx,\paperheight-5mm) -- (\SA@lx,\paperheight);%
-        % Scissors in the gap of the line, blades pointing down along it.
-        \begin{scope}[shift={(\SA@lx,\paperheight-8mm)},rotate=-90,x=0.3mm,y=0.3mm,black!50]%
-            \draw[line width=0.5pt] (-3.2,-2) circle (1.5) (-3.2,2) circle (1.5);%
-            \fill (-2,-1.6) -- (5.2,1.5) -- (-1.4,-0.6) -- cycle (-2,1.6) -- (5.2,-1.5) -- (-1.4,0.6) -- cycle;%
-        \end{scope}%
+        \pgfmathsetmacro\SA@fstep{(\paperheight-16mm)/5}%
+        % Dashes between the scissors' gaps (3mm either side of each), then the scissors, blades pointing down along the line.
+        \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,0) -- (\SA@lx,5mm);%
+        \foreach \SA@i in {0,...,4} {%
+            \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,{8mm+\SA@i*\SA@fstep+3mm}) -- (\SA@lx,{8mm+(\SA@i+1)*\SA@fstep-3mm});%
+        }%
+        \draw[black!50,line width=0.6pt,dash pattern=on 4pt off 3pt] (\SA@lx,\paperheight-5mm) -- (\SA@lx,\paperheight);%
+        \foreach \SA@i in {0,...,5} {\SA@scissors{(\SA@lx,{8mm+\SA@i*\SA@fstep})}{-90}}%
     \end{tikzpicture}}%
 }
 

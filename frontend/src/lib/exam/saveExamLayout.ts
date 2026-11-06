@@ -18,6 +18,7 @@ const API_FIELDS = {
   stickerSpots: 'sticker_spots',
   paperStyle: 'paper_style',
   extraPages: 'extra_pages',
+  bookletOffsetMm: 'booklet_offset_mm',
   extraNotes: 'extra_notes',
 } as const satisfies Partial<Record<keyof ExamRecord, string>>;
 

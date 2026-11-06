@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { clampExtraPages, printFileKey, printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
+import { clampBookletOffset, clampExtraPages, printFileKey, printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
 import { printStamps } from '../src/lib/exam/examChecks';
 
-const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, ...patch });
+const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0, ...patch });
 
 describe('print settings (issue #220)', () => {
   it('reads older exams as the old layout', () => {
-    expect(printSettingsOf({})).toEqual({ pageCodes: false, layout: 'duplex', mode: 'stickers', stickerSpots: 'cover', paperStyle: 'empty', extraPages: 0 });
+    expect(printSettingsOf({})).toEqual({ pageCodes: false, layout: 'duplex', mode: 'stickers', stickerSpots: 'cover', paperStyle: 'empty', extraPages: 0, bookletOffsetMm: 0 });
   });
 
   it('falls back to a spot choice the layout offers', () => {
@@ -54,5 +54,19 @@ describe('extra paper settings (issue #228)', () => {
 
   it('keys the extra sheet by its paper', () => {
     expect(printFileKey('extra', null, 0, 'lined')).not.toBe(printFileKey('extra', null, 0, 'squared'));
+  });
+});
+
+describe('booklet offset (issue #228)', () => {
+  it('keeps the shift in half millimetres within ±10 mm', () => {
+    expect(clampBookletOffset('1,3')).toBe(1.5);
+    expect(clampBookletOffset(-14)).toBe(-10);
+    expect(clampBookletOffset('x')).toBe(0);
+    expect(Object.is(clampBookletOffset('-0.1'), -0)).toBe(false);
+  });
+
+  it('makes imposed sheets again for a new shift, other files not', () => {
+    expect(printFileKey('exam', 'impose', 0, 'empty', 1.5)).not.toBe(printFileKey('exam', 'impose', 0, 'empty', 0));
+    expect(printFileKey('exam', 'printer', 0, 'empty', 1.5)).toBe(printFileKey('exam', 'printer', 0, 'empty', 0));
   });
 });

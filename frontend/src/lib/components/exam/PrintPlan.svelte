@@ -34,13 +34,14 @@
     type PrintPlan,
   } from "#lib/exam/examChecks";
   import type { StickerEntry } from "#lib/qr/stickerSheet";
-  import { imposeBooklet } from "#lib/qr/booklet";
+  import { bookletTestSheet, imposeBooklet } from "#lib/qr/booklet";
   import { slug } from "#lib/export/zip";
-  import { printFileKey, spotChoices, stickersPerCopy, type PrintSettings } from "#lib/exam/printLayout";
+  import { clampBookletOffset, MAX_BOOKLET_OFFSET, printFileKey, spotChoices, stickersPerCopy, type PrintSettings } from "#lib/exam/printLayout";
   import type { ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import type { ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import StickerSheetForm from "#lib/components/sharing/StickerSheetForm.svelte";
-  import { Alert, Badge, Button, Card, Checkbox, Icon, OptionTile, actionIcons } from "#lib/components/ui";
+  import { Alert, Badge, Button, Card, Checkbox, Field, Icon, OptionTile, SaveStatus, actionIcons, controlClass, controlCompactClass } from "#lib/components/ui";
+  import { createAutosave } from "#lib/utils/autosave";
 
   /** The Print step (issue #212): the teacher picks how they print, the page lists the print jobs that follow, each with its readiness, its PDF and a "printed" tick that is only offered once that PDF exists for the current content. */
   interface Props {
@@ -111,7 +112,7 @@
 
   /** The key a made file must carry to be current (layout, arranging, sticker count; the imposed sheet also the compiled sheet it came from). */
   function fileKey(job: "exam" | "qr" | "copies"): string {
-    const key = printFileKey(job, booklet, stickers);
+    const key = printFileKey(job, booklet, stickers, "empty", print.bookletOffsetMm);
     return job === "exam" ? `${key}:${preview?.version ?? 0}` : key;
   }
 
@@ -124,13 +125,15 @@
     return !!stamps && printMadeValid(cs?.checks, job, stamps) && (!file || file.key === fileKey(job));
   }
 
+  /** Plan choices, ticks and print settings save at once; the card header shows the status (issue #228). */
+  const autosave = createAutosave({ run: async () => {} });
+
   async function save(next: Parameters<typeof saveExamChecks>[1]) {
     busy = true;
-    error = "";
     try {
-      await saveExamChecks(examId, next);
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      await autosave.track(saveExamChecks(examId, next));
+    } catch {
+      // Shown in the header's save status.
     } finally {
       busy = false;
     }
@@ -204,7 +207,7 @@
     const pdf = await loadExamPdf();
     const lib = await import("pdf-lib");
     const pages = (await lib.PDFDocument.load(pdf)).getPageCount();
-    keep("exam", await imposeBooklet(pdf, pages), `${slug(examTitle || "exam")}_booklet.pdf`);
+    keep("exam", await imposeBooklet(pdf, pages, print.bookletOffsetMm), `${slug(examTitle || "exam")}_booklet.pdf`);
   }
 
   async function countPages() {
@@ -234,15 +237,31 @@
     if (extraSheet) URL.revokeObjectURL(extraSheet.url);
   });
 
+  let testing = $state(false);
+  /** The two-sided A3 sheet that shows how far off-centre the printer prints (`bookletTestSheet`). */
+  async function downloadTestSheet() {
+    testing = true;
+    try {
+      const pdf = await bookletTestSheet({
+        title: translate("exam.print.booklet.testTitle"),
+        steps: [translate("exam.print.booklet.testStep1"), translate("exam.print.booklet.testStep2"), translate("exam.print.booklet.testStep3")],
+        front: translate("exam.print.booklet.testFront"),
+        back: translate("exam.print.booklet.testBack"),
+      });
+      downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${slug(translate("exam.print.booklet.testTitle"))}.pdf`);
+    } finally {
+      testing = false;
+    }
+  }
+
   const setPlan = (patch: Partial<PrintPlan>) => cs && save(withPrintPlan(cs.checks, { ...plan, ...patch }));
   let saving = $state(false);
   async function change(patch: ExamLayoutPatch) {
     saving = true;
-    error = "";
     try {
-      await onPrintChange(patch);
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      await autosave.track(onPrintChange(patch));
+    } catch {
+      // Shown in the header's save status.
     } finally {
       saving = false;
     }
@@ -287,6 +306,7 @@
     <div class="mb-3 flex items-center gap-2">
       <h2 class="m-0 text-base font-semibold text-content">{$t("exam.print.planTitle")}</h2>
       <InfoTip text={$t("exam.print.planIntro")} />
+      <SaveStatus status={$autosave} class="ml-auto" />
     </div>
     <!-- Two columns where the card is wide: the choices that shape the files on the left, the rest and the readiness on the right. -->
     <div class="@container">
@@ -324,6 +344,28 @@
                 </div>
               </div>
             </div>
+            {#if booklet === "impose"}
+              <!-- A printer that prints off-centre moves the fold away from the paper's middle; the shift puts it back (issue #228). -->
+              <div class="flex flex-wrap items-end gap-2">
+                <Field compact label={$t("exam.print.booklet.offset")} forId="print-booklet-offset" info={$t("exam.print.booklet.offsetInfo")} class="w-40">
+                  <input
+                    id="print-booklet-offset"
+                    type="number"
+                    min={-MAX_BOOKLET_OFFSET}
+                    max={MAX_BOOKLET_OFFSET}
+                    step="0.5"
+                    value={print.bookletOffsetMm}
+                    onchange={(e) => {
+                      const next = clampBookletOffset(e.currentTarget.value);
+                      e.currentTarget.value = String(next);
+                      if (next !== print.bookletOffsetMm) void change({ bookletOffsetMm: next });
+                    }}
+                    class="{controlClass} {controlCompactClass}"
+                  />
+                </Field>
+                <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.download} loading={testing} disabled={testing} onClick={downloadTestSheet}>{$t("exam.print.booklet.testSheet")}</Button>
+              </div>
+            {/if}
           {/if}
         </fieldset>
 
@@ -400,6 +442,7 @@
               output={job === "copies" ? "copies" : "stickers"}
               loadExamPdf={job === "copies" ? loadExamPdf : undefined}
               booklet={job === "copies" ? booklet : null}
+              bookletOffsetMm={print.bookletOffsetMm}
               stickersPerStudent={stickers}
               bind:create={creators[job]}
               onPdf={(pdf, _kind, fileName, download) => gotPdf(job === "copies" ? "copies" : "qr", pdf, fileName, download)}

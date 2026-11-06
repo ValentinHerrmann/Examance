@@ -26,7 +26,8 @@
   import ExamStepLinks from "#lib/components/exam/ExamStepLinks.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { t, translate, type TranslationKey } from "#lib/i18n";
-  import { Alert, Button, Card, ConfirmDialog, Menu, MenuItem, PageShell, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, Card, ConfirmDialog, Menu, MenuItem, PageShell, SaveStatus, actionIcons } from "#lib/components/ui";
+  import { IDLE_SAVE, type AutosaveStatus } from "#lib/utils/autosave";
 
   let examId = $derived(page.params.id || "");
 
@@ -40,6 +41,7 @@
   let actionError = $state("");
 
   let detailsDirty = $state(false);
+  let detailsStatus = $state<AutosaveStatus>(IDLE_SAVE);
   let pendingLeave: URL | null = $state(null);
   let exportOpen = $state(false);
   let confirming: "exam" | "submissions" | null = $state(null);
@@ -208,14 +210,13 @@
     <!-- The details are edited in place: the page has the room, a dialog would only hide them (issue #212). -->
     <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <Card title={$t("exam.overview.details")}>
+        {#snippet actions()}<SaveStatus status={detailsStatus} />{/snippet}
         <ExamDetailsForm
           {exam}
           {exercises}
           bind:dirty={detailsDirty}
-          onSaved={(updated) => {
-            exam = updated;
-            notice = translate("exam.overview.saved");
-          }}
+          bind:status={detailsStatus}
+          onSaved={(updated) => (exam = updated)}
         />
       </Card>
 

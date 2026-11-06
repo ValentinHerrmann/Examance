@@ -10753,6 +10753,13 @@
             "title": "Extra Pages",
             "default": 0
           },
+          "booklet_offset_mm": {
+            "type": "number",
+            "maximum": 10.0,
+            "minimum": -10.0,
+            "title": "Booklet Offset Mm",
+            "default": 0
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11262,6 +11269,13 @@
             "title": "Extra Pages",
             "default": 0
           },
+          "booklet_offset_mm": {
+            "type": "number",
+            "maximum": 10.0,
+            "minimum": -10.0,
+            "title": "Booklet Offset Mm",
+            "default": 0
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11622,6 +11636,19 @@
               }
             ],
             "title": "Extra Pages"
+          },
+          "booklet_offset_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10.0,
+                "minimum": -10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booklet Offset Mm"
           },
           "extra_notes": {
             "anyOf": [

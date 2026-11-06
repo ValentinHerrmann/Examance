@@ -104,6 +104,21 @@ async def test_exam_patch_clears_the_special_columns_only_when_sent(
 
 
 @pytest.mark.asyncio
+async def test_exam_booklet_offset_round_trips_within_bounds(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await sign_in(client, db, "booklet-offset@example.com")
+    exam = await _exam(client)
+    url = f"{EXAMS}/{exam['id']}"
+    assert exam["booklet_offset_mm"] == 0
+
+    # Issue #228: the shift that centres imposed A3 sheets on an off-centre printer.
+    body = (await client.patch(url, json={"booklet_offset_mm": -2.5})).json()
+    assert body["booklet_offset_mm"] == -2.5
+    assert (await client.patch(url, json={"booklet_offset_mm": 11})).status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_exam_duplicate_copies_every_header_field(
     client: AsyncClient, db: AsyncSession
 ) -> None:

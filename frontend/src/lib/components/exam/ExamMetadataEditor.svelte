@@ -5,7 +5,7 @@
   import { recordValue } from '#lib/utils/recentValues';
   import { formatExamCourse, generatedExamTitle, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
   import { t, translate } from '#lib/i18n';
-  import { Alert, Modal, Button, Field, actionIcons, controlClass, controlCompactClass } from '#lib/components/ui';
+  import { Modal, Button, Field, actionIcons, controlClass, controlCompactClass } from '#lib/components/ui';
 
   interface Props {
     isOpen?: boolean;
@@ -26,15 +26,13 @@
     editRetentionUntil: string;
     /** Create mode ("New exam", M1): own heading and save label; layout and grading key are set later on the Exam and Results pages (issue #212). */
     create?: boolean;
-    /** Inline error (e.g. a refused create). */
+    /** The dialog's error (e.g. a refused create). */
     error?: string;
     busy?: boolean;
-    /** Renders the fields in place (the Overview page, issue #212) instead of a dialog; Save and Discard then appear only once something changed. */
+    /** Renders the fields in place (the Overview page, issue #212) instead of a dialog; the owner saves every change itself (`utils/autosave.ts`) and calls `remember()` after a save. */
     inline?: boolean;
-    /** Inline mode: unsaved changes exist. */
-    dirty?: boolean;
-    onSave: () => void;
-    onCancel: () => void;
+    onSave?: () => void;
+    onCancel?: () => void;
   }
 
   let {
@@ -55,9 +53,8 @@
     error = "",
     busy = false,
     inline = false,
-    dirty = true,
-    onSave,
-    onCancel
+    onSave = () => {},
+    onCancel = () => {}
   }: Props = $props();
 
   let editDatumDate = $state("");
@@ -83,9 +80,8 @@
     lastSyncedEditDatum = formatted;
   }
 
-  function handleSave() {
-    handleDatumDateOrDauerChange();
-    if (!editTitle.trim()) editTitle = generatedTitle;
+  /** Offers the saved values as suggestions next time; after a save, not on every keystroke. */
+  export function remember() {
     if (editTestart) recordValue("exam.testart", editTestart);
     if (editGrade) recordValue("exam.grade", editGrade);
     if (editKlasse) recordValue("exam.klasse", editKlasse);
@@ -93,6 +89,12 @@
     if (editTopic) recordValue("exam.topic", editTopic);
     if (editLehrernachname) recordValue("exam.lehrernachname", editLehrernachname);
     if (editDauer) recordValue("exam.dauer", editDauer);
+  }
+
+  function handleSave() {
+    handleDatumDateOrDauerChange();
+    if (!editTitle.trim()) editTitle = generatedTitle;
+    remember();
     onSave();
   }
 
@@ -190,14 +192,6 @@
 {#if inline}
   <div class="@container">
     {@render fields()}
-    {#if error}<Alert severity="danger" class="mt-3">{error}</Alert>{/if}
-    {#if dirty || busy}
-      <!-- Appears only once something changed, so the unchanged card stays as short as possible. -->
-      <div class="mt-3 flex flex-wrap justify-end gap-2 border-t border-line pt-3">
-        <Button size="sm" variant="outlined" severity="secondary" icon={actionIcons.remove} disabled={busy} onClick={onCancel}>{$t("exam.layout.discard")}</Button>
-        <Button size="sm" loading={busy} disabled={busy} onClick={handleSave}>{$t("common.save")}</Button>
-      </div>
-    {/if}
   </div>
 {:else}
 <Modal

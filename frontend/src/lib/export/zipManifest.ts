@@ -72,6 +72,8 @@ export interface ZipExamSettings {
   /** Extra paper (issue #228); absent in older ZIPs, read as none. */
   paperStyle?: 'empty' | 'squared' | 'lined';
   extraPages?: number;
+  /** Booklet print shift in mm (issue #228); absent = 0. */
+  bookletOffsetMm?: number;
   extraNotes?: ExtraNotes | null;
 }
 

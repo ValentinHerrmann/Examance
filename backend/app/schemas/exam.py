@@ -83,6 +83,7 @@ PrintMode = Literal["stickers", "copies"]
 # Extra paper (issue #228).
 PaperStyle = Literal["empty", "squared", "lined"]
 ExtraPages = Annotated[int, Field(ge=0, le=20)]
+BookletOffset = Annotated[float, Field(ge=-10, le=10)]
 _MAX_POSITION = 10_000
 
 
@@ -229,6 +230,7 @@ class ExamCreate(BaseModel):
     print_mode: PrintMode = "stickers"
     paper_style: PaperStyle = "empty"
     extra_pages: ExtraPages = 0
+    booklet_offset_mm: BookletOffset = 0
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
@@ -282,6 +284,7 @@ class ExamUpdate(BaseModel):
     print_mode: PrintMode | None = None
     paper_style: PaperStyle | None = None
     extra_pages: ExtraPages | None = None
+    booklet_offset_mm: BookletOffset | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     # Absent keeps the stored ticks; null or {} clears them.
@@ -325,6 +328,7 @@ class ExamResponse(BaseModel):
     print_mode: PrintMode = "stickers"
     paper_style: PaperStyle = "empty"
     extra_pages: ExtraPages = 0
+    booklet_offset_mm: BookletOffset = 0
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     pseudonym_version: int = 1

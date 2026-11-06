@@ -19,15 +19,26 @@ export interface PrintSettings {
   paperStyle: PaperStyle;
   /** Extra pages after the points table in every copy, at least, 0..MAX_EXTRA_PAGES. */
   extraPages: number;
+  /** Shift of imposed A3 booklet sheets in mm, positive to the right, within ±MAX_BOOKLET_OFFSET (issue #228). */
+  bookletOffsetMm: number;
 }
 
-type PrintFields = Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages'>;
+type PrintFields = Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm'>;
 
 /** What a new exam starts with; older exams read as no page codes, a cover sticker and empty writing paper. */
-export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0 } as const satisfies PrintFields;
+export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0 } as const satisfies PrintFields;
 
 const SPOTS: ReadonlySet<string> = new Set<StickerSpots>(['cover', 'sheet', 'a3', 'leaf']);
 const PAPER: ReadonlySet<string> = new Set<PaperStyle>(['empty', 'squared', 'lined']);
+
+/** Largest booklet shift either way, in mm; a printer further off needs its own adjustment. */
+export const MAX_BOOKLET_OFFSET = 10;
+
+/** A stored or typed shift as a multiple of 0.5 mm within ±MAX_BOOKLET_OFFSET. */
+export function clampBookletOffset(value: unknown): number {
+  const n = Math.round(Number(String(value ?? '').replace(',', '.')) * 2) / 2;
+  return Number.isFinite(n) ? Math.min(MAX_BOOKLET_OFFSET, Math.max(-MAX_BOOKLET_OFFSET, n)) + 0 : 0;
+}
 
 /** A stored or typed page count as a whole number within 0..MAX_EXTRA_PAGES. */
 export function clampExtraPages(value: unknown): number {
@@ -45,6 +56,7 @@ export function printSettingsOf(exam: PrintFields): PrintSettings {
     stickerSpots: spotsFor(layout, spots),
     paperStyle: PAPER.has(exam.paperStyle ?? '') ? (exam.paperStyle as PaperStyle) : 'empty',
     extraPages: clampExtraPages(exam.extraPages),
+    bookletOffsetMm: clampBookletOffset(exam.bookletOffsetMm),
   };
 }
 
@@ -79,8 +91,9 @@ export function stickersPerCopy(settings: PrintSettings, pageCount: number): num
 }
 
 /** What shapes a made print file besides content and students: a file made under another key is outdated (Print step). */
-export function printFileKey(job: 'exam' | 'qr' | 'copies' | 'extra', booklet: 'impose' | 'printer' | null, stickers: number, paper: PaperStyle = 'empty'): string {
+export function printFileKey(job: 'exam' | 'qr' | 'copies' | 'extra', booklet: 'impose' | 'printer' | null, stickers: number, paper: PaperStyle = 'empty', offsetMm = 0): string {
   if (job === 'qr') return `qr:${stickers}`;
   if (job === 'extra') return `extra:${paper}`;
-  return `${job}:${booklet ?? 'a4'}`;
+  // Imposed sheets carry the shift, so a new offset makes them again.
+  return booklet === 'impose' ? `${job}:impose:${offsetMm}` : `${job}:${booklet ?? 'a4'}`;
 }

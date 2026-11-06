@@ -34,6 +34,10 @@ export interface ExtraNotes {
 /** Whether the exam ends with the rest-of-page writing area. */
 export const fillsLastPage = (notes: ExtraNotes | null | undefined): boolean => !!notes && notes.fill !== false;
 
+/** Compares writing-space settings as stored (`fill` absent means on), so an autosave sees no change where the store only normalised. */
+export const extraNotesKey = (notes: ExtraNotes | null | undefined): string =>
+  JSON.stringify(notes ? { title: notes.title, description: notes.description ?? '', minHeightCm: notes.minHeightCm, maxHeightCm: notes.maxHeightCm, fill: notes.fill !== false } : null);
+
 export const DEFAULT_EXTRA_NOTES: ExtraNotes = {
   title: 'Platz für weitere Lösungen',
   description: 'Zugehörigkeit zu einer Aufgabe bitte deutlich darstellen.',
@@ -83,6 +87,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   paperStyle?: 'empty' | 'squared' | 'lined';
   /** Writing pages after the points table in every copy (issue #228), 0..20. */
   extraPages?: number;
+  /** Shift of imposed A3 booklet sheets in mm, positive to the right (issue #228); absent = 0. */
+  bookletOffsetMm?: number;
   /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */
   extraNotes?: ExtraNotes | null;
   /** Ticks the teacher set by hand on the Print and MC steps (issue #212); written only through `examRepository.saveStepChecks`, never with the rest of the record. */

@@ -23,7 +23,8 @@
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Card, ConfirmDialog, PageShell, Tabs } from "#lib/components/ui";
+  import { Alert, Card, ConfirmDialog, PageShell, SaveStatus, Tabs } from "#lib/components/ui";
+  import { createAutosave, IDLE_SAVE, type AutosaveStatus } from "#lib/utils/autosave";
   import { faEye, faLayerGroup, faSliders } from "@fortawesome/free-solid-svg-icons";
 
   let examId = $derived(page.params.id || "");
@@ -47,7 +48,7 @@
   let shownTab: ContentTab = $derived(tab === "preview" && $isXl ? "exercises" : tab);
   let layoutDirty = $state(false);
   // The Layout card saves itself; its header shows "Saving…" / "Saved".
-  let layoutStatus = $state("");
+  let layoutStatus = $state<AutosaveStatus>(IDLE_SAVE);
   let pendingLeave: URL | null = $state(null);
 
   // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's examMcGroups/examExercises rows, which left the local MC groups empty.
@@ -135,14 +136,11 @@
     if (!exam) return;
     const next = togglePageBreak(exam.pageBreaks, itemId);
     exam = { ...exam, pageBreaks: prunePageBreaks(next, getEffectiveExamItems().map((i) => i.id)) };
-    try {
-      await saveExamEncrypted(exam, get(sessionStore).sessionKey);
-      errorMsg = "";
-      afterLayoutChange();
-    } catch (err) {
-      console.error("Failed to save page breaks:", err);
-      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
-    }
+    const record = exam;
+    await linksSave
+      .track(saveExamEncrypted(record, get(sessionStore).sessionKey))
+      .then(afterLayoutChange)
+      .catch((err) => console.error("Failed to save page breaks:", err));
   }
 
   async function removeExerciseLink(id: string) {
@@ -201,7 +199,14 @@
     return { mcGroupsPayload, exerciseLinksPayload, mcGroupRecords, examExerciseRecords, items };
   }
 
+  /** The Exercises tab saves at once; its header shows the status (issue #228). */
+  const linksSave = createAutosave({ run: async () => {}, message: () => translate("exam.page.exerciseLinks.saveFailed") });
+
   async function saveExerciseLinks() {
+    await linksSave.track(writeExerciseLinks()).catch((err) => console.error("Failed to save exercise links:", err));
+  }
+
+  async function writeExerciseLinks() {
     if (!exam) return;
     const currentExamId = exam.id;
     const { mcGroupsPayload, exerciseLinksPayload, mcGroupRecords, examExerciseRecords, items } = buildExamLinkPayload();
@@ -221,24 +226,19 @@
         if (mcGroupRecords.length > 0) await db.examMcGroups.bulkPut(mcGroupRecords);
       });
     } catch (err) {
-      console.error("Failed to update local exercise links:", err);
-      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
-      return;
+      throw new Error("Failed to update local exercise links", { cause: err });
     }
 
     try {
-      // silentError: the failure is reported inline below, and the global HTTP error modal on top of an autosave is pure noise.
+      // silentError: the failure shows in the tab's save status, and the global HTTP error modal on top of an autosave is pure noise.
       await api.patch(
         `/exams/${currentExamId}`,
         { mc_groups: mcGroupsPayload, exercise_links: exerciseLinksPayload, ...(breaksChanged ? { page_breaks: pageBreaks } : {}) },
         { silentError: true },
       );
-      errorMsg = "";
-    } catch (err) {
-      console.error("Failed to sync exercise links to server:", err);
-      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
+    } finally {
+      afterLayoutChange();
     }
-    afterLayoutChange();
   }
 
   // Unsaved layout edits: ask before leaving the page (in-app navigation; a closed tab loses them like any form).
@@ -307,6 +307,7 @@
             {mcGroups}
             {libraryExercises}
             {examItems}
+            saveStatus={$linksSave}
             onRemove={removeExerciseLink}
             onAddExercises={() => picker?.open()}
             onMoveUp={(idx) => moveExamItem(idx, "up")}
@@ -322,7 +323,7 @@
         <div class="min-w-0 xl:col-start-1 xl:row-start-2 {shownTab === 'layout' ? '' : 'hidden'}">
           <Card title={$t("exam.content.tabLayout")}>
             {#snippet actions()}
-              {#if layoutStatus}<span class="text-sm text-muted" role="status">{layoutStatus}</span>{/if}
+              <SaveStatus status={layoutStatus} />
             {/snippet}
             <ExamLayoutSettings
               {exam}

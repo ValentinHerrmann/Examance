@@ -2,14 +2,7 @@ import type { Translations } from '../types';
 
 export const stats: Translations['stats'] = {
     gradingKey: {
-        draftTitle: 'Preview, not saved yet',
-        draftText: 'The statistics show the edited grading key. It only applies once you save; otherwise it is dropped when you leave the page.',
-        leaveTitle: 'Grading key not saved',
-        leaveMessage: 'The changed grading key is only a preview and is dropped when you leave the page.',
-        leaveDiscard: 'Discard and leave',
-        leaveStay: 'Back to the grading key',
-        intro: 'Changes show in the grade distribution right away; they are stored only when you save.',
-        saved: 'Grading key saved.',
+        intro: 'Changes show in the grade distribution right away and are saved automatically.',
     },
     page: {
         title: 'Grade Analytics & Export',

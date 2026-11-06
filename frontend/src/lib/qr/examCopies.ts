@@ -39,10 +39,9 @@ const ALTITUDE = (TAB_TOP * TAB_SIDE) / HYPOTENUSE;
 /** Name and key rows parallel to the cut line: baseline distance from it, preferred and smallest font size. The name's descender (0.7 mm at 9 pt) stays CLEAR off the line; the key sits above the name's ascender. */
 const NAME_ROW = { dist: CLEAR + 0.7 * MM, size: 9, minSize: 7 };
 const KEY_ROW = { dist: CLEAR + 4.7 * MM, size: 8.5, minSize: 7 };
-/** Scissors on the cut line, as vector paths (no font needed) around their centre, blades pointing along +x: handle rings and two crossing blades, about 3.5 mm long; the centre sits this far from the line's top end, 5 mm clear of the top edge (unprintable margin). */
+/** Scissors on the cut line, as vector paths (no font needed) around their centre, blades pointing along +x: handle rings and two crossing blades, about 3.5 mm long; two of them at a third and two thirds of the line, as Schulaufgabe.sty draws them on every page. */
 const SCISSORS_RINGS = 'M -1.7 -2 a 1.5 1.5 0 1 0 -3 0 a 1.5 1.5 0 1 0 3 0 M -1.7 2 a 1.5 1.5 0 1 0 -3 0 a 1.5 1.5 0 1 0 3 0';
 const SCISSORS_BLADES = 'M -2 -1.6 L 5.2 1.5 L -1.4 -0.6 Z M -2 1.6 L 5.2 -1.5 L -1.4 0.6 Z';
-const SCISSORS_AT = 25 * MM;
 const SCISSORS_GAP = 3 * MM;
 
 /** Where a page gets stamped, in PDF points: its sticker boxes (`omr://__qr__`, page 1 and, with a box per sheet, every later sheet front) and its page code (`omr://__page__/<n>`, Schulaufgabe.sty section 11). */
@@ -98,27 +97,28 @@ function drawTabRow(lib: PdfLib, page: PDFPage, font: PDFFont, texts: readonly s
   page.drawText(line, { x: width - scale * TAB_TOP + COS * along, y: height - SIN * along, size, font, rotate: lib.degrees(-ANGLE) });
 }
 
-/** The dashed cut line in a top corner, interrupted by small scissors near its top end; the guillotine follows it through the whole stack. */
-function drawCutLine(lib: PdfLib, page: PDFPage, side: 'left' | 'right'): void {
+/** Page 1's dashed cut line, redrawn over the blanked tab and interrupted by two small scissors; the guillotine follows it through the whole stack. */
+function drawCutLine(lib: PdfLib, page: PDFPage): void {
   const { width, height } = page.getSize();
-  const right = side === 'right';
-  // From the line's top end along it, mirrored on the left page.
-  const point = (along: number) => ({ x: right ? width - TAB_TOP + COS * along : TAB_TOP - COS * along, y: height - SIN * along });
+  // From the line's top end (top right corner) along it.
+  const point = (along: number) => ({ x: width - TAB_TOP + COS * along, y: height - SIN * along });
   const grey = lib.rgb(0.5, 0.5, 0.5);
-  for (const [from, to] of [[0, SCISSORS_AT - SCISSORS_GAP], [SCISSORS_AT + SCISSORS_GAP, HYPOTENUSE]]) {
-    page.drawLine({ start: point(from), end: point(to), thickness: 0.6, color: grey, dashArray: [4, 3] });
+  const scissors = [HYPOTENUSE * 0.33, HYPOTENUSE * 0.67];
+  const ends = [0, ...scissors.flatMap((at) => [at - SCISSORS_GAP, at + SCISSORS_GAP]), HYPOTENUSE];
+  for (let i = 0; i < ends.length; i += 2) page.drawLine({ start: point(ends[i]), end: point(ends[i + 1]), thickness: 0.6, color: grey, dashArray: [4, 3] });
+  for (const along of scissors) {
+    // Blades point along the line towards the side edge.
+    const at = { ...point(along), rotate: lib.degrees(-ANGLE) };
+    page.drawSvgPath(SCISSORS_RINGS, { ...at, borderColor: grey, borderWidth: 0.7 });
+    page.drawSvgPath(SCISSORS_BLADES, { ...at, color: grey });
   }
-  // Blades point along the line towards the side edge.
-  const at = { ...point(SCISSORS_AT), rotate: lib.degrees(right ? -ANGLE : 180 + ANGLE) };
-  page.drawSvgPath(SCISSORS_RINGS, { ...at, borderColor: grey, borderWidth: 0.7 });
-  page.drawSvgPath(SCISSORS_BLADES, { ...at, color: grey });
 }
 
 /** The corner tab on page 1: blanked (the sheet tints it grey), the cut line, and name and key parallel to it in the corner at least 3 mm from the line and 4 mm from the edges. */
 function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: StickerEntry, key: string): void {
   const { height } = page.getSize();
   page.drawSvgPath(`M ${page.getWidth() - TAB_TOP} 0 L ${page.getWidth()} 0 L ${page.getWidth()} ${TAB_SIDE} Z`, { x: 0, y: height, color: lib.rgb(1, 1, 1) });
-  drawCutLine(lib, page, 'right');
+  drawCutLine(lib, page);
   const name = fonts.safe(entry.label);
   drawTabRow(lib, page, fonts.bold, [name, abbreviateGivenNames(name)], NAME_ROW);
   drawTabRow(lib, page, fonts.monoBold, [formatCode(key)], KEY_ROW);
@@ -145,8 +145,7 @@ function addCopy({ lib, out, fonts, targets, tag }: CopyContext, pages: PDFPage[
     if (code && id) stampQr(lib, page, code, pageCodeText({ tag, page: i + 1, id }), code[2] - code[0], 0, PAGE_CODE_EC);
   });
   drawCornerTab(lib, first, fonts, entry, key);
-  // Copies are printed long-edge duplex or as booklets and cut as one stack: each page shows its outer corner's line.
-  for (let i = 1; i < pages.length; i++) drawCutLine(lib, pages[i], i % 2 === 1 ? 'left' : 'right');
+  // Later pages carry their outer corner's cut line from the sheet itself (Schulaufgabe.sty).
   // With page codes the sheet already fills whole sheets (Schulaufgabe.sty); older sheets get a blank back so the next copy starts on a new sheet.
   if (!targets.some((t) => t.pageCode) && pages.length % 2 === 1) {
     const { width, height } = first.getSize();

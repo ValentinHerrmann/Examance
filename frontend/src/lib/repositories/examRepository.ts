@@ -48,7 +48,7 @@ export function extraNotesToApi(
 }
 
 /** The multi-sheet print fields (issue #220), from the API's snake_case or a stored camelCase record; normalised by `printSettingsOf`. */
-function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages'> {
+function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm'> {
   const s = printSettingsOf({
     pageCodes: raw.page_codes ?? raw.pageCodes,
     printLayout: raw.print_layout ?? raw.printLayout,
@@ -56,10 +56,11 @@ function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' |
     printMode: raw.print_mode ?? raw.printMode,
     paperStyle: raw.paper_style ?? raw.paperStyle,
     extraPages: raw.extra_pages ?? raw.extraPages,
+    bookletOffsetMm: raw.booklet_offset_mm ?? raw.bookletOffsetMm,
   });
   return {
     pageCodes: s.pageCodes, printLayout: s.layout, stickerSpots: s.stickerSpots, printMode: s.mode,
-    paperStyle: s.paperStyle, extraPages: s.extraPages,
+    paperStyle: s.paperStyle, extraPages: s.extraPages, bookletOffsetMm: s.bookletOffsetMm,
   };
 }
 
@@ -128,6 +129,7 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     print_mode: exam.printMode,
     paper_style: exam.paperStyle,
     extra_pages: exam.extraPages,
+    booklet_offset_mm: exam.bookletOffsetMm,
     // null switches the block off, undefined leaves it alone.
     extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,
