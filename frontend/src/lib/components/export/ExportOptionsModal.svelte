@@ -12,7 +12,7 @@
   import { untrack, type Snippet } from "svelte";
   import { faFileZipper, faLock } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { Alert, Button, Modal, Radio } from "#lib/components/ui";
+  import { Alert, Button, Modal, OptionTile } from "#lib/components/ui";
   import type { ExportProgress, ExportResult } from "#lib/export/progress";
   import { runZipExport } from "#lib/export/runZipExport";
   import ExportOptionList from "./ExportOptionList.svelte";
@@ -92,8 +92,12 @@
     {#if run && backup}
       <fieldset class="mb-6 flex flex-col gap-2" disabled={running}>
         <legend class="mb-2 text-sm text-muted">{$t("export.dialog.format")}</legend>
-        <Radio group={format} value="zip" name="export-format" onchange={() => (format = "zip")} label={$t("export.dialog.formatZip")} />
-        <Radio group={format} value="backup" name="export-format" onchange={() => (format = "backup")} label={$t("export.dialog.formatBackup")} />
+        <div class="@container">
+          <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
+            <OptionTile compact name="export-format" value="zip" checked={format === "zip"} icon={faFileZipper} title={$t("export.dialog.formatZip")} text={$t("export.dialog.formatZipText")} onchange={() => (format = "zip")} />
+            <OptionTile compact name="export-format" value="backup" checked={format === "backup"} icon={faLock} title={$t("export.dialog.formatBackup")} text={$t("export.dialog.formatBackupText")} onchange={() => (format = "backup")} />
+          </div>
+        </div>
       </fieldset>
     {/if}
     {#if format === "backup"}

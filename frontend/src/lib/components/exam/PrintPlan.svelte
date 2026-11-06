@@ -10,7 +10,7 @@
 
 <script lang="ts">
   import { onDestroy, tick, untrack } from "svelte";
-  import { faArrowsRotate, faBookOpen, faCircleCheck, faCircleInfo, faCopy, faNoteSticky, faPrint, faTag, faTriangleExclamation, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowsRotate, faBookOpen, faCircleCheck, faCircleInfo, faCopy, faFileLines, faKey, faNoteSticky, faPrint, faScissors, faTag, faTriangleExclamation, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import SectionHeading from "#lib/components/help/SectionHeading.svelte";
@@ -40,7 +40,7 @@
   import type { ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import type { ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import StickerSheetForm from "#lib/components/sharing/StickerSheetForm.svelte";
-  import { Alert, Badge, Button, Card, Checkbox, Icon, OptionTile, Radio, actionIcons } from "#lib/components/ui";
+  import { Alert, Badge, Button, Card, Checkbox, Icon, OptionTile, actionIcons } from "#lib/components/ui";
 
   /** The Print step (issue #212): the teacher picks how they print, the page lists the print jobs that follow, each with its readiness, its PDF and a "printed" tick that is only offered once that PDF exists for the current content. */
   interface Props {
@@ -105,6 +105,7 @@
     if (print.mode === "copies" && copiesUnavailable) rows.push({ level: "warn", text: copiesUnavailable });
     return rows;
   });
+  const spotIcon = { cover: faFileLines, sheet: faCopy, a3: faBookOpen, leaf: faScissors } as const;
   const levelIcon = { ok: faCircleCheck, warn: faTriangleExclamation, info: faCircleInfo };
   const levelClass = { ok: "text-success-fg", warn: "text-warning-fg", info: "text-muted" };
 
@@ -328,15 +329,19 @@
 
         <div class="flex min-w-0 flex-col gap-3">
           {#if print.mode === "stickers"}
-            <fieldset class="m-0 flex min-w-0 flex-col gap-1 border-0 p-0" disabled={busy || saving || !cs} aria-labelledby="print-spots-label">
+            <fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" disabled={busy || saving || !cs} aria-labelledby="print-spots-label">
               <SectionHeading id="print-spots-label" label={$t("exam.print.spots.legend")} info={$t("exam.print.spots.info")} />
-              {#each spotChoices(print.layout) as spot (spot)}
-                <Radio group={print.stickerSpots} value={spot} name="print-spots" onchange={() => change({ stickerSpots: spot })} label={$t(`exam.print.spots.${spot}`)} />
-              {/each}
+              <div class="@container">
+                <div class="grid grid-cols-1 gap-2 {spotChoices(print.layout).length > 2 ? '@xs:grid-cols-3' : '@xs:grid-cols-2'}">
+                  {#each spotChoices(print.layout) as spot (spot)}
+                    <OptionTile compact name="print-spots" value={spot} checked={print.stickerSpots === spot} icon={spotIcon[spot]} title={$t(`exam.print.spots.${spot}`)} text={$t(`exam.print.spots.${spot}Text`)} onchange={() => change({ stickerSpots: spot })} />
+                  {/each}
+                </div>
+              </div>
             </fieldset>
           {/if}
 
-          <Checkbox checked={plan.solution} disabled={busy || saving || !cs} onChange={(on) => setPlan({ solution: on })} label={$t("exam.print.withSolution")} />
+          <OptionTile type="checkbox" compact checked={plan.solution} disabled={busy || saving || !cs} icon={faKey} title={$t("exam.print.withSolution")} text={$t("exam.print.withSolutionText")} onToggle={(on) => setPlan({ solution: on })} />
           <p class="m-0 flex items-start gap-2 rounded-md bg-surface-sunken p-2 text-sm text-content">
             <Icon icon={faPrint} class="mt-0.5 shrink-0 text-muted" />{$t(`exam.print.howTo.${howTo}`)}
           </p>

@@ -7,8 +7,10 @@ export const exportNs = {
         packing: 'ZIP wird gepackt …',
         doneWithWarnings: 'Der Download wurde erstellt, aber nicht alles konnte exportiert werden:',
         format: 'Format',
-        formatZip: 'Lesbares ZIP (PDFs, LaTeX, Noten als CSV)',
-        formatBackup: 'Wieder importierbare, passwortgeschützte Sicherung',
+        formatZip: 'Lesbares ZIP',
+        formatZipText: 'PDFs, LaTeX, Noten als CSV',
+        formatBackup: 'Sicherung',
+        formatBackupText: 'Wieder importierbar, passwortgeschützt',
     },
     backup: {
         intro: 'Verschlüsselt alles Gewählte mit Aufgaben, Bilddateien, Scans und Bewertungen. Über „Importieren“ lässt sich die Datei wieder einlesen, auch auf einem anderen Gerät oder in einer anderen Examance-Instanz.',

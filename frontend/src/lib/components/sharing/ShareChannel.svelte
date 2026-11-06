@@ -1,10 +1,10 @@
 <script lang="ts">
   /** Step 2 of sharing results (issue #212): how the results reach the students. A channel the account or server cannot use stays listed, greyed out with its reason. */
-  import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
+  import { faEnvelope, faGraduationCap, faReceipt, faSchool } from "@fortawesome/free-solid-svg-icons";
   import { t, LOCALE_LABELS, LOCALES } from "#lib/i18n";
   import type { Locale } from "#lib/i18n/types";
   import type { TranslationKey } from "#lib/i18n";
-  import { Field, Icon, Radio, Select } from "#lib/components/ui";
+  import { Field, OptionTile, Select } from "#lib/components/ui";
   import type { ArtemisCourse } from "#lib/api/integrations";
   import { SHARE_CHANNELS, type ArtemisMode, type ShareChannelId } from "#lib/sharing/channels";
   import type { ShareStudent } from "#lib/sharing/shareService";
@@ -38,6 +38,8 @@
     artemisMode = $bindable("link"),
     language = $bindable("de"),
   }: Props = $props();
+
+  const channelIcon: Record<ShareChannelId, typeof faEnvelope> = { slips: faReceipt, email: faEnvelope, artemis: faGraduationCap, mebis: faSchool };
 </script>
 
 <div class="flex flex-col gap-4">
@@ -45,14 +47,8 @@
     <legend class="sr-only">{$t("sharing.share.channel")}</legend>
     {#each SHARE_CHANNELS as c (c.id)}
       {@const reason = unavailable.get(c.id)}
-      <!-- Only the chosen way shows its description (the others on hover), so the column stays short (issue #212). -->
-      <div class={reason ? "opacity-60" : ""} title={c.id === channel ? undefined : $t(c.descriptionKey)}>
-        <Radio group={channel} value={c.id} name="share-channel" disabled={!!reason} onchange={() => onChoose(c.id)} label={$t(c.labelKey)} />
-        {#if c.id === channel}<p class="m-0 ml-7 text-sm text-muted">{$t(c.descriptionKey)}</p>{/if}
-        {#if reason}
-          <p class="ml-7 flex items-start gap-1.5 text-sm text-muted"><Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{$t(reason)}</p>
-        {/if}
-      </div>
+      <!-- A tile per way (issue #228): its description as the line, or why it is greyed out (never hidden). -->
+      <OptionTile compact name="share-channel" value={c.id} checked={channel === c.id} disabled={!!reason} icon={channelIcon[c.id]} title={$t(c.labelKey)} text={reason ? $t(reason) : $t(c.descriptionKey)} onchange={() => onChoose(c.id)} />
       {#if c.id === channel && (c.id === "email" || c.id === "artemis")}
         <DeliverySetup {examId} channel={c.id} {students} disabled={running} bind:artemisCourse bind:artemisMode />
       {/if}

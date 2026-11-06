@@ -81,6 +81,8 @@ export const latexPackages = {
         heading: 'LaTeX-Pakete',
         account: 'Kontoeinstellung verwenden',
         custom: 'Für diese Prüfung anpassen',
+        accountText: 'Die Pakete aller Dokumente',
+        customText: 'Ergänzen oder einzelne weglassen',
         inherited: 'Aus der Kontoeinstellung',
         noAccountPackages: 'Die Kontoeinstellung fügt keine Pakete hinzu.',
         omit: '{name} für diese Prüfung weglassen',

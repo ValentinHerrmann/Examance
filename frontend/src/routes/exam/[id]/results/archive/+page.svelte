@@ -5,9 +5,9 @@
   import { onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
   import { get } from "svelte/store";
-  import { faArrowsRotate, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowsRotate, faCopy, faFile, faLock, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Checkbox, Icon, PageShell, Spinner, actionIcons } from "#lib/components/ui";
+  import { Alert, Button, Icon, OptionTile, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import ExportOptionList from "#lib/components/export/ExportOptionList.svelte";
@@ -217,7 +217,13 @@
   />
 {/snippet}
 {#snippet gradedControls()}
-  <Checkbox bind:checked={duplex} disabled={gradedBusy} label={$t("exam.archive.gradedDuplex")} />
+  <!-- Two cases with a word each, as tiles (issue #228). -->
+  <div class="@container w-full" role="radiogroup" aria-label={$t("exam.archive.gradedTitle")}>
+    <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
+      <OptionTile compact name="graded-sides" value="simplex" checked={!duplex} disabled={gradedBusy} icon={faFile} title={$t("exam.archive.gradedSimplex")} text={$t("exam.archive.gradedSimplexText")} onchange={() => (duplex = false)} />
+      <OptionTile compact name="graded-sides" value="duplex" checked={duplex} disabled={gradedBusy} icon={faCopy} title={$t("exam.archive.gradedDuplex")} text={$t("exam.archive.gradedDuplexText")} onchange={() => (duplex = true)} />
+    </div>
+  </div>
   {#if gradedUrl}<span class="text-xs text-muted">{$t("exam.archive.gradedPages", { count: gradedPages })}</span>{/if}
 {/snippet}
 {#snippet gradedBody()}
@@ -250,11 +256,10 @@
   <div class="min-h-0 flex-1 overflow-auto">
     <ExportOptionList {options} bind:checked disabled={running} />
     <div class="mt-3 border-t border-line pt-3">
-      <div class="flex items-center gap-1">
-        <Checkbox bind:checked={backup} disabled={running} label={$t("exam.archive.backupOption")} />
-        <InfoTip text={$t("export.backup.intro")} />
-      </div>
-      {#if backup}<div {@attach revealInList}><BackupFields class="mt-3 ml-7" intro={false} bind:password bind:passwordRepeat bind:withoutCode disabled={running} /></div>{/if}
+      <OptionTile type="checkbox" compact checked={backup} disabled={running} icon={faLock} title={$t("exam.archive.backupOption")} text={$t("exam.archive.backupOptionText")} onToggle={(on) => (backup = on)}>
+        {#snippet titleExtra()}<InfoTip text={$t("export.backup.intro")} />{/snippet}
+      </OptionTile>
+      {#if backup}<div {@attach revealInList}><BackupFields class="mt-3" intro={false} bind:password bind:passwordRepeat bind:withoutCode disabled={running} /></div>{/if}
     </div>
   </div>
   {#if running}<ExportProgressBar {step} {fraction} />{/if}

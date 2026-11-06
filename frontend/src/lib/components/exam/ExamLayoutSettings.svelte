@@ -14,8 +14,8 @@
   import ExtraNotesField from "#lib/components/exam/ExtraNotesField.svelte";
   import type { ExtraNotes } from "#lib/db/schema";
   import SectionHeading from "#lib/components/help/SectionHeading.svelte";
-  import { faFile, faGripLines, faTableCells } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Checkbox, CrossLink, Field, OptionTile, TextInput } from "#lib/components/ui";
+  import { faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faSignature, faTableCells, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, CrossLink, Field, OptionTile, TextInput } from "#lib/components/ui";
 
   /** The exam's page layout (issues #212, #220, #228): info text, name line, cut-corner hint, MC correction legend, page codes, filler pages, extra paper, logo and LaTeX packages. Every change saves itself (no buttons); how the exam is printed lives on the Print step. */
   interface Props {
@@ -189,11 +189,17 @@
   });
 </script>
 
-{#snippet checkRow(id: string, label: string, info: string, checked: boolean, onChange: (on: boolean) => void)}
-  <span class="flex items-center gap-1.5">
-    <Checkbox {id} {checked} {onChange} {label} />
-    <InfoTip text={info} />
-  </span>
+{#snippet pair(id: string, legend: string, info: string, on: boolean, set: (on: boolean) => void, off: { title: string; text: string; icon: IconDefinition }, yes: { title: string; text: string; icon: IconDefinition })}
+  <!-- An on/off setting whose two cases need a word each (issue #228): two tiles, the "off" case first. -->
+  <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby={id}>
+    <SectionHeading {id} label={legend} {info} />
+    <div class="@container">
+      <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
+        <OptionTile compact name={id} value="off" checked={!on} icon={off.icon} title={off.title} text={off.text} onchange={() => set(false)} />
+        <OptionTile compact name={id} value="on" checked={on} icon={yes.icon} title={yes.title} text={yes.text} onchange={() => set(true)} />
+      </div>
+    </div>
+  </div>
 {/snippet}
 
 <!-- Sections like the Print step's plan card (issue #228): a small heading with its explanation behind ⓘ, choices as tiles, two columns where the card is wide. -->
@@ -205,7 +211,7 @@
         <Field label={$t("exam.metadataEditor.infoText")}>
           <LatexEditor bind:value={infoText} rows={4} />
         </Field>
-        {@render checkRow("layoutNameLine", $t("exam.metadataEditor.nameLine"), $t("exam.metadataEditor.nameLineHint"), nameLine, (on) => (nameLine = on))}
+        {@render pair("layout-name", $t("exam.layout.choices.nameLegend"), $t("exam.metadataEditor.nameLineHint"), nameLine, (on) => (nameLine = on), { title: $t("exam.layout.choices.nameQr"), text: $t("exam.layout.choices.nameQrText"), icon: faQrcode }, { title: $t("exam.layout.choices.nameLine"), text: $t("exam.layout.choices.nameLineText"), icon: faSignature })}
         {#key resetSeq}
           <ExamLogoField examId={exam.id} bind:change={logoChange} />
         {/key}
@@ -214,8 +220,10 @@
       <!-- Every exam keeps the cut-off corner (issue #211); page codes shape every sheet (issue #220); how it is printed is set on the Print step. -->
       <section class="flex flex-col gap-3" aria-labelledby="layout-sheet">
         <SectionHeading id="layout-sheet" tag="h3" label={$t("exam.layout.sections.sheet")} info={$t("exam.layout.sections.sheetInfo")} />
-        {@render checkRow("layoutMcCorrectionHint", $t("exam.metadataEditor.mcCorrectionHint"), $t("exam.metadataEditor.mcCorrectionHintHint"), mcCorrectionHint, (on) => (mcCorrectionHint = on))}
-        {@render checkRow("layoutPageCodes", $t("exam.layout.print.pageCodes"), $t("exam.layout.print.pageCodesInfo"), pageCodes, (on) => (pageCodes = on))}
+        {@render pair("layout-codes", $t("exam.layout.choices.codesLegend"), $t("exam.layout.print.pageCodesInfo"), pageCodes, (on) => (pageCodes = on), { title: $t("exam.layout.choices.codesCover"), text: $t("exam.layout.choices.codesCoverText"), icon: faFileLines }, { title: $t("exam.layout.choices.codesAll"), text: $t("exam.layout.choices.codesAllText"), icon: faQrcode })}
+        <OptionTile type="checkbox" compact checked={mcCorrectionHint} icon={faPenToSquare} title={$t("exam.layout.choices.mcHint")} text={$t("exam.layout.choices.mcHintText")} onToggle={(on) => (mcCorrectionHint = on)}>
+          {#snippet titleExtra()}<InfoTip text={$t("exam.metadataEditor.mcCorrectionHintHint")} />{/snippet}
+        </OptionTile>
         <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <CrossLink href={docsHref("exams#cut-corner", $locale)}>{$t("exam.metadataEditor.cutCornerLayout")}</CrossLink>
           <CrossLink href={docsHref("exams#multi-sheet", $locale)}>{$t("exam.layout.print.guide")}</CrossLink>

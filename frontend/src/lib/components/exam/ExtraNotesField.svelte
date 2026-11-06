@@ -1,7 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
-  import { Checkbox, Field, TextInput, controlClass } from "#lib/components/ui";
+  import { faTableCells } from "@fortawesome/free-solid-svg-icons";
+  import { Field, OptionTile, TextInput, controlClass } from "#lib/components/ui";
   import { DEFAULT_EXTRA_NOTES, fillsLastPage, type ExtraNotes } from "#lib/db/schema";
   import { t } from "#lib/i18n";
 
@@ -61,10 +62,9 @@
     <!-- Printed on the heading's line (issue #228), so one line here too. -->
     <TextInput id="{idPrefix}Description" bind:value={draft.description} maxlength={500} onchange={() => commit()} />
   </Field>
-  <span class="flex items-center gap-1.5">
-    <Checkbox id="{idPrefix}Fill" checked={draft.fill !== false} onChange={toggle} label={$t("exam.extraNotes.fill")} />
-    <InfoTip text={$t("exam.extraNotes.hint")} />
-  </span>
+  <OptionTile type="checkbox" compact checked={draft.fill !== false} icon={faTableCells} title={$t("exam.extraNotes.fill")} text={$t("exam.extraNotes.fillText")} onToggle={toggle}>
+    {#snippet titleExtra()}<InfoTip text={$t("exam.extraNotes.hint")} />{/snippet}
+  </OptionTile>
   {#if draft.fill !== false}
     <div class="grid grid-cols-2 gap-3">
       <Field label={$t("exam.extraNotes.min")} forId="{idPrefix}Min">

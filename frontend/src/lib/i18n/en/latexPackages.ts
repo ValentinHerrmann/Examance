@@ -82,6 +82,8 @@ export const latexPackages: Translations['latexPackages'] = {
         heading: 'LaTeX packages',
         account: 'Use the account setting',
         custom: 'Adjust for this exam',
+        accountText: 'The packages of every document',
+        customText: 'Add some or leave single ones out',
         inherited: 'From the account setting',
         noAccountPackages: 'The account setting adds no packages.',
         omit: 'Leave out {name} for this exam',

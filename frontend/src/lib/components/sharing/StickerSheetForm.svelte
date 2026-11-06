@@ -3,7 +3,8 @@
   import { onMount, untrack } from "svelte";
   import { get } from "svelte/store";
   import { t } from "#lib/i18n";
-  import { Alert, Button, Radio, TextInput, actionIcons } from "#lib/components/ui";
+  import { faKey, faQrcode, faScissors, faTag, faUser } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Button, OptionTile, TextInput, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug, ZipBuilder } from "#lib/export/zip";
   import { renderExamCopies } from "#lib/qr/examCopies";
@@ -179,16 +180,13 @@
   {#if loadExamPdf && !initialKeysOnly && !fixedOutput}
     <fieldset class="flex flex-col gap-2" disabled={busy}>
       <legend class="mb-2 text-sm text-muted">{$t("sharing.stickers.output")}</legend>
-      <Radio group={output} value="stickers" name="sticker-output" onchange={() => (chosenOutput = "stickers")} label={$t("sharing.stickers.outputStickers")} />
-      <Radio
-        group={output}
-        value="copies"
-        name="sticker-output"
-        disabled={!!copiesUnavailable}
-        onchange={() => (chosenOutput = "copies")}
-        label={$t("sharing.stickers.outputCopies")}
-      />
-      {#if copiesUnavailable}<p class="ml-7 text-sm text-muted">{copiesUnavailable}</p>{/if}
+      <div class="@container">
+        <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
+          <OptionTile compact name="sticker-output" value="stickers" checked={output === "stickers"} icon={faTag} title={$t("sharing.stickers.outputStickers")} text={$t("sharing.stickers.outputStickersText")} onchange={() => (chosenOutput = "stickers")} />
+          <!-- Greyed out with its reason as the tile line, never hidden. -->
+          <OptionTile compact name="sticker-output" value="copies" checked={output === "copies"} disabled={!!copiesUnavailable} icon={faUser} title={$t("sharing.stickers.outputCopies")} text={copiesUnavailable ?? $t("sharing.stickers.outputCopiesText")} onchange={() => (chosenOutput = "copies")} />
+        </div>
+      </div>
     </fieldset>
   {/if}
 
@@ -223,14 +221,16 @@
   {:else}
     <fieldset class="m-0 flex flex-col gap-1.5 border-0 p-0" disabled={busy}>
       <legend class="mb-1 text-sm font-medium">{$t("sharing.stickers.what")}</legend>
-      <div class="flex items-center gap-1">
-        <Radio group={what} value="stickersKeys" name="sticker-what-{examId}" onchange={() => (what = "stickersKeys")} label={$t("sharing.stickers.whatStickersKeys")} />
-        <InfoTip text={$t("sharing.stickers.keysHint")} />
-      </div>
-      <Radio group={what} value="stickers" name="sticker-what-{examId}" onchange={() => (what = "stickers")} label={$t("sharing.stickers.whatStickers")} />
-      <div class="flex items-center gap-1">
-        <Radio group={what} value="keys" name="sticker-what-{examId}" onchange={() => (what = "keys")} label={$t("sharing.stickers.whatKeys")} />
-        <InfoTip text={$t("sharing.stickers.keysOnlyHint")} />
+      <div class="@container">
+        <div class="grid grid-cols-1 gap-2 @xs:grid-cols-3">
+          <OptionTile compact name="sticker-what-{examId}" value="stickersKeys" checked={what === "stickersKeys"} icon={faKey} title={$t("sharing.stickers.whatStickersKeys")} text={$t("sharing.stickers.whatStickersKeysText")} onchange={() => (what = "stickersKeys")}>
+            {#snippet titleExtra()}<InfoTip text={$t("sharing.stickers.keysHint")} />{/snippet}
+          </OptionTile>
+          <OptionTile compact name="sticker-what-{examId}" value="stickers" checked={what === "stickers"} icon={faQrcode} title={$t("sharing.stickers.whatStickers")} text={$t("sharing.stickers.whatStickersText")} onchange={() => (what = "stickers")} />
+          <OptionTile compact name="sticker-what-{examId}" value="keys" checked={what === "keys"} icon={faScissors} title={$t("sharing.stickers.whatKeys")} text={$t("sharing.stickers.whatKeysText")} onchange={() => (what = "keys")}>
+            {#snippet titleExtra()}<InfoTip text={$t("sharing.stickers.keysOnlyHint")} />{/snippet}
+          </OptionTile>
+        </div>
       </div>
     </fieldset>
     {#if !onlyKeys}
