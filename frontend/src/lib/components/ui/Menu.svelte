@@ -5,7 +5,7 @@
   import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
   import Icon from "./Icon.svelte";
 
-  /** Dropdown menu: trigger button plus a `role="menu"` panel of <MenuItem>s. Outside click and Escape close it (Escape refocuses the trigger); arrows/Home/End move between items. Trigger styled via `triggerClass`. */
+  /** Dropdown menu: trigger button plus a `role="menu"` panel of <MenuItem>s. Outside click and Escape close it (Escape refocuses the trigger); arrows/Home/End move between items. Trigger styled via `triggerClass`. The panel is fixed and placed from the trigger, so scroll containers never clip it. */
   interface Props {
     label: string;
     icon?: IconDefinition | undefined;
@@ -36,6 +36,24 @@
   let root: HTMLElement | undefined = $state();
   let trigger: HTMLButtonElement | undefined = $state();
   let panel: HTMLElement | undefined = $state();
+  /** The panel's fixed position, in viewport pixels. */
+  let place = $state({ top: 0, left: 0 });
+
+  const MARGIN = 8;
+
+  /** Below the trigger, or above it when there is more room there; aligned to the trigger's `align` edge and kept inside the viewport. */
+  function position() {
+    if (!trigger || !panel) return;
+    const t = trigger.getBoundingClientRect();
+    const { width, height } = panel.getBoundingClientRect();
+    const below = window.innerHeight - t.bottom;
+    const top = below < height + MARGIN && t.top > below ? t.top - height - 4 : t.bottom + 4;
+    const left = align === "end" ? t.right - width : t.left;
+    place = {
+      top: Math.max(MARGIN, top),
+      left: Math.min(Math.max(MARGIN, left), window.innerWidth - width - MARGIN),
+    };
+  }
 
   function items(): HTMLElement[] {
     return panel
@@ -46,6 +64,7 @@
   async function show(focus: "first" | "last" = "first") {
     open = true;
     await tick();
+    position();
     const list = items();
     (focus === "first" ? list[0] : list[list.length - 1])?.focus();
   }
@@ -97,9 +116,17 @@
       close(false);
     }
   }
+
+  // Any scroller (the page, a table) moves the trigger: follow it while open.
+  $effect(() => {
+    if (!open) return;
+    const follow = () => position();
+    window.addEventListener("scroll", follow, true);
+    return () => window.removeEventListener("scroll", follow, true);
+  });
 </script>
 
-<svelte:window onpointerdown={onWindowPointerDown} />
+<svelte:window onpointerdown={onWindowPointerDown} onresize={() => open && position()} />
 
 <div class="relative inline-flex" bind:this={root}>
   <button
@@ -124,11 +151,8 @@
       role="menu"
       aria-label={label}
       tabindex="-1"
-      class="absolute top-full mt-1 flex max-h-[min(70dvh,32rem)] min-w-48 flex-col gap-0.5 overflow-y-auto rounded-md border border-line bg-surface-raised p-1 text-content shadow-md {align ===
-      'end'
-        ? 'right-0'
-        : 'left-0'} {panelClass}"
-      style="z-index: var(--z-dropdown)"
+      class="fixed flex max-h-[min(70dvh,32rem)] min-w-48 flex-col gap-0.5 overflow-y-auto rounded-md border border-line bg-surface-raised p-1 text-content shadow-md {panelClass}"
+      style="z-index: var(--z-dropdown); top: {place.top}px; left: {place.left}px"
       onkeydown={onPanelKeydown}
     >
       {@render children?.({ close: () => close(true) })}
