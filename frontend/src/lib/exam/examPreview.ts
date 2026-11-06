@@ -170,13 +170,13 @@ function pageCodeDefinitions(exam: ExamRecord, options: string): string {
 /** The exam-independent extra sheet (issue #228): one duplex sheet of *paper*, a sticker spot on the front and the code `EXM1:X` on both sides. */
 export function extraSheetLatex(paper: PaperStyle): string {
   const options = ["sans", "seitencode", "zusatzblatt", PAPER_OPTION[paper]].filter(Boolean).join(",");
-  return `\\documentclass[a4paper]{article}
-\\usepackage[${options}]{sty/Schulaufgabe}
+  return String.raw`\documentclass[a4paper]{article}
+\usepackage[${options}]{sty/Schulaufgabe}
 ${extraSheetCodesLatex()}
-\\usepackage{fontspec}
-\\begin{document}
-\\Zusatzblatt
-\\end{document}`;
+\usepackage{fontspec}
+\begin{document}
+\Zusatzblatt
+\end{document}`;
 }
 
 /** Compiles the extra sheet into the compile cache; it has no exam content, so the cache keys on the paper alone. */

@@ -68,7 +68,7 @@ export function createAutosave({ run, delayMs = AUTOSAVE_DELAY_MS, message = def
     running = (async () => {
       do {
         again = false;
-        await runOnce();
+        await runOnce(); // NOSONAR: one save at a time by design; an edit during it saves once more
       } while (again);
       running = null;
     })();

@@ -242,34 +242,36 @@ export interface PageCodes {
   extra?: boolean;
 }
 
+type CodesFound = { student: QrResult | null; page?: number; foreign: boolean; unknownId?: string; extra: boolean };
+
+/** Adds what one decoded QR text says to *found*. */
+function readCode(text: string, tag: string, ids: ReadonlyMap<string, string>, found: CodesFound): void {
+  // An extra sheet serves every exam: never foreign, and never mistaken for a name sticker.
+  if (isExtraSheetCode(text)) {
+    found.extra = true;
+    return;
+  }
+  const code = parsePageCode(text);
+  if (!code) {
+    found.student ??= qrResultOf(text);
+    return;
+  }
+  if (code.tag !== tag) {
+    found.foreign = true;
+    return;
+  }
+  found.page ??= code.page;
+  if (!code.id) return;
+  const raw = ids.get(code.id);
+  if (raw) found.student = qrResultOf(raw);
+  else found.unknownId = code.id;
+}
+
 /** *ids* maps sticker IDs to the students' sticker payloads (`stickerIdMap`). */
 export function classifyCodes(texts: readonly string[], tag: string, ids: ReadonlyMap<string, string> = new Map()): PageCodes {
-  let student: QrResult | null = null;
-  let page: number | undefined;
-  let foreign = false;
-  let unknownId: string | undefined;
-  let extra = false;
-  for (const text of texts) {
-    // An extra sheet serves every exam: never foreign, and never mistaken for a name sticker.
-    if (isExtraSheetCode(text)) {
-      extra = true;
-      continue;
-    }
-    const code = parsePageCode(text);
-    if (!code) {
-      student ??= qrResultOf(text);
-      continue;
-    }
-    if (code.tag !== tag) {
-      foreign = true;
-      continue;
-    }
-    page ??= code.page;
-    if (!code.id) continue;
-    const raw = ids.get(code.id);
-    if (raw) student = qrResultOf(raw);
-    else unknownId = code.id;
-  }
+  const found: CodesFound = { student: null, foreign: false, extra: false };
+  for (const text of texts) readCode(text, tag, ids, found);
+  const { student, page, foreign, unknownId, extra } = found;
   const own = page !== undefined;
   return {
     student: foreign && !own ? null : student,
@@ -367,7 +369,7 @@ class ScanPass {
       const rightImage = landscape ? halfImage(imageData, "right") : null;
       const leftImage = landscape ? halfImage(imageData, "left") : null;
       // Any other landscape scan is a booklet sheet when both halves carry a page code (scanners store A3 rotated, scaled or cropped).
-      const spread = rightImage && leftImage && (isA3Landscape(libPage) || (await this.halvesCoded(rightImage, leftImage)));
+      const spread = rightImage && leftImage && (isA3Landscape(libPage) || (await this.halvesCoded(rightImage, leftImage))); // NOSONAR: one page at a time keeps only one page's pixels alive
       if (rightImage && leftImage && spread) {
         // An unfolded booklet sheet: each half is its own page; the A3 original stays with the scan.
         halves ??= await PDFDocClass.create(); // NOSONAR: one shared document for every split half

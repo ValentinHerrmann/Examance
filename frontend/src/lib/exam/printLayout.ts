@@ -38,9 +38,15 @@ const PAPER: ReadonlySet<string> = new Set<PaperStyle>(['empty', 'squared', 'lin
 /** Largest booklet shift either way, in mm; a printer further off needs its own adjustment. */
 export const MAX_BOOKLET_OFFSET = 10;
 
+/** A typed ("2,5") or stored number; anything else is NaN. */
+function numberOf(value: unknown): number {
+  if (typeof value === 'number') return value;
+  return typeof value === 'string' ? Number(value.replace(',', '.')) : Number.NaN;
+}
+
 /** A stored or typed shift as a multiple of 0.5 mm within ±MAX_BOOKLET_OFFSET. */
 export function clampBookletOffset(value: unknown): number {
-  const n = Math.round(Number(String(value ?? '').replace(',', '.')) * 2) / 2;
+  const n = Math.round(numberOf(value) * 2) / 2;
   return Number.isFinite(n) ? Math.min(MAX_BOOKLET_OFFSET, Math.max(-MAX_BOOKLET_OFFSET, n)) + 0 : 0;
 }
 

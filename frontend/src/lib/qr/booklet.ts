@@ -1,6 +1,6 @@
 /** Booklet printing (issue #220, docs/dev/multi_sheet_exams.md): A4 copies imposed two-up onto A3 in saddle-stitch order, or split into one file per copy for a printer's own booklet function. The fold's cut zone is part of every page (Schulaufgabe.sty). */
 
-import type { PDFPage } from 'pdf-lib';
+import type { PDFFont, PDFPage, RGB } from 'pdf-lib';
 import { embedLabelFonts, type PdfLib } from '#lib/pdf/labelKit';
 import { MAX_BOOKLET_OFFSET } from '#lib/exam/printLayout';
 import { MM } from './cutCorner';
@@ -79,20 +79,22 @@ export async function bookletTestSheet(texts: BookletTestTexts): Promise<Uint8Ar
       page.drawText(fonts.safe(line), { x: 25 * MM, y, size: 11, font: fonts.regular, color: ink });
     }
     // Three rulers, so a slanted feed shows too.
-    for (const at of [h * 0.55, h * 0.35, h * 0.15]) {
-      for (let mm = -MAX_BOOKLET_OFFSET; mm <= MAX_BOOKLET_OFFSET; mm++) {
-        const x = cx + mm * MM;
-        const long = mm % 5 === 0 ? 6 * MM : 3 * MM;
-        page.drawLine({ start: { x, y: at }, end: { x, y: at + long }, thickness: mm === 0 ? 0.8 : 0.4, color: ink });
-        if (mm % 5 === 0) {
-          const label = mm > 0 ? `+${mm}` : String(mm);
-          page.drawText(label, { x: x - fonts.regular.widthOfTextAtSize(label, 9) / 2, y: at - 4.5 * MM, size: 9, font: fonts.regular, color: ink });
-        }
-      }
-      page.drawLine({ start: { x: cx - MAX_BOOKLET_OFFSET * MM, y: at }, end: { x: cx + MAX_BOOKLET_OFFSET * MM, y: at }, thickness: 0.4, color: ink });
-    }
+    for (const at of [h * 0.55, h * 0.35, h * 0.15]) drawRuler(page, { cx, at, font: fonts.regular, ink });
   }
   return out.save();
+}
+
+/** A ruler of ±MAX_BOOKLET_OFFSET mm around *cx* at height *at*: a tick per mm, a long labelled one every 5 mm. */
+function drawRuler(page: PDFPage, { cx, at, font, ink }: { cx: number; at: number; font: PDFFont; ink: RGB }): void {
+  for (let mm = -MAX_BOOKLET_OFFSET; mm <= MAX_BOOKLET_OFFSET; mm++) {
+    const x = cx + mm * MM;
+    const major = mm % 5 === 0;
+    page.drawLine({ start: { x, y: at }, end: { x, y: at + (major ? 6 : 3) * MM }, thickness: mm === 0 ? 0.8 : 0.4, color: ink });
+    if (!major) continue;
+    const label = mm > 0 ? `+${mm}` : String(mm);
+    page.drawText(label, { x: x - font.widthOfTextAtSize(label, 9) / 2, y: at - 4.5 * MM, size: 9, font, color: ink });
+  }
+  page.drawLine({ start: { x: cx - MAX_BOOKLET_OFFSET * MM, y: at }, end: { x: cx + MAX_BOOKLET_OFFSET * MM, y: at }, thickness: 0.4, color: ink });
 }
 
 /** *pdf* split into one PDF per copy of *pagesPerCopy* pages, named by *names* in order. */
