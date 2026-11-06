@@ -3,16 +3,18 @@
   export interface PrintPreviews {
     angabe: boolean;
     loesung: boolean;
-    jobs: Partial<Record<"exam" | "qr" | "copies", string>>;
+    /** `extra` is the exam-independent extra sheet (issue #228). */
+    jobs: Partial<Record<"exam" | "qr" | "copies" | "extra", string>>;
   }
 </script>
 
 <script lang="ts">
   import { onDestroy, tick, untrack } from "svelte";
-  import { faArrowsRotate, faBookOpen, faCircleCheck, faCircleInfo, faCopy, faPrint, faTag, faTriangleExclamation, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowsRotate, faBookOpen, faCircleCheck, faCircleInfo, faCopy, faNoteSticky, faPrint, faTag, faTriangleExclamation, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
-  import { t } from "#lib/i18n";
+  import { t, translate } from "#lib/i18n";
+  import { compileExtraSheet } from "#lib/exam/examPreview";
   import { fmt } from "#lib/utils/format";
   import { contentHref, studentsHref } from "#lib/utils/links";
   import { examChecksState } from "#lib/stores/shell";
@@ -139,6 +141,22 @@
 
   let preparing = $state(false);
 
+  // The extra sheet (issue #228): no exam content and no "printed" tick, it is printed in stock; current while made for the chosen paper.
+  let extraSheet = $state.raw<{ url: string; bytes: Uint8Array; key: string } | null>(null);
+  let extraKey = $derived(printFileKey("extra", null, 0, print.paperStyle));
+  let extraMade = $derived(print.extraSheets && extraSheet?.key === extraKey);
+
+  async function makeExtraSheet() {
+    const key = extraKey;
+    const { pdfBytes } = await compileExtraSheet(print.paperStyle);
+    if (extraSheet) URL.revokeObjectURL(extraSheet.url);
+    extraSheet = { url: URL.createObjectURL(new Blob([pdfBytes as BlobPart], { type: "application/pdf" })), bytes: pdfBytes, key };
+  }
+
+  function downloadExtraSheet() {
+    if (extraSheet) downloadBlob(new Blob([extraSheet.bytes as BlobPart], { type: "application/pdf" }), `${slug(translate("exam.print.extra.fileName"))}_${print.paperStyle}.pdf`);
+  }
+
   /** The one action of the Print step: compiles what the plan prints (the solution only when it is printed; unchanged sources come from the compile cache), then makes the sticker or copies PDF unless the current one is still valid. */
   async function prepare() {
     if (preparing) return;
@@ -159,6 +177,7 @@
         if (job === "exam" && imposed && !made("exam")) await imposeSheet(); // NOSONAR: one PDF at a time
         if ((job === "qr" || job === "copies") && !(made(job) && jobPdf[job])) await creators[job]?.(); // NOSONAR: one PDF at a time
       }
+      if (print.extraSheets && !extraMade) await makeExtraSheet();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -210,6 +229,7 @@
 
   onDestroy(() => {
     for (const made of Object.values(jobPdf)) if (made) URL.revokeObjectURL(made.url);
+    if (extraSheet) URL.revokeObjectURL(extraSheet.url);
   });
 
   const setPlan = (patch: Partial<PrintPlan>) => cs && save(withPrintPlan(cs.checks, { ...plan, ...patch }));
@@ -246,12 +266,15 @@
     const next: PrintPreviews = {
       angabe: jobs.includes("exam") && !imposed,
       loesung: jobs.includes("solution"),
-      jobs: Object.fromEntries(
-        (["exam", "qr", "copies"] as const).flatMap((job) => {
-          const url = jobPdf[job]?.url;
-          return url && jobs.includes(job) && made(job) ? [[job, url]] : [];
-        }),
-      ),
+      jobs: {
+        ...Object.fromEntries(
+          (["exam", "qr", "copies"] as const).flatMap((job) => {
+            const url = jobPdf[job]?.url;
+            return url && jobs.includes(job) && made(job) ? [[job, url]] : [];
+          }),
+        ),
+        ...(extraMade && extraSheet ? { extra: extraSheet.url } : {}),
+      },
     };
     untrack(() => (shown = next));
   });
@@ -397,5 +420,17 @@
         </div>
       </li>
     {/each}
+    {#if print.extraSheets}
+      <li class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-raised p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <h3 class="m-0 flex items-center gap-1.5 text-base font-semibold"><Icon icon={faNoteSticky} class="text-muted" />{$t("exam.print.extra.title")}</h3>
+            <p class="m-0 mt-0.5 text-sm text-muted">{$t("exam.print.extra.hint", { paper: $t(`exam.layout.paper.${print.paperStyle}`) })}</p>
+          </div>
+          <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={actionIcons.download} disabled={!extraMade} ariaLabel={$t("exam.print.job.download")} title={$t("exam.print.job.download")} onClick={downloadExtraSheet} />
+        </div>
+        {#if !extraMade}<span class="text-xs text-muted">{$t("exam.print.extra.needsPdf")}</span>{/if}
+      </li>
+    {/if}
   </ol>
 </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import QRCode from 'qrcode';
-import { examTag, pageCodeText, pageCodesLatex, parsePageCode, qrRuns } from '../src/lib/exam/pageCodes';
+import { EXTRA_SHEET_CODE, examTag, extraSheetCodesLatex, isExtraSheetCode, pageCodeText, pageCodesLatex, parsePageCode, qrRuns } from '../src/lib/exam/pageCodes';
 
 describe('page codes (issue #220)', () => {
   it('tags an exam with eight upper-case hex characters', () => {
@@ -48,5 +48,19 @@ describe('page codes (issue #220)', () => {
 
   it('defines one code per page', () => {
     expect(pageCodesLatex('1a2b3c4d-0000-0000-0000-000000000000', 3).split('\n')).toHaveLength(3);
+  });
+});
+
+describe('extra sheet code (issue #228)', () => {
+  it('names no exam and no page, and is no exam page code', () => {
+    expect(EXTRA_SHEET_CODE).toBe('EXM1:X');
+    expect(isExtraSheetCode(' EXM1:X ')).toBe(true);
+    expect(isExtraSheetCode('EXM1:1A2B3C4D:1')).toBe(false);
+    expect(parsePageCode(EXTRA_SHEET_CODE)).toBeNull();
+  });
+
+  it('stays at QR version 1 and goes on both sides', () => {
+    expect(QRCode.create(EXTRA_SHEET_CODE, { errorCorrectionLevel: 'Q' }).version).toBe(1);
+    expect(extraSheetCodesLatex().split('\n').map((l) => l.slice(0, 14))).toEqual(['\\Seitencode{1}', '\\Seitencode{2}']);
   });
 });

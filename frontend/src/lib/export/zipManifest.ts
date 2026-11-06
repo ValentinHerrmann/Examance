@@ -70,6 +70,10 @@ export interface ZipExamSettings {
   paddingPages?: 'none' | 'blank' | 'workspace';
   stickerSpots?: 'cover' | 'sheet' | 'a3' | 'leaf';
   printMode?: 'stickers' | 'copies';
+  /** Extra paper (issue #228); absent in older ZIPs, read as none. */
+  paperStyle?: 'empty' | 'squared' | 'lined';
+  extraPages?: number;
+  extraSheets?: boolean;
   extraNotes?: ExtraNotes | null;
 }
 

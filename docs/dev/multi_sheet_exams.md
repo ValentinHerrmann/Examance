@@ -1,10 +1,10 @@
 # Exams with several sheets (page codes, booklets, filler pages)
 
-Issue #220. How an exam that spans several sheets is printed, scanned and put back together. User guide: [Several sheets](../user/exams.md#multi-sheet).
+Issues #220 and #228. How an exam that spans several sheets is printed, scanned and put back together, and how extra paper joins it. User guide: [Several sheets](../user/exams.md#multi-sheet).
 
 ## Settings (per exam, each independent)
 
-All settings are plain `exams` columns (migrations 0058 and 0059). `printSettingsOf` (`lib/exam/printLayout.ts`) is the only reader; `saveExamLayout` (`lib/exam/saveExamLayout.ts`) is the only writer.
+All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printSettingsOf` (`lib/exam/printLayout.ts`) is the only reader; `saveExamLayout` (`lib/exam/saveExamLayout.ts`) is the only writer.
 
 | Column | Values | New exams | Where | Effect in `Schulaufgabe.sty` |
 |---|---|---|---|---|
@@ -13,6 +13,9 @@ All settings are plain `exams` columns (migrations 0058 and 0059). `printSetting
 | `print_layout` | `duplex`, `booklet` | `duplex` | Print step | `broschuere` |
 | `print_mode` | `stickers`, `copies` | `stickers` | Print step | sticker spots only in `stickers` mode |
 | `sticker_spots` | `cover`, `sheet`, `a3`, `leaf` | `sheet` | Print step (sticker mode) | `\Aufkleberseiten{bogen|a3}` |
+| `paper_style` | `empty`, `squared`, `lined` | `squared` | Layout tab | `papierkaro` / `papierlinien` |
+| `extra_pages` | int 0–20 | `0` | Layout tab | `\Zusatzseiten{n}` |
+| `extra_sheets` | bool | `false` | Layout tab | none: shows the extra-sheet job on the Print step |
 
 - The server defaults are the old layout, so older exams compile unchanged. Migration 0059 also:
   - moves the old print-plan mode (`step_checks.printPlan.mode`, issue #212) into `print_mode`;
@@ -52,6 +55,18 @@ All settings are plain `exams` columns (migrations 0058 and 0059). `printSetting
   - a `black!7` strip between the line and the fold. On an A3 sheet that gives a 12 mm band where a slightly crooked cut along the fold is still safe and nobody writes.
   - Text and the fold-side markers start 8 mm from the fold (`\SA@foldinset`; the geometry is `twoside` with `inner=8mm`, `outer=5mm`). The outer side keeps 5 mm, the points table stays 1.5 mm clear of both bottom markers. `lib/qr/cutCorner.ts` `FOLD_STRIP`/`FOLD_INSET` mirror the numbers; registration reads the markers' positions per page from the template.
 
+## Extra paper (issue #228)
+
+- **Writing pages**: `\SA@writingpage[top room]{heading}` is the one macro for a page meant for writing. It draws the `paper_style` pattern (5 mm squares or 8 mm lines, light grey) in whole squares or lines over what the page has left. It serves:
+  - workspace filler pages ("Platz für Nebenrechnungen");
+  - integrated extra pages ("Platz für Lösungen"): `\Zusatzseiten{n}` adds n of them in `\AtEndDocument` after the points table and before the filler pages, on the student sheet only. They are ordinary pages: markers, page codes, sticker spots, the OMR template and personalised copies need nothing extra. The issue #156 `\ExamNotes` block is different: it fills the rest of the last page.
+- **Extra sheet** (`extraSheetLatex`, `compileExtraSheet` in `lib/exam/examPreview.ts`; the compile cache kind is `extra-sheet`, keyed by the paper style): option `zusatzblatt` plus `\Zusatzblatt`. It is one duplex sheet:
+  - no cover and no exam title, only "Zusatzblatt" centred in the head;
+  - a sticker spot on the front (same geometry as `\SA@stickerspot`);
+  - the page code `EXM1:X` on both sides (`EXTRA_SHEET_CODE`, `isExtraSheetCode`). It names no exam and no page, so one printed stack serves every exam.
+- **Print step**: with `extra_sheets`, "Create print files" also compiles the extra sheet, and it shows as the `extra` preview pane. It has no "printed" tick: the sheet is printed in stock.
+- **Stickers**: the sticker sheet adds no spare stickers for extra paper; the teacher reprints one student's sticker (reprints always match).
+
 ## Print step (`components/exam/PrintPlan.svelte`)
 
 - **The plan card holds all print settings**: mode, double-sided or booklet, who arranges booklets, sticker spots, and with solution.
@@ -79,14 +94,18 @@ All settings are plain `exams` columns (migrations 0058 and 0059). `printSetting
     - the student: a sticker, or the page code's ID through `stickerIdMap` (the exam's students, read once before scanning; shared IDs map to nobody);
     - the page number;
     - a page of another exam: its own unmatched booklet;
+    - an extra sheet (`EXM1:X`): `extra`; never foreign, never read as a sticker, the student comes from the sticker or, on the back, from the page before;
     - an ID nobody has: an unmatched booklet `ID-<id>`, plus a warning.
 - **A3 sheets** are split into lossless A4 halves, right half first. The front-right page carries the sticker spot, so the left half follows the right student. The A3 originals are attached to the student's scan as `original-scan.pdf`. Every rebuild copies the attachment: the manual split, and `renderGradedPdf`.
 - **Order** (`bookletLayout`):
   - pages go to slot `page`;
   - a missing slot gets a placeholder (`/ExamanceMissing <n>`) and a warning;
   - pages scanned twice and code-less pages follow the slots;
+  - extra sheets always come last, in scan order, and OMR skips them;
   - without codes, scan order is kept.
   - A later scan fills an earlier submission's placeholders.
+  - A booklet of only extra paper joins the student's newest scan, appended after its pages (`onlyExtraPaper`, `submissionToJoin`); it never starts a second submission. Code-less stickered pages count as extra paper only in page-coded exams, since without codes every page looks like that.
+  - Loose or twice-scanned pages (`extraPages`) are reported as a note, not a warning; extra sheets are not reported.
   - Score boxes are drawn on the first N pages when the scan has at least the template's page count.
 
 **Never drop a page** (legal requirement): every scanned page is stored, exported and archived (`tests/scanIngest.test.ts`).

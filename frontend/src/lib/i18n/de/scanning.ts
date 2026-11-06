@@ -58,7 +58,8 @@ export const scanning = {
     pageNotes: {
         title: 'Nicht alle Seiten passten zur Prüfung. Jede Seite wurde gespeichert.',
         missing: '{student}: Seite(n) {pages} fehlen. Platzhalter stehen an ihrer Stelle und werden ersetzt, sobald Sie die Seiten nachscannen.',
-        extra: '{student}: {count} Seite(n) doppelt gescannt oder ohne lesbaren Seitencode; sie stehen nach den Prüfungsseiten.',
+        extra: '{student}: {count} Seite(n) ohne lesbaren Seitencode (z. B. Zusatzpapier mit Aufkleber) oder doppelt gescannt; sie stehen nach den Prüfungsseiten.',
+        paperTitle: 'Zusätzliche Seiten wurden angehängt.',
         foreign: '{fileName}: Seite(n) einer anderen Prüfung; sie stehen als nicht zugeordnete Abgabe in der Liste.',
     },
     omrBanner: {

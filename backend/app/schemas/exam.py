@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta
-from typing import TYPE_CHECKING, Any, Literal, Self
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -79,6 +79,9 @@ PrintLayout = Literal["duplex", "booklet"]
 PaddingPages = Literal["none", "blank", "workspace"]
 StickerSpots = Literal["cover", "sheet", "a3", "leaf"]
 PrintMode = Literal["stickers", "copies"]
+# Extra paper (issue #228).
+PaperStyle = Literal["empty", "squared", "lined"]
+ExtraPages = Annotated[int, Field(ge=0, le=20)]
 _MAX_POSITION = 10_000
 
 
@@ -224,6 +227,9 @@ class ExamCreate(BaseModel):
     padding_pages: PaddingPages = "none"
     sticker_spots: StickerSpots = "cover"
     print_mode: PrintMode = "stickers"
+    paper_style: PaperStyle = "empty"
+    extra_pages: ExtraPages = 0
+    extra_sheets: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
@@ -276,6 +282,9 @@ class ExamUpdate(BaseModel):
     padding_pages: PaddingPages | None = None
     sticker_spots: StickerSpots | None = None
     print_mode: PrintMode | None = None
+    paper_style: PaperStyle | None = None
+    extra_pages: ExtraPages | None = None
+    extra_sheets: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     # Absent keeps the stored ticks; null or {} clears them.
@@ -318,6 +327,9 @@ class ExamResponse(BaseModel):
     padding_pages: PaddingPages = "none"
     sticker_spots: StickerSpots = "cover"
     print_mode: PrintMode = "stickers"
+    paper_style: PaperStyle = "empty"
+    extra_pages: ExtraPages = 0
+    extra_sheets: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     pseudonym_version: int = 1

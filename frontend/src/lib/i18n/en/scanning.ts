@@ -60,7 +60,8 @@ export const scanning: Translations['scanning'] = {
     pageNotes: {
         title: 'Not every page fitted the exam. Every page was kept.',
         missing: '{student}: page(s) {pages} missing. Placeholders stand in their place and are replaced once you scan those pages.',
-        extra: '{student}: {count} page(s) scanned twice or without a readable page code; they follow the exam pages.',
+        extra: '{student}: {count} page(s) without a readable page code (e.g. extra paper with a sticker) or scanned twice; they follow the exam pages.',
+        paperTitle: 'Additional pages were appended.',
         foreign: '{fileName}: page(s) of another exam; they are listed as an unmatched submission.',
     },
     omrBanner: {

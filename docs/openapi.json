@@ -10746,6 +10746,28 @@
             "title": "Print Mode",
             "default": "stickers"
           },
+          "paper_style": {
+            "type": "string",
+            "enum": [
+              "empty",
+              "squared",
+              "lined"
+            ],
+            "title": "Paper Style",
+            "default": "empty"
+          },
+          "extra_pages": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Extra Pages",
+            "default": 0
+          },
+          "extra_sheets": {
+            "type": "boolean",
+            "title": "Extra Sheets",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11248,6 +11270,28 @@
             "title": "Print Mode",
             "default": "stickers"
           },
+          "paper_style": {
+            "type": "string",
+            "enum": [
+              "empty",
+              "squared",
+              "lined"
+            ],
+            "title": "Paper Style",
+            "default": "empty"
+          },
+          "extra_pages": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Extra Pages",
+            "default": 0
+          },
+          "extra_sheets": {
+            "type": "boolean",
+            "title": "Extra Sheets",
+            "default": false
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -11595,6 +11639,46 @@
               }
             ],
             "title": "Print Mode"
+          },
+          "paper_style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "empty",
+                  "squared",
+                  "lined"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Style"
+          },
+          "extra_pages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Pages"
+          },
+          "extra_sheets": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Sheets"
           },
           "extra_notes": {
             "anyOf": [

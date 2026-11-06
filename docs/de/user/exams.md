@@ -142,6 +142,20 @@ Vor den personalisierten Exemplaren warnt der Schritt vor Schülern ohne ID (nur
 
 Wie Sie diese Blätter scannen: [Den Stapel scannen](./scanning#scan).
 
+## Zusatzpapier {#extra-paper}
+
+Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Reiter **Layout** die Gruppe **Zusatzpapier**:
+
+- **Papier zum Schreiben**: **Kariert** (5 mm, Standard für neue Prüfungen), **Liniert** (8 mm) oder **Leer**. Es gilt für jede Seite zum Schreiben: die Zusatzseiten, die Füllseiten **Platz für Nebenrechnungen** und die Zusatzblätter. Das Muster ist hellgrau, darüber Geschriebenes bleibt gut lesbar.
+- **Zusatzseiten in jedem Exemplar** (0 bis 20): Seiten zum Schreiben nach der Punktetabelle, für Lehrkräfte, die eine kompakte Angabe und freies Papier für die Lösungen bevorzugen. Sie gehören zu jedem Exemplar wie jede andere Seite: Seitencodes, Aufkleberfelder, personalisierte Exemplare und der Scan behandeln sie als Prüfungsseiten. Anders als [Platz für weitere Lösungen](#extra-space), der den Rest der letzten Seite füllt, sind es ganze Seiten.
+- **Zusatzblätter anbieten**: Der Schritt **Drucken** zeigt dann die Karte **Zusatzblatt (Vorrat)**. **Druckdateien erstellen** erzeugt ein beidseitiges Blatt; drucken Sie so viele, wie Sie möchten, und bewahren Sie sie für jede Prüfung auf. Das Blatt trägt keinen Prüfungstitel. Sein Code oben sagt nur „Zusatzblatt“; der QR-Aufkleber des Schülers vorne sagt, wem es gehört.
+
+**Loses Papier geht auch.** Ein Schüler kann auch auf ein beliebiges Blatt schreiben, solange sein QR-Aufkleber darauf klebt. In Prüfungen mit Seitencode steht es nach den Prüfungsseiten dieses Schülers, und der Scan meldet es als angehängte Seite.
+
+**Aufkleber für Zusatzpapier.** Der Aufkleberbogen enthält dafür keine Reserve. Nimmt ein Schüler Zusatzpapier, drucken Sie ihm einen neuen Aufkleber; ein Nachdruck ergibt immer denselben Code.
+
+**Zusatzpapier scannen.** Scannen Sie Zusatzblätter mit der Prüfung oder später für sich. Sie stehen immer nach den Prüfungsseiten des Schülers; später gescannte Seiten werden an seinen vorhandenen Scan angehängt, die Korrektur bleibt erhalten. Die Rückseite eines Zusatzblatts hat kein Aufkleberfeld und folgt ihrer Vorderseite: Scannen Sie beide Seiten zusammen.
+
 ## Setzen {#typeset}
 
 **Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Auf breiten Bildschirmen steht die Vorschau neben Aufgaben und Layout; auf kleineren ist sie ein dritter Reiter, **Vorschau**, neben **Aufgaben** und **Layout**. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.

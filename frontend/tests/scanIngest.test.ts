@@ -6,6 +6,7 @@ import {
   bookletLayout,
   classifyCodes,
   ingestScans,
+  onlyExtraPaper,
   stickerIdMap,
   isPdfFile,
   type IngestDeps,
@@ -426,5 +427,34 @@ describe("page codes (issue #220)", () => {
   it("keeps scan order without codes (older exams)", () => {
     const refs = [ref(), ref(), ref()];
     expect(bookletLayout(refs, 2)).toEqual({ slots: refs, extras: [] });
+  });
+});
+
+describe("extra paper (issue #228)", () => {
+  const TAG = "1A2B3C4D";
+  const ref = (opts: { page?: number; extra?: boolean } = {}): PdfPageRef => ({ doc: {} as PDFDocument, index: 0, ...opts });
+
+  it("reads an extra sheet as such, with its student from the sticker, never as a sticker or another exam", () => {
+    expect(classifyCodes(["EXM1:X"], TAG)).toMatchObject({ student: null, foreign: false, extra: true });
+    expect(classifyCodes(["Muster, Anna_1", "EXM1:X"], TAG)).toMatchObject({ student: { pseudonymId: "Muster, Anna_1" }, extra: true });
+    expect(classifyCodes([`EXM1:${TAG}:2`], TAG).extra).toBeUndefined();
+  });
+
+  it("puts extra sheets after the exam's pages, with and without page codes, and drops none", () => {
+    const p1 = ref({ page: 1 }), x1 = ref({ extra: true }), p2 = ref({ page: 2 }), x2 = ref({ extra: true });
+    expect(bookletLayout([p1, x1, p2, x2], 2)).toEqual({ slots: [p1, p2], extras: [x1, x2] });
+    const a = ref(), b = ref();
+    expect(bookletLayout([x1, a, b], 2)).toEqual({ slots: [a, b], extras: [x1] });
+  });
+
+  it("joins an earlier scan only with no printed page, and code-less pages only in page-coded exams", () => {
+    const booklet = (pageRefs: PdfPageRef[], isUnmatched = false) => ({ pageRefs, isUnmatched });
+    expect(onlyExtraPaper(booklet([ref({ extra: true }), ref({ extra: true })]), false)).toBe(true);
+    expect(onlyExtraPaper(booklet([ref({ extra: true }), ref()]), true)).toBe(true);
+    // Without page codes a full re-scan has no codes either: it must not be appended.
+    expect(onlyExtraPaper(booklet([ref(), ref()]), false)).toBe(false);
+    expect(onlyExtraPaper(booklet([ref({ page: 1 }), ref({ extra: true })]), true)).toBe(false);
+    expect(onlyExtraPaper(booklet([ref({ extra: true })], true), true)).toBe(false);
+    expect(onlyExtraPaper(booklet([]), true)).toBe(false);
   });
 });

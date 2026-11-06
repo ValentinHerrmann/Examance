@@ -14,7 +14,7 @@ import { parseStudentQr, stickerRawOf } from "#lib/utils/studentQr";
 import { randomCode } from "#lib/utils/randomCode";
 import type { QrWorkerRequest, QrWorkerResponse } from "#lib/workers/qrWorker";
 import { qrResultOf, type QrResult } from "#lib/scan/qrText";
-import { examTag, parsePageCode } from "#lib/exam/pageCodes";
+import { examTag, isExtraSheetCode, parsePageCode } from "#lib/exam/pageCodes";
 import { submissionRepository } from "#lib/repositories/submissionRepository";
 import { addPlaceholderPage, attachOriginals, carryAttachments, halfImage, isA3Landscape, placeholderOf, splitA3 } from "#lib/scan/scanPdf";
 import type {
@@ -31,6 +31,8 @@ export interface PdfPageRef {
   page?: number;
   /** The unsplit A3 page this half came from, kept with the scan (issue #220). */
   original?: { doc: PDFDocument; index: number };
+  /** A side of an extra sheet (code `EXM1:X`, issue #228): kept after the exam's pages, never read by OMR. */
+  extra?: boolean;
 }
 
 export interface StudentBooklet {
@@ -64,7 +66,7 @@ export type IngestWarning =
   | { kind: "unknownId"; fileName: string; id: string }
   /** A student's scan lacks printed pages: placeholders stand in until they are scanned. */
   | { kind: "missingPages"; student: string; pages: number[] }
-  /** Pages scanned twice or without a readable page code: kept after the exam's pages. */
+  /** Pages scanned twice or without a readable page code (loose paper with a sticker, issue #228): kept after the exam's pages; a note, not a fault. */
   | { kind: "extraPages"; student: string; count: number };
 
 export interface OmrSummary {
@@ -230,12 +232,14 @@ async function renderPage(page: PDFPageProxy, viewport: PageViewport): Promise<I
   return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
-/** What a page's QR codes say: the student (a sticker, or the ID in a personalised page code), its printed page number, whether the page code belongs to another exam, and an ID no student has. */
+/** What a page's QR codes say: the student (a sticker, or the ID in a personalised page code), its printed page number, whether the page code belongs to another exam, an ID no student has, and whether it is an extra sheet. */
 export interface PageCodes {
   student: QrResult | null;
   page?: number;
   foreign: boolean;
   unknownId?: string;
+  /** The page carries the extra-sheet code (`EXM1:X`, issue #228); its student comes from the sticker. */
+  extra?: boolean;
 }
 
 /** *ids* maps sticker IDs to the students' sticker payloads (`stickerIdMap`). */
@@ -244,7 +248,13 @@ export function classifyCodes(texts: readonly string[], tag: string, ids: Readon
   let page: number | undefined;
   let foreign = false;
   let unknownId: string | undefined;
+  let extra = false;
   for (const text of texts) {
+    // An extra sheet serves every exam: never foreign, and never mistaken for a name sticker.
+    if (isExtraSheetCode(text)) {
+      extra = true;
+      continue;
+    }
     const code = parsePageCode(text);
     if (!code) {
       student ??= qrResultOf(text);
@@ -261,7 +271,13 @@ export function classifyCodes(texts: readonly string[], tag: string, ids: Readon
     else unknownId = code.id;
   }
   const own = page !== undefined;
-  return { student: foreign && !own ? null : student, page, foreign: foreign && !own, ...(unknownId && !student ? { unknownId } : {}) };
+  return {
+    student: foreign && !own ? null : student,
+    page,
+    foreign: foreign && !own,
+    ...(unknownId && !student ? { unknownId } : {}),
+    ...(extra && !own ? { extra: true } : {}),
+  };
 }
 
 /** Sticker ID -> sticker payload of the exam's students, for personalised page codes; an ID two students share maps to neither. */
@@ -385,11 +401,12 @@ class ScanPass {
 
     const tag = examTag(this.deps.examId);
     let texts = await decodeQr(this.deps.qrPool, imageData);
-    if (this.deps.pageCodes && retry && !texts.some((t) => parsePageCode(t))) texts = [...texts, ...(await retry())];
+    if (this.deps.pageCodes && retry && !texts.some((t) => parsePageCode(t) || isExtraSheetCode(t))) texts = [...texts, ...(await retry())];
     const codes = classifyCodes(texts, tag, this.ids);
     if (codes.foreign) this.warnings.push({ kind: "foreignPage", fileName });
     if (codes.unknownId) this.warnings.push({ kind: "unknownId", fileName, id: codes.unknownId });
     if (codes.page !== undefined) pageRef.page = codes.page;
+    if (codes.extra) pageRef.extra = true;
     // Pages are stored exactly as scanned, never painted over: an uncut name corner stays visible, as exports must show the original (issue #211).
     const booklet = this.collector.addPage(codes.student, pageRef, { foreign: codes.foreign, unknownId: codes.unknownId });
     await this.detectOmr(fileName, imageData, booklet, pageRef);
@@ -399,11 +416,11 @@ class ScanPass {
   // Reuses the imageData rasterized for the QR decode. The template page is the one the page code names; without codes a booklet page maps 1:1 to the blank template's page index (the exam's own page order).
   private async detectOmr(fileName: string, imageData: ImageData, booklet: StudentBooklet, pageRef: PdfPageRef): Promise<void> {
     const ctx = this.deps.getOmrContext();
-    if (!this.deps.omrPool || !ctx) return;
+    if (!this.deps.omrPool || !ctx || pageRef.extra) return;
     const coded = booklet.pageRefs.some((r) => r.page !== undefined);
     // A code-less page in a coded booklet has no known place: no OMR rather than the wrong template.
     if (coded && pageRef.page === undefined) return;
-    const pageTemplate = ctx.templatePages[(pageRef.page ?? booklet.pageRefs.length) - 1];
+    const pageTemplate = ctx.templatePages[(pageRef.page ?? booklet.pageRefs.filter((r) => !r.extra).length) - 1];
     if (!pageTemplate || (pageTemplate.bubbles.length === 0 && pageTemplate.fiducials.length === 0)) return;
     try {
       const res = await this.deps.omrPool.dispatch({
@@ -437,9 +454,9 @@ export function mergeScannedStudent(existing: StudentRecord | undefined, scanned
   };
 }
 
-/** The order a booklet's pages are stored in: by printed page 1..n when pages carry codes (a placeholder for each one missing, n = the template's page count or the highest code seen), then pages scanned twice or without a readable code, in scan order. Without codes: scan order. Every scanned page appears exactly once. */
+/** The order a booklet's pages are stored in: by printed page 1..n when pages carry codes (a placeholder for each one missing, n = the template's page count or the highest code seen), then pages scanned twice or without a readable code, in scan order. Without codes: scan order. Extra sheets (issue #228) always come last, in scan order. Every scanned page appears exactly once. */
 export function bookletLayout(refs: readonly PdfPageRef[], templatePages = 0): { slots: (PdfPageRef | number)[]; extras: PdfPageRef[] } {
-  if (!refs.some((r) => r.page !== undefined)) return { slots: [...refs], extras: [] };
+  if (!refs.some((r) => r.page !== undefined)) return { slots: refs.filter((r) => !r.extra), extras: refs.filter((r) => r.extra) };
   const last = Math.max(templatePages, ...refs.map((r) => r.page ?? 0));
   const byPage = new Map<number, PdfPageRef>();
   const extras: PdfPageRef[] = [];
@@ -452,18 +469,32 @@ export function bookletLayout(refs: readonly PdfPageRef[], templatePages = 0): {
   return { slots, extras };
 }
 
-/** A submission of this student whose scan still has placeholders: new pages fill them instead of starting a second submission. *submissions* are the exam's, read once per upload. */
-async function submissionWithPlaceholders(examId: string, pseudonymHmac: string, key: CryptoKey | null, submissions: readonly SubmissionRecord[]): Promise<{ id: string; createdAt: string; doc: PDFDocument } | null> {
+/** A submission of this student that new pages join instead of starting a second one: the first whose scan still has placeholders (they get filled), else with *anyScan* (a booklet of only extra paper, issue #228) the newest with a scan (the pages are appended). *submissions* are the exam's, read once per upload. */
+async function submissionToJoin(
+  examId: string,
+  pseudonymHmac: string,
+  key: CryptoKey | null,
+  submissions: readonly SubmissionRecord[],
+  anyScan: boolean,
+): Promise<{ id: string; createdAt: string; doc: PDFDocument } | null> {
   if (!key) return null;
   const lib = await import("pdf-lib");
-  const own = submissions.filter((s) => s.pseudonymHmac === pseudonymHmac);
+  const own = submissions.filter((s) => s.pseudonymHmac === pseudonymHmac).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  let newest: { id: string; createdAt: string; doc: PDFDocument } | null = null;
   for (const summary of own) {
     const sub = summary.scanCt ? summary : await submissionRepository.getById(examId, summary.id, key);
     if (!sub?.scanCt || !sub.scanIv) continue;
     const doc = await lib.PDFDocument.load(await openScan(sub.id, sub.scanCt, sub.scanIv, key), { ignoreEncryption: true });
-    if (doc.getPages().some((p) => placeholderOf(lib, p) !== null)) return { id: sub.id, createdAt: sub.createdAt, doc };
+    const found = { id: sub.id, createdAt: sub.createdAt, doc };
+    if (doc.getPages().some((p) => placeholderOf(lib, p) !== null)) return found;
+    newest ??= found;
   }
-  return null;
+  return anyScan ? newest : null;
+}
+
+/** A booklet that holds no printed exam page belongs after the student's earlier scan (issue #228): extra sheets, or with *pageCodes* also loose paper with a sticker (without page codes every exam page looks like that). */
+export function onlyExtraPaper(booklet: Pick<StudentBooklet, "pageRefs" | "isUnmatched">, pageCodes: boolean): boolean {
+  return !booklet.isUnmatched && booklet.pageRefs.length > 0 && booklet.pageRefs.every((r) => r.extra || (pageCodes && r.page === undefined));
 }
 
 const copyPage = async (doc: PDFDocument, ref: PdfPageRef) => doc.addPage((await doc.copyPages(ref.doc, [ref.index]))[0]);
@@ -508,16 +539,17 @@ export async function saveBooklet(
   omrRun: OmrRunInfo,
   omrResults: { result: OmrExerciseResult; pageStats: OmrPageStats }[],
   known: ReadonlyMap<string, StudentRecord> = new Map(),
-  more: { templatePages?: number; warnings?: IngestWarning[]; submissions?: readonly SubmissionRecord[] } = {},
+  more: { templatePages?: number; warnings?: IngestWarning[]; submissions?: readonly SubmissionRecord[]; pageCodes?: boolean } = {},
 ): Promise<void> {
-  const { templatePages = 0, warnings = [], submissions = [] } = more;
+  const { templatePages = 0, warnings = [], submissions = [], pageCodes = false } = more;
   const { examId } = deps;
   const lib = await import("pdf-lib");
   const key = deps.getSessionKey();
   // The raw QR value never becomes a key or a plain column: it is keyed per exam and sealed into the identity (issue #177).
   const pseudonym = await pseudonymFor(examId, booklet.pseudonymId);
   const coded = booklet.pageRefs.some((r) => r.page !== undefined);
-  const earlier = coded && !booklet.isUnmatched ? await submissionWithPlaceholders(examId, pseudonym.pseudonymHmac, key, submissions) : null;
+  const extraOnly = onlyExtraPaper(booklet, pageCodes);
+  const earlier = (coded || extraOnly) && !booklet.isUnmatched ? await submissionToJoin(examId, pseudonym.pseudonymHmac, key, submissions, extraOnly) : null;
 
   const assembledPdf = await lib.PDFDocument.create();
   const { slots, extras } = bookletLayout(booklet.pageRefs, templatePages);
@@ -528,7 +560,9 @@ export async function saveBooklet(
   else if (earlier) await carryAttachments(lib, earlier.doc, assembledPdf);
   const label = booklet.studentName || booklet.fallbackCode;
   if (missing.length) warnings.push({ kind: "missingPages", student: label, pages: missing });
-  if (!earlier && extras.length) warnings.push({ kind: "extraPages", student: label, count: extras.length });
+  // Extra sheets are expected; only loose or twice-scanned pages get a note.
+  const loose = extras.filter((r) => !r.extra).length;
+  if (!earlier && loose) warnings.push({ kind: "extraPages", student: label, count: loose });
   const scanBuffer = await assembledPdf.save();
 
   // The id first: the scan's ciphertext is bound to its submission (AAD, issue #178).
@@ -585,9 +619,10 @@ export async function ingestScans(files: File[], deps: IngestDeps): Promise<Inge
   const { booklets } = pass.collector;
   const existingKeys = await joinKeys(existing);
   const known = new Map(existing.map((st, i) => [existingKeys[i], st]));
-  // Earlier scans with placeholders get filled (issue #220); read once, and only for page-coded uploads.
-  const coded = booklets.some((b) => b.pageRefs.some((r) => r.page !== undefined));
-  const submissions = coded ? await submissionRepository.getByExamId(deps.examId, deps.getSessionKey()) : [];
+  // Earlier scans with placeholders get filled (issue #220) and extra paper joins its earlier scan (issue #228); read once, only when needed.
+  const pageCodes = deps.pageCodes === true;
+  const joins = booklets.some((b) => b.pageRefs.some((r) => r.page !== undefined) || onlyExtraPaper(b, pageCodes));
+  const submissions = joins ? await submissionRepository.getByExamId(deps.examId, deps.getSessionKey()) : [];
   const templatePages = deps.getOmrContext()?.templatePages.length ?? 0;
   let bookletCount = 0;
   for (let bIdx = 0; bIdx < booklets.length; bIdx++) {
@@ -599,7 +634,7 @@ export async function ingestScans(files: File[], deps: IngestDeps): Promise<Inge
       total: booklets.length,
       pages: booklet.pageRefs.length,
     });
-    await saveBooklet(booklet, deps, omrRun, pass.omr.resultsFor(booklet.pseudonymId), known, { templatePages, warnings, submissions }); // NOSONAR: one booklet at a time keeps memory bounded and leaves the earlier ones saved when a later one fails
+    await saveBooklet(booklet, deps, omrRun, pass.omr.resultsFor(booklet.pseudonymId), known, { templatePages, warnings, submissions, pageCodes }); // NOSONAR: one booklet at a time keeps memory bounded and leaves the earlier ones saved when a later one fails
     bookletCount++;
   }
 

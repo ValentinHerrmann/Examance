@@ -13,8 +13,8 @@ import { examCourse } from "#lib/utils/examLabel";
 import { documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex/packages";
 import { getAccountPackages } from "#lib/latex/packageSettings";
 import { translate } from "#lib/i18n";
-import { printSettingsOf } from "#lib/exam/printLayout";
-import { pageCodesLatex } from "#lib/exam/pageCodes";
+import { printSettingsOf, type PaperStyle } from "#lib/exam/printLayout";
+import { extraSheetCodesLatex, pageCodesLatex } from "#lib/exam/pageCodes";
 
 /** One `\Aufgabe` block of the exam and the exercise ids it scores (several for an MC group); block i is exam position i + 1 (`\thePunkte`). */
 export interface ExerciseBlock {
@@ -139,13 +139,16 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
-type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "paddingPages" | "printMode" | "stickerSpots">;
+type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "paddingPages" | "printMode" | "stickerSpots" | "paperStyle" | "extraPages" | "extraSheets">;
+
+/** The Schulaufgabe.sty option of a writing-paper pattern (issue #228); empty paper sets none. */
+const PAPER_OPTION: Record<PaperStyle, string> = { empty: "", squared: "papierkaro", lined: "papierlinien" };
 
 /** Adds the exam's layout switches to the Schulaufgabe.sty options. Each multi-sheet option stands alone and older exams set none, so they compile unchanged (issue #220). */
 export function withExamOptions(options: string, layout: LayoutFields): string {
   const print = printSettingsOf(layout);
   const filler = { none: "", blank: "fuellleer", workspace: "fuellplatz" }[print.padding];
-  const multiSheet = [print.pageCodes && "seitencode", print.layout === "booklet" && "broschuere", filler];
+  const multiSheet = [print.pageCodes && "seitencode", print.layout === "booklet" && "broschuere", filler, PAPER_OPTION[print.paperStyle]];
   return [options, layout.nameLine && "namenszeile", ...multiSheet].filter(Boolean).join(",");
 }
 
@@ -155,7 +158,26 @@ function pageCodeDefinitions(exam: ExamRecord, options: string): string {
   const print = printSettingsOf(exam);
   let spots = "";
   if (print.mode === "stickers" && print.stickerSpots !== "cover") spots = print.stickerSpots === "a3" ? "a3" : "bogen";
-  return [print.pageCodes && pageCodesLatex(exam.id), spots && String.raw`\Aufkleberseiten{${spots}}`].filter(Boolean).map((line) => `\n${line}`).join("");
+  const extra = print.extraPages > 0 && String.raw`\Zusatzseiten{${print.extraPages}}`;
+  return [print.pageCodes && pageCodesLatex(exam.id), spots && String.raw`\Aufkleberseiten{${spots}}`, extra].filter(Boolean).map((line) => `\n${line}`).join("");
+}
+
+/** The exam-independent extra sheet (issue #228): one duplex sheet of *paper*, a sticker spot on the front and the code `EXM1:X` on both sides. */
+export function extraSheetLatex(paper: PaperStyle): string {
+  const options = ["sans", "seitencode", "zusatzblatt", PAPER_OPTION[paper]].filter(Boolean).join(",");
+  return `\\documentclass[a4paper]{article}
+\\usepackage[${options}]{sty/Schulaufgabe}
+${extraSheetCodesLatex()}
+\\usepackage{fontspec}
+\\begin{document}
+\\Zusatzblatt
+\\end{document}`;
+}
+
+/** Compiles the extra sheet into the compile cache; it has no exam content, so the cache keys on the paper alone. */
+export function compileExtraSheet(paper: PaperStyle, onStatus?: (status: string) => void): Promise<CompileResult> {
+  const useLocal = effectiveLatexCompilation() === "local";
+  return compileWithCache({ kind: "extra-sheet", id: paper, variant: "angabe" }, extraSheetLatex(paper), useLocal, onStatus, false, {});
 }
 
 /** What the sheet builders read: the exam's sources and the session key. */

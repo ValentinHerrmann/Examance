@@ -76,6 +76,12 @@ export interface ExamRecord extends MaybeUndecryptable {
   stickerSpots?: 'cover' | 'sheet' | 'a3' | 'leaf';
   /** 'stickers' or 'copies' (personalised copies); the compiled sheet's sticker spots follow it. */
   printMode?: 'stickers' | 'copies';
+  /** Pattern of writing pages (issue #228): 'empty', 'squared' (5 mm) or 'lined' (8 mm); absent = 'empty'. */
+  paperStyle?: 'empty' | 'squared' | 'lined';
+  /** Writing pages after the points table in every copy (issue #228), 0..20. */
+  extraPages?: number;
+  /** Offers the exam-independent extra-sheet stack on the Print step (issue #228). */
+  extraSheets?: boolean;
   /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */
   extraNotes?: ExtraNotes | null;
   /** Ticks the teacher set by hand on the Print and MC steps (issue #212); written only through `examRepository.saveStepChecks`, never with the rest of the record. */

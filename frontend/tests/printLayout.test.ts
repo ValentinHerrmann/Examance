@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { printFileKey, printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
+import { clampExtraPages, printFileKey, printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
 import { printStamps } from '../src/lib/exam/examChecks';
 
-const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, padding: 'workspace', layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', ...patch });
+const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, padding: 'workspace', layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, extraSheets: false, ...patch });
 
 describe('print settings (issue #220)', () => {
   it('reads older exams as the old layout', () => {
-    expect(printSettingsOf({})).toEqual({ pageCodes: false, padding: 'none', layout: 'duplex', mode: 'stickers', stickerSpots: 'cover' });
+    expect(printSettingsOf({})).toEqual({ pageCodes: false, padding: 'none', layout: 'duplex', mode: 'stickers', stickerSpots: 'cover', paperStyle: 'empty', extraPages: 0, extraSheets: false });
   });
 
   it('falls back to a spot choice the layout offers', () => {
@@ -42,5 +42,17 @@ describe('print settings (issue #220)', () => {
     expect(plain('a')).toBe(plain('b'));
     expect(plain('a')).toBe(printStamps('a', 'students').qr);
     expect(spots('a')).not.toBe(spots('b'));
+  });
+});
+
+describe('extra paper settings (issue #228)', () => {
+  it('reads unknown paper as empty and clamps the extra pages to 0..20', () => {
+    expect(printSettingsOf({ paperStyle: 'dotted' as never }).paperStyle).toBe('empty');
+    expect(printSettingsOf({ paperStyle: 'lined' }).paperStyle).toBe('lined');
+    expect([clampExtraPages(-3), clampExtraPages('4'), clampExtraPages(2.7), clampExtraPages(99), clampExtraPages('x')]).toEqual([0, 4, 2, 20, 0]);
+  });
+
+  it('keys the extra sheet by its paper', () => {
+    expect(printFileKey('extra', null, 0, 'lined')).not.toBe(printFileKey('extra', null, 0, 'squared'));
   });
 });

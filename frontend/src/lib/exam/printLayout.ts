@@ -1,4 +1,4 @@
-/** Multi-sheet print settings of an exam (issue #220, docs/dev/multi_sheet_exams.md): page codes and filler pages (Layout tab), print mode, duplex or booklet and sticker spots (Print step). Each works on its own. */
+/** Multi-sheet print settings of an exam (issues #220 and #228, docs/dev/multi_sheet_exams.md): page codes, filler pages and extra paper (Layout tab), print mode, duplex or booklet and sticker spots (Print step). Each works on its own. */
 
 import type { ExamRecord } from '#lib/db/schema';
 
@@ -7,6 +7,10 @@ export type PaddingPages = 'none' | 'blank' | 'workspace';
 /** Where stickers go in sticker mode: the cover only, every sheet front (duplex), every A3 sheet or every cut A4 leaf (booklet). */
 export type StickerSpots = 'cover' | 'sheet' | 'a3' | 'leaf';
 export type PrintMode = 'stickers' | 'copies';
+/** Pattern of every page meant for writing (issue #228): integrated extra pages, workspace filler pages and the extra-sheet stack. */
+export type PaperStyle = 'empty' | 'squared' | 'lined';
+/** Most writing pages an exam may add to every copy. */
+export const MAX_EXTRA_PAGES = 20;
 
 export interface PrintSettings {
   pageCodes: boolean;
@@ -14,14 +18,26 @@ export interface PrintSettings {
   layout: PrintLayout;
   mode: PrintMode;
   stickerSpots: StickerSpots;
+  paperStyle: PaperStyle;
+  /** Writing pages after the points table in every copy, 0..MAX_EXTRA_PAGES. */
+  extraPages: number;
+  /** Whether the Print step makes the exam-independent extra-sheet stack. */
+  extraSheets: boolean;
 }
 
-type PrintFields = Pick<ExamRecord, 'pageCodes' | 'paddingPages' | 'printLayout' | 'printMode' | 'stickerSpots'>;
+type PrintFields = Pick<ExamRecord, 'pageCodes' | 'paddingPages' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'extraSheets'>;
 
-/** What a new exam starts with; older exams read as no page codes, no filler pages and a cover sticker. */
-export const NEW_EXAM_PRINT = { pageCodes: true, paddingPages: 'workspace', printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet' } as const satisfies PrintFields;
+/** What a new exam starts with; older exams read as no page codes, no filler pages, a cover sticker and empty writing paper. */
+export const NEW_EXAM_PRINT = { pageCodes: true, paddingPages: 'workspace', printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, extraSheets: false } as const satisfies PrintFields;
 
 const SPOTS: ReadonlySet<string> = new Set<StickerSpots>(['cover', 'sheet', 'a3', 'leaf']);
+const PAPER: ReadonlySet<string> = new Set<PaperStyle>(['empty', 'squared', 'lined']);
+
+/** A stored or typed page count as a whole number within 0..MAX_EXTRA_PAGES. */
+export function clampExtraPages(value: unknown): number {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) ? Math.min(MAX_EXTRA_PAGES, Math.max(0, n)) : 0;
+}
 
 export function printSettingsOf(exam: PrintFields): PrintSettings {
   const layout: PrintLayout = exam.printLayout === 'booklet' ? 'booklet' : 'duplex';
@@ -32,6 +48,9 @@ export function printSettingsOf(exam: PrintFields): PrintSettings {
     layout,
     mode: exam.printMode === 'copies' ? 'copies' : 'stickers',
     stickerSpots: spotsFor(layout, spots),
+    paperStyle: PAPER.has(exam.paperStyle ?? '') ? (exam.paperStyle as PaperStyle) : 'empty',
+    extraPages: clampExtraPages(exam.extraPages),
+    extraSheets: exam.extraSheets === true,
   };
 }
 
@@ -66,7 +85,8 @@ export function stickersPerCopy(settings: PrintSettings, pageCount: number): num
 }
 
 /** What shapes a made print file besides content and students: a file made under another key is outdated (Print step). */
-export function printFileKey(job: 'exam' | 'qr' | 'copies', booklet: 'impose' | 'printer' | null, stickers: number): string {
+export function printFileKey(job: 'exam' | 'qr' | 'copies' | 'extra', booklet: 'impose' | 'printer' | null, stickers: number, paper: PaperStyle = 'empty'): string {
   if (job === 'qr') return `qr:${stickers}`;
+  if (job === 'extra') return `extra:${paper}`;
   return `${job}:${booklet ?? 'a4'}`;
 }

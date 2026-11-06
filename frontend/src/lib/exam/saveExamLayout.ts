@@ -16,6 +16,9 @@ const API_FIELDS = {
   printLayout: 'print_layout',
   printMode: 'print_mode',
   stickerSpots: 'sticker_spots',
+  paperStyle: 'paper_style',
+  extraPages: 'extra_pages',
+  extraSheets: 'extra_sheets',
 } as const satisfies Partial<Record<keyof ExamRecord, string>>;
 
 export type ExamLayoutPatch = Partial<Pick<ExamRecord, keyof typeof API_FIELDS>>;

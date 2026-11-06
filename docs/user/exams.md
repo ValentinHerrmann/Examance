@@ -141,6 +141,20 @@ Before it makes personalised copies, the step warns about students without an ID
 
 How to scan these sheets: [Scan the stack](./scanning#scan).
 
+## Extra paper {#extra-paper}
+
+Some students need more room than the task sheet offers. The **Layout** tab has an **Extra paper** group for this:
+
+- **Paper for writing**: **Squared** (5 mm, default for new exams), **Lined** (8 mm) or **Empty**. It applies to every page meant for writing: the extra pages, the **Space for side calculations** filler pages and the extra sheets. The pattern is light grey, so writing over it stays readable.
+- **Extra pages in every copy** (0 to 20): pages for writing after the points table, for teachers who prefer a compact task sheet and free paper for the answers. They belong to every copy like any other page: page codes, sticker spots, personalised copies and scanning all treat them as exam pages. Unlike [Space for extra solutions](#extra-space), which fills the rest of the last page, these are whole pages.
+- **Offer extra sheets**: the **Print** step then has an **Extra sheet (stock)** card. **Create print files** makes one double-sided sheet; print as many as you like and keep them for any exam. The sheet has no exam title. Its code at the top only says "extra sheet", and the student's QR sticker on the front says whose it is.
+
+**Loose paper works too.** A student can also write on any sheet of paper, as long as it carries their QR sticker. In exams with page codes it is stored after that student's exam pages, and the scan reports it as an appended page.
+
+**Stickers for extra paper.** The sticker sheet has no spare stickers for this. When a student takes extra paper, print that student a new sticker; a reprint always gives the same code.
+
+**Scanning extra paper.** Scan extra sheets with the exam or later on their own. They always go after the student's exam pages, and pages scanned later are added to that student's existing scan, keeping its grading. The back of an extra sheet has no sticker spot, so it follows its front: scan both sides together.
+
 ## Typeset {#typeset}
 
 **Live Preview PDF** typesets the exam and the solution sheet. On wide screens the preview sits next to the exercises and the layout; on smaller screens it is a third tab, **Preview**, beside **Exercises** and **Layout**. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.

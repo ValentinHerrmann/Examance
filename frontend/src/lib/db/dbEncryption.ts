@@ -185,7 +185,7 @@ const EXAM: RecordCodec<ExamRecord> = {
     'title', 'testart', 'grade', 'klasse', 'course', 'datum', 'nr', 'fach', 'topic', 'lehrernachname',
     'infoText', 'latexPreamble', 'latexTemplate', 'numVersions', 'gradingKey', 'latexPackages',
     'pageBreaks', 'nameLine', 'mcCorrectionHint', 'pageCodes', 'printLayout', 'paddingPages', 'stickerSpots', 'printMode',
-    'extraNotes', 'stepChecks',
+    'paperStyle', 'extraPages', 'extraSheets', 'extraNotes', 'stepChecks',
   ],
   aad: (r) => aadFor('exam', r.id),
 };

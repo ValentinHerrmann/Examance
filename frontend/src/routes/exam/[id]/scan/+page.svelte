@@ -131,6 +131,8 @@
   let omrBanner = $state("");
   // Pages the last upload could not place (issue #220): missing, extra or of another exam. Every page was kept.
   let pageNotes = $state.raw<string[]>([]);
+  /** Loose or twice-scanned pages kept after the exam's pages: expected with extra paper (issue #228), so a note, not a warning. */
+  let paperNotes = $state.raw<string[]>([]);
   /** Null until `loadOmrContext` knows; without MC the template only serves the score boxes in grading. */
   let examHasMc: boolean | null = null;
 
@@ -528,7 +530,6 @@
 
   function pageNote(w: IngestWarning): string | null {
     if (w.kind === "missingPages") return translate("scanning.pageNotes.missing", { student: w.student, pages: w.pages.join(", ") });
-    if (w.kind === "extraPages") return translate("scanning.pageNotes.extra", { student: w.student, count: w.count });
     if (w.kind === "foreignPage") return translate("scanning.pageNotes.foreign", { fileName: w.fileName });
     return null;
   }
@@ -549,6 +550,7 @@
     if (!input.files || input.files.length === 0) return;
     isProcessing = true;
     pageNotes = [];
+    paperNotes = [];
     try {
       const result = await ingestScans(Array.from(input.files), {
         examId,
@@ -572,6 +574,7 @@
       });
       if (omrAvailable && result.omr.alignmentFailures > 0) omrBanner = alignmentBanner(result.omr);
       pageNotes = [...new Set(result.warnings.map(pageNote).filter((n): n is string => n !== null))];
+      paperNotes = result.warnings.flatMap((w) => (w.kind === "extraPages" ? [translate("scanning.pageNotes.extra", { student: w.student, count: w.count })] : []));
     } catch (err) {
       console.error("[scan] ingest failed:", err);
       statusText = translate("scanning.status.failed", { message: err instanceof Error ? err.message : String(err) });
@@ -744,6 +747,11 @@
   {#if pageNotes.length}
     <Alert severity="warning" class="my-4" title={$t("scanning.pageNotes.title")}>
       <ul class="m-0 ps-5">{#each pageNotes as note (note)}<li>{note}</li>{/each}</ul>
+    </Alert>
+  {/if}
+  {#if paperNotes.length}
+    <Alert severity="info" class="my-4" title={$t("scanning.pageNotes.paperTitle")}>
+      <ul class="m-0 ps-5">{#each paperNotes as note (note)}<li>{note}</li>{/each}</ul>
     </Alert>
   {/if}
 
