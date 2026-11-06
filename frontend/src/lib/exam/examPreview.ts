@@ -101,15 +101,16 @@ export async function collectExamResources(
   return exerciseResourceRepository.collectForCompile(owners, sessionKey, needBytes);
 }
 
-/** Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own. The exam's own layout options (`namenszeile`, `schnittecke`) are added here. */
+/** Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own. The exam's own layout options (`namenszeile`, `schnittecke`) are added here. `fill: false` leaves out the extra pages that fill whole sheets (the Exam step's draft, issue #228); printed sheets, exports and the scan template keep them. */
 export function buildExamLatex(
   exam: ExamRecord,
   exerciseInputs: string,
   options: string,
-  accountPackages: readonly LatexPackageEntry[]
+  accountPackages: readonly LatexPackageEntry[],
+  { fill = true }: { fill?: boolean } = {}
 ): string {
   const doc = `\\documentclass[a4paper]{article}
-\\usepackage[${withExamOptions(options, exam)}]{sty/Schulaufgabe}${pageCodeDefinitions(exam, options)}
+\\usepackage[${withExamOptions(options, exam, { fill })}]{sty/Schulaufgabe}${pageCodeDefinitions(exam, options)}
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
 \\Lehrernachname{${exam.lehrernachname || ""}}
@@ -139,15 +140,15 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
-type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "paddingPages" | "printMode" | "stickerSpots" | "paperStyle" | "extraPages" | "extraSheets">;
+type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "printMode" | "stickerSpots" | "paperStyle" | "extraPages">;
 
 /** The Schulaufgabe.sty option of a writing-paper pattern (issue #228); empty paper sets none. */
 const PAPER_OPTION: Record<PaperStyle, string> = { empty: "", squared: "papierkaro", lined: "papierlinien" };
 
-/** Adds the exam's layout switches to the Schulaufgabe.sty options. Each multi-sheet option stands alone and older exams set none, so they compile unchanged (issue #220). */
-export function withExamOptions(options: string, layout: LayoutFields): string {
+/** Adds the exam's layout switches to the Schulaufgabe.sty options (issue #220). *fill* fills the student sheet up to whole sheets of its print layout with extra pages (issue #228); the solution never gets them, so draft and print share one solution source. */
+export function withExamOptions(options: string, layout: LayoutFields, { fill = false }: { fill?: boolean } = {}): string {
   const print = printSettingsOf(layout);
-  const filler = { none: "", blank: "fuellleer", workspace: "fuellplatz" }[print.padding];
+  const filler = fill && !options.split(",").includes("antworten") && "fuellen";
   const multiSheet = [print.pageCodes && "seitencode", print.layout === "booklet" && "broschuere", filler, PAPER_OPTION[print.paperStyle]];
   return [options, layout.nameLine && "namenszeile", ...multiSheet].filter(Boolean).join(",");
 }
@@ -197,6 +198,8 @@ export interface ExamPreviewInput {
   onAngabe?: (angabe: CompileResult) => void;
   /** False skips the Lösung (the Print step without a solution, issue #220); default true. */
   solution?: boolean;
+  /** The Exam step's draft: the task sheet without the extra pages that fill whole sheets, in its own cache slot (issue #228). */
+  draft?: boolean;
 }
 
 export interface ExamPreviewResult {
@@ -220,10 +223,14 @@ export interface ExamSources {
   logo: CompileLogo | undefined;
 }
 
-/** `needBytes` loads resource and logo bytes (local engine, raw export); otherwise the server resolves them by id. */
+/** The cache slot of the task sheet: the Exam step's draft leaves out the pages that fill whole sheets (issue #228), so it never stands in for the printed sheet. */
+const sheetVariant = (draft: boolean | undefined) => (draft ? "draft" : "angabe") as "draft" | "angabe";
+
+/** `needBytes` loads resource and logo bytes (local engine, raw export); otherwise the server resolves them by id. `draft` builds the Exam step's task sheet without the filling extra pages. */
 export async function prepareExamSources(
   input: ExamSourceInput,
-  needBytes: boolean
+  needBytes: boolean,
+  draft = false
 ): Promise<ExamSources> {
   const { exam, exercises, libraryExercises, mcGroups, examItems, key } = input;
   // Results-only imports have no LaTeX: compiling would produce empty exercise blocks.
@@ -232,7 +239,7 @@ export async function prepareExamSources(
   const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key, needBytes);
   const accountPackages = await getAccountPackages();
   return {
-    angabeTex: buildExamLatex(exam, inputs, "sans,punkte", accountPackages),
+    angabeTex: buildExamLatex(exam, inputs, "sans,punkte", accountPackages, { fill: !draft }),
     loesungTex: buildExamLatex(exam, inputs, "sans,punkte,antworten", accountPackages),
     resources: collected.inline,
     resourceExerciseIds: collected.exerciseIds,
@@ -246,11 +253,11 @@ export function compileExamPreview(input: ExamPreviewInput): Promise<ExamPreview
 export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamPreviewResult> {
   const { exam } = input;
   const useLocal = effectiveLatexCompilation() === "local";
-  const src = await prepareExamSources(input, useLocal);
+  const src = await prepareExamSources(input, useLocal, input.draft);
   const opts = { resources: src.resources, resourceExerciseIds: src.resourceExerciseIds, logo: src.logo };
 
   const angabe = await compileWithCache(
-    { kind: "exam", id: exam.id, variant: "angabe" },
+    { kind: "exam", id: exam.id, variant: sheetVariant(input.draft) },
     src.angabeTex,
     useLocal,
     input.onStatus,
@@ -287,16 +294,16 @@ export async function getCurrentExamVariant(
 
 /** The cached Angabe/Lösung if they were compiled from the exam's current sources; "stale" when this exam was compiled before but its exercises, order or header changed since (issue #135); null when never compiled. */
 export async function getCurrentExamPreview(
-  input: ExamSourceInput
+  input: ExamSourceInput & { draft?: boolean }
 ): Promise<{ angabe: CachedCompileEntry; loesung: CachedCompileEntry } | "stale" | null> {
   const id = input.exam.id;
-  const hadAny =
-    getLatestForSlot({ kind: "exam", id, variant: "angabe" }) || getLatestForSlot({ kind: "exam", id, variant: "loesung" });
+  const variant = sheetVariant(input.draft);
+  const hadAny = getLatestForSlot({ kind: "exam", id, variant }) || getLatestForSlot({ kind: "exam", id, variant: "loesung" });
   if (!hadAny) return null;
   const useLocal = effectiveLatexCompilation() === "local";
-  const src = await prepareExamSources(input, useLocal);
+  const src = await prepareExamSources(input, useLocal, input.draft);
   const opts = { resources: src.resources, resourceExerciseIds: src.resourceExerciseIds, logo: src.logo };
-  const angabe = await getCachedFor({ kind: "exam", id, variant: "angabe" }, src.angabeTex, useLocal, opts);
+  const angabe = await getCachedFor({ kind: "exam", id, variant }, src.angabeTex, useLocal, opts);
   const loesung = await getCachedFor({ kind: "exam", id, variant: "loesung" }, src.loesungTex, useLocal, opts);
   return angabe && loesung ? { angabe, loesung } : "stale";
 }

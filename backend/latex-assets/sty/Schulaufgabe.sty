@@ -222,11 +222,12 @@
 % broschuere: filler pages up to a multiple of 4 (else 2) and the cut zone along the fold.
 \newboolean{SA@broschuere}
 \DeclareOption{broschuere}{\setboolean{SA@broschuere}{true}}
-% fuellleer / fuellplatz: filler pages up to whole sheets, left blank on purpose or as space for side calculations.
+% fuellen: extra pages up to whole sheets (2 pages, or 4 for a booklet; issue #228). fuellleer/fuellplatz are the older names, kept so
+% sources written before still compile; their pages are extra pages now too.
 \newboolean{SA@fuellen}
-\newboolean{SA@fuellplatz}
+\DeclareOption{fuellen}{\setboolean{SA@fuellen}{true}}
 \DeclareOption{fuellleer}{\setboolean{SA@fuellen}{true}}
-\DeclareOption{fuellplatz}{\setboolean{SA@fuellen}{true}\setboolean{SA@fuellplatz}{true}}
+\DeclareOption{fuellplatz}{\setboolean{SA@fuellen}{true}}
 % Sticker spots come from \Aufkleberseiten (section 11), not an option: the builder knows the pages.
 % Extra paper (issue #228): papierkaro (5mm squares) or papierlinien (8mm lines) on every writing page; neither leaves them empty.
 \def\SA@paper{leer}
@@ -547,9 +548,9 @@
 \newdimen\EN@avail
 \newdimen\EN@title
 \newdimen\EN@fill
+% Heading and note share one line, each in its own size; a long note wraps under it.
 \newcommand{\EN@head}[2]{%
-    {\large\bfseries\noindent #1\par}
-    \if\relax\detokenize{#2}\relax\else{\small\noindent #2\par}\fi
+    \noindent{\large\bfseries #1}\if\relax\detokenize{#2}\relax\else\quad{\small #2}\fi\par
 }
 \newcommand{\ExamNotes}[4]{%
     \ifthenelse{\boolean{Antworten}}{}{%
@@ -856,8 +857,7 @@
 \newif\ifSA@wp
 \newdimen\SA@wphead
 \newcommand{\SA@wphd}[2]{%
-    \if\relax\detokenize{#1}\relax\else\noindent{\large\bfseries #1}\par\fi
-    \if\relax\detokenize{#2}\relax\else{\small\noindent #2\par}\fi
+    \if\relax\detokenize{#1#2}\relax\else\EN@head{#1}{#2}\fi
 }
 \newcommand{\SA@writingpage}[2]{%
     \null
@@ -890,6 +890,8 @@
 % points table and before the filler pages. They carry markers, page codes and sticker spots like any page, so they are part of the
 % OMR template and personalised copies need nothing extra.
 \def\SA@extracount{0}
+% Without \Zusatzseiten the pages that fill whole sheets still get a heading.
+\def\SA@extrapage{\SA@writingpage{Platz für weitere Lösungen}{}}
 \newcommand{\Zusatzseiten}[3]{\gdef\SA@extracount{#1}\gdef\SA@extrapage{\SA@writingpage{#2}{#3}}}
 \newcount\SA@extrai
 \newcommand{\SA@extrapages}{%
@@ -911,15 +913,10 @@
     \SA@writingpage{}{}%
 }
 
-% Filler pages after the points table, so every copy fills whole sheets (2 pages, or 4 for a booklet). They carry markers (and page
-% codes) like any page and are part of the OMR template, so a scanned filler page is an ordinary page (never dropped).
+% Filling up to whole sheets (2 pages, or 4 for a booklet): more extra pages after the asked ones. They carry markers (and page
+% codes) like any page and are part of the OMR template, so a scanned one is an ordinary page (never dropped).
 \newcount\SA@pages
 \newif\ifSA@pad
-\newcommand{\SA@fillerpage}{%
-    \ifthenelse{\boolean{SA@fuellplatz}}%
-        {\SA@writingpage{Platz für Nebenrechnungen}{}}%
-        {\null\vfill\begin{center}\color{gray}\large Diese Seite bleibt absichtlich leer.\end{center}\vfill\clearpage}%
-}
 \newcommand{\SA@fillsheets}{%
     \clearpage
     \SA@pages=\numexpr\value{page}-1\relax
@@ -928,7 +925,7 @@
         % Exact multiples are the only values the rounding division gives back unchanged.
         \ifnum\numexpr\SA@pages/\SA@persheet*\SA@persheet\relax=\SA@pages\relax\SA@padfalse\else\SA@padtrue\fi
     \ifSA@pad
-        \SA@fillerpage
+        \SA@extrapage
         \advance\SA@pages by 1
     \repeat
 }

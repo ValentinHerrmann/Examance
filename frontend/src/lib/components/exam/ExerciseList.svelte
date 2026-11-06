@@ -12,8 +12,9 @@
   import { variantOf, versionOf } from '#lib/components/exam/ExerciseLabel.svelte';
   import PageBreakDivider from '#lib/components/exam/PageBreakDivider.svelte';
   import { t } from '#lib/i18n';
-  import { faArrowUp, faArrowDown, faCodeBranch, faTag, faXmark } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Card, actionIcons } from '#lib/components/ui';
+  import { faArrowUp, faArrowDown, faCodeBranch, faPlus, faTag, faXmark } from '@fortawesome/free-solid-svg-icons';
+  import InfoTip from '#lib/components/help/InfoTip.svelte';
+  import { Badge, Button, Card, Icon, actionIcons } from '#lib/components/ui';
 
   interface McGroup {
     id: string;
@@ -64,6 +65,12 @@
       .map((id) => exercises.find((e) => e.id === id) || libraryExercises.find((e) => e.id === id))
       .filter((e): e is ExerciseRecord => Boolean(e));
   }
+
+  /** Points of the whole exam as the list shows them, for the summary line. */
+  let totalPoints = $derived(
+    exercises.filter((ex) => !mcGroups.some((g) => g.memberIds.includes(ex.id))).reduce((sum, ex) => sum + (ex.maxPoints || 0), 0) +
+      mcGroups.reduce((sum, g) => sum + groupPoints(g), 0),
+  );
 
   function groupPoints(group: McGroup): number {
     return memberExercises(group).reduce(
@@ -163,14 +170,28 @@
 
 <Card padded={false} class="p-3 sm:p-5" title={$t("exam.exerciseList.heading", { count: totalItemCount })}>
   {#snippet actions()}
-    {#if onAddExercises}
+    <!-- Guidance behind ⓘ, like the Print step (issue #228). -->
+    <InfoTip text={$t("exam.exerciseList.info")} />
+    {#if onAddExercises && totalItemCount > 0}
       <Button size="sm" icon={actionIcons.add} onClick={onAddExercises}>{$t("exam.exerciseList.addExercises")}</Button>
     {/if}
   {/snippet}
 
   {#if totalItemCount === 0}
-    <p class="m-0 rounded-md border border-dashed border-line-strong p-8 text-center text-muted">{$t("exam.exerciseList.empty")}</p>
+    <!-- The first step as a tile: what to do and the one action that does it. -->
+    {#if onAddExercises}
+      <button type="button" class="flex w-full cursor-pointer items-start gap-3 rounded-md border border-dashed border-line-strong bg-surface-sunken p-4 text-left hover:border-line-hover" onclick={onAddExercises}>
+        <Icon icon={faPlus} class="mt-0.5 shrink-0 text-accent" />
+        <span class="min-w-0">
+          <span class="block font-medium text-content">{$t("exam.exerciseList.addExercises")}</span>
+          <span class="block text-sm text-muted">{$t("exam.exerciseList.emptyText")}</span>
+        </span>
+      </button>
+    {:else}
+      <p class="m-0 rounded-md border border-dashed border-line-strong p-8 text-center text-muted">{$t("exam.exerciseList.empty")}</p>
+    {/if}
   {:else}
+    <p class="m-0 mb-3 text-sm text-muted">{$t("exam.exerciseList.summary", { count: totalItemCount, points: totalPoints })}</p>
     <div class="flex flex-col {onTogglePageBreak ? '' : 'gap-2'}">
       {#if examItems.length > 0}
         {#each examItems as item, idx (item.id)}

@@ -10716,16 +10716,6 @@
             "title": "Print Layout",
             "default": "duplex"
           },
-          "padding_pages": {
-            "type": "string",
-            "enum": [
-              "none",
-              "blank",
-              "workspace"
-            ],
-            "title": "Padding Pages",
-            "default": "none"
-          },
           "sticker_spots": {
             "type": "string",
             "enum": [
@@ -10762,11 +10752,6 @@
             "minimum": 0.0,
             "title": "Extra Pages",
             "default": 0
-          },
-          "extra_sheets": {
-            "type": "boolean",
-            "title": "Extra Sheets",
-            "default": false
           },
           "extra_notes": {
             "anyOf": [
@@ -11240,16 +11225,6 @@
             "title": "Print Layout",
             "default": "duplex"
           },
-          "padding_pages": {
-            "type": "string",
-            "enum": [
-              "none",
-              "blank",
-              "workspace"
-            ],
-            "title": "Padding Pages",
-            "default": "none"
-          },
           "sticker_spots": {
             "type": "string",
             "enum": [
@@ -11286,11 +11261,6 @@
             "minimum": 0.0,
             "title": "Extra Pages",
             "default": 0
-          },
-          "extra_sheets": {
-            "type": "boolean",
-            "title": "Extra Sheets",
-            "default": false
           },
           "extra_notes": {
             "anyOf": [
@@ -11592,22 +11562,6 @@
             ],
             "title": "Print Layout"
           },
-          "padding_pages": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "none",
-                  "blank",
-                  "workspace"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Padding Pages"
-          },
           "sticker_spots": {
             "anyOf": [
               {
@@ -11668,17 +11622,6 @@
               }
             ],
             "title": "Extra Pages"
-          },
-          "extra_sheets": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Extra Sheets"
           },
           "extra_notes": {
             "anyOf": [

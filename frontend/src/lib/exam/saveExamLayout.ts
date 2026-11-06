@@ -13,13 +13,11 @@ const API_FIELDS = {
   mcCorrectionHint: 'mc_correction_hint',
   latexPackages: 'latex_packages',
   pageCodes: 'page_codes',
-  paddingPages: 'padding_pages',
   printLayout: 'print_layout',
   printMode: 'print_mode',
   stickerSpots: 'sticker_spots',
   paperStyle: 'paper_style',
   extraPages: 'extra_pages',
-  extraSheets: 'extra_sheets',
   extraNotes: 'extra_notes',
 } as const satisfies Partial<Record<keyof ExamRecord, string>>;
 

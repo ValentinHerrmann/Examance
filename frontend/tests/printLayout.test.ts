@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { clampExtraPages, printFileKey, printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
 import { printStamps } from '../src/lib/exam/examChecks';
 
-const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, padding: 'workspace', layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, extraSheets: false, ...patch });
+const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, ...patch });
 
 describe('print settings (issue #220)', () => {
   it('reads older exams as the old layout', () => {
-    expect(printSettingsOf({})).toEqual({ pageCodes: false, padding: 'none', layout: 'duplex', mode: 'stickers', stickerSpots: 'cover', paperStyle: 'empty', extraPages: 0, extraSheets: false });
+    expect(printSettingsOf({})).toEqual({ pageCodes: false, layout: 'duplex', mode: 'stickers', stickerSpots: 'cover', paperStyle: 'empty', extraPages: 0 });
   });
 
   it('falls back to a spot choice the layout offers', () => {

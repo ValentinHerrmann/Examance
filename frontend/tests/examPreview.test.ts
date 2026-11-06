@@ -39,6 +39,33 @@ describe('buildExamLatex extra notes', () => {
   });
 });
 
+describe('preview invalidation: every print-shaping option changes the source (issue #228)', () => {
+  const notes = { title: 'Platz', description: '', minHeightCm: 4, maxHeightCm: 12 };
+  const start = { ...base, pageCodes: true, stickerSpots: 'sheet', extraNotes: notes } as ExamRecord;
+  const changes: [string, Partial<ExamRecord>][] = [
+    ['paper style', { paperStyle: 'lined' }],
+    ['extra pages', { extraPages: 2 }],
+    ['rest-of-page area off', { extraNotes: { ...notes, fill: false } }],
+    ['heading', { extraNotes: { ...notes, title: 'Mehr' } }],
+    ['page codes', { pageCodes: false }],
+    ['print layout', { printLayout: 'booklet' }],
+    ['print mode', { printMode: 'copies' }],
+    ['sticker spots', { stickerSpots: 'cover' }],
+    ['name line', { nameLine: true }],
+  ];
+  const tex = (exam: ExamRecord, fill: boolean) => buildExamLatex(exam, '', 'sans,punkte', [], { fill });
+
+  it.each(changes)('%s changes the printed sheet', (_, patch) => {
+    expect(tex({ ...start, ...patch } as ExamRecord, true)).not.toBe(tex(start, true));
+  });
+
+  it('fills whole sheets only on the printed student sheet, never in the draft or the solution', () => {
+    expect(tex(start, true)).toContain('fuellen');
+    expect(tex(start, false)).not.toContain('fuellen');
+    expect(buildExamLatex(start, '', 'sans,punkte,antworten', [], { fill: true })).not.toContain('fuellen');
+  });
+});
+
 describe('score box positions (issue #187)', () => {
   const exercises = [
     { id: 'ex-1', name: 'Eins', latexBody: 'x', maxPoints: 1 },

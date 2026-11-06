@@ -1,34 +1,30 @@
-/** Multi-sheet print settings of an exam (issues #220 and #228, docs/dev/multi_sheet_exams.md): page codes, filler pages and extra paper (Layout tab), print mode, duplex or booklet and sticker spots (Print step). Each works on its own. */
+/** Multi-sheet print settings of an exam (issues #220 and #228, docs/dev/multi_sheet_exams.md): page codes and extra paper (Layout tab), print mode, duplex or booklet and sticker spots (Print step). The printed sheet always fills up to whole sheets of its layout with extra pages. */
 
 import type { ExamRecord } from '#lib/db/schema';
 
 export type PrintLayout = 'duplex' | 'booklet';
-export type PaddingPages = 'none' | 'blank' | 'workspace';
 /** Where stickers go in sticker mode: the cover only, every sheet front (duplex), every A3 sheet or every cut A4 leaf (booklet). */
 export type StickerSpots = 'cover' | 'sheet' | 'a3' | 'leaf';
 export type PrintMode = 'stickers' | 'copies';
-/** Pattern of every page meant for writing (issue #228): integrated extra pages, workspace filler pages and the extra-sheet stack. */
+/** Pattern of every writing space (issue #228): the rest of the last page, extra pages (also those filling whole sheets) and the extra-sheet stack. */
 export type PaperStyle = 'empty' | 'squared' | 'lined';
-/** Most writing pages an exam may add to every copy. */
+/** Most extra pages an exam asks for at least; the print sheet may add more to fill whole sheets. */
 export const MAX_EXTRA_PAGES = 20;
 
 export interface PrintSettings {
   pageCodes: boolean;
-  padding: PaddingPages;
   layout: PrintLayout;
   mode: PrintMode;
   stickerSpots: StickerSpots;
   paperStyle: PaperStyle;
-  /** Writing pages after the points table in every copy, 0..MAX_EXTRA_PAGES. */
+  /** Extra pages after the points table in every copy, at least, 0..MAX_EXTRA_PAGES. */
   extraPages: number;
-  /** Whether the Print step makes the exam-independent extra-sheet stack. */
-  extraSheets: boolean;
 }
 
-type PrintFields = Pick<ExamRecord, 'pageCodes' | 'paddingPages' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'extraSheets'>;
+type PrintFields = Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages'>;
 
-/** What a new exam starts with; older exams read as no page codes, no filler pages, a cover sticker and empty writing paper. */
-export const NEW_EXAM_PRINT = { pageCodes: true, paddingPages: 'workspace', printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, extraSheets: false } as const satisfies PrintFields;
+/** What a new exam starts with; older exams read as no page codes, a cover sticker and empty writing paper. */
+export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0 } as const satisfies PrintFields;
 
 const SPOTS: ReadonlySet<string> = new Set<StickerSpots>(['cover', 'sheet', 'a3', 'leaf']);
 const PAPER: ReadonlySet<string> = new Set<PaperStyle>(['empty', 'squared', 'lined']);
@@ -44,13 +40,11 @@ export function printSettingsOf(exam: PrintFields): PrintSettings {
   const spots = SPOTS.has(exam.stickerSpots ?? '') ? (exam.stickerSpots as StickerSpots) : 'cover';
   return {
     pageCodes: exam.pageCodes === true,
-    padding: exam.paddingPages === 'workspace' || exam.paddingPages === 'blank' ? exam.paddingPages : 'none',
     layout,
     mode: exam.printMode === 'copies' ? 'copies' : 'stickers',
     stickerSpots: spotsFor(layout, spots),
     paperStyle: PAPER.has(exam.paperStyle ?? '') ? (exam.paperStyle as PaperStyle) : 'empty',
     extraPages: clampExtraPages(exam.extraPages),
-    extraSheets: exam.extraSheets === true,
   };
 }
 

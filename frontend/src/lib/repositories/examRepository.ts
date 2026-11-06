@@ -48,20 +48,18 @@ export function extraNotesToApi(
 }
 
 /** The multi-sheet print fields (issue #220), from the API's snake_case or a stored camelCase record; normalised by `printSettingsOf`. */
-function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'paddingPages' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages' | 'extraSheets'> {
+function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages'> {
   const s = printSettingsOf({
     pageCodes: raw.page_codes ?? raw.pageCodes,
     printLayout: raw.print_layout ?? raw.printLayout,
-    paddingPages: raw.padding_pages ?? raw.paddingPages,
     stickerSpots: raw.sticker_spots ?? raw.stickerSpots,
     printMode: raw.print_mode ?? raw.printMode,
     paperStyle: raw.paper_style ?? raw.paperStyle,
     extraPages: raw.extra_pages ?? raw.extraPages,
-    extraSheets: raw.extra_sheets ?? raw.extraSheets,
   });
   return {
-    pageCodes: s.pageCodes, printLayout: s.layout, paddingPages: s.padding, stickerSpots: s.stickerSpots, printMode: s.mode,
-    paperStyle: s.paperStyle, extraPages: s.extraPages, extraSheets: s.extraSheets,
+    pageCodes: s.pageCodes, printLayout: s.layout, stickerSpots: s.stickerSpots, printMode: s.mode,
+    paperStyle: s.paperStyle, extraPages: s.extraPages,
   };
 }
 
@@ -126,12 +124,10 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     mc_correction_hint: exam.mcCorrectionHint,
     page_codes: exam.pageCodes,
     print_layout: exam.printLayout,
-    padding_pages: exam.paddingPages,
     sticker_spots: exam.stickerSpots,
     print_mode: exam.printMode,
     paper_style: exam.paperStyle,
     extra_pages: exam.extraPages,
-    extra_sheets: exam.extraSheets,
     // null switches the block off, undefined leaves it alone.
     extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,

@@ -1,4 +1,4 @@
-# Exams with several sheets (page codes, booklets, filler pages)
+# Exams with several sheets (page codes, booklets, extra pages)
 
 Issues #220 and #228. How an exam that spans several sheets is printed, scanned and put back together, and how extra paper joins it. User guide: [Several sheets](../user/exams.md#multi-sheet).
 
@@ -9,17 +9,15 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 | Column | Values | New exams | Where | Effect in `Schulaufgabe.sty` |
 |---|---|---|---|---|
 | `page_codes` | bool | `true` | Layout tab | `seitencode` |
-| `padding_pages` | `none`, `blank`, `workspace` | `workspace` | Layout tab | `fuellleer` / `fuellplatz` |
 | `print_layout` | `duplex`, `booklet` | `duplex` | Print step | `broschuere` |
 | `print_mode` | `stickers`, `copies` | `stickers` | Print step | sticker spots only in `stickers` mode |
 | `sticker_spots` | `cover`, `sheet`, `a3`, `leaf` | `sheet` | Print step (sticker mode) | `\Aufkleberseiten{bogen|a3}` |
 | `paper_style` | `empty`, `squared`, `lined` | `squared` | Layout tab | `papierkaro` / `papierlinien` |
 | `extra_pages` | int 0–20 | `0` | Layout tab | `\Zusatzseiten{n}` |
-| `extra_sheets` | bool | `false` | Layout tab | none: shows the extra-sheet job on the Print step |
 
 - The server defaults are the old layout, so older exams compile unchanged. Migration 0059 also:
   - moves the old print-plan mode (`step_checks.printPlan.mode`, issue #212) into `print_mode`;
-  - sets `padding_pages = 'none'` where page codes were off.
+  - set `padding_pages = 'none'` where page codes were off (the column went with migration 0060, issue #228).
 - The print plan in `step_checks` keeps only `solution` and `booklet` (`impose`/`printer`). These don't shape the sheet.
 - `contentStamp` covers the settings whenever they differ from the old layout, so a change marks made PDFs and ticks as outdated.
 - **Layout tab** (`ExamLayoutSettings`): every field saves itself after 800 ms (a logo choice at once). The card header shows "Saving…/Saved". There are no buttons.
@@ -43,7 +41,9 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 
 ## Filler pages, sticker spots, fold cut zone
 
-- **Filler pages**: after the points table, `\SA@fillsheets` adds pages until the count is a multiple of 2 (or 4 with `broschuere`). They read "Platz für Nebenrechnungen" or "Diese Seite bleibt absichtlich leer." They carry markers and codes and are part of the OMR template. Personalised copies of these exams get no extra blank back from `examCopies.ts`.
+- **Filling whole sheets** (no setting since issue #228): on the printed student sheet (option `fuellen`; `fuellleer`/`fuellplatz` remain accepted aliases), `\SA@fillsheets` adds extra pages after the asked ones until the count is a multiple of 2 (or 4 with `broschuere`). They carry markers and codes and are part of the OMR template. Personalised copies get no extra blank back from `examCopies.ts`.
+  - The multiple follows the Print step's layout, so the Exam step's preview is a **draft** without them: `buildExamLatex(…, { fill: false })`, compiled into the cache variant `draft` (`ExamPreviewPanel draft`). It never stands in for the printed `angabe`.
+  - The Print step, exports, sharing, the overview preview and the OMR template use the filled sheet.
 - **Sticker spots** (sticker mode, `stickerPagesOf`): sticker labels are 35 mm, so a spot is a faint (`black!4`), unlabelled 35×35 mm square over the header.
   - Position: on the uncut side, 10 mm beside that side's top marker (15–50 mm from the edge, 18–53 mm on booklets) and 3–38 mm from the top.
   - Only a 17 mm full-width strip at the top of the body stays free. `\@outputpage` lowers `\@colht` for such a page, and `\@makecol` and `\@texttop` give the room back as space above the text, so page breaks know about it.
@@ -60,7 +60,8 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 - **One pattern**: `\SA@pattern{width}{height}` draws the `paper_style` (whole 5 mm squares or 8 mm lines, light grey; empty is blank space). Every writing space uses it.
 - **Full writing pages**: `\SA@writingpage{heading}{note}` puts only the heading in the flow. The pattern is drawn at shipout (`\SA@wpdraw` in `\AddToShipoutPictureBG`) over the text area below the heading and below a sticker spot.
   - Never in the flow: a sticker-spot page has 17 mm less room than the page builder reports, and an in-flow grid spilled onto a new page, leaving a page with only its heading.
-  - It serves workspace filler pages ("Platz für Nebenrechnungen"), the extra sheet, and the integrated extra pages: `\Zusatzseiten{n}{title}{note}` adds n of them in `\AtEndDocument` after the points table and before the filler pages, on the student sheet only.
+  - It serves the extra sheet and the extra pages: `\Zusatzseiten{n}{title}{note}` adds at least n of them in `\AtEndDocument` after the points table, on the student sheet only; filling whole sheets adds more of the same (`\SA@extrapage`, default heading "Platz für weitere Lösungen" without `\Zusatzseiten`).
+  - Heading and note share one line (`\EN@head`), each in its own size.
   - They are ordinary pages: markers, page codes, sticker spots, the OMR template and personalised copies need nothing extra.
 - **The writing space** (`exams.extra_notes`, issues #156 and #228, Layout tab, `ExtraNotesField`):
   - its title and note head the rest-of-page area and every extra page (`DEFAULT_EXTRA_NOTES` when never set);
@@ -71,7 +72,8 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
   - no cover and no exam title, only "Zusatzblatt" centred in the head;
   - a sticker spot on the front (same geometry as `\SA@stickerspot`);
   - the page code `EXM1:X` on both sides (`EXTRA_SHEET_CODE`, `isExtraSheetCode`). It names no exam and no page, so one printed stack serves every exam.
-- **Print step**: with `extra_sheets`, "Create print files" also compiles the extra sheet, and it shows as the `extra` preview pane. It has no "printed" tick: the sheet is printed in stock.
+- **Print step**: the extra-sheet card is always there; "Create print files" also compiles the extra sheet (cached by paper style), shown as the `extra` preview pane. It has no "printed" tick: the sheet is printed in stock.
+- **Preview invalidation**: every edit that changes the printed exam bumps the page's `layoutVersion` (`afterLayoutChange` on the Exam step, `savePrint` on the Print step, including a quick exercise edit), and a reopened page compares the cached PDF with the current sources. `tests/examPreview.test.ts` checks that each print-shaping option changes the source.
 - **Stickers**: the sticker sheet adds no spare stickers for extra paper; the teacher reprints one student's sticker (reprints always match).
 
 ## Print step (`components/exam/PrintPlan.svelte`)

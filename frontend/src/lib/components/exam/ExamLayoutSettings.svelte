@@ -5,7 +5,7 @@
   import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
   import { entriesError, type LatexPackageEntry } from "#lib/latex/packages";
   import { docsHref } from "#lib/help/docsLink";
-  import { clampExtraPages, MAX_EXTRA_PAGES, printSettingsOf, type PaddingPages, type PaperStyle } from "#lib/exam/printLayout";
+  import { clampExtraPages, MAX_EXTRA_PAGES, printSettingsOf, type PaperStyle } from "#lib/exam/printLayout";
   import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import LatexEditor from "#lib/components/LatexEditor.svelte";
   import ExamLogoField from "#lib/components/logo/ExamLogoField.svelte";
@@ -13,7 +13,9 @@
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import ExtraNotesField from "#lib/components/exam/ExtraNotesField.svelte";
   import type { ExtraNotes } from "#lib/db/schema";
-  import { Alert, Checkbox, CrossLink, Field, Radio, TextInput } from "#lib/components/ui";
+  import SectionHeading from "#lib/components/help/SectionHeading.svelte";
+  import { faFile, faGripLines, faTableCells } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Checkbox, CrossLink, Field, OptionTile, TextInput } from "#lib/components/ui";
 
   /** The exam's page layout (issues #212, #220, #228): info text, name line, cut-corner hint, MC correction legend, page codes, filler pages, extra paper, logo and LaTeX packages. Every change saves itself (no buttons); how the exam is printed lives on the Print step. */
   interface Props {
@@ -37,17 +39,15 @@
   let nameLine = $state(false);
   let mcCorrectionHint = $state(false);
   let pageCodes = $state(false);
-  let padding = $state<PaddingPages>("none");
   let paperStyle = $state<PaperStyle>("empty");
   /** The number field's text; saved clamped to 0..MAX_EXTRA_PAGES. */
   let extraPagesText = $state("0");
-  let extraSheets = $state(false);
   /** The writing space's heading, note and rest-of-page area (issues #156, #228); null until first edited. */
   let extraNotes: ExtraNotes | null = $state.raw(null);
   let extraPages = $derived(clampExtraPages(extraPagesText));
   let logoChange: ExamLogoChange | null = $state.raw(null);
   let latexPackages: LatexPackageEntry[] | null = $state.raw(null);
-  let saved = $state({ infoText: "", nameLine: false, mcCorrectionHint: false, pageCodes: false, padding: "none", paperStyle: "empty", extraPages: 0, extraSheets: false, extraNotes: "null", latexPackages: "null" });
+  let saved = $state({ infoText: "", nameLine: false, mcCorrectionHint: false, pageCodes: false, paperStyle: "empty", extraPages: 0, extraNotes: "null", latexPackages: "null" });
   let error = $state("");
   let timer: ReturnType<typeof setTimeout> | null = null;
   let saving = $state(false);
@@ -61,10 +61,8 @@
     mcCorrectionHint = exam.mcCorrectionHint === true;
     const print = printSettingsOf(exam);
     pageCodes = print.pageCodes;
-    padding = print.padding;
     paperStyle = print.paperStyle;
     extraPagesText = String(print.extraPages);
-    extraSheets = print.extraSheets;
     extraNotes = exam.extraNotes ?? null;
     latexPackages = exam.latexPackages ?? null;
     logoChange = null;
@@ -81,10 +79,8 @@
       nameLine: rec.nameLine === true,
       mcCorrectionHint: rec.mcCorrectionHint === true,
       pageCodes: print.pageCodes,
-      padding: print.padding,
       paperStyle: print.paperStyle,
       extraPages: print.extraPages,
-      extraSheets: print.extraSheets,
       extraNotes: JSON.stringify(rec.extraNotes ?? null),
       latexPackages: JSON.stringify(rec.latexPackages ?? null),
     };
@@ -97,10 +93,8 @@
     if (nameLine !== saved.nameLine) patch.nameLine = nameLine;
     if (mcCorrectionHint !== saved.mcCorrectionHint) patch.mcCorrectionHint = mcCorrectionHint;
     if (pageCodes !== saved.pageCodes) patch.pageCodes = pageCodes;
-    if (padding !== saved.padding) patch.paddingPages = padding;
     if (paperStyle !== saved.paperStyle) patch.paperStyle = paperStyle;
     if (extraPages !== saved.extraPages) patch.extraPages = extraPages;
-    if (extraSheets !== saved.extraSheets) patch.extraSheets = extraSheets;
     if (JSON.stringify(extraNotes) !== saved.extraNotes) patch.extraNotes = extraNotes;
     // An empty override prints the same as none; the server stores both as "follows the account".
     if (JSON.stringify(latexPackages) !== saved.latexPackages) patch.latexPackages = latexPackages?.length ? latexPackages : null;
@@ -112,10 +106,8 @@
       nameLine !== saved.nameLine ||
       mcCorrectionHint !== saved.mcCorrectionHint ||
       pageCodes !== saved.pageCodes ||
-      padding !== saved.padding ||
       paperStyle !== saved.paperStyle ||
       extraPages !== saved.extraPages ||
-      extraSheets !== saved.extraSheets ||
       JSON.stringify(extraNotes) !== saved.extraNotes ||
       logoChange !== null ||
       JSON.stringify(latexPackages) !== saved.latexPackages,
@@ -197,64 +189,62 @@
   });
 </script>
 
-<div class="flex flex-col gap-4">
-  <Field label={$t("exam.metadataEditor.infoText")}>
-    <LatexEditor bind:value={infoText} rows={4} />
-  </Field>
+{#snippet checkRow(id: string, label: string, info: string, checked: boolean, onChange: (on: boolean) => void)}
+  <span class="flex items-center gap-1.5">
+    <Checkbox {id} {checked} {onChange} {label} />
+    <InfoTip text={info} />
+  </span>
+{/snippet}
 
-  <Field hint={$t("exam.metadataEditor.nameLineHint")}>
-    <Checkbox id="layoutNameLine" bind:checked={nameLine} label={$t("exam.metadataEditor.nameLine")} />
-  </Field>
+<!-- Sections like the Print step's plan card (issue #228): a small heading with its explanation behind ⓘ, choices as tiles, two columns where the card is wide. -->
+<div class="@container">
+  <div class="grid grid-cols-1 gap-x-6 gap-y-5 @3xl:grid-cols-2">
+    <div class="flex min-w-0 flex-col gap-5">
+      <section class="flex flex-col gap-3" aria-labelledby="layout-cover">
+        <SectionHeading id="layout-cover" tag="h3" label={$t("exam.layout.sections.cover")} info={$t("exam.layout.sections.coverInfo")} />
+        <Field label={$t("exam.metadataEditor.infoText")}>
+          <LatexEditor bind:value={infoText} rows={4} />
+        </Field>
+        {@render checkRow("layoutNameLine", $t("exam.metadataEditor.nameLine"), $t("exam.metadataEditor.nameLineHint"), nameLine, (on) => (nameLine = on))}
+        {#key resetSeq}
+          <ExamLogoField examId={exam.id} bind:change={logoChange} />
+        {/key}
+      </section>
 
-  <!-- Every exam keeps the cut-off corner (issue #211); the guide's sketch shows the usable space. -->
-  <div class="flex flex-col gap-1.5">
-    <p class="m-0 text-sm text-muted">{$t("exam.metadataEditor.pageLayoutHint")}</p>
-    <CrossLink href={docsHref("exams#cut-corner", $locale)} class="self-start text-sm">{$t("exam.metadataEditor.cutCornerLayout")}</CrossLink>
+      <!-- Every exam keeps the cut-off corner (issue #211); page codes shape every sheet (issue #220); how it is printed is set on the Print step. -->
+      <section class="flex flex-col gap-3" aria-labelledby="layout-sheet">
+        <SectionHeading id="layout-sheet" tag="h3" label={$t("exam.layout.sections.sheet")} info={$t("exam.layout.sections.sheetInfo")} />
+        {@render checkRow("layoutMcCorrectionHint", $t("exam.metadataEditor.mcCorrectionHint"), $t("exam.metadataEditor.mcCorrectionHintHint"), mcCorrectionHint, (on) => (mcCorrectionHint = on))}
+        {@render checkRow("layoutPageCodes", $t("exam.layout.print.pageCodes"), $t("exam.layout.print.pageCodesInfo"), pageCodes, (on) => (pageCodes = on))}
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <CrossLink href={docsHref("exams#cut-corner", $locale)}>{$t("exam.metadataEditor.cutCornerLayout")}</CrossLink>
+          <CrossLink href={docsHref("exams#multi-sheet", $locale)}>{$t("exam.layout.print.guide")}</CrossLink>
+        </div>
+      </section>
+    </div>
+
+    <!-- Extra paper (issue #228): one paper for every writing space and one heading for the exam's own; filling up to whole sheets follows the Print step. -->
+    <section class="flex min-w-0 flex-col gap-3" aria-labelledby="layout-writing">
+      <SectionHeading id="layout-writing" tag="h3" label={$t("exam.layout.paper.heading")} info={$t("exam.layout.paper.styleInfo")} />
+      <div class="@container" role="radiogroup" aria-label={$t("exam.layout.paper.style")}>
+        <div class="grid grid-cols-1 gap-2 @xs:grid-cols-3">
+          <OptionTile compact name="paper-style" value="squared" checked={paperStyle === "squared"} icon={faTableCells} title={$t("exam.layout.paper.squared")} text={$t("exam.layout.paper.squaredText")} onchange={() => (paperStyle = "squared")} />
+          <OptionTile compact name="paper-style" value="lined" checked={paperStyle === "lined"} icon={faGripLines} title={$t("exam.layout.paper.lined")} text={$t("exam.layout.paper.linedText")} onchange={() => (paperStyle = "lined")} />
+          <OptionTile compact name="paper-style" value="empty" checked={paperStyle === "empty"} icon={faFile} title={$t("exam.layout.paper.empty")} text={$t("exam.layout.paper.emptyText")} onchange={() => (paperStyle = "empty")} />
+        </div>
+      </div>
+      <ExtraNotesField value={extraNotes} onChange={(next) => (extraNotes = next)} idPrefix="layoutExtraNotes" />
+      <Field label={$t("exam.layout.paper.extraPages")} forId="layoutExtraPages" info={$t("exam.layout.paper.extraPagesInfo", { max: MAX_EXTRA_PAGES })}>
+        <TextInput id="layoutExtraPages" type="number" min="0" max={String(MAX_EXTRA_PAGES)} step="1" class="w-24" bind:value={extraPagesText} />
+      </Field>
+      <CrossLink href={docsHref("exams#extra-paper", $locale)} class="self-start text-sm">{$t("exam.layout.paper.guide")}</CrossLink>
+    </section>
+
+    <!-- The packages field carries its own legend. -->
+    <section class="flex min-w-0 flex-col gap-3 @3xl:col-span-2">
+      <ExamPackagesField bind:packages={latexPackages} exerciseSources={exercises.map((ex) => ({ label: ex.name || "", latex: ex.latexBody || "" }))} />
+    </section>
   </div>
 
-  <Field hint={$t("exam.metadataEditor.mcCorrectionHintHint")}>
-    <Checkbox id="layoutMcCorrectionHint" bind:checked={mcCorrectionHint} label={$t("exam.metadataEditor.mcCorrectionHint")} />
-  </Field>
-
-  <!-- Multi-sheet layout (issue #220): page codes and filler pages shape every printed sheet; how it is printed (double-sided or booklet, stickers) is set on the Print step. -->
-  <h3 class="m-0 mt-2 text-xs font-semibold tracking-wide text-muted uppercase">{$t("exam.layout.print.heading")}</h3>
-  <Field hint={$t("exam.layout.print.pageCodesHint")}>
-    <span class="flex items-center gap-1.5">
-      <Checkbox id="layoutPageCodes" bind:checked={pageCodes} label={$t("exam.layout.print.pageCodes")} />
-      <InfoTip text={$t("exam.layout.print.pageCodesInfo")} />
-    </span>
-  </Field>
-  <Field label={$t("exam.layout.print.padding")} info={$t("exam.layout.print.paddingInfo")}>
-    <div class="flex flex-wrap gap-x-4 gap-y-1">
-      <Radio group={padding} value="workspace" name="print-padding" onchange={() => (padding = "workspace")} label={$t("exam.layout.print.paddingWorkspace")} />
-      <Radio group={padding} value="blank" name="print-padding" onchange={() => (padding = "blank")} label={$t("exam.layout.print.paddingBlank")} />
-      <Radio group={padding} value="none" name="print-padding" onchange={() => (padding = "none")} label={$t("exam.layout.print.paddingNone")} />
-    </div>
-  </Field>
-  <CrossLink href={docsHref("exams#multi-sheet", $locale)} class="self-start text-sm">{$t("exam.layout.print.guide")}</CrossLink>
-
-  <!-- Extra paper (issue #228): one paper for every writing area (rest of the last page, extra pages, workspace fillers, the extra-sheet stack) and one heading for the exam's own writing space. -->
-  <h3 class="m-0 mt-2 text-xs font-semibold tracking-wide text-muted uppercase">{$t("exam.layout.paper.heading")}</h3>
-  <Field label={$t("exam.layout.paper.style")} info={$t("exam.layout.paper.styleInfo")}>
-    <div class="flex flex-wrap gap-x-4 gap-y-1">
-      <Radio group={paperStyle} value="squared" name="paper-style" onchange={() => (paperStyle = "squared")} label={$t("exam.layout.paper.squared")} />
-      <Radio group={paperStyle} value="lined" name="paper-style" onchange={() => (paperStyle = "lined")} label={$t("exam.layout.paper.lined")} />
-      <Radio group={paperStyle} value="empty" name="paper-style" onchange={() => (paperStyle = "empty")} label={$t("exam.layout.paper.empty")} />
-    </div>
-  </Field>
-  <ExtraNotesField value={extraNotes} onChange={(next) => (extraNotes = next)} idPrefix="layoutExtraNotes" />
-  <Field label={$t("exam.layout.paper.extraPages")} forId="layoutExtraPages" info={$t("exam.layout.paper.extraPagesInfo", { max: MAX_EXTRA_PAGES })}>
-    <TextInput id="layoutExtraPages" type="number" min="0" max={String(MAX_EXTRA_PAGES)} step="1" class="w-24" bind:value={extraPagesText} />
-  </Field>
-  <Field hint={$t("exam.layout.paper.extraSheetsHint")}>
-    <Checkbox id="layoutExtraSheets" bind:checked={extraSheets} label={$t("exam.layout.paper.extraSheets")} />
-  </Field>
-  <CrossLink href={docsHref("exams#extra-paper", $locale)} class="self-start text-sm">{$t("exam.layout.paper.guide")}</CrossLink>
-
-  {#key resetSeq}
-    <ExamLogoField examId={exam.id} bind:change={logoChange} />
-  {/key}
-  <ExamPackagesField bind:packages={latexPackages} exerciseSources={exercises.map((ex) => ({ label: ex.name || "", latex: ex.latexBody || "" }))} />
-
-  {#if error}<Alert severity="danger">{error}</Alert>{/if}
+  {#if error}<Alert severity="danger" class="mt-4">{error}</Alert>{/if}
 </div>

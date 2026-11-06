@@ -109,10 +109,10 @@ Auf demselben Reiter können Sie außerdem LaTeX-Pakete nur für diese Prüfung 
 
 ## Mehrere Blätter {#multi-sheet}
 
-Eine Prüfung über mehrere Blätter lässt sich leichter handhaben, wenn jede Seite weiß, wer und was sie ist. Dafür gibt es auf dem Reiter **Layout** zwei Optionen:
+Eine Prüfung über mehrere Blätter lässt sich leichter handhaben, wenn jede Seite weiß, wer und was sie ist. Dafür gibt es auf dem Reiter **Layout** eine Option, und die gedruckten Exemplare füllen immer ganze Blätter:
 
 - **Seitencode auf jeder Seite.** Ein kleiner QR-Code (14 mm) oben auf jeder Seite, auf der Seite der Abschneide-Ecke, direkt innerhalb der Eckmarkierung, sagt dem Scanner, welche Seite es ist. Auf [personalisierten Exemplaren](./students#printed-copies) enthält er auch die ID der Person (die kurze Aufkleber-ID oder die Mebis- bzw. Artemis-ID, nie den Namen). Dadurch spielt die Reihenfolge der gescannten Blätter keine Rolle mehr, fehlende Seiten werden gemeldet und lose Blätter finden ihren Schüler. Der Code ist ab 200 ppi zuverlässig lesbar; 300 ppi ist besser. Für neue Prüfungen ist die Option voreingestellt. Ältere Prüfungen behalten ihr Layout, bis Sie sie einschalten; das ändert das Seitenlayout, früher gedruckte Exemplare passen dann nicht mehr.
-- **Füllseiten bis zu einem vollen Blatt.** Jedes Exemplar wird auf ganze Blätter aufgefüllt (gerade Seitenzahl bei beidseitigem Druck, Vielfaches von 4 als Broschüre), so dass jedes Exemplar auf einem neuen Blatt beginnt. Die Füllseiten sind **Platz für Nebenrechnungen** (Voreinstellung für neue Prüfungen), **Absichtlich leer** oder **Keine**. Sie werden wie jede andere Seite gescannt, archiviert und exportiert.
+- **Ganze Blätter.** Jedes gedruckte Exemplar wird auf ganze Blätter aufgefüllt (gerade Seitenzahl bei beidseitigem Druck, Vielfaches von 4 als Broschüre), so dass jedes Exemplar auf einem neuen Blatt beginnt. Die ergänzten Seiten sind [Zusatzseiten](#extra-paper) zum Schreiben. Welches Vielfache gilt, folgt aus der Druckart, die Sie im Schritt Drucken wählen; deshalb lässt die Vorschau im Schritt **Prüfung** diese Seiten weg, der Schritt Drucken zeigt sie. Sie werden wie jede andere Seite gescannt, archiviert und exportiert.
 
 Wie Sie diese Blätter drucken (beidseitig oder als Broschüre, Aufkleber pro Blatt), wählen Sie im [Schritt Drucken](#multi-sheet-print).
 
@@ -135,13 +135,13 @@ Wie Sie diese Blätter scannen: [Den Stapel scannen](./scanning#scan).
 
 ## Zusatzpapier {#extra-paper}
 
-Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Reiter **Layout** die Gruppe **Zusatzpapier**:
+Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Reiter **Layout** die Gruppe **Schreibplatz**:
 
-- **Papier zum Schreiben**: **Kariert** (5 mm, Standard für neue Prüfungen), **Liniert** (8 mm) oder **Leer**. Es gilt für jeden Schreibplatz: den Rest der letzten Seite, die Zusatzseiten, die Füllseiten **Platz für Nebenrechnungen** und die Zusatzblätter. Das Muster ist hellgrau, darüber Geschriebenes bleibt gut lesbar.
-- **Überschrift** und **Hinweis** des Schreibplatzes (vorbelegt mit „Platz für weitere Lösungen“ und einem kurzen Hinweis, auf Deutsch gedruckt). Sie stehen über dem Feld am Ende und über jeder Zusatzseite.
+- **Papier zum Schreiben**: **Kariert** (5 mm, Standard für neue Prüfungen), **Liniert** (8 mm) oder **Leer**. Es gilt für jeden Schreibplatz: den Rest der letzten Seite, die Zusatzseiten und die Zusatzblätter. Das Muster ist hellgrau, darüber Geschriebenes bleibt gut lesbar.
+- **Überschrift** und **Hinweis** des Schreibplatzes (vorbelegt mit „Platz für weitere Lösungen“ und einem kurzen Hinweis, auf Deutsch gedruckt). Sie stehen über dem Feld am Ende und über jeder Zusatzseite; der Hinweis steht in der Zeile der Überschrift.
 - <a id="extra-space"></a>**Rest der letzten Seite füllen**: Der Schülerbogen endet mit einem Schreibfeld zwischen einer **Mindesthöhe** und einer **Maximalhöhe** in cm. Es füllt den Rest der letzten Seite. Passt nicht einmal die Mindesthöhe, nimmt es stattdessen eine ganze neue Seite ein. Der Erwartungshorizont enthält es nicht.
-- **Zusatzseiten in jedem Exemplar** (0 bis 20): ganze Seiten zum Schreiben nach der Punktetabelle, für Lehrkräfte, die eine kompakte Angabe und freies Papier für die Lösungen bevorzugen. Sie gehören zu jedem Exemplar wie jede andere Seite: Seitencodes, Aufkleberfelder, personalisierte Exemplare und der Scan behandeln sie als Prüfungsseiten.
-- **Zusatzblätter anbieten**: Der Schritt **Drucken** zeigt dann die Karte **Zusatzblatt (Vorrat)**. **Druckdateien erstellen** erzeugt ein beidseitiges Blatt; drucken Sie so viele, wie Sie möchten, und bewahren Sie sie für jede Prüfung auf. Das Blatt trägt keinen Prüfungstitel. Sein Code oben sagt nur „Zusatzblatt“; der QR-Aufkleber des Schülers vorne sagt, wem es gehört.
+- **Zusatzseiten (mindestens)** (0 bis 20): ganze Seiten zum Schreiben nach der Punktetabelle, für Lehrkräfte, die eine kompakte Angabe und freies Papier für die Lösungen bevorzugen. Das ist ein Mindestwert: Das gedruckte Exemplar bekommt weitere, bis es ganze Blätter füllt (siehe [Mehrere Blätter](#multi-sheet)). Sie gehören zu jedem Exemplar wie jede andere Seite: Seitencodes, Aufkleberfelder, personalisierte Exemplare und der Scan behandeln sie als Prüfungsseiten.
+**Zusatzblätter auf Vorrat.** Der Schritt **Drucken** zeigt immer die Karte **Zusatzblatt (Vorrat)**. **Druckdateien erstellen** erzeugt dabei auch ein beidseitiges Blatt im Papier der Prüfung; drucken Sie so viele, wie Sie möchten, und bewahren Sie sie für jede Prüfung auf. Das Blatt trägt keinen Prüfungstitel. Sein Code oben sagt nur „Zusatzblatt“; der QR-Aufkleber des Schülers vorne sagt, wem es gehört.
 
 **Loses Papier geht auch.** Ein Schüler kann auch auf ein beliebiges Blatt schreiben, solange sein QR-Aufkleber darauf klebt. In Prüfungen mit Seitencode steht es nach den Prüfungsseiten dieses Schülers, und der Scan meldet es als angehängte Seite.
 

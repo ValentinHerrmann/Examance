@@ -106,7 +106,12 @@
 
   /** Reload via loadExam so the junction fields (group, sub-index, order) stay intact; a new exercise from the library dialog joins the library list and the selection (M1). */
   async function handleEditorSaved({ exercise }: { exercise: ExerciseRecord }) {
-    if (!creatingExercise) return loadExam(examId);
+    // An edited exercise changes the printed exam: the preview must turn outdated like after any other edit.
+    if (!creatingExercise) {
+      await loadExam(examId);
+      afterLayoutChange();
+      return;
+    }
     creatingExercise = false;
     picker?.addCreatedExercise(exercise);
   }
@@ -345,6 +350,7 @@
           examItems={effectiveItems}
           {loaded}
           {layoutVersion}
+          draft
           refreshSources={refreshExamSources}
         />
       </div>

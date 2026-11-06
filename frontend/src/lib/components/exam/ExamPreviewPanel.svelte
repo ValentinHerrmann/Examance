@@ -60,6 +60,8 @@
     currentOnly?: boolean;
     /** The empty state's text when nothing is shown; without the toolbar there is no compile button in it either. */
     emptyHint?: string;
+    /** The Exam step's draft: no extra pages that fill whole sheets, which follow the print layout (issue #228). */
+    draft?: boolean;
     class?: string;
   }
 
@@ -79,6 +81,7 @@
     sheets = { angabe: true, loesung: true },
     currentOnly = false,
     emptyHint = undefined,
+    draft = false,
     class: className = "",
   }: Props = $props();
 
@@ -143,7 +146,7 @@
     if (exercises.length === 0 && mcGroups.length === 0) return;
     let cached: Awaited<ReturnType<typeof getCurrentExamPreview>>;
     try {
-      cached = await getCurrentExamPreview({ ...sources(), key: key() });
+      cached = await getCurrentExamPreview({ ...sources(), key: key(), draft });
     } catch {
       return; // e.g. results-only import: nothing to preview
     }
@@ -160,7 +163,7 @@
     const shown =
       cached === "stale"
         ? {
-            angabe: getLatestForSlot({ kind: "exam", id, variant: "angabe" }),
+            angabe: getLatestForSlot({ kind: "exam", id, variant: draft ? "draft" : "angabe" }),
             loesung: getLatestForSlot({ kind: "exam", id, variant: "loesung" }),
           }
         : cached;
@@ -224,6 +227,7 @@
       const res = await compileExamPreview({
         ...sources(),
         key: key(),
+        draft,
         solution: opts.solution !== false,
         onStatus: (status) => {
           if (status === "downloading") compileNotice = translate("exam.page.preview.loadingCompiler");

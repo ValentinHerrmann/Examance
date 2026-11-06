@@ -13,6 +13,7 @@
   import { faArrowsRotate, faBookOpen, faCircleCheck, faCircleInfo, faCopy, faNoteSticky, faPrint, faTag, faTriangleExclamation, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
+  import SectionHeading from "#lib/components/help/SectionHeading.svelte";
   import { t, translate } from "#lib/i18n";
   import { compileExtraSheet } from "#lib/exam/examPreview";
   import { fmt } from "#lib/utils/format";
@@ -144,7 +145,7 @@
   // The extra sheet (issue #228): no exam content and no "printed" tick, it is printed in stock; current while made for the chosen paper.
   let extraSheet = $state.raw<{ url: string; bytes: Uint8Array; key: string } | null>(null);
   let extraKey = $derived(printFileKey("extra", null, 0, print.paperStyle));
-  let extraMade = $derived(print.extraSheets && extraSheet?.key === extraKey);
+  let extraMade = $derived(extraSheet?.key === extraKey);
 
   async function makeExtraSheet() {
     const key = extraKey;
@@ -177,7 +178,7 @@
         if (job === "exam" && imposed && !made("exam")) await imposeSheet(); // NOSONAR: one PDF at a time
         if ((job === "qr" || job === "copies") && !(made(job) && jobPdf[job])) await creators[job]?.(); // NOSONAR: one PDF at a time
       }
-      if (print.extraSheets && !extraMade) await makeExtraSheet();
+      if (!extraMade) await makeExtraSheet();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -280,13 +281,6 @@
   });
 </script>
 
-{#snippet heading(id: string, label: string, info: string)}
-  <span class="flex items-center gap-1.5">
-    <span {id} class="text-xs font-semibold tracking-wide text-muted uppercase">{label}</span>
-    <InfoTip text={info} />
-  </span>
-{/snippet}
-
 <div class="flex min-w-0 flex-col gap-4 {className}">
   <Card>
     <div class="mb-3 flex items-center gap-2">
@@ -300,7 +294,7 @@
           <legend class="sr-only">{$t("exam.print.planTitle")}</legend>
           <!-- Mode, layout and spots shape the sheet, so they live on the exam (issue #220); the booklet arranging and the solution are print-plan choices. -->
           <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="print-mode-label">
-            {@render heading("print-mode-label", $t("exam.print.modeLegend"), $t("exam.print.modeInfo"))}
+            <SectionHeading id="print-mode-label" label={$t("exam.print.modeLegend")} info={$t("exam.print.modeInfo")} />
             <div class="@container">
               <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
                 <OptionTile compact name="print-mode" value="stickers" checked={print.mode === "stickers"} icon={faTag} title={$t("exam.print.modeStickers")} text={$t("exam.print.modeStickersText")} onchange={() => change({ printMode: "stickers" })} />
@@ -310,7 +304,7 @@
           </div>
 
           <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="print-layout-label">
-            {@render heading("print-layout-label", $t("exam.print.layoutLegend"), $t("exam.print.layoutInfo"))}
+            <SectionHeading id="print-layout-label" label={$t("exam.print.layoutLegend")} info={$t("exam.print.layoutInfo")} />
             <div class="@container">
               <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
                 <OptionTile compact name="print-layout" value="duplex" checked={print.layout === "duplex"} icon={faCopy} title={$t("exam.print.duplex")} text={$t("exam.print.duplexText")} onchange={() => change({ printLayout: "duplex" })} />
@@ -321,7 +315,7 @@
 
           {#if booklet}
             <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="print-booklet-label">
-              {@render heading("print-booklet-label", $t("exam.print.booklet.legend"), $t("exam.print.booklet.info"))}
+              <SectionHeading id="print-booklet-label" label={$t("exam.print.booklet.legend")} info={$t("exam.print.booklet.info")} />
               <div class="@container">
                 <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
                   <OptionTile compact name="print-booklet" value="impose" checked={booklet === "impose"} icon={faWandMagicSparkles} title={$t("exam.print.booklet.impose")} text={$t("exam.print.booklet.imposeText")} onchange={() => setPlan({ booklet: "impose" })} />
@@ -335,7 +329,7 @@
         <div class="flex min-w-0 flex-col gap-3">
           {#if print.mode === "stickers"}
             <fieldset class="m-0 flex min-w-0 flex-col gap-1 border-0 p-0" disabled={busy || saving || !cs} aria-labelledby="print-spots-label">
-              {@render heading("print-spots-label", $t("exam.print.spots.legend"), $t("exam.print.spots.info"))}
+              <SectionHeading id="print-spots-label" label={$t("exam.print.spots.legend")} info={$t("exam.print.spots.info")} />
               {#each spotChoices(print.layout) as spot (spot)}
                 <Radio group={print.stickerSpots} value={spot} name="print-spots" onchange={() => change({ stickerSpots: spot })} label={$t(`exam.print.spots.${spot}`)} />
               {/each}
@@ -420,17 +414,15 @@
         </div>
       </li>
     {/each}
-    {#if print.extraSheets}
-      <li class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-raised p-4">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0 flex-1">
-            <h3 class="m-0 flex items-center gap-1.5 text-base font-semibold"><Icon icon={faNoteSticky} class="text-muted" />{$t("exam.print.extra.title")}</h3>
-            <p class="m-0 mt-0.5 text-sm text-muted">{$t("exam.print.extra.hint", { paper: $t(`exam.layout.paper.${print.paperStyle}`) })}</p>
-          </div>
-          <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={actionIcons.download} disabled={!extraMade} ariaLabel={$t("exam.print.job.download")} title={$t("exam.print.job.download")} onClick={downloadExtraSheet} />
+    <li class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-raised p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <h3 class="m-0 flex items-center gap-1.5 text-base font-semibold"><Icon icon={faNoteSticky} class="text-muted" />{$t("exam.print.extra.title")}</h3>
+          <p class="m-0 mt-0.5 text-sm text-muted">{$t("exam.print.extra.hint", { paper: $t(`exam.layout.paper.${print.paperStyle}`) })}</p>
         </div>
-        {#if !extraMade}<span class="text-xs text-muted">{$t("exam.print.extra.needsPdf")}</span>{/if}
-      </li>
-    {/if}
+        <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={actionIcons.download} disabled={!extraMade} ariaLabel={$t("exam.print.job.download")} title={$t("exam.print.job.download")} onClick={downloadExtraSheet} />
+      </div>
+      {#if !extraMade}<span class="text-xs text-muted">{$t("exam.print.extra.needsPdf")}</span>{/if}
+    </li>
   </ol>
 </div>

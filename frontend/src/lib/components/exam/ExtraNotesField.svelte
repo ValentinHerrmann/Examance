@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { Checkbox, Field, TextInput, Textarea, controlClass } from "#lib/components/ui";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
+  import { Checkbox, Field, TextInput, controlClass } from "#lib/components/ui";
   import { DEFAULT_EXTRA_NOTES, fillsLastPage, type ExtraNotes } from "#lib/db/schema";
   import { t } from "#lib/i18n";
 
@@ -57,12 +58,13 @@
     <TextInput id="{idPrefix}Title" bind:value={draft.title} maxlength={200} onchange={() => commit()} />
   </Field>
   <Field label={$t("exam.extraNotes.description")} forId="{idPrefix}Description">
-    <Textarea id="{idPrefix}Description" rows={2} bind:value={draft.description} maxlength={500} onchange={() => commit()} />
+    <!-- Printed on the heading's line (issue #228), so one line here too. -->
+    <TextInput id="{idPrefix}Description" bind:value={draft.description} maxlength={500} onchange={() => commit()} />
   </Field>
-  <div class="flex flex-col gap-1">
+  <span class="flex items-center gap-1.5">
     <Checkbox id="{idPrefix}Fill" checked={draft.fill !== false} onChange={toggle} label={$t("exam.extraNotes.fill")} />
-    <p class="m-0 text-sm text-muted">{$t("exam.extraNotes.hint")}</p>
-  </div>
+    <InfoTip text={$t("exam.extraNotes.hint")} />
+  </span>
   {#if draft.fill !== false}
     <div class="grid grid-cols-2 gap-3">
       <Field label={$t("exam.extraNotes.min")} forId="{idPrefix}Min">

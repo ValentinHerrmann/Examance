@@ -1,4 +1,4 @@
-"""Extra paper per exam: writing-paper style, integrated extra pages, extra-sheet stack (issue #228)
+"""Extra paper per exam: writing-paper style and extra pages; filler pages follow the print layout, so padding_pages goes (issue #228)
 
 Revision ID: 0060_exam_extra_paper
 Revises: 0059_exam_print_settings
@@ -21,13 +21,14 @@ def upgrade() -> None:
     # The defaults are the old layout, so existing exams compile unchanged.
     op.add_column("exams", sa.Column("paper_style", sa.String(length=10), nullable=False, server_default="empty"))
     op.add_column("exams", sa.Column("extra_pages", sa.Integer(), nullable=False, server_default="0"))
-    op.add_column("exams", sa.Column("extra_sheets", sa.Boolean(), nullable=False, server_default=sa.false()))
     # The rest-of-page area now draws in the exam's paper; exams that use it keep their squares.
     # A None stored through the ORM's JSON type is JSON null, not SQL NULL.
     op.execute("UPDATE exams SET paper_style = 'squared' WHERE extra_notes IS NOT NULL AND CAST(extra_notes AS TEXT) <> 'null'")
+    # Every exam now fills up to whole sheets for its print layout; filler pages are extra pages.
+    op.drop_column("exams", "padding_pages")
 
 
 def downgrade() -> None:
-    op.drop_column("exams", "extra_sheets")
+    op.add_column("exams", sa.Column("padding_pages", sa.String(length=10), nullable=False, server_default="none"))
     op.drop_column("exams", "extra_pages")
     op.drop_column("exams", "paper_style")

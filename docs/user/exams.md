@@ -108,10 +108,10 @@ On the same tab you can also add LaTeX packages for this exam only or leave out 
 
 ## Several sheets {#multi-sheet}
 
-An exam that runs over several sheets of paper is easier to handle when every page knows who and what it is. The **Layout** tab has two options for this:
+An exam that runs over several sheets of paper is easier to handle when every page knows who and what it is. The **Layout** tab has an option for this, and the printed copies always fill whole sheets:
 
 - **Page code on every page.** A small QR code (14 mm) at the top of every page, on the side of the cut-off corner, just inside the corner marker, tells the scanner which page it is. On [personalised copies](./students#printed-copies) it also carries the student's ID (the short sticker ID or the Mebis or Artemis ID, never the name). So the order of the scanned sheets no longer matters, missing pages are reported and loose sheets find their student. The code is reliable from 200 ppi scans; 300 ppi is better. It is on by default for new exams. Older exams keep their layout until you switch it on; that changes the page layout, so copies printed before no longer match.
-- **Filler pages up to a full sheet.** Every copy is filled up to whole sheets (an even page count when printed double-sided, a multiple of 4 as a booklet), so each copy starts on a new sheet. The filler pages are **Space for side calculations** (default for new exams), **Intentionally blank**, or **None**. They are scanned, archived and exported like every other page.
+- **Whole sheets.** Every printed copy is filled up to whole sheets (an even page count when printed double-sided, a multiple of 4 as a booklet), so each copy starts on a new sheet. The added pages are [extra pages](#extra-paper) for writing. Which multiple applies follows the print type you choose in the Print step, so the preview on the **Exam** step leaves these pages out; the Print step shows them. They are scanned, archived and exported like every other page.
 
 How you print these sheets (double-sided or booklet, stickers per sheet) is chosen in the [Print step](#multi-sheet-print).
 
@@ -134,13 +134,13 @@ How to scan these sheets: [Scan the stack](./scanning#scan).
 
 ## Extra paper {#extra-paper}
 
-Some students need more room than the task sheet offers. The **Layout** tab has an **Extra paper** group for this:
+Some students need more room than the task sheet offers. The **Layout** tab has a **Writing space** group for this:
 
-- **Paper for writing**: **Squared** (5 mm, default for new exams), **Lined** (8 mm) or **Empty**. It applies to every writing space: the rest of the last page, the extra pages, the **Space for side calculations** filler pages and the extra sheets. The pattern is light grey, so writing over it stays readable.
-- **Heading** and **note** of the writing space (prefilled with "Platz für weitere Lösungen" and a short note, printed in German). They head the rest-of-page area and every extra page.
+- **Paper for writing**: **Squared** (5 mm, default for new exams), **Lined** (8 mm) or **Empty**. It applies to every writing space: the rest of the last page, the extra pages and the extra sheets. The pattern is light grey, so writing over it stays readable.
+- **Heading** and **note** of the writing space (prefilled with "Platz für weitere Lösungen" and a short note, printed in German). They head the rest-of-page area and every extra page; the note stands on the heading's line.
 - <a id="extra-space"></a>**Fill the rest of the last page**: the student sheet ends with a writing area between a **minimum** and a **maximum height** in cm. It fills the rest of the last page. When not even the minimum fits, it takes a whole new page instead. The solution sheet does not include it.
-- **Extra pages in every copy** (0 to 20): whole pages for writing after the points table, for teachers who prefer a compact task sheet and free paper for the answers. They belong to every copy like any other page: page codes, sticker spots, personalised copies and scanning all treat them as exam pages.
-- **Offer extra sheets**: the **Print** step then has an **Extra sheet (stock)** card. **Create print files** makes one double-sided sheet; print as many as you like and keep them for any exam. The sheet has no exam title. Its code at the top only says "extra sheet", and the student's QR sticker on the front says whose it is.
+- **Extra pages (at least)** (0 to 20): whole pages for writing after the points table, for teachers who prefer a compact task sheet and free paper for the answers. This is a minimum: the printed copy gets more until it fills whole sheets (see [Several sheets](#multi-sheet)). They belong to every copy like any other page: page codes, sticker spots, personalised copies and scanning all treat them as exam pages.
+**Extra sheets for stock.** The **Print** step always has an **Extra sheet (stock)** card. **Create print files** also makes one double-sided sheet in the exam's paper; print as many as you like and keep them for any exam. The sheet has no exam title. Its code at the top only says "extra sheet", and the student's QR sticker on the front says whose it is.
 
 **Loose paper works too.** A student can also write on any sheet of paper, as long as it carries their QR sticker. In exams with page codes it is stored after that student's exam pages, and the scan reports it as an appended page.
 
