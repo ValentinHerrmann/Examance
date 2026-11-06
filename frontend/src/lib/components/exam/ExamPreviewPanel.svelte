@@ -21,6 +21,7 @@
   import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
   import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
   import { compileExamPreview, getCurrentExamPreview } from "#lib/exam/examPreview";
+  import { printSettingsOf } from "#lib/exam/printLayout";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { getLatestForSlot } from "#lib/latex/compileCache";
   import { sessionStore } from "#lib/stores/session";
@@ -131,7 +132,14 @@
   let bodyRow = $derived(toolbar ? "xl:row-start-2" : "xl:row-start-1");
   const sources = () => ({ exam, exercises, libraryExercises, mcGroups, examItems });
 
+  // An exam graded outside Examance prints no markers or bubble links, so it has no scan template (issue #228).
+  let scanless = $derived(!printSettingsOf(exam).digitalGrading);
+
   async function checkOmrStatus() {
+    if (scanless) {
+      omrStatus = "none";
+      return;
+    }
     omrStatus = "checking";
     try {
       omrStatus = await omrTemplateStatus(sources(), key());
@@ -178,6 +186,7 @@
 
   /** `quiet`: an exam without MC, whose template only fills score boxes; a failure is logged, not shown. */
   async function handlePrepareOmr(quiet = false) {
+    if (scanless) return;
     if (!quiet) isPreparingOmr = true;
     if (!quiet) errorMsg = "";
     try {

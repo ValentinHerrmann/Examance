@@ -4,7 +4,7 @@
   import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Badge, Button, CrossLink, EmptyState, LinkButton, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { calculateGradeDetail } from "#lib/analytics/gradingKey";
-  import { saveSubmissionScores } from "#lib/grading/scoreService";
+  import { saveSubmissionScores, submissionForStudent } from "#lib/grading/scoreService";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import type { ExamRecord, ExerciseRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
@@ -130,9 +130,18 @@
     onScoresChanged();
   }
 
+  /** The student's submission, created on the first score: students from the Students page have none yet, and their scores were silently dropped. */
+  async function submissionOf(st: StudentRecord | undefined): Promise<SubmissionRecord | undefined> {
+    if (!st) return undefined;
+    const known = submissionMap.get(st.pseudonymHmac);
+    if (known) return known;
+    const created = await submissionForStudent(examId, st);
+    submissionMap = new Map(submissionMap).set(st.pseudonymHmac, created);
+    return created;
+  }
+
   async function saveStudent() {
-    const sub = currentSub;
-    if (!sub) return;
+    const st = currentStudent;
     // Read before any await: a student switch meanwhile refills the inputs with the next student's scores.
     const values = new Map<string, number | null>();
     exercises.forEach((ex, idx) => {
@@ -140,16 +149,22 @@
       // Out of range is not written; the field stays marked invalid.
       if (val === null || (val >= 0 && val <= ex.maxPoints)) values.set(ex.id, val);
     });
+    // Nothing typed: no empty submission for a student who has none.
+    if (!currentSub && [...values.values()].every((v) => v === null)) return;
+    const sub = await submissionOf(st);
+    if (!sub) return;
     await persist(sub, values);
   }
 
   async function saveCell(index: number) {
     const ex = activeExercise;
     const st = students[index];
-    const sub = st ? submissionMap.get(st.pseudonymHmac) : undefined;
-    if (!ex || !sub) return;
+    if (!ex || !st) return;
     const val = parseScore(rawInputs[index]);
     if (val !== null && (val < 0 || val > ex.maxPoints)) return; // stays marked invalid
+    if (val === null && !submissionMap.has(st.pseudonymHmac)) return;
+    const sub = await submissionOf(st);
+    if (!sub) return;
     await persist(sub, new Map([[ex.id, val]]));
   }
 

@@ -130,13 +130,18 @@ export async function createStudentWithSubmission(
     piiIv: new Uint8Array(12),
   };
   await studentRepository.save(student, key);
+  return { student, submission: await submissionForStudent(examId, student) };
+}
+
+/** The empty submission paper grading attaches to, for a student who has none yet (e.g. one entered on the Students page). */
+export async function submissionForStudent(examId: string, student: Pick<StudentRecord, 'pseudonymHmac' | 'pseudonymVersion'>): Promise<SubmissionRecord> {
   const submission: SubmissionRecord = {
     id: crypto.randomUUID(),
     examId,
-    pseudonymHmac: pseudonym.pseudonymHmac,
-    pseudonymVersion: pseudonym.pseudonymVersion,
+    pseudonymHmac: student.pseudonymHmac,
+    pseudonymVersion: student.pseudonymVersion,
     createdAt: new Date().toISOString(),
   };
-  await submissionRepository.save(submission, key);
-  return { student, submission };
+  await submissionRepository.save(submission, get(sessionStore).sessionKey);
+  return submission;
 }

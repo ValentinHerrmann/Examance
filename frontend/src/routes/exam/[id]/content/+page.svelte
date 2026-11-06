@@ -3,7 +3,7 @@
   import { page } from "$app/state";
   import { untrack } from "svelte";
   import { browser } from "$app/env";
-  import { beforeNavigate, goto } from "$app/navigation";
+  import { goto } from "$app/navigation";
   import { get } from "svelte/store";
   import { db } from "#lib/db/db";
   import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
@@ -46,10 +46,8 @@
   type ContentTab = "exercises" | "layout" | "preview";
   let tab = $state<ContentTab>("exercises");
   let shownTab: ContentTab = $derived(tab === "preview" && $isXl ? "exercises" : tab);
-  let layoutDirty = $state(false);
   // The Layout card saves itself; its header shows "Saving…" / "Saved".
   let layoutStatus = $state<AutosaveStatus>(IDLE_SAVE);
-  let pendingLeave: URL | null = $state(null);
 
   // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's examMcGroups/examExercises rows, which left the local MC groups empty.
   let loadSeq = 0;
@@ -241,13 +239,6 @@
     }
   }
 
-  // Unsaved layout edits: ask before leaving the page (in-app navigation; a closed tab loses them like any form).
-  beforeNavigate((nav) => {
-    if (!layoutDirty || !nav.to || nav.type === "leave") return;
-    nav.cancel();
-    pendingLeave = nav.to.url;
-  });
-
   let tabItems = $derived([
     { id: "exercises", label: $t("exam.content.tabExercises"), icon: faLayerGroup, count: exercises.length || undefined },
     { id: "layout", label: $t("exam.content.tabLayout"), icon: faSliders },
@@ -328,7 +319,6 @@
             <ExamLayoutSettings
               {exam}
               {exercises}
-              bind:dirty={layoutDirty}
               bind:status={layoutStatus}
               onSaved={(updated) => {
                 exam = updated;
@@ -380,17 +370,3 @@
   onSave={handleEditorSaved}
 />
 
-<ConfirmDialog
-  open={pendingLeave !== null}
-  title={$t("exam.content.unsavedTitle")}
-  message={$t("exam.content.unsavedMessage")}
-  confirmText={$t("exam.content.unsavedLeave")}
-  cancelText={$t("exam.content.unsavedStay")}
-  onConfirm={() => {
-    const to = pendingLeave;
-    pendingLeave = null;
-    layoutDirty = false;
-    if (to) void goto(to);
-  }}
-  onCancel={() => (pendingLeave = null)}
-/>

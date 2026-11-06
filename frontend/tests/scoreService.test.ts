@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'; // In-memory IndexedDB — must precede the Dexie 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { db } from '../src/lib/db/db';
-import { saveSubmissionScores } from '../src/lib/grading/scoreService';
+import { saveSubmissionScores, submissionForStudent } from '../src/lib/grading/scoreService';
 import type { ExerciseScoreRecord, SubmissionRecord } from '../src/lib/db/schema';
 import { scoreRepository } from '../src/lib/repositories/scoreRepository';
 import { submissionRepository } from '../src/lib/repositories/submissionRepository';
@@ -69,6 +69,14 @@ describe('saveSubmissionScores', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  // Regression: paper grading dropped the scores of students entered on the Students page, who had no submission yet.
+  it('gives a listed student without a scan a submission that keeps their scores', async () => {
+    const created = await submissionForStudent(EXAM, { pseudonymHmac: 'b'.repeat(64) });
+    await saveSubmissionScores(EXAM, created, ['ex-1'], new Map([['ex-1', 4]]));
+    const rows = await scoreRepository.getBySubmissionId(EXAM, created.id, key);
+    expect(rows.map((r) => [r.exerciseId, r.score])).toEqual([['ex-1', 4]]);
   });
 
   it('keeps an OMR row whose value is null and counts its score toward the total', async () => {

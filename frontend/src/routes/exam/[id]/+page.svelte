@@ -3,7 +3,7 @@
   import { page } from "$app/state";
   import { untrack } from "svelte";
   import { browser } from "$app/env";
-  import { beforeNavigate, goto } from "$app/navigation";
+  import { goto } from "$app/navigation";
   import { get } from "svelte/store";
   import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
   import { loadExamEncrypted, loadExamExercisesEncrypted } from "#lib/db/dbEncryption";
@@ -40,9 +40,7 @@
   let notice = $state("");
   let actionError = $state("");
 
-  let detailsDirty = $state(false);
   let detailsStatus = $state<AutosaveStatus>(IDLE_SAVE);
-  let pendingLeave: URL | null = $state(null);
   let exportOpen = $state(false);
   let confirming: "exam" | "submissions" | null = $state(null);
   let busy = $state(false);
@@ -148,13 +146,6 @@
     }
   }
 
-  // Unsaved detail edits: ask before leaving the page (in-app navigation).
-  beforeNavigate((nav) => {
-    if (!detailsDirty || !nav.to || nav.type === "leave") return;
-    nav.cancel();
-    pendingLeave = nav.to.url;
-  });
-
   $effect.pre(() => {
     const id = examId;
     if (browser && id) untrack(() => void load(id));
@@ -214,7 +205,6 @@
         <ExamDetailsForm
           {exam}
           {exercises}
-          bind:dirty={detailsDirty}
           bind:status={detailsStatus}
           onSaved={(updated) => (exam = updated)}
         />
@@ -244,20 +234,6 @@
   <ExamExportModal {examId} examTitle={exam?.title ?? ""} onClose={() => (exportOpen = false)} />
 {/if}
 
-<ConfirmDialog
-  open={pendingLeave !== null}
-  title={$t("exam.overview.unsavedTitle")}
-  message={$t("exam.overview.unsavedMessage")}
-  confirmText={$t("exam.content.unsavedLeave")}
-  cancelText={$t("exam.content.unsavedStay")}
-  onConfirm={() => {
-    const to = pendingLeave;
-    pendingLeave = null;
-    detailsDirty = false;
-    if (to) void goto(to);
-  }}
-  onCancel={() => (pendingLeave = null)}
-/>
 
 <ConfirmDialog
   open={confirming === "exam"}
