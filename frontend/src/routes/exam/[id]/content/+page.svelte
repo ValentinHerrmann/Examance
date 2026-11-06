@@ -6,7 +6,7 @@
   import { beforeNavigate, goto } from "$app/navigation";
   import { get } from "svelte/store";
   import { db } from "#lib/db/db";
-  import type { ExamRecord, ExerciseRecord, ExtraNotes } from "#lib/db/schema";
+  import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
   import { saveExamEncrypted, type McGroup } from "#lib/db/dbEncryption";
   import { loadExamCompileContext, type ExamItemRef } from "#lib/grading/omrTemplatePrep";
   import { prunePageBreaks, togglePageBreak } from "#lib/exam/pageBreaks";
@@ -136,19 +136,6 @@
       afterLayoutChange();
     } catch (err) {
       console.error("Failed to save page breaks:", err);
-      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
-    }
-  }
-
-  async function saveExtraNotes(next: ExtraNotes | null) {
-    if (!exam) return;
-    exam = { ...exam, extraNotes: next };
-    try {
-      await saveExamEncrypted(exam, get(sessionStore).sessionKey);
-      errorMsg = "";
-      afterLayoutChange();
-    } catch (err) {
-      console.error("Failed to save extra notes:", err);
       errorMsg = translate("exam.page.exerciseLinks.saveFailed");
     }
   }
@@ -324,8 +311,6 @@
             onEditMcGroup={(groupId) => picker?.editMcGroup(groupId)}
             pageBreaks={exam.pageBreaks ?? []}
             onTogglePageBreak={toggleExamPageBreak}
-            extraNotes={exam.extraNotes ?? null}
-            onChangeExtraNotes={saveExtraNotes}
             onOpenExercise={(ex) => (quickEditEx = ex)}
           />
         </div>

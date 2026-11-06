@@ -11,6 +11,8 @@
   import ExamLogoField from "#lib/components/logo/ExamLogoField.svelte";
   import ExamPackagesField from "#lib/components/latex-packages/ExamPackagesField.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
+  import ExtraNotesField from "#lib/components/exam/ExtraNotesField.svelte";
+  import type { ExtraNotes } from "#lib/db/schema";
   import { Alert, Checkbox, CrossLink, Field, Radio, TextInput } from "#lib/components/ui";
 
   /** The exam's page layout (issues #212, #220, #228): info text, name line, cut-corner hint, MC correction legend, page codes, filler pages, extra paper, logo and LaTeX packages. Every change saves itself (no buttons); how the exam is printed lives on the Print step. */
@@ -40,10 +42,12 @@
   /** The number field's text; saved clamped to 0..MAX_EXTRA_PAGES. */
   let extraPagesText = $state("0");
   let extraSheets = $state(false);
+  /** The writing space's heading, note and rest-of-page area (issues #156, #228); null until first edited. */
+  let extraNotes: ExtraNotes | null = $state.raw(null);
   let extraPages = $derived(clampExtraPages(extraPagesText));
   let logoChange: ExamLogoChange | null = $state.raw(null);
   let latexPackages: LatexPackageEntry[] | null = $state.raw(null);
-  let saved = $state({ infoText: "", nameLine: false, mcCorrectionHint: false, pageCodes: false, padding: "none", paperStyle: "empty", extraPages: 0, extraSheets: false, latexPackages: "null" });
+  let saved = $state({ infoText: "", nameLine: false, mcCorrectionHint: false, pageCodes: false, padding: "none", paperStyle: "empty", extraPages: 0, extraSheets: false, extraNotes: "null", latexPackages: "null" });
   let error = $state("");
   let timer: ReturnType<typeof setTimeout> | null = null;
   let saving = $state(false);
@@ -61,6 +65,7 @@
     paperStyle = print.paperStyle;
     extraPagesText = String(print.extraPages);
     extraSheets = print.extraSheets;
+    extraNotes = exam.extraNotes ?? null;
     latexPackages = exam.latexPackages ?? null;
     logoChange = null;
     saved = savedOf(exam);
@@ -80,6 +85,7 @@
       paperStyle: print.paperStyle,
       extraPages: print.extraPages,
       extraSheets: print.extraSheets,
+      extraNotes: JSON.stringify(rec.extraNotes ?? null),
       latexPackages: JSON.stringify(rec.latexPackages ?? null),
     };
   }
@@ -95,6 +101,7 @@
     if (paperStyle !== saved.paperStyle) patch.paperStyle = paperStyle;
     if (extraPages !== saved.extraPages) patch.extraPages = extraPages;
     if (extraSheets !== saved.extraSheets) patch.extraSheets = extraSheets;
+    if (JSON.stringify(extraNotes) !== saved.extraNotes) patch.extraNotes = extraNotes;
     // An empty override prints the same as none; the server stores both as "follows the account".
     if (JSON.stringify(latexPackages) !== saved.latexPackages) patch.latexPackages = latexPackages?.length ? latexPackages : null;
     return patch;
@@ -109,6 +116,7 @@
       paperStyle !== saved.paperStyle ||
       extraPages !== saved.extraPages ||
       extraSheets !== saved.extraSheets ||
+      JSON.stringify(extraNotes) !== saved.extraNotes ||
       logoChange !== null ||
       JSON.stringify(latexPackages) !== saved.latexPackages,
   );
@@ -225,7 +233,7 @@
   </Field>
   <CrossLink href={docsHref("exams#multi-sheet", $locale)} class="self-start text-sm">{$t("exam.layout.print.guide")}</CrossLink>
 
-  <!-- Extra paper (issue #228): one pattern for every writing page (extra pages, workspace filler pages, the extra-sheet stack). -->
+  <!-- Extra paper (issue #228): one paper for every writing area (rest of the last page, extra pages, workspace fillers, the extra-sheet stack) and one heading for the exam's own writing space. -->
   <h3 class="m-0 mt-2 text-xs font-semibold tracking-wide text-muted uppercase">{$t("exam.layout.paper.heading")}</h3>
   <Field label={$t("exam.layout.paper.style")} info={$t("exam.layout.paper.styleInfo")}>
     <div class="flex flex-wrap gap-x-4 gap-y-1">
@@ -234,6 +242,7 @@
       <Radio group={paperStyle} value="empty" name="paper-style" onchange={() => (paperStyle = "empty")} label={$t("exam.layout.paper.empty")} />
     </div>
   </Field>
+  <ExtraNotesField value={extraNotes} onChange={(next) => (extraNotes = next)} idPrefix="layoutExtraNotes" />
   <Field label={$t("exam.layout.paper.extraPages")} forId="layoutExtraPages" info={$t("exam.layout.paper.extraPagesInfo", { max: MAX_EXTRA_PAGES })}>
     <TextInput id="layoutExtraPages" type="number" min="0" max={String(MAX_EXTRA_PAGES)} step="1" class="w-24" bind:value={extraPagesText} />
   </Field>

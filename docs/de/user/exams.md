@@ -89,15 +89,6 @@ Die Skizze zeigt den nutzbaren Platz auf ungeraden und geraden Seiten: Textberei
 
 ![Nutzbarer Platz mit Abschneide-Ecke: ungerade Seite (links) und gerade Seite (rechts)](../../screenshots/guide/cut-corner-layout-de.png)
 
-### Platz für weitere Lösungen {#extra-space}
-
-**Platz für weitere Lösungen am Ende** (unter der Aufgabenliste) lässt den Schülerbogen mit einem Karo-Feld für zusätzliche Lösungen enden:
-
-- eine Überschrift und darunter ein kleinerer Hinweis (mit Standardtexten vorbelegt, auf Deutsch gedruckt);
-- eine **Mindesthöhe** und eine **Maximalhöhe** in cm. Das Feld füllt den Rest der letzten Seite; es beginnt nur dann eine neue Seite, wenn selbst die Mindesthöhe nicht mehr passt.
-
-Der Erwartungshorizont enthält das Feld nicht.
-
 ### Wie man ein Kreuz korrigiert {#mc-hint}
 
 **Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert** (beim Anlegen der Prüfung oder auf dem Reiter **Layout**) druckt zu Beginn jeder Multiple-Choice-Aufgabe eine kurze Zeile, in der Prüfung und im Erwartungshorizont:
@@ -146,8 +137,10 @@ Wie Sie diese Blätter scannen: [Den Stapel scannen](./scanning#scan).
 
 Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Reiter **Layout** die Gruppe **Zusatzpapier**:
 
-- **Papier zum Schreiben**: **Kariert** (5 mm, Standard für neue Prüfungen), **Liniert** (8 mm) oder **Leer**. Es gilt für jede Seite zum Schreiben: die Zusatzseiten, die Füllseiten **Platz für Nebenrechnungen** und die Zusatzblätter. Das Muster ist hellgrau, darüber Geschriebenes bleibt gut lesbar.
-- **Zusatzseiten in jedem Exemplar** (0 bis 20): Seiten zum Schreiben nach der Punktetabelle, für Lehrkräfte, die eine kompakte Angabe und freies Papier für die Lösungen bevorzugen. Sie gehören zu jedem Exemplar wie jede andere Seite: Seitencodes, Aufkleberfelder, personalisierte Exemplare und der Scan behandeln sie als Prüfungsseiten. Anders als [Platz für weitere Lösungen](#extra-space), der den Rest der letzten Seite füllt, sind es ganze Seiten.
+- **Papier zum Schreiben**: **Kariert** (5 mm, Standard für neue Prüfungen), **Liniert** (8 mm) oder **Leer**. Es gilt für jeden Schreibplatz: den Rest der letzten Seite, die Zusatzseiten, die Füllseiten **Platz für Nebenrechnungen** und die Zusatzblätter. Das Muster ist hellgrau, darüber Geschriebenes bleibt gut lesbar.
+- **Überschrift** und **Hinweis** des Schreibplatzes (vorbelegt mit „Platz für weitere Lösungen“ und einem kurzen Hinweis, auf Deutsch gedruckt). Sie stehen über dem Feld am Ende und über jeder Zusatzseite.
+- <a id="extra-space"></a>**Rest der letzten Seite füllen**: Der Schülerbogen endet mit einem Schreibfeld zwischen einer **Mindesthöhe** und einer **Maximalhöhe** in cm. Es füllt den Rest der letzten Seite. Passt nicht einmal die Mindesthöhe, nimmt es stattdessen eine ganze neue Seite ein. Der Erwartungshorizont enthält es nicht.
+- **Zusatzseiten in jedem Exemplar** (0 bis 20): ganze Seiten zum Schreiben nach der Punktetabelle, für Lehrkräfte, die eine kompakte Angabe und freies Papier für die Lösungen bevorzugen. Sie gehören zu jedem Exemplar wie jede andere Seite: Seitencodes, Aufkleberfelder, personalisierte Exemplare und der Scan behandeln sie als Prüfungsseiten.
 - **Zusatzblätter anbieten**: Der Schritt **Drucken** zeigt dann die Karte **Zusatzblatt (Vorrat)**. **Druckdateien erstellen** erzeugt ein beidseitiges Blatt; drucken Sie so viele, wie Sie möchten, und bewahren Sie sie für jede Prüfung auf. Das Blatt trägt keinen Prüfungstitel. Sein Code oben sagt nur „Zusatzblatt“; der QR-Aufkleber des Schülers vorne sagt, wem es gehört.
 
 **Loses Papier geht auch.** Ein Schüler kann auch auf ein beliebiges Blatt schreiben, solange sein QR-Aufkleber darauf klebt. In Prüfungen mit Seitencode steht es nach den Prüfungsseiten dieses Schülers, und der Scan meldet es als angehängte Seite.

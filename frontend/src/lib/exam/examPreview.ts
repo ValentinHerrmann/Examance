@@ -1,4 +1,4 @@
-import type { ExamRecord, ExerciseRecord, ExtraNotes } from "#lib/db/schema";
+import { DEFAULT_EXTRA_NOTES, fillsLastPage, type ExamRecord, type ExerciseRecord, type ExtraNotes } from "#lib/db/schema";
 import type { McGroup } from "#lib/db/dbEncryption";
 import { compileWithCache, getCachedFor, getLatestForSlot, type CachedCompileEntry } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
@@ -130,9 +130,9 @@ ${extraNotesLatex(exam.extraNotes)}
   return withPackages(doc, documentLayers(accountPackages, exerciseInputs, exam.latexPackages));
 }
 
-/** The closing `\ExamNotes` karo block (issue #156), or "" when off. */
+/** The closing `\ExamNotes` rest-of-page area (issues #156, #228), or "" when off. */
 export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
-  if (!notes) return "";
+  if (!notes || !fillsLastPage(notes)) return "";
   const clamp = (v: number) => (Number.isFinite(v) ? Math.min(25, Math.max(1, v)) : 1);
   const min = clamp(notes.minHeightCm);
   const max = Math.max(min, clamp(notes.maxHeightCm));
@@ -158,7 +158,9 @@ function pageCodeDefinitions(exam: ExamRecord, options: string): string {
   const print = printSettingsOf(exam);
   let spots = "";
   if (print.mode === "stickers" && print.stickerSpots !== "cover") spots = print.stickerSpots === "a3" ? "a3" : "bogen";
-  const extra = print.extraPages > 0 && String.raw`\Zusatzseiten{${print.extraPages}}`;
+  // Extra pages carry the writing space's heading and note, also when the rest-of-page area is off.
+  const notes = exam.extraNotes ?? DEFAULT_EXTRA_NOTES;
+  const extra = print.extraPages > 0 && String.raw`\Zusatzseiten{${print.extraPages}}{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}`;
   return [print.pageCodes && pageCodesLatex(exam.id), spots && String.raw`\Aufkleberseiten{${spots}}`, extra].filter(Boolean).map((line) => `\n${line}`).join("");
 }
 

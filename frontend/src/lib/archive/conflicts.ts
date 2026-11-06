@@ -83,10 +83,10 @@ const packageSummary = (entries: unknown) =>
     .map((e) => (e.disabled ? '-' : '') + e.name + (e.options ? `[${e.options}]` : ''))
     .join(', ');
 
-/** The extra-notes block (issue #156) as one comparable line; null when off. */
+/** The writing space (issues #156, #228) as one comparable line; null when never set. */
 function extraNotesSummary(notes: Row | null | undefined): string | null {
   if (!notes) return null;
-  const line = `${notes.title} · ${notes.minHeightCm}–${notes.maxHeightCm} cm`;
+  const line = notes.fill === false ? String(notes.title) : `${notes.title} · ${notes.minHeightCm}–${notes.maxHeightCm} cm`;
   return notes.description ? `${line} · ${notes.description}` : line;
 }
 

@@ -12723,6 +12723,11 @@
             "maximum": 25.0,
             "minimum": 1.0,
             "title": "Max Height Cm"
+          },
+          "fill": {
+            "type": "boolean",
+            "title": "Fill",
+            "default": true
           }
         },
         "type": "object",
@@ -12732,7 +12737,7 @@
           "max_height_cm"
         ],
         "title": "ExtraNotes",
-        "description": "Karo block at the end of the exam; heights in cm, the layout fills the page within them."
+        "description": "The writing space's heading and note and the rest-of-page area (issues #156, #228); heights in cm, the layout fills the page within them."
       },
       "ForgotPasswordRequest": {
         "properties": {

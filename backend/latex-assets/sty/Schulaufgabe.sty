@@ -541,13 +541,12 @@
 % Teacher override: a page break exactly here; the blocks on both sides keep their rules.
 \newcommand{\Seitenumbruch}{\par\ifSA@inblock\SA@blockend\newpage\SA@blockbegin\z@\else\newpage\fi}
 
-% Karo block for extra solutions as the last item of the exam (issue #156): #1 title, #2 description (may be
-% empty), #3/#4 min/max height in cm. Fills the space left on the page (minus the points table \AtEndDocument sets at
-% the bottom) within min..max; a new page only when min does not fit. Student sheet only, never in the solution.
+% Rest-of-page writing area as the last item of the exam (issues #156, #228): #1 title, #2 note (may be empty), #3/#4 min/max height
+% in cm, drawn in the exam's paper (\SA@pattern). Fills the space left on the page (minus the points table \AtEndDocument sets at the
+% bottom) within min..max; when min does not fit it takes a whole new page instead (an implicit extra page). Student sheet only.
 \newdimen\EN@avail
 \newdimen\EN@title
 \newdimen\EN@fill
-\newcount\EN@rows
 \newcommand{\EN@head}[2]{%
     {\large\bfseries\noindent #1\par}
     \if\relax\detokenize{#2}\relax\else{\small\noindent #2\par}\fi
@@ -560,21 +559,22 @@
         \setbox\z@\vbox{\hsize\textwidth\EN@head{#1}{#2}}%
         \EN@title=\dimexpr\ht\z@+\dp\z@+5mm\relax
         \ifdim\pagegoal=\maxdimen \EN@avail=\textheight \else \EN@avail=\dimexpr\pagegoal-\pagetotal\relax \fi
+        % A sticker spot page loses 17mm to the spot (section 11); counting it here keeps the area on its page.
+        \ifSA@spotpage\advance\EN@avail by -\SA@spotroom\fi
         \ifthenelse{\boolean{Pkt}}{\advance\EN@avail by -27mm}{}%
         \EN@fill=\dimexpr\EN@avail-\EN@title\relax
         \ifdim\EN@fill<#3cm
             \newpage
             \EN@fill=\dimexpr\textheight-\EN@title\relax
+            \ifSA@spotpage\advance\EN@fill by -\SA@spotroom\fi
             \ifthenelse{\boolean{Pkt}}{\advance\EN@fill by -36mm}{}%
+        \else
+            \ifdim\EN@fill>#4cm \EN@fill=#4cm \fi
         \fi
-        \ifdim\EN@fill>#4cm \EN@fill=#4cm \fi
-        \ifdim\EN@fill<#3cm \EN@fill=#3cm \fi
-        \EN@rows=\EN@fill
-        \divide\EN@rows by \number\dimexpr0.5cm\relax
-        \ifnum\EN@rows<\@ne \EN@rows=\@ne \fi
+        \ifdim\EN@fill<5mm \EN@fill=5mm \fi
         \vspace{3mm}%
         \EN@head{#1}{#2}\nobreak\vspace{2mm}%
-        \noindent\kariert[0.5cm]{\the\EN@rows}\par
+        \noindent\SA@pattern{\linewidth}{\EN@fill}\par
         \endgroup
     }%
 }
@@ -824,55 +824,80 @@
         \ifthenelse{\boolean{SA@seitencode}}{\SA@pagecode}{}%
         \ifSA@spotpage\SA@stickerspot\fi
         \ifthenelse{\boolean{SA@zusatzblatt}}{\ifnum\value{page}=1 \SA@stickerspot\fi}{}%
+        \ifSA@wp\SA@wpdraw\global\SA@wpfalse\fi
     }%
 }
 
-% Writing pages (issue #228): a page of the chosen paper (\SA@paper) below an optional heading #2, after #1 of extra room at the top
-% (the extra sheet's sticker spot). The pattern fills what the page has left in whole squares or lines, light enough to write over.
+% Writing paper (issue #228): \SA@pattern{width}{height} draws the exam's paper (\SA@paper) in whole 5mm squares or 8mm lines, light
+% enough to write over; empty paper is blank space. The rest-of-page area (\ExamNotes) and full writing pages share it.
 \newdimen\SA@wph
 \def\SA@paperkaro{karo}
 \def\SA@paperlinien{linien}
-\newcommand{\SA@pattern}{%
+\def\SA@paperleer{leer}
+\newcommand{\SA@pattern}[2]{%
+    \SA@wph=#2\relax
     \ifx\SA@paper\SA@paperkaro
         \begin{tikzpicture}%
-            \pgfmathtruncatemacro\SA@nx{\linewidth/5mm}\pgfmathtruncatemacro\SA@ny{\the\SA@wph/5mm}%
+            \pgfmathtruncatemacro\SA@nx{#1/5mm}\pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/5mm)}%
             \draw[black!30,line width=0.3pt,step=5mm] (0,0) grid (\SA@nx*5mm,\SA@ny*5mm);%
         \end{tikzpicture}%
-    \fi
-    \ifx\SA@paper\SA@paperlinien
+    \else\ifx\SA@paper\SA@paperlinien
         \begin{tikzpicture}%
             \pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/8mm)}%
-            \foreach \SA@li in {1,...,\SA@ny} {\draw[black!35,line width=0.4pt] (0,\SA@li*8mm) -- (\linewidth,\SA@li*8mm);}%
+            \path (0,0) rectangle (#1,\SA@ny*8mm);%
+            \foreach \SA@li in {1,...,\SA@ny} {\draw[black!35,line width=0.4pt] (0,\SA@li*8mm) -- (#1,\SA@li*8mm);}%
         \end{tikzpicture}%
-    \fi
-}
-% Empty paper adds nothing after the heading, so workspace filler pages of older exams stay exactly as they were.
-\def\SA@paperleer{leer}
-\newcommand{\SA@writingpage}[2][0pt]{%
-    \null
-    \ifdim#1>\z@\vspace*{#1}\fi
-    \if\relax\detokenize{#2}\relax\else\noindent{\large\bfseries #2}\par\fi
-    \ifx\SA@paper\SA@paperleer\else
-        \vspace{2mm}%
-        % 3mm spare for the line's own glue, so the pattern never spills onto a new page.
-        \ifdim\pagegoal=\maxdimen \SA@wph=\textheight \else \SA@wph=\dimexpr\pagegoal-\pagetotal-3mm\relax \fi
-        \ifdim\SA@wph<5mm \SA@wph=5mm \fi
-        \noindent\SA@pattern\par
-    \fi
-    \clearpage
+    \else\rule{\z@}{\SA@wph}\fi\fi
 }
 
-% Extra pages in every copy (\Zusatzseiten{n}, issue #228): writing pages after the points table and before the filler pages. They carry
-% markers, page codes and sticker spots like any page, so they are part of the OMR template and personalised copies need nothing extra.
+% A full writing page: heading #1 and note #2 (either may be empty) in the flow, the pattern at shipout over the text area below them.
+% Drawn in the background, never in the flow, so it cannot spill onto a new page (a sticker spot page has 17mm less room than the
+% page builder reports). Empty paper draws nothing, so workspace filler pages of older exams stay exactly as they were.
+\newif\ifSA@wp
+\newdimen\SA@wphead
+\newcommand{\SA@wphd}[2]{%
+    \if\relax\detokenize{#1}\relax\else\noindent{\large\bfseries #1}\par\fi
+    \if\relax\detokenize{#2}\relax\else{\small\noindent #2\par}\fi
+}
+\newcommand{\SA@writingpage}[2]{%
+    \null
+    \setbox\z@\vbox{\hsize\textwidth\SA@wphd{#1}{#2}}%
+    \global\SA@wphead=\dimexpr\ht\z@+\dp\z@\relax
+    \SA@wphd{#1}{#2}%
+    \global\SA@wptrue
+    \clearpage
+}
+% The text area of this page: its top (from the page's lower left) and its left edge; booklets (twoside) mirror the margins.
+\newdimen\SA@wptop
+\newdimen\SA@wpleft
+\newdimen\SA@wpoff
+\newcommand{\SA@wpdraw}{%
+    \ifx\SA@paper\SA@paperleer\else
+        \SA@wptop=\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep\relax
+        \SA@wpleft=\dimexpr1in+\hoffset+\oddsidemargin\relax
+        \if@twoside\ifodd\value{page}\else\SA@wpleft=\dimexpr1in+\hoffset+\evensidemargin\relax\fi\fi
+        % Below the heading (with room for its first line's skip), and below a sticker spot on this page.
+        \ifdim\SA@wphead>\z@ \SA@wpoff=\dimexpr\SA@wphead+\topskip+3mm\relax \else \SA@wpoff=\z@ \fi
+        \ifSA@spotpage\advance\SA@wpoff by \SA@spotroom\fi
+        \ifthenelse{\boolean{SA@zusatzblatt}}{\ifnum\value{page}=1 \advance\SA@wpoff by \SA@spotroom\fi}{}%
+        \setbox\tw@\hbox{\SA@pattern{\textwidth}{\dimexpr\textheight-\SA@wpoff\relax}}%
+        % Hangs from the top: the pattern's top edge sits right below the heading, whatever whole number of rows fits.
+        \AtPageLowerLeft{\put(\LenToUnit{\SA@wpleft},\LenToUnit{\dimexpr\SA@wptop-\SA@wpoff-\ht\tw@\relax}){\box\tw@}}%
+    \fi
+}
+
+% Extra pages in every copy (\Zusatzseiten{n}{title}{note}, issue #228): writing pages with the rest-of-page area's heading, after the
+% points table and before the filler pages. They carry markers, page codes and sticker spots like any page, so they are part of the
+% OMR template and personalised copies need nothing extra.
 \def\SA@extracount{0}
-\newcommand{\Zusatzseiten}[1]{\gdef\SA@extracount{#1}}
+\newcommand{\Zusatzseiten}[3]{\gdef\SA@extracount{#1}\gdef\SA@extrapage{\SA@writingpage{#2}{#3}}}
 \newcount\SA@extrai
 \newcommand{\SA@extrapages}{%
     \ifnum\SA@extracount>\z@
         \clearpage
         \SA@extrai=\z@
         \loop\ifnum\SA@extrai<\SA@extracount
-            \SA@writingpage{Platz für Lösungen}%
+            \SA@extrapage
             \advance\SA@extrai by \@ne
         \repeat
     \fi
@@ -882,8 +907,8 @@
 % The extra sheet (option zusatzblatt, issue #228): one sheet of writing paper, a sticker spot on the front (it names the student)
 % and the code EXM1:X on both sides (frontend lib/exam/pageCodes.ts), so one printed stack serves every exam.
 \newcommand{\Zusatzblatt}{%
-    \SA@writingpage[\SA@spotroom]{}%
-    \SA@writingpage{}%
+    \SA@writingpage{}{}%
+    \SA@writingpage{}{}%
 }
 
 % Filler pages after the points table, so every copy fills whole sheets (2 pages, or 4 for a booklet). They carry markers (and page
@@ -892,7 +917,7 @@
 \newif\ifSA@pad
 \newcommand{\SA@fillerpage}{%
     \ifthenelse{\boolean{SA@fuellplatz}}%
-        {\SA@writingpage{Platz für Nebenrechnungen}}%
+        {\SA@writingpage{Platz für Nebenrechnungen}{}}%
         {\null\vfill\begin{center}\color{gray}\large Diese Seite bleibt absichtlich leer.\end{center}\vfill\clearpage}%
 }
 \newcommand{\SA@fillsheets}{%

@@ -57,9 +57,16 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 
 ## Extra paper (issue #228)
 
-- **Writing pages**: `\SA@writingpage[top room]{heading}` is the one macro for a page meant for writing. It draws the `paper_style` pattern (5 mm squares or 8 mm lines, light grey) in whole squares or lines over what the page has left. It serves:
-  - workspace filler pages ("Platz für Nebenrechnungen");
-  - integrated extra pages ("Platz für Lösungen"): `\Zusatzseiten{n}` adds n of them in `\AtEndDocument` after the points table and before the filler pages, on the student sheet only. They are ordinary pages: markers, page codes, sticker spots, the OMR template and personalised copies need nothing extra. The issue #156 `\ExamNotes` block is different: it fills the rest of the last page.
+- **One pattern**: `\SA@pattern{width}{height}` draws the `paper_style` (whole 5 mm squares or 8 mm lines, light grey; empty is blank space). Every writing space uses it.
+- **Full writing pages**: `\SA@writingpage{heading}{note}` puts only the heading in the flow. The pattern is drawn at shipout (`\SA@wpdraw` in `\AddToShipoutPictureBG`) over the text area below the heading and below a sticker spot.
+  - Never in the flow: a sticker-spot page has 17 mm less room than the page builder reports, and an in-flow grid spilled onto a new page, leaving a page with only its heading.
+  - It serves workspace filler pages ("Platz für Nebenrechnungen"), the extra sheet, and the integrated extra pages: `\Zusatzseiten{n}{title}{note}` adds n of them in `\AtEndDocument` after the points table and before the filler pages, on the student sheet only.
+  - They are ordinary pages: markers, page codes, sticker spots, the OMR template and personalised copies need nothing extra.
+- **The writing space** (`exams.extra_notes`, issues #156 and #228, Layout tab, `ExtraNotesField`):
+  - its title and note head the rest-of-page area and every extra page (`DEFAULT_EXTRA_NOTES` when never set);
+  - `fill` (absent = true) switches the rest-of-page area: `\ExamNotes{title}{note}{min}{max}` stays in the flow with a dynamic height within min..max, minus the points table and a sticker spot;
+  - when min does not fit, it takes a whole new page (an implicit extra page, no max);
+  - migration 0060 sets `paper_style = squared` for exams that had the area, so it stays squared.
 - **Extra sheet** (`extraSheetLatex`, `compileExtraSheet` in `lib/exam/examPreview.ts`; the compile cache kind is `extra-sheet`, keyed by the paper style): option `zusatzblatt` plus `\Zusatzblatt`. It is one duplex sheet:
   - no cover and no exam title, only "Zusatzblatt" centred in the head;
   - a sticker spot on the front (same geometry as `\SA@stickerspot`);

@@ -88,15 +88,6 @@ The sketch shows the usable space on odd and even pages: text area, header, scor
 
 ![Usable space with the cut-off corner: odd page (left) and even page (right)](../screenshots/guide/cut-corner-layout-en.png)
 
-### Space for extra solutions {#extra-space}
-
-**Space for extra solutions at the end** (below the exercise list) ends the student sheet with a grid area for additional solutions:
-
-- a heading and a smaller note below it (prefilled with defaults, printed in German);
-- a **minimum** and **maximum height** in cm. The area fills the rest of the last page; it starts a new page only when even the minimum height no longer fits.
-
-The solution sheet does not include it.
-
 ### How to correct a cross {#mc-hint}
 
 **Show how to correct a cross at every multiple-choice task** (when creating the exam, or on the **Layout** tab) prints one short line at the start of every multiple choice task, in the exam and in the solution:
@@ -145,8 +136,10 @@ How to scan these sheets: [Scan the stack](./scanning#scan).
 
 Some students need more room than the task sheet offers. The **Layout** tab has an **Extra paper** group for this:
 
-- **Paper for writing**: **Squared** (5 mm, default for new exams), **Lined** (8 mm) or **Empty**. It applies to every page meant for writing: the extra pages, the **Space for side calculations** filler pages and the extra sheets. The pattern is light grey, so writing over it stays readable.
-- **Extra pages in every copy** (0 to 20): pages for writing after the points table, for teachers who prefer a compact task sheet and free paper for the answers. They belong to every copy like any other page: page codes, sticker spots, personalised copies and scanning all treat them as exam pages. Unlike [Space for extra solutions](#extra-space), which fills the rest of the last page, these are whole pages.
+- **Paper for writing**: **Squared** (5 mm, default for new exams), **Lined** (8 mm) or **Empty**. It applies to every writing space: the rest of the last page, the extra pages, the **Space for side calculations** filler pages and the extra sheets. The pattern is light grey, so writing over it stays readable.
+- **Heading** and **note** of the writing space (prefilled with "Platz für weitere Lösungen" and a short note, printed in German). They head the rest-of-page area and every extra page.
+- <a id="extra-space"></a>**Fill the rest of the last page**: the student sheet ends with a writing area between a **minimum** and a **maximum height** in cm. It fills the rest of the last page. When not even the minimum fits, it takes a whole new page instead. The solution sheet does not include it.
+- **Extra pages in every copy** (0 to 20): whole pages for writing after the points table, for teachers who prefer a compact task sheet and free paper for the answers. They belong to every copy like any other page: page codes, sticker spots, personalised copies and scanning all treat them as exam pages.
 - **Offer extra sheets**: the **Print** step then has an **Extra sheet (stock)** card. **Create print files** makes one double-sided sheet; print as many as you like and keep them for any exam. The sheet has no exam title. Its code at the top only says "extra sheet", and the student's QR sticker on the front says whose it is.
 
 **Loose paper works too.** A student can also write on any sheet of paper, as long as it carries their QR sticker. In exams with page codes it is stored after that student's exam pages, and the scan reports it as an appended page.

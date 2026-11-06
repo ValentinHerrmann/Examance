@@ -20,14 +20,19 @@ export interface GradingKeyConfig {
   cutoffs: GradeCutoff[];
 }
 
-/** Optional karo block at the end of an exam (issue #156); the printed title stays German. */
+/** The writing space's heading and note, and the rest-of-page area (issues #156, #228); the printed text stays German. Extra pages print the heading even when the area is off. */
 export interface ExtraNotes {
   title: string;
   /** Printed below the title, smaller; may be empty. */
   description: string;
   minHeightCm: number;
   maxHeightCm: number;
+  /** False keeps only the heading for extra pages, without the rest-of-page area; absent = true (every block stored before #228). */
+  fill?: boolean;
 }
+
+/** Whether the exam ends with the rest-of-page writing area. */
+export const fillsLastPage = (notes: ExtraNotes | null | undefined): boolean => !!notes && notes.fill !== false;
 
 export const DEFAULT_EXTRA_NOTES: ExtraNotes = {
   title: 'Platz für weitere Lösungen',

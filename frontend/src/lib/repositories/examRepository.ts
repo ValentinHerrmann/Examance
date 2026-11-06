@@ -34,13 +34,17 @@ function extraNotesField(value: any): ExtraNotes | null | undefined {
     description: String(value.description ?? ''),
     minHeightCm: Number(value.min_height_cm ?? value.minHeightCm),
     maxHeightCm: Number(value.max_height_cm ?? value.maxHeightCm),
+    // Only off is stored: absent means on, so blocks saved before issue #228 read the same.
+    ...(value.fill === false ? { fill: false } : {}),
   };
 }
 
 export function extraNotesToApi(
   value: ExtraNotes | null,
-): { title: string; description: string; min_height_cm: number; max_height_cm: number } | null {
-  return value ? { title: value.title, description: value.description ?? '', min_height_cm: value.minHeightCm, max_height_cm: value.maxHeightCm } : null;
+): { title: string; description: string; min_height_cm: number; max_height_cm: number; fill: boolean } | null {
+  return value
+    ? { title: value.title, description: value.description ?? '', min_height_cm: value.minHeightCm, max_height_cm: value.maxHeightCm, fill: value.fill !== false }
+    : null;
 }
 
 /** The multi-sheet print fields (issue #220), from the API's snake_case or a stored camelCase record; normalised by `printSettingsOf`. */

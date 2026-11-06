@@ -28,6 +28,15 @@ describe('buildExamLatex extra notes', () => {
     expect(buildExamLatex({ ...base, extraNotes: null }, '', 'sans', [])).not.toContain('\\ExamNotes');
     expect(buildExamLatex(base, '', 'sans', [])).not.toContain('\\ExamNotes');
   });
+
+  it('gives extra pages the writing space heading, also with the rest-of-page area off (issue #228)', () => {
+    const notes = { title: 'Platz & mehr', description: '', minHeightCm: 4, maxHeightCm: 12, fill: false };
+    const tex = buildExamLatex({ ...base, extraPages: 2, extraNotes: notes }, '', 'sans,punkte', []);
+    expect(tex).not.toContain('\\ExamNotes');
+    expect(tex).toContain('\\Zusatzseiten{2}{Platz \\& mehr}{}');
+    expect(buildExamLatex({ ...base, extraPages: 1 }, '', 'sans,punkte', [])).toContain('\\Zusatzseiten{1}{Platz für weitere Lösungen}');
+    expect(buildExamLatex({ ...base, extraPages: 1 }, '', 'sans,punkte,antworten', [])).not.toContain('\\Zusatzseiten');
+  });
 });
 
 describe('score box positions (issue #187)', () => {
