@@ -300,6 +300,8 @@ Generic operations (logs, rollback, restore): [Host Examance, section 7](hosting
 
 **Manual redeploy**: Actions → *Deploy Release* → Run workflow → enter the version (e.g. `1.4.0`). Preview: Actions → *Deploy Preview* → Run workflow.
 
+**Transient GitHub failures**: GitHub sometimes answers pushes and release downloads with 5xx during its own incidents. The deploy workflows absorb that: branch pushes go through `.github/scripts/retry.sh`, `drone-ssh` (used by `appleboy/ssh-action`) is prefetched and checksum-checked by `.github/scripts/prefetch-drone-ssh.sh` with minutes of retries, and a refused build-cache write no longer fails the image build. When you bump the pinned `appleboy/ssh-action`, update the drone-ssh version and SHA-256 in that script to the action's new default. A failure that survives these retries is real or a long outage; re-run the job once it is over.
+
 **Rollback**: set `BACKEND_IMAGE` by hand as described there; the next release deploy overwrites it again. To roll the frontend back too, re-point the `release` branch at the older commit.
 
 **Check what is actually deployed**
