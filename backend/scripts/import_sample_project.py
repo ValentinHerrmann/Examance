@@ -195,7 +195,7 @@ async def import_sample_project(project_dir: Path, teacher_email: str) -> None:
             print(f"Teacher '{teacher_email}' not found. Creating teacher account...")
             teacher = Teacher(
                 email=teacher_email,
-                password_hash="imported_teacher_hash",
+                password_hash=None,
                 role="teacher",
             )
             session.add(teacher)

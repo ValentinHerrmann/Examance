@@ -15,23 +15,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # would install whatever the URL happens to serve at build time.
 ARG TECTONIC_VERSION=0.17.0
 ARG TECTONIC_SHA256=8533d07f9ccbd7a65824b9e0459041bca34af1eb33daba48f59215593753a3b7
-RUN curl -fsSL -o /tmp/tectonic.tar.gz \
+RUN curl --proto '=https' --tlsv1.2 -fsSL -o /tmp/tectonic.tar.gz \
       "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
  && echo "${TECTONIC_SHA256}  /tmp/tectonic.tar.gz" | sha256sum -c - \
  && tar xz -C /usr/local/bin -f /tmp/tectonic.tar.gz \
  && rm /tmp/tectonic.tar.gz \
  && tectonic --version
 
-# Install uv (fast Python package manager)
-RUN pip install uv --no-cache-dir
+# uv from its digest-pinned release image, like the base image: no unpinned pip install.
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /uvx /bin/
 
 WORKDIR /app
 
 # Copy dependency spec first (layer caching)
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
-# Install production dependencies
-RUN uv pip install --system --no-cache -e "."
+# Exactly the locked production dependencies: hash-checked wheels only, so no package runs setup code at build time. The app itself is not installed; it runs from /app.
+RUN uv export --frozen --no-dev --no-emit-project -o /tmp/requirements.txt \
+ && uv pip install --system --no-cache --require-hashes --no-build -r /tmp/requirements.txt \
+ && rm /tmp/requirements.txt
+ENV PYTHONPATH=/app
 
 # Drop privileges. uvicorn and every tectonic subprocess it spawns run as this
 # user, so a compiler bug or a future path-traversal cannot read the host as

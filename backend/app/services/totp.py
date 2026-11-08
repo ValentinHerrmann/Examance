@@ -37,7 +37,7 @@ def current_step(timestamp: int) -> int:
 
 def generate_code(secret: bytes, step: int) -> str:
     """The 6-digit code for *secret* at time *step*."""
-    digest = hmac.new(secret, struct.pack(">Q", step), hashlib.sha1).digest()
+    digest = hmac.new(secret, struct.pack(">Q", step), hashlib.sha1).digest()  # NOSONAR: RFC 6238 default and the only algorithm authenticator apps accept; HMAC-SHA1 is unaffected by SHA-1 collisions
     offset = digest[-1] & 0x0F
     truncated = struct.unpack(">I", digest[offset : offset + 4])[0] & 0x7FFFFFFF
     return str(truncated % (10**TOTP_DIGITS)).zfill(TOTP_DIGITS)

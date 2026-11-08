@@ -2,6 +2,7 @@
 
 import { decrypt, fromBase64url, toArrayBuffer, toBase64url } from './aesGcm';
 import { deriveArgon2Key, derivePbkdf2Key } from './keyDerivation';
+import { compareCodeUnits } from '#lib/utils/compare';
 
 /** Bundle format version. Bumped only on a breaking change to the payload shape. */
 export const ENVELOPE_VERSION = 1;
@@ -240,7 +241,7 @@ export async function unwrapBundle(
 export async function envelopeFingerprint(set: EnvelopeSet): Promise<string> {
   const parts = set.envelopes
     .map((e) => `${e.kind}:${e.credentialIdB64 ?? ''}:${toBase64url(e.wrappedBundle)}`)
-    .sort();
+    .sort(compareCodeUnits);
   const material = encoder.encode(`${toBase64url(set.keyId)}|${parts.join('|')}`);
   const digest = await crypto.subtle.digest('SHA-256', toArrayBuffer(material));
   return toBase64url(new Uint8Array(digest));

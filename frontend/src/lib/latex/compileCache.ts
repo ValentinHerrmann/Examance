@@ -1,5 +1,6 @@
 /** In-memory LaTeX compilation cache: avoids re-compiling identical documents across tab switches and preview reopen. Keyed by (kind, id, variant) and verified by a SHA-256 of source, app version, engine, resources and exam logo, so any content change misses. Entries hold raw PDF bytes; callers create short-lived object URLs and revoke them on destroy. */
 
+import { compareCodeUnits } from '#lib/utils/compare';
 import { frontendVersion } from '#lib/stores/versionStore';
 import { compileLatex, type CompileResult } from './compiler';
 import { mergeResources, type LatexResourceFile } from './resources';
@@ -54,7 +55,7 @@ export async function computeCompileContentHash(
 ): Promise<string> {
   const enc = new TextEncoder();
   const sortedResources = [...resources].sort((a, b) => a.filename.localeCompare(b.filename));
-  const sortedExIds = [...resourceExerciseIds].sort();
+  const sortedExIds = [...resourceExerciseIds].sort(compareCodeUnits);
 
   const parts: Uint8Array[] = [];
   const metaHeader = `v:${frontendVersion || '0.0.0'}|engine:${engine}|latex:${latexSource}|exIds:${JSON.stringify(sortedExIds)}|logo:${logoFingerprint}|resCount:${sortedResources.length}`;

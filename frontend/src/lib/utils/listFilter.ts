@@ -1,8 +1,9 @@
 import type { ExerciseRecord } from "#lib/db/schema";
+import { compareText } from "./listSort";
 
 /** Distinct, non-empty values of `pick`, sorted. */
 export function uniqueSorted<T>(items: T[], pick: (item: T) => string | undefined | null): string[] {
-  return [...new Set(items.map(pick).filter((v): v is string => Boolean(v)))].sort();
+  return [...new Set(items.map(pick).filter((v): v is string => Boolean(v)))].sort(compareText);
 }
 
 /** Pill options (value/label/count) for every distinct value of `pick`, counted in one pass. */
@@ -15,7 +16,7 @@ export function countOptions<T>(
     const v = pick(item);
     if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
   }
-  return [...counts.keys()].sort().map((v) => ({ value: v, label: v, count: counts.get(v)! }));
+  return [...counts.keys()].sort(compareText).map((v) => ({ value: v, label: v, count: counts.get(v)! }));
 }
 
 /** Pill options counted over `items` that already passed every other filter, so a pill never shows (0). The selected value stays listed with 0 when nothing matches, or it could not be deselected. */
@@ -27,7 +28,7 @@ export function facetOptions<T>(
   const options = countOptions(items, pick);
   if (selected !== "ALL" && !options.some((o) => o.value === selected)) {
     options.push({ value: selected, label: selected, count: 0 });
-    options.sort((a, b) => a.value.localeCompare(b.value));
+    options.sort((a, b) => compareText(a.value, b.value));
   }
   return options;
 }

@@ -207,7 +207,7 @@ body {
   text-decoration: underline;
   text-underline-offset: 0.15em;
   cursor: pointer;
-  &:hover {
+  @variant hover {
     text-decoration-thickness: 2px;
   }
 }

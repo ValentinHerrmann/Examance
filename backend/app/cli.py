@@ -5,7 +5,7 @@ import asyncio
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 import click
 from sqlalchemy import func, select, update
@@ -369,36 +369,37 @@ def training_export(out_path: str, since: datetime | None) -> None:
     from app.database import AsyncSessionLocal
     from app.models.omr_training_sample import OmrTrainingSample
 
-    async def _export() -> int:
+    # The sync CLI owns the file; the coroutine only streams rows into it.
+    async def _export(fh: TextIO) -> int:
         count = 0
         async with AsyncSessionLocal() as db:
             query = select(OmrTrainingSample).order_by(OmrTrainingSample.created_on)
             if since is not None:
                 query = query.where(OmrTrainingSample.created_on >= since.date())
             result = await db.stream_scalars(query)
-            with open(out_path, "w", encoding="utf-8") as fh:
-                async for row in result:
-                    fh.write(
-                        json.dumps(
-                            {
-                                "id": str(row.id),
-                                "created_on": row.created_on.isoformat(),
-                                "schema_version": row.schema_version,
-                                "algorithm_version": row.algorithm_version,
-                                "label_selected": row.label_selected,
-                                "crop_width": row.crop_width,
-                                "crop_height": row.crop_height,
-                                "crop_b64": base64.b64encode(row.crop).decode("ascii"),
-                                "meta": row.meta,
-                            }
-                        )
-                        + "\n"
+            async for row in result:
+                fh.write(
+                    json.dumps(
+                        {
+                            "id": str(row.id),
+                            "created_on": row.created_on.isoformat(),
+                            "schema_version": row.schema_version,
+                            "algorithm_version": row.algorithm_version,
+                            "label_selected": row.label_selected,
+                            "crop_width": row.crop_width,
+                            "crop_height": row.crop_height,
+                            "crop_b64": base64.b64encode(row.crop).decode("ascii"),
+                            "meta": row.meta,
+                        }
                     )
-                    count += 1
+                    + "\n"
+                )
+                count += 1
         return count
 
     try:
-        count = asyncio.run(_export())
+        with open(out_path, "w", encoding="utf-8") as fh:
+            count = asyncio.run(_export(fh))
     except (OperationalError, ProgrammingError) as exc:
         raise_schema_hint(exc)
     click.echo(f"Exported {count} training sample(s) to {out_path}.")

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { examCourse, formatExamCourse, generatedExamTitle, parseDatumAndDauer, formatDatumAndDauer } from '../src/lib/utils/examLabel';
+import { examCourse, exerciseTopicSuggestions, formatExamCourse, generatedExamTitle, parseDatumAndDauer, formatDatumAndDauer } from '../src/lib/utils/examLabel';
 
 describe('formatExamCourse', () => {
   it('concatenates grade and course letter', () => {
@@ -62,5 +62,14 @@ describe('generatedExamTitle', () => {
   });
   it('uses the fallback when everything is empty', () => {
     expect(generatedExamTitle({}, 'Exam')).toBe('Exam');
+  });
+});
+
+describe('exerciseTopicSuggestions', () => {
+  it('lists distinct topics in natural, case-insensitive order (issue #244)', () => {
+    const topics = ['Kapitel 10', 'algebra', 'Kapitel 2', '_General', 'Ähnlichkeit', 'Kapitel 2', 'Zahlen'];
+    expect(exerciseTopicSuggestions(topics.map((topicTag) => ({ topicTag })))).toEqual([
+      'Ähnlichkeit', 'algebra', 'Kapitel 2', 'Kapitel 10', 'Zahlen',
+    ]);
   });
 });
