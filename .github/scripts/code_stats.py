@@ -9,19 +9,30 @@ from pathlib import Path
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "badges-out")
 
 # Generated, vendored or binary-ish files never count.
-SKIP = re.compile(
-    r"(^|/)(package-lock\.json|uv\.lock|openapi\.json)$"
-    r"|^frontend/static/(core|example-data)/|^latex-sample-project/|^docs/screenshots/"
-    r"|^docs/\.vitepress/(cache|dist)/|\.(png|jpe?g|gif|svg|webp|ico|pdf|woff2?|ttf|wasm|zip|gz|data|map)$"
-)
+SKIP_LOCKS = re.compile(r"(?:^|/)(?:package-lock\.json|uv\.lock|openapi\.json)$")
+SKIP_BINARY = re.compile(r"\.(?:png|jpe?g|gif|svg|webp|ico|pdf|woff2?|ttf|wasm|zip|gz|data|map)$")
+SKIP_PREFIXES = ("frontend/static/core/", "frontend/static/example-data/", "latex-sample-project/", "docs/screenshots/",
+                 "docs/.vitepress/cache/", "docs/.vitepress/dist/")
+
+
+def skipped(path: str) -> bool:
+    return path.startswith(SKIP_PREFIXES) or bool(SKIP_LOCKS.search(path) or SKIP_BINARY.search(path))
+
+
 CODE_EXT = r"\.(?:py|ts|js|svelte|css|html|sql|sh|yml|yaml|toml|mjs|cjs)$"
 BACKEND_EXT = r"\.(?:py|ts|js|svelte|css|html|sql|sh|yml|yaml|toml|mjs|cjs|tex|sty|cls)$"
-TEST = re.compile(r"(?:^(?:backend/tests|frontend/tests|frontend/e2e)/|\.(?:test|spec)\.(?:ts|js)$)")
+TEST_DIRS = ("backend/tests/", "frontend/tests/", "frontend/e2e/")
+TEST_FILE = re.compile(r"\.(?:test|spec)\.(?:ts|js)$")
+
+
+def is_test(path: str) -> bool:
+    return path.startswith(TEST_DIRS) or bool(TEST_FILE.search(path))
+
 
 # First matching area wins, so order matters. (key, label, matcher)
 AREAS = [
-    ("frontend_tests", "Frontend tests", lambda p: TEST.search(p) and p.startswith("frontend/") and re.search(CODE_EXT, p)),
-    ("backend_tests", "Backend tests", lambda p: TEST.search(p) and p.startswith("backend/") and re.search(CODE_EXT, p)),
+    ("frontend_tests", "Frontend tests", lambda p: is_test(p) and p.startswith("frontend/") and re.search(CODE_EXT, p)),
+    ("backend_tests", "Backend tests", lambda p: is_test(p) and p.startswith("backend/") and re.search(CODE_EXT, p)),
     ("docs", "Documentation", lambda p: p.endswith(".md")),
     ("frontend", "Frontend", lambda p: p.startswith("frontend/") and re.search(CODE_EXT, p)),
     ("backend", "Backend", lambda p: p.startswith("backend/") and re.search(BACKEND_EXT, p)),
@@ -137,7 +148,7 @@ def main() -> None:
     files = subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=True).stdout.splitlines()
     acc = {k: {"files": 0, "blank": 0, "comments": 0, "code": 0} for k, _, _ in AREAS}
     for p in files:
-        if SKIP.search(p):
+        if skipped(p):
             continue
         for key, _, match in AREAS:
             if match(p):
