@@ -313,7 +313,17 @@ async def test_soft_deleted_exam_is_hard_deleted_once_its_grace_period_passes(
     over.deleted_at = now - timedelta(days=settings.RETENTION_GRACE_DAYS + 2)
     waiting.deleted_at = now - timedelta(days=1)
     await retention_db.commit()
-    blob_store.put_sync("scans", str(over.id), "s", b"scan")
+    # The cascade drops the files the purged exam's rows name (never a whole dir), so the row names its file.
+    over_file = blob_store.put_sync("scans", str(over.id), "s", b"scan")
+    retention_db.add(
+        ScanSubmission(
+            exam_id=over.id,
+            pseudonym_hmac=uuid.uuid4().hex * 2,
+            scan_iv=b"\x00" * 12,
+            scan_path=over_file,
+        )
+    )
+    await retention_db.commit()
     kept_file = blob_store.put_sync("scans", str(waiting.id), "s", b"scan")
 
     over_id, waiting_id, live_id = over.id, waiting.id, live.id
