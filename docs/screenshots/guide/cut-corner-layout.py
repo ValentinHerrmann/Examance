@@ -11,7 +11,7 @@ HYP = math.hypot(TAB_TOP, TAB_SIDE)
 ZT, ZS = TAB_TOP + TOL * HYP / TAB_SIDE, TAB_SIDE + TOL * HYP / TAB_TOP
 TOP = 11.9
 BODY = TOP + 30 / 72.27 * 25.4
-BOTTOM = H - 14
+BOTTOM = H - 12.5
 ANGLE = math.degrees(math.atan2(TAB_SIDE, TAB_TOP))
 
 TEXT = {
@@ -26,7 +26,7 @@ TEXT = {
         "page": "Seite X",
         "tab": "Abschnitt",
         "tol": "3 mm Toleranz",
-        "table": "Punktetabelle (nur letzte Seite): 181 mm breit, unten bündig mit den Markierungen",
+        "table": "Punktetabelle (nur letzte Seite): 184 mm breit, unten bündig mit den Markierungen",
         "legend": "Legende",
         "items": [
             "Inhalt: Aufgaben, Lösungsfelder, Karos (Seite 1 auch QR-Feld und Hinweise)",
@@ -34,7 +34,7 @@ TEXT = {
             "Punktetabelle (letzte Seite): 1,5 mm Abstand zu den Markierungen",
             "Abschnitt: hellgrau; direkt bedruckte Exemplare tragen hier auf Seite 1 Name und Schlüssel",
             "Schnitttoleranz: bleibt immer leer",
-            "Eckmarkierungen für den Scan, 8 mm (frei halten)",
+            "Eckmarkierungen für den Scan, 5 mm (frei halten)",
         ],
         "notes": [
             "Schnittlinie mit Schere (nur auf direkt bedruckten Exemplaren): 75 mm entlang der Oberkante, 20 mm die Seite hinab.",
@@ -54,7 +54,7 @@ TEXT = {
         "page": "Seite X",
         "tab": "Cut-off tab",
         "tol": "3 mm tolerance",
-        "table": "Score table (last page only): 181 mm wide, bottom level with the markers",
+        "table": "Score table (last page only): 184 mm wide, bottom level with the markers",
         "legend": "Legend",
         "items": [
             "Content: tasks, answer fields, grids (page 1 also the QR box and info text)",
@@ -62,7 +62,7 @@ TEXT = {
             "Score table (last page): 1.5 mm clear of the markers",
             "Cut-off tab: light grey; copies printed with the QR code carry name and key here on page 1",
             "Cut tolerance: always stays empty",
-            "Corner markers for scanning, 8 mm (keep clear)",
+            "Corner markers for scanning, 5 mm (keep clear)",
         ],
         "notes": [
             "Cut line with scissors (only on copies printed with the QR code): 75 mm along the top edge, 20 mm down the side.",
@@ -73,7 +73,8 @@ TEXT = {
     },
 }
 COLOURS = ["green!22", "blue!22", "violet!30", "orange!40", "red!35", "black"]
-MARKERS = [(5, 12), (W - 54, 12), (5, 284), (W - 13, 284)]
+MARKERS = [(6.5, 13.5), (W - 52.5, 13.5), (6.5, 285.5), (W - 11.5, 285.5)]
+MARKER = 5
 
 
 def zone_width(y: float) -> float:
@@ -100,13 +101,13 @@ class Page:
         return [
             rf"\fill[green!22] {p(5, BODY)} rectangle {p(205, BOTTOM)};",
             rf"\fill[blue!22] {p(5, TOP)} -- {p(W - zone_width(TOP), TOP)} -- {p(W - zone_width(BODY), BODY)} -- {p(5, BODY)} -- cycle;",
-            rf"\fill[violet!30] {p(14.5, BOTTOM - 12)} rectangle {p(195.5, 292)};",
-            rf"\draw[violet!70,dashed] {p(14.5, BOTTOM - 12)} rectangle {p(195.5, 292)};",
+            rf"\fill[violet!30] {p(13, H - 27.5)} rectangle {p(197, H - 6.5)};",
+            rf"\draw[violet!70,dashed] {p(13, H - 27.5)} rectangle {p(197, H - 6.5)};",
             rf"\fill[orange!40] {p(W - TAB_TOP, 0)} -- {p(W, 0)} -- {p(W, TAB_SIDE)} -- cycle;",
             rf"\fill[red!35] {p(W - ZT, 0)} -- {p(W - TAB_TOP, 0)} -- {p(W, TAB_SIDE)} -- {p(W, ZS)} -- cycle;",
             rf"\draw[dashed,thick,black!60] {p(W - TAB_TOP, 0)} -- {p(W, TAB_SIDE)};",
         ] + [
-            rf"\fill[black] {p(x, y)} rectangle {p(x + 8, y + 8)}; \fill[white] {p(x + 1.6, y + 1.6)} rectangle {p(x + 6.4, y + 6.4)}; \fill[black] {p(x + 2.8, y + 2.8)} rectangle {p(x + 5.2, y + 5.2)};"
+            rf"\fill[black] {p(x, y)} rectangle {p(x + MARKER, y + MARKER)};"
             for x, y in MARKERS
         ]
 
