@@ -5237,6 +5237,209 @@
         }
       }
     },
+    "/api/v1/exams/{exam_id}/omr-template-pins": {
+      "get": {
+        "tags": [
+          "omr-template-pins"
+        ],
+        "summary": "List Pins",
+        "operationId": "list_pins_api_v1_exams__exam_id__omr_template_pins_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OmrTemplatePinOut"
+                  },
+                  "title": "Response List Pins Api V1 Exams  Exam Id  Omr Template Pins Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/omr-template-pins/{layout_hash}": {
+      "put": {
+        "tags": [
+          "omr-template-pins"
+        ],
+        "summary": "Put Pin",
+        "description": "Pin a layout. A known hash keeps its first source, payload and `pinned_at` and only refreshes `last_pinned_at`.",
+        "operationId": "put_pin_api_v1_exams__exam_id__omr_template_pins__layout_hash__put",
+        "parameters": [
+          {
+            "name": "layout_hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Layout Hash"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OmrTemplatePinIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OmrTemplatePinOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "omr-template-pins"
+        ],
+        "summary": "Delete Pin",
+        "operationId": "delete_pin_api_v1_exams__exam_id__omr_template_pins__layout_hash__delete",
+        "parameters": [
+          {
+            "name": "layout_hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Layout Hash"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "tags": [
@@ -14037,6 +14240,73 @@
           "features"
         ],
         "title": "OmrSampleIn"
+      },
+      "OmrTemplatePinIn": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "download",
+              "printed"
+            ],
+            "title": "Source"
+          },
+          "payload_ciphertext_b64": {
+            "type": "string",
+            "title": "Payload Ciphertext B64"
+          },
+          "payload_iv_b64": {
+            "type": "string",
+            "title": "Payload Iv B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "payload_ciphertext_b64",
+          "payload_iv_b64"
+        ],
+        "title": "OmrTemplatePinIn"
+      },
+      "OmrTemplatePinOut": {
+        "properties": {
+          "layout_hash": {
+            "type": "string",
+            "title": "Layout Hash"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "pinned_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Pinned At"
+          },
+          "last_pinned_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Pinned At"
+          },
+          "payload_ciphertext_b64": {
+            "type": "string",
+            "title": "Payload Ciphertext B64"
+          },
+          "payload_iv_b64": {
+            "type": "string",
+            "title": "Payload Iv B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "layout_hash",
+          "source",
+          "pinned_at",
+          "last_pinned_at",
+          "payload_ciphertext_b64",
+          "payload_iv_b64"
+        ],
+        "title": "OmrTemplatePinOut"
       },
       "PasswordFactorRequest": {
         "properties": {

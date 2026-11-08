@@ -121,7 +121,8 @@ export const grading: Translations['grading'] = {
     },
     canvas: {
         loading: 'Loading scan…',
-        scanMissing: '[ Scan image missing / unencrypted ]',
+        scanMissing: '[ No scan is stored for this submission ]',
+        scanNoKey: '[ Session key missing — please sign in again ]',
         scanDecryptFailed: '[ Failed to decrypt scan — key mismatch or data corrupted ]',
         scanLoadFailed: '[ Failed to load the scan — please reload the page ]',
     },

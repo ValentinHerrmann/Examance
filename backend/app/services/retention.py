@@ -286,7 +286,7 @@ async def run(*, dry_run: bool = False) -> int:
 
         if purge_exam_ids:
             # The exam's rows cascade in the DB, so its scan files are dropped explicitly. Legacy exercises still name their exam (`exercises.exam_id`, ON DELETE CASCADE) and may be linked into other exams: detach them first, they stay in the library.
-            scan_storage.forget_scans_of_exams(db, purge_exam_ids)
+            await scan_storage.forget_scans_of_exams(db, purge_exam_ids)
             result_shares.forget_exams(db, purge_exam_ids)
             await db.execute(
                 update(Exercise).where(Exercise.exam_id.in_(purge_exam_ids)).values(exam_id=None)

@@ -374,6 +374,21 @@ test.describe('exam', () => {
     await expect(page.getByText(await t(page, 'grading.page.empty'))).toBeVisible();
   });
 
+  test('[exam] an exam graded outside Examance is not shown as results-only on the Print step', async ({ page, backend }) => {
+    await signInFirstTime(page);
+    await gotoExerciseLibrary(page);
+    await createExercise(page, { name: 'Offline exercise', topic: 'Print', latex: exerciseBody('offline', 2) });
+    await gotoDashboard(page);
+    await createExam(page, { title: 'Offline exam', exercises: ['Offline exercise'] });
+    // Regression: switching digital grading off made the Print step show the results-only alert in place of the preview.
+    backend.state.exams.get(currentExamId(page)).digital_grading = false;
+
+    await gotoExamTab(page, 'print');
+    const main = page.getByRole('main');
+    await expect(main.getByText(await t(page, 'exam.layout.grading.off')).first()).toBeVisible();
+    await expect(main.getByText(await t(page, 'exam.resultsOnly.noCompile'))).toHaveCount(0);
+  });
+
   test('[exam] the by-student score table opens with a student and saves a score', async ({ page }) => {
     await signInFirstTime(page);
     await gotoExerciseLibrary(page);

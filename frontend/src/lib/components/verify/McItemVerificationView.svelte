@@ -5,6 +5,7 @@
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
   import { t, translate } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
   import { categorizeMcItem, mcQueue, type McQueueCategory, type McVerificationStats } from "#lib/grading/mcVerification";
   import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
@@ -144,6 +145,17 @@
   <Button variant="text" severity="secondary" size="sm" icon={faArrowLeft} onClick={() => leaveTo(verifyHref(examId))}>
     {$t("scanning.verifyItem.backLink")}
   </Button>
+  {#if currentScoreRecord?.omrMeta?.run}
+    {@const run = currentScoreRecord.omrMeta.run}
+    <!-- The layout this answer was read with (issue #239). -->
+    <span class="text-xs text-muted">
+      {run.templatePinnedAt
+        ? $t("scanning.verify.template.itemPinned", { date: $fmt.dateTime(run.templatePinnedAt) })
+        : run.templateHash
+          ? $t("scanning.verify.template.itemCurrent")
+          : $t("scanning.verify.template.itemUnrecorded")}
+    </span>
+  {/if}
 </div>
 
 {#if loading}

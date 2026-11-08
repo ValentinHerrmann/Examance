@@ -119,7 +119,8 @@ export const grading = {
     },
     canvas: {
         loading: 'Scan wird geladen …',
-        scanMissing: '[ Scan-Bild fehlt / unverschlüsselt ]',
+        scanMissing: '[ Zu dieser Abgabe ist kein Scan gespeichert ]',
+        scanNoKey: '[ Sitzungsschlüssel fehlt — bitte neu anmelden ]',
         scanDecryptFailed: '[ Entschlüsselung des Scans fehlgeschlagen — Schlüssel stimmt nicht überein oder Daten beschädigt ]',
         scanLoadFailed: '[ Scan konnte nicht geladen werden — bitte Seite neu laden ]',
     },

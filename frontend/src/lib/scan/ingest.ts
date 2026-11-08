@@ -6,10 +6,11 @@ import { openScan, saveStudentEncrypted, saveSubmissionEncrypted, sealScan } fro
 import { pseudonymFor } from "#lib/services/pseudonymRekey";
 import { joinKey, joinKeys } from "#lib/crypto/pseudonymKey";
 import { studentRepository } from "#lib/repositories/studentRepository";
-import type { ExerciseScoreRecord, OmrPageTemplate, StudentRecord, SubmissionRecord } from "#lib/db/schema";
+import type { ExerciseScoreRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
 import { buildOmrScoreRecord } from "#lib/grading/omrResult";
 import { createOmrRun, type OmrPageStats, type OmrRunInfo, type OmrSettingsProfile } from "#lib/grading/omrSettings";
 import { scoreRepository } from "#lib/repositories/scoreRepository";
+import { readWithTemplates, withTemplate, type OmrTemplateCandidate } from "#lib/grading/omrTemplateChoice";
 import { parseStudentQr, stickerRawOf } from "#lib/utils/studentQr";
 import { randomCode } from "#lib/utils/randomCode";
 import type { QrWorkerRequest, QrWorkerResponse } from "#lib/workers/qrWorker";
@@ -85,8 +86,16 @@ export interface IngestResult {
 }
 
 export interface OmrContext {
-  templatePages: OmrPageTemplate[];
+  /** Pins newest first, then the current layout (`loadOmrTemplateCandidates`, issue #239); each page keeps the one that fits. */
+  templates: OmrTemplateCandidate[];
   answerKeys: OmrExerciseAnswerKey[];
+}
+
+/** One OMR reading and the template it was read with. */
+interface OmrReading {
+  result: OmrExerciseResult;
+  pageStats: OmrPageStats;
+  template?: Pick<OmrTemplateCandidate, "hash" | "pinnedAt">;
 }
 
 interface Dispatcher<Req, Res> {
@@ -103,7 +112,6 @@ export interface IngestDeps {
   getOmrContext: () => OmrContext | null;
   /** Snapshotted once into the run stamped on every score row (issue #32). */
   omrSettings: OmrSettingsProfile;
-  omrTemplateHash?: string;
   monitor?: { checkMemoryHealth(): void };
   onProgress?: (progress: IngestProgress) => void;
   /** The exam prints page codes: a page whose code the full-page pass missed gets a closer look at the code's spot (issue #220). */
@@ -161,14 +169,16 @@ function bookletFromQr(qr: QrResult): StudentBooklet {
 
 /** Collects OMR results per booklet across its pages, plus the alignment diagnostics of the whole upload. */
 export class OmrAccumulator {
-  private readonly byPseudonym = new Map<string, { result: OmrExerciseResult; pageStats: OmrPageStats }[]>();
+  private readonly byPseudonym = new Map<string, OmrReading[]>();
+  /** Template hash that fit each booklet so far: its other pages try it first. */
+  readonly fitted = new Map<string, string>();
   private alignmentFailures = 0;
   private minFiducialsFound: number | null = null;
   private readonly missingCorners = new Set<string>();
 
-  add(pseudonymId: string, res: OmrResponse): void {
+  add(pseudonymId: string, res: OmrResponse, template?: OmrReading["template"]): void {
     const list = this.byPseudonym.get(pseudonymId) ?? [];
-    list.push(...res.results.map((result) => ({ result, pageStats: res.pageStats })));
+    list.push(...res.results.map((result) => ({ result, pageStats: res.pageStats, template })));
     this.byPseudonym.set(pseudonymId, list);
     if (res.alignmentFailed) this.alignmentFailures++;
     this.minFiducialsFound =
@@ -180,7 +190,7 @@ export class OmrAccumulator {
     }
   }
 
-  resultsFor(pseudonymId: string): { result: OmrExerciseResult; pageStats: OmrPageStats }[] {
+  resultsFor(pseudonymId: string): OmrReading[] {
     return this.byPseudonym.get(pseudonymId) ?? [];
   }
 
@@ -436,18 +446,23 @@ class ScanPass {
     const coded = booklet.pageRefs.some((r) => r.page !== undefined);
     // A code-less page in a coded booklet has no known place: no OMR rather than the wrong template.
     if (coded && pageRef.page === undefined) return;
-    const pageTemplate = ctx.templatePages[(pageRef.page ?? booklet.pageRefs.filter((r) => !r.extra).length) - 1];
-    if (!pageTemplate || (pageTemplate.bubbles.length === 0 && pageTemplate.fiducials.length === 0)) return;
+    const pageNo = pageRef.page ?? booklet.pageRefs.filter((r) => !r.extra).length;
     try {
-      const res = await this.deps.omrPool.dispatch({
-        type: "OMR_PROCESS",
-        imageData,
-        pageTemplate,
-        scanScale: this.omrRun.params.scanScale,
-        answerKeys: ctx.answerKeys,
-        params: this.omrRun.params,
+      // Pins newest first (issue #239): the first template whose boxes sit on the printed ones, else the best fit.
+      const read = await readWithTemplates(ctx.templates, this.omr.fitted.get(booklet.pseudonymId), pageNo, async (pageTemplate) => {
+        const res = await this.deps.omrPool!.dispatch({
+          type: "OMR_PROCESS",
+          imageData,
+          pageTemplate,
+          scanScale: this.omrRun.params.scanScale,
+          answerKeys: ctx.answerKeys,
+          params: this.omrRun.params,
+        });
+        return res.type === "OMR_RESULT" ? res : null;
       });
-      if (res.type === "OMR_RESULT") this.omr.add(booklet.pseudonymId, res);
+      if (!read) return;
+      if (read.fits) this.omr.fitted.set(booklet.pseudonymId, read.template.hash);
+      this.omr.add(booklet.pseudonymId, read.res, { hash: read.template.hash, pinnedAt: read.template.pinnedAt });
     } catch (error) {
       console.warn(`OMR processing failed for page in ${fileName}:`, error);
       this.warnings.push({ kind: "omrFailed", fileName, error });
@@ -553,7 +568,7 @@ export async function saveBooklet(
   booklet: StudentBooklet,
   deps: Pick<IngestDeps, "examId" | "getSessionKey">,
   omrRun: OmrRunInfo,
-  omrResults: { result: OmrExerciseResult; pageStats: OmrPageStats }[],
+  omrResults: OmrReading[],
   known: ReadonlyMap<string, StudentRecord> = new Map(),
   more: { templatePages?: number; warnings?: IngestWarning[]; submissions?: readonly SubmissionRecord[]; pageCodes?: boolean } = {},
 ): Promise<void> {
@@ -612,8 +627,8 @@ export async function saveBooklet(
   );
 
   // Written once per booklet, not per MC question and pupil: hundreds of sequential requests in server mode.
-  const omrScores: ExerciseScoreRecord[] = omrResults.map(({ result, pageStats }) =>
-    buildOmrScoreRecord(result, { id: crypto.randomUUID(), submissionId: subId, run: omrRun, pageStats }),
+  const omrScores: ExerciseScoreRecord[] = omrResults.map(({ result, pageStats, template }) =>
+    buildOmrScoreRecord(result, { id: crypto.randomUUID(), submissionId: subId, run: withTemplate(omrRun, template), pageStats }),
   );
   await scoreRepository.saveMany(examId, subId, omrScores, key);
 }
@@ -622,7 +637,7 @@ export async function saveBooklet(
 export async function ingestScans(files: File[], deps: IngestDeps): Promise<IngestResult> {
   const report = deps.onProgress;
   const warnings: IngestWarning[] = [];
-  const omrRun = createOmrRun("scan", deps.omrSettings, deps.omrTemplateHash);
+  const omrRun = createOmrRun("scan", deps.omrSettings);
 
   report?.({ phase: "analyzing", progress: 0 });
   const { sources, totalPages } = await openSources(files, warnings);
@@ -639,7 +654,7 @@ export async function ingestScans(files: File[], deps: IngestDeps): Promise<Inge
   const pageCodes = deps.pageCodes === true;
   const joins = booklets.some((b) => b.pageRefs.some((r) => r.page !== undefined) || onlyExtraPaper(b, pageCodes));
   const submissions = joins ? await submissionRepository.getByExamId(deps.examId, deps.getSessionKey()) : [];
-  const templatePages = deps.getOmrContext()?.templatePages.length ?? 0;
+  const templates = deps.getOmrContext()?.templates ?? [];
   let bookletCount = 0;
   for (let bIdx = 0; bIdx < booklets.length; bIdx++) {
     const booklet = booklets[bIdx];
@@ -650,6 +665,9 @@ export async function ingestScans(files: File[], deps: IngestDeps): Promise<Inge
       total: booklets.length,
       pages: booklet.pageRefs.length,
     });
+    // The exam's page count from the template this booklet was read with (a reprint may have another).
+    const fitted = pass.omr.fitted.get(booklet.pseudonymId);
+    const templatePages = (templates.find((t) => t.hash === fitted) ?? templates[0])?.payload.pages.length ?? 0;
     await saveBooklet(booklet, deps, omrRun, pass.omr.resultsFor(booklet.pseudonymId), known, { templatePages, warnings, submissions, pageCodes }); // NOSONAR: one booklet at a time keeps memory bounded and leaves the earlier ones saved when a later one fails
     bookletCount++;
   }

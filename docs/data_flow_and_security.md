@@ -420,6 +420,10 @@ CASCADE` from the account or exam) and is part of the account export (`GET /user
 the files base64-encoded: the account's setting and own file, each exam's setting and own file)
 and of `.bgproj` archives (see Archives).
 
+### Pinned OMR templates on the server (issue #239)
+
+`omr_template_pins` holds the answer-sheet layout (bubble, fiducial and score-box rectangles) of a printed exam, sealed in the browser with AES-256-GCM under the data key, so already printed sheets can still be scanned after later layout changes: the server stores only the ciphertext, the IV and a layout hash, no personal data, and it is deleted with the exam (`ON DELETE CASCADE`; the trash keeps and restores it with the exam).
+
 ### LaTeX packages on the server
 
 The packages a teacher adds to the exam template (issue #108) are stored as **plaintext JSON**

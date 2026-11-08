@@ -36,8 +36,8 @@ class BlobAudit:
         return bool(self.missing_ids) or self.unchecked_paths > 0
 
 
-async def audit(db: AsyncSession) -> BlobAudit:
-    """Compare live rows with the store; raises `BlobStoreUnavailable` when a configured store does not validate (an unmounted store must never read as "every file missing")."""
+async def audit(db: AsyncSession, exam_id: uuid.UUID | None = None) -> BlobAudit:
+    """Compare live rows (of one exam, when given) with the store; orphan counts are store-wide. Raises `BlobStoreUnavailable` when a configured store does not validate (an unmounted store must never read as "every file missing")."""
     store = str(blob_store.root()) if blob_store.configured() else None
     rows = await db.execute(
         select(
@@ -45,7 +45,10 @@ async def audit(db: AsyncSession) -> BlobAudit:
             ScanSubmission.exam_id,
             ScanSubmission.scan_path,
             ScanSubmission.scan_ciphertext.is_not(None).label("in_db"),
-        ).where(ScanSubmission.deleted_at.is_(None))
+        ).where(
+            ScanSubmission.deleted_at.is_(None),
+            *([ScanSubmission.exam_id == exam_id] if exam_id is not None else []),
+        )
     )
     report = BlobAudit(store=store, exams={})
     for sub_id, exam_id, path, in_db in rows:

@@ -6,7 +6,7 @@
   import { get } from "svelte/store";
   import { buildExamItems, loadExamCompileContext, type ExamCompileContext } from "#lib/grading/omrTemplatePrep";
   import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
-  import { getCurrentExamVariant } from "#lib/exam/examPreview";
+  import { examHasWithheldCode, getCurrentExamVariant } from "#lib/exam/examPreview";
   import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import { contentStamp } from "#lib/exam/examChecks";
   import { examChecksState } from "#lib/stores/shell";
@@ -21,6 +21,10 @@
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { t, translate } from "#lib/i18n";
   import { Alert, PageShell } from "#lib/components/ui";
+  import OmrPinList from "#lib/components/exam/OmrPinList.svelte";
+  import { computeOmrTemplateHash } from "#lib/grading/omrTemplatePrep";
+  import { deleteOmrTemplatePin, listOmrTemplatePins, pinOmrTemplate } from "#lib/grading/omrTemplatePins";
+  import type { OmrPinSource, OmrTemplateCandidate } from "#lib/grading/omrTemplateChoice";
 
   let examId = $derived(page.params.id || "");
   let ctx = $state.raw<ExamCompileContext | null>(null);
@@ -39,9 +43,44 @@
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
   // Personalised copies stamp page codes and QR codes, which an exam graded outside Examance does not print.
-  let withheld = $derived(ctx?.exam.digitalGrading === false ? translate("exam.layout.grading.off") : ctx ? copiesUnavailable(ctx.exercises) : null);
+  let copiesBlocked = $derived(ctx?.exam.digitalGrading === false ? translate("exam.layout.grading.off") : ctx ? copiesUnavailable(ctx.exercises) : null);
+  // Only a results-only import lacks the LaTeX to preview; an exam graded outside Examance still compiles (without scan aids).
+  let resultsOnly = $derived(!!ctx && examHasWithheldCode(ctx.exercises));
   let hasMc = $derived(ctx ? resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups).length > 0 : false);
   let title = $derived(ctx?.exam.title || $t("exam.nav.examFallback"));
+  // Pinned answer-sheet layouts (issue #239); exams graded outside Examance print no scan aids and get none.
+  let pinnable = $derived(!!ctx && ctx.exam.digitalGrading !== false && !resultsOnly);
+  let pinList = $state.raw<OmrTemplateCandidate[] | null>(null);
+  let pinError = $state("");
+  let currentHash = $state<string | undefined>(undefined);
+
+  async function loadPins() {
+    if (!ctx) return;
+    try {
+      [pinList, currentHash] = await Promise.all([listOmrTemplatePins(ctx.exam.id, key()), computeOmrTemplateHash({ ...ctx, examItems })]);
+      pinError = "";
+    } catch (err) {
+      pinError = translate("exam.print.pins.loadFailed", { message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  /** Never blocks printing: a failed pin is reported under the jobs. */
+  async function pin(source: OmrPinSource) {
+    if (!ctx || !pinnable) return;
+    try {
+      const pinned = await pinOmrTemplate({ ...ctx, examItems }, source, key());
+      if (!pinned) return;
+      currentHash = pinned.hash;
+      if (!(pinList ?? []).some((p) => p.hash === pinned.hash)) await loadPins();
+    } catch (err) {
+      pinError = translate("exam.print.pins.pinFailed", { message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  async function removePin(hash: string) {
+    await deleteOmrTemplatePin(examId, hash);
+    pinList = (pinList ?? []).filter((p) => p.hash !== hash);
+  }
 
   async function load(id: string) {
     await awaitSessionReady();
@@ -49,6 +88,7 @@
     try {
       ctx = await loadExamCompileContext(id, key());
       if (!ctx) loadError = translate("exam.page.examNotFoundOrDeleted");
+      else void loadPins();
     } catch (err) {
       loadError = err instanceof Error ? err.message : String(err);
     }
@@ -118,16 +158,21 @@
         {entriesError}
         {preview}
         {hasMc}
-        copiesUnavailable={withheld}
+        copiesUnavailable={copiesBlocked}
         {loadExamPdf}
         {downloadPdf}
         {compile}
         print={printSettingsOf(ctx.exam)}
         onPrintChange={savePrint}
+        onPin={pin}
         bind:shown
-      />
+      >
+        {#snippet pins()}
+          {#if pinnable}<OmrPinList pins={pinList} error={pinError} {currentHash} onRemove={removePin} />{/if}
+        {/snippet}
+      </PrintPlan>
       <div class="min-w-0 xl:contents">
-        {#if withheld}
+        {#if resultsOnly}
           <Alert class="xl:col-start-2 xl:row-start-1" severity="info" title={$t("exam.resultsOnly.badge")}>{$t("exam.resultsOnly.noCompile")}</Alert>
         {:else}
           <ExamPreviewPanel

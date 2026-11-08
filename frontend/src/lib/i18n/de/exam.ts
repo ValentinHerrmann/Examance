@@ -26,6 +26,7 @@ export const exam = {
             refreshNow: 'OMR jetzt aktualisieren',
             preparing: 'OMR wird vorbereitet…',
             staleWarning: 'Der MC-Lösungsschlüssel hat sich seit der Erfassung der OMR-Vorlage geändert — die automatische Korrektur kann ungenau sein, bis Sie die OMR-Vorlage aktualisieren.',
+            pinDiffers: 'Seit dem Druck vom {date} geändert: Scans der gedruckten Bögen werden weiter mit dem gedruckten Layout gelesen.',
         },
         preview: {
             statusCurrent: 'Vorschau aktuell',
@@ -361,6 +362,20 @@ export const exam = {
             solution: 'Lösung',
             solutionHint: 'Für Sie oder die Korrektur; enthält die Lösungen.',
             download: 'PDF herunterladen',
+        },
+        pins: {
+            title: 'Gemerkte Antwortbogen-Layouts',
+            info: 'Beim Herunterladen oder Abhaken als gedruckt merkt sich Examance, wo auf dem Bogen die Kästchen und Eckmarkierungen liegen. Spätere Änderungen oder Updates verschieben sie nicht mehr für bereits gedruckte Bögen: Scans werden mit dem passenden gemerkten Layout gelesen.',
+            loading: 'Wird geladen…',
+            none: 'Noch keines: Das Layout wird gemerkt, sobald Sie den Aufgabenbogen oder die personalisierten Exemplare herunterladen oder als gedruckt abhaken.',
+            rowPrinted: 'Als gedruckt abgehakt am {date}',
+            rowDownload: 'Heruntergeladen am {date}',
+            current: 'entspricht der aktuellen Fassung',
+            remove: 'Layout entfernen',
+            removeTitle: 'Gemerktes Layout entfernen?',
+            removeMessage: 'Bögen, die mit dem Layout vom {date} gedruckt wurden, werden danach nicht mehr damit gelesen. Nur entfernen, wenn diese Fassung nie ausgeteilt wurde.',
+            loadFailed: 'Gemerkte Layouts konnten nicht geladen werden: {message}',
+            pinFailed: 'Das Layout konnte nicht gemerkt werden: {message}',
         },
         extra: {
             title: 'Zusatzblatt (Vorrat)',

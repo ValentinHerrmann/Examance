@@ -52,6 +52,8 @@ export interface FakeApiState {
   adminDomains: any[];
   /** Exercises that exist but belong to another account and are private: `GET /exercises/:id` answers 404, like `get_readable_exercise`. */
   hiddenExerciseIds: Set<string>;
+  /** Exam id to its pinned OMR templates (issue #239), newest first. */
+  omrPins: Map<string, any[]>;
   /** Every request seen, `"METHOD /path"`, in order. */
   requests: string[];
   /** Requests no route matched (see the file header). */
@@ -164,6 +166,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     students: new Map(),
     submissions: new Map(),
     scores: new Map(),
+    omrPins: new Map(),
     envelopes: { keyId: null, rows: [] },
     storageMode: initialMode(),
     email: DEFAULT_EMAIL,
@@ -187,6 +190,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.students.clear();
     state.submissions.clear();
     state.scores.clear();
+    state.omrPins.clear();
     state.envelopes = { keyId: null, rows: [] };
     state.storageMode = initialMode();
     state.email = DEFAULT_EMAIL;
@@ -1150,6 +1154,30 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return undefined;
   }
 
+  /** Pinned OMR templates (issue #239): a known hash keeps its first pin and only bumps `last_pinned_at`, like the backend. */
+  function omrPins(method: string, examId: string, rest: string[], body: any): Handled {
+    const pins = state.omrPins.get(examId) ?? [];
+    const [hash] = rest;
+    if (!hash) return method === 'GET' ? ok(pins) : undefined;
+    const existing = pins.find((p) => p.layout_hash === hash);
+    if (method === 'PUT') {
+      const now = new Date().toISOString();
+      if (existing) {
+        existing.last_pinned_at = now;
+        return ok(existing);
+      }
+      const row = { layout_hash: hash, source: body?.source, pinned_at: now, last_pinned_at: now, payload_ciphertext_b64: body?.payload_ciphertext_b64, payload_iv_b64: body?.payload_iv_b64 };
+      state.omrPins.set(examId, [row, ...pins]);
+      return ok(row);
+    }
+    if (method === 'DELETE') {
+      if (!existing) return notFound('Pin not found.');
+      state.omrPins.set(examId, pins.filter((p) => p !== existing));
+      return noContent();
+    }
+    return undefined;
+  }
+
   function exams(method: string, parts: string[], query: URLSearchParams, body: any): Handled {
     const [, id, sub, ...rest] = parts;
     if (!id) {
@@ -1176,6 +1204,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       }
     }
     if (sub === 'logo' && rest[0] === 'file' && method === 'GET') return notFound('No logo.');
+    if (sub === 'omr-template-pins') return omrPins(method, id, rest, body);
     if (sub === 'students') return students(method, id, rest, body);
     if (sub === 'submissions') return submissions(method, id, rest, query, body);
     if (sub === 'pseudonyms') return pseudonyms(method, id, rest, body);

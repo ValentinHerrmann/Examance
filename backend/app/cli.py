@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -292,12 +293,13 @@ def init_blob_store(force: bool, rebind_from: str | None) -> None:
 @cli.command("check-blobs")
 @click.option("--forget-missing", is_flag=True, default=False, help="Clear the file reference of live rows whose file is missing.")
 @click.option("--yes", is_flag=True, default=False, help="Apply --forget-missing; without it, only show what would change.")
-def check_blobs(forget_missing: bool, yes: bool) -> None:
+@click.option("--exam", "exam_id", type=click.UUID, default=None, help="Check only this exam's rows.")
+def check_blobs(forget_missing: bool, yes: bool, exam_id: uuid.UUID | None) -> None:
     """Compare scan rows with the file store (docs/dev/storage_partitions.md): ids and counts only. Exit code 1 when a live row's scan cannot be read. Run after a restore, rebind or storage move."""
     from app.services import blob_audit, blob_store
 
     async def _run(db: AsyncSession) -> blob_audit.BlobAudit:
-        report = await blob_audit.audit(db)
+        report = await blob_audit.audit(db, exam_id)
         if forget_missing and yes:
             await blob_audit.forget_missing(db, report)
         return report

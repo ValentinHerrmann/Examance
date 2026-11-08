@@ -29,13 +29,12 @@
   import { spawnOmrWorker } from "#lib/workers/spawn";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import { loadPdfjs } from "#lib/pdf/pdfjs";
-  import {
-    loadOmrTemplateEncrypted,
-    openScan,
-  } from "#lib/db/dbEncryption";
+  import { openScan } from "#lib/db/dbEncryption";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
-  import { prepareOmrTemplate, loadExamCompileContext, computeOmrTemplateHash } from "#lib/grading/omrTemplatePrep";
+  import { loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
+  import { loadOmrTemplateCandidates, omrPinState, type OmrPinState } from "#lib/grading/omrTemplatePins";
+  import { readWithTemplates, withTemplate } from "#lib/grading/omrTemplateChoice";
   import { restoreDetections } from "#lib/grading/mcBulkReview";
   import type {
     OmrWorkerRequest,
@@ -56,6 +55,7 @@
 
   // Raw: computed by lib/grading, replaced wholesale on every refresh.
   let stats = $state.raw<McVerificationStats | null>(null);
+  let pinState = $state.raw<OmrPinState | null>(null);
   let loading = $state(true);
   let errorMsg = $state("");
 
@@ -98,6 +98,7 @@
       const computedStats = await computeMcVerificationStats(examId, get(sessionStore).sessionKey);
       if (thisRefreshId !== lastRefreshId) return;
       stats = computedStats;
+      void loadPinState(thisRefreshId);
     } catch (err: any) {
       if (thisRefreshId !== lastRefreshId) return;
       console.error("Failed to load MC verification data:", err);
@@ -106,6 +107,18 @@
       if (thisRefreshId === lastRefreshId) {
         loading = false;
       }
+    }
+  }
+
+  /** The newest pin against the current layout (issue #239); a failed read leaves the note out. */
+  async function loadPinState(refreshId: number) {
+    try {
+      const key = get(sessionStore).sessionKey;
+      const ctx = await loadExamCompileContext(examId, key);
+      const state = ctx ? await omrPinState(ctx, key) : null;
+      if (refreshId === lastRefreshId) pinState = state;
+    } catch (err) {
+      console.warn("Failed to read the pinned OMR templates:", err);
     }
   }
 
@@ -124,58 +137,16 @@
 
     try {
       const key = get(sessionStore).sessionKey;
-      let templateResult = await loadOmrTemplateEncrypted(examId, key);
-      let templatePages = templateResult?.payload?.pages;
-      let templateHash = templateResult?.record.exercisesHash;
-      
-      let needsCompile = !templateResult || !templatePages;
-      let compileCtx = null;
-
-      if (!needsCompile) {
-        compileCtx = await loadExamCompileContext(examId, key);
-        if (compileCtx) {
-          const currentHash = await computeOmrTemplateHash(compileCtx);
-          if (templateResult!.record.exercisesHash !== currentHash) {
-            needsCompile = true;
-          }
-        }
-      }
-
-      if (needsCompile) {
-        if (!compileCtx) compileCtx = await loadExamCompileContext(examId, key);
-        if (!compileCtx) {
-          rerunMcMessage = "";
-          rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: translate("scanning.examContextNotFound") });
-          return;
-        }
-        try {
-          const compileRes = await prepareOmrTemplate({
-            examId,
-            exam: compileCtx.exam,
-            exercises: compileCtx.exercises,
-            libraryExercises: compileCtx.libraryExercises,
-            mcGroups: compileCtx.mcGroups,
-            key,
-            onProgress: (msg) => { rerunMcMessage = `${translate("scanning.verify.autoPreparingTemplate")} - ${msg}`; }
-          });
-          if (compileRes.status === 'stale') {
-             rerunMcMessage = "";
-             rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: compileRes.message });
-             return;
-          }
-          templatePages = compileRes.pages;
-          templateHash = compileRes.exercisesHash;
-        } catch (err: any) {
-          rerunMcMessage = "";
-          rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: err.message });
-          return;
-        }
-      }
-      
-      if (!templatePages) {
-          rerunMcMessage = "";
-          rerunMcError = translate("scanning.verify.noTemplate");
-          return;
+      // Pins first (issue #239), then the current layout; each submission is re-read with the template it was read with before.
+      const compileCtx = await loadExamCompileContext(examId, key);
+      const loaded = await loadOmrTemplateCandidates(examId, key, compileCtx, (msg) => {
+        rerunMcMessage = `${translate("scanning.verify.autoPreparingTemplate")} - ${msg}`;
+      });
+      const templates = loaded.candidates;
+      if (templates.length === 0) {
+        rerunMcMessage = "";
+        rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: loaded.currentError ?? loaded.pinsError ?? translate("scanning.examContextNotFound") });
+        return;
       }
 
       const [mcExercises, submissions] = await Promise.all([
@@ -219,7 +190,7 @@
         });
 
       // One settings snapshot for the whole re-run, stamped into every row it writes.
-      const omrRun = createOmrRun("rerun", get(omrSettingsStore), templateHash);
+      const omrRun = createOmrRun("rerun", get(omrSettingsStore));
       const scanScale = omrRun.params.scanScale;
       let processed = 0;
       let updated = 0;
@@ -252,14 +223,13 @@
 
           const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
           const pdfDoc = await loadingTask.promise;
-          console.log(`[RerunMC] Submission ${sub.id}: scanned PDF has ${pdfDoc.numPages} page(s), OMR template has ${templatePages.length} page(s).`);
+          // The template this submission fit before is tried first.
+          let preferred = existingScores.find((s) => s.omrMeta?.run?.templateHash)?.omrMeta?.run?.templateHash;
           // Pages render at scale 3 now; free pdf.js memory per page and per booklet.
           try {
             for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-              const pageTemplate = templatePages[pageNum - 1];
-              if (!pageTemplate || (pageTemplate.bubbles.length === 0 && pageTemplate.fiducials.length === 0)) {
+              if (!templates.some((t) => { const p = t.payload.pages[pageNum - 1]; return p && (p.bubbles.length > 0 || p.fiducials.length > 0); })) {
                 pagesSkippedNoTemplate++;
-                console.log(`[RerunMC] Submission ${sub.id}, page ${pageNum}: skipped (no template page or empty bubbles/fiducials — pageTemplate=${pageTemplate ? `bubbles=${pageTemplate.bubbles.length},fiducials=${pageTemplate.fiducials.length}` : "undefined"}).`);
                 continue;
               }
 
@@ -274,22 +244,16 @@
               const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
               pdfPage.cleanup();
 
-              const response = await runOmr({
-                type: "OMR_PROCESS",
-                imageData,
-                pageTemplate,
-                scanScale,
-                answerKeys,
-                params: omrRun.params,
+              const read = await readWithTemplates(templates, preferred, pageNum, async (pageTemplate) => {
+                const res = await runOmr({ type: "OMR_PROCESS", imageData, pageTemplate, scanScale, answerKeys, params: omrRun.params });
+                if (res.type === "OMR_RESULT") return res;
+                console.warn(`[RerunMC] Submission ${sub.id}, page ${pageNum}: worker returned ${res.type} — ${res.message}`);
+                return null;
               });
-              if (response.type !== "OMR_RESULT") {
-                console.warn(
-                  `[RerunMC] Submission ${sub.id}, page ${pageNum}: worker returned ${response.type}${
-                    response.type === "ERROR" ? ` — ${response.message}` : ""
-                  }`
-                );
-                continue;
-              }
+              if (!read) continue;
+              if (read.fits) preferred = read.template.hash;
+              const response = read.res;
+              const rowRun = withTemplate(omrRun, read.template);
 
               if (response.alignmentFailed) alignmentFailures++;
 
@@ -301,7 +265,7 @@
                 const fresh = buildOmrScoreRecord(r, {
                   id: existing?.id ?? crypto.randomUUID(),
                   submissionId: sub.id,
-                  run: omrRun,
+                  run: rowRun,
                   pageStats: response.pageStats,
                 });
                 if (existing && isMcReviewed(existing.omrMeta)) {
@@ -501,7 +465,7 @@
                 onChanged={refresh}
               />
             {/if}
-            <McDetectionSettingsPanel runs={stats.detectionRuns} current={$omrSettingsStore} comparison={stats.algorithmComparison} />
+            <McDetectionSettingsPanel runs={stats.detectionRuns} current={$omrSettingsStore} comparison={stats.algorithmComparison} templates={stats.templatesUsed} pin={pinState} />
           </div>
 
           <div class="min-w-0 xl:order-1">

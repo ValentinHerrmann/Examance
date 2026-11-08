@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import uuid
 import zlib
 from collections.abc import Iterable, Sequence
@@ -40,6 +41,7 @@ from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.exercise_score import ExerciseScore
 from app.models.logo import ExamLogo, TeacherLogo
+from app.models.omr_template_pin import OmrTemplatePin
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
@@ -55,6 +57,7 @@ TABLE_ORDER: tuple[str, ...] = (
     "exam_mc_groups",
     "exam_exercises",
     "exam_logos",
+    "omr_template_pins",
     "exercises",
     "exercise_resources",
     "student_identities",
@@ -66,6 +69,8 @@ TABLE_ORDER: tuple[str, ...] = (
 # Grading results: restoring them is a result write (server_results gate).
 RESULT_TABLES = frozenset({"student_identities", "scan_submissions", "exercise_scores"})
 _CHUNK = 500
+
+logger = logging.getLogger(__name__)
 
 
 def _table(name: str) -> Table:
@@ -214,13 +219,14 @@ async def _scores_of(snap: Snapshot, db: AsyncSession, sub_ids: Iterable[uuid.UU
 
 
 async def snapshot_exam(db: AsyncSession, exam: Exam) -> Snapshot:
-    """The exam and everything its delete cascades to (links, MC groups, logo, results)."""
+    """The exam and everything its delete cascades to (links, MC groups, logo, OMR pins, results)."""
     await db.flush()
     snap = Snapshot(meta={"pseudonym_versions": {str(exam.id): exam.pseudonym_version}})
     await snap.add(db, Exam, Exam.id == exam.id)
     await snap.add(db, ExamMcGroup, ExamMcGroup.exam_id == exam.id)
     await snap.add(db, ExamExercise, ExamExercise.exam_id == exam.id)
     await snap.add(db, ExamLogo, ExamLogo.exam_id == exam.id)
+    await snap.add(db, OmrTemplatePin, OmrTemplatePin.exam_id == exam.id)
     await snap.add(db, StudentIdentity, StudentIdentity.exam_id == exam.id)
     subs = await snap.add(db, ScanSubmission, ScanSubmission.exam_id == exam.id)
     await _scores_of(snap, db, [s["id"] for s in subs])
@@ -640,7 +646,9 @@ async def restore(
         for doc in docs:
             meta = doc.get("meta", {})
             for raw in doc.get("rows", {}).get(name, []):
-                await _restore_row(db, table, _decode(table, raw), meta, report, versions)
+                row = _decode(table, raw)
+                await _restore_row(db, table, row, meta, report, versions)
+                _warn_missing_scan(name, row)
     for doc in docs:
         for fill in doc.get("fills", []):
             await _apply_fill(db, fill, report)
@@ -648,6 +656,13 @@ async def restore(
     await purge(db, items)
     await audit_svc.log(db, request, teacher, "TRASH_RESTORED", group_id)
     return report
+
+
+def _warn_missing_scan(table: str, row: dict[str, Any]) -> None:
+    # A restored submission whose file is gone comes back without a readable scan: say so loudly, ids only.
+    ref = row.get("scan_path") if table == "scan_submissions" else None
+    if ref and blob_store.configured() and not blob_store.exists_sync(ref):
+        logger.error("trash restore: submission %s points at missing scan file %s", row.get("id"), ref)
 
 
 async def _still_referenced(db: AsyncSession, refs: set[str], leaving: set[uuid.UUID]) -> set[str]:

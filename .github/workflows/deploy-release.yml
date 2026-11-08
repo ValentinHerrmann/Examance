@@ -95,12 +95,12 @@ jobs:
           # The commit that lands on the default branch carries [skip ci] so it
           # does not re-trigger the CI workflow...
           git commit -m "chore: release $VERSION [skip ci]" --allow-empty
-          git push origin "HEAD:refs/heads/$DEFAULT_BRANCH"
+          .github/scripts/retry.sh 4 git push origin "HEAD:refs/heads/$DEFAULT_BRANCH"
 
           # ...but the copy pushed to `release` must NOT, or Cloudflare Pages
           # skips the production build.
           git commit --allow-empty --amend -m "chore: release $VERSION"
-          git push origin HEAD:refs/heads/release --force 
+          .github/scripts/retry.sh 5 git push origin HEAD:refs/heads/release --force
 
       # Cloudflare Pages builds `release` on its own; without this the run
       # would report success while the frontend is still building (or failed).
@@ -165,7 +165,8 @@ jobs:
           build-args: |
             APP_VERSION=${{ needs.version.outputs.version }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # A refused cache write ("no writable scopes") must not fail the build: the cache only speeds it up.
+          cache-to: type=gha,mode=max,ignore-error=true
           tags: |
             ${{ steps.meta.outputs.image }}
             ${{ steps.meta.outputs.latest }}
@@ -201,6 +202,11 @@ jobs:
           # Same reference the backend-image job pushes.
           OWNER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
           echo "image=ghcr.io/${OWNER}/${IMAGE_NAME}:${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # appleboy/ssh-action downloads drone-ssh from GitHub releases with only seconds of retries; prefetch it with minutes of them (a releases outage failed deploys).
+      - name: Prefetch drone-ssh
+        continue-on-error: true
+        run: .github/scripts/prefetch-drone-ssh.sh
 
       # Waits (25 min max) for an open manual or frozen window to end, then prints the revision;
       # none (no CLI yet, no stack) deploys without a window. docs/dev/maintenance_mode.md
