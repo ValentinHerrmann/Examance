@@ -164,7 +164,7 @@ To start from scratch: stop the stack, `docker volume rm examance_tectonic_cache
 
 ### 4.6 Scan storage and backups
 
-By default every scan stays in Postgres. To keep scans on another disk or a cloud mount, and to turn on the nightly encrypted backup with restic (`COMPOSE_PROFILES=backup`), follow [Storage partitions](dev/storage_partitions.md). What the backups cover and how to restore: [Backup and restore](backup_and_restore.md). Note that `--profile …` on the command line replaces `COMPOSE_PROFILES` from `.env` for that command: name both profiles or neither.
+By default every scan stays in Postgres. To keep scans on another disk or a cloud mount, and to turn on the nightly encrypted backup with restic (`COMPOSE_PROFILES=backup`), follow [Storage partitions](dev/storage_partitions.md). What the backups cover and how to restore: [Backup and restore](backup_and_restore.md). After a restore, a domain move or a storage change, run `python -m app.cli check-blobs` in the backend container: it lists scans the database names but the store lacks. Note that `--profile …` on the command line replaces `COMPOSE_PROFILES` from `.env` for that command: name both profiles or neither.
 
 ## 5. Frontend
 

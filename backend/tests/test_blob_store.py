@@ -152,16 +152,7 @@ async def test_exam_cascade_drops_only_the_files_its_rows_name(
         "/api/v1/exams", json={"title": "Cascade exam", "retention_until": "2027-12-31"}
     )
     exam_id = exam.json()["id"]
-    created = await client.post(
-        f"/api/v1/exams/{exam_id}/submissions",
-        json={
-            "id": str(uuid.uuid4()),
-            "pseudonym_hmac": "d" * 64,
-            "scan_ciphertext_b64": base64.b64encode(b"scan").decode(),
-            "scan_iv_b64": base64.b64encode(b"123456789012").decode(),
-        },
-    )
-    assert created.status_code == 201, created.text
+    await _upload(client, exam_id, "d")
     (named,) = [ref for ref, _ in blob_store.iter_refs("scans")]
     # Regression: the cascade removed the whole exam dir, so a file no row of the purged set names went too.
     stray = store / "scans" / exam_id / "other.bin"
@@ -172,3 +163,87 @@ async def test_exam_cascade_drops_only_the_files_its_rows_name(
 
     assert not (store / named).exists()
     assert stray.exists()
+
+
+async def _upload(client: AsyncClient, exam_id: str, hmac_char: str) -> str:
+    sub_id = str(uuid.uuid4())
+    created = await client.post(
+        f"/api/v1/exams/{exam_id}/submissions",
+        json={
+            "id": sub_id,
+            "pseudonym_hmac": hmac_char * 64,
+            "scan_ciphertext_b64": base64.b64encode(b"scan").decode(),
+            "scan_iv_b64": base64.b64encode(b"123456789012").decode(),
+        },
+    )
+    assert created.status_code == 201, created.text
+    return sub_id
+
+
+async def test_check_blobs_reports_and_forgets_only_missing_files(
+    client: AsyncClient, db: AsyncSession, store: Path
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from app.models.teacher import Teacher
+    from app.models.trash_item import TrashItem
+    from app.services import blob_audit
+
+    email = f"audit-{uuid.uuid4().hex[:8]}@example.com"
+    await _create_teacher_and_login(client, db, email)
+    exam = await client.post(
+        "/api/v1/exams", json={"title": "Audit exam", "retention_until": "2027-12-31"}
+    )
+    exam_id = exam.json()["id"]
+    exam_uuid = uuid.UUID(exam_id)
+    healthy = await _upload(client, exam_id, "e")
+    lost = await _upload(client, exam_id, "f")
+    lost_row = (
+        await db.execute(select(ScanSubmission).where(ScanSubmission.id == uuid.UUID(lost)))
+    ).scalar_one()
+    assert lost_row.scan_path is not None
+    # Regression: after a DB restore and storage move, rows named files the store never had.
+    (store / lost_row.scan_path).unlink()
+    (store / "scans" / exam_id / "stray.bin").write_bytes(b"x")
+    kept_ref = f"scans/{exam_id}/trashed.bin"
+    (store / kept_ref).write_bytes(b"y")
+    teacher_id = await db.scalar(select(Teacher.id).where(Teacher.email == email))
+    now = datetime.now(UTC)
+    db.add(
+        TrashItem(
+            teacher_id=teacher_id, group_id=uuid.uuid4(), kind="submission", exam_id=None,
+            label={}, payload=b"", blob_refs=[kept_ref], deleted_at=now,
+            purge_after=now + timedelta(days=7),
+        )
+    )
+    # Another exam's row whose file is elsewhere: the scoped audit must neither report nor clear it.
+    other = await client.post(
+        "/api/v1/exams", json={"title": "Other exam", "retention_until": "2027-12-31"}
+    )
+    other_exam = uuid.UUID(other.json()["id"])
+    foreign = ScanSubmission(
+        exam_id=other_exam, pseudonym_hmac="a" * 64, scan_iv=b"\x00" * 12,
+        scan_path=f"scans/{other_exam}/elsewhere.bin",
+    )
+    db.add(foreign)
+    await db.flush()
+
+    # Unscoped, the other exam's row counts too (CI shares one database across tests).
+    assert {uuid.UUID(lost), foreign.id} <= set((await blob_audit.audit(db)).missing_ids)
+    report = await blob_audit.audit(db, exam_id=exam_uuid)
+    assert report.missing_ids == [uuid.UUID(lost)]
+    assert set(report.exams) == {exam_uuid}
+    assert (report.held_by_trash, report.unreferenced) == (1, 1)
+    assert report.broken
+
+    assert await blob_audit.forget_missing(db, report) == 1
+    await db.commit()
+    paths = dict(
+        (await db.execute(select(ScanSubmission.id, ScanSubmission.scan_path).where(
+            ScanSubmission.id.in_([uuid.UUID(healthy), uuid.UUID(lost), foreign.id])
+        ))).tuples().all()
+    )
+    assert paths[uuid.UUID(lost)] is None
+    assert paths[uuid.UUID(healthy)] is not None
+    assert paths[foreign.id] is not None
+    assert not (await blob_audit.audit(db, exam_id=exam_uuid)).broken

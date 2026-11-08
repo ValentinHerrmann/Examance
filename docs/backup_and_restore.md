@@ -117,6 +117,7 @@ This goes back to the state from just before the last `db` restore, using the ne
 3. Deploy. CI writes `docker-compose.deploy.yml` and `restore-backup.sh`. The stack starts with an empty database.
 4. Run `./restore-backup.sh list`, `./restore-backup.sh db <id>`, then `./restore-backup.sh scans`.
 5. Set `COMPOSE_PROFILES=backup` again and run `up -d`.
+6. Run `docker compose … exec backend python -m app.cli check-blobs`. It must report no missing files. After any DB restore, rebind or storage move, run it before teachers use the stack again (`docs/dev/storage_partitions.md`).
 
 Passkeys work again only under the same domain (`WEBAUTHN_RP_ID`), and TOTP only with the same `SECRET_KEY`. Restore both from the password manager.
 
