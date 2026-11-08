@@ -2,7 +2,8 @@
 
 # Examance
 
-### Information
+Privacy-first anonymous exam grading. Teachers write LaTeX exams, print QR-coded sheets, scan and grade the submissions against a pseudonym rather than a name, and analyse the results. Student identities, scans and annotations are encrypted in the browser before they reach a server. Teacher select between end-to-end encrypted student data stored on the server or only their computer. 
+
 <p align="center">
   <!-- Project -->
   <a href="https://github.com/ValentinHerrmann/Examance/releases"><img alt="Release" src="https://img.shields.io/github/v/release/ValentinHerrmann/Examance?color=6e40c9&labelColor=1f2937&logo=github&style=for-the-badge"></a>
@@ -11,7 +12,7 @@
   
   <a href="https://github.com/ValentinHerrmann/Examance/issues"><img alt="Open issues" src="https://img.shields.io/github/issues/ValentinHerrmann/Examance?color=ef4444&labelColor=1f2937&style=for-the-badge"></a>
   <a href="https://github.com/ValentinHerrmann/Examance/pulls?q=is%3Apr+is%3Aclosed"><img alt="Closed PRs" src="https://img.shields.io/github/issues-pr-closed/ValentinHerrmann/Examance?color=8b5cf6&labelColor=1f2937&style=for-the-badge"></a>
-  
+
   <a href="https://docs.examance.de/user/"><img alt="Languages" src="https://img.shields.io/badge/UI-Deutsch_%7C_English-0ea5e9?labelColor=1f2937&logo=googletranslate&logoColor=white&style=for-the-badge"></a>
   <a href="https://docs.examance.de/"><img alt="Docs site" src="https://img.shields.io/badge/Docs-docs.examance.de-3B82F6?labelColor=1f2937&logo=readthedocs&logoColor=white&style=for-the-badge"></a>
 </p>
@@ -36,7 +37,6 @@
 
 </div>
 
-Privacy-first anonymous exam grading. Teachers write LaTeX exams, print QR-coded sheets, scan and grade the submissions against a pseudonym rather than a name, and analyse the results. Student identities, scans and annotations are encrypted in the browser before they reach a server. The repository name `BlindGrade` is legacy; the product is Examance.
 
 ## Information & Documentation
 

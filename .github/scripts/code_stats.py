@@ -74,7 +74,7 @@ def svg(rows: list[dict], total: dict) -> str:
     w, rh, top = 820, 38, 64
     h = top + rh * (len(rows) + 1) + 24
     cols = {"area": 20, "files": 250, "lines": 335, "code": 435, "comments": 535, "bar": 630}
-    maxcode = max(r["code"] or 0 for r in rows) or 1
+    totcode = total["code"] or 1
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">',
          '<style>.bg{fill:#fff;stroke:#d0d7de}.hd{fill:#57606a;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}'
          '.tx{fill:#1f2328;font-size:14px}.mu{fill:#57606a;font-size:14px}.tt{fill:#1f2328;font-size:14px;font-weight:700}.ln{stroke:#d0d7de}'
@@ -97,7 +97,7 @@ def svg(rows: list[dict], total: dict) -> str:
             txt = "–" if val is None else fmt(val)
             o.append(f'<text class="{"mu" if key != "code" else "tx"}" x="{cols[key] + 60}" y="{cy}" text-anchor="end">{txt}</text>')
         if r["code"]:
-            bw = max(3, 160 * r["code"] / maxcode)
+            bw = max(3, 160 * r["code"] / totcode)
             o.append(f'<rect class="tr" x="{cols["bar"]}" y="{cy - 12}" width="160" height="10" rx="5"/>')
             o.append(f'<rect x="{cols["bar"]}" y="{cy - 12}" width="{bw:.0f}" height="10" rx="5" fill="{r["color"]}"/>')
         y += rh
