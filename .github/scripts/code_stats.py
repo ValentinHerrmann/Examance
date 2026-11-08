@@ -16,7 +16,7 @@ SKIP = re.compile(
 )
 CODE_EXT = r"\.(?:py|ts|js|svelte|css|html|sql|sh|yml|yaml|toml|mjs|cjs)$"
 BACKEND_EXT = r"\.(?:py|ts|js|svelte|css|html|sql|sh|yml|yaml|toml|mjs|cjs|tex|sty|cls)$"
-TEST = re.compile(r"^(?:backend/tests|frontend/tests|frontend/e2e)/|\.(?:test|spec)\.(?:ts|js)$")
+TEST = re.compile(r"(?:^(?:backend/tests|frontend/tests|frontend/e2e)/|\.(?:test|spec)\.(?:ts|js)$)")
 
 # First matching area wins, so order matters. (key, label, matcher)
 AREAS = [
