@@ -78,7 +78,11 @@ async def list_pins(
     rows = await db.scalars(
         select(OmrTemplatePin)
         .where(OmrTemplatePin.exam_id == exam.id)
-        .order_by(OmrTemplatePin.pinned_at.desc())
+        .order_by(
+            OmrTemplatePin.pinned_at.desc(),
+            OmrTemplatePin.last_pinned_at.desc(),
+            OmrTemplatePin.id,
+        )
     )
     return [_to_out(row) for row in rows]
 

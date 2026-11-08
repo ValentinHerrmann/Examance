@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     CheckConstraint,
@@ -17,6 +17,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
 
 
 class OmrTemplatePin(Base):
@@ -35,11 +39,12 @@ class OmrTemplatePin(Base):
     layout_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     # Source of the first pin; later pins of the same layout never change it.
     source: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Set in Python: Postgres now() is the transaction start, so pins of one transaction would tie and "newest first" would be arbitrary.
     pinned_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), default=_now, server_default=func.now(), nullable=False
     )
     last_pinned_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), default=_now, server_default=func.now(), nullable=False
     )
     payload_ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     payload_iv: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
