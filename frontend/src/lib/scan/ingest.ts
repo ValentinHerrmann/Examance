@@ -297,8 +297,8 @@ export function stickerIdMap(students: readonly StudentRecord[]): Map<string, st
   return ids;
 }
 
-/** Where a page code can sit, as fractions of an A4 page with a margin for skewed scans: 77-91 mm from the cut side, 6-20 mm from the top (Schulaufgabe.sty section 11, lib/qr/cutCorner.ts PAGE_CODE). */
-const CODE_SPOT = { from: 69 / 210, to: 99 / 210, top: 0, bottom: 28 / 297 };
+/** Where a page code can sit, as fractions of an A4 page with a margin for skewed scans: 75.5-89.5 mm from the cut side (77-91 mm on sheets printed before issue #227), 6-20 mm from the top (Schulaufgabe.sty section 11, lib/qr/cutCorner.ts PAGE_CODE). */
+const CODE_SPOT = { from: 67 / 210, to: 99 / 210, top: 0, bottom: 28 / 297 };
 /** Render scale of the closer look: about 430 dpi. */
 const CODE_SPOT_SCALE = 6;
 

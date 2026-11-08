@@ -10,8 +10,8 @@ export const TAB_TOP = 75 * MM;
 export const TAB_SIDE = 20 * MM;
 
 // Mirrored in Schulaufgabe.sty section 11 (issue #220); change both together.
-/** The page code: 14 mm square, 77 mm from the cut side (inner side of the moved top marker), bottom edge 20 mm below the top. */
-export const PAGE_CODE = { fromCutSide: 77 * MM, size: 14 * MM, bottomFromTop: 20 * MM } as const;
+/** The page code: 14 mm square, 75.5 mm from the cut side (inner side of the moved top marker), bottom edge 20 mm below the top. */
+export const PAGE_CODE = { fromCutSide: 75.5 * MM, size: 14 * MM, bottomFromTop: 20 * MM } as const;
 /** Booklets: the tinted strip along the fold, ending at the dashed cut line; text and fold-side markers start at FOLD_INSET (`\SA@foldinset`). */
 export const FOLD_STRIP = 6 * MM;
 export const FOLD_INSET = 8 * MM;

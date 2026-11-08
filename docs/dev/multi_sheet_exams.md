@@ -34,7 +34,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
   - `<id>` is the sticker's ID (`parseStudentQr(payload).studentNumber`: the 6-character sticker ID or the Mebis/Artemis id), never the name.
   - Both stay at QR version 1 or 2 (`tests/pageCodes.test.ts`). At 14 mm that is about 0.5 mm per module, so about 4.4 px per module at the app's 216 dpi render. ZXing is reliable from about 3 px per module, so 200 ppi scans work.
 - **Drawing**: the builder emits `\Seitencode{<page>}{<grid>}{<runs>}` for pages 1..40 into the student sheet (`pageCodesLatex`). The sty draws them as TikZ rectangles, so no QR package is needed.
-- **Placement**: 14 mm square, 77–91 mm from the cut side, on the inner side of the cut-side top marker. Its bottom edge is level with the marker's (20 mm from the top). There the cut zone is only 2.6 mm deep, and the head band keeps its 30 pt.
+- **Placement**: 14 mm square, 75.5–89.5 mm from the cut side (77–91 mm before issue #227), on the inner side of the cut-side top marker (67.5–72.5 mm). Its bottom edge is 20 mm from the top (higher would reach the printer's unprintable margin). There the cut zone has ended, and the head band keeps its 30 pt.
   - With page codes the marker sits at 66 mm (`\SA@fidTopX`), and page 1's title keeps 96 mm from the cut side.
   - `lib/qr/cutCorner.ts` `PAGE_CODE` mirrors the numbers.
 - Each code carries an `omr://__page__/<n>` link. `examCopies.ts` stamps the personalised code over it at the same size; `parseOmrUri` ignores it.
@@ -48,7 +48,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
   - The multiple follows the Print step's layout, so the Exam step's preview is a **draft** without them: `buildExamLatex(…, { fill: false })`, compiled into the cache variant `draft` (`ExamPreviewPanel draft`). It never stands in for the printed `angabe`.
   - The Print step, exports, sharing, the overview preview and the OMR template use the filled sheet.
 - **Sticker spots** (sticker mode, `stickerPagesOf`): sticker labels are 35 mm, so a spot is a faint (`black!4`), unlabelled 35×35 mm square over the header.
-  - Position: on the uncut side, 10 mm beside that side's top marker (15–50 mm from the edge, 18–53 mm on booklets) and 3–38 mm from the top.
+  - Position: on the uncut side, 2 mm beside that side's top marker (13.5–48.5 mm from the edge, 16.5–51.5 mm on booklets) and 3–38 mm from the top.
   - Only a 17 mm full-width strip at the top of the body stays free. `\@outputpage` lowers `\@colht` for such a page, and `\@makecol` and `\@texttop` give the room back as space above the text, so page breaks know about it.
   - `bogen`: every odd page from page 3.
   - `a3`: the front-right page of each A3 sheet, i.e. odd page `p` with `2p + 2 <=` the total. The total comes from the previous pass's `.aux`, as `\SA@total`.
@@ -56,7 +56,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 - **Fold cut zone** (`broschuere`):
   - a dashed cut line with six scissors over its height 6 mm from the fold edge (left on odd pages, right on even pages; `\SA@scissors` is the one scissors shape, also on the corner line);
   - a `black!7` strip between the line and the fold. On an A3 sheet that gives a 12 mm band where a slightly crooked cut along the fold is still safe and nobody writes.
-  - Text and the fold-side markers start 8 mm from the fold (`\SA@foldinset`; the geometry is `twoside` with `inner=8mm`, `outer=5mm`). The outer side keeps 5 mm, the points table stays 1.5 mm clear of both bottom markers. `lib/qr/cutCorner.ts` `FOLD_STRIP`/`FOLD_INSET` mirror the numbers; registration reads the markers' positions per page from the template.
+  - Text starts 8 mm from the fold (`\SA@foldinset`), the fold-side markers 9.5 mm (plus `\SA@fidpad`; the geometry is `twoside` with `inner=8mm`, `outer=5mm`). The outer side keeps 5 mm, the points table stays 1.5 mm clear of both bottom markers. `lib/qr/cutCorner.ts` `FOLD_STRIP`/`FOLD_INSET` mirror the numbers; registration reads the markers' positions per page from the template.
 
 ## Extra paper (issue #228)
 
