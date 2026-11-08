@@ -1,7 +1,55 @@
 {
-  "tests": 20745,
-  "docs": 5824,
-  "frontend": 71436,
-  "backend": 32183,
-  "total": 130188
+  "areas": [
+    {
+      "key": "frontend",
+      "label": "Frontend",
+      "color": "#FF3E00",
+      "files": 598,
+      "lines": 71436,
+      "code": 67267,
+      "comments": 4169
+    },
+    {
+      "key": "frontend_tests",
+      "label": "Frontend tests",
+      "color": "#F59E0B",
+      "files": 116,
+      "lines": 12066,
+      "code": 11449,
+      "comments": 617
+    },
+    {
+      "key": "backend",
+      "label": "Backend",
+      "color": "#009688",
+      "files": 233,
+      "lines": 32183,
+      "code": 31455,
+      "comments": 728
+    },
+    {
+      "key": "backend_tests",
+      "label": "Backend tests",
+      "color": "#6DA13F",
+      "files": 44,
+      "lines": 8679,
+      "code": 8444,
+      "comments": 235
+    },
+    {
+      "key": "docs",
+      "label": "Documentation",
+      "color": "#3B82F6",
+      "files": 74,
+      "lines": 5824,
+      "code": null,
+      "comments": null
+    }
+  ],
+  "total": {
+    "files": 1065,
+    "lines": 130188,
+    "code": 118615,
+    "comments": 5749
+  }
 }
