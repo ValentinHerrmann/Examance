@@ -6,7 +6,7 @@
   import { get } from "svelte/store";
   import { buildExamItems, loadExamCompileContext, type ExamCompileContext } from "#lib/grading/omrTemplatePrep";
   import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
-  import { getCurrentExamVariant } from "#lib/exam/examPreview";
+  import { examHasWithheldCode, getCurrentExamVariant } from "#lib/exam/examPreview";
   import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import { contentStamp } from "#lib/exam/examChecks";
   import { examChecksState } from "#lib/stores/shell";
@@ -43,11 +43,13 @@
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
   // Personalised copies stamp page codes and QR codes, which an exam graded outside Examance does not print.
-  let withheld = $derived(ctx?.exam.digitalGrading === false ? translate("exam.layout.grading.off") : ctx ? copiesUnavailable(ctx.exercises) : null);
+  let copiesBlocked = $derived(ctx?.exam.digitalGrading === false ? translate("exam.layout.grading.off") : ctx ? copiesUnavailable(ctx.exercises) : null);
+  // Only a results-only import lacks the LaTeX to preview; an exam graded outside Examance still compiles (without scan aids).
+  let resultsOnly = $derived(!!ctx && examHasWithheldCode(ctx.exercises));
   let hasMc = $derived(ctx ? resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups).length > 0 : false);
   let title = $derived(ctx?.exam.title || $t("exam.nav.examFallback"));
   // Pinned answer-sheet layouts (issue #239); exams graded outside Examance print no scan aids and get none.
-  let pinnable = $derived(!!ctx && ctx.exam.digitalGrading !== false && !withheld);
+  let pinnable = $derived(!!ctx && ctx.exam.digitalGrading !== false && !resultsOnly);
   let pinList = $state.raw<OmrTemplateCandidate[] | null>(null);
   let pinError = $state("");
   let currentHash = $state<string | undefined>(undefined);
@@ -156,7 +158,7 @@
         {entriesError}
         {preview}
         {hasMc}
-        copiesUnavailable={withheld}
+        copiesUnavailable={copiesBlocked}
         {loadExamPdf}
         {downloadPdf}
         {compile}
@@ -170,7 +172,7 @@
         {/snippet}
       </PrintPlan>
       <div class="min-w-0 xl:contents">
-        {#if withheld}
+        {#if resultsOnly}
           <Alert class="xl:col-start-2 xl:row-start-1" severity="info" title={$t("exam.resultsOnly.badge")}>{$t("exam.resultsOnly.noCompile")}</Alert>
         {:else}
           <ExamPreviewPanel

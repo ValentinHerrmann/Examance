@@ -193,7 +193,7 @@
     }
 
     if (!sub.scanCt || !sub.scanIv || !$sessionStore.sessionKey) {
-      await showMessage(translate("grading.canvas.scanMissing"), cssVar("--color-muted", "#64748b"), 150);
+      await showMessage(translate($sessionStore.sessionKey ? "grading.canvas.scanMissing" : "grading.canvas.scanNoKey"), cssVar("--color-muted", "#64748b"), 150);
       return;
     }
 

@@ -318,9 +318,10 @@
       }
     }
 
+    // Two different faults: the server returned no scan bytes, or this tab holds no key to open them.
     if (!scanCt || !scanIv || (!key && !fallbackKey)) {
       previewLoading = false;
-      previewError = translate("scanning.errorPreviewMissingData");
+      previewError = translate(!scanCt || !scanIv ? "scanning.errorPreviewNoScan" : "scanning.errorNoSessionKey");
       return;
     }
 
@@ -600,7 +601,7 @@
     }
 
     if (!scanCt || !scanIv || (!key && !fallbackKey)) {
-      alert(translate("scanning.splitMissingData"));
+      alert(translate(!scanCt || !scanIv ? "scanning.splitNoScan" : "scanning.errorNoSessionKey"));
       return;
     }
 
