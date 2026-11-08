@@ -15,3 +15,7 @@ The `docs` job builds the VitePress site in `docs/` (its own `package.json`, sep
 ## SonarCloud
 
 SonarCloud runs as automatic analysis (no scanner step in the workflows); its settings live in the root `.sonarcloud.properties`. The quality gate allows at most 3 % duplication on new code. The i18n catalogs are excluded from copy-paste detection because `en/*.ts` mirrors `de/*.ts` key for key by design. Loops that await on purpose one step at a time (memory bounds, the single LaTeX worker, the compile rate limit) carry `// NOSONAR: <reason>` on the flagged line instead of being parallelised.
+
+## README code statistics
+
+The header of `README.md` mixes shields.io badges (GitHub, SonarCloud project key `ValentinHerrmann_Examance`) with a generated statistics table. `.github/workflows/stats.yml` runs `.github/scripts/code_stats.py` on every push to `main` (plus weekly), counts the tracked files per area (frontend, frontend tests, backend, backend tests, docs; generated files, lockfiles, `openapi.json`, binaries and `frontend/static/{core,example-data}` are skipped) and pushes `code-stats.svg` (light/dark aware) plus `stats.json` to the orphan `badges` branch. "Code" excludes blank and comment lines (simple line/block comment detection per file type, Markdown counts as lines only); "Lines" is code plus comments. Nothing else reads that branch and CI ignores it (`[skip ci]`). To add an area, extend `AREAS` and `COLORS` in the script.

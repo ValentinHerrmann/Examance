@@ -1,0 +1,39 @@
+name: Code statistics
+
+# Counts lines per area and publishes the README statistics table (SVG) to the orphan `badges` branch.
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: stats
+  cancel-in-progress: true
+
+jobs:
+  stats:
+    name: Count lines and update badges
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Count lines
+        run: python3 .github/scripts/code_stats.py "$RUNNER_TEMP/badges-out"
+      - name: Publish to the badges branch
+        run: |
+          set -euo pipefail
+          url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf "$RUNNER_TEMP/badges" && mkdir "$RUNNER_TEMP/badges" && cd "$RUNNER_TEMP/badges"
+          git init -q -b badges
+          git remote add origin "$url"
+          if git fetch -q --depth=1 origin badges; then git reset -q --hard FETCH_HEAD; fi
+          git rm -rq --ignore-unmatch . 
+          cp "$RUNNER_TEMP"/badges-out/* .
+          git add -A
+          git diff --cached --quiet && { echo "No change"; exit 0; }
+          git commit -q -m "Update code statistics [skip ci]"
+          git push -q origin badges
