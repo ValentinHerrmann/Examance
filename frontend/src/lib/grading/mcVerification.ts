@@ -421,7 +421,10 @@ export function summarizeTemplates(items: Pick<McDetectionItem, "run">[]): McTem
     usage.itemCount++;
     byHash.set(key, usage);
   }
-  const rank = (u: McTemplateUsage) => (u.pinnedAt ? 0 : u.hash ? 1 : 2);
+  const rank = (u: McTemplateUsage) => {
+    if (u.pinnedAt) return 0;
+    return u.hash ? 1 : 2;
+  };
   return [...byHash.values()].sort((a, b) => rank(a) - rank(b) || (b.pinnedAt ?? "").localeCompare(a.pinnedAt ?? ""));
 }
 
