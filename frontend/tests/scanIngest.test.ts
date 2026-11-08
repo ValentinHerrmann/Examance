@@ -306,11 +306,17 @@ describe("ingestScans", () => {
     const omrDispatch = vi.fn(async () => omrOk);
     const { deps } = makeDeps({
       omrPool: { dispatch: omrDispatch },
-      omrTemplateHash: "hash-1",
       getOmrContext: () => ({
-        templatePages: [
-          { pageIndex: 0, bubbles: [{} as any], fiducials: [] } as any,
-          { pageIndex: 1, bubbles: [], fiducials: [] } as any, // blank template page: skipped
+        templates: [
+          {
+            hash: "hash-1",
+            payload: {
+              pages: [
+                { pageIndex: 0, bubbles: [{} as any], fiducials: [] } as any,
+                { pageIndex: 1, bubbles: [], fiducials: [] } as any, // blank template page: skipped
+              ],
+            },
+          },
         ],
         answerKeys: [],
       }),
@@ -331,10 +337,30 @@ describe("ingestScans", () => {
     expect(calls.filter((c) => c.startsWith("scores"))).toEqual(["scores:1", "scores:1"]);
   });
 
+  it("reads each page with the newest pin that fits and records it on the row (issue #239)", async () => {
+    const page = { pageIndex: 0, bubbles: [{} as any], fiducials: [] } as any;
+    const withFit = (templateFit: number): OmrWorkerResponse => ({ ...omrOk, pageStats: { ...(omrOk as any).pageStats, templateFit } });
+    // The newest pin is another layout (low fit); the older pin is the printed one.
+    const omrDispatch = vi.fn(async (req: any) => withFit(req.pageTemplate.tag === "old" ? 0.95 : 0.2));
+    const { deps } = makeDeps({
+      omrPool: { dispatch: omrDispatch },
+      getOmrContext: () => ({
+        templates: [
+          { hash: "new", pinnedAt: "2026-11-02T00:00:00Z", payload: { pages: [{ ...page, tag: "new" }] } },
+          { hash: "old", pinnedAt: "2026-11-01T00:00:00Z", payload: { pages: [{ ...page, tag: "old" }] } },
+        ],
+        answerKeys: [],
+      }),
+    });
+    await ingestScans([await pdfFile("a.pdf", 1)], deps);
+    expect(omrDispatch).toHaveBeenCalledTimes(2);
+    expect(saved.scores[0].scores[0].omrMeta.run).toMatchObject({ templateHash: "old", templatePinnedAt: "2026-11-01T00:00:00Z" });
+  });
+
   it("records OMR failures per file and keeps going", async () => {
     const { deps } = makeDeps({
       omrPool: { dispatch: vi.fn().mockRejectedValue(new Error("worker died")) },
-      getOmrContext: () => ({ templatePages: [{ pageIndex: 0, bubbles: [{} as any], fiducials: [] } as any], answerKeys: [] }),
+      getOmrContext: () => ({ templates: [{ hash: "h", payload: { pages: [{ pageIndex: 0, bubbles: [{} as any], fiducials: [] } as any] } }], answerKeys: [] }),
     });
     const result = await ingestScans([await pdfFile("a.pdf", 1)], deps);
     expect(result.bookletCount).toBe(1);

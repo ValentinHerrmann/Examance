@@ -65,6 +65,7 @@ export const scanning: Translations['scanning'] = {
         foreign: '{fileName}: page(s) of another exam; they are listed as an unmatched submission.',
     },
     omrBanner: {
+        pinsFailed: 'The layouts remembered at printing could not be loaded ({message}); reading with the current layout.',
         alignmentFailed: 'OMR alignment failed on {count} page(s){fiducialDetail} — those MC exercises were imported ungraded and need manual grading. Check the scan quality (crop/skew/print margins) near the page corners.',
         alignmentFiducialDetail: '(as few as {found}/4 corner markers detected, missing: {missing})',
         autoPreparing: 'Automatically preparing OMR template, please wait...',
@@ -141,6 +142,17 @@ export const scanning: Translations['scanning'] = {
             resetHint: 'For the new detection to also decide the result of verified questions, reset the manual verification first.',
             cancel: 'Cancel',
             confirm: 'Re-detect',
+        },
+        template: {
+            heading: 'Answer-sheet layout',
+            pinnedRow: 'Printed layout of {date}: {items} answer(s)',
+            currentRow: 'Current layout (not remembered at printing): {items} answer(s)',
+            unrecordedRow: 'Layout not recorded (older detection): {items} answer(s)',
+            differs: 'The exam was changed after the print of {date}. Scans of the printed sheets are still read with the printed layout.',
+            noPin: 'No layout remembered at printing yet: scans are read with the current layout.',
+            itemPinned: 'Read with the printed layout of {date}',
+            itemCurrent: 'Read with the current layout (not remembered at printing)',
+            itemUnrecorded: 'Layout of this detection not recorded',
         },
         settingsPanel: {
             heading: 'Detection settings',

@@ -40,6 +40,7 @@ from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.exercise_score import ExerciseScore
 from app.models.logo import ExamLogo, TeacherLogo
+from app.models.omr_template_pin import OmrTemplatePin
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
@@ -55,6 +56,7 @@ TABLE_ORDER: tuple[str, ...] = (
     "exam_mc_groups",
     "exam_exercises",
     "exam_logos",
+    "omr_template_pins",
     "exercises",
     "exercise_resources",
     "student_identities",
@@ -214,13 +216,14 @@ async def _scores_of(snap: Snapshot, db: AsyncSession, sub_ids: Iterable[uuid.UU
 
 
 async def snapshot_exam(db: AsyncSession, exam: Exam) -> Snapshot:
-    """The exam and everything its delete cascades to (links, MC groups, logo, results)."""
+    """The exam and everything its delete cascades to (links, MC groups, logo, OMR pins, results)."""
     await db.flush()
     snap = Snapshot(meta={"pseudonym_versions": {str(exam.id): exam.pseudonym_version}})
     await snap.add(db, Exam, Exam.id == exam.id)
     await snap.add(db, ExamMcGroup, ExamMcGroup.exam_id == exam.id)
     await snap.add(db, ExamExercise, ExamExercise.exam_id == exam.id)
     await snap.add(db, ExamLogo, ExamLogo.exam_id == exam.id)
+    await snap.add(db, OmrTemplatePin, OmrTemplatePin.exam_id == exam.id)
     await snap.add(db, StudentIdentity, StudentIdentity.exam_id == exam.id)
     subs = await snap.add(db, ScanSubmission, ScanSubmission.exam_id == exam.id)
     await _scores_of(snap, db, [s["id"] for s in subs])

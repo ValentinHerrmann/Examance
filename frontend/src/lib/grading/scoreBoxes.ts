@@ -2,13 +2,14 @@
 
 import { calculateGradeDetail } from "#lib/analytics/gradingKey";
 import { loadOmrTemplateEncrypted } from "#lib/db/dbEncryption";
-import type { GradingKeyConfig, OmrPageTemplate } from "#lib/db/schema";
+import type { GradingKeyConfig, OmrPageTemplate, OmrTemplatePayload } from "#lib/db/schema";
 import { get } from "svelte/store";
 import { omrSettingsStore } from "#lib/stores/omrSettings";
 import type { OmrDetectionParams } from "./omrSettings";
 import { pdfRectToNormalized, registerPage, type Homography } from "./omrRegistration";
 import { computeOmrTemplateHash, loadExamCompileContext, OMR_TEMPLATE_VERSION } from "./omrTemplatePrep";
 import { formatPoints } from "./omrOverlay";
+import { listOmrTemplatePins } from "./omrTemplatePins";
 import { scoreBoxKey } from "./omrUri";
 import { REST_KEY, type PartScores } from "./partScores";
 
@@ -25,15 +26,20 @@ export interface ScoreBoxContext {
   params: OmrDetectionParams;
 }
 
-/** The exam's score-box layout, or null when there is none or the template no longer matches the exam (the printed sheet would differ). Never compiles. */
+/** The exam's score-box layout: the newest pin (issue #239, the layout last printed), else the stored template while it matches the exam; null without one. Never compiles. */
 export async function loadScoreBoxContext(examId: string, key: CryptoKey | null): Promise<ScoreBoxContext | null> {
   try {
-    const stored = await loadOmrTemplateEncrypted(examId, key);
-    const payload = stored?.payload;
-    if (!payload || (payload.version ?? 1) < OMR_TEMPLATE_VERSION || !payload.positions) return null;
-    if (!payload.pages.some((p) => (p.scoreBoxes?.length ?? 0) > 0)) return null;
     const ctx = await loadExamCompileContext(examId, key);
-    if (!ctx || (await computeOmrTemplateHash(ctx)) !== stored!.record.exercisesHash) return null;
+    if (!ctx) return null;
+    const usable = (p: OmrTemplatePayload | null | undefined): p is OmrTemplatePayload & { positions: Record<number, string[]> } =>
+      !!p && (p.version ?? 1) >= OMR_TEMPLATE_VERSION && !!p.positions && p.pages.some((pg) => (pg.scoreBoxes?.length ?? 0) > 0);
+    const pins = await listOmrTemplatePins(examId, key).catch(() => []);
+    let payload = pins.map((pin) => pin.payload).find(usable);
+    if (!payload) {
+      const stored = await loadOmrTemplateEncrypted(examId, key);
+      if (!usable(stored?.payload) || (await computeOmrTemplateHash(ctx)) !== stored!.record.exercisesHash) return null;
+      payload = stored!.payload;
+    }
     return { pages: payload.pages, positions: payload.positions, gradingKey: ctx.exam.gradingKey, params: get(omrSettingsStore).params };
   } catch (err) {
     console.warn("[scoreBoxes] layout unavailable:", err);

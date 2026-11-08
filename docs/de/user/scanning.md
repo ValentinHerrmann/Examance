@@ -60,6 +60,8 @@ Oben auf der Seite zeigen drei Balken, wie viele nicht erkannte, unsichere und s
 
 ![MC-Prüfung](../../screenshots/pitch/07-mc-review.jpg)
 
+Neben den Erkennungseinstellungen steht unter **Antwortbogen-Layout**, mit welchem Layout die Antworten gelesen wurden: dem [beim Drucken gemerkten](./exams#pinned-layout) (mit Datum) oder dem aktuellen. Jede einzelne Antwort zeigt es auch oben in der Prüfansicht.
+
 ### Unsichere Markierungen {#unsure}
 
 Neben dem Füllgrad eines Kästchens betrachtet die Erkennung auch die **Form** einer Markierung:

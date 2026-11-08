@@ -60,6 +60,8 @@ Open an item to see the crop of the question on the scan, the answer options as 
 
 ![MC verification](../screenshots/pitch/07-mc-review.jpg)
 
+Next to the detection settings, **Answer-sheet layout** shows which layout the answers were read with: the one [remembered at printing](./exams#pinned-layout) (with its date) or the current one. Each answer also shows it at the top of the review view.
+
 ### Unsure marks {#unsure}
 
 Besides how full a box is, detection also looks at the **shape** of a mark:

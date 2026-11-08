@@ -18,6 +18,7 @@ import {
   measureBox,
   median,
   ringFill,
+  templateFit,
   sampleFillRatio,
   type OmrBubbleClassification,
   type OmrBubbleState,
@@ -376,6 +377,7 @@ function processPage(req: OmrWorkerRequest): OmrWorkerResponse {
     results.push(exerciseResult(exerciseId, pageTemplate.pageIndex, readings, answerKeyById.get(exerciseId), quality.uncertain));
   }
 
+  const fit = templateFit(results.flatMap((r) => r.bubbles));
   return {
     type: 'OMR_RESULT',
     results,
@@ -390,6 +392,7 @@ function processPage(req: OmrWorkerRequest): OmrWorkerResponse {
       ...(quality.residualFraction !== undefined ? { residualFraction: quality.residualFraction } : {}),
       ...(quality.ratioDiff !== undefined ? { ratioDiff: quality.ratioDiff } : {}),
       ...(quality.angleDeg !== undefined ? { angleDeg: quality.angleDeg } : {}),
+      ...(fit !== undefined ? { templateFit: fit } : {}),
     },
   };
 }

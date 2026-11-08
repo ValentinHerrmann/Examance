@@ -9,7 +9,8 @@
 </script>
 
 <script lang="ts">
-  import { onDestroy, tick, untrack } from "svelte";
+  import { onDestroy, tick, untrack, type Snippet } from "svelte";
+  import type { OmrPinSource } from "#lib/grading/omrTemplateChoice";
   import { faArrowsRotate, faBookOpen, faCircleCheck, faCircleInfo, faCopy, faFileLines, faKey, faNoteSticky, faPrint, faScissors, faTag, faTriangleExclamation, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -66,10 +67,14 @@
     onPrintChange: (patch: ExamLayoutPatch) => Promise<void>;
     /** Out: what the preview shows, only the planned jobs (sheets while current, sticker or copies PDFs while made for the current content). */
     shown?: PrintPreviews;
+    /** The task sheet or personalised copies were downloaded, made or ticked as printed: pins the answer-sheet layout (issue #239). */
+    onPin?: (source: OmrPinSource) => void;
+    /** The pinned layouts, shown under the jobs. */
+    pins?: Snippet;
     class?: string;
   }
 
-  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, compile, print, onPrintChange, shown = $bindable(), class: className = "" }: Props = $props();
+  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, compile, print, onPrintChange, shown = $bindable(), onPin, pins, class: className = "" }: Props = $props();
 
   let cs = $derived($examChecksState && $examChecksState.examId === examId ? $examChecksState : null);
   let stamps = $derived(cs?.stamps ? printStamps(cs.stamps.content, cs.stamps.students, print) : null);
@@ -200,6 +205,7 @@
   function gotPdf(job: "qr" | "copies", pdf: Uint8Array, fileName: string, download?: SavedFile) {
     keep(job, pdf, fileName, download);
     recordMade(job);
+    if (job === "copies") onPin?.("download");
   }
 
   /** One A3 booklet of the current task sheet, printed as often as needed (a booklet needs a multiple of 4 pages; filler pages or blanks pad it). */
@@ -224,12 +230,14 @@
     if (!made) return;
     const file = made.download ?? { bytes: made.bytes, fileName: made.fileName, type: "application/pdf" };
     downloadBlob(new Blob([file.bytes as BlobPart], { type: file.type }), file.fileName);
+    if (job === "exam" || job === "copies") onPin?.("download");
   }
 
   /** The plain task sheet or solution; for a booklet Examance arranges, the imposed A3 sheets the preview shows. */
   async function downloadSheet(job: "exam" | "solution") {
     if (job === "exam" && imposed) return downloadJob("exam");
-    return downloadPdf(job === "exam" ? "angabe" : "loesung");
+    await downloadPdf(job === "exam" ? "angabe" : "loesung");
+    if (job === "exam") onPin?.("download");
   }
 
   onDestroy(() => {
@@ -266,7 +274,11 @@
       saving = false;
     }
   }
-  const setTick = (job: PrintJobId, on: boolean) => cs && stamps && save(withPrintCheck(cs.checks, job, on ? stamps[job] : null));
+  const setTick = (job: PrintJobId, on: boolean) => {
+    if (!cs || !stamps) return;
+    if (on && (job === "exam" || job === "copies")) onPin?.("printed");
+    return save(withPrintCheck(cs.checks, job, on ? stamps[job] : null));
+  };
   const recordMade = (job: PrintJobId) => {
     if (cs && stamps && !printMadeValid(cs.checks, job, stamps)) void save(withPrintMade(cs.checks, job, stamps[job]));
   };
@@ -473,4 +485,5 @@
       {#if !extraMade}<span class="text-xs text-muted">{$t("exam.print.extra.needsPdf")}</span>{/if}
     </li>
   </ol>
+  {@render pins?.()}
 </div>

@@ -180,6 +180,10 @@ Darunter stehen genau die Druckaufträge Ihres Plans (Exemplare und Aufkleberbog
 
 Drucken Sie die Bögen **genau so, wie sie gesetzt wurden**: nicht „An Seite anpassen“, keine Skalierung, kein Beschneiden. Der QR-Aufkleber und die Eckmarken müssen lesbar bleiben, sonst lässt sich der Scan nicht automatisch zuordnen und angekreuzte Kästchen nicht erkennen.
 
+### Gemerkte Layouts {#pinned-layout}
+
+Sobald Sie die Angabe oder die personalisierten Exemplare herunterladen oder als **gedruckt** abhaken, merkt sich Examance das Layout des Antwortbogens: wo die Kästchen, Punktefelder und Eckmarkierungen liegen. Ändern Sie danach eine Aufgabe, das Layout oder kommt ein Update, werden die schon gedruckten Bögen trotzdem richtig gelesen: Beim Einlesen probiert Examance zuerst das zuletzt gemerkte Layout und nimmt, falls es nicht passt, das gemerkte Layout, dessen Kästchen auf dem Scan liegen. Die Liste **Gemerkte Antwortbogen-Layouts** unter den Druckaufträgen zeigt jedes Layout mit Datum; ein Layout einer Fassung, die nie ausgeteilt wurde, können Sie dort entfernen. Haben Sie die Prüfung nach dem Druck geändert, weist der Schritt **Prüfung** darauf hin. Gemerkte Layouts liegen verschlüsselt auf dem Server, damit sie auch in einem anderen Browser gelten.
+
 Nach der Prüfung geht es weiter mit [Scannen und Zuordnen](./scanning).
 
 ## Eine Prüfung duplizieren {#duplicate}

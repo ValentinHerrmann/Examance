@@ -15,6 +15,7 @@ from app.models.layout_report import LayoutReport, LayoutReportFile
 from app.models.logo import ExamLogo, TeacherLogo
 from app.models.maintenance_window import MaintenanceWindow
 from app.models.mfa_credential import MfaBackupCode, MfaCredential
+from app.models.omr_template_pin import OmrTemplatePin
 from app.models.omr_training_sample import OmrTrainingSample
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
@@ -54,6 +55,7 @@ __all__ = [
     "ScanSubmission",
     "AuditLog",
     "WebAuthnCredential",
+    "OmrTemplatePin",
     "OmrTrainingSample",
     "MaintenanceWindow",
     "LayoutReport",

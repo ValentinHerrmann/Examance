@@ -176,6 +176,7 @@ export interface PrepareOmrTemplateResult {
   totalBubbles: number;
   totalScoreBoxes: number;
   exercisesHash: string;
+  payload: OmrTemplatePayload;
 }
 
 /** Union of two PDF rects (one score box can be captured as several links, e.g. the grade cell spanning two table rows). */
@@ -321,7 +322,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   const totalBubbles = pages.reduce((sum, p) => sum + p.bubbles.length, 0);
   const totalScoreBoxes = pages.reduce((sum, p) => sum + (p.scoreBoxes?.length ?? 0), 0);
   const shortPages = pages.filter((p) => p.fiducials.length < 4).map((p) => p.pageIndex + 1);
-  const base = { pages, totalBubbles, totalScoreBoxes, exercisesHash };
+  const base = { pages, totalBubbles, totalScoreBoxes, exercisesHash, payload };
   
   if (mcExercises.length > 0 && totalBubbles === 0) {
     console.warn(`[PrepareOMR] FAILED: totalBubbles is 0 despite ${mcExercises.length} MC exercise(s). Macro counts in fullTex were: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}`);

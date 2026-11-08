@@ -179,6 +179,10 @@ Below it are exactly the print jobs of your plan (exam copies and sticker sheet,
 
 Print the sheets **exactly as typeset**: no "fit to page", no scaling, no cropping. The QR sticker and the corner marks must stay readable, otherwise the scan cannot be assigned automatically and ticked boxes cannot be detected.
 
+### Remembered layouts {#pinned-layout}
+
+As soon as you download the task sheet or the personalised copies, or tick them as **printed**, Examance remembers the answer sheet's layout: where its boxes, score fields and corner markers are. If you then change an exercise or the layout, or an update arrives, the sheets already printed are still read correctly: on import Examance first tries the most recently remembered layout and, if it does not fit, takes the remembered layout whose boxes lie on the scan. The list **Remembered answer-sheet layouts** under the print jobs shows each layout with its date; you can remove the layout of a version that was never handed out. If you changed the exam after printing, the **Exam** step points it out. Remembered layouts are stored encrypted on the server, so they also apply in another browser.
+
 After the exam, continue with [Scanning and assignment](./scanning).
 
 ## Duplicate an exam {#duplicate}

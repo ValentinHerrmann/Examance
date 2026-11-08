@@ -28,6 +28,7 @@ export const exam: Translations['exam'] = {
             refreshNow: 'Refresh OMR now',
             preparing: 'Preparing OMR…',
             staleWarning: 'MC answer key changed since the OMR template was captured — auto-grading may be inaccurate until you refresh the OMR template.',
+            pinDiffers: 'Changed since the print of {date}: scans of the printed sheets are still read with the printed layout.',
         },
         preview: {
             statusCurrent: 'Preview up to date',
@@ -363,6 +364,20 @@ export const exam: Translations['exam'] = {
             solution: 'Solution',
             solutionHint: 'For you or for grading; contains the answers.',
             download: 'Download PDF',
+        },
+        pins: {
+            title: 'Remembered answer-sheet layouts',
+            info: 'When you download a sheet or tick it as printed, Examance remembers where its boxes and corner markers are. Later edits or updates no longer move them for sheets already printed: scans are read with the matching remembered layout.',
+            loading: 'Loading…',
+            none: 'None yet: the layout is remembered as soon as you download the task sheet or the personalised copies, or tick them as printed.',
+            rowPrinted: 'Ticked as printed on {date}',
+            rowDownload: 'Downloaded on {date}',
+            current: 'matches the current version',
+            remove: 'Remove layout',
+            removeTitle: 'Remove remembered layout?',
+            removeMessage: 'Sheets printed with the layout of {date} will no longer be read with it. Only remove it if this version was never handed out.',
+            loadFailed: 'Remembered layouts could not be loaded: {message}',
+            pinFailed: 'The layout could not be remembered: {message}',
         },
         extra: {
             title: 'Extra sheet (stock)',

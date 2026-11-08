@@ -63,6 +63,7 @@ export const scanning = {
         foreign: '{fileName}: Seite(n) einer anderen Prüfung; sie stehen als nicht zugeordnete Abgabe in der Liste.',
     },
     omrBanner: {
+        pinsFailed: 'Die beim Drucken gemerkten Layouts konnten nicht geladen werden ({message}); gelesen wird mit dem aktuellen Layout.',
         alignmentFailed: 'OMR-Ausrichtung auf {count} Seite(n) fehlgeschlagen{fiducialDetail} — diese MC-Aufgaben wurden ohne Bewertung importiert und müssen manuell bewertet werden. Prüfen Sie die Scanqualität (Beschnitt/Schräglage/Druckränder) in der Nähe der Seitenecken.',
         alignmentFiducialDetail: '(nur {found}/4 Eckmarkierungen erkannt, fehlend: {missing})',
         autoPreparing: 'OMR-Vorlage wird automatisch vorbereitet, bitte warten…',
@@ -139,6 +140,17 @@ export const scanning = {
             resetHint: 'Soll die neue Erkennung auch das Ergebnis bereits geprüfter Fragen bestimmen, setzen Sie zuerst die manuelle Verifikation zurück.',
             cancel: 'Abbrechen',
             confirm: 'Erneut erkennen',
+        },
+        template: {
+            heading: 'Antwortbogen-Layout',
+            pinnedRow: 'Gedrucktes Layout vom {date}: {items} Antwort(en)',
+            currentRow: 'Aktuelles Layout (nicht beim Drucken gemerkt): {items} Antwort(en)',
+            unrecordedRow: 'Layout nicht erfasst (ältere Erkennung): {items} Antwort(en)',
+            differs: 'Die Prüfung wurde nach dem Druck vom {date} geändert. Scans der gedruckten Bögen werden weiter mit dem gedruckten Layout gelesen.',
+            noPin: 'Noch kein Layout beim Drucken gemerkt: Scans werden mit dem aktuellen Layout gelesen.',
+            itemPinned: 'Gelesen mit dem gedruckten Layout vom {date}',
+            itemCurrent: 'Gelesen mit dem aktuellen Layout (nicht beim Drucken gemerkt)',
+            itemUnrecorded: 'Layout dieser Erkennung nicht erfasst',
         },
         settingsPanel: {
             heading: 'Erkennungseinstellungen',
