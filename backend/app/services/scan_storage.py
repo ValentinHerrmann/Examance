@@ -51,8 +51,15 @@ def forget_scans(db: AsyncSession, subs: Iterable[ScanSubmission]) -> None:
             blob_store.delete_after_commit(db, sub.scan_path)
 
 
-def forget_scans_of_exams(db: AsyncSession, exam_ids: list[uuid.UUID]) -> None:
-    """For deletes that cascade in the DB (the ORM never sees the rows): drop the exams' dirs."""
-    if blob_store.configured():
-        for exam_id in exam_ids:
-            blob_store.delete_group_after_commit(db, KIND, str(exam_id))
+async def forget_scans_of_exams(db: AsyncSession, exam_ids: list[uuid.UUID]) -> None:
+    """For deletes that cascade in the DB (the ORM never sees the rows): drop exactly the files those rows name, never a whole dir (a dir delete once took the scans of a live exam); strays go to the sweep."""
+    if not blob_store.configured() or not exam_ids:
+        return
+    paths = await db.scalars(
+        select(ScanSubmission.scan_path).where(
+            ScanSubmission.exam_id.in_(exam_ids), ScanSubmission.scan_path.isnot(None)
+        )
+    )
+    for path in paths:
+        if path is not None:
+            blob_store.delete_after_commit(db, path)
