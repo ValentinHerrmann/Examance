@@ -41,14 +41,14 @@
       "label": "Documentation",
       "color": "#3B82F6",
       "files": 74,
-      "lines": 5822,
+      "lines": 5832,
       "code": null,
       "comments": null
     }
   ],
   "total": {
     "files": 1065,
-    "lines": 130186,
+    "lines": 130196,
     "code": 118615,
     "comments": 5749
   }
