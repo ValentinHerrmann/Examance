@@ -28,36 +28,46 @@ function template(size: number): OmrPageTemplate {
   return { pageIndex: 0, pageWidthPt: PAGE_W, pageHeightPt: PAGE_H, fiducials: fiducials(size), bubbles: [] };
 }
 
+// Tones vary like paper and toner do: with only 0 and 255 every Otsu threshold ties and the first one (0) marks nothing dark.
+const TONE = {
+  ink: (px: number, py: number) => 10 + ((px * 5 + py * 11) % 31),
+  paper: (px: number, py: number) => 230 + ((px * 7 + py * 3) % 26),
+};
+
 class Scan {
   readonly width = Math.round(PAGE_W * SCALE);
   readonly height = Math.round(PAGE_H * SCALE);
   readonly data = new Uint8ClampedArray(this.width * this.height * 4).fill(255);
 
+  constructor() {
+    this.fill(0, 0, 210, 297, "paper");
+  }
+
   /** Fills a rect given in mm from the page's lower-left corner, shifted by (dx, dy) mm on the scan. */
-  fill(x: number, y: number, w: number, h: number, value: number, dx = 0, dy = 0): void {
-    const x0 = Math.round((x + dx) * MM * SCALE);
-    const x1 = Math.round((x + dx + w) * MM * SCALE);
-    const y0 = Math.round((297 - (y + dy) - h) * MM * SCALE);
-    const y1 = Math.round((297 - (y + dy)) * MM * SCALE);
+  fill(x: number, y: number, w: number, h: number, tone: keyof typeof TONE, dx = 0, dy = 0): void {
+    const x0 = Math.max(0, Math.round((x + dx) * MM * SCALE));
+    const x1 = Math.min(this.width, Math.round((x + dx + w) * MM * SCALE));
+    const y0 = Math.max(0, Math.round((297 - (y + dy) - h) * MM * SCALE));
+    const y1 = Math.min(this.height, Math.round((297 - (y + dy)) * MM * SCALE));
     for (let py = y0; py < y1; py++) {
       for (let px = x0; px < x1; px++) {
         const i = (py * this.width + px) * 4;
-        this.data[i] = this.data[i + 1] = this.data[i + 2] = value;
+        this.data[i] = this.data[i + 1] = this.data[i + 2] = TONE[tone](px, py);
       }
     }
   }
 
   newMarkers(dx = 0, dy = 0): this {
-    for (const [, x, y] of NEW_MARKERS) this.fill(x, y, 5, 5, 0, dx, dy);
+    for (const [, x, y] of NEW_MARKERS) this.fill(x, y, 5, 5, "ink", dx, dy);
     return this;
   }
 
   /** The former 8 mm target: black square, white ring, black centre. */
   oldMarkers(): this {
     for (const [, x, y] of NEW_MARKERS) {
-      this.fill(x - 1.5, y - 1.5, 8, 8, 0);
-      this.fill(x + 0.1, y + 0.1, 4.8, 4.8, 255);
-      this.fill(x + 1.3, y + 1.3, 2.4, 2.4, 0);
+      this.fill(x - 1.5, y - 1.5, 8, 8, "ink");
+      this.fill(x + 0.1, y + 0.1, 4.8, 4.8, "paper");
+      this.fill(x + 1.3, y + 1.3, 2.4, 2.4, "ink");
     }
     return this;
   }
@@ -102,8 +112,8 @@ describe("corner marker registration (issue #227)", () => {
 
   it("prefers the marker over a marker-sized ink blob near the corner", () => {
     const scan = new Scan().newMarkers();
-    scan.fill(20, 20, 5, 5, 0);
-    scan.fill(20, 297 - 30, 4, 6, 0);
+    scan.fill(20, 20, 5, 5, "ink");
+    scan.fill(20, 297 - 30, 4, 6, "ink");
     const reg = registerPage(scan.image(), template(5), SCALE, DEFAULT_OMR_PARAMS);
     expect(reg.fiducialsFound).toBe(4);
     expect(errorPx(reg.H!, 105, 148)).toBeLessThan(1);
