@@ -289,6 +289,40 @@ def init_blob_store(force: bool, rebind_from: str | None) -> None:
     click.echo(f"Blob store ready: {path}")
 
 
+@cli.command("check-blobs")
+@click.option("--forget-missing", is_flag=True, default=False, help="Clear the file reference of live rows whose file is missing.")
+@click.option("--yes", is_flag=True, default=False, help="Apply --forget-missing; without it, only show what would change.")
+def check_blobs(forget_missing: bool, yes: bool) -> None:
+    """Compare scan rows with the file store (docs/dev/storage_partitions.md): ids and counts only. Exit code 1 when a live row's scan cannot be read. Run after a restore, rebind or storage move."""
+    from app.services import blob_audit, blob_store
+
+    async def _run(db: AsyncSession) -> blob_audit.BlobAudit:
+        report = await blob_audit.audit(db)
+        if forget_missing and yes:
+            await blob_audit.forget_missing(db, report)
+        return report
+
+    try:
+        report = asyncio.run(in_session(_run))
+    except blob_store.BlobStoreUnavailable as exc:
+        raise click.ClickException(exc.reason) from None
+    click.echo(f"Store: {report.store or 'none configured (scans in the database)'}")
+    for exam_id, exam in sorted(report.exams.items(), key=lambda item: str(item[0])):
+        if exam.missing or exam.no_scan:
+            click.echo(f"exam {exam_id}: {exam.live} live, {len(exam.missing)} file missing, {exam.no_scan} without scan")
+            for sub_id in exam.missing:
+                click.echo(f"  missing: submission {sub_id}")
+    if report.unchecked_paths:
+        click.echo(f"{report.unchecked_paths} row(s) name a file, but no file store is configured.")
+    click.echo(f"Files no live row names: {report.held_by_trash} held by the trash, {report.unreferenced} unreferenced (the sweep removes these).")
+    missing = len(report.missing_ids)
+    if forget_missing:
+        verb = "Cleared" if yes else "Would clear (pass --yes)"
+        click.echo(f"{verb} the file reference of {missing} row(s); rows, scores and files stay.")
+    if report.broken and not (forget_missing and yes and not report.unchecked_paths):
+        raise SystemExit(1)
+
+
 @cli.command("move-blobs")
 @click.option("--to", "target", type=click.Choice(["fs", "db"]), required=True)
 def move_blobs(target: str) -> None:

@@ -151,6 +151,14 @@ def get_sync(ref: str) -> bytes:
         raise BlobStoreUnavailable(f"missing blob {ref}") from None
 
 
+def exists_sync(ref: str) -> bool:
+    """Whether the file behind *ref* is there; False also when the store is unreachable."""
+    try:
+        return _resolve(ref).is_file()
+    except BlobStoreUnavailable:
+        return False
+
+
 def delete_sync(ref: str) -> None:
     _resolve(ref).unlink(missing_ok=True)
 

@@ -140,3 +140,72 @@ async def test_erasing_a_student_removes_the_scan_files_of_their_submissions(
         select(ScanSubmission.scan_path).where(ScanSubmission.exam_id == uuid.UUID(exam_id))
     )
     assert [ref for ref, _ in blob_store.iter_refs("scans")] == list(remaining.scalars())
+
+
+async def _upload(client: AsyncClient, exam_id: str, hmac_char: str) -> str:
+    sub_id = str(uuid.uuid4())
+    created = await client.post(
+        f"/api/v1/exams/{exam_id}/submissions",
+        json={
+            "id": sub_id,
+            "pseudonym_hmac": hmac_char * 64,
+            "scan_ciphertext_b64": base64.b64encode(b"scan").decode(),
+            "scan_iv_b64": base64.b64encode(b"123456789012").decode(),
+        },
+    )
+    assert created.status_code == 201, created.text
+    return sub_id
+
+
+async def test_check_blobs_reports_and_forgets_only_missing_files(
+    client: AsyncClient, db: AsyncSession, store: Path
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from app.models.teacher import Teacher
+    from app.models.trash_item import TrashItem
+    from app.services import blob_audit
+
+    email = f"audit-{uuid.uuid4().hex[:8]}@example.com"
+    await _create_teacher_and_login(client, db, email)
+    exam = await client.post(
+        "/api/v1/exams", json={"title": "Audit exam", "retention_until": "2027-12-31"}
+    )
+    exam_id = exam.json()["id"]
+    healthy = await _upload(client, exam_id, "e")
+    lost = await _upload(client, exam_id, "f")
+    lost_row = (
+        await db.execute(select(ScanSubmission).where(ScanSubmission.id == uuid.UUID(lost)))
+    ).scalar_one()
+    assert lost_row.scan_path is not None
+    # Regression: after a DB restore and storage move, rows named files the store never had.
+    (store / lost_row.scan_path).unlink()
+    (store / "scans" / exam_id / "stray.bin").write_bytes(b"x")
+    kept_ref = f"scans/{exam_id}/trashed.bin"
+    (store / kept_ref).write_bytes(b"y")
+    teacher_id = await db.scalar(select(Teacher.id).where(Teacher.email == email))
+    now = datetime.now(UTC)
+    db.add(
+        TrashItem(
+            teacher_id=teacher_id, group_id=uuid.uuid4(), kind="submission", exam_id=None,
+            label={}, payload=b"", blob_refs=[kept_ref], deleted_at=now,
+            purge_after=now + timedelta(days=7),
+        )
+    )
+    await db.flush()
+
+    report = await blob_audit.audit(db)
+    assert report.missing_ids == [uuid.UUID(lost)]
+    assert (report.held_by_trash, report.unreferenced) == (1, 1)
+    assert report.broken
+
+    assert await blob_audit.forget_missing(db, report) == 1
+    await db.commit()
+    paths = dict(
+        (await db.execute(select(ScanSubmission.id, ScanSubmission.scan_path).where(
+            ScanSubmission.id.in_([uuid.UUID(healthy), uuid.UUID(lost)])
+        ))).tuples().all()
+    )
+    assert paths[uuid.UUID(lost)] is None
+    assert paths[uuid.UUID(healthy)] is not None
+    assert not (await blob_audit.audit(db)).broken
