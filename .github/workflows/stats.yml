@@ -1,6 +1,6 @@
 name: Code statistics
 
-# Counts lines per area and publishes shields.io endpoint JSON to the orphan `badges` branch (README badges).
+# Counts lines per area and publishes the README statistics table (SVG) to the orphan `badges` branch.
 permissions:
   contents: write
 
@@ -33,7 +33,8 @@ jobs:
           git init -q -b badges
           git remote add origin "$url"
           if git fetch -q --depth=1 origin badges; then git reset -q --hard FETCH_HEAD; fi
-          cp "$RUNNER_TEMP"/badges-out/*.json .
+          git rm -rq --ignore-unmatch . 
+          cp "$RUNNER_TEMP"/badges-out/* .
           git add -A
           git diff --cached --quiet && { echo "No change"; exit 0; }
           git commit -q -m "Update code statistics [skip ci]"

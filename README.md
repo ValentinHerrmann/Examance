@@ -37,11 +37,10 @@
 
 <p align="center">
   <!-- Code size -->
-  <a href="https://github.com/ValentinHerrmann/Examance"><img alt="Frontend" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FValentinHerrmann%2FExamance%2Fbadges%2Ffrontend.json&style=for-the-badge"></a>
-  <a href="https://github.com/ValentinHerrmann/Examance"><img alt="Backend" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FValentinHerrmann%2FExamance%2Fbadges%2Fbackend.json&style=for-the-badge"></a>
-  <a href="https://github.com/ValentinHerrmann/Examance"><img alt="Tests" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FValentinHerrmann%2FExamance%2Fbadges%2Ftests.json&style=for-the-badge"></a>
-  <a href="https://github.com/ValentinHerrmann/Examance"><img alt="Docs" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FValentinHerrmann%2FExamance%2Fbadges%2Fdocs.json&style=for-the-badge"></a>
-  <a href="https://github.com/ValentinHerrmann/Examance"><img alt="Total" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FValentinHerrmann%2FExamance%2Fbadges%2Ftotal.json&style=for-the-badge"></a>
+  <a href="https://github.com/ValentinHerrmann/Examance"><img alt="Code statistics" src="https://raw.githubusercontent.com/ValentinHerrmann/Examance/badges/code-stats.svg" width="820"></a>
+</p>
+
+<p align="center">
   <a href="https://sonarcloud.io/summary/overall?id=ValentinHerrmann_Examance"><img alt="Lines of code (Sonar)" src="https://img.shields.io/sonar/ncloc/ValentinHerrmann_Examance?server=https%3A%2F%2Fsonarcloud.io&labelColor=1f2937&style=for-the-badge"></a>
   <a href="https://github.com/ValentinHerrmann/Examance"><img alt="Top language" src="https://img.shields.io/github/languages/top/ValentinHerrmann/Examance?labelColor=1f2937&style=for-the-badge"></a>
   <a href="https://github.com/ValentinHerrmann/Examance"><img alt="Languages" src="https://img.shields.io/github/languages/count/ValentinHerrmann/Examance?labelColor=1f2937&style=for-the-badge"></a>
