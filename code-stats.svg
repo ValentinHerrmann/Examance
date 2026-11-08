@@ -2,7 +2,7 @@
 <style>.bg{fill:#fff;stroke:#d0d7de}.hd{fill:#57606a;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}.tx{fill:#1f2328;font-size:14px}.mu{fill:#57606a;font-size:14px}.tt{fill:#1f2328;font-size:14px;font-weight:700}.ln{stroke:#d0d7de}.ti{fill:#1f2328;font-size:17px;font-weight:700}.tr{fill:#eaeef2}@media (prefers-color-scheme:dark){.bg{fill:#0d1117;stroke:#30363d}.hd,.mu{fill:#8b949e}.tx,.tt,.ti{fill:#e6edf3}.ln{stroke:#30363d}.tr{fill:#21262d}}</style>
 <rect class="bg" x=".5" y=".5" width="819" height="315" rx="10"/>
 <text class="ti" x="20" y="30">Code statistics</text>
-<text class="mu" x="800" y="30" text-anchor="end" style="font-size:12px">1065 files · updated automatically</text>
+<text class="mu" x="800" y="30" text-anchor="end" style="font-size:12px">1074 files · updated automatically</text>
 <text class="hd" x="20" y="54" text-anchor="start">Area</text>
 <text class="hd" x="310" y="54" text-anchor="end">Files</text>
 <text class="hd" x="395" y="54" text-anchor="end">Lines</text>
@@ -12,50 +12,50 @@
 <line class="ln" x1="20" x2="800" y1="64" y2="64"/>
 <circle cx="28" cy="83.0" r="5" fill="#FF3E00"/>
 <text class="tx" x="42" y="88.0">Frontend</text>
-<text class="mu" x="310" y="88.0" text-anchor="end">598</text>
-<text class="mu" x="395" y="88.0" text-anchor="end">71 436</text>
-<text class="tx" x="495" y="88.0" text-anchor="end">67 267</text>
-<text class="mu" x="595" y="88.0" text-anchor="end">4 169</text>
+<text class="mu" x="310" y="88.0" text-anchor="end">601</text>
+<text class="mu" x="395" y="88.0" text-anchor="end">71 833</text>
+<text class="tx" x="495" y="88.0" text-anchor="end">67 619</text>
+<text class="mu" x="595" y="88.0" text-anchor="end">4 214</text>
 <rect class="tr" x="630" y="76.0" width="160" height="10" rx="5"/>
 <rect x="630" y="76.0" width="91" height="10" rx="5" fill="#FF3E00"/>
 <line class="ln" x1="20" x2="800" y1="102" y2="102"/>
 <circle cx="28" cy="121.0" r="5" fill="#F59E0B"/>
 <text class="tx" x="42" y="126.0">Frontend tests</text>
-<text class="mu" x="310" y="126.0" text-anchor="end">116</text>
-<text class="mu" x="395" y="126.0" text-anchor="end">12 066</text>
-<text class="tx" x="495" y="126.0" text-anchor="end">11 449</text>
-<text class="mu" x="595" y="126.0" text-anchor="end">617</text>
+<text class="mu" x="310" y="126.0" text-anchor="end">117</text>
+<text class="mu" x="395" y="126.0" text-anchor="end">12 153</text>
+<text class="tx" x="495" y="126.0" text-anchor="end">11 532</text>
+<text class="mu" x="595" y="126.0" text-anchor="end">621</text>
 <rect class="tr" x="630" y="114.0" width="160" height="10" rx="5"/>
 <rect x="630" y="114.0" width="15" height="10" rx="5" fill="#F59E0B"/>
 <line class="ln" x1="20" x2="800" y1="140" y2="140"/>
 <circle cx="28" cy="159.0" r="5" fill="#009688"/>
 <text class="tx" x="42" y="164.0">Backend</text>
-<text class="mu" x="310" y="164.0" text-anchor="end">233</text>
-<text class="mu" x="395" y="164.0" text-anchor="end">32 183</text>
-<text class="tx" x="495" y="164.0" text-anchor="end">31 455</text>
-<text class="mu" x="595" y="164.0" text-anchor="end">728</text>
+<text class="mu" x="310" y="164.0" text-anchor="end">237</text>
+<text class="mu" x="395" y="164.0" text-anchor="end">32 422</text>
+<text class="tx" x="495" y="164.0" text-anchor="end">31 688</text>
+<text class="mu" x="595" y="164.0" text-anchor="end">734</text>
 <rect class="tr" x="630" y="152.0" width="160" height="10" rx="5"/>
 <rect x="630" y="152.0" width="42" height="10" rx="5" fill="#009688"/>
 <line class="ln" x1="20" x2="800" y1="178" y2="178"/>
 <circle cx="28" cy="197.0" r="5" fill="#6DA13F"/>
 <text class="tx" x="42" y="202.0">Backend tests</text>
-<text class="mu" x="310" y="202.0" text-anchor="end">44</text>
-<text class="mu" x="395" y="202.0" text-anchor="end">8 679</text>
-<text class="tx" x="495" y="202.0" text-anchor="end">8 444</text>
-<text class="mu" x="595" y="202.0" text-anchor="end">235</text>
+<text class="mu" x="310" y="202.0" text-anchor="end">45</text>
+<text class="mu" x="395" y="202.0" text-anchor="end">8 806</text>
+<text class="tx" x="495" y="202.0" text-anchor="end">8 569</text>
+<text class="mu" x="595" y="202.0" text-anchor="end">237</text>
 <rect class="tr" x="630" y="190.0" width="160" height="10" rx="5"/>
 <rect x="630" y="190.0" width="11" height="10" rx="5" fill="#6DA13F"/>
 <line class="ln" x1="20" x2="800" y1="216" y2="216"/>
 <circle cx="28" cy="235.0" r="5" fill="#3B82F6"/>
 <text class="tx" x="42" y="240.0">Documentation</text>
 <text class="mu" x="310" y="240.0" text-anchor="end">74</text>
-<text class="mu" x="395" y="240.0" text-anchor="end">5 832</text>
+<text class="mu" x="395" y="240.0" text-anchor="end">5 847</text>
 <text class="tx" x="495" y="240.0" text-anchor="end">–</text>
 <text class="mu" x="595" y="240.0" text-anchor="end">–</text>
 <line class="ln" x1="20" x2="800" y1="254" y2="254"/>
 <text class="tt" x="42" y="278.0">Total</text>
-<text class="tt" x="310" y="278.0" text-anchor="end">1 065</text>
-<text class="tt" x="395" y="278.0" text-anchor="end">130 196</text>
-<text class="tt" x="495" y="278.0" text-anchor="end">118 615</text>
-<text class="tt" x="595" y="278.0" text-anchor="end">5 749</text>
+<text class="tt" x="310" y="278.0" text-anchor="end">1 074</text>
+<text class="tt" x="395" y="278.0" text-anchor="end">131 061</text>
+<text class="tt" x="495" y="278.0" text-anchor="end">119 408</text>
+<text class="tt" x="595" y="278.0" text-anchor="end">5 806</text>
 </svg>
