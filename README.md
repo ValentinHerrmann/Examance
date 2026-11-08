@@ -6,11 +6,13 @@ Privacy-first anonymous exam grading. Teachers write LaTeX exams, print QR-coded
 
 <p align="center">
   <!-- Project -->
+  <a href="https://examance.de/"><img alt="App" src="https://img.shields.io/badge/App-examance.de-2563eb?labelColor=1f2937&logo=pwa&logoColor=white&style=for-the-badge"></a>
+  <a href="https://valentin-herrmann.com/examance/"><img alt="Info page" src="https://img.shields.io/badge/Info_Page-valentin--herrmann.com-0ea5e9?labelColor=1f2937&logo=googlechrome&logoColor=white&style=for-the-badge"></a>
+  <a href="https://docs.examance.de/user/material"><img alt="Info material" src="https://img.shields.io/badge/Material-Slides_%26_Posters-8b5cf6?labelColor=1f2937&logo=googleslides&logoColor=white&style=for-the-badge"></a>
+  <a href="https://docs.examance.de/user/"><img alt="User guide" src="https://img.shields.io/badge/User_Guide-docs.examance.de%2Fuser-10b981?labelColor=1f2937&logo=gitbook&logoColor=white&style=for-the-badge"></a>
+
   <a href="https://github.com/ValentinHerrmann/Examance/releases"><img alt="Release" src="https://img.shields.io/github/v/release/ValentinHerrmann/Examance?color=6e40c9&labelColor=1f2937&logo=github&style=for-the-badge"></a>
   <a href="https://github.com/ValentinHerrmann/Examance/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/ValentinHerrmann/Examance?color=22c55e&labelColor=1f2937&style=for-the-badge"></a>
-  <a href="https://docs.examance.de/user/"><img alt="Languages" src="https://img.shields.io/badge/UI-Deutsch_%7C_English-0ea5e9?labelColor=1f2937&logo=googletranslate&logoColor=white&style=for-the-badge"></a>
-  <a href="https://docs.examance.de/"><img alt="Docs site" src="https://img.shields.io/badge/Docs-docs.examance.de-3B82F6?labelColor=1f2937&logo=readthedocs&logoColor=white&style=for-the-badge"></a>
-
   <a href="https://github.com/ValentinHerrmann/Examance/issues"><img alt="Open issues" src="https://img.shields.io/github/issues/ValentinHerrmann/Examance?color=ef4444&labelColor=1f2937&style=for-the-badge"></a>
   <a href="https://github.com/ValentinHerrmann/Examance/pulls?q=is%3Apr+is%3Aclosed"><img alt="Closed PRs" src="https://img.shields.io/github/issues-pr-closed/ValentinHerrmann/Examance?color=8b5cf6&labelColor=1f2937&style=for-the-badge"></a>
 
@@ -38,6 +40,7 @@ Privacy-first anonymous exam grading. Teachers write LaTeX exams, print QR-coded
 
 ## Information & Documentation
 
+
 **<https://valentin-herrmann.com/examance/>**: Information page
 
 **<https://docs.examance.de/>**: Documentation built from `/docs` of latest Release
@@ -46,6 +49,15 @@ Privacy-first anonymous exam grading. Teachers write LaTeX exams, print QR-coded
 - [Host Examance](https://docs.examance.de/hosting) on your own server
 - [Develop](https://docs.examance.de/data_flow_and_security): architecture, encryption, API, data model
 - [Legal and compliance](https://docs.examance.de/legal_audit_dsgvo) (DSGVO): audit, records of processing, DPIA, DPA template, breach response
+
+
+<p align="center">
+  <a href="https://docs.examance.de/"><img alt="Docs site" src="https://img.shields.io/badge/Docs-docs.examance.de-3B82F6?labelColor=1f2937&logo=readthedocs&logoColor=white&style=for-the-badge"></a>
+  <a href="https://docs.examance.de/hosting"><img alt="Host Examance" src="https://img.shields.io/badge/Hosting-Self--Hosted-f97316?labelColor=1f2937&logo=docker&logoColor=white&style=for-the-badge"></a>
+  <a href="https://docs.examance.de/data_flow_and_security"><img alt="Develop & Architecture" src="https://img.shields.io/badge/Architecture-Data_Flow_%26_Security-6366f1?labelColor=1f2937&logo=diagramsdotnet&logoColor=white&style=for-the-badge"></a>
+  <a href="https://docs.examance.de/legal_audit_dsgvo"><img alt="Legal and compliance" src="https://img.shields.io/badge/Legal-DSGVO_%2F_GDPR-ec4899?labelColor=1f2937&logo=gdpr&logoColor=white&style=for-the-badge"></a>
+  <a href="https://docs.examance.de/user/"><img alt="Languages" src="https://img.shields.io/badge/UI-Deutsch_%7C_English-0ea5e9?labelColor=1f2937&logo=googletranslate&logoColor=white&style=for-the-badge"></a>
+</p>
 
 ## Development quickstart
 
