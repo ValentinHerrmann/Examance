@@ -166,7 +166,7 @@ jobs:
       - name: Force-push to preview branch
         run: |
           set -euo pipefail
-          git push origin HEAD:refs/heads/preview --force
+          .github/scripts/retry.sh 5 git push origin HEAD:refs/heads/preview --force
 
       # Cloudflare Pages builds `preview` on its own; without this the run
       # would report success while the frontend is still building (or failed).
@@ -223,7 +223,8 @@ jobs:
           build-args: |
             APP_VERSION=${{ needs.version.outputs.version }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # A refused cache write ("no writable scopes") must not fail the build: the cache only speeds it up.
+          cache-to: type=gha,mode=max,ignore-error=true
           tags: |
             ${{ steps.meta.outputs.image }}
             ${{ steps.meta.outputs.moving }}
@@ -263,6 +264,11 @@ jobs:
           # Same immutable tag the backend-image job pushes.
           OWNER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
           echo "image=ghcr.io/${OWNER}/${IMAGE_NAME}:sha-${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+
+      # appleboy/ssh-action downloads drone-ssh from GitHub releases with only seconds of retries; prefetch it with minutes of them (a releases outage failed deploys).
+      - name: Prefetch drone-ssh
+        continue-on-error: true
+        run: .github/scripts/prefetch-drone-ssh.sh
 
       # Waits (25 min max) for an open manual or frozen window to end, then prints the revision;
       # none (no CLI yet, no stack) deploys without a window. docs/dev/maintenance_mode.md
@@ -429,7 +435,7 @@ jobs:
       # next run's "Decide which sides to deploy" diffs against. Only reached
       # once the health check above saw the new version.
       - name: Mark deployed backend commit
-        run: git push --force origin "HEAD:refs/heads/preview-backend"
+        run: .github/scripts/retry.sh 5 git push --force origin "HEAD:refs/heads/preview-backend"
 
       # Also after a failure or cancellation (a newer push cancels this run); a window of the
       # newer run is left alone.

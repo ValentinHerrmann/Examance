@@ -130,7 +130,7 @@ async def delete_account(
     purged_submissions = 0
     if exam_ids:
         # Deleting the teacher cascades to the scan rows; their files follow the commit.
-        scan_storage.forget_scans_of_exams(db, list(exam_ids))
+        await scan_storage.forget_scans_of_exams(db, list(exam_ids))
         result_shares.forget_exams(db, list(exam_ids))
         students_res = await db.execute(
             update(StudentIdentity)

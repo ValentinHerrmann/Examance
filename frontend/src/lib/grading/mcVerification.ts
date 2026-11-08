@@ -38,6 +38,13 @@ export interface McDetectionRunSummary {
   reviewedCount: number;
 }
 
+/** How many items were read with one OMR template (issue #239): a pin (`pinnedAt`), the current layout (hash only) or unrecorded (neither). */
+export interface McTemplateUsage {
+  hash?: string;
+  pinnedAt?: string;
+  itemCount: number;
+}
+
 export interface McDetectionItem {
   submissionId: string;
   exerciseId: string;
@@ -157,6 +164,7 @@ export interface McVerificationStats {
   confusionMatrix: DetectionConfusionMatrix;
   /** Newest run first; the legacy (`run: null`) bucket, if any, last. */
   detectionRuns: McDetectionRunSummary[];
+  templatesUsed: McTemplateUsage[];
   /** MC score rows without any detection (typed in by hand) — a re-run leaves them alone. */
   undetectedScoreCount: number;
   /** Per-algorithm accuracy on verified boxes that carry both verdicts; empty before any. */
@@ -375,6 +383,7 @@ export async function computeMcVerificationStats(
     qualityStats,
     confusionMatrix,
     detectionRuns: summarizeDetectionRuns(items),
+    templatesUsed: summarizeTemplates(items),
     undetectedScoreCount,
     algorithmComparison: [...algoScores.values()].sort((a, b) => a.algorithm - b.algorithm),
   };
@@ -400,6 +409,23 @@ export function summarizeDetectionRuns(items: McDetectionItem[]): McDetectionRun
     (b.run?.detectedAt ?? "").localeCompare(a.run?.detectedAt ?? "")
   );
   return legacy ? [...runs, legacy] : runs;
+}
+
+/** Items per template they were read with: pins newest first, then the current layout, then unrecorded. */
+export function summarizeTemplates(items: Pick<McDetectionItem, "run">[]): McTemplateUsage[] {
+  const byHash = new Map<string, McTemplateUsage>();
+  for (const item of items) {
+    const key = item.run?.templateHash ?? "";
+    const usage = byHash.get(key) ?? { ...(key ? { hash: key } : {}), itemCount: 0 };
+    if (item.run?.templatePinnedAt) usage.pinnedAt = item.run.templatePinnedAt;
+    usage.itemCount++;
+    byHash.set(key, usage);
+  }
+  const rank = (u: McTemplateUsage) => {
+    if (u.pinnedAt) return 0;
+    return u.hash ? 1 : 2;
+  };
+  return [...byHash.values()].sort((a, b) => rank(a) - rank(b) || (b.pinnedAt ?? "").localeCompare(a.pinnedAt ?? ""));
 }
 
 /** Classifies every OMR-evaluated OPTION into the confusion matrix of `DetectionConfusionMatrix`, in its own pass grouped by option index. */

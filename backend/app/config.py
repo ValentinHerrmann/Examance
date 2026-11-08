@@ -96,6 +96,8 @@ class Settings(BaseSettings):
     BODY_LIMIT_RESULT_SHARE: int = 34 * 1024 * 1024  # 34 MB
     # A graded PDF relayed to Artemis (10 MB file plus form fields).
     BODY_LIMIT_INTEGRATION_FILE: int = 11 * 1024 * 1024  # 11 MB
+    # One pinned OMR template (issue #239): 4 MiB ciphertext cap, base64-inflated, plus JSON slack.
+    BODY_LIMIT_OMR_PIN: int = 6 * 1024 * 1024        # 6 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
 
     # Storage partitions (issue #114, docs/dev/storage_partitions.md). "db" keeps scans in Postgres; "fs" writes new ones under BLOB_STORAGE_DIR (local dir or rclone mount). Reads accept both.

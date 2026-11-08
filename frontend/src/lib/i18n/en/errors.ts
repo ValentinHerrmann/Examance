@@ -44,6 +44,7 @@ export const errors: Translations['errors'] = {
         ERR_RESULT_LINK_INVALID: 'The link to the exam is invalid.',
         ERR_MAIL_UNAVAILABLE: 'E-mail sending is not set up on this server.',
         ERR_EXAM_NOT_FOUND: 'This exam does not exist (any more), or it belongs to another account.',
+        ERR_OMR_PIN_TOO_LARGE: 'The answer-sheet layout is too large to save.',
         ERR_TEACHER_ROLE_REQUIRED: 'Admin accounts manage users and the server. Exams and exercises need a teacher account.',
         ERR_SHARE_SOURCE_CHANGED: 'The source changed in the meantime. Please review the changes again.',
         ERR_SHARE_SOURCE_UNAVAILABLE: 'The source of this exercise is no longer shared.',

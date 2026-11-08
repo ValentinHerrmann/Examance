@@ -18,18 +18,19 @@
     loadStudentsEncrypted,
     saveStudentEncrypted,
     saveSubmissionEncrypted,
-    loadOmrTemplateEncrypted,
     openScan,
     sealScan,
   } from "#lib/db/dbEncryption";
   import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
-  import { prepareOmrTemplate, loadExamCompileContext, computeOmrTemplateHash } from "#lib/grading/omrTemplatePrep";
+  import { loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
+  import { loadOmrTemplateCandidates } from "#lib/grading/omrTemplatePins";
+  import type { OmrTemplateCandidate } from "#lib/grading/omrTemplateChoice";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
-  import type { StudentRecord, OmrPageTemplate, PseudonymVersion } from "#lib/db/schema";
+  import type { StudentRecord, PseudonymVersion } from "#lib/db/schema";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
@@ -122,11 +123,9 @@
   let qrPool: WorkerPool<QrWorkerRequest, QrWorkerResponse> | null = null;
   let omrPool: WorkerPool<OmrWorkerRequest, OmrWorkerResponse> | null = null;
 
-  /** Per-page bubble/fiducial rects captured by "Prepare OMR" on the exam page; empty if unavailable. */
-  let omrTemplatePages: OmrPageTemplate[] = [];
+  /** Templates a page may have been printed with: pins newest first, then the current layout (issue #239). */
+  let omrTemplates: OmrTemplateCandidate[] = [];
   let omrAnswerKeys: OmrExerciseAnswerKey[] = [];
-  /** `exercisesHash` of the template in use — stamped into each detection's run snapshot. */
-  let omrTemplateHash: string | undefined;
   let omrAvailable = false;
   let omrBanner = $state("");
   // Pages the last upload could not place (issue #220): missing, extra or of another exam. Every page was kept.
@@ -162,58 +161,19 @@
       if (!quiet) omrBanner = message;
     };
     try {
-      const existing = await loadOmrTemplateEncrypted(examId, key);
-      let needsCompile = !existing || !existing.payload;
-      // The layout hash needs the exam itself, so the context is loaded for the check too.
       const compileCtx = await loadExamCompileContext(examId, key);
-
-      if (!needsCompile && compileCtx) {
-        const currentHash = await computeOmrTemplateHash(compileCtx);
-        if (existing!.record.exercisesHash !== currentHash) {
-          needsCompile = true;
-        }
+      let captured = false;
+      // Pins first (issue #239): sheets printed before a later edit are read with the layout they were printed with.
+      const res = await loadOmrTemplateCandidates(examId, key, compileCtx, (msg) => {
+        captured = true;
+        banner(`${translate("scanning.omrBanner.autoPreparing")} - ${msg}`);
+      });
+      if (res.candidates.length === 0) {
+        omrAvailable = false;
+        banner(translate("scanning.omrBanner.autoPrepareFailed", { message: res.currentError ?? res.pinsError ?? translate("scanning.examContextNotFound") }));
+        return;
       }
-
-      let pages: OmrPageTemplate[];
-      if (needsCompile) {
-        if (!compileCtx) {
-          omrAvailable = false;
-          banner(translate("scanning.omrBanner.autoPrepareFailed", { message: translate("scanning.examContextNotFound") }));
-          return;
-        }
-
-        try {
-          banner(translate("scanning.omrBanner.autoPreparing"));
-          const compileRes = await prepareOmrTemplate({
-            examId,
-            exam: compileCtx.exam,
-            exercises: compileCtx.exercises,
-            libraryExercises: compileCtx.libraryExercises,
-            mcGroups: compileCtx.mcGroups,
-            key,
-            onProgress: (msg) => { banner(`${translate("scanning.omrBanner.autoPreparing")} - ${msg}`); }
-          });
-
-          if (compileRes.status === 'stale') {
-             omrAvailable = false;
-             banner(translate("scanning.omrBanner.autoPrepareFailed", { message: compileRes.message }));
-             return;
-          }
-
-          pages = compileRes.pages;
-          omrTemplateHash = compileRes.exercisesHash;
-          banner(translate("scanning.omrBanner.autoPrepared"));
-        } catch (err: any) {
-          omrAvailable = false;
-          banner(translate("scanning.omrBanner.autoPrepareFailed", { message: err.message }));
-          return;
-        }
-      } else {
-        pages = existing!.payload!.pages;
-        omrTemplateHash = existing!.record.exercisesHash;
-      }
-
-      omrTemplatePages = pages;
+      omrTemplates = res.candidates;
       omrAnswerKeys = mcExercises.map((e) => ({
         exerciseId: e.id,
         questionType: e.questionType as "mc" | "sc" | "tf",
@@ -222,7 +182,8 @@
         maxPoints: e.maxPoints,
       }));
       omrAvailable = true;
-      if (!needsCompile) banner("");
+      if (res.pinsError) banner(translate("scanning.omrBanner.pinsFailed", { message: res.pinsError }));
+      else banner(captured ? translate("scanning.omrBanner.autoPrepared") : "");
     } catch (err) {
       console.error("Failed to load OMR context:", err);
       omrAvailable = false;
@@ -357,9 +318,10 @@
       }
     }
 
+    // Two different faults: the server returned no scan bytes, or this tab holds no key to open them.
     if (!scanCt || !scanIv || (!key && !fallbackKey)) {
       previewLoading = false;
-      previewError = translate("scanning.errorPreviewMissingData");
+      previewError = translate(!scanCt || !scanIv ? "scanning.errorPreviewNoScan" : "scanning.errorNoSessionKey");
       return;
     }
 
@@ -557,9 +519,8 @@
         getSessionKey: () => get(sessionStore).sessionKey,
         qrPool,
         omrPool,
-        getOmrContext: () => (omrAvailable ? { templatePages: omrTemplatePages, answerKeys: omrAnswerKeys } : null),
+        getOmrContext: () => (omrAvailable ? { templates: omrTemplates, answerKeys: omrAnswerKeys } : null),
         omrSettings: get(omrSettingsStore),
-        omrTemplateHash,
         monitor,
         onProgress: showIngestProgress,
         pageCodes: get(examNavContext)?.exam?.pageCodes === true,
@@ -640,7 +601,7 @@
     }
 
     if (!scanCt || !scanIv || (!key && !fallbackKey)) {
-      alert(translate("scanning.splitMissingData"));
+      alert(translate(!scanCt || !scanIv ? "scanning.splitNoScan" : "scanning.errorNoSessionKey"));
       return;
     }
 

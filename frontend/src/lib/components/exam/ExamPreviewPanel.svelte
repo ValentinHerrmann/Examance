@@ -16,7 +16,9 @@
   import { get } from "svelte/store";
   import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
   import type { McGroup } from "#lib/db/dbEncryption";
+  import { fmt } from "#lib/utils/format";
   import { prepareOmrTemplate, omrTemplateStatus, type ExamItemRef } from "#lib/grading/omrTemplatePrep";
+  import { omrPinState, type OmrPinState } from "#lib/grading/omrTemplatePins";
   import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
   import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
   import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
@@ -99,6 +101,8 @@
   let isPreparingOmr = $state(false);
   let omrPrepareMessage = $state("");
   let omrStatus: "none" | "ready" | "stale" | "checking" = $state("checking");
+  // The newest pinned print layout (issue #239): an edit after printing is pointed out, scans still use the pin.
+  let pinState = $state.raw<OmrPinState | null>(null);
 
   let previewPdfUrl: string | null = $state(null);
   let previewSolutionPdfUrl: string | null = $state(null);
@@ -122,6 +126,7 @@
     if (compileNotice) return { tone: "info", text: compileNotice };
     if (isPreparingOmr && omrPrepareMessage) return { tone: "info", text: omrPrepareMessage };
     if (omrStatus === "stale") return { tone: "warning", text: $t("exam.page.omr.staleWarning") };
+    if (pinState?.differs) return { tone: "info", text: $t("exam.page.omr.pinDiffers", { date: $fmt.dateTime(pinState.pinnedAt) }) };
     if (hasPdf && previewOutdated) return { tone: "warning", text: $t("exam.page.preview.statusStale") };
     if (omrPrepareMessage) return { tone: "success", text: omrPrepareMessage };
     if (hasPdf) return { tone: "success", text: $t("exam.page.preview.statusCurrent") };
@@ -146,6 +151,11 @@
     } catch (err) {
       console.error("Failed to check OMR template status:", err);
       omrStatus = "none";
+    }
+    try {
+      pinState = await omrPinState(sources(), key());
+    } catch {
+      pinState = null; // offline or no server: no note rather than a wrong one
     }
   }
 

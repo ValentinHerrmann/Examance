@@ -140,3 +140,35 @@ async def test_erasing_a_student_removes_the_scan_files_of_their_submissions(
         select(ScanSubmission.scan_path).where(ScanSubmission.exam_id == uuid.UUID(exam_id))
     )
     assert [ref for ref, _ in blob_store.iter_refs("scans")] == list(remaining.scalars())
+
+
+async def test_exam_cascade_drops_only_the_files_its_rows_name(
+    client: AsyncClient, db: AsyncSession, store: Path
+) -> None:
+    from app.services import scan_storage
+
+    await _create_teacher_and_login(client, db, f"blob-{uuid.uuid4().hex[:8]}@example.com")
+    exam = await client.post(
+        "/api/v1/exams", json={"title": "Cascade exam", "retention_until": "2027-12-31"}
+    )
+    exam_id = exam.json()["id"]
+    created = await client.post(
+        f"/api/v1/exams/{exam_id}/submissions",
+        json={
+            "id": str(uuid.uuid4()),
+            "pseudonym_hmac": "d" * 64,
+            "scan_ciphertext_b64": base64.b64encode(b"scan").decode(),
+            "scan_iv_b64": base64.b64encode(b"123456789012").decode(),
+        },
+    )
+    assert created.status_code == 201, created.text
+    (named,) = [ref for ref, _ in blob_store.iter_refs("scans")]
+    # Regression: the cascade removed the whole exam dir, so a file no row of the purged set names went too.
+    stray = store / "scans" / exam_id / "other.bin"
+    stray.write_bytes(b"keep")
+
+    await scan_storage.forget_scans_of_exams(db, [uuid.UUID(exam_id)])
+    await db.commit()
+
+    assert not (store / named).exists()
+    assert stray.exists()

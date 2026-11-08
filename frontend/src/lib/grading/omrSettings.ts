@@ -235,8 +235,10 @@ export interface OmrRunInfo {
   settings: { source: OmrSettingsSource; revision: number };
   /** Full params at the time. Snapshots from older algorithm versions lack later keys. */
   params: OmrDetectionParams;
-  /** `exercisesHash` of the OMR template the batch ran against. */
+  /** `exercisesHash` of the OMR template the row was read with. */
   templateHash?: string;
+  /** When that template was pinned at printing (issue #239); absent = the current layout, not pinned. */
+  templatePinnedAt?: string;
 }
 
 export function createOmrRun(
@@ -269,4 +271,6 @@ export interface OmrPageStats {
   ratioDiff?: number;
   /** Mapped top-left corner angle in degrees (4-fiducial pages only). */
   angleDeg?: number;
+  /** Share of boxes whose printed border sat where the template expects it (issue #239); absent on pages without boxes. */
+  templateFit?: number;
 }

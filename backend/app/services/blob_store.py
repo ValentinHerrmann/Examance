@@ -151,6 +151,14 @@ def get_sync(ref: str) -> bytes:
         raise BlobStoreUnavailable(f"missing blob {ref}") from None
 
 
+def exists_sync(ref: str) -> bool:
+    """Whether the file behind *ref* is there; False also when the store is unreachable."""
+    try:
+        return _resolve(ref).is_file()
+    except BlobStoreUnavailable:
+        return False
+
+
 def delete_sync(ref: str) -> None:
     _resolve(ref).unlink(missing_ok=True)
 
@@ -181,6 +189,7 @@ def sweep_sync(kind: str, referenced: set[str]) -> int:
     removed = 0
     for ref, mtime in iter_refs(kind):
         if ref not in referenced and mtime < cutoff:
+            logger.info("blob sweep deletes unreferenced %s", ref)
             delete_sync(ref)
             removed += 1
     return removed
@@ -203,6 +212,8 @@ def _apply(ops: list[tuple[str, str]]) -> None:
     # Never raises: the commit has happened; a failed delete is left to the retention sweep.
     for op, target in ops:
         try:
+            # Refs only (ids, never names or contents): the trail that was missing when a preview exam lost its scans.
+            logger.info("blob delete %s %s", op, target)
             if op == "ref":
                 delete_sync(target)
             else:

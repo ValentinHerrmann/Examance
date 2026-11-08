@@ -4,7 +4,8 @@
   import { Button, Card, actionIcons } from "#lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
   import { diffOmrParams, type OmrSettingsProfile } from "#lib/grading/omrSettings";
-  import type { McAlgorithmScore, McDetectionRunSummary } from "#lib/grading/mcVerification";
+  import type { McAlgorithmScore, McDetectionRunSummary, McTemplateUsage } from "#lib/grading/mcVerification";
+  import type { OmrPinState } from "#lib/grading/omrTemplatePins";
 
   
 
@@ -15,9 +16,13 @@
     current: OmrSettingsProfile;
     /** v2 vs v4 on the verified boxes (`McVerificationStats.algorithmComparison`). */
     comparison?: McAlgorithmScore[];
+    /** Items per OMR template they were read with (issue #239). */
+    templates?: McTemplateUsage[];
+    /** The newest pin and whether the current layout differs from it. */
+    pin?: OmrPinState | null;
   }
 
-  let { runs, current, comparison = [] }: Props = $props();
+  let { runs, current, comparison = [], templates = [], pin = null }: Props = $props();
 
   let latest = $derived(runs[0] ?? null);
   let latestParams = $derived(latest?.run?.params ?? null);
@@ -48,6 +53,27 @@
         </span>
       {:else}
         <span class="text-warning-fg">{$t("scanning.verify.settingsPanel.notRecorded")}</span>
+      {/if}
+    </div>
+
+    <!-- Which answer-sheet layout the boxes were read with (issue #239). -->
+    <div class="mb-3 text-xs text-content">
+      <p class="mt-0 mb-1 font-semibold">{$t("scanning.verify.template.heading")}</p>
+      <ul class="m-0 list-none p-0">
+        {#each templates as u (u.hash ?? "none")}
+          <li class={u.pinnedAt ? "" : "text-muted"}>
+            {u.pinnedAt
+              ? $t("scanning.verify.template.pinnedRow", { date: $fmt.dateTime(u.pinnedAt), items: u.itemCount })
+              : u.hash
+                ? $t("scanning.verify.template.currentRow", { items: u.itemCount })
+                : $t("scanning.verify.template.unrecordedRow", { items: u.itemCount })}
+          </li>
+        {/each}
+      </ul>
+      {#if pin?.differs}
+        <p class="mt-1 mb-0 text-warning-fg">{$t("scanning.verify.template.differs", { date: $fmt.dateTime(pin.pinnedAt) })}</p>
+      {:else if !pin}
+        <p class="mt-1 mb-0 text-muted">{$t("scanning.verify.template.noPin")}</p>
       {/if}
     </div>
 

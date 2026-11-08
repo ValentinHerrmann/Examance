@@ -45,6 +45,7 @@ export const errors = {
         ERR_RESULT_LINK_INVALID: 'Der Link zur Arbeit ist ungültig.',
         ERR_MAIL_UNAVAILABLE: 'Auf diesem Server ist kein E-Mail-Versand eingerichtet.',
         ERR_EXAM_NOT_FOUND: 'Diese Prüfung gibt es nicht (mehr), oder sie gehört zu einem anderen Konto.',
+        ERR_OMR_PIN_TOO_LARGE: 'Das Antwortbogen-Layout ist zu groß zum Speichern.',
         ERR_TEACHER_ROLE_REQUIRED: 'Administrationskonten verwalten Benutzer und Server. Für Prüfungen und Aufgaben brauchen Sie ein Lehrkraft-Konto.',
         ERR_SHARE_SOURCE_CHANGED: 'Die Quelle hat sich inzwischen geändert. Bitte prüfen Sie die Änderungen erneut.',
         ERR_SHARE_SOURCE_UNAVAILABLE: 'Die Quelle dieser Aufgabe wird nicht mehr geteilt.',

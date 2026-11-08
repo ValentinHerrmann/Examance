@@ -316,6 +316,18 @@ export async function saveOmrTemplateEncrypted(
   return examId;
 }
 
+/** Seals a pinned OMR template (issue #239) for the server, bound to its exam and layout hash. */
+export async function sealOmrTemplatePin(examId: string, layoutHash: string, payload: OmrTemplatePayload, key: CryptoKey | null): Promise<{ ct: Uint8Array; iv: Uint8Array }> {
+  if (!key) throw new MissingSessionKeyError('omrTemplatePin');
+  return encryptBytes(key, encoder.encode(JSON.stringify(payload)), aadFor('omrPin', examId, layoutHash));
+}
+
+/** Opens a pinned OMR template; throws when it does not open (wrong key or a pin of another exam or layout). */
+export async function openOmrTemplatePin(examId: string, layoutHash: string, ct: Uint8Array, iv: Uint8Array, key: CryptoKey | null): Promise<OmrTemplatePayload> {
+  if (!key) throw new MissingSessionKeyError('omrTemplatePin');
+  return JSON.parse(decoder.decode(await openBytes(key, ct, iv, aadFor('omrPin', examId, layoutHash)))) as OmrTemplatePayload;
+}
+
 // ---------------------------------------------------------------------------
 // High-Level Encrypted CRUD Operations (Delegated to Repositories)
 // ---------------------------------------------------------------------------
