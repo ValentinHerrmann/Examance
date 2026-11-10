@@ -64,6 +64,8 @@ Privacy-first anonymous exam grading. Teachers write LaTeX exams, print QR-coded
 ```bash
 make install            # backend dependencies (uv)
 make install-frontend   # frontend dependencies (npm)
+cp .env.example .env    # local database password + SECRET_KEY for docker compose
+cp backend/.env.example backend/.env
 make dev-up             # docker compose: postgres + redis + backend
 make migrate            # apply database migrations
 cd frontend && npm run dev

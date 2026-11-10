@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { PROCESSED_ARCHIVE, mirrorUrl, run, streamExtract } from './busytex-mirror.mjs';
+import { fetchBusytex } from './fetch-busytex.mjs';
 
 const STATIC_BUSYTEX = path.resolve('static/core/busytex');
 const STAGE_ROOT = path.resolve('.busytex');
@@ -36,7 +37,7 @@ async function main() {
       }
     }
     // fetch-busytex skips the download when the staging copy survived a previous local build.
-    await run('node', ['scripts/fetch-busytex.mjs', path.join(STAGE_ROOT, 'core')]);
+    await fetchBusytex(path.join(STAGE_ROOT, 'core'));
     await run('node', ['scripts/process-large-files.mjs', STAGE_ROOT]);
     console.log(`✓ BusyTeX assets staged (${((Date.now() - started) / 1000).toFixed(1)} s)`);
   })();
