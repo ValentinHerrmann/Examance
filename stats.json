@@ -5,18 +5,18 @@
       "label": "Frontend",
       "color": "#FF3E00",
       "files": 603,
-      "lines": 71858,
+      "lines": 71859,
       "code": 67628,
-      "comments": 4230
+      "comments": 4231
     },
     {
       "key": "frontend_tests",
       "label": "Frontend tests",
       "color": "#F59E0B",
       "files": 120,
-      "lines": 12241,
-      "code": 11619,
-      "comments": 622
+      "lines": 12248,
+      "code": 11625,
+      "comments": 623
     },
     {
       "key": "backend",
@@ -48,8 +48,8 @@
   ],
   "total": {
     "files": 1080,
-    "lines": 131356,
-    "code": 119677,
-    "comments": 5829
+    "lines": 131364,
+    "code": 119683,
+    "comments": 5831
   }
 }
