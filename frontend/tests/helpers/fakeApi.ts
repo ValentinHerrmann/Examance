@@ -112,7 +112,7 @@ function parseExerciseScore(latex: string | null | undefined): number {
   if (!latex) return 0;
   const override = /\\begin\{Aufgabe\}\[([\d.]+)\]/.exec(latex);
   if (override) {
-    const parsed = parseFloat(override[1]);
+    const parsed = Number.parseFloat(override[1]);
     if (!Number.isNaN(parsed)) return parsed;
   }
   const count = (re: RegExp) => (latex.match(re) ?? []).length;
@@ -128,7 +128,7 @@ function base64Length(b64: string): number {
 function base64ToBytes(b64: string): Uint8Array {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.codePointAt(i) ?? 0;
   return bytes;
 }
 

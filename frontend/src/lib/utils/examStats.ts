@@ -9,7 +9,7 @@ export function computeExamStats(submissions: SubmissionRecord[]): Map<string, E
   for (const s of submissions) {
     const curr = sums.get(s.examId) || { sum: 0, count: 0, submissionCount: 0 };
     curr.submissionCount += 1;
-    if (typeof s.totalScore === "number" && !isNaN(s.totalScore)) {
+    if (typeof s.totalScore === "number" && !Number.isNaN(s.totalScore)) {
       curr.sum += s.totalScore;
       curr.count += 1;
     }

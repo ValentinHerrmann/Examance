@@ -84,13 +84,13 @@ export async function svgToPng(markup: string): Promise<Blob> {
 
 /** Standard PDF fonts are WinAnsi and pdf-lib throws otherwise: map the narrow no-break space before "%" and the borderline minus sign. */
 export function toWinAnsi(text: string): string {
-  return text.replace(/\u202f/g, '\u00a0').replace(/\u2212/g, '-');
+  return text.replaceAll('\u202f', '\u00a0').replaceAll('\u2212', '-');
 }
 
 function hexToRgb01(hex: string): [number, number, number] {
   const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) throw new Error(`chartExport: unsupported colour ${hex}`);
-  const n = parseInt(m[1], 16);
+  const n = Number.parseInt(m[1], 16);
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
 

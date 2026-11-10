@@ -8,11 +8,11 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 PY="${DEMO_PYTHON:-python3}"   # needs pymupdf, pillow, qrcode, numpy
 cd "$HERE"
 
-[ "${1:-}" = "--keep" ] || ./reset.sh
+[[ "${1:-}" == "--keep" ]] || ./reset.sh
 mkdir -p .state/fonts
 for f in caveat/Caveat%5Bwght%5D.ttf kalam/Kalam-Regular.ttf patrickhand/PatrickHand-Regular.ttf indieflower/IndieFlower-Regular.ttf; do
   out=".state/fonts/$(basename "$f" | sed 's/%5B.*/.ttf/')"
-  [ -f "$out" ] || curl --proto '=https' --tlsv1.2 -fsSL -o "$out" "https://raw.githubusercontent.com/google/fonts/main/ofl/$f"
+  [[ -f "$out" ]] || curl --proto '=https' --tlsv1.2 -fsSL -o "$out" "https://raw.githubusercontent.com/google/fonts/main/ofl/$f"
 done
 
 node seed-library.mjs          # colleague shares 3 exercises; demo teacher builds 11 + a variant, copies one, proposes a change

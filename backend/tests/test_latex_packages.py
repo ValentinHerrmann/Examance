@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from datetime import date, timedelta
 
 import pytest
@@ -72,6 +73,15 @@ def test_body_scan_skips_comments_and_verbatim() -> None:
         ("tikzlibrary", "calc"),
         ("tikzlibrary", "mindmap"),
     ]
+
+
+def test_inline_verbatim_stops_at_its_delimiter_in_linear_time() -> None:
+    # SonarCloud S5843: `(?:(?!\1).)*\1` became `.*?\1`, which ends at the same first delimiter.
+    entries = exercise_entries("\\verb+a+ \\usepackage{xcolor} \\lstinline[x]!\\usepackage{hidden}!")
+    assert [e.name for e in entries] == ["xcolor"]
+    start = time.perf_counter()
+    assert exercise_entries("\\verb|" + "a" * 100_000) == []
+    assert time.perf_counter() - start < 1
 
 
 def test_cleveref_loads_after_hyperref() -> None:

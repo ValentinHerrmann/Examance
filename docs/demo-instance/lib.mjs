@@ -54,8 +54,10 @@ export async function open({ profile, theme = 'dark', locale = 'de', width = 160
 export function totp(secret, step = Math.floor(Date.now() / 30000)) {
   const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   let bits = '';
-  for (const c of secret.replace(/=+$/, '')) bits += alpha.indexOf(c).toString(2).padStart(5, '0');
-  const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
+  let end = secret.length;
+  while (end > 0 && secret[end - 1] === '=') end--; // a loop: the `/=+$/` regex backtracks on long runs
+  for (const c of secret.slice(0, end)) bits += alpha.indexOf(c).toString(2).padStart(5, '0');
+  const key = Buffer.from(bits.match(/.{8}/g).map((b) => Number.parseInt(b, 2)));
   const ctr = Buffer.alloc(8);
   ctr.writeBigUInt64BE(BigInt(step));
   const h = crypto.createHmac('sha1', key).update(ctr).digest();

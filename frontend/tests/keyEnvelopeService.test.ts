@@ -37,6 +37,7 @@ const {
   openWithRecoveryCode,
   regenerateRecoveryCode,
   rewrapForChangedPassword,
+  sameCredential,
 } = await import('../src/lib/services/keyEnvelopeService');
 
 async function passkeyEnvelope(
@@ -168,5 +169,16 @@ describe('envelope fingerprint pin', () => {
   it('never pins a set that failed to open', async () => {
     await expect(openWithPasskey(TEACHER_ID, CRED, randomBytes(32))).rejects.toThrow();
     expect(localStorage.getItem(PIN_KEY)).toBeNull();
+  });
+});
+
+describe('sameCredential', () => {
+  it('ignores base64url padding, also on long runs (SonarCloud S8786)', () => {
+    expect(sameCredential('abc==', 'abc')).toBe(true);
+    expect(sameCredential('abc', 'abd')).toBe(false);
+    expect(sameCredential(null, 'abc')).toBe(false);
+    const start = performance.now();
+    expect(sameCredential('a' + '='.repeat(100_000) + 'b', 'a')).toBe(false);
+    expect(performance.now() - start).toBeLessThan(200);
   });
 });

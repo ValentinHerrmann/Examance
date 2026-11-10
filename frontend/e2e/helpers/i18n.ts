@@ -39,8 +39,9 @@ export function stripDecoration(text: string): string {
       // A leading "+" ("+ Add option") is an icon after a redesign.
       .replace(/^\s*\+\s*/, '')
       // Required-field marker ("Name *").
-      .replace(/\s*\*\s*$/, '')
-      .replace(/\s+/g, ' ')
+      .trimEnd()
+      .replace(/\*$/, '')
+      .replaceAll(/\s+/g, ' ')
       .trim()
   );
 }
@@ -86,8 +87,8 @@ export function labelExact(key: string, vars?: Vars, locale: Locale = DEFAULT_LO
 /** The "stem" of a label: the text before the first `{placeholder}` or opening parenthesis. "2. Scan Ingestion ({count})" becomes /Scan Ingestion/i. Use it where a counter that is rendered as "(3)" today may become a badge later. */
 export function stem(key: string, locale: Locale = DEFAULT_LOCALE): RegExp {
   const cleaned = stripDecoration(rawTemplate(key, locale));
-  const head = cleaned.split(/\s*[({]/)[0].trim();
-  return new RegExp(escapeRegExp(head).replace(/\s+/g, '\\s+'), 'i');
+  const head = cleaned.split(/[({]/)[0].trim();
+  return new RegExp(escapeRegExp(head).replaceAll(/\s+/g, String.raw`\s+`), 'i');
 }
 
 /** Native language names. They live in `lib/i18n/index.ts` (`LOCALE_LABELS`), which cannot be imported here because it uses the `#lib` alias, and they are deliberately not translated, so repeating them is safe. */

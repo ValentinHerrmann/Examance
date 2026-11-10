@@ -1,4 +1,5 @@
 /** Builds anonymous training samples (opt-in donation) from one teacher-verified MC question: a small grayscale crop of one box plus redo zone, the teacher's label and the detector's reading. Deliberately no exam, submission, exercise, pupil or teacher id and no timestamp; `sample_token` is random per box so a re-donation replaces it. Match backend/app/schemas/training.py. */
+import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import type { OmrScoreMeta } from '#lib/db/schema';
 import { renderScanPage } from './mcCropRender';
 import type { OmrRunInfo } from './omrSettings';
@@ -71,12 +72,6 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const unit = (v: number | undefined, lo = 0, hi = 1): number | null =>
   v === undefined || !Number.isFinite(v) ? null : clamp(v, lo, hi);
 
-function toBase64(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
-
 /** Samples for every box of one verified question, or [] when the detection predates the features a sample needs (algorithm < 3) or its page cannot be read. */
 export async function buildTrainingSamples(
   scanPdfBytes: Uint8Array,
@@ -136,7 +131,7 @@ export async function buildTrainingSamples(
       alt_state: b.alt?.state ?? null,
       reasons: b.reasons ?? [],
       has_redo_zone: b.redoRatio !== undefined,
-      crop_b64: toBase64(grayBytes),
+      crop_b64: uint8ArrayToBase64(grayBytes),
       sample_token: token,
       features: {
         fill,

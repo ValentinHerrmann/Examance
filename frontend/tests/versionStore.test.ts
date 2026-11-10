@@ -7,6 +7,7 @@ import {
   versionUrlFor,
   repoUrl,
 } from '../src/lib/stores/versionStore';
+import { timeMs } from './helpers/randomStrings';
 
 
 describe('compareVersions', () => {
@@ -106,5 +107,19 @@ describe('refreshBackendVersion', () => {
     await refreshBackendVersion();
 
     expect(get(backendVersionStore)).toBeNull();
+  });
+});
+
+describe('compareVersions build stamps (SonarCloud S8786)', () => {
+  it('drops only the trailing bracketed stamp', () => {
+    expect(compareVersions('1.2.3 [01.01.2026 | 10:00]', '1.2.3   [02.01.2026 | 11:00]')).toBe('match');
+    expect(compareVersions('1.2.3 [a[b]', '1.2.3')).toBe('match');
+    expect(compareVersions('1.2.3 [a] x', '1.2.3')).not.toBe('match');
+    expect(compareVersions('1.2.3]', '1.2.3')).not.toBe('match');
+  });
+
+  it('stays linear on long whitespace runs', () => {
+    const input = '1.0.0' + ' '.repeat(100_000) + '[x';
+    expect(timeMs(() => compareVersions(input, '1.0.0'))).toBeLessThan(200);
   });
 });

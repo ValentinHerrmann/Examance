@@ -81,11 +81,11 @@ export function computeSideBySideDiff(
   rightText: string,
 ): { leftLines: DiffLine[]; rightLines: DiffLine[] } {
   const a = (leftText || "")
-    .replace(/\r\n/g, "\n")
+    .replaceAll("\r\n", "\n")
     .replace(/\n$/, "")
     .split("\n");
   const b = (rightText || "")
-    .replace(/\r\n/g, "\n")
+    .replaceAll("\r\n", "\n")
     .replace(/\n$/, "")
     .split("\n");
 

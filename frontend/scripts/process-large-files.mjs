@@ -40,7 +40,7 @@ async function processLargeFile({ fullPath, stats }) {
   console.log(`  Compressing with gzip -6...`);
   const gzipped = await gzipPipeline(fileContent, { level: 6 });
   
-  const relPath = '/' + path.relative(targetDir, fullPath).replace(/\\/g, '/');
+  const relPath = '/' + path.relative(targetDir, fullPath).replaceAll('\\', '/');
   const chunks = [];
 
   if (gzipped.length <= MAX_FILE_SIZE) {

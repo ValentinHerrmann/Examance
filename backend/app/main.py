@@ -52,6 +52,7 @@ logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
     format="%(levelname)s:\t%(name)s - %(message)s",
 )
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -65,21 +66,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     if not settings.SMTP_HOST:
         if not settings.is_dev:
-            logging.getLogger("app.main").warning(
+            logger.warning(
                 "SMTP_HOST is not configured! Password reset and user creation emails "
                 "will fail to send in environment '%s'.",
                 settings.ENVIRONMENT,
             )
         else:
-            logging.getLogger("app.main").info(
+            logger.info(
                 "SMTP_HOST is not set; running email service in development log-only mode."
             )
 
     if blob_store.configured():
         try:
-            logging.getLogger("app.main").info("Blob store at %s", blob_store.root())
+            logger.info("Blob store at %s", blob_store.root())
         except blob_store.BlobStoreUnavailable as exc:
-            logging.getLogger("app.main").exception(
+            logger.exception(
                 "Blob store unavailable, scan reads and writes will fail: %s", exc.reason
             )
 
@@ -88,11 +89,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     if ephemeral_store.uses_redis():
         if await ephemeral_store.check_reachable():
-            logging.getLogger("app.main").info(
+            logger.info(
                 "Ephemeral store: Redis reachable at %s", settings.RATE_LIMIT_STORAGE_URI
             )
         else:
-            logging.getLogger("app.main").warning(
+            logger.warning(
                 "Ephemeral store: Redis at %s is NOT reachable. Login throttling and "
                 "single-use sign-in tokens fall back to per-process memory, which is not "
                 "shared between workers. Check REDIS_URL — it defaults to localhost, "
@@ -103,10 +104,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     async with AsyncSessionLocal() as session:
         await create_initial_admin(session)
 
-    yield
-    # Shutdown: close engine
     from app.database import engine
-    await engine.dispose()
+
+    try:
+        yield
+    finally:
+        # Shutdown, also when startup of a later context or the server loop aborts.
+        await engine.dispose()
 
 
 def create_app() -> FastAPI:
@@ -227,7 +231,7 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         # Runs in ServerErrorMiddleware, outside CORSMiddleware, so a 500 would reach the browser without Access-Control-Allow-Origin and look like a CORS error, hiding the real fault. Headers are added by hand, for allowlisted origins only.
-        logging.getLogger("app.main").exception(
+        logger.exception(
             "Unhandled exception on %s %s", request.method, request.url.path
         )
         headers: dict[str, str] = {}

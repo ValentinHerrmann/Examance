@@ -120,31 +120,35 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
   const CHUNK_SIZE = 0x8000; // 32KB
   for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
     const chunk = bytes.subarray(i, i + CHUNK_SIZE);
-    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]); // NOSONAR: byte values only (0-255), and the hot path of multi-MB scans
   }
   return btoa(binary);
 }
 
+/** Strip trailing base64 `=` padding with a loop: the `/=+$/` regex backtracks quadratically on long `=` runs. */
+export function stripBase64Padding(b64: string): string {
+  let end = b64.length;
+  while (end > 0 && b64[end - 1] === '=') end--;
+  return b64.slice(0, end);
+}
+
 /** Encode Uint8Array to base64url string (for JSON serialization). */
 export function toBase64url(bytes: Uint8Array): string {
-  return uint8ArrayToBase64(bytes)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return stripBase64Padding(uint8ArrayToBase64(bytes).replaceAll('+', '-').replaceAll('/', '_'));
 }
 
 /** Decode base64url string to Uint8Array. */
 export function fromBase64url(b64: string): Uint8Array {
-  const padded = b64.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = b64.replaceAll('-', '+').replaceAll('_', '/');
   const binary = atob(padded);
-  return new Uint8Array(binary.length).map((_, i) => binary.charCodeAt(i));
+  return new Uint8Array(binary.length).map((_, i) => binary.codePointAt(i) ?? 0);
 }
 
 /** Decodes Base64/Base64URL (chunked, trims whitespace, restores padding, maps - and _) to a Uint8Array. */
 export function base64ToUint8Array(b64: string): Uint8Array {
   if (!b64 || !b64.trim()) return new Uint8Array(0);
 
-  let normalized = b64.trim().replace(/-/g, '+').replace(/_/g, '/');
+  let normalized = b64.trim().replaceAll('-', '+').replaceAll('_', '/');
   const pad = (4 - (normalized.length % 4)) % 4;
   if (pad < 4) {
     normalized += '='.repeat(pad);
@@ -153,7 +157,7 @@ export function base64ToUint8Array(b64: string): Uint8Array {
   const binary = atob(normalized);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+    bytes[i] = binary.codePointAt(i) ?? 0;
   }
   return bytes;
 }

@@ -6,7 +6,7 @@ import {
   getUserSessionNonce,
 } from '#lib/crypto/keyDerivation';
 import { deriveSessionKey } from '#lib/crypto/sessionKey';
-import { toArrayBuffer } from '#lib/crypto/aesGcm';
+import { base64ToUint8Array, stripBase64Padding, toArrayBuffer, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import {
   ENVELOPE_VERSION,
   KEK_KDF_PARAMS,
@@ -33,7 +33,6 @@ import { authenticate } from '#lib/webauthn/client';
 import { get } from 'svelte/store';
 import { sessionStore } from '#lib/stores/session';
 import { safeLocalStorage, safeSessionStorage } from '#lib/utils/storage';
-import { base64ToUint8Array, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 
 const FINGERPRINT_PREFIX = 'bg_envelope_fp:';
 
@@ -42,7 +41,7 @@ export function sameCredential(a: string | null, b: string | null): boolean {
   if (a === null || b === null) {
     return false;
   }
-  return a.replace(/=+$/, '') === b.replace(/=+$/, '');
+  return stripBase64Padding(a) === stripBase64Padding(b);
 }
 const KEY_ID_STORAGE = 'bg_key_id';
 

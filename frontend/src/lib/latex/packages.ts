@@ -148,10 +148,12 @@ export function splitOptions(options: string): string[] {
 
 // --- Package commands in exercise bodies ------------------------------------------------------------------------
 
-const PACKAGE_COMMAND =
-  /\\(usepackage|usetikzlibrary|usepgfplotslibrary)\s*(?:\[([^[\]{}]*(?:\{[^{}]*\}[^[\]{}]*)*)\]\s*)?\{([^{}]*)\}/g;
+// Built from parts like the backend's `_PACKAGE_COMMAND`: options may hold `{...}` groups but no nested brackets.
+const PACKAGE_NAME = String.raw`\\(usepackage|usetikzlibrary|usepgfplotslibrary)\s*`;
+const PACKAGE_OPTIONS = String.raw`(?:\[([^[\]{}]*(?:\{[^{}]*\}[^[\]{}]*)*)\]\s*)?`;
+const PACKAGE_COMMAND = new RegExp(String.raw`${PACKAGE_NAME}${PACKAGE_OPTIONS}\{([^{}]*)\}`, "g");
 const VERBATIM_BEGIN = /\\begin\s*\{(verbatim\*?|Verbatim|lstlisting|minted|comment)\}/;
-const INLINE_VERBATIM = /\\(?:verb\*?|lstinline(?:\[[^\]]*\])?)(?:\{[^}]*\}|([^\sa-zA-Z{])(?:(?!\1).)*\1)/g;
+const INLINE_VERBATIM = /\\(?:verb\*?|lstinline(?:\[[^\]]*\])?)(?:\{[^}]*\}|([^\sa-zA-Z{]).*?\1)/g;
 const COMMENT = /(?<!\\)%/;
 type PackageCommand = "usepackage" | "usetikzlibrary" | "usepgfplotslibrary";
 const COMMAND_KIND: Record<PackageCommand, PackageKind> = {

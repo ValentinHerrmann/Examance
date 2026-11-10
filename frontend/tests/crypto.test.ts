@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { encrypt, decrypt, toBase64url, fromBase64url, uint8ArrayToBase64, base64ToUint8Array } from '../src/lib/crypto/aesGcm';
+import { encrypt, decrypt, toBase64url, fromBase64url, uint8ArrayToBase64, base64ToUint8Array, stripBase64Padding } from '../src/lib/crypto/aesGcm';
+import { randomStrings, timeMs } from './helpers/randomStrings';
 import { joinKey, keyFromRaw, pseudonymBase } from '../src/lib/crypto/pseudonymKey';
 import { sessionStore } from '../src/lib/stores/session';
 import { hkdfMasterKey } from './helpers/keys';
@@ -301,5 +302,20 @@ describe('Large Binary & Pseudonym Validation Helpers', () => {
     // Any 64-character value passed through unhashed; server rows were written that way.
     const existing64 = 'a'.repeat(64);
     expect(await pseudonymBase(existing64)).toBe(existing64);
+  });
+});
+
+describe('stripBase64Padding (SonarCloud S8786)', () => {
+  it('matches the former /=+$/ replace', () => {
+    for (const s of randomStrings(['=', 'A', '-', '_', '+', '/'], 500, 8)) {
+      expect(stripBase64Padding(s)).toBe(s.replace(/=+$/, ''));
+    }
+  });
+
+  it('stays linear on a long run of padding', () => {
+    const input = 'a' + '='.repeat(100_000) + 'b';
+    expect(timeMs(() => stripBase64Padding(input))).toBeLessThan(200);
+    expect(stripBase64Padding(input)).toBe(input);
+    expect(toBase64url(new Uint8Array([255, 254]))).toBe('__4');
   });
 });

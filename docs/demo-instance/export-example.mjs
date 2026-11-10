@@ -20,9 +20,9 @@ await page.waitForTimeout(4000);
 
 // The dev server serves the app's own modules: pack as the app does, then open the envelope again.
 const json = await page.evaluate(async () => {
-  const { packProject } = await import('/src/lib/archive/packer.ts');
-  const { decryptArchive } = await import('/src/lib/archive/unpacker.ts');
-  const { encodeBinary } = await import('/src/lib/archive/binary.ts');
+  const { packProject } = await import('/src/lib/archive/packer.ts'); // NOSONAR: runs in the browser, a URL path on the Vite dev server
+  const { decryptArchive } = await import('/src/lib/archive/unpacker.ts'); // NOSONAR: runs in the browser, a URL path on the Vite dev server
+  const { encodeBinary } = await import('/src/lib/archive/binary.ts'); // NOSONAR: runs in the browser, a URL path on the Vite dev server
   const password = 'example-data-export';
   const { blob } = await packProject(password);
   const payload = await decryptArchive(new Uint8Array(await blob.arrayBuffer()), password);

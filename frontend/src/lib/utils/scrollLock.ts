@@ -19,7 +19,7 @@ export function lockScroll(): () => void {
             const scrollbar = el.offsetWidth - el.clientWidth;
             locked = { el, overflow: el.style.overflow, paddingRight: el.style.paddingRight };
             if (scrollbar > 0) {
-                const current = parseFloat(getComputedStyle(el).paddingRight) || 0;
+                const current = Number.parseFloat(getComputedStyle(el).paddingRight) || 0;
                 el.style.paddingRight = `${current + scrollbar}px`;
             }
             el.style.overflow = 'hidden';

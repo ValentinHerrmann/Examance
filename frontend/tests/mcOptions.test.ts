@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildMcOptionsLatex, parseMcOptions, printedMcOptions } from '../src/lib/latex/mcOptions';
+import { buildMcOptionsLatex, mapComments, parseMcOptions, printedMcOptions } from '../src/lib/latex/mcOptions';
 import { escapeLatex, unescapeLatex } from '../src/lib/latex/scoreParser';
 import { normalizeMcExercise } from '../src/lib/grading/mcExerciseHash';
 import type { ExerciseRecord } from '../src/lib/db/schema';
+import { randomStrings, timeMs } from './helpers/randomStrings';
 
 // normalizeMcExercise is pure; keep the module's DB loaders out of the test.
 vi.mock('../src/lib/db/dbEncryption', () => ({
@@ -203,5 +204,24 @@ describe('normalizeMcExercise', () => {
   it('leaves free-text exercises alone', () => {
     const freeText: ExerciseRecord = { ...base, questionType: 'free_text' };
     expect(normalizeMcExercise(freeText)).toBe(freeText);
+  });
+});
+
+describe('mapComments matches the former comment regex (SonarCloud S8786)', () => {
+  const LEGACY = /(^|[^\\])((?:\\\\)*)%.*$/gm; // NOSONAR: the old regex is the oracle
+  const pieces = ['%', '\\', '\\\\', 'a', ' ', '\n', '\r', ' ', '\\%', '{'];
+
+  it('removes and blanks exactly what the regex did', () => {
+    for (const s of randomStrings(pieces, 4000, 12, 3)) {
+      expect(mapComments(s, () => '')).toBe(s.replace(LEGACY, '$1$2'));
+      expect(mapComments(s, (c) => ' '.repeat(c.length))).toBe(
+        s.replaceAll(LEGACY, (m: string, pre: string, slashes: string) => pre + slashes + ' '.repeat(m.length - pre.length - slashes.length)),
+      );
+    }
+  });
+
+  it('stays linear on long backslash runs', () => {
+    const input = '\\'.repeat(100_000) + 'x';
+    expect(timeMs(() => mapComments(input, () => ''))).toBeLessThan(200);
   });
 });

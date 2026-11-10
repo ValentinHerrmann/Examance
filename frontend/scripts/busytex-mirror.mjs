@@ -24,26 +24,55 @@ export const RAW_ARCHIVE = `busytex-assets-v${version}.tar.gz`;
 export const PROCESSED_ARCHIVE = `busytex-processed-v${version}-${processingHash}.tar`;
 export const UPSTREAM_URL = `https://github.com/TeXlyre/texlyre-busytex/releases/download/assets-v${version}/busytex-assets.tar.gz`;
 
-/** URL of `name` in the R2 mirror, or null when BUSYTEX_MIRROR_URL is unset. */
+/**
+ * `url` without trailing `/`, via a loop (the `/\/+$/` regex backtracks on long runs); undefined stays undefined.
+ * @param {string | undefined} url
+ * @returns {string | undefined}
+ */
+export function withoutTrailingSlashes(url) {
+  if (url === undefined) return undefined;
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end--;
+  return url.slice(0, end);
+}
+
+/**
+ * URL of `name` in the R2 mirror, or null when BUSYTEX_MIRROR_URL is unset.
+ * @param {string} name
+ * @returns {string | null}
+ */
 export function mirrorUrl(name) {
-  const base = process.env.BUSYTEX_MIRROR_URL?.replace(/\/+$/, '');
+  const base = withoutTrailingSlashes(process.env.BUSYTEX_MIRROR_URL);
   return base ? `${base}/${name}` : null;
 }
 
+/**
+ * Run `cmd`, optionally piping `stdin` into it; rejects on a non-zero exit.
+ * @param {string} cmd
+ * @param {string[]} args
+ * @param {import('node:stream').Readable} [stdin]
+ * @returns {Promise<void>}
+ */
 export function run(cmd, args, stdin) {
-  return new Promise((resolve, reject) => {
+  return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
     const child = spawn(cmd, args, { stdio: [stdin ? 'pipe' : 'inherit', 'inherit', 'inherit'] });
     child.on('error', reject);
     child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} exited with ${code}`))));
-    if (stdin) {
-      stdin.on('error', (err) => child.stdin.destroy(err));
-      child.stdin.on('error', reject);
-      stdin.pipe(child.stdin);
+    const input = child.stdin;
+    if (stdin && input) {
+      stdin.on('error', (/** @type {Error} */ err) => input.destroy(err));
+      input.on('error', reject);
+      stdin.pipe(input);
     }
   });
 }
 
-/** Streams the tarball at `url` into the system `tar`, extracting via a scratch directory and moving into `dest` only once `expect` (relative to `dest`) exists, so an interrupted download never leaves a partial tree that a later run would skip. */
+/**
+ * Streams the tarball at `url` into the system `tar`, extracting via a scratch directory and moving into `dest` only once `expect` (relative to `dest`) exists, so an interrupted download never leaves a partial tree that a later run would skip.
+ * @param {string} url
+ * @param {string} dest
+ * @param {{ gzip: boolean, expect: string }} options
+ */
 export async function streamExtract(url, dest, { gzip, expect }) {
   const tmp = path.join(dest, '.busytex-download');
   fs.rmSync(tmp, { recursive: true, force: true });
