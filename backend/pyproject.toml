@@ -35,6 +35,7 @@ dev = [
     "types-redis",
     "aiosqlite>=0.20.0",    # In-memory SQLite for unit/integration tests
     "httpx>=0.27.0",        # AsyncClient for FastAPI test transport
+    "pip-audit>=2.7.0",     # CI audits the exported lock (docs/dev/ci_and_audit.md)
 ]
 
 [build-system]

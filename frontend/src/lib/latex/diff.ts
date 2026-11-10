@@ -131,30 +131,43 @@ export function computeSideBySideDiff(
   }
 
   const GAP_PENALTY = -0.4;
+  const matchScoreOf = (sim: number): number => {
+    if (sim === 1.0) return 2.0;
+    return sim >= 0.35 ? 2.0 * sim : -0.8;
+  };
+  // Where each cell's best score came from, recorded in the forward pass so the backtrace never re-derives it by comparing floats.
+  type Step = "DIAG" | "UP" | "LEFT";
   const dp: number[][] = Array.from({ length: N + 1 }, () =>
     new Array(M + 1).fill(0),
   );
+  const steps: Step[][] = Array.from({ length: N + 1 }, () =>
+    new Array<Step>(M + 1).fill("LEFT"),
+  );
 
-  for (let i = 0; i <= N; i++) dp[i][0] = i * GAP_PENALTY;
+  for (let i = 0; i <= N; i++) {
+    dp[i][0] = i * GAP_PENALTY;
+    steps[i][0] = "UP";
+  }
   for (let j = 0; j <= M; j++) dp[0][j] = j * GAP_PENALTY;
 
   for (let i = 1; i <= N; i++) {
     for (let j = 1; j <= M; j++) {
       const sim = simMatrix[i - 1][j - 1];
-      let matchScore: number;
-      if (sim === 1.0) {
-        matchScore = 2.0;
-      } else if (sim >= 0.35) {
-        matchScore = 2.0 * sim;
-      } else {
-        matchScore = -0.8;
-      }
-
-      const scoreDiag = dp[i - 1][j - 1] + matchScore;
+      const scoreDiag = dp[i - 1][j - 1] + matchScoreOf(sim);
       const scoreUp = dp[i - 1][j] + GAP_PENALTY;
       const scoreLeft = dp[i][j - 1] + GAP_PENALTY;
 
       dp[i][j] = Math.max(scoreDiag, scoreUp, scoreLeft);
+      // Ties prefer the diagonal, then up, then left; a winning diagonal below the similarity threshold is a deletion.
+      if (scoreDiag >= scoreUp && scoreDiag >= scoreLeft && sim >= 0.35) {
+        steps[i][j] = "DIAG";
+      } else if (scoreUp >= scoreDiag && scoreUp >= scoreLeft) {
+        steps[i][j] = "UP";
+      } else if (scoreLeft >= scoreDiag && scoreLeft >= scoreUp) {
+        steps[i][j] = "LEFT";
+      } else {
+        steps[i][j] = "UP";
+      }
     }
   }
 
@@ -167,43 +180,17 @@ export function computeSideBySideDiff(
   let j = M;
 
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0) {
-      const sim = simMatrix[i - 1][j - 1];
-      let matchScore: number;
-      if (sim === 1.0) {
-        matchScore = 2.0;
-      } else if (sim >= 0.35) {
-        matchScore = 2.0 * sim;
-      } else {
-        matchScore = -0.8;
-      }
-
-      if (dp[i][j] === dp[i - 1][j - 1] + matchScore) {
-        const opType =
-          sim === 1.0 ? "MATCH" : sim >= 0.35 ? "MODIFY" : "DELETE";
-        if (opType !== "DELETE") {
-          ops.push({ op: opType, i: i - 1, j: j - 1 });
-          i--;
-          j--;
-          continue;
-        }
-      }
-    }
-
-    if (i > 0 && dp[i][j] === dp[i - 1][j] + GAP_PENALTY) {
+    const step = steps[i][j];
+    if (step === "DIAG") {
+      ops.push({ op: simMatrix[i - 1][j - 1] === 1.0 ? "MATCH" : "MODIFY", i: i - 1, j: j - 1 });
+      i--;
+      j--;
+    } else if (step === "UP") {
       ops.push({ op: "DELETE", i: i - 1, j: -1 });
       i--;
-    } else if (j > 0 && dp[i][j] === dp[i][j - 1] + GAP_PENALTY) {
+    } else {
       ops.push({ op: "INSERT", i: -1, j: j - 1 });
       j--;
-    } else {
-      if (i > 0) {
-        ops.push({ op: "DELETE", i: i - 1, j: -1 });
-        i--;
-      } else {
-        ops.push({ op: "INSERT", i: -1, j: j - 1 });
-        j--;
-      }
     }
   }
 

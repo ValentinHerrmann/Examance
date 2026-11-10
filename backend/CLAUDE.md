@@ -2,7 +2,7 @@
 
 Loads when working under `backend/`. Cross-cutting rules are in the root `CLAUDE.md`.
 
-Python 3.12, FastAPI (async), SQLAlchemy 2.0, Alembic, PostgreSQL (asyncpg; psycopg2 sync fallback), Redis (rate limiting + login cooloff), argon2-cffi, PyJWT, slowapi, cryptography, py_webauthn, Click CLI. Deps: `uv`.
+Python 3.12, FastAPI (async), SQLAlchemy 2.0, Alembic, PostgreSQL (asyncpg; psycopg2 sync fallback), Redis (rate limiting + login cooloff), argon2-cffi, PyJWT, slowapi, cryptography, py_webauthn, Click CLI. Deps: `uv`; a dependency change in `pyproject.toml` needs `uv lock` in the same commit (CI and the image install only the lock, `docs/dev/ci_and_audit.md`).
 
 - `app/main.py` → `create_app()`. Routers `auth, compile, exams, exercises, keys, mfa, webauthn, students, submissions, admin, user, integrations` (plus `training`, and the public `privacy` facts for the privacy statement) under `/api/v1`; `/api/health`; docs `/api/docs`. `auth`, `admin` and `exercises` are packages (`auth/{session,recovery,registration}`, `admin/{users,domains,maintenance,features}`, `exercises/{library,sharing,resources}`); the maintenance CLI group lives in `app/cli_maintenance.py`. The server builds no exam LaTeX (the exam compile endpoint was removed).
 - New endpoint signatures take dependencies through the `Annotated` aliases in `app/dependencies.py` (`DB`, `CurrentTeacher`, `AdminTeacher`; a dependency that consumes a path parameter is written inline in its router, so Sonar can trace the parameter) and let FastAPI read `response_model` from the return annotation (SonarCloud S8409/S8410).

@@ -1299,7 +1299,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   function handle(method: string, rawPath: string, body?: unknown): FakeResponse {
     const verb = method.toUpperCase();
     state.requests.push(`${verb} ${rawPath}`);
-    const url = new URL(rawPath, 'http://fake.invalid');
+    const url = new URL(rawPath, 'https://fake.invalid');
     const parts = url.pathname.split('/').filter(Boolean);
     const payload: any = body ?? {};
 

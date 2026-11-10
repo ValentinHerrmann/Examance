@@ -3,9 +3,11 @@ import path from 'path';
 import zlib from 'zlib';
 import { promisify } from 'util';
 
+import { frontendPathArg } from './cli-path.mjs';
+
 const gzipPipeline = promisify(zlib.gzip);
 
-const targetDir = process.argv[2] || 'build';
+const targetDir = frontendPathArg(2, 'build');
 const MAX_FILE_SIZE = 24 * 1024 * 1024; // 24MB limit for Cloudflare Pages
 const CHUNK_SIZE = 20 * 1024 * 1024;    // 20MB chunk size for splitting
 
@@ -78,7 +80,7 @@ async function processLargeFile({ fullPath, stats }) {
 }
 
 async function main() {
-  const absoluteTarget = path.resolve(targetDir);
+  const absoluteTarget = targetDir;
   if (!fs.existsSync(absoluteTarget)) {
     console.error(`Target directory does not exist: ${absoluteTarget}`);
     process.exit(1);
@@ -141,7 +143,7 @@ async function main() {
   }
 
   // Sorted so the output is byte-identical regardless of which file finished compressing first (keeps the content hash stable between deploys).
-  const sortedManifest = Object.fromEntries(Object.keys(manifest).sort().map((k) => [k, manifest[k]]));
+  const sortedManifest = Object.fromEntries(Object.keys(manifest).sort((a, b) => Number(a > b) - Number(a < b)).map((k) => [k, manifest[k]]));
   fs.writeFileSync(manifestPath, JSON.stringify(sortedManifest, null, 2));
   console.log(`Manifest successfully written to: ${manifestPath}`);
   console.log(`Processed ${Object.keys(manifest).length} large files.`);

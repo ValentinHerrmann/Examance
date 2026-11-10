@@ -2,8 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { RAW_ARCHIVE, UPSTREAM_URL, mirrorUrl, run, streamExtract, version } from './busytex-mirror.mjs';
+import { frontendPathArg } from './cli-path.mjs';
 
-const dest = path.resolve(process.argv[2] || 'static/core');
+const dest = frontendPathArg(2, 'static/core');
 const busytexDir = path.join(dest, 'busytex');
 
 async function main() {

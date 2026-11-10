@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: blindgrade
-      POSTGRES_PASSWORD: blindgrade
+      POSTGRES_PASSWORD: blindgrade  # NOSONAR: local development database only; production uses deploy/docker-compose.deploy.yml with a secret from .env
       POSTGRES_DB: blindgrade
     volumes:
       - pg_data:/var/lib/postgresql/data

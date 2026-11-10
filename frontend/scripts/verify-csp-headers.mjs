@@ -5,12 +5,13 @@
  * Usage: node scripts/verify-csp-headers.mjs [buildDir]
  */
 import { existsSync, readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { join, relative } from 'node:path';
 
 import { PLACEHOLDER, htmlFiles, inlineScriptHashes } from './generate-csp-headers.mjs';
 import { API_PLACEHOLDER } from './api-origins.mjs';
+import { frontendPathArg } from './cli-path.mjs';
 
-const buildDir = resolve(process.argv[2] ?? 'build');
+const buildDir = frontendPathArg(2, 'build');
 const headersPath = join(buildDir, '_headers');
 
 function fail(message) {

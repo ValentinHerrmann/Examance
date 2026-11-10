@@ -7,12 +7,11 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { API_PLACEHOLDER, apiConnectSources } from './api-origins.mjs';
+import { frontendPathArg } from './cli-path.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const buildDir = resolve(root, process.argv[2] ?? 'build');
 // Read the template from source and write the resolved copy into the build output, so re-running the step is idempotent rather than a hard error.
 const templatePath = join(root, 'static', '_headers');
-const headersPath = join(buildDir, '_headers');
 
 export const PLACEHOLDER = '__INLINE_SCRIPT_HASHES__';
 
@@ -63,6 +62,8 @@ export function htmlFiles(dir) {
 }
 
 function main() {
+  const buildDir = frontendPathArg(2, 'build');
+  const headersPath = join(buildDir, '_headers');
   if (!existsSync(buildDir)) {
     console.error(`[CSP] ${relative(root, buildDir)} not found — run the build first.`);
     process.exit(1);
@@ -98,7 +99,7 @@ function main() {
     console.warn('[CSP] No executable inline scripts found. script-src will carry no hashes.');
   }
 
-  const sorted = [...hashes].sort();
+  const sorted = [...hashes].sort((a, b) => Number(a > b) - Number(a < b));
   const env = { ...loadEnv('production', root, 'PUBLIC_'), ...process.env };
   const connect = apiConnectSources(env, process.env.CF_PAGES_BRANCH);
   writeFileSync(

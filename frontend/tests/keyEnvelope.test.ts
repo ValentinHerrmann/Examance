@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { toBase64url } from '../src/lib/crypto/aesGcm';
 import { setArgon2Available } from './mocks/argon2Mock';
 
 // These exercise wrapping, which now refuses to run without Argon2 rather than silently substituting PBKDF2 and writing a wrap labelled with a KDF that did not make it.
@@ -160,5 +161,18 @@ describe('key envelope', () => {
     expect(await envelopeFingerprint({ keyId, envelopes: [envelope] })).toBe(first);
     // A fresh wrap of the same key has a different IV, so the set is different.
     expect(await envelopeFingerprint({ keyId, envelopes: [other] })).not.toBe(first);
+  });
+
+  it('keeps fingerprints pinned before the explicit comparator (issue #244) and ignores envelope order', async () => {
+    const dek = generateDek();
+    const keyId = generateKeyId();
+    const { envelope: a } = await makeEnvelope('passphrase', 'password', dek, keyId);
+    const { envelope: b } = await makeEnvelope('Recovery-Code', 'recovery', dek, keyId);
+    const parts = [a, b].map((e) => `${e.kind}:${e.credentialIdB64 ?? ''}:${toBase64url(e.wrappedBundle)}`).sort();
+    const material = new TextEncoder().encode(`${toBase64url(keyId)}|${parts.join('|')}`);
+    const legacy = toBase64url(new Uint8Array(await crypto.subtle.digest('SHA-256', material)));
+
+    expect(await envelopeFingerprint({ keyId, envelopes: [a, b] })).toBe(legacy);
+    expect(await envelopeFingerprint({ keyId, envelopes: [b, a] })).toBe(legacy);
   });
 });
