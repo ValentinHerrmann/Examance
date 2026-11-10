@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.config import settings
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
+from app.models.exam_statistics import ExamStatistics
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.scan_submission import ScanSubmission
@@ -386,3 +387,59 @@ async def test_unusable_session_and_reset_tokens_are_purged(retention_db) -> Non
     )
     assert set(refresh_left) == kept_refresh
     assert set(reset_left) == kept_reset
+
+
+async def _seed_statistics(db: AsyncSession, exam: Exam, *, keep: bool) -> uuid.UUID:
+    row = ExamStatistics(
+        teacher_id=exam.teacher_id,
+        exam_id=exam.id,
+        keep_after_exam_delete=keep,
+        payload_ciphertext=b"sealed-statistics",
+        payload_iv=b"\x00" * 12,
+        byte_size=17,
+        computed_at=datetime.now(UTC),
+    )
+    db.add(row)
+    await db.commit()
+    return row.id
+
+
+async def _statistics_ids(db: AsyncSession) -> set[uuid.UUID]:
+    return set(await db.scalars(select(ExamStatistics.id)))
+
+
+@pytest.mark.asyncio
+async def test_results_purge_keeps_the_statistics(retention_db) -> None:
+    """Issue #238: the whole point of the record is to outlive the exam's results."""
+    exam = await _seed_exam(retention_db, retention_until=date.today() - timedelta(days=1))
+    stats_id = await _seed_statistics(retention_db, exam, keep=False)
+    await retention.run()
+    past = date.today() - timedelta(days=1)
+    for model in (StudentIdentity, ScanSubmission):
+        await retention_db.execute(
+            update(model).where(model.exam_id == exam.id).values(retention_until=past)
+        )
+    await retention_db.commit()
+
+    await retention.run()
+
+    assert stats_id in await _statistics_ids(retention_db)
+
+
+@pytest.mark.asyncio
+async def test_hard_deleted_exam_keeps_only_kept_statistics(retention_db) -> None:
+    later = date.today() + timedelta(days=30)
+    kept_exam = await _seed_exam(retention_db, retention_until=later, with_children=False)
+    dropped_exam = await _seed_exam(retention_db, retention_until=later, with_children=False)
+    kept = await _seed_statistics(retention_db, kept_exam, keep=True)
+    dropped = await _seed_statistics(retention_db, dropped_exam, keep=False)
+    gone = datetime.now(UTC) - timedelta(days=settings.RETENTION_GRACE_DAYS + 2)
+    kept_exam.deleted_at = gone
+    dropped_exam.deleted_at = gone
+    await retention_db.commit()
+
+    await retention.run()
+
+    remaining = await _statistics_ids(retention_db)
+    assert kept in remaining
+    assert dropped not in remaining

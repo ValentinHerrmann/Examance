@@ -30,7 +30,14 @@ from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.models.trash_item import TrashItem
-from app.services import blob_store, result_deliveries, result_shares, scan_storage, trash
+from app.services import (
+    blob_store,
+    exam_statistics,
+    result_deliveries,
+    result_shares,
+    scan_storage,
+    trash,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +298,7 @@ async def run(*, dry_run: bool = False) -> int:
             await db.execute(
                 update(Exercise).where(Exercise.exam_id.in_(purge_exam_ids)).values(exam_id=None)
             )
+            await exam_statistics.forget_exams(db, purge_exam_ids)
             await db.execute(delete(Exam).where(purge_exam_filter))
 
         await trash.purge(db, expired_trash)

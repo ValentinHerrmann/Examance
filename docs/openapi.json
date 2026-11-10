@@ -5440,6 +5440,250 @@
         }
       }
     },
+    "/api/v1/statistics": {
+      "get": {
+        "tags": [
+          "exam-statistics"
+        ],
+        "summary": "List Statistics",
+        "description": "Every statistics record of the teacher, including those whose exam was deleted (its exam_id no longer lists in GET /exams).",
+        "operationId": "list_statistics_api_v1_statistics_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExamStatisticsOut"
+                  },
+                  "title": "Response List Statistics Api V1 Statistics Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/statistics": {
+      "put": {
+        "tags": [
+          "exam-statistics"
+        ],
+        "summary": "Put Statistics",
+        "description": "Create or replace the exam's record; idempotent, and an older computed_at never replaces a newer one (409).",
+        "operationId": "put_statistics_api_v1_exams__exam_id__statistics_put",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamStatisticsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamStatisticsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/statistics/{stats_id}": {
+      "patch": {
+        "tags": [
+          "exam-statistics"
+        ],
+        "summary": "Set Keep",
+        "description": "Whether the record survives a deletion of its exam; the teacher chooses in the exam delete dialog.",
+        "operationId": "set_keep_api_v1_statistics__stats_id__patch",
+        "parameters": [
+          {
+            "name": "stats_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Stats Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamStatisticsKeepIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamStatisticsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "exam-statistics"
+        ],
+        "summary": "Delete Statistics",
+        "operationId": "delete_statistics_api_v1_statistics__stats_id__delete",
+        "parameters": [
+          {
+            "name": "stats_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Stats Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "tags": [
@@ -11554,6 +11798,90 @@
           "retention_until"
         ],
         "title": "ExamResponse"
+      },
+      "ExamStatisticsIn": {
+        "properties": {
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Computed At"
+          },
+          "payload_ciphertext_b64": {
+            "type": "string",
+            "title": "Payload Ciphertext B64"
+          },
+          "payload_iv_b64": {
+            "type": "string",
+            "title": "Payload Iv B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "computed_at",
+          "payload_ciphertext_b64",
+          "payload_iv_b64"
+        ],
+        "title": "ExamStatisticsIn"
+      },
+      "ExamStatisticsKeepIn": {
+        "properties": {
+          "keep_after_exam_delete": {
+            "type": "boolean",
+            "title": "Keep After Exam Delete"
+          }
+        },
+        "type": "object",
+        "required": [
+          "keep_after_exam_delete"
+        ],
+        "title": "ExamStatisticsKeepIn"
+      },
+      "ExamStatisticsOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "exam_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Exam Id"
+          },
+          "keep_after_exam_delete": {
+            "type": "boolean",
+            "title": "Keep After Exam Delete"
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Computed At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "payload_ciphertext_b64": {
+            "type": "string",
+            "title": "Payload Ciphertext B64"
+          },
+          "payload_iv_b64": {
+            "type": "string",
+            "title": "Payload Iv B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "exam_id",
+          "keep_after_exam_delete",
+          "computed_at",
+          "updated_at",
+          "payload_ciphertext_b64",
+          "payload_iv_b64"
+        ],
+        "title": "ExamStatisticsOut"
       },
       "ExamUpdate": {
         "properties": {
