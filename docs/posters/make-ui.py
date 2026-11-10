@@ -44,7 +44,7 @@ def aspect(k):
 def caption_h(k, width):
     if k == "crypto":
         return 0
-    f, t, d, a = S[k]
+    _, t, d, a = S[k]
     chars = len(t) + len(d) + len(a) + 6
     return 6 + LINE * -(-int(chars * 1.15) // max(1, int(width / 7.0)))
 
@@ -72,31 +72,43 @@ def crypto_fit(rows, total, avail):
     return CRYPTO_ASPECT, True
 
 
+def _split_rows(seq, cuts):
+    rows, cur = [], [seq[0]]
+    for k, c in zip(seq[1:], cuts, strict=True):
+        if c:
+            rows.append(cur)
+            cur = [k]
+        else:
+            cur.append(k)
+    rows.append(cur)
+    return rows
+
+
+def _widths(rows):
+    """Rendered image width of every non-card item, row by row."""
+    return [(W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) for r in rows for k in r if k != "crypto"]
+
+
+def _row_fits(rows, per_row):
+    if any(len(r) > per_row for r in rows):
+        return False
+    return not any(w < MINW.get(k, 260) for w, k in zip(_widths(rows), [k for r in rows for k in r if k != "crypto"], strict=True))
+
+
 def layout(items, avail, fixed_last=None, reorder=True, per_row=3):
     """Best order and row split: fill `avail` px without exceeding it, images at least 300 px wide."""
     best = None
     pool = [k for k in items if k != fixed_last]
     for perm in (itertools.permutations(pool) if reorder else [pool]):
         seq = list(perm) + ([fixed_last] if fixed_last else [])
-        n = len(seq)
-        for cuts in itertools.product([0, 1], repeat=n - 1):
-            rows, cur = [], [seq[0]]
-            for k, c in zip(seq[1:], cuts, strict=True):
-                if c:
-                    rows.append(cur)
-                    cur = [k]
-                else:
-                    cur.append(k)
-            rows.append(cur)
-            if any(len(r) > per_row for r in rows):
-                continue
-            if any((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) < MINW.get(k, 260) for r in rows for k in r if k != "crypto"):
+        for cuts in itertools.product([0, 1], repeat=len(seq) - 1):
+            rows = _split_rows(seq, cuts)
+            if not _row_fits(rows, per_row):
                 continue
             total = sum(row_h(r) for r in rows)
             if total > avail or not crypto_fit(rows, total, avail)[1]:
                 continue
-            minw = min((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) for r in rows for k in r if k != "crypto")
-            score = (avail - total) - 0.2 * min(minw, 420)
+            score = (avail - total) - 0.2 * min(min(_widths(rows)), 420)
             if best is None or score < best[0]:
                 best = (score, rows, total)
     rows, total = best[1], best[2]

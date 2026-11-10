@@ -6,7 +6,7 @@ import { open, login, shot, BASE, setCodeMirror } from './lib.mjs';
 const LIB = JSON.parse(fs.readFileSync(new URL('./data/library.json', import.meta.url), 'utf8')).berger;
 const { ctx, page } = await open({ profile: 'berger' });
 await login(page, 'berger');
-for (const arg of process.argv.slice(2)) {
+async function relatex(arg) {
   const [name, variant] = arg.split('|');
   const ex = LIB.find((e) => e.name === name && (!variant || e.variantKey === variant));
   await page.goto(BASE + '/exercises');
@@ -23,5 +23,9 @@ for (const arg of process.argv.slice(2)) {
   await page.waitForTimeout(3000);
   await shot(page, `relatex-${name.slice(0, 8)}-${idx}`);
   console.log('saved', arg);
+}
+
+for (const arg of process.argv.slice(2)) {
+  await relatex(arg); // NOSONAR: UI steps run in order in one browser
 }
 await ctx.close();

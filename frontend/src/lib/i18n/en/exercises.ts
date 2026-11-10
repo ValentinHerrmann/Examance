@@ -393,7 +393,7 @@ export const exercises: Translations['exercises'] = {
         groupContextGradeSuffix: ', grade {grade}',
         keyLabel: 'Variant topic / key',
         keyPlaceholder: 'e.g. Furniture, Vehicle, Animal',
-        latexBodyLabel: 'LaTeX body (\\begin{Aufgabe}...)',
+        latexBodyLabel: String.raw`LaTeX body (\begin{Aufgabe}...)`,
         saveButton: 'Save variant',
         discardTitle: 'Discard variant changes?',
         discardMessage: 'You have unsaved changes in this variant form. Discarding will lose these changes.',

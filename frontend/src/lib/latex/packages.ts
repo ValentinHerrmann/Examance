@@ -199,7 +199,7 @@ function scanLine(entries: LatexPackageEntry[], code: string): string | null {
       return null;
     }
     collect(entries, code.slice(0, begin.index));
-    const end = `\\end{${begin[1]}}`;
+    const end = String.raw`\end{${begin[1]}}`;
     const endAt = code.indexOf(end, begin.index + begin[0].length);
     if (endAt < 0) return end;
     code = code.slice(endAt + end.length);
@@ -223,7 +223,7 @@ export function exerciseEntries(latex: string): LatexPackageEntry[] {
 }
 
 export function documentBody(doc: string): string {
-  const start = doc.indexOf("\\begin{document}");
+  const start = doc.indexOf(String.raw`\begin{document}`);
   return start >= 0 ? doc.slice(start) : "";
 }
 
@@ -335,17 +335,17 @@ export function packagePreamble(resolved: ResolvedPackages): string {
   const packages = resolved.packages.filter((p) => p.kind === "package");
   const options = packages
     .filter((p) => p.options.length)
-    .map((p) => `\\PassOptionsToPackage{${p.options.join(",")}}{${p.name}}`);
-  const before = packages.filter((p) => !AFTER_HYPERREF.has(p.name)).map((p) => `  \\RequirePackage{${p.name}}%`);
-  const after = packages.filter((p) => AFTER_HYPERREF.has(p.name)).map((p) => `  \\RequirePackage{${p.name}}%`);
+    .map((p) => String.raw`\PassOptionsToPackage{${p.options.join(",")}}{${p.name}}`);
+  const before = packages.filter((p) => !AFTER_HYPERREF.has(p.name)).map((p) => String.raw`  \RequirePackage{${p.name}}%`);
+  const after = packages.filter((p) => AFTER_HYPERREF.has(p.name)).map((p) => String.raw`  \RequirePackage{${p.name}}%`);
   for (const [kind, command] of LIBRARY_COMMANDS) {
     const names = resolved.packages.filter((p) => p.kind === kind).map((p) => p.name);
     if (names.length) before.push(`  \\${command}{${names.join(",")}}%`);
   }
   if (!options.length && !before.length && !after.length) return "";
   const lines = ["% LaTeX packages from the Examance settings, the exam and its exercises", ...options];
-  if (before.length) lines.push("\\def\\ExamancePackages{%", ...before, "}");
-  if (after.length) lines.push("\\def\\ExamancePackagesAfterHyperref{%", ...after, "}");
+  if (before.length) lines.push(String.raw`\def\ExamancePackages{%`, ...before, "}");
+  if (after.length) lines.push(String.raw`\def\ExamancePackagesAfterHyperref{%`, ...after, "}");
   return `${lines.join("\n")}\n`;
 }
 
@@ -353,8 +353,8 @@ export function packagePreamble(resolved: ResolvedPackages): string {
 export function withPackages(doc: string, layers: readonly PackageLayer[]): string {
   const block = packagePreamble(resolvePackages(layers));
   if (!block) return doc;
-  const found = doc.indexOf("\\documentclass");
-  const start = found >= 0 ? found : 0;
+  const found = doc.indexOf(String.raw`\documentclass`);
+  const start = Math.max(found, 0);
   return doc.slice(0, start) + block + doc.slice(start);
 }
 
@@ -395,7 +395,7 @@ export function packageLines(latex: string): PackageLine[] {
       return;
     }
     const begin = VERBATIM_BEGIN.exec(text);
-    if (begin && !text.includes(`\\end{${begin[1]}}`, begin.index)) verbatimEnd = `\\end{${begin[1]}}`;
+    if (begin && !text.includes(String.raw`\end{${begin[1]}}`, begin.index)) verbatimEnd = String.raw`\end{${begin[1]}}`;
     if (!onlyPackageCommands(text)) return;
     const commands = [...text.matchAll(PACKAGE_COMMAND)].map(([, command, rawOptions, rawArgument]) => {
       const kind = COMMAND_KIND[command as PackageCommand];

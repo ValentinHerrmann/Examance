@@ -20,7 +20,7 @@ export const latexPackages = {
     error: {
         kind: 'Unbekannte Art.',
         name: 'Erlaubt sind Buchstaben, Ziffern, Punkt, Binde- und Unterstrich (höchstens 64 Zeichen).',
-        options: 'Optionen ohne \\ % # [ ] und mit ausgeglichenen geschweiften Klammern, höchstens 300 Zeichen.',
+        options: String.raw`Optionen ohne \ % # [ ] und mit ausgeglichenen geschweiften Klammern, höchstens 300 Zeichen.`,
         forbidden: 'Dieses Paket wird nicht unterstützt: {reason}.',
         locked: 'Die Optionen dieses Vorlagenpakets sind fest: {reason}.',
         tooMany: 'Höchstens 50 Einträge.',
@@ -74,7 +74,7 @@ export const latexPackages = {
     },
     result: {
         heading: 'Ergebnis',
-        description: 'So beginnt das LaTeX-Dokument, vor \\documentclass.',
+        description: String.raw`So beginnt das LaTeX-Dokument, vor \documentclass.`,
         none: 'Keine zusätzlichen Pakete.',
     },
     exam: {
@@ -94,7 +94,7 @@ export const latexPackages = {
     },
     exercise: {
         heading: 'Pakete dieser Aufgabe',
-        description: 'Gespeichert als \\usepackage-Zeilen am Anfang des Quelltexts; sie reisen mit der Aufgabe, wenn sie geteilt oder exportiert wird.',
+        description: String.raw`Gespeichert als \usepackage-Zeilen am Anfang des Quelltexts; sie reisen mit der Aufgabe, wenn sie geteilt oder exportiert wird.`,
         empty: 'Diese Aufgabe lädt keine eigenen Pakete.',
         inCode: 'steht im Quelltext und ist nur dort änderbar',
         account: 'Für alle Dokumente geladen:',

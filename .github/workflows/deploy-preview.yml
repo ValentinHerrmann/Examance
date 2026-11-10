@@ -321,6 +321,7 @@ jobs:
             case "$STATE" in
               "completed success") echo "Image built."; exit 0 ;;
               "completed "*) echo "ERROR: image build ended as '${STATE}'." >&2; exit 1 ;;
+              *) ;; # still queued or in progress: keep polling
             esac
             sleep 10
           done

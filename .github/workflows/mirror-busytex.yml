@@ -69,11 +69,12 @@ jobs:
             exit 0
           fi
           ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-          exists() { aws s3api head-object --endpoint-url "$ENDPOINT" --bucket "$R2_BUCKET" --key "$1" >/dev/null 2>&1; }
+          exists() { local key="$1"; aws s3api head-object --endpoint-url "$ENDPOINT" --bucket "$R2_BUCKET" --key "$key" >/dev/null 2>&1; }
           upload() {
-            aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors --content-type "$2" \
-              "$RUNNER_TEMP/$1" "s3://${R2_BUCKET}/$1"
-            echo "Mirrored $1"
+            local key="$1" type="$2"
+            aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors --content-type "$type" \
+              "$RUNNER_TEMP/$key" "s3://${R2_BUCKET}/$key"
+            echo "Mirrored $key"
           }
 
           KEYS=$(node scripts/busytex-mirror.mjs keys)

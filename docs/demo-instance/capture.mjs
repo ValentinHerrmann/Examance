@@ -23,6 +23,32 @@ async function go(page, path, wait = 4500) {
   await page.waitForTimeout(wait);
 }
 
+/** Compile the open editor's live preview, wait until it settles, then open its exercise PDF pane. */
+async function previewExercisePdf(page, ed) {
+  await ed.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
+  for (let k = 0; k < 30 && (await page.getByText(/Kompiliert/).count()); k++) await page.waitForTimeout(3000); // NOSONAR: sequential poll for the compile to settle
+  const pane = ed.getByText('Aufgabe PDF', { exact: true });
+  if (await pane.count()) { await pane.first().click(); await page.waitForTimeout(2500); }
+  await page.waitForTimeout(25000);
+}
+
+async function addToExam(search, n) {
+  await search.fill(n);
+  await search.page().waitForTimeout(600);
+  await search.page().getByRole('checkbox', { name: /Zur Prüfung hinzufügen/ }).first().check();
+}
+
+/** Create the exam from the form, then pick the three library exercises on the exam page. */
+async function pickExamExercises(page) {
+  await page.getByRole('button', { name: /Prüfung anlegen und Aufgaben wählen/ }).click();
+  const search = page.getByRole('textbox', { name: /Aufgabenbibliothek nach Name/ });
+  for (const n of ['Gruppe A', 'Bubblesort', 'Klassendiagramm']) {
+    await addToExam(search, n); // NOSONAR: UI steps run in order in one browser
+  }
+  await search.fill('');
+  await page.waitForTimeout(800);
+}
+
 async function teacher() {
   const { ctx, page } = await open({ profile: 'berger' });
   await login(page, 'berger');
@@ -44,13 +70,7 @@ async function teacher() {
     await page.getByRole('button', { name: /^Bearbeiten$/ }).first().click();
     await page.waitForTimeout(2000);
     const ed = page.getByRole('dialog').last();
-    await ed.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
-    for (let k = 0; k < 30 && (await page.getByText(/Kompiliert/).count()); k++) await page.waitForTimeout(3000);
-    for (const pane of ['Aufgabe PDF']) {
-      const t = ed.getByText(pane, { exact: true });
-      if (await t.count()) { await t.first().click(); await page.waitForTimeout(2500); }
-    }
-    await page.waitForTimeout(25000);
+    await previewExercisePdf(page, ed);
     await shot(page, 'editor');
     await page.keyboard.press('Escape');
   }
@@ -69,15 +89,7 @@ async function teacher() {
     await page.getByLabel(/^Klasse \/ Kurs/).fill('c');
     await page.getByLabel(/Lehrernachname/).fill('Berger');
     // Current UI: the exam is created first and the library picker opens on its page (delete the exam afterwards).
-    await page.getByRole('button', { name: /Prüfung anlegen und Aufgaben wählen/ }).click();
-    const search = page.getByRole('textbox', { name: /Aufgabenbibliothek nach Name/ });
-    for (const n of ['Gruppe A', 'Bubblesort', 'Klassendiagramm']) {
-      await search.fill(n);
-      await page.waitForTimeout(600);
-      await page.getByRole('checkbox', { name: /Zur Prüfung hinzufügen/ }).first().check();
-    }
-    await search.fill('');
-    await page.waitForTimeout(800);
+    await pickExamExercises(page);
     await shot(page, 'exam-new');
   }
   if (want('exam-setup')) {
@@ -183,6 +195,12 @@ async function onboarding() {
   await ctx.close();
 }
 
+async function shotAdminTab(page, tab, name) {
+  await page.getByRole('tab', { name: new RegExp('^' + tab) }).or(page.getByRole('button', { name: new RegExp('^' + tab) })).first().click();
+  await page.waitForTimeout(1500);
+  await shot(page, name);
+}
+
 async function admin() {
   if (!['admin-accounts', 'admin-approvals', 'admin-domains'].some(want)) return;
   const { ctx, page } = await open({ profile: 'admin' });
@@ -190,11 +208,61 @@ async function admin() {
   await go(page, '/admin/users');
   for (const [tab, name] of [['Konten', 'admin-accounts'], ['Freigaben', 'admin-approvals'], ['Domains', 'admin-domains']]) {
     if (!want(name)) continue;
-    await page.getByRole('tab', { name: new RegExp('^' + tab) }).or(page.getByRole('button', { name: new RegExp('^' + tab) })).first().click();
-    await page.waitForTimeout(1500);
-    await shot(page, name);
+    await shotAdminTab(page, tab, name); // NOSONAR: UI steps run in order in one browser
   }
   await ctx.close();
+}
+
+async function zoomIn(page) {
+  for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: /Vergrößern/ }).first().click(); await page.waitForTimeout(500); } // NOSONAR: UI steps run in order in one browser
+}
+
+async function clickAt(page, x, y) {
+  await page.mouse.click(x, y);
+  await page.waitForTimeout(400);
+}
+
+const scoreOf = (page, q) => page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first().inputValue();
+
+async function tourGrading(page) {
+  // Booklet RPCPDW (af14…; plan Q2-Q4: 3 / 4 / 2.5), zoomed onto the MC group and Q2. Once a booklet has stamps its tasks score the sum of their stamps, so the stamps (set once, persisted) cover Q2-Q4 and add up to the plan.
+  const open1 = async () => {
+    await openBooklet(page, ids['10b'], 'RPCPDW');
+    await zoomIn(page);
+    await page.mouse.move(600, 500);
+    await page.mouse.wheel(0, 330);
+    await page.waitForTimeout(800);
+    await page.mouse.wheel(0, 300);
+    await page.waitForTimeout(1500);
+  };
+  await open1();
+  const progress = readState('progress.json', {});
+  if (!progress['tour-stamps']) {
+    const stamp = async (q, tool, pts) => {
+      await pick(page, q);
+      await page.getByRole('button', { name: tool }).first().click();
+      for (const [x, y] of pts) { await clickAt(page, x, y); } // NOSONAR: UI steps run in order in one browser
+    };
+    const ONE = /^(\+1\.0|\+1,0)/, HALF = /^(\+0\.5|\+0,5|½)/;
+    // Q2 is graded part by part: each part's stamps count towards that part.
+    await stamp('Teilaufgabe a)', ONE, [[280, 480]]);
+    await stamp('Teilaufgabe a)', HALF, [[330, 384]]);
+    await stamp('Teilaufgabe b)', ONE, [[370, 588]]);
+    await stamp('Teilaufgabe b)', HALF, [[250, 622]]);
+    await page.mouse.click(611, 721); await page.waitForTimeout(3500); // page 2: Q3 at the top
+    await stamp('Q3', ONE, [[275, 236], [275, 267], [275, 297], [525, 478]]);
+    await page.mouse.move(500, 400); await page.mouse.wheel(0, 300); await page.waitForTimeout(1200); // Q4 below
+    await stamp('Q4', ONE, [[515, 410], [612, 462]]);
+    await stamp('Q4', HALF, [[612, 500]]);
+    await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
+    await page.waitForTimeout(3000);
+    writeState('progress.json', { ...progress, 'tour-stamps': true });
+    await open1();
+    const v = [];
+    for (const q of ['Q2', 'Q3', 'Q4']) v.push(await scoreOf(page, q)); // NOSONAR: UI steps run in order in one browser
+    console.log('af14 scores after stamping', v.join(' / '));
+  }
+  await shot(page, 'tour-grading');
 }
 
 /** Narrower window for the UI tour posters: larger text once printed. Saved as tour-<name>.png. */
@@ -212,13 +280,7 @@ async function tour() {
     await page.getByRole('button', { name: /^Bearbeiten$/ }).first().click();
     await page.waitForTimeout(2000);
     const ed = page.getByRole('dialog').last();
-    await ed.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
-    for (let k = 0; k < 30 && (await page.getByText(/Kompiliert/).count()); k++) await page.waitForTimeout(3000);
-    for (const pane of ['Aufgabe PDF']) {
-      const p = ed.getByText(pane, { exact: true });
-      if (await p.count()) { await p.first().click(); await page.waitForTimeout(2500); }
-    }
-    await page.waitForTimeout(25000);
+    await previewExercisePdf(page, ed);
     await shot(page, 'tour-editor');
     await page.keyboard.press('Escape');
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -237,15 +299,7 @@ async function tour() {
   if (t('exam-new')) {
     await go(page, '/exam/new');
     await page.getByLabel(/Prüfungstitel/).fill('Leistungsnachweis Informatik 10c');
-    await page.getByRole('button', { name: /Prüfung anlegen und Aufgaben wählen/ }).click();
-    const search = page.getByRole('textbox', { name: /Aufgabenbibliothek nach Name/ });
-    for (const n of ['Gruppe A', 'Bubblesort', 'Klassendiagramm']) {
-      await search.fill(n);
-      await page.waitForTimeout(600);
-      await page.getByRole('checkbox', { name: /Zur Prüfung hinzufügen/ }).first().check();
-    }
-    await search.fill('');
-    await page.waitForTimeout(800);
+    await pickExamExercises(page);
     await shot(page, 'tour-exam-new');
   }
   if (t('exam-setup')) {
@@ -260,46 +314,7 @@ async function tour() {
     await shot(page, 'tour-exam-setup');
     await page.setViewportSize({ width: 1280, height: 800 });
   }
-  if (t('grading')) {
-    // Booklet RPCPDW (af14…; plan Q2-Q4: 3 / 4 / 2.5), zoomed onto the MC group and Q2. Once a booklet has stamps its tasks score the sum of their stamps, so the stamps (set once, persisted) cover Q2-Q4 and add up to the plan.
-    const open1 = async () => {
-      await openBooklet(page, ids['10b'], 'RPCPDW');
-      for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: /Vergrößern/ }).first().click(); await page.waitForTimeout(500); }
-      await page.mouse.move(600, 500);
-      await page.mouse.wheel(0, 330);
-      await page.waitForTimeout(800);
-      await page.mouse.wheel(0, 300);
-      await page.waitForTimeout(1500);
-    };
-    await open1();
-    const progress = readState('progress.json', {});
-    if (!progress['tour-stamps']) {
-      const stamp = async (q, tool, pts) => {
-        await pick(page, q);
-        await page.getByRole('button', { name: tool }).first().click();
-        for (const [x, y] of pts) { await page.mouse.click(x, y); await page.waitForTimeout(400); }
-      };
-      const ONE = /^(\+1\.0|\+1,0)/, HALF = /^(\+0\.5|\+0,5|½)/;
-      // Q2 is graded part by part: each part's stamps count towards that part.
-      await stamp('Teilaufgabe a)', ONE, [[280, 480]]);
-      await stamp('Teilaufgabe a)', HALF, [[330, 384]]);
-      await stamp('Teilaufgabe b)', ONE, [[370, 588]]);
-      await stamp('Teilaufgabe b)', HALF, [[250, 622]]);
-      await page.mouse.click(611, 721); await page.waitForTimeout(3500); // page 2: Q3 at the top
-      await stamp('Q3', ONE, [[275, 236], [275, 267], [275, 297], [525, 478]]);
-      await page.mouse.move(500, 400); await page.mouse.wheel(0, 300); await page.waitForTimeout(1200); // Q4 below
-      await stamp('Q4', ONE, [[515, 410], [612, 462]]);
-      await stamp('Q4', HALF, [[612, 500]]);
-      await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
-      await page.waitForTimeout(3000);
-      writeState('progress.json', { ...progress, 'tour-stamps': true });
-      await open1();
-      const v = [];
-      for (const q of ['Q2', 'Q3', 'Q4']) v.push(await page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first().inputValue()); // NOSONAR: UI steps run in order in one browser
-      console.log('af14 scores after stamping', v.join(' / '));
-    }
-    await shot(page, 'tour-grading');
-  }
+  if (t('grading')) await tourGrading(page);
   if (t('results')) {
     await go(page, `/exam/${ids['10b']}/results`, 6000);
     await shot(page, 'tour-results');

@@ -36,7 +36,7 @@ export const editor: Translations['editor'] = {
         'loesung-line': { label: 'Ruled lines', description: 'Solution vs. ruled writing lines.' },
         'loesung-code': {
             label: 'Code solution',
-            description: 'Code listing (lstlisting) shown only in the answer key. \\Loesung{…} cannot hold an lstlisting.',
+            description: String.raw`Code listing (lstlisting) shown only in the answer key. \Loesung{…} cannot hold an lstlisting.`,
         },
         kariert: {
             label: 'Graph paper (raw)',

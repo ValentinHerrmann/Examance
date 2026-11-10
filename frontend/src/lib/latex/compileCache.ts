@@ -62,8 +62,7 @@ export async function computeCompileContentHash(
   parts.push(enc.encode(metaHeader));
 
   for (const res of sortedResources) {
-    parts.push(enc.encode(`\nres:${res.filename}:${res.content.length}:`));
-    parts.push(res.content);
+    parts.push(enc.encode(`\nres:${res.filename}:${res.content.length}:`), res.content);
   }
 
   const totalLength = parts.reduce((sum, p) => sum + p.length, 0);

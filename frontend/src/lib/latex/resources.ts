@@ -175,8 +175,8 @@ export function guessMimeType(filename: string, provided?: string): string {
 export function insertSnippetFor(filename: string): string {
   const ext = filename.toLowerCase().split('.').pop() ?? '';
   if (['png', 'jpg', 'jpeg', 'pdf'].includes(ext)) {
-    return `\\includegraphics[width=0.8\\linewidth]{${filename}}`;
+    return String.raw`\includegraphics[width=0.8\linewidth]{${filename}}`;
   }
-  if (ext === 'tex') return `\\input{${filename}}`;
+  if (ext === 'tex') return String.raw`\input{${filename}}`;
   return filename;
 }

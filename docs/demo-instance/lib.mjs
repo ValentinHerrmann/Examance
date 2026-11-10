@@ -36,8 +36,8 @@ export async function open({ profile, theme = 'dark', locale = 'de', width = 160
     // pdf.js 6 uses Map#getOrInsertComputed, missing in older bundled Chromium builds.
     for (const C of [Map, WeakMap]) {
       if (!C.prototype.getOrInsertComputed) {
-        C.prototype.getOrInsertComputed = function (k, f) { if (!this.has(k)) this.set(k, f(k)); return this.get(k); };
-        C.prototype.getOrInsert = function (k, v) { if (!this.has(k)) this.set(k, v); return this.get(k); };
+        C.prototype.getOrInsertComputed = function (k, f) { if (!this.has(k)) { this.set(k, f(k)); } return this.get(k); };
+        C.prototype.getOrInsert = function (k, v) { if (!this.has(k)) { this.set(k, v); } return this.get(k); };
       }
     }
   }, [theme, locale]);
@@ -65,6 +65,36 @@ export function totp(secret, step = Math.floor(Date.now() / 30000)) {
   return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0');
 }
 
+/** One pass of the sign-in dialogs (passkey skip, TOTP secret/code, setup codes); false once none is shown. */
+async function loginStep(page, who, secrets) {
+  // Enrollment offers a passkey first; the demo accounts use TOTP.
+  const useTotp = page.getByRole('button', { name: /Authenticator-App verwenden|authenticator app instead/ });
+  if ((await useTotp.count()) && (await useTotp.first().isVisible())) {
+    await useTotp.first().click();
+    await page.waitForTimeout(2500);
+  }
+  const secretEl = page.locator('code, .font-mono, [class*=mono]').filter({ hasText: /^[A-Z2-7]{16,}$/ });
+  if (await secretEl.count()) { secrets[who] = { ...secrets[who], secret: (await secretEl.first().innerText()).trim() }; writeState('totp.json', secrets); }
+  const code = page.getByPlaceholder('000000');
+  if ((await code.count()) && (await code.first().isVisible())) {
+    // A code is accepted once; wait for the next 30 s step after the last one used.
+    while (Math.floor(Date.now() / 30000) <= (secrets[who]?.lastStep ?? -1)) await page.waitForTimeout(1000); // NOSONAR: sequential 30 s TOTP step wait
+    const step = Math.floor(Date.now() / 30000);
+    secrets[who].lastStep = step; writeState('totp.json', secrets);
+    await code.first().fill(totp(secrets[who].secret, step));
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(3500);
+    return true;
+  }
+  if (await page.getByText(/Codes .*sicher|codes shown here/).count()) {
+    await page.getByRole('checkbox').first().check();
+    await page.getByRole('button', { name: /Fertig|Done/ }).click();
+    await page.waitForTimeout(3000);
+    return true;
+  }
+  return false;
+}
+
 /**
  * Sign in on /unlock. Handles first-time TOTP enrollment (secret kept in .state), the TOTP prompt,
  * the one-time setup codes dialog and, if `mode` is given, the first-run storage-mode choice.
@@ -84,28 +114,7 @@ export async function login(page, who, { mode, formDone = false } = {}) {
   }
   const secrets = readState('totp.json', {});
   for (let i = 0; i < 12; i++) {
-    // Enrollment offers a passkey first; the demo accounts use TOTP.
-    const useTotp = page.getByRole('button', { name: /Authenticator-App verwenden|authenticator app instead/ });
-    if ((await useTotp.count()) && (await useTotp.first().isVisible())) {
-      await useTotp.first().click();
-      await page.waitForTimeout(2500);
-    }
-    const secretEl = page.locator('code, .font-mono, [class*=mono]').filter({ hasText: /^[A-Z2-7]{16,}$/ });
-    if (await secretEl.count()) { secrets[who] = { ...(secrets[who] ?? {}), secret: (await secretEl.first().innerText()).trim() }; writeState('totp.json', secrets); }
-    const code = page.getByPlaceholder('000000');
-    if ((await code.count()) && (await code.first().isVisible())) {
-      // A code is accepted once; wait for the next 30 s step after the last one used.
-      while (Math.floor(Date.now() / 30000) <= (secrets[who]?.lastStep ?? -1)) await page.waitForTimeout(1000);
-      const step = Math.floor(Date.now() / 30000);
-      secrets[who].lastStep = step; writeState('totp.json', secrets);
-      await code.first().fill(totp(secrets[who].secret, step));
-      await page.keyboard.press('Enter');
-      await page.waitForTimeout(3500);
-    } else if (await page.getByText(/Codes .*sicher|codes shown here/).count()) {
-      await page.getByRole('checkbox').first().check();
-      await page.getByRole('button', { name: /Fertig|Done/ }).click();
-      await page.waitForTimeout(3000);
-    } else break;
+    if (!(await loginStep(page, who, secrets))) break; // NOSONAR: UI steps run in order in one browser
   }
   if (mode && (await page.getByText('Speicherort wählen').count())) {
     await page.getByText(mode === 'hybrid' ? 'Hybrid-Modus' : 'Alles auf dem Server').first().click();

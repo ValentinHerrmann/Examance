@@ -10,16 +10,16 @@ export function parseExerciseScore(latex: string): number {
 }
 
 const TEX_ESCAPE_MAP: Record<string, string> = {
-  "\\": "\\textbackslash{}",
-  "&": "\\&",
-  "%": "\\%",
-  "$": "\\$",
-  "#": "\\#",
-  "_": "\\_",
-  "{": "\\{",
-  "}": "\\}",
-  "~": "\\textasciitilde{}",
-  "^": "\\textasciicircum{}"
+  "\\": String.raw`\textbackslash{}`,
+  "&": String.raw`\&`,
+  "%": String.raw`\%`,
+  "$": String.raw`\$`,
+  "#": String.raw`\#`,
+  "_": String.raw`\_`,
+  "{": String.raw`\{`,
+  "}": String.raw`\}`,
+  "~": String.raw`\textasciitilde{}`,
+  "^": String.raw`\textasciicircum{}`
 };
 
 /** Escapes LaTeX special characters in plain user text (e.g. titles) before interpolating it into a command argument. Mirrors `escape_tex` in backend/app/services/latex.py. Do NOT use on fields that are raw LaTeX by design (latexBody). */
@@ -68,7 +68,7 @@ export function formatExerciseLatex(
     if (plain.length > 0 && !plain.endsWith("\n")) {
       suffix = "\n\\end{Aufgabe}";
     } else {
-      suffix = "\\end{Aufgabe}";
+      suffix = String.raw`\end{Aufgabe}`;
     }
   }
 
@@ -93,7 +93,7 @@ export function formatMcGroupLatex(
     .map((m) => `\\item \\OmrExercise{${m.id}}\n${m.sourceLabel === undefined ? m.latexBody : markSource(m.latexBody, m.sourceLabel)}`)
     .join("\n");
   return (
-    `\\begin{Aufgabe}{${escapeLatex(groupTitle)}}` +
+    String.raw`\begin{Aufgabe}{${escapeLatex(groupTitle)}}` +
     ` Kreuze jeweils die korrekten Lösungen an. Mehrere können, mind. eine ist jeweils richtig.` +
     ` Für falsch gesetzte Kreuze werden Punkte abgezogen (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n` +
     (correctionHint ? MC_CORRECTION_HINT : "") +
@@ -101,6 +101,6 @@ export function formatMcGroupLatex(
     `${items}\n` +
     `\\end{enumerate}\n\n` +
     `\\LoesungLeer{${escapeLatex(scoringText)}}{0pt}\n` +
-    `\\end{Aufgabe}`
+    String.raw`\end{Aufgabe}`
   );
 }

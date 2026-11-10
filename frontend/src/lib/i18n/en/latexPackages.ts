@@ -21,7 +21,7 @@ export const latexPackages: Translations['latexPackages'] = {
     error: {
         kind: 'Unknown kind.',
         name: 'Use letters, digits, dot, hyphen and underscore (at most 64 characters).',
-        options: 'Options without \\ % # [ ] and with balanced braces, at most 300 characters.',
+        options: String.raw`Options without \ % # [ ] and with balanced braces, at most 300 characters.`,
         forbidden: 'This package is not supported: {reason}.',
         locked: 'The options of this template package are fixed: {reason}.',
         tooMany: 'At most 50 entries.',
@@ -75,7 +75,7 @@ export const latexPackages: Translations['latexPackages'] = {
     },
     result: {
         heading: 'Result',
-        description: 'This is how the LaTeX document starts, before \\documentclass.',
+        description: String.raw`This is how the LaTeX document starts, before \documentclass.`,
         none: 'No additional packages.',
     },
     exam: {
@@ -95,7 +95,7 @@ export const latexPackages: Translations['latexPackages'] = {
     },
     exercise: {
         heading: 'Packages of this exercise',
-        description: 'Stored as \\usepackage lines at the top of the source; they travel with the exercise when it is shared or exported.',
+        description: String.raw`Stored as \usepackage lines at the top of the source; they travel with the exercise when it is shared or exported.`,
         empty: 'This exercise loads no packages of its own.',
         inCode: 'is in the source and can only be changed there',
         account: 'Loaded for every document:',

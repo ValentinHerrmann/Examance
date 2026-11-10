@@ -76,72 +76,29 @@ export function stringSimilarity(str1: string, str2: string): number {
   return 1.0 - matrix[len2] / maxLen;
 }
 
-export function computeSideBySideDiff(
-  leftText: string,
-  rightText: string,
-): { leftLines: DiffLine[]; rightLines: DiffLine[] } {
-  const a = (leftText || "")
-    .replaceAll("\r\n", "\n")
-    .replace(/\n$/, "")
-    .split("\n");
-  const b = (rightText || "")
-    .replaceAll("\r\n", "\n")
-    .replace(/\n$/, "")
-    .split("\n");
+type DiffOp = { op: "MATCH" | "MODIFY" | "DELETE" | "INSERT"; i: number; j: number };
+type DiffStep = "DIAG" | "UP" | "LEFT";
 
-  if (a.length === 1 && a[0] === "") a.pop();
-  if (b.length === 1 && b[0] === "") b.pop();
+const GAP_PENALTY = -0.4;
 
-  const N = a.length;
-  const M = b.length;
+function splitDiffText(text: string): string[] {
+  const lines = (text || "").replaceAll("\r\n", "\n").replace(/\n$/, "").split("\n");
+  if (lines.length === 1 && lines[0] === "") lines.pop();
+  return lines;
+}
 
-  if (N === 0 && M === 0) {
-    return { leftLines: [], rightLines: [] };
-  }
+const matchScoreOf = (sim: number): number => {
+  if (sim === 1.0) return 2.0;
+  return sim >= 0.35 ? 2.0 * sim : -0.8;
+};
 
-  if (N === 0) {
-    const rightLines = b.map((line, idx) => ({
-      lineNumber: idx + 1,
-      text: line,
-      type: "added" as const,
-      tokens: [{ text: line, type: "added" as const }],
-    }));
-    const leftLines = b.map(() => ({ text: "", type: "empty" as const }));
-    return { leftLines, rightLines };
-  }
-
-  if (M === 0) {
-    const leftLines = a.map((line, idx) => ({
-      lineNumber: idx + 1,
-      text: line,
-      type: "removed" as const,
-      tokens: [{ text: line, type: "removed" as const }],
-    }));
-    const rightLines = a.map(() => ({ text: "", type: "empty" as const }));
-    return { leftLines, rightLines };
-  }
-
-  const simMatrix: number[][] = Array.from({ length: N }, () =>
-    new Array(M).fill(0),
-  );
-  for (let i = 0; i < N; i++) {
-    for (let j = 0; j < M; j++) {
-      simMatrix[i][j] = stringSimilarity(a[i], b[j]);
-    }
-  }
-
-  const GAP_PENALTY = -0.4;
-  const matchScoreOf = (sim: number): number => {
-    if (sim === 1.0) return 2.0;
-    return sim >= 0.35 ? 2.0 * sim : -0.8;
-  };
-  // Where each cell's best score came from, recorded in the forward pass so the backtrace never re-derives it by comparing floats.
-  type Step = "DIAG" | "UP" | "LEFT";
+/** Where each cell's best score came from, recorded in the forward pass so the backtrace never re-derives it by comparing floats. */
+function alignmentSteps(simMatrix: number[][], N: number, M: number): DiffStep[][] {
   const dp: number[][] = Array.from({ length: N + 1 }, () =>
     new Array(M + 1).fill(0),
   );
-  const steps: Step[][] = Array.from({ length: N + 1 }, () =>
-    new Array<Step>(M + 1).fill("LEFT"),
+  const steps: DiffStep[][] = Array.from({ length: N + 1 }, () =>
+    new Array<DiffStep>(M + 1).fill("LEFT"),
   );
 
   for (let i = 0; i <= N; i++) {
@@ -170,12 +127,11 @@ export function computeSideBySideDiff(
       }
     }
   }
+  return steps;
+}
 
-  const ops: Array<{
-    op: "MATCH" | "MODIFY" | "DELETE" | "INSERT";
-    i: number;
-    j: number;
-  }> = [];
+function backtraceOps(steps: DiffStep[][], simMatrix: number[][], N: number, M: number): DiffOp[] {
+  const ops: DiffOp[] = [];
   let i = N;
   let j = M;
 
@@ -194,8 +150,10 @@ export function computeSideBySideDiff(
     }
   }
 
-  ops.reverse();
+  return ops.reverse();
+}
 
+function opsToLines(ops: DiffOp[], a: string[], b: string[]): { leftLines: DiffLine[]; rightLines: DiffLine[] } {
   const leftLines: DiffLine[] = [];
   const rightLines: DiffLine[] = [];
   let leftLineNum = 1;
@@ -251,26 +209,120 @@ export function computeSideBySideDiff(
   return { leftLines, rightLines };
 }
 
+export function computeSideBySideDiff(
+  leftText: string,
+  rightText: string,
+): { leftLines: DiffLine[]; rightLines: DiffLine[] } {
+  const a = splitDiffText(leftText);
+  const b = splitDiffText(rightText);
+
+  const N = a.length;
+  const M = b.length;
+
+  if (N === 0 && M === 0) {
+    return { leftLines: [], rightLines: [] };
+  }
+
+  if (N === 0) {
+    const rightLines = b.map((line, idx) => ({
+      lineNumber: idx + 1,
+      text: line,
+      type: "added" as const,
+      tokens: [{ text: line, type: "added" as const }],
+    }));
+    const leftLines = b.map(() => ({ text: "", type: "empty" as const }));
+    return { leftLines, rightLines };
+  }
+
+  if (M === 0) {
+    const leftLines = a.map((line, idx) => ({
+      lineNumber: idx + 1,
+      text: line,
+      type: "removed" as const,
+      tokens: [{ text: line, type: "removed" as const }],
+    }));
+    const rightLines = a.map(() => ({ text: "", type: "empty" as const }));
+    return { leftLines, rightLines };
+  }
+
+  const simMatrix: number[][] = Array.from({ length: N }, () =>
+    new Array(M).fill(0),
+  );
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < M; j++) {
+      simMatrix[i][j] = stringSimilarity(a[i], b[j]);
+    }
+  }
+
+  const steps = alignmentSteps(simMatrix, N, M);
+  return opsToLines(backtraceOps(steps, simMatrix, N, M), a, b);
+}
+
+const DEFAULT_LINE_HEIGHT_PX = 24;
+
+/** Running state for one editor side while walking the aligned lines. */
+interface DecorationSide {
+  docLine: number;
+  pendingGapPx: number;
+  lines: DiffLineDecoration[];
+  paddings: DiffLinePaddingDecoration[];
+  gaps: DiffGapDecoration[];
+}
+
+const newDecorationSide = (): DecorationSide => ({ docLine: 0, pendingGapPx: 0, lines: [], paddings: [], gaps: [] });
+
+function sideHeight(item: DiffLine | undefined, isEmpty: boolean, heights: Map<number, number>): number {
+  if (isEmpty || !item || item.lineNumber === undefined) return 0;
+  return heights.get(item.lineNumber) ?? DEFAULT_LINE_HEIGHT_PX;
+}
+
+function wordDecorations(item: DiffLine): DiffWordDecoration[] {
+  const words: DiffWordDecoration[] = [];
+  if (!item.tokens || item.type !== "modified") return words;
+  let col = 0;
+  for (const token of item.tokens) {
+    const tokenLen = token.text.length;
+    if (token.type !== "unchanged") {
+      words.push({ startCol: col, endCol: col + tokenLen, type: token.type });
+    }
+    col += tokenLen;
+  }
+  return words;
+}
+
+function addDecorationLine(side: DecorationSide, item: DiffLine | undefined, isEmpty: boolean, hSelf: number, hTarget: number): void {
+  if (isEmpty || !item) {
+    side.pendingGapPx += hTarget;
+    return;
+  }
+  if (side.pendingGapPx > 0) {
+    side.gaps.push({ afterLineNumber: side.docLine, gapPx: side.pendingGapPx });
+    side.pendingGapPx = 0;
+  }
+  side.docLine++;
+  const lineNumber = item.lineNumber ?? side.docLine;
+  const words = wordDecorations(item);
+
+  if (item.type !== "empty") {
+    side.lines.push({
+      lineNumber,
+      type: item.type,
+      words: words.length > 0 ? words : undefined,
+    });
+  }
+
+  if (hTarget > hSelf + 0.5) {
+    side.paddings.push({ lineNumber, paddingPx: hTarget - hSelf });
+  }
+}
+
 export function buildAlignedDiffDecorations(
   sideBySide: { leftLines: DiffLine[]; rightLines: DiffLine[] },
   leftHeights: Map<number, number>,
   rightHeights: Map<number, number>,
 ): { leftConfig: DiffDecorationConfig; rightConfig: DiffDecorationConfig } {
-  const DEFAULT_LINE_HEIGHT_PX = 24;
-
-  const leftDecoLines: DiffLineDecoration[] = [];
-  const leftPaddings: DiffLinePaddingDecoration[] = [];
-  const leftGaps: DiffGapDecoration[] = [];
-
-  const rightDecoLines: DiffLineDecoration[] = [];
-  const rightPaddings: DiffLinePaddingDecoration[] = [];
-  const rightGaps: DiffGapDecoration[] = [];
-
-  let currentLeftDocLine = 0;
-  let currentRightDocLine = 0;
-
-  let pendingLeftGapPx = 0;
-  let pendingRightGapPx = 0;
+  const left = newDecorationSide();
+  const right = newDecorationSide();
 
   const N = Math.max(sideBySide.leftLines.length, sideBySide.rightLines.length);
 
@@ -281,127 +333,22 @@ export function buildAlignedDiffDecorations(
     const isLeftEmpty = !leftItem || leftItem.type === "empty";
     const isRightEmpty = !rightItem || rightItem.type === "empty";
 
-    let hLeft = 0;
-    if (!isLeftEmpty && leftItem.lineNumber !== undefined) {
-      hLeft = leftHeights.get(leftItem.lineNumber) ?? DEFAULT_LINE_HEIGHT_PX;
-    }
-
-    let hRight = 0;
-    if (!isRightEmpty && rightItem.lineNumber !== undefined) {
-      hRight = rightHeights.get(rightItem.lineNumber) ?? DEFAULT_LINE_HEIGHT_PX;
-    }
-
+    const hLeft = sideHeight(leftItem, isLeftEmpty, leftHeights);
+    const hRight = sideHeight(rightItem, isRightEmpty, rightHeights);
     const hTarget = Math.max(hLeft, hRight, DEFAULT_LINE_HEIGHT_PX);
 
-    // Handle Left side
-    if (isLeftEmpty) {
-      pendingLeftGapPx += hTarget;
-    } else {
-      if (pendingLeftGapPx > 0) {
-        leftGaps.push({
-          afterLineNumber: currentLeftDocLine,
-          gapPx: pendingLeftGapPx,
-        });
-        pendingLeftGapPx = 0;
-      }
-      currentLeftDocLine++;
-      const lineNumber = leftItem.lineNumber ?? currentLeftDocLine;
-
-      const words: DiffWordDecoration[] = [];
-      if (leftItem.tokens && leftItem.type === "modified") {
-        let col = 0;
-        for (const token of leftItem.tokens) {
-          const tokenLen = token.text.length;
-          if (token.type !== "unchanged") {
-            words.push({
-              startCol: col,
-              endCol: col + tokenLen,
-              type: token.type,
-            });
-          }
-          col += tokenLen;
-        }
-      }
-
-      if (leftItem.type !== "empty") {
-        leftDecoLines.push({
-          lineNumber,
-          type: leftItem.type,
-          words: words.length > 0 ? words : undefined,
-        });
-      }
-
-      if (hTarget > hLeft + 0.5) {
-        leftPaddings.push({
-          lineNumber,
-          paddingPx: hTarget - hLeft,
-        });
-      }
-    }
-
-    // Handle Right side
-    if (isRightEmpty) {
-      pendingRightGapPx += hTarget;
-    } else {
-      if (pendingRightGapPx > 0) {
-        rightGaps.push({
-          afterLineNumber: currentRightDocLine,
-          gapPx: pendingRightGapPx,
-        });
-        pendingRightGapPx = 0;
-      }
-      currentRightDocLine++;
-      const lineNumber = rightItem.lineNumber ?? currentRightDocLine;
-
-      const words: DiffWordDecoration[] = [];
-      if (rightItem.tokens && rightItem.type === "modified") {
-        let col = 0;
-        for (const token of rightItem.tokens) {
-          const tokenLen = token.text.length;
-          if (token.type !== "unchanged") {
-            words.push({
-              startCol: col,
-              endCol: col + tokenLen,
-              type: token.type,
-            });
-          }
-          col += tokenLen;
-        }
-      }
-
-      if (rightItem.type !== "empty") {
-        rightDecoLines.push({
-          lineNumber,
-          type: rightItem.type,
-          words: words.length > 0 ? words : undefined,
-        });
-      }
-
-      if (hTarget > hRight + 0.5) {
-        rightPaddings.push({
-          lineNumber,
-          paddingPx: hTarget - hRight,
-        });
-      }
-    }
+    addDecorationLine(left, leftItem, isLeftEmpty, hLeft, hTarget);
+    addDecorationLine(right, rightItem, isRightEmpty, hRight, hTarget);
   }
 
-  if (pendingLeftGapPx > 0) {
-    leftGaps.push({
-      afterLineNumber: currentLeftDocLine,
-      gapPx: pendingLeftGapPx,
-    });
-  }
-
-  if (pendingRightGapPx > 0) {
-    rightGaps.push({
-      afterLineNumber: currentRightDocLine,
-      gapPx: pendingRightGapPx,
-    });
+  for (const side of [left, right]) {
+    if (side.pendingGapPx > 0) {
+      side.gaps.push({ afterLineNumber: side.docLine, gapPx: side.pendingGapPx });
+    }
   }
 
   return {
-    leftConfig: { lines: leftDecoLines, paddings: leftPaddings, gaps: leftGaps },
-    rightConfig: { lines: rightDecoLines, paddings: rightPaddings, gaps: rightGaps },
+    leftConfig: { lines: left.lines, paddings: left.paddings, gaps: left.gaps },
+    rightConfig: { lines: right.lines, paddings: right.paddings, gaps: right.gaps },
   };
 }

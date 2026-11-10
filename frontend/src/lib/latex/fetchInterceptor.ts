@@ -14,20 +14,18 @@ if (!globalScope.__busytex_fetch_intercepted__) {
   let chunkManifestPromise: Promise<Record<string, any>> | null = null;
 
   function getChunkManifest(): Promise<Record<string, any>> {
-    if (!chunkManifestPromise) {
-      chunkManifestPromise = originalFetch('/core/busytex/chunk-manifest.json')
-        .then(async (res: Response) => {
-          if (res.ok) {
-            try {
-              return await res.json();
-            } catch {
-              return {};
-            }
+    chunkManifestPromise ??= originalFetch('/core/busytex/chunk-manifest.json')
+      .then(async (res: Response) => {
+        if (res.ok) {
+          try {
+            return await res.json();
+          } catch {
+            return {};
           }
-          return {};
-        })
-        .catch(() => ({}));
-    }
+        }
+        return {};
+      })
+      .catch(() => ({}));
     return chunkManifestPromise!;
   }
 

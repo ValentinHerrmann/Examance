@@ -71,7 +71,9 @@ export function sniffLogoMime(bytes: Uint8Array): LogoMime | null {
 }
 
 export function logoFilename(mime: string | null): string {
-  const ext = mime === 'image/png' ? 'png' : mime === 'image/jpeg' ? 'jpg' : 'pdf';
+  let ext = 'pdf';
+  if (mime === 'image/png') ext = 'png';
+  else if (mime === 'image/jpeg') ext = 'jpg';
   return `${LOGO_BASENAME}.${ext}`;
 }
 

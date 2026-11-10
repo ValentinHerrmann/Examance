@@ -74,8 +74,8 @@ function optionText(rest: string): string {
   let end = rest.length;
   for (let i = 0; i < rest.length; i++) {
     if (rest[i] === "\\") {
-      if (depth === 0 && rest.startsWith("\\begin{", i)) envs++;
-      else if (depth === 0 && rest.startsWith("\\end{", i) && envs-- === 0) {
+      if (depth === 0 && rest.startsWith(String.raw`\begin{`, i)) envs++;
+      else if (depth === 0 && rest.startsWith(String.raw`\end{`, i) && envs-- === 0) {
         end = i;
         break;
       }
@@ -91,7 +91,7 @@ function optionText(rest: string): string {
 
 /** End of the `{…}` group `text` starts with, or -1 when it does not start with a closed one. */
 function leadingGroupEnd(text: string): number {
-  return text[0] === "{" ? closingBrace(text, 0) : -1;
+  return text.startsWith("{") ? closingBrace(text, 0) : -1;
 }
 
 /** A group prints its content: `{a}` → "a" (the editor's form), `{A} (2 P.)` → "A (2 P.)", `{} Ja` → "Ja". */
@@ -112,7 +112,7 @@ export function printedMcOptions(latexBody: string | undefined | null): McOption
 
 /** Splits a MC exercise's latex body into the question (LaTeX, as written) and structured options (texts unescaped, sources kept), the inverse of buildMcOptionsLatex. Returns an empty options array if no \LoesungMulti block is found (e.g. a brand-new exercise). */
 export function parseMcOptions(latexBody: string | undefined | null): McOptionsParseResult {
-  const body = latexBody || "";
+  const body = latexBody || ""; // NOSONAR: null is allowed too, a default parameter would not cover it
   // Comments are blanked, not removed, so offsets in `masked` match `body`. A block that starts but never closes (mid-edit) is `malformed`: callers must not rebuild from it.
   const masked = mapComments(body, (comment) => " ".repeat(comment.length));
   const match = LOESUNG_MULTI_START_RE.exec(masked);

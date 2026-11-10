@@ -13,7 +13,7 @@ export const exam = {
         omr: {
             checkingExercises: 'MC-Aufgaben werden geprüft…',
             noExercisesError: 'Scan-Vorlage fehlgeschlagen: Diese Prüfung enthält keine Aufgaben.',
-            invalidExercisesError: 'OMR-Vorbereitung fehlgeschlagen: MC-Aufgabe(n) {names} enthalten keine \\multi- oder \\Lmulti-Antwortblasen im LaTeX-Code. Bitte die Aufgabenoptionen prüfen und bearbeiten.',
+            invalidExercisesError: String.raw`OMR-Vorbereitung fehlgeschlagen: MC-Aufgabe(n) {names} enthalten keine \multi- oder \Lmulti-Antwortblasen im LaTeX-Code. Bitte die Aufgabenoptionen prüfen und bearbeiten.`,
             compilingBlank: 'Leere Prüfung wird kompiliert…',
             loginRequired: 'Bitte melden Sie sich an, um LaTeX auf dem Server zu kompilieren.',
             loadingCompiler: 'Lokaler LaTeX-Compiler wird geladen… (Einmaliger Download von ca. 500 MB, Fortschritt siehe unten links)',
@@ -101,7 +101,7 @@ export const exam = {
         courseEdit: 'Gedruckte Klasse ändern',
         courseCustom: 'eigene Angabe',
         courseReset: 'Wieder aus Jahrgangsstufe und Klasse bilden',
-        courseHint: 'So steht die Klasse auf der Prüfung (\\Klasse). Entsteht aus Jahrgangsstufe und Klasse; mit dem Stift tragen Sie eine eigene Angabe ein, z. B. „Q11 Inf“.',
+        courseHint: String.raw`So steht die Klasse auf der Prüfung (\Klasse). Entsteht aus Jahrgangsstufe und Klasse; mit dem Stift tragen Sie eine eigene Angabe ein, z. B. „Q11 Inf“.`,
         datum: 'Datum',
         dauer: 'Dauer',
         nr: 'Nr.',

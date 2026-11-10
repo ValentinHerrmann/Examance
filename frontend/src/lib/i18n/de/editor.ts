@@ -39,7 +39,7 @@ export const editor = {
         'loesung-code': {
             label: 'Lösungscode',
             description:
-                'Code-Listing (lstlisting) nur im Erwartungshorizont. \\Loesung{…} kann kein lstlisting enthalten.',
+                String.raw`Code-Listing (lstlisting) nur im Erwartungshorizont. \Loesung{…} kann kein lstlisting enthalten.`,
         },
         kariert: {
             label: 'Karopapier (ohne Lösung)',

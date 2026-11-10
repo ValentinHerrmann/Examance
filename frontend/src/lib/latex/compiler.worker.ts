@@ -104,22 +104,22 @@ async function compressedEngineBytes(): Promise<number> {
   }
 }
 
+async function allPackagesCached(): Promise<boolean> {
+  for (const pkg of packages) {
+    try {
+      if (!(await isPackageCached(pkg))) return false; // NOSONAR: early exit on the first uncached package
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 async function initRunner(onStatus: (status: string) => void) {
   if (!runner) {
     await ensureAssetCacheIsFresh();
 
-    let allCached = true;
-    for (const pkg of packages) {
-      try {
-        if (!(await isPackageCached(pkg))) {
-          allCached = false;
-          break;
-        }
-      } catch {
-        allCached = false;
-        break;
-      }
-    }
+    const allCached = await allPackagesCached();
 
     if (!allCached) {
       onStatus('downloading');
@@ -179,12 +179,12 @@ async function compileUntilStable(
   let aux: { path: string; content: Uint8Array }[] = [];
   let result = await engine.compile({ input, additionalFiles: baseFiles, rerun: false });
   for (let run = 1; run < MAX_TEX_RUNS && result.success && activeRunner; run++) {
-    const next = (await activeRunner.readProjectFiles())
+    const next = (await activeRunner.readProjectFiles()) // NOSONAR: each run feeds on the previous run's aux files
       .filter((f) => AUX_EXTENSIONS.some((ext) => f.path.endsWith(`main${ext}`)))
       .map((f) => ({ path: f.path.split('/').pop() as string, content: f.content as Uint8Array }));
     if (run > 1 && sameFiles(aux, next)) break;
     aux = next;
-    result = await engine.compile({ input, additionalFiles: [...baseFiles, ...aux], rerun: false });
+    result = await engine.compile({ input, additionalFiles: [...baseFiles, ...aux], rerun: false }); // NOSONAR: each run feeds on the previous run's aux files
   }
   return result;
 }
