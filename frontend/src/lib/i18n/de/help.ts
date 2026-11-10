@@ -256,6 +256,10 @@ export const help = {
                 h: 'Variantenfairness',
                 p1: 'Bei Aufgaben mit Varianten vergleicht sie, ob eine Fassung systematisch schwerer war als die andere. Das ist die Grundlage, um eine unfaire Variante zu überarbeiten.',
             },
+            s4: {
+                h: 'Persönliche Statistiken',
+                p1: 'Für jede korrigierte Prüfung führt Examance anonyme, verschlüsselte Statistiken ohne Namen und Scans, die nur Sie sehen. Sie bleiben erhalten, wenn die Ergebnisse nach der Aufbewahrungsfrist gelöscht werden, und auf Wunsch auch nach dem Löschen der Prüfung.',
+            },
         },
         trash: {
             title: 'Papierkorb',

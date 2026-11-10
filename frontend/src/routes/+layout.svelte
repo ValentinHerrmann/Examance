@@ -47,6 +47,7 @@
   import { pendingSwitchStore, switchOwnedHere, requestedModeSwitch } from "#lib/services/storageModeSwitch";
   import { loadWorkspace, localResultCount, openWorkspace, refreshCapabilities } from "#lib/db/workspace";
   import { runPseudonymRekey } from "#lib/services/pseudonymRekey";
+  import { startStatisticsSync } from "#lib/analytics/statisticsSync";
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
@@ -164,6 +165,8 @@
     registerCspDiagnostics();
     registerHygieneListeners();
     registerWorkspaceSync();
+    // Anonymised statistics follow result writes and survive the results (issue #238).
+    startStatisticsSync();
     // The manifest in IndexedDB is the source of truth for the mode; this refreshes the localStorage cache the stores booted from before anything routes a request.
     try {
       await loadWorkspace();

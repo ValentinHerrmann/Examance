@@ -98,6 +98,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   /** Ticks the teacher set by hand on the Print and MC steps (issue #212); written only through `examRepository.saveStepChecks`, never with the rest of the record. */
   stepChecks?: StepChecks;
   retentionUntil: string;  // ISO date string
+  /** Set by the server once retention erased this exam's results; its kept statistics are then never rebuilt (issue #238). */
+  resultsPurgedAt?: string;
   compilationStatus: 'pending' | 'compiled' | 'failed';
   createdAt: string;
   isDirty?: boolean;

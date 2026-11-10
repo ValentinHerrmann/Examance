@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
+from app.models.exam_statistics import ExamStatistics
 from app.models.exercise import Exercise
 from app.models.exercise_contribution import ExerciseContribution
 from app.models.logo import ExamLogo
@@ -59,6 +60,13 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
             select(AuditLog)
             .where(AuditLog.teacher_id == teacher.id)
             .order_by(AuditLog.created_at.asc())
+        )
+    ).scalars().all()
+    statistics = (
+        await db.execute(
+            select(ExamStatistics)
+            .where(ExamStatistics.teacher_id == teacher.id)
+            .order_by(ExamStatistics.computed_at.asc())
         )
     ).scalars().all()
     # Shared rows disclose the account's e-mail to every other account (issue #65).
@@ -156,6 +164,16 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
                 "decided_at": _iso(c.decided_at),
             }
             for c in submitted
+        ],
+        # Sealed client-side (issue #238); the client-side export carries the readable content.
+        "exam_statistics": [
+            {
+                "exam_id": str(row.exam_id),
+                "keep_after_exam_delete": row.keep_after_exam_delete,
+                "computed_at": _iso(row.computed_at),
+                "byte_size": row.byte_size,
+            }
+            for row in statistics
         ],
         "audit_log": [
             {

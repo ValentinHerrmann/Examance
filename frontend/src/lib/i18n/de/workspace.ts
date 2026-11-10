@@ -75,6 +75,7 @@ export const workspace = {
             examNotImported: 'Ergebnisse ohne übernommene Prüfung',
             logoUnavailable: 'Logo der Prüfung nicht übernommen',
             resourceUnavailable: 'Bild- bzw. Ressourcendatei konnte nicht gelesen werden',
+            statisticsUnavailable: 'Persönliche Statistiken konnten nicht gelesen werden und fehlen in der Sicherung',
         },
         withheldItem: {
             exerciseCode: 'LaTeX-Code der Aufgaben',

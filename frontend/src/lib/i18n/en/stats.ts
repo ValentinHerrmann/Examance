@@ -12,6 +12,11 @@ export const stats: Translations['stats'] = {
         emptyStats: 'No exercises graded yet. Statistics will appear here once you start grading.',
         loadFailed: 'The results of this exam could not be loaded: {message}',
         exportButton: 'Export Grades CSV (Excel Compatible)',
+        statsOnly: 'The results of this exam are no longer here (deleted, or kept only in another browser). Shown are your personal statistics: anonymous, without names or scans, and visible only to you.',
+        deleteStatistics: 'Delete my personal statistics',
+        deleteStatisticsTitle: 'Delete personal statistics?',
+        deleteStatisticsBody: 'The anonymous statistics of this exam are deleted for good and no longer appear in the analytics.',
+        deleteStatisticsFailed: 'The statistics could not be deleted: {message}',
     },
     cards: {
         gradeAverage: 'Class average grade',
@@ -114,6 +119,16 @@ export const stats: Translations['stats'] = {
         heading: 'Global Multi-Exam Analytics',
         subtitle: 'Cross-exam performance tracking, exercise quality metrics & variant comparison',
         loadFailed: 'The analytics could not be loaded: {message}',
+        keptLoadFailed: 'Your personal statistics could not be loaded, so exams without results are missing: {message}',
+        statsOnlyTitle: 'Personal statistics only',
+        statsOnlyBody: 'For {count} exams no results are left here; they count through your anonymous personal statistics.',
+        deletedExamsTitle: 'Statistics of deleted exams',
+        deletedExamBadge: 'Exam deleted',
+        deleteStatistics: 'Delete statistics',
+    },
+    keepOption: {
+        label: 'Keep in my personal statistics (visible only to you)',
+        hint: 'Anonymous, without names or scans; you can delete them later in the analytics.',
     },
     analyticsBanner: {
         loading: 'Loading analytics data across all exams…',

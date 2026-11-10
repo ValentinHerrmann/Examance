@@ -47,7 +47,7 @@ from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.models.trash_item import TrashItem
 from app.services import audit as audit_svc
-from app.services import blob_store
+from app.services import blob_store, exam_statistics
 from app.services.capabilities import require_server_results_writable
 from app.services.tokens import rowcount
 
@@ -653,7 +653,7 @@ async def restore(
         for fill in doc.get("fills", []):
             await _apply_fill(db, fill, report)
     await db.flush()
-    await purge(db, items)
+    await purge(db, items, restored=True)
     await audit_svc.log(db, request, teacher, "TRASH_RESTORED", group_id)
     return report
 
@@ -674,8 +674,8 @@ async def _still_referenced(db: AsyncSession, refs: set[str], leaving: set[uuid.
     return {r for r in refs if r in live or r in kept}
 
 
-async def purge(db: AsyncSession, items: Sequence[TrashItem]) -> None:
-    """Erase entries now; their scan files go after the commit unless a live row or another entry still points at them."""
+async def purge(db: AsyncSession, items: Sequence[TrashItem], *, restored: bool = False) -> None:
+    """Erase entries now; their scan files go after the commit unless a live row or another entry still points at them. Exams erased for good (not *restored*) take their unkept statistics along."""
     if not items:
         return
     ids = {item.id for item in items}
@@ -684,6 +684,10 @@ async def purge(db: AsyncSession, items: Sequence[TrashItem]) -> None:
         await db.flush()
         for ref in refs - await _still_referenced(db, refs, ids):
             blob_store.delete_after_commit(db, ref)
+    if not restored:
+        await exam_statistics.forget_exams(
+            db, {i.exam_id for i in items if i.kind == "exam" and i.exam_id is not None}
+        )
     id_list = list(ids)
     for start in range(0, len(id_list), _CHUNK):
         await db.execute(delete(TrashItem).where(TrashItem.id.in_(id_list[start : start + _CHUNK])))

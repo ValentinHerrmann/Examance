@@ -168,6 +168,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.analytics.s1.h", bodyKeys: ["help.topics.analytics.s1.p1"], docs: "results#analytics" },
       { headingKey: "help.topics.analytics.s2.h", bodyKeys: ["help.topics.analytics.s2.p1"], docs: "results#topics" },
       { headingKey: "help.topics.analytics.s3.h", bodyKeys: ["help.topics.analytics.s3.p1"], docs: "results#variant-fairness" },
+      { headingKey: "help.topics.analytics.s4.h", bodyKeys: ["help.topics.analytics.s4.p1"], docs: "results#personal-statistics" },
     ],
   },
   {

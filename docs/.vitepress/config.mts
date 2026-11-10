@@ -141,6 +141,7 @@ export default withMermaid(defineConfig({
           { text: 'Exercise sharing', link: '/dev/exercise_sharing' },
           { text: 'QR stickers and result sharing', link: '/dev/result_sharing' },
           { text: 'Trash', link: '/dev/trash' },
+          { text: 'Personal exam statistics', link: '/dev/statistics_snapshots' },
           { text: 'UI shell and overview lists', link: '/dev/ui_shell' },
           { text: 'Build and CSP', link: '/dev/build_and_csp' },
           { text: 'CI and dependency audit', link: '/dev/ci_and_audit' },

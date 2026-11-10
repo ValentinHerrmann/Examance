@@ -257,6 +257,10 @@ export const help: Translations['help'] = {
                 h: 'Variant fairness',
                 p1: 'For exercises with variants it compares whether one phrasing was systematically harder than the other. That is the basis for reworking an unfair variant.',
             },
+            s4: {
+                h: 'Personal statistics',
+                p1: 'For every graded exam Examance keeps anonymous, encrypted statistics without names or scans that only you can see. They stay when the results are deleted after the retention period and, if you choose, after the exam is deleted.',
+            },
         },
         trash: {
             title: 'Trash',

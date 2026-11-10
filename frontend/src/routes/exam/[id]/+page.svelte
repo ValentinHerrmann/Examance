@@ -27,6 +27,8 @@
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { t, translate, type TranslationKey } from "#lib/i18n";
   import { Alert, Button, Card, ConfirmDialog, Menu, MenuItem, PageShell, SaveStatus, actionIcons } from "#lib/components/ui";
+  import KeepStatisticsOption from "#lib/components/stats/KeepStatisticsOption.svelte";
+  import { statisticsRepository } from "#lib/repositories/statisticsRepository";
   import { IDLE_SAVE, type AutosaveStatus } from "#lib/utils/autosave";
 
   let examId = $derived(page.params.id || "");
@@ -44,6 +46,8 @@
   let exportOpen = $state(false);
   let confirming: "exam" | "submissions" | null = $state(null);
   let busy = $state(false);
+  let keepStatistics = $state(true);
+  let statisticsRecordId: string | null = $state(null);
   let isDuplicating = $state(false);
 
   let loadSeq = 0;
@@ -100,6 +104,8 @@
     busy = true;
     actionError = "";
     try {
+      // The record outlives the exam unless the teacher unticks it (issue #238).
+      if (statisticsRecordId) await statisticsRepository.setKeep(statisticsRecordId, keepStatistics);
       // One cascade, shared with the dashboard and the repository, so no owned table is missed.
       await examRepository.delete(exam.id);
       window.location.href = "/";
@@ -246,7 +252,9 @@
   error={confirming === "exam" ? actionError : ""}
   onConfirm={deleteExam}
   onCancel={() => (confirming = null)}
-/>
+>
+  <KeepStatisticsOption examId={confirming === "exam" ? (exam?.id ?? null) : null} bind:keep={keepStatistics} bind:recordId={statisticsRecordId} />
+</ConfirmDialog>
 
 <ConfirmDialog
   open={confirming === "submissions"}

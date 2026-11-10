@@ -31,6 +31,8 @@
   import RetentionModal from '#lib/components/dashboard/RetentionModal.svelte';
   import OnboardingEmptyState from '#lib/components/dashboard/OnboardingEmptyState.svelte';
   import DeleteWithUsageModal from '#lib/components/common/DeleteWithUsageModal.svelte';
+  import KeepStatisticsOption from '#lib/components/stats/KeepStatisticsOption.svelte';
+  import { statisticsRepository } from '#lib/repositories/statisticsRepository';
   import ListFilterPanel from '#lib/components/common/ListFilterPanel.svelte';
   import ExamList from '#lib/components/dashboard/ExamList.svelte';
   import { Alert, Button, FilterLayout, PageHeader, PageShell } from '#lib/components/ui';
@@ -92,6 +94,8 @@
   // Delete modal state
   let isDeleteModalOpen = $state(false);
   let deletingExam: { id: string; title?: string; submissionCount: number } | null = $state(null);
+  let keepStatistics = $state(true);
+  let statisticsRecordId: string | null = $state(null);
   let isDeleting = $state(false);
   let deleteError = $state('');
 
@@ -302,6 +306,8 @@
     isDeleting = true;
     deleteError = '';
     try {
+      // The record outlives the exam unless the teacher unticks it (issue #238).
+      if (statisticsRecordId) await statisticsRepository.setKeep(statisticsRecordId, keepStatistics);
       await examRepository.delete(deletingExam.id);
       isDeleteModalOpen = false;
       deletingExam = null;
@@ -443,4 +449,6 @@
   error={deleteError}
   onConfirm={handleConfirmDeleteExam}
   onClose={() => (isDeleteModalOpen = false)}
-/>
+>
+  <KeepStatisticsOption examId={isDeleteModalOpen ? (deletingExam?.id ?? null) : null} bind:keep={keepStatistics} bind:recordId={statisticsRecordId} />
+</DeleteWithUsageModal>
