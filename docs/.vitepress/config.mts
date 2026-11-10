@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitepress';
 import { withMermaid } from 'vitepress-plugin-mermaid';
-import { copySiteFiles, examanceMarkdown, REPO_URL, siteFilesDevServer, SRC_EXCLUDE } from './markdown';
+import { copySiteFiles, examanceMarkdown, REPO_URL, siteFilesDevServer, SRC_EXCLUDE } from './markdown.ts';
 
 // Production and previews on Cloudflare (served at /), backup on GitHub Pages (served at /Examance/, DOCS_BASE set by .github/workflows/docs.yml).
 const BASE = process.env.DOCS_BASE ?? '/';
