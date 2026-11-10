@@ -282,7 +282,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
       AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-}
       RESTIC_CACHE_DIR: /cache
-      BACKUP_KEEP_MAINTENANCE: ${BACKUP_KEEP_MAINTENANCE:-10}
+      BACKUP_KEEP_MAINTENANCE_DAYS: ${BACKUP_KEEP_MAINTENANCE_DAYS:-3}
     volumes:
       - ./maintenance-backups:/backups
       - restic_cache:/cache
@@ -296,12 +296,40 @@ services:
         umask 077
         offsite=no
         if [ -n "$$RESTIC_REPOSITORY" ] && [ -n "$$RESTIC_PASSWORD" ]; then
-          apk add --no-cache restic >/dev/null && offsite=yes
+          apk add --no-cache restic jq >/dev/null && offsite=yes
+        fi
+        days=$$BACKUP_KEEP_MAINTENANCE_DAYS
+        # At least 1 day: with 0 a dump would be gone before anyone could restore it.
+        case "$$days" in ''|*[!0-9]*) days=0 ;; esac
+        if [ "$$days" -lt 1 ]; then
+          echo "BACKUP_KEEP_MAINTENANCE_DAYS must be a whole number of at least 1; using 3" >&2
+          days=3
         fi
         q() { psql -X -q -At -v ON_ERROR_STOP=1 -c "$$1"; }
-        echo "maintenance-backup ready (off-site copy: $$offsite)"
+        # Strict age limit (issue #258): also removes the newest dump and dumps from earlier releases.
+        expire() {
+          find /backups -maxdepth 1 -name '*.sql' -mmin +"$$((days * 1440))" -print -delete \
+            | sed 's|^|maintenance backup expired: |'
+          [ "$$offsite" = yes ] || return 0
+          restic cat config >/dev/null 2>&1 || return 0
+          cutoff=$$(( $$(date +%s) - days * 86400 ))
+          # Not --keep-within: it counts back from the newest snapshot, not from now. The container runs in UTC.
+          ids=$$(restic --retry-lock 10m snapshots --quiet --tag maintenance --json \
+            | jq -r --argjson c "$$cutoff" '.[] | select((.time[0:19] + "Z" | fromdateiso8601) < $$c) | .id') \
+            || { echo "listing maintenance snapshots failed" >&2; return 0; }
+          [ -n "$$ids" ] || return 0
+          restic --retry-lock 10m forget --quiet --prune $$ids \
+            && echo "expired $$(echo "$$ids" | wc -l) maintenance snapshot(s)" \
+            || echo "forgetting maintenance snapshots failed" >&2
+        }
+        echo "maintenance-backup ready (off-site copy: $$offsite, kept for $$days day(s))"
+        expire
+        tick=0
         while true; do
           sleep 5
+          tick=$$((tick + 1))
+          # Hourly, so dumps also expire when no deploy comes.
+          if [ "$$tick" -ge 720 ]; then tick=0; expire; fi
           # 5 s after the freeze: the backend's phase cache is through (in-flight writes: see docs).
           rev=$$(q "UPDATE maintenance_window SET backup_state = 'running', updated_at = now()
             WHERE id = 1 AND ended_at IS NULL AND backup_wanted AND backup_state IS NULL
@@ -317,19 +345,17 @@ services:
             q "UPDATE maintenance_window SET backup_state = 'done', backup_file = '$$file',
               backup_finished_at = now(), offsite_state = '$$next' WHERE id = 1 AND revision = $$rev"
             echo "maintenance backup $$file done"
-            ls -1t /backups/*.sql | tail -n +"$$((BACKUP_KEEP_MAINTENANCE + 1))" | xargs -r rm -f
             if [ "$$offsite" = yes ]; then
               # After "done": the deploy already continues, so the upload costs no downtime.
               (restic cat config >/dev/null 2>&1 || restic init >/dev/null) \
                 && restic --retry-lock 10m backup --quiet --tag maintenance \
                   --stdin-filename examance.sql --stdin-from-command -- cat "/backups/$$file" \
-                && restic --retry-lock 10m forget --quiet --tag maintenance \
-                  --keep-last "$$BACKUP_KEEP_MAINTENANCE" --prune \
                 && state=done || state=failed
               q "UPDATE maintenance_window SET offsite_state = '$$state'
                 WHERE id = 1 AND revision = $$rev" || true
               echo "maintenance backup off-site copy: $$state"
             fi
+            expire
           else
             rm -f "/backups/$$file.part"
             q "UPDATE maintenance_window SET backup_state = 'failed' WHERE id = 1 AND revision = $$rev" || true

@@ -21,7 +21,7 @@ There are two backups, fully independent of each other:
 - `.env`. It holds the backup password, so keep `BACKUP_RESTIC_PASSWORD`, the S3 keys and the other secrets in a password manager.
 - Results of accounts in *hybrid* mode. They live only in the teacher's browser; the teacher's `.examance` workspace archive (older backups: `.bgproj`) is the backup there.
 
-**Retention.** Scheduled snapshots: the newest per day for 7 days, per week for 4 weeks and per month for 3 months (`BACKUP_KEEP_DAILY_DAYS` / `_WEEKLY_WEEKS` / `_MONTHLY_MONTHS` in `.env`). Maintenance backups: the newest `BACKUP_KEEP_MAINTENANCE` (10) local files and as many `maintenance` snapshots. `pre-restore`: the 10 most recent plus the daily/weekly/monthly ones. Anything older cannot be restored.
+**Retention.** Scheduled snapshots: the newest per day for 7 days, per week for 4 weeks and per month for 3 months (`BACKUP_KEEP_DAILY_DAYS` / `_WEEKLY_WEEKS` / `_MONTHLY_MONTHS` in `.env`). Maintenance backups: local files and `maintenance` snapshots are deleted once they are older than `BACKUP_KEEP_MAINTENANCE_DAYS` (3 days, at least 1), the newest one included and also those taken before this setting existed (the former count setting `BACKUP_KEEP_MAINTENANCE` is no longer read). `pre-restore`: the 10 most recent plus the daily/weekly/monthly ones. Anything older cannot be restored.
 
 ## The one thing to understand first: rows and files
 
@@ -151,5 +151,5 @@ $COMPOSE exec backup sh -c 'psql -d postgres -c "CREATE DATABASE restore_test" &
 - **Erased data survives in backups** until the last snapshot holding it expires, at most about `BACKUP_KEEP_MONTHLY_MONTHS` months.
 - **The trash keeps deleted data for 7 days** (encrypted, like the live data). `trash restore` can bring an entry back from an old snapshot only for the teacher it belonged to, on the teacher's request. A GDPR erasure skips the trash.
 - **Restores bring erased data back.** Restoring a snapshot brings back data that was erased in the meantime, including data erased on request. After a database restore, re-run any erasure requests made after the snapshot time. The audit log records `DELETE` actions, but only with hashed ids.
-- **Maintenance backups** in `maintenance-backups/` are unencrypted dumps (mode 600, like `restore-safety/`); erased data survives in them until the newest `BACKUP_KEEP_MAINTENANCE` updates have pushed them out, and in the `maintenance` snapshots as long.
+- **Maintenance backups** in `maintenance-backups/` are unencrypted dumps (mode 600, like `restore-safety/`); erased data survives in them, and in the `maintenance` snapshots, for at most `BACKUP_KEEP_MAINTENANCE_DAYS` (3) days.
 - `restore-safety/` files are unencrypted. Delete them after the restore.
