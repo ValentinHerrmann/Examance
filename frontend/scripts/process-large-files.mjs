@@ -1,7 +1,7 @@
-import fs from 'fs';
-import path from 'path';
-import zlib from 'zlib';
-import { promisify } from 'util';
+import fs from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import { promisify } from 'node:util';
 
 import { frontendPathArg } from './cli-path.mjs';
 
@@ -15,14 +15,14 @@ const manifest = {};
 // Large files are compressed concurrently after the walk: async gzip runs on the libuv threadpool, so the four TeX Live bundles don't compress one after another (this runs on every Cloudflare Pages build).
 const largeFiles = [];
 
-async function processDirectory(dir) {
+function processDirectory(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      await processDirectory(fullPath);
+      processDirectory(fullPath);
     } else if (entry.isFile()) {
       const stats = fs.statSync(fullPath);
       if (stats.size > MAX_FILE_SIZE) {
@@ -79,6 +79,45 @@ async function processLargeFile({ fullPath, stats }) {
   };
 }
 
+function copyInterceptor(absoluteTarget) {
+  const interceptorSource = path.resolve('scripts', 'fetch-interceptor.js');
+  const interceptorTarget = path.join(absoluteTarget, 'core', 'busytex', 'fetch-interceptor.js');
+  const interceptorStatic = path.resolve('static', 'core', 'busytex', 'fetch-interceptor.js');
+
+  if (!fs.existsSync(interceptorSource)) return;
+  fs.mkdirSync(path.dirname(interceptorTarget), { recursive: true });
+  fs.copyFileSync(interceptorSource, interceptorTarget);
+  if (fs.existsSync(path.dirname(interceptorStatic))) {
+    fs.copyFileSync(interceptorSource, interceptorStatic);
+  }
+}
+
+/** Prepend the interceptor import to a worker script unless it is already there; returns whether it was injected. */
+function injectInterceptorImport(workerPath) {
+  if (!fs.existsSync(workerPath)) return false;
+  const workerContent = fs.readFileSync(workerPath, 'utf-8');
+  if (workerContent.includes("fetch-interceptor.js")) return false;
+  fs.writeFileSync(workerPath, "importScripts('fetch-interceptor.js');\n" + workerContent);
+  return true;
+}
+
+/** Keep entries of an earlier manifest whose chunks are all still on disk. */
+function mergeExistingManifest(absoluteTarget, manifestPath) {
+  if (!fs.existsSync(manifestPath)) return;
+  try {
+    const existingManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    for (const [key, value] of Object.entries(existingManifest)) {
+      if (!(value && Array.isArray(value.chunks) && value.chunks.length > 0)) continue;
+      const allChunksExist = value.chunks.every((chunkRelPath) =>
+        fs.existsSync(path.join(absoluteTarget, chunkRelPath.replace(/^\//, ''))),
+      );
+      if (allChunksExist && !manifest[key]) {
+        manifest[key] = value;
+      }
+    }
+  } catch {}
+}
+
 async function main() {
   const absoluteTarget = targetDir;
   if (!fs.existsSync(absoluteTarget)) {
@@ -87,55 +126,19 @@ async function main() {
   }
 
   console.log(`Scanning for files > 24MB in: ${absoluteTarget}`);
-  await processDirectory(absoluteTarget);
+  processDirectory(absoluteTarget);
   await Promise.all(largeFiles.map(processLargeFile));
 
-  const interceptorSource = path.resolve('scripts', 'fetch-interceptor.js');
-  const interceptorTarget = path.join(absoluteTarget, 'core', 'busytex', 'fetch-interceptor.js');
-  const interceptorStatic = path.resolve('static', 'core', 'busytex', 'fetch-interceptor.js');
-  
-  if (fs.existsSync(interceptorSource)) {
-    fs.mkdirSync(path.dirname(interceptorTarget), { recursive: true });
-    fs.copyFileSync(interceptorSource, interceptorTarget);
-    if (fs.existsSync(path.dirname(interceptorStatic))) {
-      fs.copyFileSync(interceptorSource, interceptorStatic);
-    }
-  }
+  copyInterceptor(absoluteTarget);
 
   const workerPath = path.join(absoluteTarget, 'core', 'busytex', 'busytex_worker.js');
-  if (fs.existsSync(workerPath)) {
-    const workerContent = fs.readFileSync(workerPath, 'utf-8');
-    if (!workerContent.includes("fetch-interceptor.js")) {
-      fs.writeFileSync(workerPath, "importScripts('fetch-interceptor.js');\n" + workerContent);
-      console.log(`Injected fetch-interceptor.js into ${workerPath}`);
-    }
+  if (injectInterceptorImport(workerPath)) {
+    console.log(`Injected fetch-interceptor.js into ${workerPath}`);
   }
-
-  const staticWorkerPath = path.resolve('static', 'core', 'busytex', 'busytex_worker.js');
-  if (fs.existsSync(staticWorkerPath)) {
-    const staticWorkerContent = fs.readFileSync(staticWorkerPath, 'utf-8');
-    if (!staticWorkerContent.includes("fetch-interceptor.js")) {
-      fs.writeFileSync(staticWorkerPath, "importScripts('fetch-interceptor.js');\n" + staticWorkerContent);
-    }
-  }
+  injectInterceptorImport(path.resolve('static', 'core', 'busytex', 'busytex_worker.js'));
 
   const manifestPath = path.join(absoluteTarget, 'core', 'busytex', 'chunk-manifest.json');
-  if (fs.existsSync(manifestPath)) {
-    try {
-      const existingManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-      for (const [key, value] of Object.entries(existingManifest)) {
-        if (value && Array.isArray(value.chunks) && value.chunks.length > 0) {
-          const allChunksExist = value.chunks.every((chunkRelPath) => {
-            const chunkFullPath = path.join(absoluteTarget, chunkRelPath.replace(/^\//, ''));
-            return fs.existsSync(chunkFullPath);
-          });
-          if (allChunksExist && !manifest[key]) {
-            manifest[key] = value;
-          }
-        }
-      }
-    } catch {}
-  }
+  mergeExistingManifest(absoluteTarget, manifestPath);
 
   const manifestDir = path.dirname(manifestPath);
   if (!fs.existsSync(manifestDir)) {
@@ -149,7 +152,9 @@ async function main() {
   console.log(`Processed ${Object.keys(manifest).length} large files.`);
 }
 
-main().catch(err => {
+try {
+  await main();
+} catch (err) {
   console.error("Error processing large files:", err);
   process.exit(1);
-});
+}

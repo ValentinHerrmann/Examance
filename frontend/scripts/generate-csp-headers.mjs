@@ -37,7 +37,7 @@ export function inlineScriptHashes(html) {
   const hashes = [];
   for (const [, rawAttrs, body] of html.matchAll(SCRIPT_RE)) {
     if (/\bsrc\s*=/i.test(rawAttrs)) continue; // external, covered by 'self'
-    const type = (rawAttrs.match(/\btype\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i) ?? [])
+    const type = (/\btype\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(rawAttrs) ?? [])
       .slice(2)
       .find((/** @type {string | undefined} */ value) => value !== undefined);
     if (!EXECUTABLE_TYPES.has((type ?? '').trim().toLowerCase())) continue;

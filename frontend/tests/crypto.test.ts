@@ -28,7 +28,7 @@ describe('AES-256-GCM Cryptography', () => {
     const { ciphertext, iv } = await encrypt(key, plaintext);
 
     expect(ciphertext.length).toBeGreaterThan(plaintext.length);
-    expect(iv.length).toBe(12);
+    expect(iv).toHaveLength(12);
 
     const decrypted = await decrypt(key, ciphertext, iv);
     expect(new TextDecoder().decode(decrypted)).toBe('Hello BlindGrade Privacy!');
@@ -159,8 +159,8 @@ describe('Deterministic Key Derivation', () => {
     const nonce1 = await getUserSessionNonce('teacher@example.com');
     const nonce2 = await getUserSessionNonce('TEACHER@example.com ');
 
-    expect(salt1.length).toBe(16);
-    expect(nonce1.length).toBe(12);
+    expect(salt1).toHaveLength(16);
+    expect(nonce1).toHaveLength(12);
     expect(salt1).toEqual(salt2);
     expect(nonce1).toEqual(nonce2);
   });
@@ -188,7 +188,7 @@ describe('HKDF Session Key Derivation', () => {
     );
 
     const nonce = generateSessionNonce();
-    expect(nonce.length).toBe(12);
+    expect(nonce).toHaveLength(12);
 
     const sessionKey = await deriveSessionKey(masterKey, nonce);
     expect(sessionKey.algorithm.name).toBe('AES-GCM');

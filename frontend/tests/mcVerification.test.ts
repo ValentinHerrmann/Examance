@@ -65,8 +65,8 @@ describe("computeMcVerificationStats", () => {
     const stats = await computeMcVerificationStats("exam-100", null);
 
     // items stay one-per-(submission,exercise) — the queues review a whole question at a time.
-    expect(stats.items.length).toBe(6);
-    expect(stats.perExercise.length).toBe(3);
+    expect(stats.items).toHaveLength(6);
+    expect(stats.perExercise).toHaveLength(3);
 
     // Headline counts are question-level (one per item), not scaled by how many boxes were ticked on any one question — that's the "multiplies exercises by marks" regression this test guards against.
     expect(stats.totalQuestions).toBe(6);
@@ -99,7 +99,7 @@ describe("computeMcVerificationStats", () => {
 
     const stats = await computeMcVerificationStats("exam-100", null);
 
-    expect(stats.items.length).toBe(1);
+    expect(stats.items).toHaveLength(1);
     expect(stats.totalQuestions).toBe(1);
   });
 
