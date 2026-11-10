@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,6 +45,13 @@ describe('CSP header generation', () => {
       '<script type="module">export default 1;</script>',
     ].join('');
     expect(inlineScriptHashes(html)).toHaveLength(1);
+  });
+
+  it('ends a script where a browser does, whatever the end tag spelling (issue #247)', () => {
+    const sha = (body: string) => `sha256-${createHash('sha256').update(body, 'utf8').digest('base64')}`;
+    expect(inlineScriptHashes('<script>a()</script ><script>b()</SCRIPT\n>')).toEqual([sha('a()'), sha('b()')]);
+    // `</scripts>` is not an end tag, so it stays part of the body.
+    expect(inlineScriptHashes('<script>c("</scripts>")</script>')).toEqual([sha('c("</scripts>")')]);
   });
 
   it('lets the build fill in the API origins for connect-src (issue #198)', () => {

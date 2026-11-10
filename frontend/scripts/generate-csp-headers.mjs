@@ -24,7 +24,8 @@ const EXECUTABLE_TYPES = new Set([
   'application/javascript',
 ]);
 
-const SCRIPT_RE = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+// The end tag matches the way the HTML tokenizer ends a script (`</script >`, `</SCRIPT\n>`), or the captured body and its hash would run on past it.
+const SCRIPT_RE = /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi;
 
 /**
  * Collect the CSP hashes of the executable inline scripts in one HTML document.
