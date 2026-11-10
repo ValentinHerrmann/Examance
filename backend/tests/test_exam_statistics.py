@@ -71,8 +71,8 @@ async def test_get_one_record(client: AsyncClient, db: AsyncSession) -> None:
     exam_id = await _exam(client, db, unique_email("stats-get"))
     url = f"/api/v1/exams/{exam_id}/statistics"
     missing = await client.get(url)
-    assert missing.status_code == 404
-    assert missing.headers.get("code") == "ERR_STATISTICS_NOT_FOUND"
+    assert missing.status_code == 200
+    assert missing.json() is None
     put = (await client.put(url, json=_body())).json()
     assert (await client.get(url)).json()["id"] == put["id"]
 

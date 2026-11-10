@@ -41,14 +41,10 @@ export const statisticsRepository = {
     return opened.filter((r): r is StoredStatistics => r !== null);
   },
 
-  /** The exam's record, or null when it has none (404). Throws on any other failed read. */
+  /** The exam's record, or null when it has none. Throws on a failed read. */
   async findByExam(examId: string, key: CryptoKey | null): Promise<StoredStatistics | null> {
-    try {
-      return await open(await api.get<StatisticsRow>(`/exams/${examId}/statistics`, { silentError: true }), key);
-    } catch (err) {
-      if ((err as { status?: number })?.status === 404) return null;
-      throw err;
-    }
+    const row = await api.get<StatisticsRow | null>(`/exams/${examId}/statistics`, { silentError: true });
+    return row ? open(row, key) : null;
   },
 
   /** Idempotent upsert; the server ignores a replayed write built well before the stored record. */

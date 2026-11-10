@@ -5500,7 +5500,7 @@
           "exam-statistics"
         ],
         "summary": "Get Statistics",
-        "description": "The exam's record; 404 when it has none.",
+        "description": "The exam's record, or null when it has none (a normal answer, not a 404 the browser would log as an error).",
         "operationId": "get_statistics_api_v1_exams__exam_id__statistics_get",
         "parameters": [
           {
@@ -5536,7 +5536,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExamStatisticsOut"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ExamStatisticsOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Statistics Api V1 Exams  Exam Id  Statistics Get"
                 }
               }
             }

@@ -98,16 +98,10 @@ async def list_statistics(
 async def get_statistics(
     exam: Annotated[Exam, Depends(get_exam_for_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> ExamStatisticsOut:
-    """The exam's record; 404 when it has none."""
+) -> ExamStatisticsOut | None:
+    """The exam's record, or null when it has none (a normal answer, not a 404 the browser would log as an error)."""
     row = await db.scalar(select(ExamStatistics).where(ExamStatistics.exam_id == exam.id))
-    if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Statistics not found.",
-            headers={"code": "ERR_STATISTICS_NOT_FOUND"},
-        )
-    return _to_out(row)
+    return _to_out(row) if row is not None else None
 
 
 @router.put("/exams/{exam_id}/statistics")

@@ -45,6 +45,31 @@ function shuffle<T>(items: T[]): T[] {
 
 const isNumber = (v: unknown): v is number => typeof v === 'number' && !Number.isNaN(v);
 
+/** The exam's scores per submission, limited to its own exercises. */
+function scoresBySubmission(scores: ExerciseScoreRecord[], known: Set<string>): Map<string, ExerciseScoreRecord[]> {
+  const out = new Map<string, ExerciseScoreRecord[]>();
+  for (const sc of scores) {
+    if (!known.has(sc.exerciseId)) continue;
+    const list = out.get(sc.submissionId);
+    if (list) list.push(sc);
+    else out.set(sc.submissionId, [sc]);
+  }
+  return out;
+}
+
+/** One paper's row without anything that links it to the student; null when nothing on it is graded. */
+function rowOf(sub: SubmissionRecord, scores: ExerciseScoreRecord[]): SnapshotRow | null {
+  const total = isNumber(sub.totalScore) ? sub.totalScore : null;
+  const points: Record<string, number> = {};
+  const mc: Record<string, number[]> = {};
+  for (const sc of scores) {
+    if (isNumber(sc.score)) points[sc.exerciseId] = sc.score;
+    if (sc.selectedOptions?.length) mc[sc.exerciseId] = [...sc.selectedOptions];
+  }
+  if (total === null && Object.keys(points).length === 0) return null;
+  return Object.keys(mc).length > 0 ? { total, scores: points, mc } : { total, scores: points };
+}
+
 /** The exam's record, or null when nothing is graded (an empty record must never replace a kept one). */
 export function buildStatisticsSnapshot(
   exam: ExamRecord,
@@ -53,24 +78,11 @@ export function buildStatisticsSnapshot(
   scores: ExerciseScoreRecord[],
   now: Date = new Date(),
 ): StatisticsSnapshot | null {
-  const known = new Set(exercises.map((ex) => ex.id));
-  const bySubmission = new Map<string, ExerciseScoreRecord[]>();
-  for (const sc of scores) {
-    if (!known.has(sc.exerciseId)) continue;
-    const list = bySubmission.get(sc.submissionId) ?? [];
-    list.push(sc);
-    bySubmission.set(sc.submissionId, list);
-  }
-  const rows: SnapshotRow[] = [];
-  for (const sub of submissions) {
-    if (sub.examId !== exam.id) continue;
-    const row: SnapshotRow = { total: isNumber(sub.totalScore) ? sub.totalScore : null, scores: {} };
-    for (const sc of bySubmission.get(sub.id) ?? []) {
-      if (isNumber(sc.score)) row.scores[sc.exerciseId] = sc.score;
-      if (sc.selectedOptions?.length) (row.mc ??= {})[sc.exerciseId] = [...sc.selectedOptions];
-    }
-    if (row.total !== null || Object.keys(row.scores).length > 0) rows.push(row);
-  }
+  const bySubmission = scoresBySubmission(scores, new Set(exercises.map((ex) => ex.id)));
+  const rows = submissions
+    .filter((sub) => sub.examId === exam.id)
+    .map((sub) => rowOf(sub, bySubmission.get(sub.id) ?? []))
+    .filter((row): row is SnapshotRow => row !== null);
   if (rows.length === 0) return null;
   return {
     v: STATISTICS_SNAPSHOT_VERSION,

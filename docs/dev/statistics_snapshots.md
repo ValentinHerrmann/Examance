@@ -44,4 +44,4 @@ A row never carries a pseudonym, submission id, timestamp, scan, annotation or `
 - **Password archive** (`.examance`): carries the decrypted records of the exams in scope as `examStatistics`. If the records cannot be read, the backup is still made and its report says they are missing. The importer rebuilds the record from imported results and otherwise re-seals the archived one, with its exam and exercise ids remapped (`remapSnapshot`).
 - **Storage-mode move**: needs nothing, because the record is on the server in both modes.
 
-Endpoints (`backend/app/routers/exam_statistics.py`, all behind `get_teaching_teacher`): `GET /statistics`, `GET /exams/{id}/statistics` (404 without a record), `PUT /exams/{id}/statistics`, `PATCH /statistics/{id}`, `DELETE /statistics/{id}`.
+Endpoints (`backend/app/routers/exam_statistics.py`, all behind `get_teaching_teacher`): `GET /statistics`, `GET /exams/{id}/statistics` (`null` without a record, so the browser logs no error), `PUT /exams/{id}/statistics`, `PATCH /statistics/{id}`, `DELETE /statistics/{id}`.

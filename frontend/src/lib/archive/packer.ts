@@ -182,6 +182,16 @@ function withoutCode(ex: ExerciseRecord): ExerciseRecord {
   return { ...ex, latexBody: undefined, codeWithheld: true };
 }
 
+/** The kept statistics of the exams in scope; optional extras, so a failed read is reported, never fatal to the backup of the results themselves. */
+async function loadArchivedStatistics(key: CryptoKey | null, scopeIds: Set<string>, report: ArchiveReport): Promise<StatisticsSnapshot[]> {
+  try {
+    return (await statisticsRepository.list(key)).filter((r) => scopeIds.has(r.examId)).map((r) => r.snapshot);
+  } catch {
+    addMissing(report, { reason: 'statisticsUnavailable', exam: '' });
+    return [];
+  }
+}
+
 export async function packProject(
   password: string,
   onProgress?: ProgressCallback,
@@ -221,14 +231,7 @@ export async function packProject(
     : null;
   const auditLogs = await loadAuditLogs(key, auditTargets);
   // Kept anonymous statistics of the exams in scope (issue #238); the importer prefers rebuilding them from results.
-  const scopeIds = new Set(exams.map((e) => e.id));
-  let examStatistics: StatisticsSnapshot[] = [];
-  try {
-    examStatistics = (await statisticsRepository.list(key)).filter((r) => scopeIds.has(r.examId)).map((r) => r.snapshot);
-  } catch {
-    // Optional extras: the backup of the results themselves must not fail on them.
-    addMissing(report, { reason: 'statisticsUnavailable', exam: '' });
-  }
+  const examStatistics = await loadArchivedStatistics(key, new Set(exams.map((e) => e.id)), report);
 
   // Exercise links and MC groups, per exam, through the repository for the same reason: the local Dexie tables can be empty in server-backed modes.
   const structures = await Promise.all(exams.map((e) => examRepository.getStructure(e.id)));

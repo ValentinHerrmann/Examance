@@ -1210,8 +1210,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (sub === 'logo' && rest[0] === 'file' && method === 'GET') return notFound('No logo.');
     if (sub === 'omr-template-pins') return omrPins(method, id, rest, body);
     if (sub === 'statistics' && method === 'GET' && rest.length === 0) {
-      const row = state.statistics.get(id);
-      return row ? ok(row) : notFound('Statistics not found.');
+      return ok(state.statistics.get(id) ?? null);
     }
     if (sub === 'statistics' && method === 'PUT' && rest.length === 0) {
       const prev = state.statistics.get(id);
