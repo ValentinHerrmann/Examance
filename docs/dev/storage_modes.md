@@ -16,6 +16,8 @@ Issue #47 ("Ensure consistent mode switching") reported that modes got mixed up,
   | `all-server` | On the server, client-side encrypted except `total_score` |
   | `hybrid` | Only in the browser where they were recorded (IndexedDB, encrypted) |
 
+  Only data about pupils (identities, scans, ink, per-student scores) stays in the browser in `hybrid`. The anonymised **statistics record** of each exam lives on the server in both modes and outlives the results (`docs/dev/statistics_snapshots.md`, issue #238).
+
 - **The mode belongs to the account.** It is stored in `teachers.storage_mode` (Alembic `0024`) and every browser of the account follows it.
   - It is nullable, with **no default**. Nothing ever sets it implicitly.
   - Until the account chooses, `openWorkspace()` returns `needs-choice`. The root layout then keeps routes unmounted and opens the non-dismissible `storage/StorageChoiceModal` (the storage card of `/settings`). Changing the mode later happens only on `/settings`; both request the root layout's one `StorageModeSwitchWizard` through `requestedModeSwitch` (`services/storageModeSwitch.ts`).

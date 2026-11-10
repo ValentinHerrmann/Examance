@@ -54,6 +54,8 @@ export interface FakeApiState {
   hiddenExerciseIds: Set<string>;
   /** Exam id to its pinned OMR templates (issue #239), newest first. */
   omrPins: Map<string, any[]>;
+  /** Sealed exam statistics records by exam id (issue #238). */
+  statistics: Map<string, any>;
   /** Every request seen, `"METHOD /path"`, in order. */
   requests: string[];
   /** Requests no route matched (see the file header). */
@@ -167,6 +169,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     submissions: new Map(),
     scores: new Map(),
     omrPins: new Map(),
+    statistics: new Map(),
     envelopes: { keyId: null, rows: [] },
     storageMode: initialMode(),
     email: DEFAULT_EMAIL,
@@ -191,6 +194,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.submissions.clear();
     state.scores.clear();
     state.omrPins.clear();
+    state.statistics.clear();
     state.envelopes = { keyId: null, rows: [] };
     state.storageMode = initialMode();
     state.email = DEFAULT_EMAIL;
@@ -1205,6 +1209,12 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     }
     if (sub === 'logo' && rest[0] === 'file' && method === 'GET') return notFound('No logo.');
     if (sub === 'omr-template-pins') return omrPins(method, id, rest, body);
+    if (sub === 'statistics' && method === 'PUT' && rest.length === 0) {
+      const prev = state.statistics.get(id);
+      const row = { id: prev?.id ?? crypto.randomUUID(), exam_id: id, keep_after_exam_delete: prev?.keep_after_exam_delete ?? true, computed_at: body?.computed_at, updated_at: new Date().toISOString(), payload_ciphertext_b64: body?.payload_ciphertext_b64, payload_iv_b64: body?.payload_iv_b64 };
+      state.statistics.set(id, row);
+      return ok(row);
+    }
     if (sub === 'students') return students(method, id, rest, body);
     if (sub === 'submissions') return submissions(method, id, rest, query, body);
     if (sub === 'pseudonyms') return pseudonyms(method, id, rest, body);
@@ -1350,6 +1360,18 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         const share = state.resultShares.get(parts[1] ?? '');
         if (verb === 'POST' && parts[2] === 'open' && parts.length === 3) {
           handled = share && share.lookupB64 === payload.lookup_b64 ? ok(share.content) : fail(404, 'Share not found', 'ERR_NOT_FOUND');
+        }
+        break;
+      }
+      case 'statistics': {
+        // Kept exam statistics (issue #238): the list, the keep flag and deletes by record id.
+        const row = [...state.statistics.values()].find((r) => r.id === parts[1]);
+        if (verb === 'GET' && parts.length === 1) handled = ok([...state.statistics.values()]);
+        else if (!row) handled = parts.length === 2 ? notFound('Statistics not found.') : undefined;
+        else if (verb === 'PATCH') handled = ok(Object.assign(row, { keep_after_exam_delete: Boolean(payload.keep_after_exam_delete) }));
+        else if (verb === 'DELETE') {
+          state.statistics.delete(row.exam_id);
+          handled = noContent();
         }
         break;
       }

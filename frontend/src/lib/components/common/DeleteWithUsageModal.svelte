@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { t } from "#lib/i18n";
   import { Alert, ConfirmDialog } from "#lib/components/ui";
 
@@ -21,6 +22,8 @@
     error?: string;
     onConfirm: () => void;
     onClose: () => void;
+    /** Extra choices under the prompt (e.g. keeping an exam's statistics). */
+    children?: Snippet;
   }
 
   let {
@@ -38,6 +41,7 @@
     error = "",
     onConfirm,
     onClose,
+    children,
   }: Props = $props();
 </script>
 
@@ -74,4 +78,5 @@
     <p class="m-0">{plainText}</p>
   {/if}
   {#if restoreHint && !usageLoading}<p class="m-0 mt-3 text-sm text-muted">{restoreHint}</p>{/if}
+  {#if children && !usageLoading}{@render children()}{/if}
 </ConfirmDialog>

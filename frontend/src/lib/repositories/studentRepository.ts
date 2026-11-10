@@ -10,6 +10,7 @@ import { examRepository } from './examRepository';
 import type { StudentRecord } from '#lib/db/schema';
 import { deleteUrl, trashHeaders, type DeleteOptions } from '#lib/trash/group';
 import { captureLocal } from '#lib/trash/localTrash';
+import { markStatisticsDirty } from '#lib/analytics/statisticsDirty';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import { joinKey, joinKeys, pseudonymBase, serverVersion } from '#lib/crypto/pseudonymKey';
 
@@ -141,6 +142,7 @@ export const studentRepository = {
     student: Pick<StudentRecord, 'examId' | 'pseudonymHmac' | 'pseudonymVersion'>,
     opts: DeleteOptions = {}
   ): Promise<void> {
+    markStatisticsDirty(student.examId);
     const { examId } = student;
     const target = await joinKey(student);
 

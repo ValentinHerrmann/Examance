@@ -99,7 +99,7 @@ async def put_statistics(
     teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExamStatisticsOut:
-    """Create or replace the exam's record; idempotent, and an older computed_at never replaces a newer one (409)."""
+    """Create or replace the exam's record; idempotent, and an older computed_at never replaces a newer one (the newer record is returned, so a replayed queue write is not refused)."""
     ciphertext, iv = _decode_payload(body)
     computed_at = _aware(body.computed_at)
     row = await db.scalar(select(ExamStatistics).where(ExamStatistics.exam_id == exam.id))
@@ -115,11 +115,7 @@ async def put_statistics(
         db.add(row)
     else:
         if _aware(row.computed_at) > computed_at:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A newer statistics record exists.",
-                headers={"code": "ERR_STATISTICS_STALE"},
-            )
+            return _to_out(row)
         row.payload_ciphertext = ciphertext
         row.payload_iv = iv
         row.byte_size = len(ciphertext)

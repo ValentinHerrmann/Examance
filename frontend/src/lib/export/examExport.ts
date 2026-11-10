@@ -22,6 +22,9 @@ import { addExerciseFolder } from './exerciseExport';
 import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExamZipManifest } from './zipManifest';
 import { examRepository } from '#lib/repositories/examRepository';
 import { getAccountPackages } from '#lib/latex/packageSettings';
+import type { ExerciseRecord } from '#lib/db/schema';
+import { snapshotRecords } from '#lib/analytics/statisticsSnapshot';
+import { statisticsRepository } from '#lib/repositories/statisticsRepository';
 
 export type ExamExportPart = 'graded' | 'gradedCombined' | 'latex' | 'pdf' | 'summary' | 'csv';
 
@@ -102,7 +105,7 @@ async function addResultParts(o: {
   if (has('summary')) {
     await o.part('export.exam.options.summary', async () => {
       progress(translate('export.exam.steps.summary'));
-      zip.add('summary.pdf', await renderSummaryPdf(summaryInput(ctx.exam, results)));
+      zip.add('summary.pdf', await renderSummaryPdf(await summaryInput(ctx.exam, o.compileInput.exercises, results, o.key)));
     });
   }
   if (!has('graded') && !has('gradedCombined')) return;
@@ -197,14 +200,15 @@ async function addCompiledPdfs(zip: ZipBuilder, input: CompileInput): Promise<st
   return [translate('export.exam.warnings.missingGraphics', { files: [...new Set(res.missingGraphics)].join(', ') })];
 }
 
-function summaryInput(exam: ExamContext['exam'], results: LoadedResults): SummaryInput {
-  return {
-    exam,
-    stats: results.computed.stats,
-    totalMaxPoints: results.computed.totalMaxPoints,
-    rows: results.rows,
-    submissionCount: results.submissions.length,
-  };
+async function summaryInput(exam: ExamContext['exam'], exercises: ExerciseRecord[], results: LoadedResults, key: CryptoKey | null): Promise<SummaryInput> {
+  const input = { exam, stats: results.computed.stats, totalMaxPoints: results.computed.totalMaxPoints, rows: results.rows, submissionCount: results.submissions.length };
+  if (results.computed.stats.results.length > 0) return input;
+  // No results left here: the kept anonymous record (issue #238) gives the summary its numbers, without a student list.
+  const stored = await statisticsRepository.findByExam(exam.id, key).catch(() => null);
+  if (!stored) return input;
+  const kept = snapshotRecords(stored.snapshot);
+  const computed = computeExamResults(exam, exercises.length ? exercises : kept.exercises, kept.submissions, kept.scores);
+  return { exam, stats: computed.stats, totalMaxPoints: computed.totalMaxPoints, rows: [], submissionCount: kept.submissions.length };
 }
 
 /** The overview results sheet on its own (the Archive tab previews and downloads it, issue #212); the ZIP's `summary.pdf` is the same document. */
@@ -214,7 +218,7 @@ export async function renderExamSummaryPdf(examId: string): Promise<Uint8Array> 
   if (!key) throw new Error(translate('dashboard.sessionState.lockedTitle'));
   const ctx = await loadExamCompileContext(examId, key);
   if (!ctx) throw new Error(translate('exam.page.examNotFoundOrDeleted'));
-  return renderSummaryPdf(summaryInput(ctx.exam, await loadResults({ exam: ctx.exam, exercises: ctx.exercises, key })));
+  return renderSummaryPdf(await summaryInput(ctx.exam, ctx.exercises, await loadResults({ exam: ctx.exam, exercises: ctx.exercises, key }), key));
 }
 
 export type LoadedResults = Awaited<ReturnType<typeof loadResults>>;

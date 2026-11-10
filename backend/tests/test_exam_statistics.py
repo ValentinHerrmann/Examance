@@ -49,14 +49,14 @@ async def test_put_replaces_and_lists(client: AsyncClient, db: AsyncSession) -> 
     assert listed[0]["payload_ciphertext_b64"] == base64.b64encode(b"second-payload-012345").decode()
 
 
-async def test_stale_write_is_409(client: AsyncClient, db: AsyncSession) -> None:
+async def test_stale_write_keeps_the_newer_record(client: AsyncClient, db: AsyncSession) -> None:
     exam_id = await _exam(client, db, unique_email("stats-stale"))
     url = f"/api/v1/exams/{exam_id}/statistics"
     now = datetime.now(UTC)
-    assert (await client.put(url, json=_body(at=now))).status_code == 200
-    stale = await client.put(url, json=_body(at=now - timedelta(minutes=1)))
-    assert stale.status_code == 409
-    assert stale.headers.get("code") == "ERR_STATISTICS_STALE"
+    newer = await client.put(url, json=_body(b"newer-payload-0123456", at=now))
+    stale = await client.put(url, json=_body(b"stale-payload-0123456", at=now - timedelta(minutes=1)))
+    assert stale.status_code == 200
+    assert stale.json()["payload_ciphertext_b64"] == newer.json()["payload_ciphertext_b64"]
 
 
 async def test_foreign_and_admin_are_refused(client: AsyncClient, db: AsyncSession) -> None:

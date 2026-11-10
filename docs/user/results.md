@@ -92,6 +92,17 @@ The **overall score histogram** sorts all fully graded submissions into 5 % rang
 
 ![Analytics across exams](../screenshots/pitch/09-analytics.jpg)
 
+### Personal statistics {#personal-statistics}
+
+Examance keeps **personal statistics** for every graded exam: the points per exercise and the totals, without names, scans, annotations or any link to a student, shuffled and encrypted so that only you can read them. They are updated automatically while you grade, in both storage modes, and stay on the server even when the results themselves live only in one browser.
+
+They outlast the results: when an exam's retention period ends and its results are deleted, the exam still counts in the analytics and its statistics page shows the charts with the note "personal statistics". The same happens in a browser that does not hold the results of a hybrid account.
+
+- **Deleting all results of an exam** deletes its personal statistics too.
+- **Deleting an exam** asks whether to keep them ("Keep in my personal statistics", ticked by default). Kept statistics of deleted exams are listed at the bottom of **Analytics**, where you can delete them.
+- **Delete my personal statistics** on an exam's statistics page removes them once no results are left.
+- The password-protected backup carries them along.
+
 ### Topics and knowledge gaps {#topics}
 
 The **topic heatmap** shows where points are lost repeatedly, independently of any single exam: a hint for what to repeat in class.

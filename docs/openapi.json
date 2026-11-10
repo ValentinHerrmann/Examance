@@ -5500,7 +5500,7 @@
           "exam-statistics"
         ],
         "summary": "Put Statistics",
-        "description": "Create or replace the exam's record; idempotent, and an older computed_at never replaces a newer one (409).",
+        "description": "Create or replace the exam's record; idempotent, and an older computed_at never replaces a newer one (the newer record is returned, so a replayed queue write is not refused).",
         "operationId": "put_statistics_api_v1_exams__exam_id__statistics_put",
         "parameters": [
           {

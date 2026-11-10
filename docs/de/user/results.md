@@ -92,6 +92,17 @@ Das **Histogramm der Gesamtergebnisse** ordnet alle vollständig korrigierten Ab
 
 ![Auswertung über mehrere Prüfungen](../../screenshots/pitch/09-analytics.jpg)
 
+### Persönliche Statistiken {#personal-statistics}
+
+Examance führt für jede korrigierte Prüfung **persönliche Statistiken**: die Punkte pro Aufgabe und die Gesamtpunkte, ohne Namen, Scans, Anmerkungen oder eine Verbindung zu einer Schülerin oder einem Schüler, gemischt und so verschlüsselt, dass nur Sie sie lesen können. Sie werden beim Korrigieren automatisch aktualisiert, in beiden Speichermodi, und liegen auch dann auf dem Server, wenn die Ergebnisse selbst nur in einem Browser gespeichert sind.
+
+Sie überdauern die Ergebnisse: Endet die Aufbewahrungsfrist einer Prüfung und werden ihre Ergebnisse gelöscht, zählt die Prüfung weiter in der Auswertung, und ihre Statistikseite zeigt die Diagramme mit dem Hinweis „persönliche Statistiken“. Dasselbe gilt in einem Browser, der die Ergebnisse eines Kontos im hybriden Modus nicht enthält.
+
+- **Alle Ergebnisse einer Prüfung löschen** löscht auch ihre persönlichen Statistiken.
+- **Eine Prüfung löschen** fragt, ob sie erhalten bleiben sollen („In meinen persönlichen Statistiken behalten“, vorausgewählt). Behaltene Statistiken gelöschter Prüfungen stehen unten in der **Auswertung**, wo Sie sie löschen können.
+- **Meine persönlichen Statistiken löschen** auf der Statistikseite einer Prüfung entfernt sie, sobald keine Ergebnisse mehr vorhanden sind.
+- Die passwortgeschützte Sicherung nimmt sie mit.
+
 ### Themen und Wissenslücken {#topics}
 
 Die **Themen-Heatmap** zeigt, wo wiederholt Punkte verloren gehen, unabhängig von einer einzelnen Prüfung: ein Hinweis darauf, was im Unterricht zu wiederholen ist.

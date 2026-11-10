@@ -328,6 +328,18 @@ export async function openOmrTemplatePin(examId: string, layoutHash: string, ct:
   return JSON.parse(decoder.decode(await openBytes(key, ct, iv, aadFor('omrPin', examId, layoutHash)))) as OmrTemplatePayload;
 }
 
+/** Seals an exam's statistics record (issue #238), bound to its exam. */
+export async function sealExamStatistics(examId: string, payload: unknown, key: CryptoKey | null): Promise<{ ct: Uint8Array; iv: Uint8Array }> {
+  if (!key) throw new MissingSessionKeyError('examStatistics');
+  return encryptBytes(key, encoder.encode(JSON.stringify(payload)), aadFor('examStats', examId));
+}
+
+/** Opens an exam's statistics record; throws when it does not open (wrong key or another exam's record). */
+export async function openExamStatistics<T>(examId: string, ct: Uint8Array, iv: Uint8Array, key: CryptoKey | null): Promise<T> {
+  if (!key) throw new MissingSessionKeyError('examStatistics');
+  return JSON.parse(decoder.decode(await openBytes(key, ct, iv, aadFor('examStats', examId)))) as T;
+}
+
 // ---------------------------------------------------------------------------
 // High-Level Encrypted CRUD Operations (Delegated to Repositories)
 // ---------------------------------------------------------------------------

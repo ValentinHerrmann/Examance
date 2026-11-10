@@ -38,6 +38,9 @@ import { decodeBinary } from './binary';
 import { importPayloadToServer } from './serverImport';
 import { remapPageBreaks } from '#lib/exam/pageBreaks';
 import { addMissing, bump, newReport, type ArchiveReport } from './report';
+import { refreshStatistics } from '#lib/analytics/statisticsSync';
+import { remapSnapshot, type StatisticsSnapshot } from '#lib/analytics/statisticsSnapshot';
+import { statisticsRepository } from '#lib/repositories/statisticsRepository';
 import { loadAccountLogoBytes, restoreExamLogo, type ArchivedExamLogo } from '#lib/latex/logo';
 
 function describe(err: any): string {
@@ -450,6 +453,8 @@ export async function applyArchive(
     bump(report, 'auditLogs', 'created', entries.length);
   }
 
+  await importStatistics(payload, examAvailable, remap, activeKey, errors);
+
   onProgress?.({ stage: 'complete', current: 100, total: 100 });
 
   report.problems.push(...errors);
@@ -459,6 +464,30 @@ export async function applyArchive(
 }
 
 /** Decrypt and write in one call, without conflict resolution. For callers that can't present conflicts (tests, imports into an empty workspace); user-facing imports use `archiveService.openBgprojArchive()`. */
+/** Statistics of the imported exams (issue #238): rebuilt from imported results, else the archived anonymous record stands in. */
+async function importStatistics(
+  payload: any,
+  examAvailable: (archivedExamId: string) => boolean,
+  remap: (id: string | undefined) => string | undefined,
+  key: CryptoKey | null,
+  errors: string[],
+): Promise<void> {
+  const withResults = new Set<string>((Array.isArray(payload.submissions) ? payload.submissions : []).map((s: any) => s.examId));
+  const archived = new Map<string, StatisticsSnapshot>((Array.isArray(payload.examStatistics) ? payload.examStatistics : []).map((r: StatisticsSnapshot) => [r.exam?.id, r]));
+  const examIds = new Set<string>([...withResults, ...archived.keys()]);
+  for (const archivedExamId of examIds) {
+    const examId = remap(archivedExamId);
+    if (!examId || !examAvailable(archivedExamId)) continue;
+    try {
+      const snapshot = archived.get(archivedExamId);
+      if (withResults.has(archivedExamId)) await refreshStatistics(examId); // NOSONAR: one exam at a time, a few small requests each
+      else if (snapshot) await statisticsRepository.put(remapSnapshot(snapshot, examId, (id) => remap(id) ?? id), key);
+    } catch (err) {
+      errors.push(`Statistics of exam ${archivedExamId}: ${describe(err)}`);
+    }
+  }
+}
+
 export async function unpackProject(
   archiveData: Blob | ArrayBuffer | Uint8Array,
   password: string,

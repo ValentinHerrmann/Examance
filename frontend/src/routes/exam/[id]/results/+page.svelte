@@ -11,10 +11,13 @@
   import { submissionRepository } from '#lib/repositories/submissionRepository';
   import { studentRepository } from '#lib/repositories/studentRepository';
   import { sessionStore, awaitSessionReady } from '#lib/stores/session';
-  import { translate } from '#lib/i18n';
+  import { t, translate } from '#lib/i18n';
   import type { ExamStats } from '#lib/analytics/stats';
   import { buildGradeRows, computeExamResults } from '#lib/analytics/examResults';
   import { exportGradesToCsv } from '#lib/analytics/csvExport';
+  import { snapshotRecords } from '#lib/analytics/statisticsSnapshot';
+  import { statisticsRepository, type StoredStatistics } from '#lib/repositories/statisticsRepository';
+  import { ConfirmDialog } from '#lib/components/ui';
 
   let examId = $derived(page.params.id || '');
 
@@ -29,6 +32,11 @@
   let stats: ExamStats | null = $state.raw(null);
   // Set when a read failed: the page shows it instead of the "nothing graded yet" text.
   let loadError = $state('');
+  // The kept record shown when no results are left here (issue #238).
+  let storedStats: StoredStatistics | null = $state.raw(null);
+  let confirmDeleteStats = $state(false);
+  let deleteStatsBusy = $state(false);
+  let deleteStatsError = $state('');
 
   // Once per exam id: the reactive block and onMount can both fire on one visit.
   let loadedExamId = '';
@@ -54,12 +62,48 @@
       students = await studentRepository.getByExamId(id, key);
 
       scores = await scoreRepository.getByExamId(id, key);
+      storedStats = null;
       recompute(exam?.gradingKey);
+      if (!stats?.results.length) await useStoredStatistics(id, key);
     } catch (err) {
       console.error('Failed to load exam statistics:', err);
       stats = null;
       submissions = [];
       loadError = translate('stats.page.loadFailed', { message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  /** No results here (purged, or kept in another browser): the anonymous record stands in, without students. */
+  async function useStoredStatistics(id: string, key: CryptoKey) {
+    let stored: StoredStatistics | null = null;
+    try {
+      stored = await statisticsRepository.findByExam(id, key);
+    } catch (err) {
+      console.warn('Kept statistics could not be read:', err);
+    }
+    if (!stored) return;
+    const records = snapshotRecords(stored.snapshot);
+    storedStats = stored;
+    if (!exercises.length) exercises = records.exercises;
+    submissions = records.submissions;
+    scores = records.scores;
+    students = [];
+    recompute(exam?.gradingKey);
+  }
+
+  async function deleteStoredStatistics() {
+    if (!storedStats) return;
+    deleteStatsBusy = true;
+    deleteStatsError = '';
+    try {
+      await statisticsRepository.delete(storedStats.id);
+      confirmDeleteStats = false;
+      loadedExamId = '';
+      startLoad();
+    } catch (err) {
+      deleteStatsError = translate('stats.page.deleteStatisticsFailed', { message: err instanceof Error ? err.message : String(err) });
+    } finally {
+      deleteStatsBusy = false;
     }
   }
 
@@ -94,6 +138,8 @@
   onOpenExport={() => (showConfirmModal = true)}
   onConfirmExport={confirmAndExport}
   onCancelExport={() => (showConfirmModal = false)}
+  statsOnly={storedStats !== null}
+  onDeleteStatistics={() => (confirmDeleteStats = true)}
 >
   {#snippet gradingKeyPanel()}
     {#if exam}
@@ -101,3 +147,16 @@
     {/if}
   {/snippet}
 </StatsPage>
+
+<ConfirmDialog
+  open={confirmDeleteStats}
+  title={$t('stats.page.deleteStatisticsTitle')}
+  message={$t('stats.page.deleteStatisticsBody')}
+  confirmText={$t('stats.page.deleteStatistics')}
+  cancelText={$t('common.cancel')}
+  severity="danger"
+  busy={deleteStatsBusy}
+  error={deleteStatsError}
+  onConfirm={deleteStoredStatistics}
+  onCancel={() => (confirmDeleteStats = false)}
+/>

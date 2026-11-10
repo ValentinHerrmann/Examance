@@ -9,6 +9,7 @@ import { joinKey, pseudonymBase, serverVersion } from '#lib/crypto/pseudonymKey'
 import { examRepository } from '#lib/repositories/examRepository';
 import { deleteUrl, trashHeaders, type DeleteOptions } from '#lib/trash/group';
 import { captureLocal, storedSubmissionRows } from '#lib/trash/localTrash';
+import { markStatisticsDirty } from '#lib/analytics/statisticsDirty';
 
 export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): SubmissionRecord {
   return {
@@ -121,6 +122,7 @@ export const submissionRepository = {
     key: CryptoKey | null,
     opts: { clearAnnotations?: boolean; group?: string } = {}
   ): Promise<void> {
+    markStatisticsDirty(submission.examId);
     if (resultsAreLocal()) {
       // This browser stores keyed rows only, so a record read before the re-key cannot write its old value back.
       const keyed: SubmissionRecord =
@@ -143,6 +145,7 @@ export const submissionRepository = {
 
   /** Deletes a submission with its scores. Unless `opts.permanent`, a copy goes to the trash (the server's, or this browser's in hybrid mode; issue #125). */
   async delete(examId: string, id: string, opts: DeleteOptions = {}): Promise<void> {
+    markStatisticsDirty(examId);
     if (resultsAreLocal()) {
       const rows = await storedSubmissionRows(id);
       await captureLocal(opts, {
@@ -168,6 +171,7 @@ export const submissionRepository = {
   },
 
   async clearGrading(examId: string, id: string, key: CryptoKey | null, opts: DeleteOptions = {}): Promise<void> {
+    markStatisticsDirty(examId);
 
     if (resultsAreLocal()) {
       const raw = await db.submissions.get(id);

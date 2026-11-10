@@ -1,5 +1,6 @@
 /** Export a .bgproj archive, encrypting records with a fresh Argon2id key from the export password. Freshness invariant: a new 16-byte salt and 12-byte nonce MUST be generated on every pack (ciphertext uniqueness, no key/nonce reuse or replay). */
 
+import { statisticsRepository } from '#lib/repositories/statisticsRepository';
 import { get } from 'svelte/store';
 import { db } from '#lib/db/db';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
@@ -218,6 +219,9 @@ export async function packProject(
       ])
     : null;
   const auditLogs = await loadAuditLogs(key, auditTargets);
+  // Kept anonymous statistics of the exams in scope (issue #238); the importer prefers rebuilding them from results.
+  const scopeIds = new Set(exams.map((e) => e.id));
+  const examStatistics = (await statisticsRepository.list(key)).filter((r) => scopeIds.has(r.examId)).map((r) => r.snapshot);
 
   // Exercise links and MC groups, per exam, through the repository for the same reason: the local Dexie tables can be empty in server-backed modes.
   const structures = await Promise.all(exams.map((e) => examRepository.getStructure(e.id)));
@@ -293,6 +297,7 @@ export async function packProject(
     exerciseResources,
     examLogos,
     auditLogs,
+    examStatistics,
   };
 
   // 5. Encrypt payload with fresh archive session key using header nonce as IV. Bytes are encoded

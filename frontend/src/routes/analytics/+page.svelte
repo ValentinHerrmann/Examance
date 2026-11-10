@@ -22,7 +22,9 @@
   import VariantFairnessTable from '#lib/components/analytics/VariantFairnessTable.svelte';
   import ExerciseEditorModal from '#lib/components/ExerciseEditorModal.svelte';
   import ExerciseQualityTable from '#lib/components/analytics/ExerciseQualityTable.svelte';
-  import { Alert, PageShell, PageHeader } from '#lib/components/ui';
+  import { Alert, Button, Card, ConfirmDialog, PageShell, PageHeader, actionIcons } from '#lib/components/ui';
+  import { mergeKeptStatistics } from '#lib/analytics/keptStatistics';
+  import { statisticsRepository, type StoredStatistics } from '#lib/repositories/statisticsRepository';
 
   let isInitializing = $state(true);
   // A failed read must not render as "no data": the page shows only this instead of zeroed charts.
@@ -39,6 +41,13 @@
   let gradedSubmissionsCount = $state(0);
   let scoreDistribution: OverallScoreDistribution | null = $state.raw(null);
   let showAllExercises = $state(false);
+  // Kept statistics records (issue #238): exams counted without results here, and records of deleted exams.
+  let statsOnlyCount = $state(0);
+  let deletedExams: StoredStatistics[] = $state.raw([]);
+  let deletingStats: StoredStatistics | null = $state.raw(null);
+  let deleteStatsBusy = $state(false);
+  let deleteStatsError = $state('');
+  let maxPointsByRecord = new Map<string, number>();
 
   let displayedExerciseStats = $derived(showAllExercises
     ? exerciseStats
@@ -93,7 +102,7 @@
     loadError = '';
     try {
       const key = get(sessionStore).sessionKey;
-      exams = await loadExamsEncrypted(key);
+      const liveExams = await loadExamsEncrypted(key);
 
     const repoExercises = await loadExercisesEncrypted(key);
     const rawExercises = await db.exercises.toArray();
@@ -106,16 +115,33 @@
         exerciseMap.set(ex.id, { ...exerciseMap.get(ex.id), ...ex });
       }
     });
-    const allExercises = Array.from(exerciseMap.values());
-    exerciseRecords = exerciseMap;
-
-    const allExamExercises = await db.examExercises.toArray();
-    const allSubmissions = await submissionRepository.getAll(key, exams);
+    const liveSubmissions = await submissionRepository.getAll(key, liveExams);
     // Through the repository, so server mode sees its own rows rather than an empty local cache that lockSession() wiped.
-    const allScores = await scoreRepository.getAll(
-      exams.map((e) => e.id),
+    const liveScores = await scoreRepository.getAll(
+      liveExams.map((e) => e.id),
       key,
     );
+    let stored: StoredStatistics[] = [];
+    try {
+      stored = await statisticsRepository.list(key);
+    } catch (err) {
+      // Live results still make a correct page; only the kept records are missing.
+      console.warn('Kept statistics could not be read:', err);
+    }
+    const merged = mergeKeptStatistics(
+      { exams: liveExams, exercises: Array.from(exerciseMap.values()), examExercises: await db.examExercises.toArray(), submissions: liveSubmissions, scores: liveScores },
+      stored,
+    );
+    exams = merged.exams;
+    statsOnlyCount = merged.statsOnlyExamIds.size;
+    deletedExams = merged.deletedExams;
+    maxPointsByRecord = merged.maxPointsByExam;
+    const allExercises = merged.exercises;
+    for (const ex of allExercises) if (!exerciseMap.has(ex.id)) exerciseMap.set(ex.id, ex);
+    exerciseRecords = exerciseMap;
+    const allExamExercises = merged.examExercises;
+    const allSubmissions = merged.submissions;
+    const allScores = merged.scores;
 
     totalSubmissionsCount = allSubmissions.length;
 
@@ -375,10 +401,26 @@
     const maxPointsByExam = new Map<string, number>();
     await Promise.all(
       [...gradedExamIds].map(async (examId) => {
-        maxPointsByExam.set(examId, examMaxPoints(await loadExamExercisesEncrypted(examId, key)));
+        const kept = maxPointsByRecord.get(examId);
+        maxPointsByExam.set(examId, kept ?? examMaxPoints(await loadExamExercisesEncrypted(examId, key)));
       }),
     );
     return calculateOverallScoreDistribution(submissions, maxPointsByExam);
+  }
+
+  async function deleteKeptStatistics() {
+    if (!deletingStats) return;
+    deleteStatsBusy = true;
+    deleteStatsError = '';
+    try {
+      await statisticsRepository.delete(deletingStats.id);
+      deletingStats = null;
+      await triggerAnalyticsLoad();
+    } catch (err) {
+      deleteStatsError = translate('stats.page.deleteStatisticsFailed', { message: err instanceof Error ? err.message : String(err) });
+    } finally {
+      deleteStatsBusy = false;
+    }
   }
 
   $effect.pre(() => {
@@ -412,6 +454,12 @@
       flaggedCount={exerciseStats.filter((e) => e.flaggedProblematic).length}
     />
 
+    {#if statsOnlyCount > 0}
+      <Alert severity="info" class="mb-6" title={$t('stats.analyticsPage.statsOnlyTitle')}>
+        {$t('stats.analyticsPage.statsOnlyBody', { count: statsOnlyCount })}
+      </Alert>
+    {/if}
+
     <OverallScoreHistogram class="mb-6" distribution={scoreDistribution} />
 
     <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2">
@@ -435,8 +483,39 @@
         />
       </div>
     </div>
+
+    {#if deletedExams.length > 0}
+      <Card class="mt-6">
+        <h2 class="mb-3 text-base font-semibold">{$t('stats.analyticsPage.deletedExamsTitle')}</h2>
+        <ul class="divide-y divide-line">
+          {#each deletedExams as record (record.id)}
+            <li class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 py-2">
+              <span class="min-w-0 flex-1 truncate">{record.snapshot.exam.title || record.snapshot.exam.testart || record.examId}</span>
+              {#if record.snapshot.exam.datum}<span class="text-sm text-muted">{record.snapshot.exam.datum}</span>{/if}
+              <span class="rounded-md bg-surface-sunken px-2 py-0.5 text-xs text-muted">{$t('stats.analyticsPage.deletedExamBadge')}</span>
+              <Button size="sm" variant="outlined" severity="danger" icon={actionIcons.delete} onClick={() => { deleteStatsError = ''; deletingStats = record; }}>
+                {$t('stats.analyticsPage.deleteStatistics')}
+              </Button>
+            </li>
+          {/each}
+        </ul>
+      </Card>
+    {/if}
   {/if}
 </PageShell>
+
+<ConfirmDialog
+  open={deletingStats !== null}
+  title={$t('stats.page.deleteStatisticsTitle')}
+  message={$t('stats.page.deleteStatisticsBody')}
+  confirmText={$t('stats.page.deleteStatistics')}
+  cancelText={$t('common.cancel')}
+  severity="danger"
+  busy={deleteStatsBusy}
+  error={deleteStatsError}
+  onConfirm={deleteKeptStatistics}
+  onCancel={() => (deletingStats = null)}
+/>
 
 {#if editEx}
   <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => loadAnalytics()} />
