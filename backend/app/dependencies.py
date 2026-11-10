@@ -115,7 +115,8 @@ async def get_pending_teacher(
     )
 
 
-async def get_admin_teacher(  # NOSONAR: async keeps the dependency on the event loop, not the threadpool
+# Async without await on purpose: keeps the dependency on the event loop, not the threadpool.
+async def get_admin_teacher(  # NOSONAR(S7503)
     teacher: Teacher = Depends(get_current_teacher),
 ) -> Teacher:
     """Require admin role."""

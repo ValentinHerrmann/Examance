@@ -11,7 +11,8 @@ from app.models.teacher import Teacher
 from app.services.crypto import hash_ip
 
 
-async def write(  # NOSONAR: part of the awaited audit API (audit.log and its callers)
+# Async without await on purpose: part of the awaited audit API (audit.log and its callers).
+async def write(  # NOSONAR(S7503)
     db: AsyncSession,
     *,
     teacher_id: uuid.UUID | None,

@@ -65,7 +65,7 @@ function mentionAt(src: string, i: number, origin: string): InlineMatch | null {
     const run = MENTION_RUN.exec(src)?.[0] ?? '';
     let len = run.length;
     while (len > 0 && run[len - 1] === '-') len--;
-    if (!len || run[0] === '-') return null;
+    if (!len || run.startsWith('-')) return null;
     const name = run.slice(0, len);
     return { inline: { kind: 'link', text: `@${name}`, href: `${origin}/${name}` }, end: i + 1 + len };
 }

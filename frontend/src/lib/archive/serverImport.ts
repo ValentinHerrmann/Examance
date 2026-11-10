@@ -89,46 +89,50 @@ interface ImportContext {
   exerciseName: Map<string, string>;
 }
 
+/** One archived exercise: linked when this account owns it already, else created, re-using the group id its group's first member got. */
+async function importExercise(ctx: ImportContext, ex: ExerciseRecord, groupIdMap: Map<string, string>): Promise<void> {
+  const { report, decided, idMap, errors, createdExerciseIds, reusedExerciseIds } = ctx;
+  const label = ex.title || ex.name || ex.id;
+
+  // Already on the server and owned by this account: link it.
+  if (ex.id && (await exerciseOwned(ex.id))) {
+    reusedExerciseIds.add(ex.id);
+    bump(report, 'exercises', 'linked');
+    return;
+  }
+
+  const body = mapExerciseRecordToApi(ex);
+  const archivedGroupId = ex.exerciseGroupId;
+  const groupId = archivedGroupId ? groupIdMap.get(archivedGroupId) : undefined;
+  if (groupId) {
+    body.exercise_group_id = groupId;
+  } else {
+    delete body.exercise_group_id;
+  }
+
+  const { created, error } = await createWithIdFallback('/exercises', body);
+  if (!created?.id) {
+    errors.push(`Exercise "${label}": ${error}`);
+    bump(report, 'exercises', 'failed');
+    return;
+  }
+
+  if (archivedGroupId && !groupIdMap.has(archivedGroupId) && created.exercise_group_id) {
+    groupIdMap.set(archivedGroupId, created.exercise_group_id);
+  }
+  if (ex.id) {
+    createdExerciseIds.add(ex.id);
+    if (created.id !== ex.id) idMap.set(ex.id, created.id);
+  }
+  const exerciseOutcome = ex.id && created.id !== ex.id ? 'newId' : 'created';
+  bump(report, 'exercises', decided.get(ex.id) ?? exerciseOutcome);
+}
+
 /** 1. Exercises first (exams link to them by id). Archived group ids belong to the exporting account and create_exercise 404s on a group the caller doesn't own, so groups are re-created: the first member is sent without one (backend mints it) and the returned id is reused for the rest. */
 async function importExercises(ctx: ImportContext, exercises: ExerciseRecord[]): Promise<void> {
-  const { report, decided, idMap, errors, createdExerciseIds, reusedExerciseIds } = ctx;
   const groupIdMap = new Map<string, string>();
-
   for (const ex of exercises) {
-    const label = ex.title || ex.name || ex.id;
-
-    // Already on the server and owned by this account: link it. Sequential on purpose: later members of a group reuse the group id the first one created.
-    if (ex.id && (await exerciseOwned(ex.id))) { // NOSONAR: sequential, group ids are built as we go
-      reusedExerciseIds.add(ex.id);
-      bump(report, 'exercises', 'linked');
-      continue;
-    }
-
-    const body = mapExerciseRecordToApi(ex);
-    const archivedGroupId = ex.exerciseGroupId;
-
-    if (archivedGroupId && groupIdMap.has(archivedGroupId)) {
-      body.exercise_group_id = groupIdMap.get(archivedGroupId);
-    } else {
-      delete body.exercise_group_id;
-    }
-
-    const { created, error } = await createWithIdFallback('/exercises', body); // NOSONAR: sequential, group ids are built as we go
-    if (!created?.id) {
-      errors.push(`Exercise "${label}": ${error}`);
-      bump(report, 'exercises', 'failed');
-      continue;
-    }
-
-    if (archivedGroupId && !groupIdMap.has(archivedGroupId) && created.exercise_group_id) {
-      groupIdMap.set(archivedGroupId, created.exercise_group_id);
-    }
-    if (ex.id) {
-      createdExerciseIds.add(ex.id);
-      if (created.id !== ex.id) idMap.set(ex.id, created.id);
-    }
-    const exerciseOutcome = ex.id && created.id !== ex.id ? 'newId' : 'created';
-    bump(report, 'exercises', decided.get(ex.id) ?? exerciseOutcome);
+    await importExercise(ctx, ex, groupIdMap); // NOSONAR: sequential, group ids are built as we go
   }
 }
 
@@ -177,6 +181,74 @@ async function linkOwnedExercises(ctx: ImportContext, exercises: ExerciseRecord[
   }
 }
 
+/** The POST /exams body of one archived exam, with links and MC groups on their (re-minted) ids. */
+function examBody(
+  ctx: ImportContext,
+  exam: ExamRecord,
+  links: any[],
+  groups: any[],
+  mcGroupIdMap: Map<string, string>
+): Record<string, any> {
+  const { idMap } = ctx;
+  const exercise_links = links.map((j) => ({
+    exercise_id: idMap.get(j.exerciseId) ?? j.exerciseId,
+    order_index: j.orderIndex ?? 1,
+    mc_group_id: j.mcGroupId ? (mcGroupIdMap.get(j.mcGroupId) ?? j.mcGroupId) : undefined,
+    sub_index: j.subIndex,
+  }));
+  const mc_groups = groups.map((g) => ({
+    id: mcGroupIdMap.get(g.id) ?? g.id,
+    title: g.title,
+    scoring_text: g.scoringText,
+    order_index: g.orderIndex ?? 1,
+  }));
+  // Breaks name exercises and MC groups, whose ids may have changed above.
+  const page_breaks = remapPageBreaks(exam.pageBreaks, idMap, mcGroupIdMap);
+  // An imported exam keys its pseudonyms from the start; the importer re-keys the archived ones into it (issue #177).
+  const body: Record<string, any> = { ...mapExamRecordToApi(exam), page_breaks, exercise_links, mc_groups, pseudonym_version: 2 };
+  // ZIP exports carry no retention date; a fresh exam gets a new exam's default.
+  if (!body.retention_until) {
+    body.retention_until = new Date(Date.now() + DEFAULT_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 10);
+    exam.retentionUntil = body.retention_until; // the local mirror (`applyArchive`) writes the same date
+  }
+  return body;
+}
+
+/** One archived exam: reports links to exercises that did not make it, then creates the exam with the rest. */
+async function importExam(
+  ctx: ImportContext,
+  exam: ExamRecord,
+  junctions: any[],
+  mcGroups: any[],
+  mcGroupIdMap: Map<string, string>
+): Promise<void> {
+  const { report, decided, idMap, errors, createdExamIds, createdExerciseIds, reusedExerciseIds, linkedExercisesByExam, exerciseName } = ctx;
+  const linkable = (id: string) => createdExerciseIds.has(id) || reusedExerciseIds.has(id);
+  const label = exam.title || exam.id;
+  const examLinks = junctions.filter((j) => j.examId === exam.id);
+  for (const j of examLinks.filter((link) => !linkable(link.exerciseId))) {
+    addMissing(report, { reason: 'exerciseUnavailable', exam: label, item: exerciseName.get(j.exerciseId) ?? j.exerciseId });
+  }
+  const links = examLinks.filter((j) => linkable(j.exerciseId));
+  const groups = mcGroups.filter((g) => g.examId === exam.id);
+
+  const { created, error } = await createWithIdFallback('/exams', examBody(ctx, exam, links, groups, mcGroupIdMap));
+  if (!created?.id) {
+    errors.push(`Exam "${label}": ${error}`);
+    bump(report, 'exams', 'failed');
+    return;
+  }
+  rememberServerVersion(created.id, 2);
+  if (exam.id) {
+    createdExamIds.add(exam.id);
+    if (created.id !== exam.id) idMap.set(exam.id, created.id);
+    linkedExercisesByExam.set(exam.id, new Set(links.map((j) => j.exerciseId)));
+  }
+  const examOutcome = exam.id && created.id !== exam.id ? 'newId' : 'created';
+  bump(report, 'exams', decided.get(exam.id) ?? examOutcome);
+  for (const g of groups) bump(report, 'mcGroups', decided.get(g.id) ?? 'created');
+}
+
 /** 2. Exams with exercise links and MC groups inline (POST /exams persists all three). MC group ids are re-minted per import (see `mcGroupIdMap`) to avoid 409s on re-import. */
 async function importExams(
   ctx: ImportContext,
@@ -185,64 +257,8 @@ async function importExams(
   mcGroups: any[],
   mcGroupIdMap: Map<string, string>
 ): Promise<void> {
-  const { report, decided, idMap, errors, createdExamIds, createdExerciseIds, reusedExerciseIds, linkedExercisesByExam, exerciseName } = ctx;
-  const linkable = (id: string) => createdExerciseIds.has(id) || reusedExerciseIds.has(id);
-
   for (const exam of exams) {
-    const label = exam.title || exam.id;
-    const examLinks = junctions.filter((j) => j.examId === exam.id);
-    for (const j of examLinks) {
-      if (!linkable(j.exerciseId)) {
-        addMissing(report, {
-          reason: 'exerciseUnavailable',
-          exam: label,
-          item: exerciseName.get(j.exerciseId) ?? j.exerciseId,
-        });
-      }
-    }
-
-    const exercise_links = examLinks
-      .filter((j) => linkable(j.exerciseId))
-      .map((j) => ({
-        exercise_id: idMap.get(j.exerciseId) ?? j.exerciseId,
-        order_index: j.orderIndex ?? 1,
-        mc_group_id: j.mcGroupId ? (mcGroupIdMap.get(j.mcGroupId) ?? j.mcGroupId) : undefined,
-        sub_index: j.subIndex,
-      }));
-
-    const mc_groups = mcGroups
-      .filter((g) => g.examId === exam.id)
-      .map((g) => ({
-        id: mcGroupIdMap.get(g.id) ?? g.id,
-        title: g.title,
-        scoring_text: g.scoringText,
-        order_index: g.orderIndex ?? 1,
-      }));
-
-    // Breaks name exercises and MC groups, whose ids may have changed above.
-    const page_breaks = remapPageBreaks(exam.pageBreaks, idMap, mcGroupIdMap);
-    // An imported exam keys its pseudonyms from the start; the importer re-keys the archived ones into it (issue #177).
-    const body = { ...mapExamRecordToApi(exam), page_breaks, exercise_links, mc_groups, pseudonym_version: 2 };
-    // ZIP exports carry no retention date; a fresh exam gets a new exam's default.
-    if (!body.retention_until) {
-      body.retention_until = new Date(Date.now() + DEFAULT_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 10);
-      exam.retentionUntil = body.retention_until; // the local mirror (`applyArchive`) writes the same date
-    }
-    const { created, error } = await createWithIdFallback('/exams', body); // NOSONAR: sequential, exams are created in archive order
-    if (!created?.id) {
-      errors.push(`Exam "${label}": ${error}`);
-      bump(report, 'exams', 'failed');
-      continue;
-    }
-    rememberServerVersion(created.id, 2);
-    if (exam.id) {
-      createdExamIds.add(exam.id);
-      if (created.id !== exam.id) idMap.set(exam.id, created.id);
-      linkedExercisesByExam.set(exam.id, new Set(examLinks.filter((j) => linkable(j.exerciseId)).map((j) => j.exerciseId)));
-    }
-    const examOutcome = exam.id && created.id !== exam.id ? 'newId' : 'created';
-    bump(report, 'exams', decided.get(exam.id) ?? examOutcome);
-    for (const g of mcGroups.filter((g) => g.examId === exam.id)) bump(report, 'mcGroups', decided.get(g.id) ?? 'created');
+    await importExam(ctx, exam, junctions, mcGroups, mcGroupIdMap); // NOSONAR: sequential, exams are created in archive order
   }
 }
 

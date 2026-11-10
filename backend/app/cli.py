@@ -74,7 +74,8 @@ def send_password_reset(email: str) -> None:
 def approve_user(email: str) -> None:
     """Approve a pending account (recovery path when no admin can sign in to do it). Keeps the account's feature switches as they are."""
 
-    async def _approve(db: AsyncSession, teacher: Teacher) -> str:  # NOSONAR: _with_teacher awaits its callback
+    # Async without await on purpose: _with_teacher awaits its callback.
+    async def _approve(db: AsyncSession, teacher: Teacher) -> str:  # NOSONAR(S7503)
         if teacher.approved_at is not None:
             return f"Already approved: {teacher.email}"
         teacher.approved_at = datetime.now(UTC)

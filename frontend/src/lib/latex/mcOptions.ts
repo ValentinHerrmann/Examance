@@ -41,16 +41,19 @@ export function mapComments(tex: string, replace: (comment: string) => string): 
   let out = "";
   let start = 0;
   let backslashes = 0;
-  for (let i = 0; i < tex.length; i++) {
+  let i = 0;
+  while (i < tex.length) {
     if (tex[i] === "%" && backslashes % 2 === 0) {
       let end = i;
       while (end < tex.length && !LINE_END.has(tex[end])) end++;
       out += tex.slice(start, i) + replace(tex.slice(i, end));
       start = end;
-      i = end;
+      // The line break itself is kept (it starts the next slice) and resets the backslash run.
+      i = end + 1;
       backslashes = 0;
     } else {
       backslashes = tex[i] === "\\" ? backslashes + 1 : 0;
+      i++;
     }
   }
   return out + tex.slice(start);

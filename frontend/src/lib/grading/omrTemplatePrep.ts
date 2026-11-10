@@ -183,7 +183,9 @@ export interface PrepareOmrTemplateResult {
 }
 
 /** Union of two PDF rects (one score box can be captured as several links, e.g. the grade cell spanning two table rows). */
-function unionRect(a: [number, number, number, number], b: [number, number, number, number]): [number, number, number, number] {
+type PdfRect = [number, number, number, number];
+
+function unionRect(a: PdfRect, b: PdfRect): PdfRect {
   return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
 }
 
@@ -218,34 +220,42 @@ function assertOmrPreparable(exercises: ExerciseRecord[], mcExercises: ExerciseR
   }
 }
 
+/** What the OMR links of one page describe, collected by `collectOmrLink`. */
+interface PageLinks {
+  bubbles: OmrBubbleRect[];
+  fiducials: OmrFiducialRect[];
+  redoRects: Map<string, PdfRect>;
+  boxes: Map<string, OmrScoreBoxRect>;
+}
+
+/** Sorts one link annotation into the page's fiducials, bubbles, redo zones or score boxes; other annotations are ignored. */
+function collectOmrLink(links: PageLinks, ann: any): void {
+  if (ann.subtype !== "Link") return;
+  const parsed = parseOmrUri(ann.unsafeUrl ?? ann.url ?? "");
+  if (!parsed) return;
+  const rect = ann.rect as PdfRect;
+  if (parsed.kind === "fiducial") {
+    links.fiducials.push({ corner: parsed.corner, rect });
+  } else if (parsed.kind === "bubble" && parsed.redo) {
+    links.redoRects.set(`${parsed.exerciseId}|${parsed.optionIndex}`, rect);
+  } else if (parsed.kind === "bubble") {
+    links.bubbles.push({ exerciseId: parsed.exerciseId, optionIndex: parsed.optionIndex, rect });
+  } else {
+    const key = scoreBoxKey(parsed);
+    const prev = links.boxes.get(key);
+    links.boxes.set(key, { box: parsed.box, position: parsed.position, part: parsed.part, rect: prev ? unionRect(prev.rect, rect) : rect });
+  }
+}
+
 /** Boxes, fiducials and redo zones of one page of the compiled blank sheet, read from its OMR link annotations. */
 async function extractTemplatePage(pdfDoc: PDFDocumentProxy, pageNum: number): Promise<OmrPageTemplate> {
   const pdfPage = await pdfDoc.getPage(pageNum);
   const viewport = pdfPage.getViewport({ scale: 1 });
   const annotations = await pdfPage.getAnnotations();
 
-  const bubbles: OmrBubbleRect[] = [];
-  const fiducials: OmrFiducialRect[] = [];
-  const redoRects = new Map<string, [number, number, number, number]>();
-  const boxes = new Map<string, OmrScoreBoxRect>();
-
-  for (const ann of annotations) {
-    if (ann.subtype !== "Link") continue;
-    const parsed = parseOmrUri(ann.unsafeUrl ?? ann.url ?? "");
-    if (!parsed) continue;
-    const rect = ann.rect as [number, number, number, number];
-    if (parsed.kind === "fiducial") {
-      fiducials.push({ corner: parsed.corner, rect });
-    } else if (parsed.kind === "bubble" && parsed.redo) {
-      redoRects.set(`${parsed.exerciseId}|${parsed.optionIndex}`, rect);
-    } else if (parsed.kind === "bubble") {
-      bubbles.push({ exerciseId: parsed.exerciseId, optionIndex: parsed.optionIndex, rect });
-    } else {
-      const key = scoreBoxKey(parsed);
-      const prev = boxes.get(key);
-      boxes.set(key, { box: parsed.box, position: parsed.position, part: parsed.part, rect: prev ? unionRect(prev.rect, rect) : rect });
-    }
-  }
+  const links: PageLinks = { bubbles: [], fiducials: [], redoRects: new Map(), boxes: new Map() };
+  for (const ann of annotations) collectOmrLink(links, ann);
+  const { bubbles, fiducials, redoRects, boxes } = links;
 
   for (const b of bubbles) {
     const redoRect = redoRects.get(`${b.exerciseId}|${b.optionIndex}`);

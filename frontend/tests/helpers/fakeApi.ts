@@ -206,6 +206,83 @@ function privacy(method: string, parts: string[]): Handled {
   return undefined;
 }
 
+function logoRoute(method: string, parts: string[], body: any): Handled {
+  // No default logo file in the fake: the account prints none until it uploads one (issue #46).
+  if (method === 'GET' && parts.length === 2) return ok({ ...NO_LOGO, mode: 'default' });
+  if (method === 'GET' && parts[2] === 'file') return notFound('No logo.');
+  if (method === 'PUT') {
+    const custom = body?.mode === 'custom';
+    return ok({ ...NO_LOGO, mode: body?.mode ?? 'default', ...(custom ? { source: 'account', mime_type: 'image/png', byte_size: 1 } : {}) });
+  }
+  if (method === 'DELETE') return ok({ ...NO_LOGO, mode: 'default' });
+  return undefined;
+}
+
+/** Exercise sharing (issue #65): nobody shares anything in the fake. */
+function sharingStubs(method: string, id: string, sub: string | undefined, rest: string[]): Handled {
+  if (method === 'GET' && !sub && (id === 'shared' || id === 'sync-status')) return ok([]);
+  if (method === 'GET' && id === 'contributions' && sub === 'summary' && rest.length === 0) {
+    return ok({ incoming_pending: 0, pending_by_group: [] });
+  }
+  return undefined;
+}
+
+function mergeSubmission(existing: any, body: any): void {
+  existing.pseudonym_hmac = body.pseudonym_hmac;
+  if (body.total_score != null) existing.total_score = body.total_score;
+  if (body.scan_ciphertext_b64) {
+    existing.scan_ciphertext_b64 = body.scan_ciphertext_b64;
+    existing.scan_iv_b64 = body.scan_iv_b64 ?? null;
+  }
+  // An absent annotation layer means "leave it"; deleting is explicit.
+  if (body.annotation_ciphertext_b64) {
+    existing.annotation_ciphertext_b64 = body.annotation_ciphertext_b64;
+    existing.annotation_iv_b64 = body.annotation_iv_b64 ?? null;
+  } else if (body.clear_annotations) {
+    existing.annotation_ciphertext_b64 = null;
+    existing.annotation_iv_b64 = null;
+  }
+}
+
+function examLogo(method: string, rest: string[], body: any): Handled {
+  if (rest.length === 0) {
+    // The account has no logo, so an exam that follows it prints none (issue #46).
+    if (method === 'GET') return ok({ ...NO_LOGO, mode: 'account' });
+    if (method === 'PUT') {
+      const custom = body?.mode === 'custom';
+      return ok({ ...NO_LOGO, mode: body?.mode ?? 'account', ...(custom ? { source: 'exam', mime_type: 'image/png', byte_size: 1 } : {}) });
+    }
+  }
+  if (rest[0] === 'file' && method === 'GET') return notFound('No logo.');
+  return undefined;
+}
+
+function shareStubs(method: string, rest: string[]): Handled {
+  if (method === 'GET' && rest.length === 0) return ok([]);
+  if (method === 'DELETE') return noContent();
+  return undefined;
+}
+
+function deliveryStubs(method: string, rest: string[]): Handled {
+  if (method === 'GET' && rest.length === 0) return ok([]);
+  if (method === 'POST' && rest[0] === 'check') return ok([]);
+  if (method === 'POST' && rest[0] === 'close') return noContent();
+  return undefined;
+}
+
+/** Result shares (issue #207) and delivery statuses (issue #221): nothing exists in the fake, so lists are empty and revoking or closing is a no-op. */
+function shareAndDeliveryStubs(method: string, sub: string, rest: string[]): Handled {
+  if (sub === 'shares') return shareStubs(method, rest);
+  if (sub === 'deliveries') return deliveryStubs(method, rest);
+  return undefined;
+}
+
+function userMatchesStatus(u: any, status: string): boolean {
+  if (status === 'pending') return u.approved_at === null;
+  if (status === 'active') return u.approved_at !== null;
+  return true;
+}
+
 export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   const initialMode = (): FakeStorageMode | null => (opts.storageMode === undefined ? 'all-server' : opts.storageMode);
 
@@ -352,18 +429,6 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       state.latexPackages = Array.isArray(body?.entries) ? body.entries : [];
       return ok({ entries: state.latexPackages });
     }
-    return undefined;
-  }
-
-  function logoRoute(method: string, parts: string[], body: any): Handled {
-    // No default logo file in the fake: the account prints none until it uploads one (issue #46).
-    if (method === 'GET' && parts.length === 2) return ok({ ...NO_LOGO, mode: 'default' });
-    if (method === 'GET' && parts[2] === 'file') return notFound('No logo.');
-    if (method === 'PUT') {
-      const custom = body?.mode === 'custom';
-      return ok({ ...NO_LOGO, mode: body?.mode ?? 'default', ...(custom ? { source: 'account', mime_type: 'image/png', byte_size: 1 } : {}) });
-    }
-    if (method === 'DELETE') return ok({ ...NO_LOGO, mode: 'default' });
     return undefined;
   }
 
@@ -709,15 +774,6 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       }
       row.filename = body.filename;
       return ok(resourceMeta(row));
-    }
-    return undefined;
-  }
-
-  /** Exercise sharing (issue #65): nobody shares anything in the fake. */
-  function sharingStubs(method: string, id: string, sub: string | undefined, rest: string[]): Handled {
-    if (method === 'GET' && !sub && (id === 'shared' || id === 'sync-status')) return ok([]);
-    if (method === 'GET' && id === 'contributions' && sub === 'summary' && rest.length === 0) {
-      return ok({ incoming_pending: 0, pending_by_group: [] });
     }
     return undefined;
   }
@@ -1096,23 +1152,6 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return noContent();
   }
 
-  function mergeSubmission(existing: any, body: any): void {
-    existing.pseudonym_hmac = body.pseudonym_hmac;
-    if (body.total_score != null) existing.total_score = body.total_score;
-    if (body.scan_ciphertext_b64) {
-      existing.scan_ciphertext_b64 = body.scan_ciphertext_b64;
-      existing.scan_iv_b64 = body.scan_iv_b64 ?? null;
-    }
-    // An absent annotation layer means "leave it"; deleting is explicit.
-    if (body.annotation_ciphertext_b64) {
-      existing.annotation_ciphertext_b64 = body.annotation_ciphertext_b64;
-      existing.annotation_iv_b64 = body.annotation_iv_b64 ?? null;
-    } else if (body.clear_annotations) {
-      existing.annotation_ciphertext_b64 = null;
-      existing.annotation_iv_b64 = null;
-    }
-  }
-
   /** POST of a submission: placeholder identity for an unknown pseudonym, then upsert by id. */
   function upsertSubmission(examId: string, rows: any[], body: any): FakeResponse {
     const refused = wrongVersion(examId, body);
@@ -1150,7 +1189,10 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return created(submissionResponse(sub, true));
   }
 
-  function submissionById(method: string, examId: string, rows: any[], sub: any, subId: string, action: string | undefined, more: string[], body: any): Handled {
+  /** The submission a route names, with its exam's rows. */
+  type SubmissionTarget = { examId: string; rows: any[]; sub: any; subId: string };
+
+  function submissionById(method: string, { examId, rows, sub, subId }: SubmissionTarget, action: string | undefined, more: string[], body: any): Handled {
     if (!action) {
       if (method === 'GET') return ok(submissionResponse(sub, true));
       if (method === 'DELETE') {
@@ -1192,7 +1234,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
 
     const sub = rows.find((row) => row.id === subId);
     if (!sub) return notFound('Submission not found.');
-    return submissionById(method, examId, rows, sub, subId, action, more, body);
+    return submissionById(method, { examId, rows, sub, subId }, action, more, body);
   }
 
   /** Pinned OMR templates (issue #239): a known hash keeps its first pin and only bumps `last_pinned_at`, like the backend. */
@@ -1219,19 +1261,6 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return undefined;
   }
 
-  function examLogo(method: string, rest: string[], body: any): Handled {
-    if (rest.length === 0) {
-      // The account has no logo, so an exam that follows it prints none (issue #46).
-      if (method === 'GET') return ok({ ...NO_LOGO, mode: 'account' });
-      if (method === 'PUT') {
-        const custom = body?.mode === 'custom';
-        return ok({ ...NO_LOGO, mode: body?.mode ?? 'account', ...(custom ? { source: 'exam', mime_type: 'image/png', byte_size: 1 } : {}) });
-      }
-    }
-    if (rest[0] === 'file' && method === 'GET') return notFound('No logo.');
-    return undefined;
-  }
-
   function examStatistics(method: string, id: string, rest: string[], body: any): Handled {
     if (rest.length !== 0) return undefined;
     if (method === 'GET') return ok(state.statistics.get(id) ?? null);
@@ -1240,20 +1269,6 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       const row = { id: prev?.id ?? crypto.randomUUID(), exam_id: id, keep_after_exam_delete: prev?.keep_after_exam_delete ?? true, computed_at: body?.computed_at, updated_at: new Date().toISOString(), payload_ciphertext_b64: body?.payload_ciphertext_b64, payload_iv_b64: body?.payload_iv_b64 };
       state.statistics.set(id, row);
       return ok(row);
-    }
-    return undefined;
-  }
-
-  /** Result shares (issue #207) and delivery statuses (issue #221): nothing exists in the fake, so lists are empty and revoking or closing is a no-op. */
-  function shareAndDeliveryStubs(method: string, sub: string, rest: string[]): Handled {
-    if (sub === 'shares') {
-      if (method === 'GET' && rest.length === 0) return ok([]);
-      if (method === 'DELETE') return noContent();
-    }
-    if (sub === 'deliveries') {
-      if (method === 'GET' && rest.length === 0) return ok([]);
-      if (method === 'POST' && rest[0] === 'check') return ok([]);
-      if (method === 'POST' && rest[0] === 'close') return noContent();
     }
     return undefined;
   }
@@ -1301,12 +1316,6 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   /* ------------------------------------------------------------------------ */
 
   const MAINTENANCE_IDLE = () => ({ phase: 'none', kind: null, downtime_class: null, revision: null, first_warning_at: null, second_warning_at: null, starts_at: null, server_time: new Date().toISOString() });
-
-  function userMatchesStatus(u: any, status: string): boolean {
-    if (status === 'pending') return u.approved_at === null;
-    if (status === 'active') return u.approved_at !== null;
-    return true;
-  }
 
   function adminUsers(method: string, id: string | undefined, action: string | undefined, query: URLSearchParams, body: any): Handled {
     if (method === 'GET' && !id) {

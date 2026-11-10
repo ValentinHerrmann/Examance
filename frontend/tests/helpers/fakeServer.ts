@@ -34,15 +34,15 @@ function answer(method: string, path: string, body?: unknown): FakeResponse {
   return res;
 }
 
-// The executor turns a thrown ApiError into a rejection, as the real async client does.
+// Answered inside `then`, so a thrown ApiError becomes a rejection, as with the real async client.
 function request(method: string, path: string, body?: unknown): Promise<any> {
-  return new Promise((resolve) => resolve(answer(method, path, body).body));
+  return Promise.resolve().then(() => answer(method, path, body).body);
 }
 
 function requestBinary(method: string, path: string, body?: unknown): Promise<ArrayBuffer> {
-  return new Promise((resolve) => {
+  return Promise.resolve().then(() => {
     const bytes = answer(method, path, body).bytes ?? new Uint8Array();
-    resolve(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   });
 }
 

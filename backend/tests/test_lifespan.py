@@ -12,6 +12,11 @@ from app import database, main
 from app.services import bootstrap, ephemeral_store, latex
 
 
+async def _abort_inside(lifespan: Any) -> None:
+    async with lifespan:
+        raise RuntimeError("server loop aborted")
+
+
 class _Session:
     async def __aenter__(self) -> _Session:
         return self
@@ -37,7 +42,7 @@ async def test_engine_disposed_after_exception(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(database, "AsyncSessionLocal", _Session)
     monkeypatch.setattr(database, "engine", SimpleNamespace(dispose=dispose))
 
+    lifespan = main.lifespan(FastAPI())
     with pytest.raises(RuntimeError):
-        async with main.lifespan(FastAPI()):
-            raise RuntimeError("server loop aborted")
+        await _abort_inside(lifespan)
     assert disposed == [True]

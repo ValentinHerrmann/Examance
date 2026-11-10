@@ -73,7 +73,8 @@ def _not_allowed(detail: str) -> HTTPException:
     )
 
 
-async def require_server_latex(teacher: Teacher = Depends(get_teaching_teacher)) -> Teacher:  # NOSONAR: async keeps the dependency on the event loop, not the threadpool
+# Async without await on purpose: keeps the dependency on the event loop, not the threadpool.
+async def require_server_latex(teacher: Teacher = Depends(get_teaching_teacher)) -> Teacher:  # NOSONAR(S7503)
     """The signed-in teacher, if their account may compile LaTeX on the server."""
     if not capabilities_for(teacher).features.get("server_latex"):
         raise _not_allowed("Server-side LaTeX compilation is not enabled for this account.")
@@ -86,7 +87,8 @@ def ensure_exercise_sharing(teacher: Teacher) -> None:
         raise _not_allowed("Exercise sharing is not enabled for this account.")
 
 
-async def require_exercise_sharing(teacher: Teacher = Depends(get_teaching_teacher)) -> Teacher:  # NOSONAR: async keeps the dependency on the event loop, not the threadpool
+# Async without await on purpose: keeps the dependency on the event loop, not the threadpool.
+async def require_exercise_sharing(teacher: Teacher = Depends(get_teaching_teacher)) -> Teacher:  # NOSONAR(S7503)
     """The signed-in teacher, if their account may share, browse, copy and resync exercises."""
     ensure_exercise_sharing(teacher)
     return teacher
@@ -99,7 +101,8 @@ def require_result_delivery(teacher: Teacher = Depends(get_teaching_teacher)) ->
     return teacher
 
 
-async def require_server_results_writable(  # NOSONAR: async keeps the dependency on the event loop, not the threadpool; also awaited by trash.py
+# Async without await on purpose: keeps the dependency on the event loop, and trash.py awaits it.
+async def require_server_results_writable(  # NOSONAR(S7503)
     teacher: Teacher = Depends(get_teaching_teacher),
 ) -> Teacher:
     """The signed-in teacher, if their account may write grading results to the server. A revoked account still in "all-server" keeps writing until resultsMover.ts moved its results out (else they strand offline). Reads and deletes are never gated (move, erasure need them)."""

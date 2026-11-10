@@ -300,7 +300,7 @@ function addSpacer(
   widget: (px: number) => WidgetType,
   side: number
 ) {
-  if (px === undefined || !(px > 0)) return;
+  if (px === undefined || Number.isNaN(px) || px <= 0) return;
   builder.add(pos, pos, Decoration.widget({ widget: widget(px), side, block: true }));
 }
 

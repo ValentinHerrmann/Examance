@@ -147,18 +147,20 @@ async def get_or_create_exercise(
 
 TEX_GLOB = "*.tex"
 
+_VARCHAR_100 = "VARCHAR(100)"
+
 # Columns older SQLite databases may lack: table -> (column, DDL type).
 _SQLITE_COLUMNS = {
     "exercises": [
         ("grade", "VARCHAR(50)"),
-        ("subject", "VARCHAR(100)"),
+        ("subject", _VARCHAR_100),
         ("exercise_group_id", "CHAR(32)"),
-        ("variant_key", "VARCHAR(100)"),
+        ("variant_key", _VARCHAR_100),
         ("is_current", "BOOLEAN DEFAULT 1"),
         ("is_public", "BOOLEAN DEFAULT 0"),
         ("version", "INTEGER DEFAULT 1"),
     ],
-    "exercise_groups": [("grade", "VARCHAR(50)"), ("subject", "VARCHAR(100)")],
+    "exercise_groups": [("grade", "VARCHAR(50)"), ("subject", _VARCHAR_100)],
 }
 
 

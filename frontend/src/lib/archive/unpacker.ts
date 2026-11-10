@@ -103,7 +103,10 @@ export interface ApplyOptions {
   decided?: Map<string, 'copied' | 'replaced'>;
 }
 
-async function archiveToBuffer(archiveData: Blob | ArrayBuffer | Uint8Array): Promise<ArrayBuffer> {
+/** An archive as a file, a buffer or bytes. */
+type ArchiveData = Blob | ArrayBuffer | Uint8Array;
+
+async function archiveToBuffer(archiveData: ArchiveData): Promise<ArrayBuffer> {
   if (archiveData instanceof ArrayBuffer) return archiveData;
   if (archiveData instanceof Uint8Array) return toArrayBuffer(archiveData);
   return archiveData.arrayBuffer();
@@ -111,7 +114,7 @@ async function archiveToBuffer(archiveData: Blob | ArrayBuffer | Uint8Array): Pr
 
 /** Opens the archive envelope and returns its payload. Read-only; the archive key never leaves this function. */
 export async function decryptArchive(
-  archiveData: Blob | ArrayBuffer | Uint8Array,
+  archiveData: ArchiveData,
   password: string,
   onProgress?: (event: ProgressEvent) => void
 ): Promise<Record<string, any>> {
@@ -576,7 +579,7 @@ async function importStatistics(
 }
 
 export async function unpackProject(
-  archiveData: Blob | ArrayBuffer | Uint8Array,
+  archiveData: ArchiveData,
   password: string,
   onProgress?: (event: ProgressEvent) => void
 ): Promise<ImportResult> {

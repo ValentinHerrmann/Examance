@@ -272,7 +272,7 @@ interface DecorationSide {
 const newDecorationSide = (): DecorationSide => ({ docLine: 0, pendingGapPx: 0, lines: [], paddings: [], gaps: [] });
 
 function sideHeight(item: DiffLine | undefined, isEmpty: boolean, heights: Map<number, number>): number {
-  if (isEmpty || !item || item.lineNumber === undefined) return 0;
+  if (isEmpty || item?.lineNumber === undefined) return 0;
   return heights.get(item.lineNumber) ?? DEFAULT_LINE_HEIGHT_PX;
 }
 
