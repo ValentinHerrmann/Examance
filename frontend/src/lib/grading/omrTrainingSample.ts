@@ -3,7 +3,7 @@ import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import type { OmrScoreMeta } from '#lib/db/schema';
 import { renderScanPage } from './mcCropRender';
 import type { OmrRunInfo } from './omrSettings';
-import type { OmrShapeReason } from './omrShape';
+import type { OmrBubbleState, OmrShapeReason } from './omrShape';
 
 export const OMR_CROP_WIDTH = 80;
 export const OMR_CROP_HEIGHT = 48;
@@ -19,10 +19,10 @@ export interface OmrTrainingSampleIn {
   schema_version: 1;
   algorithm_version: number;
   label_selected: boolean;
-  detected_state: 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone';
+  detected_state: OmrBubbleState;
   provisional: boolean | null;
   /** The other algorithm's verdict (shadow run), when recorded. */
-  alt_state: 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone' | null;
+  alt_state: OmrBubbleState | null;
   reasons: OmrShapeReason[];
   has_redo_zone: boolean;
   crop_b64: string;
@@ -56,7 +56,7 @@ export function donationTokens(
   omrMeta: OmrScoreMeta,
   known: Record<number, string> = {}
 ): Record<number, string> {
-  const tokens: Record<number, string> = { ...(omrMeta.donation?.tokens ?? {}), ...known };
+  const tokens: Record<number, string> = { ...omrMeta.donation?.tokens, ...known };
   for (const b of omrMeta.detections?.bubbles ?? []) tokens[b.optionIndex] ??= crypto.randomUUID();
   return tokens;
 }
@@ -118,7 +118,8 @@ export async function buildTrainingSamples(
     octx.drawImage(page, sx, sy, ex - sx, ey - sy, 0, 0, OMR_CROP_WIDTH, OMR_CROP_HEIGHT);
     const rgba = octx.getImageData(0, 0, OMR_CROP_WIDTH, OMR_CROP_HEIGHT).data;
     const grayBytes = new Uint8Array(OMR_CROP_WIDTH * OMR_CROP_HEIGHT);
-    for (let i = 0, p = 0; p < grayBytes.length; i += 4, p++) {
+    for (let p = 0; p < grayBytes.length; p++) {
+      const i = p * 4;
       grayBytes[p] = Math.round(0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]);
     }
 

@@ -44,7 +44,7 @@ function describeError(err: any): string {
 async function createWithIdFallback(
   path: string,
   body: any
-): Promise<{ created: any | null; error?: string }> {
+): Promise<{ created: any; error?: string }> {
   try {
     const res = (await api.post<any>(path, body, { silentError: true })) as any;
     return { created: res ?? { ...body } };
@@ -75,37 +75,30 @@ async function exerciseOwned(id: string): Promise<boolean> {
   }
 }
 
-export async function importPayloadToServer(
-  payload: any,
-  { report, decided = new Map() }: ServerImportOptions
-): Promise<ServerImportResult> {
-  const idMap = new Map<string, string>();
-  const errors: string[] = [];
-  const createdExamIds = new Set<string>();
-  const createdExerciseIds = new Set<string>();
+/** Everything the import phases share; the phases run in order because later ones read what earlier ones recorded. */
+interface ImportContext {
+  report: ArchiveReport;
+  decided: Map<string, 'copied' | 'replaced'>;
+  idMap: Map<string, string>;
+  errors: string[];
+  createdExamIds: Set<string>;
+  createdExerciseIds: Set<string>;
   /** Archived exercise ids that exist on the server already and are linked as they are. */
-  const reusedExerciseIds = new Set<string>();
-  const linkedExercisesByExam = new Map<string, Set<string>>();
+  reusedExerciseIds: Set<string>;
+  linkedExercisesByExam: Map<string, Set<string>>;
+  exerciseName: Map<string, string>;
+}
 
-  const exercises: ExerciseRecord[] = Array.isArray(payload.exercises) ? payload.exercises : [];
-  const exams: ExamRecord[] = Array.isArray(payload.exams) ? payload.exams : [];
-  const junctions: any[] = Array.isArray(payload.exerciseExams) ? payload.exerciseExams : [];
-  const mcGroups: any[] = Array.isArray(payload.examMcGroups) ? payload.examMcGroups : [];
-  const resources: any[] = Array.isArray(payload.exerciseResources)
-    ? payload.exerciseResources
-    : [];
-  const exerciseName = new Map(exercises.map((ex) => [ex.id, ex.name || ex.title || ex.id]));
-
-    // 1. Exercises first (exams link to them by id). The archived exercise_group_id belongs to the exporting account and
-    // create_exercise 404s on a group the caller doesn't own, so groups are re-created: the first member is sent without
-    // one (backend mints it) and the returned id is reused for the rest.
+/** 1. Exercises first (exams link to them by id). Archived group ids belong to the exporting account and create_exercise 404s on a group the caller doesn't own, so groups are re-created: the first member is sent without one (backend mints it) and the returned id is reused for the rest. */
+async function importExercises(ctx: ImportContext, exercises: ExerciseRecord[]): Promise<void> {
+  const { report, decided, idMap, errors, createdExerciseIds, reusedExerciseIds } = ctx;
   const groupIdMap = new Map<string, string>();
 
   for (const ex of exercises) {
     const label = ex.title || ex.name || ex.id;
 
     // Already on the server and owned by this account: link it. Sequential on purpose: later members of a group reuse the group id the first one created.
-    if (ex.id && (await exerciseOwned(ex.id))) { // NOSONAR: see above
+    if (ex.id && (await exerciseOwned(ex.id))) { // NOSONAR: sequential, group ids are built as we go
       reusedExerciseIds.add(ex.id);
       bump(report, 'exercises', 'linked');
       continue;
@@ -120,7 +113,7 @@ export async function importPayloadToServer(
       delete body.exercise_group_id;
     }
 
-    const { created, error } = await createWithIdFallback('/exercises', body);
+    const { created, error } = await createWithIdFallback('/exercises', body); // NOSONAR: sequential, group ids are built as we go
     if (!created?.id) {
       errors.push(`Exercise "${label}": ${error}`);
       bump(report, 'exercises', 'failed');
@@ -134,10 +127,14 @@ export async function importPayloadToServer(
       createdExerciseIds.add(ex.id);
       if (created.id !== ex.id) idMap.set(ex.id, created.id);
     }
-    bump(report, 'exercises', decided.get(ex.id) ?? (ex.id && created.id !== ex.id ? 'newId' : 'created'));
+    const exerciseOutcome = ex.id && created.id !== ex.id ? 'newId' : 'created';
+    bump(report, 'exercises', decided.get(ex.id) ?? exerciseOutcome);
   }
+}
 
-  // 1b. Resource files of those exercises. They follow the same id remapping; a rejection is reported but never aborts the rest of the import, since a missing figure is far less costly than a lost exercise.
+/** 1b. Resource files of those exercises. They follow the same id remapping; a rejection is reported but never aborts the rest of the import, since a missing figure is far less costly than a lost exercise. */
+async function importResources(ctx: ImportContext, resources: any[]): Promise<void> {
+  const { report, idMap, errors, createdExerciseIds, exerciseName } = ctx;
   for (const res of resources) {
     if (!res?.exerciseId || !createdExerciseIds.has(res.exerciseId)) continue;
     const exerciseId = idMap.get(res.exerciseId) ?? res.exerciseId;
@@ -151,7 +148,7 @@ export async function importPayloadToServer(
       continue;
     }
     try {
-      await api.post(
+      await api.post( // NOSONAR: sequential, one upload at a time keeps the server's rate limit
         `/exercises/${exerciseId}/resources`,
         {
           filename: res.filename,
@@ -166,25 +163,30 @@ export async function importPayloadToServer(
       bump(report, 'resources', 'failed');
     }
   }
+}
 
-  // 1c. Links to exercises the archive does not carry: reuse them only when this account owns them on the server. Another teacher's exercise, shared or not, is never linked (copy it in the library).
+/** 1c. Links to exercises the archive does not carry: reuse them only when this account owns them on the server. Another teacher's exercise, shared or not, is never linked (copy it in the library). */
+async function linkOwnedExercises(ctx: ImportContext, exercises: ExerciseRecord[], junctions: any[]): Promise<void> {
   const archivedExerciseIds = new Set(exercises.map((ex) => ex.id));
   for (const id of new Set(junctions.map((j) => j.exerciseId as string))) {
-    if (archivedExerciseIds.has(id) || reusedExerciseIds.has(id)) continue;
-    if (await exerciseOwned(id)) {
-      reusedExerciseIds.add(id);
-      bump(report, 'exercises', 'linked');
+    if (archivedExerciseIds.has(id) || ctx.reusedExerciseIds.has(id)) continue;
+    if (await exerciseOwned(id)) { // NOSONAR: sequential, server reads in archive order
+      ctx.reusedExerciseIds.add(id);
+      bump(ctx.report, 'exercises', 'linked');
     }
   }
-  const linkable = (id: string) => createdExerciseIds.has(id) || reusedExerciseIds.has(id);
+}
 
-    // 2. Exams with exercise links and MC groups inline (POST /exams persists all three).
-    // MC group ids are client-chosen and meaningless beyond linking, so they're re-minted per
-    // import to avoid 409s on re-import; members follow through this map.
-  const mcGroupIdMap = new Map<string, string>();
-  for (const group of mcGroups) {
-    mcGroupIdMap.set(group.id, crypto.randomUUID());
-  }
+/** 2. Exams with exercise links and MC groups inline (POST /exams persists all three). MC group ids are re-minted per import (see `mcGroupIdMap`) to avoid 409s on re-import. */
+async function importExams(
+  ctx: ImportContext,
+  exams: ExamRecord[],
+  junctions: any[],
+  mcGroups: any[],
+  mcGroupIdMap: Map<string, string>
+): Promise<void> {
+  const { report, decided, idMap, errors, createdExamIds, createdExerciseIds, reusedExerciseIds, linkedExercisesByExam, exerciseName } = ctx;
+  const linkable = (id: string) => createdExerciseIds.has(id) || reusedExerciseIds.has(id);
 
   for (const exam of exams) {
     const label = exam.title || exam.id;
@@ -226,7 +228,7 @@ export async function importPayloadToServer(
       body.retention_until = new Date(Date.now() + DEFAULT_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 10);
       exam.retentionUntil = body.retention_until; // the local mirror (`applyArchive`) writes the same date
     }
-    const { created, error } = await createWithIdFallback('/exams', body);
+    const { created, error } = await createWithIdFallback('/exams', body); // NOSONAR: sequential, exams are created in archive order
     if (!created?.id) {
       errors.push(`Exam "${label}": ${error}`);
       bump(report, 'exams', 'failed');
@@ -238,9 +240,47 @@ export async function importPayloadToServer(
       if (created.id !== exam.id) idMap.set(exam.id, created.id);
       linkedExercisesByExam.set(exam.id, new Set(examLinks.filter((j) => linkable(j.exerciseId)).map((j) => j.exerciseId)));
     }
-    bump(report, 'exams', decided.get(exam.id) ?? (exam.id && created.id !== exam.id ? 'newId' : 'created'));
+    const examOutcome = exam.id && created.id !== exam.id ? 'newId' : 'created';
+    bump(report, 'exams', decided.get(exam.id) ?? examOutcome);
     for (const g of mcGroups.filter((g) => g.examId === exam.id)) bump(report, 'mcGroups', decided.get(g.id) ?? 'created');
   }
+}
 
+export async function importPayloadToServer(
+  payload: any,
+  { report, decided = new Map() }: ServerImportOptions
+): Promise<ServerImportResult> {
+  const exercises: ExerciseRecord[] = Array.isArray(payload.exercises) ? payload.exercises : [];
+  const exams: ExamRecord[] = Array.isArray(payload.exams) ? payload.exams : [];
+  const junctions: any[] = Array.isArray(payload.exerciseExams) ? payload.exerciseExams : [];
+  const mcGroups: any[] = Array.isArray(payload.examMcGroups) ? payload.examMcGroups : [];
+  const resources: any[] = Array.isArray(payload.exerciseResources)
+    ? payload.exerciseResources
+    : [];
+
+  const ctx: ImportContext = {
+    report,
+    decided,
+    idMap: new Map<string, string>(),
+    errors: [],
+    createdExamIds: new Set<string>(),
+    createdExerciseIds: new Set<string>(),
+    reusedExerciseIds: new Set<string>(),
+    linkedExercisesByExam: new Map<string, Set<string>>(),
+    exerciseName: new Map(exercises.map((ex) => [ex.id, ex.name || ex.title || ex.id])),
+  };
+
+  await importExercises(ctx, exercises);
+  await importResources(ctx, resources);
+  await linkOwnedExercises(ctx, exercises, junctions);
+
+  // MC group ids are client-chosen and meaningless beyond linking, so they're re-minted per import; members follow through this map.
+  const mcGroupIdMap = new Map<string, string>();
+  for (const group of mcGroups) {
+    mcGroupIdMap.set(group.id, crypto.randomUUID());
+  }
+  await importExams(ctx, exams, junctions, mcGroups, mcGroupIdMap);
+
+  const { idMap, errors, createdExamIds, createdExerciseIds, linkedExercisesByExam } = ctx;
   return { idMap, mcGroupIdMap, errors, createdExamIds, createdExerciseIds, linkedExercisesByExam };
 }

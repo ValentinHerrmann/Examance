@@ -267,6 +267,43 @@ export function createLatexTheme(dark: boolean): Extension {
   );
 }
 
+/** Adds the line background and the word marks of one changed line. */
+function addLineDiff(builder: RangeSetBuilder<Decoration>, lineObj: { from: number; to: number }, lineDeco: DiffLineDecoration) {
+  builder.add(
+    lineObj.from,
+    lineObj.from,
+    Decoration.line({
+      attributes: { class: `cm-diff-line-${lineDeco.type}` }
+    })
+  );
+
+  for (const w of lineDeco.words ?? []) {
+    const fromPos = Math.min(lineObj.from + w.startCol, lineObj.to);
+    const toPos = Math.min(lineObj.from + w.endCol, lineObj.to);
+    if (fromPos < toPos) {
+      builder.add(
+        fromPos,
+        toPos,
+        Decoration.mark({
+          class: `cm-diff-word-${w.type}`
+        })
+      );
+    }
+  }
+}
+
+/** Adds a block spacer widget of `px` height at `pos` when positive. */
+function addSpacer(
+  builder: RangeSetBuilder<Decoration>,
+  pos: number,
+  px: number | undefined,
+  widget: (px: number) => WidgetType,
+  side: number
+) {
+  if (px === undefined || !(px > 0)) return;
+  builder.add(pos, pos, Decoration.widget({ widget: widget(px), side, block: true }));
+}
+
 export function applyDiffDecorations(
   editorView: EditorView,
   config: DiffDecorationConfig | null
@@ -289,10 +326,8 @@ export function applyDiffDecorations(
   }
 
   const paddingMap = new Map<number, number>();
-  if (config.paddings) {
-    for (const pDeco of config.paddings) {
-      paddingMap.set(pDeco.lineNumber, pDeco.paddingPx);
-    }
+  for (const pDeco of config.paddings ?? []) {
+    paddingMap.set(pDeco.lineNumber, pDeco.paddingPx);
   }
 
   const gapMap = new Map<number, number>();
@@ -300,81 +335,17 @@ export function applyDiffDecorations(
     gapMap.set(gapDeco.afterLineNumber, gapDeco.gapPx);
   }
 
-  if (gapMap.has(0)) {
-    const gapPx = gapMap.get(0)!;
-    if (gapPx > 0 && totalLines >= 1) {
-      const line1 = doc.line(1);
-      builder.add(
-        line1.from,
-        line1.from,
-        Decoration.widget({
-          widget: new GapSpacerWidget(gapPx),
-          side: -1,
-          block: true
-        })
-      );
-    }
-  }
+  const gapWidget = (px: number) => new GapSpacerWidget(px);
+  if (totalLines >= 1) addSpacer(builder, doc.line(1).from, gapMap.get(0), gapWidget, -1);
 
   for (let l = 1; l <= totalLines; l++) {
     const lineObj = doc.line(l);
     const lineDeco = lineDecoMap.get(l);
 
-    if (lineDeco && lineDeco.type !== "unchanged") {
-      builder.add(
-        lineObj.from,
-        lineObj.from,
-        Decoration.line({
-          attributes: { class: `cm-diff-line-${lineDeco.type}` }
-        })
-      );
+    if (lineDeco && lineDeco.type !== "unchanged") addLineDiff(builder, lineObj, lineDeco);
 
-      if (lineDeco.words && lineDeco.words.length > 0) {
-        for (const w of lineDeco.words) {
-          const fromPos = Math.min(lineObj.from + w.startCol, lineObj.to);
-          const toPos = Math.min(lineObj.from + w.endCol, lineObj.to);
-          if (fromPos < toPos) {
-            builder.add(
-              fromPos,
-              toPos,
-              Decoration.mark({
-                class: `cm-diff-word-${w.type}`
-              })
-            );
-          }
-        }
-      }
-    }
-
-    if (paddingMap.has(l)) {
-      const pPx = paddingMap.get(l)!;
-      if (pPx > 0) {
-        builder.add(
-          lineObj.to,
-          lineObj.to,
-          Decoration.widget({
-            widget: new LinePaddingWidget(pPx),
-            side: 1,
-            block: true
-          })
-        );
-      }
-    }
-
-    if (gapMap.has(l)) {
-      const gapPx = gapMap.get(l)!;
-      if (gapPx > 0) {
-        builder.add(
-          lineObj.to,
-          lineObj.to,
-          Decoration.widget({
-            widget: new GapSpacerWidget(gapPx),
-            side: 1,
-            block: true
-          })
-        );
-      }
-    }
+    addSpacer(builder, lineObj.to, paddingMap.get(l), (px) => new LinePaddingWidget(px), 1);
+    addSpacer(builder, lineObj.to, gapMap.get(l), gapWidget, 1);
   }
 
   editorView.dispatch({

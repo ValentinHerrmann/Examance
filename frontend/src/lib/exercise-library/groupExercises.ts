@@ -49,6 +49,34 @@ export function variantPoints(source: VariantMember | ExerciseRecord): number {
   return parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0;
 }
 
+/** Current members bucketed by variant key, `_General` first, newest version first inside each variant. */
+function sortedVariantsOf(currentMembers: ExerciseRecord[]): Map<string, VariantMember[]> {
+  const variants = new Map<string, VariantMember[]>();
+  for (const ex of currentMembers) {
+    const vKey = ex.variantKey || "_General";
+    if (!variants.has(vKey)) variants.set(vKey, []);
+    variants.get(vKey)!.push({
+      ex,
+      variantLabel: vKey,
+      version: ex.version || 1,
+      isCurrent: ex.isCurrent !== false,
+    });
+  }
+
+  const sortedVariants = new Map<string, VariantMember[]>();
+  const keys = [...variants.keys()].sort((a, b) => {
+    if (a === "_General") return -1;
+    if (b === "_General") return 1;
+    return a.localeCompare(b);
+  });
+  for (const k of keys) sortedVariants.set(k, variants.get(k)!);
+
+  for (const [, vMembers] of sortedVariants) {
+    vMembers.sort((a, b) => b.version - a.version);
+  }
+  return sortedVariants;
+}
+
 /** Buckets exercises by group id (or name), keeping only current versions, variants sorted `_General` first. */
 export function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
   const buckets = new Map<string, ExerciseRecord[]>();
@@ -70,34 +98,8 @@ export function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
     const grade = currentMembers[0]?.grade;
     const subject = currentMembers[0]?.subject;
 
-    const variants = new Map<string, VariantMember[]>();
-    for (const ex of currentMembers) {
-      const vKey = ex.variantKey || "_General";
-      if (!variants.has(vKey)) variants.set(vKey, []);
-      variants.get(vKey)!.push({
-        ex,
-        variantLabel: vKey,
-        version: ex.version || 1,
-        isCurrent: ex.isCurrent !== false,
-      });
-    }
-
-    const sortedVariants = new Map<string, VariantMember[]>();
-    const keys = [...variants.keys()].sort((a, b) => {
-      if (a === "_General") return -1;
-      if (b === "_General") return 1;
-      return a.localeCompare(b);
-    });
-    for (const k of keys) sortedVariants.set(k, variants.get(k)!);
-
-    for (const [, vMembers] of sortedVariants) {
-      vMembers.sort((a, b) => b.version - a.version);
-    }
-
-    const allMembers: VariantMember[] = [];
-    for (const [, vMembers] of sortedVariants) {
-      allMembers.push(...vMembers);
-    }
+    const sortedVariants = sortedVariantsOf(currentMembers);
+    const allMembers: VariantMember[] = [...sortedVariants.values()].flat();
 
     const scores = allMembers.map(variantPoints);
     const maxPoints = scores.length > 0 ? Math.max(...scores) : 0;

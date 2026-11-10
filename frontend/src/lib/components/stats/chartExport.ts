@@ -94,6 +94,12 @@ function hexToRgb01(hex: string): [number, number, number] {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
 
+/** Rotation of a label in degrees; SVG is y-down, PDF y-up, hence the sign. */
+function labelRotation(el: Element): number {
+  const rot = /rotate\(\s*(-?[\d.]+)/.exec(el.getAttribute('transform') ?? '');
+  return rot ? -Number(rot[1]) : 0;
+}
+
 /** Redraw a serialised chart as a one-page vector PDF (1 SVG unit = 1 pt). */
 export async function svgToPdf(markup: string, title: string): Promise<Blob> {
   return new Blob([(await svgToPdfBytes(markup, title)) as BlobPart], { type: 'application/pdf' });
@@ -114,7 +120,7 @@ export async function svgToPdfBytes(markup: string, title: string): Promise<Uint
 
   const num = (el: Element, name: string, fallback = 0) => {
     const v = el.getAttribute(name);
-    return v === null || v === '' ? fallback : Number(v);
+    return v ? Number(v) : fallback;
   };
   const color = (value: string | null) => {
     if (!value || value === 'none') return undefined;
@@ -188,8 +194,7 @@ export async function svgToPdfBytes(markup: string, title: string): Promise<Uint
         const total = widths.reduce((a, b) => a + b, 0);
         const shift = { start: 0, middle: 0.5, end: 1 }[el.getAttribute('text-anchor') ?? 'start'] ?? 0;
         // The chart only rotates labels about their own anchor point.
-        const rot = /rotate\(\s*(-?[\d.]+)/.exec(el.getAttribute('transform') ?? '');
-        const angle = rot ? -Number(rot[1]) : 0; // SVG is y-down, PDF y-up
+        const angle = labelRotation(el);
         const cos = Math.cos((angle * Math.PI) / 180);
         const sin = Math.sin((angle * Math.PI) / 180);
         let offset = -shift * total;
@@ -224,7 +229,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
   link.download = filename;
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  link.remove();
   // Revoking synchronously after click() can cancel the download.
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }

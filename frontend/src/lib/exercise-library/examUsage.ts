@@ -38,9 +38,12 @@ export async function loadExamUsage(exerciseIds: string[]): Promise<ExamUsageEnt
 
   const links = await db.examExercises.where("exerciseId").anyOf(exerciseIds).toArray();
   const key = get(sessionStore).sessionKey;
-  for (const examId of new Set(links.map((l) => l.examId))) {
-    const exam = await examRepository.getById(examId, key);
+  // Pure reads in parallel; `map` keeps the exam order.
+  const examIds = [...new Set(links.map((l) => l.examId))];
+  const exams = await Promise.all(examIds.map((examId) => examRepository.getById(examId, key)));
+  examIds.forEach((examId, i) => {
+    const exam = exams[i];
     if (exam) found.set(examId, { id: examId, title: exam.title ?? "", datum: exam.datum });
-  }
+  });
   return [...found.values()];
 }

@@ -218,9 +218,9 @@ export async function migrateLegacyDatabase(): Promise<void> {
     });
     await oldDb.open();
     for (const table of oldDb.tables) {
-      const records = await table.toArray();
+      const records = await table.toArray(); // NOSONAR: sequential on purpose: legacy tables are copied one at a time
       if (records.length > 0 && db.table(table.name)) {
-        await db.table(table.name).bulkPut(records);
+        await db.table(table.name).bulkPut(records); // NOSONAR: sequential on purpose: legacy tables are copied one at a time
       }
     }
     await oldDb.delete();

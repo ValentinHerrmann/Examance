@@ -202,7 +202,8 @@ export const examRepository = {
     try {
       const raw = await api.get<any>(`/exams/${id}`, { silentError: true });
       return mapApiToExamRecord(raw);
-    } catch (err: any) {
+    } catch {
+      // Server unreachable: fall back to the local copy.
       const raw = await db.exams.get(id);
       if (raw) return decryptExam(raw, key);
       return undefined;
@@ -296,13 +297,9 @@ export const examRepository = {
         db.omrTemplates,
       ],
       async () => {
-        for (const subId of submissionIds) {
-          await db.exerciseScores.where('submissionId').equals(subId).delete();
-        }
+        await db.exerciseScores.where('submissionId').anyOf(submissionIds).delete();
         // Resource files hang off the exercises that are about to disappear.
-        for (const exerciseId of exerciseIds) {
-          await db.exerciseResources.where('exerciseId').equals(exerciseId).delete();
-        }
+        await db.exerciseResources.where('exerciseId').anyOf(exerciseIds).delete();
         await db.exams.delete(id);
         await db.exercises.where('examId').equals(id).delete();
         await db.examExercises.where('examId').equals(id).delete();

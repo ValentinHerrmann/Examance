@@ -8,7 +8,6 @@ import {
 import { deriveSessionKey } from '#lib/crypto/sessionKey';
 import { base64ToUint8Array, stripBase64Padding, toArrayBuffer, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import {
-  ENVELOPE_VERSION,
   KEK_KDF_PARAMS,
   buildBundle,
   derivePrfKek,
@@ -386,7 +385,7 @@ export async function rewrapForChangedPassword(
   return setWithReplacedWrap(teacherId, vault, 'password', newPassword);
 }
 
-export { ENVELOPE_VERSION };
+export { ENVELOPE_VERSION } from '#lib/crypto/keyEnvelope';
 
 /** The shape `sessionStore.unlock` expects, derived from an opened vault. */
 export interface SessionKeyMaterial {

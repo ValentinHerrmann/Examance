@@ -146,7 +146,7 @@ export function fromBase64url(b64: string): Uint8Array {
 
 /** Decodes Base64/Base64URL (chunked, trims whitespace, restores padding, maps - and _) to a Uint8Array. */
 export function base64ToUint8Array(b64: string): Uint8Array {
-  if (!b64 || !b64.trim()) return new Uint8Array(0);
+  if (!b64?.trim()) return new Uint8Array(0);
 
   let normalized = b64.trim().replaceAll('-', '+').replaceAll('_', '/');
   const pad = (4 - (normalized.length % 4)) % 4;

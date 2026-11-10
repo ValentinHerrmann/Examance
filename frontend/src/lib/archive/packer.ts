@@ -244,7 +244,7 @@ export async function packProject(
   const linkedIds = [...new Set(exerciseExams.map((j) => j.exerciseId))];
   const linked: ExerciseRecord[] = [];
   for (const id of linkedIds) {
-    const ex = libraryById.get(id) ?? (await loadLinkedExercise(id));
+    const ex = libraryById.get(id) ?? (await loadLinkedExercise(id)); // NOSONAR: linked older versions are fetched in order; missing entries keep that order
     if (ex) linked.push(ex);
     else {
       for (const j of exerciseExams.filter((l) => l.exerciseId === id)) {
@@ -267,7 +267,7 @@ export async function packProject(
   const examLogos: ArchivedExamLogo[] = [];
   for (const exam of exams) {
     try {
-      examLogos.push(await exportExamLogo(exam.id));
+      examLogos.push(await exportExamLogo(exam.id)); // NOSONAR: logos load in exam order so the report keeps it
     } catch {
       addMissing(report, { reason: 'logoUnavailable', exam: examLabel.get(exam.id) ?? exam.id });
     }

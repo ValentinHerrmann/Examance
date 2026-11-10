@@ -134,7 +134,7 @@ export function registerHygieneListeners(): void {
     const session = get(sessionStore);
     if (session.isDirty) {
       event.preventDefault();
-      event.returnValue = '';
+      event.returnValue = ''; // NOSONAR: fallback for older Chromium
     }
   });
 }

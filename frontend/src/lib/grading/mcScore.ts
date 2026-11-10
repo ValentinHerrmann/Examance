@@ -133,19 +133,23 @@ export function applyMcCorrection(
   correctAnswers: number[],
   penalty: number,
   maxPoints: number,
-  omrMeta?: OmrScoreMeta,
-  /** The stored score, for the first `original` snapshot; a hand-typed score must survive in it. */
-  storedScore?: number
+  { omrMeta, storedScore }: {
+    omrMeta?: OmrScoreMeta;
+    /** The stored score, for the first `original` snapshot; a hand-typed score must survive in it. */
+    storedScore?: number;
+  } = {}
 ): McCorrectionResult {
   const isSingleAnswer = questionType === 'sc' || questionType === 'tf';
+  const alreadySelected = selectedOptions.includes(toggledOptionIdx);
 
-  const nextSelectedOptions = isSingleAnswer
-    ? selectedOptions.includes(toggledOptionIdx)
-      ? []
-      : [toggledOptionIdx]
-    : selectedOptions.includes(toggledOptionIdx)
-      ? selectedOptions.filter((o) => o !== toggledOptionIdx)
-      : [...selectedOptions, toggledOptionIdx].sort((a, b) => a - b);
+  let nextSelectedOptions: number[];
+  if (isSingleAnswer) {
+    nextSelectedOptions = alreadySelected ? [] : [toggledOptionIdx];
+  } else if (alreadySelected) {
+    nextSelectedOptions = selectedOptions.filter((o) => o !== toggledOptionIdx);
+  } else {
+    nextSelectedOptions = [...selectedOptions, toggledOptionIdx].sort((a, b) => a - b);
+  }
 
   const currentScore =
     storedScore ?? computeMcScore(questionType, selectedOptions, correctAnswers, penalty, maxPoints);
@@ -203,9 +207,7 @@ export function restoreOriginalDetection(
 
   const restoredOptions = [...omrMeta.original.selectedOptions].sort((a, b) => a - b);
   const restoredScore =
-    omrMeta.original.score !== undefined
-      ? omrMeta.original.score
-      : computeMcScore(questionType, restoredOptions, correctAnswers, penalty, maxPoints);
+    omrMeta.original.score ?? computeMcScore(questionType, restoredOptions, correctAnswers, penalty, maxPoints);
 
   // Back to what the scanner saw — including 'ambiguous', so the unsure frames return.
   const restoredDetections = omrMeta.detections

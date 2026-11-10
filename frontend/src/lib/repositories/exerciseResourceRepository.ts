@@ -48,15 +48,15 @@ export const exerciseResourceRepository = {
 
     const local = await this.listLocal(exerciseId);
     for (const row of local) {
-      const bytes = await this.getBytes(row, key).catch(() => null);
+      const bytes = await this.getBytes(row, key).catch(() => null); // NOSONAR: one file at a time keeps decrypted bytes bounded
       const copy: ExerciseResourceRecord = {
         ...row,
         id: crypto.randomUUID(),
         exerciseId: stagingId,
         pendingUpload: bytes !== null && !row.remoteId
       };
-      await db.exerciseResources.put(
-        bytes ? await encryptResource(copy, bytes, key) : { ...copy, dataCt: undefined, dataIv: undefined, data: undefined }
+      await db.exerciseResources.put( // NOSONAR: IndexedDB writes run in order
+        bytes ? await encryptResource(copy, bytes, key) : { ...copy, dataCt: undefined, dataIv: undefined, data: undefined } // NOSONAR: one file at a time keeps decrypted bytes bounded
       );
     }
 
@@ -64,7 +64,7 @@ export const exerciseResourceRepository = {
 
     try {
       for (const row of await listOnServer(exerciseId, stagingId)) {
-        await db.exerciseResources.put({ ...row, id: crypto.randomUUID() });
+        await db.exerciseResources.put({ ...row, id: crypto.randomUUID() }); // NOSONAR: IndexedDB writes run in order
       }
     } catch {
       // Unsaved exercise, offline, or a server that does not know it — the staging area simply starts empty.
@@ -168,8 +168,8 @@ export const exerciseResourceRepository = {
       if (unchanged) continue;
 
       try {
-        const bytes = await this.getBytes(row, key);
-        const created = await api.post<any>(
+        const bytes = await this.getBytes(row, key); // NOSONAR: one file at a time keeps decrypted bytes bounded
+        const created = await api.post<any>( // NOSONAR: uploads run one at a time, in order
           `/exercises/${exerciseId}/resources`,
           {
             filename: row.filename,
@@ -189,7 +189,7 @@ export const exerciseResourceRepository = {
     // Replace whatever the exercise had locally with the staged set.
     await db.exerciseResources.where('exerciseId').equals(exerciseId).delete();
     for (const row of staged) {
-      await db.exerciseResources.put({ ...row, exerciseId });
+      await db.exerciseResources.put({ ...row, exerciseId }); // NOSONAR: IndexedDB writes run in order
     }
     await db.exerciseResources.where('exerciseId').equals(stagingId).delete();
 
@@ -219,15 +219,15 @@ export const exerciseResourceRepository = {
         continue;
       }
 
-      let rows = await this.listLocal(owner.id);
+      let rows = await this.listLocal(owner.id); // NOSONAR: owners are read in order; blobs are decrypted one at a time
       if (rows.length === 0 && serverResolvable) {
-        rows = await listOnServer(owner.id).catch(() => []);
+        rows = await listOnServer(owner.id).catch(() => []); // NOSONAR: owners are read in order; blobs are decrypted one at a time
       }
       for (const row of rows) {
         try {
           inline.push({
             filename: row.filename,
-            content: await this.getBytes(row, key),
+            content: await this.getBytes(row, key), // NOSONAR: one file at a time keeps decrypted bytes bounded
             owner: owner.label ?? owner.id
           });
         } catch {

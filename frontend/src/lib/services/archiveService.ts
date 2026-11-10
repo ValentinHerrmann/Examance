@@ -32,7 +32,10 @@ const KIND_TO_REPORT: Record<ConflictKind, ReportKind> = {
 
 /** HTTP errors a batch run collected instead of showing, as report details. */
 function describeHttpErrors(errors: CollectedHttpError[]): string[] {
-  return errors.map((e) => `HTTP ${e.status}${e.code ? ` ${e.code}` : ""}: ${e.message}`);
+  return errors.map((e) => {
+    const code = e.code ? ` ${e.code}` : "";
+    return `HTTP ${e.status}${code}: ${e.message}`;
+  });
 }
 
 /**

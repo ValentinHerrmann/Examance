@@ -74,19 +74,21 @@ export const exerciseRepository = {
       const mapped = rawList.map(mapApiToExerciseRecord);
       mapped.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
       return mapped;
-    } catch (err: any) {
+    } catch {
+      // Server unreachable: fall back to the local copy.
       const links = await db.examExercises.where('examId').equals(examId).toArray();
       links.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
       if (links.length > 0) {
-        const exercises: ExerciseRecord[] = [];
-        for (const link of links) {
-          const rawEx = await db.exercises.get(link.exerciseId);
-          if (rawEx) {
+        // Local reads and decryption only, so they run in parallel; `map` keeps the link order.
+        const exercises = await Promise.all(
+          links.map(async (link): Promise<ExerciseRecord | null> => {
+            const rawEx = await db.exercises.get(link.exerciseId);
+            if (!rawEx) return null;
             const ex = await decryptExercise(rawEx, key);
-            exercises.push({ ...ex, orderIndex: link.orderIndex, subIndex: link.subIndex, mcGroupId: link.mcGroupId });
-          }
-        }
-        return exercises;
+            return { ...ex, orderIndex: link.orderIndex, subIndex: link.subIndex, mcGroupId: link.mcGroupId };
+          })
+        );
+        return exercises.filter((ex): ex is ExerciseRecord => ex !== null);
       }
       const raw = await db.exercises.where('examId').equals(examId).toArray();
       if (raw.length > 0) {

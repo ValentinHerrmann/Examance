@@ -66,7 +66,7 @@ describe("mcScore", () => {
         [0, 1],
         0,
         2,
-        initialOmrMeta
+        { omrMeta: initialOmrMeta }
       );
 
       expect(res.nextSelectedOptions).toEqual([0, 1]);
@@ -93,11 +93,11 @@ describe("mcScore", () => {
       };
 
       // First correction: from [] to [0]
-      const step1 = applyMcCorrection("mc", [], 0, [0], 0, 1, initialOmrMeta);
+      const step1 = applyMcCorrection("mc", [], 0, [0], 0, 1, { omrMeta: initialOmrMeta });
       expect(step1.nextOmrMeta.original?.selectedOptions).toEqual([]);
 
       // Second correction: from [0] to [0, 1]
-      const step2 = applyMcCorrection("mc", step1.nextSelectedOptions, 1, [0], 0, 1, step1.nextOmrMeta);
+      const step2 = applyMcCorrection("mc", step1.nextSelectedOptions, 1, [0], 0, 1, { omrMeta: step1.nextOmrMeta });
       // Original should still be the initial [] from step 1!
       expect(step2.nextOmrMeta.original?.selectedOptions).toEqual([]);
     });
@@ -118,7 +118,7 @@ describe("mcScore", () => {
 
     it("applyMcCorrection snapshots the stored score, not the answer key's", () => {
       // Teacher typed 1.5 in a grid; the key would give 2 for [0, 1].
-      const res = applyMcCorrection("mc", [0, 1], 2, [0, 1], 1, 2, omrMeta, 1.5);
+      const res = applyMcCorrection("mc", [0, 1], 2, [0, 1], 1, 2, { omrMeta, storedScore: 1.5 });
       expect(res.nextOmrMeta.original?.score).toBe(1.5);
       expect(res.nextOmrMeta.original?.selectedOptions).toEqual([0, 1]);
       expect(res.nextScore).toBe(1); // the toggle itself recomputes
@@ -145,7 +145,7 @@ describe("mcScore", () => {
     });
 
     it("applyAnswerKeyScore keeps an existing snapshot", () => {
-      const reviewed = applyMcCorrection("mc", [0], 1, [0, 1], 0, 2, omrMeta, 0.5).nextOmrMeta;
+      const reviewed = applyMcCorrection("mc", [0], 1, [0, 1], 0, 2, { omrMeta, storedScore: 0.5 }).nextOmrMeta;
       const res = applyAnswerKeyScore("mc", [0, 1], [0, 1], 0, 2, 1, reviewed);
       expect(res.nextOmrMeta.original?.score).toBe(0.5);
       expect(res.nextOmrMeta.reviewedAt).toBe(reviewed.reviewedAt);
@@ -264,7 +264,7 @@ describe("mcScore", () => {
     });
 
     it("applyMcCorrection keeps them while rewriting only the display state", () => {
-      const res = applyMcCorrection("mc", [0, 1], 1, [0], 0, 2, meta);
+      const res = applyMcCorrection("mc", [0, 1], 1, [0], 0, 2, { omrMeta: meta });
       expectKept(res.nextOmrMeta);
       expect(res.nextOmrMeta.detections?.bubbles.map((b) => b.state)).toEqual(["marked", "blank"]);
     });
@@ -274,7 +274,7 @@ describe("mcScore", () => {
     });
 
     it("restoreOriginalDetection keeps them and clears the review", () => {
-      const corrected = applyMcCorrection("mc", [0, 1], 1, [0], 0, 2, meta).nextOmrMeta;
+      const corrected = applyMcCorrection("mc", [0, 1], 1, [0], 0, 2, { omrMeta: meta }).nextOmrMeta;
       const res = restoreOriginalDetection("mc", [0], 0, 2, corrected);
       expectKept(res!.nextOmrMeta);
       expect(res!.nextOmrMeta.reviewedAt).toBeUndefined();

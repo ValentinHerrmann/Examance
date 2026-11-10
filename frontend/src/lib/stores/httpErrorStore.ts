@@ -39,7 +39,7 @@ function createHttpErrorStore() {
         return;
       }
 
-      const collector = collectors[collectors.length - 1];
+      const collector = collectors.at(-1);
       if (collector) {
         collector.push({ status: statusCode, message: message || '', code: code || '' });
         return;

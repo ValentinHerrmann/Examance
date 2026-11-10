@@ -115,7 +115,8 @@ export function parseReleaseNotes(md: string, origin: string): Block[] {
             blocks.push({ kind: 'heading', level, inlines: parseInline(heading[2], origin) });
         } else if (item) {
             if (para.length) flush();
-            (list ??= []).push(parseInline(item[1], origin));
+            list ??= [];
+            list.push(parseInline(item[1], origin));
         } else {
             if (list) flush();
             para.push(line);

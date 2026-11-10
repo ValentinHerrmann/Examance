@@ -157,14 +157,13 @@ async function withLiveExam(
   });
 }
 
-/** Restores one group's local entries: missing rows only, parents first; the entries leave the trash. */
-export async function restoreLocalGroup(
+/** Restores one group's local entries into `result`: missing rows only, parents first; the entries leave the trash. */
+async function restoreGroupInto(
+  result: RestoreResult,
   groupId: string,
   key: CryptoKey | null,
   examExists: (examId: string) => Promise<boolean>
-): Promise<RestoreResult> {
-  const result: RestoreResult = { restored: {}, skipped: [] };
-  if (!hasTrash()) return result;
+): Promise<void> {
   const items = await db.trash.where('groupId').equals(groupId).toArray();
   const usable = await withLiveExam(items, examExists, result);
   // Tables one after another, so a score finds its submission and a submission its student.
@@ -177,6 +176,16 @@ export async function restoreLocalGroup(
   const cleared = usable.flatMap((item) => item.cleared ?? []);
   await restoreAll(cleared, (row) => row.id, (row) => refill(row, key, result));
   await db.trash.bulkDelete(items.map((item) => item.id));
+}
+
+/** Restores one group's local entries: missing rows only, parents first; the entries leave the trash. */
+export async function restoreLocalGroup(
+  groupId: string,
+  key: CryptoKey | null,
+  examExists: (examId: string) => Promise<boolean>
+): Promise<RestoreResult> {
+  const result: RestoreResult = { restored: {}, skipped: [] };
+  if (hasTrash()) await restoreGroupInto(result, groupId, key, examExists);
   return result;
 }
 

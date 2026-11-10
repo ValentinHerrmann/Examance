@@ -83,20 +83,24 @@ function shift(b: PixelBox, dx: number, dy: number): PixelBox {
   return { minX: b.minX + dx, minY: b.minY + dy, maxX: b.maxX + dx, maxY: b.maxY + dy };
 }
 
-/** Measures one box. `box`/`redo` are the template rects mapped into scan pixels; `blackRef` is the page's print black (`blackReference`). */
-export function measureBox(
-  gray: Uint8ClampedArray,
-  width: number,
-  height: number,
+interface Raster {
+  gray: Uint8ClampedArray;
+  width: number;
+  height: number;
+}
+
+type InkProbe = (x: number, y: number) => boolean;
+
+/** Local ink threshold from the paper (80th grey percentile) in a window around the box, and that paper level. */
+function localInkThreshold(
+  r: Raster,
   box: PixelBox,
   redo: PixelBox | undefined,
   blackRef: number,
   p: OmrDetectionParams
-): OmrBoxMeasurement {
+): { bg: number; inkThr: number } {
   const w = box.maxX - box.minX;
   const h = box.maxY - box.minY;
-
-  // --- Local ink threshold from the paper around the box ---------------------------------
   let wx0 = box.minX - w;
   let wx1 = box.maxX + w;
   const wy0 = box.minY - h;
@@ -106,47 +110,55 @@ export function measureBox(
     wx1 = Math.max(wx1, redo.maxX);
   }
   const x0w = Math.max(0, Math.floor(wx0));
-  const x1w = Math.min(width, Math.ceil(wx1));
+  const x1w = Math.min(r.width, Math.ceil(wx1));
   const y0w = Math.max(0, Math.floor(wy0));
-  const y1w = Math.min(height, Math.ceil(wy1));
+  const y1w = Math.min(r.height, Math.ceil(wy1));
   const hist = new Uint32Array(256);
   let n = 0;
   for (let y = y0w; y < y1w; y++) {
     for (let x = x0w; x < x1w; x++) {
-      hist[gray[y * width + x]]++;
+      hist[r.gray[y * r.width + x]]++;
       n++;
     }
   }
   const bg = n > 0 ? percentile(hist, n, 0.8) : 255;
-  const inkThr = bg - p.localContrastFrac * Math.max(40, bg - blackRef);
-  const isInk = (x: number, y: number) =>
-    x >= 0 && x < width && y >= 0 && y < height && gray[y * width + x] < inkThr;
+  return { bg, inkThr: bg - p.localContrastFrac * Math.max(40, bg - blackRef) };
+}
 
-  // --- Snap onto the printed border -------------------------------------------------------- Score = ink on the outline minus ink just inside/outside it, so a hatched interior (ink everywhere) doesn't pull the window around.
-  const outlineScore = (b: PixelBox): number => {
-    const bx0 = Math.round(b.minX);
-    const bx1 = Math.round(b.maxX) - 1;
-    const by0 = Math.round(b.minY);
-    const by1 = Math.round(b.maxY) - 1;
-    let score = 0;
-    let count = 0;
-    const probe = (x: number, y: number, nx: number, ny: number) => {
-      const on = isInk(x, y) ? 1 : 0;
-      const inner = isInk(x + 2 * nx, y + 2 * ny) ? 1 : 0;
-      const outer = isInk(x - 2 * nx, y - 2 * ny) ? 1 : 0;
-      score += on - 0.5 * (inner + outer);
-      count++;
-    };
-    for (let x = bx0; x <= bx1; x++) {
-      probe(x, by0, 0, 1);
-      probe(x, by1, 0, -1);
-    }
-    for (let y = by0 + 1; y < by1; y++) {
-      probe(bx0, y, 1, 0);
-      probe(bx1, y, -1, 0);
-    }
-    return count > 0 ? score / count : 0;
+/** Score = ink on the outline minus ink just inside/outside it, so a hatched interior (ink everywhere) doesn't pull the window around. */
+function outlineScore(isInk: InkProbe, b: PixelBox): number {
+  const bx0 = Math.round(b.minX);
+  const bx1 = Math.round(b.maxX) - 1;
+  const by0 = Math.round(b.minY);
+  const by1 = Math.round(b.maxY) - 1;
+  let score = 0;
+  let count = 0;
+  const probe = (x: number, y: number, nx: number, ny: number) => {
+    const on = isInk(x, y) ? 1 : 0;
+    const inner = isInk(x + 2 * nx, y + 2 * ny) ? 1 : 0;
+    const outer = isInk(x - 2 * nx, y - 2 * ny) ? 1 : 0;
+    score += on - 0.5 * (inner + outer);
+    count++;
   };
+  for (let x = bx0; x <= bx1; x++) {
+    probe(x, by0, 0, 1);
+    probe(x, by1, 0, -1);
+  }
+  for (let y = by0 + 1; y < by1; y++) {
+    probe(bx0, y, 1, 0);
+    probe(bx1, y, -1, 0);
+  }
+  return count > 0 ? score / count : 0;
+}
+
+/** Snap onto the printed border: the displacement (within `snapMaxFraction`) that best matches the outline, or none when no border is found. */
+function snapToBorder(
+  isInk: InkProbe,
+  box: PixelBox,
+  w: number,
+  h: number,
+  p: OmrDetectionParams
+): { dx: number; dy: number; borderFound: boolean } {
   const S = Math.max(1, Math.round(p.snapMaxFraction * Math.max(w, h)));
   let bestDx = 0;
   let bestDy = 0;
@@ -154,7 +166,7 @@ export function measureBox(
   for (let dy = -S; dy <= S; dy++) {
     for (let dx = -S; dx <= S; dx++) {
       // A tiny displacement penalty breaks ties towards the template position.
-      const score = outlineScore(shift(box, dx, dy)) - 0.01 * ((Math.abs(dx) + Math.abs(dy)) / S);
+      const score = outlineScore(isInk, shift(box, dx, dy)) - 0.01 * ((Math.abs(dx) + Math.abs(dy)) / S);
       if (score > bestScore) {
         bestScore = score;
         bestDx = dx;
@@ -163,18 +175,25 @@ export function measureBox(
     }
   }
   const borderFound = bestScore >= BORDER_FOUND_SCORE;
-  const dx = borderFound ? bestDx : 0;
-  const dy = borderFound ? bestDy : 0;
-  const snapped = shift(box, dx, dy);
-  const snappedRedo = redo ? shift(redo, dx, dy) : undefined;
+  return { dx: borderFound ? bestDx : 0, dy: borderFound ? bestDy : 0, borderFound };
+}
 
-  // --- Interior: inside the printed border ------------------------------------------------
+/** Ink mask of the interior (inside the printed border) plus its ink count and grey sum. */
+function sampleInterior(
+  r: Raster,
+  isInk: InkProbe,
+  snapped: PixelBox,
+  w: number,
+  h: number,
+  borderFound: boolean,
+  p: OmrDetectionParams
+) {
   const bandX = borderFound ? Math.max(2, Math.round(0.1 * w)) : w * p.sampleInsetFraction;
   const bandY = borderFound ? Math.max(2, Math.round(0.1 * h)) : h * p.sampleInsetFraction;
   const ix0 = Math.max(0, Math.round(snapped.minX + bandX));
-  const ix1 = Math.min(width, Math.round(snapped.maxX - bandX));
+  const ix1 = Math.min(r.width, Math.round(snapped.maxX - bandX));
   const iy0 = Math.max(0, Math.round(snapped.minY + bandY));
-  const iy1 = Math.min(height, Math.round(snapped.maxY - bandY));
+  const iy1 = Math.min(r.height, Math.round(snapped.maxY - bandY));
   const iw = Math.max(0, ix1 - ix0);
   const ih = Math.max(0, iy1 - iy0);
   const interior = new Uint8Array(iw * ih);
@@ -185,14 +204,28 @@ export function measureBox(
       if (isInk(ix0 + x, iy0 + y)) {
         interior[y * iw + x] = 1;
         inkCount++;
-        inkGraySum += gray[(iy0 + y) * width + ix0 + x];
+        inkGraySum += r.gray[(iy0 + y) * r.width + ix0 + x];
       }
     }
   }
-  const interiorPx = iw * ih;
-  const fill = interiorPx > 0 ? inkCount / interiorPx : 0;
+  return { interior, iw, ih, inkCount, inkGraySum };
+}
 
-  // 3×3 cell coverage
+/** Ink fraction of the interior mask over `[xa, xb) × [ya, yb)`. */
+function maskFraction(interior: Uint8Array, iw: number, xa: number, xb: number, ya: number, yb: number): number {
+  let c = 0;
+  let d = 0;
+  for (let y = ya; y < yb; y++) {
+    for (let x = xa; x < xb; x++) {
+      c++;
+      d += interior[y * iw + x];
+    }
+  }
+  return c > 0 ? d / c : 0;
+}
+
+/** 3×3 cell coverage of the interior mask, row-major. */
+function cellCoverage(interior: Uint8Array, iw: number, ih: number): number[] {
   const cells: number[] = [];
   for (let cy = 0; cy < 3; cy++) {
     const ya = Math.round((ih * cy) / 3);
@@ -200,74 +233,89 @@ export function measureBox(
     for (let cx = 0; cx < 3; cx++) {
       const xa = Math.round((iw * cx) / 3);
       const xb = Math.round((iw * (cx + 1)) / 3);
-      let c = 0;
-      let d = 0;
-      for (let y = ya; y < yb; y++) {
-        for (let x = xa; x < xb; x++) {
-          c++;
-          d += interior[y * iw + x];
-        }
-      }
-      cells.push(c > 0 ? d / c : 0);
+      cells.push(maskFraction(interior, iw, xa, xb, ya, yb));
     }
   }
-  const maxCell = Math.max(...cells);
-  const minCellFill = Math.min(...cells);
-  const cellEvenness = maxCell > 0 ? minCellFill / maxCell : 0;
+  return cells;
+}
 
-  // Largest 8-connected stroke
+/** Queues the unseen ink pixels around (cx, cy), 8-connected. */
+function pushInkNeighbours(
+  interior: Uint8Array,
+  seen: Uint8Array,
+  stack: number[],
+  cx: number,
+  cy: number,
+  iw: number,
+  ih: number
+) {
+  for (let ny = cy - 1; ny <= cy + 1; ny++) {
+    for (let nx = cx - 1; nx <= cx + 1; nx++) {
+      if (nx < 0 || ny < 0 || nx >= iw || ny >= ih) continue;
+      const ni = ny * iw + nx;
+      if (interior[ni] && !seen[ni]) {
+        seen[ni] = 1;
+        stack.push(ni);
+      }
+    }
+  }
+}
+
+/** Flood-fills the 8-connected stroke through `start`: its pixel count and bounding box. */
+function floodStroke(interior: Uint8Array, seen: Uint8Array, stack: number[], start: number, iw: number, ih: number) {
+  let px = 0;
+  let minX = iw;
+  let maxX = -1;
+  let minY = ih;
+  let maxY = -1;
+  seen[start] = 1;
+  stack.push(start);
+  while (stack.length > 0) {
+    const cur = stack.pop() as number;
+    const cy = Math.floor(cur / iw);
+    const cx = cur - cy * iw;
+    px++;
+    minX = Math.min(minX, cx);
+    maxX = Math.max(maxX, cx);
+    minY = Math.min(minY, cy);
+    maxY = Math.max(maxY, cy);
+    pushInkNeighbours(interior, seen, stack, cx, cy, iw, ih);
+  }
+  return { px, minX, maxX, minY, maxY };
+}
+
+/** Largest 8-connected stroke of the interior mask: pixel count and its longest extent as a share of the interior. */
+function largestStroke(interior: Uint8Array, iw: number, ih: number): { strokePx: number; strokeSpan: number } {
   const seen = new Uint8Array(iw * ih);
   const stack: number[] = [];
   let strokePx = 0;
   let strokeSpan = 0;
   for (let start = 0; start < interior.length; start++) {
     if (!interior[start] || seen[start]) continue;
-    let px = 0;
-    let minX = iw;
-    let maxX = -1;
-    let minY = ih;
-    let maxY = -1;
-    seen[start] = 1;
-    stack.push(start);
-    while (stack.length > 0) {
-      const cur = stack.pop() as number;
-      const cy = Math.floor(cur / iw);
-      const cx = cur - cy * iw;
-      px++;
-      if (cx < minX) minX = cx;
-      if (cx > maxX) maxX = cx;
-      if (cy < minY) minY = cy;
-      if (cy > maxY) maxY = cy;
-      for (let ny = cy - 1; ny <= cy + 1; ny++) {
-        for (let nx = cx - 1; nx <= cx + 1; nx++) {
-          if (nx < 0 || ny < 0 || nx >= iw || ny >= ih) continue;
-          const ni = ny * iw + nx;
-          if (interior[ni] && !seen[ni]) {
-            seen[ni] = 1;
-            stack.push(ni);
-          }
-        }
-      }
-    }
+    const { px, minX, maxX, minY, maxY } = floodStroke(interior, seen, stack, start, iw, ih);
     if (px > strokePx) {
       strokePx = px;
       strokeSpan = Math.max(maxX - minX + 1, maxY - minY + 1) / Math.max(1, Math.max(iw, ih));
     }
   }
+  return { strokePx, strokeSpan };
+}
 
-  // Ink darkness relative to the threshold (0) and print black (1)
-  const contrastSpan = inkThr - blackRef;
-  const inkContrast =
-    inkCount === 0 || contrastSpan <= 0
-      ? 1
-      : Math.max(0, Math.min(1, (inkThr - inkGraySum / inkCount) / contrastSpan));
-
-  // Ring around the box (border and redo zone excluded)
+/** Ink share of the ring around the box (border and redo zone excluded). */
+function ringInkFill(
+  r: Raster,
+  isInk: InkProbe,
+  snapped: PixelBox,
+  snappedRedo: PixelBox | undefined,
+  w: number,
+  h: number,
+  p: OmrDetectionParams
+): number {
   const outer = {
     x0: Math.max(0, Math.round(snapped.minX - w * p.ringFraction)),
-    x1: Math.min(width, Math.round(snapped.maxX + w * p.ringFraction)),
+    x1: Math.min(r.width, Math.round(snapped.maxX + w * p.ringFraction)),
     y0: Math.max(0, Math.round(snapped.minY - h * p.ringFraction)),
-    y1: Math.min(height, Math.round(snapped.maxY + h * p.ringFraction)),
+    y1: Math.min(r.height, Math.round(snapped.maxY + h * p.ringFraction)),
   };
   const hole = {
     x0: snapped.minX - w * 0.1,
@@ -293,49 +341,93 @@ export function measureBox(
       if (isInk(x, y)) ringInk++;
     }
   }
-  const ringFill = ringN > 0 ? ringInk / ringN : 0;
+  return ringN > 0 ? ringInk / ringN : 0;
+}
 
-  // Redo zone
-  let redoRatio: number | undefined;
-  let redoNearFrac: number | undefined;
-  if (snappedRedo) {
-    const rw = snappedRedo.maxX - snappedRedo.minX;
-    const rh = snappedRedo.maxY - snappedRedo.minY;
-    const rx0 = Math.max(0, Math.round(snappedRedo.minX + rw * p.sampleInsetFraction));
-    const rx1 = Math.min(width, Math.round(snappedRedo.maxX - rw * p.sampleInsetFraction));
-    const ry0 = Math.max(0, Math.round(snappedRedo.minY + rh * p.sampleInsetFraction));
-    const ry1 = Math.min(height, Math.round(snappedRedo.maxY - rh * p.sampleInsetFraction));
-    // The third of the zone next to the box — overflow from a scribbled box lands there.
-    const boxIsRight = (snappedRedo.minX + snappedRedo.maxX) / 2 < (snapped.minX + snapped.maxX) / 2;
-    const nearFrom = boxIsRight ? rx1 - (rx1 - rx0) / 3 : rx0;
-    const nearTo = boxIsRight ? rx1 : rx0 + (rx1 - rx0) / 3;
-    let rn = 0;
-    let rInk = 0;
-    let rNear = 0;
-    for (let y = ry0; y < ry1; y++) {
-      for (let x = rx0; x < rx1; x++) {
-        rn++;
-        if (isInk(x, y)) {
-          rInk++;
-          if (x >= nearFrom && x < nearTo) rNear++;
-        }
-      }
+/** Ink in the redo zone: its fill, and the share of that ink in the third next to the box (overflow from a scribbled box lands there). */
+function redoZoneInk(
+  r: Raster,
+  isInk: InkProbe,
+  snapped: PixelBox,
+  snappedRedo: PixelBox,
+  p: OmrDetectionParams
+): { redoRatio: number; redoNearFrac: number } {
+  const rw = snappedRedo.maxX - snappedRedo.minX;
+  const rh = snappedRedo.maxY - snappedRedo.minY;
+  const rx0 = Math.max(0, Math.round(snappedRedo.minX + rw * p.sampleInsetFraction));
+  const rx1 = Math.min(r.width, Math.round(snappedRedo.maxX - rw * p.sampleInsetFraction));
+  const ry0 = Math.max(0, Math.round(snappedRedo.minY + rh * p.sampleInsetFraction));
+  const ry1 = Math.min(r.height, Math.round(snappedRedo.maxY - rh * p.sampleInsetFraction));
+  const boxIsRight = (snappedRedo.minX + snappedRedo.maxX) / 2 < (snapped.minX + snapped.maxX) / 2;
+  const nearFrom = boxIsRight ? rx1 - (rx1 - rx0) / 3 : rx0;
+  const nearTo = boxIsRight ? rx1 : rx0 + (rx1 - rx0) / 3;
+  let rn = 0;
+  let rInk = 0;
+  let rNear = 0;
+  for (let y = ry0; y < ry1; y++) {
+    for (let x = rx0; x < rx1; x++) {
+      rn++;
+      if (!isInk(x, y)) continue;
+      rInk++;
+      if (x >= nearFrom && x < nearTo) rNear++;
     }
-    redoRatio = rn > 0 ? rInk / rn : 0;
-    redoNearFrac = rInk > 0 ? rNear / rInk : 0;
   }
+  return { redoRatio: rn > 0 ? rInk / rn : 0, redoNearFrac: rInk > 0 ? rNear / rInk : 0 };
+}
+
+/** Measures one box. `box`/`redo` are the template rects mapped into scan pixels; `blackRef` is the page's print black (`blackReference`). */
+export function measureBox(
+  gray: Uint8ClampedArray,
+  width: number,
+  height: number,
+  box: PixelBox,
+  redo: PixelBox | undefined,
+  blackRef: number,
+  p: OmrDetectionParams
+): OmrBoxMeasurement {
+  const r: Raster = { gray, width, height };
+  const w = box.maxX - box.minX;
+  const h = box.maxY - box.minY;
+
+  const { bg, inkThr } = localInkThreshold(r, box, redo, blackRef, p);
+  const isInk: InkProbe = (x, y) => x >= 0 && x < width && y >= 0 && y < height && gray[y * width + x] < inkThr;
+
+  const { dx, dy, borderFound } = snapToBorder(isInk, box, w, h, p);
+  const snapped = shift(box, dx, dy);
+  const snappedRedo = redo ? shift(redo, dx, dy) : undefined;
+
+  const { interior, iw, ih, inkCount, inkGraySum } = sampleInterior(r, isInk, snapped, w, h, borderFound, p);
+  const interiorPx = iw * ih;
+  const fill = interiorPx > 0 ? inkCount / interiorPx : 0;
+
+  const cells = cellCoverage(interior, iw, ih);
+  const maxCell = Math.max(...cells);
+  const minCellFill = Math.min(...cells);
+  const cellEvenness = maxCell > 0 ? minCellFill / maxCell : 0;
+
+  const { strokePx, strokeSpan } = largestStroke(interior, iw, ih);
+
+  // Ink darkness relative to the threshold (0) and print black (1)
+  const contrastSpan = inkThr - blackRef;
+  const contrast =
+    inkCount === 0 || contrastSpan <= 0
+      ? 1
+      : Math.max(0, Math.min(1, (inkThr - inkGraySum / inkCount) / contrastSpan));
+
+  const ringFill = ringInkFill(r, isInk, snapped, snappedRedo, w, h, p);
+  const redoInk = snappedRedo ? redoZoneInk(r, isInk, snapped, snappedRedo, p) : undefined;
 
   return {
     fill,
-    ...(redoRatio !== undefined ? { redoRatio } : {}),
+    ...(redoInk ? { redoRatio: redoInk.redoRatio } : {}),
     features: {
       minCellFill,
       cellEvenness,
       ringFill,
-      inkContrast,
+      inkContrast: contrast,
       strokeSpan,
       strokeFrac: interiorPx > 0 ? strokePx / interiorPx : 0,
-      ...(redoNearFrac !== undefined ? { redoNearFrac } : {}),
+      ...(redoInk ? { redoNearFrac: redoInk.redoNearFrac } : {}),
       snapDx: w > 0 ? dx / w : 0,
       snapDy: h > 0 ? dy / h : 0,
       borderFound,
@@ -451,15 +543,8 @@ function insetRect(bbox: PixelBox, inset: number, width: number, height: number)
   };
 }
 
-/** v2: dark fraction inside the inset box on the global-Otsu `dark` map. */
-export function sampleFillRatio(
-  dark: Uint8Array,
-  width: number,
-  height: number,
-  bbox: PixelBox,
-  inset: number
-): number {
-  const { x0, x1, y0, y1 } = insetRect(bbox, inset, width, height);
+/** Dark share of `dark` over `[x0, x1) × [y0, y1)`. */
+function darkFraction(dark: Uint8Array, width: number, x0: number, x1: number, y0: number, y1: number): number {
   let d = 0;
   let n = 0;
   for (let y = y0; y < y1; y++) {
@@ -469,6 +554,18 @@ export function sampleFillRatio(
     }
   }
   return n > 0 ? d / n : 0;
+}
+
+/** v2: dark fraction inside the inset box on the global-Otsu `dark` map. */
+export function sampleFillRatio(
+  dark: Uint8Array,
+  width: number,
+  height: number,
+  bbox: PixelBox,
+  inset: number
+): number {
+  const { x0, x1, y0, y1 } = insetRect(bbox, inset, width, height);
+  return darkFraction(dark, width, x0, x1, y0, y1);
 }
 
 /** v2: dark fraction of each cell of a 3×3 grid over the inset box, row-major. */
@@ -487,15 +584,7 @@ export function cellFills(
     for (let cx = 0; cx < 3; cx++) {
       const xa = x0 + Math.round(((x1 - x0) * cx) / 3);
       const xb = x0 + Math.round(((x1 - x0) * (cx + 1)) / 3);
-      let n = 0;
-      let d = 0;
-      for (let y = ya; y < yb; y++) {
-        for (let x = xa; x < xb; x++) {
-          n++;
-          if (dark[y * width + x]) d++;
-        }
-      }
-      fills.push(n > 0 ? d / n : 0);
+      fills.push(darkFraction(dark, width, xa, xb, ya, yb));
     }
   }
   return fills;
@@ -529,10 +618,7 @@ export function ringFill(
 
 /** v2: ink darkness in the inset box between the Otsu threshold (0) and print black (1). */
 export function inkContrast(
-  gray: Uint8ClampedArray,
-  dark: Uint8Array,
-  width: number,
-  height: number,
+  { gray, dark, width, height }: { gray: Uint8ClampedArray; dark: Uint8Array; width: number; height: number },
   bbox: PixelBox,
   inset: number,
   threshold: number,

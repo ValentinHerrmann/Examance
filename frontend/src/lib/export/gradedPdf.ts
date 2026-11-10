@@ -103,7 +103,7 @@ export async function renderGradedPdf(
       ? registerScorePage(boxes, page, ctx.getImageData(0, 0, canvas.width, canvas.height))
       : null;
     drawStrokes(ctx, strokes, page);
-    drawOmrOverlayForPage(ctx, canvas.width, canvas.height, page, mcState, exercises, letters, scoreInputs);
+    drawOmrOverlayForPage(ctx, canvas.width, canvas.height, page, mcState, exercises, { subExerciseLetters: letters, scoreInputs });
     drawScoreBoxesForPage(ctx, canvas.width, canvas.height, boxes?.pages[page - 1], H, boxValues);
     const png = await out.embedPng(await canvasToPng(canvas));
     const w = canvas.width * pointsPerPixel;

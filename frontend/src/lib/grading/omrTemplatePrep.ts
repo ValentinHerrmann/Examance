@@ -1,6 +1,7 @@
 import { get } from "svelte/store";
 import { effectiveRedoRect } from "./omrShape";
 import { loadPdfjs } from "#lib/pdf/pdfjs";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { 
   ExamRecord, 
   ExerciseRecord, 
@@ -117,7 +118,9 @@ export async function loadExamCompileContext(examId: string, key: CryptoKey | nu
 
   try {
     libraryExercises = await loadExercisesEncrypted(key);
-  } catch {}
+  } catch {
+    // The library is optional: MC groups still resolve from the exam's own exercises.
+  }
 
   return { exam, exercises, libraryExercises, mcGroups };
 }
@@ -195,13 +198,8 @@ export function mapScorePositions(blockExerciseIds: string[][], pages: OmrPageTe
   return Object.fromEntries(blockExerciseIds.map((ids, i) => [i + 1, ids]));
 }
 
-export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<PrepareOmrTemplateResult> {
-  const { examId, exam, exercises, libraryExercises, mcGroups, key, onProgress, examItems: suppliedExamItems } = args;
-
-  onProgress?.(translate("exam.page.omr.checkingExercises"));
-
-  const mcExercises = resolveMcExercises(exercises, libraryExercises, mcGroups);
-  console.log("[PrepareOMR] MC exercises count:", mcExercises.length, mcExercises.map((e) => ({ id: e.id, name: e.name })));
+/** Refuses exams the sheet cannot be read for: no exercises, withheld LaTeX (results-only import) or MC exercises without a `\multi`/`\Lmulti` body. */
+function assertOmrPreparable(exercises: ExerciseRecord[], mcExercises: ExerciseRecord[]): void {
   if (exercises.length === 0 && mcExercises.length === 0) {
     throw new Error(translate("exam.page.omr.noExercisesError"));
   }
@@ -212,12 +210,69 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   }
 
   const invalidExs = mcExercises.filter(
-    (ex) => !ex.latexBody || (!ex.latexBody.includes("\\multi") && !ex.latexBody.includes("\\Lmulti"))
+    (ex) => !ex.latexBody || (!ex.latexBody.includes(String.raw`\multi`) && !ex.latexBody.includes(String.raw`\Lmulti`))
   );
   if (invalidExs.length > 0) {
     const names = invalidExs.map((ex) => `'${ex.name || ex.id}'`).join(", ");
     throw new Error(translate("exam.page.omr.invalidExercisesError", { names }));
   }
+}
+
+/** Boxes, fiducials and redo zones of one page of the compiled blank sheet, read from its OMR link annotations. */
+async function extractTemplatePage(pdfDoc: PDFDocumentProxy, pageNum: number): Promise<OmrPageTemplate> {
+  const pdfPage = await pdfDoc.getPage(pageNum);
+  const viewport = pdfPage.getViewport({ scale: 1 });
+  const annotations = await pdfPage.getAnnotations();
+
+  const bubbles: OmrBubbleRect[] = [];
+  const fiducials: OmrFiducialRect[] = [];
+  const redoRects = new Map<string, [number, number, number, number]>();
+  const boxes = new Map<string, OmrScoreBoxRect>();
+
+  for (const ann of annotations) {
+    if (ann.subtype !== "Link") continue;
+    const parsed = parseOmrUri(ann.unsafeUrl ?? ann.url ?? "");
+    if (!parsed) continue;
+    const rect = ann.rect as [number, number, number, number];
+    if (parsed.kind === "fiducial") {
+      fiducials.push({ corner: parsed.corner, rect });
+    } else if (parsed.kind === "bubble" && parsed.redo) {
+      redoRects.set(`${parsed.exerciseId}|${parsed.optionIndex}`, rect);
+    } else if (parsed.kind === "bubble") {
+      bubbles.push({ exerciseId: parsed.exerciseId, optionIndex: parsed.optionIndex, rect });
+    } else {
+      const key = scoreBoxKey(parsed);
+      const prev = boxes.get(key);
+      boxes.set(key, { box: parsed.box, position: parsed.position, part: parsed.part, rect: prev ? unionRect(prev.rect, rect) : rect });
+    }
+  }
+
+  for (const b of bubbles) {
+    const redoRect = redoRects.get(`${b.exerciseId}|${b.optionIndex}`);
+    // The captured redo link overlaps the box itself (zero-width \makebox + \special in Loesung.sty); store the zone that is really left of it. The worker applies the same correction to templates captured before this fix.
+    if (redoRect) b.redoRect = effectiveRedoRect(b.rect, redoRect);
+  }
+
+  console.log(`[PrepareOMR] Page ${pageNum}: totalAnnotations=${annotations.length}, fiducials=${fiducials.length}, bubbles=${bubbles.length}, scoreBoxes=${boxes.size}`);
+
+  return {
+    pageIndex: pageNum - 1,
+    pageWidthPt: viewport.width,
+    pageHeightPt: viewport.height,
+    fiducials,
+    bubbles,
+    scoreBoxes: [...boxes.values()],
+  };
+}
+
+export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<PrepareOmrTemplateResult> {
+  const { examId, exam, exercises, libraryExercises, mcGroups, key, onProgress, examItems: suppliedExamItems } = args;
+
+  onProgress?.(translate("exam.page.omr.checkingExercises"));
+
+  const mcExercises = resolveMcExercises(exercises, libraryExercises, mcGroups);
+  console.log("[PrepareOMR] MC exercises count:", mcExercises.length, mcExercises.map((e) => ({ id: e.id, name: e.name })));
+  assertOmrPreparable(exercises, mcExercises);
 
   onProgress?.(translate("exam.page.omr.compilingBlank"));
 
@@ -227,7 +282,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   const omrExCount = (fullTex.match(/\\OmrExercise/g) || []).length;
   const multiCount = (fullTex.match(/\\multi/g) || []).length;
   const lmultiCount = (fullTex.match(/\\Lmulti/g) || []).length;
-  console.log(`[PrepareOMR] LaTeX macro counts in fullTex: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}, fullTex length=${fullTex.length}`);
+  console.log(String.raw`[PrepareOMR] LaTeX macro counts in fullTex: \OmrExercise=${omrExCount}, \multi=${multiCount}, \Lmulti=${lmultiCount}, fullTex length=${fullTex.length}`);
 
   const useLocal = effectiveLatexCompilation() === "local";
   if (!useLocal && !get(isAuthenticated)) {
@@ -266,49 +321,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
 
   const pages: OmrPageTemplate[] = [];
   for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-    const pdfPage = await pdfDoc.getPage(pageNum);
-    const viewport = pdfPage.getViewport({ scale: 1 });
-    const annotations = await pdfPage.getAnnotations();
-
-    const bubbles: OmrBubbleRect[] = [];
-    const fiducials: OmrFiducialRect[] = [];
-    const redoRects = new Map<string, [number, number, number, number]>();
-    const boxes = new Map<string, OmrScoreBoxRect>();
-
-    for (const ann of annotations) {
-      if (ann.subtype !== "Link") continue;
-      const parsed = parseOmrUri(ann.unsafeUrl ?? ann.url ?? "");
-      if (!parsed) continue;
-      const rect = ann.rect as [number, number, number, number];
-      if (parsed.kind === "fiducial") {
-        fiducials.push({ corner: parsed.corner, rect });
-      } else if (parsed.kind === "bubble" && parsed.redo) {
-        redoRects.set(`${parsed.exerciseId}|${parsed.optionIndex}`, rect);
-      } else if (parsed.kind === "bubble") {
-        bubbles.push({ exerciseId: parsed.exerciseId, optionIndex: parsed.optionIndex, rect });
-      } else {
-        const key = scoreBoxKey(parsed);
-        const prev = boxes.get(key);
-        boxes.set(key, { box: parsed.box, position: parsed.position, part: parsed.part, rect: prev ? unionRect(prev.rect, rect) : rect });
-      }
-    }
-
-    for (const b of bubbles) {
-      const redoRect = redoRects.get(`${b.exerciseId}|${b.optionIndex}`);
-      // The captured redo link overlaps the box itself (zero-width \makebox + \special in Loesung.sty); store the zone that is really left of it. The worker applies the same correction to templates captured before this fix.
-      if (redoRect) b.redoRect = effectiveRedoRect(b.rect, redoRect);
-    }
-
-    console.log(`[PrepareOMR] Page ${pageNum}: totalAnnotations=${annotations.length}, fiducials=${fiducials.length}, bubbles=${bubbles.length}, scoreBoxes=${boxes.size}`);
-
-    pages.push({
-      pageIndex: pageNum - 1,
-      pageWidthPt: viewport.width,
-      pageHeightPt: viewport.height,
-      fiducials,
-      bubbles,
-      scoreBoxes: [...boxes.values()],
-    });
+    pages.push(await extractTemplatePage(pdfDoc, pageNum)); // NOSONAR: pdf.js pages are parsed one at a time, in page order
   }
 
   console.log("[PrepareOMR] Pages extraction summary:", pages.map((p) => ({ page: p.pageIndex + 1, fiducials: p.fiducials.length, bubbles: p.bubbles.length })));
@@ -325,7 +338,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   const base = { pages, totalBubbles, totalScoreBoxes, exercisesHash, payload };
   
   if (mcExercises.length > 0 && totalBubbles === 0) {
-    console.warn(`[PrepareOMR] FAILED: totalBubbles is 0 despite ${mcExercises.length} MC exercise(s). Macro counts in fullTex were: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}`);
+    console.warn(String.raw`[PrepareOMR] FAILED: totalBubbles is 0 despite ${mcExercises.length} MC exercise(s). Macro counts in fullTex were: \OmrExercise=${omrExCount}, \multi=${multiCount}, \Lmulti=${lmultiCount}`);
     return {
       status: 'stale',
       message: translate("exam.page.omr.noBubblesError"),

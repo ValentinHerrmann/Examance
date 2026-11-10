@@ -109,25 +109,25 @@ export function buildExamLatex(
   accountPackages: readonly LatexPackageEntry[],
   { fill = true }: { fill?: boolean } = {}
 ): string {
-  const doc = `\\documentclass[a4paper]{article}
-\\usepackage[${withExamOptions(options, exam, { fill })}]{sty/Schulaufgabe}${pageCodeDefinitions(exam, options)}
-\\Info{${exam.infoText || ""}}
-\\Fach{${exam.fach || "Informatik"}}
-\\Lehrernachname{${exam.lehrernachname || ""}}
-\\usepackage{fontspec}
-\\usetikzlibrary{shapes.geometric, arrows}
-\\usepackage{sty/tikz-uml}
-\\neverindent
-\\WarningsOff
-\\begin{document}
-\\Testart{${exam.testart || "Kurzarbeit"}}
-\\Klasse{${examCourse(exam)}}
-\\Datum{${exam.datum || ""}}
-\\Nr{${exam.nr || "1"}}
+  const doc = String.raw`\documentclass[a4paper]{article}
+\usepackage[${withExamOptions(options, exam, { fill })}]{sty/Schulaufgabe}${pageCodeDefinitions(exam, options)}
+\Info{${exam.infoText || ""}}
+\Fach{${exam.fach || "Informatik"}}
+\Lehrernachname{${exam.lehrernachname || ""}}
+\usepackage{fontspec}
+\usetikzlibrary{shapes.geometric, arrows}
+\usepackage{sty/tikz-uml}
+\neverindent
+\WarningsOff
+\begin{document}
+\Testart{${exam.testart || "Kurzarbeit"}}
+\Klasse{${examCourse(exam)}}
+\Datum{${exam.datum || ""}}
+\Nr{${exam.nr || "1"}}
 
 ${exerciseInputs}
 ${extraNotesLatex(exam.extraNotes)}
-\\end{document}`;
+\end{document}`;
   return withPackages(doc, documentLayers(accountPackages, exerciseInputs, exam.latexPackages));
 }
 

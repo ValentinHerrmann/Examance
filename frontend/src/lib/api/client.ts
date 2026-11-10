@@ -152,6 +152,98 @@ function noteAuthSuccess(path: string): void {
   }
 }
 
+/** JSON by default; binary and multipart bodies keep their own content type. */
+function encodeBody(body: unknown, headers: Record<string, string>): BodyInit | undefined {
+  if (body === undefined) return undefined;
+  if (body instanceof Uint8Array || body instanceof ArrayBuffer) {
+    headers['Content-Type'] = 'application/octet-stream';
+    return body as BodyInit;
+  }
+  // The browser sets the multipart boundary itself.
+  if (body instanceof FormData) return body;
+  headers['Content-Type'] = 'application/json';
+  return JSON.stringify(body);
+}
+
+/** One fetch attempt, used for the first try and the retry after a refresh alike, so both fail as ERR_NETWORK. */
+async function sendOnce(
+  method: string,
+  path: string,
+  headers: Record<string, string>,
+  bodyInit: BodyInit | undefined,
+  timeoutMs: number,
+  silentError: boolean | undefined
+): Promise<Response> {
+  const { signal, cancel } = withTimeoutSignal(timeoutMs);
+  try {
+    const response = await fetch(`${getBaseUrl()}${path}`, {
+      method,
+      headers,
+      body: bodyInit,
+      credentials: 'include', // Always include httpOnly cookies
+      signal,
+    });
+    noteMaintenanceRevision(response.headers.get('maintenance-revision'));
+    return response;
+  } catch {
+    // fetch rejects when no usable response arrived: server unreachable, a response without the CORS headers, or a timeout (AbortError, indistinguishable from a never-resolving stall).
+    const netErr = new ApiError(
+      0,
+      'ERR_NETWORK',
+      'No response from the server. It may be unreachable, or it rejected the request before answering.'
+    );
+    if (!silentError) {
+      httpErrorStore.showError(netErr.status, netErr.message, netErr.code);
+    }
+    throw netErr;
+  } finally {
+    cancel();
+  }
+}
+
+/** The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the teacher to /unlock to enroll. Skipped on /unlock itself, where enrollment runs: locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED. */
+async function handleMfaEnrollmentRequired(resp: Response): Promise<never> {
+  const onUnlockPage =
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/unlock');
+  if (!onUnlockPage) {
+    sessionStore.lock();
+    if (typeof window !== 'undefined') {
+      window.location.assign('/unlock');
+    }
+  }
+  return handleNonOkResponse(resp, true);
+}
+
+/** Another tab signed in as someone else. Drop only this tab's keys (no broadcast: the other tab owns the cookie now) and never write into that account. */
+async function handleAccountMismatch(resp: Response): Promise<never> {
+  sessionStore.reset();
+  if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/unlock')) {
+    window.location.assign('/unlock');
+  }
+  return handleNonOkResponse(resp, true);
+}
+
+/** Waits for the (deduplicated) session refresh after a 401; a failed refresh surfaces as the request's error. */
+async function awaitSessionRefresh(silentError: boolean | undefined): Promise<void> {
+  // Deduplicate concurrent refreshes. A request that 401'd by racing a just-finished refresh retries directly; a second rotation would trip token-theft detection and revoke every session.
+  if (!refreshPromise && Date.now() - lastRefreshAt >= REFRESH_GRACE_MS) {
+    void refreshSession().catch(() => {});
+  }
+  try {
+    if (refreshPromise) await refreshPromise;
+  } catch (err: any) {
+    if (!silentError) {
+      const status = err instanceof ApiError && err.status ? err.status : 401;
+      httpErrorStore.showError(
+        status,
+        err?.message || translate('errors.unauthorized'),
+        err?.code || 'ERR_UNAUTHORIZED'
+      );
+    }
+    throw err;
+  }
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -162,51 +254,10 @@ async function request<T>(
   // The server answers 409 ERR_ACCOUNT_MISMATCH when the cookie now belongs to another account (S12).
   const account = get(sessionStore).teacherId;
   if (account) headers['X-Expected-Account'] = account;
-  let bodyInit: BodyInit | undefined;
-
-  if (body !== undefined) {
-    if (body instanceof Uint8Array || body instanceof ArrayBuffer) {
-      headers['Content-Type'] = 'application/octet-stream';
-      bodyInit = body as BodyInit;
-    } else if (body instanceof FormData) {
-      // The browser sets the multipart boundary itself.
-      bodyInit = body;
-    } else {
-      headers['Content-Type'] = 'application/json';
-      bodyInit = JSON.stringify(body);
-    }
-  }
+  const bodyInit = encodeBody(body, headers);
 
   const timeoutMs = options.binary || options.longTimeout ? BINARY_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
-
-  // Used for the first attempt and the retry after a refresh alike, so both fail as ERR_NETWORK.
-  const send = async (): Promise<Response> => {
-    const { signal, cancel } = withTimeoutSignal(timeoutMs);
-    try {
-      const response = await fetch(`${getBaseUrl()}${path}`, {
-        method,
-        headers,
-        body: bodyInit,
-        credentials: 'include', // Always include httpOnly cookies
-        signal,
-      });
-      noteMaintenanceRevision(response.headers.get('maintenance-revision'));
-      return response;
-    } catch {
-      // fetch rejects when no usable response arrived: server unreachable, a response without the CORS headers, or a timeout (AbortError, indistinguishable from a never-resolving stall).
-      const netErr = new ApiError(
-        0,
-        'ERR_NETWORK',
-        'No response from the server. It may be unreachable, or it rejected the request before answering.'
-      );
-      if (!options.silentError) {
-        httpErrorStore.showError(netErr.status, netErr.message, netErr.code);
-      }
-      throw netErr;
-    } finally {
-      cancel();
-    }
-  };
+  const send = () => sendOnce(method, path, headers, bodyInit, timeoutMs, options.silentError);
 
   // 202 with `pendingOn202` means "not ready yet" (compile job polls): undefined, like a 204.
   const parseBody = (r: Response): Promise<T> => {
@@ -216,47 +267,17 @@ async function request<T>(
 
   const resp = await send();
 
+  // Must come before the 401 branch (a refresh would rotate a valid token for nothing).
   if (resp.status === 403 && resp.headers.get('code') === 'ERR_MFA_ENROLLMENT_REQUIRED') {
-    // The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the teacher to /unlock to enroll. Must come before the 401 branch (a refresh would rotate a valid token for nothing). Skipped on /unlock itself, where enrollment runs: locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED.
-    const onUnlockPage =
-      typeof window !== 'undefined' && window.location.pathname.startsWith('/unlock');
-    if (!onUnlockPage) {
-      sessionStore.lock();
-      if (typeof window !== 'undefined') {
-        window.location.assign('/unlock');
-      }
-    }
-    await handleNonOkResponse(resp, true);
+    await handleMfaEnrollmentRequired(resp);
   }
 
   if (resp.status === 409 && resp.headers.get('code') === 'ERR_ACCOUNT_MISMATCH') {
-    // Another tab signed in as someone else. Drop only this tab's keys (no broadcast: the other tab owns the cookie now) and never write into that account.
-    sessionStore.reset();
-    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/unlock')) {
-      window.location.assign('/unlock');
-    }
-    await handleNonOkResponse(resp, true);
+    await handleAccountMismatch(resp);
   }
 
   if (resp.status === 401 && !path.startsWith('/auth/')) {
-    // Deduplicate concurrent refreshes. A request that 401'd by racing a just-finished refresh retries directly; a second rotation would trip token-theft detection and revoke every session.
-    if (!refreshPromise && Date.now() - lastRefreshAt >= REFRESH_GRACE_MS) {
-      void refreshSession().catch(() => {});
-    }
-    try {
-      if (refreshPromise) await refreshPromise;
-    } catch (err: any) {
-      if (!options.silentError) {
-        const status = err instanceof ApiError && err.status ? err.status : 401;
-        httpErrorStore.showError(
-          status,
-          err?.message || translate('errors.unauthorized'),
-          err?.code || 'ERR_UNAUTHORIZED'
-        );
-      }
-      throw err;
-    }
-
+    await awaitSessionRefresh(options.silentError);
     // Retry original request after refresh
     const retryResp = await send();
     if (!retryResp.ok) {

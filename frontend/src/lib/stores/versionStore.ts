@@ -18,7 +18,7 @@ export function versionUrlFor(version: string, commitSha: string): string | null
     if (!version.includes('-')) return `${repoUrl}/releases/tag/v${version}`;
 
     // Preview build with PR format: extract PR number and link to it
-    const prMatch = version.match(/PR#(\d+)/);
+    const prMatch = /PR#(\d+)/.exec(version);
     if (prMatch) {
         return `${repoUrl}/pull/${prMatch[1]}`;
     }

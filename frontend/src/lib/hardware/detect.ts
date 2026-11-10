@@ -46,7 +46,7 @@ export function detectHardware(): HardwareProfile {
 export type PipelineMonitorEvent = 'downgrade';
 
 export class PipelineMonitor {
-  private listeners: Set<(evt: PipelineMonitorEvent) => void> = new Set();
+  private readonly listeners: Set<(evt: PipelineMonitorEvent) => void> = new Set();
   private isDowngraded = false;
 
   constructor(initialProfile?: HardwareProfile) {
@@ -69,7 +69,7 @@ export class PipelineMonitor {
     if (this.isDowngraded) return;
 
     const perfMemory = (performance as any).memory;
-    if (perfMemory && perfMemory.usedJSHeapSize && perfMemory.jsHeapSizeLimit) {
+    if (perfMemory?.usedJSHeapSize && perfMemory.jsHeapSizeLimit) {
       const usageRatio = perfMemory.usedJSHeapSize / perfMemory.jsHeapSizeLimit;
       if (usageRatio > 0.7) {
         console.warn(

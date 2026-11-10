@@ -12,19 +12,22 @@ export function intlLocale(activeLocale: Locale = get(locale)): string {
     return INTL_LOCALE[activeLocale];
 }
 
-function toDate(value: Date | string | number): Date | null {
+/** Anything `formatDate` accepts. */
+type DateInput = Date | string | number;
+
+function toDate(value: DateInput): Date | null {
     const date = value instanceof Date ? value : new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /** Date only, e.g. `19.08.2026` / `19/08/2026`. Empty string for unparsable input. */
-export function formatDate(value: Date | string | number, activeLocale: Locale = get(locale)): string {
+export function formatDate(value: DateInput, activeLocale: Locale = get(locale)): string {
     const date = toDate(value);
     return date ? date.toLocaleDateString(intlLocale(activeLocale)) : '';
 }
 
 /** Date and time, e.g. `19.08.2026, 14:03`. */
-export function formatDateTime(value: Date | string | number, activeLocale: Locale = get(locale)): string {
+export function formatDateTime(value: DateInput, activeLocale: Locale = get(locale)): string {
     const date = toDate(value);
     return date ? date.toLocaleString(intlLocale(activeLocale)) : '';
 }
@@ -55,8 +58,8 @@ export function formatPercent(
 
 /** Reactive formatters for markup: `{$fmt.date(exam.createdAt)}` re-renders when the language is switched. */
 export const fmt = derived(locale, ($locale) => ({
-    date: (value: Date | string | number) => formatDate(value, $locale),
-    dateTime: (value: Date | string | number) => formatDateTime(value, $locale),
+    date: (value: DateInput) => formatDate(value, $locale),
+    dateTime: (value: DateInput) => formatDateTime(value, $locale),
     number: (value: number, options?: Intl.NumberFormatOptions) => formatNumber(value, options, $locale),
     percent: (value: number, fractionDigits?: number) => formatPercent(value, fractionDigits, $locale),
 }));

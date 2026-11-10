@@ -56,6 +56,56 @@ export async function renderScanPage(
   }
 }
 
+type NormRect = [number, number, number, number];
+
+/** Union of the bubble rects (normalized), or a default band when none is usable. */
+function bubbleBounds(bubbles: McCropOptions['bubbles'] | undefined): { minX: number; minY: number; maxX: number; maxY: number } {
+  let minX = 1;
+  let minY = 1;
+  let maxX = 0;
+  let maxY = 0;
+
+  for (const b of bubbles ?? []) {
+    if (!b.rect || b.rect.length < 4) continue;
+    const [x0, y0, x1, y1] = b.rect;
+    minX = Math.min(minX, x0);
+    minY = Math.min(minY, y0);
+    maxX = Math.max(maxX, x1);
+    maxY = Math.max(maxY, y1);
+  }
+
+  if (minX >= maxX || minY >= maxY) return { minX: 0.1, minY: 0.1, maxX: 0.9, maxY: 0.5 };
+  return { minX, minY, maxX, maxY };
+}
+
+/** Narrows the vertical crop so the neighbouring exercises just above and below stay out of it. */
+function trimToNeighbours(
+  cropMinY: number,
+  cropMaxY: number,
+  minY: number,
+  maxY: number,
+  neighbourRects: NormRect[] | undefined
+): [number, number] {
+  if (!neighbourRects || neighbourRects.length === 0) return [cropMinY, cropMaxY];
+  let maxNeighbourY1 = -Infinity;
+  let minNeighbourY0 = Infinity;
+
+  for (const r of neighbourRects) {
+    if (!r || r.length < 4) continue;
+    const [, y0, , y1] = r;
+    if (y1 <= minY && y1 > maxNeighbourY1) {
+      maxNeighbourY1 = y1;
+    }
+    if (y0 >= maxY && y0 < minNeighbourY0) {
+      minNeighbourY0 = y0;
+    }
+  }
+
+  const trimmedMin = maxNeighbourY1 === -Infinity ? cropMinY : Math.max(cropMinY, maxNeighbourY1 + 0.005);
+  const trimmedMax = minNeighbourY0 === Infinity ? cropMaxY : Math.min(cropMaxY, minNeighbourY0 - 0.005);
+  return [trimmedMin, trimmedMax];
+}
+
 /** Renders a cropped high-DPI image of an MC bubble region, with and without the overlay (same page render), so a viewer can toggle markings. Returns PNG data URLs. */
 export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers> {
   const {
@@ -89,61 +139,23 @@ export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers
       pageIndex + 1,
       { [overlay.exercise.id]: { omrMeta: overlay.omrMeta } },
       [overlay.exercise],
-      new Map(), // no sub-exercise letter/running-total stamp in the single-item crop view
-      {}
+      { subExerciseLetters: new Map(), scoreInputs: {} } // no sub-exercise letter/running-total stamp in the single-item crop view
     );
   }
 
-  let minX = 1;
-  let minY = 1;
-  let maxX = 0;
-  let maxY = 0;
-
-  if (bubbles && bubbles.length > 0) {
-    for (const b of bubbles) {
-      if (!b.rect || b.rect.length < 4) continue;
-      const [x0, y0, x1, y1] = b.rect;
-      minX = Math.min(minX, x0);
-      minY = Math.min(minY, y0);
-      maxX = Math.max(maxX, x1);
-      maxY = Math.max(maxY, y1);
-    }
-  }
-
-  if (minX >= maxX || minY >= maxY) {
-    minX = 0.1;
-    maxX = 0.9;
-    minY = 0.1;
-    maxY = 0.5;
-  }
+  const { minX, minY, maxX, maxY } = bubbleBounds(bubbles);
 
   const cropMinX = Math.max(0, minX - paddingX);
   const cropMaxX = Math.min(1, maxX + paddingX);
-  let cropMinY = Math.max(0, minY - paddingTop);
-  let cropMaxY = Math.min(1, maxY + paddingBottom);
-
-  if (neighbourRects && neighbourRects.length > 0) {
-    let maxNeighbourY1 = -Infinity;
-    let minNeighbourY0 = Infinity;
-
-    for (const r of neighbourRects) {
-      if (!r || r.length < 4) continue;
-      const [, y0, , y1] = r;
-      if (y1 <= minY && y1 > maxNeighbourY1) {
-        maxNeighbourY1 = y1;
-      }
-      if (y0 >= maxY && y0 < minNeighbourY0) {
-        minNeighbourY0 = y0;
-      }
-    }
-
-    if (maxNeighbourY1 !== -Infinity) {
-      cropMinY = Math.max(cropMinY, maxNeighbourY1 + 0.005);
-    }
-    if (minNeighbourY0 !== Infinity) {
-      cropMaxY = Math.min(cropMaxY, minNeighbourY0 - 0.005);
-    }
-  }
+  const [cropMinY0, cropMaxY0] = trimToNeighbours(
+    Math.max(0, minY - paddingTop),
+    Math.min(1, maxY + paddingBottom),
+    minY,
+    maxY,
+    neighbourRects
+  );
+  let cropMinY = cropMinY0;
+  let cropMaxY = cropMaxY0;
 
   if (cropMinY > cropMaxY) {
     cropMinY = Math.max(0, minY - paddingTop);

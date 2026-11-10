@@ -170,7 +170,7 @@ export function validateOmrParams(p: OmrDetectionParams): OmrParamsError[] {
     if (!isValidValue(spec, p[spec.key])) errors.push({ code: 'range', key: spec.key });
   }
   if (!(p.ambiguousLow < p.markedHigh && p.markedHigh < p.filledHigh)) errors.push({ code: 'fillOrder' });
-  if (!(p.fiducialAreaMinRatio < p.fiducialAreaMaxRatio)) errors.push({ code: 'areaOrder' });
+  if (!(p.fiducialAreaMinRatio < p.fiducialAreaMaxRatio)) errors.push({ code: 'areaOrder' }); // NOSONAR: negation also rejects NaN
   return errors;
 }
 
@@ -187,7 +187,7 @@ export function normalizeOmrParams(input: unknown): OmrDetectionParams {
     out.markedHigh = DEFAULT_OMR_PARAMS.markedHigh;
     out.filledHigh = DEFAULT_OMR_PARAMS.filledHigh;
   }
-  if (!(out.fiducialAreaMinRatio < out.fiducialAreaMaxRatio)) {
+  if (!(out.fiducialAreaMinRatio < out.fiducialAreaMaxRatio)) { // NOSONAR: negation also resets NaN
     out.fiducialAreaMinRatio = DEFAULT_OMR_PARAMS.fiducialAreaMinRatio;
     out.fiducialAreaMaxRatio = DEFAULT_OMR_PARAMS.fiducialAreaMaxRatio;
   }

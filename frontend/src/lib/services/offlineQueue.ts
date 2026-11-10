@@ -63,7 +63,7 @@ if (typeof window !== 'undefined') {
   offlineQueue.subscribe((queue) => {
     persisting = persisting.then(() => persist(queue));
   });
-  void hydrate();
+  void hydrate(); // NOSONAR: top-level await would block every importer
 }
 
 let lastTimestamp = 0;
@@ -162,15 +162,20 @@ function send(req: QueuedRequest): Promise<unknown> {
 /** `needs-choice` too: the owner check passed, and the mode-switch wizard waits for this queue to drain. */
 const isFlushable = (state: string) => state === 'ok' || state === 'needs-choice';
 
-async function replay(): Promise<void> {
+/** Queue entries this session may replay now; empty when it is not signed in or does not own the workspace. */
+function replayableEntries(): QueuedRequest[] {
   // Never replay against a session that isn't fully signed in: `online` fires readily on a tablet, and a sign-in in progress has demoted the access cookie, so replaying would burst 403s for replayable writes.
-  if (!get(isUnlocked)) return;
+  if (!get(isUnlocked)) return [];
   // Only into the workspace the writes were made in, and only once the session has proven it owns it.
-  if (!isServerBacked() || !isFlushable(get(workspaceStatusStore).state)) return;
+  if (!isServerBacked() || !isFlushable(get(workspaceStatusStore).state)) return [];
   const workspaceId = get(workspaceIdStore);
-  if (!workspaceId) return;
+  if (!workspaceId) return [];
   // Entries of another workspace stay untouched (never replayed here, dropped when it is replaced).
-  const pending = get(offlineQueue).filter((req) => req.workspaceId === workspaceId);
+  return get(offlineQueue).filter((req) => req.workspaceId === workspaceId);
+}
+
+async function replay(): Promise<void> {
+  const pending = replayableEntries();
   if (pending.length === 0) return;
 
   const processed = new Set<string>();
@@ -194,7 +199,7 @@ async function replay(): Promise<void> {
     if (hasIdb()) await db.offlineQueue.bulkDelete([...processed]).catch(() => {});
   }
   if (rejected.length > 0) {
-    rejectedWritesStore.update(({ count }) => ({ count: count + rejected.length, lastMessage: rejected[rejected.length - 1] }));
+    rejectedWritesStore.update(({ count }) => ({ count: count + rejected.length, lastMessage: rejected.at(-1) ?? '' }));
   }
 }
 

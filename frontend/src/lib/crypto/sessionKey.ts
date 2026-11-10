@@ -29,22 +29,12 @@ export async function deriveSessionKey(
 }
 
 /** Legacy session key using the old app context ('blindgrade-session-key-v1'), for pre-rename encrypted session stores. */
-export async function deriveLegacySessionKey(
+export function deriveLegacySessionKey(
   masterKey: CryptoKey,
   nonce: Uint8Array
 ): Promise<CryptoKey> {
-  return crypto.subtle.deriveKey(
-    {
-      name: 'HKDF',
-      hash: 'SHA-256',
-      salt: toArrayBuffer(nonce),
-      info: new TextEncoder().encode('blindgrade-session-key-v1'),
-    },
-    masterKey,
-    { name: 'AES-GCM', length: 256 },
-    true,
-    ['encrypt', 'decrypt']
-  );
+  // The legacy context string is identical to the current one, so the derivation is shared.
+  return deriveSessionKey(masterKey, nonce);
 }
 
 /** Derive the archive secret (raw bits) from masterKey via HKDF, for pseudonym HMAC in .bgproj archives; purpose matches ARCHIVE_SECRET_PURPOSE in format.ts. */

@@ -123,12 +123,12 @@ async function writeLocal(results: ExamResults): Promise<void> {
     await db.submissions.bulkPut(submissions);
     // Rows are identified by (submission, exercise) in both stores: keep a local row's id when one exists.
     for (const row of scores) {
-      const existing = await db.exerciseScores
+      const existing = await db.exerciseScores // NOSONAR: rows are written in order inside one transaction
         .where('submissionId')
         .equals(row.submissionId)
         .and((r) => r.exerciseId === row.exerciseId)
         .first();
-      await db.exerciseScores.put({ ...row, id: existing?.id ?? row.id });
+      await db.exerciseScores.put({ ...row, id: existing?.id ?? row.id }); // NOSONAR: rows are written in order inside one transaction
     }
   });
 }
@@ -146,18 +146,18 @@ async function keyedForServer(examId: string, results: ExamResults): Promise<Exa
 async function writeServer(examId: string, results: ExamResults): Promise<void> {
   const k = key();
   for (const student of results.students) {
-    await api.post(`/exams/${examId}/students`, await studentServerPayload(student, k), { silentError: true });
+    await api.post(`/exams/${examId}/students`, await studentServerPayload(student, k), { silentError: true }); // NOSONAR: server writes stay in foreign-key order
   }
   for (const submission of results.submissions) {
-    await api.post(`/exams/${examId}/submissions`, await submissionServerPayload(submission), { silentError: true });
+    await api.post(`/exams/${examId}/submissions`, await submissionServerPayload(submission), { silentError: true }); // NOSONAR: server writes stay in foreign-key order
   }
   const bySubmission = new Map<string, ExerciseScoreRecord[]>();
   for (const score of results.scores) {
     bySubmission.set(score.submissionId, [...(bySubmission.get(score.submissionId) ?? []), score]);
   }
   for (const [submissionId, scores] of bySubmission) {
-    const sealed = await Promise.all(scores.map((s) => encryptScore(s, k)));
-    await api.put(
+    const sealed = await Promise.all(scores.map((s) => encryptScore(s, k))); // NOSONAR: server writes stay in foreign-key order
+    await api.put( // NOSONAR: server writes stay in foreign-key order
       `/exams/${examId}/submissions/${submissionId}/scores`,
       { scores: sealed.map(scoreToApi) },
       { silentError: true }
