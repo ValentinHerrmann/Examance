@@ -17,6 +17,10 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+# Least privilege by default; jobs that need more declare their own permissions.
+permissions:
+  contents: read
+
 env:
   IMAGE_NAME: examance-backend
 
