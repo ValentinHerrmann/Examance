@@ -88,7 +88,8 @@ async def test_version_proposal_becomes_a_new_version(linked) -> None:
     assert resp.status_code == 200, resp.text
     result_id = resp.json()["result_exercise_id"]
     new_row = (await a.get(f"{API}/{result_id}")).json()
-    assert new_row["version"] == 2 and "Improved" in new_row["latex_body"]
+    assert new_row["version"] == 2
+    assert "Improved" in new_row["latex_body"]
     assert new_row["max_points"] == 2.0
     old_row = (await a.get(f"{API}/{linked['ex_id']}")).json()
     assert old_row["is_current"] is False
@@ -156,7 +157,8 @@ async def test_reject_and_withdraw_drop_the_payload(linked) -> None:
     assert resp.status_code == 204
     outgoing = (await b.get(CONTRIB, params={"direction": "outgoing"})).json()
     (item,) = [i for i in outgoing if i["id"] == first]
-    assert item["status"] == "rejected" and item["decision_note"] == "Not needed"
+    assert item["status"] == "rejected"
+    assert item["decision_note"] == "Not needed"
 
     await _edit_copy(b, linked["copy_id"], "\\BE Second try")
     (second,) = await _propose(b, linked["group_id"], [linked["copy_id"]])
@@ -172,7 +174,8 @@ async def test_a_newer_proposal_replaces_the_pending_one(linked) -> None:
     (second,) = await _propose(b, linked["group_id"], [linked["copy_id"]])
     outgoing = (await b.get(CONTRIB, params={"direction": "outgoing"})).json()
     statuses = {i["id"]: i["status"] for i in outgoing}
-    assert statuses[first] == "withdrawn" and statuses[second] == "pending"
+    assert statuses[first] == "withdrawn"
+    assert statuses[second] == "pending"
 
 
 @pytest.mark.asyncio
@@ -186,7 +189,8 @@ async def test_stale_target_falls_back_to_the_current_version(linked) -> None:
     (item,) = [
         i for i in (await a.get(CONTRIB)).json() if i["id"] == cid
     ]
-    assert item["stale"] is True and item["target_gone"] is False
+    assert item["stale"] is True
+    assert item["target_gone"] is False
     resp = await a.post(f"{CONTRIB}/{cid}/accept", json={})
     assert resp.status_code == 200, resp.text
     row = (await a.get(f"{API}/{resp.json()['result_exercise_id']}")).json()
@@ -276,7 +280,8 @@ async def test_accepted_variant_links_the_contributors_variant(linked) -> None:
     assert (await a.post(f"{CONTRIB}/{cid}/accept", json={})).status_code == 200
     status = await _status(b, linked["group_id"])
     assert status["state"] == "up_to_date"
-    assert status["new_variants"] == 0 and status["local_variants"] == 0
+    assert status["new_variants"] == 0
+    assert status["local_variants"] == 0
 
 
 @pytest.mark.asyncio
@@ -311,7 +316,8 @@ async def test_a_reject_after_the_accept_is_refused(linked) -> None:
     resp = await a.post(f"{CONTRIB}/{cid}/reject", json={"note": "Too late"})
     assert resp.status_code == 409
     detail = (await a.get(f"{CONTRIB}/{cid}")).json()
-    assert detail["status"] == "accepted" and detail["decision_note"] is None
+    assert detail["status"] == "accepted"
+    assert detail["decision_note"] is None
 
 
 @pytest.mark.asyncio

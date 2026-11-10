@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.teacher import Teacher
+    from app.services.blob_audit import BlobAudit
 
 
 @click.group()
@@ -290,6 +291,26 @@ def init_blob_store(force: bool, rebind_from: str | None) -> None:
     click.echo(f"Blob store ready: {path}")
 
 
+def _echo_exam_findings(report: BlobAudit) -> None:
+    for exam_key, exam in sorted(report.exams.items(), key=lambda item: str(item[0])):
+        if exam.missing or exam.no_scan:
+            click.echo(f"exam {exam_key}: {exam.live} live, {len(exam.missing)} file missing, {exam.no_scan} without scan")
+            for sub_id in exam.missing:
+                click.echo(f"  missing: submission {sub_id}")
+
+
+def _echo_blob_report(report: BlobAudit, forget_missing: bool, yes: bool) -> None:
+    click.echo(f"Store: {report.store or 'none configured (scans in the database)'}")
+    _echo_exam_findings(report)
+    if report.unchecked_paths:
+        click.echo(f"{report.unchecked_paths} row(s) name a file, but no file store is configured.")
+    click.echo(f"Files no live row names: {report.held_by_trash} held by the trash, {report.unreferenced} unreferenced (the sweep removes these).")
+    missing = len(report.missing_ids)
+    if forget_missing:
+        verb = "Cleared" if yes else "Would clear (pass --yes)"
+        click.echo(f"{verb} the file reference of {missing} row(s); rows, scores and files stay.")
+
+
 @cli.command("check-blobs")
 @click.option("--forget-missing", is_flag=True, default=False, help="Clear the file reference of live rows whose file is missing.")
 @click.option("--yes", is_flag=True, default=False, help="Apply --forget-missing; without it, only show what would change.")
@@ -308,19 +329,7 @@ def check_blobs(forget_missing: bool, yes: bool, exam_id: uuid.UUID | None) -> N
         report = asyncio.run(in_session(_run))
     except blob_store.BlobStoreUnavailable as exc:
         raise click.ClickException(exc.reason) from None
-    click.echo(f"Store: {report.store or 'none configured (scans in the database)'}")
-    for exam_id, exam in sorted(report.exams.items(), key=lambda item: str(item[0])):
-        if exam.missing or exam.no_scan:
-            click.echo(f"exam {exam_id}: {exam.live} live, {len(exam.missing)} file missing, {exam.no_scan} without scan")
-            for sub_id in exam.missing:
-                click.echo(f"  missing: submission {sub_id}")
-    if report.unchecked_paths:
-        click.echo(f"{report.unchecked_paths} row(s) name a file, but no file store is configured.")
-    click.echo(f"Files no live row names: {report.held_by_trash} held by the trash, {report.unreferenced} unreferenced (the sweep removes these).")
-    missing = len(report.missing_ids)
-    if forget_missing:
-        verb = "Cleared" if yes else "Would clear (pass --yes)"
-        click.echo(f"{verb} the file reference of {missing} row(s); rows, scores and files stay.")
+    _echo_blob_report(report, forget_missing, yes)
     if report.broken and not (forget_missing and yes and not report.unchecked_paths):
         raise SystemExit(1)
 

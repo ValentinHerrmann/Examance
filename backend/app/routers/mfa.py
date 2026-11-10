@@ -37,7 +37,7 @@ def _require_enrollment_scope(
         )
 
 
-@router.get("/status", response_model=MfaStatusResponse)
+@router.get("/status")
 async def mfa_status(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),

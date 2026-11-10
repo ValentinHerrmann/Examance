@@ -36,6 +36,21 @@ class BlobAudit:
         return bool(self.missing_ids) or self.unchecked_paths > 0
 
 
+async def _count_orphans(db: AsyncSession, report: BlobAudit) -> None:
+    """Counts the store's files no live row names: held by the trash, or unreferenced."""
+    named = set(
+        await db.scalars(select(ScanSubmission.scan_path).where(ScanSubmission.scan_path.isnot(None)))
+    )
+    in_trash = await trash.all_blob_refs(db)
+    for ref, _ in blob_store.iter_refs(scan_storage.KIND):
+        if ref in named:
+            continue
+        if ref in in_trash:
+            report.held_by_trash += 1
+        else:
+            report.unreferenced += 1
+
+
 async def audit(db: AsyncSession, exam_id: uuid.UUID | None = None) -> BlobAudit:
     """Compare live rows (of one exam, when given) with the store; orphan counts are store-wide. Raises `BlobStoreUnavailable` when a configured store does not validate (an unmounted store must never read as "every file missing")."""
     store = str(blob_store.root()) if blob_store.configured() else None
@@ -62,17 +77,7 @@ async def audit(db: AsyncSession, exam_id: uuid.UUID | None = None) -> BlobAudit
         elif not in_db:
             exam.no_scan += 1
     if store is not None:
-        named = set(
-            await db.scalars(select(ScanSubmission.scan_path).where(ScanSubmission.scan_path.isnot(None)))
-        )
-        in_trash = await trash.all_blob_refs(db)
-        for ref, _ in blob_store.iter_refs(scan_storage.KIND):
-            if ref in named:
-                continue
-            if ref in in_trash:
-                report.held_by_trash += 1
-            else:
-                report.unreferenced += 1
+        await _count_orphans(db, report)
     return report
 
 

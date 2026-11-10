@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
+from app.models.teacher import Teacher
 from app.models.webauthn_credential import WebAuthnCredential
 from app.routers.auth import advance_sign_in, reissue_pending_headers
 from app.schemas.auth import AuthResponse
@@ -26,6 +27,8 @@ from app.services import audit as audit_svc
 from app.services import auth_policy, maintenance, pending_token
 from app.services import webauthn as webauthn_svc
 from app.services.jwt import decode_token
+
+_NOT_AUTHENTICATED = "Not authenticated."
 
 router = APIRouter(prefix="/webauthn", tags=["webauthn"])
 
@@ -64,7 +67,7 @@ async def register_options(
     if session.scope not in _REGISTER_SCOPES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authenticated.",
+            detail=_NOT_AUTHENTICATED,
             headers={"code": "ERR_UNAUTHORIZED"},
         )
     try:
@@ -99,7 +102,7 @@ async def register_verify(
     if session.scope not in _REGISTER_SCOPES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authenticated.",
+            detail=_NOT_AUTHENTICATED,
             headers={"code": "ERR_UNAUTHORIZED"},
         )
     try:
@@ -123,7 +126,7 @@ async def register_verify(
     return _summary(credential)
 
 
-@router.post("/login/options", response_model=CeremonyOptionsResponse)
+@router.post("/login/options")
 @limiter.limit("30/minute")
 async def login_options(
     request: Request, body: AuthenticationOptionsRequest | None = None
@@ -148,16 +151,10 @@ async def login_options(
     )
 
 
-@router.post("/login/verify", response_model=AuthResponse)
-@limiter.limit("10/minute;50/hour")
-async def login_verify(
-    body: AuthenticationVerifyRequest,
-    request: Request,
-    response: Response,
-    db: AsyncSession = Depends(get_db),
-    access_token: str | None = Cookie(default=None),
-) -> AuthResponse:
-    """Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy. The cookie is read directly, not via a dependency, because this must work with no session (passkey first) and with a sign-in part-way through (passkey second)."""
+def _read_pending_cookie(
+    access_token: str | None,
+) -> tuple[list[str], str, str | None, str | None]:
+    """The sign-in in progress a cookie carries as (factors so far, flow, jti, subject); a stale or malformed cookie means none."""
     already: list[str] = []
     flow = "auth_pending"
     pending_jti: str | None = None
@@ -175,6 +172,29 @@ async def login_verify(
         except jwt.InvalidTokenError:
             # A stale or malformed cookie simply means "no sign-in in progress".
             already = []
+    return already, flow, pending_jti, pending_subject
+
+
+async def _pending_teacher(db: AsyncSession, subject: str | None) -> Teacher | None:
+    if not subject:
+        return None
+    try:
+        return await auth_policy.teacher_by_id(db, uuid.UUID(subject))
+    except ValueError:
+        return None
+
+
+@router.post("/login/verify")
+@limiter.limit("10/minute;50/hour")
+async def login_verify(
+    body: AuthenticationVerifyRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    access_token: str | None = Cookie(default=None),
+) -> AuthResponse:
+    """Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy. The cookie is read directly, not via a dependency, because this must work with no session (passkey first) and with a sign-in part-way through (passkey second)."""
+    already, flow, pending_jti, pending_subject = _read_pending_cookie(access_token)
 
     if "passkey" in already:
         raise HTTPException(
@@ -183,12 +203,7 @@ async def login_verify(
             headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
         )
 
-    pending_teacher = None
-    if pending_subject:
-        try:
-            pending_teacher = await auth_policy.teacher_by_id(db, uuid.UUID(pending_subject))
-        except ValueError:
-            pending_teacher = None
+    pending_teacher = await _pending_teacher(db, pending_subject)
     if pending_teacher is not None and flow == "auth_pending":
         # Before consuming, so a teacher refused for maintenance keeps the step (issue #130).
         await maintenance.ensure_sign_in_allowed(db, pending_teacher.role)
@@ -206,13 +221,11 @@ async def login_verify(
         )
     except Exception as exc:  # noqa: BLE001 - every ceremony failure reads alike
         # As a second factor, a failed ceremony costs the attempt, not the consumed sign-in step.
-        retry_headers = (
-            await reissue_pending_headers(
+        retry_headers: dict[str, str] = {}
+        if pending_jti is not None and pending_teacher is not None:
+            retry_headers = await reissue_pending_headers(
                 PendingSession(teacher=pending_teacher, scope=flow, amr=already, jti=None)
             )
-            if pending_jti is not None and pending_teacher is not None
-            else {}
-        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc) or "The passkey could not be verified.",
@@ -240,7 +253,7 @@ async def login_verify(
     )
 
 
-@router.get("/credentials", response_model=CredentialListResponse)
+@router.get("/credentials")
 async def list_credentials(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
@@ -248,7 +261,7 @@ async def list_credentials(
     if session.scope not in _LIST_SCOPES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authenticated.",
+            detail=_NOT_AUTHENTICATED,
             headers={"code": "ERR_UNAUTHORIZED"},
         )
     rows = await webauthn_svc.list_credentials(db, session.teacher.id)

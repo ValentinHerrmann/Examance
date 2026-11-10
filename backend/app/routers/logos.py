@@ -87,7 +87,7 @@ async def _trash_account_logo(
     await trash_scope.capture(db, "teacher_logo", snap, label={})
 
 
-@router.get("/user/logo", response_model=AccountLogoInfo)
+@router.get("/user/logo")
 async def get_account_logo(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
@@ -106,7 +106,7 @@ async def download_account_logo(
     return _logo_response(logo)
 
 
-@router.put("/user/logo", response_model=AccountLogoInfo)
+@router.put("/user/logo")
 async def set_account_logo(
     body: AccountLogoUpdate,
     trash_scope: trash.Trash,
@@ -131,7 +131,7 @@ async def set_account_logo(
     return _account_info(row)
 
 
-@router.delete("/user/logo", response_model=AccountLogoInfo)
+@router.delete("/user/logo")
 async def reset_account_logo(
     trash_scope: trash.Trash,
     teacher: Teacher = Depends(get_current_teacher),
@@ -167,7 +167,7 @@ async def _exam_info(exam: Exam, teacher: Teacher, db: AsyncSession) -> ExamLogo
     )
 
 
-@router.get("/exams/{exam_id}/logo", response_model=ExamLogoInfo)
+@router.get("/exams/{exam_id}/logo")
 async def get_exam_logo_info(
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_current_teacher),
@@ -188,7 +188,7 @@ async def download_exam_logo(
     return _logo_response(logo)
 
 
-@router.put("/exams/{exam_id}/logo", response_model=ExamLogoInfo)
+@router.put("/exams/{exam_id}/logo")
 async def set_exam_logo(
     body: ExamLogoUpdate,
     trash_scope: trash.Trash,

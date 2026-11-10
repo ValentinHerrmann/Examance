@@ -10,7 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_teacher, get_teaching_teacher, require_not_frozen
+from app.dependencies import (
+    DB,
+    TeachingTeacher,
+    get_current_teacher,
+    get_teaching_teacher,
+    require_not_frozen,
+)
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
@@ -41,7 +47,7 @@ def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
     )
 
 
-@router.get("/capabilities", response_model=CapabilitiesOut)
+@router.get("/capabilities")
 async def get_capabilities(teacher: Teacher = Depends(get_current_teacher)) -> CapabilitiesOut:
     """The account's storage mode (null until chosen) and what it may use."""
     return _capabilities_out(teacher)
@@ -52,9 +58,7 @@ async def get_capabilities(teacher: Teacher = Depends(get_current_teacher)) -> C
     dependencies=[Depends(require_not_frozen)],
 )
 async def set_storage_mode(
-    body: StorageModeUpdate,
-    teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
+    body: StorageModeUpdate, teacher: TeachingTeacher, db: DB
 ) -> CapabilitiesOut:
     """Records the account's storage mode, compare-and-set on `expected`. Moving the results between server and browser is the client's job and happens before this call; this only states where they now live."""
     if body.mode not in capabilities_for(teacher).allowed_storage_modes:

@@ -97,7 +97,7 @@ def _echo(body: SubmissionCreate) -> dict[str, str | None]:
     }
 
 
-@router.get("", response_model=list[SubmissionResponse])
+@router.get("")
 async def list_submissions(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
@@ -133,20 +133,7 @@ async def list_submissions(
     ]
 
 
-@router.post(
-    "",
-    response_model=SubmissionResponse,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_server_results_writable)],
-)
-async def upload_submission(
-    body: SubmissionCreate,
-    trash_scope: trash.Trash,
-    exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
-) -> SubmissionResponse:
-    """Upload encrypted scan submission."""
-    await require_pseudonym_version(db, exam.id, body.pseudonym_version)
+async def _ensure_student_identity(body: SubmissionCreate, exam: Exam, db: AsyncSession) -> None:
     # Ensure the student identity exists first (foreign key). The FK spans (pseudonym_hmac, exam_id), so the identity is looked up within this exam only: a submission cannot link to another exam's (and tenant's) identity.
     student_res = await db.execute(
         select(StudentIdentity).where(
@@ -179,6 +166,12 @@ async def upload_submission(
         existing_identity.retention_until = None
         await db.flush()
 
+
+_DecodedUpload = tuple[bytes | None, bytes, bytes | None, bytes | None]
+
+
+def _decode_upload(body: SubmissionCreate) -> _DecodedUpload:
+    """The scan and annotation bytes of an upload as (scan, scan_iv, annotation, annotation_iv)."""
     scan_bytes = (
         decode_b64(body.scan_ciphertext_b64, "scan_ciphertext_b64")
         if body.scan_ciphertext_b64
@@ -199,53 +192,87 @@ async def upload_submission(
         if body.annotation_iv_b64
         else None
     )
+    return scan_bytes, scan_iv, ann_bytes, ann_iv
+
+
+async def _upsert_existing(
+    body: SubmissionCreate,
+    exam: Exam,
+    trash_scope: trash.Trash,
+    db: AsyncSession,
+    uploaded: _DecodedUpload,
+) -> SubmissionResponse | None:
+    """Updates the submission `body.id` names (or revives it) and answers it; None when no such row exists."""
+    scan_bytes, scan_iv, ann_bytes, ann_iv = uploaded
+    sub_res = await db.execute(
+        select(ScanSubmission).where(ScanSubmission.id == body.id)
+    )
+    existing_sub = sub_res.scalar_one_or_none()
+    if existing_sub is None:
+        return None
+    if existing_sub.exam_id != exam.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Submission belongs to another exam.",
+        )
+    had_scan = has_scan(existing_sub)
+    existing_sub.pseudonym_hmac = body.pseudonym_hmac
+    # An upsert onto a soft-deleted submission makes it live again.
+    existing_sub.deleted_at = None
+    existing_sub.retention_until = None
+    if body.total_score is not None:
+        existing_sub.total_score = body.total_score
+    if scan_bytes is not None:
+        await store_scan(db, existing_sub, exam.id, existing_sub.id, scan_bytes)
+        existing_sub.scan_iv = scan_iv
+    if ann_bytes is not None:
+        existing_sub.annotation_ciphertext = ann_bytes
+        existing_sub.annotation_iv = ann_iv
+    elif body.clear_annotations:
+        await trash_scope.capture(
+            db,
+            "annotations",
+            await trash.snapshot_grading(db, existing_sub.id, scores=False),
+            label={
+                **await trash.result_label(db, exam, existing_sub.pseudonym_hmac),
+                "submission_id": str(existing_sub.id),
+            },
+            exam_id=exam.id,
+        )
+        existing_sub.annotation_ciphertext = None
+        existing_sub.annotation_iv = None
+    # An absent annotation field means "leave them"; deleting is explicit.
+    await db.flush()
+    return _to_response(
+        existing_sub,
+        pseudonym_version=exam.pseudonym_version,
+        **_echo(body),
+        scan_present=had_scan or scan_bytes is not None,
+    )
+
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_server_results_writable)],
+)
+async def upload_submission(
+    body: SubmissionCreate,
+    trash_scope: trash.Trash,
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> SubmissionResponse:
+    """Upload encrypted scan submission."""
+    await require_pseudonym_version(db, exam.id, body.pseudonym_version)
+    await _ensure_student_identity(body, exam, db)
+    uploaded = _decode_upload(body)
+    scan_bytes, scan_iv, ann_bytes, ann_iv = uploaded
 
     # Handle submission upsert if ID already exists
     if body.id:
-        sub_res = await db.execute(
-            select(ScanSubmission).where(ScanSubmission.id == body.id)
-        )
-        existing_sub = sub_res.scalar_one_or_none()
-        if existing_sub:
-            if existing_sub.exam_id != exam.id:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Submission belongs to another exam.",
-                )
-            had_scan = has_scan(existing_sub)
-            existing_sub.pseudonym_hmac = body.pseudonym_hmac
-            # An upsert onto a soft-deleted submission makes it live again.
-            existing_sub.deleted_at = None
-            existing_sub.retention_until = None
-            if body.total_score is not None:
-                existing_sub.total_score = body.total_score
-            if scan_bytes is not None:
-                await store_scan(db, existing_sub, exam.id, existing_sub.id, scan_bytes)
-                existing_sub.scan_iv = scan_iv
-            if ann_bytes is not None:
-                existing_sub.annotation_ciphertext = ann_bytes
-                existing_sub.annotation_iv = ann_iv
-            elif body.clear_annotations:
-                await trash_scope.capture(
-                    db,
-                    "annotations",
-                    await trash.snapshot_grading(db, existing_sub.id, scores=False),
-                    label={
-                        **await trash.result_label(db, exam, existing_sub.pseudonym_hmac),
-                        "submission_id": str(existing_sub.id),
-                    },
-                    exam_id=exam.id,
-                )
-                existing_sub.annotation_ciphertext = None
-                existing_sub.annotation_iv = None
-            # An absent annotation field means "leave them"; deleting is explicit.
-            await db.flush()
-            return _to_response(
-                existing_sub,
-                pseudonym_version=exam.pseudonym_version,
-                **_echo(body),
-                scan_present=had_scan or scan_bytes is not None,
-            )
+        existing = await _upsert_existing(body, exam, trash_scope, db, uploaded)
+        if existing is not None:
+            return existing
 
     sub = ScanSubmission(
         id=body.id or uuid.uuid4(),
@@ -273,7 +300,7 @@ async def upload_submission(
     )
 
 
-@router.get("/{sub_id}", response_model=SubmissionResponse)
+@router.get("/{sub_id}")
 async def get_submission(
     sub: ScanSubmission = Depends(_live_submission),
     db: AsyncSession = Depends(get_db),
@@ -289,7 +316,6 @@ async def get_submission(
 
 @router.patch(
     "/{sub_id}/score",
-    response_model=SubmissionResponse,
     dependencies=[Depends(require_server_results_writable)],
 )
 async def update_score(body: SubmissionScoreUpdate, sub: LiveSubmission, db: DB) -> SubmissionResponse:

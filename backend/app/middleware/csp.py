@@ -1,7 +1,7 @@
 """Content Security Policy header injection middleware."""
 from __future__ import annotations
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -26,8 +26,8 @@ class CSPMiddleware(BaseHTTPMiddleware):
             "form-action 'self'"
         )
 
-    async def dispatch(self, request: Request, call_next: object) -> Response:
-        response: Response = await call_next(request)  # type: ignore[operator]
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        response: Response = await call_next(request)
         response.headers["Content-Security-Policy"] = self._build_csp()
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"

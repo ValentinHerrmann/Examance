@@ -108,7 +108,9 @@ def _extract_tex_error(tmpdir: Path) -> str:
     return "No TeX diagnostic was produced; check the document for errors."
 
 
-async def _run_pass(cmd: list[str], tmpdir: Path, timeout: float, pass_idx: int) -> tuple[int, bytes]:
+async def _run_pass(
+    cmd: list[str], tmpdir: Path, time_limit: float, pass_idx: int
+) -> tuple[int, bytes]:
     # stderr goes to a file, so a pass killed on timeout still shows how far it got.
     err_path = tmpdir / "tectonic.err"
     started = time.monotonic()
@@ -121,7 +123,7 @@ async def _run_pass(cmd: list[str], tmpdir: Path, timeout: float, pass_idx: int)
             env=_child_env(),
         )
         try:
-            await asyncio.wait_for(proc.wait(), timeout=timeout)
+            await asyncio.wait_for(proc.wait(), timeout=time_limit)
             # Duration only: shows how close documents get to the limit before one fails.
             logger.info("Tectonic pass %d took %.1f s", pass_idx, time.monotonic() - started)
         except TimeoutError:
@@ -141,7 +143,7 @@ async def _run_pass(cmd: list[str], tmpdir: Path, timeout: float, pass_idx: int)
     return proc.returncode or 0, err_path.read_bytes()
 
 
-async def run_tectonic(main_tex: str, files: dict[str, bytes], timeout: float) -> bytes:
+async def run_tectonic(main_tex: str, files: dict[str, bytes], time_limit: float) -> bytes:
     """Compile *main_tex* with the bundled assets plus *files* (relative path -> bytes, written after the assets) in two passes and return the PDF. Raises CompilationError or TimeoutError."""
     tmpdir = Path(tempfile.mkdtemp(prefix="blindgrade-latex-"))
     try:
@@ -163,9 +165,9 @@ async def run_tectonic(main_tex: str, files: dict[str, bytes], timeout: float) -
         cmd = [
             "tectonic", "--untrusted", "-k", str(tex_file), "--outdir", str(tmpdir), "--keep-logs",
         ]
-        async with _compile_slot(timeout):
+        async with _compile_slot(time_limit):
             for pass_idx in range(2):
-                returncode, stderr = await _run_pass(cmd, tmpdir, timeout, pass_idx + 1)
+                returncode, stderr = await _run_pass(cmd, tmpdir, time_limit, pass_idx + 1)
                 logger.debug("LaTeX pass %d finished (exit %d)", pass_idx + 1, returncode)
                 if returncode != 0:
                     raise CompilationError(

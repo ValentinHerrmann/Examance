@@ -114,7 +114,7 @@ async def _load(db: AsyncSession, report_id: uuid.UUID) -> LayoutReport:
     return report
 
 
-@admin_router.get("", response_model=LayoutReportList)
+@admin_router.get("")
 async def list_layout_reports(
     _admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -142,7 +142,7 @@ async def list_layout_reports(
     )
 
 
-@admin_router.get("/{report_id}", response_model=LayoutReportDetail)
+@admin_router.get("/{report_id}")
 async def get_layout_report(
     report_id: uuid.UUID,
     _admin: Annotated[Teacher, Depends(get_admin_teacher)],

@@ -5,6 +5,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import ColumnElement, delete, func, select, update
@@ -17,6 +18,7 @@ from app.models.exercise_resource import ExerciseResource
 from app.models.teacher import Teacher
 from app.services import account_mail
 from app.services.exercise_sharing import (
+    VariantPlan,
     content_fingerprint,
     content_of,
     edited_content,
@@ -48,6 +50,24 @@ def _not_contributable() -> ContributionError:
     return ContributionError(400, "Nothing to propose for this variant.", "ERR_NOT_CONTRIBUTABLE")
 
 
+def _pick_variants(
+    by_own: dict[uuid.UUID, VariantPlan], own_exercise_ids: Sequence[uuid.UUID]
+) -> list[tuple[Exercise, str, uuid.UUID | None]]:
+    """The chosen variants as (own exercise, proposal kind, target version); anything not contributable raises."""
+    picked: list[tuple[Exercise, str, uuid.UUID | None]] = []
+    for own_id in dict.fromkeys(own_exercise_ids):
+        variant = by_own.get(own_id)
+        if variant is None or variant.own is None:
+            raise _not_contributable()
+        if variant.kind == "local":
+            picked.append((variant.own, "variant", None))
+        elif variant.source is not None and variant.locally_modified:
+            picked.append((variant.own, "version", variant.source.id))
+        else:
+            raise _not_contributable()
+    return picked
+
+
 async def submit(
     contributor: Teacher,
     group_id: uuid.UUID,
@@ -65,17 +85,7 @@ async def submit(
     owner_id = sources[0].teacher_id  # never None: shared rows have an approved owner
     by_own = {v.own.id: v for v in plan.variants if v.own is not None}
 
-    picked: list[tuple[Exercise, str, uuid.UUID | None]] = []
-    for own_id in dict.fromkeys(own_exercise_ids):
-        variant = by_own.get(own_id)
-        if variant is None or variant.own is None:
-            raise _not_contributable()
-        if variant.kind == "local":
-            picked.append((variant.own, "variant", None))
-        elif variant.source is not None and variant.locally_modified:
-            picked.append((variant.own, "version", variant.source.id))
-        else:
-            raise _not_contributable()
+    picked = _pick_variants(by_own, own_exercise_ids)
     if not picked:
         raise ContributionError(400, "Choose at least one variant.", "ERR_NOT_CONTRIBUTABLE")
 
@@ -245,6 +255,35 @@ async def staleness(row: ExerciseContribution, db: AsyncSession) -> Staleness:
     return Staleness(base.id != row.target_exercise_id or current != row.base_fingerprint, False)
 
 
+async def _add_variant(
+    owner: Teacher,
+    group: ExerciseGroup,
+    row: ExerciseContribution,
+    variant_key: str | None,
+    content: dict[str, Any],
+    db: AsyncSession,
+) -> Exercise:
+    """A new variant row of the owner's group for an accepted proposal; a key already taken raises."""
+    current = list(
+        (
+            await db.execute(
+                select(Exercise).where(
+                    Exercise.teacher_id == owner.id,
+                    Exercise.exercise_group_id == group.id,
+                    Exercise.is_current.is_(True),
+                )
+            )
+        ).scalars()
+    )
+    key = (variant_key or "").strip() or row.variant_key
+    if any(r.variant_key == key for r in current):
+        # A second current row with one key would make later matching ambiguous.
+        raise ContributionError(
+            409, "This variant key already exists in the exercise.", "ERR_VARIANT_KEY_TAKEN"
+        )
+    return new_variant_row(group, current[0] if current else None, variant_key=key, **content)
+
+
 async def accept(
     owner: Teacher,
     contribution_id: uuid.UUID,
@@ -289,26 +328,7 @@ async def accept(
     if base is not None:
         result = next_version(base, **content)
     else:
-        current = list(
-            (
-                await db.execute(
-                    select(Exercise).where(
-                        Exercise.teacher_id == owner.id,
-                        Exercise.exercise_group_id == group.id,
-                        Exercise.is_current.is_(True),
-                    )
-                )
-            ).scalars()
-        )
-        key = (variant_key or "").strip() or row.variant_key
-        if any(r.variant_key == key for r in current):
-            # A second current row with one key would make later matching ambiguous.
-            raise ContributionError(
-                409, "This variant key already exists in the exercise.", "ERR_VARIANT_KEY_TAKEN"
-            )
-        result = new_variant_row(
-            group, current[0] if current else None, variant_key=key, **content
-        )
+        result = await _add_variant(owner, group, row, variant_key, content, db)
     db.add(result)
     await db.flush()
     for f in files:

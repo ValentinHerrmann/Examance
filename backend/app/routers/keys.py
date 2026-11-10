@@ -61,7 +61,7 @@ def _to_out(row: KeyEnvelope) -> KeyEnvelopeOut:
     )
 
 
-@router.get("/envelopes", response_model=KeyEnvelopeListOut)
+@router.get("/envelopes")
 async def list_envelopes(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),

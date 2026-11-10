@@ -35,7 +35,7 @@ _next_sweep = 0.0
 
 def uses_redis() -> bool:
     uri = settings.RATE_LIMIT_STORAGE_URI
-    return uri.startswith("redis://") or uri.startswith("rediss://")
+    return uri.startswith(("redis://", "rediss://"))
 
 
 def _circuit_is_open() -> bool:
@@ -65,7 +65,7 @@ def _get_client() -> Redis[bytes] | None:
                 socket_connect_timeout=_CONNECT_TIMEOUT_SECONDS,
                 socket_timeout=_OPERATION_TIMEOUT_SECONDS,
             )
-        except Exception as exc:  # noqa: BLE001 - degrade, never break the request
+        except Exception as exc:  # noqa: BLE001  # degrade, never break the request
             _trip_circuit(exc)
             return None
     return _client
@@ -82,7 +82,7 @@ async def _call(operation: str, *args: Any) -> Any | None:
         return await asyncio.wait_for(
             getattr(client, operation)(*args), timeout=_DEADLINE_SECONDS
         )
-    except Exception as exc:  # noqa: BLE001 - degrade, never break the request
+    except Exception as exc:  # noqa: BLE001  # degrade, never break the request
         _trip_circuit(exc)
         return None
 

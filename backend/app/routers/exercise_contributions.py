@@ -82,6 +82,9 @@ async def _summaries(
             if incoming and row.status == "pending"
             else contrib.Staleness(False, False)
         )
+        library_group_id = row.source_group_id if incoming else None
+        if not incoming and row.from_exercise_id:
+            library_group_id = copy_groups.get(row.from_exercise_id)
         out.append(
             ContributionSummary(
                 id=row.id,
@@ -98,17 +101,13 @@ async def _summaries(
                 stale=st.stale,
                 target_gone=st.target_gone,
                 result_exercise_id=row.result_exercise_id,
-                library_group_id=(
-                    row.source_group_id
-                    if incoming
-                    else copy_groups.get(row.from_exercise_id) if row.from_exercise_id else None
-                ),
+                library_group_id=library_group_id,
             )
         )
     return out
 
 
-@router.get("", response_model=list[ContributionSummary])
+@router.get("")
 async def list_contributions(
     direction: Literal["incoming", "outgoing"] = Query(default="incoming"),
     teacher: Teacher = Depends(get_current_teacher),
@@ -131,7 +130,7 @@ async def list_contributions(
     return await _summaries(rows, teacher, db)
 
 
-@router.get("/summary", response_model=ContributionCount)
+@router.get("/summary")
 async def contribution_count(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
@@ -170,7 +169,7 @@ async def contribution_count(
     )
 
 
-@router.get("/{contribution_id}", response_model=ContributionDetail)
+@router.get("/{contribution_id}")
 async def get_contribution(
     contribution_id: uuid.UUID,
     teacher: Teacher = Depends(get_current_teacher),
@@ -198,9 +197,11 @@ async def get_contribution(
     out: list[ContributionFile] = []
     for f in files:
         old = base_files.get(f.filename)
-        change: Literal["added", "changed", "unchanged"] = (
-            "added" if old is None else "unchanged" if old == f.content_sha256 else "changed"
-        )
+        change: Literal["added", "changed", "unchanged"] = "changed"
+        if old is None:
+            change = "added"
+        elif old == f.content_sha256:
+            change = "unchanged"
         out.append(ContributionFile(filename=f.filename, change=change, resource_id=f.id))
     proposed = {f.filename for f in files}
     out.extend(
@@ -235,7 +236,7 @@ async def download_contribution_resource(
     return resource_response(file.content, file.mime_type, file.filename)
 
 
-@router.post("/{contribution_id}/accept", response_model=ContributionSummary)
+@router.post("/{contribution_id}/accept")
 async def accept_contribution(
     request: Request,
     contribution_id: uuid.UUID,

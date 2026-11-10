@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import binascii
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -35,7 +34,7 @@ class LaTeXResource(BaseModel):
     def check_content(cls, v: str) -> str:
         try:
             decoded = base64.b64decode(v, validate=True)
-        except (binascii.Error, ValueError):
+        except ValueError:
             raise ValueError("Resource content is not valid base64.") from None
         if not decoded:
             raise ValueError("Resource content must not be empty.")

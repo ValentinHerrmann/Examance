@@ -66,16 +66,16 @@ def _with_body_packages(doc: str) -> str:
     return with_packages(doc, [PackageLayer("exercise", exercise_entries(document_body(doc)))])
 
 
-async def _run_in_worker(main_tex: str, files: dict[str, bytes], timeout: float) -> bytes:
+async def _run_in_worker(main_tex: str, files: dict[str, bytes], time_limit: float) -> bytes:
     """POST the job to the LaTeX worker and map its answer back onto the local runner's errors."""
     job = {
         "main_tex": main_tex,
         "files": {path: base64.b64encode(blob).decode() for path, blob in files.items()},
-        "timeout": timeout,
+        "timeout": time_limit,
     }
     try:
         # Slot wait plus two passes; internal only, since the browser polls a background job (services/compile_jobs.py).
-        async with httpx.AsyncClient(timeout=3 * timeout + 10) as client:
+        async with httpx.AsyncClient(timeout=3 * time_limit + 10) as client:
             res = await client.post(f"{settings.LATEX_WORKER_URL.rstrip('/')}/compile", json=job)
     except httpx.TimeoutException:
         raise TimeoutError from None
@@ -113,12 +113,12 @@ async def compile_latex(
     files = {validate_resource_name(name): blob for name, blob in (binary_files or {}).items()}
     if logo is not None:
         files[logo.filename] = logo.content
-    timeout = PREVIEW_TIMEOUT_SECONDS if preview else COMPILE_TIMEOUT_SECONDS
+    time_limit = PREVIEW_TIMEOUT_SECONDS if preview else COMPILE_TIMEOUT_SECONDS
     # Document content is NEVER logged (see schemas/latex.py). Sizes only.
     logger.debug(
         "Starting LaTeX compilation (preview=%s, main.tex=%d chars, files=%d/%d bytes)",
         preview, len(latex_source), len(files), sum(len(b) for b in files.values()),
     )
     if settings.LATEX_WORKER_URL:
-        return await _run_in_worker(latex_source, files, timeout)
-    return await run_tectonic(latex_source, files, timeout)
+        return await _run_in_worker(latex_source, files, time_limit)
+    return await run_tectonic(latex_source, files, time_limit)

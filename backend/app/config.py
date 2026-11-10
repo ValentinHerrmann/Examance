@@ -222,15 +222,14 @@ class Settings(BaseSettings):
         """Refuse to start outside development with a published or too-short initial admin password."""
         if self.is_dev:
             return self
-        if self.INITIAL_ADMIN_PASSWORD is not None:
-            if (
-                self.INITIAL_ADMIN_PASSWORD in PLACEHOLDER_SECRET_KEYS
-                or len(self.INITIAL_ADMIN_PASSWORD) < 12
-            ):
-                raise ValueError(
-                    "INITIAL_ADMIN_PASSWORD must be at least 12 characters outside development "
-                    "and cannot be a published placeholder value."
-                )
+        if self.INITIAL_ADMIN_PASSWORD is not None and (
+            self.INITIAL_ADMIN_PASSWORD in PLACEHOLDER_SECRET_KEYS
+            or len(self.INITIAL_ADMIN_PASSWORD) < 12
+        ):
+            raise ValueError(
+                "INITIAL_ADMIN_PASSWORD must be at least 12 characters outside development "
+                "and cannot be a published placeholder value."
+            )
         return self
 
     @model_validator(mode="after")

@@ -32,9 +32,11 @@ def create_access_token(
     """Return a signed JWT access token. *scope* is what `get_current_teacher` enforces: ``full`` (two distinct factors presented), ``auth_pending``, ``enroll`` (enrollment endpoints only), ``reset_pending``. *amr* records the factors that earned it, so step two cannot repeat step one."""
     from datetime import timedelta
 
-    minutes = ttl_minutes if ttl_minutes is not None else (
-        settings.ACCESS_TOKEN_TTL_MINUTES if scope == "full" else PENDING_TOKEN_TTL_MINUTES
-    )
+    minutes = ttl_minutes
+    if minutes is None:
+        minutes = (
+            settings.ACCESS_TOKEN_TTL_MINUTES if scope == "full" else PENDING_TOKEN_TTL_MINUTES
+        )
     exp = _now_utc() + timedelta(minutes=minutes)
     payload: dict[str, Any] = {
         "sub": str(teacher_id),

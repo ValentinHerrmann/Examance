@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import binascii
 import uuid
 from dataclasses import dataclass
 from functools import cache
@@ -20,10 +19,11 @@ from app.services.blob_validation import check_upload
 MAX_LOGO_BYTES = 2 * 1024 * 1024
 
 LOGO_BASENAME = "examance-logo"
+_PDF_MIME = "application/pdf"
 
 # Recognised by content, never by the client's claim: the bytes are served back inline.
 _MIME_EXTENSIONS = {
-    "application/pdf": "pdf",
+    _PDF_MIME: "pdf",
     "image/png": "png",
     "image/jpeg": "jpg",
 }
@@ -58,7 +58,7 @@ class ResolvedLogo:
 def sniff_logo_mime(content: bytes) -> str:
     """Return the logo's MIME type from its magic bytes, or raise :class:`LogoError`."""
     if content.startswith(b"%PDF-"):
-        return "application/pdf"
+        return _PDF_MIME
     if content.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
     if content.startswith(b"\xff\xd8\xff"):
@@ -70,7 +70,7 @@ def decode_logo(content_b64: str) -> tuple[bytes, str]:
     """Decode and validate an uploaded logo. Returns ``(bytes, mime_type)``."""
     try:
         content = base64.b64decode(content_b64, validate=True)
-    except (binascii.Error, ValueError):
+    except ValueError:
         raise LogoError("Logo content is not valid base64.") from None
     check_upload(content, MAX_LOGO_BYTES, "The logo file", LogoError)
     return content, sniff_logo_mime(content)
@@ -87,7 +87,7 @@ def _default_logo_bytes() -> bytes | None:
 def default_logo() -> ResolvedLogo | None:
     """The bundled default logo, or None if the image ships without it."""
     content = _default_logo_bytes()
-    return ResolvedLogo("application/pdf", content) if content else None
+    return ResolvedLogo(_PDF_MIME, content) if content else None
 
 
 def logo_filename(mime_type: str) -> str:

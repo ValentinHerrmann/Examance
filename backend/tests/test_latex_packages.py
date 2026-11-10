@@ -49,7 +49,8 @@ def test_levels_merge_without_clashes() -> None:
     assert by_name["siunitx"].options == ["locale=FR"]
     assert "cleveref" not in by_name
     assert "pgfplots" in by_name
-    assert "geometry" not in by_name and "fontenc" not in by_name
+    assert "geometry" not in by_name
+    assert "fontenc" not in by_name
     notes = {(n.code, n.name, n.detail) for n in resolved.notes}
     assert ("conflict", "siunitx", "locale") in notes
     assert ("ignored", "geometry", "locked") in notes
