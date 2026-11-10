@@ -45,7 +45,8 @@ ans = {**ANS["common"], **ANS[CFG.get("answers", "A")]}
 def targets(n, mean, sd, seed):
     dist = statistics.NormalDist(mean, sd)
     vals = [min(98.0, max(18.0, dist.inv_cdf((i + 0.5) / n))) for i in range(n)]
-    random.Random(seed).shuffle(vals)  # NOSONAR: seeded on purpose so the demo images are reproducible; never used for anything secret
+    # Seeded on purpose so the demo images are reproducible; never used for anything secret.
+    random.Random(seed).shuffle(vals)  # NOSONAR(S2245)
     return vals
 
 
@@ -150,7 +151,8 @@ for idx, pct in enumerate(targets(CFG["size"], CFG["mean"], CFG["sd"], CFG["seed
     pseudo = hashlib.sha256(f"{KEY}-{idx}".encode()).hexdigest()[:24]
     code = "".join("ABCDEFGHJKMNPQRSTVWXYZ23456789"[int(pseudo[i:i + 2], 16) % 30] for i in range(0, 12, 2))
     # MC first: each question right with probability f; its points come from the OMR later.
-    mc_right = [r.random() < f for _ in MC_KEYS]  # NOSONAR: seeded on purpose so the demo images are reproducible; never used for anything secret
+    # Seeded on purpose so the demo images are reproducible; never used for anything secret.
+    mc_right = [r.random() < f for _ in MC_KEYS]  # NOSONAR(S2245)
     mc_pts = sum(p for p, ok in zip(MC_POINTS, mc_right, strict=True) if ok)
     remaining = max(0.0, 16 * f - mc_pts)
     q1_bias = CFG.get("q1_bias", 0.0)
@@ -165,7 +167,8 @@ for idx, pct in enumerate(targets(CFG["size"], CFG["mean"], CFG["sd"], CFG["seed
     plan[hashlib.sha256(pseudo.encode()).hexdigest()[:10]] = entry
 
     font = ImageFont.truetype(FONTS[idx % len(FONTS)], int((17 if FONTS[idx % len(FONTS)].endswith("Caveat.ttf") else 14) * S))
-    ink = r.choice([(20, 40, 120), (25, 25, 60), (10, 30, 90)])  # NOSONAR: seeded on purpose so the demo images are reproducible; never used for anything secret
+    # Seeded on purpose so the demo images are reproducible; never used for anything secret.
+    ink = r.choice([(20, 40, 120), (25, 25, 60), (10, 30, 90)])  # NOSONAR(S2245)
     pages = [im.copy() for im in base]
     lab = sticker(f"BG:{pseudo}:A:{code}").rotate(r.uniform(-4, 4), expand=True, fillcolor=(255, 255, 255))
     pages[0].paste(lab, (int(56 * S), int(50 * S)))
@@ -187,7 +190,8 @@ for idx, pct in enumerate(targets(CFG["size"], CFG["mean"], CFG["sd"], CFG["seed
                 elif how == "faint":
                     faint(d2, opts[o], r)
             continue
-        chosen = set(MC_KEYS[qi]) if mc_right[qi] else {(MC_KEYS[qi][0] + 1 + r.randrange(3)) % 4}  # NOSONAR: seeded on purpose so the demo images are reproducible; never used for anything secret
+        # Seeded on purpose so the demo images are reproducible; never used for anything secret.
+        chosen = set(MC_KEYS[qi]) if mc_right[qi] else {(MC_KEYS[qi][0] + 1 + r.randrange(3)) % 4}  # NOSONAR(S2245)
         for o in chosen:
             cross(d2, opts[o], r, ink)
     for im in pages:

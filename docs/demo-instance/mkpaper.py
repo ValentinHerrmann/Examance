@@ -23,10 +23,12 @@ first = ["Lena", "Jonas", "Mia", "Elias", "Emma", "Paul", "Hannah", "Ben", "Lea"
 last = ["Albrecht", "Bauer", "Celik", "Demir", "Engel", "Fischer", "Graf", "Huber", "Ivanova", "Jung", "Keller",
         "Lang", "Meyer", "Nowak", "Ott", "Peters", "Quandt", "Roth", "Schulz", "Thiel", "Urban", "Vogel", "Weiß", "Yilmaz"]
 r = random.Random(cfg["seed"])
-r.shuffle(first)  # NOSONAR: seeded on purpose so the demo images are reproducible; never used for anything secret
+# Seeded on purpose so the demo images are reproducible; never used for anything secret.
+r.shuffle(first)  # NOSONAR(S2245)
 dist = statistics.NormalDist(cfg["mean"], cfg["sd"])
 pcts = [min(98, max(18, dist.inv_cdf((i + 0.5) / cfg["size"]))) for i in range(cfg["size"])]
-r.shuffle(pcts)  # NOSONAR: seeded on purpose so the demo images are reproducible; never used for anything secret
+# Seeded on purpose so the demo images are reproducible; never used for anything secret.
+r.shuffle(pcts)  # NOSONAR(S2245)
 rows = ["Name\tID\tAufgabe 1\tAufgabe 2"]
 for i in range(cfg["size"]):
     f = pcts[i] / 100
