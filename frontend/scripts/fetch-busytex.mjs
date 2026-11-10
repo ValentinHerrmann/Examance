@@ -28,13 +28,13 @@ export async function fetchBusytex(dest) {
   await run('npx', ['texlyre-busytex', 'download-assets', dest]);
 }
 
-// `npm run dev` (predev): always static/core.
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  fetchBusytex(path.join(FRONTEND_DIR, 'static', 'core')).then(
-    () => process.exit(0),
-    (err) => {
-      console.error(err);
-      process.exit(1);
-    },
-  );
+// `npm run dev` (predev): always static/core. Realpath so a symlinked checkout still matches import.meta.url.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    await fetchBusytex(path.join(FRONTEND_DIR, 'static', 'core'));
+    process.exit(0);
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
 }

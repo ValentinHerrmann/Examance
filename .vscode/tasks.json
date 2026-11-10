@@ -4,7 +4,7 @@
     {
       "label": "Alembic Migrate",
       "type": "shell",
-      "command": "${workspaceFolder}/backend/.venv/bin/alembic upgrade head",
+      "command": "test -f .env || { echo 'backend/.env missing: copy backend/.env.example to backend/.env' >&2; exit 1; }; ${workspaceFolder}/backend/.venv/bin/alembic upgrade head",
       "options": {
         "cwd": "${workspaceFolder}/backend",
         "env": {
