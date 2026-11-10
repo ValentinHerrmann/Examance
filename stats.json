@@ -5,9 +5,9 @@
       "label": "Frontend",
       "color": "#FF3E00",
       "files": 610,
-      "lines": 72576,
-      "code": 68284,
-      "comments": 4292
+      "lines": 72581,
+      "code": 68287,
+      "comments": 4294
     },
     {
       "key": "frontend_tests",
@@ -41,15 +41,15 @@
       "label": "Documentation",
       "color": "#3B82F6",
       "files": 75,
-      "lines": 5904,
+      "lines": 5906,
       "code": null,
       "comments": null
     }
   ],
   "total": {
     "files": 1095,
-    "lines": 132675,
-    "code": 120868,
-    "comments": 5903
+    "lines": 132682,
+    "code": 120871,
+    "comments": 5905
   }
 }
