@@ -49,13 +49,13 @@
 <circle cx="28" cy="235.0" r="5" fill="#3B82F6"/>
 <text class="tx" x="42" y="240.0">Documentation</text>
 <text class="mu" x="310" y="240.0" text-anchor="end">74</text>
-<text class="mu" x="395" y="240.0" text-anchor="end">5 850</text>
+<text class="mu" x="395" y="240.0" text-anchor="end">5 851</text>
 <text class="tx" x="495" y="240.0" text-anchor="end">–</text>
 <text class="mu" x="595" y="240.0" text-anchor="end">–</text>
 <line class="ln" x1="20" x2="800" y1="254" y2="254"/>
 <text class="tt" x="42" y="278.0">Total</text>
 <text class="tt" x="310" y="278.0" text-anchor="end">1 080</text>
-<text class="tt" x="395" y="278.0" text-anchor="end">131 364</text>
+<text class="tt" x="395" y="278.0" text-anchor="end">131 365</text>
 <text class="tt" x="495" y="278.0" text-anchor="end">119 683</text>
 <text class="tt" x="595" y="278.0" text-anchor="end">5 831</text>
 </svg>
