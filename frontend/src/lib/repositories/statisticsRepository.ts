@@ -41,11 +41,17 @@ export const statisticsRepository = {
     return opened.filter((r): r is StoredStatistics => r !== null);
   },
 
+  /** The exam's record, or null when it has none (404). Throws on any other failed read. */
   async findByExam(examId: string, key: CryptoKey | null): Promise<StoredStatistics | null> {
-    return (await this.list(key)).find((r) => r.examId === examId) ?? null;
+    try {
+      return await open(await api.get<StatisticsRow>(`/exams/${examId}/statistics`, { silentError: true }), key);
+    } catch (err) {
+      if ((err as { status?: number })?.status === 404) return null;
+      throw err;
+    }
   },
 
-  /** Idempotent upsert; the server keeps the newer of two records, so a replayed queue write is harmless. */
+  /** Idempotent upsert; the server ignores a replayed write built well before the stored record. */
   async put(snapshot: StatisticsSnapshot, key: CryptoKey | null): Promise<void> {
     const { ct, iv } = await sealExamStatistics(snapshot.exam.id, snapshot, key);
     const path = `/exams/${snapshot.exam.id}/statistics`;
@@ -60,7 +66,8 @@ export const statisticsRepository = {
   },
 
   async setKeep(id: string, keepAfterExamDelete: boolean): Promise<void> {
-    await api.patch(`/statistics/${id}`, { keep_after_exam_delete: keepAfterExamDelete });
+    // The delete dialogs report a failure inline.
+    await api.patch(`/statistics/${id}`, { keep_after_exam_delete: keepAfterExamDelete }, { silentError: true });
   },
 
   async delete(id: string): Promise<void> {

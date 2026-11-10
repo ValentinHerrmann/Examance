@@ -204,7 +204,7 @@ async function summaryInput(exam: ExamContext['exam'], exercises: ExerciseRecord
   const input = { exam, stats: results.computed.stats, totalMaxPoints: results.computed.totalMaxPoints, rows: results.rows, submissionCount: results.submissions.length };
   if (results.computed.stats.results.length > 0) return input;
   // No results left here: the kept anonymous record (issue #238) gives the summary its numbers, without a student list.
-  const stored = await statisticsRepository.findByExam(exam.id, key).catch(() => null);
+  const stored = await statisticsRepository.findByExam(exam.id, key);
   if (!stored) return input;
   const kept = snapshotRecords(stored.snapshot);
   const computed = computeExamResults(exam, exercises.length ? exercises : kept.exercises, kept.submissions, kept.scores);

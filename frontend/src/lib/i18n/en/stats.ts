@@ -119,6 +119,7 @@ export const stats: Translations['stats'] = {
         heading: 'Global Multi-Exam Analytics',
         subtitle: 'Cross-exam performance tracking, exercise quality metrics & variant comparison',
         loadFailed: 'The analytics could not be loaded: {message}',
+        keptLoadFailed: 'Your personal statistics could not be loaded, so exams without results are missing: {message}',
         statsOnlyTitle: 'Personal statistics only',
         statsOnlyBody: 'For {count} exams no results are left here; they count through your anonymous personal statistics.',
         deletedExamsTitle: 'Statistics of deleted exams',

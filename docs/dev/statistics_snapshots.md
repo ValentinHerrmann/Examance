@@ -21,8 +21,12 @@ A row never carries a pseudonym, submission id, timestamp, scan, annotation or `
 
 - **Writing** (`lib/analytics/statisticsSync.ts`): result writers (`scoreRepository.saveMany`/`deleteOne`, `submissionRepository.save`/`delete`/`clearGrading`, `studentRepository.delete`, trash restore) call `markStatisticsDirty(examId)` (`statisticsDirty.ts`, dependency-free so repositories import it without a cycle).
   - About 3 s later the exam is rebuilt from its results wherever the mode keeps them and sent with `PUT /exams/{id}/statistics`.
-  - The PUT is idempotent and safe to replay from the offline queue: an older `computed_at` never replaces a newer record (the newer one is returned).
-- **Empty results**: when a dirty rebuild finds nothing graded, the teacher's own delete emptied the exam (for example "delete all results" or erasing the last student), so the record is deleted. An empty build never overwrites a record.
+  - The server stamps `computed_at` with its own clock, so a browser with a wrong clock cannot freeze the record. The client's build time only filters replayed queue writes: a write built more than a day before the stored record is ignored and the stored record returned. The PUT is therefore idempotent and safe to replay.
+- **Partial views never write** (`statisticsRebuild.ts` `rebuildAction`). The rebuild is skipped in two cases:
+  - a hybrid browser that holds no rows of the exam, unless it held some when the teacher's write marked the exam;
+  - a server-mode exam whose results retention erased (`results_purged_at` on the exam response).
+  A hybrid browser that holds some of the results still writes (last writer wins). Pending rebuilds run at once when the tab is hidden or closed, and the results page rebuilds once on load.
+- **Empty results**: when a dirty rebuild finds no submission left, the teacher's own delete emptied the exam (for example "delete all results" or erasing the last student), so the record is deleted. Ungraded rows (a fresh scan) never clear it, and an empty build never overwrites a record.
 - **Retention**: the server's results purge (`services/retention.py` steps 1–2) and the local `RetentionModal` delete only results, never the record.
 - **Deleting an exam**: the delete dialogs (`stats/KeepStatisticsOption`) send the teacher's choice with `PATCH /statistics/{id}` before the delete.
   - The exam row goes into the trash at once, so `exam_statistics.exam_id` has **no foreign key**.
@@ -37,7 +41,7 @@ A row never carries a pseudonym, submission id, timestamp, scan, annotation or `
 - **Results page**: falls back to the record when no results are left. It then hides the CSV export and the borderline links, and offers "Delete my personal statistics".
 - **Analytics** (`lib/analytics/keptStatistics.ts`): an exam without graded results here counts through its record. Records of deleted exams are listed with a delete action.
 - **ZIP export**: `summary.pdf` (`export/examExport.ts`) uses the record when no results are left.
-- **Password archive** (`.examance`): carries the decrypted records of the exams in scope as `examStatistics`. The importer rebuilds the record from imported results and otherwise re-seals the archived one, with its exam and exercise ids remapped (`remapSnapshot`).
+- **Password archive** (`.examance`): carries the decrypted records of the exams in scope as `examStatistics`. If the records cannot be read, the backup is still made and its report says they are missing. The importer rebuilds the record from imported results and otherwise re-seals the archived one, with its exam and exercise ids remapped (`remapSnapshot`).
 - **Storage-mode move**: needs nothing, because the record is on the server in both modes.
 
-Endpoints (`backend/app/routers/exam_statistics.py`, all behind `get_teaching_teacher`): `GET /statistics`, `PUT /exams/{id}/statistics`, `PATCH /statistics/{id}`, `DELETE /statistics/{id}`.
+Endpoints (`backend/app/routers/exam_statistics.py`, all behind `get_teaching_teacher`): `GET /statistics`, `GET /exams/{id}/statistics` (404 without a record), `PUT /exams/{id}/statistics`, `PATCH /statistics/{id}`, `DELETE /statistics/{id}`.

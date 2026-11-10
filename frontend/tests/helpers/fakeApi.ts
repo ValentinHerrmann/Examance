@@ -1209,6 +1209,10 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     }
     if (sub === 'logo' && rest[0] === 'file' && method === 'GET') return notFound('No logo.');
     if (sub === 'omr-template-pins') return omrPins(method, id, rest, body);
+    if (sub === 'statistics' && method === 'GET' && rest.length === 0) {
+      const row = state.statistics.get(id);
+      return row ? ok(row) : notFound('Statistics not found.');
+    }
     if (sub === 'statistics' && method === 'PUT' && rest.length === 0) {
       const prev = state.statistics.get(id);
       const row = { id: prev?.id ?? crypto.randomUUID(), exam_id: id, keep_after_exam_delete: prev?.keep_after_exam_delete ?? true, computed_at: body?.computed_at, updated_at: new Date().toISOString(), payload_ciphertext_b64: body?.payload_ciphertext_b64, payload_iv_b64: body?.payload_iv_b64 };

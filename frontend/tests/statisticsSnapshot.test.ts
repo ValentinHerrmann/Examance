@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { computeExamResults } from '#lib/analytics/examResults';
 import { mergeKeptStatistics } from '#lib/analytics/keptStatistics';
 import { buildStatisticsSnapshot, remapSnapshot, snapshotRecords } from '#lib/analytics/statisticsSnapshot';
+import { rebuildAction } from '#lib/analytics/statisticsRebuild';
 import type { ExamRecord, ExerciseRecord, ExerciseScoreRecord, SubmissionRecord } from '#lib/db/schema';
 
 const exam = { id: 'exam-1', teacherId: 't', title: 'SA 1', lehrernachname: 'Muster', retentionUntil: '2027-01-01', compilationStatus: 'compiled', createdAt: '2026-01-01' } as ExamRecord;
@@ -58,5 +59,29 @@ describe('statistics snapshot', () => {
     const purged = mergeKeptStatistics({ ...input, exams: [], submissions: [], scores: [] }, stored);
     expect(purged.deletedExams).toHaveLength(1);
     expect(purged.submissions).toHaveLength(2);
+  });
+});
+
+describe('rebuildAction', () => {
+  const base = { local: true, purged: false, hasRows: true, graded: true, hadRows: true, clearWhenEmpty: true };
+
+  it('never touches the record from a hybrid browser without results (regression: it was overwritten or deleted)', () => {
+    expect(rebuildAction({ ...base, hasRows: false, graded: false, hadRows: false })).toBe('skip');
+  });
+
+  it('never touches the record of a server exam whose results retention erased (regression)', () => {
+    expect(rebuildAction({ ...base, local: false, purged: true })).toBe('skip');
+    expect(rebuildAction({ ...base, local: false, purged: true, hasRows: false, graded: false })).toBe('skip');
+  });
+
+  it('a hybrid purge stamp does not freeze the browser that still holds the results', () => {
+    expect(rebuildAction({ ...base, purged: true })).toBe('put');
+  });
+
+  it('clears only after the teacher emptied the exam', () => {
+    expect(rebuildAction({ ...base, hasRows: false, graded: false })).toBe('delete');
+    expect(rebuildAction({ ...base, local: false, hasRows: false, graded: false, hadRows: false })).toBe('delete');
+    expect(rebuildAction({ ...base, graded: false })).toBe('skip');
+    expect(rebuildAction({ ...base, hasRows: false, graded: false, clearWhenEmpty: false })).toBe('skip');
   });
 });

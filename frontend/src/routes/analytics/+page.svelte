@@ -48,6 +48,7 @@
   let deleteStatsBusy = $state(false);
   let deleteStatsError = $state('');
   let maxPointsByRecord = new Map<string, number>();
+  let keptLoadError = $state('');
 
   let displayedExerciseStats = $derived(showAllExercises
     ? exerciseStats
@@ -122,11 +123,12 @@
       key,
     );
     let stored: StoredStatistics[] = [];
+    keptLoadError = '';
     try {
       stored = await statisticsRepository.list(key);
     } catch (err) {
-      // Live results still make a correct page; only the kept records are missing.
-      console.warn('Kept statistics could not be read:', err);
+      // Live results still make a correct page, but it must say that the kept records are missing.
+      keptLoadError = translate('stats.analyticsPage.keptLoadFailed', { message: err instanceof Error ? err.message : String(err) });
     }
     const merged = mergeKeptStatistics(
       { exams: liveExams, exercises: Array.from(exerciseMap.values()), examExercises: await db.examExercises.toArray(), submissions: liveSubmissions, scores: liveScores },
@@ -137,7 +139,7 @@
     deletedExams = merged.deletedExams;
     maxPointsByRecord = merged.maxPointsByExam;
     const allExercises = merged.exercises;
-    for (const ex of allExercises) if (!exerciseMap.has(ex.id)) exerciseMap.set(ex.id, ex);
+    // Only real exercises open in the editor; record-only stand-ins carry no content to edit.
     exerciseRecords = exerciseMap;
     const allExamExercises = merged.examExercises;
     const allSubmissions = merged.submissions;
@@ -454,6 +456,9 @@
       flaggedCount={exerciseStats.filter((e) => e.flaggedProblematic).length}
     />
 
+    {#if keptLoadError}
+      <Alert severity="warning" class="mb-6">{keptLoadError}</Alert>
+    {/if}
     {#if statsOnlyCount > 0}
       <Alert severity="info" class="mb-6" title={$t('stats.analyticsPage.statsOnlyTitle')}>
         {$t('stats.analyticsPage.statsOnlyBody', { count: statsOnlyCount })}

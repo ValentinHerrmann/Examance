@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -22,6 +22,8 @@ router = APIRouter(tags=["exam-statistics"], dependencies=[Depends(get_teaching_
 
 MAX_CIPHERTEXT_BYTES = 4 * 1024 * 1024
 MIN_CIPHERTEXT_BYTES = 16  # the GCM tag alone
+# A queued write replayed this long after a newer record was stored is stale; client clocks within this skew still update.
+REPLAY_WINDOW = timedelta(days=1)
 
 
 def _to_out(row: ExamStatistics) -> ExamStatisticsOut:
@@ -92,6 +94,22 @@ async def list_statistics(
     return [_to_out(row) for row in rows]
 
 
+@router.get("/exams/{exam_id}/statistics")
+async def get_statistics(
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ExamStatisticsOut:
+    """The exam's record; 404 when it has none."""
+    row = await db.scalar(select(ExamStatistics).where(ExamStatistics.exam_id == exam.id))
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Statistics not found.",
+            headers={"code": "ERR_STATISTICS_NOT_FOUND"},
+        )
+    return _to_out(row)
+
+
 @router.put("/exams/{exam_id}/statistics")
 async def put_statistics(
     body: ExamStatisticsIn,
@@ -99,9 +117,10 @@ async def put_statistics(
     teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExamStatisticsOut:
-    """Create or replace the exam's record; idempotent, and an older computed_at never replaces a newer one (the newer record is returned, so a replayed queue write is not refused)."""
+    """Create or replace the exam's record. `computed_at` is the server's clock; a write built before the stored record was accepted (a replayed queue entry) is ignored and the stored record returned."""
     ciphertext, iv = _decode_payload(body)
-    computed_at = _aware(body.computed_at)
+    built_at = _aware(body.computed_at)
+    now = datetime.now(UTC)
     row = await db.scalar(select(ExamStatistics).where(ExamStatistics.exam_id == exam.id))
     if row is None:
         row = ExamStatistics(
@@ -110,17 +129,19 @@ async def put_statistics(
             payload_ciphertext=ciphertext,
             payload_iv=iv,
             byte_size=len(ciphertext),
-            computed_at=computed_at,
+            computed_at=now,
+            updated_at=now,
         )
         db.add(row)
     else:
-        if _aware(row.computed_at) > computed_at:
+        # Compared with a client clock only against the same browser's earlier builds: a skewed clock elsewhere cannot freeze the record.
+        if built_at < _aware(row.computed_at) - REPLAY_WINDOW:
             return _to_out(row)
         row.payload_ciphertext = ciphertext
         row.payload_iv = iv
         row.byte_size = len(ciphertext)
-        row.computed_at = computed_at
-        row.updated_at = datetime.now(UTC)
+        row.computed_at = now
+        row.updated_at = now
     await db.flush()
     await db.refresh(row)
     return _to_out(row)

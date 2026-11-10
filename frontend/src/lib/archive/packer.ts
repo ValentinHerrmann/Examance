@@ -1,6 +1,7 @@
 /** Export a .bgproj archive, encrypting records with a fresh Argon2id key from the export password. Freshness invariant: a new 16-byte salt and 12-byte nonce MUST be generated on every pack (ciphertext uniqueness, no key/nonce reuse or replay). */
 
 import { statisticsRepository } from '#lib/repositories/statisticsRepository';
+import type { StatisticsSnapshot } from '#lib/analytics/statisticsSnapshot';
 import { get } from 'svelte/store';
 import { db } from '#lib/db/db';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
@@ -221,7 +222,13 @@ export async function packProject(
   const auditLogs = await loadAuditLogs(key, auditTargets);
   // Kept anonymous statistics of the exams in scope (issue #238); the importer prefers rebuilding them from results.
   const scopeIds = new Set(exams.map((e) => e.id));
-  const examStatistics = (await statisticsRepository.list(key)).filter((r) => scopeIds.has(r.examId)).map((r) => r.snapshot);
+  let examStatistics: StatisticsSnapshot[] = [];
+  try {
+    examStatistics = (await statisticsRepository.list(key)).filter((r) => scopeIds.has(r.examId)).map((r) => r.snapshot);
+  } catch {
+    // Optional extras: the backup of the results themselves must not fail on them.
+    addMissing(report, { reason: 'statisticsUnavailable', exam: '' });
+  }
 
   // Exercise links and MC groups, per exam, through the repository for the same reason: the local Dexie tables can be empty in server-backed modes.
   const structures = await Promise.all(exams.map((e) => examRepository.getStructure(e.id)));

@@ -58,7 +58,8 @@ export type MissingReason =
   | 'scanUnreadable'
   | 'examNotImported'
   | 'logoUnavailable'
-  | 'resourceUnavailable';
+  | 'resourceUnavailable'
+  | 'statisticsUnavailable';
 
 export interface MissingItem {
   reason: MissingReason;

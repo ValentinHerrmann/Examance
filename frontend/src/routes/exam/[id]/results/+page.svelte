@@ -17,6 +17,7 @@
   import { exportGradesToCsv } from '#lib/analytics/csvExport';
   import { snapshotRecords } from '#lib/analytics/statisticsSnapshot';
   import { statisticsRepository, type StoredStatistics } from '#lib/repositories/statisticsRepository';
+  import { refreshStatistics } from '#lib/analytics/statisticsSync';
   import { ConfirmDialog } from '#lib/components/ui';
 
   let examId = $derived(page.params.id || '');
@@ -64,7 +65,10 @@
       scores = await scoreRepository.getByExamId(id, key);
       storedStats = null;
       recompute(exam?.gradingKey);
-      if (!stats?.results.length) await useStoredStatistics(id, key);
+      if (stats?.results.length) {
+        // Catches up a rebuild a closed tab never ran, so the kept record matches what is shown here.
+        refreshStatistics(id).catch((err) => console.warn('Statistics not updated:', err));
+      } else await useStoredStatistics(id, key);
     } catch (err) {
       console.error('Failed to load exam statistics:', err);
       stats = null;
@@ -75,12 +79,8 @@
 
   /** No results here (purged, or kept in another browser): the anonymous record stands in, without students. */
   async function useStoredStatistics(id: string, key: CryptoKey) {
-    let stored: StoredStatistics | null = null;
-    try {
-      stored = await statisticsRepository.findByExam(id, key);
-    } catch (err) {
-      console.warn('Kept statistics could not be read:', err);
-    }
+    // A failed read reaches loadError: "nothing graded" would be untrue when a record exists.
+    const stored = await statisticsRepository.findByExam(id, key);
     if (!stored) return;
     const records = snapshotRecords(stored.snapshot);
     storedStats = stored;

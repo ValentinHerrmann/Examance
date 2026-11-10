@@ -338,6 +338,8 @@ class ExamResponse(BaseModel):
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     pseudonym_version: int = 1
+    # Set once retention erased the exam's results; the client then never rebuilds its kept statistics (issue #238).
+    results_purged_at: datetime | None = None
     exercises: list[ExerciseResponse] = []
     mc_groups: list[ExamMcGroupResponse] = []
 

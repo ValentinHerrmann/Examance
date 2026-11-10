@@ -5495,12 +5495,70 @@
       }
     },
     "/api/v1/exams/{exam_id}/statistics": {
+      "get": {
+        "tags": [
+          "exam-statistics"
+        ],
+        "summary": "Get Statistics",
+        "description": "The exam's record; 404 when it has none.",
+        "operationId": "get_statistics_api_v1_exams__exam_id__statistics_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamStatisticsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "put": {
         "tags": [
           "exam-statistics"
         ],
         "summary": "Put Statistics",
-        "description": "Create or replace the exam's record; idempotent, and an older computed_at never replaces a newer one (the newer record is returned, so a replayed queue write is not refused).",
+        "description": "Create or replace the exam's record. `computed_at` is the server's clock; a write built before the stored record was accepted (a replayed queue entry) is ignored and the stored record returned.",
         "operationId": "put_statistics_api_v1_exams__exam_id__statistics_put",
         "parameters": [
           {
@@ -11769,6 +11827,18 @@
             "type": "integer",
             "title": "Pseudonym Version",
             "default": 1
+          },
+          "results_purged_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Results Purged At"
           },
           "exercises": {
             "items": {

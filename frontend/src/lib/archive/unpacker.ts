@@ -464,7 +464,7 @@ export async function applyArchive(
 }
 
 /** Decrypt and write in one call, without conflict resolution. For callers that can't present conflicts (tests, imports into an empty workspace); user-facing imports use `archiveService.openBgprojArchive()`. */
-/** Statistics of the imported exams (issue #238): rebuilt from imported results, else the archived anonymous record stands in. */
+/** Statistics of the imported exams (issue #238): rebuilt from imported results once, else the archived anonymous record stands in. */
 async function importStatistics(
   payload: any,
   examAvailable: (archivedExamId: string) => boolean,
@@ -480,8 +480,10 @@ async function importStatistics(
     if (!examId || !examAvailable(archivedExamId)) continue;
     try {
       const snapshot = archived.get(archivedExamId);
-      if (withResults.has(archivedExamId)) await refreshStatistics(examId); // NOSONAR: one exam at a time, a few small requests each
-      else if (snapshot) await statisticsRepository.put(remapSnapshot(snapshot, examId, (id) => remap(id) ?? id), key);
+      // In hybrid the result writes went through the repositories, whose dirty signal rebuilds the record; server-mode writes here are direct, so rebuild once.
+      if (withResults.has(archivedExamId)) {
+        if (!resultsAreLocal()) await refreshStatistics(examId); // NOSONAR: one exam at a time
+      } else if (snapshot) await statisticsRepository.put(remapSnapshot(snapshot, examId, (id) => remap(id) ?? id), key); // NOSONAR: as above
     } catch (err) {
       errors.push(`Statistics of exam ${archivedExamId}: ${describe(err)}`);
     }

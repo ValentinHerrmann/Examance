@@ -117,6 +117,7 @@ export const stats = {
         heading: 'Globale prüfungsübergreifende Analyse',
         subtitle: 'Leistungsverfolgung über mehrere Prüfungen, Aufgabenqualitätskennzahlen & Variantenvergleich',
         loadFailed: 'Die Analyse konnte nicht geladen werden: {message}',
+        keptLoadFailed: 'Ihre persönlichen Statistiken konnten nicht geladen werden, Prüfungen ohne Ergebnisse fehlen daher: {message}',
         statsOnlyTitle: 'Nur persönliche Statistiken',
         statsOnlyBody: 'Für {count} Prüfungen liegen hier keine Ergebnisse mehr vor; sie gehen mit Ihren anonymen persönlichen Statistiken in die Analyse ein.',
         deletedExamsTitle: 'Statistiken gelöschter Prüfungen',
