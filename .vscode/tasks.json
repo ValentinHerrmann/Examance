@@ -4,13 +4,11 @@
     {
       "label": "Alembic Migrate",
       "type": "shell",
-      "command": "${workspaceFolder}/backend/.venv/bin/alembic upgrade head",
+      "command": "test -f .env || { echo 'backend/.env missing: copy backend/.env.example to backend/.env' >&2; exit 1; }; ${workspaceFolder}/backend/.venv/bin/alembic upgrade head",
       "options": {
         "cwd": "${workspaceFolder}/backend",
         "env": {
-          "DATABASE_URL_SYNC": "postgresql+psycopg2://blindgrade:blindgrade@localhost:5432/blindgrade",
-          "ENVIRONMENT": "development",
-          "SECRET_KEY": "dev-secret-key-change-me-in-production-32-chars-long!"
+          "ENVIRONMENT": "development"
         }
       },
       "problemMatcher": []

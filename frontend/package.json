@@ -7,7 +7,7 @@
     "#lib/*": "./src/lib/*"
   },
   "scripts": {
-    "predev": "node scripts/fetch-busytex.mjs static/core && node scripts/process-large-files.mjs static",
+    "predev": "node scripts/fetch-busytex.mjs && node scripts/process-large-files.mjs static",
     "dev": "vite dev",
     "build": "node scripts/build.mjs && node scripts/preview-branding.mjs && node scripts/related-origins.mjs && npm run process-large-files && npm run csp:headers && npm run csp:verify",
     "process-large-files": "node scripts/process-large-files.mjs build",

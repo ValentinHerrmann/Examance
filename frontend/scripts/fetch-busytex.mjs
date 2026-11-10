@@ -1,13 +1,13 @@
-// Downloads the BusyTeX assets into <dest>/busytex, streaming into the system `tar` and exiting at once (upstream's script lingers ~15 s). Sources in order: R2 mirror (BUSYTEX_MIRROR_URL), GitHub release, upstream script; a stale mirror costs speed, never the build. Fetches the raw archive; build.mjs tries the processed copy first.
+// Downloads the BusyTeX assets into <dest>/busytex, streaming into the system `tar` (upstream's script lingers ~15 s). Sources in order: R2 mirror (BUSYTEX_MIRROR_URL), GitHub release, upstream script; a stale mirror costs speed, never the build. Fetches the raw archive; build.mjs tries the processed copy first.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { RAW_ARCHIVE, UPSTREAM_URL, mirrorUrl, run, streamExtract, version } from './busytex-mirror.mjs';
-import { frontendPathArg } from './cli-path.mjs';
+import { FRONTEND_DIR } from './cli-path.mjs';
 
-const dest = frontendPathArg(2, 'static/core');
-const busytexDir = path.join(dest, 'busytex');
-
-async function main() {
+/** Fills `dest`/busytex unless it already has files; `dest` comes from code, never from the command line, because it reaches a spawned command. */
+export async function fetchBusytex(dest) {
+  const busytexDir = path.join(dest, 'busytex');
   if (fs.existsSync(busytexDir) && fs.readdirSync(busytexDir).length > 0) {
     console.log('✓ BusyTeX assets already exist');
     return;
@@ -28,10 +28,13 @@ async function main() {
   await run('npx', ['texlyre-busytex', 'download-assets', dest]);
 }
 
-main().then(
-  () => process.exit(0),
-  (err) => {
+// `npm run dev` (predev): always static/core. Realpath so a symlinked checkout still matches import.meta.url.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    await fetchBusytex(path.join(FRONTEND_DIR, 'static', 'core'));
+    process.exit(0);
+  } catch (err) {
     console.error(err);
     process.exit(1);
-  },
-);
+  }
+}

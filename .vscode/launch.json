@@ -13,12 +13,9 @@
       "args": ["app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
       "cwd": "${workspaceFolder}/backend",
       "preLaunchTask": "Start Full Stack",
+      "envFile": "${workspaceFolder}/backend/.env",
       "postDebugTask": "Stop Frontend Dev Server",
       "env": {
-        "DATABASE_URL": "postgresql+asyncpg://blindgrade:blindgrade@localhost:5432/blindgrade",
-        "DATABASE_URL_SYNC": "postgresql+psycopg2://blindgrade:blindgrade@localhost:5432/blindgrade",
-        "REDIS_URL": "redis://localhost:6379/0",
-        "SECRET_KEY": "dev-secret-key-change-me-in-production-32-chars-long!",
         "ENVIRONMENT": "development"
       },
       "justMyCode": true
@@ -32,11 +29,8 @@
       "args": ["app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
       "cwd": "${workspaceFolder}/backend",
       "preLaunchTask": "Alembic Migrate",
+      "envFile": "${workspaceFolder}/backend/.env",
       "env": {
-        "DATABASE_URL": "postgresql+asyncpg://blindgrade:blindgrade@localhost:5432/blindgrade",
-        "DATABASE_URL_SYNC": "postgresql+psycopg2://blindgrade:blindgrade@localhost:5432/blindgrade",
-        "REDIS_URL": "redis://localhost:6379/0",
-        "SECRET_KEY": "dev-secret-key-change-me-in-production-32-chars-long!",
         "ENVIRONMENT": "development"
       },
       "justMyCode": true
