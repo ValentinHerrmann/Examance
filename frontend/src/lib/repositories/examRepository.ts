@@ -97,6 +97,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     retentionUntil: raw.retention_until || raw.retentionUntil || new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
     compilationStatus: raw.compilation_status || raw.compilationStatus || 'pending',
     createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
+    ...(raw.results_purged_at ? { resultsPurgedAt: raw.results_purged_at } : {}),
   };
 }
 

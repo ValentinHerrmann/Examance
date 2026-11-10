@@ -424,6 +424,8 @@ and of `.bgproj` archives (see Archives).
 
 `omr_template_pins` holds the answer-sheet layout (bubble, fiducial and score-box rectangles) of a printed exam, sealed in the browser with AES-256-GCM under the data key, so already printed sheets can still be scanned after later layout changes: the server stores only the ciphertext, the IV and a layout hash, no personal data, and it is deleted with the exam (`ON DELETE CASCADE`; the trash keeps and restores it with the exam).
 
+`exam_statistics` (issue #238, `docs/dev/statistics_snapshots.md`) holds one record per exam: an anonymised score matrix (points per exercise and totals of each graded paper, shuffled, without pseudonym, submission id, timestamp, scan, annotation or OMR data) plus exam and exercise metadata, sealed in the browser with AES-256-GCM under the data key. The server stores only the ciphertext, `computed_at` and the teacher's `keep_after_exam_delete` choice, in every storage mode and regardless of `server_results`. Retention's results purge keeps it, so analytics survive the results. Deleting all of an exam's results deletes it. Erasing an exam for good deletes it unless the teacher chose to keep it, and the teacher can delete it at any time; account deletion removes it. Because a row of a very small class could still be recognisable to someone who knows the class, the record is treated as confidential and stays end-to-end encrypted.
+
 ### LaTeX packages on the server
 
 The packages a teacher adds to the exam template (issue #108) are stored as **plaintext JSON**

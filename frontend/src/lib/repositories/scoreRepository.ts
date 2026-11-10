@@ -9,6 +9,7 @@ import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import type { ExerciseScoreRecord } from '#lib/db/schema';
 import { deleteUrl, trashHeaders, type DeleteOptions } from '#lib/trash/group';
 import { captureLocal } from '#lib/trash/localTrash';
+import { markStatisticsDirty } from '#lib/analytics/statisticsDirty';
 
 const submissionPath = (examId: string, submissionId: string) =>
   `/exams/${examId}/submissions/${submissionId}/scores`;
@@ -82,6 +83,7 @@ export const scoreRepository = {
     key: CryptoKey | null
   ): Promise<void> {
     if (scores.length === 0) return;
+    markStatisticsDirty(examId);
     // One row per exercise, last one wins; a repeated exercise would duplicate in Dexie.
     const unique = [...new Map(scores.map((s) => [s.exerciseId, s])).values()];
     const sealed = await Promise.all(unique.map((s) => encryptScore({ ...s, submissionId }, key)));
@@ -99,6 +101,7 @@ export const scoreRepository = {
   },
 
   async deleteOne(examId: string, submissionId: string, exerciseId: string, opts: DeleteOptions = {}): Promise<void> {
+    markStatisticsDirty(examId);
     if (!resultsAreLocal()) return sendDelete(`${submissionPath(examId, submissionId)}/${exerciseId}`, opts);
     const rows = db.exerciseScores.where('submissionId').equals(submissionId).and((row) => row.exerciseId === exerciseId);
     await captureLocal(opts, { kind: 'scores', examId, submissionId, rows: { exerciseScores: await rows.toArray() } });

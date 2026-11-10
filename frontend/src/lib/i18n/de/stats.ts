@@ -10,6 +10,11 @@ export const stats = {
         emptyStats: 'Noch keine Aufgaben korrigiert. Die Statistiken erscheinen hier, sobald Sie mit der Korrektur beginnen.',
         loadFailed: 'Die Ergebnisse dieser Prüfung konnten nicht geladen werden: {message}',
         exportButton: 'Noten als CSV exportieren (Excel-kompatibel)',
+        statsOnly: 'Die Ergebnisse dieser Prüfung sind hier nicht mehr vorhanden (gelöscht oder nur in einem anderen Browser gespeichert). Angezeigt werden Ihre persönlichen Statistiken: anonym, ohne Namen und Scans, und nur für Sie sichtbar.',
+        deleteStatistics: 'Meine persönlichen Statistiken löschen',
+        deleteStatisticsTitle: 'Persönliche Statistiken löschen?',
+        deleteStatisticsBody: 'Die anonymen Statistiken dieser Prüfung werden endgültig gelöscht und erscheinen nicht mehr in der Analyse.',
+        deleteStatisticsFailed: 'Die Statistiken konnten nicht gelöscht werden: {message}',
     },
     cards: {
         gradeAverage: 'Notendurchschnitt',
@@ -112,6 +117,16 @@ export const stats = {
         heading: 'Globale prüfungsübergreifende Analyse',
         subtitle: 'Leistungsverfolgung über mehrere Prüfungen, Aufgabenqualitätskennzahlen & Variantenvergleich',
         loadFailed: 'Die Analyse konnte nicht geladen werden: {message}',
+        keptLoadFailed: 'Ihre persönlichen Statistiken konnten nicht geladen werden, Prüfungen ohne Ergebnisse fehlen daher: {message}',
+        statsOnlyTitle: 'Nur persönliche Statistiken',
+        statsOnlyBody: 'Für {count} Prüfungen liegen hier keine Ergebnisse mehr vor; sie gehen mit Ihren anonymen persönlichen Statistiken in die Analyse ein.',
+        deletedExamsTitle: 'Statistiken gelöschter Prüfungen',
+        deletedExamBadge: 'Prüfung gelöscht',
+        deleteStatistics: 'Statistiken löschen',
+    },
+    keepOption: {
+        label: 'In meinen persönlichen Statistiken behalten (nur für Sie sichtbar)',
+        hint: 'Anonym, ohne Namen und Scans; Sie können sie später in der Analyse löschen.',
     },
     analyticsBanner: {
         loading: 'Analysedaten für alle Prüfungen werden geladen…',

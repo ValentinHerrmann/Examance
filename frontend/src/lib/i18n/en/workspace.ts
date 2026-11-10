@@ -77,6 +77,7 @@ export const workspace: Translations['workspace'] = {
             examNotImported: 'Results without an imported exam',
             logoUnavailable: 'Exam logo not transferred',
             resourceUnavailable: 'Image or resource file could not be read',
+            statisticsUnavailable: 'Personal statistics could not be read and are missing from the backup',
         },
         withheldItem: {
             exerciseCode: 'LaTeX code of the exercises',

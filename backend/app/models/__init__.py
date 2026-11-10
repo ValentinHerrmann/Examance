@@ -5,6 +5,7 @@ from app.models.audit_log import AuditLog
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
+from app.models.exam_statistics import ExamStatistics
 from app.models.exercise import Exercise
 from app.models.exercise_contribution import ExerciseContribution, ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
@@ -56,6 +57,7 @@ __all__ = [
     "AuditLog",
     "WebAuthnCredential",
     "OmrTemplatePin",
+    "ExamStatistics",
     "OmrTrainingSample",
     "MaintenanceWindow",
     "LayoutReport",

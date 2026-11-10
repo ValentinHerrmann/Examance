@@ -26,6 +26,9 @@
     onCancelExport: () => void;
     /** The grading-key editor, shown under the heading (issue #212). */
     gradingKeyPanel?: Snippet;
+    /** Shown from the kept statistics record (issue #238): no students behind the numbers, so no export and no borderline links. */
+    statsOnly?: boolean;
+    onDeleteStatistics?: () => void;
   }
 
   let {
@@ -39,7 +42,9 @@
     onOpenExport,
     onConfirmExport,
     onCancelExport,
-    gradingKeyPanel
+    gradingKeyPanel,
+    statsOnly = false,
+    onDeleteStatistics
   }: Props = $props();
 
   const PRESETS: Record<string, TranslationKey> = {
@@ -70,7 +75,9 @@
 <PageShell width="fluid">
   <PageHeader title={$t('stats.page.title')} context={exam?.title || undefined}>
     {#snippet actions()}
-      {#if !loadError}
+      {#if statsOnly && onDeleteStatistics}
+        <Button variant="outlined" severity="danger" icon={actionIcons.delete} onClick={onDeleteStatistics}>{$t('stats.page.deleteStatistics')}</Button>
+      {:else if !loadError}
         <Button variant="outlined" severity="secondary" icon={actionIcons.download} onClick={onOpenExport}>{$t('stats.page.exportButton')}</Button>
       {/if}
     {/snippet}
@@ -80,7 +87,9 @@
   {#if gradingKeyPanel}<div class="min-w-0 xl:order-2">{@render gradingKeyPanel()}</div>{/if}
   <div class="@container min-w-0 xl:order-1">
 
-  {#if submissionCount > 0}
+  {#if statsOnly}
+    <Alert severity="info" class="mb-6">{$t('stats.page.statsOnly')}</Alert>
+  {:else if submissionCount > 0}
     <div class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
       <span>{$t('stats.page.statusBanner', { graded, total: submissionCount })}</span>
       {#if graded > full}
@@ -117,7 +126,9 @@
           <p class="mt-2 text-xs text-muted">{$t('stats.combined.markers.legend')}</p>
         {/if}
       </ChartCard>
-      <BorderlineCases class="@3xl:col-span-2" cases={stats.borderline} examId={exam?.id ?? ''} {submissionIds} />
+      {#if !statsOnly}
+        <BorderlineCases class="@3xl:col-span-2" cases={stats.borderline} examId={exam?.id ?? ''} {submissionIds} />
+      {/if}
       <ChartCard
         title={$t('stats.gradeDistribution.title')}
         subtitle="{$t('stats.gradeDistribution.gradingKeyPrefix')} {$t(preset)}"

@@ -1,4 +1,5 @@
 /** The Trash page's model (issue #125): server and browser entries merged by group, labelled for display, restored and erased together. */
+import { markStatisticsDirty } from '#lib/analytics/statisticsDirty';
 import { get } from 'svelte/store';
 import { sessionStore } from '#lib/stores/session';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
@@ -14,6 +15,7 @@ export interface TrashItemView {
   kind: string;
   /** Held in this browser (hybrid results) rather than on the server. */
   local: boolean;
+  examId?: string;
   examTitle?: string;
   exerciseName?: string;
   filename?: string;
@@ -52,6 +54,7 @@ async function serverItem(entry: ServerTrashEntry, key: CryptoKey | null): Promi
     id: entry.id,
     kind: entry.kind,
     local: false,
+    examId: label.exam_id ?? undefined,
     examTitle: label.exam_title ?? undefined,
     exerciseName: label.exercise_name ?? undefined,
     filename: label.filename ?? undefined,
@@ -71,6 +74,7 @@ async function localItem(entry: LocalTrashRecord, titles: Map<string, string>, k
     id: entry.id,
     kind: entry.kind,
     local: true,
+    examId: entry.examId,
     examTitle: titles.get(entry.examId),
     student: (await studentName(single, key)) ?? shortPseudonym(entry.pseudonymHmac),
     counts,
@@ -142,6 +146,8 @@ export async function restoreGroup(group: TrashGroupView): Promise<RestoreResult
     const key = get(sessionStore).sessionKey;
     add(await restoreLocalGroup(group.groupId, key, async (examId) => (await examRepository.getById(examId, key)) !== undefined));
   }
+  // Restored results count again (issue #238).
+  for (const examId of new Set(group.items.map((item) => item.examId))) markStatisticsDirty(examId);
   return result;
 }
 

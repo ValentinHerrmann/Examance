@@ -185,6 +185,7 @@ async def test_account_export_shape(client: AsyncClient, db: AsyncSession) -> No
         "exams",
         "shared_exercises",
         "contributions_submitted",
+        "exam_statistics",
         "audit_log",
     }
     assert set(first["account"]) == {
