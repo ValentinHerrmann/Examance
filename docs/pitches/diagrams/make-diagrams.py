@@ -72,6 +72,28 @@ class Svg:
         (HERE / f"{name}.svg").write_text(svg)
 
 
+def _sequence_note(s, xs, w, y, row, st):
+    fill, stroke, tc = KIND[st[2]]
+    s.out.append(f'<rect x="{xs[0] - 120}" y="{y - 24}" width="{xs[-1] - xs[0] + 240}" height="{row + 4}" rx="10" '
+                 f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>')
+    s.text(w / 2, y + 5, st[1], 16, tc, 600, "middle")
+
+
+def _sequence_step(s, xs, y, i, st):
+    s.out.append(f'<circle cx="{26}" cy="{y - 5}" r="12" fill="{C["key"]}" stroke="{C["keyline"]}"/>')
+    s.text(26, y, str(i), 13, C["accent"], 700, "middle")
+    if st[0] == "msg":
+        _, a, b, label, *col = st
+        xa, xb = xs[a], xs[b]
+        s.arrow([(xa + (6 if xb > xa else -6), y + 6), (xb - (8 if xb > xa else -8), y + 6)], color=col[0] if col else None)
+        s.text((xa + xb) / 2, y - 4, label, 15, C["text"], 500, "middle", halo=True)
+    else:
+        _, a, label = st
+        x = xs[a]
+        s.out.append(f'<rect x="{x - 8}" y="{y - 20}" width="16" height="30" rx="3" fill="{C["key"]}" stroke="{C["keyline"]}"/>')
+        s.text(x + 18, y, label, 15, C["text"], 500, halo=True)
+
+
 def sequence(name, w, actors, steps, top=20, row=46):
     """Sequence chart: actors are (label, kind); steps are ("msg", a, b, text[, color]), ("self", a, text)
     or ("note", text, kind). Columns are evenly spaced."""
@@ -86,24 +108,10 @@ def sequence(name, w, actors, steps, top=20, row=46):
     y = top + 92
     for i, st in enumerate(steps, 1):
         if st[0] == "note":
-            fill, stroke, tc = KIND[st[2]]
-            s.out.append(f'<rect x="{xs[0] - 120}" y="{y - 24}" width="{xs[-1] - xs[0] + 240}" height="{row + 4}" rx="10" '
-                         f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>')
-            s.text(w / 2, y + 5, st[1], 16, tc, 600, "middle")
+            _sequence_note(s, xs, w, y, row, st)
             y += row + 14
             continue
-        s.out.append(f'<circle cx="{26}" cy="{y - 5}" r="12" fill="{C["key"]}" stroke="{C["keyline"]}"/>')
-        s.text(26, y, str(i), 13, C["accent"], 700, "middle")
-        if st[0] == "msg":
-            _, a, b, label, *col = st
-            xa, xb = xs[a], xs[b]
-            s.arrow([(xa + (6 if xb > xa else -6), y + 6), (xb - (8 if xb > xa else -8), y + 6)], color=col[0] if col else None)
-            s.text((xa + xb) / 2, y - 4, label, 15, C["text"], 500, "middle", halo=True)
-        else:
-            _, a, label = st
-            x = xs[a]
-            s.out.append(f'<rect x="{x - 8}" y="{y - 20}" width="16" height="30" rx="3" fill="{C["key"]}" stroke="{C["keyline"]}"/>')
-            s.text(x + 18, y, label, 15, C["text"], 500, halo=True)
+        _sequence_step(s, xs, y, i, st)
         y += row
     s.write(name)
 
@@ -217,7 +225,7 @@ def what_server_sees():
             else:
                 s.out.append(f'<circle cx="{x + 30}" cy="{y - 6}" r="4.5" fill="{tc}"/>')
                 s.text(x + 44, y, line, 17, C["text"])
-            y += 44 if not line.startswith("  ") and False else 40
+            y += 40
     s.write("what-server-sees")
 
 

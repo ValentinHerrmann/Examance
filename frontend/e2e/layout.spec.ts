@@ -3,7 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
 import { test, expect } from './helpers/guards';
 import { label } from './helpers/i18n';
-import { chooseTheme, header, openHelp, openWorkspaceMenu } from './helpers/nav';
+import { chooseTheme, header, openHelp, openWorkspaceMenu, settleLayout } from './helpers/nav';
 import { exerciseEditor, signInFirstTime, unfoldEditorDetails } from './helpers/flows';
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';
 
@@ -77,7 +77,7 @@ for (const theme of THEMES) {
 test('[layout] the unlock page fits when locked', async ({ page }) => {
   await page.goto('/unlock');
   await expect(page.getByLabel(label('auth.unlock.cloud.email'))).toBeVisible();
-  await page.waitForTimeout(500);
+  await settleLayout(page);
   const m = await page.evaluate(() => {
     const doc = document.scrollingElement!;
     const main = document.querySelector('.app-main');
@@ -127,7 +127,7 @@ test('[layout] a shared result fills the screen with its PDF (issue #210)', asyn
   await expect(page.getByRole('heading', { level: 1, name: 'Layout check' })).toBeVisible();
   const viewer = page.locator('.embed-pdf-viewer').first();
   await expect(viewer).toBeVisible();
-  await page.waitForTimeout(300);
+  await settleLayout(page);
 
   const m = await page.evaluate(() => {
     const doc = document.scrollingElement!;
@@ -310,7 +310,7 @@ async function expectEditorPanelsApart(page: Page, editor: Locator) {
   await unfold(paletteToggle);
   await unfold(resourcesToggle);
   await unfold(packagesToggle);
-  await page.waitForTimeout(300);
+  await settleLayout(page);
 
   const code = (await editor.locator('.cm-editor').first().boundingBox())!;
   const palette = (await paletteToggle.locator('xpath=../following-sibling::div[1]').boundingBox())!;
@@ -344,7 +344,7 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
   await page.getByRole('button', { name: label('exercises.page.createButton', undefined, 'en') }).click();
   const editor = await exerciseEditor(page);
   await expect(editor).toBeVisible();
-  await page.waitForTimeout(800);
+  await settleLayout(page);
   await expectDialogFits(page, editor, 'full', 'exercise editor');
   await expectEditorPanelsApart(page, editor);
   await expectMetaLabelsFit(editor);
@@ -390,7 +390,7 @@ test('[layout] account management fits every tab without sideways scrolling', as
   await expect(tabs).toHaveCount(TAB_COUNT);
   for (let i = 0; i < TAB_COUNT; i++) {
     await tabs.nth(i).click();
-    await page.waitForTimeout(300);
+    await settleLayout(page);
     const where = `admin tab ${i + 1}`;
 
     const m = await page.evaluate(() => {

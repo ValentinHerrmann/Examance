@@ -27,13 +27,15 @@ function resourceFiles(resources: LatexResourceFile[]): LayoutReportFileData[] {
 
 /** The previewed PDFs (blob URLs of the last compile); missing ones are skipped. */
 async function pdfFiles(pdfs: { filename: string; url: string | null }[]): Promise<LayoutReportFileData[]> {
-  const out: LayoutReportFileData[] = [];
-  for (const { filename, url } of pdfs) {
-    if (!url) continue;
-    const content = new Uint8Array(await (await fetch(url)).arrayBuffer());
-    out.push({ filename, mimeType: "application/pdf", content });
-  }
-  return out;
+  // Blob URLs of the last compile, read in parallel; `map` keeps the order.
+  const files = await Promise.all(
+    pdfs.map(async ({ filename, url }): Promise<LayoutReportFileData | null> => {
+      if (!url) return null;
+      const content = new Uint8Array(await (await fetch(url)).arrayBuffer());
+      return { filename, mimeType: "application/pdf", content };
+    })
+  );
+  return files.filter((f): f is LayoutReportFileData => f !== null);
 }
 
 /** Both documents, their resource files and the previewed PDFs, under `<prefix>.tex` / `<prefix>-solution.*`. */

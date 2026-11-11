@@ -18,7 +18,7 @@ export function versionUrlFor(version: string, commitSha: string): string | null
     if (!version.includes('-')) return `${repoUrl}/releases/tag/v${version}`;
 
     // Preview build with PR format: extract PR number and link to it
-    const prMatch = version.match(/PR#(\d+)/);
+    const prMatch = /PR#(\d+)/.exec(version);
     if (prMatch) {
         return `${repoUrl}/pull/${prMatch[1]}`;
     }
@@ -47,7 +47,10 @@ export const backendVersionStore = writable<string | null>(null);
 
 /** Drops the " [dd.MM.yyyy | HH:mm]" build stamp of a preview version (deploy-preview.yml redeploys only the changed side, so one PR's frontend and backend legitimately differ in build time). */
 function withoutBuildTime(version: string): string {
-    return version.replace(/\s*\[[^\]]*\]$/, '');
+    if (!version.endsWith(']')) return version;
+    const close = version.length - 1;
+    const open = version.indexOf('[', version.lastIndexOf(']', close - 1) + 1);
+    return open < 0 || open >= close ? version : version.slice(0, open).trimEnd();
 }
 
 function majorOf(version: string): number | null {

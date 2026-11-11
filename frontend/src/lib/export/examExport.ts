@@ -268,7 +268,7 @@ export async function forEachGradedPdf(
         continue;
       }
       const pdf = await renderGradedPdf(full, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes, studentName: row?.studentName }); // NOSONAR: one scan at a time keeps memory bounded
-      await onPdf(pdf, row, gradingState(resultBySubmission.get(sub.id)), name);
+      await onPdf(pdf, row, gradingState(resultBySubmission.get(sub.id)), name); // NOSONAR: one scan at a time keeps memory bounded
     } catch (err) {
       warnings.push(translate('export.exam.warnings.gradedOne', { name, error: errorText(err) }));
     }

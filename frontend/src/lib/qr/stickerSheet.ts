@@ -53,10 +53,12 @@ interface Cell {
 
 async function cellsFor(entries: readonly StickerEntry[], options: StickerSheetOptions): Promise<Cell[]> {
   const cells: Cell[] = [];
-  for (const entry of entries) {
-    const key = options.keys ? await personalKey(entry.payload) : null;
+  // Pure HMACs, so the keys derive in parallel; `map` keeps the entry order.
+  const keys = options.keys ? await Promise.all(entries.map((entry) => personalKey(entry.payload))) : entries.map(() => null);
+  entries.forEach((entry, n) => {
+    const key = keys[n];
     for (let i = 0; i < Math.max(1, options.copies); i++) cells.push({ entry, key: i === 0 ? key : null });
-  }
+  });
   return cells;
 }
 

@@ -1,8 +1,9 @@
 /** Builds anonymous training samples (opt-in donation) from one teacher-verified MC question: a small grayscale crop of one box plus redo zone, the teacher's label and the detector's reading. Deliberately no exam, submission, exercise, pupil or teacher id and no timestamp; `sample_token` is random per box so a re-donation replaces it. Match backend/app/schemas/training.py. */
+import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import type { OmrScoreMeta } from '#lib/db/schema';
 import { renderScanPage } from './mcCropRender';
 import type { OmrRunInfo } from './omrSettings';
-import type { OmrShapeReason } from './omrShape';
+import type { OmrBubbleState, OmrShapeReason } from './omrShape';
 
 export const OMR_CROP_WIDTH = 80;
 export const OMR_CROP_HEIGHT = 48;
@@ -18,10 +19,10 @@ export interface OmrTrainingSampleIn {
   schema_version: 1;
   algorithm_version: number;
   label_selected: boolean;
-  detected_state: 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone';
+  detected_state: OmrBubbleState;
   provisional: boolean | null;
   /** The other algorithm's verdict (shadow run), when recorded. */
-  alt_state: 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone' | null;
+  alt_state: OmrBubbleState | null;
   reasons: OmrShapeReason[];
   has_redo_zone: boolean;
   crop_b64: string;
@@ -55,7 +56,7 @@ export function donationTokens(
   omrMeta: OmrScoreMeta,
   known: Record<number, string> = {}
 ): Record<number, string> {
-  const tokens: Record<number, string> = { ...(omrMeta.donation?.tokens ?? {}), ...known };
+  const tokens: Record<number, string> = { ...omrMeta.donation?.tokens, ...known };
   for (const b of omrMeta.detections?.bubbles ?? []) tokens[b.optionIndex] ??= crypto.randomUUID();
   return tokens;
 }
@@ -70,12 +71,6 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 /** Clamp that also rejects NaN/Infinity — one bad number would get the whole batch refused. */
 const unit = (v: number | undefined, lo = 0, hi = 1): number | null =>
   v === undefined || !Number.isFinite(v) ? null : clamp(v, lo, hi);
-
-function toBase64(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
 
 /** Samples for every box of one verified question, or [] when the detection predates the features a sample needs (algorithm < 3) or its page cannot be read. */
 export async function buildTrainingSamples(
@@ -123,7 +118,8 @@ export async function buildTrainingSamples(
     octx.drawImage(page, sx, sy, ex - sx, ey - sy, 0, 0, OMR_CROP_WIDTH, OMR_CROP_HEIGHT);
     const rgba = octx.getImageData(0, 0, OMR_CROP_WIDTH, OMR_CROP_HEIGHT).data;
     const grayBytes = new Uint8Array(OMR_CROP_WIDTH * OMR_CROP_HEIGHT);
-    for (let i = 0, p = 0; p < grayBytes.length; i += 4, p++) {
+    for (let p = 0; p < grayBytes.length; p++) {
+      const i = p * 4;
       grayBytes[p] = Math.round(0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]);
     }
 
@@ -136,7 +132,7 @@ export async function buildTrainingSamples(
       alt_state: b.alt?.state ?? null,
       reasons: b.reasons ?? [],
       has_redo_zone: b.redoRatio !== undefined,
-      crop_b64: toBase64(grayBytes),
+      crop_b64: uint8ArrayToBase64(grayBytes),
       sample_token: token,
       features: {
         fill,

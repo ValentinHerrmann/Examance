@@ -240,7 +240,7 @@ export function calculatePassRate(
   keyConfig?: GradingKeyConfig,
 ): number | null {
   const grades = numericGrades(percentages, keyConfig);
-  if (grades.length === 0 || grades.every(Number.isNaN)) return null;
+  if (grades.every(Number.isNaN)) return null;
   return grades.filter((g) => g <= 4).length / grades.length;
 }
 
@@ -289,7 +289,7 @@ export function borderlineCases(
   const round = (v: number) => Math.round(v * 100) / 100;
   const cases: BorderlineCase[] = [];
   for (const r of results) {
-    if (!(r.gradedMaxPoints > 0)) continue;
+    if (!(r.gradedMaxPoints > 0)) continue; // NOSONAR: negation also skips NaN
     const idx = cutoffIndex(sorted, r.percentage);
     const base = {
       submissionId: r.submissionId,

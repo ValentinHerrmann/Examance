@@ -177,7 +177,7 @@ export default defineConfig(({ mode }) => {
       // Gzip-sizing every chunk only feeds the build log and cost ~9 s per Cloudflare Pages build.
       reportCompressedSize: false,
       rolldownOptions: {
-        external: [/.*\.wasm$/],
+        external: [/\.wasm$/],
         // No `output.*FileNames` overrides here — SvelteKit owns the output layout and ignores them, always emitting under `_app/immutable/`, which is what `static/_headers` targets.
       },
     },

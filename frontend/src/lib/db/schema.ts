@@ -2,7 +2,7 @@ import type { MaybeUndecryptable } from './decryptGuard';
 import type { StepChecks } from '#lib/exam/examChecks';
 import type { LatexPackageEntry } from '#lib/latex/packages';
 import type { OmrPageStats, OmrRunInfo } from '#lib/grading/omrSettings';
-import type { OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
+import type { OmrBubbleState, OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
 
 /** How a pseudonym key was derived: 1 = SHA-256 of the raw value (raw in this browser), 2 = keyed per-exam HMAC (issue #177). */
 export type PseudonymVersion = 1 | 2;
@@ -215,11 +215,11 @@ export interface OmrScoreMeta {
     pageIndex: number;
     bubbles: {
       optionIndex: number;
-      state: 'ambiguous' | 'marked' | 'blank' | 'undone' | 'redone';
+      state: OmrBubbleState;
       /** Normalized [minX, minY, maxX, maxY] in [0,1] of the scan page's (width, height). */
       rect: [number, number, number, number];
       /** The worker's own reading — immutable, unlike `state`. */
-      detectedState?: 'ambiguous' | 'marked' | 'blank' | 'undone' | 'redone';
+      detectedState?: OmrBubbleState;
       /** Dark-pixel fraction inside the box (rounded to 3 decimals). */
       fillRatio?: number;
       /** Redo-zone fill ratio, only for boxes that have a redo zone. */
@@ -231,7 +231,7 @@ export interface OmrScoreMeta {
       /** Detector's provisional (closer) reading of an ambiguous box — true = counted as ticked until verified. Immutable; the teacher's decision lives in `selectedOptions`. */
       provisional?: boolean;
       /** Verdict of the algorithm that did not decide (shadow run, `params.algorithm`), kept to compare algorithms on verified data. Immutable. */
-      alt?: { algorithm: number; state: 'ambiguous' | 'marked' | 'blank' | 'undone' | 'redone'; reasons?: OmrShapeReason[]; provisional?: boolean };
+      alt?: { algorithm: number; state: OmrBubbleState; reasons?: OmrShapeReason[]; provisional?: boolean };
     }[];
   };
 }

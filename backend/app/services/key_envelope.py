@@ -55,6 +55,20 @@ MAX_WRAPPED_BUNDLE_BYTES = 4096
 MAX_CREDENTIAL_ID_BYTES = 1023
 
 
+def _decode_credential(credential_id_b64: str | None) -> bytes | None:
+    """The decoded credential id of a passkey wrap; an empty or oversized one is refused."""
+    if credential_id_b64 is None:
+        return None
+    credential_id = decode_credential_id(credential_id_b64, "credential_id_b64")
+    if not credential_id or len(credential_id) > MAX_CREDENTIAL_ID_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Field 'credential_id_b64' has an implausible length.",
+            headers={"code": "ERR_BAD_REQUEST"},
+        )
+    return credential_id
+
+
 async def replace_envelope_set(
     db: AsyncSession, teacher: Teacher, body: KeyEnvelopeSetIn, *, keep_secret_wraps: bool = False
 ) -> list[KeyEnvelope]:
@@ -76,15 +90,7 @@ async def replace_envelope_set(
                 headers={"code": "ERR_BAD_REQUEST"},
             )
 
-        credential_id: bytes | None = None
-        if envelope.credential_id_b64 is not None:
-            credential_id = decode_credential_id(envelope.credential_id_b64, "credential_id_b64")
-            if not credential_id or len(credential_id) > MAX_CREDENTIAL_ID_BYTES:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Field 'credential_id_b64' has an implausible length.",
-                    headers={"code": "ERR_BAD_REQUEST"},
-                )
+        credential_id = _decode_credential(envelope.credential_id_b64)
         if envelope.kind == "passkey" and credential_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

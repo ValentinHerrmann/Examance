@@ -35,14 +35,17 @@ async def test_job_runs_with_the_full_budget_and_hands_out_the_pdf_once(
         assert start.status_code == 202
         job_id = start.json()["job_id"]
         pending = await client.get(f"/api/v1/compile/latex/jobs/{job_id}")
-        assert pending.status_code == 202 and pending.json() == {"status": "pending"}
+        assert pending.status_code == 202
+        assert pending.json() == {"status": "pending"}
         gate.set()
         done = await poll_compile_job(client, job_id)
 
-    assert done.status_code == 200 and done.content == b"%PDF-1.4 job"
+    assert done.status_code == 200
+    assert done.content == b"%PDF-1.4 job"
     assert seen == [False]  # final budget, not the 30 s preview one
     gone = await client.get(f"/api/v1/compile/latex/jobs/{job_id}")
-    assert gone.status_code == 404 and gone.headers["code"] == "ERR_COMPILE_JOB_UNKNOWN"
+    assert gone.status_code == 404
+    assert gone.headers["code"] == "ERR_COMPILE_JOB_UNKNOWN"
 
 
 @pytest.mark.asyncio
@@ -57,11 +60,13 @@ async def test_job_errors_keep_their_shape(client: AsyncClient, db: AsyncSession
         with patch("app.routers.compile.compile_latex", side_effect=error):
             job_id = (await client.post("/api/v1/compile/latex/jobs", json=DOC)).json()["job_id"]
             res = await poll_compile_job(client, job_id)
-        assert res.status_code == status_code and res.headers["code"] == code
+        assert res.status_code == status_code
+        assert res.headers["code"] == code
     with patch("app.routers.compile.compile_latex", side_effect=cases[0][0]):
         job_id = (await client.post("/api/v1/compile/latex/jobs", json=DOC)).json()["job_id"]
         body = (await poll_compile_job(client, job_id)).json()
-    assert body["detail"] == "! Boom" and body["log"] == "full log"
+    assert body["detail"] == "! Boom"
+    assert body["log"] == "full log"
 
 
 @pytest.mark.asyncio
@@ -79,7 +84,8 @@ async def test_jobs_are_private_and_capped(client: AsyncClient, db: AsyncSession
             for _ in range(compile_jobs.MAX_PER_TEACHER)
         ]
         busy = await client.post("/api/v1/compile/latex/jobs", json=DOC)
-        assert busy.status_code == 429 and busy.headers["code"] == "ERR_COMPILE_BUSY"
+        assert busy.status_code == 429
+        assert busy.headers["code"] == "ERR_COMPILE_BUSY"
 
         client.cookies.clear()
         await sign_in(client, db, "jobs-intruder@example.com")

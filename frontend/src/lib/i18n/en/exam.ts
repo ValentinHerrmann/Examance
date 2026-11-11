@@ -15,7 +15,7 @@ export const exam: Translations['exam'] = {
         omr: {
             checkingExercises: 'Checking MC exercises…',
             noExercisesError: 'Scan template failed: this exam has no exercises.',
-            invalidExercisesError: 'OMR preparation failed: MC exercise(s) {names} do not contain \\multi or \\Lmulti option bubbles in their LaTeX body. Please check and edit the exercise options.',
+            invalidExercisesError: String.raw`OMR preparation failed: MC exercise(s) {names} do not contain \multi or \Lmulti option bubbles in their LaTeX body. Please check and edit the exercise options.`,
             compilingBlank: 'Compiling blank exam…',
             loginRequired: 'Please log in to compile LaTeX on the server.',
             loadingCompiler: 'Loading local LaTeX compiler… (One-time download of about 500 MB, progress shown at the bottom left)',
@@ -103,7 +103,7 @@ export const exam: Translations['exam'] = {
         courseEdit: 'Change printed class',
         courseCustom: 'custom',
         courseReset: 'Build from grade and class again',
-        courseHint: 'How the class is printed on the exam (\\Klasse). Built from grade and class; use the pen to enter your own, e.g. “Q11 Inf”.',
+        courseHint: String.raw`How the class is printed on the exam (\Klasse). Built from grade and class; use the pen to enter your own, e.g. “Q11 Inf”.`,
         datum: 'Date',
         dauer: 'Duration',
         nr: 'No.',

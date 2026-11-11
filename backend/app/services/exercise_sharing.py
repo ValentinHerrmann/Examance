@@ -330,21 +330,14 @@ class GroupPlan:
         return [v for v in self.variants if v.kind in ("changed", "new")]
 
 
-async def plan_groups(
-    viewer: Teacher, db: AsyncSession, group_id: uuid.UUID | None = None, *, lock: bool = False
-) -> list[GroupPlan]:
-    """Compare *viewer*'s linked groups (or one of them) with their sources. Writers pass *lock*: the group row lock serializes them, so two cannot both version the same current row."""
-    query = select(ExerciseGroup).where(
-        ExerciseGroup.teacher_id == viewer.id, ExerciseGroup.source_group_id.is_not(None)
-    )
-    if group_id is not None:
-        query = query.where(ExerciseGroup.id == group_id)
-    if lock:
-        query = query.with_for_update()
-    groups = list((await db.execute(query)).scalars())
-    if not groups:
-        return []
+_Lineage = dict[uuid.UUID, tuple[uuid.UUID | None, str | None]]
+_Digests = dict[uuid.UUID, list[ResourceDigest]]
 
+
+async def _load_plan_inputs(
+    viewer: Teacher, db: AsyncSession, groups: list[ExerciseGroup]
+) -> tuple[list[Exercise], list[Exercise], _Lineage, _Digests]:
+    """The viewer's current rows, the readable source rows, the copies' lineage and the resource digests."""
     own_rows = list(
         (
             await db.execute(
@@ -381,56 +374,92 @@ async def plan_groups(
         ).all()
     }
     digests = await resource_digests([r.id for r in own_rows + source_rows], db)
+    return own_rows, source_rows, lineage, digests
 
-    def own_fp(row: Exercise) -> str:
-        return content_fingerprint(row, digests.get(row.id, []))
 
-    plans: list[GroupPlan] = []
-    for group in groups:
-        mine = [
-            r for r in own_rows if r.exercise_group_id == group.id and r.copied_from_exercise_id
-        ]
-        added = [
-            r for r in own_rows if r.exercise_group_id == group.id and not r.copied_from_exercise_id
-        ]
-        theirs = [r for r in source_rows if r.exercise_group_id == group.source_group_id]
-        plan = GroupPlan(group=group, state="source_unavailable" if not theirs else "up_to_date")
-        matched: set[uuid.UUID] = set()
-        for src in theirs:
-            own = _match(src, mine, matched, lineage)
-            fp = content_fingerprint(src, digests.get(src.id, []))
-            if own is None:
-                # A variant the recipient added with the same content (an accepted proposal) is it.
-                own = next((r for r in added if own_fp(r) == fp), None)
-                if own is not None:
-                    added.remove(own)
-            variant = VariantPlan(source=src, own=own, source_fingerprint=fp)
-            if own is None:
-                variant.kind = "new"
-            else:
-                matched.add(own.id)
-                current = own_fp(own)
-                if current == fp:
-                    _mark_synced(own, src, fp)
-                variant.locally_modified = current != own.synced_fingerprint
-                variant.kind = "unchanged" if fp == own.synced_fingerprint else "changed"
-            plan.variants.append(variant)
-        for own in added:
-            plan.variants.append(VariantPlan(source=None, own=own, kind="local"))
-        for own in mine:
-            if own.id not in matched:
-                plan.variants.append(
-                    VariantPlan(
-                        source=None,
-                        own=own,
-                        kind="removed",
-                        locally_modified=own_fp(own) != own.synced_fingerprint,
-                    )
+def _fp(row: Exercise, digests: _Digests) -> str:
+    return content_fingerprint(row, digests.get(row.id, []))
+
+
+def _plan_source_variant(
+    src: Exercise,
+    mine: list[Exercise],
+    added: list[Exercise],
+    matched: set[uuid.UUID],
+    lineage: _Lineage,
+    digests: _Digests,
+) -> VariantPlan:
+    """How the viewer's copy relates to one source variant; records the matched copy row in *matched*."""
+    own = _match(src, mine, matched, lineage)
+    fp = _fp(src, digests)
+    if own is None:
+        # A variant the recipient added with the same content (an accepted proposal) is it.
+        own = next((r for r in added if _fp(r, digests) == fp), None)
+        if own is not None:
+            added.remove(own)
+    variant = VariantPlan(source=src, own=own, source_fingerprint=fp)
+    if own is None:
+        variant.kind = "new"
+    else:
+        matched.add(own.id)
+        current = _fp(own, digests)
+        if current == fp:
+            _mark_synced(own, src, fp)
+        variant.locally_modified = current != own.synced_fingerprint
+        variant.kind = "unchanged" if fp == own.synced_fingerprint else "changed"
+    return variant
+
+
+def _plan_one_group(
+    group: ExerciseGroup,
+    own_rows: list[Exercise],
+    source_rows: list[Exercise],
+    lineage: _Lineage,
+    digests: _Digests,
+) -> GroupPlan:
+    mine = [r for r in own_rows if r.exercise_group_id == group.id and r.copied_from_exercise_id]
+    added = [
+        r for r in own_rows if r.exercise_group_id == group.id and not r.copied_from_exercise_id
+    ]
+    theirs = [r for r in source_rows if r.exercise_group_id == group.source_group_id]
+    plan = GroupPlan(group=group, state="source_unavailable" if not theirs else "up_to_date")
+    matched: set[uuid.UUID] = set()
+    for src in theirs:
+        plan.variants.append(_plan_source_variant(src, mine, added, matched, lineage, digests))
+    for own in added:
+        plan.variants.append(VariantPlan(source=None, own=own, kind="local"))
+    for own in mine:
+        if own.id not in matched:
+            plan.variants.append(
+                VariantPlan(
+                    source=None,
+                    own=own,
+                    kind="removed",
+                    locally_modified=_fp(own, digests) != own.synced_fingerprint,
                 )
-        if theirs and plan.applicable:
-            plan.state = "update_available"
-        plans.append(plan)
-    return plans
+            )
+    if theirs and plan.applicable:
+        plan.state = "update_available"
+    return plan
+
+
+async def plan_groups(
+    viewer: Teacher, db: AsyncSession, group_id: uuid.UUID | None = None, *, lock: bool = False
+) -> list[GroupPlan]:
+    """Compare *viewer*'s linked groups (or one of them) with their sources. Writers pass *lock*: the group row lock serializes them, so two cannot both version the same current row."""
+    query = select(ExerciseGroup).where(
+        ExerciseGroup.teacher_id == viewer.id, ExerciseGroup.source_group_id.is_not(None)
+    )
+    if group_id is not None:
+        query = query.where(ExerciseGroup.id == group_id)
+    if lock:
+        query = query.with_for_update()
+    groups = list((await db.execute(query)).scalars())
+    if not groups:
+        return []
+
+    own_rows, source_rows, lineage, digests = await _load_plan_inputs(viewer, db, groups)
+    return [_plan_one_group(g, own_rows, source_rows, lineage, digests) for g in groups]
 
 
 async def plan_group(

@@ -61,7 +61,7 @@ async def _compile(latex: str, files: dict[str, bytes], logo: ResolvedLogo | Non
         return compilation_failed_response(exc)
     except OSError as exc:
         # A missing tectonic binary, an unreachable worker, a full disk: not the document's fault, so not an opaque 500.
-        logger.error("LaTeX compilation is unavailable: %s", exc)
+        logger.exception("LaTeX compilation is unavailable: %s", exc)
         return _error(
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "The LaTeX compilation service is unavailable.",

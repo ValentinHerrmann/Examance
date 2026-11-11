@@ -64,7 +64,7 @@ async def start_enrollment(db: AsyncSession, teacher: Teacher) -> str:
     return totp_svc.provisioning_uri(secret, teacher.email)
 
 
-async def _load_secret(credential: MfaCredential) -> bytes | None:
+def _load_secret(credential: MfaCredential) -> bytes | None:
     try:
         return decrypt_secret(credential.secret_ct, credential.secret_iv)
     except InvalidTag:
@@ -78,7 +78,7 @@ async def confirm_enrollment(db: AsyncSession, teacher: Teacher, code: str) -> b
     if credential is None or credential.confirmed_at is not None:
         return False
 
-    secret = await _load_secret(credential)
+    secret = _load_secret(credential)
     if secret is None:
         return False
 
@@ -103,7 +103,7 @@ async def verify_totp(db: AsyncSession, teacher: Teacher, code: str) -> TotpResu
     if credential is None or credential.confirmed_at is None:
         return "invalid"
 
-    secret = await _load_secret(credential)
+    secret = _load_secret(credential)
     if secret is None:
         return "invalid"
 

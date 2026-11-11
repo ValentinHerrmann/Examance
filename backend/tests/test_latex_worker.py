@@ -100,10 +100,11 @@ async def test_pass_timeout_logs_counts_never_document_names(
 
     with patch("asyncio.create_subprocess_exec", side_effect=hanging_exec), \
             caplog.at_level("WARNING"), pytest.raises(TimeoutError):
-        await tectonic.run_tectonic("\\documentclass{article}", {}, timeout=0.05)
+        await tectonic.run_tectonic("\\documentclass{article}", {}, time_limit=0.05)
 
     assert procs[0].returncode == -9  # killed, never orphaned
-    assert "timed out" in caplog.text and "2 bundle downloads" in caplog.text
+    assert "timed out" in caplog.text
+    assert "2 bundle downloads" in caplog.text
     assert "secret-student-name" not in caplog.text
 
 
@@ -125,8 +126,9 @@ async def test_each_pass_logs_its_duration(caplog: pytest.LogCaptureFixture) -> 
 
     with patch("asyncio.create_subprocess_exec", side_effect=quick_exec), \
             patch("tempfile.mkdtemp", side_effect=fake_mkdtemp), caplog.at_level("INFO"):
-        await tectonic.run_tectonic("\\documentclass{article} secret-exam-text", {}, timeout=5)
+        await tectonic.run_tectonic("\\documentclass{article} secret-exam-text", {}, time_limit=5)
 
     durations = [r.getMessage() for r in caplog.records if "took" in r.getMessage()]
-    assert len(durations) == 2 and durations[0].startswith("Tectonic pass 1 took ")
+    assert len(durations) == 2
+    assert durations[0].startswith("Tectonic pass 1 took ")
     assert "secret-exam-text" not in caplog.text

@@ -30,7 +30,7 @@
         } catch (e) {
           /* Storage blocked: fall back to light. */
         }
-        document.documentElement.setAttribute("data-theme", theme);
+        document.documentElement.dataset.theme = theme;
       })();
     </script>
     <style>

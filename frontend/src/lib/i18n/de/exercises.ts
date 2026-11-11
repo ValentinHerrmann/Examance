@@ -391,7 +391,7 @@ export const exercises = {
         groupContextGradeSuffix: ', Klasse {grade}',
         keyLabel: 'Varianten-Thema / Schlüssel',
         keyPlaceholder: 'z. B. Moebel, Fahrzeug, Wildtier',
-        latexBodyLabel: 'LaTeX-Text (\\begin{Aufgabe}...)',
+        latexBodyLabel: String.raw`LaTeX-Text (\begin{Aufgabe}...)`,
         saveButton: 'Variante speichern',
         discardTitle: 'Variantenänderungen verwerfen?',
         discardMessage: 'Sie haben nicht gespeicherte Änderungen in diesem Variantenformular. Beim Verwerfen gehen diese Änderungen verloren.',

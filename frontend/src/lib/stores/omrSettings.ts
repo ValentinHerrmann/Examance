@@ -18,7 +18,7 @@ function parseProfile(raw: string | null): OmrSettingsProfile {
   if (!raw) return defaultOmrProfile();
   try {
     const parsed = JSON.parse(raw);
-    if (!parsed || parsed.schemaVersion !== 1) return defaultOmrProfile();
+    if (parsed?.schemaVersion !== 1) return defaultOmrProfile();
     return {
       schemaVersion: 1,
       source: parsed.source === 'user' || parsed.source === 'learned' ? parsed.source : 'default',

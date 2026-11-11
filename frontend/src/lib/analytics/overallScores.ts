@@ -43,7 +43,7 @@ export function calculateOverallScoreDistribution(
       continue;
     }
     const max = maxPointsByExam.get(submission.examId);
-    if (max === undefined || !(max > 0)) {
+    if (max === undefined || !(max > 0)) { // NOSONAR: negation also skips NaN
       withoutMaxPoints++;
       continue;
     }

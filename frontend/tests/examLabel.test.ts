@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { examCourse, exerciseTopicSuggestions, formatExamCourse, generatedExamTitle, parseDatumAndDauer, formatDatumAndDauer } from '../src/lib/utils/examLabel';
+import { randomStrings, timeMs } from './helpers/randomStrings';
 
 describe('formatExamCourse', () => {
   it('concatenates grade and course letter', () => {
@@ -71,5 +72,25 @@ describe('exerciseTopicSuggestions', () => {
     expect(exerciseTopicSuggestions(topics.map((topicTag) => ({ topicTag })))).toEqual([
       'Ähnlichkeit', 'algebra', 'Kapitel 2', 'Kapitel 10', 'Zahlen',
     ]);
+  });
+});
+
+describe('parseDatumAndDauer matches the former regex (SonarCloud S8786)', () => {
+  function legacy(raw: string): { datumDate: string; dauer: string } {
+    const str = raw.trim();
+    const match = /^(.*?)(?:\s*\((.*?)\))?$/.exec(str); // NOSONAR: the old regex is the oracle
+    return match?.[2] === undefined ? { datumDate: str, dauer: '' } : { datumDate: match[1].trim(), dauer: match[2].trim() };
+  }
+
+  it('on random input', () => {
+    for (const s of randomStrings(['(', ')', ' ', '1', '.', 'Min', '\n', ' ', '\t'], 4000, 10, 5)) {
+      if (!s) continue;
+      expect(parseDatumAndDauer(s)).toEqual(legacy(s));
+    }
+  });
+
+  it('stays linear on long input', () => {
+    expect(timeMs(() => parseDatumAndDauer('('.repeat(50_000) + ' '.repeat(50_000) + 'x'))).toBeLessThan(200);
+    expect(timeMs(() => parseDatumAndDauer('(\n'.repeat(50_000) + ')'))).toBeLessThan(200);
   });
 });

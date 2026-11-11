@@ -30,7 +30,6 @@ router = APIRouter(
 
 @router.post(
     "",
-    response_model=StudentIdentityResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_server_results_writable)],
 )
@@ -146,7 +145,7 @@ async def erase_student_identity(
     await snap.delete(db)
 
 
-@router.get("", response_model=list[StudentIdentityResponse])
+@router.get("")
 async def list_student_identities(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),

@@ -86,7 +86,8 @@ async def test_shared_listing_shows_email_but_no_owner_id(shared) -> None:
     assert resp.status_code == 200, resp.text
     (row,) = [r for r in resp.json() if r["id"] == ex_id]
     assert row["shared_by_email"] == shared["owner"].email
-    assert "teacher_id" not in row and "exam_id" not in row
+    assert "teacher_id" not in row
+    assert "exam_id" not in row
     # The own library never mixes in foreign rows.
     own = await b.get(API)
     assert ex_id not in [r["id"] for r in own.json()]

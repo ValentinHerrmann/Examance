@@ -161,7 +161,7 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 16
 table tr, table tr:nth-child(2n) { background: var(--surface-raised); }
 section table th, section table td { border: 0; border-bottom: 1px solid var(--line); }
 th, td { padding: 9px 14px; background: transparent; color: var(--content); text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { background: var(--surface-inset) !important; color: var(--heading); font-weight: 650; font-size: 14.5px; }
+th { background: var(--surface-inset) !important; color: var(--heading); font-weight: 650; font-size: 14.5px; } /* NOSONAR: must beat the base theme's th background */
 tr:last-child td { border-bottom: 0; }
 td.y { color: var(--success-fg); font-weight: 600; }
 td.n { color: var(--warning-fg); font-weight: 600; }

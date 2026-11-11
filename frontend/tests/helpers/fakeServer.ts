@@ -34,13 +34,16 @@ function answer(method: string, path: string, body?: unknown): FakeResponse {
   return res;
 }
 
-async function request(method: string, path: string, body?: unknown): Promise<any> {
-  return answer(method, path, body).body;
+// Answered inside `then`, so a thrown ApiError becomes a rejection, as with the real async client.
+function request(method: string, path: string, body?: unknown): Promise<any> {
+  return Promise.resolve().then(() => answer(method, path, body).body);
 }
 
-async function requestBinary(method: string, path: string, body?: unknown): Promise<ArrayBuffer> {
-  const bytes = answer(method, path, body).bytes ?? new Uint8Array();
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+function requestBinary(method: string, path: string, body?: unknown): Promise<ArrayBuffer> {
+  return Promise.resolve().then(() => {
+    const bytes = answer(method, path, body).bytes ?? new Uint8Array();
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  });
 }
 
 /** Drop-in replacement for `src/lib/api/client`'s exports. */

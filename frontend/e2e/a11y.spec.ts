@@ -8,7 +8,7 @@ const THIRD_PARTY = ['.cm-editor', '.pdf-viewer canvas', '.textLayer'];
 
 for (const theme of THEMES) {
   test(`[a11y] main routes have no serious or critical violations (${theme})`, async ({ page }) => {
-    test.skip(!['desktop', 'phone'].includes(test.info().project.name), 'a11y runs on desktop and phone only');
+    test.skip(!['desktop', 'phone'].includes(test.info().project.name), 'a11y runs on desktop and phone only');  // NOSONAR: conditional per-device skip, reason given
     await pinTheme(page, theme);
     const examId = await seedWorkspace(page);
 

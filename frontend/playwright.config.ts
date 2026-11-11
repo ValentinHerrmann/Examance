@@ -30,7 +30,7 @@ const pointer = (width: number, height: number, dsf = 1) => ({
 export default defineConfig({
   testDir: 'e2e',
   grepInvert: wantsScreens ? undefined : /@screens/,
-  testMatch: /.*\.spec\.ts$/,
+  testMatch: /\.spec\.ts$/,
 
   // Generous timeouts: every sign-in stretches the password with Argon2id running
   // in WASM, and the very first page load after a cold Vite start has to

@@ -1,6 +1,6 @@
 /** WebAuthn ceremonies in the browser, two jobs: (1) authentication, a passkey being one of three sign-in factors; (2) key recovery, where a PRF-capable authenticator derives a device-bound secret that wraps a copy of the data key. Without PRF the passkey only signs in, and the UI must say so. */
 
-import { fromBase64url, toArrayBuffer, toBase64url } from '#lib/crypto/aesGcm';
+import { fromBase64url, stripBase64Padding, toArrayBuffer, toBase64url } from '#lib/crypto/aesGcm';
 
 /** The PRF input, fixed for the whole app: it must be supplied *before* the ceremony and at sign-in the answering passkey is unknown (`/webauthn/login/options` takes no account identifier on purpose), so no per-credential value is possible. A constant is fine: a PRF salt is a public domain-separation input and the derived secret stays per credential. */
 export const APP_PRF_SALT: Uint8Array = new TextEncoder().encode(
@@ -157,7 +157,7 @@ export async function authenticate(
   if (opts.credentialIdB64 && request.publicKey) {
     const descriptor: PublicKeyCredentialDescriptor = {
       type: 'public-key',
-      id: toArrayBuffer(fromBase64url(opts.credentialIdB64.replace(/=+$/, ''))),
+      id: toArrayBuffer(fromBase64url(stripBase64Padding(opts.credentialIdB64))),
     };
     if (opts.transports?.length) {
       descriptor.transports = opts.transports;

@@ -51,7 +51,8 @@ export class DialogRecorder {
       if (type === 'prompt') {
         void dialog.accept(this.promptAnswer);
       } else if (type === 'confirm') {
-        void (this.confirmAnswer ? dialog.accept() : dialog.dismiss());
+        if (this.confirmAnswer) void dialog.accept();
+        else void dialog.dismiss();
       } else {
         void dialog.accept();
       }
@@ -151,7 +152,8 @@ export const test = base.extend<Fixtures>({
         ) {
           return;
         }
-        issues.push(`console.error: ${text}${where ? ` (${where})` : ''}`);
+        const origin = where ? ` (${where})` : '';
+        issues.push(`console.error: ${text}${origin}`);
       });
 
       await use(issues);

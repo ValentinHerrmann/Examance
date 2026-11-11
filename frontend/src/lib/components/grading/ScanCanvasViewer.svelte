@@ -527,8 +527,7 @@
       page,
       state.mcState,
       exercises,
-      subExerciseLetters,
-      state.scoreInputs
+      { subExerciseLetters, scoreInputs: state.scoreInputs }
     );
   }
 

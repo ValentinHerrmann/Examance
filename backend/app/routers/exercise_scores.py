@@ -53,7 +53,7 @@ def _to_response(row: ExerciseScore) -> ExerciseScoreResponse:
     )
 
 
-@router.get("", response_model=list[ExerciseScoreResponse])
+@router.get("")
 async def list_scores(
     submission: ScanSubmission = Depends(get_submission_for_teacher),
     db: AsyncSession = Depends(get_db),
@@ -64,7 +64,7 @@ async def list_scores(
     return [_to_response(row) for row in rows.scalars()]
 
 
-@exam_router.get("", response_model=list[ExerciseScoreResponse])
+@exam_router.get("")
 async def list_exam_scores(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
@@ -79,7 +79,6 @@ async def list_exam_scores(
 
 @router.put(
     "",
-    response_model=list[ExerciseScoreResponse],
     dependencies=[Depends(require_server_results_writable)],
 )
 async def put_scores(

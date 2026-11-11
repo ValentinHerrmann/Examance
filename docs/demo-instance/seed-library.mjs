@@ -6,56 +6,71 @@ import { open, login, shot, BASE, setCodeMirror, readState, writeState } from '.
 const LIB = JSON.parse(fs.readFileSync(new URL('./data/library.json', import.meta.url), 'utf8'));
 const done = readState('progress.json', {});
 
+async function fillMc(page, ed, mc) {
+  await ed.getByRole('button', { name: /Multiple Choice/ }).click();
+  await setCodeMirror(page, ed, mc.question, 0);
+  const inputs = ed.getByPlaceholder(/Text für Option/);
+  const add = ed.getByRole('button', { name: /Option hinzufügen/ });
+  while ((await inputs.count()) < mc.options.length) await add.click(); // NOSONAR: UI steps run in order in one browser
+  const boxes = ed.getByRole('checkbox', { name: /Option als korrekt markieren/ });
+  for (let i = 0; i < mc.options.length; i++) {
+    await fillOption(inputs.nth(i), boxes.nth(i), mc.options[i]); // NOSONAR: UI steps run in order in one browser
+  }
+}
+
+async function fillOption(input, box, [text, correct]) {
+  await input.fill(text);
+  if ((await box.isChecked()) !== correct) await box.click();
+}
+
+async function createExercise(page, ex) {
+  if (ex.variantOf) return;
+  if (await page.getByRole('heading', { name: ex.name, level: 3 }).count()) return;
+  await page.getByRole('button', { name: /Neue Aufgabe erstellen/ }).first().click();
+  const ed = page.getByRole('dialog').last();
+  await ed.waitFor();
+  await ed.getByLabel(/^Name \*$/).fill(ex.name);
+  await ed.getByLabel(/^Thema \*$/).fill(ex.topic);
+  await ed.getByLabel(/^Klasse$/).fill(ex.grade);
+  await ed.getByLabel(/^Fach$/).fill(ex.subject);
+  if (ex.variantKey) await ed.getByPlaceholder(/z\. B\. Moebel/).first().fill(ex.variantKey);
+  if (ex.mc) await fillMc(page, ed, ex.mc);
+  else await setCodeMirror(page, ed, ex.latex, 0);
+  if (ex.share) {
+    await ed.getByLabel(/Mit allen Konten teilen/).check();
+    await ed.getByLabel(/keine personenbezogenen Daten/).check();
+  }
+  await page.waitForTimeout(400);
+  await ed.getByRole('button', { name: /Aufgabe speichern/ }).click();
+  await ed.waitFor({ state: 'hidden', timeout: 30000 });
+  await page.waitForTimeout(800);
+  console.log('created', ex.name);
+}
+
+async function createVariant(page, ex) {
+  const head = page.getByRole('heading', { name: ex.variantOf, level: 3 });
+  if (await page.getByText(/2 Varianten/).count()) return;
+  await head.click();
+  await page.waitForTimeout(800);
+  await page.getByRole('button', { name: /\+ Variante|Parallele Variante erstellen/ }).first().click();
+  const ed = page.getByRole('dialog').last();
+  await ed.waitFor();
+  await ed.getByPlaceholder(/z\. B\. Moebel/).first().fill(ex.variantKey);
+  await setCodeMirror(page, ed, ex.latex, 0);
+  await page.waitForTimeout(400);
+  await ed.getByRole('button', { name: /speichern/ }).last().click();
+  await ed.waitFor({ state: 'hidden', timeout: 30000 });
+  console.log('variant', ex.variantOf, ex.variantKey);
+}
+
 async function createExercises(page, list) {
   await page.goto(BASE + '/exercises');
   await page.waitForTimeout(3000);
   for (const ex of list) {
-    if (ex.variantOf) continue;
-    if (await page.getByRole('heading', { name: ex.name, level: 3 }).count()) continue;
-    await page.getByRole('button', { name: /Neue Aufgabe erstellen/ }).first().click();
-    const ed = page.getByRole('dialog').last();
-    await ed.waitFor();
-    await ed.getByLabel(/^Name \*$/).fill(ex.name);
-    await ed.getByLabel(/^Thema \*$/).fill(ex.topic);
-    await ed.getByLabel(/^Klasse$/).fill(ex.grade);
-    await ed.getByLabel(/^Fach$/).fill(ex.subject);
-    if (ex.variantKey) await ed.getByPlaceholder(/z\. B\. Moebel/).first().fill(ex.variantKey);
-    if (ex.mc) {
-      await ed.getByRole('button', { name: /Multiple Choice/ }).click();
-      await setCodeMirror(page, ed, ex.mc.question, 0);
-      const inputs = ed.getByPlaceholder(/Text für Option/);
-      const add = ed.getByRole('button', { name: /Option hinzufügen/ });
-      while ((await inputs.count()) < ex.mc.options.length) await add.click();
-      const boxes = ed.getByRole('checkbox', { name: /Option als korrekt markieren/ });
-      for (let i = 0; i < ex.mc.options.length; i++) {
-        await inputs.nth(i).fill(ex.mc.options[i][0]);
-        if ((await boxes.nth(i).isChecked()) !== ex.mc.options[i][1]) await boxes.nth(i).click();
-      }
-    } else await setCodeMirror(page, ed, ex.latex, 0);
-    if (ex.share) {
-      await ed.getByLabel(/Mit allen Konten teilen/).check();
-      await ed.getByLabel(/keine personenbezogenen Daten/).check();
-    }
-    await page.waitForTimeout(400);
-    await ed.getByRole('button', { name: /Aufgabe speichern/ }).click();
-    await ed.waitFor({ state: 'hidden', timeout: 30000 });
-    await page.waitForTimeout(800);
-    console.log('created', ex.name);
+    await createExercise(page, ex); // NOSONAR: UI steps run in order in one browser
   }
   for (const ex of list.filter((e) => e.variantOf)) {
-    const head = page.getByRole('heading', { name: ex.variantOf, level: 3 });
-    if (await page.getByText(/2 Varianten/).count()) continue;
-    await head.click();
-    await page.waitForTimeout(800);
-    await page.getByRole('button', { name: /\+ Variante|Parallele Variante erstellen/ }).first().click();
-    const ed = page.getByRole('dialog').last();
-    await ed.waitFor();
-    await ed.getByPlaceholder(/z\. B\. Moebel/).first().fill(ex.variantKey);
-    await setCodeMirror(page, ed, ex.latex, 0);
-    await page.waitForTimeout(400);
-    await ed.getByRole('button', { name: /speichern/ }).last().click();
-    await ed.waitFor({ state: 'hidden', timeout: 30000 });
-    console.log('variant', ex.variantOf, ex.variantKey);
+    await createVariant(page, ex); // NOSONAR: UI steps run in order in one browser
   }
 }
 
@@ -92,8 +107,8 @@ async function createExercises(page, list) {
     const ed = page.getByRole('dialog').last();
     await ed.waitFor();
     const improved = LIB.yilmaz.find((e) => e.name === 'Tabellen normalisieren').latex.replace(
-      'an. \\BE',
-      'an. Unterstreiche die Primärschlüssel und kennzeichne Fremdschlüssel mit einem Pfeil. \\BE');
+      String.raw`an. \BE`,
+      String.raw`an. Unterstreiche die Primärschlüssel und kennzeichne Fremdschlüssel mit einem Pfeil. \BE`);
     await setCodeMirror(page, ed, improved, 0);
     await page.waitForTimeout(400);
     await ed.getByRole('button', { name: /speichern/ }).last().click();

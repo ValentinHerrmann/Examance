@@ -7,12 +7,23 @@ export interface LatexToken {
 
 export function escapeHtml(text: string): string {
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
+
+// Ordered rules: the first match at the cursor wins (keyword before macro, so `\begin` is a keyword).
+const TOKEN_RULES: [LatexToken['type'], RegExp][] = [
+  ['comment', /^%.*/],
+  ['keyword', /^\\(?:begin|end)\b/],
+  ['macro', /^\\(?:[a-zA-Z]+|.)/],
+  ['bracket', /^[{}[\]]/],
+  ['string', /^\$+/], // math ($...$ or $$...$$)
+  ['number', /^\d+(?:\.\d+)?/],
+  ['plain', /^[^%\\{}[\]$\d]+/]
+];
 
 export function tokenizeLatex(code: string): LatexToken[] {
   const tokens: LatexToken[] = [];
@@ -20,61 +31,18 @@ export function tokenizeLatex(code: string): LatexToken[] {
 
   while (pos < code.length) {
     const sub = code.slice(pos);
-
-    const commentMatch = sub.match(/^%.*/);
-    if (commentMatch) {
-      tokens.push({ type: 'comment', text: commentMatch[0] });
-      pos += commentMatch[0].length;
-      continue;
+    let text = code[pos];
+    let type: LatexToken['type'] = 'plain';
+    for (const [ruleType, re] of TOKEN_RULES) {
+      const m = re.exec(sub);
+      if (m) {
+        type = ruleType;
+        text = m[0];
+        break;
+      }
     }
-
-    // Keyword (\begin, \end)
-    const keywordMatch = sub.match(/^\\(?:begin|end)\b/);
-    if (keywordMatch) {
-      tokens.push({ type: 'keyword', text: keywordMatch[0] });
-      pos += keywordMatch[0].length;
-      continue;
-    }
-
-    // Macro / Command (\cmdname or \.)
-    const macroMatch = sub.match(/^\\(?:[a-zA-Z]+|.)/);
-    if (macroMatch) {
-      tokens.push({ type: 'macro', text: macroMatch[0] });
-      pos += macroMatch[0].length;
-      continue;
-    }
-
-    const bracketMatch = sub.match(/^[{}[\]]/);
-    if (bracketMatch) {
-      tokens.push({ type: 'bracket', text: bracketMatch[0] });
-      pos += bracketMatch[0].length;
-      continue;
-    }
-
-    // Math strings ($...$ or $$...$$)
-    const mathMatch = sub.match(/^\$+/);
-    if (mathMatch) {
-      tokens.push({ type: 'string', text: mathMatch[0] });
-      pos += mathMatch[0].length;
-      continue;
-    }
-
-    const numberMatch = sub.match(/^\d+(?:\.\d+)?/);
-    if (numberMatch) {
-      tokens.push({ type: 'number', text: numberMatch[0] });
-      pos += numberMatch[0].length;
-      continue;
-    }
-
-    // Plain text (consume 1 char or rest of plain text up to next special char)
-    const plainMatch = sub.match(/^[^%\\{}[\]$\d]+/);
-    if (plainMatch) {
-      tokens.push({ type: 'plain', text: plainMatch[0] });
-      pos += plainMatch[0].length;
-    } else {
-      tokens.push({ type: 'plain', text: code[pos] });
-      pos += 1;
-    }
+    tokens.push({ type, text });
+    pos += text.length;
   }
 
   return tokens;

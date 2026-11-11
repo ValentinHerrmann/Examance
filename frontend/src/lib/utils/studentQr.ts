@@ -74,7 +74,7 @@ export function parseStudentQr(
 
 /** The sticker payload `parseStudentQr` reads back (and DiRueLei prints): `Lastname, Firstname_ID`; underscores in the id would move the split, so they are dropped. */
 export function formatStudentQr(name: string, id: string): string {
-  return `${formatStudentName(name)}_${id.replace(/_/g, '').trim()}`;
+  return `${formatStudentName(name)}_${id.replaceAll('_', '').trim()}`;
 }
 
 const UUID_RAW = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

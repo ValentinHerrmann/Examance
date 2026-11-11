@@ -133,9 +133,9 @@ export async function flushQuestion(submissionId: string, exerciseId: string): P
 
 /** Page is going away: flush every staged question and send whatever is waiting. */
 export async function flushAll(): Promise<void> {
-  for (const key of [...staged.keys()]) {
+  for (const key of [...staged.keys()]) { // NOSONAR: copied on purpose: flushing a question removes it from `staged` while iterating
     const [submissionId, exerciseId] = key.split(':');
-    await flushQuestion(submissionId, exerciseId);
+    await flushQuestion(submissionId, exerciseId); // NOSONAR: one question at a time, in order
   }
   await upload();
 }
@@ -154,7 +154,7 @@ async function upload(): Promise<void> {
   if (uploading) return uploading;
   uploading = (async () => {
     while (outbox.length > 0) {
-      if (!active() || !(await fetchDonationAvailable())) {
+      if (!active() || !(await fetchDonationAvailable())) { // NOSONAR: chunks go out one request at a time, in order
         outbox = [];
         return;
       }
@@ -170,7 +170,7 @@ async function upload(): Promise<void> {
         return;
       }
       try {
-        await api.post(
+        await api.post( // NOSONAR: chunks go out one request at a time, in order
           '/training/omr-samples',
           { samples: shuffle(chunk.flatMap((p) => p.samples)) },
           { silentError: true }
@@ -178,7 +178,7 @@ async function upload(): Promise<void> {
       } catch {
         continue; // dropped by design; these questions stay undonated
       }
-      for (const p of chunk) await markDonated(p);
+      for (const p of chunk) await markDonated(p); // NOSONAR: donation marks are written in order
     }
   })().finally(() => {
     uploading = null;

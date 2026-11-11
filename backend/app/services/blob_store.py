@@ -56,10 +56,13 @@ def writes_to_files() -> bool:
     return settings.BLOB_STORAGE_BACKEND == "fs"
 
 
+_NOT_SET = "BLOB_STORAGE_DIR is not set"
+
+
 def root() -> Path:
     """The verified root. Never falls back to a bare directory: a dropped mount must fail, not silently fill the local disk underneath it."""
     if not settings.BLOB_STORAGE_DIR:
-        raise BlobStoreUnavailable("BLOB_STORAGE_DIR is not set")
+        raise BlobStoreUnavailable(_NOT_SET)
     base = Path(settings.BLOB_STORAGE_DIR)
     try:
         data = json.loads((base / SENTINEL).read_text(encoding="utf-8"))
@@ -78,10 +81,10 @@ def root() -> Path:
 def init(*, force: bool = False) -> Path:
     """Mark BLOB_STORAGE_DIR as this stack's store; a non-empty unmarked dir needs *force*."""
     if not settings.BLOB_STORAGE_DIR:
-        raise BlobStoreUnavailable("BLOB_STORAGE_DIR is not set")
+        raise BlobStoreUnavailable(_NOT_SET)
     base = Path(settings.BLOB_STORAGE_DIR)
-    sentinel = base / SENTINEL
-    if sentinel.exists():
+    marker = base / SENTINEL
+    if marker.exists():
         root()  # Re-validates identity.
         return base
     if not base.is_dir():
@@ -89,10 +92,10 @@ def init(*, force: bool = False) -> Path:
     if any(base.iterdir()) and not force:
         raise BlobStoreUnavailable(f"{base} is not empty; pass --force if it is the right dir")
     try:
-        sentinel.write_text(json.dumps({"identity": _identity()}), encoding="utf-8")
+        marker.write_text(json.dumps({"identity": _identity()}), encoding="utf-8")
     except OSError as exc:
         raise BlobStoreUnavailable(
-            f"cannot write {sentinel}: {exc.strerror} (the dir must be writable by uid 10001)"
+            f"cannot write {marker}: {exc.strerror} (the dir must be writable by uid 10001)"
         ) from None
     return base
 
@@ -100,21 +103,21 @@ def init(*, force: bool = False) -> Path:
 def rebind(old_identity: str) -> Path:
     """Move the marker to this stack's FRONTEND_URL after a domain move; only when it still names *old_identity*, so a stack can never take over another stack's store."""
     if not settings.BLOB_STORAGE_DIR:
-        raise BlobStoreUnavailable("BLOB_STORAGE_DIR is not set")
+        raise BlobStoreUnavailable(_NOT_SET)
     base = Path(settings.BLOB_STORAGE_DIR)
-    sentinel = base / SENTINEL
+    marker = base / SENTINEL
     try:
-        current = json.loads(sentinel.read_text(encoding="utf-8")).get("identity")
+        current = json.loads(marker.read_text(encoding="utf-8")).get("identity")
     except (OSError, ValueError):
-        raise BlobStoreUnavailable(f"{sentinel} missing or unreadable (mount down?)") from None
+        raise BlobStoreUnavailable(f"{marker} missing or unreadable (mount down?)") from None
     if current == _identity():
         return base
     if current != old_identity.rstrip("/"):
         raise BlobStoreUnavailable(f"{base} belongs to {current!r}, not {old_identity!r}; nothing changed")
     try:
-        sentinel.write_text(json.dumps({"identity": _identity()}), encoding="utf-8")
+        marker.write_text(json.dumps({"identity": _identity()}), encoding="utf-8")
     except OSError as exc:
-        raise BlobStoreUnavailable(f"cannot write {sentinel}: {exc.strerror}") from None
+        raise BlobStoreUnavailable(f"cannot write {marker}: {exc.strerror}") from None
     return base
 
 

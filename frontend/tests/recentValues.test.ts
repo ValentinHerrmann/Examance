@@ -50,7 +50,7 @@ describe('recentValues', () => {
       recordValue('testKey', `val_${i}`, 5);
     }
     const res = getRecentValues('testKey');
-    expect(res.length).toBe(5);
+    expect(res).toHaveLength(5);
     expect(res).toEqual(['val_20', 'val_19', 'val_18', 'val_17', 'val_16']);
   });
 

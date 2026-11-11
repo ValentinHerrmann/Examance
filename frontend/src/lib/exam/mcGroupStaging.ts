@@ -10,7 +10,7 @@ export interface McGroupDraft {
 // Default group title and scoring sentence are exam CONTENT printed verbatim in the German exam PDF (see i18n brief "Do NOT translate"), not UI strings.
 export const DEFAULT_MC_GROUP_TITLE = "Grundlagen";
 export const DEFAULT_MC_GROUP_SCORING_TEXT =
-  "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
+  String.raw`Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\geq$0BE`;
 
 /** A group needs at least this many questions. There is no upper limit. */
 export const MC_GROUP_MIN_MEMBERS = 1;
@@ -43,8 +43,7 @@ export function toggleStaged(
 export function moveStaged(staged: readonly string[], index: number, direction: "up" | "down"): string[] {
   const target = direction === "up" ? index - 1 : index + 1;
   const next = [...staged];
-  if (target < 0 || target >= next.length) return next;
-  [next[index], next[target]] = [next[target], next[index]];
+  if (target >= 0 && target < next.length) [next[index], next[target]] = [next[target], next[index]];
   return next;
 }
 

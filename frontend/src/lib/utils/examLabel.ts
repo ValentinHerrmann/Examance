@@ -40,14 +40,14 @@ export function exerciseTopicSuggestions(exercises: { topicTag?: string | null }
 export function parseDatumAndDauer(raw?: string | null): { datumDate: string; dauer: string } {
   if (!raw) return { datumDate: '', dauer: '' };
   const str = raw.trim();
-  const match = str.match(/^(.*?)(?:\s*\((.*?)\))?$/);
-  if (match && match[2] !== undefined) {
-    return {
-      datumDate: match[1].trim(),
-      dauer: match[2].trim(),
-    };
-  }
-  return { datumDate: str, dauer: '' };
+  // Split at the first "(" that leaves a trailing "(…)" and no line break inside either part (the former `.`-based regex, in linear time).
+  const breaks = [...str.matchAll(/[\n\r\u2028\u2029]/g)].map((m) => m.index);
+  const open = str.indexOf('(', (breaks.at(-1) ?? -1) + 1);
+  if (!str.endsWith(')') || open < 0 || open > str.length - 2) return { datumDate: str, dauer: '' };
+  let dateEnd = open;
+  while (dateEnd > 0 && /\s/.test(str[dateEnd - 1])) dateEnd--;
+  if (breaks.length && breaks[0] < dateEnd) return { datumDate: str, dauer: '' };
+  return { datumDate: str.slice(0, dateEnd).trim(), dauer: str.slice(open + 1, -1).trim() };
 }
 
 /** Format separate datumDate and dauer into a single combined string. e.g. ("20.05.2025", "30 Min") -> "20.05.2025 (30 Min)" */

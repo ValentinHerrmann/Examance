@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import copy
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, or_, select, update
@@ -11,7 +11,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher, get_exam_for_teacher, get_teaching_teacher
+from app.dependencies import (
+    DB,
+    CurrentTeacher,
+    get_current_teacher,
+    get_exam_for_teacher,
+    get_teaching_teacher,
+)
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
@@ -133,7 +139,7 @@ def _dedupe_exercise_links(links: list[Any]) -> list[Any]:
     return [kept[eid] for eid in order]
 
 
-@router.get("", response_model=list[ExamResponse])
+@router.get("")
 async def list_exams(
     grade: str | None = None,
     subject: str | None = None,
@@ -208,7 +214,87 @@ async def _persist_mc_groups(
     return id_map
 
 
-@router.post("", response_model=ExamResponse, status_code=status.HTTP_201_CREATED)
+async def _link_library_exercises(
+    body: ExamCreate,
+    exam_id: uuid.UUID,
+    mc_group_id_map: dict[uuid.UUID, uuid.UUID],
+    teacher: Teacher,
+    db: AsyncSession,
+) -> tuple[list[ExerciseRow], int]:
+    """Links the library exercises named by `exercise_links` (mc-aware) or the legacy `exercise_ids`; returns the rows and the next order index."""
+    linked: list[ExerciseRow] = []
+    order = 1
+    if body.exercise_links:
+        for link_data in _dedupe_exercise_links(body.exercise_links):
+            ex = await _resolve_linkable_exercise(link_data.exercise_id, teacher, db)
+            resolved_group_id = _resolve_mc_group_id(link_data.mc_group_id, mc_group_id_map)
+            effective_order = link_data.order_index or order
+            link = ExamExercise(
+                exam_id=exam_id,
+                exercise_id=ex.id,
+                order_index=effective_order,
+                mc_group_id=resolved_group_id,
+                sub_index=link_data.sub_index,
+            )
+            db.add(link)
+            linked.append((ex, effective_order, resolved_group_id, link_data.sub_index))
+            order = effective_order + 1
+    elif body.exercise_ids:
+        for eid in body.exercise_ids:
+            ex = await _resolve_linkable_exercise(eid, teacher, db)
+            link = ExamExercise(exam_id=exam_id, exercise_id=ex.id, order_index=order)
+            db.add(link)
+            linked.append((ex, order, None, None))
+            order += 1
+    return linked, order
+
+
+async def _create_inline_exercises(
+    body: ExamCreate,
+    exam_id: uuid.UUID,
+    mc_group_id_map: dict[uuid.UUID, uuid.UUID],
+    teacher: Teacher,
+    db: AsyncSession,
+    linked: list[ExerciseRow],
+    order: int,
+) -> None:
+    """Creates the exam's inline exercises and links them after the library ones."""
+    for ex_data in body.exercises or []:
+        computed_score = (
+            parse_exercise_score(ex_data.latex_body)
+            if ex_data.latex_body
+            else ex_data.max_points
+        )
+        ex = Exercise(
+            teacher_id=teacher.id,
+            name=ex_data.name,
+            topic_tag=ex_data.topic_tag,
+            latex_body=None if ex_data.code_withheld else ex_data.latex_body,
+            code_withheld=ex_data.code_withheld,
+            max_points=computed_score,
+            version=1,
+            question_type=ex_data.question_type,
+            correct_answers=ex_data.correct_answers,
+            penalty=ex_data.penalty,
+        )
+        db.add(ex)
+        await db.flush()
+
+        resolved_group_id = _resolve_mc_group_id(ex_data.mc_group_id, mc_group_id_map)
+
+        link = ExamExercise(
+            exam_id=exam_id,
+            exercise_id=ex.id,
+            order_index=order,
+            mc_group_id=resolved_group_id,
+            sub_index=ex_data.sub_index,
+        )
+        db.add(link)
+        linked.append((ex, order, resolved_group_id, ex_data.sub_index))
+        order += 1
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def create_exam(
     body: ExamCreate,
     teacher: Teacher = Depends(get_current_teacher),
@@ -243,70 +329,10 @@ async def create_exam(
     if body.mc_groups:
         mc_group_id_map = await _persist_mc_groups(exam.id, body.mc_groups, db)
 
-    linked_exercises: list[ExerciseRow] = []
-    order = 1
-
-    # 1. Link existing library exercises via exercise_links (mc-aware)
-    if body.exercise_links:
-        for link_data in _dedupe_exercise_links(body.exercise_links):
-            ex = await _resolve_linkable_exercise(link_data.exercise_id, teacher, db)
-            resolved_group_id = _resolve_mc_group_id(link_data.mc_group_id, mc_group_id_map)
-            effective_order = link_data.order_index or order
-            link = ExamExercise(
-                exam_id=exam.id,
-                exercise_id=ex.id,
-                order_index=effective_order,
-                mc_group_id=resolved_group_id,
-                sub_index=link_data.sub_index,
-            )
-            db.add(link)
-            linked_exercises.append((ex, effective_order, resolved_group_id, link_data.sub_index))
-            order = effective_order + 1
-
-    # 2. Link existing library exercise IDs (legacy, no mc info)
-    elif body.exercise_ids:
-        for eid in body.exercise_ids:
-            ex = await _resolve_linkable_exercise(eid, teacher, db)
-            link = ExamExercise(exam_id=exam.id, exercise_id=ex.id, order_index=order)
-            db.add(link)
-            linked_exercises.append((ex, order, None, None))
-            order += 1
-
-    # 3. Create and link inline exercises
-    if body.exercises:
-        for ex_data in body.exercises:
-            computed_score = (
-                parse_exercise_score(ex_data.latex_body)
-                if ex_data.latex_body
-                else ex_data.max_points
-            )
-            ex = Exercise(
-                teacher_id=teacher.id,
-                name=ex_data.name,
-                topic_tag=ex_data.topic_tag,
-                latex_body=None if ex_data.code_withheld else ex_data.latex_body,
-                code_withheld=ex_data.code_withheld,
-                max_points=computed_score,
-                version=1,
-                question_type=ex_data.question_type,
-                correct_answers=ex_data.correct_answers,
-                penalty=ex_data.penalty,
-            )
-            db.add(ex)
-            await db.flush()
-
-            resolved_group_id = _resolve_mc_group_id(ex_data.mc_group_id, mc_group_id_map)
-
-            link = ExamExercise(
-                exam_id=exam.id,
-                exercise_id=ex.id,
-                order_index=order,
-                mc_group_id=resolved_group_id,
-                sub_index=ex_data.sub_index,
-            )
-            db.add(link)
-            linked_exercises.append((ex, order, resolved_group_id, ex_data.sub_index))
-            order += 1
+    linked_exercises, order = await _link_library_exercises(
+        body, exam.id, mc_group_id_map, teacher, db
+    )
+    await _create_inline_exercises(body, exam.id, mc_group_id_map, teacher, db, linked_exercises, order)
 
     await db.flush()
     mc_groups = await fetch_exam_mc_groups(exam.id, db)
@@ -314,7 +340,7 @@ async def create_exam(
 
 
 @router.post(
-    "/{exam_id}/duplicate", response_model=ExamResponse, status_code=status.HTTP_201_CREATED
+    "/{exam_id}/duplicate", status_code=status.HTTP_201_CREATED
 )
 @limiter.limit("60/hour")
 async def duplicate_exam(
@@ -394,7 +420,7 @@ async def duplicate_exam(
     return await load_exam_response(exam, db)
 
 
-@router.get("/{exam_id}", response_model=ExamResponse)
+@router.get("/{exam_id}")
 async def get_exam(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
@@ -403,7 +429,7 @@ async def get_exam(
     return await load_exam_response(exam, db)
 
 
-@router.get("/{exam_id}/exercises", response_model=list[ExerciseResponse])
+@router.get("/{exam_id}/exercises")
 async def list_exam_exercises(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
@@ -431,15 +457,7 @@ async def _trash_dropped_links(
     await trash_scope.capture(db, "exam_links", snap, label=trash.exam_label(exam), exam_id=exam.id)
 
 
-@router.patch("/{exam_id}", response_model=ExamResponse)
-async def update_exam(
-    body: ExamUpdate,
-    trash_scope: trash.Trash,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
-) -> ExamResponse:
-    """Update exam details and exercise links."""
+def _apply_exam_fields(body: ExamUpdate, exam: Exam) -> None:
     for name, value in body.model_dump(exclude_unset=True, include=_UPDATED_FIELDS).items():
         if value is not None or name == "topic":
             setattr(exam, name, value)
@@ -452,7 +470,11 @@ async def update_exam(
     if "extra_notes" in body.model_fields_set:
         exam.extra_notes = body.extra_notes.model_dump() if body.extra_notes else None
 
-    await _trash_dropped_links(body, exam, trash_scope, db)
+
+async def _replace_mc_groups(
+    body: ExamUpdate, exam: Exam, db: AsyncSession
+) -> dict[uuid.UUID, uuid.UUID]:
+    """Swaps the exam's MC groups for the body's, or maps the groups already on it; returns the client-to-DB id map."""
     if body.mc_groups is not None:
         # Detach the links before dropping the groups. exam_exercises.mc_group_id is a real FK, so deleting a group would otherwise take its member rows with it — silently removing those exercises from the exam.
         await db.execute(
@@ -462,12 +484,20 @@ async def update_exam(
         )
         await db.execute(delete(ExamMcGroup).where(ExamMcGroup.exam_id == exam.id))
         await db.flush()
-        mc_group_id_map = await _persist_mc_groups(exam.id, body.mc_groups, db)
-    else:
-        # Groups untouched: links may still address the groups already on the exam.
-        existing_groups = await fetch_exam_mc_groups(exam.id, db)
-        mc_group_id_map = {g.id: g.id for g in existing_groups}
+        return await _persist_mc_groups(exam.id, body.mc_groups, db)
+    # Groups untouched: links may still address the groups already on the exam.
+    existing_groups = await fetch_exam_mc_groups(exam.id, db)
+    return {g.id: g.id for g in existing_groups}
 
+
+async def _replace_exercise_links(
+    body: ExamUpdate,
+    exam: Exam,
+    mc_group_id_map: dict[uuid.UUID, uuid.UUID],
+    teacher: Teacher,
+    db: AsyncSession,
+) -> None:
+    """Rebuilds the exam's exercise links from `exercise_links` or the legacy `exercise_ids`; neither given leaves them alone."""
     if body.exercise_links is not None:
         await db.execute(delete(ExamExercise).where(ExamExercise.exam_id == exam.id))
         await db.flush()
@@ -488,6 +518,22 @@ async def update_exam(
             ex = await _resolve_linkable_exercise(eid, teacher, db)
             db.add(ExamExercise(exam_id=exam.id, exercise_id=ex.id, order_index=order))
             order += 1
+
+
+@router.patch("/{exam_id}")
+async def update_exam(
+    body: ExamUpdate,
+    trash_scope: trash.Trash,
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: CurrentTeacher,
+    db: DB,
+) -> ExamResponse:
+    """Update exam details and exercise links."""
+    _apply_exam_fields(body, exam)
+
+    await _trash_dropped_links(body, exam, trash_scope, db)
+    mc_group_id_map = await _replace_mc_groups(body, exam, db)
+    await _replace_exercise_links(body, exam, mc_group_id_map, teacher, db)
 
     await db.flush()
     return await load_exam_response(exam, db)

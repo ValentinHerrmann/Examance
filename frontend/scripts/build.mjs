@@ -59,7 +59,9 @@ async function main() {
   console.log(`✓ BusyTeX assets placed in ${path.relative(process.cwd(), BUILT_BUSYTEX)}`);
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error(err);
   process.exit(1);
-});
+}

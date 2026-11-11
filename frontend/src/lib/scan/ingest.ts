@@ -368,7 +368,7 @@ class ScanPass {
     let halves: PDFDocument | null = null;
 
     for (let pIdx = 1; pIdx <= source.pdf.numPages; pIdx++) {
-      const page = await source.pdf.getPage(pIdx);
+      const page = await source.pdf.getPage(pIdx); // NOSONAR: one page at a time keeps only one page's pixels alive
       // ~200 DPI; must equal the scanScale the OMR worker is told, or bubble geometry breaks.
       const viewport = page.getViewport({ scale: this.omrRun.params.scanScale });
       const imageData = await renderPage(page, viewport); // NOSONAR: one page at a time keeps only one page's pixels alive
@@ -645,7 +645,7 @@ export async function ingestScans(files: File[], deps: IngestDeps): Promise<Inge
   // Read once, before scanning (personalised page codes name students by sticker ID) and before writing: a failed read throws, so an imported class list is never overwritten blindly.
   const existing = sources.length ? await studentRepository.getByExamId(deps.examId, deps.getSessionKey()) : [];
   const pass = new ScanPass(deps, omrRun, totalPages, warnings, stickerIdMap(existing));
-  for (const source of sources) await pass.scan(source);
+  for (const source of sources) await pass.scan(source); // NOSONAR: sources are scanned in order, one at a time, to bound memory
 
   const { booklets } = pass.collector;
   const existingKeys = await joinKeys(existing);

@@ -189,8 +189,7 @@
       correctAnswers,
       exercise.penalty ?? 0,
       exercise.maxPoints,
-      omrMeta,
-      score
+      { omrMeta, storedScore: score }
     );
 
     selectedOptions = nextSelectedOptions;

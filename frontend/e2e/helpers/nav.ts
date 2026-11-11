@@ -44,7 +44,7 @@ export async function currentLocale(page: Page): Promise<Locale> {
       // A full-page navigation (lock, import, clear...) can destroy the execution context between two statements of a helper: wait and retry.
       const navigating = /context was destroyed|navigation/i.test(String(error));
       if (!navigating || attempt >= 5) throw error;
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('domcontentloaded'); // NOSONAR: retry loop, each attempt depends on the previous one
     }
   }
 }
@@ -64,6 +64,27 @@ export async function settleNavigation(page: Page, quietMs = 700): Promise<void>
     page.off('framenavigated', onNavigated);
   }
   await page.waitForLoadState('load');
+}
+
+/** Wait until the layout stops changing: a geometry signature of the document, main area and open dialogs must read the same twice in a row. */
+export async function settleLayout(page: Page): Promise<void> {
+  let previous: string | null = null;
+  await expect
+    .poll(
+      async () => {
+        const current = await page.evaluate(() => {
+          const rect = (el: Element | null) => (el ? JSON.stringify(el.getBoundingClientRect()) : '');
+          const doc = document.scrollingElement;
+          const dialogs = [...document.querySelectorAll('[role="dialog"], .cm-editor')].map(rect).join('|');
+          return [doc?.scrollWidth, doc?.scrollHeight, rect(document.querySelector('.app-main')), dialogs].join('#');
+        });
+        const stable = current === previous;
+        previous = current;
+        return stable;
+      },
+      { message: 'layout kept changing', timeout: 20_000, intervals: [100, 150, 250] },
+    )
+    .toBe(true);
 }
 
 /** Switch the UI language through the navbar language toggle (a no-op when already set). */

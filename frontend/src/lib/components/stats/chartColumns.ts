@@ -71,7 +71,7 @@ export interface ChartCurve {
 
 /** Normal distribution with the class mean/stddev scaled to the histogram (students per bin = count × bin width × density), on the mirrored axis (x = 100 − percentage). Empty without spread. */
 export function normalCurve(mean: number, sd: number, count: number, binWidth: number): [number, number][] {
-  if (!(sd > 0) || count === 0) return [];
+  if (!(sd > 0) || count === 0) return []; // NOSONAR: negation also covers NaN
   const scale = (count * binWidth) / (sd * Math.sqrt(2 * Math.PI));
   return Array.from({ length: 201 }, (_, i) => {
     const p = i / 2;

@@ -5,27 +5,27 @@ import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRe
 import { documentBody, documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex/packages";
 import { getAccountPackages } from "#lib/latex/packageSettings";
 
-const getPreamble = (extraOpts: string) => `\\documentclass[a4paper]{article}
-\\usepackage[${extraOpts}]{sty/Schulaufgabe}
-\\usepackage{bbding}
-\\usepackage{pifont}
-\\usepackage{fontspec}
-\\usepackage{framed}
-\\usepackage{enumitem}
-\\usetikzlibrary{shapes.geometric, arrows}
-\\usepackage{sty/tikz-uml}
-\\neverindent
-\\WarningsOff
-\\renewcommand{\\Namenszeile}{}
-\\AtBeginDocument{
-  \\pagestyle{empty}
-  \\thispagestyle{empty}
-  \\lhead{}
-  \\chead{}
-  \\rhead{}
-  \\lfoot{}
-  \\cfoot{}
-  \\rfoot{}
+const getPreamble = (extraOpts: string) => String.raw`\documentclass[a4paper]{article}
+\usepackage[${extraOpts}]{sty/Schulaufgabe}
+\usepackage{bbding}
+\usepackage{pifont}
+\usepackage{fontspec}
+\usepackage{framed}
+\usepackage{enumitem}
+\usetikzlibrary{shapes.geometric, arrows}
+\usepackage{sty/tikz-uml}
+\neverindent
+\WarningsOff
+\renewcommand{\Namenszeile}{}
+\AtBeginDocument{
+  \pagestyle{empty}
+  \thispagestyle{empty}
+  \lhead{}
+  \chead{}
+  \rhead{}
+  \lfoot{}
+  \cfoot{}
+  \rfoot{}
 }`;
 
 export interface ExerciseDocumentOptions {

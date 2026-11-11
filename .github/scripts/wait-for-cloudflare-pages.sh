@@ -21,13 +21,13 @@ while :; do
           | select(. != null)
           | "\(.status) \(.conclusion) \(.details_url)"' 2>/dev/null || true)
 
-  if [ -n "$RUN" ]; then
+  if [[ -n "$RUN" ]]; then
     read -r STATUS CONCLUSION URL <<< "$RUN"
-    if [ "$STATUS" = "completed" ]; then
-      if [ "$CONCLUSION" = "success" ]; then
+    if [[ "$STATUS" == "completed" ]]; then
+      if [[ "$CONCLUSION" == "success" ]]; then
         echo "Cloudflare Pages deployment succeeded: ${URL}"
         # Lets the calling job use it as its environment URL.
-        [ -n "${GITHUB_OUTPUT:-}" ] && echo "url=${URL}" >> "$GITHUB_OUTPUT"
+        [[ -n "${GITHUB_OUTPUT:-}" ]] && echo "url=${URL}" >> "$GITHUB_OUTPUT"
         exit 0
       fi
       echo "::error::Cloudflare Pages deployment finished with '${CONCLUSION}': ${URL}"
@@ -38,7 +38,7 @@ while :; do
     echo "  Cloudflare Pages: no check run yet"
   fi
 
-  if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+  if [[ "$(date +%s)" -ge "$DEADLINE" ]]; then
     echo "::error::Timed out after ${TIMEOUT}s waiting for Cloudflare Pages to deploy ${SHA}"
     exit 1
   fi

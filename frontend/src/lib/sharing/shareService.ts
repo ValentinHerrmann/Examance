@@ -144,6 +144,25 @@ async function compileSolution(ctx: Awaited<ReturnType<typeof loadExam>>, key: C
 export type SharePhase = 'solution' | 'preparing' | 'sending' | 'packing';
 export type ShareProgress = (phase: SharePhase, done?: number, total?: number) => void;
 
+/** Selected students without a graded submission: nothing to share for them. */
+function noSubmissionWarnings(
+  students: StudentRecord[],
+  rows: { submissionId?: string | null }[],
+  keys: string[],
+  chosen: ReadonlySet<string>
+): string[] {
+  return students
+    .filter((_, i) => chosen.has(keys[i]) && !rows[i].submissionId)
+    .map((student) => translate('sharing.errors.noSubmission', { name: displayName(student) }));
+}
+
+/** Artemis sends inside the per-student loop, Mebis packs there; slips and e-mail prepare links (e-mail sends at the end). */
+function loopPhaseFor(channel: ShareChannelId): SharePhase {
+  if (channel === 'artemis') return 'sending';
+  if (channel === 'mebis') return 'packing';
+  return 'preparing';
+}
+
 export async function shareResults(request: ShareRequest, progress: ShareProgress): Promise<ShareOutcome> {
   const { key, fallbackSessionKey } = await sessionKeys();
   const ctx = await loadExam(request.examId, key);
@@ -164,9 +183,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   results.rows.forEach((row, i) => {
     if (row.submissionId && request.studentKeys.has(keys[i]) && !blockedSet.has(results.students[i])) bySubmission.set(row.submissionId, i);
   });
-  for (const [i, student] of results.students.entries()) {
-    if (request.studentKeys.has(keys[i]) && !results.rows[i].submissionId) warnings.push(translate('sharing.errors.noSubmission', { name: displayName(student) }));
-  }
+  warnings.push(...noSubmissionWarnings(results.students, results.rows, keys, request.studentKeys));
 
   // Before anything is uploaded: a failed compile ends the run with nothing shared.
   let solution: Uint8Array | undefined;
@@ -175,10 +192,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
     solution = await compileSolution(ctx, key, warnings);
   }
 
-  // Artemis sends inside the per-student loop, Mebis packs there; slips and e-mail prepare links (e-mail sends at the end).
-  let loopPhase: SharePhase = 'preparing';
-  if (request.channel === 'artemis') loopPhase = 'sending';
-  else if (request.channel === 'mebis') loopPhase = 'packing';
+  const loopPhase = loopPhaseFor(request.channel);
   const entries: SlipEntry[] = [];
   await logExportAction(request.examId, 'SHARE', key);
   warnings.push(

@@ -184,7 +184,7 @@ function display(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null;
   if (Array.isArray(value)) return value.join(', ');
   if (typeof value === 'boolean') return value ? '✓' : '✗';
-  return String(value);
+  return String(value as string | number | bigint);
 }
 
 function compare(spec: KindSpec, current: Row, incoming: Row): ArchiveConflict | null {

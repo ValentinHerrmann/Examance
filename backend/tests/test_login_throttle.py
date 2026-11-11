@@ -20,15 +20,11 @@ _PASSWORD = "s3cr3t!!-min12"  # noqa: S105 - test fixture credential
 
 
 @pytest_asyncio.fixture
-async def throttling() -> AsyncGenerator[None, None]:
-    previous = settings.LOGIN_THROTTLE_ENABLED
-    previous_max = settings.LOGIN_MAX_FAILED_ATTEMPTS
-    settings.LOGIN_THROTTLE_ENABLED = True
-    settings.LOGIN_MAX_FAILED_ATTEMPTS = 3
+async def throttling(monkeypatch: pytest.MonkeyPatch) -> AsyncGenerator[None, None]:
+    monkeypatch.setattr(settings, "LOGIN_THROTTLE_ENABLED", True)
+    monkeypatch.setattr(settings, "LOGIN_MAX_FAILED_ATTEMPTS", 3)
     login_throttle.reset_memory_store()
     yield
-    settings.LOGIN_THROTTLE_ENABLED = previous
-    settings.LOGIN_MAX_FAILED_ATTEMPTS = previous_max
     login_throttle.reset_memory_store()
 
 
@@ -119,14 +115,13 @@ async def test_unknown_account_is_throttled_the_same_way(
 
 @pytest.mark.asyncio
 async def test_an_unreachable_redis_does_not_stall_the_login(
-    client: AsyncClient, db: AsyncSession, throttling: None
+    client: AsyncClient, db: AsyncSession, throttling: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The throttle must fail fast: an unreachable Redis may not stall the login. `Redis.from_url()` leaves `socket_connect_timeout` unset, so redis-py waits for the OS connect timeout (~2 min on Linux) and the browser reports the server down: worse than guessing."""
     email = "redis-down@example.com"
     await _create_teacher(db, email)
 
-    previous_uri = settings.RATE_LIMIT_STORAGE_URI
-    settings.RATE_LIMIT_STORAGE_URI = "redis://192.0.2.1:6379/0"  # TEST-NET-1, unroutable
+    monkeypatch.setattr(settings, "RATE_LIMIT_STORAGE_URI", "redis://192.0.2.1:6379/0")  # TEST-NET-1, unroutable
     ephemeral_store.reset()
     try:
         started = time.monotonic()
@@ -140,20 +135,18 @@ async def test_an_unreachable_redis_does_not_stall_the_login(
         # Comfortably inside the frontend's 25s abort, and nowhere near the ~130s an unbounded connect would take.
         assert elapsed < 10, f"login took {elapsed:.1f}s with Redis unreachable"
     finally:
-        settings.RATE_LIMIT_STORAGE_URI = previous_uri
         ephemeral_store.reset()
 
 
 @pytest.mark.asyncio
 async def test_the_circuit_breaker_stops_retrying_a_dead_redis(
-    client: AsyncClient, db: AsyncSession, throttling: None
+    client: AsyncClient, db: AsyncSession, throttling: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """One outage should cost one timeout, not one per request."""
     email = "redis-down-twice@example.com"
     await _create_teacher(db, email)
 
-    previous_uri = settings.RATE_LIMIT_STORAGE_URI
-    settings.RATE_LIMIT_STORAGE_URI = "redis://192.0.2.1:6379/0"
+    monkeypatch.setattr(settings, "RATE_LIMIT_STORAGE_URI", "redis://192.0.2.1:6379/0")
     ephemeral_store.reset()
     try:
         await client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
@@ -165,7 +158,6 @@ async def test_the_circuit_breaker_stops_retrying_a_dead_redis(
         # Second attempt skips Redis entirely while the circuit is open.
         assert elapsed < 2, f"second login took {elapsed:.1f}s; circuit did not open"
     finally:
-        settings.RATE_LIMIT_STORAGE_URI = previous_uri
         ephemeral_store.reset()
 
 

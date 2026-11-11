@@ -45,19 +45,22 @@ export interface McTemplateUsage {
   itemCount: number;
 }
 
+/** How sure the OMR was about one question. */
+export type McConfidence = "high" | "ambiguous" | "failed";
+
 export interface McDetectionItem {
   submissionId: string;
   exerciseId: string;
   studentLabel: string;
   exerciseLabel: string;
-  confidence: "high" | "ambiguous" | "failed";
+  confidence: McConfidence;
   source: "omr" | "manual";
   flaggedOptions: number[];
   selectedOptions: number[];
     /** Marked bubbles this item represents (a detection is one mark, not a question); a failed alignment counts as 1 since the region still needs a human. */
   markedCount: number;
   original?: {
-    confidence: "high" | "ambiguous" | "failed";
+    confidence: McConfidence;
     selectedOptions: number[];
     score?: number;
     flaggedOptions?: number[];
@@ -171,6 +174,201 @@ export interface McVerificationStats {
   algorithmComparison: McAlgorithmScore[];
 }
 
+type ScoreRow = Awaited<ReturnType<typeof scoreRepository.getByExamId>>[number];
+type StudentRow = Awaited<ReturnType<typeof studentRepository.getByExamId>>[number];
+
+/** Display label per joined pseudonym key and per fallback code. */
+async function studentLabelMap(students: StudentRow[]): Promise<Map<string, string>> {
+  const studentMap = new Map<string, string>();
+  const studentKeys = await joinKeys(students);
+  students.forEach((st, i) => {
+    const label = formatStudentName(st.studentName) || st.fallbackCode || "";
+    if (!label) return;
+    if (st.pseudonymHmac) studentMap.set(studentKeys[i], label);
+    if (st.fallbackCode) studentMap.set(st.fallbackCode, label);
+  });
+  return studentMap;
+}
+
+async function submissionLabel(sub: SubmissionRecord, studentMap: Map<string, string>): Promise<string> {
+  const label = sub.pseudonymHmac ? studentMap.get(await joinKey(sub)) : undefined;
+  return label || translate("scanning.verifyItem.submissionLabelFallback", { shortId: sub.id.slice(0, 8) });
+}
+
+/** One read for the exam, then grouped in memory, to avoid an N+1 network read per submission now that scores are server-side. */
+function groupBySubmission(allScores: ScoreRow[]): Map<string, ScoreRow[]> {
+  const scoresBySubmission = new Map<string, ScoreRow[]>();
+  for (const sc of allScores) {
+    const bucket = scoresBySubmission.get(sc.submissionId);
+    if (bucket) bucket.push(sc);
+    else scoresBySubmission.set(sc.submissionId, [sc]);
+  }
+  return scoresBySubmission;
+}
+
+/** Defensive: storage doesn't enforce one score row per (submission, exercise) and a re-ingest can leave stale duplicates that would inflate totals. Keeps the last per exercise, preferring a manual correction over a raw OMR read. */
+function lastScorePerExercise(rawScores: ScoreRow[]): Map<string, ScoreRow> {
+  const scoreByExercise = new Map<string, ScoreRow>();
+  for (const sc of rawScores) {
+    const existing = scoreByExercise.get(sc.exerciseId);
+    if (!existing || existing.omrMeta?.source !== "manual") {
+      scoreByExercise.set(sc.exerciseId, sc);
+    }
+  }
+  return scoreByExercise;
+}
+
+type BoxTally = (algorithm: number, verdict: BoxVerdict, label: boolean) => void;
+
+/** Feeds the per-algorithm comparison from a reviewed score's boxes that carry both verdicts. */
+function tallyReviewedBoxes(omrMeta: OmrScoreMeta, selectedOptions: number[], tally: BoxTally): void {
+  const decidedBy = omrMeta.run?.algorithmVersion;
+  if (!isMcReviewed(omrMeta) || decidedBy === undefined) return;
+  for (const b of omrMeta.detections?.bubbles ?? []) {
+    if (!b.alt || !b.detectedState) continue;
+    const label = selectedOptions.includes(b.optionIndex);
+    tally(decidedBy, { state: b.detectedState, reasons: b.reasons, provisional: b.provisional }, label);
+    tally(b.alt.algorithm, b.alt, label);
+  }
+}
+
+function detectionItem(
+  sub: SubmissionRecord,
+  studentLabel: string,
+  sc: ScoreRow,
+  omrMeta: OmrScoreMeta,
+  ex: ExerciseRecord,
+  subLetterById: Map<string, string>
+): McDetectionItem {
+  const flaggedOptions = omrMeta.flaggedOptions ?? [];
+  const selectedOptions = sc.selectedOptions ?? [];
+
+  const orig = omrMeta.original ?? (omrMeta.source === "omr" ? {
+    confidence: omrMeta.confidence,
+    selectedOptions: [...selectedOptions],
+    score: sc.score,
+    flaggedOptions: flaggedOptions.length > 0 ? [...flaggedOptions] : undefined,
+  } : undefined);
+
+  const isReviewed = isMcReviewed(omrMeta);
+  const isCorrected = !!orig && isReviewed && !optionsEqual(orig.selectedOptions, selectedOptions);
+  const title = ex.title || ex.name || "MC Question";
+
+  return {
+    submissionId: sub.id,
+    exerciseId: sc.exerciseId,
+    studentLabel,
+    exerciseLabel: subLetterById.has(sc.exerciseId) ? `${title} ${subLetterById.get(sc.exerciseId)})` : title,
+    confidence: omrMeta.confidence,
+    source: omrMeta.source,
+    flaggedOptions,
+    selectedOptions,
+    markedCount: detectionMarkedCount(omrMeta.confidence, selectedOptions, flaggedOptions),
+    original: orig,
+    reviewedAt: omrMeta.reviewedAt,
+    isReviewed,
+    isCorrected,
+    run: omrMeta.run,
+  };
+}
+
+/** One item per (submission, MC exercise) score with a detection; hand-typed scores without one are only counted. */
+function collectDetectionItems(
+  submissions: SubmissionRecord[],
+  labels: string[],
+  scoresBySubmission: Map<string, ScoreRow[]>,
+  exerciseById: Map<string, ExerciseRecord>,
+  subLetterById: Map<string, string>,
+  tally: BoxTally
+): { items: McDetectionItem[]; undetectedScoreCount: number } {
+  const items: McDetectionItem[] = [];
+  let undetectedScoreCount = 0;
+  submissions.forEach((sub, i) => {
+    for (const sc of lastScorePerExercise(scoresBySubmission.get(sub.id) ?? []).values()) {
+      const ex = exerciseById.get(sc.exerciseId);
+      if (!ex) continue;
+      if (!sc.omrMeta) {
+        if (sc.score !== undefined) undetectedScoreCount++;
+        continue;
+      }
+      tallyReviewedBoxes(sc.omrMeta, sc.selectedOptions ?? [], tally);
+      items.push(detectionItem(sub, labels[i], sc, sc.omrMeta, ex, subLetterById));
+    }
+  });
+  return { items, undetectedScoreCount };
+}
+
+function emptyQuality(): DetectionConfidenceQuality {
+  return { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
+}
+
+function calcRate(confirmed: number, reviewed: number): number {
+  if (reviewed === 0) return 100;
+  return Math.round((confirmed / reviewed) * 1000) / 10;
+}
+
+/** Question counts per confidence, per exercise and the quality of the initial detection (before verification). */
+function summarizeQuestions(items: McDetectionItem[]) {
+  const perExerciseMap = new Map<string, McExerciseBreakdown>();
+  const counts = { total: 0, high: 0, ambiguous: 0, failed: 0, markedBoxes: 0 };
+  let totalReviewed = 0;
+  let overallConfirmedUnchanged = 0;
+  let totalWithHistory = 0;
+  const quality: Record<McConfidence, DetectionConfidenceQuality> = {
+    high: emptyQuality(),
+    ambiguous: emptyQuality(),
+    failed: emptyQuality(),
+  };
+
+  for (const it of items) {
+    let b = perExerciseMap.get(it.exerciseId);
+    if (!b) {
+      b = { exerciseId: it.exerciseId, exerciseLabel: it.exerciseLabel, high: 0, ambiguous: 0, failed: 0, total: 0, markedBoxes: 0 };
+      perExerciseMap.set(it.exerciseId, b);
+    }
+    b[it.confidence] += 1;
+    b.total += 1;
+    b.markedBoxes += it.markedCount;
+
+    counts.total += 1;
+    counts.markedBoxes += it.markedCount;
+    counts[it.confidence] += 1;
+
+    if (it.original) totalWithHistory += 1;
+    const bucket = quality[it.original?.confidence ?? it.confidence];
+    bucket.total += 1;
+
+    if (!it.isReviewed) continue;
+    totalReviewed += 1;
+    bucket.reviewed += 1;
+    if (it.isCorrected) {
+      bucket.corrected += 1;
+    } else {
+      bucket.confirmedUnchanged += 1;
+      overallConfirmedUnchanged += 1;
+    }
+  }
+
+  for (const bucket of Object.values(quality)) bucket.accuracyRate = calcRate(bucket.confirmedUnchanged, bucket.reviewed);
+
+  const falseConfidenceCount = quality.high.corrected;
+  const qualityStats: DetectionQualityStats = {
+    totalWithHistory,
+    totalReviewed,
+    overallInitialAccuracy: calcRate(overallConfirmedUnchanged, totalReviewed),
+    overallConfirmedUnchanged,
+    highConfidence: quality.high,
+    ambiguousConfidence: quality.ambiguous,
+    failedConfidence: quality.failed,
+    falseConfidenceCount,
+    falseConfidenceRate:
+      quality.high.reviewed > 0
+        ? Math.round((falseConfidenceCount / quality.high.reviewed) * 1000) / 10
+        : 0,
+  };
+  return { perExercise: Array.from(perExerciseMap.values()), counts, qualityStats };
+}
+
 /** `items` has one entry per (submission, MC/SC/TF exercise) pair; `*Questions` counts use that granularity, while `totalMarkedBoxes`/`markedBoxes` sum `markedCount` per marked bubble. Don't conflate them: box counts as headline numbers scaled with marks per question regardless of confidence. */
 export async function computeMcVerificationStats(
   examId: string,
@@ -188,200 +386,40 @@ export async function computeMcVerificationStats(
   // Members of one MC group share a title; the sub-letter tells them apart.
   const subLetterById = buildSubLabelMap(mcGroups);
 
-  const studentMap = new Map<string, string>();
-  const studentKeys = await joinKeys(students);
-  students.forEach((st, i) => {
-    const label = formatStudentName(st.studentName) || st.fallbackCode || "";
-    if (!label) return;
-    if (st.pseudonymHmac) studentMap.set(studentKeys[i], label);
-    if (st.fallbackCode) studentMap.set(st.fallbackCode, label);
-  });
+  const studentMap = await studentLabelMap(students);
+  // Pure key derivations, so the labels resolve in parallel; `map` keeps the submission order.
+  const labels = await Promise.all(submissions.map((sub) => submissionLabel(sub, studentMap)));
+  const scoresBySubmission = groupBySubmission(await scoreRepository.getByExamId(examId, key));
 
-  async function labelFor(sub: SubmissionRecord): Promise<string> {
-    const label = sub.pseudonymHmac ? studentMap.get(await joinKey(sub)) : undefined;
-    return label || translate("scanning.verifyItem.submissionLabelFallback", { shortId: sub.id.slice(0, 8) });
-  }
-
-  // One read for the exam, then grouped in memory, to avoid an N+1 network read per submission now that scores are server-side.
-  const allScores = await scoreRepository.getByExamId(examId, key);
-  const scoresBySubmission = new Map<string, typeof allScores>();
-  for (const sc of allScores) {
-    const bucket = scoresBySubmission.get(sc.submissionId);
-    if (bucket) bucket.push(sc);
-    else scoresBySubmission.set(sc.submissionId, [sc]);
-  }
-
-  const items: McDetectionItem[] = [];
-  let undetectedScoreCount = 0;
   const algoScores = new Map<number, McAlgorithmScore>();
-  const tally = (algorithm: number, verdict: BoxVerdict, label: boolean) => {
+  const tally: BoxTally = (algorithm, verdict, label) => {
     const s = algoScores.get(algorithm) ?? { algorithm, boxes: 0, correct: 0, unsure: 0 };
     s.boxes++;
     if (verdictSelected(verdict) === label) s.correct++;
     if (verdictUnsure(verdict)) s.unsure++;
     algoScores.set(algorithm, s);
   };
-  for (const sub of submissions) {
-    const rawScores = scoresBySubmission.get(sub.id) ?? [];
-    const label = await labelFor(sub);
+  const { items, undetectedScoreCount } = collectDetectionItems(
+    submissions,
+    labels,
+    scoresBySubmission,
+    exerciseById,
+    subLetterById,
+    tally
+  );
 
-        // Defensive: storage doesn't enforce one score row per (submission, exercise) and a re-ingest can leave stale duplicates that would inflate totals. Keep the last per exercise, preferring a manual correction over a raw OMR read.
-    const scoreByExercise = new Map<string, (typeof rawScores)[number]>();
-    for (const sc of rawScores) {
-      const existing = scoreByExercise.get(sc.exerciseId);
-      if (!existing || existing.omrMeta?.source !== "manual") {
-        scoreByExercise.set(sc.exerciseId, sc);
-      }
-    }
-
-    for (const sc of scoreByExercise.values()) {
-      const ex = exerciseById.get(sc.exerciseId);
-      if (!ex) continue;
-      if (!sc.omrMeta) {
-        if (sc.score !== undefined) undetectedScoreCount++;
-        continue;
-      }
-      const flaggedOptions = sc.omrMeta.flaggedOptions ?? [];
-      const selectedOptions = sc.selectedOptions ?? [];
-
-      const orig = sc.omrMeta.original ?? (sc.omrMeta.source === "omr" ? {
-        confidence: sc.omrMeta.confidence,
-        selectedOptions: [...selectedOptions],
-        score: sc.score,
-        flaggedOptions: flaggedOptions.length > 0 ? [...flaggedOptions] : undefined,
-      } : undefined);
-
-      const isReviewed = isMcReviewed(sc.omrMeta);
-      const decidedBy = sc.omrMeta.run?.algorithmVersion;
-      if (isReviewed && decidedBy !== undefined) {
-        for (const b of sc.omrMeta.detections?.bubbles ?? []) {
-          if (!b.alt || !b.detectedState) continue;
-          const label = selectedOptions.includes(b.optionIndex);
-          tally(decidedBy, { state: b.detectedState, reasons: b.reasons, provisional: b.provisional }, label);
-          tally(b.alt.algorithm, b.alt, label);
-        }
-      }
-      const isCorrected = orig && isReviewed ? !optionsEqual(orig.selectedOptions, selectedOptions) : false;
-
-      items.push({
-        submissionId: sub.id,
-        exerciseId: sc.exerciseId,
-        studentLabel: label,
-        exerciseLabel: subLetterById.has(sc.exerciseId)
-          ? `${ex.title || ex.name || "MC Question"} ${subLetterById.get(sc.exerciseId)})`
-          : ex.title || ex.name || "MC Question",
-        confidence: sc.omrMeta.confidence,
-        source: sc.omrMeta.source,
-        flaggedOptions,
-        selectedOptions,
-        markedCount: detectionMarkedCount(sc.omrMeta.confidence, selectedOptions, flaggedOptions),
-        original: orig,
-        reviewedAt: sc.omrMeta.reviewedAt,
-        isReviewed,
-        isCorrected,
-        run: sc.omrMeta.run,
-      });
-    }
-  }
-
-  const perExerciseMap = new Map<string, McExerciseBreakdown>();
-  let totalQuestions = 0;
-  let highQuestions = 0;
-  let ambiguousQuestions = 0;
-  let failedQuestions = 0;
-  let totalMarkedBoxes = 0;
-
-  let totalReviewed = 0;
-  let overallConfirmedUnchanged = 0;
-  let totalWithHistory = 0;
-
-  const highQuality = { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
-  const ambiguousQuality = { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
-  const failedQuality = { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
-
-  for (const it of items) {
-    let b = perExerciseMap.get(it.exerciseId);
-    if (!b) {
-      b = { exerciseId: it.exerciseId, exerciseLabel: it.exerciseLabel, high: 0, ambiguous: 0, failed: 0, total: 0, markedBoxes: 0 };
-      perExerciseMap.set(it.exerciseId, b);
-    }
-    b[it.confidence] += 1;
-    b.total += 1;
-    b.markedBoxes += it.markedCount;
-
-    totalQuestions += 1;
-    totalMarkedBoxes += it.markedCount;
-    if (it.confidence === "high") highQuestions += 1;
-    else if (it.confidence === "ambiguous") ambiguousQuestions += 1;
-    else failedQuestions += 1;
-
-    // Quality stats based on initial detection before verification
-    const origConf = it.original?.confidence ?? it.confidence;
-    if (it.original) {
-      totalWithHistory += 1;
-    }
-
-    const bucket =
-      origConf === "high"
-        ? highQuality
-        : origConf === "ambiguous"
-        ? ambiguousQuality
-        : failedQuality;
-
-    bucket.total += 1;
-
-    if (it.isReviewed) {
-      totalReviewed += 1;
-      bucket.reviewed += 1;
-      if (it.isCorrected) {
-        bucket.corrected += 1;
-      } else {
-        bucket.confirmedUnchanged += 1;
-        overallConfirmedUnchanged += 1;
-      }
-    }
-  }
-
-  function calcRate(confirmed: number, reviewed: number): number {
-    if (reviewed === 0) return 100;
-    return Math.round((confirmed / reviewed) * 1000) / 10;
-  }
-
-  highQuality.accuracyRate = calcRate(highQuality.confirmedUnchanged, highQuality.reviewed);
-  ambiguousQuality.accuracyRate = calcRate(ambiguousQuality.confirmedUnchanged, ambiguousQuality.reviewed);
-  failedQuality.accuracyRate = calcRate(failedQuality.confirmedUnchanged, failedQuality.reviewed);
-
-  const overallInitialAccuracy = calcRate(overallConfirmedUnchanged, totalReviewed);
-  const falseConfidenceCount = highQuality.corrected;
-  const falseConfidenceRate =
-    highQuality.reviewed > 0
-      ? Math.round((falseConfidenceCount / highQuality.reviewed) * 1000) / 10
-      : 0;
-
-  const qualityStats: DetectionQualityStats = {
-    totalWithHistory,
-    totalReviewed,
-    overallInitialAccuracy,
-    overallConfirmedUnchanged,
-    highConfidence: highQuality,
-    ambiguousConfidence: ambiguousQuality,
-    failedConfidence: failedQuality,
-    falseConfidenceCount,
-    falseConfidenceRate,
-  };
-
-  const confusionMatrix = buildConfusionMatrix(items, exerciseById);
+  const { perExercise, counts, qualityStats } = summarizeQuestions(items);
 
   return {
-    totalQuestions,
-    highQuestions,
-    ambiguousQuestions,
-    failedQuestions,
-    totalMarkedBoxes,
-    perExercise: Array.from(perExerciseMap.values()),
+    totalQuestions: counts.total,
+    highQuestions: counts.high,
+    ambiguousQuestions: counts.ambiguous,
+    failedQuestions: counts.failed,
+    totalMarkedBoxes: counts.markedBoxes,
+    perExercise,
     items,
     qualityStats,
-    confusionMatrix,
+    confusionMatrix: buildConfusionMatrix(items, exerciseById),
     detectionRuns: summarizeDetectionRuns(items),
     templatesUsed: summarizeTemplates(items),
     undetectedScoreCount,
@@ -428,19 +466,35 @@ export function summarizeTemplates(items: Pick<McDetectionItem, "run">[]): McTem
   return [...byHash.values()].sort((a, b) => rank(a) - rank(b) || (b.pinnedAt ?? "").localeCompare(a.pinnedAt ?? ""));
 }
 
+type ConfusionCell = Exclude<keyof DetectionConfusionMatrix, "totalOptionsEvaluated">;
+
+const CONFUSION_CELLS: readonly ConfusionCell[] = [
+  "correctPositive",
+  "falsePositive",
+  "correctNegative",
+  "falseNegative",
+  "unreviewedPositiveHigh",
+  "unreviewedPositiveLow",
+  "unreviewedNegativeHigh",
+  "unreviewedNegativeLow",
+];
+
+/** Reviewed options are judged against the final selection, unreviewed ones against the OMR's own doubt (`flaggedOptions`). */
+function confusionCell(omrPositive: boolean, reviewed: boolean, finalPositive: boolean, lowConfidence: boolean): ConfusionCell {
+  if (reviewed) {
+    if (omrPositive) return finalPositive ? "correctPositive" : "falsePositive";
+    return finalPositive ? "falseNegative" : "correctNegative";
+  }
+  if (omrPositive) return lowConfidence ? "unreviewedPositiveLow" : "unreviewedPositiveHigh";
+  return lowConfidence ? "unreviewedNegativeLow" : "unreviewedNegativeHigh";
+}
+
 /** Classifies every OMR-evaluated OPTION into the confusion matrix of `DetectionConfusionMatrix`, in its own pass grouped by option index. */
 function buildConfusionMatrix(
   items: McDetectionItem[],
   exerciseById: Map<string, ExerciseRecord>
 ): DetectionConfusionMatrix {
-  let correctPositive = 0;
-  let falsePositive = 0;
-  let correctNegative = 0;
-  let falseNegative = 0;
-  let unreviewedPositiveHigh = 0;
-  let unreviewedPositiveLow = 0;
-  let unreviewedNegativeHigh = 0;
-  let unreviewedNegativeLow = 0;
+  const counts = Object.fromEntries(CONFUSION_CELLS.map((cell) => [cell, 0])) as Record<ConfusionCell, number>;
 
   for (const it of items) {
     if (it.confidence === "failed" || !it.original) continue;
@@ -450,46 +504,26 @@ function buildConfusionMatrix(
     const finalSelected = new Set(it.selectedOptions);
 
     for (let idx = 0; idx < optionCount; idx++) {
-      const omrPositive = origSelected.has(idx);
-      if (it.isReviewed) {
-        const finalPositive = finalSelected.has(idx);
-        if (omrPositive && finalPositive) correctPositive += 1;
-        else if (omrPositive && !finalPositive) falsePositive += 1;
-        else if (!omrPositive && !finalPositive) correctNegative += 1;
-        else falseNegative += 1;
-      } else {
-        const lowConfidence = origFlagged.has(idx);
-        if (omrPositive && !lowConfidence) unreviewedPositiveHigh += 1;
-        else if (omrPositive && lowConfidence) unreviewedPositiveLow += 1;
-        else if (!omrPositive && !lowConfidence) unreviewedNegativeHigh += 1;
-        else unreviewedNegativeLow += 1;
-      }
+      counts[confusionCell(origSelected.has(idx), !!it.isReviewed, finalSelected.has(idx), origFlagged.has(idx))] += 1;
     }
   }
 
-  const totalOptionsEvaluated =
-    correctPositive +
-    falsePositive +
-    correctNegative +
-    falseNegative +
-    unreviewedPositiveHigh +
-    unreviewedPositiveLow +
-    unreviewedNegativeHigh +
-    unreviewedNegativeLow;
-
-  const pct = (count: number): number =>
-    totalOptionsEvaluated === 0 ? 0 : Math.round((count / totalOptionsEvaluated) * 1000) / 10;
+  const totalOptionsEvaluated = CONFUSION_CELLS.reduce((sum, cell) => sum + counts[cell], 0);
+  const bucket = (cell: ConfusionCell): ConfusionBucket => ({
+    count: counts[cell],
+    percent: totalOptionsEvaluated === 0 ? 0 : Math.round((counts[cell] / totalOptionsEvaluated) * 1000) / 10,
+  });
 
   return {
     totalOptionsEvaluated,
-    correctPositive: { count: correctPositive, percent: pct(correctPositive) },
-    falsePositive: { count: falsePositive, percent: pct(falsePositive) },
-    correctNegative: { count: correctNegative, percent: pct(correctNegative) },
-    falseNegative: { count: falseNegative, percent: pct(falseNegative) },
-    unreviewedPositiveHigh: { count: unreviewedPositiveHigh, percent: pct(unreviewedPositiveHigh) },
-    unreviewedPositiveLow: { count: unreviewedPositiveLow, percent: pct(unreviewedPositiveLow) },
-    unreviewedNegativeHigh: { count: unreviewedNegativeHigh, percent: pct(unreviewedNegativeHigh) },
-    unreviewedNegativeLow: { count: unreviewedNegativeLow, percent: pct(unreviewedNegativeLow) },
+    correctPositive: bucket("correctPositive"),
+    falsePositive: bucket("falsePositive"),
+    correctNegative: bucket("correctNegative"),
+    falseNegative: bucket("falseNegative"),
+    unreviewedPositiveHigh: bucket("unreviewedPositiveHigh"),
+    unreviewedPositiveLow: bucket("unreviewedPositiveLow"),
+    unreviewedNegativeHigh: bucket("unreviewedNegativeHigh"),
+    unreviewedNegativeLow: bucket("unreviewedNegativeLow"),
   };
 }
 
@@ -502,7 +536,7 @@ function optionsEqual(a: number[], b: number[]): boolean {
 
 /** Physically marked bubbles of one (submission, exercise) score: 1 for a failed alignment (region still needs a human), else distinct options selected or flagged uncertain (a faint mark may be flagged without being counted as selected). */
 function detectionMarkedCount(
-  confidence: "high" | "ambiguous" | "failed",
+  confidence: McConfidence,
   selectedOptions: number[],
   flaggedOptions: number[]
 ): number {

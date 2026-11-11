@@ -24,14 +24,17 @@ await page.getByText(/Fertig!/).waitFor({ timeout: 300000 });
 await page.waitForTimeout(3000);
 
 const row = (q) => page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first();
+async function enterScore(label, value) {
+  const inp = row(label);
+  await inp.click(); await inp.fill(String(value)); await inp.press('Tab');
+}
 await page.goto(`${BASE}/exam/${ids['10b']}/grade`);
 await page.waitForTimeout(6000);
 for (let i = 0; i < 30; i++) {
-  const header = (await page.locator('body').innerText()).split('Stift')[0];
+  const header = (await page.locator('body').innerText()).split('Stift')[0];  // NOSONAR: UI steps run in order in one browser
   if (header.includes(raw) || header.includes(hashed)) {
     for (const [q, v] of Object.entries(plan[raw].scores)) {
-      const inp = row(q.toUpperCase());
-      await inp.click(); await inp.fill(String(v)); await inp.press('Tab');
+      await enterScore(q.toUpperCase(), v); // NOSONAR: UI steps run in order in one browser
     }
     await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
     await page.waitForTimeout(2000);
@@ -40,7 +43,7 @@ for (let i = 0; i < 30; i++) {
     console.log('showcase graded');
     break;
   }
-  await page.getByRole('button', { name: /Nächster/ }).click();
-  await page.waitForTimeout(2000);
+  await page.getByRole('button', { name: /Nächster/ }).click(); // NOSONAR: UI steps run in order in one browser
+  await page.waitForTimeout(2000); // NOSONAR: UI steps run in order in one browser
 }
 await ctx.close();

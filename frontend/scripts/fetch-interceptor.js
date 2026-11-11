@@ -1,6 +1,8 @@
 // @ts-nocheck
 (function () {
-  const globalScope = typeof window !== 'undefined' ? window : (typeof self !== 'undefined' ? self : globalThis);
+  let globalScope = globalThis;
+  if (typeof window !== 'undefined') globalScope = window;
+  else if (typeof self !== 'undefined') globalScope = self;
   if (globalScope.__busytex_fetch_intercepted__) return;
   globalScope.__busytex_fetch_intercepted__ = true;
 
@@ -35,7 +37,7 @@
     if (!force && now - lastReport < 100) return;
     lastReport = now;
     getChunkManifest().then((manifest) => {
-      const total = Object.values(manifest).reduce((sum, e) => sum + (e && e.gzippedSize ? e.gzippedSize : 0), 0);
+      const total = Object.values(manifest).reduce((sum, e) => sum + (e?.gzippedSize ? e.gzippedSize : 0), 0);
       if (total > 0) globalScope.postMessage({ print: `Downloading data... (${Math.min(loadedBytes, total)}/${total})` });
     });
   }
@@ -76,11 +78,57 @@
     });
   }
 
+  function requestUrl(target) {
+    if (typeof target === 'string') return target;
+    if (target && typeof target === 'object' && 'url' in target) return target.url;
+    return String(target);
+  }
+
+  function pickContentType(pathname, fallback) {
+    if (pathname.endsWith('.wasm')) return 'application/wasm';
+    if (pathname.endsWith('.js')) return 'application/javascript';
+    return fallback || 'application/octet-stream';
+  }
+
+  function gunzipIfNeeded(stream, entry) {
+    return entry.gzipped && typeof DecompressionStream !== 'undefined'
+      ? stream.pipeThrough(new DecompressionStream('gzip'))
+      : stream;
+  }
+
+  // Null means "not served from the single chunk": the caller falls back to the plain fetch.
+  async function fetchSingleChunk(entry, pathname, init) {
+    const response = await originalFetch(entry.chunks[0], init);
+    if (!response.ok) return null;
+    const body = gunzipIfNeeded(createVerifiedStream([response], entry.gzippedSize, pathname), entry);
+    const headers = new Headers(response.headers);
+    headers.delete('content-length');
+    headers.delete('content-encoding');
+    headers.set('Content-Type', pickContentType(pathname, response.headers.get('content-type')));
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: headers
+    });
+  }
+
+  async function fetchMultiChunk(entry, pathname, init) {
+    const responses = await Promise.all(entry.chunks.map(chunkUrl => originalFetch(chunkUrl, init)));
+    if (!responses.every(r => r.ok)) {
+      throw new Error(`Failed to fetch one or more chunks for ${pathname}`);
+    }
+    const body = gunzipIfNeeded(createVerifiedStream(responses, entry.gzippedSize, pathname), entry);
+    return new Response(body, {
+      status: 200,
+      statusText: 'OK',
+      headers: {
+        'Content-Type': pickContentType(pathname, responses[0].headers.get('content-type'))
+      }
+    });
+  }
+
   globalScope.fetch = async function (...args) {
-    const requestTarget = args[0];
-    const urlStr = typeof requestTarget === 'string'
-      ? requestTarget
-      : (requestTarget && typeof requestTarget === 'object' && 'url' in requestTarget ? requestTarget.url : String(requestTarget));
+    const urlStr = requestUrl(args[0]);
 
     try {
       const parsedUrl = new URL(urlStr, globalScope.location ? globalScope.location.href : 'http://localhost');
@@ -88,55 +136,11 @@
       const manifest = await getChunkManifest();
 
       const entry = manifest[pathname];
-      if (entry && entry.chunks && entry.chunks.length > 0) {
-        if (entry.chunks.length === 1) {
-          const response = await originalFetch(entry.chunks[0], args[1]);
-          if (response.ok) {
-            const verifiedStream = createVerifiedStream([response], entry.gzippedSize, pathname);
-            const body = entry.gzipped && typeof DecompressionStream !== 'undefined'
-              ? verifiedStream.pipeThrough(new DecompressionStream('gzip'))
-              : verifiedStream;
-
-            const contentType = pathname.endsWith('.wasm')
-              ? 'application/wasm'
-              : (pathname.endsWith('.js') ? 'application/javascript' : (response.headers.get('content-type') || 'application/octet-stream'));
-
-            const headers = new Headers(response.headers);
-            headers.delete('content-length');
-            headers.delete('content-encoding');
-            headers.set('Content-Type', contentType);
-
-            return new Response(body, {
-              status: response.status,
-              statusText: response.statusText,
-              headers: headers
-            });
-          }
-        } else {
-          const responses = await Promise.all(entry.chunks.map(chunkUrl => originalFetch(chunkUrl, args[1])));
-          const allOk = responses.every(r => r.ok);
-          if (allOk) {
-            const combinedStream = createVerifiedStream(responses, entry.gzippedSize, pathname);
-
-            const body = entry.gzipped && typeof DecompressionStream !== 'undefined'
-              ? combinedStream.pipeThrough(new DecompressionStream('gzip'))
-              : combinedStream;
-
-            const contentType = pathname.endsWith('.wasm')
-              ? 'application/wasm'
-              : (pathname.endsWith('.js') ? 'application/javascript' : (responses[0].headers.get('content-type') || 'application/octet-stream'));
-
-            return new Response(body, {
-              status: 200,
-              statusText: 'OK',
-              headers: {
-                'Content-Type': contentType
-              }
-            });
-          } else {
-            throw new Error(`Failed to fetch one or more chunks for ${pathname}`);
-          }
-        }
+      if (entry?.chunks?.length > 0) {
+        const chunked = entry.chunks.length === 1
+          ? await fetchSingleChunk(entry, pathname, args[1])
+          : await fetchMultiChunk(entry, pathname, args[1]);
+        if (chunked) return chunked;
       }
 
       const res = await originalFetch(...args);

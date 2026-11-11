@@ -49,10 +49,21 @@ export async function getReservedNames(): Promise<Set<string>> {
   return names;
 }
 
+const SEPARATORS = new Set(['.', '_', '-']);
+
+/** Strip leading and trailing `.`, `_` and `-` with index walks; the anchored-alternation regex backtracked. */
+function trimSeparators(name: string): string {
+  let start = 0;
+  let end = name.length;
+  while (start < end && SEPARATORS.has(name[start])) start++;
+  while (end > start && SEPARATORS.has(name[end - 1])) end--;
+  return name.slice(start, end);
+}
+
 /** Reduce a picked file's name to a flat, LaTeX-friendly filename. */
 export function sanitizeResourceName(rawName: string): string {
-  let name = rawName.trim().replace(/\\/g, '/').split('/').pop() ?? '';
-  name = name.replace(/[^A-Za-z0-9._-]/g, '_').replace(/\.{2,}/g, '.').replace(/^[._-]+|[._-]+$/g, '');
+  let name = rawName.trim().replaceAll('\\', '/').split('/').pop() ?? '';
+  name = trimSeparators(name.replaceAll(/[^A-Za-z0-9._-]/g, '_').replaceAll(/\.{2,}/g, '.'));
 
   if (!name) throw new ResourceError('File name is empty after sanitising.');
 
@@ -164,8 +175,8 @@ export function guessMimeType(filename: string, provided?: string): string {
 export function insertSnippetFor(filename: string): string {
   const ext = filename.toLowerCase().split('.').pop() ?? '';
   if (['png', 'jpg', 'jpeg', 'pdf'].includes(ext)) {
-    return `\\includegraphics[width=0.8\\linewidth]{${filename}}`;
+    return String.raw`\includegraphics[width=0.8\linewidth]{${filename}}`;
   }
-  if (ext === 'tex') return `\\input{${filename}}`;
+  if (ext === 'tex') return String.raw`\input{${filename}}`;
   return filename;
 }

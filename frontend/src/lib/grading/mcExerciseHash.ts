@@ -71,12 +71,7 @@ export function resolveMcExercises(
   for (const ex of libraryExercises) byId.set(ex.id, normalizeMcExercise(ex));
   for (const ex of exercises) byId.set(ex.id, normalizeMcExercise(ex));
 
-  const groupMemberIds = new Set<string>();
-  for (const group of mcGroups) {
-    for (const memberId of group.memberIds) {
-      groupMemberIds.add(memberId);
-    }
-  }
+  const groupMemberIds = new Set<string>(mcGroups.flatMap((group) => [...group.memberIds]));
 
   const result: ExerciseRecord[] = [];
   const addedIds = new Set<string>();
@@ -91,12 +86,10 @@ export function resolveMcExercises(
 
   for (const group of mcGroups) {
     for (const memberId of group.memberIds) {
-      if (!addedIds.has(memberId)) {
-        const member = byId.get(memberId);
-        if (member) {
-          result.push(member);
-          addedIds.add(memberId);
-        }
+      const member = addedIds.has(memberId) ? undefined : byId.get(memberId);
+      if (member) {
+        result.push(member);
+        addedIds.add(memberId);
       }
     }
   }

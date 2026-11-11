@@ -177,7 +177,7 @@ _PACKAGE_COMMAND = re.compile(
 )
 _VERBATIM_BEGIN = re.compile(r"\\begin\s*\{(verbatim\*?|Verbatim|lstlisting|minted|comment)\}")
 _INLINE_VERBATIM = re.compile(
-    r"\\(?:verb\*?|lstinline(?:\[[^\]]*\])?)(?:\{[^}]*\}|([^\sa-zA-Z{])(?:(?!\1).)*\1)"
+    r"\\(?:verb\*?|lstinline(?:\[[^\]]*\])?)(?:\{[^}]*\}|([^\sa-zA-Z{]).*?\1)"
 )
 _COMMENT = re.compile(r"(?<!\\)%")
 _COMMAND_KIND: dict[str, PackageKind] = {

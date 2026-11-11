@@ -11,7 +11,7 @@ export interface ReportTexFile {
 function fence(text: string, lang = ""): string {
   const longest = Math.max(2, ...(text.match(/`+/g) ?? []).map((run) => run.length));
   const ticks = "`".repeat(longest + 1);
-  return `${ticks}${lang}\n${text.replace(/\s+$/, "")}\n${ticks}`;
+  return `${ticks}${lang}\n${text.trimEnd()}\n${ticks}`;
 }
 
 function firstLine(text: string, max = 80): string {

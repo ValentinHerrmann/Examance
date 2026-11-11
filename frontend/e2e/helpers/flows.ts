@@ -1,7 +1,7 @@
 /** Shared user flows (sign in, create exercises and exams) so a form change has one place to fix. They drive page content; shell navigation lives in `nav.ts`. Selectors are role/label/catalog-text based; unavoidable workarounds (CodeMirror) stay isolated. */
 import type { Locator, Page } from '@playwright/test';
 import { expect } from './guards';
-import { label, labelExact, literal, type Locale } from './i18n';
+import { label, labelExact, literal } from './i18n';
 import { currentLocale, gotoExerciseLibrary } from './nav';
 
 /** Credentials of the e2e account; the fake backend (`helpers/backend.ts`) accepts any pair. */
@@ -42,7 +42,7 @@ export async function setCodeMirror(
 
 /** Read the text content of a CodeMirror editor. */
 export async function readCodeMirror(scope: Locator, index = 0): Promise<string> {
-  return (await scope.locator('.cm-content').nth(index).innerText()).replace(/\u00a0/g, ' ');
+  return (await scope.locator('.cm-content').nth(index).innerText()).replaceAll('\u00a0', ' ');
 }
 
 /* -------------------------------------------------------------------------- */
@@ -109,7 +109,8 @@ export interface ExerciseSpec {
 
 /** LaTeX body for a free-text exercise. The app scores by counting `\BE` marks (`lib/latex/scoreParser.ts`), so `points` marks give that many points; `marker` is searchable text for the list preview. */
 export function exerciseBody(marker: string, points = 3): string {
-  return `\\begin{Aufgabe}{${marker}}\n${marker}\n${'\\BE '.repeat(points).trim()}\n\\end{Aufgabe}`;
+  const marks = String.raw`\BE `.repeat(points).trim();
+  return [String.raw`\begin{Aufgabe}{${marker}}`, marker, marks, String.raw`\end{Aufgabe}`].join('\n');
 }
 
 /** The exercise editor dialog (create, edit and new-version all use it). */
@@ -162,14 +163,12 @@ export async function createExercise(
       await l(page, 'exercises.editor.mcOptionPlaceholder', { number: '' }),
     );
     const add = editor.getByRole('button', { name: await l(page, 'exercises.editor.mcAddOptionButton') });
-    while ((await optionInputs.count()) < spec.mc.options.length) await add.click();
+    while ((await optionInputs.count()) < spec.mc.options.length) await add.click(); // NOSONAR: UI steps run in order in one browser
     const correctBoxes = editor.getByRole('checkbox', {
       name: await l(page, 'exercises.editor.mcOptionCorrectTitle'),
     });
-    for (let i = 0; i < spec.mc.options.length; i++) {
-      await optionInputs.nth(i).fill(spec.mc.options[i].text);
-      const box = correctBoxes.nth(i);
-      if ((await box.isChecked()) !== Boolean(spec.mc.options[i].correct)) await box.click();
+    for (const [i, option] of spec.mc.options.entries()) {
+      await fillMcOption(optionInputs.nth(i), correctBoxes.nth(i), option); // NOSONAR: UI steps run in order in one browser
     }
   } else {
     await setCodeMirror(page, editor, spec.latex ?? exerciseBody(`Body of ${spec.name}`), 0);
@@ -268,6 +267,36 @@ export async function openTitleEditor(page: Page, scope: Page | Locator = page):
   return scope.getByLabel(await l(page, 'exam.metadataEditor.examTitle'));
 }
 
+/** Fill one option row of the structured MC editor and set its correct tick. */
+async function fillMcOption(input: Locator, box: Locator, option: McOption): Promise<void> {
+  await input.fill(option.text);
+  if ((await box.isChecked()) !== Boolean(option.correct)) await box.click();
+}
+
+/** Tick one exercise in the exam library picker. */
+async function addExerciseToExam(page: Page, library: Locator, name: string): Promise<void> {
+  await filterPicker(page, library, name);
+  await tickOnlyMatch(page, library, 'exercises.libraryPicker.checkboxAddToExam');
+}
+
+/** Stage one MC group in the exam library dialog. */
+async function addMcGroupToExam(page: Page, library: Locator, group: NonNullable<ExamSpec['mcGroups']>[number]): Promise<void> {
+  await library.getByRole('button', { name: await l(page, 'exam.libraryModal.mcTab') }).click();
+  for (const member of group.members) {
+    await filterPicker(page, library, member); // NOSONAR: UI steps run in order in one browser
+    await tickOnlyMatch(page, library, 'exercises.libraryPicker.checkboxAddMcStaging'); // NOSONAR: UI steps run in order in one browser
+  }
+  if (group.title) {
+    await library.getByLabel(await l(page, 'exam.mcStagingPanel.titleLabel')).fill(group.title);
+  }
+  await library
+    .getByRole('button', {
+      name: await l(page, 'exam.mcStagingPanel.addButton', { count: group.members.length }),
+    })
+    .click();
+  await filterPicker(page, library, '');
+}
+
 /** Create an exam: "New exam" asks for the header data, then the exam page opens with the library, where the exercises and optional MC groups are picked (M1). Exercises must already exist. */
 export async function createExam(page: Page, spec: ExamSpec): Promise<void> {
   await page.getByRole('link', { name: await l(page, 'dashboard.header.createButton') }).click();
@@ -284,26 +313,12 @@ export async function createExam(page: Page, spec: ExamSpec): Promise<void> {
   const library = page.getByRole('dialog', { name: await l(page, 'exam.libraryModal.header') });
   await expect(library).toBeVisible();
   for (const name of spec.exercises) {
-    await filterPicker(page, library, name);
-    await tickOnlyMatch(page, library, 'exercises.libraryPicker.checkboxAddToExam');
+    await addExerciseToExam(page, library, name); // NOSONAR: UI steps run in order in one browser
   }
   if (spec.exercises.length > 0) await filterPicker(page, library, '');
 
   for (const group of spec.mcGroups ?? []) {
-    await library.getByRole('button', { name: await l(page, 'exam.libraryModal.mcTab') }).click();
-    for (const member of group.members) {
-      await filterPicker(page, library, member);
-      await tickOnlyMatch(page, library, 'exercises.libraryPicker.checkboxAddMcStaging');
-    }
-    if (group.title) {
-      await library.getByLabel(await l(page, 'exam.mcStagingPanel.titleLabel')).fill(group.title);
-    }
-    await library
-      .getByRole('button', {
-        name: await l(page, 'exam.mcStagingPanel.addButton', { count: group.members.length }),
-      })
-      .click();
-    await filterPicker(page, library, '');
+    await addMcGroupToExam(page, library, group); // NOSONAR: UI steps run in order in one browser
   }
 
   await library.getByRole('button', { name: await l(page, 'exam.libraryModal.applyButton') }).click();
@@ -337,4 +352,4 @@ export async function t(page: Page, key: string, vars?: Record<string, string | 
   return l(page, key, vars);
 }
 
-export type { Locale };
+export type { Locale } from './i18n';

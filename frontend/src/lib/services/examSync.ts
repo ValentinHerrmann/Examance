@@ -8,114 +8,111 @@ import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
 import { offlineQueue } from '#lib/services/offlineQueue';
 import { isServerBacked } from '#lib/utils/serverBacked';
 
+/** Exam ids whose creation sits in the offline queue and has not reached the server yet. */
+function pendingExamIdsInQueue(): Set<string> {
+  return new Set(
+    get(offlineQueue)
+      .filter((req) => req.url === '/exams' && req.method === 'POST' && req.body?.id)
+      .map((req) => req.body.id)
+  );
+}
+
+/** Exercises, junction records and MC groups embedded in the server's exam list, as local rows. */
+function flattenRemoteStructure(remoteExamsRaw: any[]) {
+  const remoteExercises: ExerciseRecord[] = [];
+  const junctionRecords: any[] = [];
+  const mcGroupRecords: any[] = [];
+  for (const e of remoteExamsRaw) {
+    for (const g of Array.isArray(e.mc_groups) ? e.mc_groups : []) {
+      mcGroupRecords.push({
+        id: g.id,
+        examId: e.id,
+        title: g.title,
+        scoringText: g.scoring_text,
+        orderIndex: g.order_index,
+      });
+    }
+    const exercises: any[] = Array.isArray(e.exercises) ? e.exercises : [];
+    exercises.forEach((ex, idx) => {
+      remoteExercises.push(mapApiToExerciseRecord(ex));
+      junctionRecords.push({
+        examId: e.id,
+        exerciseId: ex.id,
+        orderIndex: ex.order_index ?? (idx + 1),
+        // MC membership MUST be carried over: junctions are written with bulkPut on the [examId+exerciseId] key, so one rebuilt without mcGroupId/subIndex overwrites the stored one, erasing MC group membership (empty group, members shown as standalone exercises).
+        mcGroupId: ex.mc_group_id ?? ex.mcGroupId ?? undefined,
+        subIndex: ex.sub_index ?? ex.subIndex ?? undefined,
+      });
+    });
+  }
+  return { remoteExercises, junctionRecords, mcGroupRecords };
+}
+
+/** Prune before writing: the server is authoritative for these tables in server-backed modes, so a link or group it no longer knows about must not survive locally and resurface as a phantom exercise/group. */
+async function pruneStaleStructure(syncedExamIds: string[], junctionRecords: any[], mcGroupRecords: any[]): Promise<void> {
+  const keptLinks = new Set(junctionRecords.map((j) => `${j.examId}\u0000${j.exerciseId}`));
+  const staleLinks = (await db.examExercises.where('examId').anyOf(syncedExamIds).toArray()).filter(
+    (link) => !keptLinks.has(`${link.examId}\u0000${link.exerciseId}`)
+  );
+  await db.examExercises.bulkDelete(staleLinks.map((link) => [link.examId, link.exerciseId]));
+
+  const keptGroups = new Set(mcGroupRecords.map((g) => `${g.examId}\u0000${g.id}`));
+  const staleGroups = (await db.examMcGroups.where('examId').anyOf(syncedExamIds).toArray()).filter(
+    (group) => !keptGroups.has(`${group.examId}\u0000${group.id}`)
+  );
+  await db.examMcGroups.bulkDelete(staleGroups.map((group) => group.id));
+}
+
+/** Mirrors the server's exam list, exercises, links and MC groups into IndexedDB and purges what the server no longer knows (except exams in the offline queue). */
+async function mirrorRemoteExams(remoteExamsRaw: any[], localExams: ExamRecord[], key: CryptoKey | null): Promise<ExamRecord[]> {
+  const remoteExams: ExamRecord[] = remoteExamsRaw.map(mapApiToExamRecord);
+  const pendingExamIds = pendingExamIdsInQueue();
+
+  // Merge remote and local exams (preserve only local IDB exams pending offline sync)
+  const remoteIds = new Set(remoteExams.map((e) => e.id));
+  const pendingLocalExams = localExams.filter((e) => !remoteIds.has(e.id) && pendingExamIds.has(e.id));
+  const staleIds = localExams.filter((e) => !remoteIds.has(e.id) && !pendingExamIds.has(e.id)).map((e) => e.id);
+
+  // Purge deleted/stale exams from local IDB
+  await db.exams.bulkDelete(staleIds);
+  await db.exercises.where('examId').anyOf(staleIds).delete();
+  await db.examExercises.where('examId').anyOf(staleIds).delete();
+
+  // Pending local exams are already stored (and may not decrypt): only the server's rows are written.
+  const encryptedExams = await Promise.all(remoteExams.map((ex) => encryptExam(ex, key)));
+  await db.exams.bulkPut(encryptedExams);
+
+  // Also sync remote exercises, junction records and MC groups to IndexedDB for offline export — nothing else writes these tables in all-server mode, so without this a .bgproj export ships them empty.
+  const { remoteExercises, junctionRecords, mcGroupRecords } = flattenRemoteStructure(remoteExamsRaw);
+  if (remoteExercises.length > 0) {
+    const encExercises = await Promise.all(remoteExercises.map((ex) => encryptExercise(ex, key)));
+    await db.exercises.bulkPut(encExercises);
+  }
+  const syncedExamIds = remoteExamsRaw.map((e: any) => e.id).filter(Boolean);
+  await pruneStaleStructure(syncedExamIds, junctionRecords, mcGroupRecords);
+  if (junctionRecords.length > 0) {
+    await db.examExercises.bulkPut(junctionRecords);
+  }
+  if (mcGroupRecords.length > 0) {
+    await db.examMcGroups.bulkPut(mcGroupRecords);
+  }
+  return [...remoteExams, ...pendingLocalExams];
+}
+
 /** The exam list as the dashboard shows it. In server-backed modes the server is authoritative: fetched and mirrored into IndexedDB (for offline export), local leftovers it no longer knows are purged (except exams in the offline queue). A failed fetch returns the local copy with `failed: true`, else a rejected request would read as "all my data is gone". */
 export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: ExamRecord[]; failed: boolean }> {
   // IndexedDB itself: examRepository.getAll() answers with the server list, which made the purge and the pending-exam merge below compare the server with itself.
   const localExams = await Promise.all((await db.exams.toArray()).map((e) => decryptExam(e, key)));
 
-    if (isServerBacked()) {
-      try {
-        // Silent: the catch below falls back to what is in IndexedDB and the banner reports the failure in place. The global modal on top of that is the same error told twice.
-        const remoteExamsRaw = (await api.get('/exams', { silentError: true })) as any[];
-        const remoteExams: ExamRecord[] = remoteExamsRaw.map(mapApiToExamRecord);
-
-        // Check offline queue for pending exam creations
-        const pendingQueue = get(offlineQueue);
-        const pendingExamIds = new Set(
-          pendingQueue
-            .filter((req) => req.url === '/exams' && req.method === 'POST' && req.body?.id)
-            .map((req) => req.body.id)
-        );
-
-        // Merge remote and local exams (preserve only local IDB exams pending offline sync)
-        const remoteIds = new Set(remoteExams.map((e) => e.id));
-        const pendingLocalExams = localExams.filter((e) => !remoteIds.has(e.id) && pendingExamIds.has(e.id));
-        const deletedStaleExams = localExams.filter((e) => !remoteIds.has(e.id) && !pendingExamIds.has(e.id));
-
-        // Purge deleted/stale exams from local IDB
-        for (const stale of deletedStaleExams) {
-          await db.exams.delete(stale.id);
-          await db.exercises.where('examId').equals(stale.id).delete();
-          await db.examExercises.where('examId').equals(stale.id).delete();
-        }
-
-        const exams = [...remoteExams, ...pendingLocalExams];
-
-        // Pending local exams are already stored (and may not decrypt): only the server's rows are written.
-        const encryptedExams = await Promise.all(remoteExams.map((ex) => encryptExam(ex, key)));
-        await db.exams.bulkPut(encryptedExams);
-
-
-        // Also sync remote exercises, junction records and MC groups to IndexedDB for offline export — nothing else writes these tables in all-server mode, so without this a .bgproj export ships them empty.
-        const remoteExercises: ExerciseRecord[] = [];
-        const junctionRecords: any[] = [];
-        const mcGroupRecords: any[] = [];
-        for (const e of remoteExamsRaw) {
-          if (Array.isArray(e.mc_groups)) {
-            for (const g of e.mc_groups) {
-              mcGroupRecords.push({
-                id: g.id,
-                examId: e.id,
-                title: g.title,
-                scoringText: g.scoring_text,
-                orderIndex: g.order_index,
-              });
-            }
-          }
-          if (Array.isArray(e.exercises)) {
-            for (let idx = 0; idx < e.exercises.length; idx++) {
-              const ex = e.exercises[idx];
-              const orderIndex = ex.order_index ?? (idx + 1);
-              remoteExercises.push(mapApiToExerciseRecord(ex));
-              junctionRecords.push({
-                examId: e.id,
-                exerciseId: ex.id,
-                orderIndex,
-                                // MC membership MUST be carried over: junctions are written with bulkPut on the [examId+exerciseId] key, so one rebuilt without mcGroupId/subIndex overwrites the stored one, erasing MC group membership (empty group, members shown as standalone exercises).
-                mcGroupId: ex.mc_group_id ?? ex.mcGroupId ?? undefined,
-                subIndex: ex.sub_index ?? ex.subIndex ?? undefined,
-              });
-            }
-          }
-        }
-        if (remoteExercises.length > 0) {
-          const encExercises = await Promise.all(remoteExercises.map((ex) => encryptExercise(ex, key)));
-          await db.exercises.bulkPut(encExercises);
-        }
-        // Prune before writing: the server is authoritative for these tables in server-backed modes, so a link or group it no longer knows about must not survive locally and resurface as a phantom exercise/group.
-        const syncedExamIds = remoteExamsRaw.map((e: any) => e.id).filter(Boolean);
-        for (const syncedExamId of syncedExamIds) {
-          const keptExerciseIds = new Set(
-            junctionRecords.filter((j) => j.examId === syncedExamId).map((j) => j.exerciseId)
-          );
-          const staleLinks = await db.examExercises.where('examId').equals(syncedExamId).toArray();
-          for (const link of staleLinks) {
-            if (!keptExerciseIds.has(link.exerciseId)) {
-              await db.examExercises.delete([syncedExamId, link.exerciseId]);
-            }
-          }
-          const keptGroupIds = new Set(
-            mcGroupRecords.filter((g) => g.examId === syncedExamId).map((g) => g.id)
-          );
-          const staleGroups = await db.examMcGroups.where('examId').equals(syncedExamId).toArray();
-          for (const group of staleGroups) {
-            if (!keptGroupIds.has(group.id)) {
-              await db.examMcGroups.delete(group.id);
-            }
-          }
-        }
-        if (junctionRecords.length > 0) {
-          await db.examExercises.bulkPut(junctionRecords);
-        }
-        if (mcGroupRecords.length > 0) {
-          await db.examMcGroups.bulkPut(mcGroupRecords);
-        }
-        return { exams, failed: false };
-      } catch (apiErr) {
-        console.warn('Failed to fetch remote exams, falling back to IDB:', apiErr);
-                // Local copy plus the `failed` flag: all-server caches nothing, so without the banner a rejected request is indistinguishable from an empty account (a session problem read as "all my data is gone").
-        return { exams: localExams, failed: true };
-      }
-    }
-    return { exams: localExams, failed: false };
+  if (!isServerBacked()) return { exams: localExams, failed: false };
+  try {
+    // Silent: the catch below falls back to what is in IndexedDB and the banner reports the failure in place. The global modal on top of that is the same error told twice.
+    const remoteExamsRaw = (await api.get('/exams', { silentError: true })) as any[];
+    return { exams: await mirrorRemoteExams(remoteExamsRaw, localExams, key), failed: false };
+  } catch (apiErr) {
+    console.warn('Failed to fetch remote exams, falling back to IDB:', apiErr);
+    // Local copy plus the `failed` flag: all-server caches nothing, so without the banner a rejected request is indistinguishable from an empty account (a session problem read as "all my data is gone").
+    return { exams: localExams, failed: true };
+  }
 }
+

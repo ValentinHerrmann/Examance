@@ -6,19 +6,19 @@
 section {
   width: 1123px;
   height: 1588px;
-  padding: 92px 64px 64px;
+  padding: 84px 64px 64px;
   font-size: 20px;
 }
 header { height: 58px; padding: 0 40px; font-size: 19px; }
 header img { height: 30px; width: 30px; }
 footer { height: 40px; padding: 0 40px; font-size: 13px; }
 
-h1 { font-size: 52px; line-height: 1.08; margin-bottom: 18px; }
+h1 { font-size: 40px; line-height: 1.08; margin-bottom: 12px; }
 h2 { font-size: 27px; margin-bottom: 12px; }
-.lead { font-size: 23px; }
+.lead { font-size: 19px; line-height: 1.4; }
 .kicker { font-size: 15px; }
 
-.band { margin-top: 30px; }
+.band { margin-top: 18px; }
 .band > h2 { display: flex; align-items: center; gap: 12px; }
 .band > h2::after { content: ''; flex: 1; height: 1px; background: var(--line-strong); }
 
@@ -34,10 +34,6 @@ h2 { font-size: 27px; margin-bottom: 12px; }
 .feat .card h3 { font-size: 17px; margin-bottom: 4px; }
 .feat .card p { font-size: 14.5px; line-height: 1.4; margin: 0; }
 .feat .card .tag { font-size: 12px; margin: 0 0 6px; }
-.band { margin-top: 18px; }
-section { padding-top: 84px; }
-h1 { font-size: 40px; margin-bottom: 12px; }
-.lead { font-size: 19px; line-height: 1.4; }
 .shot.h240 img { height: 240px; object-fit: cover; object-position: top left; }
 .shot.h260 img { height: 260px; object-fit: cover; object-position: top left; }
 .shot.h280 img { height: 280px; object-fit: cover; object-position: top left; }

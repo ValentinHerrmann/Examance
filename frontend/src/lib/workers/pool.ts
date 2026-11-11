@@ -12,15 +12,15 @@ export interface WorkerTask<TReq, TRes> {
 
 export class WorkerPool<TReq, TRes> {
   private workers: Worker[] = [];
-  private busyWorkers: Set<Worker> = new Set();
+  private readonly busyWorkers: Set<Worker> = new Set();
   /** Removed by a downgrade while busy; terminated once their task settles. */
-  private retiring: Set<Worker> = new Set();
+  private readonly retiring: Set<Worker> = new Set();
   private queue: WorkerTask<TReq, TRes>[] = [];
   private poolSize: number;
 
   constructor(
-    private workerFactory: () => Worker,
-    private monitor?: PipelineMonitor
+    private readonly workerFactory: () => Worker,
+    private readonly monitor?: PipelineMonitor
   ) {
     const hw = detectHardware();
     this.poolSize = hw.recommendedMode === 'constrained' ? 1 : Math.min(hw.logicalCores, 8);
@@ -71,7 +71,7 @@ export class WorkerPool<TReq, TRes> {
     const handleMessage = (evt: MessageEvent) => {
       cleanup();
       this.release(availableWorker);
-      if (evt.data && evt.data.type === 'ERROR') {
+      if (evt.data?.type === 'ERROR') {
         task.reject(new Error(evt.data.message || 'Worker error'));
       } else {
         task.resolve(evt.data);

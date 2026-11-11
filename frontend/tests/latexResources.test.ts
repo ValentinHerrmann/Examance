@@ -148,3 +148,17 @@ describe('exercise resource staging', () => {
     expect(collected.exerciseIds).toEqual([]);
   });
 });
+
+describe('sanitizeResourceName separators (SonarCloud S8786)', () => {
+  it('trims leading and trailing dots, underscores and dashes', () => {
+    expect(sanitizeResourceName('._-fig.png_-.')).toBe('fig.png');
+    expect(sanitizeResourceName('a\\b\\c.png')).toBe('c.png');
+    expect(() => sanitizeResourceName('._-')).toThrow();
+  });
+
+  it('stays linear on a long separator run', () => {
+    const start = performance.now();
+    expect(sanitizeResourceName('x' + '_'.repeat(100_000) + 'a.png')).toMatch(/^x_+a\.png$|^x/);
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+});

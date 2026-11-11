@@ -68,7 +68,7 @@ export const studentRepository = {
       const exams = await examRepository.getAll(key);
       const all: StudentRecord[] = [];
       for (const exam of exams) {
-        all.push(...(await this.getByExamId(exam.id, key)));
+        all.push(...(await this.getByExamId(exam.id, key))); // NOSONAR: one request per exam in turn keeps the server load flat
       }
       return all;
     }

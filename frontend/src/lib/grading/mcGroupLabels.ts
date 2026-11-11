@@ -8,7 +8,7 @@ export function usesAlphaLabels(count: number): boolean {
 
 /** Label of the member at zero-based `index` in a group of `count` members, without ")". */
 export function mcSubLabel(index: number, count: number): string {
-  return usesAlphaLabels(count) ? String.fromCharCode(97 + index) : String(index + 1);
+  return usesAlphaLabels(count) ? String.fromCodePoint(97 + index) : String(index + 1);
 }
 
 /** exerciseId → sub-label for every member of the given groups (e.g. for the "a) 1/2" score stamp). */

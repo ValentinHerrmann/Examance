@@ -35,11 +35,11 @@ function createHttpErrorStore() {
      */
     showError(status: number, message?: string, code?: string) {
       const statusCode = Number(status);
-      if (isNaN(statusCode) || statusCode < 100 || statusCode > 599) {
+      if (Number.isNaN(statusCode) || statusCode < 100 || statusCode > 599) {
         return;
       }
 
-      const collector = collectors[collectors.length - 1];
+      const collector = collectors.at(-1);
       if (collector) {
         collector.push({ status: statusCode, message: message || '', code: code || '' });
         return;

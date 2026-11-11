@@ -222,7 +222,7 @@ function measureBubbles(scan: PageScan, bubbleRects: OmrPageTemplate['bubbles'])
         minCellFill: Math.min(...cells),
         cellEvenness: maxCell > 0 ? Math.min(...cells) / maxCell : 0,
         ringFill: ringFill(dark, width, height, bbox, params.ringFraction, redoBbox),
-        inkContrast: inkContrast(gray, dark, width, height, bbox, params.sampleInsetFraction, threshold, blackRef),
+        inkContrast: inkContrast({ gray, dark, width, height }, bbox, params.sampleInsetFraction, threshold, blackRef),
       },
     };
   });

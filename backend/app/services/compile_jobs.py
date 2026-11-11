@@ -33,7 +33,8 @@ _jobs: dict[str, _Job] = {}
 
 def _sweep() -> None:
     now = time.monotonic()
-    for job_id, job in list(_jobs.items()):
+    # A snapshot: the loop deletes from _jobs.
+    for job_id, job in list(_jobs.items()):  # NOSONAR(S7504)
         if job.finished is None and job.task.done():
             job.finished = now
         too_old = now - job.started > JOB_TTL_SECONDS

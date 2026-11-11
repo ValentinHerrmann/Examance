@@ -111,7 +111,8 @@ async def test_duplicate_exam_relinks_without_results(setup) -> None:
     assert group["member_ids"] == [ex["id"]]
     assert dup["page_breaks"] == [group["id"]]
     subs = await a.get(f"{EXAMS}/{dup['id']}/submissions")
-    assert subs.status_code == 200 and subs.json() == []
+    assert subs.status_code == 200
+    assert subs.json() == []
 
 
 @pytest.mark.asyncio

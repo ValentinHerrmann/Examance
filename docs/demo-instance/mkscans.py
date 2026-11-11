@@ -51,7 +51,9 @@ def targets(n, mean, sd, seed):
 
 
 def level(frac):
-    return 0 if frac >= 0.75 else (1 if frac >= 0.4 else 2)
+    if frac >= 0.75:
+        return 0
+    return 1 if frac >= 0.4 else 2
 
 
 def half(v, hi):
@@ -125,7 +127,8 @@ def redo(d, rect, r, ink):
     cross(d, pymupdf.Rect(rect.x0 - 12.5, rect.y0, rect.x0 - 2, rect.y1), r, ink, pen=7)
 
 
-def faint(d, rect, r):
+# `r` keeps the signature of the other mark helpers.
+def faint(d, rect, r):  # NOSONAR(S1172)
     """A light, short stroke: detection should flag this box as unsure."""
     x0, y0 = (rect.x0 + 4) * S, (rect.y0 + 4) * S
     d.line([(x0, y0), (x0 + 3.5 * S, y0 + 4 * S)], fill=(150, 160, 190), width=int(1.1 * S))

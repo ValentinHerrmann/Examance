@@ -27,11 +27,15 @@ async function fetchOk(url: string): Promise<Response> {
 /** Loads the bundled payload with its scans and gives every exam, exercise and MC group a fresh id. */
 async function loadPayload(): Promise<Record<string, any>> {
   const raw = decodeBinary(await (await fetchOk(`${BASE}/example.json`)).json()) as Record<string, any>;
-  for (const sub of raw.submissions ?? []) {
-    if (!sub.scanFile) continue;
-    sub.scanBytes = new Uint8Array(await (await fetchOk(`${BASE}/${sub.scanFile}`)).arrayBuffer());
-    delete sub.scanFile;
-  }
+  // Static reads of a few bundled scans, so they load in parallel.
+  await Promise.all(
+    (raw.submissions ?? [])
+      .filter((sub: any) => sub.scanFile)
+      .map(async (sub: any) => {
+        sub.scanBytes = new Uint8Array(await (await fetchOk(`${BASE}/${sub.scanFile}`)).arrayBuffer());
+        delete sub.scanFile;
+      })
+  );
 
   // Import-as-copy for everything: many accounts on one server get the same example data.
   const decisions: DecisionMap = new Map();
@@ -65,6 +69,11 @@ export async function addExampleData(): Promise<ImportResult> {
   const payload = await loadPayload();
   const report = newReport('import', translate('dashboard.exampleData.reportName'));
   const { result, errors } = await collectHttpErrors(() => applyArchive(payload, undefined, { report }));
-  report.problems.push(...errors.map((e) => `HTTP ${e.status}${e.code ? ` ${e.code}` : ''}: ${e.message}`));
+  report.problems.push(
+    ...errors.map((e) => {
+      const code = e.code ? ` ${e.code}` : '';
+      return `HTTP ${e.status}${code}: ${e.message}`;
+    })
+  );
   return result;
 }

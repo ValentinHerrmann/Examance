@@ -43,7 +43,7 @@ export function templateJoin(literalParts: string[], args: string[]): QuickInser
     text += args[i];
     argOffsets.push({ from, to: text.length });
   }
-  text += literalParts[literalParts.length - 1];
+  text += literalParts.at(-1);
   return { text, argOffsets };
 }
 
@@ -69,51 +69,51 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
   {
     id: "loesung",
     category: "solutions",
-    preview: "\\Loesung{text}",
+    preview: String.raw`\Loesung{text}`,
     args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["\\Loesung{", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`\Loesung{`, "}"], a)
   },
   {
     id: "loesung-replace",
     category: "solutions",
-    preview: "\\LoesungReplace{solution}{blankContent}",
+    preview: String.raw`\LoesungReplace{solution}{blankContent}`,
     args: [{ placeholder: "solution" }, { placeholder: "blankContent" }],
-    buildTemplate: (a) => templateJoin(["\\LoesungReplace{", "}{", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`\LoesungReplace{`, "}{", "}"], a)
   },
   {
     id: "loesung-leer",
     category: "solutions",
-    preview: "\\LoesungLeer{solution}{blankHeight}",
+    preview: String.raw`\LoesungLeer{solution}{blankHeight}`,
     args: [{ placeholder: "solution" }, { placeholder: "2cm" }],
-    buildTemplate: (a) => templateJoin(["\\LoesungLeer{", "}{", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`\LoesungLeer{`, "}{", "}"], a)
   },
   {
     id: "loesung-img",
     category: "solutions",
-    preview: "\\LoesungImg{solutionImg}{blankImg}{width}",
+    preview: String.raw`\LoesungImg{solutionImg}{blankImg}{width}`,
     args: [{ placeholder: "solutionImg" }, { placeholder: "blankImg" }, { placeholder: "5cm" }],
-    buildTemplate: (a) => templateJoin(["\\LoesungImg{", "}{", "}{", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`\LoesungImg{`, "}{", "}{", "}"], a)
   },
   {
     id: "loesung-luecke",
     category: "solutions",
-    preview: "\\LoesungLuecke{solution}{width}",
+    preview: String.raw`\LoesungLuecke{solution}{width}`,
     args: [{ placeholder: "solution" }, { placeholder: "3cm" }],
-    buildTemplate: (a) => templateJoin(["\\LoesungLuecke{", "}{", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`\LoesungLuecke{`, "}{", "}"], a)
   },
   {
     id: "loesung-karo",
     category: "solutions",
-    preview: "\\LoesungKaro{solution}{n}",
+    preview: String.raw`\LoesungKaro{solution}{n}`,
     args: [{ placeholder: "solution" }, { placeholder: "3" }],
-    buildTemplate: (a) => templateJoin(["\\LoesungKaro{", "}{", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`\LoesungKaro{`, "}{", "}"], a)
   },
   {
     id: "loesung-line",
     category: "solutions",
-    preview: "\\LoesungLine{solution}{n}",
+    preview: String.raw`\LoesungLine{solution}{n}`,
     args: [{ placeholder: "solution" }, { placeholder: "3" }],
-    buildTemplate: (a) => templateJoin(["\\LoesungLine{", "}{", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`\LoesungLine{`, "}{", "}"], a)
   },
   {
     // An environment, not \Loesung{...}: verbatim lstlisting cannot be a macro argument (issue #163).
@@ -136,17 +136,17 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
   {
     id: "kariert",
     category: "solutions",
-    preview: "\\kariert[cellSize]{rows}",
+    preview: String.raw`\kariert[cellSize]{rows}`,
     args: [{ placeholder: "0.5cm", optional: true }, { placeholder: "3" }],
-    buildTemplate: (a) => templateJoin(["\\kariert[", "]{", "}"], a),
+    buildTemplate: (a) => templateJoin([String.raw`\kariert[`, "]{", "}"], a),
     selectionArgIndex: 1
   },
   {
     id: "liniert",
     category: "solutions",
-    preview: "\\liniert[lineHeight]{n}",
+    preview: String.raw`\liniert[lineHeight]{n}`,
     args: [{ placeholder: "0.8cm", optional: true }, { placeholder: "3" }],
-    buildTemplate: (a) => templateJoin(["\\liniert[", "]{", "}"], a),
+    buildTemplate: (a) => templateJoin([String.raw`\liniert[`, "]{", "}"], a),
     selectionArgIndex: 1
   },
 
@@ -154,23 +154,23 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
   {
     id: "be",
     category: "scoring",
-    preview: "\\BE",
+    preview: String.raw`\BE`,
     args: [],
-    buildTemplate: () => ({ text: "\\BE", argOffsets: [] })
+    buildTemplate: () => ({ text: String.raw`\BE`, argOffsets: [] })
   },
   {
     id: "hbe",
     category: "scoring",
-    preview: "\\hBE",
+    preview: String.raw`\hBE`,
     args: [],
-    buildTemplate: () => ({ text: "\\hBE", argOffsets: [] })
+    buildTemplate: () => ({ text: String.raw`\hBE`, argOffsets: [] })
   },
   {
     id: "qbe",
     category: "scoring",
-    preview: "\\qBE",
+    preview: String.raw`\qBE`,
     args: [],
-    buildTemplate: () => ({ text: "\\qBE", argOffsets: [] })
+    buildTemplate: () => ({ text: String.raw`\qBE`, argOffsets: [] })
   },
   oneArgMacro("teilaufgabe", String.raw`\begin{Teilaufgabe}{`, "Teilaufgabe", "}\n\n" + String.raw`\end{Teilaufgabe}`),
 
@@ -178,92 +178,92 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
   {
     id: "textbf",
     category: "formatting",
-    preview: "\\textbf{text}",
+    preview: String.raw`\textbf{text}`,
     args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["\\textbf{", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`\textbf{`, "}"], a)
   },
   {
     id: "textit",
     category: "formatting",
-    preview: "\\textit{text}",
+    preview: String.raw`\textit{text}`,
     args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["\\textit{", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`\textit{`, "}"], a)
   },
   {
     id: "textcolor",
     category: "formatting",
-    preview: "\\textcolor{color}{text}",
+    preview: String.raw`\textcolor{color}{text}`,
     args: [{ placeholder: "red" }, { placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["\\textcolor{", "}{", "}"], a),
+    buildTemplate: (a) => templateJoin([String.raw`\textcolor{`, "}{", "}"], a),
     selectionArgIndex: 1
   },
   {
     id: "fontsize-footnotesize",
     category: "formatting",
-    preview: "{\\footnotesize text}",
+    preview: String.raw`{\footnotesize text}`,
     args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["{\\footnotesize ", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`{\footnotesize `, "}"], a)
   },
   {
     id: "fontsize-large",
     category: "formatting",
-    preview: "{\\large text}",
+    preview: String.raw`{\large text}`,
     args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["{\\large ", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`{\large `, "}"], a)
   },
   {
     id: "fontsize-Large",
     category: "formatting",
-    preview: "{\\Large text}",
+    preview: String.raw`{\Large text}`,
     args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["{\\Large ", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`{\Large `, "}"], a)
   },
   {
     id: "fontsize-LARGE",
     category: "formatting",
-    preview: "{\\LARGE text}",
+    preview: String.raw`{\LARGE text}`,
     args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["{\\LARGE ", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`{\LARGE `, "}"], a)
   },
   {
     id: "fontsize-huge",
     category: "formatting",
-    preview: "{\\huge text}",
+    preview: String.raw`{\huge text}`,
     args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["{\\huge ", "}"], a)
+    buildTemplate: (a) => templateJoin([String.raw`{\huge `, "}"], a)
   },
 
   // --- generic LaTeX ---
   {
     id: "includegraphics",
     category: "generic",
-    preview: "\\includegraphics[width=]{path}",
+    preview: String.raw`\includegraphics[width=]{path}`,
     args: [{ placeholder: "8cm", optional: true }, { placeholder: "image.png" }],
-    buildTemplate: (a) => templateJoin(["\\includegraphics[width=", "]{", "}"], a),
+    buildTemplate: (a) => templateJoin([String.raw`\includegraphics[width=`, "]{", "}"], a),
     selectionArgIndex: 1
   },
   {
     id: "tabular",
     category: "generic",
-    preview: "\\begin{tabular}{ll}...\\end{tabular}",
+    preview: String.raw`\begin{tabular}{ll}...\end{tabular}`,
     args: [{ placeholder: "ll" }],
     buildTemplate: (a) =>
       templateJoin(
-        ["\\begin{tabular}{", "}\n  a & b \\\\\n  c & d \\\\\n\\end{tabular}"],
+        [String.raw`\begin{tabular}{`, "}\n  a & b \\\\\n  c & d \\\\\n\\end{tabular}"],
         a
       )
   },
   {
     id: "itemize",
     category: "generic",
-    preview: "\\begin{itemize}...\\end{itemize}",
+    preview: String.raw`\begin{itemize}...\end{itemize}`,
     args: [{ placeholder: "item" }],
     buildTemplate: (a) => templateJoin(["\\begin{itemize}\n  \\item ", "\n  \\item item\n\\end{itemize}"], a)
   },
   {
     id: "enumerate",
     category: "generic",
-    preview: "\\begin{enumerate}...\\end{enumerate}",
+    preview: String.raw`\begin{enumerate}...\end{enumerate}`,
     args: [{ placeholder: "item" }],
     buildTemplate: (a) => templateJoin(["\\begin{enumerate}\n  \\item ", "\n  \\item item\n\\end{enumerate}"], a)
   },
@@ -277,14 +277,14 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
   {
     id: "center",
     category: "generic",
-    preview: "\\begin{center}...\\end{center}",
+    preview: String.raw`\begin{center}...\end{center}`,
     args: [{ placeholder: "content" }],
     buildTemplate: (a) => templateJoin(["\\begin{center}\n  ", "\n\\end{center}"], a)
   },
   {
     id: "seitenumbruch",
     category: "generic",
-    preview: "\\Seitenumbruch",
+    preview: String.raw`\Seitenumbruch`,
     args: [],
     buildTemplate: () => ({ text: "\\Seitenumbruch\n", argOffsets: [] })
   }

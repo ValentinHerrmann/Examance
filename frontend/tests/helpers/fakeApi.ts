@@ -78,7 +78,7 @@ export const FAKE_TEACHER_ID = 'e2e-teacher';
 const DEFAULT_EMAIL = 'teacher@e2e.example';
 /** Constant: the client pins a fingerprint of the stored envelopes, so their server fields must be stable. */
 const FIXED_TIME = '2026-01-01T00:00:00.000Z';
-const ALLOWED_MODES: FakeStorageMode[] = ['all-server', 'hybrid'];
+const ALLOWED_MODES = new Set<FakeStorageMode>(['all-server', 'hybrid']);
 
 type Handled = FakeResponse | undefined;
 
@@ -112,23 +112,25 @@ function parseExerciseScore(latex: string | null | undefined): number {
   if (!latex) return 0;
   const override = /\\begin\{Aufgabe\}\[([\d.]+)\]/.exec(latex);
   if (override) {
-    const parsed = parseFloat(override[1]);
+    const parsed = Number.parseFloat(override[1]);
     if (!Number.isNaN(parsed)) return parsed;
   }
-  const count = (re: RegExp) => (latex.match(re) ?? []).length;
+  const count = (re: RegExp) => [...latex.matchAll(re)].length;
   return count(/\\BE\b/g) + count(/\\Lmulti\b/g) + count(/\\hBE\b/g) * 0.5 + count(/\\qBE\b/g) * 0.25;
 }
 
 /** Decoded byte length of a base64 string. */
 function base64Length(b64: string): number {
-  const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+  let padding = 0;
+  if (b64.endsWith('==')) padding = 2;
+  else if (b64.endsWith('=')) padding = 1;
   return Math.floor((b64.length * 3) / 4) - padding;
 }
 
 function base64ToBytes(b64: string): Uint8Array {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.codePointAt(i) ?? 0;
   return bytes;
 }
 
@@ -153,6 +155,132 @@ function seedAdminDomains(): any[] {
   return [
     { id: 'd-1', domain: 'gymnasium-beispielstadt.example', features: { server_results: true, server_latex: false, exercise_sharing: true, result_delivery: false }, created_at: '2026-09-01T08:00:00Z' },
   ];
+}
+
+/** Security settings page: a fully enrolled account with no passkeys. */
+function mfa(method: string, parts: string[]): Handled {
+  if (method === 'GET' && parts[1] === 'status') {
+    return ok({
+      enrolled: ['password', 'totp'],
+      key_capable: ['password'],
+      required_factor_count: 2,
+      complete: true,
+      remaining_backup_codes: 8,
+      has_recovery_code: true,
+      recovery_created_at: FIXED_TIME,
+      password_changed_at: null,
+      password_last_used_at: null,
+      totp_created_at: FIXED_TIME,
+      totp_last_used_at: null,
+    });
+  }
+  return undefined;
+}
+
+function webauthn(method: string, parts: string[]): Handled {
+  if (method === 'GET' && parts[1] === 'credentials') return ok({ credentials: [] });
+  return undefined;
+}
+
+function training(method: string, parts: string[]): Handled {
+  if (method === 'GET' && parts[1] === 'status') return ok({ enabled: false, retention_days: null });
+  return undefined;
+}
+
+/** Public retention periods for the privacy statement; the backend's defaults. */
+function privacy(method: string, parts: string[]): Handled {
+  if (method === 'GET' && parts[1] === 'retention') {
+    return ok({
+      grace_days: 7,
+      audit_log_days: 365,
+      registration_link_hours: 24,
+      pending_account_days: 90,
+      contribution_days: 30,
+      contribution_pending_days: 180,
+      training_sample_days: 730,
+      layout_report_days: 90,
+      result_share_max_days: 90,
+      delivery_status_days: 30,
+    });
+  }
+  return undefined;
+}
+
+function logoRoute(method: string, parts: string[], body: any): Handled {
+  // No default logo file in the fake: the account prints none until it uploads one (issue #46).
+  if (method === 'GET' && parts.length === 2) return ok({ ...NO_LOGO, mode: 'default' });
+  if (method === 'GET' && parts[2] === 'file') return notFound('No logo.');
+  if (method === 'PUT') {
+    const custom = body?.mode === 'custom';
+    return ok({ ...NO_LOGO, mode: body?.mode ?? 'default', ...(custom ? { source: 'account', mime_type: 'image/png', byte_size: 1 } : {}) });
+  }
+  if (method === 'DELETE') return ok({ ...NO_LOGO, mode: 'default' });
+  return undefined;
+}
+
+/** Exercise sharing (issue #65): nobody shares anything in the fake. */
+function sharingStubs(method: string, id: string, sub: string | undefined, rest: string[]): Handled {
+  if (method === 'GET' && !sub && (id === 'shared' || id === 'sync-status')) return ok([]);
+  if (method === 'GET' && id === 'contributions' && sub === 'summary' && rest.length === 0) {
+    return ok({ incoming_pending: 0, pending_by_group: [] });
+  }
+  return undefined;
+}
+
+function mergeSubmission(existing: any, body: any): void {
+  existing.pseudonym_hmac = body.pseudonym_hmac;
+  if (body.total_score != null) existing.total_score = body.total_score;
+  if (body.scan_ciphertext_b64) {
+    existing.scan_ciphertext_b64 = body.scan_ciphertext_b64;
+    existing.scan_iv_b64 = body.scan_iv_b64 ?? null;
+  }
+  // An absent annotation layer means "leave it"; deleting is explicit.
+  if (body.annotation_ciphertext_b64) {
+    existing.annotation_ciphertext_b64 = body.annotation_ciphertext_b64;
+    existing.annotation_iv_b64 = body.annotation_iv_b64 ?? null;
+  } else if (body.clear_annotations) {
+    existing.annotation_ciphertext_b64 = null;
+    existing.annotation_iv_b64 = null;
+  }
+}
+
+function examLogo(method: string, rest: string[], body: any): Handled {
+  if (rest.length === 0) {
+    // The account has no logo, so an exam that follows it prints none (issue #46).
+    if (method === 'GET') return ok({ ...NO_LOGO, mode: 'account' });
+    if (method === 'PUT') {
+      const custom = body?.mode === 'custom';
+      return ok({ ...NO_LOGO, mode: body?.mode ?? 'account', ...(custom ? { source: 'exam', mime_type: 'image/png', byte_size: 1 } : {}) });
+    }
+  }
+  if (rest[0] === 'file' && method === 'GET') return notFound('No logo.');
+  return undefined;
+}
+
+function shareStubs(method: string, rest: string[]): Handled {
+  if (method === 'GET' && rest.length === 0) return ok([]);
+  if (method === 'DELETE') return noContent();
+  return undefined;
+}
+
+function deliveryStubs(method: string, rest: string[]): Handled {
+  if (method === 'GET' && rest.length === 0) return ok([]);
+  if (method === 'POST' && rest[0] === 'check') return ok([]);
+  if (method === 'POST' && rest[0] === 'close') return noContent();
+  return undefined;
+}
+
+/** Result shares (issue #207) and delivery statuses (issue #221): nothing exists in the fake, so lists are empty and revoking or closing is a no-op. */
+function shareAndDeliveryStubs(method: string, sub: string, rest: string[]): Handled {
+  if (sub === 'shares') return shareStubs(method, rest);
+  if (sub === 'deliveries') return deliveryStubs(method, rest);
+  return undefined;
+}
+
+function userMatchesStatus(u: any, status: string): boolean {
+  if (status === 'pending') return u.approved_at === null;
+  if (status === 'active') return u.approved_at !== null;
+  return true;
 }
 
 export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
@@ -294,101 +422,50 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         : { server_results: true, server_latex: true, result_delivery: true, result_mail: true, result_bounces: false, training_donation: true },
   });
 
+  function latexPackagesRoute(method: string, body: any): Handled {
+    // Stored as sent: the frontend validates entries itself, the backend tests cover the 422s.
+    if (method === 'GET') return ok({ entries: state.latexPackages });
+    if (method === 'PUT') {
+      state.latexPackages = Array.isArray(body?.entries) ? body.entries : [];
+      return ok({ entries: state.latexPackages });
+    }
+    return undefined;
+  }
+
+  function setStorageMode(body: any): FakeResponse {
+    if (!ALLOWED_MODES.has(body?.mode)) {
+      return fail(403, 'This storage mode is not enabled for your account.', 'ERR_STORAGE_MODE_NOT_ALLOWED');
+    }
+    if (state.storageMode !== (body.expected ?? null)) {
+      return fail(409, 'The storage mode was changed elsewhere.', 'ERR_STORAGE_MODE_CHANGED');
+    }
+    state.storageMode = body.mode;
+    return ok(capabilities());
+  }
+
+  function purgeServerStudentData(): FakeResponse {
+    let students = 0;
+    let submissions = 0;
+    for (const examId of state.exams.keys()) {
+      students += state.students.get(examId)?.length ?? 0;
+      submissions += state.submissions.get(examId)?.length ?? 0;
+      for (const sub of state.submissions.get(examId) ?? []) state.scores.delete(sub.id);
+      state.students.delete(examId);
+      state.submissions.delete(examId);
+    }
+    return ok({ status: 'ok', purged_student_identities: students, purged_submissions: submissions });
+  }
+
   function user(method: string, parts: string[], body: any): Handled {
     const [, action] = parts;
     if (method === 'GET' && action === 'capabilities') return ok(capabilities());
     if (method === 'POST' && action === 'me' && parts[2] === 'deletion-request') {
       return ok({ status: 'sent', expires_in_minutes: 60 });
     }
-    if (action === 'latex-packages') {
-      // Stored as sent: the frontend validates entries itself, the backend tests cover the 422s.
-      if (method === 'GET') return ok({ entries: state.latexPackages });
-      if (method === 'PUT') {
-        state.latexPackages = Array.isArray(body?.entries) ? body.entries : [];
-        return ok({ entries: state.latexPackages });
-      }
-    }
-    if (action === 'logo') {
-      // No default logo file in the fake: the account prints none until it uploads one (issue #46).
-      if (method === 'GET' && parts.length === 2) return ok({ ...NO_LOGO, mode: 'default' });
-      if (method === 'GET' && parts[2] === 'file') return notFound('No logo.');
-      if (method === 'PUT') {
-        const custom = body?.mode === 'custom';
-        return ok({ ...NO_LOGO, mode: body?.mode ?? 'default', ...(custom ? { source: 'account', mime_type: 'image/png', byte_size: 1 } : {}) });
-      }
-      if (method === 'DELETE') return ok({ ...NO_LOGO, mode: 'default' });
-    }
-    if (method === 'PUT' && action === 'storage-mode') {
-      if (!ALLOWED_MODES.includes(body?.mode)) {
-        return fail(403, 'This storage mode is not enabled for your account.', 'ERR_STORAGE_MODE_NOT_ALLOWED');
-      }
-      if (state.storageMode !== (body.expected ?? null)) {
-        return fail(409, 'The storage mode was changed elsewhere.', 'ERR_STORAGE_MODE_CHANGED');
-      }
-      state.storageMode = body.mode;
-      return ok(capabilities());
-    }
-    if (method === 'POST' && action === 'purge-server-student-data') {
-      let students = 0;
-      let submissions = 0;
-      for (const examId of state.exams.keys()) {
-        students += state.students.get(examId)?.length ?? 0;
-        submissions += state.submissions.get(examId)?.length ?? 0;
-        for (const sub of state.submissions.get(examId) ?? []) state.scores.delete(sub.id);
-        state.students.delete(examId);
-        state.submissions.delete(examId);
-      }
-      return ok({ status: 'ok', purged_student_identities: students, purged_submissions: submissions });
-    }
-    return undefined;
-  }
-
-  /** Security settings page: a fully enrolled account with no passkeys. */
-  function mfa(method: string, parts: string[]): Handled {
-    if (method === 'GET' && parts[1] === 'status') {
-      return ok({
-        enrolled: ['password', 'totp'],
-        key_capable: ['password'],
-        required_factor_count: 2,
-        complete: true,
-        remaining_backup_codes: 8,
-        has_recovery_code: true,
-        recovery_created_at: FIXED_TIME,
-        password_changed_at: null,
-        password_last_used_at: null,
-        totp_created_at: FIXED_TIME,
-        totp_last_used_at: null,
-      });
-    }
-    return undefined;
-  }
-
-  function webauthn(method: string, parts: string[]): Handled {
-    if (method === 'GET' && parts[1] === 'credentials') return ok({ credentials: [] });
-    return undefined;
-  }
-
-  function training(method: string, parts: string[]): Handled {
-    if (method === 'GET' && parts[1] === 'status') return ok({ enabled: false, retention_days: null });
-    return undefined;
-  }
-
-  /** Public retention periods for the privacy statement; the backend's defaults. */
-  function privacy(method: string, parts: string[]): Handled {
-    if (method === 'GET' && parts[1] === 'retention') {
-      return ok({
-        grace_days: 7,
-        audit_log_days: 365,
-        registration_link_hours: 24,
-        pending_account_days: 90,
-        contribution_days: 30,
-        contribution_pending_days: 180,
-        training_sample_days: 730,
-        layout_report_days: 90,
-        result_share_max_days: 90,
-        delivery_status_days: 30,
-      });
-    }
+    if (action === 'latex-packages') return latexPackagesRoute(method, body);
+    if (action === 'logo') return logoRoute(method, parts, body);
+    if (method === 'PUT' && action === 'storage-mode') return setStorageMode(body);
+    if (method === 'POST' && action === 'purge-server-student-data') return purgeServerStudentData();
     return undefined;
   }
 
@@ -495,18 +572,21 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     else if (body.max_points != null) exercise.max_points = body.max_points;
     if (body.exercise_group_id != null) exercise.exercise_group_id = body.exercise_group_id;
 
-    // Group metadata is shared by every variant and version: changing it cascades.
+    cascadeGroupMeta(exercise, body);
+    return ok(exerciseResponse(exercise));
+  }
+
+  /** Group metadata is shared by every variant and version: changing it cascades. */
+  function cascadeGroupMeta(exercise: any, body: any): void {
     const meta = ['name', 'topic_tag', 'grade', 'subject'].filter((field) => body[field] != null);
-    if (exercise.exercise_group_id && meta.length > 0) {
-      const group = state.groups.get(exercise.exercise_group_id);
-      for (const field of meta) if (group) group[field] = body[field];
-      for (const sister of state.exercises.values()) {
-        if (sister.exercise_group_id === exercise.exercise_group_id) {
-          for (const field of meta) sister[field] = body[field];
-        }
+    if (!exercise.exercise_group_id || meta.length === 0) return;
+    const group = state.groups.get(exercise.exercise_group_id);
+    for (const field of meta) if (group) group[field] = body[field];
+    for (const sister of state.exercises.values()) {
+      if (sister.exercise_group_id === exercise.exercise_group_id) {
+        for (const field of meta) sister[field] = body[field];
       }
     }
-    return ok(exerciseResponse(exercise));
   }
 
   function copyResources(sourceId: string, targetId: string): void {
@@ -698,30 +778,17 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return undefined;
   }
 
-  function exercises(method: string, parts: string[], query: URLSearchParams, body: any): Handled {
-    const [, id, sub, ...rest] = parts;
-    if (!id) {
-      if (method === 'GET') return listExercises(query);
-      if (method === 'POST') return createExercise(body);
-      return undefined;
+  function exerciseById(method: string, id: string, body: any): Handled {
+    if (method === 'GET') {
+      const exercise = state.hiddenExerciseIds.has(id) ? undefined : state.exercises.get(id);
+      return exercise ? ok(exerciseResponse(exercise)) : notFound('Exercise not found');
     }
-    // Exercise sharing (issue #65): nobody shares anything in the fake.
-    if (method === 'GET' && !sub && (id === 'shared' || id === 'sync-status')) return ok([]);
-    if (method === 'GET' && id === 'contributions' && sub === 'summary' && rest.length === 0) {
-      return ok({ incoming_pending: 0, pending_by_group: [] });
-    }
-    if (id === 'groups') {
-      return method === 'PATCH' && sub && rest.length === 0 ? updateGroup(sub, body) : undefined;
-    }
-    if (!sub) {
-      if (method === 'GET') {
-        const exercise = state.hiddenExerciseIds.has(id) ? undefined : state.exercises.get(id);
-        return exercise ? ok(exerciseResponse(exercise)) : notFound('Exercise not found');
-      }
-      if (method === 'PATCH') return updateExercise(id, body);
-      if (method === 'DELETE') return deleteExercise(id);
-      return undefined;
-    }
+    if (method === 'PATCH') return updateExercise(id, body);
+    if (method === 'DELETE') return deleteExercise(id);
+    return undefined;
+  }
+
+  function exerciseSubRoute(method: string, id: string, sub: string, rest: string[], body: any): Handled {
     if (sub === 'new-version' && method === 'POST') return newVersion(id, body);
     if (sub === 'new-variant' && method === 'POST') return newVariant(id, body);
     if (sub === 'duplicate' && method === 'POST') return duplicateExercise(id);
@@ -731,6 +798,21 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       return resourceRoutes(method, id, rest, body);
     }
     return undefined;
+  }
+
+  function exercises(method: string, parts: string[], query: URLSearchParams, body: any): Handled {
+    const [, id, sub, ...rest] = parts;
+    if (!id) {
+      if (method === 'GET') return listExercises(query);
+      if (method === 'POST') return createExercise(body);
+      return undefined;
+    }
+    const stub = sharingStubs(method, id, sub, rest);
+    if (stub) return stub;
+    if (id === 'groups') {
+      return method === 'PATCH' && sub && rest.length === 0 ? updateGroup(sub, body) : undefined;
+    }
+    return sub ? exerciseSubRoute(method, id, sub, rest, body) : exerciseById(method, id, body);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -1070,67 +1152,47 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return noContent();
   }
 
-  function submissions(method: string, examId: string, rest: string[], query: URLSearchParams, body: any): Handled {
-    const [subId, action, ...more] = rest;
-    const rows = state.submissions.get(examId) ?? [];
-
-    if (!subId) {
-      if (method === 'GET') {
-        const withScans = query.get('include_scans') === 'true';
-        return ok(rows.map((sub) => submissionResponse(sub, withScans)));
-      }
-      if (method !== 'POST') return undefined;
-      const refused = wrongVersion(examId, body);
-      if (refused) return refused;
-      // A submission for an unknown pseudonym gets a placeholder identity, as the real endpoint does.
-      const identities = state.students.get(examId) ?? [];
-      if (!identities.some((row) => row.pseudonym_hmac === body.pseudonym_hmac)) {
-        identities.push({
-          pseudonym_hmac: body.pseudonym_hmac,
-          exam_id: examId,
-          pii_ciphertext_b64: 'AA==',
-          iv_b64: 'AAAAAAAAAAAAAAAA',
-          encryption_salt_b64: 'AAAAAAAAAAAAAAAAAAAAAA==',
-        });
-        state.students.set(examId, identities);
-      }
-      const existing = body.id ? rows.find((sub) => sub.id === body.id) : undefined;
-      if (existing) {
-        existing.pseudonym_hmac = body.pseudonym_hmac;
-        if (body.total_score != null) existing.total_score = body.total_score;
-        if (body.scan_ciphertext_b64) {
-          existing.scan_ciphertext_b64 = body.scan_ciphertext_b64;
-          existing.scan_iv_b64 = body.scan_iv_b64 ?? null;
-        }
-        // An absent annotation layer means "leave it"; deleting is explicit.
-        if (body.annotation_ciphertext_b64) {
-          existing.annotation_ciphertext_b64 = body.annotation_ciphertext_b64;
-          existing.annotation_iv_b64 = body.annotation_iv_b64 ?? null;
-        } else if (body.clear_annotations) {
-          existing.annotation_ciphertext_b64 = null;
-          existing.annotation_iv_b64 = null;
-        }
-        return created(submissionResponse(existing, true));
-      }
-      const sub = {
-        id: body.id ?? uuid(),
-        exam_id: examId,
+  /** POST of a submission: placeholder identity for an unknown pseudonym, then upsert by id. */
+  function upsertSubmission(examId: string, rows: any[], body: any): FakeResponse {
+    const refused = wrongVersion(examId, body);
+    if (refused) return refused;
+    // A submission for an unknown pseudonym gets a placeholder identity, as the real endpoint does.
+    const identities = state.students.get(examId) ?? [];
+    if (!identities.some((row) => row.pseudonym_hmac === body.pseudonym_hmac)) {
+      identities.push({
         pseudonym_hmac: body.pseudonym_hmac,
-        total_score: body.total_score ?? null,
-        scan_ciphertext_b64: body.scan_ciphertext_b64 ?? null,
-        scan_iv_b64: body.scan_iv_b64 ?? null,
-        annotation_ciphertext_b64: body.annotation_ciphertext_b64 ?? null,
-        annotation_iv_b64: body.annotation_iv_b64 ?? null,
-        created_at: now(),
-      };
-      rows.push(sub);
-      state.submissions.set(examId, rows);
-      return created(submissionResponse(sub, true));
+        exam_id: examId,
+        pii_ciphertext_b64: 'AA==',
+        iv_b64: 'AAAAAAAAAAAAAAAA',
+        encryption_salt_b64: 'AAAAAAAAAAAAAAAAAAAAAA==',
+      });
+      state.students.set(examId, identities);
     }
+    const existing = body.id ? rows.find((sub) => sub.id === body.id) : undefined;
+    if (existing) {
+      mergeSubmission(existing, body);
+      return created(submissionResponse(existing, true));
+    }
+    const sub = {
+      id: body.id ?? uuid(),
+      exam_id: examId,
+      pseudonym_hmac: body.pseudonym_hmac,
+      total_score: body.total_score ?? null,
+      scan_ciphertext_b64: body.scan_ciphertext_b64 ?? null,
+      scan_iv_b64: body.scan_iv_b64 ?? null,
+      annotation_ciphertext_b64: body.annotation_ciphertext_b64 ?? null,
+      annotation_iv_b64: body.annotation_iv_b64 ?? null,
+      created_at: now(),
+    };
+    rows.push(sub);
+    state.submissions.set(examId, rows);
+    return created(submissionResponse(sub, true));
+  }
 
-    const sub = rows.find((row) => row.id === subId);
-    if (!sub) return notFound('Submission not found.');
+  /** The submission a route names, with its exam's rows. */
+  type SubmissionTarget = { examId: string; rows: any[]; sub: any; subId: string };
 
+  function submissionById(method: string, { examId, rows, sub, subId }: SubmissionTarget, action: string | undefined, more: string[], body: any): Handled {
     if (!action) {
       if (method === 'GET') return ok(submissionResponse(sub, true));
       if (method === 'DELETE') {
@@ -1158,6 +1220,23 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return undefined;
   }
 
+  function submissions(method: string, examId: string, rest: string[], query: URLSearchParams, body: any): Handled {
+    const [subId, action, ...more] = rest;
+    const rows = state.submissions.get(examId) ?? [];
+
+    if (!subId) {
+      if (method === 'GET') {
+        const withScans = query.get('include_scans') === 'true';
+        return ok(rows.map((sub) => submissionResponse(sub, withScans)));
+      }
+      return method === 'POST' ? upsertSubmission(examId, rows, body) : undefined;
+    }
+
+    const sub = rows.find((row) => row.id === subId);
+    if (!sub) return notFound('Submission not found.');
+    return submissionById(method, { examId, rows, sub, subId }, action, more, body);
+  }
+
   /** Pinned OMR templates (issue #239): a known hash keeps its first pin and only bumps `last_pinned_at`, like the backend. */
   function omrPins(method: string, examId: string, rest: string[], body: any): Handled {
     const pins = state.omrPins.get(examId) ?? [];
@@ -1182,6 +1261,23 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return undefined;
   }
 
+  function examStatistics(method: string, id: string, rest: string[], body: any): Handled {
+    if (rest.length !== 0) return undefined;
+    if (method === 'GET') return ok(state.statistics.get(id) ?? null);
+    if (method === 'PUT') {
+      const prev = state.statistics.get(id);
+      const row = { id: prev?.id ?? crypto.randomUUID(), exam_id: id, keep_after_exam_delete: prev?.keep_after_exam_delete ?? true, computed_at: body?.computed_at, updated_at: new Date().toISOString(), payload_ciphertext_b64: body?.payload_ciphertext_b64, payload_iv_b64: body?.payload_iv_b64 };
+      state.statistics.set(id, row);
+      return ok(row);
+    }
+    return undefined;
+  }
+
+  function examScores(id: string): FakeResponse {
+    const live = new Set((state.submissions.get(id) ?? []).map((row) => row.id));
+    return ok([...live].flatMap((subId) => (state.scores.get(subId) ?? []).map(scoreResponse)));
+  }
+
   function exams(method: string, parts: string[], query: URLSearchParams, body: any): Handled {
     const [, id, sub, ...rest] = parts;
     if (!id) {
@@ -1199,101 +1295,93 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     }
     if (sub === 'exercises' && method === 'GET') return ok(examResponse(exam).exercises);
     if (sub === 'duplicate' && method === 'POST') return duplicateExam(id, body);
-    if (sub === 'logo' && rest.length === 0) {
-      // The account has no logo, so an exam that follows it prints none (issue #46).
-      if (method === 'GET') return ok({ ...NO_LOGO, mode: 'account' });
-      if (method === 'PUT') {
-        const custom = body?.mode === 'custom';
-        return ok({ ...NO_LOGO, mode: body?.mode ?? 'account', ...(custom ? { source: 'exam', mime_type: 'image/png', byte_size: 1 } : {}) });
-      }
+    if (sub === 'logo') {
+      const logo = examLogo(method, rest, body);
+      if (logo) return logo;
     }
-    if (sub === 'logo' && rest[0] === 'file' && method === 'GET') return notFound('No logo.');
     if (sub === 'omr-template-pins') return omrPins(method, id, rest, body);
-    if (sub === 'statistics' && method === 'GET' && rest.length === 0) {
-      return ok(state.statistics.get(id) ?? null);
-    }
-    if (sub === 'statistics' && method === 'PUT' && rest.length === 0) {
-      const prev = state.statistics.get(id);
-      const row = { id: prev?.id ?? crypto.randomUUID(), exam_id: id, keep_after_exam_delete: prev?.keep_after_exam_delete ?? true, computed_at: body?.computed_at, updated_at: new Date().toISOString(), payload_ciphertext_b64: body?.payload_ciphertext_b64, payload_iv_b64: body?.payload_iv_b64 };
-      state.statistics.set(id, row);
-      return ok(row);
+    if (sub === 'statistics') {
+      const stats = examStatistics(method, id, rest, body);
+      if (stats) return stats;
     }
     if (sub === 'students') return students(method, id, rest, body);
     if (sub === 'submissions') return submissions(method, id, rest, query, body);
     if (sub === 'pseudonyms') return pseudonyms(method, id, rest, body);
-    // Result shares (issue #207): none exist in the fake, so listing is empty and revoking is a no-op.
-    if (sub === 'shares' && method === 'GET' && rest.length === 0) return ok([]);
-    if (sub === 'shares' && method === 'DELETE') return noContent();
-    // Delivery statuses (issue #221): nothing was sent in the fake, and no bounce mailbox exists.
-    if (sub === 'deliveries' && method === 'GET' && rest.length === 0) return ok([]);
-    if (sub === 'deliveries' && method === 'POST' && rest[0] === 'check') return ok([]);
-    if (sub === 'deliveries' && method === 'POST' && rest[0] === 'close') return noContent();
-    if (sub === 'scores' && method === 'GET' && rest.length === 0) {
-      const live = new Set((state.submissions.get(id) ?? []).map((row) => row.id));
-      return ok([...live].flatMap((subId) => (state.scores.get(subId) ?? []).map(scoreResponse)));
-    }
-    return undefined;
+    if (sub === 'scores' && method === 'GET' && rest.length === 0) return examScores(id);
+    return shareAndDeliveryStubs(method, sub, rest);
   }
 
   /* ------------------------------------------------------------------------ */
   /* Admin (account management)                                                */
   /* ------------------------------------------------------------------------ */
 
+  const MAINTENANCE_IDLE = () => ({ phase: 'none', kind: null, downtime_class: null, revision: null, first_warning_at: null, second_warning_at: null, starts_at: null, server_time: new Date().toISOString() });
+
+  function adminUsers(method: string, id: string | undefined, action: string | undefined, query: URLSearchParams, body: any): Handled {
+    if (method === 'GET' && !id) {
+      const status = query.get('status') ?? 'all';
+      const items = state.adminUsers.filter((u) => userMatchesStatus(u, status));
+      return ok({ items, total: items.length });
+    }
+    const user = state.adminUsers.find((u) => u.id === id);
+    if (!user) return fail(404, 'User not found.', 'ERR_NOT_FOUND');
+    if (method === 'POST' && action === 'approve') {
+      Object.assign(user, { approved_at: new Date().toISOString(), registration_note: null, features: body.features });
+      return ok(user);
+    }
+    if (method === 'POST' && action === 'reject') {
+      state.adminUsers = state.adminUsers.filter((u) => u.id !== id);
+      return noContent();
+    }
+    if (method === 'DELETE' && !action) {
+      if (user.approved_at === null) return fail(409, 'This account is waiting for approval.', 'ERR_ACCOUNT_PENDING');
+      state.adminUsers = state.adminUsers.filter((u) => u.id !== id);
+      return noContent();
+    }
+    if (method === 'PATCH' && action === 'features') {
+      user.features = { ...user.features, ...body };
+      return ok(user);
+    }
+    if (method === 'POST' && action === 'reset-password') return ok({ message: 'sent', user_id: id, password_reset_sent: true });
+    return undefined;
+  }
+
+  function adminDomains(method: string, id: string | undefined, body: any): Handled {
+    if (method === 'GET') return ok(state.adminDomains);
+    if (method === 'POST') {
+      const row = { id: crypto.randomUUID(), domain: String(body.domain).toLowerCase(), features: body.features, created_at: new Date().toISOString() };
+      state.adminDomains.push(row);
+      return ok(row);
+    }
+    const row = state.adminDomains.find((d) => d.id === id);
+    if (!row) return fail(404, 'Domain not found.', 'ERR_NOT_FOUND');
+    if (method === 'PATCH') {
+      row.features = { ...row.features, ...body };
+      return ok(row);
+    }
+    if (method === 'DELETE') {
+      state.adminDomains = state.adminDomains.filter((d) => d.id !== id);
+      return noContent();
+    }
+    return undefined;
+  }
+
   function admin(method: string, parts: string[], query: URLSearchParams, body: any): Handled {
     const [, resource, id, action] = parts;
     if (state.role !== 'admin') return fail(403, 'Admin role required.', 'ERR_FORBIDDEN');
     if (resource === 'users') {
-      if (method === 'GET' && !id) {
-        const status = query.get('status') ?? 'all';
-        const items = state.adminUsers.filter((u) =>
-          status === 'pending' ? u.approved_at === null : status === 'active' ? u.approved_at !== null : true,
-        );
-        return ok({ items, total: items.length });
-      }
-      const user = state.adminUsers.find((u) => u.id === id);
-      if (!user) return fail(404, 'User not found.', 'ERR_NOT_FOUND');
-      if (method === 'POST' && action === 'approve') {
-        Object.assign(user, { approved_at: new Date().toISOString(), registration_note: null, features: body.features });
-        return ok(user);
-      }
-      if (method === 'POST' && action === 'reject') {
-        state.adminUsers = state.adminUsers.filter((u) => u.id !== id);
-        return noContent();
-      }
-      if (method === 'DELETE' && !action) {
-        if (user.approved_at === null) return fail(409, 'This account is waiting for approval.', 'ERR_ACCOUNT_PENDING');
-        state.adminUsers = state.adminUsers.filter((u) => u.id !== id);
-        return noContent();
-      }
-      if (method === 'PATCH' && action === 'features') {
-        user.features = { ...user.features, ...body };
-        return ok(user);
-      }
-      if (method === 'POST' && action === 'reset-password') return ok({ message: 'sent', user_id: id, password_reset_sent: true });
+      const handled = adminUsers(method, id, action, query, body);
+      if (handled) return handled;
     }
     if (resource === 'allowed-domains') {
-      if (method === 'GET') return ok(state.adminDomains);
-      if (method === 'POST') {
-        const row = { id: crypto.randomUUID(), domain: String(body.domain).toLowerCase(), features: body.features, created_at: new Date().toISOString() };
-        state.adminDomains.push(row);
-        return ok(row);
-      }
-      const row = state.adminDomains.find((d) => d.id === id);
-      if (!row) return fail(404, 'Domain not found.', 'ERR_NOT_FOUND');
-      if (method === 'PATCH') {
-        row.features = { ...row.features, ...body };
-        return ok(row);
-      }
-      if (method === 'DELETE') {
-        state.adminDomains = state.adminDomains.filter((d) => d.id !== id);
-        return noContent();
-      }
+      const handled = adminDomains(method, id, body);
+      if (handled) return handled;
     }
     // The reports and maintenance tabs: nothing reported, no window open.
     if (resource === 'layout-reports' && method === 'GET' && !id) return ok({ items: [], total: 0, open_count: 0 });
     if (resource === 'maintenance' && method === 'GET' && !id) {
       return ok({
-        status: { phase: 'none', kind: null, downtime_class: null, revision: null, first_warning_at: null, second_warning_at: null, starts_at: null, server_time: new Date().toISOString() },
+        status: MAINTENANCE_IDLE(),
         backup_wanted: false,
         backup_state: null,
         backup_file: null,
@@ -1309,80 +1397,79 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   /* Dispatch                                                                  */
   /* ------------------------------------------------------------------------ */
 
+  /** Polled by every page (issue #130): never a maintenance window here. */
+  function maintenanceRoute(verb: string, parts: string[]): Handled {
+    if (verb === 'GET' && parts.length === 1) return ok(MAINTENANCE_IDLE());
+    if (verb === 'POST' && parts[1] === 'ready') return noContent();
+    return undefined;
+  }
+
+  /** The student's session-less open (issue #207): a wrong lookup answers 404 like an unknown share. */
+  function sharesRoute(verb: string, parts: string[], payload: any): Handled {
+    const share = state.resultShares.get(parts[1] ?? '');
+    if (verb === 'POST' && parts[2] === 'open' && parts.length === 3) {
+      return share && share.lookupB64 === payload.lookup_b64 ? ok(share.content) : fail(404, 'Share not found', 'ERR_NOT_FOUND');
+    }
+    return undefined;
+  }
+
+  /** Kept exam statistics (issue #238): the list, the keep flag and deletes by record id. */
+  function statisticsRoute(verb: string, parts: string[], payload: any): Handled {
+    const row = [...state.statistics.values()].find((r) => r.id === parts[1]);
+    if (verb === 'GET' && parts.length === 1) return ok([...state.statistics.values()]);
+    if (!row) return parts.length === 2 ? notFound('Statistics not found.') : undefined;
+    if (verb === 'PATCH') return ok(Object.assign(row, { keep_after_exam_delete: Boolean(payload.keep_after_exam_delete) }));
+    if (verb === 'DELETE') {
+      state.statistics.delete(row.exam_id);
+      return noContent();
+    }
+    return undefined;
+  }
+
+  function dispatch(verb: string, parts: string[], searchParams: URLSearchParams, payload: any): Handled {
+    switch (parts[0]) {
+      case 'auth':
+        return auth(verb, parts, payload);
+      case 'keys':
+        return keys(verb, parts, payload);
+      case 'user':
+        return user(verb, parts, payload);
+      case 'mfa':
+        return mfa(verb, parts);
+      case 'webauthn':
+        return webauthn(verb, parts);
+      case 'training':
+        return training(verb, parts);
+      case 'privacy':
+        return privacy(verb, parts);
+      case 'maintenance':
+        return maintenanceRoute(verb, parts);
+      case 'exams':
+        return exams(verb, parts, searchParams, payload);
+      case 'exercises':
+        return exercises(verb, parts, searchParams, payload);
+      case 'admin':
+        return admin(verb, parts, searchParams, payload);
+      case 'latex':
+        return verb === 'GET' && parts[1] === 'template-packages' ? ok(TEMPLATE_PACKAGES) : undefined;
+      case 'shares':
+        return sharesRoute(verb, parts, payload);
+      case 'statistics':
+        return statisticsRoute(verb, parts, payload);
+      case 'trash':
+        // The fake deletes for good, so its trash is always empty (issue #125).
+        return verb === 'GET' && parts.length === 1 ? ok({ grace_days: 7, groups: [] }) : undefined;
+      default:
+        return undefined;
+    }
+  }
+
   function handle(method: string, rawPath: string, body?: unknown): FakeResponse {
     const verb = method.toUpperCase();
     state.requests.push(`${verb} ${rawPath}`);
     const url = new URL(rawPath, 'https://fake.invalid');
     const parts = url.pathname.split('/').filter(Boolean);
-    const payload: any = body ?? {};
-
-    let handled: Handled;
-    switch (parts[0]) {
-      case 'auth':
-        handled = auth(verb, parts, payload);
-        break;
-      case 'keys':
-        handled = keys(verb, parts, payload);
-        break;
-      case 'user':
-        handled = user(verb, parts, payload);
-        break;
-      case 'mfa':
-        handled = mfa(verb, parts);
-        break;
-      case 'webauthn':
-        handled = webauthn(verb, parts);
-        break;
-      case 'training':
-        handled = training(verb, parts);
-        break;
-      case 'privacy':
-        handled = privacy(verb, parts);
-        break;
-      case 'maintenance':
-        // Polled by every page (issue #130): never a maintenance window here.
-        if (verb === 'GET' && parts.length === 1) {
-          handled = ok({ phase: 'none', kind: null, downtime_class: null, revision: null, first_warning_at: null, second_warning_at: null, starts_at: null, server_time: new Date().toISOString() });
-        }
-        if (verb === 'POST' && parts[1] === 'ready') handled = noContent();
-        break;
-      case 'exams':
-        handled = exams(verb, parts, url.searchParams, payload);
-        break;
-      case 'exercises':
-        handled = exercises(verb, parts, url.searchParams, payload);
-        break;
-      case 'admin':
-        handled = admin(verb, parts, url.searchParams, payload);
-        break;
-      case 'latex':
-        if (verb === 'GET' && parts[1] === 'template-packages') handled = ok(TEMPLATE_PACKAGES);
-        break;
-      case 'shares': {
-        // The student's session-less open (issue #207): a wrong lookup answers 404 like an unknown share.
-        const share = state.resultShares.get(parts[1] ?? '');
-        if (verb === 'POST' && parts[2] === 'open' && parts.length === 3) {
-          handled = share && share.lookupB64 === payload.lookup_b64 ? ok(share.content) : fail(404, 'Share not found', 'ERR_NOT_FOUND');
-        }
-        break;
-      }
-      case 'statistics': {
-        // Kept exam statistics (issue #238): the list, the keep flag and deletes by record id.
-        const row = [...state.statistics.values()].find((r) => r.id === parts[1]);
-        if (verb === 'GET' && parts.length === 1) handled = ok([...state.statistics.values()]);
-        else if (!row) handled = parts.length === 2 ? notFound('Statistics not found.') : undefined;
-        else if (verb === 'PATCH') handled = ok(Object.assign(row, { keep_after_exam_delete: Boolean(payload.keep_after_exam_delete) }));
-        else if (verb === 'DELETE') {
-          state.statistics.delete(row.exam_id);
-          handled = noContent();
-        }
-        break;
-      }
-      case 'trash':
-        // The fake deletes for good, so its trash is always empty (issue #125).
-        if (verb === 'GET' && parts.length === 1) handled = ok({ grace_days: 7, groups: [] });
-        break;
-    }
+    const handled = dispatch(verb, parts, url.searchParams, body ?? {});
     if (handled) return handled;
 
     state.unhandled.push(`${verb} ${rawPath}`);

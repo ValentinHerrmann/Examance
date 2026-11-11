@@ -34,12 +34,34 @@ const LOESUNG_MULTI_START_RE = /\\LoesungMulti(?:\[(\d+)\])?\s*\{/;
 const LOESUNG_MULTI_DEFAULT_COLUMNS = 2;
 // A control word ends at the first non-letter, so `\multicols` is not an option.
 const OPTION_MACRO_RE = /\\(Lmulti|multi)(?![A-Za-z])/g;
-// `%` up to the line end, unless escaped (an odd number of backslashes before it).
-const COMMENT_RE = /(^|[^\\])((?:\\\\)*)%.*$/gm;
+const LINE_END = new Set(["\n", "\r", "\u2028", "\u2029"]);
+
+/** Replace every comment (`%` up to the line end, unless escaped by an odd number of backslashes) via `replace`; a linear scan, as the regex form backtracked. */
+export function mapComments(tex: string, replace: (comment: string) => string): string {
+  let out = "";
+  let start = 0;
+  let backslashes = 0;
+  let i = 0;
+  while (i < tex.length) {
+    if (tex[i] === "%" && backslashes % 2 === 0) {
+      let end = i;
+      while (end < tex.length && !LINE_END.has(tex[end])) end++;
+      out += tex.slice(start, i) + replace(tex.slice(i, end));
+      start = end;
+      // The line break itself is kept (it starts the next slice) and resets the backslash run.
+      i = end + 1;
+      backslashes = 0;
+    } else {
+      backslashes = tex[i] === "\\" ? backslashes + 1 : 0;
+      i++;
+    }
+  }
+  return out + tex.slice(start);
+}
 
 /** One box per `\multi`/`\Lmulti`, in printed order (the OMR counter's order). Comments print nothing. */
 function scanOptions(tex: string): Required<McOption>[] {
-  const source = tex.replace(COMMENT_RE, "$1$2");
+  const source = mapComments(tex, () => "");
   const starts = [...source.matchAll(OPTION_MACRO_RE)];
   return starts.map((m, k) => {
     const end = k + 1 < starts.length ? starts[k + 1].index : source.length;
@@ -55,8 +77,8 @@ function optionText(rest: string): string {
   let end = rest.length;
   for (let i = 0; i < rest.length; i++) {
     if (rest[i] === "\\") {
-      if (depth === 0 && rest.startsWith("\\begin{", i)) envs++;
-      else if (depth === 0 && rest.startsWith("\\end{", i) && envs-- === 0) {
+      if (depth === 0 && rest.startsWith(String.raw`\begin{`, i)) envs++;
+      else if (depth === 0 && rest.startsWith(String.raw`\end{`, i) && envs-- === 0) {
         end = i;
         break;
       }
@@ -72,7 +94,7 @@ function optionText(rest: string): string {
 
 /** End of the `{…}` group `text` starts with, or -1 when it does not start with a closed one. */
 function leadingGroupEnd(text: string): number {
-  return text[0] === "{" ? closingBrace(text, 0) : -1;
+  return text.startsWith("{") ? closingBrace(text, 0) : -1;
 }
 
 /** A group prints its content: `{a}` → "a" (the editor's form), `{A} (2 P.)` → "A (2 P.)", `{} Ja` → "Ja". */
@@ -93,10 +115,9 @@ export function printedMcOptions(latexBody: string | undefined | null): McOption
 
 /** Splits a MC exercise's latex body into the question (LaTeX, as written) and structured options (texts unescaped, sources kept), the inverse of buildMcOptionsLatex. Returns an empty options array if no \LoesungMulti block is found (e.g. a brand-new exercise). */
 export function parseMcOptions(latexBody: string | undefined | null): McOptionsParseResult {
-  const body = latexBody || "";
+  const body = latexBody || ""; // NOSONAR: null is allowed too, a default parameter would not cover it
   // Comments are blanked, not removed, so offsets in `masked` match `body`. A block that starts but never closes (mid-edit) is `malformed`: callers must not rebuild from it.
-  const masked = body.replaceAll(COMMENT_RE, (m: string, pre: string, slashes: string) =>
-    pre + slashes + " ".repeat(m.length - pre.length - slashes.length));
+  const masked = mapComments(body, (comment) => " ".repeat(comment.length));
   const match = LOESUNG_MULTI_START_RE.exec(masked);
   const open = match ? match.index + match[0].length - 1 : -1;
   const close = open === -1 ? -1 : closingBrace(masked, open);
