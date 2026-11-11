@@ -71,7 +71,7 @@ export const common: Translations['common'] = {
         fieldChanges: 'changes {count} of {total}',
         reviewTitle: 'Changes: {count} of {total} items',
         reviewEmpty: 'No change yet. Changed fields are highlighted and listed here per item.',
-        selectAll: 'Select all shown',
+        selectAll: 'Select all',
         failedItems: 'Not applied to: {items}',
     },
 };

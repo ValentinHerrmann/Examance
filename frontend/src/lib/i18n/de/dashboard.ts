@@ -80,7 +80,6 @@ export const dashboard = {
     },
     bulk: {
         courseLabel: 'Gedruckte Klasse (leer: Jgst. + Klasse)',
-        toolbarHint: 'Prüfungen auswählen, um mehrere auf einmal zu bearbeiten, zu exportieren oder zu löschen.',
         selection: '{count} Prüfung(en) ausgewählt',
         editTitle: '{count} Prüfung(en) bearbeiten',
         apply: 'Auf {count} Prüfung(en) anwenden',

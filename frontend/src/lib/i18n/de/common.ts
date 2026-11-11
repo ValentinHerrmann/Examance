@@ -69,7 +69,7 @@ export const common = {
         fieldChanges: 'ändert {count} von {total}',
         reviewTitle: 'Änderungen: {count} von {total} Einträgen',
         reviewEmpty: 'Noch keine Änderung. Geänderte Felder werden hervorgehoben und hier pro Eintrag aufgelistet.',
-        selectAll: 'Alle angezeigten auswählen',
+        selectAll: 'Alle auswählen',
         failedItems: 'Nicht übernommen bei: {items}',
     },
 } as const;

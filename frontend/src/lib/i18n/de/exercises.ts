@@ -257,7 +257,6 @@ export const exercises = {
         },
     },
     bulk: {
-        toolbarHint: 'Aufgabengruppen auswählen, um mehrere auf einmal zu bearbeiten, zu exportieren, zu teilen oder zu löschen.',
         selection: '{count} Aufgabengruppe(n) ausgewählt',
         noSharing: 'Teilen ist für Ihr Konto nicht freigeschaltet.',
         editTitle: '{count} Aufgabengruppe(n) bearbeiten',

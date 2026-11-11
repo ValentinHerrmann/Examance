@@ -389,7 +389,6 @@
         <SelectionToolbar
           count={selectedExams.length}
           total={filteredExams.length}
-          hint={$t('dashboard.bulk.toolbarHint')}
           countText={$t('dashboard.bulk.selection', { count: selectedExams.length })}
           selectAllLabel={$t('common.bulk.selectAll')}
           onSelectAll={(on) => (on ? selection.set(filteredExams.map((e) => e.id)) : selection.clear())}

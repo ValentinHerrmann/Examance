@@ -82,7 +82,6 @@ export const dashboard: Translations['dashboard'] = {
     },
     bulk: {
         courseLabel: 'Printed class (empty: grade + class)',
-        toolbarHint: 'Select exams to edit, export or delete several at once.',
         selection: '{count} exam(s) selected',
         editTitle: 'Edit {count} exam(s)',
         apply: 'Apply to {count} exam(s)',

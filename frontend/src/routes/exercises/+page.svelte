@@ -839,7 +839,6 @@
       <SelectionToolbar
         count={selectedGroups.length}
         total={filteredGroups.length}
-        hint={$t("exercises.bulk.toolbarHint")}
         countText={$t("exercises.bulk.selection", { count: selectedGroups.length })}
         selectAllLabel={$t("common.bulk.selectAll")}
         onSelectAll={(on) => (on ? selection.set(filteredGroups.map((g) => g.groupId)) : selection.clear())}
