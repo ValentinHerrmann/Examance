@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -35,6 +35,12 @@ async def _library_row(client: AsyncClient, ex_id: str) -> dict[str, Any]:
     return dict(row)
 
 
+def _instant(value: str) -> datetime:
+    """The moment an API timestamp names; SQLite reads it back without a zone, Postgres with one."""
+    parsed = datetime.fromisoformat(value)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
 async def _new_exercise(client: AsyncClient) -> dict[str, Any]:
     resp = await client.post(API, json={"name": "Task", "latex_body": "\\BE Body"})
     assert resp.status_code == 201, resp.text
@@ -50,19 +56,28 @@ async def test_exam_flags_are_set_cleared_and_not_duplicated(owner) -> None:
 
     resp = await owner.patch(f"{EXAMS}/{exam_id}", json={"is_favorite": True, "archived": True})
     assert resp.status_code == 200, resp.text
-    first_archived = resp.json()["archived_at"]
-    assert resp.json()["is_favorite"] is True and first_archived is not None
+    body = resp.json()
+    first_archived = body["archived_at"]
+    assert body["is_favorite"] is True
+    assert first_archived is not None
 
     # Archiving again keeps the first date; an unrelated update keeps both flags.
-    again = await owner.patch(f"{EXAMS}/{exam_id}", json={"archived": True, "title": "Renamed"})
-    assert again.json()["archived_at"] == first_archived and again.json()["is_favorite"] is True
+    again = (
+        await owner.patch(f"{EXAMS}/{exam_id}", json={"archived": True, "title": "Renamed"})
+    ).json()
+    assert _instant(again["archived_at"]) == _instant(first_archived)
+    assert again["is_favorite"] is True
 
     dup = await owner.post(f"{EXAMS}/{exam_id}/duplicate", json={"retention_until": retention})
     assert dup.status_code == 201, dup.text
-    assert dup.json()["is_favorite"] is False and dup.json()["archived_at"] is None
+    assert dup.json()["is_favorite"] is False
+    assert dup.json()["archived_at"] is None
 
-    cleared = await owner.patch(f"{EXAMS}/{exam_id}", json={"is_favorite": False, "archived": False})
-    assert cleared.json()["is_favorite"] is False and cleared.json()["archived_at"] is None
+    cleared = (
+        await owner.patch(f"{EXAMS}/{exam_id}", json={"is_favorite": False, "archived": False})
+    ).json()
+    assert cleared["is_favorite"] is False
+    assert cleared["archived_at"] is None
 
 
 @pytest.mark.asyncio
@@ -74,12 +89,14 @@ async def test_group_flags_reach_the_library_and_skip_duplicates(owner) -> None:
     )
     assert resp.status_code == 200, resp.text
     row = await _library_row(owner, ex["id"])
-    assert row["group_favorite"] is True and row["group_archived_at"] is not None
+    assert row["group_favorite"] is True
+    assert row["group_archived_at"] is not None
 
     dup = await owner.post(f"{API}/{ex['id']}/duplicate")
     assert dup.status_code == 201, dup.text
     copy_row = await _library_row(owner, dup.json()["exercises"][0]["id"])
-    assert copy_row["group_favorite"] is False and copy_row["group_archived_at"] is None
+    assert copy_row["group_favorite"] is False
+    assert copy_row["group_archived_at"] is None
 
 
 @pytest.mark.asyncio
