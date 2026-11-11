@@ -18,6 +18,8 @@
     plainText: string;
     /** Muted line under the prompt telling the record can be restored from the trash. */
     restoreHint?: string;
+    /** Nothing can be deleted (e.g. every selected group is in use). */
+    confirmDisabled?: boolean;
     busy?: boolean;
     error?: string;
     onConfirm: () => void;
@@ -37,6 +39,7 @@
     items = [],
     plainText,
     restoreHint = "",
+    confirmDisabled = false,
     busy = false,
     error = "",
     onConfirm,
@@ -49,7 +52,7 @@
   {open}
   {title}
   severity="danger"
-  confirmDisabled={usageLoading}
+  confirmDisabled={usageLoading || confirmDisabled}
   {busy}
   {error}
   confirmText={$t("common.deleteModal.deleteAnyway")}

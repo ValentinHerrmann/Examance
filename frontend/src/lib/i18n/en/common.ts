@@ -62,4 +62,16 @@ export const common: Translations['common'] = {
         grade: 'Grade',
         subject: 'Subject',
     },
+    bulk: {
+        dialogHint: 'Applies to {count} selected items. Only changed fields are written; an emptied field is cleared everywhere.',
+        various: 'Various values – stays unchanged',
+        variousHint: 'Various values',
+        clearAll: 'Clear everywhere',
+        undo: 'Reset',
+        fieldChanges: 'changes {count} of {total}',
+        reviewTitle: 'Changes: {count} of {total} items',
+        reviewEmpty: 'No change yet. Changed fields are highlighted and listed here per item.',
+        selectAll: 'Select all',
+        failedItems: 'Not applied to: {items}',
+    },
 };

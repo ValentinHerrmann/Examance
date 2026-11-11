@@ -16,7 +16,6 @@
   import { submissionRepository } from '#lib/repositories/submissionRepository';
   import { goto } from '$app/navigation';
   import { t, translate } from '#lib/i18n';
-  import { TRASH_DAYS } from '#lib/trash/localTrash';
   import { loadSyncedExams } from '#lib/services/examSync';
   import { computeExamStats, type ExamStats } from '#lib/utils/examStats';
   import { studentRepository } from '#lib/repositories/studentRepository';
@@ -30,13 +29,11 @@
   import DashboardSessionState from '#lib/components/dashboard/DashboardSessionState.svelte';
   import RetentionModal from '#lib/components/dashboard/RetentionModal.svelte';
   import OnboardingEmptyState from '#lib/components/dashboard/OnboardingEmptyState.svelte';
-  import DeleteWithUsageModal from '#lib/components/common/DeleteWithUsageModal.svelte';
-  import KeepStatisticsOption from '#lib/components/stats/KeepStatisticsOption.svelte';
-  import { statisticsRepository } from '#lib/repositories/statisticsRepository';
+  import ExamBulkActions from '#lib/components/dashboard/ExamBulkActions.svelte';
+  import { Selection } from '#lib/utils/selection.svelte';
   import ListFilterPanel from '#lib/components/common/ListFilterPanel.svelte';
   import ExamList from '#lib/components/dashboard/ExamList.svelte';
-  import { Alert, Button, FilterLayout, PageHeader, PageShell } from '#lib/components/ui';
-  import ExamExportModal from '#lib/components/exam/ExamExportModal.svelte';
+  import { Alert, Button, FilterLayout, PageHeader, PageShell, SelectionToolbar, actionIcons } from '#lib/components/ui';
   import PreviewHost from '#lib/components/common/PreviewHost.svelte';
   import { createPreviewFlow } from '#lib/stores/previewFlow';
   import { compileExamPreview, getCurrentExamPreview } from '#lib/exam/examPreview';
@@ -44,7 +41,6 @@
   import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 
   let exams: ExamRecord[] = $state.raw([]);
-  let exportExam: ExamRecord | null = $state(null);
   let duplicatingExamId: string | null = $state(null);
   let addingExampleData = $state(false);
   let exampleDataError = $state('');
@@ -91,13 +87,9 @@
   let isRefreshing = $state(false);
   let refreshAgain = false;
 
-  // Delete modal state
-  let isDeleteModalOpen = $state(false);
-  let deletingExam: { id: string; title?: string; submissionCount: number } | null = $state(null);
-  let keepStatistics = $state(true);
-  let statisticsRecordId: string | null = $state(null);
-  let isDeleting = $state(false);
-  let deleteError = $state('');
+  let bulkActions: ExamBulkActions | undefined = $state();
+  // Checkbox selection over the shown exams (issue #261).
+  const selection = new Selection();
 
   let availableGrades = $derived(uniqueSorted(exams, (e) => e.grade));
   let availableSubjects = $derived(uniqueSorted(exams, (e) => e.fach));
@@ -295,33 +287,17 @@
     }
   }
 
-  function handleDeleteDashboardExam(id: string, title?: string) {
-    deletingExam = { id, title, submissionCount: examStatsMap.get(id)?.submissionCount ?? 0 };
-    deleteError = '';
-    isDeleteModalOpen = true;
-  }
-
-  async function handleConfirmDeleteExam() {
-    if (!deletingExam) return;
-    isDeleting = true;
-    deleteError = '';
-    try {
-      // The record outlives the exam unless the teacher unticks it (issue #238).
-      if (statisticsRecordId) await statisticsRepository.setKeep(statisticsRecordId, keepStatistics);
-      await examRepository.delete(deletingExam.id);
-      isDeleteModalOpen = false;
-      deletingExam = null;
-      await refreshExams();
-    } catch (err: any) {
-      deleteError = translate('dashboard.deleteFailed', { message: err.message });
-    } finally {
-      isDeleting = false;
-    }
-  }
+  let selectedExams = $derived(filteredExams.filter((e) => selection.has(e.id)));
 
   $effect.pre(() => {
     const key = sortKey;
     untrack(() => saveSort(SORT_STORAGE.exams, key));
+  });
+
+  // A filter change or a deleted exam drops it from the selection, so an action never hits an exam the teacher cannot see.
+  $effect.pre(() => {
+    const ids = filteredExams.map((e) => e.id);
+    untrack(() => selection.prune(ids));
   });
 </script>
 
@@ -409,8 +385,25 @@
           />
         {/snippet}
 
+        <div class="flex min-w-0 flex-col gap-4">
+        <SelectionToolbar
+          count={selectedExams.length}
+          total={filteredExams.length}
+          countText={$t('dashboard.bulk.selection', { count: selectedExams.length })}
+          selectAllLabel={$t('common.bulk.selectAll')}
+          onSelectAll={(on) => (on ? selection.set(filteredExams.map((e) => e.id)) : selection.clear())}
+        >
+          {#snippet actions()}
+            <Button size="sm" variant="outlined" icon={actionIcons.edit} disabled={!selectedExams.length} onClick={() => bulkActions?.open('edit', selectedExams)}>{$t('common.edit')}</Button>
+            <Button size="sm" variant="outlined" icon={actionIcons.export} disabled={!selectedExams.length} onClick={() => bulkActions?.open('export', selectedExams)}>{$t('dashboard.bulk.exportAction')}</Button>
+            <Button size="sm" variant="outlined" severity="danger" icon={actionIcons.delete} disabled={!selectedExams.length} onClick={() => bulkActions?.open('delete', selectedExams)}>{$t('common.delete')}</Button>
+          {/snippet}
+        </SelectionToolbar>
+
         <ExamList
           exams={filteredExams}
+          isSelected={(id) => selection.has(id)}
+          onSelect={(id, on) => selection.toggle(id, on)}
           {examStatsMap}
           {studentCounts}
           statsKnown={!statsLoadFailed}
@@ -419,13 +412,14 @@
           isLoading={isRefreshing && exams.length === 0}
           expandedExams={$expandedExams}
           onToggleExam={expandedExams.toggle}
-          onDelete={handleDeleteDashboardExam}
+          onDelete={(exam) => bulkActions?.open('delete', [exam])}
           onPreview={examPreview.open}
-          onExport={(exam) => (exportExam = exam)}
+          onExport={(exam) => bulkActions?.open('export', [exam])}
           onDuplicate={handleDuplicateExam}
           onExerciseSaved={() => expandedExams.ids().forEach((id) => exerciseMap.reload(id))}
           duplicatingId={duplicatingExamId}
         />
+        </div>
       </FilterLayout>
     {/if}
   {/if}
@@ -433,22 +427,11 @@
 
 <PreviewHost flow={examPreview} kind="exam" />
 
-{#if exportExam}
-  <ExamExportModal examId={exportExam.id} examTitle={exportExam.title ?? ""} onClose={() => (exportExam = null)} />
-{/if}
-
-<DeleteWithUsageModal
-  open={isDeleteModalOpen && !!deletingExam}
-  title={deletingExam ? $t('dashboard.deleteModal.title', { title: deletingExam.title || $t('dashboard.examList.untitledExam') }) : ''}
-  usageTitle={$t('dashboard.deleteModal.warningTitle')}
-  usageText={deletingExam && deletingExam.submissionCount > 0 ? $t('dashboard.deleteModal.usageInfo', { count: deletingExam.submissionCount }) : ''}
-  usageHint={$t('dashboard.deleteModal.usageWarning')}
-  plainText={$t('dashboard.deleteModal.confirmPlain')}
-  restoreHint={$t('common.trashHint', { days: TRASH_DAYS })}
-  busy={isDeleting}
-  error={deleteError}
-  onConfirm={handleConfirmDeleteExam}
-  onClose={() => (isDeleteModalOpen = false)}
->
-  <KeepStatisticsOption examId={isDeleteModalOpen ? (deletingExam?.id ?? null) : null} bind:keep={keepStatistics} bind:recordId={statisticsRecordId} />
-</DeleteWithUsageModal>
+<ExamBulkActions
+  bind:this={bulkActions}
+  submissionCount={(id) => examStatsMap.get(id)?.submissionCount ?? 0}
+  onChanged={async () => {
+    selection.clear();
+    await refreshExams();
+  }}
+/>

@@ -63,6 +63,10 @@ export const help = {
                 h: 'Arbeitsbereich sichern und Ergebnisse teilen',
                 p1: '„Arbeitsbereich sichern oder teilen“ im Arbeitsbereich-Menü erstellt ein passwortgeschütztes .examance-Archiv mit allen Klausuren, Aufgaben und Ergebnissen; „Exportieren“ an einer Klausur sichert nur diese. Im Hybrid-Modus ist das die wichtigste Sicherung. Mit „Ohne Aufgabentexte (zum Teilen der Ergebnisse)“ geben Sie Ergebnisse weiter, ohne Ihre Aufgaben mitzugeben.',
             },
+            s5: {
+                h: 'Mehrere Prüfungen auf einmal',
+                p1: 'Haken Sie Prüfungen in der Liste an (oder alle angezeigten über die Leiste darüber), um Angaben wie Thema, Fach oder Datum für alle zu ändern, LaTeX-Pakete hinzuzufügen, sie zusammen zu exportieren oder zu löschen. Vor dem Übernehmen zeigt der Dialog jede Änderung je Prüfung.',
+            },
         },
         storageModes: {
             title: 'Speicherorte & Verschlüsselung',
@@ -96,6 +100,10 @@ export const help = {
             s1: {
                 h: 'Sammeln statt kopieren',
                 p1: 'Aufgaben liegen in Ihrer Bibliothek, verschlagwortet nach Jahrgangsstufe, Fach und Thema. Die Filter oben grenzen die Bibliothek ein, „Sortieren nach“ ordnet sie. Ein aufgeklapptes Element zeigt, welche Klausuren die Aufgabe verwenden; „Vorschau“ zeigt das zuletzt kompilierte PDF.',
+            },
+            bulk: {
+                h: 'Mehrere Gruppen auf einmal',
+                p1: 'Haken Sie Aufgabengruppen an, um Thema, Jahrgangsstufe und Fach für alle zu ändern, sie zu exportieren, zu teilen oder zu löschen. Gruppen, die eine Prüfung verwendet, werden beim Löschen behalten.',
             },
             s2: {
                 h: 'Der Editor',

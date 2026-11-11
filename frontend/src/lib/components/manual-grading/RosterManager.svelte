@@ -1,12 +1,13 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { Badge, Button, EmptyState, Field, Icon, Panel, TableScroller, Textarea, TextInput } from "#lib/components/ui";
+  import { Badge, Button, EmptyState, Field, Panel, SelectionToolbar, TableScroller, Textarea, TextInput } from "#lib/components/ui";
+  import { Selection } from "#lib/utils/selection.svelte";
   import { createStudentWithSubmission } from "#lib/grading/scoreService";
   import { parseRosterLines } from "#lib/utils/rosterLines";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import { artemisIdOf, formatStudentName, mebisIdOf } from "#lib/utils/studentQr";
   import { duplicateCandidates } from "#lib/students/classList";
-  import { faCircleInfo, faCodeMerge, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+  import { faCodeMerge, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
   import Checkbox from "#lib/components/ui/Checkbox.svelte";
   import StudentEditDialog from "#lib/components/students/StudentEditDialog.svelte";
   import StudentDeleteDialog from "#lib/components/students/StudentDeleteDialog.svelte";
@@ -72,24 +73,17 @@
   let deleting = $state.raw<StudentRecord[] | null>(null);
   let editing = $state.raw<StudentRecord[] | null>(null);
   let merging = $state.raw<[StudentRecord, StudentRecord] | null>(null);
-  let selected = $state.raw(new Set<string>());
+  const selection = new Selection();
 
   const submissionOf = (st: StudentRecord) => submissionMap.get(st.pseudonymHmac);
   const hasSubmission = (st: StudentRecord) => submissionMap.has(st.pseudonymHmac);
-  let chosen = $derived(students.filter((st) => selected.has(st.pseudonymHmac)));
+  let chosen = $derived(students.filter((st) => selection.has(st.pseudonymHmac)));
   let duplicates = $derived(listMode ? duplicateCandidates(students, hasSubmission) : []);
   const duplicateOf = (st: StudentRecord) => duplicates.find((pair) => pair.includes(st));
 
-  function toggle(st: StudentRecord, on: boolean) {
-    const next = new Set(selected);
-    if (on) next.add(st.pseudonymHmac);
-    else next.delete(st.pseudonymHmac);
-    selected = next;
-  }
-
   function finished() {
     deleting = editing = merging = null;
-    selected = new Set();
+    selection.clear();
     onRosterChanged();
   }
 
@@ -182,21 +176,18 @@
   {#if students.length === 0}
     <EmptyState title={$t("grading.manual.roster.emptyState")} />
   {:else}
-    <!-- Always shown; actions that need a selection are greyed out with the reason (works without hover). -->
-    <div class="flex flex-col gap-1 rounded-md border border-line p-2 text-sm">
-      <div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label={$t("lms.students.toolbarHint")}>
-        <span class="mr-2">{chosen.length ? $t("lms.students.selection", { count: chosen.length }) : $t("lms.students.toolbarHint")}</span>
+    <SelectionToolbar
+      count={chosen.length}
+      hint={$t("lms.students.toolbarHint")}
+      countText={$t("lms.students.selection", { count: chosen.length })}
+      reason={chosen.length !== 2 ? $t("lms.students.merge.needTwo") : ""}
+    >
+      {#snippet actions()}
         <Button size="sm" variant="outlined" icon={faPen} disabled={!chosen.length} onClick={() => (editing = chosen)}>{$t("lms.students.edit.action")}</Button>
         <Button size="sm" variant="outlined" icon={faCodeMerge} disabled={chosen.length !== 2} onClick={() => (merging = [chosen[0], chosen[1]])}>{$t("lms.students.merge.action")}</Button>
         <Button size="sm" variant="outlined" severity="danger" icon={faTrash} disabled={!chosen.length} onClick={() => (deleting = chosen)}>{$t("common.delete")}</Button>
-        <Button size="sm" variant="text" severity="secondary" disabled={!chosen.length} onClick={() => (selected = new Set())}>{$t("sharing.share.selectNone")}</Button>
-      </div>
-      {#if chosen.length !== 2}
-        <p class="m-0 flex items-start gap-1.5 text-muted">
-          <Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{chosen.length ? $t("lms.students.merge.needTwo") : $t("lms.students.needOne")}
-        </p>
-      {/if}
-    </div>
+      {/snippet}
+    </SelectionToolbar>
     <TableScroller>
       <table class="data-table data-table-compact data-table-sticky data-table-hover">
         <thead>
@@ -204,7 +195,7 @@
             <th class="w-8">
               <Checkbox
                 checked={chosen.length > 0 && chosen.length === students.length}
-                onChange={(on) => (selected = on ? new Set(students.map((st) => st.pseudonymHmac)) : new Set())}
+                onChange={(on) => (on ? selection.set(students.map((st) => st.pseudonymHmac)) : selection.clear())}
                 aria-label={$t("lms.students.selectAll")}
               />
             </th>
@@ -223,7 +214,7 @@
             {@const sub = submissionMap.get(st.pseudonymHmac)}
             {@const isScanned = !!(sub?.scanCt || sub?.scanIv || sub?.hasScan)}
             <tr>
-              <td><Checkbox checked={selected.has(st.pseudonymHmac)} onChange={(on) => toggle(st, on)} aria-label={st.studentName || st.fallbackCode || ""} /></td>
+              <td><Checkbox checked={selection.has(st.pseudonymHmac)} onChange={(on) => selection.toggle(st.pseudonymHmac, on)} aria-label={st.studentName || st.fallbackCode || ""} /></td>
               <td>{i + 1}</td>
               <td>
                 <strong class="whitespace-nowrap">{st.studentName || $t("grading.manual.roster.unnamed")}</strong>

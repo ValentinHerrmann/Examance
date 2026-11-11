@@ -17,7 +17,7 @@
 
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ListFilterPanel from "#lib/components/common/ListFilterPanel.svelte";
-  import { Alert, Button, ConfirmDialog, FilterLayout, Menu, MenuItem, PageHeader, PageShell, Tabs } from "#lib/components/ui";
+  import { Alert, Button, ConfirmDialog, FilterLayout, Menu, MenuItem, PageHeader, PageShell, SelectionToolbar, Tabs, actionIcons } from "#lib/components/ui";
   import PreviewHost from "#lib/components/common/PreviewHost.svelte";
   import { createPreviewFlow } from "#lib/stores/previewFlow";
   import { loadExamUsage, usageKey, type ExamUsageEntry } from "#lib/exercise-library/examUsage";
@@ -33,6 +33,8 @@
   import ExamSummaryModal from "#lib/components/exam/ExamSummaryModal.svelte";
   import ExerciseExportModal from "#lib/components/exercise-library/ExerciseExportModal.svelte";
   import GroupEditFlow from "#lib/components/exercise-library/GroupEditFlow.svelte";
+  import BulkGroupFlow from "#lib/components/exercise-library/BulkGroupFlow.svelte";
+  import { Selection } from "#lib/utils/selection.svelte";
   import RegroupFlow from "#lib/components/exercise-library/RegroupFlow.svelte";
   import DeleteWithUsageModal from "#lib/components/common/DeleteWithUsageModal.svelte";
   import VariantFlow from "#lib/components/exercise-library/VariantFlow.svelte";
@@ -157,6 +159,9 @@
 
   // Group metadata, regroup, diff and variant dialogs: each flow owns its state and opens via `open(...)`.
   let groupEditFlow: ReturnType<typeof GroupEditFlow> | undefined = $state();
+  let bulkFlow: ReturnType<typeof BulkGroupFlow> | undefined = $state();
+  // Checkbox selection over the shown own groups (issue #261).
+  const selection = new Selection();
   let regroupFlow: ReturnType<typeof RegroupFlow> | undefined = $state();
   let diffFlow: ReturnType<typeof DiffFlow> | undefined = $state();
   let variantFlow: ReturnType<typeof VariantFlow> | undefined = $state();
@@ -221,6 +226,8 @@
     value,
     label: $t(`common.sort.${value}`),
   })));
+
+  let selectedGroups = $derived(activeView === "own" ? filteredGroups.filter((g) => selection.has(g.groupId)) : []);
 
   // Grouped view: filter then group
   let allGroups = $derived(groupExercises(exercises));
@@ -696,6 +703,12 @@
     const key = sortKey;
     untrack(() => saveSort(SORT_STORAGE.exercises, key));
   });
+
+  // A filter change, another view or a deleted group drops it from the selection, so an action never hits a hidden group.
+  $effect.pre(() => {
+    const ids = activeView === "own" ? filteredGroups.map((g) => g.groupId) : [];
+    untrack(() => selection.prune(ids));
+  });
 </script>
 
 <PageShell width="fluid">
@@ -821,8 +834,29 @@
       {copyingGroupId}
     />
   {:else}
+    <div class="flex min-w-0 flex-col gap-4">
+    {#if filteredGroups.length > 0}
+      <SelectionToolbar
+        count={selectedGroups.length}
+        total={filteredGroups.length}
+        countText={$t("exercises.bulk.selection", { count: selectedGroups.length })}
+        selectAllLabel={$t("common.bulk.selectAll")}
+        onSelectAll={(on) => (on ? selection.set(filteredGroups.map((g) => g.groupId)) : selection.clear())}
+        reason={sharingAvailable ? "" : $t("exercises.bulk.noSharing")}
+      >
+        {#snippet actions()}
+          <Button size="sm" variant="outlined" icon={actionIcons.edit} disabled={!selectedGroups.length} onClick={() => bulkFlow?.open("edit", selectedGroups)}>{$t("common.edit")}</Button>
+          <Button size="sm" variant="outlined" icon={actionIcons.export} disabled={!selectedGroups.length} onClick={() => (exportTarget = { groups: selectedGroups, library: false })}>{$t("exercises.bulk.exportAction")}</Button>
+          <Button size="sm" variant="outlined" icon={faShareNodes} disabled={!selectedGroups.length || !sharingAvailable} onClick={() => bulkFlow?.open("share", selectedGroups)}>{$t("exercises.bulk.share")}</Button>
+          <Button size="sm" variant="outlined" icon={faEyeSlash} disabled={!selectedGroups.length || !sharingAvailable} onClick={() => bulkFlow?.open("unshare", selectedGroups)}>{$t("exercises.bulk.unshare")}</Button>
+          <Button size="sm" variant="outlined" severity="danger" icon={actionIcons.delete} disabled={!selectedGroups.length} onClick={() => bulkFlow?.open("delete", selectedGroups)}>{$t("common.delete")}</Button>
+        {/snippet}
+      </SelectionToolbar>
+    {/if}
     <ExerciseGroupList
       isLoading={isLoading && exercises.length === 0}
+      isSelected={(id) => selection.has(id)}
+      onSelect={(id, on) => selection.toggle(id, on)}
       {filteredGroups}
       expandedGroups={$expandedGroups}
       onToggleGroup={expandedGroups.toggle}
@@ -849,6 +883,7 @@
       onDuplicate={handleDuplicate}
       {duplicatingGroupId}
     />
+    </div>
   {/if}
   </FilterLayout>
 </PageShell>
@@ -940,6 +975,14 @@
 />
 
 <GroupEditFlow bind:this={groupEditFlow} onSaved={loadExercises} />
+<BulkGroupFlow
+  bind:this={bulkFlow}
+  onSaved={async () => {
+    selection.clear();
+    await loadExercises();
+  }}
+  onNotice={(message) => (sharingNotice = message)}
+/>
 
 <RegroupFlow bind:this={regroupFlow} groups={allGroups} onSaved={loadExercises} />
 

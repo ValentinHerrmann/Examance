@@ -27,7 +27,10 @@
     isLoading?: boolean;
     expandedExams?: { [examId: string]: boolean };
     onToggleExam: (examId: string) => void;
-    onDelete: (id: string, title?: string) => void;
+    onDelete: (exam: ExamRecord) => void;
+    /** List selection (issue #261); without `onSelect` the cards have no checkbox. */
+    isSelected?: (examId: string) => boolean;
+    onSelect?: (examId: string, on: boolean) => void;
     onPreview: (exam: ExamRecord) => void;
     onExport: (exam: ExamRecord) => void;
     onDuplicate: (exam: ExamRecord) => void;
@@ -48,6 +51,8 @@
     expandedExams = {},
     onToggleExam,
     onDelete,
+    isSelected = () => false,
+    onSelect,
     onPreview,
     onExport,
     onDuplicate,
@@ -87,6 +92,8 @@
         title={exam.title || $t("dashboard.examList.untitledExam")}
         expanded={isExpanded}
         onToggle={() => onToggleExam(exam.id)}
+        selected={isSelected(exam.id)}
+        onSelect={onSelect ? (on) => onSelect(exam.id, on) : undefined}
       >
         {#snippet badges()}
           <ExamSummary {exam} {stats} part="badges" />
@@ -125,7 +132,7 @@
               <MenuItem icon={actionIcons.duplicate} disabled={!!duplicatingId} onSelect={() => { close(); onDuplicate(exam); }}>
                 {duplicatingId === exam.id ? $t("dashboard.examList.duplicating") : $t("common.duplicate")}
               </MenuItem>
-              <MenuItem icon={actionIcons.delete} danger onSelect={() => { close(); onDelete(exam.id, exam.title); }}>{$t("common.delete")}</MenuItem>
+              <MenuItem icon={actionIcons.delete} danger onSelect={() => { close(); onDelete(exam); }}>{$t("common.delete")}</MenuItem>
             {/snippet}
           </Menu>
         {/snippet}

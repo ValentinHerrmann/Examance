@@ -47,7 +47,7 @@
   let confirming: "exam" | "submissions" | null = $state(null);
   let busy = $state(false);
   let keepStatistics = $state(true);
-  let statisticsRecordId: string | null = $state(null);
+  let statisticsRecordIds: string[] = $state([]);
   let isDuplicating = $state(false);
 
   let loadSeq = 0;
@@ -105,7 +105,7 @@
     actionError = "";
     try {
       // The record outlives the exam unless the teacher unticks it (issue #238).
-      if (statisticsRecordId) await statisticsRepository.setKeep(statisticsRecordId, keepStatistics);
+      for (const id of statisticsRecordIds) await statisticsRepository.setKeep(id, keepStatistics);
       // One cascade, shared with the dashboard and the repository, so no owned table is missed.
       await examRepository.delete(exam.id);
       window.location.href = "/";
@@ -237,7 +237,7 @@
 </PageShell>
 
 {#if exportOpen}
-  <ExamExportModal {examId} examTitle={exam?.title ?? ""} onClose={() => (exportOpen = false)} />
+  <ExamExportModal exams={[{ id: examId, title: exam?.title ?? "" }]} onClose={() => (exportOpen = false)} />
 {/if}
 
 
@@ -253,7 +253,7 @@
   onConfirm={deleteExam}
   onCancel={() => (confirming = null)}
 >
-  <KeepStatisticsOption examId={confirming === "exam" ? (exam?.id ?? null) : null} bind:keep={keepStatistics} bind:recordId={statisticsRecordId} />
+  <KeepStatisticsOption examIds={confirming === "exam" && exam?.id ? [exam.id] : []} bind:keep={keepStatistics} bind:recordIds={statisticsRecordIds} />
 </ConfirmDialog>
 
 <ConfirmDialog

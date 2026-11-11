@@ -85,6 +85,29 @@ export async function runExamExport(
   return { zip, fileName: `${examSlug}_${exportDateStamp()}.zip`, warnings };
 }
 
+/** One exam as `runExamExport`; several as one ZIP with a folder per exam, warnings prefixed with the exam title (issue #261). */
+export async function runExamsExport(
+  exams: readonly { id: string; title: string }[],
+  selected: Set<string>,
+  progress: ExportProgress
+): Promise<ExportResult> {
+  if (exams.length === 1) return runExamExport(exams[0].id, selected, progress);
+  const zip = new ZipBuilder();
+  const warnings: string[] = [];
+  for (const [i, exam] of exams.entries()) {
+    const title = exam.title || translate('dashboard.examList.untitledExam');
+    const step: ExportProgress = (s, done, total) => progress(translate('export.exam.steps.ofMany', { n: i + 1, total: exams.length, step: s }), done, total);
+    try {
+      const res = await runExamExport(exam.id, selected, step); // NOSONAR: one exam at a time keeps memory bounded
+      zip.merge(slug(title, 'exam'), res.zip);
+      warnings.push(...res.warnings.map((w) => `${title}: ${w}`));
+    } catch (err) {
+      warnings.push(`${title}: ${errorText(err)}`);
+    }
+  }
+  return { zip, fileName: `exams_${exportDateStamp()}.zip`, warnings };
+}
+
 /** The parts built from the results: grades CSV, summary and the graded scans (one render pass feeds both the single files and the combined print file). */
 async function addResultParts(o: {
   zip: ZipBuilder;

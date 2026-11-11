@@ -16,7 +16,7 @@ Whatever you delete in Examance by mistake can come back for **7 days**. Open **
 - Your own logo and an exam's own logo when you remove them.
 - Proposals for a shared exercise that you reject or withdraw.
 
-Everything you delete in one go (for example a student together with their scans) shows up as one entry and is restored or removed together.
+Everything you delete in one go (for example a student together with their scans, or several exams selected in the exam list) shows up as one entry and is restored or removed together.
 
 Trash entries stay as protected as the original: names, scans and corrections remain encrypted, and so does the trash copy.
 

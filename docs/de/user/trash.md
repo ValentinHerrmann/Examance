@@ -16,7 +16,7 @@ Was Sie in Examance versehentlich löschen, lässt sich **7 Tage lang** zurückh
 - Ihr eigenes Logo und das eigene Logo einer Prüfung, wenn Sie es entfernen.
 - Vorschläge zu einer geteilten Aufgabe, die Sie ablehnen oder zurückziehen.
 
-Was Sie in einem Schritt löschen (zum Beispiel eine Schülerin samt ihren Scans), erscheint als ein Eintrag und wird gemeinsam wiederhergestellt oder entfernt.
+Was Sie in einem Schritt löschen (zum Beispiel eine Schülerin samt ihren Scans oder mehrere in der Prüfungsliste ausgewählte Prüfungen), erscheint als ein Eintrag und wird gemeinsam wiederhergestellt oder entfernt.
 
 Einträge im Papierkorb sind so geschützt wie das Original: Namen, Scans und Korrekturen bleiben verschlüsselt, auch in der Kopie im Papierkorb.
 

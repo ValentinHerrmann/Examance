@@ -65,6 +65,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.gettingStarted.s2.h", bodyKeys: [], bulletKeys: ["help.topics.gettingStarted.s2.l1", "help.topics.gettingStarted.s2.l2", "help.topics.gettingStarted.s2.l3", "help.topics.gettingStarted.s2.l4", "help.topics.gettingStarted.s2.l5"], docs: "workflow" },
       { headingKey: "help.topics.gettingStarted.s3.h", bodyKeys: ["help.topics.gettingStarted.s3.p1", "help.topics.gettingStarted.s3.p2"], docs: "#help-and-docs" },
       { headingKey: "help.topics.gettingStarted.s4.h", bodyKeys: ["help.topics.gettingStarted.s4.p1"], docs: "backup" },
+      { headingKey: "help.topics.gettingStarted.s5.h", bodyKeys: ["help.topics.gettingStarted.s5.p1"], docs: "exams#bulk" },
     ],
   },
   {
@@ -89,6 +90,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     docs: "exercises",
     sections: [
       { headingKey: "help.topics.exercises.s1.h", bodyKeys: ["help.topics.exercises.s1.p1"], docs: "exercises#library" },
+      { headingKey: "help.topics.exercises.bulk.h", bodyKeys: ["help.topics.exercises.bulk.p1"], docs: "exercises#bulk" },
       { headingKey: "help.topics.exercises.s2.h", bodyKeys: ["help.topics.exercises.s2.p1"], docs: "exercises#editor" },
       { headingKey: "help.topics.exercises.s3.h", bodyKeys: ["help.topics.exercises.s3.p1", "help.topics.exercises.s3.p2"], docs: "exercises#score" },
       { headingKey: "help.topics.exercises.s4.h", bodyKeys: ["help.topics.exercises.s4.p1"], docs: "exercises#variants" },

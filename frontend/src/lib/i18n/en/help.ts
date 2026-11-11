@@ -64,6 +64,10 @@ export const help: Translations['help'] = {
                 h: 'Back up your workspace and share results',
                 p1: '“Back up or share workspace” in the workspace menu creates a password-protected .examance archive with all exams, exercises and results; “Export” on an exam backs up just that exam. In hybrid mode this is your main backup. “Without exercise texts (to share results)” passes results on without handing over your exercises.',
             },
+            s5: {
+                h: 'Several exams at once',
+                p1: 'Tick exams in the list (or all shown ones in the toolbar above it) to change details such as topic, subject or date for all of them, add LaTeX packages, export or delete them together. Before applying, the dialog shows every change per exam.',
+            },
         },
         storageModes: {
             title: 'Storage & encryption',
@@ -97,6 +101,10 @@ export const help: Translations['help'] = {
             s1: {
                 h: 'Collect instead of copy',
                 p1: 'Exercises live in your library, tagged by grade, subject and topic. The filters at the top narrow it down, “Sort by” orders it. An expanded entry shows which exams use the exercise; “Preview” shows the last compiled PDF.',
+            },
+            bulk: {
+                h: 'Several groups at once',
+                p1: 'Tick exercise groups to change topic, grade and subject for all of them, export, share or delete them. Groups an exam uses are kept when deleting.',
             },
             s2: {
                 h: 'The editor',

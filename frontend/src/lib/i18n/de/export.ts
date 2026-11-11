@@ -49,7 +49,9 @@ export const exportNs = {
             csvHint: 'Excel-kompatible Notenliste.',
             withheld: 'Nicht verfügbar: Die Aufgaben wurden ohne Code importiert (nur Ergebnisse).',
         },
+        manyHint: '{count} Prüfungen werden zusammen exportiert: Die ZIP-Datei enthält einen Ordner pro Prüfung. Zum erneuten Importieren mehrerer Prüfungen wählen Sie das passwortgeschützte Backup.',
         steps: {
+            ofMany: 'Prüfung {n} von {total}: {step}',
             loading: 'Prüfung wird geladen …',
             results: 'Ergebnisse werden geladen …',
             latex: 'LaTeX-Quelltext wird gepackt …',

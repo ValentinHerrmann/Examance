@@ -48,6 +48,11 @@ export class ZipBuilder {
     return unique;
   }
 
+  /** Adds every file of `other` under the folder `prefix` (several exams in one export, issue #261). */
+  merge(prefix: string, other: ZipBuilder): void {
+    for (const [path, data] of other.files) this.add(`${prefix}/${path}`, data);
+  }
+
   toBytes(): Uint8Array {
     const tree: Zippable = {};
     for (const [path, data] of this.files) tree[path] = [data, { level: STORED.test(path) ? 0 : 6 }];

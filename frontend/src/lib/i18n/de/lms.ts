@@ -23,7 +23,6 @@ export const lms = {
         colName: 'Name',
         colNumber: 'Schülernummer',
         toolbarHint: 'Zeilen ankreuzen, um sie zu bearbeiten, zusammenzuführen oder zu löschen.',
-        needOne: 'Mindestens eine Zeile auswählen.',
         colEmail: 'E-Mail',
         fromList: 'aus Klassenliste',
         sticker: 'QR-Aufkleber',

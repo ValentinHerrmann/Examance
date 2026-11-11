@@ -185,6 +185,15 @@ As soon as you download the task sheet or the personalised copies, or tick them 
 
 After the exam, continue with [Scanning and assignment](./scanning).
 
+## Several exams at once {#bulk}
+
+Every card in the exam list has a checkbox. Tick the exams you want, or tick the box in the toolbar above the list to select every exam the filters show. Changing a filter drops exams that are no longer shown from the selection, so an action never reaches an exam you cannot see. The toolbar buttons are greyed out until something is selected, with the reason below them.
+
+- **Edit** sets details on all selected exams at once: test type, number, subject, grade, class, printed class, topic, date, teacher and info text. A field shows the value the exams share, or "Various values" when they differ; only fields you change are applied, and **Clear everywhere** empties a field on all of them. Changed fields are highlighted, and before you apply, the dialog lists for every exam what changes from the old to the new value. A generated title follows the new details; a title you typed yourself stays.
+- **Add LaTeX packages** (in the same dialog) adds packages to each selected exam's own packages; a package of the same name is replaced, the others stay. An exam whose list would become invalid (for example too many packages) is listed as skipped.
+- **Export** downloads the selected exams as one readable ZIP with a folder per exam, or as one password-protected backup. Only the backup can be imported again as several exams.
+- **Delete** moves the selected exams to the trash as one entry (see [Trash](./trash)). The dialog lists the exams that contain submissions, and one **keep in my statistics** choice applies to all of them.
+
 ## Duplicate an exam {#duplicate}
 
 **Duplicate** (in the exam list and in the **⋯** menu of the exam's **Overview**) creates a new exam with the same header, exercises, MC groups, grading key and settings, for example for a parallel class or the next school year. Students, scans and results are never copied; the copy starts without them.
