@@ -44,6 +44,7 @@ def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
         allowed_storage_modes=list(caps.allowed_storage_modes),  # type: ignore[arg-type]
         features=caps.features,
         sharing_paused=teacher.sharing_paused,
+        share_new_exercises=teacher.share_new_exercises,
     )
 
 

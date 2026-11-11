@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { type ExerciseGroup, getGroupRepresentative, groupExercises, groupIsShared } from "#lib/exercise-library/groupExercises";
+  import { type ExerciseGroup, getGroupRepresentative, groupExercises, groupFlags, groupIsShared } from "#lib/exercise-library/groupExercises";
+  import { saveGroupFlags, withGroupFlags, type GroupFlags } from "#lib/exercise-library/saveGroupMetadata";
+  import { sharedFromQuestion } from "#lib/exercise-library/askToShare";
   import { onMount, tick, untrack } from "svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, awaitSessionReady } from "#lib/stores/session";
@@ -101,6 +103,7 @@
   let bulkMode: "bulkShare" | "bulkUnshare" | null = $state(null);
   let isBulkBusy = $state(false);
   let bulkError = $state("");
+  let flagError = $state("");
   let isPauseBusy = $state(false);
   // Proposals back to shared originals.
   let incoming: ContributionSummary[] = $state.raw([]);
@@ -461,6 +464,20 @@
     }
   }
 
+  /** Favorite/archive (issue #252): moved at once, then saved per group; a failure reloads the true state. */
+  async function setGroupFlags(groups: ExerciseGroup[], flags: GroupFlags) {
+    flagError = "";
+    exercises = withGroupFlags(exercises, groups, flags);
+    try {
+      for (const group of groups) await saveGroupFlags(group, flags); // NOSONAR: one PATCH per group
+    } catch {
+      flagError = translate("common.listSections.flagFailed");
+      await loadExercises();
+    }
+  }
+  let allSelectedFavorite = $derived(selectedGroups.length > 0 && selectedGroups.every((g) => groupFlags(g).favorite));
+  let allSelectedArchived = $derived(selectedGroups.length > 0 && selectedGroups.every((g) => groupFlags(g).archived));
+
   async function handleBulkConfirm() {
     if (!bulkMode) return;
     isBulkBusy = true;
@@ -653,10 +670,6 @@
     isEditorOpen = true;
   }
 
-  function handleExerciseSaved(detail: { sharingError: string | null }) {
-    if (detail.sharingError) sharingError = translate("exercises.sharing.editorShareFailed", { message: detail.sharingError });
-    loadExercises();
-  }
 
   async function openDeleteModal(ex: ExerciseRecord) {
     deletingExercise = ex;
@@ -702,6 +715,17 @@
   $effect.pre(() => {
     const key = sortKey;
     untrack(() => saveSort(SORT_STORAGE.exercises, key));
+  });
+
+  // The share question after saving (issue #263) shared a group: reload for its badge. Skips the first run.
+  let seenShares = get(sharedFromQuestion);
+  $effect.pre(() => {
+    const shares = $sharedFromQuestion;
+    untrack(() => {
+      if (shares === seenShares) return;
+      seenShares = shares;
+      void loadExercises();
+    });
   });
 
   // A filter change, another view or a deleted group drops it from the selection, so an action never hits a hidden group.
@@ -750,6 +774,9 @@
   {/if}
   {#if sharingNotice}
     <Alert severity="success" class="mb-6" onDismiss={() => (sharingNotice = "")}>{sharingNotice}</Alert>
+  {/if}
+  {#if flagError}
+    <Alert severity="danger" class="mb-6" onDismiss={() => (flagError = "")}>{flagError}</Alert>
   {/if}
   {#if sharingError}
     <Alert severity="danger" class="mb-6" onDismiss={() => (sharingError = "")}>{sharingError}</Alert>
@@ -847,6 +874,12 @@
         {#snippet actions()}
           <Button size="sm" variant="outlined" icon={actionIcons.edit} disabled={!selectedGroups.length} onClick={() => bulkFlow?.open("edit", selectedGroups)}>{$t("common.edit")}</Button>
           <Button size="sm" variant="outlined" icon={actionIcons.export} disabled={!selectedGroups.length} onClick={() => (exportTarget = { groups: selectedGroups, library: false })}>{$t("exercises.bulk.exportAction")}</Button>
+          <Button size="sm" variant="outlined" icon={actionIcons.favorite} disabled={!selectedGroups.length} onClick={() => setGroupFlags(selectedGroups, { isFavorite: !allSelectedFavorite })}>
+            {allSelectedFavorite ? $t("common.listSections.unfavoriteSelected") : $t("common.listSections.favoriteSelected")}
+          </Button>
+          <Button size="sm" variant="outlined" icon={allSelectedArchived ? actionIcons.unarchive : actionIcons.archive} disabled={!selectedGroups.length} onClick={() => setGroupFlags(selectedGroups, { archived: !allSelectedArchived })}>
+            {allSelectedArchived ? $t("common.listSections.unarchiveSelected") : $t("common.listSections.archiveSelected")}
+          </Button>
           <Button size="sm" variant="outlined" icon={faShareNodes} disabled={!selectedGroups.length || !sharingAvailable} onClick={() => bulkFlow?.open("share", selectedGroups)}>{$t("exercises.bulk.share")}</Button>
           <Button size="sm" variant="outlined" icon={faEyeSlash} disabled={!selectedGroups.length || !sharingAvailable} onClick={() => bulkFlow?.open("unshare", selectedGroups)}>{$t("exercises.bulk.unshare")}</Button>
           <Button size="sm" variant="outlined" severity="danger" icon={actionIcons.delete} disabled={!selectedGroups.length} onClick={() => bulkFlow?.open("delete", selectedGroups)}>{$t("common.delete")}</Button>
@@ -882,6 +915,8 @@
       onExport={(group) => (exportTarget = { groups: [group], library: false })}
       onDuplicate={handleDuplicate}
       {duplicatingGroupId}
+      onFavorite={(group, on) => setGroupFlags([group], { isFavorite: on })}
+      onArchive={(group, on) => setGroupFlags([group], { archived: on })}
     />
     </div>
   {/if}
@@ -969,9 +1004,8 @@
   editingExercise={editingExercise}
   isCreatingVersion={isCreatingVersion}
   versionBaseEx={versionBaseEx}
-  canShare={sharingAvailable}
   onClose={() => (isEditorOpen = false)}
-  onSave={handleExerciseSaved}
+  onSave={loadExercises}
 />
 
 <GroupEditFlow bind:this={groupEditFlow} onSaved={loadExercises} />

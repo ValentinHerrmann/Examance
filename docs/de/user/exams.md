@@ -186,12 +186,23 @@ Sobald Sie die Angabe oder die personalisierten Exemplare herunterladen oder als
 
 Nach der Prüfung geht es weiter mit [Scannen und Zuordnen](./scanning).
 
+## Favoriten, Schuljahre und Archiv {#organise}
+
+Die Prüfungsliste ist in Abschnitte gegliedert, die Sie einklappen können; Ihr Browser merkt sich, welche offen sind.
+
+- **Favoriten**: Prüfungen, die Sie mit dem **Stern** auf ihrer Karte markiert haben. Sie bleiben zusätzlich in ihrem Schuljahr.
+- **Schuljahr** (zum Beispiel *Schuljahr 2026/27*, August bis Juli): Jede Prüfung steht unter ihrem Datum, oder unter dem Tag, an dem sie angelegt wurde, wenn das Datum kein einfaches Datum wie *15.03.2026* ist. Das aktuelle Schuljahr ist offen, frühere sind zunächst eingeklappt.
+- **Archiv**: Prüfungen, die Sie über **Archivieren** im Menü **⋯** der Karte archiviert haben. Es ist zunächst eingeklappt; **Aus dem Archiv holen** holt eine Prüfung zurück.
+
+Favoriten und Archiv dienen nur Ihrer Übersicht: Archivieren löscht nichts und lässt Ergebnisse, Aufbewahrung und Statistik unverändert. Eine duplizierte Prüfung beginnt ohne Stern und außerhalb des Archivs. Filter und Suche gelten in allen Abschnitten.
+
 ## Mehrere Prüfungen auf einmal {#bulk}
 
 Jede Karte in der Prüfungsliste hat ein Kästchen. Haken Sie die gewünschten Prüfungen an, oder haken Sie das Kästchen in der Leiste über der Liste an, um alle Prüfungen auszuwählen, die die Filter zeigen. Ändern Sie einen Filter, fallen nicht mehr angezeigte Prüfungen aus der Auswahl; eine Aktion trifft also nie eine Prüfung, die Sie nicht sehen. Die Schaltflächen der Leiste sind ausgegraut, bis etwas ausgewählt ist, mit dem Grund darunter.
 
 - **Bearbeiten** setzt Angaben für alle ausgewählten Prüfungen auf einmal: Testart, Nummer, Fach, Jahrgangsstufe, Klasse, gedruckte Klasse, Thema, Datum, Lehrkraft und Infotext. Ein Feld zeigt den gemeinsamen Wert oder „Verschiedene Werte“, wenn sie sich unterscheiden; übernommen werden nur Felder, die Sie ändern, und **Überall leeren** leert ein Feld bei allen. Geänderte Felder werden hervorgehoben, und vor dem Übernehmen listet der Dialog für jede Prüfung auf, was sich von welchem alten zu welchem neuen Wert ändert. Ein erzeugter Titel folgt den neuen Angaben; ein selbst eingegebener Titel bleibt.
 - **LaTeX-Pakete hinzufügen** (im selben Dialog) fügt Pakete zu den eigenen Paketen jeder ausgewählten Prüfung hinzu; ein gleichnamiges Paket wird ersetzt, die übrigen bleiben. Eine Prüfung, deren Liste ungültig würde (zum Beispiel zu viele Pakete), wird als ausgelassen aufgeführt.
+- **Favorit** / **Archivieren** markiert alle ausgewählten Prüfungen auf einmal oder hebt die Markierung auf.
 - **Exportieren** lädt die ausgewählten Prüfungen als eine lesbare ZIP-Datei mit einem Ordner pro Prüfung herunter oder als ein passwortgeschütztes Backup. Nur das Backup lässt sich als mehrere Prüfungen wieder importieren.
 - **Löschen** verschiebt die ausgewählten Prüfungen als einen Eintrag in den Papierkorb (siehe [Papierkorb](./trash)). Der Dialog listet die Prüfungen mit Abgaben auf, und eine Wahl **in meiner Statistik behalten** gilt für alle.
 

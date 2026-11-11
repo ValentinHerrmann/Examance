@@ -101,3 +101,10 @@ class SharingPauseUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     paused: bool
+
+
+class ShareDefaultUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Null asks after every save of an unshared exercise, true shares without asking, false never asks.
+    share_new_exercises: bool | None

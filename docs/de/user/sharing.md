@@ -14,8 +14,19 @@ Geteilt werden **nur Aufgaben**. Prüfungen, Schülerdaten und Ergebnisse werden
 
 Sie können auch teilen:
 
-- direkt im Editor mit **Mit allen Konten teilen** (mit derselben Bestätigung wie im Teilen-Dialog);
+- direkt nach dem Speichern: Speichern Sie eine eigene, noch nicht geteilte Aufgabe, fragt Examance **einmal**, ob Sie sie teilen möchten (siehe unten);
 - oder alle auf einmal über das Menü **Teilen** der Bibliothek, über das sich auch alles wieder nicht mehr teilen lässt.
+
+### Die Frage nach dem Speichern {#ask-after-save}
+
+Nach dem Speichern einer neuen Aufgabe oder einer eigenen Aufgabe, die noch nie geteilt und nie erfragt wurde, erscheint eine kurze Frage. Sie erklärt: Die Aufgabe wird für alle Konten sichtbar, andere können sie übernehmen und behalten ihre Kopien, und Ihre E-Mail-Adresse steht bei der Aufgabe.
+
+- **Ja, teilen** braucht dasselbe Häkchen wie der Teilen-Dialog (keine personenbezogenen Daten von Schülerinnen und Schülern, Sie dürfen sie weitergeben).
+- **Nein, nicht teilen** behält die Aufgabe für sich; zu dieser Aufgabe wird nicht mehr gefragt.
+- Schließen Sie die Frage ohne Antwort, wird beim nächsten Speichern erneut gefragt.
+- **Entscheidung merken** überspringt die Frage künftig. Die gemerkte Wahl ändern Sie in den [Einstellungen](./settings#share-default).
+
+Zu Aufgaben, die Sie von anderen übernommen haben, wird nie gefragt.
 
 **Teilen pausieren** blendet alles, was Sie teilen, vorübergehend aus, ohne Ihre Auswahl zu vergessen.
 

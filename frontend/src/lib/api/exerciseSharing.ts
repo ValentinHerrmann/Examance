@@ -132,6 +132,16 @@ export async function setSharingPaused(paused: boolean): Promise<void> {
   await api.put('/exercises/sharing/pause', { paused }, { silentError: true });
 }
 
+/** Remembers the answer to the share question after saving (issue #263): null asks, true always shares, false never. */
+export async function setShareDefault(value: boolean | null): Promise<void> {
+  await api.put('/exercises/sharing/default', { share_new_exercises: value }, { silentError: true });
+}
+
+/** Records that the owner declined the share question for this group, so it is not asked again. */
+export async function markShareAsked(groupId: string): Promise<void> {
+  await api.post(`/exercises/groups/${groupId}/share-asked`, undefined, { silentError: true });
+}
+
 /** Detaches a copied group from its source; the content stays. */
 export async function unlinkSource(groupId: string): Promise<void> {
   await api.delete(`/exercises/groups/${groupId}/source`, { silentError: true });

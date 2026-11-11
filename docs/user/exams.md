@@ -185,12 +185,23 @@ As soon as you download the task sheet or the personalised copies, or tick them 
 
 After the exam, continue with [Scanning and assignment](./scanning).
 
+## Favorites, school years and archive {#organise}
+
+The exam list is split into sections you can fold away; your browser remembers which ones are open.
+
+- **Favorites**: exams you marked with the **star** on their card. They also stay in their school year.
+- **School year** (for example *School year 2026/27*, August to July): every exam is filed under its date, or under the day it was created when the date is not a plain date such as *15.03.2026*. The current school year is open, earlier ones start folded.
+- **Archive**: exams you archived with **Archive** in the **⋯** menu of the card. It starts folded; **Take out of the archive** brings an exam back.
+
+Favorites and the archive are only for your overview: archiving deletes nothing and keeps results, retention and statistics as they are. A duplicated exam starts without star and outside the archive. Filters and search apply to every section.
+
 ## Several exams at once {#bulk}
 
 Every card in the exam list has a checkbox. Tick the exams you want, or tick the box in the toolbar above the list to select every exam the filters show. Changing a filter drops exams that are no longer shown from the selection, so an action never reaches an exam you cannot see. The toolbar buttons are greyed out until something is selected, with the reason below them.
 
 - **Edit** sets details on all selected exams at once: test type, number, subject, grade, class, printed class, topic, date, teacher and info text. A field shows the value the exams share, or "Various values" when they differ; only fields you change are applied, and **Clear everywhere** empties a field on all of them. Changed fields are highlighted, and before you apply, the dialog lists for every exam what changes from the old to the new value. A generated title follows the new details; a title you typed yourself stays.
 - **Add LaTeX packages** (in the same dialog) adds packages to each selected exam's own packages; a package of the same name is replaced, the others stay. An exam whose list would become invalid (for example too many packages) is listed as skipped.
+- **Favorite** / **Archive** mark or unmark all selected exams at once.
 - **Export** downloads the selected exams as one readable ZIP with a folder per exam, or as one password-protected backup. Only the backup can be imported again as several exams.
 - **Delete** moves the selected exams to the trash as one entry (see [Trash](./trash)). The dialog lists the exams that contain submissions, and one **keep in my statistics** choice applies to all of them.
 

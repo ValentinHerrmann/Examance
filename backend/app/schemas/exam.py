@@ -126,6 +126,9 @@ class ExerciseGroupUpdate(BaseModel):
     topic_tag: str | None = Field(default=None, max_length=200)
     grade: str | None = Field(default=None, max_length=50)
     subject: str | None = Field(default=None, max_length=100)
+    # Library flags (issue #252); absent keeps them.
+    is_favorite: bool | None = None
+    archived: bool | None = None
 
 
 class ExerciseGroupResponse(BaseModel):
@@ -138,6 +141,8 @@ class ExerciseGroupResponse(BaseModel):
     created_at: datetime
     # The shared group this one was copied from; resync compares against it (issue #65).
     source_group_id: uuid.UUID | None = None
+    is_favorite: bool = False
+    archived_at: datetime | None = None
 
 
 class ExerciseResponse(BaseModel):
@@ -166,6 +171,10 @@ class ExerciseResponse(BaseModel):
     copied_from_exercise_id: uuid.UUID | None = None
     # The row's group was copied from another account: it can be proposed back, not shared.
     group_copied: bool = False
+    # The row's group flags (issues #252, #263); filled by the library listing.
+    group_favorite: bool = False
+    group_archived_at: datetime | None = None
+    group_share_asked: bool = False
 
     @classmethod
     def from_exercise(cls, ex: Exercise, **computed: Any) -> Self:
@@ -293,6 +302,9 @@ class ExamUpdate(BaseModel):
     extra_notes: ExtraNotes | None = None
     # Absent keeps the stored ticks; null or {} clears them.
     step_checks: dict[str, Any] | None = None
+    # Overview flags (issue #252); absent keeps them.
+    is_favorite: bool | None = None
+    archived: bool | None = None
     exercise_ids: list[uuid.UUID] | None = None
     exercise_links: list[ExerciseLinkCreate] | None = None
     mc_groups: list[ExamMcGroupCreate] | None = None
@@ -337,6 +349,8 @@ class ExamResponse(BaseModel):
     results_qr_box: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
+    is_favorite: bool = False
+    archived_at: datetime | None = None
     pseudonym_version: int = 1
     # Set once retention erased the exam's results; the client then never rebuilds its kept statistics (issue #238).
     results_purged_at: datetime | None = None

@@ -83,6 +83,8 @@ class AuditLog(Base):
             # Result sharing with students (issue #207, migration 0051).
             "RESULT_SHARED",
             "RESULT_SHARE_REVOKED",
+            # The remembered answer to the share question changed (issue #263, migration 0065); "always" is standing consent.
+            "EXERCISE_SHARE_DEFAULT_CHANGED",
             name="audit_action",
         ),
         nullable=False,

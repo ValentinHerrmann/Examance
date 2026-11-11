@@ -303,9 +303,6 @@ export const exercises: Translations['exercises'] = {
         unlinkTitle: 'Unlink from source?',
         unlinkBody: 'Your copy stays as it is. You will no longer be told about changes to the source, and updating is no longer possible.',
         unlinkFailed: 'Unlinking from the source failed.',
-        editorShare: 'Share with all accounts',
-        editorShareNotice: 'On save, the whole exercise group is shared with every account of this installation, together with your email address ({email}). Only share exercises without personal data of pupils, and only what you are allowed to pass on.',
-        editorShareFailed: 'The exercise was saved, but its sharing could not be changed: {message}',
         menu: 'Sharing',
         bulk: {
             shareAll: 'Share all my exercises…',
@@ -334,6 +331,12 @@ export const exercises: Translations['exercises'] = {
             failed: 'Sharing failed.',
             stopTitle: 'Stop sharing?',
             stopBody: 'Others will no longer see the exercise or be able to copy it. Copies already taken stay with their owners.',
+            afterSaveTitle: 'Share this exercise with others?',
+            afterSaveNo: 'No, keep it private',
+            afterSaveYes: 'Yes, share',
+            remember: 'Remember my decision',
+            rememberHint: 'You will not be asked again. You can change this any time in the settings.',
+            afterSaveFailed: 'Your answer could not be saved.',
         },
         resyncModal: {
             title: 'Update exercise',

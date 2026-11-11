@@ -14,8 +14,19 @@ Sharing concerns **exercises only**. Exams, students and results are never share
 
 You can also share:
 
-- right in the editor, with **Share with all accounts** (same confirmation as in the sharing dialog);
+- right after saving: when you save an exercise of your own that is not shared yet, Examance asks **once** whether to share it (see below);
 - or all at once from the **Sharing** menu of the library, which also stops sharing everything.
+
+### The question after saving {#ask-after-save}
+
+After you save a new exercise, or an own exercise that was never shared and never asked about, a short question opens: it explains that the exercise becomes visible to all accounts, that others can copy it and keep their copies, and that your e-mail address is shown next to it.
+
+- **Yes, share** needs the same tick as the sharing dialog (no personal data of pupils, you may pass it on).
+- **No, keep it private** keeps it to yourself; you are not asked again for this exercise.
+- Closing the question without an answer asks again the next time you save it.
+- **Remember my decision** skips the question from then on. You can change the remembered choice in [Settings](./settings#share-default).
+
+Exercises you copied from others are never asked about.
 
 **Pause sharing** hides everything you share for a while without forgetting your choices.
 

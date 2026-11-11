@@ -3578,6 +3578,112 @@
         }
       }
     },
+    "/api/v1/exercises/sharing/default": {
+      "put": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Set Share Default",
+        "description": "Remember the answer to the share question after saving (issue #263). Choosing \"always share\" needs the sharing switch.",
+        "operationId": "set_share_default_api_v1_exercises_sharing_default_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareDefaultUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/groups/{group_id}/share-asked": {
+      "post": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Mark Share Asked",
+        "description": "Record that the owner declined the share question for this group, so it is not asked again (issue #263).",
+        "operationId": "mark_share_asked_api_v1_exercises_groups__group_id__share_asked_post",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/exercises/{exercise_id}/copy": {
       "post": {
         "tags": [
@@ -10348,6 +10454,17 @@
             "type": "boolean",
             "title": "Sharing Paused",
             "default": false
+          },
+          "share_new_exercises": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share New Exercises"
           }
         },
         "type": "object",
@@ -11831,6 +11948,23 @@
             ],
             "title": "Step Checks"
           },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite",
+            "default": false
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
           "pseudonym_version": {
             "type": "integer",
             "title": "Pseudonym Version",
@@ -12323,6 +12457,28 @@
             ],
             "title": "Step Checks"
           },
+          "is_favorite": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Favorite"
+          },
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived"
+          },
           "exercise_ids": {
             "anyOf": [
               {
@@ -12631,6 +12787,23 @@
               }
             ],
             "title": "Source Group Id"
+          },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite",
+            "default": false
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
           }
         },
         "type": "object",
@@ -12691,6 +12864,28 @@
               }
             ],
             "title": "Subject"
+          },
+          "is_favorite": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Favorite"
+          },
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived"
           }
         },
         "type": "object",
@@ -13020,6 +13215,28 @@
           "group_copied": {
             "type": "boolean",
             "title": "Group Copied",
+            "default": false
+          },
+          "group_favorite": {
+            "type": "boolean",
+            "title": "Group Favorite",
+            "default": false
+          },
+          "group_archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Archived At"
+          },
+          "group_share_asked": {
+            "type": "boolean",
+            "title": "Group Share Asked",
             "default": false
           }
         },
@@ -15578,6 +15795,27 @@
           "delivery_status_days"
         ],
         "title": "RetentionPeriods"
+      },
+      "ShareDefaultUpdate": {
+        "properties": {
+          "share_new_exercises": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share New Exercises"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "share_new_exercises"
+        ],
+        "title": "ShareDefaultUpdate"
       },
       "SharedExerciseResponse": {
         "properties": {

@@ -671,6 +671,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (!group) return notFound('Exercise group not found');
     const meta = ['name', 'topic_tag', 'grade', 'subject'].filter((field) => body[field] != null);
     for (const field of meta) group[field] = body[field];
+    // Library flags (issue #252) live on the group; the listing copies them onto its rows.
+    if (body.is_favorite != null) group.is_favorite = body.is_favorite;
+    if (body.archived != null) group.archived_at = body.archived ? (group.archived_at ?? now()) : null;
     for (const exercise of state.exercises.values()) {
       if (exercise.exercise_group_id === id) for (const field of meta) exercise[field] = body[field];
     }
@@ -715,7 +718,16 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       }
       return true;
     });
-    return ok(rows.map(exerciseResponse));
+    return ok(rows.map((ex) => ({ ...exerciseResponse(ex), ...groupFlagsOf(ex.exercise_group_id) })));
+  }
+
+  function groupFlagsOf(groupId: string | null | undefined): Record<string, unknown> {
+    const group = groupId ? state.groups.get(groupId) : undefined;
+    return {
+      group_favorite: group?.is_favorite === true,
+      group_archived_at: group?.archived_at ?? null,
+      group_share_asked: false,
+    };
   }
 
   const resourceMeta = (row: any) => {
@@ -957,7 +969,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
 
   function updateExam(id: string, body: any): FakeResponse {
     const exam = state.exams.get(id)!;
-    const { exercise_links, exercise_ids, exercises: _inline, mc_groups, ...fields } = body ?? {};
+    const { exercise_links, exercise_ids, exercises: _inline, mc_groups, archived, ...fields } = body ?? {};
+    // Overview flags (issue #252): `archived` sets the date once, like the backend.
+    if (archived != null) exam.archived_at = archived ? (exam.archived_at ?? now()) : null;
 
     let groupIds = new Set((state.mcGroups.get(id) ?? []).map((group) => group.id));
     if (mc_groups != null) {

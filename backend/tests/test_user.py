@@ -198,6 +198,7 @@ async def test_account_export_shape(client: AsyncClient, db: AsyncSession) -> No
         "storage_mode",
         "features",
         "sharing_paused",
+        "share_new_exercises",
         "exam_logo",
         "latex_packages",
     }

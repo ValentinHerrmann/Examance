@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
   import SuggestInput from "#lib/components/common/SuggestInput.svelte";
-  import { Badge, Button, Checkbox, TextInput, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Badge, Button, TextInput, controlClass, controlSmClass } from "#lib/components/ui";
   import { faBook, faTag } from "@fortawesome/free-solid-svg-icons";
 
   /** Metadata row of the exercise editor's header. Group fields are read-only once the exercise exists. */
@@ -12,10 +12,8 @@
     subject: string;
     variantKey: string;
     questionType: "free_text" | "mc";
-    shared: boolean;
     /** Editing or versioning an existing exercise: name, topic, grade and subject belong to the group. */
     existing: boolean;
-    shareAllowed: boolean;
     onQuestionTypeChange: (type: "free_text" | "mc") => void;
   }
 
@@ -26,9 +24,7 @@
     subject = $bindable(),
     variantKey = $bindable(),
     questionType,
-    shared = $bindable(),
     existing,
-    shareAllowed,
     onQuestionTypeChange
   }: Props = $props();
 
@@ -93,11 +89,6 @@
           {@render typeButton("mc", $t("exercises.editor.mcButton"))}
         </div>
       </div>
-      {#if shareAllowed}
-        <div class="pb-1.5 text-xs">
-          <Checkbox bind:checked={shared} label={$t("exercises.sharing.editorShare")} />
-        </div>
-      {/if}
     </div>
   </div>
 {/if}

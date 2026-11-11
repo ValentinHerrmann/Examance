@@ -8,7 +8,10 @@
   import { continueStep, examProgress, type ExamProgress } from "#lib/exam/examProgress";
   import type { ExamStats } from "#lib/utils/examStats";
   import { faEye } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Card, EmptyState, ExpandableCard, Menu, MenuItem, actionIcons } from "#lib/components/ui";
+  import { Button, Card, CollapsibleSection, EmptyState, ExpandableCard, Menu, MenuItem, actionIcons } from "#lib/components/ui";
+  import FavoriteToggle from "#lib/components/common/FavoriteToggle.svelte";
+  import { schoolYearLabel, sectionExams, type ListSection } from "#lib/utils/listSections";
+  import { sectionOpenState, setSectionOpen } from "#lib/stores/listSections";
   import ExamSummary from "#lib/components/exam/ExamSummary.svelte";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import type { ExamLogoPreview } from "#lib/latex/logo";
@@ -38,6 +41,9 @@
     onExerciseSaved?: () => void;
     /** The exam currently being duplicated (its button shows a spinner). */
     duplicatingId?: string | null;
+    /** Favorite and archive (issue #252). */
+    onFavorite: (exam: ExamRecord, on: boolean) => void;
+    onArchive: (exam: ExamRecord, on: boolean) => void;
   }
 
   let {
@@ -57,8 +63,19 @@
     onExport,
     onDuplicate,
     onExerciseSaved,
-    duplicatingId = null
+    duplicatingId = null,
+    onFavorite,
+    onArchive,
   }: Props = $props();
+
+  let sections = $derived(sectionExams(exams));
+  const openKey = (section: ListSection<ExamRecord>) => `exams:${section.key}`;
+  const isOpen = (section: ListSection<ExamRecord>) => $sectionOpenState[openKey(section)] ?? section.defaultOpen;
+  function sectionTitle(section: ListSection<ExamRecord>): string {
+    if (section.kind === "year") return $t("common.listSections.schoolYear", { year: schoolYearLabel(section.year!) });
+    if (section.kind === "favorites") return $t("common.listSections.favorites");
+    return section.kind === "archive" ? $t("common.listSections.archive") : $t("common.listSections.all");
+  }
 
   const previewPill = "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
   let editEx = $state.raw<ExerciseRecord | null>(null);
@@ -84,8 +101,18 @@
     <EmptyState title={$t("dashboard.examList.noResults")} />
   </Card>
 {:else}
-  <div class="flex flex-col gap-4">
-    {#each exams as exam (exam.id)}
+  <div class="flex flex-col gap-6">
+    {#each sections as section (section.key)}
+      <CollapsibleSection title={sectionTitle(section)} count={section.items.length} open={isOpen(section)} onToggle={(open) => setSectionOpen(openKey(section), open)}>
+        {#each section.items as exam (exam.id)}
+          {@render card(exam)}
+        {/each}
+      </CollapsibleSection>
+    {/each}
+  </div>
+{/if}
+
+{#snippet card(exam: ExamRecord)}
       {@const stats = examStatsMap.get(exam.id)}
       {@const isExpanded = !!expandedExams[exam.id]}
       <ExpandableCard
@@ -97,6 +124,10 @@
       >
         {#snippet badges()}
           <ExamSummary {exam} {stats} part="badges" />
+        {/snippet}
+
+        {#snippet actions()}
+          <FavoriteToggle favorite={!!exam.isFavorite} onToggle={(on) => onFavorite(exam, on)} />
         {/snippet}
 
         {#snippet preview()}
@@ -132,14 +163,15 @@
               <MenuItem icon={actionIcons.duplicate} disabled={!!duplicatingId} onSelect={() => { close(); onDuplicate(exam); }}>
                 {duplicatingId === exam.id ? $t("dashboard.examList.duplicating") : $t("common.duplicate")}
               </MenuItem>
+              <MenuItem icon={exam.archivedAt ? actionIcons.unarchive : actionIcons.archive} onSelect={() => { close(); onArchive(exam, !exam.archivedAt); }}>
+                {exam.archivedAt ? $t("common.listSections.unarchiveItem") : $t("common.listSections.archiveItem")}
+              </MenuItem>
               <MenuItem icon={actionIcons.delete} danger onSelect={() => { close(); onDelete(exam); }}>{$t("common.delete")}</MenuItem>
             {/snippet}
           </Menu>
         {/snippet}
       </ExpandableCard>
-    {/each}
-  </div>
-{/if}
+{/snippet}
 
 {#if editEx}
   <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => onExerciseSaved?.()} />

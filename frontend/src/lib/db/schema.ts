@@ -97,6 +97,10 @@ export interface ExamRecord extends MaybeUndecryptable {
   extraNotes?: ExtraNotes | null;
   /** Ticks the teacher set by hand on the Print and MC steps (issue #212); written only through `examRepository.saveStepChecks`, never with the rest of the record. */
   stepChecks?: StepChecks;
+  /** Overview-list flags (issue #252); written only through `examRepository.saveFlags`, never with the rest of the record. */
+  isFavorite?: boolean;
+  /** ISO time the exam was archived; absent = not archived. */
+  archivedAt?: string;
   retentionUntil: string;  // ISO date string
   /** Set by the server once retention erased this exam's results; its kept statistics are then never rebuilt (issue #238). */
   resultsPurgedAt?: string;
@@ -139,6 +143,11 @@ export interface ExerciseRecord extends MaybeUndecryptable {
   isShared?: boolean;
   /** The group was copied from another account: it can be proposed back, never shared. */
   groupCopied?: boolean;
+  /** The group's library flags (issue #252), saved only through `saveGroupMetadata`. */
+  groupFavorite?: boolean;
+  groupArchivedAt?: string;
+  /** The owner already answered the share question for this group (issue #263). */
+  groupShareAsked?: boolean;
   /** AES-256-GCM encrypted payload containing title, name, latexBody, options, correctAnswers. */
   payloadCt?: Uint8Array;
   /** 12-byte GCM IV for payloadCt. */

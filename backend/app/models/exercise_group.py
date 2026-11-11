@@ -34,6 +34,11 @@ class ExerciseGroup(Base):
         nullable=False,
         default=lambda: datetime.now(UTC),
     )
+    # Library flags (issue #252); a copy starts without them.
+    is_favorite: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set once the owner answered the share question after a save (issue #263); never asked again.
+    share_asked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     exercises: Mapped[list[Exercise]] = relationship(
         "Exercise", back_populates="group", cascade="all, delete-orphan"

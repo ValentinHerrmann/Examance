@@ -301,9 +301,6 @@ export const exercises = {
         unlinkTitle: 'Von der Quelle lösen?',
         unlinkBody: 'Ihre Kopie bleibt unverändert. Sie erhalten danach keine Hinweise auf Änderungen der Quelle mehr, und das Aktualisieren ist nicht mehr möglich.',
         unlinkFailed: 'Das Lösen von der Quelle ist fehlgeschlagen.',
-        editorShare: 'Mit allen Konten teilen',
-        editorShareNotice: 'Beim Speichern wird die ganze Aufgabengruppe mit allen Konten dieser Installation geteilt, zusammen mit Ihrer E-Mail-Adresse ({email}). Teilen Sie nur Aufgaben ohne personenbezogene Daten von Schülerinnen und Schülern und nur, was Sie weitergeben dürfen.',
-        editorShareFailed: 'Die Aufgabe wurde gespeichert, aber die Freigabe konnte nicht geändert werden: {message}',
         menu: 'Teilen',
         bulk: {
             shareAll: 'Alle meine Aufgaben teilen…',
@@ -332,6 +329,12 @@ export const exercises = {
             failed: 'Das Teilen ist fehlgeschlagen.',
             stopTitle: 'Nicht mehr teilen?',
             stopBody: 'Die Aufgabe ist danach für andere nicht mehr sichtbar und kann nicht mehr übernommen werden. Bereits übernommene Kopien bleiben bei ihren Besitzern.',
+            afterSaveTitle: 'Diese Aufgabe mit anderen teilen?',
+            afterSaveNo: 'Nein, nicht teilen',
+            afterSaveYes: 'Ja, teilen',
+            remember: 'Entscheidung merken',
+            rememberHint: 'Sie werden dann nicht mehr gefragt. Sie können das jederzeit in den Einstellungen ändern.',
+            afterSaveFailed: 'Ihre Antwort konnte nicht gespeichert werden.',
         },
         resyncModal: {
             title: 'Aufgabe aktualisieren',

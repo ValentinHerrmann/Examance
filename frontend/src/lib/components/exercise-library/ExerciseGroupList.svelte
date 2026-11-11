@@ -2,7 +2,10 @@
   import type { ExerciseRecord } from "#lib/db/schema";
   import type { LazyEntry } from "#lib/utils/lazyMap";
   import { usageKey, type ExamUsageEntry } from "#lib/exercise-library/examUsage";
-  import { getGroupRepresentative, groupIsCopy, groupIsShared, variantPoints, type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import { getGroupRepresentative, groupFlags, groupIsCopy, groupIsShared, variantPoints, type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import { sectionByFlags, type ListSection } from "#lib/utils/listSections";
+  import { sectionOpenState, setSectionOpen } from "#lib/stores/listSections";
+  import FavoriteToggle from "#lib/components/common/FavoriteToggle.svelte";
   import type { SyncStatus } from "#lib/api/exerciseSharing";
   import type { PendingForGroup } from "#lib/api/exerciseContributions";
   import { t } from "#lib/i18n";
@@ -22,7 +25,7 @@
     faCodePullRequest,
     faFileZipper
   } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, ExpandableCard, Menu, MenuItem } from "#lib/components/ui";
+  import { Badge, Button, CollapsibleSection, ExpandableCard, Menu, MenuItem, actionIcons } from "#lib/components/ui";
   import ExerciseMetaBadges from "#lib/components/exercise/ExerciseMetaBadges.svelte";
 
   interface CommonProps {
@@ -70,6 +73,9 @@
     /** List selection (issue #261); without `onSelect` the cards have no checkbox. */
     isSelected?: (groupId: string) => boolean;
     onSelect?: (groupId: string, on: boolean) => void;
+    /** Favorite and archive (issue #252). */
+    onFavorite: (group: ExerciseGroup, on: boolean) => void;
+    onArchive: (group: ExerciseGroup, on: boolean) => void;
   }
 
   /** Other accounts' exercises (issue #65): preview and copy only. */
@@ -90,6 +96,14 @@
   let shared = $derived(props.mode === "shared" ? props : null);
   let filteredGroups = $derived(props.filteredGroups ?? []);
   let expandedGroups = $derived(props.expandedGroups ?? {});
+  // Own library only: Favorites (also under All), All, Archive (issue #252); the shared catalog stays one list.
+  let sections = $derived(own ? sectionByFlags(filteredGroups, groupFlags) : null);
+  const openKey = (section: ListSection<ExerciseGroup>) => `exercises:${section.key}`;
+  const isOpen = (section: ListSection<ExerciseGroup>) => $sectionOpenState[openKey(section)] ?? section.defaultOpen;
+  function sectionTitle(section: ListSection<ExerciseGroup>): string {
+    if (section.kind === "favorites") return $t("common.listSections.favorites");
+    return section.kind === "archive" ? $t("common.listSections.archive") : $t("common.listSections.all");
+  }
 
   const variantPillBase =
     "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
@@ -116,6 +130,7 @@
 
 {#snippet ownActions(group: ExerciseGroup, o: OwnProps)}
   {@const pending = o.pendingByGroup?.get(group.groupId)}
+  <FavoriteToggle favorite={groupFlags(group).favorite} onToggle={(on) => o.onFavorite(group, on)} />
   {#if pending && (pending.incoming > 0 || pending.outgoing > 0)}
     <Button variant="outlined" severity="warning" size="sm" icon={faCodePullRequest} onClick={() => o.onOpenProposals(group)}
     >{pending.incoming > 0
@@ -183,6 +198,7 @@
 
 {#snippet ownFooter(group: ExerciseGroup, rep: ExerciseRecord, o: OwnProps)}
   {@const sync = o.syncStatus?.get(group.groupId)}
+  {@const archived = groupFlags(group).archived}
   {@const sharingEnabled = !!o.sharingEnabled}
   <Button
     variant="outlined"
@@ -257,6 +273,8 @@
     <Button variant="text" severity="secondary" size="sm" icon={faLinkSlash} onClick={() => o.onUnlink(group)}
     >{$t("exercises.sharing.unlink")}</Button>
   {/if}
+  <Button variant="text" severity="secondary" size="sm" icon={archived ? actionIcons.unarchive : actionIcons.archive} onClick={() => o.onArchive(group, !archived)}
+  >{archived ? $t("common.listSections.unarchiveItem") : $t("common.listSections.archiveItem")}</Button>
 {/snippet}
 
 {#snippet sharedFooter(group: ExerciseGroup, sp: SharedProps)}
@@ -284,12 +302,31 @@
     </div>
   {/if}
 {:else}
-  <div class="flex flex-col gap-4">
-    {#each filteredGroups as group (group.groupId)}
+  {#if sections}
+    <div class="flex flex-col gap-6">
+      {#each sections as section (section.key)}
+        <CollapsibleSection title={sectionTitle(section)} count={section.items.length} open={isOpen(section)} onToggle={(open) => setSectionOpen(openKey(section), open)}>
+          {#each section.items as group (group.groupId)}
+            <!-- A favorite is listed twice; the scroll anchor stays on the All copy. -->
+            {@render groupCard(group, section.kind !== "favorites")}
+          {/each}
+        </CollapsibleSection>
+      {/each}
+    </div>
+  {:else}
+    <div class="flex flex-col gap-4">
+      {#each filteredGroups as group (group.groupId)}
+        {@render groupCard(group, true)}
+      {/each}
+    </div>
+  {/if}
+{/if}
+
+{#snippet groupCard(group: ExerciseGroup, anchor: boolean)}
       {@const rep = getGroupRepresentative(group)}
       {@const variantCount = group.variants.size}
       {@const isExpanded = !!expandedGroups[group.groupId]}
-      <div id="exercise-group-{group.groupId}" class="scroll-mt-24">
+      <div id={anchor ? `exercise-group-${group.groupId}` : undefined} class="scroll-mt-24">
       <ExpandableCard
         title={group.name || $t("exercises.untitled")}
         expanded={isExpanded}
@@ -382,6 +419,4 @@
         {/snippet}
       </ExpandableCard>
       </div>
-    {/each}
-  </div>
-{/if}
+{/snippet}

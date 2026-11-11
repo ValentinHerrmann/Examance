@@ -75,6 +75,14 @@ Eine einzelne Prüfung kann das Logo auf dem Reiter **Layout** der Prüfung übe
 - Jeder Lauf speichert die verwendeten Werte mit, sodass die Prüfansicht sie vergleichen kann.
 - **Auf Standardwerte zurücksetzen** stellt die mitgelieferten Werte wieder her.
 
+## Neue Aufgaben teilen {#share-default}
+
+*Gespeichert mit Ihrem Konto; nur sichtbar, wenn Ihr Konto teilen darf.* Nach dem Speichern einer eigenen, noch nicht geteilten Aufgabe fragt Examance einmal, ob Sie sie teilen möchten (siehe [Aufgaben teilen](./sharing#ask-after-save)). Hier wählen Sie:
+
+- **Jedes Mal fragen** (Standard): Die Frage erscheint einmal pro Aufgabe.
+- **Immer teilen**: Neue Aufgaben werden ohne Nachfrage geteilt. Dafür bestätigen Sie, dass Ihre Aufgaben keine personenbezogenen Daten von Schülerinnen und Schülern enthalten und Sie sie weitergeben dürfen.
+- **Nie teilen**: Es wird nicht gefragt; teilen können Sie weiterhin in der Bibliothek.
+
 ## MC-Erkennung verbessern (freiwillig) {#donation}
 
 *Wird in diesem Browser gespeichert, standardmäßig aus.* Schalten Sie sie ein, sendet der Browser für jedes Kästchen einer Ankreuzfrage, die Sie **geprüft oder korrigiert** haben, einen kleinen Bildausschnitt an den Server Ihrer Installation: 80 × 48 Pixel, Graustufen, nur das Kästchen und sein Korrekturfeld, kein Fragetext. Dazu kommen Ihre Entscheidung (angekreuzt oder nicht), die ursprüngliche Erkennung und einige Messwerte.
