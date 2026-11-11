@@ -1,8 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
-  import { t } from "#lib/i18n";
-  import Button from "./Button.svelte";
   import Checkbox from "./Checkbox.svelte";
   import Icon from "./Icon.svelte";
 
@@ -17,12 +15,11 @@
     total?: number;
     onSelectAll?: (on: boolean) => void;
     selectAllLabel?: string;
-    onClear: () => void;
     reason?: string;
     actions: Snippet;
   }
 
-  let { count, hint, countText, total = 0, onSelectAll, selectAllLabel = "", onClear, reason = "", actions }: Props = $props();
+  let { count, hint, countText, total = 0, onSelectAll, selectAllLabel = "", reason = "", actions }: Props = $props();
 </script>
 
 <div class="flex flex-col gap-1 rounded-md border border-line p-2 text-sm">
@@ -38,7 +35,6 @@
     {/if}
     <span class="mr-2">{count ? countText : hint}</span>
     {@render actions()}
-    <Button size="sm" variant="text" severity="secondary" disabled={!count} onClick={onClear}>{$t("sharing.share.selectNone")}</Button>
   </div>
   {#if reason && count}
     <p class="m-0 flex items-start gap-1.5 text-muted">

@@ -393,7 +393,6 @@
           countText={$t('dashboard.bulk.selection', { count: selectedExams.length })}
           selectAllLabel={$t('common.bulk.selectAll')}
           onSelectAll={(on) => (on ? selection.set(filteredExams.map((e) => e.id)) : selection.clear())}
-          onClear={() => selection.clear()}
         >
           {#snippet actions()}
             <Button size="sm" variant="outlined" icon={actionIcons.edit} disabled={!selectedExams.length} onClick={() => bulkActions?.open('edit', selectedExams)}>{$t('common.edit')}</Button>

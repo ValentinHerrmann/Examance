@@ -843,7 +843,6 @@
         countText={$t("exercises.bulk.selection", { count: selectedGroups.length })}
         selectAllLabel={$t("common.bulk.selectAll")}
         onSelectAll={(on) => (on ? selection.set(filteredGroups.map((g) => g.groupId)) : selection.clear())}
-        onClear={() => selection.clear()}
         reason={sharingAvailable ? "" : $t("exercises.bulk.noSharing")}
       >
         {#snippet actions()}

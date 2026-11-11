@@ -180,7 +180,6 @@
       count={chosen.length}
       hint={$t("lms.students.toolbarHint")}
       countText={$t("lms.students.selection", { count: chosen.length })}
-      onClear={() => selection.clear()}
       reason={chosen.length !== 2 ? $t("lms.students.merge.needTwo") : ""}
     >
       {#snippet actions()}
