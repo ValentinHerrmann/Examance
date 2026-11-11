@@ -5,36 +5,36 @@
       "label": "Frontend",
       "color": "#FF3E00",
       "files": 610,
-      "lines": 72581,
-      "code": 68287,
-      "comments": 4294
+      "lines": 72954,
+      "code": 68582,
+      "comments": 4372
     },
     {
       "key": "frontend_tests",
       "label": "Frontend tests",
       "color": "#F59E0B",
-      "files": 121,
-      "lines": 12349,
-      "code": 11723,
-      "comments": 626
+      "files": 125,
+      "lines": 12644,
+      "code": 12009,
+      "comments": 635
     },
     {
       "key": "backend",
       "label": "Backend",
       "color": "#009688",
       "files": 243,
-      "lines": 32814,
-      "code": 32070,
-      "comments": 744
+      "lines": 32955,
+      "code": 32208,
+      "comments": 747
     },
     {
       "key": "backend_tests",
       "label": "Backend tests",
       "color": "#6DA13F",
-      "files": 46,
-      "lines": 9032,
-      "code": 8791,
-      "comments": 241
+      "files": 47,
+      "lines": 9082,
+      "code": 8839,
+      "comments": 243
     },
     {
       "key": "docs",
@@ -47,9 +47,9 @@
     }
   ],
   "total": {
-    "files": 1095,
-    "lines": 132682,
-    "code": 120871,
-    "comments": 5905
+    "files": 1100,
+    "lines": 133541,
+    "code": 121638,
+    "comments": 5997
   }
 }
