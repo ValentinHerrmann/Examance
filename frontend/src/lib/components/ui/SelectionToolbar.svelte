@@ -6,7 +6,7 @@
   import Checkbox from "./Checkbox.svelte";
   import Icon from "./Icon.svelte";
 
-  /** The one list-selection toolbar (Students table, exam list, exercise library): always shown, actions that cannot run are greyed out and `reason` says why (works without hover). */
+  /** The one list-selection toolbar (Students table, exam list, exercise library): always shown, actions that cannot run are greyed out; `reason` says why once something is selected (before that, `hint` is the only line). */
   interface Props {
     count: number;
     /** Shown instead of the count while nothing is selected. */
@@ -40,7 +40,7 @@
     {@render actions()}
     <Button size="sm" variant="text" severity="secondary" disabled={!count} onClick={onClear}>{$t("sharing.share.selectNone")}</Button>
   </div>
-  {#if reason}
+  {#if reason && count}
     <p class="m-0 flex items-start gap-1.5 text-muted">
       <Icon icon={faCircleInfo} class="mt-0.5 shrink-0" />{reason}
     </p>

@@ -181,7 +181,7 @@
       hint={$t("lms.students.toolbarHint")}
       countText={$t("lms.students.selection", { count: chosen.length })}
       onClear={() => selection.clear()}
-      reason={chosen.length !== 2 ? (chosen.length ? $t("lms.students.merge.needTwo") : $t("lms.students.needOne")) : ""}
+      reason={chosen.length !== 2 ? $t("lms.students.merge.needTwo") : ""}
     >
       {#snippet actions()}
         <Button size="sm" variant="outlined" icon={faPen} disabled={!chosen.length} onClick={() => (editing = chosen)}>{$t("lms.students.edit.action")}</Button>

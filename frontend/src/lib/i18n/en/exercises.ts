@@ -261,7 +261,6 @@ export const exercises: Translations['exercises'] = {
     bulk: {
         toolbarHint: 'Select exercise groups to edit, export, share or delete several at once.',
         selection: '{count} exercise group(s) selected',
-        needOne: 'Select at least one exercise group.',
         noSharing: 'Sharing is not enabled for your account.',
         editTitle: 'Edit {count} exercise group(s)',
         apply: 'Apply to {count} exercise group(s)',

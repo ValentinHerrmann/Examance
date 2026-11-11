@@ -25,7 +25,6 @@ export const lms: Translations['lms'] = {
         colName: 'Name',
         colNumber: 'Student number',
         toolbarHint: 'Tick rows to edit, merge or delete them.',
-        needOne: 'Select at least one row.',
         colEmail: 'E-mail',
         fromList: 'from class list',
         sticker: 'QR sticker',

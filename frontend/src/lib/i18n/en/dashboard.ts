@@ -84,7 +84,6 @@ export const dashboard: Translations['dashboard'] = {
         courseLabel: 'Printed class (empty: grade + class)',
         toolbarHint: 'Select exams to edit, export or delete several at once.',
         selection: '{count} exam(s) selected',
-        needOne: 'Select at least one exam.',
         editTitle: 'Edit {count} exam(s)',
         apply: 'Apply to {count} exam(s)',
         exportAction: 'Export',

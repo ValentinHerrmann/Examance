@@ -844,7 +844,7 @@
         selectAllLabel={$t("common.bulk.selectAll")}
         onSelectAll={(on) => (on ? selection.set(filteredGroups.map((g) => g.groupId)) : selection.clear())}
         onClear={() => selection.clear()}
-        reason={!selectedGroups.length ? $t("exercises.bulk.needOne") : sharingAvailable ? "" : $t("exercises.bulk.noSharing")}
+        reason={sharingAvailable ? "" : $t("exercises.bulk.noSharing")}
       >
         {#snippet actions()}
           <Button size="sm" variant="outlined" icon={actionIcons.edit} disabled={!selectedGroups.length} onClick={() => bulkFlow?.open("edit", selectedGroups)}>{$t("common.edit")}</Button>

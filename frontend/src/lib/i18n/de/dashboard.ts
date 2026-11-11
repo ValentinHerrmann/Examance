@@ -82,7 +82,6 @@ export const dashboard = {
         courseLabel: 'Gedruckte Klasse (leer: Jgst. + Klasse)',
         toolbarHint: 'Prüfungen auswählen, um mehrere auf einmal zu bearbeiten, zu exportieren oder zu löschen.',
         selection: '{count} Prüfung(en) ausgewählt',
-        needOne: 'Wählen Sie mindestens eine Prüfung aus.',
         editTitle: '{count} Prüfung(en) bearbeiten',
         apply: 'Auf {count} Prüfung(en) anwenden',
         exportAction: 'Exportieren',
