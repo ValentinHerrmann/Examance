@@ -67,6 +67,9 @@
     onDuplicate: (group: ExerciseGroup, rep: ExerciseRecord) => void;
     /** Group id of a duplicate in progress. */
     duplicatingGroupId?: string;
+    /** List selection (issue #261); without `onSelect` the cards have no checkbox. */
+    isSelected?: (groupId: string) => boolean;
+    onSelect?: (groupId: string, on: boolean) => void;
   }
 
   /** Other accounts' exercises (issue #65): preview and copy only. */
@@ -291,6 +294,8 @@
         title={group.name || $t("exercises.untitled")}
         expanded={isExpanded}
         onToggle={() => props.onToggleGroup(group.groupId)}
+        selected={own?.isSelected?.(group.groupId) ?? false}
+        onSelect={own?.onSelect ? (on) => own?.onSelect?.(group.groupId, on) : undefined}
       >
         {#snippet badges()}
           {#if group.topicTag}

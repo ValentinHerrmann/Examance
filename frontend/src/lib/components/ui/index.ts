@@ -25,6 +25,7 @@ export { default as Popover } from "./Popover.svelte";
 export { default as Radio } from "./Radio.svelte";
 export { default as SaveStatus } from "./SaveStatus.svelte";
 export { default as Select } from "./Select.svelte";
+export { default as SelectionToolbar } from "./SelectionToolbar.svelte";
 export { default as Spinner } from "./Spinner.svelte";
 export { default as Switch } from "./Switch.svelte";
 export { default as TableScroller } from "./TableScroller.svelte";

@@ -19,6 +19,15 @@ Every exercise is tagged with **grade**, **subject** and **topic**. The filters 
 
 Exercise names are clickable almost everywhere in the app (on the **Exam** step, while grading, in analytics) and open the exercise straight in the editor.
 
+### Several groups at once {#bulk}
+
+Every exercise group in your own library has a checkbox; the box in the toolbar above the list selects every group the filters show (a filter change drops hidden groups from the selection). For the selected groups you can:
+
+- **Edit** topic, grade and subject of all of them; names stay per group. As for exams, a field shows the shared value or "Various values", only changed fields are applied, and the dialog lists every change per group before you apply it. The change applies to every variant and version of a group.
+- **Export** them as one ZIP.
+- **Share** or **Stop sharing** them (greyed out with the reason if sharing is not enabled for your account). Groups you copied from others are never shared as your own.
+- **Delete** them with all variants and versions as one trash entry. Groups that an exam uses are listed and kept; remove them from those exams first.
+
 ## The editor {#editor}
 
 Each exercise is a LaTeX fragment with a live PDF preview next to the source. Name, topic, grade and subject sit in the header of the editor.

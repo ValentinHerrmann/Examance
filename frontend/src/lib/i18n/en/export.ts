@@ -50,7 +50,9 @@ export const exportNs: Translations['export'] = {
             csvHint: 'Excel-compatible grade list.',
             withheld: 'Not available: the exercises were imported without their code (results only).',
         },
+        manyHint: '{count} exams are exported together: the ZIP holds one folder per exam. To import several exams again, choose the password-protected backup.',
         steps: {
+            ofMany: 'Exam {n} of {total}: {step}',
             loading: 'Loading exam …',
             results: 'Loading results …',
             latex: 'Packing LaTeX source …',

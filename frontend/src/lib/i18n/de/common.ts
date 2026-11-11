@@ -60,4 +60,16 @@ export const common = {
         grade: 'Klasse',
         subject: 'Fach',
     },
+    bulk: {
+        dialogHint: 'Gilt für {count} ausgewählte Einträge. Nur geänderte Felder werden übernommen; ein geleertes Feld wird überall gelöscht.',
+        various: 'Verschiedene Werte – bleibt unverändert',
+        variousHint: 'Verschiedene Werte',
+        clearAll: 'Überall leeren',
+        undo: 'Zurücksetzen',
+        fieldChanges: 'ändert {count} von {total}',
+        reviewTitle: 'Änderungen: {count} von {total} Einträgen',
+        reviewEmpty: 'Noch keine Änderung. Geänderte Felder werden hervorgehoben und hier pro Eintrag aufgelistet.',
+        selectAll: 'Alle angezeigten auswählen',
+        failedItems: 'Nicht übernommen bei: {items}',
+    },
 } as const;

@@ -6,6 +6,7 @@
   import type { Snippet } from "svelte";
   import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
   import Icon from "./Icon.svelte";
+  import Checkbox from "./Checkbox.svelte";
 
   /** Collapsible list card (Artemis group card). The title is the real toggle button; a click elsewhere on the header toggles too. Clicks/keys inside `actions` never toggle the card. `preview` shows only while collapsed; `footer` is the dashed action row under `body`. */
   interface Props {
@@ -17,6 +18,9 @@
     preview?: Snippet;
     body?: Snippet;
     footer?: Snippet;
+    /** With `onSelect`, a list-selection checkbox sits before the title (issue #261); its clicks never toggle the card. */
+    selected?: boolean;
+    onSelect?: (on: boolean) => void;
   }
 
   let {
@@ -28,6 +32,8 @@
     preview,
     body,
     footer,
+    selected = false,
+    onSelect,
   }: Props = $props();
 
   const bodyId = `expandable-card-${nextId++}`;
@@ -40,6 +46,11 @@
     role="presentation"
     onclick={onToggle}
   >
+    {#if onSelect}
+      <span class="mt-0.5 shrink-0" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
+        <Checkbox checked={selected} onChange={onSelect} aria-label={title} />
+      </span>
+    {/if}
     <!-- Preview stacks below the title on narrow screens (issue #165). Beside it, the title column keeps its natural width (at most half) and the pills take the rest, else they squeeze the title to one letter. -->
     <div class="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-start md:gap-4">
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3 {showPreview ? 'md:max-w-1/2 md:flex-none' : ''}">

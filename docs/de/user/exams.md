@@ -186,6 +186,15 @@ Sobald Sie die Angabe oder die personalisierten Exemplare herunterladen oder als
 
 Nach der Prüfung geht es weiter mit [Scannen und Zuordnen](./scanning).
 
+## Mehrere Prüfungen auf einmal {#bulk}
+
+Jede Karte in der Prüfungsliste hat ein Kästchen. Haken Sie die gewünschten Prüfungen an, oder haken Sie das Kästchen in der Leiste über der Liste an, um alle Prüfungen auszuwählen, die die Filter zeigen. Ändern Sie einen Filter, fallen nicht mehr angezeigte Prüfungen aus der Auswahl; eine Aktion trifft also nie eine Prüfung, die Sie nicht sehen. Die Schaltflächen der Leiste sind ausgegraut, bis etwas ausgewählt ist, mit dem Grund darunter.
+
+- **Bearbeiten** setzt Angaben für alle ausgewählten Prüfungen auf einmal: Testart, Nummer, Fach, Jahrgangsstufe, Klasse, gedruckte Klasse, Thema, Datum, Lehrkraft und Infotext. Ein Feld zeigt den gemeinsamen Wert oder „Verschiedene Werte“, wenn sie sich unterscheiden; übernommen werden nur Felder, die Sie ändern, und **Überall leeren** leert ein Feld bei allen. Geänderte Felder werden hervorgehoben, und vor dem Übernehmen listet der Dialog für jede Prüfung auf, was sich von welchem alten zu welchem neuen Wert ändert. Ein erzeugter Titel folgt den neuen Angaben; ein selbst eingegebener Titel bleibt.
+- **LaTeX-Pakete hinzufügen** (im selben Dialog) fügt Pakete zu den eigenen Paketen jeder ausgewählten Prüfung hinzu; ein gleichnamiges Paket wird ersetzt, die übrigen bleiben. Eine Prüfung, deren Liste ungültig würde (zum Beispiel zu viele Pakete), wird als ausgelassen aufgeführt.
+- **Exportieren** lädt die ausgewählten Prüfungen als eine lesbare ZIP-Datei mit einem Ordner pro Prüfung herunter oder als ein passwortgeschütztes Backup. Nur das Backup lässt sich als mehrere Prüfungen wieder importieren.
+- **Löschen** verschiebt die ausgewählten Prüfungen als einen Eintrag in den Papierkorb (siehe [Papierkorb](./trash)). Der Dialog listet die Prüfungen mit Abgaben auf, und eine Wahl **in meiner Statistik behalten** gilt für alle.
+
 ## Eine Prüfung duplizieren {#duplicate}
 
 **Duplizieren** (in der Prüfungsliste und im Menü **⋯** der **Übersicht** der Prüfung) legt eine neue Prüfung mit denselben Kopfdaten, Aufgaben, MC-Gruppen, demselben Notenschlüssel und denselben Einstellungen an, zum Beispiel für eine Parallelklasse oder das nächste Schuljahr. Schülerdaten, Scans und Ergebnisse werden nie mitkopiert; die Kopie beginnt ohne sie.

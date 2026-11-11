@@ -2,11 +2,12 @@
   import { t } from "#lib/i18n";
   import { Alert, Button, Checkbox, Modal } from "#lib/components/ui";
 
-  /** Share one exercise group or all of them with every account, or stop sharing (issue #65). */
+  /** Share one exercise group, the selected ones (issue #261) or all of them with every account, or stop sharing (issue #65). */
   interface Props {
     open?: boolean;
-    /** `single` acts on one group (`shared` = its current state); the bulk modes on every own group. */
-    mode?: "single" | "bulkShare" | "bulkUnshare";
+    /** `single` acts on one group and `selected` on the groups in `names` (`shared` = stop sharing them); the bulk modes on every own group. */
+    mode?: "single" | "selected" | "bulkShare" | "bulkUnshare";
+    names?: string[];
     /** The group is shared now: the dialog offers to stop. */
     shared?: boolean;
     /** The account's address, shown to every other account while shared. */
@@ -18,19 +19,23 @@
     onClose: () => void;
   }
 
-  let { open = false, mode = "single", shared = false, email = "", name = "", busy = false, error = "", onConfirm, onClose }: Props = $props();
+  let { open = false, mode = "single", shared = false, email = "", name = "", names = [], busy = false, error = "", onConfirm, onClose }: Props = $props();
 
   let confirmed = $state(false);
-  let stopping = $derived(mode === "bulkUnshare" || (mode === "single" && shared));
+  let stopping = $derived(mode === "bulkUnshare" || (mode !== "bulkShare" && shared));
 
   let title = $derived(
     mode === "bulkShare"
       ? $t("exercises.sharing.bulk.shareTitle")
       : mode === "bulkUnshare"
         ? $t("exercises.sharing.bulk.unshareTitle")
-        : stopping
-          ? $t("exercises.sharing.shareModal.stopTitle")
-          : $t("exercises.sharing.shareModal.title"),
+        : mode === "selected"
+          ? stopping
+            ? $t("exercises.bulk.unshareTitle", { count: names.length })
+            : $t("exercises.bulk.shareTitle", { count: names.length })
+          : stopping
+            ? $t("exercises.sharing.shareModal.stopTitle")
+            : $t("exercises.sharing.shareModal.title"),
   );
 
   $effect.pre(() => {
@@ -41,6 +46,10 @@
 <Modal {open} size="medium" {title} {onClose} {error}>
   {#if mode === "single"}
     <p class="m-0 mb-3 font-semibold text-content">{name || $t("exercises.untitled")}</p>
+  {:else if mode === "selected"}
+    <ul class="m-0 mb-3 max-h-40 overflow-y-auto pl-5 font-semibold text-content">
+      {#each names as n, i (i)}<li>{n || $t("exercises.untitled")}</li>{/each}
+    </ul>
   {/if}
   {#if stopping}
     <p class="m-0 text-content">
