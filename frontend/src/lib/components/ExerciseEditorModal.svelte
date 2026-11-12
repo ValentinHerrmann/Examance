@@ -3,10 +3,10 @@
   import { get } from "svelte/store";
   import type { ExerciseRecord } from "#lib/db/schema";
   import { sessionStore, isAuthenticated } from "#lib/stores/session";
-  import { effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
-  import { setExerciseSharing } from "#lib/api/exerciseSharing";
+  import { effectiveLatexStore } from "#lib/stores/capabilities";
+  import { askToShare } from "#lib/exercise-library/askToShare";
   import { saveExerciseEncrypted, loadExercisesEncrypted } from "#lib/db/dbEncryption";
-  import { api, apiErrorMessage } from "#lib/api/client";
+  import { api } from "#lib/api/client";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { parseMcOptions, buildMcOptionsLatex, MC_MIN_OPTIONS, type McOption } from "#lib/latex/mcOptions";
   import { getLatestForSlot } from "#lib/latex/compileCache";
@@ -30,7 +30,7 @@
   import { t, translate } from "#lib/i18n";
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { exerciseReportFiles } from "#lib/layout-report/collect";
-  import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal } from "#lib/components/ui";
+  import { ConfirmDialog, Alert, Badge, Button, Icon, Modal } from "#lib/components/ui";
   import { faChevronDown, faChevronLeft, faChevronRight, faCode, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
 
   interface Props {
@@ -38,11 +38,8 @@
     editingExercise?: ExerciseRecord | null;
     isCreatingVersion?: boolean;
     versionBaseEx?: ExerciseRecord | null;
-    /** Offer the share checkbox (the library page only, when the account may share). */
-    canShare?: boolean;
     onClose?: () => void;
-    /** `sharingError`: the exercise was saved, but changing its share state failed with this message. */
-    onSave?: (detail: { exercise: ExerciseRecord; isNewVersion: boolean; sharingError: string | null }) => void;
+    onSave?: (detail: { exercise: ExerciseRecord; isNewVersion: boolean }) => void;
   }
 
   let {
@@ -50,7 +47,6 @@
     editingExercise = null,
     isCreatingVersion = false,
     versionBaseEx = null,
-    canShare = false,
     onClose,
     onSave
   }: Props = $props();
@@ -84,14 +80,7 @@
   let initialQuestionType: "free_text" | "mc" = $state("free_text");
   let initialPenalty = $state(0.5);
 
-  // Sharing (issue #65): applies to the whole group; copies of others' exercises are never shared.
-  let editorShared = $state(false);
-  let initialShared = $state(false);
   let baseRecord = $derived(isCreatingVersion ? versionBaseEx : editingExercise);
-  let shareAllowed = $derived(canShare && $featuresStore.exercise_sharing === true && $isAuthenticated && !baseRecord?.groupCopied);
-  /** Same consent as the share dialog; saving a newly shared exercise waits for it. */
-  let shareConfirmed = $state(false);
-  let needsShareConsent = $derived(shareAllowed && editorShared && !initialShared);
 
   // Fresh staging id for resource files: lets upload/preview work before the exercise exists. Committed onto the real exercise on save; closing without saving discards the staged set.
   let resourceStagingId = $state("");
@@ -201,9 +190,6 @@
     initialLatexBody = editorLatexBody;
     initialQuestionType = editorQuestionType;
     initialPenalty = editorPenalty;
-    editorShared = !!source?.isShared;
-    initialShared = editorShared;
-    shareConfirmed = false;
     // Seed the staging area from whichever exercise is being edited or versioned; a new version therefore starts with the base version's figures without ever writing back to it.
     const stagingId = crypto.randomUUID();
     resourceStagingId = stagingId;
@@ -317,20 +303,8 @@
     editorVariantKey !== initialVariantKey ||
     editorLatexBody !== initialLatexBody ||
     editorQuestionType !== initialQuestionType ||
-    (isMc && editorPenalty !== initialPenalty) ||
-    editorShared !== initialShared
+    (isMc && editorPenalty !== initialPenalty)
   );
-
-  /** Applies a changed share state after the save; online only. @returns the error message, or null. */
-  async function applySharing(exerciseId: string): Promise<string | null> {
-    if (!shareAllowed || editorShared === initialShared) return null;
-    try {
-      await setExerciseSharing(exerciseId, editorShared);
-      return null;
-    } catch (err) {
-      return apiErrorMessage(err, translate("exercises.sharing.shareModal.failed"));
-    }
-  }
 
   const dirtyClose = createDirtyClose({
     isDirty: () => isDirty,
@@ -397,7 +371,6 @@
       errorMsg = translate("exam.resultsOnly.noEdit");
       return;
     }
-    if (needsShareConsent && !shareConfirmed) return;
     if (!editorName.trim()) {
       errorMsg = translate("exercises.editor.nameRequired");
       return;
@@ -492,8 +465,9 @@
 
         // A new version is a new exercise row; the staged set (the base version's files plus anything added here) becomes its file set.
         await commitStagedResources(savedEx.id, key);
-        const sharingError = await applySharing(savedEx.id);
-        onSave?.({ exercise: savedEx, isNewVersion: true, sharingError });
+        onSave?.({ exercise: savedEx, isNewVersion: true });
+        // After the editor's own save, so the question never holds it up (issue #263).
+        void askToShare(savedEx.id);
         dirtyClose.force();
         return;
       }
@@ -562,8 +536,8 @@
       }
 
       await commitStagedResources(record.id, key);
-      const sharingError = await applySharing(record.id);
-      onSave?.({ exercise: record, isNewVersion: false, sharingError });
+      onSave?.({ exercise: record, isNewVersion: false });
+      void askToShare(record.id);
       dirtyClose.force();
     } catch (err) {
       errorMsg = translate("exercises.editor.saveFailed", { message: err instanceof Error ? err.message : String(err) });
@@ -647,10 +621,8 @@
             bind:grade={editorGrade}
             bind:subject={editorSubject}
             bind:variantKey={editorVariantKey}
-            bind:shared={editorShared}
             questionType={editorQuestionType}
             existing={!!(editingExercise || isCreatingVersion)}
-            {shareAllowed}
             onQuestionTypeChange={handleQuestionTypeChange}
           />
         </div>
@@ -658,14 +630,6 @@
     {/snippet}
 
     <div class="flex w-full flex-col border-t border-line @3xl:h-full @3xl:max-h-full @3xl:overflow-hidden">
-      {#if needsShareConsent}
-        <Alert severity="warning" class="mx-4 mt-3 shrink-0">
-          <p class="m-0 mb-2">{$t("exercises.sharing.editorShareNotice", { email: $sessionStore.email ?? "" })}</p>
-          <p class="m-0 mb-2">{$t("exercises.sharing.shareModal.email", { email: $sessionStore.email ?? "" })}</p>
-          <Checkbox bind:checked={shareConfirmed} label={$t("exercises.sharing.shareModal.confirm")} />
-        </Alert>
-      {/if}
-
       {#if errorMsg}
         <Alert severity="danger" class="mx-4 mt-3 shrink-0">
           <div class="max-h-52 overflow-y-auto whitespace-pre-wrap break-all font-mono">{errorMsg}</div>
@@ -785,7 +749,7 @@
 
     {#snippet footer()}
       <Button variant="outlined" severity="secondary" onClick={dirtyClose.request}>{$t("common.cancel")}</Button>
-      <Button onClick={handleSaveExercise} disabled={isSaving || !!editingExercise?.codeWithheld || (needsShareConsent && !shareConfirmed)}>
+      <Button onClick={handleSaveExercise} disabled={isSaving || !!editingExercise?.codeWithheld}>
         {saveLabel}
       </Button>
     {/snippet}

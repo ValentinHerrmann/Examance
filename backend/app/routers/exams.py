@@ -51,6 +51,7 @@ from app.services.exam_queries import (
 )
 from app.services.latex_score import parse_exercise_score
 from app.services.logo import get_exam_logo
+from app.services.overview_flags import archived_since
 from app.services.pseudonyms import exam_pseudonyms, rekey
 
 router = APIRouter(prefix="/exams", tags=["exams"], dependencies=[Depends(get_teaching_teacher)])
@@ -469,6 +470,10 @@ def _apply_exam_fields(body: ExamUpdate, exam: Exam) -> None:
         exam.step_checks = body.step_checks or None
     if "extra_notes" in body.model_fields_set:
         exam.extra_notes = body.extra_notes.model_dump() if body.extra_notes else None
+    if body.is_favorite is not None:
+        exam.is_favorite = body.is_favorite
+    if body.archived is not None:
+        exam.archived_at = archived_since(exam.archived_at, body.archived)
 
 
 async def _replace_mc_groups(

@@ -98,6 +98,8 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     compilationStatus: raw.compilation_status || raw.compilationStatus || 'pending',
     createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
     ...(raw.results_purged_at ? { resultsPurgedAt: raw.results_purged_at } : {}),
+    isFavorite: (raw.is_favorite ?? raw.isFavorite) === true,
+    ...((raw.archived_at ?? raw.archivedAt) ? { archivedAt: raw.archived_at ?? raw.archivedAt } : {}),
   };
 }
 
@@ -213,6 +215,16 @@ export const examRepository = {
   /** Writes only the hand-set ticks, so a page holding an older copy of the exam can never overwrite them with its save(). */
   async saveStepChecks(examId: string, checks: StepChecks): Promise<void> {
     const payload = { step_checks: checks };
+    try {
+      await api.patch(`/exams/${examId}`, payload, { silentError: true });
+    } catch (err: any) {
+      enqueueOrThrow(err, `/exams/${examId}`, 'PATCH', payload);
+    }
+  },
+
+  /** Writes only the overview flags (issue #252), like `saveStepChecks`; `save()` never sends them. */
+  async saveFlags(examId: string, flags: { isFavorite?: boolean; archived?: boolean }): Promise<void> {
+    const payload = { is_favorite: flags.isFavorite, archived: flags.archived };
     try {
       await api.patch(`/exams/${examId}`, payload, { silentError: true });
     } catch (err: any) {

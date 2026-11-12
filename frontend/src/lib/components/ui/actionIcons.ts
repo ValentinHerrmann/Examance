@@ -1,6 +1,8 @@
 import {
     faArrowRight,
     faArrowUpRightFromSquare,
+    faBoxArchive,
+    faBoxOpen,
     faCopy,
     faDownload,
     faEllipsisVertical,
@@ -12,6 +14,7 @@ import {
     faQrcode,
     faRotate,
     faShareFromSquare,
+    faStar,
     faTrash,
     faXmark,
 } from '@fortawesome/free-solid-svg-icons';
@@ -33,4 +36,7 @@ export const actionIcons = {
     more: faEllipsisVertical,
     next: faArrowRight,
     compile: faRotate,
+    favorite: faStar,
+    archive: faBoxArchive,
+    unarchive: faBoxOpen,
 } as const;

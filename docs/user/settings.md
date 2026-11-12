@@ -75,6 +75,14 @@ A single exam can override the logo on the exam's **Layout** tab, see [Logo and 
 - Every run records the values it used, so the verification view can compare them.
 - **Reset to defaults** restores the built-in values.
 
+## Sharing new exercises {#share-default}
+
+*Stored with your account; shown only if your account may share.* After you save an own exercise that is not shared yet, Examance asks once whether to share it (see [Sharing exercises](./sharing#ask-after-save)). Here you choose:
+
+- **Ask every time** (default): the question appears once per exercise.
+- **Always share**: new exercises are shared without asking. Choosing it needs the confirmation that your exercises contain no personal data of pupils and that you may pass them on.
+- **Never share**: you are not asked; you can still share from the library.
+
 ## Help improve MC detection (optional) {#donation}
 
 *Stored in this browser, off by default.* When you switch it on, the browser sends a small crop for every box of a tick-box question you **verified or corrected**: 80 × 48 pixels, grayscale, only the box and its correction field, no question text. Along with it go your decision (ticked or not), the original detection and a few measurements, to the server of your installation.

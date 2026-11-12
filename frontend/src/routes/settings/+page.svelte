@@ -19,6 +19,7 @@
   import OmrDetectionSettingsCard from "#lib/components/settings/OmrDetectionSettingsCard.svelte";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import OmrDonationCard from "#lib/components/settings/OmrDonationCard.svelte";
+  import ShareDefaultCard from "#lib/components/settings/ShareDefaultCard.svelte";
   import AccountLogoCard from "#lib/components/logo/AccountLogoCard.svelte";
   import AccountPackagesCard from "#lib/components/latex-packages/AccountPackagesCard.svelte";
   import { trainingDonationStore } from "#lib/stores/trainingDonation";
@@ -152,6 +153,7 @@
       { id: "logo", label: $t("logo.account.heading") },
       { id: "latex-packages", label: $t("latexPackages.account.heading") },
       { id: "storage-policy", label: $t("settings.storage.heading") },
+      ...($featuresStore.exercise_sharing === true ? [{ id: "share-default", label: $t("settings.shareDefault.heading") }] : []),
       ...(donationAvailable || $trainingDonationStore.enabled
         ? [{ id: "donation", label: $t("settings.donation.heading") }]
         : []),
@@ -228,6 +230,8 @@
             {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
           </p>
         {/if}
+
+        <ShareDefaultCard />
 
         <OmrDonationCard
           enabled={$trainingDonationStore.enabled}

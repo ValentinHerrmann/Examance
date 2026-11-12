@@ -66,6 +66,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.gettingStarted.s3.h", bodyKeys: ["help.topics.gettingStarted.s3.p1", "help.topics.gettingStarted.s3.p2"], docs: "#help-and-docs" },
       { headingKey: "help.topics.gettingStarted.s4.h", bodyKeys: ["help.topics.gettingStarted.s4.p1"], docs: "backup" },
       { headingKey: "help.topics.gettingStarted.s5.h", bodyKeys: ["help.topics.gettingStarted.s5.p1"], docs: "exams#bulk" },
+      { headingKey: "help.topics.gettingStarted.organise.h", bodyKeys: ["help.topics.gettingStarted.organise.p1"], docs: "exams#organise" },
     ],
   },
   {
@@ -90,6 +91,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     docs: "exercises",
     sections: [
       { headingKey: "help.topics.exercises.s1.h", bodyKeys: ["help.topics.exercises.s1.p1"], docs: "exercises#library" },
+      { headingKey: "help.topics.exercises.favorites.h", bodyKeys: ["help.topics.exercises.favorites.p1"], docs: "exercises#favorites" },
       { headingKey: "help.topics.exercises.bulk.h", bodyKeys: ["help.topics.exercises.bulk.p1"], docs: "exercises#bulk" },
       { headingKey: "help.topics.exercises.s2.h", bodyKeys: ["help.topics.exercises.s2.p1"], docs: "exercises#editor" },
       { headingKey: "help.topics.exercises.s3.h", bodyKeys: ["help.topics.exercises.s3.p1", "help.topics.exercises.s3.p2"], docs: "exercises#score" },
@@ -199,6 +201,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.settings.s4.h", bodyKeys: ["help.topics.settings.s4.p1"], docs: "settings#logo" },
       { headingKey: "help.topics.settings.s5.h", bodyKeys: ["help.topics.settings.s5.p1"], docs: "settings#mc-detection" },
       { headingKey: "help.topics.settings.s6.h", bodyKeys: ["help.topics.settings.s6.p1"], docs: "settings#donation" },
+      { headingKey: "help.topics.settings.shareDefault.h", bodyKeys: ["help.topics.settings.shareDefault.p1"], docs: "settings#share-default" },
       { headingKey: "help.topics.settings.s7.h", bodyKeys: ["help.topics.settings.s7.p1"], docs: "settings#deletion" },
       { headingKey: "help.topics.settings.s8.h", bodyKeys: ["help.topics.settings.s8.p1"], docs: "settings#maintenance" },
     ],

@@ -62,3 +62,27 @@ export async function saveGroupMetadata(
   }
   for (const record of updated) await api.patch(`/exercises/${record.id}`, body); // NOSONAR: per-record fallback
 }
+
+export interface GroupFlags {
+  isFavorite?: boolean;
+  archived?: boolean;
+}
+
+/** Library flags of a group (issue #252): only the group row on the server; the next library load carries them to the members. */
+export async function saveGroupFlags(group: ExerciseGroup, flags: GroupFlags): Promise<void> {
+  if (!group.groupId || group.groupId.startsWith('name:')) return;
+  await api.patch(`/exercises/groups/${group.groupId}`, { is_favorite: flags.isFavorite, archived: flags.archived });
+}
+
+/** `exercises` with `flags` applied to the members of `groups`, so the list moves the cards before the server answers. */
+export function withGroupFlags(exercises: ExerciseRecord[], groups: ExerciseGroup[], flags: GroupFlags): ExerciseRecord[] {
+  const ids = new Set(groups.map((g) => g.groupId));
+  const now = new Date().toISOString();
+  return exercises.map((ex) => {
+    if (!ex.exerciseGroupId || !ids.has(ex.exerciseGroupId)) return ex;
+    const next = { ...ex };
+    if (flags.isFavorite !== undefined) next.groupFavorite = flags.isFavorite;
+    if (flags.archived !== undefined) next.groupArchivedAt = flags.archived ? (ex.groupArchivedAt ?? now) : undefined;
+    return next;
+  });
+}

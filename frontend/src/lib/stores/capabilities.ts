@@ -16,6 +16,8 @@ export interface Capabilities {
   features: Partial<Record<FeatureName, boolean>>;
   /** The teacher paused their own exercise sharing (issue #65). */
   sharingPaused?: boolean;
+  /** Remembered answer to the share question after saving (issue #263): null asks, true always shares, false never. */
+  shareNewExercises?: boolean | null;
 }
 
 const CACHE_KEY = 'bg_capabilities';
@@ -60,6 +62,7 @@ interface CapabilitiesResponse {
   allowed_storage_modes: string[];
   features: Record<string, boolean>;
   sharing_paused?: boolean;
+  share_new_exercises?: boolean | null;
 }
 
 function fromResponse(res: CapabilitiesResponse): Capabilities {
@@ -71,6 +74,7 @@ function fromResponse(res: CapabilitiesResponse): Capabilities {
     allowedStorageModes: res.allowed_storage_modes.filter(isStorageMode),
     features: res.features as Capabilities['features'],
     sharingPaused: res.sharing_paused === true,
+    shareNewExercises: typeof res.share_new_exercises === 'boolean' ? res.share_new_exercises : null,
   };
 }
 
@@ -101,6 +105,11 @@ export async function saveAccountStorageMode(mode: StorageMode, expected: Storag
 /** Reflects a pause/resume made by this tab without refetching. */
 export function markSharingPaused(paused: boolean): void {
   capabilitiesStore.update((caps) => (caps ? { ...caps, sharingPaused: paused } : caps));
+}
+
+/** Reflects a changed share default made by this tab without refetching. */
+export function markShareDefault(value: boolean | null): void {
+  capabilitiesStore.update((caps) => (caps ? { ...caps, shareNewExercises: value } : caps));
 }
 
 /** Forgets the answer, e.g. at sign-out: the next account must never start from this one's switches. */

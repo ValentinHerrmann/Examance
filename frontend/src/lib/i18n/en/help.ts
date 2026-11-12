@@ -41,6 +41,10 @@ export const help: Translations['help'] = {
         gettingStarted: {
             title: 'Getting started',
             summary: 'The whole path, from the first exercise to the finished analysis.',
+            organise: {
+                h: 'Favorites, school years and archive',
+                p1: 'The exam list is split into sections you can fold away: favorites (star on the card), “Date unclear” for exams without a full date, one section per school year (August to July, by the day the exam is written) and the archive (⋯ menu of the card). Archiving deletes nothing.',
+            },
             s1: {
                 h: 'What Examance does',
                 p1: 'Examance covers an exam end to end: collect exercises, typeset the exam, import the scanned sheets, grade them anonymously, and analyse the results.',
@@ -98,6 +102,10 @@ export const help: Translations['help'] = {
         exercises: {
             title: 'Exercise library',
             summary: 'Create, tag and maintain exercises, with variants and versions, and share them with others.',
+            favorites: {
+                h: 'Favorites and archive',
+                p1: 'Mark exercise groups as favorites with the star, or archive them at the bottom of the expanded group. Favorites are listed first and again under “All”; the archive starts folded.',
+            },
             s1: {
                 h: 'Collect instead of copy',
                 p1: 'Exercises live in your library, tagged by grade, subject and topic. The filters at the top narrow it down, “Sort by” orders it. An expanded entry shows which exams use the exercise; “Preview” shows the last compiled PDF.',
@@ -133,7 +141,7 @@ export const help: Translations['help'] = {
             },
             s8: {
                 h: 'Sharing and copying exercises',
-                p1: '“Share…” makes an exercise group visible to every account of this installation, together with your email address. Under “Shared by others” you copy exercises into your library as your own copy; “Update available” signals changes to the original.',
+                p1: '“Share…” makes an exercise group visible to every account of this installation, together with your email address. After you save an own exercise that is not shared yet, Examance asks once whether to share it. Under “Shared by others” you copy exercises into your library as your own copy; “Update available” signals changes to the original.',
             },
             s9: {
                 h: 'Proposing changes to the original',
@@ -295,6 +303,10 @@ export const help: Translations['help'] = {
         settings: {
             title: 'Settings',
             summary: 'Storage strategy, LaTeX compilation, exam logo, language, MC detection and data deletion.',
+            shareDefault: {
+                h: 'Sharing new exercises',
+                p1: 'Choose whether Examance asks after you save an own exercise that is not shared yet, always shares it, or never asks. “Always share” needs a one-time confirmation that your exercises contain no personal data.',
+            },
             s1: {
                 h: 'Storage strategy',
                 p1: 'Decides where the results are stored: entirely on the server, or in this browser only (hybrid). The setting belongs to your account and applies in all browsers; which options your account may use is decided by the server.',

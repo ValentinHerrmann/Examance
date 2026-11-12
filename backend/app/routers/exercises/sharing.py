@@ -24,6 +24,7 @@ from app.schemas.exercise_sharing import (
     ResyncPreviewResponse,
     ResyncRequest,
     ResyncVariant,
+    ShareDefaultUpdate,
     SharedExerciseResponse,
     SharingPauseUpdate,
     SyncStatusItem,
@@ -166,6 +167,7 @@ async def set_exercise_sharing(
             headers={"code": "ERR_SHARE_COPY"},
         )
     _set_shared(list(rows), body.shared)
+    group.share_asked_at = group.share_asked_at or datetime.now(UTC)
     await audit_svc.log(db, request, teacher, _sharing_action(body.shared), group.id)
     await db.flush()
     return [ExerciseResponse.from_exercise(r) for r in rows if r.is_current]
@@ -220,6 +222,26 @@ async def set_sharing_paused(
     teacher.sharing_paused = body.paused
     action = "EXERCISE_SHARING_PAUSED" if body.paused else "EXERCISE_SHARING_RESUMED"
     await audit_svc.log(db, request, teacher, action, teacher.id)
+    await db.flush()
+
+
+@router.put("/sharing/default", status_code=status.HTTP_204_NO_CONTENT)
+async def set_share_default(
+    request: Request, body: ShareDefaultUpdate, teacher: CurrentTeacher, db: DB
+) -> None:
+    """Remember the answer to the share question after saving (issue #263). Choosing "always share" needs the sharing switch."""
+    if body.share_new_exercises:
+        ensure_exercise_sharing(teacher)
+    teacher.share_new_exercises = body.share_new_exercises
+    await audit_svc.log(db, request, teacher, "EXERCISE_SHARE_DEFAULT_CHANGED", teacher.id)
+    await db.flush()
+
+
+@router.post("/groups/{group_id}/share-asked", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_share_asked(group_id: uuid.UUID, teacher: CurrentTeacher, db: DB) -> None:
+    """Record that the owner declined the share question for this group, so it is not asked again (issue #263)."""
+    group = await get_own_group(group_id, teacher.id, db)
+    group.share_asked_at = group.share_asked_at or datetime.now(UTC)
     await db.flush()
 
 

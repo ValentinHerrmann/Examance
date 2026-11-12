@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -42,6 +42,7 @@ from app.services.exercise_library import (
     metadata_changes,
 )
 from app.services.latex_score import parse_exercise_score
+from app.services.overview_flags import archived_since
 
 # `listing` is registered before the sharing catalog (`/shared`, `/sync-status`), `router` after it: FastAPI matches overlapping paths in registration order (see `__init__`).
 listing = APIRouter()
@@ -97,19 +98,28 @@ async def list_exercises(
     query = filtered(query, topic_tag, grade, subject, search)
     query = query.order_by(Exercise.name.asc(), Exercise.version.desc())
     rows = (await db.execute(query)).scalars().all()
-    copied = set(
-        (
-            await db.execute(
-                select(ExerciseGroup.id).where(
-                    ExerciseGroup.teacher_id == teacher.id, ExerciseGroup.copied_at.is_not(None)
-                )
-            )
+    groups: dict[uuid.UUID | None, ExerciseGroup] = {
+        g.id: g
+        for g in (
+            await db.execute(select(ExerciseGroup).where(ExerciseGroup.teacher_id == teacher.id))
         ).scalars()
-    )
+    }
     return [
-        ExerciseResponse.from_exercise(ex, group_copied=ex.exercise_group_id in copied)
+        ExerciseResponse.from_exercise(ex, **_group_flags(groups.get(ex.exercise_group_id)))
         for ex in rows
     ]
+
+
+def _group_flags(group: ExerciseGroup | None) -> dict[str, Any]:
+    """The group state a library row carries, so the client needs no second listing."""
+    if group is None:
+        return {}
+    return {
+        "group_copied": group.copied_at is not None,
+        "group_favorite": group.is_favorite,
+        "group_archived_at": group.archived_at,
+        "group_share_asked": group.share_asked_at is not None,
+    }
 
 
 @router.patch("/groups/{group_id}")
@@ -122,6 +132,10 @@ async def update_exercise_group(
     """Update group metadata and cascade it to every member variant."""
     group = await get_own_group(group_id, teacher.id, db)
     await cascade_group_metadata(group_id, teacher.id, metadata_changes(body), db)
+    if body.is_favorite is not None:
+        group.is_favorite = body.is_favorite
+    if body.archived is not None:
+        group.archived_at = archived_since(group.archived_at, body.archived)
     await db.flush()
     return ExerciseGroupResponse.model_validate(group, from_attributes=True)
 

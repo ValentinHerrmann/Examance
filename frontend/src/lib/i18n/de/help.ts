@@ -40,6 +40,10 @@ export const help = {
         gettingStarted: {
             title: 'Erste Schritte',
             summary: 'Der komplette Weg von der ersten Aufgabe bis zur fertigen Auswertung.',
+            organise: {
+                h: 'Favoriten, Schuljahre und Archiv',
+                p1: 'Die Prüfungsliste ist in einklappbare Abschnitte gegliedert: Favoriten (Stern auf der Karte), „Datum unklar“ für Prüfungen ohne vollständiges Datum, ein Abschnitt je Schuljahr (August bis Juli, nach dem Tag, an dem die Prüfung geschrieben wird) und das Archiv (Menü ⋯ der Karte). Archivieren löscht nichts.',
+            },
             s1: {
                 h: 'Was Examance macht',
                 p1: 'Examance begleitet eine Klausur über den gesamten Ablauf: Aufgaben sammeln, Klausur setzen, gescannte Bögen einlesen, anonym korrigieren und auswerten.',
@@ -97,6 +101,10 @@ export const help = {
         exercises: {
             title: 'Aufgabenbibliothek',
             summary: 'Aufgaben anlegen, verschlagworten, in Varianten und Versionen pflegen und mit anderen teilen.',
+            favorites: {
+                h: 'Favoriten und Archiv',
+                p1: 'Markieren Sie Aufgabengruppen mit dem Stern als Favorit oder archivieren Sie sie unten in der aufgeklappten Gruppe. Favoriten stehen oben und zusätzlich unter „Alle“; das Archiv ist zunächst eingeklappt.',
+            },
             s1: {
                 h: 'Sammeln statt kopieren',
                 p1: 'Aufgaben liegen in Ihrer Bibliothek, verschlagwortet nach Jahrgangsstufe, Fach und Thema. Die Filter oben grenzen die Bibliothek ein, „Sortieren nach“ ordnet sie. Ein aufgeklapptes Element zeigt, welche Klausuren die Aufgabe verwenden; „Vorschau“ zeigt das zuletzt kompilierte PDF.',
@@ -132,7 +140,7 @@ export const help = {
             },
             s8: {
                 h: 'Aufgaben teilen und übernehmen',
-                p1: '„Teilen“ macht eine Aufgabengruppe für alle Konten dieser Installation sichtbar, zusammen mit Ihrer E-Mail-Adresse. Unter „Von anderen geteilt“ übernehmen Sie Aufgaben als eigene Kopie in Ihre Bibliothek; „Aktualisierung verfügbar“ zeigt Änderungen am Original an.',
+                p1: '„Teilen“ macht eine Aufgabengruppe für alle Konten dieser Installation sichtbar, zusammen mit Ihrer E-Mail-Adresse. Nach dem Speichern einer eigenen, noch nicht geteilten Aufgabe fragt Examance einmal, ob Sie sie teilen möchten. Unter „Von anderen geteilt“ übernehmen Sie Aufgaben als eigene Kopie in Ihre Bibliothek; „Aktualisierung verfügbar“ zeigt Änderungen am Original an.',
             },
             s9: {
                 h: 'Änderungen dem Original vorschlagen',
@@ -294,6 +302,10 @@ export const help = {
         settings: {
             title: 'Einstellungen',
             summary: 'Speicherstrategie, LaTeX-Kompilierung, Klausur-Logo, Sprache, MC-Erkennung und Datenlöschung.',
+            shareDefault: {
+                h: 'Neue Aufgaben teilen',
+                p1: 'Legt fest, ob Examance nach dem Speichern einer eigenen, noch nicht geteilten Aufgabe fragt, ob sie geteilt werden soll, sie immer teilt oder nie fragt. „Immer teilen“ verlangt einmal die Bestätigung, dass Ihre Aufgaben keine personenbezogenen Daten enthalten.',
+            },
             s1: {
                 h: 'Speicherstrategie',
                 p1: 'Legt fest, wo die Ergebnisse liegen: komplett auf dem Server oder nur in diesem Browser (Hybrid). Die Einstellung gehört zum Konto und gilt in allen Browsern; welche Optionen Ihr Konto nutzen darf, entscheidet der Server.',

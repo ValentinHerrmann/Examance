@@ -3,6 +3,7 @@
   import SuggestField from '#lib/components/common/SuggestField.svelte';
   import OverridableText from '#lib/components/exam/OverridableText.svelte';
   import { recordValue } from '#lib/utils/recentValues';
+  import { parseExamDatum } from "#lib/utils/listSections";
   import { formatExamCourse, generatedExamTitle, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
   import { t, translate } from '#lib/i18n';
   import { Modal, Button, Field, actionIcons, controlClass, controlCompactClass } from '#lib/components/ui';
@@ -58,6 +59,8 @@
   }: Props = $props();
 
   let editDatumDate = $state("");
+  // Without a full date the exam list cannot file the exam in a school year (issue #252).
+  let datumUnclear = $derived(parseExamDatum(editDatumDate) === null);
   let editDauer = $state("");
   let lastSyncedEditDatum = "";
 
@@ -163,7 +166,7 @@
       />
     </div>
     <SuggestField compact id="editLehrernachname" class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.lehrernachname")} storageKey="exam.lehrernachname" bind:value={editLehrernachname} maxlength={100} />
-    <Field compact class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.datum")} forId="editDatumDate">
+    <Field compact class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.datum")} forId="editDatumDate" hint={datumUnclear ? $t("exam.metadataEditor.datumUnclear") : undefined}>
       {#snippet children({ id })}
         <input {id} type="text" bind:value={editDatumDate} oninput={handleDatumDateOrDauerChange} placeholder="14.08.2026" class={input} />
       {/snippet}

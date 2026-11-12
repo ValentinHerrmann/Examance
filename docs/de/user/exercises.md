@@ -19,11 +19,16 @@ Jede Aufgabe ist mit **Jahrgang**, **Fach** und **Thema** verschlagwortet. Die F
 
 Aufgabennamen sind fast überall in der App anklickbar (im Schritt **Prüfung**, beim Korrigieren, in der Auswertung) und öffnen die Aufgabe direkt im Editor.
 
+### Favoriten und Archiv {#favorites}
+
+Die Bibliothek ist gegliedert in **Favoriten** (mit dem **Stern** markierte Gruppen; sie bleiben zusätzlich unter **Alle**), **Alle** und **Archiv** (Gruppen, die Sie über **Archivieren** unten in einer aufgeklappten Gruppe archiviert haben). Das Archiv ist zunächst eingeklappt, und Ihr Browser merkt sich, welche Abschnitte offen sind. Archivieren entfernt nichts aus Prüfungen und löscht nichts; **Aus dem Archiv holen** holt eine Gruppe zurück. Eine duplizierte oder übernommene Gruppe beginnt ohne Stern und außerhalb des Archivs.
+
 ### Mehrere Gruppen auf einmal {#bulk}
 
 Jede Aufgabengruppe der eigenen Bibliothek hat ein Kästchen; das Kästchen in der Leiste über der Liste wählt alle Gruppen aus, die die Filter zeigen (ändern Sie einen Filter, fallen ausgeblendete Gruppen aus der Auswahl). Für die ausgewählten Gruppen können Sie:
 
 - Thema, Jahrgangsstufe und Fach aller Gruppen **bearbeiten**; die Namen bleiben je Gruppe. Wie bei Prüfungen zeigt ein Feld den gemeinsamen Wert oder „Verschiedene Werte“, übernommen werden nur geänderte Felder, und der Dialog listet vor dem Übernehmen jede Änderung je Gruppe auf. Die Änderung gilt für alle Varianten und Versionen einer Gruppe.
+- Sie alle als **Favorit** markieren oder **archivieren** (und beides wieder aufheben).
 - Sie als eine ZIP-Datei **exportieren**.
 - Sie **teilen** oder **nicht mehr teilen** (ausgegraut mit dem Grund, wenn das Teilen für Ihr Konto nicht freigeschaltet ist). Von anderen übernommene Gruppen werden nie als eigene geteilt.
 - Sie samt allen Varianten und Versionen als einen Papierkorb-Eintrag **löschen**. Gruppen, die eine Prüfung verwendet, werden aufgeführt und behalten; entfernen Sie sie zuerst aus diesen Prüfungen.

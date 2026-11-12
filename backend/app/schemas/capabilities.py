@@ -17,6 +17,8 @@ class CapabilitiesOut(BaseModel):
     features: dict[str, bool]
     # The teacher paused their own sharing (issue #65); shared exercises are hidden meanwhile.
     sharing_paused: bool = False
+    # Remembered answer to the share question after saving (issue #263): null asks.
+    share_new_exercises: bool | None = None
 
 
 class StorageModeUpdate(BaseModel):

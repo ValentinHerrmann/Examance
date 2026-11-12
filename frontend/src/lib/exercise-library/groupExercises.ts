@@ -36,6 +36,14 @@ export function groupIsCopy(group: ExerciseGroup): boolean {
   return group.allMembers.some((m) => m.ex.groupCopied);
 }
 
+/** The group's library flags (issue #252), carried by every member row. */
+export function groupFlags(group: ExerciseGroup): { favorite: boolean; archived: boolean } {
+  return {
+    favorite: group.allMembers.some((m) => m.ex.groupFavorite),
+    archived: group.allMembers.some((m) => m.ex.groupArchivedAt),
+  };
+}
+
 /** "Variant X" for a resync/proposal row, else its name; `prefer` picks which side is read first. */
 export function resyncVariantLabel(v: ResyncVariant, prefer: "own" | "source"): string {
   const [first, second] = prefer === "own" ? [v.own, v.source] : [v.source, v.own];

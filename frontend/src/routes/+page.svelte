@@ -45,6 +45,7 @@
   let addingExampleData = $state(false);
   let exampleDataError = $state('');
   let duplicateError = $state('');
+  let flagError = $state('');
   /** Set when the server refused the exam list, so the view can say so. */
   let examsLoadFailed = $state(false);
   // The submission read failed: the per-exam figures are unknown, which is not "no submissions".
@@ -287,7 +288,28 @@
     }
   }
 
+  /** Favorite/archive (issue #252): shown at once, saved per exam; a failure reloads the true state. */
+  async function setExamFlags(targets: ExamRecord[], flags: { isFavorite?: boolean; archived?: boolean }) {
+    flagError = '';
+    const ids = new Set(targets.map((e) => e.id));
+    const archivedAt = flags.archived ? new Date().toISOString() : undefined;
+    exams = exams.map((e) => {
+      if (!ids.has(e.id)) return e;
+      const next = { ...e, ...(flags.isFavorite === undefined ? {} : { isFavorite: flags.isFavorite }) };
+      if (flags.archived !== undefined) next.archivedAt = flags.archived ? (e.archivedAt ?? archivedAt) : undefined;
+      return next;
+    });
+    try {
+      for (const id of ids) await examRepository.saveFlags(id, flags); // NOSONAR: one PATCH per exam, like every exam write
+    } catch {
+      flagError = translate('common.listSections.flagFailed');
+      await refreshExams();
+    }
+  }
+
   let selectedExams = $derived(filteredExams.filter((e) => selection.has(e.id)));
+  let allSelectedFavorite = $derived(selectedExams.length > 0 && selectedExams.every((e) => e.isFavorite));
+  let allSelectedArchived = $derived(selectedExams.length > 0 && selectedExams.every((e) => e.archivedAt));
 
   $effect.pre(() => {
     const key = sortKey;
@@ -346,6 +368,9 @@
     {#if duplicateError}
       <Alert severity="danger" class="mb-6">{duplicateError}</Alert>
     {/if}
+    {#if flagError}
+      <Alert severity="danger" class="mb-6">{flagError}</Alert>
+    {/if}
 
     {#if examsLoadFailed}
       <Alert severity="danger" class="mb-6">{$t("dashboard.loadFailed")}</Alert>
@@ -396,6 +421,12 @@
           {#snippet actions()}
             <Button size="sm" variant="outlined" icon={actionIcons.edit} disabled={!selectedExams.length} onClick={() => bulkActions?.open('edit', selectedExams)}>{$t('common.edit')}</Button>
             <Button size="sm" variant="outlined" icon={actionIcons.export} disabled={!selectedExams.length} onClick={() => bulkActions?.open('export', selectedExams)}>{$t('dashboard.bulk.exportAction')}</Button>
+            <Button size="sm" variant="outlined" icon={actionIcons.favorite} disabled={!selectedExams.length} onClick={() => setExamFlags(selectedExams, { isFavorite: !allSelectedFavorite })}>
+              {allSelectedFavorite ? $t('common.listSections.unfavoriteSelected') : $t('common.listSections.favoriteSelected')}
+            </Button>
+            <Button size="sm" variant="outlined" icon={allSelectedArchived ? actionIcons.unarchive : actionIcons.archive} disabled={!selectedExams.length} onClick={() => setExamFlags(selectedExams, { archived: !allSelectedArchived })}>
+              {allSelectedArchived ? $t('common.listSections.unarchiveSelected') : $t('common.listSections.archiveSelected')}
+            </Button>
             <Button size="sm" variant="outlined" severity="danger" icon={actionIcons.delete} disabled={!selectedExams.length} onClick={() => bulkActions?.open('delete', selectedExams)}>{$t('common.delete')}</Button>
           {/snippet}
         </SelectionToolbar>
@@ -418,6 +449,8 @@
           onDuplicate={handleDuplicateExam}
           onExerciseSaved={() => expandedExams.ids().forEach((id) => exerciseMap.reload(id))}
           duplicatingId={duplicatingExamId}
+          onFavorite={(exam, on) => setExamFlags([exam], { isFavorite: on })}
+          onArchive={(exam, on) => setExamFlags([exam], { archived: on })}
         />
         </div>
       </FilterLayout>

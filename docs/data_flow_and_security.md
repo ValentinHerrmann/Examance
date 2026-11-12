@@ -473,8 +473,11 @@ teacher's consent; stopping the share withdraws it.
   variants (the rest stays pending) and edit the merged LaTeX in the dialog. Each chosen variant
   is still compare-and-set against its reviewed fingerprint; an edited result keeps the source
   fingerprint as its sync point, so the copy then reports `locally_modified`.
-* **Sharing controls.** Besides the per-group action there is a share checkbox in the exercise
-  editor, bulk share/unshare of all own groups, and a **pause** (`teachers.sharing_paused`,
+* **Sharing controls.** Besides the per-group action there is a question after saving an own,
+  unshared exercise (issue #263; consent tick required for Yes, answer kept in
+  `exercise_groups.share_asked_at`; a remembered "always share" in `teachers.share_new_exercises` is
+  standing consent, given once with the same tick and audited as `EXERCISE_SHARE_DEFAULT_CHANGED`),
+  bulk share/unshare of all own groups, and a **pause** (`teachers.sharing_paused`,
   checked per query like the admin switch): it hides everything the teacher shares without
   forgetting the per-group choices. A group copied from another account (`exercise_groups.copied_at`,
   set on copy and never cleared, not even by unlink) is **never shared as one's own**

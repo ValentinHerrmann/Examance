@@ -82,6 +82,9 @@ class Exam(Base):
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Ticks the teacher sets by hand per step (print checklist, MC check); the client owns the shape.
     step_checks: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # Overview-list flags (issue #252); never copied by Duplicate.
+    is_favorite: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     exercises: Mapped[list[Exercise]] = relationship(
         "Exercise", backref="exam", cascade="all, delete-orphan"
