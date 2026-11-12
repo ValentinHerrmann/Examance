@@ -75,6 +75,8 @@ export const common: Translations['common'] = {
         failedItems: 'Not applied to: {items}',
     },
     listSections: {
+        unclear: 'Date unclear',
+        unclearBadge: 'Date unclear',
         favorites: 'Favorites',
         all: 'All',
         archive: 'Archive',

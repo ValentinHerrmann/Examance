@@ -42,7 +42,7 @@ export const help = {
             summary: 'Der komplette Weg von der ersten Aufgabe bis zur fertigen Auswertung.',
             organise: {
                 h: 'Favoriten, Schuljahre und Archiv',
-                p1: 'Die Prüfungsliste ist in einklappbare Abschnitte gegliedert: Favoriten (Stern auf der Karte), ein Abschnitt je Schuljahr (August bis Juli, nach dem Prüfungsdatum) und das Archiv (Menü ⋯ der Karte). Archivieren löscht nichts.',
+                p1: 'Die Prüfungsliste ist in einklappbare Abschnitte gegliedert: Favoriten (Stern auf der Karte), „Datum unklar“ für Prüfungen ohne vollständiges Datum, ein Abschnitt je Schuljahr (August bis Juli, nach dem Tag, an dem die Prüfung geschrieben wird) und das Archiv (Menü ⋯ der Karte). Archivieren löscht nichts.',
             },
             s1: {
                 h: 'Was Examance macht',

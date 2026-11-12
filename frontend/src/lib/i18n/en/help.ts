@@ -43,7 +43,7 @@ export const help: Translations['help'] = {
             summary: 'The whole path, from the first exercise to the finished analysis.',
             organise: {
                 h: 'Favorites, school years and archive',
-                p1: 'The exam list is split into sections you can fold away: favorites (star on the card), one section per school year (August to July, by the exam date) and the archive (⋯ menu of the card). Archiving deletes nothing.',
+                p1: 'The exam list is split into sections you can fold away: favorites (star on the card), “Date unclear” for exams without a full date, one section per school year (August to July, by the day the exam is written) and the archive (⋯ menu of the card). Archiving deletes nothing.',
             },
             s1: {
                 h: 'What Examance does',

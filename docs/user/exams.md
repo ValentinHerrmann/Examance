@@ -190,7 +190,8 @@ After the exam, continue with [Scanning and assignment](./scanning).
 The exam list is split into sections you can fold away; your browser remembers which ones are open.
 
 - **Favorites**: exams you marked with the **star** on their card. They also stay in their school year.
-- **School year** (for example *School year 2026/27*, August to July): every exam is filed under its date, or under the day it was created when the date is not a plain date such as *15.03.2026*. The current school year is open, earlier ones start folded.
+- **Date unclear**: exams whose date is not a full date (for example *24.09.* without a year, or no date at all). They carry a **Date unclear** badge, and the date field in the exam details asks for a full date such as *24.09.2026*. Once you enter one, the exam moves to its school year.
+- **School year** (for example *School year 2026/27*, August to July): every exam is filed under the day it is written, the date in its details (a duration after it, such as *24.09.2026 (30 Minuten)*, is fine). The current school year is open, earlier ones start folded.
 - **Archive**: exams you archived with **Archive** in the **⋯** menu of the card. It starts folded; **Take out of the archive** brings an exam back.
 
 Favorites and the archive are only for your overview: archiving deletes nothing and keeps results, retention and statistics as they are. A duplicated exam starts without star and outside the archive. Filters and search apply to every section.

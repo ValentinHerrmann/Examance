@@ -8,9 +8,9 @@
   import { continueStep, examProgress, type ExamProgress } from "#lib/exam/examProgress";
   import type { ExamStats } from "#lib/utils/examStats";
   import { faEye } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Card, CollapsibleSection, EmptyState, ExpandableCard, Menu, MenuItem, actionIcons } from "#lib/components/ui";
+  import { Badge, Button, Card, CollapsibleSection, EmptyState, ExpandableCard, Menu, MenuItem, actionIcons } from "#lib/components/ui";
   import FavoriteToggle from "#lib/components/common/FavoriteToggle.svelte";
-  import { schoolYearLabel, sectionExams, type ListSection } from "#lib/utils/listSections";
+  import { examDateUnclear, schoolYearLabel, sectionExams, type ListSection } from "#lib/utils/listSections";
   import { sectionOpenState, setSectionOpen } from "#lib/stores/listSections";
   import ExamSummary from "#lib/components/exam/ExamSummary.svelte";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
@@ -74,6 +74,7 @@
   function sectionTitle(section: ListSection<ExamRecord>): string {
     if (section.kind === "year") return $t("common.listSections.schoolYear", { year: schoolYearLabel(section.year!) });
     if (section.kind === "favorites") return $t("common.listSections.favorites");
+    if (section.kind === "unclear") return $t("common.listSections.unclear");
     return section.kind === "archive" ? $t("common.listSections.archive") : $t("common.listSections.all");
   }
 
@@ -124,6 +125,9 @@
       >
         {#snippet badges()}
           <ExamSummary {exam} {stats} part="badges" />
+          {#if examDateUnclear(exam)}
+            <Badge severity="warning" title={$t("exam.metadataEditor.datumUnclear")}>{$t("common.listSections.unclearBadge")}</Badge>
+          {/if}
         {/snippet}
 
         {#snippet actions()}

@@ -85,6 +85,7 @@ export const exam = {
         },
     },
     metadataEditor: {
+        datumUnclear: 'Geben Sie ein vollständiges Datum wie 24.09.2026 ein, damit die Prüfung im richtigen Schuljahr steht.',
         heading: 'Prüfung bearbeiten',
         createHeading: 'Neue Prüfung',
         createButton: 'Prüfung anlegen und Aufgaben wählen',

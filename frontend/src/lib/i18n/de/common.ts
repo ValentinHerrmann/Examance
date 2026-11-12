@@ -73,6 +73,8 @@ export const common = {
         failedItems: 'Nicht übernommen bei: {items}',
     },
     listSections: {
+        unclear: 'Datum unklar',
+        unclearBadge: 'Datum unklar',
         favorites: 'Favoriten',
         all: 'Alle',
         archive: 'Archiv',

@@ -1,7 +1,8 @@
 /** Sections of the overview lists (issue #252): favorites, school years (exams only) and the archive. Input order is kept inside every section. */
 import type { ExamRecord } from '#lib/db/schema';
+import { parseDatumAndDauer } from '#lib/utils/examLabel';
 
-export type SectionKind = 'favorites' | 'year' | 'all' | 'archive';
+export type SectionKind = 'favorites' | 'unclear' | 'year' | 'all' | 'archive';
 
 export interface ListSection<T> {
   /** Stable key for the remembered open state, e.g. `year:2026`. */
@@ -23,15 +24,16 @@ export function schoolYearLabel(year: number): string {
   return `${year}/${String((year + 1) % 100).padStart(2, '0')}`;
 }
 
-const DE_DATE = /^(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{2}|\d{4})$/;
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})/;
+// Unanchored: the date part may carry a weekday or a lesson ("Di, 24.09.2026", "24.09.2026, 2. Stunde").
+const DE_DATE = /(?<!\d)(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4}|\d{2})(?!\d)/;
+const ISO_DATE = /(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)/;
 
-/** The free-text exam date as a date, when it is one (German `dd.mm.yyyy`/`dd.mm.yy` or ISO); else null. */
+/** The day an exam is written, from its "date (duration)" field (`formatDatumAndDauer`); null without a full date (no year, free text, empty). */
 export function parseExamDatum(value: string | undefined): Date | null {
-  const text = value?.trim() ?? '';
-  let y: number, m: number, d: number;
+  const text = parseDatumAndDauer(value).datumDate;
   const de = DE_DATE.exec(text);
   const iso = de ? null : ISO_DATE.exec(text);
+  let y: number, m: number, d: number;
   if (de) {
     d = Number(de[1]);
     m = Number(de[2]);
@@ -48,24 +50,30 @@ export function parseExamDatum(value: string | undefined): Date | null {
   return date.getMonth() === m - 1 && date.getDate() === d ? date : null;
 }
 
-/** The date an exam is filed under: its printed date when it parses, else when it was created. */
-export function examDateOf(exam: Pick<ExamRecord, 'datum' | 'createdAt'>): Date {
-  return parseExamDatum(exam.datum) ?? new Date(exam.createdAt);
+/** The exam has no full date, so it cannot be filed in a school year; the list and the date field ask for one. */
+export function examDateUnclear(exam: Pick<ExamRecord, 'datum'>): boolean {
+  return parseExamDatum(exam.datum) === null;
 }
 
-/** Favorites (also listed in their year), one section per school year (newest first; the current and later ones open), archive (closed). */
+/** Favorites (also listed in their year), exams without a full date, one section per school year of the written date (newest first; the current and later ones open), archive (closed). */
 export function sectionExams(exams: ExamRecord[], now: Date = new Date()): ListSection<ExamRecord>[] {
   const current = schoolYearOf(now);
   const live = exams.filter((e) => !e.archivedAt);
+  const unclear: ExamRecord[] = [];
   const byYear = new Map<number, ExamRecord[]>();
   for (const exam of live) {
-    const date = examDateOf(exam);
-    const year = Number.isNaN(date.getTime()) ? current : schoolYearOf(date);
+    const date = parseExamDatum(exam.datum);
+    if (!date) {
+      unclear.push(exam);
+      continue;
+    }
+    const year = schoolYearOf(date);
     byYear.set(year, [...(byYear.get(year) ?? []), exam]);
   }
   const years = [...byYear.keys()].sort((a, b) => b - a);
   return nonEmpty([
     { key: 'favorites', kind: 'favorites', items: live.filter((e) => e.isFavorite), defaultOpen: true },
+    { key: 'unclear', kind: 'unclear', items: unclear, defaultOpen: true },
     ...years.map((year): ListSection<ExamRecord> => ({
       key: `year:${year}`, kind: 'year', year, items: byYear.get(year)!, defaultOpen: year >= current,
     })),

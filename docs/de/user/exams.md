@@ -191,7 +191,8 @@ Nach der Prüfung geht es weiter mit [Scannen und Zuordnen](./scanning).
 Die Prüfungsliste ist in Abschnitte gegliedert, die Sie einklappen können; Ihr Browser merkt sich, welche offen sind.
 
 - **Favoriten**: Prüfungen, die Sie mit dem **Stern** auf ihrer Karte markiert haben. Sie bleiben zusätzlich in ihrem Schuljahr.
-- **Schuljahr** (zum Beispiel *Schuljahr 2026/27*, August bis Juli): Jede Prüfung steht unter ihrem Datum, oder unter dem Tag, an dem sie angelegt wurde, wenn das Datum kein einfaches Datum wie *15.03.2026* ist. Das aktuelle Schuljahr ist offen, frühere sind zunächst eingeklappt.
+- **Datum unklar**: Prüfungen, deren Datum kein vollständiges Datum ist (zum Beispiel *24.09.* ohne Jahr oder gar kein Datum). Sie tragen das Abzeichen **Datum unklar**, und das Datumsfeld in den Prüfungsangaben bittet um ein vollständiges Datum wie *24.09.2026*. Sobald Sie eines eintragen, wandert die Prüfung in ihr Schuljahr.
+- **Schuljahr** (zum Beispiel *Schuljahr 2026/27*, August bis Juli): Jede Prüfung steht unter dem Tag, an dem sie geschrieben wird, also dem Datum in ihren Angaben (eine Dauer dahinter wie *24.09.2026 (30 Minuten)* stört nicht). Das aktuelle Schuljahr ist offen, frühere sind zunächst eingeklappt.
 - **Archiv**: Prüfungen, die Sie über **Archivieren** im Menü **⋯** der Karte archiviert haben. Es ist zunächst eingeklappt; **Aus dem Archiv holen** holt eine Prüfung zurück.
 
 Favoriten und Archiv dienen nur Ihrer Übersicht: Archivieren löscht nichts und lässt Ergebnisse, Aufbewahrung und Statistik unverändert. Eine duplizierte Prüfung beginnt ohne Stern und außerhalb des Archivs. Filter und Suche gelten in allen Abschnitten.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ExamRecord } from '../src/lib/db/schema';
-import { parseExamDatum, schoolYearLabel, schoolYearOf, sectionByFlags, sectionExams } from '../src/lib/utils/listSections';
+import { examDateUnclear, parseExamDatum, schoolYearLabel, schoolYearOf, sectionByFlags, sectionExams } from '../src/lib/utils/listSections';
 
 const exam = (id: string, extra: Partial<ExamRecord> = {}): ExamRecord =>
   ({ id, teacherId: 't', title: id, retentionUntil: '2030-01-01', compilationStatus: 'pending', createdAt: '2026-10-01T10:00:00Z', ...extra }) as ExamRecord;
@@ -21,26 +21,43 @@ describe('school years', () => {
     expect(parseExamDatum('nach den Ferien')).toBeNull();
     expect(parseExamDatum(undefined)).toBeNull();
   });
+
+  it('reads the date part of "date (duration)" and dates inside a longer text', () => {
+    expect(parseExamDatum('24.09.2026 (30 Minuten)')?.getDate()).toBe(24);
+    expect(parseExamDatum('Di, 24.09.2026')?.getMonth()).toBe(8);
+    expect(parseExamDatum('24.09.2026, 2. Stunde')?.getFullYear()).toBe(2026);
+    expect(parseExamDatum('2026-09-24 (45 Min)')?.getDate()).toBe(24);
+  });
+
+  it('counts a date without a year, free text or nothing as unclear', () => {
+    expect(examDateUnclear({ datum: '24.09.' })).toBe(true);
+    expect(examDateUnclear({ datum: '24.09. (30 Min)' })).toBe(true);
+    expect(examDateUnclear({ datum: '' })).toBe(true);
+    expect(examDateUnclear({ datum: undefined })).toBe(true);
+    expect(examDateUnclear({ datum: '24.09.2026 (30 Min)' })).toBe(false);
+  });
 });
 
 describe('sectionExams', () => {
   const now = new Date(2026, 10, 11);
 
-  it('files exams by printed date, falls back to creation and keeps favorites in their year too', () => {
+  it('files exams by their written date, never by creation, and keeps favorites in their year too', () => {
     const sections = sectionExams(
       [
-        exam('a', { datum: '15.03.2026' }),
-        exam('b', { isFavorite: true }),
+        exam('a', { datum: '15.03.2026 (45 Minuten)' }),
+        exam('b', { isFavorite: true, datum: '24.09.2026 (30 Minuten)', createdAt: '2025-06-01T00:00:00Z' }),
         exam('c', { datum: 'irgendwann', createdAt: '2024-09-01T00:00:00Z' }),
         exam('d', { archivedAt: '2026-11-01T00:00:00Z', isFavorite: true }),
+        exam('e', { datum: '20.10.2024', createdAt: '2026-10-01T00:00:00Z' }),
       ],
       now,
     );
     expect(sections.map((s) => [s.key, s.items.map((e) => e.id), s.defaultOpen])).toEqual([
       ['favorites', ['b'], true],
+      ['unclear', ['c'], true],
       ['year:2026', ['b'], true],
       ['year:2025', ['a'], false],
-      ['year:2024', ['c'], false],
+      ['year:2024', ['e'], false],
       ['archive', ['d'], false],
     ]);
   });

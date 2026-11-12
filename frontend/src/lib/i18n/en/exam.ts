@@ -87,6 +87,7 @@ export const exam: Translations['exam'] = {
         },
     },
     metadataEditor: {
+        datumUnclear: 'Enter a full date such as 24.09.2026 so the exam is filed in the right school year.',
         heading: 'Edit Exam',
         createHeading: 'New exam',
         createButton: 'Create exam and choose exercises',
