@@ -105,14 +105,14 @@ export async function writeExercise(
 export async function cascadeGroupMetadata(record: ExerciseRecord, key: CryptoKey | null): Promise<void> {
   if (!record.exerciseGroupId) return;
   const allLocal = await loadExercisesEncrypted(key);
-  for (const sister of allLocal) {
-    if (sister.exerciseGroupId === record.exerciseGroupId && sister.id !== record.id) {
-      await saveExerciseEncrypted(
-        { ...sister, name: record.name, topicTag: record.topicTag, grade: record.grade, subject: record.subject, updatedAt: new Date().toISOString() },
-        key
-      );
-    }
-  }
+  const sisters = allLocal.filter((s) => s.exerciseGroupId === record.exerciseGroupId && s.id !== record.id);
+  const updatedAt = new Date().toISOString();
+  // Independent records: saved side by side.
+  await Promise.all(
+    sisters.map((sister) =>
+      saveExerciseEncrypted({ ...sister, name: record.name, topicTag: record.topicTag, grade: record.grade, subject: record.subject, updatedAt }, key)
+    )
+  );
 }
 
 /** Stores *draft* as the next version of *base*: a new exercise row in base's group, with base marked not current. */
