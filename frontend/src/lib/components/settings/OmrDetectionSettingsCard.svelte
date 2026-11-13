@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { t, translate } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
-  import { Alert, Button, Card, Checkbox, Field, controlClass } from "#lib/components/ui";
+  import { Alert, Button, Card, Checkbox, Field, SaveStatus, controlClass } from "#lib/components/ui";
+  import { createAutosave } from "#lib/utils/autosave";
   import {
     DEFAULT_OMR_PARAMS,
     OMR_PARAM_ALGORITHM,
@@ -22,7 +23,7 @@
   interface Props {
     /** The settings the next detection run will use. */
     profile: OmrSettingsProfile;
-    /** Persists the params; returns validation errors (nothing saved unless empty). */
+    /** Persists the params; returns validation errors (nothing saved unless empty). Called by the card's autosave. */
     onSave: (params: OmrDetectionParams) => OmrParamsError[];
     onReset: () => void;
   }
@@ -66,19 +67,34 @@
       : undefined;
   }
 
-  function handleSave() {
-    statusMsg = "";
-    const params = {
+  function draftParams(): OmrDetectionParams {
+    return {
       ...profile.params,
       ...Object.fromEntries(Object.entries(draft).map(([k, v]) => [k, v ?? Number.NaN])),
       shapeAnalysis: draftShapeAnalysis,
       algorithm: draftAlgorithm,
     } as OmrDetectionParams;
-    errors = onSave(params);
-    if (errors.length === 0) statusMsg = translate("settings.omr.saved");
   }
 
+  const paramsKey = (p: OmrDetectionParams) => JSON.stringify(p);
+
+  // The stored form of the params this card wrote last: its own save must not reset the draft.
+  let savedKey = paramsKey(initial.params);
+
+  // Invalid values stay in the form with their errors; nothing is stored until they are valid.
+  async function save() {
+    const params = draftParams();
+    const key = paramsKey(params);
+    if (key === savedKey) return;
+    errors = onSave(params);
+    if (errors.length === 0) savedKey = key;
+  }
+
+  const autosave = createAutosave({ run: save });
+  onDestroy(() => autosave.dispose());
+
   function handleReset() {
+    statusMsg = "";
     onReset();
     errors = [];
     statusMsg = translate("settings.omr.resetDone");
@@ -100,6 +116,9 @@
     untrack(() => {
       if (current.revision !== lastRevision) {
         lastRevision = current.revision;
+        const key = paramsKey(current.params);
+        if (key === savedKey) return;
+        savedKey = key;
         draft = toDraft(current.params);
         draftShapeAnalysis = current.params.shapeAnalysis;
         draftAlgorithm = current.params.algorithm;
@@ -107,10 +126,22 @@
       }
     });
   });
+
+  // Every edit schedules a save.
+  $effect.pre(() => {
+    const key = paramsKey(draftParams());
+    untrack(() => {
+      if (key !== savedKey) {
+        statusMsg = "";
+        autosave.schedule();
+      }
+    });
+  });
 </script>
 
 <div id="omr" class="scroll-mt-16 lg:scroll-mt-4">
   <Card title={$t("settings.omr.heading")}>
+    {#snippet actions()}<SaveStatus status={$autosave} />{/snippet}
     <p class="mt-0 mb-3 text-sm text-muted">{$t("settings.omr.description")}</p>
     <Alert class="mb-3">{$t("settings.omr.futureOnly")}</Alert>
     <p class="mt-0 mb-4 text-xs text-muted">
@@ -213,7 +244,6 @@
     {/if}
 
     <div class="mt-4 flex flex-wrap gap-2">
-      <Button onClick={handleSave}>{$t("settings.omr.save")}</Button>
       <Button variant="outlined" severity="secondary" onClick={handleReset}>{$t("settings.omr.reset")}</Button>
     </div>
   </Card>

@@ -39,6 +39,7 @@ Jede Aufgabe ist ein LaTeX-Fragment mit einer PDF-Live-Vorschau neben dem Quellt
 
 - **Strg + F** öffnet die Suche, **Strg + H** Suchen und Ersetzen (auf dem Mac **⌘**).
 - **Live-Vorschau PDF** kompiliert die Aufgabe und zeigt Angabe und Lösung.
+- **Speichern**: Eine vorhandene Aufgabe speichert sich zwei Sekunden nach Ihrer letzten Änderung selbst; der Fuß des Editors zeigt **Wird gespeichert …**, **Gespeichert** oder warum das Speichern fehlschlug. **Schließen** speichert, was noch offen ist, samt Bildern und Dateien. Lässt sich eine Änderung nicht speichern (etwa ohne Namen oder bei einer Ankreuzaufgabe ohne richtige Antwort), fragt Examance vor dem Schließen, ob sie verworfen werden soll. Eine neue Aufgabe und eine neue Version legen Sie weiterhin mit dem Knopf **Speichern** an.
 
 ![Aufgaben-Editor mit Live-Vorschau](../../screenshots/pitch/03-exercise-editor.jpg)
 

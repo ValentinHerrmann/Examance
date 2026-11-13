@@ -1,5 +1,6 @@
 /** Exercise resource files: local staging area plus server sync. The editor works against a *staging* owner id, never the live exercise, so files can be attached and previewed before it exists; Save flushes the staged set to the API, cancel discards it. Dexie is the working copy; server-seeded rows carry only metadata until their bytes are needed. */
 
+import { compareCodeUnits } from '#lib/utils/compare';
 import { api } from '#lib/api/client';
 import { newTrashGroup, trashHeaders } from '#lib/trash/group';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
@@ -134,14 +135,18 @@ export const exerciseResourceRepository = {
     await db.exerciseResources.where('exerciseId').equals(ownerId).delete();
   },
 
-    /** Make the staged set the exercise's set. Local rows are re-keyed onto *exerciseId*; against a server the staged set is authoritative: new files upload and files removed while editing are deleted there. Called only after the exercise itself was saved, so the id exists. */
+    /** Make the staged set the exercise's set. Local rows are re-keyed onto *exerciseId*; against a server the staged set is authoritative: new files upload and files removed while editing are deleted there. Called only after the exercise itself was saved, so the id exists. `changed`: a file was uploaded, removed or is new to the exercise. */
   async commit(
     stagingId: string,
     exerciseId: string,
     key: CryptoKey | null
-  ): Promise<{ errors: string[] }> {
+  ): Promise<{ errors: string[]; changed: boolean }> {
     const errors: string[] = [];
     const staged = await this.listLocal(stagingId);
+    const before = await this.listLocal(exerciseId);
+    // A re-upload of files the server lost is a sync, not an edit: only a new file or a different set counts.
+    const fileSet = (rows: ExerciseResourceRecord[]) => rows.map((r) => `${r.filename}:${r.byteSize}`).sort(compareCodeUnits).join('|');
+    const changed = fileSet(before) !== fileSet(staged) || staged.some((r) => r.pendingUpload && !r.remoteId);
     let remote: ExerciseResourceRecord[] = [];
     try {
       remote = await listOnServer(exerciseId);
@@ -193,7 +198,7 @@ export const exerciseResourceRepository = {
     }
     await db.exerciseResources.where('exerciseId').equals(stagingId).delete();
 
-    return { errors };
+    return { errors, changed };
   },
 
     /** Resource files for a compilation. `inline` = bytes the server can't look up (staged files); `exerciseIds` = saved exercises whose files the server loads itself (smaller request). `needBytes` forces everything inline: the WASM engine runs in the browser with no database. */

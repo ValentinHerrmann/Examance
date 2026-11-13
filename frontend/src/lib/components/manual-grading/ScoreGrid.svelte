@@ -1,13 +1,14 @@
 <script lang="ts">
   import { contentHref } from "#lib/utils/links";
   import { untrack } from "svelte";
-  import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Badge, Button, CrossLink, EmptyState, LinkButton, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
+  import { faArrowLeft, faArrowRight, faUsers } from "@fortawesome/free-solid-svg-icons";
+  import { Badge, SaveStatus, Button, CrossLink, EmptyState, LinkButton, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { calculateGradeDetail } from "#lib/analytics/gradingKey";
   import { saveSubmissionScores, submissionForStudent } from "#lib/grading/scoreService";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import type { ExamRecord, ExerciseRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
-  import { t } from "#lib/i18n";
+  import { t, translate } from "#lib/i18n";
+  import { createAutosave } from "#lib/utils/autosave";
   import { gradeHref } from "#lib/utils/links";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ScoreInputCell from "./ScoreInputCell.svelte";
@@ -54,7 +55,11 @@
   // What the last rebuild put in, and for which student/exercise: a refresh keeps fields edited since then.
   let loadedRaw: Record<number, string> = {};
   let loadedRawFor = "";
-  let saveError = $state("");
+  // Cells save on commit (blur, Enter); this only shows those saves in one status line (issue #232).
+  const saves = createAutosave({
+    run: async () => {},
+    message: (err) => translate("grading.manual.saveFailed", { message: err instanceof Error ? err.message : String(err) }),
+  });
 
   const scoreText = (v: number | null | undefined) => (v !== null && v !== undefined ? String(v) : "");
 
@@ -171,12 +176,9 @@
   /** False when nothing was written; the error is shown inline and the selection stays. */
   async function save(row = 0): Promise<boolean> {
     try {
-      if (orientation === "students") await saveStudent();
-      else await saveCell(row);
-      saveError = "";
+      await saves.track(orientation === "students" ? saveStudent() : saveCell(row));
       return true;
-    } catch (err) {
-      saveError = err instanceof Error ? err.message : String(err);
+    } catch {
       return false;
     }
   }
@@ -300,16 +302,12 @@
           <div class="flex min-w-0 items-center gap-3">
             <h3 class="m-0 min-w-0 text-lg font-semibold text-content"><LinkButton onClick={() => (editEx = activeExercise)} class="text-content!">{activeExercise.name}</LinkButton></h3>
             <Badge>{$t("grading.manual.exerciseFirst.maxPointsLabel")} <strong class="ml-1">{activeExercise.maxPoints}</strong></Badge>
+            <SaveStatus status={$saves} />
           </div>
         {/if}
       {/if}
     </div>
 
-    {#if saveError}
-      <Alert severity="danger" onDismiss={() => (saveError = "")}>
-        {$t("grading.manual.saveFailed", { message: saveError })}
-      </Alert>
-    {/if}
 
     {#if orientation === "students"}
       {#if currentStudent}
@@ -374,11 +372,9 @@
             disabled={currentStudentIndex === 0}
             onClick={() => goStudent(-1)}
           >
-            {$t("grading.manual.studentFirst.savePrev")}
+            {$t("grading.manual.studentFirst.prevStudent")}
           </Button>
-          <Button severity="success" icon={faCheck} onClick={() => save()}>
-            {$t("grading.manual.studentFirst.saveScores")}
-          </Button>
+          <SaveStatus status={$saves} />
           <Button
             variant="outlined"
             severity="secondary"
@@ -386,7 +382,7 @@
             disabled={currentStudentIndex >= students.length - 1}
             onClick={() => goStudent(1)}
           >
-            {$t("grading.manual.studentFirst.saveNext")}
+            {$t("grading.manual.studentFirst.nextStudent")}
           </Button>
         </div>
       {/if}

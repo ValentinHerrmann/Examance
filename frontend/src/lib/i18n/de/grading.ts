@@ -169,9 +169,6 @@ export const grading = {
             colMax: 'Maximalpunkte',
             colScore: 'Punkteeingabe',
             pointsSuffix: '{points} Pkt.',
-            savePrev: 'Speichern & vorheriger Schüler',
-            saveScores: 'Schülerpunkte speichern',
-            saveNext: 'Speichern & nächster Schüler',
         },
         roster: {
             addTitle: 'Schüler zur Liste hinzufügen',

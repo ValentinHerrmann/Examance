@@ -171,9 +171,6 @@ export const grading: Translations['grading'] = {
             colMax: 'Max points',
             colScore: 'Point entry',
             pointsSuffix: '{points} pts',
-            savePrev: 'Save & previous student',
-            saveScores: 'Save student scores',
-            saveNext: 'Save & next student',
         },
         roster: {
             addTitle: 'Add student to roster',

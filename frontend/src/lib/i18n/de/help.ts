@@ -115,7 +115,7 @@ export const help = {
             },
             s2: {
                 h: 'Der Editor',
-                p1: 'Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau. „LaTeX-Bausteine einfügen“ über dem Quelltext bietet Bausteine für Lösungen, Punkte und Formatierung, dazu fachspezifische wie Baumdiagramme, Schaltungen oder Strukturformeln. Strg + F sucht, Strg + H ersetzt.',
+                p1: 'Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau. „LaTeX-Bausteine einfügen“ über dem Quelltext bietet Bausteine für Lösungen, Punkte und Formatierung, dazu fachspezifische wie Baumdiagramme, Schaltungen oder Strukturformeln. Strg + F sucht, Strg + H ersetzt. Eine vorhandene Aufgabe speichert sich selbst; „Schließen“ speichert, was noch offen ist.',
             },
             s3: {
                 h: 'Punkte, Teilaufgaben und Anforderungsbereiche',
@@ -230,7 +230,7 @@ export const help = {
             },
             s5: {
                 h: 'Zwischenstand',
-                p1: 'Speichern Sie Punkte und Anmerkungen vor dem Wechsel. Verlassen Sie die Seite mit ungespeicherten Anmerkungen, fragt Examance nach — bestätigen Sie nur, wenn Sie sie wirklich verwerfen wollen.',
+                p1: 'Punkte und Anmerkungen speichern sich selbst, auch vor dem Wechsel zu einer anderen Person. Nur wenn das Speichern fehlschlägt, fragt Examance, ob die Änderungen verworfen werden sollen.',
             },
         },
         stats: {
@@ -324,7 +324,7 @@ export const help = {
             },
             s5: {
                 h: 'MC-Erkennung feinjustieren',
-                p1: 'Erkennungsverfahren und Schwellwerte, etwa für sehr helle oder dunkle Scans. Gilt nur für künftige Erkennungsläufe und nur in diesem Browser; „Auf Standardwerte zurücksetzen“ stellt die Vorgaben wieder her.',
+                p1: 'Erkennungsverfahren und Schwellwerte, etwa für sehr helle oder dunkle Scans. Speichert sich selbst, gilt nur für künftige Erkennungsläufe und nur in diesem Browser; „Auf Standardwerte zurücksetzen“ stellt die Vorgaben wieder her.',
             },
             s6: {
                 h: 'MC-Erkennung verbessern (freiwillig)',

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { faFloppyDisk, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
+  import { onDestroy, onMount, untrack } from "svelte";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Card } from "#lib/components/ui";
+  import { Alert, Card, SaveStatus } from "#lib/components/ui";
+  import { createAutosave } from "#lib/utils/autosave";
   import HelpButton from "#lib/components/help/HelpButton.svelte";
   import { entriesError, type LatexPackageEntry } from "#lib/latex/packages";
   import {
@@ -15,16 +15,14 @@
   import PackageResultView from "./PackageResultView.svelte";
   import TemplatePackagesTable from "./TemplatePackagesTable.svelte";
 
-  /** The account's LaTeX packages (issue #108), added to every exam and exercise preview. Shows what the template loads, lets the teacher pass options to it, and previews the merged result before saving. */
+  /** The account's LaTeX packages (issue #108), added to every exam and exercise preview. Shows what the template loads, lets the teacher pass options to it, and previews the merged result. Saves itself once the list is valid (issue #232). */
 
   let template = $state.raw<TemplatePackages | null>(null);
   let saved = $state.raw<LatexPackageEntry[]>([]);
   let draft = $state.raw<LatexPackageEntry[]>([]);
   let loading = $state(true);
   let loadFailed = $state(false);
-  let busy = $state(false);
   let error = $state("");
-  let info = $state("");
   let editor: ReturnType<typeof PackageEntriesEditor> | undefined = $state();
 
   // Order is load order, so a reordered list counts as a change.
@@ -33,23 +31,21 @@
   let templateNames = $derived(new Set(template?.packages.map((p) => p.name) ?? []));
   let adjusted = $derived(new Set(draft.filter((e) => e.kind === "package" && e.options).map((e) => e.name)));
 
+  // An invalid list stays unsaved; its error shows under the editor.
   async function save() {
-    if (invalid) {
-      error = translate("latexPackages.account.invalid");
-      return;
-    }
-    busy = true;
-    error = "";
-    info = "";
-    try {
-      saved = draft = await saveAccountPackages(draft);
-      info = translate("latexPackages.account.saved");
-    } catch (err) {
-      error = translate("latexPackages.account.saveFailed", { message: (err as Error)?.message ?? "" });
-    } finally {
-      busy = false;
-    }
+    const sent = draft;
+    if (entriesError(sent) !== null || JSON.stringify(sent) === JSON.stringify(saved)) return;
+    const stored = await saveAccountPackages(sent);
+    saved = stored;
+    // Edits made during the save stay; the next save takes them.
+    if (draft === sent) draft = stored;
   }
+
+  const autosave = createAutosave({
+    run: save,
+    message: (err) => translate("latexPackages.account.saveFailed", { message: (err as Error)?.message ?? "" }),
+  });
+  onDestroy(() => autosave.dispose());
 
   onMount(async () => {
     const [account, templateResult] = await Promise.allSettled([fetchAccountPackages(), getTemplatePackages()]);
@@ -62,6 +58,15 @@
     if (templateResult.status === "fulfilled") template = templateResult.value;
     loading = false;
   });
+
+  // Every edit schedules a save.
+  $effect.pre(() => {
+    const d = dirty;
+    void draft;
+    untrack(() => {
+      if (d) autosave.schedule();
+    });
+  });
 </script>
 
 <div id="latex-packages" class="scroll-mt-16 lg:scroll-mt-4">
@@ -69,13 +74,11 @@
     <h2 class="m-0 mb-1 flex items-center gap-2 text-xl font-medium text-content">
       {$t("latexPackages.account.heading")}
       <HelpButton topic="exercises" size="sm" />
+      <SaveStatus status={$autosave} class="ml-auto text-base font-normal" />
     </h2>
     <p class="mt-0 mb-4 text-sm text-muted">{$t("latexPackages.account.description")}</p>
     {#if error}
       <Alert severity="danger" class="mb-3" onDismiss={() => (error = "")}>{error}</Alert>
-    {/if}
-    {#if info}
-      <Alert severity="success" class="mb-3" onDismiss={() => (info = "")}>{info}</Alert>
     {/if}
 
     {#if !loading && !loadFailed}
@@ -88,16 +91,9 @@
           {templateNames}
           emptyText={$t("latexPackages.account.empty")}
         />
-        <div class="flex flex-wrap gap-2">
-          <Button icon={faFloppyDisk} loading={busy} disabled={!dirty || invalid} onClick={save}>
-            {$t("latexPackages.account.save")}
-          </Button>
-          {#if dirty}
-            <Button variant="outlined" severity="secondary" icon={faRotateLeft} disabled={busy} onClick={() => (draft = saved)}>
-              {$t("latexPackages.account.discard")}
-            </Button>
-          {/if}
-        </div>
+        {#if invalid}
+          <p class="m-0 text-xs text-danger-fg">{$t("latexPackages.account.invalid")}</p>
+        {/if}
       </section>
 
       <details class="mt-4 min-w-0">

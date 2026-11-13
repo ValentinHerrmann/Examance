@@ -65,7 +65,7 @@ Eine einzelne Prüfung kann das Logo auf dem Reiter **Layout** der Prüfung übe
 
 ## LaTeX-Pakete {#packages}
 
-*Gehört zu Ihrem Konto.* Listet die Pakete auf, die die Vorlage lädt, und lässt Sie Pakete, TikZ-Bibliotheken und Optionen für alle Ihre Prüfungen hinzufügen. Wie Pakete von Konto, Prüfung und Aufgabe zusammenwirken, steht unter [LaTeX-Pakete](./exercises#packages).
+*Gehört zu Ihrem Konto.* Listet die Pakete auf, die die Vorlage lädt, und lässt Sie Pakete, TikZ-Bibliotheken und Optionen für alle Ihre Prüfungen hinzufügen. Wie Pakete von Konto, Prüfung und Aufgabe zusammenwirken, steht unter [LaTeX-Pakete](./exercises#packages). Jede Änderung wird von selbst gespeichert, sobald die Liste gültig ist; die Überschrift zeigt **Wird gespeichert …** und dann **Gespeichert**.
 
 ![LaTeX-Pakete für das ganze Konto](../../screenshots/guide/settings-latex-packages.jpg)
 
@@ -77,6 +77,7 @@ Eine einzelne Prüfung kann das Logo auf dem Reiter **Layout** der Prüfung übe
 
 - Änderungen gelten nur für **künftige** Erkennungsläufe (neue Scans oder **MC-Erkennung erneut ausführen**). Bereits erkannte und geprüfte Ergebnisse ändern sich nicht.
 - Jeder Lauf speichert die verwendeten Werte mit, sodass die Prüfansicht sie vergleichen kann.
+- Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Wird gespeichert …** und dann **Gespeichert**. Ein Wert außerhalb des erlaubten Bereichs wird rot markiert und erst gespeichert, wenn er stimmt.
 - **Auf Standardwerte zurücksetzen** stellt die mitgelieferten Werte wieder her.
 
 ## Neue Aufgaben teilen {#share-default}

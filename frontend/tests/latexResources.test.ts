@@ -105,6 +105,17 @@ describe('exercise resource staging', () => {
     expect(await exerciseResourceRepository.listLocal(stagingId)).toHaveLength(0);
   });
 
+  it('reports a change only when the file set changed', async () => {
+    await exerciseResourceRepository.stage('staging-c', 'figure.png', 'image/png', bytes('img'), key);
+    expect((await exerciseResourceRepository.commit('staging-c', 'exercise-c', key)).changed).toBe(true);
+
+    // Reopened without touching the files: closing the editor must not tell the parent something changed.
+    await exerciseResourceRepository.seedStaging('exercise-c', 'staging-d', key);
+    const rows = await exerciseResourceRepository.listLocal('staging-d');
+    await Promise.all(rows.map((r) => db.exerciseResources.put({ ...r, pendingUpload: false, remoteId: 'r-1' })));
+    expect((await exerciseResourceRepository.commit('staging-d', 'exercise-c', key)).changed).toBe(false);
+  });
+
   it('discards a staging area that is never committed', async () => {
     await exerciseResourceRepository.stage('staging-2', 'draft.png', 'image/png', bytes('x'), key);
     await exerciseResourceRepository.deleteForExercise('staging-2');
