@@ -5,6 +5,7 @@ import type { LoadedResults } from '#lib/export/examExport';
 const getById = vi.fn();
 vi.mock('#lib/repositories/submissionRepository', () => ({ submissionRepository: { getById: (...args: unknown[]) => getById(...args) } }));
 vi.mock('#lib/export/gradedPdf', () => ({ renderGradedPdf: vi.fn(async () => new Uint8Array([1])) }));
+vi.mock('#lib/repositories/reviewRepository', () => ({ reviewRepository: { listByExam: vi.fn(async () => []) } }));
 vi.mock('#lib/grading/scoreBoxes', () => ({ loadScoreBoxContext: vi.fn(async () => null) }));
 
 const { forEachGradedPdf } = await import('#lib/export/examExport');

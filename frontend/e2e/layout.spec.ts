@@ -139,6 +139,51 @@ test('[layout] a shared result fills the screen with its PDF (issue #210)', asyn
   expect.soft(m.docH, 'result: document scrolls horizontally').toBeLessThanOrEqual(0);
 });
 
+/** Regression (issue #226): with objections enabled the page crashed into the error page after decrypting, because a field bound an undefined text. */
+test('[layout] a shared result with objections shows one field per item', async ({ page, backend }) => {
+  const doc = await PDFDocument.create();
+  doc.addPage([595, 842]);
+  const pdf = Array.from(await doc.save());
+
+  await page.goto('/unlock');
+  const share = await page.evaluate(async (bytes) => {
+    const shareModule = '/src/lib/sharing/shareCrypto.ts';
+    const aesModule = '/src/lib/crypto/aesGcm.ts';
+    const sc = await import(/* @vite-ignore */ shareModule);
+    const { uint8ArrayToBase64 } = await import(/* @vite-ignore */ aesModule);
+    const link = sc.newShareLink();
+    const items = [
+      { key: 'ex-1', label: '1', max: 4, points: 3 },
+      { key: 'ex-2#a', label: '2a', max: 2, points: null },
+    ];
+    const sealed = await sc.sealShare(link, 'none', null, { filename: 'graded.pdf', examTitle: 'Objections', items }, { graded: new Uint8Array(bytes) });
+    return {
+      id: link.shareId,
+      path: sc.shareUrl('', link),
+      lookupB64: uint8ArrayToBase64(await sc.lookupSecret(link)),
+      ivB64: uint8ArrayToBase64(sealed.iv),
+      ciphertextB64: uint8ArrayToBase64(sealed.ciphertext),
+    };
+  }, pdf);
+  backend.state.resultShares.set(share.id, {
+    lookupB64: share.lookupB64,
+    content: {
+      factor: 'none',
+      kdf_salt_b64: null,
+      iv_b64: share.ivB64,
+      ciphertext_b64: share.ciphertextB64,
+      expires_at: '2099-01-01T00:00:00Z',
+      review_until: '2098-01-01T00:00:00Z',
+      review: null,
+    },
+  });
+
+  await page.goto(share.path);
+  await expect(page.getByRole('heading', { level: 1, name: 'Objections' })).toBeVisible();
+  await expect(page.locator('textarea')).toHaveCount(2);
+  await settleLayout(page);
+});
+
 /* -------------------------------------------------------------------------- */
 /* Shell: navbar, sidebar, grade, widths, touch targets, theme                 */
 /* -------------------------------------------------------------------------- */

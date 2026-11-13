@@ -270,10 +270,12 @@ function deliveryStubs(method: string, rest: string[]): Handled {
   return undefined;
 }
 
-/** Result shares (issue #207) and delivery statuses (issue #221): nothing exists in the fake, so lists are empty and revoking or closing is a no-op. */
+/** Result shares (issue #207), delivery statuses (issue #221) and objections (issue #226): nothing exists in the fake, so lists are empty and revoking or closing is a no-op. */
 function shareAndDeliveryStubs(method: string, sub: string, rest: string[]): Handled {
   if (sub === 'shares') return shareStubs(method, rest);
   if (sub === 'deliveries') return deliveryStubs(method, rest);
+  // Objections (issue #226) and their kept records: nobody objects in the fake.
+  if ((sub === 'reviews' || sub === 'grading-reviews') && method === 'GET' && rest.length === 0) return ok([]);
   return undefined;
 }
 
@@ -1231,6 +1233,8 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       return noContent();
     }
     if (action === 'scores') return scoreRoutes(method, examId, subId, more, body);
+    // Grading review records (issue #226): none exist in the fake; the server answers null for a submission without one.
+    if (action === 'grading-review' && method === 'GET') return ok(null);
     return undefined;
   }
 

@@ -199,6 +199,7 @@ async def test_account_export_shape(client: AsyncClient, db: AsyncSession) -> No
         "features",
         "sharing_paused",
         "share_new_exercises",
+        "review_mail",
         "exam_logo",
         "latex_packages",
     }

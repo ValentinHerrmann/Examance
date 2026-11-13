@@ -1,6 +1,6 @@
 <script lang="ts">
   // The student's objection form on the result page (issue #226, docs/dev/grading_review.md): one text per (sub)exercise, sealed in this browser under a key only the link yields. Editable until the teacher opens it or the deadline passes; the teacher's replies appear here.
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { apiErrorMessage } from "#lib/api/client";
   import { submitShareReview, withdrawShareReview, type SealedReview } from "#lib/api/resultShares";
   import { t } from "#lib/i18n";
@@ -22,7 +22,8 @@
   let { shareId, lookup, contentKey, items, reviewUntil, review }: Props = $props();
 
   const NOW = Date.now();
-  let texts = $state<Record<string, string>>({});
+  // Every item key starts as "": Textarea's value has a fallback, and binding an undefined entry to it throws (the page crashed, issue #226).
+  let texts = $state<Record<string, string>>(untrack(() => Object.fromEntries(items.map((i) => [i.key, ""]))));
   let saved = $state.raw<Record<string, string>>({});
   let submittedAt = $state<string | null>(null);
   let openedAt = $state<string | null>(null);
@@ -44,7 +45,7 @@
     repliedAt = review?.repliedAt ?? null;
     try {
       if (review?.objection) saved = (await openReviewPart(shareId, contentKey, "objection", review.objection.ciphertext, review.objection.iv)).items;
-      texts = { ...saved };
+      texts = { ...texts, ...saved };
       if (review?.reply) replies = (await openReviewPart(shareId, contentKey, "reply", review.reply.ciphertext, review.reply.iv)).items;
     } catch (err) {
       console.warn("The review could not be opened:", err);
