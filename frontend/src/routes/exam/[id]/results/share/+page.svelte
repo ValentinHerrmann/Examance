@@ -13,7 +13,9 @@
   import { watchBounces } from "#lib/sharing/delivery";
   import { channelUnavailable, incompatibleStudents, sendsPdf as channelSendsPdf, SHARE_CHANNELS, type ArtemisMode, type ShareChannelId } from "#lib/sharing/channels";
   import type { ShareFactor } from "#lib/sharing/shareCrypto";
+  import { loadReviewPrint } from "#lib/export/reviewPrintPrefs";
   import { dateInputValue, reviewDateValid, reviewDeadline } from "#lib/sharing/reviewItems";
+  import { examHasReviews } from "#lib/sharing/reviewService";
   import {
     DEFAULT_EXPIRY_DAYS,
     loadShareOverview,
@@ -47,6 +49,8 @@
   let includeCode = $state(false);
   // Objections (issue #226): off by default, two weeks preset.
   let reviewOn = $state(false);
+  let reviewPrint = $state(loadReviewPrint("share"));
+  let hasReviews = $state<boolean | null>(null);
   let reviewDate = $state(dateInputValue(14));
   let updatingId = $state<string | null>(null);
   let loading = $state(true);
@@ -108,6 +112,7 @@
     try {
       await awaitSessionReady();
       overview = await loadShareOverview(examId);
+      hasReviews = await examHasReviews(examId);
       if (!selected.size) selected = gradedKeys(overview);
     } catch (err) {
       error = `${$t("sharing.errors.load")} ${err instanceof Error ? err.message : ""}`.trim();
@@ -175,6 +180,7 @@
           language,
           includeCode: sendsMessage && !sendsPdf && factor !== "none" && includeCode,
           reviewUntil: reviewOn && !sendsPdf ? reviewDeadline(reviewDate, Number(expiry)) : null,
+          reviewPrint,
         },
         (phase, done = 0, total = 0) => (progress = { phase, done, total })
       );
@@ -372,6 +378,8 @@
           bind:expiry
           bind:reviewOn
           bind:reviewDate
+          bind:reviewPrint
+          {hasReviews}
         />
       </Card>
 

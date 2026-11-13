@@ -34,15 +34,26 @@ export const exportNs: Translations['export'] = {
     review: {
         title: 'Review',
         legend: 'Print the review (student objections) in the graded PDFs',
-        modes: {
+        noReviews: 'This exam has no objections yet, so no review is printed.',
+        noReviewsStudent: 'This paper has no objection, so no review is printed.',
+        options: {
             short: 'Short note under the score box',
             shortHint: 'One small red line such as "Review: 3 -> 4 pts" right under the exercise\'s score box; the scan stays uncovered.',
-            strip: 'Margin strip',
-            stripHint: 'Pages with an objection get a 55 mm strip on the outer side with objection, reply and points; the scan is unchanged.',
-            page: 'Summary page at the end',
-            pageHint: 'One A4 page at the end lists all objections and replies.',
-            none: 'Do not print',
-            noneHint: 'The graded PDFs contain no review.',
+            side: 'Side strip',
+            sideHint: 'Pages with an objection get a 55 mm strip on the outer side with objection, reply and points; the scan is unchanged.',
+            bottom: 'Bottom strip',
+            bottomHint: 'Pages with an objection get a 40 mm strip at the bottom; the objections stand side by side, each under its exercise.',
+            summary: 'Summary page at the end',
+            summaryHint: 'One A4 page at the end lists all objections and replies.',
+            attach: 'Attach the full text',
+            attachHint: 'All objections and replies in full as a text file inside the PDF, so even a shortened text is never lost.',
+            attachCombined: 'Not possible: attachments are lost when merging into one file. The ZIP contains them.',
+            attachShare: 'Not possible: students view the PDF view-only, without attachments.',
+            attachNeedsSingle: 'Not possible: attachments are lost when merging into one file. Choose the individual graded scans.',
+        },
+        download: {
+            title: 'Download graded PDF',
+            confirm: 'Download',
         },
         pdf: {
             title: 'Review: objections and replies',
@@ -51,6 +62,7 @@ export const exportNs: Translations['export'] = {
             objection: 'Objection',
             reply: 'Reply',
             truncated: '… (full text attached)',
+            truncatedNoAttachment: '… (shortened)',
         },
     },
     exam: {

@@ -11,6 +11,7 @@
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import ExportOptionList from "#lib/components/export/ExportOptionList.svelte";
+  import ReviewPrintOptions from "#lib/components/export/ReviewPrintOptions.svelte";
   import ExportProgressBar from "#lib/components/export/ExportProgressBar.svelte";
   import BackupFields, { backupReady } from "#lib/components/export/BackupFields.svelte";
   import { exportBgprojArchive } from "#lib/services/archiveService";
@@ -19,7 +20,9 @@
   import { examHasWithheldCode } from "#lib/exam/examPreview";
   import { renderCombinedGradedPdf, renderExamSummaryPdf, runExamExport } from "#lib/export/examExport";
   import { examExportOptions } from "#lib/export/examExportOptions";
+  import { loadReviewPrint } from "#lib/export/reviewPrintPrefs";
   import { runZipExport } from "#lib/export/runZipExport";
+  import { examHasReviews } from "#lib/sharing/reviewService";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
 
@@ -39,6 +42,10 @@
   let gradedWarnings = $state<string[]>([]);
   let gradedNone = $state(false);
   let duplex = $state(true);
+  // Whether the exam has objections, and the review print choice of the ZIP list and of the combined PDF (both remembered under the export scope).
+  let hasReviews = $state<boolean | null>(null);
+  let zipReview = $state(loadReviewPrint("export"));
+  let gradedReview = $state(loadReviewPrint("export"));
   let checked = $state<Record<string, boolean>>({});
   let running = $state(false);
   let step = $state("");
@@ -85,6 +92,7 @@
       title = exam?.title ?? "";
       withheld = examHasWithheldCode(await loadExamExercisesEncrypted(id, key));
       checked = Object.fromEntries(examExportOptions(withheld, (k) => k).map((o) => [o.key, !o.disabled]));
+      hasReviews = await examHasReviews(id);
       ready = true;
     } catch (err) {
       loadError = err instanceof Error ? err.message : String(err);
@@ -117,7 +125,7 @@
     gradedNone = false;
     gradedFraction = null;
     try {
-      const res = await renderCombinedGradedPdf(id, { duplex, progress: (d, total) => (gradedFraction = total ? d / total : null) });
+      const res = await renderCombinedGradedPdf(id, { duplex, reviewPrint: gradedReview, progress: (d, total) => (gradedFraction = total ? d / total : null) });
       if (id !== examId) return;
       revokeGraded();
       gradedUrl = res.pdf ? pdfBytesToUrl(res.pdf) : null;
@@ -138,7 +146,7 @@
     warnings = [];
     try {
       if (selected.size > 0) {
-        warnings = await runZipExport((sel, progress) => runExamExport(examId, sel, progress), selected, (s, d, total) => {
+        warnings = await runZipExport((sel, progress) => runExamExport(examId, sel, progress, zipReview), selected, (s, d, total) => {
           step = s;
           fraction = total ? Math.min(1, (d ?? 0) / total) : null;
         });
@@ -224,6 +232,7 @@
       <OptionTile compact name="graded-sides" value="duplex" checked={duplex} disabled={gradedBusy} icon={faCopy} title={$t("exam.archive.gradedDuplex")} text={$t("exam.archive.gradedDuplexText")} onchange={() => (duplex = true)} />
     </div>
   </div>
+  <div class="w-full"><ReviewPrintOptions bind:options={gradedReview} scope="export" {hasReviews} disabled={gradedBusy} attachUnavailable={$t("export.review.options.attachCombined")} /></div>
   {#if gradedUrl}<span class="text-xs text-muted">{$t("exam.archive.gradedPages", { count: gradedPages })}</span>{/if}
 {/snippet}
 {#snippet gradedBody()}
@@ -254,7 +263,7 @@
 {/snippet}
 {#snippet zipBody()}
   <div class="min-h-0 flex-1 overflow-auto">
-    <ExportOptionList {options} bind:checked disabled={running} />
+    <ExportOptionList {options} bind:checked bind:reviewPrint={zipReview} {hasReviews} disabled={running} />
     <div class="mt-3 border-t border-line pt-3">
       <OptionTile type="checkbox" compact checked={backup} disabled={running} icon={faLock} title={$t("exam.archive.backupOption")} text={$t("exam.archive.backupOptionText")} onToggle={(on) => (backup = on)}>
         {#snippet titleExtra()}<InfoTip text={$t("export.backup.intro")} />{/snippet}

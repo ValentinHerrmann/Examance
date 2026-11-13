@@ -9,6 +9,7 @@ import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { reviewRepository } from '#lib/repositories/reviewRepository';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import type { Locale } from '#lib/i18n/types';
+import { printableItems } from '#lib/export/reviewPrint';
 import { mailReviewReply } from './delivery';
 import { openReviewPart, sealReviewPart, shareUrl, unwrapShareKey } from './shareCrypto';
 import { republishShare } from './shareService';
@@ -147,5 +148,25 @@ export async function sendReviewReply(examId: string, sub: SubmissionRecord, flu
     reviewStore.patch({ thread: sent, sending: false, sentAt: repliedAt, mailFailed });
   } catch (err) {
     reviewStore.patch({ sending: false, error: errorText(err) });
+  }
+}
+
+/** Whether any submission of the exam has an objection to print; null when it cannot be read, so the print options stay hidden rather than claiming there are none. */
+export async function examHasReviews(examId: string): Promise<boolean | null> {
+  try {
+    const records = await reviewRepository.listByExam(examId, await sessionKey());
+    return records.some((rec) => printableItems(rec.items).length > 0);
+  } catch {
+    return null;
+  }
+}
+
+/** The printable objections of one submission, or none when they cannot be read (a download is never blocked by it). */
+export async function printableReviewOf(examId: string, submissionId: string): Promise<GradingReviewItem[]> {
+  try {
+    const record = await reviewRepository.getBySubmission(examId, submissionId, await sessionKey());
+    return printableItems(record?.items ?? []);
+  } catch {
+    return [];
   }
 }

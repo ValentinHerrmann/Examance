@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import type { GradingReviewItem } from '../src/lib/db/schema';
 import { findScoreBox, type ScoreBoxContext } from '../src/lib/grading/scoreBoxes';
-import { layoutBlocks, pointsText, printableItems, reviewAttachmentText, shortText, type ReviewLabels } from '../src/lib/export/reviewPrint';
+import {
+  anyReviewPrint,
+  BOTTOM_STRIP_HEIGHT_PT,
+  bottomColumns,
+  DEFAULT_REVIEW_PRINT,
+  layoutBlocks,
+  NO_REVIEW_PRINT,
+  pointsText,
+  printableItems,
+  reviewAttachmentText,
+  shareReviewOptions,
+  shortText,
+  STRIP_WIDTH_PT,
+  stripGeometry,
+  toggleReviewOption,
+  type ReviewLabels,
+} from '../src/lib/export/reviewPrint';
+import { parseReviewPrint } from '../src/lib/export/reviewPrintPrefs';
 
 const labels: ReviewLabels = { review: 'Einsicht', points: 'P.', objection: 'Einwand', reply: 'Antwort', truncated: '(Anhang)', title: 'Einsicht' };
 const font = { widthOfTextAtSize: (t: string, size: number) => t.length * size * 0.5 };
@@ -41,5 +58,68 @@ describe('reviewPrint (issue #226)', () => {
     expect(findScoreBox(ctx, 'e1#a')?.box.rect).toEqual([1, 1, 2, 2]);
     expect(findScoreBox(ctx, 'e1#b')?.box.rect).toEqual([0, 0, 1, 1]);
     expect(findScoreBox(ctx, 'zzz')).toBeNull();
+  });
+
+  it('prints the short note only by default', () => {
+    expect(DEFAULT_REVIEW_PRINT).toEqual({ short: true, strip: 'none', summary: false, attach: false });
+    expect(anyReviewPrint(DEFAULT_REVIEW_PRINT)).toBe(true);
+    expect(anyReviewPrint(NO_REVIEW_PRINT)).toBe(false);
+  });
+
+  it.each([
+    ['short', { ...NO_REVIEW_PRINT, short: true }],
+    ['side', { ...NO_REVIEW_PRINT, strip: 'side' }],
+    ['bottom', { ...NO_REVIEW_PRINT, strip: 'bottom' }],
+    ['summary', { ...NO_REVIEW_PRINT, summary: true }],
+    ['attach', { ...NO_REVIEW_PRINT, attach: true }],
+  ] as const)('ticking %s switches on only that part', (key, expected) => {
+    expect(toggleReviewOption(NO_REVIEW_PRINT, key, true)).toEqual(expected);
+    expect(anyReviewPrint(expected)).toBe(true);
+  });
+
+  it('keeps side and bottom strip exclusive and the other parts independent', () => {
+    const side = toggleReviewOption(DEFAULT_REVIEW_PRINT, 'side', true);
+    expect(side.strip).toBe('side');
+    const bottom = toggleReviewOption(side, 'bottom', true);
+    expect(bottom).toEqual({ ...DEFAULT_REVIEW_PRINT, strip: 'bottom' });
+    expect(toggleReviewOption(bottom, 'side', false)).toBe(bottom);
+    expect(toggleReviewOption(bottom, 'bottom', false).strip).toBe('none');
+    expect(toggleReviewOption(bottom, 'summary', true)).toEqual({ ...bottom, summary: true });
+    expect(toggleReviewOption(bottom, 'short', false).strip).toBe('bottom');
+  });
+
+  it('never attaches to the copy shared with students', () => {
+    expect(shareReviewOptions({ ...DEFAULT_REVIEW_PRINT, attach: true, summary: true })).toEqual({ ...DEFAULT_REVIEW_PRINT, summary: true, attach: false });
+  });
+
+  it('grows the page only for a strip with items', () => {
+    expect(stripGeometry('side', false, 1, 100, 200)).toMatchObject({ width: 100, height: 200, sideX: null, bottom: false });
+    expect(stripGeometry('none', true, 1, 100, 200)).toMatchObject({ width: 100, sideX: null, bottom: false });
+    expect(stripGeometry('side', true, 1, 100, 200)).toMatchObject({ width: 100 + STRIP_WIDTH_PT, imageX: 0, sideX: 100 });
+    expect(stripGeometry('side', true, 2, 100, 200)).toMatchObject({ width: 100 + STRIP_WIDTH_PT, imageX: STRIP_WIDTH_PT, sideX: 0 });
+    expect(stripGeometry('bottom', true, 2, 100, 200)).toMatchObject({ height: 200 + BOTTOM_STRIP_HEIGHT_PT, imageY: BOTTOM_STRIP_HEIGHT_PT, bottom: true, sideX: null });
+  });
+
+  it('lays the bottom strip out left to right without overlap', () => {
+    const cols = bottomColumns([50, 60, 400], 595);
+    expect(cols.length).toBeGreaterThan(1);
+    for (const [i, col] of cols.entries()) {
+      expect(col.x).toBeGreaterThanOrEqual(0);
+      expect(col.x + col.w).toBeLessThanOrEqual(595);
+      if (i > 0) expect(col.x).toBeGreaterThanOrEqual(cols[i - 1].x + cols[i - 1].w);
+    }
+    expect(cols.at(-1)?.to).toBe(3);
+    expect(bottomColumns([], 595)).toEqual([]);
+    const many = bottomColumns(Array.from({ length: 30 }, (_, i) => i * 10), 595);
+    expect(many.at(-1)?.to).toBe(30);
+    expect(many.every((c) => c.w >= 90 && c.x + c.w <= 595)).toBe(true);
+  });
+
+  it('remembers a choice and falls back to the default for anything unreadable', () => {
+    const chosen = { short: false, strip: 'bottom', summary: true, attach: true } as const;
+    expect(parseReviewPrint(JSON.stringify(chosen))).toEqual(chosen);
+    expect(parseReviewPrint(null)).toEqual(DEFAULT_REVIEW_PRINT);
+    expect(parseReviewPrint('{oops')).toEqual(DEFAULT_REVIEW_PRINT);
+    expect(parseReviewPrint('{"strip":"diagonal","short":"yes"}')).toEqual(DEFAULT_REVIEW_PRINT);
   });
 });

@@ -33,15 +33,26 @@ export const exportNs = {
     review: {
         title: 'Einsicht',
         legend: 'Einsicht (Einwände der Schüler) in den korrigierten PDFs drucken',
-        modes: {
+        noReviews: 'In dieser Prüfung gibt es noch keine Einwände, daher wird keine Einsicht gedruckt.',
+        noReviewsStudent: 'Diese Arbeit hat keinen Einwand, daher wird keine Einsicht gedruckt.',
+        options: {
             short: 'Kurz unter dem Punktefeld',
             shortHint: 'Eine kleine rote Zeile wie "Einsicht: 3 -> 4 P." direkt unter dem Punktefeld der Aufgabe; der Scan bleibt unverdeckt.',
-            strip: 'Randstreifen',
-            stripHint: 'Seiten mit Einwand werden außen um einen 55-mm-Streifen mit Einwand, Antwort und Punkten verbreitert; der Scan bleibt unverändert.',
-            page: 'Zusatzseite am Ende',
-            pageHint: 'Eine A4-Seite am Ende listet alle Einwände und Antworten.',
-            none: 'Nicht drucken',
-            noneHint: 'Die korrigierten PDFs enthalten keine Einsicht.',
+            side: 'Randstreifen seitlich',
+            sideHint: 'Seiten mit Einwand werden außen um einen 55-mm-Streifen mit Einwand, Antwort und Punkten verbreitert; der Scan bleibt unverändert.',
+            bottom: 'Randstreifen unten',
+            bottomHint: 'Seiten mit Einwand werden unten um einen 40-mm-Streifen verlängert; die Einwände stehen nebeneinander, jeweils unter ihrer Aufgabe.',
+            summary: 'Zusatzseite am Ende',
+            summaryHint: 'Eine A4-Seite am Ende listet alle Einwände und Antworten.',
+            attach: 'Volltext als Anhang',
+            attachHint: 'Alle Einwände und Antworten vollständig als Textdatei in der PDF; so geht auch ein gekürzter Text nicht verloren.',
+            attachCombined: 'Nicht möglich: Anhänge gehen beim Zusammenführen in eine Datei verloren. Die ZIP-Datei enthält sie.',
+            attachShare: 'Nicht möglich: Schüler sehen die PDF nur zur Ansicht, ohne Anhänge.',
+            attachNeedsSingle: 'Nicht möglich: Anhänge gehen beim Zusammenführen in eine Datei verloren. Wählen Sie die einzelnen korrigierten Scans.',
+        },
+        download: {
+            title: 'Korrigierte PDF herunterladen',
+            confirm: 'Herunterladen',
         },
         pdf: {
             title: 'Einsicht: Einwände und Antworten',
@@ -50,6 +61,7 @@ export const exportNs = {
             objection: 'Einwand',
             reply: 'Antwort',
             truncated: '… (vollständiger Text im Anhang)',
+            truncatedNoAttachment: '… (gekürzt)',
         },
     },
     exam: {

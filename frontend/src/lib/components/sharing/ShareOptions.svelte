@@ -3,6 +3,8 @@
   import { t } from "#lib/i18n";
   import { faFileCircleCheck, faKey, faLink, faMessage, faTag } from "@fortawesome/free-solid-svg-icons";
   import { Button, Field, OptionTile, Select, TextInput, actionIcons } from "#lib/components/ui";
+  import ReviewPrintOptions from "#lib/components/export/ReviewPrintOptions.svelte";
+  import type { ReviewPrintOptions as ReviewPrintChoice } from "#lib/export/reviewPrint";
   import { SHARE_FACTORS } from "#lib/sharing/channels";
   import type { ShareFactor } from "#lib/sharing/shareCrypto";
   import { dateInputValue, reviewDateValid } from "#lib/sharing/reviewItems";
@@ -27,6 +29,9 @@
     /** Allow objections until `reviewDate` (issue #226); the date is capped at the link's expiry when sending. */
     reviewOn: boolean;
     reviewDate: string;
+    /** What of the review the student's PDF prints (remembered under the `share` scope); shown only when the exam has objections (null: unknown). */
+    reviewPrint: ReviewPrintChoice;
+    hasReviews: boolean | null;
   }
 
   let {
@@ -44,6 +49,8 @@
     expiry = $bindable("14"),
     reviewOn = $bindable(false),
     reviewDate = $bindable(""),
+    reviewPrint = $bindable(),
+    hasReviews,
   }: Props = $props();
 
   let reviewMax = $derived(dateInputValue(Number(expiry) || 0));
@@ -90,6 +97,8 @@
         </Field>
       {/if}
     </div>
+
+    <ReviewPrintOptions bind:options={reviewPrint} scope="share" {hasReviews} disabled={running} attachUnavailable={$t("export.review.options.attachShare")} />
 
     <OptionTile type="checkbox" compact checked={includeSolution} disabled={running || !solutionAvailable} icon={faFileCircleCheck} title={$t("sharing.share.includeSolution")} text={solutionAvailable ? $t("sharing.share.includeSolutionHint") : $t("sharing.share.solutionWithheld")} onToggle={(on) => (includeSolution = on)} />
   {/if}

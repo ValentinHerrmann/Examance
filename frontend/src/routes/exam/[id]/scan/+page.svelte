@@ -30,7 +30,7 @@
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
-  import type { StudentRecord, PseudonymVersion } from "#lib/db/schema";
+  import type { GradingReviewItem, StudentRecord, PseudonymVersion } from "#lib/db/schema";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
@@ -55,6 +55,9 @@
   import UnmatchedResolver from "#lib/components/scanning/UnmatchedResolver.svelte";
   import ScannedSubmissionsTable from "#lib/components/scanning/ScannedSubmissionsTable.svelte";
   import ScanPreviewModal from "#lib/components/scanning/ScanPreviewModal.svelte";
+  import GradedPdfDialog from "#lib/components/scanning/GradedPdfDialog.svelte";
+  import { printableReviewOf } from "#lib/sharing/reviewService";
+  import type { ReviewPrintOptions } from "#lib/export/reviewPrint";
   import { t, translate } from "#lib/i18n";
   import { renderGradedPdf } from "#lib/export/gradedPdf";
   import { downloadBlob } from "#lib/components/stats/chartExport";
@@ -394,8 +397,16 @@
   }
 
   let exportingId: string | null = $state(null);
+  // The paper whose download waits for the review print choice (only papers with an objection ask).
+  let reviewAsk: { item: ScannedSubmissionItem; items: GradingReviewItem[] } | null = $state.raw(null);
 
   async function handleExportPdf(item: ScannedSubmissionItem) {
+    const items = await printableReviewOf(examId, item.id);
+    if (items.length > 0) reviewAsk = { item, items };
+    else await exportPdf(item);
+  }
+
+  async function exportPdf(item: ScannedSubmissionItem, review?: { items: GradingReviewItem[]; options: ReviewPrintOptions }) {
     exportingId = item.id;
     try {
       const { sessionKey, fallbackSessionKey } = get(sessionStore);
@@ -406,7 +417,7 @@
       if (!sub) throw new Error("Scan data not found");
       const scores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
 
-      const bytes = await renderGradedPdf(sub, scores, key, { fallbackKey: fallbackSessionKey, studentName: item.studentName });
+      const bytes = await renderGradedPdf(sub, scores, key, { fallbackKey: fallbackSessionKey, studentName: item.studentName, review });
       downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${item.fallbackCode || item.id}_graded.pdf`);
     } catch (err: any) {
       alert(translate("scanning.errorExportPdf", { message: err?.message || err }));
@@ -749,6 +760,17 @@
     />
   {/if}
 </PageShell>
+
+{#if reviewAsk}
+  {@const ask = reviewAsk}
+  <GradedPdfDialog
+    onClose={() => (reviewAsk = null)}
+    onConfirm={(options) => {
+      reviewAsk = null;
+      exportPdf(ask.item, { items: ask.items, options });
+    }}
+  />
+{/if}
 
 <ScanPreviewModal
   open={previewModalOpen}

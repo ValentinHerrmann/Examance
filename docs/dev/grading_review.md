@@ -71,13 +71,19 @@ The record goes through `resultsMover`, the trash, archives, the GDPR subject ac
 
 ## Printing the review in exported PDFs
 
-`renderGradedPdf` takes `review?: {items, mode}` (`lib/export/reviewPrint.ts`). The export options offer the mode as a radio group:
+`renderGradedPdf` takes `review?: {items, options}` (`lib/export/reviewPrint.ts`). `options` is a `ReviewPrintOptions { short, strip: 'none' | 'side' | 'bottom', summary, attach }`; the parts combine freely, nothing ticked prints nothing (and loads no reviews, `loadReviewItems`):
 
-| Mode | What it prints |
+| Option | What it prints |
 |---|---|
-| `none` | nothing |
-| `short` | "Einsicht: 3 → 4 P." in small red text right under the exercise's score box: no extra space, the scan is not covered |
-| `strip` | pages holding an item with an objection get a 55 mm strip added on the outer side (the page gets wider, the scan is untouched); objection, reply and points sit level with the exercise's score box |
-| `page` | one summary page appended at the end |
+| `short` (preselected) | "Einsicht: 3 -> 4 P." in small red text right under the exercise's score box: no extra space, the scan is not covered |
+| `strip: 'side'` | pages holding an item with an objection get a 55 mm strip on the outer side (the page gets wider, the scan is untouched); objection, reply and points sit level with the exercise's score box |
+| `strip: 'bottom'` | such pages get a 40 mm strip at the bottom; the items stand side by side in reading order, each under its score box's x where it fits (`bottomColumns`) |
+| `summary` | one summary page appended at the end |
+| `attach` | the full thread as the text attachment `review.txt`, so a cut-short text is never lost; without it the cut-off marker no longer points to an attachment |
 
-For every mode except `none`, the full thread is also embedded as a text attachment (`review.txt`), so a cut-short text is never lost. The PDF re-sealed for the student uses `short`.
+Rules:
+- **One strip.** Side and bottom exclude each other (`toggleReviewOption`); short notes are drawn on the scan whichever strip is on. A page grows only when it has a placed item (`stripGeometry`).
+- **Shown only with objections.** `components/export/ReviewPrintOptions` renders the tiles only when the exam (on the Scan page: the student) has a printable objection (`examHasReviews`, `printableReviewOf` in `reviewService`), otherwise one line; an unreadable read shows nothing.
+- **Remembered per browser** (`reviewPrintPrefs.ts`, scope `export` for the export dialog, the Archive tab and the Scan page, scope `share` for the Share page); unreadable storage means the default.
+- **Combined print PDF.** Merging drops attachments, so the attachment tile is greyed out with its reason there and `renderCombinedGradedPdf` never attaches. In the ZIP list it is greyed out while only the combined file is chosen.
+- **Student's copy.** The Share page offers the `share` choice (attachment greyed out: students view the PDF without attachments); `shareResults` uses it and `republishShare` (Send reply, Update shared result) reads the remembered `share` choice; `shareReviewOptions` forces `attach` off.

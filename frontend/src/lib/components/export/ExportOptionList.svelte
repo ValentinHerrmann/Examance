@@ -2,7 +2,8 @@
   import { t } from "#lib/i18n";
   import { OptionTile } from "#lib/components/ui";
   import type { ExportOption } from "./ExportOptionsModal.svelte";
-  import { REVIEW_PRINT_MODES, type ReviewPrintMode } from "#lib/export/reviewPrint";
+  import type { ReviewPrintOptions as ReviewPrintChoice } from "#lib/export/reviewPrint";
+  import ReviewPrintOptions from "./ReviewPrintOptions.svelte";
 
   /** The parts of a raw export as toggle tiles (modal and the Archive tab share it, issue #228); `checked` maps option keys to their state. */
   interface Props {
@@ -10,10 +11,12 @@
     checked: Record<string, boolean>;
     disabled?: boolean;
     /** Set (bindable) to offer how the grading review is printed into the graded PDFs (issue #226); shown while a graded-PDF part is chosen. */
-    reviewMode?: ReviewPrintMode;
+    reviewPrint?: ReviewPrintChoice;
+    /** Whether the exam has objections (null: unknown); the review tiles show only then. */
+    hasReviews?: boolean | null;
   }
 
-  let { options, checked = $bindable(), disabled = false, reviewMode = $bindable() }: Props = $props();
+  let { options, checked = $bindable(), disabled = false, reviewPrint = $bindable(), hasReviews = null }: Props = $props();
 </script>
 
 <fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" {disabled}>
@@ -27,15 +30,8 @@
   </div>
 </fieldset>
 
-{#if reviewMode !== undefined && (checked.graded || checked.gradedCombined)}
-  <fieldset class="m-0 mt-6 flex min-w-0 flex-col gap-2 border-0 p-0" {disabled}>
-    <legend class="mb-2 p-0 text-sm text-muted">{$t("export.review.legend")}</legend>
-    <div class="@container">
-      <div class="grid grid-cols-1 gap-2 @md:grid-cols-2">
-        {#each REVIEW_PRINT_MODES as mode (mode)}
-          <OptionTile compact name="review-print-mode" value={mode} checked={reviewMode === mode} title={$t(`export.review.modes.${mode}`)} text={$t(`export.review.modes.${mode}Hint`)} onchange={() => (reviewMode = mode)} />
-        {/each}
-      </div>
-    </div>
-  </fieldset>
+{#if reviewPrint !== undefined && (checked.graded || checked.gradedCombined)}
+  <div class="mt-6">
+    <ReviewPrintOptions bind:options={reviewPrint} scope="export" {hasReviews} {disabled} attachUnavailable={checked.graded ? undefined : $t("export.review.options.attachNeedsSingle")} />
+  </div>
 {/if}

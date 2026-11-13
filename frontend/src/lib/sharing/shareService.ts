@@ -7,6 +7,8 @@ import { joinKeys } from '#lib/crypto/pseudonymKey';
 import { personalKey } from '#lib/crypto/stickerKey';
 import type { StudentRecord } from '#lib/db/schema';
 import { forEachGradedPdf, loadResults } from '#lib/export/examExport';
+import { shareReviewOptions, type ReviewPrintOptions } from '#lib/export/reviewPrint';
+import { loadReviewPrint } from '#lib/export/reviewPrintPrefs';
 import { exportDateStamp, slug } from '#lib/export/zip';
 import { logExportAction } from '#lib/gdpr/exportAudit';
 import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
@@ -64,6 +66,8 @@ export interface ShareRequest {
   includeCode: boolean;
   /** Objections accepted until then (issue #226); null = off. Never after the link expires. */
   reviewUntil: Date | null;
+  /** What of the review the student's PDF prints (the `share` scope's remembered choice); never an attachment. */
+  reviewPrint: ReviewPrintOptions;
 }
 
 export interface ShareOutcome {
@@ -239,7 +243,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
         await delivery.deliverLink(student, keys[index], name, url, request.includeCode ? code : null);
         entries.push({ name, url, ...(request.factor === 'code' && code ? { code } : {}) });
       },
-      { only: new Set(bySubmission.keys()), progress: (done, total) => progress(loopPhase, done, total) }
+      { only: new Set(bySubmission.keys()), progress: (done, total) => progress(loopPhase, done, total), reviewPrint: shareReviewOptions(request.reviewPrint) }
     ))
   );
   progress(loopPhase, bySubmission.size, bySubmission.size);
@@ -293,7 +297,10 @@ export async function republishShare(
   await options.beforeRender?.({ before, after });
 
   let graded: Uint8Array | undefined;
-  const warnings = await forEachGradedPdf(results, key, fallbackSessionKey, (pdf) => void (graded = pdf), { only: new Set([submissionId]), reviewMode: 'short' });
+  const onPdf = (pdf: Uint8Array) => {
+    graded = pdf;
+  };
+  const warnings = await forEachGradedPdf(results, key, fallbackSessionKey, onPdf, { only: new Set([submissionId]), reviewPrint: shareReviewOptions(loadReviewPrint('share')) });
   if (!graded) throw new Error(warnings[0] ?? translate('review.errors.noSubmission'));
   const { items: _old, ...rest } = opened.header;
   const header: ShareHeader = share.reviewUntil ? { ...rest, items: after } : rest;

@@ -19,7 +19,7 @@ export function buildReviewItems(
   const byExercise = new Map(scores.map((sc) => [sc.exerciseId, sc]));
   const items: ReviewItem[] = [];
   for (const ex of exercises) {
-    if (!(ex.maxPoints > 0)) continue;
+    if (!ex.maxPoints || ex.maxPoints < 0) continue;
     const sub = letters.get(ex.id) ?? (ex.subIndex ? String.fromCodePoint(96 + ex.subIndex) : '');
     const label = `${ex.orderIndex ?? ''}${sub}`;
     const score = byExercise.get(ex.id);
