@@ -18,6 +18,8 @@ export interface Capabilities {
   sharingPaused?: boolean;
   /** Remembered answer to the share question after saving (issue #263): null asks, true always shares, false never. */
   shareNewExercises?: boolean | null;
+  /** Mail on a student's objection (issue #226): null and true send, false does not. */
+  reviewMail?: boolean | null;
 }
 
 const CACHE_KEY = 'bg_capabilities';
@@ -63,6 +65,7 @@ interface CapabilitiesResponse {
   features: Record<string, boolean>;
   sharing_paused?: boolean;
   share_new_exercises?: boolean | null;
+  review_mail?: boolean | null;
 }
 
 function fromResponse(res: CapabilitiesResponse): Capabilities {
@@ -75,6 +78,7 @@ function fromResponse(res: CapabilitiesResponse): Capabilities {
     features: res.features as Capabilities['features'],
     sharingPaused: res.sharing_paused === true,
     shareNewExercises: typeof res.share_new_exercises === 'boolean' ? res.share_new_exercises : null,
+    reviewMail: typeof res.review_mail === 'boolean' ? res.review_mail : null,
   };
 }
 
@@ -110,6 +114,13 @@ export function markSharingPaused(paused: boolean): void {
 /** Reflects a changed share default made by this tab without refetching. */
 export function markShareDefault(value: boolean | null): void {
   capabilitiesStore.update((caps) => (caps ? { ...caps, shareNewExercises: value } : caps));
+}
+
+/** Switches the mail on a student's objection (issue #226); the server answers with the capabilities. */
+export async function saveReviewMail(value: boolean | null): Promise<Capabilities> {
+  const caps = fromResponse(await api.put<CapabilitiesResponse>('/user/review-mail', { review_mail: value }, { silentError: true }));
+  capabilitiesStore.set(caps);
+  return caps;
 }
 
 /** Forgets the answer, e.g. at sign-out: the next account must never start from this one's switches. */

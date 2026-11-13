@@ -20,6 +20,7 @@
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import OmrDonationCard from "#lib/components/settings/OmrDonationCard.svelte";
   import ShareDefaultCard from "#lib/components/settings/ShareDefaultCard.svelte";
+  import ReviewMailCard from "#lib/components/settings/ReviewMailCard.svelte";
   import AccountLogoCard from "#lib/components/logo/AccountLogoCard.svelte";
   import AccountPackagesCard from "#lib/components/latex-packages/AccountPackagesCard.svelte";
   import { trainingDonationStore } from "#lib/stores/trainingDonation";
@@ -234,6 +235,8 @@
         {/if}
 
         <ShareDefaultCard />
+
+        <ReviewMailCard />
 
         <OmrDonationCard
           enabled={$trainingDonationStore.enabled}

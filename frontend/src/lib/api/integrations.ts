@@ -69,13 +69,15 @@ export interface ResultMail {
 }
 
 /** Sends each student their result link; returns the indexes of *recipients* the mail server refused. */
-export async function sendResultMails(examId: string, examTitle: string, locale: string, recipients: readonly ResultMail[]): Promise<number[]> {
+/** *kind* `review_reply` mails "your teacher answered your objection" instead of the result text (issue #226). */
+export async function sendResultMails(examId: string, examTitle: string, locale: string, recipients: readonly ResultMail[], kind: 'result' | 'review_reply' = 'result'): Promise<number[]> {
   const res = await api.post<{ sent: number; failed: number[] }>(
     '/integrations/mail/results',
     {
       exam_id: examId,
       exam_title: examTitle,
       locale: locale === 'en' ? 'en' : 'de',
+      ...(kind === 'result' ? {} : { kind }),
       recipients: recipients.map((r) => ({ email: r.email, student_key: r.studentKey, url: r.url, expires_at: r.expiresAt.toISOString(), ...(r.code ? { code: r.code } : {}) })),
     },
     quiet

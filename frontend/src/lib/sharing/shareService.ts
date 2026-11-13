@@ -2,7 +2,7 @@
 
 import { get } from 'svelte/store';
 import type { GradingState } from '#lib/analytics/examResults';
-import { createResultShare, listResultDeliveries, listResultShares, type ResultDeliveryInfo, type ResultShareInfo } from '#lib/api/resultShares';
+import { createResultShare, listResultDeliveries, listResultShares, openResultShare, updateResultShareContent, type ResultDeliveryInfo, type ResultShareInfo } from '#lib/api/resultShares';
 import { joinKeys } from '#lib/crypto/pseudonymKey';
 import { personalKey } from '#lib/crypto/stickerKey';
 import type { StudentRecord } from '#lib/db/schema';
@@ -18,7 +18,8 @@ import { randomCode } from '#lib/utils/randomCode';
 import { formatStudentName, stickerRawOf } from '#lib/utils/studentQr';
 import { incompatibleStudents, SHARE_CHANNELS, type ShareChannelId } from './channels';
 import { createDelivery, type ArtemisTarget, type DeliveryFile } from './delivery';
-import { lookupHash, lookupSecret, newShareLink, sealShare, shareUrl, type ShareFactor } from './shareCrypto';
+import { buildReviewItems } from './reviewItems';
+import { lookupHash, lookupSecret, newShareLink, openWithKey, resealShare, sealShare, shareUrl, unwrapShareKey, wrapShareKey, type ReviewItem, type ShareFactor, type ShareHeader, type ShareLink } from './shareCrypto';
 import { renderShareSlips, type SlipEntry } from './slipsPdf';
 
 export interface ShareStudent {
@@ -28,6 +29,8 @@ export interface ShareStudent {
   name: string;
   state: GradingState;
   hasSubmission: boolean;
+  /** The graded submission, for the link from an objection to the grading page. */
+  submissionId?: string;
   share?: ResultShareInfo;
   /** The latest e-mail or Artemis delivery status (issue #221). */
   delivery?: ResultDeliveryInfo;
@@ -59,6 +62,8 @@ export interface ShareRequest {
   language: Locale;
   /** Send the key or code along with the link (teacher's opt-in; weaker than a separate factor). */
   includeCode: boolean;
+  /** Objections accepted until then (issue #226); null = off. Never after the link expires. */
+  reviewUntil: Date | null;
 }
 
 export interface ShareOutcome {
@@ -116,6 +121,7 @@ export async function loadShareOverview(examId: string): Promise<ShareOverview> 
     name: displayName(student),
     state: results.rows[i].state,
     hasSubmission: Boolean(results.rows[i].submissionId),
+    submissionId: results.rows[i].submissionId ?? undefined,
     share: shareByKey.get(keys[i]),
     delivery: deliveryByKey.get(keys[i]),
   }));
@@ -192,6 +198,9 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
     solution = await compileSolution(ctx, key, warnings);
   }
 
+  const reviewUntil = request.reviewUntil && !delivery.sendsPdf ? new Date(Math.min(request.reviewUntil.getTime(), expiresAt.getTime())) : null;
+  const scoresBySubmission = new Map<string, typeof results.scoreRecords>();
+  for (const sc of results.scoreRecords) scoresBySubmission.set(sc.submissionId, [...(scoresBySubmission.get(sc.submissionId) ?? []), sc]);
   const loopPhase = loopPhaseFor(request.channel);
   const entries: SlipEntry[] = [];
   await logExportAction(request.examId, 'SHARE', key);
@@ -213,7 +222,9 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
         }
         const code = await shareCode(request.factor, stickerRawOf(student));
         const link = newShareLink();
-        const sealed = await sealShare(link, request.factor, code, { filename, examTitle }, { graded: pdf, solution });
+        const header: ShareHeader = { filename, examTitle };
+        if (reviewUntil) header.items = buildReviewItems(ctx.exercises, ctx.mcGroups, scoresBySubmission.get(row?.submissionId ?? '') ?? []);
+        const sealed = await sealShare(link, request.factor, code, header, { graded: pdf, solution });
         await createResultShare(request.examId, {
           id: link.shareId,
           studentKey: keys[index],
@@ -221,6 +232,8 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
           factor: request.factor,
           expiryDays: request.expiryDays,
           sealed,
+          wrappedKey: await wrapShareKey(link, sealed.contentKey),
+          reviewUntil,
         });
         const url = shareUrl(location.origin, link);
         await delivery.deliverLink(student, keys[index], name, url, request.includeCode ? code : null);
@@ -245,4 +258,45 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
       ? { bytes: slips, type: 'application/pdf', fileName: `${slug(examTitle)}_${request.channel === 'slips' ? 'links' : 'codes'}_${exportDateStamp()}.pdf` }
       : (delivery.download?.() ?? null),
   };
+}
+
+/** What a republish did: the link (for the reply mail), the student's record, and the items as they were published before and are now. */
+export interface Republished {
+  link: ShareLink;
+  contentKey: Uint8Array;
+  student: StudentRecord;
+  examTitle: string;
+  before: ReviewItem[];
+  after: ReviewItem[];
+}
+
+/** Re-renders one student's graded PDF with the current scores and the review notes and re-seals it under the same link (issue #226). The sample solution of the original is carried over; *beforeRender* runs once the old and new items are known, before the PDF is drawn (the reply flow saves its record there so the PDF prints it). */
+export async function republishShare(
+  examId: string,
+  share: ResultShareInfo,
+  options: { beforeRender?: (change: { before: ReviewItem[]; after: ReviewItem[] }) => Promise<void> } = {}
+): Promise<Republished> {
+  if (!share.updatable || !share.wrappedKey) throw new Error(translate('review.errors.notUpdatable'));
+  const { key, fallbackSessionKey } = await sessionKeys();
+  const ctx = await loadExam(examId, key);
+  const results = await loadResults({ ...ctx, key });
+  const keys = await joinKeys(results.students);
+  const index = keys.indexOf(share.studentKey);
+  const submissionId = results.rows[index]?.submissionId;
+  if (index < 0 || !submissionId) throw new Error(translate('review.errors.noSubmission'));
+
+  const { link, contentKey } = await unwrapShareKey(share.id, share.wrappedKey);
+  const current = await openResultShare(share.id, await lookupSecret(link));
+  const opened = await openWithKey(share.id, contentKey, current.sealed);
+  const before = opened.header.items ?? [];
+  const after = share.reviewUntil ? buildReviewItems(ctx.exercises, ctx.mcGroups, results.scoreRecords.filter((sc) => sc.submissionId === submissionId)) : [];
+  await options.beforeRender?.({ before, after });
+
+  let graded: Uint8Array | undefined;
+  const warnings = await forEachGradedPdf(results, key, fallbackSessionKey, (pdf) => void (graded = pdf), { only: new Set([submissionId]), reviewMode: 'short' });
+  if (!graded) throw new Error(warnings[0] ?? translate('review.errors.noSubmission'));
+  const { items: _old, ...rest } = opened.header;
+  const header: ShareHeader = share.reviewUntil ? { ...rest, items: after } : rest;
+  await updateResultShareContent(examId, share.id, await resealShare(share.id, contentKey, header, { graded, solution: opened.documents.solution }));
+  return { link, contentKey, student: results.students[index], examTitle: ctx.exam.title ?? '', before, after };
 }

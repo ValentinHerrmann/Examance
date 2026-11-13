@@ -1,25 +1,32 @@
 <script lang="ts">
   /** Step 1 of sharing results (issue #212): who gets their result. Students without a submission cannot be picked; links can be revoked per row. */
   import { t } from "#lib/i18n";
+  import { faRotate } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, Checkbox, TableScroller, actionIcons } from "#lib/components/ui";
-  import type { ResultDeliveryInfo } from "#lib/api/resultShares";
+  import type { ResultDeliveryInfo, ResultShareInfo } from "#lib/api/resultShares";
   import type { ShareOverview, ShareStudent } from "#lib/sharing/shareService";
   import { formatDate } from "#lib/utils/format";
   import { artemisIdOf, mebisIdOf } from "#lib/utils/studentQr";
   import { deliveryBadge } from "#lib/sharing/deliveryBadge";
+  import { gradeHref } from "#lib/utils/links";
 
   interface Props {
+    examId: string;
     overview: ShareOverview;
     selected: Set<string>;
     running: boolean;
     onSelect: (next: Set<string>) => void;
     onSelectGraded: () => void;
     onRevoke: (shareId: string) => void;
+    /** Re-renders the student's PDF under the same link (issue #226). */
+    onUpdate: (share: ResultShareInfo) => void;
+    /** The share being updated right now. */
+    updatingId?: string | null;
     /** From xl, fill the parent's height and scroll the table inside it (the Share page's left column). */
     fill?: boolean;
   }
 
-  let { overview, selected, running, onSelect, onSelectGraded, onRevoke, fill = false }: Props = $props();
+  let { examId, overview, selected, running, onSelect, onSelectGraded, onRevoke, onUpdate, updatingId = null, fill = false }: Props = $props();
 
   const STATE_BADGE = { complete: "success", partial: "warning", ungraded: "secondary" } as const;
   const DELIVERY_BADGE = { sent: "secondary", delayed: "warning", bounced: "danger", failed: "danger", revoked: "secondary" } as const;
@@ -80,9 +87,21 @@
               {#if badge}
                 <Badge size="xs" severity={DELIVERY_BADGE[badge]} title={s.delivery ? deliveryTitle(s.delivery) : undefined}>{$t(`sharing.delivery.status.${badge}`)}</Badge>
               {/if}
+              {#if s.share?.reviewSubmittedAt && s.submissionId}
+                {@const answered = Boolean(s.share.reviewRepliedAt)}
+                <a href={gradeHref(examId, { submissionId: s.submissionId })} class="no-underline" title={$t("review.students.openGrade")}>
+                  <Badge size="xs" severity={answered ? "success" : "warning"}>{answered ? $t("review.students.answered") : $t("review.students.objection")}</Badge>
+                </a>
+              {/if}
               {#if s.share}<div class="text-xs text-muted">{$t("sharing.share.sharedUntil", { date: formatDate(s.share.expiresAt) })}</div>{/if}
+              {#if s.share?.contentUpdatedAt}<div class="text-xs text-muted">{$t("review.students.updated", { date: formatDate(s.share.contentUpdatedAt) })}</div>{/if}
+              {#if s.share && !s.share.updatable}<div class="text-xs text-warning-fg">{$t("review.students.notUpdatable")}</div>{/if}
             </td>
-            <td class="text-right">
+            <td class="text-right whitespace-nowrap">
+              {#if s.share?.updatable}
+                {@const shared = s.share}
+                <Button size="sm" variant="text" iconOnly icon={faRotate} ariaLabel={$t("review.students.update")} title={$t("review.students.update")} loading={updatingId === shared.id} disabled={running || updatingId !== null} onClick={() => onUpdate(shared)} />
+              {/if}
               {#if s.share}
                 <Button size="sm" variant="text" severity="danger" iconOnly icon={actionIcons.remove} ariaLabel={$t("sharing.share.revokeLink")} title={$t("sharing.share.revokeLink")} disabled={running} onClick={() => s.share && onRevoke(s.share.id)} />
               {/if}

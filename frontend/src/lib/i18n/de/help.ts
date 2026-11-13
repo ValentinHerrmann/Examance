@@ -256,6 +256,10 @@ export const help = {
                 h: 'Mit Schülern teilen',
                 p1: '„Mit Schülern teilen“ auf der Klausurseite gibt jedem Schüler einen persönlichen Link zu seiner korrigierten Arbeit, ausgedruckt auf Zetteln zum Austeilen. Auf Wunsch kommt die Musterlösung dazu. Die Schüler sehen beides nur im Browser, ohne Download; verschlüsselt wird im Browser, der Server kann nichts lesen, und die Links laufen ab.',
             },
+            s6: {
+                h: 'Einwände gegen die Korrektur',
+                p1: 'Mit „Einwände erlauben bis …“ beim Teilen können Schüler über ihren Link zu jeder (Teil-)Aufgabe einen Einwand schreiben (höchstens 500 Zeichen). Du antwortest auf der Korrekturseite unter der Aufgabe; „Antwort senden“ aktualisiert das Ergebnis unter demselben Link und benachrichtigt den Schüler auf Wunsch per E-Mail.',
+            },
         },
         analytics: {
             title: 'Übergreifende Analysen',

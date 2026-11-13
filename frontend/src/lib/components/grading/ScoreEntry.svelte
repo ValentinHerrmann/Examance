@@ -63,6 +63,7 @@
       manual={!!$gradingStore.manualOverride[ex.id] && !hasPartValues(parts)}
       readonlyReason={hasPartValues(parts) ? $t("grading.scoreEntry.sumOfParts") : undefined}
       inputId={`score-${ex.id}`}
+      reviewKey={ex.id}
       onSelect={() => gradingStore.setActivePart(ex.id, "")}
       onValue={(v) => setTotal(ex, v)}
       onReset={() => resetExercise(ex)}
@@ -80,6 +81,7 @@
         active={isTarget(ex, part.label)}
         manual={!!$gradingStore.manualOverride[partOverrideKey(ex.id, part.label)]}
         ariaLabel={$t("grading.scoreEntry.partRowLabel", { label: part.label })}
+        reviewKey={partOverrideKey(ex.id, part.label)}
         onSelect={() => gradingStore.setActivePart(ex.id, part.label)}
         onValue={(v) => setPart(ex, part.label, v)}
         onReset={() => resetPart(ex, part.label)}

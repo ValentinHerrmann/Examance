@@ -30,6 +30,7 @@ import { domainMove } from './domainMove';
 import { trash } from './trash';
 import { sharing } from './sharing';
 import { lms } from './lms';
+import { review } from './review';
 
 export const de = {
     common,
@@ -63,4 +64,5 @@ export const de = {
     trash,
     sharing,
     lms,
+    review,
 } as const;

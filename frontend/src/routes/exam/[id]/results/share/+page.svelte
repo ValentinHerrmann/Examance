@@ -8,14 +8,16 @@
   import type { Locale } from "#lib/i18n/types";
   import { Alert, Button, Card, ConfirmDialog, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
-  import { closeResultDeliveries, revokeAllResultShares, revokeResultShare } from "#lib/api/resultShares";
+  import { closeResultDeliveries, revokeAllResultShares, revokeResultShare, type ResultShareInfo } from "#lib/api/resultShares";
   import type { ArtemisCourse } from "#lib/api/integrations";
   import { watchBounces } from "#lib/sharing/delivery";
   import { channelUnavailable, incompatibleStudents, sendsPdf as channelSendsPdf, SHARE_CHANNELS, type ArtemisMode, type ShareChannelId } from "#lib/sharing/channels";
   import type { ShareFactor } from "#lib/sharing/shareCrypto";
+  import { dateInputValue, reviewDateValid, reviewDeadline } from "#lib/sharing/reviewItems";
   import {
     DEFAULT_EXPIRY_DAYS,
     loadShareOverview,
+    republishShare,
     latestDeliveries,
     shareResults,
     undelivered,
@@ -43,6 +45,10 @@
   // Students are addressed in German unless the teacher picks otherwise; the UI language does not decide it.
   let language = $state<Locale>("de");
   let includeCode = $state(false);
+  // Objections (issue #226): off by default, two weeks preset.
+  let reviewOn = $state(false);
+  let reviewDate = $state(dateInputValue(14));
+  let updatingId = $state<string | null>(null);
   let loading = $state(true);
   let running = $state(false);
   // Sending a class can take minutes: phase and count drive a filling bar and an "x of y" label.
@@ -79,7 +85,8 @@
   let undeliveredDismissed = $state<number | null>(null);
   let undeliveredCount = $derived(overview?.students.filter((s) => undelivered(s.delivery)).length ?? 0);
   let activeShares = $derived((overview?.students.filter((s) => s.share).length ?? 0) + (overview?.orphans.length ?? 0));
-  let canRun = $derived(!running && !waiting && !loading && selected.size > 0 && !setupMissing && (sendsPdf || !factorMuted(factor)));
+  let reviewValid = $derived(!reviewOn || sendsPdf || reviewDateValid(reviewDate, Number(expiry)));
+  let canRun = $derived(!running && !waiting && !loading && selected.size > 0 && !setupMissing && reviewValid && (sendsPdf || !factorMuted(factor)));
 
   function chooseChannel(id: ShareChannelId) {
     channel = id;
@@ -167,6 +174,7 @@
           artemis: currentChannel.id === "artemis" && artemisCourse ? { ...artemisCourse, mode: artemisMode } : undefined,
           language,
           includeCode: sendsMessage && !sendsPdf && factor !== "none" && includeCode,
+          reviewUntil: reviewOn && !sendsPdf ? reviewDeadline(reviewDate, Number(expiry)) : null,
         },
         (phase, done = 0, total = 0) => (progress = { phase, done, total })
       );
@@ -205,6 +213,20 @@
       await reload();
     } catch (err) {
       error = `${$t("sharing.errors.revoke")} ${err instanceof Error ? err.message : ""}`.trim();
+    }
+  }
+
+  /** Re-renders one student's PDF with the current scores under the same link. */
+  async function updateShare(share: ResultShareInfo) {
+    updatingId = share.id;
+    error = "";
+    try {
+      await republishShare(examId, share);
+      await reload();
+    } catch (err) {
+      error = `${$t("review.students.updateFailed")} ${err instanceof Error ? err.message : ""}`.trim();
+    } finally {
+      updatingId = null;
     }
   }
 
@@ -303,12 +325,15 @@
         <h2 class="mt-0 mb-4 text-base font-semibold">{@render step(1, $t("sharing.share.students"))}</h2>
         <ShareStudents
           fill
+          {examId}
           {overview}
           {selected}
           {running}
           onSelect={(next) => (selected = next)}
           onSelectGraded={() => overview && (selected = gradedKeys(overview))}
           onRevoke={revoke}
+          onUpdate={updateShare}
+          {updatingId}
         />
       </Card>
 
@@ -345,6 +370,8 @@
           bind:includeCode
           bind:includeSolution
           bind:expiry
+          bind:reviewOn
+          bind:reviewDate
         />
       </Card>
 

@@ -7,6 +7,8 @@ export interface StepStatus {
     done?: boolean;
     /** Something needs attention, e.g. result mails that did not arrive. */
     alert?: number;
+    /** Open objections of students (issue #226): submitted, not yet answered. */
+    objections?: number;
 }
 
 export type ExamProgress = Partial<Record<ExamStep, StepStatus>>;
@@ -22,6 +24,7 @@ export interface ExamProgressInput {
     verify?: StepStatus;
     sharedCount?: number;
     notReached?: number;
+    objections?: number;
 }
 
 /** Cheap per-step statuses from counts the caller already has (issue #212). */
@@ -39,10 +42,11 @@ export function examProgress(input: ExamProgressInput): ExamProgress {
             done: input.submissionCount > 0 && input.gradedCount >= input.submissionCount,
         };
     }
-    if (input.sharedCount !== undefined || input.notReached !== undefined) {
+    if (input.sharedCount !== undefined || input.notReached !== undefined || input.objections !== undefined) {
         p.results = {
             ...(input.sharedCount !== undefined ? { count: input.sharedCount, done: input.sharedCount > 0 } : {}),
             ...(input.notReached ? { alert: input.notReached } : {}),
+            ...(input.objections ? { objections: input.objections } : {}),
         };
     }
     return p;

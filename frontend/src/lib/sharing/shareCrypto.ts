@@ -170,18 +170,27 @@ export async function openSealedShare(
   sealed: SealedShare
 ): Promise<{ header: ShareHeader; documents: ShareDocuments; contentKey: Uint8Array }> {
   const contentKey = await contentKeyBits(link, factor, code, sealed.kdfSalt);
-  const plain = await decrypt(await aesKey(contentKey), sealed.ciphertext, sealed.iv, null, aad(link.shareId));
+  return { ...(await openWithKey(link.shareId, contentKey, sealed)), contentKey };
+}
+
+/** Opens a share with its raw content key (the teacher's unwrapped copy), so a republish can carry the sample solution over without the student's code. */
+export async function openWithKey(
+  shareId: string,
+  contentKey: Uint8Array,
+  sealed: Pick<SealedShare, 'ciphertext' | 'iv'>
+): Promise<{ header: ShareHeader; documents: ShareDocuments }> {
+  const plain = await decrypt(await aesKey(contentKey), sealed.ciphertext, sealed.iv, null, aad(shareId));
   const headLength = new DataView(plain.buffer, plain.byteOffset, plain.byteLength).getUint32(0);
   const { documents: layout, ...header } = JSON.parse(new TextDecoder().decode(plain.subarray(4, 4 + headLength))) as StoredHeader;
   let offset = 4 + headLength;
-  if (!layout) return { header, documents: { graded: plain.slice(offset) }, contentKey };
+  if (!layout) return { header, documents: { graded: plain.slice(offset) } };
   const found: Partial<ShareDocuments> = {};
   for (const { kind, length } of layout) {
     found[kind] = plain.slice(offset, offset + length);
     offset += length;
   }
   if (!found.graded) throw new Error('Share holds no graded PDF.');
-  return { header, documents: { graded: found.graded, solution: found.solution }, contentKey };
+  return { header, documents: { graded: found.graded, solution: found.solution } };
 }
 
 const wrapCache = new WeakMap<CryptoKey, Promise<CryptoKey>>();
