@@ -30,6 +30,17 @@ export const lms: Translations['lms'] = {
         sticker: 'QR sticker',
         selectAll: 'Select all',
         selection: '{count} selected',
+        order: {
+            menu: 'Order',
+            byLastName: 'Sort by last name',
+            byFirstName: 'Sort by first name',
+            moveUp: 'Move up',
+            moveDown: 'Move down',
+            confirmTitle: 'Renumber the class list?',
+            confirmMessage: 'Every student gets a new number in the chosen order. QR stickers and copies already printed keep their old numbers.',
+            confirm: 'Renumber',
+            failed: 'The order could not be saved.',
+        },
         delete: {
             title: 'Delete {count} student(s)?',
             listOnly: 'No exam has been scanned for these students; they are only removed from the list.',

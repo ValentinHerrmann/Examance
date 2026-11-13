@@ -17,7 +17,8 @@ vi.mock('#lib/api/integrations', async (importOriginal) => ({
   sendResultMails: vi.fn(async () => []),
 }));
 
-const { planImport, listedStudent, mergeStudents, duplicateCandidates, editWarnings } = await import('#lib/students/classList');
+const { planImport, listedStudent, mergeStudents, duplicateCandidates, editWarnings, numberStudents, nextClassPosition, positionLabel, renumberStudents, moveStudent } = await import('#lib/students/classList');
+const { mergeScannedStudent } = await import('#lib/scan/ingest');
 const { shareCode } = await import('#lib/sharing/shareService');
 const { createDelivery } = await import('#lib/sharing/delivery');
 const { setLocale } = await import('#lib/i18n');
@@ -61,6 +62,48 @@ describe('class list import', () => {
     expect(withId).toMatchObject({ pseudonymRaw: 'Muster, Anna_6028356', email: 'a@x.de', fromList: true, studentName: 'Muster, Anna', mebisId: '6028356' });
     const withoutId = await listedStudent('e1', { name: 'Neu, Nora', id: null, email: null, source: 'list' });
     expect(withoutId.pseudonymRaw).toBe('Neu, Nora_NAMEID');
+  });
+});
+
+describe('class list order (issue #266)', () => {
+  const names = (rows: { student: StudentRecord }[]) => rows.map((n) => n.student.studentName);
+
+  it('numbers a list never ordered by surname, without changing any row', () => {
+    const rows = [student('Zett, Anna'), student('Berg, Max'), student('Lena Adam')];
+    expect(names(numberStudents(rows))).toEqual(['Lena Adam', 'Berg, Max', 'Zett, Anna']);
+    expect(numberStudents(rows).map((n) => n.position)).toEqual([1, 2, 3]);
+    expect(nextClassPosition(rows)).toBeUndefined();
+    expect(nextClassPosition([])).toBe(1);
+  });
+
+  it('keeps stored numbers and appends unnumbered students after them', () => {
+    const rows = [student('Berg, Max', undefined, { classPosition: 2 }), student('Adam, Lena'), student('Zett, Anna', undefined, { classPosition: 1 })];
+    expect(numberStudents(rows).map((n) => [n.student.studentName, n.position])).toEqual([['Zett, Anna', 1], ['Berg, Max', 2], ['Adam, Lena', 3]]);
+    expect(nextClassPosition(rows)).toBe(3);
+  });
+
+  it('renumbers by last or first name and returns only rows that change', () => {
+    const rows = [student('Berg, Anna', undefined, { classPosition: 1 }), student('Adam, Max', undefined, { classPosition: 2 })];
+    expect(renumberStudents(rows, 'lastName').map((st) => [st.studentName, st.classPosition])).toEqual([['Adam, Max', 1], ['Berg, Anna', 2]]);
+    expect(renumberStudents(rows, 'firstName')).toEqual([]);
+  });
+
+  it('moves a student by swapping numbers with its neighbour, storing the name order first', () => {
+    const rows = [student('Berg, Max'), student('Adam, Lena'), student('Zett, Anna')];
+    const saved = moveStudent(rows, 'h-Zett, Anna', 'up');
+    expect(saved.map((st) => [st.studentName, st.classPosition])).toEqual([['Adam, Lena', 1], ['Berg, Max', 3], ['Zett, Anna', 2]]);
+    expect(moveStudent(rows, 'h-Adam, Lena', 'up')).toEqual([]);
+  });
+
+  it('pads numbers to the width of the highest one', () => {
+    expect(positionLabel(7, 25)).toBe('07');
+    expect(positionLabel(7, 9)).toBe('7');
+  });
+
+  it('survives a merge and a scan of the same student', () => {
+    const plan = mergeStudents(student('Berg, Max', 'Berg, Max_1', { classPosition: 4 }), student('Max Berg', undefined, { classPosition: 2, fromList: true }), () => false);
+    expect('merged' in plan && plan.merged.classPosition).toBe(2);
+    expect(mergeScannedStudent(student('Berg, Max', undefined, { classPosition: 3 }), student('Berg, Max')).classPosition).toBe(3);
   });
 });
 

@@ -7,6 +7,7 @@ import { matchContacts, nameKey, type Contact, type ContactSource } from '#lib/l
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { pseudonymFor } from '#lib/services/pseudonymRekey';
 import { newTrashGroup } from '#lib/trash/group';
+import { compareText } from '#lib/utils/listSort';
 import { formatStudentName, formatStudentQr, normalizeLmsId } from '#lib/utils/studentQr';
 
 /** The fields a teacher edits; everything else (pseudonym, raw sticker value) is never touched here. */
@@ -77,10 +78,89 @@ export async function newListedStudent(examId: string, fields: Partial<Record<Ed
   };
 }
 
-/** Writes *plan* through the student repository (sealed, following the storage mode). */
-export async function applyImport(examId: string, plan: ImportPlan, key: CryptoKey | null): Promise<void> {
+/** Writes *plan* through the student repository (sealed, following the storage mode); new students are numbered after *students* in the list's order, so the class keeps the order of the imported file. */
+export async function applyImport(examId: string, plan: ImportPlan, key: CryptoKey | null, students: readonly StudentRecord[]): Promise<void> {
   for (const { student, changes } of plan.update) await studentRepository.save({ ...student, ...changes }, key); // NOSONAR: one row at a time keeps the order and the error report simple
-  for (const contact of plan.add) await studentRepository.save(await listedStudent(examId, contact), key); // NOSONAR: as above
+  const next = nextClassPosition(students);
+  for (const [i, contact] of plan.add.entries()) {
+    const student = await listedStudent(examId, contact);
+    await studentRepository.save(next === undefined ? student : { ...student, classPosition: next + i }, key); // NOSONAR: as above
+  }
+}
+
+/** A student with its number in the class list (issue #266). */
+export interface NumberedStudent {
+  student: StudentRecord;
+  position: number;
+}
+
+export type NameOrder = 'lastName' | 'firstName';
+
+/** Last and first name: "Last, First" by the comma convention, else the last word is the surname. */
+function nameParts(name: string | undefined): { last: string; first: string } {
+  const text = (name ?? '').trim();
+  const comma = text.indexOf(',');
+  if (comma >= 0) return { last: text.slice(0, comma).trim(), first: text.slice(comma + 1).trim() };
+  const words = text.split(/\s+/);
+  return { last: words.at(-1) ?? '', first: words.slice(0, -1).join(' ') };
+}
+
+/** Alphabetical order of two students by surname (*order* `lastName`) or given name first. */
+export function compareByName(order: NameOrder): (a: StudentRecord, b: StudentRecord) => number {
+  return (a, b) => {
+    const x = nameParts(a.studentName);
+    const y = nameParts(b.studentName);
+    return order === 'lastName'
+      ? compareText(x.last, y.last) || compareText(x.first, y.first)
+      : compareText(x.first, y.first) || compareText(x.last, y.last);
+  };
+}
+
+/** The class list in its order with each student's number: numbered students by their number, then the rest by surname with the next free numbers (a list never ordered is numbered by surname, without writing anything). */
+export function numberStudents(students: readonly StudentRecord[]): NumberedStudent[] {
+  const byLast = compareByName('lastName');
+  const positioned = students.filter((st) => st.classPosition !== undefined).sort((a, b) => a.classPosition! - b.classPosition! || byLast(a, b));
+  const rest = students.filter((st) => st.classPosition === undefined).sort(byLast);
+  let next = positioned.at(-1)?.classPosition ?? 0;
+  return [...positioned.map((student) => ({ student, position: student.classPosition! })), ...rest.map((student) => ({ student, position: ++next }))];
+}
+
+/** The number a new student gets: after the last one, 1 for an empty list, none while the list was never ordered (it then stays in name order). */
+export function nextClassPosition(students: readonly StudentRecord[]): number | undefined {
+  if (!students.length) return 1;
+  const positions = students.flatMap((st) => (st.classPosition === undefined ? [] : [st.classPosition]));
+  return positions.length ? Math.max(...positions) + 1 : undefined;
+}
+
+/** A number padded to the width of the list's highest one ("07" in a class of 25), so printed stickers line up and sort by eye. */
+export function positionLabel(position: number, highest: number): string {
+  return String(position).padStart(String(highest).length, '0');
+}
+
+/** The rows whose stored number differs from *numbered*'s, carrying their new number. */
+function changedPositions(numbered: readonly NumberedStudent[]): StudentRecord[] {
+  return numbered.flatMap(({ student, position }) => (student.classPosition === position ? [] : [{ ...student, classPosition: position }]));
+}
+
+/** Renumbers the whole class 1..n alphabetically by surname or given name; returns the rows to save. */
+export function renumberStudents(students: readonly StudentRecord[], order: NameOrder): StudentRecord[] {
+  return changedPositions([...students].sort(compareByName(order)).map((student, i) => ({ student, position: i + 1 })));
+}
+
+/** Swaps a student's number with its neighbour's; returns the rows to save (all of them when the list was never ordered, so its name order becomes stored numbers). */
+export function moveStudent(students: readonly StudentRecord[], pseudonymHmac: string, direction: 'up' | 'down'): StudentRecord[] {
+  const numbered = numberStudents(students);
+  const from = numbered.findIndex((n) => n.student.pseudonymHmac === pseudonymHmac);
+  const to = direction === 'up' ? from - 1 : from + 1;
+  if (from < 0 || to < 0 || to >= numbered.length) return [];
+  const moved = numbered.map((n) => ({ ...n }));
+  [moved[from].position, moved[to].position] = [numbered[to].position, numbered[from].position];
+  return changedPositions(moved);
+}
+
+/** Saves renumbered rows (from `renumberStudents`/`moveStudent`). */
+export async function savePositions(rows: readonly StudentRecord[], key: CryptoKey | null): Promise<void> {
+  for (const row of rows) await studentRepository.save(row, key); // NOSONAR: one row at a time keeps the error report simple
 }
 
 /** A field both rows fill with different text: the teacher picks the value (a merge only happens when something already went wrong, so nothing is decided silently). */
@@ -121,7 +201,8 @@ export function mergeStudents(
   // The scanned row, else the one that is not a list row (a sticker printed elsewhere), else the first.
   const keepA = hasSubmission(a) || (!hasSubmission(b) && (!a.fromList || !!b.fromList));
   const [keep, drop] = keepA ? [a, b] : [b, a];
-  const merged: StudentRecord = { ...keep, fromList: !!(keep.fromList || drop.fromList) };
+  const positions = [keep.classPosition, drop.classPosition].filter((p): p is number => p !== undefined);
+  const merged: StudentRecord = { ...keep, fromList: !!(keep.fromList || drop.fromList), ...(positions.length ? { classPosition: Math.min(...positions) } : {}) };
   const choices: MergeChoice[] = [];
   const filled: EditableField[] = [];
   for (const field of EDITABLE_FIELDS) {

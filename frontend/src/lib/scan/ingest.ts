@@ -470,7 +470,7 @@ class ScanPass {
   }
 }
 
-/** The student row a scan writes: a student already in the exam (from the Students page) keeps name, e-mail, Mebis/Artemis ids and list flag, and the scan only fills what is empty. The save replaces the whole sealed record, so without this a scan would erase an imported address. */
+/** The student row a scan writes: a student already in the exam (from the Students page) keeps name, e-mail, Mebis/Artemis ids, list flag and list number, and the scan only fills what is empty. The save replaces the whole sealed record, so without this a scan would erase an imported address. */
 export function mergeScannedStudent(existing: StudentRecord | undefined, scanned: StudentRecord): StudentRecord {
   if (!existing) return scanned;
   return {
@@ -482,6 +482,7 @@ export function mergeScannedStudent(existing: StudentRecord | undefined, scanned
     mebisId: existing.mebisId,
     artemisId: existing.artemisId,
     fromList: existing.fromList,
+    classPosition: existing.classPosition,
   };
 }
 

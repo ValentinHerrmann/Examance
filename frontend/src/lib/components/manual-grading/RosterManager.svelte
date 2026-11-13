@@ -1,17 +1,20 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { Badge, Button, EmptyState, Field, Panel, SelectionToolbar, TableScroller, Textarea, TextInput } from "#lib/components/ui";
+  import { Alert, Badge, Button, EmptyState, Field, Panel, SelectionToolbar, TableScroller, Textarea, TextInput } from "#lib/components/ui";
   import { Selection } from "#lib/utils/selection.svelte";
   import { createStudentWithSubmission } from "#lib/grading/scoreService";
   import { parseRosterLines } from "#lib/utils/rosterLines";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import { artemisIdOf, formatStudentName, mebisIdOf } from "#lib/utils/studentQr";
-  import { duplicateCandidates } from "#lib/students/classList";
-  import { faCodeMerge, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+  import { duplicateCandidates, moveStudent, numberStudents, savePositions } from "#lib/students/classList";
+  import { faArrowDown, faArrowUp, faCodeMerge, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+  import { get } from "svelte/store";
   import Checkbox from "#lib/components/ui/Checkbox.svelte";
   import StudentEditDialog from "#lib/components/students/StudentEditDialog.svelte";
   import StudentDeleteDialog from "#lib/components/students/StudentDeleteDialog.svelte";
   import StudentMergeDialog from "#lib/components/students/StudentMergeDialog.svelte";
+  import StudentOrderMenu from "#lib/components/students/StudentOrderMenu.svelte";
+  import { sessionStore } from "#lib/stores/session";
   import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
 
@@ -80,6 +83,24 @@
   let chosen = $derived(students.filter((st) => selection.has(st.pseudonymHmac)));
   let duplicates = $derived(listMode ? duplicateCandidates(students, hasSubmission) : []);
   const duplicateOf = (st: StudentRecord) => duplicates.find((pair) => pair.includes(st));
+
+  // The class list's numbers (issue #266); the Students page passes the rows already in this order.
+  let positions = $derived(listMode ? new Map(numberStudents(students).map((n) => [n.student.pseudonymHmac, n.position])) : null);
+  let moving = $state(false);
+  let moveError = $state("");
+
+  async function move(st: StudentRecord, direction: "up" | "down") {
+    moving = true;
+    moveError = "";
+    try {
+      await savePositions(moveStudent(students, st.pseudonymHmac, direction), get(sessionStore).sessionKey);
+      onRosterChanged();
+    } catch (err) {
+      moveError = `${$t("lms.students.order.failed")} ${err instanceof Error ? err.message : ""}`.trim();
+    } finally {
+      moving = false;
+    }
+  }
 
   function finished() {
     deleting = editing = merging = null;
@@ -188,6 +209,12 @@
         <Button size="sm" variant="outlined" severity="danger" icon={faTrash} disabled={!chosen.length} onClick={() => (deleting = chosen)}>{$t("common.delete")}</Button>
       {/snippet}
     </SelectionToolbar>
+    {#if listMode}
+      <div class="flex flex-wrap items-center gap-2">
+        <StudentOrderMenu {students} onDone={onRosterChanged} />
+      </div>
+      {#if moveError}<Alert severity="danger">{moveError}</Alert>{/if}
+    {/if}
     <TableScroller>
       <table class="data-table data-table-compact data-table-sticky data-table-hover">
         <thead>
@@ -215,7 +242,7 @@
             {@const isScanned = !!(sub?.scanCt || sub?.scanIv || sub?.hasScan)}
             <tr>
               <td><Checkbox checked={selection.has(st.pseudonymHmac)} onChange={(on) => selection.toggle(st.pseudonymHmac, on)} aria-label={st.studentName || st.fallbackCode || ""} /></td>
-              <td>{i + 1}</td>
+              <td class="tabular-nums">{positions?.get(st.pseudonymHmac) ?? i + 1}</td>
               <td>
                 <strong class="whitespace-nowrap">{st.studentName || $t("grading.manual.roster.unnamed")}</strong>
               </td>
@@ -238,6 +265,10 @@
               </td>
               <td class="whitespace-nowrap">
                 <div class="flex gap-0.5">
+                  {#if listMode}
+                    <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp} disabled={moving || i === 0} ariaLabel={$t("lms.students.order.moveUp")} title={$t("lms.students.order.moveUp")} onClick={() => move(st, "up")} />
+                    <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown} disabled={moving || i === students.length - 1} ariaLabel={$t("lms.students.order.moveDown")} title={$t("lms.students.order.moveDown")} onClick={() => move(st, "down")} />
+                  {/if}
                   <!-- The same dialog as the bulk edit, so one row gets the same fields and warnings. -->
                   <Button size="sm" variant="text" severity="secondary" iconOnly icon={faPen} ariaLabel={$t("common.edit")} title={$t("common.edit")} onClick={() => (editing = [st])} />
                   <Button size="sm" variant="text" severity="danger" iconOnly icon={faTrash} ariaLabel={$t("common.delete")} title={$t("common.delete")} onClick={() => (deleting = [st])} />

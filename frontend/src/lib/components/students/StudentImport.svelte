@@ -46,7 +46,7 @@
     saving = true;
     error = "";
     try {
-      await applyImport(examId, pending.plan, get(sessionStore).sessionKey);
+      await applyImport(examId, pending.plan, get(sessionStore).sessionKey, students);
       pending = null;
       onImported();
     } catch (err) {

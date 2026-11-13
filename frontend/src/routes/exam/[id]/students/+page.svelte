@@ -10,6 +10,7 @@
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import RosterManager from "#lib/components/manual-grading/RosterManager.svelte";
   import StudentImport from "#lib/components/students/StudentImport.svelte";
+  import { numberStudents } from "#lib/students/classList";
   import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
@@ -29,7 +30,7 @@
         studentRepository.getByExamId(examId, key),
         submissionRepository.getByExamId(examId, key),
       ]);
-      students = [...nextStudents].sort((a, b) => (a.studentName ?? "").localeCompare(b.studentName ?? "", "de"));
+      students = numberStudents(nextStudents).map((n) => n.student);
       submissions = nextSubmissions;
       error = "";
     } catch (err) {
