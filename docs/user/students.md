@@ -160,6 +160,18 @@ Students scan the QR code or type the link (an address beginning with `/result#`
 
 No sign-in and no account are needed. The PDF is decrypted only in the student's browser.
 
+## Grading review / objections {#grading-review}
+
+Students can object to the grading of single exercises through their result link, and you answer them in the app.
+
+- **Switch it on.** In step 3 of **Send to students**, tick **Allow objections until** and pick a deadline (14 days are preset; never later than the link's validity). It is off by default.
+- **What students see.** Under the graded exam one field per exercise and sub-exercise (500 characters each). They can edit or withdraw an objection until you open it or the deadline passes; after that it is locked.
+- **Notification.** You get an e-mail per objection with the exam title and a link, never the student's name or text, and a badge on **Results** in the exam's sidebar. You can switch the e-mail off in **Settings**.
+- **Answer.** Open the submission on the grading page: under each exercise's score row the objection appears. Opening it locks it for the student. Change the points if needed, write your reply and press **Send reply**. This saves the scores, updates the graded exam under the **same link** and shows the student your reply and the new points ("Grading updated on ..."). If the student has an e-mail address, they get a short notice by e-mail (optional in the dialog).
+- **Other changes.** Score changes without a reply are not published by themselves: use **Update shared result** in the row of the Send to students page.
+- **Older links.** Links created before this feature cannot carry objections or be updated; share the result again (the old link then stops working).
+- **Keep the thread.** The thread is saved with the exam's results (where your results live, following your storage mode). In the export, **Print grading review** offers four choices: **None**, **Short** (a small red line "review: 3 -> 4 P." under the score box), **Strip** (a margin strip beside the exercise with objection, reply and points; the scan is not covered) and **Summary page** (one page at the end). Except for **None**, the full text is also attached to the PDF.
+
 ## Revoke links and expiry {#revoke}
 
 **Results & Export → Send to students** lists the **active links**. You can **revoke** one link (the icon in its row), or use **Revoke all**; revoked links stop working immediately and their data is deleted.
@@ -175,6 +187,7 @@ Links also end by themselves:
 - The PDF is **encrypted in your browser** before it is uploaded. The key is in the link, and a link's `#` part is never sent to the server. The server stores only ciphertext and cannot read any result, not even names.
 - With a second factor, a forwarded link alone does not open the PDF.
 - Students do not sign in; the server learns only that a link was opened. It limits attempts per address and answers every unknown, expired or revoked link in the same way.
+- Objections and your replies are encrypted in the same way; the server stores only ciphertext and cannot read them.
 - Treat a slip like the graded paper itself: hand it to the student personally.
 - **E-mail and Artemis**: the address or Artemis ID, the link and the Artemis token pass through the Examance server only to deliver; they are not stored or logged there. Only the PDF option for Artemis sends a readable result, and the preview says so.
 

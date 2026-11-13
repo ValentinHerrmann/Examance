@@ -160,6 +160,18 @@ Schüler scannen den QR-Code oder geben den Link ein (eine Adresse, die mit `/re
 
 Eine Anmeldung oder ein Konto ist nicht nötig. Das PDF wird nur im Browser der Schülerin oder des Schülers entschlüsselt.
 
+## Einsicht und Einwände {#grading-review}
+
+Schüler können über ihren Ergebnislink Einwände gegen die Bewertung einzelner Aufgaben erheben, und Sie antworten in der App.
+
+- **Einschalten.** In Schritt 3 von **An Schüler senden** **Einwände erlauben bis** ankreuzen und eine Frist wählen (voreingestellt 14 Tage; nie später als die Gültigkeit des Links). Standardmäßig ist es aus.
+- **Was Schüler sehen.** Unter der korrigierten Prüfung ein Feld je Aufgabe und Teilaufgabe (je 500 Zeichen). Sie können einen Einwand ändern oder zurückziehen, bis Sie ihn öffnen oder die Frist abläuft; danach ist er gesperrt.
+- **Benachrichtigung.** Sie erhalten pro Einwand eine E-Mail mit Prüfungstitel und Link, nie mit Namen oder Text der Schülerin oder des Schülers, und ein Zähler an **Ergebnisse** in der Seitenleiste der Prüfung. Die E-Mail lässt sich in den **Einstellungen** ausschalten.
+- **Antworten.** Öffnen Sie die Abgabe auf der Korrekturseite: Unter der Punktezeile jeder Aufgabe steht der Einwand. Das Öffnen sperrt ihn für die Schülerin bzw. den Schüler. Passen Sie bei Bedarf die Punkte an, schreiben Sie Ihre Antwort und wählen Sie **Antwort senden**. Das speichert die Punkte, aktualisiert die korrigierte Prüfung unter **demselben Link** und zeigt Antwort und neue Punkte („Bewertung aktualisiert am ...“). Hat die Schülerin oder der Schüler eine E-Mail-Adresse, kommt auf Wunsch eine kurze Benachrichtigung per E-Mail.
+- **Andere Änderungen.** Punkteänderungen ohne Antwort werden nicht von selbst veröffentlicht: Nutzen Sie **Geteiltes Ergebnis aktualisieren** in der Zeile auf der Seite An Schüler senden.
+- **Ältere Links.** Links aus der Zeit vor dieser Funktion können keine Einwände tragen und nicht aktualisiert werden; teilen Sie das Ergebnis erneut (der alte Link funktioniert dann nicht mehr).
+- **Verlauf aufbewahren.** Der Verlauf wird bei den Ergebnissen der Prüfung gespeichert (dort, wo Ihre Ergebnisse liegen, je nach Speichermodus). Im Export bietet **Einsicht drucken** vier Möglichkeiten: **Keine**, **Kurz** (eine kleine rote Zeile „Einsicht: 3 -> 4 P.“ unter dem Punktekasten), **Randstreifen** (ein Streifen neben der Aufgabe mit Einwand, Antwort und Punkten; der Scan wird nicht verdeckt) und **Zusammenfassungsseite** (eine Seite am Ende). Außer bei **Keine** hängt der vollständige Text zusätzlich am PDF.
+
 ## Links widerrufen und Ablauf {#revoke}
 
 **Ergebnisse & Export → An Schüler senden** listet die **aktiven Links** auf. Mit dem Symbol in seiner Zeile widerrufen Sie einen Link, mit **Alle Links widerrufen** alle auf einmal; widerrufene Links funktionieren sofort nicht mehr, und ihre Daten werden gelöscht.
@@ -175,6 +187,7 @@ Links enden auch von selbst:
 - Das PDF wird **in Ihrem Browser verschlüsselt**, bevor es hochgeladen wird. Der Schlüssel steckt im Link, und der Teil nach dem `#` wird nie an den Server gesendet. Der Server speichert nur Chiffrat und kann kein Ergebnis lesen, auch keine Namen.
 - Mit einem zweiten Faktor öffnet ein weitergegebener Link allein das PDF nicht.
 - Schüler melden sich nicht an; der Server erfährt nur, dass ein Link geöffnet wurde. Er begrenzt die Versuche pro Adresse und beantwortet jeden unbekannten, abgelaufenen oder widerrufenen Link gleich.
+- Einwände und Ihre Antworten sind genauso verschlüsselt; der Server speichert nur Chiffrat und kann sie nicht lesen.
 - Behandeln Sie einen Zettel wie die korrigierte Arbeit selbst: Geben Sie ihn der Schülerin oder dem Schüler persönlich.
 - **E-Mail und Artemis**: Adresse oder Artemis-Kennung, Link und Artemis-Token laufen nur zum Zustellen über den Examance-Server; gespeichert oder protokolliert werden sie dort nicht. Nur die PDF-Option für Artemis verschickt ein lesbares Ergebnis, und die Vorschau sagt das.
 

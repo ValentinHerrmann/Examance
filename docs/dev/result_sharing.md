@@ -163,6 +163,6 @@ Nothing is sent before the teacher confirms.
 3. Ask for the code when the factor needs one.
 4. Decrypt in the browser and show the PDFs view-only: `PdfEmbedViewer`, or `DualPdfPreview` with `downloadable={false}` when a solution is included (EmbedPDF's export and print are disabled). This deters casual downloading only; the bytes are in the student's browser.
 
-5. With objections enabled, `ReviewForm` shows one field per item and the teacher's reply once given; after an in-place update it shows "Grading updated on <date>" (`grading_review.md`).
+5. With objections enabled, `ReviewForm` shows one field per item and the teacher's reply once given; after an in-place update it shows "Grading updated on" plus the date (`grading_review.md`).
 
 A wrong code fails GCM authentication and shows "key incorrect". The page sets `noindex` and `no-referrer`.
