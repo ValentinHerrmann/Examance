@@ -70,6 +70,7 @@ function emptyPayload(): Row {
     students: [],
     submissions: [],
     exerciseScores: [],
+    gradingReviews: [],
     examLogos: [],
     auditLogs: [],
   };

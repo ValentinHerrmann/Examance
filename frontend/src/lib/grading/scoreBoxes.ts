@@ -2,7 +2,7 @@
 
 import { calculateGradeDetail } from "#lib/analytics/gradingKey";
 import { loadOmrTemplateEncrypted } from "#lib/db/dbEncryption";
-import type { GradingKeyConfig, OmrPageTemplate, OmrTemplatePayload } from "#lib/db/schema";
+import type { GradingKeyConfig, OmrPageTemplate, OmrScoreBoxRect, OmrTemplatePayload } from "#lib/db/schema";
 import { get } from "svelte/store";
 import { omrSettingsStore } from "#lib/stores/omrSettings";
 import type { OmrDetectionParams } from "./omrSettings";
@@ -130,4 +130,21 @@ export function drawScoreBoxesForPage(
     ctx2d.fillText(text, ((x0 + x1) / 2) * w, ((y0 + y1) / 2) * h);
   }
   ctx2d.restore();
+}
+
+/** The printed box of a review item key (`exerciseId` or `exerciseId#part`): the part box, else the exercise box; null when the layout has none. `page` is 1-based. */
+export function findScoreBox(ctx: ScoreBoxContext, key: string): { page: number; box: OmrScoreBoxRect } | null {
+  const cut = key.indexOf("#");
+  const exerciseId = cut < 0 ? key : key.slice(0, cut);
+  const part = cut < 0 ? "" : key.slice(cut + 1);
+  const position = Number(Object.entries(ctx.positions).find(([, ids]) => ids.includes(exerciseId))?.[0]);
+  if (Number.isNaN(position)) return null;
+  const wanted = [...(part ? [scoreBoxKey({ box: "part", position, part })] : []), scoreBoxKey({ box: "task", position })];
+  for (const want of wanted) {
+    for (const [i, template] of ctx.pages.entries()) {
+      const box = template.scoreBoxes?.find((b) => scoreBoxKey(b) === want);
+      if (box) return { page: i + 1, box };
+    }
+  }
+  return null;
 }

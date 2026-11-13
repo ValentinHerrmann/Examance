@@ -20,6 +20,10 @@ class ResultShareCreate(BaseModel):
     iv_b64: str
     ciphertext_b64: str
     expiry_days: int
+    # Content key and token wrapped for the teacher's account (issue #226); without it the share cannot be updated.
+    wrapped_key_b64: str | None = None
+    # Objections accepted until then, never after the link expires; null = off.
+    review_until: datetime | None = None
 
 
 class ResultShareOut(BaseModel):
@@ -29,11 +33,52 @@ class ResultShareOut(BaseModel):
     size: int
     created_at: datetime
     expires_at: datetime
+    # Review state (issue #226): shares made before it are not updatable.
+    updatable: bool = False
+    content_updated_at: datetime | None = None
+    review_until: datetime | None = None
+    review_submitted_at: datetime | None = None
+    review_opened_at: datetime | None = None
+    review_replied_at: datetime | None = None
+
+
+class SealedPayload(BaseModel):
+    """A re-sealed PDF or a sealed reply: the server only stores it."""
+
+    iv_b64: str
+    ciphertext_b64: str
 
 
 class ResultShareOpen(BaseModel):
     # base64 of the 32-byte lookup secret the link derives.
     lookup_b64: str = Field(min_length=40, max_length=48)
+
+
+class ReviewSubmit(BaseModel):
+    """A student's objection (issue #226), sealed under a key only the link yields."""
+
+    lookup_b64: str = Field(min_length=40, max_length=48)
+    iv_b64: str
+    ciphertext_b64: str
+
+
+class ReviewOut(BaseModel):
+    """The thread as the student's page sees it."""
+
+    objection_iv_b64: str | None
+    objection_ct_b64: str | None
+    submitted_at: datetime | None
+    opened_at: datetime | None
+    reply_iv_b64: str | None
+    reply_ct_b64: str | None
+    replied_at: datetime | None
+
+
+class ReviewListItem(ReviewOut):
+    """One review in the teacher's list; the student appears only as the pseudonym."""
+
+    share_id: uuid.UUID
+    student_key: str
 
 
 class ResultShareContent(BaseModel):
@@ -42,6 +87,9 @@ class ResultShareContent(BaseModel):
     iv_b64: str
     ciphertext_b64: str
     expires_at: datetime
+    content_updated_at: datetime | None = None
+    review_until: datetime | None = None
+    review: ReviewOut | None = None
 
 
 DeliveryChannel = Literal["email", "artemis"]

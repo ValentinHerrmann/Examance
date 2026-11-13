@@ -11,6 +11,7 @@ from app.models.exercise_contribution import ExerciseContribution, ExerciseContr
 from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.exercise_score import ExerciseScore
+from app.models.grading_review import GradingReview
 from app.models.key_envelope import KeyEnvelope
 from app.models.layout_report import LayoutReport, LayoutReportFile
 from app.models.logo import ExamLogo, TeacherLogo
@@ -22,7 +23,7 @@ from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.registration_request import RegistrationRequest
 from app.models.result_delivery import ResultDelivery
-from app.models.result_share import ResultShare
+from app.models.result_share import ResultShare, ResultShareReview
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
@@ -38,6 +39,7 @@ __all__ = [
     "RefreshToken",
     "Exam",
     "ResultShare",
+    "ResultShareReview",
     "ResultDelivery",
     "Exercise",
     "ExerciseGroup",
@@ -45,6 +47,7 @@ __all__ = [
     "ExerciseContributionResource",
     "ExerciseResource",
     "ExerciseScore",
+    "GradingReview",
     "KeyEnvelope",
     "TeacherLogo",
     "ExamLogo",

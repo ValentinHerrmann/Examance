@@ -27,6 +27,10 @@ class BodyLimitMiddleware(BaseHTTPMiddleware):
             return settings.BODY_LIMIT_OMR_PIN
         if path == "/api/v1/integrations/artemis/files":
             return settings.BODY_LIMIT_INTEGRATION_FILE
+        if "/shares/" in path and "/review" in path:
+            return settings.BODY_LIMIT_SHARE_REVIEW
+        if path.endswith("/content") and "/shares/" in path:
+            return settings.BODY_LIMIT_RESULT_SHARE
         if path.endswith("/shares") and method == "POST":
             return settings.BODY_LIMIT_RESULT_SHARE
         if "/submissions" in path and method == "POST":

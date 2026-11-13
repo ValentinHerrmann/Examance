@@ -4,19 +4,22 @@ import { get, writable } from 'svelte/store';
 import { api, ApiError } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import {
+  decryptReview,
   decryptScore,
   decryptStudent,
   decryptSubmission,
+  encryptReview,
   encryptScore,
   encryptStudent,
   encryptSubmission,
 } from '#lib/db/dbEncryption';
-import type { ExerciseScoreRecord, StudentRecord, SubmissionRecord } from '#lib/db/schema';
+import type { ExerciseScoreRecord, GradingReviewRecord, StudentRecord, SubmissionRecord } from '#lib/db/schema';
 import { applyMode, rememberMode } from '#lib/db/workspace';
 import { joinKey } from '#lib/crypto/pseudonymKey';
 import { mapApiToStudentRecord, studentServerPayload } from '#lib/repositories/studentRepository';
 import { mapApiToSubmissionRecord, submissionServerPayload } from '#lib/repositories/submissionRepository';
 import { fromApi as scoreFromApi, toApi as scoreToApi } from '#lib/repositories/scoreRepository';
+import { fromApi as reviewFromApi, toApi as reviewToApi } from '#lib/repositories/reviewRepository';
 import { saveAccountStorageMode } from '#lib/stores/capabilities';
 import { sessionStore } from '#lib/stores/session';
 import type { StorageMode } from '#lib/stores/storagePolicy';
@@ -63,6 +66,7 @@ interface ExamResults {
   students: StudentRecord[];
   submissions: SubmissionRecord[];
   scores: ExerciseScoreRecord[];
+  reviews: GradingReviewRecord[];
 }
 
 function key(): CryptoKey {
@@ -77,16 +81,18 @@ function key(): CryptoKey {
 
 async function readServer(examId: string): Promise<ExamResults> {
   const k = key();
-  const [rawStudents, rawSubmissions, rawScores] = await Promise.all([
+  const [rawStudents, rawSubmissions, rawScores, rawReviews] = await Promise.all([
     api.get<any[]>(`/exams/${examId}/students`, { silentError: true }),
     api.get<any[]>(`/exams/${examId}/submissions?include_scans=true`, { silentError: true }),
     api.get<any[]>(`/exams/${examId}/scores`, { silentError: true }),
+    api.get<any[]>(`/exams/${examId}/grading-reviews`, { silentError: true }),
   ]);
   return {
     students: await Promise.all(rawStudents.map((s) => decryptStudent(mapApiToStudentRecord(s, examId), k))),
     // Server submissions carry the scan sealed and the total in plaintext: already "decrypted" shape.
     submissions: rawSubmissions.map((s) => mapApiToSubmissionRecord(s, examId)),
     scores: await Promise.all(rawScores.map((s) => decryptScore(scoreFromApi(s), k))),
+    reviews: await Promise.all(rawReviews.map((r) => decryptReview(reviewFromApi(r), k))),
   };
 }
 
@@ -95,16 +101,18 @@ async function readLocal(examId: string): Promise<ExamResults> {
   const students = await db.examStudents.where('examId').equals(examId).toArray();
   const submissions = await db.submissions.where('examId').equals(examId).toArray();
   const scores = await db.exerciseScores.where('submissionId').anyOf(submissions.map((s) => s.id)).toArray();
+  const reviews = await db.gradingReviews.where('submissionId').anyOf(submissions.map((s) => s.id)).toArray();
   return {
     students: await Promise.all(students.map((s) => decryptStudent(s, k))),
     submissions: await Promise.all(submissions.map((s) => decryptSubmission(s, k))),
     scores: await Promise.all(scores.map((s) => decryptScore(s, k))),
+    reviews: await Promise.all(reviews.map((r) => decryptReview(r, k))),
   };
 }
 
 function assertReadable(results: ExamResults): void {
   // Never carry a record that would not open: re-sealing it would replace real data with blanks.
-  const broken = [...results.students, ...results.submissions, ...results.scores].some((r) => r.decryptFailed);
+  const broken = [...results.students, ...results.submissions, ...results.scores, ...results.reviews].some((r) => r.decryptFailed);
   if (broken) throw new Error('Some results could not be decrypted with this account key; nothing was moved.');
 }
 
@@ -117,8 +125,9 @@ async function writeLocal(results: ExamResults): Promise<void> {
   const students = await Promise.all(results.students.map((s) => encryptStudent(s, k)));
   const submissions = await Promise.all(results.submissions.map((s) => encryptSubmission(s, k)));
   const scores = await Promise.all(results.scores.map((s) => encryptScore(s, k)));
+  const reviews = await Promise.all(results.reviews.map((r) => encryptReview(r, k)));
   // Rows keep the server's pseudonym version; the re-key after the move keys any version-1 ones (issue #177).
-  await db.transaction('rw', [db.examStudents, db.submissions, db.exerciseScores], async () => {
+  await db.transaction('rw', [db.examStudents, db.submissions, db.exerciseScores, db.gradingReviews], async () => {
     await db.examStudents.bulkPut(students);
     await db.submissions.bulkPut(submissions);
     // Rows are identified by (submission, exercise) in both stores: keep a local row's id when one exists.
@@ -130,6 +139,11 @@ async function writeLocal(results: ExamResults): Promise<void> {
         .first();
       await db.exerciseScores.put({ ...row, id: existing?.id ?? row.id }); // NOSONAR: rows are written in order inside one transaction
     }
+    // One review per submission: keep a local row's id when one exists.
+    for (const row of reviews) {
+      const existing = await db.gradingReviews.where('submissionId').equals(row.submissionId).first(); // NOSONAR: rows are written in order inside one transaction
+      await db.gradingReviews.put({ ...row, id: existing?.id ?? row.id }); // NOSONAR: rows are written in order inside one transaction
+    }
   });
 }
 
@@ -140,6 +154,7 @@ async function keyedForServer(examId: string, results: ExamResults): Promise<Exa
     students: await Promise.all(results.students.map(async (s) => ({ ...s, pseudonymHmac: await joinKey(s), pseudonymVersion: 2 as const }))),
     submissions: await Promise.all(results.submissions.map(async (s) => ({ ...s, pseudonymHmac: await joinKey(s), pseudonymVersion: 2 as const }))),
     scores: results.scores,
+    reviews: results.reviews,
   };
 }
 
@@ -163,6 +178,10 @@ async function writeServer(examId: string, results: ExamResults): Promise<void> 
       { silentError: true }
     );
   }
+  for (const review of results.reviews) {
+    const sealed = await encryptReview(review, k); // NOSONAR: server writes stay in foreign-key order
+    await api.put(`/exams/${examId}/submissions/${review.submissionId}/grading-review`, reviewToApi(sealed), { silentError: true }); // NOSONAR: server writes stay in foreign-key order
+  }
 }
 
 /** Every record sent must have arrived, by identity, not by count (F11): other rows could make up a count. */
@@ -174,6 +193,7 @@ async function verify(examId: string, sent: ExamResults, direction: MoveDirectio
   const checks: [string, string[], string[]][] = [
     ['submissions', sent.submissions.map((s) => s.id), arrived.submissions.map((s) => s.id)],
     ['scores', sent.scores.map(scoreKey), arrived.scores.map(scoreKey)],
+    ['reviews', sent.reviews.map((r) => r.submissionId), arrived.reviews.map((r) => r.submissionId)],
     ['students', await Promise.all(sent.students.map(studentKey)), await Promise.all(arrived.students.map(studentKey))],
   ];
   for (const [what, sentIds, arrivedIds] of checks) {
@@ -296,10 +316,11 @@ export async function deleteOldCopy(
     return { students: res.purged_student_identities, submissions: res.purged_submissions };
   }
   // Only exams that moved: a skipped exam's results exist nowhere else.
-  return db.transaction('rw', [db.examStudents, db.submissions, db.exerciseScores], async () => {
+  return db.transaction('rw', [db.examStudents, db.submissions, db.exerciseScores, db.gradingReviews], async () => {
     const submissionIds = await db.submissions.where('examId').anyOf(movedExams).primaryKeys();
     const students = await db.examStudents.where('examId').anyOf(movedExams).delete();
     await db.exerciseScores.where('submissionId').anyOf(submissionIds).delete();
+    await db.gradingReviews.where('submissionId').anyOf(submissionIds).delete();
     await db.submissions.bulkDelete(submissionIds);
     return { students, submissions: submissionIds.length };
   });

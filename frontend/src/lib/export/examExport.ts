@@ -13,6 +13,8 @@ import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { renderGradedPdf } from './gradedPdf';
+import { DEFAULT_REVIEW_PRINT_MODE, type ReviewPrintMode } from './reviewPrint';
+import { reviewRepository } from '#lib/repositories/reviewRepository';
 import { loadScoreBoxContext } from '#lib/grading/scoreBoxes';
 import { addLatexProjectFiles } from './latexAssets';
 import type { ExportProgress, ExportResult } from './progress';
@@ -22,7 +24,7 @@ import { addExerciseFolder } from './exerciseExport';
 import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExamZipManifest } from './zipManifest';
 import { examRepository } from '#lib/repositories/examRepository';
 import { getAccountPackages } from '#lib/latex/packageSettings';
-import type { ExerciseRecord } from '#lib/db/schema';
+import type { ExerciseRecord, GradingReviewItem } from '#lib/db/schema';
 import { snapshotRecords } from '#lib/analytics/statisticsSnapshot';
 import { statisticsRepository } from '#lib/repositories/statisticsRepository';
 
@@ -37,7 +39,8 @@ type CompileInput = ExamContext & { examItems: ReturnType<typeof buildExamItems>
 export async function runExamExport(
   examId: string,
   selected: Set<string>,
-  progress: ExportProgress
+  progress: ExportProgress,
+  reviewMode: ReviewPrintMode = DEFAULT_REVIEW_PRINT_MODE
 ): Promise<ExportResult> {
   await awaitSessionReady();
   const { sessionKey: key, fallbackSessionKey } = get(sessionStore);
@@ -89,16 +92,17 @@ export async function runExamExport(
 export async function runExamsExport(
   exams: readonly { id: string; title: string }[],
   selected: Set<string>,
-  progress: ExportProgress
+  progress: ExportProgress,
+  reviewMode: ReviewPrintMode = DEFAULT_REVIEW_PRINT_MODE
 ): Promise<ExportResult> {
-  if (exams.length === 1) return runExamExport(exams[0].id, selected, progress);
+  if (exams.length === 1) return runExamExport(exams[0].id, selected, progress, reviewMode);
   const zip = new ZipBuilder();
   const warnings: string[] = [];
   for (const [i, exam] of exams.entries()) {
     const title = exam.title || translate('dashboard.examList.untitledExam');
     const step: ExportProgress = (s, done, total) => progress(translate('export.exam.steps.ofMany', { n: i + 1, total: exams.length, step: s }), done, total);
     try {
-      const res = await runExamExport(exam.id, selected, step); // NOSONAR: one exam at a time keeps memory bounded
+      const res = await runExamExport(exam.id, selected, step, reviewMode); // NOSONAR: one exam at a time keeps memory bounded
       zip.merge(slug(title, 'exam'), res.zip);
       warnings.push(...res.warnings.map((w) => `${title}: ${w}`));
     } catch (err) {
@@ -265,7 +269,7 @@ export async function forEachGradedPdf(
   key: CryptoKey,
   fallbackKey: CryptoKey | null,
   onPdf: (pdf: Uint8Array, row: GradeRow | undefined, state: GradingState, name: string) => Promise<void> | void,
-  options: { only?: ReadonlySet<string>; progress?: (done: number, total: number) => void } = {}
+  options: { only?: ReadonlySet<string>; progress?: (done: number, total: number) => void; reviewMode?: ReviewPrintMode } = {}
 ): Promise<string[]> {
   const warnings: string[] = [];
   const resultBySubmission = new Map(computed.stats.results.map((r) => [r.submissionId, r]));
@@ -274,6 +278,15 @@ export async function forEachGradedPdf(
   for (const sc of scoreRecords) scoresBySubmission.set(sc.submissionId, [...(scoresBySubmission.get(sc.submissionId) ?? []), sc]);
   const chosen = options.only ? submissions.filter((sub) => options.only?.has(sub.id)) : submissions;
   const scoreBoxes = chosen.length > 0 ? await loadScoreBoxContext(chosen[0].examId, key) : null;
+  const reviewMode = options.reviewMode ?? DEFAULT_REVIEW_PRINT_MODE;
+  const reviewBySubmission = new Map<string, GradingReviewItem[]>();
+  if (reviewMode !== 'none' && chosen.length > 0) {
+    try {
+      for (const rec of await reviewRepository.listByExam(chosen[0].examId, key)) reviewBySubmission.set(rec.submissionId, rec.items);
+    } catch (err) {
+      warnings.push(translate('export.exam.warnings.failed', { part: translate('export.review.title'), error: errorText(err) }));
+    }
+  }
 
   for (const [i, sub] of chosen.entries()) {
     options.progress?.(i, chosen.length);
@@ -290,7 +303,7 @@ export async function forEachGradedPdf(
         warnings.push(translate('export.exam.warnings.noScan', { name }));
         continue;
       }
-      const pdf = await renderGradedPdf(full, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes, studentName: row?.studentName }); // NOSONAR: one scan at a time keeps memory bounded
+      const pdf = await renderGradedPdf(full, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes, studentName: row?.studentName, review: { items: reviewBySubmission.get(sub.id) ?? [], mode: reviewMode } }); // NOSONAR: one scan at a time keeps memory bounded
       await onPdf(pdf, row, gradingState(resultBySubmission.get(sub.id)), name); // NOSONAR: one scan at a time keeps memory bounded
     } catch (err) {
       warnings.push(translate('export.exam.warnings.gradedOne', { name, error: errorText(err) }));

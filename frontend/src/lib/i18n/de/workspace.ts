@@ -55,6 +55,7 @@ export const workspace = {
             scores: 'Punktwerte',
             resources: 'Ressourcendateien',
             logos: 'Klausur-Logos',
+            reviews: 'Einsichten',
             auditLogs: 'Protokolleinträge',
         },
         outcome: {

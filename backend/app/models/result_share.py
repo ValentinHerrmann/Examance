@@ -51,5 +51,38 @@ class ResultShare(Base):
         DateTime(timezone=True), nullable=False, index=True
     )
 
+    # Content key and token wrapped for the teacher's account (issue #226); null = made before, not updatable.
+    wrapped_key: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    content_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Objections are accepted until then; null = off.
+    review_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     def __repr__(self) -> str:
         return f"ResultShare(id={self.id!r}, exam={self.exam_id!r}, factor={self.factor!r})"
+
+
+class ResultShareReview(Base):
+    """A student's sealed objection and the teacher's sealed reply for one share (issue #226); dies with the share."""
+
+    __tablename__ = "result_share_reviews"
+
+    share_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("result_shares.id", ondelete="CASCADE"), primary_key=True
+    )
+    teacher_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("teachers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    exam_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exams.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    student_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    objection_iv: Mapped[bytes | None] = mapped_column(LargeBinary(12), nullable=True)
+    objection_ct: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reply_iv: Mapped[bytes | None] = mapped_column(LargeBinary(12), nullable=True)
+    reply_ct: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    replied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    def __repr__(self) -> str:
+        return f"ResultShareReview(share={self.share_id!r})"

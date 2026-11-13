@@ -27,6 +27,7 @@ from app.routers import (
     exams,
     exercise_contributions,
     exercise_scores,
+    grading_reviews,
     exercises,
     integrations,
     keys,
@@ -272,6 +273,8 @@ def create_app() -> FastAPI:
     app.include_router(submissions.router, prefix=API_PREFIX)
     app.include_router(exercise_scores.router, prefix=API_PREFIX)
     app.include_router(exercise_scores.exam_router, prefix=API_PREFIX)
+    app.include_router(grading_reviews.router, prefix=API_PREFIX)
+    app.include_router(grading_reviews.exam_router, prefix=API_PREFIX)
     app.include_router(omr_template_pins.router, prefix=API_PREFIX)
     app.include_router(exam_statistics.router, prefix=API_PREFIX)
     app.include_router(admin.router, prefix=API_PREFIX)

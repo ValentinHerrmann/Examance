@@ -1,6 +1,7 @@
 """Result shares (issue #207, docs/dev/result_sharing.md): store, list, revoke, open and expire students' sealed result PDFs. The only code that reads or writes `result_shares` and the "shares" blob kind."""
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import logging
@@ -13,9 +14,14 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.result_share import ResultShare
+from app.models.result_share import ResultShare, ResultShareReview
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
-from app.schemas.result_share import ResultShareCreate, ResultShareOut
+from app.schemas.result_share import (
+    ResultShareCreate,
+    ResultShareOut,
+    ReviewListItem,
+    ReviewOut,
+)
 from app.services import blob_store
 from app.services.blob_validation import UploadRejected, check_upload, upload_http_error
 
@@ -23,6 +29,9 @@ logger = logging.getLogger(__name__)
 
 KIND = "shares"
 LOOKUP_BYTES = 32
+# A sealed objection or reply (500 characters per item, base64 in a 64 KB body).
+REVIEW_MAX_BYTES = 45_000
+WRAPPED_KEY_MAX_BYTES = 256
 
 
 def not_found() -> HTTPException:
@@ -34,11 +43,20 @@ def not_found() -> HTTPException:
     )
 
 
+def _conflict(detail: str, code: str) -> HTTPException:
+    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail, headers={"code": code})
+
+
+def _aware(moment: datetime) -> datetime:
+    """SQLite hands timestamps back naive; they are UTC."""
+    return moment.replace(tzinfo=moment.tzinfo or UTC)
+
+
 def _bad_request(detail: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
 
-def to_out(share: ResultShare) -> ResultShareOut:
+def to_out(share: ResultShare, review: ResultShareReview | None = None) -> ResultShareOut:
     return ResultShareOut(
         id=share.id,
         student_key=share.student_key,
@@ -46,13 +64,74 @@ def to_out(share: ResultShare) -> ResultShareOut:
         size=share.size,
         created_at=share.created_at,
         expires_at=share.expires_at,
+        updatable=share.wrapped_key is not None,
+        content_updated_at=share.content_updated_at,
+        review_until=share.review_until,
+        review_submitted_at=review.submitted_at if review else None,
+        review_opened_at=review.opened_at if review else None,
+        review_replied_at=review.replied_at if review else None,
     )
 
 
-def _forget(db: AsyncSession, shares: Iterable[ResultShare]) -> None:
+def review_out(review: ResultShareReview) -> ReviewOut:
+    return ReviewOut(
+        objection_iv_b64=_b64(review.objection_iv),
+        objection_ct_b64=_b64(review.objection_ct),
+        submitted_at=review.submitted_at,
+        opened_at=review.opened_at,
+        reply_iv_b64=_b64(review.reply_iv),
+        reply_ct_b64=_b64(review.reply_ct),
+        replied_at=review.replied_at,
+    )
+
+
+def _b64(value: bytes | None) -> str | None:
+    return base64.b64encode(value).decode() if value else None
+
+
+async def _forget(db: AsyncSession, shares: Iterable[ResultShare]) -> None:
+    """Drop the shares' files and reviews (the DB cascade does not run everywhere, e.g. SQLite)."""
+    ids = []
     for share in shares:
+        ids.append(share.id)
         if share.blob_path is not None:
             blob_store.delete_after_commit(db, share.blob_path)
+    if ids:
+        await db.execute(delete(ResultShareReview).where(ResultShareReview.share_id.in_(ids)))
+
+
+async def _store_ciphertext(db: AsyncSession, share: ResultShare, data: bytes) -> None:
+    """Put *data* into whichever backend is active; a replaced file is deleted after the commit."""
+    if blob_store.writes_to_files():
+        ref = await blob_store.put(KIND, str(share.exam_id), str(share.id), data)
+        blob_store.remember_written(db, ref)
+        if share.blob_path is not None:
+            blob_store.delete_after_commit(db, share.blob_path)
+        share.blob_path = ref
+        share.ciphertext = None
+    else:
+        if share.blob_path is not None:
+            blob_store.delete_after_commit(db, share.blob_path)
+        share.blob_path = None
+        share.ciphertext = data
+
+
+def _checked_pdf(ciphertext_b64: str) -> bytes:
+    data = decode_b64(ciphertext_b64, "ciphertext_b64")
+    try:
+        check_upload(data, settings.RESULT_SHARE_MAX_BYTES, "Result PDF")
+    except UploadRejected as exc:
+        raise upload_http_error(exc) from None
+    return data
+
+
+def _decode_wrapped_key(value: str | None) -> bytes | None:
+    if value is None:
+        return None
+    wrapped = decode_b64(value, "wrapped_key_b64")
+    if not wrapped or len(wrapped) > WRAPPED_KEY_MAX_BYTES:
+        raise _bad_request("wrapped_key_b64 has an invalid size.")
+    return wrapped
 
 
 async def create_or_replace(
@@ -69,11 +148,13 @@ async def create_or_replace(
         else None
     )
     iv = decode_b64(body.iv_b64, "iv_b64", expected_len=GCM_IV_BYTES)
-    data = decode_b64(body.ciphertext_b64, "ciphertext_b64")
-    try:
-        check_upload(data, settings.RESULT_SHARE_MAX_BYTES, "Result PDF")
-    except UploadRejected as exc:
-        raise upload_http_error(exc) from None
+    data = _checked_pdf(body.ciphertext_b64)
+    wrapped = _decode_wrapped_key(body.wrapped_key_b64)
+    now = datetime.now(UTC)
+    expires_at = now + timedelta(days=body.expiry_days)
+    review_until = _aware(body.review_until) if body.review_until is not None else None
+    if review_until is not None and review_until > expires_at:
+        raise _bad_request("review_until must not be later than the link's expiry.")
 
     old = (
         await db.execute(
@@ -85,7 +166,7 @@ async def create_or_replace(
     ).scalars().all()
     if any(s.id == body.id and s.student_key != body.student_key for s in old):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Share id in use.")
-    _forget(db, old)
+    await _forget(db, old)
     for share in old:
         await db.delete(share)
     await db.flush()
@@ -100,28 +181,29 @@ async def create_or_replace(
         kdf_salt=salt,
         iv=iv,
         size=len(data),
-        created_at=datetime.now(UTC),
-        expires_at=datetime.now(UTC) + timedelta(days=body.expiry_days),
+        created_at=now,
+        expires_at=expires_at,
+        wrapped_key=wrapped,
+        review_until=review_until,
     )
-    if blob_store.writes_to_files():
-        ref = await blob_store.put(KIND, str(exam_id), str(body.id), data)
-        blob_store.remember_written(db, ref)
-        share.blob_path = ref
-    else:
-        share.ciphertext = data
+    await _store_ciphertext(db, share, data)
     db.add(share)
     await db.flush()
     return share
 
 
-async def list_for_exam(db: AsyncSession, exam_id: uuid.UUID) -> list[ResultShare]:
+async def list_for_exam(
+    db: AsyncSession, exam_id: uuid.UUID
+) -> list[tuple[ResultShare, ResultShareReview | None]]:
+    """The exam's live shares, each with its review state."""
     now = datetime.now(UTC)
     rows = await db.execute(
-        select(ResultShare)
+        select(ResultShare, ResultShareReview)
+        .outerjoin(ResultShareReview, ResultShareReview.share_id == ResultShare.id)
         .where(ResultShare.exam_id == exam_id, ResultShare.expires_at > now)
         .order_by(ResultShare.created_at)
     )
-    return list(rows.scalars().all())
+    return [(share, review) for share, review in rows.all()]
 
 
 async def revoke(db: AsyncSession, exam_id: uuid.UUID, share_ids: Iterable[uuid.UUID] | None) -> int:
@@ -130,7 +212,7 @@ async def revoke(db: AsyncSession, exam_id: uuid.UUID, share_ids: Iterable[uuid.
     if share_ids is not None:
         query = query.where(ResultShare.id.in_(list(share_ids)))
     shares = (await db.execute(query)).scalars().all()
-    _forget(db, shares)
+    await _forget(db, shares)
     for share in shares:
         await db.delete(share)
     return len(shares)
@@ -145,7 +227,7 @@ async def revoke_student(db: AsyncSession, exam_id: uuid.UUID, student_key: str)
             )
         )
     ).scalars().all()
-    _forget(db, shares)
+    await _forget(db, shares)
     for share in shares:
         await db.delete(share)
     return len(shares)
@@ -163,11 +245,12 @@ async def drop_exams(db: AsyncSession, exam_ids: list[uuid.UUID]) -> None:
     if not exam_ids:
         return
     forget_exams(db, exam_ids)
+    await db.execute(delete(ResultShareReview).where(ResultShareReview.exam_id.in_(exam_ids)))
     await db.execute(delete(ResultShare).where(ResultShare.exam_id.in_(exam_ids)))
 
 
-async def open_share(db: AsyncSession, share_id: uuid.UUID, lookup_b64: str) -> tuple[ResultShare, bytes]:
-    """The share and its ciphertext, if the lookup secret matches and it has not expired; otherwise `not_found`."""
+async def _by_lookup(db: AsyncSession, share_id: uuid.UUID, lookup_b64: str) -> ResultShare:
+    """The unexpired share whose lookup secret matches; otherwise `not_found`."""
     try:
         lookup = decode_b64(lookup_b64, "lookup_b64", expected_len=LOOKUP_BYTES)
     except HTTPException:
@@ -176,15 +259,23 @@ async def open_share(db: AsyncSession, share_id: uuid.UUID, lookup_b64: str) -> 
     presented = hashlib.sha256(lookup).hexdigest()
     if share is None or not hmac.compare_digest(presented, share.lookup_hash):
         raise not_found()
-    if share.expires_at.replace(tzinfo=share.expires_at.tzinfo or UTC) <= datetime.now(UTC):
+    if _aware(share.expires_at) <= datetime.now(UTC):
         raise not_found()
+    return share
+
+
+async def open_share(
+    db: AsyncSession, share_id: uuid.UUID, lookup_b64: str
+) -> tuple[ResultShare, bytes, ResultShareReview | None]:
+    """The share, its ciphertext and review, if the lookup secret matches and it has not expired; otherwise `not_found`."""
+    share = await _by_lookup(db, share_id, lookup_b64)
     if share.blob_path is not None:
         data = await blob_store.get(share.blob_path)
     else:
         data = await db.scalar(select(ResultShare.ciphertext).where(ResultShare.id == share.id)) or b""
     if not data:
         raise not_found()
-    return share, data
+    return share, data, await db.get(ResultShareReview, share.id)
 
 
 async def purge_expired(db: AsyncSession, now: datetime) -> int:
@@ -192,7 +283,7 @@ async def purge_expired(db: AsyncSession, now: datetime) -> int:
     expired = (
         await db.execute(select(ResultShare).where(ResultShare.expires_at <= now))
     ).scalars().all()
-    _forget(db, expired)
+    await _forget(db, expired)
     for share in expired:
         await db.delete(share)
     return len(expired)

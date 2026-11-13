@@ -57,6 +57,7 @@ export const workspace: Translations['workspace'] = {
             scores: 'Scores',
             resources: 'Resource files',
             logos: 'Exam logos',
+            reviews: 'Grading reviews',
             auditLogs: 'Audit entries',
         },
         outcome: {

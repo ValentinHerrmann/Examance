@@ -85,6 +85,9 @@ class AuditLog(Base):
             "RESULT_SHARE_REVOKED",
             # The remembered answer to the share question changed (issue #263, migration 0065); "always" is standing consent.
             "EXERCISE_SHARE_DEFAULT_CHANGED",
+            # Objections through the result link (issue #226, migration 0066).
+            "REVIEW_SUBMITTED",
+            "REVIEW_REPLIED",
             name="audit_action",
         ),
         nullable=False,

@@ -305,11 +305,13 @@ export const examRepository = {
         db.students,
         db.examStudents,
         db.exerciseScores,
+        db.gradingReviews,
         db.exerciseResources,
         db.omrTemplates,
       ],
       async () => {
         await db.exerciseScores.where('submissionId').anyOf(submissionIds).delete();
+        await db.gradingReviews.where('submissionId').anyOf(submissionIds).delete();
         // Resource files hang off the exercises that are about to disappear.
         await db.exerciseResources.where('exerciseId').anyOf(exerciseIds).delete();
         await db.exams.delete(id);
