@@ -4,18 +4,18 @@
       "key": "frontend",
       "label": "Frontend",
       "color": "#FF3E00",
-      "files": 624,
-      "lines": 74369,
-      "code": 69909,
-      "comments": 4460
+      "files": 625,
+      "lines": 74554,
+      "code": 70079,
+      "comments": 4475
     },
     {
       "key": "frontend_tests",
       "label": "Frontend tests",
       "color": "#F59E0B",
       "files": 128,
-      "lines": 12801,
-      "code": 12163,
+      "lines": 12844,
+      "code": 12206,
       "comments": 638
     },
     {
@@ -41,15 +41,15 @@
       "label": "Documentation",
       "color": "#3B82F6",
       "files": 75,
-      "lines": 5982,
+      "lines": 5985,
       "code": null,
       "comments": null
     }
   ],
   "total": {
-    "files": 1120,
-    "lines": 135400,
-    "code": 123316,
-    "comments": 6102
+    "files": 1121,
+    "lines": 135631,
+    "code": 123529,
+    "comments": 6117
   }
 }
