@@ -559,10 +559,13 @@
   {#if penNotice}
     <!-- Zero-height sticky row: the notice floats over the scan without moving the pages. -->
     <div class="pointer-events-none sticky top-0 z-10 h-0">
-      <Alert severity="info" class="pointer-events-auto mx-auto max-w-narrow shadow-md" onDismiss={hidePenNotice}>
-        {$t("grading.canvas.penDetected")}
-        <a href={penInputSettingsHref} class="link ml-1">{$t("grading.canvas.penDetectedReset")}</a>
-      </Alert>
+      <!-- Opaque backing: the info tint alone is translucent and let the scan show through. -->
+      <div class="pointer-events-auto mx-auto max-w-narrow rounded-md bg-surface-raised shadow-md">
+        <Alert severity="info" onDismiss={hidePenNotice}>
+          {$t("grading.canvas.penDetected")}
+          <a href={penInputSettingsHref} class="link ml-1">{$t("grading.canvas.penDetectedReset")}</a>
+        </Alert>
+      </div>
     </div>
   {/if}
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead of letting the viewport scroll, so zooming in did nothing. -->
