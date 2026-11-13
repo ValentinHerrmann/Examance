@@ -135,18 +135,15 @@ export const exerciseResourceRepository = {
     await db.exerciseResources.where('exerciseId').equals(ownerId).delete();
   },
 
-    /** Make the staged set the exercise's set. Local rows are re-keyed onto *exerciseId*; against a server the staged set is authoritative: new files upload and files removed while editing are deleted there. Called only after the exercise itself was saved, so the id exists. `changed`: a file was uploaded, removed or is new to the exercise. */
+    /** Make the staged set the exercise's set. Local rows are re-keyed onto *exerciseId*; against a server the staged set is authoritative: new files upload and files removed while editing are deleted there. Called only after the exercise itself was saved, so the id exists. `keepStaging` (an autosaving editor, issue #232) leaves the staging area in place, so later edits can be committed again. */
   async commit(
     stagingId: string,
     exerciseId: string,
-    key: CryptoKey | null
-  ): Promise<{ errors: string[]; changed: boolean }> {
+    key: CryptoKey | null,
+    { keepStaging = false }: { keepStaging?: boolean } = {}
+  ): Promise<{ errors: string[] }> {
     const errors: string[] = [];
     const staged = await this.listLocal(stagingId);
-    const before = await this.listLocal(exerciseId);
-    // A re-upload of files the server lost is a sync, not an edit: only a new file or a different set counts.
-    const fileSet = (rows: ExerciseResourceRecord[]) => rows.map((r) => `${r.filename}:${r.byteSize}`).sort(compareCodeUnits).join('|');
-    const changed = fileSet(before) !== fileSet(staged) || staged.some((r) => r.pendingUpload && !r.remoteId);
     let remote: ExerciseResourceRecord[] = [];
     try {
       remote = await listOnServer(exerciseId);
@@ -191,6 +188,11 @@ export const exerciseResourceRepository = {
       }
     }
 
+    if (keepStaging) {
+      await this.mirrorStaging(staged, exerciseId, key);
+      return { errors };
+    }
+
     // Replace whatever the exercise had locally with the staged set.
     await db.exerciseResources.where('exerciseId').equals(exerciseId).delete();
     for (const row of staged) {
@@ -198,7 +200,37 @@ export const exerciseResourceRepository = {
     }
     await db.exerciseResources.where('exerciseId').equals(stagingId).delete();
 
-    return { errors, changed };
+    return { errors };
+  },
+
+  /** Keeps the staged rows (with their upload state) and gives the exercise its own copies. A copy needs a new id and so a new seal (AAD is the id); an unchanged copy is kept as is. */
+  async mirrorStaging(staged: ExerciseResourceRecord[], exerciseId: string, key: CryptoKey | null): Promise<void> {
+    const current = await this.listLocal(exerciseId);
+    const kept = new Set<string>();
+    for (const row of staged) {
+      await db.exerciseResources.put(row); // NOSONAR: IndexedDB writes run in order
+      const twin = current.find(
+        (c) => !kept.has(c.id) && c.filename === row.filename && c.byteSize === row.byteSize && !!row.remoteId && c.remoteId === row.remoteId
+      );
+      if (twin) {
+        kept.add(twin.id);
+        continue;
+      }
+      const bytes = await this.getBytes(row, key).catch(() => null); // NOSONAR: one file at a time keeps decrypted bytes bounded
+      const copy: ExerciseResourceRecord = { ...row, id: crypto.randomUUID(), exerciseId };
+      kept.add(copy.id);
+      await db.exerciseResources.put( // NOSONAR: IndexedDB writes run in order
+        bytes ? await encryptResource(copy, bytes, key) : { ...copy, dataCt: undefined, dataIv: undefined, data: undefined } // NOSONAR: one file at a time keeps decrypted bytes bounded
+      );
+    }
+    const drop = current.filter((c) => !kept.has(c.id)).map((c) => c.id);
+    if (drop.length > 0) await db.exerciseResources.bulkDelete(drop);
+  },
+
+  /** The local file set of *ownerId* as one string: changes on add, remove, rename and replace (a replaced file is pending upload again). */
+  async stagedSignature(ownerId: string): Promise<string> {
+    const rows = await this.listLocal(ownerId);
+    return rows.map((r) => `${r.id}:${r.filename}:${r.byteSize}:${r.pendingUpload ? 1 : 0}`).sort(compareCodeUnits).join('|');
   },
 
     /** Resource files for a compilation. `inline` = bytes the server can't look up (staged files); `exerciseIds` = saved exercises whose files the server loads itself (smaller request). `needBytes` forces everything inline: the WASM engine runs in the browser with no database. */

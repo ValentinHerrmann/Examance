@@ -135,7 +135,6 @@ export const grading: Translations['grading'] = {
             loading: 'Loading exam data...',
             loadFailed: 'The exam data could not be loaded ({message}). Entry is blocked so that no saved scores are lost.',
         },
-        saveFailed: 'Scores not saved: {message}',
         grid: {
             noStudents: 'No students in the roster for this exam.',
             openRoster: 'Open student roster to add students',

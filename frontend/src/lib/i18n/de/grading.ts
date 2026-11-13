@@ -133,7 +133,6 @@ export const grading = {
             loading: 'Prüfungsdaten werden geladen...',
             loadFailed: 'Die Prüfungsdaten konnten nicht geladen werden ({message}). Die Eingabe ist gesperrt, damit keine gespeicherten Punkte verloren gehen.',
         },
-        saveFailed: 'Punkte nicht gespeichert: {message}',
         grid: {
             noStudents: 'Keine Schüler in der Liste dieser Prüfung.',
             openRoster: 'Schülerliste öffnen, um Schüler hinzuzufügen',

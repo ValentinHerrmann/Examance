@@ -7,7 +7,7 @@
   import { saveSubmissionScores, submissionForStudent } from "#lib/grading/scoreService";
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import type { ExamRecord, ExerciseRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
-  import { t, translate } from "#lib/i18n";
+  import { t } from "#lib/i18n";
   import { createAutosave } from "#lib/utils/autosave";
   import { gradeHref } from "#lib/utils/links";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
@@ -56,10 +56,7 @@
   let loadedRaw: Record<number, string> = {};
   let loadedRawFor = "";
   // Cells save on commit (blur, Enter); this only shows those saves in one status line (issue #232).
-  const saves = createAutosave({
-    run: async () => {},
-    message: (err) => translate("grading.manual.saveFailed", { message: err instanceof Error ? err.message : String(err) }),
-  });
+  const saves = createAutosave({ run: async () => {} });
 
   const scoreText = (v: number | null | undefined) => (v !== null && v !== undefined ? String(v) : "");
 

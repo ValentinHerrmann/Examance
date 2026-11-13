@@ -105,15 +105,21 @@ describe('exercise resource staging', () => {
     expect(await exerciseResourceRepository.listLocal(stagingId)).toHaveLength(0);
   });
 
-  it('reports a change only when the file set changed', async () => {
-    await exerciseResourceRepository.stage('staging-c', 'figure.png', 'image/png', bytes('img'), key);
-    expect((await exerciseResourceRepository.commit('staging-c', 'exercise-c', key)).changed).toBe(true);
+  it('keeps the staging area for an autosaving editor and commits it again', async () => {
+    await exerciseResourceRepository.stage('staging-k', 'figure.png', 'image/png', bytes('img'), key);
+    const before = await exerciseResourceRepository.stagedSignature('staging-k');
+    await exerciseResourceRepository.commit('staging-k', 'exercise-k', key, { keepStaging: true });
 
-    // Reopened without touching the files: closing the editor must not tell the parent something changed.
-    await exerciseResourceRepository.seedStaging('exercise-c', 'staging-d', key);
-    const rows = await exerciseResourceRepository.listLocal('staging-d');
-    await Promise.all(rows.map((r) => db.exerciseResources.put({ ...r, pendingUpload: false, remoteId: 'r-1' })));
-    expect((await exerciseResourceRepository.commit('staging-d', 'exercise-c', key)).changed).toBe(false);
+    expect((await exerciseResourceRepository.listLocal('staging-k')).map((r) => r.filename)).toEqual(['figure.png']);
+    const committed = await exerciseResourceRepository.listLocal('exercise-k');
+    expect(committed.map((r) => r.filename)).toEqual(['figure.png']);
+    expect(await exerciseResourceRepository.getBytes(committed[0], key)).toEqual(bytes('img'));
+
+    // A later file in the same session reaches the exercise too.
+    await exerciseResourceRepository.stage('staging-k', 'second.png', 'image/png', bytes('b'), key);
+    expect(await exerciseResourceRepository.stagedSignature('staging-k')).not.toBe(before);
+    await exerciseResourceRepository.commit('staging-k', 'exercise-k', key, { keepStaging: true });
+    expect((await exerciseResourceRepository.listLocal('exercise-k')).map((r) => r.filename)).toEqual(['figure.png', 'second.png']);
   });
 
   it('discards a staging area that is never committed', async () => {

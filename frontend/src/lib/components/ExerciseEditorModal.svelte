@@ -7,7 +7,7 @@
   import { askToShare } from "#lib/exercise-library/askToShare";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { parseMcOptions, buildMcOptionsLatex, type McOption } from "#lib/latex/mcOptions";
-  import { EDITOR_AUTOSAVE_MS, exerciseDraftError, withoutMetaTags, writeExercise, writeNewVersion, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
+  import { EDITOR_AUTOSAVE_MS, cascadeGroupMetadata, exerciseDraftError, withoutMetaTags, writeExercise, writeNewVersion, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
   import { createAutosave } from "#lib/utils/autosave";
   import { getLatestForSlot } from "#lib/latex/compileCache";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
@@ -113,22 +113,21 @@
   let previewLog = $state<CompileFailure | null>(null);
 
   // Move the staged files onto the just-written exercise. Upload failures never fail the save: the exercise is already stored and the files stay staged locally.
-  async function commitStagedResources(exerciseId: string, key: CryptoKey | null): Promise<boolean> {
+  async function commitStagedResources(exerciseId: string, key: CryptoKey | null, keepStaging = false) {
     await resourceSeed;
     try {
-      const { errors, changed } = await exerciseResourceRepository.commit(
+      const { errors } = await exerciseResourceRepository.commit(
         resourceStagingId,
         exerciseId,
-        key
+        key,
+        { keepStaging }
       );
       resourcesCommitted = true;
       if (errors.length > 0) {
         console.warn("Some resource files could not be synced:", errors);
       }
-      return changed;
     } catch (err) {
       console.warn("Failed to store resource files:", err);
-      return false;
     }
   }
 
@@ -193,7 +192,11 @@
     initialQuestionType = editorQuestionType;
     initialPenalty = editorPenalty;
     savedRecord = null;
+    filesSaved = false;
+    finished = false;
+    filesRev = 0;
     savedKey = editKey;
+    cascadedMeta = groupMeta(source);
     // Seed the staging area from whichever exercise is being edited or versioned; a new version therefore starts with the base version's figures without ever writing back to it.
     const stagingId = crypto.randomUUID();
     resourceStagingId = stagingId;
@@ -207,6 +210,7 @@
     void resourceSeed.then(() => {
       if (resourceStagingId === stagingId) resourcesSeeded = true;
     });
+    committedFiles = resourceSeed.then(() => exerciseResourceRepository.stagedSignature(stagingId));
     showAngabePreview = false;
     showLoesungPreview = false;
     dirtyClose.cancel();
@@ -309,10 +313,12 @@
     isDirty: () => (autosaving ? editKey !== savedKey : isDirty),
     onClose: () => {
       cleanupPreview();
-      // Staged files belong to the dialog, not to the library: unless they were committed by a save, they go with it.
-      if (!resourcesCommitted && resourceStagingId) {
-        void exerciseResourceRepository.deleteForExercise(resourceStagingId);
+      // Staged files belong to the dialog, not to the library: a commit copied them (autosave) or moved them (explicit save); what is left goes with it.
+      const stagingId = resourceStagingId;
+      if (stagingId && (autosaving || !resourcesCommitted)) {
+        void exerciseResourceRepository.deleteForExercise(stagingId);
       }
+      if (autosaving) void finishSession();
       onClose?.();
     },
   });
@@ -385,31 +391,40 @@
 
   // Editing an existing exercise saves itself (issue #232); a new exercise and a new version keep the explicit button.
   let autosaving = $derived(!!editingExercise && !isCreatingVersion && !editingExercise.codeWithheld);
-  let editKey = $derived(JSON.stringify([editorName, editorTopicTag, editorGrade, editorSubject, editorVariantKey, editorLatexBody, editorQuestionType, isMc ? editorPenalty : null]));
-  // The edit key of the last stored state, and the record that save wrote (null: nothing written since opening).
+  // Bumped by the file panel, so a file change alone schedules a save.
+  let filesRev = $state(0);
+  let editKey = $derived(JSON.stringify([editorName, editorTopicTag, editorGrade, editorSubject, editorVariantKey, editorLatexBody, editorQuestionType, isMc ? editorPenalty : null, filesRev]));
+  // The one baseline: the edit key of the last stored state.
   let savedKey = $state("");
+  // Session state: the newest written record, whether files were committed, the file set last committed, the group metadata sisters hold.
   let savedRecord: ExerciseRecord | null = null;
+  let filesSaved = false;
+  let committedFiles: Promise<string> = Promise.resolve("");
+  let cascadedMeta = "";
+  let finished = false;
+  let closing = $state(false);
+
+  function groupMeta(ex: Pick<ExerciseRecord, "name" | "topicTag" | "grade" | "subject"> | null): string {
+    return JSON.stringify([ex?.name ?? "", ex?.topicTag ?? "", ex?.grade ?? "", ex?.subject ?? ""]);
+  }
 
   async function autosaveRun() {
     const base = editingExercise;
     const key = editKey;
-    if (!base || key === savedKey) return;
+    // A finished session (closed, or its edit discarded) never writes again.
+    if (!base || !isOpen || finished || key === savedKey) return;
     const draft = currentDraft();
     const invalid = exerciseDraftError(draft);
     if (invalid) throw new Error(translate(invalid));
-    // Sister exercises share the group metadata: copy it only when it changed, not on every LaTeX keystroke.
-    const cascadeGroup =
-      draft.name !== initialName || draft.topicTag !== initialTopicTag || draft.grade !== initialGrade || draft.subject !== initialSubject;
-    savedRecord = await writeExercise(base, draft, { key: get(sessionStore).sessionKey, cascadeGroup });
+    const sessionKey = get(sessionStore).sessionKey;
+    savedRecord = await writeExercise(base, draft, { key: sessionKey });
+    const stagingId = resourceStagingId;
+    if ((await exerciseResourceRepository.stagedSignature(stagingId)) !== (await committedFiles)) {
+      await commitStagedResources(base.id, sessionKey, true);
+      committedFiles = exerciseResourceRepository.stagedSignature(stagingId);
+      filesSaved = true;
+    }
     savedKey = key;
-    initialName = draft.name;
-    initialTopicTag = draft.topicTag;
-    initialGrade = draft.grade;
-    initialSubject = draft.subject;
-    initialVariantKey = draft.variantKey;
-    initialLatexBody = draft.latexBody;
-    initialQuestionType = draft.questionType;
-    initialPenalty = draft.penalty;
   }
 
   const autosave = createAutosave({
@@ -417,27 +432,49 @@
     delayMs: EDITOR_AUTOSAVE_MS,
     message: (err) => (err instanceof Error ? err.message : String(err)),
   });
-  onDestroy(() => autosave.dispose());
 
-  /** Close of an autosaving editor: save what is pending, commit the files once, then tell the parent once. An edit that cannot be saved asks before it is dropped. */
+  // Sister exercises share name, topic, grade and subject: copied once per session, not on every save.
+  async function runPendingCascade() {
+    const record = savedRecord;
+    if (!record || groupMeta(record) === cascadedMeta) return;
+    cascadedMeta = groupMeta(record);
+    await cascadeGroupMetadata(record, get(sessionStore).sessionKey);
+  }
+
+  /** Once per autosaving session, whichever way it ends: the group copy, then one refresh of the parent and the share question. */
+  async function finishSession() {
+    if (finished) return;
+    finished = true;
+    const record = savedRecord;
+    await runPendingCascade();
+    if (record) rememberSuggestions();
+    if (record || filesSaved) onSave?.({ exercise: record ?? editingExercise!, isNewVersion: false });
+    if (record) void askToShare(record.id);
+  }
+
+  // Leaving the page with the editor open still saves what was typed, then finishes the session.
+  onDestroy(() => {
+    if (!autosaving || !isOpen || finished) return;
+    const stagingId = resourceStagingId;
+    void autosave.flush().then(async () => {
+      await finishSession();
+      await exerciseResourceRepository.deleteForExercise(stagingId);
+    });
+  });
+
+  /** Close of an autosaving editor: save what is pending (twice: edits typed during the group copy), then close; an edit that cannot be saved asks first. */
   async function closeEditing() {
-    await autosave.flush();
-    if (editKey !== savedKey) {
-      dirtyClose.request();
-      return;
-    }
-    const exercise = savedRecord ?? editingExercise;
-    if (!exercise) return dirtyClose.force();
-    isSaving = true;
+    if (closing) return;
+    closing = true;
     try {
-      const filesChanged = await commitStagedResources(exercise.id, get(sessionStore).sessionKey);
-      if (savedRecord) rememberSuggestions();
-      if (savedRecord || filesChanged) onSave?.({ exercise, isNewVersion: false });
-      if (savedRecord) void askToShare(exercise.id);
+      await autosave.flush();
+      await runPendingCascade();
+      await autosave.flush();
+      if (editKey !== savedKey) dirtyClose.request();
+      else dirtyClose.force();
     } finally {
-      isSaving = false;
+      closing = false;
     }
-    dirtyClose.force();
   }
 
   function requestClose() {
@@ -478,7 +515,8 @@
         return;
       }
 
-      const record = await writeExercise(editingExercise, draft, { key, cascadeGroup: true });
+      const record = await writeExercise(editingExercise, draft, { key });
+      await cascadeGroupMetadata(record, key);
       await commitStagedResources(record.id, key);
       onSave?.({ exercise: record, isNewVersion: false });
       void askToShare(record.id);
@@ -663,6 +701,7 @@
                   exerciseId={resourceStagingId}
                   seeded={resourcesSeeded}
                   onInsert={insertResourceSnippet}
+                  onChange={() => filesRev++}
                 />
                 <ExercisePackagesPanel
                   bind:latex={() => editorLatexBody, (v) => { editorLatexBody = v; handleLatexBodyEdit(v); }}
@@ -703,7 +742,7 @@
     {#snippet footer()}
       {#if autosaving}
         <SaveStatus status={$autosave} class="mr-auto" />
-        <Button onClick={requestClose} loading={isSaving}>{$t("common.close")}</Button>
+        <Button onClick={requestClose} loading={closing}>{$t("common.close")}</Button>
       {:else}
         <Button variant="outlined" severity="secondary" onClick={dirtyClose.request}>{$t("common.cancel")}</Button>
         <Button onClick={handleSaveExercise} disabled={isSaving || !!editingExercise?.codeWithheld}>

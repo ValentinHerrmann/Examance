@@ -23,6 +23,7 @@
   let loading = $state(true);
   let loadFailed = $state(false);
   let error = $state("");
+  let showInvalid = $state(false);
   let editor: ReturnType<typeof PackageEntriesEditor> | undefined = $state();
 
   // Order is load order, so a reordered list counts as a change.
@@ -34,17 +35,16 @@
   // An invalid list stays unsaved; its error shows under the editor.
   async function save() {
     const sent = draft;
-    if (entriesError(sent) !== null || JSON.stringify(sent) === JSON.stringify(saved)) return;
+    // Shown only once a save was skipped, not while a just-added row is still empty.
+    showInvalid = entriesError(sent) !== null;
+    if (showInvalid || JSON.stringify(sent) === JSON.stringify(saved)) return;
     const stored = await saveAccountPackages(sent);
     saved = stored;
     // Edits made during the save stay; the next save takes them.
     if (draft === sent) draft = stored;
   }
 
-  const autosave = createAutosave({
-    run: save,
-    message: (err) => translate("latexPackages.account.saveFailed", { message: (err as Error)?.message ?? "" }),
-  });
+  const autosave = createAutosave({ run: save });
   onDestroy(() => autosave.dispose());
 
   onMount(async () => {
@@ -91,7 +91,7 @@
           {templateNames}
           emptyText={$t("latexPackages.account.empty")}
         />
-        {#if invalid}
+        {#if invalid && showInvalid}
           <p class="m-0 text-xs text-danger-fg">{$t("latexPackages.account.invalid")}</p>
         {/if}
       </section>

@@ -50,11 +50,11 @@ export function exerciseDraftError(draft: ExerciseDraft): TranslationKey | null 
   return null;
 }
 
-/** Writes *draft* onto *base* (or a new exercise when null) and returns the stored record. `cascadeGroup` copies name, topic, grade and subject onto the group's sister exercises. */
+/** Writes *draft* onto *base* (or a new exercise when null) and returns the stored record. */
 export async function writeExercise(
   base: ExerciseRecord | null,
   draft: ExerciseDraft,
-  { key, cascadeGroup }: { key: CryptoKey | null; cascadeGroup: boolean }
+  { key }: { key: CryptoKey | null }
 ): Promise<ExerciseRecord> {
   const answers = mcAnswerKey(draft);
   const isMc = answers !== null;
@@ -80,18 +80,6 @@ export async function writeExercise(
 
   await saveExerciseEncrypted(record, key);
 
-  if (cascadeGroup && record.exerciseGroupId) {
-    const allLocal = await loadExercisesEncrypted(key);
-    for (const sister of allLocal) {
-      if (sister.exerciseGroupId === record.exerciseGroupId && sister.id !== record.id) {
-        await saveExerciseEncrypted(
-          { ...sister, name: record.name, topicTag: record.topicTag, grade: record.grade, subject: record.subject, updatedAt: new Date().toISOString() },
-          key
-        );
-      }
-    }
-  }
-
   // saveExerciseEncrypted() already created a new exercise on the server; a second POST is a 409 (create-only). The PATCH sends explicit nulls so cleared fields stick.
   if (get(isAuthenticated) && base) {
     try {
@@ -105,12 +93,26 @@ export async function writeExercise(
         question_type: record.questionType || 'free_text',
         correct_answers: answers,
         penalty: record.penalty || 0,
-      });
+      }, { silentError: true }); // the repository save already queued the write when offline
     } catch (apiErr) {
       console.warn('Failed to sync exercise to server:', apiErr);
     }
   }
   return record;
+}
+
+/** Copies name, topic, grade and subject of *record* onto its group's sister exercises. */
+export async function cascadeGroupMetadata(record: ExerciseRecord, key: CryptoKey | null): Promise<void> {
+  if (!record.exerciseGroupId) return;
+  const allLocal = await loadExercisesEncrypted(key);
+  for (const sister of allLocal) {
+    if (sister.exerciseGroupId === record.exerciseGroupId && sister.id !== record.id) {
+      await saveExerciseEncrypted(
+        { ...sister, name: record.name, topicTag: record.topicTag, grade: record.grade, subject: record.subject, updatedAt: new Date().toISOString() },
+        key
+      );
+    }
+  }
 }
 
 /** Stores *draft* as the next version of *base*: a new exercise row in base's group, with base marked not current. */
