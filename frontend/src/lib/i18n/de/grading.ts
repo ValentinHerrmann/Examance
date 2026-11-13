@@ -1,14 +1,12 @@
 export const grading = {
     page: {
         empty: 'Keine Abgaben zu dieser Prüfung vorhanden.',
-        saveSuccess: 'Note und Anmerkungen erfolgreich gespeichert!',
-        saveFailed: 'Speichern der Note fehlgeschlagen: {message}',
         scoresLoadFailed: 'Die gespeicherten Punkte dieser Abgabe konnten nicht geladen werden ({message}). Speichern ist gesperrt, bis sie geladen sind, damit keine Bewertung verloren geht.',
         submissionsLoadFailed: 'Die Abgaben dieser Prüfung konnten nicht geladen werden: {message}. Laden Sie die Seite neu.',
-        scoresNotLoaded: 'Die Punkte dieser Abgabe werden noch geladen. Bitte gleich noch einmal speichern.',
+        scoresNotLoaded: 'Die Punkte dieser Abgabe werden noch geladen. Sie werden gleich automatisch gespeichert.',
         annotationsUnreadable: 'Die Korrekturen dieser Abgabe lassen sich mit Ihrem Schlüssel nicht öffnen. Speichern ist gesperrt, damit sie nicht überschrieben werden.',
-        unsavedNext: 'Es gibt ungespeicherte Anmerkungen für diesen Schüler. Trotzdem zum nächsten Schüler wechseln?',
-        unsavedPrev: 'Es gibt ungespeicherte Anmerkungen für diesen Schüler. Trotzdem zum vorherigen Schüler wechseln?',
+        unsavedNext: 'Die Bewertung dieses Schülers konnte nicht gespeichert werden. Trotzdem zum nächsten Schüler wechseln? Die ungespeicherten Änderungen gehen verloren.',
+        unsavedPrev: 'Die Bewertung dieses Schülers konnte nicht gespeichert werden. Trotzdem zum vorherigen Schüler wechseln? Die ungespeicherten Änderungen gehen verloren.',
     },
     header: {
         backToExam: 'Prüfung',
@@ -78,8 +76,6 @@ export const grading = {
         nextLower: '-{points} Pkt. zu Note {grade}',
     },
     actions: {
-        save: 'Note & Anmerkungen speichern',
-        saving: 'Speichern...',
         prev: 'Vorheriger',
         next: 'Nächster Schüler',
     },

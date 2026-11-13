@@ -16,6 +16,7 @@
   import { Button, HeroDialog } from "#lib/components/ui";
   import { examHref } from "#lib/utils/links";
   import type { ScoreBoxContext } from "#lib/grading/scoreBoxes";
+  import type { AutosaveStatus } from "#lib/utils/autosave";
 
   interface Props {
     examId: string;
@@ -32,11 +33,11 @@
     gradedCount: number;
     totalMaxPoints: number;
     onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
-    onSave: () => void;
+    /** The autosave's "Saving… / Saved" state (issue #233). */
+    saveStatus: AutosaveStatus;
     onPrev: () => void;
     onNext: () => void;
     onStayOnLastSub: () => void;
-    onExerciseSaved?: () => void;
     scoreBoxes?: ScoreBoxContext | null;
   }
 
@@ -55,11 +56,10 @@
     gradedCount,
     totalMaxPoints,
     onSubmissionHydrated,
-    onSave,
+    saveStatus,
     onPrev,
     onNext,
     onStayOnLastSub,
-    onExerciseSaved,
     scoreBoxes = null
   }: Props = $props();
 
@@ -135,7 +135,7 @@
         ? ''
         : 'hidden'} lg:flex"
     >
-      <ScoreEntry {exercises} {onExerciseSaved} />
+      <ScoreEntry {exercises} />
 
       {#if activeExercise && isMcQuestion(activeExercise)}
         <McAnswerReview exercise={activeExercise} />
@@ -153,7 +153,7 @@
         {calculatedGradeDetail}
       />
 
-      <GradingActions {onSave} {onPrev} {onNext} {currentIndex} />
+      <GradingActions {saveStatus} {onPrev} {onNext} {currentIndex} />
     </div>
   </div>
 </div>

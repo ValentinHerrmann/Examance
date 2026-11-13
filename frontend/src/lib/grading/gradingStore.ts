@@ -54,8 +54,7 @@ export interface GradingState {
   /** MC/SC/TF answer review state — omitted for exercises with no stored score yet. */
   mcState: Record<string, McAnswerState>;
 
-  // Save/modal status
-  isSaving: boolean;
+  // Modal status
   showLastSubModal: boolean;
   showClearConfirmModal: boolean;
 
@@ -85,7 +84,6 @@ const INITIAL_STATE: GradingState = {
   partInputs: {},
   activePartLabel: '',
   mcState: {},
-  isSaving: false,
   showLastSubModal: false,
   showClearConfirmModal: false,
   drawTool: 'pen',
@@ -163,10 +161,6 @@ function createGradingStore() {
 
     setMcStateForExercise(exerciseId: string, state: McAnswerState) {
       update((s) => ({ ...s, mcState: { ...s.mcState, [exerciseId]: state }, isDirty: true }));
-    },
-
-    setSaving(isSaving: boolean) {
-      update((s) => ({ ...s, isSaving }));
     },
 
     setShowLastSubModal(show: boolean) {

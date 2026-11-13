@@ -15,12 +15,29 @@ function label(ctx: CanvasRenderingContext2D, font: string, text: string, x: num
   ctx.fillText(text, x, y);
 }
 
-/** Draws the persisted annotation strokes of one page in canvas pixel space. The single renderer for the grading overlay and the graded-PDF export, so both look identical. */
-export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: VectorStroke[], page: number): void {
+function inkStyle(ctx: CanvasRenderingContext2D) {
   ctx.strokeStyle = INK;
   ctx.fillStyle = INK;
   ctx.lineWidth = 4;
   ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+/** Draws only the points of a pen stroke from index `from` on, so a live stroke costs one segment per frame instead of a page redraw. */
+export function drawPenSegment(ctx: CanvasRenderingContext2D, points: readonly { x: number; y: number }[], from: number): void {
+  if (points.length === 0) return;
+  inkStyle(ctx);
+  const start = Math.max(0, from - 1);
+  ctx.beginPath();
+  ctx.moveTo(points[start].x, points[start].y);
+  if (points.length === 1) ctx.lineTo(points[0].x, points[0].y);
+  for (let i = start + 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+  ctx.stroke();
+}
+
+/** Draws the persisted annotation strokes of one page in canvas pixel space. The single renderer for the grading overlay and the graded-PDF export, so both look identical. */
+export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: VectorStroke[], page: number): void {
+  inkStyle(ctx);
 
   for (const stroke of strokes) {
     if ((stroke.pageNumber ?? 1) !== page) continue;
@@ -30,7 +47,7 @@ export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: VectorStroke
       case 'pen':
         ctx.beginPath();
         if (p) ctx.moveTo(p.x, p.y);
-        for (const q of pts.slice(1)) ctx.lineTo(q.x, q.y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
         break;
       case 'line':

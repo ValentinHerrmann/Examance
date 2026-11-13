@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Scrollable stack of scan + overlay canvases (one pair per page), drawing/erasing, pinch-zoom and two-finger scroll, lazy PDF page rendering and auto-crop; exposes imperative methods via `bind:this`. Highest-risk area (submission switching, redraw timing): guard every await with `loadSeq`.
+  // Scrollable stack of scan + overlay canvases (one pair per page), drawing/erasing, pinch-zoom and finger scroll, lazy PDF page rendering and auto-crop; exposes imperative methods via `bind:this`. Highest-risk area (submission switching, redraw timing): guard every await with `loadSeq`. Pointer routing (pen vs. finger, issue #233) lives in `pointerInput.ts`.
   import { cssVar } from "#lib/utils/cssVar";
   import { tick, onMount, onDestroy, untrack } from "svelte";
   import { loadPdfjs } from "#lib/pdf/pdfjs";
@@ -12,11 +12,12 @@
   import { loadLocalMcGroups, openAnnotation, openScan } from "#lib/db/dbEncryption";
   import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
   import { drawOmrOverlayForPage } from "#lib/grading/omrOverlay";
-  import { drawStrokes } from "#lib/grading/strokeRenderer";
+  import { drawPenSegment, drawStrokes } from "#lib/grading/strokeRenderer";
   import type { ScoreBoxContext } from "#lib/grading/scoreBoxes";
   import { ScoreBoxLayer } from "#lib/grading/scoreBoxLayer";
-  import { isPdfBytes, decodePngBytes, legacyScanCrop, eraseStrokesAt, newStroke } from "./ScanCanvasViewer";
+  import { isPdfBytes, decodePngBytes, legacyScanCrop } from "./ScanCanvasViewer";
   import { ScanZoom } from "./scanZoom";
+  import { StrokeInput } from "./strokeInput";
   import { translate } from "#lib/i18n";
 
   interface Props {
@@ -55,17 +56,16 @@
   let scanCanvases: HTMLCanvasElement[] = $state([]);
   let overlayCanvases: HTMLCanvasElement[] = $state([]);
 
-  let isDrawing = false;
-  let isErasing = false;
-  let gesturePage = 1;
-  // Index of the stroke the first finger created and when, so a second finger arriving right after (pinch/two-finger scroll) can take back the accidental dot or stamp.
-  let gestureStrokeIndex: number | null = null;
-  let gestureStartedAt = 0;
+  // Points of the live stroke `liveDrawnFor` already on its canvas (drawn segment by segment).
+  let liveDrawn = 0;
+  let liveDrawnFor: VectorStroke | null = null;
 
-  let activePointers = new Map<number, { x: number; y: number }>();
-
-  // Writable $derived (not proxied): strokes stay the store's own array, which handlePointerMove mutates in place before persistStrokes().
+  // Writable $derived (not proxied): strokes stay the store's own array; persistStrokes() replaces it.
   let strokes: VectorStroke[] = $derived($gradingStore.currentStrokes);
+  // Own deriveds so the OMR redraw effect reruns only when these change, not on every store update.
+  let mcStateNow = $derived($gradingStore.mcState);
+  let scoreInputsNow = $derived($gradingStore.scoreInputs);
+  let zoomScaleNow = $derived($gradingStore.zoomScale);
 
   let loadedSubId: string | null = null;
   let loadSeq = 0;
@@ -84,6 +84,17 @@
   });
   const scoreLayer = new ScoreBoxLayer((page) => scanCanvases[page - 1], (page) => redrawOverlay(page));
   onDestroy(() => scoreLayer.destroy());
+  const input = new StrokeInput({
+    strokes: () => strokes,
+    persist: persistStrokes,
+    recalcScores,
+    exercises: () => exercises,
+    pageFromEvent,
+    mapper: canvasMapper,
+    redraw: scheduleRedraw,
+    zoom,
+    scrollBy: (dx, dy) => canvasViewport?.scrollBy({ left: dx, top: dy }),
+  });
 
   function persistStrokes(next: VectorStroke[]) {
     strokes = next;
@@ -105,10 +116,10 @@
   }
 
   export async function clearAnnotations() {
+    input.discard();
     persistStrokes([]);
     recalcScores();
     redrawAllOverlays();
-    sessionStore.setDirty(true);
     gradingStore.markDirty();
   }
 
@@ -167,6 +178,8 @@
     void pdfDoc?.loadingTask?.destroy();
     pdfDoc = null;
     gradingStore.setPdfPaging(1, 1, false);
+    // The previous student's stroke in progress is dropped, never committed onto the next one.
+    input.discard();
     gradingStore.setStrokesSubmissionId(null);
     // Replace the previous student's pages at once: they stayed visible next to the new student's scores until the new scan had decrypted and rendered.
     await showMessage(translate("grading.canvas.loading"), cssVar("--color-muted", "#64748b"), 240);
@@ -318,6 +331,16 @@
     gradingStore.setCurrentPage(page);
   }
 
+  let scrollFrame = 0;
+  // One page lookup per frame: it measures every page, and scroll events come faster than frames.
+  function onViewportScroll() {
+    if (scrollFrame) return;
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = 0;
+      updateCurrentPageFromScroll();
+    });
+  }
+
   // The page indicator follows the page that covers the upper part of the pane.
   function updateCurrentPageFromScroll() {
     if (!canvasViewport || pageSizes.length <= 1) return;
@@ -334,8 +357,7 @@
   export function goPagePrev() {
     const state = get(gradingStore);
     if (state.currentPage > 1) {
-      isDrawing = false;
-      isErasing = false;
+      input.finish();
       scrollToPage(state.currentPage - 1);
     }
   }
@@ -343,20 +365,9 @@
   export function goPageNext() {
     const state = get(gradingStore);
     if (state.currentPage < state.totalPages) {
-      isDrawing = false;
-      isErasing = false;
+      input.finish();
       scrollToPage(state.currentPage + 1);
     }
-  }
-
-  function eraseAt(page: number, x: number, y: number) {
-    const remaining = eraseStrokesAt(strokes, page, x, y);
-    if (!remaining) return;
-    persistStrokes(remaining);
-    recalcScores();
-    sessionStore.setDirty(true);
-    gradingStore.markDirty();
-    redrawOverlay(page);
   }
 
   function pageFromEvent(e: PointerEvent): number | null {
@@ -365,113 +376,15 @@
     return page >= 1 && page <= pageSizes.length ? page : null;
   }
 
-  function canvasPoint(e: PointerEvent, page: number): { x: number; y: number } | null {
+  /** Maps client coordinates to the page's canvas pixels; measures the overlay once per call site, not per coalesced event. */
+  function canvasMapper(page: number): ((e: { clientX: number; clientY: number }) => { x: number; y: number }) | null {
     const overlay = overlayCanvases[page - 1];
     if (!overlay) return null;
     const rect = overlay.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return null;
-    return {
-      x: (e.clientX - rect.left) * (overlay.width / rect.width),
-      y: (e.clientY - rect.top) * (overlay.height / rect.height),
-    };
-  }
-
-  function handlePointerDown(e: PointerEvent) {
-    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (activePointers.size === 2) {
-      isDrawing = false;
-      isErasing = false;
-      // The first finger of a two-finger gesture already placed a dot or stamp; take it back.
-      if (gestureStrokeIndex !== null && performance.now() - gestureStartedAt < 300 && gestureStrokeIndex < strokes.length) {
-        const page = strokes[gestureStrokeIndex].pageNumber ?? 1;
-        persistStrokes(strokes.filter((_, i) => i !== gestureStrokeIndex));
-        recalcScores();
-        redrawOverlay(page);
-      }
-      gestureStrokeIndex = null;
-      const [a, b] = activePointers.values();
-      zoom.pinchStart(a, b);
-      return;
-    }
-
-    if (activePointers.size > 2) return;
-
-    const page = pageFromEvent(e);
-    if (page === null) return;
-    const point = canvasPoint(e, page);
-    if (!point) return;
-    const { x, y } = point;
-    gesturePage = page;
-    gestureStrokeIndex = null;
-    gestureStartedAt = performance.now();
-
-    const state = get(gradingStore);
-    if (state.drawTool === "eraser") {
-      isErasing = true;
-      eraseAt(page, x, y);
-      return;
-    }
-
-    gestureStrokeIndex = strokes.length;
-    persistStrokes([...strokes, newStroke(state, exercises, { x, y }, page)]);
-    sessionStore.setDirty(true);
-    gradingStore.markDirty();
-    if (state.drawTool === "pen" || state.drawTool === "line") {
-      isDrawing = true;
-      return;
-    }
-    // A stamp is complete on touch.
-    recalcScores();
-    redrawOverlay(page);
-  }
-
-  function handlePointerMove(e: PointerEvent) {
-    if (activePointers.has(e.pointerId)) {
-      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }
-
-    // Two fingers: pinch to zoom, move to scroll through the pages (one finger draws).
-    if (activePointers.size === 2) {
-      const [a, b] = activePointers.values();
-      if (zoom.pinchMove(a, b)) return;
-    }
-
-    if (!isDrawing && !isErasing) return;
-
-    const point = canvasPoint(e, gesturePage);
-    if (!point) return;
-    const { x, y } = point;
-
-    const drawTool = get(gradingStore).drawTool;
-
-    if (isErasing && drawTool === "eraser") {
-      eraseAt(gesturePage, x, y);
-      return;
-    }
-
-    if (!isDrawing) return;
-    const currentStroke = strokes[strokes.length - 1];
-    if (currentStroke) {
-      if (currentStroke.tool === "line") {
-        currentStroke.points[1] = { x, y };
-      } else if (currentStroke.tool === "pen") {
-        currentStroke.points.push({ x, y });
-      }
-      persistStrokes(strokes);
-      redrawOverlay(gesturePage);
-    }
-  }
-
-  function handlePointerUp(e?: PointerEvent) {
-    if (e && e.pointerId !== undefined) {
-      activePointers.delete(e.pointerId);
-    } else {
-      activePointers.clear();
-    }
-    if (activePointers.size < 2) zoom.pinchEnd();
-    isDrawing = false;
-    isErasing = false;
+    const sx = overlay.width / rect.width;
+    const sy = overlay.height / rect.height;
+    return (e) => ({ x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy });
   }
 
   export function zoomIn() {
@@ -492,7 +405,16 @@
 
   onMount(() => {
     const stopResize = zoom.observeResize();
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") input.reset();
+    };
+    window.addEventListener("blur", input.reset);
+    document.addEventListener("visibilitychange", onHidden);
     return () => {
+      window.removeEventListener("blur", input.reset);
+      document.removeEventListener("visibilitychange", onHidden);
+      if (redrawFrame) cancelAnimationFrame(redrawFrame);
+      if (scrollFrame) cancelAnimationFrame(scrollFrame);
       stopResize();
       pageObserver?.disconnect();
       void pdfDoc?.loadingTask?.destroy();
@@ -515,6 +437,40 @@
     drawStrokes(ctx, strokes, page);
     drawOmrDetections(ctx, overlayCanvas, page);
     scoreLayer.draw(ctx, page, overlayCanvas.width, overlayCanvas.height, exercises, get(gradingStore));
+    const live = input.live;
+    if (live && (live.pageNumber ?? 1) === page) {
+      drawStrokes(ctx, [live], page);
+      liveDrawnFor = live;
+      liveDrawn = live.points.length;
+    }
+  }
+
+  // At most one redraw per frame: pointer events (above all a pen's) arrive faster than the screen refreshes.
+  let redrawFrame = 0;
+  const pagesToRedraw = new Set<number>();
+
+  /** Redraws `page` in the next frame; null only draws the live pen stroke's new points. */
+  function scheduleRedraw(page: number | null) {
+    if (page !== null) pagesToRedraw.add(page);
+    if (!redrawFrame) redrawFrame = requestAnimationFrame(flushRedraws);
+  }
+
+  function flushRedraws() {
+    redrawFrame = 0;
+    const pages = [...pagesToRedraw];
+    pagesToRedraw.clear();
+    for (const page of pages) redrawOverlay(page);
+    const live = input.live;
+    if (live?.tool !== "pen") return;
+    if (liveDrawnFor !== live) {
+      liveDrawnFor = live;
+      liveDrawn = 0;
+    }
+    if (liveDrawn >= live.points.length) return;
+    const ctx = overlayCanvases[(live.pageNumber ?? 1) - 1]?.getContext("2d");
+    if (!ctx) return;
+    drawPenSegment(ctx, live.points, liveDrawn);
+    liveDrawn = live.points.length;
   }
 
   // Non-persisted OMR draw pass: never pushed into `strokes` (not erasable, no recalcScores()). Shared with the graded-PDF export (routes/exam/[id]/scan) via omrOverlay.ts.
@@ -542,9 +498,9 @@
   // Redraw the separate, non-persisted OMR overlay when detections or group letters change.
   $effect.pre(() => {
     const count = overlayCanvases.length;
-    const mcState = $gradingStore.mcState;
+    const mcState = mcStateNow;
     const letters = subExerciseLetters;
-    const scores = $gradingStore.scoreInputs;
+    const scores = scoreInputsNow;
     if (count > 0 && (mcState || letters || scores)) {
       untrack(() => redrawAllOverlays());
     }
@@ -560,7 +516,7 @@
   });
 
   $effect.pre(() => {
-    const zoomScale = $gradingStore.zoomScale;
+    const zoomScale = zoomScaleNow;
     untrack(() => zoom.zoomChanged(zoomScale));
   });
 
@@ -577,17 +533,20 @@
   class="scroll-pane relative box-border h-full min-h-0 w-full flex-1 overflow-auto overscroll-contain bg-surface-viewer p-2"
   bind:this={canvasViewport}
   use:zoom.wheelAction
-  onscroll={updateCurrentPageFromScroll}
+  onscroll={onViewportScroll}
 >
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead of letting the viewport scroll, so zooming in did nothing. -->
+  <!-- touch-none and select-none on the whole stack: fingers pan and pinch through our handlers (also between pages), and a long press never selects or opens a menu that cancels the pen. -->
   <div
-    class="relative mx-auto flex flex-col gap-2"
-    style="width: {$gradingStore.zoomScale * 100}%;"
+    class="relative mx-auto flex touch-none flex-col gap-2 select-none"
+    style="width: {zoomScaleNow * 100}%;"
     role="presentation"
-    onpointerdown={handlePointerDown}
-    onpointermove={handlePointerMove}
-    onpointerup={handlePointerUp}
-    onpointercancel={handlePointerUp}
+    onpointerdown={input.down}
+    onpointermove={input.move}
+    onpointerup={input.end}
+    onpointercancel={input.end}
+    onlostpointercapture={input.end}
+    oncontextmenu={(e) => e.preventDefault()}
   >
     {#key docKey}
       {#each pageSizes as size, i (i)}

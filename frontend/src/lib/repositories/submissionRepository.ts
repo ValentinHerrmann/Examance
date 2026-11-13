@@ -34,7 +34,9 @@ const includeScansQS = (includeScans: boolean | undefined) =>
   includeScans ? '?include_scans=true' : '';
 
 /** The `POST /exams/{id}/submissions` body for a decrypted submission (scan bytes stay sealed). */
-export async function submissionServerPayload(submission: SubmissionRecord, opts: { clearAnnotations?: boolean } = {}) {
+export async function submissionServerPayload(submission: SubmissionRecord, opts: { clearAnnotations?: boolean; omitScan?: boolean } = {}) {
+  // An absent scan leaves the stored one untouched, so a grading save does not upload the whole sealed scan again (issue #233).
+  const sendScan = !opts.omitScan;
   const version = submission.pseudonymVersion ?? 1;
   return {
     id: submission.id,
@@ -42,8 +44,8 @@ export async function submissionServerPayload(submission: SubmissionRecord, opts
     pseudonym_hmac: version === 2 ? submission.pseudonymHmac : await pseudonymBase(submission.pseudonymHmac),
     pseudonym_version: version,
     total_score: submission.totalScore ?? null,
-    scan_ciphertext_b64: submission.scanCt ? uint8ArrayToBase64(submission.scanCt) : undefined,
-    scan_iv_b64: submission.scanIv ? uint8ArrayToBase64(submission.scanIv) : undefined,
+    scan_ciphertext_b64: sendScan && submission.scanCt ? uint8ArrayToBase64(submission.scanCt) : undefined,
+    scan_iv_b64: sendScan && submission.scanIv ? uint8ArrayToBase64(submission.scanIv) : undefined,
     annotation_ciphertext_b64: submission.annotationCt ? uint8ArrayToBase64(submission.annotationCt) : undefined,
     annotation_iv_b64: submission.annotationIv ? uint8ArrayToBase64(submission.annotationIv) : undefined,
     clear_annotations: opts.clearAnnotations ?? false,
@@ -120,7 +122,8 @@ export const submissionRepository = {
   async save(
     submission: SubmissionRecord,
     key: CryptoKey | null,
-    opts: { clearAnnotations?: boolean; group?: string } = {}
+    /** `omitScan`: the server already holds this submission's scan (all-server only; the local record always keeps it). */
+    opts: { clearAnnotations?: boolean; group?: string; omitScan?: boolean } = {}
   ): Promise<void> {
     markStatisticsDirty(submission.examId);
     if (resultsAreLocal()) {
