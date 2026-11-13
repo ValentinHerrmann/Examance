@@ -16472,6 +16472,17 @@
             "title": "Updatable",
             "default": false
           },
+          "wrapped_key_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wrapped Key B64"
+          },
           "content_updated_at": {
             "anyOf": [
               {

@@ -35,6 +35,8 @@ class ResultShareOut(BaseModel):
     expires_at: datetime
     # Review state (issue #226): shares made before it are not updatable.
     updatable: bool = False
+    # Only the owning teacher's list carries it: the key wrapped for their account, to update shares and read objections.
+    wrapped_key_b64: str | None = None
     content_updated_at: datetime | None = None
     review_until: datetime | None = None
     review_submitted_at: datetime | None = None

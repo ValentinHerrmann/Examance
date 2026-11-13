@@ -65,6 +65,7 @@ def to_out(share: ResultShare, review: ResultShareReview | None = None) -> Resul
         created_at=share.created_at,
         expires_at=share.expires_at,
         updatable=share.wrapped_key is not None,
+        wrapped_key_b64=_b64(share.wrapped_key),
         content_updated_at=share.content_updated_at,
         review_until=share.review_until,
         review_submitted_at=review.submitted_at if review else None,

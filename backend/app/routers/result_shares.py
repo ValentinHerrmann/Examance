@@ -23,9 +23,11 @@ from app.schemas.result_share import (
     ReviewSubmit,
     SealedPayload,
 )
-from app.services import account_mail, bounces, result_deliveries, result_shares
+from app.services import account_mail, bounces, ephemeral_store, result_deliveries, result_shares
 from app.services import audit as audit_svc
 from app.services.capabilities import mail_configured
+
+REVIEW_MAIL_INTERVAL_SECONDS = 3600
 
 router = APIRouter(
     prefix="/exams/{exam_id}/shares",
@@ -173,7 +175,12 @@ async def submit_result_share_review(
     exam = await db.get(Exam, share.exam_id)
     if teacher is not None and exam is not None:
         await audit_svc.log(db, request, teacher, "REVIEW_SUBMITTED", exam.id)
-        if mail_configured() and teacher.review_mail is not False:
+        # One mail per share and hour: edits and resubmits through one link must not flood the inbox.
+        if (
+            mail_configured()
+            and teacher.review_mail is not False
+            and await ephemeral_store.incr(f"review-mail:{share.id}", REVIEW_MAIL_INTERVAL_SECONDS) == 1
+        ):
             mail = account_mail.review_notice_mail(
                 teacher.email, exam.title, account_mail.frontend_link(f"/exam/{exam.id}/results/share")
             )
