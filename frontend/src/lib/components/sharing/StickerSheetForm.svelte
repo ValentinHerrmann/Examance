@@ -127,7 +127,7 @@
     }
     if (booklet === "printer") {
       const zip = new ZipBuilder();
-      const files = await splitCopies(pdf, pagesPerCopy, list.map((e, i) => `${String(i + 1).padStart(3, "0")}_${slug(e.label)}`));
+      const files = await splitCopies(pdf, pagesPerCopy, list.map((e, i) => `${e.number ?? String(i + 1).padStart(3, "0")}_${slug(e.label)}`));
       for (const file of files) zip.add(`${file.name}.pdf`, file.pdf);
       deliver(pdf, "copies", `${base}_copies.pdf`, { bytes: zip.toBytes(), fileName: `${base}_copies.zip`, type: "application/zip" });
       return;

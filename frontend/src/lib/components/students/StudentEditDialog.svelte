@@ -5,7 +5,7 @@
   import { t } from "#lib/i18n";
   import { Alert, Button, Checkbox, Modal, TableScroller, TextInput, actionIcons } from "#lib/components/ui";
   import type { StudentRecord } from "#lib/db/schema";
-  import { editWarnings, EDITABLE_FIELDS, newListedStudent, type EditableField } from "#lib/students/classList";
+  import { editWarnings, EDITABLE_FIELDS, newListedStudent, nextClassPosition, type EditableField } from "#lib/students/classList";
   import { nameKey } from "#lib/lms/contacts";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { sessionStore } from "#lib/stores/session";
@@ -71,7 +71,9 @@
     try {
       const key = get(sessionStore).sessionKey;
       if (createIn) {
-        await studentRepository.save(await newListedStudent(createIn, rows[0]), key);
+        const position = nextClassPosition(all);
+        const student = await newListedStudent(createIn, rows[0]);
+        await studentRepository.save(position === undefined ? student : { ...student, classPosition: position }, key);
         onSaved();
         return;
       }

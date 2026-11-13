@@ -1,14 +1,17 @@
 import type { ExerciseRecord, StudentRecord } from '#lib/db/schema';
 import type { StickerEntry } from '#lib/qr/stickerSheet';
 import { studentRepository } from '#lib/repositories/studentRepository';
+import { numberStudents, positionLabel } from '#lib/students/classList';
 import { formatStudentName, parseStudentQr, stickerRawOf } from '#lib/utils/studentQr';
 import { translate } from '#lib/i18n';
 
-/** The printable students: those with a sticker payload (listed on the Students page); hand-added rows without one are left out. */
+/** The printable students in class-list order with their numbers (issue #266): those with a sticker payload (listed on the Students page); hand-added rows without one are left out. */
 export function stickerEntries(students: readonly StudentRecord[]): StickerEntry[] {
-    return students.flatMap((st) => {
+    const numbered = numberStudents(students);
+    const highest = Math.max(0, ...numbered.map((n) => n.position));
+    return numbered.flatMap(({ student: st, position }) => {
         const raw = stickerRawOf(st);
-        return raw ? [{ label: formatStudentName(st.studentName) || raw, payload: raw }] : [];
+        return raw ? [{ label: formatStudentName(st.studentName) || raw, number: positionLabel(position, highest), payload: raw }] : [];
     });
 }
 

@@ -9,7 +9,7 @@ import { formatCode } from '#lib/sharing/shareCrypto';
 import { abbreviateGivenNames, parseStudentQr } from '#lib/utils/studentQr';
 import { PAGE_CODE_EC, examTag, pageCodeText } from '#lib/exam/pageCodes';
 import { MM, TAB_SIDE, TAB_TOP } from './cutCorner';
-import type { StickerEntry } from './stickerSheet';
+import { printedLabel, type StickerEntry } from './stickerSheet';
 
 export interface ExamCopiesOptions {
   examTitle: string;
@@ -120,7 +120,7 @@ function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: Sti
   page.drawSvgPath(`M ${page.getWidth() - TAB_TOP} 0 L ${page.getWidth()} 0 L ${page.getWidth()} ${TAB_SIDE} Z`, { x: 0, y: height, color: lib.rgb(1, 1, 1) });
   drawCutLine(lib, page);
   const name = fonts.safe(entry.label);
-  drawTabRow(lib, page, fonts.bold, [name, abbreviateGivenNames(name)], NAME_ROW);
+  drawTabRow(lib, page, fonts.bold, [printedLabel(entry, name), printedLabel(entry, abbreviateGivenNames(name))], NAME_ROW);
   drawTabRow(lib, page, fonts.monoBold, [formatCode(key)], KEY_ROW);
 }
 

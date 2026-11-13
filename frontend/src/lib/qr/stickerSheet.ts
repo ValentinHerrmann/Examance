@@ -18,8 +18,10 @@ import {
 import { formatCode } from '#lib/sharing/shareCrypto';
 
 export interface StickerEntry {
-  /** Printed above the QR code and on the key slip. */
+  /** The student's name: printed above the QR code and on the key slip, listed in warnings. */
   label: string;
+  /** The padded class-list number printed before the name (issue #266), e.g. "07". */
+  number?: string;
   /** The QR text; the scan stores it as the student's raw id. */
   payload: string;
 }
@@ -33,6 +35,11 @@ export interface StickerSheetOptions {
   keys: boolean;
   /** Only the key slips, on plain paper, for students who already carry a sticker. */
   keysOnly: boolean;
+}
+
+/** The printed name: the class-list number, two spaces, the name. */
+export function printedLabel(entry: StickerEntry, name = entry.label): string {
+  return entry.number ? `${entry.number}  ${name}` : name;
 }
 
 export const STICKER_GRID = { cols: 5, rows: 7 } as const;
@@ -64,13 +71,13 @@ async function cellsFor(entries: readonly StickerEntry[], options: StickerSheetO
 
 function drawQrCell(lib: PdfLib, page: PDFPage, fonts: LabelFonts, { entry, key }: Cell, x: number, y: number): void {
   if (!key) {
-    const label = fitText(fonts.regular, fonts.safe(entry.label), 7, CELL - 6);
+    const label = fitText(fonts.regular, fonts.safe(printedLabel(entry)), 7, CELL - 6);
     page.drawText(label, { x: x + (CELL - fonts.regular.widthOfTextAtSize(label, 7)) / 2, y: y + CELL - 11, size: 7, font: fonts.regular });
     drawQr(lib, page, entry.payload, x + (CELL - QR_SIZE) / 2, y + (CELL - QR_SIZE) / 2 - 6, QR_SIZE);
     return;
   }
   // Strip: name and key, above a dashed cut line; the QR part below goes onto the paper.
-  const name = fitText(fonts.bold, fonts.safe(entry.label), 7, CELL - 6);
+  const name = fitText(fonts.bold, fonts.safe(printedLabel(entry)), 7, CELL - 6);
   page.drawText(name, { x: x + (CELL - fonts.bold.widthOfTextAtSize(name, 7)) / 2, y: y + CELL - 10, size: 7, font: fonts.bold });
   const code = formatCode(key);
   page.drawText(code, { x: x + (CELL - fonts.monoBold.widthOfTextAtSize(code, 10)) / 2, y: y + CELL - 22, size: 10, font: fonts.monoBold });
@@ -96,7 +103,7 @@ async function renderKeySlips(entries: readonly StickerEntry[]): Promise<Uint8Ar
   const title = translate('sharing.stickers.keyTitle');
   const note = translate('sharing.stickers.keyNoteShort');
   placeOnPages(lib, pdf, KEY_SLIP_GRID, entries.length, (page, box, i) =>
-    drawKeySlip(lib, page, fonts, { name: entries[i].label, title, code: keys[i], note }, box, formatCode)
+    drawKeySlip(lib, page, fonts, { name: printedLabel(entries[i]), title, code: keys[i], note }, box, formatCode)
   );
   if (pdf.getPageCount() === 0) pdf.addPage([A4.width, A4.height]);
   return pdf.save();

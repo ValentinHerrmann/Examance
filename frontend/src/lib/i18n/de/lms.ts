@@ -28,6 +28,17 @@ export const lms = {
         sticker: 'QR-Aufkleber',
         selectAll: 'Alle auswählen',
         selection: '{count} ausgewählt',
+        order: {
+            menu: 'Reihenfolge',
+            byLastName: 'Nach Nachnamen sortieren',
+            byFirstName: 'Nach Vornamen sortieren',
+            moveUp: 'Nach oben verschieben',
+            moveDown: 'Nach unten verschieben',
+            confirmTitle: 'Klassenliste neu nummerieren?',
+            confirmMessage: 'Alle Schüler bekommen neue Nummern in der gewählten Reihenfolge. Bereits gedruckte QR-Aufkleber und Exemplare behalten ihre alten Nummern.',
+            confirm: 'Neu nummerieren',
+            failed: 'Die Reihenfolge konnte nicht gespeichert werden.',
+        },
         delete: {
             title: '{count} Schüler löschen?',
             listOnly: 'Für diese Schüler ist keine Arbeit eingescannt; sie werden nur aus der Liste entfernt.',

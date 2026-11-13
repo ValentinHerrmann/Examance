@@ -102,6 +102,7 @@ export const studentRepository = {
                 email: st.email || existing.email,
                 fallbackCode: st.fallbackCode || existing.fallbackCode,
                 pseudonymRaw: st.pseudonymRaw || existing.pseudonymRaw,
+                classPosition: existing.classPosition ?? st.classPosition,
               }
             : st
         );

@@ -285,6 +285,8 @@ export interface StudentRecord extends MaybeUndecryptable {
   artemisId?: string;
   /** Entered on the Students page (class list), not created by a scan: deleting a scan keeps the student. Decrypted only. */
   fromList?: boolean;
+  /** Number in the class list (issue #266), printed before the name on stickers and exam copies; missing on lists never ordered (`numberStudents` falls back to the name order). Decrypted only. */
+  classPosition?: number;
   /** AES-256-GCM ciphertext of PII (name, student number, etc.). */
   piiCt: Uint8Array;
   /** 12-byte GCM IV for piiCt. */
