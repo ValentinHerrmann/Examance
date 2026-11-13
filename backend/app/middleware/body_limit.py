@@ -1,12 +1,29 @@
 """Request body size enforcement middleware."""
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import Message
 
 from app.config import settings
+
+# First match wins, so the order matters (e.g. a share's review and content paths before the share list).
+_RULES: tuple[tuple[Callable[[str, str], bool], str], ...] = (
+    (lambda p, _m: p.startswith("/api/v1/compile"), "BODY_LIMIT_COMPILE"),
+    (lambda p, _m: p.startswith("/api/v1/training"), "BODY_LIMIT_TRAINING"),
+    (lambda p, _m: p == "/api/v1/layout-reports", "BODY_LIMIT_LAYOUT_REPORT"),
+    (lambda p, _m: p.endswith("/resources") or "/resources/" in p or p.endswith("/logo"), "BODY_LIMIT_RESOURCE"),
+    (lambda p, m: "/omr-template-pins/" in p and m == "PUT", "BODY_LIMIT_OMR_PIN"),
+    (lambda p, _m: p == "/api/v1/integrations/artemis/files", "BODY_LIMIT_INTEGRATION_FILE"),
+    (lambda p, _m: "/shares/" in p and "/review" in p, "BODY_LIMIT_SHARE_REVIEW"),
+    (lambda p, _m: p.endswith("/content") and "/shares/" in p, "BODY_LIMIT_RESULT_SHARE"),
+    (lambda p, m: p.endswith("/shares") and m == "POST", "BODY_LIMIT_RESULT_SHARE"),
+    (lambda p, m: "/submissions" in p and m == "POST", "BODY_LIMIT_SUBMISSION"),
+    (lambda p, m: "/students" in p and m == "POST", "BODY_LIMIT_STUDENTS"),
+)
 
 
 class BodyLimitMiddleware(BaseHTTPMiddleware):
@@ -15,28 +32,9 @@ class BodyLimitMiddleware(BaseHTTPMiddleware):
     def _get_limit(self, path: str, method: str) -> int:
         if method not in ("POST", "PATCH", "PUT"):
             return settings.BODY_LIMIT_DEFAULT
-        if path.startswith("/api/v1/compile"):
-            return settings.BODY_LIMIT_COMPILE
-        if path.startswith("/api/v1/training"):
-            return settings.BODY_LIMIT_TRAINING
-        if path == "/api/v1/layout-reports":
-            return settings.BODY_LIMIT_LAYOUT_REPORT
-        if path.endswith("/resources") or "/resources/" in path or path.endswith("/logo"):
-            return settings.BODY_LIMIT_RESOURCE
-        if "/omr-template-pins/" in path and method == "PUT":
-            return settings.BODY_LIMIT_OMR_PIN
-        if path == "/api/v1/integrations/artemis/files":
-            return settings.BODY_LIMIT_INTEGRATION_FILE
-        if "/shares/" in path and "/review" in path:
-            return settings.BODY_LIMIT_SHARE_REVIEW
-        if path.endswith("/content") and "/shares/" in path:
-            return settings.BODY_LIMIT_RESULT_SHARE
-        if path.endswith("/shares") and method == "POST":
-            return settings.BODY_LIMIT_RESULT_SHARE
-        if "/submissions" in path and method == "POST":
-            return settings.BODY_LIMIT_SUBMISSION
-        if "/students" in path and method == "POST":
-            return settings.BODY_LIMIT_STUDENTS
+        for matches, setting in _RULES:
+            if matches(path, method):
+                return int(getattr(settings, setting))
         return settings.BODY_LIMIT_DEFAULT
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:

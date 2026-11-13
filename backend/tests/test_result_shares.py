@@ -153,7 +153,8 @@ async def test_objection_lifecycle_and_lock_after_open(client: AsyncClient, db: 
     review = (await _open(client, body["id"], lookup))["review"]
     assert isinstance(review, dict)
     assert base64.b64decode(review["objection_ct_b64"]) == b"second"
-    assert review["submitted_at"] and review["opened_at"] is None
+    assert review["submitted_at"]
+    assert review["opened_at"] is None
 
     # Withdrawing deletes it, a new one can follow.
     withdrawn = await client.post(f"/api/v1/shares/{body['id']}/review/withdraw", json={"lookup_b64": _b64(lookup)})
@@ -163,7 +164,8 @@ async def test_objection_lifecycle_and_lock_after_open(client: AsyncClient, db: 
 
     client.cookies.update(teacher_cookies)
     listed = (await client.get(f"/api/v1/exams/{exam_id}/shares")).json()
-    assert listed[0]["review_submitted_at"] and listed[0]["review_opened_at"] is None
+    assert listed[0]["review_submitted_at"]
+    assert listed[0]["review_opened_at"] is None
     assert listed[0]["updatable"] is True
     reviews = (await client.get(f"/api/v1/exams/{exam_id}/reviews")).json()
     assert [r["share_id"] for r in reviews] == [body["id"]]
@@ -173,9 +175,11 @@ async def test_objection_lifecycle_and_lock_after_open(client: AsyncClient, db: 
     # Opened: locked for the student.
     client.cookies.clear()
     locked = await client.post(f"/api/v1/shares/{body['id']}/review", json=_objection(lookup))
-    assert locked.status_code == 409 and locked.headers.get("code") == "ERR_REVIEW_CLOSED"
+    assert locked.status_code == 409
+    assert locked.headers.get("code") == "ERR_REVIEW_CLOSED"
     gone = await client.post(f"/api/v1/shares/{body['id']}/review/withdraw", json={"lookup_b64": _b64(lookup)})
-    assert gone.status_code == 409 and gone.headers.get("code") == "ERR_REVIEW_CLOSED"
+    assert gone.status_code == 409
+    assert gone.headers.get("code") == "ERR_REVIEW_CLOSED"
 
     client.cookies.update(teacher_cookies)
     reply = {"iv_b64": _b64(os.urandom(12)), "ciphertext_b64": _b64(b"sealed-reply")}
@@ -184,7 +188,8 @@ async def test_objection_lifecycle_and_lock_after_open(client: AsyncClient, db: 
     review = (await _open(client, body["id"], lookup))["review"]
     assert isinstance(review, dict)
     assert base64.b64decode(review["reply_ct_b64"]) == b"sealed-reply"
-    assert review["replied_at"] and review["opened_at"]
+    assert review["replied_at"]
+    assert review["opened_at"]
 
 
 @pytest.mark.asyncio
@@ -210,7 +215,8 @@ async def test_objection_refused_after_deadline_or_when_off(client: AsyncClient,
     assert disabled.status_code == wrong.status_code == unknown.status_code == 404
     assert disabled.headers.get("code") == wrong.headers.get("code") == "ERR_SHARE_NOT_FOUND"
     closed = await client.post(f"/api/v1/shares/{late['id']}/review", json=_objection(late_lookup))
-    assert closed.status_code == 409 and closed.headers.get("code") == "ERR_REVIEW_CLOSED"
+    assert closed.status_code == 409
+    assert closed.headers.get("code") == "ERR_REVIEW_CLOSED"
 
 
 @pytest.mark.asyncio
@@ -236,7 +242,8 @@ async def test_content_update_keeps_the_link_working(client: AsyncClient, db: As
     opened = await _open(client, body["id"], lookup)
     assert base64.b64decode(str(opened["ciphertext_b64"])) == b"regraded-pdf"
     assert base64.b64decode(str(opened["iv_b64"])) == new_iv
-    assert opened["content_updated_at"] is not None and opened["review_until"] is not None
+    assert opened["content_updated_at"] is not None
+    assert opened["review_until"] is not None
 
 
 @pytest.mark.asyncio
@@ -248,7 +255,8 @@ async def test_share_without_wrapped_key_is_not_updatable(client: AsyncClient, d
     assert (await client.get(f"/api/v1/exams/{exam_id}/shares")).json()[0]["updatable"] is False
     update = {"iv_b64": _b64(os.urandom(12)), "ciphertext_b64": _b64(b"x")}
     resp = await client.put(f"/api/v1/exams/{exam_id}/shares/{body['id']}/content", json=update)
-    assert resp.status_code == 409 and resp.headers.get("code") == "ERR_SHARE_NOT_UPDATABLE"
+    assert resp.status_code == 409
+    assert resp.headers.get("code") == "ERR_SHARE_NOT_UPDATABLE"
 
 
 @pytest.mark.asyncio
