@@ -135,7 +135,6 @@ export const grading: Translations['grading'] = {
             loading: 'Loading exam data...',
             loadFailed: 'The exam data could not be loaded ({message}). Entry is blocked so that no saved scores are lost.',
         },
-        saveFailed: 'Scores not saved: {message}',
         grid: {
             noStudents: 'No students in the roster for this exam.',
             openRoster: 'Open student roster to add students',
@@ -171,9 +170,6 @@ export const grading: Translations['grading'] = {
             colMax: 'Max points',
             colScore: 'Point entry',
             pointsSuffix: '{points} pts',
-            savePrev: 'Save & previous student',
-            saveScores: 'Save student scores',
-            saveNext: 'Save & next student',
         },
         roster: {
             addTitle: 'Add student to roster',

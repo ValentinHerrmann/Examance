@@ -116,7 +116,7 @@ export const help: Translations['help'] = {
             },
             s2: {
                 h: 'The editor',
-                p1: 'Each exercise is a LaTeX fragment with a live preview. “Insert LaTeX snippets” above the source offers snippets for solutions, scoring and formatting, plus subject-specific ones such as tree diagrams, circuits or structural formulas. Ctrl + F searches, Ctrl + H replaces.',
+                p1: 'Each exercise is a LaTeX fragment with a live preview. “Insert LaTeX snippets” above the source offers snippets for solutions, scoring and formatting, plus subject-specific ones such as tree diagrams, circuits or structural formulas. Ctrl + F searches, Ctrl + H replaces. An existing exercise saves itself; “Close” saves whatever is still pending.',
             },
             s3: {
                 h: 'Scores, part exercises and requirement levels',
@@ -231,7 +231,7 @@ export const help: Translations['help'] = {
             },
             s5: {
                 h: 'Work in progress',
-                p1: 'Save points and annotations before you move on. Leaving the page with unsaved annotations is intercepted — only confirm if you really want to discard them.',
+                p1: 'Points and annotations save themselves, also before you switch to another student. Examance asks whether to discard changes only when saving fails.',
             },
         },
         stats: {
@@ -325,7 +325,7 @@ export const help: Translations['help'] = {
             },
             s5: {
                 h: 'Fine-tuning MC detection',
-                p1: 'Detection method and thresholds, e.g. for very light or dark scans. Applies only to future detection runs and only in this browser; “Reset to defaults” restores the built-in values.',
+                p1: 'Detection method and thresholds, e.g. for very light or dark scans. Saves itself and applies only to future detection runs and only in this browser; “Reset to defaults” restores the built-in values.',
             },
             s6: {
                 h: 'Improve MC detection (optional)',

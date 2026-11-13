@@ -52,9 +52,7 @@ export const settings = {
         onlyFor: 'Wird nur von Verfahren v{algorithm} verwendet.',
         on: 'an',
         off: 'aus',
-        save: 'Speichern',
         reset: 'Auf Standardwerte zurücksetzen',
-        saved: 'MC-Erkennungseinstellungen gespeichert. Sie gelten ab dem nächsten Erkennungslauf.',
         resetDone: 'MC-Erkennungseinstellungen auf Standardwerte zurückgesetzt.',
         profile: 'Aktiv: {source} · Revision {revision}',
         source: {

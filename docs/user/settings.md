@@ -65,7 +65,7 @@ A single exam can override the logo on the exam's **Layout** tab, see [Logo and 
 
 ## LaTeX packages {#packages}
 
-*Belongs to your account.* Lists the packages the template loads, and lets you add packages, TikZ libraries and options for all your exams. See [LaTeX packages](./exercises#packages) for how account, exam and exercise packages combine.
+*Belongs to your account.* Lists the packages the template loads, and lets you add packages, TikZ libraries and options for all your exams. See [LaTeX packages](./exercises#packages) for how account, exam and exercise packages combine. Every change is saved by itself as soon as the list is valid; the heading shows **Saving…** and then **Saved**.
 
 ![LaTeX packages for the whole account](../screenshots/guide/settings-latex-packages.jpg)
 
@@ -77,6 +77,7 @@ A single exam can override the logo on the exam's **Layout** tab, see [Logo and 
 
 - Changes apply only to **future** detection runs (new scans or **Re-run MC detection**). Detected and verified results do not change.
 - Every run records the values it used, so the verification view can compare them.
+- Every change is saved by itself; the card header shows **Saving…** and then **Saved**. A value outside its allowed range is marked red and saved only once it is valid.
 - **Reset to defaults** restores the built-in values.
 
 ## Sharing new exercises {#share-default}

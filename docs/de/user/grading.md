@@ -72,6 +72,8 @@ Nicht jede Prüfung braucht Scans. Im Schritt **Papierkorrektur** tragen Sie Pun
 - **Schüler**: Die Schüler der Prüfung stammen von der [Seite Schüler](./students#student-data); fehlende legen Sie dort an.
 - **Aus Excel importieren (Strg+V)**: Markieren Sie die Zellen in Excel oder Google Tabellen, kopieren Sie sie und fügen Sie sie hier ein. Examance zeigt eine Vorschau und füllt dann das Raster. Eingefügte Zeilen, die zu keinem Schüler auf der Seite Schüler passen, werden übersprungen, mit einem Hinweis.
 
+Jede Punktzahl speichert sich, sobald Sie das Feld verlassen oder Enter drücken; daneben steht **Wird gespeichert …**, **Gespeichert** oder warum das Speichern fehlschlug. **Vorheriger** und **Nächster Schüler** speichern vor dem Wechsel.
+
 Diese Ergebnisse fließen wie gescannte in Statistik, Auswertung und Export ein.
 
 ![Punkte aus einer Tabellenkalkulation einfügen](../../screenshots/pitch/08b-paper-entry.jpg)

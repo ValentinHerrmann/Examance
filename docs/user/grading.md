@@ -72,6 +72,8 @@ Not every exam needs scans. On the **Paper grading** step you enter points direc
 - **Students**: the exam's students come from the [Students page](./students#student-data); add missing ones there.
 - **Import from Excel (Ctrl+V)**: select the cells in Excel or Google Sheets, copy them and paste them here. Examance shows a preview and then fills the grid. Pasted rows that match no student on the Students page are skipped, with a hint.
 
+Every score saves as soon as you leave its field or press Enter; next to it you see **Saving…**, **Saved** or why saving failed. **Previous** and **Next student** save before they switch.
+
 These results take part in statistics, analytics and export like scanned ones.
 
 ![Pasting points from a spreadsheet](../screenshots/pitch/08b-paper-entry.jpg)

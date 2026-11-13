@@ -55,9 +55,7 @@ export const settings: Translations['settings'] = {
         onlyFor: 'Only used by method v{algorithm}.',
         on: 'on',
         off: 'off',
-        save: 'Save',
         reset: 'Reset to defaults',
-        saved: 'MC detection settings saved. They apply from the next detection run.',
         resetDone: 'MC detection settings reset to defaults.',
         profile: 'Active: {source} · revision {revision}',
         source: {

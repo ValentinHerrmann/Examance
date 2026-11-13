@@ -105,6 +105,23 @@ describe('exercise resource staging', () => {
     expect(await exerciseResourceRepository.listLocal(stagingId)).toHaveLength(0);
   });
 
+  it('keeps the staging area for an autosaving editor and commits it again', async () => {
+    await exerciseResourceRepository.stage('staging-k', 'figure.png', 'image/png', bytes('img'), key);
+    const before = await exerciseResourceRepository.stagedSignature('staging-k');
+    await exerciseResourceRepository.commit('staging-k', 'exercise-k', key, { keepStaging: true });
+
+    expect((await exerciseResourceRepository.listLocal('staging-k')).map((r) => r.filename)).toEqual(['figure.png']);
+    const committed = await exerciseResourceRepository.listLocal('exercise-k');
+    expect(committed.map((r) => r.filename)).toEqual(['figure.png']);
+    expect(await exerciseResourceRepository.getBytes(committed[0], key)).toEqual(bytes('img'));
+
+    // A later file in the same session reaches the exercise too.
+    await exerciseResourceRepository.stage('staging-k', 'second.png', 'image/png', bytes('b'), key);
+    expect(await exerciseResourceRepository.stagedSignature('staging-k')).not.toBe(before);
+    await exerciseResourceRepository.commit('staging-k', 'exercise-k', key, { keepStaging: true });
+    expect((await exerciseResourceRepository.listLocal('exercise-k')).map((r) => r.filename)).toEqual(['figure.png', 'second.png']);
+  });
+
   it('discards a staging area that is never committed', async () => {
     await exerciseResourceRepository.stage('staging-2', 'draft.png', 'image/png', bytes('x'), key);
     await exerciseResourceRepository.deleteForExercise('staging-2');

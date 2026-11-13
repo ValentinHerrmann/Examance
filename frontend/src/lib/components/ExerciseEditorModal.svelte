@@ -2,13 +2,13 @@
   import { onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
   import type { ExerciseRecord } from "#lib/db/schema";
-  import { sessionStore, isAuthenticated } from "#lib/stores/session";
+  import { sessionStore } from "#lib/stores/session";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
   import { askToShare } from "#lib/exercise-library/askToShare";
-  import { saveExerciseEncrypted, loadExercisesEncrypted } from "#lib/db/dbEncryption";
-  import { api } from "#lib/api/client";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
-  import { parseMcOptions, buildMcOptionsLatex, MC_MIN_OPTIONS, type McOption } from "#lib/latex/mcOptions";
+  import { parseMcOptions, buildMcOptionsLatex, type McOption } from "#lib/latex/mcOptions";
+  import { EDITOR_AUTOSAVE_MS, cascadeGroupMetadata, exerciseDraftError, withoutMetaTags, writeExercise, writeNewVersion, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
+  import { createAutosave } from "#lib/utils/autosave";
   import { getLatestForSlot } from "#lib/latex/compileCache";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
@@ -30,7 +30,7 @@
   import { t, translate } from "#lib/i18n";
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { exerciseReportFiles } from "#lib/layout-report/collect";
-  import { ConfirmDialog, Alert, Badge, Button, Icon, Modal } from "#lib/components/ui";
+  import { ConfirmDialog, Alert, Badge, Button, Icon, Modal, SaveStatus } from "#lib/components/ui";
   import { faChevronDown, faChevronLeft, faChevronRight, faCode, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
 
   interface Props {
@@ -113,13 +113,14 @@
   let previewLog = $state<CompileFailure | null>(null);
 
   // Move the staged files onto the just-written exercise. Upload failures never fail the save: the exercise is already stored and the files stay staged locally.
-  async function commitStagedResources(exerciseId: string, key: CryptoKey | null) {
+  async function commitStagedResources(exerciseId: string, key: CryptoKey | null, keepStaging = false) {
     await resourceSeed;
     try {
       const { errors } = await exerciseResourceRepository.commit(
         resourceStagingId,
         exerciseId,
-        key
+        key,
+        { keepStaging }
       );
       resourcesCommitted = true;
       if (errors.length > 0) {
@@ -190,6 +191,12 @@
     initialLatexBody = editorLatexBody;
     initialQuestionType = editorQuestionType;
     initialPenalty = editorPenalty;
+    savedRecord = null;
+    filesSaved = false;
+    finished = false;
+    filesRev = 0;
+    savedKey = editKey;
+    cascadedMeta = groupMeta(source);
     // Seed the staging area from whichever exercise is being edited or versioned; a new version therefore starts with the base version's figures without ever writing back to it.
     const stagingId = crypto.randomUUID();
     resourceStagingId = stagingId;
@@ -203,6 +210,7 @@
     void resourceSeed.then(() => {
       if (resourceStagingId === stagingId) resourcesSeeded = true;
     });
+    committedFiles = resourceSeed.then(() => exerciseResourceRepository.stagedSignature(stagingId));
     showAngabePreview = false;
     showLoesungPreview = false;
     dirtyClose.cancel();
@@ -223,11 +231,6 @@
         previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
       }
     }
-  }
-
-  /** MC LaTeX is rebuilt from question text and options; the AFB/competency tags travel separately. */
-  function withoutMetaTags(latex: string): string {
-    return setCompetencies(setRequirementLevel(latex, null), []);
   }
 
   function syncMcStateFromLatex(latex: string = editorLatexBody) {
@@ -307,13 +310,15 @@
   );
 
   const dirtyClose = createDirtyClose({
-    isDirty: () => isDirty,
+    isDirty: () => (autosaving ? editKey !== savedKey : isDirty),
     onClose: () => {
       cleanupPreview();
-      // Staged files belong to the dialog, not to the library: unless they were committed by a save, they go with it.
-      if (!resourcesCommitted && resourceStagingId) {
-        void exerciseResourceRepository.deleteForExercise(resourceStagingId);
+      // Staged files belong to the dialog, not to the library: a commit copied them (autosave) or moved them (explicit save); what is left goes with it.
+      const stagingId = resourceStagingId;
+      if (stagingId && (autosaving || !resourcesCommitted)) {
+        void exerciseResourceRepository.deleteForExercise(stagingId);
       }
+      if (autosaving) void finishSession();
       onClose?.();
     },
   });
@@ -365,103 +370,141 @@
     }
   }
 
+  function currentDraft(): ExerciseDraft {
+    return {
+      name: editorName,
+      topicTag: editorTopicTag,
+      grade: editorGrade,
+      subject: editorSubject,
+      variantKey: editorVariantKey,
+      latexBody: editorLatexBody,
+      questionType: editorQuestionType,
+      penalty: editorPenalty,
+    };
+  }
+
+  function rememberSuggestions() {
+    if (editorTopicTag) recordValue("exercise.topic", editorTopicTag);
+    if (editorGrade) recordValue("exercise.grade", editorGrade);
+    if (editorSubject) recordValue("exercise.subject", editorSubject);
+  }
+
+  // Editing an existing exercise saves itself (issue #232); a new exercise and a new version keep the explicit button.
+  let autosaving = $derived(!!editingExercise && !isCreatingVersion && !editingExercise.codeWithheld);
+  // Bumped by the file panel, so a file change alone schedules a save.
+  let filesRev = $state(0);
+  let editKey = $derived(JSON.stringify([editorName, editorTopicTag, editorGrade, editorSubject, editorVariantKey, editorLatexBody, editorQuestionType, isMc ? editorPenalty : null, filesRev]));
+  // The one baseline: the edit key of the last stored state.
+  let savedKey = $state("");
+  // Session state: the newest written record, whether files were committed, the file set last committed, the group metadata sisters hold.
+  let savedRecord: ExerciseRecord | null = null;
+  let filesSaved = false;
+  let committedFiles: Promise<string> = Promise.resolve("");
+  let cascadedMeta = "";
+  let finished = false;
+  let closing = $state(false);
+
+  function groupMeta(ex: Pick<ExerciseRecord, "name" | "topicTag" | "grade" | "subject"> | null): string {
+    return JSON.stringify([ex?.name ?? "", ex?.topicTag ?? "", ex?.grade ?? "", ex?.subject ?? ""]);
+  }
+
+  async function autosaveRun() {
+    const base = editingExercise;
+    const key = editKey;
+    // A finished session (closed, or its edit discarded) never writes again.
+    if (!base || !isOpen || finished || key === savedKey) return;
+    const draft = currentDraft();
+    const invalid = exerciseDraftError(draft);
+    if (invalid) throw new Error(translate(invalid));
+    const sessionKey = get(sessionStore).sessionKey;
+    savedRecord = await writeExercise(base, draft, { key: sessionKey });
+    const stagingId = resourceStagingId;
+    if ((await exerciseResourceRepository.stagedSignature(stagingId)) !== (await committedFiles)) {
+      await commitStagedResources(base.id, sessionKey, true);
+      committedFiles = exerciseResourceRepository.stagedSignature(stagingId);
+      filesSaved = true;
+    }
+    savedKey = key;
+  }
+
+  const autosave = createAutosave({
+    run: autosaveRun,
+    delayMs: EDITOR_AUTOSAVE_MS,
+    message: (err) => (err instanceof Error ? err.message : String(err)),
+  });
+
+  // Sister exercises share name, topic, grade and subject: copied once per session, not on every save.
+  async function runPendingCascade() {
+    const record = savedRecord;
+    if (!record || groupMeta(record) === cascadedMeta) return;
+    cascadedMeta = groupMeta(record);
+    await cascadeGroupMetadata(record, get(sessionStore).sessionKey);
+  }
+
+  /** Once per autosaving session, whichever way it ends: the group copy, then one refresh of the parent and the share question. */
+  async function finishSession() {
+    if (finished) return;
+    finished = true;
+    const record = savedRecord;
+    await runPendingCascade();
+    if (record) rememberSuggestions();
+    if (record || filesSaved) onSave?.({ exercise: record ?? editingExercise!, isNewVersion: false });
+    if (record) void askToShare(record.id);
+  }
+
+  // Leaving the page with the editor open still saves what was typed, then finishes the session.
+  onDestroy(() => {
+    if (!autosaving || !isOpen || finished) return;
+    const stagingId = resourceStagingId;
+    void autosave.flush().then(async () => {
+      await finishSession();
+      await exerciseResourceRepository.deleteForExercise(stagingId);
+    });
+  });
+
+  /** Close of an autosaving editor: save what is pending (twice: edits typed during the group copy), then close; an edit that cannot be saved asks first. */
+  async function closeEditing() {
+    if (closing) return;
+    closing = true;
+    try {
+      await autosave.flush();
+      await runPendingCascade();
+      await autosave.flush();
+      if (editKey !== savedKey) dirtyClose.request();
+      else dirtyClose.force();
+    } finally {
+      closing = false;
+    }
+  }
+
+  function requestClose() {
+    if (autosaving) void closeEditing();
+    else dirtyClose.request();
+  }
+
   async function handleSaveExercise() {
     // Imported without code: there is nothing to edit, and a save would turn the exercise into an empty one.
     if (editingExercise?.codeWithheld) {
       errorMsg = translate("exam.resultsOnly.noEdit");
       return;
     }
-    if (!editorName.trim()) {
-      errorMsg = translate("exercises.editor.nameRequired");
+    const draft = currentDraft();
+    if (isMc) syncMcStateFromLatex();
+    const invalid = exerciseDraftError(draft);
+    if (invalid) {
+      errorMsg = translate(invalid);
       return;
     }
 
-    if (isMc) {
-      // The LaTeX is what gets saved: read the options from it rather than rebuilding it.
-      syncMcStateFromLatex();
-      if (mcOptions.length < MC_MIN_OPTIONS) {
-        errorMsg = translate("exercises.editor.mcMinOptions");
-        return;
-      }
-      if (!mcOptions.some((o) => o.correct)) {
-        errorMsg = translate("exercises.editor.mcCorrectRequired");
-        return;
-      }
-    }
-
-    if (editorTopicTag) recordValue("exercise.topic", editorTopicTag);
-    if (editorGrade) recordValue("exercise.grade", editorGrade);
-    if (editorSubject) recordValue("exercise.subject", editorSubject);
+    rememberSuggestions();
 
     isSaving = true;
     errorMsg = "";
     const key = get(sessionStore).sessionKey;
 
-    const optionsArray = isMc ? mcOptions.map((o) => o.text) : undefined;
-    const correctIndices = isMc ? mcOptions.flatMap((o, i) => (o.correct ? [i] : [])) : undefined;
-
     try {
       if (isCreatingVersion && versionBaseEx) {
-        let savedEx: ExerciseRecord;
-        if ($isAuthenticated) {
-          const res = (await api.post(`/exercises/${versionBaseEx.id}/new-version`, {
-            name: editorName,
-            topic_tag: editorTopicTag,
-            grade: editorGrade.trim() || null,
-            subject: editorSubject.trim() || null,
-            latex_body: editorLatexBody,
-            question_type: editorQuestionType,
-            correct_answers: isMc ? { options: optionsArray, correct: correctIndices } : null,
-          })) as any;
-
-          savedEx = {
-            id: res.id || crypto.randomUUID(),
-            teacherId: res.teacher_id || $sessionStore.email || "local-teacher",
-            name: res.name || editorName,
-            topicTag: res.topic_tag || editorTopicTag,
-            grade: res.grade || editorGrade.trim() || undefined,
-            subject: res.subject || editorSubject.trim() || undefined,
-            latexBody: res.latex_body || editorLatexBody,
-            maxPoints: res.max_points || parseExerciseScore(editorLatexBody),
-            version: res.version || (versionBaseEx.version || 1) + 1,
-            questionType: res.question_type || editorQuestionType,
-            options: optionsArray,
-            correctAnswers: correctIndices,
-            penalty: res.penalty ?? editorPenalty,
-            exerciseGroupId: res.exercise_group_id || versionBaseEx.exerciseGroupId,
-            variantKey: res.variant_key || editorVariantKey.trim() || undefined,
-            isCurrent: res.is_current ?? true,
-            updatedAt: new Date().toISOString(),
-          };
-          await saveExerciseEncrypted(savedEx, key);
-        } else {
-          const groupId = versionBaseEx.exerciseGroupId || crypto.randomUUID();
-          if (!versionBaseEx.exerciseGroupId) {
-            versionBaseEx.exerciseGroupId = groupId;
-            await saveExerciseEncrypted(versionBaseEx, key);
-          }
-          savedEx = {
-            ...versionBaseEx,
-            id: crypto.randomUUID(),
-            name: editorName,
-            topicTag: editorTopicTag,
-            grade: editorGrade.trim() || undefined,
-            subject: editorSubject.trim() || undefined,
-            latexBody: editorLatexBody,
-            maxPoints: parseExerciseScore(editorLatexBody),
-            version: (versionBaseEx.version || 1) + 1,
-            questionType: editorQuestionType,
-            options: optionsArray,
-            correctAnswers: correctIndices,
-            penalty: editorPenalty,
-            exerciseGroupId: groupId,
-            variantKey: editorVariantKey.trim() || undefined,
-            isCurrent: true,
-            updatedAt: new Date().toISOString(),
-          };
-          await saveExerciseEncrypted({ ...versionBaseEx, isCurrent: false }, key);
-          await saveExerciseEncrypted(savedEx, key);
-        }
+        const savedEx = await writeNewVersion(versionBaseEx, draft, key);
 
         // A new version is a new exercise row; the staged set (the base version's files plus anything added here) becomes its file set.
         await commitStagedResources(savedEx.id, key);
@@ -472,69 +515,8 @@
         return;
       }
 
-      const computedScore = parseExerciseScore(editorLatexBody);
-      const id = editingExercise?.id || crypto.randomUUID();
-
-      const record: ExerciseRecord = {
-        id,
-        teacherId: editingExercise?.teacherId || $sessionStore.email || "local-teacher",
-        name: editorName,
-        topicTag: editorTopicTag,
-        grade: editorGrade.trim() || undefined,
-        subject: editorSubject.trim() || undefined,
-        latexBody: editorLatexBody,
-        maxPoints: computedScore,
-        version: editingExercise ? editingExercise.version : 1,
-        questionType: editorQuestionType,
-        options: optionsArray,
-        correctAnswers: correctIndices,
-        penalty: isMc ? editorPenalty : editingExercise?.penalty || 0,
-        exerciseGroupId: editingExercise?.exerciseGroupId,
-        variantKey: editorVariantKey.trim() || undefined,
-        isCurrent: editingExercise?.isCurrent ?? true,
-        updatedAt: new Date().toISOString(),
-      };
-
-      await saveExerciseEncrypted(record, key);
-
-      // If exercise belongs to a group, cascade group metadata updates (name, topicTag, grade, subject) to all sister exercises locally
-      if (record.exerciseGroupId) {
-        const allLocal = await loadExercisesEncrypted(key);
-        for (const sister of allLocal) {
-          if (sister.exerciseGroupId === record.exerciseGroupId && sister.id !== record.id) {
-            const updatedSister: ExerciseRecord = {
-              ...sister,
-              name: record.name,
-              topicTag: record.topicTag,
-              grade: record.grade,
-              subject: record.subject,
-              updatedAt: new Date().toISOString(),
-            };
-            await saveExerciseEncrypted(updatedSister, key);
-          }
-        }
-      }
-
-      // saveExerciseEncrypted() already created a new exercise on the server; a second POST is a 409 (create-only). The PATCH sends explicit nulls so cleared fields stick.
-      if ($isAuthenticated && editingExercise) {
-        try {
-          const payload = {
-            name: record.name,
-            topic_tag: record.topicTag,
-            grade: record.grade || null,
-            subject: record.subject || null,
-            latex_body: record.latexBody,
-            variant_key: record.variantKey || null,
-            question_type: record.questionType || "free_text",
-            correct_answers: isMc ? { options: optionsArray, correct: correctIndices } : null,
-            penalty: record.penalty || 0,
-          };
-          await api.patch(`/exercises/${id}`, payload);
-        } catch (apiErr) {
-          console.warn("Failed to sync exercise to server:", apiErr);
-        }
-      }
-
+      const record = await writeExercise(editingExercise, draft, { key });
+      await cascadeGroupMetadata(record, key);
       await commitStagedResources(record.id, key);
       onSave?.({ exercise: record, isNewVersion: false });
       void askToShare(record.id);
@@ -566,6 +548,15 @@
       }
     });
   });
+
+  // Every edit of an existing exercise schedules a save.
+  $effect.pre(() => {
+    const key = editKey;
+    const on = isOpen && autosaving;
+    untrack(() => {
+      if (on && key !== savedKey) autosave.schedule();
+    });
+  });
 </script>
 
 {#snippet layoutReport()}
@@ -591,7 +582,7 @@
 {/snippet}
 
 {#if isOpen}
-  <Modal open={isOpen} size="full" tall bare onClose={dirtyClose.request} labelledBy="exercise-editor-title">
+  <Modal open={isOpen} size="full" tall bare onClose={requestClose} labelledBy="exercise-editor-title">
     {#snippet header()}
       <!-- Metadata sits in the header: beside the title from @6xl, below it down to @3xl, folded on phones. -->
       <div class="flex min-w-0 flex-col gap-2 @6xl:flex-row @6xl:items-center @6xl:gap-4">
@@ -710,6 +701,7 @@
                   exerciseId={resourceStagingId}
                   seeded={resourcesSeeded}
                   onInsert={insertResourceSnippet}
+                  onChange={() => filesRev++}
                 />
                 <ExercisePackagesPanel
                   bind:latex={() => editorLatexBody, (v) => { editorLatexBody = v; handleLatexBodyEdit(v); }}
@@ -748,10 +740,15 @@
     </div>
 
     {#snippet footer()}
-      <Button variant="outlined" severity="secondary" onClick={dirtyClose.request}>{$t("common.cancel")}</Button>
-      <Button onClick={handleSaveExercise} disabled={isSaving || !!editingExercise?.codeWithheld}>
-        {saveLabel}
-      </Button>
+      {#if autosaving}
+        <SaveStatus status={$autosave} class="mr-auto" />
+        <Button onClick={requestClose} loading={closing}>{$t("common.close")}</Button>
+      {:else}
+        <Button variant="outlined" severity="secondary" onClick={dirtyClose.request}>{$t("common.cancel")}</Button>
+        <Button onClick={handleSaveExercise} disabled={isSaving || !!editingExercise?.codeWithheld}>
+          {saveLabel}
+        </Button>
+      {/if}
     {/snippet}
   </Modal>
 {/if}

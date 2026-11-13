@@ -133,7 +133,6 @@ export const grading = {
             loading: 'Prüfungsdaten werden geladen...',
             loadFailed: 'Die Prüfungsdaten konnten nicht geladen werden ({message}). Die Eingabe ist gesperrt, damit keine gespeicherten Punkte verloren gehen.',
         },
-        saveFailed: 'Punkte nicht gespeichert: {message}',
         grid: {
             noStudents: 'Keine Schüler in der Liste dieser Prüfung.',
             openRoster: 'Schülerliste öffnen, um Schüler hinzuzufügen',
@@ -169,9 +168,6 @@ export const grading = {
             colMax: 'Maximalpunkte',
             colScore: 'Punkteeingabe',
             pointsSuffix: '{points} Pkt.',
-            savePrev: 'Speichern & vorheriger Schüler',
-            saveScores: 'Schülerpunkte speichern',
-            saveNext: 'Speichern & nächster Schüler',
         },
         roster: {
             addTitle: 'Schüler zur Liste hinzufügen',
