@@ -119,6 +119,8 @@ export const grading = {
         scanNoKey: '[ Sitzungsschlüssel fehlt — bitte neu anmelden ]',
         scanDecryptFailed: '[ Entschlüsselung des Scans fehlgeschlagen — Schlüssel stimmt nicht überein oder Daten beschädigt ]',
         scanLoadFailed: '[ Scan konnte nicht geladen werden — bitte Seite neu laden ]',
+        penDetected: 'Stift erkannt: Finger blättern und zoomen ab jetzt nur noch und zeichnen nicht mehr.',
+        penDetectedReset: 'In den Einstellungen zurücksetzen',
     },
     manual: {
         container: {

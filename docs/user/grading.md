@@ -15,7 +15,7 @@ During the grading pass you see **"Anonymous student #3 of 26"**, never a name. 
 ## The grading view {#workspace}
 
 - **All pages of a submission are stacked.** Scroll through them with the mouse wheel or the scrollbar, or with your finger on a touch device.
-- **Pen or finger:** a pen, and the mouse, always draw. On a device without a pen, one finger draws and two fingers scroll. As soon as you use a pen once, Examance remembers it on this device: from then on, fingers and a resting palm only scroll and zoom and never draw.
+- **Pen or finger:** a pen, and the mouse, always draw. On a device without a pen, one finger draws and two fingers scroll. As soon as you use a pen once, Examance remembers it on this device: from then on, fingers and a resting palm only scroll and zoom and never draw. A short notice says so when the pen is first detected; to draw with a finger again, reset it under [Settings → Pen input](settings.md#pen-input).
 - **Ctrl + mouse wheel** or pinching zooms; **Fit** fits the page to the view. The page arrows jump between pages.
 - **Crop margins** hides the empty page margins for a larger view.
 - **Previous** and **Next student** move through the submissions. The exercise labels in the **Scoring** panel are not links, so tapping one cannot open the exercise by accident.

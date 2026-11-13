@@ -2,29 +2,10 @@
 
 export type Point = { x: number; y: number };
 
-const PEN_SEEN_KEY = 'grading_pen_seen';
-
 /** Pen and mouse always draw; a finger draws only until this device has shown a pen (palm rejection, like note-taking apps). */
 export function drawsWith(pointerType: string, penSeen: boolean): boolean {
   if (pointerType === 'pen' || pointerType === 'mouse') return true;
   return !penSeen;
-}
-
-/** Whether this device has shown a pen before; storage may be unavailable (private window), so it never throws. */
-export function readPenSeen(): boolean {
-  try {
-    return localStorage.getItem(PEN_SEEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-export function rememberPenSeen(): void {
-  try {
-    localStorage.setItem(PEN_SEEN_KEY, '1');
-  } catch {
-    // Per-device convenience only: without storage the pen is detected again next time.
-  }
 }
 
 /** What a pointerdown starts. */

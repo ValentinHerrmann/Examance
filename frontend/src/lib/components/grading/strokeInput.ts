@@ -3,7 +3,8 @@
 import { get } from 'svelte/store';
 import { gradingStore, type VectorStroke } from '#lib/grading/gradingStore';
 import { eraseStrokesAt, newStroke } from './ScanCanvasViewer';
-import { PointerRouter, readPenSeen, rememberPenSeen, type Point, type PointerSample } from './pointerInput';
+import { PointerRouter, type Point, type PointerSample } from './pointerInput';
+import { markPenSeen } from '#lib/stores/penInput';
 
 type ClientPoint = { clientX: number; clientY: number };
 
@@ -20,6 +21,8 @@ export interface StrokeInputView {
   redraw(page: number | null): void;
   zoom: { pinchStart(a: Point, b: Point): void; pinchMove(a: Point, b: Point): boolean; pinchEnd(): void };
   scrollBy(dx: number, dy: number): void;
+  /** The first pen on this device: from now on fingers only scroll and zoom. */
+  onPenDetected(): void;
 }
 
 const ACCIDENTAL_MS = 300;
@@ -38,7 +41,7 @@ function capture(e: PointerEvent) {
 }
 
 export class StrokeInput {
-  private readonly pointers = new PointerRouter(readPenSeen());
+  private readonly pointers = new PointerRouter();
   private erasing = false;
   private page = 1;
   // The stamp the first finger placed and when, so a second finger right after (pinch) can take it back.
@@ -49,10 +52,14 @@ export class StrokeInput {
 
   constructor(private readonly view: StrokeInputView) {}
 
+  /** Follows `penSeenStore` (a reset in Settings lets fingers draw again). */
+  setPenSeen(seen: boolean) {
+    this.pointers.penSeen = seen;
+  }
+
   down = (e: PointerEvent) => {
-    const hadPen = this.pointers.penSeen;
     const action = this.pointers.down(sample(e));
-    if (this.pointers.penSeen && !hadPen) rememberPenSeen();
+    if (e.pointerType === 'pen' && markPenSeen()) this.view.onPenDetected();
     switch (action.kind) {
       case 'ignore':
         return;

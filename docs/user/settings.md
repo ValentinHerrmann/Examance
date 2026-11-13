@@ -53,6 +53,10 @@ Whatever you delete in the app (exams, exercises, files, logos, students, scans,
 
 *Stored in this browser.* The interface is available in German and English; the colour scheme can be light, dark or **Match system**. Both can also be switched from the navigation bar. Neither affects the printed exam, which is always in German.
 
+## Pen input {#pen-input}
+
+*Stored in this browser.* Once you use a pen in the grading view, fingers there only scroll and zoom and no longer draw, so a resting palm leaves no marks. The card shows whether a pen has been detected on this device. **Reset pen detection** lets fingers draw again until the next time you use a pen.
+
 ## Exam logo {#logo}
 
 *Belongs to your account.* A logo is printed at the top left of the first page of every exam. Under **Exam logo** you can upload your own (PNG, JPEG or PDF, at most 2 MB), choose **No logo**, or reset to the default logo. Without a logo the spot stays empty; the page layout and the position of the answer boxes do not change.

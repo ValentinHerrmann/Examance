@@ -18,7 +18,10 @@
   import { isPdfBytes, decodePngBytes, legacyScanCrop } from "./ScanCanvasViewer";
   import { ScanZoom } from "./scanZoom";
   import { StrokeInput } from "./strokeInput";
-  import { translate } from "#lib/i18n";
+  import { penSeenStore } from "#lib/stores/penInput";
+  import { penInputSettingsHref } from "#lib/utils/links";
+  import { Alert } from "#lib/components/ui";
+  import { t, translate } from "#lib/i18n";
 
   interface Props {
     examId: string;
@@ -94,7 +97,25 @@
     redraw: scheduleRedraw,
     zoom,
     scrollBy: (dx, dy) => canvasViewport?.scrollBy({ left: dx, top: dy }),
+    onPenDetected: showPenNotice,
   });
+  // A reset in Settings (also from another tab) lets fingers draw again.
+  onDestroy(penSeenStore.subscribe((seen) => input.setPenSeen(seen)));
+
+  // Told once, when this device shows its first pen: fingers stop drawing (issue #233).
+  const PEN_NOTICE_MS = 8000;
+  let penNotice = $state(false);
+  let penNoticeTimer: ReturnType<typeof setTimeout> | undefined;
+  function showPenNotice() {
+    penNotice = true;
+    clearTimeout(penNoticeTimer);
+    penNoticeTimer = setTimeout(() => (penNotice = false), PEN_NOTICE_MS);
+  }
+  function hidePenNotice() {
+    penNotice = false;
+    clearTimeout(penNoticeTimer);
+  }
+  onDestroy(() => clearTimeout(penNoticeTimer));
 
   function persistStrokes(next: VectorStroke[]) {
     strokes = next;
@@ -535,6 +556,15 @@
   use:zoom.wheelAction
   onscroll={onViewportScroll}
 >
+  {#if penNotice}
+    <!-- Zero-height sticky row: the notice floats over the scan without moving the pages. -->
+    <div class="pointer-events-none sticky top-0 z-10 h-0">
+      <Alert severity="info" class="pointer-events-auto mx-auto max-w-narrow shadow-md" onDismiss={hidePenNotice}>
+        {$t("grading.canvas.penDetected")}
+        <a href={penInputSettingsHref} class="link ml-1">{$t("grading.canvas.penDetectedReset")}</a>
+      </Alert>
+    </div>
+  {/if}
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead of letting the viewport scroll, so zooming in did nothing. -->
   <!-- touch-none and select-none on the whole stack: fingers pan and pinch through our handlers (also between pages), and a long press never selects or opens a menu that cancels the pen. -->
   <div

@@ -121,6 +121,8 @@ export const grading: Translations['grading'] = {
         scanNoKey: '[ Session key missing — please sign in again ]',
         scanDecryptFailed: '[ Failed to decrypt scan — key mismatch or data corrupted ]',
         scanLoadFailed: '[ Failed to load the scan — please reload the page ]',
+        penDetected: 'Pen detected: from now on, fingers only scroll and zoom and no longer draw.',
+        penDetectedReset: 'Reset in Settings',
     },
     manual: {
         container: {
