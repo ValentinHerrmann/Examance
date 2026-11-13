@@ -2,6 +2,9 @@
 
 import { deriveArgon2Key } from '#lib/crypto/keyDerivation';
 import { decrypt, encrypt, fromBase64url, toArrayBuffer, toBase64url } from '#lib/crypto/aesGcm';
+import { get } from 'svelte/store';
+import { sessionStore } from '#lib/stores/session';
+import { MissingSessionKeyError } from '#lib/db/decryptGuard';
 
 export type ShareFactor = 'none' | 'sticker' | 'code';
 
@@ -11,9 +14,19 @@ export interface ShareLink {
   token: Uint8Array;
 }
 
+/** One gradable (sub)exercise of a v3 header (issue #226): `key` is the exercise id or `${exerciseId}#${part}`. */
+export interface ReviewItem {
+  key: string;
+  label: string;
+  max: number;
+  points: number | null;
+}
+
 export interface ShareHeader {
   filename: string;
   examTitle: string;
+  /** v3: the items a student can object to; absent on older shares, which then show no form. */
+  items?: ReviewItem[];
 }
 
 export interface SealedShare {
@@ -21,6 +34,14 @@ export interface SealedShare {
   iv: Uint8Array;
   kdfSalt: Uint8Array | null;
 }
+
+/** A sealed share plus its raw content key, which the teacher keeps wrapped (`wrapShareKey`) and the student needs for objections. */
+export interface SealedShareWithKey extends SealedShare {
+  contentKey: Uint8Array;
+}
+
+/** Hard limit per objection and per reply field, on both sides (issue #226). */
+export const REVIEW_TEXT_MAX = 500;
 
 /** The public page that opens a share (a public path: `navigationStore.isPublicPath`). */
 export const SHARE_PATH = '/result';
@@ -78,7 +99,7 @@ export async function lookupHash(secret: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function contentKey(link: ShareLink, factor: ShareFactor, code: string | null, salt: Uint8Array | null): Promise<CryptoKey> {
+async function contentKeyBits(link: ShareLink, factor: ShareFactor, code: string | null, salt: Uint8Array | null): Promise<Uint8Array> {
   let ikm = link.token;
   if (factor !== 'none') {
     if (!code || !salt) throw new Error('A code is required for this share.');
@@ -86,11 +107,12 @@ async function contentKey(link: ShareLink, factor: ShareFactor, code: string | n
     const { rawKey } = await deriveArgon2Key(normalizeCode(code), salt);
     ikm = new Uint8Array([...link.token, ...rawKey]);
   }
-  const raw = await hkdf(ikm, link.shareId, `examance-share-key:v1:${factor}`);
-  return crypto.subtle.importKey('raw', toArrayBuffer(raw), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  return hkdf(ikm, link.shareId, `examance-share-key:v1:${factor}`);
 }
 
-const aad = (link: ShareLink) => encoder.encode(`share:v1:${link.shareId}`);
+const aesKey = (raw: Uint8Array) => crypto.subtle.importKey('raw', toArrayBuffer(raw), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+
+const aad = (shareId: string) => encoder.encode(`share:v1:${shareId}`);
 
 export type ShareDocumentKind = 'graded' | 'solution';
 
@@ -111,9 +133,20 @@ export async function sealShare(
   code: string | null,
   header: ShareHeader,
   docs: ShareDocuments
-): Promise<SealedShare> {
+): Promise<SealedShareWithKey> {
   const kdfSalt = factor === 'none' ? null : crypto.getRandomValues(new Uint8Array(16));
-  const key = await contentKey(link, factor, code, kdfSalt);
+  const contentKey = await contentKeyBits(link, factor, code, kdfSalt);
+  const { ciphertext, iv } = await sealPayload(link.shareId, contentKey, header, docs);
+  return { ciphertext, iv, kdfSalt, contentKey };
+}
+
+/** Re-seals new content under the same link and key (issue #226): lookup, factor and salt stay, so the student's link keeps working. */
+export function resealShare(shareId: string, contentKey: Uint8Array, header: ShareHeader, docs: ShareDocuments): Promise<{ ciphertext: Uint8Array; iv: Uint8Array }> {
+  return sealPayload(shareId, contentKey, header, docs);
+}
+
+async function sealPayload(shareId: string, contentKey: Uint8Array, header: ShareHeader, docs: ShareDocuments): Promise<{ ciphertext: Uint8Array; iv: Uint8Array }> {
+  const key = await aesKey(contentKey);
   const parts: [ShareDocumentKind, Uint8Array][] = [['graded', docs.graded]];
   if (docs.solution) parts.push(['solution', docs.solution]);
   const stored: StoredHeader = { ...header, documents: parts.map(([kind, bytes]) => ({ kind, length: bytes.length })) };
@@ -126,8 +159,7 @@ export async function sealShare(
     plain.set(bytes, offset);
     offset += bytes.length;
   }
-  const { ciphertext, iv } = await encrypt(key, plain, undefined, aad(link));
-  return { ciphertext, iv, kdfSalt };
+  return encrypt(key, plain, undefined, aad(shareId));
 }
 
 /** Opens a share in the student's browser; throws on a wrong code (GCM authentication fails). Reads v1 payloads (one PDF) too. */
@@ -136,18 +168,92 @@ export async function openSealedShare(
   factor: ShareFactor,
   code: string | null,
   sealed: SealedShare
-): Promise<{ header: ShareHeader; documents: ShareDocuments }> {
-  const key = await contentKey(link, factor, code, sealed.kdfSalt);
-  const plain = await decrypt(key, sealed.ciphertext, sealed.iv, null, aad(link));
+): Promise<{ header: ShareHeader; documents: ShareDocuments; contentKey: Uint8Array }> {
+  const contentKey = await contentKeyBits(link, factor, code, sealed.kdfSalt);
+  const plain = await decrypt(await aesKey(contentKey), sealed.ciphertext, sealed.iv, null, aad(link.shareId));
   const headLength = new DataView(plain.buffer, plain.byteOffset, plain.byteLength).getUint32(0);
   const { documents: layout, ...header } = JSON.parse(new TextDecoder().decode(plain.subarray(4, 4 + headLength))) as StoredHeader;
   let offset = 4 + headLength;
-  if (!layout) return { header, documents: { graded: plain.slice(offset) } };
+  if (!layout) return { header, documents: { graded: plain.slice(offset) }, contentKey };
   const found: Partial<ShareDocuments> = {};
   for (const { kind, length } of layout) {
     found[kind] = plain.slice(offset, offset + length);
     offset += length;
   }
   if (!found.graded) throw new Error('Share holds no graded PDF.');
-  return { header, documents: { graded: found.graded, solution: found.solution } };
+  return { header, documents: { graded: found.graded, solution: found.solution }, contentKey };
+}
+
+const wrapCache = new WeakMap<CryptoKey, Promise<CryptoKey>>();
+
+/** `K_wrap = HKDF(data key, "examance-share-wrap-v1", "share-wrap")`: only this account can unwrap a share's token and content key. */
+function shareWrapKey(): Promise<CryptoKey> {
+  const master = get(sessionStore).masterKey;
+  if (!master) throw new MissingSessionKeyError('share-wrap');
+  let key = wrapCache.get(master);
+  if (!key) {
+    key = crypto.subtle.deriveKey(
+      { name: 'HKDF', hash: 'SHA-256', salt: encoder.encode('examance-share-wrap-v1'), info: encoder.encode('share-wrap') },
+      master,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+    key.catch(() => wrapCache.delete(master));
+    wrapCache.set(master, key);
+  }
+  return key;
+}
+
+const wrapAad = (shareId: string) => encoder.encode(`share-wrap:v1:${shareId}`);
+const CONTENT_KEY_BYTES = 32;
+
+/** `iv(12) ‖ AES-GCM(K_wrap, token ‖ contentKey)`, stored on the share row so the teacher can update it in place and read objections. */
+export async function wrapShareKey(link: ShareLink, contentKey: Uint8Array): Promise<Uint8Array> {
+  const { ciphertext, iv } = await encrypt(await shareWrapKey(), new Uint8Array([...link.token, ...contentKey]), undefined, wrapAad(link.shareId));
+  return new Uint8Array([...iv, ...ciphertext]);
+}
+
+export async function unwrapShareKey(shareId: string, wrapped: Uint8Array): Promise<{ link: ShareLink; contentKey: Uint8Array }> {
+  const plain = await decrypt(await shareWrapKey(), wrapped.subarray(12), wrapped.subarray(0, 12), null, wrapAad(shareId));
+  if (plain.length !== TOKEN_BYTES + CONTENT_KEY_BYTES) throw new Error('Wrapped share key has the wrong length.');
+  return { link: { shareId, token: plain.slice(0, TOKEN_BYTES) }, contentKey: plain.slice(TOKEN_BYTES) };
+}
+
+/** Objection text per item key, written by the student. */
+export interface ObjectionPayload {
+  items: Record<string, string>;
+}
+
+/** Reply per item key, written by the teacher. */
+export interface ReplyPayload {
+  items: Record<string, { text: string; pointsBefore: number | null; pointsAfter: number | null }>;
+}
+
+type ReviewPart = 'objection' | 'reply';
+
+/** `K_review = HKDF(contentKey, salt shareId, "examance-share-review:v1")`: needs the code too, so a link carrier cannot read or forge objections. */
+async function reviewKey(shareId: string, contentKey: Uint8Array): Promise<CryptoKey> {
+  return aesKey(await hkdf(contentKey, shareId, 'examance-share-review:v1'));
+}
+
+const reviewAad = (shareId: string, part: ReviewPart) => encoder.encode(`review:v1:${shareId}:${part}`);
+
+function clampTexts<T>(items: Record<string, T>, text: (v: T) => string): void {
+  for (const value of Object.values(items)) if (text(value).length > REVIEW_TEXT_MAX) throw new Error(`A review text is longer than ${REVIEW_TEXT_MAX} characters.`);
+}
+
+export async function sealReviewPart(shareId: string, contentKey: Uint8Array, part: 'objection', payload: ObjectionPayload): Promise<{ ciphertext: Uint8Array; iv: Uint8Array }>;
+export async function sealReviewPart(shareId: string, contentKey: Uint8Array, part: 'reply', payload: ReplyPayload): Promise<{ ciphertext: Uint8Array; iv: Uint8Array }>;
+export async function sealReviewPart(shareId: string, contentKey: Uint8Array, part: ReviewPart, payload: ObjectionPayload | ReplyPayload) {
+  if (part === 'objection') clampTexts((payload as ObjectionPayload).items, (v) => v);
+  else clampTexts((payload as ReplyPayload).items, (v) => v.text);
+  return encrypt(await reviewKey(shareId, contentKey), encoder.encode(JSON.stringify(payload)), undefined, reviewAad(shareId, part));
+}
+
+export async function openReviewPart(shareId: string, contentKey: Uint8Array, part: 'objection', ciphertext: Uint8Array, iv: Uint8Array): Promise<ObjectionPayload>;
+export async function openReviewPart(shareId: string, contentKey: Uint8Array, part: 'reply', ciphertext: Uint8Array, iv: Uint8Array): Promise<ReplyPayload>;
+export async function openReviewPart(shareId: string, contentKey: Uint8Array, part: ReviewPart, ciphertext: Uint8Array, iv: Uint8Array) {
+  const plain = await decrypt(await reviewKey(shareId, contentKey), ciphertext, iv, null, reviewAad(shareId, part));
+  return JSON.parse(new TextDecoder().decode(plain)) as ObjectionPayload | ReplyPayload;
 }
