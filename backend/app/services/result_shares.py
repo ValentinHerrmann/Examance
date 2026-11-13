@@ -300,3 +300,134 @@ async def sweep_orphan_files(db: AsyncSession) -> int:
     except blob_store.BlobStoreUnavailable as exc:
         logger.exception("share sweep skipped: %s", exc.reason)
         return 0
+
+
+# --- Objections and replies (issue #226, docs/dev/grading_review.md) ---------------------------
+
+
+async def _own(db: AsyncSession, exam_id: uuid.UUID, share_id: uuid.UUID) -> ResultShare:
+    share = await db.get(ResultShare, share_id)
+    if share is None or share.exam_id != exam_id:
+        raise not_found()
+    return share
+
+
+def _sealed(iv_b64: str, ciphertext_b64: str) -> tuple[bytes, bytes]:
+    iv = decode_b64(iv_b64, "iv_b64", expected_len=GCM_IV_BYTES)
+    data = decode_b64(ciphertext_b64, "ciphertext_b64")
+    try:
+        check_upload(data, REVIEW_MAX_BYTES, "Review")
+    except UploadRejected as exc:
+        raise upload_http_error(exc) from None
+    return iv, data
+
+
+async def update_content(
+    db: AsyncSession, exam_id: uuid.UUID, share_id: uuid.UUID, iv_b64: str, ciphertext_b64: str
+) -> ResultShare:
+    """Re-seal the share's PDF in place: link, lookup, factor and salt stay. Only shares with a wrapped key qualify."""
+    share = await _own(db, exam_id, share_id)
+    if share.wrapped_key is None:
+        raise _conflict("This share was made before updates existed; share it again.", "ERR_SHARE_NOT_UPDATABLE")
+    iv = decode_b64(iv_b64, "iv_b64", expected_len=GCM_IV_BYTES)
+    data = _checked_pdf(ciphertext_b64)
+    await _store_ciphertext(db, share, data)
+    share.iv = iv
+    share.size = len(data)
+    share.content_updated_at = datetime.now(UTC)
+    await db.flush()
+    return share
+
+
+def _review_closed() -> HTTPException:
+    return _conflict("Objections are closed for this result.", "ERR_REVIEW_CLOSED")
+
+
+async def _open_for_objection(
+    db: AsyncSession, share_id: uuid.UUID, lookup_b64: str
+) -> tuple[ResultShare, ResultShareReview | None]:
+    """The share if objections are enabled and still open (404 when disabled, 409 once opened or past the deadline)."""
+    share = await _by_lookup(db, share_id, lookup_b64)
+    if share.review_until is None:
+        raise not_found()
+    review = await db.get(ResultShareReview, share.id)
+    if _aware(share.review_until) <= datetime.now(UTC) or (review is not None and review.opened_at is not None):
+        raise _review_closed()
+    return share, review
+
+
+async def submit_objection(
+    db: AsyncSession, share_id: uuid.UUID, lookup_b64: str, iv_b64: str, ciphertext_b64: str
+) -> ResultShare:
+    """Create or replace the student's objection until the teacher opens it or the deadline passes."""
+    share, review = await _open_for_objection(db, share_id, lookup_b64)
+    iv, data = _sealed(iv_b64, ciphertext_b64)
+    if review is None:
+        review = ResultShareReview(
+            share_id=share.id,
+            teacher_id=share.teacher_id,
+            exam_id=share.exam_id,
+            student_key=share.student_key,
+        )
+        db.add(review)
+    review.objection_iv = iv
+    review.objection_ct = data
+    review.submitted_at = datetime.now(UTC)
+    await db.flush()
+    return share
+
+
+async def withdraw_objection(db: AsyncSession, share_id: uuid.UUID, lookup_b64: str) -> None:
+    """Delete the objection while it is still open; withdrawing none is a no-op."""
+    _, review = await _open_for_objection(db, share_id, lookup_b64)
+    if review is not None:
+        await db.delete(review)
+        await db.flush()
+
+
+async def mark_opened(db: AsyncSession, exam_id: uuid.UUID, share_id: uuid.UUID) -> None:
+    """The teacher read the objection: it is locked for the student. Without an objection there is nothing to lock."""
+    share = await _own(db, exam_id, share_id)
+    review = await db.get(ResultShareReview, share.id)
+    if review is not None and review.submitted_at is not None and review.opened_at is None:
+        review.opened_at = datetime.now(UTC)
+        await db.flush()
+
+
+async def store_reply(
+    db: AsyncSession, exam_id: uuid.UUID, share_id: uuid.UUID, iv_b64: str, ciphertext_b64: str
+) -> ResultShareReview:
+    """Store the teacher's sealed reply; replying also closes the thread for the student."""
+    share = await _own(db, exam_id, share_id)
+    iv, data = _sealed(iv_b64, ciphertext_b64)
+    review = await db.get(ResultShareReview, share.id)
+    now = datetime.now(UTC)
+    if review is None:
+        review = ResultShareReview(
+            share_id=share.id,
+            teacher_id=share.teacher_id,
+            exam_id=share.exam_id,
+            student_key=share.student_key,
+        )
+        db.add(review)
+    review.reply_iv = iv
+    review.reply_ct = data
+    review.replied_at = now
+    review.opened_at = review.opened_at or now
+    await db.flush()
+    return review
+
+
+async def list_reviews(db: AsyncSession, exam_id: uuid.UUID) -> list[ReviewListItem]:
+    """Every review of the exam's live shares, newest objection last."""
+    now = datetime.now(UTC)
+    rows = await db.scalars(
+        select(ResultShareReview)
+        .join(ResultShare, ResultShare.id == ResultShareReview.share_id)
+        .where(ResultShareReview.exam_id == exam_id, ResultShare.expires_at > now)
+        .order_by(ResultShareReview.submitted_at)
+    )
+    return [
+        ReviewListItem(**review_out(r).model_dump(), share_id=r.share_id, student_key=r.student_key)
+        for r in rows
+    ]

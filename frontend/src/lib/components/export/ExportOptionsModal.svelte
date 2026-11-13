@@ -14,6 +14,7 @@
   import { t } from "#lib/i18n";
   import { Alert, Button, Modal, OptionTile } from "#lib/components/ui";
   import type { ExportProgress, ExportResult } from "#lib/export/progress";
+  import { DEFAULT_REVIEW_PRINT_MODE, type ReviewPrintMode } from "#lib/export/reviewPrint";
   import { runZipExport } from "#lib/export/runZipExport";
   import ExportOptionList from "./ExportOptionList.svelte";
   import ExportProgressBar from "./ExportProgressBar.svelte";
@@ -25,16 +26,19 @@
   interface Props {
     title: string;
     options?: ExportOption[];
-    run?: (selected: Set<string>, progress: ExportProgress) => Promise<ExportResult>;
+    run?: (selected: Set<string>, progress: ExportProgress, reviewMode: ReviewPrintMode) => Promise<ExportResult>;
+    /** Offers how the grading review is printed into graded PDFs (issue #226). */
+    withReview?: boolean;
     backup?: ArchiveExportOptions;
     onBackupDone?: () => void;
     onClose: () => void;
     notice?: Snippet;
   }
 
-  let { title, options = [], run, backup, onBackupDone, onClose, notice }: Props = $props();
+  let { title, options = [], run, withReview = false, backup, onBackupDone, onClose, notice }: Props = $props();
 
   let format = $state<"zip" | "backup">(untrack(() => (run ? "zip" : "backup")));
+  let reviewMode = $state<ReviewPrintMode>(DEFAULT_REVIEW_PRINT_MODE);
   let password = $state("");
   let passwordRepeat = $state("");
   let withoutCode = $state(false);
@@ -70,7 +74,7 @@
         await showArchiveReport(report);
         return;
       }
-      warnings = await runZipExport(run!, selected, progress);
+      warnings = await runZipExport((sel, prog) => run!(sel, prog, reviewMode), selected, progress);
       if (warnings.length) finished = true;
       else onClose();
     } catch (err) {
@@ -106,7 +110,7 @@
       {@render notice?.()}
     {/if}
     {#if format === "zip" && options.length}
-      <ExportOptionList {options} bind:checked disabled={running} />
+      <ExportOptionList {options} bind:checked bind:reviewMode={() => (withReview ? reviewMode : undefined), (m) => (reviewMode = m ?? reviewMode)} disabled={running} />
     {/if}
 
     {#if running}

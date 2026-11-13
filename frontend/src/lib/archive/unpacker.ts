@@ -436,7 +436,7 @@ async function importReviews(ctx: ApplyContext, remapSubmission: (id: string) =>
       bump(report, 'reviews', 'failed');
       continue;
     }
-    const examId = ctx.remap(archivedExamId);
+    const examId = ctx.remap(archivedExamId) ?? archivedExamId;
     const record = { ...review, submissionId, id: submissionId !== review.submissionId ? crypto.randomUUID() : review.id };
     try {
       if (local) await reviewRepository.save(examId, record, activeKey); // NOSONAR: one submission at a time

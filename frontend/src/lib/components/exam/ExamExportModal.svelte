@@ -40,7 +40,8 @@
   <ExportOptionsModal
     title={$t("export.exam.title")}
     {options}
-    run={(selected, progress) => runExamsExport(exams, selected, progress)}
+    withReview
+    run={(selected, progress, reviewMode) => runExamsExport(exams, selected, progress, reviewMode)}
     backup={{ examIds: exams.map((exam) => exam.id), name: exams.length === 1 ? exams[0].title || "exam" : "exams" }}
     {onClose}
   >

@@ -77,6 +77,8 @@ class ResultMails(BaseModel):
     exam_id: uuid.UUID
     exam_title: Annotated[str, Field(min_length=1, max_length=200)]
     locale: Literal["de", "en"]
+    # "review_reply" mails the "your teacher answered your objection" text instead (issue #226).
+    kind: Literal["result", "review_reply"] = "result"
     recipients: Annotated[list[ResultRecipient], Field(min_length=1, max_length=100)]
 
 
@@ -224,6 +226,7 @@ async def mail_results(
             None,
             body.locale,
             code=recipient.code,
+            kind=body.kind,
             envelope=email_svc.Envelope(
                 message_id=bounces.result_message_id(token),
                 sender=email_svc.result_sender(),

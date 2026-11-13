@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status

@@ -31,6 +31,28 @@ export const exportNs: Translations['export'] = {
         'Overleaf: import the ZIP via "New project > Upload project", then pick XeLaTeX under "Menu > Compiler".\n' +
         'Locally: run latexmk in the folder (the bundled latexmkrc selects XeLaTeX) or run "xelatex <file>.tex" twice.\n\n' +
         'The sty/ and img/ folders hold the bundled packages and images; the .sty files are also copied flat into the folder because some are loaded by bare name.\n',
+    review: {
+        title: 'Review',
+        legend: 'Print the review (student objections) in the graded PDFs',
+        modes: {
+            short: 'Short note under the score box',
+            shortHint: 'One small red line such as "Review: 3 -> 4 pts" right under the exercise\'s score box; the scan stays uncovered.',
+            strip: 'Margin strip',
+            stripHint: 'Pages with an objection get a 55 mm strip on the outer side with objection, reply and points; the scan is unchanged.',
+            page: 'Summary page at the end',
+            pageHint: 'One A4 page at the end lists all objections and replies.',
+            none: 'Do not print',
+            noneHint: 'The graded PDFs contain no review.',
+        },
+        pdf: {
+            title: 'Review: objections and replies',
+            review: 'Review',
+            points: 'pts',
+            objection: 'Objection',
+            reply: 'Reply',
+            truncated: '… (full text attached)',
+        },
+    },
     exam: {
         title: 'Export exam',
         notice:

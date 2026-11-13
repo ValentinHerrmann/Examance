@@ -30,6 +30,28 @@ export const exportNs = {
         'Overleaf: ZIP über "Neues Projekt > Projekt hochladen" importieren, unter "Menü > Compiler" XeLaTeX wählen.\n' +
         'Lokal: latexmk im Ordner ausführen (die mitgelieferte latexmkrc wählt XeLaTeX) oder "xelatex <datei>.tex" zweimal aufrufen.\n\n' +
         'Die Ordner sty/ und img/ enthalten die mitgelieferten Pakete und Bilder; die .sty-Dateien liegen zusätzlich flach im Ordner, weil einige per Name geladen werden.\n',
+    review: {
+        title: 'Einsicht',
+        legend: 'Einsicht (Einwände der Schüler) in den korrigierten PDFs drucken',
+        modes: {
+            short: 'Kurz unter dem Punktefeld',
+            shortHint: 'Eine kleine rote Zeile wie "Einsicht: 3 -> 4 P." direkt unter dem Punktefeld der Aufgabe; der Scan bleibt unverdeckt.',
+            strip: 'Randstreifen',
+            stripHint: 'Seiten mit Einwand werden außen um einen 55-mm-Streifen mit Einwand, Antwort und Punkten verbreitert; der Scan bleibt unverändert.',
+            page: 'Zusatzseite am Ende',
+            pageHint: 'Eine A4-Seite am Ende listet alle Einwände und Antworten.',
+            none: 'Nicht drucken',
+            noneHint: 'Die korrigierten PDFs enthalten keine Einsicht.',
+        },
+        pdf: {
+            title: 'Einsicht: Einwände und Antworten',
+            review: 'Einsicht',
+            points: 'P.',
+            objection: 'Einwand',
+            reply: 'Antwort',
+            truncated: '… (vollständiger Text im Anhang)',
+        },
+    },
     exam: {
         title: 'Prüfung exportieren',
         notice:

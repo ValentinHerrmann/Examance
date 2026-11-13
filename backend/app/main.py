@@ -27,8 +27,8 @@ from app.routers import (
     exams,
     exercise_contributions,
     exercise_scores,
-    grading_reviews,
     exercises,
+    grading_reviews,
     integrations,
     keys,
     latex_assets,
@@ -288,6 +288,7 @@ def create_app() -> FastAPI:
     app.include_router(result_shares.router, prefix=API_PREFIX)
     app.include_router(result_shares.public_router, prefix=API_PREFIX)
     app.include_router(result_shares.deliveries_router, prefix=API_PREFIX)
+    app.include_router(result_shares.reviews_router, prefix=API_PREFIX)
     app.include_router(integrations.router, prefix=API_PREFIX)
     app.include_router(maintenance.router, prefix=API_PREFIX)
     app.include_router(layout_reports.router, prefix=API_PREFIX)
