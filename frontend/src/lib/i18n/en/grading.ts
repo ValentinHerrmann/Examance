@@ -3,14 +3,12 @@ import type { Translations } from '../types';
 export const grading: Translations['grading'] = {
     page: {
         empty: 'No submissions exist for this exam.',
-        saveSuccess: 'Grade and annotations saved successfully!',
-        saveFailed: 'Failed to save grade: {message}',
         scoresLoadFailed: "This submission's saved scores could not be loaded ({message}). Saving is blocked until they load, so no grading is lost.",
         submissionsLoadFailed: 'The submissions of this exam could not be loaded: {message}. Reload the page.',
-        scoresNotLoaded: "This submission's scores are still loading. Please save again in a moment.",
+        scoresNotLoaded: "This submission's scores are still loading. They save automatically in a moment.",
         annotationsUnreadable: "This submission's corrections do not open with your key. Saving is blocked so they are not overwritten.",
-        unsavedNext: 'There are unsaved annotations for this student. Switch to the next student anyway?',
-        unsavedPrev: 'There are unsaved annotations for this student. Switch to the previous student anyway?',
+        unsavedNext: "This student's grading could not be saved. Switch to the next student anyway? The unsaved changes will be lost.",
+        unsavedPrev: "This student's grading could not be saved. Switch to the previous student anyway? The unsaved changes will be lost.",
     },
     header: {
         backToExam: 'Exam',
@@ -80,8 +78,6 @@ export const grading: Translations['grading'] = {
         nextLower: '-{points} pts to grade {grade}',
     },
     actions: {
-        save: 'Save grade & annotations',
-        saving: 'Saving...',
         prev: 'Previous',
         next: 'Next student',
     },
@@ -125,6 +121,8 @@ export const grading: Translations['grading'] = {
         scanNoKey: '[ Session key missing — please sign in again ]',
         scanDecryptFailed: '[ Failed to decrypt scan — key mismatch or data corrupted ]',
         scanLoadFailed: '[ Failed to load the scan — please reload the page ]',
+        penDetected: 'Pen detected: from now on, fingers only scroll and zoom and no longer draw.',
+        penDetectedReset: 'Reset in Settings',
     },
     manual: {
         container: {

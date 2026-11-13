@@ -38,6 +38,7 @@
   import SecuritySection from "#lib/components/security/SecuritySection.svelte";
   import SettingsGroupHeading from "#lib/components/settings/SettingsGroupHeading.svelte";
   import DeleteAccountCard from "#lib/components/settings/DeleteAccountCard.svelte";
+  import PenInputCard from "#lib/components/settings/PenInputCard.svelte";
   import { requestedModeSwitch } from "#lib/services/storageModeSwitch";
   import { currentManifest, refreshCapabilities } from "#lib/db/workspace";
   import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
@@ -161,6 +162,7 @@
     { id: "group-general", label: $t("settings.groups.general"), group: true },
     { id: "language", label: $t("settings.language.heading") },
     { id: "theme", label: $t("settings.theme.heading") },
+    { id: "pen-input", label: $t("settings.penInput.heading") },
     { id: "group-account", label: $t("settings.groups.account"), group: true },
     ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
     ...(isAdmin ? [] : [
@@ -255,6 +257,8 @@
           allowedModes={$allowedStorageModes}
           serverLatexEnabled={$featuresStore.server_latex === true}
         />
+
+        <PenInputCard />
 
         <SettingsGroupHeading id="group-account" title={$t("settings.groups.account")} />
 

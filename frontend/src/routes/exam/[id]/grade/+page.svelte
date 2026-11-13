@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
+  import { beforeNavigate, goto } from "$app/navigation";
   import { page } from "$app/state";
   import { onMount, onDestroy } from "svelte";
   import { db } from "#lib/db/db";
@@ -28,6 +28,7 @@
   import { loadScoreBoxContext, type ScoreBoxContext } from "#lib/grading/scoreBoxes";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, EmptyState } from "#lib/components/ui";
+  import { createAutosave } from "#lib/utils/autosave";
 
   interface Props {
     params?: Record<string, string>;
@@ -106,7 +107,62 @@
     }
   });
 
+  /** Grading saves itself a few seconds after the last edit (issue #233): small, frequent saves lose little on a disruption. */
+  const GRADING_AUTOSAVE_MS = 3000;
+  const autosave = createAutosave({ run: saveCurrent, delayMs: GRADING_AUTOSAVE_MS });
+  /** Bumped per edit, so a save marks clean only when nothing changed while it ran. */
+  let editRev = 0;
+  /** Set once the page is gone: a queued re-run must not save the reset store over the last student. */
+  let disposed = false;
+  let switching = false;
+
+  const hasUnsaved = () => autosave.busy || get(gradingStore).isDirty;
+
+  // Every edit (strokes, scores, parts, MC, overrides) while dirty schedules a save; loads change these while clean and schedule nothing.
+  let lastEdit: unknown[] = [];
+  const stopEditWatch = gradingStore.subscribe((s) => {
+    const edit = [s.isDirty, s.currentStrokes, s.scoreInputs, s.partInputs, s.mcState, s.manualOverride];
+    const changed = edit.some((v, i) => v !== lastEdit[i]);
+    lastEdit = edit;
+    if (s.isDirty && changed) {
+      editRev++;
+      autosave.schedule();
+    }
+  });
+
+  // A tablet switching apps may never come back: save what is there.
+  function onVisibilityChange() {
+    if (document.visibilityState === "hidden" && hasUnsaved()) void autosave.flush();
+  }
+  onMount(() => {
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  });
+
+  // Leaving the page waits for the save; closing the tab asks while one is still open.
+  let leaving = false;
+  beforeNavigate((nav) => {
+    if (leaving || !hasUnsaved()) return;
+    if (nav.type === "leave") {
+      void autosave.flush();
+      nav.cancel();
+      return;
+    }
+    const target = nav.to?.url;
+    if (!target) return;
+    nav.cancel();
+    void autosave.flush().then(() => {
+      if (get(autosave).state === "error" && !confirm(translate("common.unsavedChangesConfirm"))) return;
+      leaving = true;
+      void goto(target);
+    });
+  });
+
   onDestroy(() => {
+    stopEditWatch();
+    // The flush takes its snapshot synchronously, before the reset below.
+    if (hasUnsaved()) void autosave.flush();
+    disposed = true;
     gradingStore.reset();
   });
 
@@ -157,9 +213,11 @@
     gradingStore.setScoreInputs(sheet.scoreInputs);
     gradingStore.setPartInputs(sheet.partInputs);
     gradingStore.setMcState(sheet.mcState);
+    // Edits made while the scores loaded could not save yet (scoresNotLoaded): save them now.
+    if (get(gradingStore).isDirty) autosave.schedule();
   }
 
-  /** Score rows as loaded for the current submission — lets a save keep an MC row it would otherwise have deleted (see handleSaveScore). */
+  /** Score rows as loaded for the current submission — lets a save keep an MC row it would otherwise have deleted (see saveCurrent). */
   let loadedScores = new Map<string, ExerciseScoreRecord>();
   /** Submission the loaded sheet belongs to; a save under any other id is refused (issue #85). */
   let loadedFor: string | null = null;
@@ -183,8 +241,10 @@
     submissions = next;
   }
 
-  async function handleSaveScore() {
-    if (!currentSub) return;
+  /** Saves the current student's annotations and scores; throws for the autosave's status line. */
+  async function saveCurrent() {
+    if (disposed || !currentSub) return;
+    const rev = editRev;
     // Snapshot everything this save writes: Next/Prev during the awaits below must not send the rest of the save (deletes, annotations, total) to the next student.
     const sub = currentSub;
     const { currentStrokes: strokes, strokesSubmissionId } = get(gradingStore);
@@ -194,82 +254,82 @@
     const mcState = get(gradingStore).mcState;
     const mc = Object.fromEntries(exercises.filter(isMcQuestion).map((ex) => [ex.id, mcState[ex.id]]));
     const parts = get(gradingStore).partInputs;
-    gradingStore.setSaving(true);
 
-    try {
-      if (scoresLoadError) {
-        throw new Error(translate("grading.page.scoresLoadFailed", { message: scoresLoadError }));
-      }
-      if (loadedFor !== sub.id) {
-        throw new Error(translate("grading.page.scoresNotLoaded"));
-      }
-      // Encrypt annotations. "No strokes" and "no key" differ: saving without a session key must refuse, not silently clear the teacher's corrections.
-      let clearAnnotations = false;
-      if (!$sessionStore.sessionKey) {
-        throw new Error(
-          "Cannot save grading without a session key — unlock the session and try again.",
-        );
-      }
-      if (ownsStrokes && strokes.length > 0) {
-        const annJson = JSON.stringify(strokes);
-        const encAnn = await sealAnnotation(sub.id, new TextEncoder().encode(annJson), $sessionStore.sessionKey);
-        sub.annotationCt = encAnn.ct;
-        sub.annotationIv = encAnn.iv;
-      } else if (ownsStrokes) {
-        sub.annotationCt = undefined;
-        sub.annotationIv = undefined;
-        clearAnnotations = true;
-      }
-
-      // One path for rows, total and the all-server total (M2); OMR rows are carried forward, never cleared.
-      await saveSubmissionScores(
-        examId,
-        sub,
-        exercises.map((ex) => ex.id),
-        values,
-        { mc, existing: loadedScores, clearAnnotations, parts },
+    if (scoresLoadError) {
+      throw new Error(translate("grading.page.scoresLoadFailed", { message: scoresLoadError }));
+    }
+    if (loadedFor !== sub.id) {
+      throw new Error(translate("grading.page.scoresNotLoaded"));
+    }
+    // Encrypt annotations. "No strokes" and "no key" differ: saving without a session key must refuse, not silently clear the teacher's corrections.
+    let clearAnnotations = false;
+    if (!$sessionStore.sessionKey) {
+      throw new Error(
+        "Cannot save grading without a session key — unlock the session and try again.",
       );
-      submissions = submissions.map((s) => (s.id === sub.id ? { ...sub } : s));
-      if (currentSub?.id === sub.id) {
-        sessionStore.setDirty(false);
-        gradingStore.markClean();
+    }
+    if (ownsStrokes && strokes.length > 0) {
+      const annJson = JSON.stringify(strokes);
+      const encAnn = await sealAnnotation(sub.id, new TextEncoder().encode(annJson), $sessionStore.sessionKey);
+      sub.annotationCt = encAnn.ct;
+      sub.annotationIv = encAnn.iv;
+      sub.hasAnnotations = true;
+    } else if (ownsStrokes && (sub.annotationCt || sub.hasAnnotations)) {
+      // Only a stored layer is cleared: every autosave of a mark-free student would otherwise put an empty entry into the trash.
+      sub.annotationCt = undefined;
+      sub.annotationIv = undefined;
+      sub.hasAnnotations = false;
+      clearAnnotations = true;
+    }
+
+    // One path for rows, total and the all-server total (M2); OMR rows are carried forward, never cleared.
+    await saveSubmissionScores(
+      examId,
+      sub,
+      exercises.map((ex) => ex.id),
+      values,
+      { mc, existing: loadedScores, clearAnnotations, parts },
+    );
+    submissions = submissions.map((s) => (s.id === sub.id ? { ...sub } : s));
+    // An edit made while this save ran is saved by the autosave's next run.
+    if (currentSub?.id === sub.id && rev === editRev) gradingStore.markClean();
+  }
+
+  /** Saves before a student switch; false keeps the current student (a failed save the teacher did not want to drop). */
+  async function settleBeforeSwitch(confirmKey: "grading.page.unsavedNext" | "grading.page.unsavedPrev"): Promise<boolean> {
+    if (!hasUnsaved()) return true;
+    await autosave.flush();
+    return get(autosave).state !== "error" || confirm(translate(confirmKey));
+  }
+
+  async function nextStudent() {
+    if (switching) return;
+    switching = true;
+    try {
+      if (!(await settleBeforeSwitch("grading.page.unsavedNext"))) return;
+      if (currentIndex >= submissions.length - 1) {
+        gradingStore.setShowLastSubModal(true);
+        return;
       }
-      alert(translate("grading.page.saveSuccess"));
-    } catch (err: any) {
-      alert(translate("grading.page.saveFailed", { message: err.message }));
+      // currentIndex derives from the store and changes on set: compute the target once.
+      const target = currentIndex + 1;
+      gradingStore.setCurrentIndex(target);
+      void initExerciseScores(submissions[target]);
     } finally {
-      gradingStore.setSaving(false);
+      switching = false;
     }
   }
 
-  function nextStudent() {
-    if (get(gradingStore).isSaving) return;
-    if (currentIndex >= submissions.length - 1) {
-      gradingStore.setShowLastSubModal(true);
-      return;
-    }
-    if (get(gradingStore).isDirty) {
-      if (!confirm(translate("grading.page.unsavedNext"))) {
-        return;
-      }
-    }
-    // currentIndex derives from the store and changes on set: compute the target once.
-    const target = currentIndex + 1;
-    gradingStore.setCurrentIndex(target);
-    initExerciseScores(submissions[target]);
-  }
-
-  function prevStudent() {
-    if (get(gradingStore).isSaving) return;
-    if (get(gradingStore).isDirty) {
-      if (!confirm(translate("grading.page.unsavedPrev"))) {
-        return;
-      }
-    }
-    if (currentIndex > 0) {
+  async function prevStudent() {
+    if (switching || currentIndex <= 0) return;
+    switching = true;
+    try {
+      if (!(await settleBeforeSwitch("grading.page.unsavedPrev"))) return;
       const target = currentIndex - 1;
       gradingStore.setCurrentIndex(target);
-      initExerciseScores(submissions[target]);
+      void initExerciseScores(submissions[target]);
+    } finally {
+      switching = false;
     }
   }
 
@@ -317,11 +377,10 @@
       {gradedCount}
       {totalMaxPoints}
       onSubmissionHydrated={handleSubmissionHydrated}
-      onSave={handleSaveScore}
+      saveStatus={$autosave}
       onPrev={prevStudent}
       onNext={nextStudent}
       onStayOnLastSub={stayOnLastSub}
-      onExerciseSaved={async () => (exercises = await loadExamExercisesEncrypted(examId, get(sessionStore).sessionKey))}
       {scoreBoxes}
     />
   {/if}

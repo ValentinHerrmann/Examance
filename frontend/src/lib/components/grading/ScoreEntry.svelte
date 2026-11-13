@@ -2,18 +2,14 @@
   import type { ExerciseRecord } from "#lib/db/schema";
   import { gradingStore } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
-  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ScoreRow from "./ScoreRow.svelte";
   import { exerciseParts, hasPartValues, partOverrideKey, REST_KEY, restMax } from "#lib/grading/partScores";
-  import { LinkButton } from "#lib/components/ui";
 
   interface Props {
     exercises: ExerciseRecord[];
-    /** An exercise was edited from its label (points may have changed). */
-    onExerciseSaved?: () => void;
   }
 
-  let { exercises, onExerciseSaved }: Props = $props();
+  let { exercises }: Props = $props();
 
   function isTarget(ex: ExerciseRecord, label: string): boolean {
     return $gradingStore.activeExerciseId === ex.id && $gradingStore.activePartLabel === label;
@@ -50,8 +46,6 @@
     const parts = $gradingStore.partInputs[ex.id];
     return hasPartValues(parts) && (restMax(ex) > 0 || parts?.[REST_KEY] != null);
   }
-
-  let editEx: ExerciseRecord | null = $state.raw(null);
 </script>
 
 <div class="shrink-0 border-b border-line bg-surface-raised px-3 py-2.5">
@@ -74,7 +68,8 @@
       onReset={() => resetExercise(ex)}
     >
       {#snippet label()}
-        <LinkButton onClick={() => (editEx = ex)} class="text-xs font-bold text-content!">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</LinkButton>
+        <!-- Plain text, no link to the exercise editor: a pen or palm tapped it by accident while grading (issue #233). -->
+        <span class="text-xs font-bold text-content">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</span>
       {/snippet}
     </ScoreRow>
     {#each exerciseParts(ex) as part (part.label)}
@@ -112,7 +107,3 @@
     {/if}
   {/each}
 </div>
-
-{#if editEx}
-  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => onExerciseSaved?.()} />
-{/if}

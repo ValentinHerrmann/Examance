@@ -17,6 +17,15 @@ export const settings: Translations['settings'] = {
         description: 'Select the color scheme of the user interface:',
         hint: '“Match system” follows your operating system setting and switches along with it.',
     },
+    penInput: {
+        heading: 'Pen input on this device',
+        description: 'Once you use a pen in the grading view, fingers stop drawing there: they only scroll and zoom, so a resting palm leaves no marks. This applies only to this device and browser.',
+        statusPen: 'Pen detected: fingers scroll and zoom, pen and mouse draw.',
+        statusNoPen: 'No pen detected: fingers draw, two fingers scroll and zoom.',
+        reset: 'Reset pen detection',
+        resetDisabled: 'No pen has been detected on this device yet.',
+        resetDone: 'Reset: fingers draw again until you use a pen again.',
+    },
     storage: {
         heading: 'Global Data Storage Strategy',
         description: 'Select where your exams, exercises, student identities, and results are stored:',

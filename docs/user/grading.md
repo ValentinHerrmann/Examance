@@ -14,10 +14,11 @@ During the grading pass you see **"Anonymous student #3 of 26"**, never a name. 
 
 ## The grading view {#workspace}
 
-- **All pages of a submission are stacked.** Scroll through them with the mouse wheel or the scrollbar, or with **two fingers** on a touch device (one finger draws).
+- **All pages of a submission are stacked.** Scroll through them with the mouse wheel or the scrollbar, or with your finger on a touch device.
+- **Pen or finger:** a pen, and the mouse, always draw. On a device without a pen, one finger draws and two fingers scroll. As soon as you use a pen once, Examance remembers it on this device: from then on, fingers and a resting palm only scroll and zoom and never draw. A short notice says so when the pen is first detected; to draw with a finger again, reset it under [Settings → Pen input](settings.md#pen-input).
 - **Ctrl + mouse wheel** or pinching zooms; **Fit** fits the page to the view. The page arrows jump between pages.
 - **Crop margins** hides the empty page margins for a larger view.
-- **Previous** and **Next student** move through the submissions.
+- **Previous** and **Next student** move through the submissions. The exercise labels in the **Scoring** panel are not links, so tapping one cannot open the exercise by accident.
 
 The **Scoring** panel lists the exercises with their points. Click a row to make it the **stamp target**: stamps you place then count towards that exercise.
 
@@ -77,6 +78,6 @@ These results take part in statistics, analytics and export like scanned ones.
 
 ## Saving {#saving}
 
-**Save grade & annotations** stores the points and the marks, encrypted. Switching to another student or leaving the page with unsaved annotations asks first: confirm only if you really want to discard them.
+Points and marks save themselves, encrypted, a few seconds after your last change. The line above **Previous** and **Next student** shows **Saving…**, **Saved** or why saving failed. Switching to another student or leaving the page saves first. Only if that save fails does Examance ask whether to discard the changes.
 
 If the connection drops, changes that could not be sent are queued in the browser and sent automatically later.

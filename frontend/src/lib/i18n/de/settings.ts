@@ -15,6 +15,15 @@ export const settings = {
         description: 'Farbschema der Oberfläche auswählen:',
         hint: '„Wie System“ folgt der Einstellung Ihres Betriebssystems und wechselt automatisch mit.',
     },
+    penInput: {
+        heading: 'Stifteingabe auf diesem Gerät',
+        description: 'Sobald Sie in der Korrekturansicht einmal einen Stift benutzen, zeichnen Finger dort nicht mehr: Sie blättern und zoomen nur noch, damit eine aufgelegte Handfläche keine Striche macht. Das gilt nur für dieses Gerät und diesen Browser.',
+        statusPen: 'Stift erkannt: Finger blättern und zoomen, Stift und Maus zeichnen.',
+        statusNoPen: 'Kein Stift erkannt: Finger zeichnen, zwei Finger blättern und zoomen.',
+        reset: 'Stifterkennung zurücksetzen',
+        resetDisabled: 'Auf diesem Gerät wurde noch kein Stift erkannt.',
+        resetDone: 'Zurückgesetzt: Finger zeichnen wieder, bis Sie erneut einen Stift benutzen.',
+    },
     storage: {
         heading: 'Globale Speicherstrategie',
         description: 'Legen Sie fest, wo Prüfungen, Aufgaben, Schüleridentitäten und Ergebnisse gespeichert werden:',

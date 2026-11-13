@@ -14,10 +14,11 @@ Während des Korrekturgangs sehen Sie **„Anonymer Schüler #3 von 26“**, nie
 
 ## Die Korrekturansicht {#workspace}
 
-- **Alle Seiten einer Abgabe stehen untereinander.** Blättern Sie mit dem Mausrad oder der Scrollleiste durch, auf Touchgeräten mit **zwei Fingern** (ein Finger zeichnet).
+- **Alle Seiten einer Abgabe stehen untereinander.** Blättern Sie mit dem Mausrad oder der Scrollleiste durch, auf Touchgeräten mit dem Finger.
+- **Stift oder Finger:** Ein Stift und die Maus zeichnen immer. Auf Geräten ohne Stift zeichnet ein Finger, zwei Finger blättern. Sobald Sie einmal einen Stift benutzen, merkt sich Examance das auf diesem Gerät: Danach blättern und zoomen Finger und eine aufgelegte Handfläche nur noch und zeichnen nie. Ein kurzer Hinweis meldet das, wenn der Stift zum ersten Mal erkannt wird; damit Finger wieder zeichnen, setzen Sie es unter [Einstellungen → Stifteingabe](settings.md#pen-input) zurück.
 - **Strg + Mausrad** oder Zwei-Finger-Zoom vergrößert; **Fit** passt die Seite an die Ansicht an. Die Seitenpfeile springen zwischen den Seiten.
 - **Ränder zuschneiden** blendet die leeren Seitenränder aus, für eine größere Ansicht.
-- **Vorheriger** und **Nächster Schüler** wechseln zwischen den Abgaben.
+- **Vorheriger** und **Nächster Schüler** wechseln zwischen den Abgaben. Die Aufgabennummern im Feld **Bewertung** sind keine Links, ein Antippen öffnet also nicht versehentlich die Aufgabe.
 
 Das Feld **Bewertung** listet die Aufgaben mit ihren Punkten auf. Klicken Sie auf eine Zeile, um sie zum **Stempelziel** zu machen: Stempel, die Sie danach setzen, zählen für diese Aufgabe.
 
@@ -77,6 +78,6 @@ Diese Ergebnisse fließen wie gescannte in Statistik, Auswertung und Export ein.
 
 ## Speichern {#saving}
 
-**Note & Anmerkungen speichern** speichert die Punkte und die Markierungen verschlüsselt. Wechseln Sie mit ungespeicherten Anmerkungen zu einer anderen Person oder verlassen Sie die Seite, fragt Examance zuerst nach: Bestätigen Sie nur, wenn Sie sie wirklich verwerfen wollen.
+Punkte und Markierungen speichern sich wenige Sekunden nach Ihrer letzten Änderung selbst, verschlüsselt. Die Zeile über **Vorheriger** und **Nächster Schüler** zeigt **Wird gespeichert …**, **Gespeichert** oder warum das Speichern fehlschlug. Beim Wechsel zu einer anderen Person oder beim Verlassen der Seite wird zuerst gespeichert. Nur wenn das fehlschlägt, fragt Examance, ob die Änderungen verworfen werden sollen.
 
 Bricht die Verbindung ab, werden Änderungen, die nicht gesendet werden konnten, im Browser zwischengespeichert und später automatisch gesendet.
