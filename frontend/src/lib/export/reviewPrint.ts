@@ -221,9 +221,10 @@ export function placeReviewItems(
 }
 
 const SHORT_SIZE = 7;
+const NO_OFFSET = { x: 0, y: 0 } as const;
 
 /** "Einsicht: 3 -> 4 P." right under each score box; vector text, the scan stays uncovered. *offset* is where the scan sits on the page (a strip may push it). */
-export function drawShortNotes(lib: PdfLib, page: PDFPage, font: PDFFont, placed: readonly PlacedItem[], labels: ReviewLabels, offset = { x: 0, y: 0 }): void {
+export function drawShortNotes(lib: PdfLib, page: PDFPage, font: PDFFont, placed: readonly PlacedItem[], labels: ReviewLabels, offset: { x: number; y: number } = NO_OFFSET): void {
   const safe = makeSafeText(font);
   const pageW = page.getSize().width;
   for (const p of placed) {

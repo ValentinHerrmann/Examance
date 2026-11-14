@@ -1,6 +1,6 @@
 import { loadExamExercisesEncrypted, loadLocalMcGroups, openAnnotation, openScan } from '#lib/db/dbEncryption';
 import { carryAttachments } from '#lib/scan/scanPdf';
-import type { ExerciseScoreRecord, SubmissionRecord } from '#lib/db/schema';
+import type { ExerciseScoreRecord, GradingReviewItem, SubmissionRecord } from '#lib/db/schema';
 import { gradingStore, type VectorStroke } from '#lib/grading/gradingStore';
 import { buildSubLabelMap } from '#lib/grading/mcGroupLabels';
 import { drawOmrOverlayForPage, type McOverlayState } from '#lib/grading/omrOverlay';
@@ -21,7 +21,6 @@ import { fitText, type PdfLib } from '#lib/pdf/labelKit';
 import { formatStudentName } from '#lib/utils/studentQr';
 import { makeSafeText } from './summaryPdf';
 import { anyReviewPrint, NO_REVIEW_PRINT, drawBottomStrip, drawShortNotes, drawStrip, finishReview, placeReviewItems, printableItems, reviewLabels, stripGeometry, type PlacedItem, type ReviewLabels, type StripGeometry, type ReviewPrint, type ReviewPrintOptions } from './reviewPrint';
-import type { GradingReviewItem } from '#lib/db/schema';
 
 /** Same scale as the grading viewer, so stroke coordinates map 1:1. */
 const RENDER_SCALE = 2;
