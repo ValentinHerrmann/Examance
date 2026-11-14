@@ -5,7 +5,7 @@
   import { submitShareReview, withdrawShareReview, type SealedReview } from "#lib/api/resultShares";
   import { t } from "#lib/i18n";
   import { Alert, Button, Card, Textarea } from "#lib/components/ui";
-  import { openReviewPart, REVIEW_TEXT_MAX, sealReviewPart, type ReplyPayload, type ReviewItem } from "#lib/sharing/shareCrypto";
+  import { openReviewPart, REVIEW_TEXT_MAX, sanitizeObjection, sanitizeReply, sealReviewPart, type ReplyPayload, type ReviewItem } from "#lib/sharing/shareCrypto";
   import { formatDate, formatDateTime } from "#lib/utils/format";
 
   interface Props {
@@ -22,8 +22,9 @@
   let { shareId, lookup, contentKey, items, reviewUntil, review }: Props = $props();
 
   const NOW = Date.now();
-  // Every item key starts as "": Textarea's value has a fallback, and binding an undefined entry to it throws (the page crashed, issue #226).
-  let texts = $state<Record<string, string>>(untrack(() => Object.fromEntries(items.map((i) => [i.key, ""]))));
+  // Every item key starts (and resets to) "": Textarea's value has a fallback, and binding an undefined entry to it throws (the page crashed, issue #226).
+  const emptyTexts = (): Record<string, string> => Object.fromEntries(items.map((i) => [i.key, ""]));
+  let texts = $state<Record<string, string>>(untrack(emptyTexts));
   let saved = $state.raw<Record<string, string>>({});
   let submittedAt = $state<string | null>(null);
   let openedAt = $state<string | null>(null);
@@ -44,9 +45,10 @@
     openedAt = review?.openedAt ?? null;
     repliedAt = review?.repliedAt ?? null;
     try {
-      if (review?.objection) saved = (await openReviewPart(shareId, contentKey, "objection", review.objection.ciphertext, review.objection.iv)).items;
+      const keys = items.map((i) => i.key);
+      if (review?.objection) saved = sanitizeObjection(await openReviewPart(shareId, contentKey, "objection", review.objection.ciphertext, review.objection.iv), keys).items;
       texts = { ...texts, ...saved };
-      if (review?.reply) replies = (await openReviewPart(shareId, contentKey, "reply", review.reply.ciphertext, review.reply.iv)).items;
+      if (review?.reply) replies = sanitizeReply(await openReviewPart(shareId, contentKey, "reply", review.reply.ciphertext, review.reply.iv), keys).items;
     } catch (err) {
       console.warn("The review could not be opened:", err);
     }
@@ -73,7 +75,7 @@
     try {
       await withdrawShareReview(shareId, lookup);
       saved = {};
-      texts = {};
+      texts = emptyTexts();
       submittedAt = null;
     } catch (err) {
       error = apiErrorMessage(err, $t("review.form.failed"));

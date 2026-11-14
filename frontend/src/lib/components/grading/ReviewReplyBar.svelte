@@ -3,7 +3,7 @@
   import { t } from "#lib/i18n";
   import { Alert, Button, Checkbox, actionIcons } from "#lib/components/ui";
   import { reviewStore } from "#lib/grading/reviewStore";
-  import { sendReviewReply } from "#lib/sharing/reviewService";
+  import { resendReviewMail, sendReviewReply, showReview } from "#lib/sharing/reviewService";
   import type { SubmissionRecord } from "#lib/db/schema";
   import { formatDate } from "#lib/utils/format";
 
@@ -29,17 +29,28 @@
       <p class="m-0 text-xs text-muted">
         {thread.repliedAt ? $t("review.bar.answered", { date: formatDate(thread.repliedAt) }) : $t("review.bar.received", { date: formatDate(thread.submittedAt ?? "") })}
       </p>
-      {#if $reviewStore.canMail}
-        <Checkbox checked={$reviewStore.notify} label={$t("review.bar.notify")} disabled={$reviewStore.sending} onChange={(on) => reviewStore.patch({ notify: on })} />
+      {#if $reviewStore.lockFailed}
+        <Button size="sm" variant="outlined" severity="secondary" onClick={() => showReview(examId, sub)}>{$t("review.bar.retry")}</Button>
+      {:else}
+        {#if $reviewStore.canMail}
+          <Checkbox checked={$reviewStore.notify} label={$t("review.bar.notify")} disabled={$reviewStore.sending} onChange={(on) => reviewStore.patch({ notify: on })} />
+        {/if}
+        <Button size="sm" icon={actionIcons.send} loading={$reviewStore.sending} disabled={$reviewStore.sending} onClick={() => sendReviewReply(examId, sub, onFlush)}>
+          {thread.repliedAt ? $t("review.bar.resend") : $t("review.bar.send")}
+        </Button>
+        <p class="m-0 text-xs text-subtle">{$t("review.bar.hint")}</p>
       {/if}
-      <Button size="sm" icon={actionIcons.send} loading={$reviewStore.sending} disabled={$reviewStore.sending} onClick={() => sendReviewReply(examId, sub, onFlush)}>
-        {thread.repliedAt ? $t("review.bar.resend") : $t("review.bar.send")}
-      </Button>
-      <p class="m-0 text-xs text-subtle">{$t("review.bar.hint")}</p>
     {/if}
     {#if $reviewStore.error}<Alert severity="danger">{$reviewStore.error}</Alert>{/if}
     {#if $reviewStore.sentAt}
-      <Alert severity={$reviewStore.mailFailed ? "warning" : "success"}>{$reviewStore.mailFailed ? $t("review.bar.mailFailed") : $t("review.bar.sent")}</Alert>
+      <Alert severity={$reviewStore.mailFailed ? "warning" : "success"}>
+        {$reviewStore.mailFailed ? $t("review.bar.mailFailed") : $t("review.bar.sent")}
+        {#snippet actions()}
+          {#if $reviewStore.mailFailed}
+            <Button size="sm" variant="outlined" severity="secondary" disabled={$reviewStore.sending} onClick={resendReviewMail}>{$t("review.bar.resendMail")}</Button>
+          {/if}
+        {/snippet}
+      </Alert>
     {/if}
   </div>
 {:else if $reviewStore.error}

@@ -7,8 +7,6 @@ import { encryptReview, decryptReview } from '#lib/db/dbEncryption';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import type { GradingReviewRecord } from '#lib/db/schema';
-import { deleteUrl, trashHeaders, type DeleteOptions } from '#lib/trash/group';
-import { captureLocal } from '#lib/trash/localTrash';
 
 const submissionPath = (examId: string, submissionId: string) =>
   `/exams/${examId}/submissions/${submissionId}/grading-review`;
@@ -46,13 +44,9 @@ export const reviewRepository = {
       const row = await db.gradingReviews.where('submissionId').equals(submissionId).first();
       return row ? decryptReview(row, key) : null;
     }
-    try {
-      const raw = await api.get<any>(submissionPath(examId, submissionId), { silentError: true });
-      return decryptReview(fromApi(raw), key);
-    } catch (err) {
-      if ((err as { status?: number })?.status === 404) return null;
-      throw err;
-    }
+    // The server answers 200 with JSON null for a submission without a review.
+    const raw = await api.get<any>(submissionPath(examId, submissionId), { silentError: true });
+    return raw ? decryptReview(fromApi(raw), key) : null;
   },
 
   async listByExam(examId: string, key: CryptoKey | null): Promise<GradingReviewRecord[]> {
@@ -76,21 +70,5 @@ export const reviewRepository = {
     }
     const existing = await db.gradingReviews.where('submissionId').equals(review.submissionId).first();
     await db.gradingReviews.put({ ...sealed, id: existing?.id ?? sealed.id });
-  },
-
-  async delete(examId: string, submissionId: string, opts: DeleteOptions = {}): Promise<void> {
-    if (!resultsAreLocal()) {
-      const url = deleteUrl(submissionPath(examId, submissionId), opts);
-      const headers = trashHeaders(opts);
-      try {
-        await api.delete(url, { silentError: true, headers });
-      } catch (err) {
-        enqueueOrThrow(err, url, 'DELETE', undefined, headers);
-      }
-      return;
-    }
-    const rows = db.gradingReviews.where('submissionId').equals(submissionId);
-    await captureLocal(opts, { kind: 'scores', examId, submissionId, rows: { gradingReviews: await rows.toArray() } });
-    await rows.delete();
   },
 };

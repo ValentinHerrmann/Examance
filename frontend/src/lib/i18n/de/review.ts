@@ -25,6 +25,17 @@ export const review = {
         replyPlaceholder: 'Antwort an die Schülerin oder den Schüler (optional)',
         counter: '{count} / {max}',
         unreadable: 'Der Einspruch konnte nicht entschlüsselt werden.',
+        fromReplacedLink: 'von einem ersetzten Link',
+        notLocked: 'Noch nicht für die Schülerin oder den Schüler gesperrt. Bitte erneut versuchen, dann antworten.',
+    },
+    replace: {
+        title: 'Offene Einsprüche bleiben erhalten',
+        note: 'Der alte Link funktioniert dann nicht mehr. Der offene Einspruch bleibt in der Bewertung und kann dort noch beantwortet werden: {names}.',
+        revokeNote: 'Offene Einsprüche bleiben in der Bewertung und können dort noch beantwortet werden: {names}.',
+    },
+    warnings: {
+        keepFailed: '{name}: Der offene Einspruch konnte nicht gelesen werden, der alte Link blieb deshalb unverändert.',
+        revokeSkipped: 'Einige Links wurden nicht widerrufen',
     },
     bar: {
         title: 'Einspruch zu dieser Arbeit',
@@ -36,7 +47,9 @@ export const review = {
         hint: 'Speichert die Punkte, aktualisiert das Ergebnis unter demselben Link und sendet Ihre Antworten.',
         notify: 'Schüler per E-Mail benachrichtigen',
         sent: 'Antwort gesendet.',
-        mailFailed: 'Die Antwort ist unter dem Link sichtbar, die E-Mail konnte aber nicht gesendet werden.',
+        mailFailed: 'Die Antwort wurde gespeichert, die E-Mail konnte aber nicht gesendet werden.',
+        retry: 'Erneut versuchen',
+        resendMail: 'E-Mail erneut senden',
         saveFailed: 'Die Punkte konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.',
         loadFailed: 'Einsprüche konnten nicht geladen werden: {message}',
     },

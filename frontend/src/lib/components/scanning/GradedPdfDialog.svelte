@@ -19,6 +19,6 @@
   <ReviewPrintOptions bind:options scope="export" hasReviews={true} single />
   {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
-    <Button icon={actionIcons.download} onClick={() => onConfirm(options)}>{$t("export.review.download.confirm")}</Button>
+    <Button icon={actionIcons.download} onClick={() => onConfirm($state.snapshot(options))}>{$t("export.review.download.confirm")}</Button>
   {/snippet}
 </Modal>

@@ -27,6 +27,17 @@ export const review: Translations['review'] = {
         replyPlaceholder: 'Reply to the student (optional)',
         counter: '{count} / {max}',
         unreadable: 'The objection could not be decrypted.',
+        fromReplacedLink: 'from a replaced link',
+        notLocked: 'Not locked for the student yet. Try again, then reply.',
+    },
+    replace: {
+        title: 'Open objections are kept',
+        note: 'The old link stops working. The open objection stays in grading, where you can still answer it: {names}.',
+        revokeNote: 'Open objections stay in grading, where you can still answer them: {names}.',
+    },
+    warnings: {
+        keepFailed: '{name}: the open objection could not be read, so the old link was left unchanged.',
+        revokeSkipped: 'Some links were not revoked',
     },
     bar: {
         title: 'Objection to this submission',
@@ -38,7 +49,9 @@ export const review: Translations['review'] = {
         hint: 'Saves the points, updates the result under the same link and sends your replies.',
         notify: 'Notify student by e-mail',
         sent: 'Reply sent.',
-        mailFailed: 'The reply is visible under the link, but the e-mail could not be sent.',
+        mailFailed: 'The reply was saved, but the e-mail could not be sent.',
+        retry: 'Try again',
+        resendMail: 'Send e-mail again',
         saveFailed: 'The points could not be saved. Please try again.',
         loadFailed: 'Objections could not be loaded: {message}',
     },

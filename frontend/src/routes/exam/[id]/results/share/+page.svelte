@@ -8,7 +8,7 @@
   import type { Locale } from "#lib/i18n/types";
   import { Alert, Button, Card, ConfirmDialog, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
-  import { closeResultDeliveries, revokeAllResultShares, revokeResultShare, type ResultShareInfo } from "#lib/api/resultShares";
+  import { closeResultDeliveries, type ResultShareInfo } from "#lib/api/resultShares";
   import type { ArtemisCourse } from "#lib/api/integrations";
   import { watchBounces } from "#lib/sharing/delivery";
   import { channelUnavailable, incompatibleStudents, sendsPdf as channelSendsPdf, SHARE_CHANNELS, type ArtemisMode, type ShareChannelId } from "#lib/sharing/channels";
@@ -21,6 +21,7 @@
     loadShareOverview,
     republishShare,
     latestDeliveries,
+    revokeShares,
     shareResults,
     undelivered,
     type ShareOutcome,
@@ -60,6 +61,9 @@
   let error = $state("");
   let outcome = $state.raw<ShareOutcome | null>(null);
   let confirmRevokeAll = $state(false);
+  // The send confirmation for slips when students with an open objection get a new link (issue #226); e-mail and Artemis name them in their preview.
+  let confirmReplace = $state(false);
+  let revokeWarnings = $state<string[]>([]);
   let artemisCourse = $state.raw<ArtemisCourse | null>(null);
   let artemisMode = $state<ArtemisMode>("link");
   let previewing = $state(false);
@@ -89,6 +93,10 @@
   let undeliveredDismissed = $state<number | null>(null);
   let undeliveredCount = $derived(overview?.students.filter((s) => undelivered(s.delivery)).length ?? 0);
   let activeShares = $derived((overview?.students.filter((s) => s.share).length ?? 0) + (overview?.orphans.length ?? 0));
+  // Students whose current link, with an open objection, the new link replaces.
+  let keptNames = $derived(sendsPdf ? [] : (overview?.students.filter((s) => selected.has(s.key) && s.share?.reviewSubmittedAt).map((s) => s.name) ?? []));
+  let revokeKeptNames = $derived(overview?.students.filter((s) => s.share?.reviewSubmittedAt).map((s) => s.name) ?? []);
+  let revokeMessage = $derived([$t("sharing.share.revokeAllConfirm", { count: activeShares }), revokeKeptNames.length ? $t("review.replace.revokeNote", { names: revokeKeptNames.join(", ") }) : ""].filter(Boolean).join(" "));
   let reviewValid = $derived(!reviewOn || sendsPdf || reviewDateValid(reviewDate, Number(expiry)));
   let canRun = $derived(!running && !waiting && !loading && selected.size > 0 && !setupMissing && reviewValid && (sendsPdf || !factorMuted(factor)));
 
@@ -100,9 +108,11 @@
   }
 
   function run() {
-    // Slips and the Mebis ZIP stay with the teacher, so there is nothing to preview before sending.
-    if (currentChannel.id === "slips" || currentChannel.id === "mebis") start();
-    else previewing = true;
+    // Slips and the Mebis ZIP stay with the teacher, so there is nothing to preview before sending, except which open objections a new link keeps.
+    const direct = currentChannel.id === "slips" || currentChannel.id === "mebis";
+    if (!direct) previewing = true;
+    else if (keptNames.length > 0) confirmReplace = true;
+    else start();
   }
 
   const gradedKeys = (o: ShareOverview) => new Set(o.students.filter((s) => s.hasSubmission && s.state !== "ungraded").map((s) => s.key));
@@ -162,6 +172,7 @@
 
   async function start() {
     previewing = false;
+    confirmReplace = false;
     running = true;
     // Closing the tab mid-run would leave some students unserved.
     window.addEventListener("beforeunload", keepOpen);
@@ -214,8 +225,11 @@
 
   async function revoke(shareId: string) {
     error = "";
+    revokeWarnings = [];
+    const share = overview?.students.find((s) => s.share?.id === shareId)?.share ?? overview?.orphans.find((o) => o.id === shareId);
+    if (!share) return;
     try {
-      await revokeResultShare(examId, shareId);
+      revokeWarnings = await revokeShares(examId, [share]);
       await reload();
     } catch (err) {
       error = `${$t("sharing.errors.revoke")} ${err instanceof Error ? err.message : ""}`.trim();
@@ -239,8 +253,10 @@
   async function revokeAll() {
     revoking = true;
     error = "";
+    revokeWarnings = [];
     try {
-      await revokeAllResultShares(examId);
+      const all = [...(overview?.students.flatMap((s) => (s.share ? [s.share] : [])) ?? []), ...(overview?.orphans ?? [])];
+      revokeWarnings = await revokeShares(examId, all, true);
       confirmRevokeAll = false;
       await reload();
     } catch (err) {
@@ -275,6 +291,13 @@
       <Alert severity="info">{$t("sharing.share.hybridNote")}</Alert>
     {/if}
     {#if error}<Alert severity="danger">{error}</Alert>{/if}
+    {#if revokeWarnings.length}
+      <Alert severity="warning" title={$t("review.warnings.revokeSkipped")} onDismiss={() => (revokeWarnings = [])}>
+        <ul class="m-0 list-disc pl-5">
+          {#each revokeWarnings as warning}<li>{warning}</li>{/each}
+        </ul>
+      </Alert>
+    {/if}
 
     {#if outcome}
       <Alert severity={outcome.warnings.length ? "warning" : "success"} title={$t(DONE[outcome.channel], { count: outcome.shared })}>
@@ -431,6 +454,7 @@
     {language}
     includeCode={includeCode && factor !== "none" && !sendsPdf}
     artemis={artemisCourse ? { ...artemisCourse, mode: artemisMode } : null}
+    {keptNames}
     onConfirm={start}
     onCancel={() => (previewing = false)}
   />
@@ -441,9 +465,19 @@
 {/if}
 
 <ConfirmDialog
+  open={confirmReplace}
+  title={$t("review.replace.title")}
+  message={$t("review.replace.note", { names: keptNames.join(", ") })}
+  confirmText={runLabel}
+  cancelText={$t("common.cancel")}
+  onConfirm={start}
+  onCancel={() => (confirmReplace = false)}
+/>
+
+<ConfirmDialog
   open={confirmRevokeAll}
   title={$t("sharing.share.revokeAll")}
-  message={$t("sharing.share.revokeAllConfirm", { count: activeShares })}
+  message={revokeMessage}
   confirmText={$t("sharing.share.revoke")}
   cancelText={$t("common.cancel")}
   severity="danger"

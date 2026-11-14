@@ -13,6 +13,8 @@ export interface ReviewThread {
   submittedAt: string | null;
   openedAt: string | null;
   repliedAt: string | null;
+  /** The objection comes from the submission's kept record: its link was replaced, so there is no server thread to answer. */
+  fromRecord?: boolean;
 }
 
 export interface ReviewState {
@@ -30,9 +32,11 @@ export interface ReviewState {
   /** Set after a reply went out, for the confirmation line. */
   sentAt: string | null;
   mailFailed: boolean;
+  /** The objection could not be locked for the student yet (the "opened" call failed): no reply until a retry works. */
+  lockFailed: boolean;
 }
 
-const INITIAL: ReviewState = { submissionId: null, thread: null, canMail: false, drafts: {}, notify: true, sending: false, error: '', sentAt: null, mailFailed: false };
+const INITIAL: ReviewState = { submissionId: null, thread: null, canMail: false, drafts: {}, notify: true, sending: false, error: '', sentAt: null, mailFailed: false, lockFailed: false };
 
 const store = writable<ReviewState>({ ...INITIAL });
 

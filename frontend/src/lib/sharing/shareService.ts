@@ -2,7 +2,7 @@
 
 import { get } from 'svelte/store';
 import type { GradingState } from '#lib/analytics/examResults';
-import { createResultShare, listResultDeliveries, listResultShares, openResultShare, updateResultShareContent, type ResultDeliveryInfo, type ResultShareInfo } from '#lib/api/resultShares';
+import { createResultShare, listExamReviews, listResultDeliveries, listResultShares, openResultShare, revokeAllResultShares, revokeResultShare, updateResultShareContent, type ResultDeliveryInfo, type ResultShareInfo } from '#lib/api/resultShares';
 import { joinKeys } from '#lib/crypto/pseudonymKey';
 import { personalKey } from '#lib/crypto/stickerKey';
 import type { StudentRecord } from '#lib/db/schema';
@@ -21,6 +21,7 @@ import { formatStudentName, stickerRawOf } from '#lib/utils/studentQr';
 import { incompatibleStudents, SHARE_CHANNELS, type ShareChannelId } from './channels';
 import { createDelivery, type ArtemisTarget, type DeliveryFile } from './delivery';
 import { buildReviewItems } from './reviewItems';
+import { keepObjection } from './reviewRecord';
 import { lookupHash, lookupSecret, newShareLink, openWithKey, resealShare, sealShare, shareUrl, unwrapShareKey, wrapShareKey, type ReviewItem, type ShareFactor, type ShareHeader, type ShareLink } from './shareCrypto';
 import { renderShareSlips, type SlipEntry } from './slipsPdf';
 
@@ -173,6 +174,19 @@ function loopPhaseFor(channel: ShareChannelId): SharePhase {
   return 'preparing';
 }
 
+/** Saves a share's open objection into the grading record before the share is replaced or revoked; false (with a warning) when it cannot be read, so the old link stays. A share without a graded submission has nothing to attach it to. */
+async function keptBeforeReplace(examId: string, old: ResultShareInfo, submissionId: string | null | undefined, key: CryptoKey, name: string, warnings: string[]): Promise<boolean> {
+  if (!submissionId) return true;
+  try {
+    await keepObjection(examId, old, submissionId, key);
+    return true;
+  } catch (err) {
+    console.warn('An objection could not be kept:', err);
+    warnings.push(translate('review.warnings.keepFailed', { name }));
+    return false;
+  }
+}
+
 export async function shareResults(request: ShareRequest, progress: ShareProgress): Promise<ShareOutcome> {
   const { key, fallbackSessionKey } = await sessionKeys();
   const ctx = await loadExam(request.examId, key);
@@ -206,6 +220,8 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   const scoresBySubmission = new Map<string, typeof results.scoreRecords>();
   for (const sc of results.scoreRecords) scoresBySubmission.set(sc.submissionId, [...(scoresBySubmission.get(sc.submissionId) ?? []), sc]);
   const loopPhase = loopPhaseFor(request.channel);
+  // A student's current link is replaced by the new one: its open objection is kept first.
+  const replaced = delivery.sendsPdf ? new Map<string, ResultShareInfo>() : new Map((await listResultShares(request.examId)).map((share) => [share.studentKey, share]));
   const entries: SlipEntry[] = [];
   await logExportAction(request.examId, 'SHARE', key);
   warnings.push(
@@ -224,6 +240,8 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
           entries.push({ name, url: '' });
           return;
         }
+        const old = replaced.get(keys[index]);
+        if (old && !(await keptBeforeReplace(request.examId, old, row?.submissionId, key, name, warnings))) return;
         const code = await shareCode(request.factor, stickerRawOf(student));
         const link = newShareLink();
         const header: ShareHeader = { filename, examTitle };
@@ -293,6 +311,8 @@ export async function republishShare(
   const current = await openResultShare(share.id, await lookupSecret(link));
   const opened = await openWithKey(share.id, contentKey, current.sealed);
   const before = opened.header.items ?? [];
+  // The header's points are about to be overwritten: record the objection with the points it was made against.
+  await keepObjection(examId, share, submissionId, key, { contentKey, items: before });
   const after = share.reviewUntil ? buildReviewItems(ctx.exercises, ctx.mcGroups, results.scoreRecords.filter((sc) => sc.submissionId === submissionId)) : [];
   await options.beforeRender?.({ before, after });
 
@@ -306,4 +326,32 @@ export async function republishShare(
   const header: ShareHeader = share.reviewUntil ? { ...rest, items: after } : rest;
   await updateResultShareContent(examId, share.id, await resealShare(share.id, contentKey, header, { graded, solution: opened.documents.solution }));
   return { link, contentKey, student: results.students[index], examTitle: ctx.exam.title ?? '', before, after };
+}
+
+/** Revokes shares (or all of the exam's, with *all*); an open objection of each is kept in grading first, and a share whose objection cannot be read is left alone with a warning. */
+export async function revokeShares(examId: string, shares: readonly ResultShareInfo[], all = false): Promise<string[]> {
+  const warnings: string[] = [];
+  const skipped = new Set<string>();
+  const withObjection = shares.filter((share) => share.reviewSubmittedAt);
+  if (withObjection.length > 0) {
+    const { key } = await sessionKeys();
+    const results = await loadResults({ ...(await loadExam(examId, key)), key });
+    const keys = await joinKeys(results.students);
+    const rows = await listExamReviews(examId);
+    for (const share of withObjection) {
+      const i = keys.indexOf(share.studentKey);
+      const submissionId = results.rows[i]?.submissionId;
+      if (!submissionId) continue;
+      try {
+        await keepObjection(examId, share, submissionId, key, undefined, rows); // NOSONAR: a handful of objections, kept one after another
+      } catch (err) {
+        console.warn('An objection could not be kept:', err);
+        skipped.add(share.id);
+        warnings.push(translate('review.warnings.keepFailed', { name: displayName(results.students[i]) }));
+      }
+    }
+  }
+  if (all && skipped.size === 0) await revokeAllResultShares(examId);
+  else for (const share of shares.filter((s) => !skipped.has(s.id))) await revokeResultShare(examId, share.id); // NOSONAR: sequential on purpose
+  return warnings;
 }

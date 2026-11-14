@@ -8,6 +8,8 @@ import {
   openSealedShare,
   REVIEW_TEXT_MAX,
   resealShare,
+  sanitizeObjection,
+  sanitizeReply,
   sealReviewPart,
   sealShare,
   unwrapShareKey,
@@ -107,5 +109,31 @@ describe('review items and deadline', () => {
     expect(reviewDeadline('2025-01-01', 7, now)).toBeNull();
     expect(reviewDateValid('2026-01-05', 7, now)).toBe(true);
     expect(reviewDateValid('2026-03-05', 7, now)).toBe(false);
+  });
+});
+
+describe('sanitizing student-controlled payloads (issue #226)', () => {
+  const keys = ['ex-1', 'ex-2#a'];
+
+  it('keeps known keys with string texts only', () => {
+    expect(sanitizeObjection({ items: { 'ex-1': 'ok', 'ex-2#a': 7, 'ex-9': 'unknown key' } }, keys)).toEqual({ items: { 'ex-1': 'ok' } });
+  });
+
+  it('cuts an oversized text to the limit', () => {
+    const out = sanitizeObjection({ items: { 'ex-1': 'x'.repeat(REVIEW_TEXT_MAX + 50) } }, keys);
+    expect(out.items['ex-1']).toHaveLength(REVIEW_TEXT_MAX);
+  });
+
+  it.each([null, undefined, 'text', 42, [], { items: null }, { items: ['a'] }])('reads %j as empty', (payload) => {
+    expect(sanitizeObjection(payload, keys)).toEqual({ items: {} });
+    expect(sanitizeReply(payload, keys)).toEqual({ items: {} });
+  });
+
+  it('keeps a reply text as a string and points as a number or null', () => {
+    const out = sanitizeReply({ items: { 'ex-1': { text: 'Fixed', pointsBefore: 3, pointsAfter: '4' }, 'ex-2#a': { text: 5, pointsBefore: null, pointsAfter: 1 }, 'ex-9': { text: 'x' }, 'ex-3': 'no' } }, keys);
+    expect(out.items).toEqual({
+      'ex-1': { text: 'Fixed', pointsBefore: 3, pointsAfter: null },
+      'ex-2#a': { text: '', pointsBefore: null, pointsAfter: 1 },
+    });
   });
 });

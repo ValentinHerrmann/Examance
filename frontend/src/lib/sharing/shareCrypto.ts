@@ -252,6 +252,32 @@ function clampTexts<T>(items: Record<string, T>, text: (v: T) => string): void {
   for (const value of Object.values(items)) if (text(value).length > REVIEW_TEXT_MAX) throw new Error(`A review text is longer than ${REVIEW_TEXT_MAX} characters.`);
 }
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const itemsOf = (payload: unknown): Record<string, unknown> => (isRecord(payload) && isRecord(payload.items) ? payload.items : {});
+
+/** The only way an opened objection is read: it is student-controlled, so only known item keys with string texts survive, cut to the limit; a malformed payload is empty. */
+export function sanitizeObjection(payload: unknown, itemKeys: Iterable<string>): ObjectionPayload {
+  const known = new Set(itemKeys);
+  const items: Record<string, string> = {};
+  for (const [key, value] of Object.entries(itemsOf(payload))) {
+    if (known.has(key) && typeof value === 'string') items[key] = value.slice(0, REVIEW_TEXT_MAX);
+  }
+  return { items };
+}
+
+const pointsOrNull = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/** Same for a reply: a text string cut to the limit, points a number or null. */
+export function sanitizeReply(payload: unknown, itemKeys: Iterable<string>): ReplyPayload {
+  const known = new Set(itemKeys);
+  const items: ReplyPayload['items'] = {};
+  for (const [key, value] of Object.entries(itemsOf(payload))) {
+    if (!known.has(key) || !isRecord(value)) continue;
+    items[key] = { text: typeof value.text === 'string' ? value.text.slice(0, REVIEW_TEXT_MAX) : '', pointsBefore: pointsOrNull(value.pointsBefore), pointsAfter: pointsOrNull(value.pointsAfter) };
+  }
+  return { items };
+}
+
 export async function sealReviewPart(shareId: string, contentKey: Uint8Array, part: 'objection', payload: ObjectionPayload): Promise<{ ciphertext: Uint8Array; iv: Uint8Array }>;
 export async function sealReviewPart(shareId: string, contentKey: Uint8Array, part: 'reply', payload: ReplyPayload): Promise<{ ciphertext: Uint8Array; iv: Uint8Array }>;
 export async function sealReviewPart(shareId: string, contentKey: Uint8Array, part: ReviewPart, payload: ObjectionPayload | ReplyPayload) {

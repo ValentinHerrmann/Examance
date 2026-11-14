@@ -28,7 +28,6 @@ export const trash = {
         submission: 'Scan von {student} in „{exam}“ gelöscht',
         scores: 'Punkte von {student} in „{exam}“ gelöscht',
         grading: 'Bewertung von {student} in „{exam}“ zurückgesetzt',
-        grading_review: 'Einspruch zu {student} in „{exam}“ gelöscht',
         annotations: 'Anmerkungen von {student} in „{exam}“ gelöscht',
         exercise: 'Aufgabe „{exercise}“ gelöscht',
         resource: 'Datei „{file}“ aus „{exercise}“ gelöscht',

@@ -322,7 +322,11 @@ export function mebisFeedbackPath(name: string, participantId: string): string {
   return `Participant_${participantId}_assignsubmission_file_/${slug(name)}_${participantId}.pdf`;
 }
 
-function addGradedScans(o: {
+/** Merging drops attachments, so a run that feeds a combined file never attaches the review, in the single files either. */
+const withoutAttachment = (options: ReviewPrintOptions): ReviewPrintOptions => ({ ...options, attach: false });
+
+/** Renders every graded scan into the ZIP's single files and/or the combined print file. */
+export function addGradedScans(o: {
   zip: ZipBuilder;
   results: LoadedResults;
   key: CryptoKey;
@@ -340,7 +344,7 @@ function addGradedScans(o: {
       if (o.singleFiles) o.zip.add(`graded/${slug(name)}${GRADED_SUFFIX[state]}.pdf`, pdf);
       await o.combined?.add(pdf);
     },
-    { progress: (done, total) => o.progress(translate('export.exam.steps.graded'), done, total), reviewPrint: o.reviewPrint }
+    { progress: (done, total) => o.progress(translate('export.exam.steps.graded'), done, total), reviewPrint: o.combined ? withoutAttachment(o.reviewPrint) : o.reviewPrint }
   );
 }
 
@@ -388,6 +392,6 @@ export async function renderCombinedGradedPdf(
   await logExportAction(examId, 'PDF', key);
   const results = await loadResults({ exam: ctx.exam, exercises: ctx.exercises, key });
   const combined = await pdfCollector(ctx.exam.title || 'exam', options.duplex ?? true);
-  const warnings = await forEachGradedPdf(byStudentName(results), key, fallbackSessionKey, (pdf) => combined.add(pdf), { progress: options.progress, reviewPrint: options.reviewPrint && { ...options.reviewPrint, attach: false } });
+  const warnings = await forEachGradedPdf(byStudentName(results), key, fallbackSessionKey, (pdf) => combined.add(pdf), { progress: options.progress, reviewPrint: options.reviewPrint && withoutAttachment(options.reviewPrint) });
   return { pdf: combined.pageCount > 0 ? await combined.save() : null, pageCount: combined.pageCount, warnings };
 }

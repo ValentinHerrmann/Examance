@@ -64,6 +64,8 @@ export interface FakeApiState {
   latexPackages: any[];
   /** Result shares a student can open (`POST /shares/:id/open`, issue #207): the expected `lookup_b64` and the content the server answers with. */
   resultShares: Map<string, { lookupB64: string; content: any }>;
+  /** Stored grading review records (issue #226) by submission id: `{ id, submission_id, payload_ciphertext_b64, payload_iv_b64 }`. */
+  gradingReviews: Map<string, any>;
 }
 
 export interface FakeApi {
@@ -275,7 +277,7 @@ function shareAndDeliveryStubs(method: string, sub: string, rest: string[]): Han
   if (sub === 'shares') return shareStubs(method, rest);
   if (sub === 'deliveries') return deliveryStubs(method, rest);
   // Objections (issue #226) and their kept records: nobody objects in the fake.
-  if ((sub === 'reviews' || sub === 'grading-reviews') && method === 'GET' && rest.length === 0) return ok([]);
+  if (sub === 'reviews' && method === 'GET' && rest.length === 0) return ok([]);
   return undefined;
 }
 
@@ -311,6 +313,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     unhandled: [],
     latexPackages: [],
     resultShares: new Map(),
+    gradingReviews: new Map(),
   };
 
   function reset(): void {
@@ -336,6 +339,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.unhandled.length = 0;
     state.latexPackages = [];
     state.resultShares.clear();
+    state.gradingReviews.clear();
   }
 
   /* ------------------------------------------------------------------------ */
@@ -1208,6 +1212,15 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   /** The submission a route names, with its exam's rows. */
   type SubmissionTarget = { examId: string; rows: any[]; sub: any; subId: string };
 
+  /** One submission's review record (issue #226): the server answers JSON null for a submission without one. */
+  function gradingReviewRoute(method: string, subId: string, body: any): Handled {
+    if (method === 'GET') return ok(state.gradingReviews.get(subId) ?? null);
+    if (method !== 'PUT') return undefined;
+    const row = { id: state.gradingReviews.get(subId)?.id ?? body.id ?? `review-${subId}`, submission_id: subId, payload_ciphertext_b64: body.payload_ciphertext_b64, payload_iv_b64: body.payload_iv_b64 };
+    state.gradingReviews.set(subId, row);
+    return ok(row);
+  }
+
   function submissionById(method: string, { examId, rows, sub, subId }: SubmissionTarget, action: string | undefined, more: string[], body: any): Handled {
     if (!action) {
       if (method === 'GET') return ok(submissionResponse(sub, true));
@@ -1233,8 +1246,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       return noContent();
     }
     if (action === 'scores') return scoreRoutes(method, examId, subId, more, body);
-    // Grading review records (issue #226): none exist in the fake; the server answers null for a submission without one.
-    if (action === 'grading-review' && method === 'GET') return ok(null);
+    if (action === 'grading-review') return gradingReviewRoute(method, subId, body);
     return undefined;
   }
 
@@ -1326,6 +1338,10 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (sub === 'submissions') return submissions(method, id, rest, query, body);
     if (sub === 'pseudonyms') return pseudonyms(method, id, rest, body);
     if (sub === 'scores' && method === 'GET' && rest.length === 0) return examScores(id);
+    if (sub === 'grading-reviews' && method === 'GET' && rest.length === 0) {
+      const mine = new Set((state.submissions.get(id) ?? []).map((row) => row.id));
+      return ok([...state.gradingReviews.values()].filter((row) => mine.has(row.submission_id)));
+    }
     return shareAndDeliveryStubs(method, sub, rest);
   }
 
@@ -1425,8 +1441,17 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   /** The student's session-less open (issue #207): a wrong lookup answers 404 like an unknown share. */
   function sharesRoute(verb: string, parts: string[], payload: any): Handled {
     const share = state.resultShares.get(parts[1] ?? '');
-    if (verb === 'POST' && parts[2] === 'open' && parts.length === 3) {
-      return share && share.lookupB64 === payload.lookup_b64 ? ok(share.content) : fail(404, 'Share not found', 'ERR_NOT_FOUND');
+    if (!share || share.lookupB64 !== payload.lookup_b64) return verb === 'POST' ? fail(404, 'Share not found', 'ERR_NOT_FOUND') : undefined;
+    if (verb !== 'POST') return undefined;
+    if (parts[2] === 'open' && parts.length === 3) return ok(share.content);
+    // The student's objection (issue #226): kept on the share, replaced by a new submit, dropped by a withdraw.
+    if (parts[2] === 'review' && parts.length === 3) {
+      share.content.review = { objection_iv_b64: payload.iv_b64, objection_ct_b64: payload.ciphertext_b64, submitted_at: now(), opened_at: null, reply_iv_b64: null, reply_ct_b64: null, replied_at: null };
+      return noContent();
+    }
+    if (parts[2] === 'review' && parts[3] === 'withdraw') {
+      share.content.review = null;
+      return noContent();
     }
     return undefined;
   }

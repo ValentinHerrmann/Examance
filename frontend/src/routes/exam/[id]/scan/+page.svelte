@@ -406,6 +406,14 @@
     else await exportPdf(item);
   }
 
+  /** Copies the paper out of `reviewAsk` before clearing it: the dialog's `{@const}` view of it is already null afterwards. */
+  async function confirmReviewPrint(options: ReviewPrintOptions) {
+    if (!reviewAsk) return;
+    const { item, items } = reviewAsk;
+    reviewAsk = null;
+    await exportPdf(item, { items, options });
+  }
+
   async function exportPdf(item: ScannedSubmissionItem, review?: { items: GradingReviewItem[]; options: ReviewPrintOptions }) {
     exportingId = item.id;
     try {
@@ -762,14 +770,7 @@
 </PageShell>
 
 {#if reviewAsk}
-  {@const ask = reviewAsk}
-  <GradedPdfDialog
-    onClose={() => (reviewAsk = null)}
-    onConfirm={(options) => {
-      reviewAsk = null;
-      exportPdf(ask.item, { items: ask.items, options });
-    }}
-  />
+  <GradedPdfDialog onClose={() => (reviewAsk = null)} onConfirm={confirmReviewPrint} />
 {/if}
 
 <ScanPreviewModal

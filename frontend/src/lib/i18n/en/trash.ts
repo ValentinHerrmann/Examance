@@ -30,7 +30,6 @@ export const trash: Translations['trash'] = {
         submission: 'Scan of {student} in “{exam}” deleted',
         scores: 'Points of {student} in “{exam}” deleted',
         grading: 'Grading of {student} in “{exam}” cleared',
-        grading_review: 'Objections of {student} in “{exam}” deleted',
         annotations: 'Annotations of {student} in “{exam}” deleted',
         exercise: 'Exercise “{exercise}” deleted',
         resource: 'File “{file}” deleted from “{exercise}”',
