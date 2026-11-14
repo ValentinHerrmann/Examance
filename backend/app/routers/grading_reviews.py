@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import base64
-from typing import Annotated
+import uuid
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -19,7 +20,6 @@ from app.models.grading_review import GradingReview
 from app.models.scan_submission import ScanSubmission
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.grading_review import GradingReviewIn, GradingReviewResponse
-from app.services import trash
 from app.services.capabilities import require_server_results_writable
 
 router = APIRouter(
@@ -49,6 +49,40 @@ def _to_response(row: GradingReview) -> GradingReviewResponse:
     )
 
 
+async def _for_submission(db: AsyncSession, submission_id: uuid.UUID) -> GradingReview | None:
+    return await db.scalar(select(GradingReview).where(GradingReview.submission_id == submission_id))
+
+
+async def _insert(
+    db: AsyncSession,
+    exam_id: uuid.UUID,
+    submission_id: uuid.UUID,
+    wanted_id: uuid.UUID | None,
+    payload: bytes | None,
+    iv: bytes | None,
+) -> GradingReview:
+    """Insert in a savepoint; a concurrent first PUT (same submission) loses the race and updates the winner's row."""
+    # A client id that belongs to another submission's row is ignored, never reused.
+    taken = wanted_id is not None and await db.get(GradingReview, wanted_id) is not None
+    row = GradingReview(exam_id=exam_id, submission_id=submission_id, payload_ciphertext=payload, payload_iv=iv)
+    if wanted_id is not None and not taken:
+        row.id = wanted_id
+    try:
+        async with db.begin_nested():
+            db.add(row)
+            await db.flush()
+    except IntegrityError:
+        existing = await _for_submission(db, submission_id)
+        if existing is None:
+            raise
+        existing.payload_ciphertext = payload
+        existing.payload_iv = iv
+        await db.flush()
+        row = existing
+    await db.refresh(row)
+    return row
+
+
 @exam_router.get("")
 async def list_exam_grading_reviews(
     exam: Exam = Depends(get_exam_for_teacher),
@@ -68,7 +102,7 @@ async def get_grading_review(
     db: AsyncSession = Depends(get_db),
 ) -> GradingReviewResponse | None:
     """The submission's record, or null while there is none."""
-    row = await db.scalar(select(GradingReview).where(GradingReview.submission_id == submission.id))
+    row = await _for_submission(db, submission.id)
     return _to_response(row) if row is not None else None
 
 
@@ -90,32 +124,12 @@ async def put_grading_review(
         if body.payload_iv_b64
         else None
     )
-    row = await db.scalar(select(GradingReview).where(GradingReview.submission_id == submission.id))
+    row = await _for_submission(db, submission.id)
     if row is None:
-        row = GradingReview(exam_id=exam.id, submission_id=submission.id)
-        if body.id is not None:
-            row.id = body.id
-        db.add(row)
+        row = await _insert(db, exam.id, submission.id, body.id, payload, iv)
+        return _to_response(row)
     row.payload_ciphertext = payload
     row.payload_iv = iv
     await db.flush()
     await db.refresh(row)
     return _to_response(row)
-
-
-@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_grading_review(
-    trash_scope: trash.Trash,
-    exam: Exam = Depends(get_exam_for_teacher),
-    submission: ScanSubmission = Depends(get_submission_for_teacher),
-    db: AsyncSession = Depends(get_db),
-    permanent: Annotated[bool, Query(description="Skip the trash (GDPR erasure).")] = False,
-) -> Response:
-    """Idempotent: deleting what is not there is already the requested state. Unless *permanent*, the trash keeps a copy."""
-    snap = await trash.snapshot_grading_review(db, submission.id)
-    if not permanent:
-        label = await trash.result_label(db, exam, submission.pseudonym_hmac)
-        label["submission_id"] = str(submission.id)
-        await trash_scope.capture(db, "grading_review", snap, label=label, exam_id=exam.id)
-    await snap.delete(db)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)

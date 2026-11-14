@@ -280,14 +280,6 @@ async def snapshot_scores(
     return snap
 
 
-async def snapshot_grading_review(db: AsyncSession, sub_id: uuid.UUID) -> Snapshot:
-    """The submission's objection thread record (issue #226)."""
-    await db.flush()
-    snap = Snapshot()
-    await snap.add(db, GradingReview, GradingReview.submission_id == sub_id)
-    return snap
-
-
 _ANNOTATION = ["annotation_ciphertext", "annotation_iv"]
 
 

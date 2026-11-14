@@ -1,4 +1,4 @@
-"""Grading review records (issue #226): idempotent upsert per submission, exam-wide listing, trash-backed delete."""
+"""Grading review records (issue #226): idempotent upsert per submission, exam-wide listing, cascade."""
 from __future__ import annotations
 
 import base64
@@ -7,6 +7,9 @@ import uuid
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.grading_review import GradingReview
+from app.routers import grading_reviews
 
 from .factors import sign_in
 
@@ -80,18 +83,51 @@ async def test_put_is_an_idempotent_upsert(client: AsyncClient, db: AsyncSession
     assert [r["submission_id"] for r in listed.json()] == [sub_id]
 
 
-async def test_delete_is_idempotent_and_trashed(client: AsyncClient, db: AsyncSession) -> None:
-    exam_id, _, sub_id = await _exam_with_submission(client, db, "reviews-delete@example.com")
-    url = f"/api/v1/exams/{exam_id}/submissions/{sub_id}/grading-review"
-    assert (await client.delete(url)).status_code == 204  # nothing there yet
+async def test_foreign_id_is_ignored_and_one_row_per_submission(client: AsyncClient, db: AsyncSession) -> None:
+    exam_id, _, sub_id = await _exam_with_submission(client, db, "reviews-foreign@example.com")
+    other = await client.post(
+        f"/api/v1/exams/{exam_id}/submissions",
+        json={
+            "pseudonym_hmac": "a" * 64,
+            "scan_ciphertext_b64": base64.b64encode(b"EncryptedScan2").decode(),
+            "scan_iv_b64": IV_B64,
+        },
+    )
+    assert other.status_code == 201, other.text
+    other_id = other.json()["id"]
     body = {"payload_ciphertext_b64": base64.b64encode(b"sealed").decode(), "payload_iv_b64": IV_B64}
+    first = await client.put(f"/api/v1/exams/{exam_id}/submissions/{sub_id}/grading-review", json=body)
+    assert first.status_code == 200, first.text
+    stolen = await client.put(
+        f"/api/v1/exams/{exam_id}/submissions/{other_id}/grading-review", json={**body, "id": first.json()["id"]}
+    )
+    assert stolen.status_code == 200, stolen.text
+    assert stolen.json()["id"] != first.json()["id"]
+    listed = await client.get(f"/api/v1/exams/{exam_id}/grading-reviews")
+    assert len(listed.json()) == 2
+
+
+async def test_racing_first_put_updates_the_winner(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exam_id, _, sub_id = await _exam_with_submission(client, db, "reviews-race@example.com")
+    url = f"/api/v1/exams/{exam_id}/submissions/{sub_id}/grading-review"
+    body = {"payload_ciphertext_b64": base64.b64encode(b"winner").decode(), "payload_iv_b64": IV_B64}
     assert (await client.put(url, json=body)).status_code == 200
-    assert (await client.delete(url)).status_code == 204
-    assert (await client.get(url)).json() is None
-    groups = (await client.get("/api/v1/trash")).json()["groups"]
-    group = next(g for g in groups if any(e["kind"] == "grading_review" for e in g["entries"]))
-    assert (await client.post(f"/api/v1/trash/{group['group_id']}/restore")).status_code == 200
-    assert (await client.get(url)).json() is not None
+    real = grading_reviews._for_submission
+    calls = 0
+
+    async def blind_first(session: AsyncSession, submission_id: uuid.UUID) -> GradingReview | None:
+        nonlocal calls
+        calls += 1
+        return None if calls == 1 else await real(session, submission_id)
+
+    monkeypatch.setattr(grading_reviews, "_for_submission", blind_first)
+    late = {**body, "payload_ciphertext_b64": base64.b64encode(b"late").decode()}
+    resp = await client.put(url, json=late)
+    assert resp.status_code == 200, resp.text
+    assert base64.b64decode(resp.json()["payload_ciphertext_b64"]) == b"late"
+    assert len((await client.get(f"/api/v1/exams/{exam_id}/grading-reviews")).json()) == 1
 
 
 async def test_submission_delete_takes_the_review_along(client: AsyncClient, db: AsyncSession) -> None:
