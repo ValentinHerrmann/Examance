@@ -139,6 +139,96 @@ test('[layout] a shared result fills the screen with its PDF (issue #210)', asyn
   expect.soft(m.docH, 'result: document scrolls horizontally').toBeLessThanOrEqual(0);
 });
 
+/** Regression (issue #226): with objections enabled the page crashed into the error page after decrypting, because a field bound an undefined text. */
+test('[layout] a shared result with objections shows one field per item', async ({ page, backend }) => {
+  const doc = await PDFDocument.create();
+  doc.addPage([595, 842]);
+  const pdf = Array.from(await doc.save());
+
+  await page.goto('/unlock');
+  const share = await page.evaluate(async (bytes) => {
+    const shareModule = '/src/lib/sharing/shareCrypto.ts';
+    const aesModule = '/src/lib/crypto/aesGcm.ts';
+    const sc = await import(/* @vite-ignore */ shareModule);
+    const { uint8ArrayToBase64 } = await import(/* @vite-ignore */ aesModule);
+    const link = sc.newShareLink();
+    const items = [
+      { key: 'ex-1', label: '1', max: 4, points: 3 },
+      { key: 'ex-2#a', label: '2a', max: 2, points: null },
+    ];
+    const sealed = await sc.sealShare(link, 'none', null, { filename: 'graded.pdf', examTitle: 'Objections', items }, { graded: new Uint8Array(bytes) });
+    return {
+      id: link.shareId,
+      path: sc.shareUrl('', link),
+      lookupB64: uint8ArrayToBase64(await sc.lookupSecret(link)),
+      ivB64: uint8ArrayToBase64(sealed.iv),
+      ciphertextB64: uint8ArrayToBase64(sealed.ciphertext),
+    };
+  }, pdf);
+  backend.state.resultShares.set(share.id, {
+    lookupB64: share.lookupB64,
+    content: {
+      factor: 'none',
+      kdf_salt_b64: null,
+      iv_b64: share.ivB64,
+      ciphertext_b64: share.ciphertextB64,
+      expires_at: '2099-01-01T00:00:00Z',
+      review_until: '2098-01-01T00:00:00Z',
+      review: null,
+    },
+  });
+
+  await page.goto(share.path);
+  await expect(page.getByRole('heading', { level: 1, name: 'Objections' })).toBeVisible();
+  await expect(page.locator('textarea')).toHaveCount(2);
+  await settleLayout(page);
+
+  // Submit, withdraw and type again: a withdrawn form keeps a (blank) field per item, so it stays editable (issue #226).
+  const first = page.locator('textarea').first();
+  await first.fill('Please check the sum');
+  await page.getByRole('button', { name: label('review.form.submit') }).click();
+  await expect(page.getByRole('button', { name: label('review.form.withdraw') })).toBeVisible();
+  await page.getByRole('button', { name: label('review.form.withdraw') }).click();
+  await expect(page.getByRole('button', { name: label('review.form.submit') })).toBeDisabled();
+  await expect(page.locator('textarea')).toHaveCount(2);
+  await expect(first).toHaveValue('');
+  await first.fill('Second try');
+  await expect(page.getByRole('button', { name: label('review.form.submit') })).toBeEnabled();
+});
+
+/** Regression (issue #226): confirming the print options of a paper with an objection closed the dialog and downloaded nothing. */
+test('[layout] the scan page downloads the graded PDF of a paper with an objection', async ({ page }) => {
+  const examId = await seedWorkspace(page);
+  const scan = await PDFDocument.create();
+  scan.addPage([595, 842]);
+  const scanBytes = Array.from(await scan.save());
+
+  // Seeded through the app's own repositories (served by Vite), so the test never re-implements sealing.
+  await page.evaluate(
+    async ({ exam, bytes }) => {
+      const modules = ['/src/lib/stores/session.ts', '/src/lib/db/dbEncryption.ts', '/src/lib/repositories/submissionRepository.ts', '/src/lib/repositories/reviewRepository.ts'];
+      const [session, sealing, submissions, reviews] = await Promise.all(modules.map((m) => import(/* @vite-ignore */ m)));
+      let key: CryptoKey | null = null;
+      session.sessionStore.subscribe((s: { sessionKey: CryptoKey | null }) => (key = s.sessionKey))();
+      const submissionId = crypto.randomUUID();
+      const sealed = await sealing.sealScan(submissionId, new Uint8Array(bytes), key);
+      await submissions.submissionRepository.save(
+        { id: submissionId, examId: exam, pseudonymHmac: 'e2e-pseudonym', pseudonymVersion: 2, scanCt: sealed.ct, scanIv: sealed.iv, createdAt: new Date().toISOString() },
+        key
+      );
+      const item = { key: 'ex-1', label: '1', objection: 'Too few points', reply: 'Checked, 4 points', pointsBefore: 3, pointsAfter: 4 };
+      await reviews.reviewRepository.save(exam, { id: crypto.randomUUID(), submissionId, items: [item], submittedAt: new Date().toISOString(), repliedAt: new Date().toISOString() }, key);
+    },
+    { exam: examId, bytes: scanBytes }
+  );
+
+  await visit(page, `/exam/${examId}/scan`);
+  await page.getByRole('button', { name: label('scanning.submissionsTable.exportPdf') }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: label('export.review.download.confirm') }).click();
+  expect((await download).suggestedFilename()).toMatch(/_graded\.pdf$/);
+});
+
 /* -------------------------------------------------------------------------- */
 /* Shell: navbar, sidebar, grade, widths, touch targets, theme                 */
 /* -------------------------------------------------------------------------- */

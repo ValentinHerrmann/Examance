@@ -46,6 +46,7 @@ export const trash = {
         student_identities: 'Schüler: {count}',
         scan_submissions: 'Scans: {count}',
         exercise_scores: 'Punkte: {count}',
+        grading_reviews: 'Einsprüche: {count}',
         teacher_logos: 'Logo',
         exercise_contributions: 'Vorschlag',
         exercise_contribution_resources: 'Dateien des Vorschlags: {count}',

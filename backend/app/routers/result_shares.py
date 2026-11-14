@@ -5,7 +5,7 @@ import base64
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -19,9 +19,15 @@ from app.schemas.result_share import (
     ResultShareCreate,
     ResultShareOpen,
     ResultShareOut,
+    ReviewListItem,
+    ReviewSubmit,
+    SealedPayload,
 )
+from app.services import account_mail, bounces, ephemeral_store, result_deliveries, result_shares
 from app.services import audit as audit_svc
-from app.services import bounces, result_deliveries, result_shares
+from app.services.capabilities import mail_configured
+
+REVIEW_MAIL_INTERVAL_SECONDS = 3600
 
 router = APIRouter(
     prefix="/exams/{exam_id}/shares",
@@ -55,7 +61,45 @@ async def list_result_shares(
     db: AsyncSession = Depends(get_db),
 ) -> list[ResultShareOut]:
     """The exam's live shares (expired ones are gone or about to be)."""
-    return [result_shares.to_out(s) for s in await result_shares.list_for_exam(db, exam.id)]
+    return [result_shares.to_out(s, r) for s, r in await result_shares.list_for_exam(db, exam.id)]
+
+
+@router.put("/{share_id}/content", status_code=status.HTTP_204_NO_CONTENT)
+async def update_result_share_content(
+    share_id: uuid.UUID,
+    body: SealedPayload,
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Re-seal the share's PDF under the same link (issue #226); 409 `ERR_SHARE_NOT_UPDATABLE` for a share made without a wrapped key."""
+    await result_shares.update_content(db, exam.id, share_id, body.iv_b64, body.ciphertext_b64)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{share_id}/review/open", status_code=status.HTTP_204_NO_CONTENT)
+async def open_result_share_review(
+    share_id: uuid.UUID,
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """The teacher opened the objection: the student can no longer change or withdraw it."""
+    await result_shares.mark_opened(db, exam.id, share_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/{share_id}/review/reply", status_code=status.HTTP_204_NO_CONTENT)
+async def reply_to_result_share_review(
+    share_id: uuid.UUID,
+    body: SealedPayload,
+    request: Request,
+    exam: Exam = Depends(get_exam_for_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Store the teacher's sealed reply for the student's page."""
+    await result_shares.store_reply(db, exam.id, share_id, body.iv_b64, body.ciphertext_b64)
+    await audit_svc.log(db, request, teacher, "REVIEW_REPLIED", exam.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/{share_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -101,14 +145,76 @@ async def open_result_share(
     db: AsyncSession = Depends(get_db),
 ) -> ResultShareContent:
     """Public, no session: the ciphertext of a student's result, for the lookup secret their link derives. Decryption happens only in the student's browser."""
-    share, data = await result_shares.open_share(db, share_id, body.lookup_b64)
+    share, data, review = await result_shares.open_share(db, share_id, body.lookup_b64)
     return ResultShareContent(
         factor=share.factor,  # type: ignore[arg-type]
         kdf_salt_b64=_b64(share.kdf_salt) if share.kdf_salt is not None else None,
         iv_b64=_b64(share.iv),
         ciphertext_b64=_b64(data),
         expires_at=share.expires_at,
+        content_updated_at=share.content_updated_at,
+        review_until=share.review_until,
+        review=result_shares.review_out(review) if review is not None else None,
     )
+
+
+@public_router.post("/{share_id}/review", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
+async def submit_result_share_review(
+    share_id: uuid.UUID,
+    body: ReviewSubmit,
+    request: Request,  # required by slowapi
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Public, no session: create or replace the student's sealed objection until the teacher opens it or the deadline passes."""
+    share = await result_shares.submit_objection(
+        db, share_id, body.lookup_b64, body.iv_b64, body.ciphertext_b64
+    )
+    teacher = await db.get(Teacher, share.teacher_id)
+    exam = await db.get(Exam, share.exam_id)
+    if teacher is not None and exam is not None:
+        await audit_svc.log(db, request, teacher, "REVIEW_SUBMITTED", exam.id)
+        # One mail per share and hour: edits and resubmits through one link must not flood the inbox.
+        if (
+            mail_configured()
+            and teacher.review_mail is not False
+            and await ephemeral_store.incr(f"review-mail:{share.id}", REVIEW_MAIL_INTERVAL_SECONDS) == 1
+        ):
+            mail = account_mail.review_notice_mail(
+                teacher.email, exam.title, account_mail.frontend_link(f"/exam/{exam.id}/results/share")
+            )
+            background_tasks.add_task(account_mail.send_all, [mail])
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@public_router.post("/{share_id}/review/withdraw", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
+async def withdraw_result_share_review(
+    share_id: uuid.UUID,
+    body: ResultShareOpen,
+    request: Request,  # required by slowapi
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Public, no session: delete the student's objection while it is still open."""
+    await result_shares.withdraw_objection(db, share_id, body.lookup_b64)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+reviews_router = APIRouter(
+    prefix="/exams/{exam_id}/reviews",
+    tags=["result-shares"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
+
+
+@reviews_router.get("")
+async def list_result_share_reviews(
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> list[ReviewListItem]:
+    """Every objection and reply of the exam, still sealed; the student appears only as the pseudonym."""
+    return await result_shares.list_reviews(db, exam.id)
 
 
 deliveries_router = APIRouter(

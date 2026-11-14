@@ -68,6 +68,7 @@ async function localItem(entry: LocalTrashRecord, titles: Map<string, string>, k
   if (entry.rows.examStudents?.length) counts.student_identities = entry.rows.examStudents.length;
   if (entry.rows.submissions?.length) counts.scan_submissions = entry.rows.submissions.length;
   if (entry.rows.exerciseScores?.length) counts.exercise_scores = entry.rows.exerciseScores.length;
+  if (entry.rows.gradingReviews?.length) counts.grading_reviews = entry.rows.gradingReviews.length;
   if (entry.cleared?.length) counts.scan_submissions = (counts.scan_submissions ?? 0) + entry.cleared.length;
   const single = entry.kind === 'exam' ? undefined : entry.rows.examStudents?.[0];
   return {

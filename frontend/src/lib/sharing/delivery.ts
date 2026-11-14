@@ -129,6 +129,13 @@ export function createDelivery(
   return { sendsPdf: false, deliverLink: none, deliverPdf: none, finish: () => Promise.resolve([]) };
 }
 
+/** Tells one student their objection was answered, with the result link, through the same mail path as the results (issue #226); false when the mail server refused it. */
+export async function mailReviewReply(context: { examId: string; examTitle: string; expiresAt: Date; language: Locale }, student: StudentRecord, key: string, url: string): Promise<boolean> {
+  if (!student.email) return false;
+  const failed = await sendResultMails(context.examId, context.examTitle, context.language, [{ email: student.email, studentKey: key, url, expiresAt: context.expiresAt }], 'review_reply');
+  return failed.length === 0;
+}
+
 /** How often the dialog has the server read the bounce mailbox while it waits after an e-mail run (issue #221). */
 export const BOUNCE_POLL_MS = 5000;
 

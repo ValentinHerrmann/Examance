@@ -14,6 +14,8 @@
   import { t } from "#lib/i18n";
   import { Alert, Button, Modal, OptionTile } from "#lib/components/ui";
   import type { ExportProgress, ExportResult } from "#lib/export/progress";
+  import type { ReviewPrintOptions } from "#lib/export/reviewPrint";
+  import { loadReviewPrint } from "#lib/export/reviewPrintPrefs";
   import { runZipExport } from "#lib/export/runZipExport";
   import ExportOptionList from "./ExportOptionList.svelte";
   import ExportProgressBar from "./ExportProgressBar.svelte";
@@ -25,16 +27,21 @@
   interface Props {
     title: string;
     options?: ExportOption[];
-    run?: (selected: Set<string>, progress: ExportProgress) => Promise<ExportResult>;
+    run?: (selected: Set<string>, progress: ExportProgress, reviewPrint: ReviewPrintOptions) => Promise<ExportResult>;
+    /** Offers how the grading review is printed into graded PDFs (issue #226). */
+    withReview?: boolean;
+    /** Whether the exam(s) have objections (null: unknown); the review tiles show only then. */
+    hasReviews?: boolean | null;
     backup?: ArchiveExportOptions;
     onBackupDone?: () => void;
     onClose: () => void;
     notice?: Snippet;
   }
 
-  let { title, options = [], run, backup, onBackupDone, onClose, notice }: Props = $props();
+  let { title, options = [], run, withReview = false, hasReviews = null, backup, onBackupDone, onClose, notice }: Props = $props();
 
   let format = $state<"zip" | "backup">(untrack(() => (run ? "zip" : "backup")));
+  let reviewPrint = $state<ReviewPrintOptions>(loadReviewPrint("export"));
   let password = $state("");
   let passwordRepeat = $state("");
   let withoutCode = $state(false);
@@ -70,7 +77,7 @@
         await showArchiveReport(report);
         return;
       }
-      warnings = await runZipExport(run!, selected, progress);
+      warnings = await runZipExport((sel, prog) => run!(sel, prog, reviewPrint), selected, progress);
       if (warnings.length) finished = true;
       else onClose();
     } catch (err) {
@@ -106,7 +113,7 @@
       {@render notice?.()}
     {/if}
     {#if format === "zip" && options.length}
-      <ExportOptionList {options} bind:checked disabled={running} />
+      <ExportOptionList {options} bind:checked bind:reviewPrint={() => (withReview ? reviewPrint : undefined), (o) => (reviewPrint = o ?? reviewPrint)} {hasReviews} disabled={running} />
     {/if}
 
     {#if running}

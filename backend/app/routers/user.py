@@ -22,7 +22,7 @@ from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
-from app.schemas.capabilities import CapabilitiesOut, StorageModeUpdate
+from app.schemas.capabilities import CapabilitiesOut, ReviewMailUpdate, StorageModeUpdate
 from app.schemas.user import AccountDeletionRequestIn
 from app.services import account_mail
 from app.services import audit as audit_svc
@@ -45,6 +45,7 @@ def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
         features=caps.features,
         sharing_paused=teacher.sharing_paused,
         share_new_exercises=teacher.share_new_exercises,
+        review_mail=teacher.review_mail,
     )
 
 
@@ -78,6 +79,13 @@ async def set_storage_mode(
     await db.flush()
     return _capabilities_out(teacher)
 
+
+@router.put("/review-mail")
+async def set_review_mail(body: ReviewMailUpdate, teacher: TeachingTeacher, db: DB) -> CapabilitiesOut:
+    """Switch the mail on a student's objection on or off (issue #226)."""
+    teacher.review_mail = body.review_mail
+    await db.flush()
+    return _capabilities_out(teacher)
 
 
 @router.post(

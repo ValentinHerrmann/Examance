@@ -69,6 +69,8 @@ class Teacher(Base):
     )
     # Answer to the share question after saving an exercise (issue #263): null asks, true always shares, false never.
     share_new_exercises: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Mail on a student's objection (issue #226): null = on, false = off.
+    review_mail: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     # LaTeX packages added to every document of the account (#108, app/services/latex_packages.py).
     latex_packages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

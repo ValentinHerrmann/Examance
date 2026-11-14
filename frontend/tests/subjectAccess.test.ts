@@ -5,6 +5,7 @@ import { db } from '../src/lib/db/db';
 import { exportStudentData } from '../src/lib/gdpr/subjectAccess';
 import { keyFromRaw, pseudonymBase } from '../src/lib/crypto/pseudonymKey';
 import { examRepository } from '../src/lib/repositories/examRepository';
+import { reviewRepository } from '../src/lib/repositories/reviewRepository';
 import { scoreRepository } from '../src/lib/repositories/scoreRepository';
 import { studentRepository } from '../src/lib/repositories/studentRepository';
 import { submissionRepository } from '../src/lib/repositories/submissionRepository';
@@ -38,6 +39,8 @@ describe('exportStudentData (Art. 15)', () => {
     vi.spyOn(scoreRepository, 'getBySubmissionId').mockImplementation(async (_exam, subId) =>
       subId === 's1' ? ([{ exerciseId: 'e1', score: 7 }] as never) : ([] as never),
     );
+
+    vi.spyOn(reviewRepository, 'getBySubmission').mockResolvedValue(null);
 
     const out = await exportStudentData({ examId: EXAM, pseudonymHmac: RAW });
 

@@ -7,6 +7,7 @@
   import { loadExamExercisesEncrypted } from "#lib/db/dbEncryption";
   import { examHasWithheldCode } from "#lib/exam/examPreview";
   import { runExamsExport } from "#lib/export/examExport";
+  import { examHasReviews } from "#lib/sharing/reviewService";
   import { examExportOptions } from "#lib/export/examExportOptions";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { examStepHref } from "#lib/components/layout/examNavItems";
@@ -21,6 +22,7 @@
 
   // Null until known: ExportOptionsModal reads its options once, when it mounts.
   let withheld: boolean | null = $state(null);
+  let hasReviews: boolean | null = $state(null);
 
   onMount(async () => {
     try {
@@ -28,6 +30,8 @@
       const key = get(sessionStore).sessionKey;
       const lists = await Promise.all(exams.map((exam) => loadExamExercisesEncrypted(exam.id, key)));
       withheld = lists.some((list) => examHasWithheldCode(list));
+      const found = await Promise.all(exams.map((exam) => examHasReviews(exam.id)));
+      hasReviews = found.includes(null) ? null : found.includes(true);
     } catch {
       withheld = false;
     }
@@ -40,7 +44,9 @@
   <ExportOptionsModal
     title={$t("export.exam.title")}
     {options}
-    run={(selected, progress) => runExamsExport(exams, selected, progress)}
+    withReview
+    {hasReviews}
+    run={(selected, progress, reviewPrint) => runExamsExport(exams, selected, progress, reviewPrint)}
     backup={{ examIds: exams.map((exam) => exam.id), name: exams.length === 1 ? exams[0].title || "exam" : "exams" }}
     {onClose}
   >

@@ -33,6 +33,9 @@
 </script>
 
 {#if status}
+  {#if status.objections}
+    <Badge size="xs" severity="warning" title={$t("review.students.navBadge", { count: status.objections })}>{status.objections}</Badge>
+  {/if}
   {#if status.alert}
     <Badge size="xs" severity="danger" title={$t("sharing.delivery.badge", { count: status.alert })}>{status.alert}</Badge>
   {:else if status.count !== undefined && status.total !== undefined}

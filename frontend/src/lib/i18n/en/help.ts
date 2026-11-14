@@ -257,6 +257,10 @@ export const help: Translations['help'] = {
                 h: 'Share with students',
                 p1: '“Share with students” on the exam page gives each student a personal link to their graded exam, printed on slips to hand out. The sample solution can be added. Students only view both in the browser, without a download; encryption happens in the browser, the server cannot read anything, and the links expire.',
             },
+            s6: {
+                h: 'Objections to the grading',
+                p1: 'With “Allow objections until …” when sharing, students can object to each (sub)exercise through their link (500 characters at most). You answer on the grading page under the exercise; “Send reply” updates the result under the same link and can notify the student by e-mail.',
+            },
         },
         analytics: {
             title: 'Cross-exam analytics',

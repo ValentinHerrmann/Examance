@@ -31,6 +31,40 @@ export const exportNs: Translations['export'] = {
         'Overleaf: import the ZIP via "New project > Upload project", then pick XeLaTeX under "Menu > Compiler".\n' +
         'Locally: run latexmk in the folder (the bundled latexmkrc selects XeLaTeX) or run "xelatex <file>.tex" twice.\n\n' +
         'The sty/ and img/ folders hold the bundled packages and images; the .sty files are also copied flat into the folder because some are loaded by bare name.\n',
+    review: {
+        title: 'Review',
+        legend: 'Print the review (student objections) in the graded PDFs',
+        noReviews: 'This exam has no objections yet, so no review is printed.',
+        noReviewsStudent: 'This paper has no objection, so no review is printed.',
+        options: {
+            short: 'Short note under the score box',
+            shortHint: 'One small red line such as "Review: 3 -> 4 pts" right under the exercise\'s score box; the scan stays uncovered.',
+            side: 'Side strip',
+            sideHint: 'Pages with an objection get a 55 mm strip on the outer side with objection, reply and points; the scan is unchanged.',
+            bottom: 'Bottom strip',
+            bottomHint: 'Pages with an objection get a 40 mm strip at the bottom; the objections stand side by side, each under its exercise.',
+            summary: 'Summary page at the end',
+            summaryHint: 'One A4 page at the end lists all objections and replies.',
+            attach: 'Attach the full text',
+            attachHint: 'All objections and replies in full as a text file inside the PDF, so even a shortened text is never lost.',
+            attachCombined: 'Not possible: attachments are lost when merging into one file. The ZIP contains them.',
+            attachShare: 'Not possible: students view the PDF view-only, without attachments.',
+            attachNeedsSingle: 'Not possible: attachments are lost when merging into one file. Choose the individual graded scans.',
+        },
+        download: {
+            title: 'Download graded PDF',
+            confirm: 'Download',
+        },
+        pdf: {
+            title: 'Review: objections and replies',
+            review: 'Review',
+            points: 'pts',
+            objection: 'Objection',
+            reply: 'Reply',
+            truncated: '… (full text attached)',
+            truncatedNoAttachment: '… (shortened)',
+        },
+    },
     exam: {
         title: 'Export exam',
         notice:

@@ -22,12 +22,14 @@ import {
   encryptAuditEntry,
   encryptExam,
   encryptExercise,
+  encryptReview,
   encryptScore,
   openAnnotation,
   openScan,
   sealAnnotation,
   sealScan,
 } from '#lib/db/dbEncryption';
+import { reviewRepository, toApi as reviewToApi } from '#lib/repositories/reviewRepository';
 import { scoreRepository, toApi as scoreToApi } from '#lib/repositories/scoreRepository';
 import { studentServerPayload } from '#lib/repositories/studentRepository';
 import { submissionServerPayload } from '#lib/repositories/submissionRepository';
@@ -423,6 +425,33 @@ async function importScoreGroup(
   }
 }
 
+/** Review threads follow their submission (issue #226); one per submission, so a re-import upserts. */
+async function importReviews(ctx: ApplyContext, remapSubmission: (id: string) => string, examOf: Map<string, string>): Promise<void> {
+  const { report, errors, local, activeKey } = ctx;
+  for (const review of asList(ctx.payload.gradingReviews)) {
+    const submissionId = remapSubmission(review.submissionId);
+    const archivedExamId = examOf.get(submissionId);
+    if (!archivedExamId) {
+      errors.push(`A grading review references submission ${review.submissionId}, which was not imported. It was skipped.`);
+      bump(report, 'reviews', 'failed');
+      continue;
+    }
+    const examId = ctx.remap(archivedExamId) ?? archivedExamId;
+    const record = { ...review, submissionId, id: submissionId !== review.submissionId ? crypto.randomUUID() : review.id };
+    try {
+      if (local) await reviewRepository.save(examId, record, activeKey); // NOSONAR: one submission at a time
+      else {
+        const sealed = await encryptReview(record, activeKey); // NOSONAR: one submission at a time
+        await api.put(`/exams/${examId}/submissions/${submissionId}/grading-review`, reviewToApi(sealed), { silentError: true }); // NOSONAR: one submission at a time
+      }
+      bump(report, 'reviews', 'created');
+    } catch (err) {
+      errors.push(`Grading review of submission ${submissionId}: ${describe(err)}`);
+      bump(report, 'reviews', 'failed');
+    }
+  }
+}
+
 /** Students, submissions and scores go where the account keeps them: this browser in hybrid mode (through the repositories), the server in all-server mode. Server writes are direct, so a rejection is reported here instead of disappearing into the offline queue. */
 async function importResults(ctx: ApplyContext): Promise<void> {
   const { payload } = ctx;
@@ -452,6 +481,7 @@ async function importResults(ctx: ApplyContext): Promise<void> {
   for (const [submissionId, scores] of bySubmission) {
     await importScoreGroup(ctx, archivedExamBySubmission, submissionId, scores); // NOSONAR: one submission at a time
   }
+  await importReviews(ctx, remapSubmission, archivedExamBySubmission);
 }
 
 /** MC groups before the junctions (which carry mcGroupId). A group whose exam got a fresh id needs its own fresh id too, else re-importing into the source DB would rewrite the original exam's groups. Both sides share one map, so membership survives. */

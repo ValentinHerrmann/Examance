@@ -12,10 +12,11 @@ from datetime import UTC, date, datetime, timedelta
 import httpx
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.result_delivery import ResultDelivery
 from app.models.teacher import Teacher
 from app.services import account_mail, artemis
 
@@ -337,6 +338,46 @@ async def test_mail_is_sent_and_failures_are_counted(
     assert resp.json() == {"sent": 1, "failed": [1]}
     assert sent[0].subject == "Deine korrigierte Prüfung: Analysis I"
     assert RESULT_URL in sent[0].text
+
+
+@pytest.mark.asyncio
+async def test_review_reply_mail_is_not_a_tracked_delivery(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _teacher(client, db, "reply@example.com")
+    sent: list[account_mail.Mail] = []
+
+    async def fake_send(mail: account_mail.Mail) -> bool:
+        sent.append(mail)
+        return len(sent) == 1
+
+    monkeypatch.setattr(account_mail, "send", fake_send)
+    exam_id = await _exam(client)
+    body = _mail_body(exam_id=exam_id)
+    rows = select(ResultDelivery).where(ResultDelivery.exam_id == uuid.UUID(exam_id))
+    body["kind"] = "review_reply"
+    ok = await client.post(API + "/mail/results", json=body)
+    assert ok.json() == {"sent": 1, "failed": []}
+    assert await db.scalar(rows) is None
+    failed = await client.post(API + "/mail/results", json=body)
+    assert failed.json() == {"sent": 0, "failed": [0]}
+    assert await db.scalar(rows) is None
+    assert sent[0].envelope is None or sent[0].envelope.message_id is None
+
+    body["kind"] = "result"
+    monkeypatch.setattr(account_mail, "send", lambda mail: _true())
+    assert (await client.post(API + "/mail/results", json=body)).json()["sent"] == 1
+    row = await db.scalar(rows)
+    assert row is not None
+    before = (row.status, row.mail_token, row.updated_at)
+    body["kind"] = "review_reply"
+    assert (await client.post(API + "/mail/results", json=body)).json()["sent"] == 1
+    await db.refresh(row)
+    assert (row.status, row.mail_token, row.updated_at) == before
+
+
+async def _true() -> bool:
+    return True
 
 
 @pytest.mark.asyncio

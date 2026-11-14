@@ -13,6 +13,8 @@ import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { renderGradedPdf } from './gradedPdf';
+import { anyReviewPrint, DEFAULT_REVIEW_PRINT, type ReviewPrintOptions } from './reviewPrint';
+import { reviewRepository } from '#lib/repositories/reviewRepository';
 import { loadScoreBoxContext } from '#lib/grading/scoreBoxes';
 import { addLatexProjectFiles } from './latexAssets';
 import type { ExportProgress, ExportResult } from './progress';
@@ -22,7 +24,7 @@ import { addExerciseFolder } from './exerciseExport';
 import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExamZipManifest } from './zipManifest';
 import { examRepository } from '#lib/repositories/examRepository';
 import { getAccountPackages } from '#lib/latex/packageSettings';
-import type { ExerciseRecord } from '#lib/db/schema';
+import type { ExerciseRecord, GradingReviewItem } from '#lib/db/schema';
 import { snapshotRecords } from '#lib/analytics/statisticsSnapshot';
 import { statisticsRepository } from '#lib/repositories/statisticsRepository';
 
@@ -37,7 +39,8 @@ type CompileInput = ExamContext & { examItems: ReturnType<typeof buildExamItems>
 export async function runExamExport(
   examId: string,
   selected: Set<string>,
-  progress: ExportProgress
+  progress: ExportProgress,
+  reviewPrint: ReviewPrintOptions = DEFAULT_REVIEW_PRINT
 ): Promise<ExportResult> {
   await awaitSessionReady();
   const { sessionKey: key, fallbackSessionKey } = get(sessionStore);
@@ -79,7 +82,7 @@ export async function runExamExport(
     });
   }
   if (has('graded') || has('gradedCombined') || has('summary') || has('csv')) {
-    await addResultParts({ zip, ctx, compileInput, examSlug, key, fallbackKey: fallbackSessionKey, has, part, progress, warnings });
+    await addResultParts({ zip, ctx, compileInput, examSlug, key, fallbackKey: fallbackSessionKey, has, part, progress, warnings, reviewPrint });
   }
 
   return { zip, fileName: `${examSlug}_${exportDateStamp()}.zip`, warnings };
@@ -89,16 +92,17 @@ export async function runExamExport(
 export async function runExamsExport(
   exams: readonly { id: string; title: string }[],
   selected: Set<string>,
-  progress: ExportProgress
+  progress: ExportProgress,
+  reviewPrint: ReviewPrintOptions = DEFAULT_REVIEW_PRINT
 ): Promise<ExportResult> {
-  if (exams.length === 1) return runExamExport(exams[0].id, selected, progress);
+  if (exams.length === 1) return runExamExport(exams[0].id, selected, progress, reviewPrint);
   const zip = new ZipBuilder();
   const warnings: string[] = [];
   for (const [i, exam] of exams.entries()) {
     const title = exam.title || translate('dashboard.examList.untitledExam');
     const step: ExportProgress = (s, done, total) => progress(translate('export.exam.steps.ofMany', { n: i + 1, total: exams.length, step: s }), done, total);
     try {
-      const res = await runExamExport(exam.id, selected, step); // NOSONAR: one exam at a time keeps memory bounded
+      const res = await runExamExport(exam.id, selected, step, reviewPrint); // NOSONAR: one exam at a time keeps memory bounded
       zip.merge(slug(title, 'exam'), res.zip);
       warnings.push(...res.warnings.map((w) => `${title}: ${w}`));
     } catch (err) {
@@ -120,6 +124,7 @@ async function addResultParts(o: {
   part: (name: TranslationKey, run: () => Promise<void>) => Promise<void>;
   progress: ExportProgress;
   warnings: string[];
+  reviewPrint: ReviewPrintOptions;
 }): Promise<void> {
   const { zip, ctx, has, progress } = o;
   progress(translate('export.exam.steps.results'));
@@ -133,7 +138,7 @@ async function addResultParts(o: {
   }
   if (!has('graded') && !has('gradedCombined')) return;
   const combined = has('gradedCombined') ? await pdfCollector(ctx.exam.title || 'exam', true) : null;
-  o.warnings.push(...(await addGradedScans(zip, results, o.key, o.fallbackKey, progress, has('graded'), combined)));
+  o.warnings.push(...(await addGradedScans({ zip, results, key: o.key, fallbackKey: o.fallbackKey, progress, singleFiles: has('graded'), combined, reviewPrint: o.reviewPrint })));
   if (combined && combined.pageCount > 0) zip.add(`${o.examSlug}_graded_all.pdf`, await combined.save());
 }
 
@@ -258,14 +263,25 @@ export async function loadResults({ exam, exercises, key }: Pick<CompileInput, '
   return { submissions, students, scoreRecords, computed, rows };
 }
 
-/** Renders one submission at a time to keep memory bounded; a failing scan becomes a warning. */
+/** The objections per submission id; nothing is read when no review part is chosen, and a failed read becomes a warning. */
+async function loadReviewItems(examId: string, key: CryptoKey, options: ReviewPrintOptions, warnings: string[]): Promise<Map<string, GradingReviewItem[]>> {
+  const bySubmission = new Map<string, GradingReviewItem[]>();
+  if (!anyReviewPrint(options)) return bySubmission;
+  try {
+    for (const rec of await reviewRepository.listByExam(examId, key)) bySubmission.set(rec.submissionId, rec.items);
+  } catch (err) {
+    warnings.push(translate('export.exam.warnings.failed', { part: translate('export.review.title'), error: errorText(err) }));
+  }
+  return bySubmission;
+}
+
 /** Renders the graded PDF of each submission (one at a time, which keeps memory bounded) and hands it to *onPdf*; a submission without a scan or a failing render becomes a warning. *only* limits it to those submission ids. */
 export async function forEachGradedPdf(
   { submissions, scoreRecords, computed, rows }: LoadedResults,
   key: CryptoKey,
   fallbackKey: CryptoKey | null,
   onPdf: (pdf: Uint8Array, row: GradeRow | undefined, state: GradingState, name: string) => Promise<void> | void,
-  options: { only?: ReadonlySet<string>; progress?: (done: number, total: number) => void } = {}
+  options: { only?: ReadonlySet<string>; progress?: (done: number, total: number) => void; reviewPrint?: ReviewPrintOptions } = {}
 ): Promise<string[]> {
   const warnings: string[] = [];
   const resultBySubmission = new Map(computed.stats.results.map((r) => [r.submissionId, r]));
@@ -274,6 +290,8 @@ export async function forEachGradedPdf(
   for (const sc of scoreRecords) scoresBySubmission.set(sc.submissionId, [...(scoresBySubmission.get(sc.submissionId) ?? []), sc]);
   const chosen = options.only ? submissions.filter((sub) => options.only?.has(sub.id)) : submissions;
   const scoreBoxes = chosen.length > 0 ? await loadScoreBoxContext(chosen[0].examId, key) : null;
+  const reviewPrint = options.reviewPrint ?? DEFAULT_REVIEW_PRINT;
+  const reviewBySubmission = chosen.length > 0 ? await loadReviewItems(chosen[0].examId, key, reviewPrint, warnings) : new Map<string, GradingReviewItem[]>();
 
   for (const [i, sub] of chosen.entries()) {
     options.progress?.(i, chosen.length);
@@ -290,7 +308,7 @@ export async function forEachGradedPdf(
         warnings.push(translate('export.exam.warnings.noScan', { name }));
         continue;
       }
-      const pdf = await renderGradedPdf(full, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes, studentName: row?.studentName }); // NOSONAR: one scan at a time keeps memory bounded
+      const pdf = await renderGradedPdf(full, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey, scoreBoxes, studentName: row?.studentName, review: { items: reviewBySubmission.get(sub.id) ?? [], options: reviewPrint } }); // NOSONAR: one scan at a time keeps memory bounded
       await onPdf(pdf, row, gradingState(resultBySubmission.get(sub.id)), name); // NOSONAR: one scan at a time keeps memory bounded
     } catch (err) {
       warnings.push(translate('export.exam.warnings.gradedOne', { name, error: errorText(err) }));
@@ -304,24 +322,29 @@ export function mebisFeedbackPath(name: string, participantId: string): string {
   return `Participant_${participantId}_assignsubmission_file_/${slug(name)}_${participantId}.pdf`;
 }
 
-function addGradedScans(
-  zip: ZipBuilder,
-  results: LoadedResults,
-  key: CryptoKey,
-  fallbackKey: CryptoKey | null,
-  progress: ExportProgress,
-  singleFiles: boolean,
-  combined: PdfCollector | null
-): Promise<string[]> {
+/** Merging drops attachments, so a run that feeds a combined file never attaches the review, in the single files either. */
+const withoutAttachment = (options: ReviewPrintOptions): ReviewPrintOptions => ({ ...options, attach: false });
+
+/** Renders every graded scan into the ZIP's single files and/or the combined print file. */
+export function addGradedScans(o: {
+  zip: ZipBuilder;
+  results: LoadedResults;
+  key: CryptoKey;
+  fallbackKey: CryptoKey | null;
+  progress: ExportProgress;
+  singleFiles: boolean;
+  combined: PdfCollector | null;
+  reviewPrint: ReviewPrintOptions;
+}): Promise<string[]> {
   return forEachGradedPdf(
-    combined ? byStudentName(results) : results,
-    key,
-    fallbackKey,
+    o.combined ? byStudentName(o.results) : o.results,
+    o.key,
+    o.fallbackKey,
     async (pdf, _row, state, name) => {
-      if (singleFiles) zip.add(`graded/${slug(name)}${GRADED_SUFFIX[state]}.pdf`, pdf);
-      await combined?.add(pdf);
+      if (o.singleFiles) o.zip.add(`graded/${slug(name)}${GRADED_SUFFIX[state]}.pdf`, pdf);
+      await o.combined?.add(pdf);
     },
-    { progress: (done, total) => progress(translate('export.exam.steps.graded'), done, total) }
+    { progress: (done, total) => o.progress(translate('export.exam.steps.graded'), done, total), reviewPrint: o.combined ? withoutAttachment(o.reviewPrint) : o.reviewPrint }
   );
 }
 
@@ -356,10 +379,10 @@ function byStudentName(results: LoadedResults): LoadedResults {
   return { ...results, submissions };
 }
 
-/** Every graded PDF of the exam in one file, sorted by name, for printing and archiving (Archive tab, issue #212); null when no submission has a scan. Writes the export audit entry, as the ZIP does. */
+/** Every graded PDF of the exam in one file, sorted by name, for printing and archiving (Archive tab, issue #212); null when no submission has a scan. Attachments do not survive the merge, so the review is never attached here. Writes the export audit entry, as the ZIP does. */
 export async function renderCombinedGradedPdf(
   examId: string,
-  options: { duplex?: boolean; progress?: (done: number, total: number) => void } = {}
+  options: { duplex?: boolean; progress?: (done: number, total: number) => void; reviewPrint?: ReviewPrintOptions } = {}
 ): Promise<{ pdf: Uint8Array | null; pageCount: number; warnings: string[] }> {
   await awaitSessionReady();
   const { sessionKey: key, fallbackSessionKey } = get(sessionStore);
@@ -369,6 +392,6 @@ export async function renderCombinedGradedPdf(
   await logExportAction(examId, 'PDF', key);
   const results = await loadResults({ exam: ctx.exam, exercises: ctx.exercises, key });
   const combined = await pdfCollector(ctx.exam.title || 'exam', options.duplex ?? true);
-  const warnings = await forEachGradedPdf(byStudentName(results), key, fallbackSessionKey, (pdf) => combined.add(pdf), { progress: options.progress });
+  const warnings = await forEachGradedPdf(byStudentName(results), key, fallbackSessionKey, (pdf) => combined.add(pdf), { progress: options.progress, reviewPrint: options.reviewPrint && withoutAttachment(options.reviewPrint) });
   return { pdf: combined.pageCount > 0 ? await combined.save() : null, pageCount: combined.pageCount, warnings };
 }

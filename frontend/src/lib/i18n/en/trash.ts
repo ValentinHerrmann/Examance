@@ -48,6 +48,7 @@ export const trash: Translations['trash'] = {
         student_identities: 'Students: {count}',
         scan_submissions: 'Scans: {count}',
         exercise_scores: 'Points: {count}',
+        grading_reviews: 'Objections: {count}',
         teacher_logos: 'Logo',
         exercise_contributions: 'Proposal',
         exercise_contribution_resources: 'Proposal files: {count}',

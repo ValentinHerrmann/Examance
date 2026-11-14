@@ -260,6 +260,29 @@ export interface ExerciseScoreRecord extends MaybeUndecryptable {
   payloadIv?: Uint8Array;
 }
 
+/** One objection and reply item of a grading review (issue #226); `key` is an exercise id or `${exerciseId}#${part}`. */
+export interface GradingReviewItem {
+  key: string;
+  label: string;
+  objection: string;
+  reply: string;
+  pointsBefore: number | null;
+  pointsAfter: number | null;
+}
+
+/** The objection thread of one submission, kept after the result link is gone; one per submission, sealed as one payload. */
+export interface GradingReviewRecord extends MaybeUndecryptable {
+  id: string;
+  submissionId: string;
+  items: GradingReviewItem[];
+  submittedAt: string | null;
+  repliedAt: string | null;
+  /** AES-256-GCM encrypted payload containing items, submittedAt and repliedAt. */
+  payloadCt?: Uint8Array;
+  /** 12-byte GCM IV for payloadCt. */
+  payloadIv?: Uint8Array;
+}
+
 /** A pupil's identity within one exam. `fallbackCode`, `studentName`, `studentNumber` exist only on records returned by `decryptStudent()`; stored, they live solely inside `payloadCt`. Writing them back as plain columns is the L17 leak (docs/legal_audit_dsgvo.md) that broke Core Invariant 1. */
 export interface StudentRecord extends MaybeUndecryptable {
   examId: string;
@@ -457,6 +480,7 @@ export interface LocalTrashRecord {
     examStudents?: StudentRecord[];
     submissions?: SubmissionRecord[];
     exerciseScores?: ExerciseScoreRecord[];
+    gradingReviews?: GradingReviewRecord[];
   };
   /** Submissions as they were before an in-place clear (grading); put back only while still cleared. */
   cleared?: SubmissionRecord[];

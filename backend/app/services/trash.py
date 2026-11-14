@@ -40,6 +40,7 @@ from app.models.exercise_contribution import ExerciseContribution, ExerciseContr
 from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.exercise_score import ExerciseScore
+from app.models.grading_review import GradingReview
 from app.models.logo import ExamLogo, TeacherLogo
 from app.models.omr_template_pin import OmrTemplatePin
 from app.models.scan_submission import ScanSubmission
@@ -63,11 +64,14 @@ TABLE_ORDER: tuple[str, ...] = (
     "student_identities",
     "scan_submissions",
     "exercise_scores",
+    "grading_reviews",
     "teacher_logos",
     "exercise_contribution_resources",
 )
 # Grading results: restoring them is a result write (server_results gate).
-RESULT_TABLES = frozenset({"student_identities", "scan_submissions", "exercise_scores"})
+RESULT_TABLES = frozenset(
+    {"student_identities", "scan_submissions", "exercise_scores", "grading_reviews"}
+)
 _CHUNK = 500
 
 logger = logging.getLogger(__name__)
@@ -213,9 +217,12 @@ def _decode_doc(payload: bytes) -> dict[str, Any]:
 
 
 async def _scores_of(snap: Snapshot, db: AsyncSession, sub_ids: Iterable[uuid.UUID]) -> None:
+    """The per-exercise scores and the grading review records, which follow their submissions."""
     ids = list(sub_ids)
     for start in range(0, len(ids), _CHUNK):
-        await snap.add(db, ExerciseScore, ExerciseScore.submission_id.in_(ids[start : start + _CHUNK]))
+        chunk = ids[start : start + _CHUNK]
+        await snap.add(db, ExerciseScore, ExerciseScore.submission_id.in_(chunk))
+        await snap.add(db, GradingReview, GradingReview.submission_id.in_(chunk))
 
 
 async def snapshot_exam(db: AsyncSession, exam: Exam) -> Snapshot:

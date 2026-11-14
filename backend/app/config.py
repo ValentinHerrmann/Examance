@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     BODY_LIMIT_LAYOUT_REPORT: int = 30 * 1024 * 1024  # 30 MB
     # One shared result PDF (issue #207): RESULT_SHARE_MAX_BYTES raw, base64-inflated, plus JSON slack.
     BODY_LIMIT_RESULT_SHARE: int = 34 * 1024 * 1024  # 34 MB
+    # An objection, its withdrawal or a reply (issue #226): 500 characters per item, sealed and base64-inflated.
+    BODY_LIMIT_SHARE_REVIEW: int = 64 * 1024  # 64 KB
     # A graded PDF relayed to Artemis (10 MB file plus form fields).
     BODY_LIMIT_INTEGRATION_FILE: int = 11 * 1024 * 1024  # 11 MB
     # One pinned OMR template (issue #239): 4 MiB ciphertext cap, base64-inflated, plus JSON slack.

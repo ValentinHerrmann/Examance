@@ -4,6 +4,7 @@
   import { t } from "#lib/i18n";
   import { faBullseye, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon, controlClass, controlSmClass } from "#lib/components/ui";
+  import ReviewThread from "./ReviewThread.svelte";
 
   interface Props {
     label: Snippet;
@@ -19,13 +20,15 @@
     readonlyReason?: string;
     warning?: string;
     inputId?: string;
+    /** Item key of this row in a grading review (issue #226): the student's objection is shown under the row. */
+    reviewKey?: string;
     ariaLabel?: string;
     onSelect: () => void;
     onValue: (value: number | null) => void;
     onReset: () => void;
   }
 
-  let { label, value, max, maxLabel, active, manual, nested = false, readonlyReason, warning, inputId, ariaLabel, onSelect, onValue, onReset }: Props = $props();
+  let { label, value, max, maxLabel, active, manual, nested = false, readonlyReason, warning, inputId, reviewKey, ariaLabel, onSelect, onValue, onReset }: Props = $props();
 
   function handleInput(e: Event) {
     const raw = (e.currentTarget as HTMLInputElement).value.trim();
@@ -88,3 +91,7 @@
     <span class="size-2 shrink-0 rounded-full bg-warning" title={$t("grading.scoreEntry.manualEdit")}></span>
   {/if}
 </div>
+
+{#if reviewKey}
+  <ReviewThread itemKey={reviewKey} {nested} />
+{/if}
