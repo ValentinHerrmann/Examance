@@ -99,8 +99,8 @@ function scoreInputsOf(scores: ExerciseScoreRecord[]) {
 function drawReviewOnPage(c: RenderContext, pdfPage: PDFPage, placed: PlacedItem[], geom: StripGeometry): void {
   if (!c.headerFont || placed.length === 0) return;
   if (c.reviewOptions.short) drawShortNotes(c.lib, pdfPage, c.headerFont, placed, c.labels, { x: geom.imageX, y: geom.imageY });
-  if (geom.sideX !== null) drawStrip(c.lib, pdfPage, c.headerFont, placed, c.labels, geom.sideX);
-  else if (geom.bottom) drawBottomStrip(c.lib, pdfPage, c.headerFont, placed, c.labels);
+  if (geom.sideX !== null) drawStrip(c.lib, pdfPage, c.headerFont, placed, c.labels, geom);
+  else if (geom.bottom) drawBottomStrip(c.lib, pdfPage, c.headerFont, placed, c.labels, geom);
 }
 
 /** Burns strokes, OMR and score boxes onto a page canvas and appends it; `pointsPerPixel` maps pixels to PDF pt. `alignBoxes` is false for scans that are not the printed booklet page for page. */

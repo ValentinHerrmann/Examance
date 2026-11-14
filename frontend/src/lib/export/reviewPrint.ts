@@ -6,7 +6,7 @@ import { findScoreBox, SCORE_BOX_SCAN_SCALE, type ScoreBoxContext } from '#lib/g
 import { pdfRectToNormalized, type Homography } from '#lib/grading/omrRegistration';
 import { formatPoints } from '#lib/grading/omrOverlay';
 import { translate } from '#lib/i18n';
-import { fitText, wrapText, type PdfLib } from '#lib/pdf/labelKit';
+import { drawScissorLine, fitText, wrapText, type PdfLib } from '#lib/pdf/labelKit';
 import { makeSafeText } from './summaryPdf';
 
 /** Which strip is added around the scan; side and bottom exclude each other. */
@@ -243,19 +243,65 @@ function sanitized(font: PDFFont, items: readonly GradingReviewItem[], labels: R
   };
 }
 
-/** Fills the 55 mm strip on the outer side (`x0` = its left edge) with the items level with their score boxes. */
-export function drawStrip(lib: PdfLib, page: PDFPage, font: PDFFont, placed: readonly PlacedItem[], labels: ReviewLabels, x0: number): void {
+/** Constant German on purpose: PDF exam output is German by rule, so it is no i18n key. */
+export const REVIEW_STRIP_CAPTION = 'Ergänzung: Einsicht – nicht Teil der Arbeit';
+const CAPTION_SIZE = 6.5;
+const CAPTION_GRAY = 0.3;
+const STRIP_BACKGROUND_GRAY = 0.93;
+const EDGE_GRAY = 0.35;
+const EDGE_THICKNESS = 0.6;
+
+export interface StripFrame {
+  /** The strip rectangle (PDF y, up). */
+  rect: { x: number; y: number; width: number; height: number };
+  /** The dashed line along the paper edge, drawn inside the strip so the scan stays uncovered. */
+  edge: { from: { x: number; y: number }; to: { x: number; y: number } };
+}
+
+/** Where the strip lies on the page and its paper-edge line; null when the page has no strip. */
+export function stripFrame(geom: StripGeometry): StripFrame | null {
+  const inset = EDGE_THICKNESS / 2;
+  if (geom.sideX !== null) {
+    const leftStrip = geom.sideX === 0;
+    const x = leftStrip ? STRIP_WIDTH_PT - inset : geom.sideX + inset;
+    return { rect: { x: geom.sideX, y: 0, width: STRIP_WIDTH_PT, height: geom.height }, edge: { from: { x, y: 0 }, to: { x, y: geom.height } } };
+  }
+  if (!geom.bottom) return null;
+  const y = BOTTOM_STRIP_HEIGHT_PT - inset;
+  return { rect: { x: 0, y: 0, width: geom.width, height: BOTTOM_STRIP_HEIGHT_PT }, edge: { from: { x: 0, y }, to: { x: geom.width, y } } };
+}
+
+/** Room the caption of *lines* lines takes below the strip's top padding, including a gap to the first block. */
+export const captionHeight = (lines: number): number => lines * CAPTION_SIZE * 1.2 + STRIP_PAD;
+
+/** Grey strip background, dashed edge with scissors and the caption wrapped to *box.width* at *box.top*; returns the room the caption takes. */
+function drawStripFrame(lib: PdfLib, page: PDFPage, font: PDFFont, frame: StripFrame, box: { x: number; top: number; width: number }): number {
+  const { rect } = frame;
+  const gray = (g: number) => lib.rgb(g, g, g);
+  page.drawRectangle({ ...rect, color: gray(STRIP_BACKGROUND_GRAY) });
+  drawScissorLine(lib, page, frame.edge, { gray: EDGE_GRAY, thickness: EDGE_THICKNESS });
+  const lines = wrapText(font, makeSafeText(font)(REVIEW_STRIP_CAPTION), CAPTION_SIZE, box.width);
+  lines.forEach((text, i) => page.drawText(text, { x: box.x, y: box.top - CAPTION_SIZE - i * CAPTION_SIZE * 1.2, size: CAPTION_SIZE, font, color: gray(CAPTION_GRAY) }));
+  return captionHeight(lines.length);
+}
+
+/** Fills the 55 mm strip on the outer side with the items level with their score boxes, below the caption. */
+export function drawStrip(lib: PdfLib, page: PDFPage, font: PDFFont, placed: readonly PlacedItem[], labels: ReviewLabels, geom: StripGeometry): void {
   const { height } = page.getSize();
   const margin = 24;
+  const frame = stripFrame(geom);
+  if (!frame) return;
+  const width = STRIP_WIDTH_PT - 2 * STRIP_PAD;
+  const caption = drawStripFrame(lib, page, font, frame, { x: frame.rect.x + STRIP_PAD, top: height - STRIP_PAD, width });
   const clean = sanitized(font, placed.map((p) => p.item), labels);
   const layout = layoutBlocks(font, clean.items, clean.labels, {
-    width: STRIP_WIDTH_PT - 2 * STRIP_PAD,
-    pageTop: height - margin,
+    width,
+    pageTop: Math.min(height - margin, height - STRIP_PAD - caption),
     bottom: margin,
     sizes: [8, 7, 6.5, 6],
     tops: placed.map((p) => p.y1),
   });
-  drawBlocks(lib, page, font, layout, x0 + STRIP_PAD, margin);
+  drawBlocks(lib, page, font, layout, frame.rect.x + STRIP_PAD, margin);
 }
 
 const COLUMN_GAP = 6;
@@ -293,16 +339,19 @@ export function bottomColumns(xs: readonly number[], width: number): StripColumn
   return out;
 }
 
-/** Fills the bottom strip (`BOTTOM_STRIP_HEIGHT_PT` high, from y = 0) with the items side by side in reading order, each under its score box's x where it fits. */
-export function drawBottomStrip(lib: PdfLib, page: PDFPage, font: PDFFont, placed: readonly PlacedItem[], labels: ReviewLabels): void {
+/** Fills the bottom strip (`BOTTOM_STRIP_HEIGHT_PT` high, from y = 0) below its caption with the items side by side in reading order, each under its score box's x where it fits. */
+export function drawBottomStrip(lib: PdfLib, page: PDFPage, font: PDFFont, placed: readonly PlacedItem[], labels: ReviewLabels, geom: StripGeometry): void {
   const { width } = page.getSize();
+  const frame = stripFrame(geom);
+  if (!frame) return;
+  const caption = drawStripFrame(lib, page, font, frame, { x: STRIP_PAD, top: BOTTOM_STRIP_HEIGHT_PT - STRIP_PAD, width: width - 2 * STRIP_PAD });
   const sorted = [...placed].sort((a, b) => a.x0 - b.x0 || b.y1 - a.y1);
   const clean = sanitized(font, sorted.map((p) => p.item), labels);
   for (const col of bottomColumns(sorted.map((p) => p.x0), width)) {
     const items = clean.items.slice(col.from, col.to);
     const layout = layoutBlocks(font, items, clean.labels, {
       width: col.w,
-      pageTop: BOTTOM_STRIP_HEIGHT_PT - STRIP_PAD,
+      pageTop: BOTTOM_STRIP_HEIGHT_PT - STRIP_PAD - caption,
       bottom: STRIP_PAD,
       sizes: [7, 6.5, 6, 5.5],
       tops: items.map(() => null),

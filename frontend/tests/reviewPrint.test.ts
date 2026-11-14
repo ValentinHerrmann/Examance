@@ -5,6 +5,7 @@ import {
   anyReviewPrint,
   BOTTOM_STRIP_HEIGHT_PT,
   bottomColumns,
+  captionHeight,
   DEFAULT_REVIEW_PRINT,
   layoutBlocks,
   NO_REVIEW_PRINT,
@@ -13,11 +14,13 @@ import {
   reviewAttachmentText,
   shareReviewOptions,
   shortText,
+  stripFrame,
   STRIP_WIDTH_PT,
   stripGeometry,
   toggleReviewOption,
   type ReviewLabels,
 } from '../src/lib/export/reviewPrint';
+import { drawScissorLine, SCISSORS_GAP } from '../src/lib/pdf/labelKit';
 import { parseReviewPrint } from '../src/lib/export/reviewPrintPrefs';
 
 const labels: ReviewLabels = { review: 'Einsicht', points: 'P.', objection: 'Einwand', reply: 'Antwort', truncated: '(Anhang)', title: 'Einsicht' };
@@ -121,5 +124,41 @@ describe('reviewPrint (issue #226)', () => {
     expect(parseReviewPrint(null)).toEqual(DEFAULT_REVIEW_PRINT);
     expect(parseReviewPrint('{oops')).toEqual(DEFAULT_REVIEW_PRINT);
     expect(parseReviewPrint('{"strip":"diagonal","short":"yes"}')).toEqual(DEFAULT_REVIEW_PRINT);
+  });
+
+  it('frames the strip and marks the paper edge without touching the scan', () => {
+    const right = stripFrame(stripGeometry('side', true, 1, 100, 200))!;
+    expect(right.rect).toEqual({ x: 100, y: 0, width: STRIP_WIDTH_PT, height: 200 });
+    expect(right.edge.from.x).toBeGreaterThanOrEqual(100);
+    expect(right.edge.from.x).toBeCloseTo(100, 0);
+    expect(right.edge.to).toEqual({ x: right.edge.from.x, y: 200 });
+    const left = stripFrame(stripGeometry('side', true, 2, 100, 200))!;
+    expect(left.rect).toEqual({ x: 0, y: 0, width: STRIP_WIDTH_PT, height: 200 });
+    expect(left.edge.from.x).toBeLessThanOrEqual(STRIP_WIDTH_PT);
+    expect(left.edge.from.x).toBeCloseTo(STRIP_WIDTH_PT, 0);
+    const bottom = stripFrame(stripGeometry('bottom', true, 1, 100, 200))!;
+    expect(bottom.rect).toEqual({ x: 0, y: 0, width: 100, height: BOTTOM_STRIP_HEIGHT_PT });
+    expect(bottom.edge.from.y).toBeLessThanOrEqual(BOTTOM_STRIP_HEIGHT_PT);
+    expect(bottom.edge.from.y).toBeCloseTo(BOTTOM_STRIP_HEIGHT_PT, 0);
+    expect(bottom.edge.to).toEqual({ x: 100, y: bottom.edge.from.y });
+    expect(stripFrame(stripGeometry('none', true, 1, 100, 200))).toBeNull();
+  });
+
+  it('reserves room for the caption above the first block', () => {
+    expect(captionHeight(1)).toBeGreaterThan(0);
+    expect(captionHeight(3)).toBeGreaterThan(captionHeight(2));
+  });
+
+  it('draws the dashed cut line with two scissors, each as the same two paths', () => {
+    const paths: string[] = [];
+    const lines: unknown[] = [];
+    const page = { drawSvgPath: (d: string) => paths.push(d), drawLine: (o: unknown) => lines.push(o) };
+    const lib = { rgb: (...c: number[]) => c, degrees: (d: number) => d };
+    drawScissorLine(lib as never, page as never, { from: { x: 0, y: 0 }, to: { x: 0, y: 300 } }, { gray: 0.5, thickness: 0.6 });
+    expect(paths).toHaveLength(4);
+    expect(paths[0]).toBe(paths[2]);
+    expect(paths[1]).toBe(paths[3]);
+    expect(lines).toHaveLength(3);
+    expect(SCISSORS_GAP).toBeCloseTo(8.5, 0);
   });
 });

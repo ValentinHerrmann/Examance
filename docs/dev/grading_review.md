@@ -82,8 +82,8 @@ The record goes through `resultsMover`, the trash, archives, the GDPR subject ac
 | Option | What it prints |
 |---|---|
 | `short` (preselected) | "Einsicht: 3 -> 4 P." in small red text right under the exercise's score box: no extra space, the scan is not covered |
-| `strip: 'side'` | pages holding an item with an objection get a 55 mm strip on the outer side (the page gets wider, the scan is untouched); objection, reply and points sit level with the exercise's score box |
-| `strip: 'bottom'` | such pages get a 40 mm strip at the bottom; the items stand side by side in reading order, each under its score box's x where it fits (`bottomColumns`) |
+| `strip: 'side'` | pages holding an item with an objection get a 55 mm strip on the outer side (the page gets wider, the scan is untouched); objection, reply and points sit level with the exercise's score box; `drawStripFrame` gives both strips a light grey background, a dashed edge line exactly at the paper edge with two scissors (`drawScissorLine`, shared with the exam copies' cut line, geometry in `stripFrame`) and the constant German caption `REVIEW_STRIP_CAPTION`, and the blocks start below it |
+| `strip: 'bottom'` | such pages get a 40 mm strip at the bottom; the items stand side by side in reading order, each under its score box's x where it fits (`bottomColumns`); same grey frame, dashed scissors edge and caption as the side strip |
 | `summary` | one summary page appended at the end |
 | `attach` | the full thread as the text attachment `review.txt`, so a cut-short text is never lost; without it the cut-off marker no longer points to an attachment |
 

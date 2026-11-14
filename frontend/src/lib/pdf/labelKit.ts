@@ -71,6 +71,44 @@ export function wrapText(font: PDFFont, text: string, size: number, maxWidth: nu
   return lines;
 }
 
+/** Scissors as vector paths (no font needed) around their centre, blades pointing along +x: handle rings and two crossing blades, about 3.5 mm long, as Schulaufgabe.sty draws them on every page. */
+const SCISSORS_RINGS = 'M -1.7 -2 a 1.5 1.5 0 1 0 -3 0 a 1.5 1.5 0 1 0 3 0 M -1.7 2 a 1.5 1.5 0 1 0 -3 0 a 1.5 1.5 0 1 0 3 0';
+const SCISSORS_BLADES = 'M -2 -1.6 L 5.2 1.5 L -1.4 -0.6 Z M -2 1.6 L 5.2 -1.5 L -1.4 0.6 Z';
+/** Half the gap a pair of scissors leaves in its dashed line (3 mm). */
+export const SCISSORS_GAP = (3 * CM) / 10;
+
+export interface ScissorsStyle {
+  gray: number;
+  thickness: number;
+}
+
+/** One pair of vector scissors at (x, y), rotated *angleDeg* counter-clockwise (blades point along the rotated +x). */
+export function drawScissors(lib: PdfLib, page: PDFPage, x: number, y: number, angleDeg: number, gray = 0.5): void {
+  const at = { x, y, rotate: lib.degrees(angleDeg) };
+  const color = lib.rgb(gray, gray, gray);
+  page.drawSvgPath(SCISSORS_RINGS, { ...at, borderColor: color, borderWidth: 0.7 });
+  page.drawSvgPath(SCISSORS_BLADES, { ...at, color });
+}
+
+/** A dashed line from *from* to *to* interrupted by scissors pointing along it at the *fractions* of its length (a third and two thirds by default). */
+export function drawScissorLine(
+  lib: PdfLib,
+  page: PDFPage,
+  line: { from: { x: number; y: number }; to: { x: number; y: number } },
+  style: ScissorsStyle,
+  fractions: readonly number[] = [1 / 3, 2 / 3]
+): void {
+  const { from, to } = line;
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  const angle = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+  const point = (along: number) => ({ x: from.x + ((to.x - from.x) * along) / length, y: from.y + ((to.y - from.y) * along) / length });
+  const color = lib.rgb(style.gray, style.gray, style.gray);
+  const centres = fractions.map((f) => f * length);
+  const ends = [0, ...centres.flatMap((at) => [at - SCISSORS_GAP, at + SCISSORS_GAP]), length];
+  for (let i = 0; i < ends.length; i += 2) page.drawLine({ start: point(ends[i]), end: point(ends[i + 1]), thickness: style.thickness, color, dashArray: [4, 3] });
+  for (const at of centres) drawScissors(lib, page, point(at).x, point(at).y, angle, style.gray);
+}
+
 /** A light dashed frame to cut along. */
 export function cutFrame(lib: PdfLib, page: PDFPage, x: number, y: number, width: number, height: number): void {
   page.drawRectangle({

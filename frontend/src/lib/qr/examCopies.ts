@@ -3,7 +3,7 @@
 import type { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import { personalKey } from '#lib/crypto/stickerKey';
 import { translate } from '#lib/i18n';
-import { CM, drawQr, embedLabelFonts, fitText, type LabelFonts, type PdfLib } from '#lib/pdf/labelKit';
+import { CM, drawQr, drawScissorLine, embedLabelFonts, fitText, type LabelFonts, type PdfLib } from '#lib/pdf/labelKit';
 import { loadPdfjs } from '#lib/pdf/pdfjs';
 import { formatCode } from '#lib/sharing/shareCrypto';
 import { abbreviateGivenNames, parseStudentQr } from '#lib/utils/studentQr';
@@ -39,11 +39,6 @@ const ALTITUDE = (TAB_TOP * TAB_SIDE) / HYPOTENUSE;
 /** Name and key rows parallel to the cut line: baseline distance from it, preferred and smallest font size. The name's descender (0.7 mm at 9 pt) stays CLEAR off the line; the key sits above the name's ascender. */
 const NAME_ROW = { dist: CLEAR + 0.7 * MM, size: 9, minSize: 7 };
 const KEY_ROW = { dist: CLEAR + 4.7 * MM, size: 8.5, minSize: 7 };
-/** Scissors on the cut line, as vector paths (no font needed) around their centre, blades pointing along +x: handle rings and two crossing blades, about 3.5 mm long; two of them at a third and two thirds of the line, as Schulaufgabe.sty draws them on every page. */
-const SCISSORS_RINGS = 'M -1.7 -2 a 1.5 1.5 0 1 0 -3 0 a 1.5 1.5 0 1 0 3 0 M -1.7 2 a 1.5 1.5 0 1 0 -3 0 a 1.5 1.5 0 1 0 3 0';
-const SCISSORS_BLADES = 'M -2 -1.6 L 5.2 1.5 L -1.4 -0.6 Z M -2 1.6 L 5.2 -1.5 L -1.4 0.6 Z';
-const SCISSORS_GAP = 3 * MM;
-
 /** Where a page gets stamped, in PDF points: its sticker boxes (`omr://__qr__`, page 1 and, with a box per sheet, every later sheet front) and its page code (`omr://__page__/<n>`, Schulaufgabe.sty section 11). */
 interface StampTargets {
   qrBoxes: Rect[];
@@ -100,18 +95,10 @@ function drawTabRow(lib: PdfLib, page: PDFPage, font: PDFFont, texts: readonly s
 /** Page 1's dashed cut line, redrawn over the blanked tab and interrupted by two small scissors; the guillotine follows it through the whole stack. */
 function drawCutLine(lib: PdfLib, page: PDFPage): void {
   const { width, height } = page.getSize();
-  // From the line's top end (top right corner) along it.
-  const point = (along: number) => ({ x: width - TAB_TOP + COS * along, y: height - SIN * along });
-  const grey = lib.rgb(0.5, 0.5, 0.5);
-  const scissors = [HYPOTENUSE * 0.33, HYPOTENUSE * 0.67];
-  const ends = [0, ...scissors.flatMap((at) => [at - SCISSORS_GAP, at + SCISSORS_GAP]), HYPOTENUSE];
-  for (let i = 0; i < ends.length; i += 2) page.drawLine({ start: point(ends[i]), end: point(ends[i + 1]), thickness: 0.6, color: grey, dashArray: [4, 3] });
-  for (const along of scissors) {
-    // Blades point along the line towards the side edge.
-    const at = { ...point(along), rotate: lib.degrees(-ANGLE) };
-    page.drawSvgPath(SCISSORS_RINGS, { ...at, borderColor: grey, borderWidth: 0.7 });
-    page.drawSvgPath(SCISSORS_BLADES, { ...at, color: grey });
-  }
+  // From the line's top end (top right corner) along it, blades towards the side edge.
+  const from = { x: width - TAB_TOP, y: height };
+  const to = { x: width, y: height - TAB_SIDE };
+  drawScissorLine(lib, page, { from, to }, { gray: 0.5, thickness: 0.6 }, [0.33, 0.67]);
 }
 
 /** The corner tab on page 1: blanked (the sheet tints it grey), the cut line, and name and key parallel to it in the corner at least 3 mm from the line and 4 mm from the edges. */
