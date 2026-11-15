@@ -116,6 +116,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.examCreation.s3.h", bodyKeys: ["help.topics.examCreation.s3.p1"], docs: "results#grading-key" },
       { headingKey: "help.topics.examCreation.s4.h", bodyKeys: ["help.topics.examCreation.s4.p1"], docs: "exams#layout" },
       { headingKey: "help.topics.examCreation.s5.h", bodyKeys: ["help.topics.examCreation.s5.p1"], docs: "exams#typeset" },
+      { headingKey: "help.topics.examCreation.s6.h", bodyKeys: ["help.topics.examCreation.s6.p1"], docs: "students#special-needs" },
     ],
   },
   {

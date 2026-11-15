@@ -22,7 +22,7 @@ The **printed class** (`\Klasse` on the cover sheet) is made from grade and clas
 
 The optional **topic** (for example "Recursion") organises your exams in the overview, where you can filter and search by it. It is never printed. The overview can also be sorted by date, title, grade or subject.
 
-To change the header data later, edit them directly in the **Details** card on the **Overview** and choose **Save** (**Discard changes** goes back; leaving the page with unsaved changes asks first). The card holds only the exam's details: title, test type, grade/class, date, duration, number, subject, teacher, topic and the retention date. Layout settings are on the [Layout tab](#layout), the grading key under [Results](./results#grading-key).
+To change the header data later, edit them directly in the **Details** card on the **Overview** and choose **Save** (**Discard changes** goes back; leaving the page with unsaved changes asks first). The card holds only the exam's details: title, test type, grade/class, date, working time in minutes, number, subject, teacher, topic and the retention date. Layout settings are on the [Layout tab](#layout), the grading key under [Results](./results#grading-key).
 
 ## The exam's steps {#steps}
 
@@ -86,7 +86,7 @@ With **Print a name line next to the QR code box** (when creating the exam or on
 
 Every exam keeps each page's **outer top corner** free: top right on odd pages, top left on even ones. The header is mirrored on even pages. On the plain exam PDF the corner is empty and lightly tinted grey. When you print the QR codes [directly onto the exam copies](./students#printed-copies), page 1's corner carries name and personal key, and a dashed line with two small scissors shows where to cut it off before handing out; every other page shows the same line, so the whole stack is marked. For double-sided and booklet prints you can also cut the whole stack at once with a guillotine. All exams share this layout, so scanning always finds the corner markers in the same places, however the sheets were printed.
 
-The text, and on page 1 the QR box and the information next to it, run out to the corner markers. Page 1's header shows the logo, then the title with course, date, duration and teacher in one line under it; the other pages show the title and "Seite X". The score table fills the strip between the bottom markers.
+The text, and on page 1 the QR box and the information next to it, run out to the corner markers. Page 1's header shows the logo, then the title with course, date, working time and teacher in one line under it; the other pages show the title and "Seite X". The score table fills the strip between the bottom markers.
 
 The sketch shows the usable space on odd and even pages: text area, header, score table, the cut-off tab with its tolerance, and the corner markers. The [PDF](../screenshots/guide/cut-corner-layout-en.pdf) is drawn at true scale on A4, so measurements on a 100 % print are real millimetres.
 
@@ -191,7 +191,7 @@ The exam list is split into sections you can fold away; your browser remembers w
 
 - **Favorites**: exams you marked with the **star** on their card. They also stay in their school year.
 - **Date unclear**: exams whose date is not a full date (for example *24.09.* without a year, or no date at all). They carry a **Date unclear** badge, and the date field in the exam details asks for a full date such as *24.09.2026*. Once you enter one, the exam moves to its school year.
-- **School year** (for example *School year 2026/27*, August to July): every exam is filed under the day it is written, the date in its details (a duration after it, such as *24.09.2026 (30 Minuten)*, is fine). The current school year is open, earlier ones start folded.
+- **School year** (for example *School year 2026/27*, August to July): every exam is filed under the day it is written, the date in its details. The current school year is open, earlier ones start folded.
 - **Archive**: exams you archived with **Archive** in the **⋯** menu of the card. It starts folded; **Take out of the archive** brings an exam back.
 
 Favorites and the archive are only for your overview: archiving deletes nothing and keeps results, retention and statistics as they are. A duplicated exam starts without star and outside the archive. Filters and search apply to every section.

@@ -175,6 +175,10 @@ export const help = {
                 h: 'Setzen und drucken',
                 p1: 'Der Satzlauf erzeugt ein druckfertiges PDF mit einem Feld für den QR-Code auf dem Deckblatt. Drucken Sie die Bögen genau so, ohne Skalierung: Der QR-Code muss lesbar bleiben, sonst lässt sich der Scan später nicht automatisch zuordnen.',
             },
+            s6: {
+                h: 'Zeitzuschlag, Großdruck und Timer',
+                p1: 'Tragen Sie bei den Prüfungsdaten die Arbeitszeit in Minuten ein. Auf der Seite Schüler bekommt jede Person bei Bedarf einen Zeitzuschlag (in Minuten oder Prozent) und Großdruck (A3). Der Zuschlag steht neben dem Namen auf Aufklebern und Exemplaren, Großdruck-Exemplare kommen als eigene A3-Datei. „Timer“ übergibt Arbeitszeit und Zuschläge an den Examtimer im Prüfungsraum.',
+            },
         },
         scanning: {
             title: 'Scannen & Zuordnen',
