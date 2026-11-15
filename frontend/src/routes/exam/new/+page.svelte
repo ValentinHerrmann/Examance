@@ -24,7 +24,8 @@
   let grade = $state("10");
   let klasse = $state("a");
   let course = $state("");
-  let datum = $state(`${new Date().toLocaleDateString("de-DE")} (30 Minuten)`);
+  let datum = $state(new Date().toLocaleDateString("de-DE"));
+  let durationMinutes = $state<number | null>(30);
   let nr = $state("1");
   let fach = $state("Informatik");
   let topic = $state("");
@@ -61,6 +62,7 @@
       klasse,
       course: course.trim() || undefined,
       datum,
+      durationMinutes,
       nr,
       fach,
       topic: topic.trim() || undefined,
@@ -99,6 +101,7 @@
     bind:editKlasse={klasse}
     bind:editCourse={course}
     bind:editDatum={datum}
+    bind:editDurationMinutes={durationMinutes}
     bind:editNr={nr}
     bind:editFach={fach}
     bind:editTopic={topic}

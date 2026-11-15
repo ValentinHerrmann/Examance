@@ -11,7 +11,8 @@
   import RosterManager from "#lib/components/manual-grading/RosterManager.svelte";
   import StudentImport from "#lib/components/students/StudentImport.svelte";
   import { numberStudents } from "#lib/students/classList";
-  import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
+  import type { ExamRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
+  import { examRepository } from "#lib/repositories/examRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { awaitSessionReady, isUnlocked, sessionStore } from "#lib/stores/session";
@@ -19,6 +20,9 @@
   let examId = $derived(page.params.id ?? "");
   let students = $state.raw<StudentRecord[]>([]);
   let submissions = $state.raw<SubmissionRecord[]>([]);
+  // Only for the working time: a missing exam record leaves the hint and the timer export out.
+  let exam = $state.raw<ExamRecord | null>(null);
+  let shareWithoutDuration = $derived(!!exam && !exam.durationMinutes && students.some((st) => st.timeExtension?.unit === "%"));
   let loading = $state(true);
   let error = $state("");
   let adding = $state(false);
@@ -26,10 +30,12 @@
   async function load() {
     const key = get(sessionStore).sessionKey;
     try {
-      const [nextStudents, nextSubmissions] = await Promise.all([
+      const [nextStudents, nextSubmissions, nextExam] = await Promise.all([
         studentRepository.getByExamId(examId, key),
         submissionRepository.getByExamId(examId, key),
+        examRepository.getById(examId, key).catch(() => null),
       ]);
+      exam = nextExam ?? null;
       students = numberStudents(nextStudents).map((n) => n.student);
       submissions = nextSubmissions;
       error = "";
@@ -63,6 +69,7 @@
     {:else if loading}
       <div class="flex items-center gap-2 text-sm text-muted"><Spinner />{$t("sharing.share.loading")}</div>
     {:else}
+      {#if shareWithoutDuration}<Alert severity="warning">{$t("lms.students.extensionNoDuration")}</Alert>{/if}
       <!-- From xl the import sits beside the list instead of pushing it down. -->
       <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
         <div class="min-w-0 xl:order-2"><StudentImport {examId} {students} onImported={load} /></div>

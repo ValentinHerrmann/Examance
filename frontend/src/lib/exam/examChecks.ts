@@ -73,6 +73,7 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
         e.mcCorrectionHint, e.extraNotes,
         // Only when set, so stamps of exams without an override (all older ones) stay as they were.
         ...(e.course ? [e.course] : []),
+        ...(e.durationMinutes ? [e.durationMinutes] : []),
         // Only when they differ from the old layout, so stamps of older exams stay as they were.
         ...(JSON.stringify(printSettingsOf(e)) === LEGACY_PRINT ? [] : [printSettingsOf(e)]),
     ];
@@ -83,10 +84,12 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
 /** Locale-independent order, so the same list always gives the same stamp. */
 const byCodeUnits = (a: string, b: string): number => Number(a > b) - Number(a < b);
 
-/** What the QR stickers, copies and key slips depend on: the exam's students and their names. */
-export function studentsStamp(students: StudentRecord[]): string {
-    const rows = students.map((s) => JSON.stringify([s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '']));
+/** What the QR stickers, copies and key slips depend on: the exam's students, their names and what is printed with them (time extension). */
+export function studentsStamp(students: StudentRecord[], durationMinutes?: number | null): string {
+    const rows = students.map((s) => JSON.stringify([s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '', ...(s.timeExtension ? [s.timeExtension.value, s.timeExtension.unit] : [])]));
     rows.sort(byCodeUnits);
+    // A share prints its minutes, so it follows the exam's working time.
+    if (durationMinutes && students.some((s) => s.timeExtension?.unit === '%')) rows.push(String(durationMinutes));
     return fingerprint(rows.join('\n'));
 }
 

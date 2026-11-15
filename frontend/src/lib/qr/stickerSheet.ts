@@ -1,6 +1,6 @@
 /** QR name stickers for exam sheets (issues #83, #207): A4 label sheet, 5 × 7 cells, DiRueLei-compatible payload (`Lastname, Firstname_ID`, read back by `parseStudentQr`; entries come from the exam's students, `lib/students/classList.ts`). With personal keys, the first sticker of each student carries a strip with name and key above the QR code: cut it off and hand it over before the sticker goes onto the paper (labels are expensive). Key slips alone go on plain paper. */
 
-import type { PDFPage } from 'pdf-lib';
+import type { PDFFont, PDFPage } from 'pdf-lib';
 import { personalKey } from '#lib/crypto/stickerKey';
 import { translate } from '#lib/i18n';
 import {
@@ -22,6 +22,8 @@ export interface StickerEntry {
   label: string;
   /** The padded class-list number printed before the name (issue #266), e.g. "07". */
   number?: string;
+  /** The student's extra working time as printed after the name (issue #265), e.g. "+25 % (+7,5 Min)". */
+  extension?: string;
   /** The QR text; the scan stores it as the student's raw id. */
   payload: string;
 }
@@ -37,9 +39,21 @@ export interface StickerSheetOptions {
   keysOnly: boolean;
 }
 
-/** The printed name: the class-list number, two spaces, the name. */
+/** The printed name in two parts: the class-list number, two spaces and the name; then the time extension, which shortening never cuts. */
+export function labelParts(entry: StickerEntry, name = entry.label): { text: string; suffix: string } {
+  return { text: entry.number ? `${entry.number}  ${name}` : name, suffix: entry.extension ? `  ${entry.extension}` : '' };
+}
+
+/** The printed name: number, name and time extension in one line. */
 export function printedLabel(entry: StickerEntry, name = entry.label): string {
-  return entry.number ? `${entry.number}  ${name}` : name;
+  const { text, suffix } = labelParts(entry, name);
+  return text + suffix;
+}
+
+/** The printed name shortened to *maxWidth*: only the name part gives way. */
+function fittedLabel(font: PDFFont, safe: (text: string) => string, entry: StickerEntry, size: number, maxWidth: number): string {
+  const { text, suffix } = labelParts(entry);
+  return fitText(font, safe(text), size, maxWidth - font.widthOfTextAtSize(safe(suffix), size)) + safe(suffix);
 }
 
 export const STICKER_GRID = { cols: 5, rows: 7 } as const;
@@ -71,13 +85,13 @@ async function cellsFor(entries: readonly StickerEntry[], options: StickerSheetO
 
 function drawQrCell(lib: PdfLib, page: PDFPage, fonts: LabelFonts, { entry, key }: Cell, x: number, y: number): void {
   if (!key) {
-    const label = fitText(fonts.regular, fonts.safe(printedLabel(entry)), 7, CELL - 6);
+    const label = fittedLabel(fonts.regular, fonts.safe, entry, 7, CELL - 6);
     page.drawText(label, { x: x + (CELL - fonts.regular.widthOfTextAtSize(label, 7)) / 2, y: y + CELL - 11, size: 7, font: fonts.regular });
     drawQr(lib, page, entry.payload, x + (CELL - QR_SIZE) / 2, y + (CELL - QR_SIZE) / 2 - 6, QR_SIZE);
     return;
   }
   // Strip: name and key, above a dashed cut line; the QR part below goes onto the paper.
-  const name = fitText(fonts.bold, fonts.safe(printedLabel(entry)), 7, CELL - 6);
+  const name = fittedLabel(fonts.bold, fonts.safe, entry, 7, CELL - 6);
   page.drawText(name, { x: x + (CELL - fonts.bold.widthOfTextAtSize(name, 7)) / 2, y: y + CELL - 10, size: 7, font: fonts.bold });
   const code = formatCode(key);
   page.drawText(code, { x: x + (CELL - fonts.monoBold.widthOfTextAtSize(code, 10)) / 2, y: y + CELL - 22, size: 10, font: fonts.monoBold });

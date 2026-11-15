@@ -100,6 +100,11 @@ describe('class list order (issue #266)', () => {
     expect(positionLabel(7, 9)).toBe('7');
   });
 
+  it('keeps a time extension of either row when merging (issue #265)', () => {
+    const plan = mergeStudents(student('Berg, Max', 'Berg, Max_1'), student('Max Berg', undefined, { fromList: true, timeExtension: { value: 25, unit: '%' } }), () => false);
+    expect('merged' in plan && plan.merged.timeExtension).toEqual({ value: 25, unit: '%' });
+  });
+
   it('survives a merge and a scan of the same student', () => {
     const plan = mergeStudents(student('Berg, Max', 'Berg, Max_1', { classPosition: 4 }), student('Max Berg', undefined, { classPosition: 2, fromList: true }), () => false);
     expect('merged' in plan && plan.merged.classPosition).toBe(2);

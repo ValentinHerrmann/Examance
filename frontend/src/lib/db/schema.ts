@@ -1,5 +1,6 @@
 import type { MaybeUndecryptable } from './decryptGuard';
 import type { StepChecks } from '#lib/exam/examChecks';
+import type { TimeExtension } from '#lib/students/timeExtension';
 import type { LatexPackageEntry } from '#lib/latex/packages';
 import type { OmrPageStats, OmrRunInfo } from '#lib/grading/omrSettings';
 import type { OmrBubbleState, OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
@@ -57,6 +58,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   /** Printed course (`\Klasse`) when set; empty means grade + klasse (`examCourse`). */
   course?: string;
   datum?: string;
+  /** Working time in whole minutes (issue #265); printed with the date through `printedDatum`. */
+  durationMinutes?: number | null;
   nr?: string;
   fach?: string;
   /** Optional organising label, never printed on the exam (issue #57). */
@@ -310,6 +313,8 @@ export interface StudentRecord extends MaybeUndecryptable {
   fromList?: boolean;
   /** Number in the class list (issue #266), printed before the name on stickers and exam copies; missing on lists never ordered (`numberStudents` falls back to the name order). Decrypted only. */
   classPosition?: number;
+  /** Extra working time (issue #265, `lib/students/timeExtension.ts`). Decrypted only. */
+  timeExtension?: TimeExtension;
   /** AES-256-GCM ciphertext of PII (name, student number, etc.). */
   piiCt: Uint8Array;
   /** 12-byte GCM IV for piiCt. */

@@ -19,6 +19,8 @@
     /** Prints the exam's students (entered on the Students page). */
     examId: string;
     examTitle?: string;
+    /** The exam's working time, so a time extension in percent prints its minutes (issue #265). */
+    durationMinutes?: number | null;
     /** Starts with only the key slips (reprint from the Share page). */
     keysOnly?: boolean;
     /** The compiled student sheet; offers printing onto exam copies. */
@@ -48,6 +50,7 @@
   let {
     examId,
     examTitle = "",
+    durationMinutes = null,
     keysOnly: startKeysOnly = false,
     loadExamPdf,
     copiesUnavailable = null,
@@ -97,7 +100,7 @@
     }
     try {
       await awaitSessionReady();
-      examEntries = await loadStickerEntries(examId, get(sessionStore).sessionKey);
+      examEntries = await loadStickerEntries(examId, get(sessionStore).sessionKey, durationMinutes);
     } catch (err) {
       // A failed read is reported, never shown as "no students yet" (issue #212).
       loadError = `${$t("sharing.stickers.loadFailed")} ${err instanceof Error ? err.message : ""}`.trim();

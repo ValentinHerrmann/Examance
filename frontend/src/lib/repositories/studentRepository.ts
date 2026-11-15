@@ -103,6 +103,7 @@ export const studentRepository = {
                 fallbackCode: st.fallbackCode || existing.fallbackCode,
                 pseudonymRaw: st.pseudonymRaw || existing.pseudonymRaw,
                 classPosition: existing.classPosition ?? st.classPosition,
+                timeExtension: existing.timeExtension ?? st.timeExtension,
               }
             : st
         );

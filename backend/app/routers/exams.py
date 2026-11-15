@@ -70,6 +70,7 @@ _HEADER_FIELDS = (
     "klasse",
     "course",
     "datum",
+    "duration_minutes",
     "nr",
     "fach",
     "topic",

@@ -9,7 +9,7 @@ import { formatCode } from '#lib/sharing/shareCrypto';
 import { abbreviateGivenNames, parseStudentQr } from '#lib/utils/studentQr';
 import { PAGE_CODE_EC, examTag, pageCodeText } from '#lib/exam/pageCodes';
 import { MM, TAB_SIDE, TAB_TOP } from './cutCorner';
-import { printedLabel, type StickerEntry } from './stickerSheet';
+import { labelParts, type StickerEntry } from './stickerSheet';
 
 export interface ExamCopiesOptions {
   examTitle: string;
@@ -73,8 +73,8 @@ function stampQr(lib: PdfLib, page: PDFPage, box: Rect, text: string, max: numbe
   drawQr(lib, page, text, (x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size, ecLevel);
 }
 
-/** One row of the tab parallel to the cut line, centred where its glyphs stay EDGE clear of both paper edges. The first text that fits at a size down to the row's smallest (0.5 pt steps) wins; only the last one is shortened. */
-function drawTabRow(lib: PdfLib, page: PDFPage, font: PDFFont, texts: readonly string[], row: { dist: number; size: number; minSize: number }): void {
+/** One row of the tab parallel to the cut line, centred where its glyphs stay EDGE clear of both paper edges. The first text that fits at a size down to the row's smallest (0.5 pt steps) wins; only the last one is shortened, never the *suffix* after it (the time extension). */
+function drawTabRow(lib: PdfLib, page: PDFPage, font: PDFFont, texts: readonly string[], row: { dist: number; size: number; minSize: number }, suffix = ''): void {
   const { width, height } = page.getSize();
   const scale = 1 - row.dist / ALTITUDE;
   // Glyphs rise towards the corner: by `rise·cos` towards the top edge where the row starts, by `rise·sin` towards the right edge where it ends.
@@ -82,12 +82,12 @@ function drawTabRow(lib: PdfLib, page: PDFPage, font: PDFFont, texts: readonly s
   const start = (size: number) => (EDGE + rise(size) * COS) / SIN;
   const room = (size: number) => scale * HYPOTENUSE - start(size) - (EDGE + rise(size) * SIN) / COS;
   const sizeFor = (text: string): number | null => {
-    for (let size = row.size; size >= row.minSize; size -= 0.5) if (font.widthOfTextAtSize(text, size) <= room(size)) return size;
+    for (let size = row.size; size >= row.minSize; size -= 0.5) if (font.widthOfTextAtSize(text + suffix, size) <= room(size)) return size;
     return null;
   };
   const fitting = texts.map((text) => ({ text, size: sizeFor(text) })).find((c) => c.size !== null);
   const size = fitting?.size ?? row.minSize;
-  const line = fitText(font, fitting?.text ?? texts.at(-1) ?? '', size, room(size));
+  const line = fitText(font, fitting?.text ?? texts.at(-1) ?? '', size, room(size) - font.widthOfTextAtSize(suffix, size)) + suffix;
   const along = start(size) + (room(size) - font.widthOfTextAtSize(line, size)) / 2;
   page.drawText(line, { x: width - scale * TAB_TOP + COS * along, y: height - SIN * along, size, font, rotate: lib.degrees(-ANGLE) });
 }
@@ -107,7 +107,8 @@ function drawCornerTab(lib: PdfLib, page: PDFPage, fonts: LabelFonts, entry: Sti
   page.drawSvgPath(`M ${page.getWidth() - TAB_TOP} 0 L ${page.getWidth()} 0 L ${page.getWidth()} ${TAB_SIDE} Z`, { x: 0, y: height, color: lib.rgb(1, 1, 1) });
   drawCutLine(lib, page);
   const name = fonts.safe(entry.label);
-  drawTabRow(lib, page, fonts.bold, [printedLabel(entry, name), printedLabel(entry, abbreviateGivenNames(name))], NAME_ROW);
+  const suffix = fonts.safe(labelParts(entry).suffix);
+  drawTabRow(lib, page, fonts.bold, [labelParts(entry, name).text, labelParts(entry, abbreviateGivenNames(name)).text], NAME_ROW, suffix);
   drawTabRow(lib, page, fonts.monoBold, [formatCode(key)], KEY_ROW);
 }
 

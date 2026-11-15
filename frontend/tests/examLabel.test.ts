@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { examCourse, exerciseTopicSuggestions, formatExamCourse, generatedExamTitle, parseDatumAndDauer, formatDatumAndDauer } from '../src/lib/utils/examLabel';
+import { examCourse, exerciseTopicSuggestions, formatExamCourse, generatedExamTitle, parseDatumAndDauer, parseDurationMinutes, printedDatum, splitLegacyDatum } from '../src/lib/utils/examLabel';
 import { randomStrings, timeMs } from './helpers/randomStrings';
 
 describe('formatExamCourse', () => {
@@ -21,7 +21,7 @@ describe('formatExamCourse', () => {
   });
 });
 
-describe('parseDatumAndDauer & formatDatumAndDauer', () => {
+describe('date and working time', () => {
   it('parses combined string into date and duration', () => {
     expect(parseDatumAndDauer('20.05.2025 (30 Min)')).toEqual({
       datumDate: '20.05.2025',
@@ -37,10 +37,24 @@ describe('parseDatumAndDauer & formatDatumAndDauer', () => {
     });
   });
 
-  it('formats separate date and duration into combined string', () => {
-    expect(formatDatumAndDauer('20.05.2025', '30 Min')).toBe('20.05.2025 (30 Min)');
-    expect(formatDatumAndDauer('20.05.2025', '')).toBe('20.05.2025');
-    expect(formatDatumAndDauer('', '45 Min')).toBe('(45 Min)');
+  it('reads whole minutes from old duration texts and leaves unreadable ones alone (issue #265)', () => {
+    expect(parseDurationMinutes('30 Min')).toBe(30);
+    expect(parseDurationMinutes('90 Minuten')).toBe(90);
+    expect(parseDurationMinutes('1,5 Std')).toBe(90);
+    expect(parseDurationMinutes('2 h')).toBe(120);
+    expect(parseDurationMinutes('45')).toBe(45);
+    expect(parseDurationMinutes('2 Schulstunden')).toBeNull();
+    expect(parseDurationMinutes('37,5 Min')).toBeNull();
+    expect(splitLegacyDatum('20.05.2025 (30 Min)')).toEqual({ datum: '20.05.2025', durationMinutes: 30 });
+    expect(splitLegacyDatum('20.05.2025 (2 Schulstunden)')).toEqual({ datum: '20.05.2025 (2 Schulstunden)', durationMinutes: null });
+    expect(splitLegacyDatum('20.05.2025')).toEqual({ datum: '20.05.2025', durationMinutes: null });
+  });
+
+  it('prints the date with the working time, and a legacy text as it was', () => {
+    expect(printedDatum({ datum: '20.05.2025', durationMinutes: 45 })).toBe('20.05.2025 (45 Minuten)');
+    expect(printedDatum({ datum: '', durationMinutes: 45 })).toBe('(45 Minuten)');
+    expect(printedDatum({ datum: '20.05.2025' })).toBe('20.05.2025');
+    expect(printedDatum({ datum: '20.05.2025 (2 Schulstunden)', durationMinutes: null })).toBe('20.05.2025 (2 Schulstunden)');
   });
 });
 

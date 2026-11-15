@@ -36,7 +36,7 @@ export function exerciseTopicSuggestions(exercises: { topicTag?: string | null }
   return [...new Set(topics)].sort(compareText);
 }
 
-/** Parse a combined date/duration string into separate datumDate and dauer parts. e.g. "20.05.2025 (30 Min)" -> { datumDate: "20.05.2025", dauer: "30 Min" } e.g. "20.05.2025" -> { datumDate: "20.05.2025", dauer: "" } */
+/** Legacy reader (the working time is `durationMinutes` since issue #265): splits a combined date/duration string into datumDate and dauer. e.g. "20.05.2025 (30 Min)" -> { datumDate: "20.05.2025", dauer: "30 Min" } e.g. "20.05.2025" -> { datumDate: "20.05.2025", dauer: "" } */
 export function parseDatumAndDauer(raw?: string | null): { datumDate: string; dauer: string } {
   if (!raw) return { datumDate: '', dauer: '' };
   const str = raw.trim();
@@ -50,16 +50,25 @@ export function parseDatumAndDauer(raw?: string | null): { datumDate: string; da
   return { datumDate: str.slice(0, dateEnd).trim(), dauer: str.slice(open + 1, -1).trim() };
 }
 
-/** Format separate datumDate and dauer into a single combined string. e.g. ("20.05.2025", "30 Min") -> "20.05.2025 (30 Min)" */
-export function formatDatumAndDauer(datumDate?: string | null, dauer?: string | null): string {
-  const dDate = (datumDate || '').trim();
-  const dDauer = (dauer || '').trim();
-  if (dDate && dDauer) {
-    return `${dDate} (${dDauer})`;
-  }
-  if (dDauer) {
-    return `(${dDauer})`;
-  }
-  return dDate;
+/** Whole minutes of a legacy duration text ("30 Min", "1,5 Std", "2 h"); null when it is not a whole number of minutes (mirrors `split_legacy_datum` in migration 0067). */
+export function parseDurationMinutes(text?: string | null): number | null {
+  const match = /^(\d+(?:[.,]\d+)?)\s*(min\.?|minuten?|minutes?|std\.?|stunden?|h|hours?)?$/i.exec((text ?? '').trim());
+  if (!match) return null;
+  const unit = (match[2] ?? 'min').toLowerCase();
+  const minutes = Number(match[1].replace(',', '.')) * (unit.startsWith('min') ? 1 : 60);
+  return Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : null;
 }
 
+/** An old "date (duration)" value as date and whole minutes (issue #265); an unreadable bracket stays in the date, so nothing is lost. Imports of old archives go through it. */
+export function splitLegacyDatum(raw?: string | null): { datum: string; durationMinutes: number | null } {
+  const { datumDate, dauer } = parseDatumAndDauer(raw);
+  const durationMinutes = parseDurationMinutes(dauer);
+  return durationMinutes === null ? { datum: (raw ?? '').trim(), durationMinutes } : { datum: datumDate, durationMinutes };
+}
+
+/** The printed `\Datum`: "date (N Minuten)" from the date and the working time; without a working time the stored text as it is (legacy brackets print as before). The only builder. */
+export function printedDatum(exam: { datum?: string | null; durationMinutes?: number | null }): string {
+  if (!exam.durationMinutes) return (exam.datum ?? '').trim();
+  const date = parseDatumAndDauer(exam.datum).datumDate;
+  return `${date} (${exam.durationMinutes} Minuten)`.trim();
+}

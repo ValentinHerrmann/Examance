@@ -93,7 +93,7 @@
       loadError = err instanceof Error ? err.message : String(err);
     }
     try {
-      entries = await loadStickerEntries(id, key());
+      entries = await loadStickerEntries(id, key(), ctx?.exam.durationMinutes);
     } catch (err) {
       // A failed read is reported, never shown as "no students yet".
       entriesError = err instanceof Error ? err.message : String(err);

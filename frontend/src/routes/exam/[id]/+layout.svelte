@@ -66,7 +66,7 @@
     next.exerciseCount = exercises?.length;
     const students = await attempt(() => studentRepository.getByExamId(id, key));
     next.studentCount = students?.length;
-    const stamps = exam && exercises && students ? { content: contentStamp(exam, exercises), students: studentsStamp(students) } : null;
+    const stamps = exam && exercises && students ? { content: contentStamp(exam, exercises), students: studentsStamp(students, exam.durationMinutes) } : null;
     const checks = exam?.stepChecks ?? {};
     const shares = await attempt(() => listResultShares(id));
     // Students with a link that still opens; a replaced link leaves an older row, so count students, not rows.

@@ -131,6 +131,7 @@ async def test_exam_duplicate_copies_every_header_field(
         grade="7",
         klasse="7a",
         datum="1.1.2026",
+        duration_minutes=45,
         nr="3",
         fach="Physik",
         topic="Optik",

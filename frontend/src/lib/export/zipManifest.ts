@@ -49,6 +49,8 @@ export interface ZipExamSettings {
   klasse?: string;
   course?: string;
   datum?: string;
+  /** Working time in whole minutes; older exports carry it in the bracket of `datum`. */
+  durationMinutes?: number;
   nr?: string;
   fach?: string;
   topic?: string;
