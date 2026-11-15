@@ -27,7 +27,8 @@ Both fields live in the sealed payload of the student record (`STUDENT.sealed` i
 
 ## Large print (A3)
 
-- `StickerSheetForm.deliverCopies` splits the students. The others go through the usual path (duplex, imposed booklets, or one file per student). Large-print students get `renderExamCopies` followed by `scaleToA3` (`lib/qr/booklet.ts`, every page ×√2), always as loose duplex sheets, in `…_copies_A3.pdf`. More than one file is saved as a ZIP; the preview shows the first file.
+- The A3 copies are a print job of their own, `copiesA3` (`PRINT_JOBS`, `printJobs(plan, mode, largePrintOf(entries))` in `lib/exam/examChecks.ts`): `PrintPlan` shows the `copies` job with the other students and the `copiesA3` job with the large-print students, each with its own file, preview pane and tick. With nobody in one group that job does not exist. The sidebar counts the same jobs (`examChecksState.stamps.large`).
+- `StickerSheetForm` with `largePrint` runs `renderExamCopies` followed by `scaleToA3` (`lib/qr/booklet.ts`, every page ×√2) and delivers `…_copies_A3.pdf`, always as loose duplex sheets, whatever the exam's booklet setting.
 - The copy is the A4 sheet enlarged, not typeset again: page breaks, page codes, fiducials and answer boxes are identical, so there is one OMR template per exam.
 - Scans: `scanViewport` (`lib/scan/scanViewport.ts`) renders an upright page of A-series shape that is clearly wider than A4 smaller by the factor that brings it to A4 width. Every renderer of scans uses it (ingest, the grading viewer, graded PDFs, MC crops, re-detection on the verify page), so ink, OMR boxes and score boxes share one pixel grid. The stored scan is never changed. A new place that renders a scan must use it too.
 - Limit: a landscape page of A3 size is an unfolded booklet sheet and is split in two (`isA3Landscape`). An A3 copy must therefore be scanned upright.

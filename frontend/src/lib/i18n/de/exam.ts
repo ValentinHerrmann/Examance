@@ -360,6 +360,8 @@ export const exam = {
             qr: 'QR-Aufkleberbogen',
             qrHint: 'Ein Bogen mit den QR-Codes aller Schüler der Liste.',
             copies: 'Personalisierte Exemplare',
+            copiesA3: 'Personalisierte Exemplare in Großdruck (A3)',
+            copiesA3Hint: 'Die Exemplare der Schüler mit Großdruck, von A4 auf A3 vergrößert. Beidseitig auf A3 drucken, als lose Blätter; später hochkant scannen.',
             copiesHint: 'Eine PDF mit einem Exemplar pro Schüler, in der Reihenfolge der Liste.',
             solution: 'Lösung',
             solutionHint: 'Für Sie oder die Korrektur; enthält die Lösungen.',

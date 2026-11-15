@@ -18,7 +18,6 @@ export const sharing: Translations['sharing'] = {
         outputCopies: 'Print directly onto the exam copies',
         outputStickersText: 'Labels to stick on',
         outputCopiesText: 'One copy per student with their code',
-        copiesLarge: 'Large print: {count} copy/copies are enlarged to A3 and come as a file of their own (…_copies_A3.pdf) in the download. Print that file double-sided on A3 and scan the sheets upright later.',
         copiesIntro: 'One copy per student, in list order: the QR code sits in the QR box, and the top-right corner of page 1 carries name and personal key. Before handing out, cut the corner off along the dashed line; students recognise their copy by it and keep it. Cut it off before scanning: Examance keeps the scan unchanged, so a corner that was not cut off stays visible. Print at actual size.',
         copiesPrintHint: 'Print double-sided, flipping on the long edge, or as a booklet: every page shows the cut line at its outer corner (top right on odd pages, top left on even ones), so the whole stack can be cut at once with a guillotine. Every copy fills whole sheets (on older exams without page codes a copy with an odd page count gets a blank page), so every copy starts on a new sheet.',
         copiesBookletHint: 'Booklets: the copies are arranged the way you chose in the print plan. Cut the corner through the folded stack; the cut line sits at the outer top corner of every page. On A3 sheets arranged by Examance, marks at the top and bottom middle show the fold.',

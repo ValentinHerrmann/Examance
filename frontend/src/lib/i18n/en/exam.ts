@@ -362,6 +362,8 @@ export const exam: Translations['exam'] = {
             qr: 'QR sticker sheet',
             qrHint: 'One sheet with the QR codes of every student in the list.',
             copies: 'Personalised copies',
+            copiesA3: 'Personalised copies in large print (A3)',
+            copiesA3Hint: 'The copies of the students with large print, enlarged from A4 to A3. Print double-sided on A3, as loose sheets; scan them upright later.',
             copiesHint: 'One PDF with a copy per student, in list order.',
             solution: 'Solution',
             solutionHint: 'For you or for grading; contains the answers.',

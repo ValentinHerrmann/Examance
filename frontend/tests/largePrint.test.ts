@@ -3,7 +3,7 @@ import { PDFDocument } from 'pdf-lib';
 import { scaleToA3 } from '../src/lib/qr/booklet';
 import { enlargedPageFactor } from '../src/lib/scan/scanViewport';
 import { mergeScannedStudent } from '../src/lib/scan/ingest';
-import { studentsStamp } from '../src/lib/exam/examChecks';
+import { largePrintOf, printJobs, printStamps, printStatus, studentsStamp } from '../src/lib/exam/examChecks';
 import type { StudentRecord } from '../src/lib/db/schema';
 
 const A4 = [595.28, 841.89] as const;
@@ -34,6 +34,20 @@ describe('large-print A3 copies (issue #265)', () => {
     expect(enlargedPageFactor(A3[1], A3[0])).toBe(1);
     // A scanner's slightly larger A4 is no enlargement.
     expect(enlargedPageFactor(610, 860)).toBe(1);
+  });
+
+  it('is a print job of its own, so no large-print student is left out of the Print step', () => {
+    expect(largePrintOf([{}, {}])).toBe('none');
+    expect(largePrintOf([{ largePrint: true }, {}])).toBe('some');
+    expect(largePrintOf([{ largePrint: true }])).toBe('all');
+    expect(printJobs(undefined, 'copies', 'none')).toEqual(['copies']);
+    expect(printJobs(undefined, 'copies', 'some')).toEqual(['copies', 'copiesA3']);
+    expect(printJobs(undefined, 'copies', 'all')).toEqual(['copiesA3']);
+    // Sticker mode prints one plain sheet for everybody.
+    expect(printJobs(undefined, 'stickers', 'some')).toEqual(['exam', 'qr']);
+    const stamps = printStamps('c', 's');
+    expect(stamps.copiesA3).toBe(stamps.copies);
+    expect(printStatus({}, stamps, 'copies', 'some').total).toBe(2);
   });
 
   it('survives a scan and marks printed copies as outdated', () => {

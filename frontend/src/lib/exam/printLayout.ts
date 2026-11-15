@@ -104,9 +104,11 @@ export function stickersPerCopy(settings: PrintSettings, pageCount: number): num
 }
 
 /** What shapes a made print file besides content and students: a file made under another key is outdated (Print step). */
-export function printFileKey(job: 'exam' | 'qr' | 'copies' | 'extra', booklet: 'impose' | 'printer' | null, stickers: number, paper: PaperStyle = 'empty', offsetMm = 0): string {
+export function printFileKey(job: 'exam' | 'qr' | 'copies' | 'copiesA3' | 'extra', booklet: 'impose' | 'printer' | null, stickers: number, paper: PaperStyle = 'empty', offsetMm = 0): string {
   if (job === 'qr') return `qr:${stickers}`;
   if (job === 'extra') return `extra:${paper}`;
+  // Large-print copies are always loose A3 sheets, whatever the rest is printed as.
+  if (job === 'copiesA3') return 'copiesA3';
   // Imposed sheets carry the shift, so a new offset makes them again.
   return booklet === 'impose' ? `${job}:impose:${offsetMm}` : `${job}:${booklet ?? 'a4'}`;
 }
