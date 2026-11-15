@@ -229,6 +229,64 @@ test('[layout] the scan page downloads the graded PDF of a paper with an objecti
   expect((await download).suggestedFilename()).toMatch(/_graded\.pdf$/);
 });
 
+/** Issue #226: objections must not squeeze the score list. PCs get a compact inline thread and a one-row footer; phones a badge on the row and a dialog. */
+test('[layout] the grade page keeps the score list roomy with an objection', async ({ page }, testInfo) => {
+  const examId = await seedWorkspace(page);
+  const scan = await PDFDocument.create();
+  scan.addPage([595, 842]);
+  const scanBytes = Array.from(await scan.save());
+
+  await page.evaluate(
+    async ({ exam, bytes }) => {
+      const modules = ['/src/lib/stores/session.ts', '/src/lib/db/dbEncryption.ts', '/src/lib/repositories/submissionRepository.ts', '/src/lib/repositories/reviewRepository.ts', '/src/lib/repositories/exerciseRepository.ts'];
+      const [session, sealing, submissions, reviews, exercises] = await Promise.all(modules.map((m) => import(/* @vite-ignore */ m)));
+      let key: CryptoKey | null = null;
+      session.sessionStore.subscribe((s: { sessionKey: CryptoKey | null }) => (key = s.sessionKey))();
+      const [exercise] = await exercises.exerciseRepository.getAll(key);
+      const submissionId = crypto.randomUUID();
+      const sealed = await sealing.sealScan(submissionId, new Uint8Array(bytes), key);
+      await submissions.submissionRepository.save(
+        { id: submissionId, examId: exam, pseudonymHmac: 'e2e-pseudonym', pseudonymVersion: 2, scanCt: sealed.ct, scanIv: sealed.iv, createdAt: new Date().toISOString() },
+        key
+      );
+      const item = { key: exercise.id, label: '1', objection: 'I think my answer to the second part deserves more points, because the method is the one from the lecture and only the last step differs.', reply: '', pointsBefore: 3, pointsAfter: null };
+      await reviews.reviewRepository.save(exam, { id: crypto.randomUUID(), submissionId, items: [item], submittedAt: new Date().toISOString(), repliedAt: null }, key);
+    },
+    { exam: examId, bytes: scanBytes }
+  );
+
+  await visit(page, `/exam/${examId}/grade`);
+  const reply = page.getByRole('textbox', { name: label('review.thread.reply') });
+  const viewport = page.viewportSize()!;
+  const desktop = viewport.width >= 1024;
+  const shot = (name: string) => page.screenshot({ path: `${process.env.PW_SHOTS ?? testInfo.outputDir}/grade-objection-${name}.png` });
+
+  if (desktop) {
+    await expect(reply, 'PCs reply inline').toBeVisible();
+    const footerRow = page.getByRole('button', { name: label('review.bar.sendEllipsis') }).locator('..');
+    expect((await footerRow.boundingBox())!.height, 'the footer review row is one row').toBeLessThan(60);
+    await shot('desktop');
+    return;
+  }
+
+  await expect(reply, 'phones have no inline reply field').toHaveCount(0);
+  await page.getByRole('button', { name: label('grading.workspace.scorePanel') }).click();
+  const badge = page.locator('button').filter({ hasText: label('review.thread.objection') });
+  await expect(badge, 'the badge sits on the score row').toBeVisible();
+  await shot('phone');
+  const list = page.locator('[id^=score-]').first().locator('xpath=ancestor::div[contains(@class,"overflow-y-auto")][1]');
+  // The objection must not crowd the sheet: the list keeps at least half of it, and Previous/Next stay fully on screen.
+  const sheet = list.locator('xpath=ancestor::div[contains(@class,"dvh")][1]');
+  expect((await list.boundingBox())!.height, 'the score list keeps half of the score sheet').toBeGreaterThanOrEqual((await sheet.boundingBox())!.height * 0.5);
+  const next = page.getByRole('button', { name: label('grading.actions.next') });
+  const nextBox = (await next.boundingBox())!;
+  expect(nextBox.y + nextBox.height, 'Next student stays on screen').toBeLessThanOrEqual(viewport.height);
+  await page.locator('button').filter({ hasText: label('review.bar.edit') }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('textbox', { name: label('review.thread.reply') })).toBeVisible();
+  await shot('phone-dialog');
+});
+
 /* -------------------------------------------------------------------------- */
 /* Shell: navbar, sidebar, grade, widths, touch targets, theme                 */
 /* -------------------------------------------------------------------------- */

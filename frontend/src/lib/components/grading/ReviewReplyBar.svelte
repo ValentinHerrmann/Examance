@@ -1,58 +1,63 @@
 <script lang="ts">
-  // Status and "Send reply" for the open objection of the current submission (issue #226): saves the scores, republishes the result under the same link and sends the replies. Shown only when the submission has an objection.
+  // One footer row for the open objection of the current submission (issue #226): status plus the button that opens the review dialog. Shown only when the submission has an objection.
   import { t } from "#lib/i18n";
-  import { Alert, Button, Checkbox, actionIcons } from "#lib/components/ui";
+  import { Button, Icon } from "#lib/components/ui";
+  import { faCommentDots } from "@fortawesome/free-solid-svg-icons";
   import { reviewStore } from "#lib/grading/reviewStore";
-  import { resendReviewMail, sendReviewReply, showReview } from "#lib/sharing/reviewService";
-  import type { SubmissionRecord } from "#lib/db/schema";
+  import { resendReviewMail, showReview } from "#lib/sharing/reviewService";
+  import { isDesktop } from "#lib/stores/viewport";
+  import type { ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
   import { formatDate } from "#lib/utils/format";
+  import ReviewDialog from "./ReviewDialog.svelte";
 
   interface Props {
     examId: string;
     sub: SubmissionRecord | undefined;
+    exercises: ExerciseRecord[];
     /** Saves the pending score edits first; rejects when that fails. */
     onFlush: () => Promise<void>;
   }
 
-  let { examId, sub, onFlush }: Props = $props();
+  let { examId, sub, exercises, onFlush }: Props = $props();
 
   let thread = $derived($reviewStore.thread);
   let mine = $derived(Boolean(sub && $reviewStore.submissionId === sub.id && thread?.submittedAt));
+  let status = $derived(
+    thread?.repliedAt
+      ? $t("review.bar.answered", { date: formatDate(thread.repliedAt) })
+      : $t("review.bar.open", { date: formatDate(thread?.submittedAt ?? "") })
+  );
 </script>
 
 {#if mine && thread && sub}
-  <div class="flex flex-col gap-2 rounded-md border border-line bg-surface-sunken p-2">
-    <p class="m-0 text-sm font-semibold text-content">{$t("review.bar.title")}</p>
+  <div class="flex items-center gap-2">
+    <Icon icon={faCommentDots} class="text-warning-fg" />
     {#if thread.unreadable}
-      <Alert severity="warning">{$t("review.thread.unreadable")}</Alert>
+      <p class="m-0 min-w-0 flex-1 text-xs text-warning-fg">{$t("review.thread.unreadable")}</p>
     {:else}
-      <p class="m-0 text-xs text-muted">
-        {thread.repliedAt ? $t("review.bar.answered", { date: formatDate(thread.repliedAt) }) : $t("review.bar.received", { date: formatDate(thread.submittedAt ?? "") })}
-      </p>
+      <p class="m-0 min-w-0 flex-1 truncate text-xs text-muted" title={status}>{status}</p>
       {#if $reviewStore.lockFailed}
         <Button size="sm" variant="outlined" severity="secondary" onClick={() => showReview(examId, sub)}>{$t("review.bar.retry")}</Button>
       {:else}
-        {#if $reviewStore.canMail}
-          <Checkbox checked={$reviewStore.notify} label={$t("review.bar.notify")} disabled={$reviewStore.sending} onChange={(on) => reviewStore.patch({ notify: on })} />
-        {/if}
-        <Button size="sm" icon={actionIcons.send} loading={$reviewStore.sending} disabled={$reviewStore.sending} onClick={() => sendReviewReply(examId, sub, onFlush)}>
-          {thread.repliedAt ? $t("review.bar.resend") : $t("review.bar.send")}
+        <Button size="sm" variant="outlined" severity="secondary" onClick={() => reviewStore.patch({ dialog: $isDesktop ? "send" : "items" })}>
+          {$isDesktop ? $t("review.bar.sendEllipsis") : $t("review.bar.edit")}
         </Button>
-        <p class="m-0 text-xs text-subtle">{$t("review.bar.hint")}</p>
       {/if}
     {/if}
-    {#if $reviewStore.error}<Alert severity="danger">{$reviewStore.error}</Alert>{/if}
-    {#if $reviewStore.sentAt}
-      <Alert severity={$reviewStore.mailFailed ? "warning" : "success"}>
-        {$reviewStore.mailFailed ? $t("review.bar.mailFailed") : $t("review.bar.sent")}
-        {#snippet actions()}
-          {#if $reviewStore.mailFailed}
-            <Button size="sm" variant="outlined" severity="secondary" disabled={$reviewStore.sending} onClick={resendReviewMail}>{$t("review.bar.resendMail")}</Button>
-          {/if}
-        {/snippet}
-      </Alert>
-    {/if}
   </div>
+  {#if !$reviewStore.dialog}
+    {#if $reviewStore.error}
+      <p class="m-0 text-xs text-danger-fg">{$reviewStore.error}</p>
+    {:else if $reviewStore.sentAt}
+      <p class="m-0 flex items-center gap-2 text-xs {$reviewStore.mailFailed ? 'text-warning-fg' : 'text-success-fg'}">
+        <span class="min-w-0 flex-1">{$reviewStore.mailFailed ? $t("review.bar.mailFailed") : $t("review.bar.sent")}</span>
+        {#if $reviewStore.mailFailed}
+          <Button size="sm" variant="text" severity="secondary" disabled={$reviewStore.sending} onClick={resendReviewMail}>{$t("review.bar.resendMail")}</Button>
+        {/if}
+      </p>
+    {/if}
+  {/if}
+  <ReviewDialog {examId} {sub} {exercises} {onFlush} />
 {:else if $reviewStore.error}
-  <Alert severity="warning">{$t("review.bar.loadFailed", { message: $reviewStore.error })}</Alert>
+  <p class="m-0 text-xs text-warning-fg">{$t("review.bar.loadFailed", { message: $reviewStore.error })}</p>
 {/if}

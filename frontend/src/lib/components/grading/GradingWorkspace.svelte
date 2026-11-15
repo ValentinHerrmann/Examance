@@ -146,7 +146,7 @@
       {/if}
     </div>
 
-    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2.5">
+    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2">
       <GradeSummaryCard
         {isFullyGraded}
         {totalScore}
@@ -157,7 +157,7 @@
         {calculatedGradeDetail}
       />
 
-      <ReviewReplyBar {examId} sub={currentSub} {onFlush} />
+      <ReviewReplyBar {examId} sub={currentSub} {exercises} {onFlush} />
 
       <GradingActions {saveStatus} {onPrev} {onNext} {currentIndex} />
     </div>

@@ -1,4 +1,4 @@
-/** The objection thread of the submission on the grade page (issue #226). Like `gradingStore`, plain state that leaf components (ReviewThread, ReviewReplyBar) subscribe to; loading, opening and sending stay in `sharing/reviewService.ts`. Pseudonymous: it holds no student name. */
+/** The objection thread of the submission on the grade page (issue #226). Like `gradingStore`, plain state that leaf components (ReviewThread, ReviewReplyBar, ReviewDialog) subscribe to; loading, opening and sending stay in `sharing/reviewService.ts`. Pseudonymous: it holds no student name. */
 
 import { writable } from 'svelte/store';
 
@@ -34,9 +34,11 @@ export interface ReviewState {
   mailFailed: boolean;
   /** The objection could not be locked for the student yet (the "opened" call failed): no reply until a retry works. */
   lockFailed: boolean;
+  /** The review dialog: with the items' scores and replies (phones), or only the send step (PCs, where the replies are inline). */
+  dialog: 'items' | 'send' | null;
 }
 
-const INITIAL: ReviewState = { submissionId: null, thread: null, canMail: false, drafts: {}, notify: true, sending: false, error: '', sentAt: null, mailFailed: false, lockFailed: false };
+const INITIAL: ReviewState = { submissionId: null, thread: null, canMail: false, drafts: {}, notify: true, sending: false, error: '', sentAt: null, mailFailed: false, lockFailed: false, dialog: null };
 
 const store = writable<ReviewState>({ ...INITIAL });
 

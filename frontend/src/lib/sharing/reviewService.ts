@@ -149,7 +149,7 @@ export async function showReview(examId: string, sub: SubmissionRecord): Promise
     return;
   }
   const lockFailed = Boolean(error) && !thread.openedAt;
-  reviewStore.set({ submissionId: sub.id, thread, canMail: exam.mailable.has(studentKey), drafts: { ...thread.replies }, notify: true, sending: false, error, sentAt: null, mailFailed: false, lockFailed });
+  reviewStore.set({ submissionId: sub.id, thread, canMail: exam.mailable.has(studentKey), drafts: { ...thread.replies }, notify: true, sending: false, error, sentAt: null, mailFailed: false, lockFailed, dialog: null });
 }
 
 /** Reply texts per item key, trimmed. */
