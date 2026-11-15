@@ -15,6 +15,7 @@ import {
 } from '#lib/grading/scoreBoxes';
 import { decodePngBytes, isPdfBytes, legacyScanCrop } from '#lib/components/grading/ScanCanvasViewer';
 import { loadPdfjs } from '#lib/pdf/pdfjs';
+import { scanViewport } from '#lib/scan/scanViewport';
 import { get } from 'svelte/store';
 import type { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import { fitText, type PdfLib } from '#lib/pdf/labelKit';
@@ -130,7 +131,7 @@ async function addPdfScan(c: RenderContext, scanBytes: Uint8Array): Promise<void
   try {
     for (let n = 1; n <= doc.numPages; n++) {
       const page = await doc.getPage(n); // NOSONAR: pages render one at a time to keep memory bounded
-      const viewport = page.getViewport({ scale: RENDER_SCALE });
+      const viewport = scanViewport(page, RENDER_SCALE);
       const canvas = newCanvas(viewport.width, viewport.height);
       await page.render({ canvasContext: canvas.getContext('2d')!, canvas, viewport }).promise; // NOSONAR
       // The template's pages come first; extra pages after them get no score boxes (issue #220).

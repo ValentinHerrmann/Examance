@@ -24,6 +24,8 @@ export interface StickerEntry {
   number?: string;
   /** The student's extra working time as printed after the name (issue #265), e.g. "+25 % (+7,5 Min)". */
   extension?: string;
+  /** The student's copy is enlarged to A3 and goes into its own file (issue #265). */
+  largePrint?: boolean;
   /** The QR text; the scan stores it as the student's raw id. */
   payload: string;
 }

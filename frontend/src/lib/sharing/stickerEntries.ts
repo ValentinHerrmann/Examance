@@ -14,7 +14,7 @@ export function stickerEntries(students: readonly StudentRecord[], durationMinut
         const raw = stickerRawOf(st);
         if (!raw) return [];
         const extension = st.timeExtension ? { extension: printedExtension(st.timeExtension, durationMinutes) } : {};
-        return [{ label: formatStudentName(st.studentName) || raw, number: positionLabel(position, highest), payload: raw, ...extension }];
+        return [{ label: formatStudentName(st.studentName) || raw, number: positionLabel(position, highest), payload: raw, ...extension, ...(st.largePrint ? { largePrint: true } : {}) }];
     });
 }
 

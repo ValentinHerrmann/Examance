@@ -232,7 +232,7 @@
             <th class="w-px whitespace-normal">{$t("grading.manual.roster.colNumber")}</th>
             {#if listMode}<th class="w-px whitespace-normal">{$t("lms.students.colMebisId")}</th><th class="w-px whitespace-normal">{$t("lms.students.colArtemisId")}</th>{/if}
             <th>{$t("grading.manual.roster.colEmail")}</th>
-            {#if listMode}<th class="w-px whitespace-normal">{$t("lms.students.colExtension")}</th>{/if}
+            {#if listMode}<th class="w-px whitespace-normal">{$t("lms.students.colNeeds")}</th>{/if}
             <th>{$t("grading.manual.roster.colPseudonym")}</th>
             <th>{$t("grading.manual.roster.colType")}</th>
             <th class="w-px"><span class="sr-only">{$t("grading.manual.roster.colActions")}</span></th>
@@ -251,7 +251,7 @@
               <td class="whitespace-nowrap tabular-nums">{st.studentNumber || "-"}</td>
               {#if listMode}<td class="tabular-nums">{mebisIdOf(st) ?? "-"}</td><td class="tabular-nums">{artemisIdOf(st) ?? "-"}</td>{/if}
               <td class="whitespace-nowrap">{st.email || "-"}</td>
-              {#if listMode}<td class="whitespace-nowrap tabular-nums">{st.timeExtension ? extensionLabel(st.timeExtension) : "-"}</td>{/if}
+              {#if listMode}<td class="whitespace-nowrap tabular-nums">{st.timeExtension ? extensionLabel(st.timeExtension) : "-"}{#if st.largePrint}<Badge class="ml-1" severity="secondary" size="xs">A3</Badge>{/if}</td>{/if}
               <td>
                 <span class="block max-w-[16ch] truncate font-mono text-sm text-muted" title={st.fallbackCode || st.pseudonymHmac.slice(0, 8)}>
                   {st.fallbackCode || st.pseudonymHmac.slice(0, 8)}

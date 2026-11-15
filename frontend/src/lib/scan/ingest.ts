@@ -17,6 +17,7 @@ import type { QrWorkerRequest, QrWorkerResponse } from "#lib/workers/qrWorker";
 import { qrResultOf, type QrResult } from "#lib/scan/qrText";
 import { examTag, isExtraSheetCode, parsePageCode } from "#lib/exam/pageCodes";
 import { submissionRepository } from "#lib/repositories/submissionRepository";
+import { scanViewport } from "#lib/scan/scanViewport";
 import { addPlaceholderPage, attachOriginals, carryAttachments, halfImage, isA3Landscape, isLandscape, placeholderOf, splitA3 } from "#lib/scan/scanPdf";
 import type {
   OmrExerciseAnswerKey,
@@ -370,7 +371,7 @@ class ScanPass {
     for (let pIdx = 1; pIdx <= source.pdf.numPages; pIdx++) {
       const page = await source.pdf.getPage(pIdx); // NOSONAR: one page at a time keeps only one page's pixels alive
       // ~200 DPI; must equal the scanScale the OMR worker is told, or bubble geometry breaks.
-      const viewport = page.getViewport({ scale: this.omrRun.params.scanScale });
+      const viewport = scanViewport(page, this.omrRun.params.scanScale);
       const imageData = await renderPage(page, viewport); // NOSONAR: one page at a time keeps only one page's pixels alive
       const libPage = pdfLibDoc.getPage(pIdx - 1);
 
@@ -470,7 +471,7 @@ class ScanPass {
   }
 }
 
-/** The student row a scan writes: a student already in the exam (from the Students page) keeps name, e-mail, Mebis/Artemis ids, list flag, list number and time extension, and the scan only fills what is empty. The save replaces the whole sealed record, so without this a scan would erase an imported address. */
+/** The student row a scan writes: a student already in the exam (from the Students page) keeps name, e-mail, Mebis/Artemis ids, list flag, list number, time extension and large print, and the scan only fills what is empty. The save replaces the whole sealed record, so without this a scan would erase an imported address. */
 export function mergeScannedStudent(existing: StudentRecord | undefined, scanned: StudentRecord): StudentRecord {
   if (!existing) return scanned;
   return {
@@ -484,6 +485,7 @@ export function mergeScannedStudent(existing: StudentRecord | undefined, scanned
     fromList: existing.fromList,
     classPosition: existing.classPosition,
     timeExtension: existing.timeExtension,
+    largePrint: existing.largePrint,
   };
 }
 

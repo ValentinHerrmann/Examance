@@ -1,4 +1,5 @@
 import { loadPdfjs } from '#lib/pdf/pdfjs';
+import { scanViewport } from '#lib/scan/scanViewport';
 import { drawOmrOverlayForPage } from '#lib/grading/omrOverlay';
 import type { ExerciseRecord, OmrScoreMeta } from '#lib/db/schema';
 
@@ -43,7 +44,7 @@ export async function renderScanPage(
   try {
     const targetPageIndex = Math.max(0, Math.min(pdfDoc.numPages - 1, pageIndex));
     const pdfPage = await pdfDoc.getPage(targetPageIndex + 1);
-    const viewport = pdfPage.getViewport({ scale });
+    const viewport = scanViewport(pdfPage, scale);
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;

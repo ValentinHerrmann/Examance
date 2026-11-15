@@ -27,6 +27,8 @@ export const lms: Translations['lms'] = {
         toolbarHint: 'Tick rows to edit, merge or delete them.',
         colEmail: 'E-mail',
         colExtension: 'Extra time',
+        colLargePrint: 'Large print (A3)',
+        colNeeds: 'Extra time, large print',
         extensionUnit: 'Unit of the extra time',
         extensionMinutes: 'min',
         extensionNoDuration: 'Extra time in percent is converted to minutes only once the exam has a working time.',

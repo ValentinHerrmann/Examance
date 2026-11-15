@@ -8,7 +8,7 @@
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug, ZipBuilder } from "#lib/export/zip";
   import { renderExamCopies } from "#lib/qr/examCopies";
-  import { imposeBooklet, splitCopies } from "#lib/qr/booklet";
+  import { imposeBooklet, scaleToA3, splitCopies } from "#lib/qr/booklet";
   import { renderStickerSheet, STICKER_GRID, type StickerEntry } from "#lib/qr/stickerSheet";
   import { loadStickerEntries, stickerIdIssues } from "#lib/sharing/stickerEntries";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
@@ -91,6 +91,7 @@
   let onlyKeys = $derived(!copiesMode && keysOnly);
   // Personalised page codes name the student by sticker ID (issue #220): a shared ID blocks copies, a missing one leaves only the cover code.
   let idIssues = $derived(copiesMode ? stickerIdIssues(entries ?? examEntries) : null);
+  let largeCount = $derived((entries ?? examEntries).filter((e) => e.largePrint).length);
   let error = $state("");
 
   onMount(async () => {
@@ -118,24 +119,41 @@
     onDone?.(kind);
   }
 
-  /** The copies as the chosen print way needs them: A4 one after the other, A3 booklets, or (for the printer's booklet function) a ZIP with one A4 file per student. */
+  /** The copies as the chosen print way needs them: A4 one after the other, A3 booklets, or (for the printer's booklet function) one A4 file per student. Students with large print (issue #265) get the sheet enlarged to A3 in a file of their own, always as loose sheets. More than one file is saved as a ZIP; the preview shows the first. */
   async function deliverCopies(list: StickerEntry[], examPdf: Uint8Array) {
     const issues = stickerIdIssues(list);
     if (issues.duplicates.length) throw new Error($t("sharing.stickers.idDuplicates", { names: issues.duplicates.join(", ") }));
-    const { pdf, pagesPerCopy } = await renderExamCopies(examPdf, list, { examTitle, examId });
     const base = slug(examTitle || $t("sharing.stickers.copiesTitle"));
-    if (booklet === "impose") {
-      deliver(await imposeBooklet(pdf, pagesPerCopy, bookletOffsetMm), "copies", `${base}_booklets.pdf`);
+    const large = list.filter((e) => e.largePrint);
+    const normal = list.filter((e) => !e.largePrint);
+    const files: { name: string; pdf: Uint8Array }[] = [];
+    let preview: Uint8Array | null = null;
+    let previewName = `${base}_copies.pdf`;
+    if (normal.length) {
+      const { pdf, pagesPerCopy } = await renderExamCopies(examPdf, normal, { examTitle, examId });
+      preview = pdf;
+      if (booklet === "impose") {
+        preview = await imposeBooklet(pdf, pagesPerCopy, bookletOffsetMm);
+        previewName = `${base}_booklets.pdf`;
+        files.push({ name: previewName, pdf: preview });
+      } else if (booklet === "printer") {
+        const names = normal.map((e, i) => `${e.number ?? String(i + 1).padStart(3, "0")}_${slug(e.label)}`);
+        for (const file of await splitCopies(pdf, pagesPerCopy, names)) files.push({ name: `${file.name}.pdf`, pdf: file.pdf });
+      } else files.push({ name: previewName, pdf });
+    }
+    if (large.length) {
+      const a3 = await scaleToA3((await renderExamCopies(examPdf, large, { examTitle, examId })).pdf);
+      files.push({ name: `${base}_copies_A3.pdf`, pdf: a3 });
+      if (!preview) [preview, previewName] = [a3, `${base}_copies_A3.pdf`];
+    }
+    if (!preview) return;
+    if (files.length === 1) {
+      deliver(preview, "copies", previewName);
       return;
     }
-    if (booklet === "printer") {
-      const zip = new ZipBuilder();
-      const files = await splitCopies(pdf, pagesPerCopy, list.map((e, i) => `${e.number ?? String(i + 1).padStart(3, "0")}_${slug(e.label)}`));
-      for (const file of files) zip.add(`${file.name}.pdf`, file.pdf);
-      deliver(pdf, "copies", `${base}_copies.pdf`, { bytes: zip.toBytes(), fileName: `${base}_copies.zip`, type: "application/zip" });
-      return;
-    }
-    deliver(pdf, "copies", `${base}_copies.pdf`);
+    const zip = new ZipBuilder();
+    for (const file of files) zip.add(file.name, file.pdf);
+    deliver(preview, "copies", previewName, { bytes: zip.toBytes(), fileName: `${base}_copies.zip`, type: "application/zip" });
   }
 
   async function download() {
@@ -216,6 +234,9 @@
     <Alert severity="danger">{loadError}</Alert>
   {/if}
 
+  {#if copiesMode && largeCount}
+    <p class="m-0 text-sm text-muted">{$t("sharing.stickers.copiesLarge", { count: largeCount })}</p>
+  {/if}
   {#if idIssues?.duplicates.length}
     <Alert severity="danger">{$t("sharing.stickers.idDuplicates", { names: idIssues.duplicates.join(", ") })} <a href={studentsHref(examId)}>{$t("lms.students.manage")}</a></Alert>
   {:else if idIssues?.missing.length}

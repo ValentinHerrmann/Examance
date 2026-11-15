@@ -315,6 +315,8 @@ export interface StudentRecord extends MaybeUndecryptable {
   classPosition?: number;
   /** Extra working time (issue #265, `lib/students/timeExtension.ts`). Decrypted only. */
   timeExtension?: TimeExtension;
+  /** Gets the exam enlarged to A3, in a separate print file (issue #265). Decrypted only. */
+  largePrint?: boolean;
   /** AES-256-GCM ciphertext of PII (name, student number, etc.). */
   piiCt: Uint8Array;
   /** 12-byte GCM IV for piiCt. */

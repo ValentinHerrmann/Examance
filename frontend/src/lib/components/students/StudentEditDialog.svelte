@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** The one place to edit students, one or many at once (issue #209): name, student number, Mebis ID, Artemis ID, e-mail and time extension (issue #265) per row. Side effects (renamed scanned students, changed IDs, duplicates, removed addresses) are listed before saving; the teacher may save anyway, only an empty name blocks. */
+  /** The one place to edit students, one or many at once (issue #209): name, student number, Mebis ID, Artemis ID, e-mail, time extension and large print (issue #265) per row. Side effects (renamed scanned students, changed IDs, duplicates, removed addresses) are listed before saving; the teacher may save anyway, only an empty name blocks. */
   import { untrack } from "svelte";
   import { get } from "svelte/store";
   import { t } from "#lib/i18n";
@@ -25,11 +25,12 @@
   let { students, all, hasSubmission, onSaved, onClose, createIn }: Props = $props();
 
   /** One row of the edit buffer: the text fields, and the time extension as typed value and unit. */
-  type Row = Record<EditableField, string> & { extValue: string; extUnit: ExtensionUnit };
+  type Row = Record<EditableField, string> & { extValue: string; extUnit: ExtensionUnit; largePrint: boolean };
   const rowOf = (st?: StudentRecord): Row => ({
     ...(Object.fromEntries(EDITABLE_FIELDS.map((f) => [f, st?.[f] ?? ""])) as Record<EditableField, string>),
     extValue: st?.timeExtension ? String(st.timeExtension.value).replace(".", ",") : "",
     extUnit: st?.timeExtension?.unit ?? "%",
+    largePrint: st?.largePrint === true,
   });
   // Local edit buffer: one plain object per row.
   let rows = $state(untrack(() => (createIn ? [rowOf()] : students.map(rowOf))));
@@ -51,12 +52,13 @@
       const next: StudentRecord = { ...st };
       for (const f of EDITABLE_FIELDS) next[f] = row[f].trim() || undefined;
       next.timeExtension = extensionFrom(row.extValue, row.extUnit);
+      next.largePrint = row.largePrint || undefined;
       return next;
     });
   }
 
   let after = $derived(edited());
-  let changed = $derived(after.filter((st, i) => EDITABLE_FIELDS.some((f) => (st[f] ?? "") !== (students[i][f] ?? "")) || !sameExtension(st.timeExtension, students[i].timeExtension)));
+  let changed = $derived(after.filter((st, i) => EDITABLE_FIELDS.some((f) => (st[f] ?? "") !== (students[i][f] ?? "")) || !sameExtension(st.timeExtension, students[i].timeExtension) || !!st.largePrint !== !!students[i].largePrint));
   let createNotices = $derived.by(() => {
     const name = rows[0]?.studentName.trim() ?? "";
     if (!name) return [{ key: "lms.students.edit.warn.emptyName" as const, name: "", blocking: true }];
@@ -78,7 +80,7 @@
       const key = get(sessionStore).sessionKey;
       if (createIn) {
         const position = nextClassPosition(all);
-        const student = { ...(await newListedStudent(createIn, rows[0])), timeExtension: extensionFrom(rows[0].extValue, rows[0].extUnit) };
+        const student = { ...(await newListedStudent(createIn, rows[0])), timeExtension: extensionFrom(rows[0].extValue, rows[0].extUnit), ...(rows[0].largePrint ? { largePrint: true } : {}) };
         await studentRepository.save(position === undefined ? student : { ...student, classPosition: position }, key);
         onSaved();
         return;
@@ -98,7 +100,7 @@
     <TableScroller maxHeight="max-h-96">
       <table class="data-table data-table-compact w-full">
         <thead>
-          <tr>{#each EDITABLE_FIELDS as f (f)}<th>{$t(COLUMNS[f])}</th>{/each}<th>{$t("lms.students.colExtension")}</th></tr>
+          <tr>{#each EDITABLE_FIELDS as f (f)}<th>{$t(COLUMNS[f])}</th>{/each}<th>{$t("lms.students.colExtension")}</th><th>{$t("lms.students.colLargePrint")}</th></tr>
         </thead>
         <tbody>
           {#each rows as row, i (createIn ? i : students[i].pseudonymHmac)}
@@ -115,6 +117,7 @@
                   </Select>
                 </div>
               </td>
+              <td class="text-center"><Checkbox bind:checked={row.largePrint} aria-label={$t("lms.students.colLargePrint")} disabled={busy} /></td>
             </tr>
           {/each}
         </tbody>

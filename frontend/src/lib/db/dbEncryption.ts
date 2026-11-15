@@ -223,7 +223,7 @@ const REVIEW: RecordCodec<GradingReviewRecord> = {
 const STUDENT: RecordCodec<StudentRecord> = {
   kind: 'student',
   plain: ['examId', 'pseudonymHmac', 'pseudonymVersion', 'piiCt', 'piiIv'],
-  sealed: ['fallbackCode', 'studentName', 'studentNumber', 'email', 'mebisId', 'artemisId', 'fromList', 'classPosition', 'timeExtension', 'pseudonymRaw', 'pseudonymBase'],
+  sealed: ['fallbackCode', 'studentName', 'studentNumber', 'email', 'mebisId', 'artemisId', 'fromList', 'classPosition', 'timeExtension', 'largePrint', 'pseudonymRaw', 'pseudonymBase'],
   // Only keyed rows: a version-1 row is renamed on the server by the re-key, which must not strand its payload.
   aad: (r) => (r.pseudonymVersion === 2 ? aadFor('student', r.examId, r.pseudonymHmac) : undefined),
 };

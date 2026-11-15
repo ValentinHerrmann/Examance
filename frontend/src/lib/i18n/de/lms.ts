@@ -25,6 +25,8 @@ export const lms = {
         toolbarHint: 'Zeilen ankreuzen, um sie zu bearbeiten, zusammenzuführen oder zu löschen.',
         colEmail: 'E-Mail',
         colExtension: 'Zeitzuschlag',
+        colLargePrint: 'Großdruck (A3)',
+        colNeeds: 'Zeitzuschlag, Großdruck',
         extensionUnit: 'Einheit des Zeitzuschlags',
         extensionMinutes: 'Min',
         extensionNoDuration: 'Ein Zeitzuschlag in Prozent wird erst in Minuten umgerechnet, wenn bei der Prüfung die Arbeitszeit eingetragen ist.',

@@ -104,6 +104,7 @@ export const studentRepository = {
                 pseudonymRaw: st.pseudonymRaw || existing.pseudonymRaw,
                 classPosition: existing.classPosition ?? st.classPosition,
                 timeExtension: existing.timeExtension ?? st.timeExtension,
+                largePrint: existing.largePrint ?? st.largePrint,
               }
             : st
         );

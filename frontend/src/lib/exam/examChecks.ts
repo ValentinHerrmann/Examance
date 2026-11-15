@@ -84,9 +84,9 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
 /** Locale-independent order, so the same list always gives the same stamp. */
 const byCodeUnits = (a: string, b: string): number => Number(a > b) - Number(a < b);
 
-/** What the QR stickers, copies and key slips depend on: the exam's students, their names and what is printed with them (time extension). */
+/** What the QR stickers, copies and key slips depend on: the exam's students, their names and what is printed with them (time extension, large print). */
 export function studentsStamp(students: StudentRecord[], durationMinutes?: number | null): string {
-    const rows = students.map((s) => JSON.stringify([s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '', ...(s.timeExtension ? [s.timeExtension.value, s.timeExtension.unit] : [])]));
+    const rows = students.map((s) => JSON.stringify([s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '', ...(s.timeExtension ? [s.timeExtension.value, s.timeExtension.unit] : []), ...(s.largePrint ? ['A3'] : [])]));
     rows.sort(byCodeUnits);
     // A share prints its minutes, so it follows the exam's working time.
     if (durationMinutes && students.some((s) => s.timeExtension?.unit === '%')) rows.push(String(durationMinutes));
