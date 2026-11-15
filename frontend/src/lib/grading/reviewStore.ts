@@ -15,6 +15,8 @@ export interface ReviewThread {
   repliedAt: string | null;
   /** The objection comes from the submission's kept record: its link was replaced, so there is no server thread to answer. */
   fromRecord?: boolean;
+  /** Points before and after per item key as the reply published them (the objections overview; the grade page ignores it). */
+  replyPoints?: Record<string, { before: number | null; after: number | null }>;
 }
 
 export interface ReviewState {

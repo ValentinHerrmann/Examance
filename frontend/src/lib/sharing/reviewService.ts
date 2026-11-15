@@ -44,14 +44,15 @@ let pendingMail: PendingMail | null = null;
 /** Bumped per `showReview`, so a slow load for an earlier submission cannot overwrite the current one. */
 let showSeq = 0;
 
-async function sessionKey(): Promise<CryptoKey> {
+export async function sessionKey(): Promise<CryptoKey> {
   await awaitSessionReady();
   const key = get(sessionStore).sessionKey;
   if (!key) throw new Error('The session is locked.');
   return key;
 }
 
-async function openThread(share: ResultShareInfo, row: ExamReviewInfo, itemKeys: ReadonlySet<string>): Promise<ReviewThread> {
+/** Opens one server thread with the share's unwrapped content key; never marks it opened. */
+export async function openThread(share: ResultShareInfo, row: ExamReviewInfo, itemKeys: ReadonlySet<string>): Promise<ReviewThread> {
   const thread: ReviewThread = { shareId: share.id, studentKey: share.studentKey, objections: {}, replies: {}, unreadable: false, submittedAt: row.submittedAt, openedAt: row.openedAt, repliedAt: row.repliedAt };
   if (!share.wrappedKey) return { ...thread, unreadable: true };
   try {
@@ -60,6 +61,7 @@ async function openThread(share: ResultShareInfo, row: ExamReviewInfo, itemKeys:
     if (row.reply) {
       const reply = sanitizeReply(await openReviewPart(share.id, contentKey, 'reply', row.reply.ciphertext, row.reply.iv), itemKeys);
       thread.replies = Object.fromEntries(Object.entries(reply.items).map(([k, v]) => [k, v.text]));
+      thread.replyPoints = Object.fromEntries(Object.entries(reply.items).map(([k, v]) => [k, { before: v.pointsBefore, after: v.pointsAfter }]));
     }
   } catch (err) {
     console.warn('A review could not be opened:', err);
@@ -70,15 +72,20 @@ async function openThread(share: ResultShareInfo, row: ExamReviewInfo, itemKeys:
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
+/** The exam's shares, server threads (still sealed), students and gradable items: what the grade page and the objections overview read. */
+export async function loadReviewSources(examId: string, key: CryptoKey) {
+  const [shares, rows, students, ctx] = await Promise.all([listResultShares(examId), listExamReviews(examId), studentRepository.getByExamId(examId, key), loadExamCompileContext(examId, key)]);
+  if (!ctx) throw new Error(translate('exam.page.examNotFoundOrDeleted'));
+  const items = buildReviewItems(ctx.exercises, ctx.mcGroups, []);
+  return { shares, rows, students, items, itemKeys: new Set(items.map((item) => item.key)) as ReadonlySet<string> };
+}
+
 /** Reads every share, objection and e-mail availability of the exam once for the grade page. */
 export async function initReviews(examId: string): Promise<void> {
   loaded = null;
   pendingMail = null;
   try {
-    const key = await sessionKey();
-    const [shares, rows, students, ctx] = await Promise.all([listResultShares(examId), listExamReviews(examId), studentRepository.getByExamId(examId, key), loadExamCompileContext(examId, key)]);
-    if (!ctx) throw new Error(translate('exam.page.examNotFoundOrDeleted'));
-    const itemKeys = new Set(buildReviewItems(ctx.exercises, ctx.mcGroups, []).map((item) => item.key));
+    const { shares, rows, students, itemKeys } = await loadReviewSources(examId, await sessionKey());
     const byId = new Map(shares.map((share) => [share.id, share]));
     const threads = new Map<string, ReviewThread>();
     for (const row of rows) {

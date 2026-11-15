@@ -14,6 +14,15 @@ Opening is reported honestly: when the "opened" call or the fresh read fails, th
 
 Score edits outside a reply are never published automatically: the Share page's "Update shared result" row action calls the same `republishShare`.
 
+## Overview tab
+
+`routes/exam/[id]/results/reviews` (`components/sharing/ReviewOverview` + `ReviewOverviewRow`, data from `lib/sharing/reviewOverview.ts` `loadReviewOverview`) lists every objection of the exam. It is **read only**: it opens threads with `openThread` but never calls `openShareReview`, so nothing gets locked; only the grade page locks.
+
+- One row per student: the current link's server thread, else the objection kept in the `GradingReviewRecord` (`fromRecord`). The record supplies the first-recorded `pointsBefore`; the reply's sealed points (`ReviewThread.replyPoints`) supply the rest.
+- Status: `new` (not opened), `opened` (locked, no reply), `answered`. Only `answered` is closed; the filter shows Open, Answered or All. Open rows sort oldest first, answered newest first.
+- Pseudonymous: the title is the join key's first 10 hex characters like the grade header; the page-wide "Show names" switch or a row's eye reveals names, never persisted.
+- The tab's count is the exam layout's `progress.results.objections` (live links only).
+
 ## Keys
 
 All derivations live in `lib/sharing/shareCrypto.ts`.

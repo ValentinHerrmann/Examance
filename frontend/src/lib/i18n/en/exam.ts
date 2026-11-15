@@ -420,6 +420,7 @@ export const exam: Translations['exam'] = {
     results: {
         tabStats: 'Statistics',
         tabShare: 'Send to students',
+        tabReviews: 'Objections',
         tabArchive: 'Archive',
     },
     flow: {

@@ -287,6 +287,45 @@ test('[layout] the grade page keeps the score list roomy with an objection', asy
   await shot('phone-dialog');
 });
 
+test('[layout] the objections tab lists open and answered objections pseudonymously', async ({ page }, testInfo) => {
+  const examId = await seedWorkspace(page);
+  await page.evaluate(async (exam) => {
+    const modules = ['/src/lib/stores/session.ts', '/src/lib/repositories/submissionRepository.ts', '/src/lib/repositories/reviewRepository.ts', '/src/lib/repositories/studentRepository.ts', '/src/lib/repositories/exerciseRepository.ts'];
+    const [session, submissions, reviews, students, exercises] = await Promise.all(modules.map((m) => import(/* @vite-ignore */ m)));
+    let key: CryptoKey | null = null;
+    session.sessionStore.subscribe((s: { sessionKey: CryptoKey | null }) => (key = s.sessionKey))();
+    const [exercise] = await exercises.exerciseRepository.getAll(key);
+    const seed = async (pseudonym: string, name: string, reply: string) => {
+      const submissionId = crypto.randomUUID();
+      await submissions.submissionRepository.save({ id: submissionId, examId: exam, pseudonymHmac: pseudonym, pseudonymVersion: 2, createdAt: new Date().toISOString() }, key);
+      await students.studentRepository.save({ id: crypto.randomUUID(), examId: exam, pseudonymHmac: pseudonym, pseudonymVersion: 2, studentName: name }, key);
+      const item = { key: exercise.id, label: '1', objection: `Objection of ${name}`, reply, pointsBefore: 3, pointsAfter: reply ? 4 : null };
+      await reviews.reviewRepository.save(exam, { id: crypto.randomUUID(), submissionId, items: [item], submittedAt: new Date().toISOString(), repliedAt: reply ? new Date().toISOString() : null }, key);
+    };
+    await seed('aaaaaaaaaaaaaaaa-open', 'Erika Open', '');
+    await seed('bbbbbbbbbbbbbbbb-done', 'Max Answered', 'Agreed, one more point.');
+  }, examId);
+  const locks: string[] = [];
+  page.on('request', (req) => {
+    if (req.url().includes('/review/open')) locks.push(req.url());
+  });
+
+  await visit(page, `/exam/${examId}/results/reviews`);
+  const card = page.getByRole('button', { name: /aaaaaaaaaa/ });
+  await expect(card, 'the open objection is listed by pseudonym').toBeVisible();
+  await expect(page.getByText('Erika Open'), 'names stay hidden').toHaveCount(0);
+  await expect(page.getByRole('button', { name: /bbbbbbbbbb/ }), 'answered ones are filtered out by default').toHaveCount(0);
+  await page.getByRole('switch', { name: label('review.overview.showNames') }).click();
+  await expect(page.getByRole('button', { name: 'Erika Open' }), 'the switch reveals names').toBeVisible();
+  await page.getByRole('button', { name: label('review.overview.answered') }).click();
+  await page.getByRole('button', { name: 'Max Answered' }).click();
+  await expect(page.getByText('Agreed, one more point.'), 'the conversation shows the reply').toBeVisible();
+  await page.screenshot({ path: `${process.env.PW_SHOTS ?? testInfo.outputDir}/objections-${testInfo.project.name}.png`, fullPage: true });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow, 'no horizontal scroll').toBeLessThanOrEqual(0);
+  expect(locks, 'reading the overview locks nothing').toEqual([]);
+});
+
 /* -------------------------------------------------------------------------- */
 /* Shell: navbar, sidebar, grade, widths, touch targets, theme                 */
 /* -------------------------------------------------------------------------- */
@@ -367,7 +406,7 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
 
   // Desktop: workspace content uses the available width.
   if (name === 'desktop') {
-    for (const p of ['', '/content', '/students', '/print', '/scan', '/verify', '/manual', '/results', '/results/share', '/results/archive']) {
+    for (const p of ['', '/content', '/students', '/print', '/scan', '/verify', '/manual', '/results', '/results/share', '/results/reviews', '/results/archive']) {
       await visit(page, `/exam/${examId}${p}`);
       const ratio = await page.evaluate(() => {
         const main = document.querySelector('.app-main')!;
