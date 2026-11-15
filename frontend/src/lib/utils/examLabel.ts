@@ -66,9 +66,14 @@ export function splitLegacyDatum(raw?: string | null): { datum: string; duration
   return durationMinutes === null ? { datum: (raw ?? '').trim(), durationMinutes } : { datum: datumDate, durationMinutes };
 }
 
-/** The printed `\Datum`: "date (N Minuten)" from the date and the working time; without a working time the stored text as it is (legacy brackets print as before). The only builder. */
+/** The printed `\Datum`: "date (N Minuten)" from the date and the working time; without a working time the stored text as it is (legacy brackets print as before); the minutes replace an old duration text, never another bracket. The only builder. */
 export function printedDatum(exam: { datum?: string | null; durationMinutes?: number | null }): string {
   if (!exam.durationMinutes) return (exam.datum ?? '').trim();
-  const date = parseDatumAndDauer(exam.datum).datumDate;
-  return `${date} (${exam.durationMinutes} Minuten)`.trim();
+  return `${legacyDuration(exam.datum).date} (${exam.durationMinutes} Minuten)`.trim();
+}
+
+/** The date and an old duration text the minutes replace: a trailing bracket counts as a duration only when it holds a number ("2 Schulstunden"); a note such as "(Nachtermin)" stays part of the date. */
+export function legacyDuration(raw?: string | null): { date: string; text: string } {
+  const { datumDate, dauer } = parseDatumAndDauer(raw);
+  return /\d/.test(dauer) ? { date: datumDate, text: dauer } : { date: (raw ?? '').trim(), text: '' };
 }

@@ -123,7 +123,7 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     klasse: exam.klasse,
     course: exam.course ?? "",
     datum: datumFields(exam).datum,
-    duration_minutes: datumFields(exam).durationMinutes ?? null,
+    duration_minutes: datumFields(exam).durationMinutes,
     nr: exam.nr,
     fach: exam.fach,
     // "" clears the stored topic, undefined leaves it alone (the server tells them apart).

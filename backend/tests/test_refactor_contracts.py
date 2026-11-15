@@ -156,6 +156,18 @@ async def test_exam_duplicate_copies_every_header_field(
 
 
 @pytest.mark.asyncio
+async def test_exam_working_time_can_be_cleared(client: AsyncClient, db: AsyncSession) -> None:
+    await sign_in(client, db, "duration@example.com")
+    exam = await _exam(client, duration_minutes=45)
+    assert exam["duration_minutes"] == 45
+    kept = await client.patch(f"{EXAMS}/{exam['id']}", json={"nr": "2"})
+    assert kept.json()["duration_minutes"] == 45
+    cleared = await client.patch(f"{EXAMS}/{exam['id']}", json={"duration_minutes": None})
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["duration_minutes"] is None
+
+
+@pytest.mark.asyncio
 async def test_exam_embeds_exercises_without_share_state(
     client: AsyncClient, db: AsyncSession
 ) -> None:

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { examCourse, exerciseTopicSuggestions, formatExamCourse, generatedExamTitle, parseDatumAndDauer, parseDurationMinutes, printedDatum, splitLegacyDatum } from '../src/lib/utils/examLabel';
+import { examCourse, exerciseTopicSuggestions, formatExamCourse, generatedExamTitle, parseDatumAndDauer, legacyDuration, parseDurationMinutes, printedDatum, splitLegacyDatum } from '../src/lib/utils/examLabel';
 import { randomStrings, timeMs } from './helpers/randomStrings';
 
 describe('formatExamCourse', () => {
@@ -55,6 +55,13 @@ describe('date and working time', () => {
     expect(printedDatum({ datum: '', durationMinutes: 45 })).toBe('(45 Minuten)');
     expect(printedDatum({ datum: '20.05.2025' })).toBe('20.05.2025');
     expect(printedDatum({ datum: '20.05.2025 (2 Schulstunden)', durationMinutes: null })).toBe('20.05.2025 (2 Schulstunden)');
+  });
+
+  it('replaces an old duration text with the minutes, never another bracket', () => {
+    expect(printedDatum({ datum: '20.05.2025 (2 Schulstunden)', durationMinutes: 90 })).toBe('20.05.2025 (90 Minuten)');
+    expect(printedDatum({ datum: '20.05.2025 (Nachtermin)', durationMinutes: 45 })).toBe('20.05.2025 (Nachtermin) (45 Minuten)');
+    expect(legacyDuration('20.05.2025 (Nachtermin)')).toEqual({ date: '20.05.2025 (Nachtermin)', text: '' });
+    expect(legacyDuration('20.05.2025 (2 Schulstunden)')).toEqual({ date: '20.05.2025', text: '2 Schulstunden' });
   });
 });
 

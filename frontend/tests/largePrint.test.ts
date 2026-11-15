@@ -3,8 +3,8 @@ import { PDFDocument } from 'pdf-lib';
 import { scaleToA3 } from '../src/lib/qr/booklet';
 import { enlargedPageFactor } from '../src/lib/scan/scanViewport';
 import { mergeScannedStudent } from '../src/lib/scan/ingest';
-import { largePrintOf, printJobs, printStamps, printStatus, studentsStamp } from '../src/lib/exam/examChecks';
-import type { StudentRecord } from '../src/lib/db/schema';
+import { contentStamp, largePrintOf, printJobs, printStamps, printStatus, studentsStamp } from '../src/lib/exam/examChecks';
+import type { ExamRecord, StudentRecord } from '../src/lib/db/schema';
 
 const A4 = [595.28, 841.89] as const;
 const A3 = [841.89, 1190.55] as const;
@@ -34,6 +34,11 @@ describe('large-print A3 copies (issue #265)', () => {
     expect(enlargedPageFactor(A3[1], A3[0])).toBe(1);
     // A scanner's slightly larger A4 is no enlargement.
     expect(enlargedPageFactor(610, 860)).toBe(1);
+    // Other odd sizes keep the scale their stored ink was made at: an image PDF at one point per pixel, B4.
+    expect(enlargedPageFactor(1240, 1754)).toBe(1);
+    expect(enlargedPageFactor(708.66, 1000.63)).toBe(1);
+    // A scanner's A3 is a few points off.
+    expect(enlargedPageFactor(835, 1200)).toBeLessThan(1);
   });
 
   it('is a print job of its own, so no large-print student is left out of the Print step', () => {
@@ -53,5 +58,14 @@ describe('large-print A3 copies (issue #265)', () => {
   it('survives a scan and marks printed copies as outdated', () => {
     expect(mergeScannedStudent(student({ largePrint: true }), student()).largePrint).toBe(true);
     expect(studentsStamp([student({ largePrint: true })])).not.toBe(studentsStamp([student()]));
+  });
+});
+
+describe('working time moved out of the date text (issue #265)', () => {
+  it('keeps the print stamp of an exam whose printed date line did not change', () => {
+    const exam = { id: 'e', title: 'KA' } as ExamRecord;
+    const before = contentStamp({ ...exam, datum: '14.08.2026 (30 Minuten)' }, []);
+    expect(contentStamp({ ...exam, datum: '14.08.2026', durationMinutes: 30 }, [])).toBe(before);
+    expect(contentStamp({ ...exam, datum: '14.08.2026', durationMinutes: 45 }, [])).not.toBe(before);
   });
 });

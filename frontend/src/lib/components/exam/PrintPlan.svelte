@@ -462,7 +462,7 @@
               bookletOffsetMm={print.bookletOffsetMm}
               stickersPerStudent={stickers}
               bind:create={creators[job]}
-              onPdf={(pdf, _kind, fileName, download) => gotPdf(job === "qr" || job === "copies" || job === "copiesA3" ? job : "qr", pdf, fileName, download)}
+              onPdf={(pdf, _kind, fileName, download) => gotPdf(job === "copies" || job === "copiesA3" ? job : "qr", pdf, fileName, download)}
             />
           {/if}
         {/if}

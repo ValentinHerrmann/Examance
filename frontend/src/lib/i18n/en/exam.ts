@@ -107,6 +107,7 @@ export const exam: Translations['exam'] = {
         courseHint: String.raw`How the class is printed on the exam (\Klasse). Built from grade and class; use the pen to enter your own, e.g. “Q11 Inf”.`,
         datum: 'Date',
         dauer: 'Working time (minutes)',
+        dauerInvalid: 'Enter whole minutes between 1 and 1440.',
         dauerLegacy: 'So far “{text}”: printed like this until you enter the minutes.',
         nr: 'No.',
         fach: 'Subject',

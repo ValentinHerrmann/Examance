@@ -70,7 +70,9 @@
     const whole = all.map((st) => byKey.get(st.pseudonymHmac) ?? st);
     return editWarnings(students, after, whole, hasSubmission);
   });
-  let blocking = $derived(notices.some((n) => n.blocking));
+  // Text that is no number must not silently remove an extension.
+  let extensionInvalid = $derived(rows.some((row) => row.extValue.trim() !== "" && !extensionFrom(row.extValue, row.extUnit)));
+  let blocking = $derived(extensionInvalid || notices.some((n) => n.blocking));
   let warnings = $derived(notices.filter((n) => !n.blocking));
 
   async function save() {
@@ -110,7 +112,7 @@
               {/each}
               <td>
                 <div class="flex min-w-36 items-center gap-1">
-                  <TextInput size="sm" inputmode="decimal" bind:value={row.extValue} aria-label={$t("lms.students.colExtension")} placeholder="0" disabled={busy} />
+                  <TextInput size="sm" inputmode="decimal" bind:value={row.extValue} invalid={row.extValue.trim() !== "" && !extensionFrom(row.extValue, row.extUnit)} aria-label={$t("lms.students.colExtension")} placeholder="0" disabled={busy} />
                   <Select size="sm" bind:value={row.extUnit} aria-label={$t("lms.students.extensionUnit")} disabled={busy}>
                     <option value="%">%</option>
                     <option value="min">{$t("lms.students.extensionMinutes")}</option>
@@ -124,6 +126,7 @@
       </table>
     </TableScroller>
 
+    {#if extensionInvalid}<Alert severity="danger">{$t("lms.students.extensionInvalid")}</Alert>{/if}
     {#if notices.length}
       <Alert severity={blocking ? "danger" : "warning"} title={$t("lms.students.edit.warnTitle")}>
         <ul class="m-0 list-disc pl-5">

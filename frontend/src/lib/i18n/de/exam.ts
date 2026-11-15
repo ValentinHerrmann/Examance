@@ -105,6 +105,7 @@ export const exam = {
         courseHint: String.raw`So steht die Klasse auf der Prüfung (\Klasse). Entsteht aus Jahrgangsstufe und Klasse; mit dem Stift tragen Sie eine eigene Angabe ein, z. B. „Q11 Inf“.`,
         datum: 'Datum',
         dauer: 'Arbeitszeit (Minuten)',
+        dauerInvalid: 'Geben Sie ganze Minuten zwischen 1 und 1440 ein.',
         dauerLegacy: 'Bisher „{text}“: wird so gedruckt, bis Sie die Minuten eintragen.',
         nr: 'Nr.',
         fach: 'Fach',

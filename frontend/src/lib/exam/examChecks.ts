@@ -1,3 +1,4 @@
+import { printedDatum } from '#lib/utils/examLabel';
 import type { ExamRecord, ExerciseRecord, StudentRecord } from '#lib/db/schema';
 import { printSettingsOf, type PrintSettings } from '#lib/exam/printLayout';
 
@@ -77,12 +78,12 @@ const LEGACY_PRINT = JSON.stringify(printSettingsOf({}));
 export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): string {
     const e = exam;
     const head = [
-        e.title, e.testart, e.grade, e.klasse, e.datum, e.nr, e.fach, e.lehrernachname, e.infoText,
+        // The printed date line, so an exam whose minutes only moved out of the date text (migration 0067) keeps its stamp.
+        e.title, e.testart, e.grade, e.klasse, e.durationMinutes ? printedDatum(e) : e.datum, e.nr, e.fach, e.lehrernachname, e.infoText,
         e.latexPreamble, e.latexTemplate, e.numVersions, e.latexPackages, e.pageBreaks, e.nameLine,
         e.mcCorrectionHint, e.extraNotes,
         // Only when set, so stamps of exams without an override (all older ones) stay as they were.
         ...(e.course ? [e.course] : []),
-        ...(e.durationMinutes ? [e.durationMinutes] : []),
         // Only when they differ from the old layout, so stamps of older exams stay as they were.
         ...(JSON.stringify(printSettingsOf(e)) === LEGACY_PRINT ? [] : [printSettingsOf(e)]),
     ];
