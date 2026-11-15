@@ -418,6 +418,7 @@ export const exam = {
     results: {
         tabStats: 'Statistik',
         tabShare: 'An Schüler senden',
+        tabReviews: 'Einsprüche',
         tabArchive: 'Archivieren',
     },
     flow: {

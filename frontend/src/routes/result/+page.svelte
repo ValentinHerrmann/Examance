@@ -3,16 +3,18 @@
   import { onDestroy, onMount } from "svelte";
   import { faLock } from "@fortawesome/free-solid-svg-icons";
   import { ApiError } from "#lib/api/client";
-  import { openResultShare } from "#lib/api/resultShares";
+  import { openResultShare, type SealedReview } from "#lib/api/resultShares";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, Field, PageShell, Spinner, TextInput } from "#lib/components/ui";
   import AuthCard from "#lib/components/unlock/AuthCard.svelte";
+  import ReviewForm from "#lib/components/sharing/ReviewForm.svelte";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import {
     lookupSecret,
     openSealedShare,
     parseShareFragment,
+    type ReviewItem,
     type SealedShare,
     type ShareFactor,
     type ShareLink,
@@ -31,7 +33,13 @@
   let examTitle = $state("");
   let gradedUrl = $state("");
   let solutionUrl = $state("");
-  let link: ShareLink | null = null;
+  let contentUpdatedAt = $state<string | null>(null);
+  let reviewUntil = $state<string | null>(null);
+  let reviewItems = $state.raw<ReviewItem[]>([]);
+  let contentKey = $state.raw<Uint8Array | null>(null);
+  let lookup = $state.raw<Uint8Array | null>(null);
+  let review = $state.raw<SealedReview | null>(null);
+  let link = $state.raw<ShareLink | null>(null);
   let sealed: SealedShare | null = null;
 
   const pdfUrl = (bytes: Uint8Array) => URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
@@ -39,7 +47,10 @@
   async function decryptWith(input: string | null): Promise<boolean> {
     if (!link || !sealed) return false;
     try {
-      const { header, documents } = await openSealedShare(link, factor, input, sealed);
+      const opened = await openSealedShare(link, factor, input, sealed);
+      const { header, documents } = opened;
+      contentKey = opened.contentKey;
+      reviewItems = header.items ?? [];
       examTitle = header.examTitle;
       gradedUrl = pdfUrl(documents.graded);
       if (documents.solution) solutionUrl = pdfUrl(documents.solution);
@@ -58,7 +69,11 @@
       return;
     }
     try {
-      const res = await openResultShare(link.shareId, await lookupSecret(link));
+      lookup = await lookupSecret(link);
+      const res = await openResultShare(link.shareId, lookup);
+      contentUpdatedAt = res.contentUpdatedAt;
+      reviewUntil = res.reviewUntil;
+      review = res.review;
       factor = res.factor;
       expiresAt = res.expiresAt;
       sealed = res.sealed;
@@ -102,6 +117,9 @@
       {#if expiresAt}
         <span class="text-sm text-muted">{$t("sharing.portal.expires", { date: formatDate(expiresAt) })}</span>
       {/if}
+      {#if contentUpdatedAt}
+        <span class="w-full text-sm text-muted">{$t("review.form.updatedOn", { date: formatDate(contentUpdatedAt) })}</span>
+      {/if}
     </header>
     {#if solutionUrl}
       <!-- A flex column with a fixed height: DualPdfPreview's flex-1 fills it, while a content-sized parent shrinks it to its minimum (issue #210). -->
@@ -119,6 +137,9 @@
       <div class="h-[75dvh] min-h-0 min-w-0 overflow-hidden rounded-md border border-line bg-surface-viewer">
         <PdfEmbedViewer src={gradedUrl} />
       </div>
+    {/if}
+    {#if reviewUntil && reviewItems.length > 0 && link && lookup && contentKey}
+      <ReviewForm shareId={link.shareId} {lookup} {contentKey} items={reviewItems} {reviewUntil} {review} />
     {/if}
     <p class="m-0 text-xs text-subtle">{$t("sharing.portal.privacy")}</p>
   </PageShell>

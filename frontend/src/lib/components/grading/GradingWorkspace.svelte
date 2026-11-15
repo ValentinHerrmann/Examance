@@ -10,6 +10,7 @@
   import ScoreEntry from "./ScoreEntry.svelte";
   import McAnswerReview from "./McAnswerReview.svelte";
   import GradingActions from "./GradingActions.svelte";
+  import ReviewReplyBar from "./ReviewReplyBar.svelte";
   import ScanCanvasViewer from "./ScanCanvasViewer.svelte";
   import { t } from "#lib/i18n";
   import { faChevronDown, faChevronUp, faFlagCheckered, faTrashCan } from "@fortawesome/free-solid-svg-icons";
@@ -38,6 +39,8 @@
     onPrev: () => void;
     onNext: () => void;
     onStayOnLastSub: () => void;
+    /** Saves the pending score edits; rejects when that fails (the objection reply needs them stored). */
+    onFlush: () => Promise<void>;
     scoreBoxes?: ScoreBoxContext | null;
   }
 
@@ -60,6 +63,7 @@
     onPrev,
     onNext,
     onStayOnLastSub,
+    onFlush,
     scoreBoxes = null
   }: Props = $props();
 
@@ -142,7 +146,7 @@
       {/if}
     </div>
 
-    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2.5">
+    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2">
       <GradeSummaryCard
         {isFullyGraded}
         {totalScore}
@@ -152,6 +156,8 @@
         {totalMaxPoints}
         {calculatedGradeDetail}
       />
+
+      <ReviewReplyBar {examId} sub={currentSub} {exercises} {onFlush} />
 
       <GradingActions {saveStatus} {onPrev} {onNext} {currentIndex} />
     </div>

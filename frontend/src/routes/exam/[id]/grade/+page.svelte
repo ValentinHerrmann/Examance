@@ -29,6 +29,7 @@
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, EmptyState } from "#lib/components/ui";
   import { createAutosave } from "#lib/utils/autosave";
+  import { initReviews, resetReviews, showReview } from "#lib/sharing/reviewService";
 
   interface Props {
     params?: Record<string, string>;
@@ -84,6 +85,7 @@
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
     void loadScoreBoxContext(examId, key).then((ctx) => (scoreBoxes = ctx));
+    reviewsReady = initReviews(examId);
     try {
       submissions = await submissionRepository.getByExamId(examId, key);
     } catch (err) {
@@ -164,9 +166,20 @@
     if (hasUnsaved()) void autosave.flush();
     disposed = true;
     gradingStore.reset();
+    resetReviews();
   });
 
+  /** Students' objections (issue #226) load beside the scores; a failure only hides the objections. */
+  let reviewsReady: Promise<void> = Promise.resolve();
+
+  /** The objection reply needs the scores stored first. */
+  async function flushForReply() {
+    await autosave.flush();
+    if (get(autosave).state === "error") throw new Error(translate("review.bar.saveFailed"));
+  }
+
   async function initExerciseScores(sub: SubmissionRecord) {
+    void reviewsReady.then(() => showReview(examId, sub));
     // Overlapping loads (fast Next clicks) must not let an older one win.
     const seq = ++loadSeq;
     loadedFor = null;
@@ -381,6 +394,7 @@
       onPrev={prevStudent}
       onNext={nextStudent}
       onStayOnLastSub={stayOnLastSub}
+      onFlush={flushForReply}
       {scoreBoxes}
     />
   {/if}

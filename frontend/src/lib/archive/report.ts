@@ -9,6 +9,7 @@ export type ReportKind =
   | 'scans'
   | 'annotations'
   | 'scores'
+  | 'reviews'
   | 'resources'
   | 'logos'
   | 'auditLogs';
@@ -22,6 +23,7 @@ export const REPORT_KINDS: readonly ReportKind[] = [
   'scans',
   'annotations',
   'scores',
+  'reviews',
   'resources',
   'logos',
   'auditLogs',

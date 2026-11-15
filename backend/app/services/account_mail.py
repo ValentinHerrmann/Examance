@@ -177,6 +177,22 @@ def deletion_mail(email: str, link: str, *, keep_exercises: bool) -> Mail:
     )
 
 
+def review_notice_mail(to: str, exam_title: str, link: str) -> Mail:
+    """Tells a teacher that a student objected (issue #226). Carries the exam title and a link only, never student data; the teacher's language is unknown to the server, so it is German and English."""
+    return _compose(
+        to,
+        f"Examance: Einsichtsantrag / Review request: {exam_title}",
+        [
+            f"Zur Prüfung „{exam_title}“ liegt ein neuer Einwand gegen die Bewertung vor. "
+            "Du findest ihn unter „Ergebnisse teilen“.",
+            f'A student objected to the grading of "{exam_title}". You find it under Share results.',
+        ],
+        link=("Prüfung öffnen / Open exam", link),
+        footer=["Diese Benachrichtigung kannst du in den Einstellungen abschalten / You can turn this notice off in the settings."],
+        greeting="Hallo / Hello,",
+    )
+
+
 def result_link_mail(
     to: str,
     exam_title: str,
@@ -187,10 +203,49 @@ def result_link_mail(
     *,
     code: str | None = None,
     envelope: email_svc.Envelope | None = None,
+    kind: Literal["result", "review_reply"] = "result",
 ) -> Mail:
-    """A student's graded exam link (issue #209). The key or code is mailed only when the teacher opted in; *envelope* carries the bounce token (issue #221)."""
-    mail = _result_link_mail(to, exam_title, url, expires_at, teacher_name, locale, code)
+    """A student's graded exam link (issue #209). The key or code is mailed only when the teacher opted in; *envelope* carries the bounce token (issue #221); *kind* "review_reply" tells the student the teacher answered their objection (issue #226)."""
+    if kind == "review_reply":
+        mail = _review_reply_mail(to, exam_title, url, expires_at, locale)
+    else:
+        mail = _result_link_mail(to, exam_title, url, expires_at, teacher_name, locale, code)
     return Mail(to=mail.to, subject=mail.subject, text=mail.text, html=mail.html, envelope=envelope)
+
+
+def _review_reply_mail(
+    to: str, exam_title: str, url: str, expires_at: datetime, locale: Literal["de", "en"]
+) -> Mail:
+    if locale == "de":
+        return _compose(
+            to,
+            f"Deine Lehrkraft hat geantwortet: {exam_title}",
+            [
+                f"Deine Lehrkraft hat deinen Einwand zur Prüfung „{exam_title}“ beantwortet. "
+                "Öffne deinen Link erneut, um die Antwort zu lesen.",
+            ],
+            link=("Antwort ansehen", url),
+            footer=[
+                f"Der Link ist bis {expires_at.strftime('%d.%m.%Y')} gültig. "
+                "Diese E-Mail wurde automatisch von Examance versendet.",
+                "Bitte antworte nicht auf diese E-Mail: Antworten erreichen deine Lehrkraft nicht.",
+            ],
+            greeting="Hallo,",
+        )
+    return _compose(
+        to,
+        f"Your teacher answered: {exam_title}",
+        [
+            f'Your teacher answered your objection to the exam "{exam_title}". '
+            "Open your link again to read the answer.",
+        ],
+        link=("View answer", url),
+        footer=[
+            f"The link is valid until {expires_at.strftime('%Y-%m-%d')}. "
+            "This email was sent automatically by Examance.",
+            "Please do not reply to this email: replies do not reach your teacher.",
+        ],
+    )
 
 
 def _result_link_mail(

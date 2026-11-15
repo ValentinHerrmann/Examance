@@ -71,6 +71,8 @@
     const shares = await attempt(() => listResultShares(id));
     // Students with a link that still opens; a replaced link leaves an older row, so count students, not rows.
     if (shares) next.sharedCount = new Set(shares.filter((sh) => Date.parse(sh.expiresAt) > Date.now()).map((sh) => sh.studentKey)).size;
+    // Objections the teacher has not answered yet (issue #226); the share list already carries the state, so no extra request.
+    if (shares) next.objections = new Set(shares.filter((sh) => Date.parse(sh.expiresAt) > Date.now() && sh.reviewSubmittedAt && !sh.reviewRepliedAt).map((sh) => sh.studentKey)).size;
     if (get(featuresStore).result_delivery) {
       const deliveries = await attempt(() => listResultDeliveries(id));
       if (deliveries) next.notReached = [...latestDeliveries(deliveries).values()].filter(undelivered).length;

@@ -4,13 +4,19 @@ import { get } from 'svelte/store';
 
 import { db } from '#lib/db/db';
 import { joinKey } from '#lib/crypto/pseudonymKey';
-import type { StudentRecord } from '#lib/db/schema';
+import type { GradingReviewItem, StudentRecord } from '#lib/db/schema';
 import { examRepository } from '#lib/repositories/examRepository';
+import { reviewRepository } from '#lib/repositories/reviewRepository';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { encryptAuditEntry } from '#lib/db/dbEncryption';
 import { sessionStore } from '#lib/stores/session';
+
+async function reviewOf(examId: string, submissionId: string, key: CryptoKey | null): Promise<SubjectAccessSubmission['gradingReview']> {
+  const review = await reviewRepository.getBySubmission(examId, submissionId, key);
+  return review ? { items: review.items, submittedAt: review.submittedAt, repliedAt: review.repliedAt } : null;
+}
 
 export interface SubjectAccessSubmission {
   submissionId: string;
@@ -21,6 +27,8 @@ export interface SubjectAccessSubmission {
   hasScan: boolean;
   hasAnnotations: boolean;
   exerciseScores: { exerciseId: string; score: number | null }[];
+  /** The student's objections and the teacher's replies (issue #226); null when there is none. */
+  gradingReview: { items: GradingReviewItem[]; submittedAt: string | null; repliedAt: string | null } | null;
 }
 
 export interface SubjectAccessExport {
@@ -76,6 +84,7 @@ export async function exportStudentData(
         exerciseId: score.exerciseId,
         score: score.score ?? null,
       })),
+      gradingReview: await reviewOf(examId, sub.id, key),
     })),
   );
 

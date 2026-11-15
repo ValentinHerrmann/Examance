@@ -1,7 +1,7 @@
 /** The browser's trash for hybrid results (issue #125): what a local delete removed, kept as stored (still sealed) for the grace period. The server keeps its own trash; `trashService.ts` shows both as one. */
 import { db } from '#lib/db/db';
 import { decryptSubmission } from '#lib/db/dbEncryption';
-import type { ExerciseScoreRecord, LocalTrashRecord, StudentRecord, SubmissionRecord } from '#lib/db/schema';
+import type { ExerciseScoreRecord, GradingReviewRecord, LocalTrashRecord, StudentRecord, SubmissionRecord } from '#lib/db/schema';
 import type { RestoreResult } from './api';
 import { joinKeys } from '#lib/crypto/pseudonymKey';
 import { newTrashGroup, type DeleteOptions } from './group';
@@ -40,11 +40,13 @@ export async function captureLocal(opts: DeleteOptions, entry: Capture): Promise
 export async function storedSubmissionRows(id: string): Promise<{
   submissions: SubmissionRecord[];
   exerciseScores: ExerciseScoreRecord[];
+  gradingReviews: GradingReviewRecord[];
 }> {
   const sub = await db.submissions.get(id);
   return {
     submissions: sub ? [sub] : [],
     exerciseScores: await db.exerciseScores.where('submissionId').equals(id).toArray(),
+    gradingReviews: await db.gradingReviews.where('submissionId').equals(id).toArray(),
   };
 }
 
@@ -56,6 +58,7 @@ export async function storedExamRows(examId: string): Promise<LocalTrashRecord['
     examStudents: await db.examStudents.where('examId').equals(examId).toArray(),
     submissions,
     exerciseScores: ids.length ? await db.exerciseScores.where('submissionId').anyOf(ids).toArray() : [],
+    gradingReviews: ids.length ? await db.gradingReviews.where('submissionId').anyOf(ids).toArray() : [],
   };
 }
 
@@ -118,6 +121,19 @@ async function restoreScore(row: ExerciseScoreRecord, result: RestoreResult): Pr
   tally(result, 'exercise_scores');
 }
 
+async function restoreReview(row: GradingReviewRecord, result: RestoreResult): Promise<void> {
+  if (!(await db.submissions.get(row.submissionId))) {
+    result.skipped.push({ table: 'grading_reviews', id: row.id, reason: 'parent_missing' });
+    return;
+  }
+  if ((await db.gradingReviews.where('submissionId').equals(row.submissionId).count()) > 0) {
+    result.skipped.push({ table: 'grading_reviews', id: row.id, reason: 'already_exists' });
+    return;
+  }
+  await db.gradingReviews.add(row);
+  tally(result, 'grading_reviews');
+}
+
 /** Puts a cleared submission back only while it is still cleared: grading added since is never overwritten. */
 async function refill(row: SubmissionRecord, key: CryptoKey | null, result: RestoreResult): Promise<void> {
   const live = await db.submissions.get(row.id);
@@ -173,6 +189,8 @@ async function restoreGroupInto(
   await restoreAll(submissions, (row) => row.id, (row) => restoreSubmission(row, result));
   const scores = usable.flatMap((item) => item.rows.exerciseScores ?? []);
   await restoreAll(scores, (row) => `${row.submissionId}|${row.exerciseId}`, (row) => restoreScore(row, result));
+  const reviews = usable.flatMap((item) => item.rows.gradingReviews ?? []);
+  await restoreAll(reviews, (row) => row.submissionId, (row) => restoreReview(row, result));
   const cleared = usable.flatMap((item) => item.cleared ?? []);
   await restoreAll(cleared, (row) => row.id, (row) => refill(row, key, result));
   await db.trash.bulkDelete(items.map((item) => item.id));
@@ -200,6 +218,7 @@ async function purgeStudentFromItem(item: LocalTrashRecord, target: string): Pro
     examStudents: students.filter((_, i) => studentKeys[i] !== target),
     submissions: (item.rows.submissions ?? []).filter((s) => !erasedSubs.has(s.id)),
     exerciseScores: (item.rows.exerciseScores ?? []).filter((s) => !erasedSubs.has(s.submissionId)),
+    gradingReviews: (item.rows.gradingReviews ?? []).filter((s) => !erasedSubs.has(s.submissionId)),
   };
   const cleared = (item.cleared ?? []).filter((s) => !erasedSubs.has(s.id));
   const left = Object.values(rows).some((list) => list && list.length > 0) || cleared.length > 0;

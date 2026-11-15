@@ -8,15 +8,20 @@
   import type { Locale } from "#lib/i18n/types";
   import { Alert, Button, Card, ConfirmDialog, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
-  import { closeResultDeliveries, revokeAllResultShares, revokeResultShare } from "#lib/api/resultShares";
+  import { closeResultDeliveries, type ResultShareInfo } from "#lib/api/resultShares";
   import type { ArtemisCourse } from "#lib/api/integrations";
   import { watchBounces } from "#lib/sharing/delivery";
   import { channelUnavailable, incompatibleStudents, sendsPdf as channelSendsPdf, SHARE_CHANNELS, type ArtemisMode, type ShareChannelId } from "#lib/sharing/channels";
   import type { ShareFactor } from "#lib/sharing/shareCrypto";
+  import { loadReviewPrint } from "#lib/export/reviewPrintPrefs";
+  import { dateInputValue, reviewDateValid, reviewDeadline } from "#lib/sharing/reviewItems";
+  import { examHasReviews } from "#lib/sharing/reviewService";
   import {
     DEFAULT_EXPIRY_DAYS,
     loadShareOverview,
+    republishShare,
     latestDeliveries,
+    revokeShares,
     shareResults,
     undelivered,
     type ShareOutcome,
@@ -43,6 +48,12 @@
   // Students are addressed in German unless the teacher picks otherwise; the UI language does not decide it.
   let language = $state<Locale>("de");
   let includeCode = $state(false);
+  // Objections (issue #226): off by default, two weeks preset.
+  let reviewOn = $state(false);
+  let reviewPrint = $state(loadReviewPrint("share"));
+  let hasReviews = $state<boolean | null>(null);
+  let reviewDate = $state(dateInputValue(14));
+  let updatingId = $state<string | null>(null);
   let loading = $state(true);
   let running = $state(false);
   // Sending a class can take minutes: phase and count drive a filling bar and an "x of y" label.
@@ -50,6 +61,9 @@
   let error = $state("");
   let outcome = $state.raw<ShareOutcome | null>(null);
   let confirmRevokeAll = $state(false);
+  // The send confirmation for slips when students with an open objection get a new link (issue #226); e-mail and Artemis name them in their preview.
+  let confirmReplace = $state(false);
+  let revokeWarnings = $state<string[]>([]);
   let artemisCourse = $state.raw<ArtemisCourse | null>(null);
   let artemisMode = $state<ArtemisMode>("link");
   let previewing = $state(false);
@@ -79,7 +93,12 @@
   let undeliveredDismissed = $state<number | null>(null);
   let undeliveredCount = $derived(overview?.students.filter((s) => undelivered(s.delivery)).length ?? 0);
   let activeShares = $derived((overview?.students.filter((s) => s.share).length ?? 0) + (overview?.orphans.length ?? 0));
-  let canRun = $derived(!running && !waiting && !loading && selected.size > 0 && !setupMissing && (sendsPdf || !factorMuted(factor)));
+  // Students whose current link, with an open objection, the new link replaces.
+  let keptNames = $derived(sendsPdf ? [] : (overview?.students.filter((s) => selected.has(s.key) && s.share?.reviewSubmittedAt).map((s) => s.name) ?? []));
+  let revokeKeptNames = $derived(overview?.students.filter((s) => s.share?.reviewSubmittedAt).map((s) => s.name) ?? []);
+  let revokeMessage = $derived([$t("sharing.share.revokeAllConfirm", { count: activeShares }), revokeKeptNames.length ? $t("review.replace.revokeNote", { names: revokeKeptNames.join(", ") }) : ""].filter(Boolean).join(" "));
+  let reviewValid = $derived(!reviewOn || sendsPdf || reviewDateValid(reviewDate, Number(expiry)));
+  let canRun = $derived(!running && !waiting && !loading && selected.size > 0 && !setupMissing && reviewValid && (sendsPdf || !factorMuted(factor)));
 
   function chooseChannel(id: ShareChannelId) {
     channel = id;
@@ -89,9 +108,11 @@
   }
 
   function run() {
-    // Slips and the Mebis ZIP stay with the teacher, so there is nothing to preview before sending.
-    if (currentChannel.id === "slips" || currentChannel.id === "mebis") start();
-    else previewing = true;
+    // Slips and the Mebis ZIP stay with the teacher, so there is nothing to preview before sending, except which open objections a new link keeps.
+    const direct = currentChannel.id === "slips" || currentChannel.id === "mebis";
+    if (!direct) previewing = true;
+    else if (keptNames.length > 0) confirmReplace = true;
+    else start();
   }
 
   const gradedKeys = (o: ShareOverview) => new Set(o.students.filter((s) => s.hasSubmission && s.state !== "ungraded").map((s) => s.key));
@@ -101,6 +122,7 @@
     try {
       await awaitSessionReady();
       overview = await loadShareOverview(examId);
+      hasReviews = await examHasReviews(examId);
       if (!selected.size) selected = gradedKeys(overview);
     } catch (err) {
       error = `${$t("sharing.errors.load")} ${err instanceof Error ? err.message : ""}`.trim();
@@ -150,6 +172,7 @@
 
   async function start() {
     previewing = false;
+    confirmReplace = false;
     running = true;
     // Closing the tab mid-run would leave some students unserved.
     window.addEventListener("beforeunload", keepOpen);
@@ -167,6 +190,8 @@
           artemis: currentChannel.id === "artemis" && artemisCourse ? { ...artemisCourse, mode: artemisMode } : undefined,
           language,
           includeCode: sendsMessage && !sendsPdf && factor !== "none" && includeCode,
+          reviewUntil: reviewOn && !sendsPdf ? reviewDeadline(reviewDate, Number(expiry)) : null,
+          reviewPrint,
         },
         (phase, done = 0, total = 0) => (progress = { phase, done, total })
       );
@@ -200,19 +225,38 @@
 
   async function revoke(shareId: string) {
     error = "";
+    revokeWarnings = [];
+    const share = overview?.students.find((s) => s.share?.id === shareId)?.share ?? overview?.orphans.find((o) => o.id === shareId);
+    if (!share) return;
     try {
-      await revokeResultShare(examId, shareId);
+      revokeWarnings = await revokeShares(examId, [share]);
       await reload();
     } catch (err) {
       error = `${$t("sharing.errors.revoke")} ${err instanceof Error ? err.message : ""}`.trim();
     }
   }
 
+  /** Re-renders one student's PDF with the current scores under the same link. */
+  async function updateShare(share: ResultShareInfo) {
+    updatingId = share.id;
+    error = "";
+    try {
+      await republishShare(examId, share);
+      await reload();
+    } catch (err) {
+      error = `${$t("review.students.updateFailed")} ${err instanceof Error ? err.message : ""}`.trim();
+    } finally {
+      updatingId = null;
+    }
+  }
+
   async function revokeAll() {
     revoking = true;
     error = "";
+    revokeWarnings = [];
     try {
-      await revokeAllResultShares(examId);
+      const all = [...(overview?.students.flatMap((s) => (s.share ? [s.share] : [])) ?? []), ...(overview?.orphans ?? [])];
+      revokeWarnings = await revokeShares(examId, all, true);
       confirmRevokeAll = false;
       await reload();
     } catch (err) {
@@ -247,6 +291,13 @@
       <Alert severity="info">{$t("sharing.share.hybridNote")}</Alert>
     {/if}
     {#if error}<Alert severity="danger">{error}</Alert>{/if}
+    {#if revokeWarnings.length}
+      <Alert severity="warning" title={$t("review.warnings.revokeSkipped")} onDismiss={() => (revokeWarnings = [])}>
+        <ul class="m-0 list-disc pl-5">
+          {#each revokeWarnings as warning}<li>{warning}</li>{/each}
+        </ul>
+      </Alert>
+    {/if}
 
     {#if outcome}
       <Alert severity={outcome.warnings.length ? "warning" : "success"} title={$t(DONE[outcome.channel], { count: outcome.shared })}>
@@ -303,12 +354,15 @@
         <h2 class="mt-0 mb-4 text-base font-semibold">{@render step(1, $t("sharing.share.students"))}</h2>
         <ShareStudents
           fill
+          {examId}
           {overview}
           {selected}
           {running}
           onSelect={(next) => (selected = next)}
           onSelectGraded={() => overview && (selected = gradedKeys(overview))}
           onRevoke={revoke}
+          onUpdate={updateShare}
+          {updatingId}
         />
       </Card>
 
@@ -345,6 +399,10 @@
           bind:includeCode
           bind:includeSolution
           bind:expiry
+          bind:reviewOn
+          bind:reviewDate
+          bind:reviewPrint
+          {hasReviews}
         />
       </Card>
 
@@ -396,6 +454,7 @@
     {language}
     includeCode={includeCode && factor !== "none" && !sendsPdf}
     artemis={artemisCourse ? { ...artemisCourse, mode: artemisMode } : null}
+    {keptNames}
     onConfirm={start}
     onCancel={() => (previewing = false)}
   />
@@ -406,9 +465,19 @@
 {/if}
 
 <ConfirmDialog
+  open={confirmReplace}
+  title={$t("review.replace.title")}
+  message={$t("review.replace.note", { names: keptNames.join(", ") })}
+  confirmText={runLabel}
+  cancelText={$t("common.cancel")}
+  onConfirm={start}
+  onCancel={() => (confirmReplace = false)}
+/>
+
+<ConfirmDialog
   open={confirmRevokeAll}
   title={$t("sharing.share.revokeAll")}
-  message={$t("sharing.share.revokeAllConfirm", { count: activeShares })}
+  message={revokeMessage}
   confirmText={$t("sharing.share.revoke")}
   cancelText={$t("common.cancel")}
   severity="danger"

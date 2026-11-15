@@ -77,6 +77,8 @@ class ResultMails(BaseModel):
     exam_id: uuid.UUID
     exam_title: Annotated[str, Field(min_length=1, max_length=200)]
     locale: Literal["de", "en"]
+    # "review_reply" mails the "your teacher answered your objection" text instead (issue #226).
+    kind: Literal["result", "review_reply"] = "result"
     recipients: Annotated[list[ResultRecipient], Field(min_length=1, max_length=100)]
 
 
@@ -214,6 +216,7 @@ async def mail_results(
         )
     await result_deliveries.require_own_exam(db, teacher.id, body.exam_id)
     failed: list[int] = []
+    tracked = body.kind == "result"
     for index, recipient in enumerate(body.recipients):
         token = result_deliveries.new_token()
         mail = account_mail.result_link_mail(
@@ -224,14 +227,18 @@ async def mail_results(
             None,
             body.locale,
             code=recipient.code,
+            kind=body.kind,
             envelope=email_svc.Envelope(
-                message_id=bounces.result_message_id(token),
+                # A reply to an objection is no result delivery: no bounce token, no status row.
+                message_id=bounces.result_message_id(token) if tracked else None,
                 sender=email_svc.result_sender(),
             ),
         )
         sent = await account_mail.send(mail)
         if not sent:
             failed.append(index)
+        if not tracked:
+            continue
         await result_deliveries.record(
             db,
             teacher.id,

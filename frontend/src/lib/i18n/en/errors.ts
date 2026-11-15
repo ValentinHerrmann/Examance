@@ -48,6 +48,8 @@ export const errors: Translations['errors'] = {
         ERR_TEACHER_ROLE_REQUIRED: 'Admin accounts manage users and the server. Exams and exercises need a teacher account.',
         ERR_SHARE_SOURCE_CHANGED: 'The source changed in the meantime. Please review the changes again.',
         ERR_SHARE_SOURCE_UNAVAILABLE: 'The source of this exercise is no longer shared.',
+        ERR_SHARE_NOT_UPDATABLE: 'This link cannot be updated. Please share the result again.',
+        ERR_REVIEW_CLOSED: 'Objections are closed: the deadline has passed or your teacher has already opened yours.',
         ERR_SHARE_COPY: 'Exercises copied from others cannot be shared. Propose changes to the original instead.',
         ERR_NOT_CONTRIBUTABLE: 'There is nothing to propose for this variant.',
         ERR_CONTRIBUTION_LIMIT: 'You have too many open proposals. Wait for decisions first.',

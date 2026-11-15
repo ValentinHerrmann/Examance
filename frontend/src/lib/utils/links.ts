@@ -9,6 +9,7 @@ export const printHref = (examId: string) => `/exam/${q(examId)}/print`;
 export const resultsHref = (examId: string) => `/exam/${q(examId)}/results`;
 export const archiveHref = (examId: string) => `/exam/${q(examId)}/results/archive`;
 export const shareHref = (examId: string) => `/exam/${q(examId)}/results/share`;
+export const reviewsHref = (examId: string) => `/exam/${q(examId)}/results/reviews`;
 /** Settings → Pen input (issue #233): where pen detection is reset. */
 export const penInputSettingsHref = "/settings#pen-input";
 export const studentsHref = (examId: string) => `/exam/${q(examId)}/students`;

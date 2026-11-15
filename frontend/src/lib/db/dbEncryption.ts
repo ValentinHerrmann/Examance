@@ -15,6 +15,7 @@ import type {
   ExerciseRecord,
   ExerciseResourceRecord,
   ExerciseScoreRecord,
+  GradingReviewRecord,
   StudentRecord,
   SubmissionRecord,
   AuditEntry,
@@ -210,6 +211,14 @@ const SCORE: RecordCodec<ExerciseScoreRecord> = {
   aad: (r) => aadFor('score', r.submissionId, r.exerciseId),
 };
 
+const REVIEW: RecordCodec<GradingReviewRecord> = {
+  kind: 'gradingReview',
+  plain: ['id', 'submissionId'],
+  sealed: ['items', 'submittedAt', 'repliedAt'],
+  // Bound to the submission (issue #226), lower-cased like scores.
+  aad: (r) => aadFor('gradingReview', r.submissionId),
+};
+
 // Identity fields, the raw pseudonym included, live only inside the payload — re-emitting them as plain columns was the L17 leak (docs/legal_audit_dsgvo.md).
 const STUDENT: RecordCodec<StudentRecord> = {
   kind: 'student',
@@ -243,6 +252,8 @@ export const encryptExercise = (r: ExerciseRecord, k: Key) => sealRecord(r, k, E
 export const decryptExercise = (r: ExerciseRecord, k: Key) => openRecord(r, k, EXERCISE);
 export const encryptScore = (r: ExerciseScoreRecord, k: Key) => sealRecord(r, k, SCORE);
 export const decryptScore = (r: ExerciseScoreRecord, k: Key) => openRecord(r, k, SCORE);
+export const encryptReview = (r: GradingReviewRecord, k: Key) => sealRecord(r, k, REVIEW);
+export const decryptReview = (r: GradingReviewRecord, k: Key) => openRecord(r, k, REVIEW);
 export const encryptStudent = (r: StudentRecord, k: Key) => sealRecord(r, k, STUDENT);
 export const decryptStudent = (r: StudentRecord, k: Key) => openRecord(r, k, STUDENT);
 export const encryptSubmission = (r: SubmissionRecord, k: Key) => sealRecord(r, k, SUBMISSION);

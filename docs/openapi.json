@@ -5343,6 +5343,225 @@
         }
       }
     },
+    "/api/v1/exams/{exam_id}/submissions/{submission_id}/grading-review": {
+      "get": {
+        "tags": [
+          "grading-reviews"
+        ],
+        "summary": "Get Grading Review",
+        "description": "The submission's record, or null while there is none.",
+        "operationId": "get_grading_review_api_v1_exams__exam_id__submissions__submission_id__grading_review_get",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/GradingReviewResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Grading Review Api V1 Exams  Exam Id  Submissions  Submission Id  Grading Review Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "grading-reviews"
+        ],
+        "summary": "Put Grading Review",
+        "description": "Upsert by submission, never by the client's id, so a replay updates in place instead of answering 409.",
+        "operationId": "put_grading_review_api_v1_exams__exam_id__submissions__submission_id__grading_review_put",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradingReviewIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradingReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/grading-reviews": {
+      "get": {
+        "tags": [
+          "grading-reviews"
+        ],
+        "summary": "List Exam Grading Reviews",
+        "operationId": "list_exam_grading_reviews_api_v1_exams__exam_id__grading_reviews_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GradingReviewResponse"
+                  },
+                  "title": "Response List Exam Grading Reviews Api V1 Exams  Exam Id  Grading Reviews Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/exams/{exam_id}/omr-template-pins": {
       "get": {
         "tags": [
@@ -7017,6 +7236,66 @@
         }
       }
     },
+    "/api/v1/user/review-mail": {
+      "put": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Set Review Mail",
+        "description": "Switch the mail on a student's objection on or off (issue #226).",
+        "operationId": "set_review_mail_api_v1_user_review_mail_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewMailUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user/purge-server-student-data": {
       "post": {
         "tags": [
@@ -8378,6 +8657,215 @@
         }
       }
     },
+    "/api/v1/exams/{exam_id}/shares/{share_id}/content": {
+      "put": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Update Result Share Content",
+        "description": "Re-seal the share's PDF under the same link (issue #226); 409 `ERR_SHARE_NOT_UPDATABLE` for a share made without a wrapped key.",
+        "operationId": "update_result_share_content_api_v1_exams__exam_id__shares__share_id__content_put",
+        "parameters": [
+          {
+            "name": "share_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Share Id"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealedPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/shares/{share_id}/review/open": {
+      "post": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Open Result Share Review",
+        "description": "The teacher opened the objection: the student can no longer change or withdraw it.",
+        "operationId": "open_result_share_review_api_v1_exams__exam_id__shares__share_id__review_open_post",
+        "parameters": [
+          {
+            "name": "share_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Share Id"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/shares/{share_id}/review/reply": {
+      "put": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Reply To Result Share Review",
+        "description": "Store the teacher's sealed reply for the student's page.",
+        "operationId": "reply_to_result_share_review_api_v1_exams__exam_id__shares__share_id__review_reply_put",
+        "parameters": [
+          {
+            "name": "share_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Share Id"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealedPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/exams/{exam_id}/shares/{share_id}": {
       "delete": {
         "tags": [
@@ -8481,6 +8969,100 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/{share_id}/review": {
+      "post": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Submit Result Share Review",
+        "description": "Public, no session: create or replace the student's sealed objection until the teacher opens it or the deadline passes.",
+        "operationId": "submit_result_share_review_api_v1_shares__share_id__review_post",
+        "parameters": [
+          {
+            "name": "share_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Share Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSubmit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/{share_id}/review/withdraw": {
+      "post": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "Withdraw Result Share Review",
+        "description": "Public, no session: delete the student's objection while it is still open.",
+        "operationId": "withdraw_result_share_review_api_v1_shares__share_id__review_withdraw_post",
+        "parameters": [
+          {
+            "name": "share_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Share Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultShareOpen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -8662,6 +9244,70 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/reviews": {
+      "get": {
+        "tags": [
+          "result-shares"
+        ],
+        "summary": "List Result Share Reviews",
+        "description": "Every objection and reply of the exam, still sealed; the student appears only as the pseudonym.",
+        "operationId": "list_result_share_reviews_api_v1_exams__exam_id__reviews_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewListItem"
+                  },
+                  "title": "Response List Result Share Reviews Api V1 Exams  Exam Id  Reviews Get"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -10465,6 +11111,17 @@
               }
             ],
             "title": "Share New Exercises"
+          },
+          "review_mail": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Mail"
           }
         },
         "type": "object",
@@ -13591,6 +14248,94 @@
         ],
         "title": "ForgotPasswordRequest"
       },
+      "GradingReviewIn": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "payload_ciphertext_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Ciphertext B64"
+          },
+          "payload_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Iv B64"
+          }
+        },
+        "type": "object",
+        "title": "GradingReviewIn"
+      },
+      "GradingReviewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "submission_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Submission Id"
+          },
+          "payload_ciphertext_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Ciphertext B64"
+          },
+          "payload_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Iv B64"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "submission_id",
+          "updated_at"
+        ],
+        "title": "GradingReviewResponse"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -15342,6 +16087,15 @@
             ],
             "title": "Locale"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "result",
+              "review_reply"
+            ],
+            "title": "Kind",
+            "default": "result"
+          },
           "recipients": {
             "items": {
               "$ref": "#/components/schemas/ResultRecipient"
@@ -15460,6 +16214,40 @@
             "type": "string",
             "format": "date-time",
             "title": "Expires At"
+          },
+          "content_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Updated At"
+          },
+          "review_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Until"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -15520,6 +16308,29 @@
           "expiry_days": {
             "type": "integer",
             "title": "Expiry Days"
+          },
+          "wrapped_key_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wrapped Key B64"
+          },
+          "review_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Until"
           }
         },
         "type": "object",
@@ -15582,6 +16393,82 @@
             "type": "string",
             "format": "date-time",
             "title": "Expires At"
+          },
+          "updatable": {
+            "type": "boolean",
+            "title": "Updatable",
+            "default": false
+          },
+          "wrapped_key_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wrapped Key B64"
+          },
+          "content_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Updated At"
+          },
+          "review_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Until"
+          },
+          "review_submitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Submitted At"
+          },
+          "review_opened_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Opened At"
+          },
+          "review_replied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Replied At"
           }
         },
         "type": "object",
@@ -15795,6 +16682,275 @@
           "delivery_status_days"
         ],
         "title": "RetentionPeriods"
+      },
+      "ReviewListItem": {
+        "properties": {
+          "objection_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objection Iv B64"
+          },
+          "objection_ct_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objection Ct B64"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "reply_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Iv B64"
+          },
+          "reply_ct_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Ct B64"
+          },
+          "replied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replied At"
+          },
+          "share_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Share Id"
+          },
+          "student_key": {
+            "type": "string",
+            "title": "Student Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "objection_iv_b64",
+          "objection_ct_b64",
+          "submitted_at",
+          "opened_at",
+          "reply_iv_b64",
+          "reply_ct_b64",
+          "replied_at",
+          "share_id",
+          "student_key"
+        ],
+        "title": "ReviewListItem",
+        "description": "One review in the teacher's list; the student appears only as the pseudonym."
+      },
+      "ReviewMailUpdate": {
+        "properties": {
+          "review_mail": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Mail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "review_mail"
+        ],
+        "title": "ReviewMailUpdate"
+      },
+      "ReviewOut": {
+        "properties": {
+          "objection_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objection Iv B64"
+          },
+          "objection_ct_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objection Ct B64"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "reply_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Iv B64"
+          },
+          "reply_ct_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Ct B64"
+          },
+          "replied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replied At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "objection_iv_b64",
+          "objection_ct_b64",
+          "submitted_at",
+          "opened_at",
+          "reply_iv_b64",
+          "reply_ct_b64",
+          "replied_at"
+        ],
+        "title": "ReviewOut",
+        "description": "The thread as the student's page sees it."
+      },
+      "ReviewSubmit": {
+        "properties": {
+          "lookup_b64": {
+            "type": "string",
+            "maxLength": 48,
+            "minLength": 40,
+            "title": "Lookup B64"
+          },
+          "iv_b64": {
+            "type": "string",
+            "title": "Iv B64"
+          },
+          "ciphertext_b64": {
+            "type": "string",
+            "title": "Ciphertext B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lookup_b64",
+          "iv_b64",
+          "ciphertext_b64"
+        ],
+        "title": "ReviewSubmit",
+        "description": "A student's objection (issue #226), sealed under a key only the link yields."
+      },
+      "SealedPayload": {
+        "properties": {
+          "iv_b64": {
+            "type": "string",
+            "title": "Iv B64"
+          },
+          "ciphertext_b64": {
+            "type": "string",
+            "title": "Ciphertext B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "iv_b64",
+          "ciphertext_b64"
+        ],
+        "title": "SealedPayload",
+        "description": "A re-sealed PDF or a sealed reply: the server only stores it."
       },
       "ShareDefaultUpdate": {
         "properties": {

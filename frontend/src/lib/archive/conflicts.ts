@@ -338,5 +338,7 @@ export function applyResolutions(
     .filter((sc) => keptSubmissions.has(sc.submissionId))
     .map((sc) => ({ ...sc, exerciseId: remap(sc.exerciseId) }));
 
+  next.gradingReviews = ((payload.gradingReviews ?? []) as Row[]).filter((r) => keptSubmissions.has(r.submissionId));
+
   return { payload: next, idMap, skipped };
 }

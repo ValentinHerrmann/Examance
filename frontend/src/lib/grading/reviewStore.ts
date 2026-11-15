@@ -1,0 +1,53 @@
+/** The objection thread of the submission on the grade page (issue #226). Like `gradingStore`, plain state that leaf components (ReviewThread, ReviewReplyBar, ReviewDialog) subscribe to; loading, opening and sending stay in `sharing/reviewService.ts`. Pseudonymous: it holds no student name. */
+
+import { writable } from 'svelte/store';
+
+export interface ReviewThread {
+  shareId: string;
+  studentKey: string;
+  /** Objection text per item key; empty when the objection could not be decrypted. */
+  objections: Record<string, string>;
+  /** The reply as sent so far, per item key. */
+  replies: Record<string, string>;
+  unreadable: boolean;
+  submittedAt: string | null;
+  openedAt: string | null;
+  repliedAt: string | null;
+  /** The objection comes from the submission's kept record: its link was replaced, so there is no server thread to answer. */
+  fromRecord?: boolean;
+  /** Points before and after per item key as the reply published them (the objections overview; the grade page ignores it). */
+  replyPoints?: Record<string, { before: number | null; after: number | null }>;
+}
+
+export interface ReviewState {
+  /** Submission the thread belongs to; null when there is none. */
+  submissionId: string | null;
+  thread: ReviewThread | null;
+  /** The student has an address the reply can be mailed to (the address itself never reaches this store). */
+  canMail: boolean;
+  /** Reply text per item key, edited by the teacher. */
+  drafts: Record<string, string>;
+  notify: boolean;
+  sending: boolean;
+  /** Last message of a failed load or send. */
+  error: string;
+  /** Set after a reply went out, for the confirmation line. */
+  sentAt: string | null;
+  mailFailed: boolean;
+  /** The objection could not be locked for the student yet (the "opened" call failed): no reply until a retry works. */
+  lockFailed: boolean;
+  /** The review dialog: with the items' scores and replies (phones), or only the send step (PCs, where the replies are inline). */
+  dialog: 'items' | 'send' | null;
+}
+
+const INITIAL: ReviewState = { submissionId: null, thread: null, canMail: false, drafts: {}, notify: true, sending: false, error: '', sentAt: null, mailFailed: false, lockFailed: false, dialog: null };
+
+const store = writable<ReviewState>({ ...INITIAL });
+
+export const reviewStore = {
+  subscribe: store.subscribe,
+  set: (next: ReviewState) => store.set(next),
+  patch: (partial: Partial<ReviewState>) => store.update((s) => ({ ...s, ...partial })),
+  setDraft: (key: string, text: string) => store.update((s) => ({ ...s, drafts: { ...s.drafts, [key]: text } })),
+  reset: () => store.set({ ...INITIAL }),
+};

@@ -2,8 +2,11 @@
   // One score row of the grading panel, for an exercise or one of its parts (issue #187): click to make it the stamp target, type a score (clamped to [0, max]), reset it.
   import type { Snippet } from "svelte";
   import { t } from "#lib/i18n";
-  import { faBullseye, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
+  import { faBullseye, faCommentDots, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon, controlClass, controlSmClass } from "#lib/components/ui";
+  import ReviewThread from "./ReviewThread.svelte";
+  import { reviewStore } from "#lib/grading/reviewStore";
+  import { isDesktop } from "#lib/stores/viewport";
 
   interface Props {
     label: Snippet;
@@ -19,19 +22,23 @@
     readonlyReason?: string;
     warning?: string;
     inputId?: string;
+    /** Item key of this row in a grading review (issue #226): the objection is a thread under the row on PCs and a badge opening the review dialog below `lg`. */
+    reviewKey?: string;
     ariaLabel?: string;
     onSelect: () => void;
     onValue: (value: number | null) => void;
     onReset: () => void;
   }
 
-  let { label, value, max, maxLabel, active, manual, nested = false, readonlyReason, warning, inputId, ariaLabel, onSelect, onValue, onReset }: Props = $props();
+  let { label, value, max, maxLabel, active, manual, nested = false, readonlyReason, warning, inputId, reviewKey, ariaLabel, onSelect, onValue, onReset }: Props = $props();
 
   function handleInput(e: Event) {
     const raw = (e.currentTarget as HTMLInputElement).value.trim();
     const parsed = parseFloat(raw);
     onValue(raw === "" || isNaN(parsed) ? null : Math.max(0, Math.min(max, parsed)));
   }
+
+  let objected = $derived(Boolean(reviewKey && $reviewStore.thread?.objections[reviewKey]?.trim()));
 
   const base = "flex cursor-pointer items-center justify-between gap-2 rounded-md border transition-colors pointer-coarse:min-h-11";
 </script>
@@ -52,6 +59,15 @@
     {/if}
     {#if warning}
       <Icon icon={faTriangleExclamation} class="text-xs text-warning-fg" label={warning} />
+    {/if}
+    {#if objected && !$isDesktop}
+      <button
+        type="button"
+        class="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/20 px-1.5 py-0.5 text-xs font-semibold text-warning-fg pointer-coarse:min-h-8"
+        onclick={(e) => { e.stopPropagation(); reviewStore.patch({ dialog: "items" }); }}
+      >
+        <Icon icon={faCommentDots} />{$t("review.thread.objection")}
+      </button>
     {/if}
   </div>
 
@@ -88,3 +104,7 @@
     <span class="size-2 shrink-0 rounded-full bg-warning" title={$t("grading.scoreEntry.manualEdit")}></span>
   {/if}
 </div>
+
+{#if reviewKey}
+  <ReviewThread itemKey={reviewKey} {nested} />
+{/if}

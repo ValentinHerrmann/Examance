@@ -10,6 +10,7 @@ import type {
   ExerciseRecord,
   ExerciseResourceRecord,
   ExerciseScoreRecord,
+  GradingReviewRecord,
   LocalTrashRecord,
   OmrTemplateRecord,
   QueuedRequest,
@@ -28,6 +29,7 @@ export class BlindGradeDB extends Dexie {
   examStudents!: Table<StudentRecord>;
   submissions!: Table<SubmissionRecord>;
   exerciseScores!: Table<ExerciseScoreRecord>;
+  gradingReviews!: Table<GradingReviewRecord>;
   exerciseResources!: Table<ExerciseResourceRecord>;
   auditLog!: Table<AuditEntry>;
   omrTemplates!: Table<OmrTemplateRecord>;
@@ -192,6 +194,11 @@ export class BlindGradeDB extends Dexie {
     this.version(13).stores({
       trash: 'id, groupId, purgeAfter',
     });
+
+    // v14 (issue #226): grading review threads, one per submission.
+    this.version(14).stores({
+      gradingReviews: 'id, submissionId',
+    });
   }
 }
 
@@ -240,6 +247,7 @@ export function vaultTables(): Table[] {
     db.examStudents,
     db.submissions,
     db.exerciseScores,
+    db.gradingReviews,
     db.auditLog,
     db.omrTemplates,
     db.exerciseResources,

@@ -159,10 +159,12 @@ export const submissionRepository = {
         rows,
       });
       await db.exerciseScores.where('submissionId').equals(id).delete();
+      await db.gradingReviews.where('submissionId').equals(id).delete();
       await db.submissions.delete(id);
     } else {
       // The server deletes (and trashes) the scores with the submission; the local mirror goes too, so a fallback read cannot resurrect them.
       await db.exerciseScores.where('submissionId').equals(id).delete();
+      await db.gradingReviews.where('submissionId').equals(id).delete();
       const url = deleteUrl(`/exams/${examId}/submissions/${id}`, opts);
       const headers = trashHeaders(opts);
       try {

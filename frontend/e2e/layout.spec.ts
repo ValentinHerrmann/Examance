@@ -139,6 +139,193 @@ test('[layout] a shared result fills the screen with its PDF (issue #210)', asyn
   expect.soft(m.docH, 'result: document scrolls horizontally').toBeLessThanOrEqual(0);
 });
 
+/** Regression (issue #226): with objections enabled the page crashed into the error page after decrypting, because a field bound an undefined text. */
+test('[layout] a shared result with objections shows one field per item', async ({ page, backend }) => {
+  const doc = await PDFDocument.create();
+  doc.addPage([595, 842]);
+  const pdf = Array.from(await doc.save());
+
+  await page.goto('/unlock');
+  const share = await page.evaluate(async (bytes) => {
+    const shareModule = '/src/lib/sharing/shareCrypto.ts';
+    const aesModule = '/src/lib/crypto/aesGcm.ts';
+    const sc = await import(/* @vite-ignore */ shareModule);
+    const { uint8ArrayToBase64 } = await import(/* @vite-ignore */ aesModule);
+    const link = sc.newShareLink();
+    const items = [
+      { key: 'ex-1', label: '1', max: 4, points: 3 },
+      { key: 'ex-2#a', label: '2a', max: 2, points: null },
+    ];
+    const sealed = await sc.sealShare(link, 'none', null, { filename: 'graded.pdf', examTitle: 'Objections', items }, { graded: new Uint8Array(bytes) });
+    return {
+      id: link.shareId,
+      path: sc.shareUrl('', link),
+      lookupB64: uint8ArrayToBase64(await sc.lookupSecret(link)),
+      ivB64: uint8ArrayToBase64(sealed.iv),
+      ciphertextB64: uint8ArrayToBase64(sealed.ciphertext),
+    };
+  }, pdf);
+  backend.state.resultShares.set(share.id, {
+    lookupB64: share.lookupB64,
+    content: {
+      factor: 'none',
+      kdf_salt_b64: null,
+      iv_b64: share.ivB64,
+      ciphertext_b64: share.ciphertextB64,
+      expires_at: '2099-01-01T00:00:00Z',
+      review_until: '2098-01-01T00:00:00Z',
+      review: null,
+    },
+  });
+
+  await page.goto(share.path);
+  await expect(page.getByRole('heading', { level: 1, name: 'Objections' })).toBeVisible();
+  await expect(page.locator('textarea')).toHaveCount(2);
+  await settleLayout(page);
+
+  // Submit, withdraw and type again: a withdrawn form keeps a (blank) field per item, so it stays editable (issue #226).
+  const first = page.locator('textarea').first();
+  await first.fill('Please check the sum');
+  await page.getByRole('button', { name: label('review.form.submit') }).click();
+  await expect(page.getByRole('button', { name: label('review.form.withdraw') })).toBeVisible();
+  await page.getByRole('button', { name: label('review.form.withdraw') }).click();
+  await expect(page.getByRole('button', { name: label('review.form.submit') })).toBeDisabled();
+  await expect(page.locator('textarea')).toHaveCount(2);
+  await expect(first).toHaveValue('');
+  await first.fill('Second try');
+  await expect(page.getByRole('button', { name: label('review.form.submit') })).toBeEnabled();
+});
+
+/** Regression (issue #226): confirming the print options of a paper with an objection closed the dialog and downloaded nothing. */
+test('[layout] the scan page downloads the graded PDF of a paper with an objection', async ({ page }) => {
+  const examId = await seedWorkspace(page);
+  const scan = await PDFDocument.create();
+  scan.addPage([595, 842]);
+  const scanBytes = Array.from(await scan.save());
+
+  // Seeded through the app's own repositories (served by Vite), so the test never re-implements sealing.
+  await page.evaluate(
+    async ({ exam, bytes }) => {
+      const modules = ['/src/lib/stores/session.ts', '/src/lib/db/dbEncryption.ts', '/src/lib/repositories/submissionRepository.ts', '/src/lib/repositories/reviewRepository.ts'];
+      const [session, sealing, submissions, reviews] = await Promise.all(modules.map((m) => import(/* @vite-ignore */ m)));
+      let key: CryptoKey | null = null;
+      session.sessionStore.subscribe((s: { sessionKey: CryptoKey | null }) => (key = s.sessionKey))();
+      const submissionId = crypto.randomUUID();
+      const sealed = await sealing.sealScan(submissionId, new Uint8Array(bytes), key);
+      await submissions.submissionRepository.save(
+        { id: submissionId, examId: exam, pseudonymHmac: 'e2e-pseudonym', pseudonymVersion: 2, scanCt: sealed.ct, scanIv: sealed.iv, createdAt: new Date().toISOString() },
+        key
+      );
+      const item = { key: 'ex-1', label: '1', objection: 'Too few points', reply: 'Checked, 4 points', pointsBefore: 3, pointsAfter: 4 };
+      await reviews.reviewRepository.save(exam, { id: crypto.randomUUID(), submissionId, items: [item], submittedAt: new Date().toISOString(), repliedAt: new Date().toISOString() }, key);
+    },
+    { exam: examId, bytes: scanBytes }
+  );
+
+  await visit(page, `/exam/${examId}/scan`);
+  await page.getByRole('button', { name: label('scanning.submissionsTable.exportPdf') }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: label('export.review.download.confirm') }).click();
+  expect((await download).suggestedFilename()).toMatch(/_graded\.pdf$/);
+});
+
+/** Issue #226: objections must not squeeze the score list. PCs get a compact inline thread and a one-row footer; phones a badge on the row and a dialog. */
+test('[layout] the grade page keeps the score list roomy with an objection', async ({ page }, testInfo) => {
+  const examId = await seedWorkspace(page);
+  const scan = await PDFDocument.create();
+  scan.addPage([595, 842]);
+  const scanBytes = Array.from(await scan.save());
+
+  await page.evaluate(
+    async ({ exam, bytes }) => {
+      const modules = ['/src/lib/stores/session.ts', '/src/lib/db/dbEncryption.ts', '/src/lib/repositories/submissionRepository.ts', '/src/lib/repositories/reviewRepository.ts', '/src/lib/repositories/exerciseRepository.ts'];
+      const [session, sealing, submissions, reviews, exercises] = await Promise.all(modules.map((m) => import(/* @vite-ignore */ m)));
+      let key: CryptoKey | null = null;
+      session.sessionStore.subscribe((s: { sessionKey: CryptoKey | null }) => (key = s.sessionKey))();
+      const [exercise] = await exercises.exerciseRepository.getAll(key);
+      const submissionId = crypto.randomUUID();
+      const sealed = await sealing.sealScan(submissionId, new Uint8Array(bytes), key);
+      await submissions.submissionRepository.save(
+        { id: submissionId, examId: exam, pseudonymHmac: 'e2e-pseudonym', pseudonymVersion: 2, scanCt: sealed.ct, scanIv: sealed.iv, createdAt: new Date().toISOString() },
+        key
+      );
+      const item = { key: exercise.id, label: '1', objection: 'I think my answer to the second part deserves more points, because the method is the one from the lecture and only the last step differs.', reply: '', pointsBefore: 3, pointsAfter: null };
+      await reviews.reviewRepository.save(exam, { id: crypto.randomUUID(), submissionId, items: [item], submittedAt: new Date().toISOString(), repliedAt: null }, key);
+    },
+    { exam: examId, bytes: scanBytes }
+  );
+
+  await visit(page, `/exam/${examId}/grade`);
+  const reply = page.getByRole('textbox', { name: label('review.thread.reply') });
+  const viewport = page.viewportSize()!;
+  const desktop = viewport.width >= 1024;
+  const shot = (name: string) => page.screenshot({ path: `${process.env.PW_SHOTS ?? testInfo.outputDir}/grade-objection-${name}.png` });
+
+  if (desktop) {
+    await expect(reply, 'PCs reply inline').toBeVisible();
+    const footerRow = page.getByRole('button', { name: label('review.bar.sendEllipsis') }).locator('..');
+    expect((await footerRow.boundingBox())!.height, 'the footer review row is one row').toBeLessThan(60);
+    await shot('desktop');
+    return;
+  }
+
+  await expect(reply, 'phones have no inline reply field').toHaveCount(0);
+  await page.getByRole('button', { name: label('grading.workspace.scorePanel') }).click();
+  const badge = page.locator('button').filter({ hasText: label('review.thread.objection') });
+  await expect(badge, 'the badge sits on the score row').toBeVisible();
+  await shot('phone');
+  const list = page.locator('[id^=score-]').first().locator('xpath=ancestor::div[contains(@class,"overflow-y-auto")][1]');
+  // The objection must not crowd the sheet: the list keeps at least half of it, and Previous/Next stay fully on screen.
+  const sheet = list.locator('xpath=ancestor::div[contains(@class,"dvh")][1]');
+  expect((await list.boundingBox())!.height, 'the score list keeps half of the score sheet').toBeGreaterThanOrEqual((await sheet.boundingBox())!.height * 0.5);
+  const next = page.getByRole('button', { name: label('grading.actions.next') });
+  const nextBox = (await next.boundingBox())!;
+  expect(nextBox.y + nextBox.height, 'Next student stays on screen').toBeLessThanOrEqual(viewport.height);
+  await page.locator('button').filter({ hasText: label('review.bar.edit') }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('textbox', { name: label('review.thread.reply') })).toBeVisible();
+  await shot('phone-dialog');
+});
+
+test('[layout] the objections tab lists open and answered objections pseudonymously', async ({ page }, testInfo) => {
+  const examId = await seedWorkspace(page);
+  await page.evaluate(async (exam) => {
+    const modules = ['/src/lib/stores/session.ts', '/src/lib/repositories/submissionRepository.ts', '/src/lib/repositories/reviewRepository.ts', '/src/lib/repositories/studentRepository.ts', '/src/lib/repositories/exerciseRepository.ts'];
+    const [session, submissions, reviews, students, exercises] = await Promise.all(modules.map((m) => import(/* @vite-ignore */ m)));
+    let key: CryptoKey | null = null;
+    session.sessionStore.subscribe((s: { sessionKey: CryptoKey | null }) => (key = s.sessionKey))();
+    const [exercise] = await exercises.exerciseRepository.getAll(key);
+    const seed = async (pseudonym: string, name: string, reply: string) => {
+      const submissionId = crypto.randomUUID();
+      await submissions.submissionRepository.save({ id: submissionId, examId: exam, pseudonymHmac: pseudonym, pseudonymVersion: 2, createdAt: new Date().toISOString() }, key);
+      await students.studentRepository.save({ id: crypto.randomUUID(), examId: exam, pseudonymHmac: pseudonym, pseudonymVersion: 2, studentName: name }, key);
+      const item = { key: exercise.id, label: '1', objection: `Objection of ${name}`, reply, pointsBefore: 3, pointsAfter: reply ? 4 : null };
+      await reviews.reviewRepository.save(exam, { id: crypto.randomUUID(), submissionId, items: [item], submittedAt: new Date().toISOString(), repliedAt: reply ? new Date().toISOString() : null }, key);
+    };
+    await seed('aaaaaaaaaaaaaaaa-open', 'Erika Open', '');
+    await seed('bbbbbbbbbbbbbbbb-done', 'Max Answered', 'Agreed, one more point.');
+  }, examId);
+  const locks: string[] = [];
+  page.on('request', (req) => {
+    if (req.url().includes('/review/open')) locks.push(req.url());
+  });
+
+  await visit(page, `/exam/${examId}/results/reviews`);
+  const card = page.getByRole('button', { name: /aaaaaaaaaa/ });
+  await expect(card, 'the open objection is listed by pseudonym').toBeVisible();
+  await expect(page.getByText('Erika Open'), 'names stay hidden').toHaveCount(0);
+  await expect(page.getByRole('button', { name: /bbbbbbbbbb/ }), 'answered ones are filtered out by default').toHaveCount(0);
+  await page.getByRole('switch', { name: label('review.overview.showNames') }).click();
+  await expect(page.getByRole('button', { name: 'Erika Open' }), 'the switch reveals names').toBeVisible();
+  await page.getByRole('button', { name: label('review.overview.answered') }).click();
+  await page.getByRole('button', { name: 'Max Answered' }).click();
+  await expect(page.getByText('Agreed, one more point.'), 'the conversation shows the reply').toBeVisible();
+  await page.screenshot({ path: `${process.env.PW_SHOTS ?? testInfo.outputDir}/objections-${testInfo.project.name}.png`, fullPage: true });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow, 'no horizontal scroll').toBeLessThanOrEqual(0);
+  expect(locks, 'reading the overview locks nothing').toEqual([]);
+});
+
 /* -------------------------------------------------------------------------- */
 /* Shell: navbar, sidebar, grade, widths, touch targets, theme                 */
 /* -------------------------------------------------------------------------- */
@@ -219,7 +406,7 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
 
   // Desktop: workspace content uses the available width.
   if (name === 'desktop') {
-    for (const p of ['', '/content', '/students', '/print', '/scan', '/verify', '/manual', '/results', '/results/share', '/results/archive']) {
+    for (const p of ['', '/content', '/students', '/print', '/scan', '/verify', '/manual', '/results', '/results/share', '/results/reviews', '/results/archive']) {
       await visit(page, `/exam/${examId}${p}`);
       const ratio = await page.evaluate(() => {
         const main = document.querySelector('.app-main')!;

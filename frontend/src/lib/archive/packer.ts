@@ -4,6 +4,7 @@ import { statisticsRepository } from '#lib/repositories/statisticsRepository';
 import type { StatisticsSnapshot } from '#lib/analytics/statisticsSnapshot';
 import { get } from 'svelte/store';
 import { db } from '#lib/db/db';
+import { reviewRepository } from '#lib/repositories/reviewRepository';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
 import { examRepository } from '#lib/repositories/examRepository';
 import { sessionStore } from '#lib/stores/session';
@@ -220,6 +221,7 @@ export async function packProject(
   const { exams, library, students, submissions } = await loadScope(key, onlyExams);
   // Through the repository, not Dexie directly — in all-server mode the local cache can be empty (e.g. right after a lock).
   const exerciseScores = await scoreRepository.getAll(exams.map((e) => e.id), key);
+  const gradingReviews = (await Promise.all(exams.map((e) => reviewRepository.listByExam(e.id, key)))).flat();
   // A single-exam archive keeps only entries about that exam, its students or its submissions.
   const auditTargets = onlyExams
     ? new Set<string>([
@@ -302,6 +304,7 @@ export async function packProject(
       }))
     ),
     exerciseScores,
+    gradingReviews,
     exerciseExams,
     examMcGroups,
     exerciseResources,
@@ -350,6 +353,7 @@ export async function packProject(
   bump(report, 'students', 'included', students.length);
   bump(report, 'submissions', 'included', submissions.length);
   bump(report, 'scores', 'included', exerciseScores.length);
+  bump(report, 'reviews', 'included', gradingReviews.length);
   bump(report, 'resources', 'included', exerciseResources.length);
   bump(report, 'logos', 'included', examLogos.filter((l) => l.bytes).length);
   bump(report, 'auditLogs', 'included', auditLogs.length);

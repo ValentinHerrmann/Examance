@@ -19,6 +19,8 @@ class CapabilitiesOut(BaseModel):
     sharing_paused: bool = False
     # Remembered answer to the share question after saving (issue #263): null asks.
     share_new_exercises: bool | None = None
+    # Mail on a student's objection (issue #226): null and true send, false does not.
+    review_mail: bool | None = None
 
 
 class StorageModeUpdate(BaseModel):
@@ -27,3 +29,10 @@ class StorageModeUpdate(BaseModel):
     mode: StorageMode
     # The mode the client believes is current (null for the first choice). A mismatch answers 409, so two browsers changing the mode at once cannot overwrite each other unnoticed.
     expected: StorageMode | None
+
+
+class ReviewMailUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Null and true mail the teacher on a student's objection, false does not (issue #226).
+    review_mail: bool | None

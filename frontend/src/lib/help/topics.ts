@@ -160,6 +160,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.stats.s3.h", bodyKeys: ["help.topics.stats.s3.p1"], docs: "results#partial" },
       { headingKey: "help.topics.stats.s4.h", bodyKeys: ["help.topics.stats.s4.p1"], docs: "results#export" },
       { headingKey: "help.topics.stats.s5.h", bodyKeys: ["help.topics.stats.s5.p1"], docs: "students#share-results" },
+      { headingKey: "help.topics.stats.s6.h", bodyKeys: ["help.topics.stats.s6.p1"], docs: "students#grading-review" },
     ],
   },
   {

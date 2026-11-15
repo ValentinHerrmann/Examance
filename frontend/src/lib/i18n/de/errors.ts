@@ -49,6 +49,8 @@ export const errors = {
         ERR_TEACHER_ROLE_REQUIRED: 'Administrationskonten verwalten Benutzer und Server. Für Prüfungen und Aufgaben brauchen Sie ein Lehrkraft-Konto.',
         ERR_SHARE_SOURCE_CHANGED: 'Die Quelle hat sich inzwischen geändert. Bitte prüfen Sie die Änderungen erneut.',
         ERR_SHARE_SOURCE_UNAVAILABLE: 'Die Quelle dieser Aufgabe wird nicht mehr geteilt.',
+        ERR_SHARE_NOT_UPDATABLE: 'Dieser Link kann nicht aktualisiert werden. Bitte teilen Sie das Ergebnis erneut.',
+        ERR_REVIEW_CLOSED: 'Einsprüche sind nicht mehr möglich: Die Frist ist abgelaufen oder Ihre Lehrkraft hat Ihren Einspruch schon geöffnet.',
         ERR_SHARE_COPY: 'Von anderen übernommene Aufgaben können nicht geteilt werden. Schlagen Sie Änderungen stattdessen dem Original vor.',
         ERR_NOT_CONTRIBUTABLE: 'Für diese Variante gibt es nichts vorzuschlagen.',
         ERR_CONTRIBUTION_LIMIT: 'Sie haben zu viele offene Vorschläge. Warten Sie auf Entscheidungen.',

@@ -19,11 +19,13 @@
     /** The key or code goes into the message itself. */
     includeCode: boolean;
     artemis: (ArtemisCourse & { mode: ArtemisMode }) | null;
+    /** Students whose current link, with an open objection, the new link replaces (issue #226). */
+    keptNames?: string[];
     onConfirm: () => void;
     onCancel: () => void;
   }
 
-  let { channel, students, factor, language, includeCode, artemis, onConfirm, onCancel }: Props = $props();
+  let { channel, students, factor, language, includeCode, artemis, keptNames = [], onConfirm, onCancel }: Props = $props();
 
   let sendsPdf = $derived(channelSendsPdf(channel.id, artemis?.mode ?? "link"));
   let blocked = $derived(new Map(incompatibleStudents(sendsPdf ? null : factor, channel, students.map((s) => s.student)).map((b) => [b.student, b.reason])));
@@ -57,6 +59,10 @@
         </tbody>
       </table>
     </TableScroller>
+
+    {#if keptNames.length > 0 && !sendsPdf}
+      <Alert severity="info" title={$t("review.replace.title")}>{$t("review.replace.note", { names: keptNames.join(", ") })}</Alert>
+    {/if}
 
     <Alert severity={sendsPdf ? "warning" : "info"} title={$t("lms.preview.dataTitle")}>
       <ul class="m-0 list-disc pl-5">

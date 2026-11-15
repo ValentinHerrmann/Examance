@@ -4,6 +4,7 @@
   import { t } from "#lib/i18n";
   import ScoreRow from "./ScoreRow.svelte";
   import { exerciseParts, hasPartValues, partOverrideKey, REST_KEY, restMax } from "#lib/grading/partScores";
+  import { exerciseTag, resetExercise, resetPart, setPart, setTotal } from "#lib/grading/scoreEdits";
 
   interface Props {
     exercises: ExerciseRecord[];
@@ -13,32 +14,6 @@
 
   function isTarget(ex: ExerciseRecord, label: string): boolean {
     return $gradingStore.activeExerciseId === ex.id && $gradingStore.activePartLabel === label;
-  }
-
-  function setTotal(ex: ExerciseRecord, value: number | null) {
-    gradingStore.setManualOverrideFlag(ex.id, true);
-    gradingStore.setScoreInput(ex.id, value);
-  }
-
-  function setPart(ex: ExerciseRecord, key: string, value: number | null) {
-    gradingStore.setManualOverrideFlag(partOverrideKey(ex.id, key), true);
-    gradingStore.setPartInput(ex, key, value);
-  }
-
-  function resetPart(ex: ExerciseRecord, key: string) {
-    gradingStore.setPartInput(ex, key, null);
-    gradingStore.setManualOverrideFlag(partOverrideKey(ex.id, key), false);
-  }
-
-  /** Clears the exercise with all of its parts. */
-  function resetExercise(ex: ExerciseRecord) {
-    const state = gradingStore.getState();
-    const { [ex.id]: _dropped, ...partInputs } = state.partInputs;
-    const prefix = partOverrideKey(ex.id, "");
-    gradingStore.setPartInputs(partInputs);
-    gradingStore.setManualOverride(Object.fromEntries(Object.entries(state.manualOverride).filter(([k]) => !k.startsWith(prefix))));
-    gradingStore.setScoreInput(ex.id, null);
-    gradingStore.setManualOverrideFlag(ex.id, false);
   }
 
   /** The points-outside-the-parts row: shown while grading part by part when the exercise has such points or stamps landed there. */
@@ -63,13 +38,14 @@
       manual={!!$gradingStore.manualOverride[ex.id] && !hasPartValues(parts)}
       readonlyReason={hasPartValues(parts) ? $t("grading.scoreEntry.sumOfParts") : undefined}
       inputId={`score-${ex.id}`}
+      reviewKey={ex.id}
       onSelect={() => gradingStore.setActivePart(ex.id, "")}
       onValue={(v) => setTotal(ex, v)}
       onReset={() => resetExercise(ex)}
     >
       {#snippet label()}
         <!-- Plain text, no link to the exercise editor: a pen or palm tapped it by accident while grading (issue #233). -->
-        <span class="text-xs font-bold text-content">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</span>
+        <span class="text-xs font-bold text-content">{exerciseTag(ex)}</span>
       {/snippet}
     </ScoreRow>
     {#each exerciseParts(ex) as part (part.label)}
@@ -80,6 +56,7 @@
         active={isTarget(ex, part.label)}
         manual={!!$gradingStore.manualOverride[partOverrideKey(ex.id, part.label)]}
         ariaLabel={$t("grading.scoreEntry.partRowLabel", { label: part.label })}
+        reviewKey={partOverrideKey(ex.id, part.label)}
         onSelect={() => gradingStore.setActivePart(ex.id, part.label)}
         onValue={(v) => setPart(ex, part.label, v)}
         onReset={() => resetPart(ex, part.label)}

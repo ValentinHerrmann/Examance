@@ -49,6 +49,8 @@ The flow lives in `lib/sharing/shareService.ts`:
 | lookup secret | `HKDF(token, salt = shareId, info "examance-share-lookup:v1")` | the student sends it to fetch the ciphertext; the server stores only its SHA-256 (`lookup_hash`) |
 | content key, factor `none` | `HKDF(token, salt = shareId, info "examance-share-key:v1:none")` | the link |
 | content key, `sticker`/`code` | `HKDF(token ‖ Argon2id(code, kdf_salt), salt = shareId, info "examance-share-key:v1:<factor>")` | link plus code; `kdf_salt` is random and stored with the share |
+| `K_wrap`, `wrapped_key` | HKDF of the account's data key; wraps token and content key so the teacher can update the share and mail the link | only the owning account; the server stores the wrapped bytes |
+| `K_review` | `HKDF(content key, salt = shareId, info "examance-share-review:v1")` | seals objections and replies; see [grading review](grading_review.md#keys) |
 
 **Sealing.** AES-256-GCM, AAD `share:v1:<shareId>`. The plaintext is `[u32 header length][header JSON {filename, examTitle, documents: [{kind, length}]}][documents…]`: the graded PDF, then the sample solution when the teacher ticked it (compiled once per run with `compileExamPreview`; a failed compile ends the run before anything is uploaded). A header without `documents` (v1) is one graded PDF.
 
@@ -141,9 +143,9 @@ Nothing is sent before the teacher confirms.
   - `lookup_hash`, `factor`, `kdf_salt`, `iv`, the ciphertext and `expires_at`.
 
   The ciphertext lives in the `shares` blob kind or in the deferred `ciphertext` column, following `BLOB_STORAGE_BACKEND` like scans do.
-- **Replacing.** Sharing a student again replaces their row, so the old link dies.
-- **Teacher endpoints.** `POST/GET/DELETE /exams/{id}/shares` (`DELETE ?student_key=` revokes one student) and `DELETE /exams/{id}/shares/{share_id}`. They depend on `get_teaching_teacher` and are not gated by `server_results`: the server can never read a share.
-- **Public endpoint.** `POST /shares/{id}/open {lookup_b64}` needs no session and is limited to 30/minute per IP. Unknown, expired, revoked and wrong-lookup requests all answer the same `404 ERR_SHARE_NOT_FOUND`.
+- **Replacing.** Sharing a student again still replaces their row, so the old link dies; an unanswered objection on it is first saved into the student's review record (as on a revoke), so it stays visible in grading. Updates go in place instead: `PUT /exams/{id}/shares/{share_id}/content` re-seals under the same link when the share has a `wrapped_key` (shares made before issue #226 do not, and must be shared again). See [grading review](grading_review.md).
+- **Teacher endpoints.** `POST/GET/DELETE /exams/{id}/shares` (`DELETE ?student_key=` revokes one student) and `DELETE /exams/{id}/shares/{share_id}`, plus the review endpoints of [grading review](grading_review.md#server) (`PUT …/content`, `POST …/review/open`, `PUT …/review/reply`, `GET /exams/{id}/reviews`). They depend on `get_teaching_teacher` and are not gated by `server_results`: the server can never read a share.
+- **Public endpoint.** `POST /shares/{id}/open {lookup_b64}` needs no session and is limited to 30/minute per IP; `POST /shares/{id}/review` and `…/review/withdraw` are public too (10/minute). Unknown, expired, revoked and wrong-lookup requests all answer the same `404 ERR_SHARE_NOT_FOUND`.
 - **Lifetime.**
   - A teacher picks 7, 14, 30 or 90 days (`RESULT_SHARE_EXPIRY_DAYS`).
   - The retention run deletes expired shares (step 14) and sweeps orphaned files.
@@ -160,5 +162,7 @@ Nothing is sent before the teacher confirms.
 2. Derive the lookup and fetch the ciphertext.
 3. Ask for the code when the factor needs one.
 4. Decrypt in the browser and show the PDFs view-only: `PdfEmbedViewer`, or `DualPdfPreview` with `downloadable={false}` when a solution is included (EmbedPDF's export and print are disabled). This deters casual downloading only; the bytes are in the student's browser.
+
+5. With objections enabled, `ReviewForm` shows one field per item and the teacher's reply once given; after an in-place update it shows "Grading updated on" plus the date (`grading_review.md`).
 
 A wrong code fails GCM authentication and shows "key incorrect". The page sets `noindex` and `no-referrer`.
