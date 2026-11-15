@@ -22,7 +22,7 @@ export const settings: Translations['settings'] = {
         description: 'Examtimer shows the remaining working time in the exam room. “Timer” on an exam opens it with the working time and time extensions.',
         address: 'Examtimer address',
         hint: 'Applies to this browser. Leave empty for the default address.',
-        invalid: 'Enter an address that starts with https://.',
+        invalid: 'Enter an address that starts with https:// (a secure address).',
     },
     penInput: {
         heading: 'Pen input on this device',
