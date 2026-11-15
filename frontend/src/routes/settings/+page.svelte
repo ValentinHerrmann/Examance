@@ -15,6 +15,7 @@
   import type { StudentRecord } from "#lib/db/schema";
   import { onMount } from "svelte";
   import SettingsForm from "#lib/components/settings/SettingsForm.svelte";
+  import ExamTimerSettingCard from "#lib/components/settings/ExamTimerSettingCard.svelte";
   import GdprErasureTable from "#lib/components/settings/GdprErasureTable.svelte";
   import OmrDetectionSettingsCard from "#lib/components/settings/OmrDetectionSettingsCard.svelte";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
@@ -154,6 +155,7 @@
       { id: "omr", label: $t("settings.omr.heading") },
       { id: "logo", label: $t("logo.account.heading") },
       { id: "latex-packages", label: $t("latexPackages.account.heading") },
+      { id: "examtimer", label: $t("settings.examTimer.heading") },
       { id: "storage-policy", label: $t("settings.storage.heading") },
       ...($featuresStore.exercise_sharing === true ? [{ id: "share-default", label: $t("settings.shareDefault.heading") }] : []),
       ...(donationAvailable || $trainingDonationStore.enabled
@@ -216,6 +218,7 @@
 
         <AccountLogoCard />
         <AccountPackagesCard />
+        <ExamTimerSettingCard />
 
         <SettingsForm
           part="storage"

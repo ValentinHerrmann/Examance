@@ -7,6 +7,8 @@
   import { t } from "#lib/i18n";
   import { Alert, Button, PageShell, Spinner, actionIcons } from "#lib/components/ui";
   import StudentEditDialog from "#lib/components/students/StudentEditDialog.svelte";
+  import ExamTimerDialog from "#lib/components/exam/ExamTimerDialog.svelte";
+  import { faStopwatch } from "@fortawesome/free-solid-svg-icons";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import RosterManager from "#lib/components/manual-grading/RosterManager.svelte";
   import StudentImport from "#lib/components/students/StudentImport.svelte";
@@ -26,6 +28,7 @@
   let loading = $state(true);
   let error = $state("");
   let adding = $state(false);
+  let timer: ReturnType<typeof ExamTimerDialog> | undefined = $state();
 
   async function load() {
     const key = get(sessionStore).sessionKey;
@@ -60,6 +63,7 @@
   <div class="flex min-w-0 flex-col gap-6">
     <ExamPageHeader {examId} step="students" title={$t("exam.sidebar.students")} hint={$t("lms.students.intro")}>
       {#snippet actions()}
+        <Button variant="outlined" severity="secondary" icon={faStopwatch} disabled={!exam} onClick={() => exam && timer?.open(exam)}>{$t("export.timer.action")}</Button>
         <Button icon={actionIcons.add} disabled={loading || !!error} onClick={() => (adding = true)}>{$t("lms.students.add.action")}</Button>
       {/snippet}
     </ExamPageHeader>
@@ -78,6 +82,8 @@
     {/if}
   </div>
 </PageShell>
+
+<ExamTimerDialog bind:this={timer} />
 
 {#if adding}
   <StudentEditDialog

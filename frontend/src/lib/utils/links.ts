@@ -12,6 +12,8 @@ export const shareHref = (examId: string) => `/exam/${q(examId)}/results/share`;
 export const reviewsHref = (examId: string) => `/exam/${q(examId)}/results/reviews`;
 /** Settings → Pen input (issue #233): where pen detection is reset. */
 export const penInputSettingsHref = "/settings#pen-input";
+/** Settings → Examtimer address (issue #265). */
+export const examTimerSettingsHref = "/settings#examtimer";
 export const studentsHref = (examId: string) => `/exam/${q(examId)}/students`;
 
 /** Parameters are read by `routes/exam/[id]/grade/+page.svelte`. */

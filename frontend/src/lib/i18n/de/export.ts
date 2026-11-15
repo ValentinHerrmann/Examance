@@ -1,6 +1,23 @@
 // Raw exports (issue #82): exam ZIP and exercise-library ZIP.
 export const exportNs = {
     button: 'Exportieren (ZIP)',
+    timer: {
+        action: 'Timer',
+        title: 'Arbeitszeit an den Examtimer übergeben',
+        intro: 'Der Examtimer zeigt im Prüfungsraum die verbleibende Zeit. Er übernimmt Klasse, Fach, Prüfung, Arbeitszeit und die Zeitzuschläge; jeder Zuschlag erscheint einmal.',
+        exam: 'Prüfung',
+        duration: 'Arbeitszeit',
+        minutes: '{count} Minuten',
+        extensions: 'Zeitzuschläge',
+        noExtensions: 'keine',
+        noDuration: 'Tragen Sie zuerst bei den Prüfungsdaten die Arbeitszeit in Minuten ein.',
+        names: 'Vornamen anzeigen',
+        namesHint: 'Der Vorname steht nur bei einem Zuschlag, den genau eine Person hat. Er ist dann in der Datei und im Link enthalten und im Examtimer sichtbar, auch auf dem Beamer.',
+        address: 'Adresse: {url}',
+        changeAddress: 'In den Einstellungen ändern',
+        open: 'Im Examtimer öffnen',
+        download: 'Timer-Datei herunterladen',
+    },
     dialog: {
         chooseParts: 'Was soll der Download enthalten?',
         download: 'ZIP herunterladen',

@@ -2,6 +2,23 @@ import type { Translations } from '../types';
 
 export const exportNs: Translations['export'] = {
     button: 'Export (ZIP)',
+    timer: {
+        action: 'Timer',
+        title: 'Send the working time to Examtimer',
+        intro: 'Examtimer shows the remaining time in the exam room. It takes over class, subject, exam, working time and the time extensions; each extension appears once.',
+        exam: 'Exam',
+        duration: 'Working time',
+        minutes: '{count} minutes',
+        extensions: 'Time extensions',
+        noExtensions: 'none',
+        noDuration: 'First enter the working time in minutes in the exam details.',
+        names: 'Show first names',
+        namesHint: 'A first name appears only on an extension that exactly one person has. It is then part of the file and the link and visible in Examtimer, also on the projector.',
+        address: 'Address: {url}',
+        changeAddress: 'Change in the settings',
+        open: 'Open in Examtimer',
+        download: 'Download timer file',
+    },
     dialog: {
         chooseParts: 'What should the download contain?',
         download: 'Download ZIP',

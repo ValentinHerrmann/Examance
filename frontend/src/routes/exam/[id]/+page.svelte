@@ -22,6 +22,8 @@
   import { fmt } from "#lib/utils/format";
   import ExamDetailsForm from "#lib/components/exam/ExamDetailsForm.svelte";
   import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
+  import ExamTimerDialog from "#lib/components/exam/ExamTimerDialog.svelte";
+  import { faStopwatch } from "@fortawesome/free-solid-svg-icons";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import ExamStepLinks from "#lib/components/exam/ExamStepLinks.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -44,6 +46,7 @@
 
   let detailsStatus = $state<AutosaveStatus>(IDLE_SAVE);
   let exportOpen = $state(false);
+  let timer: ReturnType<typeof ExamTimerDialog> | undefined = $state();
   let confirming: "exam" | "submissions" | null = $state(null);
   let busy = $state(false);
   let keepStatistics = $state(true);
@@ -168,6 +171,7 @@
           </Button>
           <InfoTip text={$t("exam.overview.backupHint")} />
         </span>
+        <Button size="sm" variant="outlined" severity="secondary" icon={faStopwatch} onClick={() => exam && timer?.open(exam)}>{$t("export.timer.action")}</Button>
         <Menu label={$t("exam.overview.more")} icon={actionIcons.more} align="end">
           {#snippet children({ close })}
             <MenuItem icon={actionIcons.duplicate} disabled={isDuplicating} onSelect={() => { close(); void duplicateExam(); }}>
@@ -235,6 +239,8 @@
 
   {/if}
 </PageShell>
+
+<ExamTimerDialog bind:this={timer} />
 
 {#if exportOpen}
   <ExamExportModal exams={[{ id: examId, title: exam?.title ?? "" }]} onClose={() => (exportOpen = false)} />
