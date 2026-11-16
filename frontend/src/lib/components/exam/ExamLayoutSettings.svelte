@@ -7,7 +7,7 @@
   import { docsHref } from "#lib/help/docsLink";
   import { clampExtraPages, MAX_EXTRA_PAGES, printSettingsOf, spotChoices, type PaperStyle, type PrintLayout, type PrintMode, type StickerSpots } from "#lib/exam/printLayout";
   import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
-  import { LAYOUT_PRESETS, matchPreset, type LayoutPresetId, type PresetFields } from "#lib/exam/layoutPresets";
+  import { allScanAidsOn, LAYOUT_PRESETS, matchPreset, type LayoutPresetId, type PresetFields } from "#lib/exam/layoutPresets";
   import type { SketchPart } from "#lib/exam/sheetSketch";
   import LatexEditor from "#lib/components/LatexEditor.svelte";
   import ExamLogoField from "#lib/components/logo/ExamLogoField.svelte";
@@ -16,8 +16,8 @@
   import LayoutChoiceRow, { type LayoutChoice } from "#lib/components/exam/LayoutChoiceRow.svelte";
   import { extraNotesKey, type ExtraNotes } from "#lib/db/schema";
   import SectionHeading from "#lib/components/help/SectionHeading.svelte";
-  import { faBookOpen, faCopy, faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faScissors, faSignature, faTableCells, faTag, faUser, faUserSecret, faBook, faPenNib, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
-  import { Card, CrossLink, Field, SaveStatus, TextInput } from "#lib/components/ui";
+  import { faBookOpen, faCopy, faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faScissors, faSignature, faTableCells, faTag, faUser, faUserSecret, faBook, faPenNib, faTriangleExclamation, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Card, CrossLink, Field, Icon, SaveStatus, TextInput } from "#lib/components/ui";
 
   /** The Layout step (issue #272): every choice that changes how the exam looks, from presets to the writing paper, beside a live content-free sketch. Every change saves itself; the Print step only prints. */
   interface Props {
@@ -57,6 +57,8 @@
   let resetSeq = $state(0);
   /** The sketch element of the hovered or focused tile. */
   let highlight = $state<SketchPart | null>(null);
+  /** The element whose page the preview shows; `seq` lets the same element be asked for again. */
+  let show = $state.raw<{ part: SketchPart | null; seq: number }>({ part: null, seq: 0 });
 
   function load() {
     infoText = exam.infoText || "";
@@ -161,13 +163,25 @@
   }
 
   let preset = $derived(matchPreset(current));
-  const light = (part: SketchPart | null) => (highlight = part);
-  /** Pointer and focus handlers that stress *part* in the preview while a field is used. */
+  /** Stresses *part* while hovered or focused; leaving clears it only if no other element took over meanwhile. */
+  function light(part: SketchPart, on: boolean) {
+    if (on) highlight = part;
+    else if (highlight === part) highlight = null;
+  }
+  /** Moves the preview to *part*'s page: only on focus or a click, never on a hover (the page jumped while the pointer crossed the card). */
+  function showPart(part: SketchPart) {
+    show = { part, seq: show.seq + 1 };
+  }
+  function focusPart(part: SketchPart) {
+    light(part, true);
+    showPart(part);
+  }
+  /** Handlers for a field: the pointer stresses its element, focus also shows its page. */
   const stress = (part: SketchPart) => ({
-    onfocusin: () => (highlight = part),
-    onfocusout: () => (highlight = null),
-    onpointerenter: () => (highlight = part),
-    onpointerleave: () => (highlight = null),
+    onfocusin: () => focusPart(part),
+    onfocusout: () => light(part, false),
+    onpointerenter: () => light(part, true),
+    onpointerleave: () => light(part, false),
   });
   const presetIcon: Record<LayoutPresetId, IconDefinition> = { fullDigital: faQrcode, digitalCopiesBooklet: faBook, anonymousPaperCopies: faUserSecret, namedPaperBooklet: faPenNib };
 
@@ -176,6 +190,14 @@
   );
 
   let booklet = $derived(printLayout === "booklet");
+  let aidsOn = $derived(allScanAidsOn({ digitalGrading, cutCorner, pageCodes, foldStrip, printLayout }));
+  /** Every scan aid on at once, e.g. after a paper preset, to grade in Examance. */
+  function turnOnScanAids() {
+    digitalGrading = true;
+    cutCorner = true;
+    pageCodes = true;
+    foldStrip = true;
+  }
   /** The spots as printed: a paper cover without QR box prints none beyond the cover. */
   let printedSpots = $derived(printSettingsOf(current).stickerSpots);
   let copies = $derived(printMode === "copies");
@@ -235,7 +257,7 @@
 <!-- Options on the left, the preview beside them from xl (on top on phones, so a choice shows at once). Sections follow the decisions: how it is graded and printed first, then the pages from the cover on. -->
 <div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
   <Card class="min-w-0 xl:sticky xl:top-4 xl:order-2">
-    <SheetSketch examId={exam.id} fields={{ ...current, extraNotes }} {hasLogo} {highlight} />
+    <SheetSketch examId={exam.id} fields={{ ...current, extraNotes }} {hasLogo} {highlight} {show} />
   </Card>
 
   <Card class="min-w-0" title={$t("exam.sidebar.layout")}>
@@ -243,12 +265,23 @@
       <SaveStatus {status} />
     {/snippet}
     <div class="@container flex flex-col gap-5">
-      <LayoutChoiceRow id="layout-presets" label={$t("exam.layout.presets.heading")} info={$t("exam.layout.presets.info")} columns={2} choices={presetChoices} fallback={$t("exam.layout.presets.custom")} onHighlight={light} />
+      <LayoutChoiceRow id="layout-presets" label={$t("exam.layout.presets.heading")} info={$t("exam.layout.presets.info")} columns={2} choices={presetChoices} fallback={$t("exam.layout.presets.custom")} onHighlight={light} onShow={showPart} />
 
       <!-- Each scan aid on its own (issue #272); the corner markers are what Examance's scanner needs, so they carry the grading switch. -->
       <section class="flex min-w-0 flex-col gap-2" aria-labelledby="layout-grading-heading">
         <SectionHeading id="layout-grading-heading" tag="h3" label={$t("exam.layout.grading.heading")} info={$t("exam.layout.grading.info")} />
-        <LayoutChoiceRow id="layout-aids" label={$t("exam.layout.grading.aids")} type="checkbox" columns={4} choices={aidChoices} fallback={$t("exam.layout.grading.aidsText")} onHighlight={light} />
+        <LayoutChoiceRow id="layout-aids" label={$t("exam.layout.grading.aids")} type="checkbox" columns={4} choices={aidChoices} fallback={$t("exam.layout.grading.aidsText")} onHighlight={light} onShow={showPart} />
+        <!-- Only the corner markers are technically required (scan registration); the other aids are optional, so only they get a warning. -->
+        {#if !digitalGrading || !aidsOn}
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 @2xl:pl-44">
+            {#if !digitalGrading}
+              <p class="m-0 flex min-w-0 flex-1 items-start gap-1.5 text-xs text-warning-fg"><Icon icon={faTriangleExclamation} class="mt-0.5 shrink-0" />{$t("exam.layout.grading.markersRequired")}</p>
+            {/if}
+            {#if !aidsOn}
+              <Button size="sm" variant="outlined" severity="secondary" icon={faQrcode} onClick={turnOnScanAids}>{$t("exam.layout.grading.allOn")}</Button>
+            {/if}
+          </div>
+        {/if}
       </section>
 
       <!-- How the copies are made: it changes filler pages, the fold and the sticker fields, so it lives here, not on the Print step (issue #272). -->
@@ -259,7 +292,7 @@
           label={$t("exam.print.modeLegend")}
           info={$t("exam.print.modeInfo")}
           columns={2}
-          onHighlight={light}
+          onHighlight={light} onShow={showPart}
           choices={[
             { value: "stickers", checked: printMode === "stickers", icon: faTag, title: $t("exam.print.modeStickers"), text: $t("exam.print.modeStickersText"), part: "qr", onPick: () => (printMode = "stickers") },
             { value: "copies", checked: printMode === "copies", icon: faUser, title: $t("exam.print.modeCopies"), text: $t("exam.print.modeCopiesText"), disabledReason: printMode === "copies" ? null : copiesUnavailable, part: "qr", onPick: () => (printMode = "copies") },
@@ -270,7 +303,7 @@
           label={$t("exam.print.layoutLegend")}
           info={$t("exam.print.layoutInfo")}
           columns={2}
-          onHighlight={light}
+          onHighlight={light} onShow={showPart}
           choices={[
             { value: "duplex", checked: printLayout === "duplex", icon: faCopy, title: $t("exam.print.duplex"), text: $t("exam.print.duplexText"), part: "fold", onPick: () => setLayout("duplex") },
             { value: "booklet", checked: printLayout === "booklet", icon: faBookOpen, title: $t("exam.print.booklet.label"), text: $t("exam.print.booklet.text"), part: "fold", onPick: () => setLayout("booklet") },
@@ -281,7 +314,7 @@
             id="layout-spots"
             label={$t("exam.print.spots.legend")}
             info={$t("exam.print.spots.info")}
-            onHighlight={light}
+            onHighlight={light} onShow={showPart}
             choices={spotChoices(printLayout).map((spot) => ({ value: spot, checked: printedSpots === spot, icon: spotIcon[spot], title: $t(`exam.print.spots.${spot}`), text: $t(`exam.print.spots.${spot}Text`), disabledReason: spot !== "cover" && !digitalGrading && !resultsQrBox ? $t("exam.print.spots.noQr") : null, part: "stickers" as const, onPick: () => (stickerSpots = spot) }))}
           />
         {/if}
@@ -289,7 +322,7 @@
 
       <section class="flex min-w-0 flex-col gap-2" aria-labelledby="layout-cover">
         <SectionHeading id="layout-cover" tag="h3" label={$t("exam.layout.sections.cover")} info={$t("exam.layout.sections.coverInfo")} />
-        <LayoutChoiceRow id="layout-name" label={$t("exam.layout.choices.nameLegend")} info={$t("exam.metadataEditor.nameLineHint")} choices={nameChoices} columns={nameChoices.length === 3 ? 3 : 2} onHighlight={light} />
+        <LayoutChoiceRow id="layout-name" label={$t("exam.layout.choices.nameLegend")} info={$t("exam.metadataEditor.nameLineHint")} choices={nameChoices} columns={nameChoices.length === 3 ? 3 : 2} onHighlight={light} onShow={showPart} />
         <div {...stress("info")} role="presentation">
           <Field label={$t("exam.metadataEditor.infoText")}>
             <LatexEditor bind:value={infoText} rows={4} />
@@ -312,7 +345,7 @@
           type="checkbox"
           columns={2}
           fallback={$t("exam.layout.choices.mcHintText")}
-          onHighlight={light}
+          onHighlight={light} onShow={showPart}
           choices={[{ value: "mcHint", checked: mcCorrectionHint, icon: faPenToSquare, title: $t("exam.layout.choices.mcHint"), text: $t("exam.layout.choices.mcHintText"), part: "mcHint", onPick: (on) => (mcCorrectionHint = on) }]}
         />
         <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
@@ -328,7 +361,7 @@
           id="layout-paper"
           label={$t("exam.layout.paper.style")}
           info={$t("exam.layout.paper.styleInfo")}
-          onHighlight={light}
+          onHighlight={light} onShow={showPart}
           choices={[
             { value: "squared", checked: paperStyle === "squared", icon: faTableCells, title: $t("exam.layout.paper.squared"), text: $t("exam.layout.paper.squaredText"), part: "paper", onPick: () => (paperStyle = "squared") },
             { value: "lined", checked: paperStyle === "lined", icon: faGripLines, title: $t("exam.layout.paper.lined"), text: $t("exam.layout.paper.linedText"), part: "paper", onPick: () => (paperStyle = "lined") },
@@ -339,7 +372,7 @@
           <ExtraNotesField value={extraNotes} onChange={(next) => (extraNotes = next)} idPrefix="layoutExtraNotes" />
         </div>
         <Field label={$t("exam.layout.paper.extraPages")} forId="layoutExtraPages" info={$t("exam.layout.paper.extraPagesInfo", { max: MAX_EXTRA_PAGES })}>
-          <TextInput id="layoutExtraPages" type="number" min="0" max={String(MAX_EXTRA_PAGES)} step="1" class="w-24" bind:value={extraPagesText} onfocus={() => (highlight = "paper")} onblur={() => (highlight = null)} />
+          <TextInput id="layoutExtraPages" type="number" min="0" max={String(MAX_EXTRA_PAGES)} step="1" class="w-24" bind:value={extraPagesText} onfocus={() => focusPart("paper")} onblur={() => light("paper", false)} />
         </Field>
         <CrossLink href={docsHref("exams#extra-paper", $locale)} class="self-start text-sm">{$t("exam.layout.paper.guide")}</CrossLink>
       </section>

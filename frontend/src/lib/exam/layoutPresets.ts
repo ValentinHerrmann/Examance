@@ -42,6 +42,14 @@ function printedForm(fields: PresetSource) {
   };
 }
 
+/** The scan-aid switches of the Layout step (issue #272): corner markers (= grading in Examance), cut corner, page codes and, in a booklet, the fold strip. */
+export type ScanAidFields = Pick<PresetFields, 'digitalGrading' | 'cutCorner' | 'pageCodes' | 'foldStrip' | 'printLayout'>;
+
+/** Whether every scan aid that prints in this layout is on (the fold strip counts only for booklets). */
+export function allScanAidsOn(fields: ScanAidFields): boolean {
+  return fields.digitalGrading && fields.cutCorner && fields.pageCodes && (fields.printLayout !== 'booklet' || fields.foldStrip);
+}
+
 /** The preset the fields match as printed, or 'custom'. */
 export function matchPreset(fields: PresetSource): LayoutPresetId | 'custom' {
   const current = JSON.stringify(printedForm(fields));

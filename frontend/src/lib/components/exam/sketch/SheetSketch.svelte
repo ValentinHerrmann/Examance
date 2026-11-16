@@ -50,11 +50,13 @@
     examId: string;
     fields: Fields & Pick<ExamRecord, "printLayout">;
     hasLogo: boolean;
-    /** The option element under the pointer or focus: the large page jumps to it and stresses it. */
+    /** The option element under the pointer or focus: stressed where it shows on the current page. */
     highlight?: SketchPart | null;
+    /** The element whose page to show, set on focus or a click (never on hover); a new `seq` asks again. */
+    show?: { part: SketchPart | null; seq: number };
   }
 
-  let { examId, fields, hasLogo, highlight = null }: Props = $props();
+  let { examId, fields, hasLogo, highlight = null, show = { part: null, seq: 0 } }: Props = $props();
 
   let sample = $state.raw<Sample | null>(null);
   let status = $state<"loading" | "ready" | "failed">("loading");
@@ -126,9 +128,10 @@
 
   let examSheets = $derived(examPages === null ? null : Math.ceil(examPages / pagesPerSheet(model.layout)));
 
-  // The large page follows the hovered or focused option; leaving it keeps that page.
+  // The large page moves to a focused or clicked option's page; hovering only stresses (issue #272: the page jumped while the pointer crossed the options).
   $effect.pre(() => {
-    const part = highlight;
+    void show.seq;
+    const part = show.part;
     untrack(() => {
       if (!part) return;
       const mcPage = part === "mcHint" ? model.pages.find((p) => hasMc(p.number))?.number : undefined;
@@ -147,6 +150,8 @@
     const box = largeBox;
     untrack(() => {
       if (!box || !observer) return;
+      // A pending measurement belongs to the old box.
+      clearTimeout(resizeTimer);
       observer.disconnect();
       observer.observe(box);
     });

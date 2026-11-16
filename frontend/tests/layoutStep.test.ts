@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LAYOUT_PRESETS, matchPreset } from '../src/lib/exam/layoutPresets';
+import { allScanAidsOn, LAYOUT_PRESETS, matchPreset } from '../src/lib/exam/layoutPresets';
 import { NEW_EXAM_PRINT, printSettingsOf, printsNameLine } from '../src/lib/exam/printLayout';
 import { focusPageOf, infoTextLines, nameInfoOf, pageElementsOf, sheetSketchOf } from '../src/lib/exam/sheetSketch';
 import { layoutSampleTex, SAMPLE_INFO_END_URI, SAMPLE_INFO_START_URI, SAMPLE_LABEL, SAMPLE_MC_URI, SAMPLE_REST_URI } from '../src/lib/exam/layoutSample';
@@ -25,6 +25,13 @@ describe('layout presets (issue #272)', () => {
       expect(new Set(of.map((f) => f.printLayout))).toEqual(new Set(['duplex', 'booklet']));
       expect(of.some((f) => f.printMode === 'copies')).toBe(true);
     }
+  });
+
+  it('knows when every scan aid is on (the fold strip counts only in a booklet)', () => {
+    expect(allScanAidsOn(preset('fullDigital'))).toBe(true);
+    expect(allScanAidsOn({ ...preset('fullDigital'), foldStrip: false })).toBe(true);
+    expect(allScanAidsOn({ ...preset('fullDigital'), printLayout: 'booklet', foldStrip: false })).toBe(false);
+    expect(allScanAidsOn(preset('anonymousPaperCopies'))).toBe(false);
   });
 
   it('sticker spots do not decide the match of personalised copies', () => {
@@ -189,6 +196,10 @@ describe('info text in the preview (issue #272)', () => {
     expect(infoTextLines(String.raw`Viel Erfolg!\\ Bitte sauber schreiben.
 
 Taschenrechner erlaubt.`)).toEqual(['Viel Erfolg!', 'Bitte sauber schreiben.', 'Taschenrechner erlaubt.']);
+  });
+
+  it('drops math delimiters and spacing commands with their arguments', () => {
+    expect(infoTextLines(String.raw`Zeit: $45$\,min\vspace{2mm} \hspace*{1cm}gut`)).toEqual(['Zeit: 45 min gut']);
   });
 
   it('an empty info text gives no lines', () => {

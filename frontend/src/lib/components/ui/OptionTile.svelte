@@ -31,10 +31,17 @@
     titleExtra?: Snippet;
     /** Pointer or keyboard focus entered (true) or left (false) the tile, e.g. to stress its part in the Layout step's preview. */
     onHighlight?: (on: boolean) => void;
+    /** Keyboard focus or a click entered the tile: the Layout preview moves to its page (a hover only stresses). */
+    onShow?: () => void;
     class?: string;
   }
 
-  let { type = "radio", name, value, checked, title, text = undefined, icon = undefined, disabled = false, compact = false, dense = false, describedby = undefined, onchange, onToggle, onclick, titleExtra, onHighlight, class: className = "" }: Props = $props();
+  let { type = "radio", name, value, checked, title, text = undefined, icon = undefined, disabled = false, compact = false, dense = false, describedby = undefined, onchange, onToggle, onclick, titleExtra, onHighlight, onShow, class: className = "" }: Props = $props();
+
+  function focused() {
+    onHighlight?.(true);
+    onShow?.();
+  }
 
   function changed(event: Event) {
     onchange?.(event);
@@ -52,7 +59,7 @@
       : 'items-start gap-3 p-4'} {disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-line-hover'} {className}"
   onpointerenter={onHighlight && (() => onHighlight(true))}
   onpointerleave={onHighlight && (() => onHighlight(false))}
-  onfocusin={onHighlight && (() => onHighlight(true))}
+  onfocusin={onHighlight || onShow ? focused : undefined}
   onfocusout={onHighlight && (() => onHighlight(false))}
 >
   <input class="shrink-0 cursor-[inherit] accent-primary {dense ? '' : 'mt-0.5'} {compact || dense ? 'size-4' : 'size-5'}" {type} {name} {value} {checked} {disabled} aria-describedby={describedby} onchange={changed} {onclick} />

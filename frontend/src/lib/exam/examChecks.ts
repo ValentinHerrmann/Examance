@@ -83,6 +83,7 @@ const LEGACY_PRINT = JSON.stringify(stampedPrint({} as ExamRecord));
 /** What the printed exam and solution depend on: the exam's content and layout fields and its exercises in order. */
 export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): string {
     const e = exam;
+    const print = stampedPrint(e);
     const head = [
         // The printed date line, so an exam whose minutes only moved out of the date text (migration 0067) keeps its stamp.
         e.title, e.testart, e.grade, e.klasse, e.durationMinutes || e.readingMinutes ? printedDatum(e) : e.datum, e.nr, e.fach, e.lehrernachname, e.infoText,
@@ -91,7 +92,7 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
         // Only when set, so stamps of exams without an override (all older ones) stay as they were.
         ...(e.course ? [e.course] : []),
         // Only when they differ from the old layout, so stamps of older exams stay as they were.
-        ...(JSON.stringify(stampedPrint(e)) === LEGACY_PRINT ? [] : [stampedPrint(e)]),
+        ...(JSON.stringify(print) === LEGACY_PRINT ? [] : [print]),
     ];
     const body = exercises.map((x) => [x.id, x.version, x.orderIndex, x.mcGroupId, x.subIndex, x.maxPoints, x.latexBody]);
     return fingerprint(JSON.stringify([head, body]));

@@ -35,11 +35,13 @@
     columns?: 2 | 3 | 4;
     /** The explanation when no tile is chosen or hovered (switch rows, a custom preset). */
     fallback?: string;
-    /** The hovered or focused tile's preview element, or null when it leaves. */
-    onHighlight?: (part: SketchPart | null) => void;
+    /** A tile's preview element is hovered or focused (*on*), or left. */
+    onHighlight?: (part: SketchPart, on: boolean) => void;
+    /** A tile was focused or clicked: the preview moves to the element's page. */
+    onShow?: (part: SketchPart) => void;
   }
 
-  let { id, label, info = undefined, type = "radio", choices, columns = 3, fallback = "", onHighlight }: Props = $props();
+  let { id, label, info = undefined, type = "radio", choices, columns = 3, fallback = "", onHighlight, onShow }: Props = $props();
 
   let hovered = $state<string | null>(null);
   let note = $derived.by(() => {
@@ -53,7 +55,8 @@
   function hover(choice: LayoutChoice, on: boolean) {
     if (on) hovered = choice.value;
     else if (hovered === choice.value) hovered = null;
-    untrack(() => onHighlight?.(on ? (choice.part ?? null) : null));
+    const part = choice.part;
+    if (part) untrack(() => onHighlight?.(part, on));
   }
 </script>
 
@@ -74,6 +77,7 @@
           describedby="{id}-note"
           onToggle={(on) => choice.onPick(on)}
           onHighlight={(on) => hover(choice, on)}
+          onShow={choice.part ? () => onShow?.(choice.part!) : undefined}
         />
       {/each}
     </div>

@@ -176,6 +176,10 @@ export function infoTextLines(tex: string): string[] {
     .replace(/\\item\b\s*/g, '\n• ')
     .replace(/\\(?:begin|end)\{[^}]*\}/g, '\n')
     .replace(/\\\\/g, '\n')
+    // Spacing, sizes and labels print nothing; their arguments must not show as text ("2cm").
+    .replace(/\\(?:[hv]space|rule|[hv]?phantom|label|setlength|addtolength)\*?(?:\{[^}]*\})+/g, '')
+    .replace(/\\[,;:!> ]/g, ' ')
+    .replace(/\$/g, '')
     .replace(/\\[a-zA-Z@]+\*?(?:\[[^\]]*\])?/g, '')
     .replace(/\\(.)/g, '$1')
     .replace(/[{}]/g, '')

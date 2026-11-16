@@ -28,6 +28,12 @@ import type { ExerciseRecord, GradingReviewItem } from '#lib/db/schema';
 import { snapshotRecords } from '#lib/analytics/statisticsSnapshot';
 import { statisticsRepository } from '#lib/repositories/statisticsRepository';
 
+/** The scan-aid switches as printed (issue #272); older ZIPs without them import as their grading switch. */
+function scanAidsOf(exam: Parameters<typeof printSettingsOf>[0]) {
+  const { cutCorner, foldStrip } = printSettingsOf(exam);
+  return { cutCorner, foldStrip };
+}
+
 export type ExamExportPart = 'graded' | 'gradedCombined' | 'latex' | 'pdf' | 'summary' | 'csv';
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -192,8 +198,7 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
       bookletOffsetMm: exam.bookletOffsetMm ?? 0,
       digitalGrading: exam.digitalGrading !== false,
       resultsQrBox: exam.resultsQrBox ?? false,
-      cutCorner: printSettingsOf(exam).cutCorner,
-      foldStrip: printSettingsOf(exam).foldStrip,
+      ...scanAidsOf(exam),
       extraNotes: exam.extraNotes ?? null,
     },
     exercises: entries,
