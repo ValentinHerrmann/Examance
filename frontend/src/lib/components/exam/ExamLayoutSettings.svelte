@@ -268,7 +268,7 @@
       <LayoutChoiceRow id="layout-presets" label={$t("exam.layout.presets.heading")} info={$t("exam.layout.presets.info")} columns={2} choices={presetChoices} fallback={$t("exam.layout.presets.custom")} onHighlight={light} onShow={showPart} />
 
       <!-- Each scan aid on its own (issue #272); the corner markers are what Examance's scanner needs, so they carry the grading switch. -->
-      <section class="flex min-w-0 flex-col gap-2" aria-labelledby="layout-grading-heading">
+      <section class="flex min-w-0 flex-col gap-2 border-t border-line pt-4" aria-labelledby="layout-grading-heading">
         <SectionHeading id="layout-grading-heading" tag="h3" label={$t("exam.layout.grading.heading")} info={$t("exam.layout.grading.info")} />
         <LayoutChoiceRow id="layout-aids" label={$t("exam.layout.grading.aids")} type="checkbox" columns={4} choices={aidChoices} fallback={$t("exam.layout.grading.aidsText")} onHighlight={light} onShow={showPart} />
         <!-- Only the corner markers are technically required (scan registration); the other aids are optional, so only they get a warning. -->
@@ -285,7 +285,7 @@
       </section>
 
       <!-- How the copies are made: it changes filler pages, the fold and the sticker fields, so it lives here, not on the Print step (issue #272). -->
-      <section class="flex min-w-0 flex-col gap-2" aria-labelledby="layout-printing">
+      <section class="flex min-w-0 flex-col gap-2 border-t border-line pt-4" aria-labelledby="layout-printing">
         <SectionHeading id="layout-printing" tag="h3" label={$t("exam.layout.sections.printing")} info={$t("exam.layout.sections.printingInfo")} />
         <LayoutChoiceRow
           id="layout-mode"
@@ -320,7 +320,7 @@
         {/if}
       </section>
 
-      <section class="flex min-w-0 flex-col gap-2" aria-labelledby="layout-cover">
+      <section class="flex min-w-0 flex-col gap-2 border-t border-line pt-4" aria-labelledby="layout-cover">
         <SectionHeading id="layout-cover" tag="h3" label={$t("exam.layout.sections.cover")} info={$t("exam.layout.sections.coverInfo")} />
         <LayoutChoiceRow id="layout-name" label={$t("exam.layout.choices.nameLegend")} info={$t("exam.metadataEditor.nameLineHint")} choices={nameChoices} columns={nameChoices.length === 3 ? 3 : 2} onHighlight={light} onShow={showPart} />
         <div {...stress("info")} role="presentation">
@@ -336,7 +336,7 @@
       </section>
 
       <!-- Every exam keeps the cut-off corner unless switched off (issues #211, #272). -->
-      <section class="flex min-w-0 flex-col gap-2" aria-labelledby="layout-sheet">
+      <section class="flex min-w-0 flex-col gap-2 border-t border-line pt-4" aria-labelledby="layout-sheet">
         <SectionHeading id="layout-sheet" tag="h3" label={$t("exam.layout.sections.sheet")} info={$t("exam.layout.sections.sheetInfo")} />
         <LayoutChoiceRow
           id="layout-hints"
@@ -355,7 +355,7 @@
       </section>
 
       <!-- Extra paper (issue #228): one paper for every writing space and one heading for the exam's own; filling up to whole sheets follows the print form. -->
-      <section class="flex min-w-0 flex-col gap-2" aria-labelledby="layout-writing">
+      <section class="flex min-w-0 flex-col gap-2 border-t border-line pt-4" aria-labelledby="layout-writing">
         <SectionHeading id="layout-writing" tag="h3" label={$t("exam.layout.paper.heading")} />
         <LayoutChoiceRow
           id="layout-paper"

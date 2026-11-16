@@ -22,7 +22,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { OptionTile } from "#lib/components/ui";
-  import SectionHeading from "#lib/components/help/SectionHeading.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
 
   /** One dense setting row of the Layout step (issue #272): the label with ⓘ beside title-only tiles on a wide card (above them on a narrow one), and one line below explaining the chosen, hovered or focused tile. */
   interface Props {
@@ -43,6 +43,9 @@
 
   let { id, label, info = undefined, type = "radio", choices, columns = 3, fallback = "", onHighlight, onShow }: Props = $props();
 
+  // The last word and the ⓘ never break apart.
+  let labelHead = $derived(label.slice(0, label.lastIndexOf(" ") + 1));
+  let labelTail = $derived(label.slice(label.lastIndexOf(" ") + 1));
   let hovered = $state<string | null>(null);
   let note = $derived.by(() => {
     const shown = choices.find((c) => c.value === hovered) ?? (type === "radio" ? choices.find((c) => c.checked) : undefined);
@@ -61,7 +64,8 @@
 </script>
 
 <div class="grid min-w-0 grid-cols-1 items-start gap-x-4 gap-y-1.5 @2xl:grid-cols-[10rem_minmax(0,1fr)]">
-  <SectionHeading {id} {label} {info} class="@2xl:pt-2.5" />
+  <!-- A field label, not a section heading (those are uppercase): the ⓘ stays in the text flow, so a wrapped label keeps it beside its last word. -->
+  <span {id} class="text-sm font-medium break-words hyphens-auto text-content @2xl:pt-2">{labelHead}<span class="whitespace-nowrap">{labelTail}{#if info}<InfoTip text={info} class="ml-1 align-middle" />{/if}</span></span>
   <div class="flex min-w-0 flex-col gap-1">
     <div class="grid grid-cols-2 gap-1.5 {COLUMNS[columns]}" role={type === "radio" ? "radiogroup" : "group"} aria-labelledby={id}>
       {#each choices as choice (choice.value)}
