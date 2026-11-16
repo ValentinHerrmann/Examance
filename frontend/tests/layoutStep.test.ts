@@ -145,7 +145,7 @@ describe('where the name appears (issue #272)', () => {
     const model = sheetSketchOf({ ...NEW_EXAM_PRINT, mcCorrectionHint: true, extraPages: 1 }, false);
     expect(pageElementsOf(model, model.pages[0]!)).toEqual(['scanAids', 'pageCodes', 'qr']);
     expect(pageElementsOf(model, model.pages[1]!)).toEqual(['scanAids', 'pageCodes', 'mcHint']);
-    expect(pageElementsOf(model, model.pages[2]!, false)).toEqual(['scanAids', 'pageCodes', 'stickers']);
+    expect(pageElementsOf(model, model.pages[2]!, false)).toEqual(['scanAids', 'pageCodes', 'stickers', 'notes', 'paper']);
     expect(pageElementsOf(model, model.pages[3]!)).toEqual(['scanAids', 'pageCodes', 'notes', 'paper']);
     const booklet = sheetSketchOf({ ...NEW_EXAM_PRINT, printLayout: 'booklet', stickerSpots: 'a3' }, false);
     expect(pageElementsOf(booklet, booklet.pages[0]!)).toContain('fold');

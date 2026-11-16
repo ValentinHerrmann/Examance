@@ -47,9 +47,26 @@ type SketchSource = Pick<ExamRecord, 'nameLine' | 'mcCorrectionHint' | 'pageCode
 /** The sample's content pages when it is not compiled yet. */
 export const SAMPLE_PAGES = 3;
 
-function contentRole(page: number, content: number): SketchPageRole {
+/** Content pages first, then the requested extra pages, then the filler pages up to whole sheets. */
+function roleOf(page: number, content: number, beforeFiller: number): SketchPageRole {
   if (page === 1) return 'cover';
-  return page === content ? 'last' : 'exercises';
+  if (page < content) return 'exercises';
+  if (page === content) return 'last';
+  return page <= beforeFiller ? 'extra' : 'filler';
+}
+
+/** Personalised copies print the code with or without Examance grading (issue #272); otherwise the sticker box is printed for scanning or when asked. */
+function qrOf(print: PrintSettings): SheetSketchModel['qr'] {
+  if (print.mode === 'copies') return 'printed';
+  return print.digitalGrading || print.resultsQrBox ? 'sticker' : 'none';
+}
+
+/** One page's place on the sheet: the cut corner alternates with the page side, a booklet's fold is on the inner side. */
+function pageOf(n: number, role: SketchPageRole, booklet: boolean, spot: boolean): SketchPageModel {
+  const odd = n % 2 === 1;
+  let foldSide: SketchPageModel['foldSide'] = null;
+  if (booklet) foldSide = odd ? 'left' : 'right';
+  return { number: n, role, cutSide: odd ? 'right' : 'left', foldSide, stickerSpot: spot };
 }
 
 /** The pages of a copy: *contentPages* from the sample, the exam's extra pages, then filler pages up to whole sheets of its layout. */
@@ -61,21 +78,12 @@ export function sheetSketchOf(exam: SketchSource, hasLogo: boolean, contentPages
   const total = Math.ceil(before / per) * per;
   // Without scan aids no sticker spot is printed (`ohnescan`), whatever is stored.
   const spots = new Set(digital ? stickerPagesOf(print, total) : []);
-  // Personalised copies print the code with or without Examance grading (issue #272).
-  const qr = print.mode === 'copies' ? 'printed' : digital || print.resultsQrBox ? 'sticker' : 'none';
+  const qr = qrOf(print);
   const nameLine = printsNameLine(print, exam.nameLine);
   const notes = exam.extraNotes ?? DEFAULT_EXTRA_NOTES;
-  const pages: SketchPageModel[] = [];
-  for (let n = 1; n <= total; n++) {
-    const odd = n % 2 === 1;
-    pages.push({
-      number: n,
-      role: n <= contentPages ? contentRole(n, contentPages) : n <= before ? 'extra' : 'filler',
-      cutSide: odd ? 'right' : 'left',
-      foldSide: print.layout === 'booklet' && digital ? (odd ? 'left' : 'right') : null,
-      stickerSpot: spots.has(n),
-    });
-  }
+  // The fold strip is a scan aid: without them the booklet still folds, but nothing is printed there.
+  const foldStrip = print.layout === 'booklet' && digital;
+  const pages = Array.from({ length: total }, (_, i) => pageOf(i + 1, roleOf(i + 1, contentPages, before), foldStrip, spots.has(i + 1)));
   return {
     scanAids: digital,
     pageCodes: digital && print.pageCodes,
@@ -128,19 +136,22 @@ export function nameInfoOf(model: SheetSketchModel): { places: NamePlace[]; visi
 
 /** The elements on *page*, in reading order, for the preview's callouts and its "on this page" list; *hasMc* says whether the page holds the sample's MC question. */
 export function pageElementsOf(model: SheetSketchModel, page: SketchPageModel, hasMc = page.role === 'exercises'): SketchPart[] {
-  const parts: SketchPart[] = [];
   const cover = page.role === 'cover';
-  if (cover && model.logo) parts.push('logo');
-  if (cover && model.qr === 'printed') parts.push('cornerTab');
-  if (model.scanAids) parts.push('scanAids');
-  if (model.pageCodes) parts.push('pageCodes');
-  if (page.stickerSpot) parts.push('stickers');
-  if (cover && model.qr !== 'none') parts.push('qr');
-  if (cover && model.nameLine) parts.push('name');
-  if (hasMc && model.mcHint) parts.push('mcHint');
-  if (page.foldSide) parts.push('fold');
-  if (page.role === 'extra' || page.role === 'filler' || (page.role === 'last' && model.restArea)) parts.push('notes', 'paper');
-  return parts;
+  const writing = page.role === 'extra' || page.role === 'filler' || (page.role === 'last' && model.restArea);
+  const present: [SketchPart, boolean][] = [
+    ['logo', cover && model.logo],
+    ['cornerTab', cover && model.qr === 'printed'],
+    ['scanAids', model.scanAids],
+    ['pageCodes', model.pageCodes],
+    ['stickers', page.stickerSpot],
+    ['qr', cover && model.qr !== 'none'],
+    ['name', cover && model.nameLine],
+    ['mcHint', hasMc && model.mcHint],
+    ['fold', page.foldSide !== null],
+    ['notes', writing],
+    ['paper', writing],
+  ];
+  return present.filter(([, on]) => on).map(([part]) => part);
 }
 
 /** Pages grouped as printed: front and back of each A4 sheet, or the four pages of each folded A3 sheet. */

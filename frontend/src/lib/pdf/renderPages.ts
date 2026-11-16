@@ -37,23 +37,22 @@ async function pageToUrl(page: any, scale: number): Promise<string> {
 
 /** Every page as a thumbnail at *pxPerMm* (times the device pixel ratio), with its size and links. */
 export function renderPdfPages(bytes: Uint8Array, pxPerMm = 1.5): Promise<RenderedPage[]> {
-  return withDocument(bytes, async (doc) => {
-    const pages: RenderedPage[] = [];
-    for (let n = 1; n <= doc.numPages; n++) {
-      const page = await doc.getPage(n);
-      const base = page.getViewport({ scale: 1 });
-      const annotations: any[] = await page.getAnnotations();
-      const links = annotations
-        .filter((a) => a.subtype === 'Link' && (a.unsafeUrl ?? a.url))
-        .map((a) => {
-          const [x0, y0, x1, y1] = a.rect as number[];
-          return { uri: String(a.unsafeUrl ?? a.url), x: x0! * MM_PER_PT, y: (base.height - y1!) * MM_PER_PT, w: (x1! - x0!) * MM_PER_PT, h: (y1! - y0!) * MM_PER_PT };
-        });
-      const url = await pageToUrl(page, pxPerMm * MM_PER_PT * (globalThis.devicePixelRatio || 1));
-      pages.push({ widthMm: base.width * MM_PER_PT, heightMm: base.height * MM_PER_PT, url, links });
-    }
-    return pages;
-  });
+  const scale = pxPerMm * MM_PER_PT * (globalThis.devicePixelRatio || 1);
+  return withDocument(bytes, (doc) => Promise.all(Array.from({ length: doc.numPages }, (_, i) => thumbnailOf(doc, i + 1, scale))));
+}
+
+/** One page's size, links and thumbnail. */
+async function thumbnailOf(doc: any, n: number, scale: number): Promise<RenderedPage> {
+  const page = await doc.getPage(n);
+  const base = page.getViewport({ scale: 1 });
+  const [annotations, url] = await Promise.all([page.getAnnotations() as Promise<any[]>, pageToUrl(page, scale)]);
+  const links = annotations
+    .filter((a) => a.subtype === 'Link' && (a.unsafeUrl ?? a.url))
+    .map((a) => {
+      const [x0, y0, x1, y1] = a.rect as number[];
+      return { uri: String(a.unsafeUrl ?? a.url), x: x0! * MM_PER_PT, y: (base.height - y1!) * MM_PER_PT, w: (x1! - x0!) * MM_PER_PT, h: (y1! - y0!) * MM_PER_PT };
+    });
+  return { widthMm: base.width * MM_PER_PT, heightMm: base.height * MM_PER_PT, url, links };
 }
 
 /** Page *n* (1-based) rendered *widthPx* device pixels wide, so it stays sharp where it is shown. */
