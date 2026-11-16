@@ -1,4 +1,4 @@
-/** Saves layout and print fields of an exam (Layout tab, Print step; issue #220): PATCH on the server, then the sealed local copy. The one save path for these fields. */
+/** Saves layout and print fields of an exam (Layout step, the Print step's booklet offset; issues #220, #272): PATCH on the server, then the sealed local copy. The one save path for these fields. */
 
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
@@ -11,7 +11,6 @@ const API_FIELDS = {
   infoText: 'info_text',
   nameLine: 'name_line',
   mcCorrectionHint: 'mc_correction_hint',
-  latexPackages: 'latex_packages',
   pageCodes: 'page_codes',
   printLayout: 'print_layout',
   printMode: 'print_mode',

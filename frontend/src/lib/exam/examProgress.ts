@@ -1,4 +1,4 @@
-import { EXAM_STEPS, type ExamStep } from '#lib/components/layout/examNavItems';
+import { EXAM_STEPS, stepDisabledReason, type ExamStep } from '#lib/components/layout/examNavItems';
 
 /** One step's badge; an absent field is unknown (a failed or skipped read) and shows nothing, never a 0. */
 export interface StepStatus {
@@ -53,21 +53,26 @@ export function examProgress(input: ExamProgressInput): ExamProgress {
 }
 
 /** The step after this one in the flow, or null after the last. */
-export function nextStep(step: ExamStep): ExamStep | null {
+export function nextStep(step: ExamStep, digitalGrading?: boolean): ExamStep | null {
     const i = EXAM_STEPS.findIndex((s) => s.step === step);
     if (i < 0) return null;
     // The end of branch A (digital grading) skips branch B (paper grading): they are alternatives.
     let j = i + 1;
     while (j < EXAM_STEPS.length && EXAM_STEPS[i].branch === 'A' && EXAM_STEPS[j].branch === 'B') j++;
+    // With paper grading (no scans) branch A is off: Print goes straight on to B.
+    if (digitalGrading === false && EXAM_STEPS[j]?.branch === 'A') {
+        while (j < EXAM_STEPS.length && EXAM_STEPS[j].branch === 'A') j++;
+    }
     return j < EXAM_STEPS.length ? EXAM_STEPS[j].step : null;
 }
 
 const CONTINUE_ORDER: ExamStep[] = ['content', 'students', 'print', 'scan', 'grade', 'results'];
 
 /** The first step of the main path that is known and not done; unknown steps (a failed or skipped read) are skipped. Results when everything is done. */
-export function continueStep(progress: ExamProgress): ExamStep {
+export function continueStep(progress: ExamProgress, digitalGrading?: boolean): ExamStep {
     for (const step of CONTINUE_ORDER) {
         if (step === 'results') return step;
+        if (stepDisabledReason(step, digitalGrading)) continue;
         const status = progress[step];
         if (status && !status.done) return step;
     }

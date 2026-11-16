@@ -127,7 +127,7 @@ Packages come from three places, and Examance loads every package only once:
 2. **Your account**: in the same settings section you add packages and TikZ libraries for every exam, and pass options to template packages (for example `dvipsnames` for `xcolor`).
 3. **One exercise**: **Packages of this exercise** in the editor stores a `\usepackage` line at the top of the source, so the package travels with the exercise. You may also write such lines by hand.
 
-On the exam's **Layout** tab you adjust the packages of a single exam, or leave out packages of your account for it.
+Packages are not set per exam: an exam uses the packages of your account and of its exercises.
 
 Options are merged, so no option clashes occur. If two exercises set the same option differently, **Result** shows the conflict and which value applies.
 

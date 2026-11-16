@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack, type Snippet } from "svelte";
+  import { untrack } from "svelte";
   import { t } from "#lib/i18n";
   import { Badge, Button, Field, Modal, Textarea, actionIcons, controlClass, controlCompactClass } from "#lib/components/ui";
   import SuggestInput from "./SuggestInput.svelte";
@@ -16,13 +16,9 @@
     error?: string;
     onApply: (patch: Record<string, string>) => void;
     onClose: () => void;
-    /** Extra section under the fields (the exams' LaTeX packages). */
-    extra?: Snippet;
-    /** Extra review lines per item from `extra`; an item with lines counts as changed. */
-    extraChanges?: (item: BulkItem) => string[];
   }
 
-  let { title, fields, items, applyLabel, busy = false, error = "", onApply, onClose, extra, extraChanges = () => [] }: Props = $props();
+  let { title, fields, items, applyLabel, busy = false, error = "", onApply, onClose }: Props = $props();
 
   const initial: Record<string, string | null> = untrack(() => Object.fromEntries(fields.map((f) => [f.key, commonValue(items, f.key)])));
   // Local edit buffer of plain strings.
@@ -39,9 +35,7 @@
     return next;
   });
   let review = $derived(
-    bulkChanges(items, patch)
-      .map(({ item, changes }) => ({ item, changes, extra: extraChanges(item) }))
-      .filter((r) => r.changes.length || r.extra.length),
+    bulkChanges(items, patch).filter((r) => r.changes.length),
   );
   const changedCount = (key: string) => (key in patch ? bulkChanges(items, { [key]: patch[key] }).filter((r) => r.changes.length).length : 0);
   const labelOf = (key: string) => fields.find((f) => f.key === key)?.label ?? key;
@@ -88,8 +82,6 @@
       {/each}
     </div>
 
-    {@render extra?.()}
-
     <section aria-live="polite" class="rounded-md border border-line p-3">
       <h3 class="m-0 mb-2 text-sm font-semibold text-content">{$t("common.bulk.reviewTitle", { count: review.length, total: items.length })}</h3>
       {#if review.length === 0}
@@ -103,7 +95,6 @@
                 {#each row.changes as c (c.key)}
                   <li>{labelOf(c.key)}: <s>{shown(c.from)}</s> → <span class="font-medium text-content">{shown(c.to)}</span></li>
                 {/each}
-                {#each row.extra as line, i (i)}<li>{line}</li>{/each}
               </ul>
             </li>
           {/each}

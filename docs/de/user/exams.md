@@ -8,7 +8,7 @@ Eine Prüfung besteht aus einer Auswahl von Aufgaben aus Ihrer Bibliothek, Kopfd
 
 ## Eine neue Prüfung anlegen {#new-exam}
 
-**Neue Prüfung** (auf der Startseite) fragt nur die Kopfdaten ab, legt die Prüfung an und öffnet sie im Schritt **Prüfung** mit der Aufgabenbibliothek. Alles Weitere (Aufgaben, Reihenfolge, MC-Gruppen, Layout, Logo, Pakete, Vorschau) erledigen Sie dort.
+**Neue Prüfung** (auf der Startseite) fragt nur die Kopfdaten ab, legt die Prüfung an und öffnet sie im Schritt **Prüfung** mit der Aufgabenbibliothek. Aufgaben, Reihenfolge, MC-Gruppen und Vorschau erledigen Sie dort; wie die gedruckte Prüfung aussieht, stellen Sie im nächsten Schritt ein, dem [Layout](#layout).
 
 ### Kopfdaten {#header}
 
@@ -22,23 +22,24 @@ Die **gedruckte Klasse** (`\Klasse` auf dem Deckblatt) entsteht aus Jahrgangsstu
 
 Das optionale **Thema** (zum Beispiel „Rekursion“) ordnet Ihre Prüfungen in der Übersicht, wo Sie danach filtern und suchen können. Es wird nie gedruckt. Die Übersicht lässt sich außerdem nach Datum, Titel, Jahrgang oder Fach sortieren.
 
-Um die Kopfdaten später zu ändern, bearbeiten Sie sie direkt in der Karte **Angaben** der **Übersicht** und wählen **Speichern** (**Änderungen verwerfen** nimmt sie zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt). Die Karte enthält nur die Angaben der Prüfung: Titel, Testart, Jahrgang/Klasse, Datum, Arbeitszeit in Minuten, Nummer, Fach, Lehrkraft, Thema und das Aufbewahrungsdatum. Layout-Einstellungen finden Sie auf dem [Reiter Layout](#layout), den Notenschlüssel unter [Ergebnisse](./results#grading-key).
+Um die Kopfdaten später zu ändern, bearbeiten Sie sie direkt in der Karte **Angaben** der **Übersicht** und wählen **Speichern** (**Änderungen verwerfen** nimmt sie zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt). Die Karte enthält nur die Angaben der Prüfung: Titel, Testart, Jahrgang/Klasse, Datum, Arbeitszeit in Minuten, Nummer, Fach, Lehrkraft, Thema und das Aufbewahrungsdatum. Layout-Einstellungen finden Sie im [Schritt Layout](#layout), den Notenschlüssel unter [Ergebnisse](./results#grading-key).
 
 ## Die Schritte einer Prüfung {#steps}
 
-Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten Schritten. Jeder Schritt trägt ein Abzeichen, das zeigt, wo Sie stehen: Zahl der Aufgaben, Schüler oder Scans, korrigiert x/y, offene MC-Prüfungen, geteilte Ergebnisse (rot: die Zahl der Ergebnis-E-Mails, die nicht angekommen sind). Die Schritte 4A–6A (Scans, MC prüfen, digitale Korrektur) und B (Papierkorrektur) sind Alternativen: B nutzen Sie für eine auf Papier korrigierte Klasse ohne Scans; beides brauchen Sie nie. Oben rechts auf jeder Schrittseite, neben Prüfungsname und Schritttitel, führt eine Schaltfläche **Weiter: …** zum nächsten Schritt; Erklärungen liegen hinter den ⓘ-Symbolen.
+Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten Schritten. Jeder Schritt trägt ein Abzeichen, das zeigt, wo Sie stehen: Zahl der Aufgaben, Schüler oder Scans, korrigiert x/y, offene MC-Prüfungen, geteilte Ergebnisse (rot: die Zahl der Ergebnis-E-Mails, die nicht angekommen sind). Die Schritte 5A–7A (Scans, MC prüfen, digitale Korrektur) und B (Papierkorrektur) sind Alternativen: B nutzen Sie für eine auf Papier korrigierte Klasse ohne Scans; beides brauchen Sie nie. Schalten Sie im Schritt Layout **In Examance korrigieren** aus, bleiben 5A–7A in der Liste, sind aber mit Begründung ausgegraut, und **Weiter** führt von **Drucken** zu B. Oben rechts auf jeder Schrittseite, neben Prüfungsname und Schritttitel, führt eine Schaltfläche **Weiter: …** zum nächsten Schritt; Erklärungen liegen hinter den ⓘ-Symbolen.
 
 | Schritt | Was Sie dort tun |
 |---|---|
 | **Übersicht** | Angaben und Kennzahlen der Prüfung, siehe [unten](#overview) |
-| 1 **Prüfung** | Aufgaben, Layout und Vorschau, siehe [Aufgaben zusammenstellen](#assemble) und [Layout-Optionen](#layout) |
-| 2 **Schüler** | Die Klassenliste, siehe [Schülerdaten](./students#student-data) |
-| 3 **Drucken** | PDFs und QR-Codes erstellen, siehe [Drucken](#print) |
-| 4A **Scans** | Die gescannten Bögen einlesen, siehe [Scannen und Zuordnen](./scanning) |
-| 5A **MC prüfen** | Multiple-Choice-Erkennungen prüfen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification) |
-| 6A **Digitale Korrektur** | Die gescannten Abgaben korrigieren, siehe [Korrigieren](./grading) |
-| B **Papierkorrektur** | Statt 4A–6A: Punkte für auf Papier korrigierte Arbeiten eintragen, ohne Scans, siehe [Auf Papier korrigierte Klassen](./grading#paper) |
-| 7 **Ergebnisse & Export** | Reiter **Statistik**, **An Schüler senden** und **Archivieren**, siehe [Ergebnisse und Auswertung](./results) |
+| 1 **Prüfung** | Aufgaben und Vorschau, siehe [Aufgaben zusammenstellen](#assemble) und [Setzen](#typeset) |
+| 2 **Layout** | Alles, was das Aussehen der Prüfung ändert, mit Live-Skizze der Seiten, siehe [Layout-Optionen](#layout) |
+| 3 **Schüler** | Die Klassenliste, siehe [Schülerdaten](./students#student-data) |
+| 4 **Drucken** | PDFs und QR-Codes erstellen, siehe [Drucken](#print) |
+| 5A **Scans** | Die gescannten Bögen einlesen, siehe [Scannen und Zuordnen](./scanning) |
+| 6A **MC prüfen** | Multiple-Choice-Erkennungen prüfen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification) |
+| 7A **Digitale Korrektur** | Die gescannten Abgaben korrigieren, siehe [Korrigieren](./grading) |
+| B **Papierkorrektur** | Statt 5A–7A: Punkte für auf Papier korrigierte Arbeiten eintragen, ohne Scans, siehe [Auf Papier korrigierte Klassen](./grading#paper) |
+| 8 **Ergebnisse & Export** | Reiter **Statistik**, **An Schüler senden** und **Archivieren**, siehe [Ergebnisse und Auswertung](./results) |
 
 ## Übersicht {#overview}
 
@@ -73,15 +74,35 @@ Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Fra
 
 ## Layout-Optionen {#layout}
 
-Layout-Einstellungen liegen auf dem Reiter **Layout** im Schritt **Prüfung**: Infotext, Namenszeile, Hinweis zur Abschneide-Ecke, Korrekturhinweis für Multiple-Choice, [Drucken mit mehreren Blättern](#multi-sheet), Logo und LaTeX-Pakete. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
+Der Schritt **Layout** (Schritt 2, zwischen **Prüfung** und **Schüler**) enthält jede Option, die das Aussehen der gedruckten Prüfung ändert. Neben den Optionen zeigt eine Live-Skizze die Seiten ohne Inhalt: das Deckblatt, die Aufgabenseiten und eine Zusatz-Schreibseite. Zeigen Sie auf eine Option oder klicken Sie hinein, hebt die Skizze das Element hervor, das sie ändert. Piktogramme in jeder Auswahl zeigen den jeweiligen Fall. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
+
+**Voreinstellungen** ganz oben sind Ausgangspunkte; sie werden nicht gespeichert. Wählen Sie eine, setzt sie ihre Optionen, und alle bleiben änderbar. Die Seite zeigt, welche Voreinstellung zu Ihren Einstellungen passt, sonst „eigene Einstellungen“.
+
+- **In Examance korrigieren**: Scan-Hilfen, Seitencode auf jeder Seite, nur QR-Code, Korrekturhinweis für Multiple-Choice, beidseitiges A4 und ein Aufkleber auf jedem Blatt.
+- **In Examance korrigieren, als Broschüre**: dasselbe als gefaltete A3-Broschüre, mit einem Aufkleber auf jedem A3-Blatt.
+- **Anonym auf Papier korrigieren**: keine Scan-Hilfen, nur ein QR-Aufkleberfeld auf dem Deckblatt, keine Namenszeile.
+- **Auf Papier mit Namen korrigieren**: keine Scan-Hilfen, kein QR-Feld, eine Namenszeile.
+
+Voreinstellungen ändern nie Papier, Zusatzseiten, Infotext oder Logo. Darunter sind die Optionen gruppiert:
+
+- **Korrektur**: **In Examance korrigieren** ein oder aus, siehe [unten](#digital-grading).
+- **Deckblatt**: Infotext, die [Namenswahl](#name-line) und das [Logo](#logo-packages).
+- **Jede Seite**: der [Seitencode](#multi-sheet) (nur bei eingeschalteter Korrektur) und der [Korrekturhinweis für Multiple-Choice](#mc-hint).
+- **Druckform**: [Aufkleber oder personalisierte Exemplare](#multi-sheet-print) (nur bei eingeschalteter Korrektur), beidseitiges A4 oder Broschüre sowie Aufkleber pro Schüler bzw. Aufkleberfelder (nur bei Aufklebern).
+- **Schreibplatz**: Papier, [Zusatzhinweis und Zusatzseiten](#extra-paper).
 
 ### Korrektur außerhalb von Examance {#digital-grading}
 
-Wenn Sie die Arbeit nur mit Examance erstellen und auf Papier korrigieren, schalten Sie oben auf dem Reiter **Layout** **In Examance korrigieren** aus. Die Arbeit druckt dann keine Eckmarkierungen, Seitencodes, Schnittlinien oder Aufkleberfelder, und Seite 1 bekommt eine Namenszeile. Alles andere bleibt genau an seinem Platz. Mit **Feld für einen Ergebnis-QR-Code** behält Seite 1 ein Aufkleberfeld, z. B. um Ergebnisse mit DiRueLei zu verschicken. Scannen und personalisierte Exemplare sind für eine solche Arbeit ausgegraut. Die Papier-Korrektur und die Statistik bleiben verfügbar.
+Wenn Sie die Arbeit nur mit Examance erstellen und auf Papier korrigieren, schalten Sie im Abschnitt **Korrektur** des Schritts Layout **In Examance korrigieren** aus. Die Arbeit druckt dann keine Eckmarkierungen, Seitencodes, Schnittlinien oder Aufkleberfelder. Alles andere bleibt genau an seinem Platz. Scannen, MC-Prüfung, digitale Korrektur und personalisierte Exemplare sind für eine solche Arbeit ausgegraut (mit Begründung, nie ausgeblendet), und **Weiter** führt von **Drucken** zur Papierkorrektur. Die Papier-Korrektur und die Statistik bleiben verfügbar.
 
-### Namenszeile {#name-line}
+### Namenswahl {#name-line}
 
-Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung oder auf dem Reiter **Layout**) erhält die Titelseite eine Zeile für den Namen der Schülerin oder des Schülers. Das QR-Code-Feld bleibt an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; nur das Initialenfeld im Feld entfällt.
+Was das Deckblatt für den Namen anbietet, hängt von der Korrekturwahl ab:
+
+- Bei eingeschaltetem **In Examance korrigieren**: **Nur QR-Code** oder **QR-Code und Namenszeile**. Das QR-Code-Feld bleibt in beiden Fällen an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; mit Namenszeile entfällt nur das Initialenfeld im Feld.
+- Bei ausgeschalteter Korrektur: **Nur Namenszeile**, **Nur QR-Feld** (anonym; Sie ordnen die Ergebnisse später über den QR-Code zu, z. B. außerhalb von Examance) oder **QR-Feld und Namenszeile** (z. B. um Ergebnisse mit DiRueLei zu verschicken). Ohne Namenszeile behält Seite 1 das QR-Aufkleberfeld mit Initialenfeld.
+
+Bestehende, auf Papier korrigierte Prüfungen behalten ihre Namenszeile.
 
 ### Abschneide-Ecke {#cut-corner}
 
@@ -95,7 +116,7 @@ Die Skizze zeigt den nutzbaren Platz auf ungeraden und geraden Seiten: Textberei
 
 ### Wie man ein Kreuz korrigiert {#mc-hint}
 
-**Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert** (beim Anlegen der Prüfung oder auf dem Reiter **Layout**) druckt zu Beginn jeder Multiple-Choice-Aufgabe eine kurze Zeile, in der Prüfung und im Erwartungshorizont:
+**Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert** (Abschnitt **Jede Seite** im Schritt Layout) druckt zu Beginn jeder Multiple-Choice-Aufgabe eine kurze Zeile, in der Prüfung und im Erwartungshorizont:
 
 - Kästchen **ankreuzen**, um eine Option zu wählen;
 - Kästchen **ganz ausmalen**, um ein Kreuz zurückzunehmen;
@@ -105,29 +126,29 @@ Die Skizze zeigt den nutzbaren Platz auf ungeraden und geraden Seiten: Textberei
 
 Die MC-Erkennung liest genau diese Markierungen, siehe [MC-Erkennungen prüfen](./scanning#mc-verification). Wenn Sie die Option ein- oder ausschalten, wird die Antwortbogen-Vorlage neu erzeugt; setzen und drucken Sie die Prüfung danach erneut.
 
-### Logo und LaTeX-Pakete {#logo-packages}
+### Logo {#logo-packages}
 
-Jede Prüfung druckt oben links auf der ersten Seite ein Logo. Auf dem Reiter **Layout** wählen Sie das Logo aus Ihren Einstellungen, kein Logo oder ein Logo nur für diese Prüfung (siehe [Logo auf der Prüfung](./settings#logo)). In der Prüfungsübersicht zeigt jede aufgeklappte Prüfung, welches Logo sie druckt.
+Jede Prüfung druckt oben links auf der ersten Seite ein Logo. Im Abschnitt **Deckblatt** des Schritts Layout wählen Sie das Logo aus Ihren Einstellungen, kein Logo oder ein Logo nur für diese Prüfung (siehe [Logo auf der Prüfung](./settings#logo)). In der Prüfungsübersicht zeigt jede aufgeklappte Prüfung, welches Logo sie druckt.
 
-Auf demselben Reiter können Sie außerdem LaTeX-Pakete nur für diese Prüfung hinzufügen oder Pakete Ihres Kontos weglassen (siehe [LaTeX-Pakete](./exercises#packages)).
+LaTeX-Pakete stellen Sie nicht mehr pro Prüfung ein: Sie kommen aus Ihrem Konto (**Einstellungen → LaTeX-Pakete**, siehe [Einstellungen](./settings)) und aus den Aufgaben selbst (Paketbereich im Aufgabeneditor, siehe [LaTeX-Pakete](./exercises#packages)).
 
 ## Mehrere Blätter {#multi-sheet}
 
-Eine Prüfung über mehrere Blätter lässt sich leichter handhaben, wenn jede Seite weiß, wer und was sie ist. Dafür gibt es auf dem Reiter **Layout** eine Option, und die gedruckten Exemplare füllen immer ganze Blätter:
+Eine Prüfung über mehrere Blätter lässt sich leichter handhaben, wenn jede Seite weiß, wer und was sie ist. Dafür gibt es im Abschnitt **Jede Seite** des Schritts Layout eine Option, und die gedruckten Exemplare füllen immer ganze Blätter:
 
 - **Seitencode auf jeder Seite.** Ein kleiner QR-Code (14 mm) oben auf jeder Seite, auf der Seite der Abschneide-Ecke, direkt innerhalb der Eckmarkierung, sagt dem Scanner, welche Seite es ist. Auf [personalisierten Exemplaren](./students#printed-copies) enthält er auch die ID der Person (die kurze Aufkleber-ID oder die Mebis- bzw. Artemis-ID, nie den Namen). Dadurch spielt die Reihenfolge der gescannten Blätter keine Rolle mehr, fehlende Seiten werden gemeldet und lose Blätter finden ihren Schüler. Der Code ist ab 200 ppi zuverlässig lesbar; 300 ppi ist besser. Für neue Prüfungen ist die Option voreingestellt. Ältere Prüfungen behalten ihr Layout, bis Sie sie einschalten; das ändert das Seitenlayout, früher gedruckte Exemplare passen dann nicht mehr.
-- **Ganze Blätter.** Jedes gedruckte Exemplar wird auf ganze Blätter aufgefüllt (gerade Seitenzahl bei beidseitigem Druck, Vielfaches von 4 als Broschüre), so dass jedes Exemplar auf einem neuen Blatt beginnt. Die ergänzten Seiten sind [Zusatzseiten](#extra-paper) zum Schreiben. Welches Vielfache gilt, folgt aus der Druckart, die Sie im Schritt Drucken wählen; deshalb lässt die Vorschau im Schritt **Prüfung** diese Seiten weg, der Schritt Drucken zeigt sie. Sie werden wie jede andere Seite gescannt, archiviert und exportiert.
+- **Ganze Blätter.** Jedes gedruckte Exemplar wird auf ganze Blätter aufgefüllt (gerade Seitenzahl bei beidseitigem Druck, Vielfaches von 4 als Broschüre), so dass jedes Exemplar auf einem neuen Blatt beginnt. Die ergänzten Seiten sind [Zusatzseiten](#extra-paper) zum Schreiben. Welches Vielfache gilt, folgt aus der Druckform, die Sie im Schritt Layout wählen; deshalb lässt die Vorschau im Schritt **Prüfung** diese Seiten weg, der Schritt Drucken zeigt sie. Sie werden wie jede andere Seite gescannt, archiviert und exportiert.
 
-Wie Sie diese Blätter drucken (beidseitig oder als Broschüre, Aufkleber pro Blatt), wählen Sie im [Schritt Drucken](#multi-sheet-print).
+Wie Sie diese Blätter drucken (beidseitig oder als Broschüre, Aufkleber pro Blatt), wählen Sie unter **Druckform** im Schritt Layout, siehe [unten](#multi-sheet-print); wie der Drucker beschickt wird, fragt der Schritt Drucken.
 
 ### Mehrere Blätter drucken {#multi-sheet-print}
 
-Der Druckplan im Schritt **Drucken** enthält diese Auswahl:
+Der Abschnitt **Druckform** im Schritt Layout enthält diese Auswahl; der Schritt **Drucken** zeigt sie in einer Zusammenfassung mit dem Link **Im Schritt Layout ändern**:
 
-- **Personalisierte Exemplare** oder **Normale Exemplare + Aufkleber**.
+- **Personalisierte Exemplare** oder **Normale Exemplare + Aufkleber** (personalisierte Exemplare nur bei eingeschaltetem **In Examance korrigieren**).
 - **Wie drucken Sie?** **Beidseitig (A4, zwei Seiten pro Blatt)** oder **Broschüre (gefaltetes A3, vier Seiten pro Blatt)**.
-- Bei Broschüren **Wer ordnet die Seiten an?** **Examance (A3-Blätter, jeder Drucker)**: auf A3 drucken, beidseitig, Wenden an der kurzen Kante, in Originalgröße (100 %, „An Seite anpassen“, „Auf Seitengröße skalieren“ und automatisches Zentrieren ausgeschaltet), an der gedruckten Mittellinie falten und heften. Druckt Ihr Drucker die Bögen trotzdem außermittig, hilft **Verschiebung (mm)** darunter: Drucken Sie einmal den **Testbogen**, falten Sie ihn Kante auf Kante, lesen Sie ab, wo der Knick das Lineal kreuzt (rechts der Mitte positiv), und tragen Sie diesen Wert ein. Er wird mit der Prüfung gespeichert, und Examance verschiebt jeden A3-Bogen darum. Oder **Broschürenfunktion meines Druckers**: Personalisierte Exemplare laden Sie dann als ZIP mit einer PDF pro Schüler herunter und drucken sie einzeln.
-- **Aufkleber pro Schüler** (nur bei normalen Exemplaren + Aufklebern). Beidseitig: einer für die ganze Prüfung (auf dem Deckblatt) oder einer pro Blatt. Broschüre: einer für die ganze Prüfung, einer pro A3-Blatt oder einer pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine sehr hellgraue, unbeschriftete Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Personalisierte Exemplare brauchen keine zusätzlichen Aufkleber: Jeder Seitencode nennt den Schüler.
+- Bei Broschüren fragt der Schritt **Drucken** **Wer ordnet die Seiten an?** **Examance (A3-Blätter, jeder Drucker)**: auf A3 drucken, beidseitig, Wenden an der kurzen Kante, in Originalgröße (100 %, „An Seite anpassen“, „Auf Seitengröße skalieren“ und automatisches Zentrieren ausgeschaltet), an der gedruckten Mittellinie falten und heften. Druckt Ihr Drucker die Bögen trotzdem außermittig, hilft **Verschiebung (mm)** darunter: Drucken Sie einmal den **Testbogen**, falten Sie ihn Kante auf Kante, lesen Sie ab, wo der Knick das Lineal kreuzt (rechts der Mitte positiv), und tragen Sie diesen Wert ein. Er wird mit der Prüfung gespeichert, und Examance verschiebt jeden A3-Bogen darum. Oder **Broschürenfunktion meines Druckers**: Personalisierte Exemplare laden Sie dann als ZIP mit einer PDF pro Schüler herunter und drucken sie einzeln.
+- **Aufkleber pro Schüler** bzw. Aufkleberfelder (nur bei normalen Exemplaren + Aufklebern). Beidseitig: einer für die ganze Prüfung (auf dem Deckblatt) oder einer pro Blatt. Broschüre: einer für die ganze Prüfung, einer pro A3-Blatt oder einer pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine sehr hellgraue, unbeschriftete Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Personalisierte Exemplare brauchen keine zusätzlichen Aufkleber: Jeder Seitencode nennt den Schüler.
 
 **Druckdateien erstellen** setzt, was der Plan druckt (die Lösung nur bei angekreuztem **mit Lösung**; unveränderte Teile werden wiederverwendet) und erstellt den Aufkleberbogen oder die personalisierten Exemplare. Jede Auftragskarte hat danach nur noch den Download und den Haken **gedruckt**.
 
@@ -139,7 +160,7 @@ Wie Sie diese Blätter scannen: [Den Stapel scannen](./scanning#scan).
 
 ## Zusatzpapier {#extra-paper}
 
-Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Reiter **Layout** die Gruppe **Schreibplatz**:
+Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Schritt Layout den Abschnitt **Schreibplatz**:
 
 - **Papier zum Schreiben**: **Kariert** (5 mm, Standard für neue Prüfungen), **Liniert** (8 mm) oder **Leer**. Es gilt für jeden Schreibplatz: den Rest der letzten Seite, die Zusatzseiten und die Zusatzblätter. Das Muster ist hellgrau, darüber Geschriebenes bleibt gut lesbar.
 - **Überschrift** und **Hinweis** des Schreibplatzes (vorbelegt mit „Platz für weitere Lösungen“ und einem kurzen Hinweis, auf Deutsch gedruckt). Sie stehen über dem Feld am Ende und über jeder Zusatzseite; der Hinweis steht in der Zeile der Überschrift.
@@ -155,7 +176,7 @@ Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Reite
 
 ## Setzen {#typeset}
 
-**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Auf breiten Bildschirmen steht die Vorschau neben Aufgaben und Layout; auf kleineren ist sie ein dritter Reiter, **Vorschau**, neben **Aufgaben** und **Layout**. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.
+**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Auf breiten Bildschirmen steht die Vorschau neben Aufgaben und Layout; auf kleineren ist sie ein zweiter Reiter, **Vorschau**, neben **Aufgaben**. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.
 
 Je nach Ihren Einstellungen und Ihrem Konto wird die Prüfung
 
@@ -174,7 +195,7 @@ In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag d
 
 Der Schritt **Drucken** zeigt links den **Druckplan** und rechts (auf kleineren Bildschirmen darunter) die PDFs. Die Vorschau zeigt nur, was der Plan druckt, und nur, wenn es aktuell ist: bei personalisierten Exemplaren ohne Lösung also nur die personalisierten Exemplare. Ordnet Examance eine Broschüre an, zeigt sie die A3-Bögen genau so, wie sie gedruckt werden. Eine Schaltfläche, **Druckdateien erstellen**, setzt, was der Plan druckt, frischt die Scan-Vorlage für die MC-Erkennung auf und erstellt die PDF mit Aufklebern oder Exemplaren.
 
-Im Druckplan wählen Sie, wie Sie drucken: **Normale Exemplare und ein QR-Aufkleberbogen** oder **Personalisierte Exemplare mit aufgedrucktem QR-Code** (ein Exemplar pro Schüler mit QR-Code, Name und persönlichem Schlüssel, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies)), und ob die **Lösung** mitgedruckt wird. Bei mehreren Blättern enthält der Plan auch, [wie Sie drucken](#multi-sheet-print). **Bereit zum Drucken?** prüft von selbst, ob die Prüfung Aufgaben hat, die Schülerliste gefüllt ist, die PDFs zum aktuellen Stand passen und, bei MC-Aufgaben, die Scan-Vorlage aktuell ist.
+Die Druckform (**Normale Exemplare und ein QR-Aufkleberbogen** oder **Personalisierte Exemplare mit aufgedrucktem QR-Code**: ein Exemplar pro Schüler mit QR-Code, Name und persönlichem Schlüssel, siehe [QR-Aufkleber](./students#qr-stickers) und [aufgedruckte Exemplare](./students#printed-copies); beidseitig oder Broschüre; Aufkleber pro Blatt) wählen Sie im [Schritt Layout](#multi-sheet-print); der Plan zeigt sie in einer Zeile mit dem Link **Im Schritt Layout ändern**. Im Plan selbst wählen Sie, wie eine Broschüre gedruckt wird (von Examance angeordnet oder mit der Broschürenfunktion Ihres Druckers), Broschüren-Verschiebung und Testbogen, ob die **Lösung** mitgedruckt wird, und den Stapel Zusatzblätter. **Bereit zum Drucken?** prüft von selbst, ob die Prüfung Aufgaben hat, die Schülerliste gefüllt ist, die PDFs zum aktuellen Stand passen und, bei MC-Aufgaben, die Scan-Vorlage aktuell ist.
 
 Darunter stehen genau die Druckaufträge Ihres Plans (Exemplare und Aufkleberbogen oder die personalisierten Exemplare, dazu die Lösung). Jeder Auftrag funktioniert gleich: sein Kopf hat den Download, darunter stehen seine Optionen (bei Aufklebern: wie viele pro Schüler, schon verbrauchte Etiketten und **Was drucken?**, siehe [QR-Aufkleber](./students#qr-stickers)), und der Haken **gedruckt** schließt ihn ab. Ein erstellter Aufkleberbogen oder die personalisierten Exemplare erscheinen als weiterer Bereich neben Angabe und Lösung. Nur Sie setzen die Haken, und erst, wenn die PDF des Auftrags zum aktuellen Stand existiert: bei Angabe und Lösung die aktuelle Vorschau, bei Aufklebern und personalisierten Exemplaren eine hier erstellte PDF. Ein Haken verschwindet nur, wenn sich ändert, wofür er gesetzt wurde: Inhalt oder Layout bei Angabe und Lösung, die Schülerliste beim Aufkleberbogen, beides bei personalisierten Exemplaren. Das Zeichen des Schritts in der Seitenleiste zeigt, wie viele Aufträge abgehakt sind.
 
@@ -202,7 +223,6 @@ Favoriten und Archiv dienen nur Ihrer Übersicht: Archivieren löscht nichts und
 Jede Karte in der Prüfungsliste hat ein Kästchen. Haken Sie die gewünschten Prüfungen an, oder haken Sie das Kästchen in der Leiste über der Liste an, um alle Prüfungen auszuwählen, die die Filter zeigen. Ändern Sie einen Filter, fallen nicht mehr angezeigte Prüfungen aus der Auswahl; eine Aktion trifft also nie eine Prüfung, die Sie nicht sehen. Die Schaltflächen der Leiste sind ausgegraut, bis etwas ausgewählt ist, mit dem Grund darunter.
 
 - **Bearbeiten** setzt Angaben für alle ausgewählten Prüfungen auf einmal: Testart, Nummer, Fach, Jahrgangsstufe, Klasse, gedruckte Klasse, Thema, Datum, Lehrkraft und Infotext. Ein Feld zeigt den gemeinsamen Wert oder „Verschiedene Werte“, wenn sie sich unterscheiden; übernommen werden nur Felder, die Sie ändern, und **Überall leeren** leert ein Feld bei allen. Geänderte Felder werden hervorgehoben, und vor dem Übernehmen listet der Dialog für jede Prüfung auf, was sich von welchem alten zu welchem neuen Wert ändert. Ein erzeugter Titel folgt den neuen Angaben; ein selbst eingegebener Titel bleibt.
-- **LaTeX-Pakete hinzufügen** (im selben Dialog) fügt Pakete zu den eigenen Paketen jeder ausgewählten Prüfung hinzu; ein gleichnamiges Paket wird ersetzt, die übrigen bleiben. Eine Prüfung, deren Liste ungültig würde (zum Beispiel zu viele Pakete), wird als ausgelassen aufgeführt.
 - **Favorit** / **Archivieren** markiert alle ausgewählten Prüfungen auf einmal oder hebt die Markierung auf.
 - **Exportieren** lädt die ausgewählten Prüfungen als eine lesbare ZIP-Datei mit einem Ordner pro Prüfung herunter oder als ein passwortgeschütztes Backup. Nur das Backup lässt sich als mehrere Prüfungen wieder importieren.
 - **Löschen** verschiebt die ausgewählten Prüfungen als einen Eintrag in den Papierkorb (siehe [Papierkorb](./trash)). Der Dialog listet die Prüfungen mit Abgaben auf, und eine Wahl **in meiner Statistik behalten** gilt für alle.

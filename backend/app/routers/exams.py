@@ -35,7 +35,6 @@ from app.schemas.exam import (
     PseudonymRekey,
     PseudonymRekeyResult,
 )
-from app.schemas.latex_packages import LatexPackageEntry
 from app.services import audit as audit_svc
 from app.services import result_deliveries, result_shares, trash
 from app.services.capabilities import require_server_results_writable
@@ -55,11 +54,6 @@ from app.services.overview_flags import archived_since
 from app.services.pseudonyms import exam_pseudonyms, rekey
 
 router = APIRouter(prefix="/exams", tags=["exams"], dependencies=[Depends(get_teaching_teacher)])
-
-
-def _packages_column(entries: list[LatexPackageEntry] | None) -> list[dict[str, Any]] | None:
-    # An empty override prints the same as none, so it is stored as "follows the account".
-    return [entry.model_dump() for entry in entries] if entries else None
 
 
 # Plain header columns that create, update and duplicate treat alike.
@@ -91,7 +85,7 @@ _HEADER_FIELDS = (
     "results_qr_box",
 )
 # What a duplicate takes over; the title, retention and page breaks are set separately.
-_COPIED_FIELDS = (*_HEADER_FIELDS, "extra_notes", "latex_packages")
+_COPIED_FIELDS = (*_HEADER_FIELDS, "extra_notes")
 # Update keeps the stored value for a null here, except `topic` (null or blank clears it).
 _UPDATED_FIELDS = {"title", "retention_until", *_HEADER_FIELDS}
 
@@ -308,7 +302,6 @@ async def create_exam(
         **{name: getattr(body, name) for name in ("title", "retention_until", *_HEADER_FIELDS)},
         "teacher_id": teacher.id,
         "pseudonym_version": body.pseudonym_version,
-        "latex_packages": _packages_column(body.latex_packages),
         "page_breaks": body.page_breaks,
         "extra_notes": body.extra_notes.model_dump() if body.extra_notes else None,
         "step_checks": body.step_checks,
@@ -465,8 +458,6 @@ def _apply_exam_fields(body: ExamUpdate, exam: Exam) -> None:
         # Null clears these; for every other field it means "leave as it is".
         if value is not None or name in ("topic", "duration_minutes", "reading_minutes"):
             setattr(exam, name, value)
-    if "latex_packages" in body.model_fields_set:
-        exam.latex_packages = _packages_column(body.latex_packages)
     if "page_breaks" in body.model_fields_set:
         exam.page_breaks = body.page_breaks or None
     if "step_checks" in body.model_fields_set:

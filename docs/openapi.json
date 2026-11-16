@@ -10219,7 +10219,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "AccountLatexPackages",
-        "description": "The packages added to every document of the account. ``disabled`` has no meaning here."
+        "description": "The packages added to every document of the account."
       },
       "AccountLogoInfo": {
         "properties": {
@@ -11977,20 +11977,6 @@
             ],
             "title": "Grading Key"
           },
-          "latex_packages": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/LatexPackageEntry"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Latex Packages"
-          },
           "page_breaks": {
             "anyOf": [
               {
@@ -12525,20 +12511,6 @@
             ],
             "title": "Grading Key"
           },
-          "latex_packages": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/LatexPackageEntry"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Latex Packages"
-          },
           "page_breaks": {
             "anyOf": [
               {
@@ -12993,20 +12965,6 @@
               }
             ],
             "title": "Grading Key"
-          },
-          "latex_packages": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/LatexPackageEntry"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Latex Packages"
           },
           "page_breaks": {
             "anyOf": [
@@ -14720,20 +14678,14 @@
             "maxLength": 300,
             "title": "Options",
             "default": ""
-          },
-          "disabled": {
-            "type": "boolean",
-            "title": "Disabled",
-            "default": false
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "name"
         ],
         "title": "LatexPackageEntry",
-        "description": "A package, TikZ or pgfplots library; ``disabled`` (exam level) drops an account one."
+        "description": "A package, TikZ or pgfplots library; unknown keys (the retired ``disabled``) are ignored."
       },
       "LayoutReportCreate": {
         "properties": {

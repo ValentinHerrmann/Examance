@@ -11,14 +11,7 @@ import { invalidateOwner } from '#lib/latex/compileCache';
 import { newTrashGroup, trashHeaders, type DeleteOptions } from '#lib/trash/group';
 import { captureLocal, storedExamRows } from '#lib/trash/localTrash';
 import { stepChecksField, type StepChecks } from '#lib/exam/examChecks';
-import { storedEntries, type LatexPackageEntry } from '#lib/latex/packages';
 import { splitLegacyDatum } from '#lib/utils/examLabel';
-
-/** Undefined (unknown) stays undefined, so a later save leaves the server's value alone. */
-function packagesField(value: unknown): LatexPackageEntry[] | null | undefined {
-  if (value === undefined) return undefined;
-  return value === null ? null : storedEntries(value);
-}
 
 /** Undefined (unknown) stays undefined so a later save leaves the server's value alone. */
 function pageBreaksField(value: unknown): string[] | null | undefined {
@@ -92,7 +85,6 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     lehrernachname: raw.lehrernachname,
     infoText: raw.info_text || raw.infoText,
     gradingKey: raw.grading_key || raw.gradingKey,
-    latexPackages: packagesField(raw.latex_packages !== undefined ? raw.latex_packages : raw.latexPackages),
     pageBreaks: pageBreaksField(raw.page_breaks !== undefined ? raw.page_breaks : raw.pageBreaks),
     nameLine: (raw.name_line ?? raw.nameLine) === true,
     mcCorrectionHint: (raw.mc_correction_hint ?? raw.mcCorrectionHint) === true,
@@ -133,8 +125,6 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     lehrernachname: exam.lehrernachname,
     info_text: exam.infoText,
     grading_key: exam.gradingKey,
-    // null clears the exam's package override, undefined leaves it alone.
-    latex_packages: exam.latexPackages,
     // Empty or null clears the breaks, undefined leaves them alone.
     page_breaks: exam.pageBreaks,
     // Undefined leaves the stored choice alone.

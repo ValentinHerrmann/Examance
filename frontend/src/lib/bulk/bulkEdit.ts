@@ -1,6 +1,4 @@
-/** Shared logic of the bulk edit dialogs (issue #261): common values, the per-item change list and the package additions. */
-import { entriesError, type EntryError, type LatexPackageEntry } from '#lib/latex/packages';
-
+/** Shared logic of the bulk edit dialogs (issue #261): common values and the per-item change list. */
 export interface BulkField {
   key: string;
   label: string;
@@ -42,16 +40,4 @@ export function bulkChanges(items: readonly BulkItem[], patch: Readonly<Record<s
       .map(([key, to]) => ({ key, from: valueOf(item, key), to: to.trim() }))
       .filter((c) => c.from !== c.to),
   }));
-}
-
-const entryKey = (e: LatexPackageEntry) => `${e.kind}:${e.name}`;
-
-/** An exam's package list with `added` merged in: a same-named entry (also a left-out account package) is replaced. Null `existing` follows the account, so the result holds just the additions. */
-export function addPackages(
-  existing: readonly LatexPackageEntry[] | null | undefined,
-  added: readonly LatexPackageEntry[],
-): { entries: LatexPackageEntry[]; error: EntryError | null } {
-  const keys = new Set(added.map(entryKey));
-  const entries = [...(existing ?? []).filter((e) => !keys.has(entryKey(e))), ...added.map((e) => ({ kind: e.kind, name: e.name, options: e.options }))];
-  return { entries, error: entriesError(entries) };
 }

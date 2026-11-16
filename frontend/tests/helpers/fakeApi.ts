@@ -875,7 +875,6 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       compilation_status: 'pending',
       latex_template: '',
       topic: null,
-      latex_packages: null,
       page_breaks: null,
       pseudonym_version: 1,
       ...exam,

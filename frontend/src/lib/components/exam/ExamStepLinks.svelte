@@ -1,7 +1,7 @@
 <script lang="ts">
   import { faChevronRight } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
-  import { EXAM_STEPS, examStepHref, stepNumber, type ExamStep } from "#lib/components/layout/examNavItems";
+  import { EXAM_STEPS, examStepHref, stepDisabledReason, stepNumber, type ExamStep } from "#lib/components/layout/examNavItems";
   import ExamStepBadge from "#lib/components/layout/ExamStepBadge.svelte";
   import { continueStep, type ExamProgress } from "#lib/exam/examProgress";
   import { Icon, Tooltip } from "#lib/components/ui";
@@ -11,9 +11,11 @@
     examId: string;
     progress: ExamProgress;
     layout?: "row" | "stepper";
+    /** False (paper grading) greys out the scan branch A with its reason; never hides it. */
+    digitalGrading?: boolean;
   }
 
-  let { examId, progress, layout = "row" }: Props = $props();
+  let { examId, progress, layout = "row", digitalGrading }: Props = $props();
 
   const STEPS = EXAM_STEPS.filter((s) => s.step !== "overview");
   const firstBranch = STEPS.findIndex((s) => s.branch);
@@ -22,17 +24,19 @@
   const BRANCH_A = STEPS.filter((s) => s.branch === "A");
   const BRANCH_B = STEPS.filter((s) => s.branch === "B");
   const AFTER = STEPS.slice(lastBranch + 1);
-  let next = $derived<ExamStep>(continueStep(progress));
+  let next = $derived<ExamStep>(continueStep(progress, digitalGrading));
 </script>
 
 {#snippet arrow()}<Icon icon={faChevronRight} class="w-2.5 shrink-0 text-xs text-muted" />{/snippet}
 
 {#snippet stepLink(entry: (typeof STEPS)[number])}
   {@const isNext = entry.step === next}
+  {@const off = stepDisabledReason(entry.step, digitalGrading)}
   <a
     href={examStepHref(examId, entry.step)}
     aria-current={isNext ? "step" : undefined}
-    class="group flex max-w-44 items-center gap-2 rounded-md border px-2.5 py-1.5 leading-tight no-underline transition-colors {isNext
+    title={off ? $t(off) : undefined}
+    class="group flex max-w-44 items-center gap-2 rounded-md border px-2.5 py-1.5 leading-tight no-underline transition-colors {off ? 'opacity-50' : ''} {isNext
       ? 'border-primary bg-highlight font-medium text-on-highlight'
       : 'border-line text-content hover:bg-surface-inset hover:text-accent'}"
   >
@@ -47,11 +51,12 @@
   <ul class="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm text-muted" aria-label={$t("dashboard.examList.progress")}>
     {#each STEPS as entry (entry.step)}
       {#if entry.branch === "B"}<li class="self-center text-xs text-muted" title={$t("exam.sidebar.orHint")}>{$t("exam.sidebar.or")}</li>{/if}
+      {@const off = stepDisabledReason(entry.step, digitalGrading)}
       <li class="min-w-0">
-        <Tooltip text={$t("dashboard.examList.openStep", { step: $t(entry.labelKey) })}>
+        <Tooltip text={off ? $t(off) : $t("dashboard.examList.openStep", { step: $t(entry.labelKey) })}>
           <a
             href={examStepHref(examId, entry.step)}
-            class="group inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-muted no-underline transition-colors hover:bg-surface-sunken hover:text-accent focus-visible:bg-surface-sunken focus-visible:text-accent"
+            class="group inline-flex {off ? 'opacity-50' : ''} items-center gap-1.5 rounded-md px-1.5 py-0.5 text-muted no-underline transition-colors hover:bg-surface-sunken hover:text-accent focus-visible:bg-surface-sunken focus-visible:text-accent"
           >
             <Icon icon={entry.icon} class="w-3.5" />
             <span class="group-hover:underline group-focus-visible:underline">{$t(entry.labelKey)}</span>
@@ -63,7 +68,7 @@
     {/each}
   </ul>
 {:else}
-  <!-- Steps 1–3, then the two alternatives (A with scans, B graded on paper) stacked as a fork, then Results. -->
+  <!-- Steps 1–4, then the two alternatives (A with scans, B graded on paper) stacked as a fork, then Results. -->
   <ol class="m-0 flex list-none flex-wrap items-center gap-x-1 gap-y-2 p-0 text-sm" aria-label={$t("exam.overview.workflow")}>
     {#each BEFORE as entry, index (entry.step)}
       <li class="flex min-w-0 items-center gap-1">

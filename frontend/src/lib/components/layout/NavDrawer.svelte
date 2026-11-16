@@ -48,7 +48,7 @@
   function isActive(href: string) {
     return href === "/" ? currentPath === "/" : currentPath.startsWith(href);
   }
-  let examItems = $derived($examNavContext ? examNavItems($examNavContext.examId, currentPath) : []);
+  let examItems = $derived($examNavContext ? examNavItems($examNavContext.examId, currentPath, $examNavContext.exam?.digitalGrading) : []);
 
   let release: (() => void) | null = null;
   onDestroy(() => release?.());
@@ -106,8 +106,8 @@
               <a
                 href={item.href}
                 aria-current={item.active ? "page" : undefined}
-                title={item.hintKey ? $t(item.hintKey) : undefined}
-                class="{row} {item.active ? 'bg-highlight text-on-highlight' : 'text-content hover:bg-surface-inset'}"
+                title={item.disabledReason ? $t(item.disabledReason) : item.hintKey ? $t(item.hintKey) : undefined}
+                class="{row} {item.active ? 'bg-highlight text-on-highlight' : 'text-content hover:bg-surface-inset'} {item.disabledReason ? 'opacity-50' : ''}"
               >
                 <Icon icon={item.icon} class="w-5 text-muted" />
                 <span class="min-w-0 flex-1 py-1 leading-tight">

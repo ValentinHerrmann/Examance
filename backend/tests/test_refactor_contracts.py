@@ -78,7 +78,6 @@ async def test_exam_patch_clears_the_special_columns_only_when_sent(
         client,
         page_breaks=["a", "b"],
         extra_notes=notes,
-        latex_packages=[{"kind": "package", "name": "siunitx", "options": "", "disabled": False}],
     )
     url = f"{EXAMS}/{exam['id']}"
 
@@ -86,21 +85,14 @@ async def test_exam_patch_clears_the_special_columns_only_when_sent(
     assert untouched["page_breaks"] == ["a", "b"]
     # A client that omits `fill` (issue #228) keeps the rest-of-page area on.
     assert untouched["extra_notes"] == {**notes, "fill": True}
-    assert [p["name"] for p in untouched["latex_packages"]] == ["siunitx"]
 
     heading_only = (await client.patch(url, json={"extra_notes": {**notes, "fill": False}})).json()
     assert heading_only["extra_notes"] == {**notes, "fill": False}
 
     cleared = (
-        await client.patch(
-            url, json={"page_breaks": [], "extra_notes": None, "latex_packages": None}
-        )
+        await client.patch(url, json={"page_breaks": [], "extra_notes": None})
     ).json()
-    assert (cleared["page_breaks"], cleared["extra_notes"], cleared["latex_packages"]) == (
-        None,
-        None,
-        None,
-    )
+    assert (cleared["page_breaks"], cleared["extra_notes"]) == (None, None)
 
 
 @pytest.mark.asyncio
@@ -142,7 +134,6 @@ async def test_exam_duplicate_copies_every_header_field(
         name_line=True,
         mc_correction_hint=True,
         extra_notes=notes,
-        latex_packages=[{"kind": "package", "name": "siunitx", "options": "", "disabled": False}],
     )
     resp = await client.post(f"{EXAMS}/{exam['id']}/duplicate", json={"retention_until": RETENTION})
     assert resp.status_code == 201, resp.text

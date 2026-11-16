@@ -1,4 +1,4 @@
-"""Schemas for LaTeX package entries (/user/latex-packages, exam ``latex_packages``; issue #108)."""
+"""Schemas for LaTeX package entries (/user/latex-packages; issue #108)."""
 from __future__ import annotations
 
 from typing import Any
@@ -15,14 +15,13 @@ from app.services.latex_packages import (
 
 
 class LatexPackageEntry(BaseModel):
-    """A package, TikZ or pgfplots library; ``disabled`` (exam level) drops an account one."""
+    """A package, TikZ or pgfplots library; unknown keys (the retired ``disabled``) are ignored."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     kind: PackageKind = "package"
     name: str = Field(max_length=64)
     options: str = Field(default="", max_length=300)
-    disabled: bool = False
 
     @field_validator("name", "options", mode="before")
     @classmethod
@@ -37,7 +36,7 @@ class LatexPackageEntry(BaseModel):
         return self
 
     def to_entry(self) -> PackageEntry:
-        return PackageEntry(self.kind, self.name, self.options, self.disabled)
+        return PackageEntry(self.kind, self.name, self.options)
 
 
 def check_entry_list(entries: list[LatexPackageEntry] | None) -> list[LatexPackageEntry] | None:
@@ -50,7 +49,7 @@ def check_entry_list(entries: list[LatexPackageEntry] | None) -> list[LatexPacka
 
 
 class AccountLatexPackages(BaseModel):
-    """The packages added to every document of the account. ``disabled`` has no meaning here."""
+    """The packages added to every document of the account."""
 
     model_config = ConfigDict(extra="forbid")
 

@@ -23,7 +23,7 @@
     $derived($sidebarPreference === "collapsed" ||
     ($sidebarPreference === null && (!$isXl || isGradeActive)));
 
-  let items = $derived(examNavItems(context.examId, pathname));
+  let items = $derived(examNavItems(context.examId, pathname, context.exam?.digitalGrading));
   let exam = $derived(context.exam);
   let course = $derived(exam ? examCourse(exam) : "");
   let metaLines = $derived(exam ? [exam.testart, [course, exam.fach].filter(Boolean).join(", "), exam.datum].filter(Boolean) : []);
@@ -60,20 +60,21 @@
     <ul class="m-0 flex list-none flex-col gap-0.5 p-0 px-2">
       {#each items as item (item.step)}
         {#if item.branch === "B"}
-          <!-- B replaces 4A–6A: a separator says so before it. -->
+          <!-- B replaces 5A–7A: a separator says so before it. -->
           <li aria-hidden="true" class="flex items-center gap-2 px-3 py-0.5 text-xs text-muted" title={$t("exam.sidebar.orHint")}>
             <span class="h-px flex-1 bg-line"></span>{#if !collapsed}<span>{$t("exam.sidebar.or")}</span><span class="h-px flex-1 bg-line"></span>{/if}
           </li>
         {/if}
         <li>
-          <Tooltip text={item.hintKey ? $t(item.hintKey) : $t(item.labelKey)} placement="right" disabled={!collapsed && !item.hintKey} wrapperClass="flex w-full">
+          <Tooltip text={item.disabledReason ? $t(item.disabledReason) : item.hintKey ? $t(item.hintKey) : $t(item.labelKey)} placement="right" disabled={!collapsed && !item.hintKey && !item.disabledReason} wrapperClass="flex w-full">
             <a
               href={item.href}
               aria-current={item.active ? "page" : undefined}
               aria-label={collapsed ? $t(item.labelKey) : undefined}
+              title={item.disabledReason ? $t(item.disabledReason) : undefined}
               class="relative flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium no-underline pointer-coarse:min-h-11 {item.active
                 ? 'bg-highlight text-on-highlight before:absolute before:inset-y-1.5 before:left-0 before:w-0.75 before:rounded-full before:bg-primary'
-                : 'text-muted hover:bg-surface-inset hover:text-content'}"
+                : 'text-muted hover:bg-surface-inset hover:text-content'} {item.disabledReason ? 'opacity-50' : ''}"
             >
               <Icon icon={item.icon} class="w-4 text-base" />
               {#if !collapsed}

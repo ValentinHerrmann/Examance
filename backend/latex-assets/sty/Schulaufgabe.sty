@@ -238,7 +238,7 @@
 \DeclareOption{zusatzblatt}{\setboolean{SA@zusatzblatt}{true}}
 
 % ohnescan: grading outside Examance; no corner markers, page codes, cut lines or sticker spots, everything else in place (room kept).
-% ergebnisqr: with ohnescan, page 1 keeps the dashed box for one results QR sticker.
+% ergebnisqr: with ohnescan, page 1 keeps the dashed QR sticker box (anonymous paper grading or results delivery; issue #272).
 \newboolean{SA@ohnescan}
 \DeclareOption{ohnescan}{\setboolean{SA@ohnescan}{true}}
 \newboolean{SA@ergebnisqr}
@@ -281,7 +281,7 @@
                 \parbox{3.5cm}{
                     % Printed copies blank this text under their code; spare plain copies keep it for a sticker.
                     \centering QR Code
-                    \ifthenelse{\boolean{Namensfeld}\OR\boolean{SA@ohnescan}}{}{\\
+                    \ifthenelse{\boolean{Namensfeld}}{}{\\
                     \normalsize \vspace{0.8cm}\LoesungLuecke{}{2.5cm}\\$\uparrow$~Deine Initialen~$\uparrow$\\
                     (falls QR-Code abfällt)}
                 }

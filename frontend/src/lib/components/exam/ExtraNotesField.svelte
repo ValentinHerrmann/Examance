@@ -6,7 +6,7 @@
   import { DEFAULT_EXTRA_NOTES, fillsLastPage, type ExtraNotes } from "#lib/db/schema";
   import { t } from "#lib/i18n";
 
-  /** The writing space of the Layout tab's extra paper group (issues #156, #228): heading and note for every writing area, and the rest-of-page area with its min/max height. */
+  /** The writing space of the Layout step's extra paper group (issues #156, #228): heading and note for every writing area, and the rest-of-page area with its min/max height. */
   interface Props {
     /** Null: never set; the defaults show and the area is off. */
     value: ExtraNotes | null;

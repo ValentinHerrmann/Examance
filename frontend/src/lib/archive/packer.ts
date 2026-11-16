@@ -40,9 +40,8 @@ import { api } from '#lib/api/client';
 import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
 import { addMissing, bump, newReport, type ArchiveReport } from './report';
 import { exportExamLogo, type ArchivedExamLogo } from '#lib/latex/logo';
-import { getAccountPackages } from '#lib/latex/packageSettings';
 
-/** Payload layout version: 2 added `$b64` bytes, decrypted scans, and `codeWithheld`; 3 added `examLogos`; 4 added `accountLatexPackages` on exams that follow their account (issue #108); 5 keys pseudonyms per exam (`pseudonymHmac`, `pseudonymVersion`, `keyId`, issue #177; `archive/pseudonyms.ts`). Older archives import with every exam following the importer's account logo and packages, and their pseudonyms as version 1. */
+/** Payload layout version: 2 added `$b64` bytes, decrypted scans, and `codeWithheld`; 3 added `examLogos`; 4 added `accountLatexPackages` on exams (issue #108; no longer written since issue #272, importers ignore it); 5 keys pseudonyms per exam (`pseudonymHmac`, `pseudonymVersion`, `keyId`, issue #177; `archive/pseudonyms.ts`). Older archives import with every exam following the importer's account logo, and their pseudonyms as version 1. */
 export const ARCHIVE_PAYLOAD_VERSION = 5;
 
 export interface PackOptions {
@@ -284,16 +283,12 @@ export async function packProject(
 
     // 4. Students/submissions are archived as-is, no re-hashing: the payload is already sealed under
     // the archive key, and leaving the student/submission link field alone keeps round-trips lossless.
-  // An exam that follows its account carries the account's packages, like the logo it printed.
-  const accountPackages = await getAccountPackages();
   const archivePayload = {
     payloadVersion: ARCHIVE_PAYLOAD_VERSION,
     // The data-key generation that keyed the pseudonyms: an import into the same account keeps them (issue #177).
     keyId: archiveKeyId(),
     codeWithheld: !includeExerciseCode,
-    exams: exams.map((exam) =>
-      exam.latexPackages == null && accountPackages.length ? { ...exam, accountLatexPackages: accountPackages } : exam
-    ),
+    exams,
     exercises,
     // `pseudonymId`/`pseudonymHash` repeat the stored value for importers older than payload v5, which would otherwise hash an empty id into one student.
     students: students.map((s) => ({ ...s, pseudonymId: s.pseudonymHmac })),

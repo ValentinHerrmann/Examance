@@ -4,7 +4,7 @@ editLink: false
 
 # Von der Aufgabe zur Auswertung
 
-Der übliche Weg einer Prüfung durch Examance in sechs Abschnitten. Jeder Abschnitt verweist auf seine ausführliche Seite. Innerhalb einer Prüfung listet die Seitenleiste die Schritte in dieser Reihenfolge: **Prüfung**, **Schüler**, **Drucken**, **Scans**, **MC prüfen**, **Digitale Korrektur** oder **Papierkorrektur**, **Ergebnisse & Export**; jeder hat ein Status-Abzeichen und oben rechts eine Schaltfläche **Weiter: …**, siehe [Die Schritte einer Prüfung](./exams#steps).
+Der übliche Weg einer Prüfung durch Examance in sechs Abschnitten. Jeder Abschnitt verweist auf seine ausführliche Seite. Innerhalb einer Prüfung listet die Seitenleiste die Schritte in dieser Reihenfolge: **Prüfung**, **Layout**, **Schüler**, **Drucken**, **Scans**, **MC prüfen**, **Digitale Korrektur** oder **Papierkorrektur**, **Ergebnisse & Export**; jeder hat ein Status-Abzeichen und oben rechts eine Schaltfläche **Weiter: …**, siehe [Die Schritte einer Prüfung](./exams#steps).
 
 ## 1. Aufgaben in der Bibliothek sammeln {#library}
 
@@ -21,7 +21,7 @@ Mehr: [Aufgabenbibliothek](./exercises), [Aufgaben teilen](./sharing).
 
 ## 2. Prüfung zusammenstellen und setzen {#exam}
 
-**Neue Prüfung** fragt die Kopfdaten ab (Fach, Klasse, Testart, Datum) und öffnet dann den Schritt **Prüfung**. Dort wählen Sie Aufgaben aus der Bibliothek, ordnen sie, fassen Multiple-Choice-Fragen zu Gruppen zusammen und legen das Layout fest. Der Notenschlüssel folgt später unter **Ergebnisse & Export → Statistik**. Die Klassenliste gehört zum Schritt **Schüler**. Beim Setzen entsteht ein druckfertiges PDF in Ihrem Browser oder auf dem Server; sein Deckblatt hat ein leeres Feld „QR Code“ für den [QR-Aufkleber](./students#qr-stickers) der Schülerin oder des Schülers.
+**Neue Prüfung** fragt die Kopfdaten ab (Fach, Klasse, Testart, Datum) und öffnet dann den Schritt **Prüfung**. Dort wählen Sie Aufgaben aus der Bibliothek, ordnen sie, fassen Multiple-Choice-Fragen zu Gruppen zusammen und setzen eine Vorschau. Der nächste Schritt, **Layout**, legt fest, wie die Prüfung aussieht, mit Voreinstellungen und einer Live-Skizze der Seiten. Der Notenschlüssel folgt später unter **Ergebnisse & Export → Statistik**. Die Klassenliste gehört zum Schritt **Schüler**. Beim Setzen entsteht ein druckfertiges PDF in Ihrem Browser oder auf dem Server; sein Deckblatt hat ein leeres Feld „QR Code“ für den [QR-Aufkleber](./students#qr-stickers) der Schülerin oder des Schülers.
 
 **Duplizieren** legt eine neue Prüfung mit denselben Aufgaben und Einstellungen an, zum Beispiel für eine Parallelklasse; Schülerdaten und Ergebnisse werden nie mitkopiert.
 

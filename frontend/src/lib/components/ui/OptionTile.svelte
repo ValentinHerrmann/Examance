@@ -25,10 +25,14 @@
     onclick?: (event: MouseEvent) => void;
     /** After the title, e.g. an `InfoTip`. */
     titleExtra?: Snippet;
+    /** A small drawing of the case at the tile's end, e.g. an `exam/sketch/OptionPictogram` (issue #272). */
+    illustration?: Snippet;
+    /** Pointer or keyboard focus entered (true) or left (false) the tile, e.g. to stress its part in a sketch. */
+    onHighlight?: (on: boolean) => void;
     class?: string;
   }
 
-  let { type = "radio", name, value, checked, title, text = undefined, icon = undefined, disabled = false, compact = false, onchange, onToggle, onclick, titleExtra, class: className = "" }: Props = $props();
+  let { type = "radio", name, value, checked, title, text = undefined, icon = undefined, disabled = false, compact = false, onchange, onToggle, onclick, titleExtra, illustration, onHighlight, class: className = "" }: Props = $props();
 
   function changed(event: Event) {
     onchange?.(event);
@@ -42,6 +46,10 @@
   class="flex h-full min-w-0 items-start rounded-md border border-line-strong bg-surface-sunken has-[:checked]:border-primary has-[:checked]:bg-highlight {compact
     ? 'gap-2 p-2.5'
     : 'gap-3 p-4'} {disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-line-hover'} {className}"
+  onpointerenter={onHighlight && (() => onHighlight(true))}
+  onpointerleave={onHighlight && (() => onHighlight(false))}
+  onfocusin={onHighlight && (() => onHighlight(true))}
+  onfocusout={onHighlight && (() => onHighlight(false))}
 >
   <input class="mt-0.5 shrink-0 cursor-[inherit] accent-primary {compact ? 'size-4' : 'size-5'}" {type} {name} {value} {checked} {disabled} onchange={changed} {onclick} />
   <span class="min-w-0 flex-1">
@@ -50,4 +58,5 @@
     </span>
     {#if text}<span class="block break-words hyphens-auto text-muted {compact ? 'mt-0.5 text-xs' : 'mt-1 text-sm'}">{text}</span>{/if}
   </span>
+  {#if illustration}<span class="shrink-0 self-center" aria-hidden="true">{@render illustration()}</span>{/if}
 </label>

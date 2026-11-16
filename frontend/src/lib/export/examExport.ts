@@ -23,7 +23,6 @@ import { exportDateStamp, firstFree, slug, ZipBuilder } from './zip';
 import { addExerciseFolder } from './exerciseExport';
 import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExamZipManifest } from './zipManifest';
 import { examRepository } from '#lib/repositories/examRepository';
-import { getAccountPackages } from '#lib/latex/packageSettings';
 import type { ExerciseRecord, GradingReviewItem } from '#lib/db/schema';
 import { snapshotRecords } from '#lib/analytics/statisticsSnapshot';
 import { statisticsRepository } from '#lib/repositories/statisticsRepository';
@@ -158,7 +157,6 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
   const entries = await Promise.all(
     folders.map(async ({ ex, name, dir }) => exerciseEntry(ex, name, dir, await addExerciseFolder(zip, ex, name, dir, key, warnings), []))
   );
-  const accountPackages = exam.latexPackages == null ? await getAccountPackages() : [];
   const manifest: ExamZipManifest = {
     ...manifestHeader(),
     kind: 'exam',
@@ -181,8 +179,6 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
       latexTemplate: exam.latexTemplate,
       numVersions: exam.numVersions,
       gradingKey: exam.gradingKey,
-      latexPackages: exam.latexPackages ?? null,
-      ...(accountPackages.length ? { accountLatexPackages: [...accountPackages] } : {}),
       pageBreaks: exam.pageBreaks ?? null,
       nameLine: exam.nameLine ?? false,
       mcCorrectionHint: exam.mcCorrectionHint ?? false,

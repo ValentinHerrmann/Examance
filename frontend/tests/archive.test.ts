@@ -425,6 +425,25 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     expect(conflict?.fields.find((f) => f.key === 'extraNotes')).toMatchObject({ existing: null, differs: true });
   });
 
+  it('imports an old archive with exam-level LaTeX packages and ignores them (issue #272)', async () => {
+    await saveExamEncrypted(exam('exam-old-packages', 'Old Packages Exam'), testKey);
+    const payload = await decryptArchive(await packBlob(testPassword), testPassword);
+    const entries = [{ kind: 'package', name: 'siunitx', options: '' }];
+    payload.exams[0].latexPackages = entries;
+    payload.exams[0].accountLatexPackages = entries;
+
+    fakeServer.reset();
+    await db.exams.clear();
+    const result = await applyArchive(payload);
+    expect(result.errors).toEqual([]);
+    expect(result.examCount).toBe(1);
+
+    const [restored] = await loadExamsEncrypted(get(sessionStore).sessionKey!);
+    expect(restored.title).toBe('Old Packages Exam');
+    expect(restored).not.toHaveProperty('latexPackages');
+    expect(restored).not.toHaveProperty('accountLatexPackages');
+  });
+
   it('treats an exam whose page breaks moved as a conflict', async () => {
     await saveExamEncrypted({ ...exam('exam-breaks', 'Breaks Exam'), pageBreaks: ['ex-a'] }, testKey);
     const payload = await decryptArchive(await packBlob(testPassword), testPassword);
@@ -442,7 +461,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
       kind: 'exam',
       formatVersion: 1,
       exportedAt: new Date().toISOString(),
-      exam: { id: 'exam-zip', title: 'ZIP Exam', numVersions: 1, nameLine: false, extraNotes: null, pageBreaks: null, latexPackages: null },
+      exam: { id: 'exam-zip', title: 'ZIP Exam', numVersions: 1, nameLine: false, extraNotes: null, pageBreaks: null },
       exercises: [{
         id: 'ex-zip', exerciseGroupId: null, variantKey: null, name: 'Zip', topic: null, grade: null, subject: null,
         questionType: 'free_text', options: [], correctAnswers: [], penalty: 0, maxPoints: 2, version: 1,

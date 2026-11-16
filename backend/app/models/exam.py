@@ -67,8 +67,6 @@ class Exam(Base):
     lehrernachname: Mapped[str | None] = mapped_column(String(100), nullable=True)
     info_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     grading_key: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    # Package entries on top of the account's (issue #108); null follows the account.
-    latex_packages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     # Item ids (exercise or MC group) that start on a new page; plaintext layout metadata.
     page_breaks: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     # Adds a handwritten name line next to the QR sticker box (issue #127).

@@ -127,7 +127,7 @@ Pakete stammen aus drei Quellen, und Examance lädt jedes Paket nur einmal:
 2. **Ihr Konto**: Im selben Abschnitt der Einstellungen fügen Sie Pakete und TikZ-Bibliotheken für alle Prüfungen hinzu und geben Vorlagenpaketen Optionen mit (zum Beispiel `dvipsnames` für `xcolor`).
 3. **Eine einzelne Aufgabe**: **Pakete dieser Aufgabe** im Editor speichert eine `\usepackage`-Zeile am Anfang des Quelltexts, sodass das Paket mit der Aufgabe reist. Solche Zeilen dürfen Sie auch von Hand schreiben.
 
-Auf dem Reiter **Layout** der Prüfung passen Sie die Pakete einer einzelnen Prüfung an oder lassen für sie Pakete Ihres Kontos weg.
+Pakete stellen Sie nicht pro Prüfung ein: Eine Prüfung nutzt die Pakete Ihres Kontos und ihrer Aufgaben.
 
 Optionen werden zusammengeführt, sodass keine Optionskonflikte entstehen. Setzen zwei Aufgaben dieselbe Option unterschiedlich, zeigt **Ergebnis** den Konflikt und welcher Wert gilt.
 

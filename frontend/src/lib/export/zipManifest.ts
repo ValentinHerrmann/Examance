@@ -1,6 +1,5 @@
 /** `manifest.json` of the plaintext ZIP exports, read back by `archive/zipImport.ts` (issue #145). Version 1 added ids, group ids and variant keys; older library ZIPs (no `kind`) still import. */
 import type { ExerciseRecord, ExtraNotes, GradingKeyConfig } from '#lib/db/schema';
-import type { LatexPackageEntry } from '#lib/latex/packages';
 import { parseExerciseScore } from '#lib/latex/scoreParser';
 
 export const ZIP_MANIFEST = 'manifest.json';
@@ -62,9 +61,6 @@ export interface ZipExamSettings {
   latexTemplate?: string;
   numVersions?: number;
   gradingKey?: GradingKeyConfig;
-  latexPackages?: LatexPackageEntry[] | null;
-  /** The account's packages when the exam follows its account, like `.examance` archives carry them. */
-  accountLatexPackages?: LatexPackageEntry[];
   pageBreaks?: string[] | null;
   nameLine?: boolean;
   mcCorrectionHint?: boolean;

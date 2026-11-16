@@ -8,7 +8,7 @@ Two things belong together here: **QR codes**, as stickers that students put on 
 
 ## Student data {#student-data}
 
-**Students** (step 2 in the exam's sidebar) holds the exam's class list: names, the Mebis or Artemis ID and the e-mail address. Everything else only reads it: the QR stickers, the printed exam copies, and sharing results by e-mail, Artemis or Mebis.
+**Students** (step 3 in the exam's sidebar) holds the exam's class list: names, the Mebis or Artemis ID and the e-mail address. Everything else only reads it: the QR stickers, the printed exam copies, and sharing results by e-mail, Artemis or Mebis.
 
 - **Add student** adds a single student by hand; like imported ones, the student gets a QR code and a personal key.
 - **Use a class list**: pick one of three ways at the top of the box. **File** reads a Mebis grading worksheet or participant list (CSV) or a plain list; **Paste** takes typed or pasted lines (`Lastname, Firstname; ID; address`, one per student); **Artemis course** fetches the course members. Examance shows what would change (new, updated, unchanged) and saves only after **Apply**. Students already in the list are recognised by their ID, otherwise by name, so importing the same list again only adds addresses. In the list, the pencil and bin icons edit or delete a single student; for several at once, tick them and use the buttons above the list.

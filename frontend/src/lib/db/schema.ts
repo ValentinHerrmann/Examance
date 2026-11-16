@@ -1,7 +1,6 @@
 import type { MaybeUndecryptable } from './decryptGuard';
 import type { StepChecks } from '#lib/exam/examChecks';
 import type { TimeExtension } from '#lib/students/timeExtension';
-import type { LatexPackageEntry } from '#lib/latex/packages';
 import type { OmrPageStats, OmrRunInfo } from '#lib/grading/omrSettings';
 import type { OmrBubbleState, OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
 
@@ -72,8 +71,6 @@ export interface ExamRecord extends MaybeUndecryptable {
   latexTemplate?: string;
   numVersions?: number;
   gradingKey?: GradingKeyConfig;
-  /** Package entries on top of the account's (issue #108, lib/latex/packages.ts); null follows the account. */
-  latexPackages?: LatexPackageEntry[] | null;
   /** Ids of the exercises / MC groups that start on a new page (a break goes before each); layout only. */
   pageBreaks?: string[] | null;
   /** Prints a handwritten name line next to the QR sticker box (issue #127); layout only. */

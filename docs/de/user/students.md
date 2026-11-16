@@ -8,7 +8,7 @@ Zwei Dinge gehören hier zusammen: **QR-Codes**, als Aufkleber, die Schülerinne
 
 ## Schülerdaten {#student-data}
 
-**Schüler** (Schritt 2 in der Seitenleiste der Prüfung) enthält die Klassenliste der Prüfung: Namen, Mebis- bzw. Artemis-ID und E-Mail-Adresse. Alles andere liest nur daraus: die QR-Aufkleber, die bedruckten Prüfungsexemplare und das Teilen der Ergebnisse per E-Mail, Artemis oder Mebis.
+**Schüler** (Schritt 3 in der Seitenleiste der Prüfung) enthält die Klassenliste der Prüfung: Namen, Mebis- bzw. Artemis-ID und E-Mail-Adresse. Alles andere liest nur daraus: die QR-Aufkleber, die bedruckten Prüfungsexemplare und das Teilen der Ergebnisse per E-Mail, Artemis oder Mebis.
 
 - **Schüler hinzufügen** legt eine einzelne Person von Hand an; sie bekommt wie importierte einen QR-Code und einen persönlichen Schlüssel.
 - **Klassenliste übernehmen**: Wählen Sie oben im Kasten einen von drei Wegen. **Datei** liest eine Mebis-Bewertungstabelle oder Teilnehmerliste (CSV) oder eine einfache Liste; **Einfügen** nimmt getippte oder eingefügte Zeilen (`Nachname, Vorname; ID; Adresse`, eine pro Person); **Artemis-Kurs** holt die Kursmitglieder. Examance zeigt, was sich ändert (neu, aktualisiert, unverändert), und speichert erst nach **Übernehmen**. Schüler, die schon in der Liste stehen, werden über ihre ID erkannt, sonst über den Namen; dieselbe Liste noch einmal zu übernehmen, ergänzt also nur Adressen. In der Liste bearbeiten oder löschen Stift und Papierkorb einen einzelnen Schüler; für mehrere auf einmal haken Sie sie an und nutzen die Schaltflächen über der Liste.

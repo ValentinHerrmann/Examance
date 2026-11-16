@@ -1,4 +1,4 @@
-/** Multi-sheet print settings of an exam (issues #220 and #228, docs/dev/multi_sheet_exams.md): page codes and extra paper (Layout tab), print mode, duplex or booklet and sticker spots (Print step). The printed sheet always fills up to whole sheets of its layout with extra pages. */
+/** Multi-sheet print settings of an exam (issues #220 and #228, docs/dev/multi_sheet_exams.md): all set in the Layout step (issue #272): page codes, extra paper, print mode, duplex or booklet and sticker spots. The printed sheet always fills up to whole sheets of its layout with extra pages. */
 
 import type { ExamRecord } from '#lib/db/schema';
 
@@ -71,6 +71,11 @@ export function printSettingsOf(exam: PrintFields): PrintSettings {
     digitalGrading: exam.digitalGrading !== false,
     resultsQrBox: exam.digitalGrading === false && exam.resultsQrBox === true,
   };
+}
+
+/** Whether page 1 prints a name line: always when asked, and on a paper-graded exam without a QR box, which would otherwise name nobody (issue #272). */
+export function printsNameLine(settings: Pick<PrintSettings, 'digitalGrading' | 'resultsQrBox'>, nameLine: boolean | undefined): boolean {
+  return nameLine === true || (!settings.digitalGrading && !settings.resultsQrBox);
 }
 
 /** The spot choices a layout offers; a choice of the other layout falls back to its nearest one. */

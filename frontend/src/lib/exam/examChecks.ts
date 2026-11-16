@@ -80,7 +80,7 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
     const head = [
         // The printed date line, so an exam whose minutes only moved out of the date text (migration 0067) keeps its stamp.
         e.title, e.testart, e.grade, e.klasse, e.durationMinutes || e.readingMinutes ? printedDatum(e) : e.datum, e.nr, e.fach, e.lehrernachname, e.infoText,
-        e.latexPreamble, e.latexTemplate, e.numVersions, e.latexPackages, e.pageBreaks, e.nameLine,
+        e.latexPreamble, e.latexTemplate, e.numVersions, e.pageBreaks, e.nameLine,
         e.mcCorrectionHint, e.extraNotes,
         // Only when set, so stamps of exams without an override (all older ones) stay as they were.
         ...(e.course ? [e.course] : []),
