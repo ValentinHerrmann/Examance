@@ -44,6 +44,11 @@ describe('date and working time', () => {
     expect(parseDurationMinutes('2 h')).toBe(120);
     expect(parseDurationMinutes('45')).toBe(45);
     expect(parseDurationMinutes('2 Schulstunden')).toBeNull();
+    expect(parseDurationMinutes('90 MINUTEN')).toBe(90);
+    expect(parseDurationMinutes('2 Stunden')).toBe(120);
+    expect(parseDurationMinutes('1 hour')).toBe(60);
+    expect(parseDurationMinutes('3 Tage')).toBeNull();
+    expect(parseDurationMinutes('30 mins')).toBeNull();
     expect(parseDurationMinutes('37,5 Min')).toBeNull();
     expect(splitLegacyDatum('20.05.2025 (30 Min)')).toEqual({ datum: '20.05.2025', durationMinutes: 30 });
     expect(splitLegacyDatum('20.05.2025 (2 Schulstunden)')).toEqual({ datum: '20.05.2025 (2 Schulstunden)', durationMinutes: null });

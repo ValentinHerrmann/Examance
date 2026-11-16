@@ -52,12 +52,17 @@ export function parseDatumAndDauer(raw?: string | null): { datumDate: string; da
 
 /** Whole minutes of a legacy duration text ("30 Min", "1,5 Std", "2 h"); null when it is not a whole number of minutes (mirrors `split_legacy_datum` in migration 0067). */
 export function parseDurationMinutes(text?: string | null): number | null {
-  const match = /^(\d+(?:[.,]\d+)?)\s*(min\.?|minuten?|minutes?|std\.?|stunden?|h|hours?)?$/i.exec((text ?? '').trim());
+  const match = /^(\d+(?:[.,]\d+)?)\s*([a-z.]*)$/i.exec((text ?? '').trim());
   if (!match) return null;
-  const unit = (match[2] ?? 'min').toLowerCase();
-  const minutes = Number(match[1].replace(',', '.')) * (unit.startsWith('min') ? 1 : 60);
+  const unit = match[2].toLowerCase();
+  const factor = MINUTE_UNITS.has(unit) ? 1 : HOUR_UNITS.has(unit) ? 60 : null;
+  if (factor === null) return null;
+  const minutes = Number(match[1].replace(',', '.')) * factor;
   return Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : null;
 }
+
+const MINUTE_UNITS = new Set(['', 'min', 'min.', 'minute', 'minuten', 'minutes']);
+const HOUR_UNITS = new Set(['std', 'std.', 'stunde', 'stunden', 'h', 'hour', 'hours']);
 
 /** An old "date (duration)" value as date and whole minutes (issue #265); an unreadable bracket stays in the date, so nothing is lost. Imports of old archives go through it. */
 export function splitLegacyDatum(raw?: string | null): { datum: string; durationMinutes: number | null } {

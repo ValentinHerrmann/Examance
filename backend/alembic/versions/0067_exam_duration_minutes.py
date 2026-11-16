@@ -19,7 +19,9 @@ branch_labels = None
 depends_on = None
 
 _BRACKET = re.compile(r"^(.*?)\s*\(([^()]*)\)\s*$")
-_DURATION = re.compile(r"^(\d+(?:[.,]\d+)?)\s*(min\.?|minuten?|minutes?|std\.?|stunden?|h|hours?)?$", re.IGNORECASE)
+_DURATION = re.compile(r"^(\d+(?:[.,]\d+)?)\s*([a-z.]*)$", re.IGNORECASE)
+_MINUTE_UNITS = {"", "min", "min.", "minute", "minuten", "minutes"}
+_HOUR_UNITS = {"std", "std.", "stunde", "stunden", "h", "hour", "hours"}
 
 
 def split_legacy_datum(datum: str | None) -> tuple[str | None, int | None]:
@@ -30,8 +32,10 @@ def split_legacy_datum(datum: str | None) -> tuple[str | None, int | None]:
     duration = _DURATION.match(match.group(2).strip())
     if duration is None:
         return datum, None
-    unit = (duration.group(2) or "min").lower()
-    minutes = float(duration.group(1).replace(",", ".")) * (1 if unit.startswith("min") else 60)
+    unit = duration.group(2).lower()
+    if unit not in _MINUTE_UNITS and unit not in _HOUR_UNITS:
+        return datum, None
+    minutes = float(duration.group(1).replace(",", ".")) * (1 if unit in _MINUTE_UNITS else 60)
     if minutes < 1 or minutes > 1440 or minutes != int(minutes):
         return datum, None
     return match.group(1), int(minutes)
