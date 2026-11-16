@@ -1,32 +1,50 @@
 <script lang="ts" module>
-  import { compileLayoutSample } from "#lib/exam/layoutSample";
-  import { renderPdfPages, type RenderedPage } from "#lib/pdf/renderPages";
+  import { compileLayoutSample, SAMPLE_MC_URI } from "#lib/exam/layoutSample";
+  import { renderPdfPage, renderPdfPages, type RenderedPage } from "#lib/pdf/renderPages";
 
-  // The sample is the same for every exam: compiled and rendered once per tab, shared by every Layout step.
-  let sampleRun: Promise<RenderedPage[]> | null = null;
-  function loadSample(): Promise<RenderedPage[]> {
-    sampleRun ??= compileLayoutSample().then((r) => renderPdfPages(r.pdfBytes, 5));
+  interface Sample {
+    bytes: Uint8Array;
+    /** Thumbnails with sizes and link rects. */
+    pages: RenderedPage[];
+  }
+
+  // The sample is the same for every exam: compiled once per tab, shared by every Layout step; large renders are cached per page and width.
+  let sampleRun: Promise<Sample> | null = null;
+  const largeRenders = new Map<string, Promise<string>>();
+  function loadSample(): Promise<Sample> {
+    sampleRun ??= compileLayoutSample().then(async (r) => ({ bytes: r.pdfBytes, pages: await renderPdfPages(r.pdfBytes) }));
     sampleRun.catch(() => (sampleRun = null));
     return sampleRun;
+  }
+  function largeRender(sample: Sample, n: number, widthPx: number): Promise<string> {
+    const key = `${n}:${widthPx}`;
+    let run = largeRenders.get(key);
+    if (!run) {
+      run = renderPdfPage(sample.bytes, n, widthPx);
+      largeRenders.set(key, run);
+      run.catch(() => largeRenders.delete(key));
+    }
+    return run;
   }
 </script>
 
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
+  import { onDestroy, onMount, untrack } from "svelte";
   import { t } from "#lib/i18n";
-  import { focusPageOf, SAMPLE_PAGES, sheetSketchOf, sheetsOf, type SketchPart } from "#lib/exam/sheetSketch";
+  import { focusPageOf, pageElementsOf, SAMPLE_PAGES, sheetSketchOf, sheetsOf, type SketchPart } from "#lib/exam/sheetSketch";
   import { getLatestForSlot } from "#lib/latex/compileCache";
   import { pagesPerSheet } from "#lib/exam/printLayout";
   import type { ExamRecord } from "#lib/db/schema";
-  import { minWidth } from "#lib/stores/viewport";
   import { fillViewport } from "#lib/utils/fillViewport";
+  import { minWidth } from "#lib/stores/viewport";
   import { Button } from "#lib/components/ui";
   import { faArrowsRotate } from "@fortawesome/free-solid-svg-icons";
   import SketchPage from "./SketchPage.svelte";
+  import PageInfo from "./PageInfo.svelte";
 
   type Fields = Parameters<typeof sheetSketchOf>[0];
 
-  /** The Layout step's preview (issue #272): a sample exam with every layout option drawn over it, one page large and every page as a thumbnail. */
+  /** The Layout step's preview (issue #272): a sample exam with every layout option drawn over it; one page large with numbered callouts, an info panel beside it, and every page as a thumbnail. */
   interface Props {
     examId: string;
     fields: Fields & Pick<ExamRecord, "printLayout">;
@@ -37,16 +55,29 @@
 
   let { examId, fields, hasLogo, highlight = null }: Props = $props();
 
-  let sample = $state.raw<RenderedPage[] | null>(null);
+  let sample = $state.raw<Sample | null>(null);
   let status = $state<"loading" | "ready" | "failed">("loading");
   let examPages = $state<number | null>(null);
   let focus = $state(1);
+  /** The panel's own hover, which stresses an element without moving to another page. */
+  let panelHighlight = $state<SketchPart | null>(null);
+  let largeBox: HTMLElement | undefined = $state();
+  let largeWidth = $state(0);
+  let largeUrl = $state<{ page: number; url: string } | null>(null);
   const isXl = minWidth("xl", true);
 
-  let model = $derived(sheetSketchOf(fields, hasLogo, sample?.length ?? SAMPLE_PAGES));
+  let model = $derived(sheetSketchOf(fields, hasLogo, sample?.pages.length ?? SAMPLE_PAGES));
   let sheets = $derived(sheetsOf(model));
   let current = $derived(model.pages.find((p) => p.number === focus) ?? model.pages[0]!);
-  const imageOf = (n: number) => (n <= (sample?.length ?? 0) ? sample![n - 1]! : null);
+  const thumbOf = (n: number) => sample?.pages[n - 1] ?? null;
+  const hasMc = (n: number) => (sample ? !!sample.pages[n - 1]?.links.some((l) => l.uri === SAMPLE_MC_URI) : undefined);
+  let shown = $derived(panelHighlight ?? highlight);
+  let parts = $derived(pageElementsOf(model, current, hasMc(current.number)));
+  let largeImage = $derived.by(() => {
+    const thumb = thumbOf(current.number);
+    if (!thumb) return null;
+    return largeUrl?.page === current.number ? { ...thumb, url: largeUrl.url } : thumb;
+  });
   const roleLabel = (role: string) => $t(`exam.layout.sketch.role.${role}` as "exam.layout.sketch.role.cover");
 
   async function load() {
@@ -71,9 +102,24 @@
     }
   }
 
+  // The large page is rendered at the width it is shown at, so it stays sharp; widths are bucketed to avoid re-rendering on every pixel.
+  let observer: ResizeObserver | null = null;
+  let resizeTimer: ReturnType<typeof setTimeout> | undefined;
   onMount(() => {
     void load();
     void readExamPages();
+    observer = new ResizeObserver(([entry]) => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const px = Math.round(((entry?.contentRect.width ?? 0) * (globalThis.devicePixelRatio || 1)) / 200) * 200;
+        if (px > 0 && px !== largeWidth) largeWidth = px;
+      }, 200);
+    });
+    if (largeBox) observer.observe(largeBox);
+  });
+  onDestroy(() => {
+    observer?.disconnect();
+    clearTimeout(resizeTimer);
   });
 
   let examSheets = $derived(examPages === null ? null : Math.ceil(examPages / pagesPerSheet(model.layout)));
@@ -82,7 +128,9 @@
   $effect.pre(() => {
     const part = highlight;
     untrack(() => {
-      if (part) focus = focusPageOf(part, model);
+      if (!part) return;
+      const mcPage = part === "mcHint" ? model.pages.find((p) => hasMc(p.number))?.number : undefined;
+      focus = mcPage ?? focusPageOf(part, model);
     });
   });
   // A page that no longer exists (fewer extra pages) falls back to the cover.
@@ -92,24 +140,45 @@
       if (focus > count) focus = 1;
     });
   });
+  // Renders the shown sample page sharply once its width is known; the thumbnail stands in meanwhile.
+  $effect.pre(() => {
+    const s = sample;
+    const n = current.number;
+    const width = largeWidth;
+    untrack(() => {
+      if (!s || !width || n > s.pages.length) return;
+      void largeRender(s, n, width)
+        .then((url) => {
+          if (current.number === n) largeUrl = { page: n, url };
+        })
+        .catch(() => {});
+    });
+  });
 </script>
 
 {#snippet large()}
-  <SketchPage {model} page={current} image={imageOf(current.number)} {highlight} class="mx-auto block h-full max-h-full w-auto max-w-full rounded shadow-sm" />
+  <SketchPage {model} page={current} image={largeImage} highlight={shown} callouts={parts} class="mx-auto block h-full max-h-full w-auto max-w-full rounded shadow-sm" />
 {/snippet}
 
-<figure class="m-0 flex min-w-0 flex-col gap-3">
+<figure class="@container m-0 flex min-w-0 flex-col gap-3">
   <figcaption class="flex flex-wrap items-baseline gap-x-2 text-sm">
     <span class="font-semibold text-content">{$t("exam.layout.sketch.title")}</span>
     <span class="text-xs text-muted">{$t("exam.layout.sketch.pageOf", { page: current.number, pages: model.pages.length, role: roleLabel(current.role) })}</span>
     {#if status === "loading"}<span class="text-xs text-muted">{$t("exam.layout.sketch.loading")}</span>{/if}
   </figcaption>
 
-  {#if $isXl}
-    <div class="min-h-0" use:fillViewport={{ min: 320 }}>{@render large()}</div>
-  {:else}
-    <div class="mx-auto w-full max-w-56 sm:max-w-xs">{@render large()}</div>
-  {/if}
+  <!-- From a wide card the info panel sits beside the page; narrower, below it. -->
+  <div class="grid min-w-0 grid-cols-1 gap-4 @2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+    <div class="min-w-0" bind:this={largeBox}>
+      {#if $isXl}
+        <div class="flex min-h-0 justify-center" use:fillViewport={{ min: 360 }}>{@render large()}</div>
+      {:else}
+        <!-- Phones and tablets: a page that leaves the options in reach below. -->
+        <div class="mx-auto w-full max-w-64 sm:max-w-sm">{@render large()}</div>
+      {/if}
+    </div>
+    <PageInfo {model} {parts} bind:highlight={panelHighlight} />
+  </div>
 
   <!-- Every page, grouped as printed; a click shows it large. -->
   <div class="overflow-x-auto pb-1">
@@ -126,7 +195,7 @@
                 title="{page.number} · {roleLabel(page.role)}"
                 onclick={() => (focus = page.number)}
               >
-                <SketchPage {model} {page} image={imageOf(page.number)} thumb class="w-full" />
+                <SketchPage {model} {page} image={thumbOf(page.number)} thumb class="w-full" />
                 <span class="max-w-full truncate">{page.number} · {roleLabel(page.role)}</span>
               </button>
             {/each}

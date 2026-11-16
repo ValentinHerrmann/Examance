@@ -72,10 +72,10 @@ describe('booklet offset (issue #228)', () => {
 });
 
 describe('digital grading off (issue #228)', () => {
-  it('prints no scan aids, a name line and no personalised copies', async () => {
+  it('prints no scan aids and keeps personalised copies (issue #272)', async () => {
     const { withExamOptions } = await import('../src/lib/exam/examPreview');
-    const exam = { pageCodes: true, printMode: 'copies', digitalGrading: false, resultsQrBox: true } as const;
-    expect(printSettingsOf(exam).mode).toBe('stickers');
+    const exam = { pageCodes: true, printMode: 'copies', digitalGrading: false, resultsQrBox: true, nameLine: true } as const;
+    expect(printSettingsOf(exam)).toMatchObject({ mode: 'copies', pageCodes: true, digitalGrading: false });
     expect(withExamOptions('sans', exam).split(',')).toEqual(expect.arrayContaining(['namenszeile', 'ohnescan', 'ergebnisqr']));
     expect(withExamOptions('sans', { pageCodes: true })).not.toContain('ohnescan');
   });

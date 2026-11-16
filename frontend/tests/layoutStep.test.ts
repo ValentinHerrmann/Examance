@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LAYOUT_PRESETS, matchPreset } from '../src/lib/exam/layoutPresets';
 import { NEW_EXAM_PRINT, printSettingsOf, printsNameLine } from '../src/lib/exam/printLayout';
-import { focusPageOf, sheetSketchOf } from '../src/lib/exam/sheetSketch';
+import { focusPageOf, nameInfoOf, pageElementsOf, sheetSketchOf } from '../src/lib/exam/sheetSketch';
 import { layoutSampleTex, SAMPLE_MC_URI, SAMPLE_REST_URI } from '../src/lib/exam/layoutSample';
 import { withExamOptions } from '../src/lib/exam/examPreview';
 
@@ -102,5 +102,52 @@ describe('layout sample (issue #272)', () => {
     const tex = layoutSampleTex();
     expect(tex).not.toMatch(/\\par[A-Za-z]/);
     for (const uri of [SAMPLE_MC_URI, SAMPLE_REST_URI]) expect(tex).toMatch(new RegExp(`${uri}\\}.*\\\\par\\n`));
+  });
+});
+
+describe('personalised copies without Examance grading (issue #272)', () => {
+  const paperCopies = { digitalGrading: false, printMode: 'copies' as const, resultsQrBox: false, nameLine: false };
+
+  it('keeps the copies and the QR box they stamp into', () => {
+    expect(printSettingsOf(paperCopies)).toMatchObject({ mode: 'copies', resultsQrBox: true, digitalGrading: false });
+    const options = withExamOptions('', paperCopies).split(',');
+    expect(options).toEqual(expect.arrayContaining(['ohnescan', 'ergebnisqr']));
+    expect(options).not.toContain('namenszeile');
+  });
+
+  it('has its own preset, distinct from anonymous stickers', () => {
+    expect(matchPreset(preset('anonymousPaperCopies'))).toBe('anonymousPaperCopies');
+    expect(matchPreset(preset('anonymousPaper'))).toBe('anonymousPaper');
+  });
+
+  it('prints the QR code and names the student only on the cut-off corner', () => {
+    const model = sheetSketchOf({ ...NEW_EXAM_PRINT, ...paperCopies }, false);
+    expect(model.qr).toBe('printed');
+    expect(nameInfoOf(model)).toEqual({ places: ['cornerTab'], visibleOnGraded: false });
+  });
+});
+
+describe('where the name appears (issue #272)', () => {
+  it('stickers name the student on the cover and on later sheets', () => {
+    expect(nameInfoOf(sheetSketchOf({ ...NEW_EXAM_PRINT }, false))).toEqual({ places: ['sticker', 'stickerSpots'], visibleOnGraded: true });
+  });
+
+  it('a name line is written by hand and stays', () => {
+    const info = nameInfoOf(sheetSketchOf({ ...NEW_EXAM_PRINT, digitalGrading: false, resultsQrBox: false, nameLine: false }, false));
+    expect(info).toEqual({ places: ['nameLine'], visibleOnGraded: true });
+  });
+
+  it('a paper QR box only carries the sticker', () => {
+    expect(nameInfoOf(sheetSketchOf({ ...NEW_EXAM_PRINT, digitalGrading: false, resultsQrBox: true, nameLine: false }, false)).places).toEqual(['sticker']);
+  });
+
+  it('lists the elements of each page in badge order', () => {
+    const model = sheetSketchOf({ ...NEW_EXAM_PRINT, mcCorrectionHint: true, extraPages: 1 }, false);
+    expect(pageElementsOf(model, model.pages[0]!)).toEqual(['scanAids', 'pageCodes', 'qr']);
+    expect(pageElementsOf(model, model.pages[1]!)).toEqual(['scanAids', 'pageCodes', 'mcHint']);
+    expect(pageElementsOf(model, model.pages[2]!, false)).toEqual(['scanAids', 'pageCodes', 'stickers']);
+    expect(pageElementsOf(model, model.pages[3]!)).toEqual(['scanAids', 'pageCodes', 'notes', 'paper']);
+    const booklet = sheetSketchOf({ ...NEW_EXAM_PRINT, printLayout: 'booklet', stickerSpots: 'a3' }, false);
+    expect(pageElementsOf(booklet, booklet.pages[0]!)).toContain('fold');
   });
 });

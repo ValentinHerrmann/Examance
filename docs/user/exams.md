@@ -73,13 +73,14 @@ Groups are layout only: grading and statistics stay strictly per question.
 
 ## Layout options {#layout}
 
-The **Layout** step (step 2, between **Exam** and **Students**) holds every option that changes how the printed exam looks. Beside the options a preview shows a **sample exam** (not your own content) with your options applied: one page large and every page of a copy as a thumbnail, grouped by sheet. The pages are the cover, exercise pages, the last page, your extra pages and the **filler pages** that top every copy up to whole sheets (empty writing pages). Point at or click into an option and the preview jumps to the page it changes and highlights the element; click a thumbnail to show that page large. When your exam has been previewed in the **Exam** step, a line below says how many pages and sheets your own exam has. Order of the options: preset, grading, print form, cover, every page, writing space. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
+The **Layout** step (step 2, between **Exam** and **Students**) holds every option that changes how the printed exam looks. Beside the options a preview shows a **sample exam** (not your own content) with your options applied: one page large and every page of a copy as a thumbnail, grouped by sheet. The pages are the cover, exercise pages, the last page, your extra pages and the **filler pages** that top every copy up to whole sheets (empty writing pages). Point at or click into an option and the preview jumps to the page it changes and highlights the element; click a thumbnail to show that page large. Numbered badges on the page match the panel beside it, which explains each element and says **where the name is**: on the sticker (small, above the QR code), on the cut-off corner of a personalised copy, or on the handwritten name line, and whether it is still on the paper you grade. When your exam has been previewed in the **Exam** step, a line below says how many pages and sheets your own exam has. Order of the options: preset, grading, print form, cover, every page, writing space. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
 
 **Presets** at the top are starting points; they are not stored. Choosing one sets its options, and all of them stay editable. The page shows which preset matches your settings, or "custom settings" if none does.
 
 - **Grade in Examance**: scan aids, a page code on every page, QR code only, the multiple choice correction hint, double-sided A4 and a sticker on every sheet.
 - **Grade in Examance as a booklet**: the same as a folded A3 booklet, with a sticker on every A3 sheet.
 - **Grade anonymously on paper**: no scan aids, only a QR sticker box on the cover, no name line.
+- **Grade anonymously on paper, personalised**: no scan aids, one copy per student with its printed QR code; the name is on the cut-off corner.
 - **Grade on paper with names**: no scan aids, no QR box, a name line.
 
 Presets never change the paper, the extra pages, the info text or the logo. Below them the options are grouped:
@@ -92,7 +93,7 @@ Presets never change the paper, the extra pages, the info text or the logo. Belo
 
 ### Grading outside Examance {#digital-grading}
 
-If you only create the exam with Examance and grade it on paper, switch off **Grade in Examance** in the **Grading** section of the Layout step. The exam then prints no corner markers, page codes, cut lines or sticker spots. Everything else stays exactly where it is. Scanning, MC check, digital grading and personalised copies are greyed out for such an exam (with the reason, never hidden), and **Next** from **Print** leads to paper grading. Paper grading and the statistics stay available.
+If you only create the exam with Examance and grade it on paper, switch off **Grade in Examance** in the **Grading** section of the Layout step. The exam then prints no corner markers, page codes, cut lines or sticker spots. Everything else stays exactly where it is. Page codes and sticker spots stay visible on the Layout step but are greyed out with the reason. Scanning, MC check and digital grading are greyed out too (never hidden), and **Next** from **Print** leads to paper grading. **Personalised copies still work**: each copy gets its printed QR code, and the student's name and personal key sit on the corner you cut off before handing out, so you grade anonymously on paper (preset **Grade anonymously on paper, personalised**). Paper grading and the statistics stay available.
 
 ### Name choice {#name-line}
 

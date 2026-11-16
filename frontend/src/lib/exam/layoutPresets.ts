@@ -4,7 +4,7 @@ import type { ExamRecord } from '#lib/db/schema';
 import { printSettingsOf } from '#lib/exam/printLayout';
 import type { ExamLayoutPatch } from '#lib/exam/saveExamLayout';
 
-export type LayoutPresetId = 'fullDigital' | 'digitalBooklet' | 'anonymousPaper' | 'namedPaper';
+export type LayoutPresetId = 'fullDigital' | 'digitalBooklet' | 'anonymousPaper' | 'anonymousPaperCopies' | 'namedPaper';
 
 /** The fields a preset sets; paper, extra pages, notes, logo and info text are content choices and stay as they are. */
 export type PresetFields = Required<Pick<ExamLayoutPatch, 'digitalGrading' | 'resultsQrBox' | 'nameLine' | 'pageCodes' | 'mcCorrectionHint' | 'printLayout' | 'printMode' | 'stickerSpots'>>;
@@ -17,12 +17,14 @@ export const LAYOUT_PRESETS: readonly { id: LayoutPresetId; fields: PresetFields
   { id: 'digitalBooklet', fields: { ...DIGITAL, printLayout: 'booklet', stickerSpots: 'a3' } },
   // Paper grading keeps page codes and sticker spots stored as for digital grading, so switching grading back on restores them.
   { id: 'anonymousPaper', fields: { ...PAPER, digitalGrading: false, resultsQrBox: true, nameLine: false } },
+  // Personalised copies without scanning: the QR code is printed, name and key sit on the corner that is cut off before grading.
+  { id: 'anonymousPaperCopies', fields: { ...PAPER, digitalGrading: false, resultsQrBox: true, nameLine: false, printMode: 'copies' } },
   { id: 'namedPaper', fields: { ...PAPER, digitalGrading: false, resultsQrBox: false, nameLine: true } },
 ];
 
 type PresetSource = Pick<ExamRecord, 'nameLine' | 'mcCorrectionHint' | 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox'>;
 
-/** The fields as they print: paper grading ignores page codes, sticker spots and copies, so those do not decide the match there. */
+/** The fields as they print: paper grading ignores page codes and sticker spots, so those do not decide the match there. */
 function printedForm(fields: PresetSource) {
   const print = printSettingsOf(fields);
   const digital = print.digitalGrading;
@@ -33,7 +35,7 @@ function printedForm(fields: PresetSource) {
     mcCorrectionHint: fields.mcCorrectionHint === true,
     layout: print.layout,
     pageCodes: digital && print.pageCodes,
-    mode: digital ? print.mode : 'stickers',
+    mode: print.mode,
     stickerSpots: digital ? print.stickerSpots : 'cover',
   };
 }

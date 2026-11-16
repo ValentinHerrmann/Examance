@@ -10,7 +10,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 |---|---|---|---|---|
 | `page_codes` | bool | `true` | Layout step | `seitencode` |
 | `print_layout` | `duplex`, `booklet` | `duplex` | Layout step | `broschuere` |
-| `print_mode` | `stickers`, `copies` | `stickers` | Layout step | sticker spots only in `stickers` mode |
+| `print_mode` | `stickers`, `copies` | `stickers` | Layout step | sticker spots only in `stickers` mode; `copies` also without `digital_grading` (issue #272), then `printSettingsOf` reads `results_qr_box` as on, since copies stamp their code into the box and `examCopies.ts` draws page 1's corner tab itself |
 | `sticker_spots` | `cover`, `sheet`, `a3`, `leaf` | `sheet` | Layout step (sticker mode) | `\Aufkleberseiten{bogen|a3}` |
 | `paper_style` | `empty`, `squared`, `lined` | `squared` | Layout step | `papierkaro` / `papierlinien` |
 | `extra_pages` | int 0–20 | `0` | Layout step | `\Zusatzseiten{n}` |

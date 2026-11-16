@@ -23,7 +23,7 @@ export interface PrintSettings {
   bookletOffsetMm: number;
   /** Graded in Examance (scans, OMR); false prints no scan aids (issue #228). */
   digitalGrading: boolean;
-  /** Without digital grading: one results QR sticker box on page 1. */
+  /** Without digital grading: the QR box on page 1 (always for personalised copies). */
   resultsQrBox: boolean;
 }
 
@@ -62,14 +62,15 @@ export function printSettingsOf(exam: PrintFields): PrintSettings {
   return {
     pageCodes: exam.pageCodes === true,
     layout,
-    // Personalised copies need the scan aids an exam graded outside Examance leaves out.
-    mode: exam.printMode === 'copies' && exam.digitalGrading !== false ? 'copies' : 'stickers',
+    // Personalised copies also work without Examance grading (anonymous papers graded by hand, issue #272).
+    mode: exam.printMode === 'copies' ? 'copies' : 'stickers',
     stickerSpots: spotsFor(layout, spots),
     paperStyle: PAPER.has(exam.paperStyle ?? '') ? (exam.paperStyle as PaperStyle) : 'empty',
     extraPages: clampExtraPages(exam.extraPages),
     bookletOffsetMm: clampBookletOffset(exam.bookletOffsetMm),
     digitalGrading: exam.digitalGrading !== false,
-    resultsQrBox: exam.digitalGrading === false && exam.resultsQrBox === true,
+    // Without scan aids the QR box is optional, except for personalised copies, which stamp their code into it.
+    resultsQrBox: exam.digitalGrading === false && (exam.resultsQrBox === true || exam.printMode === 'copies'),
   };
 }
 

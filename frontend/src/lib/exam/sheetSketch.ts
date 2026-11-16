@@ -4,7 +4,8 @@ import { pagesPerSheet, printSettingsOf, printsNameLine, stickerPagesOf, type Pa
 import { DEFAULT_EXTRA_NOTES, fillsLastPage, type ExamRecord } from '#lib/db/schema';
 
 /** One element the preview can highlight while its option is hovered or focused. */
-export type SketchPart = 'scanAids' | 'qr' | 'name' | 'logo' | 'info' | 'pageCodes' | 'mcHint' | 'stickers' | 'fold' | 'paper' | 'notes';
+/** `cornerTab` is the personalised copy's name and key on page 1's cut-off corner. */
+export type SketchPart = 'scanAids' | 'cornerTab' | 'qr' | 'name' | 'logo' | 'info' | 'pageCodes' | 'mcHint' | 'stickers' | 'fold' | 'paper' | 'notes';
 
 /** Content pages come from the sample; `extra` are the exam's extra pages, `filler` the ones that fill whole sheets. */
 export type SketchPageRole = 'cover' | 'exercises' | 'last' | 'extra' | 'filler';
@@ -60,7 +61,8 @@ export function sheetSketchOf(exam: SketchSource, hasLogo: boolean, contentPages
   const total = Math.ceil(before / per) * per;
   // Without scan aids no sticker spot is printed (`ohnescan`), whatever is stored.
   const spots = new Set(digital ? stickerPagesOf(print, total) : []);
-  const qr = digital ? (print.mode === 'copies' ? 'printed' : 'sticker') : print.resultsQrBox ? 'sticker' : 'none';
+  // Personalised copies print the code with or without Examance grading (issue #272).
+  const qr = print.mode === 'copies' ? 'printed' : digital || print.resultsQrBox ? 'sticker' : 'none';
   const nameLine = printsNameLine(print, exam.nameLine);
   const notes = exam.extraNotes ?? DEFAULT_EXTRA_NOTES;
   const pages: SketchPageModel[] = [];
@@ -105,9 +107,40 @@ export function focusPageOf(part: SketchPart, model: SheetSketchModel): number {
     case 'scanAids':
     case 'mcHint':
       return first((p) => p.role === 'exercises') ?? 1;
+    case 'cornerTab':
     default:
       return 1;
   }
+}
+
+/** Where a copy names its student: the sticker (cover, later sticker spots), the cut-off corner of a personalised copy, the handwritten name line. */
+export type NamePlace = 'sticker' | 'stickerSpots' | 'cornerTab' | 'nameLine';
+
+/** Where the name is printed or written, and whether it is still on the paper that is graded (a personalised copy's corner is cut off first; a sticker and a name line stay). */
+export function nameInfoOf(model: SheetSketchModel): { places: NamePlace[]; visibleOnGraded: boolean } {
+  const places: NamePlace[] = [];
+  if (model.qr === 'sticker') places.push('sticker');
+  if (model.pages.some((p) => p.stickerSpot)) places.push('stickerSpots');
+  if (model.qr === 'printed') places.push('cornerTab');
+  if (model.nameLine) places.push('nameLine');
+  return { places, visibleOnGraded: model.nameLine || model.qr === 'sticker' };
+}
+
+/** The elements on *page*, in reading order, for the preview's callouts and its "on this page" list; *hasMc* says whether the page holds the sample's MC question. */
+export function pageElementsOf(model: SheetSketchModel, page: SketchPageModel, hasMc = page.role === 'exercises'): SketchPart[] {
+  const parts: SketchPart[] = [];
+  const cover = page.role === 'cover';
+  if (cover && model.logo) parts.push('logo');
+  if (cover && model.qr === 'printed') parts.push('cornerTab');
+  if (model.scanAids) parts.push('scanAids');
+  if (model.pageCodes) parts.push('pageCodes');
+  if (page.stickerSpot) parts.push('stickers');
+  if (cover && model.qr !== 'none') parts.push('qr');
+  if (cover && model.nameLine) parts.push('name');
+  if (hasMc && model.mcHint) parts.push('mcHint');
+  if (page.foldSide) parts.push('fold');
+  if (page.role === 'extra' || page.role === 'filler' || (page.role === 'last' && model.restArea)) parts.push('notes', 'paper');
+  return parts;
 }
 
 /** Pages grouped as printed: front and back of each A4 sheet, or the four pages of each folded A3 sheet. */
