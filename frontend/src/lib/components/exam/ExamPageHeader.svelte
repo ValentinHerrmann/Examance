@@ -23,7 +23,7 @@
   let { examId, step, title, hint, helpTopic, next = true, actions: actions_ }: Props = $props();
 
   let examTitle = $derived($examNavContext?.examId === examId ? $examNavContext.exam?.title || $t("exam.nav.examFallback") : undefined);
-  let nextOf = $derived(next ? nextStep(step) : null);
+  let nextOf = $derived(next ? nextStep(step, $examNavContext?.examId === examId ? $examNavContext.exam?.digitalGrading : undefined) : null);
   let nextLabel = $derived(EXAM_STEPS.find((s) => s.step === nextOf)?.labelKey);
 </script>
 

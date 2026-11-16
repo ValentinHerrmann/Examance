@@ -43,8 +43,8 @@
 
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
-  // Personalised copies stamp page codes and QR codes, which an exam graded outside Examance does not print.
-  let copiesBlocked = $derived(ctx?.exam.digitalGrading === false ? translate("exam.layout.grading.off") : ctx ? copiesUnavailable(ctx.exercises) : null);
+  // Personalised copies work with and without Examance grading (issue #272); only exercises without their code block them.
+  let copiesBlocked = $derived(ctx ? copiesUnavailable(ctx.exercises) : null);
   // Only a results-only import lacks the LaTeX to preview; an exam graded outside Examance still compiles (without scan aids).
   let resultsOnly = $derived(!!ctx && examHasWithheldCode(ctx.exercises));
   let hasMc = $derived(ctx ? resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups).length > 0 : false);

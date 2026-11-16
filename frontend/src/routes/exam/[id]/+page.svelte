@@ -79,7 +79,7 @@
   let totalPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints ?? 0), 0));
   let stats = $derived(computeExamStats(submissions).get(examId));
   let progress = $derived($examNavContext?.examId === examId ? $examNavContext.progress : {});
-  let next = $derived(continueStep(progress));
+  let next = $derived(continueStep(progress, exam?.digitalGrading));
   let nextLabel = $derived(EXAM_STEPS.find((s) => s.step === next)?.labelKey);
   let course = $derived(exam ? examCourse(exam) : "");
   let subtitle = $derived(exam ? [exam.testart, [course, exam.fach].filter(Boolean).join(", "), exam.datum].filter(Boolean).join(" · ") : "");
@@ -233,7 +233,7 @@
       </Card>
 
       <Card class="xl:col-span-2" title={$t("exam.overview.workflow")}>
-        <ExamStepLinks {examId} {progress} layout="stepper" />
+        <ExamStepLinks {examId} {progress} layout="stepper" digitalGrading={exam?.digitalGrading} />
       </Card>
     </div>
 

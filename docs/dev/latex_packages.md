@@ -12,7 +12,6 @@ and `backend/app/services/latex_packages.py`; the merge logic exists on both sid
 | Template | `backend/latex-assets/sty/*.sty` | read-only overview (`GET /latex/template-packages`, parsed from the files) |
 | Account | `teachers.latex_packages` (JSON) | Settings → "LaTeX-Pakete" (`AccountPackagesCard`; `GET`/`PUT /user/latex-packages`) |
 | Exercise | `\usepackage` / `\usetikzlibrary` / `\usepgfplotslibrary` lines in the exercise LaTeX | exercise editor, `ExercisePackagesPanel` (it rewrites only lines that hold nothing but package commands) |
-| Exam | `exams.latex_packages` (JSON, null follows the account) | "Prüfung bearbeiten" dialog (`ExamPackagesField` in `ExamMetadataEditor`) |
 
 The template preloads the packages the editor's subject snippets use (chemfig, circuitikz, mhchem; issue #154), so a
 snippet never needs a package line. The browser engine's TeX Live bundle lacks some of them; those are vendored
@@ -23,12 +22,12 @@ bundle. Check a new template package in both engines: a dependency missing from 
 Exercise packages stay in the LaTeX on purpose: they then travel with sharing, copies, versions,
 variants, merges, archives and exports without a second field to keep in sync.
 
-An entry is `{kind, name, options, disabled}`. `disabled` only means something on the exam level:
-it leaves out a package the account adds (not one an exercise needs; that one is kept with a note).
+An entry is `{kind, name, options}`. Exams have no package list of their own (dropped in issue #272): stored exam
+values and a legacy `disabled` key in an entry are ignored.
 
 ## Merging
 
-`resolvePackages(layers)` walks account → exercises (in exam order) → exam and merges per
+`resolvePackages(layers)` walks account → exercises (in exam order) and merges per
 `(kind, name)`:
 
 - Options are split at top-level commas. Flags are united; `key=value` items are keyed by `key`,

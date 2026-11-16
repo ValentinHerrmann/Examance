@@ -149,8 +149,8 @@
           >
             {#snippet actions()}
               {@const progress = progressOf(exam)}
-              {@const next = continueStep(progress)}
-              <ExamStepLinks examId={exam.id} {progress} />
+              {@const next = continueStep(progress, exam.digitalGrading)}
+              <ExamStepLinks examId={exam.id} {progress} digitalGrading={exam.digitalGrading} />
               <Button href={examStepHref(exam.id, next)} size="sm" iconRight={actionIcons.next}>
                 {$t("exam.flow.continue", { step: $t(stepEntry(next).labelKey) })}
               </Button>

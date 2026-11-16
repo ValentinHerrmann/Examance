@@ -11,14 +11,7 @@ import { invalidateOwner } from '#lib/latex/compileCache';
 import { newTrashGroup, trashHeaders, type DeleteOptions } from '#lib/trash/group';
 import { captureLocal, storedExamRows } from '#lib/trash/localTrash';
 import { stepChecksField, type StepChecks } from '#lib/exam/examChecks';
-import { storedEntries, type LatexPackageEntry } from '#lib/latex/packages';
 import { splitLegacyDatum } from '#lib/utils/examLabel';
-
-/** Undefined (unknown) stays undefined, so a later save leaves the server's value alone. */
-function packagesField(value: unknown): LatexPackageEntry[] | null | undefined {
-  if (value === undefined) return undefined;
-  return value === null ? null : storedEntries(value);
-}
 
 /** Undefined (unknown) stays undefined so a later save leaves the server's value alone. */
 function pageBreaksField(value: unknown): string[] | null | undefined {
@@ -49,7 +42,7 @@ export function extraNotesToApi(
 }
 
 /** The multi-sheet print fields (issue #220), from the API's snake_case or a stored camelCase record; normalised by `printSettingsOf`. */
-function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox'> {
+function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip'> {
   const s = printSettingsOf({
     pageCodes: raw.page_codes ?? raw.pageCodes,
     printLayout: raw.print_layout ?? raw.printLayout,
@@ -60,11 +53,13 @@ function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' |
     bookletOffsetMm: raw.booklet_offset_mm ?? raw.bookletOffsetMm,
     digitalGrading: raw.digital_grading ?? raw.digitalGrading,
     resultsQrBox: raw.results_qr_box ?? raw.resultsQrBox,
+    cutCorner: raw.cut_corner ?? raw.cutCorner,
+    foldStrip: raw.fold_strip ?? raw.foldStrip,
   });
   return {
     pageCodes: s.pageCodes, printLayout: s.layout, stickerSpots: s.stickerSpots, printMode: s.mode,
     paperStyle: s.paperStyle, extraPages: s.extraPages, bookletOffsetMm: s.bookletOffsetMm,
-    digitalGrading: s.digitalGrading, resultsQrBox: s.resultsQrBox,
+    digitalGrading: s.digitalGrading, resultsQrBox: s.resultsQrBox, cutCorner: s.cutCorner, foldStrip: s.foldStrip,
   };
 }
 
@@ -92,7 +87,6 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     lehrernachname: raw.lehrernachname,
     infoText: raw.info_text || raw.infoText,
     gradingKey: raw.grading_key || raw.gradingKey,
-    latexPackages: packagesField(raw.latex_packages !== undefined ? raw.latex_packages : raw.latexPackages),
     pageBreaks: pageBreaksField(raw.page_breaks !== undefined ? raw.page_breaks : raw.pageBreaks),
     nameLine: (raw.name_line ?? raw.nameLine) === true,
     mcCorrectionHint: (raw.mc_correction_hint ?? raw.mcCorrectionHint) === true,
@@ -133,8 +127,6 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     lehrernachname: exam.lehrernachname,
     info_text: exam.infoText,
     grading_key: exam.gradingKey,
-    // null clears the exam's package override, undefined leaves it alone.
-    latex_packages: exam.latexPackages,
     // Empty or null clears the breaks, undefined leaves them alone.
     page_breaks: exam.pageBreaks,
     // Undefined leaves the stored choice alone.
@@ -149,6 +141,8 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     booklet_offset_mm: exam.bookletOffsetMm,
     digital_grading: exam.digitalGrading,
     results_qr_box: exam.resultsQrBox,
+    cut_corner: exam.cutCorner,
+    fold_strip: exam.foldStrip,
     // null switches the block off, undefined leaves it alone.
     extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,

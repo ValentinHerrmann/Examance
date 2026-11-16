@@ -1,4 +1,4 @@
-"""LaTeX packages chosen in Examance: account, exam and exercise levels (issue #108).
+"""LaTeX packages chosen in Examance: account and exercise levels (issue #108).
 
 Every level is a list of entries; ``resolve_packages`` merges them into one set without option
 clashes and ``with_packages`` writes it before ``\\documentclass`` (packages.sty loads it before
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Literal, cast
 
 PackageKind = Literal["package", "tikzlibrary", "pgfplotslibrary"]
-LayerSource = Literal["account", "exam", "exercise", "auto"]
+LayerSource = Literal["account", "exercise", "auto"]
 PACKAGE_KINDS: tuple[PackageKind, ...] = ("package", "tikzlibrary", "pgfplotslibrary")
 
 _RULES = json.loads(
@@ -46,8 +46,6 @@ class PackageEntry:
     kind: PackageKind
     name: str
     options: str = ""
-    # Exam level only: leave out a package the account adds.
-    disabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -65,7 +63,7 @@ class PackageLayer:
 
 @dataclass(frozen=True)
 class PackageNote:
-    # conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); kept: the exam left out a package an exercise needs; added: pgfplots for its libraries.
+    # conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); added: pgfplots for its libraries.
     code: str
     kind: PackageKind
     name: str
@@ -142,7 +140,7 @@ def stored_entries(value: object) -> list[PackageEntry]:
             continue
         if entry_error(kind, name, options) is None:
             entries.append(
-                PackageEntry(cast(PackageKind, kind), name, options, item.get("disabled") is True)
+                PackageEntry(cast(PackageKind, kind), name, options)
             )
     return entries
 
@@ -268,20 +266,6 @@ def _dealias(entry: PackageEntry, ref: SourceRef, notes: list[PackageNote]) -> t
     return target, ",".join(part for part in (option, entry.options) if part)
 
 
-def _leave_out(
-    merged: dict[tuple[str, str], _Merged], notes: list[PackageNote], key: tuple[str, str]
-) -> None:
-    """An exam's ``disabled`` entry: drop the package unless an exercise needs it."""
-    current = merged.get(key)
-    if current is None:
-        return
-    needed_by = tuple(source for source in current.sources if source.source == "exercise")
-    if needed_by:
-        notes.append(PackageNote("kept", current.kind, current.name, "", needed_by))
-    else:
-        del merged[key]
-
-
 def _merge_options(
     current: _Merged, notes: list[PackageNote], options: str, ref: SourceRef
 ) -> None:
@@ -309,9 +293,6 @@ def _apply(
     if reason:
         notes.append(PackageNote("ignored", kind, name, reason, (ref,)))
         return
-    if entry.disabled:
-        _leave_out(merged, notes, (kind, name))
-        return
     current = merged.setdefault((kind, name), _Merged(kind, name))
     if ref not in current.sources:
         current.sources.append(ref)
@@ -319,7 +300,7 @@ def _apply(
 
 
 def resolve_packages(layers: Iterable[PackageLayer]) -> ResolvedPackages:
-    """Merge the levels in order (account, exercises, exam): later ones override option values."""
+    """Merge the levels in order (account, exercises): later ones override option values."""
     merged: dict[tuple[str, str], _Merged] = {}
     notes: list[PackageNote] = []
     for layer in layers:
@@ -357,7 +338,7 @@ def package_preamble(resolved: ResolvedPackages) -> str:
             before.append(f"  \\{command}{{{','.join(names)}}}%")
     if not (options or before or after):
         return ""
-    lines = ["% LaTeX packages from the Examance settings, the exam and its exercises", *options]
+    lines = ["% LaTeX packages from the Examance settings and the exercises", *options]
     if before:
         lines += ["\\def\\ExamancePackages{%", *before, "}"]
     if after:

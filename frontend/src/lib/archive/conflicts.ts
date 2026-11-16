@@ -5,7 +5,6 @@ import { examRepository } from '#lib/repositories/examRepository';
 import { exerciseRepository } from '#lib/repositories/exerciseRepository';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
-import { storedEntries } from '#lib/latex/packages';
 import { remapPageBreaks } from '#lib/exam/pageBreaks';
 import { joinKey } from '#lib/crypto/pseudonymKey';
 import type { StudentRecord } from '#lib/db/schema';
@@ -77,12 +76,6 @@ async function perExam(
   return (await Promise.all(examIds.map(load))).flat();
 }
 
-/** An exam's package additions as one comparable line (issue #108). */
-const packageSummary = (entries: unknown) =>
-  storedEntries(entries)
-    .map((e) => (e.disabled ? '-' : '') + e.name + (e.options ? `[${e.options}]` : ''))
-    .join(', ');
-
 /** The writing space (issues #156, #228) as one comparable line; null when never set. */
 function extraNotesSummary(notes: Row | null | undefined): string | null {
   if (!notes) return null;
@@ -105,7 +98,6 @@ const SPECS: KindSpec[] = [
     fields: {
       ...props('title', 'testart', 'fach', 'topic', 'grade', 'klasse', 'course', 'datum', 'nr', 'numVersions', 'retentionUntil'),
       gradingKey: (r) => r.gradingKey?.preset,
-      latexPackages: (r) => packageSummary(r.latexPackages),
       // Layout switches travel with the exam; without them a layout-only change counted as "identical" and was dropped.
       nameLine: (r) => r.nameLine === true,
       mcCorrectionHint: (r) => r.mcCorrectionHint === true,

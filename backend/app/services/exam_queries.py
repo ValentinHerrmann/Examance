@@ -11,29 +11,16 @@ from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
 from app.models.exercise import Exercise
 from app.schemas.exam import ExamMcGroupResponse, ExamResponse, ExerciseResponse, ExtraNotes
-from app.schemas.latex_packages import LatexPackageEntry
-from app.services.latex_packages import stored_entries
 
 # (exercise, order_index, mc_group_id, sub_index): the exercise with its place in the exam.
 ExerciseRow = tuple[Exercise, int, uuid.UUID | None, int | None]
 
 # Columns copied by name. `exercises` stays out: on an Exam it is the ORM relationship of that name, and reading it lazy-loads, which fails on an async session.
 _EXAM_COLUMNS = ExamResponse.model_fields.keys() - {
-    "latex_packages",
     "extra_notes",
     "exercises",
     "mc_groups",
 }
-
-
-def stored_packages(value: object) -> list[LatexPackageEntry] | None:
-    """The exam's package override for responses; null when it follows the account."""
-    if value is None:
-        return None
-    return [
-        LatexPackageEntry(kind=e.kind, name=e.name, options=e.options, disabled=e.disabled)
-        for e in stored_entries(value)
-    ]
 
 
 def exercise_response(row: ExerciseRow) -> ExerciseResponse:
@@ -60,7 +47,6 @@ def exam_response(
 
     return ExamResponse(
         **{name: getattr(exam, name) for name in _EXAM_COLUMNS},
-        latex_packages=stored_packages(exam.latex_packages),
         extra_notes=ExtraNotes.model_validate(exam.extra_notes) if exam.extra_notes else None,
         exercises=[exercise_response(row) for row in exercises],
         mc_groups=[

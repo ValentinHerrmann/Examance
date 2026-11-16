@@ -40,14 +40,13 @@ def test_levels_merge_without_clashes() -> None:
                 "A",
             ),
             PackageLayer("exercise", exercise_entries("\\usepackage[locale=FR]{siunitx}"), "B"),
-            PackageLayer("exam", [PackageEntry("package", "cleveref", disabled=True)]),
         ]
     )
     by_name = {p.name: p for p in resolved.packages}
     assert by_name["xcolor"].options == ["dvipsnames", "table"]
     assert by_name["enumitem"].options == ["shortlabels"]
     assert by_name["siunitx"].options == ["locale=FR"]
-    assert "cleveref" not in by_name
+    assert "cleveref" in by_name
     assert "pgfplots" in by_name
     assert "geometry" not in by_name
     assert "fontenc" not in by_name
@@ -112,7 +111,6 @@ async def test_account_packages_roundtrip_and_validation(
         "kind": "package",
         "name": "siunitx",
         "options": "locale=DE",
-        "disabled": False,
     }
     assert (await client.get("/api/v1/user/latex-packages")).json()["entries"][1][
         "name"
@@ -131,30 +129,37 @@ async def test_account_packages_roundtrip_and_validation(
 
 
 @pytest.mark.asyncio
-async def test_exam_override_follows_patch_rules(client: AsyncClient, db: AsyncSession) -> None:
+async def test_exam_ignores_a_latex_packages_field(client: AsyncClient, db: AsyncSession) -> None:
+    """Exam-level packages were dropped (issue #272): the field is ignored, never stored."""
     await sign_in(client, db, "exam-packages@example.com")
     resp = await client.post(
         "/api/v1/exams",
         json={
             "title": "Packages",
             "retention_until": (date.today() + timedelta(days=30)).isoformat(),
-            "latex_packages": [{"name": "cleveref", "disabled": True}],
+            "latex_packages": [{"name": "cleveref"}],
         },
     )
     assert resp.status_code == 201, resp.text
-    exam_id = resp.json()["id"]
-    assert resp.json()["latex_packages"] == [
-        {"kind": "package", "name": "cleveref", "options": "", "disabled": True}
-    ]
-
-    resp = await client.patch(f"/api/v1/exams/{exam_id}", json={"title": "Renamed"})
-    assert resp.json()["latex_packages"][0]["name"] == "cleveref"
-    resp = await client.patch(f"/api/v1/exams/{exam_id}", json={"latex_packages": None})
-    assert resp.json()["latex_packages"] is None
+    assert "latex_packages" not in resp.json()
     resp = await client.patch(
-        f"/api/v1/exams/{exam_id}", json={"latex_packages": [{"name": "inputenc"}]}
+        f"/api/v1/exams/{resp.json()['id']}", json={"latex_packages": [{"name": "inputenc"}]}
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 200, resp.text
+    assert "latex_packages" not in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_account_entry_with_a_retired_disabled_key_still_parses(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await sign_in(client, db, "disabled-key@example.com")
+    resp = await client.put(
+        "/api/v1/user/latex-packages",
+        json={"entries": [{"name": "cleveref", "disabled": True}]},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["entries"] == [{"kind": "package", "name": "cleveref", "options": ""}]
 
 
 @pytest.mark.asyncio

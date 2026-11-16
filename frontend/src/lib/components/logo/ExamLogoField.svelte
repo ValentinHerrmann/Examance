@@ -21,11 +21,13 @@
   /** An exam's logo choice (issue #46): the account logo, no logo, or the exam's own. Nothing is written here; the choice is staged in `change` and the exam page applies it on save. */
   interface Props {
     examId: string;
+    /** Out: whether the current choice prints a logo, for the Layout step's sketch. */
+    hasLogo?: boolean;
     /** Null while the choice equals what the exam already has. */
     change?: ExamLogoChange | null;
   }
 
-  let { examId, change = $bindable(null) }: Props = $props();
+  let { examId, change = $bindable(null), hasLogo = $bindable(false) }: Props = $props();
 
   let loading = $state(true);
   let error = $state("");
@@ -71,6 +73,10 @@
       error = err instanceof LogoError ? translate(err.key) : (err as Error).message;
     }
   }
+
+  $effect.pre(() => {
+    hasLogo = mode === "custom" ? !!customBytes : mode === "account" && !!accountBytes;
+  });
 
   onMount(async () => {
     change = null;

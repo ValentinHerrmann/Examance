@@ -67,8 +67,6 @@ class Exam(Base):
     lehrernachname: Mapped[str | None] = mapped_column(String(100), nullable=True)
     info_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     grading_key: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    # Package entries on top of the account's (issue #108); null follows the account.
-    latex_packages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     # Item ids (exercise or MC group) that start on a new page; plaintext layout metadata.
     page_breaks: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     # Adds a handwritten name line next to the QR sticker box (issue #127).
@@ -93,6 +91,9 @@ class Exam(Base):
     digital_grading: Mapped[bool] = mapped_column(nullable=False, default=True, server_default="true")
     # Without digital grading: page 1 keeps one box for a results QR sticker.
     results_qr_box: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    # Scan aids printed one by one (issue #272): the cut-off corner's tint, cut line and scissors, and a booklet's fold strip.
+    cut_corner: Mapped[bool] = mapped_column(nullable=False, default=True, server_default="true")
+    fold_strip: Mapped[bool] = mapped_column(nullable=False, default=True, server_default="true")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Ticks the teacher sets by hand per step (print checklist, MC check); the client owns the shape.

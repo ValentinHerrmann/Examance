@@ -1,8 +1,8 @@
-/** LaTeX packages chosen in Examance: account, exam and exercise levels (issue #108). `resolvePackages` merges them into one set without option clashes and `withPackages` writes it before `\documentclass` (packages.sty loads it before hyperref). Rules: docs/dev/latex_packages.md. Mirrors backend/app/services/latex_packages.py; keep in sync. The rule tables come from one file both sides read (`backend/app/services/latex_package_rules.json`). */
+/** LaTeX packages chosen in Examance: account and exercise levels (issue #108). `resolvePackages` merges them into one set without option clashes and `withPackages` writes it before `\documentclass` (packages.sty loads it before hyperref). Rules: docs/dev/latex_packages.md. Mirrors backend/app/services/latex_packages.py; keep in sync. The rule tables come from one file both sides read (`backend/app/services/latex_package_rules.json`). */
 import RULES from '../../../../backend/app/services/latex_package_rules.json';
 
 export type PackageKind = "package" | "tikzlibrary" | "pgfplotslibrary";
-export type LayerSource = "account" | "exam" | "exercise" | "auto";
+export type LayerSource = "account" | "exercise" | "auto";
 export const PACKAGE_KINDS: readonly PackageKind[] = ["package", "tikzlibrary", "pgfplotslibrary"];
 
 export const MAX_ENTRIES = RULES.maxEntries;
@@ -26,8 +26,6 @@ export interface LatexPackageEntry {
   kind: PackageKind;
   name: string;
   options: string;
-  /** Exam level only: leave out a package the account adds. */
-  disabled?: boolean;
 }
 
 export interface SourceRef {
@@ -41,9 +39,9 @@ export interface PackageLayer {
   label?: string;
 }
 
-export type NoteCode = "conflict" | "override" | "ignored" | "aliased" | "kept" | "added";
+export type NoteCode = "conflict" | "override" | "ignored" | "aliased" | "added";
 
-/** conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); kept: the exam left out a package an exercise needs; added: pgfplots for its libraries. */
+/** conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); added: pgfplots for its libraries. */
 export interface PackageNote {
   code: NoteCode;
   kind: PackageKind;
@@ -114,10 +112,10 @@ export function storedEntries(value: unknown): LatexPackageEntry[] {
   const entries: LatexPackageEntry[] = [];
   for (const item of value) {
     if (!item || typeof item !== "object") continue;
-    const { kind = "package", name, options = "", disabled } = item as Record<string, unknown>;
+    const { kind = "package", name, options = "" } = item as Record<string, unknown>;
     if (typeof kind !== "string" || typeof name !== "string" || typeof options !== "string") continue;
     if (entryError(kind, name, options) !== null) continue;
-    entries.push({ kind: kind as PackageKind, name, options, ...(disabled === true ? { disabled: true } : {}) });
+    entries.push({ kind: kind as PackageKind, name, options });
   }
   return entries;
 }
@@ -175,7 +173,7 @@ function splitNames(argument: string): string[] {
 }
 
 const sameEntry = (a: LatexPackageEntry, b: LatexPackageEntry) =>
-  a.kind === b.kind && a.name === b.name && a.options === b.options && Boolean(a.disabled) === Boolean(b.disabled);
+  a.kind === b.kind && a.name === b.name && a.options === b.options;
 
 function collect(entries: LatexPackageEntry[], code: string): void {
   for (const [, command, rawOptions, rawArgument] of code.matchAll(PACKAGE_COMMAND)) {
@@ -253,15 +251,6 @@ function dealias(entry: LatexPackageEntry, ref: SourceRef, notes: PackageNote[])
   return [target, [option, entry.options].filter(Boolean).join(",")];
 }
 
-/** An exam's `disabled` entry: drop the package unless an exercise needs it. */
-function leaveOut(merged: Map<string, Merged>, notes: PackageNote[], key: string): void {
-  const current = merged.get(key);
-  if (!current) return;
-  const neededBy = current.sources.filter((s) => s.source === "exercise");
-  if (neededBy.length) notes.push({ code: "kept", kind: current.kind, name: current.name, detail: "", sources: neededBy });
-  else merged.delete(key);
-}
-
 function mergeOptions(current: Merged, notes: PackageNote[], options: string, ref: SourceRef): void {
   for (const item of splitOptions(options)) {
     const optionKey = item.split("=", 1)[0];
@@ -289,10 +278,6 @@ function apply(merged: Map<string, Merged>, notes: PackageNote[], entry: LatexPa
     return;
   }
   const key = `${kind}:${name}`;
-  if (entry.disabled) {
-    leaveOut(merged, notes, key);
-    return;
-  }
   let current = merged.get(key);
   if (!current) {
     current = { kind, name, options: new Map(), sources: [] };
@@ -302,7 +287,7 @@ function apply(merged: Map<string, Merged>, notes: PackageNote[], entry: LatexPa
   mergeOptions(current, notes, options, ref);
 }
 
-/** Merge the levels in order (account, exercises, exam): later ones override option values. */
+/** Merge the levels in order (account, exercises): later ones override option values. */
 export function resolvePackages(layers: readonly PackageLayer[]): ResolvedPackages {
   const merged = new Map<string, Merged>();
   const notes: PackageNote[] = [];
@@ -358,16 +343,11 @@ export function withPackages(doc: string, layers: readonly PackageLayer[]): stri
   return doc.slice(0, start) + block + doc.slice(start);
 }
 
-/** The usual three levels of one document; `exercises` is the LaTeX of all its exercises. */
-export function documentLayers(
-  account: readonly LatexPackageEntry[],
-  exercises: string,
-  exam?: readonly LatexPackageEntry[] | null
-): PackageLayer[] {
+/** The two levels of one document; `exercises` is the LaTeX of all its exercises. */
+export function documentLayers(account: readonly LatexPackageEntry[], exercises: string): PackageLayer[] {
   return [
     { source: "account", entries: account },
     { source: "exercise", entries: exerciseEntries(exercises) },
-    { source: "exam", entries: exam ?? [] },
   ];
 }
 
@@ -442,14 +422,4 @@ export function updatePackageLine(
   if (parts.length) lines[line] = indent + parts.join(" ");
   else lines.splice(line, 1);
   return lines.join("\n");
-}
-
-/** Whether two levels hold the same packages with the same options, in any order. */
-export function samePackageLists(a: readonly LatexPackageEntry[], b: readonly LatexPackageEntry[]): boolean {
-  const key = (list: readonly LatexPackageEntry[]) =>
-    list
-      .map((e) => `${e.disabled ? "-" : ""}${e.kind}:${e.name}[${splitOptions(e.options).join(",")}]`)
-      .sort((x, y) => x.localeCompare(y))
-      .join("|");
-  return key(a) === key(b);
 }

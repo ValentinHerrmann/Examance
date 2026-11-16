@@ -8,7 +8,7 @@ An exam is a selection of exercises from your library plus header data, a gradin
 
 ## Create a new exam {#new-exam}
 
-**New exam** (on the dashboard) asks only for the header data, creates the exam and opens it on the **Exam** step with the exercise library. Everything else (exercises, order, MC groups, layout, logo, packages, preview) is done there.
+**New exam** (on the dashboard) asks only for the header data, creates the exam and opens it on the **Exercises** step with the exercise library. The exercises, their order, MC groups and the preview are done there; how the printed exam looks is set in the next step, [Layout](#layout).
 
 ### Header data {#header}
 
@@ -22,31 +22,34 @@ The **printed class** (`\Klasse` on the cover sheet) is made from grade and clas
 
 The optional **topic** (for example "Recursion") organises your exams in the overview, where you can filter and search by it. It is never printed. The overview can also be sorted by date, title, grade or subject.
 
-To change the header data later, edit them directly in the **Details** card on the **Overview** and choose **Save** (**Discard changes** goes back; leaving the page with unsaved changes asks first). The card holds only the exam's details: title, test type, grade/class, date, working time in minutes, number, subject, teacher, topic and the retention date. Layout settings are on the [Layout tab](#layout), the grading key under [Results](./results#grading-key).
+To change the header data later, edit them directly in the **Details** card on the **Overview** and choose **Save** (**Discard changes** goes back; leaving the page with unsaved changes asks first). The card holds only the exam's details: title, test type, grade/class, date, working time in minutes, number, subject, teacher, topic and the retention date. Layout settings are in the [Layout step](#layout), the grading key under [Results](./results#grading-key).
 
 ## The exam's steps {#steps}
 
-Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand (hover it for what it counts): the number of exercises, students or scans, graded x/y, the printed **Print** jobs, open MC checks, shared results (in red, the number of result e-mails that did not arrive). The number before a step's name is only its place in the flow. Steps 4A–6A (scans, MC check, digital grading) and B (paper grading) are alternatives: use B for a class graded on paper, without scans; you never need both. On the exams list, every step of an exam is shown in its card and opens that step. At the top right of every step page, next to the exam name and the step title, a **Next: …** button leads to the following step; explanations sit behind the ⓘ icons.
+Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step has a badge showing where you stand (hover it for what it counts): the number of exercises, students or scans, graded x/y, the printed **Print** jobs, open MC checks, shared results (in red, the number of result e-mails that did not arrive). The number before a step's name is only its place in the flow. Steps 5A–7A (scans, MC check, digital grading) and B (paper grading) are alternatives: use B for a class graded on paper, without scans; you never need both. If you switch off **Grade in Examance** in the Layout step, steps 5A–7A stay in the list but are greyed out with the reason, and **Next** from **Print** goes to B. On the exams list, every step of an exam is shown in its card and opens that step. At the top right of every step page, next to the exam name and the step title, a **Next: …** button leads to the following step; explanations sit behind the ⓘ icons.
 
 | Step | What you do there |
 |---|---|
 | **Overview** | Details and key figures of the exam, see [below](#overview) |
-| 1 **Exam** | Exercises, layout and preview, see [Assemble the exercises](#assemble) and [Layout options](#layout) |
-| 2 **Students** | The class list, see [Student data](./students#student-data) |
-| 3 **Print** | Create the PDFs and the QR codes, see [Print](#print) |
-| 4A **Scans** | Import the scanned sheets, see [Scanning and assignment](./scanning) |
-| 5A **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
-| 6A **Digital grading** | Correct the scanned submissions, see [Grading](./grading) |
-| B **Paper grading** | Instead of 4A–6A: enter points for papers graded on paper, without scanning, see [Classes graded on paper](./grading#paper) |
-| 7 **Results & Export** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
+| 1 **Exercises** | Exercises and preview, see [Assemble the exercises](#assemble) and [Typeset](#typeset) |
+| 2 **Layout** | Everything that changes how the exam looks, with a live preview of a sample exam, see [Layout options](#layout) |
+| 3 **Students** | The class list, see [Student data](./students#student-data) |
+| 4 **Print** | Create the PDFs and the QR codes, see [Print](#print) |
+| 5A **Scans** | Import the scanned sheets, see [Scanning and assignment](./scanning) |
+| 6A **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
+| 7A **Digital grading** | Correct the scanned submissions, see [Grading](./grading) |
+| B **Paper grading** | Instead of 5A–7A: enter points for papers graded on paper, without scanning, see [Classes graded on paper](./grading#paper) |
+| 8 **Results** | Grade distribution, key figures and borderline cases, see [Results and analysis](./results) |
+| 9 **Review** | Tabs **Send to students** and **Objections**, see [Share results](./results#share) and [Objections](./students#grading-review) |
+| 10 **Export** | Overview sheet, graded exams and more for your records, see [Archive an exam](./results#archive) |
 
 ## Overview {#overview}
 
-**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details, a few key figures (points, average, grading key) and, at the bottom, the **Workflow**: every step in order with its badge, each one a link; the step you most likely need next is highlighted. **Continue: …** (followed by the step's name) opens that step. The **Details** card edits the header data in place, **Back up / transfer** packs the exam as a readable ZIP or a password-protected backup that Examance can import again, for moving or sharing it (see [Export](#export)); to keep the results for your records, use **Results & Export → Archive** instead. The **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
+**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details, a few key figures (points, average, grading key) and, at the bottom, the **Workflow**: every step in order with its badge, each one a link; the step you most likely need next is highlighted. **Continue: …** (followed by the step's name) opens that step. The **Details** card edits the header data in place, **Back up / transfer** packs the exam as a readable ZIP or a password-protected backup that Examance can import again, for moving or sharing it (see [Export](#export)); to keep the results for your records, use the **Export** step instead. The **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
 
 ## Assemble the exercises {#assemble}
 
-On the **Exam** step, the **Exercises** tab lists the exam's exercises. **Add exercises** picks exercises from the library, with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
+On the **Exercises** step, the **Exercises** tab lists the exam's exercises. **Add exercises** picks exercises from the library, with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
 
 - The arrows reorder the exercises.
 - The total score is recalculated as you go.
@@ -72,15 +75,46 @@ Groups are layout only: grading and statistics stay strictly per question.
 
 ## Layout options {#layout}
 
-Layout settings live on the **Layout** tab of the **Exam** step: info text, name line, cut-off corner hint, the multiple choice correction legend, [printing on several sheets](#multi-sheet), logo and LaTeX packages. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
+The **Layout** step (step 2, between **Exercises** and **Students**) holds every option that changes how the printed exam looks. Beside the options a preview shows a **sample exam** (not your own content) with your options applied: one page large and every page of a copy as a small numbered thumbnail, grouped by sheet. From wide screens on, the preview fills the screen beside the options and never scrolls; the page shrinks to fit. The pages are the cover, exercise pages, the last page, your extra pages and the **filler pages** that top every copy up to whole sheets (empty writing pages). Point at an option to highlight its element on the page shown; click or tab into an option and the preview moves to the page it changes; click a thumbnail to show that page large. The sample shows your own info text, a header with 30 minutes of working time plus 5 minutes of reading time and a sample student, Max Mustermann, with a 20 % time extension. Numbered badges on the page match the panel beside it, which explains each element and says **where the name is**: on the sticker (small, above the QR code), on the cut-off corner of a personalised copy, or on the handwritten name line, and whether it is still on the paper you grade. When your exam has been previewed in the **Exercises** step, a line below says how many pages and sheets your own exam has. Order of the options: preset, grading and scan aids, print form, cover, every page, writing space. Each row shows small tiles with the label on the left; the line below a row explains the chosen option, or the one you point at. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
+
+**Presets** at the top are starting points; they are not stored. Choosing one sets its options, and all of them stay editable. The page shows which preset matches your settings, or "custom settings" if none does.
+
+- **Grade in Examance**: every scan aid, QR code only, the multiple choice correction hint, double-sided A4, identical copies and a sticker on every sheet.
+- **Examance, personalised booklet**: every scan aid, one folded A3 booklet per student with its printed QR code, and a name line.
+- **Anonymous on paper, personalised**: graded by hand; no corner markers or page codes, one copy per student with its printed QR code; the name is on the cut-off corner.
+- **On paper with names, booklet**: no scan aids and no QR code, a folded A3 booklet with a name line.
+
+Together they show each grading way with both print forms and with personalised copies. Anonymous paper grading with stickers instead of printed codes is one click away: choose **Stickers** under **Student QR code**.
+
+Presets never change the paper, the extra pages, the info text or the logo. Below them the options are grouped:
+
+- **Grading and scan aids**: corner markers, cut corner, [page codes](#multi-sheet) and the booklet's fold strip, each on or off, see [below](#digital-grading).
+- **Print form**: [stickers or personalised copies](#multi-sheet-print), double-sided A4 or booklet, and the stickers per student (stickers only, and only with a QR box on the cover).
+- **Cover**: the [name choice](#name-line), info text and the [logo](#logo-packages).
+- **Every page**: the [multiple choice correction hint](#mc-hint).
+- **Writing space**: paper, [extra notes and extra pages](#extra-paper).
 
 ### Grading outside Examance {#digital-grading}
 
-If you only create the exam with Examance and grade it on paper, switch off **Grade in Examance** at the top of the **Layout** tab. The exam then prints no corner markers, page codes, cut lines or sticker spots, and page 1 gets a name line. Everything else stays exactly where it is. With **Box for a results QR code** page 1 keeps one sticker box, for example to send results with DiRueLei. Scanning and personalised copies are greyed out for such an exam. Paper grading and the statistics stay available.
+Each scan aid is a switch of its own under **Grading and scan aids**; a switched-off aid leaves its room empty, everything else stays exactly where it is:
 
-### Name line {#name-line}
+- **Corner markers**: the four black squares the scanner aligns each page by. They are what grading in Examance needs: switch them off if you only create the exam with Examance and grade it on paper. Scanning, MC check and digital grading are then greyed out (never hidden), and **Next** from **Print** leads to paper grading.
+- **Cut corner**: the grey corner with its dashed cut line and scissors on every page. Personalised copies always keep it, because the name and key are printed there.
+- **Page codes**: a small QR code on every page. Without corner markers they are still printed (on personalised copies they name the student) but only read when scanning in Examance.
+- **Fold strip**: the grey strip along a booklet's fold, where you cut it open for scanning (booklets only).
 
-With **Print a name line next to the QR code box** (when creating the exam or on the **Layout** tab), the title page gets a line for the student's name. The QR code box stays where it is, so scanning and assignment work as before; only the initials field inside the box is dropped.
+Only the corner markers are technically required for grading in Examance; without them the Layout step shows a warning. The other aids make cutting and scanning easier. **Turn on all scan aids** switches every one of them on at once.
+
+ **Personalised copies still work**: each copy gets its printed QR code, and the student's name and personal key sit on the corner you cut off before handing out, so you grade anonymously on paper (preset **Grade anonymously on paper, personalised**). Paper grading and the statistics stay available.
+
+### Name choice {#name-line}
+
+What the cover offers for the student's name depends on the grading choice:
+
+- With corner markers on (grading in Examance) or with personalised copies: **QR code only** or **QR code and name line**. The QR code box stays where it is either way, so scanning and assignment work as before; with a name line only the initials field inside the box is dropped.
+- With grading off and stickers: **Name line only**, **QR box only** (anonymous; you match the results to students later by the QR code, for example outside Examance), or **QR box and name line** (for example to send results with DiRueLei). Without a name line, page 1 keeps the QR sticker box with its initials field.
+
+Existing exams that are graded on paper keep their name line.
 
 ### Cut-off corner {#cut-corner}
 
@@ -94,7 +128,7 @@ The sketch shows the usable space on odd and even pages: text area, header, scor
 
 ### How to correct a cross {#mc-hint}
 
-**Show how to correct a cross at every multiple-choice task** (when creating the exam, or on the **Layout** tab) prints one short line at the start of every multiple choice task, in the exam and in the solution:
+**Show how to correct a cross at every multiple-choice task** (**Every page** section of the Layout step) prints one short line at the start of every multiple choice task, in the exam and in the solution:
 
 - **cross** a box to choose an option;
 - **fill** the box completely to withdraw a cross;
@@ -104,29 +138,29 @@ The sketch shows the usable space on odd and even pages: text area, header, scor
 
 MC detection reads exactly these marks, see [Verify MC detections](./scanning#mc-verification). Turning the option on or off rebuilds the answer-sheet template, so typeset and print the exam again afterwards.
 
-### Logo and LaTeX packages {#logo-packages}
+### Logo {#logo-packages}
 
-Every exam prints a logo at the top left of the first page. On the **Layout** tab you choose the logo from your settings, no logo, or a logo for this exam only (see [Logo on the exam](./settings#logo)). In the exam overview, every expanded exam shows which logo it prints.
+Every exam prints a logo at the top left of the first page. In the **Cover** section of the Layout step you choose the logo from your settings, no logo, or a logo for this exam only (see [Logo on the exam](./settings#logo)). In the exam overview, every expanded exam shows which logo it prints.
 
-On the same tab you can also add LaTeX packages for this exam only or leave out packages of your account (see [LaTeX packages](./exercises#packages)).
+LaTeX packages are no longer set per exam: they come from your account (**Settings → LaTeX packages**, see [Settings](./settings)) and from the exercises themselves (the packages panel of the exercise editor, see [LaTeX packages](./exercises#packages)).
 
 ## Several sheets {#multi-sheet}
 
-An exam that runs over several sheets of paper is easier to handle when every page knows who and what it is. The **Layout** tab has an option for this, and the printed copies always fill whole sheets:
+An exam that runs over several sheets of paper is easier to handle when every page knows who and what it is. The **Every page** section of the Layout step has an option for this, and the printed copies always fill whole sheets:
 
 - **Page code on every page.** A small QR code (14 mm) at the top of every page, on the side of the cut-off corner, just inside the corner marker, tells the scanner which page it is. On [personalised copies](./students#printed-copies) it also carries the student's ID (the short sticker ID or the Mebis or Artemis ID, never the name). So the order of the scanned sheets no longer matters, missing pages are reported and loose sheets find their student. The code is reliable from 200 ppi scans; 300 ppi is better. It is on by default for new exams. Older exams keep their layout until you switch it on; that changes the page layout, so copies printed before no longer match.
-- **Whole sheets.** Every printed copy is filled up to whole sheets (an even page count when printed double-sided, a multiple of 4 as a booklet), so each copy starts on a new sheet. The added pages are [extra pages](#extra-paper) for writing. Which multiple applies follows the print type you choose in the Print step, so the preview on the **Exam** step leaves these pages out; the Print step shows them. They are scanned, archived and exported like every other page.
+- **Whole sheets.** Every printed copy is filled up to whole sheets (an even page count when printed double-sided, a multiple of 4 as a booklet), so each copy starts on a new sheet. The added pages are [extra pages](#extra-paper) for writing. Which multiple applies follows the print form you choose in the Layout step, so the preview on the **Exercises** step leaves these pages out; the Print step shows them. They are scanned, archived and exported like every other page.
 
-How you print these sheets (double-sided or booklet, stickers per sheet) is chosen in the [Print step](#multi-sheet-print).
+How you print these sheets (double-sided or booklet, stickers per sheet) is chosen under **Print form** in the Layout step, see [below](#multi-sheet-print); how the printer is fed is asked in the Print step.
 
 ### Printing several sheets {#multi-sheet-print}
 
-The print plan of the **Print** step holds these choices:
+The **Print form** section of the Layout step holds these choices; the **Print** step shows them in one summary line with a link **Change in the Layout step**:
 
-- **Personalised copies** or **Plain copies + stickers**.
+- **Personalised copies** or **Plain copies + stickers** (personalised copies also without grading in Examance).
 - **How do you print?** **Double-sided (A4, two pages per sheet)** or **Booklet (folded A3, four pages per sheet)**.
-- For booklets, **Who arranges the pages?** **Examance (A3 sheets, any printer)**: print on A3, double-sided, flip on the short edge, at actual size (100 %, with "fit to page", "scale to fit" and auto-centring turned off), fold along the printed centre line and staple. If your printer prints the sheets off-centre anyway, use **Shift (mm)** below it: print the **Test sheet** once, fold it edge to edge, read where the crease crosses the ruler (right of the centre is positive) and enter that value. It is saved with the exam, and Examance shifts every A3 sheet by it. Or **My printer's booklet function**: personalised copies then download as a ZIP with one PDF per student, which you print one by one.
-- **Stickers per student** (only for plain copies + stickers). Double-sided: one for the whole exam (on the cover page) or one per sheet. Booklet: one for the whole exam, one per A3 sheet, or one per A4 leaf after cutting. Stickers on later sheets go onto a faint, unlabelled grey 35 × 35 mm spot at the top of the page, on the side away from the cut corner, over the page header. Personalised copies need no extra stickers: every page code names the student.
+- For booklets, the **Print** step asks **Who arranges the pages?** **Examance (A3 sheets, any printer)**: print on A3, double-sided, flip on the short edge, at actual size (100 %, with "fit to page", "scale to fit" and auto-centring turned off), fold along the printed centre line and staple. If your printer prints the sheets off-centre anyway, use **Shift (mm)** below it: print the **Test sheet** once, fold it edge to edge, read where the crease crosses the ruler (right of the centre is positive) and enter that value. It is saved with the exam, and Examance shifts every A3 sheet by it. Or **My printer's booklet function**: personalised copies then download as a ZIP with one PDF per student, which you print one by one.
+- **Stickers per student** or sticker spots (only for plain copies + stickers). Double-sided: one for the whole exam (on the cover page) or one per sheet. Booklet: one for the whole exam, one per A3 sheet, or one per A4 leaf after cutting. Stickers on later sheets go onto a faint, unlabelled grey 35 × 35 mm spot at the top of the page, on the side away from the cut corner, over the page header. Personalised copies need no extra stickers: every page code names the student.
 
 **Create print files** typesets what the plan prints (the solution only when **with solution** is ticked; unchanged parts are reused) and makes the sticker sheet or the personalised copies. Each job card then only has the download and the **printed** tick.
 
@@ -138,7 +172,7 @@ How to scan these sheets: [Scan the stack](./scanning#scan).
 
 ## Extra paper {#extra-paper}
 
-Some students need more room than the task sheet offers. The **Layout** tab has a **Writing space** group for this:
+Some students need more room than the task sheet offers. The **Writing space** section of the Layout step has the options for this:
 
 - **Paper for writing**: **Squared** (5 mm, default for new exams), **Lined** (8 mm) or **Empty**. It applies to every writing space: the rest of the last page, the extra pages and the extra sheets. The pattern is light grey, so writing over it stays readable.
 - **Heading** and **note** of the writing space (prefilled with "Platz für weitere Lösungen" and a short note, printed in German). They head the rest-of-page area and every extra page; the note stands on the heading's line.
@@ -154,7 +188,7 @@ Some students need more room than the task sheet offers. The **Layout** tab has 
 
 ## Typeset {#typeset}
 
-**Live Preview PDF** typesets the exam and the solution sheet. On wide screens the preview sits next to the exercises and the layout; on smaller screens it is a third tab, **Preview**, beside **Exercises** and **Layout**. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
+**Live Preview PDF** typesets the exam and the solution sheet. On wide screens the preview sits next to the exercises and the layout; on smaller screens it is a second tab, **Preview**, beside **Exercises**. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
 
 Depending on your settings and your account, the exam is typeset
 
@@ -173,7 +207,7 @@ In the exam overview, **Preview** in an expanded entry opens the last compiled P
 
 The **Print** step has the **print plan** on the left and the PDFs on the right (on smaller screens below it). The preview shows only what the plan prints, and only once it is up to date: for personalised copies without the solution, just the personalised copies. When Examance arranges a booklet, it shows the A3 sheets exactly as they will be printed. One button, **Create print files**, typesets what the plan prints, refreshes the scan template for MC detection and makes the sticker or copies PDF.
 
-In the print plan you choose how you print: **Plain copies and a QR sticker sheet**, or **Personalised copies with the QR code printed on** (one copy per student with QR code, name and personal key, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies)), and whether the **solution** is printed too. For several sheets the plan also holds [how you print](#multi-sheet-print). **Ready to print?** checks automatically whether the exam has exercises, the student list is filled, the PDFs match the current state and, with MC questions, the scan template is up to date.
+The print form (**Plain copies and a QR sticker sheet**, or **Personalised copies with the QR code printed on**: one copy per student with QR code, name and personal key, see [QR stickers](./students#qr-stickers) and [printed copies](./students#printed-copies); double-sided or booklet; stickers per sheet) is chosen in the [Layout step](#multi-sheet-print); the plan shows it in one line with the link **Change in the Layout step**. In the plan itself you choose how a booklet is printed (arranged by Examance or by your printer's booklet function), the booklet offset and test sheet, whether the **solution** is printed too, and the extra-sheet stack. **Ready to print?** checks automatically whether the exam has exercises, the student list is filled, the PDFs match the current state and, with MC questions, the scan template is up to date.
 
 Below it are exactly the print jobs of your plan (exam copies and sticker sheet, or the personalised copies; plus the solution). Every job works the same way: its header has the download, its options sit below (for stickers: how many per student, labels already used and **What to print?**, see [QR stickers](./students#qr-stickers)), and a **printed** tick closes it. A sticker sheet or set of personalised copies you create appears as a further pane next to task sheet and solution. Only you set the ticks, and only once the job's PDF exists for the current state: for the task sheet and solution the current preview, for stickers and personalised copies a PDF made here. A tick goes away only when what it was set for changes: content or layout for the exam and solution, the student list for the stickers, both for personalised copies. The step's badge in the sidebar shows how many jobs are ticked.
 
@@ -181,7 +215,7 @@ Print the sheets **exactly as typeset**: no "fit to page", no scaling, no croppi
 
 ### Remembered layouts {#pinned-layout}
 
-As soon as you download the task sheet or the personalised copies, or tick them as **printed**, Examance remembers the answer sheet's layout: where its boxes, score fields and corner markers are. If you then change an exercise or the layout, or an update arrives, the sheets already printed are still read correctly: on import Examance first tries the most recently remembered layout and, if it does not fit, takes the remembered layout whose boxes lie on the scan. The list **Remembered answer-sheet layouts** under the print jobs shows each layout with its date; you can remove the layout of a version that was never handed out. If you changed the exam after printing, the **Exam** step points it out. Remembered layouts are stored encrypted on the server, so they also apply in another browser.
+As soon as you download the task sheet or the personalised copies, or tick them as **printed**, Examance remembers the answer sheet's layout: where its boxes, score fields and corner markers are. If you then change an exercise or the layout, or an update arrives, the sheets already printed are still read correctly: on import Examance first tries the most recently remembered layout and, if it does not fit, takes the remembered layout whose boxes lie on the scan. The list **Remembered answer-sheet layouts** under the print jobs shows each layout with its date; you can remove the layout of a version that was never handed out. If you changed the exam after printing, the **Exercises** step points it out. Remembered layouts are stored encrypted on the server, so they also apply in another browser.
 
 After the exam, continue with [Scanning and assignment](./scanning).
 
@@ -201,7 +235,6 @@ Favorites and the archive are only for your overview: archiving deletes nothing 
 Every card in the exam list has a checkbox. Tick the exams you want, or tick the box in the toolbar above the list to select every exam the filters show. Changing a filter drops exams that are no longer shown from the selection, so an action never reaches an exam you cannot see. The toolbar buttons are greyed out until something is selected, with the reason below them.
 
 - **Edit** sets details on all selected exams at once: test type, number, subject, grade, class, printed class, topic, date, teacher and info text. A field shows the value the exams share, or "Various values" when they differ; only fields you change are applied, and **Clear everywhere** empties a field on all of them. Changed fields are highlighted, and before you apply, the dialog lists for every exam what changes from the old to the new value. A generated title follows the new details; a title you typed yourself stays.
-- **Add LaTeX packages** (in the same dialog) adds packages to each selected exam's own packages; a package of the same name is replaced, the others stay. An exam whose list would become invalid (for example too many packages) is listed as skipped.
 - **Favorite** / **Archive** mark or unmark all selected exams at once.
 - **Export** downloads the selected exams as one readable ZIP with a folder per exam, or as one password-protected backup. Only the backup can be imported again as several exams.
 - **Delete** moves the selected exams to the trash as one entry (see [Trash](./trash)). The dialog lists the exams that contain submissions, and one **keep in my statistics** choice applies to all of them.

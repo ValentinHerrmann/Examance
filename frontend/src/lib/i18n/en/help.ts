@@ -263,7 +263,7 @@ export const help: Translations['help'] = {
             },
             s6: {
                 h: 'Objections to the grading',
-                p1: 'With “Allow objections until …” when sharing, students can object to each (sub)exercise through their link (500 characters at most). You answer on the grading page under the exercise; “Send reply” updates the result under the same link and can notify the student by e-mail. The Results tab “Objections” lists every open and answered objection with the whole conversation, without names until you reveal them.',
+                p1: 'With “Allow objections until …” when sharing, students can object to each (sub)exercise through their link (500 characters at most). You answer on the grading page under the exercise; “Send reply” updates the result under the same link and can notify the student by e-mail. The “Objections” tab of the Review step lists every open and answered objection with the whole conversation, without names until you reveal them.',
             },
         },
         analytics: {

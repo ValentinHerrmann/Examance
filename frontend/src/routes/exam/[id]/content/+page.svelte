@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The Exam step (issue #212): arrange exercises and MC groups, set the print layout and check both in the preview, on one page.
+  // The Exam step (issue #212): arrange exercises and MC groups and check them in the preview, on one page; the look of the sheet is the Layout step (issue #272).
   import { page } from "$app/state";
   import { untrack } from "svelte";
   import { browser } from "$app/env";
@@ -19,13 +19,12 @@
   import ExerciseList from "#lib/components/exam/ExerciseList.svelte";
   import ExamExercisePicker from "#lib/components/exam/ExamExercisePicker.svelte";
   import ExamPreviewPanel from "#lib/components/exam/ExamPreviewPanel.svelte";
-  import ExamLayoutSettings from "#lib/components/exam/ExamLayoutSettings.svelte";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Card, ConfirmDialog, PageShell, SaveStatus, Tabs } from "#lib/components/ui";
-  import { createAutosave, IDLE_SAVE, type AutosaveStatus } from "#lib/utils/autosave";
-  import { faEye, faLayerGroup, faSliders } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, ConfirmDialog, PageShell, Tabs } from "#lib/components/ui";
+  import { createAutosave } from "#lib/utils/autosave";
+  import { faEye, faLayerGroup } from "@fortawesome/free-solid-svg-icons";
 
   let examId = $derived(page.params.id || "");
 
@@ -43,11 +42,9 @@
 
   // Wide screens show the preview next to the editor; narrow ones get it as a third tab.
   const isXl = minWidth("xl", true);
-  type ContentTab = "exercises" | "layout" | "preview";
+  type ContentTab = "exercises" | "preview";
   let tab = $state<ContentTab>("exercises");
   let shownTab: ContentTab = $derived(tab === "preview" && $isXl ? "exercises" : tab);
-  // The Layout card saves itself; its header shows "Saving…" / "Saved".
-  let layoutStatus = $state<AutosaveStatus>(IDLE_SAVE);
 
   // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's examMcGroups/examExercises rows, which left the local MC groups empty.
   let loadSeq = 0;
@@ -241,7 +238,6 @@
 
   let tabItems = $derived([
     { id: "exercises", label: $t("exam.content.tabExercises"), icon: faLayerGroup, count: exercises.length || undefined },
-    { id: "layout", label: $t("exam.content.tabLayout"), icon: faSliders },
     ...($isXl ? [] : [{ id: "preview", label: $t("exam.content.tabPreview"), icon: faEye }]),
   ]);
   let effectiveItems = $derived(computeExamItems(examItems, exercises, mcGroups));
@@ -291,7 +287,6 @@
     <div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] xl:grid-rows-[auto_1fr] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
       <div class="flex min-w-0 flex-col gap-4 xl:contents {shownTab === 'preview' ? 'hidden' : ''}">
         <Tabs class="xl:col-start-1 xl:row-start-1 xl:self-end" items={tabItems} value={shownTab} label={$t("exam.content.tabsLabel")} onChange={(id) => (tab = id as typeof tab)} />
-        <!-- Both panels stay mounted, so switching tabs keeps unsaved layout edits. -->
         <div class="min-w-0 xl:col-start-1 xl:row-start-2 {shownTab === 'exercises' ? '' : 'hidden'}">
           <ExerciseList
             {exercises}
@@ -310,22 +305,6 @@
             onTogglePageBreak={toggleExamPageBreak}
             onOpenExercise={(ex) => (quickEditEx = ex)}
           />
-        </div>
-        <div class="min-w-0 xl:col-start-1 xl:row-start-2 {shownTab === 'layout' ? '' : 'hidden'}">
-          <Card title={$t("exam.content.tabLayout")}>
-            {#snippet actions()}
-              <SaveStatus status={layoutStatus} />
-            {/snippet}
-            <ExamLayoutSettings
-              {exam}
-              {exercises}
-              bind:status={layoutStatus}
-              onSaved={(updated) => {
-                exam = updated;
-                afterLayoutChange();
-              }}
-            />
-          </Card>
         </div>
       </div>
 

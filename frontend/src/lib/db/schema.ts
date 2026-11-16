@@ -1,7 +1,6 @@
 import type { MaybeUndecryptable } from './decryptGuard';
 import type { StepChecks } from '#lib/exam/examChecks';
 import type { TimeExtension } from '#lib/students/timeExtension';
-import type { LatexPackageEntry } from '#lib/latex/packages';
 import type { OmrPageStats, OmrRunInfo } from '#lib/grading/omrSettings';
 import type { OmrBubbleState, OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
 
@@ -72,8 +71,6 @@ export interface ExamRecord extends MaybeUndecryptable {
   latexTemplate?: string;
   numVersions?: number;
   gradingKey?: GradingKeyConfig;
-  /** Package entries on top of the account's (issue #108, lib/latex/packages.ts); null follows the account. */
-  latexPackages?: LatexPackageEntry[] | null;
   /** Ids of the exercises / MC groups that start on a new page (a break goes before each); layout only. */
   pageBreaks?: string[] | null;
   /** Prints a handwritten name line next to the QR sticker box (issue #127); layout only. */
@@ -94,10 +91,14 @@ export interface ExamRecord extends MaybeUndecryptable {
   extraPages?: number;
   /** Shift of imposed A3 booklet sheets in mm, positive to the right (issue #228); absent = 0. */
   bookletOffsetMm?: number;
-  /** False when the exam is graded outside Examance: no corner markers, page codes, cut lines or sticker spots, a name line instead (issue #228); absent = true. */
+  /** False when the exam is graded outside Examance (issue #228): no corner markers and scan steps greyed out; absent = true. */
   digitalGrading?: boolean;
   /** Without digital grading: page 1 keeps one box for a results QR sticker (DiRueLei); absent = false. */
   resultsQrBox?: boolean;
+  /** The tinted cut-off corner on every page (issue #272); absent = as `digitalGrading`. */
+  cutCorner?: boolean;
+  /** A booklet's fold strip (issue #272); absent = as `digitalGrading`. */
+  foldStrip?: boolean;
   /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */
   extraNotes?: ExtraNotes | null;
   /** Ticks the teacher set by hand on the Print and MC steps (issue #212); written only through `examRepository.saveStepChecks`, never with the rest of the record. */

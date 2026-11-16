@@ -18,6 +18,10 @@
     disabled?: boolean;
     /** `compact`: smaller padding and text, for tiles side by side in a dense card. */
     compact?: boolean;
+    /** `dense`: title only, one row (the Layout step's `LayoutChoiceRow`, which shows the explanation once below its group); implies `compact`. */
+    dense?: boolean;
+    /** Id of the element that explains the choice (`aria-describedby`). */
+    describedby?: string;
     onchange?: (event: Event) => void;
     /** The new state of a checkbox tile (or `true` when a radio tile is chosen). */
     onToggle?: (on: boolean) => void;
@@ -25,10 +29,19 @@
     onclick?: (event: MouseEvent) => void;
     /** After the title, e.g. an `InfoTip`. */
     titleExtra?: Snippet;
+    /** Pointer or keyboard focus entered (true) or left (false) the tile, e.g. to stress its part in the Layout step's preview. */
+    onHighlight?: (on: boolean) => void;
+    /** Keyboard focus or a click entered the tile: the Layout preview moves to its page (a hover only stresses). */
+    onShow?: () => void;
     class?: string;
   }
 
-  let { type = "radio", name, value, checked, title, text = undefined, icon = undefined, disabled = false, compact = false, onchange, onToggle, onclick, titleExtra, class: className = "" }: Props = $props();
+  let { type = "radio", name, value, checked, title, text = undefined, icon = undefined, disabled = false, compact = false, dense = false, describedby = undefined, onchange, onToggle, onclick, titleExtra, onHighlight, onShow, class: className = "" }: Props = $props();
+
+  function focused() {
+    onHighlight?.(true);
+    onShow?.();
+  }
 
   function changed(event: Event) {
     onchange?.(event);
@@ -39,15 +52,21 @@
 <!-- `lang` lets long German words hyphenate instead of overflowing a narrow tile. -->
 <label
   lang={$locale}
-  class="flex h-full min-w-0 items-start rounded-md border border-line-strong bg-surface-sunken has-[:checked]:border-primary has-[:checked]:bg-highlight {compact
-    ? 'gap-2 p-2.5'
-    : 'gap-3 p-4'} {disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-line-hover'} {className}"
+  class="flex h-full min-w-0 rounded-md border border-line-strong bg-surface-sunken has-[:checked]:border-primary has-[:checked]:bg-highlight {dense
+    ? 'items-center gap-2 px-2.5 py-2'
+    : compact
+      ? 'items-start gap-2 p-2.5'
+      : 'items-start gap-3 p-4'} {disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-line-hover'} {className}"
+  onpointerenter={onHighlight && (() => onHighlight(true))}
+  onpointerleave={onHighlight && (() => onHighlight(false))}
+  onfocusin={onHighlight || onShow ? focused : undefined}
+  onfocusout={onHighlight && (() => onHighlight(false))}
 >
-  <input class="mt-0.5 shrink-0 cursor-[inherit] accent-primary {compact ? 'size-4' : 'size-5'}" {type} {name} {value} {checked} {disabled} onchange={changed} {onclick} />
+  <input class="shrink-0 cursor-[inherit] accent-primary {dense ? '' : 'mt-0.5'} {compact || dense ? 'size-4' : 'size-5'}" {type} {name} {value} {checked} {disabled} aria-describedby={describedby} onchange={changed} {onclick} />
   <span class="min-w-0 flex-1">
-    <span class="flex flex-wrap items-center gap-x-1.5 font-medium break-words hyphens-auto text-content {compact ? 'text-sm' : 'text-base'}">
+    <span class="flex flex-wrap items-center gap-x-1.5 font-medium break-words hyphens-auto text-content {compact || dense ? 'text-sm' : 'text-base'}">
       {#if icon}<Icon {icon} class="shrink-0 text-muted" />{/if}<span class="min-w-0">{title}</span>{@render titleExtra?.()}
     </span>
-    {#if text}<span class="block break-words hyphens-auto text-muted {compact ? 'mt-0.5 text-xs' : 'mt-1 text-sm'}">{text}</span>{/if}
+    {#if text && !dense}<span class="block break-words hyphens-auto text-muted {compact ? 'mt-0.5 text-xs' : 'mt-1 text-sm'}">{text}</span>{/if}
   </span>
 </label>

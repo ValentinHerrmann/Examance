@@ -10219,7 +10219,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "AccountLatexPackages",
-        "description": "The packages added to every document of the account. ``disabled`` has no meaning here."
+        "description": "The packages added to every document of the account."
       },
       "AccountLogoInfo": {
         "properties": {
@@ -11977,20 +11977,6 @@
             ],
             "title": "Grading Key"
           },
-          "latex_packages": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/LatexPackageEntry"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Latex Packages"
-          },
           "page_breaks": {
             "anyOf": [
               {
@@ -12082,6 +12068,16 @@
             "type": "boolean",
             "title": "Results Qr Box",
             "default": false
+          },
+          "cut_corner": {
+            "type": "boolean",
+            "title": "Cut Corner",
+            "default": true
+          },
+          "fold_strip": {
+            "type": "boolean",
+            "title": "Fold Strip",
+            "default": true
           },
           "extra_notes": {
             "anyOf": [
@@ -12525,20 +12521,6 @@
             ],
             "title": "Grading Key"
           },
-          "latex_packages": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/LatexPackageEntry"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Latex Packages"
-          },
           "page_breaks": {
             "anyOf": [
               {
@@ -12630,6 +12612,16 @@
             "type": "boolean",
             "title": "Results Qr Box",
             "default": false
+          },
+          "cut_corner": {
+            "type": "boolean",
+            "title": "Cut Corner",
+            "default": true
+          },
+          "fold_strip": {
+            "type": "boolean",
+            "title": "Fold Strip",
+            "default": true
           },
           "extra_notes": {
             "anyOf": [
@@ -12994,20 +12986,6 @@
             ],
             "title": "Grading Key"
           },
-          "latex_packages": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/LatexPackageEntry"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Latex Packages"
-          },
           "page_breaks": {
             "anyOf": [
               {
@@ -13165,6 +13143,28 @@
               }
             ],
             "title": "Results Qr Box"
+          },
+          "cut_corner": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cut Corner"
+          },
+          "fold_strip": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fold Strip"
           },
           "extra_notes": {
             "anyOf": [
@@ -14720,20 +14720,14 @@
             "maxLength": 300,
             "title": "Options",
             "default": ""
-          },
-          "disabled": {
-            "type": "boolean",
-            "title": "Disabled",
-            "default": false
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "name"
         ],
         "title": "LatexPackageEntry",
-        "description": "A package, TikZ or pgfplots library; ``disabled`` (exam level) drops an account one."
+        "description": "A package, TikZ or pgfplots library; unknown keys (the retired ``disabled``) are ignored."
       },
       "LayoutReportCreate": {
         "properties": {

@@ -406,7 +406,7 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
 
   // Desktop: workspace content uses the available width.
   if (name === 'desktop') {
-    for (const p of ['', '/content', '/students', '/print', '/scan', '/verify', '/manual', '/results', '/results/share', '/results/reviews', '/results/archive']) {
+    for (const p of ['', '/content', '/layout', '/students', '/print', '/scan', '/verify', '/manual', '/results', '/results/share', '/results/reviews', '/results/archive']) {
       await visit(page, `/exam/${examId}${p}`);
       const ratio = await page.evaluate(() => {
         const main = document.querySelector('.app-main')!;

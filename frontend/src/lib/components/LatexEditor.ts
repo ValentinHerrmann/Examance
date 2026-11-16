@@ -97,11 +97,13 @@ export function createLatexTheme(dark: boolean): Extension {
   return EditorView.theme(
     {
       // The OptionTile look (issue #228): sunken box, focused like a selected tile.
+      // The text fields' look (`controlClass`), so the editor never reads as an option tile (issue #272).
       "&": {
-        backgroundColor: "var(--color-surface-sunken)",
+        backgroundColor: "var(--color-control)",
         color: "var(--color-content)",
         borderRadius: "0.375rem",
-        border: "1px solid var(--color-line-strong)",
+        border: "1px solid var(--color-control-line)",
+        boxShadow: "inset 0 2px 4px 0 rgb(0 0 0 / 0.05)",
         fontSize: "0.875rem",
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
       },

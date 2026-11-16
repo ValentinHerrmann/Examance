@@ -8,22 +8,25 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 
 | Column | Values | New exams | Where | Effect in `Schulaufgabe.sty` |
 |---|---|---|---|---|
-| `page_codes` | bool | `true` | Layout tab | `seitencode` |
-| `print_layout` | `duplex`, `booklet` | `duplex` | Print step | `broschuere` |
-| `print_mode` | `stickers`, `copies` | `stickers` | Print step | sticker spots only in `stickers` mode |
-| `sticker_spots` | `cover`, `sheet`, `a3`, `leaf` | `sheet` | Print step (sticker mode) | `\Aufkleberseiten{bogen|a3}` |
-| `paper_style` | `empty`, `squared`, `lined` | `squared` | Layout tab | `papierkaro` / `papierlinien` |
-| `extra_pages` | int 0–20 | `0` | Layout tab | `\Zusatzseiten{n}` |
+| `page_codes` | bool | `true` | Layout step | `seitencode` |
+| `print_layout` | `duplex`, `booklet` | `duplex` | Layout step | `broschuere` |
+| `print_mode` | `stickers`, `copies` | `stickers` | Layout step | sticker spots only in `stickers` mode; `copies` also without `digital_grading` (issue #272), then `printSettingsOf` reads `results_qr_box` as on, since copies stamp their code into the box and `examCopies.ts` draws page 1's corner tab itself |
+| `sticker_spots` | `cover`, `sheet`, `a3`, `leaf` | `sheet` | Layout step (sticker mode) | `\Aufkleberseiten{bogen|a3}` |
+| `paper_style` | `empty`, `squared`, `lined` | `squared` | Layout step | `papierkaro` / `papierlinien` |
+| `extra_pages` | int 0–20 | `0` | Layout step | `\Zusatzseiten{n}` |
 | `booklet_offset_mm` | float −10…10 | `0` | Print step | none (applied by `imposeBooklet`) |
-| `digital_grading` | bool | `true` | Layout tab | off: `ohnescan` + `namenszeile` (no markers, page codes, cut lines, sticker spots; their room is kept) |
-| `results_qr_box` | bool | `false` | Layout tab (only when `digital_grading` is off) | `ergebnisqr` (page 1 keeps the dashed box) |
+| `digital_grading` | bool | `true` | Layout step (the corner-markers switch) | off: `ohnemarken` (no corner markers, room kept), steps 5A–7A greyed out; `namenszeile` unless `results_qr_box` and not `name_line` (helper `printsNameLine` in `lib/exam/printLayout.ts`); without `results_qr_box` no sticker spots (`printSettingsOf` reads them as `cover`) |
+| `cut_corner` | bool | `true` (migration 0070: `digital_grading`) | Layout step | off: `ohneecke` (no tinted corner, cut line or scissors); always on for `copies`, whose name and key sit there (`printSettingsOf`); absent in older records = `digital_grading` |
+| `fold_strip` | bool | `true` (migration 0070: `digital_grading`) | Layout step | off: `ohnefalz` (booklets only); absent in older records = `digital_grading` |
+| `results_qr_box` | bool | `false` | Layout step name choice (only when `digital_grading` is off) | `ergebnisqr` (page 1 keeps the QR sticker box with the initials field when there is no name line) |
 
+- Scan aids are separate `Schulaufgabe.sty` options since issue #272: `ohnemarken`, `ohneecke` and `ohnefalz`, emitted one by one by `withExamOptions`; page codes and sticker spots follow `page_codes` and `sticker_spots` alone. `ohnescan` stays a legacy alias (all three, plus no page codes or sticker spots), so old pinned layouts compile the same. Migration 0070 sets `cut_corner`, `fold_strip` and `page_codes` off and `sticker_spots` to `cover` for paper-graded exams, which printed none of them; `contentStamp` stamps the two new switches only when they differ from `digital_grading`, so older print files stay current; paper-graded exams whose stored page codes or spots the migration cleared, and personalised paper copies (now with the cut corner on every page), get a new stamp once and their print files are made again. Only the corner markers are technically required for scanning; the Layout step warns about them alone (`allScanAidsOn` drives its "Turn on all scan aids" button). The preview moves its page only on focus or a click (`SheetSketch` `show`); hovering only stresses an element (`highlight`).
 - The server defaults are the old layout, so older exams compile unchanged. Migration 0059 also:
   - moves the old print-plan mode (`step_checks.printPlan.mode`, issue #212) into `print_mode`;
   - set `padding_pages = 'none'` where page codes were off (the column went with migration 0060, issue #228).
 - The print plan in `step_checks` keeps only `solution` and `booklet` (`impose`/`printer`). These don't shape the sheet.
 - `contentStamp` covers the settings whenever they differ from the old layout, so a change marks made PDFs and ticks as outdated.
-- **Layout tab** (`ExamLayoutSettings`): every field saves itself after 800 ms (a logo choice at once). The card header shows "Saving…/Saved". There are no buttons.
+- **Layout step** (`routes/exam/[id]/layout` + `exam/ExamLayoutSettings`, issue #272): presets in `lib/exam/layoutPresets.ts` (starting points, never stored; the matching one is derived from the settings), the preview (`components/exam/sketch/SheetSketch`): a fixed sample exam (`lib/exam/layoutSample.ts`, never the teacher's content) compiled once per tab into the cache kind `layout-sample` with as few features as possible (`ohnemarken`, `ohneecke`, `ergebnisqr`, `namenszeile`, MC hint on, duplex; 30 + 5 minutes in the header, info text replaced by two `omr://__sample__/info-start`/`info-end` markers whose room the preview fills with the exam's own info text via `infoTextLines`) and rendered by `pdf/renderPages.ts`; `SketchPage` draws every option over the page image (markers, cut tab, page codes, fold strip, sticker spots, printed QR, paper) and masks what an exam leaves out (QR box, name line, initials, MC hint), placed by the `omr://__qr__` link and the sample's own `omr://__sample__/mc` and `/rest` markers. `sheetSketchOf` adds the exam's extra pages and the filler pages up to whole sheets; `focusPageOf` picks the page an option shows on. Options that reflow content (booklet margins, sticker room, MC hint lines) are drawn, not reflowed. Without a compile (or in the e2e fake, which answers blank pages) the pages are sketched. Every field saves itself after 800 ms (a logo choice at once). The card header shows "Saving…/Saved". There are no buttons.
 
 ## Page codes
 
@@ -45,7 +48,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 ## Filler pages, sticker spots, fold cut zone
 
 - **Filling whole sheets** (no setting since issue #228): on the printed student sheet (option `fuellen`; `fuellleer`/`fuellplatz` remain accepted aliases), `\SA@fillsheets` adds extra pages after the asked ones until the count is a multiple of 2 (or 4 with `broschuere`). They carry markers and codes and are part of the OMR template. Personalised copies get no extra blank back from `examCopies.ts`.
-  - The multiple follows the Print step's layout, so the Exam step's preview is a **draft** without them: `buildExamLatex(…, { fill: false })`, compiled into the cache variant `draft` (`ExamPreviewPanel draft`). It never stands in for the printed `angabe`.
+  - The multiple follows the print form chosen in the Layout step, so the Exam step's preview is a **draft** without them: `buildExamLatex(…, { fill: false })`, compiled into the cache variant `draft` (`ExamPreviewPanel draft`). It never stands in for the printed `angabe`.
   - The Print step, exports, sharing, the overview preview and the OMR template use the filled sheet.
 - **Sticker spots** (sticker mode, `stickerPagesOf`): sticker labels are 35 mm, so a spot is a faint (`black!4`), unlabelled 35×35 mm square over the header.
   - Position: on the uncut side, 2 mm beside that side's top marker (13.5–48.5 mm from the edge, 16.5–51.5 mm on booklets) and 3–38 mm from the top.
@@ -66,7 +69,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
   - It serves the extra sheet and the extra pages: `\Zusatzseiten{n}{title}{note}` adds at least n of them in `\AtEndDocument` after the points table, on the student sheet only; filling whole sheets adds more of the same (`\SA@extrapage`, default heading "Platz für weitere Lösungen" without `\Zusatzseiten`).
   - Heading and note share one line (`\EN@head`), each in its own size.
   - They are ordinary pages: markers, page codes, sticker spots, the OMR template and personalised copies need nothing extra.
-- **The writing space** (`exams.extra_notes`, issues #156 and #228, Layout tab, `ExtraNotesField`):
+- **The writing space** (`exams.extra_notes`, issues #156 and #228, Layout step, `ExtraNotesField`):
   - its title and note head the rest-of-page area and every extra page (`DEFAULT_EXTRA_NOTES` when never set);
   - `fill` (absent = true) switches the rest-of-page area: `\ExamNotes{title}{note}{min}{max}` stays in the flow with a dynamic height within min..max, minus the points table and a sticker spot;
   - when min does not fit, it takes a whole new page (an implicit extra page, no max);
@@ -81,7 +84,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 
 ## Print step (`components/exam/PrintPlan.svelte`)
 
-- **The plan card holds all print settings**: mode, double-sided or booklet, who arranges booklets, sticker spots, and with solution.
+- **The plan card holds the how-to-print settings**: who arranges booklets, booklet offset and test sheet, with solution, the extra-sheet stack. Mode, double-sided or booklet and sticker spots are set in the Layout step; the plan shows a one-line summary with a link back.
 - **"Create print files" is the one action:**
   - it compiles the task sheet when it isn't current;
   - it compiles the solution only when the plan prints it (`compileExamPreview({ solution: false })`; `ExamPreviewStatus.solution` tracks it separately; unchanged sources come from the compile cache);

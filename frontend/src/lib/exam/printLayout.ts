@@ -1,4 +1,4 @@
-/** Multi-sheet print settings of an exam (issues #220 and #228, docs/dev/multi_sheet_exams.md): page codes and extra paper (Layout tab), print mode, duplex or booklet and sticker spots (Print step). The printed sheet always fills up to whole sheets of its layout with extra pages. */
+/** Multi-sheet print settings of an exam (issues #220 and #228, docs/dev/multi_sheet_exams.md): all set in the Layout step (issue #272): page codes, extra paper, print mode, duplex or booklet and sticker spots. The printed sheet always fills up to whole sheets of its layout with extra pages. */
 
 import type { ExamRecord } from '#lib/db/schema';
 
@@ -23,14 +23,18 @@ export interface PrintSettings {
   bookletOffsetMm: number;
   /** Graded in Examance (scans, OMR); false prints no scan aids (issue #228). */
   digitalGrading: boolean;
-  /** Without digital grading: one results QR sticker box on page 1. */
+  /** Without digital grading: the QR box on page 1 (always for personalised copies). */
   resultsQrBox: boolean;
+  /** The tinted cut-off corner with cut line and scissors on every page (issue #272); always for personalised copies, whose name sits there. */
+  cutCorner: boolean;
+  /** A booklet's fold strip (issue #272). */
+  foldStrip: boolean;
 }
 
-type PrintFields = Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox'>;
+type PrintFields = Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip'>;
 
 /** What a new exam starts with; older exams read as no page codes, a cover sticker and empty writing paper. */
-export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false } as const satisfies PrintFields;
+export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true } as const satisfies PrintFields;
 
 const SPOTS: ReadonlySet<string> = new Set<StickerSpots>(['cover', 'sheet', 'a3', 'leaf']);
 const PAPER: ReadonlySet<string> = new Set<PaperStyle>(['empty', 'squared', 'lined']);
@@ -58,19 +62,30 @@ export function clampExtraPages(value: unknown): number {
 
 export function printSettingsOf(exam: PrintFields): PrintSettings {
   const layout: PrintLayout = exam.printLayout === 'booklet' ? 'booklet' : 'duplex';
-  const spots = SPOTS.has(exam.stickerSpots ?? '') ? (exam.stickerSpots as StickerSpots) : 'cover';
+  // A paper exam without QR box hands out no stickers, so it has no further sticker spots either (issue #272).
+  const noStickers = exam.digitalGrading === false && exam.resultsQrBox !== true;
+  const spots = !noStickers && SPOTS.has(exam.stickerSpots ?? '') ? (exam.stickerSpots as StickerSpots) : 'cover';
   return {
     pageCodes: exam.pageCodes === true,
     layout,
-    // Personalised copies need the scan aids an exam graded outside Examance leaves out.
-    mode: exam.printMode === 'copies' && exam.digitalGrading !== false ? 'copies' : 'stickers',
+    // Personalised copies also work without Examance grading (anonymous papers graded by hand, issue #272).
+    mode: exam.printMode === 'copies' ? 'copies' : 'stickers',
     stickerSpots: spotsFor(layout, spots),
     paperStyle: PAPER.has(exam.paperStyle ?? '') ? (exam.paperStyle as PaperStyle) : 'empty',
     extraPages: clampExtraPages(exam.extraPages),
     bookletOffsetMm: clampBookletOffset(exam.bookletOffsetMm),
     digitalGrading: exam.digitalGrading !== false,
-    resultsQrBox: exam.digitalGrading === false && exam.resultsQrBox === true,
+    // Without scan aids the QR box is optional, except for personalised copies, which stamp their code into it.
+    resultsQrBox: exam.digitalGrading === false && (exam.resultsQrBox === true || exam.printMode === 'copies'),
+    // Absent (records from before the switches) prints as before: with Examance grading only.
+    cutCorner: exam.printMode === 'copies' || (exam.cutCorner ?? exam.digitalGrading !== false),
+    foldStrip: exam.foldStrip ?? exam.digitalGrading !== false,
   };
+}
+
+/** Whether page 1 prints a name line: always when asked, and on a paper-graded exam without a QR box, which would otherwise name nobody (issue #272). */
+export function printsNameLine(settings: Pick<PrintSettings, 'digitalGrading' | 'resultsQrBox'>, nameLine: boolean | undefined): boolean {
+  return nameLine === true || (!settings.digitalGrading && !settings.resultsQrBox);
 }
 
 /** The spot choices a layout offers; a choice of the other layout falls back to its nearest one. */

@@ -10,6 +10,6 @@
 </script>
 
 <PageShell width="fluid">
-  <ExamPageHeader {examId} step="results" title={$t("review.overview.title")} hint={$t("review.overview.intro")} helpTopic="stats" />
+  <ExamPageHeader {examId} step="review" title={$t("review.overview.title")} hint={$t("review.overview.intro")} helpTopic="stats" />
   {#if examId}<ReviewOverview {examId} />{/if}
 </PageShell>

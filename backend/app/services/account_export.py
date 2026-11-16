@@ -125,8 +125,6 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
                 "results_purged_at": _iso(exam.results_purged_at),
                 # "account": prints the account's exam_logo; "none": no logo; "custom": own file.
                 "logo": _exam_logo_export(exam_logos.get(exam.id)),
-                # Package entries on top of the account's; null follows the account.
-                "latex_packages": exam.latex_packages,
                 "page_breaks": exam.page_breaks,
                 "name_line": exam.name_line,
                 "mc_correction_hint": exam.mc_correction_hint,
@@ -139,6 +137,8 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
                 "booklet_offset_mm": exam.booklet_offset_mm,
                 "digital_grading": exam.digital_grading,
                 "results_qr_box": exam.results_qr_box,
+                "cut_corner": exam.cut_corner,
+                "fold_strip": exam.fold_strip,
                 "extra_notes": exam.extra_notes,
                 "step_checks": exam.step_checks,
             }

@@ -4,11 +4,11 @@ editLink: false
 
 # QR-Aufkleber und Ergebnisse für Schüler
 
-Zwei Dinge gehören hier zusammen: **QR-Codes**, als Aufkleber, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, oder direkt aufgedruckt, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Die QR-Codes erstellen Sie im Schritt **Drucken**, die Links unter **Ergebnisse & Export → An Schüler senden**. Die Schüler selbst, mit Mebis- bzw. Artemis-ID und E-Mail-Adresse, pflegen Sie an einer Stelle: auf der Seite **Schüler** der Prüfung.
+Zwei Dinge gehören hier zusammen: **QR-Codes**, als Aufkleber, die Schülerinnen und Schüler auf ihren Prüfungsbogen kleben, oder direkt aufgedruckt, damit Examance weiß, wessen Arbeit es ist, und **persönliche Links**, über die jede Schülerin und jeder Schüler später die korrigierte Prüfung herunterlädt. Die QR-Codes erstellen Sie im Schritt **Drucken**, die Links unter **Einsicht → An Schüler senden**. Die Schüler selbst, mit Mebis- bzw. Artemis-ID und E-Mail-Adresse, pflegen Sie an einer Stelle: auf der Seite **Schüler** der Prüfung.
 
 ## Schülerdaten {#student-data}
 
-**Schüler** (Schritt 2 in der Seitenleiste der Prüfung) enthält die Klassenliste der Prüfung: Namen, Mebis- bzw. Artemis-ID und E-Mail-Adresse. Alles andere liest nur daraus: die QR-Aufkleber, die bedruckten Prüfungsexemplare und das Teilen der Ergebnisse per E-Mail, Artemis oder Mebis.
+**Schüler** (Schritt 3 in der Seitenleiste der Prüfung) enthält die Klassenliste der Prüfung: Namen, Mebis- bzw. Artemis-ID und E-Mail-Adresse. Alles andere liest nur daraus: die QR-Aufkleber, die bedruckten Prüfungsexemplare und das Teilen der Ergebnisse per E-Mail, Artemis oder Mebis.
 
 - **Schüler hinzufügen** legt eine einzelne Person von Hand an; sie bekommt wie importierte einen QR-Code und einen persönlichen Schlüssel.
 - **Klassenliste übernehmen**: Wählen Sie oben im Kasten einen von drei Wegen. **Datei** liest eine Mebis-Bewertungstabelle oder Teilnehmerliste (CSV) oder eine einfache Liste; **Einfügen** nimmt getippte oder eingefügte Zeilen (`Nachname, Vorname; ID; Adresse`, eine pro Person); **Artemis-Kurs** holt die Kursmitglieder. Examance zeigt, was sich ändert (neu, aktualisiert, unverändert), und speichert erst nach **Übernehmen**. Schüler, die schon in der Liste stehen, werden über ihre ID erkannt, sonst über den Namen; dieselbe Liste noch einmal zu übernehmen, ergänzt also nur Adressen. In der Liste bearbeiten oder löschen Stift und Papierkorb einen einzelnen Schüler; für mehrere auf einmal haken Sie sie an und nutzen die Schaltflächen über der Liste.
@@ -72,7 +72,7 @@ Ein persönlicher Schlüssel wird nur gebraucht, wenn Sie Ergebnis-Links später
 
 ## Korrigierte Prüfungen mit Schülern teilen {#share-results}
 
-Nach der Korrektur gibt **Ergebnisse & Export → An Schüler senden** jeder Schülerin und jedem Schüler das korrigierte PDF, mit Ihren Anmerkungen, der Punktzahl und dem Namen in Rot oben auf jeder Seite. Es ist eine Seite mit vier nummerierten Schritten und einer Schaltfläche zum Senden, die unten sichtbar bleibt:
+Nach der Korrektur gibt **Einsicht → An Schüler senden** jeder Schülerin und jedem Schüler das korrigierte PDF, mit Ihren Anmerkungen, der Punktzahl und dem Namen in Rot oben auf jeder Seite. Es ist eine Seite mit vier nummerierten Schritten und einer Schaltfläche zum Senden, die unten sichtbar bleibt:
 
 1. **Schüler auswählen.** Schüler mit einer Korrektur sind vorausgewählt.
 2. **Weg wählen** (**Weg zu den Schülern**):
@@ -127,7 +127,7 @@ Examance arbeitet mit Mebis und Artemis so zusammen wie DiRueLei.
 
 1. Laden Sie in der Mebis-Aufgabe die **Bewertungstabelle** herunter (oder exportieren Sie die Teilnehmerliste als CSV). Sie enthält die Mebis-Kennungen und E-Mail-Adressen der Schüler.
 2. Übernehmen Sie diese Datei auf der Seite [Schüler](#student-data) und drucken Sie die [QR-Aufkleber](#qr-stickers) oder Exemplare: Die Mebis-Kennung steckt dann in jedem Code.
-3. Wählen Sie nach der Korrektur unter **Ergebnisse & Export → An Schüler senden** den Weg **Rückmeldedateien für Mebis (Download)**. Sie erhalten eine `…_mebis_feedback.zip`. Laden Sie sie in der Mebis-Aufgabe unter **Mehrere Feedbackdateien in einer ZIP-Datei hochladen** hoch. Jeder Schüler sieht seine korrigierte Arbeit dann als Feedback.
+3. Wählen Sie nach der Korrektur unter **Einsicht → An Schüler senden** den Weg **Rückmeldedateien für Mebis (Download)**. Sie erhalten eine `…_mebis_feedback.zip`. Laden Sie sie in der Mebis-Aufgabe unter **Mehrere Feedbackdateien in einer ZIP-Datei hochladen** hoch. Jeder Schüler sieht seine korrigierte Arbeit dann als Feedback.
 
 Schüler ohne Mebis-ID (weder aus der Klassenliste noch im QR-Aufkleber) werden übersprungen und nach dem Download in den Hinweisen genannt.
 
@@ -161,7 +161,7 @@ Nach dem Versand per E-Mail oder Artemis zeigt die Seite **An Schüler senden** 
 
 Hat deine Installation ein eigenes Postfach für Ergebnis-Mails, werden sie von dort verschickt und bitten die Schüler, nicht zu antworten, sondern sich auf anderem Weg an dich zu wenden: Antworten erreichen dich nicht.
 
-Nach einem E-Mail-Versand wartet die Seite etwa 30 Sekunden und prüft, ob E-Mails zurückkommen. Du kannst sie vorher verlassen: Später zurückkommende E-Mails werden an deine eigene Adresse weitergeleitet, und das Abzeichen des Schritts **Ergebnisse** zeigt dann rot, wie viele Schüler nicht erreicht wurden. Zum erneuten Senden korrigierst du die Adresse oder Artemis-ID auf der [Schülerseite](#student-data), öffnest **Ergebnisse & Export → An Schüler senden**, wählst **Nicht erreichte auswählen** und sendest.
+Nach einem E-Mail-Versand wartet die Seite etwa 30 Sekunden und prüft, ob E-Mails zurückkommen. Du kannst sie vorher verlassen: Später zurückkommende E-Mails werden an deine eigene Adresse weitergeleitet, und das Abzeichen des Schritts **Einsicht** zeigt dann rot, wie viele Schüler nicht erreicht wurden. Zum erneuten Senden korrigierst du die Adresse oder Artemis-ID auf der [Schülerseite](#student-data), öffnest **Einsicht → An Schüler senden**, wählst **Nicht erreichte auswählen** und sendest.
 
 Sagt die Seite, dass zurückkommende E-Mails nicht überwacht werden, hat deine Installation kein eigenes Postfach für Ergebnis-Mails: Dann heißt „Gesendet“ nur, dass der Mailserver die Nachricht angenommen hat.
 
@@ -179,7 +179,7 @@ Schüler können über ihren Ergebnislink Einwände gegen die Bewertung einzelne
 - **Was Schüler sehen.** Unter der korrigierten Prüfung ein Feld je Aufgabe und Teilaufgabe (je 500 Zeichen). Sie können einen Einwand ändern oder zurückziehen, bis Sie ihn öffnen oder die Frist abläuft; danach ist er gesperrt.
 - **Benachrichtigung.** Sie erhalten pro Einwand eine E-Mail mit Prüfungstitel und Link, nie mit Namen oder Text der Schülerin oder des Schülers, und ein Zähler an **Ergebnisse** in der Seitenleiste der Prüfung. Die E-Mail lässt sich in den **Einstellungen** ausschalten.
 - **Antworten.** Öffnen Sie die Abgabe auf der Korrekturseite: Unter der Punktezeile jeder Aufgabe steht der Einwand. Das Öffnen sperrt ihn für die Schülerin bzw. den Schüler. Passen Sie bei Bedarf die Punkte an, schreiben Sie Ihre Antwort und wählen Sie **Antwort senden**. Auf Smartphones und Tablets öffnen sich die Einsprüche stattdessen in einem Dialog, über das Kennzeichen **Einspruch** an der Punktezeile oder die Schaltfläche **Bearbeiten** in der Fußzeile. Das speichert die Punkte, aktualisiert die korrigierte Prüfung unter **demselben Link** und zeigt Antwort und neue Punkte („Bewertung aktualisiert am ...“). Hat die Schülerin oder der Schüler eine E-Mail-Adresse, kommt auf Wunsch eine kurze Benachrichtigung per E-Mail.
-- **Übersicht.** Der Reiter **Einsprüche** unter **Ergebnisse** listet alle Einsprüche der Prüfung, gefiltert nach **Offen** (noch nicht beantwortet, auch aus ersetzten Links) und **Beantwortet**, mit dem ganzen Gespräch je Aufgabe und den Punkten vorher und nachher. Die Liste zeigt Pseudonyme; **Namen anzeigen** (oder das Auge in einer Zeile) blendet Namen ein, bis Sie die Seite verlassen. Das Lesen dort sperrt nichts: Erst **Zur Bewertung** öffnet den Einspruch und sperrt ihn für die Schülerin oder den Schüler.
+- **Übersicht.** Der Reiter **Einsprüche** im Schritt **Einsicht** listet alle Einsprüche der Prüfung, gefiltert nach **Offen** (noch nicht beantwortet, auch aus ersetzten Links) und **Beantwortet**, mit dem ganzen Gespräch je Aufgabe und den Punkten vorher und nachher. Die Liste zeigt Pseudonyme; **Namen anzeigen** (oder das Auge in einer Zeile) blendet Namen ein, bis Sie die Seite verlassen. Das Lesen dort sperrt nichts: Erst **Zur Bewertung** öffnet den Einspruch und sperrt ihn für die Schülerin oder den Schüler.
 - **Andere Änderungen.** Punkteänderungen ohne Antwort werden nicht von selbst veröffentlicht: Nutzen Sie **Geteiltes Ergebnis aktualisieren** in der Zeile auf der Seite An Schüler senden.
 - **Ältere Links.** Links aus der Zeit vor dieser Funktion können keine Einwände tragen und nicht aktualisiert werden; teilen Sie das Ergebnis erneut (der alte Link funktioniert dann nicht mehr).
 - **Erneut teilen oder widerrufen.** Ein noch nicht beantworteter Einwand geht nicht verloren: Bevor ein neuer Link den alten ersetzt (oder Sie ihn widerrufen), wird der Einwand in der Bewertung gespeichert, und der Dialog nennt die betroffenen Schüler. Auf der Korrekturseite ist er mit „von einem ersetzten Link“ markiert, und Sie können ihn weiter beantworten; die Antwort wird gespeichert und in den aktuellen Link der Schülerin oder des Schülers übernommen. Lässt sich ein Einwand nicht lesen, bleibt dieser Link unverändert, und eine Warnung weist darauf hin.
@@ -187,7 +187,7 @@ Schüler können über ihren Ergebnislink Einwände gegen die Bewertung einzelne
 
 ## Links widerrufen und Ablauf {#revoke}
 
-**Ergebnisse & Export → An Schüler senden** listet die **aktiven Links** auf. Mit dem Symbol in seiner Zeile widerrufen Sie einen Link, mit **Alle Links widerrufen** alle auf einmal; widerrufene Links funktionieren sofort nicht mehr, und ihre Daten werden gelöscht.
+**Einsicht → An Schüler senden** listet die **aktiven Links** auf. Mit dem Symbol in seiner Zeile widerrufen Sie einen Link, mit **Alle Links widerrufen** alle auf einmal; widerrufene Links funktionieren sofort nicht mehr, und ihre Daten werden gelöscht.
 
 Links enden auch von selbst:
 

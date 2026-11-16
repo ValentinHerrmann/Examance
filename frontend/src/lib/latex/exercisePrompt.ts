@@ -97,7 +97,6 @@ function packages(input: ExercisePromptInput): string {
   const lines: string[] = [];
   if (input.preloaded.length > 0) lines.push(`Preloaded: ${input.preloaded.map(code).join(', ')}.`);
   const own = input.accountPackages
-    .filter((p) => !p.disabled)
     .map((p) => code((p.kind === 'package' ? '' : `${p.kind} `) + p.name + (p.options ? `[${p.options}]` : '')));
   lines.push(own.length > 0 ? `Added in the teacher's settings: ${own.join(', ')}.` : "No extra packages in the teacher's settings.");
   return lines.join('\n');

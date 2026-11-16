@@ -1,4 +1,4 @@
-"""LaTeX packages (issue #108) — /api/v1/user/latex-packages and /api/v1/latex/template-packages. The account list applies to every document of the account; an exam adds to it through its own ``latex_packages`` field (app/routers/exams.py). Merging rules: app/services/latex_packages.py."""
+"""LaTeX packages (issue #108) — /api/v1/user/latex-packages and /api/v1/latex/template-packages. The account list applies to every document of the account; exercises add theirs through their own ``\\usepackage`` lines (exam-level packages were dropped in issue #272). Merging rules: app/services/latex_packages.py."""
 from __future__ import annotations
 
 from typing import Annotated
@@ -41,7 +41,7 @@ async def set_account_latex_packages(
 ) -> AccountLatexPackages:
     """Replace the account's list. Entries are validated (names, options, unsupported packages)."""
     teacher.latex_packages = [
-        entry.model_dump(exclude={"disabled"}) for entry in body.entries
+        entry.model_dump() for entry in body.entries
     ] or None
     await db.flush()
     return _account(teacher)

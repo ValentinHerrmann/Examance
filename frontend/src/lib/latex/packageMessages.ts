@@ -39,7 +39,7 @@ export function noteText(tr: Translate, note: PackageNote): string {
 }
 
 /** Notes that need the teacher's attention, as opposed to ones that only explain the result. */
-export const isWarning = (note: PackageNote) => note.code === "conflict" || note.code === "ignored" || note.code === "kept";
+export const isWarning = (note: PackageNote) => note.code === "conflict" || note.code === "ignored";
 
 export function entryErrorText(tr: Translate, error: EntryError, name: string): string {
   if (error === "forbidden") {

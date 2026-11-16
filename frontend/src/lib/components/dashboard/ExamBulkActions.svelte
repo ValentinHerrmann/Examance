@@ -10,15 +10,11 @@
   import { TRASH_DAYS } from "#lib/trash/localTrash";
   import { recordValue } from "#lib/utils/recentValues";
   import { generatedExamTitle } from "#lib/utils/examLabel";
-  import { addPackages, type BulkField, type BulkItem } from "#lib/bulk/bulkEdit";
-  import { entriesError, type LatexPackageEntry } from "#lib/latex/packages";
-  import { entryErrorText } from "#lib/latex/packageMessages";
-  import { Alert } from "#lib/components/ui";
+  import type { BulkField, BulkItem } from "#lib/bulk/bulkEdit";
   import BulkEditDialog from "#lib/components/common/BulkEditDialog.svelte";
   import DeleteWithUsageModal from "#lib/components/common/DeleteWithUsageModal.svelte";
   import KeepStatisticsOption from "#lib/components/stats/KeepStatisticsOption.svelte";
   import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
-  import PackageEntriesEditor from "#lib/components/latex-packages/PackageEntriesEditor.svelte";
 
   /** The exam list's actions on one or several exams (issue #261): edit details, export, delete. Opened through `open()`; the single-exam menu uses the same delete and export. */
   interface Props {
@@ -35,7 +31,6 @@
   let targets = $state.raw<ExamRecord[]>([]);
   let busy = $state(false);
   let error = $state("");
-  let added = $state.raw<LatexPackageEntry[]>([]);
   let keepStatistics = $state(true);
   let statisticsRecordIds = $state<string[]>([]);
 
@@ -43,7 +38,6 @@
     if (!exams.length) return;
     targets = exams;
     error = "";
-    added = [];
     kind = next;
   }
 
@@ -70,19 +64,6 @@
     })),
   );
   let items = $derived<BulkItem[]>(targets.map((exam) => ({ id: exam.id, title: titleOf(exam), values: Object.fromEntries(FIELD_KEYS.map((k) => [k, exam[k] ?? ""])) })));
-  let addedError = $derived(added.length ? entriesError(added) : null);
-
-  function packageResult(exam: ExamRecord) {
-    return added.length && !addedError ? addPackages(exam.latexPackages, added) : null;
-  }
-
-  function packageLines(item: BulkItem): string[] {
-    const exam = targets.find((e) => e.id === item.id);
-    const res = exam && packageResult(exam);
-    if (!res) return [];
-    if (res.error) return [$t("dashboard.bulk.packagesSkipped", { reason: entryErrorText($t, res.error, "") })];
-    return [$t("dashboard.bulk.packagesAdded", { names: added.map((e) => e.name).join(", ") })];
-  }
 
   /** The exam with the patch applied; a generated title follows the new details, a custom one stays. */
   function edited(exam: ExamRecord, patch: Record<string, string>): ExamRecord | null {
@@ -90,17 +71,11 @@
     for (const key of FIELD_KEYS) if (key in patch) next[key] = patch[key];
     const titleWasGenerated = !exam.title?.trim() || exam.title === generatedExamTitle(exam, untitled());
     if (titleWasGenerated) next.title = generatedExamTitle(next, untitled());
-    const res = packageResult(exam);
-    if (res && !res.error) next.latexPackages = res.entries;
-    const changed = FIELD_KEYS.some((k) => (next[k] ?? "") !== (exam[k] ?? "")) || next.latexPackages !== exam.latexPackages;
+    const changed = FIELD_KEYS.some((k) => (next[k] ?? "") !== (exam[k] ?? ""));
     return changed ? next : null;
   }
 
   async function applyEdit(patch: Record<string, string>) {
-    if (addedError) {
-      error = translate("dashboard.bulk.packagesInvalid");
-      return;
-    }
     busy = true;
     error = "";
     const failed: string[] = [];
@@ -162,17 +137,7 @@
     {error}
     onApply={applyEdit}
     onClose={close}
-    extraChanges={packageLines}
-  >
-    {#snippet extra()}
-      <section class="rounded-md p-1.5 {added.length ? 'border-2 border-accent bg-highlight' : 'border-2 border-transparent'}">
-        <h3 class="m-0 mb-1 text-sm font-semibold text-content">{$t("dashboard.bulk.packagesTitle")}</h3>
-        <p class="m-0 mb-2 text-sm text-muted">{$t("dashboard.bulk.packagesHint")}</p>
-        <PackageEntriesEditor bind:entries={added} idPrefix="bulk-packages" emptyText={$t("dashboard.bulk.packagesEmpty")} />
-        {#if addedError}<Alert severity="danger" class="mt-2">{$t("dashboard.bulk.packagesInvalid")}</Alert>{/if}
-      </section>
-    {/snippet}
-  </BulkEditDialog>
+  />
 {:else if kind === "export"}
   <ExamExportModal exams={targets.map((exam) => ({ id: exam.id, title: exam.title ?? "" }))} onClose={close} />
 {/if}

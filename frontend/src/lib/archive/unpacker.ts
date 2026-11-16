@@ -1,7 +1,5 @@
 /** Import a .bgproj archive. `decryptArchive()` only opens the envelope (touches no tables, session or stores), so a wrong password costs nothing; `applyArchive()` writes only after decryption succeeded and every conflict has a decision. Never call `sessionStore.unlock()` with the archive key; records are re-encrypted under the live session key. */
 
-import { samePackageLists, storedEntries } from '#lib/latex/packages';
-import { getAccountPackages } from '#lib/latex/packageSettings';
 import { get } from 'svelte/store';
 import { db } from '#lib/db/db';
 import { sessionStore } from '#lib/stores/session';
@@ -218,15 +216,11 @@ function skipForMissingExam(ctx: ApplyContext, archivedExamId: string, what: str
   return true;
 }
 
-/** Exams that followed the exporting account keep its packages, unless this account has the same list. */
-async function keepArchivedPackages(exams: any[]): Promise<void> {
-  const ownPackages = await getAccountPackages();
+/** Old archives carry exam-level package lists (dropped in issue #272); read and ignored. */
+function dropRetiredPackages(exams: any[]): void {
   for (const exam of exams) {
-    const archived = storedEntries(exam.accountLatexPackages);
     delete exam.accountLatexPackages;
-    if (exam.latexPackages == null && archived.length && !samePackageLists(archived, ownPackages)) {
-      exam.latexPackages = archived;
-    }
+    delete exam.latexPackages;
   }
 }
 
@@ -546,7 +540,7 @@ export async function applyArchive(
   report.codeWithheld = payload.codeWithheld === true;
   const examLabel = new Map<string, string>(exams.map((e) => [e.id, e.title || e.id]));
 
-  await keepArchivedPackages(exams);
+  dropRetiredPackages(exams);
 
   const result = await importPayloadToServer(payload, { report, decided });
   errors.push(...result.errors);

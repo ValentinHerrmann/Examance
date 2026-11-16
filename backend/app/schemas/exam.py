@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.config import settings
-from app.schemas.latex_packages import LatexPackageEntry, check_entry_list
 
 if TYPE_CHECKING:
     from app.models.exercise import Exercise
@@ -229,8 +228,6 @@ class ExamCreate(BaseModel):
     lehrernachname: str | None = Field(default=None, max_length=100)
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
-    # Package entries on top of the account's (issue #108); null follows the account.
-    latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
     name_line: bool = False
     mc_correction_hint: bool = False
@@ -244,6 +241,8 @@ class ExamCreate(BaseModel):
     booklet_offset_mm: BookletOffset = 0
     digital_grading: bool = True
     results_qr_box: bool = False
+    cut_corner: bool = True
+    fold_strip: bool = True
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
@@ -255,7 +254,6 @@ class ExamCreate(BaseModel):
 
     _check_retention = field_validator("retention_until")(validate_retention_until)
     _normalize_topic = field_validator("topic", mode="before")(normalize_topic)
-    _check_packages = field_validator("latex_packages")(check_entry_list)
     _check_page_breaks = field_validator("page_breaks")(check_page_breaks)
 
 
@@ -287,8 +285,6 @@ class ExamUpdate(BaseModel):
     lehrernachname: str | None = Field(default=None, max_length=100)
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
-    # Absent keeps the stored override; null clears it, so the exam follows the account again.
-    latex_packages: list[LatexPackageEntry] | None = None
     # Absent keeps the stored breaks; null or [] clears them.
     page_breaks: list[str] | None = None
     name_line: bool | None = None
@@ -302,6 +298,8 @@ class ExamUpdate(BaseModel):
     booklet_offset_mm: BookletOffset | None = None
     digital_grading: bool | None = None
     results_qr_box: bool | None = None
+    cut_corner: bool | None = None
+    fold_strip: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     # Absent keeps the stored ticks; null or {} clears them.
@@ -315,7 +313,6 @@ class ExamUpdate(BaseModel):
 
     _check_retention = field_validator("retention_until")(validate_retention_until)
     _normalize_topic = field_validator("topic", mode="before")(normalize_topic)
-    _check_packages = field_validator("latex_packages")(check_entry_list)
     _check_page_breaks = field_validator("page_breaks")(check_page_breaks)
 
 
@@ -340,7 +337,6 @@ class ExamResponse(BaseModel):
     lehrernachname: str | None = None
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
-    latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
     name_line: bool = False
     mc_correction_hint: bool = False
@@ -353,6 +349,8 @@ class ExamResponse(BaseModel):
     booklet_offset_mm: BookletOffset = 0
     digital_grading: bool = True
     results_qr_box: bool = False
+    cut_corner: bool = True
+    fold_strip: bool = True
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     is_favorite: bool = False

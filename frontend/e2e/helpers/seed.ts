@@ -46,6 +46,7 @@ export function mainRoutes(examId: string): RouteSpec[] {
     { name: 'exam-new', path: '/exam/new' },
     { name: 'exam-overview', path: `/exam/${examId}`, workspace: true },
     { name: 'exam-content', path: `/exam/${examId}/content`, workspace: true },
+    { name: 'exam-layout', path: `/exam/${examId}/layout`, workspace: true },
     { name: 'exam-students', path: `/exam/${examId}/students`, workspace: true },
     { name: 'exam-print', path: `/exam/${examId}/print`, workspace: true },
     { name: 'exam-scan', path: `/exam/${examId}/scan`, workspace: true },
