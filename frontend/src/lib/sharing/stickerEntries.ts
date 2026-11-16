@@ -4,20 +4,24 @@ import { studentRepository } from '#lib/repositories/studentRepository';
 import { numberStudents, positionLabel } from '#lib/students/classList';
 import { formatStudentName, parseStudentQr, stickerRawOf } from '#lib/utils/studentQr';
 import { translate } from '#lib/i18n';
+import { printedExtension } from '#lib/students/timeExtension';
 
-/** The printable students in class-list order with their numbers (issue #266): those with a sticker payload (listed on the Students page); hand-added rows without one are left out. */
-export function stickerEntries(students: readonly StudentRecord[]): StickerEntry[] {
+/** The printable students in class-list order with their numbers (issue #266) and time extensions (issue #265): those with a sticker payload (listed on the Students page); hand-added rows without one are left out. */
+/** *baseMinutes* (`examBaseMinutes`) turns a share into its printed minutes. */
+export function stickerEntries(students: readonly StudentRecord[], baseMinutes?: number | null): StickerEntry[] {
     const numbered = numberStudents(students);
     const highest = Math.max(0, ...numbered.map((n) => n.position));
     return numbered.flatMap(({ student: st, position }) => {
         const raw = stickerRawOf(st);
-        return raw ? [{ label: formatStudentName(st.studentName) || raw, number: positionLabel(position, highest), payload: raw }] : [];
+        if (!raw) return [];
+        const extension = st.timeExtension ? { extension: printedExtension(st.timeExtension, baseMinutes) } : {};
+        return [{ label: formatStudentName(st.studentName) || raw, number: positionLabel(position, highest), payload: raw, ...extension, ...(st.largePrint ? { largePrint: true } : {}) }];
     });
 }
 
 /** Reads the exam's students for printing; a failed read rejects (never "no students", issue #212). */
-export async function loadStickerEntries(examId: string, key: CryptoKey | null): Promise<StickerEntry[]> {
-    return stickerEntries(await studentRepository.getByExamId(examId, key));
+export async function loadStickerEntries(examId: string, key: CryptoKey | null, baseMinutes?: number | null): Promise<StickerEntry[]> {
+    return stickerEntries(await studentRepository.getByExamId(examId, key), baseMinutes);
 }
 
 /** Why the QR codes cannot be printed onto exam copies, or null: a results-only exam (exercise texts withheld) cannot be compiled. */

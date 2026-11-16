@@ -8,9 +8,11 @@
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug, ZipBuilder } from "#lib/export/zip";
   import { renderExamCopies } from "#lib/qr/examCopies";
-  import { imposeBooklet, splitCopies } from "#lib/qr/booklet";
+  import { imposeBooklet, scaleToA3, splitCopies } from "#lib/qr/booklet";
   import { renderStickerSheet, STICKER_GRID, type StickerEntry } from "#lib/qr/stickerSheet";
   import { loadStickerEntries, stickerIdIssues } from "#lib/sharing/stickerEntries";
+  import { examRepository } from "#lib/repositories/examRepository";
+  import { examBaseMinutes } from "#lib/students/timeExtension";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { studentsHref } from "#lib/utils/links";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -31,6 +33,8 @@
     output?: "stickers" | "copies";
     /** The students, when the page already read them (else the form reads them). */
     entries?: StickerEntry[];
+    /** These are the large-print students: their copies are enlarged to A3 and never bound as booklets (issue #265). The caller passes only them as `entries`. */
+    largePrint?: boolean;
     /** Booklet exams (issue #220): copies imposed onto A3 by Examance, or one file per student for the printer's booklet function; null prints A4 copies as they are. */
     booklet?: "impose" | "printer" | null;
     /** Shift of imposed A3 sheets in mm (issue #228). */
@@ -54,6 +58,7 @@
     busy = $bindable(false),
     output: fixedOutput,
     entries,
+    largePrint = false,
     booklet = null,
     bookletOffsetMm = 0,
     stickersPerStudent = 1,
@@ -97,7 +102,10 @@
     }
     try {
       await awaitSessionReady();
-      examEntries = await loadStickerEntries(examId, get(sessionStore).sessionKey);
+      // The working time turns an extension in percent into its printed minutes (issue #265); without the exam it prints the percent alone.
+      const key = get(sessionStore).sessionKey;
+      const exam = await examRepository.getById(examId, key).catch(() => undefined);
+      examEntries = await loadStickerEntries(examId, key, examBaseMinutes(exam));
     } catch (err) {
       // A failed read is reported, never shown as "no students yet" (issue #212).
       loadError = `${$t("sharing.stickers.loadFailed")} ${err instanceof Error ? err.message : ""}`.trim();
@@ -115,12 +123,16 @@
     onDone?.(kind);
   }
 
-  /** The copies as the chosen print way needs them: A4 one after the other, A3 booklets, or (for the printer's booklet function) a ZIP with one A4 file per student. */
+  /** The copies as the chosen print way needs them: A4 one after the other, A3 booklets, or (for the printer's booklet function) a ZIP with one A4 file per student. With `largePrint` every sheet is enlarged to A3, always as loose sheets (issue #265). */
   async function deliverCopies(list: StickerEntry[], examPdf: Uint8Array) {
     const issues = stickerIdIssues(list);
     if (issues.duplicates.length) throw new Error($t("sharing.stickers.idDuplicates", { names: issues.duplicates.join(", ") }));
     const { pdf, pagesPerCopy } = await renderExamCopies(examPdf, list, { examTitle, examId });
     const base = slug(examTitle || $t("sharing.stickers.copiesTitle"));
+    if (largePrint) {
+      deliver(await scaleToA3(pdf), "copies", `${base}_copies_A3.pdf`);
+      return;
+    }
     if (booklet === "impose") {
       deliver(await imposeBooklet(pdf, pagesPerCopy, bookletOffsetMm), "copies", `${base}_booklets.pdf`);
       return;

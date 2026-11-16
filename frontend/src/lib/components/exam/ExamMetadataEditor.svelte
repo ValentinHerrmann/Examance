@@ -4,7 +4,7 @@
   import OverridableText from '#lib/components/exam/OverridableText.svelte';
   import { recordValue } from '#lib/utils/recentValues';
   import { parseExamDatum } from "#lib/utils/listSections";
-  import { formatExamCourse, generatedExamTitle, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
+  import { formatExamCourse, generatedExamTitle, legacyDuration } from '#lib/utils/examLabel';
   import { t, translate } from '#lib/i18n';
   import { Modal, Button, Field, actionIcons, controlClass, controlCompactClass } from '#lib/components/ui';
 
@@ -17,7 +17,12 @@
     editKlasse?: string;
     /** Printed course override; empty means grade + klasse. */
     editCourse?: string;
+    /** The date only; an old unreadable duration text stays in its bracket until minutes are entered (issue #265). */
     editDatum: string;
+    /** Working time in whole minutes, null when unset. */
+    editDurationMinutes: number | null;
+    /** Reading time in whole minutes, null when none (issue #265). */
+    editReadingMinutes?: number | null;
     editNr: string;
     editFach: string;
     editTopic?: string;
@@ -44,6 +49,8 @@
     editKlasse = $bindable(""),
     editCourse = $bindable(""),
     editDatum = $bindable(),
+    editDurationMinutes = $bindable(),
+    editReadingMinutes = $bindable(null),
     editNr = $bindable(),
     editFach = $bindable(),
     editTopic = $bindable(""),
@@ -61,7 +68,16 @@
   let editDatumDate = $state("");
   // Without a full date the exam list cannot file the exam in a school year (issue #252).
   let datumUnclear = $derived(parseExamDatum(editDatumDate) === null);
-  let editDauer = $state("");
+  // An old duration text that is no whole number of minutes: printed as before until minutes replace it.
+  let legacyDauer = $state("");
+  // The minutes as typed: an unusable number stays visible with a hint and leaves the stored value alone.
+  let durationText = $state(untrack(() => (editDurationMinutes ? String(editDurationMinutes) : "")));
+  let lastSyncedDuration = untrack(() => editDurationMinutes);
+  let durationInvalid = $derived(durationText.trim() !== "" && parseMinutes(durationText) === null);
+  // The reading time the same way; 0 is allowed and means none.
+  let readingText = $state(untrack(() => (editReadingMinutes ? String(editReadingMinutes) : "")));
+  let lastSyncedReading = untrack(() => editReadingMinutes ?? null);
+  let readingInvalid = $derived(readingText.trim() !== "" && parseMinutes(readingText, 0) === null);
   let lastSyncedEditDatum = "";
 
   const generateTitle = () =>
@@ -77,10 +93,30 @@
   // The title the fields generated last time: a title still equal to it follows the next change.
   let lastGenerated = untrack(() => generateTitle());
 
-  function handleDatumDateOrDauerChange() {
-    const formatted = formatDatumAndDauer(editDatumDate, editDauer);
+  function handleDatumChange() {
+    if (editDurationMinutes) legacyDauer = "";
+    const date = editDatumDate.trim();
+    const formatted = legacyDauer ? `${date} (${legacyDauer})`.trim() : date;
     editDatum = formatted;
     lastSyncedEditDatum = formatted;
+  }
+
+  function parseMinutes(text: string, min = 1): number | null {
+    const minutes = Number(text.trim());
+    return Number.isInteger(minutes) && minutes >= min && minutes <= 1440 ? minutes : null;
+  }
+
+  function handleReadingInput() {
+    if (readingInvalid) return;
+    editReadingMinutes = parseMinutes(readingText, 0) || null;
+    lastSyncedReading = editReadingMinutes;
+  }
+
+  function handleDurationInput() {
+    if (durationInvalid) return;
+    editDurationMinutes = parseMinutes(durationText);
+    lastSyncedDuration = editDurationMinutes;
+    handleDatumChange();
   }
 
   /** Offers the saved values as suggestions next time; after a save, not on every keystroke. */
@@ -91,11 +127,10 @@
     if (editFach) recordValue("exam.fach", editFach);
     if (editTopic) recordValue("exam.topic", editTopic);
     if (editLehrernachname) recordValue("exam.lehrernachname", editLehrernachname);
-    if (editDauer) recordValue("exam.dauer", editDauer);
   }
 
   function handleSave() {
-    handleDatumDateOrDauerChange();
+    handleDatumChange();
     if (!editTitle.trim()) editTitle = generatedTitle;
     remember();
     onSave();
@@ -106,9 +141,30 @@
     untrack(() => {
       if (d !== lastSyncedEditDatum) {
         lastSyncedEditDatum = d;
-        const parsed = parseDatumAndDauer(d);
-        editDatumDate = parsed.datumDate;
-        editDauer = parsed.dauer;
+        const parsed = legacyDuration(d);
+        editDatumDate = parsed.date;
+        legacyDauer = parsed.text;
+      }
+    });
+  });
+
+  $effect.pre(() => {
+    const minutes = editReadingMinutes ?? null;
+    untrack(() => {
+      if (minutes !== lastSyncedReading) {
+        lastSyncedReading = minutes;
+        readingText = minutes ? String(minutes) : "";
+      }
+    });
+  });
+
+  // A value set from outside (another exam, a reset) replaces what was typed.
+  $effect.pre(() => {
+    const minutes = editDurationMinutes;
+    untrack(() => {
+      if (minutes !== lastSyncedDuration) {
+        lastSyncedDuration = minutes;
+        durationText = minutes ? String(minutes) : "";
       }
     });
   });
@@ -168,10 +224,19 @@
     <SuggestField compact id="editLehrernachname" class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.lehrernachname")} storageKey="exam.lehrernachname" bind:value={editLehrernachname} maxlength={100} />
     <Field compact class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.datum")} forId="editDatumDate" hint={datumUnclear ? $t("exam.metadataEditor.datumUnclear") : undefined}>
       {#snippet children({ id })}
-        <input {id} type="text" bind:value={editDatumDate} oninput={handleDatumDateOrDauerChange} placeholder="14.08.2026" class={input} />
+        <input {id} type="text" bind:value={editDatumDate} oninput={handleDatumChange} placeholder="14.08.2026" class={input} />
       {/snippet}
     </Field>
-    <SuggestField compact id="editDauer" class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.dauer")} storageKey="exam.dauer" bind:value={editDauer} oninput={handleDatumDateOrDauerChange} placeholder="30 Min" />
+    <Field compact class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.dauer")} forId="editDauer" hint={legacyDauer && !durationInvalid ? $t("exam.metadataEditor.dauerLegacy", { text: legacyDauer }) : undefined} error={durationInvalid ? $t("exam.metadataEditor.dauerInvalid") : undefined}>
+      {#snippet children({ id })}
+        <input {id} type="text" inputmode="numeric" bind:value={durationText} oninput={handleDurationInput} aria-invalid={durationInvalid ? "true" : undefined} placeholder="30" class={input} />
+      {/snippet}
+    </Field>
+    <Field compact class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.reading")} info={$t("exam.metadataEditor.readingHint")} forId="editReading" error={readingInvalid ? $t("exam.metadataEditor.readingInvalid") : undefined}>
+      {#snippet children({ id })}
+        <input {id} type="text" inputmode="numeric" bind:value={readingText} oninput={handleReadingInput} aria-invalid={readingInvalid ? "true" : undefined} placeholder="0" class={input} />
+      {/snippet}
+    </Field>
     <Field compact class="{field} @lg:col-span-2 @2xl:col-span-3" label={$t("exam.metadataEditor.retentionUntil")} info={$t("exam.metadataEditor.retentionHint")} forId="editRetention">
       {#snippet children({ id })}
         <input {id} type="date" bind:value={editRetentionUntil} class={input} />

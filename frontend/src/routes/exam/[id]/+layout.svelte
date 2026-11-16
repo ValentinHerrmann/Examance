@@ -15,7 +15,9 @@
   import { latestDeliveries, undelivered } from "#lib/sharing/shareService";
   import { featuresStore } from "#lib/stores/capabilities";
   import { examProgress, type ExamProgressInput } from "#lib/exam/examProgress";
-  import { contentStamp, mcStatus, printStamps, printStatus, studentsStamp } from "#lib/exam/examChecks";
+  import { contentStamp, largePrintOf, mcStatus, printStamps, printStatus, studentsStamp } from "#lib/exam/examChecks";
+  import { stickerEntries } from "#lib/sharing/stickerEntries";
+  import { examBaseMinutes } from "#lib/students/timeExtension";
   import { printSettingsOf } from "#lib/exam/printLayout";
   import { computeMcVerificationStats, summarizeMcCheck } from "#lib/grading/mcVerification";
   import { t } from "#lib/i18n";
@@ -66,7 +68,7 @@
     next.exerciseCount = exercises?.length;
     const students = await attempt(() => studentRepository.getByExamId(id, key));
     next.studentCount = students?.length;
-    const stamps = exam && exercises && students ? { content: contentStamp(exam, exercises), students: studentsStamp(students) } : null;
+    const stamps = exam && exercises && students ? { content: contentStamp(exam, exercises), students: studentsStamp(students, examBaseMinutes(exam)), large: largePrintOf(stickerEntries(students)) } : null;
     const checks = exam?.stepChecks ?? {};
     const shares = await attempt(() => listResultShares(id));
     // Students with a link that still opens; a replaced link leaves an older row, so count students, not rows.
@@ -109,7 +111,7 @@
       const progress = examProgress({
         ...input,
         verify: mc && mc.examId === id ? mcStatus(mc, cs?.examId === id ? cs.checks : null) : undefined,
-        print: cs && cs.examId === id && cs.stamps ? printStatus(cs.checks, printStamps(cs.stamps.content, cs.stamps.students, current ? printSettingsOf(current) : undefined), current?.printMode) : undefined,
+        print: cs && cs.examId === id && cs.stamps ? printStatus(cs.checks, printStamps(cs.stamps.content, cs.stamps.students, current ? printSettingsOf(current) : undefined), current?.printMode, cs.stamps.large) : undefined,
       });
       untrack(() => examNavContext.set({ examId: id, exam: current && current.id === id ? current : null, submissionCount: count, progress }));
     }

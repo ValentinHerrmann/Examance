@@ -29,6 +29,7 @@
   import { spawnOmrWorker } from "#lib/workers/spawn";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import { loadPdfjs } from "#lib/pdf/pdfjs";
+  import { scanViewport } from "#lib/scan/scanViewport";
   import { openScan } from "#lib/db/dbEncryption";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
@@ -234,7 +235,7 @@
               }
 
               const pdfPage = await pdfDoc.getPage(pageNum);
-              const viewport = pdfPage.getViewport({ scale: scanScale });
+              const viewport = scanViewport(pdfPage, scanScale);
               const canvas = document.createElement("canvas");
               canvas.width = viewport.width;
               canvas.height = viewport.height;

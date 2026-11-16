@@ -108,6 +108,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
     - a page of another exam: its own unmatched booklet;
     - an extra sheet (`EXM1:X`): `extra`; never foreign, never read as a sticker, the student comes from the sticker or, on the back, from the page before;
     - an ID nobody has: an unmatched booklet `ID-<id>`, plus a warning.
+- **Large-print copies** (issue #265, [time_extensions.md](time_extensions.md)): an upright A3 page is an A4 sheet enlarged for one student. It is kept as scanned and rendered at A4 geometry everywhere (`scanViewport`), so codes, fiducials and boxes are found as usual.
 - **Uncut booklet sheets**: a page that looks like A3 (after its `/Rotate`) is split straight away. Any other landscape page is split when both halves of its render carry a page code, so rotated, scaled or cropped scanner output works too (`isLandscape`, `ScanPass.halvesCoded`).
 - **A3 sheets** are split into lossless A4 halves, right half first. The front-right page carries the sticker spot, so the left half follows the right student. The A3 originals are attached to the student's scan as `original-scan.pdf`. Every rebuild copies the attachment: the manual split, and `renderGradedPdf`.
 - **Order** (`bookletLayout`):

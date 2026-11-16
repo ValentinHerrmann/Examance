@@ -22,7 +22,7 @@ Die **gedruckte Klasse** (`\Klasse` auf dem Deckblatt) entsteht aus Jahrgangsstu
 
 Das optionale **Thema** (zum Beispiel „Rekursion“) ordnet Ihre Prüfungen in der Übersicht, wo Sie danach filtern und suchen können. Es wird nie gedruckt. Die Übersicht lässt sich außerdem nach Datum, Titel, Jahrgang oder Fach sortieren.
 
-Um die Kopfdaten später zu ändern, bearbeiten Sie sie direkt in der Karte **Angaben** der **Übersicht** und wählen **Speichern** (**Änderungen verwerfen** nimmt sie zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt). Die Karte enthält nur die Angaben der Prüfung: Titel, Testart, Jahrgang/Klasse, Datum, Dauer, Nummer, Fach, Lehrkraft, Thema und das Aufbewahrungsdatum. Layout-Einstellungen finden Sie auf dem [Reiter Layout](#layout), den Notenschlüssel unter [Ergebnisse](./results#grading-key).
+Um die Kopfdaten später zu ändern, bearbeiten Sie sie direkt in der Karte **Angaben** der **Übersicht** und wählen **Speichern** (**Änderungen verwerfen** nimmt sie zurück; wer die Seite mit ungespeicherten Änderungen verlässt, wird vorher gefragt). Die Karte enthält nur die Angaben der Prüfung: Titel, Testart, Jahrgang/Klasse, Datum, Arbeitszeit in Minuten, Nummer, Fach, Lehrkraft, Thema und das Aufbewahrungsdatum. Layout-Einstellungen finden Sie auf dem [Reiter Layout](#layout), den Notenschlüssel unter [Ergebnisse](./results#grading-key).
 
 ## Die Schritte einer Prüfung {#steps}
 
@@ -87,7 +87,7 @@ Mit **Namenszeile neben dem QR-Code-Feld drucken** (beim Anlegen der Prüfung od
 
 Jede Prüfung hält auf jeder Seite die **äußere obere Ecke** frei: auf ungeraden Seiten oben rechts, auf geraden oben links. Auf geraden Seiten ist die Kopfzeile gespiegelt. Im normalen Prüfungs-PDF bleibt die Ecke leer und ist hellgrau getönt. Drucken Sie die QR-Codes [direkt auf die Prüfungsexemplare](./students#printed-copies), trägt die Ecke auf Seite 1 Name und persönlichen Schlüssel, und eine gestrichelte Linie mit zwei kleinen Scheren zeigt, wo Sie sie vor dem Austeilen abschneiden; alle anderen Seiten zeigen dieselbe Linie, so ist der ganze Stapel markiert. Bei beidseitigem und Broschürendruck können Sie auch den ganzen Stapel auf einmal mit der Schneidemaschine schneiden. Alle Prüfungen haben dieses Layout, so findet das Einlesen die Eckmarkierungen immer an denselben Stellen, egal wie die Blätter gedruckt wurden.
 
-Der Text und auf Seite 1 das QR-Feld mit den Hinweisen daneben reichen bis an die Eckmarkierungen. Die Kopfzeile von Seite 1 zeigt das Logo, dann den Titel und darunter in einer Zeile Kurs, Datum, Dauer und Lehrkraft; die anderen Seiten zeigen den Titel und „Seite X“. Die Punktetabelle füllt den Streifen zwischen den unteren Markierungen.
+Der Text und auf Seite 1 das QR-Feld mit den Hinweisen daneben reichen bis an die Eckmarkierungen. Die Kopfzeile von Seite 1 zeigt das Logo, dann den Titel und darunter in einer Zeile Kurs, Datum, Arbeitszeit und Lehrkraft; die anderen Seiten zeigen den Titel und „Seite X“. Die Punktetabelle füllt den Streifen zwischen den unteren Markierungen.
 
 Die Skizze zeigt den nutzbaren Platz auf ungeraden und geraden Seiten: Textbereich, Kopfzeile, Punktetabelle, den Abschnitt mit seiner Toleranz und die Eckmarkierungen. Das [PDF](../../screenshots/guide/cut-corner-layout-de.pdf) ist in Originalgröße auf A4 gezeichnet; Maße auf einem Ausdruck in 100 % sind echte Millimeter.
 
@@ -192,7 +192,7 @@ Die Prüfungsliste ist in Abschnitte gegliedert, die Sie einklappen können; Ihr
 
 - **Favoriten**: Prüfungen, die Sie mit dem **Stern** auf ihrer Karte markiert haben. Sie bleiben zusätzlich in ihrem Schuljahr.
 - **Datum unklar**: Prüfungen, deren Datum kein vollständiges Datum ist (zum Beispiel *24.09.* ohne Jahr oder gar kein Datum). Sie tragen das Abzeichen **Datum unklar**, und das Datumsfeld in den Prüfungsangaben bittet um ein vollständiges Datum wie *24.09.2026*. Sobald Sie eines eintragen, wandert die Prüfung in ihr Schuljahr.
-- **Schuljahr** (zum Beispiel *Schuljahr 2026/27*, August bis Juli): Jede Prüfung steht unter dem Tag, an dem sie geschrieben wird, also dem Datum in ihren Angaben (eine Dauer dahinter wie *24.09.2026 (30 Minuten)* stört nicht). Das aktuelle Schuljahr ist offen, frühere sind zunächst eingeklappt.
+- **Schuljahr** (zum Beispiel *Schuljahr 2026/27*, August bis Juli): Jede Prüfung steht unter dem Tag, an dem sie geschrieben wird, also dem Datum in ihren Angaben. Das aktuelle Schuljahr ist offen, frühere sind zunächst eingeklappt.
 - **Archiv**: Prüfungen, die Sie über **Archivieren** im Menü **⋯** der Karte archiviert haben. Es ist zunächst eingeklappt; **Aus dem Archiv holen** holt eine Prüfung zurück.
 
 Favoriten und Archiv dienen nur Ihrer Übersicht: Archivieren löscht nichts und lässt Ergebnisse, Aufbewahrung und Statistik unverändert. Eine duplizierte Prüfung beginnt ohne Stern und außerhalb des Archivs. Filter und Suche gelten in allen Abschnitten.

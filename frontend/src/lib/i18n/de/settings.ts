@@ -15,6 +15,13 @@ export const settings = {
         description: 'Farbschema der Oberfläche auswählen:',
         hint: '„Wie System“ folgt der Einstellung Ihres Betriebssystems und wechselt automatisch mit.',
     },
+    examTimer: {
+        heading: 'Examtimer',
+        description: 'Der Examtimer zeigt im Prüfungsraum die verbleibende Arbeitszeit. „Timer“ bei einer Prüfung öffnet ihn mit Arbeitszeit und Zeitzuschlägen.',
+        address: 'Adresse des Examtimers',
+        hint: 'Gilt für diesen Browser. Leer lassen für die Standardadresse.',
+        invalid: 'Geben Sie eine Adresse ein, die mit https:// beginnt.',
+    },
     penInput: {
         heading: 'Stifteingabe auf diesem Gerät',
         description: 'Sobald Sie in der Korrekturansicht einmal einen Stift benutzen, zeichnen Finger dort nicht mehr: Sie blättern und zoomen nur noch, damit eine aufgelegte Handfläche keine Striche macht. Das gilt nur für dieses Gerät und diesen Browser.',

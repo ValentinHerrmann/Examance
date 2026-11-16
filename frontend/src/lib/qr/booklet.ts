@@ -97,6 +97,19 @@ function drawRuler(page: PDFPage, { cx, at, font, ink }: { cx: number; at: numbe
   page.drawLine({ start: { x: cx - MAX_BOOKLET_OFFSET * MM, y: at }, end: { x: cx + MAX_BOOKLET_OFFSET * MM, y: at }, thickness: 0.4, color: ink });
 }
 
+/** Every page of *pdf* enlarged from A4 to A3 (×√2, issue #265): the large-print copies. Codes, boxes and page breaks stay those of the A4 sheet, so the scan is read like any other (`scan/scanViewport.ts`). */
+export async function scaleToA3(pdf: Uint8Array): Promise<Uint8Array> {
+  const lib = await import('pdf-lib');
+  const src = await lib.PDFDocument.load(pdf);
+  const out = await lib.PDFDocument.create();
+  out.setTitle(src.getTitle() ?? '');
+  for (const page of await out.embedPages(src.getPages())) {
+    const [width, height] = [page.width * Math.SQRT2, page.height * Math.SQRT2];
+    out.addPage([width, height]).drawPage(page, { x: 0, y: 0, width, height });
+  }
+  return out.save();
+}
+
 /** *pdf* split into one PDF per copy of *pagesPerCopy* pages, named by *names* in order. */
 export async function splitCopies(pdf: Uint8Array, pagesPerCopy: number, names: readonly string[]): Promise<{ name: string; pdf: Uint8Array }[]> {
   const lib = await import('pdf-lib');

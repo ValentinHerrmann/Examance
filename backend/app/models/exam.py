@@ -5,7 +5,18 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Date, DateTime, Enum, ForeignKey, SmallInteger, String, Text, func
+from sqlalchemy import (
+    JSON,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -46,6 +57,10 @@ class Exam(Base):
     # Printed course (\Klasse) when set; empty means grade + klasse (issue #212).
     course: Mapped[str | None] = mapped_column(String(50), nullable=True)
     datum: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Working time in whole minutes (issue #265); `datum` holds the date only, legacy texts keep their bracket.
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Reading time before the working time, whole minutes; null or 0 means none.
+    reading_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     nr: Mapped[str | None] = mapped_column(String(10), nullable=True)
     fach: Mapped[str | None] = mapped_column(String(100), nullable=True)
     topic: Mapped[str | None] = mapped_column(String(200), nullable=True)

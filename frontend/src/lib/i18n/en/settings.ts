@@ -17,6 +17,13 @@ export const settings: Translations['settings'] = {
         description: 'Select the color scheme of the user interface:',
         hint: '“Match system” follows your operating system setting and switches along with it.',
     },
+    examTimer: {
+        heading: 'Examtimer',
+        description: 'Examtimer shows the remaining working time in the exam room. “Timer” on an exam opens it with the working time and time extensions.',
+        address: 'Examtimer address',
+        hint: 'Applies to this browser. Leave empty for the default address.',
+        invalid: 'Enter an address that starts with https:// (a secure address).',
+    },
     penInput: {
         heading: 'Pen input on this device',
         description: 'Once you use a pen in the grading view, fingers stop drawing there: they only scroll and zoom, so a resting palm leaves no marks. This applies only to this device and browser.',

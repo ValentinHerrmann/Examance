@@ -4,7 +4,7 @@ import type { ExamRecord, ExerciseRecord, ExerciseScoreRecord, SubmissionRecord 
 export const STATISTICS_SNAPSHOT_VERSION = 1;
 
 /** Exam fields kept so the record still reads after the exam is gone; never a name of a person (no `lehrernachname`). */
-const EXAM_FIELDS = ['title', 'testart', 'grade', 'klasse', 'course', 'datum', 'nr', 'fach', 'topic', 'numVersions', 'gradingKey'] as const;
+const EXAM_FIELDS = ['title', 'testart', 'grade', 'klasse', 'course', 'datum', 'durationMinutes', 'readingMinutes', 'nr', 'fach', 'topic', 'numVersions', 'gradingKey'] as const;
 const EXERCISE_FIELDS = ['name', 'title', 'maxPoints', 'questionType', 'penalty', 'variantKey', 'exerciseGroupId', 'topicTag', 'subject', 'grade'] as const;
 
 export type SnapshotExam = Pick<ExamRecord, 'id' | (typeof EXAM_FIELDS)[number]>;

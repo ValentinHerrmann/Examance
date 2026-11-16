@@ -117,6 +117,8 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
                 "fach": exam.fach,
                 "topic": exam.topic,
                 "datum": exam.datum,
+                "duration_minutes": exam.duration_minutes,
+                "reading_minutes": exam.reading_minutes,
                 "created_at": _iso(exam.created_at),
                 "retention_until": _iso(exam.retention_until),
                 "deleted_at": _iso(exam.deleted_at),

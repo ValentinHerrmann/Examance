@@ -140,6 +140,7 @@ export default withMermaid(defineConfig({
           { text: 'LaTeX packages', link: '/dev/latex_packages' },
           { text: 'Exercise sharing', link: '/dev/exercise_sharing' },
           { text: 'QR stickers and result sharing', link: '/dev/result_sharing' },
+          { text: 'Time extensions, large print, Examtimer', link: '/dev/time_extensions' },
           { text: 'Grading review (objections)', link: '/dev/grading_review' },
           { text: 'Trash', link: '/dev/trash' },
           { text: 'Personal exam statistics', link: '/dev/statistics_snapshots' },

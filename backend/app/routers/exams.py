@@ -70,6 +70,8 @@ _HEADER_FIELDS = (
     "klasse",
     "course",
     "datum",
+    "duration_minutes",
+    "reading_minutes",
     "nr",
     "fach",
     "topic",
@@ -460,7 +462,8 @@ async def _trash_dropped_links(
 
 def _apply_exam_fields(body: ExamUpdate, exam: Exam) -> None:
     for name, value in body.model_dump(exclude_unset=True, include=_UPDATED_FIELDS).items():
-        if value is not None or name == "topic":
+        # Null clears these; for every other field it means "leave as it is".
+        if value is not None or name in ("topic", "duration_minutes", "reading_minutes"):
             setattr(exam, name, value)
     if "latex_packages" in body.model_fields_set:
         exam.latex_packages = _packages_column(body.latex_packages)

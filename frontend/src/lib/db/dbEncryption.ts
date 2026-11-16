@@ -183,7 +183,7 @@ const EXAM: RecordCodec<ExamRecord> = {
   kind: 'exam',
   plain: ['id', 'teacherId', 'retentionUntil', 'compilationStatus', 'createdAt', 'isDirty', 'pseudonymVersion'],
   sealed: [
-    'title', 'testart', 'grade', 'klasse', 'course', 'datum', 'nr', 'fach', 'topic', 'lehrernachname',
+    'title', 'testart', 'grade', 'klasse', 'course', 'datum', 'durationMinutes', 'readingMinutes', 'nr', 'fach', 'topic', 'lehrernachname',
     'infoText', 'latexPreamble', 'latexTemplate', 'numVersions', 'gradingKey', 'latexPackages',
     'pageBreaks', 'nameLine', 'mcCorrectionHint', 'pageCodes', 'printLayout', 'stickerSpots', 'printMode',
     'paperStyle', 'extraPages', 'bookletOffsetMm', 'digitalGrading', 'resultsQrBox', 'extraNotes', 'stepChecks',
@@ -223,7 +223,7 @@ const REVIEW: RecordCodec<GradingReviewRecord> = {
 const STUDENT: RecordCodec<StudentRecord> = {
   kind: 'student',
   plain: ['examId', 'pseudonymHmac', 'pseudonymVersion', 'piiCt', 'piiIv'],
-  sealed: ['fallbackCode', 'studentName', 'studentNumber', 'email', 'mebisId', 'artemisId', 'fromList', 'classPosition', 'pseudonymRaw', 'pseudonymBase'],
+  sealed: ['fallbackCode', 'studentName', 'studentNumber', 'email', 'mebisId', 'artemisId', 'fromList', 'classPosition', 'timeExtension', 'largePrint', 'pseudonymRaw', 'pseudonymBase'],
   // Only keyed rows: a version-1 row is renamed on the server by the re-key, which must not strand its payload.
   aad: (r) => (r.pseudonymVersion === 2 ? aadFor('student', r.examId, r.pseudonymHmac) : undefined),
 };

@@ -4,7 +4,7 @@
     angabe: boolean;
     loesung: boolean;
     /** `extra` is the exam-independent extra sheet (issue #228). */
-    jobs: Partial<Record<"exam" | "qr" | "copies" | "extra", string>>;
+    jobs: Partial<Record<"exam" | "qr" | "copies" | "copiesA3" | "extra", string>>;
   }
 </script>
 
@@ -25,6 +25,7 @@
     DEFAULT_PRINT_PLAN,
     printCheckChanged,
     printCheckValid,
+    largePrintOf,
     printJobs,
     printMadeValid,
     printStamps,
@@ -79,7 +80,10 @@
   let cs = $derived($examChecksState && $examChecksState.examId === examId ? $examChecksState : null);
   let stamps = $derived(cs?.stamps ? printStamps(cs.stamps.content, cs.stamps.students, print) : null);
   let plan = $derived<PrintPlan>(cs?.checks.printPlan ?? DEFAULT_PRINT_PLAN);
-  let jobs = $derived(printJobs(plan, print.mode));
+  // Large-print students get their copies enlarged to A3 as a print job of its own (issue #265); the other copies never contain them.
+  let jobs = $derived(printJobs(plan, print.mode, largePrintOf(entries ?? [])));
+  let normalEntries = $derived(entries?.filter((e) => !e.largePrint));
+  let largeEntries = $derived(entries?.filter((e) => e.largePrint));
   let busy = $state(false);
   let error = $state("");
 
@@ -116,7 +120,7 @@
   const levelClass = { ok: "text-success-fg", warn: "text-warning-fg", info: "text-muted" };
 
   /** The key a made file must carry to be current (layout, arranging, sticker count; the imposed sheet also the compiled sheet it came from). */
-  function fileKey(job: "exam" | "qr" | "copies"): string {
+  function fileKey(job: "exam" | "qr" | "copies" | "copiesA3"): string {
     const key = printFileKey(job, booklet, stickers, "empty", print.bookletOffsetMm);
     return job === "exam" ? `${key}:${preview?.version ?? 0}` : key;
   }
@@ -185,7 +189,7 @@
       }
       for (const job of jobs) {
         if (job === "exam" && imposed && !made("exam")) await imposeSheet(); // NOSONAR: one PDF at a time
-        if ((job === "qr" || job === "copies") && !(made(job) && jobPdf[job])) await creators[job]?.(); // NOSONAR: one PDF at a time
+        if ((job === "qr" || job === "copies" || job === "copiesA3") && !(made(job) && jobPdf[job])) await creators[job]?.(); // NOSONAR: one PDF at a time
       }
       if (!extraMade) await makeExtraSheet();
     } catch (e) {
@@ -195,17 +199,17 @@
     }
   }
 
-  function keep(job: "exam" | "qr" | "copies", pdf: Uint8Array, fileName: string, download?: SavedFile) {
+  function keep(job: "exam" | "qr" | "copies" | "copiesA3", pdf: Uint8Array, fileName: string, download?: SavedFile) {
     const old = jobPdf[job];
     if (old) URL.revokeObjectURL(old.url);
     const url = URL.createObjectURL(new Blob([pdf as BlobPart], { type: "application/pdf" }));
     jobPdf = { ...jobPdf, [job]: { url, bytes: pdf, fileName, key: fileKey(job), download } };
   }
 
-  function gotPdf(job: "qr" | "copies", pdf: Uint8Array, fileName: string, download?: SavedFile) {
+  function gotPdf(job: "qr" | "copies" | "copiesA3", pdf: Uint8Array, fileName: string, download?: SavedFile) {
     keep(job, pdf, fileName, download);
     recordMade(job);
-    if (job === "copies") onPin?.("download");
+    if (job !== "qr") onPin?.("download");
   }
 
   /** One A3 booklet of the current task sheet, printed as often as needed (a booklet needs a multiple of 4 pages; filler pages or blanks pad it). */
@@ -230,7 +234,7 @@
     if (!made) return;
     const file = made.download ?? { bytes: made.bytes, fileName: made.fileName, type: "application/pdf" };
     downloadBlob(new Blob([file.bytes as BlobPart], { type: file.type }), file.fileName);
-    if (job === "exam" || job === "copies") onPin?.("download");
+    if (job === "exam" || job === "copies" || job === "copiesA3") onPin?.("download");
   }
 
   /** The plain task sheet or solution; for a booklet Examance arranges, the imposed A3 sheets the preview shows. */
@@ -276,7 +280,7 @@
   }
   const setTick = (job: PrintJobId, on: boolean) => {
     if (!cs || !stamps) return;
-    if (on && (job === "exam" || job === "copies")) onPin?.("printed");
+    if (on && (job === "exam" || job === "copies" || job === "copiesA3")) onPin?.("printed");
     return save(withPrintCheck(cs.checks, job, on ? stamps[job] : null));
   };
   const recordMade = (job: PrintJobId) => {
@@ -301,7 +305,7 @@
       loesung: jobs.includes("solution"),
       jobs: {
         ...Object.fromEntries(
-          (["exam", "qr", "copies"] as const).flatMap((job) => {
+          (["exam", "qr", "copies", "copiesA3"] as const).flatMap((job) => {
             const url = jobPdf[job]?.url;
             return url && jobs.includes(job) && made(job) ? [[job, url]] : [];
           }),
@@ -444,20 +448,21 @@
         </div>
 
         {#if !sheet}
-          {#if job === "copies" && copiesUnavailable}
+          {#if (job === "copies" || job === "copiesA3") && copiesUnavailable}
             <p class="m-0 text-sm text-warning-fg">{copiesUnavailable}</p>
           {:else if entries}
             <StickerSheetForm
               {examId}
               {examTitle}
-              {entries}
-              output={job === "copies" ? "copies" : "stickers"}
-              loadExamPdf={job === "copies" ? loadExamPdf : undefined}
+              entries={job === "copies" ? normalEntries : job === "copiesA3" ? largeEntries : entries}
+              output={job === "qr" ? "stickers" : "copies"}
+              largePrint={job === "copiesA3"}
+              loadExamPdf={job === "qr" ? undefined : loadExamPdf}
               booklet={job === "copies" ? booklet : null}
               bookletOffsetMm={print.bookletOffsetMm}
               stickersPerStudent={stickers}
               bind:create={creators[job]}
-              onPdf={(pdf, _kind, fileName, download) => gotPdf(job === "copies" ? "copies" : "qr", pdf, fileName, download)}
+              onPdf={(pdf, _kind, fileName, download) => gotPdf(job === "copies" || job === "copiesA3" ? job : "qr", pdf, fileName, download)}
             />
           {/if}
         {/if}

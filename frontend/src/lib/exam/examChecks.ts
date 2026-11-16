@@ -1,3 +1,4 @@
+import { printedDatum } from '#lib/utils/examLabel';
 import type { ExamRecord, ExerciseRecord, StudentRecord } from '#lib/db/schema';
 import { printSettingsOf, type PrintSettings } from '#lib/exam/printLayout';
 
@@ -7,8 +8,8 @@ export interface StepCheck {
     stamp: string;
 }
 
-/** What can be printed: plain exam copies, the QR sticker sheet, personalised copies (QR printed on), the solution. */
-export const PRINT_JOBS = ['exam', 'qr', 'copies', 'solution'] as const;
+/** What can be printed: plain exam copies, the QR sticker sheet, personalised copies (QR printed on), those of large-print students enlarged to A3 (issue #265), the solution. */
+export const PRINT_JOBS = ['exam', 'qr', 'copies', 'copiesA3', 'solution'] as const;
 export type PrintJobId = (typeof PRINT_JOBS)[number];
 
 /** Hand-set print choices that do not shape the sheet: the solution only when wanted, and who arranges booklet pages. Plain copies with stickers vs personalised copies is the exam's `printMode` (issue #220). */
@@ -19,10 +20,19 @@ export interface PrintPlan {
 }
 export const DEFAULT_PRINT_PLAN: PrintPlan = { solution: false };
 
-/** The print jobs of a plan and print mode, in print order. */
-export function printJobs(plan: PrintPlan | undefined, mode: 'stickers' | 'copies' = 'stickers'): PrintJobId[] {
+/** How many of the printed students get large print: decides whether the A4 copies, the A3 copies or both are print jobs. */
+export type LargePrint = 'none' | 'some' | 'all';
+export function largePrintOf(students: readonly { largePrint?: boolean }[]): LargePrint {
+    const large = students.filter((s) => s.largePrint).length;
+    if (!large) return 'none';
+    return large === students.length ? 'all' : 'some';
+}
+
+/** The print jobs of a plan and print mode, in print order. Personalised copies split into the A4 file and the A3 file of the large-print students; a file nobody is in is no job. */
+export function printJobs(plan: PrintPlan | undefined, mode: 'stickers' | 'copies' = 'stickers', large: LargePrint = 'none'): PrintJobId[] {
     const p = plan ?? DEFAULT_PRINT_PLAN;
-    return [...(mode === 'copies' ? (['copies'] as const) : (['exam', 'qr'] as const)), ...(p.solution ? (['solution'] as const) : [])];
+    const copies: PrintJobId[] = [...(large === 'all' ? [] : (['copies'] as const)), ...(large === 'none' ? [] : (['copiesA3'] as const))];
+    return [...(mode === 'copies' ? copies : (['exam', 'qr'] as const)), ...(p.solution ? (['solution'] as const) : [])];
 }
 
 /** How the teacher checks the sure MC detections: every one, a share of random samples, or not at all. */
@@ -68,7 +78,8 @@ const LEGACY_PRINT = JSON.stringify(printSettingsOf({}));
 export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): string {
     const e = exam;
     const head = [
-        e.title, e.testart, e.grade, e.klasse, e.datum, e.nr, e.fach, e.lehrernachname, e.infoText,
+        // The printed date line, so an exam whose minutes only moved out of the date text (migration 0067) keeps its stamp.
+        e.title, e.testart, e.grade, e.klasse, e.durationMinutes || e.readingMinutes ? printedDatum(e) : e.datum, e.nr, e.fach, e.lehrernachname, e.infoText,
         e.latexPreamble, e.latexTemplate, e.numVersions, e.latexPackages, e.pageBreaks, e.nameLine,
         e.mcCorrectionHint, e.extraNotes,
         // Only when set, so stamps of exams without an override (all older ones) stay as they were.
@@ -83,10 +94,12 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
 /** Locale-independent order, so the same list always gives the same stamp. */
 const byCodeUnits = (a: string, b: string): number => Number(a > b) - Number(a < b);
 
-/** What the QR stickers, copies and key slips depend on: the exam's students and their names. */
-export function studentsStamp(students: StudentRecord[]): string {
-    const rows = students.map((s) => JSON.stringify([s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '']));
+/** What the QR stickers, copies and key slips depend on: the exam's students, their names and what is printed with them (time extension, large print). */
+export function studentsStamp(students: StudentRecord[], baseMinutes?: number | null): string {
+    const rows = students.map((s) => JSON.stringify([s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '', ...(s.timeExtension ? [s.timeExtension.value, s.timeExtension.unit] : []), ...(s.largePrint ? ['A3'] : [])]));
     rows.sort(byCodeUnits);
+    // A share prints its minutes, so it follows working and reading time.
+    if (baseMinutes && students.some((s) => s.timeExtension?.unit === '%')) rows.push(String(baseMinutes));
     return fingerprint(rows.join('\n'));
 }
 
@@ -95,7 +108,8 @@ export type PrintStamps = Record<PrintJobId, string>;
 /** The exam and solution follow the content, the sticker sheet the student list (and the content too while later sheets get sticker spots: their count follows the pages), personalised copies both. */
 export function printStamps(content: string, students: string, print?: Pick<PrintSettings, 'mode' | 'stickerSpots'>): PrintStamps {
     const spots = print?.mode === 'stickers' && print.stickerSpots !== 'cover';
-    return { exam: content, solution: content, qr: spots ? fingerprint(`${students}:${content}`) : students, copies: fingerprint(`${content}:${students}`) };
+    const copies = fingerprint(`${content}:${students}`);
+    return { exam: content, solution: content, qr: spots ? fingerprint(`${students}:${content}`) : students, copies, copiesA3: copies };
 }
 
 /** A tick counts only while the content it was set for is unchanged. */
@@ -116,8 +130,8 @@ export function printMadeValid(checks: StepChecks | null | undefined, id: PrintJ
 }
 
 /** Sidebar status of the Print step: valid ticks over the jobs of the plan. */
-export function printStatus(checks: StepChecks | null | undefined, stamps: PrintStamps, mode: 'stickers' | 'copies' = 'stickers'): { count: number; total: number; done: boolean } {
-    const jobs = printJobs(checks?.printPlan, mode);
+export function printStatus(checks: StepChecks | null | undefined, stamps: PrintStamps, mode: 'stickers' | 'copies' = 'stickers', large: LargePrint = 'none'): { count: number; total: number; done: boolean } {
+    const jobs = printJobs(checks?.printPlan, mode, large);
     const count = jobs.filter((id) => printCheckValid(checks, id, stamps)).length;
     return { count, total: jobs.length, done: count === jobs.length };
 }

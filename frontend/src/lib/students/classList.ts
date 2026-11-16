@@ -202,7 +202,7 @@ export function mergeStudents(
   const keepA = hasSubmission(a) || (!hasSubmission(b) && (!a.fromList || !!b.fromList));
   const [keep, drop] = keepA ? [a, b] : [b, a];
   const positions = [keep.classPosition, drop.classPosition].filter((p): p is number => p !== undefined);
-  const merged: StudentRecord = { ...keep, fromList: !!(keep.fromList || drop.fromList), ...(positions.length ? { classPosition: Math.min(...positions) } : {}) };
+  const merged: StudentRecord = { ...keep, fromList: !!(keep.fromList || drop.fromList), ...(positions.length ? { classPosition: Math.min(...positions) } : {}), timeExtension: keep.timeExtension ?? drop.timeExtension, ...(keep.largePrint || drop.largePrint ? { largePrint: true } : {}) };
   const choices: MergeChoice[] = [];
   const filled: EditableField[] = [];
   for (const field of EDITABLE_FIELDS) {

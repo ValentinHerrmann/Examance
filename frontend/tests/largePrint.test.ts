@@ -1,0 +1,71 @@
+import { describe, expect, it } from 'vitest';
+import { PDFDocument } from 'pdf-lib';
+import { scaleToA3 } from '../src/lib/qr/booklet';
+import { enlargedPageFactor } from '../src/lib/scan/scanViewport';
+import { mergeScannedStudent } from '../src/lib/scan/ingest';
+import { contentStamp, largePrintOf, printJobs, printStamps, printStatus, studentsStamp } from '../src/lib/exam/examChecks';
+import type { ExamRecord, StudentRecord } from '../src/lib/db/schema';
+
+const A4 = [595.28, 841.89] as const;
+const A3 = [841.89, 1190.55] as const;
+const student = (extra: Partial<StudentRecord> = {}): StudentRecord => ({ examId: 'e', pseudonymHmac: 'h', studentName: 'Adam, Lena', piiCt: new Uint8Array(0), piiIv: new Uint8Array(12), ...extra });
+
+describe('large-print A3 copies (issue #265)', () => {
+  it('enlarges every A4 page to A3', async () => {
+    const src = await PDFDocument.create();
+    // A page without content cannot be embedded; a real exam page always has some.
+    for (let i = 0; i < 2; i++) src.addPage([...A4]).drawLine({ start: { x: 10, y: 10 }, end: { x: 100, y: 100 } });
+    const out = await PDFDocument.load(await scaleToA3(await src.save()));
+    expect(out.getPageCount()).toBe(2);
+    for (const page of out.getPages()) {
+      expect(page.getWidth()).toBeCloseTo(A3[0], 0);
+      expect(page.getHeight()).toBeCloseTo(A3[1], 0);
+    }
+  });
+
+  it('renders an upright A3 scan at A4 geometry, so the alignment marks are where the template expects them', () => {
+    expect(A3[0] * enlargedPageFactor(...A3)).toBeCloseTo(A4[0], 1);
+    expect(A3[1] * enlargedPageFactor(...A3)).toBeCloseTo(A4[1], 0);
+  });
+
+  it('leaves A4, Letter and landscape booklet sheets at their size', () => {
+    expect(enlargedPageFactor(...A4)).toBe(1);
+    expect(enlargedPageFactor(612, 792)).toBe(1);
+    expect(enlargedPageFactor(A3[1], A3[0])).toBe(1);
+    // A scanner's slightly larger A4 is no enlargement.
+    expect(enlargedPageFactor(610, 860)).toBe(1);
+    // Other odd sizes keep the scale their stored ink was made at: an image PDF at one point per pixel, B4.
+    expect(enlargedPageFactor(1240, 1754)).toBe(1);
+    expect(enlargedPageFactor(708.66, 1000.63)).toBe(1);
+    // A scanner's A3 is a few points off.
+    expect(enlargedPageFactor(835, 1200)).toBeLessThan(1);
+  });
+
+  it('is a print job of its own, so no large-print student is left out of the Print step', () => {
+    expect(largePrintOf([{}, {}])).toBe('none');
+    expect(largePrintOf([{ largePrint: true }, {}])).toBe('some');
+    expect(largePrintOf([{ largePrint: true }])).toBe('all');
+    expect(printJobs(undefined, 'copies', 'none')).toEqual(['copies']);
+    expect(printJobs(undefined, 'copies', 'some')).toEqual(['copies', 'copiesA3']);
+    expect(printJobs(undefined, 'copies', 'all')).toEqual(['copiesA3']);
+    // Sticker mode prints one plain sheet for everybody.
+    expect(printJobs(undefined, 'stickers', 'some')).toEqual(['exam', 'qr']);
+    const stamps = printStamps('c', 's');
+    expect(stamps.copiesA3).toBe(stamps.copies);
+    expect(printStatus({}, stamps, 'copies', 'some').total).toBe(2);
+  });
+
+  it('survives a scan and marks printed copies as outdated', () => {
+    expect(mergeScannedStudent(student({ largePrint: true }), student()).largePrint).toBe(true);
+    expect(studentsStamp([student({ largePrint: true })])).not.toBe(studentsStamp([student()]));
+  });
+});
+
+describe('working time moved out of the date text (issue #265)', () => {
+  it('keeps the print stamp of an exam whose printed date line did not change', () => {
+    const exam = { id: 'e', title: 'KA' } as ExamRecord;
+    const before = contentStamp({ ...exam, datum: '14.08.2026 (30 Minuten)' }, []);
+    expect(contentStamp({ ...exam, datum: '14.08.2026', durationMinutes: 30 }, [])).toBe(before);
+    expect(contentStamp({ ...exam, datum: '14.08.2026', durationMinutes: 45 }, [])).not.toBe(before);
+  });
+});

@@ -1,6 +1,6 @@
 import type { ExamProgress } from '#lib/exam/examProgress';
 import type { McCheckSummary } from '#lib/grading/mcVerification';
-import type { StepChecks } from '#lib/exam/examChecks';
+import type { LargePrint, StepChecks } from '#lib/exam/examChecks';
 import { writable } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
 import type { ExamRecord } from '#lib/db/schema';
@@ -43,7 +43,7 @@ export interface ExamChecksState {
     examId: string;
     checks: StepChecks;
     /** Fingerprints of the exam content and of its students; null while a read failed. */
-    stamps: { content: string; students: string } | null;
+    stamps: { content: string; students: string; large?: LargePrint } | null;
 }
 
 export const examChecksState = writable<ExamChecksState | null>(null);

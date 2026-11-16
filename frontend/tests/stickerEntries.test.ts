@@ -19,6 +19,13 @@ describe('sticker printing', () => {
     expect(stickerEntries(rows).map((e) => printedLabel(e))).toEqual(['03  Adam, Lena', '12  Berg, Max']);
   });
 
+  it('prints the time extension after the name, a share with its minutes (issue #265)', () => {
+    const row = (name: string, extra: Partial<StudentRecord> = {}): StudentRecord => ({ examId: 'e', pseudonymHmac: name, studentName: name, pseudonymRaw: `${name}_1`, piiCt: new Uint8Array(0), piiIv: new Uint8Array(12), ...extra });
+    const rows = [row('Adam, Lena', { classPosition: 1, timeExtension: { value: 25, unit: '%' } }), row('Berg, Max', { classPosition: 2, timeExtension: { value: 10, unit: 'min' } }), row('Cem, Ali', { classPosition: 3 })];
+    expect(stickerEntries(rows, 30).map((e) => printedLabel(e))).toEqual(['1  Adam, Lena  +25 % (+7,5 Min)', '2  Berg, Max  +10 Min', '3  Cem, Ali']);
+    expect(printedLabel(stickerEntries(rows)[0])).toBe('1  Adam, Lena  +25 %');
+  });
+
   it('offers no exam copies for a results-only exam', () => {
     expect(copiesUnavailable([{ codeWithheld: false }])).toBeNull();
     expect(copiesUnavailable([{ codeWithheld: false }, { codeWithheld: true }])).toBeTypeOf('string');

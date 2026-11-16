@@ -36,7 +36,7 @@ export function exerciseTopicSuggestions(exercises: { topicTag?: string | null }
   return [...new Set(topics)].sort(compareText);
 }
 
-/** Parse a combined date/duration string into separate datumDate and dauer parts. e.g. "20.05.2025 (30 Min)" -> { datumDate: "20.05.2025", dauer: "30 Min" } e.g. "20.05.2025" -> { datumDate: "20.05.2025", dauer: "" } */
+/** Legacy reader (the working time is `durationMinutes` since issue #265): splits a combined date/duration string into datumDate and dauer. e.g. "20.05.2025 (30 Min)" -> { datumDate: "20.05.2025", dauer: "30 Min" } e.g. "20.05.2025" -> { datumDate: "20.05.2025", dauer: "" } */
 export function parseDatumAndDauer(raw?: string | null): { datumDate: string; dauer: string } {
   if (!raw) return { datumDate: '', dauer: '' };
   const str = raw.trim();
@@ -50,16 +50,37 @@ export function parseDatumAndDauer(raw?: string | null): { datumDate: string; da
   return { datumDate: str.slice(0, dateEnd).trim(), dauer: str.slice(open + 1, -1).trim() };
 }
 
-/** Format separate datumDate and dauer into a single combined string. e.g. ("20.05.2025", "30 Min") -> "20.05.2025 (30 Min)" */
-export function formatDatumAndDauer(datumDate?: string | null, dauer?: string | null): string {
-  const dDate = (datumDate || '').trim();
-  const dDauer = (dauer || '').trim();
-  if (dDate && dDauer) {
-    return `${dDate} (${dDauer})`;
-  }
-  if (dDauer) {
-    return `(${dDauer})`;
-  }
-  return dDate;
+/** Whole minutes of a legacy duration text ("30 Min", "1,5 Std", "2 h"); null when it is not a whole number of minutes (mirrors `split_legacy_datum` in migration 0067). */
+export function parseDurationMinutes(text?: string | null): number | null {
+  const match = /^(\d+(?:[.,]\d+)?)\s*([a-z.]*)$/i.exec((text ?? '').trim());
+  if (!match) return null;
+  const unit = match[2].toLowerCase();
+  const factor = MINUTE_UNITS.has(unit) ? 1 : HOUR_UNITS.has(unit) ? 60 : null;
+  if (factor === null) return null;
+  const minutes = Number(match[1].replace(',', '.')) * factor;
+  return Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : null;
 }
 
+const MINUTE_UNITS = new Set(['', 'min', 'min.', 'minute', 'minuten', 'minutes']);
+const HOUR_UNITS = new Set(['std', 'std.', 'stunde', 'stunden', 'h', 'hour', 'hours']);
+
+/** An old "date (duration)" value as date and whole minutes (issue #265); an unreadable bracket stays in the date, so nothing is lost. Imports of old archives go through it. */
+export function splitLegacyDatum(raw?: string | null): { datum: string; durationMinutes: number | null } {
+  const { datumDate, dauer } = parseDatumAndDauer(raw);
+  const durationMinutes = parseDurationMinutes(dauer);
+  return durationMinutes === null ? { datum: (raw ?? '').trim(), durationMinutes } : { datum: datumDate, durationMinutes };
+}
+
+/** The printed `\Datum`: "date (45 Minuten + 5 Minuten Einlesezeit)" from the date, the working time and the reading time; without either the stored text as it is (legacy brackets print as before); the minutes replace an old duration text, never another bracket. The only builder. */
+export function printedDatum(exam: { datum?: string | null; durationMinutes?: number | null; readingMinutes?: number | null }): string {
+  const reading = exam.readingMinutes ? `${exam.readingMinutes} Minuten Einlesezeit` : '';
+  if (!exam.durationMinutes) return reading ? `${(exam.datum ?? '').trim()} (${reading})`.trim() : (exam.datum ?? '').trim();
+  const times = [`${exam.durationMinutes} Minuten`, reading].filter(Boolean).join(' + ');
+  return `${legacyDuration(exam.datum).date} (${times})`.trim();
+}
+
+/** The date and an old duration text the minutes replace: a trailing bracket counts as a duration only when it holds a number ("2 Schulstunden"); a note such as "(Nachtermin)" stays part of the date. */
+export function legacyDuration(raw?: string | null): { date: string; text: string } {
+  const { datumDate, dauer } = parseDatumAndDauer(raw);
+  return /\d/.test(dauer) ? { date: datumDate, text: dauer } : { date: (raw ?? '').trim(), text: '' };
+}

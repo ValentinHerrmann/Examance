@@ -176,6 +176,10 @@ export const help: Translations['help'] = {
                 h: 'Typeset and print',
                 p1: 'The run produces a print-ready PDF with a box for the QR code on the cover page. Print the sheets exactly as typeset, without scaling: the QR code has to stay readable, otherwise the scan cannot be assigned automatically later.',
             },
+            s6: {
+                h: 'Extra time, large print and the timer',
+                p1: 'Enter the working time and, if needed, a reading time in minutes in the exam details. On the Students page each student can get extra time (in minutes or percent) and large print (A3). The extra time is printed next to the name on stickers and copies, large-print copies come as a separate A3 file. "Timer" sends the working time, reading time and the extensions to Examtimer in the exam room.',
+            },
         },
         scanning: {
             title: 'Scanning & assignment',

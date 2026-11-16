@@ -3,6 +3,7 @@
   import { cssVar } from "#lib/utils/cssVar";
   import { tick, onMount, onDestroy, untrack } from "svelte";
   import { loadPdfjs } from "#lib/pdf/pdfjs";
+  import { scanViewport } from "#lib/scan/scanViewport";
   import { get } from "svelte/store";
   import type { SubmissionRecord, ExerciseRecord } from "#lib/db/schema";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
@@ -248,7 +249,7 @@
         }
         const sizes: PageSize[] = [];
         for (let i = 1; i <= doc.numPages; i++) {
-          const viewport = (await doc.getPage(i)).getViewport({ scale: PDF_RENDER_SCALE });
+          const viewport = scanViewport(await doc.getPage(i), PDF_RENDER_SCALE);
           sizes.push({ w: viewport.width, h: viewport.height });
         }
         if (seq !== loadSeq) {
@@ -320,7 +321,7 @@
     try {
       const pdfPage = await doc.getPage(page);
       if (doc !== pdfDoc) return;
-      const viewport = pdfPage.getViewport({ scale: PDF_RENDER_SCALE });
+      const viewport = scanViewport(pdfPage, PDF_RENDER_SCALE);
       await pdfPage.render({ canvasContext: canvas.getContext("2d")!, canvas, viewport } as any).promise;
       if (doc === pdfDoc) {
         scoreLayer.markRendered(page);

@@ -28,7 +28,7 @@ export function schoolYearLabel(year: number): string {
 const DE_DATE = /(?<!\d)(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4}|\d{2})(?!\d)/;
 const ISO_DATE = /(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)/;
 
-/** The day an exam is written, from its "date (duration)" field (`formatDatumAndDauer`); null without a full date (no year, free text, empty). */
+/** The day an exam is written, from its date field (an old "date (duration)" value still reads); null without a full date (no year, free text, empty). */
 export function parseExamDatum(value: string | undefined): Date | null {
   const text = parseDatumAndDauer(value).datumDate;
   const de = DE_DATE.exec(text);

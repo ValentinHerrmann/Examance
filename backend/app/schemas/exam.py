@@ -221,6 +221,8 @@ class ExamCreate(BaseModel):
     klasse: str | None = Field(default=None, max_length=50)
     course: str | None = Field(default=None, max_length=50)
     datum: str | None = Field(default=None, max_length=100)
+    duration_minutes: int | None = Field(default=None, ge=1, le=1440)
+    reading_minutes: int | None = Field(default=None, ge=0, le=1440)
     nr: str | None = Field(default=None, max_length=10)
     fach: str | None = Field(default=None, max_length=100)
     topic: str | None = Field(default=None, max_length=200)
@@ -276,6 +278,8 @@ class ExamUpdate(BaseModel):
     klasse: str | None = Field(default=None, max_length=50)
     course: str | None = Field(default=None, max_length=50)
     datum: str | None = Field(default=None, max_length=100)
+    duration_minutes: int | None = Field(default=None, ge=1, le=1440)
+    reading_minutes: int | None = Field(default=None, ge=0, le=1440)
     nr: str | None = Field(default=None, max_length=10)
     fach: str | None = Field(default=None, max_length=100)
     # Absent keeps the stored topic; null or blank clears it (checked via model_fields_set).
@@ -328,6 +332,8 @@ class ExamResponse(BaseModel):
     klasse: str | None = None
     course: str | None = None
     datum: str | None = None
+    duration_minutes: int | None = None
+    reading_minutes: int | None = None
     nr: str | None = None
     fach: str | None = None
     topic: str | None = None

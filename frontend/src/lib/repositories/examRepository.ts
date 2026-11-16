@@ -12,6 +12,7 @@ import { newTrashGroup, trashHeaders, type DeleteOptions } from '#lib/trash/grou
 import { captureLocal, storedExamRows } from '#lib/trash/localTrash';
 import { stepChecksField, type StepChecks } from '#lib/exam/examChecks';
 import { storedEntries, type LatexPackageEntry } from '#lib/latex/packages';
+import { splitLegacyDatum } from '#lib/utils/examLabel';
 
 /** Undefined (unknown) stays undefined, so a later save leaves the server's value alone. */
 function packagesField(value: unknown): LatexPackageEntry[] | null | undefined {
@@ -67,6 +68,12 @@ function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' |
   };
 }
 
+function datumFields(raw: any): Pick<ExamRecord, 'datum' | 'durationMinutes'> {
+  const durationMinutes = raw.duration_minutes ?? raw.durationMinutes ?? null;
+  if (durationMinutes !== null || !raw.datum) return { datum: raw.datum, durationMinutes };
+  return splitLegacyDatum(raw.datum);
+}
+
 export function mapApiToExamRecord(raw: any): ExamRecord {
   return {
     id: raw.id,
@@ -76,7 +83,9 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     grade: raw.grade,
     klasse: raw.klasse,
     course: raw.course ?? undefined,
-    datum: raw.datum,
+    // An old record or archive still carries the minutes in the date's bracket (issue #265).
+    ...datumFields(raw),
+    readingMinutes: raw.reading_minutes ?? raw.readingMinutes ?? null,
     nr: raw.nr,
     fach: raw.fach,
     topic: raw.topic ?? undefined,
@@ -114,7 +123,9 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     grade: exam.grade,
     klasse: exam.klasse,
     course: exam.course ?? "",
-    datum: exam.datum,
+    datum: datumFields(exam).datum,
+    duration_minutes: datumFields(exam).durationMinutes,
+    reading_minutes: exam.readingMinutes ?? null,
     nr: exam.nr,
     fach: exam.fach,
     // "" clears the stored topic, undefined leaves it alone (the server tells them apart).

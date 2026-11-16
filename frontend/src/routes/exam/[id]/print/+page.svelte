@@ -11,6 +11,7 @@
   import { contentStamp } from "#lib/exam/examChecks";
   import { examChecksState } from "#lib/stores/shell";
   import { copiesUnavailable, loadStickerEntries } from "#lib/sharing/stickerEntries";
+  import { examBaseMinutes } from "#lib/students/timeExtension";
   import type { StickerEntry } from "#lib/qr/stickerSheet";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug } from "#lib/export/zip";
@@ -37,8 +38,8 @@
   let layoutVersion = $state(0);
   // Only what the plan prints: the planned sheets while current, made sticker or copies PDFs as extra panes.
   let shown = $state<PrintPreviews | undefined>(undefined);
-  const paneTitle = { exam: "exam.print.job.examBooklet", qr: "exam.print.job.qr", copies: "exam.print.job.copies", extra: "exam.print.extra.title" } as const;
-  let extraPanes = $derived((["exam", "qr", "copies", "extra"] as const).flatMap((job) => (shown?.jobs[job] ? [{ id: job, title: $t(paneTitle[job]), url: shown.jobs[job] ?? null }] : [])));
+  const paneTitle = { exam: "exam.print.job.examBooklet", qr: "exam.print.job.qr", copies: "exam.print.job.copies", copiesA3: "exam.print.job.copiesA3", extra: "exam.print.extra.title" } as const;
+  let extraPanes = $derived((["exam", "qr", "copies", "copiesA3", "extra"] as const).flatMap((job) => (shown?.jobs[job] ? [{ id: job, title: $t(paneTitle[job]), url: shown.jobs[job] ?? null }] : [])));
 
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
@@ -93,7 +94,7 @@
       loadError = err instanceof Error ? err.message : String(err);
     }
     try {
-      entries = await loadStickerEntries(id, key());
+      entries = await loadStickerEntries(id, key(), examBaseMinutes(ctx?.exam));
     } catch (err) {
       // A failed read is reported, never shown as "no students yet".
       entriesError = err instanceof Error ? err.message : String(err);
