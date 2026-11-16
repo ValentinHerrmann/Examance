@@ -16,6 +16,8 @@
   --color-surface-viewer: #cfd6df;
   /* Printed paper: previews of what goes on the sheet (exam logo). Same in dark mode. */
   --color-paper: #ffffff;
+  /* Ink on the always-white paper of page sketches (Layout step, issue #272): dark in both themes. */
+  --color-ink: #1a1a1a;
   --color-control: #ffffff;
 
   --color-line: #e2e8f0;

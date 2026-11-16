@@ -12,7 +12,8 @@ import { buildExamLatex } from '#lib/exam/examPreview';
 export const SAMPLE_REST_URI = 'omr://__sample__/rest';
 export const SAMPLE_MC_URI = 'omr://__sample__/mc';
 
-const marker = (uri: string) => String.raw`\noindent\href{${uri}}{\rule{0pt}{1pt}\hspace{\linewidth}}\par`;
+// Ends with a line break, so the following text never glues onto `\par` (a `\parLorem` broke the compile).
+const marker = (uri: string) => String.raw`\noindent\href{${uri}}{\rule{0pt}{1pt}\hspace{\linewidth}}\par` + '\n';
 
 /** The base the overlays start from: no scan aids (their room is kept), the QR sticker box and the name line printed, the MC hint on; the overlays mask what an exam leaves out. */
 const SAMPLE_EXAM: ExamRecord = {
@@ -76,7 +77,7 @@ function sampleExercises(): string {
 /** The sample's full source; the rest marker follows the points table, where the last page's writing space begins. */
 export function layoutSampleTex(): string {
   const tex = buildExamLatex(SAMPLE_EXAM, sampleExercises(), 'sans,punkte', [], { fill: false });
-  return tex.replace(String.raw`\end{document}`, `\\par${marker(SAMPLE_REST_URI)}\n\\end{document}`);
+  return tex.replace(String.raw`\end{document}`, `\\par\n${marker(SAMPLE_REST_URI)}\\end{document}`);
 }
 
 /** Compiles the sample once per session and engine; every exam's Layout step reuses it. */

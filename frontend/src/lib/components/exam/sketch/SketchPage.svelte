@@ -33,7 +33,8 @@
   const fromCut = (d: number, w: number) => (right ? W - d - w : d);
   const fromOther = (d: number, w: number) => (right ? d : W - d - w);
   let lit = $derived((part: SketchPart) => highlight === part);
-  const tone = (part: SketchPart, on: boolean) => (on ? "text-accent" : part === "scanAids" ? "text-content" : "text-muted");
+  // The page is white in both themes, so print marks use ink, never theme text colours (they vanish on white in dark mode).
+  const tone = (_part: SketchPart, on: boolean) => (on ? "text-accent" : "text-ink");
 
   const link = (uri: string) => image?.links.find((l) => l.uri === uri) ?? null;
   // The sample's QR box, else where the sty puts it (3.5 cm square at the text edge under the header).
@@ -96,11 +97,11 @@
   {:else if !writingPage}
     <!-- No sample yet: grey bars stand for the content. -->
     {#if page.role === "cover"}
-      <rect x="60" y="22" width="90" height="6" rx="1" fill="var(--color-line-strong)" />
-      {#each lines(qrBox.y + 14, qrBox.y + 30, 6) as l, i (i)}<rect x="62" y={l.y} width="120" height="2.5" rx="1" fill="var(--color-line)" />{/each}
+      <rect x="60" y="22" width="90" height="6" rx="1" fill="var(--color-ink)" opacity="0.35" />
+      {#each lines(qrBox.y + 14, qrBox.y + 30, 6) as l, i (i)}<rect x="62" y={l.y} width="120" height="2.5" rx="1" fill="var(--color-ink)" opacity="0.15" />{/each}
     {/if}
     {#each lines(page.role === "cover" ? 90 : 40, page.role === "last" ? 190 : H - 30) as l, i (i)}
-      <rect x="20" y={l.y} width={l.w} height="3" rx="1" fill="var(--color-line)" />
+      <rect x="20" y={l.y} width={l.w} height="3" rx="1" fill="var(--color-ink)" opacity="0.15" />
     {/each}
   {/if}
 
@@ -109,9 +110,9 @@
     <rect x="20" y="22" width={W - 40} height="14" fill={paperColor} />
     {#if !thumb}
       <text x="20" y="30" font-size="6" font-weight="bold" fill="currentColor" class={tone("notes", lit("notes"))}>{model.notesTitle}</text>
-      <text x="20" y="37" font-size="4" fill="var(--color-muted)">{model.notesNote}</text>
+      <text x="20" y="37" font-size="4" fill="var(--color-ink)" opacity="0.55">{model.notesNote}</text>
     {:else}
-      <rect x="20" y="26" width="60" height="5" rx="1" fill="var(--color-line-strong)" />
+      <rect x="20" y="26" width="60" height="5" rx="1" fill="var(--color-ink)" opacity="0.35" />
     {/if}
   {:else if writing && !thumb}
     <text x="20" y={writing.y - 4} font-size="5" font-weight="bold" fill="currentColor" class={tone("notes", lit("notes"))}>{model.notesTitle}</text>
@@ -140,7 +141,7 @@
     {:else if !link("omr://__qr__")}
       <!-- No sample page (or one without the box): draw the sticker box itself. -->
       <rect x={qrBox.x} y={qrBox.y} width={qrBox.w} height={qrBox.h} fill={paperColor} stroke="currentColor" stroke-width="0.4" stroke-dasharray="2 1.5" class={tone("qr", lit("qr"))} />
-      {#if !thumb}<text x={qrBox.x + qrBox.w / 2} y={qrBox.y + 10} text-anchor="middle" font-size="4" fill="var(--color-muted)">QR Code</text>{/if}
+      {#if !thumb}<text x={qrBox.x + qrBox.w / 2} y={qrBox.y + 10} text-anchor="middle" font-size="4" fill="var(--color-ink)" opacity="0.55">QR Code</text>{/if}
     {/if}
     {#if model.qr === "sticker" && model.initials}
       <!-- The box's initials field, printed when no name line names the student. -->
@@ -167,7 +168,7 @@
 
   {#if page.foldSide}
     <g class={tone("fold", lit("fold"))}>
-      <rect x={page.foldSide === "left" ? 0 : W - fold} y="0" width={fold} height={H} fill="currentColor" opacity="0.12" />
+      <rect x={page.foldSide === "left" ? 0 : W - fold} y="0" width={fold} height={H} fill="currentColor" opacity="0.07" />
       <line x1={page.foldSide === "left" ? fold : W - fold} y1="0" x2={page.foldSide === "left" ? fold : W - fold} y2={H} stroke="currentColor" stroke-width="0.5" stroke-dasharray="3 2" />
     </g>
     {@render glow("fold", page.foldSide === "left" ? 0 : W - fold, 0, fold, H)}
@@ -177,7 +178,7 @@
     {@const sx = fromOther(page.foldSide ? spot.sideBooklet : spot.side, spot.size)}
     <rect x={sx} y={spot.top} width={spot.size} height={spot.size} fill={paperColor} />
     <rect x={sx} y={spot.top} width={spot.size} height={spot.size} rx="2" fill="currentColor" opacity="0.06" stroke="currentColor" stroke-width="0.4" class={tone("stickers", lit("stickers"))} />
-    {#if !thumb}<text x={sx + spot.size / 2} y={spot.top + spot.size / 2 + 1.5} text-anchor="middle" font-size="4" fill="var(--color-muted)">Aufkleber</text>{/if}
+    {#if !thumb}<text x={sx + spot.size / 2} y={spot.top + spot.size / 2 + 1.5} text-anchor="middle" font-size="4" fill="var(--color-ink)" opacity="0.55">Aufkleber</text>{/if}
     {@render glow("stickers", sx, spot.top, spot.size, spot.size)}
   {/if}
 
@@ -187,7 +188,7 @@
     <g class={tone("scanAids", lit("scanAids"))}>
       <!-- The cut tab: tinted, its dashed cut line from 75 mm along the top to 20 mm down the side. -->
       <path d={right ? `M ${W - tab.top} 0 L ${W} 0 L ${W} ${tab.side} Z` : `M ${tab.top} 0 L 0 0 L 0 ${tab.side} Z`} fill="currentColor" opacity="0.07" />
-      <line x1={right ? W - tab.top : tab.top} y1="0" x2={right ? W : 0} y2={tab.side} stroke="currentColor" stroke-width="0.5" stroke-dasharray="3 2" opacity="0.6" />
+      <line x1={right ? W - tab.top : tab.top} y1="0" x2={right ? W : 0} y2={tab.side} stroke="currentColor" stroke-width="0.5" stroke-dasharray="3 2" opacity="0.5" />
       <g fill="currentColor">
         <rect x={fromCut(cutX, fid.size)} y={fid.top - fid.size} width={fid.size} height={fid.size} />
         <rect x={fromOther(otherX, fid.size)} y={fid.top - fid.size} width={fid.size} height={fid.size} />

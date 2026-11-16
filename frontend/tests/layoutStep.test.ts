@@ -97,4 +97,10 @@ describe('layout sample (issue #272)', () => {
     expect(tex).toContain(SAMPLE_REST_URI);
     expect(tex).toContain(SAMPLE_MC_URI);
   });
+
+  it('never glues text onto a control word (\\parLorem broke the compile)', () => {
+    const tex = layoutSampleTex();
+    expect(tex).not.toMatch(/\\par[A-Za-z]/);
+    for (const uri of [SAMPLE_MC_URI, SAMPLE_REST_URI]) expect(tex).toMatch(new RegExp(`${uri}\\}.*\\\\par\\n`));
+  });
 });
