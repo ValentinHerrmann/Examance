@@ -8,7 +8,7 @@ An exam is a selection of exercises from your library plus header data, a gradin
 
 ## Create a new exam {#new-exam}
 
-**New exam** (on the dashboard) asks only for the header data, creates the exam and opens it on the **Exam** step with the exercise library. The exercises, their order, MC groups and the preview are done there; how the printed exam looks is set in the next step, [Layout](#layout).
+**New exam** (on the dashboard) asks only for the header data, creates the exam and opens it on the **Exercises** step with the exercise library. The exercises, their order, MC groups and the preview are done there; how the printed exam looks is set in the next step, [Layout](#layout).
 
 ### Header data {#header}
 
@@ -31,7 +31,7 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 | Step | What you do there |
 |---|---|
 | **Overview** | Details and key figures of the exam, see [below](#overview) |
-| 1 **Exam** | Exercises and preview, see [Assemble the exercises](#assemble) and [Typeset](#typeset) |
+| 1 **Exercises** | Exercises and preview, see [Assemble the exercises](#assemble) and [Typeset](#typeset) |
 | 2 **Layout** | Everything that changes how the exam looks, with a live preview of a sample exam, see [Layout options](#layout) |
 | 3 **Students** | The class list, see [Student data](./students#student-data) |
 | 4 **Print** | Create the PDFs and the QR codes, see [Print](#print) |
@@ -49,7 +49,7 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 
 ## Assemble the exercises {#assemble}
 
-On the **Exam** step, the **Exercises** tab lists the exam's exercises. **Add exercises** picks exercises from the library, with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
+On the **Exercises** step, the **Exercises** tab lists the exam's exercises. **Add exercises** picks exercises from the library, with the variant you want for each. **New exercise** writes a new one right there; it is saved to your library and selected immediately.
 
 - The arrows reorder the exercises.
 - The total score is recalculated as you go.
@@ -75,7 +75,7 @@ Groups are layout only: grading and statistics stay strictly per question.
 
 ## Layout options {#layout}
 
-The **Layout** step (step 2, between **Exam** and **Students**) holds every option that changes how the printed exam looks. Beside the options a preview shows a **sample exam** (not your own content) with your options applied: one page large and every page of a copy as a small numbered thumbnail, grouped by sheet. From wide screens on, the preview fills the screen beside the options and never scrolls; the page shrinks to fit. The pages are the cover, exercise pages, the last page, your extra pages and the **filler pages** that top every copy up to whole sheets (empty writing pages). Point at an option to highlight its element on the page shown; click or tab into an option and the preview moves to the page it changes; click a thumbnail to show that page large. The sample shows your own info text, a header with 30 minutes of working time plus 5 minutes of reading time and a sample student, Max Mustermann, with a 20 % time extension. Numbered badges on the page match the panel beside it, which explains each element and says **where the name is**: on the sticker (small, above the QR code), on the cut-off corner of a personalised copy, or on the handwritten name line, and whether it is still on the paper you grade. When your exam has been previewed in the **Exam** step, a line below says how many pages and sheets your own exam has. Order of the options: preset, grading and scan aids, print form, cover, every page, writing space. Each row shows small tiles with the label on the left; the line below a row explains the chosen option, or the one you point at. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
+The **Layout** step (step 2, between **Exercises** and **Students**) holds every option that changes how the printed exam looks. Beside the options a preview shows a **sample exam** (not your own content) with your options applied: one page large and every page of a copy as a small numbered thumbnail, grouped by sheet. From wide screens on, the preview fills the screen beside the options and never scrolls; the page shrinks to fit. The pages are the cover, exercise pages, the last page, your extra pages and the **filler pages** that top every copy up to whole sheets (empty writing pages). Point at an option to highlight its element on the page shown; click or tab into an option and the preview moves to the page it changes; click a thumbnail to show that page large. The sample shows your own info text, a header with 30 minutes of working time plus 5 minutes of reading time and a sample student, Max Mustermann, with a 20 % time extension. Numbered badges on the page match the panel beside it, which explains each element and says **where the name is**: on the sticker (small, above the QR code), on the cut-off corner of a personalised copy, or on the handwritten name line, and whether it is still on the paper you grade. When your exam has been previewed in the **Exercises** step, a line below says how many pages and sheets your own exam has. Order of the options: preset, grading and scan aids, print form, cover, every page, writing space. Each row shows small tiles with the label on the left; the line below a row explains the chosen option, or the one you point at. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
 
 **Presets** at the top are starting points; they are not stored. Choosing one sets its options, and all of them stay editable. The page shows which preset matches your settings, or "custom settings" if none does.
 
@@ -149,7 +149,7 @@ LaTeX packages are no longer set per exam: they come from your account (**Settin
 An exam that runs over several sheets of paper is easier to handle when every page knows who and what it is. The **Every page** section of the Layout step has an option for this, and the printed copies always fill whole sheets:
 
 - **Page code on every page.** A small QR code (14 mm) at the top of every page, on the side of the cut-off corner, just inside the corner marker, tells the scanner which page it is. On [personalised copies](./students#printed-copies) it also carries the student's ID (the short sticker ID or the Mebis or Artemis ID, never the name). So the order of the scanned sheets no longer matters, missing pages are reported and loose sheets find their student. The code is reliable from 200 ppi scans; 300 ppi is better. It is on by default for new exams. Older exams keep their layout until you switch it on; that changes the page layout, so copies printed before no longer match.
-- **Whole sheets.** Every printed copy is filled up to whole sheets (an even page count when printed double-sided, a multiple of 4 as a booklet), so each copy starts on a new sheet. The added pages are [extra pages](#extra-paper) for writing. Which multiple applies follows the print form you choose in the Layout step, so the preview on the **Exam** step leaves these pages out; the Print step shows them. They are scanned, archived and exported like every other page.
+- **Whole sheets.** Every printed copy is filled up to whole sheets (an even page count when printed double-sided, a multiple of 4 as a booklet), so each copy starts on a new sheet. The added pages are [extra pages](#extra-paper) for writing. Which multiple applies follows the print form you choose in the Layout step, so the preview on the **Exercises** step leaves these pages out; the Print step shows them. They are scanned, archived and exported like every other page.
 
 How you print these sheets (double-sided or booklet, stickers per sheet) is chosen under **Print form** in the Layout step, see [below](#multi-sheet-print); how the printer is fed is asked in the Print step.
 
@@ -215,7 +215,7 @@ Print the sheets **exactly as typeset**: no "fit to page", no scaling, no croppi
 
 ### Remembered layouts {#pinned-layout}
 
-As soon as you download the task sheet or the personalised copies, or tick them as **printed**, Examance remembers the answer sheet's layout: where its boxes, score fields and corner markers are. If you then change an exercise or the layout, or an update arrives, the sheets already printed are still read correctly: on import Examance first tries the most recently remembered layout and, if it does not fit, takes the remembered layout whose boxes lie on the scan. The list **Remembered answer-sheet layouts** under the print jobs shows each layout with its date; you can remove the layout of a version that was never handed out. If you changed the exam after printing, the **Exam** step points it out. Remembered layouts are stored encrypted on the server, so they also apply in another browser.
+As soon as you download the task sheet or the personalised copies, or tick them as **printed**, Examance remembers the answer sheet's layout: where its boxes, score fields and corner markers are. If you then change an exercise or the layout, or an update arrives, the sheets already printed are still read correctly: on import Examance first tries the most recently remembered layout and, if it does not fit, takes the remembered layout whose boxes lie on the scan. The list **Remembered answer-sheet layouts** under the print jobs shows each layout with its date; you can remove the layout of a version that was never handed out. If you changed the exam after printing, the **Exercises** step points it out. Remembered layouts are stored encrypted on the server, so they also apply in another browser.
 
 After the exam, continue with [Scanning and assignment](./scanning).
 

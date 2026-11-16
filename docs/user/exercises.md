@@ -17,7 +17,7 @@ Every exercise is tagged with **grade**, **subject** and **topic**. The filters 
 - Expand an entry to see, per variant, which exams use the exercise. Click an exam for a short overview, from where you can open it in a new tab.
 - **Preview** shows the last compiled PDF. If there is none yet, Examance asks whether to compile it now.
 
-Exercise names are clickable almost everywhere in the app (on the **Exam** step, while grading, in analytics) and open the exercise straight in the editor.
+Exercise names are clickable almost everywhere in the app (on the **Exercises** step, while grading, in analytics) and open the exercise straight in the editor.
 
 ### Favorites and archive {#favorites}
 
@@ -91,7 +91,7 @@ Examance keeps related content together automatically:
 - a part is never split as long as it fits on one page;
 - a picture stays with the text after it.
 
-Pages break between parts. Where that doesn't suit you, `\Seitenumbruch` (in the **Generic** palette) forces a new page at that spot. Page breaks *between exercises* are set on the exam's **Exam** step, see [Creating an exam](./exams#page-breaks).
+Pages break between parts. Where that doesn't suit you, `\Seitenumbruch` (in the **Generic** palette) forces a new page at that spot. Page breaks *between exercises* are set on the exam's **Exercises** step, see [Creating an exam](./exams#page-breaks).
 
 ## Variants and versions {#variants}
 
@@ -109,7 +109,7 @@ An exercise can be **free text**, **single choice** or **multiple choice**. Tick
 
 Ticked boxes are detected automatically when you import the scans, see [MC verification](./scanning#mc-verification).
 
-Several tick-box exercises can be combined into an **MC group** on the exam's **Exam** step. That is purely a layout choice for the printout, see [MC groups](./exams#mc-groups).
+Several tick-box exercises can be combined into an **MC group** on the exam's **Exercises** step. That is purely a layout choice for the printout, see [MC groups](./exams#mc-groups).
 
 ![Multiple choice editor](../screenshots/pitch/03b-mc-editor.jpg)
 
@@ -160,7 +160,7 @@ Examance never sends anything to an AI service itself. It prepares a prompt that
 
 ## Report a layout problem {#layout-reports}
 
-If a PDF looks wrong or fails to compile although the code seems right, use **LaTeX error** (with the bug icon) in the header of each PDF preview (in the exercise editor, on the exam's **Exam** and **Print** steps and in the preview dialogs):
+If a PDF looks wrong or fails to compile although the code seems right, use **LaTeX error** (with the bug icon) in the header of each PDF preview (in the exercise editor, on the exam's **Exercises** and **Print** steps and in the preview dialogs):
 
 1. Briefly describe what is wrong and what it should look like.
 2. With your consent, the LaTeX code, the PDFs and the files are sent **unencrypted** to the administrators of your installation.

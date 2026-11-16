@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { continueStep, examProgress, nextStep } from '../src/lib/exam/examProgress';
-import { examNavItems, stepNumber } from '../src/lib/components/layout/examNavItems';
+import { EXAM_STEPS, examNavItems, stepNumber } from '../src/lib/components/layout/examNavItems';
 
 describe('examProgress', () => {
   it('leaves unknown counts out instead of showing 0', () => {
@@ -70,7 +70,7 @@ describe('paper grading (digitalGrading false)', () => {
 
   it('greys out the scan branch A, never the other steps', () => {
     const items = examNavItems('e1', '/exam/e1', false);
-    expect(items).toHaveLength(10);
+    expect(items).toHaveLength(EXAM_STEPS.length);
     for (const item of items) {
       expect(item.disabledReason).toBe(item.branch === 'A' ? 'exam.layout.grading.off' : undefined);
     }

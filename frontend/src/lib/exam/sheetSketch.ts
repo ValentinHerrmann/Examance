@@ -173,19 +173,19 @@ export function sheetsOf(model: SheetSketchModel): SketchPageModel[][] {
 export function infoTextLines(tex: string): string[] {
   const text = tex
     .replace(/(?<!\\)%.*$/gm, '')
-    .replace(/\\item\b\s*/g, '\n• ')
+    .replace(/\\item\b/g, '\n• ')
     .replace(/\\(?:begin|end)\{[^}]*\}/g, '\n')
-    .replace(/\\\\/g, '\n')
+    .replaceAll('\\\\', '\n')
     // Spacing, sizes and labels print nothing; their arguments must not show as text ("2cm").
     .replace(/\\(?:[hv]space|rule|[hv]?phantom|label|setlength|addtolength)\*?(?:\{[^}]*\})+/g, '')
     .replace(/\\[,;:!> ]/g, ' ')
-    .replace(/\$/g, '')
+    .replaceAll('$', '')
     .replace(/\\[a-zA-Z@]+\*?(?:\[[^\]]*\])?/g, '')
     .replace(/\\(.)/g, '$1')
     .replace(/[{}]/g, '')
-    .replace(/~/g, ' ');
+    .replaceAll('~', ' ');
   return text
-    .split(/\n\s*\n|\n(?=• )|\n/)
+    .split('\n')
     .map((line) => line.replace(/\s+/g, ' ').trim())
     .filter((line) => line && line !== '•');
 }

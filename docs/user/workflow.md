@@ -4,7 +4,7 @@ editLink: false
 
 # From exercise to analysis
 
-The usual path of an exam through Examance, in six stages. Each stage links to its detailed page. Inside an exam, the sidebar lists the steps in this order: **Exam**, **Layout**, **Students**, **Print**, **Scans**, **Check MC**, **Digital grading** or **Paper grading**, **Results**, **Review**, **Export**; each has a status badge and a **Next: …** button at the top right, see [The exam's steps](./exams#steps).
+The usual path of an exam through Examance, in six stages. Each stage links to its detailed page. Inside an exam, the sidebar lists the steps in this order: **Exercises**, **Layout**, **Students**, **Print**, **Scans**, **Check MC**, **Digital grading** or **Paper grading**, **Results**, **Review**, **Export**; each has a status badge and a **Next: …** button at the top right, see [The exam's steps](./exams#steps).
 
 ## 1. Collect exercises in the library {#library}
 
@@ -21,7 +21,7 @@ More: [Exercise library](./exercises), [Sharing exercises](./sharing).
 
 ## 2. Assemble and typeset the exam {#exam}
 
-**New exam** asks for the header data (subject, class, exam type, date), then opens the **Exam** step, where you pick exercises from the library, order them, group multiple choice questions and typeset a preview. The next step, **Layout**, sets how the exam looks, with presets and a live sketch of the pages. The grading key is set later, under the **Results** step. The class list belongs to the **Students** step. Typesetting produces a print-ready PDF in your browser or on the server; its cover page has an empty QR Code box for the student's [QR sticker](./students#qr-stickers).
+**New exam** asks for the header data (subject, class, exam type, date), then opens the **Exercises** step, where you pick exercises from the library, order them, group multiple choice questions and typeset a preview. The next step, **Layout**, sets how the exam looks, with presets and a live sketch of the pages. The grading key is set later, under the **Results** step. The class list belongs to the **Students** step. Typesetting produces a print-ready PDF in your browser or on the server; its cover page has an empty QR Code box for the student's [QR sticker](./students#qr-stickers).
 
 **Duplicate** creates a new exam with the same exercises and settings, for example for a parallel class; students and results are never copied. Deleted an exam by mistake? [The trash](./trash) keeps it for 7 days.
 
