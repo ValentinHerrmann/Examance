@@ -16,7 +16,7 @@ Score edits outside a reply are never published automatically: the Share page's 
 
 ## Overview tab
 
-`routes/exam/[id]/results/reviews` (`components/sharing/ReviewOverview` + `ReviewOverviewRow`, data from `lib/sharing/reviewOverview.ts` `loadReviewOverview`) lists every objection of the exam. It is **read only**: it opens threads with `openThread` but never calls `openShareReview`, so nothing gets locked; only the grade page locks.
+`routes/exam/[id]/review/objections` (Objections tab of the Review step, issue #276) (`components/sharing/ReviewOverview` + `ReviewOverviewRow`, data from `lib/sharing/reviewOverview.ts` `loadReviewOverview`) lists every objection of the exam. It is **read only**: it opens threads with `openThread` but never calls `openShareReview`, so nothing gets locked; only the grade page locks.
 
 - One row per student: the current link's server thread, else the objection kept in the `GradingReviewRecord` (`fromRecord`). The record supplies the first-recorded `pointsBefore`; the reply's sealed points (`ReviewThread.replyPoints`) supply the rest.
 - Status: `new` (not opened), `opened` (locked, no reply), `answered`. Only `answered` is closed; the filter shows Open, Answered or All. Open rows sort oldest first, answered newest first.

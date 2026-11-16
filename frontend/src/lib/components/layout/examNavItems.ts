@@ -1,6 +1,8 @@
 import type { IconDefinition } from '@fortawesome/free-solid-svg-icons';
 import {
+    faBoxArchive,
     faChartColumn,
+    faCommentDots,
     faFileLines,
     faHouse,
     faListCheck,
@@ -14,7 +16,7 @@ import {
 import type { TranslationKey } from '#lib/i18n';
 
 /** Exam steps in flow order: the one list behind the sidebar, the phone drawer, the "Next" button and the exam-list cards (issue #212). */
-export type ExamStep = 'overview' | 'content' | 'layout' | 'students' | 'print' | 'scan' | 'verify' | 'grade' | 'manual' | 'results';
+export type ExamStep = 'overview' | 'content' | 'layout' | 'students' | 'print' | 'scan' | 'verify' | 'grade' | 'manual' | 'results' | 'review' | 'export';
 
 export interface ExamNavItem {
     step: ExamStep;
@@ -46,9 +48,11 @@ export const EXAM_STEPS: { step: ExamStep; suffix: string; labelKey: Translation
     { step: 'grade', suffix: '/grade', labelKey: 'exam.sidebar.grade', icon: faPenToSquare, branch: 'A' },
     { step: 'manual', suffix: '/manual', labelKey: 'exam.sidebar.manual', hintKey: 'exam.sidebar.manualHint', icon: faTableCells, branch: 'B' },
     { step: 'results', suffix: '/results', labelKey: 'exam.sidebar.results', icon: faChartColumn },
+    { step: 'review', suffix: '/review', labelKey: 'exam.sidebar.review', icon: faCommentDots },
+    { step: 'export', suffix: '/export', labelKey: 'exam.sidebar.export', icon: faBoxArchive },
 ];
 
-/** The step's number as shown ("1"…"4", "5A"…"7A", "B", "8"); null for the overview. Branch B replaces the whole of A, so it has a letter only and the steps after it count on from A. */
+/** The step's number as shown ("1"…"4", "5A"…"7A", "B", "8"…"10"); null for the overview. Branch B replaces the whole of A, so it has a letter only and the steps after it count on from A. */
 export function stepNumber(step: ExamStep): string | null {
     const index = EXAM_STEPS.findIndex((s) => s.step === step);
     const entry = EXAM_STEPS[index];

@@ -7,9 +7,9 @@ export const scanHref = (examId: string) => `/exam/${q(examId)}/scan`;
 export const contentHref = (examId: string) => `/exam/${q(examId)}/content`;
 export const printHref = (examId: string) => `/exam/${q(examId)}/print`;
 export const resultsHref = (examId: string) => `/exam/${q(examId)}/results`;
-export const archiveHref = (examId: string) => `/exam/${q(examId)}/results/archive`;
-export const shareHref = (examId: string) => `/exam/${q(examId)}/results/share`;
-export const reviewsHref = (examId: string) => `/exam/${q(examId)}/results/reviews`;
+export const archiveHref = (examId: string) => `/exam/${q(examId)}/export`;
+export const shareHref = (examId: string) => `/exam/${q(examId)}/review`;
+export const reviewsHref = (examId: string) => `/exam/${q(examId)}/review/objections`;
 /** Settings → Pen input (issue #233): where pen detection is reset. */
 export const penInputSettingsHref = "/settings#pen-input";
 /** Settings → Examtimer address (issue #265). */

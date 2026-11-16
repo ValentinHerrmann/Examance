@@ -268,7 +268,7 @@ export function topicForPath(pathname: string): HelpTopicId {
   if (pathname.startsWith("/exam/")) {
     if (pathname.includes("/scan") || pathname.includes("/verify")) return "scanning";
     if (pathname.endsWith("/grade") || pathname.endsWith("/manual")) return "grading";
-    if (pathname.endsWith("/stats")) return "stats";
+    if (/\/(stats|results|review|export)(\/|$)/.test(pathname)) return "stats";
     return "examCreation";
   }
   if (pathname.startsWith("/analytics")) return "analytics";

@@ -284,7 +284,7 @@
 {/snippet}
 
 <PageShell width="fluid">
-  <ExamPageHeader {examId} step="results" title={$t("sharing.share.title")} hint={$t("sharing.share.intro")} helpTopic="stats" />
+  <ExamPageHeader {examId} step="review" title={$t("sharing.share.title")} hint={$t("sharing.share.intro")} helpTopic="stats" />
 
   <div class="flex min-w-0 flex-col gap-6">
     {#if resultsAreLocal()}

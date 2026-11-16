@@ -281,7 +281,7 @@
 {/snippet}
 
 <PageShell width="fluid">
-  <ExamPageHeader {examId} step="results" title={$t("exam.archive.title")} hint={$t("exam.archive.intro")} helpTopic="stats" />
+  <ExamPageHeader {examId} step="export" title={$t("exam.archive.title")} hint={$t("exam.archive.intro")} helpTopic="stats" />
 
   {#if loadError}
     <Alert severity="danger">{loadError}</Alert>
