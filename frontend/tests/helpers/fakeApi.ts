@@ -107,6 +107,22 @@ const notFound = (detail: string): FakeResponse => fail(404, detail, 'ERR_NOT_FO
 const conflict = (detail: string): FakeResponse => fail(409, detail, 'ERR_CONFLICT');
 
 const uuid = (): string => crypto.randomUUID();
+
+/** A valid PDF of *pages* blank A4 pages, for the fake compile jobs. */
+function blankPdf(pages: number): Uint8Array {
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', `<< /Type /Pages /Kids [${Array.from({ length: pages }, (_, i) => `${i + 3} 0 R`).join(' ')}] /Count ${pages} >>`];
+  for (let i = 0; i < pages; i++) objs.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] >>');
+  let out = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objs.forEach((o, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`;
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return new TextEncoder().encode(out);
+}
 const now = (): string => new Date().toISOString();
 
 /** `\begin{Aufgabe}[N]` override, else `\BE`/`\Lmulti` 1, `\hBE` 0.5, `\qBE` 0.25 (`parse_exercise_score` in the backend). */
@@ -1494,6 +1510,11 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         return admin(verb, parts, searchParams, payload);
       case 'latex':
         return verb === 'GET' && parts[1] === 'template-packages' ? ok(TEMPLATE_PACKAGES) : undefined;
+      case 'compile':
+        // No TeX engine here: every job answers the same blank three-page A4 PDF (the Layout step's sample, issue #272).
+        if (parts[1] !== 'latex' || parts[2] !== 'jobs') return undefined;
+        if (verb === 'POST' && parts.length === 3) return ok({ job_id: uuid() });
+        return verb === 'GET' && parts.length === 4 ? { status: 200, bytes: blankPdf(3), headers: { 'content-type': 'application/pdf' } } : undefined;
       case 'shares':
         return sharesRoute(verb, parts, payload);
       case 'statistics':

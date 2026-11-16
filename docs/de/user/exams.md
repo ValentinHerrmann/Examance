@@ -32,7 +32,7 @@ Jede Prüfung hat eine Seitenleiste (auf dem Handy: das Menü) mit nummerierten 
 |---|---|
 | **Übersicht** | Angaben und Kennzahlen der Prüfung, siehe [unten](#overview) |
 | 1 **Prüfung** | Aufgaben und Vorschau, siehe [Aufgaben zusammenstellen](#assemble) und [Setzen](#typeset) |
-| 2 **Layout** | Alles, was das Aussehen der Prüfung ändert, mit Live-Skizze der Seiten, siehe [Layout-Optionen](#layout) |
+| 2 **Layout** | Alles, was das Aussehen der Prüfung ändert, mit Live-Vorschau einer Beispielarbeit, siehe [Layout-Optionen](#layout) |
 | 3 **Schüler** | Die Klassenliste, siehe [Schülerdaten](./students#student-data) |
 | 4 **Drucken** | PDFs und QR-Codes erstellen, siehe [Drucken](#print) |
 | 5A **Scans** | Die gescannten Bögen einlesen, siehe [Scannen und Zuordnen](./scanning) |
@@ -74,7 +74,7 @@ Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Fra
 
 ## Layout-Optionen {#layout}
 
-Der Schritt **Layout** (Schritt 2, zwischen **Prüfung** und **Schüler**) enthält jede Option, die das Aussehen der gedruckten Prüfung ändert. Neben den Optionen zeigt eine Live-Skizze die Seiten ohne Inhalt: das Deckblatt, die Aufgabenseiten und eine Zusatz-Schreibseite. Zeigen Sie auf eine Option oder klicken Sie hinein, hebt die Skizze das Element hervor, das sie ändert. Piktogramme in jeder Auswahl zeigen den jeweiligen Fall. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
+Der Schritt **Layout** (Schritt 2, zwischen **Prüfung** und **Schüler**) enthält jede Option, die das Aussehen der gedruckten Prüfung ändert. Neben den Optionen zeigt eine Vorschau eine **Beispielarbeit** (nicht Ihren Inhalt) mit Ihren Einstellungen: eine Seite groß und alle Seiten eines Exemplars als Miniaturen, nach Blättern gruppiert. Die Seiten sind Deckblatt, Aufgabenseiten, letzte Seite, Ihre Zusatzseiten und die **Füllseiten**, die jedes Exemplar auf ganze Blätter auffüllen (leere Schreibseiten). Zeigen Sie auf eine Option oder klicken Sie hinein, springt die Vorschau auf die Seite, die sie ändert, und hebt das Element hervor; ein Klick auf eine Miniatur zeigt diese Seite groß. Wurde Ihre Arbeit im Schritt **Prüfung** schon in der Vorschau angezeigt, steht darunter, wie viele Seiten und Blätter Ihre eigene Arbeit hat. Reihenfolge der Optionen: Voreinstellung, Bewertung, Druckform, Deckblatt, jede Seite, Schreibplatz. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
 
 **Voreinstellungen** ganz oben sind Ausgangspunkte; sie werden nicht gespeichert. Wählen Sie eine, setzt sie ihre Optionen, und alle bleiben änderbar. Die Seite zeigt, welche Voreinstellung zu Ihren Einstellungen passt, sonst „eigene Einstellungen“.
 

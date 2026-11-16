@@ -32,7 +32,7 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 |---|---|
 | **Overview** | Details and key figures of the exam, see [below](#overview) |
 | 1 **Exam** | Exercises and preview, see [Assemble the exercises](#assemble) and [Typeset](#typeset) |
-| 2 **Layout** | Everything that changes how the exam looks, with a live sketch of the pages, see [Layout options](#layout) |
+| 2 **Layout** | Everything that changes how the exam looks, with a live preview of a sample exam, see [Layout options](#layout) |
 | 3 **Students** | The class list, see [Student data](./students#student-data) |
 | 4 **Print** | Create the PDFs and the QR codes, see [Print](#print) |
 | 5A **Scans** | Import the scanned sheets, see [Scanning and assignment](./scanning) |
@@ -73,7 +73,7 @@ Groups are layout only: grading and statistics stay strictly per question.
 
 ## Layout options {#layout}
 
-The **Layout** step (step 2, between **Exam** and **Students**) holds every option that changes how the printed exam looks. Beside the options a live sketch shows the pages without any content: the cover, the exercise pages and an extra writing page. Point at or click into an option and the sketch highlights the element it changes. Pictograms in each choice show the case. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
+The **Layout** step (step 2, between **Exam** and **Students**) holds every option that changes how the printed exam looks. Beside the options a preview shows a **sample exam** (not your own content) with your options applied: one page large and every page of a copy as a thumbnail, grouped by sheet. The pages are the cover, exercise pages, the last page, your extra pages and the **filler pages** that top every copy up to whole sheets (empty writing pages). Point at or click into an option and the preview jumps to the page it changes and highlights the element; click a thumbnail to show that page large. When your exam has been previewed in the **Exam** step, a line below says how many pages and sheets your own exam has. Order of the options: preset, grading, print form, cover, every page, writing space. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
 
 **Presets** at the top are starting points; they are not stored. Choosing one sets its options, and all of them stay editable. The page shows which preset matches your settings, or "custom settings" if none does.
 

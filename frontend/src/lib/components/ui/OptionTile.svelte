@@ -25,14 +25,12 @@
     onclick?: (event: MouseEvent) => void;
     /** After the title, e.g. an `InfoTip`. */
     titleExtra?: Snippet;
-    /** A small drawing of the case at the tile's end, e.g. an `exam/sketch/OptionPictogram` (issue #272). */
-    illustration?: Snippet;
-    /** Pointer or keyboard focus entered (true) or left (false) the tile, e.g. to stress its part in a sketch. */
+    /** Pointer or keyboard focus entered (true) or left (false) the tile, e.g. to stress its part in the Layout step's preview. */
     onHighlight?: (on: boolean) => void;
     class?: string;
   }
 
-  let { type = "radio", name, value, checked, title, text = undefined, icon = undefined, disabled = false, compact = false, onchange, onToggle, onclick, titleExtra, illustration, onHighlight, class: className = "" }: Props = $props();
+  let { type = "radio", name, value, checked, title, text = undefined, icon = undefined, disabled = false, compact = false, onchange, onToggle, onclick, titleExtra, onHighlight, class: className = "" }: Props = $props();
 
   function changed(event: Event) {
     onchange?.(event);
@@ -58,5 +56,4 @@
     </span>
     {#if text}<span class="block break-words hyphens-auto text-muted {compact ? 'mt-0.5 text-xs' : 'mt-1 text-sm'}">{text}</span>{/if}
   </span>
-  {#if illustration}<span class="shrink-0 self-center" aria-hidden="true">{@render illustration()}</span>{/if}
 </label>

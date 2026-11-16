@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { LAYOUT_PRESETS, matchPreset } from '../src/lib/exam/layoutPresets';
 import { NEW_EXAM_PRINT, printSettingsOf, printsNameLine } from '../src/lib/exam/printLayout';
-import { sheetSketchOf } from '../src/lib/exam/sheetSketch';
+import { focusPageOf, sheetSketchOf } from '../src/lib/exam/sheetSketch';
+import { layoutSampleTex, SAMPLE_MC_URI, SAMPLE_REST_URI } from '../src/lib/exam/layoutSample';
 import { withExamOptions } from '../src/lib/exam/examPreview';
 
 const preset = (id: string) => LAYOUT_PRESETS.find((p) => p.id === id)!.fields;
@@ -43,13 +44,26 @@ describe('name line without Examance grading (issue #272)', () => {
   });
 });
 
-describe('sheet sketch (issue #272)', () => {
+describe('layout preview pages (issue #272)', () => {
   it('draws the scan aids and stickers of digital grading', () => {
     const model = sheetSketchOf({ ...NEW_EXAM_PRINT }, false);
     expect(model).toMatchObject({ scanAids: true, pageCodes: true, qr: 'sticker', initials: true, nameLine: false, layout: 'duplex', sheets: 2 });
-    expect(model.pages.map((p) => p.role)).toEqual(['cover', 'exercises', 'exercises', 'writing']);
+    expect(model.pages.map((p) => p.role)).toEqual(['cover', 'exercises', 'last', 'filler']);
     expect(model.pages.filter((p) => p.stickerSpot).map((p) => p.number)).toEqual([3]);
     expect(model.pages.map((p) => p.cutSide)).toEqual(['right', 'left', 'right', 'left']);
+  });
+
+  it('extra pages come before the filler pages that fill whole sheets', () => {
+    const duplex = sheetSketchOf({ ...NEW_EXAM_PRINT, extraPages: 2 }, false);
+    expect(duplex.pages.map((p) => p.role)).toEqual(['cover', 'exercises', 'last', 'extra', 'extra', 'filler']);
+    const booklet = sheetSketchOf({ ...NEW_EXAM_PRINT, printLayout: 'booklet', stickerSpots: 'a3', extraPages: 1 }, false, 5);
+    expect(booklet.pages.map((p) => p.role)).toEqual(['cover', 'exercises', 'exercises', 'exercises', 'last', 'extra', 'filler', 'filler']);
+    expect(booklet.sheets).toBe(2);
+    expect(booklet.pages[0]!.foldSide).toBe('left');
+  });
+
+  it('no filler page when the pages already fill whole sheets', () => {
+    expect(sheetSketchOf({ ...NEW_EXAM_PRINT, extraPages: 1 }, false).pages.map((p) => p.role)).toEqual(['cover', 'exercises', 'last', 'extra']);
   });
 
   it('personalised copies print the QR and need no sticker spots', () => {
@@ -64,10 +78,23 @@ describe('sheet sketch (issue #272)', () => {
     expect(model.pages.some((p) => p.stickerSpot || p.foldSide)).toBe(false);
   });
 
-  it('a booklet shows two folded A3 sheets with the fold strip', () => {
-    const model = sheetSketchOf({ ...NEW_EXAM_PRINT, printLayout: 'booklet', stickerSpots: 'a3' }, false);
-    expect(model.pages).toHaveLength(8);
-    expect(model.sheets).toBe(2);
-    expect(model.pages[0]!.foldSide).toBe('left');
+  it('an option shows on the page it changes', () => {
+    const model = sheetSketchOf({ ...NEW_EXAM_PRINT, extraPages: 1 }, false);
+    expect(focusPageOf('name', model)).toBe(1);
+    expect(focusPageOf('pageCodes', model)).toBe(2);
+    expect(focusPageOf('stickers', model)).toBe(3);
+    expect(focusPageOf('paper', model)).toBe(4);
+  });
+});
+
+describe('layout sample (issue #272)', () => {
+  it('prints the QR box and name line without scan aids, and marks its rest area', () => {
+    const tex = layoutSampleTex();
+    const options = /\\usepackage\[([^\]]*)\]\{sty\/Schulaufgabe\}/.exec(tex)![1]!.split(',');
+    expect(options).toEqual(expect.arrayContaining(['ohnescan', 'ergebnisqr', 'namenszeile']));
+    expect(options).not.toContain('seitencode');
+    expect(options).not.toContain('broschuere');
+    expect(tex).toContain(SAMPLE_REST_URI);
+    expect(tex).toContain(SAMPLE_MC_URI);
   });
 });

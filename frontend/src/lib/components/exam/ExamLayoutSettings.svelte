@@ -8,13 +8,12 @@
   import { clampExtraPages, MAX_EXTRA_PAGES, printSettingsOf, spotChoices, type PaperStyle, type PrintLayout, type PrintMode, type StickerSpots } from "#lib/exam/printLayout";
   import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import { LAYOUT_PRESETS, matchPreset, type LayoutPresetId, type PresetFields } from "#lib/exam/layoutPresets";
-  import { sheetSketchOf, type SketchPageRole, type SketchPart } from "#lib/exam/sheetSketch";
+  import type { SketchPart } from "#lib/exam/sheetSketch";
   import LatexEditor from "#lib/components/LatexEditor.svelte";
   import ExamLogoField from "#lib/components/logo/ExamLogoField.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import ExtraNotesField from "#lib/components/exam/ExtraNotesField.svelte";
   import SheetSketch from "#lib/components/exam/sketch/SheetSketch.svelte";
-  import OptionPictogram from "#lib/components/exam/sketch/OptionPictogram.svelte";
   import { extraNotesKey, type ExtraNotes } from "#lib/db/schema";
   import SectionHeading from "#lib/components/help/SectionHeading.svelte";
   import { faBookOpen, faCopy, faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faScissors, faSignature, faTableCells, faTag, faUser, faUserSecret, faBook, faPenNib, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
@@ -156,9 +155,6 @@
   }
 
   let preset = $derived(matchPreset(current));
-  let model = $derived(sheetSketchOf(current, hasLogo));
-  /** The sketch of the current edits with *patch* applied, for a tile's pictogram. */
-  const modelWith = (patch: Partial<ExamLayoutPatch>) => sheetSketchOf({ ...current, ...patch }, hasLogo);
   const lit = (part: SketchPart) => (on: boolean) => (highlight = on ? part : highlight === part ? null : highlight);
   const presetIcon: Record<LayoutPresetId, IconDefinition> = { fullDigital: faQrcode, digitalBooklet: faBook, anonymousPaper: faUserSecret, namedPaper: faPenNib };
   const spotIcon = { cover: faFileLines, sheet: faCopy, a3: faBookOpen, leaf: faScissors } as const;
@@ -194,34 +190,26 @@
   });
 </script>
 
-{#snippet picto(patch: Partial<ExamLayoutPatch>, page: SketchPageRole | "sticker", part: SketchPart)}
-  <OptionPictogram model={modelWith(patch)} {page} {part} />
+{#snippet choice(group: string, value: string, checked: boolean, icon: IconDefinition, title: string, text: string, part: SketchPart, onPick: () => void, disabled = false)}
+  <OptionTile compact name={group} {value} {checked} {disabled} {icon} {title} {text} onchange={onPick} onHighlight={lit(part)} />
 {/snippet}
 
-{#snippet choice(group: string, value: string, checked: boolean, icon: IconDefinition, title: string, text: string, part: SketchPart, patch: Partial<ExamLayoutPatch>, page: SketchPageRole | "sticker", onPick: () => void, disabled = false)}
-  <OptionTile compact name={group} {value} {checked} {disabled} {icon} {title} {text} onchange={onPick} onHighlight={lit(part)}>
-    {#snippet illustration()}{@render picto(patch, page, part)}{/snippet}
-  </OptionTile>
-{/snippet}
-
-<!-- Options on the left, the sketch beside them from xl (on top on phones, so a choice shows at once). -->
-<div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+<!-- Options on the left, the preview beside them from xl (on top on phones, so a choice shows at once). Sections follow the decisions: how it is graded and printed first, then the pages from the cover on. -->
+<div class="grid min-w-0 grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
   <Card class="min-w-0 xl:sticky xl:top-4 xl:order-2">
-    <SheetSketch {model} {highlight} />
+    <SheetSketch examId={exam.id} fields={{ ...current, extraNotes }} {hasLogo} {highlight} />
   </Card>
 
   <Card class="min-w-0" title={$t("exam.sidebar.layout")}>
     {#snippet actions()}
       <SaveStatus {status} />
     {/snippet}
-    <div class="@container flex flex-col gap-5">
+    <div class="@container flex flex-col gap-6">
       <section class="flex flex-col gap-2" aria-labelledby="layout-presets">
         <SectionHeading id="layout-presets" tag="h3" label={$t("exam.layout.presets.heading")} info={$t("exam.layout.presets.info")} />
         <div class="grid grid-cols-1 gap-2 @xl:grid-cols-2" role="radiogroup" aria-labelledby="layout-presets">
           {#each LAYOUT_PRESETS as p (p.id)}
-            <OptionTile compact name="layout-preset" value={p.id} checked={preset === p.id} icon={presetIcon[p.id]} title={$t(`exam.layout.presets.${p.id}`)} text={$t(`exam.layout.presets.${p.id}Text`)} onchange={() => applyPreset(p.fields)}>
-              {#snippet illustration()}{@render picto(p.fields, "cover", "qr")}{/snippet}
-            </OptionTile>
+            <OptionTile compact name="layout-preset" value={p.id} checked={preset === p.id} icon={presetIcon[p.id]} title={$t(`exam.layout.presets.${p.id}`)} text={$t(`exam.layout.presets.${p.id}Text`)} onchange={() => applyPreset(p.fields)} />
           {/each}
         </div>
         {#if preset === "custom"}<p class="m-0 text-xs text-muted">{$t("exam.layout.presets.custom")}</p>{/if}
@@ -230,105 +218,106 @@
       <!-- Teachers who grade on paper elsewhere print no scan aids (issue #228). -->
       <section class="flex flex-col gap-2" aria-labelledby="layout-grading">
         <SectionHeading id="layout-grading" tag="h3" label={$t("exam.layout.grading.heading")} info={$t("exam.layout.grading.info")} />
-        <OptionTile type="checkbox" compact checked={digitalGrading} icon={faQrcode} title={$t("exam.layout.grading.digital")} text={$t("exam.layout.grading.digitalText")} onToggle={(on) => (digitalGrading = on)} onHighlight={lit("scanAids")}>
-          {#snippet illustration()}{@render picto({ digitalGrading: true }, "exercises", "scanAids")}{/snippet}
-        </OptionTile>
+        <OptionTile type="checkbox" compact checked={digitalGrading} icon={faQrcode} title={$t("exam.layout.grading.digital")} text={$t("exam.layout.grading.digitalText")} onToggle={(on) => (digitalGrading = on)} onHighlight={lit("scanAids")} />
       </section>
 
-      <div class="grid grid-cols-1 items-start gap-x-6 gap-y-5 @3xl:grid-cols-2">
-        <section class="flex min-w-0 flex-col gap-3" aria-labelledby="layout-cover">
-          <SectionHeading id="layout-cover" tag="h3" label={$t("exam.layout.sections.cover")} info={$t("exam.layout.sections.coverInfo")} />
+      <!-- How the copies are made: it changes filler pages, the fold and the sticker fields, so it lives here, not on the Print step (issue #272). -->
+      <section class="flex min-w-0 flex-col gap-3" aria-labelledby="layout-printing">
+        <SectionHeading id="layout-printing" tag="h3" label={$t("exam.layout.sections.printing")} info={$t("exam.layout.sections.printingInfo")} />
+        {#if digitalGrading}
+          <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-mode">
+            <SectionHeading id="layout-mode" label={$t("exam.print.modeLegend")} info={$t("exam.print.modeInfo")} />
+            <div class="grid grid-cols-1 gap-2 @md:grid-cols-2">
+              {@render choice("layout-mode", "stickers", printMode === "stickers", faTag, $t("exam.print.modeStickers"), $t("exam.print.modeStickersText"), "qr", () => (printMode = "stickers"))}
+              {@render choice("layout-mode", "copies", printMode === "copies", faUser, $t("exam.print.modeCopies"), copiesUnavailable ?? $t("exam.print.modeCopiesText"), "qr", () => (printMode = "copies"), !!copiesUnavailable && printMode !== "copies")}
+            </div>
+          </div>
+        {/if}
+        <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-layout">
+          <SectionHeading id="layout-layout" label={$t("exam.print.layoutLegend")} info={$t("exam.print.layoutInfo")} />
+          <div class="grid grid-cols-1 gap-2 @md:grid-cols-2">
+            {@render choice("layout-layout", "duplex", printLayout === "duplex", faCopy, $t("exam.print.duplex"), $t("exam.print.duplexText"), "fold", () => setLayout("duplex"))}
+            {@render choice("layout-layout", "booklet", printLayout === "booklet", faBookOpen, $t("exam.print.booklet.label"), $t("exam.print.booklet.text"), "fold", () => setLayout("booklet"))}
+          </div>
+        </div>
+        {#if digitalGrading && printMode === "stickers"}
+          <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-spots">
+            <SectionHeading id="layout-spots" label={$t("exam.print.spots.legend")} info={$t("exam.print.spots.info")} />
+            <div class="grid grid-cols-1 gap-2 @md:grid-cols-3">
+              {#each spotChoices(printLayout) as spot (spot)}
+                {@render choice("layout-spots", spot, stickerSpots === spot, spotIcon[spot], $t(`exam.print.spots.${spot}`), $t(`exam.print.spots.${spot}Text`), "stickers", () => (stickerSpots = spot))}
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </section>
+
+      <section class="flex min-w-0 flex-col gap-3" aria-labelledby="layout-cover">
+        <SectionHeading id="layout-cover" tag="h3" label={$t("exam.layout.sections.cover")} info={$t("exam.layout.sections.coverInfo")} />
+        <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-name">
+          <SectionHeading id="layout-name" label={$t("exam.layout.choices.nameLegend")} info={$t("exam.metadataEditor.nameLineHint")} />
+          {#if digitalGrading}
+            <div class="grid grid-cols-1 gap-2 @md:grid-cols-2">
+              {@render choice("layout-name", "qr", !nameLine, faQrcode, $t("exam.layout.choices.nameQr"), $t("exam.layout.choices.nameQrText"), "qr", () => (nameLine = false))}
+              {@render choice("layout-name", "line", nameLine, faSignature, $t("exam.layout.choices.nameLine"), $t("exam.layout.choices.nameLineText"), "name", () => (nameLine = true))}
+            </div>
+          {:else}
+            <div class="grid grid-cols-1 gap-2 @md:grid-cols-3">
+              {@render choice("layout-name", "line", paperName === "line", faSignature, $t("exam.layout.choices.paperLine"), $t("exam.layout.choices.paperLineText"), "name", () => setPaperName("line"))}
+              {@render choice("layout-name", "qr", paperName === "qr", faUserSecret, $t("exam.layout.choices.paperQr"), $t("exam.layout.choices.paperQrText"), "qr", () => setPaperName("qr"))}
+              {@render choice("layout-name", "both", paperName === "both", faQrcode, $t("exam.layout.choices.paperBoth"), $t("exam.layout.choices.paperBothText"), "name", () => setPaperName("both"))}
+            </div>
+          {/if}
+        </div>
+        <div onfocusin={() => (highlight = "info")} onfocusout={() => (highlight = null)} role="presentation">
           <Field label={$t("exam.metadataEditor.infoText")}>
             <LatexEditor bind:value={infoText} rows={4} />
           </Field>
-          <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-name">
-            <SectionHeading id="layout-name" label={$t("exam.layout.choices.nameLegend")} info={$t("exam.metadataEditor.nameLineHint")} />
-            {#if digitalGrading}
-              <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
-                {@render choice("layout-name", "qr", !nameLine, faQrcode, $t("exam.layout.choices.nameQr"), $t("exam.layout.choices.nameQrText"), "qr", { nameLine: false }, "cover", () => (nameLine = false))}
-                {@render choice("layout-name", "line", nameLine, faSignature, $t("exam.layout.choices.nameLine"), $t("exam.layout.choices.nameLineText"), "name", { nameLine: true }, "cover", () => (nameLine = true))}
-              </div>
-            {:else}
-              <div class="grid grid-cols-1 gap-2">
-                {@render choice("layout-name", "line", paperName === "line", faSignature, $t("exam.layout.choices.paperLine"), $t("exam.layout.choices.paperLineText"), "name", { nameLine: true, resultsQrBox: false }, "cover", () => setPaperName("line"))}
-                {@render choice("layout-name", "qr", paperName === "qr", faUserSecret, $t("exam.layout.choices.paperQr"), $t("exam.layout.choices.paperQrText"), "qr", { nameLine: false, resultsQrBox: true }, "cover", () => setPaperName("qr"))}
-                {@render choice("layout-name", "both", paperName === "both", faQrcode, $t("exam.layout.choices.paperBoth"), $t("exam.layout.choices.paperBothText"), "name", { nameLine: true, resultsQrBox: true }, "cover", () => setPaperName("both"))}
-              </div>
-            {/if}
-          </div>
+        </div>
+        <div onpointerenter={() => (highlight = "logo")} onpointerleave={() => (highlight = null)} role="presentation">
           {#key resetSeq}
             <ExamLogoField examId={exam.id} bind:change={logoChange} bind:hasLogo />
           {/key}
-        </section>
+        </div>
+      </section>
 
-        <!-- Every exam keeps the cut-off corner (issue #211); page codes shape every sheet (issue #220). -->
-        <section class="flex min-w-0 flex-col gap-3" aria-labelledby="layout-sheet">
-          <SectionHeading id="layout-sheet" tag="h3" label={$t("exam.layout.sections.sheet")} info={$t("exam.layout.sections.sheetInfo")} />
-          {#if digitalGrading}
-            <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-codes">
-              <SectionHeading id="layout-codes" label={$t("exam.layout.choices.codesLegend")} info={$t("exam.layout.print.pageCodesInfo")} />
-              <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
-                {@render choice("layout-codes", "off", !pageCodes, faFileLines, $t("exam.layout.choices.codesCover"), $t("exam.layout.choices.codesCoverText"), "pageCodes", { pageCodes: false }, "exercises", () => (pageCodes = false))}
-                {@render choice("layout-codes", "on", pageCodes, faQrcode, $t("exam.layout.choices.codesAll"), $t("exam.layout.choices.codesAllText"), "pageCodes", { pageCodes: true }, "exercises", () => (pageCodes = true))}
-              </div>
-            </div>
-          {/if}
-          <OptionTile type="checkbox" compact checked={mcCorrectionHint} icon={faPenToSquare} title={$t("exam.layout.choices.mcHint")} text={$t("exam.layout.choices.mcHintText")} onToggle={(on) => (mcCorrectionHint = on)} onHighlight={lit("mcHint")}>
-            {#snippet titleExtra()}<InfoTip text={$t("exam.metadataEditor.mcCorrectionHintHint")} />{/snippet}
-            {#snippet illustration()}{@render picto({ mcCorrectionHint: true }, "exercises", "mcHint")}{/snippet}
-          </OptionTile>
-          <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <CrossLink href={docsHref("exams#cut-corner", $locale)}>{$t("exam.metadataEditor.cutCornerLayout")}</CrossLink>
-            <CrossLink href={docsHref("exams#multi-sheet", $locale)}>{$t("exam.layout.print.guide")}</CrossLink>
-          </div>
-        </section>
-
-        <!-- How the sheets are made: it changes filler pages, the fold zone and the sticker fields, so it lives here, not on the Print step (issue #272). -->
-        <section class="flex min-w-0 flex-col gap-3" aria-labelledby="layout-printing">
-          <SectionHeading id="layout-printing" tag="h3" label={$t("exam.layout.sections.printing")} info={$t("exam.layout.sections.printingInfo")} />
-          {#if digitalGrading}
-            <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-mode">
-              <SectionHeading id="layout-mode" label={$t("exam.print.modeLegend")} info={$t("exam.print.modeInfo")} />
-              <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
-                {@render choice("layout-mode", "stickers", printMode === "stickers", faTag, $t("exam.print.modeStickers"), $t("exam.print.modeStickersText"), "qr", { printMode: "stickers" }, "cover", () => (printMode = "stickers"))}
-                {@render choice("layout-mode", "copies", printMode === "copies", faUser, $t("exam.print.modeCopies"), copiesUnavailable ?? $t("exam.print.modeCopiesText"), "qr", { printMode: "copies" }, "cover", () => (printMode = "copies"), !!copiesUnavailable && printMode !== "copies")}
-              </div>
-            </div>
-          {/if}
-          <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-layout">
-            <SectionHeading id="layout-layout" label={$t("exam.print.layoutLegend")} info={$t("exam.print.layoutInfo")} />
-            <div class="grid grid-cols-1 gap-2 @xs:grid-cols-2">
-              {@render choice("layout-layout", "duplex", printLayout === "duplex", faCopy, $t("exam.print.duplex"), $t("exam.print.duplexText"), "fold", { printLayout: "duplex" }, "exercises", () => setLayout("duplex"))}
-              {@render choice("layout-layout", "booklet", printLayout === "booklet", faBookOpen, $t("exam.print.booklet.label"), $t("exam.print.booklet.text"), "fold", { printLayout: "booklet" }, "exercises", () => setLayout("booklet"))}
+      <!-- Every exam keeps the cut-off corner (issue #211); page codes shape every sheet (issue #220). -->
+      <section class="flex min-w-0 flex-col gap-3" aria-labelledby="layout-sheet">
+        <SectionHeading id="layout-sheet" tag="h3" label={$t("exam.layout.sections.sheet")} info={$t("exam.layout.sections.sheetInfo")} />
+        {#if digitalGrading}
+          <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-codes">
+            <SectionHeading id="layout-codes" label={$t("exam.layout.choices.codesLegend")} info={$t("exam.layout.print.pageCodesInfo")} />
+            <div class="grid grid-cols-1 gap-2 @md:grid-cols-2">
+              {@render choice("layout-codes", "on", pageCodes, faQrcode, $t("exam.layout.choices.codesAll"), $t("exam.layout.choices.codesAllText"), "pageCodes", () => (pageCodes = true))}
+              {@render choice("layout-codes", "off", !pageCodes, faFileLines, $t("exam.layout.choices.codesCover"), $t("exam.layout.choices.codesCoverText"), "pageCodes", () => (pageCodes = false))}
             </div>
           </div>
-          {#if digitalGrading && printMode === "stickers"}
-            <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="layout-spots">
-              <SectionHeading id="layout-spots" label={$t("exam.print.spots.legend")} info={$t("exam.print.spots.info")} />
-              <div class="grid grid-cols-1 gap-2">
-                {#each spotChoices(printLayout) as spot (spot)}
-                  {@render choice("layout-spots", spot, stickerSpots === spot, spotIcon[spot], $t(`exam.print.spots.${spot}`), $t(`exam.print.spots.${spot}Text`), "stickers", { stickerSpots: spot }, "sticker", () => (stickerSpots = spot))}
-                {/each}
-              </div>
-            </div>
-          {/if}
-        </section>
+        {/if}
+        <OptionTile type="checkbox" compact checked={mcCorrectionHint} icon={faPenToSquare} title={$t("exam.layout.choices.mcHint")} text={$t("exam.layout.choices.mcHintText")} onToggle={(on) => (mcCorrectionHint = on)} onHighlight={lit("mcHint")}>
+          {#snippet titleExtra()}<InfoTip text={$t("exam.metadataEditor.mcCorrectionHintHint")} />{/snippet}
+        </OptionTile>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <CrossLink href={docsHref("exams#cut-corner", $locale)}>{$t("exam.metadataEditor.cutCornerLayout")}</CrossLink>
+          <CrossLink href={docsHref("exams#multi-sheet", $locale)}>{$t("exam.layout.print.guide")}</CrossLink>
+        </div>
+      </section>
 
-        <!-- Extra paper (issue #228): one paper for every writing space and one heading for the exam's own; filling up to whole sheets follows the print form. -->
-        <section class="flex min-w-0 flex-col gap-3" aria-labelledby="layout-writing">
-          <SectionHeading id="layout-writing" tag="h3" label={$t("exam.layout.paper.heading")} info={$t("exam.layout.paper.styleInfo")} />
-          <div class="grid grid-cols-1 gap-2" role="radiogroup" aria-label={$t("exam.layout.paper.style")}>
-            {@render choice("paper-style", "squared", paperStyle === "squared", faTableCells, $t("exam.layout.paper.squared"), $t("exam.layout.paper.squaredText"), "paper", { paperStyle: "squared" }, "writing", () => (paperStyle = "squared"))}
-            {@render choice("paper-style", "lined", paperStyle === "lined", faGripLines, $t("exam.layout.paper.lined"), $t("exam.layout.paper.linedText"), "paper", { paperStyle: "lined" }, "writing", () => (paperStyle = "lined"))}
-            {@render choice("paper-style", "empty", paperStyle === "empty", faFile, $t("exam.layout.paper.empty"), $t("exam.layout.paper.emptyText"), "paper", { paperStyle: "empty" }, "writing", () => (paperStyle = "empty"))}
-          </div>
+      <!-- Extra paper (issue #228): one paper for every writing space and one heading for the exam's own; filling up to whole sheets follows the print form. -->
+      <section class="flex min-w-0 flex-col gap-3" aria-labelledby="layout-writing">
+        <SectionHeading id="layout-writing" tag="h3" label={$t("exam.layout.paper.heading")} info={$t("exam.layout.paper.styleInfo")} />
+        <div class="grid grid-cols-1 gap-2 @md:grid-cols-3" role="radiogroup" aria-label={$t("exam.layout.paper.style")}>
+          {@render choice("paper-style", "squared", paperStyle === "squared", faTableCells, $t("exam.layout.paper.squared"), $t("exam.layout.paper.squaredText"), "paper", () => (paperStyle = "squared"))}
+          {@render choice("paper-style", "lined", paperStyle === "lined", faGripLines, $t("exam.layout.paper.lined"), $t("exam.layout.paper.linedText"), "paper", () => (paperStyle = "lined"))}
+          {@render choice("paper-style", "empty", paperStyle === "empty", faFile, $t("exam.layout.paper.empty"), $t("exam.layout.paper.emptyText"), "paper", () => (paperStyle = "empty"))}
+        </div>
+        <div onfocusin={() => (highlight = "notes")} onfocusout={() => (highlight = null)} role="presentation">
           <ExtraNotesField value={extraNotes} onChange={(next) => (extraNotes = next)} idPrefix="layoutExtraNotes" />
-          <Field label={$t("exam.layout.paper.extraPages")} forId="layoutExtraPages" info={$t("exam.layout.paper.extraPagesInfo", { max: MAX_EXTRA_PAGES })}>
-            <TextInput id="layoutExtraPages" type="number" min="0" max={String(MAX_EXTRA_PAGES)} step="1" class="w-24" bind:value={extraPagesText} />
-          </Field>
-          <CrossLink href={docsHref("exams#extra-paper", $locale)} class="self-start text-sm">{$t("exam.layout.paper.guide")}</CrossLink>
-        </section>
-      </div>
+        </div>
+        <Field label={$t("exam.layout.paper.extraPages")} forId="layoutExtraPages" info={$t("exam.layout.paper.extraPagesInfo", { max: MAX_EXTRA_PAGES })}>
+          <TextInput id="layoutExtraPages" type="number" min="0" max={String(MAX_EXTRA_PAGES)} step="1" class="w-24" bind:value={extraPagesText} onfocus={() => (highlight = "paper")} onblur={() => (highlight = null)} />
+        </Field>
+        <CrossLink href={docsHref("exams#extra-paper", $locale)} class="self-start text-sm">{$t("exam.layout.paper.guide")}</CrossLink>
+      </section>
     </div>
   </Card>
 </div>
