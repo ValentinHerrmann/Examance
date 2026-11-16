@@ -51,6 +51,8 @@ export interface ZipExamSettings {
   datum?: string;
   /** Working time in whole minutes; older exports carry it in the bracket of `datum`. */
   durationMinutes?: number;
+  /** Reading time in whole minutes. */
+  readingMinutes?: number;
   nr?: string;
   fach?: string;
   topic?: string;

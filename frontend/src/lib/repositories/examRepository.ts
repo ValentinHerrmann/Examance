@@ -85,6 +85,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     course: raw.course ?? undefined,
     // An old record or archive still carries the minutes in the date's bracket (issue #265).
     ...datumFields(raw),
+    readingMinutes: raw.reading_minutes ?? raw.readingMinutes ?? null,
     nr: raw.nr,
     fach: raw.fach,
     topic: raw.topic ?? undefined,
@@ -124,6 +125,7 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     course: exam.course ?? "",
     datum: datumFields(exam).datum,
     duration_minutes: datumFields(exam).durationMinutes,
+    reading_minutes: exam.readingMinutes ?? null,
     nr: exam.nr,
     fach: exam.fach,
     // "" clears the stored topic, undefined leaves it alone (the server tells them apart).

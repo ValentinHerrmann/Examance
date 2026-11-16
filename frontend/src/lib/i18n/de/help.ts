@@ -177,7 +177,7 @@ export const help = {
             },
             s6: {
                 h: 'Zeitzuschlag, Großdruck und Timer',
-                p1: 'Tragen Sie bei den Prüfungsdaten die Arbeitszeit in Minuten ein. Auf der Seite Schüler bekommt jede Person bei Bedarf einen Zeitzuschlag (in Minuten oder Prozent) und Großdruck (A3). Der Zuschlag steht neben dem Namen auf Aufklebern und Exemplaren, Großdruck-Exemplare kommen als eigene A3-Datei. „Timer“ übergibt Arbeitszeit und Zuschläge an den Examtimer im Prüfungsraum.',
+                p1: 'Tragen Sie bei den Prüfungsdaten die Arbeitszeit und bei Bedarf eine Einlesezeit in Minuten ein. Auf der Seite Schüler bekommt jede Person bei Bedarf einen Zeitzuschlag (in Minuten oder Prozent) und Großdruck (A3). Der Zuschlag steht neben dem Namen auf Aufklebern und Exemplaren, Großdruck-Exemplare kommen als eigene A3-Datei. „Timer“ übergibt Arbeitszeit, Einlesezeit und Zuschläge an den Examtimer im Prüfungsraum.',
             },
         },
         scanning: {

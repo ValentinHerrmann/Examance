@@ -21,6 +21,8 @@
     editDatum: string;
     /** Working time in whole minutes, null when unset. */
     editDurationMinutes: number | null;
+    /** Reading time in whole minutes, null when none (issue #265). */
+    editReadingMinutes?: number | null;
     editNr: string;
     editFach: string;
     editTopic?: string;
@@ -48,6 +50,7 @@
     editCourse = $bindable(""),
     editDatum = $bindable(),
     editDurationMinutes = $bindable(),
+    editReadingMinutes = $bindable(null),
     editNr = $bindable(),
     editFach = $bindable(),
     editTopic = $bindable(""),
@@ -71,6 +74,10 @@
   let durationText = $state(untrack(() => (editDurationMinutes ? String(editDurationMinutes) : "")));
   let lastSyncedDuration = untrack(() => editDurationMinutes);
   let durationInvalid = $derived(durationText.trim() !== "" && parseMinutes(durationText) === null);
+  // The reading time the same way; 0 is allowed and means none.
+  let readingText = $state(untrack(() => (editReadingMinutes ? String(editReadingMinutes) : "")));
+  let lastSyncedReading = untrack(() => editReadingMinutes ?? null);
+  let readingInvalid = $derived(readingText.trim() !== "" && parseMinutes(readingText, 0) === null);
   let lastSyncedEditDatum = "";
 
   const generateTitle = () =>
@@ -94,9 +101,15 @@
     lastSyncedEditDatum = formatted;
   }
 
-  function parseMinutes(text: string): number | null {
+  function parseMinutes(text: string, min = 1): number | null {
     const minutes = Number(text.trim());
-    return Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : null;
+    return Number.isInteger(minutes) && minutes >= min && minutes <= 1440 ? minutes : null;
+  }
+
+  function handleReadingInput() {
+    if (readingInvalid) return;
+    editReadingMinutes = parseMinutes(readingText, 0) || null;
+    lastSyncedReading = editReadingMinutes;
   }
 
   function handleDurationInput() {
@@ -131,6 +144,16 @@
         const parsed = legacyDuration(d);
         editDatumDate = parsed.date;
         legacyDauer = parsed.text;
+      }
+    });
+  });
+
+  $effect.pre(() => {
+    const minutes = editReadingMinutes ?? null;
+    untrack(() => {
+      if (minutes !== lastSyncedReading) {
+        lastSyncedReading = minutes;
+        readingText = minutes ? String(minutes) : "";
       }
     });
   });
@@ -207,6 +230,11 @@
     <Field compact class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.dauer")} forId="editDauer" hint={legacyDauer && !durationInvalid ? $t("exam.metadataEditor.dauerLegacy", { text: legacyDauer }) : undefined} error={durationInvalid ? $t("exam.metadataEditor.dauerInvalid") : undefined}>
       {#snippet children({ id })}
         <input {id} type="text" inputmode="numeric" bind:value={durationText} oninput={handleDurationInput} aria-invalid={durationInvalid ? "true" : undefined} placeholder="30" class={input} />
+      {/snippet}
+    </Field>
+    <Field compact class="{field} @lg:col-span-2" label={$t("exam.metadataEditor.reading")} info={$t("exam.metadataEditor.readingHint")} forId="editReading" error={readingInvalid ? $t("exam.metadataEditor.readingInvalid") : undefined}>
+      {#snippet children({ id })}
+        <input {id} type="text" inputmode="numeric" bind:value={readingText} oninput={handleReadingInput} aria-invalid={readingInvalid ? "true" : undefined} placeholder="0" class={input} />
       {/snippet}
     </Field>
     <Field compact class="{field} @lg:col-span-2 @2xl:col-span-3" label={$t("exam.metadataEditor.retentionUntil")} info={$t("exam.metadataEditor.retentionHint")} forId="editRetention">

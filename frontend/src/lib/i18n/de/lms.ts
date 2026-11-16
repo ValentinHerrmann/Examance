@@ -29,7 +29,7 @@ export const lms = {
         colNeeds: 'Zeitzuschlag, Großdruck',
         extensionUnit: 'Einheit des Zeitzuschlags',
         extensionMinutes: 'Min',
-        extensionInvalid: 'Der Zeitzuschlag muss eine Zahl größer als 0 sein, zum Beispiel 25 oder 7,5; die Einheit wählen Sie daneben. Für keinen Zuschlag lassen Sie das Feld leer.',
+        extensionInvalid: 'Der Zeitzuschlag muss eine Zahl größer als 0 sein (höchstens 1440 Minuten oder 1000 %), zum Beispiel 25 oder 7,5; die Einheit wählen Sie daneben. Für keinen Zuschlag lassen Sie das Feld leer.',
         extensionNoDuration: 'Ein Zeitzuschlag in Prozent wird erst in Minuten umgerechnet, wenn bei der Prüfung die Arbeitszeit eingetragen ist.',
         fromList: 'aus Klassenliste',
         sticker: 'QR-Aufkleber',

@@ -31,7 +31,7 @@ export const lms: Translations['lms'] = {
         colNeeds: 'Extra time, large print',
         extensionUnit: 'Unit of the extra time',
         extensionMinutes: 'min',
-        extensionInvalid: 'The extra time must be a number above 0, for example 25 or 7.5; choose the unit next to it. Leave the field empty for no extra time.',
+        extensionInvalid: 'The extra time must be a number above 0 (at most 1440 minutes or 1000 %), for example 25 or 7.5; choose the unit next to it. Leave the field empty for no extra time.',
         extensionNoDuration: 'Extra time in percent is converted to minutes only once the exam has a working time.',
         fromList: 'from class list',
         sticker: 'QR sticker',

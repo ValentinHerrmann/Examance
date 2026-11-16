@@ -6,7 +6,7 @@
   import { Alert, Button, Checkbox, Modal, Spinner, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import type { ExamRecord, StudentRecord } from "#lib/db/schema";
-  import { buildTimerData, timerExtensionLabels, timerFile, timerLink, timerUrl } from "#lib/export/examTimer";
+  import { buildTimerData, timerExtensionLabels, timerFile, timerLink, timerLinkProblem, timerUrl } from "#lib/export/examTimer";
   import { slug } from "#lib/export/zip";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { sessionStore } from "#lib/stores/session";
@@ -22,6 +22,7 @@
   // A first name can only label an extension that exactly one student holds.
   let nameable = $derived(!!exam && !!students && buildTimerData(exam, students, { names: true }).settings.extensions.some((ext) => ext.label));
   let ready = $derived(!!data && !!exam?.durationMinutes);
+  let linkProblem = $derived(data ? timerLinkProblem(data) : null);
   let base = $derived(exam ? timerUrl() : "");
 
   /** Opens the dialog for *target* and reads its students; a failed read is shown, never treated as "no extensions". */
@@ -54,11 +55,15 @@
           <dd class="m-0">{[data.settings.exam, data.settings.subject, data.settings.course].filter(Boolean).join(" · ") || "-"}</dd>
           <dt class="text-muted">{$t("export.timer.duration")}</dt>
           <dd class="m-0 tabular-nums">{exam.durationMinutes ? $t("export.timer.minutes", { count: exam.durationMinutes }) : "-"}</dd>
+          <dt class="text-muted">{$t("export.timer.reading")}</dt>
+          <dd class="m-0 tabular-nums">{exam.readingMinutes ? $t("export.timer.minutes", { count: exam.readingMinutes }) : $t("export.timer.noReading")}</dd>
           <dt class="text-muted">{$t("export.timer.extensions")}</dt>
           <dd class="m-0 tabular-nums">{extensions.length ? extensions.join(", ") : $t("export.timer.noExtensions")}</dd>
         </dl>
-        {#if !exam.durationMinutes}
+        {#if linkProblem === "noDuration"}
           <Alert severity="warning">{$t("export.timer.noDuration")}</Alert>
+        {:else if linkProblem === "tooMany"}
+          <Alert severity="warning">{$t("export.timer.tooMany")}</Alert>
         {/if}
         {#if nameable}
           <div class="flex flex-col gap-1">
@@ -75,7 +80,7 @@
 
     {#snippet footer()}
       <Button variant="outlined" severity="secondary" icon={actionIcons.download} disabled={!ready} onClick={download}>{$t("export.timer.download")}</Button>
-      {#if ready && data}
+      {#if data && !linkProblem}
         <Button icon={faUpRightFromSquare} href={timerLink(base, data)} target="_blank" rel="noopener noreferrer">{$t("export.timer.open")}</Button>
       {:else}
         <Button icon={faUpRightFromSquare} disabled>{$t("export.timer.open")}</Button>

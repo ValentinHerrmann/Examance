@@ -60,6 +60,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   datum?: string;
   /** Working time in whole minutes (issue #265); printed with the date through `printedDatum`. */
   durationMinutes?: number | null;
+  /** Reading time before the working time, whole minutes; 0 or unset means none (issue #265). Printed through `printedDatum`. */
+  readingMinutes?: number | null;
   nr?: string;
   fach?: string;
   /** Optional organising label, never printed on the exam (issue #57). */

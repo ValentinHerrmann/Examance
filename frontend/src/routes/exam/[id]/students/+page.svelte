@@ -15,6 +15,7 @@
   import { numberStudents } from "#lib/students/classList";
   import type { ExamRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { examRepository } from "#lib/repositories/examRepository";
+  import { examBaseMinutes } from "#lib/students/timeExtension";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { awaitSessionReady, isUnlocked, sessionStore } from "#lib/stores/session";
@@ -24,7 +25,7 @@
   let submissions = $state.raw<SubmissionRecord[]>([]);
   // Only for the working time: a missing exam record leaves the hint and the timer export out.
   let exam = $state.raw<ExamRecord | null>(null);
-  let shareWithoutDuration = $derived(!!exam && !exam.durationMinutes && students.some((st) => st.timeExtension?.unit === "%"));
+  let shareWithoutDuration = $derived(!!exam && !examBaseMinutes(exam) && students.some((st) => st.timeExtension?.unit === "%"));
   let loading = $state(true);
   let error = $state("");
   let adding = $state(false);

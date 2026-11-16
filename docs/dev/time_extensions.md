@@ -12,13 +12,15 @@ Issue #265. User guide: [Extra time, large print and the room timer](../user/stu
 - `PATCH /exams/{id}` clears the working time on `duration_minutes: null` (like `topic`; for other fields null means "leave as it is").
 - `contentStamp` hashes the printed date line, so an exam whose minutes only moved out of the date text keeps its print ticks.
 
+- `exams.reading_minutes` (nullable integer, 0 to 1440, migration `0068_exam_reading`; `ExamRecord.readingMinutes`) is the reading time, the same for everyone. `printedDatum` prints it after the working time: `"14.08.2026 (45 Minuten + 5 Minuten Einlesezeit)"`, so exams with a reading time get a new `main.tex` and template hash. Null clears it in `PATCH /exams/{id}`.
+
 ## Per-student settings
 
 Both fields live in the sealed payload of the student record (`STUDENT.sealed` in `lib/db/dbEncryption.ts`); the server never sees them and no migration was needed. They reveal a disadvantage compensation, so never copy them into a plain column, a log or an export without the teacher asking for it.
 
 | Field | Meaning |
 |---|---|
-| `timeExtension?: { value, unit: 'min' \| '%' }` | Extra working time, absolute or as a share of the exam's working time |
+| `timeExtension?: { value, unit: 'min' \| '%' }` | Extra working time, absolute or as a share of working plus reading time (`examBaseMinutes`) |
 | `largePrint?: boolean` | The personal copy is enlarged to A3 |
 
 - A student save replaces the whole sealed record. Every writer with a field list carries both: `mergeScannedStudent` (`lib/scan/ingest.ts`), `mergeStudents` (`lib/students/classList.ts`), A new writer must do the same. The leftover merge in `studentRepository.getByExamId` leaves them out on purpose: the server copy decides, or a removed extension would come back from an old local row.
@@ -37,27 +39,12 @@ Both fields live in the sealed payload of the student record (`STUDENT.sealed` i
 
 ## Examtimer export
 
-`lib/export/examTimer.ts` builds the data, `exam/ExamTimerDialog` (opened through `open(exam)` from the Overview and the Students page) offers it as a file and as a link.
+`lib/export/examTimer.ts` builds the data, `exam/ExamTimerDialog` (opened through `open(exam)` from the Overview and the Students page) offers it as a file and as a link. Both carry the same settings:
 
-```json
-{
-  "format": "examtimer-import",
-  "version": 1,
-  "settings": {
-    "course": "10a",
-    "subject": "Mathematik",
-    "exam": "Kurzarbeit 1",
-    "duration": "45",
-    "extensions": [
-      { "value": 10, "unit": "min", "label": "" },
-      { "value": 25, "unit": "%", "label": "" }
-    ]
-  }
-}
-```
-
-- `settings` uses the keys of Examtimer's own settings object (`examTimerSettings` in its `localStorage`); keys that are absent keep their value there.
-- One entry per distinct extension. `label` is empty unless the teacher ticks "Show first names", and then it is the first name only where exactly one student holds that extension.
-- File: the JSON above, `<exam>_examtimer.json`. Link: `<address>control#import=<base64url of the UTF-8 JSON>`. The fragment is never sent to a server, and the link is opened with `noopener noreferrer`.
+- `course`, `exam` (test type and number, else the title), `subject` (`timerSubject`: Examtimer's spelling matched ignoring case, else `Sonstige`, so the previous exam's subject never stays), `duration`, `readingTime` (`0` when none, so an earlier reading time is switched off).
+- `extensions`: one entry per distinct extension, **always in minutes**. A share is converted here with `examBaseMinutes` (working plus reading time), because Examtimer would take it of the working time alone and show less than the paper says. `label` is empty unless the teacher ticks "Show first names", and then it is the first name (at most 60 characters) only where exactly one student holds that extension.
+- File: `<exam>_examtimer.json`, Examtimer's JSON import object (`{"format": "examtimer-import", "version": 1, "settings": {…}}`).
+- Link, Examtimer's readable format v1: `<address>control#v=1&course=10a&exam=Kurzarbeit+1&subject=Mathematik&duration=45&readingTime=5&ext=10min&ext=12.5min:Lena`. Values are encoded like `encodeURIComponent`, with a space as `+` and `:` literal; `ext=<number>min[:<label>]` once per extension, a single empty `ext=` when there are none (clears the timer's list). The data is in the fragment, never sent to a server; the link is opened with `noopener noreferrer`. The hosted control page is `/control` (no `.html`).
+- `timerLinkProblem` disables the link without a working time or with more than 20 extensions (Examtimer refuses those); the file stays available. A share above 1000 % cannot be entered (`MAX_EXTENSION`).
 - The address is `timerUrl()`: the teacher's setting in `localStorage` (`bg_examtimer_url`, Settings → Examtimer), else `DEFAULT_TIMER_URL`. Only `https` addresses (or `http` on localhost) are accepted.
 - A change to the format bumps `TIMER_FORMAT_VERSION` and needs the matching change in Examtimer's importer.

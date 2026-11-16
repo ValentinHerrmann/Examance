@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extensionFrom, extensionLabel, extensionMinutes, printedExtension, sameExtension } from '../src/lib/students/timeExtension';
+import { examBaseMinutes, extensionFrom, extensionLabel, extensionMinutes, printedExtension, sameExtension } from '../src/lib/students/timeExtension';
 import { mergeScannedStudent } from '../src/lib/scan/ingest';
 import { studentsStamp } from '../src/lib/exam/examChecks';
 import type { StudentRecord } from '../src/lib/db/schema';
@@ -13,6 +13,17 @@ describe('time extension (issue #265)', () => {
     expect(extensionFrom('', '%')).toBeUndefined();
     expect(extensionFrom('0', 'min')).toBeUndefined();
     expect(extensionFrom('viel', 'min')).toBeUndefined();
+    // Above 1000 % Examtimer refuses the whole link.
+    expect(extensionFrom('1000', '%')).toEqual({ value: 1000, unit: '%' });
+    expect(extensionFrom('1001', '%')).toBeUndefined();
+    expect(extensionFrom('1440', 'min')).toEqual({ value: 1440, unit: 'min' });
+  });
+
+  it('takes a share of working plus reading time', () => {
+    expect(examBaseMinutes({ durationMinutes: 45, readingMinutes: 5 })).toBe(50);
+    expect(examBaseMinutes({ durationMinutes: 45 })).toBe(45);
+    expect(examBaseMinutes({ readingMinutes: 5 })).toBeNull();
+    expect(printedExtension({ value: 25, unit: '%' }, examBaseMinutes({ durationMinutes: 45, readingMinutes: 5 }))).toBe('+25 % (+12,5 Min)');
   });
 
   it('rounds a share up to half minutes and never adds to an exact value', () => {

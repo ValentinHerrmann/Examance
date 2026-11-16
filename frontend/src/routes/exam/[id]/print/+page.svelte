@@ -11,6 +11,7 @@
   import { contentStamp } from "#lib/exam/examChecks";
   import { examChecksState } from "#lib/stores/shell";
   import { copiesUnavailable, loadStickerEntries } from "#lib/sharing/stickerEntries";
+  import { examBaseMinutes } from "#lib/students/timeExtension";
   import type { StickerEntry } from "#lib/qr/stickerSheet";
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug } from "#lib/export/zip";
@@ -93,7 +94,7 @@
       loadError = err instanceof Error ? err.message : String(err);
     }
     try {
-      entries = await loadStickerEntries(id, key(), ctx?.exam.durationMinutes);
+      entries = await loadStickerEntries(id, key(), examBaseMinutes(ctx?.exam));
     } catch (err) {
       // A failed read is reported, never shown as "no students yet".
       entriesError = err instanceof Error ? err.message : String(err);

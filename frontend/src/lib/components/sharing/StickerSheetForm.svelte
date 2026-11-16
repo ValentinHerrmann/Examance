@@ -12,6 +12,7 @@
   import { renderStickerSheet, STICKER_GRID, type StickerEntry } from "#lib/qr/stickerSheet";
   import { loadStickerEntries, stickerIdIssues } from "#lib/sharing/stickerEntries";
   import { examRepository } from "#lib/repositories/examRepository";
+  import { examBaseMinutes } from "#lib/students/timeExtension";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { studentsHref } from "#lib/utils/links";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -104,7 +105,7 @@
       // The working time turns an extension in percent into its printed minutes (issue #265); without the exam it prints the percent alone.
       const key = get(sessionStore).sessionKey;
       const exam = await examRepository.getById(examId, key).catch(() => undefined);
-      examEntries = await loadStickerEntries(examId, key, exam?.durationMinutes);
+      examEntries = await loadStickerEntries(examId, key, examBaseMinutes(exam));
     } catch (err) {
       // A failed read is reported, never shown as "no students yet" (issue #212).
       loadError = `${$t("sharing.stickers.loadFailed")} ${err instanceof Error ? err.message : ""}`.trim();

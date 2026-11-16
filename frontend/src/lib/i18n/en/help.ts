@@ -178,7 +178,7 @@ export const help: Translations['help'] = {
             },
             s6: {
                 h: 'Extra time, large print and the timer',
-                p1: 'Enter the working time in minutes in the exam details. On the Students page each student can get extra time (in minutes or percent) and large print (A3). The extra time is printed next to the name on stickers and copies, large-print copies come as a separate A3 file. "Timer" sends the working time and the extensions to Examtimer in the exam room.',
+                p1: 'Enter the working time and, if needed, a reading time in minutes in the exam details. On the Students page each student can get extra time (in minutes or percent) and large print (A3). The extra time is printed next to the name on stickers and copies, large-print copies come as a separate A3 file. "Timer" sends the working time, reading time and the extensions to Examtimer in the exam room.',
             },
         },
         scanning: {

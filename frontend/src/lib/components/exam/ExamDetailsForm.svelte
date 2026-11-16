@@ -33,6 +33,7 @@
     course: string;
     datum: string;
     durationMinutes: number | null;
+    readingMinutes: number | null;
     nr: string;
     fach: string;
     topic: string;
@@ -48,6 +49,7 @@
     course: e.course || "",
     datum: e.datum || "",
     durationMinutes: e.durationMinutes ?? null,
+    readingMinutes: e.readingMinutes ?? null,
     nr: e.nr || "1",
     fach: e.fach || "Informatik",
     topic: e.topic || "",
@@ -87,6 +89,7 @@
           course: values.course,
           datum: values.datum,
           duration_minutes: values.durationMinutes,
+          reading_minutes: values.readingMinutes,
           nr: values.nr,
           fach: values.fach,
           topic: values.topic,
@@ -146,6 +149,7 @@
   bind:editCourse={edit.course}
   bind:editDatum={edit.datum}
   bind:editDurationMinutes={edit.durationMinutes}
+  bind:editReadingMinutes={edit.readingMinutes}
   bind:editNr={edit.nr}
   bind:editFach={edit.fach}
   bind:editTopic={edit.topic}

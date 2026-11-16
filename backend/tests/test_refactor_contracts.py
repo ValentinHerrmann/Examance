@@ -132,6 +132,7 @@ async def test_exam_duplicate_copies_every_header_field(
         klasse="7a",
         datum="1.1.2026",
         duration_minutes=45,
+        reading_minutes=5,
         nr="3",
         fach="Physik",
         topic="Optik",
@@ -165,6 +166,10 @@ async def test_exam_working_time_can_be_cleared(client: AsyncClient, db: AsyncSe
     cleared = await client.patch(f"{EXAMS}/{exam['id']}", json={"duration_minutes": None})
     assert cleared.status_code == 200, cleared.text
     assert cleared.json()["duration_minutes"] is None
+    reading = await client.patch(f"{EXAMS}/{exam['id']}", json={"reading_minutes": 10})
+    assert reading.json()["reading_minutes"] == 10
+    cleared = await client.patch(f"{EXAMS}/{exam['id']}", json={"reading_minutes": None})
+    assert cleared.json()["reading_minutes"] is None
 
 
 @pytest.mark.asyncio

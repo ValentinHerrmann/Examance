@@ -17,6 +17,7 @@
   import { examProgress, type ExamProgressInput } from "#lib/exam/examProgress";
   import { contentStamp, largePrintOf, mcStatus, printStamps, printStatus, studentsStamp } from "#lib/exam/examChecks";
   import { stickerEntries } from "#lib/sharing/stickerEntries";
+  import { examBaseMinutes } from "#lib/students/timeExtension";
   import { printSettingsOf } from "#lib/exam/printLayout";
   import { computeMcVerificationStats, summarizeMcCheck } from "#lib/grading/mcVerification";
   import { t } from "#lib/i18n";
@@ -67,7 +68,7 @@
     next.exerciseCount = exercises?.length;
     const students = await attempt(() => studentRepository.getByExamId(id, key));
     next.studentCount = students?.length;
-    const stamps = exam && exercises && students ? { content: contentStamp(exam, exercises), students: studentsStamp(students, exam.durationMinutes), large: largePrintOf(stickerEntries(students)) } : null;
+    const stamps = exam && exercises && students ? { content: contentStamp(exam, exercises), students: studentsStamp(students, examBaseMinutes(exam)), large: largePrintOf(stickerEntries(students)) } : null;
     const checks = exam?.stepChecks ?? {};
     const shares = await attempt(() => listResultShares(id));
     // Students with a link that still opens; a replaced link leaves an older row, so count students, not rows.

@@ -52,6 +52,9 @@ describe('date and working time', () => {
 
   it('prints the date with the working time, and a legacy text as it was', () => {
     expect(printedDatum({ datum: '20.05.2025', durationMinutes: 45 })).toBe('20.05.2025 (45 Minuten)');
+    expect(printedDatum({ datum: '20.05.2025', durationMinutes: 45, readingMinutes: 5 })).toBe('20.05.2025 (45 Minuten + 5 Minuten Einlesezeit)');
+    expect(printedDatum({ datum: '20.05.2025', readingMinutes: 5 })).toBe('20.05.2025 (5 Minuten Einlesezeit)');
+    expect(printedDatum({ datum: '20.05.2025', durationMinutes: 45, readingMinutes: 0 })).toBe('20.05.2025 (45 Minuten)');
     expect(printedDatum({ datum: '', durationMinutes: 45 })).toBe('(45 Minuten)');
     expect(printedDatum({ datum: '20.05.2025' })).toBe('20.05.2025');
     expect(printedDatum({ datum: '20.05.2025 (2 Schulstunden)', durationMinutes: null })).toBe('20.05.2025 (2 Schulstunden)');

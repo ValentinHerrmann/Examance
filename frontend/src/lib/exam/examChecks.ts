@@ -79,7 +79,7 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
     const e = exam;
     const head = [
         // The printed date line, so an exam whose minutes only moved out of the date text (migration 0067) keeps its stamp.
-        e.title, e.testart, e.grade, e.klasse, e.durationMinutes ? printedDatum(e) : e.datum, e.nr, e.fach, e.lehrernachname, e.infoText,
+        e.title, e.testart, e.grade, e.klasse, e.durationMinutes || e.readingMinutes ? printedDatum(e) : e.datum, e.nr, e.fach, e.lehrernachname, e.infoText,
         e.latexPreamble, e.latexTemplate, e.numVersions, e.latexPackages, e.pageBreaks, e.nameLine,
         e.mcCorrectionHint, e.extraNotes,
         // Only when set, so stamps of exams without an override (all older ones) stay as they were.
@@ -95,11 +95,11 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
 const byCodeUnits = (a: string, b: string): number => Number(a > b) - Number(a < b);
 
 /** What the QR stickers, copies and key slips depend on: the exam's students, their names and what is printed with them (time extension, large print). */
-export function studentsStamp(students: StudentRecord[], durationMinutes?: number | null): string {
+export function studentsStamp(students: StudentRecord[], baseMinutes?: number | null): string {
     const rows = students.map((s) => JSON.stringify([s.pseudonymHmac, s.studentName ?? '', s.studentNumber ?? '', ...(s.timeExtension ? [s.timeExtension.value, s.timeExtension.unit] : []), ...(s.largePrint ? ['A3'] : [])]));
     rows.sort(byCodeUnits);
-    // A share prints its minutes, so it follows the exam's working time.
-    if (durationMinutes && students.some((s) => s.timeExtension?.unit === '%')) rows.push(String(durationMinutes));
+    // A share prints its minutes, so it follows working and reading time.
+    if (baseMinutes && students.some((s) => s.timeExtension?.unit === '%')) rows.push(String(baseMinutes));
     return fingerprint(rows.join('\n'));
 }
 

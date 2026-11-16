@@ -59,6 +59,8 @@ class Exam(Base):
     datum: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # Working time in whole minutes (issue #265); `datum` holds the date only, legacy texts keep their bracket.
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Reading time before the working time, whole minutes; null or 0 means none.
+    reading_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     nr: Mapped[str | None] = mapped_column(String(10), nullable=True)
     fach: Mapped[str | None] = mapped_column(String(100), nullable=True)
     topic: Mapped[str | None] = mapped_column(String(200), nullable=True)
