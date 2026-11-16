@@ -39,7 +39,8 @@
       <label class="{compact ? 'text-xs' : 'text-sm'} font-medium text-content" for={id}
         >{label}{#if required}<span class="ml-0.5 text-danger-fg" aria-hidden="true">*</span>{/if}</label
       >
-      {#if info}<InfoTip text={info} />{/if}
+      <!-- The negative margin cancels the button's extra height, so a label with ⓘ is as high as one without and inputs in a row line up. -->
+      {#if info}<InfoTip text={info} class={compact ? "-my-1 pointer-coarse:-my-3.5" : "-my-0.5 pointer-coarse:-my-3"} />{/if}
     </div>
   {/if}
   {@render children?.({ id })}
