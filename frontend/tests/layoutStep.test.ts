@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { LAYOUT_PRESETS, matchPreset } from '../src/lib/exam/layoutPresets';
 import { NEW_EXAM_PRINT, printSettingsOf, printsNameLine } from '../src/lib/exam/printLayout';
-import { focusPageOf, nameInfoOf, pageElementsOf, sheetSketchOf } from '../src/lib/exam/sheetSketch';
-import { layoutSampleTex, SAMPLE_MC_URI, SAMPLE_REST_URI } from '../src/lib/exam/layoutSample';
+import { focusPageOf, infoTextLines, nameInfoOf, pageElementsOf, sheetSketchOf } from '../src/lib/exam/sheetSketch';
+import { layoutSampleTex, SAMPLE_INFO_END_URI, SAMPLE_INFO_START_URI, SAMPLE_LABEL, SAMPLE_MC_URI, SAMPLE_REST_URI } from '../src/lib/exam/layoutSample';
+import { printedLabel } from '../src/lib/qr/stickerSheet';
+import { printedExtension } from '../src/lib/students/timeExtension';
 import { withExamOptions } from '../src/lib/exam/examPreview';
 
 const preset = (id: string) => LAYOUT_PRESETS.find((p) => p.id === id)!.fields;
@@ -16,8 +18,17 @@ describe('layout presets (issue #272)', () => {
     for (const p of LAYOUT_PRESETS) expect(matchPreset(p.fields)).toBe(p.id);
   });
 
-  it('paper grading ignores the stored page codes and sticker spots', () => {
-    expect(matchPreset({ ...preset('anonymousPaper'), pageCodes: false, stickerSpots: 'cover' })).toBe('anonymousPaper');
+  it('there are at most four presets, covering both gradings with each print form and QR mode', () => {
+    expect(LAYOUT_PRESETS.length).toBeLessThanOrEqual(4);
+    for (const digitalGrading of [true, false]) {
+      const of = LAYOUT_PRESETS.filter((p) => p.fields.digitalGrading === digitalGrading).map((p) => p.fields);
+      expect(new Set(of.map((f) => f.printLayout))).toEqual(new Set(['duplex', 'booklet']));
+      expect(of.some((f) => f.printMode === 'copies')).toBe(true);
+    }
+  });
+
+  it('sticker spots do not decide the match of personalised copies', () => {
+    expect(matchPreset({ ...preset('anonymousPaperCopies'), stickerSpots: 'sheet' })).toBe('anonymousPaperCopies');
   });
 
   it('a changed option makes the settings custom', () => {
@@ -47,7 +58,7 @@ describe('name line without Examance grading (issue #272)', () => {
 describe('layout preview pages (issue #272)', () => {
   it('draws the scan aids and stickers of digital grading', () => {
     const model = sheetSketchOf({ ...NEW_EXAM_PRINT }, false);
-    expect(model).toMatchObject({ scanAids: true, pageCodes: true, qr: 'sticker', initials: true, nameLine: false, layout: 'duplex', sheets: 2 });
+    expect(model).toMatchObject({ markers: true, cutCorner: true, pageCodes: true, qr: 'sticker', initials: true, nameLine: false, layout: 'duplex', sheets: 2 });
     expect(model.pages.map((p) => p.role)).toEqual(['cover', 'exercises', 'last', 'filler']);
     expect(model.pages.filter((p) => p.stickerSpot).map((p) => p.number)).toEqual([3]);
     expect(model.pages.map((p) => p.cutSide)).toEqual(['right', 'left', 'right', 'left']);
@@ -72,10 +83,12 @@ describe('layout preview pages (issue #272)', () => {
     expect(model.pages.some((p) => p.stickerSpot)).toBe(false);
   });
 
-  it('paper grading drops every scan aid, whatever is stored', () => {
-    const model = sheetSketchOf({ ...NEW_EXAM_PRINT, digitalGrading: false, resultsQrBox: false, printLayout: 'booklet', stickerSpots: 'leaf' }, true);
-    expect(model).toMatchObject({ scanAids: false, pageCodes: false, qr: 'none', nameLine: true, logo: true, layout: 'booklet' });
+  it('each scan aid is drawn on its own (issue #272)', () => {
+    const model = sheetSketchOf({ ...NEW_EXAM_PRINT, digitalGrading: false, resultsQrBox: false, cutCorner: false, foldStrip: false, pageCodes: false, printLayout: 'booklet', stickerSpots: 'cover' }, true);
+    expect(model).toMatchObject({ markers: false, cutCorner: false, pageCodes: false, qr: 'none', nameLine: true, logo: true, layout: 'booklet' });
     expect(model.pages.some((p) => p.stickerSpot || p.foldSide)).toBe(false);
+    const codesOnly = sheetSketchOf({ ...NEW_EXAM_PRINT, digitalGrading: false, cutCorner: false }, false);
+    expect(codesOnly).toMatchObject({ markers: false, cutCorner: false, pageCodes: true });
   });
 
   it('an option shows on the page it changes', () => {
@@ -91,17 +104,26 @@ describe('layout sample (issue #272)', () => {
   it('prints the QR box and name line without scan aids, and marks its rest area', () => {
     const tex = layoutSampleTex();
     const options = /\\usepackage\[([^\]]*)\]\{sty\/Schulaufgabe\}/.exec(tex)![1]!.split(',');
-    expect(options).toEqual(expect.arrayContaining(['ohnescan', 'ergebnisqr', 'namenszeile']));
+    expect(options).toEqual(expect.arrayContaining(['ohnemarken', 'ohneecke', 'ergebnisqr', 'namenszeile']));
     expect(options).not.toContain('seitencode');
     expect(options).not.toContain('broschuere');
     expect(tex).toContain(SAMPLE_REST_URI);
     expect(tex).toContain(SAMPLE_MC_URI);
+    expect(tex).toContain(SAMPLE_INFO_START_URI);
+    expect(tex).toContain(SAMPLE_INFO_END_URI);
+  });
+
+  it('prints the working time in the header and a student with a time extension', () => {
+    expect(layoutSampleTex()).toContain(String.raw`\Datum{01.01.2027 (30 Minuten + 5 Minuten Einlesezeit)}`);
+    const extension = printedExtension({ value: 20, unit: '%' }, 35);
+    expect(SAMPLE_LABEL).toBe(printedLabel({ label: 'Mustermann, Max', number: '07', payload: '', extension }));
+    expect(SAMPLE_LABEL).toContain('+20 %');
   });
 
   it('never glues text onto a control word (\\parLorem broke the compile)', () => {
     const tex = layoutSampleTex();
     expect(tex).not.toMatch(/\\par[A-Za-z]/);
-    for (const uri of [SAMPLE_MC_URI, SAMPLE_REST_URI]) expect(tex).toMatch(new RegExp(`${uri}\\}.*\\\\par\\n`));
+    for (const uri of [SAMPLE_MC_URI, SAMPLE_REST_URI, SAMPLE_INFO_START_URI, SAMPLE_INFO_END_URI]) expect(tex).toMatch(new RegExp(`${uri}\\}.*\\\\par\\n`));
   });
 });
 
@@ -111,13 +133,14 @@ describe('personalised copies without Examance grading (issue #272)', () => {
   it('keeps the copies and the QR box they stamp into', () => {
     expect(printSettingsOf(paperCopies)).toMatchObject({ mode: 'copies', resultsQrBox: true, digitalGrading: false });
     const options = withExamOptions('', paperCopies).split(',');
-    expect(options).toEqual(expect.arrayContaining(['ohnescan', 'ergebnisqr']));
+    expect(options).toEqual(expect.arrayContaining(['ohnemarken', 'ergebnisqr']));
     expect(options).not.toContain('namenszeile');
+    expect(options).not.toContain('ohneecke');
   });
 
   it('has its own preset, distinct from anonymous stickers', () => {
     expect(matchPreset(preset('anonymousPaperCopies'))).toBe('anonymousPaperCopies');
-    expect(matchPreset(preset('anonymousPaper'))).toBe('anonymousPaper');
+    expect(matchPreset({ ...preset('anonymousPaperCopies'), printMode: 'stickers' })).toBe('custom');
   });
 
   it('prints the QR code and names the student only on the cut-off corner', () => {
@@ -138,16 +161,38 @@ describe('where the name appears (issue #272)', () => {
   });
 
   it('a paper QR box only carries the sticker', () => {
-    expect(nameInfoOf(sheetSketchOf({ ...NEW_EXAM_PRINT, digitalGrading: false, resultsQrBox: true, nameLine: false }, false)).places).toEqual(['sticker']);
+    expect(nameInfoOf(sheetSketchOf({ ...NEW_EXAM_PRINT, digitalGrading: false, resultsQrBox: true, nameLine: false, stickerSpots: 'cover' }, false)).places).toEqual(['sticker']);
   });
 
   it('lists the elements of each page in badge order', () => {
     const model = sheetSketchOf({ ...NEW_EXAM_PRINT, mcCorrectionHint: true, extraPages: 1 }, false);
-    expect(pageElementsOf(model, model.pages[0]!)).toEqual(['scanAids', 'pageCodes', 'qr']);
-    expect(pageElementsOf(model, model.pages[1]!)).toEqual(['scanAids', 'pageCodes', 'mcHint']);
-    expect(pageElementsOf(model, model.pages[2]!, false)).toEqual(['scanAids', 'pageCodes', 'stickers', 'notes', 'paper']);
-    expect(pageElementsOf(model, model.pages[3]!)).toEqual(['scanAids', 'pageCodes', 'notes', 'paper']);
+    expect(pageElementsOf(model, model.pages[0]!)).toEqual(['markers', 'cutCorner', 'pageCodes', 'qr']);
+    expect(pageElementsOf(model, model.pages[1]!)).toEqual(['markers', 'cutCorner', 'pageCodes', 'mcHint']);
+    expect(pageElementsOf(model, model.pages[2]!, false)).toEqual(['markers', 'cutCorner', 'pageCodes', 'stickers', 'notes', 'paper']);
+    expect(pageElementsOf(model, model.pages[3]!)).toEqual(['markers', 'cutCorner', 'pageCodes', 'notes', 'paper']);
+    const withInfo = sheetSketchOf({ ...NEW_EXAM_PRINT, infoText: 'Hilfsmittel: keine' }, false);
+    expect(pageElementsOf(withInfo, withInfo.pages[0]!)).toContain('info');
     const booklet = sheetSketchOf({ ...NEW_EXAM_PRINT, printLayout: 'booklet', stickerSpots: 'a3' }, false);
     expect(pageElementsOf(booklet, booklet.pages[0]!)).toContain('fold');
+  });
+});
+
+describe('info text in the preview (issue #272)', () => {
+  it('reads an itemize as bullet lines and drops commands', () => {
+    expect(infoTextLines(String.raw`\begin{itemize}
+  \item Hilfsmittel: \textbf{keine}
+  \item Zeit~beachten % comment
+\end{itemize}`)).toEqual(['• Hilfsmittel: keine', '• Zeit beachten']);
+  });
+
+  it('keeps paragraphs and forced line breaks as lines', () => {
+    expect(infoTextLines(String.raw`Viel Erfolg!\\ Bitte sauber schreiben.
+
+Taschenrechner erlaubt.`)).toEqual(['Viel Erfolg!', 'Bitte sauber schreiben.', 'Taschenrechner erlaubt.']);
+  });
+
+  it('an empty info text gives no lines', () => {
+    expect(infoTextLines('')).toEqual([]);
+    expect(infoTextLines('  \n ')).toEqual([]);
   });
 });

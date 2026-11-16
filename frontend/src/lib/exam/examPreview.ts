@@ -140,7 +140,7 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
-type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "printMode" | "stickerSpots" | "paperStyle" | "extraPages" | "digitalGrading" | "resultsQrBox">;
+type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "printMode" | "stickerSpots" | "paperStyle" | "extraPages" | "digitalGrading" | "resultsQrBox" | "cutCorner" | "foldStrip">;
 
 /** The Schulaufgabe.sty option of a writing-paper pattern (issue #228); empty paper sets none. */
 const PAPER_OPTION: Record<PaperStyle, string> = { empty: "", squared: "papierkaro", lined: "papierlinien" };
@@ -149,10 +149,11 @@ const PAPER_OPTION: Record<PaperStyle, string> = { empty: "", squared: "papierka
 export function withExamOptions(options: string, layout: LayoutFields, { fill = false }: { fill?: boolean } = {}): string {
   const print = printSettingsOf(layout);
   const filler = fill && !options.split(",").includes("antworten") && "fuellen";
-  const multiSheet = [print.pageCodes && "seitencode", print.layout === "booklet" && "broschuere", filler, PAPER_OPTION[print.paperStyle]];
-  // Graded outside Examance: the scan aids go (their room stays); the QR box may stay for anonymous papers.
-  const offline = print.digitalGrading ? [] : ["ohnescan", print.resultsQrBox && "ergebnisqr"];
-  return [options, printsNameLine(print, layout.nameLine) && "namenszeile", ...multiSheet, ...offline].filter(Boolean).join(",");
+  const booklet = print.layout === "booklet";
+  const multiSheet = [print.pageCodes && "seitencode", booklet && "broschuere", filler, PAPER_OPTION[print.paperStyle]];
+  // Each scan aid goes on its own (issue #272), its room stays; without corner markers the QR box may stay for anonymous papers.
+  const scanAids = [!print.digitalGrading && "ohnemarken", !print.digitalGrading && print.resultsQrBox && "ergebnisqr", !print.cutCorner && "ohneecke", booklet && !print.foldStrip && "ohnefalz"];
+  return [options, printsNameLine(print, layout.nameLine) && "namenszeile", ...multiSheet, ...scanAids].filter(Boolean).join(",");
 }
 
 /** The student sheet's page codes (lib/exam/pageCodes.ts) and sticker spots (sticker mode only, `stickerPagesOf`); the solution carries neither. */

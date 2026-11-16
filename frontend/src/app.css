@@ -19,6 +19,8 @@
   /* Ink on the always-white paper of page sketches (Layout step, issue #272): dark in both themes. */
   --color-ink: #1a1a1a;
   --color-control: #ffffff;
+  /* Text fields' border: darker than tiles', so a field reads as one (issue #272). */
+  --color-control-line: #94a3b8;
 
   --color-line: #e2e8f0;
   --color-line-strong: #cbd5e1;
@@ -105,7 +107,8 @@
   --color-surface-sunken: #101214;
   --color-surface-inset: #262b31;
   --color-surface-viewer: #0d0f12;
-  --color-control: #101214;
+  --color-control: #1f242a;
+  --color-control-line: #5e6a78;
 
   --color-line: #2c3238;
   --color-line-strong: #434c56;

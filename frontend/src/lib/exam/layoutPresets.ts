@@ -1,42 +1,44 @@
-/** Layout presets of the Layout step (issue #272): starting points that set the fields shaping the sheet; never stored, the page shows the one the current fields match. */
+/** Layout presets of the Layout step (issue #272): starting points that set the fields shaping the sheet; never stored, the page shows the one the current fields match. Four presets that together show every major choice at least once in each pairing: grading × print form × QR code × name. */
 
 import type { ExamRecord } from '#lib/db/schema';
 import { printSettingsOf } from '#lib/exam/printLayout';
 import type { ExamLayoutPatch } from '#lib/exam/saveExamLayout';
 
-export type LayoutPresetId = 'fullDigital' | 'digitalBooklet' | 'anonymousPaper' | 'anonymousPaperCopies' | 'namedPaper';
+export type LayoutPresetId = 'fullDigital' | 'digitalCopiesBooklet' | 'anonymousPaperCopies' | 'namedPaperBooklet';
 
 /** The fields a preset sets; paper, extra pages, notes, logo and info text are content choices and stay as they are. */
-export type PresetFields = Required<Pick<ExamLayoutPatch, 'digitalGrading' | 'resultsQrBox' | 'nameLine' | 'pageCodes' | 'mcCorrectionHint' | 'printLayout' | 'printMode' | 'stickerSpots'>>;
+export type PresetFields = Required<Pick<ExamLayoutPatch, 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip' | 'nameLine' | 'pageCodes' | 'mcCorrectionHint' | 'printLayout' | 'printMode' | 'stickerSpots'>>;
 
-const DIGITAL: PresetFields = { digitalGrading: true, resultsQrBox: false, nameLine: false, pageCodes: true, mcCorrectionHint: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet' };
-const PAPER = { digitalGrading: true, pageCodes: true, mcCorrectionHint: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet' } as const;
+const DIGITAL: PresetFields = { digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true, nameLine: false, pageCodes: true, mcCorrectionHint: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet' };
+const PAPER: PresetFields = { digitalGrading: false, resultsQrBox: false, cutCorner: false, foldStrip: false, nameLine: true, pageCodes: false, mcCorrectionHint: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'cover' };
 
 export const LAYOUT_PRESETS: readonly { id: LayoutPresetId; fields: PresetFields }[] = [
+  // Scans and anonymous grading in Examance: identical copies, QR stickers on every sheet.
   { id: 'fullDigital', fields: DIGITAL },
-  { id: 'digitalBooklet', fields: { ...DIGITAL, printLayout: 'booklet', stickerSpots: 'a3' } },
-  // Paper grading keeps page codes and sticker spots stored as for digital grading, so switching grading back on restores them.
-  { id: 'anonymousPaper', fields: { ...PAPER, digitalGrading: false, resultsQrBox: true, nameLine: false } },
-  // Personalised copies without scanning: the QR code is printed, name and key sit on the corner that is cut off before grading.
-  { id: 'anonymousPaperCopies', fields: { ...PAPER, digitalGrading: false, resultsQrBox: true, nameLine: false, printMode: 'copies' } },
-  { id: 'namedPaper', fields: { ...PAPER, digitalGrading: false, resultsQrBox: false, nameLine: true } },
+  // Scanned A3 booklets with the QR code printed on each copy and the name written on it too.
+  { id: 'digitalCopiesBooklet', fields: { ...DIGITAL, printLayout: 'booklet', printMode: 'copies', stickerSpots: 'cover', nameLine: true } },
+  // Graded by hand but anonymously: the code is printed, name and key sit on the corner that is cut off before grading.
+  { id: 'anonymousPaperCopies', fields: { ...PAPER, resultsQrBox: true, cutCorner: true, nameLine: false, printMode: 'copies' } },
+  // Classic paper exam as an A3 booklet: no scan aids, no QR code, the students write their names.
+  { id: 'namedPaperBooklet', fields: { ...PAPER, printLayout: 'booklet' } },
 ];
 
-type PresetSource = Pick<ExamRecord, 'nameLine' | 'mcCorrectionHint' | 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox'>;
+type PresetSource = Pick<ExamRecord, 'nameLine' | 'mcCorrectionHint' | 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip'>;
 
-/** The fields as they print: paper grading ignores page codes and sticker spots, so those do not decide the match there. */
+/** The fields as they print: sticker spots only matter with stickers, the fold strip only in a booklet. */
 function printedForm(fields: PresetSource) {
   const print = printSettingsOf(fields);
-  const digital = print.digitalGrading;
   return {
-    digitalGrading: digital,
+    digitalGrading: print.digitalGrading,
     resultsQrBox: print.resultsQrBox,
+    cutCorner: print.cutCorner,
+    foldStrip: print.layout === 'booklet' && print.foldStrip,
     nameLine: fields.nameLine === true,
     mcCorrectionHint: fields.mcCorrectionHint === true,
     layout: print.layout,
-    pageCodes: digital && print.pageCodes,
+    pageCodes: print.pageCodes,
     mode: print.mode,
-    stickerSpots: digital ? print.stickerSpots : 'cover',
+    stickerSpots: print.mode === 'stickers' ? print.stickerSpots : 'cover',
   };
 }
 

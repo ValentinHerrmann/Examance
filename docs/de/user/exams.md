@@ -74,34 +74,42 @@ Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Fra
 
 ## Layout-Optionen {#layout}
 
-Der Schritt **Layout** (Schritt 2, zwischen **Prüfung** und **Schüler**) enthält jede Option, die das Aussehen der gedruckten Prüfung ändert. Neben den Optionen zeigt eine Vorschau eine **Beispielarbeit** (nicht Ihren Inhalt) mit Ihren Einstellungen: eine Seite groß und alle Seiten eines Exemplars als Miniaturen, nach Blättern gruppiert. Die Seiten sind Deckblatt, Aufgabenseiten, letzte Seite, Ihre Zusatzseiten und die **Füllseiten**, die jedes Exemplar auf ganze Blätter auffüllen (leere Schreibseiten). Zeigen Sie auf eine Option oder klicken Sie hinein, springt die Vorschau auf die Seite, die sie ändert, und hebt das Element hervor; ein Klick auf eine Miniatur zeigt diese Seite groß. Nummern auf der Seite passen zur Liste daneben, die jedes Element erklärt und sagt, **wo der Name steht**: auf dem Aufkleber (klein über dem QR-Code), auf der abgeschnittenen Ecke eines personalisierten Exemplars oder handschriftlich auf der Namenszeile, und ob er auf dem korrigierten Blatt noch zu sehen ist. Wurde Ihre Arbeit im Schritt **Prüfung** schon in der Vorschau angezeigt, steht darunter, wie viele Seiten und Blätter Ihre eigene Arbeit hat. Reihenfolge der Optionen: Voreinstellung, Bewertung, Druckform, Deckblatt, jede Seite, Schreibplatz. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
+Der Schritt **Layout** (Schritt 2, zwischen **Prüfung** und **Schüler**) enthält jede Option, die das Aussehen der gedruckten Prüfung ändert. Neben den Optionen zeigt eine Vorschau eine **Beispielarbeit** (nicht Ihren Inhalt) mit Ihren Einstellungen: eine Seite groß und alle Seiten eines Exemplars als kleine nummerierte Miniaturen, nach Blättern gruppiert. Auf breiten Bildschirmen füllt die Vorschau den Platz neben den Optionen und scrollt nie; die Seite wird dafür kleiner. Die Seiten sind Deckblatt, Aufgabenseiten, letzte Seite, Ihre Zusatzseiten und die **Füllseiten**, die jedes Exemplar auf ganze Blätter auffüllen (leere Schreibseiten). Zeigen Sie auf eine Option oder klicken Sie hinein, springt die Vorschau auf die Seite, die sie ändert, und hebt das Element hervor; ein Klick auf eine Miniatur zeigt diese Seite groß. Die Beispielarbeit zeigt Ihren eigenen Infotext, im Kopf 30 Minuten Arbeitszeit plus 5 Minuten Einlesezeit und einen Beispielschüler, Max Mustermann, mit 20 % Zeitverlängerung. Nummern auf der Seite passen zur Liste daneben, die jedes Element erklärt und sagt, **wo der Name steht**: auf dem Aufkleber (klein über dem QR-Code), auf der abgeschnittenen Ecke eines personalisierten Exemplars oder handschriftlich auf der Namenszeile, und ob er auf dem korrigierten Blatt noch zu sehen ist. Wurde Ihre Arbeit im Schritt **Prüfung** schon in der Vorschau angezeigt, steht darunter, wie viele Seiten und Blätter Ihre eigene Arbeit hat. Reihenfolge der Optionen: Vorlage, Bewertung und Scanhilfen, Druckform, Deckblatt, jede Seite, Schreibplatz. Jede Zeile zeigt kleine Kacheln mit der Beschriftung links; die Zeile darunter erklärt die gewählte Option oder die, auf die Sie zeigen. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
 
 **Voreinstellungen** ganz oben sind Ausgangspunkte; sie werden nicht gespeichert. Wählen Sie eine, setzt sie ihre Optionen, und alle bleiben änderbar. Die Seite zeigt, welche Voreinstellung zu Ihren Einstellungen passt, sonst „eigene Einstellungen“.
 
-- **In Examance korrigieren**: Scan-Hilfen, Seitencode auf jeder Seite, nur QR-Code, Korrekturhinweis für Multiple-Choice, beidseitiges A4 und ein Aufkleber auf jedem Blatt.
-- **In Examance korrigieren, als Broschüre**: dasselbe als gefaltete A3-Broschüre, mit einem Aufkleber auf jedem A3-Blatt.
-- **Anonym auf Papier korrigieren**: keine Scan-Hilfen, nur ein QR-Aufkleberfeld auf dem Deckblatt, keine Namenszeile.
-- **Anonym auf Papier korrigieren, personalisiert**: keine Scan-Hilfen, ein Exemplar pro Schüler mit aufgedrucktem QR-Code; der Name steht auf der abgeschnittenen Ecke.
-- **Auf Papier mit Namen korrigieren**: keine Scan-Hilfen, kein QR-Feld, eine Namenszeile.
+- **Korrektur in Examance**: alle Scanhilfen, nur QR-Code, Korrekturhinweis für Multiple-Choice, beidseitiges A4, gleiche Exemplare und ein Aufkleber auf jedem Blatt.
+- **Examance, personalisierte Broschüre**: alle Scanhilfen, ein gefaltetes A3-Heft pro Schüler mit aufgedrucktem QR-Code und einer Namenszeile.
+- **Anonym auf Papier, personalisiert**: von Hand korrigiert; keine Eckmarkierungen oder Seitencodes, ein Exemplar pro Schüler mit aufgedrucktem QR-Code; der Name steht auf der abgeschnittenen Ecke.
+- **Auf Papier mit Namen, Broschüre**: keine Scanhilfen und kein QR-Code, ein gefaltetes A3-Heft mit Namenszeile.
+
+Zusammen zeigen sie jede Korrekturweise mit beiden Druckarten und mit personalisierten Exemplaren. Anonym auf Papier mit Aufklebern statt aufgedruckter Codes ist einen Klick entfernt: wählen Sie unter **QR-Code der Schüler** die **Aufkleber**.
 
 Voreinstellungen ändern nie Papier, Zusatzseiten, Infotext oder Logo. Darunter sind die Optionen gruppiert:
 
-- **Korrektur**: **In Examance korrigieren** ein oder aus, siehe [unten](#digital-grading).
-- **Deckblatt**: Infotext, die [Namenswahl](#name-line) und das [Logo](#logo-packages).
-- **Jede Seite**: der [Seitencode](#multi-sheet) (nur bei eingeschalteter Korrektur) und der [Korrekturhinweis für Multiple-Choice](#mc-hint).
-- **Druckform**: [Aufkleber oder personalisierte Exemplare](#multi-sheet-print) (nur bei eingeschalteter Korrektur), beidseitiges A4 oder Broschüre sowie Aufkleber pro Schüler bzw. Aufkleberfelder (nur bei Aufklebern).
+- **Bewertung und Scanhilfen**: Eckmarkierungen, Schnittecke, [Seitencodes](#multi-sheet) und der Falzstreifen der Broschüre, jeweils ein oder aus, siehe [unten](#digital-grading).
+- **Druckform**: [Aufkleber oder personalisierte Exemplare](#multi-sheet-print), beidseitiges A4 oder Broschüre sowie Aufkleber pro Schüler (nur bei Aufklebern und nur mit QR-Feld auf dem Deckblatt).
+- **Deckblatt**: die [Namenswahl](#name-line), Infotext und das [Logo](#logo-packages).
+- **Jede Seite**: der [Korrekturhinweis für Multiple-Choice](#mc-hint).
 - **Schreibplatz**: Papier, [Zusatzhinweis und Zusatzseiten](#extra-paper).
 
 ### Korrektur außerhalb von Examance {#digital-grading}
 
-Wenn Sie die Arbeit nur mit Examance erstellen und auf Papier korrigieren, schalten Sie im Abschnitt **Korrektur** des Schritts Layout **In Examance korrigieren** aus. Die Arbeit druckt dann keine Eckmarkierungen, Seitencodes, Schnittlinien oder Aufkleberfelder. Alles andere bleibt genau an seinem Platz. Seitencodes und Aufkleberfelder bleiben im Schritt Layout sichtbar, sind aber mit Begründung ausgegraut. Auch Scannen, MC-Prüfung und digitale Korrektur sind ausgegraut (nie ausgeblendet), und **Weiter** führt von **Drucken** zur Papierkorrektur. **Personalisierte Exemplare gehen weiterhin**: jedes Exemplar bekommt seinen aufgedruckten QR-Code, Name und persönlicher Schlüssel stehen auf der Ecke, die Sie vor dem Austeilen abschneiden. So korrigieren Sie anonym auf Papier (Vorlage **Anonym auf Papier korrigieren, personalisiert**). Die Papier-Korrektur und die Statistik bleiben verfügbar.
+Jede Scanhilfe ist unter **Bewertung und Scanhilfen** ein eigener Schalter; eine abgeschaltete Hilfe lässt ihren Platz frei, alles andere bleibt genau an seinem Platz:
+
+- **Eckmarkierungen**: die vier schwarzen Quadrate, an denen der Scanner jede Seite ausrichtet. Die Korrektur in Examance braucht sie: Schalten Sie sie aus, wenn Sie die Arbeit nur mit Examance erstellen und auf Papier korrigieren. Scannen, MC-Prüfung und digitale Korrektur sind dann ausgegraut (nie ausgeblendet), und **Weiter** führt von **Drucken** zur Papierkorrektur.
+- **Schnittecke**: die graue Ecke mit gestrichelter Schnittlinie und Scheren auf jeder Seite. Personalisierte Exemplare behalten sie immer, weil dort Name und Schlüssel stehen.
+- **Seitencodes**: ein kleiner QR-Code auf jeder Seite. Ohne Eckmarkierungen werden sie trotzdem gedruckt (auf personalisierten Exemplaren nennen sie den Schüler), aber nur beim Scannen in Examance gelesen.
+- **Falzstreifen**: der graue Streifen an der Falz einer Broschüre, entlang dem Sie sie zum Scannen aufschneiden (nur bei Broschüren).
+
+ **Personalisierte Exemplare gehen weiterhin**: jedes Exemplar bekommt seinen aufgedruckten QR-Code, Name und persönlicher Schlüssel stehen auf der Ecke, die Sie vor dem Austeilen abschneiden. So korrigieren Sie anonym auf Papier (Vorlage **Anonym auf Papier korrigieren, personalisiert**). Die Papier-Korrektur und die Statistik bleiben verfügbar.
 
 ### Namenswahl {#name-line}
 
 Was das Deckblatt für den Namen anbietet, hängt von der Korrekturwahl ab:
 
-- Bei eingeschaltetem **In Examance korrigieren**: **Nur QR-Code** oder **QR-Code und Namenszeile**. Das QR-Code-Feld bleibt in beiden Fällen an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; mit Namenszeile entfällt nur das Initialenfeld im Feld.
-- Bei ausgeschalteter Korrektur: **Nur Namenszeile**, **Nur QR-Feld** (anonym; Sie ordnen die Ergebnisse später über den QR-Code zu, z. B. außerhalb von Examance) oder **QR-Feld und Namenszeile** (z. B. um Ergebnisse mit DiRueLei zu verschicken). Ohne Namenszeile behält Seite 1 das QR-Aufkleberfeld mit Initialenfeld.
+- Mit Eckmarkierungen (Korrektur in Examance) oder mit personalisierten Exemplaren: **Nur QR-Code** oder **QR-Code und Namenszeile**. Das QR-Code-Feld bleibt in beiden Fällen an derselben Stelle, Scannen und Zuordnen funktionieren also wie bisher; mit Namenszeile entfällt nur das Initialenfeld im Feld.
+- Ohne Korrektur in Examance und mit Aufklebern: **Nur Namenszeile**, **Nur QR-Feld** (anonym; Sie ordnen die Ergebnisse später über den QR-Code zu, z. B. außerhalb von Examance) oder **QR-Feld und Namenszeile** (z. B. um Ergebnisse mit DiRueLei zu verschicken). Ohne Namenszeile behält Seite 1 das QR-Aufkleberfeld mit Initialenfeld.
 
 Bestehende, auf Papier korrigierte Prüfungen behalten ihre Namenszeile.
 
@@ -146,7 +154,7 @@ Wie Sie diese Blätter drucken (beidseitig oder als Broschüre, Aufkleber pro Bl
 
 Der Abschnitt **Druckform** im Schritt Layout enthält diese Auswahl; der Schritt **Drucken** zeigt sie in einer Zusammenfassung mit dem Link **Im Schritt Layout ändern**:
 
-- **Personalisierte Exemplare** oder **Normale Exemplare + Aufkleber** (personalisierte Exemplare nur bei eingeschaltetem **In Examance korrigieren**).
+- **Personalisierte Exemplare** oder **Normale Exemplare + Aufkleber** (personalisierte Exemplare auch ohne Korrektur in Examance).
 - **Wie drucken Sie?** **Beidseitig (A4, zwei Seiten pro Blatt)** oder **Broschüre (gefaltetes A3, vier Seiten pro Blatt)**.
 - Bei Broschüren fragt der Schritt **Drucken** **Wer ordnet die Seiten an?** **Examance (A3-Blätter, jeder Drucker)**: auf A3 drucken, beidseitig, Wenden an der kurzen Kante, in Originalgröße (100 %, „An Seite anpassen“, „Auf Seitengröße skalieren“ und automatisches Zentrieren ausgeschaltet), an der gedruckten Mittellinie falten und heften. Druckt Ihr Drucker die Bögen trotzdem außermittig, hilft **Verschiebung (mm)** darunter: Drucken Sie einmal den **Testbogen**, falten Sie ihn Kante auf Kante, lesen Sie ab, wo der Knick das Lineal kreuzt (rechts der Mitte positiv), und tragen Sie diesen Wert ein. Er wird mit der Prüfung gespeichert, und Examance verschiebt jeden A3-Bogen darum. Oder **Broschürenfunktion meines Druckers**: Personalisierte Exemplare laden Sie dann als ZIP mit einer PDF pro Schüler herunter und drucken sie einzeln.
 - **Aufkleber pro Schüler** bzw. Aufkleberfelder (nur bei normalen Exemplaren + Aufklebern). Beidseitig: einer für die ganze Prüfung (auf dem Deckblatt) oder einer pro Blatt. Broschüre: einer für die ganze Prüfung, einer pro A3-Blatt oder einer pro A4-Blatt nach dem Schneiden. Aufkleber auf späteren Blättern kommen auf eine sehr hellgraue, unbeschriftete Stelle von 35 × 35 mm oben auf der Seite, auf der Seite abseits der Abschneide-Ecke, über die Kopfzeile. Personalisierte Exemplare brauchen keine zusätzlichen Aufkleber: Jeder Seitencode nennt den Schüler.

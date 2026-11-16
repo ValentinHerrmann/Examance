@@ -42,7 +42,7 @@ export function extraNotesToApi(
 }
 
 /** The multi-sheet print fields (issue #220), from the API's snake_case or a stored camelCase record; normalised by `printSettingsOf`. */
-function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox'> {
+function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip'> {
   const s = printSettingsOf({
     pageCodes: raw.page_codes ?? raw.pageCodes,
     printLayout: raw.print_layout ?? raw.printLayout,
@@ -53,11 +53,13 @@ function printFieldsOf(raw: any): Pick<ExamRecord, 'pageCodes' | 'printLayout' |
     bookletOffsetMm: raw.booklet_offset_mm ?? raw.bookletOffsetMm,
     digitalGrading: raw.digital_grading ?? raw.digitalGrading,
     resultsQrBox: raw.results_qr_box ?? raw.resultsQrBox,
+    cutCorner: raw.cut_corner ?? raw.cutCorner,
+    foldStrip: raw.fold_strip ?? raw.foldStrip,
   });
   return {
     pageCodes: s.pageCodes, printLayout: s.layout, stickerSpots: s.stickerSpots, printMode: s.mode,
     paperStyle: s.paperStyle, extraPages: s.extraPages, bookletOffsetMm: s.bookletOffsetMm,
-    digitalGrading: s.digitalGrading, resultsQrBox: s.resultsQrBox,
+    digitalGrading: s.digitalGrading, resultsQrBox: s.resultsQrBox, cutCorner: s.cutCorner, foldStrip: s.foldStrip,
   };
 }
 
@@ -139,6 +141,8 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     booklet_offset_mm: exam.bookletOffsetMm,
     digital_grading: exam.digitalGrading,
     results_qr_box: exam.resultsQrBox,
+    cut_corner: exam.cutCorner,
+    fold_strip: exam.foldStrip,
     // null switches the block off, undefined leaves it alone.
     extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,

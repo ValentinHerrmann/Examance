@@ -91,6 +91,9 @@ class Exam(Base):
     digital_grading: Mapped[bool] = mapped_column(nullable=False, default=True, server_default="true")
     # Without digital grading: page 1 keeps one box for a results QR sticker.
     results_qr_box: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    # Scan aids printed one by one (issue #272): the cut-off corner's tint, cut line and scissors, and a booklet's fold strip.
+    cut_corner: Mapped[bool] = mapped_column(nullable=False, default=True, server_default="true")
+    fold_strip: Mapped[bool] = mapped_column(nullable=False, default=True, server_default="true")
     # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
     extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Ticks the teacher sets by hand per step (print checklist, MC check); the client owns the shape.

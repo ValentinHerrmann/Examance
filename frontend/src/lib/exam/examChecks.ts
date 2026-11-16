@@ -72,7 +72,13 @@ export function fingerprint(text: string): string {
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
-const LEGACY_PRINT = JSON.stringify(printSettingsOf({}));
+/** The print settings as stamped: the scan-aid switches (issue #272) only when they differ from what the grading switch printed before, so older stamps stay as they were. */
+function stampedPrint(exam: ExamRecord) {
+    const { cutCorner, foldStrip, ...rest } = printSettingsOf(exam);
+    return { ...rest, ...(cutCorner === rest.digitalGrading ? {} : { cutCorner }), ...(foldStrip === rest.digitalGrading ? {} : { foldStrip }) };
+}
+
+const LEGACY_PRINT = JSON.stringify(stampedPrint({} as ExamRecord));
 
 /** What the printed exam and solution depend on: the exam's content and layout fields and its exercises in order. */
 export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): string {
@@ -85,7 +91,7 @@ export function contentStamp(exam: ExamRecord, exercises: ExerciseRecord[]): str
         // Only when set, so stamps of exams without an override (all older ones) stay as they were.
         ...(e.course ? [e.course] : []),
         // Only when they differ from the old layout, so stamps of older exams stay as they were.
-        ...(JSON.stringify(printSettingsOf(e)) === LEGACY_PRINT ? [] : [printSettingsOf(e)]),
+        ...(JSON.stringify(stampedPrint(e)) === LEGACY_PRINT ? [] : [stampedPrint(e)]),
     ];
     const body = exercises.map((x) => [x.id, x.version, x.orderIndex, x.mcGroupId, x.subIndex, x.maxPoints, x.latexBody]);
     return fingerprint(JSON.stringify([head, body]));

@@ -77,6 +77,9 @@ export interface ZipExamSettings {
   /** Graded outside Examance when false (issue #228); absent = true. */
   digitalGrading?: boolean;
   resultsQrBox?: boolean;
+  /** Scan aids one by one (issue #272); absent = as `digitalGrading`. */
+  cutCorner?: boolean;
+  foldStrip?: boolean;
   extraNotes?: ExtraNotes | null;
 }
 

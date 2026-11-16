@@ -41,6 +41,7 @@
   import { faArrowsRotate } from "@fortawesome/free-solid-svg-icons";
   import SketchPage from "./SketchPage.svelte";
   import PageInfo from "./PageInfo.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
 
   type Fields = Parameters<typeof sheetSketchOf>[0];
 
@@ -103,19 +104,20 @@
   }
 
   // The large page is rendered at the width it is shown at, so it stays sharp; widths are bucketed to avoid re-rendering on every pixel.
-  let observer: ResizeObserver | null = null;
   let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+  const observer =
+    typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(([entry]) => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            const px = Math.round(((entry?.contentRect.width ?? 0) * (globalThis.devicePixelRatio || 1)) / 200) * 200;
+            if (px > 0 && px !== largeWidth) largeWidth = px;
+          }, 200);
+        });
   onMount(() => {
     void load();
     void readExamPages();
-    observer = new ResizeObserver(([entry]) => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        const px = Math.round(((entry?.contentRect.width ?? 0) * (globalThis.devicePixelRatio || 1)) / 200) * 200;
-        if (px > 0 && px !== largeWidth) largeWidth = px;
-      }, 200);
-    });
-    if (largeBox) observer.observe(largeBox);
   });
   onDestroy(() => {
     observer?.disconnect();
@@ -140,6 +142,15 @@
       if (focus > count) focus = 1;
     });
   });
+  // The page box changes element when the layout switches at xl.
+  $effect.pre(() => {
+    const box = largeBox;
+    untrack(() => {
+      if (!box || !observer) return;
+      observer.disconnect();
+      observer.observe(box);
+    });
+  });
   // Renders the shown sample page sharply once its width is known; the thumbnail stands in meanwhile.
   $effect.pre(() => {
     const s = sample;
@@ -156,63 +167,74 @@
   });
 </script>
 
-{#snippet large()}
-  <SketchPage {model} page={current} image={largeImage} highlight={shown} callouts={parts} class="mx-auto block h-full max-h-full w-auto max-w-full rounded shadow-sm" />
+{#snippet large(fit: boolean)}
+  <SketchPage {model} page={current} image={largeImage} highlight={shown} callouts={parts} class={fit ? "mx-auto block aspect-[210/297] h-full max-h-full w-auto max-w-full rounded shadow-sm" : "mx-auto block w-full rounded shadow-sm"} />
 {/snippet}
 
-<figure class="@container m-0 flex min-w-0 flex-col gap-3">
-  <figcaption class="flex flex-wrap items-baseline gap-x-2 text-sm">
-    <span class="font-semibold text-content">{$t("exam.layout.sketch.title")}</span>
-    <span class="text-xs text-muted">{$t("exam.layout.sketch.pageOf", { page: current.number, pages: model.pages.length, role: roleLabel(current.role) })}</span>
-    {#if status === "loading"}<span class="text-xs text-muted">{$t("exam.layout.sketch.loading")}</span>{/if}
-  </figcaption>
-
-  <!-- From a wide card the info panel sits beside the page; narrower, below it. -->
-  <div class="grid min-w-0 grid-cols-1 gap-4 @2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-    <div class="min-w-0" bind:this={largeBox}>
-      {#if $isXl}
-        <div class="flex min-h-0 justify-center" use:fillViewport={{ min: 360 }}>{@render large()}</div>
-      {:else}
-        <!-- Phones and tablets: a page that leaves the options in reach below. -->
-        <div class="mx-auto w-full max-w-64 sm:max-w-sm">{@render large()}</div>
-      {/if}
-    </div>
-    <PageInfo {model} {parts} bind:highlight={panelHighlight} />
-  </div>
-
+{#snippet strip()}
   <!-- Every page, grouped as printed; a click shows it large. -->
-  <div class="overflow-x-auto pb-1">
-    <ol class="m-0 flex list-none gap-3 p-0" aria-label={$t("exam.layout.sketch.pages")}>
+  <div class="shrink-0 overflow-x-auto pb-1">
+    <ol class="m-0 flex list-none gap-2 p-0" aria-label={$t("exam.layout.sketch.pages")}>
       {#each sheets as sheet, s (s)}
-        <li class="flex shrink-0 flex-col gap-1">
-          <span class="text-xs text-muted">{$t(model.layout === "booklet" ? "exam.layout.sketch.sheetBooklet" : "exam.layout.sketch.sheetDuplex", { n: s + 1 })}</span>
-          <div class="flex gap-1 rounded-md border border-line p-1">
-            {#each sheet as page (page.number)}
-              <button
-                type="button"
-                class="flex w-16 flex-col items-center gap-0.5 rounded p-0.5 text-xs {page.number === focus ? 'bg-highlight text-on-highlight' : 'text-muted hover:bg-surface-inset'}"
-                aria-pressed={page.number === focus}
-                title="{page.number} · {roleLabel(page.role)}"
-                onclick={() => (focus = page.number)}
-              >
-                <SketchPage {model} {page} image={thumbOf(page.number)} thumb class="w-full" />
-                <span class="max-w-full truncate">{page.number} · {roleLabel(page.role)}</span>
-              </button>
-            {/each}
-          </div>
+        <li class="flex shrink-0 gap-0.5 rounded-md border border-line p-0.5" title={$t(model.layout === "booklet" ? "exam.layout.sketch.sheetBooklet" : "exam.layout.sketch.sheetDuplex", { n: s + 1 })}>
+          {#each sheet as page (page.number)}
+            <button
+              type="button"
+              class="flex w-11 flex-col items-center gap-0.5 rounded p-0.5 text-xs {page.number === focus ? 'bg-highlight text-on-highlight' : 'text-muted hover:bg-surface-inset'}"
+              aria-pressed={page.number === focus}
+              aria-label="{page.number} · {roleLabel(page.role)}"
+              title="{page.number} · {roleLabel(page.role)}"
+              onclick={() => (focus = page.number)}
+            >
+              <SketchPage {model} {page} image={thumbOf(page.number)} thumb class="w-full" />
+              <span>{page.number}</span>
+            </button>
+          {/each}
         </li>
       {/each}
     </ol>
   </div>
+{/snippet}
 
+{#snippet footer()}
   {#if status === "failed"}
-    <p class="m-0 flex flex-wrap items-center gap-2 text-xs text-warning-fg">
+    <p class="m-0 flex shrink-0 flex-wrap items-center gap-2 text-xs text-warning-fg">
       {$t("exam.layout.sketch.failed")}
       <Button size="sm" variant="outlined" severity="secondary" icon={faArrowsRotate} onClick={load}>{$t("exam.layout.sketch.retry")}</Button>
     </p>
   {/if}
   {#if examSheets !== null}
-    <p class="m-0 text-xs text-content">{$t("exam.layout.sketch.yourExam", { pages: examPages ?? 0, sheets: examSheets })}</p>
+    <p class="m-0 shrink-0 text-xs text-content">{$t("exam.layout.sketch.yourExam", { pages: examPages ?? 0, sheets: examSheets })}</p>
   {/if}
-  <p class="m-0 text-xs text-muted">{$t("exam.layout.sketch.note")}</p>
-</figure>
+{/snippet}
+
+<!-- From xl the whole preview fills the screen beside the options and never scrolls (the page shrinks instead); narrower, it stacks and the page scrolls. -->
+{#if $isXl}
+  <figure class="m-0 flex min-h-0 min-w-0 flex-col gap-2" use:fillViewport={{ min: 320 }}>
+    <figcaption class="flex shrink-0 flex-wrap items-center gap-x-2 text-sm">{@render caption()}</figcaption>
+    <div class="grid min-h-0 flex-1 grid-cols-[auto_minmax(13rem,1fr)] gap-4">
+      <div class="flex min-h-0 justify-center" bind:this={largeBox}>{@render large(true)}</div>
+      <div class="min-h-0 overflow-y-auto pr-1"><PageInfo {model} {parts} bind:highlight={panelHighlight} /></div>
+    </div>
+    {@render strip()}
+    {@render footer()}
+  </figure>
+{:else}
+  <figure class="@container m-0 flex min-w-0 flex-col gap-3">
+    <figcaption class="flex shrink-0 flex-wrap items-center gap-x-2 text-sm">{@render caption()}</figcaption>
+    <div class="grid min-w-0 grid-cols-1 gap-4 @2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <!-- Phones and tablets: a page that leaves the options in reach below. -->
+      <div class="mx-auto w-full max-w-64 min-w-0 sm:max-w-sm" bind:this={largeBox}>{@render large(false)}</div>
+      <PageInfo {model} {parts} bind:highlight={panelHighlight} />
+    </div>
+    {@render strip()}
+    {@render footer()}
+  </figure>
+{/if}
+
+{#snippet caption()}
+    <span class="font-semibold text-content">{$t("exam.layout.sketch.title")}</span>
+    <InfoTip text={$t("exam.layout.sketch.note")} />
+    <span class="text-xs text-muted">{$t("exam.layout.sketch.pageOf", { page: current.number, pages: model.pages.length, role: roleLabel(current.role) })}</span>
+    {#if status === "loading"}<span class="text-xs text-muted">{$t("exam.layout.sketch.loading")}</span>{/if}
+{/snippet}

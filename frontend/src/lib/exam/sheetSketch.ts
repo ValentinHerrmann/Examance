@@ -3,9 +3,8 @@
 import { pagesPerSheet, printSettingsOf, printsNameLine, stickerPagesOf, type PaperStyle, type PrintLayout, type PrintSettings } from '#lib/exam/printLayout';
 import { DEFAULT_EXTRA_NOTES, fillsLastPage, type ExamRecord } from '#lib/db/schema';
 
-/** One element the preview can highlight while its option is hovered or focused. */
-/** `cornerTab` is the personalised copy's name and key on page 1's cut-off corner. */
-export type SketchPart = 'scanAids' | 'cornerTab' | 'qr' | 'name' | 'logo' | 'info' | 'pageCodes' | 'mcHint' | 'stickers' | 'fold' | 'paper' | 'notes';
+/** One element the preview can highlight while its option is hovered or focused; `cornerTab` is the personalised copy's name and key on page 1's cut-off corner, `cutCorner` the tinted corner with its cut line. */
+export type SketchPart = 'markers' | 'cutCorner' | 'cornerTab' | 'qr' | 'name' | 'logo' | 'info' | 'pageCodes' | 'mcHint' | 'stickers' | 'fold' | 'paper' | 'notes';
 
 /** Content pages come from the sample; `extra` are the exam's extra pages, `filler` the ones that fill whole sheets. */
 export type SketchPageRole = 'cover' | 'exercises' | 'last' | 'extra' | 'filler';
@@ -21,8 +20,10 @@ export interface SketchPageModel {
 }
 
 export interface SheetSketchModel {
-  /** Corner markers, cut corner and cut lines for scanning. */
-  scanAids: boolean;
+  /** The four corner markers the scanner registers by (printed with Examance grading). */
+  markers: boolean;
+  /** The tinted cut-off corner with its cut line, on every page. */
+  cutCorner: boolean;
   pageCodes: boolean;
   /** The QR box on page 1: a sticker field, the printed code of a personalised copy, or none. */
   qr: 'none' | 'sticker' | 'printed';
@@ -30,6 +31,8 @@ export interface SheetSketchModel {
   initials: boolean;
   nameLine: boolean;
   logo: boolean;
+  /** The exam's info text as plain lines (`infoTextLines`). */
+  infoLines: string[];
   mcHint: boolean;
   paper: PaperStyle;
   /** The last page's rest-of-page writing area (`\ExamNotes`). */
@@ -42,7 +45,7 @@ export interface SheetSketchModel {
   sheets: number;
 }
 
-type SketchSource = Pick<ExamRecord, 'nameLine' | 'mcCorrectionHint' | 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'extraNotes'>;
+type SketchSource = Pick<ExamRecord, 'nameLine' | 'mcCorrectionHint' | 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip' | 'extraNotes' | 'infoText'>;
 
 /** The sample's content pages when it is not compiled yet. */
 export const SAMPLE_PAGES = 3;
@@ -76,21 +79,22 @@ export function sheetSketchOf(exam: SketchSource, hasLogo: boolean, contentPages
   const per = pagesPerSheet(print.layout);
   const before = contentPages + print.extraPages;
   const total = Math.ceil(before / per) * per;
-  // Without scan aids no sticker spot is printed (`ohnescan`), whatever is stored.
-  const spots = new Set(digital ? stickerPagesOf(print, total) : []);
+  const spots = new Set(stickerPagesOf(print, total));
   const qr = qrOf(print);
   const nameLine = printsNameLine(print, exam.nameLine);
   const notes = exam.extraNotes ?? DEFAULT_EXTRA_NOTES;
-  // The fold strip is a scan aid: without them the booklet still folds, but nothing is printed there.
-  const foldStrip = print.layout === 'booklet' && digital;
+  // Without its strip a booklet still folds, but nothing is printed there.
+  const foldStrip = print.layout === 'booklet' && print.foldStrip;
   const pages = Array.from({ length: total }, (_, i) => pageOf(i + 1, roleOf(i + 1, contentPages, before), foldStrip, spots.has(i + 1)));
   return {
-    scanAids: digital,
-    pageCodes: digital && print.pageCodes,
+    markers: digital,
+    cutCorner: print.cutCorner,
+    pageCodes: print.pageCodes,
     qr,
     initials: qr === 'sticker' && !nameLine,
     nameLine,
     logo: hasLogo,
+    infoLines: infoTextLines(exam.infoText ?? ''),
     mcHint: exam.mcCorrectionHint === true,
     paper: print.paperStyle,
     restArea: fillsLastPage(notes),
@@ -112,7 +116,8 @@ export function focusPageOf(part: SketchPart, model: SheetSketchModel): number {
     case 'notes':
       return first((p) => p.role === 'extra' || p.role === 'filler') ?? first((p) => p.role === 'last') ?? 1;
     case 'pageCodes':
-    case 'scanAids':
+    case 'markers':
+    case 'cutCorner':
     case 'mcHint':
       return first((p) => p.role === 'exercises') ?? 1;
     case 'cornerTab':
@@ -141,7 +146,9 @@ export function pageElementsOf(model: SheetSketchModel, page: SketchPageModel, h
   const present: [SketchPart, boolean][] = [
     ['logo', cover && model.logo],
     ['cornerTab', cover && model.qr === 'printed'],
-    ['scanAids', model.scanAids],
+    ['info', cover && model.infoLines.length > 0],
+    ['markers', model.markers],
+    ['cutCorner', model.cutCorner && !(cover && model.qr === 'printed')],
     ['pageCodes', model.pageCodes],
     ['stickers', page.stickerSpot],
     ['qr', cover && model.qr !== 'none'],
@@ -160,4 +167,21 @@ export function sheetsOf(model: SheetSketchModel): SketchPageModel[][] {
   const out: SketchPageModel[][] = [];
   for (let i = 0; i < model.pages.length; i += per) out.push(model.pages.slice(i, i + per));
   return out;
+}
+
+/** The info text as the preview prints it: one line per paragraph or `\item` (a bullet), commands and braces dropped; an approximation, the PDF shows the real one. */
+export function infoTextLines(tex: string): string[] {
+  const text = tex
+    .replace(/(?<!\\)%.*$/gm, '')
+    .replace(/\\item\b\s*/g, '\n• ')
+    .replace(/\\(?:begin|end)\{[^}]*\}/g, '\n')
+    .replace(/\\\\/g, '\n')
+    .replace(/\\[a-zA-Z@]+\*?(?:\[[^\]]*\])?/g, '')
+    .replace(/\\(.)/g, '$1')
+    .replace(/[{}]/g, '')
+    .replace(/~/g, ' ');
+  return text
+    .split(/\n\s*\n|\n(?=• )|\n/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter((line) => line && line !== '•');
 }

@@ -12069,6 +12069,16 @@
             "title": "Results Qr Box",
             "default": false
           },
+          "cut_corner": {
+            "type": "boolean",
+            "title": "Cut Corner",
+            "default": true
+          },
+          "fold_strip": {
+            "type": "boolean",
+            "title": "Fold Strip",
+            "default": true
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -12603,6 +12613,16 @@
             "title": "Results Qr Box",
             "default": false
           },
+          "cut_corner": {
+            "type": "boolean",
+            "title": "Cut Corner",
+            "default": true
+          },
+          "fold_strip": {
+            "type": "boolean",
+            "title": "Fold Strip",
+            "default": true
+          },
           "extra_notes": {
             "anyOf": [
               {
@@ -13123,6 +13143,28 @@
               }
             ],
             "title": "Results Qr Box"
+          },
+          "cut_corner": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cut Corner"
+          },
+          "fold_strip": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fold Strip"
           },
           "extra_notes": {
             "anyOf": [

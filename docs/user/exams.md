@@ -73,34 +73,42 @@ Groups are layout only: grading and statistics stay strictly per question.
 
 ## Layout options {#layout}
 
-The **Layout** step (step 2, between **Exam** and **Students**) holds every option that changes how the printed exam looks. Beside the options a preview shows a **sample exam** (not your own content) with your options applied: one page large and every page of a copy as a thumbnail, grouped by sheet. The pages are the cover, exercise pages, the last page, your extra pages and the **filler pages** that top every copy up to whole sheets (empty writing pages). Point at or click into an option and the preview jumps to the page it changes and highlights the element; click a thumbnail to show that page large. Numbered badges on the page match the panel beside it, which explains each element and says **where the name is**: on the sticker (small, above the QR code), on the cut-off corner of a personalised copy, or on the handwritten name line, and whether it is still on the paper you grade. When your exam has been previewed in the **Exam** step, a line below says how many pages and sheets your own exam has. Order of the options: preset, grading, print form, cover, every page, writing space. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
+The **Layout** step (step 2, between **Exam** and **Students**) holds every option that changes how the printed exam looks. Beside the options a preview shows a **sample exam** (not your own content) with your options applied: one page large and every page of a copy as a small numbered thumbnail, grouped by sheet. From wide screens on, the preview fills the screen beside the options and never scrolls; the page shrinks to fit. The pages are the cover, exercise pages, the last page, your extra pages and the **filler pages** that top every copy up to whole sheets (empty writing pages). Point at or click into an option and the preview jumps to the page it changes and highlights the element; click a thumbnail to show that page large. The sample shows your own info text, a header with 30 minutes of working time plus 5 minutes of reading time and a sample student, Max Mustermann, with a 20 % time extension. Numbered badges on the page match the panel beside it, which explains each element and says **where the name is**: on the sticker (small, above the QR code), on the cut-off corner of a personalised copy, or on the handwritten name line, and whether it is still on the paper you grade. When your exam has been previewed in the **Exam** step, a line below says how many pages and sheets your own exam has. Order of the options: preset, grading and scan aids, print form, cover, every page, writing space. Each row shows small tiles with the label on the left; the line below a row explains the chosen option, or the one you point at. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
 
 **Presets** at the top are starting points; they are not stored. Choosing one sets its options, and all of them stay editable. The page shows which preset matches your settings, or "custom settings" if none does.
 
-- **Grade in Examance**: scan aids, a page code on every page, QR code only, the multiple choice correction hint, double-sided A4 and a sticker on every sheet.
-- **Grade in Examance as a booklet**: the same as a folded A3 booklet, with a sticker on every A3 sheet.
-- **Grade anonymously on paper**: no scan aids, only a QR sticker box on the cover, no name line.
-- **Grade anonymously on paper, personalised**: no scan aids, one copy per student with its printed QR code; the name is on the cut-off corner.
-- **Grade on paper with names**: no scan aids, no QR box, a name line.
+- **Grade in Examance**: every scan aid, QR code only, the multiple choice correction hint, double-sided A4, identical copies and a sticker on every sheet.
+- **Examance, personalised booklet**: every scan aid, one folded A3 booklet per student with its printed QR code, and a name line.
+- **Anonymous on paper, personalised**: graded by hand; no corner markers or page codes, one copy per student with its printed QR code; the name is on the cut-off corner.
+- **On paper with names, booklet**: no scan aids and no QR code, a folded A3 booklet with a name line.
+
+Together they show each grading way with both print forms and with personalised copies. Anonymous paper grading with stickers instead of printed codes is one click away: choose **Stickers** under **Student QR code**.
 
 Presets never change the paper, the extra pages, the info text or the logo. Below them the options are grouped:
 
-- **Grading**: **Grade in Examance** on or off, see [below](#digital-grading).
-- **Cover**: info text, the [name choice](#name-line) and the [logo](#logo-packages).
-- **Every page**: the [page code](#multi-sheet) (only with grading on) and the [multiple choice correction hint](#mc-hint).
-- **Print form**: [stickers or personalised copies](#multi-sheet-print) (only with grading on), double-sided A4 or booklet, and the stickers per student or sticker spots (stickers only).
+- **Grading and scan aids**: corner markers, cut corner, [page codes](#multi-sheet) and the booklet's fold strip, each on or off, see [below](#digital-grading).
+- **Print form**: [stickers or personalised copies](#multi-sheet-print), double-sided A4 or booklet, and the stickers per student (stickers only, and only with a QR box on the cover).
+- **Cover**: the [name choice](#name-line), info text and the [logo](#logo-packages).
+- **Every page**: the [multiple choice correction hint](#mc-hint).
 - **Writing space**: paper, [extra notes and extra pages](#extra-paper).
 
 ### Grading outside Examance {#digital-grading}
 
-If you only create the exam with Examance and grade it on paper, switch off **Grade in Examance** in the **Grading** section of the Layout step. The exam then prints no corner markers, page codes, cut lines or sticker spots. Everything else stays exactly where it is. Page codes and sticker spots stay visible on the Layout step but are greyed out with the reason. Scanning, MC check and digital grading are greyed out too (never hidden), and **Next** from **Print** leads to paper grading. **Personalised copies still work**: each copy gets its printed QR code, and the student's name and personal key sit on the corner you cut off before handing out, so you grade anonymously on paper (preset **Grade anonymously on paper, personalised**). Paper grading and the statistics stay available.
+Each scan aid is a switch of its own under **Grading and scan aids**; a switched-off aid leaves its room empty, everything else stays exactly where it is:
+
+- **Corner markers**: the four black squares the scanner aligns each page by. They are what grading in Examance needs: switch them off if you only create the exam with Examance and grade it on paper. Scanning, MC check and digital grading are then greyed out (never hidden), and **Next** from **Print** leads to paper grading.
+- **Cut corner**: the grey corner with its dashed cut line and scissors on every page. Personalised copies always keep it, because the name and key are printed there.
+- **Page codes**: a small QR code on every page. Without corner markers they are still printed (on personalised copies they name the student) but only read when scanning in Examance.
+- **Fold strip**: the grey strip along a booklet's fold, where you cut it open for scanning (booklets only).
+
+ **Personalised copies still work**: each copy gets its printed QR code, and the student's name and personal key sit on the corner you cut off before handing out, so you grade anonymously on paper (preset **Grade anonymously on paper, personalised**). Paper grading and the statistics stay available.
 
 ### Name choice {#name-line}
 
 What the cover offers for the student's name depends on the grading choice:
 
-- With **Grade in Examance** on: **QR code only** or **QR code and name line**. The QR code box stays where it is either way, so scanning and assignment work as before; with a name line only the initials field inside the box is dropped.
-- With grading off: **Name line only**, **QR box only** (anonymous; you match the results to students later by the QR code, for example outside Examance), or **QR box and name line** (for example to send results with DiRueLei). Without a name line, page 1 keeps the QR sticker box with its initials field.
+- With corner markers on (grading in Examance) or with personalised copies: **QR code only** or **QR code and name line**. The QR code box stays where it is either way, so scanning and assignment work as before; with a name line only the initials field inside the box is dropped.
+- With grading off and stickers: **Name line only**, **QR box only** (anonymous; you match the results to students later by the QR code, for example outside Examance), or **QR box and name line** (for example to send results with DiRueLei). Without a name line, page 1 keeps the QR sticker box with its initials field.
 
 Existing exams that are graded on paper keep their name line.
 
@@ -145,7 +153,7 @@ How you print these sheets (double-sided or booklet, stickers per sheet) is chos
 
 The **Print form** section of the Layout step holds these choices; the **Print** step shows them in one summary line with a link **Change in the Layout step**:
 
-- **Personalised copies** or **Plain copies + stickers** (personalised copies only with **Grade in Examance** on).
+- **Personalised copies** or **Plain copies + stickers** (personalised copies also without grading in Examance).
 - **How do you print?** **Double-sided (A4, two pages per sheet)** or **Booklet (folded A3, four pages per sheet)**.
 - For booklets, the **Print** step asks **Who arranges the pages?** **Examance (A3 sheets, any printer)**: print on A3, double-sided, flip on the short edge, at actual size (100 %, with "fit to page", "scale to fit" and auto-centring turned off), fold along the printed centre line and staple. If your printer prints the sheets off-centre anyway, use **Shift (mm)** below it: print the **Test sheet** once, fold it edge to edge, read where the crease crosses the ruler (right of the centre is positive) and enter that value. It is saved with the exam, and Examance shifts every A3 sheet by it. Or **My printer's booklet function**: personalised copies then download as a ZIP with one PDF per student, which you print one by one.
 - **Stickers per student** or sticker spots (only for plain copies + stickers). Double-sided: one for the whole exam (on the cover page) or one per sheet. Booklet: one for the whole exam, one per A3 sheet, or one per A4 leaf after cutting. Stickers on later sheets go onto a faint, unlabelled grey 35 × 35 mm spot at the top of the page, on the side away from the cut corner, over the page header. Personalised copies need no extra stickers: every page code names the student.

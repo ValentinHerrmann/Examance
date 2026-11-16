@@ -350,3 +350,16 @@ async def test_exam_digital_grading_switch_round_trips(client: AsyncClient, db: 
     url = f"{EXAMS}/{exam['id']}"
     body = (await client.patch(url, json={"digital_grading": False, "results_qr_box": True})).json()
     assert (body["digital_grading"], body["results_qr_box"]) == (False, True)
+
+
+@pytest.mark.asyncio
+async def test_exam_scan_aid_switches_round_trip(client: AsyncClient, db: AsyncSession) -> None:
+    await sign_in(client, db, "scan-aids@example.com")
+    exam = await _exam(client)
+    assert (exam["cut_corner"], exam["fold_strip"]) == (True, True)
+
+    # Issue #272: the cut corner and the fold strip are switched one by one.
+    url = f"{EXAMS}/{exam['id']}"
+    body = (await client.patch(url, json={"cut_corner": False})).json()
+    assert (body["cut_corner"], body["fold_strip"]) == (False, True)
+    assert (await client.patch(url, json={"nr": "2"})).json()["cut_corner"] is False

@@ -5,6 +5,7 @@ import { buildGradeRows, computeExamResults, gradingState, type GradeRow, type G
 import { logExportAction } from '#lib/gdpr/exportAudit';
 import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 import { compileExamPreview, prepareExamSources } from '#lib/exam/examPreview';
+import { printSettingsOf } from '#lib/exam/printLayout';
 import { translate, type TranslationKey } from '#lib/i18n';
 import { mergeResources } from '#lib/latex/resources';
 import { stripSourceMarkers } from '#lib/latex/sourceMap';
@@ -191,6 +192,8 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
       bookletOffsetMm: exam.bookletOffsetMm ?? 0,
       digitalGrading: exam.digitalGrading !== false,
       resultsQrBox: exam.resultsQrBox ?? false,
+      cutCorner: printSettingsOf(exam).cutCorner,
+      foldStrip: printSettingsOf(exam).foldStrip,
       extraNotes: exam.extraNotes ?? null,
     },
     exercises: entries,

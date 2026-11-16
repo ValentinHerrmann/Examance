@@ -83,6 +83,8 @@ _HEADER_FIELDS = (
     "booklet_offset_mm",
     "digital_grading",
     "results_qr_box",
+    "cut_corner",
+    "fold_strip",
 )
 # What a duplicate takes over; the title, retention and page breaks are set separately.
 _COPIED_FIELDS = (*_HEADER_FIELDS, "extra_notes")

@@ -7,10 +7,13 @@ import { formatExerciseLatex } from '#lib/latex/scoreParser';
 import { buildMcOptionsLatex } from '#lib/latex/mcOptions';
 import { effectiveLatexCompilation } from '#lib/stores/capabilities';
 import { buildExamLatex } from '#lib/exam/examPreview';
+import { examBaseMinutes, printedExtension, type TimeExtension } from '#lib/students/timeExtension';
 
-/** Link URIs only the sample sets: where the last page's writing space starts, and where the MC question's text starts (its correction hint sits right above). */
+/** Link URIs only the sample sets: where the last page's writing space starts, where the MC question's text starts (its correction hint sits right above), and the room of the info text, which the preview fills with the exam's own. */
 export const SAMPLE_REST_URI = 'omr://__sample__/rest';
 export const SAMPLE_MC_URI = 'omr://__sample__/mc';
+export const SAMPLE_INFO_START_URI = 'omr://__sample__/info-start';
+export const SAMPLE_INFO_END_URI = 'omr://__sample__/info-end';
 
 // Ends with a line break, so the following text never glues onto `\par` (a `\parLorem` broke the compile).
 const marker = (uri: string) => String.raw`\noindent\href{${uri}}{\rule{0pt}{1pt}\hspace{\linewidth}}\par` + '\n';
@@ -24,13 +27,16 @@ const SAMPLE_EXAM: ExamRecord = {
   klasse: '10a',
   lehrernachname: 'Muster',
   datum: '01.01.2027',
+  // The header prints "01.01.2027 (30 Minuten + 5 Minuten Einlesezeit)" (`printedDatum`).
+  durationMinutes: 30,
+  readingMinutes: 5,
   nr: '1',
-  infoText: String.raw`\begin{itemize}
-  \item Hilfsmittel: keine
-  \item Bearbeitungszeit: 45 Minuten
-\end{itemize}`,
+  // Only the room: the preview draws the exam's own info text into it.
+  infoText: marker(SAMPLE_INFO_START_URI) + String.raw`\rule{0pt}{2cm}\par` + '\n' + marker(SAMPLE_INFO_END_URI),
   digitalGrading: false,
   resultsQrBox: true,
+  cutCorner: false,
+  foldStrip: false,
   nameLine: true,
   pageCodes: false,
   printLayout: 'duplex',
@@ -41,6 +47,14 @@ const SAMPLE_EXAM: ExamRecord = {
   mcCorrectionHint: true,
   extraNotes: null,
 } as ExamRecord;
+
+/** The sample student (issue #272): class-list number 7 with a 20 % time extension. */
+const SAMPLE_EXTENSION: TimeExtension = { value: 20, unit: '%' };
+
+/** The sample student's printed label as stickers and copies print it: "07  Mustermann, Max  +20 % (+7 Min)" (`labelParts` in qr/stickerSheet.ts, kept out of this chunk because it pulls in pdf-lib; a test keeps both equal). */
+export const SAMPLE_LABEL = `07  Mustermann, Max  ${printedExtension(SAMPLE_EXTENSION, examBaseMinutes(SAMPLE_EXAM))}`;
+/** What the student writes on the name line. */
+export const SAMPLE_HANDWRITTEN = 'Max Mustermann';
 
 const LOREM = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.';
 
@@ -83,5 +97,5 @@ export function layoutSampleTex(): string {
 /** Compiles the sample once per session and engine; every exam's Layout step reuses it. */
 export function compileLayoutSample(onStatus?: (status: string) => void): Promise<CompileResult> {
   const useLocal = effectiveLatexCompilation() === 'local';
-  return compileWithCache({ kind: 'layout-sample', id: 'v1', variant: 'angabe' }, layoutSampleTex(), useLocal, onStatus, false, {});
+  return compileWithCache({ kind: 'layout-sample', id: 'v2', variant: 'angabe' }, layoutSampleTex(), useLocal, onStatus, false, {});
 }
