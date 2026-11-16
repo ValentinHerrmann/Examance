@@ -31,7 +31,7 @@ describe('Examtimer export (issue #265)', () => {
   it('carries the data in the fragment of the control page, readable again', () => {
     const data = buildTimerData(exam, students, { names: true });
     const link = new URL(timerLink('https://timer.example/app', data));
-    expect(link.origin + link.pathname).toBe('https://timer.example/app/control.html');
+    expect(link.origin + link.pathname).toBe('https://timer.example/app/control');
     expect(link.search).toBe('');
     expect(parseTimerFragment(link.hash)).toEqual(data);
   });

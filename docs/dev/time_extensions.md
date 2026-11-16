@@ -58,6 +58,6 @@ Both fields live in the sealed payload of the student record (`STUDENT.sealed` i
 
 - `settings` uses the keys of Examtimer's own settings object (`examTimerSettings` in its `localStorage`); keys that are absent keep their value there.
 - One entry per distinct extension. `label` is empty unless the teacher ticks "Show first names", and then it is the first name only where exactly one student holds that extension.
-- File: the JSON above, `<exam>_examtimer.json`. Link: `<address>control.html#import=<base64url of the UTF-8 JSON>`. The fragment is never sent to a server, and the link is opened with `noopener noreferrer`.
+- File: the JSON above, `<exam>_examtimer.json`. Link: `<address>control#import=<base64url of the UTF-8 JSON>`. The fragment is never sent to a server, and the link is opened with `noopener noreferrer`.
 - The address is `timerUrl()`: the teacher's setting in `localStorage` (`bg_examtimer_url`, Settings → Examtimer), else `DEFAULT_TIMER_URL`. Only `https` addresses (or `http` on localhost) are accepted.
 - A change to the format bumps `TIMER_FORMAT_VERSION` and needs the matching change in Examtimer's importer.

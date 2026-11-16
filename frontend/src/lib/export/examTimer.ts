@@ -73,9 +73,9 @@ export function parseTimerFragment(fragment: string): TimerData {
   return JSON.parse(new TextDecoder().decode(bytes)) as TimerData;
 }
 
-/** Examtimer's control page with the data in the fragment: `<base>control.html#import=<base64url JSON>`. */
+/** Examtimer's control page with the data in the fragment: `<base>control#import=<base64url JSON>` (the hosted page has no .html). */
 export function timerLink(base: string, data: TimerData): string {
-  const url = new URL('control.html', base.endsWith('/') ? base : `${base}/`);
+  const url = new URL('control', base.endsWith('/') ? base : `${base}/`);
   url.hash = `import=${toBase64Url(JSON.stringify(data))}`;
   return url.toString();
 }
