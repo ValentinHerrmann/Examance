@@ -262,7 +262,7 @@ export const help = {
             },
             s6: {
                 h: 'Einwände gegen die Korrektur',
-                p1: 'Mit „Einwände erlauben bis …“ beim Teilen können Schüler über ihren Link zu jeder (Teil-)Aufgabe einen Einwand schreiben (höchstens 500 Zeichen). Du antwortest auf der Korrekturseite unter der Aufgabe; „Antwort senden“ aktualisiert das Ergebnis unter demselben Link und benachrichtigt den Schüler auf Wunsch per E-Mail. Der Reiter „Einsprüche“ unter Ergebnisse listet alle offenen und beantworteten Einsprüche mit dem ganzen Gespräch, zuerst ohne Namen.',
+                p1: 'Mit „Einwände erlauben bis …“ beim Teilen können Schüler über ihren Link zu jeder (Teil-)Aufgabe einen Einwand schreiben (höchstens 500 Zeichen). Du antwortest auf der Korrekturseite unter der Aufgabe; „Antwort senden“ aktualisiert das Ergebnis unter demselben Link und benachrichtigt den Schüler auf Wunsch per E-Mail. Der Reiter „Einsprüche“ im Schritt Einsicht listet alle offenen und beantworteten Einsprüche mit dem ganzen Gespräch, zuerst ohne Namen.',
             },
         },
         analytics: {

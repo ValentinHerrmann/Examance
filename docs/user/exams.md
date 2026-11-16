@@ -39,11 +39,13 @@ Each exam has a sidebar (on a phone: the menu) with numbered steps. Every step h
 | 6A **Check MC** | Verify multiple choice detections, see [Verify MC detections](./scanning#mc-verification) |
 | 7A **Digital grading** | Correct the scanned submissions, see [Grading](./grading) |
 | B **Paper grading** | Instead of 5A–7A: enter points for papers graded on paper, without scanning, see [Classes graded on paper](./grading#paper) |
-| 8 **Results & Export** | Tabs **Statistics**, **Send to students** and **Archive**, see [Results and analysis](./results) |
+| 8 **Results** | Grade distribution, key figures and borderline cases, see [Results and analysis](./results) |
+| 9 **Review** | Tabs **Send to students** and **Objections**, see [Share results](./results#share) and [Objections](./students#grading-review) |
+| 10 **Export** | Overview sheet, graded exams and more for your records, see [Archive an exam](./results#archive) |
 
 ## Overview {#overview}
 
-**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details, a few key figures (points, average, grading key) and, at the bottom, the **Workflow**: every step in order with its badge, each one a link; the step you most likely need next is highlighted. **Continue: …** (followed by the step's name) opens that step. The **Details** card edits the header data in place, **Back up / transfer** packs the exam as a readable ZIP or a password-protected backup that Examance can import again, for moving or sharing it (see [Export](#export)); to keep the results for your records, use **Results & Export → Archive** instead. The **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
+**Overview** (the first entry of the sidebar, unnumbered) shows the exam's details, a few key figures (points, average, grading key) and, at the bottom, the **Workflow**: every step in order with its badge, each one a link; the step you most likely need next is highlighted. **Continue: …** (followed by the step's name) opens that step. The **Details** card edits the header data in place, **Back up / transfer** packs the exam as a readable ZIP or a password-protected backup that Examance can import again, for moving or sharing it (see [Export](#export)); to keep the results for your records, use the **Export** step instead. The **⋯** menu (**More actions**) holds **Duplicate**, **Delete Submissions** and **Delete** (the exam).
 
 ## Assemble the exercises {#assemble}
 

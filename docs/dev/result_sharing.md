@@ -56,7 +56,7 @@ The flow lives in `lib/sharing/shareService.ts`:
 
 **Codes** have 8 characters from the `randomCode` alphabet (32 letters, 40 bits) and are printed as `ABCD-EFGH`. The token carries the security: someone without the link cannot even fetch the ciphertext. The code protects against a forwarded link, and Argon2id makes guessing it offline expensive.
 
-**Factors**, chosen per share on the Share page (`routes/exam/[id]/results/share`, issue #212: four numbered steps `ShareStudents`, `ShareChannel`, `ShareOptions`, then preview and send; key slips print in `StickerSheetDialog` on top of the page so its state survives):
+**Factors**, chosen per share on the Share page (`routes/exam/[id]/review` (Send to students tab of the Review step, issue #276), issue #212: four numbered steps `ShareStudents`, `ShareChannel`, `ShareOptions`, then preview and send; key slips print in `StickerSheetDialog` on top of the page so its state survives):
 - `none`: the link alone opens the PDF.
 - `sticker`: the personal key from the sticker sheet.
 - `code`: printed on separate code slips so it can be handed out apart from the link. `shareCode` uses the student's personal key (`personalKey(raw)`, the one on their sticker or copy), so the slips double as a reprint of a lost key; only students without a sticker get a fresh `randomCode`, which is never stored.
