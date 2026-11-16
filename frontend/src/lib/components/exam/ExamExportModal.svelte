@@ -10,7 +10,7 @@
   import { examHasReviews } from "#lib/sharing/reviewService";
   import { examExportOptions } from "#lib/export/examExportOptions";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
-  import { examStepHref } from "#lib/components/layout/examNavItems";
+  import { archiveHref } from "#lib/utils/links";
 
   interface Props {
     /** One exam, or several exported together (one ZIP with a folder per exam, issue #261). */
@@ -54,7 +54,7 @@
       {#if exams.length === 1}
         <Alert severity="info" class="mb-4">
           {$t("exam.overview.backupHint")}
-          <a href={`${examStepHref(exams[0].id, "results")}/archive`} onclick={onClose}>{$t("exam.overview.backupArchiveLink")}</a>
+          <a href={archiveHref(exams[0].id)} onclick={onClose}>{$t("exam.overview.backupArchiveLink")}</a>
         </Alert>
       {:else}
         <Alert severity="info" class="mb-4">{$t("export.exam.manyHint", { count: exams.length })}</Alert>

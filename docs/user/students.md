@@ -72,7 +72,7 @@ A personal key is only needed if you later protect result links with it, see [Li
 
 ## Share graded exams with students {#share-results}
 
-After grading, **Results & Export → Send to students** gives each student their graded PDF, with your annotations and score, and their name printed in red at the top of every page. It is a page with four numbered steps and a send button that stays visible at the bottom:
+After grading, **Review → Send to students** gives each student their graded PDF, with your annotations and score, and their name printed in red at the top of every page. It is a page with four numbered steps and a send button that stays visible at the bottom:
 
 1. **Choose students.** Students with a grading are preselected.
 2. **Choose the way**:
@@ -127,7 +127,7 @@ Examance works with Mebis and Artemis in the same way as DiRueLei.
 
 1. In the Mebis assignment, download the **grading worksheet** (or export the participant list as CSV). It contains the students' Mebis IDs and e-mail addresses.
 2. Import this file on the [Students page](#student-data) and print the [QR stickers](#qr-stickers) or copies: the Mebis ID goes into each code.
-3. After grading, choose **Feedback files for Mebis (download)** on **Results & Export → Send to students**. You get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
+3. After grading, choose **Feedback files for Mebis (download)** on **Review → Send to students**. You get a `…_mebis_feedback.zip`. Upload it in the Mebis assignment under **Upload multiple feedback files in a zip**. Each student then sees their graded exam as feedback.
 
 Students with no Mebis ID (neither from the class list nor in their QR sticker) are skipped and listed in the notes after the download.
 
@@ -161,7 +161,7 @@ After sending by e-mail or Artemis, the share page shows a **Delivery** column p
 
 If your installation has its own mailbox for result mails, they are sent from it, and they ask students not to reply but to contact you another way: replies do not reach you.
 
-After an e-mail run the page waits about 30 seconds and checks for returned mails. You can leave earlier: e-mails that come back later are forwarded to your own address, and the **Share** badge of the exam's **Results** step then shows in red how many students were not reached. To send again, correct the address or Artemis id on the [Students page](#student-data), open **Results & Export → Send to students**, choose **Select students not reached** and send.
+After an e-mail run the page waits about 30 seconds and checks for returned mails. You can leave earlier: e-mails that come back later are forwarded to your own address, and the badge of the exam's **Review** step then shows in red how many students were not reached. To send again, correct the address or Artemis id on the [Students page](#student-data), open **Review → Send to students**, choose **Select students not reached** and send.
 
 If the page says that returned e-mails are not monitored, your installation has no result mailbox: then "Sent" only means that the mail server accepted the message.
 
@@ -179,7 +179,7 @@ Students can object to the grading of single exercises through their result link
 - **What students see.** Under the graded exam one field per exercise and sub-exercise (500 characters each). They can edit or withdraw an objection until you open it or the deadline passes; after that it is locked.
 - **Notification.** You get an e-mail per objection with the exam title and a link, never the student's name or text, and a badge on **Results** in the exam's sidebar. You can switch the e-mail off in **Settings**.
 - **Answer.** Open the submission on the grading page: under each exercise's score row the objection appears. Opening it locks it for the student. Change the points if needed, write your reply and press **Send reply**. On phones and tablets the objections open in a dialog instead, through the **Objection** badge on the score row or the **Edit** button in the footer. This saves the scores, updates the graded exam under the **same link** and shows the student your reply and the new points ("Grading updated on ..."). If the student has an e-mail address, they get a short notice by e-mail (optional in the dialog).
-- **Overview.** The **Objections** tab under **Results** lists every objection of the exam, filtered by **Open** (not answered yet, including ones from replaced links) and **Answered**, with the whole conversation per exercise and the points before and after. The list shows pseudonyms; **Show names** (or the eye on one row) reveals names until you leave the page. Reading there locks nothing: only **Open grading** opens the objection and locks it for the student.
+- **Overview.** The **Objections** tab of the **Review** step lists every objection of the exam, filtered by **Open** (not answered yet, including ones from replaced links) and **Answered**, with the whole conversation per exercise and the points before and after. The list shows pseudonyms; **Show names** (or the eye on one row) reveals names until you leave the page. Reading there locks nothing: only **Open grading** opens the objection and locks it for the student.
 - **Other changes.** Score changes without a reply are not published by themselves: use **Update shared result** in the row of the Send to students page.
 - **Older links.** Links created before this feature cannot carry objections or be updated; share the result again (the old link then stops working).
 - **Sharing again or revoking.** An objection you have not answered yet is not lost: before a new link replaces the old one (or you revoke it), the objection is saved in the grading, and the dialog names the students concerned. On the grading page it is marked "from a replaced link" and you can still answer it; the reply is saved and put into the student's current link. If an objection cannot be read, that link is left unchanged and a warning says so.
@@ -187,7 +187,7 @@ Students can object to the grading of single exercises through their result link
 
 ## Revoke links and expiry {#revoke}
 
-**Results & Export → Send to students** lists the **active links**. You can **revoke** one link (the icon in its row), or use **Revoke all**; revoked links stop working immediately and their data is deleted.
+**Review → Send to students** lists the **active links**. You can **revoke** one link (the icon in its row), or use **Revoke all**; revoked links stop working immediately and their data is deleted.
 
 Links also end by themselves:
 

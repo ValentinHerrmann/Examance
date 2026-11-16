@@ -21,7 +21,7 @@
     scan: "exam.sidebar.badge.scan",
     verify: "exam.sidebar.badge.verify",
     grade: "exam.sidebar.badge.grade",
-    results: "exam.sidebar.badge.results",
+    review: "exam.sidebar.badge.review",
   };
   let title = $derived(
     step && status && badgeKeys[step] && status.count !== undefined

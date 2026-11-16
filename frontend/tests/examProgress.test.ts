@@ -8,7 +8,7 @@ describe('examProgress', () => {
     expect(p.content).toEqual({ count: 3, done: true });
     expect(p.scan).toBeUndefined();
     expect(p.grade).toBeUndefined();
-    expect(p.results).toBeUndefined();
+    expect(p.review).toBeUndefined();
   });
 
   it('marks grading done only when every submission is graded', () => {
@@ -18,7 +18,7 @@ describe('examProgress', () => {
   });
 
   it('reports results that did not arrive as an alert', () => {
-    expect(examProgress({ sharedCount: 5, notReached: 2 }).results).toEqual({ count: 5, done: true, alert: 2 });
+    expect(examProgress({ sharedCount: 5, notReached: 2 }).review).toEqual({ count: 5, done: true, alert: 2 });
   });
 });
 
@@ -29,7 +29,9 @@ describe('step order', () => {
     // Digital and paper grading are alternatives: Next after digital grading goes to Results.
     expect(nextStep('grade')).toBe('results');
     expect(nextStep('print')).toBe('scan');
-    expect(nextStep('results')).toBeNull();
+    expect(nextStep('results')).toBe('review');
+    expect(nextStep('review')).toBe('export');
+    expect(nextStep('export')).toBeNull();
   });
 
   it('continues at the first unfinished step', () => {
@@ -52,6 +54,8 @@ describe('step numbers', () => {
     expect(stepNumber('grade')).toBe('7A');
     expect(stepNumber('manual')).toBe('B');
     expect(stepNumber('results')).toBe('8');
+    expect(stepNumber('review')).toBe('9');
+    expect(stepNumber('export')).toBe('10');
   });
 });
 

@@ -43,7 +43,7 @@ export function examProgress(input: ExamProgressInput): ExamProgress {
         };
     }
     if (input.sharedCount !== undefined || input.notReached !== undefined || input.objections !== undefined) {
-        p.results = {
+        p.review = {
             ...(input.sharedCount !== undefined ? { count: input.sharedCount, done: input.sharedCount > 0 } : {}),
             ...(input.notReached ? { alert: input.notReached } : {}),
             ...(input.objections ? { objections: input.objections } : {}),
