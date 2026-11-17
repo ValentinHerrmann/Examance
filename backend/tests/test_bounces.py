@@ -195,7 +195,8 @@ class _FakeSmtp:
 
     def starttls(self, context: ssl.SSLContext | None = None) -> None:
         # The result mailbox's relay is checked like every mail connection (issue #286).
-        assert context is not None and context.verify_mode == ssl.CERT_REQUIRED
+        assert context is not None
+        assert context.verify_mode == ssl.CERT_REQUIRED
 
     def login(self, user: str, _password: str) -> None:
         self.login_as = user

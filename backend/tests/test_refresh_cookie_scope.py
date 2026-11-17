@@ -77,4 +77,5 @@ async def test_a_session_with_both_cookies_rotates_the_current_one(client: Async
     )
     assert resp.status_code == 200, resp.text
     issued = [h for h in _refresh_cookies(resp) if "Max-Age=0" not in h]
-    assert len(issued) == 1 and "Path=/api/v1/auth;" in issued[0]
+    assert len(issued) == 1
+    assert "Path=/api/v1/auth;" in issued[0]
