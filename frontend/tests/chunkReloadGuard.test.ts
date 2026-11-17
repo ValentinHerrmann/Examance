@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 // The inline guard in src/app.html: a failed chunk import after an update reloads once, never in a loop.
 const html = readFileSync(resolve(__dirname, '../src/app.html'), 'utf8');
-const source = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => s.includes('bg_chunk_reload'));
+// Cut by position around the guard's key, not by an HTML regex (app.html is our own file with plain <script> tags).
+const keyAt = html.indexOf('bg_chunk_reload');
+const openTag = '<script>';
+const start = html.lastIndexOf(openTag, keyAt) + openTag.length;
+const source = keyAt < 0 ? undefined : html.slice(start, html.indexOf('</script>', keyAt));
 
 function boot(now: () => number) {
   const listeners: Record<string, (event: unknown) => void> = {};

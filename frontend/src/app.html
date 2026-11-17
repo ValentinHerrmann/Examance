@@ -43,6 +43,7 @@
             if (Date.now() - last < 300000) return;
             window.sessionStorage.setItem(KEY, String(Date.now()));
           } catch (e) {
+            /* Storage blocked: without the marker a reload could loop, so don't reload at all. */
             return;
           }
           window.location.reload();

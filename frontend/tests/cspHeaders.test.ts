@@ -73,11 +73,12 @@ describe('CSP header generation', () => {
 });
 
 describe('src/app.html', () => {
-  it('has exactly one inline script: the theme bootstrap', () => {
+  it('has exactly two inline scripts: the theme bootstrap and the chunk reload guard', () => {
     const html = readFileSync(fileURLToPath(new URL('../src/app.html', import.meta.url)), 'utf-8');
     const hashes = inlineScriptHashes(html);
-    expect(hashes).toHaveLength(1);
+    expect(hashes).toHaveLength(2);
     expect(html).toContain('bg_theme');
+    expect(html).toContain('bg_chunk_reload');
   });
 });
 

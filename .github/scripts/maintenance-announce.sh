@@ -73,5 +73,6 @@ case "$REV" in
     echo "ERROR: the maintenance CLI printed no revision; aborting before any migration." >&2
     exit 1
     ;;
+  *) ;;
 esac
 echo "MAINTENANCE_REVISION=$REV"
