@@ -45,7 +45,7 @@ jobs:
       backend: ${{ steps.scope.outputs.backend }}
     steps:
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
@@ -137,7 +137,7 @@ jobs:
       url: ${{ steps.pages.outputs.url || 'https://preview.examance.de/' }}
     steps:
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ needs.version.outputs.sha }}
           fetch-depth: 0
@@ -188,7 +188,7 @@ jobs:
       image: ${{ steps.meta.outputs.image }}
     steps:
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ needs.version.outputs.sha }}
 
@@ -251,7 +251,7 @@ jobs:
       url: ${{ vars.BACKEND_PUBLIC_URL || 'https://preview-api.examance.de/' }}
     steps:
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ needs.version.outputs.sha }}
 
@@ -270,34 +270,33 @@ jobs:
         continue-on-error: true
         run: .github/scripts/prefetch-drone-ssh.sh
 
-      # Waits (25 min max) for an open manual or frozen window to end, then prints the revision;
-      # none (no CLI yet, no stack) deploys without a window. docs/dev/maintenance_mode.md
+      - name: Encode announce script
+        id: announce_script
+        run: echo "b64=$(base64 -w0 .github/scripts/maintenance-announce.sh)" >> "$GITHUB_OUTPUT"
+
+      # Waits (25 min max) for an open manual or frozen window to end, then prints the revision; no revision only for no stack yet or an image
+      # without the maintenance CLI, any other failure fails the deploy before migrate (issue #285, docs/dev/maintenance_mode.md).
       - name: Announce maintenance
         id: announce
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         env:
           DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
+          ANNOUNCE_B64: ${{ steps.announce_script.outputs.b64 }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Host key pin (issue #296): without it the action accepts any host key. Empty secret = unpinned, as before.
+          fingerprint: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
-          envs: DEPLOY_APP_DIR
+          envs: DEPLOY_APP_DIR,ANNOUNCE_B64
           capture_stdout: true
-          command_timeout: 30m
+          # Two waits at most: the running backend's CLI, then the retry in a fresh container.
+          command_timeout: 55m
           script: |
             set -eu
-            cd "${DEPLOY_APP_DIR:?}/preview" 2>/dev/null || { echo "No stack yet."; exit 0; }
-            COMPOSE="docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env"
-            START="$COMPOSE exec -T backend python -m app.cli maintenance start --kind deployment --lead-seconds 30 --second-warning-seconds 10 --class very_short"
-            RC=0; OUT=$($START --wait-free 1500 2>&1) || RC=$?
-            if [ "$RC" = 75 ]; then echo "$OUT" >&2; echo "MAINTENANCE_BUSY=1"; exit 1; fi
-            # A running image older than --wait-free: announce without waiting.
-            if [ "$RC" != 0 ] && echo "$OUT" | grep -q "No such option"; then
-              RC=0; OUT=$($START 2>&1) || RC=$?
-            fi
-            [ "$RC" = 0 ] || OUT=""
-            echo "MAINTENANCE_REVISION=$(printf '%s\n' "$OUT" | tail -n1)"
+            # sh -c, not a pipe into sh: the CLI's `exec -T` would read the rest of the script from stdin.
+            sh -c "$(printf '%s' "$ANNOUNCE_B64" | base64 -d)" announce "${DEPLOY_APP_DIR:?}/preview" examance-preview 30 10
 
       - name: Read maintenance revision
         id: maint
@@ -356,6 +355,8 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Host key pin (issue #296): without it the action accepts any host key. Empty secret = unpinned, as before.
+          fingerprint: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
           # Includes waiting out the announced warning and the maintenance backup.
           command_timeout: 40m
@@ -450,6 +451,8 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Host key pin (issue #296): without it the action accepts any host key. Empty secret = unpinned, as before.
+          fingerprint: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
           envs: DEPLOY_APP_DIR,MAINTENANCE_REVISION
           script: |
