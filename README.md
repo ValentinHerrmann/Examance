@@ -129,9 +129,9 @@ API docs at `http://localhost:8000/api/docs`, frontend at `http://localhost:5173
   <a href="https://sonarcloud.io/component_measures?id=ValentinHerrmann_Examance&metric=reliability_rating"><img alt="reliability_rating" src="https://img.shields.io/sonar/reliability_rating/ValentinHerrmann_Examance?server=https%3A%2F%2Fsonarcloud.io&labelColor=1f2937&style=for-the-badge"></a>
   <a href="https://sonarcloud.io/component_measures?id=ValentinHerrmann_Examance&metric=duplicated_lines_density"><img alt="duplicated_lines_density" src="https://img.shields.io/sonar/duplicated_lines_density/ValentinHerrmann_Examance?server=https%3A%2F%2Fsonarcloud.io&labelColor=1f2937&style=for-the-badge"></a>
 </p>
-
-
 </div>
+
+
 ## License
 
 Examance is free software under the [GNU General Public License v3.0](LICENSE). Third-party components keep their own licenses, see [docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md).
