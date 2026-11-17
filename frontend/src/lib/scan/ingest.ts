@@ -7,7 +7,8 @@ import { pseudonymFor } from "#lib/services/pseudonymRekey";
 import { joinKey, joinKeys } from "#lib/crypto/pseudonymKey";
 import { studentRepository } from "#lib/repositories/studentRepository";
 import type { ExerciseScoreRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
-import { buildOmrScoreRecord } from "#lib/grading/omrResult";
+import { buildOmrScoreRecord, mergeRedetectionIntoVerified } from "#lib/grading/omrResult";
+import { isMcReviewed } from "#lib/grading/mcVerification";
 import { createOmrRun, type OmrPageStats, type OmrRunInfo, type OmrSettingsProfile } from "#lib/grading/omrSettings";
 import { scoreRepository } from "#lib/repositories/scoreRepository";
 import { readWithTemplates, withTemplate, type OmrTemplateCandidate } from "#lib/grading/omrTemplateChoice";
@@ -71,7 +72,7 @@ export type IngestWarning =
   /** Pages without a readable page code (loose paper with a sticker, issue #228): kept after the exam's pages; a note, not a fault. */
   | { kind: "extraPages"; student: string; count: number }
   /** Printed pages this student's scan already holds (scanned again, or a second student whose sticker was not read): kept at the end, their MC answers not read (issue #283). */
-  | { kind: "repeatedPages"; student: string; pages: number[] };
+  | { kind: "repeatedPages"; student: string; pages: number[]; graded: boolean };
 
 export interface OmrSummary {
   alignmentFailures: number;
@@ -100,7 +101,7 @@ interface OmrReading {
   pageStats: OmrPageStats;
   template?: Pick<OmrTemplateCandidate, "hash" | "pinnedAt">;
   /** The scanned page it was read from: only a page that takes its slot in the stored scan writes MC rows (issue #283). */
-  pageRef?: PdfPageRef;
+  pageRef: PdfPageRef;
 }
 
 interface Dispatcher<Req, Res> {
@@ -181,7 +182,7 @@ export class OmrAccumulator {
   private minFiducialsFound: number | null = null;
   private readonly missingCorners = new Set<string>();
 
-  add(pseudonymId: string, res: OmrResponse, template?: OmrReading["template"], pageRef?: PdfPageRef): void {
+  add(pseudonymId: string, res: OmrResponse, template: OmrReading["template"], pageRef: PdfPageRef): void {
     const list = this.byPseudonym.get(pseudonymId) ?? [];
     list.push(...res.results.map((result) => ({ result, pageStats: res.pageStats, template, pageRef })));
     this.byPseudonym.set(pseudonymId, list);
@@ -451,6 +452,8 @@ class ScanPass {
     const coded = booklet.pageRefs.some((r) => r.page !== undefined);
     // A code-less page in a coded booklet has no known place: no OMR rather than the wrong template.
     if (coded && pageRef.page === undefined) return;
+    // A page number this booklet already holds keeps its first reading (issue #283): reading it again is wasted work.
+    if (pageRef.page !== undefined && booklet.pageRefs.some((r) => r !== pageRef && r.page === pageRef.page && !r.extra)) return;
     const pageNo = pageRef.page ?? booklet.pageRefs.filter((r) => !r.extra).length;
     try {
       // Pins newest first (issue #239): the first template whose boxes sit on the printed ones, else the best fit.
@@ -508,23 +511,30 @@ export function bookletLayout(refs: readonly PdfPageRef[], templatePages = 0): {
   return { slots, extras };
 }
 
-/** A submission of this student that new pages join instead of starting a second one: the first whose scan still has placeholders (they get filled), else with *anyScan* (a booklet of only extra paper, issue #228) the newest with a scan (the pages are appended). *submissions* are the exam's, read once per upload. */
+interface JoinedScan {
+  id: string;
+  createdAt: string;
+  doc: PDFDocument;
+  graded: boolean;
+}
+
+/** A submission of this student that new pages join instead of starting a second one: the first whose scan still has placeholders (they get filled), else with *anyScan* (a booklet of only extra paper, issue #228, or coded pages scanned again, issue #283) the newest with a scan (the pages are appended). *graded*: it has an annotation layer, so it cannot be split. *submissions* are the exam's, read once per upload. */
 async function submissionToJoin(
   examId: string,
   pseudonymHmac: string,
   key: CryptoKey | null,
   submissions: readonly SubmissionRecord[],
   anyScan: boolean,
-): Promise<{ id: string; createdAt: string; doc: PDFDocument } | null> {
+): Promise<JoinedScan | null> {
   if (!key) return null;
   const lib = await import("pdf-lib");
   const own = submissions.filter((s) => s.pseudonymHmac === pseudonymHmac).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  let newest: { id: string; createdAt: string; doc: PDFDocument } | null = null;
+  let newest: JoinedScan | null = null;
   for (const summary of own) {
     const sub = summary.scanCt ? summary : await submissionRepository.getById(examId, summary.id, key);
     if (!sub?.scanCt || !sub.scanIv) continue;
     const doc = await lib.PDFDocument.load(await openScan(sub.id, sub.scanCt, sub.scanIv, key), { ignoreEncryption: true });
-    const found = { id: sub.id, createdAt: sub.createdAt, doc };
+    const found = { id: sub.id, createdAt: sub.createdAt, doc, graded: Boolean(sub.annotationCt || sub.hasAnnotations) };
     if (doc.getPages().some((p) => placeholderOf(lib, p) !== null)) return found;
     newest ??= found;
   }
@@ -561,7 +571,7 @@ async function fillSlots(lib: typeof import("pdf-lib"), out: PDFDocument, slots:
   return { missing, placed };
 }
 
-/** A later scan: earlier pages stay where they are, a placeholder gives way to its page from this scan, every other new page goes after them; only the pages that filled a placeholder took a slot. */
+/** A later scan: earlier pages stay where they are, a placeholder gives way to its page from this scan, every other new page goes after them. A page took a slot when it filled a placeholder, or when its number lies past the earlier scan's pages (a later page the earlier scan never had). */
 async function fillEarlier(lib: typeof import("pdf-lib"), out: PDFDocument, earlier: PDFDocument, slots: (PdfPageRef | number)[], refs: PdfPageRef[]): Promise<Filled> {
   const fresh = new Map(slots.filter((s): s is PdfPageRef => typeof s !== "number").map((r) => [r.page, r]));
   const used = new Set<PdfPageRef>();
@@ -577,20 +587,54 @@ async function fillEarlier(lib: typeof import("pdf-lib"), out: PDFDocument, earl
       if (wanted !== null) missing.push(wanted);
     }
   }
-  for (const ref of refs) if (!used.has(ref)) await copyPage(out, ref); // NOSONAR: page order matters
+  const beyond = new Set<number>();
+  for (const ref of refs) {
+    if (used.has(ref)) continue;
+    await copyPage(out, ref); // NOSONAR: page order matters
+    if (ref.page !== undefined && !ref.extra && ref.page > earlier.getPageCount() && !beyond.has(ref.page)) {
+      beyond.add(ref.page);
+      used.add(ref);
+    }
+  }
   return { missing, placed: used };
 }
 
-/** Readings to save: only from pages that took their slot (a page the scan already held keeps its first reading), and never over a row the teacher verified or set by hand (issue #283). */
-export function keepCheckedRows(fresh: readonly ExerciseScoreRecord[], stored: readonly ExerciseScoreRecord[]): ExerciseScoreRecord[] {
-  const checked = new Set(stored.filter((row) => !row.omrMeta || row.omrMeta.reviewedAt).map((row) => row.exerciseId));
-  return fresh.filter((row) => !checked.has(row.exerciseId));
+/** Fresh readings merged onto a joined scan's rows (issue #283): a verified or hand-set row keeps the teacher's decision, merged like the verify page's re-run (`mergeRedetectionIntoVerified`; a hand-set row has no detection and stays as it is); an unverified detection is replaced. */
+export function mergeCheckedRows(fresh: readonly ExerciseScoreRecord[], stored: readonly ExerciseScoreRecord[]): ExerciseScoreRecord[] {
+  const byExercise = new Map(stored.map((row) => [row.exerciseId, row]));
+  return fresh.map((row) => {
+    const old = byExercise.get(row.exerciseId);
+    return old && (!old.omrMeta || isMcReviewed(old.omrMeta)) ? mergeRedetectionIntoVerified(old, row) : row;
+  });
 }
 
 /** Printed pages of this upload that did not take a slot although they carry a page code: the scan already held that page. */
 function repeatedPages(refs: readonly PdfPageRef[], placed: ReadonlySet<PdfPageRef>): number[] {
   const pages = refs.flatMap((r) => (r.page !== undefined && !r.extra && !placed.has(r) ? [r.page] : []));
   return [...new Set(pages)].sort((a, b) => a - b);
+}
+
+/** The booklet's PDF (an earlier scan's placeholders filled when there is one), the pages that took their slot and the repeated page numbers; notes missing and loose pages in *warnings*. */
+async function assembleBooklet(
+  lib: typeof import("pdf-lib"),
+  booklet: StudentBooklet,
+  earlier: JoinedScan | null,
+  templatePages: number,
+  label: string,
+  warnings: IngestWarning[],
+): Promise<{ scanBuffer: Uint8Array; placed: Set<PdfPageRef>; repeated: number[] }> {
+  const out = await lib.PDFDocument.create();
+  const { slots, extras } = bookletLayout(booklet.pageRefs, templatePages);
+  const { missing, placed } = earlier ? await fillEarlier(lib, out, earlier.doc, slots, booklet.pageRefs) : await fillSlots(lib, out, slots, extras);
+  // The unsplit A3 sheets stay with the student's scan (exported and erased with it).
+  const originals = booklet.pageRefs.flatMap((r) => (r.original ? [r.original] : []));
+  if (originals.length) await attachOriginals(lib, out, originals, earlier?.doc ?? null);
+  else if (earlier) await carryAttachments(lib, earlier.doc, out);
+  if (missing.length) warnings.push({ kind: "missingPages", student: label, pages: missing });
+  // Extra sheets are expected; only loose paper gets a note (a repeated page has its own).
+  const loose = extras.filter((r) => !r.extra && r.page === undefined).length;
+  if (!earlier && loose) warnings.push({ kind: "extraPages", student: label, count: loose });
+  return { scanBuffer: await out.save(), placed, repeated: repeatedPages(booklet.pageRefs, placed) };
 }
 
 /** Assembles the booklet PDF (filling an earlier scan's placeholders when there is one), seals it and writes student, submission and OMR scores through their repositories. *known* holds the exam's students by join key; *templatePages* is the exam's page count when known. */
@@ -610,23 +654,10 @@ export async function saveBooklet(
   const pseudonym = await pseudonymFor(examId, booklet.pseudonymId);
   const coded = booklet.pageRefs.some((r) => r.page !== undefined);
   const extraOnly = onlyExtraPaper(booklet, pageCodes);
-  const earlier = (coded || extraOnly) && !booklet.isUnmatched ? await submissionToJoin(examId, pseudonym.pseudonymHmac, key, submissions, extraOnly) : null;
+  const earlier = (coded || extraOnly) && !booklet.isUnmatched ? await submissionToJoin(examId, pseudonym.pseudonymHmac, key, submissions, true) : null;
 
-  const assembledPdf = await lib.PDFDocument.create();
-  const { slots, extras } = bookletLayout(booklet.pageRefs, templatePages);
-  const { missing, placed } = earlier ? await fillEarlier(lib, assembledPdf, earlier.doc, slots, booklet.pageRefs) : await fillSlots(lib, assembledPdf, slots, extras);
-  // The unsplit A3 sheets stay with the student's scan (exported and erased with it).
-  const originals = booklet.pageRefs.flatMap((r) => (r.original ? [r.original] : []));
-  if (originals.length) await attachOriginals(lib, assembledPdf, originals, earlier?.doc ?? null);
-  else if (earlier) await carryAttachments(lib, earlier.doc, assembledPdf);
   const label = booklet.studentName || booklet.fallbackCode;
-  if (missing.length) warnings.push({ kind: "missingPages", student: label, pages: missing });
-  const repeated = repeatedPages(booklet.pageRefs, placed);
-  if (repeated.length) warnings.push({ kind: "repeatedPages", student: label, pages: repeated });
-  // Extra sheets are expected; only loose paper gets a note (a repeated page has its own).
-  const loose = extras.filter((r) => !r.extra && r.page === undefined).length;
-  if (!earlier && loose) warnings.push({ kind: "extraPages", student: label, count: loose });
-  const scanBuffer = await assembledPdf.save();
+  const { scanBuffer, placed, repeated } = await assembleBooklet(lib, booklet, earlier, templatePages, label, warnings);
 
   // The id first: the scan's ciphertext is bound to its submission (AAD, issue #178).
   const subId: string = earlier?.id ?? crypto.randomUUID();
@@ -645,6 +676,17 @@ export async function saveBooklet(
   };
   await saveStudentEncrypted(mergeScannedStudent(known.get(await joinKey(scanned)), scanned), key);
 
+  // Read before anything of this submission is written: a joined scan's checked rows are merged, never overwritten.
+  const stored = earlier && (omrResults.length || repeated.length) ? await scoreRepository.getBySubmissionId(examId, subId, key) : [];
+  if (repeated.length) warnings.push({ kind: "repeatedPages", student: label, pages: repeated, graded: Boolean(earlier?.graded) || stored.some((row) => !row.omrMeta) });
+  // Written once per booklet, not per MC question and pupil: hundreds of sequential requests in server mode.
+  const omrScores = omrResults
+    .filter((reading) => placed.has(reading.pageRef))
+    .map(({ result, pageStats, template }) => buildOmrScoreRecord(result, { id: crypto.randomUUID(), submissionId: subId, run: withTemplate(omrRun, template), pageStats }));
+  const toSave = earlier ? mergeCheckedRows(omrScores, stored) : omrScores;
+  // A joined scan's rows go first: if saving the scan then fails, a retry still finds its placeholders and reads them again. A new submission must exist before its rows.
+  if (earlier) await scoreRepository.saveMany(examId, subId, toSave, key);
+
   await saveSubmissionEncrypted(
     {
       id: subId,
@@ -657,13 +699,7 @@ export async function saveBooklet(
     },
     key,
   );
-
-  // Written once per booklet, not per MC question and pupil: hundreds of sequential requests in server mode.
-  const omrScores: ExerciseScoreRecord[] = omrResults
-    .filter((reading) => !reading.pageRef || placed.has(reading.pageRef))
-    .map(({ result, pageStats, template }) => buildOmrScoreRecord(result, { id: crypto.randomUUID(), submissionId: subId, run: withTemplate(omrRun, template), pageStats }));
-  const toSave = earlier && omrScores.length ? keepCheckedRows(omrScores, await scoreRepository.getBySubmissionId(examId, subId, key)) : omrScores;
-  await scoreRepository.saveMany(examId, subId, toSave, key);
+  if (!earlier) await scoreRepository.saveMany(examId, subId, toSave, key);
 }
 
 /** One OMR settings snapshot covers the whole batch. A storage failure throws with the earlier booklets already saved (no rollback); the caller reports it. */

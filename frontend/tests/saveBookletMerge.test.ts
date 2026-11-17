@@ -7,7 +7,7 @@ import { openScan, sealScan } from '../src/lib/db/dbEncryption';
 import { submissionRepository } from '../src/lib/repositories/submissionRepository';
 import { scoreRepository } from '../src/lib/repositories/scoreRepository';
 import type { ExerciseScoreRecord } from '../src/lib/db/schema';
-import { keepCheckedRows, saveBooklet, type IngestWarning, type PdfPageRef } from '../src/lib/scan/ingest';
+import { mergeCheckedRows, saveBooklet, type IngestWarning, type PdfPageRef } from '../src/lib/scan/ingest';
 import { addPlaceholderPage, placeholderOf } from '../src/lib/scan/scanPdf';
 import { sessionStore } from '../src/lib/stores/session';
 import { storagePolicyStore } from '../src/lib/stores/storagePolicy';
@@ -106,7 +106,7 @@ describe('saveBooklet never overwrites checked MC answers (issue #283)', () => {
 
     const [sub] = await submissionRepository.getByExamId(EXAM, key);
     expect(await selectedOf(sub.id)).toEqual({ ex1: [0] });
-    expect(warnings).toContainEqual({ kind: 'repeatedPages', student: 'S1', pages: [1] });
+    expect(warnings).toContainEqual({ kind: 'repeatedPages', student: 'S1', pages: [1], graded: false });
     expect((await pdfLib.PDFDocument.load(await openScan(sub.id, sub.scanCt!, sub.scanIv!, key))).getPageCount()).toBe(3);
   });
 
@@ -140,12 +140,67 @@ describe('saveBooklet never overwrites checked MC answers (issue #283)', () => {
     });
 
     expect(await selectedOf('sub-1')).toEqual({ ex1: [1], exHand: [1], exOld: [3], exNew: [3] });
-    expect(warnings).toContainEqual({ kind: 'repeatedPages', student: 'S1', pages: [1] });
+    expect(warnings).toContainEqual({ kind: 'repeatedPages', student: 'S1', pages: [1], graded: true });
   });
 
-  it('keepCheckedRows drops fresh rows only where the stored row was checked', () => {
-    const row = (exerciseId: string, omrMeta?: ExerciseScoreRecord['omrMeta']) => ({ id: exerciseId, submissionId: 's', exerciseId, omrMeta }) as ExerciseScoreRecord;
-    const stored = [row('verified', { reviewedAt: 't' } as never), row('hand'), row('detected', {} as never)];
-    expect(keepCheckedRows([row('verified'), row('hand'), row('detected'), row('new')], stored).map((r) => r.exerciseId)).toEqual(['detected', 'new']);
+  async function storeComplete(pages: number) {
+    const doc = await pdfLib.PDFDocument.create();
+    for (let i = 0; i < pages; i++) doc.addPage();
+    const { ct, iv } = await sealScan('sub-1', await doc.save(), key);
+    await submissionRepository.save({ id: 'sub-1', examId: EXAM, pseudonymHmac: 'keyed:S1', pseudonymVersion: 2, scanCt: ct, scanIv: iv, createdAt: '2026-11-01T00:00:00Z' }, key);
+    await scoreRepository.saveMany(EXAM, 'sub-1', [{ id: 'a', submissionId: 'sub-1', exerciseId: 'ex1', score: 1, selectedOptions: [1], omrMeta: { confidence: 'high', source: 'omr', reviewedAt: 't' } as never }], key);
+  }
+
+  // Review finding: a complete booklet scanned again started a second submission with unverified answers.
+  it('scanning a complete booklet again joins it, keeps its answers and reads only pages it never had', async () => {
+    await storeComplete(2);
+    const [p1, p2, p3] = await scanned([1, 2, 3]);
+    const booklet = { pseudonymId: 'S1', fallbackCode: 'S1', isUnmatched: false, pageRefs: [p1, p2, p3] };
+    const warnings: IngestWarning[] = [];
+    await saveBooklet(booklet, { examId: EXAM, getSessionKey: () => key }, run, [reading('ex1', p1, 3), reading('ex3', p3, 2)], new Map(), {
+      templatePages: 0,
+      warnings,
+      submissions: await submissionRepository.getByExamId(EXAM, key),
+      pageCodes: true,
+    });
+
+    expect((await submissionRepository.getByExamId(EXAM, key)).map((s) => s.id)).toEqual(['sub-1']);
+    expect(await selectedOf('sub-1')).toEqual({ ex1: [1], ex3: [2] });
+    expect(warnings).toContainEqual({ kind: 'repeatedPages', student: 'S1', pages: [1, 2], graded: false });
+  });
+
+  // Review finding: rows written after the scan were lost for good when that write failed, because the retry found no placeholder.
+  it('writes a joined scan\'s rows before the scan, so a failed save can be retried', async () => {
+    const earlier = await pdfLib.PDFDocument.create();
+    earlier.addPage();
+    await addPlaceholderPage(pdfLib, earlier, 2);
+    const { ct, iv } = await sealScan('sub-1', await earlier.save(), key);
+    await submissionRepository.save({ id: 'sub-1', examId: EXAM, pseudonymHmac: 'keyed:S1', pseudonymVersion: 2, scanCt: ct, scanIv: iv, createdAt: '2026-11-01T00:00:00Z' }, key);
+    const [p2] = await scanned([2]);
+    const booklet = { pseudonymId: 'S1', fallbackCode: 'S1', isUnmatched: false, pageRefs: [p2] };
+    const opts = async () => ({ templatePages: 2, warnings: [] as IngestWarning[], submissions: await submissionRepository.getByExamId(EXAM, key), pageCodes: true });
+    vi.spyOn(submissionRepository, 'save').mockRejectedValueOnce(new Error('offline'));
+    await expect(saveBooklet(booklet, { examId: EXAM, getSessionKey: () => key }, run, [reading('ex2', p2, 1)], new Map(), await opts())).rejects.toThrow('offline');
+    expect(await selectedOf('sub-1')).toEqual({ ex2: [1] });
+    vi.restoreAllMocks();
+
+    await saveBooklet(booklet, { examId: EXAM, getSessionKey: () => key }, run, [reading('ex2', p2, 1)], new Map(), await opts());
+    const row = await submissionRepository.getById(EXAM, 'sub-1', key);
+    const pages = (await pdfLib.PDFDocument.load(await openScan('sub-1', row!.scanCt!, row!.scanIv!, key))).getPages();
+    expect(pages.map((p) => placeholderOf(pdfLib, p))).toEqual([null, null]);
+  });
+
+  it('mergeCheckedRows keeps the teacher\'s decision on verified and hand-set rows', () => {
+    const row = (exerciseId: string, selectedOptions: number[], omrMeta?: ExerciseScoreRecord['omrMeta']) => ({ id: exerciseId, submissionId: 's', exerciseId, selectedOptions, omrMeta }) as ExerciseScoreRecord;
+    const detected = { confidence: 'high', source: 'omr', detections: { pageIndex: 0, bubbles: [] } } as unknown as ExerciseScoreRecord['omrMeta'];
+    const stored = [row('verified', [1], { ...detected!, reviewedAt: 't' }), row('manual', [2], { ...detected!, source: 'manual' }), row('hand', [3]), row('detected', [0], detected)];
+    const fresh = ['verified', 'manual', 'hand', 'detected', 'new'].map((id) => row(id, [4], detected));
+    expect(mergeCheckedRows(fresh, stored).map((r) => [r.exerciseId, r.selectedOptions])).toEqual([
+      ['verified', [1]],
+      ['manual', [2]],
+      ['hand', [3]],
+      ['detected', [4]],
+      ['new', [4]],
+    ]);
   });
 });

@@ -61,6 +61,7 @@ export const scanning: Translations['scanning'] = {
         title: 'Not every page fitted the exam. Every page was kept.',
         missing: '{student}: page(s) {pages} missing. Placeholders stand in their place and are replaced once you scan those pages.',
         extra: '{student}: {count} page(s) without a readable page code (e.g. extra paper with a sticker); they follow the exam pages.',
+        repeatedGraded: '{student}: page(s) {pages} came twice. They are kept at the end and their MC answers were not read, so your grading is unchanged. This scan is already graded by hand, so it cannot be split; if the pages belong to another student, scan that student\'s paper again with a readable sticker. The repeated pages can stay.',
         repeated: '{student}: page(s) {pages} came twice. They are kept at the end and their MC answers were not read, so nothing already checked changed. If a second student\'s sticker was not read, split the scan there and use "Re-run MC detection" for the new part.',
         paperTitle: 'Additional pages were appended.',
         foreign: '{fileName}: page(s) of another exam; they are listed as an unmatched submission.',

@@ -156,6 +156,7 @@ describe("BookletCollector", () => {
 });
 
 describe("OmrAccumulator", () => {
+  const page = { doc: null as never, index: 0 };
   const response = (over: Partial<Extract<OmrWorkerResponse, { type: "OMR_RESULT" }>> = {}) =>
     ({
       type: "OMR_RESULT",
@@ -170,9 +171,9 @@ describe("OmrAccumulator", () => {
 
   it("keeps results per pseudonym across pages", () => {
     const acc = new OmrAccumulator();
-    acc.add("a", response());
-    acc.add("b", response({ results: [{ exerciseId: "ex3" } as any] }));
-    acc.add("a", response());
+    acc.add("a", response(), undefined, page);
+    acc.add("b", response({ results: [{ exerciseId: "ex3" } as any] }), undefined, page);
+    acc.add("a", response(), undefined, page);
     expect(acc.resultsFor("a")).toHaveLength(4);
     expect(acc.resultsFor("b").map((r) => r.result.exerciseId)).toEqual(["ex3"]);
     expect(acc.resultsFor("unknown")).toEqual([]);
@@ -181,9 +182,9 @@ describe("OmrAccumulator", () => {
   it("summarises alignment failures, the weakest fiducial count and missing corners in order of discovery", () => {
     const acc = new OmrAccumulator();
     expect(acc.summary()).toEqual({ alignmentFailures: 0, minFiducialsFound: null, missingCorners: [] });
-    acc.add("a", response({ alignmentFailed: true, fiducialsFound: 3, fiducialCorners: [0, 1, 3] }));
-    acc.add("a", response({ alignmentFailed: true, fiducialsFound: 2, fiducialCorners: [1, 2] }));
-    acc.add("a", response());
+    acc.add("a", response({ alignmentFailed: true, fiducialsFound: 3, fiducialCorners: [0, 1, 3] }), undefined, page);
+    acc.add("a", response({ alignmentFailed: true, fiducialsFound: 2, fiducialCorners: [1, 2] }), undefined, page);
+    acc.add("a", response(), undefined, page);
     expect(acc.summary()).toEqual({
       alignmentFailures: 2,
       minFiducialsFound: 2,
