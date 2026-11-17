@@ -4,15 +4,16 @@ import { get, writable } from 'svelte/store';
 const mocks = vi.hoisted(() => ({
   openShareReview: vi.fn(),
   rows: [] as unknown[],
+  factor: 'code',
 }));
 
 vi.mock('#lib/api/resultShares', () => ({
-  listResultShares: vi.fn(async () => [{ id: 's1', studentKey: 'k1', wrappedKey: new Uint8Array(1), expiresAt: '2099-01-01T00:00:00Z', updatable: true }]),
+  listResultShares: vi.fn(async () => [{ id: 's1', studentKey: 'k1', factor: mocks.factor, wrappedKey: new Uint8Array(1), expiresAt: '2099-01-01T00:00:00Z', updatable: true }]),
   listExamReviews: vi.fn(async () => mocks.rows),
   openShareReview: (...args: unknown[]) => mocks.openShareReview(...args),
   replyToShareReview: vi.fn(),
 }));
-vi.mock('#lib/crypto/pseudonymKey', () => ({ joinKey: vi.fn(async () => 'k1'), joinKeys: vi.fn(async (list: unknown[]) => list.map(() => 'k1')) }));
+vi.mock('#lib/crypto/pseudonymKey', () => ({ joinKey: vi.fn(async (sub: { id: string }) => (sub.id === 'sub-2' ? 'k2' : 'k1')), joinKeys: vi.fn(async (list: unknown[]) => list.map(() => 'k1')) }));
 vi.mock('#lib/stores/session', () => ({ awaitSessionReady: vi.fn(async () => undefined), sessionStore: writable({ sessionKey: {} }) }));
 vi.mock('#lib/repositories/studentRepository', () => ({ studentRepository: { getByExamId: vi.fn(async () => [{ email: 'a@b.c' }]) } }));
 vi.mock('#lib/repositories/reviewRepository', () => ({ reviewRepository: { getBySubmission: vi.fn(async () => null) } }));
@@ -25,8 +26,10 @@ vi.mock('#lib/sharing/shareCrypto', async (importOriginal) => ({
   openReviewPart: vi.fn(async () => ({ items: { 'ex-1': 'Too few points', 'ghost': 'unknown item', 'ex-2': 7 } })),
 }));
 
-const { initReviews, showReview, resetReviews } = await import('#lib/sharing/reviewService');
+const { initReviews, showReview, resetReviews, sendReviewReply } = await import('#lib/sharing/reviewService');
 const { reviewStore } = await import('#lib/grading/reviewStore');
+const { republishShare } = await import('#lib/sharing/shareService');
+const { mailReviewReply } = await import('#lib/sharing/delivery');
 
 const sub = { id: 'sub-1' } as never;
 const unopened = () => [{ shareId: 's1', studentKey: 'k1', objection: { iv: new Uint8Array(12), ciphertext: new Uint8Array(1) }, submittedAt: 't0', openedAt: null, reply: null, repliedAt: null }];
@@ -35,6 +38,10 @@ beforeEach(() => {
   resetReviews();
   mocks.rows = unopened();
   mocks.openShareReview.mockReset();
+  mocks.factor = 'code';
+  vi.mocked(republishShare).mockReset();
+  vi.mocked(mailReviewReply).mockReset();
+  vi.stubGlobal('location', { origin: 'https://examance.test' });
 });
 
 describe('showReview (issue #226)', () => {
@@ -74,5 +81,44 @@ describe('showReview (issue #226)', () => {
     await showReview('exam', sub);
     expect(get(reviewStore).lockFailed).toBe(false);
     expect(get(reviewStore).thread?.openedAt).not.toBeNull();
+  });
+});
+
+describe('sendReviewReply (issue #291)', () => {
+  const published = { link: { shareId: 's1', token: new Uint8Array(16) }, contentKey: new Uint8Array(32), student: { email: 'a@b.c' }, examTitle: 'Exam', before: [], after: [] } as never;
+
+  // Regression: a link without a second factor was mailed, so the server and the mail provider could open the graded exam.
+  it('never mails a link that opens without a code', async () => {
+    mocks.factor = 'none';
+    mocks.openShareReview.mockResolvedValue(undefined);
+    vi.mocked(republishShare).mockResolvedValue(published);
+    await initReviews('exam');
+    await showReview('exam', sub);
+    expect(get(reviewStore)).toMatchObject({ canMail: false, mailBlocked: true });
+    await sendReviewReply('exam', sub, async () => undefined);
+    expect(mailReviewReply).not.toHaveBeenCalled();
+    expect(get(reviewStore).sentAt).not.toBeNull();
+  });
+
+  // Regression: the outcome of A's reply was patched onto student B shown meanwhile.
+  it('keeps the outcome on its own student when the teacher moves on', async () => {
+    mocks.openShareReview.mockResolvedValue(undefined);
+    let finish: (value: never) => void = () => undefined;
+    vi.mocked(republishShare).mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    vi.mocked(mailReviewReply).mockResolvedValue(false);
+    await initReviews('exam');
+    await showReview('exam', sub);
+    expect(get(reviewStore).canMail).toBe(true);
+
+    const sending = sendReviewReply('exam', sub, async () => undefined);
+    await showReview('exam', { id: 'sub-2' } as never);
+    finish(published);
+    await sending;
+    expect(mailReviewReply).toHaveBeenCalledOnce();
+    expect(get(reviewStore)).toMatchObject({ thread: null, sentAt: null, mailFailed: false });
+
+    await showReview('exam', sub);
+    expect(get(reviewStore).mailFailed).toBe(true);
+    expect(get(reviewStore).thread?.repliedAt).not.toBeNull();
   });
 });

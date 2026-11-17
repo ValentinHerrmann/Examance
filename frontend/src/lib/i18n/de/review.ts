@@ -79,6 +79,7 @@ export const review = {
         resend: 'Antwort erneut senden',
         hint: 'Speichert die Punkte, aktualisiert das Ergebnis unter demselben Link und sendet Ihre Antworten.',
         notify: 'Schüler per E-Mail benachrichtigen',
+        notifyNoFactor: 'Dieser Link öffnet sich ohne Code, deshalb wird er nie per E-Mail verschickt.',
         sent: 'Antwort gesendet.',
         mailFailed: 'Die Antwort wurde gespeichert, die E-Mail konnte aber nicht gesendet werden.',
         retry: 'Erneut versuchen',

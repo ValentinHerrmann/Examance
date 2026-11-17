@@ -106,14 +106,20 @@ export function stickerLmsId(student: { pseudonymRaw?: string }): string | null 
   return normalizeLmsId(parseStudentQr(stickerRawOf(student))?.studentNumber);
 }
 
-type WithIds = { pseudonymRaw?: string; mebisId?: string; artemisId?: string };
+type WithIds = { mebisId?: string; artemisId?: string };
 
-/** The Mebis participant id (issue #209): the stored one, else the sticker's (stickers printed from a Mebis list carry it). */
+/** The Mebis participant id (issue #209): only the stored one, never the sticker's, whose list is unknown (issue #284). */
 export function mebisIdOf(student: WithIds): string | null {
-  return normalizeLmsId(student.mebisId) ?? stickerLmsId(student);
+  return normalizeLmsId(student.mebisId);
 }
 
-/** The Artemis user id: the stored one, else the sticker's (stickers printed from an Artemis course carry it). */
+/** The Artemis user id: only the stored one, never the sticker's, so a Mebis number never becomes an Artemis recipient (issue #284). */
 export function artemisIdOf(student: WithIds): string | null {
-  return normalizeLmsId(student.artemisId) ?? stickerLmsId(student);
+  return normalizeLmsId(student.artemisId);
+}
+
+/** The Mebis id of a DiRueLei sticker, whose payload carries the Mebis prefix (`Teilnehmer/in6028356`); for matching an imported Mebis list only. */
+export function mebisStickerId(student: { pseudonymRaw?: string }): string | null {
+  const number = parseStudentQr(stickerRawOf(student))?.studentNumber ?? '';
+  return LMS_ID_PREFIX.test(number) ? normalizeLmsId(number) : null;
 }
