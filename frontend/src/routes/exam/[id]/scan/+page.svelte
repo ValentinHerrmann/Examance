@@ -2,7 +2,6 @@
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import { newTrashGroup } from "#lib/trash/group";
   import { TRASH_DAYS } from "#lib/trash/localTrash";
-  import { randomCode } from "#lib/utils/randomCode";
   import { page } from "$app/state";
   import { browser } from "$app/env";
   import {
@@ -11,15 +10,12 @@
     type HardwareProfile,
   } from "#lib/hardware/detect";
   import { joinKey } from "#lib/crypto/pseudonymKey";
-  import { pseudonymFor } from "#lib/services/pseudonymRekey";
   import { sessionStore, awaitSessionReady } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
   import {
     loadStudentsEncrypted,
     saveStudentEncrypted,
-    saveSubmissionEncrypted,
     openScan,
-    sealScan,
   } from "#lib/db/dbEncryption";
   import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
   import { loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
@@ -47,7 +43,7 @@
   } from "#lib/workers/omrWorker";
   import { parseStudentQr } from "#lib/utils/studentQr";
   import { ingestScans, type IngestProgress, type IngestWarning, type OmrSummary } from "#lib/scan/ingest";
-  import { carryAttachments } from "#lib/scan/scanPdf";
+  import { deleteScans, splitScan, SplitRefused } from "#lib/scan/scanActions";
   import { examNavContext } from "#lib/stores/shell";
   import HardwareProfileCard from "#lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "#lib/components/scanning/UploadPanel.svelte";
@@ -363,17 +359,10 @@
     previewError = "";
   }
 
-  /** Deletes a scan and, unless the student came from the Students page, its student record (an orphaned UNMATCHED entry otherwise). */
-  async function deleteScanOf(item: ScannedSubmissionItem, group: string) {
-    await submissionRepository.delete(examId, item.id, { group });
-    if (!item.fromList) await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion }, { group });
-  }
-
   async function handleDeleteScan(item: ScannedSubmissionItem) {
     if (!confirm(`${translate("scanning.confirmDeleteScan")}\n\n${translate("common.trashHint", { days: TRASH_DAYS })}`)) return;
     try {
-      const group = newTrashGroup();
-      await deleteScanOf(item, group);
+      await deleteScans(examId, [item], { group: newTrashGroup(), key: get(sessionStore).sessionKey });
       await refreshUnmatched();
       await loadScannedSubmissions();
     } catch (err: any) {
@@ -445,10 +434,7 @@
     }
     try {
       // One trash entry for the whole action (issue #125).
-      const group = newTrashGroup();
-      for (const item of scannedSubmissions) {
-        await deleteScanOf(item, group);
-      }
+      await deleteScans(examId, scannedSubmissions, { group: newTrashGroup(), key: get(sessionStore).sessionKey });
       await refreshUnmatched();
       await loadScannedSubmissions();
     } catch (err: any) {
@@ -599,119 +585,17 @@
       alert(translate("scanning.splitInvalidPage"));
       return;
     }
-
     const session = get(sessionStore);
-    const key = session.sessionKey;
-    const fallbackKey = session.fallbackSessionKey;
-    let scanCt = item.scanCt;
-    let scanIv = item.scanIv;
-
-    if (!scanCt || !scanIv) {
-      try {
-        const fullSub = await submissionRepository.getById(examId, item.id, key || fallbackKey);
-        if (fullSub) {
-          scanCt = fullSub.scanCt;
-          scanIv = fullSub.scanIv;
-        }
-      } catch (err) {
-        readError = translate("scanning.errorLoadScan", { message: errorText(err) });
-        return;
-      }
-    }
-
-    if (!scanCt || !scanIv || (!key && !fallbackKey)) {
-      alert(translate(!scanCt || !scanIv ? "scanning.splitNoScan" : "scanning.errorNoSessionKey"));
-      return;
-    }
-
     try {
-      const activeKey = (key || fallbackKey)!;
-      const decryptedBytes = await openScan(item.id, scanCt, scanIv, activeKey, fallbackKey);
-
-      const pdfLib = await import("pdf-lib");
-      const { PDFDocument } = pdfLib;
-      const srcPdf = await PDFDocument.load(decryptedBytes, { ignoreEncryption: true });
-      const totalPages = srcPdf.getPageCount();
-
-      if (splitPage > totalPages) {
-        alert(translate("scanning.splitExceedsPages", { splitPage, totalPages }));
-        return;
-      }
-
-      // PDF 1: pages 0 to splitPage - 2
-      const pdf1 = await PDFDocument.create();
-      const indices1 = Array.from({ length: splitPage - 1 }, (_, i) => i);
-      const copied1 = await pdf1.copyPages(srcPdf, indices1);
-      copied1.forEach((p) => pdf1.addPage(p));
-      // Both parts keep the attached original A3 scan (issue #220): it is never dropped.
-      await carryAttachments(pdfLib, srcPdf, pdf1);
-      const buf1 = await pdf1.save();
-
-      // PDF 2: pages splitPage - 1 to totalPages - 1
-      const pdf2 = await PDFDocument.create();
-      const indices2 = Array.from({ length: totalPages - splitPage + 1 }, (_, i) => i + splitPage - 1);
-      const copied2 = await pdf2.copyPages(srcPdf, indices2);
-      copied2.forEach((p) => pdf2.addPage(p));
-      await carryAttachments(pdfLib, srcPdf, pdf2);
-      const buf2 = await pdf2.save();
-
-      // Ids first: each part's ciphertext is bound to its submission (AAD, issue #178).
-      const part2SubId = crypto.randomUUID();
-      const part1 = activeKey ? await sealScan(item.id, buf1, activeKey) : undefined;
-      const part2 = activeKey ? await sealScan(part2SubId, buf2, activeKey) : undefined;
-
-      // Update existing submission with Part 1
-      await saveSubmissionEncrypted(
-        {
-          id: item.id,
-          examId,
-          pseudonymHmac: item.pseudonymHmac,
-          pseudonymVersion: item.pseudonymVersion,
-          scanCt: part1?.ct,
-          scanIv: part1?.iv || new Uint8Array(12),
-          createdAt: item.createdAt,
-        },
-        activeKey,
-      );
-
-      // Create new unmatched student & submission record for Part 2
-      const part2Pseudonym = await pseudonymFor(examId, crypto.randomUUID());
-      const part2Fallback = `UNMATCHED-${randomCode()}`;
-
-      await saveStudentEncrypted(
-        {
-          ...part2Pseudonym,
-          examId,
-          fallbackCode: part2Fallback,
-          piiCt: new Uint8Array([0]),
-          piiIv: new Uint8Array(12),
-        },
-        activeKey,
-      );
-
-      await saveSubmissionEncrypted(
-        {
-          id: part2SubId,
-          examId,
-          pseudonymHmac: part2Pseudonym.pseudonymHmac,
-          pseudonymVersion: part2Pseudonym.pseudonymVersion,
-          scanCt: part2?.ct,
-          scanIv: part2?.iv || new Uint8Array(12),
-          createdAt: new Date().toISOString(),
-        },
-        activeKey,
-      );
-
+      const result = await splitScan(examId, item, splitPage, { key: session.sessionKey, fallbackKey: session.fallbackSessionKey });
       await refreshUnmatched();
       await loadScannedSubmissions();
-      alert(
-        translate("scanning.splitSuccess", {
-          firstEnd: splitPage - 1,
-          secondStart: splitPage,
-          totalPages,
-        })
-      );
+      alert(translate("scanning.splitSuccess", result));
     } catch (err: any) {
+      if (err instanceof SplitRefused) {
+        alert(translate(err.key, err.params));
+        return;
+      }
       console.error("Split submission failed:", err);
       alert(translate("scanning.splitError", { message: err?.message || err }));
     }

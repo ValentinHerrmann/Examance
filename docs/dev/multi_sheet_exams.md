@@ -120,9 +120,11 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
   - pages scanned twice and code-less pages follow the slots;
   - extra sheets always come last, in scan order, and OMR skips them;
   - without codes, scan order is kept.
-  - A later scan fills an earlier submission's placeholders.
+  - A later scan fills an earlier submission's placeholders. The joined submission is saved as a scan-only record; `submissionRepository.save` keeps its annotations and total in both storage modes (issue #282).
   - A booklet of only extra paper joins the student's newest scan, appended after its pages (`onlyExtraPaper`, `submissionToJoin`); it never starts a second submission. Code-less stickered pages count as extra paper only in page-coded exams, since without codes every page looks like that.
   - Loose or twice-scanned pages (`extraPages`) are reported as a note, not a warning; extra sheets are not reported.
   - Score boxes are drawn on the first N pages when the scan has at least the template's page count.
+
+**Split and delete** (`lib/scan/scanActions.ts`, issue #292): `splitScan` stores the second part first (an unmatched student, its submission and the MC rows read from its pages, `detections.pageIndex` rebased), then shrinks the original and removes the moved rows from it, so a failure leaves at worst a duplicate, never a lost page. A scan with hand grading (an annotation layer or a score row without `omrMeta`) is refused. `deleteScans` removes a student only when no other submission of the exam still uses the pseudonym.
 
 **Never drop a page** (legal requirement): every scanned page is stored, exported and archived (`tests/scanIngest.test.ts`).

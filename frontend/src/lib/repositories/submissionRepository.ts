@@ -52,6 +52,31 @@ export async function submissionServerPayload(submission: SubmissionRecord, opts
   };
 }
 
+/** The hybrid counterpart of the server's upsert (issue #282): fields the new record leaves out keep the stored row's sealed bytes, so a bare scan record never erases ink or a total. */
+function mergeStoredRow(
+  stored: SubmissionRecord | undefined,
+  encrypted: SubmissionRecord,
+  plain: SubmissionRecord,
+  opts: { clearAnnotations?: boolean; clearTotal?: boolean }
+): SubmissionRecord {
+  if (!stored) return encrypted;
+  const merged = { ...encrypted };
+  if (!plain.scanCt) {
+    merged.scanCt = stored.scanCt;
+    merged.scanIv = stored.scanIv;
+  }
+  if (!plain.annotationCt && !opts.clearAnnotations) {
+    merged.annotationCt = stored.annotationCt;
+    merged.annotationIv = stored.annotationIv;
+  }
+  // The sealed payload holds only the total and is bound to the id, so the stored one stays valid as is.
+  if (plain.totalScore === undefined && !opts.clearTotal) {
+    merged.payloadCt = stored.payloadCt;
+    merged.payloadIv = stored.payloadIv;
+  }
+  return merged;
+}
+
 export const submissionRepository = {
     /** @param knownExams exams the caller already has, avoiding a second `/exams` fetch. */
     /**
@@ -118,12 +143,12 @@ export const submissionRepository = {
     }
   },
 
-    /** @param opts.clearAnnotations Delete any stored annotation layer; omitting the annotation ciphertext means "don't touch", so deleting needs this flag. */
+  /** Upserts a submission; in both modes an absent scan, annotation layer or total keeps the stored one, so deleting needs `clearAnnotations`/`clearTotal`. */
   async save(
     submission: SubmissionRecord,
     key: CryptoKey | null,
     /** `omitScan`: the server already holds this submission's scan (all-server only; the local record always keeps it). */
-    opts: { clearAnnotations?: boolean; group?: string; omitScan?: boolean } = {}
+    opts: { clearAnnotations?: boolean; clearTotal?: boolean; group?: string; omitScan?: boolean } = {}
   ): Promise<void> {
     markStatisticsDirty(submission.examId);
     if (resultsAreLocal()) {
@@ -133,7 +158,7 @@ export const submissionRepository = {
           ? submission
           : { ...submission, pseudonymHmac: await joinKey(submission), pseudonymVersion: 2 };
       const encrypted = await encryptSubmission(keyed, key);
-      await db.submissions.put(encrypted);
+      await db.submissions.put(mergeStoredRow(await db.submissions.get(submission.id), encrypted, keyed, opts));
     } else {
       const payload = await submissionServerPayload(submission, opts);
       // Cleared annotations go to the trash of this action's group (issue #125).
@@ -142,6 +167,15 @@ export const submissionRepository = {
         await api.post(`/exams/${submission.examId}/submissions`, payload, { silentError: true, headers });
       } catch (err) {
         enqueueOrThrow(err, `/exams/${submission.examId}/submissions`, 'POST', payload, headers);
+      }
+      // The upsert only ever sets a total; clearing one needs its own request.
+      if (opts.clearTotal && submission.totalScore === undefined) {
+        const url = `/exams/${submission.examId}/submissions/${submission.id}/score`;
+        try {
+          await api.patch(url, { total_score: null }, { silentError: true });
+        } catch (err) {
+          enqueueOrThrow(err, url, 'PATCH', { total_score: null });
+        }
       }
     }
   },
