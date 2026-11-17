@@ -24,9 +24,10 @@ jobs:
       - name: Count lines
         run: |
           set -euo pipefail
-          # Previous history.json lets the script recount only new days.
-          if git fetch -q --depth=1 origin badges; then git show FETCH_HEAD:history.json > "$RUNNER_TEMP/history.json" || true; fi
-          python3 .github/scripts/code_stats.py "$RUNNER_TEMP/badges-out" "$RUNNER_TEMP/history.json"
+          # The previous history.json lets the script recount only new days.
+          mkdir -p badges-out
+          if git fetch -q --depth=1 origin badges; then git show FETCH_HEAD:history.json > badges-out/history.json || rm -f badges-out/history.json; fi
+          python3 .github/scripts/code_stats.py
       - name: Publish to the badges branch
         run: |
           set -euo pipefail
@@ -38,7 +39,7 @@ jobs:
           git remote add origin "$url"
           if git fetch -q --depth=1 origin badges; then git reset -q --hard FETCH_HEAD; fi
           git rm -rq --ignore-unmatch . 
-          cp "$RUNNER_TEMP"/badges-out/* .
+          cp "$GITHUB_WORKSPACE"/badges-out/* .
           git add -A
           git diff --cached --quiet && { echo "No change"; exit 0; }
           git commit -q -m "Update code statistics [skip ci]"

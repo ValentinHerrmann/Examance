@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """Count lines per area of the tracked files and render the README statistics table and history chart (SVG + JSON).
 
-Usage: code_stats.py OUT_DIR [PREVIOUS_HISTORY_JSON]
+Usage (from the repository root): code_stats.py; reads the previous badges-out/history.json if present and writes badges-out/.
 """
 import json
 import math
 import re
 import subprocess
-import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "badges-out")
+# Fixed paths, never taken from arguments, so nothing outside this folder is read or written.
+OUT = Path("badges-out")
+PREVIOUS_HISTORY = OUT / "history.json"
 
 # Generated, vendored or binary-ish files never count.
 SKIP_LOCKS = re.compile(r"(?:^|/)(?:package-lock\.json|uv\.lock|openapi\.json)$")
@@ -237,7 +238,11 @@ def axes_svg(days: list[dict], ymax: float, step: float) -> list[str]:
         d = first + timedelta(days=round(span * i / max(ticks - 1, 1)))
         x = HX0 + (HX1 - HX0) * (d - first).days / span if span else (HX0 + HX1) / 2
         lbl = f"{d:%b %Y}" if span > 365 else f"{d:%b} {d.day}"
-        anchor = "start" if i == 0 and ticks > 1 else "end" if i == ticks - 1 and ticks > 1 else "middle"
+        anchor = "middle"
+        if ticks > 1 and i == 0:
+            anchor = "start"
+        elif ticks > 1 and i == ticks - 1:
+            anchor = "end"
         out.append(f'<text class="mu" x="{x:.1f}" y="{HY1 + 20}" text-anchor="{anchor}" style="font-size:12px">{lbl}</text>')
     return out
 
@@ -298,10 +303,10 @@ def area_lines(acc: dict) -> dict:
     return {**{key: acc[key]["code"] for key, _, _ in AREAS}, "comments": sum(a["comments"] for a in acc.values())}
 
 
-def load_history(path: str | None) -> dict[str, dict]:
+def load_history() -> dict[str, dict]:
     """Previous days keyed by date; a missing file or another HISTORY_VERSION recounts everything."""
     try:
-        data = json.loads(Path(path).read_text()) if path else {}
+        data = json.loads(PREVIOUS_HISTORY.read_text())
     except (OSError, ValueError):
         data = {}
     if data.get("version") != HISTORY_VERSION:
@@ -340,7 +345,7 @@ def main() -> None:
     rows = [{"key": key, "label": LABELS[key], "color": COLORS[key], "files": acc[key]["files"] if key in acc else None,
              "lines": lines[key]} for key in ORDER]
     total = {"files": sum(r["files"] or 0 for r in rows), "lines": sum(r["lines"] for r in rows)}
-    days = history(repo, acc, load_history(sys.argv[2] if len(sys.argv) > 2 else None))
+    days = history(repo, acc, load_history())
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "code-stats.svg").write_text(svg(rows, total), encoding="utf-8")
     (OUT / "code-history.svg").write_text(history_svg(days, stacked=True), encoding="utf-8")
