@@ -152,6 +152,13 @@ describe('envelope fingerprint pin', () => {
     expect(saved).toBeNull();
   });
 
+  it('raises the alarm for a vanished pinned set on the passkey and recovery paths too', async () => {
+    await openPasskey();
+    stored = null;
+    await expect(openPasskey()).rejects.toBeInstanceOf(EnvelopeChangedError);
+    await expect(openWithRecoveryCode(TEACHER_ID, 'ABCD-EFGH')).rejects.toBeInstanceOf(EnvelopeChangedError);
+  });
+
   it('treats an empty server set without a pin as an account still to migrate', async () => {
     stored = null;
     await expect(

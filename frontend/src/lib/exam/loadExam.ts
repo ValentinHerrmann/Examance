@@ -13,7 +13,7 @@ import {
 } from "#lib/db/dbEncryption";
 import { buildExamItems, mapRemoteMcGroups, type ExamItemRef } from "#lib/grading/omrTemplatePrep";
 import { translate } from "#lib/i18n";
-import { mapApiToExamRecord } from "#lib/repositories/examRepository";
+import { examRepository, mapApiToExamRecord } from "#lib/repositories/examRepository";
 import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
 import { submissionRepository } from "#lib/repositories/submissionRepository";
 
@@ -143,7 +143,7 @@ async function loadLocalFallback(
   target: ExamLoadTarget,
   serverErr: unknown,
 ): Promise<boolean> {
-  const localExam = (await loadExamEncrypted(id, key)) || null;
+  const localExam = (await examRepository.getLocalById(id, key)) || null;
   if (isStale()) return false;
   target.exam = localExam;
   if (!localExam) {
