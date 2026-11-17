@@ -60,3 +60,28 @@ describe('hybrid submission save keeps what the record leaves out (issue #282)',
     expect(row?.scanCt).toEqual(bytes(1));
   });
 });
+
+describe('hybrid submission save edge cases (issue #282 review)', () => {
+  let key: CryptoKey;
+  const stored = () => submissionRepository.getById(EXAM, 'sub-1', key);
+
+  beforeEach(async () => {
+    await db.submissions.clear();
+    storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'local' });
+    key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  });
+
+  it('a grading save with omitScan never writes its stale scan over a newer one', async () => {
+    await submissionRepository.save(bare(2), key);
+    await submissionRepository.save({ ...graded(), scanCt: bytes(1) }, key, { omitScan: true });
+    const row = await stored();
+    expect(row?.scanCt).toEqual(bytes(2));
+    expect(row?.annotationCt).toEqual(bytes(7));
+  });
+
+  it('keeps the total of a legacy plaintext row', async () => {
+    await db.submissions.put({ ...bare(), totalScore: 9 });
+    await submissionRepository.save(bare(3), key);
+    expect((await stored())?.totalScore).toBe(9);
+  });
+});

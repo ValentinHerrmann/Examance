@@ -8,6 +8,7 @@ import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { pseudonymFor } from '#lib/services/pseudonymRekey';
 import { randomCode } from '#lib/utils/randomCode';
 import { carryAttachments } from '#lib/scan/scanPdf';
+import { newTrashGroup } from '#lib/trash/group';
 import type { TranslationKey } from '#lib/i18n/types';
 
 export interface ScanRef {
@@ -69,9 +70,15 @@ export async function splitScan(
 ): Promise<{ firstEnd: number; secondStart: number; totalPages: number }> {
   const activeKey = keys.key ?? keys.fallbackKey ?? null;
   if (!activeKey) throw new SplitRefused('scanning.errorNoSessionKey');
-  const stored = await submissionRepository.getById(examId, item.id, activeKey);
+  let stored: Awaited<ReturnType<typeof submissionRepository.getById>>;
+  let scores: ExerciseScoreRecord[];
+  try {
+    stored = await submissionRepository.getById(examId, item.id, activeKey);
+    scores = await scoreRepository.getBySubmissionId(examId, item.id, activeKey);
+  } catch (err) {
+    throw new SplitRefused('scanning.errorLoadScan', { message: err instanceof Error ? err.message : String(err) });
+  }
   if (!stored?.scanCt || !stored.scanIv) throw new SplitRefused('scanning.splitNoScan');
-  const scores = await scoreRepository.getBySubmissionId(examId, item.id, activeKey);
   if (stored.annotationCt || stored.hasAnnotations || scores.some((row) => !row.omrMeta)) throw new SplitRefused('scanning.splitGraded');
 
   const pdfLib = await import('pdf-lib');
@@ -95,7 +102,7 @@ export async function splitScan(
   const part1 = await sealScan(item.id, buf1, activeKey);
   const part2 = await sealScan(part2Id, buf2, activeKey);
 
-  // 1. The second part as a new unmatched student, its submission and its MC rows.
+  // 1. The second part as a new unmatched student, its submission and its MC rows; never queued, so a failure stops before the original shrinks.
   const pseudonym = await pseudonymFor(examId, crypto.randomUUID());
   await studentRepository.save(
     { ...pseudonym, examId, fallbackCode: `UNMATCHED-${randomCode()}`, piiCt: new Uint8Array([0]), piiIv: new Uint8Array(12) },
@@ -112,12 +119,13 @@ export async function splitScan(
       createdAt: new Date().toISOString(),
     },
     activeKey,
+    { noQueue: true },
   );
   const moves = scores.flatMap((row) => {
     const moved = movedRow(row, firstMoved, part2Id);
     return moved ? [{ from: row, moved }] : [];
   });
-  await scoreRepository.saveMany(examId, part2Id, moves.map((m) => m.moved), activeKey);
+  await scoreRepository.saveMany(examId, part2Id, moves.map((m) => m.moved), activeKey, { noQueue: true });
 
   // 2. Only now the original shrinks; the repository keeps everything this record leaves out, but a total counted with moved rows is stale.
   await submissionRepository.save(
@@ -125,8 +133,9 @@ export async function splitScan(
     activeKey,
     { clearTotal: moves.length > 0 },
   );
-  // 3. The moved rows leave the first part; they live on in the second, so nothing goes to the trash.
-  for (const { from } of moves) await scoreRepository.deleteOne(examId, item.id, from.exerciseId, { permanent: true }); // NOSONAR: sequential keeps the request count bounded
+  // 3. The moved rows leave the first part, as one trash entry.
+  const group = newTrashGroup();
+  await Promise.all(moves.map(({ from }) => scoreRepository.deleteOne(examId, item.id, from.exerciseId, { group })));
 
   return { firstEnd: firstMoved, secondStart: splitPage, totalPages };
 }

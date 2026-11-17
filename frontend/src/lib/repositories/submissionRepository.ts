@@ -57,11 +57,12 @@ function mergeStoredRow(
   stored: SubmissionRecord | undefined,
   encrypted: SubmissionRecord,
   plain: SubmissionRecord,
-  opts: { clearAnnotations?: boolean; clearTotal?: boolean }
+  opts: { clearAnnotations?: boolean; clearTotal?: boolean; omitScan?: boolean }
 ): SubmissionRecord {
   if (!stored) return encrypted;
   const merged = { ...encrypted };
-  if (!plain.scanCt) {
+  // A grading save carries the scan it loaded, which a later scan may have extended; `omitScan` keeps the stored one.
+  if (!plain.scanCt || opts.omitScan) {
     merged.scanCt = stored.scanCt;
     merged.scanIv = stored.scanIv;
   }
@@ -70,7 +71,7 @@ function mergeStoredRow(
     merged.annotationIv = stored.annotationIv;
   }
   // The sealed payload holds only the total and is bound to the id, so the stored one stays valid as is.
-  if (plain.totalScore === undefined && !opts.clearTotal) {
+  if (plain.totalScore === undefined && !opts.clearTotal && stored.payloadCt) {
     merged.payloadCt = stored.payloadCt;
     merged.payloadIv = stored.payloadIv;
   }
@@ -147,8 +148,8 @@ export const submissionRepository = {
   async save(
     submission: SubmissionRecord,
     key: CryptoKey | null,
-    /** `omitScan`: the server already holds this submission's scan (all-server only; the local record always keeps it). */
-    opts: { clearAnnotations?: boolean; clearTotal?: boolean; group?: string; omitScan?: boolean } = {}
+    /** `omitScan`: keep the stored scan, never send or write the one on the record; `noQueue`: a failed server write throws instead of waiting in the offline queue. */
+    opts: { clearAnnotations?: boolean; clearTotal?: boolean; group?: string; omitScan?: boolean; noQueue?: boolean } = {}
   ): Promise<void> {
     markStatisticsDirty(submission.examId);
     if (resultsAreLocal()) {
@@ -157,8 +158,11 @@ export const submissionRepository = {
         submission.pseudonymVersion === 2
           ? submission
           : { ...submission, pseudonymHmac: await joinKey(submission), pseudonymVersion: 2 };
-      const encrypted = await encryptSubmission(keyed, key);
-      await db.submissions.put(mergeStoredRow(await db.submissions.get(submission.id), encrypted, keyed, opts));
+      const stored = await db.submissions.get(submission.id);
+      // A legacy plaintext row holds its total in the clear, so it moves into the new sealed payload.
+      const legacyTotal = stored && !stored.payloadCt && keyed.totalScore === undefined && !opts.clearTotal ? stored.totalScore : undefined;
+      const encrypted = await encryptSubmission(legacyTotal === undefined ? keyed : { ...keyed, totalScore: legacyTotal }, key);
+      await db.submissions.put(mergeStoredRow(stored, encrypted, keyed, opts));
     } else {
       const payload = await submissionServerPayload(submission, opts);
       // Cleared annotations go to the trash of this action's group (issue #125).
@@ -166,6 +170,7 @@ export const submissionRepository = {
       try {
         await api.post(`/exams/${submission.examId}/submissions`, payload, { silentError: true, headers });
       } catch (err) {
+        if (opts.noQueue) throw err;
         enqueueOrThrow(err, `/exams/${submission.examId}/submissions`, 'POST', payload, headers);
       }
       // The upsert only ever sets a total; clearing one needs its own request.

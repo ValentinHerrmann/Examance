@@ -42,12 +42,13 @@ async function fetchScores(path: string, key: CryptoKey | null) {
   return openAll((await api.get<any[]>(path, { silentError: true })).map(fromApi), key);
 }
 
-/** Server write with offline-queue fallback. Safe to replay: the endpoints are idempotent. */
-async function send(method: 'PUT' | 'DELETE', path: string, body?: unknown, headers?: Record<string, string>) {
+/** Server write with offline-queue fallback (none with *noQueue*). Safe to replay: the endpoints are idempotent. */
+async function send(method: 'PUT' | 'DELETE', path: string, body?: unknown, headers?: Record<string, string>, noQueue = false) {
   try {
     if (method === 'PUT') await api.put(path, body, { silentError: true });
     else await api.delete(path, { silentError: true, headers });
   } catch (err) {
+    if (noQueue) throw err;
     enqueueOrThrow(err, path, method, body, headers);
   }
 }
@@ -80,7 +81,9 @@ export const scoreRepository = {
     examId: string,
     submissionId: string,
     scores: ExerciseScoreRecord[],
-    key: CryptoKey | null
+    key: CryptoKey | null,
+    /** `noQueue`: a failed server write throws instead of waiting in the offline queue. */
+    opts: { noQueue?: boolean } = {}
   ): Promise<void> {
     if (scores.length === 0) return;
     markStatisticsDirty(examId);
@@ -89,7 +92,7 @@ export const scoreRepository = {
     const sealed = await Promise.all(unique.map((s) => encryptScore({ ...s, submissionId }, key)));
 
     if (!resultsAreLocal()) {
-      return send('PUT', submissionPath(examId, submissionId), { scores: sealed.map(toApi) });
+      return send('PUT', submissionPath(examId, submissionId), { scores: sealed.map(toApi) }, undefined, opts.noQueue);
     }
     const existing = await db.exerciseScores.where('submissionId').equals(submissionId).toArray();
     const idOf = new Map(existing.map((row) => [row.exerciseId, row.id]));

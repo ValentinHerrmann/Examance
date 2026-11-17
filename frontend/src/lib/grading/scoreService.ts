@@ -99,12 +99,12 @@ export async function saveSubmissionScores(
   await Promise.all(toClear.map((exerciseId) => scoreRepository.deleteOne(examId, submission.id, exerciseId, { group })));
 
   submission.totalScore = totalOf([...effective.values()]);
-  // A graded submission's scan is already stored: re-sending it would upload the whole sealed PDF on every autosave.
+  // Grading never changes the scan: re-sending it would upload the whole PDF on every autosave, or write a stale copy over pages scanned since.
   await submissionRepository.save(submission, key, {
     clearAnnotations: opts.clearAnnotations,
     clearTotal: submission.totalScore === undefined,
     group,
-    omitScan: submission.hasScan === true,
+    omitScan: true,
   });
   return effective;
 }

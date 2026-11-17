@@ -12,6 +12,9 @@ import { deleteScans, splitScan, SplitRefused } from '../src/lib/scan/scanAction
 import { sessionStore } from '../src/lib/stores/session';
 import { storagePolicyStore } from '../src/lib/stores/storagePolicy';
 import { hkdfMasterKey } from './helpers/keys';
+import { api } from '../src/lib/api/client';
+import { offlineQueue } from '../src/lib/services/offlineQueue';
+import { uint8ArrayToBase64 } from '../src/lib/crypto/aesGcm';
 
 vi.mock('../src/lib/api/client', () => ({
   api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
@@ -90,5 +93,31 @@ describe('scan split and delete (issue #292)', () => {
 
     await deleteScans(EXAM, [{ ...item, id: 'sub-2' }], { group, key });
     expect(await studentRepository.getByExamId(EXAM, key)).toHaveLength(0);
+  });
+
+  it('all-server: a failed second-part save is never queued and the original is not shrunk', async () => {
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'server' });
+    offlineQueue.set([]);
+    const doc = await PDFDocument.create();
+    for (let i = 0; i < 4; i++) doc.addPage();
+    const { ct, iv } = await sealScan('sub-1', await doc.save(), key);
+    vi.mocked(api.get).mockImplementation(async (path: string) =>
+      (path.endsWith('/scores')
+        ? []
+        : { id: 'sub-1', exam_id: EXAM, pseudonym_hmac: HMAC, pseudonym_version: 2, scan_ciphertext_b64: uint8ArrayToBase64(ct), scan_iv_b64: uint8ArrayToBase64(iv), created_at: item.createdAt }) as never,
+    );
+    const unavailable = Object.assign(new Error('HTTP 503'), { status: 503 });
+    vi.mocked(api.post).mockImplementation(async (path: string) => {
+      if (path.endsWith('/submissions')) throw unavailable;
+      return undefined as never;
+    });
+
+    await expect(splitScan(EXAM, item, 3, { key })).rejects.toThrow('HTTP 503');
+    const submissionPosts = vi.mocked(api.post).mock.calls.filter(([path]) => String(path).endsWith('/submissions'));
+    expect(submissionPosts).toHaveLength(1);
+    expect(submissionPosts[0][1]).not.toMatchObject({ id: 'sub-1' });
+    let queued: unknown[] = [];
+    offlineQueue.subscribe((q) => (queued = q))();
+    expect(queued.filter((q: any) => String(q.url).endsWith('/submissions'))).toHaveLength(0);
   });
 });
