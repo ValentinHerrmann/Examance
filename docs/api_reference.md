@@ -53,6 +53,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 ### Refresh Token Rotation & Reuse Detection
 - Every refresh token contains a unique JWT ID (`jti`).
 - Exchanging a refresh token via `POST /api/v1/auth/refresh` invalidates the old `jti` and issues a new refresh token.
+- The `refresh_token` cookie is scoped to `/api/v1/auth`, so `POST /api/v1/auth/logout` receives and revokes it. An older cookie on `/api/v1/auth/refresh` is deleted by the next refresh, which sets the new one, or by sign-out.
 - If a previously used `jti` is presented again (indicating token theft or replay), the entire token family for that session is immediately revoked and the user is logged out.
 - A refresh for an account that is not approved is refused (`401`), like every other authenticated route.
 
@@ -104,7 +105,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 | `POST` | `/api/v1/auth/forgot-password` | Request Reset Link | No | Generates single-use reset token and emails link to an approved user. Returns generic success message to prevent email enumeration; nothing is sent for an unknown address or a pending account. The mail goes out after the response, so the response time does not reveal whether the address has an account. |
 | `POST` | `/api/v1/auth/reset-password` | Complete Reset | No | Validates token, sets new user password, marks token used, and revokes active refresh tokens. |
 | `POST` | `/api/v1/auth/refresh` | Refresh Session | Yes (`refresh_token`) | Rotates refresh token and issues new access token cookie. |
-| `POST` | `/api/v1/auth/logout` | Logout | Yes | Invalidates session and clears session cookies. |
+| `POST` | `/api/v1/auth/logout` | Logout | No (`refresh_token` if present) | Revokes the refresh token it receives and clears the session cookies. |
 
 #### Auth Request & Response Schemas
 - **`LoginRequest`**: `{"email": "string", "password": "string"}`

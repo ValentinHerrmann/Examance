@@ -51,7 +51,10 @@ router = APIRouter()
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
 
-REFRESH_COOKIE_PATH = "/api/v1/auth/refresh"
+# Scoped to /auth, not /auth/refresh, so sign-out receives the token and can revoke it (issue #287).
+REFRESH_COOKIE_PATH = "/api/v1/auth"
+# Where older sessions keep their cookie; deleted wherever a refresh cookie is set or cleared, so each session moves over on its next rotation.
+_LEGACY_REFRESH_COOKIE_PATH = "/api/v1/auth/refresh"
 
 
 class _CookieFlags(TypedDict):
@@ -62,6 +65,12 @@ class _CookieFlags(TypedDict):
 
 # Strict, because the API is on the frontend's site (api.<host> or PUBLIC_API_URL, issue #198): no other site can make the browser send these cookies.
 _COOKIE_KWARGS: _CookieFlags = {"httponly": True, "secure": True, "samesite": "strict"}
+
+
+def _delete_refresh_cookies(response: Response) -> None:
+    """Delete the refresh cookie on its current and its legacy path, with the attributes it was set with."""
+    for path in (REFRESH_COOKIE_PATH, _LEGACY_REFRESH_COOKIE_PATH):
+        response.delete_cookie(REFRESH_COOKIE, path=path, **_COOKIE_KWARGS)
 
 
 def _set_auth_cookies(
@@ -76,6 +85,7 @@ def _set_auth_cookies(
         max_age=access_token_ttl_seconds("full"),
         **_COOKIE_KWARGS,
     )
+    response.delete_cookie(REFRESH_COOKIE, path=_LEGACY_REFRESH_COOKIE_PATH, **_COOKIE_KWARGS)
     response.set_cookie(
         REFRESH_COOKIE,
         refresh_token,
@@ -93,21 +103,13 @@ def _set_pending_cookie(response: Response, token: str, scope: str) -> None:
         max_age=access_token_ttl_seconds(scope),
         **_COOKIE_KWARGS,
     )
-    response.delete_cookie(
-        REFRESH_COOKIE,
-        path=REFRESH_COOKIE_PATH,
-        **_COOKIE_KWARGS,
-    )
+    _delete_refresh_cookies(response)
 
 
 def clear_auth_cookies(response: Response) -> None:
     """Clear both auth cookies. The delete repeats the attributes the cookie was set with: a browser may refuse a delete whose attributes differ, silently leaving the access cookie in place."""
     response.delete_cookie(ACCESS_COOKIE, path="/", **_COOKIE_KWARGS)
-    response.delete_cookie(
-        REFRESH_COOKIE,
-        path=REFRESH_COOKIE_PATH,
-        **_COOKIE_KWARGS,
-    )
+    _delete_refresh_cookies(response)
 
 
 def auth_response(
@@ -202,7 +204,7 @@ async def change_password(
         # No re-wrap arrived, so the stored wrap no longer opens under this password and the server has never seen the key. Marking it stale sends the teacher to the recovery code instead of a vault that silently reads as empty.
         await invalidate_password_wrap(db, teacher.id)
 
-    # Revoke every session and re-issue this one: the refresh cookie is path-scoped to `/auth/refresh`, so the caller's stored token cannot be identified. Also stricter: no token that predates the password change survives.
+    # Revoke every session and re-issue this one: no token that predates the password change survives, the caller's included.
     await db.execute(
         update(RefreshToken)
         .where(RefreshToken.teacher_id == teacher.id, RefreshToken.revoked.is_(False))
