@@ -87,6 +87,7 @@ export const scanning = {
     splitInvalidPage: 'Ungültige Seitenzahl. Die Teilungsseite muss 2 oder größer sein.',
     splitNoScan: 'Der Server hat zu dieser Abgabe keinen Scan gespeichert. Teilen nicht möglich.',
     splitExceedsPages: 'Teilung bei Seite {splitPage} nicht möglich: Scan-PDF hat nur {totalPages} Seite(n).',
+    splitGraded: 'Dieser Scan ist schon korrigiert (Anmerkungen oder eingetragene Punkte). Entfernen Sie die Korrektur zuerst, dann lässt er sich teilen.',
     splitError: 'Abgabe konnte nicht geteilt werden: {message}',
     splitSuccess: 'Abgabe in 2 PDFs geteilt (Seiten 1–{firstEnd} und Seiten {secondStart}–{totalPages})!',
     fallbackCodeUpdated: 'Fallback-Code auf „{code}" aktualisiert',

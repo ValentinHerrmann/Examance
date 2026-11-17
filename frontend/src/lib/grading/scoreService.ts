@@ -1,15 +1,12 @@
 /** The one score-save path of every grading view (M2): grade page, both manual grids and the paste import. Rows go through `scoreRepository`, the total through `submissionRepository`, so both follow the storage mode. */
 import { newTrashGroup } from '#lib/trash/group';
 import { get } from 'svelte/store';
-import { api } from '#lib/api/client';
 import type { ExerciseScoreRecord, OmrScoreMeta, StudentRecord, SubmissionRecord } from '#lib/db/schema';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
 import { pseudonymFor } from '#lib/services/pseudonymRekey';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
-import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { sessionStore } from '#lib/stores/session';
-import { resultsAreLocal } from '#lib/stores/storagePolicy';
 import { hasPartValues, type PartScores } from '#lib/grading/partScores';
 
 /** Live MC state of the grade page; other views carry the stored row's values forward. */
@@ -102,17 +99,13 @@ export async function saveSubmissionScores(
   await Promise.all(toClear.map((exerciseId) => scoreRepository.deleteOne(examId, submission.id, exerciseId, { group })));
 
   submission.totalScore = totalOf([...effective.values()]);
-  // A graded submission's scan is already stored: re-sending it would upload the whole sealed PDF on every autosave.
-  await submissionRepository.save(submission, key, { clearAnnotations: opts.clearAnnotations, group, omitScan: submission.hasScan === true });
-  // The upsert above only ever sets a total; clearing one needs its own request.
-  if (!resultsAreLocal() && submission.totalScore === undefined) {
-    const url = `/exams/${examId}/submissions/${submission.id}/score`;
-    try {
-      await api.patch(url, { total_score: null }, { silentError: true });
-    } catch (err) {
-      enqueueOrThrow(err, url, 'PATCH', { total_score: null });
-    }
-  }
+  // Grading never changes the scan: re-sending it would upload the whole PDF on every autosave, or write a stale copy over pages scanned since.
+  await submissionRepository.save(submission, key, {
+    clearAnnotations: opts.clearAnnotations,
+    clearTotal: submission.totalScore === undefined,
+    group,
+    omitScan: true,
+  });
   return effective;
 }
 

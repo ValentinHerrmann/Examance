@@ -89,6 +89,7 @@ export const scanning: Translations['scanning'] = {
     splitInvalidPage: 'Invalid page number. Split page must be 2 or greater.',
     splitNoScan: 'The server holds no scan for this submission. Cannot split scan.',
     splitExceedsPages: 'Cannot split at page {splitPage}: scan PDF only has {totalPages} page(s).',
+    splitGraded: 'This scan is already graded (annotations or entered scores). Remove the grading first, then it can be split.',
     splitError: 'Failed to split submission: {message}',
     splitSuccess: 'Split submission into 2 PDFs (Pages 1–{firstEnd} and Pages {secondStart}–{totalPages})!',
     fallbackCodeUpdated: 'Updated fallback code to "{code}"',

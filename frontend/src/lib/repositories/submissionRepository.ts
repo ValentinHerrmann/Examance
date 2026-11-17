@@ -52,6 +52,67 @@ export async function submissionServerPayload(submission: SubmissionRecord, opts
   };
 }
 
+/** The hybrid counterpart of the server's upsert (issue #282): fields the new record leaves out keep the stored row's sealed bytes, so a bare scan record never erases ink or a total. */
+function mergeStoredRow(
+  stored: SubmissionRecord | undefined,
+  encrypted: SubmissionRecord,
+  plain: SubmissionRecord,
+  opts: { clearAnnotations?: boolean; clearTotal?: boolean; omitScan?: boolean }
+): SubmissionRecord {
+  if (!stored) return encrypted;
+  const merged = { ...encrypted };
+  // A grading save carries the scan it loaded, which a later scan may have extended; `omitScan` keeps the stored one.
+  if (!plain.scanCt || opts.omitScan) {
+    merged.scanCt = stored.scanCt;
+    merged.scanIv = stored.scanIv;
+  }
+  if (!plain.annotationCt && !opts.clearAnnotations) {
+    merged.annotationCt = stored.annotationCt;
+    merged.annotationIv = stored.annotationIv;
+  }
+  // The sealed payload holds only the total and is bound to the id, so the stored one stays valid as is.
+  if (plain.totalScore === undefined && !opts.clearTotal && stored.payloadCt) {
+    merged.payloadCt = stored.payloadCt;
+    merged.payloadIv = stored.payloadIv;
+  }
+  return merged;
+}
+
+type SaveOpts = { clearAnnotations?: boolean; clearTotal?: boolean; group?: string; omitScan?: boolean; noQueue?: boolean };
+
+/** Hybrid write: keyed, sealed and merged onto the stored row. */
+async function saveLocal(submission: SubmissionRecord, key: CryptoKey | null, opts: SaveOpts): Promise<void> {
+  // This browser stores keyed rows only, so a record read before the re-key cannot write its old value back.
+  const keyed: SubmissionRecord =
+    submission.pseudonymVersion === 2 ? submission : { ...submission, pseudonymHmac: await joinKey(submission), pseudonymVersion: 2 };
+  const stored = await db.submissions.get(submission.id);
+  // A legacy plaintext row holds its total in the clear, so it moves into the new sealed payload.
+  const legacyTotal = stored && !stored.payloadCt && keyed.totalScore === undefined && !opts.clearTotal ? stored.totalScore : undefined;
+  const encrypted = await encryptSubmission(legacyTotal === undefined ? keyed : { ...keyed, totalScore: legacyTotal }, key);
+  await db.submissions.put(mergeStoredRow(stored, encrypted, keyed, opts));
+}
+
+/** All-server write: the upsert, then the total clear it cannot express. */
+async function saveOnServer(submission: SubmissionRecord, opts: SaveOpts): Promise<void> {
+  const url = `/exams/${submission.examId}/submissions`;
+  const payload = await submissionServerPayload(submission, opts);
+  // Cleared annotations go to the trash of this action's group (issue #125).
+  const headers = trashHeaders({ group: opts.group });
+  try {
+    await api.post(url, payload, { silentError: true, headers });
+  } catch (err) {
+    if (opts.noQueue) throw err;
+    enqueueOrThrow(err, url, 'POST', payload, headers);
+  }
+  if (!opts.clearTotal || submission.totalScore !== undefined) return;
+  const scoreUrl = `${url}/${submission.id}/score`;
+  try {
+    await api.patch(scoreUrl, { total_score: null }, { silentError: true });
+  } catch (err) {
+    enqueueOrThrow(err, scoreUrl, 'PATCH', { total_score: null });
+  }
+}
+
 export const submissionRepository = {
     /** @param knownExams exams the caller already has, avoiding a second `/exams` fetch. */
     /**
@@ -118,32 +179,15 @@ export const submissionRepository = {
     }
   },
 
-    /** @param opts.clearAnnotations Delete any stored annotation layer; omitting the annotation ciphertext means "don't touch", so deleting needs this flag. */
+  /** Upserts a submission; in both modes an absent scan, annotation layer or total keeps the stored one, so deleting needs `clearAnnotations`/`clearTotal`. */
   async save(
     submission: SubmissionRecord,
     key: CryptoKey | null,
-    /** `omitScan`: the server already holds this submission's scan (all-server only; the local record always keeps it). */
-    opts: { clearAnnotations?: boolean; group?: string; omitScan?: boolean } = {}
+    /** `omitScan`: keep the stored scan, never send or write the one on the record; `noQueue`: a failed server write throws instead of waiting in the offline queue. */
+    opts: SaveOpts = {}
   ): Promise<void> {
     markStatisticsDirty(submission.examId);
-    if (resultsAreLocal()) {
-      // This browser stores keyed rows only, so a record read before the re-key cannot write its old value back.
-      const keyed: SubmissionRecord =
-        submission.pseudonymVersion === 2
-          ? submission
-          : { ...submission, pseudonymHmac: await joinKey(submission), pseudonymVersion: 2 };
-      const encrypted = await encryptSubmission(keyed, key);
-      await db.submissions.put(encrypted);
-    } else {
-      const payload = await submissionServerPayload(submission, opts);
-      // Cleared annotations go to the trash of this action's group (issue #125).
-      const headers = trashHeaders({ group: opts.group });
-      try {
-        await api.post(`/exams/${submission.examId}/submissions`, payload, { silentError: true, headers });
-      } catch (err) {
-        enqueueOrThrow(err, `/exams/${submission.examId}/submissions`, 'POST', payload, headers);
-      }
-    }
+    await (resultsAreLocal() ? saveLocal(submission, key, opts) : saveOnServer(submission, opts));
   },
 
   /** Deletes a submission with its scores. Unless `opts.permanent`, a copy goes to the trash (the server's, or this browser's in hybrid mode; issue #125). */
