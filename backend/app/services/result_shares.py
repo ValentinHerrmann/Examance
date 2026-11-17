@@ -21,6 +21,7 @@ from app.schemas.result_share import (
     ResultShareOut,
     ReviewListItem,
     ReviewOut,
+    ReviewReseal,
 )
 from app.services import blob_store
 from app.services.blob_validation import UploadRejected, check_upload, upload_http_error
@@ -138,7 +139,7 @@ def _decode_wrapped_key(value: str | None) -> bytes | None:
 async def create_or_replace(
     db: AsyncSession, teacher_id: uuid.UUID, exam_id: uuid.UUID, body: ResultShareCreate
 ) -> ResultShare:
-    """Store a student's sealed PDF; an earlier share of the same student is replaced, so their old link stops working."""
+    """Store a student's sealed PDF. Sent again under the student's own share id, the share is updated in place, so the link stays (issue #310); any other share of the student is replaced and its link stops working."""
     if body.expiry_days not in settings.RESULT_SHARE_EXPIRY_DAYS:
         raise _bad_request(f"expiry_days must be one of {settings.RESULT_SHARE_EXPIRY_DAYS}.")
     if (body.factor == "none") != (body.kdf_salt_b64 is None):
@@ -152,10 +153,7 @@ async def create_or_replace(
     data = _checked_pdf(body.ciphertext_b64)
     wrapped = _decode_wrapped_key(body.wrapped_key_b64)
     now = datetime.now(UTC)
-    expires_at = now + timedelta(days=body.expiry_days)
     review_until = _aware(body.review_until) if body.review_until is not None else None
-    if review_until is not None and review_until > expires_at:
-        raise _bad_request("review_until must not be later than the link's expiry.")
 
     old = (
         await db.execute(
@@ -167,10 +165,30 @@ async def create_or_replace(
     ).scalars().all()
     if any(s.id == body.id and s.student_key != body.student_key for s in old):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Share id in use.")
-    await _forget(db, old)
-    for share in old:
+    kept = next((s for s in old if s.id == body.id), None)
+    if kept is not None and not hmac.compare_digest(kept.lookup_hash, body.lookup_hash):
+        raise _conflict("The link of this share cannot change; revoke it for a new one.", "ERR_SHARE_LINK_MISMATCH")
+    expires_at = (
+        _aware(kept.expires_at) if kept is not None and body.keep_expiry else now + timedelta(days=body.expiry_days)
+    )
+    if review_until is not None and review_until > expires_at:
+        raise _bad_request("review_until must not be later than the link's expiry.")
+    if kept is not None:
+        await _check_review_unchanged(db, kept.id, body.review or ReviewReseal())
+    replaced = [s for s in old if s is not kept]
+    await _forget(db, replaced)
+    for share in replaced:
         await db.delete(share)
     await db.flush()
+
+    if kept is not None:
+        kept.factor = body.factor
+        kept.kdf_salt = salt
+        kept.expires_at = expires_at
+        kept.wrapped_key = wrapped
+        kept.review_until = review_until
+        await _update_in_place(db, kept, iv, data, body.review)
+        return kept
 
     share = ResultShare(
         id=body.id,
@@ -191,6 +209,51 @@ async def create_or_replace(
     db.add(share)
     await db.flush()
     return share
+
+
+async def _update_in_place(
+    db: AsyncSession, kept: ResultShare, iv: bytes, data: bytes, reseal: ReviewReseal | None
+) -> None:
+    """Store the re-sealed PDF of a kept link (issue #310): id, lookup and creation date stay, the thread is re-sealed."""
+    await _store_ciphertext(db, kept, data)
+    kept.iv = iv
+    kept.size = len(data)
+    kept.content_updated_at = datetime.now(UTC)
+    if reseal is not None:
+        await _reseal_review(db, kept.id, reseal)
+    await db.flush()
+
+
+def _same_moment(stored: datetime | None, seen: datetime | None) -> bool:
+    if stored is None or seen is None:
+        return stored is seen
+    return _aware(stored) == _aware(seen)
+
+
+async def _check_review_unchanged(db: AsyncSession, share_id: uuid.UUID, seen: ReviewReseal) -> None:
+    """A kept link changes its content key, so its thread must be exactly the one the client re-sealed: an objection sent meanwhile would become unreadable (409)."""
+    review = await db.get(ResultShareReview, share_id)
+    if review is None:
+        return
+    unchanged = (
+        _same_moment(review.submitted_at, seen.submitted_at)
+        and _same_moment(review.replied_at, seen.replied_at)
+        and (review.objection_ct is None or seen.objection_ct_b64 is not None)
+        and (review.reply_ct is None or seen.reply_ct_b64 is not None)
+    )
+    if not unchanged:
+        raise _conflict("The objection changed during the send; send again.", "ERR_SHARE_REVIEW_CHANGED")
+
+
+async def _reseal_review(db: AsyncSession, share_id: uuid.UUID, reseal: ReviewReseal) -> None:
+    """Replace the thread's ciphertexts with the ones sealed under the share's new key; its timestamps stay."""
+    review = await db.get(ResultShareReview, share_id)
+    if review is None:
+        return
+    if reseal.objection_iv_b64 is not None and reseal.objection_ct_b64 is not None:
+        review.objection_iv, review.objection_ct = _sealed(reseal.objection_iv_b64, reseal.objection_ct_b64)
+    if reseal.reply_iv_b64 is not None and reseal.reply_ct_b64 is not None:
+        review.reply_iv, review.reply_ct = _sealed(reseal.reply_iv_b64, reseal.reply_ct_b64)
 
 
 async def list_for_exam(

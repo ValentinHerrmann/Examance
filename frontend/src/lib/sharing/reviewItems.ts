@@ -5,7 +5,7 @@ import { buildSubLabelMap } from '#lib/grading/mcGroupLabels';
 import { exerciseParts, partOverrideKey } from '#lib/grading/partScores';
 import type { ReviewItem } from './shareCrypto';
 
-const DAY_MS = 86_400_000;
+export const DAY_MS = 86_400_000;
 /** Objections close this long before the link expires, so the server's own expiry (set a moment later) never undercuts them. */
 const EXPIRY_MARGIN_MS = 5 * 60_000;
 

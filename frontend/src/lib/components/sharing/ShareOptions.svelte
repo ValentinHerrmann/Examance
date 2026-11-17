@@ -9,6 +9,7 @@
   import type { ShareFactor } from "#lib/sharing/shareCrypto";
   import { dateInputValue, reviewDateValid } from "#lib/sharing/reviewItems";
   import { SHARE_EXPIRY_DAYS } from "#lib/sharing/shareService";
+  import { formatDate } from "#lib/utils/format";
 
   interface Props {
     running: boolean;
@@ -25,7 +26,12 @@
     factor: ShareFactor;
     includeCode: boolean;
     includeSolution: boolean;
+    /** Days or `keep` (issue #310). */
     expiry: string;
+    /** The chosen students' current link expiries; offers "keep" when set. */
+    keptRange: { first: Date; last: Date } | null;
+    /** Days the links stay valid at least, for the objection deadline. */
+    limitDays: number;
     /** Allow objections until `reviewDate` (issue #226); the date is capped at the link's expiry when sending. */
     reviewOn: boolean;
     reviewDate: string;
@@ -47,13 +53,21 @@
     includeCode = $bindable(false),
     includeSolution = $bindable(false),
     expiry = $bindable("14"),
+    keptRange,
+    limitDays,
     reviewOn = $bindable(false),
     reviewDate = $bindable(""),
     reviewPrint = $bindable(),
     hasReviews,
   }: Props = $props();
 
-  let reviewMax = $derived(dateInputValue(Number(expiry) || 0));
+  let reviewMax = $derived(dateInputValue(limitDays));
+  let keptLabel = $derived.by(() => {
+    if (!keptRange) return "";
+    const first = formatDate(keptRange.first);
+    const last = formatDate(keptRange.last);
+    return first === last ? first : `${first} – ${last}`;
+  });
   const reviewMin = dateInputValue(0);
 
   const factorIcon: Record<ShareFactor, typeof faLink> = { none: faLink, sticker: faTag, code: faKey };
@@ -92,7 +106,7 @@
       {#if reviewOn}
         <Field label={$t("review.share.until")} hint={$t("review.share.untilHint")}>
           {#snippet children({ id })}
-            <TextInput {id} type="date" bind:value={reviewDate} min={reviewMin} max={reviewMax} disabled={running} invalid={!reviewDateValid(reviewDate, Number(expiry))} />
+            <TextInput {id} type="date" bind:value={reviewDate} min={reviewMin} max={reviewMax} disabled={running} invalid={!reviewDateValid(reviewDate, limitDays)} />
           {/snippet}
         </Field>
       {/if}
@@ -108,6 +122,7 @@
     <Field label={$t("sharing.share.expiry")} hint={$t("sharing.share.replaceNote")}>
       {#snippet children({ id })}
         <Select {id} bind:value={expiry} disabled={running}>
+          {#if keptRange}<option value="keep">{$t("sharing.share.keepExpiry", { range: keptLabel })}</option>{/if}
           {#each SHARE_EXPIRY_DAYS as days (days)}
             <option value={String(days)}>{$t("sharing.share.days", { count: days })}</option>
           {/each}

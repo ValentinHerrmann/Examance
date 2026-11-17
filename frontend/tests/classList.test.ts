@@ -189,13 +189,13 @@ describe('Artemis messages', () => {
     const delivery = createDelivery('artemis', {
       examId: 'exam-1',
       examTitle: 'Analysis',
-      expiresAt: new Date('2026-12-01T00:00:00Z'),
       language: 'de',
       artemis: { host: 'artemis.example', courseId: 1, jwt: 't', mode: 'link' },
     });
     const anna = student('Muster, Anna', 'Muster, Anna_6028356', { artemisId: '6028356' });
-    await delivery.deliverLink(anna, 'k'.repeat(64), 'Anna', 'https://x/result#a.b', null);
-    await delivery.deliverLink(anna, 'k'.repeat(64), 'Anna', 'https://x/result#a.b', 'ABCD2345');
+    const until = new Date('2026-12-01T00:00:00Z');
+    await delivery.deliverLink(anna, 'k'.repeat(64), 'Anna', 'https://x/result#a.b', null, until);
+    await delivery.deliverLink(anna, 'k'.repeat(64), 'Anna', 'https://x/result#a.b', 'ABCD2345', until);
     expect(artemis.messages[0]).toContain('Deine korrigierte Prüfung');
     expect(artemis.messages[0]).not.toContain('ABCD');
     expect(artemis.messages[1]).toContain('ABCD-2345');
@@ -205,8 +205,8 @@ describe('Artemis messages', () => {
 describe('e-mail progress', () => {
   // Sending a class takes a while: the dialog shows "x of y sent" per batch of 20.
   it('reports the mails sent after each batch', async () => {
-    const delivery = createDelivery('email', { examId: 'exam-1', examTitle: 'Analysis', expiresAt: new Date(), language: 'de' });
-    for (let i = 0; i < 45; i++) await delivery.deliverLink(student(`S${i}`, undefined, { email: `s${i}@x.de` }), 'k'.repeat(64), `S${i}`, 'https://x/result#a.b', null);
+    const delivery = createDelivery('email', { examId: 'exam-1', examTitle: 'Analysis', language: 'de' });
+    for (let i = 0; i < 45; i++) await delivery.deliverLink(student(`S${i}`, undefined, { email: `s${i}@x.de` }), 'k'.repeat(64), `S${i}`, 'https://x/result#a.b', null, new Date());
     const seen: [number, number][] = [];
     expect(await delivery.finish((done, total) => seen.push([done, total]))).toEqual([]);
     expect(seen).toEqual([[0, 45], [20, 45], [40, 45], [45, 45]]);

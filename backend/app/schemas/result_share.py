@@ -11,6 +11,18 @@ ShareFactor = Literal["none", "sticker", "code"]
 _HEX64 = r"^[0-9a-f]{64}$"
 
 
+class ReviewReseal(BaseModel):
+    """The thread of a kept link sealed again under its new content key (issue #310); each part only when the thread has it."""
+
+    objection_iv_b64: str | None = None
+    objection_ct_b64: str | None = None
+    reply_iv_b64: str | None = None
+    reply_ct_b64: str | None = None
+    # The thread as the client read it; a thread changed since then refuses the update (ERR_SHARE_REVIEW_CHANGED).
+    submitted_at: datetime | None = None
+    replied_at: datetime | None = None
+
+
 class ResultShareCreate(BaseModel):
     id: uuid.UUID
     student_key: str = Field(pattern=_HEX64)
@@ -24,6 +36,10 @@ class ResultShareCreate(BaseModel):
     wrapped_key_b64: str | None = None
     # Objections accepted until then, never after the link expires; null = off.
     review_until: datetime | None = None
+    # Sending again to the student's own link (same id): keep its expiry instead of counting expiry_days from now (issue #310).
+    keep_expiry: bool = False
+    # Sending again to the student's own link with a new content key: its thread sealed under that key.
+    review: ReviewReseal | None = None
 
 
 class ResultShareOut(BaseModel):

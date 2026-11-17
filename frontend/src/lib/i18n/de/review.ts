@@ -62,11 +62,11 @@ export const review = {
     },
     replace: {
         title: 'Offene Einsprüche bleiben erhalten',
-        note: 'Der alte Link funktioniert dann nicht mehr. Der offene Einspruch bleibt in der Bewertung und kann dort noch beantwortet werden: {names}.',
+        note: 'Der Link bleibt derselbe, der Einspruch bleibt daran sichtbar. Er wird außerdem in der Bewertung gespeichert und kann dort beantwortet werden: {names}.',
         revokeNote: 'Offene Einsprüche bleiben in der Bewertung und können dort noch beantwortet werden: {names}.',
     },
     warnings: {
-        keepFailed: '{name}: Der offene Einspruch konnte nicht gelesen werden, der alte Link blieb deshalb unverändert.',
+        keepFailed: '{name}: Der offene Einspruch konnte nicht gelesen werden, der Link blieb deshalb unverändert.',
         revokeSkipped: 'Einige Links wurden nicht widerrufen',
     },
     bar: {
