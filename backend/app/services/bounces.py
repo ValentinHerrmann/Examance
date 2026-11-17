@@ -142,7 +142,10 @@ def _fetch_unseen() -> tuple[imaplib.IMAP4_SSL, list[tuple[str, bytes]]]:
     if sender is None:
         raise imaplib.IMAP4.error("result mailbox not configured")
     imap = imaplib.IMAP4_SSL(
-        settings.RESULT_MAIL_IMAP_HOST or "", settings.RESULT_MAIL_IMAP_PORT, timeout=20
+        settings.RESULT_MAIL_IMAP_HOST or "",
+        settings.RESULT_MAIL_IMAP_PORT,
+        ssl_context=email_svc.mail_tls_context(),
+        timeout=20,
     )
     imap.login(sender.username, sender.password)
     imap.select(settings.RESULT_MAIL_IMAP_FOLDER)

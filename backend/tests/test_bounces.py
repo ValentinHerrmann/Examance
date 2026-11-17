@@ -1,6 +1,7 @@
 """Bounce monitoring (issue #221): parsing delivery reports and routing each message of the bounce mailbox."""
 from __future__ import annotations
 
+import ssl
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -192,8 +193,10 @@ class _FakeSmtp:
     def __exit__(self, *_exc: object) -> None:
         return None
 
-    def starttls(self) -> None:
-        return None
+    def starttls(self, context: ssl.SSLContext | None = None) -> None:
+        # The result mailbox's relay is checked like every mail connection (issue #286).
+        assert context is not None
+        assert context.verify_mode == ssl.CERT_REQUIRED
 
     def login(self, user: str, _password: str) -> None:
         self.login_as = user
