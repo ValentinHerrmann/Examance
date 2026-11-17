@@ -44,7 +44,7 @@ AREAS = [
 ]
 # Bump when AREAS, the skip rules or the counting change, so history.json is recounted from scratch.
 HISTORY_VERSION = 1
-ORDER = ["frontend", "frontend_tests", "backend", "backend_tests", "docs"]
+ORDER = ["frontend", "backend", "frontend_tests", "backend_tests", "docs"]
 COLORS = {"frontend": "#FF3E00", "frontend_tests": "#F59E0B", "backend": "#009688", "backend_tests": "#6DA13F", "docs": "#3B82F6"}
 
 SVELTE = ".svelte"
@@ -237,27 +237,39 @@ def axes_svg(days: list[dict], ymax: float, step: float) -> list[str]:
     return out
 
 
+def pt(x: float, v: float, ymax: float) -> str:
+    return f"{x:.1f},{HY1 - (HY1 - HY0) * v / ymax:.1f}"
+
+
 def bands_svg(days: list[dict], ymax: float, xs: list[float]) -> list[str]:
     out = []
     lower = [0] * len(days)
     for key in ORDER:
         upper = [lo + d["lines"].get(key, 0) for lo, d in zip(lower, days)]
-        def pt(x: float, v: float) -> str:
-            return f"{x:.1f},{HY1 - (HY1 - HY0) * v / ymax:.1f}"
-        top = [pt(x, v) for x, v in zip(xs, upper)]
-        bottom = [pt(x, v) for x, v in zip(reversed(xs), reversed(lower))]
+        top = [pt(x, v, ymax) for x, v in zip(xs, upper)]
+        bottom = [pt(x, v, ymax) for x, v in zip(reversed(xs), reversed(lower))]
         out.append(f'<polygon points="{" ".join(top + bottom)}" fill="{COLORS[key]}" fill-opacity=".85"/>')
         out.append(f'<polyline points="{" ".join(top)}" fill="none" stroke="{COLORS[key]}" stroke-width="1.5"/>')
         lower = upper
     return out
 
 
-def history_svg(days: list[dict]) -> str:
-    """Stacked area chart of lines per area over time, x spaced by real dates."""
+def lines_svg(days: list[dict], ymax: float, xs: list[float]) -> list[str]:
+    out = []
+    for key in reversed(ORDER):  # first area drawn last, on top
+        points = " ".join(pt(x, d["lines"].get(key, 0), ymax) for x, d in zip(xs, days))
+        out.append(f'<polyline points="{points}" fill="none" stroke="{COLORS[key]}" stroke-width="2" '
+                   'stroke-linejoin="round" stroke-linecap="round"/>')
+    return out
+
+
+def history_svg(days: list[dict], stacked: bool) -> str:
+    """Area lines over time, x spaced by real dates: stacked areas, or one line per area."""
     h = HY1 + 40
+    title = "Code over time" if stacked else "Code over time per area"
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{h}" viewBox="0 0 {W} {h}" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">',
          STYLE, f'<rect class="bg" x=".5" y=".5" width="{W - 1}" height="{h - 1}" rx="10"/>',
-         '<text class="ti" x="20" y="30">Code over time</text>',
+         f'<text class="ti" x="20" y="30">{title}</text>',
          f'<text class="mu" x="{W - 20}" y="30" text-anchor="end" style="font-size:12px">lines per area · since {days[0]["date"]}</text>']
     o += legend_svg(days[-1]["lines"])
     if len(days) == 1:
@@ -266,11 +278,11 @@ def history_svg(days: list[dict]) -> str:
     span = (date.fromisoformat(days[-1]["date"]) - first).days
     xs = [HX0 + (HX1 - HX0) * ((date.fromisoformat(d["date"]) - first).days / span if span else i / (len(days) - 1))
           for i, d in enumerate(days)]
-    peak = max(sum(d["lines"].values()) for d in days) or 1
+    peak = max(sum(d["lines"].values()) if stacked else max(d["lines"].values(), default=0) for d in days) or 1
     step = nice_step(peak / 4)
     ymax = step * math.ceil(peak / step)
     o += axes_svg(days, ymax, step)
-    o += bands_svg(days, ymax, xs)
+    o += (bands_svg if stacked else lines_svg)(days, ymax, xs)
     o.append(f'<line class="ln" x1="{HX0}" x2="{HX1}" y1="{HY1}" y2="{HY1}"/>')
     o.append("</svg>")
     return "\n".join(o)
@@ -332,7 +344,8 @@ def main() -> None:
     days = history(repo, acc, load_history(sys.argv[2] if len(sys.argv) > 2 else None))
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "code-stats.svg").write_text(svg(rows, total), encoding="utf-8")
-    (OUT / "code-history.svg").write_text(history_svg(days), encoding="utf-8")
+    (OUT / "code-history.svg").write_text(history_svg(days, stacked=True), encoding="utf-8")
+    (OUT / "code-history-lines.svg").write_text(history_svg(days, stacked=False), encoding="utf-8")
     (OUT / "stats.json").write_text(json.dumps({"areas": rows, "total": total}, indent=2))
     (OUT / "history.json").write_text(json.dumps({"version": HISTORY_VERSION, "days": days}))
     print(json.dumps(total), [(r["key"], r["lines"], r["code"]) for r in rows])
