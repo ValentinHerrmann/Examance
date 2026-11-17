@@ -43,9 +43,12 @@ AREAS = [
     ("backend", "Backend", lambda p: p.startswith("backend/") and re.search(BACKEND_EXT, p)),
 ]
 # Bump when AREAS, the skip rules or the counting change, so history.json is recounted from scratch.
-HISTORY_VERSION = 1
-ORDER = ["frontend", "backend", "frontend_tests", "backend_tests", "docs"]
-COLORS = {"frontend": "#FF3E00", "frontend_tests": "#F59E0B", "backend": "#009688", "backend_tests": "#6DA13F", "docs": "#3B82F6"}
+HISTORY_VERSION = 2
+# Comments are their own series after the areas, never part of an area's lines.
+ORDER = ["frontend", "backend", "frontend_tests", "backend_tests", "docs", "comments"]
+LABELS = {**{k: lbl for k, lbl, _ in AREAS}, "comments": "Comments"}
+COLORS = {"frontend": "#FF3E00", "frontend_tests": "#F59E0B", "backend": "#009688", "backend_tests": "#6DA13F", "docs": "#3B82F6",
+          "comments": "#8B949E"}
 
 SVELTE = ".svelte"
 LINE_COMMENT = {".py": "#", ".sh": "#", ".yml": "#", ".yaml": "#", ".toml": "#", ".sql": "--",
@@ -130,8 +133,9 @@ def fmt(n: int) -> str:
 
 
 W, ROW_H, TOP = 820, 38, 64
-COLS = {"area": 20, "files": 250, "lines": 335, "code": 435, "comments": 535, "bar": 630}
-HEADERS = [("area", "Area"), ("files", "Files"), ("lines", "Lines"), ("code", "Code"), ("comments", "Comments"), ("bar", "Share of code")]
+COLS = {"area": 20, "files": 330, "lines": 460, "bar": 560}
+HEADERS = [("area", "Area"), ("files", "Files"), ("lines", "Lines"), ("bar", "Share of lines")]
+BAR_W = 240
 STYLE = (
     '<style>.bg{fill:#fff;stroke:#d0d7de}.hd{fill:#57606a;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}'
     '.tx{fill:#1f2328;font-size:14px}.mu{fill:#57606a;font-size:14px}.tt{fill:#1f2328;font-size:14px;font-weight:700}.ln{stroke:#d0d7de}'
@@ -155,15 +159,15 @@ def header_svg(total: dict) -> list[str]:
     return out
 
 
-def row_svg(r: dict, y: float, totcode: int) -> list[str]:
+def row_svg(r: dict, y: float, total_lines: int) -> list[str]:
     cy = y + ROW_H / 2 + 5
     out = [f'<circle cx="28" cy="{cy - 5}" r="5" fill="{r["color"]}"/>', f'<text class="tx" x="42" y="{cy}">{r["label"]}</text>']
-    for key in ("files", "lines", "code", "comments"):
+    for key in ("files", "lines"):
         txt = "–" if r[key] is None else fmt(r[key])
-        out.append(f'<text class="{"tx" if key == "code" else "mu"}" x="{COLS[key] + 60}" y="{cy}" text-anchor="end">{txt}</text>')
-    if r["code"]:
-        bw = max(3, 160 * r["code"] / totcode)
-        out.append(f'<rect class="tr" x="{COLS["bar"]}" y="{cy - 12}" width="160" height="10" rx="5"/>')
+        out.append(f'<text class="{"tx" if key == "lines" else "mu"}" x="{COLS[key] + 60}" y="{cy}" text-anchor="end">{txt}</text>')
+    if r["lines"]:
+        bw = max(3, BAR_W * r["lines"] / total_lines)
+        out.append(f'<rect class="tr" x="{COLS["bar"]}" y="{cy - 12}" width="{BAR_W}" height="10" rx="5"/>')
         out.append(f'<rect x="{COLS["bar"]}" y="{cy - 12}" width="{bw:.0f}" height="10" rx="5" fill="{r["color"]}"/>')
     out.append(hline(y + ROW_H))
     return out
@@ -172,19 +176,19 @@ def row_svg(r: dict, y: float, totcode: int) -> list[str]:
 def total_svg(total: dict, y: float) -> list[str]:
     cy = y + ROW_H / 2 + 5
     out = [f'<text class="tt" x="42" y="{cy}">Total</text>']
-    out += [f'<text class="tt" x="{COLS[k] + 60}" y="{cy}" text-anchor="end">{fmt(total[k])}</text>' for k in ("files", "lines", "code", "comments")]
+    out += [f'<text class="tt" x="{COLS[k] + 60}" y="{cy}" text-anchor="end">{fmt(total[k])}</text>' for k in ("files", "lines")]
     return out
 
 
 def svg(rows: list[dict], total: dict) -> str:
     h = TOP + ROW_H * (len(rows) + 1) + 24
-    totcode = total["code"] or 1
+    total_lines = total["lines"] or 1
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{h}" viewBox="0 0 {W} {h}" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">',
          STYLE, f'<rect class="bg" x=".5" y=".5" width="{W - 1}" height="{h - 1}" rx="10"/>']
     o += header_svg(total)
     y = TOP
     for r in rows:
-        o += row_svg(r, y, totcode)
+        o += row_svg(r, y, total_lines)
         y += ROW_H
     o += total_svg(total, y)
     o.append("</svg>")
@@ -203,17 +207,18 @@ def short(n: float, digits: int | None = None) -> str:
     return f"{n / 1000:.{digits}f}k" if digits is not None else f"{n / 1000:g}k"
 
 
-HX0, HX1, HY0, HY1 = 70, W - 20, 84, 300  # plot area of the history chart
+# History charts are half the table's width so the README can show two side by side at 1:1.
+HW = 410
+HX0, HX1, HY0, HY1 = 48, HW - 16, 124, 300  # plot area of the history charts
 
 
 def legend_svg(last: dict) -> list[str]:
-    out, x = [], 20
-    for key in ORDER:
-        label = next(lbl for k, lbl, _ in AREAS if k == key)
-        out.append(f'<circle cx="{x + 5}" cy="54" r="5" fill="{COLORS[key]}"/>')
-        out.append(f'<text class="mu" x="{x + 15}" y="59" style="font-size:12px">{label} '
+    out = []
+    for i, key in enumerate(ORDER):  # two columns, row-major
+        x, cy = 20 + 190 * (i % 2), 54 + 20 * (i // 2)
+        out.append(f'<circle cx="{x + 5}" cy="{cy}" r="5" fill="{COLORS[key]}"/>')
+        out.append(f'<text class="mu" x="{x + 15}" y="{cy + 4}" style="font-size:12px">{LABELS[key]} '
                    f'<tspan class="tx" style="font-size:12px">{short(last.get(key, 0), 1)}</tspan></text>')
-        x += 156
     return out
 
 
@@ -227,7 +232,7 @@ def axes_svg(days: list[dict], ymax: float, step: float) -> list[str]:
         v += step
     first, last = date.fromisoformat(days[0]["date"]), date.fromisoformat(days[-1]["date"])
     span = (last - first).days
-    ticks = min(6, span + 1)
+    ticks = min(4, span + 1)
     for i in range(ticks):
         d = first + timedelta(days=round(span * i / max(ticks - 1, 1)))
         x = HX0 + (HX1 - HX0) * (d - first).days / span if span else (HX0 + HX1) / 2
@@ -265,12 +270,12 @@ def lines_svg(days: list[dict], ymax: float, xs: list[float]) -> list[str]:
 
 def history_svg(days: list[dict], stacked: bool) -> str:
     """Area lines over time, x spaced by real dates: stacked areas, or one line per area."""
-    h = HY1 + 40
-    title = "Code over time" if stacked else "Code over time per area"
-    o = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{h}" viewBox="0 0 {W} {h}" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">',
-         STYLE, f'<rect class="bg" x=".5" y=".5" width="{W - 1}" height="{h - 1}" rx="10"/>',
+    h = HY1 + 36
+    title = "Code over time" if stacked else "Code per area over time"
+    o = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{HW}" height="{h}" viewBox="0 0 {HW} {h}" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">',
+         STYLE, f'<rect class="bg" x=".5" y=".5" width="{HW - 1}" height="{h - 1}" rx="10"/>',
          f'<text class="ti" x="20" y="30">{title}</text>',
-         f'<text class="mu" x="{W - 20}" y="30" text-anchor="end" style="font-size:12px">lines per area · since {days[0]["date"]}</text>']
+         f'<text class="mu" x="{HW - 20}" y="30" text-anchor="end" style="font-size:12px">since {days[0]["date"]}</text>']
     o += legend_svg(days[-1]["lines"])
     if len(days) == 1:
         days = days * 2  # a single day renders as a flat strip
@@ -289,8 +294,8 @@ def history_svg(days: list[dict], stacked: bool) -> str:
 
 
 def area_lines(acc: dict) -> dict:
-    """The table's "Lines" column per area: code plus comments (docs are all prose lines)."""
-    return {key: acc[key]["code"] + acc[key]["comments"] for key, _, _ in AREAS}
+    """Lines per series: code lines per area (Markdown has no comments, so docs are its prose lines), all comments apart."""
+    return {**{key: acc[key]["code"] for key, _, _ in AREAS}, "comments": sum(a["comments"] for a in acc.values())}
 
 
 def load_history(path: str | None) -> dict[str, dict]:
@@ -331,16 +336,10 @@ def history(repo: Repo, head_acc: dict, cached: dict[str, dict]) -> list[dict]:
 def main() -> None:
     repo = Repo()
     acc = repo.tally("HEAD")
-    rows = []
-    for key, label, _ in AREAS:
-        a = acc[key]
-        prose = key == "docs"  # Markdown is prose: show lines only
-        rows.append({"key": key, "label": label, "color": COLORS[key], "files": a["files"],
-                     "lines": a["code"] + a["comments"],
-                     "code": None if prose else a["code"], "comments": None if prose else a["comments"]})
-    rows.sort(key=lambda r: ORDER.index(r["key"]))
-    total = {"files": sum(r["files"] for r in rows), "lines": sum(r["lines"] for r in rows),
-             "code": sum(r["code"] or 0 for r in rows), "comments": sum(r["comments"] or 0 for r in rows)}
+    lines = area_lines(acc)
+    rows = [{"key": key, "label": LABELS[key], "color": COLORS[key], "files": acc[key]["files"] if key in acc else None,
+             "lines": lines[key]} for key in ORDER]
+    total = {"files": sum(r["files"] or 0 for r in rows), "lines": sum(r["lines"] for r in rows)}
     days = history(repo, acc, load_history(sys.argv[2] if len(sys.argv) > 2 else None))
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "code-stats.svg").write_text(svg(rows, total), encoding="utf-8")
@@ -348,7 +347,7 @@ def main() -> None:
     (OUT / "code-history-lines.svg").write_text(history_svg(days, stacked=False), encoding="utf-8")
     (OUT / "stats.json").write_text(json.dumps({"areas": rows, "total": total}, indent=2))
     (OUT / "history.json").write_text(json.dumps({"version": HISTORY_VERSION, "days": days}))
-    print(json.dumps(total), [(r["key"], r["lines"], r["code"]) for r in rows])
+    print(json.dumps(total), [(r["key"], r["lines"]) for r in rows])
 
 
 if __name__ == "__main__":
