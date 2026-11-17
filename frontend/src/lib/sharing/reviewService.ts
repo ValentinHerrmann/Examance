@@ -45,6 +45,8 @@ let loaded: ExamReviews | null = null;
 const pendingMails = new Map<string, PendingMail>();
 /** Bumped per `showReview`, so a slow load for an earlier submission cannot overwrite the current one. */
 let showSeq = 0;
+/** Submissions whose reply is still going out, so switching back to one keeps Send disabled instead of starting a second send. */
+const sendingFor = new Set<string>();
 
 export async function sessionKey(): Promise<CryptoKey> {
   await awaitSessionReady();
@@ -158,10 +160,7 @@ export async function showReview(examId: string, sub: SubmissionRecord): Promise
     return;
   }
   const lockFailed = Boolean(error) && !thread.openedAt;
-  const share = shareForReply(exam, thread);
-  const hasAddress = exam.mailable.has(studentKey);
-  const mailable = !share || channelCarries('email', share.factor);
-  reviewStore.set({ submissionId: sub.id, thread, canMail: hasAddress && mailable, mailBlocked: hasAddress && !mailable, drafts: { ...thread.replies }, notify: true, sending: false, error, sentAt: null, mailFailed: pendingMails.has(studentKey), lockFailed, dialog: null });
+  reviewStore.set({ submissionId: sub.id, thread, ...replyMailState(exam, thread), drafts: { ...thread.replies }, notify: true, sending: sendingFor.has(sub.id), error, sentAt: null, mailFailed: pendingMails.has(studentKey), lockFailed, dialog: null });
 }
 
 /** Reply texts per item key, trimmed. */
@@ -193,6 +192,14 @@ function replyPayload(thread: ReviewThread, texts: Record<string, string>, saved
 function shareForReply(exam: ExamReviews, thread: ReviewThread): ResultShareInfo | undefined {
   if (!thread.fromRecord) return exam.shares.get(thread.shareId);
   return [...exam.shares.values()].filter((share) => share.studentKey === thread.studentKey && share.updatable).at(-1);
+}
+
+/** Whether the reply can be mailed: only with an address and a link the e-mail channel may carry (never factor `none`, issue #291); `mailBlocked` names the case the dialog explains. */
+function replyMailState(exam: ExamReviews, thread: ReviewThread): { canMail: boolean; mailBlocked: boolean } {
+  const share = shareForReply(exam, thread);
+  const linked = exam.mailable.has(thread.studentKey) && share !== undefined;
+  const carries = share !== undefined && channelCarries('email', share.factor);
+  return { canMail: linked && carries, mailBlocked: linked && !carries };
 }
 
 /** Sends the reply mail; a mail that fails, in any way, is remembered for `resendReviewMail`. */
@@ -237,9 +244,12 @@ export async function sendReviewReply(examId: string, sub: SubmissionRecord, flu
   const state = get(reviewStore);
   const thread = state.thread;
   const exam = loaded;
-  if (!thread || !exam || state.submissionId !== sub.id) return;
+  if (!thread || !exam || state.submissionId !== sub.id || sendingFor.has(sub.id)) return;
   const share = shareForReply(exam, thread);
   if (!share && !thread.fromRecord) return;
+  sendingFor.add(sub.id);
+  // A newer reply supersedes an older failed mail.
+  pendingMails.delete(thread.studentKey);
   reviewStore.patch({ sending: true, error: '', sentAt: null, mailFailed: false });
   // The teacher may move to another student while this runs: the outcome lands only on this one's panel (issue #291).
   const stillShown = () => get(reviewStore).submissionId === sub.id;
@@ -248,13 +258,15 @@ export async function sendReviewReply(examId: string, sub: SubmissionRecord, flu
     const texts = trimmed(state.drafts);
     const repliedAt = new Date().toISOString();
     const published = await publishReply(examId, sub, thread, share, texts, repliedAt);
-    const wantsMail = state.notify && state.canMail && share !== undefined && channelCarries('email', share.factor);
+    const wantsMail = state.notify && replyMailState(exam, thread).canMail;
     const mailFailed = published && share && wantsMail ? await mailReply(pendingMailOf(share, published, thread.studentKey)) : false;
     const sent: ReviewThread = { ...thread, replies: texts, repliedAt };
     if (!thread.fromRecord) exam.threads.set(thread.studentKey, sent);
     if (stillShown()) reviewStore.patch({ thread: sent, sending: false, sentAt: repliedAt, mailFailed });
   } catch (err) {
     if (stillShown()) reviewStore.patch({ sending: false, error: errorText(err) });
+  } finally {
+    sendingFor.delete(sub.id);
   }
 }
 

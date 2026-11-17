@@ -147,7 +147,7 @@ export const sharing = {
         },
         mebis: {
             label: 'Rückmeldedateien für Mebis (Download)',
-            description: 'Eine ZIP-Datei mit der korrigierten Arbeit jedes Schülers als PDF. Laden Sie sie in der Mebis-Aufgabe unter „Mehrere Feedbackdateien in einer ZIP-Datei hochladen“ hoch. Sie braucht QR-Aufkleber aus einer Mebis-Teilnehmerliste.',
+            description: 'Eine ZIP-Datei mit der korrigierten Arbeit jedes Schülers als PDF. Laden Sie sie in der Mebis-Aufgabe unter „Mehrere Feedbackdateien in einer ZIP-Datei hochladen“ hoch. Sie braucht die Mebis-Kennungen der Schüler: Importieren Sie die Mebis-Liste auf der Seite Schüler.',
             missing: 'keine Mebis-Teilnehmer-ID (importieren Sie die Mebis-Liste oder tragen Sie sie auf der Seite Schüler ein)',
             done: '{count} Arbeit(en) in die Mebis-ZIP-Datei gepackt.',
             run: 'ZIP-Datei erstellen',

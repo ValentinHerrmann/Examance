@@ -149,7 +149,7 @@ export const sharing: Translations['sharing'] = {
         },
         mebis: {
             label: 'Feedback files for Mebis (download)',
-            description: "A ZIP file with each student's graded exam as a PDF. Upload it in the Mebis assignment under “Upload multiple feedback files in a zip”. It needs QR stickers made from a Mebis participant list.",
+            description: "A ZIP file with each student's graded exam as a PDF. Upload it in the Mebis assignment under “Upload multiple feedback files in a zip”. It needs the students' Mebis IDs: import the Mebis list on the Students page.",
             missing: 'no Mebis participant ID (import the Mebis list or enter it on the Students page)',
             done: '{count} exam(s) packed into the Mebis ZIP file.',
             run: 'Create ZIP file',
