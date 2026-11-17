@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import smtplib
+import ssl
 from dataclasses import dataclass
 from email import message_from_bytes
 from email.message import EmailMessage
@@ -13,6 +14,11 @@ from email.utils import formatdate, make_msgid
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def mail_tls_context() -> ssl.SSLContext:
+    """The TLS context of every mail connection (SMTP STARTTLS, IMAP): certificate and host name always checked, against MAIL_TLS_CA_FILE when set, else the system CAs."""
+    return ssl.create_default_context(cafile=settings.MAIL_TLS_CA_FILE or None)
 
 
 @dataclass(frozen=True)
@@ -95,7 +101,7 @@ def _send_sync(
         msg = _build_message(to_email, subject, body_text, body_html, env)
         with smtplib.SMTP(smtp_host, settings.SMTP_PORT, timeout=10) as server:
             if settings.SMTP_USE_TLS:
-                server.starttls()
+                server.starttls(context=mail_tls_context())
             _login(server, env.sender)
             # The envelope sender follows From, so bounces return to the mailbox that sent the mail.
             server.send_message(msg)

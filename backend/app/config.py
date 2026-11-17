@@ -117,6 +117,8 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     SMTP_FROM_EMAIL: str = "noreply@examance.com"
     SMTP_USE_TLS: bool = True
+    # PEM bundle of the CA that signed the mail servers' certificates (SMTP and IMAP); empty = the system CAs. Certificates are always checked.
+    MAIL_TLS_CA_FILE: str | None = None
     # Dedicated result mailbox (issue #221, docs/hosting.md): result mails to students are sent from it (own SMTP login), so their bounces return to it; `poll-bounces` reads only this mailbox over IMAP, empties it and forwards what it cannot place to SMTP_FROM_EMAIL. Used only when address, password and IMAP host are set.
     RESULT_MAIL_ADDRESS: str | None = None
     # Login for SMTP and IMAP; defaults to RESULT_MAIL_ADDRESS.
