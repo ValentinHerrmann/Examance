@@ -498,6 +498,7 @@
   function pageNote(w: IngestWarning): string | null {
     if (w.kind === "missingPages") return translate("scanning.pageNotes.missing", { student: w.student, pages: w.pages.join(", ") });
     if (w.kind === "foreignPage") return translate("scanning.pageNotes.foreign", { fileName: w.fileName });
+    if (w.kind === "repeatedPages") return translate("scanning.pageNotes.repeated", { student: w.student, pages: w.pages.join(", ") });
     return null;
   }
 
