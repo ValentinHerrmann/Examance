@@ -49,7 +49,7 @@ async def create_result_share(
     teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ResultShareOut:
-    """Store one student's sealed result PDF; replaces their earlier share. Allowed in every storage mode: the server can never open it."""
+    """Store one student's sealed result PDF; sent again under their share id it updates that share in place, so the link stays (issue #310). Allowed in every storage mode: the server can never open it."""
     share = await result_shares.create_or_replace(db, teacher.id, exam.id, body)
     await audit_svc.log(db, request, teacher, "RESULT_SHARED", exam.id)
     return result_shares.to_out(share)

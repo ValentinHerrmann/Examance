@@ -18,6 +18,8 @@
   import { examHasReviews } from "#lib/sharing/reviewService";
   import {
     DEFAULT_EXPIRY_DAYS,
+    expiryLimitDays,
+    keptExpiryRange,
     loadShareOverview,
     republishShare,
     latestDeliveries,
@@ -97,7 +99,9 @@
   let keptNames = $derived(sendsPdf ? [] : (overview?.students.filter((s) => selected.has(s.key) && s.share?.reviewSubmittedAt).map((s) => s.name) ?? []));
   let revokeKeptNames = $derived(overview?.students.filter((s) => s.share?.reviewSubmittedAt).map((s) => s.name) ?? []);
   let revokeMessage = $derived([$t("sharing.share.revokeAllConfirm", { count: activeShares }), revokeKeptNames.length ? $t("review.replace.revokeNote", { names: revokeKeptNames.join(", ") }) : ""].filter(Boolean).join(" "));
-  let reviewValid = $derived(!reviewOn || sendsPdf || reviewDateValid(reviewDate, Number(expiry)));
+  let keptRange = $derived(keptExpiryRange(overview?.students.filter((s) => selected.has(s.key)) ?? []));
+  let limitDays = $derived(expiryLimitDays(expiry, keptRange));
+  let reviewValid = $derived(!reviewOn || sendsPdf || reviewDateValid(reviewDate, limitDays));
   let canRun = $derived(!running && !waiting && !loading && selected.size > 0 && !setupMissing && reviewValid && (sendsPdf || !factorMuted(factor)));
 
   function chooseChannel(id: ShareChannelId) {
@@ -115,6 +119,14 @@
     else start();
   }
 
+  /** Sets the chosen students; "keep the current expiry" is preselected once a chosen student has a link and the default was not changed (issue #310). */
+  function select(next: Set<string>) {
+    selected = next;
+    const kept = keptExpiryRange(overview?.students.filter((s) => next.has(s.key)) ?? []);
+    if (kept && expiry === String(DEFAULT_EXPIRY_DAYS)) expiry = "keep";
+    else if (!kept && expiry === "keep") expiry = String(DEFAULT_EXPIRY_DAYS);
+  }
+
   const gradedKeys = (o: ShareOverview) => new Set(o.students.filter((s) => s.hasSubmission && s.state !== "ungraded").map((s) => s.key));
 
   async function reload() {
@@ -123,7 +135,7 @@
       await awaitSessionReady();
       overview = await loadShareOverview(examId);
       hasReviews = await examHasReviews(examId);
-      if (!selected.size) selected = gradedKeys(overview);
+      if (!selected.size) select(gradedKeys(overview));
     } catch (err) {
       error = `${$t("sharing.errors.load")} ${err instanceof Error ? err.message : ""}`.trim();
     } finally {
@@ -132,7 +144,7 @@
   }
 
   function selectUndelivered() {
-    selected = new Set(overview?.students.filter((s) => s.hasSubmission && undelivered(s.delivery)).map((s) => s.key) ?? []);
+    select(new Set(overview?.students.filter((s) => s.hasSubmission && undelivered(s.delivery)).map((s) => s.key) ?? []));
   }
 
   /** Shows returned mails live while the server watches (30 s), reading the mailbox every few seconds. */
@@ -184,13 +196,13 @@
           examId,
           channel: currentChannel.id,
           factor,
-          expiryDays: Number(expiry),
+          expiryDays: expiry === "keep" ? "keep" : Number(expiry),
           studentKeys: selected,
           includeSolution: includeSolution && !sendsPdf && !!overview?.solutionAvailable,
           artemis: currentChannel.id === "artemis" && artemisCourse ? { ...artemisCourse, mode: artemisMode } : undefined,
           language,
           includeCode: sendsMessage && !sendsPdf && factor !== "none" && includeCode,
-          reviewUntil: reviewOn && !sendsPdf ? reviewDeadline(reviewDate, Number(expiry)) : null,
+          reviewUntil: reviewOn && !sendsPdf ? reviewDeadline(reviewDate, limitDays) : null,
           reviewPrint,
         },
         (phase, done = 0, total = 0) => (progress = { phase, done, total })
@@ -358,8 +370,8 @@
           {overview}
           {selected}
           {running}
-          onSelect={(next) => (selected = next)}
-          onSelectGraded={() => overview && (selected = gradedKeys(overview))}
+          onSelect={select}
+          onSelectGraded={() => overview && select(gradedKeys(overview))}
           onRevoke={revoke}
           onUpdate={updateShare}
           {updatingId}
@@ -399,6 +411,8 @@
           bind:includeCode
           bind:includeSolution
           bind:expiry
+          {keptRange}
+          {limitDays}
           bind:reviewOn
           bind:reviewDate
           bind:reviewPrint

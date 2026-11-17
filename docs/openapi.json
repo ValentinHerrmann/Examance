@@ -8461,7 +8461,7 @@
           "result-shares"
         ],
         "summary": "Create Result Share",
-        "description": "Store one student's sealed result PDF; replaces their earlier share. Allowed in every storage mode: the server can never open it.",
+        "description": "Store one student's sealed result PDF; sent again under their share id it updates that share in place, so the link stays (issue #310). Allowed in every storage mode: the server can never open it.",
         "operationId": "create_result_share_api_v1_exams__exam_id__shares_post",
         "parameters": [
           {
@@ -16399,6 +16399,21 @@
               }
             ],
             "title": "Review Until"
+          },
+          "keep_expiry": {
+            "type": "boolean",
+            "title": "Keep Expiry",
+            "default": false
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewReseal"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -16974,6 +16989,57 @@
         ],
         "title": "ReviewOut",
         "description": "The thread as the student's page sees it."
+      },
+      "ReviewReseal": {
+        "properties": {
+          "objection_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objection Iv B64"
+          },
+          "objection_ct_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objection Ct B64"
+          },
+          "reply_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Iv B64"
+          },
+          "reply_ct_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Ct B64"
+          }
+        },
+        "type": "object",
+        "title": "ReviewReseal",
+        "description": "The thread of a kept link sealed again under its new content key (issue #310); each part only when the thread has it."
       },
       "ReviewSubmit": {
         "properties": {

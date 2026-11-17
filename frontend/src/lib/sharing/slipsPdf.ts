@@ -26,11 +26,12 @@ export interface SlipEntry {
   url: string;
   /** The code made at sharing time (`code` factor); printed only on its own slip. */
   code?: string;
+  /** This link's expiry: a kept link keeps its own (issue #310). */
+  expiresAt: Date;
 }
 
 export interface SlipsInput {
   examTitle: string;
-  expiresAt: Date;
   factor: ShareFactor;
   entries: readonly SlipEntry[];
   /** Only the code slips: the links went out another way (e-mail, Artemis; issue #209). */
@@ -63,7 +64,7 @@ function drawLinkSlip(lib: PdfLib, page: PDFPage, fonts: LabelFonts, input: Slip
     '',
     ...wrapText(fonts.regular, fonts.safe(translate(HINT[input.factor])), 7.5, sideWidth),
     '',
-    ...wrapText(fonts.bold, fonts.safe(translate('sharing.slips.validUntil', { date: formatDate(input.expiresAt) })), 7.5, sideWidth),
+    ...wrapText(fonts.bold, fonts.safe(translate('sharing.slips.validUntil', { date: formatDate(entry.expiresAt) })), 7.5, sideWidth),
   ];
   lines.forEach((line, i) => {
     if (line) page.drawText(line, { x: sideX, y: top - 38 - i * 9.5, size: 7.5, font: i === lines.length - 1 ? fonts.bold : fonts.regular });

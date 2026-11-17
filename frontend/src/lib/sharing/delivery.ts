@@ -19,8 +19,8 @@ export interface ArtemisTarget extends ArtemisCourse {
 export interface Delivery {
   /** True when the channel sends the graded PDF itself, so no link is made. */
   sendsPdf: boolean;
-  /** *key* is the student's `joinKey`, under which the server records the outcome; *code* is set only when the teacher chose to send the key or code along with the link. */
-  deliverLink(student: StudentRecord, key: string, name: string, url: string, code: string | null): Promise<void>;
+  /** *key* is the student's `joinKey`, under which the server records the outcome; *code* is set only when the teacher chose to send the key or code along with the link; *expiresAt* is that student's link expiry (a kept link keeps its own, issue #310). */
+  deliverLink(student: StudentRecord, key: string, name: string, url: string, code: string | null, expiresAt: Date): Promise<void>;
   deliverPdf(student: StudentRecord, key: string, name: string, filename: string, pdf: Uint8Array): Promise<void>;
   /** Sends what was collected, reporting how many are sent of how many; returns a warning per student it could not reach. */
   finish(progress?: (done: number, total: number) => void): Promise<string[]>;
@@ -51,16 +51,16 @@ const withArtemisDetail = (sending: Promise<void>): Promise<void> =>
 
 export function createDelivery(
   channel: ShareChannelId,
-  context: { examId: string; examTitle: string; expiresAt: Date; artemis?: ArtemisTarget; language: Locale }
+  context: { examId: string; examTitle: string; artemis?: ArtemisTarget; language: Locale }
 ): Delivery {
   const none = () => Promise.resolve();
   if (channel === 'email') {
     const queued: { mail: ResultMail; name: string }[] = [];
     return {
       sendsPdf: false,
-      deliverLink(student, key, name, url, code) {
+      deliverLink(student, key, name, url, code, expiresAt) {
         if (!student.email) return Promise.reject(new Error(translate('sharing.channels.email.missing')));
-        queued.push({ mail: { email: student.email, studentKey: key, url, expiresAt: context.expiresAt, ...(code ? { code: formatCode(code) } : {}) }, name });
+        queued.push({ mail: { email: student.email, studentKey: key, url, expiresAt, ...(code ? { code: formatCode(code) } : {}) }, name });
         return Promise.resolve();
       },
       deliverPdf: none,
@@ -104,15 +104,14 @@ export function createDelivery(
     if (!target) throw new Error(translate('sharing.channels.artemis.setupMissing'));
     // Messages to students use the language the teacher chose for them, not the UI's.
     const say = (key: Parameters<typeof translate>[0], vars?: Parameters<typeof translate>[1]) => translateIn(context.language, key, vars);
-    const intro = say('sharing.channels.artemis.message', { exam: context.examTitle, date: formatDate(context.expiresAt, context.language) });
     return {
       sendsPdf: sendsPdf(channel, target.mode),
-      deliverLink: (student, key, _name, url, code) =>
+      deliverLink: (student, key, _name, url, code, expiresAt) =>
         withArtemisDetail(
           sendArtemisMessage(
             target,
             artemisUser(student),
-            `${intro}\n\n${url}\n\n${code ? say('sharing.channels.artemis.withKey', { key: formatCode(code) }) : say('sharing.channels.artemis.needsKey')}`,
+            `${say('sharing.channels.artemis.message', { exam: context.examTitle, date: formatDate(expiresAt, context.language) })}\n\n${url}\n\n${code ? say('sharing.channels.artemis.withKey', { key: formatCode(code) }) : say('sharing.channels.artemis.needsKey')}`,
             { examId: context.examId, studentKey: key }
           )
         ),

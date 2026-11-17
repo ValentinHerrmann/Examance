@@ -107,9 +107,33 @@ export async function listResultShares(examId: string): Promise<ResultShareInfo[
   return (await api.get<ResultShareOut[]>(`/exams/${examId}/shares`, quiet)).map(mapShare);
 }
 
+type SealedPart = { iv: Uint8Array; ciphertext: Uint8Array };
+
+/** The thread of a kept link sealed again under its new content key (issue #310). */
+export interface ResealedReview {
+  objection?: SealedPart;
+  reply?: SealedPart;
+}
+
+const partFields = (name: 'objection' | 'reply', part: SealedPart | undefined) =>
+  part ? { [`${name}_iv_b64`]: uint8ArrayToBase64(part.iv), [`${name}_ct_b64`]: uint8ArrayToBase64(part.ciphertext) } : {};
+
+/** Stores a student's sealed result; under the id of their current share it updates that share in place, so the link stays (issue #310). */
 export async function createResultShare(
   examId: string,
-  share: { id: string; studentKey: string; lookupHash: string; factor: ShareFactor; expiryDays: number; sealed: SealedShare; wrappedKey?: Uint8Array; reviewUntil?: Date | null }
+  share: {
+    id: string;
+    studentKey: string;
+    lookupHash: string;
+    factor: ShareFactor;
+    expiryDays: number;
+    sealed: SealedShare;
+    wrappedKey?: Uint8Array;
+    reviewUntil?: Date | null;
+    /** Keep the kept link's expiry instead of counting *expiryDays* from now. */
+    keepExpiry?: boolean;
+    review?: ResealedReview;
+  }
 ): Promise<ResultShareInfo> {
   const created = await api.post<ResultShareOut>(
     `/exams/${examId}/shares`,
@@ -124,6 +148,8 @@ export async function createResultShare(
       expiry_days: share.expiryDays,
       ...(share.wrappedKey ? { wrapped_key_b64: uint8ArrayToBase64(share.wrappedKey) } : {}),
       ...(share.reviewUntil ? { review_until: share.reviewUntil.toISOString() } : {}),
+      ...(share.keepExpiry ? { keep_expiry: true } : {}),
+      ...(share.review ? { review: { ...partFields('objection', share.review.objection), ...partFields('reply', share.review.reply) } } : {}),
     },
     quiet
   );

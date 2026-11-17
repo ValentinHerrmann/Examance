@@ -64,11 +64,11 @@ export const review: Translations['review'] = {
     },
     replace: {
         title: 'Open objections are kept',
-        note: 'The old link stops working. The open objection stays in grading, where you can still answer it: {names}.',
+        note: 'The link stays the same and the objection stays on it. It is also saved in grading, where you can answer it: {names}.',
         revokeNote: 'Open objections stay in grading, where you can still answer them: {names}.',
     },
     warnings: {
-        keepFailed: '{name}: the open objection could not be read, so the old link was left unchanged.',
+        keepFailed: '{name}: the open objection could not be read, so the link was left unchanged.',
         revokeSkipped: 'Some links were not revoked',
     },
     bar: {

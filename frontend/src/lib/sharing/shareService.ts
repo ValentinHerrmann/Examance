@@ -2,7 +2,7 @@
 
 import { get } from 'svelte/store';
 import type { GradingState } from '#lib/analytics/examResults';
-import { createResultShare, listExamReviews, listResultDeliveries, listResultShares, openResultShare, revokeAllResultShares, revokeResultShare, updateResultShareContent, type ResultDeliveryInfo, type ResultShareInfo } from '#lib/api/resultShares';
+import { createResultShare, listExamReviews, type ExamReviewInfo, type ResealedReview, listResultDeliveries, listResultShares, openResultShare, revokeAllResultShares, revokeResultShare, updateResultShareContent, type ResultDeliveryInfo, type ResultShareInfo } from '#lib/api/resultShares';
 import { joinKeys } from '#lib/crypto/pseudonymKey';
 import { personalKey } from '#lib/crypto/stickerKey';
 import type { StudentRecord } from '#lib/db/schema';
@@ -22,7 +22,7 @@ import { incompatibleStudents, SHARE_CHANNELS, type ShareChannelId } from './cha
 import { createDelivery, type ArtemisTarget, type DeliveryFile } from './delivery';
 import { buildReviewItems } from './reviewItems';
 import { keepObjection } from './reviewRecord';
-import { lookupHash, lookupSecret, newShareLink, openWithKey, resealShare, sealShare, shareUrl, unwrapShareKey, wrapShareKey, type ReviewItem, type ShareFactor, type ShareHeader, type ShareLink } from './shareCrypto';
+import { lookupHash, lookupSecret, newShareLink, openReviewPart, openWithKey, resealShare, sealReviewPart, sealShare, shareUrl, unwrapShareKey, wrapShareKey, type ReviewItem, type ShareDocuments, type ShareFactor, type ShareHeader, type ShareLink } from './shareCrypto';
 import { renderShareSlips, type SlipEntry } from './slipsPdf';
 
 export interface ShareStudent {
@@ -54,7 +54,8 @@ export interface ShareRequest {
   examId: string;
   channel: ShareChannelId;
   factor: ShareFactor;
-  expiryDays: number;
+  /** Days from now, or `keep`: a student's kept link keeps its expiry, a new link gets `DEFAULT_EXPIRY_DAYS` (issue #310). */
+  expiryDays: number | 'keep';
   /** `ShareStudent.key` of every student to share with. */
   studentKeys: ReadonlySet<string>;
   /** Add the exam's sample solution to every student's page. */
@@ -81,6 +82,18 @@ export interface ShareOutcome {
 
 export const SHARE_EXPIRY_DAYS = [7, 14, 30, 90] as const;
 export const DEFAULT_EXPIRY_DAYS = 30;
+
+/** The expiry dates of the chosen students' current links, for the picker's "keep" option (issue #310); null when none has a link. */
+export function keptExpiryRange(students: readonly ShareStudent[]): { first: Date; last: Date } | null {
+  const dates = students.flatMap((s) => (s.share ? [new Date(s.share.expiresAt).getTime()] : []));
+  return dates.length ? { first: new Date(Math.min(...dates)), last: new Date(Math.max(...dates)) } : null;
+}
+
+/** Days the links of this send stay valid at least, for the objection deadline: the picked days, or with `keep` the earliest kept link's remaining days (a new link gets `DEFAULT_EXPIRY_DAYS`). */
+export function expiryLimitDays(expiry: string, range: { first: Date } | null, now = Date.now()): number {
+  if (expiry !== 'keep') return Number(expiry) || 0;
+  return range ? Math.min(DEFAULT_EXPIRY_DAYS, Math.max(0, Math.floor((range.first.getTime() - now) / 86_400_000))) : DEFAULT_EXPIRY_DAYS;
+}
 
 async function sessionKeys() {
   await awaitSessionReady();
@@ -187,6 +200,98 @@ async function keptBeforeReplace(examId: string, old: ResultShareInfo, submissio
   }
 }
 
+const DAY_MS = 86_400_000;
+
+/** A student's current link, kept for the new send (issue #310): its token and the content key the thread is sealed under. */
+interface KeptLink {
+  share: ResultShareInfo;
+  link: ShareLink;
+  oldKey: Uint8Array;
+}
+
+/** The student's own link when it can be kept; a share made before links could be updated has no wrapped key and gets a new link. */
+async function keptLinkOf(old: ResultShareInfo | undefined): Promise<KeptLink | null> {
+  if (!old?.updatable || !old.wrappedKey) return null;
+  const { link, contentKey } = await unwrapShareKey(old.id, old.wrappedKey).catch((err: unknown) => {
+    throw new KeptLinkError(err);
+  });
+  return { share: old, link, oldKey: contentKey };
+}
+
+/** The kept link or its thread could not be opened: that student is skipped and their link stays as it was. */
+class KeptLinkError extends Error {
+  constructor(cause: unknown) {
+    super('The kept link could not be opened.', { cause });
+  }
+}
+
+/** The kept link's thread sealed again under its new content key, so the student still reads it after a factor or code change. */
+async function resealThread(kept: KeptLink, newKey: Uint8Array, row: ExamReviewInfo | undefined): Promise<ResealedReview | undefined> {
+  if (!row) return undefined;
+  const id = kept.share.id;
+  const out: ResealedReview = {};
+  try {
+    if (row.objection) out.objection = await sealReviewPart(id, newKey, 'objection', await openReviewPart(id, kept.oldKey, 'objection', row.objection.ciphertext, row.objection.iv));
+    if (row.reply) out.reply = await sealReviewPart(id, newKey, 'reply', await openReviewPart(id, kept.oldKey, 'reply', row.reply.ciphertext, row.reply.iv));
+  } catch (err) {
+    throw new KeptLinkError(err);
+  }
+  return out;
+}
+
+/** A student's link expiry for this send: the kept link's own when the teacher keeps it, else counted from now. */
+function linkExpiry(expiryDays: ShareRequest['expiryDays'], kept: KeptLink | null): { expiresAt: Date; days: number; keepExpiry: boolean } {
+  if (expiryDays === 'keep' && kept) return { expiresAt: new Date(kept.share.expiresAt), days: DEFAULT_EXPIRY_DAYS, keepExpiry: true };
+  const days = expiryDays === 'keep' ? DEFAULT_EXPIRY_DAYS : expiryDays;
+  return { expiresAt: new Date(Date.now() + days * DAY_MS), days, keepExpiry: false };
+}
+
+/** What one student's share is sealed from. */
+export interface StudentShareInput {
+  request: ShareRequest;
+  studentKey: string;
+  old: ResultShareInfo | undefined;
+  code: string | null;
+  header: ShareHeader;
+  items: ReviewItem[];
+  docs: ShareDocuments;
+  threads: ReadonlyMap<string, ExamReviewInfo>;
+  name: string;
+  warnings: string[];
+}
+
+/** Seals one student's result under their kept link (or a new one) and stores it; null, with a warning, when the kept link or its thread cannot be opened, so that link is left alone. */
+export async function storeStudentShare(input: StudentShareInput): Promise<{ link: ShareLink; expiresAt: Date } | null> {
+  const { request, old, name, warnings } = input;
+  try {
+    const kept = await keptLinkOf(old);
+    const link = kept?.link ?? newShareLink();
+    const { expiresAt, days, keepExpiry } = linkExpiry(request.expiryDays, kept);
+    const reviewUntil = request.reviewUntil ? new Date(Math.min(request.reviewUntil.getTime(), expiresAt.getTime())) : null;
+    const header: ShareHeader = reviewUntil ? { ...input.header, items: input.items } : input.header;
+    const sealed = await sealShare(link, request.factor, input.code, header, input.docs);
+    const review = kept ? await resealThread(kept, sealed.contentKey, input.threads.get(kept.share.id)) : undefined;
+    await createResultShare(request.examId, {
+      id: link.shareId,
+      studentKey: input.studentKey,
+      lookupHash: await lookupHash(await lookupSecret(link)),
+      factor: request.factor,
+      expiryDays: days,
+      sealed,
+      wrappedKey: await wrapShareKey(link, sealed.contentKey),
+      reviewUntil,
+      keepExpiry,
+      review,
+    });
+    return { link, expiresAt };
+  } catch (err) {
+    if (!(err instanceof KeptLinkError)) throw err;
+    console.warn('A kept link could not be opened:', err.cause);
+    warnings.push(translate('sharing.errors.keepLinkFailed', { name }));
+    return null;
+  }
+}
+
 export async function shareResults(request: ShareRequest, progress: ShareProgress): Promise<ShareOutcome> {
   const { key, fallbackSessionKey } = await sessionKeys();
   const ctx = await loadExam(request.examId, key);
@@ -194,8 +299,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   const keys = await joinKeys(results.students);
   const channel = SHARE_CHANNELS.find((c) => c.id === request.channel);
   const examTitle = ctx.exam.title || translate('sharing.untitledExam');
-  const expiresAt = new Date(Date.now() + request.expiryDays * 86_400_000);
-  const delivery = createDelivery(request.channel, { examId: request.examId, examTitle, expiresAt, artemis: request.artemis, language: request.language });
+  const delivery = createDelivery(request.channel, { examId: request.examId, examTitle, artemis: request.artemis, language: request.language });
   // A channel that hands the link to a third party carries only factors with a second secret (docs/dev/result_sharing.md).
   if (!channel || (!delivery.sendsPdf && !channel.factors.includes(request.factor))) throw new Error(translate('sharing.errors.factorChannel'));
 
@@ -216,12 +320,12 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
     solution = await compileSolution(ctx, key, warnings);
   }
 
-  const reviewUntil = request.reviewUntil && !delivery.sendsPdf ? new Date(Math.min(request.reviewUntil.getTime(), expiresAt.getTime())) : null;
   const scoresBySubmission = new Map<string, typeof results.scoreRecords>();
   for (const sc of results.scoreRecords) scoresBySubmission.set(sc.submissionId, [...(scoresBySubmission.get(sc.submissionId) ?? []), sc]);
   const loopPhase = loopPhaseFor(request.channel);
-  // A student's current link is replaced by the new one: its open objection is kept first.
+  // A student's current link is kept and sealed again (issue #310); its open objection is also saved into the grading first.
   const replaced = delivery.sendsPdf ? new Map<string, ResultShareInfo>() : new Map((await listResultShares(request.examId)).map((share) => [share.studentKey, share]));
+  const threads = [...replaced.values()].some((s) => s.reviewSubmittedAt || s.reviewRepliedAt) ? new Map((await listExamReviews(request.examId)).map((r) => [r.shareId, r])) : new Map<string, ExamReviewInfo>();
   const entries: SlipEntry[] = [];
   await logExportAction(request.examId, 'SHARE', key);
   warnings.push(
@@ -237,29 +341,19 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
         const filename = `${slug(examTitle)}_${slug(name)}.pdf`;
         if (delivery.sendsPdf) {
           await delivery.deliverPdf(student, keys[index], name, filename, pdf);
-          entries.push({ name, url: '' });
+          entries.push({ name, url: '', expiresAt: new Date() }); // A sent PDF has no link and no slip.
           return;
         }
         const old = replaced.get(keys[index]);
         if (old && !(await keptBeforeReplace(request.examId, old, row?.submissionId, key, name, warnings))) return;
         const code = await shareCode(request.factor, stickerRawOf(student));
-        const link = newShareLink();
-        const header: ShareHeader = { filename, examTitle };
-        if (reviewUntil) header.items = buildReviewItems(ctx.exercises, ctx.mcGroups, scoresBySubmission.get(row?.submissionId ?? '') ?? []);
-        const sealed = await sealShare(link, request.factor, code, header, { graded: pdf, solution });
-        await createResultShare(request.examId, {
-          id: link.shareId,
-          studentKey: keys[index],
-          lookupHash: await lookupHash(await lookupSecret(link)),
-          factor: request.factor,
-          expiryDays: request.expiryDays,
-          sealed,
-          wrappedKey: await wrapShareKey(link, sealed.contentKey),
-          reviewUntil,
-        });
+        const items = buildReviewItems(ctx.exercises, ctx.mcGroups, scoresBySubmission.get(row?.submissionId ?? '') ?? []);
+        const stored = await storeStudentShare({ request, studentKey: keys[index], old, code, header: { filename, examTitle }, items, docs: { graded: pdf, solution }, threads, name, warnings });
+        if (!stored) return;
+        const { link, expiresAt } = stored;
         const url = shareUrl(location.origin, link);
-        await delivery.deliverLink(student, keys[index], name, url, request.includeCode ? code : null);
-        entries.push({ name, url, ...(request.factor === 'code' && code ? { code } : {}) });
+        await delivery.deliverLink(student, keys[index], name, url, request.includeCode ? code : null, expiresAt);
+        entries.push({ name, url, expiresAt, ...(request.factor === 'code' && code ? { code } : {}) });
       },
       { only: new Set(bySubmission.keys()), progress: (done, total) => progress(loopPhase, done, total), reviewPrint: shareReviewOptions(request.reviewPrint) }
     ))
@@ -271,7 +365,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   entries.sort((a, b) => a.name.localeCompare(b.name));
   // Slips carry the links; on other channels only the codes, which must reach students apart from the link.
   const printed = request.channel === 'slips' || (request.factor === 'code' && !delivery.sendsPdf);
-  const slips = printed && entries.length ? await renderShareSlips({ examTitle, expiresAt, factor: request.factor, entries, codesOnly: request.channel !== 'slips' }) : null;
+  const slips = printed && entries.length ? await renderShareSlips({ examTitle, factor: request.factor, entries, codesOnly: request.channel !== 'slips' }) : null;
   return {
     shared: entries.length - undelivered.length,
     channel: request.channel,
