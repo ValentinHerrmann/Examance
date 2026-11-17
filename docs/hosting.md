@@ -196,7 +196,7 @@ Set them in the build environment or in `frontend/.env` (template: `frontend/.en
 
 Serve `frontend/build/` with:
 
-- **A fallback to `index.html`** for paths that are not files (the app routes in the browser).
+- **A fallback to `index.html`** for paths that are not files (the app routes in the browser), **except under `/_app/immutable/`**: a missing file there must answer 404 without a long cache, or the HTML is cached for a year under a script's name and breaks the app in that browser (nginx: `location /_app/immutable/ { try_files $uri =404; }`). On Cloudflare Pages the bundled Function in `frontend/functions/` does this.
 - **The response headers from `build/_headers`**, above all the Content Security Policy. Its script hashes are computed for each build, so take the file from every new build. Cloudflare Pages and Netlify apply it as is; on nginx, Caddy or Apache, translate it into header directives.
 - **Nothing injected into the HTML.** Analytics snippets, Cloudflare Web Analytics, Rocket Loader and e-mail obfuscation rewrite the pages after the build, so their scripts don't match the policy (see 5.3). Turn them off: they would also send visitor data to a third party, which the privacy policy rules out.
 
