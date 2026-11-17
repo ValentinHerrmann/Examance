@@ -2,7 +2,7 @@
 
 import type { StudentRecord } from '#lib/db/schema';
 import { parseRosterLines } from '#lib/utils/rosterLines';
-import { artemisIdOf, formatStudentName, mebisIdOf, normalizeLmsId, stickerLmsId } from '#lib/utils/studentQr';
+import { artemisIdOf, formatStudentName, mebisIdOf, mebisStickerId, normalizeLmsId, stickerLmsId } from '#lib/utils/studentQr';
 
 export interface Contact {
   /** As the source writes it: "Lastname, Firstname" or "Firstname Lastname". */
@@ -111,9 +111,9 @@ export interface ContactMatch {
   contact: Contact;
 }
 
-/** A student's id in the contact's source: Mebis and Artemis ids are compared only with their own kind; a plain list's id with the sticker's. */
+/** A student's id in the contact's source: Mebis and Artemis ids are compared only with their own kind (a DiRueLei sticker's prefixed id is a Mebis one); a plain list's id with the sticker's. */
 export function studentIdFor(source: ContactSource, student: StudentRecord): string | null {
-  if (source === 'mebis') return mebisIdOf(student);
+  if (source === 'mebis') return mebisIdOf(student) ?? mebisStickerId(student);
   if (source === 'artemis') return artemisIdOf(student);
   return stickerLmsId(student);
 }

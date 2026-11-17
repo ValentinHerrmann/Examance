@@ -94,6 +94,11 @@
   {#snippet footer()}
     {#if $reviewStore.canMail}
       <Checkbox class="mr-auto" checked={$reviewStore.notify} label={$t("review.bar.notify")} disabled={$reviewStore.sending} onChange={(on) => reviewStore.patch({ notify: on })} />
+    {:else if $reviewStore.mailBlocked}
+      <div class="mr-auto min-w-0">
+        <Checkbox checked={false} label={$t("review.bar.notify")} disabled />
+        <p class="m-0 text-xs text-muted">{$t("review.bar.notifyNoFactor")}</p>
+      </div>
     {/if}
     <Button icon={actionIcons.send} loading={$reviewStore.sending} disabled={$reviewStore.sending || $reviewStore.lockFailed} onClick={send}>
       {thread?.repliedAt ? $t("review.bar.resend") : $t("review.bar.send")}

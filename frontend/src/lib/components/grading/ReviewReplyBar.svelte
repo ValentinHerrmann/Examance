@@ -48,7 +48,7 @@
   {#if !$reviewStore.dialog}
     {#if $reviewStore.error}
       <p class="m-0 text-xs text-danger-fg">{$reviewStore.error}</p>
-    {:else if $reviewStore.sentAt}
+    {:else if $reviewStore.sentAt || $reviewStore.mailFailed}
       <p class="m-0 flex items-center gap-2 text-xs {$reviewStore.mailFailed ? 'text-warning-fg' : 'text-success-fg'}">
         <span class="min-w-0 flex-1">{$reviewStore.mailFailed ? $t("review.bar.mailFailed") : $t("review.bar.sent")}</span>
         {#if $reviewStore.mailFailed}

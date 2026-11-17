@@ -81,6 +81,7 @@ export const review: Translations['review'] = {
         resend: 'Send reply again',
         hint: 'Saves the points, updates the result under the same link and sends your replies.',
         notify: 'Notify student by e-mail',
+        notifyNoFactor: 'This link opens without a code, so it is never sent by e-mail.',
         sent: 'Reply sent.',
         mailFailed: 'The reply was saved, but the e-mail could not be sent.',
         retry: 'Try again',

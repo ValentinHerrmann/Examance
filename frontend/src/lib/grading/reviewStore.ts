@@ -25,6 +25,8 @@ export interface ReviewState {
   thread: ReviewThread | null;
   /** The student has an address the reply can be mailed to (the address itself never reaches this store). */
   canMail: boolean;
+  /** The student has an address, but the link opens without a code, so the reply is never mailed (issue #291). */
+  mailBlocked: boolean;
   /** Reply text per item key, edited by the teacher. */
   drafts: Record<string, string>;
   notify: boolean;
@@ -40,7 +42,7 @@ export interface ReviewState {
   dialog: 'items' | 'send' | null;
 }
 
-const INITIAL: ReviewState = { submissionId: null, thread: null, canMail: false, drafts: {}, notify: true, sending: false, error: '', sentAt: null, mailFailed: false, lockFailed: false, dialog: null };
+const INITIAL: ReviewState = { submissionId: null, thread: null, canMail: false, mailBlocked: false, drafts: {}, notify: true, sending: false, error: '', sentAt: null, mailFailed: false, lockFailed: false, dialog: null };
 
 const store = writable<ReviewState>({ ...INITIAL });
 

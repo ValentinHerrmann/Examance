@@ -58,6 +58,11 @@ export const SHARE_CHANNELS: readonly ShareChannel[] = [
   },
 ];
 
+/** Whether *channel* may carry a link protected by *factor*; the one rule for every send, also the review reply mail (issue #291). */
+export function channelCarries(channel: ShareChannelId, factor: ShareFactor): boolean {
+  return SHARE_CHANNELS.find((c) => c.id === channel)?.factors.includes(factor) ?? false;
+}
+
 /** Why this account or server cannot use *channel*, or null when it can: the dialog greys it out with the reason instead of hiding it. */
 export function channelUnavailable(channel: ShareChannel, features: Partial<Record<FeatureName, boolean>>): TranslationKey | null {
   return channel.requires?.find((r) => features[r.feature] !== true)?.reason ?? null;

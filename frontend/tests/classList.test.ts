@@ -193,7 +193,7 @@ describe('Artemis messages', () => {
       language: 'de',
       artemis: { host: 'artemis.example', courseId: 1, jwt: 't', mode: 'link' },
     });
-    const anna = student('Muster, Anna', 'Muster, Anna_6028356');
+    const anna = student('Muster, Anna', 'Muster, Anna_6028356', { artemisId: '6028356' });
     await delivery.deliverLink(anna, 'k'.repeat(64), 'Anna', 'https://x/result#a.b', null);
     await delivery.deliverLink(anna, 'k'.repeat(64), 'Anna', 'https://x/result#a.b', 'ABCD2345');
     expect(artemis.messages[0]).toContain('Deine korrigierte Prüfung');

@@ -12,6 +12,7 @@ import { studentRepository } from '#lib/repositories/studentRepository';
 import type { Locale } from '#lib/i18n/types';
 import { translate } from '#lib/i18n';
 import { printableItems } from '#lib/export/reviewPrint';
+import { channelCarries } from './channels';
 import { mailReviewReply } from './delivery';
 import { buildReviewItems } from './reviewItems';
 import { saveReviewRecord } from './reviewRecord';
@@ -40,9 +41,12 @@ interface PendingMail {
 }
 
 let loaded: ExamReviews | null = null;
-let pendingMail: PendingMail | null = null;
+/** Failed reply mails per student (`joinKey`), so one sent for a student no longer shown is offered again on them. */
+const pendingMails = new Map<string, PendingMail>();
 /** Bumped per `showReview`, so a slow load for an earlier submission cannot overwrite the current one. */
 let showSeq = 0;
+/** Submissions whose reply is still going out, so switching back to one keeps Send disabled instead of starting a second send. */
+const sendingFor = new Set<string>();
 
 export async function sessionKey(): Promise<CryptoKey> {
   await awaitSessionReady();
@@ -83,7 +87,7 @@ export async function loadReviewSources(examId: string, key: CryptoKey) {
 /** Reads every share, objection and e-mail availability of the exam once for the grade page. */
 export async function initReviews(examId: string): Promise<void> {
   loaded = null;
-  pendingMail = null;
+  pendingMails.clear();
   try {
     const { shares, rows, students, itemKeys } = await loadReviewSources(examId, await sessionKey());
     const byId = new Map(shares.map((share) => [share.id, share]));
@@ -102,7 +106,7 @@ export async function initReviews(examId: string): Promise<void> {
 /** Forgets the exam's reviews (leaving the grade page). */
 export function resetReviews(): void {
   loaded = null;
-  pendingMail = null;
+  pendingMails.clear();
   showSeq++;
   reviewStore.reset();
 }
@@ -156,7 +160,7 @@ export async function showReview(examId: string, sub: SubmissionRecord): Promise
     return;
   }
   const lockFailed = Boolean(error) && !thread.openedAt;
-  reviewStore.set({ submissionId: sub.id, thread, canMail: exam.mailable.has(studentKey), drafts: { ...thread.replies }, notify: true, sending: false, error, sentAt: null, mailFailed: false, lockFailed, dialog: null });
+  reviewStore.set({ submissionId: sub.id, thread, ...replyMailState(exam, thread), drafts: { ...thread.replies }, notify: true, sending: sendingFor.has(sub.id), error, sentAt: null, mailFailed: pendingMails.has(studentKey), lockFailed, dialog: null });
 }
 
 /** Reply texts per item key, trimmed. */
@@ -190,15 +194,24 @@ function shareForReply(exam: ExamReviews, thread: ReviewThread): ResultShareInfo
   return [...exam.shares.values()].filter((share) => share.studentKey === thread.studentKey && share.updatable).at(-1);
 }
 
+/** Whether the reply can be mailed: only with an address and a link the e-mail channel may carry (never factor `none`, issue #291); `mailBlocked` names the case the dialog explains. */
+function replyMailState(exam: ExamReviews, thread: ReviewThread): { canMail: boolean; mailBlocked: boolean } {
+  const share = shareForReply(exam, thread);
+  const linked = exam.mailable.has(thread.studentKey) && share !== undefined;
+  const carries = share !== undefined && channelCarries('email', share.factor);
+  return { canMail: linked && carries, mailBlocked: linked && !carries };
+}
+
 /** Sends the reply mail; a mail that fails, in any way, is remembered for `resendReviewMail`. */
 async function mailReply(pending: PendingMail): Promise<boolean> {
   try {
     const sent = await mailReviewReply(pending.context, pending.student, pending.studentKey, pending.url);
-    pendingMail = sent ? null : pending;
+    if (sent) pendingMails.delete(pending.studentKey);
+    else pendingMails.set(pending.studentKey, pending);
     return !sent;
   } catch (err) {
     console.warn('The reply mail could not be sent:', err);
-    pendingMail = pending;
+    pendingMails.set(pending.studentKey, pending);
     return true;
   }
 }
@@ -231,32 +244,40 @@ export async function sendReviewReply(examId: string, sub: SubmissionRecord, flu
   const state = get(reviewStore);
   const thread = state.thread;
   const exam = loaded;
-  if (!thread || !exam || state.submissionId !== sub.id) return;
+  if (!thread || !exam || state.submissionId !== sub.id || sendingFor.has(sub.id)) return;
   const share = shareForReply(exam, thread);
   if (!share && !thread.fromRecord) return;
+  sendingFor.add(sub.id);
+  // A newer reply supersedes an older failed mail.
+  pendingMails.delete(thread.studentKey);
   reviewStore.patch({ sending: true, error: '', sentAt: null, mailFailed: false });
+  // The teacher may move to another student while this runs: the outcome lands only on this one's panel (issue #291).
+  const stillShown = () => get(reviewStore).submissionId === sub.id;
   try {
     await flush();
     const texts = trimmed(state.drafts);
     const repliedAt = new Date().toISOString();
     const published = await publishReply(examId, sub, thread, share, texts, repliedAt);
-    const wantsMail = state.notify && state.canMail;
+    const wantsMail = state.notify && replyMailState(exam, thread).canMail;
     const mailFailed = published && share && wantsMail ? await mailReply(pendingMailOf(share, published, thread.studentKey)) : false;
     const sent: ReviewThread = { ...thread, replies: texts, repliedAt };
     if (!thread.fromRecord) exam.threads.set(thread.studentKey, sent);
-    reviewStore.patch({ thread: sent, sending: false, sentAt: repliedAt, mailFailed });
+    if (stillShown()) reviewStore.patch({ thread: sent, sending: false, sentAt: repliedAt, mailFailed });
   } catch (err) {
-    reviewStore.patch({ sending: false, error: errorText(err) });
+    if (stillShown()) reviewStore.patch({ sending: false, error: errorText(err) });
+  } finally {
+    sendingFor.delete(sub.id);
   }
 }
 
 /** Sends the reply mail again after it failed; the reply itself is already stored and published. */
 export async function resendReviewMail(): Promise<void> {
-  const pending = pendingMail;
+  const studentKey = get(reviewStore).thread?.studentKey;
+  const pending = studentKey ? pendingMails.get(studentKey) : undefined;
   if (!pending) return;
   reviewStore.patch({ sending: true, error: '' });
   const failed = await mailReply(pending);
-  reviewStore.patch({ sending: false, mailFailed: failed });
+  if (get(reviewStore).thread?.studentKey === studentKey) reviewStore.patch({ sending: false, mailFailed: failed });
 }
 
 /** Whether any submission of the exam has an objection to print; null when it cannot be read, so the print options stay hidden rather than claiming there are none. */

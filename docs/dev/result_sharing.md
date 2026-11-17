@@ -76,7 +76,7 @@ Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis suppo
 | `slips` | link slips PDF | `none`, `sticker`, `code` | nobody |
 | `email` | links collected, sent in batches of 100 via `POST /integrations/mail/results` | `sticker`, `code` | students without `email` |
 | `artemis` | per student `POST /integrations/artemis/messages` (link mode) or `/files` (PDF mode, no share is made) | `sticker`, `code` (ignored in PDF mode) | students without an Artemis id (`artemisIdOf`) |
-| `mebis` | graded PDFs zipped in the browser at `mebisFeedbackPath` (the only Mebis ZIP; the ZIP export has no Mebis part since issue #212), downloaded at the end; no share is made | none (`sendsPdf`) | students without a numeric sticker id |
+| `mebis` | graded PDFs zipped in the browser at `mebisFeedbackPath` (the only Mebis ZIP; the ZIP export has no Mebis part since issue #212), downloaded at the end; no share is made | none (`sendsPdf`) | students without a stored Mebis id (`mebisIdOf`) |
 
 `result_mail` (capabilities, server-derived like `training_donation`) is `result_delivery` and a configured SMTP host (`mail_configured()`, also checked by the mail endpoint); without it e-mail is greyed out with the reason.
 
@@ -84,7 +84,7 @@ Issue #209 adds e-mail and Artemis next to the slips, and file-based Mebis suppo
 
 **Student contact data.**
 - `StudentRecord.email` is sealed like the name (`db/dbEncryption.ts`), so it follows the account's storage mode.
-- `mebisIdOf`/`artemisIdOf` (`utils/studentQr.ts`) return the sealed `mebisId`/`artemisId` the class list stored (each from a contact of that `source`), else the numeric id in the sticker payload (stickers printed from that list carry it). `normalizeLmsId` strips DiRueLei's `Teilnehmer/in` prefix. A Mebis id is never compared with an Artemis id: `matchContacts` matches a contact by the id of its own source, then by name, so a Mebis list and an Artemis course of one class meet on the same rows.
+- `mebisIdOf`/`artemisIdOf` (`utils/studentQr.ts`) return only the sealed `mebisId`/`artemisId` the class list or the teacher stored (each from a contact of that `source`), never the sticker's id: a sticker does not say which list it came from, so its number once became an Artemis recipient (issue #284). `normalizeLmsId` strips DiRueLei's `Teilnehmer/in` prefix. A Mebis id is never compared with an Artemis id: `matchContacts` matches a contact by the id of its own source (for Mebis also a DiRueLei sticker carrying that prefix, `mebisStickerId`, which the import then stores), then by name, so a Mebis list and an Artemis course of one class meet on the same rows.
 - Class lists from every source become `Contact[]` (`lib/lms/contacts.ts`):
   - a Mebis grading worksheet or participant CSV (`contactsFromMebisCsv`);
   - pasted lines (`contactsFromLines`);
