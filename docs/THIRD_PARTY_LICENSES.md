@@ -2,6 +2,8 @@
 
 This document details the third-party software components and licenses used in Examance, and the current state of the Subresource Integrity (SRI) control over the WASM modules among them.
 
+Examance itself is licensed under the GNU General Public License v3.0 (`LICENSE`). The permissive (MIT) components listed below are compatible with it.
+
 > **SRI is not currently enforced.** See §1 below and `legal_audit_dsgvo.md` §5 for the authoritative statement of what this means and why — this document does not restate the reasoning, only the fact.
 
 ---

@@ -129,6 +129,25 @@ API docs at `http://localhost:8000/api/docs`, frontend at `http://localhost:5173
   <a href="https://sonarcloud.io/component_measures?id=ValentinHerrmann_Examance&metric=reliability_rating"><img alt="reliability_rating" src="https://img.shields.io/sonar/reliability_rating/ValentinHerrmann_Examance?server=https%3A%2F%2Fsonarcloud.io&labelColor=1f2937&style=for-the-badge"></a>
   <a href="https://sonarcloud.io/component_measures?id=ValentinHerrmann_Examance&metric=duplicated_lines_density"><img alt="duplicated_lines_density" src="https://img.shields.io/sonar/duplicated_lines_density/ValentinHerrmann_Examance?server=https%3A%2F%2Fsonarcloud.io&labelColor=1f2937&style=for-the-badge"></a>
 </p>
-
-
 </div>
+
+
+## License
+
+Examance is free software under the [GNU General Public License v3.0](LICENSE). Third-party components keep their own licenses, see [docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md).
+
+What that means in practice (a plain-language summary, not legal advice; the [LICENSE](LICENSE) text is what counts):
+
+| You want to... | Allowed? | What you need to do |
+|---|---|---|
+| Use Examance at your school, privately or commercially | Yes | Nothing |
+| Run it on your own server for your colleagues or students | Yes | Nothing, as long as you don't change it |
+| Read, study and modify the code | Yes | Nothing |
+| Share or sell copies, modified or not | Yes | Pass on the same GPLv3 license, keep the copyright notices and provide the source code |
+| Publish a modified version | Yes | Release it under GPLv3 too, with the source and a note of what you changed |
+| Offer a modified version as an online service | Yes | The web app code your server sends to browsers counts as passing on the program, so offer that modified source to your users; server-only changes stay private (GPLv3, unlike AGPL, has no network clause) |
+| Build it into closed-source software | No | Not possible: derived work must stay GPLv3 |
+| Remove the license or claim it as your own work | No | Copyright notices must stay |
+| Use the Examance name and logo for your own version | Unclear | The license does not grant trademark rights, so ask first |
+
+Running the unmodified code never obliges you to publish anything. The GPLv3 duties start when you give a modified version to others.
