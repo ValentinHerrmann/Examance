@@ -39,7 +39,7 @@
 <circle cx="28" cy="235.0" r="5" fill="#3B82F6"/>
 <text class="tx" x="42" y="240.0">Documentation</text>
 <text class="mu" x="390" y="240.0" text-anchor="end">77</text>
-<text class="tx" x="520" y="240.0" text-anchor="end">6 229</text>
+<text class="tx" x="520" y="240.0" text-anchor="end">6 245</text>
 <rect class="tr" x="560" y="228.0" width="240" height="10" rx="5"/>
 <rect x="560" y="228.0" width="10" height="10" rx="5" fill="#3B82F6"/>
 <line class="ln" x1="20" x2="800" y1="254" y2="254"/>
@@ -52,5 +52,5 @@
 <line class="ln" x1="20" x2="800" y1="292" y2="292"/>
 <text class="tt" x="42" y="316.0">Total</text>
 <text class="tt" x="390" y="316.0" text-anchor="end">1 195</text>
-<text class="tt" x="520" y="316.0" text-anchor="end">143 883</text>
+<text class="tt" x="520" y="316.0" text-anchor="end">143 899</text>
 </svg>

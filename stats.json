@@ -33,7 +33,7 @@
       "label": "Documentation",
       "color": "#3B82F6",
       "files": 77,
-      "lines": 6229
+      "lines": 6245
     },
     {
       "key": "comments",
@@ -45,6 +45,6 @@
   ],
   "total": {
     "files": 1195,
-    "lines": 143883
+    "lines": 143899
   }
 }
