@@ -46,7 +46,14 @@ AREAS = [
 # Bump when AREAS, the skip rules or the counting change, so history.json is recounted from scratch.
 HISTORY_VERSION = 2
 # Comments are their own series after the areas, never part of an area's lines.
-ORDER = ["frontend", "backend", "frontend_tests", "backend_tests", "docs", "comments"]
+ORDER = [
+  "comments",
+  "docs",
+  "backend_tests",
+  "frontend_tests",
+  "backend",
+  "frontend"
+]
 LABELS = {**{k: lbl for k, lbl, _ in AREAS}, "comments": "Comments"}
 COLORS = {"frontend": "#FF3E00", "frontend_tests": "#F59E0B", "backend": "#009688", "backend_tests": "#6DA13F", "docs": "#3B82F6",
           "comments": "#8B949E"}
