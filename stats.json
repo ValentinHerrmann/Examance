@@ -23,33 +23,33 @@
       "label": "Backend",
       "color": "#009688",
       "files": 253,
-      "lines": 33840,
-      "code": 33053,
-      "comments": 787
+      "lines": 33849,
+      "code": 33059,
+      "comments": 790
     },
     {
       "key": "backend_tests",
       "label": "Backend tests",
       "color": "#6DA13F",
-      "files": 50,
-      "lines": 9525,
-      "code": 9275,
-      "comments": 250
+      "files": 52,
+      "lines": 9656,
+      "code": 9402,
+      "comments": 254
     },
     {
       "key": "docs",
       "label": "Documentation",
       "color": "#3B82F6",
       "files": 77,
-      "lines": 6226,
+      "lines": 6228,
       "code": null,
       "comments": null
     }
   ],
   "total": {
-    "files": 1191,
-    "lines": 143563,
-    "code": 130650,
-    "comments": 6687
+    "files": 1193,
+    "lines": 143705,
+    "code": 130783,
+    "comments": 6694
   }
 }
