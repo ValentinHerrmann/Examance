@@ -132,3 +132,6 @@ API docs at `http://localhost:8000/api/docs`, frontend at `http://localhost:5173
 
 
 </div>
+## License
+
+Examance is free software under the [GNU General Public License v3.0](LICENSE). Third-party components keep their own licenses, see [docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md).
