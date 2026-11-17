@@ -267,3 +267,6 @@ test-results/
 playwright-report/
 playwright/.cache/
 docs/demo-instance/.state/
+
+# Output of .github/scripts/code_stats.py
+badges-out/
