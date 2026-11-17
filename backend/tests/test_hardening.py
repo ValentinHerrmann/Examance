@@ -219,7 +219,10 @@ async def test_logout_clears_cookies_with_matching_attributes(
     assert resp.status_code == 204
 
     set_cookies = resp.headers.get_list("set-cookie")
-    assert len(set_cookies) == 2, set_cookies
+    # Access cookie, refresh cookie, and the refresh cookie on its legacy path (issue #287).
+    assert len(set_cookies) == 3, set_cookies
+    refresh_paths = {h.split("Path=")[1].split(";")[0] for h in set_cookies if h.startswith("refresh_token=")}
+    assert refresh_paths == {"/api/v1/auth", "/api/v1/auth/refresh"}
     for header in set_cookies:
         lowered = header.lower()
         assert "secure" in lowered, header
