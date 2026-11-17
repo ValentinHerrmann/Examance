@@ -33,20 +33,22 @@ export class SplitRefused extends Error {
 /** Deletes scans and the students only they used; a student still linked to another submission of the exam keeps their record (two scans of one student share it). */
 export async function deleteScans(examId: string, items: readonly ScanRef[], opts: { group: string; key: CryptoKey | null }): Promise<void> {
   // Read before any delete: a failed read must stop here, never delete a student still in use.
+  const subs = await submissionRepository.getByExamId(examId, opts.key);
   const uses = new Map<string, number>();
-  for (const sub of await submissionRepository.getByExamId(examId, opts.key)) {
-    const k = await joinKey(sub);
-    uses.set(k, (uses.get(k) ?? 0) + 1);
-  }
-  for (const item of items) {
+  for (const k of await Promise.all(subs.map((sub) => joinKey(sub)))) uses.set(k, (uses.get(k) ?? 0) + 1);
+  const itemKeys = await Promise.all(items.map((item) => joinKey({ ...item, examId })));
+  const orphans: ScanRef[] = [];
+  for (const [i, item] of items.entries()) {
     await submissionRepository.delete(examId, item.id, { group: opts.group }); // NOSONAR: deletes run in order, so a failure leaves a clean prefix
-    const k = await joinKey({ ...item, examId });
-    const left = (uses.get(k) ?? 1) - 1;
-    uses.set(k, left);
-    if (!item.fromList && left <= 0) {
-      await studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion }, { group: opts.group });
-    }
+    const left = (uses.get(itemKeys[i]) ?? 1) - 1;
+    uses.set(itemKeys[i], left);
+    if (!item.fromList && left <= 0) orphans.push(item);
   }
+  await Promise.all(
+    orphans.map((item) =>
+      studentRepository.delete({ examId, pseudonymHmac: item.pseudonymHmac, pseudonymVersion: item.pseudonymVersion }, { group: opts.group }),
+    ),
+  );
 }
 
 /** An MC row read from a page at or after *firstMoved* (0-based scan page), rebased onto the second part; null when it stays. */

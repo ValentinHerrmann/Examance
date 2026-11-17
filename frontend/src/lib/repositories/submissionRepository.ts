@@ -78,6 +78,41 @@ function mergeStoredRow(
   return merged;
 }
 
+type SaveOpts = { clearAnnotations?: boolean; clearTotal?: boolean; group?: string; omitScan?: boolean; noQueue?: boolean };
+
+/** Hybrid write: keyed, sealed and merged onto the stored row. */
+async function saveLocal(submission: SubmissionRecord, key: CryptoKey | null, opts: SaveOpts): Promise<void> {
+  // This browser stores keyed rows only, so a record read before the re-key cannot write its old value back.
+  const keyed: SubmissionRecord =
+    submission.pseudonymVersion === 2 ? submission : { ...submission, pseudonymHmac: await joinKey(submission), pseudonymVersion: 2 };
+  const stored = await db.submissions.get(submission.id);
+  // A legacy plaintext row holds its total in the clear, so it moves into the new sealed payload.
+  const legacyTotal = stored && !stored.payloadCt && keyed.totalScore === undefined && !opts.clearTotal ? stored.totalScore : undefined;
+  const encrypted = await encryptSubmission(legacyTotal === undefined ? keyed : { ...keyed, totalScore: legacyTotal }, key);
+  await db.submissions.put(mergeStoredRow(stored, encrypted, keyed, opts));
+}
+
+/** All-server write: the upsert, then the total clear it cannot express. */
+async function saveOnServer(submission: SubmissionRecord, opts: SaveOpts): Promise<void> {
+  const url = `/exams/${submission.examId}/submissions`;
+  const payload = await submissionServerPayload(submission, opts);
+  // Cleared annotations go to the trash of this action's group (issue #125).
+  const headers = trashHeaders({ group: opts.group });
+  try {
+    await api.post(url, payload, { silentError: true, headers });
+  } catch (err) {
+    if (opts.noQueue) throw err;
+    enqueueOrThrow(err, url, 'POST', payload, headers);
+  }
+  if (!opts.clearTotal || submission.totalScore !== undefined) return;
+  const scoreUrl = `${url}/${submission.id}/score`;
+  try {
+    await api.patch(scoreUrl, { total_score: null }, { silentError: true });
+  } catch (err) {
+    enqueueOrThrow(err, scoreUrl, 'PATCH', { total_score: null });
+  }
+}
+
 export const submissionRepository = {
     /** @param knownExams exams the caller already has, avoiding a second `/exams` fetch. */
     /**
@@ -149,40 +184,10 @@ export const submissionRepository = {
     submission: SubmissionRecord,
     key: CryptoKey | null,
     /** `omitScan`: keep the stored scan, never send or write the one on the record; `noQueue`: a failed server write throws instead of waiting in the offline queue. */
-    opts: { clearAnnotations?: boolean; clearTotal?: boolean; group?: string; omitScan?: boolean; noQueue?: boolean } = {}
+    opts: SaveOpts = {}
   ): Promise<void> {
     markStatisticsDirty(submission.examId);
-    if (resultsAreLocal()) {
-      // This browser stores keyed rows only, so a record read before the re-key cannot write its old value back.
-      const keyed: SubmissionRecord =
-        submission.pseudonymVersion === 2
-          ? submission
-          : { ...submission, pseudonymHmac: await joinKey(submission), pseudonymVersion: 2 };
-      const stored = await db.submissions.get(submission.id);
-      // A legacy plaintext row holds its total in the clear, so it moves into the new sealed payload.
-      const legacyTotal = stored && !stored.payloadCt && keyed.totalScore === undefined && !opts.clearTotal ? stored.totalScore : undefined;
-      const encrypted = await encryptSubmission(legacyTotal === undefined ? keyed : { ...keyed, totalScore: legacyTotal }, key);
-      await db.submissions.put(mergeStoredRow(stored, encrypted, keyed, opts));
-    } else {
-      const payload = await submissionServerPayload(submission, opts);
-      // Cleared annotations go to the trash of this action's group (issue #125).
-      const headers = trashHeaders({ group: opts.group });
-      try {
-        await api.post(`/exams/${submission.examId}/submissions`, payload, { silentError: true, headers });
-      } catch (err) {
-        if (opts.noQueue) throw err;
-        enqueueOrThrow(err, `/exams/${submission.examId}/submissions`, 'POST', payload, headers);
-      }
-      // The upsert only ever sets a total; clearing one needs its own request.
-      if (opts.clearTotal && submission.totalScore === undefined) {
-        const url = `/exams/${submission.examId}/submissions/${submission.id}/score`;
-        try {
-          await api.patch(url, { total_score: null }, { silentError: true });
-        } catch (err) {
-          enqueueOrThrow(err, url, 'PATCH', { total_score: null });
-        }
-      }
-    }
+    await (resultsAreLocal() ? saveLocal(submission, key, opts) : saveOnServer(submission, opts));
   },
 
   /** Deletes a submission with its scores. Unless `opts.permanent`, a copy goes to the trash (the server's, or this browser's in hybrid mode; issue #125). */
