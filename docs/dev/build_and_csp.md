@@ -18,7 +18,9 @@ Response headers come from `frontend/static/_headers`, which is a **template**. 
 
 ## Diagnosing a CSP console error on a deployed stack
 
-A console error reading `Executing inline script violates the following Content Security Policy directive 'script-src 'self' …'` on a deployed stack is **not** a CORS error and **not** a build failure. It means a Cloudflare dashboard feature (Web Analytics above all, also Rocket Loader and Email Obfuscation) is rewriting the HTML after the build hashed it. Turn the feature off; never widen `script-src`.
+A console error reading `Executing inline script violates the following Content Security Policy directive 'script-src 'self' …'` on a deployed stack is **not** a CORS error and **not** a build failure. It means a Cloudflare dashboard feature (Web Analytics above all, also Rocket Loader, Email Obfuscation and Bot Fight Mode / JavaScript Detections, which injects a `/cdn-cgi/challenge-platform/` loader whose hash changes per request) is rewriting the HTML after the build hashed it. Turn the feature off; never widen `script-src`. With the bot detection blocked, Cloudflare can then score the browser as a bot and answer its script requests with a challenge page: `Failed to load module script … MIME type of "text/html"` in one browser while another works. Turn bot detection off for the frontend host (Security → Bots), or skip it for `/_app/*`.
+
+A tab opened before an update asks for script files the new deployment no longer has; Pages answers with `index.html`, so the import fails the same way. The inline guard in `src/app.html` reloads once (at most every 5 minutes, `sessionStorage` key `bg_chunk_reload`) on `vite:preloadError` or a failed dynamic import.
 
 `lib/utils/cspDiagnostics.ts` says so at runtime, `npm run csp:verify` guards the build side, and `docs/hosting.md` §5.3 has the full checklist.
 

@@ -33,6 +33,27 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
+    <!-- A tab opened before an update asks for script files the new deployment no longer has (the host answers with this page, so the import fails): reload once to get the new build. At most once per 5 minutes, so a broken deployment cannot loop. -->
+    <script>
+      (function () {
+        var KEY = "bg_chunk_reload";
+        function reloadOnce() {
+          try {
+            var last = Number(window.sessionStorage.getItem(KEY) || 0);
+            if (Date.now() - last < 300000) return;
+            window.sessionStorage.setItem(KEY, String(Date.now()));
+          } catch (e) {
+            return;
+          }
+          window.location.reload();
+        }
+        window.addEventListener("vite:preloadError", reloadOnce);
+        window.addEventListener("unhandledrejection", function (event) {
+          var message = String((event.reason && event.reason.message) || "");
+          if (/dynamically imported module|Importing a module script failed/i.test(message)) reloadOnce();
+        });
+      })();
+    </script>
     <style>
       html { background: #e9ecef; }
       html[data-theme="dark"] { background: #22272e; }
