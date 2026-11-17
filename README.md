@@ -23,6 +23,8 @@ Privacy-first anonymous exam grading. Teachers write LaTeX exams, print QR-coded
 <p align="center">
   <!-- Code size -->
   <a href="https://github.com/ValentinHerrmann/Examance"><img alt="Code statistics" src="https://raw.githubusercontent.com/ValentinHerrmann/Examance/badges/code-stats.svg" width="820"></a>
+  <br>
+  <a href="https://github.com/ValentinHerrmann/Examance/graphs/code-frequency"><img alt="Lines of code per area over time" src="https://raw.githubusercontent.com/ValentinHerrmann/Examance/badges/code-history.svg" width="820"></a>
 </p>
 <p align="center">
   <!-- Project -->

@@ -1,6 +1,6 @@
 name: Code statistics
 
-# Counts lines per area and publishes the README statistics table (SVG) to the orphan `badges` branch.
+# Counts lines per area and publishes the README statistics table and history chart (SVG) to the orphan `badges` branch.
 permissions:
   contents: write
 
@@ -19,8 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the history chart samples one commit per day
       - name: Count lines
-        run: python3 .github/scripts/code_stats.py "$RUNNER_TEMP/badges-out"
+        run: |
+          set -euo pipefail
+          # Previous history.json lets the script recount only new days.
+          if git fetch -q --depth=1 origin badges; then git show FETCH_HEAD:history.json > "$RUNNER_TEMP/history.json" || true; fi
+          python3 .github/scripts/code_stats.py "$RUNNER_TEMP/badges-out" "$RUNNER_TEMP/history.json"
       - name: Publish to the badges branch
         run: |
           set -euo pipefail
