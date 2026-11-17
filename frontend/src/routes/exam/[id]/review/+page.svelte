@@ -18,6 +18,7 @@
   import { examHasReviews } from "#lib/sharing/reviewService";
   import {
     DEFAULT_EXPIRY_DAYS,
+    downgrades,
     expiryLimitDays,
     keptExpiryRange,
     loadShareOverview,
@@ -45,7 +46,8 @@
   let selected = $state.raw<Set<string>>(new Set());
   let channel = $state<ShareChannelId>("slips");
   let factor = $state<ShareFactor>("none");
-  let expiry = $state(String(DEFAULT_EXPIRY_DAYS));
+  // Null: automatic ("keep" when a chosen student has a link that is kept, else the default); a teacher's pick wins (issue #310).
+  let expiryChoice = $state<string | null>(null);
   let includeSolution = $state(false);
   // Students are addressed in German unless the teacher picks otherwise; the UI language does not decide it.
   let language = $state<Locale>("de");
@@ -65,6 +67,9 @@
   let confirmRevokeAll = $state(false);
   // The send confirmation for slips when students with an open objection get a new link (issue #226); e-mail and Artemis name them in their preview.
   let confirmReplace = $state(false);
+  let confirmDowngrade = $state(false);
+  // Set only by the downgrade confirmation, for the one run it confirms.
+  let downgradeConfirmed = false;
   let revokeWarnings = $state<string[]>([]);
   let artemisCourse = $state.raw<ArtemisCourse | null>(null);
   let artemisMode = $state<ArtemisMode>("link");
@@ -99,9 +104,12 @@
   let keptNames = $derived(sendsPdf ? [] : (overview?.students.filter((s) => selected.has(s.key) && s.share?.reviewSubmittedAt).map((s) => s.name) ?? []));
   let revokeKeptNames = $derived(overview?.students.filter((s) => s.share?.reviewSubmittedAt).map((s) => s.name) ?? []);
   let revokeMessage = $derived([$t("sharing.share.revokeAllConfirm", { count: activeShares }), revokeKeptNames.length ? $t("review.replace.revokeNote", { names: revokeKeptNames.join(", ") }) : ""].filter(Boolean).join(" "));
-  let keptRange = $derived(keptExpiryRange(overview?.students.filter((s) => selected.has(s.key)) ?? []));
-  let limitDays = $derived(expiryLimitDays(expiry, keptRange));
-  let reviewValid = $derived(!reviewOn || sendsPdf || reviewDateValid(reviewDate, limitDays));
+  let chosenShareStudents = $derived(overview?.students.filter((s) => selected.has(s.key)) ?? []);
+  let keptRange = $derived(keptExpiryRange(chosenShareStudents));
+  let expiry = $derived(expiryChoice === "keep" && !keptRange ? String(DEFAULT_EXPIRY_DAYS) : (expiryChoice ?? (keptRange ? "keep" : String(DEFAULT_EXPIRY_DAYS))));
+  let limitDays = $derived(expiryLimitDays(expiry, chosenShareStudents));
+  let downgradeNames = $derived(sendsPdf ? [] : chosenShareStudents.filter((s) => s.hasSubmission && downgrades(s.share, factor)).map((s) => s.name));
+  let reviewValid = $derived(!reviewOn || sendsPdf || (reviewDateValid(reviewDate, limitDays) && reviewDeadline(reviewDate, limitDays) !== null));
   let canRun = $derived(!running && !waiting && !loading && selected.size > 0 && !setupMissing && reviewValid && (sendsPdf || !factorMuted(factor)));
 
   function chooseChannel(id: ShareChannelId) {
@@ -112,19 +120,15 @@
   }
 
   function run() {
+    if (downgradeNames.length > 0 && !downgradeConfirmed) {
+      confirmDowngrade = true;
+      return;
+    }
     // Slips and the Mebis ZIP stay with the teacher, so there is nothing to preview before sending, except which open objections a new link keeps.
     const direct = currentChannel.id === "slips" || currentChannel.id === "mebis";
     if (!direct) previewing = true;
     else if (keptNames.length > 0) confirmReplace = true;
     else start();
-  }
-
-  /** Sets the chosen students; "keep the current expiry" is preselected once a chosen student has a link and the default was not changed (issue #310). */
-  function select(next: Set<string>) {
-    selected = next;
-    const kept = keptExpiryRange(overview?.students.filter((s) => next.has(s.key)) ?? []);
-    if (kept && expiry === String(DEFAULT_EXPIRY_DAYS)) expiry = "keep";
-    else if (!kept && expiry === "keep") expiry = String(DEFAULT_EXPIRY_DAYS);
   }
 
   const gradedKeys = (o: ShareOverview) => new Set(o.students.filter((s) => s.hasSubmission && s.state !== "ungraded").map((s) => s.key));
@@ -135,7 +139,7 @@
       await awaitSessionReady();
       overview = await loadShareOverview(examId);
       hasReviews = await examHasReviews(examId);
-      if (!selected.size) select(gradedKeys(overview));
+      if (!selected.size) selected = gradedKeys(overview);
     } catch (err) {
       error = `${$t("sharing.errors.load")} ${err instanceof Error ? err.message : ""}`.trim();
     } finally {
@@ -144,7 +148,7 @@
   }
 
   function selectUndelivered() {
-    select(new Set(overview?.students.filter((s) => s.hasSubmission && undelivered(s.delivery)).map((s) => s.key) ?? []));
+    selected = new Set(overview?.students.filter((s) => s.hasSubmission && undelivered(s.delivery)).map((s) => s.key) ?? []);
   }
 
   /** Shows returned mails live while the server watches (30 s), reading the mailbox every few seconds. */
@@ -185,6 +189,8 @@
   async function start() {
     previewing = false;
     confirmReplace = false;
+    const allowDowngrade = downgradeConfirmed;
+    downgradeConfirmed = false;
     running = true;
     // Closing the tab mid-run would leave some students unserved.
     window.addEventListener("beforeunload", keepOpen);
@@ -197,6 +203,7 @@
           channel: currentChannel.id,
           factor,
           expiryDays: expiry === "keep" ? "keep" : Number(expiry),
+          allowDowngrade,
           studentKeys: selected,
           includeSolution: includeSolution && !sendsPdf && !!overview?.solutionAvailable,
           artemis: currentChannel.id === "artemis" && artemisCourse ? { ...artemisCourse, mode: artemisMode } : undefined,
@@ -370,8 +377,8 @@
           {overview}
           {selected}
           {running}
-          onSelect={select}
-          onSelectGraded={() => overview && select(gradedKeys(overview))}
+          onSelect={(next) => (selected = next)}
+          onSelectGraded={() => overview && (selected = gradedKeys(overview))}
           onRevoke={revoke}
           onUpdate={updateShare}
           {updatingId}
@@ -410,7 +417,7 @@
           bind:factor
           bind:includeCode
           bind:includeSolution
-          bind:expiry
+          bind:expiry={() => expiry, (v) => (expiryChoice = v)}
           {keptRange}
           {limitDays}
           bind:reviewOn
@@ -477,6 +484,20 @@
 {#if printingKeys}
   <StickerSheetDialog {examId} keysOnly onClose={() => (printingKeys = false)} />
 {/if}
+
+<ConfirmDialog
+  open={confirmDowngrade}
+  title={$t("sharing.share.downgradeTitle")}
+  message={$t("sharing.share.downgradeNote", { names: downgradeNames.join(", ") })}
+  confirmText={$t("sharing.share.downgradeConfirm")}
+  cancelText={$t("common.cancel")}
+  onConfirm={() => {
+    confirmDowngrade = false;
+    downgradeConfirmed = true;
+    run();
+  }}
+  onCancel={() => (confirmDowngrade = false)}
+/>
 
 <ConfirmDialog
   open={confirmReplace}

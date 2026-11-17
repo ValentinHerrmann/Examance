@@ -64,6 +64,9 @@ export const sharing = {
         expiry: 'Gültig für',
         days: '{count} Tage',
         replaceNote: 'Wer schon einen Link hat, behält ihn; ein Link ändert sich nur, wenn Sie ihn widerrufen.',
+        downgradeTitle: 'Links ohne Schutz senden?',
+        downgradeNote: 'Diese Links sind durch Schlüssel oder Code geschützt. Ohne Schutz kann jeder, der eine frühere Nachricht erhalten hat (E-Mail-Anbieter, Artemis), das Ergebnis öffnen: {names}.',
+        downgradeConfirm: 'Trotzdem ohne Schutz senden',
         keepExpiry: 'Bisherige Gültigkeit behalten (bis {range})',
         run: 'Teilen und Zettel erstellen',
         runDelivery: 'Weiter zur Vorschau',
@@ -182,6 +185,8 @@ export const sharing = {
     errors: {
         factorChannel: 'Dieser Schutz passt nicht zum gewählten Weg.',
         noSubmission: '{name}: keine eingescannte Arbeit',
+        reviewChanged: '{name}: Während des Sendens kam ein Einspruch dazu; der Link blieb unverändert. Bitte senden Sie erneut.',
+        downgradeRefused: '{name}: Der Link ist durch Schlüssel oder Code geschützt und wurde ohne Ihre Bestätigung nicht ungeschützt gesendet.',
         keepLinkFailed: '{name}: Der bisherige Link konnte nicht geöffnet werden und blieb deshalb unverändert.',
         load: 'Die Schüler konnten nicht geladen werden.',
         share: 'Teilen fehlgeschlagen.',

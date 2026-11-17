@@ -290,7 +290,11 @@ async def test_sending_again_keeps_the_link_and_its_thread(client: AsyncClient, 
 
     # A factor switch: new salt, PDF and key, same id and lookup; the thread comes resealed.
     again = {**body, "factor": "code", "kdf_salt_b64": _b64(os.urandom(16)), "ciphertext_b64": _b64(b"resent-pdf"), "keep_expiry": True}
-    again["review"] = {"objection_iv_b64": _b64(os.urandom(12)), "objection_ct_b64": _b64(b"resealed-objection")}
+    again["review"] = {
+        "objection_iv_b64": _b64(os.urandom(12)),
+        "objection_ct_b64": _b64(b"resealed-objection"),
+        "submitted_at": first["review_submitted_at"],
+    }
     assert (await client.post(f"/api/v1/exams/{exam_id}/shares", json=again)).status_code == 201
 
     listed = (await client.get(f"/api/v1/exams/{exam_id}/shares")).json()
@@ -331,6 +335,29 @@ async def test_a_kept_share_id_never_takes_another_link(client: AsyncClient, db:
     assert resp.headers.get("code") == "ERR_SHARE_LINK_MISMATCH"
     client.cookies.clear()
     assert (await _open(client, body["id"], lookup))["ciphertext_b64"]
+
+
+@pytest.mark.asyncio
+async def test_an_objection_sent_during_a_resend_refuses_it(client: AsyncClient, db: AsyncSession) -> None:
+    """The client re-sealed no thread, but one arrived meanwhile: a new key would make it unreadable, so the update is refused."""
+    await sign_in(client, db, "share-race@example.com")
+    exam_id = await _create_exam(client)
+    lookup = os.urandom(32)
+    body = _reviewable(lookup)
+    assert (await client.post(f"/api/v1/exams/{exam_id}/shares", json=body)).status_code == 201
+    teacher_cookies = dict(client.cookies)
+    client.cookies.clear()
+    assert (await client.post(f"/api/v1/shares/{body['id']}/review", json=_objection(lookup))).status_code == 204
+    client.cookies.update(teacher_cookies)
+    resp = await client.post(f"/api/v1/exams/{exam_id}/shares", json={**body, "ciphertext_b64": _b64(b"resent-pdf")})
+    assert resp.status_code == 409
+    assert resp.headers.get("code") == "ERR_SHARE_REVIEW_CHANGED"
+    client.cookies.clear()
+    opened = await _open(client, body["id"], lookup)
+    assert base64.b64decode(str(opened["ciphertext_b64"])) == b"sealed-pdf"
+    review = opened["review"]
+    assert isinstance(review, dict)
+    assert base64.b64decode(review["objection_ct_b64"]) == b"sealed-objection"
 
 
 def _aware(moment: datetime) -> datetime:

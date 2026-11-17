@@ -66,6 +66,9 @@ export const sharing: Translations['sharing'] = {
         expiry: 'Valid for',
         days: '{count} days',
         replaceNote: 'Students who already have a link keep it; a link only changes when you revoke it.',
+        downgradeTitle: 'Send links without protection?',
+        downgradeNote: 'These links are protected by a key or code. Without protection, anyone who received an earlier message (mail provider, Artemis) can open the result: {names}.',
+        downgradeConfirm: 'Send without protection anyway',
         keepExpiry: 'Keep the current expiry (until {range})',
         run: 'Share and create slips',
         runDelivery: 'Continue to preview',
@@ -184,6 +187,8 @@ export const sharing: Translations['sharing'] = {
     errors: {
         factorChannel: 'This protection does not fit the chosen way.',
         noSubmission: '{name}: no scanned exam',
+        reviewChanged: '{name}: an objection arrived during the send, so the link was left unchanged. Please send again.',
+        downgradeRefused: '{name}: the link is protected by a key or code and was not sent unprotected without your confirmation.',
         keepLinkFailed: '{name}: the current link could not be opened, so it was left unchanged.',
         load: 'The students could not be loaded.',
         share: 'Sharing failed.',

@@ -15,12 +15,13 @@ import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplate
 import { compileExamPreview, examHasWithheldCode } from '#lib/exam/examPreview';
 import { translate } from '#lib/i18n';
 import type { Locale } from '#lib/i18n/types';
+import { ApiError } from '#lib/api/client';
 import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { randomCode } from '#lib/utils/randomCode';
 import { formatStudentName, stickerRawOf } from '#lib/utils/studentQr';
 import { incompatibleStudents, SHARE_CHANNELS, type ShareChannelId } from './channels';
 import { createDelivery, type ArtemisTarget, type DeliveryFile } from './delivery';
-import { buildReviewItems } from './reviewItems';
+import { buildReviewItems, DAY_MS } from './reviewItems';
 import { keepObjection } from './reviewRecord';
 import { lookupHash, lookupSecret, newShareLink, openReviewPart, openWithKey, resealShare, sealReviewPart, sealShare, shareUrl, unwrapShareKey, wrapShareKey, type ReviewItem, type ShareDocuments, type ShareFactor, type ShareHeader, type ShareLink } from './shareCrypto';
 import { renderShareSlips, type SlipEntry } from './slipsPdf';
@@ -56,6 +57,8 @@ export interface ShareRequest {
   factor: ShareFactor;
   /** Days from now, or `keep`: a student's kept link keeps its expiry, a new link gets `DEFAULT_EXPIRY_DAYS` (issue #310). */
   expiryDays: number | 'keep';
+  /** The teacher confirmed sending with protection `none` onto links that have a key or code (`downgrades`). */
+  allowDowngrade?: boolean;
   /** `ShareStudent.key` of every student to share with. */
   studentKeys: ReadonlySet<string>;
   /** Add the exam's sample solution to every student's page. */
@@ -83,16 +86,27 @@ export interface ShareOutcome {
 export const SHARE_EXPIRY_DAYS = [7, 14, 30, 90] as const;
 export const DEFAULT_EXPIRY_DAYS = 30;
 
-/** The expiry dates of the chosen students' current links, for the picker's "keep" option (issue #310); null when none has a link. */
+/** Whether a send keeps *share* as the student's link (issue #310): only a share made with a wrapped key can be sealed again. */
+export function canKeep(share: ResultShareInfo | undefined): share is ResultShareInfo & { wrappedKey: Uint8Array } {
+  return Boolean(share?.updatable && share.wrappedKey);
+}
+
+/** A send with protection `none` onto a kept link that has a key or code: anyone who got an earlier message (mail provider, Artemis) could then open it, so the teacher must confirm. */
+export function downgrades(share: ResultShareInfo | undefined, factor: ShareFactor): boolean {
+  return factor === 'none' && canKeep(share) && share.factor !== 'none';
+}
+
+/** The expiry dates of the chosen students' links that a send keeps, for the picker's "keep" option; null when none is kept. */
 export function keptExpiryRange(students: readonly ShareStudent[]): { first: Date; last: Date } | null {
-  const dates = students.flatMap((s) => (s.share ? [new Date(s.share.expiresAt).getTime()] : []));
+  const dates = students.flatMap((s) => (canKeep(s.share) ? [new Date(s.share.expiresAt).getTime()] : []));
   return dates.length ? { first: new Date(Math.min(...dates)), last: new Date(Math.max(...dates)) } : null;
 }
 
-/** Days the links of this send stay valid at least, for the objection deadline: the picked days, or with `keep` the earliest kept link's remaining days (a new link gets `DEFAULT_EXPIRY_DAYS`). */
-export function expiryLimitDays(expiry: string, range: { first: Date } | null, now = Date.now()): number {
+/** Days every link of this send stays valid at least, for the objection deadline: the picked days, or with `keep` the shortest of each kept link's remaining days and `DEFAULT_EXPIRY_DAYS` for a new link. */
+export function expiryLimitDays(expiry: string, students: readonly ShareStudent[], now = Date.now()): number {
   if (expiry !== 'keep') return Number(expiry) || 0;
-  return range ? Math.min(DEFAULT_EXPIRY_DAYS, Math.max(0, Math.floor((range.first.getTime() - now) / 86_400_000))) : DEFAULT_EXPIRY_DAYS;
+  const days = students.map((s) => (canKeep(s.share) ? Math.max(0, Math.floor((new Date(s.share.expiresAt).getTime() - now) / DAY_MS)) : DEFAULT_EXPIRY_DAYS));
+  return days.length ? Math.min(...days) : DEFAULT_EXPIRY_DAYS;
 }
 
 async function sessionKeys() {
@@ -188,10 +202,18 @@ function loopPhaseFor(channel: ShareChannelId): SharePhase {
 }
 
 /** Saves a share's open objection into the grading record before the share is replaced or revoked; false (with a warning) when it cannot be read, so the old link stays. A share without a graded submission has nothing to attach it to. */
-async function keptBeforeReplace(examId: string, old: ResultShareInfo, submissionId: string | null | undefined, key: CryptoKey, name: string, warnings: string[]): Promise<boolean> {
+async function keptBeforeReplace(
+  examId: string,
+  old: ResultShareInfo,
+  submissionId: string | null | undefined,
+  key: CryptoKey,
+  name: string,
+  warnings: string[],
+  rows?: readonly ExamReviewInfo[]
+): Promise<boolean> {
   if (!submissionId) return true;
   try {
-    await keepObjection(examId, old, submissionId, key);
+    await keepObjection(examId, old, submissionId, key, undefined, rows);
     return true;
   } catch (err) {
     console.warn('An objection could not be kept:', err);
@@ -199,8 +221,6 @@ async function keptBeforeReplace(examId: string, old: ResultShareInfo, submissio
     return false;
   }
 }
-
-const DAY_MS = 86_400_000;
 
 /** A student's current link, kept for the new send (issue #310): its token and the content key the thread is sealed under. */
 interface KeptLink {
@@ -211,7 +231,7 @@ interface KeptLink {
 
 /** The student's own link when it can be kept; a share made before links could be updated has no wrapped key and gets a new link. */
 async function keptLinkOf(old: ResultShareInfo | undefined): Promise<KeptLink | null> {
-  if (!old?.updatable || !old.wrappedKey) return null;
+  if (!canKeep(old)) return null;
   const { link, contentKey } = await unwrapShareKey(old.id, old.wrappedKey).catch((err: unknown) => {
     throw new KeptLinkError(err);
   });
@@ -225,11 +245,11 @@ class KeptLinkError extends Error {
   }
 }
 
-/** The kept link's thread sealed again under its new content key, so the student still reads it after a factor or code change. */
-async function resealThread(kept: KeptLink, newKey: Uint8Array, row: ExamReviewInfo | undefined): Promise<ResealedReview | undefined> {
-  if (!row) return undefined;
+/** The kept link's thread sealed again under its new content key, so the student still reads it after a factor or code change; with the state it was read in, so a thread changed meanwhile refuses the update. */
+async function resealThread(kept: KeptLink, newKey: Uint8Array, row: ExamReviewInfo | undefined): Promise<ResealedReview> {
+  const out: ResealedReview = { submittedAt: row?.submittedAt ?? null, repliedAt: row?.repliedAt ?? null };
+  if (!row) return out;
   const id = kept.share.id;
-  const out: ResealedReview = {};
   try {
     if (row.objection) out.objection = await sealReviewPart(id, newKey, 'objection', await openReviewPart(id, kept.oldKey, 'objection', row.objection.ciphertext, row.objection.iv));
     if (row.reply) out.reply = await sealReviewPart(id, newKey, 'reply', await openReviewPart(id, kept.oldKey, 'reply', row.reply.ciphertext, row.reply.iv));
@@ -253,22 +273,27 @@ export interface StudentShareInput {
   old: ResultShareInfo | undefined;
   code: string | null;
   header: ShareHeader;
-  items: ReviewItem[];
+  /** The review items, built only when objections are on. */
+  items: () => ReviewItem[];
   docs: ShareDocuments;
   threads: ReadonlyMap<string, ExamReviewInfo>;
   name: string;
   warnings: string[];
 }
 
-/** Seals one student's result under their kept link (or a new one) and stores it; null, with a warning, when the kept link or its thread cannot be opened, so that link is left alone. */
+/** Seals one student's result under their kept link (or a new one) and stores it; null, with a warning, when the kept link or its thread cannot be opened, the thread changed meanwhile, or the teacher did not confirm a downgrade to `none`, so that link is left alone. */
 export async function storeStudentShare(input: StudentShareInput): Promise<{ link: ShareLink; expiresAt: Date } | null> {
   const { request, old, name, warnings } = input;
+  if (downgrades(old, request.factor) && !request.allowDowngrade) {
+    warnings.push(translate('sharing.errors.downgradeRefused', { name }));
+    return null;
+  }
   try {
     const kept = await keptLinkOf(old);
     const link = kept?.link ?? newShareLink();
     const { expiresAt, days, keepExpiry } = linkExpiry(request.expiryDays, kept);
     const reviewUntil = request.reviewUntil ? new Date(Math.min(request.reviewUntil.getTime(), expiresAt.getTime())) : null;
-    const header: ShareHeader = reviewUntil ? { ...input.header, items: input.items } : input.header;
+    const header: ShareHeader = reviewUntil ? { ...input.header, items: input.items() } : input.header;
     const sealed = await sealShare(link, request.factor, input.code, header, input.docs);
     const review = kept ? await resealThread(kept, sealed.contentKey, input.threads.get(kept.share.id)) : undefined;
     await createResultShare(request.examId, {
@@ -285,6 +310,10 @@ export async function storeStudentShare(input: StudentShareInput): Promise<{ lin
     });
     return { link, expiresAt };
   } catch (err) {
+    if (err instanceof ApiError && err.code === 'ERR_SHARE_REVIEW_CHANGED') {
+      warnings.push(translate('sharing.errors.reviewChanged', { name }));
+      return null;
+    }
     if (!(err instanceof KeptLinkError)) throw err;
     console.warn('A kept link could not be opened:', err.cause);
     warnings.push(translate('sharing.errors.keepLinkFailed', { name }));
@@ -327,6 +356,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   const replaced = delivery.sendsPdf ? new Map<string, ResultShareInfo>() : new Map((await listResultShares(request.examId)).map((share) => [share.studentKey, share]));
   const threads = [...replaced.values()].some((s) => s.reviewSubmittedAt || s.reviewRepliedAt) ? new Map((await listExamReviews(request.examId)).map((r) => [r.shareId, r])) : new Map<string, ExamReviewInfo>();
   const entries: SlipEntry[] = [];
+  let sentPdfs = 0;
   await logExportAction(request.examId, 'SHARE', key);
   warnings.push(
     ...(await forEachGradedPdf(
@@ -341,13 +371,13 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
         const filename = `${slug(examTitle)}_${slug(name)}.pdf`;
         if (delivery.sendsPdf) {
           await delivery.deliverPdf(student, keys[index], name, filename, pdf);
-          entries.push({ name, url: '', expiresAt: new Date() }); // A sent PDF has no link and no slip.
+          sentPdfs++;
           return;
         }
         const old = replaced.get(keys[index]);
-        if (old && !(await keptBeforeReplace(request.examId, old, row?.submissionId, key, name, warnings))) return;
+        if (old && !(await keptBeforeReplace(request.examId, old, row?.submissionId, key, name, warnings, [...threads.values()]))) return;
         const code = await shareCode(request.factor, stickerRawOf(student));
-        const items = buildReviewItems(ctx.exercises, ctx.mcGroups, scoresBySubmission.get(row?.submissionId ?? '') ?? []);
+        const items = () => buildReviewItems(ctx.exercises, ctx.mcGroups, scoresBySubmission.get(row?.submissionId ?? '') ?? []);
         const stored = await storeStudentShare({ request, studentKey: keys[index], old, code, header: { filename, examTitle }, items, docs: { graded: pdf, solution }, threads, name, warnings });
         if (!stored) return;
         const { link, expiresAt } = stored;
@@ -367,7 +397,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   const printed = request.channel === 'slips' || (request.factor === 'code' && !delivery.sendsPdf);
   const slips = printed && entries.length ? await renderShareSlips({ examTitle, factor: request.factor, entries, codesOnly: request.channel !== 'slips' }) : null;
   return {
-    shared: entries.length - undelivered.length,
+    shared: entries.length + sentPdfs - undelivered.length,
     channel: request.channel,
     warnings,
     download: slips

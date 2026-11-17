@@ -173,6 +173,8 @@ async def create_or_replace(
     )
     if review_until is not None and review_until > expires_at:
         raise _bad_request("review_until must not be later than the link's expiry.")
+    if kept is not None:
+        await _check_review_unchanged(db, kept.id, body.review or ReviewReseal())
     replaced = [s for s in old if s is not kept]
     await _forget(db, replaced)
     for share in replaced:
@@ -180,18 +182,12 @@ async def create_or_replace(
     await db.flush()
 
     if kept is not None:
-        await _store_ciphertext(db, kept, data)
         kept.factor = body.factor
         kept.kdf_salt = salt
-        kept.iv = iv
-        kept.size = len(data)
         kept.expires_at = expires_at
         kept.wrapped_key = wrapped
         kept.review_until = review_until
-        kept.content_updated_at = now
-        if body.review is not None:
-            await _reseal_review(db, kept.id, body.review)
-        await db.flush()
+        await _update_in_place(db, kept, iv, data, body.review)
         return kept
 
     share = ResultShare(
@@ -213,6 +209,40 @@ async def create_or_replace(
     db.add(share)
     await db.flush()
     return share
+
+
+async def _update_in_place(
+    db: AsyncSession, kept: ResultShare, iv: bytes, data: bytes, reseal: ReviewReseal | None
+) -> None:
+    """Store the re-sealed PDF of a kept link (issue #310): id, lookup and creation date stay, the thread is re-sealed."""
+    await _store_ciphertext(db, kept, data)
+    kept.iv = iv
+    kept.size = len(data)
+    kept.content_updated_at = datetime.now(UTC)
+    if reseal is not None:
+        await _reseal_review(db, kept.id, reseal)
+    await db.flush()
+
+
+def _same_moment(stored: datetime | None, seen: datetime | None) -> bool:
+    if stored is None or seen is None:
+        return stored is seen
+    return _aware(stored) == _aware(seen)
+
+
+async def _check_review_unchanged(db: AsyncSession, share_id: uuid.UUID, seen: ReviewReseal) -> None:
+    """A kept link changes its content key, so its thread must be exactly the one the client re-sealed: an objection sent meanwhile would become unreadable (409)."""
+    review = await db.get(ResultShareReview, share_id)
+    if review is None:
+        return
+    unchanged = (
+        _same_moment(review.submitted_at, seen.submitted_at)
+        and _same_moment(review.replied_at, seen.replied_at)
+        and (review.objection_ct is None or seen.objection_ct_b64 is not None)
+        and (review.reply_ct is None or seen.reply_ct_b64 is not None)
+    )
+    if not unchanged:
+        raise _conflict("The objection changed during the send; send again.", "ERR_SHARE_REVIEW_CHANGED")
 
 
 async def _reseal_review(db: AsyncSession, share_id: uuid.UUID, reseal: ReviewReseal) -> None:

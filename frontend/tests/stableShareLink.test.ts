@@ -15,7 +15,7 @@ vi.mock('#lib/api/resultShares', () => ({
   }),
 }));
 
-const { storeStudentShare, DEFAULT_EXPIRY_DAYS } = await import('#lib/sharing/shareService');
+const { storeStudentShare, DEFAULT_EXPIRY_DAYS, expiryLimitDays, keptExpiryRange } = await import('#lib/sharing/shareService');
 type Request = Parameters<typeof storeStudentShare>[0]['request'];
 
 const PDF = new TextEncoder().encode('%PDF-1.4 graded');
@@ -27,7 +27,7 @@ const input = (old: ResultShareInfo | undefined, req: Request, code: string, thr
   old,
   code,
   header: { filename: 'x.pdf', examTitle: 'Exam' },
-  items: [],
+  items: () => [],
   docs: { graded: PDF },
   threads,
   name: 'Max',
@@ -87,5 +87,52 @@ describe('sending again keeps the link (issue #310)', () => {
     expect(mocks.created).toHaveLength(1);
     expect(job.warnings).toHaveLength(1);
     expect(job.warnings[0]).toMatch(/^Max: /);
+  });
+
+  // Review finding: a link that went out by e-mail with a code must not silently open without one.
+  it('refuses protection "none" on a protected kept link unless the teacher confirmed it', async () => {
+    await storeStudentShare(input(undefined, request(), 'OLDCODE1'));
+    const old = listed(mocks.created[0], '2026-12-24T00:00:00Z');
+    const refused = input(old, request({ factor: 'none', channel: 'slips' }), '');
+    expect(await storeStudentShare({ ...refused, code: null })).toBeNull();
+    expect(refused.warnings).toHaveLength(1);
+    expect(mocks.created).toHaveLength(1);
+
+    const confirmed = await storeStudentShare({ ...input(old, request({ factor: 'none', channel: 'slips', allowDowngrade: true }), ''), code: null });
+    expect(confirmed?.link.shareId).toBe(old.id);
+    expect(mocks.created[1]).toMatchObject({ id: old.id, factor: 'none' });
+  });
+});
+
+describe('a thread changed during the send (issue #310 review)', () => {
+  it('skips the student with a warning when the server reports a changed thread', async () => {
+    const { ApiError } = await import('#lib/api/client');
+    const { createResultShare } = await import('#lib/api/resultShares');
+    await storeStudentShare(input(undefined, request(), 'OLDCODE1'));
+    const old = listed(mocks.created[0], '2026-12-24T00:00:00Z');
+    vi.mocked(createResultShare).mockRejectedValueOnce(new ApiError(409, 'ERR_SHARE_REVIEW_CHANGED', 'changed'));
+    const job = input(old, request(), 'NEWCODE1');
+    expect(await storeStudentShare(job)).toBeNull();
+    expect(job.warnings).toHaveLength(1);
+    // The client told the server which thread it saw: none.
+    expect(vi.mocked(createResultShare).mock.calls.at(-1)?.[1]).toMatchObject({ review: { submittedAt: null, repliedAt: null } });
+  });
+});
+
+describe('the expiry picker (issue #310 review)', () => {
+  const now = Date.parse('2026-11-17T12:00:00Z');
+  const student = (share?: Partial<ResultShareInfo>) => ({ share: share ? ({ updatable: true, wrappedKey: new Uint8Array(1), ...share } as ResultShareInfo) : undefined }) as never;
+
+  it('counts only links a send keeps', () => {
+    const legacy = student({ expiresAt: '2026-11-19T12:00:00Z', updatable: false, wrappedKey: null });
+    expect(keptExpiryRange([legacy])).toBeNull();
+    expect(keptExpiryRange([legacy, student({ expiresAt: '2026-12-24T00:00:00Z' })])?.first.toISOString()).toBe('2026-12-24T00:00:00.000Z');
+  });
+
+  it('limits objections by the shortest link of the send, a new link counting the default days', () => {
+    expect(expiryLimitDays('keep', [student({ expiresAt: '2027-02-15T12:00:00Z' })], now)).toBe(90);
+    expect(expiryLimitDays('keep', [student({ expiresAt: '2027-02-15T12:00:00Z' }), student()], now)).toBe(DEFAULT_EXPIRY_DAYS);
+    expect(expiryLimitDays('keep', [student({ expiresAt: '2026-11-18T08:00:00Z' })], now)).toBe(0);
+    expect(expiryLimitDays('14', [], now)).toBe(14);
   });
 });

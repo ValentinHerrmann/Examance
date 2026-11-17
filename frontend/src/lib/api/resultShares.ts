@@ -113,6 +113,9 @@ type SealedPart = { iv: Uint8Array; ciphertext: Uint8Array };
 export interface ResealedReview {
   objection?: SealedPart;
   reply?: SealedPart;
+  /** The thread as the client read it: the server refuses the update when it changed since (`ERR_SHARE_REVIEW_CHANGED`). */
+  submittedAt: string | null;
+  repliedAt: string | null;
 }
 
 const partFields = (name: 'objection' | 'reply', part: SealedPart | undefined) =>
@@ -149,7 +152,9 @@ export async function createResultShare(
       ...(share.wrappedKey ? { wrapped_key_b64: uint8ArrayToBase64(share.wrappedKey) } : {}),
       ...(share.reviewUntil ? { review_until: share.reviewUntil.toISOString() } : {}),
       ...(share.keepExpiry ? { keep_expiry: true } : {}),
-      ...(share.review ? { review: { ...partFields('objection', share.review.objection), ...partFields('reply', share.review.reply) } } : {}),
+      ...(share.review
+        ? { review: { ...partFields('objection', share.review.objection), ...partFields('reply', share.review.reply), submitted_at: share.review.submittedAt, replied_at: share.review.repliedAt } }
+        : {}),
     },
     quiet
   );

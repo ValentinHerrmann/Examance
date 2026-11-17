@@ -18,6 +18,9 @@ class ReviewReseal(BaseModel):
     objection_ct_b64: str | None = None
     reply_iv_b64: str | None = None
     reply_ct_b64: str | None = None
+    # The thread as the client read it; a thread changed since then refuses the update (ERR_SHARE_REVIEW_CHANGED).
+    submitted_at: datetime | None = None
+    replied_at: datetime | None = None
 
 
 class ResultShareCreate(BaseModel):
