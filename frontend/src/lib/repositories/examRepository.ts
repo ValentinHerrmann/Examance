@@ -209,12 +209,19 @@ export const examRepository = {
     try {
       const raw = await api.get<any>(`/exams/${id}`, { silentError: true });
       return mapApiToExamRecord(raw);
-    } catch {
-      // Server unreachable: fall back to the local copy.
-      const raw = await db.exams.get(id);
-      if (raw) return decryptExam(raw, key);
-      return undefined;
+    } catch (err: any) {
+      // Only "does not exist" is undefined; another failed read falls back to the local copy or throws.
+      if (err?.status === 404) return undefined;
+      const local = await this.getLocalById(id, key);
+      if (local) return local;
+      throw err;
     }
+  },
+
+  /** This browser's copy only, for callers whose server read already failed. */
+  async getLocalById(id: string, key: CryptoKey | null): Promise<ExamRecord | undefined> {
+    const raw = db.exams ? await db.exams.get(id) : undefined;
+    return raw ? decryptExam(raw, key) : undefined;
   },
 
   /** Writes only the hand-set ticks, so a page holding an older copy of the exam can never overwrite them with its save(). */

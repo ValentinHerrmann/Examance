@@ -23,4 +23,9 @@ describe('offline queue error classes', () => {
     expect(replayOutcome({ method: 'PUT' }, apiError(404))).toBe('rejected');
     expect(replayOutcome({ method: 'PATCH' }, apiError(422))).toBe('rejected');
   });
+
+  it('keeps a write refused because another tab signed in as someone else (issue #289)', () => {
+    expect(replayOutcome({ method: 'POST' }, apiError(409, 'ERR_ACCOUNT_MISMATCH'))).toBe('keep');
+    expect(replayOutcome({ method: 'PUT' }, apiError(409, 'ERR_ACCOUNT_MISMATCH'))).toBe('keep');
+  });
 });

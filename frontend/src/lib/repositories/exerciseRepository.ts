@@ -77,8 +77,8 @@ export const exerciseRepository = {
       const mapped = rawList.map(mapApiToExerciseRecord);
       mapped.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
       return mapped;
-    } catch {
-      // Server unreachable: fall back to the local copy.
+    } catch (err) {
+      // Server unreachable: fall back to the local copy; without one, never answer "no exercises".
       const links = await db.examExercises.where('examId').equals(examId).toArray();
       links.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
       if (links.length > 0) {
@@ -97,7 +97,7 @@ export const exerciseRepository = {
       if (raw.length > 0) {
         return Promise.all(raw.map((ex) => decryptExercise(ex, key)));
       }
-      return [];
+      throw err;
     }
   },
 

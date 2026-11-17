@@ -70,7 +70,7 @@ export async function listLocalTrash(): Promise<LocalTrashRecord[]> {
   return rows.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
 }
 
-/** Erases entries past their grace period; run after the workspace opens. */
+/** Erases entries past their grace period; runs when the workspace opens and when Trash opens. */
 export async function sweepLocalTrash(): Promise<void> {
   if (!hasTrash()) return;
   await db.trash.where('purgeAfter').below(new Date().toISOString()).delete();
@@ -173,7 +173,7 @@ async function withLiveExam(
   });
 }
 
-/** Restores one group's local entries into `result`: missing rows only, parents first; the entries leave the trash. */
+/** Restores one group's local entries into `result`: missing rows only, parents first; restored entries leave the trash, skipped ones stay. */
 async function restoreGroupInto(
   result: RestoreResult,
   groupId: string,
@@ -193,10 +193,11 @@ async function restoreGroupInto(
   await restoreAll(reviews, (row) => row.submissionId, (row) => restoreReview(row, result));
   const cleared = usable.flatMap((item) => item.cleared ?? []);
   await restoreAll(cleared, (row) => row.id, (row) => refill(row, key, result));
-  await db.trash.bulkDelete(items.map((item) => item.id));
+  // Only restored entries leave; skipped ones wait for their grace period (issue #281).
+  await db.trash.bulkDelete(usable.map((item) => item.id));
 }
 
-/** Restores one group's local entries: missing rows only, parents first; the entries leave the trash. */
+/** Restores one group's local entries: missing rows only, parents first; a throwing `examExists` aborts before anything leaves the trash. */
 export async function restoreLocalGroup(
   groupId: string,
   key: CryptoKey | null,

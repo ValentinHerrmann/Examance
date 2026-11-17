@@ -25,6 +25,7 @@ import {
 import { workspaceIdStore, workspaceStatusStore, type WorkspaceStatus } from '#lib/stores/workspaceState';
 import { clearOfflineQueue, hasQueuedWrites, stampUnboundQueueEntries } from '#lib/services/offlineQueue';
 import { safeLocalStorage } from '#lib/utils/storage';
+import { sweepLocalTrash } from '#lib/trash/localTrash';
 
 /** Mirror of the current workspace id in localStorage: other tabs reload when it changes (`workspaceSync.ts`). */
 export const WORKSPACE_ID_KEY = 'bg_workspace_id';
@@ -271,6 +272,8 @@ async function decide(): Promise<WorkspaceStatus> {
   }
   applyMode(mode);
   await rememberMode(mode);
+  // Expired browser trash goes even if Trash is never opened (issue #289); a failed sweep never blocks opening.
+  await sweepLocalTrash().catch((err) => console.warn('[workspace] could not sweep the browser trash', err));
   return { state: 'ok' };
 }
 

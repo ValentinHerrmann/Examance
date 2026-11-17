@@ -40,7 +40,8 @@ export async function loadExamUsage(exerciseIds: string[]): Promise<ExamUsageEnt
   const key = get(sessionStore).sessionKey;
   // Pure reads in parallel; `map` keeps the exam order.
   const examIds = [...new Set(links.map((l) => l.examId))];
-  const exams = await Promise.all(examIds.map((examId) => examRepository.getById(examId, key)));
+  // A display list: an exam that cannot be read is left out rather than failing the dialog.
+  const exams = await Promise.all(examIds.map((examId) => examRepository.getById(examId, key).catch(() => undefined)));
   examIds.forEach((examId, i) => {
     const exam = exams[i];
     if (exam) found.set(examId, { id: examId, title: exam.title ?? "", datum: exam.datum });

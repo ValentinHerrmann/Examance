@@ -34,6 +34,7 @@ const {
   EnvelopeChangedError,
   openAcceptingChange,
   openWithPasskey,
+  openWithPassword,
   openWithRecoveryCode,
   regenerateRecoveryCode,
   rewrapForChangedPassword,
@@ -139,6 +140,30 @@ describe('envelope fingerprint pin', () => {
     const err = await openWithRecoveryCode(TEACHER_ID, 'ABCD-EFGH').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(EnvelopeChangedError);
     expect((err as InstanceType<typeof EnvelopeChangedError>).teacherId).toBe(TEACHER_ID);
+  });
+
+  it('refuses an empty server set once a set is pinned, before migrating (issue #289)', async () => {
+    await openPasskey();
+    stored = null;
+    saved = null;
+
+    const err = await openWithPassword(TEACHER_ID, 'teacher@example.test', 'pw', { allowMigration: true }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(EnvelopeChangedError);
+    expect(saved).toBeNull();
+  });
+
+  it('raises the alarm for a vanished pinned set on the passkey and recovery paths too', async () => {
+    await openPasskey();
+    stored = null;
+    await expect(openPasskey()).rejects.toBeInstanceOf(EnvelopeChangedError);
+    await expect(openWithRecoveryCode(TEACHER_ID, 'ABCD-EFGH')).rejects.toBeInstanceOf(EnvelopeChangedError);
+  });
+
+  it('treats an empty server set without a pin as an account still to migrate', async () => {
+    stored = null;
+    await expect(
+      openWithPassword(TEACHER_ID, 'teacher@example.test', 'pw', { allowMigration: false }),
+    ).rejects.toThrow('No usable password wrap');
   });
 
   it('keeps blocking when the teacher does not confirm', async () => {

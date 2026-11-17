@@ -101,9 +101,18 @@ async function pinFingerprint(teacherId: string, set: EnvelopeSet): Promise<void
   safeLocalStorage.setItem(FINGERPRINT_PREFIX + teacherId, await envelopeFingerprint(set));
 }
 
+function storedPin(teacherId: string): string | null {
+  return safeLocalStorage.getItem(FINGERPRINT_PREFIX + teacherId);
+}
+
+/** A pinned set that vanished from the server is a changed set too (issue #289): raise the alarm instead of reporting a missing factor. */
+function assertNotVanished(teacherId: string): void {
+  if (storedPin(teacherId) !== null) throw new EnvelopeChangedError(teacherId);
+}
+
 /** Refuse an envelope set this browser hasn't seen. A server substituting a set whose data key it knows could read everything written afterwards; AAD can't catch that (server picks both sides), a pin can. Returns true when nothing is pinned yet: the caller pins only once the vault opened, so a set that fails to unwrap is never trusted. */
 async function assertPinned(teacherId: string, set: EnvelopeSet): Promise<boolean> {
-  const stored = safeLocalStorage.getItem(FINGERPRINT_PREFIX + teacherId);
+  const stored = storedPin(teacherId);
   if (stored === null) {
     return true;
   }
@@ -197,7 +206,9 @@ export async function openWithPassword(
   const existing = await fetchEnvelopes();
 
   if (existing === null) {
-        // Migration seals whatever key this password derives as the data key, so only a password the server just accepted may do it: an unverified one (vault prompt after passkey-only sign-in) would adopt a wrong key and orphan every record.
+    // Only the teacher's confirmation of a vanished pinned set may let the migration run.
+    assertNotVanished(teacherId);
+    // Migration seals whatever key this password derives as the data key, so only a password the server just accepted may do it: an unverified one (vault prompt after passkey-only sign-in) would adopt a wrong key and orphan every record.
     if (!opts.allowMigration) {
       throw new EnvelopeFactorMissingError('password');
     }
@@ -267,6 +278,7 @@ export async function openWithRecoveryCode(
 ): Promise<OpenedVault> {
   const existing = await fetchEnvelopes();
   if (existing === null) {
+    assertNotVanished(teacherId);
     throw new EnvelopeFactorMissingError('recovery');
   }
   const firstSeen = await assertPinned(teacherId, existing);
@@ -520,6 +532,7 @@ export async function openWithPasskey(
 ): Promise<OpenedVault> {
   const existing = await fetchEnvelopes();
   if (existing === null) {
+    assertNotVanished(teacherId);
     throw new EnvelopeFactorMissingError('passkey');
   }
   const firstSeen = await assertPinned(teacherId, existing);

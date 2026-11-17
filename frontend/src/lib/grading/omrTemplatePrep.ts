@@ -29,7 +29,7 @@ import { stripSourceMarkers } from "#lib/latex/sourceMap";
 import { resolveCompileLogo } from "#lib/latex/logo";
 import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
 import { api } from "#lib/api/client";
-import { mapApiToExamRecord } from "#lib/repositories/examRepository";
+import { examRepository, mapApiToExamRecord } from "#lib/repositories/examRepository";
 import { isAuthenticated } from "#lib/stores/session";
 import { effectiveLatexCompilation } from "#lib/stores/capabilities";
 import { translate } from "#lib/i18n";
@@ -101,8 +101,8 @@ export async function loadExamCompileContext(examId: string, key: CryptoKey | nu
       } else {
         mcGroups = await loadLocalMcGroups(examId);
       }
-    } catch (serverErr) {
-      exam = (await loadExamEncrypted(examId, key)) || null;
+    } catch {
+      exam = (await examRepository.getLocalById(examId, key)) || null;
       if (exam) {
         exercises = await loadExamExercisesEncrypted(examId, key);
         mcGroups = await loadLocalMcGroups(examId);

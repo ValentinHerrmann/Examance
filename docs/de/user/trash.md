@@ -38,7 +38,7 @@ Für jeden Eintrag können Sie:
 
 ## Hybrid-Modus {#hybrid}
 
-Speichern Sie Ihre Ergebnisse im Browser („Hybrid“), liegt der Papierkorb für diese Ergebnisse ebenfalls in diesem Browser. Er erscheint auf derselben Seite, lässt sich aber nur in diesem Browser wiederherstellen und nur, solange Ihr Konto im Hybrid-Modus ist. Sichern Sie Ihre Ergebnisse wie gewohnt mit einem `.examance`-Archiv; der Papierkorb ersetzt keine Sicherung.
+Speichern Sie Ihre Ergebnisse im Browser („Hybrid“), liegt der Papierkorb für diese Ergebnisse ebenfalls in diesem Browser. Er erscheint auf derselben Seite, lässt sich aber nur in diesem Browser wiederherstellen und nur, solange Ihr Konto im Hybrid-Modus ist. Ist der Server beim Wiederherstellen nicht erreichbar, zeigt die Seite einen Fehler und der Eintrag bleibt im Papierkorb, sodass Sie es später erneut versuchen können. Sichern Sie Ihre Ergebnisse wie gewohnt mit einem `.examance`-Archiv; der Papierkorb ersetzt keine Sicherung.
 
 ## Löschen auf Antrag {#gdpr}
 

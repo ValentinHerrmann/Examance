@@ -38,7 +38,7 @@ For each entry you can:
 
 ## Hybrid mode {#hybrid}
 
-If your results are stored in the browser ("Hybrid"), the trash for those results is in the same browser too. It appears on the same page, but you can restore it only in that browser and only while your account is still in hybrid mode. Back up your results with a `.examance` archive as usual; the trash is no replacement for a backup.
+If your results are stored in the browser ("Hybrid"), the trash for those results is in the same browser too. It appears on the same page, but you can restore it only in that browser and only while your account is still in hybrid mode. If the server cannot be reached while you restore, the page shows an error and the entry stays in the trash, so you can try again later. Back up your results with a `.examance` archive as usual; the trash is no replacement for a backup.
 
 ## Erasing data on request {#gdpr}
 

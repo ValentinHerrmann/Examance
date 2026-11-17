@@ -87,10 +87,16 @@ async function backfill(): Promise<void> {
   if (safeLocalStorage.getItem(flag) === 'done') return;
   const [exams, stored] = await Promise.all([examRepository.getAll(key), statisticsRepository.list(key)]);
   const covered = new Set(stored.map((r) => r.examId));
+  let failed = false;
   for (const exam of exams) {
-    if (!covered.has(exam.id)) await refreshStatistics(exam.id); // NOSONAR: one exam at a time keeps the load small
+    if (covered.has(exam.id)) continue;
+    // One unreadable exam must not stop the others; the backfill then runs again on the next open.
+    await refreshStatistics(exam.id).catch((err) => { // NOSONAR: one exam at a time keeps the load small
+      failed = true;
+      console.warn(`[statistics] backfill skipped exam ${exam.id}:`, err);
+    });
   }
-  safeLocalStorage.setItem(flag, 'done');
+  if (!failed) safeLocalStorage.setItem(flag, 'done');
 }
 
 /** Called once by the root layout; listens for result writes and runs the backfill when a workspace opens. */

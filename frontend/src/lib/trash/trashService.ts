@@ -142,13 +142,16 @@ export async function restoreGroup(group: TrashGroupView): Promise<RestoreResult
     for (const [table, n] of Object.entries(part.restored)) result.restored[table] = (result.restored[table] ?? 0) + n;
     result.skipped.push(...part.skipped);
   };
-  if (group.hasServer) add(await restoreServerGroup(group.groupId));
-  if (group.hasLocal && resultsAreLocal()) {
-    const key = get(sessionStore).sessionKey;
-    add(await restoreLocalGroup(group.groupId, key, async (examId) => (await examRepository.getById(examId, key)) !== undefined));
+  try {
+    if (group.hasServer) add(await restoreServerGroup(group.groupId));
+    if (group.hasLocal && resultsAreLocal()) {
+      const key = get(sessionStore).sessionKey;
+      add(await restoreLocalGroup(group.groupId, key, async (examId) => (await examRepository.getById(examId, key)) !== undefined));
+    }
+  } finally {
+    // Restored results count again (issue #238), also when a later part failed after the server part came back.
+    for (const examId of new Set(group.items.map((item) => item.examId))) markStatisticsDirty(examId);
   }
-  // Restored results count again (issue #238).
-  for (const examId of new Set(group.items.map((item) => item.examId))) markStatisticsDirty(examId);
   return result;
 }
 
