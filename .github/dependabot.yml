@@ -1,0 +1,10 @@
+# Keeps the SHA-pinned GitHub Actions current (issue #296); npm and pip stay on security updates only.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

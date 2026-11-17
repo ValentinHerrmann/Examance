@@ -234,6 +234,7 @@ SSH credentials are declared **once**, at repository level, and shared by both e
 | `DEPLOY_USER` | SSH username |
 | `DEPLOY_SSH_KEY` | PEM private key matching the server's `authorized_keys` |
 | `DEPLOY_PORT` | SSH port (optional, defaults to `22`) |
+| `DEPLOY_HOST_FINGERPRINT` | SHA256 fingerprint of the server's SSH host key, e.g. `SHA256:…` from `ssh-keyscan -t ed25519 <host> \| ssh-keygen -lf -` (recommended; without it the deploy accepts any host key) |
 
 Neither pushing to GHCR from CI nor the server's pull needs a stored registry credential — both use the workflow's own `GITHUB_TOKEN`. Each job mints its own copy, valid only for that job's duration, so the `backend-deploy` job's token is still live during its SSH step and can be handed to the server's `docker login` for that one pull. It requires `permissions: packages: read` on that job (already set in both workflows) but no secret you have to create or rotate.
 
