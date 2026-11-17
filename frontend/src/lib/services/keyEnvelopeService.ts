@@ -101,6 +101,10 @@ async function pinFingerprint(teacherId: string, set: EnvelopeSet): Promise<void
   safeLocalStorage.setItem(FINGERPRINT_PREFIX + teacherId, await envelopeFingerprint(set));
 }
 
+function hasPin(teacherId: string): boolean {
+  return safeLocalStorage.getItem(FINGERPRINT_PREFIX + teacherId) !== null;
+}
+
 /** Refuse an envelope set this browser hasn't seen. A server substituting a set whose data key it knows could read everything written afterwards; AAD can't catch that (server picks both sides), a pin can. Returns true when nothing is pinned yet: the caller pins only once the vault opened, so a set that fails to unwrap is never trusted. */
 async function assertPinned(teacherId: string, set: EnvelopeSet): Promise<boolean> {
   const stored = safeLocalStorage.getItem(FINGERPRINT_PREFIX + teacherId);
@@ -197,7 +201,9 @@ export async function openWithPassword(
   const existing = await fetchEnvelopes();
 
   if (existing === null) {
-        // Migration seals whatever key this password derives as the data key, so only a password the server just accepted may do it: an unverified one (vault prompt after passkey-only sign-in) would adopt a wrong key and orphan every record.
+    // A pinned set that vanished is a changed set too: only the teacher's confirmation may let the migration run (issue #289).
+    if (hasPin(teacherId)) throw new EnvelopeChangedError(teacherId);
+    // Migration seals whatever key this password derives as the data key, so only a password the server just accepted may do it: an unverified one (vault prompt after passkey-only sign-in) would adopt a wrong key and orphan every record.
     if (!opts.allowMigration) {
       throw new EnvelopeFactorMissingError('password');
     }

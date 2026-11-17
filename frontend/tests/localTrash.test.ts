@@ -52,6 +52,33 @@ describe('browser trash (issue #125)', () => {
     const orphan = await restoreLocalGroup('g-3', null, async () => false);
     expect(orphan.skipped).toEqual([{ table: 'exams', id: EXAM, reason: 'parent_missing' }]);
     expect(await db.submissions.count()).toBe(0);
+    // A skipped entry stays until its grace period ends (issue #281).
+    expect((await listLocalTrash()).map((entry) => entry.groupId)).toEqual(['g-3']);
+  });
+
+  it('keeps every entry when the exam check fails (issue #281)', async () => {
+    await submissionRepository.delete(EXAM, 'sub-1', { group: 'g-6' });
+    const failing = async () => {
+      throw Object.assign(new Error('HTTP 503'), { status: 503 });
+    };
+    await expect(restoreLocalGroup('g-6', null, failing)).rejects.toMatchObject({ status: 503 });
+    expect(await db.submissions.count()).toBe(0);
+    expect((await listLocalTrash()).map((entry) => entry.groupId)).toEqual(['g-6']);
+
+    await restoreLocalGroup('g-6', null, async () => true);
+    expect(await db.submissions.get('sub-1')).toEqual(submission);
+    expect(await listLocalTrash()).toEqual([]);
+  });
+
+  it('removes only the restored entries of a group spanning a live and a deleted exam (issue #281)', async () => {
+    await db.submissions.put({ ...submission, id: 'sub-2', examId: 'exam-2' });
+    await submissionRepository.delete(EXAM, 'sub-1', { group: 'g-7' });
+    await submissionRepository.delete('exam-2', 'sub-2', { group: 'g-7' });
+
+    const result = await restoreLocalGroup('g-7', null, async (examId) => examId === EXAM);
+    expect(result.skipped).toEqual([{ table: 'exams', id: 'exam-2', reason: 'parent_missing' }]);
+    expect(await db.submissions.get('sub-1')).toEqual(submission);
+    expect((await listLocalTrash()).map((entry) => entry.examId)).toEqual(['exam-2']);
   });
 
   it('stores nothing for a permanent delete, erases on request and after the grace period', async () => {

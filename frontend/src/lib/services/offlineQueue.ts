@@ -145,6 +145,7 @@ export function replayOutcome(req: Pick<QueuedRequest, 'method'>, err: unknown):
   if (typeof status !== 'number' || status === 0) return 'keep';
   // A lapsed session or a sign-in in another tab is not the write's fault: wait for it to be fixed.
   if (status === 401 || (status === 403 && typeof code === 'string' && code.startsWith('ERR_MFA'))) return 'keep';
+  if (code === 'ERR_ACCOUNT_MISMATCH') return 'keep';
   // An earlier attempt landed before its response was lost, or the target is already gone.
   if ((req.method === 'POST' && status === 409) || (req.method === 'DELETE' && status === 404)) return 'applied';
   return 'rejected';

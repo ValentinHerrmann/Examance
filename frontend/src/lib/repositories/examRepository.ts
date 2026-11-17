@@ -209,11 +209,12 @@ export const examRepository = {
     try {
       const raw = await api.get<any>(`/exams/${id}`, { silentError: true });
       return mapApiToExamRecord(raw);
-    } catch {
-      // Server unreachable: fall back to the local copy.
+    } catch (err: any) {
+      // Only "does not exist" is undefined; another failed read falls back to the local copy or throws.
+      if (err?.status === 404) return undefined;
       const raw = await db.exams.get(id);
       if (raw) return decryptExam(raw, key);
-      return undefined;
+      throw err;
     }
   },
 

@@ -162,6 +162,8 @@ export const studentRepository = {
       }
       await db.examStudents.bulkDelete(matching.map((st) => [st.examId, st.pseudonymHmac]));
     } catch (err) {
+      // In hybrid mode the local row is the record: a failed delete must not report success.
+      if (resultsAreLocal()) throw err;
       console.warn('Failed to clean up matching student records from IndexedDB:', err);
     }
 
