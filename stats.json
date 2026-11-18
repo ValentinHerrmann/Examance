@@ -5,14 +5,14 @@
       "label": "Comments",
       "color": "#8B949E",
       "files": null,
-      "lines": 6760
+      "lines": 6771
     },
     {
       "key": "docs",
       "label": "Documentation",
       "color": "#3B82F6",
       "files": 77,
-      "lines": 6247
+      "lines": 6248
     },
     {
       "key": "backend_tests",
@@ -26,7 +26,7 @@
       "label": "Frontend tests",
       "color": "#F59E0B",
       "files": 149,
-      "lines": 14196
+      "lines": 14314
     },
     {
       "key": "backend",
@@ -40,11 +40,11 @@
       "label": "Frontend",
       "color": "#FF3E00",
       "files": 669,
-      "lines": 75046
+      "lines": 75102
     }
   ],
   "total": {
     "files": 1200,
-    "lines": 144851
+    "lines": 145037
   }
 }
