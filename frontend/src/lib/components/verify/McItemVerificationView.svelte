@@ -17,6 +17,7 @@
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   import { flushAll, flushQuestion, stageVerifiedQuestion } from "#lib/services/trainingDonation";
   import { gradeHref, verifyHref } from "#lib/utils/links";
+  import { createLoadGuard } from "#lib/utils/loadGuard";
 
   interface Props {
     examId: string;
@@ -37,7 +38,9 @@
   let currentNeighbourRects: Array<[number, number, number, number]> = $state.raw([]);
   let scanPdfBytes: Uint8Array | null = $state.raw(null);
   let showEndOfQueueModal = $state(false);
-  let loadToken = 0;
+  const guard = createLoadGuard();
+  // The shown item's guard: a save that resolves after Next must not write into the next item.
+  let shownIsStale: () => boolean = () => false;
 
   let activeQueueItems = $derived(
     queue === "failed" || queue === "unsure" || queue === "confident" ? mcQueue(stats.items, queue) : stats.items
@@ -61,7 +64,8 @@
   );
 
   async function loadItem(examId: string, submissionId: string, exerciseId: string) {
-    const token = ++loadToken;
+    const isStale = guard.begin();
+    shownIsStale = isStale;
     loading = true;
     errorMsg = "";
     try {
@@ -80,7 +84,7 @@
           console.warn("Failed to decrypt scan PDF:", err);
         }
       }
-      if (token !== loadToken) return;
+      if (isStale()) return;
       if (!exercise) errorMsg = translate("scanning.verifyItem.exerciseNotFound");
       else if (!submission) errorMsg = translate("scanning.verifyItem.submissionNotFound");
       currentExercise = exercise;
@@ -92,11 +96,11 @@
         .filter((s) => s.exerciseId !== exerciseId && s.omrMeta?.detections?.pageIndex === ownPage)
         .flatMap((s) => s.omrMeta!.detections!.bubbles.map((b) => b.rect));
     } catch (err: any) {
-      if (token !== loadToken) return;
+      if (isStale()) return;
       console.error("Failed to load MC verification item:", err);
       errorMsg = err.message || translate("scanning.verifyItem.loadError");
     } finally {
-      if (token === loadToken) loading = false;
+      if (!isStale()) loading = false;
     }
   }
 
@@ -106,6 +110,9 @@
   });
 
   async function handleSave(exId: string, selectedOptions: number[], score: number, omrMeta: OmrScoreMeta) {
+    // Read before the await: Next meanwhile loads another item into these fields.
+    const isStale = shownIsStale;
+    const bytes = scanPdfBytes;
     const record: ExerciseScoreRecord = {
       id: currentScoreRecord?.id ?? crypto.randomUUID(),
       submissionId,
@@ -115,9 +122,9 @@
       omrMeta,
     };
     await scoreRepository.saveOne(examId, record, get(sessionStore).sessionKey);
-    currentScoreRecord = record;
+    if (!isStale()) currentScoreRecord = record;
     // Opt-in training-data donation: only staged here, built once the teacher moves on.
-    stageVerifiedQuestion(examId, record, scanPdfBytes);
+    stageVerifiedQuestion(examId, record, bytes);
   }
 
   /** Leaving a question donates it if it was verified (opt-in). */

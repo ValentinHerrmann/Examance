@@ -10,6 +10,7 @@
   import { t } from "#lib/i18n";
   import { createAutosave } from "#lib/utils/autosave";
   import { gradeHref } from "#lib/utils/links";
+  import { createKeyedOnce } from "#lib/utils/keyedOnce";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ScoreInputCell from "./ScoreInputCell.svelte";
 
@@ -132,14 +133,19 @@
     onScoresChanged();
   }
 
+  const creating = createKeyedOnce<SubmissionRecord>();
+
   /** The student's submission, created on the first score: students from the Students page have none yet, and their scores were silently dropped. */
   async function submissionOf(st: StudentRecord | undefined): Promise<SubmissionRecord | undefined> {
     if (!st) return undefined;
     const known = submissionMap.get(st.pseudonymHmac);
     if (known) return known;
-    const created = await submissionForStudent(examId, st);
-    submissionMap = new Map(submissionMap).set(st.pseudonymHmac, created);
-    return created;
+    // Two quick saves (blur, then change) share one creation instead of making two submissions.
+    return creating.run(st.pseudonymHmac, async () => {
+      const created = await submissionForStudent(examId, st);
+      submissionMap = new Map(submissionMap).set(st.pseudonymHmac, created);
+      return created;
+    });
   }
 
   async function saveStudent() {

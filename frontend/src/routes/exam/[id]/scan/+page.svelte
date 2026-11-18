@@ -499,6 +499,7 @@
     if (w.kind === "missingPages") return translate("scanning.pageNotes.missing", { student: w.student, pages: w.pages.join(", ") });
     if (w.kind === "foreignPage") return translate("scanning.pageNotes.foreign", { fileName: w.fileName });
     if (w.kind === "repeatedPages") return translate(w.graded ? "scanning.pageNotes.repeatedGraded" : "scanning.pageNotes.repeated", { student: w.student, pages: w.pages.join(", ") });
+    if (w.kind === "studentUnreadable") return translate("scanning.pageNotes.studentUnreadable", { student: w.student });
     return null;
   }
 

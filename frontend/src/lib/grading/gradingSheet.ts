@@ -13,11 +13,9 @@ export interface GradingSheet {
   manualOverride: Record<string, boolean>;
 }
 
-/** The stored score of an exercise not graded part by part. Legacy: 0 without annotations means ungraded, never for an OMR-read MC row (nulling it made the next save delete the row and its omrMeta, dropping it from verification). */
-function storedScore(ex: PartExercise, row: ExerciseScoreRecord | undefined, hasStrokes: boolean): number | null {
-  if (typeof row?.score !== 'number' || Number.isNaN(row.score)) return null;
-  const isOmrMc = isMcQuestion(ex) && !!row.omrMeta;
-  return row.score === 0 && !isOmrMc && !hasStrokes ? null : row.score;
+/** The stored score of an exercise not graded part by part; a stored 0 is a grade like any other (issue #298: loading it as ungraded made the next save delete it). */
+function storedScore(row: ExerciseScoreRecord | undefined): number | null {
+  return typeof row?.score === 'number' && !Number.isNaN(row.score) ? row.score : null;
 }
 
 /** Grade-page state for one submission, given its stored rows and annotation strokes. Rows of any other submission are dropped: a save writes this sheet under `submissionId`, so a foreign row would move its result (issue #85). */
@@ -31,7 +29,6 @@ export function buildGradingSheet(
   if (own.length !== rows.length) {
     console.warn(`[grading] ignored ${rows.length - own.length} score row(s) of another submission`);
   }
-  const exerciseIdsWithStrokes = new Set(strokes.flatMap((s) => (s.exerciseId ? [s.exerciseId] : [])));
   const loadedScores = new Map(own.map((row) => [row.exerciseId, row]));
   const scoreInputs: GradingSheet['scoreInputs'] = {};
   const mcState: GradingSheet['mcState'] = {};
@@ -44,7 +41,7 @@ export function buildGradingSheet(
       partInputs[ex.id] = parts;
       scoreInputs[ex.id] = partTotal(ex, parts);
     } else {
-      scoreInputs[ex.id] = storedScore(ex, existing, exerciseIdsWithStrokes.has(ex.id));
+      scoreInputs[ex.id] = storedScore(existing);
     }
     if (isMcQuestion(ex) && existing) {
       mcState[ex.id] = { selectedOptions: existing.selectedOptions ?? [], omrMeta: existing.omrMeta };

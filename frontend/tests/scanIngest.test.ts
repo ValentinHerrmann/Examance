@@ -8,6 +8,7 @@ import {
   ingestScans,
   onlyExtraPaper,
   stickerIdMap,
+  studentToWrite,
   isPdfFile,
   type IngestDeps,
   type IngestProgress,
@@ -16,6 +17,7 @@ import {
 } from "../src/lib/scan/ingest";
 import { openScan } from "../src/lib/db/dbEncryption";
 import { defaultOmrProfile } from "../src/lib/grading/omrSettings";
+import type { StudentRecord } from "../src/lib/db/schema";
 import type { OmrWorkerResponse } from "../src/lib/workers/omrWorker";
 
 const { calls, saved } = vi.hoisted(() => ({
@@ -483,5 +485,19 @@ describe("extra paper (issue #228)", () => {
     expect(onlyExtraPaper(booklet([ref({ page: 1 }), ref({ extra: true })]), true)).toBe(false);
     expect(onlyExtraPaper(booklet([ref({ extra: true })], true), true)).toBe(false);
     expect(onlyExtraPaper(booklet([]), true)).toBe(false);
+  });
+});
+
+describe("studentToWrite (issue #298)", () => {
+  const row = (extra: Partial<StudentRecord> = {}): StudentRecord => ({ examId: "e", pseudonymHmac: "h", studentName: "Adam, Lena", piiCt: new Uint8Array(0), piiIv: new Uint8Array(12), ...extra });
+
+  it("never writes over a stored row that failed to decrypt", () => {
+    expect(studentToWrite(row({ studentName: "", decryptFailed: "error" }), row({ studentName: "Scan" }))).toBeNull();
+    expect(studentToWrite(row({ studentName: "", decryptFailed: "locked" }), row())).toBeNull();
+  });
+
+  it("merges onto a readable row and writes a new student as scanned", () => {
+    expect(studentToWrite(row({ email: "a@example.org" }), row({ studentName: "Scan" }))?.email).toBe("a@example.org");
+    expect(studentToWrite(undefined, row({ studentName: "Scan" }))?.studentName).toBe("Scan");
   });
 });

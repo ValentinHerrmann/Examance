@@ -2,6 +2,7 @@ import type { ExerciseScoreRecord } from '#lib/db/schema';
 import type { OmrExerciseResult } from '#lib/workers/omrWorker';
 import type { OmrPageStats, OmrRunInfo } from './omrSettings';
 import type { OmrShapeFeatures } from './omrShape';
+import { fitUncertain } from './omrTemplateChoice';
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
@@ -48,6 +49,8 @@ export function buildOmrScoreRecord(
   opts: { id: string; submissionId: string; run: OmrRunInfo; pageStats?: OmrPageStats }
 ): ExerciseScoreRecord {
   const failed = r.confidence === 'failed';
+  // Read with a template that does not fit (issue #298): a sure reading is still only "unsure", so it is checked; `original` keeps the raw reading.
+  const unfit = !failed && fitUncertain(opts.pageStats?.templateFit);
   const flagged = r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined;
   return {
     id: opts.id,
@@ -57,9 +60,9 @@ export function buildOmrScoreRecord(
     score: failed ? undefined : r.score,
     selectedOptions: failed ? [] : r.selectedOptions,
     omrMeta: {
-      confidence: r.confidence,
+      confidence: unfit && r.confidence === 'high' ? 'ambiguous' : r.confidence,
       source: 'omr',
-      alignmentUncertain: r.alignmentUncertain ? true : undefined,
+      alignmentUncertain: r.alignmentUncertain || unfit ? true : undefined,
       flaggedOptions: flagged,
       original: {
         confidence: r.confidence,

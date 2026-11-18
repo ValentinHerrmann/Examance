@@ -52,9 +52,9 @@ describe("buildGradingSheet (issue #85)", () => {
     expect(sheet.scoreInputs.mc).toBe(0);
   });
 
-  it("treats a legacy 0 without strokes as ungraded, but not with strokes", () => {
+  it("keeps a typed 0 with or without strokes (issue #298)", () => {
     const rows = [row("A", "open", { score: 0 })];
-    expect(buildGradingSheet("A", rows, exercises, []).scoreInputs.open).toBeNull();
+    expect(buildGradingSheet("A", rows, exercises, []).scoreInputs.open).toBe(0);
     expect(buildGradingSheet("A", rows, exercises, [pen("open")]).scoreInputs.open).toBe(0);
   });
 
