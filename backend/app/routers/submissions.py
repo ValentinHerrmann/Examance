@@ -361,6 +361,7 @@ async def delete_submission(
     snap = await trash.snapshot_submission(db, exam, sub.id)
     if permanent:
         scan_storage.forget_scans(db, [sub])
+        await trash.purge_submission(db, trash_scope.teacher, exam.id, sub.id)
     else:
         await trash_scope.capture(
             db,

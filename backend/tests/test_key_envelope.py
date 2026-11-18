@@ -101,7 +101,8 @@ async def test_passkey_wrap_must_name_its_credential(
 
 
 @pytest.mark.asyncio
-async def test_recovery_wrap_cannot_be_deleted(client: AsyncClient, db: AsyncSession) -> None:
+async def test_single_wraps_cannot_be_deleted(client: AsyncClient, db: AsyncSession) -> None:
+    """Issue #294: the unchecked single-wrap delete is gone; a passkey's wrap leaves only with the passkey."""
     await _login(client, db, "keeprecovery@example.com")
     await client.put(
         "/api/v1/keys/envelopes",
@@ -111,8 +112,9 @@ async def test_recovery_wrap_cannot_be_deleted(client: AsyncClient, db: AsyncSes
     recovery = next(e for e in body["envelopes"] if e["kind"] == "recovery")
 
     resp = await client.delete(f"/api/v1/keys/envelopes/{recovery['id']}")
-    assert resp.status_code == 409
-    assert resp.headers.get("code") == "ERR_LAST_FACTOR_PROTECTED"
+    assert resp.status_code in (404, 405)
+    after = (await client.get("/api/v1/keys/envelopes")).json()
+    assert len(after["envelopes"]) == len(body["envelopes"])
 
 
 @pytest.mark.asyncio

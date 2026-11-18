@@ -64,6 +64,12 @@ def test_non_standard_bounce_is_matched_by_message_id() -> None:
     assert bounces.parse_bounce(raw.encode()) == bounces.Bounce(TOKEN, "failed", "5.2.2")
 
 
+def test_free_text_status_is_not_kept() -> None:
+    """Issue #294: only a status code is stored, never free text or an address from the report."""
+    for status in ("5.1.1 student@example.org does not exist", "x" * 300, "550"):
+        assert bounces.parse_bounce(_dsn(status=status)) == bounces.Bounce(TOKEN, "failed", None)
+
+
 def test_unrelated_mail_is_not_a_bounce() -> None:
     assert bounces.parse_bounce(b"Subject: hello\n\nJust a reply.") is None
     assert bounces.parse_bounce(_dsn(action="delivered", status="2.0.0")) is None
@@ -257,3 +263,24 @@ def test_student_mail_asks_not_to_reply() -> None:
         )
         assert phrase in mail.text
         assert phrase in mail.html
+
+
+@pytest.mark.asyncio
+async def test_one_bad_message_does_not_block_the_mailbox(
+    client: AsyncClient, db: AsyncSession, mailbox: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Issue #294: a message whose handling fails stays for the next poll; the next one is still handled."""
+    row = await _delivery(client, db, "bounce-bad@example.com", window_open=True)
+    real = bounces._handle
+
+    async def flaky(db: AsyncSession, raw: bytes, counts: Any) -> bool:
+        if raw == b"Subject: broken\n\n":
+            raise RuntimeError("boom")
+        return await real(db, raw, counts)
+
+    monkeypatch.setattr(bounces, "_handle", flaky)
+    mailbox["inbox"] = [b"Subject: broken\n\n", _dsn(row.mail_token or "")]
+    assert await bounces.poll_bounces(db)
+    await db.refresh(row)
+    assert row.status == "bounced"
+    assert mailbox["deleted"] == ["1"]

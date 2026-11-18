@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 RESULT_ID_PREFIX = "examance-r."
 FORWARD_ID_PREFIX = "examance-fwd."
+# Only an RFC 3463 status code is kept: free text in a bounce may quote an address.
+_STATUS = re.compile(r"[245]\.\d{1,3}\.\d{1,3}")
 _TOKEN = re.compile(rf"<{re.escape(RESULT_ID_PREFIX)}([0-9a-f]{{32}})@", re.IGNORECASE)
 _FORWARD = re.compile(rf"<{re.escape(FORWARD_ID_PREFIX)}", re.IGNORECASE)
 _STATUS = re.compile(r"\b([245]\.\d{1,3}\.\d{1,3})\b")
@@ -48,6 +50,12 @@ class Bounce:
     status: str | None
 
 
+def _status_code(value: object) -> str | None:
+    """The status code itself, or None for anything else."""
+    text = str(value).strip() if value is not None else ""
+    return text if _STATUS.fullmatch(text) else None
+
+
 def _delivery_status(msg: Message) -> tuple[str | None, str | None]:
     """Action and Status of the first recipient block of an RFC 3464 report, if there is one."""
     for part in msg.walk():
@@ -57,12 +65,12 @@ def _delivery_status(msg: Message) -> tuple[str | None, str | None]:
         blocks = payload if isinstance(payload, list) else []
         for block in blocks:
             if isinstance(block, Message) and block.get("Action"):
-                return str(block["Action"]).strip().lower(), block.get("Status")
+                return str(block["Action"]).strip().lower(), _status_code(block.get("Status"))
         # Some servers send the fields as plain text instead of header blocks.
         text = part.as_string()
         action = re.search(r"^Action:\s*(\w+)", text, re.IGNORECASE | re.MULTILINE)
-        found = re.search(r"^Status:\s*([245]\.\d+\.\d+)", text, re.IGNORECASE | re.MULTILINE)
-        return (action.group(1).lower() if action else None), (found.group(1) if found else None)
+        found = re.search(r"^Status:\s*(\S+)", text, re.IGNORECASE | re.MULTILINE)
+        return (action.group(1).lower() if action else None), _status_code(found.group(1) if found else None)
     return None, None
 
 
@@ -137,6 +145,18 @@ async def _handle(db: AsyncSession, raw: bytes, counts: _Counts) -> bool:
     return False
 
 
+async def _handle_isolated(db: AsyncSession, raw: bytes, counts: _Counts) -> bool:
+    """One bad message is kept for the next poll and never blocks the rest of the mailbox."""
+    try:
+        async with db.begin_nested():
+            return await _handle(db, raw, counts)
+    except Exception as exc:  # noqa: BLE001 - any failure keeps just this message for the next poll
+        # Only the exception type: its text may quote the message.
+        logger.warning("Result mailbox: a message could not be handled (%s)", type(exc).__name__)
+        counts.kept += 1
+        return False
+
+
 def _fetch_unseen() -> tuple[imaplib.IMAP4_SSL, list[tuple[str, bytes]]]:
     sender = email_svc.result_sender()
     if sender is None:
@@ -190,7 +210,7 @@ async def poll_bounces(db: AsyncSession) -> bool:
         done: list[str] = []
         try:
             for uid, raw in messages:
-                if await _handle(db, raw, counts):
+                if await _handle_isolated(db, raw, counts):
                     done.append(uid)
             await db.commit()
         except BaseException:

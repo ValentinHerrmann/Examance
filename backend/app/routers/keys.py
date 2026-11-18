@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import uuid
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -102,32 +101,3 @@ async def replace_envelopes(
         envelopes=[_to_out(row) for row in rows],
     )
 
-
-@router.delete(
-    "/envelopes/{envelope_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_not_frozen)],
-)
-async def delete_envelope(
-    envelope_id: uuid.UUID,
-    session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = Depends(get_db),
-) -> None:
-    """Remove a single wrap (used when a passkey is deregistered). The recovery wrap cannot be deleted this way: it always works, and dropping it would leave the account one forgotten password from unreadable data."""
-    teacher = _require_envelope_scope(session, write=True)
-    result = await db.execute(
-        select(KeyEnvelope).where(
-            KeyEnvelope.id == envelope_id, KeyEnvelope.teacher_id == teacher.id
-        )
-    )
-    row = result.scalar_one_or_none()
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Envelope not found.")
-    # An enrolling account (one proven factor) may only drop passkey wraps.
-    if row.kind == "recovery" or (row.kind == "password" and session.scope == "enroll"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="This key copy cannot be removed.",
-            headers={"code": "ERR_LAST_FACTOR_PROTECTED"},
-        )
-    await db.delete(row)

@@ -713,6 +713,30 @@ async def purge_student(
     )
 
 
+async def purge_submission(
+    db: AsyncSession,
+    teacher: Teacher,
+    exam_id: uuid.UUID,
+    submission_id: uuid.UUID,
+    exercise_id: uuid.UUID | None = None,
+) -> None:
+    """GDPR erasure of one submission (or one exercise's scores of it): erase its earlier trash copies too."""
+    items = await db.scalars(
+        select(TrashItem).where(TrashItem.teacher_id == teacher.id, TrashItem.exam_id == exam_id)
+    )
+    sub = str(submission_id)
+
+    def matches(item: TrashItem) -> bool:
+        label = item.label or {}
+        if item.kind == "exam" or label.get("submission_id") != sub:
+            return False
+        return exercise_id is None or (
+            item.kind == "scores" and label.get("exercise_id") == str(exercise_id)
+        )
+
+    await purge(db, [i for i in items if matches(i)])
+
+
 async def all_blob_refs(db: AsyncSession) -> set[str]:
     """Every scan file the trash still points at (the blob sweep keeps them)."""
     return {ref for refs in await db.scalars(select(TrashItem.blob_refs)) for ref in (refs or [])}

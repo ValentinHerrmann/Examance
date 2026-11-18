@@ -205,6 +205,21 @@ def set_role(email: str, role: str, force: bool) -> None:
     click.echo(_with_teacher(email, _update))
 
 
+async def reset_password(db: AsyncSession, teacher: Teacher, password: str) -> None:
+    """Operator password reset: new hash, stale password wrap, every session signed out."""
+    from app.models.refresh_token import RefreshToken
+    from app.services.crypto import hash_password
+    from app.services.key_envelope import invalidate_password_wrap
+
+    teacher.password_hash = hash_password(password)
+    # The server never sees the data key, so it cannot re-wrap it: a stale password wrap sends the teacher to the recovery code, not into a vault of blank fields.
+    await invalidate_password_wrap(db, teacher.id)
+    # A reset of a compromised account must also end the attacker's sessions.
+    await db.execute(
+        update(RefreshToken).where(RefreshToken.teacher_id == teacher.id).values(revoked=True)
+    )
+
+
 @cli.command("set-password")
 @click.option("--email", required=True, help="Existing user email.")
 @click.option(
@@ -216,21 +231,13 @@ def set_role(email: str, role: str, force: bool) -> None:
 )
 def set_password(email: str, password: str) -> None:
     """Reset password for an existing user account."""
-    from app.services.crypto import hash_password
-    from app.services.key_envelope import invalidate_password_wrap
-
     if len(password) < 12:
         raise click.ClickException("Password must be at least 12 characters long.")
 
     normalized_email = email.strip().lower()
 
-    async def _update(db: AsyncSession, teacher: Teacher) -> None:
-        teacher.password_hash = hash_password(password)
-        # The server never sees the data key, so it cannot re-wrap it: a stale password wrap sends the teacher to the recovery code, not into a vault of blank fields.
-        await invalidate_password_wrap(db, teacher.id)
-
-    _with_teacher(email, _update)
-    click.echo(f"Password updated for user: {normalized_email}")
+    _with_teacher(email, lambda db, teacher: reset_password(db, teacher, password))
+    click.echo(f"Password updated for user: {normalized_email}; their sessions were signed out.")
     click.echo(
         "Note: this does not restore access to the account's encrypted data. "
         "The user must sign in and recover their key with their recovery code."
