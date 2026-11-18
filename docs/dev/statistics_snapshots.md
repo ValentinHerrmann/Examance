@@ -23,7 +23,7 @@ A row never carries a pseudonym, submission id, timestamp, scan, annotation or `
   - About 3 s later the exam is rebuilt from its results wherever the mode keeps them and sent with `PUT /exams/{id}/statistics`.
   - The server stamps `computed_at` with its own clock, so a browser with a wrong clock cannot freeze the record. The client's build time only filters replayed queue writes: a write built more than a day before the stored record is ignored and the stored record returned. The PUT is therefore idempotent and safe to replay.
 - **Partial views never write** (`statisticsRebuild.ts` `rebuildAction`). The rebuild is skipped in three cases:
-  - any submission or score of the exam did not decrypt (`decryptFailed`), since the rows would silently drop papers or exercises (issue #290);
+  - anything the record is built from did not decrypt (`hasUnreadable`: the exam, an exercise, a submission or a score of one of its exercises), since the rows would silently drop papers or exercises (issue #290); the backfill then retries on the next open;
   - a hybrid browser that holds no rows of the exam, unless it held some when the teacher's write marked the exam;
   - a server-mode exam whose results retention erased (`results_purged_at` on the exam response).
   The server takes a sealed record of up to 4 MB ciphertext (`ERR_STATISTICS_TOO_LARGE`); the body limit for that path is `BODY_LIMIT_STATISTICS`.

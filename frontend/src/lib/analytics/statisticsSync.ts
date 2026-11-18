@@ -12,7 +12,7 @@ import { db } from '#lib/db/db';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
 import { onStatisticsDirty } from './statisticsDirty';
 import { buildStatisticsSnapshot } from './statisticsSnapshot';
-import { rebuildAction } from './statisticsRebuild';
+import { hasUnreadable, rebuildAction } from './statisticsRebuild';
 
 const DEBOUNCE_MS = 3000;
 const BACKFILL_KEY = 'bg_statistics_backfill_v1';
@@ -29,13 +29,13 @@ function activeKey(): CryptoKey | null {
   return get(sessionStore).sessionKey ?? null;
 }
 
-/** Rebuilds the exam's record from its results wherever the mode keeps them, unless this view is partial (see `rebuildAction`); `clearWhenEmpty` marks a rebuild after the teacher's own write. */
-export async function refreshStatistics(examId: string, { clearWhenEmpty = false } = {}): Promise<void> {
+/** Rebuilds the exam's record from its results wherever the mode keeps them, unless this view is partial (see `rebuildAction`); `clearWhenEmpty` marks a rebuild after the teacher's own write. Resolves false when unreadable rows held the rebuild back. */
+export async function refreshStatistics(examId: string, { clearWhenEmpty = false } = {}): Promise<boolean> {
   const key = activeKey();
   const hadRows = hadLocalRows.delete(examId);
-  if (!key) return;
+  if (!key) return true;
   const exam = await loadExamEncrypted(examId, key);
-  if (!exam) return;
+  if (!exam) return true;
   const local = resultsAreLocal();
   const [exercises, submissions, scores] = await Promise.all([
     loadExamExercisesEncrypted(examId, key),
@@ -43,13 +43,20 @@ export async function refreshStatistics(examId: string, { clearWhenEmpty = false
     scoreRepository.getByExamId(examId, key),
   ]);
   const snapshot = buildStatisticsSnapshot(exam, exercises, submissions, scores);
-  const unreadable = submissions.some((s) => s.decryptFailed) || scores.some((s) => s.decryptFailed);
-  if (unreadable) console.warn(`[statistics] exam ${examId} skipped: some results could not be read`);
-  const action = rebuildAction({ local, purged: Boolean(exam.resultsPurgedAt), hasRows: submissions.length > 0, graded: snapshot !== null, hadRows, clearWhenEmpty, unreadable });
-  if (action === 'put' && snapshot) return statisticsRepository.put(snapshot, key);
-  if (action !== 'delete') return;
-  const stored = await statisticsRepository.findByExam(examId, key);
-  if (stored) await statisticsRepository.delete(stored.id);
+  const unreadable = hasUnreadable(exam, exercises, submissions, scores);
+  const view = { local, purged: Boolean(exam.resultsPurgedAt), hasRows: submissions.length > 0, graded: snapshot !== null, hadRows, clearWhenEmpty };
+  const action = rebuildAction({ ...view, unreadable });
+  // Warn only when the unreadable rows are what held the rebuild back.
+  if (unreadable && rebuildAction({ ...view, unreadable: false }) !== 'skip') {
+    console.warn(`[statistics] exam ${examId} not rebuilt: some of its data could not be read`);
+    return false;
+  }
+  if (action === 'put' && snapshot) await statisticsRepository.put(snapshot, key);
+  else if (action === 'delete') {
+    const stored = await statisticsRepository.findByExam(examId, key);
+    if (stored) await statisticsRepository.delete(stored.id);
+  }
+  return true;
 }
 
 function run(examId: string): void {
@@ -92,11 +99,12 @@ async function backfill(): Promise<void> {
   let failed = false;
   for (const exam of exams) {
     if (covered.has(exam.id)) continue;
-    // One unreadable exam must not stop the others; the backfill then runs again on the next open.
-    await refreshStatistics(exam.id).catch((err) => { // NOSONAR: one exam at a time keeps the load small
-      failed = true;
+    // One unreadable exam must not stop the others; the backfill then runs again on the next open, also after a rebuild held back by unreadable rows.
+    const complete = await refreshStatistics(exam.id).catch((err) => { // NOSONAR: one exam at a time keeps the load small
       console.warn(`[statistics] backfill skipped exam ${exam.id}:`, err);
+      return false;
     });
+    if (!complete) failed = true;
   }
   if (!failed) safeLocalStorage.setItem(flag, 'done');
 }

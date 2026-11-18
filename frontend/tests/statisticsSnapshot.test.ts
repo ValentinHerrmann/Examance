@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { computeExamResults } from '#lib/analytics/examResults';
 import { mergeKeptStatistics } from '#lib/analytics/keptStatistics';
 import { buildStatisticsSnapshot, remapSnapshot, snapshotRecords } from '#lib/analytics/statisticsSnapshot';
-import { rebuildAction } from '#lib/analytics/statisticsRebuild';
+import { hasUnreadable, rebuildAction } from '#lib/analytics/statisticsRebuild';
+import type { MaybeUndecryptable } from '#lib/db/decryptGuard';
 import type { ExamRecord, ExerciseRecord, ExerciseScoreRecord, SubmissionRecord } from '#lib/db/schema';
 
 const exam = { id: 'exam-1', teacherId: 't', title: 'SA 1', lehrernachname: 'Muster', retentionUntil: '2027-01-01', compilationStatus: 'compiled', createdAt: '2026-01-01' } as ExamRecord;
@@ -89,5 +90,27 @@ describe('rebuildAction', () => {
     expect(rebuildAction({ ...base, unreadable: true })).toBe('skip');
     expect(rebuildAction({ ...base, local: false, unreadable: true })).toBe('skip');
     expect(rebuildAction({ ...base, hasRows: false, graded: false, unreadable: true })).toBe('skip');
+  });
+});
+
+describe('hasUnreadable', () => {
+  type Row = MaybeUndecryptable;
+  interface View { exam: Row; exercises: (Row & { id: string })[]; submissions: Row[]; scores: (Row & { exerciseId: string })[] }
+  const ok: View = { exam: {}, exercises: [{ id: 'ex-a' }], submissions: [{}], scores: [{ exerciseId: 'ex-a' }] };
+  const check = (v: Partial<View>) => {
+    const m = { ...ok, ...v };
+    return hasUnreadable(m.exam, m.exercises, m.submissions, m.scores);
+  };
+
+  it('flags an unreadable exam, exercise, submission or score of the exam', () => {
+    expect(check({})).toBe(false);
+    expect(check({ exam: { decryptFailed: 'error' } })).toBe(true);
+    expect(check({ exercises: [{ id: 'ex-a', decryptFailed: 'error' }] })).toBe(true);
+    expect(check({ submissions: [{ decryptFailed: 'locked' }] })).toBe(true);
+    expect(check({ scores: [{ exerciseId: 'ex-a', decryptFailed: 'error' }] })).toBe(true);
+  });
+
+  it('ignores an unreadable score of an exercise no longer in the exam', () => {
+    expect(check({ scores: [{ exerciseId: 'gone', decryptFailed: 'error' }] })).toBe(false);
   });
 });

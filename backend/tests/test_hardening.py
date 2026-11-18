@@ -381,9 +381,8 @@ async def test_cli_password_reset_signs_out_every_session(
 def test_rekey_has_its_own_body_limit() -> None:
     """Regression for #290: a rekey of many pseudonyms is not held to the 256 KB default."""
     from app.config import settings
-    from app.main import create_app
     from app.middleware.body_limit import BodyLimitMiddleware
 
-    middleware = BodyLimitMiddleware(app=create_app())
+    middleware = BodyLimitMiddleware(app=lambda *_: None)  # type: ignore[arg-type]  # never called
     path = "/api/v1/exams/7f1c2e4a-0000-4000-8000-000000000001/pseudonyms/rekey"
     assert middleware._get_limit(path, "POST") == settings.BODY_LIMIT_REKEY
