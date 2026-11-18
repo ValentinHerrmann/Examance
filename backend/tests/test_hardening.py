@@ -11,11 +11,10 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import cli_common
-from app.cli import reset_password
 from app.config import PLACEHOLDER_SECRET_KEYS, Settings
 from app.models.teacher import Teacher
 from app.services.crypto import hash_password
-from app.services.password_reset import create_and_send_reset_token
+from app.services.password_reset import apply_new_password, create_and_send_reset_token
 
 from .factors import create_teacher, sign_in, start_reset
 
@@ -358,8 +357,9 @@ def test_schema_hint_never_prints_the_database_password(monkeypatch: pytest.Monk
     monkeypatch.setattr(
         cli_common.settings, "DATABASE_URL", "postgresql+asyncpg://app:hunter2secret@db:5432/examance"
     )
+    missing = Exception("relation does not exist: undefined table")
     with pytest.raises(click.ClickException) as raised:
-        cli_common.raise_schema_hint(Exception("relation does not exist: undefined table"))
+        cli_common.raise_schema_hint(missing)
     message = raised.value.message
     assert "hunter2secret" not in message
     assert "postgresql+asyncpg://db/examance" in message
@@ -370,6 +370,8 @@ async def test_cli_password_reset_signs_out_every_session(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     teacher = await sign_in(client, db, "cli-reset@example.com")
-    await reset_password(db, teacher, "a-new-long-password")
+    before = teacher.password_changed_at
+    await apply_new_password(db, teacher, "a-new-long-password")
     await db.commit()
+    assert teacher.password_changed_at is not None and teacher.password_changed_at != before
     assert (await client.post("/api/v1/auth/refresh")).status_code == 401

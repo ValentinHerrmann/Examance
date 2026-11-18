@@ -7,6 +7,7 @@ import uuid
 from datetime import UTC, datetime
 from urllib.parse import urlparse
 
+from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from webauthn import (
@@ -27,6 +28,7 @@ from app.config import settings
 from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
 from app.models.webauthn_credential import WebAuthnCredential
+from app.schemas.binary import decode_credential_id
 from app.services import ephemeral_store
 
 # Challenges are single-use and short-lived, so they belong in the ephemeral store rather than the database.
@@ -214,7 +216,10 @@ async def verify_authentication(
     raw_id = parsed.get("rawId") or parsed.get("id")
     if not raw_id:
         raise CeremonyError("The authenticator response is missing its credential id.")
-    credential_id = base64.urlsafe_b64decode(raw_id + "=" * (-len(raw_id) % 4))
+    try:
+        credential_id = decode_credential_id(str(raw_id), "rawId")
+    except HTTPException:
+        raise CeremonyError("Unknown passkey.") from None
 
     result = await db.execute(
         select(WebAuthnCredential).where(WebAuthnCredential.credential_id == credential_id)

@@ -24,10 +24,9 @@ logger = logging.getLogger(__name__)
 
 RESULT_ID_PREFIX = "examance-r."
 FORWARD_ID_PREFIX = "examance-fwd."
-# Only an RFC 3463 status code is kept: free text in a bounce may quote an address.
-_STATUS = re.compile(r"[245]\.\d{1,3}\.\d{1,3}")
 _TOKEN = re.compile(rf"<{re.escape(RESULT_ID_PREFIX)}([0-9a-f]{{32}})@", re.IGNORECASE)
 _FORWARD = re.compile(rf"<{re.escape(FORWARD_ID_PREFIX)}", re.IGNORECASE)
+# Only an RFC 3463 status code is kept: free text in a bounce may quote an address.
 _STATUS = re.compile(r"\b([245]\.\d{1,3}\.\d{1,3})\b")
 _LOCK = "bounces:poll"
 _LOCK_SECONDS = 120
@@ -51,9 +50,9 @@ class Bounce:
 
 
 def _status_code(value: object) -> str | None:
-    """The status code itself, or None for anything else."""
-    text = str(value).strip() if value is not None else ""
-    return text if _STATUS.fullmatch(text) else None
+    """The leading status code, without any comment after it; None when the value does not start with one."""
+    found = _STATUS.match(str(value).strip()) if value is not None else None
+    return found.group(1) if found else None
 
 
 def _delivery_status(msg: Message) -> tuple[str | None, str | None]:
@@ -110,51 +109,60 @@ class _Counts:
     kept: int = 0
 
 
-async def _handle(db: AsyncSession, raw: bytes, counts: _Counts) -> bool:
-    """Handle one message; True when it may be deleted from the mailbox."""
+@dataclass(frozen=True)
+class _Step:
+    """What one message needs once its database part is done: a mail to send, if any."""
+
+    matched: bool = False
+    dropped: bool = False
+    mail: account_mail.Mail | None = None
+
+
+async def _route(db: AsyncSession, raw: bytes) -> _Step:
+    """The database part of one message: record the bounce and pick the forward, without sending anything."""
     if is_own_forward(raw):
-        counts.dropped += 1
-        return True
+        return _Step(dropped=True)
     bounce = parse_bounce(raw)
     row = await result_deliveries.by_token(db, bounce.token) if bounce else None
     if bounce is None or row is None:
-        if await account_mail.send(
-            account_mail.bounce_forward_mail(
-                settings.SMTP_FROM_EMAIL, None, raw, forward_message_id()
-            )
-        ):
-            counts.forwarded_admin += 1
-            return True
-        counts.kept += 1
-        return False
+        mail = account_mail.bounce_forward_mail(
+            settings.SMTP_FROM_EMAIL, None, raw, forward_message_id()
+        )
+        return _Step(mail=mail)
     result_deliveries.apply_bounce(row, bounce.action, bounce.status)
-    counts.matched += 1
     if result_deliveries.window_open(row) or bounce.action == "delayed":
         # The open dialog shows it; a mere delay is not worth a mail.
-        return True
+        return _Step(matched=True)
     teacher = await db.get(Teacher, row.teacher_id)
     if teacher is None:
-        return True
+        return _Step(matched=True)
     link = account_mail.frontend_link(f"/exam/{row.exam_id}")
-    if await account_mail.send(
-        account_mail.bounce_forward_mail(teacher.email, link, raw, forward_message_id())
-    ):
-        counts.forwarded_teacher += 1
-        return True
-    counts.kept += 1
-    return False
+    mail = account_mail.bounce_forward_mail(teacher.email, link, raw, forward_message_id())
+    return _Step(matched=True, mail=mail)
 
 
-async def _handle_isolated(db: AsyncSession, raw: bytes, counts: _Counts) -> bool:
-    """One bad message is kept for the next poll and never blocks the rest of the mailbox."""
+async def _handle(db: AsyncSession, raw: bytes, counts: _Counts) -> bool:
+    """Handle one message; True when it may be deleted from the mailbox. A failed database part rolls back and keeps the message; mail goes out only after it."""
     try:
         async with db.begin_nested():
-            return await _handle(db, raw, counts)
+            step = await _route(db, raw)
     except Exception as exc:  # noqa: BLE001 - any failure keeps just this message for the next poll
         # Only the exception type: its text may quote the message.
         logger.warning("Result mailbox: a message could not be handled (%s)", type(exc).__name__)
         counts.kept += 1
         return False
+    counts.matched += step.matched
+    counts.dropped += step.dropped
+    if step.mail is None:
+        return True
+    if not await account_mail.send(step.mail):
+        counts.kept += 1
+        return False
+    if step.matched:
+        counts.forwarded_teacher += 1
+    else:
+        counts.forwarded_admin += 1
+    return True
 
 
 def _fetch_unseen() -> tuple[imaplib.IMAP4_SSL, list[tuple[str, bytes]]]:
@@ -210,7 +218,7 @@ async def poll_bounces(db: AsyncSession) -> bool:
         done: list[str] = []
         try:
             for uid, raw in messages:
-                if await _handle_isolated(db, raw, counts):
+                if await _handle(db, raw, counts):
                     done.append(uid)
             await db.commit()
         except BaseException:

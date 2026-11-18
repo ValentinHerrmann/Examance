@@ -6,7 +6,7 @@ import json
 import logging
 import uuid
 import zlib
-from collections.abc import Iterable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any
@@ -28,6 +28,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from app.config import settings
 from app.database import Base
@@ -700,17 +701,45 @@ async def purge(db: AsyncSession, items: Sequence[TrashItem], *, restored: bool 
         await db.execute(delete(TrashItem).where(TrashItem.id.in_(id_list[start : start + _CHUNK])))
 
 
+async def _purge_matching(
+    db: AsyncSession, teacher: Teacher, exam_id: uuid.UUID, matches: Callable[[TrashItem], Awaitable[bool]]
+) -> None:
+    """GDPR erasure inside one exam: erase the teacher's entries *matches* picks (whole-exam entries hold other students and stay); payloads load only on demand."""
+    items = await db.scalars(
+        select(TrashItem)
+        .where(
+            TrashItem.teacher_id == teacher.id,
+            TrashItem.exam_id == exam_id,
+            TrashItem.kind != "exam",
+        )
+        .options(defer(TrashItem.payload))
+    )
+    await purge(db, [i for i in items if await matches(i)])
+
+
 async def purge_student(
     db: AsyncSession, teacher: Teacher, exam_id: uuid.UUID, pseudonym_hmac: str
 ) -> None:
-    """GDPR erasure: erase the teacher's trash entries about this one student of this exam (whole-exam entries hold other students and stay)."""
-    items = await db.scalars(
-        select(TrashItem).where(TrashItem.teacher_id == teacher.id, TrashItem.exam_id == exam_id)
-    )
-    await purge(
-        db,
-        [i for i in items if i.kind != "exam" and (i.label or {}).get("pseudonym_hmac") == pseudonym_hmac],
-    )
+    """GDPR erasure: erase the teacher's trash entries about this one student of this exam."""
+
+    async def matches(item: TrashItem) -> bool:
+        return bool((item.label or {}).get("pseudonym_hmac") == pseudonym_hmac)
+
+    await _purge_matching(db, teacher, exam_id, matches)
+
+
+async def _holds_exercise(db: AsyncSession, item: TrashItem, exercise_id: str) -> bool:
+    """Whether a `scores` entry holds this exercise; entries from before issue #294 carry no `exercise_id` label, so their rows tell."""
+    if item.kind != "scores":
+        return False
+    labelled = (item.label or {}).get("exercise_id")
+    if labelled is not None:
+        return bool(labelled == exercise_id)
+    payload = await db.scalar(select(TrashItem.payload).where(TrashItem.id == item.id))
+    if payload is None:
+        return False
+    rows = _decode_doc(payload).get("rows", {}).get("exercise_scores", [])
+    return any(str(row.get("exercise_id")) == exercise_id for row in rows)
 
 
 async def purge_submission(
@@ -721,20 +750,14 @@ async def purge_submission(
     exercise_id: uuid.UUID | None = None,
 ) -> None:
     """GDPR erasure of one submission (or one exercise's scores of it): erase its earlier trash copies too."""
-    items = await db.scalars(
-        select(TrashItem).where(TrashItem.teacher_id == teacher.id, TrashItem.exam_id == exam_id)
-    )
     sub = str(submission_id)
 
-    def matches(item: TrashItem) -> bool:
-        label = item.label or {}
-        if item.kind == "exam" or label.get("submission_id") != sub:
+    async def matches(item: TrashItem) -> bool:
+        if (item.label or {}).get("submission_id") != sub:
             return False
-        return exercise_id is None or (
-            item.kind == "scores" and label.get("exercise_id") == str(exercise_id)
-        )
+        return exercise_id is None or await _holds_exercise(db, item, str(exercise_id))
 
-    await purge(db, [i for i in items if matches(i)])
+    await _purge_matching(db, teacher, exam_id, matches)
 
 
 async def all_blob_refs(db: AsyncSession) -> set[str]:

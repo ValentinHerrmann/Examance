@@ -82,6 +82,18 @@ async def verify_reset_token(
     return token_record, teacher
 
 
+async def apply_new_password(db: AsyncSession, teacher: Teacher, new_password: str) -> None:
+    """Every server-side password write: new hash, stale password wrap, every session signed out."""
+    teacher.password_hash = await hash_password_async(new_password)
+    teacher.password_changed_at = datetime.now(UTC)
+    # The server never sees the data key, so it cannot re-wrap it for the new password: a stale wrap makes the client offer the recovery code, not a vault of blank fields. The recovery and passkey wraps still hold the same key.
+    await invalidate_password_wrap(db, teacher.id)
+    # A reset of a compromised account must also end the attacker's sessions.
+    await db.execute(
+        update(RefreshToken).where(RefreshToken.teacher_id == teacher.id).values(revoked=True)
+    )
+
+
 async def complete_password_reset(
     db: AsyncSession, raw_token: str, new_password: str, *, teacher_id: uuid.UUID
 ) -> Teacher:
@@ -91,17 +103,6 @@ async def complete_password_reset(
         raise ValueError("Invalid or expired password reset token.")
 
     token_record.used_at = datetime.now(UTC)
-    teacher.password_hash = await hash_password_async(new_password)
-    teacher.password_changed_at = datetime.now(UTC)
-
-    # The server never sees the data key, so it cannot re-wrap it for the new password: a stale wrap makes the client offer the recovery code, not a vault of blank fields. The recovery and passkey wraps still hold the same key.
-    await invalidate_password_wrap(db, teacher.id)
-
-    # Force re-authentication across all active sessions by revoking refresh tokens
-    await db.execute(
-        update(RefreshToken)
-        .where(RefreshToken.teacher_id == teacher.id)
-        .values(revoked=True)
-    )
+    await apply_new_password(db, teacher, new_password)
 
     return teacher

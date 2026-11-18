@@ -66,8 +66,10 @@ def test_non_standard_bounce_is_matched_by_message_id() -> None:
 
 def test_free_text_status_is_not_kept() -> None:
     """Issue #294: only a status code is stored, never free text or an address from the report."""
-    for status in ("5.1.1 student@example.org does not exist", "x" * 300, "550"):
+    for status in ("student@example.org does not exist", "x" * 300, "550"):
         assert bounces.parse_bounce(_dsn(status=status)) == bounces.Bounce(TOKEN, "failed", None)
+    for status in ("5.1.1 (user unknown)", "5.1.1 student@example.org"):
+        assert bounces.parse_bounce(_dsn(status=status)) == bounces.Bounce(TOKEN, "failed", "5.1.1")
 
 
 def test_unrelated_mail_is_not_a_bounce() -> None:
@@ -269,18 +271,22 @@ def test_student_mail_asks_not_to_reply() -> None:
 async def test_one_bad_message_does_not_block_the_mailbox(
     client: AsyncClient, db: AsyncSession, mailbox: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Issue #294: a message whose handling fails stays for the next poll; the next one is still handled."""
-    row = await _delivery(client, db, "bounce-bad@example.com", window_open=True)
-    real = bounces._handle
+    """Issue #294: a message whose database part fails is rolled back and kept; the next one is still handled."""
+    bad = await _delivery(client, db, "bounce-bad@example.com", window_open=False)
+    good = await _delivery(client, db, "bounce-good@example.com", window_open=True)
+    real_get = db.get
 
-    async def flaky(db: AsyncSession, raw: bytes, counts: Any) -> bool:
-        if raw == b"Subject: broken\n\n":
+    async def failing_get(model: Any, ident: Any, **kwargs: Any) -> Any:
+        if ident == bad.teacher_id:
             raise RuntimeError("boom")
-        return await real(db, raw, counts)
+        return await real_get(model, ident, **kwargs)
 
-    monkeypatch.setattr(bounces, "_handle", flaky)
-    mailbox["inbox"] = [b"Subject: broken\n\n", _dsn(row.mail_token or "")]
+    monkeypatch.setattr(db, "get", failing_get)
+    mailbox["inbox"] = [_dsn(bad.mail_token or ""), _dsn(good.mail_token or "")]
     assert await bounces.poll_bounces(db)
-    await db.refresh(row)
-    assert row.status == "bounced"
+    await db.refresh(bad)
+    await db.refresh(good)
+    assert bad.status == "sent", "the failed message's status change was rolled back"
+    assert good.status == "bounced"
+    assert mailbox["sent"] == []
     assert mailbox["deleted"] == ["1"]

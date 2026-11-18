@@ -1,6 +1,7 @@
 """Passkey endpoints. The ceremonies need a real authenticator, so these cover our parts: a passkey alone completes a sign-in (only for its own account), the challenge is single-use, and the removal guard holds."""
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -120,6 +121,26 @@ async def test_registration_requires_user_verification_and_hides_internal_errors
     assert seen.get("require_user_verification") is True
     assert resp.status_code == 400
     assert resp.json()["detail"] == "The passkey could not be registered."
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw_id", ["ab+/cd==", "a"])
+async def test_sign_in_decodes_the_credential_id_like_everywhere_else(
+    client: AsyncClient, raw_id: str
+) -> None:
+    """Issue #294: a standard-base64 `rawId` reaches the lookup, and a malformed one reads as an unknown passkey."""
+    client.cookies.clear()
+    options = (await client.post("/api/v1/webauthn/login/options")).json()
+    resp = await client.post(
+        "/api/v1/webauthn/login/verify",
+        json={
+            "handle": options["handle"],
+            "challenge_b64": options["challenge_b64"],
+            "credential_json": json.dumps({"rawId": raw_id}),
+        },
+    )
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Unknown passkey."
 
 
 @pytest.mark.asyncio
