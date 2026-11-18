@@ -58,7 +58,9 @@ export const scanning = {
     pageNotes: {
         title: 'Nicht alle Seiten passten zur Prüfung. Jede Seite wurde gespeichert.',
         missing: '{student}: Seite(n) {pages} fehlen. Platzhalter stehen an ihrer Stelle und werden ersetzt, sobald Sie die Seiten nachscannen.',
-        extra: '{student}: {count} Seite(n) ohne lesbaren Seitencode (z. B. Zusatzpapier mit Aufkleber) oder doppelt gescannt; sie stehen nach den Prüfungsseiten.',
+        extra: '{student}: {count} Seite(n) ohne lesbaren Seitencode (z. B. Zusatzpapier mit Aufkleber); sie stehen nach den Prüfungsseiten.',
+        repeatedGraded: '{student}: Seite(n) {pages} kamen doppelt. Sie stehen am Ende, ihre MC-Antworten wurden nicht gelesen, Ihre Bewertung bleibt unverändert. Dieser Scan ist schon von Hand bewertet und lässt sich daher nicht teilen; gehören die Seiten einem anderen Schüler, scannen Sie dessen Arbeit mit lesbarem Aufkleber erneut, die doppelten Seiten können bleiben.',
+        repeated: '{student}: Seite(n) {pages} kamen doppelt. Sie stehen am Ende, ihre MC-Antworten wurden nicht gelesen, Geprüftes bleibt also unverändert. War der Aufkleber eines zweiten Schülers unlesbar, teilen Sie den Scan dort und starten Sie für den neuen Teil „MC-Erkennung erneut ausführen“.',
         paperTitle: 'Zusätzliche Seiten wurden angehängt.',
         foreign: '{fileName}: Seite(n) einer anderen Prüfung; sie stehen als nicht zugeordnete Abgabe in der Liste.',
     },
