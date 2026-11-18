@@ -58,6 +58,11 @@
     // The previous exam goes at once: its statistics (and their delete) never show under this exam's URL.
     exam = null;
     stats = null;
+    totalMaxPoints = null;
+    exercises = [];
+    submissions = [];
+    students = [];
+    scores = [];
     storedStats = null;
     confirmDeleteStats = false;
     loadError = '';
@@ -159,7 +164,7 @@
 >
   {#snippet gradingKeyPanel()}
     {#if exam}
-      <GradingKeyPanel {exam} onPreview={(key) => recompute(key)} onSaved={(updated) => (exam = updated)} />
+      <GradingKeyPanel {exam} onPreview={(key) => recompute(key)} onSaved={(updated) => { if (exam?.id === updated.id) exam = updated; }} />
     {/if}
   {/snippet}
 </StatsPage>

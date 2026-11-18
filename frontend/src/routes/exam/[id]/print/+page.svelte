@@ -7,7 +7,7 @@
   import { buildExamItems, loadExamCompileContext, type ExamCompileContext } from "#lib/grading/omrTemplatePrep";
   import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
   import { examHasWithheldCode, getCurrentExamVariant } from "#lib/exam/examPreview";
-  import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
+  import { saveExamLayout, withSavedExam, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import { contentStamp } from "#lib/exam/examChecks";
   import { examChecksState } from "#lib/stores/shell";
   import { copiesUnavailable, loadStickerEntries } from "#lib/sharing/stickerEntries";
@@ -65,6 +65,7 @@
       [pinList, currentHash] = [pins, hash];
       pinError = "";
     } catch (err) {
+      if (ctx !== shown) return;
       pinError = translate("exam.print.pins.loadFailed", { message: err instanceof Error ? err.message : String(err) });
     }
   }
@@ -72,12 +73,14 @@
   /** Never blocks printing: a failed pin is reported under the jobs. */
   async function pin(source: OmrPinSource) {
     if (!ctx || !pinnable) return;
+    const shown = ctx;
     try {
-      const pinned = await pinOmrTemplate({ ...ctx, examItems }, source, key());
-      if (!pinned) return;
+      const pinned = await pinOmrTemplate({ ...shown, examItems }, source, key());
+      if (!pinned || ctx !== shown) return;
       currentHash = pinned.hash;
       if (!(pinList ?? []).some((p) => p.hash === pinned.hash)) await loadPins();
     } catch (err) {
+      if (ctx !== shown) return;
       pinError = translate("exam.print.pins.pinFailed", { message: err instanceof Error ? err.message : String(err) });
     }
   }
@@ -123,7 +126,7 @@
   async function refreshSources() {
     const id = examId;
     const fresh = await loadExamCompileContext(id, key());
-    if (fresh && fresh.exam.id === examId && ctx?.exam.id === id) ctx = fresh;
+    if (fresh && id === examId && ctx?.exam.id === id) ctx = fresh;
   }
 
   /** One current compiled sheet; the job rows only offer it while it is current (the solution may be skipped). */
@@ -140,8 +143,9 @@
   async function savePrint(patch: ExamLayoutPatch) {
     if (!ctx) return;
     const exam = await saveExamLayout(ctx.exam, patch);
-    if (ctx?.exam.id !== exam.id) return;
-    ctx = { ...ctx, exam };
+    const next = withSavedExam(ctx, exam);
+    if (!next) return;
+    ctx = next;
     layoutVersion++;
     // The made PDFs and ticks are checked against the content stamp, which covers the print settings.
     const exercises = ctx.exercises;

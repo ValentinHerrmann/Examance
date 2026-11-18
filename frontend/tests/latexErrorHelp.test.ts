@@ -98,6 +98,14 @@ describe('buildAiPrompt privacy and context', () => {
     }
   });
 
+  it('ends an unclosed header brace at the next header field', () => {
+    const doc = ['\\documentclass{article}', '\\Info{Note {see sheet}', '\\Fach{Informatik}', '\\begin{document}', 'BODY LINE \\oops', 'Text'].join('\n');
+    const log = '! Undefined control sequence.\nl.5 BODY LINE \\oops\n';
+    const prompt = buildAiPrompt({ log, engine: 'local', source: doc, ranges: [], includeSource: true, locale: 'en' });
+    expect(prompt).toContain('BODY LINE');
+    expect(prompt).not.toContain('see sheet');
+  });
+
   it('quotes whole template definitions, not lines that merely use the name', () => {
     const sty = [
       '\\renewcommand{\\theTeilaufgabe}{\\alph{Teilaufgabe}}',

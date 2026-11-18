@@ -162,7 +162,8 @@ function headerSpans(lines: string[], fields: string[] = HEADER_FIELDS): number[
     }
     const span = [i];
     let depth = braceDelta(lines[i]);
-    while (depth > 0 && i + 1 < lines.length) {
+    // An unclosed brace ends before the next header field or the body, so a stray `{` cannot swallow the document.
+    while (depth > 0 && i + 1 < lines.length && !isHeaderField(lines[i + 1]) && !lines[i + 1].trimStart().startsWith(BEGIN_DOCUMENT)) {
       span.push(++i);
       depth += braceDelta(lines[i]);
     }
@@ -172,8 +173,17 @@ function headerSpans(lines: string[], fields: string[] = HEADER_FIELDS): number[
   return spans;
 }
 
+const BEGIN_DOCUMENT = String.raw`\begin{document}`;
+// One prompt numbers many excerpts of the same split source.
+const headerLineCache = new WeakMap<string[], Set<number>>();
+
 function headerLineIndexes(lines: string[]): Set<number> {
-  return new Set(headerSpans(lines).flat());
+  let found = headerLineCache.get(lines);
+  if (!found) {
+    found = new Set(headerSpans(lines).flat());
+    headerLineCache.set(lines, found);
+  }
+  return found;
 }
 
 /** The log without header-field content: their values anywhere (TeX wraps and echoes arguments), the rest of any line naming a header macro, and the echo of an `l.<n>` that points at a header line. */
@@ -211,7 +221,7 @@ function redactMacroLine(line: string): string {
 }
 
 function preambleLines(source: string): string[] {
-  const end = source.indexOf(String.raw`\begin{document}`);
+  const end = source.indexOf(BEGIN_DOCUMENT);
   if (end < 0) return [];
   const lines = source.slice(0, end).split('\n');
   const header = headerLineIndexes(lines);

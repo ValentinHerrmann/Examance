@@ -10,6 +10,7 @@
   import { copiesUnavailable } from "#lib/sharing/stickerEntries";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { createLoadGuard } from "#lib/utils/loadGuard";
+  import { withSavedExam } from "#lib/exam/saveExamLayout";
   import type { ExamRecord } from "#lib/db/schema";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import ExamLayoutSettings from "#lib/components/exam/ExamLayoutSettings.svelte";
@@ -47,9 +48,10 @@
     // The sidebar greys the scan steps by the saved grading switch, also when the save lands after leaving the page.
     examNavContext.update((nav) => (nav && nav.examId === exam.id ? { ...nav, exam } : nav));
     // A save of the previous exam that lands after a switch never replaces the shown one.
-    if (ctx?.exam.id !== exam.id) return;
-    ctx = { ...ctx, exam };
-    const exercises = ctx.exercises;
+    const next = withSavedExam(ctx, exam);
+    if (!next) return;
+    ctx = next;
+    const exercises = next.exercises;
     examChecksState.update((cs) => (cs && cs.examId === exam.id && cs.stamps ? { ...cs, stamps: { ...cs.stamps, content: contentStamp(exam, exercises) } } : cs));
   }
 
