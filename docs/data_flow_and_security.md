@@ -589,7 +589,7 @@ external AI chat, which the teacher copies to the clipboard. The app makes no ne
 the authenticated bundled-asset fetch it already uses). The prompt holds the error lines, the log tail,
 the preamble package lines, template definitions and the names of the attached files; the affected exercise's LaTeX only after an
 explicit opt-in tick (off by default). Header fields (teacher name, class, date, info text, exam notes)
-and student data are never included: they are left out of preamble and code excerpts, and redacted in the
+and student data are never included: they are left out of preamble and code excerpts (every line of a multi-line argument, such as a two-line info text), and redacted in the
 log too (their values wherever they appear, and the rest of any log line naming a header macro). Pasting it into a third-party AI is the teacher's own disclosure; the dialog says so.
 
 The exercise editor's "Create AI prompt" works the same way: it combines the teacher's request with the
@@ -789,7 +789,7 @@ The exam export ("Export" on an exam, format "Readable ZIP") and the exercise-li
 **entirely in the browser** (`frontend/src/lib/export/`) and are **not encrypted**. The exam
 ZIP can hold graded scans with annotations, names, scores, grades (summary PDF, `grades.csv`)
 and the LaTeX source; results are read through the repositories of the account's storage
-mode, so hybrid results never pass through the server. Each exam export is recorded with
+mode, so hybrid results never pass through the server. A `grades.csv` text cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`, so a spreadsheet never runs a student name as a formula. Each exam export is recorded with
 `logExportAction`, and the dialog states that the file contains personal data in plain text.
 After the download the file is outside Examance's protection and the teacher is responsible
 for it. The exercise export holds only authored content (LaTeX, resource files, bundled

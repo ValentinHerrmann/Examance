@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createLoadGuard } from '#lib/utils/loadGuard';
   import { untrack } from 'svelte';
   import { get } from 'svelte/store';
   import { t } from '#lib/i18n';
@@ -16,10 +17,10 @@
 
   let { examIds, keep = $bindable(true), recordIds = $bindable([]) }: Props = $props();
 
-  let loadSeq = 0;
+  const loadGuard = createLoadGuard();
 
   async function load(ids: readonly string[]) {
-    const seq = ++loadSeq;
+    const isStale = loadGuard.begin();
     recordIds = [];
     keep = true;
     if (!ids.length) return;
@@ -35,7 +36,7 @@
         }
       }),
     );
-    if (seq === loadSeq) recordIds = found.filter((id): id is string => id !== null);
+    if (!isStale()) recordIds = found.filter((id): id is string => id !== null);
   }
 
   $effect.pre(() => {

@@ -87,6 +87,17 @@ describe('buildAiPrompt privacy and context', () => {
     expect(withoutSource).not.toContain('9b');
   });
 
+  it('omits every line of a multi-line info text, from the preamble and the log', () => {
+    const doc = ['\\documentclass{article}', '\\Info{Hilfsmittel: Taschenrechner', 'Lehrer: Dr. Xaver}', '\\usepackage{amsmath}', '\\begin{document}', 'Text'].join('\n');
+    const log = '! Undefined control sequence.\n<argument> Lehrer: Dr. Xaver\nl.6 Text\n';
+    for (const includeSource of [false, true]) {
+      const prompt = buildAiPrompt({ log, engine: 'local', source: doc, ranges: [], includeSource, locale: 'en' });
+      expect(prompt).not.toContain('Dr. Xaver');
+      expect(prompt).not.toContain('Taschenrechner');
+      expect(prompt).toContain('\\usepackage{amsmath}');
+    }
+  });
+
   it('quotes whole template definitions, not lines that merely use the name', () => {
     const sty = [
       '\\renewcommand{\\theTeilaufgabe}{\\alph{Teilaufgabe}}',

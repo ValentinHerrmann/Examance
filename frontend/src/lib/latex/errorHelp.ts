@@ -147,16 +147,41 @@ const PERSONAL_FIELDS = ['Info', 'Lehrer', 'Klasse', 'Datum', 'ExamNotes'].map((
 const OMITTED = '[omitted]';
 
 /** Header fields (teacher, class, date, exam notes) never go into a prompt. */
-function isHeaderField(line: string): boolean {
-  return HEADER_FIELDS.some((field) => line.trimStart().startsWith(field));
+function isHeaderField(line: string, fields: string[] = HEADER_FIELDS): boolean {
+  return fields.some((field) => line.trimStart().startsWith(field));
+}
+
+/** Line indexes of each header field: its macro line plus, while its braces stay open, the lines of a multi-line argument (the info text is written raw). */
+function headerSpans(lines: string[], fields: string[] = HEADER_FIELDS): number[][] {
+  const spans: number[][] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (!isHeaderField(lines[i], fields)) {
+      i++;
+      continue;
+    }
+    const span = [i];
+    let depth = braceDelta(lines[i]);
+    while (depth > 0 && i + 1 < lines.length) {
+      span.push(++i);
+      depth += braceDelta(lines[i]);
+    }
+    spans.push(span);
+    i++;
+  }
+  return spans;
+}
+
+function headerLineIndexes(lines: string[]): Set<number> {
+  return new Set(headerSpans(lines).flat());
 }
 
 /** The log without header-field content: their values anywhere (TeX wraps and echoes arguments), the rest of any line naming a header macro, and the echo of an `l.<n>` that points at a header line. */
 export function redactHeaderFields(log: string, source: string | null): string {
   const sourceLines = source ? source.split('\n') : [];
-  const headerLines = new Set(sourceLines.flatMap((line, i) => (isHeaderField(line) ? [i + 1] : [])));
+  const headerLines = new Set([...headerLineIndexes(sourceLines)].map((i) => i + 1));
   let out = log;
-  const personal = sourceLines.filter((line) => PERSONAL_FIELDS.some((field) => line.trimStart().startsWith(field)));
+  const personal = headerSpans(sourceLines, PERSONAL_FIELDS).map((span) => span.map((i) => sourceLines[i]).join('\n'));
   for (const value of headerValues(personal)) out = out.replaceAll(value, OMITTED);
   const lines = out.split('\n').map(redactMacroLine);
   for (let i = 0; i < lines.length; i++) {
@@ -169,11 +194,11 @@ export function redactHeaderFields(log: string, source: string | null): string {
   return lines.join('\n');
 }
 
-/** Argument texts of personal header lines, longest first; single characters would blank unrelated log text. */
-function headerValues(lines: string[]): string[] {
-  const values = lines.flatMap((line) => {
-    const args = line.slice(line.indexOf('{') + 1, line.lastIndexOf('}'));
-    return args.split('}{').map((v) => v.trim());
+/** Argument texts of personal header fields, line by line and longest first; single characters would blank unrelated log text. */
+function headerValues(fields: string[]): string[] {
+  const values = fields.flatMap((field) => {
+    const args = field.slice(field.indexOf('{') + 1, field.lastIndexOf('}'));
+    return args.split(/\}\{|\n/).map((v) => v.trim());
   });
   return [...new Set(values.filter((v) => v.length >= 2))].sort((a, b) => b.length - a.length);
 }
@@ -188,11 +213,9 @@ function redactMacroLine(line: string): string {
 function preambleLines(source: string): string[] {
   const end = source.indexOf(String.raw`\begin{document}`);
   if (end < 0) return [];
-  return source
-    .slice(0, end)
-    .split('\n')
-    .filter((line) => line.trim() && !isHeaderField(line))
-    .slice(0, PREAMBLE_LINES);
+  const lines = source.slice(0, end).split('\n');
+  const header = headerLineIndexes(lines);
+  return lines.filter((line, i) => line.trim() && !header.has(i)).slice(0, PREAMBLE_LINES);
 }
 
 /** Full definitions of the template commands an error mentions. */
@@ -295,9 +318,10 @@ function excerptFor(block: string, lines: string[], map: SourceMap): { key: stri
 
 function numbered(lines: string[], from: number, to: number, first: number): string {
   const width = String(first + to - from).length;
+  const header = headerLineIndexes(lines);
   return lines
     .slice(from, to + 1)
-    .map((line, i) => `${String(first + i).padStart(width)}| ${isHeaderField(line) ? '% (header field omitted)' : line}`)
+    .map((line, i) => `${String(first + i).padStart(width)}| ${header.has(from + i) ? '% (header field omitted)' : line}`)
     .join('\n');
 }
 

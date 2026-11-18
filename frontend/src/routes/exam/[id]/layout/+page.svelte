@@ -9,6 +9,7 @@
   import { examChecksState, examNavContext } from "#lib/stores/shell";
   import { copiesUnavailable } from "#lib/sharing/stickerEntries";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
+  import { createLoadGuard } from "#lib/utils/loadGuard";
   import type { ExamRecord } from "#lib/db/schema";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
   import ExamLayoutSettings from "#lib/components/exam/ExamLayoutSettings.svelte";
@@ -23,24 +24,32 @@
   // Personalised copies stamp page codes and QR codes, which an exam graded outside Examance does not print.
   let copiesBlocked = $derived(ctx ? copiesUnavailable(ctx.exercises) : null);
 
+  const loadGuard = createLoadGuard();
+
   async function load(id: string) {
-    await awaitSessionReady();
+    const isStale = loadGuard.begin();
+    // The previous exam goes at once, so its layout is never saved under this exam's URL.
+    ctx = null;
     loadError = "";
+    await awaitSessionReady();
     try {
-      ctx = await loadExamCompileContext(id, get(sessionStore).sessionKey);
-      if (!ctx) loadError = translate("exam.page.examNotFoundOrDeleted");
+      const loaded = await loadExamCompileContext(id, get(sessionStore).sessionKey);
+      if (isStale()) return;
+      ctx = loaded;
+      if (!loaded) loadError = translate("exam.page.examNotFoundOrDeleted");
     } catch (err) {
-      loadError = err instanceof Error ? err.message : String(err);
+      if (!isStale()) loadError = err instanceof Error ? err.message : String(err);
     }
   }
 
   /** The made print files and ticks are checked against the content stamp, which covers the layout. */
   function saved(exam: ExamRecord) {
-    if (!ctx) return;
-    ctx = { ...ctx, exam };
-    const exercises = ctx.exercises;
     // The sidebar greys the scan steps by the saved grading switch, also when the save lands after leaving the page.
     examNavContext.update((nav) => (nav && nav.examId === exam.id ? { ...nav, exam } : nav));
+    // A save of the previous exam that lands after a switch never replaces the shown one.
+    if (ctx?.exam.id !== exam.id) return;
+    ctx = { ...ctx, exam };
+    const exercises = ctx.exercises;
     examChecksState.update((cs) => (cs && cs.examId === exam.id && cs.stamps ? { ...cs, stamps: { ...cs.stamps, content: contentStamp(exam, exercises) } } : cs));
   }
 
