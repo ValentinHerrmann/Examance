@@ -19,7 +19,12 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.dependencies import DB, PendingSession, get_pending_teacher, require_not_frozen
+from app.dependencies import (
+    DB,
+    PendingSession,
+    PendingTeacher,
+    require_not_frozen,
+)
 from app.middleware.rate_limit import limiter
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
@@ -168,7 +173,7 @@ async def change_password(
     request: Request,
     response: Response,
     db: DB,
-    session: PendingSession = Depends(get_pending_teacher),
+    session: PendingTeacher,
 ) -> dict[str, str]:
     """Change the password of a signed-in account, keeping the session. The client re-wraps the data key; wrap and password go in one transaction so they never diverge. The current password uses the `/auth/login` throttle, else this is a cooloff-free oracle."""
     if session.scope != "full":
@@ -368,7 +373,7 @@ async def factor_password(
     request: Request,
     response: Response,
     db: DB,
-    session: PendingSession = Depends(get_pending_teacher),
+    session: PendingTeacher,
 ) -> AuthResponse:
     """Present the password as the *second* factor (`/auth/login` can only open a sign-in). The account comes from the pending token; taking an email here would make the second step an account-existence probe. Not reachable in the reset flow (the emailed token stands in)."""
     # Scope before anything else, so the reset refusal is about the flow rather than about a reset token happening to carry `password` in its amr.
@@ -408,7 +413,7 @@ async def factor_totp(
     request: Request,
     response: Response,
     db: DB,
-    session: PendingSession = Depends(get_pending_teacher),
+    session: PendingTeacher,
 ) -> AuthResponse:
     """Present an authenticator code as the second factor. Second position only: a TOTP code does not identify an account, so accepting it first would need an email alongside it, a probe for which addresses have accounts."""
     if "totp" in session.amr:
@@ -454,7 +459,7 @@ async def factor_backup_code(
     request: Request,
     response: Response,
     db: DB,
-    session: PendingSession = Depends(get_pending_teacher),
+    session: PendingTeacher,
 ) -> AuthResponse:
     """Spend a backup code in place of the authenticator. It counts as the ``totp`` factor, so it cannot be paired with a TOTP code to make up two: it stands in for that factor rather than adding one."""
     if "totp" in session.amr:

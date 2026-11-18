@@ -7,7 +7,12 @@ from typing import cast
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.dependencies import DB, PendingSession, get_pending_teacher, require_not_frozen
+from app.dependencies import (
+    DB,
+    PendingSession,
+    PendingTeacher,
+    require_not_frozen,
+)
 from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
 from app.schemas.key_envelope import (
@@ -61,7 +66,7 @@ def _to_out(row: KeyEnvelope) -> KeyEnvelopeOut:
 @router.get("/envelopes")
 async def list_envelopes(
     db: DB,
-    session: PendingSession = Depends(get_pending_teacher),
+    session: PendingTeacher,
 ) -> KeyEnvelopeListOut:
     """Return every wrap for the calling teacher, invalidated rows included and marked, so the client can tell a factor orphaned by an admin password write from one never enrolled."""
     teacher = _require_envelope_scope(session)
@@ -85,7 +90,7 @@ async def replace_envelopes(
     body: KeyEnvelopeSetIn,
     request: Request,
     db: DB,
-    session: PendingSession = Depends(get_pending_teacher),
+    session: PendingTeacher,
 ) -> KeyEnvelopeListOut:
     """Replace the teacher's whole envelope set in one transaction. Wholesale on purpose: merging could leave a new password wrap beside a recovery wrap holding the previous DEK, which looks healthy until someone needs to recover."""
     teacher = _require_envelope_scope(session, write=True)

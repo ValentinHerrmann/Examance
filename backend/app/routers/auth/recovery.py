@@ -6,7 +6,11 @@ import secrets
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from sqlalchemy import delete, func, select
 
-from app.dependencies import DB, PendingSession, get_pending_teacher, require_not_frozen
+from app.dependencies import (
+    DB,
+    PendingTeacher,
+    require_not_frozen,
+)
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.exercise import Exercise
@@ -123,7 +127,7 @@ async def reset_password(
     request: Request,
     response: Response,
     db: DB,
-    session: PendingSession = Depends(get_pending_teacher),
+    session: PendingTeacher,
 ) -> dict[str, str]:
     """Set the new password and store the re-wrapped data key with it, in one transaction. A password without its key copy looks like a working account until a sign-in opens nothing. No envelope: the password wrap is marked unusable and the teacher needs the recovery code."""
     if session.scope != "reset_pending":
