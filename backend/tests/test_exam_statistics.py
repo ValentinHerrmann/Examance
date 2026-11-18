@@ -144,3 +144,15 @@ async def test_restoring_the_exam_keeps_unkept_statistics(
 
     assert (await client.post(f"/api/v1/trash/{group}/restore")).status_code == 200
     assert [row["id"] for row in (await client.get("/api/v1/statistics")).json()] == [stats_id]
+
+
+async def test_large_record_reaches_the_router_cap(client: AsyncClient, db: AsyncSession) -> None:
+    """Regression for #290: the body limit lets a record up to the router's own 4 MB cap through."""
+    exam_id = await _exam(client, db, unique_email("stats-large"))
+    url = f"/api/v1/exams/{exam_id}/statistics"
+    large = await client.put(url, json=_body(b"x" * (1024 * 1024)))
+    assert large.status_code == 200, large.text
+    over = await client.put(url, json=_body(b"x" * (4 * 1024 * 1024 + 1)))
+    assert over.status_code == 413
+    assert over.headers.get("code") == "ERR_STATISTICS_TOO_LARGE"
+

@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -16,6 +16,15 @@ if TYPE_CHECKING:
 
 class Exercise(Base):
     __tablename__ = "exercises"
+    # Partial index on shared rows (migration 0030); declared here so autogenerate does not propose dropping it.
+    __table_args__ = (
+        Index(
+            "ix_exercises_shared",
+            "is_public",
+            postgresql_where=text("is_public"),
+            sqlite_where=text("is_public"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     teacher_id: Mapped[uuid.UUID | None] = mapped_column(

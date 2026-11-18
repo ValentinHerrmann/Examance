@@ -69,14 +69,20 @@ async def set_storage_mode(
             detail="This storage mode is not enabled for your account.",
             headers={"code": "ERR_STORAGE_MODE_NOT_ALLOWED"},
         )
-    if teacher.storage_mode != body.expected:
+    # One conditional UPDATE, so two browsers sending the same `expected` cannot both win.
+    result = await db.execute(
+        update(Teacher)
+        .where(Teacher.id == teacher.id, Teacher.storage_mode.is_not_distinct_from(body.expected))
+        .values(storage_mode=body.mode)
+        .execution_options(synchronize_session=False)
+    )
+    if rowcount(result) == 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="The storage mode was changed elsewhere.",
             headers={"code": "ERR_STORAGE_MODE_CHANGED"},
         )
-    teacher.storage_mode = body.mode
-    await db.flush()
+    await db.refresh(teacher)
     return _capabilities_out(teacher)
 
 

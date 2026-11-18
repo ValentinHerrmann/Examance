@@ -22,9 +22,11 @@ A row never carries a pseudonym, submission id, timestamp, scan, annotation or `
 - **Writing** (`lib/analytics/statisticsSync.ts`): result writers (`scoreRepository.saveMany`/`deleteOne`, `submissionRepository.save`/`delete`/`clearGrading`, `studentRepository.delete`, trash restore) call `markStatisticsDirty(examId)` (`statisticsDirty.ts`, dependency-free so repositories import it without a cycle).
   - About 3 s later the exam is rebuilt from its results wherever the mode keeps them and sent with `PUT /exams/{id}/statistics`.
   - The server stamps `computed_at` with its own clock, so a browser with a wrong clock cannot freeze the record. The client's build time only filters replayed queue writes: a write built more than a day before the stored record is ignored and the stored record returned. The PUT is therefore idempotent and safe to replay.
-- **Partial views never write** (`statisticsRebuild.ts` `rebuildAction`). The rebuild is skipped in two cases:
+- **Partial views never write** (`statisticsRebuild.ts` `rebuildAction`). The rebuild is skipped in three cases:
+  - anything the record is built from did not decrypt (`hasUnreadable`: the exam, an exercise, a submission or a score of one of its exercises), since the rows would silently drop papers or exercises (issue #290); the backfill then retries on the next open;
   - a hybrid browser that holds no rows of the exam, unless it held some when the teacher's write marked the exam;
   - a server-mode exam whose results retention erased (`results_purged_at` on the exam response).
+  The server takes a sealed record of up to 4 MB ciphertext (`ERR_STATISTICS_TOO_LARGE`); the body limit for that path is `BODY_LIMIT_STATISTICS`.
   A hybrid browser that holds some of the results still writes (last writer wins). Pending rebuilds run at once when the tab is hidden or closed, and the results page rebuilds once on load.
 - **Empty results**: when a dirty rebuild finds no submission left, the teacher's own delete emptied the exam (for example "delete all results" or erasing the last student), so the record is deleted. Ungraded rows (a fresh scan) never clear it, and an empty build never overwrites a record.
 - **Retention**: the server's results purge (`services/retention.py` steps 1–2) and the local `RetentionModal` delete only results, never the record.
