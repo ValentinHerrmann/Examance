@@ -25,7 +25,7 @@ SonarCloud runs as automatic analysis (no scanner step in the workflows); its se
 - Backend `app/`: `flake8-cognitive-complexity` at 15 (S3776).
 - Frontend: `eslint-plugin-sonarjs` (`recommended`, with type information so rules such as S2871 work) through `eslint.sonar.config.js`. The normal `npm run lint` and CI do not load it, so the existing code is not suddenly red.
 
-A finding it reports is fixed before the push, or carries a NOSONAR with its reason as below. It mirrors only part of SonarCloud, so the API check after CI stays.
+A finding it reports is fixed before the push, or carries a NOSONAR with its reason as below. It mirrors only part of SonarCloud, so the API check after CI stays. In particular it cannot see SonarCloud's taint rules (pythonsecurity/jssecurity, e.g. S8707 path traversal): a script never opens a path taken from its command line; it reads stdin (as `scripts/changed_lines.py` does) or resolves the path inside its tree (`scripts/cli-path.mjs` `resolveInside`).
 
 
 ## README code statistics

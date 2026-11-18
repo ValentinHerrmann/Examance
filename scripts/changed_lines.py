@@ -1,12 +1,13 @@
-"""Filter `path:line:...` findings (or ESLint JSON) on stdin to the changed lines of a unified diff; exits 1 when any remain (used by sonar-check.sh)."""
+"""Filter `path:line:...` findings (or ESLint JSON) to changed lines; stdin carries the diff, the untracked files and the findings, split by markers (sonar-check.sh), so no path comes from the command line."""
 import json
 import os
 import re
 import sys
-from pathlib import Path
 
 _HUNK = re.compile(r"\+(\d+)(?:,(\d+))?")
 _FINDING = re.compile(r"(?:\./)?([^:\s]+):(\d+):")
+UNTRACKED = "@@SONAR-CHECK-UNTRACKED@@"
+FINDINGS = "@@SONAR-CHECK-FINDINGS@@"
 
 
 def changed_lines(diff: str) -> dict[str, set[int]]:
@@ -37,11 +38,13 @@ def as_lines(text: str) -> list[str]:
     return lines
 
 
-def main(prefix: str, diff_file: str, untracked_file: str) -> int:
-    changed = changed_lines(Path(diff_file).read_text())
-    untracked = set(Path(untracked_file).read_text().split())
+def main(prefix: str) -> int:
+    diff, _, rest = ("\n" + sys.stdin.read()).partition(f"\n{UNTRACKED}\n")
+    untracked_text, _, findings = ("\n" + rest).partition(f"\n{FINDINGS}\n")
+    changed = changed_lines(diff)
+    untracked = set(untracked_text.split())
     found = 0
-    for line in as_lines(sys.stdin.read()):
+    for line in as_lines(findings):
         finding = _FINDING.match(line)
         if not finding:
             continue
@@ -56,4 +59,4 @@ def main(prefix: str, diff_file: str, untracked_file: str) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(*sys.argv[1:4]))
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else ""))

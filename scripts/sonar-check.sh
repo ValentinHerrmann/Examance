@@ -9,10 +9,17 @@ changed() {
   git ls-files --others --exclude-standard -- "$@"
   return 0
 }
+# Stdin: the diff, the untracked files, then the findings, so the filter opens no path itself.
 only_changed() {
   local prefix="$1"
   local spec="${prefix:-.}"
-  python3 scripts/changed_lines.py "$prefix" <(git diff -U0 "$merge_base" -- "$spec") <(git ls-files --others --exclude-standard -- "$spec")
+  {
+    git diff -U0 "$merge_base" -- "$spec"
+    echo "@@SONAR-CHECK-UNTRACKED@@"
+    git ls-files --others --exclude-standard -- "$spec"
+    echo "@@SONAR-CHECK-FINDINGS@@"
+    cat
+  } | python3 scripts/changed_lines.py "$prefix"
   return $?
 }
 status=0
