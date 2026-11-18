@@ -1,4 +1,4 @@
-.PHONY: help dev-up dev-down migrate migrate-auto lint test test-backend test-frontend install retention-dry
+.PHONY: help dev-up dev-down migrate migrate-auto lint sonar-check test test-backend test-frontend install retention-dry
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -26,6 +26,9 @@ lint: ## Run ruff + mypy on backend
 
 lint-frontend: ## Run eslint + tsc on frontend
 	cd frontend && npm run lint && npm run check
+
+sonar-check: ## SonarCloud stand-in on files changed against origin/main (run before every push)
+	./scripts/sonar-check.sh
 
 test-backend: ## Run pytest
 	cd backend && pytest

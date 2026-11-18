@@ -373,5 +373,6 @@ async def test_cli_password_reset_signs_out_every_session(
     before = teacher.password_changed_at
     await apply_new_password(db, teacher, "a-new-long-password")
     await db.commit()
-    assert teacher.password_changed_at is not None and teacher.password_changed_at != before
+    assert teacher.password_changed_at is not None
+    assert teacher.password_changed_at != before
     assert (await client.post("/api/v1/auth/refresh")).status_code == 401

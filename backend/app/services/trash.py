@@ -702,7 +702,7 @@ async def purge(db: AsyncSession, items: Sequence[TrashItem], *, restored: bool 
 
 
 async def _purge_matching(
-    db: AsyncSession, teacher: Teacher, exam_id: uuid.UUID, matches: Callable[[TrashItem], Awaitable[bool]]
+    db: AsyncSession, teacher: Teacher, exam_id: uuid.UUID, matches: Callable[[TrashItem], bool | Awaitable[bool]]
 ) -> None:
     """GDPR erasure inside one exam: erase the teacher's entries *matches* picks (whole-exam entries hold other students and stay); payloads load only on demand."""
     items = await db.scalars(
@@ -714,7 +714,12 @@ async def _purge_matching(
         )
         .options(defer(TrashItem.payload))
     )
-    await purge(db, [i for i in items if await matches(i)])
+    picked: list[TrashItem] = []
+    for item in items:
+        result = matches(item)
+        if result if isinstance(result, bool) else await result:
+            picked.append(item)
+    await purge(db, picked)
 
 
 async def purge_student(
@@ -722,7 +727,7 @@ async def purge_student(
 ) -> None:
     """GDPR erasure: erase the teacher's trash entries about this one student of this exam."""
 
-    async def matches(item: TrashItem) -> bool:
+    def matches(item: TrashItem) -> bool:
         return bool((item.label or {}).get("pseudonym_hmac") == pseudonym_hmac)
 
     await _purge_matching(db, teacher, exam_id, matches)
