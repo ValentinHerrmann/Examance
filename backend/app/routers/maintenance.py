@@ -5,10 +5,8 @@ from typing import Annotated
 
 import jwt
 from fastapi import APIRouter, Cookie, Depends, Request, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
-from app.dependencies import get_current_teacher
+from app.dependencies import DB, get_current_teacher
 from app.middleware.rate_limit import limiter
 from app.models.teacher import Teacher
 from app.schemas.maintenance import MaintenanceReadyRequest, MaintenanceStatus
@@ -56,7 +54,7 @@ def _signed_in_teacher_id(access_token: str | None) -> str | None:
 @limiter.limit("600/minute")
 async def maintenance_status(
     request: Request,  # required by slowapi
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
     access_token: Annotated[str | None, Cookie()] = None,
 ) -> MaintenanceStatus:
     """Public: whether maintenance is announced or running. Signed-in teachers count as online."""

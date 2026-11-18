@@ -3,10 +3,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
-from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
+from app.dependencies import DB, PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.models.key_envelope import KeyEnvelope
 from app.schemas.mfa import (
@@ -39,8 +37,8 @@ def _require_enrollment_scope(
 
 @router.get("/status")
 async def mfa_status(
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> MfaStatusResponse:
     """What this account has enrolled, whether that is enough to sign in, and per-factor details for the security page. Only about the *authenticated* account, so it is no profile oracle for an email."""
     _require_enrollment_scope(session, _STATUS_SCOPES)
@@ -80,8 +78,8 @@ async def mfa_status(
 @limiter.limit("10/hour")
 async def enroll_totp(
     request: Request,
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> MfaEnrollResponse:
     """Start an authenticator enrollment. The secret is returned once, in the `otpauth://` URI, and never again: re-serving it would let anyone holding a session clone the second factor, while a lost setup just starts over."""
     _require_enrollment_scope(session)
@@ -104,8 +102,8 @@ async def enroll_totp(
 async def confirm_totp(
     body: TotpConfirmRequest,
     request: Request,
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> MfaBackupCodesResponse:
     """Prove the authenticator works, which is what makes it count as a factor. Returns the backup codes once. They are the way back when the phone is lost, and they stand in for this factor rather than adding a third."""
     _require_enrollment_scope(session)
@@ -130,8 +128,8 @@ async def confirm_totp(
 @limiter.limit("10/hour")
 async def regenerate_backup_codes(
     request: Request,
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> MfaBackupCodesResponse:
     """Replace the backup codes. The previous set stops working immediately."""
     if session.scope != "full":
@@ -151,8 +149,8 @@ async def regenerate_backup_codes(
 )
 async def disable_totp(
     request: Request,
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> None:
     """Remove the authenticator, refused if it would drop the account below two sign-in factors or below its last means of decrypting its own data. That guard makes "any two of three" safe."""
     if session.scope != "full":

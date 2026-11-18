@@ -5,10 +5,8 @@ import secrets
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
-from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
+from app.dependencies import DB, PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.exercise import Exercise
@@ -43,7 +41,7 @@ async def forgot_password(
     body: ForgotPasswordRequest,
     request: Request,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = DbDep,
+    db: DB,
 ) -> dict[str, str]:
     """Request a password reset link sent to the user's email address."""
     normalized_email = body.email.strip().lower()
@@ -81,7 +79,7 @@ async def start_reset(
     body: ResetTokenRequest,
     request: Request,
     response: Response,
-    db: AsyncSession = DbDep,
+    db: DB,
 ) -> AuthResponse:
     """Open a password reset with the emailed link (the token is *one* of the two required factors). Mailbox access alone must not complete a reset. An account that has not finished enrolling has no second factor to offer, so it gets a `reset_pending` token that completes it alone."""
     token_record, teacher = await verify_reset_token(db, body.token)
@@ -124,8 +122,8 @@ async def reset_password(
     body: ResetPasswordRequest,
     request: Request,
     response: Response,
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> dict[str, str]:
     """Set the new password and store the re-wrapped data key with it, in one transaction. A password without its key copy looks like a working account until a sign-in opens nothing. No envelope: the password wrap is marked unusable and the teacher needs the recovery code."""
     if session.scope != "reset_pending":

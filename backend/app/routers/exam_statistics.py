@@ -10,8 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
-from app.dependencies import get_exam_for_teacher, get_teaching_teacher
+from app.dependencies import DB, get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.exam_statistics import ExamStatistics
 from app.models.teacher import Teacher
@@ -83,7 +82,7 @@ async def _own(db: AsyncSession, teacher: Teacher, stats_id: uuid.UUID) -> ExamS
 @router.get("/statistics")
 async def list_statistics(
     teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> list[ExamStatisticsOut]:
     """Every statistics record of the teacher, including those whose exam was deleted (its exam_id no longer lists in GET /exams)."""
     rows = await db.scalars(
@@ -97,7 +96,7 @@ async def list_statistics(
 @router.get("/exams/{exam_id}/statistics")
 async def get_statistics(
     exam: Annotated[Exam, Depends(get_exam_for_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> ExamStatisticsOut | None:
     """The exam's record, or null when it has none (a normal answer, not a 404 the browser would log as an error)."""
     row = await db.scalar(select(ExamStatistics).where(ExamStatistics.exam_id == exam.id))
@@ -109,7 +108,7 @@ async def put_statistics(
     body: ExamStatisticsIn,
     exam: Annotated[Exam, Depends(get_exam_for_teacher)],
     teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> ExamStatisticsOut:
     """Create or replace the exam's record. `computed_at` is the server's clock; a write built before the stored record was accepted (a replayed queue entry) is ignored and the stored record returned."""
     ciphertext, iv = _decode_payload(body)
@@ -146,7 +145,7 @@ async def set_keep(
     stats_id: uuid.UUID,
     body: ExamStatisticsKeepIn,
     teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> ExamStatisticsOut:
     """Whether the record survives a deletion of its exam; the teacher chooses in the exam delete dialog."""
     row = await _own(db, teacher, stats_id)
@@ -160,7 +159,7 @@ async def set_keep(
 async def delete_statistics(
     stats_id: uuid.UUID,
     teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> Response:
     row = await _own(db, teacher, stats_id)
     await db.delete(row)

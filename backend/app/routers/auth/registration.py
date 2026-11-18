@@ -5,10 +5,8 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
-from app.dependencies import require_not_frozen
+from app.dependencies import DB, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.schemas.auth import (
     AccountDeletionPreview,
@@ -30,7 +28,7 @@ async def register(
     body: RegisterRequest,
     request: Request,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = DbDep,
+    db: DB,
 ) -> dict[str, str]:
     """Ask for an account: mails a verification link to the address; nothing is created until used. Answers the same whether or not the address already has an account (nothing is mailed then), and the mail goes out after the response so timing does not tell either."""
     email = registration_svc.normalize_email(body.email)
@@ -56,7 +54,7 @@ async def complete_registration(
     body: RegisterCompleteRequest,
     request: Request,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = DbDep,
+    db: DB,
 ) -> RegisterCompleteResponse:
     """Verify the address with the mailed token and create the account with the chosen password. An address on the admin's always-allowed list is approved at once, any other account waits for an admin (notified). Neither issues a session: the registrant signs in and enrolls then."""
     invalid = HTTPException(
@@ -96,7 +94,7 @@ async def complete_registration(
 async def preview_account_deletion(
     body: AccountDeletionTokenRequest,
     request: Request,
-    db: AsyncSession = DbDep,
+    db: DB,
 ) -> AccountDeletionPreview:
     """What the mailed self-deletion link would delete, for the confirmation page. Deletes nothing: a mail scanner that opens the link must not delete the account."""
     deletion, teacher = await account_deletion.find_deletion_request(db, body.token)
@@ -116,7 +114,7 @@ async def preview_account_deletion(
 async def confirm_account_deletion(
     body: AccountDeletionTokenRequest,
     request: Request,
-    db: AsyncSession = DbDep,
+    db: DB,
 ) -> dict[str, Any]:
     """GDPR Art. 17: delete the account behind the mailed single-use link (last admin refused). No session needed (the link proves the mailbox); exercises stay ownerless if the holder asked. Cookies are left alone (they may belong to another account; this one's tokens die with it)."""
     deletion, teacher = await account_deletion.claim_deletion_request(db, body.token)

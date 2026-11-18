@@ -9,8 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
 from app.dependencies import (
+    DB,
     get_exam_for_teacher,
     get_submission_for_teacher,
     get_teaching_teacher,
@@ -55,8 +55,8 @@ def _to_response(row: ExerciseScore) -> ExerciseScoreResponse:
 
 @router.get("")
 async def list_scores(
+    db: DB,
     submission: ScanSubmission = Depends(get_submission_for_teacher),
-    db: AsyncSession = DbDep,
 ) -> list[ExerciseScoreResponse]:
     rows = await db.execute(
         select(ExerciseScore).where(ExerciseScore.submission_id == submission.id)
@@ -66,8 +66,8 @@ async def list_scores(
 
 @exam_router.get("")
 async def list_exam_scores(
+    db: DB,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = DbDep,
 ) -> list[ExerciseScoreResponse]:
     rows = await db.execute(
         select(ExerciseScore)
@@ -83,9 +83,9 @@ async def list_exam_scores(
 )
 async def put_scores(
     body: ExerciseScoreBulkPut,
+    db: DB,
     exam: Exam = Depends(get_exam_for_teacher),
     submission: ScanSubmission = Depends(get_submission_for_teacher),
-    db: AsyncSession = DbDep,
 ) -> list[ExerciseScoreResponse]:
     """Upsert the listed scores; unlisted ones are left alone (clearing is a DELETE). Rows resolve by (submission_id, exercise_id), never by the client's id, so a replay updates in place instead of answering 409."""
     requested = {s.exercise_id for s in body.scores}
@@ -166,9 +166,9 @@ _PERMANENT = Query(description="Skip the trash (GDPR erasure).")
 async def delete_score(
     exercise_id: uuid.UUID,
     trash_scope: trash.Trash,
+    db: DB,
     exam: Exam = Depends(get_exam_for_teacher),
     submission: ScanSubmission = Depends(get_submission_for_teacher),
-    db: AsyncSession = DbDep,
     permanent: Annotated[bool, _PERMANENT] = False,
 ) -> Response:
     return await _delete_scores(db, trash_scope, exam, submission, exercise_id, permanent)

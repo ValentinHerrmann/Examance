@@ -27,7 +27,7 @@ status=0
 mapfile -t py < <(changed 'backend/*.py' | sed 's#^backend/##' | sort -u)
 if ((${#py[@]})); then
   # S7503 async without await, S5778 one call in pytest.raises, S9073 composite asserts, S* security.
-  (cd backend && ruff check --preview --select RUF029,PT011,PT012,PT018,S --output-format concise "${py[@]}" || true) | only_changed backend/ || status=1
+  (cd backend && ruff check --preview --select RUF029,PT011,PT012,PT018,S,FAST002 --output-format concise "${py[@]}" || true) | only_changed backend/ || status=1
   mapfile -t app < <(printf '%s\n' "${py[@]}" | grep '^app/' || true)
   if ((${#app[@]})); then
     # S3776 cognitive complexity, the threshold SonarCloud uses.

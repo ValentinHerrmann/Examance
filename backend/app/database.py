@@ -46,4 +46,4 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 # Function scope runs the commit before the response is sent, so a failed commit answers 500 instead of a false 200; every use must share it (the dependency cache keys on scope).
-DbDep = Depends(get_db, scope="function")
+DbDep = Depends(get_db, scope="function")  # NOSONAR(S930) FastAPI 0.162 documents scope; Sonar's model predates it

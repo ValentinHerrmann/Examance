@@ -8,8 +8,7 @@ import jwt
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
-from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
+from app.dependencies import DB, PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.models.teacher import Teacher
 from app.models.webauthn_credential import WebAuthnCredential
@@ -66,8 +65,8 @@ def _summary(credential: WebAuthnCredential) -> CredentialSummary:
 @limiter.limit("20/hour")
 async def register_options(
     request: Request,
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> CeremonyOptionsResponse:
     """Options for adding a passkey. Reachable from enrollment as well as a session."""
     if session.scope not in _REGISTER_SCOPES:
@@ -102,8 +101,8 @@ async def register_options(
 async def register_verify(
     body: RegistrationVerifyRequest,
     request: Request,
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> CredentialSummary:
     if session.scope not in _REGISTER_SCOPES:
         raise HTTPException(
@@ -196,7 +195,7 @@ async def login_verify(
     body: AuthenticationVerifyRequest,
     request: Request,
     response: Response,
-    db: AsyncSession = DbDep,
+    db: DB,
     access_token: str | None = Cookie(default=None),
 ) -> AuthResponse:
     """Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy. The cookie is read directly, not via a dependency, because this must work with no session (passkey first) and with a sign-in part-way through (passkey second)."""
@@ -261,8 +260,8 @@ async def login_verify(
 
 @router.get("/credentials")
 async def list_credentials(
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> CredentialListResponse:
     if session.scope not in _LIST_SCOPES:
         raise HTTPException(
@@ -284,8 +283,8 @@ async def list_credentials(
 async def delete_credential(
     credential_id_b64: str,
     request: Request,
+    db: DB,
     session: PendingSession = Depends(get_pending_teacher),
-    db: AsyncSession = DbDep,
 ) -> None:
     """Remove a passkey. Refused when it would drop the account below two sign-in factors, or below its last means of decrypting its own data."""
     if session.scope != "full":

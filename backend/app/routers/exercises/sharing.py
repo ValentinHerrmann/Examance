@@ -8,7 +8,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, R
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
 from app.dependencies import DB, CurrentTeacher, get_current_teacher, get_exercise_for_teacher
 from app.middleware.rate_limit import limiter
 from app.models.exercise import Exercise
@@ -60,6 +59,7 @@ async def _owner_emails(rows: list[Exercise], db: AsyncSession) -> dict[uuid.UUI
 
 @catalog.get("/shared")
 async def list_shared_exercises(
+    db: DB,
     topic_tag: str | None = None,
     grade: str | None = None,
     subject: str | None = None,
@@ -67,7 +67,6 @@ async def list_shared_exercises(
     limit: int = Query(default=100, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     teacher: Teacher = Depends(require_exercise_sharing),
-    db: AsyncSession = DbDep,
 ) -> list[SharedExerciseResponse]:
     """Current exercises other accounts shared with the installation (read-only; copy to use)."""
     query = select(Exercise, Teacher.email).join(Teacher, Teacher.id == Exercise.teacher_id)
@@ -85,8 +84,8 @@ async def list_shared_exercises(
 
 @catalog.get("/sync-status")
 async def get_sync_status(
+    db: DB,
     teacher: Teacher = Depends(require_exercise_sharing),
-    db: AsyncSession = DbDep,
 ) -> list[SyncStatusItem]:
     """For each own group copied from a shared one: whether the source changed since the last sync. "source_unavailable" does not tell unshared from deleted, on purpose."""
     return [
@@ -125,9 +124,9 @@ def _sharing_action(shared: bool) -> str:
 async def set_exercise_sharing(
     request: Request,
     body: ExerciseSharingUpdate,
+    db: DB,
     ex: Exercise = Depends(get_exercise_for_teacher),
     teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = DbDep,
 ) -> list[ExerciseResponse]:
     """Share an own exercise group (all its variants) with every account, or stop sharing it. Stopping is never gated, so a revoked account can still withdraw; copies stay with copiers."""
     if body.shared:
@@ -177,8 +176,8 @@ async def set_exercise_sharing(
 async def set_sharing_bulk(
     request: Request,
     body: BulkSharingUpdate,
+    db: DB,
     teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = DbDep,
 ) -> BulkSharingResult:
     """Share or stop sharing every own library group at once. Copied groups are skipped (never shared as one's own); stopping is never gated."""
     if body.shared:
@@ -252,8 +251,8 @@ async def mark_share_asked(group_id: uuid.UUID, teacher: CurrentTeacher, db: DB)
 async def copy_shared_exercise(
     request: Request,
     exercise_id: uuid.UUID,
+    db: DB,
     teacher: Teacher = Depends(require_exercise_sharing),
-    db: AsyncSession = DbDep,
 ) -> CopyResponse:
     """Copy a shared exercise group into the caller's library as a new private group that stays linked to its source. 404 for anything not shared with the caller, existing or not."""
     source = (
@@ -278,9 +277,9 @@ async def copy_shared_exercise(
 @limiter.limit("60/hour")
 async def duplicate_exercise(
     request: Request,
+    db: DB,
     ex: Exercise = Depends(get_exercise_for_teacher),
     teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = DbDep,
 ) -> CopyResponse:
     """Duplicate an own exercise group (current version of every variant) as a new private group, e.g. as the starting point for a similar exercise (issue #121)."""
     group, rows = await sharing.duplicate_own_group(ex, teacher, db)
@@ -293,8 +292,8 @@ async def duplicate_exercise(
 @router.get("/groups/{group_id}/resync-preview")
 async def resync_preview(
     group_id: uuid.UUID,
+    db: DB,
     teacher: Teacher = Depends(require_exercise_sharing),
-    db: AsyncSession = DbDep,
 ) -> ResyncPreviewResponse:
     """Per variant of a copied group: own current row, source current row and the source fingerprint the resync request must echo."""
     plan = await sharing.plan_group(teacher, db, group_id)
@@ -322,8 +321,8 @@ async def resync_group(
     request: Request,
     group_id: uuid.UUID,
     body: ResyncRequest,
+    db: DB,
     teacher: Teacher = Depends(require_exercise_sharing),
-    db: AsyncSession = DbDep,
 ) -> list[ExerciseResponse]:
     """Bring a copied group up to its source: changed variants become new versions (the old row stays for the exams that link it), new source variants new rows. 409 if the source changed since the reviewed preview."""
     plan = await sharing.plan_group(teacher, db, group_id, lock=True)
@@ -353,8 +352,8 @@ async def submit_contributions(
     group_id: uuid.UUID,
     body: ContributionSubmit,
     background_tasks: BackgroundTasks,
+    db: DB,
     teacher: Teacher = Depends(require_exercise_sharing),
-    db: AsyncSession = DbDep,
 ) -> list[uuid.UUID]:
     """Propose variants of a linked copy to the original's author: changed ones as new versions, ones added to the copy as new variants. The author is notified and decides."""
     rows = await contributions.submit(teacher, group_id, body.exercise_ids, body.message, db)
@@ -368,8 +367,8 @@ async def submit_contributions(
 @router.delete("/groups/{group_id}/source", status_code=status.HTTP_204_NO_CONTENT)
 async def unlink_group_source(
     group_id: uuid.UUID,
+    db: DB,
     teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = DbDep,
 ) -> None:
     """Detach a copied group from its source; the content stays, update notices stop."""
     group = await get_own_group(group_id, teacher.id, db)

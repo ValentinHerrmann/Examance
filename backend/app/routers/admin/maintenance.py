@@ -6,8 +6,7 @@ from typing import Annotated, Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
-from app.dependencies import get_admin_teacher
+from app.dependencies import DB, get_admin_teacher
 from app.models.teacher import Teacher
 from app.routers.maintenance import status_of as maintenance_status_of
 from app.schemas.maintenance import (
@@ -44,7 +43,7 @@ async def _maintenance_out(db: AsyncSession) -> AdminMaintenanceResponse:
 @router.get("/maintenance")
 async def get_maintenance(
     _admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> AdminMaintenanceResponse:
     """The current window, its backup, and how many teachers are online / warned / ready."""
     return await _maintenance_out(db)
@@ -55,7 +54,7 @@ async def start_maintenance(
     body: MaintenanceStartRequest,
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> AdminMaintenanceResponse:
     """Announce manual maintenance in `lead_minutes` (0 = now); replaces an open manual window."""
     try:
@@ -83,7 +82,7 @@ async def start_maintenance_now(
     body: MaintenanceStartNowRequest,
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> AdminMaintenanceResponse:
     """Cut the countdown of the open window short, e.g. when nobody is online (issue #149)."""
     state = await maintenance_svc.start_now(db, body.revision)
@@ -104,7 +103,7 @@ async def start_maintenance_now(
 async def end_maintenance(
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> AdminMaintenanceResponse:
     """End the open window (manual or deployment); teachers can work and sign in again."""
     state = await maintenance_svc.load(db, fresh=True)

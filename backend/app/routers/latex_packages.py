@@ -4,10 +4,8 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
-from app.dependencies import get_current_teacher, get_teaching_teacher
+from app.dependencies import DB, get_current_teacher, get_teaching_teacher
 from app.models.teacher import Teacher
 from app.schemas.latex_packages import AccountLatexPackages, LatexPackageEntry, TemplatePackages
 from app.services.latex_assets import template_packages
@@ -37,7 +35,7 @@ async def get_account_latex_packages(
 async def set_account_latex_packages(
     body: AccountLatexPackages,
     teacher: Annotated[Teacher, Depends(get_current_teacher)],
-    db: Annotated[AsyncSession, DbDep],
+    db: DB,
 ) -> AccountLatexPackages:
     """Replace the account's list. Entries are validated (names, options, unsupported packages)."""
     teacher.latex_packages = [

@@ -10,7 +10,6 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import DbDep
 from app.dependencies import (
     DB,
     CurrentTeacher,
@@ -140,11 +139,11 @@ def _dedupe_exercise_links(links: list[Any]) -> list[Any]:
 
 @router.get("")
 async def list_exams(
+    db: DB,
     grade: str | None = None,
     subject: str | None = None,
     search: str | None = None,
     teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = DbDep,
 ) -> list[ExamResponse]:
     """List all non-deleted exams belonging to the authenticated teacher."""
     query = select(Exam).where(
@@ -296,8 +295,8 @@ async def _create_inline_exercises(
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_exam(
     body: ExamCreate,
+    db: DB,
     teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = DbDep,
 ) -> ExamResponse:
     """Create a new exam and live-link exercises from library or inline creation."""
     kwargs = {
@@ -344,9 +343,9 @@ async def create_exam(
 async def duplicate_exam(
     request: Request,
     body: ExamDuplicate,
+    db: DB,
     source: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = DbDep,
 ) -> ExamResponse:
     """Copy an exam's header, settings, MC groups and exercise links into a new exam (issue #121). Never copies results: students, submissions and scores belong to the source only."""
     exam = Exam(
@@ -420,8 +419,8 @@ async def duplicate_exam(
 
 @router.get("/{exam_id}")
 async def get_exam(
+    db: DB,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = DbDep,
 ) -> ExamResponse:
     """Get exam details with live-linked exercises."""
     return await load_exam_response(exam, db)
@@ -429,8 +428,8 @@ async def get_exam(
 
 @router.get("/{exam_id}/exercises")
 async def list_exam_exercises(
+    db: DB,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = DbDep,
 ) -> list[ExerciseResponse]:
     """Get exercises linked to a specific exam."""
     return [exercise_response(row) for row in await fetch_exam_exercises(exam.id, db)]
@@ -543,8 +542,8 @@ async def update_exam(
 @router.delete("/{exam_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_exam(
     trash_scope: trash.Trash,
+    db: DB,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = DbDep,
 ) -> None:
     """Delete an exam with its links, logo and results; the trash keeps a copy for RETENTION_GRACE_DAYS (issue #125). Scan files stay until the trash entry is erased."""
     snap = await trash.snapshot_exam(db, exam)
@@ -559,8 +558,8 @@ async def delete_exam(
 
 @router.get("/{exam_id}/pseudonyms")
 async def list_exam_pseudonyms(
+    db: DB,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = DbDep,
 ) -> PseudonymList:
     """Every pseudonym value of the exam, soft-deleted rows included, and their version: the input of a client-side rekey (issue #177). Reads are never gated."""
     return PseudonymList(
@@ -575,8 +574,8 @@ async def list_exam_pseudonyms(
 )
 async def rekey_exam_pseudonyms(
     body: PseudonymRekey,
+    db: DB,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = DbDep,
 ) -> PseudonymRekeyResult:
     """Renames every pseudonym of the exam to the client's keyed HMAC and moves its version (issue #177). Compare-and-set on `from_version`; `changed: false` when already done; 422 unless the pairs cover every value."""
     return await rekey(db, exam.id, body)

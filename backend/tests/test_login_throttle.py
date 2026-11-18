@@ -173,24 +173,28 @@ async def test_the_rate_limiter_falls_back_when_redis_is_unreachable(
     await _create_teacher(db, email)
 
     uri = "redis://192.0.2.1:6379/0"  # TEST-NET-1, unroutable
+    # slowapi has no public hook to swap its storage, so the test patches the attributes its decorator reads.
     storage = storage_from_string(uri, **rate_limit._storage_options(uri))
     monkeypatch.setattr(rate_limit.limiter, "enabled", True)
     monkeypatch.setattr(rate_limit.limiter, "_storage", storage)
     monkeypatch.setattr(rate_limit.limiter, "_limiter", FixedWindowRateLimiter(storage))
     monkeypatch.setattr(rate_limit.limiter, "_storage_dead", False)
 
-    body = {"email": email, "password": _PASSWORD}
-    started = time.monotonic()
-    first = await client.post("/api/v1/auth/login", json=body)
-    first_elapsed = time.monotonic() - started
-    assert first.status_code == 200, first.text
-    assert first_elapsed < 5, f"login took {first_elapsed:.1f}s with the limiter's Redis down"
+    try:
+        body = {"email": email, "password": _PASSWORD}
+        started = time.monotonic()
+        first = await client.post("/api/v1/auth/login", json=body)
+        first_elapsed = time.monotonic() - started
+        assert first.status_code == 200, first.text
+        assert first_elapsed < 5, f"login took {first_elapsed:.1f}s with the limiter's Redis down"
 
-    started = time.monotonic()
-    second = await client.post("/api/v1/auth/login", json=body)
-    second_elapsed = time.monotonic() - started
-    assert second.status_code == 200, second.text
-    assert second_elapsed < 2, f"second login took {second_elapsed:.1f}s; fallback not used"
+        started = time.monotonic()
+        second = await client.post("/api/v1/auth/login", json=body)
+        second_elapsed = time.monotonic() - started
+        assert second.status_code == 200, second.text
+        assert second_elapsed < 2, f"second login took {second_elapsed:.1f}s; fallback not used"
+    finally:
+        rate_limit.limiter._fallback_storage.reset()  # later tests start with clean counters
 
 
 @pytest.mark.asyncio
