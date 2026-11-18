@@ -3,16 +3,14 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import delete, func, select
 
 from app.config import settings
-from app.dependencies import DB, get_teaching_teacher
+from app.dependencies import DB, TeachingTeacher
 from app.middleware.rate_limit import limiter
 from app.models.omr_training_sample import OmrTrainingSample
-from app.models.teacher import Teacher
 from app.schemas.binary import decode_b64
 from app.schemas.training import (
     OMR_CROP_BYTES,
@@ -50,7 +48,7 @@ async def training_status(request: Request) -> TrainingStatus:  # request: requi
 @router.post("/omr-samples", status_code=status.HTTP_204_NO_CONTENT)
 async def donate_omr_samples(
     body: OmrSampleBatch,
-    teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
+    teacher: TeachingTeacher,
     db: DB,
 ) -> Response:
     """Store a batch of teacher-verified checkbox crops, unlinked from the account."""

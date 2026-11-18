@@ -7,11 +7,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 
-from app.dependencies import DB, get_exam_for_teacher, get_teaching_teacher
+from app.dependencies import DB, TeachingTeacher, get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
-from app.models.teacher import Teacher
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
@@ -34,7 +33,7 @@ router = APIRouter(
 async def upload_student_identity(
     body: StudentIdentityCreate,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> StudentIdentityResponse:
     """Upload encrypted student identity ciphertext. Handles upsert for duplicate pseudonym_hmac."""
     await require_pseudonym_version(db, exam.id, body.pseudonym_version)
@@ -96,8 +95,8 @@ async def erase_student_identity(
     request: Request,
     trash_scope: trash.Trash,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_teaching_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: TeachingTeacher,
     permanent: Annotated[
         bool, Query(description="GDPR Art. 17 erasure: skip the trash, drop the scan files.")
     ] = False,
@@ -146,7 +145,7 @@ async def erase_student_identity(
 @router.get("")
 async def list_student_identities(
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> list[StudentIdentityResponse]:
     """List the exam's encrypted student identities that are not soft-deleted."""
     result = await db.execute(

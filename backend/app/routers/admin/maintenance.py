@@ -1,13 +1,12 @@
 """Admin: maintenance windows (issue #130) — /api/v1/admin/maintenance*"""
 from __future__ import annotations
 
-from typing import Annotated, Any, cast
+from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import DB, get_admin_teacher
-from app.models.teacher import Teacher
+from app.dependencies import DB, AdminTeacher
 from app.routers.maintenance import status_of as maintenance_status_of
 from app.schemas.maintenance import (
     AdminMaintenanceResponse,
@@ -42,7 +41,7 @@ async def _maintenance_out(db: AsyncSession) -> AdminMaintenanceResponse:
 
 @router.get("/maintenance")
 async def get_maintenance(
-    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    _admin: AdminTeacher,
     db: DB,
 ) -> AdminMaintenanceResponse:
     """The current window, its backup, and how many teachers are online / warned / ready."""
@@ -53,7 +52,7 @@ async def get_maintenance(
 async def start_maintenance(
     body: MaintenanceStartRequest,
     request: Request,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    admin: AdminTeacher,
     db: DB,
 ) -> AdminMaintenanceResponse:
     """Announce manual maintenance in `lead_minutes` (0 = now); replaces an open manual window."""
@@ -81,7 +80,7 @@ async def start_maintenance(
 async def start_maintenance_now(
     body: MaintenanceStartNowRequest,
     request: Request,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    admin: AdminTeacher,
     db: DB,
 ) -> AdminMaintenanceResponse:
     """Cut the countdown of the open window short, e.g. when nobody is online (issue #149)."""
@@ -102,7 +101,7 @@ async def start_maintenance_now(
 @router.delete("/maintenance")
 async def end_maintenance(
     request: Request,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    admin: AdminTeacher,
     db: DB,
 ) -> AdminMaintenanceResponse:
     """End the open window (manual or deployment); teachers can work and sign in again."""

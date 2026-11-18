@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import uuid
+from typing import Annotated
 
 import jwt
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
@@ -201,7 +202,7 @@ async def login_verify(
     request: Request,
     response: Response,
     db: DB,
-    access_token: str | None = Cookie(default=None),
+    access_token: Annotated[str | None, Cookie()] = None,
 ) -> AuthResponse:
     """Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy. The cookie is read directly, not via a dependency, because this must work with no session (passkey first) and with a sign-in part-way through (passkey second)."""
     already, flow, pending_jti, pending_subject = _read_pending_cookie(access_token)

@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response, status
 
-from app.dependencies import DB, get_exam_for_teacher, get_teaching_teacher
+from app.dependencies import DB, TeachingTeacher, get_exam_for_teacher, get_teaching_teacher
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.teacher import Teacher
@@ -44,8 +44,8 @@ async def create_result_share(
     body: ResultShareCreate,
     request: Request,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_teaching_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: TeachingTeacher,
 ) -> ResultShareOut:
     """Store one student's sealed result PDF; sent again under their share id it updates that share in place, so the link stays (issue #310). Allowed in every storage mode: the server can never open it."""
     share = await result_shares.create_or_replace(db, teacher.id, exam.id, body)
@@ -56,7 +56,7 @@ async def create_result_share(
 @router.get("")
 async def list_result_shares(
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> list[ResultShareOut]:
     """The exam's live shares (expired ones are gone or about to be)."""
     return [result_shares.to_out(s, r) for s, r in await result_shares.list_for_exam(db, exam.id)]
@@ -67,7 +67,7 @@ async def update_result_share_content(
     share_id: uuid.UUID,
     body: SealedPayload,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> Response:
     """Re-seal the share's PDF under the same link (issue #226); 409 `ERR_SHARE_NOT_UPDATABLE` for a share made without a wrapped key."""
     await result_shares.update_content(db, exam.id, share_id, body.iv_b64, body.ciphertext_b64)
@@ -78,7 +78,7 @@ async def update_result_share_content(
 async def open_result_share_review(
     share_id: uuid.UUID,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> Response:
     """The teacher opened the objection: the student can no longer change or withdraw it."""
     await result_shares.mark_opened(db, exam.id, share_id)
@@ -91,8 +91,8 @@ async def reply_to_result_share_review(
     body: SealedPayload,
     request: Request,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_teaching_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: TeachingTeacher,
 ) -> Response:
     """Store the teacher's sealed reply for the student's page."""
     await result_shares.store_reply(db, exam.id, share_id, body.iv_b64, body.ciphertext_b64)
@@ -105,8 +105,8 @@ async def revoke_result_share(
     share_id: uuid.UUID,
     request: Request,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_teaching_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: TeachingTeacher,
 ) -> None:
     """Revoke one link; its ciphertext is deleted."""
     if not await result_shares.revoke(db, exam.id, [share_id]):
@@ -118,8 +118,8 @@ async def revoke_result_share(
 async def revoke_all_result_shares(
     request: Request,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_teaching_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: TeachingTeacher,
     student_key: Annotated[
         str | None,
         Query(pattern=r"^[0-9a-f]{64}$", description="Only this student's link (a deleted student)."),
@@ -209,7 +209,7 @@ reviews_router = APIRouter(
 @reviews_router.get("")
 async def list_result_share_reviews(
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> list[ReviewListItem]:
     """Every objection and reply of the exam, still sealed; the student appears only as the pseudonym."""
     return await result_shares.list_reviews(db, exam.id)
@@ -225,7 +225,7 @@ deliveries_router = APIRouter(
 @deliveries_router.get("")
 async def list_result_deliveries(
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> list[ResultDeliveryOut]:
     """Each student's delivery status for result mails and Artemis messages (issue #221)."""
     return [result_deliveries.to_out(d) for d in await result_deliveries.list_for_exam(db, exam.id)]
@@ -236,7 +236,7 @@ async def list_result_deliveries(
 async def check_result_deliveries(
     request: Request,  # required by slowapi
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> list[ResultDeliveryOut]:
     """Read the bounce mailbox now (while the share dialog waits), then list the statuses."""
     await bounces.poll_bounces(db)
@@ -246,8 +246,8 @@ async def check_result_deliveries(
 @deliveries_router.post("/close", status_code=status.HTTP_204_NO_CONTENT)
 async def close_result_deliveries(
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_teaching_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: TeachingTeacher,
 ) -> None:
     """The share dialog stopped waiting: bounces from now on are forwarded to the teacher by mail."""
     await result_deliveries.close_window(db, exam.id, teacher.id)

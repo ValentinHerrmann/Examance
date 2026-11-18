@@ -4,6 +4,7 @@ Stored in plaintext, exactly like latex_body; see docs/data_flow_and_security.md
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
@@ -54,7 +55,7 @@ async def _get_resource(
 @router.get("/{exercise_id}/resources")
 async def list_exercise_resources(
     db: DB,
-    ex: Exercise = Depends(get_readable_exercise),
+    ex: Annotated[Exercise, Depends(get_readable_exercise)],
 ) -> list[ExerciseResourceResponse]:
     """List an exercise's resource files (metadata only, no bytes)."""
     rows = (
@@ -78,7 +79,7 @@ async def list_exercise_resources(
 async def create_exercise_resource(
     body: ExerciseResourceCreate,
     db: DB,
-    ex: Exercise = Depends(get_exercise_for_teacher),
+    ex: Annotated[Exercise, Depends(get_exercise_for_teacher)],
 ) -> ExerciseResourceResponse:
     """Attach a file to an exercise. Uploading an existing filename replaces it. The filename is sanitised and checked against the bundled LaTeX assets by the schema; SVG is refused there with a convert-to-PDF hint."""
     content = decode_b64(body.content_b64, "content_b64")
@@ -138,7 +139,7 @@ async def create_exercise_resource(
 async def download_exercise_resource(
     resource_id: uuid.UUID,
     db: DB,
-    ex: Exercise = Depends(get_readable_exercise),
+    ex: Annotated[Exercise, Depends(get_readable_exercise)],
 ) -> Response:
     """Return a resource's raw bytes (see `resource_response` for the XSS hardening)."""
     row = await _get_resource(ex.id, resource_id, db)
@@ -150,7 +151,7 @@ async def rename_exercise_resource(
     resource_id: uuid.UUID,
     body: ExerciseResourceRename,
     db: DB,
-    ex: Exercise = Depends(get_exercise_for_teacher),
+    ex: Annotated[Exercise, Depends(get_exercise_for_teacher)],
 ) -> ExerciseResourceResponse:
     """Rename a resource file (the LaTeX source must be updated by the caller)."""
     row = await _get_resource(ex.id, resource_id, db)
@@ -174,7 +175,7 @@ async def delete_exercise_resource(
     resource_id: uuid.UUID,
     trash_scope: trash.Trash,
     db: DB,
-    ex: Exercise = Depends(get_exercise_for_teacher),
+    ex: Annotated[Exercise, Depends(get_exercise_for_teacher)],
 ) -> None:
     """Delete one resource file; the trash keeps a copy (issue #125). Idempotent."""
     result = await db.execute(

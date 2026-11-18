@@ -4,11 +4,10 @@ from __future__ import annotations
 from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, Cookie, Depends, Request, Response, status
+from fastapi import APIRouter, Cookie, Request, Response, status
 
-from app.dependencies import DB, get_current_teacher
+from app.dependencies import DB, CurrentTeacher
 from app.middleware.rate_limit import limiter
-from app.models.teacher import Teacher
 from app.schemas.maintenance import MaintenanceReadyRequest, MaintenanceStatus
 from app.services import maintenance
 from app.services.jwt import decode_token
@@ -69,7 +68,7 @@ async def maintenance_status(
 @router.post("/ready", status_code=status.HTTP_204_NO_CONTENT)
 async def maintenance_ready(
     body: MaintenanceReadyRequest,
-    teacher: Annotated[Teacher, Depends(get_current_teacher)],
+    teacher: CurrentTeacher,
 ) -> Response:
     """The teacher confirmed they saved their work for this window (shown to admins as a count)."""
     await maintenance.mark_ready(str(teacher.id), body.revision)

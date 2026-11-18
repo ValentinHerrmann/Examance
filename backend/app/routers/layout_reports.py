@@ -6,12 +6,16 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Literal, cast
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.dependencies import DB, get_admin_teacher, get_teaching_teacher
+from app.dependencies import (
+    DB,
+    AdminTeacher,
+    TeachingTeacher,
+)
 from app.models.layout_report import LayoutReport, LayoutReportFile
 from app.models.teacher import Teacher
 from app.schemas.binary import decode_b64
@@ -38,7 +42,7 @@ _DAY_SECONDS = 24 * 60 * 60
 async def create_layout_report(
     body: LayoutReportCreate,
     background_tasks: BackgroundTasks,
-    teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
+    teacher: TeachingTeacher,
     db: DB,
 ) -> Response:
     """Store a report and notify the admins (count and link only)."""
@@ -115,7 +119,7 @@ async def _load(db: AsyncSession, report_id: uuid.UUID) -> LayoutReport:
 
 @admin_router.get("")
 async def list_layout_reports(
-    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    _admin: AdminTeacher,
     db: DB,
     status_filter: Annotated[Literal["open", "done"], Query(alias="status")] = "open",
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
@@ -144,7 +148,7 @@ async def list_layout_reports(
 @admin_router.get("/{report_id}")
 async def get_layout_report(
     report_id: uuid.UUID,
-    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    _admin: AdminTeacher,
     db: DB,
 ) -> LayoutReportDetail:
     report = await _load(db, report_id)
@@ -179,7 +183,7 @@ async def get_layout_report(
 async def download_layout_report_file(
     report_id: uuid.UUID,
     file_id: uuid.UUID,
-    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    _admin: AdminTeacher,
     db: DB,
 ) -> Response:
     """One attached file; served like exercise resources (only PDF/PNG/JPEG inline)."""
@@ -202,7 +206,7 @@ async def resolve_layout_report(
     report_id: uuid.UUID,
     body: LayoutReportResolve,
     background_tasks: BackgroundTasks,
-    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    _admin: AdminTeacher,
     db: DB,
 ) -> Response:
     """Mark resolved and tell the reporter by mail (with the optional note). Idempotent."""
@@ -216,7 +220,7 @@ async def resolve_layout_report(
 @admin_router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_layout_report(
     report_id: uuid.UUID,
-    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    _admin: AdminTeacher,
     db: DB,
 ) -> Response:
     report = await _load(db, report_id)

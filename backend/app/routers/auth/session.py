@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any, Literal, NoReturn, TypedDict
+from typing import Annotated, Any, Literal, NoReturn, TypedDict
 
 import jwt
 from fastapi import (
@@ -535,7 +535,7 @@ async def refresh(
     request: Request,  # Required by slowapi for rate limiting
     response: Response,
     db: DB,
-    refresh_token: str | None = Cookie(default=None),
+    refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> AuthResponse:
     """Issue new access + refresh cookies, revoke the old refresh token. Detects concurrent use (token theft) if the token is already revoked."""
     credentials_exc = HTTPException(
@@ -603,7 +603,7 @@ async def refresh(
 async def logout(
     response: Response,
     db: DB,
-    refresh_token: str | None = Cookie(default=None),
+    refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> None:
     """Clear auth cookies and revoke the refresh token. Deliberately needs no session, so a teacher with a half-finished or expired sign-in can still clear their cookies. The revocation is authenticated by the refresh token itself."""
     if refresh_token:

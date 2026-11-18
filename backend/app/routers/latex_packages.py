@@ -1,11 +1,9 @@
 """LaTeX packages (issue #108) — /api/v1/user/latex-packages and /api/v1/latex/template-packages. The account list applies to every document of the account; exercises add theirs through their own ``\\usepackage`` lines (exam-level packages were dropped in issue #272). Merging rules: app/services/latex_packages.py."""
 from __future__ import annotations
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends
 
-from app.dependencies import DB, get_current_teacher, get_teaching_teacher
+from app.dependencies import DB, CurrentTeacher, get_teaching_teacher
 from app.models.teacher import Teacher
 from app.schemas.latex_packages import AccountLatexPackages, LatexPackageEntry, TemplatePackages
 from app.services.latex_assets import template_packages
@@ -25,7 +23,7 @@ def _account(teacher: Teacher) -> AccountLatexPackages:
 
 @router.get("/user/latex-packages")
 async def get_account_latex_packages(
-    teacher: Annotated[Teacher, Depends(get_current_teacher)],
+    teacher: CurrentTeacher,
 ) -> AccountLatexPackages:
     """The packages and libraries the account adds to every document."""
     return _account(teacher)
@@ -34,7 +32,7 @@ async def get_account_latex_packages(
 @router.put("/user/latex-packages")
 async def set_account_latex_packages(
     body: AccountLatexPackages,
-    teacher: Annotated[Teacher, Depends(get_current_teacher)],
+    teacher: CurrentTeacher,
     db: DB,
 ) -> AccountLatexPackages:
     """Replace the account's list. Entries are validated (names, options, unsupported packages)."""

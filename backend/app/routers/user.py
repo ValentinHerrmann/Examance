@@ -10,9 +10,8 @@ from sqlalchemy import select, update
 from app.config import settings
 from app.dependencies import (
     DB,
+    CurrentTeacher,
     TeachingTeacher,
-    get_current_teacher,
-    get_teaching_teacher,
     require_not_frozen,
 )
 from app.middleware.rate_limit import limiter
@@ -48,7 +47,7 @@ def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
 
 
 @router.get("/capabilities")
-async def get_capabilities(teacher: Teacher = Depends(get_current_teacher)) -> CapabilitiesOut:
+async def get_capabilities(teacher: CurrentTeacher) -> CapabilitiesOut:
     """The account's storage mode (null until chosen) and what it may use."""
     return _capabilities_out(teacher)
 
@@ -100,7 +99,7 @@ async def set_review_mail(body: ReviewMailUpdate, teacher: TeachingTeacher, db: 
 async def purge_server_student_data(
     request: Request,
     db: DB,
-    teacher: Teacher = Depends(get_teaching_teacher),
+    teacher: TeachingTeacher,
 ) -> dict[str, Any]:
     """Soft-delete the teacher's student identities and scan submissions (hard delete after 7 days). LaTeX exercises, exam structures and their resource files stay (teacher-authored content). A file with personal data (e.g. a pupil photo) must be deleted with the exercise or itself."""
     now = datetime.now(UTC)
@@ -156,7 +155,7 @@ async def purge_server_student_data(
 async def export_own_data(
     request: Request,
     db: DB,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: CurrentTeacher,
 ) -> dict[str, Any]:
     """GDPR Art. 15/20: machine-readable copy of the account holder's own data. Only what the server holds *about the teacher*: account fields, authored exams, audit trail. Student payloads are excluded (the server cannot read them); use the client-side export."""
     export = await build_export(teacher, db)
@@ -171,7 +170,7 @@ async def request_account_deletion(
     request: Request,
     background_tasks: BackgroundTasks,
     db: DB,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: CurrentTeacher,
 ) -> dict[str, Any]:
     """GDPR Art. 17: ask to delete one's own account; mails a single-use confirmation link. The link leads to `POST /auth/account-deletion/confirm` (see `services/account_deletion.py`). A new request replaces an open one; the last admin account is refused up front."""
     await ensure_not_last_admin(db, teacher)

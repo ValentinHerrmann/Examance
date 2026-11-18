@@ -99,18 +99,15 @@ def _echo(body: SubmissionCreate) -> dict[str, str | None]:
 @router.get("")
 async def list_submissions(
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
-    include_scans: bool = Query(
-        False,
-        description=(
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    include_scans: Annotated[bool, Query(description=(
             "Include scan_ciphertext_b64/scan_iv_b64 for every submission. Off by "
             "default: the scan PDF is the bulk of a submission's payload, so an "
             "overview listing all of an exam's submissions must not ship every "
             "scan just to show a table. Use has_scan for a presence indicator, "
             "and GET /exams/{id}/submissions/{sub_id} to fetch one scan's bytes "
             "on demand."
-        ),
-    ),
+        ))] = False,
 ) -> list[SubmissionResponse]:
     """List all non-deleted submissions for an exam."""
     result = await db.execute(
@@ -259,7 +256,7 @@ async def upload_submission(
     body: SubmissionCreate,
     trash_scope: trash.Trash,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> SubmissionResponse:
     """Upload encrypted scan submission."""
     await require_pseudonym_version(db, exam.id, body.pseudonym_version)
@@ -302,7 +299,7 @@ async def upload_submission(
 @router.get("/{sub_id}")
 async def get_submission(
     db: DB,
-    sub: ScanSubmission = Depends(_live_submission),
+    sub: Annotated[ScanSubmission, Depends(_live_submission)],
 ) -> SubmissionResponse:
     """Download encrypted scan submission by ID."""
     return _to_response(
@@ -329,7 +326,7 @@ async def clear_grading(
     sub: LiveSubmission,
     trash_scope: trash.Trash,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> Response:
     """Clear all grading data (score + annotations) for a submission; the trash keeps a copy (issue #125)."""
     await trash_scope.capture(
@@ -353,7 +350,7 @@ async def delete_submission(
     sub: LiveSubmission,
     trash_scope: trash.Trash,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
     permanent: Annotated[bool, Query(description="Skip the trash (GDPR erasure).")] = False,
 ) -> Response:
     """Delete a scan submission and its scores. Unless *permanent*, the trash keeps a copy (and the scan file) for RETENTION_GRACE_DAYS (issue #125)."""

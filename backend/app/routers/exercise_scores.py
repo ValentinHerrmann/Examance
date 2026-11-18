@@ -56,7 +56,7 @@ def _to_response(row: ExerciseScore) -> ExerciseScoreResponse:
 @router.get("")
 async def list_scores(
     db: DB,
-    submission: ScanSubmission = Depends(get_submission_for_teacher),
+    submission: Annotated[ScanSubmission, Depends(get_submission_for_teacher)],
 ) -> list[ExerciseScoreResponse]:
     rows = await db.execute(
         select(ExerciseScore).where(ExerciseScore.submission_id == submission.id)
@@ -67,7 +67,7 @@ async def list_scores(
 @exam_router.get("")
 async def list_exam_scores(
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> list[ExerciseScoreResponse]:
     rows = await db.execute(
         select(ExerciseScore)
@@ -84,8 +84,8 @@ async def list_exam_scores(
 async def put_scores(
     body: ExerciseScoreBulkPut,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
-    submission: ScanSubmission = Depends(get_submission_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    submission: Annotated[ScanSubmission, Depends(get_submission_for_teacher)],
 ) -> list[ExerciseScoreResponse]:
     """Upsert the listed scores; unlisted ones are left alone (clearing is a DELETE). Rows resolve by (submission_id, exercise_id), never by the client's id, so a replay updates in place instead of answering 409."""
     requested = {s.exercise_id for s in body.scores}
@@ -167,8 +167,8 @@ async def delete_score(
     exercise_id: uuid.UUID,
     trash_scope: trash.Trash,
     db: DB,
-    exam: Exam = Depends(get_exam_for_teacher),
-    submission: ScanSubmission = Depends(get_submission_for_teacher),
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    submission: Annotated[ScanSubmission, Depends(get_submission_for_teacher)],
     permanent: Annotated[bool, _PERMANENT] = False,
 ) -> Response:
     return await _delete_scores(db, trash_scope, exam, submission, exercise_id, permanent)
