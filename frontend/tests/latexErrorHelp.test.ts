@@ -87,6 +87,25 @@ describe('buildAiPrompt privacy and context', () => {
     expect(withoutSource).not.toContain('9b');
   });
 
+  it('omits every line of a multi-line info text, from the preamble and the log', () => {
+    const doc = ['\\documentclass{article}', '\\Info{Hilfsmittel: Taschenrechner', 'Lehrer: Dr. Xaver}', '\\usepackage{amsmath}', '\\begin{document}', 'Text'].join('\n');
+    const log = '! Undefined control sequence.\n<argument> Lehrer: Dr. Xaver\nl.6 Text\n';
+    for (const includeSource of [false, true]) {
+      const prompt = buildAiPrompt({ log, engine: 'local', source: doc, ranges: [], includeSource, locale: 'en' });
+      expect(prompt).not.toContain('Dr. Xaver');
+      expect(prompt).not.toContain('Taschenrechner');
+      expect(prompt).toContain('\\usepackage{amsmath}');
+    }
+  });
+
+  it('ends an unclosed header brace at the next header field', () => {
+    const doc = ['\\documentclass{article}', '\\Info{Note {see sheet}', '\\Fach{Informatik}', '\\begin{document}', 'BODY LINE \\oops', 'Text'].join('\n');
+    const log = '! Undefined control sequence.\nl.5 BODY LINE \\oops\n';
+    const prompt = buildAiPrompt({ log, engine: 'local', source: doc, ranges: [], includeSource: true, locale: 'en' });
+    expect(prompt).toContain('BODY LINE');
+    expect(prompt).not.toContain('see sheet');
+  });
+
   it('quotes whole template definitions, not lines that merely use the name', () => {
     const sty = [
       '\\renewcommand{\\theTeilaufgabe}{\\alph{Teilaufgabe}}',

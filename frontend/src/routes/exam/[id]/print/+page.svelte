@@ -7,7 +7,7 @@
   import { buildExamItems, loadExamCompileContext, type ExamCompileContext } from "#lib/grading/omrTemplatePrep";
   import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
   import { examHasWithheldCode, getCurrentExamVariant } from "#lib/exam/examPreview";
-  import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
+  import { saveExamLayout, withSavedExam, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import { contentStamp } from "#lib/exam/examChecks";
   import { examChecksState } from "#lib/stores/shell";
   import { copiesUnavailable, loadStickerEntries } from "#lib/sharing/stickerEntries";
@@ -16,6 +16,7 @@
   import { downloadBlob } from "#lib/components/stats/chartExport";
   import { slug } from "#lib/export/zip";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
+  import { createLoadGuard } from "#lib/utils/loadGuard";
   import ExamPreviewPanel, { type ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
   import PrintPlan, { type PrintPreviews } from "#lib/components/exam/PrintPlan.svelte";
   import { printSettingsOf } from "#lib/exam/printLayout";
@@ -57,10 +58,14 @@
 
   async function loadPins() {
     if (!ctx) return;
+    const shown = ctx;
     try {
-      [pinList, currentHash] = await Promise.all([listOmrTemplatePins(ctx.exam.id, key()), computeOmrTemplateHash({ ...ctx, examItems })]);
+      const [pins, hash] = await Promise.all([listOmrTemplatePins(shown.exam.id, key()), computeOmrTemplateHash({ ...shown, examItems })]);
+      if (ctx !== shown) return;
+      [pinList, currentHash] = [pins, hash];
       pinError = "";
     } catch (err) {
+      if (ctx !== shown) return;
       pinError = translate("exam.print.pins.loadFailed", { message: err instanceof Error ? err.message : String(err) });
     }
   }
@@ -68,12 +73,14 @@
   /** Never blocks printing: a failed pin is reported under the jobs. */
   async function pin(source: OmrPinSource) {
     if (!ctx || !pinnable) return;
+    const shown = ctx;
     try {
-      const pinned = await pinOmrTemplate({ ...ctx, examItems }, source, key());
-      if (!pinned) return;
+      const pinned = await pinOmrTemplate({ ...shown, examItems }, source, key());
+      if (!pinned || ctx !== shown) return;
       currentHash = pinned.hash;
       if (!(pinList ?? []).some((p) => p.hash === pinned.hash)) await loadPins();
     } catch (err) {
+      if (ctx !== shown) return;
       pinError = translate("exam.print.pins.pinFailed", { message: err instanceof Error ? err.message : String(err) });
     }
   }
@@ -83,28 +90,43 @@
     pinList = (pinList ?? []).filter((p) => p.hash !== hash);
   }
 
+  const loadGuard = createLoadGuard();
+
   async function load(id: string) {
-    await awaitSessionReady();
+    const isStale = loadGuard.begin();
+    // The previous exam's data goes at once: nothing of it may be shown or saved under this exam's URL.
+    ctx = null;
+    entries = null;
+    entriesError = "";
+    pinList = null;
+    pinError = "";
     loadError = "";
+    await awaitSessionReady();
+    let loaded: ExamCompileContext | null = null;
     try {
-      ctx = await loadExamCompileContext(id, key());
-      if (!ctx) loadError = translate("exam.page.examNotFoundOrDeleted");
+      loaded = await loadExamCompileContext(id, key());
+      if (isStale()) return;
+      ctx = loaded;
+      if (!loaded) loadError = translate("exam.page.examNotFoundOrDeleted");
       else void loadPins();
     } catch (err) {
+      if (isStale()) return;
       loadError = err instanceof Error ? err.message : String(err);
     }
     try {
-      entries = await loadStickerEntries(id, key(), examBaseMinutes(ctx?.exam));
+      const found = await loadStickerEntries(id, key(), examBaseMinutes(loaded?.exam));
+      if (!isStale()) entries = found;
     } catch (err) {
       // A failed read is reported, never shown as "no students yet".
-      entriesError = err instanceof Error ? err.message : String(err);
+      if (!isStale()) entriesError = err instanceof Error ? err.message : String(err);
     }
   }
 
   /** The compile card reloads the sources before compiling (they may have changed in another tab). */
   async function refreshSources() {
-    const fresh = await loadExamCompileContext(examId, key());
-    if (fresh) ctx = fresh;
+    const id = examId;
+    const fresh = await loadExamCompileContext(id, key());
+    if (fresh && id === examId && ctx?.exam.id === id) ctx = fresh;
   }
 
   /** One current compiled sheet; the job rows only offer it while it is current (the solution may be skipped). */
@@ -121,7 +143,9 @@
   async function savePrint(patch: ExamLayoutPatch) {
     if (!ctx) return;
     const exam = await saveExamLayout(ctx.exam, patch);
-    ctx = { ...ctx, exam };
+    const next = withSavedExam(ctx, exam);
+    if (!next) return;
+    ctx = next;
     layoutVersion++;
     // The made PDFs and ticks are checked against the content stamp, which covers the print settings.
     const exercises = ctx.exercises;

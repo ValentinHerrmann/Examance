@@ -17,9 +17,12 @@ export interface CsvExportRow {
   status: string;
 }
 
-/** RFC 4180 quoting: wrap in quotes, double any quote inside. */
+// Text starting with these is run as a formula by Excel and LibreOffice (CSV injection); numbers are written as numbers.
+const FORMULA_START = /^[=+\-@\t\r]/;
+
+/** RFC 4180 quoting: wrap in quotes, double any quote inside; text that could start a formula gets a leading apostrophe. */
 function csvCell(value: number | string): string {
-  const text = typeof value === 'number' ? String(value) : value;
+  const text = typeof value === 'number' ? String(value) : value.replace(FORMULA_START, "'$&");
   return `"${text.replaceAll('"', '""')}"`;
 }
 

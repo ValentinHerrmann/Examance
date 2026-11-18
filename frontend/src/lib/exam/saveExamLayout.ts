@@ -39,3 +39,8 @@ export async function saveExamLayout(exam: ExamRecord, patch: ExamLayoutPatch): 
   await saveExamEncrypted(updated, get(sessionStore).sessionKey);
   return updated;
 }
+
+/** The shown context with the saved exam, or null when the save belongs to another exam (it landed after a switch, issue #293). */
+export function withSavedExam<C extends { exam: ExamRecord }>(ctx: C | null, exam: ExamRecord): C | null {
+  return ctx?.exam.id === exam.id ? { ...ctx, exam } : null;
+}

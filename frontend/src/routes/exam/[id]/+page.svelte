@@ -1,5 +1,6 @@
 <script lang="ts">
   // The exam's Overview (issue #212): its details, the key figures the step badges don't show, the linked workflow, the exam-wide actions and "Continue" into the next unfinished step. Navigation lives in the sidebar only.
+  import { createLoadGuard } from "#lib/utils/loadGuard";
   import { page } from "$app/state";
   import { untrack } from "svelte";
   import { browser } from "$app/env";
@@ -53,11 +54,10 @@
   let statisticsRecordIds: string[] = $state([]);
   let isDuplicating = $state(false);
 
-  let loadSeq = 0;
+  const loadGuard = createLoadGuard();
   async function load(id: string) {
     await awaitSessionReady();
-    const seq = ++loadSeq;
-    const isStale = () => seq !== loadSeq;
+    const isStale = loadGuard.begin();
     const key = get(sessionStore).sessionKey;
     loadError = "";
     try {

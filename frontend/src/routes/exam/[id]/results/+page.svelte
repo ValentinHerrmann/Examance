@@ -19,6 +19,7 @@
   import { statisticsRepository, type StoredStatistics } from '#lib/repositories/statisticsRepository';
   import { refreshStatistics } from '#lib/analytics/statisticsSync';
   import { ConfirmDialog } from '#lib/components/ui';
+  import { createLoadGuard } from '#lib/utils/loadGuard';
 
   let examId = $derived(page.params.id || '');
 
@@ -50,26 +51,45 @@
     void loadStats(examId);
   }
 
+  const loadGuard = createLoadGuard();
+
   async function loadStats(id: string) {
+    const isStale = loadGuard.begin();
+    // The previous exam goes at once: its statistics (and their delete) never show under this exam's URL.
+    exam = null;
+    stats = null;
+    totalMaxPoints = null;
+    exercises = [];
+    submissions = [];
+    students = [];
+    scores = [];
+    storedStats = null;
+    confirmDeleteStats = false;
+    loadError = '';
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
-    if (!key) return;
+    if (!key || isStale()) return;
 
-    loadError = '';
     try {
-      exam = (await loadExamEncrypted(id, key)) || null;
-      exercises = await loadExamExercisesEncrypted(id, key);
-      submissions = await submissionRepository.getByExamId(id, key);
-      students = await studentRepository.getByExamId(id, key);
-
-      scores = await scoreRepository.getByExamId(id, key);
-      storedStats = null;
-      recompute(exam?.gradingKey);
-      if (stats?.results.length) {
+      const [loadedExam, loadedExercises, loadedSubmissions, loadedStudents, loadedScores] = await Promise.all([
+        loadExamEncrypted(id, key),
+        loadExamExercisesEncrypted(id, key),
+        submissionRepository.getByExamId(id, key),
+        studentRepository.getByExamId(id, key),
+        scoreRepository.getByExamId(id, key),
+      ]);
+      if (isStale()) return;
+      exam = loadedExam || null;
+      exercises = loadedExercises;
+      submissions = loadedSubmissions;
+      students = loadedStudents;
+      scores = loadedScores;
+      if (recompute(exam?.gradingKey)?.results.length) {
         // Catches up a rebuild a closed tab never ran, so the kept record matches what is shown here.
         refreshStatistics(id).catch((err) => console.warn('Statistics not updated:', err));
-      } else await useStoredStatistics(id, key);
+      } else await useStoredStatistics(id, key, isStale);
     } catch (err) {
+      if (isStale()) return;
       console.error('Failed to load exam statistics:', err);
       stats = null;
       submissions = [];
@@ -78,10 +98,10 @@
   }
 
   /** No results here (purged, or kept in another browser): the anonymous record stands in, without students. */
-  async function useStoredStatistics(id: string, key: CryptoKey) {
+  async function useStoredStatistics(id: string, key: CryptoKey, isStale: () => boolean) {
     // A failed read reaches loadError: "nothing graded" would be untrue when a record exists.
     const stored = await statisticsRepository.findByExam(id, key);
-    if (!stored) return;
+    if (!stored || isStale()) return;
     const records = snapshotRecords(stored.snapshot);
     storedStats = stored;
     if (!exercises.length) exercises = records.exercises;
@@ -108,10 +128,11 @@
   }
 
   /** Statistics under a grading key: the stored one, or the one being edited (issue #212). */
-  function recompute(gradingKey: GradingKeyConfig | undefined) {
+  function recompute(gradingKey: GradingKeyConfig | undefined): ExamStats | null {
     const computed = computeExamResults(exam && gradingKey ? { ...exam, gradingKey } : exam, exercises, submissions, scores);
     totalMaxPoints = computed.totalMaxPoints;
     stats = computed.stats;
+    return computed.stats;
   }
 
   async function confirmAndExport() {
@@ -143,7 +164,7 @@
 >
   {#snippet gradingKeyPanel()}
     {#if exam}
-      <GradingKeyPanel {exam} onPreview={(key) => recompute(key)} onSaved={(updated) => (exam = updated)} />
+      <GradingKeyPanel {exam} onPreview={(key) => recompute(key)} onSaved={(updated) => { if (exam?.id === updated.id) exam = updated; }} />
     {/if}
   {/snippet}
 </StatsPage>
