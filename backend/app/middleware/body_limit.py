@@ -13,6 +13,14 @@ from app.config import settings
 # First match wins, so the order matters (e.g. a share's review and content paths before the share list).
 _RULES: tuple[tuple[Callable[[str, str], bool], str], ...] = (
     (lambda p, _m: p.startswith("/api/v1/compile"), "BODY_LIMIT_COMPILE"),
+    (
+        lambda p, m: p.startswith("/api/v1/exams/") and p.endswith("/statistics") and m == "PUT",
+        "BODY_LIMIT_STATISTICS",
+    ),
+    (
+        lambda p, m: p.startswith("/api/v1/exams/") and p.endswith("/pseudonyms/rekey") and m == "POST",
+        "BODY_LIMIT_REKEY",
+    ),
     (lambda p, _m: p.startswith("/api/v1/training"), "BODY_LIMIT_TRAINING"),
     (lambda p, _m: p == "/api/v1/layout-reports", "BODY_LIMIT_LAYOUT_REPORT"),
     (lambda p, _m: p.endswith("/resources") or "/resources/" in p or p.endswith("/logo"), "BODY_LIMIT_RESOURCE"),

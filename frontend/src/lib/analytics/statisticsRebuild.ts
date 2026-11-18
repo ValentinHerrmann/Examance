@@ -1,4 +1,4 @@
-/** When a rebuild may change an exam's kept statistics (issue #238): never from a partial view, so a browser without the results or an exam whose results retention erased cannot shrink or delete the record. */
+/** When a rebuild may change an exam's kept statistics (issue #238): never from a partial view, so unreadable rows, a browser without the results or an exam whose results retention erased cannot shrink or delete the record. */
 export type RebuildAction = 'put' | 'delete' | 'skip';
 
 export interface RebuildView {
@@ -14,9 +14,12 @@ export interface RebuildView {
   hadRows: boolean;
   /** The rebuild follows the teacher's own write (not the backfill or an import). */
   clearWhenEmpty: boolean;
+  /** Some submission or score did not decrypt, so the rows would drop papers or exercises. */
+  unreadable: boolean;
 }
 
 export function rebuildAction(view: RebuildView): RebuildAction {
+  if (view.unreadable) return 'skip';
   if (!view.local && view.purged) return 'skip';
   if (view.local && !view.hasRows && !view.hadRows) return 'skip';
   if (view.graded) return 'put';

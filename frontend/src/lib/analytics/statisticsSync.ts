@@ -43,7 +43,9 @@ export async function refreshStatistics(examId: string, { clearWhenEmpty = false
     scoreRepository.getByExamId(examId, key),
   ]);
   const snapshot = buildStatisticsSnapshot(exam, exercises, submissions, scores);
-  const action = rebuildAction({ local, purged: Boolean(exam.resultsPurgedAt), hasRows: submissions.length > 0, graded: snapshot !== null, hadRows, clearWhenEmpty });
+  const unreadable = submissions.some((s) => s.decryptFailed) || scores.some((s) => s.decryptFailed);
+  if (unreadable) console.warn(`[statistics] exam ${examId} skipped: some results could not be read`);
+  const action = rebuildAction({ local, purged: Boolean(exam.resultsPurgedAt), hasRows: submissions.length > 0, graded: snapshot !== null, hadRows, clearWhenEmpty, unreadable });
   if (action === 'put' && snapshot) return statisticsRepository.put(snapshot, key);
   if (action !== 'delete') return;
   const stored = await statisticsRepository.findByExam(examId, key);

@@ -100,6 +100,10 @@ class Settings(BaseSettings):
     BODY_LIMIT_INTEGRATION_FILE: int = 11 * 1024 * 1024  # 11 MB
     # One pinned OMR template (issue #239): 4 MiB ciphertext cap, base64-inflated, plus JSON slack.
     BODY_LIMIT_OMR_PIN: int = 6 * 1024 * 1024        # 6 MB
+    # One sealed statistics record (issue #238): the router's 4 MB ciphertext cap, base64-inflated, plus JSON slack.
+    BODY_LIMIT_STATISTICS: int = 6 * 1024 * 1024    # 6 MB
+    # A pseudonym rekey (issue #177): up to 100,000 pairs of two 64-hex values, about 150 bytes each.
+    BODY_LIMIT_REKEY: int = 16 * 1024 * 1024        # 16 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
 
     # Storage partitions (issue #114, docs/dev/storage_partitions.md). "db" keeps scans in Postgres; "fs" writes new ones under BLOB_STORAGE_DIR (local dir or rclone mount). Reads accept both.

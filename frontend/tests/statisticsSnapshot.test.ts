@@ -63,7 +63,7 @@ describe('statistics snapshot', () => {
 });
 
 describe('rebuildAction', () => {
-  const base = { local: true, purged: false, hasRows: true, graded: true, hadRows: true, clearWhenEmpty: true };
+  const base = { local: true, purged: false, hasRows: true, graded: true, hadRows: true, clearWhenEmpty: true, unreadable: false };
 
   it('never touches the record from a hybrid browser without results (regression: it was overwritten or deleted)', () => {
     expect(rebuildAction({ ...base, hasRows: false, graded: false, hadRows: false })).toBe('skip');
@@ -83,5 +83,11 @@ describe('rebuildAction', () => {
     expect(rebuildAction({ ...base, local: false, hasRows: false, graded: false, hadRows: false })).toBe('delete');
     expect(rebuildAction({ ...base, graded: false })).toBe('skip');
     expect(rebuildAction({ ...base, hasRows: false, graded: false, clearWhenEmpty: false })).toBe('skip');
+  });
+
+  it('never rebuilds from results that did not all decrypt (regression #290: the record lost papers)', () => {
+    expect(rebuildAction({ ...base, unreadable: true })).toBe('skip');
+    expect(rebuildAction({ ...base, local: false, unreadable: true })).toBe('skip');
+    expect(rebuildAction({ ...base, hasRows: false, graded: false, unreadable: true })).toBe('skip');
   });
 });
