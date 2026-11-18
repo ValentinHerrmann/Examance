@@ -3,14 +3,15 @@ from __future__ import annotations
 
 import base64
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.dependencies import (
+    DB,
     get_exam_for_teacher,
     get_submission_for_teacher,
     get_teaching_teacher,
@@ -85,8 +86,8 @@ async def _insert(
 
 @exam_router.get("")
 async def list_exam_grading_reviews(
-    exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
 ) -> list[GradingReviewResponse]:
     rows = await db.execute(
         select(GradingReview)
@@ -98,8 +99,8 @@ async def list_exam_grading_reviews(
 
 @router.get("")
 async def get_grading_review(
-    submission: ScanSubmission = Depends(get_submission_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    submission: Annotated[ScanSubmission, Depends(get_submission_for_teacher)],
 ) -> GradingReviewResponse | None:
     """The submission's record, or null while there is none."""
     row = await _for_submission(db, submission.id)
@@ -109,9 +110,9 @@ async def get_grading_review(
 @router.put("", dependencies=[Depends(require_server_results_writable)])
 async def put_grading_review(
     body: GradingReviewIn,
-    exam: Exam = Depends(get_exam_for_teacher),
-    submission: ScanSubmission = Depends(get_submission_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    submission: Annotated[ScanSubmission, Depends(get_submission_for_teacher)],
 ) -> GradingReviewResponse:
     """Upsert by submission, never by the client's id, so a replay updates in place instead of answering 409."""
     payload = (

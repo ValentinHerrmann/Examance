@@ -2,17 +2,14 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.dependencies import get_admin_teacher
+from app.dependencies import DB, AdminTeacher
 from app.models.allowed_email_domain import AllowedEmailDomain
-from app.models.teacher import Teacher
 from app.routers.admin.features import apply_features, features_of, patch_features
 from app.schemas.admin import (
     AccountFeaturesUpdate,
@@ -40,8 +37,8 @@ async def _load_domain(db: AsyncSession, domain_id: uuid.UUID) -> AllowedEmailDo
 
 @router.get("/allowed-domains")
 async def list_allowed_domains(
-    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    _admin: AdminTeacher,
+    db: DB,
 ) -> list[AllowedDomainResponse]:
     """Domains whose registrations are approved automatically (Admin only)."""
     rows = await db.scalars(select(AllowedEmailDomain).order_by(AllowedEmailDomain.domain))
@@ -55,8 +52,8 @@ async def list_allowed_domains(
 async def add_allowed_domain(
     body: AllowedDomainRequest,
     request: Request,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    admin: AdminTeacher,
+    db: DB,
 ) -> AllowedDomainResponse:
     """Approve every future registration from a domain automatically (Admin only). Exact match on the part after '@'; subdomains need their own entry. Existing accounts are not affected."""
     try:
@@ -89,8 +86,8 @@ async def update_allowed_domain(
     domain_id: uuid.UUID,
     body: AccountFeaturesUpdate,
     request: Request,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    admin: AdminTeacher,
+    db: DB,
 ) -> AllowedDomainResponse:
     """Change the features future registrations from a domain receive (Admin only)."""
     row = await _load_domain(db, domain_id)
@@ -104,8 +101,8 @@ async def update_allowed_domain(
 async def remove_allowed_domain(
     domain_id: uuid.UUID,
     request: Request,
-    admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    admin: AdminTeacher,
+    db: DB,
 ) -> Response:
     """Stop approving a domain automatically (Admin only). Existing accounts stay."""
     row = await _load_domain(db, domain_id)

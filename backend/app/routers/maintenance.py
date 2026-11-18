@@ -4,13 +4,10 @@ from __future__ import annotations
 from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, Cookie, Depends, Request, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Cookie, Request, Response, status
 
-from app.database import get_db
-from app.dependencies import get_current_teacher
+from app.dependencies import DB, CurrentTeacher
 from app.middleware.rate_limit import limiter
-from app.models.teacher import Teacher
 from app.schemas.maintenance import MaintenanceReadyRequest, MaintenanceStatus
 from app.services import maintenance
 from app.services.jwt import decode_token
@@ -56,7 +53,7 @@ def _signed_in_teacher_id(access_token: str | None) -> str | None:
 @limiter.limit("600/minute")
 async def maintenance_status(
     request: Request,  # required by slowapi
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: DB,
     access_token: Annotated[str | None, Cookie()] = None,
 ) -> MaintenanceStatus:
     """Public: whether maintenance is announced or running. Signed-in teachers count as online."""
@@ -71,7 +68,7 @@ async def maintenance_status(
 @router.post("/ready", status_code=status.HTTP_204_NO_CONTENT)
 async def maintenance_ready(
     body: MaintenanceReadyRequest,
-    teacher: Annotated[Teacher, Depends(get_current_teacher)],
+    teacher: CurrentTeacher,
 ) -> Response:
     """The teacher confirmed they saved their work for this window (shown to admins as a count)."""
     await maintenance.mark_ready(str(teacher.id), body.revision)

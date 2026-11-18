@@ -3,14 +3,13 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.dependencies import get_current_teacher, get_teaching_teacher
+from app.dependencies import DB, CurrentTeacher, get_teaching_teacher
 from app.models.exercise import Exercise
 from app.models.exercise_contribution import ExerciseContribution, ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
@@ -109,9 +108,9 @@ async def _summaries(
 
 @router.get("")
 async def list_contributions(
-    direction: Literal["incoming", "outgoing"] = Query(default="incoming"),
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
+    direction: Annotated[Literal["incoming", "outgoing"], Query()] = "incoming",
 ) -> list[ContributionSummary]:
     """Proposals to the caller's exercises (incoming) or from the caller (outgoing)."""
     column = (
@@ -132,8 +131,8 @@ async def list_contributions(
 
 @router.get("/summary")
 async def contribution_count(
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> ContributionCount:
     """Pending proposals: the incoming total (tab badge) and per own group (library tag)."""
     pending = ExerciseContribution.status == "pending"
@@ -172,8 +171,8 @@ async def contribution_count(
 @router.get("/{contribution_id}")
 async def get_contribution(
     contribution_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> ContributionDetail:
     """The proposal; the owner also gets the current row it applies to and a file comparison."""
     row = await contrib.load_for(teacher, contribution_id, db)
@@ -225,8 +224,8 @@ async def get_contribution(
 async def download_contribution_resource(
     contribution_id: uuid.UUID,
     resource_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> Response:
     """A proposed file, for the owner and the contributor only; served like exercise resources."""
     row = await contrib.load_for(teacher, contribution_id, db)
@@ -241,8 +240,8 @@ async def accept_contribution(
     request: Request,
     contribution_id: uuid.UUID,
     body: ContributionAccept,
-    teacher: Teacher = Depends(require_exercise_sharing),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: Annotated[Teacher, Depends(require_exercise_sharing)],
 ) -> ContributionSummary:
     """Adopt a proposal as a new version (or a new variant at version 1); the owner may edit it. Nothing is updated in place, so the owner's exams keep the rows they link."""
     await contrib.accept(
@@ -282,8 +281,8 @@ async def reject_contribution(
     contribution_id: uuid.UUID,
     body: ContributionReject,
     trash_scope: trash.Trash,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> None:
     """Decline a proposal (owner); its content leaves for the trash (issue #125). Never gated."""
     snap = await trash.snapshot_contribution(db, contribution_id, "rejected")
@@ -299,8 +298,8 @@ async def withdraw_contribution(
     request: Request,
     contribution_id: uuid.UUID,
     trash_scope: trash.Trash,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> None:
     """Take back an own pending proposal; its content leaves for the trash (issue #125). Never gated."""
     snap = await trash.snapshot_contribution(db, contribution_id, "withdrawn")

@@ -10,11 +10,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.dependencies import (
     DB,
     CurrentTeacher,
-    get_current_teacher,
     get_exercise_for_teacher,
     get_readable_exercise,
 )
@@ -80,14 +78,14 @@ async def _lock_current(ex: Exercise, teacher: Teacher, db: AsyncSession) -> Exe
 
 @listing.get("")
 async def list_exercises(
+    db: DB,
+    teacher: CurrentTeacher,
     topic_tag: str | None = None,
     grade: str | None = None,
     subject: str | None = None,
     search: str | None = None,
     group_id: uuid.UUID | None = None,
     current_only: bool = True,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
 ) -> list[ExerciseResponse]:
     """List the teacher's own library. Shared rows are listed by `/shared` and only ever copied, so the library, the exam picker and the offline mirror never hold another account's row."""
     query = select(Exercise).where(Exercise.teacher_id == teacher.id)
@@ -126,8 +124,8 @@ def _group_flags(group: ExerciseGroup | None) -> dict[str, Any]:
 async def update_exercise_group(
     group_id: uuid.UUID,
     body: ExerciseGroupUpdate,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> ExerciseGroupResponse:
     """Update group metadata and cascade it to every member variant."""
     group = await get_own_group(group_id, teacher.id, db)
@@ -143,8 +141,8 @@ async def update_exercise_group(
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_exercise(
     body: ExerciseCreate,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> ExerciseResponse:
     """Create a new exercise in the teacher's library."""
     computed_score = parse_exercise_score(body.latex_body) if body.latex_body else body.max_points
@@ -209,8 +207,8 @@ async def create_exercise(
 
 @router.get("/{exercise_id}")
 async def get_exercise(
-    ex: Exercise = Depends(get_readable_exercise),
-    teacher: Teacher = Depends(get_current_teacher),
+    ex: Annotated[Exercise, Depends(get_readable_exercise)],
+    teacher: CurrentTeacher,
 ) -> ExerciseResponse:
     """Get an own exercise, or one shared with the caller (then without owner id or provenance, so `teacher_id` tells the caller whether the row is theirs)."""
     res = ExerciseResponse.from_exercise(ex)
@@ -263,9 +261,9 @@ async def update_exercise(
 )
 async def create_new_version(
     body: ExerciseUpdate,
-    old_ex: Exercise = Depends(get_exercise_for_teacher),
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    old_ex: Annotated[Exercise, Depends(get_exercise_for_teacher)],
+    teacher: CurrentTeacher,
 ) -> ExerciseResponse:
     """Create a new corrected version of an existing exercise (archives previous version)."""
     group = await _lock_current(old_ex, teacher, db)
@@ -305,9 +303,9 @@ async def create_new_version(
 )
 async def create_new_variant(
     body: ExerciseCreate,
-    base_ex: Exercise = Depends(get_exercise_for_teacher),
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    base_ex: Annotated[Exercise, Depends(get_exercise_for_teacher)],
+    teacher: CurrentTeacher,
 ) -> ExerciseResponse:
     """Create a new parallel variant (e.g. Möbel/Fahrzeug/Wildtier) under the same group."""
     group = await _lock_current(base_ex, teacher, db)
@@ -332,9 +330,9 @@ async def create_new_variant(
 
 @router.get("/{exercise_id}/usage")
 async def get_exercise_usage(
-    ex: Exercise = Depends(get_readable_exercise),
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    ex: Annotated[Exercise, Depends(get_readable_exercise)],
+    teacher: CurrentTeacher,
 ) -> ExerciseUsageResponse:
     """Get count and details of non-deleted exams referencing this exercise. Only the caller's own exams are reported, so usage of a published exercise in another teacher's exam is never disclosed."""
     query = (
@@ -395,8 +393,8 @@ async def _previous_version(
 async def delete_exercise(
     exercise_id: uuid.UUID,
     trash_scope: trash.Trash,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> None:
     """Delete an exercise from the caller's own library. Idempotent: always 204. Only exercises owned by *teacher* are deleted, so a foreign id is a silent no-op that does not reveal the id exists."""
     result = await db.execute(

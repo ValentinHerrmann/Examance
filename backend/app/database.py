@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from typing import Any
 
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -42,3 +43,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
+
+
+# Function scope runs the commit before the response is sent, so a failed commit answers 500 instead of a false 200; every use must share it (the dependency cache keys on scope).
+DbDep = Depends(get_db, scope="function")  # NOSONAR(S930) FastAPI 0.162 documents scope; Sonar's model predates it

@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.dependencies import get_current_teacher, get_exam_for_teacher, get_teaching_teacher
+from app.dependencies import (
+    DB,
+    CurrentTeacher,
+    get_exam_for_teacher,
+    get_teaching_teacher,
+)
 from app.models.exam import Exam
 from app.models.logo import ExamLogo, TeacherLogo
 from app.models.teacher import Teacher
@@ -89,8 +94,8 @@ async def _trash_account_logo(
 
 @router.get("/user/logo")
 async def get_account_logo(
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> AccountLogoInfo:
     """The account's logo setting (`default`, `none`, `custom`) and what it prints."""
     return _account_info(await get_teacher_logo(teacher.id, db))
@@ -98,8 +103,8 @@ async def get_account_logo(
 
 @router.get("/user/logo/file")
 async def download_account_logo(
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> Response:
     """The logo the account prints (its own or the default); 404 when it prints none."""
     _, logo = resolve_account_logo(await get_teacher_logo(teacher.id, db))
@@ -110,8 +115,8 @@ async def download_account_logo(
 async def set_account_logo(
     body: AccountLogoUpdate,
     trash_scope: trash.Trash,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> AccountLogoInfo:
     """Choose the account logo: the bundled default (`default`), none (`none`), or its own file (`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`). Dropping an own file keeps a copy in the trash (issue #125)."""
     row = await get_teacher_logo(teacher.id, db)
@@ -134,8 +139,8 @@ async def set_account_logo(
 @router.delete("/user/logo")
 async def reset_account_logo(
     trash_scope: trash.Trash,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    teacher: CurrentTeacher,
 ) -> AccountLogoInfo:
     """Reset the account logo to the default; same as `PUT {"mode": "default"}`."""
     row = await get_teacher_logo(teacher.id, db)
@@ -169,9 +174,9 @@ async def _exam_info(exam: Exam, teacher: Teacher, db: AsyncSession) -> ExamLogo
 
 @router.get("/exams/{exam_id}/logo")
 async def get_exam_logo_info(
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: CurrentTeacher,
 ) -> ExamLogoInfo:
     """The exam's logo setting and the logo it resolves to."""
     return await _exam_info(exam, teacher, db)
@@ -179,9 +184,9 @@ async def get_exam_logo_info(
 
 @router.get("/exams/{exam_id}/logo/file")
 async def download_exam_logo(
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: CurrentTeacher,
 ) -> Response:
     """The logo this exam prints (its own, the account's, or the default); 404 for none."""
     _, logo = await resolve_logo(teacher.id, exam.id, db)
@@ -192,9 +197,9 @@ async def download_exam_logo(
 async def set_exam_logo(
     body: ExamLogoUpdate,
     trash_scope: trash.Trash,
-    exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: DB,
+    exam: Annotated[Exam, Depends(get_exam_for_teacher)],
+    teacher: CurrentTeacher,
 ) -> ExamLogoInfo:
     """Choose the exam's logo: follow the account (`account`), print none (`none`), or print its own (`custom`, with `content_b64` to replace the stored file). Dropping an own file keeps a copy in the trash (issue #125)."""
     row = await get_exam_logo(exam.id, db)

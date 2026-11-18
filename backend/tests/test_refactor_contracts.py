@@ -5,11 +5,16 @@ import base64
 import uuid
 from datetime import date, timedelta
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
-from httpx import AsyncClient
+from fastapi.dependencies.models import Dependant
+from fastapi.routing import APIRoute
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import get_db
+from app.main import app
 from app.services.blob_validation import (
     UploadRejected,
     UploadTooLarge,
@@ -363,3 +368,47 @@ async def test_exam_scan_aid_switches_round_trip(client: AsyncClient, db: AsyncS
     body = (await client.patch(url, json={"cut_corner": False})).json()
     assert (body["cut_corner"], body["fold_strip"]) == (False, True)
     assert (await client.patch(url, json={"nr": "2"})).json()["cut_corner"] is False
+
+
+def _db_scopes(dependant: Dependant) -> list[str | None]:
+    found: list[str | None] = []
+    for sub in dependant.dependencies:
+        if sub.call is get_db:
+            found.append(sub.scope)
+        found.extend(_db_scopes(sub))
+    return found
+
+
+def _api_routes(routes: list[Any]) -> list[APIRoute]:
+    found: list[APIRoute] = []
+    for route in routes:
+        if isinstance(route, APIRoute):
+            found.append(route)
+        inner = getattr(route, "original_router", None)  # FastAPI wraps included routers
+        if inner is not None:
+            found.extend(_api_routes(list(inner.routes)))
+    return found
+
+
+def test_every_route_commits_before_the_response_is_sent() -> None:
+    """A request-scoped get_db commits after the response went out, so a failed commit would reach the client as success."""
+    scopes = [s for r in _api_routes(list(app.routes)) for s in _db_scopes(r.dependant)]
+    assert len(scopes) > 50
+    assert set(scopes) == {"function"}
+
+
+@pytest.mark.asyncio
+async def test_a_failed_commit_answers_an_error_not_success(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The exam create route relies on get_db's commit; when it fails the client must not see 201."""
+    await sign_in(client, db, "commit-fails@example.com")
+
+    monkeypatch.setattr(AsyncSession, "commit", AsyncMock(side_effect=RuntimeError("commit failed")))
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(
+        transport=transport, base_url=str(client.base_url), cookies=client.cookies,
+        headers=client.headers,
+    ) as raw:
+        resp = await raw.post(EXAMS, json={"title": "Lost", "retention_until": RETENTION})
+    assert resp.status_code == 500
