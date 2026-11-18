@@ -28,6 +28,7 @@ Storage modes (`lib/stores/storagePolicy.ts`, `docs/dev/storage_modes.md`, issue
 | `make lint` / `make lint-frontend` | `ruff check app && mypy app` / `npm run lint && npm run check` |
 | `make test-backend` / `make test-frontend` / `make test` | pytest / vitest / both |
 | `npm run test:e2e` | Playwright suite (not wired into `make`; CI runs only the layout and a11y specs on three devices) |
+| `make sonar-check` | SonarCloud stand-in on the lines changed against `origin/main`; run before every push (`docs/dev/ci_and_audit.md`) |
 | `npm run sri:verify` | subresource-integrity manifest check; **not enforced yet** (nothing vendored, `static/sri-manifest.json`), so it reports the missing control |
 
 Prefer `make` over hand-rolled `cd backend && ...`. Deps: `uv` backend, `npm` frontend; no pip, poetry, yarn. mypy needs the dev extras (see `backend/CLAUDE.md`).
@@ -61,7 +62,7 @@ Prefer `make` over hand-rolled `cd backend && ...`. Deps: `uv` backend, `npm` fr
 - **Small files.** No route or component grows past ~600 lines: move a whole flow into a component opened through an exported `open()`, when you touch it, not in a big bang later.
 - **Fixes before cleanups, refactors keep behaviour.** Security and data-loss fixes come first; a refactor leaves the OpenAPI document unchanged unless the endpoint is the point.
 - **Every bug fix adds a regression test** at the lowest level that reproduces it.
-- **Every change passes what CI checks**: ruff, mypy, `svelte-check`, eslint, the OpenAPI drift check, SonarCloud without new issues. Answer CodeQL with a fix or a dismissal reason, never with an unread autofix. Generated files (`docs/openapi.json`, `static/example-data/`) are regenerated, never hand-edited.
+- **Every change passes what CI checks**: ruff, mypy, `svelte-check`, eslint, the OpenAPI drift check, SonarCloud without new issues (run `make sonar-check` before every push, so Sonar findings never wait for CI). Answer CodeQL with a fix or a dismissal reason, never with an unread autofix. Generated files (`docs/openapi.json`, `static/example-data/`) are regenerated, never hand-edited.
 - **One PR, one purpose.** Cleanup found outside the scope becomes an issue; a refactor across many files gets a short plan in `docs/dev/` first.
 
 ## Standing instructions

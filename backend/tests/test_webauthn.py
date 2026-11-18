@@ -1,9 +1,14 @@
 """Passkey endpoints. The ceremonies need a real authenticator, so these cover our parts: a passkey alone completes a sign-in (only for its own account), the challenge is single-use, and the removal guard holds."""
 from __future__ import annotations
 
+import json
+from typing import Any
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.services import webauthn as webauthn_svc
 
 from .factors import DEFAULT_PASSWORD, create_teacher, sign_in
 
@@ -77,6 +82,65 @@ async def test_removing_an_unknown_passkey_is_a_404(
     await sign_in(client, db, "passkey-del@example.com")
     resp = await client.delete("/api/v1/webauthn/credentials/bm9wZQ")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_malformed_passkey_id_is_a_400_not_a_500(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Issue #294: the id is decoded by `decode_credential_id`, so a bad length is refused cleanly."""
+    await sign_in(client, db, "passkey-badid@example.com")
+    resp = await client.delete("/api/v1/webauthn/credentials/a")
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_registration_requires_user_verification_and_hides_internal_errors(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Issue #294: registration demands the UV flag, and an internal error's text never reaches the browser."""
+    seen: dict[str, Any] = {}
+
+    def fake_verify(**kwargs: Any) -> None:
+        seen.update(kwargs)
+        raise RuntimeError("database at db:5432 said no")
+
+    monkeypatch.setattr(webauthn_svc, "verify_registration_response", fake_verify)
+    await sign_in(client, db, "passkey-uv@example.com")
+    options = (await client.post("/api/v1/webauthn/register/options")).json()
+    resp = await client.post(
+        "/api/v1/webauthn/register/verify",
+        json={
+            "handle": options["handle"],
+            "challenge_b64": options["challenge_b64"],
+            "credential_json": "{}",
+            "supports_prf": False,
+            "nickname": None,
+        },
+    )
+    assert seen.get("require_user_verification") is True
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "The passkey could not be registered."
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw_id", ["ab+/cd==", "a"])
+async def test_sign_in_decodes_the_credential_id_like_everywhere_else(
+    client: AsyncClient, raw_id: str
+) -> None:
+    """Issue #294: a standard-base64 `rawId` reaches the lookup, and a malformed one reads as an unknown passkey."""
+    client.cookies.clear()
+    options = (await client.post("/api/v1/webauthn/login/options")).json()
+    resp = await client.post(
+        "/api/v1/webauthn/login/verify",
+        json={
+            "handle": options["handle"],
+            "challenge_b64": options["challenge_b64"],
+            "credential_json": json.dumps({"rawId": raw_id}),
+        },
+    )
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Unknown passkey."
 
 
 @pytest.mark.asyncio

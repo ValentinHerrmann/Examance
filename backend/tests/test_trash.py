@@ -256,3 +256,50 @@ async def test_gdpr_erasure_also_erases_the_students_trash_entries(
     assert (await client.delete(f"/api/v1/exams/{exam_id}/submissions/{sub_id}", params=params)).status_code == 204
     assert (await client.delete(f"/api/v1/exams/{exam_id}/students/{'a' * 64}", params=params)).status_code == 204
     assert await _groups(client) == []
+
+
+async def test_permanent_deletes_erase_the_submissions_earlier_trash_entries(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Issue #294: a GDPR delete of a submission or of one exercise's scores leaves no earlier trash copy behind."""
+    exam_id, exercise_id, sub_id = await _exam_with_submission(
+        client, db, unique_email("trash-gdpr-sub")
+    )
+    sub_url = f"/api/v1/exams/{exam_id}/submissions/{sub_id}"
+    url = await _score(client, exam_id, sub_id, exercise_id)
+    assert (await client.delete(f"{sub_url}/grading")).status_code == 204
+    await _score(client, exam_id, sub_id, exercise_id)
+    assert (await client.delete(f"{url}/{exercise_id}")).status_code == 204
+    own = select(TrashItem).where(TrashItem.exam_id == uuid.UUID(exam_id))
+    assert {item.kind for item in await db.scalars(own)} == {"grading", "scores"}
+
+    params = {"permanent": "true"}
+    assert (await client.delete(f"{url}/{uuid.uuid4()}", params=params)).status_code == 204
+    assert len(await _groups(client)) == 2, "another exercise's delete keeps this one's copy"
+    assert (await client.delete(f"{url}/{exercise_id}", params=params)).status_code == 204
+    assert {item.kind for item in await db.scalars(own)} == {"grading"}
+
+    assert (await client.delete(sub_url, params=params)).status_code == 204
+    assert await _groups(client) == []
+
+
+async def test_score_erasure_reads_old_unlabelled_entries(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Score entries from before issue #294 carry no `exercise_id` label: their rows decide whether the erasure takes them."""
+    exam_id, exercise_id, sub_id = await _exam_with_submission(
+        client, db, unique_email("trash-gdpr-old")
+    )
+    url = await _score(client, exam_id, sub_id, exercise_id)
+    assert (await client.delete(f"{url}/{exercise_id}")).status_code == 204
+    own = select(TrashItem).where(TrashItem.exam_id == uuid.UUID(exam_id))
+    (item,) = await db.scalars(own)
+    item.label = {k: v for k, v in item.label.items() if k != "exercise_id"}
+    await db.commit()
+
+    params = {"permanent": "true"}
+    assert (await client.delete(f"{url}/{uuid.uuid4()}", params=params)).status_code == 204
+    assert len(list(await db.scalars(own))) == 1, "an old entry of another exercise stays"
+    assert (await client.delete(f"{url}/{exercise_id}", params=params)).status_code == 204
+    db.expire_all()
+    assert list(await db.scalars(own)) == []

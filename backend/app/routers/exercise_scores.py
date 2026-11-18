@@ -148,9 +148,12 @@ async def _delete_scores(
 ) -> Response:
     """Idempotent: deleting what is not there is already the requested state. Unless *permanent*, the trash keeps a copy (issue #125)."""
     snap = await trash.snapshot_scores(db, submission.id, exercise_id)
-    if not permanent:
+    if permanent:
+        await trash.purge_submission(db, trash_scope.teacher, exam.id, submission.id, exercise_id)
+    else:
         label = await trash.result_label(db, exam, submission.pseudonym_hmac)
         label["submission_id"] = str(submission.id)
+        label["exercise_id"] = str(exercise_id)
         await trash_scope.capture(db, "scores", snap, label=label, exam_id=exam.id)
     await snap.delete(db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

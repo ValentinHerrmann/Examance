@@ -7,6 +7,7 @@ import uuid
 from datetime import UTC, datetime
 from urllib.parse import urlparse
 
+from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from webauthn import (
@@ -27,6 +28,7 @@ from app.config import settings
 from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
 from app.models.webauthn_credential import WebAuthnCredential
+from app.schemas.binary import decode_credential_id
 from app.services import ephemeral_store
 
 # Challenges are single-use and short-lived, so they belong in the ephemeral store rather than the database.
@@ -55,7 +57,11 @@ def _expected_origins() -> list[str]:
     return list(settings.FRONTEND_ORIGINS)
 
 
-class LegacyAddressError(ValueError):
+class CeremonyError(ValueError):
+    """A ceremony failure whose message is ours and safe to show; any other exception gets a fixed text."""
+
+
+class LegacyAddressError(CeremonyError):
     """A passkey would be made for an old domain that is being retired (issue #198)."""
 
 
@@ -94,7 +100,7 @@ def _issue_handle(rp_id: str) -> str:
 def _rp_id_of_handle(handle: str) -> str:
     _, _, rp_id = handle.partition(_HANDLE_RP_SEPARATOR)
     if rp_id not in rp_ids():
-        raise ValueError("This attempt has expired. Try again.")
+        raise CeremonyError("This attempt has expired. Try again.")
     return rp_id
 
 
@@ -159,13 +165,14 @@ async def verify_registration(
     """Verify a registration ceremony and store the resulting credential."""
     rp_id = _rp_id_of_handle(handle)
     if not await _take_challenge(handle, challenge_b64):
-        raise ValueError("This registration attempt has expired. Try again.")
+        raise CeremonyError("This registration attempt has expired. Try again.")
 
     verified = verify_registration_response(
         credential=credential_json,
         expected_challenge=_challenge_bytes(challenge_b64),
         expected_rp_id=rp_id,
         expected_origin=_expected_origins(),
+        require_user_verification=True,
     )
 
     credential = WebAuthnCredential(
@@ -201,22 +208,25 @@ async def verify_authentication(
     """Verify a sign-in ceremony and return the credential that answered it."""
     rp_id = _rp_id_of_handle(handle)
     if not await _take_challenge(handle, challenge_b64):
-        raise ValueError("This sign-in attempt has expired. Try again.")
+        raise CeremonyError("This sign-in attempt has expired. Try again.")
 
     import json
 
     parsed = json.loads(credential_json)
     raw_id = parsed.get("rawId") or parsed.get("id")
     if not raw_id:
-        raise ValueError("The authenticator response is missing its credential id.")
-    credential_id = base64.urlsafe_b64decode(raw_id + "=" * (-len(raw_id) % 4))
+        raise CeremonyError("The authenticator response is missing its credential id.")
+    try:
+        credential_id = decode_credential_id(str(raw_id), "rawId")
+    except HTTPException:
+        raise CeremonyError("Unknown passkey.") from None
 
     result = await db.execute(
         select(WebAuthnCredential).where(WebAuthnCredential.credential_id == credential_id)
     )
     stored = result.scalar_one_or_none()
     if stored is None:
-        raise ValueError("Unknown passkey.")
+        raise CeremonyError("Unknown passkey.")
 
     verified = verify_authentication_response(
         credential=credential_json,
@@ -230,7 +240,7 @@ async def verify_authentication(
 
     # A counter that goes backwards is the spec's clone signal. A constant 0 means the authenticator does not count at all, which most platform ones do not — rejecting that would break every iCloud-keychain passkey.
     if stored.sign_count > 0 and verified.new_sign_count < stored.sign_count:
-        raise ValueError("This passkey's counter went backwards; it may have been cloned.")
+        raise CeremonyError("This passkey's counter went backwards; it may have been cloned.")
 
     stored.sign_count = verified.new_sign_count
     # The authenticator signed over this RP ID, which fills in credentials registered before it was recorded.

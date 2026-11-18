@@ -340,7 +340,6 @@ and which factors they use.
 |---|---|---|
 | `GET` | `/keys/envelopes` | The calling teacher's wrapped data-key copies. |
 | `PUT` | `/keys/envelopes` | Replace the whole set atomically. |
-| `DELETE` | `/keys/envelopes/{id}` | Remove one wrap (used when a passkey is deregistered). |
 
 Everything crossing this boundary is opaque to the server: ciphertext, a public
 per-factor salt and public KDF parameters. Wrapping and unwrapping happen in the

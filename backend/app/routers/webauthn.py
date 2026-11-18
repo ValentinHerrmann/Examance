@@ -15,6 +15,7 @@ from app.models.teacher import Teacher
 from app.models.webauthn_credential import WebAuthnCredential
 from app.routers.auth import advance_sign_in, reissue_pending_headers
 from app.schemas.auth import AuthResponse
+from app.schemas.binary import decode_credential_id
 from app.schemas.webauthn import (
     AuthenticationOptionsRequest,
     AuthenticationVerifyRequest,
@@ -31,6 +32,11 @@ from app.services.jwt import decode_token
 _NOT_AUTHENTICATED = "Not authenticated."
 
 router = APIRouter(prefix="/webauthn", tags=["webauthn"])
+
+
+def _ceremony_detail(exc: Exception, fallback: str) -> str:
+    """Our own ceremony messages as written; a library or database error never reaches the browser."""
+    return str(exc) if isinstance(exc, webauthn_svc.CeremonyError) and str(exc) else fallback
 
 # Listing is fine mid-sign-in; registering needs the finished sign-in or an account still enrolling, or one proven factor could add a passkey and then sign in with it alone.
 _LIST_SCOPES = {"full", "enroll", "auth_pending"}
@@ -118,7 +124,7 @@ async def register_verify(
     except Exception as exc:  # noqa: BLE001 - every ceremony failure reads alike
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc) or "The passkey could not be registered.",
+            detail=_ceremony_detail(exc, "The passkey could not be registered."),
             headers={"code": "ERR_PASSKEY_FAILED"},
         ) from None
 
@@ -228,7 +234,7 @@ async def login_verify(
             )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc) or "The passkey could not be verified.",
+            detail=_ceremony_detail(exc, "The passkey could not be verified."),
             headers={"code": "ERR_PASSKEY_FAILED", **retry_headers},
         ) from None
 
@@ -296,8 +302,8 @@ async def delete_credential(
         _, reason = await auth_policy.may_remove_factor(db, teacher, "passkey")
     could_open = bool(await auth_policy.key_capable_factors(db, teacher))
 
-    padded = credential_id_b64 + "=" * (-len(credential_id_b64) % 4)
-    if not await webauthn_svc.delete_credential(db, teacher.id, base64.urlsafe_b64decode(padded)):
+    credential_id = decode_credential_id(credential_id_b64, "credential_id")
+    if not await webauthn_svc.delete_credential(db, teacher.id, credential_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Passkey not found.")
     # Checked after the delete for every passkey, not just the last: this one may hold the only usable wrap. Raising rolls the delete back.
     if reason is None and could_open and not await auth_policy.key_capable_factors(db, teacher):

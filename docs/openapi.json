@@ -7733,59 +7733,6 @@
         }
       }
     },
-    "/api/v1/keys/envelopes/{envelope_id}": {
-      "delete": {
-        "tags": [
-          "keys"
-        ],
-        "summary": "Delete Envelope",
-        "description": "Remove a single wrap (used when a passkey is deregistered). The recovery wrap cannot be deleted this way: it always works, and dropping it would leave the account one forgotten password from unreadable data.",
-        "operationId": "delete_envelope_api_v1_keys_envelopes__envelope_id__delete",
-        "parameters": [
-          {
-            "name": "envelope_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Envelope Id"
-            }
-          },
-          {
-            "name": "access_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/mfa/status": {
       "get": {
         "tags": [
