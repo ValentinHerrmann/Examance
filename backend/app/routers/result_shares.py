@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import DbDep
 from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
@@ -47,7 +47,7 @@ async def create_result_share(
     request: Request,
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> ResultShareOut:
     """Store one student's sealed result PDF; sent again under their share id it updates that share in place, so the link stays (issue #310). Allowed in every storage mode: the server can never open it."""
     share = await result_shares.create_or_replace(db, teacher.id, exam.id, body)
@@ -58,7 +58,7 @@ async def create_result_share(
 @router.get("")
 async def list_result_shares(
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> list[ResultShareOut]:
     """The exam's live shares (expired ones are gone or about to be)."""
     return [result_shares.to_out(s, r) for s, r in await result_shares.list_for_exam(db, exam.id)]
@@ -69,7 +69,7 @@ async def update_result_share_content(
     share_id: uuid.UUID,
     body: SealedPayload,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Response:
     """Re-seal the share's PDF under the same link (issue #226); 409 `ERR_SHARE_NOT_UPDATABLE` for a share made without a wrapped key."""
     await result_shares.update_content(db, exam.id, share_id, body.iv_b64, body.ciphertext_b64)
@@ -80,7 +80,7 @@ async def update_result_share_content(
 async def open_result_share_review(
     share_id: uuid.UUID,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Response:
     """The teacher opened the objection: the student can no longer change or withdraw it."""
     await result_shares.mark_opened(db, exam.id, share_id)
@@ -94,7 +94,7 @@ async def reply_to_result_share_review(
     request: Request,
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Response:
     """Store the teacher's sealed reply for the student's page."""
     await result_shares.store_reply(db, exam.id, share_id, body.iv_b64, body.ciphertext_b64)
@@ -108,7 +108,7 @@ async def revoke_result_share(
     request: Request,
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> None:
     """Revoke one link; its ciphertext is deleted."""
     if not await result_shares.revoke(db, exam.id, [share_id]):
@@ -121,7 +121,7 @@ async def revoke_all_result_shares(
     request: Request,
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
     student_key: Annotated[
         str | None,
         Query(pattern=r"^[0-9a-f]{64}$", description="Only this student's link (a deleted student)."),
@@ -142,7 +142,7 @@ async def open_result_share(
     share_id: uuid.UUID,
     body: ResultShareOpen,
     request: Request,  # required by slowapi
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> ResultShareContent:
     """Public, no session: the ciphertext of a student's result, for the lookup secret their link derives. Decryption happens only in the student's browser."""
     share, data, review = await result_shares.open_share(db, share_id, body.lookup_b64)
@@ -165,7 +165,7 @@ async def submit_result_share_review(
     body: ReviewSubmit,
     request: Request,  # required by slowapi
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Response:
     """Public, no session: create or replace the student's sealed objection until the teacher opens it or the deadline passes."""
     share = await result_shares.submit_objection(
@@ -194,7 +194,7 @@ async def withdraw_result_share_review(
     share_id: uuid.UUID,
     body: ResultShareOpen,
     request: Request,  # required by slowapi
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Response:
     """Public, no session: delete the student's objection while it is still open."""
     await result_shares.withdraw_objection(db, share_id, body.lookup_b64)
@@ -211,7 +211,7 @@ reviews_router = APIRouter(
 @reviews_router.get("")
 async def list_result_share_reviews(
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> list[ReviewListItem]:
     """Every objection and reply of the exam, still sealed; the student appears only as the pseudonym."""
     return await result_shares.list_reviews(db, exam.id)
@@ -227,7 +227,7 @@ deliveries_router = APIRouter(
 @deliveries_router.get("")
 async def list_result_deliveries(
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> list[ResultDeliveryOut]:
     """Each student's delivery status for result mails and Artemis messages (issue #221)."""
     return [result_deliveries.to_out(d) for d in await result_deliveries.list_for_exam(db, exam.id)]
@@ -238,7 +238,7 @@ async def list_result_deliveries(
 async def check_result_deliveries(
     request: Request,  # required by slowapi
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> list[ResultDeliveryOut]:
     """Read the bounce mailbox now (while the share dialog waits), then list the statuses."""
     await bounces.poll_bounces(db)
@@ -249,7 +249,7 @@ async def check_result_deliveries(
 async def close_result_deliveries(
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> None:
     """The share dialog stopped waiting: bounces from now on are forwarded to the teacher by mail."""
     await result_deliveries.close_window(db, exam.id, teacher.id)

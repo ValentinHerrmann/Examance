@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import DbDep
 from app.dependencies import (
     DB,
     get_exam_for_teacher,
@@ -51,7 +51,7 @@ def _b64(data: bytes | None) -> str | None:
 async def _live_submission(
     sub_id: uuid.UUID,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> ScanSubmission:
     """`get_submission_for_teacher` under this router's `{sub_id}` path parameter name."""
     return await get_submission_for_teacher(sub_id, exam, db)
@@ -100,7 +100,7 @@ def _echo(body: SubmissionCreate) -> dict[str, str | None]:
 @router.get("")
 async def list_submissions(
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
     include_scans: bool = Query(
         False,
         description=(
@@ -260,7 +260,7 @@ async def upload_submission(
     body: SubmissionCreate,
     trash_scope: trash.Trash,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> SubmissionResponse:
     """Upload encrypted scan submission."""
     await require_pseudonym_version(db, exam.id, body.pseudonym_version)
@@ -303,7 +303,7 @@ async def upload_submission(
 @router.get("/{sub_id}")
 async def get_submission(
     sub: ScanSubmission = Depends(_live_submission),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> SubmissionResponse:
     """Download encrypted scan submission by ID."""
     return _to_response(

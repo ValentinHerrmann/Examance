@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import DbDep
 from app.dependencies import (
     get_exam_for_teacher,
     get_submission_for_teacher,
@@ -86,7 +86,7 @@ async def _insert(
 @exam_router.get("")
 async def list_exam_grading_reviews(
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> list[GradingReviewResponse]:
     rows = await db.execute(
         select(GradingReview)
@@ -99,7 +99,7 @@ async def list_exam_grading_reviews(
 @router.get("")
 async def get_grading_review(
     submission: ScanSubmission = Depends(get_submission_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> GradingReviewResponse | None:
     """The submission's record, or null while there is none."""
     row = await _for_submission(db, submission.id)
@@ -111,7 +111,7 @@ async def put_grading_review(
     body: GradingReviewIn,
     exam: Exam = Depends(get_exam_for_teacher),
     submission: ScanSubmission = Depends(get_submission_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> GradingReviewResponse:
     """Upsert by submission, never by the client's id, so a replay updates in place instead of answering 409."""
     payload = (

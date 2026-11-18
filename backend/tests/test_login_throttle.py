@@ -8,10 +8,13 @@ from datetime import UTC, datetime
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from limits.storage import storage_from_string
+from limits.strategies import FixedWindowRateLimiter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.middleware import rate_limit
 from app.models.teacher import Teacher
 from app.services import ephemeral_store, login_throttle
 from app.services.crypto import hash_password
@@ -159,6 +162,35 @@ async def test_the_circuit_breaker_stops_retrying_a_dead_redis(
         assert elapsed < 2, f"second login took {elapsed:.1f}s; circuit did not open"
     finally:
         ephemeral_store.reset()
+
+
+@pytest.mark.asyncio
+async def test_the_rate_limiter_falls_back_when_redis_is_unreachable(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """slowapi on an unreachable Redis must neither answer 500 nor block the event loop: it falls back to in-memory counters."""
+    email = "limiter-redis-down@example.com"
+    await _create_teacher(db, email)
+
+    uri = "redis://192.0.2.1:6379/0"  # TEST-NET-1, unroutable
+    storage = storage_from_string(uri, **rate_limit._storage_options(uri))
+    monkeypatch.setattr(rate_limit.limiter, "enabled", True)
+    monkeypatch.setattr(rate_limit.limiter, "_storage", storage)
+    monkeypatch.setattr(rate_limit.limiter, "_limiter", FixedWindowRateLimiter(storage))
+    monkeypatch.setattr(rate_limit.limiter, "_storage_dead", False)
+
+    body = {"email": email, "password": _PASSWORD}
+    started = time.monotonic()
+    first = await client.post("/api/v1/auth/login", json=body)
+    first_elapsed = time.monotonic() - started
+    assert first.status_code == 200, first.text
+    assert first_elapsed < 5, f"login took {first_elapsed:.1f}s with the limiter's Redis down"
+
+    started = time.monotonic()
+    second = await client.post("/api/v1/auth/login", json=body)
+    second_elapsed = time.monotonic() - started
+    assert second.status_code == 200, second.text
+    assert second_elapsed < 2, f"second login took {second_elapsed:.1f}s; fallback not used"
 
 
 @pytest.mark.asyncio

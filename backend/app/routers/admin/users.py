@@ -18,7 +18,7 @@ from fastapi import (
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import DbDep
 from app.dependencies import DB, AdminTeacher, get_admin_teacher
 from app.models.audit_log import AuditLog
 from app.models.key_envelope import KeyEnvelope
@@ -80,7 +80,7 @@ async def _load_user(db: AsyncSession, user_id: uuid.UUID) -> Teacher:
 @router.get("/users")
 async def list_users(
     _admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
     status_filter: Annotated[
         Literal["all", "pending", "active"], Query(alias="status")
     ] = "all",
@@ -105,7 +105,7 @@ async def create_user(
     body: AdminCreateUserRequest,
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
 ) -> AdminCreateUserResponse:
     """Invite a teacher/admin: create the account without a password (Admin only). Approved with the given features; the address counts as verified because the mailed set-password link is the only way in. A pending self-registration for it is superseded."""
     normalized_email = registration.normalize_email(body.email)
@@ -158,7 +158,7 @@ async def approve_user(
     body: AdminApproveRequest,
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
     background_tasks: BackgroundTasks,
 ) -> AdminUserResponse:
     """Approve a pending registration with the given features (Admin only). Conditional on the account still being pending, so two admins approving at once send one mail. The registrant's note is erased: it only served this decision."""
@@ -193,7 +193,7 @@ async def reject_user(
     user_id: uuid.UUID,
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
     background_tasks: BackgroundTasks,
 ) -> Response:
     """Reject a pending registration: the account is deleted and the registrant told (Admin only). Only ever deletes an account that is still pending; an approved one is refused."""
@@ -221,7 +221,7 @@ async def update_user_features(
     body: AccountFeaturesUpdate,
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
 ) -> AdminUserResponse:
     """Change an account's feature switches (Admin only). Revoking `server_results` from an account in "all-server" mode does not touch its data: the next time it opens, the app asks it to move its results into the browser."""
     user = await _load_user(db, user_id)
@@ -236,7 +236,7 @@ async def delete_user(
     user_id: uuid.UUID,
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
     keep_exercises: bool = False,
 ) -> Response:
     """Delete an approved account and everything it owns (Admin only). With `keep_exercises` its library exercises stay ownerless (`services/account_deletion.py`). Pending registrations go through `/reject`; admins delete their own account in settings."""
@@ -265,7 +265,7 @@ async def reset_user_password(
     user_id: uuid.UUID,
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
 ) -> AdminResetPasswordResponse:
     """Trigger an admin-forced password reset for an existing user (Admin only). Emails a single-use reset token; the existing password stays active until the link is used. For an invited account that never set a password this resends the invitation."""
     user = await _load_user(db, user_id)
@@ -299,7 +299,7 @@ async def reset_user_factors(
     user_id: uuid.UUID,
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
 ) -> dict[str, str]:
     """Clear a user's authenticator and passkeys (Admin only), the escape hatch for a lost factor. Does not restore data access: the server cannot read key copies, so the removed factors' wraps are gone; the recovery code stays the way back (else an admin could read the data)."""
     user = await _load_user(db, user_id)

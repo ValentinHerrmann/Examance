@@ -10,7 +10,7 @@ from fastapi import Cookie, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import DbDep
 from app.models.exam import Exam
 from app.models.exercise import Exercise
 from app.models.scan_submission import ScanSubmission
@@ -65,7 +65,7 @@ async def _decode_session(
 async def get_current_teacher(
     access_token: str | None = Cookie(default=None),
     x_expected_account: str | None = Header(default=None, include_in_schema=False),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Teacher:
     """The signed-in Teacher of a full session, else 401/403."""
     teacher, payload = await _decode_session(access_token, x_expected_account, db)
@@ -101,7 +101,7 @@ class PendingSession:
 async def get_pending_teacher(
     access_token: str | None = Cookie(default=None),
     x_expected_account: str | None = Header(default=None, include_in_schema=False),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> PendingSession:
     """Accept a half-finished sign-in (factor, enrollment and key-recovery endpoints only). Returns the account, token scope and factors already presented. The next factor is checked against the account named in the token, never an email the caller supplies."""
     teacher, payload = await _decode_session(access_token, x_expected_account, db)
@@ -127,7 +127,7 @@ async def get_admin_teacher(  # NOSONAR(S7503)
 
 async def get_teaching_teacher(
     teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Teacher:
     """Require a teacher account: admins manage users and the server only (issue #58). Gates every endpoint that reads or writes exams, exercises, results or their settings. An admin's legacy data is kept but unreachable until `cli.py set-role` makes it a teacher."""
     if teacher.role != "teacher":
@@ -145,7 +145,7 @@ async def get_teaching_teacher(
 async def get_exam_for_teacher(
     exam_id: uuid.UUID,
     teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Exam:
     """Return the exam if it belongs to *teacher* and is not soft-deleted. Missing, foreign and deleted all answer the same 404, so existence never leaks. Not 401: the client would refresh the session, and a queued write for a deleted exam would retry forever."""
     result = await db.execute(
@@ -168,7 +168,7 @@ async def get_exam_for_teacher(
 async def get_exercise_for_teacher(
     exercise_id: uuid.UUID,
     teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Exercise:
     """Return the exercise only if it belongs to *teacher*; use for every write path. Shared (`is_public`) exercises are never writable by non-owners. Raises 404, not 403, so a non-owner cannot tell "someone else's" from "does not exist"."""
     result = await db.execute(
@@ -186,7 +186,7 @@ async def get_exercise_for_teacher(
 async def get_readable_exercise(
     exercise_id: uuid.UUID,
     teacher: Teacher = Depends(get_teaching_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Exercise:
     """Return the exercise if *teacher* owns it or it is shared with them (issue #65). Read-only counterpart to `get_exercise_for_teacher`; never use it to write or to link an exercise into an exam (a shared row is only ever copied)."""
     result = await db.execute(
@@ -201,7 +201,7 @@ async def get_readable_exercise(
 async def get_submission_for_teacher(
     submission_id: uuid.UUID,
     exam: Exam = Depends(get_exam_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> ScanSubmission:
     """The live submission inside an exam the teacher owns (ownership via the exam)."""
     result = await db.execute(
@@ -219,7 +219,7 @@ async def get_submission_for_teacher(
 
 async def require_not_frozen(
     access_token: str | None = Cookie(default=None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> None:
     """Credential and account writes also stop while maintenance is down, so the maintenance backup stays consistent (issue #130). The role claim only exempts admins; auth stays below."""
     role = None
@@ -233,7 +233,7 @@ async def require_not_frozen(
 
 
 # FastAPI's recommended dependency form; new signatures use these instead of `= Depends(...)` defaults.
-DB = Annotated[AsyncSession, Depends(get_db)]
+DB = Annotated[AsyncSession, DbDep]
 CurrentTeacher = Annotated[Teacher, Depends(get_current_teacher)]
 AdminTeacher = Annotated[Teacher, Depends(get_admin_teacher)]
 TeachingTeacher = Annotated[Teacher, Depends(get_teaching_teacher)]

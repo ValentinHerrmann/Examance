@@ -10,7 +10,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import get_db
+from app.database import DbDep
 from app.dependencies import get_teaching_teacher
 from app.middleware.rate_limit import limiter
 from app.models.omr_training_sample import OmrTrainingSample
@@ -53,7 +53,7 @@ async def training_status(request: Request) -> TrainingStatus:  # request: requi
 async def donate_omr_samples(
     body: OmrSampleBatch,
     teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
 ) -> Response:
     """Store a batch of teacher-verified checkbox crops, unlinked from the account."""
     if not settings.TRAINING_DONATION_ENABLED:

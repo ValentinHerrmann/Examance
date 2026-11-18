@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import DbDep
 from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.omr_template_pin import OmrTemplatePin
@@ -73,7 +73,7 @@ async def _find(db: AsyncSession, exam: Exam, layout_hash: str) -> OmrTemplatePi
 @router.get("")
 async def list_pins(
     exam: Annotated[Exam, Depends(get_exam_for_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
 ) -> list[OmrTemplatePinOut]:
     rows = await db.scalars(
         select(OmrTemplatePin)
@@ -92,7 +92,7 @@ async def put_pin(
     layout_hash: LayoutHash,
     body: OmrTemplatePinIn,
     exam: Annotated[Exam, Depends(get_exam_for_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
 ) -> OmrTemplatePinOut:
     """Pin a layout. A known hash keeps its first source, payload and `pinned_at` and only refreshes `last_pinned_at`."""
     ciphertext, iv = _decode_payload(body)
@@ -118,7 +118,7 @@ async def put_pin(
 async def delete_pin(
     layout_hash: LayoutHash,
     exam: Annotated[Exam, Depends(get_exam_for_teacher)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, DbDep],
 ) -> Response:
     row = await _find(db, exam, layout_hash)
     if row is None:

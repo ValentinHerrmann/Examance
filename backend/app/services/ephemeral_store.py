@@ -19,8 +19,8 @@ _memory: dict[str, tuple[int, float]] = {}
 _members: dict[str, tuple[dict[str, float], float]] = {}
 
 # Redis is a cache in front of a fallback that always works, so these are set to "answer quickly or get out of the way" rather than to ride out a blip.
-_CONNECT_TIMEOUT_SECONDS = 0.5
-_OPERATION_TIMEOUT_SECONDS = 0.5
+CONNECT_TIMEOUT_SECONDS = 0.5
+OPERATION_TIMEOUT_SECONDS = 0.5
 # Outer bound. Covers the case a socket timeout does not: a peer that completes the TCP handshake and then never answers.
 _DEADLINE_SECONDS = 1.0
 # How long to stop trying after a failure. Long enough that a sustained outage costs one timeout per minute rather than one per request.
@@ -62,8 +62,8 @@ def _get_client() -> Redis[bytes] | None:
 
             _client = Redis.from_url(
                 settings.RATE_LIMIT_STORAGE_URI,
-                socket_connect_timeout=_CONNECT_TIMEOUT_SECONDS,
-                socket_timeout=_OPERATION_TIMEOUT_SECONDS,
+                socket_connect_timeout=CONNECT_TIMEOUT_SECONDS,
+                socket_timeout=OPERATION_TIMEOUT_SECONDS,
             )
         except Exception as exc:  # noqa: BLE001  # degrade, never break the request
             _trip_circuit(exc)

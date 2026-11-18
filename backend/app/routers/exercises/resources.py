@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import DbDep
 from app.dependencies import get_exercise_for_teacher, get_readable_exercise
 from app.models.exercise import Exercise
 from app.models.exercise_resource import ExerciseResource
@@ -55,7 +55,7 @@ async def _get_resource(
 @router.get("/{exercise_id}/resources")
 async def list_exercise_resources(
     ex: Exercise = Depends(get_readable_exercise),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> list[ExerciseResourceResponse]:
     """List an exercise's resource files (metadata only, no bytes)."""
     rows = (
@@ -79,7 +79,7 @@ async def list_exercise_resources(
 async def create_exercise_resource(
     body: ExerciseResourceCreate,
     ex: Exercise = Depends(get_exercise_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> ExerciseResourceResponse:
     """Attach a file to an exercise. Uploading an existing filename replaces it. The filename is sanitised and checked against the bundled LaTeX assets by the schema; SVG is refused there with a convert-to-PDF hint."""
     content = decode_b64(body.content_b64, "content_b64")
@@ -139,7 +139,7 @@ async def create_exercise_resource(
 async def download_exercise_resource(
     resource_id: uuid.UUID,
     ex: Exercise = Depends(get_readable_exercise),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> Response:
     """Return a resource's raw bytes (see `resource_response` for the XSS hardening)."""
     row = await _get_resource(ex.id, resource_id, db)
@@ -151,7 +151,7 @@ async def rename_exercise_resource(
     resource_id: uuid.UUID,
     body: ExerciseResourceRename,
     ex: Exercise = Depends(get_exercise_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> ExerciseResourceResponse:
     """Rename a resource file (the LaTeX source must be updated by the caller)."""
     row = await _get_resource(ex.id, resource_id, db)
@@ -175,7 +175,7 @@ async def delete_exercise_resource(
     resource_id: uuid.UUID,
     trash_scope: trash.Trash,
     ex: Exercise = Depends(get_exercise_for_teacher),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbDep,
 ) -> None:
     """Delete one resource file; the trash keeps a copy (issue #125). Idempotent."""
     result = await db.execute(
