@@ -13,7 +13,7 @@
   import { copiesUnavailable, loadStickerEntries } from "#lib/sharing/stickerEntries";
   import { examBaseMinutes } from "#lib/students/timeExtension";
   import type { StickerEntry } from "#lib/qr/stickerSheet";
-  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import { downloadBlob } from "#lib/utils/download";
   import { slug } from "#lib/export/zip";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { createLoadGuard } from "#lib/utils/loadGuard";

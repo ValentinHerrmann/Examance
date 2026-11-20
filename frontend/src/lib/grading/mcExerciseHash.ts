@@ -8,6 +8,7 @@ import {
   loadExercisesEncrypted,
   loadLocalMcGroups,
 } from '#lib/db/dbEncryption';
+import { sha256Hex } from '#lib/crypto/hex';
 
 export interface McGroupLike {
   id: string;
@@ -156,9 +157,5 @@ export async function computeMcExercisesHash(
   mcGroups: McGroupLike[] = []
 ): Promise<string> {
   const tuples = toMcAnswerKeyTuples(exercises, mcGroups);
-  const data = new TextEncoder().encode(JSON.stringify(tuples));
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  return sha256Hex(JSON.stringify(tuples));
 }

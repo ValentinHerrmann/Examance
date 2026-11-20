@@ -6,6 +6,7 @@ import { compileLatex, type CompileResult } from './compiler';
 import { mergeResources, type LatexResourceFile } from './resources';
 import { clearLogoCache, type CompileLogo } from './logo';
 import { clearPackageSettingsCache } from './packageSettings';
+import { sha256Hex } from '#lib/crypto/hex';
 
 /** `extra-sheet` is the exam-independent extra sheet (issue #228), keyed by its paper style. */
 export type CompileKind = 'exam' | 'exercise' | 'omr-blank' | 'extra-sheet' | 'layout-sample';
@@ -54,7 +55,7 @@ export async function computeCompileContentHash(
   logoFingerprint = ''
 ): Promise<string> {
   const enc = new TextEncoder();
-  const sortedResources = [...resources].sort((a, b) => a.filename.localeCompare(b.filename));
+  const sortedResources = [...resources].sort((a, b) => compareCodeUnits(a.filename, b.filename));
   const sortedExIds = [...resourceExerciseIds].sort(compareCodeUnits);
 
   const parts: Uint8Array[] = [];
@@ -73,10 +74,7 @@ export async function computeCompileContentHash(
     offset += p.length;
   }
 
-  const digest = await crypto.subtle.digest('SHA-256', combined);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  return sha256Hex(combined);
 }
 
 /** Retrieves a cached entry if its slot key and content hash match. Touches the entry for LRU ordering on hit. */
@@ -205,8 +203,8 @@ const lastInputs = new Map<string, InputSummary>();
 function summarize(latexSource: string, useLocal: boolean, opts: CompileOpts): InputSummary {
   return {
     latex: latexSource,
-    resources: mergeResources(opts.resources ?? []).map((r) => `${r.filename}:${r.content.length}`).sort((a, b) => a.localeCompare(b)).join(','),
-    exIds: [...(opts.resourceExerciseIds ?? [])].sort((a, b) => a.localeCompare(b)).join(','),
+    resources: mergeResources(opts.resources ?? []).map((r) => `${r.filename}:${r.content.length}`).sort(compareCodeUnits).join(','),
+    exIds: [...(opts.resourceExerciseIds ?? [])].sort(compareCodeUnits).join(','),
     engine: useLocal ? 'local' : 'server',
     logo: opts.logo?.fingerprint ?? '',
   };

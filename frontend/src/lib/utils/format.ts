@@ -63,3 +63,10 @@ export const fmt = derived(locale, ($locale) => ({
     number: (value: number, options?: Intl.NumberFormatOptions) => formatNumber(value, options, $locale),
     percent: (value: number, fractionDigits?: number) => formatPercent(value, fractionDigits, $locale),
 }));
+
+/** A byte count as "512 B", "34 KB" or "1.5 MB": file sizes and limits in the UI. */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

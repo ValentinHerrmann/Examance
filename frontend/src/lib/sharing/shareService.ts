@@ -25,6 +25,7 @@ import { buildReviewItems, DAY_MS } from './reviewItems';
 import { keepObjection } from './reviewRecord';
 import { lookupHash, lookupSecret, newShareLink, openReviewPart, openWithKey, resealShare, sealReviewPart, sealShare, shareUrl, unwrapShareKey, wrapShareKey, type ReviewItem, type ShareDocuments, type ShareFactor, type ShareHeader, type ShareLink } from './shareCrypto';
 import { renderShareSlips, type SlipEntry } from './slipsPdf';
+import { compareText } from '#lib/utils/listSort';
 
 export interface ShareStudent {
   student: StudentRecord;
@@ -392,7 +393,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
 
   const undelivered = await delivery.finish((done, total) => progress('sending', done, total));
   warnings.push(...undelivered);
-  entries.sort((a, b) => a.name.localeCompare(b.name));
+  entries.sort((a, b) => compareText(a.name, b.name));
   // Slips carry the links; on other channels only the codes, which must reach students apart from the link.
   const printed = request.channel === 'slips' || (request.factor === 'code' && !delivery.sendsPdf);
   const slips = printed && entries.length ? await renderShareSlips({ examTitle, factor: request.factor, entries, codesOnly: request.channel !== 'slips' }) : null;

@@ -5,7 +5,7 @@
   import { t } from "#lib/i18n";
   import { faKey, faQrcode, faScissors, faTag, faUser } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, OptionTile, TextInput, actionIcons } from "#lib/components/ui";
-  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import { downloadBlob } from "#lib/utils/download";
   import { slug, ZipBuilder } from "#lib/export/zip";
   import { renderExamCopies } from "#lib/qr/examCopies";
   import { imposeBooklet, scaleToA3, splitCopies } from "#lib/qr/booklet";

@@ -1,5 +1,6 @@
 <script lang="ts">
   // Account administration (issue #53): registrations awaiting approval, invitations, per-account feature switches and always-allowed domains. Data loading and handlers live here; the components in lib/components/admin hold the markup.
+  import { compareText } from "#lib/utils/listSort";
   import { onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import { apiErrorMessage } from "#lib/api/client";
@@ -200,7 +201,7 @@
   function handleAddDomain(domain: string, features: AccountFeatures): Promise<boolean> {
     return run("domains", DOMAINS, "admin.domains.failed", async () => {
       const added = await addAllowedDomain(domain, features);
-      domains = [...domains, added].sort((a, b) => a.domain.localeCompare(b.domain));
+      domains = [...domains, added].sort((a, b) => compareText(a.domain, b.domain));
     });
   }
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   /** Domain move (issue #198, docs/domain_move.md). Old address: a notice before sign-in, and anyone with nothing to take along is sent on; hybrid accounts get `DomainMoveHybridPanel`. New address: an account whose passkeys all belong to the old address must create one here. */
+  import { safeSessionStorage } from "#lib/utils/storage";
   import { faArrowUpRightFromSquare, faKey } from "@fortawesome/free-solid-svg-icons";
   import { untrack } from "svelte";
   import { page } from "$app/state";
@@ -38,12 +39,12 @@
   let dialogOpen = $derived(newAddress && $isUnlocked && onlyOldPasskeys && (forced || !deferred));
 
   function readDeferred(): boolean {
-    try { return sessionStorage.getItem(DEFERRED_KEY) === "1"; } catch { return false; }
+    return safeSessionStorage.getItem(DEFERRED_KEY) === "1";
   }
 
   function later() {
     deferred = true;
-    try { sessionStorage.setItem(DEFERRED_KEY, "1"); } catch { /* storage may be blocked */ }
+    safeSessionStorage.setItem(DEFERRED_KEY, "1");
   }
 
   async function signOut() {

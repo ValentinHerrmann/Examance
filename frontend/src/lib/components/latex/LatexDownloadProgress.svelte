@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
   import { latexDownloadProgress } from "#lib/latex/downloadProgress";
-  import { formatBytes } from "#lib/latex/resources";
+  import { formatBytes } from "#lib/utils/format";
 
   const p = $derived($latexDownloadProgress);
 </script>

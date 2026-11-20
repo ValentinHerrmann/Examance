@@ -8,6 +8,7 @@ import { db } from '#lib/db/db';
 import { decryptResourceBytes, encryptResource } from '#lib/db/dbEncryption';
 import type { ExerciseResourceRecord } from '#lib/db/schema';
 import type { LatexResourceFile } from '#lib/latex/resources';
+import { compareText } from '#lib/utils/listSort';
 
 /** Resource requests never raise the global error toast: the panel reports them in place. */
 const QUIET = { silentError: true };
@@ -33,7 +34,7 @@ async function listOnServer(exerciseId: string, ownerId = exerciseId): Promise<E
 }
 
 function sortByName(rows: ExerciseResourceRecord[]): ExerciseResourceRecord[] {
-  return rows.sort((a, b) => a.filename.localeCompare(b.filename));
+  return rows.sort((a, b) => compareText(a.filename, b.filename));
 }
 
 export const exerciseResourceRepository = {

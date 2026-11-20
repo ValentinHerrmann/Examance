@@ -5,6 +5,7 @@ import { decrypt, encrypt, fromBase64url, toArrayBuffer, toBase64url } from '#li
 import { get } from 'svelte/store';
 import { sessionStore } from '#lib/stores/session';
 import { MissingSessionKeyError } from '#lib/db/decryptGuard';
+import { sha256Hex } from '#lib/crypto/hex';
 
 export type ShareFactor = 'none' | 'sticker' | 'code';
 
@@ -95,8 +96,7 @@ export function lookupSecret(link: ShareLink): Promise<Uint8Array> {
 }
 
 export async function lookupHash(secret: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', toArrayBuffer(secret));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  return sha256Hex(secret);
 }
 
 async function contentKeyBits(link: ShareLink, factor: ShareFactor, code: string | null, salt: Uint8Array | null): Promise<Uint8Array> {

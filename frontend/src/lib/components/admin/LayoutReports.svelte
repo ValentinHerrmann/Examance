@@ -1,5 +1,6 @@
 <script lang="ts">
   // Admin inbox of layout problem reports (issue #134). The GitHub text never carries the reporter.
+  import { downloadUrl } from "#lib/utils/download";
   import { onDestroy, onMount } from "svelte";
   import { faArrowLeft, faCheck, faCopy, faDownload, faTrash, faUpRightFromSquare } from "@fortawesome/free-solid-svg-icons";
   import { apiErrorMessage } from "#lib/api/client";
@@ -106,10 +107,7 @@
     try {
       const url = pdfUrls[file.id] ?? URL.createObjectURL(new Blob([await fileBytes(detail, file)], { type: file.mime_type }));
       if (download) {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = file.filename;
-        a.click();
+        downloadUrl(url, file.filename);
       } else {
         window.open(url, "_blank", "noopener");
       }

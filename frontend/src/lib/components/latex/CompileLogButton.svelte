@@ -1,5 +1,6 @@
 <script lang="ts">
   /** "Show full log" for a failed LaTeX compile (issue #166): the engine's whole log with copy and download. */
+  import { downloadBlob } from "#lib/utils/download";
   import { Button, Modal } from "#lib/components/ui";
   import { t } from "#lib/i18n";
   import { createCopyState } from "#lib/utils/copyState.svelte";
@@ -17,12 +18,7 @@
   const clipboard = createCopyState();
 
   function download() {
-    const url = URL.createObjectURL(new Blob([log], { type: "text/plain" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "latex-compile.log";
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(new Blob([log], { type: "text/plain" }), "latex-compile.log");
   }
 </script>
 

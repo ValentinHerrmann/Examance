@@ -10,6 +10,7 @@ import { joinKey } from '#lib/crypto/pseudonymKey';
 import type { StudentRecord } from '#lib/db/schema';
 import { archiveKeyId, archivedJoinKey, archivedPseudonym } from './pseudonyms';
 import { printSettingsOf } from '#lib/exam/printLayout';
+import { compareCodeUnits } from '#lib/utils/compare';
 
 export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission';
 export type ConflictChoice = 'keep-existing' | 'take-imported' | 'import-as-copy';
@@ -85,7 +86,7 @@ function extraNotesSummary(notes: Row | null | undefined): string | null {
 
 /** Page breaks compared as a set of ids, shown as their count; null when there are none. */
 const pageBreaksSummary = (breaks: unknown): Keyed => {
-  const ids = Array.isArray(breaks) ? breaks.map(String).sort((a, b) => a.localeCompare(b)) : [];
+  const ids = Array.isArray(breaks) ? breaks.map(String).sort(compareCodeUnits) : [];
   return { shown: ids.length ? String(ids.length) : null, key: ids.join(',') };
 };
 

@@ -1,6 +1,7 @@
 /** Rules for teacher-uploaded LaTeX resource files (images, `\input` data, CSVs, fonts). They are placed flat next to `main.tex`, so the source's filename is the filename on disk in both engines. Mirrored by `backend/app/services/latex_resources.py`: what the browser accepts the server accepts. */
 import { LOGO_FILENAMES } from './logo';
 import { fetchAssetIndex } from './assets';
+import { formatBytes } from '#lib/utils/format';
 
 /** Hard cap for a single file. */
 export const MAX_RESOURCE_BYTES = 5 * 1024 * 1024;
@@ -147,12 +148,6 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
-}
-
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /** Guess a MIME type when the browser does not supply one. */

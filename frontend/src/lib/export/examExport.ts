@@ -27,6 +27,7 @@ import { examRepository } from '#lib/repositories/examRepository';
 import type { ExerciseRecord, GradingReviewItem } from '#lib/db/schema';
 import { snapshotRecords } from '#lib/analytics/statisticsSnapshot';
 import { statisticsRepository } from '#lib/repositories/statisticsRepository';
+import { compareText } from '#lib/utils/listSort';
 
 /** The scan-aid switches as printed (issue #272); older ZIPs without them import as their grading switch. */
 function scanAidsOf(exam: Parameters<typeof printSettingsOf>[0]) {
@@ -381,7 +382,7 @@ async function pdfCollector(title: string, duplex: boolean) {
 /** The results with submissions in the order of the student names (a print stack sorted like the class list). */
 function byStudentName(results: LoadedResults): LoadedResults {
   const nameOf = new Map(results.rows.flatMap((r) => (r.submissionId ? [[r.submissionId, r.studentName || r.fallbackCode || '']] : [])));
-  const submissions = [...results.submissions].sort((a, b) => (nameOf.get(a.id) ?? '').localeCompare(nameOf.get(b.id) ?? '', undefined, { sensitivity: 'base' }));
+  const submissions = [...results.submissions].sort((a, b) => compareText(nameOf.get(a.id), nameOf.get(b.id)));
   return { ...results, submissions };
 }
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { safeSessionStorage } from "#lib/utils/storage";
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { faScrewdriverWrench, faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
@@ -23,10 +24,10 @@
   const SAVED_KEY = "examance.maintenanceSaved";
 
   function readSet(key: string): string[] {
-    try { return JSON.parse(sessionStorage.getItem(key) ?? "[]") as string[]; } catch { return []; }
+    try { return JSON.parse(safeSessionStorage.getItem(key) ?? "[]") as string[]; } catch { return []; }
   }
   function writeSet(key: string, values: string[]) {
-    try { sessionStorage.setItem(key, JSON.stringify(values.slice(-20))); } catch { /* storage may be blocked */ }
+    safeSessionStorage.setItem(key, JSON.stringify(values.slice(-20)));
   }
 
   let dismissed = $state.raw<string[]>(readSet(DISMISSED_KEY));

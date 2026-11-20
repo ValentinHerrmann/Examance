@@ -4,7 +4,7 @@
   import { faUpRightFromSquare } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
   import { Alert, Button, Checkbox, Modal, Spinner, actionIcons } from "#lib/components/ui";
-  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import { downloadBlob } from "#lib/utils/download";
   import type { ExamRecord, StudentRecord } from "#lib/db/schema";
   import { buildTimerData, timerExtensionLabels, timerFile, timerLink, timerLinkProblem, timerUrl } from "#lib/export/examTimer";
   import { slug } from "#lib/export/zip";

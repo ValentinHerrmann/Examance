@@ -1,7 +1,7 @@
 <script lang="ts">
   /** The one "write this down" screen for backup codes and/or the recovery code; after sign-in (`afterSignIn`) each half is labelled for its purpose. Shown once, never dismissable by backdrop/Escape, acknowledged explicitly. */
   import { Alert, Button, Checkbox, Modal } from "#lib/components/ui";
-  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import { downloadBlob } from "#lib/utils/download";
   import { t } from "#lib/i18n";
 
   interface Props {

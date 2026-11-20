@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatBytes } from "#lib/utils/format";
   import { faBug } from "@fortawesome/free-solid-svg-icons";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, Checkbox, Field, Modal, Textarea } from "#lib/components/ui";
@@ -40,12 +41,6 @@
   let canSend = $derived(
     consent && problem.trim() !== "" && expected.trim() !== "" && !collecting && !collectError && !sending
   );
-
-  function formatSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  }
 
   async function openDialog() {
     open = true;
@@ -143,7 +138,7 @@
           <ul class="m-0 list-disc pl-5 text-sm text-muted">
             <li class="break-all">{$t("layoutReport.dialog.emailIncluded", { email: $sessionStore.email ?? "" })}</li>
             {#each files as file (file.filename)}
-              <li class="break-all">{file.filename} ({formatSize(file.content.byteLength)})</li>
+              <li class="break-all">{file.filename} ({formatBytes(file.content.byteLength)})</li>
             {/each}
             {#if compileError}<li>{$t("layoutReport.dialog.compileErrorIncluded")}</li>{/if}
             <li>

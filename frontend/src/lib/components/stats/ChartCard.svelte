@@ -6,7 +6,9 @@
   import { Button, Card, Icon } from '#lib/components/ui';
   import ColumnChart from './ColumnChart.svelte';
   import type { ChartCurve, ChartLayer, ChartMarker, ChartSpan } from './chartColumns';
-  import { downloadBlob, svgToPdf, svgToPng } from './chartExport';
+  import { svgToPdf, svgToPng } from './chartExport';
+  import { downloadBlob } from '#lib/utils/download';
+  import { slug } from '#lib/export/zip';
   import { renderChartSvg } from './renderChart';
 
   
@@ -61,8 +63,7 @@
           : format === 'pdf'
             ? await svgToPdf(markup, docTitle)
             : await svgToPng(markup);
-      const safe = (examTitle || 'exam').replace(/[^a-z0-9_-]/gi, '_');
-      downloadBlob(blob, `${safe}_${fileName}.${format}`);
+      downloadBlob(blob, `${slug(examTitle, 'exam')}_${fileName}.${format}`);
     } finally {
       exporting = null;
     }

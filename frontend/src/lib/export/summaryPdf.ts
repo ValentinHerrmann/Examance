@@ -12,6 +12,7 @@ import { t, translate } from '#lib/i18n';
 import type { TranslationKey } from '#lib/i18n/types';
 import { formatDateTime, formatNumber, formatPercent, fmt } from '#lib/utils/format';
 import { examCourse } from '#lib/utils/examLabel';
+import { compareText } from '#lib/utils/listSort';
 
 export interface SummaryInput {
   exam: ExamRecord;
@@ -299,7 +300,7 @@ function drawStudents(doc: SummaryDoc, { rows, totalMaxPoints }: SummaryInput) {
   header();
   const maxText = totalMaxPoints === null ? '' : ` / ${formatNumber(totalMaxPoints, TWO_DECIMALS)}`;
   const byName = [...rows].sort((a, b) =>
-    (a.studentName || a.fallbackCode).localeCompare(b.studentName || b.fallbackCode, undefined, { numeric: true })
+    compareText(a.studentName || a.fallbackCode, b.studentName || b.fallbackCode)
   );
   for (const row of byName) {
     doc.ensure(ROW_HEIGHT, header);

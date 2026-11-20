@@ -12,7 +12,7 @@
   import { onDestroy, tick, untrack, type Snippet } from "svelte";
   import type { OmrPinSource } from "#lib/grading/omrTemplateChoice";
   import { faArrowsRotate, faCircleCheck, faCircleInfo, faKey, faNoteSticky, faPrint, faTriangleExclamation, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
-  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import { downloadBlob } from "#lib/utils/download";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import SectionHeading from "#lib/components/help/SectionHeading.svelte";
   import { t, translate } from "#lib/i18n";

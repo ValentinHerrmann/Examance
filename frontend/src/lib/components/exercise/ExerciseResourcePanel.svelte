@@ -11,12 +11,12 @@
   import {
     MAX_EXERCISE_RESOURCE_BYTES,
     ResourceError,
-    formatBytes,
     guessMimeType,
     insertSnippetFor,
     sanitizeResourceName,
     validateResource,
   } from "#lib/latex/resources";
+  import { formatBytes } from "#lib/utils/format";
 
   interface Props {
     /** Staging id (not the exercise id), so files can be attached before the exercise exists; committed on save. */

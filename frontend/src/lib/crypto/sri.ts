@@ -1,3 +1,4 @@
+import { sha256Hex } from './hex';
 /** Runtime WASM integrity checker: hashes a fetched WASM binary (SHA-256) against static/sri-manifest.json and throws on mismatch. */
 
 interface SriManifest {
@@ -32,9 +33,7 @@ export async function fetchAndVerifyWasm(url: string, packageKey: string): Promi
   }
 
   const buffer = await response.arrayBuffer();
-  const digestBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  const hashArray = Array.from(new Uint8Array(digestBuffer));
-  const hexHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  const hexHash = await sha256Hex(buffer);
   const actualFormattedHash = `sha256-${hexHash}`;
 
   // A placeholder means the binary was never vendored and hashed. Returning the buffer anyway would make this function a no-op that *looks* like a control, which is worse than having none — so it fails closed.

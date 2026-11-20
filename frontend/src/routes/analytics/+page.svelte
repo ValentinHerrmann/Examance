@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { compareText } from "#lib/utils/listSort";
   import { t, translate } from '#lib/i18n';
   import { onMount, untrack } from 'svelte';
   import { browser } from '$app/env';
@@ -268,7 +269,7 @@
 
     // Sort: Problematic first, then by score percentage, then by name
     exerciseStats = list.sort((a, b) => {
-      if (a.avgScorePercent === null && b.avgScorePercent === null) return a.name.localeCompare(b.name);
+      if (a.avgScorePercent === null && b.avgScorePercent === null) return compareText(a.name, b.name);
       if (a.avgScorePercent === null) return 1;
       if (b.avgScorePercent === null) return -1;
       return a.avgScorePercent - b.avgScorePercent;
@@ -374,12 +375,13 @@
         isFairnessIssue = delta >= 15; // 15% discrepancy between variants
       }
 
+      variants.sort((a, b) => compareText(a.variantKey, b.variantKey));
       vList.push({
         groupId: gId,
         groupIdIsReal: gData.realGroup,
         groupName: gData.name,
         topicTag: gData.tag,
-        variants: variants.sort((a, b) => a.variantKey.localeCompare(b.variantKey)),
+        variants,
         maxDeltaPercent: delta,
         flaggedFairnessIssue: isFairnessIssue,
       });

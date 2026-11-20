@@ -56,7 +56,7 @@
   import type { ReviewPrintOptions } from "#lib/export/reviewPrint";
   import { t, translate } from "#lib/i18n";
   import { renderGradedPdf } from "#lib/export/gradedPdf";
-  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import { downloadBlob } from "#lib/utils/download";
 
   interface Props {
     params?: Record<string, string>;

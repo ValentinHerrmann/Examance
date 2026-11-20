@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { compareText } from "#lib/utils/listSort";
   import { untrack } from "svelte";
   import { get } from "svelte/store";
   import { db } from "#lib/db/db";
@@ -107,7 +108,7 @@
     groupExs.sort((a, b) => {
       const vA = a.variantKey || "";
       const vB = b.variantKey || "";
-      if (vA !== vB) return vA.localeCompare(vB);
+      if (vA !== vB) return compareText(vA, vB);
       return (a.version || 1) - (b.version || 1);
     });
 
