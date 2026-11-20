@@ -16,24 +16,20 @@ export interface ExamUsageEntry {
   datum?: string;
 }
 
-/** Exams linking any of the given exercise rows (all versions of one variant). */
+/** Exams linking any of the given exercise rows (all versions of one variant). Throws when the server cannot answer: the local mirror is incomplete in server mode, and an empty answer would let a used exercise be deleted (issue #298). */
 export async function loadExamUsage(exerciseIds: string[]): Promise<ExamUsageEntry[]> {
   const found = new Map<string, ExamUsageEntry>();
 
   if (isServerBacked()) {
-    try {
-      const usages = await Promise.all(
-        exerciseIds.map((id) => api.get<any>(`/exercises/${id}/usage`, { silentError: true }))
-      );
-      for (const u of usages) {
-        for (const e of u.exams ?? []) {
-          found.set(e.id, { id: e.id, title: e.title, datum: e.datum ?? undefined });
-        }
+    const usages = await Promise.all(
+      exerciseIds.map((id) => api.get<any>(`/exercises/${id}/usage`, { silentError: true }))
+    );
+    for (const u of usages) {
+      for (const e of u.exams ?? []) {
+        found.set(e.id, { id: e.id, title: e.title, datum: e.datum ?? undefined });
       }
-      return [...found.values()];
-    } catch {
-      // Fall through to the local mirror.
     }
+    return [...found.values()];
   }
 
   const links = await db.examExercises.where("exerciseId").anyOf(exerciseIds).toArray();

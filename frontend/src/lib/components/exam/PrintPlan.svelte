@@ -24,6 +24,7 @@
   import { saveExamChecks } from "#lib/exam/examChecksService";
   import {
     DEFAULT_PRINT_PLAN,
+    type StepChecks,
     printCheckChanged,
     printCheckValid,
     largePrintOf,
@@ -137,14 +138,19 @@
   /** Plan choices, ticks and print settings save at once; the card header shows the status (issue #228). */
   const autosave = createAutosave({ run: async () => {} });
 
-  async function save(next: Parameters<typeof saveExamChecks>[1]) {
+  /** Each save builds from the checks the previous one stored (`saveExamChecks` queues them), so quick ticks are all kept. */
+  // Queued saves overlap: `busy` holds until the last one ends.
+  let savesInFlight = 0;
+  async function save(base: StepChecks, update: (checks: StepChecks) => StepChecks) {
+    savesInFlight++;
     busy = true;
     try {
-      await autosave.track(saveExamChecks(examId, next));
+      await autosave.track(saveExamChecks(examId, base, update));
     } catch {
       // Shown in the header's save status.
     } finally {
-      busy = false;
+      savesInFlight--;
+      busy = savesInFlight > 0;
     }
   }
 
@@ -266,7 +272,7 @@
     }
   }
 
-  const setPlan = (patch: Partial<PrintPlan>) => cs && save(withPrintPlan(cs.checks, { ...plan, ...patch }));
+  const setPlan = (patch: Partial<PrintPlan>) => cs && save(cs.checks, (c) => withPrintPlan(c, { ...(c.printPlan ?? DEFAULT_PRINT_PLAN), ...patch }));
   let saving = $state(false);
   async function change(patch: ExamLayoutPatch) {
     saving = true;
@@ -281,10 +287,14 @@
   const setTick = (job: PrintJobId, on: boolean) => {
     if (!cs || !stamps) return;
     if (on && (job === "exam" || job === "copies" || job === "copiesA3")) onPin?.("printed");
-    return save(withPrintCheck(cs.checks, job, on ? stamps[job] : null));
+    const stamp = on ? stamps[job] : null;
+    return save(cs.checks, (c) => withPrintCheck(c, job, stamp));
   };
   const recordMade = (job: PrintJobId) => {
-    if (cs && stamps && !printMadeValid(cs.checks, job, stamps)) void save(withPrintMade(cs.checks, job, stamps[job]));
+    if (cs && stamps && !printMadeValid(cs.checks, job, stamps)) {
+      const stamp = stamps[job];
+      void save(cs.checks, (c) => withPrintMade(c, job, stamp));
+    }
   };
 
   // Every newly shown task sheet is counted once (the sticker count follows it); an outdated sheet is not.

@@ -7,7 +7,7 @@ import { sessionStore, isAuthenticated } from '#lib/stores/session';
 import { parseExerciseScore } from '#lib/latex/scoreParser';
 import { parseMcOptions, MC_MIN_OPTIONS, type McOption } from '#lib/latex/mcOptions';
 import { setCompetencies, setRequirementLevel } from '#lib/latex/exerciseStructure';
-import type { TranslationKey } from '#lib/i18n';
+import { translate, type TranslationKey } from '#lib/i18n';
 
 /** Typing LaTeX is bursty and each save encrypts and PATCHes the record: wait longer than the form default. */
 export const EDITOR_AUTOSAVE_MS = 2000;
@@ -181,4 +181,31 @@ export async function writeNewVersion(base: ExerciseRecord, draft: ExerciseDraft
   await saveExerciseEncrypted({ ...base, isCurrent: false }, key);
   await saveExerciseEncrypted(saved, key);
   return saved;
+}
+
+/** Files that did not reach the server although the exercise was saved (issue #298): they stay in this browser, flagged for upload, and go with the exercise's next save. */
+export class ResourceSyncError extends Error {
+  constructor(readonly files: string[], readonly status: number) {
+    super(translate('exercises.editor.filesNotSynced', { files: files.join('; ') }));
+    this.name = 'ResourceSyncError';
+  }
+}
+
+/** The error for a resource commit's upload failures, or null when every file arrived (a failed file list alone is no upload failure); without an HTTP status (no response) it reports 503. */
+export function resourceSyncError(result: { errors: string[]; status?: number; listFailed?: boolean }): ResourceSyncError | null {
+  return result.errors.length ? new ResourceSyncError(result.errors, result.status ?? 503) : null;
+}
+
+/** Runs an explicit save's file commit, which follows an exercise already stored: it never rejects (a retry would write the exercise again, or a second version), and any failure goes to `report` as an HTTP status and message. */
+export async function reportAfterSave(commit: () => Promise<void>, report: (status: number, message: string) => void): Promise<void> {
+  try {
+    await commit();
+  } catch (err) {
+    if (err instanceof ResourceSyncError) {
+      report(err.status, err.message);
+      return;
+    }
+    console.warn('Failed to store resource files:', err);
+    report(500, translate('exercises.editor.filesNotStored'));
+  }
 }

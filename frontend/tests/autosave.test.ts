@@ -44,6 +44,23 @@ describe('createAutosave', () => {
     expect(save.busy).toBe(false);
   });
 
+  // Regression (issue #298): an edit whose timer fired during a failing save was dropped.
+  it('still saves an edit made during a failed save', async () => {
+    let fail!: (err: Error) => void;
+    const run = vi.fn().mockImplementationOnce(() => new Promise<void>((_, reject) => (fail = reject))).mockResolvedValue(undefined);
+    const save = createAutosave({ run, delayMs: 100 });
+    save.schedule();
+    await vi.advanceTimersByTimeAsync(100);
+    save.schedule();
+    await vi.advanceTimersByTimeAsync(100);
+    fail(new Error('offline'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(get(save).state).toBe('pending');
+    await vi.advanceTimersByTimeAsync(100);
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(get(save).state).toBe('saved');
+  });
+
   it('shows immediate saves through track', async () => {
     const save = createAutosave({ run: async () => {} });
     const work = save.track(Promise.resolve(1));
