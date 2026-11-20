@@ -14,14 +14,14 @@ Während des Korrekturgangs sehen Sie **„Anonymer Schüler #3 von 26“**, nie
 
 ## Die Korrekturansicht {#workspace}
 
-- **Bedienelemente links:** Auf Tablet und Computer liegen das Feld **Bewertung**, die Stempel und der Zoom links, damit eine rechte Schreibhand auf dem Scan nichts davon verdeckt. Linkshänder legen sie unter [Einstellungen → Anordnung der Korrekturansicht](settings.md#grading-layout) nach rechts. Auf kleineren Tablets ist das Feld **Bewertung** schmaler, damit mehr Platz zum Schreiben bleibt.
+- **Bedienelemente links:** Auf Tablet und Computer liegen das Feld **Bewertung**, die Stempel und der Zoom links, damit eine rechte Schreibhand auf dem Scan nichts davon verdeckt. Linkshänder legen sie unter [Einstellungen → Anordnung der Korrekturansicht](settings.md#grading-layout) nach rechts. Das Feld **Bewertung** ist eine schmale Spalte, damit Platz zum Schreiben bleibt; **Vorheriger** und **Nächster Schüler** sind die Pfeilschaltflächen an seinem unteren Ende.
 - **Alle Seiten einer Abgabe stehen untereinander.** Blättern Sie mit dem Mausrad oder der Scrollleiste durch, auf Touchgeräten mit dem Finger.
 - **Stift oder Finger:** Ein Stift und die Maus zeichnen immer. Auf Geräten ohne Stift zeichnet ein Finger, zwei Finger blättern. Sobald Sie einmal einen Stift benutzen, merkt sich Examance das auf diesem Gerät: Danach blättern und zoomen Finger und eine aufgelegte Handfläche nur noch und zeichnen nie. Solange der Stift den Bildschirm berührt, und eine halbe Sekunde danach, markiert eine aufgelegte Handfläche auch keinen Text, drückt keine Schaltfläche und verschiebt den Scan nicht. Ein kurzer Hinweis meldet das, wenn der Stift zum ersten Mal erkannt wird; damit Finger wieder zeichnen, setzen Sie es unter [Einstellungen → Stifteingabe](settings.md#pen-input) zurück.
 - **Strg + Mausrad** oder Zwei-Finger-Zoom vergrößert; **Fit** passt die Seite an die Ansicht an. Die Seitenpfeile springen zwischen den Seiten.
 - **Ränder zuschneiden** blendet die leeren Seitenränder aus, für eine größere Ansicht.
 - **Vorheriger** und **Nächster Schüler** wechseln zwischen den Abgaben. Die Aufgabennummern im Feld **Bewertung** sind keine Links, ein Antippen öffnet also nicht versehentlich die Aufgabe.
 
-Das Feld **Bewertung** listet die Aufgaben mit ihren Punkten auf. Klicken Sie auf eine Zeile, um sie zum **Stempelziel** zu machen: Stempel, die Sie danach setzen, zählen für diese Aufgabe.
+Das Feld **Bewertung** listet die Aufgaben mit ihren Punkten auf. Klicken Sie auf eine Zeile, um sie zum **Stempelziel** zu machen: Stempel, die Sie danach setzen, zählen für diese Aufgabe. Das Stempelziel ist die hervorgehobene Zeile mit dem dicken Balken links.
 
 ## Stift und Stempel {#tools}
 

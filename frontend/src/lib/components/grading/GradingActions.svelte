@@ -33,7 +33,9 @@
     icon={faArrowLeft}
     disabled={currentIndex === 0}
     onClick={onPrev}
-  >{$t("grading.actions.prev")}</Button>
+    title={$t("grading.actions.prev")}
+    ariaLabel={$t("grading.actions.prev")}
+  ><span class="lg:sr-only">{$t("grading.actions.prev")}</span></Button>
   <Button
     class="flex-1"
     size="sm"
@@ -41,5 +43,7 @@
     severity="secondary"
     iconRight={faArrowRight}
     onClick={onNext}
-  >{$t("grading.actions.next")}</Button>
+    title={$t("grading.actions.next")}
+    ariaLabel={$t("grading.actions.next")}
+  ><span class="lg:sr-only">{$t("grading.actions.next")}</span></Button>
 </div>

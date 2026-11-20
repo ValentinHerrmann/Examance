@@ -229,7 +229,7 @@ test('[layout] the scan page downloads the graded PDF of a paper with an objecti
   expect((await download).suggestedFilename()).toMatch(/_graded\.pdf$/);
 });
 
-/** Issue #226: objections must not squeeze the score list. PCs get a compact inline thread and a one-row footer; phones a badge on the row and a dialog. */
+/** Issue #226: objections must not squeeze the score list: a badge on the row opens the review dialog at every width (issue #328). */
 test('[layout] the grade page keeps the score list roomy with an objection', async ({ page }, testInfo) => {
   const examId = await seedWorkspace(page);
   const scan = await PDFDocument.create();
@@ -261,34 +261,34 @@ test('[layout] the grade page keeps the score list roomy with an objection', asy
   const desktop = viewport.width >= 1024;
   const shot = (name: string) => page.screenshot({ path: `${process.env.PW_SHOTS ?? testInfo.outputDir}/grade-objection-${name}.png` });
 
+  // Issue #328: the slim score panel has no inline thread at any width; the badge on the row opens the dialog.
+  await expect(reply, 'no inline reply field').toHaveCount(0);
   if (desktop) {
-    await expect(reply, 'PCs reply inline').toBeVisible();
-    // Issue #328: by default the score panel sits left of the scan, so a right hand never covers a control.
-    const panelBox = (await reply.locator('xpath=ancestor::div[contains(@class,"lg:col-start-1")][1]').boundingBox())!;
-    const canvasBox = (await page.locator('[data-controls-side] > div').first().boundingBox())!;
+    // By default the 11rem score panel sits left of the scan, so a right hand never covers a control.
+    const grid = page.locator('[data-controls-side]');
+    const panelBox = (await grid.locator('> div').nth(1).boundingBox())!;
+    const canvasBox = (await grid.locator('> div').first().boundingBox())!;
     expect(panelBox.x + panelBox.width, 'the score panel is left of the scan').toBeLessThanOrEqual(canvasBox.x);
-    const footerRow = page.getByRole('button', { name: label('review.bar.sendEllipsis') }).locator('..');
-    expect((await footerRow.boundingBox())!.height, 'the footer review row is one row').toBeLessThan(60);
-    await shot('desktop');
-    return;
+    expect(panelBox.width, 'the score panel stays slim').toBeLessThanOrEqual(180);
+  } else {
+    await page.getByRole('button', { name: label('grading.workspace.scorePanel') }).click();
   }
-
-  await expect(reply, 'phones have no inline reply field').toHaveCount(0);
-  await page.getByRole('button', { name: label('grading.workspace.scorePanel') }).click();
   const badge = page.locator('button').filter({ hasText: label('review.thread.objection') });
   await expect(badge, 'the badge sits on the score row').toBeVisible();
-  await shot('phone');
-  const list = page.locator('[id^=score-]').first().locator('xpath=ancestor::div[contains(@class,"overflow-y-auto")][1]');
-  // The objection must not crowd the sheet: the list keeps at least half of it, and Previous/Next stay fully on screen.
-  const sheet = list.locator('xpath=ancestor::div[contains(@class,"dvh")][1]');
-  expect((await list.boundingBox())!.height, 'the score list keeps half of the score sheet').toBeGreaterThanOrEqual((await sheet.boundingBox())!.height * 0.5);
+  await shot(desktop ? 'desktop' : 'phone');
+  if (!desktop) {
+    const list = page.locator('[id^=score-]').first().locator('xpath=ancestor::div[contains(@class,"overflow-y-auto")][1]');
+    // The objection must not crowd the sheet: the list keeps at least half of it, and Previous/Next stay fully on screen.
+    const sheet = list.locator('xpath=ancestor::div[contains(@class,"dvh")][1]');
+    expect((await list.boundingBox())!.height, 'the score list keeps half of the score sheet').toBeGreaterThanOrEqual((await sheet.boundingBox())!.height * 0.5);
+  }
   const next = page.getByRole('button', { name: label('grading.actions.next') });
   const nextBox = (await next.boundingBox())!;
   expect(nextBox.y + nextBox.height, 'Next student stays on screen').toBeLessThanOrEqual(viewport.height);
-  await page.locator('button').filter({ hasText: label('review.bar.edit') }).click();
+  await badge.click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('textbox', { name: label('review.thread.reply') })).toBeVisible();
-  await shot('phone-dialog');
+  await shot(desktop ? 'desktop-dialog' : 'phone-dialog');
 });
 
 test('[layout] the objections tab lists open and answered objections pseudonymously', async ({ page }, testInfo) => {

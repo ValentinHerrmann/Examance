@@ -25,7 +25,6 @@
 
 <div class="shrink-0 border-b border-line bg-surface-raised px-3 py-2.5">
   <h3 class="m-0 text-sm font-semibold text-content">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
-  <span class="text-xs text-muted">{$t("grading.scoreEntry.hint")}</span>
 </div>
 
 <div class="flex flex-1 min-h-0 flex-col gap-1.5 overflow-y-auto p-2">

@@ -72,12 +72,12 @@
   let side = $derived($capabilitiesStore?.gradingControlsSide ?? "left");
   const LAYOUT = {
     left: {
-      grid: "lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)] 2xl:grid-cols-[20rem_minmax(0,1fr)]",
+      grid: "lg:grid-cols-[11rem_minmax(0,1fr)]",
       canvas: "lg:col-start-2 lg:row-start-1",
       panel: "lg:col-start-1 lg:row-start-1",
     },
     right: {
-      grid: "lg:grid-cols-[minmax(0,1fr)_16rem] xl:grid-cols-[minmax(0,1fr)_18rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]",
+      grid: "lg:grid-cols-[minmax(0,1fr)_11rem]",
       canvas: "",
       panel: "",
     },
@@ -109,7 +109,7 @@
   {calculatedGrade}
 />
 
-<!-- `flex-1 min-h-0` rather than a viewport-height magic number: the grade page root is a flex column that fills the space above the footer, and the old value broke as soon as the header wrapped to a second line. The score panel narrows on tablet widths to leave room to draw (issue #328); DOM order stays canvas first, so the stacked layout below `lg` is unchanged. -->
+<!-- `flex-1 min-h-0` rather than a viewport-height magic number: the grade page root is a flex column that fills the space above the footer, and the old value broke as soon as the header wrapped to a second line. From `lg` the score panel is a slim 11rem column, leaving the room to draw (issue #328); DOM order stays canvas first, so the stacked layout below `lg` is unchanged. -->
 <div
   class="box-border grid min-h-0 w-full flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden p-2
     lg:grid-rows-1 {layout.grid}"
@@ -165,7 +165,7 @@
       {/if}
     </div>
 
-    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2 lg:px-2 2xl:px-3">
+    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2 lg:px-2">
       <GradeSummaryCard
         {isFullyGraded}
         {totalScore}
