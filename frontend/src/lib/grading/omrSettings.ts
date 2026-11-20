@@ -273,4 +273,6 @@ export interface OmrPageStats {
   angleDeg?: number;
   /** Share of boxes whose printed border sat where the template expects it (issue #239); absent on pages without boxes. */
   templateFit?: number;
+  /** Boxes `templateFit` was measured on; a small page tells little about the layout. */
+  templateFitBoxes?: number;
 }

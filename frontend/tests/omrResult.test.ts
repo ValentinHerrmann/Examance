@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { mergeRedetectionIntoVerified } from "../src/lib/grading/omrResult";
+import { buildOmrScoreRecord, mergeRedetectionIntoVerified } from "../src/lib/grading/omrResult";
+import type { OmrExerciseResult } from "../src/lib/workers/omrWorker";
+import type { OmrPageStats, OmrRunInfo } from "../src/lib/grading/omrSettings";
 import type { ExerciseScoreRecord } from "../src/lib/db/schema";
 
 describe("mergeRedetectionIntoVerified", () => {
@@ -72,5 +74,46 @@ describe("mergeRedetectionIntoVerified", () => {
       },
     };
     expect(mergeRedetectionIntoVerified(verified, failed)).toBe(verified);
+  });
+});
+
+describe("buildOmrScoreRecord with an unfitting template (issue #298)", () => {
+  const reading = (extra: Partial<OmrExerciseResult> = {}): OmrExerciseResult => ({
+    exerciseId: "ex",
+    pageIndex: 0,
+    selectedOptions: [1],
+    score: 2,
+    confidence: "high",
+    flaggedOptions: [],
+    bubbles: [],
+    ...extra,
+  });
+  const build = (r: OmrExerciseResult, templateFit?: number, templateFitBoxes = 8) =>
+    buildOmrScoreRecord(r, { id: "s", submissionId: "sub", run: {} as OmrRunInfo, pageStats: { templateFit, templateFitBoxes } as OmrPageStats }).omrMeta!;
+
+  it("sends a sure reading of a page that does not fit to review", () => {
+    const meta = build(reading(), 0.5);
+    expect(meta.confidence).toBe("ambiguous");
+    expect(meta.templateMismatch).toBe(true);
+    expect(meta.alignmentUncertain).toBeUndefined();
+    expect(meta.original?.confidence).toBe("high");
+  });
+
+  it("leaves a page with too few boxes to judge the layout alone", () => {
+    const meta = build(reading(), 0.5, 3);
+    expect(meta.confidence).toBe("high");
+    expect(meta.templateMismatch).toBeUndefined();
+  });
+
+  it("keeps readings of a fitting page or a page without boxes as they are", () => {
+    expect(build(reading(), 0.9).confidence).toBe("high");
+    expect(build(reading(), 0.9).templateMismatch).toBeUndefined();
+    expect(build(reading()).confidence).toBe("high");
+  });
+
+  it("keeps a failed reading failed", () => {
+    const meta = build(reading({ confidence: "failed" }), 0.2);
+    expect(meta.confidence).toBe("failed");
+    expect(meta.templateMismatch).toBeUndefined();
   });
 });

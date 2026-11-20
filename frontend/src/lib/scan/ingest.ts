@@ -72,7 +72,9 @@ export type IngestWarning =
   /** Pages without a readable page code (loose paper with a sticker, issue #228): kept after the exam's pages; a note, not a fault. */
   | { kind: "extraPages"; student: string; count: number }
   /** Printed pages this student's scan already holds (scanned again, or a second student whose sticker was not read): kept at the end, their MC answers not read (issue #283). */
-  | { kind: "repeatedPages"; student: string; pages: number[]; graded: boolean };
+  | { kind: "repeatedPages"; student: string; pages: number[]; graded: boolean }
+  /** The exam's row for this student could not be decrypted: it is left as it is (never sealed over), the scan still joins. */
+  | { kind: "studentUnreadable"; student: string };
 
 export interface OmrSummary {
   alignmentFailures: number;
@@ -496,6 +498,11 @@ export function mergeScannedStudent(existing: StudentRecord | undefined, scanned
   };
 }
 
+/** The student row a scan writes, or null when the stored row failed to decrypt: sealing the merge would replace its real payload with the scan's blanks. */
+export function studentToWrite(existing: StudentRecord | undefined, scanned: StudentRecord): StudentRecord | null {
+  return existing?.decryptFailed ? null : mergeScannedStudent(existing, scanned);
+}
+
 /** The order a booklet's pages are stored in: by printed page 1..n when pages carry codes (a placeholder for each one missing, n = the template's page count or the highest code seen), then pages scanned twice or without a readable code, in scan order. Without codes: scan order. Extra sheets (issue #228) always come last, in scan order. Every scanned page appears exactly once. */
 export function bookletLayout(refs: readonly PdfPageRef[], templatePages = 0): { slots: (PdfPageRef | number)[]; extras: PdfPageRef[] } {
   if (!refs.some((r) => r.page !== undefined)) return { slots: refs.filter((r) => !r.extra), extras: refs.filter((r) => r.extra) };
@@ -674,7 +681,9 @@ export async function saveBooklet(
     piiCt: new Uint8Array([0]),
     piiIv: new Uint8Array(12),
   };
-  await saveStudentEncrypted(mergeScannedStudent(known.get(await joinKey(scanned)), scanned), key);
+  const student = studentToWrite(known.get(await joinKey(scanned)), scanned);
+  if (student) await saveStudentEncrypted(student, key);
+  else warnings.push({ kind: "studentUnreadable", student: label });
 
   // Read before anything of this submission is written: a joined scan's checked rows are merged, never overwritten.
   const stored = earlier && (omrResults.length || repeated.length) ? await scoreRepository.getBySubmissionId(examId, subId, key) : [];
