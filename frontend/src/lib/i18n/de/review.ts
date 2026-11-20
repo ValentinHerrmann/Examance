@@ -52,8 +52,6 @@ export const review = {
     thread: {
         objection: 'Einspruch',
         reply: 'Ihre Antwort',
-        more: 'mehr',
-        less: 'weniger',
         replyPlaceholder: 'Antwort an die Schülerin oder den Schüler (optional)',
         counter: '{count} / {max}',
         unreadable: 'Der Einspruch konnte nicht entschlüsselt werden.',
@@ -74,7 +72,6 @@ export const review = {
         open: 'Einspruch · offen seit {date}',
         answered: 'Einspruch · beantwortet am {date}',
         edit: 'Bearbeiten',
-        sendEllipsis: 'Antwort senden…',
         send: 'Antwort senden',
         resend: 'Antwort erneut senden',
         hint: 'Speichert die Punkte, aktualisiert das Ergebnis unter demselben Link und sendet Ihre Antworten.',

@@ -93,7 +93,6 @@ export const grading: Translations['grading'] = {
     },
     scoreEntry: {
         title: 'Exercises ({count})',
-        hint: 'Click a row to set the stamp target',
         stampTarget: 'Stamp target',
         resetTitle: 'Reset to ungraded',
         manualEdit: 'Manually edited',

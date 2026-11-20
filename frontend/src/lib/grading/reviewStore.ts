@@ -38,8 +38,8 @@ export interface ReviewState {
   mailFailed: boolean;
   /** The objection could not be locked for the student yet (the "opened" call failed): no reply until a retry works. */
   lockFailed: boolean;
-  /** The review dialog: with the items' scores and replies (phones), or only the send step (PCs, where the replies are inline). */
-  dialog: 'items' | 'send' | null;
+  /** The review dialog (open: the objected items' scores and replies, then the send step), at every screen size (issue #328). */
+  dialog: 'items' | null;
 }
 
 const INITIAL: ReviewState = { submissionId: null, thread: null, canMail: false, mailBlocked: false, drafts: {}, notify: true, sending: false, error: '', sentAt: null, mailFailed: false, lockFailed: false, dialog: null };

@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 StorageMode = Literal["all-server", "hybrid"]
+ControlsSide = Literal["left", "right"]
 
 
 class CapabilitiesOut(BaseModel):
@@ -21,6 +22,8 @@ class CapabilitiesOut(BaseModel):
     share_new_exercises: bool | None = None
     # Mail on a student's objection (issue #226): null and true send, false does not.
     review_mail: bool | None = None
+    # Side of the grading view's controls (issue #328); a stored null reads as left.
+    grading_controls_side: ControlsSide = "left"
 
 
 class StorageModeUpdate(BaseModel):
@@ -36,3 +39,9 @@ class ReviewMailUpdate(BaseModel):
 
     # Null and true mail the teacher on a student's objection, false does not (issue #226).
     review_mail: bool | None
+
+
+class GradingControlsSideUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    grading_controls_side: ControlsSide

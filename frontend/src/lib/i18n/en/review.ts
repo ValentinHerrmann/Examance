@@ -54,8 +54,6 @@ export const review: Translations['review'] = {
     thread: {
         objection: 'Objection',
         reply: 'Your reply',
-        more: 'more',
-        less: 'less',
         replyPlaceholder: 'Reply to the student (optional)',
         counter: '{count} / {max}',
         unreadable: 'The objection could not be decrypted.',
@@ -76,7 +74,6 @@ export const review: Translations['review'] = {
         open: 'Objection · open since {date}',
         answered: 'Objection · answered on {date}',
         edit: 'Edit',
-        sendEllipsis: 'Send reply…',
         send: 'Send reply',
         resend: 'Send reply again',
         hint: 'Saves the points, updates the result under the same link and sends your replies.',

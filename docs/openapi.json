@@ -7296,6 +7296,66 @@
         }
       }
     },
+    "/api/v1/user/grading-controls-side": {
+      "put": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Set Grading Controls Side",
+        "description": "Put the grading view's controls on the left or the right (issue #328).",
+        "operationId": "set_grading_controls_side_api_v1_user_grading_controls_side_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradingControlsSideUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user/purge-server-student-data": {
       "post": {
         "tags": [
@@ -11069,6 +11129,15 @@
               }
             ],
             "title": "Review Mail"
+          },
+          "grading_controls_side": {
+            "type": "string",
+            "enum": [
+              "left",
+              "right"
+            ],
+            "title": "Grading Controls Side",
+            "default": "left"
           }
         },
         "type": "object",
@@ -14268,6 +14337,24 @@
           "email"
         ],
         "title": "ForgotPasswordRequest"
+      },
+      "GradingControlsSideUpdate": {
+        "properties": {
+          "grading_controls_side": {
+            "type": "string",
+            "enum": [
+              "left",
+              "right"
+            ],
+            "title": "Grading Controls Side"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "grading_controls_side"
+        ],
+        "title": "GradingControlsSideUpdate"
       },
       "GradingReviewIn": {
         "properties": {

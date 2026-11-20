@@ -200,6 +200,7 @@ async def test_account_export_shape(client: AsyncClient, db: AsyncSession) -> No
         "sharing_paused",
         "share_new_exercises",
         "review_mail",
+        "grading_controls_side",
         "exam_logo",
         "latex_packages",
     }

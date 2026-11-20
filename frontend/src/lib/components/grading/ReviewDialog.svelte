@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The objection dialog of the current submission (issue #226): below `lg` the objected items with their score and reply field, on PCs (replies are inline) only the send step. Drafts live in `reviewStore`, so the inline threads and this dialog share them. Sending saves the scores, republishes the result under the same link and sends the replies.
+  // The objection dialog of the current submission (issue #226): the objected items with their score and reply field, then the send step, at every screen size (the slim score panel has no room for the threads, issue #328). Drafts live in `reviewStore`, so the inline threads and this dialog share them. Sending saves the scores, republishes the result under the same link and sends the replies.
   import { get } from "svelte/store";
   import type { ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
@@ -22,7 +22,6 @@
 
   let { examId, sub, exercises, onFlush }: Props = $props();
 
-  let withItems = $derived($reviewStore.dialog === "items");
   let thread = $derived($reviewStore.thread);
 
   const objected = (key: string) => Boolean(thread?.objections[key]?.trim());
@@ -36,60 +35,58 @@
 
 <Modal
   open={$reviewStore.dialog !== null}
-  size={withItems ? "large" : "small"}
-  tall={withItems}
+  size="large"
+  tall
   title={$t("review.bar.title")}
   error={$reviewStore.error}
   onClose={() => { if (!$reviewStore.sending) close(); }}
 >
-  {#if withItems}
-    <div class="flex flex-col gap-4">
-      {#each exercises as ex (ex.id)}
-        {@const parts = $gradingStore.partInputs[ex.id]}
-        {#if objected(ex.id)}
+  <div class="flex flex-col gap-4">
+    {#each exercises as ex (ex.id)}
+      {@const parts = $gradingStore.partInputs[ex.id]}
+      {#if objected(ex.id)}
+        <div class="flex flex-col gap-2">
+          <div class="overflow-hidden rounded-md border border-line"><ScoreRow
+            value={$gradingStore.scoreInputs[ex.id]}
+            max={ex.maxPoints}
+            active={false}
+            manual={!!$gradingStore.manualOverride[ex.id] && !hasPartValues(parts)}
+            readonlyReason={hasPartValues(parts) ? $t("grading.scoreEntry.sumOfParts") : undefined}
+            inputId={`review-score-${ex.id}`}
+            onSelect={() => {}}
+            onValue={(v) => setTotal(ex, v)}
+            onReset={() => resetExercise(ex)}
+          >
+            {#snippet label()}<span class="text-xs font-bold text-content">{exerciseTag(ex)}</span>{/snippet}
+          </ScoreRow></div>
+          <ReviewThread itemKey={ex.id} />
+        </div>
+      {/if}
+      {#each exerciseParts(ex) as part (part.label)}
+        {#if objected(partOverrideKey(ex.id, part.label))}
           <div class="flex flex-col gap-2">
-            <ScoreRow
-              value={$gradingStore.scoreInputs[ex.id]}
-              max={ex.maxPoints}
+            <div class="overflow-hidden rounded-md border border-line"><ScoreRow
+              value={parts?.[part.label]}
+              max={part.max}
               active={false}
-              manual={!!$gradingStore.manualOverride[ex.id] && !hasPartValues(parts)}
-              readonlyReason={hasPartValues(parts) ? $t("grading.scoreEntry.sumOfParts") : undefined}
-              inputId={`review-score-${ex.id}`}
+              manual={!!$gradingStore.manualOverride[partOverrideKey(ex.id, part.label)]}
+              ariaLabel={$t("grading.scoreEntry.partRowLabel", { label: part.label })}
               onSelect={() => {}}
-              onValue={(v) => setTotal(ex, v)}
-              onReset={() => resetExercise(ex)}
+              onValue={(v) => setPart(ex, part.label, v)}
+              onReset={() => resetPart(ex, part.label)}
             >
-              {#snippet label()}<span class="text-xs font-bold text-content">{exerciseTag(ex)}</span>{/snippet}
-            </ScoreRow>
-            <ReviewThread itemKey={ex.id} full />
+              {#snippet label()}
+                <span class="text-xs font-bold text-content">{exerciseTag(ex)}</span>
+                <span class="text-xs font-semibold text-content">{$t("grading.scoreEntry.partRowLabel", { label: part.label })}</span>
+              {/snippet}
+            </ScoreRow></div>
+            <ReviewThread itemKey={partOverrideKey(ex.id, part.label)} />
           </div>
         {/if}
-        {#each exerciseParts(ex) as part (part.label)}
-          {#if objected(partOverrideKey(ex.id, part.label))}
-            <div class="flex flex-col gap-2">
-              <ScoreRow
-                value={parts?.[part.label]}
-                max={part.max}
-                active={false}
-                manual={!!$gradingStore.manualOverride[partOverrideKey(ex.id, part.label)]}
-                ariaLabel={$t("grading.scoreEntry.partRowLabel", { label: part.label })}
-                onSelect={() => {}}
-                onValue={(v) => setPart(ex, part.label, v)}
-                onReset={() => resetPart(ex, part.label)}
-              >
-                {#snippet label()}
-                  <span class="text-xs font-bold text-content">{exerciseTag(ex)}</span>
-                  <span class="text-xs font-semibold text-content">{$t("grading.scoreEntry.partRowLabel", { label: part.label })}</span>
-                {/snippet}
-              </ScoreRow>
-              <ReviewThread itemKey={partOverrideKey(ex.id, part.label)} full />
-            </div>
-          {/if}
-        {/each}
       {/each}
-    </div>
-  {/if}
-  <p class="m-0 text-sm text-muted {withItems ? 'mt-4' : ''}">{$t("review.bar.hint")}</p>
+    {/each}
+  </div>
+  <p class="m-0 mt-4 text-sm text-muted">{$t("review.bar.hint")}</p>
 
   {#snippet footer()}
     {#if $reviewStore.canMail}

@@ -43,6 +43,7 @@ export interface FakeApiState {
   envelopes: { keyId: string | null; rows: any[] };
   /** The account's storage mode as the server records it. */
   storageMode: FakeStorageMode | null;
+  gradingControlsSide: 'left' | 'right';
   /** Email of the last sign-in. */
   email: string;
   /** Role the sign-in reports; set `'admin'` before signing in to open the admin pages. */
@@ -322,6 +323,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     statistics: new Map(),
     envelopes: { keyId: null, rows: [] },
     storageMode: initialMode(),
+    gradingControlsSide: 'left',
     email: DEFAULT_EMAIL,
     role: 'teacher',
     adminUsers: seedAdminUsers(),
@@ -348,6 +350,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.statistics.clear();
     state.envelopes = { keyId: null, rows: [] };
     state.storageMode = initialMode();
+    state.gradingControlsSide = 'left';
     state.email = DEFAULT_EMAIL;
     state.role = 'teacher';
     state.adminUsers = seedAdminUsers();
@@ -439,6 +442,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   const capabilities = () => ({
     account_id: FAKE_TEACHER_ID,
     storage_mode: state.storageMode,
+    grading_controls_side: state.gradingControlsSide,
     allowed_storage_modes: state.role === 'admin' ? [] : [...ALLOWED_MODES],
     features:
       state.role === 'admin'
@@ -489,6 +493,10 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (action === 'latex-packages') return latexPackagesRoute(method, body);
     if (action === 'logo') return logoRoute(method, parts, body);
     if (method === 'PUT' && action === 'storage-mode') return setStorageMode(body);
+    if (method === 'PUT' && action === 'grading-controls-side') {
+      state.gradingControlsSide = body?.grading_controls_side === 'right' ? 'right' : 'left';
+      return ok(capabilities());
+    }
     if (method === 'POST' && action === 'purge-server-student-data') return purgeServerStudentData();
     return undefined;
   }

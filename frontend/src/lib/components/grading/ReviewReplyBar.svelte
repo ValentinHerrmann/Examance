@@ -5,7 +5,6 @@
   import { faCommentDots } from "@fortawesome/free-solid-svg-icons";
   import { reviewStore } from "#lib/grading/reviewStore";
   import { resendReviewMail, showReview } from "#lib/sharing/reviewService";
-  import { isDesktop } from "#lib/stores/viewport";
   import type { ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
   import { formatDate } from "#lib/utils/format";
   import ReviewDialog from "./ReviewDialog.svelte";
@@ -39,8 +38,8 @@
       {#if $reviewStore.lockFailed}
         <Button size="sm" variant="outlined" severity="secondary" onClick={() => showReview(examId, sub)}>{$t("review.bar.retry")}</Button>
       {:else}
-        <Button size="sm" variant="outlined" severity="secondary" onClick={() => reviewStore.patch({ dialog: $isDesktop ? "send" : "items" })}>
-          {$isDesktop ? $t("review.bar.sendEllipsis") : $t("review.bar.edit")}
+        <Button size="sm" variant="outlined" severity="secondary" onClick={() => reviewStore.patch({ dialog: "items" })}>
+          {$t("review.bar.edit")}
         </Button>
       {/if}
     {/if}

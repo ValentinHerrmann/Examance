@@ -9,6 +9,7 @@
     faMagnifyingGlassPlus,
   } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "#lib/components/ui";
+  import type { ControlsSide } from "#lib/stores/capabilities";
 
   interface Props {
     onPagePrev: () => void;
@@ -17,6 +18,8 @@
     onZoomOut: () => void;
     onZoomIn: () => void;
     onResetZoom: () => void;
+    /** Corner of the canvas it floats in from `lg` up (issue #328). */
+    side?: ControlsSide;
   }
 
   let {
@@ -25,7 +28,8 @@
     onToggleAutoCrop,
     onZoomOut,
     onZoomIn,
-    onResetZoom
+    onResetZoom,
+    side = "left",
   }: Props = $props();
 
 </script>
@@ -33,7 +37,8 @@
 <!-- Docked below the canvas on small screens, floating over it from `lg` up (as the annotation toolbar). -->
 <div
   class="scroll-pane z-30 flex shrink-0 items-center justify-center gap-1.5 overflow-x-auto rounded-md border border-line bg-surface-raised px-2 py-1.5 text-xs
-    lg:absolute lg:right-3 lg:bottom-3 lg:justify-end lg:overflow-visible lg:shadow-md"
+    lg:absolute lg:bottom-3 lg:overflow-visible lg:shadow-md
+    {side === 'right' ? 'lg:right-3 lg:justify-end' : 'lg:left-3 lg:justify-start'}"
 >
   {#if $gradingStore.isScanPdf && $gradingStore.totalPages > 1}
     <Button

@@ -21,6 +21,10 @@ class Teacher(Base):
             "storage_mode IS NULL OR storage_mode IN ('all-server', 'hybrid')",
             name="ck_teachers_storage_mode",
         ),
+        CheckConstraint(
+            "grading_controls_side IS NULL OR grading_controls_side IN ('left', 'right')",
+            name="ck_teachers_grading_controls_side",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -71,6 +75,8 @@ class Teacher(Base):
     share_new_exercises: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     # Mail on a student's objection (issue #226): null = on, false = off.
     review_mail: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Side of the grading controls (issue #328): null = left (right-handed), "right" for left-handed teachers.
+    grading_controls_side: Mapped[str | None] = mapped_column(String(8), nullable=True)
     # LaTeX packages added to every document of the account (#108, app/services/latex_packages.py).
     latex_packages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

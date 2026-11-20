@@ -8,6 +8,9 @@ import { safeSessionStorage } from '#lib/utils/storage';
 
 export type FeatureName = 'server_results' | 'server_latex' | 'exercise_sharing' | 'result_delivery' | 'result_mail' | 'result_bounces' | 'training_donation';
 
+/** Side of the grading view that holds the score panel, stamps and zoom controls (issue #328). */
+export type ControlsSide = 'left' | 'right';
+
 export interface Capabilities {
   /** The account the answer is about; null in a cache written before the server sent it. */
   accountId: string | null;
@@ -20,6 +23,8 @@ export interface Capabilities {
   shareNewExercises?: boolean | null;
   /** Mail on a student's objection (issue #226): null and true send, false does not. */
   reviewMail?: boolean | null;
+  /** Grading controls on the left (default, right-handed) or right (issue #328); absent in an older cache. */
+  gradingControlsSide?: ControlsSide;
 }
 
 const CACHE_KEY = 'bg_capabilities';
@@ -66,6 +71,7 @@ interface CapabilitiesResponse {
   sharing_paused?: boolean;
   share_new_exercises?: boolean | null;
   review_mail?: boolean | null;
+  grading_controls_side?: string;
 }
 
 function fromResponse(res: CapabilitiesResponse): Capabilities {
@@ -79,6 +85,7 @@ function fromResponse(res: CapabilitiesResponse): Capabilities {
     sharingPaused: res.sharing_paused === true,
     shareNewExercises: typeof res.share_new_exercises === 'boolean' ? res.share_new_exercises : null,
     reviewMail: typeof res.review_mail === 'boolean' ? res.review_mail : null,
+    gradingControlsSide: res.grading_controls_side === 'right' ? 'right' : 'left',
   };
 }
 
@@ -119,6 +126,13 @@ export function markShareDefault(value: boolean | null): void {
 /** Switches the mail on a student's objection (issue #226); the server answers with the capabilities. */
 export async function saveReviewMail(value: boolean | null): Promise<Capabilities> {
   const caps = fromResponse(await api.put<CapabilitiesResponse>('/user/review-mail', { review_mail: value }, { silentError: true }));
+  capabilitiesStore.set(caps);
+  return caps;
+}
+
+/** Moves the grading controls to the left or right (issue #328); the server answers with the capabilities. */
+export async function saveGradingControlsSide(side: ControlsSide): Promise<Capabilities> {
+  const caps = fromResponse(await api.put<CapabilitiesResponse>('/user/grading-controls-side', { grading_controls_side: side }, { silentError: true }));
   capabilitiesStore.set(caps);
   return caps;
 }

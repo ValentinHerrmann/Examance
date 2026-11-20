@@ -91,7 +91,6 @@ export const grading = {
     },
     scoreEntry: {
         title: 'Aufgaben ({count})',
-        hint: 'Zeile klicken, um Stempelziel zu setzen',
         stampTarget: 'Stempelziel',
         resetTitle: 'Als unkorrigiert zurücksetzen',
         manualEdit: 'Manuell bearbeitet',
