@@ -109,7 +109,7 @@ Diese Löschungen sind endgültig und laufen nicht über den [Papierkorb](./tras
 
 ### Ihre Kontodaten {#account-data}
 
-**Meine Kontodaten herunterladen** speichert alles, was der Server über Ihr Konto speichert, als JSON-Datei: Ihre Kontoangaben, Ihre Prüfungen (ohne Schülerdaten) und das Protokoll Ihrer Aktionen. So sehen Sie, was gespeichert ist, oder nehmen Ihre Daten mit. Schülerdaten gehören nicht dazu, weil nur Ihr Browser sie lesen kann; exportieren Sie sie pro Schülerin oder Schüler unter [Daten löschen](#deletion).
+**Meine Kontodaten herunterladen** speichert alles, was der Server über Ihr Konto speichert, als JSON-Datei: Ihre Kontoangaben, Ihre Prüfungen (ohne Schülerdaten) und das Protokoll Ihrer Aktionen. So sehen Sie, was gespeichert ist, oder nehmen Ihre Daten mit. Schülerdaten gehören nicht dazu: Nur Sie können sie nach dem Entsperren lesen, der Server nicht. Exportieren Sie sie pro Schülerin oder Schüler unter [Daten löschen](#deletion).
 
 ### Konto löschen {#delete-account}
 

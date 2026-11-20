@@ -6,6 +6,13 @@
   import { Alert, Button, Card, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/utils/download";
 
+  interface Props {
+    /** Admins hold no student data, so their text leaves out the per-student export. */
+    admin?: boolean;
+  }
+
+  let { admin = false }: Props = $props();
+
   let busy = $state(false);
   let error = $state("");
 
@@ -25,7 +32,7 @@
 </script>
 
 <Card title={$t("settings.accountData.heading")}>
-  <p class="mt-0 mb-4 text-sm text-muted">{$t("settings.accountData.description")}</p>
+  <p class="mt-0 mb-4 text-sm text-muted">{admin ? $t("settings.accountData.descriptionAdmin") : $t("settings.accountData.description")}</p>
   {#if error}<Alert severity="danger" class="mb-4">{error}</Alert>{/if}
   <Button icon={actionIcons.download} loading={busy} class="w-full sm:w-auto" onClick={download}>
     {$t("settings.accountData.button")}

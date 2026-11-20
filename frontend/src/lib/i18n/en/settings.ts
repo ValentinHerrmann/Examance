@@ -217,7 +217,8 @@ export const settings: Translations['settings'] = {
     },
     accountData: {
         heading: 'Your account data',
-        description: 'Downloads everything the server stores about your account as a JSON file: account details, your exams (without student data) and the log of your actions. Export a single student\'s data in the GDPR section, because only this browser can read it.',
+        description: 'Downloads everything the server stores about your account as a JSON file: account details, your exams (without student data) and the log of your actions. Only you can read student data, after unlocking; the server cannot. Export it per student in the GDPR section.',
+        descriptionAdmin: 'Downloads everything the server stores about your account as a JSON file: account details and the log of your actions.',
         button: 'Download my account data',
         failed: 'The account data could not be loaded.',
     },

@@ -213,7 +213,8 @@ export const settings = {
     },
     accountData: {
         heading: 'Ihre Kontodaten',
-        description: 'Lädt alles herunter, was der Server über Ihr Konto speichert, als JSON-Datei: Kontoangaben, Ihre Prüfungen (ohne Schülerdaten) und das Protokoll Ihrer Aktionen. Die Daten einzelner Schülerinnen und Schüler exportieren Sie im Abschnitt DSGVO, weil nur dieser Browser sie lesen kann.',
+        description: 'Lädt alles herunter, was der Server über Ihr Konto speichert, als JSON-Datei: Kontoangaben, Ihre Prüfungen (ohne Schülerdaten) und das Protokoll Ihrer Aktionen. Schülerdaten können nur Sie nach dem Entsperren lesen, der Server nicht; exportieren Sie sie pro Schülerin oder Schüler im Abschnitt DSGVO.',
+        descriptionAdmin: 'Lädt alles herunter, was der Server über Ihr Konto speichert, als JSON-Datei: Kontoangaben und das Protokoll Ihrer Aktionen.',
         button: 'Meine Kontodaten herunterladen',
         failed: 'Die Kontodaten konnten nicht geladen werden.',
     },

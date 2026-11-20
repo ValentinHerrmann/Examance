@@ -25,6 +25,7 @@ SELECT id FROM student_identities WHERE retention_until < CURRENT_DATE AND delet
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT id FROM scan_submissions WHERE retention_until < CURRENT_DATE AND deleted_at IS NOT NULL;
 
+-- 365 is the default of AUDIT_LOG_RETENTION_DAYS; use your installation's value.
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT count(*) FROM audit_logs WHERE created_at < now() - interval '365 days';
 

@@ -2,7 +2,7 @@ import { writable, get } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
 import { translate } from '#lib/i18n';
 
-/** Where an account keeps its grading results (docs/dev/storage_modes.md). Exams and exercises always live on the server; `hybrid` keeps students, submissions and scores in one browser only. Which modes an account may choose comes from the server (`lib/stores/capabilities.ts`), never from this list. */
+/** Where an account keeps its grading results (docs/dev/storage_modes.md). Exams and exercises always live on the server; `hybrid` keeps students, submissions and scores in one browser only. Which modes an account may choose comes from the server (`lib/stores/capabilities.ts`), never from a hard-coded list. */
 export type StorageMode = 'all-server' | 'hybrid';
 
 export function isStorageMode(value: unknown): value is StorageMode {

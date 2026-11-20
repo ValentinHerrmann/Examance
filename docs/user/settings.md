@@ -109,7 +109,7 @@ These deletions are final and do not go through the [Trash](./trash).
 
 ### Your account data {#account-data}
 
-**Download my account data** saves everything the server stores about your account as a JSON file: your account details, your exams (without student data) and the log of your actions. Use it to see what is stored, or to take your data along. Student data is not part of it, because only your browser can read it; export it per student under [Deleting data](#deletion).
+**Download my account data** saves everything the server stores about your account as a JSON file: your account details, your exams (without student data) and the log of your actions. Use it to see what is stored, or to take your data along. Student data is not part of it: only you can read it, after unlocking, and the server cannot. Export it per student under [Deleting data](#deletion).
 
 ### Delete your account {#delete-account}
 

@@ -32,6 +32,12 @@ describe('AccountDataCard', () => {
     expect(JSON.parse(await blob.text())).toEqual({ account: { email: 'a@example.org' } });
   });
 
+  it('leaves the per-student hint out for admins', async () => {
+    render(AccountDataCard, { admin: true });
+    expect(screen.getByText(translate('settings.accountData.descriptionAdmin'))).toBeTruthy();
+    expect(screen.queryByText(translate('settings.accountData.description'))).toBeNull();
+  });
+
   it('shows a failed export inline and saves nothing', async () => {
     exportAccountData.mockRejectedValueOnce(new Error('offline'));
     render(AccountDataCard);
