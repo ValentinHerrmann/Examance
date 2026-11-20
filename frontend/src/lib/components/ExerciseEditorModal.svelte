@@ -7,13 +7,10 @@
   import { askToShare } from "#lib/exercise-library/askToShare";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { parseMcOptions, buildMcOptionsLatex, type McOption } from "#lib/latex/mcOptions";
-  import { EDITOR_AUTOSAVE_MS, cascadeGroupMetadata, exerciseDraftError, reportAfterSave, resourceSyncError, withoutMetaTags, writeExercise, writeNewVersion, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
+  import { exerciseDraftError, rememberDraftSuggestions, withoutMetaTags, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
   import { httpErrorStore } from "#lib/stores/httpErrorStore";
-  import { createAutosave } from "#lib/utils/autosave";
-  import { getLatestForSlot } from "#lib/latex/compileCache";
-  import { compileExercisePreview } from "#lib/latex/exercisePreview";
-  import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
-  import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
+  import { EditorSession } from "#lib/exercise-library/editorSession.svelte";
+  import { EditorPreview } from "#lib/exercise-library/editorPreview.svelte";
   import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
@@ -26,7 +23,6 @@
   import ExercisePackagesPanel from "#lib/components/latex-packages/ExercisePackagesPanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
-  import { recordValue } from "#lib/utils/recentValues";
   import { createDirtyClose } from "#lib/utils/dirtyClose.svelte";
   import { t, translate } from "#lib/i18n";
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
@@ -71,32 +67,11 @@
   /** Points deducted per wrongly-crossed MC option (right-minus-wrong scoring). Matches the printed scoring text convention. */
   let editorPenalty = $state(0.5);
 
-  // Initial state for dirty tracking
-  let initialName = $state("");
-  let initialTopicTag = $state("");
-  let initialGrade = $state("");
-  let initialSubject = $state("");
-  let initialVariantKey = $state("");
-  let initialLatexBody = $state("");
-  let initialQuestionType: "free_text" | "mc" = $state("free_text");
-  let initialPenalty = $state(0.5);
+  // The form as opened, for dirty tracking.
+  let initial: ExerciseDraft = $state.raw(currentDraft());
 
   let baseRecord = $derived(isCreatingVersion ? versionBaseEx : editingExercise);
-
-  // Fresh staging id for resource files: lets upload/preview work before the exercise exists. Committed onto the real exercise on save; closing without saving discards the staged set.
-  let resourceStagingId = $state("");
-  let resourcesCommitted = false;
-  // The staging area is filled asynchronously; the panel loads and commit runs only after it.
-  let resourceSeed: Promise<void> = Promise.resolve();
-  let resourcesSeeded = $state(false);
-
-  // Preview state
-  let isPreviewLoading = $state(false);
-  let previewPdfUrl: string | null = $state(null);
-  let previewSolutionPdfUrl: string | null = $state(null);
-  // Both panes start collapsed: there is nothing to preview until the user compiles, so reserving half the dialog for an empty placeholder on open wastes space. Expanding either pane is still one click away.
-  let showAngabePreview = $state(false);
-  let showLoesungPreview = $state(false);
+  const preview = new EditorPreview();
   let showLatexPanel = $state(true);
   let structureOpen = $state(false);
   // AI-chat prompt (issue #168); the request survives closing the dialog while the editor stays open.
@@ -106,26 +81,8 @@
   let latexSourceOpen = $state(false);
   /** Phones: the metadata fields fold into a one-line summary so the code editor gets the screen. */
   let showMetaFields = $state(false);
-  let hasAnyPreview = $derived(showAngabePreview || showLoesungPreview);
   let isSaving = $state(false);
   let errorMsg = $state("");
-  /** The last preview's failure (not save errors), sent with a layout report. */
-  let previewError = $state("");
-  let previewLog = $state<CompileFailure | null>(null);
-
-  // Move the staged files onto the just-written exercise. Files that failed to upload throw `ResourceSyncError` (issue #298): they stay in this browser, flagged for upload, and the caller reports them.
-  async function commitStagedResources(exerciseId: string, key: CryptoKey | null, keepStaging = false) {
-    await resourceSeed;
-    const result = await exerciseResourceRepository.commit(resourceStagingId, exerciseId, key, { keepStaging });
-    resourcesCommitted = true;
-    const failed = resourceSyncError(result);
-    if (failed) throw failed;
-  }
-
-  /** An explicit save already stored the exercise, so the dialog closes; a file failure is reported in the error dialog, never as a failed save. */
-  function commitAfterSave(exerciseId: string, key: CryptoKey | null) {
-    return reportAfterSave(() => commitStagedResources(exerciseId, key), (status, message) => httpErrorStore.showError(status, message));
-  }
 
   function insertResourceSnippet(snippet: string) {
     if (!isMc || mcBlockMalformed) {
@@ -136,10 +93,6 @@
     // MC: into the question, above the answer boxes.
     mcQuestionText = `${mcQuestionText}\n${snippet}`;
     regenerateMcLatex();
-  }
-
-  function handleToggleLatex() {
-    showLatexPanel = !showLatexPanel;
   }
 
   let title = $derived.by(() => {
@@ -179,54 +132,15 @@
       editorPenalty = 0.5;
     }
 
-    initialName = editorName;
-    initialTopicTag = editorTopicTag;
-    initialGrade = editorGrade;
-    initialSubject = editorSubject;
-    initialVariantKey = editorVariantKey;
-    initialLatexBody = editorLatexBody;
-    initialQuestionType = editorQuestionType;
-    initialPenalty = editorPenalty;
-    savedRecord = null;
-    filesSaved = false;
-    finished = false;
+    initial = currentDraft();
     filesRev = 0;
-    savedKey = editKey;
-    cascadedMeta = groupMeta(source);
-    // Seed the staging area from whichever exercise is being edited or versioned; a new version therefore starts with the base version's figures without ever writing back to it.
-    const stagingId = crypto.randomUUID();
-    resourceStagingId = stagingId;
-    resourcesCommitted = false;
-    resourcesSeeded = false;
-    resourceSeed = source?.id
-      ? exerciseResourceRepository
-          .seedStaging(source.id, stagingId, get(sessionStore).sessionKey)
-          .catch(() => {})
-      : Promise.resolve();
-    void resourceSeed.then(() => {
-      if (resourceStagingId === stagingId) resourcesSeeded = true;
-    });
-    committedFiles = resourceSeed.then(() => exerciseResourceRepository.stagedSignature(stagingId));
-    showAngabePreview = false;
-    showLoesungPreview = false;
+    session.start(source, editKey);
     dirtyClose.cancel();
     latexSourceOpen = false;
     errorMsg = "";
     syncMcStateFromLatex();
 
-    cleanupPreview();
-    if (editingExercise?.id) {
-      const cachedAngabe = getLatestForSlot({ kind: "exercise", id: editingExercise.id, variant: "angabe" });
-      if (cachedAngabe) {
-        const blobAngabe = new Blob([cachedAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
-        previewPdfUrl = URL.createObjectURL(blobAngabe);
-      }
-      const cachedLoesung = getLatestForSlot({ kind: "exercise", id: editingExercise.id, variant: "loesung" });
-      if (cachedLoesung) {
-        const blobLoesung = new Blob([cachedLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
-        previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
-      }
-    }
+    preview.restore(editingExercise?.id);
   }
 
   function syncMcStateFromLatex(latex: string = editorLatexBody) {
@@ -277,93 +191,46 @@
     regenerateMcLatex();
   }
 
-  function cleanupPreview() {
-    if (previewPdfUrl) {
-      URL.revokeObjectURL(previewPdfUrl);
-      previewPdfUrl = null;
-    }
-    if (previewSolutionPdfUrl) {
-      URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = null;
-    }
-  }
-
-  onDestroy(() => {
-    cleanupPreview();
-  });
+  onDestroy(() => preview.cleanup());
 
   let isDirty = $derived(
     (editingExercise || isCreatingVersion
       ? false
-      : editorName !== initialName ||
-        editorTopicTag !== initialTopicTag ||
-        editorGrade !== initialGrade ||
-        editorSubject !== initialSubject) ||
-    editorVariantKey !== initialVariantKey ||
-    editorLatexBody !== initialLatexBody ||
-    editorQuestionType !== initialQuestionType ||
-    (isMc && editorPenalty !== initialPenalty)
+      : editorName !== initial.name ||
+        editorTopicTag !== initial.topicTag ||
+        editorGrade !== initial.grade ||
+        editorSubject !== initial.subject) ||
+    editorVariantKey !== initial.variantKey ||
+    editorLatexBody !== initial.latexBody ||
+    editorQuestionType !== initial.questionType ||
+    (isMc && editorPenalty !== initial.penalty)
   );
 
   const dirtyClose = createDirtyClose({
-    isDirty: () => (autosaving ? editKey !== savedKey : isDirty),
+    isDirty: () => (autosaving ? editKey !== session.savedKey : isDirty),
     onClose: () => {
-      cleanupPreview();
+      preview.cleanup();
       // Staged files belong to the dialog, not to the library: a commit copied them (autosave) or moved them (explicit save); what is left goes with it.
-      const stagingId = resourceStagingId;
-      if (stagingId && (autosaving || !resourcesCommitted)) {
+      const stagingId = session.stagingId;
+      if (stagingId && (autosaving || !session.resourcesCommitted)) {
         void exerciseResourceRepository.deleteForExercise(stagingId);
       }
-      if (autosaving) void finishSession();
+      if (autosaving) void session.finish();
       onClose?.();
     },
   });
 
   async function handlePreviewExercise() {
-    isPreviewLoading = true;
     errorMsg = "";
-    previewError = "";
-    previewLog = null;
-    let angabeShown = false;
-    try {
-      const res = await compileExercisePreview({
-        cacheId: editingExercise?.id || resourceStagingId,
-        name: editorName,
-        latexBody: editorLatexBody,
-        resourceOwnerId: resourceStagingId,
-        staged: true,
-        useLocal: $effectiveLatexStore === "local",
-        key: get(sessionStore).sessionKey,
-        onAngabe: (angabe) => {
-          if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-          previewPdfUrl = pdfBytesToUrl(angabe.pdfBytes);
-          angabeShown = true;
-          showAngabePreview = true;
-        }
-      });
-      if (!angabeShown) {
-        if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-        previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
-      }
-      if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
-
-      // Panes start collapsed (nothing to show); now that a PDF exists, open the exam pane so the compile result is actually visible.
-      showAngabePreview = true;
-
-      // A missing figure does not fail the engine — say so instead of handing back a PDF with a silent hole in it.
-      if (res.missingGraphics.length > 0) {
-        errorMsg = translate("common.previewMissingGraphic", { name: res.missingGraphics[0] });
-      }
-    } catch (err) {
-      console.error("Exercise preview failed:", err);
-      const message = err instanceof Error && err.message ? err.message : translate("exercises.editor.previewFailedUnknown");
-      errorMsg = translate("exercises.editor.previewFailed", { message });
-      previewError = errorMsg;
-      previewLog = compileFailure(err);
-    } finally {
-      isPreviewLoading = false;
-    }
+    errorMsg = await preview.compile({
+      cacheId: editingExercise?.id || session.stagingId,
+      name: editorName,
+      latexBody: editorLatexBody,
+      resourceOwnerId: session.stagingId,
+      staged: true,
+      useLocal: $effectiveLatexStore === "local",
+      key: get(sessionStore).sessionKey,
+    });
   }
 
   function currentDraft(): ExerciseDraft {
@@ -379,81 +246,28 @@
     };
   }
 
-  function rememberSuggestions() {
-    if (editorTopicTag) recordValue("exercise.topic", editorTopicTag);
-    if (editorGrade) recordValue("exercise.grade", editorGrade);
-    if (editorSubject) recordValue("exercise.subject", editorSubject);
-  }
-
   // Editing an existing exercise saves itself (issue #232); a new exercise and a new version keep the explicit button.
   let autosaving = $derived(!!editingExercise && !isCreatingVersion && !editingExercise.codeWithheld);
   // Bumped by the file panel, so a file change alone schedules a save.
   let filesRev = $state(0);
   let editKey = $derived(JSON.stringify([editorName, editorTopicTag, editorGrade, editorSubject, editorVariantKey, editorLatexBody, editorQuestionType, isMc ? editorPenalty : null, filesRev]));
-  // The one baseline: the edit key of the last stored state.
-  let savedKey = $state("");
-  // Session state: the newest written record, whether files were committed, the file set last committed, the group metadata sisters hold.
-  let savedRecord: ExerciseRecord | null = null;
-  let filesSaved = false;
-  let committedFiles: Promise<string> = Promise.resolve("");
-  let cascadedMeta = "";
-  let finished = false;
   let closing = $state(false);
-
-  function groupMeta(ex: Pick<ExerciseRecord, "name" | "topicTag" | "grade" | "subject"> | null): string {
-    return JSON.stringify([ex?.name ?? "", ex?.topicTag ?? "", ex?.grade ?? "", ex?.subject ?? ""]);
-  }
-
-  async function autosaveRun() {
-    const base = editingExercise;
-    const key = editKey;
-    // A finished session (closed, or its edit discarded) never writes again.
-    if (!base || !isOpen || finished || key === savedKey) return;
-    const draft = currentDraft();
-    const invalid = exerciseDraftError(draft);
-    if (invalid) throw new Error(translate(invalid));
-    const sessionKey = get(sessionStore).sessionKey;
-    savedRecord = await writeExercise(base, draft, { key: sessionKey });
-    const stagingId = resourceStagingId;
-    if ((await exerciseResourceRepository.stagedSignature(stagingId)) !== (await committedFiles)) {
-      await commitStagedResources(base.id, sessionKey, true);
-      committedFiles = exerciseResourceRepository.stagedSignature(stagingId);
-      filesSaved = true;
-    }
-    savedKey = key;
-  }
-
-  const autosave = createAutosave({
-    run: autosaveRun,
-    delayMs: EDITOR_AUTOSAVE_MS,
-    message: (err) => (err instanceof Error ? err.message : String(err)),
+  const session = new EditorSession({
+    isOpen: () => isOpen,
+    editing: () => editingExercise,
+    editKey: () => editKey,
+    draft: currentDraft,
+    onSave: (detail) => onSave?.(detail),
+    rememberSuggestions: () => rememberDraftSuggestions(currentDraft()),
   });
-
-  // Sister exercises share name, topic, grade and subject: copied once per session, not on every save.
-  async function runPendingCascade() {
-    const record = savedRecord;
-    if (!record || groupMeta(record) === cascadedMeta) return;
-    cascadedMeta = groupMeta(record);
-    await cascadeGroupMetadata(record, get(sessionStore).sessionKey);
-  }
-
-  /** Once per autosaving session, whichever way it ends: the group copy, then one refresh of the parent and the share question. */
-  async function finishSession() {
-    if (finished) return;
-    finished = true;
-    const record = savedRecord;
-    await runPendingCascade();
-    if (record) rememberSuggestions();
-    if (record || filesSaved) onSave?.({ exercise: record ?? editingExercise!, isNewVersion: false });
-    if (record) void askToShare(record.id);
-  }
+  const autosave = session.autosave;
 
   // Leaving the page with the editor open still saves what was typed, then finishes the session.
   onDestroy(() => {
-    if (!autosaving || !isOpen || finished) return;
-    const stagingId = resourceStagingId;
+    if (!autosaving || !isOpen || session.finished) return;
+    const stagingId = session.stagingId;
     void autosave.flush().then(async () => {
-      await finishSession();
+      await session.finish();
       await exerciseResourceRepository.deleteForExercise(stagingId);
     });
   });
@@ -464,9 +278,9 @@
     closing = true;
     try {
       await autosave.flush();
-      await runPendingCascade();
+      await session.runPendingCascade();
       await autosave.flush();
-      if (editKey !== savedKey) dirtyClose.request();
+      if (editKey !== session.savedKey) dirtyClose.request();
       else dirtyClose.force();
     } finally {
       closing = false;
@@ -492,30 +306,17 @@
       return;
     }
 
-    rememberSuggestions();
+    rememberDraftSuggestions(draft);
 
     isSaving = true;
     errorMsg = "";
     const key = get(sessionStore).sessionKey;
 
     try {
-      if (isCreatingVersion && versionBaseEx) {
-        const savedEx = await writeNewVersion(versionBaseEx, draft, key);
-
-        // A new version is a new exercise row; the staged set (the base version's files plus anything added here) becomes its file set.
-        await commitAfterSave(savedEx.id, key);
-        onSave?.({ exercise: savedEx, isNewVersion: true });
-        // After the editor's own save, so the question never holds it up (issue #263).
-        void askToShare(savedEx.id);
-        dirtyClose.force();
-        return;
-      }
-
-      const record = await writeExercise(editingExercise, draft, { key });
-      await cascadeGroupMetadata(record, key);
-      await commitAfterSave(record.id, key);
-      onSave?.({ exercise: record, isNewVersion: false });
-      void askToShare(record.id);
+      const saved = await session.save(draft, isCreatingVersion ? versionBaseEx : null, key);
+      onSave?.(saved);
+      // After the editor's own save, so the question never holds it up (issue #263).
+      void askToShare(saved.exercise.id);
       dirtyClose.force();
     } catch (err) {
       errorMsg = translate("exercises.editor.saveFailed", { message: err instanceof Error ? err.message : String(err) });
@@ -540,7 +341,7 @@
         lastOpenState = true;
       } else if (!open && last) {
         lastOpenState = false;
-        cleanupPreview();
+        preview.cleanup();
       }
     });
   });
@@ -550,7 +351,7 @@
     const key = editKey;
     const on = isOpen && autosaving;
     untrack(() => {
-      if (on && key !== savedKey) autosave.schedule();
+      if (on && key !== session.savedKey) autosave.schedule();
     });
   });
 </script>
@@ -560,19 +361,19 @@
     compact
     kind="exercise"
     title={editorName}
-    compileError={previewError || null}
-    disabled={isPreviewLoading}
+    compileError={preview.error || null}
+    disabled={preview.loading}
     collectFiles={() =>
       exerciseReportFiles(
         {
           name: editorName,
           latexBody: editorLatexBody,
-          resourceOwnerId: resourceStagingId,
+          resourceOwnerId: session.stagingId,
           staged: true,
           key: get(sessionStore).sessionKey,
         },
-        previewPdfUrl,
-        previewSolutionPdfUrl
+        preview.pdfUrl,
+        preview.solutionUrl
       )}
   />
 {/snippet}
@@ -620,7 +421,7 @@
       {#if errorMsg}
         <Alert severity="danger" class="mx-4 mt-3 shrink-0">
           <div class="max-h-52 overflow-y-auto whitespace-pre-wrap break-all font-mono">{errorMsg}</div>
-          {#if previewLog && errorMsg === previewError}<CompileErrorHelp failure={previewLog} class="mt-2" />{/if}
+          {#if preview.log && errorMsg === preview.error}<CompileErrorHelp failure={preview.log} class="mt-2" />{/if}
         </Alert>
       {/if}
 
@@ -632,7 +433,7 @@
               <button
                 type="button"
                 class="group flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left"
-                onclick={handleToggleLatex}
+                onclick={() => (showLatexPanel = !showLatexPanel)}
                 title={$t("exercises.editor.collapseLatexTitle")}
               >
                 <span class="truncate text-sm font-semibold text-content">
@@ -668,9 +469,9 @@
               <Button
                 size="sm"
                 onClick={handlePreviewExercise}
-                disabled={isPreviewLoading}
+                disabled={preview.loading}
                 title={$t("exercises.editor.previewButtonTitle")}
-              >{isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}</Button>
+              >{preview.loading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}</Button>
             </div>
 
             <div class="flex flex-col gap-2 p-2 @3xl:min-h-0 @3xl:flex-1 @3xl:overflow-y-auto">
@@ -694,8 +495,8 @@
 
               <div class="grid shrink-0 items-start gap-2 @3xl:grid-cols-2">
                 <ExerciseResourcePanel
-                  exerciseId={resourceStagingId}
-                  seeded={resourcesSeeded}
+                  exerciseId={session.stagingId}
+                  seeded={session.seeded}
                   onInsert={insertResourceSnippet}
                   onChange={() => filesRev++}
                 />
@@ -709,7 +510,7 @@
             <button
               type="button"
               class="group flex h-full w-full cursor-pointer flex-row items-center gap-3 border-0 bg-surface-sunken px-3 py-1 text-muted hover:bg-surface-raised hover:text-accent @3xl:flex-col @3xl:px-1 @3xl:py-3"
-              onclick={handleToggleLatex}
+              onclick={() => (showLatexPanel = !showLatexPanel)}
               title={$t("exercises.editor.expandLatexTitle")}
             >
               <Icon icon={faChevronLeft} class="shrink-0 -rotate-90 @3xl:rotate-180" />
@@ -722,15 +523,15 @@
         </div>
 
         <DualPdfPreview
-          {previewPdfUrl}
-          {previewSolutionPdfUrl}
-          bind:showAngabePreview
-          bind:showLoesungPreview
+          previewPdfUrl={preview.pdfUrl}
+          previewSolutionPdfUrl={preview.solutionUrl}
+          bind:showAngabePreview={preview.showAngabe}
+          bind:showLoesungPreview={preview.showLoesung}
           titleAngabe={$t("exercises.editor.previewAngabeTitle")}
           titleLoesung={$t("exercises.editor.previewLoesungTitle")}
           placeholderText={$t("exercises.editor.previewPlaceholder")}
           shrinkWhenCollapsed={showLatexPanel}
-          report={previewPdfUrl || previewSolutionPdfUrl || previewError ? layoutReport : undefined}
+          report={preview.pdfUrl || preview.solutionUrl || preview.error ? layoutReport : undefined}
         />
       </div>
     </div>
@@ -765,8 +566,8 @@
     latexBody={editorLatexBody}
     meta={{ name: editorName, subject: editorSubject, grade: editorGrade, topic: editorTopicTag }}
     questionType={editorQuestionType}
-    resourceStagingId={resourceStagingId}
-    seeded={resourcesSeeded}
+    resourceStagingId={session.stagingId}
+    seeded={session.seeded}
     bind:task={aiPromptTask}
     onClose={() => (aiPromptOpen = false)}
   />

@@ -8,6 +8,7 @@ import { parseExerciseScore } from '#lib/latex/scoreParser';
 import { parseMcOptions, MC_MIN_OPTIONS, type McOption } from '#lib/latex/mcOptions';
 import { setCompetencies, setRequirementLevel } from '#lib/latex/exerciseStructure';
 import { translate, type TranslationKey } from '#lib/i18n';
+import { recordValue } from '#lib/utils/recentValues';
 
 /** Typing LaTeX is bursty and each save encrypts and PATCHes the record: wait longer than the form default. */
 export const EDITOR_AUTOSAVE_MS = 2000;
@@ -208,4 +209,11 @@ export async function reportAfterSave(commit: () => Promise<void>, report: (stat
     console.warn('Failed to store resource files:', err);
     report(500, translate('exercises.editor.filesNotStored'));
   }
+}
+
+/** Offers the draft's topic, grade and subject in the suggestion lists of later forms. */
+export function rememberDraftSuggestions(draft: Pick<ExerciseDraft, 'topicTag' | 'grade' | 'subject'>): void {
+  if (draft.topicTag) recordValue('exercise.topic', draft.topicTag);
+  if (draft.grade) recordValue('exercise.grade', draft.grade);
+  if (draft.subject) recordValue('exercise.subject', draft.subject);
 }

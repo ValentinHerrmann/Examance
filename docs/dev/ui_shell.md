@@ -8,6 +8,23 @@ The short rules that must never be broken in this area are in `frontend/CLAUDE.m
 - **Sections, favorites and archive** (issue #252): both lists render their filtered, sorted items in `ui/CollapsibleSection`s built by `utils/listSections.ts` (`sectionExams`: favorites, `unclear` (no full date in the date part of `datum`, read with `parseDatumAndDauer`; badge on the card, hint at the date field; never filed by `createdAt`), school years August–July of the written date, archive; `sectionByFlags` for the library: favorites, all, archive). Favorites appear twice (their own section and their year / All), so per-card DOM ids belong only to the second copy. Open state is per browser (`stores/listSections.ts`, `bg_list_sections`). Flags are server columns (`exams.is_favorite`/`archived_at`, `exercise_groups.is_favorite`/`archived_at`), written only through `examRepository.saveFlags` and `saveGroupFlags` (never with `save()`), shown by `common/FavoriteToggle`; duplicates, copies and ZIP imports start without them.
 - **Selection and bulk actions** (issue #261): both lists select through `utils/selection.svelte.ts` (`Selection`, pruned to the shown ids on every filter change, so an action never reaches a hidden row), `ExpandableCard` `selected`/`onSelect` (checkbox before the title) and `ui/SelectionToolbar` (always shown, greyed-out actions with a `reason`; the Students table uses it too). Multi-item field edits go through `common/BulkEditDialog` + `lib/bulk/bulkEdit.ts` (shared value or "various", only touched fields, per-item change list before applying). The exam list's edit, export and delete (one or many) live in `dashboard/ExamBulkActions` (`ExamExportModal` takes `exams[]`: one ZIP with a folder per exam via `runExamsExport`/`ZipBuilder.merge`, not re-importable as several exams; `KeepStatisticsOption` takes `examIds[]`); the library's in `exercise-library/BulkGroupFlow` (group metadata only through `saveGroupMetadata`, also used by `GroupEditFlow`; groups used in an exam are kept on delete). A bulk delete uses one `newTrashGroup()`. Saves loop over the per-item endpoints and report failures per item.
 
+## Where the library and editor flows live (issue #300)
+
+The exercise library page (`routes/exercises/+page.svelte`) keeps the list, the filters and the view switch. Every action dialog is a flow in `components/exercise-library/`, mounted once on the page and opened through its exported functions:
+
+| Flow | Opens with | What it holds |
+|---|---|---|
+| `GroupEditFlow`, `BulkGroupFlow`, `RegroupFlow`, `VariantFlow`, `DiffFlow` | `open(...)` | group metadata, bulk actions, regrouping, variants, version diffs |
+| `SharingFlow` | `share`, `bulk`, `togglePause`, `copy`, `duplicate`, `resync`, `unlink` | sharing a group or everything, the pause, copying a shared group, duplicating an own one, resync and unlink of a copy |
+| `ContributionFlow` | `contribute`, `review`, `withdraw` | change proposals; the lists stay on the page, which reloads them through `onAccepted`, `onDecided` and `onSubmitted` |
+| `ExerciseDeleteFlow` | `open(exercise)` | the single delete with its exam-usage check (a failed check blocks it) |
+
+The library's data loading is `exercise-library/loadLibrary.ts` (`loadLibraryExercises`), its preview flow `exercise-library/libraryPreview.ts`.
+
+The exercise editor (`components/ExerciseEditorModal.svelte`) keeps the form and its markup. Two `.svelte.ts` classes hold the rest:
+- `exercise-library/editorPreview.svelte.ts` `EditorPreview`: the compile preview (PDF URLs, open panes, last failure).
+- `exercise-library/editorSession.svelte.ts` `EditorSession`: one opening's staged files, the autosave of an existing exercise, the explicit save and the session end.
+
 ## Shell, navbar and editor on small screens
 
 - `LatexEditor` has CodeMirror search (Ctrl+F, Ctrl+H for replace; phrases from `editor.search.*`). Escape that closes the search panel is stopped at the editor so the surrounding `Modal` stays open.
