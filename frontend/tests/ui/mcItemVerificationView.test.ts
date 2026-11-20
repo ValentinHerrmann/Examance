@@ -31,6 +31,7 @@ vi.mock("../../src/lib/repositories/scoreRepository", () => ({
 vi.mock("../../src/lib/services/trainingDonation", () => ({ flushAll: vi.fn(), flushQuestion: vi.fn(), stageVerifiedQuestion: vi.fn() }));
 
 const { default: McItemVerificationView } = await import("../../src/lib/components/verify/McItemVerificationView.svelte");
+const { flushQuestion } = await import("../../src/lib/services/trainingDonation");
 
 const probe = () => (globalThis as { __probeProps?: Record<string, unknown> }).__probeProps!;
 const settle = async () => {
@@ -55,5 +56,6 @@ describe("McItemVerificationView (issue #298)", () => {
     await save;
     await settle();
     expect((probe().scoreRecord as ExerciseScoreRecord).submissionId).toBe("B");
+    expect(flushQuestion).toHaveBeenCalledWith("A", "ex");
   });
 });

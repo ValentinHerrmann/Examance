@@ -482,6 +482,9 @@
       {#if omrMeta?.alignmentUncertain}
         <Alert severity="warning" class="mb-2 w-full">{$t("scanning.itemCard.alignmentUncertainWarning")}</Alert>
       {/if}
+      {#if omrMeta?.templateMismatch}
+        <Alert severity="warning" class="mb-2 w-full">{$t("scanning.itemCard.templateMismatchWarning")}</Alert>
+      {/if}
 
       {#if loadingCrop}
         <div class="text-xs text-muted animate-pulse py-12">{$t("scanning.itemCard.renderingCrop")}</div>

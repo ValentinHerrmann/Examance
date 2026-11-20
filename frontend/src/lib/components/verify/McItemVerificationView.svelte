@@ -122,9 +122,11 @@
       omrMeta,
     };
     await scoreRepository.saveOne(examId, record, get(sessionStore).sessionKey);
-    if (!isStale()) currentScoreRecord = record;
     // Opt-in training-data donation: only staged here, built once the teacher moves on.
     stageVerifiedQuestion(examId, record, bytes);
+    if (!isStale()) currentScoreRecord = record;
+    // Moved on during the save: leaving already flushed this question, so its donation goes now.
+    else void flushQuestion(record.submissionId, record.exerciseId);
   }
 
   /** Leaving a question donates it if it was verified (opt-in). */

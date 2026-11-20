@@ -10,7 +10,7 @@
   import { t } from "#lib/i18n";
   import { createAutosave } from "#lib/utils/autosave";
   import { gradeHref } from "#lib/utils/links";
-  import { createKeyedOnce } from "#lib/utils/keyedOnce";
+  import { createSubmissionResolver } from "#lib/grading/submissionResolver";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ScoreInputCell from "./ScoreInputCell.svelte";
 
@@ -133,19 +133,15 @@
     onScoresChanged();
   }
 
-  const creating = createKeyedOnce<SubmissionRecord>();
+  // Two quick saves share one creation, and a map rebuilt from an older list keeps what was created here (issue #298).
+  const resolver = createSubmissionResolver((st: StudentRecord) => submissionForStudent(examId, st));
 
   /** The student's submission, created on the first score: students from the Students page have none yet, and their scores were silently dropped. */
   async function submissionOf(st: StudentRecord | undefined): Promise<SubmissionRecord | undefined> {
     if (!st) return undefined;
-    const known = submissionMap.get(st.pseudonymHmac);
-    if (known) return known;
-    // Two quick saves (blur, then change) share one creation instead of making two submissions.
-    return creating.run(st.pseudonymHmac, async () => {
-      const created = await submissionForStudent(examId, st);
-      submissionMap = new Map(submissionMap).set(st.pseudonymHmac, created);
-      return created;
-    });
+    const sub = await resolver.resolve(st, submissionMap);
+    if (submissionMap.get(st.pseudonymHmac) !== sub) submissionMap = new Map(submissionMap).set(st.pseudonymHmac, sub);
+    return sub;
   }
 
   async function saveStudent() {
@@ -209,7 +205,7 @@
     const seq = ++submissionMapSeq;
     untrack(() =>
       buildSubmissionMap(subs, sts).then((m) => {
-        if (seq === submissionMapSeq) submissionMap = m;
+        if (seq === submissionMapSeq) submissionMap = resolver.merge(m);
       }),
     );
   });

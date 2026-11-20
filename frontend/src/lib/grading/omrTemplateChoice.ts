@@ -15,9 +15,12 @@ export interface OmrTemplateCandidate {
 /** Share of a page's boxes that must sit on their printed border before a template counts as the one the sheet was printed with. */
 export const TEMPLATE_FIT_MIN = 0.8;
 
-/** True when the page's boxes do not sit on the chosen template's printed ones: its readings may belong to another layout, so they go to review. A page without boxes (fit undefined) is not uncertain. */
-export function fitUncertain(fit: number | undefined): boolean {
-  return fit !== undefined && fit < TEMPLATE_FIT_MIN;
+/** Fewest measured boxes for a low fit to mark a page: with fewer, one missed border on a faint scan would send the whole page to review. */
+export const TEMPLATE_FIT_MIN_BOXES = 5;
+
+/** True when the page's boxes do not sit on the chosen template's printed ones: its readings may belong to another layout, so they go to review. A page without boxes (fit undefined) or with too few of them is not uncertain; an unknown count counts as enough. */
+export function fitUncertain(fit: number | undefined, boxes?: number): boolean {
+  return fit !== undefined && fit < TEMPLATE_FIT_MIN && (boxes === undefined || boxes >= TEMPLATE_FIT_MIN_BOXES);
 }
 
 /** Candidates in the order to try: the preferred hash (the one that fit this booklet or submission before) first, then the rest in their order. */
@@ -57,7 +60,7 @@ export async function readWithTemplates<R extends { pageStats: { templateFit?: n
   if (readings.length === 0) return null;
   const chosen = readings[pickByFit(readings.map((r) => r.res.pageStats.templateFit))];
   const fit = chosen.res.pageStats.templateFit;
-  return { ...chosen, fits: fit !== undefined && !fitUncertain(fit) };
+  return { ...chosen, fits: fit !== undefined && fit >= TEMPLATE_FIT_MIN };
 }
 
 /** A run stamped with the template its row was read with. */

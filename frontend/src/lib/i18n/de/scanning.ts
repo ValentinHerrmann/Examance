@@ -287,6 +287,7 @@ export const scanning = {
         cropRenderError: 'Scan-Ausschnitt konnte nicht gerendert werden.',
         noCrop: 'Für dieses Element ist kein Scan-Ausschnitt verfügbar.',
         alignmentUncertainWarning: 'Seitenausrichtung unsicher – Markierungen können verschoben sein. Bitte am Scan prüfen.',
+        templateMismatchWarning: 'Mit einem Layout gelesen, das möglicherweise nicht zum gedruckten Bogen passt – bitte am Scan prüfen.',
         confirmAnswers: 'Antworten bestätigen',
         scoreLabel: 'Punkte: {score} / {maxPoints} Pkt',
         detectionFailed: 'Erkennung auf dieser Scan-Seite fehlgeschlagen. Bitte wählen Sie die markierten Optionen manuell aus.',

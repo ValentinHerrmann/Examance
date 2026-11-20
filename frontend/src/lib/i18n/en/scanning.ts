@@ -289,6 +289,7 @@ export const scanning: Translations['scanning'] = {
         cropRenderError: 'Failed to render scan crop.',
         noCrop: 'No scan crop available for this item.',
         alignmentUncertainWarning: 'Page alignment uncertain – markings may be shifted. Please check against the scan.',
+        templateMismatchWarning: 'Read with a layout that may not match the printed sheet – please check against the scan.',
         confirmAnswers: 'Confirm Answers',
         scoreLabel: 'Score: {score} / {maxPoints} Pkt',
         detectionFailed: 'Detection failed on this scan page. Please manually select the marked options.',

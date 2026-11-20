@@ -667,7 +667,12 @@ export function classifyV2(
 
 /** Share of boxes whose printed border was found where the template puts them (issue #239): a template of another layout misses most borders. Undefined without measured boxes. */
 export function templateFit(readings: readonly { shape?: Pick<OmrShapeFeatures, 'borderFound'> }[]): number | undefined {
-  const measured = readings.filter((r) => r.shape);
-  if (measured.length === 0) return undefined;
-  return measured.filter((r) => r.shape!.borderFound).length / measured.length;
+  const measured = templateFitBoxes(readings);
+  if (measured === 0) return undefined;
+  return readings.filter((r) => r.shape?.borderFound).length / measured;
+}
+
+/** How many boxes `templateFit` is measured on. */
+export function templateFitBoxes(readings: readonly { shape?: unknown }[]): number {
+  return readings.filter((r) => r.shape).length;
 }
