@@ -28,6 +28,8 @@
   import { loadScoreBoxContext, type ScoreBoxContext } from "#lib/grading/scoreBoxes";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, EmptyState } from "#lib/components/ui";
+  import { palmGuard } from "#lib/components/grading/palmGuard";
+  import { penSeenStore } from "#lib/stores/penInput";
   import { createAutosave } from "#lib/utils/autosave";
   import { initReviews, resetReviews, showReview } from "#lib/sharing/reviewService";
 
@@ -359,7 +361,13 @@
   }
 </script>
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-base text-content">
+<!-- Once this device has shown a pen: no text selection or iOS callout outside fields, and palm taps near pen use are swallowed (a resting palm selected text on iPad Safari, issue #321). Mouse-only devices keep selecting text. -->
+<div
+  class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-base text-content {$penSeenStore
+    ? 'select-none [-webkit-touch-callout:none] [&_[contenteditable]]:select-text [&_input]:select-text [&_textarea]:select-text'
+    : ''}"
+  use:palmGuard={$penSeenStore}
+>
   {#if submissionsLoadError}
     <Alert severity="danger" class="m-3 shrink-0">{submissionsLoadError}</Alert>
   {:else if submissions.length === 0}

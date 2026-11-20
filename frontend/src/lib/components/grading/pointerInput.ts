@@ -10,7 +10,8 @@ export function drawsWith(pointerType: string, penSeen: boolean): boolean {
 
 /** What a pointerdown starts. */
 export type DownAction =
-  | { kind: 'draw' }
+  /** `endedPinch`: a pen landed while fingers (a palm) were pinching, so the pinch is dropped. */
+  | { kind: 'draw'; endedPinch?: boolean }
   /** A second finger joined a finger that was drawing: stop that stroke and pinch with both. */
   | { kind: 'pinch-from-draw'; a: Point; b: Point }
   | { kind: 'pinch'; a: Point; b: Point }
@@ -32,6 +33,8 @@ export class PointerRouter {
   private drawType = '';
   private drawLast: Point = { x: 0, y: 0 };
   private readonly nav = new Map<number, Point>();
+  /** Fingers a landing pen took out of navigation; they pan or pinch again once the pen lifted and they move. */
+  private readonly resting = new Map<number, Point>();
   private lastPan: Point | null = null;
 
   constructor(public penSeen = false) {}
@@ -53,6 +56,9 @@ export class PointerRouter {
     if (e.pointerType === 'mouse' && (e.button ?? 0) !== 0) return { kind: 'ignore' };
     const p = { x: e.x, y: e.y };
 
+    // A palm landing while the pen writes never pans or pinches under the stroke (issue #321).
+    if (e.pointerType === 'touch' && this.drawId !== null && this.drawType === 'pen') return { kind: 'ignore' };
+
     if (drawsWith(e.pointerType, this.penSeen)) {
       if (this.drawId === e.pointerId) return { kind: 'ignore' };
       // A finger joining a drawing finger is a pinch (phones without a pen).
@@ -64,12 +70,20 @@ export class PointerRouter {
         this.lastPan = null;
         return { kind: 'pinch-from-draw', a: first, b: p };
       }
+      // A pen drops the fingers (a palm that landed first) instead of drawing while they scroll the page (issue #321).
+      let endedPinch = false;
+      if (e.pointerType === 'pen' && this.nav.size > 0) {
+        endedPinch = this.nav.size === 2;
+        for (const [id, at] of this.nav) this.resting.set(id, at);
+        this.nav.clear();
+        this.lastPan = null;
+      }
       if (this.nav.size >= 2) return { kind: 'ignore' };
       // Any other drawer replaces one whose up event never arrived (stale pointer).
       this.drawId = e.pointerId;
       this.drawType = e.pointerType;
       this.drawLast = p;
-      return { kind: 'draw' };
+      return endedPinch ? { kind: 'draw', endedPinch } : { kind: 'draw' };
     }
 
     // Navigation finger (a pen has been seen): never touches the drawing pointer.
@@ -84,10 +98,10 @@ export class PointerRouter {
     return { kind: 'pan' };
   }
 
-  /** Moves a navigation pointer; answers the pinch points, or the pan delta of a single finger, or null. */
-  moveNav(e: PointerSample): { pinch: [Point, Point] } | { pan: Point } | null {
-    if (!this.nav.has(e.pointerId)) return null;
+  /** Moves a navigation pointer; answers a pinch that starts (a resting finger rejoined), the pinch points, the pan delta of a single finger, or null. */
+  moveNav(e: PointerSample): { pinchStart: [Point, Point] } | { pinch: [Point, Point] } | { pan: Point } | null {
     const p = { x: e.x, y: e.y };
+    if (!this.nav.has(e.pointerId)) return this.rejoin(e.pointerId, p);
     this.nav.set(e.pointerId, p);
     if (this.nav.size === 2) {
       const [a, b] = this.nav.values();
@@ -102,6 +116,16 @@ export class PointerRouter {
     return { pan: delta };
   }
 
+  /** A resting finger moves after the pen lifted: it pans again, or pinches with the finger already panning. */
+  private rejoin(pointerId: number, p: Point): { pinchStart: [Point, Point] } | null {
+    if (this.drawId !== null || !this.resting.delete(pointerId) || this.nav.size >= 2) return null;
+    this.nav.set(pointerId, p);
+    this.lastPan = this.nav.size === 1 ? p : null;
+    if (this.nav.size === 1) return null;
+    const [a, b] = this.nav.values();
+    return { pinchStart: [a, b] };
+  }
+
   moveDraw(e: PointerSample): void {
     if (this.drawId === e.pointerId) this.drawLast = { x: e.x, y: e.y };
   }
@@ -112,6 +136,7 @@ export class PointerRouter {
     if (endedDraw) this.drawId = null;
     const wasPinch = this.nav.size === 2;
     const removed = this.nav.delete(pointerId);
+    this.resting.delete(pointerId);
     // The finger left after a pinch pans afresh from its next move.
     this.lastPan = null;
     return { endedDraw, endedPinch: removed && wasPinch };
@@ -122,6 +147,7 @@ export class PointerRouter {
     const endedDraw = this.drawId !== null;
     this.drawId = null;
     this.nav.clear();
+    this.resting.clear();
     this.lastPan = null;
     return { endedDraw };
   }

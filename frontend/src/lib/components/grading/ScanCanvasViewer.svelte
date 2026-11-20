@@ -20,6 +20,7 @@
   import { ScanZoom } from "./scanZoom";
   import { StrokeInput } from "./strokeInput";
   import { penSeenStore } from "#lib/stores/penInput";
+  import { ownTouches } from "./palmGuard";
   import { penInputSettingsHref } from "#lib/utils/links";
   import { Alert } from "#lib/components/ui";
   import { t, translate } from "#lib/i18n";
@@ -570,11 +571,13 @@
     </div>
   {/if}
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead of letting the viewport scroll, so zooming in did nothing. -->
-  <!-- touch-none and select-none on the whole stack: fingers pan and pinch through our handlers (also between pages), and a long press never selects or opens a menu that cancels the pen. -->
+  <!-- touch-none and select-none on the whole stack: fingers pan and pinch through our handlers (also between pages), and a long press never selects or opens a menu that cancels the pen. Safari ignores both for the Apple Pencil, so `ownTouches` cancels the touch events too (issue #321). -->
   <div
     class="relative mx-auto flex touch-none flex-col gap-2 select-none"
     style="width: {zoomScaleNow * 100}%;"
     role="presentation"
+    data-palm-guard-skip
+    use:ownTouches
     onpointerdown={input.down}
     onpointermove={input.move}
     onpointerup={input.end}

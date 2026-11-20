@@ -21,14 +21,39 @@ describe('PointerRouter', () => {
     expect(r.down(at(2, 'touch')).kind).toBe('pan');
   });
 
-  it('never lets a resting palm end or pinch the pen stroke', () => {
+  // Regression (issue #321): a palm landing while the pen wrote panned the scan under the stroke.
+  it('ignores a resting palm while the pen draws, and fingers pan again after it lifted', () => {
     const r = new PointerRouter(true);
     expect(r.down(at(1, 'pen')).kind).toBe('draw');
-    expect(r.down(at(2, 'touch')).kind).toBe('pan');
-    expect(r.drawing).toBe(true);
+    expect(r.down(at(2, 'touch')).kind).toBe('ignore');
+    expect(r.navCount).toBe(0);
     expect(r.isDrawPointer(1)).toBe(true);
     expect(r.up(2)).toEqual({ endedDraw: false, endedPinch: false });
     expect(r.up(1).endedDraw).toBe(true);
+    expect(r.down(at(3, 'touch')).kind).toBe('pan');
+  });
+
+  it('drops a palm that landed before the pen, ending its pinch', () => {
+    const r = new PointerRouter(true);
+    r.down(at(1, 'touch', 0, 0));
+    r.down(at(2, 'touch', 10, 0));
+    expect(r.down(at(3, 'pen'))).toEqual({ kind: 'draw', endedPinch: true });
+    expect(r.navCount).toBe(0);
+    expect(r.moveNav(at(1, 'touch', 5, 5))).toBeNull();
+    expect(r.up(1)).toEqual({ endedDraw: false, endedPinch: false });
+  });
+
+  it('lets fingers a pen took out of a pinch pan and pinch again once it lifted', () => {
+    const r = new PointerRouter(true);
+    r.down(at(1, 'touch', 0, 0));
+    r.down(at(2, 'touch', 10, 0));
+    r.down(at(3, 'pen'));
+    expect(r.moveNav(at(1, 'touch', 5, 5))).toBeNull();
+    r.up(3);
+    expect(r.moveNav(at(1, 'touch', 5, 5))).toBeNull();
+    expect(r.moveNav(at(1, 'touch', 3, 2))).toEqual({ pan: { x: 2, y: 3 } });
+    expect(r.moveNav(at(2, 'touch', 20, 0))).toEqual({ pinchStart: [{ x: 3, y: 2 }, { x: 20, y: 0 }] });
+    expect(r.up(2).endedPinch).toBe(true);
   });
 
   it('pinches with two fingers once a pen is known', () => {
