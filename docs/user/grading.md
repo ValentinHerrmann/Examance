@@ -36,6 +36,8 @@ Correction marks are drawn on a separate layer above the scan. The original stay
 | **WF**, **FF** | Repeated error, follow-on error |
 | **Clear** | Removes every drawing and stamp on the page and resets the computed points |
 
+**Erase by scribbling:** with the **Pen**, scribble quickly back and forth over pen marks, lines or stamps (at least five passes) to erase them without switching to the **Eraser**; stamps take their points with them. The scribble itself is never kept, and a long mark it only crosses stays. If you cross out parts of a student's answer with zig-zags, switch this off under [Settings → Pen input](settings.md#pen-input).
+
 You can also type an exercise's points directly. **Reset to ungraded** clears a row again.
 
 ## Points, total and grade {#scores}

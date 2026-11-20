@@ -7356,6 +7356,66 @@
         }
       }
     },
+    "/api/v1/user/grading-scratch-out": {
+      "put": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Set Grading Scratch Out",
+        "description": "Switch erasing pen marks and stamps by scribbling over them on or off (issue #330).",
+        "operationId": "set_grading_scratch_out_api_v1_user_grading_scratch_out_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradingScratchOutUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user/purge-server-student-data": {
       "post": {
         "tags": [
@@ -11138,6 +11198,11 @@
             ],
             "title": "Grading Controls Side",
             "default": "left"
+          },
+          "grading_scratch_out": {
+            "type": "boolean",
+            "title": "Grading Scratch Out",
+            "default": true
           }
         },
         "type": "object",
@@ -14443,6 +14508,20 @@
           "updated_at"
         ],
         "title": "GradingReviewResponse"
+      },
+      "GradingScratchOutUpdate": {
+        "properties": {
+          "grading_scratch_out": {
+            "type": "boolean",
+            "title": "Grading Scratch Out"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "grading_scratch_out"
+        ],
+        "title": "GradingScratchOutUpdate"
       },
       "HTTPValidationError": {
         "properties": {

@@ -36,6 +36,8 @@ Korrekturzeichen entstehen auf einer eigenen Ebene über dem Scan. Das Original 
 | **WF**, **FF** | Wiederholungsfehler, Folgefehler |
 | **Löschen** | Entfernt jede Zeichnung und jeden Stempel auf der Seite und setzt die berechneten Punkte zurück |
 
+**Durch Kritzeln radieren:** Kritzeln Sie mit dem **Stift** schnell hin und her über Striche, Linien oder Stempel (mindestens fünfmal), um sie ohne Wechsel zum **Radierer** zu löschen; Stempel nehmen ihre Punkte mit. Das Gekritzel selbst bleibt nie stehen, und ein langer Strich, den es nur kreuzt, bleibt erhalten. Wenn Sie Teile einer Schülerantwort mit Zickzack durchstreichen, schalten Sie das unter [Einstellungen → Stifteingabe](settings.md#pen-input) aus.
+
 Sie können die Punkte einer Aufgabe auch direkt eintippen. **Als unkorrigiert zurücksetzen** leert eine Zeile wieder.
 
 ## Punkte, Summe und Note {#scores}

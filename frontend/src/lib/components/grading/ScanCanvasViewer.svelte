@@ -20,6 +20,7 @@
   import { ScanZoom } from "./scanZoom";
   import { StrokeInput } from "./strokeInput";
   import { penSeenStore } from "#lib/stores/penInput";
+  import { capabilitiesStore } from "#lib/stores/capabilities";
   import { ownTouches } from "./palmGuard";
   import { penInputSettingsHref } from "#lib/utils/links";
   import { Alert } from "#lib/components/ui";
@@ -103,6 +104,7 @@
   });
   // A reset in Settings (also from another tab) lets fingers draw again.
   onDestroy(penSeenStore.subscribe((seen) => input.setPenSeen(seen)));
+  onDestroy(capabilitiesStore.subscribe((caps) => input.setScratchOut(caps?.gradingScratchOut !== false)));
 
   // Told once, when this device shows its first pen: fingers stop drawing (issue #233).
   const PEN_NOTICE_MS = 8000;

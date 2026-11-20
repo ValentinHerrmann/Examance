@@ -22,6 +22,7 @@ from app.models.teacher import Teacher
 from app.schemas.capabilities import (
     CapabilitiesOut,
     GradingControlsSideUpdate,
+    GradingScratchOutUpdate,
     ReviewMailUpdate,
     StorageModeUpdate,
 )
@@ -49,6 +50,7 @@ def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
         share_new_exercises=teacher.share_new_exercises,
         review_mail=teacher.review_mail,
         grading_controls_side="right" if teacher.grading_controls_side == "right" else "left",
+        grading_scratch_out=teacher.grading_scratch_out is not False,
     )
 
 
@@ -103,6 +105,16 @@ async def set_grading_controls_side(
 ) -> CapabilitiesOut:
     """Put the grading view's controls on the left or the right (issue #328)."""
     teacher.grading_controls_side = body.grading_controls_side
+    await db.flush()
+    return _capabilities_out(teacher)
+
+
+@router.put("/grading-scratch-out")
+async def set_grading_scratch_out(
+    body: GradingScratchOutUpdate, teacher: TeachingTeacher, db: DB
+) -> CapabilitiesOut:
+    """Switch erasing pen marks and stamps by scribbling over them on or off (issue #330)."""
+    teacher.grading_scratch_out = body.grading_scratch_out
     await db.flush()
     return _capabilities_out(teacher)
 

@@ -1,10 +1,29 @@
 <script lang="ts">
-  import { t } from "#lib/i18n";
+  import { faEraser } from "@fortawesome/free-solid-svg-icons";
+  import { t, translate } from "#lib/i18n";
+  import { apiErrorMessage } from "#lib/api/client";
   import { penSeenStore, resetPenDetection } from "#lib/stores/penInput";
-  import { Alert, Button, Card } from "#lib/components/ui";
+  import { capabilitiesStore, saveGradingScratchOut } from "#lib/stores/capabilities";
+  import { Alert, Button, Card, OptionTile } from "#lib/components/ui";
 
-  /** Pen detection of this device (issue #233): shows whether fingers draw in the grading view and lets the teacher reset it. */
+  /** Pen detection of this device (issue #233) and, for teachers, the account's scratch-out switch (issue #330). */
+  let { scratchOut = false }: { scratchOut?: boolean } = $props();
   let done = $state(false);
+  let scratchOn = $derived($capabilitiesStore?.gradingScratchOut !== false);
+  let busy = $state(false);
+  let error = $state("");
+
+  async function toggleScratchOut(next: boolean) {
+    busy = true;
+    error = "";
+    try {
+      await saveGradingScratchOut(next);
+    } catch (err) {
+      error = apiErrorMessage(err, translate("settings.penInput.scratchOutFailed"));
+    } finally {
+      busy = false;
+    }
+  }
 
   function reset() {
     resetPenDetection();
@@ -30,6 +49,14 @@
     {/if}
     {#if done && !$penSeenStore}
       <Alert severity="success" class="mt-3" onDismiss={() => (done = false)}>{$t("settings.penInput.resetDone")}</Alert>
+    {/if}
+    {#if scratchOut && $capabilitiesStore}
+      <div class="mt-4 border-t border-line pt-4">
+        <OptionTile type="checkbox" checked={scratchOn} disabled={busy} icon={faEraser} title={$t("settings.penInput.scratchOut")} text={$t("settings.penInput.scratchOutHint")} onToggle={toggleScratchOut} />
+        {#if error}
+          <Alert severity="danger" class="mt-3">{error}</Alert>
+        {/if}
+      </div>
     {/if}
   </Card>
 </div>

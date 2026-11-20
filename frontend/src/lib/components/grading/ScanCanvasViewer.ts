@@ -118,6 +118,122 @@ export function eraseStrokesAt(strokes: VectorStroke[], page: number, from: Poin
   return remaining.length === strokes.length ? null : remaining;
 }
 
+// Scratch-out (issue #330): canvas pixels at pdf.js scale 2.
+const SCRATCH_STEP = 8; // resampling spacing, so pen jitter neither adds reversals nor turning
+const SCRATCH_MIN_DIAG = 30; // a dot or a tiny tick never counts as a scribble
+const SCRATCH_MIN_REVERSALS = 4; // five passes back and forth; a written W or M has three
+const SCRATCH_MAX_NET_TURN = 0.5; // a zig-zag's turns cancel out; a circle or spiral turns one way
+const SCRATCH_MIN_DENSITY = 3; // path length / bounding-box diagonal: the passes overlap, unlike written letters
+const SCRATCH_MAX_SPREAD = 1.5; // extent across / along the passes: a written word runs across its strokes
+const SCRATCH_PAD = 15; // about half a stamp, so a stamp's point just outside the scribble still counts
+const SCRATCH_PEN_SHARE = 0.6; // a long mark merely crossed stays
+
+/** The stroke's points about SCRATCH_STEP apart. */
+function resample(points: Point[]): Point[] {
+  const out = [points[0]];
+  for (const p of points) {
+    const last = out.at(-1)!;
+    if (Math.hypot(p.x - last.x, p.y - last.y) >= SCRATCH_STEP) out.push(p);
+  }
+  return out;
+}
+
+/** Unit vector of the stroke's dominant drawing direction (segment orientations averaged by doubled angle, so back and forth adds up). */
+function strokeAxis(points: Point[]): Point {
+  let c = 0;
+  let sn = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = 2 * Math.atan2(points[i].y - points[i - 1].y, points[i].x - points[i - 1].x);
+    c += Math.cos(a);
+    sn += Math.sin(a);
+  }
+  const angle = Math.atan2(sn, c) / 2;
+  return { x: Math.cos(angle), y: Math.sin(angle) };
+}
+
+function extentAlong(points: Point[], axis: Point): number {
+  const proj = points.map((p) => p.x * axis.x + p.y * axis.y);
+  return Math.max(...proj) - Math.min(...proj);
+}
+
+/** Times the stroke turns back along `axis`, counting only passes over at least a third of its extent. */
+function countReversals(points: Point[], axis: Point): number {
+  const proj = points.map((p) => p.x * axis.x + p.y * axis.y);
+  const hysteresis = Math.max(SCRATCH_STEP, extentAlong(points, axis) / 3);
+  let reversals = 0;
+  let dir = 0;
+  let extreme = proj[0];
+  for (const v of proj) {
+    if (dir === 0) {
+      if (Math.abs(v - extreme) >= hysteresis) {
+        dir = Math.sign(v - extreme);
+        extreme = v;
+      }
+    } else if ((v - extreme) * dir > 0) {
+      extreme = v;
+    } else if ((extreme - v) * dir >= hysteresis) {
+      reversals++;
+      dir = -dir;
+      extreme = v;
+    }
+  }
+  return reversals;
+}
+
+/** |signed turning| / total turning: near 0 for a zig-zag, near 1 for a loop. */
+function netTurnRatio(points: Point[]): number {
+  let signed = 0;
+  let total = 0;
+  for (let i = 2; i < points.length; i++) {
+    const a = Math.atan2(points[i - 1].y - points[i - 2].y, points[i - 1].x - points[i - 2].x);
+    const b = Math.atan2(points[i].y - points[i - 1].y, points[i].x - points[i - 1].x);
+    let turn = b - a;
+    if (turn > Math.PI) turn -= 2 * Math.PI;
+    if (turn < -Math.PI) turn += 2 * Math.PI;
+    signed += turn;
+    total += Math.abs(turn);
+  }
+  return total === 0 ? 1 : Math.abs(signed) / total;
+}
+
+function boundsOf(points: Point[]): { minX: number; minY: number; maxX: number; maxY: number } {
+  return {
+    minX: Math.min(...points.map((p) => p.x)),
+    minY: Math.min(...points.map((p) => p.y)),
+    maxX: Math.max(...points.map((p) => p.x)),
+    maxY: Math.max(...points.map((p) => p.y)),
+  };
+}
+
+/** Whether a pen stroke is a back-and-forth scribble meant to erase what it covers (issue #330). */
+export function isScratchOut(points: Point[]): boolean {
+  if (points.length < 2) return false;
+  const b = boundsOf(points);
+  const diag = Math.hypot(b.maxX - b.minX, b.maxY - b.minY);
+  const pts = resample(points);
+  let length = 0;
+  for (let i = 1; i < pts.length; i++) length += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  if (diag < SCRATCH_MIN_DIAG || length < SCRATCH_MIN_DENSITY * diag) return false;
+  const axis = strokeAxis(pts);
+  if (extentAlong(pts, { x: -axis.y, y: axis.x }) > SCRATCH_MAX_SPREAD * extentAlong(pts, axis)) return false;
+  return countReversals(pts, axis) >= SCRATCH_MIN_REVERSALS && netTurnRatio(pts) <= SCRATCH_MAX_NET_TURN;
+}
+
+/** Strokes left after a scribble on `page` erased the marks it covers; null when it covered none. */
+export function scratchOutStrokes(strokes: VectorStroke[], page: number, scribble: Point[]): VectorStroke[] | null {
+  const b = boundsOf(scribble);
+  const inside = (p: Point) =>
+    p.x >= b.minX - SCRATCH_PAD && p.x <= b.maxX + SCRATCH_PAD && p.y >= b.minY - SCRATCH_PAD && p.y <= b.maxY + SCRATCH_PAD;
+  const covered = (s: VectorStroke): boolean => {
+    if ((s.pageNumber ?? 1) !== page || s.points.length === 0) return false;
+    if (s.tool === 'line') return s.points.every(inside);
+    if (s.tool !== 'pen') return inside(s.points[0]);
+    return s.points.filter(inside).length >= SCRATCH_PEN_SHARE * s.points.length;
+  };
+  const remaining = strokes.filter((s) => !covered(s));
+  return remaining.length === strokes.length ? null : remaining;
+}
+
 /** A new stroke of the active tool at `point`. Stamps go to the active exercise (else the first) and its active part; lines and pen keep the active id as is. */
 export function newStroke(
   state: Pick<GradingState, 'drawTool' | 'penColor' | 'activeExerciseId' | 'activePartLabel'>,

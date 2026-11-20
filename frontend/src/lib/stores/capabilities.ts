@@ -25,6 +25,8 @@ export interface Capabilities {
   reviewMail?: boolean | null;
   /** Grading controls on the left (default, right-handed) or right (issue #328); absent in an older cache. */
   gradingControlsSide?: ControlsSide;
+  /** Scribbling over pen marks and stamps erases them (issue #330); on unless false. */
+  gradingScratchOut?: boolean;
 }
 
 const CACHE_KEY = 'bg_capabilities';
@@ -72,6 +74,7 @@ interface CapabilitiesResponse {
   share_new_exercises?: boolean | null;
   review_mail?: boolean | null;
   grading_controls_side?: string;
+  grading_scratch_out?: boolean;
 }
 
 function fromResponse(res: CapabilitiesResponse): Capabilities {
@@ -86,6 +89,7 @@ function fromResponse(res: CapabilitiesResponse): Capabilities {
     shareNewExercises: typeof res.share_new_exercises === 'boolean' ? res.share_new_exercises : null,
     reviewMail: typeof res.review_mail === 'boolean' ? res.review_mail : null,
     gradingControlsSide: res.grading_controls_side === 'right' ? 'right' : 'left',
+    gradingScratchOut: res.grading_scratch_out !== false,
   };
 }
 
@@ -133,6 +137,13 @@ export async function saveReviewMail(value: boolean | null): Promise<Capabilitie
 /** Moves the grading controls to the left or right (issue #328); the server answers with the capabilities. */
 export async function saveGradingControlsSide(side: ControlsSide): Promise<Capabilities> {
   const caps = fromResponse(await api.put<CapabilitiesResponse>('/user/grading-controls-side', { grading_controls_side: side }, { silentError: true }));
+  capabilitiesStore.set(caps);
+  return caps;
+}
+
+/** Switches erasing by scribbling over marks on or off (issue #330); the server answers with the capabilities. */
+export async function saveGradingScratchOut(on: boolean): Promise<Capabilities> {
+  const caps = fromResponse(await api.put<CapabilitiesResponse>('/user/grading-scratch-out', { grading_scratch_out: on }, { silentError: true }));
   capabilitiesStore.set(caps);
   return caps;
 }

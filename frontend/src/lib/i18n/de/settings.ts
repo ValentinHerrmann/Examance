@@ -30,6 +30,9 @@ export const settings = {
         reset: 'Stifterkennung zurücksetzen',
         resetDisabled: 'Auf diesem Gerät wurde noch kein Stift erkannt.',
         resetDone: 'Zurückgesetzt: Finger zeichnen wieder, bis Sie erneut einen Stift benutzen.',
+        scratchOut: 'Durch Kritzeln radieren',
+        scratchOutHint: 'Ein schnelles Hin-und-her-Kritzeln mit dem Stift löscht die Striche und Stempel darunter; das Gekritzel selbst bleibt nicht stehen. Gilt für Ihr Konto auf allen Geräten.',
+        scratchOutFailed: 'Die Einstellung konnte nicht gespeichert werden.',
     },
     gradingLayout: {
         heading: 'Anordnung der Korrekturansicht',

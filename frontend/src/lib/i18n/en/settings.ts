@@ -32,6 +32,9 @@ export const settings: Translations['settings'] = {
         reset: 'Reset pen detection',
         resetDisabled: 'No pen has been detected on this device yet.',
         resetDone: 'Reset: fingers draw again until you use a pen again.',
+        scratchOut: 'Erase by scribbling',
+        scratchOutHint: 'A quick back-and-forth scribble with the pen erases the marks and stamps underneath; the scribble itself is not kept. Applies to your account on every device.',
+        scratchOutFailed: 'The setting could not be saved.',
     },
     gradingLayout: {
         heading: 'Grading view layout',

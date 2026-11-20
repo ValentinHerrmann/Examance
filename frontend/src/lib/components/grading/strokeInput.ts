@@ -2,7 +2,7 @@
 
 import { get } from 'svelte/store';
 import { gradingStore, type VectorStroke } from '#lib/grading/gradingStore';
-import { eraseStrokesAt, newStroke } from './ScanCanvasViewer';
+import { eraseStrokesAt, isScratchOut, newStroke, scratchOutStrokes } from './ScanCanvasViewer';
 import { PointerRouter, type Point, type PointerSample } from './pointerInput';
 import { markPenSeen } from '#lib/stores/penInput';
 import { releaseTextFocus } from './palmGuard';
@@ -50,6 +50,8 @@ export class StrokeInput {
   // The stamp the first finger placed and when, so a second finger right after (pinch) can take it back.
   private stampIndex: number | null = null;
   private startedAt = 0;
+  // Scribbling over marks erases them (issue #330, account setting).
+  private scratchOut = true;
   /** Pen or line stroke in progress: committed to the store only when the pointer lifts, so a move never notifies every grading subscriber and autosave never sees half a stroke. */
   live: VectorStroke | null = null;
 
@@ -58,6 +60,11 @@ export class StrokeInput {
   /** Follows `penSeenStore` (a reset in Settings lets fingers draw again). */
   setPenSeen(seen: boolean) {
     this.pointers.penSeen = seen;
+  }
+
+  /** Follows the account's scratch-out switch (Settings → Pen input). */
+  setScratchOut(on: boolean) {
+    this.scratchOut = on;
   }
 
   down = (e: PointerEvent) => {
@@ -130,9 +137,21 @@ export class StrokeInput {
     const live = this.live;
     if (!live) return;
     this.live = null;
+    const page = live.pageNumber ?? this.page;
+    // A scribble is never kept as ink: it erases what it covers, or nothing.
+    if (live.tool === 'pen' && this.scratchOut && isScratchOut(live.points)) {
+      const remaining = scratchOutStrokes(this.view.strokes(), page, live.points);
+      if (remaining) {
+        this.view.persist(remaining);
+        this.view.recalcScores();
+        gradingStore.markDirty();
+      }
+      this.view.redraw(page);
+      return;
+    }
     this.view.persist([...this.view.strokes(), live]);
     gradingStore.markDirty();
-    this.view.redraw(live.pageNumber ?? this.page);
+    this.view.redraw(page);
   }
 
   private startDraw(e: PointerEvent) {

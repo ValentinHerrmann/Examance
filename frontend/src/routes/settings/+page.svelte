@@ -269,7 +269,7 @@
           serverLatexEnabled={$featuresStore.server_latex === true}
         />
 
-        <PenInputCard />
+        <PenInputCard scratchOut={!isAdmin} />
 
         {#if !isAdmin}
           <GradingLayoutCard />
