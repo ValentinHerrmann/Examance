@@ -8,7 +8,7 @@ vi.mock('../src/lib/latex/compileCache', () => ({
 vi.mock('../src/lib/repositories/exerciseResourceRepository', () => ({ exerciseResourceRepository: {} }));
 vi.mock('../src/lib/latex/packageSettings', () => ({ getAccountPackages: vi.fn().mockResolvedValue([]) }));
 
-import { buildExamLatex, buildExerciseBlocks } from '../src/lib/exam/examPreview';
+import { buildExamLatex, buildExerciseBlocks, withExamOptions } from '../src/lib/exam/examPreview';
 import { mapScorePositions } from '../src/lib/grading/omrTemplatePrep';
 import type { ExamRecord } from '../src/lib/db/schema';
 
@@ -39,11 +39,23 @@ describe('buildExamLatex extra notes', () => {
   });
 });
 
+describe('dotted paper and dotted answer fields (issue #314)', () => {
+  const opts = (exam: Parameters<typeof withExamOptions>[1]) => withExamOptions('sans', exam).split(',');
+
+  it('sets the paper and the answer fields on their own', () => {
+    expect(opts({ paperStyle: 'dotted' })).toEqual(['sans', 'papierpunkte']);
+    expect(opts({ dottedFields: true })).toEqual(['sans', 'karopunkte']);
+    expect(opts({ paperStyle: 'squared', dottedFields: true })).toEqual(['sans', 'papierkaro', 'karopunkte']);
+    expect(opts({})).toEqual(['sans']);
+  });
+});
+
 describe('preview invalidation: every print-shaping option changes the source (issue #228)', () => {
   const notes = { title: 'Platz', description: '', minHeightCm: 4, maxHeightCm: 12 };
   const start = { ...base, pageCodes: true, stickerSpots: 'sheet', extraNotes: notes } as ExamRecord;
   const changes: [string, Partial<ExamRecord>][] = [
     ['paper style', { paperStyle: 'lined' }],
+    ['dotted fields', { dottedFields: true }],
     ['extra pages', { extraPages: 2 }],
     ['rest-of-page area off', { extraNotes: { ...notes, fill: false } }],
     ['heading', { extraNotes: { ...notes, title: 'Mehr' } }],

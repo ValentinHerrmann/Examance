@@ -37,6 +37,7 @@ const SAMPLE_EXAM: ExamRecord = {
   resultsQrBox: true,
   cutCorner: false,
   foldStrip: false,
+  dottedFields: false,
   nameLine: true,
   pageCodes: false,
   printLayout: 'duplex',

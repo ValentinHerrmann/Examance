@@ -89,10 +89,17 @@
     return cells;
   }
 
+  /** The paper's stroke width: dots (round-capped dashes) need a thicker pen than lines; a highlighted paper draws stronger. */
+  function paperStroke(): number {
+    const strong = lit("paper");
+    if (model.paper === "dotted") return strong ? 1.4 : 1;
+    return strong ? 0.5 : 0.25;
+  }
+
   /** The writing paper's lines in a box. */
   function pattern(x: number, y: number, w: number, h: number) {
     if (model.paper === "empty" || h <= 0) return [] as { x1: number; y1: number; x2: number; y2: number }[];
-    const step = model.paper === "squared" ? 5 : 8;
+    const step = model.paper === "squared" || model.paper === "dotted" ? 5 : 8;
     const out: { x1: number; y1: number; x2: number; y2: number }[] = [];
     for (let yy = y; yy <= y + h; yy += step) out.push({ x1: x, y1: yy, x2: x + w, y2: yy });
     if (model.paper === "squared") for (let xx = x; xx <= x + w; xx += step) out.push({ x1: xx, y1: y, x2: xx, y2: y + h });
@@ -207,7 +214,7 @@
     <text x="20" y={writing.y - 4} font-size="5" font-weight="bold" fill="currentColor" class={tone("notes", lit("notes"))}>{model.notesTitle}</text>
   {/if}
   {#if writing}
-    <g stroke="currentColor" stroke-width={lit("paper") ? 0.5 : 0.25} class={tone("paper", lit("paper"))} opacity="0.7">
+    <g stroke="currentColor" stroke-width={paperStroke()} stroke-linecap={model.paper === "dotted" ? "round" : undefined} stroke-dasharray={model.paper === "dotted" ? "0 5" : undefined} class={tone("paper", lit("paper"))} opacity="0.7">
       {#each pattern(writing.x, writing.y, writing.w, writing.h) as p, i (i)}<line x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} />{/each}
     </g>
     {@render glow("paper", writing.x, writing.y, writing.w, writing.h)}

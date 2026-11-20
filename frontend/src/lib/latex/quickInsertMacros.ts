@@ -109,6 +109,13 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     buildTemplate: (a) => templateJoin([String.raw`\LoesungKaro{`, "}{", "}"], a)
   },
   {
+    id: "loesung-punktraster",
+    category: "solutions",
+    preview: String.raw`\LoesungPunktraster{solution}{n}`,
+    args: [{ placeholder: "solution" }, { placeholder: "10" }],
+    buildTemplate: (a) => templateJoin([String.raw`\LoesungPunktraster{`, "}{", "}"], a)
+  },
+  {
     id: "loesung-line",
     category: "solutions",
     preview: String.raw`\LoesungLine{solution}{n}`,
@@ -139,6 +146,14 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     preview: String.raw`\kariert[cellSize]{rows}`,
     args: [{ placeholder: "0.5cm", optional: true }, { placeholder: "3" }],
     buildTemplate: (a) => templateJoin([String.raw`\kariert[`, "]{", "}"], a),
+    selectionArgIndex: 1
+  },
+  {
+    id: "punktraster",
+    category: "solutions",
+    preview: String.raw`\punktraster[cellSize]{rows}`,
+    args: [{ placeholder: "0.5cm", optional: true }, { placeholder: "3" }],
+    buildTemplate: (a) => templateJoin([String.raw`\punktraster[`, "]{", "}"], a),
     selectionArgIndex: 1
   },
   {

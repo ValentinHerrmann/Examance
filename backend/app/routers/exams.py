@@ -84,6 +84,7 @@ _HEADER_FIELDS = (
     "results_qr_box",
     "cut_corner",
     "fold_strip",
+    "dotted_fields",
 )
 # What a duplicate takes over; the title, retention and page breaks are set separately.
 _COPIED_FIELDS = (*_HEADER_FIELDS, "extra_notes")

@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { clampBookletOffset, clampExtraPages, printFileKey, printSettingsOf, stickerPagesOf, stickersPerCopy, type PrintSettings } from '../src/lib/exam/printLayout';
 import { printStamps } from '../src/lib/exam/examChecks';
 
-const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true, ...patch });
+const settings = (patch: Partial<PrintSettings>): PrintSettings => ({ pageCodes: true, layout: 'duplex', mode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true, dottedFields: false, ...patch });
 
 describe('print settings (issue #220)', () => {
   it('reads older exams as the old layout', () => {
-    expect(printSettingsOf({})).toEqual({ pageCodes: false, layout: 'duplex', mode: 'stickers', stickerSpots: 'cover', paperStyle: 'empty', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true });
+    expect(printSettingsOf({})).toEqual({ pageCodes: false, layout: 'duplex', mode: 'stickers', stickerSpots: 'cover', paperStyle: 'empty', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true, dottedFields: false });
   });
 
   it('falls back to a spot choice the layout offers', () => {
@@ -47,7 +47,10 @@ describe('print settings (issue #220)', () => {
 
 describe('extra paper settings (issue #228)', () => {
   it('reads unknown paper as empty and clamps the extra pages to 0..20', () => {
-    expect(printSettingsOf({ paperStyle: 'dotted' as never }).paperStyle).toBe('empty');
+    expect(printSettingsOf({ paperStyle: 'zigzag' as never }).paperStyle).toBe('empty');
+    expect(printSettingsOf({ paperStyle: 'dotted' }).paperStyle).toBe('dotted');
+    expect(printSettingsOf({}).dottedFields).toBe(false);
+    expect(printSettingsOf({ dottedFields: true }).dottedFields).toBe(true);
     expect(printSettingsOf({ paperStyle: 'lined' }).paperStyle).toBe('lined');
     expect([clampExtraPages(-3), clampExtraPages('4'), clampExtraPages(2.7), clampExtraPages(99), clampExtraPages('x')]).toEqual([0, 4, 2, 20, 0]);
   });

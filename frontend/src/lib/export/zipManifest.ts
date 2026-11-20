@@ -70,7 +70,7 @@ export interface ZipExamSettings {
   stickerSpots?: 'cover' | 'sheet' | 'a3' | 'leaf';
   printMode?: 'stickers' | 'copies';
   /** Extra paper (issue #228); absent in older ZIPs, read as none. */
-  paperStyle?: 'empty' | 'squared' | 'lined';
+  paperStyle?: 'empty' | 'squared' | 'dotted' | 'lined';
   extraPages?: number;
   /** Booklet print shift in mm (issue #228); absent = 0. */
   bookletOffsetMm?: number;
@@ -80,6 +80,8 @@ export interface ZipExamSettings {
   /** Scan aids one by one (issue #272); absent = as `digitalGrading`. */
   cutCorner?: boolean;
   foldStrip?: boolean;
+  /** Squared answer fields as dots (issue #314); absent = false. */
+  dottedFields?: boolean;
   extraNotes?: ExtraNotes | null;
 }
 
