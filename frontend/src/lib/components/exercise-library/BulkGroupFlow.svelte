@@ -32,6 +32,8 @@
   let busy = $state(false);
   let error = $state("");
   let usageLoading = $state(false);
+  // The lookup failed: nothing may be deleted, since any group could be in use.
+  let usageFailed = $state(false);
   let usage = $state.raw(new Map<string, ExamUsageEntry[]>());
   let usageSeq = 0;
 
@@ -51,12 +53,17 @@
   async function loadUsage(groups: ExerciseGroup[]) {
     const seq = ++usageSeq;
     usageLoading = true;
+    usageFailed = false;
     usage = new Map();
     try {
       const found = await Promise.all(groups.map(async (g) => [g.groupId, await loadExamUsage(g.allMembers.map((m) => m.ex.id))] as const));
       if (seq === usageSeq) usage = new Map(found);
     } catch (err) {
-      if (seq === usageSeq) error = (err as Error)?.message ?? String(err);
+      if (seq === usageSeq) {
+        usageFailed = true;
+        error = translate("exercises.bulk.usageFailed");
+        console.warn("Failed to check exercise usage:", err);
+      }
     } finally {
       if (seq === usageSeq) usageLoading = false;
     }
@@ -166,7 +173,7 @@
   items={kept.map((g) => ({ id: g.groupId, title: nameOf(g), meta: $t("exercises.bulk.usedIn", { exams: (usage.get(g.groupId) ?? []).map((e) => e.title).join(", ") }) }))}
   plainText={$t("exercises.bulk.deleteConfirm", { count: deletable.length })}
   restoreHint={$t("common.trashHint", { days: TRASH_DAYS })}
-  confirmDisabled={!deletable.length}
+  confirmDisabled={usageFailed || !deletable.length}
   {busy}
   {error}
   onConfirm={confirmDelete}

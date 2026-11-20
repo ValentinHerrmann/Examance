@@ -67,6 +67,7 @@ export const exercises = {
         previewFailed: 'Vorschau fehlgeschlagen: {message}',
         previewFailedUnknown: 'Unbekannter Kompilierungsfehler',
         saveFailed: 'Aufgabe konnte nicht gespeichert werden: {message}',
+        filesNotSynced: 'Die Aufgabe ist gespeichert, aber diese Dateien konnten nicht hochgeladen werden: {files}. Sie bleiben in diesem Browser und werden beim nächsten Speichern erneut hochgeladen.',
         previewAngabeTitle: 'Aufgabe',
         previewLoesungTitle: 'Lösung',
         previewPlaceholder: 'Klicken Sie auf „Live-Vorschau PDF“, um zu rendern',
@@ -127,6 +128,7 @@ export const exercises = {
     deleteModal: {
         title: 'Aufgabe löschen: {name}',
         checkingUsage: 'Aufgabennutzung in Prüfungen wird geprüft...',
+        usageFailed: 'Ob die Aufgabe in Prüfungen verwendet wird, konnte nicht geprüft werden. Löschen ist deshalb gesperrt; bitte später erneut versuchen.',
         warningTitle: 'Warnung: Aufgabe wird verwendet',
         usageInfo: 'Diese Aufgabe wird derzeit in {count} Prüfung(en) verwendet:',
         usageWarning: 'Beim Löschen wird sie aus der Bibliothek und aus diesen Prüfungen entfernt.',
@@ -270,6 +272,7 @@ export const exercises = {
         unsharedDone: '{groups} Aufgabengruppen werden nicht mehr geteilt.',
         deleteTitle: '{count} Aufgabengruppe(n) löschen',
         checkingUsage: 'Nutzung in Prüfungen wird geprüft …',
+        usageFailed: 'Ob die gewählten Aufgaben in Prüfungen verwendet werden, konnte nicht geprüft werden. Löschen ist deshalb gesperrt; bitte später erneut versuchen.',
         keptTitle: 'Diese Gruppen werden in Prüfungen verwendet und nicht gelöscht:',
         keptHint: 'Entfernen Sie die Aufgaben zuerst aus diesen Prüfungen, wenn Sie die Gruppen löschen möchten.',
         allKept: 'Keine der ausgewählten Gruppen kann gelöscht werden.',

@@ -51,13 +51,13 @@
 
   const setMc = (patch: Parameters<typeof withMcChecks>[1]) =>
     run(async () => {
-      if (checks) await saveExamChecks(examId, withMcChecks(checks, patch));
+      if (checks) await saveExamChecks(examId, checks, (c) => withMcChecks(c, patch));
     });
 
   const bulkConfirm = () =>
     run(async () => {
       const res = await confirmDetections(examId, get(sessionStore).sessionKey, sureOpen);
-      if (checks && res.count > 0) await saveExamChecks(examId, withMcChecks(checks, { bulk: res }));
+      if (checks && res.count > 0) await saveExamChecks(examId, checks, (c) => withMcChecks(c, { bulk: res }));
       confirmOpen = false;
       await onChanged();
     });
@@ -66,7 +66,7 @@
     run(async () => {
       if (!bulk) return;
       await restoreDetections(examId, get(sessionStore).sessionKey, bulk.at);
-      if (checks) await saveExamChecks(examId, withMcChecks(checks, { bulk: undefined }));
+      if (checks) await saveExamChecks(examId, checks, (c) => withMcChecks(c, { bulk: undefined }));
       undoOpen = false;
       await onChanged();
     });

@@ -53,8 +53,11 @@ export function createAutosave({ run, delayMs = AUTOSAVE_DELAY_MS, message = def
       await run();
       set(tracked ? 'saving' : 'saved');
     } catch (err) {
+      // An edit made during the failed save is kept: it saves on the next timer, never in a tight retry loop (issue #298).
+      const edited = again;
       again = false;
       set('error', message(err));
+      if (edited && !timer) timer = setTimeout(() => void flush(), delayMs);
     }
   }
 

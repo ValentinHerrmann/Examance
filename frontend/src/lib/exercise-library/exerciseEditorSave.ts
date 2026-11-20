@@ -7,7 +7,7 @@ import { sessionStore, isAuthenticated } from '#lib/stores/session';
 import { parseExerciseScore } from '#lib/latex/scoreParser';
 import { parseMcOptions, MC_MIN_OPTIONS, type McOption } from '#lib/latex/mcOptions';
 import { setCompetencies, setRequirementLevel } from '#lib/latex/exerciseStructure';
-import type { TranslationKey } from '#lib/i18n';
+import { translate, type TranslationKey } from '#lib/i18n';
 
 /** Typing LaTeX is bursty and each save encrypts and PATCHes the record: wait longer than the form default. */
 export const EDITOR_AUTOSAVE_MS = 2000;
@@ -181,4 +181,17 @@ export async function writeNewVersion(base: ExerciseRecord, draft: ExerciseDraft
   await saveExerciseEncrypted({ ...base, isCurrent: false }, key);
   await saveExerciseEncrypted(saved, key);
   return saved;
+}
+
+/** Files that did not reach the server although the exercise was saved (issue #298): they stay in this browser, flagged for upload, and go with the exercise's next save. */
+export class ResourceSyncError extends Error {
+  constructor(readonly files: string[], readonly status: number) {
+    super(translate('exercises.editor.filesNotSynced', { files: files.join('; ') }));
+    this.name = 'ResourceSyncError';
+  }
+}
+
+/** The error for a resource commit's upload failures, or null when every file arrived; without an HTTP status (no response) it reports 503. */
+export function resourceSyncError(result: { errors: string[]; status?: number }): ResourceSyncError | null {
+  return result.errors.length ? new ResourceSyncError(result.errors, result.status ?? 503) : null;
 }

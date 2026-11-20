@@ -7,7 +7,8 @@
   import { askToShare } from "#lib/exercise-library/askToShare";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { parseMcOptions, buildMcOptionsLatex, type McOption } from "#lib/latex/mcOptions";
-  import { EDITOR_AUTOSAVE_MS, cascadeGroupMetadata, exerciseDraftError, withoutMetaTags, writeExercise, writeNewVersion, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
+  import { EDITOR_AUTOSAVE_MS, ResourceSyncError, cascadeGroupMetadata, exerciseDraftError, resourceSyncError, withoutMetaTags, writeExercise, writeNewVersion, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
+  import { httpErrorStore } from "#lib/stores/httpErrorStore";
   import { createAutosave } from "#lib/utils/autosave";
   import { getLatestForSlot } from "#lib/latex/compileCache";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
@@ -112,22 +113,22 @@
   let previewError = $state("");
   let previewLog = $state<CompileFailure | null>(null);
 
-  // Move the staged files onto the just-written exercise. Upload failures never fail the save: the exercise is already stored and the files stay staged locally.
+  // Move the staged files onto the just-written exercise. Files that failed to upload throw `ResourceSyncError` (issue #298): they stay in this browser, flagged for upload, and the caller reports them.
   async function commitStagedResources(exerciseId: string, key: CryptoKey | null, keepStaging = false) {
     await resourceSeed;
+    const result = await exerciseResourceRepository.commit(resourceStagingId, exerciseId, key, { keepStaging });
+    resourcesCommitted = true;
+    const failed = resourceSyncError(result);
+    if (failed) throw failed;
+  }
+
+  /** An explicit save already stored the exercise, so the dialog closes; files that did not upload are reported in the error dialog. */
+  async function commitAfterSave(exerciseId: string, key: CryptoKey | null) {
     try {
-      const { errors } = await exerciseResourceRepository.commit(
-        resourceStagingId,
-        exerciseId,
-        key,
-        { keepStaging }
-      );
-      resourcesCommitted = true;
-      if (errors.length > 0) {
-        console.warn("Some resource files could not be synced:", errors);
-      }
+      await commitStagedResources(exerciseId, key);
     } catch (err) {
-      console.warn("Failed to store resource files:", err);
+      if (!(err instanceof ResourceSyncError)) throw err;
+      httpErrorStore.showError(err.status, err.message);
     }
   }
 
@@ -507,7 +508,7 @@
         const savedEx = await writeNewVersion(versionBaseEx, draft, key);
 
         // A new version is a new exercise row; the staged set (the base version's files plus anything added here) becomes its file set.
-        await commitStagedResources(savedEx.id, key);
+        await commitAfterSave(savedEx.id, key);
         onSave?.({ exercise: savedEx, isNewVersion: true });
         // After the editor's own save, so the question never holds it up (issue #263).
         void askToShare(savedEx.id);
@@ -517,7 +518,7 @@
 
       const record = await writeExercise(editingExercise, draft, { key });
       await cascadeGroupMetadata(record, key);
-      await commitStagedResources(record.id, key);
+      await commitAfterSave(record.id, key);
       onSave?.({ exercise: record, isNewVersion: false });
       void askToShare(record.id);
       dirtyClose.force();

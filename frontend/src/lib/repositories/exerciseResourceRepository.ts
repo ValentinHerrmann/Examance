@@ -141,14 +141,20 @@ export const exerciseResourceRepository = {
     exerciseId: string,
     key: CryptoKey | null,
     { keepStaging = false }: { keepStaging?: boolean } = {}
-  ): Promise<{ errors: string[] }> {
+  ): Promise<{ errors: string[]; status?: number }> {
     const errors: string[] = [];
+    // HTTP status of the first failed request (none for a network failure), for the caller's error dialog.
+    let status: number | undefined;
+    const fail = (err: any, text: string) => {
+      errors.push(text);
+      if (status === undefined && typeof err?.status === 'number' && err.status > 0) status = err.status;
+    };
     const staged = await this.listLocal(stagingId);
     let remote: ExerciseResourceRecord[] = [];
     try {
       remote = await listOnServer(exerciseId);
     } catch (err: any) {
-      errors.push(err?.message || 'Could not read the exercise files from the server.');
+      fail(err, err?.message || 'Could not read the exercise files from the server.');
     }
 
     const stagedNames = new Set(staged.map((r) => r.filename));
@@ -184,13 +190,13 @@ export const exerciseResourceRepository = {
         row.remoteExerciseId = exerciseId;
         row.pendingUpload = false;
       } catch (err: any) {
-        errors.push(`${row.filename}: ${err?.message || 'upload failed'}`);
+        fail(err, `${row.filename}: ${err?.message || 'upload failed'}`);
       }
     }
 
     if (keepStaging) {
       await this.mirrorStaging(staged, exerciseId, key);
-      return { errors };
+      return { errors, status };
     }
 
     // Replace whatever the exercise had locally with the staged set.
@@ -200,7 +206,7 @@ export const exerciseResourceRepository = {
     }
     await db.exerciseResources.where('exerciseId').equals(stagingId).delete();
 
-    return { errors };
+    return { errors, status };
   },
 
   /** Keeps the staged rows (with their upload state) and gives the exercise its own copies. A copy needs a new id and so a new seal (AAD is the id); an unchanged copy is kept as is. */

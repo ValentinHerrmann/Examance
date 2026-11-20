@@ -159,6 +159,7 @@
   let isDeleteLoading = $state(false);
   let isDeleting = $state(false);
   let deleteError = $state("");
+  let deleteUsageFailed = $state(false);
 
   // Group metadata, regroup, diff and variant dialogs: each flow owns its state and opens via `open(...)`.
   let groupEditFlow: ReturnType<typeof GroupEditFlow> | undefined = $state();
@@ -675,11 +676,15 @@
     deletingExercise = ex;
     deleteExams = [];
     deleteError = "";
+    deleteUsageFailed = false;
     isDeleteLoading = true;
     isDeleteModalOpen = true;
     try {
       deleteExams = await loadExamUsage([ex.id!]);
     } catch (err) {
+      // Unknown usage: deleting could break an exam, so the dialog blocks it (issue #298).
+      deleteUsageFailed = true;
+      deleteError = translate("exercises.deleteModal.usageFailed");
       console.warn("Failed to check exercise usage:", err);
     } finally {
       isDeleteLoading = false;
@@ -1031,6 +1036,7 @@
   items={deleteExams.map((e) => ({ id: e.id, title: e.title, meta: e.datum }))}
   plainText={$t("exercises.deleteModal.confirmPlain")}
   restoreHint={$t("common.trashHint", { days: TRASH_DAYS })}
+  confirmDisabled={deleteUsageFailed}
   busy={isDeleting}
   error={deleteError}
   onConfirm={handleConfirmDelete}
