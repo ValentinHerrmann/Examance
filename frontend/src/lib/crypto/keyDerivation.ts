@@ -160,16 +160,6 @@ export async function deriveArgon2Key(
   return { masterKey, rawKey };
 }
 
-/** Whether a wrap can be written right now without substituting a KDF. */
-export async function argon2Available(): Promise<boolean> {
-  try {
-    await deriveArgon2Key('probe', new Uint8Array(16));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Argon2id where possible, PBKDF2 where not. The fallback is safe only here: the legacy path (`deriveKeyWithFallback`) captures the PBKDF2 key alongside the Argon2 one so either seal stays readable. Key wraps have no second copy and use `deriveArgon2Key`. */
 export async function deriveKey(password: string, salt: Uint8Array): Promise<DerivedKeyResult> {
   try {

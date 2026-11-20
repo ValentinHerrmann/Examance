@@ -211,6 +211,12 @@ export const settings = {
         privacyNote: 'Details in der Datenschutzerklärung:',
         privacyLink: 'Datenschutz',
     },
+    accountData: {
+        heading: 'Ihre Kontodaten',
+        description: 'Lädt alles herunter, was der Server über Ihr Konto speichert, als JSON-Datei: Kontoangaben, Ihre Prüfungen (ohne Schülerdaten) und das Protokoll Ihrer Aktionen. Die Daten einzelner Schülerinnen und Schüler exportieren Sie im Abschnitt DSGVO, weil nur dieser Browser sie lesen kann.',
+        button: 'Meine Kontodaten herunterladen',
+        failed: 'Die Kontodaten konnten nicht geladen werden.',
+    },
     deleteAccount: {
         heading: 'Konto löschen',
         description: 'Löscht Ihr Konto und alles, was dazu auf dem Server gespeichert ist: Prüfungen, Bewertungsergebnisse, Aufgabengruppen und Anmeldefaktoren, dazu Ihre Aufgaben, sofern Sie sie nicht behalten. Wir senden Ihnen einen Link zur Bestätigung; gelöscht wird erst, wenn Sie ihn öffnen und bestätigen.',

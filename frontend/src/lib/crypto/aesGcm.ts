@@ -100,20 +100,6 @@ export async function encryptJson<T>(data: T, key: CryptoKey, customIv?: Uint8Ar
   return encrypt(key, bytes, customIv);
 }
 
-/**
- * Decrypt AES-256-GCM ciphertext back into JSON object.
- */
-export async function decryptJson<T>(
-  key: CryptoKey | null | undefined,
-  ciphertext: Uint8Array,
-  iv: Uint8Array,
-  fallbackKey?: CryptoKey | null
-): Promise<T> {
-  const decryptedBytes = await decrypt(key, ciphertext, iv, fallbackKey);
-  const jsonStr = new TextDecoder().decode(decryptedBytes);
-  return JSON.parse(jsonStr) as T;
-}
-
 /** Safe Uint8Array to Base64 string converter (chunks array to prevent call stack size exceeded). */
 export function uint8ArrayToBase64(bytes: Uint8Array): string {
   let binary = '';

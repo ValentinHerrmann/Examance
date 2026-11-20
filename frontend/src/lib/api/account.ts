@@ -27,3 +27,14 @@ export async function previewAccountDeletion(token: string): Promise<AccountDele
 export async function confirmAccountDeletion(token: string): Promise<void> {
   await api.post('/auth/account-deletion/confirm', { token }, { silentError: true });
 }
+
+/** Everything the server holds about the signed-in account (GDPR Art. 15/20): account fields, authored exams, audit trail; student data stays out (the server cannot read it). */
+export async function exportAccountData(): Promise<unknown> {
+  return api.get<unknown>('/user/me/export', { silentError: true });
+}
+
+/** The download name of the account export, dated so several copies do not overwrite each other. */
+export function accountExportFileName(now = new Date()): string {
+  const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return `examance-account-${day}.json`;
+}

@@ -581,12 +581,3 @@ async function importStatistics(
     }
   }
 }
-
-export async function unpackProject(
-  archiveData: ArchiveData,
-  password: string,
-  onProgress?: (event: ProgressEvent) => void
-): Promise<ImportResult> {
-  const payload = await decryptArchive(archiveData, password, onProgress);
-  return applyArchive(payload, onProgress);
-}

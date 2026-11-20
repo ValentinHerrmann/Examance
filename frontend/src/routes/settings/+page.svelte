@@ -40,6 +40,7 @@
   import SectionNav from "#lib/components/settings/SectionNav.svelte";
   import SecuritySection from "#lib/components/security/SecuritySection.svelte";
   import SettingsGroupHeading from "#lib/components/settings/SettingsGroupHeading.svelte";
+  import AccountDataCard from "#lib/components/settings/AccountDataCard.svelte";
   import DeleteAccountCard from "#lib/components/settings/DeleteAccountCard.svelte";
   import PenInputCard from "#lib/components/settings/PenInputCard.svelte";
   import { requestedModeSwitch } from "#lib/services/storageModeSwitch";
@@ -168,7 +169,10 @@
       { id: "gdpr", label: $t("admin.gdprErasureTable.title") },
       { id: "hygiene", label: $t("settings.hygiene.heading") },
     ]),
-    ...($isAuthenticated ? [{ id: "delete-account", label: $t("settings.deleteAccount.heading") }] : []),
+    ...($isAuthenticated ? [
+      { id: "account-data", label: $t("settings.accountData.heading") },
+      { id: "delete-account", label: $t("settings.deleteAccount.heading") },
+    ] : []),
   ]);
 
   async function handleClearAllSessionData() {
@@ -289,6 +293,9 @@
         {/if}
 
         {#if $isAuthenticated}
+          <div id="account-data" class="scroll-mt-16 lg:scroll-mt-4">
+            <AccountDataCard />
+          </div>
           <div id="delete-account" class="scroll-mt-16 lg:scroll-mt-4">
             <DeleteAccountCard email={$sessionStore.email ?? ""} />
           </div>

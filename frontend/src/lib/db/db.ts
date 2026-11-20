@@ -205,37 +205,6 @@ export class BlindGradeDB extends Dexie {
 /** Singleton DB instance — import this everywhere. */
 export const db = (browser || typeof indexedDB !== 'undefined') ? new BlindGradeDB() : ({} as BlindGradeDB);
 
-/**
- * Checks for and migrates legacy 'Blindgrade' IndexedDB records if present.
- */
-export async function migrateLegacyDatabase(): Promise<void> {
-  if (typeof indexedDB === 'undefined') return;
-  try {
-    const exists = await Dexie.exists('Blindgrade');
-    if (!exists) return;
-    const oldDb = new Dexie('Blindgrade');
-    oldDb.version(5).stores({
-      exams: 'id, teacherId, retentionUntil',
-      exercises: 'id, examId, topicTag, grade, subject, name, exerciseGroupId, variantKey, isCurrent',
-      examExercises: '[examId+exerciseId], examId, exerciseId, orderIndex',
-      students: 'pseudonymId, examId, fallbackCode',
-      submissions: 'id, examId, pseudonymHash',
-      exerciseScores: 'id, submissionId, exerciseId',
-      auditLog: 'id, action, timestamp',
-    });
-    await oldDb.open();
-    for (const table of oldDb.tables) {
-      const records = await table.toArray(); // NOSONAR: sequential on purpose: legacy tables are copied one at a time
-      if (records.length > 0 && db.table(table.name)) {
-        await db.table(table.name).bulkPut(records); // NOSONAR: sequential on purpose: legacy tables are copied one at a time
-      }
-    }
-    await oldDb.delete();
-  } catch {
-    // Ignore migration failures if legacy DB is unavailable or inaccessible
-  }
-}
-
 /** Every table that holds workspace data (everything but the `workspace` manifest). */
 export function vaultTables(): Table[] {
   return [

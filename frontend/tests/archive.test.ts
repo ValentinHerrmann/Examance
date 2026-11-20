@@ -8,7 +8,8 @@ vi.mock('../src/lib/api/client', async () => (await import('./helpers/fakeServer
 import { fakeServer } from './helpers/fakeServer';
 import { setArgon2Available } from './mocks/argon2Mock';
 import { packProject } from '../src/lib/archive/packer';
-import { applyArchive, decryptArchive, unpackProject } from '../src/lib/archive/unpacker';
+import { applyArchive, decryptArchive } from '../src/lib/archive/unpacker';
+import { unpackProject } from './helpers/archive';
 import { applyResolutions, detectConflicts } from '../src/lib/archive/conflicts';
 import { count, newReport } from '../src/lib/archive/report';
 import { readZipExport } from '../src/lib/archive/zipImport';

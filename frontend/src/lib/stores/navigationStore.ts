@@ -18,15 +18,6 @@ export function registerNavigationGuard(): void {
   });
 }
 
-/**
- * Navigates to the unlock page with a hard redirect.
- */
-export function redirectToUnlock(): void {
-  if (typeof window !== "undefined") {
-    window.location.href = "/unlock";
-  }
-}
-
 /** True if the pathname is the grading view (/grade within an exam). */
 export function isGradeActivePath(pathname: string): boolean {
   return pathname.includes("/exam/") && pathname.endsWith("/grade");

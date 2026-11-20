@@ -63,10 +63,6 @@ export function currentKeyId(): Uint8Array {
   }
 }
 
-export function forgetKeyId(): void {
-  safeSessionStorage.removeItem(KEY_ID_STORAGE);
-}
-
 /** The envelope set changed without this browser re-wrapping it; `teacherId` names whose pin `acceptChangedEnvelopes` would drop. */
 export class EnvelopeChangedError extends Error {
   constructor(public readonly teacherId: string) {
