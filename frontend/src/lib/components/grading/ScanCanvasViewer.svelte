@@ -575,6 +575,7 @@
     class="relative mx-auto flex touch-none flex-col gap-2 select-none"
     style="width: {zoomScaleNow * 100}%;"
     role="presentation"
+    data-palm-guard-skip
     onpointerdown={input.down}
     onpointermove={input.move}
     onpointerup={input.end}

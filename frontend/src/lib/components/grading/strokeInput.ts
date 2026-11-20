@@ -76,6 +76,7 @@ export class StrokeInput {
         this.view.zoom.pinchStart(action.a, action.b);
         return;
       case 'draw':
+        if (action.endedPinch) this.view.zoom.pinchEnd();
         this.startDraw(e);
     }
   };

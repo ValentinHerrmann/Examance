@@ -10,7 +10,8 @@ export function drawsWith(pointerType: string, penSeen: boolean): boolean {
 
 /** What a pointerdown starts. */
 export type DownAction =
-  | { kind: 'draw' }
+  /** `endedPinch`: a pen landed while fingers (a palm) were pinching, so the pinch is dropped. */
+  | { kind: 'draw'; endedPinch?: boolean }
   /** A second finger joined a finger that was drawing: stop that stroke and pinch with both. */
   | { kind: 'pinch-from-draw'; a: Point; b: Point }
   | { kind: 'pinch'; a: Point; b: Point }
@@ -53,6 +54,9 @@ export class PointerRouter {
     if (e.pointerType === 'mouse' && (e.button ?? 0) !== 0) return { kind: 'ignore' };
     const p = { x: e.x, y: e.y };
 
+    // A palm landing while the pen writes never pans or pinches under the stroke (issue #321).
+    if (e.pointerType === 'touch' && this.drawId !== null && this.drawType === 'pen') return { kind: 'ignore' };
+
     if (drawsWith(e.pointerType, this.penSeen)) {
       if (this.drawId === e.pointerId) return { kind: 'ignore' };
       // A finger joining a drawing finger is a pinch (phones without a pen).
@@ -64,12 +68,19 @@ export class PointerRouter {
         this.lastPan = null;
         return { kind: 'pinch-from-draw', a: first, b: p };
       }
+      // A pen drops the fingers (a palm that landed first) instead of drawing while they scroll the page (issue #321).
+      let endedPinch = false;
+      if (e.pointerType === 'pen' && this.nav.size > 0) {
+        endedPinch = this.nav.size === 2;
+        this.nav.clear();
+        this.lastPan = null;
+      }
       if (this.nav.size >= 2) return { kind: 'ignore' };
       // Any other drawer replaces one whose up event never arrived (stale pointer).
       this.drawId = e.pointerId;
       this.drawType = e.pointerType;
       this.drawLast = p;
-      return { kind: 'draw' };
+      return endedPinch ? { kind: 'draw', endedPinch } : { kind: 'draw' };
     }
 
     // Navigation finger (a pen has been seen): never touches the drawing pointer.
