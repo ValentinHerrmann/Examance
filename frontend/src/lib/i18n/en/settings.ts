@@ -33,6 +33,15 @@ export const settings: Translations['settings'] = {
         resetDisabled: 'No pen has been detected on this device yet.',
         resetDone: 'Reset: fingers draw again until you use a pen again.',
     },
+    gradingLayout: {
+        heading: 'Grading view layout',
+        description: 'Which side of the grading view holds scoring, stamps and zoom, so your writing hand covers nothing while you grade. Applies to every device of your account from tablet width.',
+        left: 'Right-handed: controls on the left',
+        leftHint: 'Scoring, stamps and zoom on the left, the right side free for writing.',
+        right: 'Left-handed: controls on the right',
+        rightHint: 'Scoring, stamps and zoom on the right, the left side free for writing.',
+        failed: 'The layout could not be saved.',
+    },
     storage: {
         heading: 'Global Data Storage Strategy',
         description: 'Select where your exams, exercises, student identities, and results are stored:',

@@ -18,6 +18,7 @@
   import { examHref } from "#lib/utils/links";
   import type { ScoreBoxContext } from "#lib/grading/scoreBoxes";
   import type { AutosaveStatus } from "#lib/utils/autosave";
+  import { capabilitiesStore } from "#lib/stores/capabilities";
 
   interface Props {
     examId: string;
@@ -67,6 +68,22 @@
     scoreBoxes = null
   }: Props = $props();
 
+  /* Controls on the teacher's chosen side from `lg` up, so the writing hand never covers them (issue #328). Literal class strings so Tailwind sees them. */
+  let side = $derived($capabilitiesStore?.gradingControlsSide ?? "left");
+  const LAYOUT = {
+    left: {
+      grid: "lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)] 2xl:grid-cols-[20rem_minmax(0,1fr)]",
+      canvas: "lg:col-start-2 lg:row-start-1",
+      panel: "lg:col-start-1 lg:row-start-1",
+    },
+    right: {
+      grid: "lg:grid-cols-[minmax(0,1fr)_16rem] xl:grid-cols-[minmax(0,1fr)_18rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]",
+      canvas: "",
+      panel: "",
+    },
+  } as const;
+  let layout = $derived(LAYOUT[side]);
+
   let viewerRef: ReturnType<typeof ScanCanvasViewer> | undefined = $state();
 
   // Below `lg` the score panel is a bottom sheet (a fixed column left the scan ~70px on phones); collapsed it shows summary + navigation, expanded it takes the screen for score entry.
@@ -92,13 +109,14 @@
   {calculatedGrade}
 />
 
-<!-- `flex-1 min-h-0` rather than a viewport-height magic number: the grade page root is a flex column that fills the space above the footer, and the old value broke as soon as the header wrapped to a second line. -->
+<!-- `flex-1 min-h-0` rather than a viewport-height magic number: the grade page root is a flex column that fills the space above the footer, and the old value broke as soon as the header wrapped to a second line. The score panel narrows on tablet widths to leave room to draw (issue #328); DOM order stays canvas first, so the stacked layout below `lg` is unchanged. -->
 <div
   class="box-border grid min-h-0 w-full flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden p-2
-    lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-1"
+    lg:grid-rows-1 {layout.grid}"
+  data-controls-side={side}
 >
-  <div class="relative flex min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden rounded-md border border-line bg-surface-sunken lg:h-full lg:gap-0">
-    <AnnotationToolbar onClearRequested={requestClearAnnotations} />
+  <div class="relative flex min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden rounded-md border border-line bg-surface-sunken lg:h-full lg:gap-0 {layout.canvas}">
+    <AnnotationToolbar onClearRequested={requestClearAnnotations} {side} />
 
     <ScanCanvasViewer
       bind:this={viewerRef}
@@ -116,12 +134,13 @@
       onZoomOut={() => viewerRef?.zoomOut()}
       onZoomIn={() => viewerRef?.zoomIn()}
       onResetZoom={() => viewerRef?.resetZoom()}
+      {side}
     />
   </div>
 
   <div
-    class="box-border flex min-h-0 flex-col overflow-hidden rounded-md border border-line bg-surface-sunken
-      {isScorePanelExpanded ? 'h-[70dvh]' : ''} lg:h-full"
+    class="box-border flex min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-line bg-surface-sunken
+      {isScorePanelExpanded ? 'h-[70dvh]' : ''} lg:h-full {layout.panel}"
   >
     <Button
       variant="text"
@@ -146,7 +165,7 @@
       {/if}
     </div>
 
-    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2">
+    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2 lg:px-2 2xl:px-3">
       <GradeSummaryCard
         {isFullyGraded}
         {totalScore}

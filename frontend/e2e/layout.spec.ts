@@ -263,6 +263,10 @@ test('[layout] the grade page keeps the score list roomy with an objection', asy
 
   if (desktop) {
     await expect(reply, 'PCs reply inline').toBeVisible();
+    // Issue #328: by default the score panel sits left of the scan, so a right hand never covers a control.
+    const panelBox = (await reply.locator('xpath=ancestor::div[contains(@class,"lg:col-start-1")][1]').boundingBox())!;
+    const canvasBox = (await page.locator('[data-controls-side] > div').first().boundingBox())!;
+    expect(panelBox.x + panelBox.width, 'the score panel is left of the scan').toBeLessThanOrEqual(canvasBox.x);
     const footerRow = page.getByRole('button', { name: label('review.bar.sendEllipsis') }).locator('..');
     expect((await footerRow.boundingBox())!.height, 'the footer review row is one row').toBeLessThan(60);
     await shot('desktop');

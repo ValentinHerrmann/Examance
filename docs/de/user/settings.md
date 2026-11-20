@@ -57,6 +57,10 @@ Was Sie in der App löschen (Prüfungen, Aufgaben, Dateien, Logos, Schüler:inne
 
 *Wird in diesem Browser gespeichert.* Sobald Sie in der Korrekturansicht einmal einen Stift benutzen, blättern und zoomen Finger dort nur noch und zeichnen nicht mehr, damit eine aufgelegte Handfläche keine Striche macht. Die Karte zeigt, ob auf diesem Gerät ein Stift erkannt wurde. **Stifterkennung zurücksetzen** lässt Finger wieder zeichnen, bis Sie das nächste Mal einen Stift benutzen.
 
+## Anordnung der Korrekturansicht {#grading-layout}
+
+*Gehört zu Ihrem Konto.* Legt fest, auf welcher Seite der Korrekturansicht das Feld **Bewertung**, die Stempel und der Zoom liegen: **Rechtshänder: Bedienelemente links** (Standard) oder **Linkshänder: Bedienelemente rechts**. Gilt ab Tablet-Breite auf jedem Gerät, auf dem Sie sich anmelden; auf Smartphones bleiben die Bedienelemente über und unter dem Scan.
+
 ## Logo auf der Prüfung {#logo}
 
 *Gehört zu Ihrem Konto.* Oben links auf der ersten Seite jeder Prüfung wird ein Logo gedruckt. Unter **Logo für Klausuren** laden Sie ein eigenes hoch (PNG, JPEG oder PDF, höchstens 2 MB), wählen **Kein Logo** oder setzen auf das Standardlogo zurück. Ohne Logo bleibt die Stelle frei; das Seitenlayout und die Lage der Antwortkästchen ändern sich dadurch nicht.

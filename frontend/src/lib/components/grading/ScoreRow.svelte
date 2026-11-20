@@ -87,7 +87,7 @@
       oninput={handleInput}
       class="{controlClass} {controlSmClass} {nested ? 'w-14' : 'w-16 font-bold'} text-right pointer-coarse:min-h-11 pointer-coarse:text-base"
     />
-    <span class="text-xs text-muted">/ {maxLabel ?? max}</span>
+    <span class="text-xs whitespace-nowrap text-muted">/ {maxLabel ?? max}</span>
     <Button
       size="sm"
       variant="text"

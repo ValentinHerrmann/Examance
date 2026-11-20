@@ -3,13 +3,16 @@
   import { t } from "#lib/i18n";
   import { faCheck, faEraser, faPen, faRulerHorizontal, faTrashCan } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon } from "#lib/components/ui";
+  import type { ControlsSide } from "#lib/stores/capabilities";
 
   interface Props {
     /** Clearing is gated by a parent-owned confirm dialog; this component only requests it, never mutates the store. */
     onClearRequested: () => void;
+    /** Corner of the canvas it floats in from `lg` up (issue #328). */
+    side?: ControlsSide;
   }
 
-  let { onClearRequested }: Props = $props();
+  let { onClearRequested, side = "left" }: Props = $props();
 
   /* Finger-sized (48px) glyph-over-label tool button. `!` beats the Button size recipe's own padding/gap. */
   const toolBtn = "h-12 min-h-12 w-12 shrink-0 flex-col gap-0! px-1! py-1!";
@@ -19,10 +22,11 @@
   }
 </script>
 
-<!-- Below `lg` docked as a strip above the canvas (floating covered the scan on phones); overlay from `lg` up. -->
+<!-- Below `lg` docked as a strip above the canvas (floating covered the scan on phones); overlay from `lg` up, leaving room for the zoom controls below it on the same side. -->
 <div
   class="scroll-pane z-30 flex shrink-0 flex-row gap-1 overflow-x-auto rounded-md border border-line bg-surface-raised p-1.5
-    lg:absolute lg:top-3 lg:left-3 lg:max-h-[calc(100%-3rem)] lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:p-1 lg:shadow-md"
+    lg:absolute lg:top-3 lg:max-h-[calc(100%-5.5rem)] lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:p-1 lg:shadow-md
+    {side === 'right' ? 'lg:right-3' : 'lg:left-3'}"
 >
   <Button
     size="sm"

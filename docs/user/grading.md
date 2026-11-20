@@ -14,6 +14,7 @@ During the grading pass you see **"Anonymous student #3 of 26"**, never a name. 
 
 ## The grading view {#workspace}
 
+- **Controls on the left:** on a tablet or computer, the **Scoring** panel, the stamps and the zoom sit on the left, so a right hand writing on the scan covers none of them. Left-handed teachers move them to the right under [Settings → Grading view layout](settings.md#grading-layout). On smaller tablets the **Scoring** panel is narrower, leaving more room to draw.
 - **All pages of a submission are stacked.** Scroll through them with the mouse wheel or the scrollbar, or with your finger on a touch device.
 - **Pen or finger:** a pen, and the mouse, always draw. On a device without a pen, one finger draws and two fingers scroll. As soon as you use a pen once, Examance remembers it on this device: from then on, fingers and a resting palm only scroll and zoom and never draw. While the pen touches the screen, and for half a second after, a resting palm also never selects text, presses a button or scrolls the scan. A short notice says so when the pen is first detected; to draw with a finger again, reset it under [Settings → Pen input](settings.md#pen-input).
 - **Ctrl + mouse wheel** or pinching zooms; **Fit** fits the page to the view. The page arrows jump between pages.

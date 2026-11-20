@@ -31,6 +31,15 @@ export const settings = {
         resetDisabled: 'Auf diesem Gerät wurde noch kein Stift erkannt.',
         resetDone: 'Zurückgesetzt: Finger zeichnen wieder, bis Sie erneut einen Stift benutzen.',
     },
+    gradingLayout: {
+        heading: 'Anordnung der Korrekturansicht',
+        description: 'Auf welcher Seite der Korrekturansicht Bewertung, Stempel und Zoom liegen, damit Ihre Schreibhand beim Korrigieren nichts verdeckt. Gilt für alle Geräte Ihres Kontos ab Tablet-Breite.',
+        left: 'Rechtshänder: Bedienelemente links',
+        leftHint: 'Bewertung, Stempel und Zoom links, rechts frei zum Schreiben.',
+        right: 'Linkshänder: Bedienelemente rechts',
+        rightHint: 'Bewertung, Stempel und Zoom rechts, links frei zum Schreiben.',
+        failed: 'Die Anordnung konnte nicht gespeichert werden.',
+    },
     storage: {
         heading: 'Globale Speicherstrategie',
         description: 'Legen Sie fest, wo Prüfungen, Aufgaben, Schüleridentitäten und Ergebnisse gespeichert werden:',

@@ -57,6 +57,10 @@ Whatever you delete in the app (exams, exercises, files, logos, students, scans,
 
 *Stored in this browser.* Once you use a pen in the grading view, fingers there only scroll and zoom and no longer draw, so a resting palm leaves no marks. The card shows whether a pen has been detected on this device. **Reset pen detection** lets fingers draw again until the next time you use a pen.
 
+## Grading view layout {#grading-layout}
+
+*Belongs to your account.* Chooses which side of the grading view holds the **Scoring** panel, the stamps and the zoom: **Right-handed: controls on the left** (the default) or **Left-handed: controls on the right**. It applies from tablet width on every device you sign in on; on phones the controls stay above and below the scan.
+
 ## Exam logo {#logo}
 
 *Belongs to your account.* A logo is printed at the top left of the first page of every exam. Under **Exam logo** you can upload your own (PNG, JPEG or PDF, at most 2 MB), choose **No logo**, or reset to the default logo. Without a logo the spot stays empty; the page layout and the position of the answer boxes do not change.

@@ -99,6 +99,7 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
             "sharing_paused": teacher.sharing_paused,
             "share_new_exercises": teacher.share_new_exercises,
             "review_mail": teacher.review_mail,
+            "grading_controls_side": teacher.grading_controls_side,
             # The logo is printed on the exams, so the export carries the file itself. "default" prints the bundled default logo, which is not the teacher's data.
             "exam_logo": (
                 {"mode": "default"}

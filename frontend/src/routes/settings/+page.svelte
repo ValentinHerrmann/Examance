@@ -44,6 +44,7 @@
   import { accountSections, type AccountSectionId } from "#lib/settings/sections";
   import DeleteAccountCard from "#lib/components/settings/DeleteAccountCard.svelte";
   import PenInputCard from "#lib/components/settings/PenInputCard.svelte";
+  import GradingLayoutCard from "#lib/components/settings/GradingLayoutCard.svelte";
   import { requestedModeSwitch } from "#lib/services/storageModeSwitch";
   import { currentManifest, refreshCapabilities } from "#lib/db/workspace";
   import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
@@ -164,6 +165,7 @@
     { id: "language", label: $t("settings.language.heading") },
     { id: "theme", label: $t("settings.theme.heading") },
     { id: "pen-input", label: $t("settings.penInput.heading") },
+    ...(isAdmin ? [] : [{ id: "grading-layout", label: $t("settings.gradingLayout.heading") }]),
     { id: "group-account", label: $t("settings.groups.account"), group: true },
     ...accountSections(isAdmin, $isAuthenticated).map((id) => ({ id, label: accountSectionLabel(id) })),
   ]);
@@ -268,6 +270,10 @@
         />
 
         <PenInputCard />
+
+        {#if !isAdmin}
+          <GradingLayoutCard />
+        {/if}
 
         <SettingsGroupHeading id="group-account" title={$t("settings.groups.account")} />
 
