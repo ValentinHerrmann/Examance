@@ -35,6 +35,29 @@ function skipped(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(`[${PALM_GUARD_SKIP}]`) !== null;
 }
 
+function editable(target: EventTarget | null): boolean {
+  // A selection's target can be a text node.
+  let el: Element | null = null;
+  if (target instanceof Element) el = target;
+  else if (target instanceof Node) el = target.parentElement;
+  return el?.closest('input, textarea, [contenteditable]') != null;
+}
+
+/** For the scan stack: it handles every touch through pointer events, so Safari must never start a Pencil selection, Scribble or loupe gesture there (that cancels the stroke, issue #321). Never make these listeners passive. */
+export function ownTouches(node: HTMLElement) {
+  const cancel = (e: TouchEvent) => {
+    if (e.cancelable) e.preventDefault();
+  };
+  node.addEventListener('touchstart', cancel, { capture: true, passive: false });
+  node.addEventListener('touchmove', cancel, { capture: true, passive: false });
+  return {
+    destroy() {
+      node.removeEventListener('touchstart', cancel, true);
+      node.removeEventListener('touchmove', cancel, true);
+    }
+  };
+}
+
 /** Svelte action for the grade page root; `enabled` follows `penSeenStore`, so devices without a pen keep every tap. */
 export function palmGuard(node: HTMLElement, enabled: boolean) {
   let on = enabled;
@@ -48,6 +71,10 @@ export function palmGuard(node: HTMLElement, enabled: boolean) {
     if (e.pointerType === 'pen') guard.penUp(e.pointerId, e.timeStamp);
   };
   const onBlur = () => guard.reset(performance.now());
+  // Anywhere on the page (navbar and footer included), also before `enabled`: a pen contact already proves a pen; a double-tap of two quick ticks selects after the pen lifted.
+  const onSelectStart = (e: Event) => {
+    if (guard.blocksTouch(e.timeStamp) && !editable(e.target)) e.preventDefault();
+  };
 
   // iOS Safari: cancelling the touch stops its focus, click and text selection; the Pencil's own touches (`touchType` stylus) pass.
   const onTouchStart = (e: TouchEvent) => {
@@ -70,6 +97,7 @@ export function palmGuard(node: HTMLElement, enabled: boolean) {
   window.addEventListener('pointerup', onPenUp, true);
   window.addEventListener('pointercancel', onPenUp, true);
   window.addEventListener('blur', onBlur);
+  window.addEventListener('selectstart', onSelectStart, true);
   node.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
   node.addEventListener('pointerdown', onPointerDown, true);
   node.addEventListener('click', onClick, true);
@@ -83,6 +111,7 @@ export function palmGuard(node: HTMLElement, enabled: boolean) {
       window.removeEventListener('pointerup', onPenUp, true);
       window.removeEventListener('pointercancel', onPenUp, true);
       window.removeEventListener('blur', onBlur);
+      window.removeEventListener('selectstart', onSelectStart, true);
       node.removeEventListener('touchstart', onTouchStart, true);
       node.removeEventListener('pointerdown', onPointerDown, true);
       node.removeEventListener('click', onClick, true);
