@@ -46,4 +46,18 @@ describe('ExerciseDeleteFlow', () => {
     expect(screen.getByText(translate('exercises.deleteModal.usageFailed'))).toBeTruthy();
     expect(confirmButton().disabled).toBe(true);
   });
+  it('shows only the usage of the exercise opened last', async () => {
+    let releaseFirst!: (v: unknown) => void;
+    loadExamUsage.mockImplementationOnce(() => new Promise((r) => (releaseFirst = r)));
+    loadExamUsage.mockResolvedValueOnce([]);
+    const { component } = render(ExerciseDeleteFlow, { onSaved: vi.fn() });
+    const flow = component as unknown as { open: (ex: ExerciseRecord) => Promise<void> };
+    const first = flow.open({ id: 'exA', name: 'A' } as ExerciseRecord);
+    await flow.open({ id: 'exB', name: 'B' } as ExerciseRecord);
+    releaseFirst([{ id: 'e1', title: 'Schulaufgabe von A' }]);
+    await first;
+    await settle();
+    expect(screen.queryByText('Schulaufgabe von A')).toBeNull();
+    expect(confirmButton().disabled).toBe(false);
+  });
 });

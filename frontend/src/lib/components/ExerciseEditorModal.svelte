@@ -222,7 +222,8 @@
 
   async function handlePreviewExercise() {
     errorMsg = "";
-    errorMsg = await preview.compile({
+    // Only a failure or a missing figure writes the line, so a message set meanwhile (a failed save) stays.
+    const message = await preview.compile({
       cacheId: editingExercise?.id || session.stagingId,
       name: editorName,
       latexBody: editorLatexBody,
@@ -231,6 +232,7 @@
       useLocal: $effectiveLatexStore === "local",
       key: get(sessionStore).sessionKey,
     });
+    if (message) errorMsg = message;
   }
 
   function currentDraft(): ExerciseDraft {

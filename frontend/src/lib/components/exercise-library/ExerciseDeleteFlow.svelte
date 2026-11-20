@@ -5,6 +5,7 @@
   import { loadExamUsage, type ExamUsageEntry } from "#lib/exercise-library/examUsage";
   import { exerciseRepository } from "#lib/repositories/exerciseRepository";
   import { TRASH_DAYS } from "#lib/trash/localTrash";
+  import { createLoadGuard } from "#lib/utils/loadGuard";
   import DeleteWithUsageModal from "#lib/components/common/DeleteWithUsageModal.svelte";
 
   interface Props {
@@ -21,8 +22,11 @@
   let usageFailed = $state(false);
   let busy = $state(false);
   let error = $state("");
+  // A slow usage lookup of an exercise opened before must not land in this one's dialog.
+  const guard = createLoadGuard();
 
   export async function open(ex: ExerciseRecord) {
+    const isStale = guard.begin();
     exercise = ex;
     exams = [];
     error = "";
@@ -30,14 +34,16 @@
     usageLoading = true;
     isOpen = true;
     try {
-      exams = await loadExamUsage([ex.id!]);
+      const found = await loadExamUsage([ex.id!]);
+      if (!isStale()) exams = found;
     } catch (err) {
+      if (isStale()) return;
       // Unknown usage: deleting could break an exam, so the dialog blocks it (issue #298).
       usageFailed = true;
       error = translate("exercises.deleteModal.usageFailed");
       console.warn("Failed to check exercise usage:", err);
     } finally {
-      usageLoading = false;
+      if (!isStale()) usageLoading = false;
     }
   }
 
