@@ -331,7 +331,7 @@ export const exam: Translations['exam'] = {
             dotted: 'Dotted (5 mm)',
             dottedText: '5 mm dot grid',
             dottedFields: 'Squared answer fields as dots',
-            dottedFieldsText: 'Every squared answer field (\\LoesungKaro, squared paper) prints as a 5 mm dot grid on the student sheet only; the solution sheet stays unchanged.',
+            dottedFieldsText: 'Every squared answer field (squared paper with or without a solution) prints as a 5 mm dot grid on the student sheet only; the solution sheet stays unchanged.',
             squaredText: '5 mm squares',
             linedText: '8 mm lines',
             emptyText: 'Blank space',

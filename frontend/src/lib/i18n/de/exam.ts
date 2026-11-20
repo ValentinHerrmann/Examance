@@ -329,7 +329,7 @@ export const exam = {
             dotted: 'Gepunktet (5 mm)',
             dottedText: '5-mm-Punktraster',
             dottedFields: 'Karo-Felder als Punktraster',
-            dottedFieldsText: 'Jedes Karo-Feld (\\LoesungKaro, Karopapier) wird auf dem Schülerbogen als 5-mm-Punktraster gedruckt; die Musterlösung bleibt unverändert.',
+            dottedFieldsText: 'Jedes Karo-Feld (Karopapier mit und ohne Lösung) wird auf dem Schülerbogen als 5-mm-Punktraster gedruckt; die Musterlösung bleibt unverändert.',
             squaredText: '5-mm-Karos',
             linedText: '8-mm-Linien',
             emptyText: 'Freier Platz',

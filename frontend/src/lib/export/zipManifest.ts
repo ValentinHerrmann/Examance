@@ -1,5 +1,5 @@
 /** `manifest.json` of the plaintext ZIP exports, read back by `archive/zipImport.ts` (issue #145). Version 1 added ids, group ids and variant keys; older library ZIPs (no `kind`) still import. */
-import type { ExerciseRecord, ExtraNotes, GradingKeyConfig } from '#lib/db/schema';
+import type { ExamRecord, ExerciseRecord, GradingKeyConfig } from '#lib/db/schema';
 import { parseExerciseScore } from '#lib/latex/scoreParser';
 
 export const ZIP_MANIFEST = 'manifest.json';
@@ -40,7 +40,10 @@ export interface ExerciseZipManifest {
 }
 
 /** The exam's own settings; retention, owner and compile state are the importer's. */
-export interface ZipExamSettings {
+/** The exam's layout fields travel exactly as stored (`ExamRecord`); absent ones read as their defaults in older ZIPs. */
+type ZipExamLayout = Pick<ExamRecord, 'pageBreaks' | 'nameLine' | 'mcCorrectionHint' | 'pageCodes' | 'printLayout' | 'stickerSpots' | 'printMode' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip' | 'dottedFields' | 'extraNotes'>;
+
+export interface ZipExamSettings extends ZipExamLayout {
   id: string;
   title?: string;
   testart?: string;
@@ -61,28 +64,6 @@ export interface ZipExamSettings {
   latexTemplate?: string;
   numVersions?: number;
   gradingKey?: GradingKeyConfig;
-  pageBreaks?: string[] | null;
-  nameLine?: boolean;
-  mcCorrectionHint?: boolean;
-  /** Multi-sheet layout (issue #220); absent in older ZIPs, read as the old layout. */
-  pageCodes?: boolean;
-  printLayout?: 'duplex' | 'booklet';
-  stickerSpots?: 'cover' | 'sheet' | 'a3' | 'leaf';
-  printMode?: 'stickers' | 'copies';
-  /** Extra paper (issue #228); absent in older ZIPs, read as none. */
-  paperStyle?: 'empty' | 'squared' | 'dotted' | 'lined';
-  extraPages?: number;
-  /** Booklet print shift in mm (issue #228); absent = 0. */
-  bookletOffsetMm?: number;
-  /** Graded outside Examance when false (issue #228); absent = true. */
-  digitalGrading?: boolean;
-  resultsQrBox?: boolean;
-  /** Scan aids one by one (issue #272); absent = as `digitalGrading`. */
-  cutCorner?: boolean;
-  foldStrip?: boolean;
-  /** Squared answer fields as dots (issue #314); absent = false. */
-  dottedFields?: boolean;
-  extraNotes?: ExtraNotes | null;
 }
 
 export interface ExamZipManifest {
