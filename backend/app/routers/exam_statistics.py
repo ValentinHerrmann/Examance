@@ -1,7 +1,6 @@
 """Exam statistics (issue #238): one client-sealed, anonymised record per exam, kept after results are purged. Deliberately not gated by server_results: it holds no per-student data."""
 from __future__ import annotations
 
-import base64
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
@@ -14,7 +13,7 @@ from app.dependencies import DB, TeachingTeacher, get_exam_for_teacher, get_teac
 from app.models.exam import Exam
 from app.models.exam_statistics import ExamStatistics
 from app.models.teacher import Teacher
-from app.schemas.binary import GCM_IV_BYTES, decode_b64
+from app.schemas.binary import GCM_IV_BYTES, decode_b64, encode_b64
 from app.schemas.exam_statistics import ExamStatisticsIn, ExamStatisticsKeepIn, ExamStatisticsOut
 
 router = APIRouter(tags=["exam-statistics"], dependencies=[Depends(get_teaching_teacher)])
@@ -32,8 +31,8 @@ def _to_out(row: ExamStatistics) -> ExamStatisticsOut:
         keep_after_exam_delete=row.keep_after_exam_delete,
         computed_at=row.computed_at,
         updated_at=row.updated_at,
-        payload_ciphertext_b64=base64.b64encode(row.payload_ciphertext).decode(),
-        payload_iv_b64=base64.b64encode(row.payload_iv).decode(),
+        payload_ciphertext_b64=encode_b64(row.payload_ciphertext),
+        payload_iv_b64=encode_b64(row.payload_iv),
     )
 
 

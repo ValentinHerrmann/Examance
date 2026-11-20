@@ -1,7 +1,6 @@
 """Trash (issue #125): every teacher delete first copies exactly the rows it removes, and a restore puts back only what is missing, never overwriting. Design and rules: docs/dev/trash.md."""
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import uuid
@@ -48,6 +47,7 @@ from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.models.trash_item import TrashItem
+from app.schemas.binary import encode_b64, encode_b64_or_none, strict_b64decode
 from app.services import audit as audit_svc
 from app.services import blob_store, exam_statistics
 from app.services.capabilities import require_server_results_writable
@@ -84,7 +84,7 @@ def _table(name: str) -> Table:
 
 def _encode_value(value: Any) -> Any:
     if isinstance(value, bytes):
-        return base64.b64encode(value).decode()
+        return encode_b64(value)
     if isinstance(value, datetime | date):
         return value.isoformat()
     if isinstance(value, uuid.UUID):
@@ -105,7 +105,7 @@ def _decode(table: Table, row: dict[str, Any]) -> dict[str, Any]:
             continue
         kind = col.type
         if isinstance(kind, LargeBinary):
-            out[col.name] = base64.b64decode(value)
+            out[col.name] = strict_b64decode(value)
         elif isinstance(kind, DateTime):
             out[col.name] = datetime.fromisoformat(value)
         elif isinstance(kind, Date):
@@ -380,9 +380,6 @@ async def snapshot_contribution(db: AsyncSession, contribution_id: uuid.UUID, cl
 # --- labels ------------------------------------------------------------------------------------
 
 
-def _b64(value: bytes | None) -> str | None:
-    return base64.b64encode(value).decode() if value else None
-
 
 async def result_label(db: AsyncSession, exam: Exam, pseudonym_hmac: str | None) -> dict[str, Any]:
     """Exam title plus the sealed identity, so the browser can show the student's name."""
@@ -393,9 +390,9 @@ async def result_label(db: AsyncSession, exam: Exam, pseudonym_hmac: str | None)
     label["pseudonym_version"] = exam.pseudonym_version
     identity = await db.get(StudentIdentity, (pseudonym_hmac, exam.id))
     if identity is not None:
-        label["pii_ciphertext_b64"] = _b64(identity.pii_ciphertext)
-        label["iv_b64"] = _b64(identity.iv)
-        label["encryption_salt_b64"] = _b64(identity.encryption_salt)
+        label["pii_ciphertext_b64"] = encode_b64_or_none(identity.pii_ciphertext)
+        label["iv_b64"] = encode_b64_or_none(identity.iv)
+        label["encryption_salt_b64"] = encode_b64_or_none(identity.encryption_salt)
     return label
 
 

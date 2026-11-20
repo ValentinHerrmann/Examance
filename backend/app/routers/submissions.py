@@ -1,7 +1,6 @@
 """Submissions router — /api/v1/exams/{id}/submissions"""
 from __future__ import annotations
 
-import base64
 import uuid
 from typing import Annotated, Any
 
@@ -20,7 +19,7 @@ from app.models.exam import Exam
 from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
-from app.schemas.binary import GCM_IV_BYTES, decode_b64
+from app.schemas.binary import GCM_IV_BYTES, decode_b64, encode_b64, encode_b64_or_none
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
 from app.services import scan_storage, trash
 from app.services.capabilities import require_server_results_writable
@@ -42,9 +41,6 @@ router = APIRouter(
     dependencies=[Depends(get_teaching_teacher)],
 )
 
-
-def _b64(data: bytes | None) -> str | None:
-    return base64.b64encode(data).decode() if data else None
 
 
 async def _live_submission(
@@ -73,9 +69,9 @@ def _to_response(
         pseudonym_hmac=sub.pseudonym_hmac,
         pseudonym_version=pseudonym_version,
         total_score=sub.total_score,
-        scan_iv_b64=_b64(sub.scan_iv),
-        annotation_ciphertext_b64=_b64(sub.annotation_ciphertext),
-        annotation_iv_b64=_b64(sub.annotation_iv),
+        scan_iv_b64=encode_b64_or_none(sub.scan_iv),
+        annotation_ciphertext_b64=encode_b64_or_none(sub.annotation_ciphertext),
+        annotation_iv_b64=encode_b64_or_none(sub.annotation_iv),
         created_at=sub.created_at,
         has_scan=has_scan(sub) if scan_present is None else scan_present,
         has_annotations=bool(sub.annotation_ciphertext),
@@ -122,8 +118,8 @@ async def list_submissions(
         _to_response(
             s,
             pseudonym_version=exam.pseudonym_version,
-            scan_ciphertext_b64=_b64(scans.get(s.id)),
-            scan_iv_b64=_b64(s.scan_iv) if include_scans else None,
+            scan_ciphertext_b64=encode_b64_or_none(scans.get(s.id)),
+            scan_iv_b64=encode_b64_or_none(s.scan_iv) if include_scans else None,
         )
         for s in subs
     ]
@@ -305,8 +301,8 @@ async def get_submission(
     return _to_response(
         sub,
         pseudonym_version=await _exam_pseudonym_version(db, sub),
-        scan_ciphertext_b64=_b64(await load_scan(db, sub)),
-        scan_iv_b64=base64.b64encode(sub.scan_iv).decode(),
+        scan_ciphertext_b64=encode_b64_or_none(await load_scan(db, sub)),
+        scan_iv_b64=encode_b64(sub.scan_iv),
     )
 
 

@@ -1,19 +1,18 @@
 """Exam header logos (issue #46): validation and resolution. Accounts print the bundled default (MTG) until they store their own or none; an exam follows the account, prints none, or has its own. Written as ``examance-logo.<ext>`` (:data:`LOGO_FILENAMES`, reserved from resources); see logo.ts."""
 from __future__ import annotations
 
-import base64
 import uuid
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 from typing import Literal
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.exam import Exam
 from app.models.logo import ExamLogo, TeacherLogo
+from app.schemas.binary import strict_b64decode
 from app.services.blob_validation import check_upload
+from app.services.exam_queries import find_own_exam
 
 #: Hard cap for a logo file (bytes). It is printed 9 mm tall; anything larger is a scan.
 MAX_LOGO_BYTES = 2 * 1024 * 1024
@@ -69,7 +68,7 @@ def sniff_logo_mime(content: bytes) -> str:
 def decode_logo(content_b64: str) -> tuple[bytes, str]:
     """Decode and validate an uploaded logo. Returns ``(bytes, mime_type)``."""
     try:
-        content = base64.b64decode(content_b64, validate=True)
+        content = strict_b64decode(content_b64)
     except ValueError:
         raise LogoError("Logo content is not valid base64.") from None
     check_upload(content, MAX_LOGO_BYTES, "The logo file", LogoError)
@@ -135,12 +134,7 @@ async def resolve_logo_for_compile(
 ) -> ResolvedLogo | None:
     """Like :func:`resolve_logo`, for a compile request naming *exam_id*. An exam the teacher does not own (or that is gone) falls back to the account logo instead of failing: the id is a hint about which header to print, and must never read another tenant's logo."""
     if exam_id is not None:
-        owned = await db.scalar(
-            select(Exam.id).where(
-                Exam.id == exam_id, Exam.teacher_id == teacher_id, Exam.deleted_at.is_(None)
-            )
-        )
-        if owned is None:
+        if await find_own_exam(db, teacher_id, exam_id) is None:
             exam_id = None
     _, logo = await resolve_logo(teacher_id, exam_id, db)
     return logo

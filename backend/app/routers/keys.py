@@ -1,7 +1,6 @@
 """Key-envelope router — /api/v1/keys/*: wrapped copies of a teacher's data key. Opaque to the server: ciphertext, public salt and KDF params, never a password or recovery code. A teacher can only read or write their own envelopes."""
 from __future__ import annotations
 
-import base64
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -15,6 +14,7 @@ from app.dependencies import (
 )
 from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
+from app.schemas.binary import encode_b64
 from app.schemas.key_envelope import (
     EnvelopeKind,
     KeyEnvelopeListOut,
@@ -41,22 +41,19 @@ def _require_envelope_scope(session: PendingSession, *, write: bool = False) -> 
         )
     return session.teacher
 
-def _b64(value: bytes) -> str:
-    return base64.b64encode(value).decode()
-
 
 def _to_out(row: KeyEnvelope) -> KeyEnvelopeOut:
     return KeyEnvelopeOut(
         id=row.id,
         # The column is a string; the schema pins it to the three valid kinds.
         kind=cast(EnvelopeKind, row.kind),
-        credential_id_b64=_b64(row.credential_id) if row.credential_id else None,
+        credential_id_b64=encode_b64(row.credential_id) if row.credential_id else None,
         kdf=row.kdf,
-        kdf_salt_b64=_b64(row.kdf_salt),
+        kdf_salt_b64=encode_b64(row.kdf_salt),
         kdf_params=row.kdf_params,
-        wrapped_bundle_b64=_b64(row.wrapped_bundle),
-        wrap_iv_b64=_b64(row.wrap_iv),
-        key_id_b64=_b64(row.key_id),
+        wrapped_bundle_b64=encode_b64(row.wrapped_bundle),
+        wrap_iv_b64=encode_b64(row.wrap_iv),
+        key_id_b64=encode_b64(row.key_id),
         envelope_version=row.envelope_version,
         invalidated_at=row.invalidated_at,
         created_at=row.created_at,
@@ -77,7 +74,7 @@ async def list_envelopes(
     )
     rows = list(result.scalars().all())
     return KeyEnvelopeListOut(
-        key_id_b64=_b64(rows[0].key_id) if rows else None,
+        key_id_b64=encode_b64(rows[0].key_id) if rows else None,
         envelopes=[_to_out(row) for row in rows],
     )
 

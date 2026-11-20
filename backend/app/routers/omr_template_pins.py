@@ -1,7 +1,6 @@
 """Pinned OMR templates (issue #239) - /api/v1/exams/{id}/omr-template-pins. The layout is sealed client-side; the server stores ciphertext only. PUT is keyed on (exam, layout hash): idempotent, safe to replay offline."""
 from __future__ import annotations
 
-import base64
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -12,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import DB, get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.omr_template_pin import OmrTemplatePin
-from app.schemas.binary import GCM_IV_BYTES, decode_b64
+from app.schemas.binary import GCM_IV_BYTES, decode_b64, encode_b64
 from app.schemas.omr_template_pin import OmrTemplatePinIn, OmrTemplatePinOut
 
 router = APIRouter(
@@ -33,8 +32,8 @@ def _to_out(row: OmrTemplatePin) -> OmrTemplatePinOut:
         source=row.source,
         pinned_at=row.pinned_at,
         last_pinned_at=row.last_pinned_at,
-        payload_ciphertext_b64=base64.b64encode(row.payload_ciphertext).decode(),
-        payload_iv_b64=base64.b64encode(row.payload_iv).decode(),
+        payload_ciphertext_b64=encode_b64(row.payload_ciphertext),
+        payload_iv_b64=encode_b64(row.payload_iv),
     )
 
 

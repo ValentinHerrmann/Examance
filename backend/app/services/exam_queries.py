@@ -23,6 +23,22 @@ _EXAM_COLUMNS = ExamResponse.model_fields.keys() - {
 }
 
 
+async def find_own_exam(db: AsyncSession, teacher_id: uuid.UUID, exam_id: uuid.UUID) -> Exam | None:
+    """The teacher's live exam, or None for a missing, foreign or soft-deleted one: the one ownership check for exams (issue #299), so no caller forgets `deleted_at`."""
+    return await db.scalar(
+        select(Exam).where(Exam.id == exam_id, Exam.teacher_id == teacher_id, Exam.deleted_at.is_(None))
+    )
+
+
+async def find_own_exercise(
+    db: AsyncSession, teacher_id: uuid.UUID, exercise_id: uuid.UUID
+) -> Exercise | None:
+    """The teacher's own exercise, or None (a shared or foreign row too): the one ownership check for writing or linking an exercise (issue #299)."""
+    return await db.scalar(
+        select(Exercise).where(Exercise.id == exercise_id, Exercise.teacher_id == teacher_id)
+    )
+
+
 def exercise_response(row: ExerciseRow) -> ExerciseResponse:
     """An exercise as embedded in an exam. Share state and provenance are library-only fields."""
     ex, order_index, mc_group_id, sub_index = row

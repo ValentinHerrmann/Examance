@@ -44,6 +44,7 @@ from app.services.exam_queries import (
     fetch_exam_mc_groups,
     fetch_exercises_for_exams,
     fetch_mc_groups_for_exams,
+    find_own_exercise,
     load_exam_response,
 )
 from app.services.latex_score import parse_exercise_score
@@ -94,10 +95,7 @@ async def _resolve_linkable_exercise(
     exercise_id: uuid.UUID, teacher: Teacher, db: AsyncSession
 ) -> Exercise:
     """Load an exercise *teacher* may place into their own exam: only their own. A shared exercise is copied first (issue #65): linking another account's row would let its owner's edit or deletion cascade into this exam and its scores. Anything else raises 404."""
-    res = await db.execute(
-        select(Exercise).where(Exercise.id == exercise_id, Exercise.teacher_id == teacher.id)
-    )
-    ex = res.scalar_one_or_none()
+    ex = await find_own_exercise(db, teacher.id, exercise_id)
     if ex is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
