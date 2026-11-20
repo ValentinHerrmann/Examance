@@ -44,6 +44,8 @@ function capture(e: PointerEvent) {
 export class StrokeInput {
   private readonly pointers = new PointerRouter();
   private erasing = false;
+  // The eraser's previous point, so a fast move erases along its whole path, not just where move events land.
+  private eraserAt: Point | null = null;
   private page = 1;
   // The stamp the first finger placed and when, so a second finger right after (pinch) can take it back.
   private stampIndex: number | null = null;
@@ -124,6 +126,7 @@ export class StrokeInput {
   /** Commits the stroke in progress to the store (one update per stroke). */
   finish() {
     this.erasing = false;
+    this.eraserAt = null;
     const live = this.live;
     if (!live) return;
     this.live = null;
@@ -187,8 +190,10 @@ export class StrokeInput {
     this.view.redraw(null);
   }
 
-  private eraseAt({ x, y }: Point) {
-    const remaining = eraseStrokesAt(this.view.strokes(), this.page, x, y);
+  private eraseAt(point: Point) {
+    const from = this.eraserAt ?? point;
+    this.eraserAt = point;
+    const remaining = eraseStrokesAt(this.view.strokes(), this.page, from, point);
     if (!remaining) return;
     this.view.persist(remaining);
     this.view.recalcScores();
@@ -199,6 +204,7 @@ export class StrokeInput {
   /** A second finger turned the first finger's drawing into a pinch: take back what it placed in the first 300 ms, keep a longer stroke. */
   private abortForPinch() {
     this.erasing = false;
+    this.eraserAt = null;
     const live = this.live;
     this.live = null;
     const accidental = performance.now() - this.startedAt < ACCIDENTAL_MS;
