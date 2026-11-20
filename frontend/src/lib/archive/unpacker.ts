@@ -12,7 +12,6 @@ import {
 } from './format';
 import { deriveArgon2Key, derivePbkdf2Key } from '#lib/crypto/keyDerivation';
 import { deriveSessionKey } from '#lib/crypto/sessionKey';
-import { api } from '#lib/api/client';
 import { toArrayBuffer } from '#lib/crypto/aesGcm';
 import {
   saveStudentEncrypted,
@@ -20,17 +19,13 @@ import {
   encryptAuditEntry,
   encryptExam,
   encryptExercise,
-  encryptReview,
-  encryptScore,
   openAnnotation,
   openScan,
   sealAnnotation,
   sealScan,
 } from '#lib/db/dbEncryption';
-import { reviewRepository, toApi as reviewToApi } from '#lib/repositories/reviewRepository';
-import { scoreRepository, toApi as scoreToApi } from '#lib/repositories/scoreRepository';
-import { studentServerPayload } from '#lib/repositories/studentRepository';
-import { submissionServerPayload } from '#lib/repositories/submissionRepository';
+import { reviewRepository } from '#lib/repositories/reviewRepository';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
 import type { AuditEntry, ExerciseScoreRecord, PseudonymVersion, SubmissionRecord } from '#lib/db/schema';
 import { writeVersion } from '#lib/services/pseudonymRekey';
 import { archiveKeyId, archivedPseudonym, importedPseudonym } from './pseudonyms';
@@ -42,6 +37,7 @@ import { refreshStatistics } from '#lib/analytics/statisticsSync';
 import { remapSnapshot, type StatisticsSnapshot } from '#lib/analytics/statisticsSnapshot';
 import { statisticsRepository } from '#lib/repositories/statisticsRepository';
 import { loadAccountLogoBytes, restoreExamLogo, type ArchivedExamLogo } from '#lib/latex/logo';
+import { serverResultWriters } from '#lib/services/resultsMover';
 
 function describe(err: any): string {
   return err?.message ?? String(err);
@@ -309,10 +305,7 @@ async function importStudent(ctx: ApplyContext, item: any, pseudonyms: Map<any, 
   const student = { ...archivedStudent, ...pseudonyms.get(item), examId: ctx.remap(item.examId) };
   try {
     if (local) await saveStudentEncrypted(student, activeKey);
-    else
-      await api.post(`/exams/${student.examId}/students`, await studentServerPayload(student, activeKey), {
-        silentError: true,
-      });
+    else await serverResultWriters.student(student.examId, student, activeKey);
     bump(report, 'students', decided.get(`${item.examId}:${archivedPseudonym(item).value}`) ?? 'created');
   } catch (err) {
     errors.push(`Student of exam ${ctx.labelOf(item.examId)}: ${describe(err)}`);
@@ -337,10 +330,7 @@ async function importSubmission(
   );
   try {
     if (local) await saveSubmissionEncrypted(sub, activeKey);
-    else
-      await api.post(`/exams/${sub.examId}/submissions`, await submissionServerPayload(sub), {
-        silentError: true,
-      });
+    else await serverResultWriters.submission(sub.examId, sub);
     bump(report, 'submissions', decided.get(item.id) ?? 'created');
     if (sub.scanCt) bump(report, 'scans', 'created');
     if (sub.annotationCt) bump(report, 'annotations', 'created');
@@ -404,14 +394,7 @@ async function importScoreGroup(
   }
   try {
     if (local) await scoreRepository.saveMany(examId, submissionId, scores, activeKey);
-    else {
-      const sealed = await Promise.all(scores.map((sc) => encryptScore(sc, activeKey)));
-      await api.put(
-        `/exams/${examId}/submissions/${submissionId}/scores`,
-        { scores: sealed.map(scoreToApi) },
-        { silentError: true }
-      );
-    }
+    else await serverResultWriters.scores(examId, submissionId, scores, activeKey);
     bump(report, 'scores', 'created', scores.length);
   } catch (err) {
     errors.push(`Scores of submission ${submissionId}: ${describe(err)}`);
@@ -434,10 +417,7 @@ async function importReviews(ctx: ApplyContext, remapSubmission: (id: string) =>
     const record = { ...review, submissionId, id: submissionId !== review.submissionId ? crypto.randomUUID() : review.id };
     try {
       if (local) await reviewRepository.save(examId, record, activeKey); // NOSONAR: one submission at a time
-      else {
-        const sealed = await encryptReview(record, activeKey); // NOSONAR: one submission at a time
-        await api.put(`/exams/${examId}/submissions/${submissionId}/grading-review`, reviewToApi(sealed), { silentError: true }); // NOSONAR: one submission at a time
-      }
+      else await serverResultWriters.review(examId, record, activeKey); // NOSONAR: one submission at a time
       bump(report, 'reviews', 'created');
     } catch (err) {
       errors.push(`Grading review of submission ${submissionId}: ${describe(err)}`);
