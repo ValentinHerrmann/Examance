@@ -57,7 +57,10 @@ export function createAutosave({ run, delayMs = AUTOSAVE_DELAY_MS, message = def
       const edited = again;
       again = false;
       set('error', message(err));
-      if (edited && !timer) timer = setTimeout(() => void flush(), delayMs);
+      if (edited && !timer) {
+        timer = setTimeout(() => void flush(), delayMs);
+        set('pending');
+      }
     }
   }
 

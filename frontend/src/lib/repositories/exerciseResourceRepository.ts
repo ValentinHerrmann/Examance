@@ -141,7 +141,7 @@ export const exerciseResourceRepository = {
     exerciseId: string,
     key: CryptoKey | null,
     { keepStaging = false }: { keepStaging?: boolean } = {}
-  ): Promise<{ errors: string[]; status?: number }> {
+  ): Promise<{ errors: string[]; status?: number; listFailed?: boolean }> {
     const errors: string[] = [];
     // HTTP status of the first failed request (none for a network failure), for the caller's error dialog.
     let status: number | undefined;
@@ -151,10 +151,13 @@ export const exerciseResourceRepository = {
     };
     const staged = await this.listLocal(stagingId);
     let remote: ExerciseResourceRecord[] = [];
+    // A failed list is not an upload failure: every staged file is then sent again.
+    let listFailed = false;
     try {
       remote = await listOnServer(exerciseId);
     } catch (err: any) {
-      fail(err, err?.message || 'Could not read the exercise files from the server.');
+      listFailed = true;
+      console.warn('Could not read the exercise files from the server:', err?.message ?? err);
     }
 
     const stagedNames = new Set(staged.map((r) => r.filename));
@@ -196,7 +199,7 @@ export const exerciseResourceRepository = {
 
     if (keepStaging) {
       await this.mirrorStaging(staged, exerciseId, key);
-      return { errors, status };
+      return { errors, status, listFailed };
     }
 
     // Replace whatever the exercise had locally with the staged set.
@@ -206,7 +209,7 @@ export const exerciseResourceRepository = {
     }
     await db.exerciseResources.where('exerciseId').equals(stagingId).delete();
 
-    return { errors, status };
+    return { errors, status, listFailed };
   },
 
   /** Keeps the staged rows (with their upload state) and gives the exercise its own copies. A copy needs a new id and so a new seal (AAD is the id); an unchanged copy is kept as is. */

@@ -68,6 +68,7 @@ export const exercises = {
         previewFailedUnknown: 'Unbekannter Kompilierungsfehler',
         saveFailed: 'Aufgabe konnte nicht gespeichert werden: {message}',
         filesNotSynced: 'Die Aufgabe ist gespeichert, aber diese Dateien konnten nicht hochgeladen werden: {files}. Sie bleiben in diesem Browser und werden beim nächsten Speichern erneut hochgeladen.',
+        filesNotStored: 'Die Aufgabe ist gespeichert, aber ihre Dateien konnten in diesem Browser nicht abgelegt werden. Bitte die Aufgabe erneut öffnen und speichern.',
         previewAngabeTitle: 'Aufgabe',
         previewLoesungTitle: 'Lösung',
         previewPlaceholder: 'Klicken Sie auf „Live-Vorschau PDF“, um zu rendern',

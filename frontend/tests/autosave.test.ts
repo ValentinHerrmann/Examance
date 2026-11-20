@@ -55,7 +55,7 @@ describe('createAutosave', () => {
     await vi.advanceTimersByTimeAsync(100);
     fail(new Error('offline'));
     await vi.advanceTimersByTimeAsync(0);
-    expect(get(save).state).toBe('error');
+    expect(get(save).state).toBe('pending');
     await vi.advanceTimersByTimeAsync(100);
     expect(run).toHaveBeenCalledTimes(2);
     expect(get(save).state).toBe('saved');

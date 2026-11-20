@@ -27,7 +27,11 @@ export function saveExamChecks(examId: string, base: StepChecks, update: (checks
   const settled = step.catch(() => undefined);
   queues.set(examId, settled);
   void settled.then(() => {
-    if (queues.get(examId) === settled) queues.delete(examId);
+    // Drained: `lastSaved` only bridges one burst, so a later save never builds on checks saved long ago.
+    if (queues.get(examId) === settled) {
+      queues.delete(examId);
+      lastSaved.delete(examId);
+    }
   });
   return step;
 }

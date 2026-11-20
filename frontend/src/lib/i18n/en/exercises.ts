@@ -70,6 +70,7 @@ export const exercises: Translations['exercises'] = {
         previewFailedUnknown: 'Unknown compilation error',
         saveFailed: 'Failed to save exercise: {message}',
         filesNotSynced: 'The exercise is saved, but these files could not be uploaded: {files}. They stay in this browser and are uploaded again with the next save.',
+        filesNotStored: 'The exercise is saved, but its files could not be stored in this browser. Please open the exercise again and save it.',
         previewAngabeTitle: 'Exercise',
         previewLoesungTitle: 'Solution',
         previewPlaceholder: 'Click "Live preview PDF" to render',

@@ -191,7 +191,21 @@ export class ResourceSyncError extends Error {
   }
 }
 
-/** The error for a resource commit's upload failures, or null when every file arrived; without an HTTP status (no response) it reports 503. */
-export function resourceSyncError(result: { errors: string[]; status?: number }): ResourceSyncError | null {
+/** The error for a resource commit's upload failures, or null when every file arrived (a failed file list alone is no upload failure); without an HTTP status (no response) it reports 503. */
+export function resourceSyncError(result: { errors: string[]; status?: number; listFailed?: boolean }): ResourceSyncError | null {
   return result.errors.length ? new ResourceSyncError(result.errors, result.status ?? 503) : null;
+}
+
+/** Runs an explicit save's file commit, which follows an exercise already stored: it never rejects (a retry would write the exercise again, or a second version), and any failure goes to `report` as an HTTP status and message. */
+export async function reportAfterSave(commit: () => Promise<void>, report: (status: number, message: string) => void): Promise<void> {
+  try {
+    await commit();
+  } catch (err) {
+    if (err instanceof ResourceSyncError) {
+      report(err.status, err.message);
+      return;
+    }
+    console.warn('Failed to store resource files:', err);
+    report(500, translate('exercises.editor.filesNotStored'));
+  }
 }

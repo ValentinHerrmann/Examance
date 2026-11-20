@@ -139,14 +139,18 @@
   const autosave = createAutosave({ run: async () => {} });
 
   /** Each save builds from the checks the previous one stored (`saveExamChecks` queues them), so quick ticks are all kept. */
+  // Queued saves overlap: `busy` holds until the last one ends.
+  let savesInFlight = 0;
   async function save(base: StepChecks, update: (checks: StepChecks) => StepChecks) {
+    savesInFlight++;
     busy = true;
     try {
       await autosave.track(saveExamChecks(examId, base, update));
     } catch {
       // Shown in the header's save status.
     } finally {
-      busy = false;
+      savesInFlight--;
+      busy = savesInFlight > 0;
     }
   }
 

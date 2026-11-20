@@ -32,6 +32,15 @@ describe("saveExamChecks (issue #298)", () => {
     expect(saved.at(-1)).toMatchObject({ a: true, b: true });
   });
 
+  it("builds on the caller's checks once an earlier burst has drained", async () => {
+    gate = Promise.resolve();
+    await saveExamChecks("e3", {} as StepChecks, tick("old"));
+    await new Promise((r) => setTimeout(r, 0));
+    await saveExamChecks("e3", { fresh: true } as unknown as StepChecks, tick("b"));
+    expect(saved.at(-1)).toMatchObject({ fresh: true, b: true });
+    expect(saved.at(-1)).not.toHaveProperty("old");
+  });
+
   it("keeps saving after a failed save", async () => {
     gate = Promise.resolve();
     saveStepChecks.mockRejectedValueOnce(new Error("offline"));

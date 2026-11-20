@@ -7,7 +7,7 @@
   import { askToShare } from "#lib/exercise-library/askToShare";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { parseMcOptions, buildMcOptionsLatex, type McOption } from "#lib/latex/mcOptions";
-  import { EDITOR_AUTOSAVE_MS, ResourceSyncError, cascadeGroupMetadata, exerciseDraftError, resourceSyncError, withoutMetaTags, writeExercise, writeNewVersion, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
+  import { EDITOR_AUTOSAVE_MS, cascadeGroupMetadata, exerciseDraftError, reportAfterSave, resourceSyncError, withoutMetaTags, writeExercise, writeNewVersion, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
   import { httpErrorStore } from "#lib/stores/httpErrorStore";
   import { createAutosave } from "#lib/utils/autosave";
   import { getLatestForSlot } from "#lib/latex/compileCache";
@@ -122,14 +122,9 @@
     if (failed) throw failed;
   }
 
-  /** An explicit save already stored the exercise, so the dialog closes; files that did not upload are reported in the error dialog. */
-  async function commitAfterSave(exerciseId: string, key: CryptoKey | null) {
-    try {
-      await commitStagedResources(exerciseId, key);
-    } catch (err) {
-      if (!(err instanceof ResourceSyncError)) throw err;
-      httpErrorStore.showError(err.status, err.message);
-    }
+  /** An explicit save already stored the exercise, so the dialog closes; a file failure is reported in the error dialog, never as a failed save. */
+  function commitAfterSave(exerciseId: string, key: CryptoKey | null) {
+    return reportAfterSave(() => commitStagedResources(exerciseId, key), (status, message) => httpErrorStore.showError(status, message));
   }
 
   function insertResourceSnippet(snippet: string) {
