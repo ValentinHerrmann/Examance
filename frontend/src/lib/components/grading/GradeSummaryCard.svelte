@@ -25,23 +25,21 @@
   }: Props = $props();
 </script>
 
-<div class="flex flex-col gap-2">
-  <!-- From `lg` the 11rem score panel stacks the label above the points (issue #328). -->
-  <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 lg:flex-col lg:items-start lg:gap-0">
+<div class="flex flex-col gap-1.5">
+  <!-- From `lg` the 11rem score panel stacks the label above "points / max", the progress wraps below (issue #328). -->
+  <div class="flex flex-wrap items-baseline justify-between gap-x-3 lg:flex-col lg:items-start lg:gap-0">
     <span class="text-sm font-medium text-muted lg:text-xs">{$t("grading.summary.totalPoints")}</span>
-    <div class="flex flex-wrap items-baseline gap-x-1.5">
-      {#if isFullyGraded}
-        <span class="text-2xl font-bold text-content lg:text-xl">{totalScore}</span>
-      {:else}
-        <span class="text-2xl font-bold text-content lg:text-xl">{sumGradedScores}</span>
+    <div class="flex flex-wrap items-baseline gap-x-1.5 leading-tight">
+      <span class="text-2xl font-bold text-content lg:text-xl">{isFullyGraded ? totalScore : sumGradedScores}</span>
+      <span class="text-sm text-muted lg:text-xs">{$t("grading.summary.maxPoints", { max: totalMaxPoints })}</span>
+      {#if !isFullyGraded}
         <span class="text-sm text-warning-fg lg:text-xs" title={$t("grading.summary.inProgressTitle")}>{$t("grading.summary.inProgress", { graded: gradedCount, total: exercisesLength })}</span>
       {/if}
-      <span class="text-sm text-muted lg:text-xs">{$t("grading.summary.maxPoints", { max: totalMaxPoints })}</span>
     </div>
   </div>
 
   {#if calculatedGradeDetail}
-    <div class="flex flex-col gap-1.5 rounded-md border border-line bg-surface-sunken p-2 lg:gap-1 lg:p-1.5">
+    <div class="flex flex-col gap-1.5 rounded-md border border-line bg-surface-sunken p-2 lg:gap-0.5 lg:p-1.5">
       <div class="flex flex-wrap items-baseline gap-x-2">
         <Badge severity="info">{$t("grading.summary.gradeBadge", { grade: calculatedGradeDetail.grade })}</Badge>
         <span class="text-sm text-muted lg:text-xs">({calculatedGradeDetail.label})</span>

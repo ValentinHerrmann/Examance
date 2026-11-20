@@ -23,13 +23,15 @@
   }
 </script>
 
-<div class="shrink-0 border-b border-line bg-surface-raised px-3 py-2.5">
-  <h3 class="m-0 text-sm font-semibold text-content">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
+<div class="shrink-0 border-b border-line bg-surface-raised px-3 py-1.5 lg:px-2">
+  <h3 class="m-0 text-xs font-semibold tracking-wide text-muted uppercase">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
 </div>
 
-<div class="flex flex-1 min-h-0 flex-col gap-1.5 overflow-y-auto p-2">
+<!-- One flat list: hairlines between rows, a stronger line between exercises; no gaps or frames that cost width (issue #328). -->
+<div class="flex min-h-0 flex-1 flex-col divide-y divide-line-strong overflow-y-auto">
   {#each exercises as ex (ex.id)}
     {@const parts = $gradingStore.partInputs[ex.id]}
+    <div class="divide-y divide-line">
     <ScoreRow
       value={$gradingStore.scoreInputs[ex.id]}
       max={ex.maxPoints}
@@ -44,7 +46,7 @@
     >
       {#snippet label()}
         <!-- Plain text, no link to the exercise editor: a pen or palm tapped it by accident while grading (issue #233). -->
-        <span class="text-xs font-bold text-content">{exerciseTag(ex)}</span>
+        <span class="text-sm font-bold text-content">{exerciseTag(ex)}</span>
       {/snippet}
     </ScoreRow>
     {#each exerciseParts(ex) as part (part.label)}
@@ -60,7 +62,7 @@
         onValue={(v) => setPart(ex, part.label, v)}
         onReset={() => resetPart(ex, part.label)}
       >
-        {#snippet label()}<span class="font-semibold text-content">{$t("grading.scoreEntry.partRowLabel", { label: part.label })}</span>{/snippet}
+        {#snippet label()}<span class="sr-only">{$t("grading.scoreEntry.partRowLabel", { label: part.label })}</span><span class="font-semibold text-content" aria-hidden="true">{part.label})</span>{/snippet}
       </ScoreRow>
     {/each}
     {#if showRest(ex)}
@@ -81,5 +83,6 @@
         {#snippet label()}<span class="font-semibold text-content">{$t("grading.scoreEntry.restRowLabel")}</span>{/snippet}
       </ScoreRow>
     {/if}
+    </div>
   {/each}
 </div>

@@ -46,7 +46,7 @@
       {@const parts = $gradingStore.partInputs[ex.id]}
       {#if objected(ex.id)}
         <div class="flex flex-col gap-2">
-          <ScoreRow
+          <div class="overflow-hidden rounded-md border border-line"><ScoreRow
             value={$gradingStore.scoreInputs[ex.id]}
             max={ex.maxPoints}
             active={false}
@@ -58,14 +58,14 @@
             onReset={() => resetExercise(ex)}
           >
             {#snippet label()}<span class="text-xs font-bold text-content">{exerciseTag(ex)}</span>{/snippet}
-          </ScoreRow>
+          </ScoreRow></div>
           <ReviewThread itemKey={ex.id} />
         </div>
       {/if}
       {#each exerciseParts(ex) as part (part.label)}
         {#if objected(partOverrideKey(ex.id, part.label))}
           <div class="flex flex-col gap-2">
-            <ScoreRow
+            <div class="overflow-hidden rounded-md border border-line"><ScoreRow
               value={parts?.[part.label]}
               max={part.max}
               active={false}
@@ -79,7 +79,7 @@
                 <span class="text-xs font-bold text-content">{exerciseTag(ex)}</span>
                 <span class="text-xs font-semibold text-content">{$t("grading.scoreEntry.partRowLabel", { label: part.label })}</span>
               {/snippet}
-            </ScoreRow>
+            </ScoreRow></div>
             <ReviewThread itemKey={partOverrideKey(ex.id, part.label)} />
           </div>
         {/if}

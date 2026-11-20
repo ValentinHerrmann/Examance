@@ -165,7 +165,7 @@
       {/if}
     </div>
 
-    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2 lg:px-2">
+    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-2 lg:gap-1.5 lg:px-2 lg:py-1.5">
       <GradeSummaryCard
         {isFullyGraded}
         {totalScore}

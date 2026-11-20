@@ -20,13 +20,13 @@
   }: Props = $props();
 </script>
 
-<div class="flex min-h-5 items-center justify-end">
-  <SaveStatus status={saveStatus} />
-</div>
-
-<div class="flex flex-wrap gap-2">
+<!-- Below `lg` the status sits on its own line above the buttons; in the 11rem panel it shrinks to its icon between the arrows (issue #328), a failure keeps its own line. -->
+<div class="flex flex-wrap items-center gap-2 lg:gap-1">
+  <div class="order-first flex min-h-5 w-full items-center justify-end {saveStatus.state === 'error' ? '' : 'lg:order-none lg:w-auto lg:justify-center'}">
+    <SaveStatus status={saveStatus} labelClass="lg:sr-only" />
+  </div>
   <Button
-    class="flex-1"
+    class="flex-1 lg:order-first"
     size="sm"
     variant="outlined"
     severity="secondary"
