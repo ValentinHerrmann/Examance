@@ -1,4 +1,5 @@
 import type { GradingState, VectorStroke } from '#lib/grading/gradingStore';
+import type { Point } from './pointerInput';
 
 export interface AutoCropBounds {
   x: number;
@@ -80,11 +81,40 @@ export function legacyScanCrop(img: HTMLImageElement, autoCrop: boolean): AutoCr
   return getAutoCropBounds(ctx, img.width, img.height);
 }
 
-/** Strokes left after erasing at (x, y) on `page`; null when nothing was hit. */
-export function eraseStrokesAt(strokes: VectorStroke[], page: number, x: number, y: number, radius = 25): VectorStroke[] | null {
-  const remaining = strokes.filter(
-    (s) => (s.pageNumber ?? 1) !== page || !s.points.some((p) => Math.hypot(p.x - x, p.y - y) <= radius)
-  );
+function distanceToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+function cross(o: Point, a: Point, b: Point): number {
+  return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+}
+
+/** Shortest distance between segments ab and cd (0 when they cross). */
+export function segmentDistance(a: Point, b: Point, c: Point, d: Point): number {
+  const d1 = cross(c, d, a);
+  const d2 = cross(c, d, b);
+  const d3 = cross(a, b, c);
+  const d4 = cross(a, b, d);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return 0;
+  return Math.min(distanceToSegment(a, c, d), distanceToSegment(b, c, d), distanceToSegment(c, a, b), distanceToSegment(d, a, b));
+}
+
+/** Whether the eraser's sweep from→to passes within `radius` of the stroke's path (a line stores only its two ends, issue #327). */
+function strokeHit(points: Point[], from: Point, to: Point, radius: number): boolean {
+  if (points.length === 1) return distanceToSegment(points[0], from, to) <= radius;
+  for (let i = 1; i < points.length; i++) {
+    if (segmentDistance(points[i - 1], points[i], from, to) <= radius) return true;
+  }
+  return false;
+}
+
+/** Strokes left after the eraser swept from `from` to `to` on `page`; null when nothing was hit. */
+export function eraseStrokesAt(strokes: VectorStroke[], page: number, from: Point, to: Point = from, radius = 25): VectorStroke[] | null {
+  const remaining = strokes.filter((s) => (s.pageNumber ?? 1) !== page || !strokeHit(s.points, from, to, radius));
   return remaining.length === strokes.length ? null : remaining;
 }
 
