@@ -1,3 +1,4 @@
+import { parseDecimal } from '#lib/utils/parseDecimal';
 /** Extra working time of one student (issue #265, docs/dev/time_extensions.md): absolute minutes or a share of the exam's working time plus reading time. The only place that converts, rounds and prints it. */
 
 export type ExtensionUnit = 'min' | '%';
@@ -11,8 +12,8 @@ export const MAX_EXTENSION: Record<ExtensionUnit, number> = { min: 1440, '%': 10
 
 /** The entered value as an extension; empty, zero, too large or unreadable input means none. */
 export function extensionFrom(value: string, unit: ExtensionUnit): TimeExtension | undefined {
-  const number = Number(value.trim().replace(',', '.'));
-  return value.trim() && Number.isFinite(number) && number > 0 && number <= MAX_EXTENSION[unit] ? { value: number, unit } : undefined;
+  const number = parseDecimal(value);
+  return number !== null && number > 0 && number <= MAX_EXTENSION[unit] ? { value: number, unit } : undefined;
 }
 
 /** What a share is taken of: working time plus reading time; null without a working time. */

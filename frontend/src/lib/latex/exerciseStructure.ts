@@ -1,3 +1,4 @@
+import { parseDecimal } from '#lib/utils/parseDecimal';
 /** Reads and edits an exercise's structure from its LaTeX (issues #77-#79): score units, fixed scores, part exercises (`Teilaufgabe`), Anforderungsbereich (`\AFB`) and competencies (`\Kompetenz`). The LaTeX stays the single source of truth; macros live in Schulaufgabe.sty. */
 
 export const REQUIREMENT_LEVELS = ["I", "II", "III"] as const;
@@ -142,11 +143,6 @@ function macroArgs(text: string, name: string): string[] {
   return out;
 }
 
-function parseNumber(raw: string | null | undefined): number | null {
-  if (raw == null) return null;
-  const n = Number.parseFloat(raw.trim().replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-}
 
 /** The text outside every part range (parts replaced by spaces, offsets kept). */
 function topLevelText(masked: string, parts: PartRange[]): string {
@@ -173,7 +169,7 @@ export function parseExerciseStructure(latex: string | null | undefined): Exerci
   const parts: ExercisePart[] = ranges.map((r, i) => {
     const inner = masked.slice(r.innerStart, r.innerEnd);
     const fixedArgs = macroArgs(inner, "FestePunkte");
-    const fixed = parseNumber(r.option) ?? parseNumber(fixedArgs.at(-1));
+    const fixed = parseDecimal(r.option) ?? parseDecimal(fixedArgs.at(-1));
     return {
       label: String.fromCodePoint(97 + (i % 26)),
       title: r.title,
@@ -193,7 +189,7 @@ export function parseExerciseStructure(latex: string | null | undefined): Exerci
   // A part's fixed score replaces its own units in the exercise total, as in Schulaufgabe.sty.
   const counted = unitScore(topUnits) + parts.reduce((s, p) => s + p.score, 0);
   const topFixedArgs = macroArgs(top, "FestePunkte");
-  const fixed = parseNumber(aufgabeOption(masked)?.value) ?? parseNumber(topFixedArgs.at(-1));
+  const fixed = parseDecimal(aufgabeOption(masked)?.value) ?? parseDecimal(topFixedArgs.at(-1));
   return {
     ...scored(units, fixed, macroArgs(top, "AFB"), macroArgs(top, "Kompetenz"), counted),
     parts

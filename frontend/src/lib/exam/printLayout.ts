@@ -1,6 +1,7 @@
 /** Multi-sheet print settings of an exam (issues #220 and #228, docs/dev/multi_sheet_exams.md): all set in the Layout step (issue #272): page codes, extra paper, print mode, duplex or booklet and sticker spots. The printed sheet always fills up to whole sheets of its layout with extra pages. */
 
 import type { ExamRecord } from '#lib/db/schema';
+import { parseDecimal } from '#lib/utils/parseDecimal';
 
 export type PrintLayout = 'duplex' | 'booklet';
 /** Where stickers go in sticker mode: the cover only, every sheet front (duplex), every A3 sheet or every cut A4 leaf (booklet). */
@@ -45,7 +46,7 @@ export const MAX_BOOKLET_OFFSET = 10;
 /** A typed ("2,5") or stored number; anything else is NaN. */
 function numberOf(value: unknown): number {
   if (typeof value === 'number') return value;
-  return typeof value === 'string' ? Number(value.replace(',', '.')) : Number.NaN;
+  return typeof value === 'string' ? (parseDecimal(value) ?? Number.NaN) : Number.NaN;
 }
 
 /** A stored or typed shift as a multiple of 0.5 mm within ±MAX_BOOKLET_OFFSET. */

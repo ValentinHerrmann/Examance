@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { parseDecimal } from "#lib/utils/parseDecimal";
   import { SHOW_ROSTER_TAB } from "#lib/grading/manualRoster";
   import { studentsHref } from "#lib/utils/links";
   import { untrack } from "svelte";
@@ -153,13 +154,12 @@
       for (let exIdx = 0; exIdx < k; exIdx++) {
         // Look at trailing K columns or matching indices
         const colIdx = totalCols >= k ? totalCols - k + exIdx : nameColIdx + 1 + exIdx;
-        const cellVal = cells[colIdx] !== undefined ? cells[colIdx].trim().replace(",", ".") : "";
+        const cellVal = cells[colIdx] ?? "";
 
-        if (cellVal === "") {
+        if (cellVal.trim() === "") {
           exerciseScores.push(null);
         } else {
-          const parsed = parseFloat(cellVal);
-          exerciseScores.push(isNaN(parsed) ? null : parsed);
+          exerciseScores.push(parseDecimal(cellVal));
         }
       }
 
