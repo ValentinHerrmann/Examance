@@ -16,7 +16,7 @@
   import LayoutChoiceRow, { type LayoutChoice } from "#lib/components/exam/LayoutChoiceRow.svelte";
   import { extraNotesKey, type ExtraNotes } from "#lib/db/schema";
   import SectionHeading from "#lib/components/help/SectionHeading.svelte";
-  import { faBookOpen, faCopy, faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faScissors, faSignature, faTableCells, faTag, faUser, faUserSecret, faBook, faPenNib, faTriangleExclamation, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
+  import { faBookOpen, faBraille, faCopy, faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faScissors, faSignature, faTableCells, faTag, faUser, faUserSecret, faBook, faPenNib, faTriangleExclamation, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import { Button, Card, CrossLink, Field, Icon, SaveStatus, TextInput } from "#lib/components/ui";
 
   /** The Layout step (issue #272): every choice that changes how the exam looks, from presets to the writing paper, beside a live content-free sketch. Every change saves itself; the Print step only prints. */
@@ -40,6 +40,7 @@
   let resultsQrBox = $state(false);
   let cutCorner = $state(true);
   let foldStrip = $state(true);
+  let dottedFields = $state(false);
   let printLayout = $state<PrintLayout>("duplex");
   let printMode = $state<PrintMode>("stickers");
   let stickerSpots = $state<StickerSpots>("cover");
@@ -70,6 +71,7 @@
     resultsQrBox = exam.resultsQrBox === true;
     cutCorner = print.cutCorner;
     foldStrip = print.foldStrip;
+    dottedFields = print.dottedFields;
     printLayout = print.layout;
     printMode = exam.printMode === "copies" ? "copies" : "stickers";
     stickerSpots = print.stickerSpots;
@@ -93,6 +95,7 @@
       resultsQrBox: rec?.resultsQrBox === true,
       cutCorner: print.cutCorner,
       foldStrip: print.foldStrip,
+      dottedFields: print.dottedFields,
       printLayout: print.layout,
       printMode: rec?.printMode === "copies" ? "copies" : "stickers",
       stickerSpots: print.stickerSpots,
@@ -103,12 +106,12 @@
   }
 
   /** The current edits as record fields, for the sketch, the preset match and the pictograms. */
-  let current = $derived({ infoText, nameLine, mcCorrectionHint, pageCodes, digitalGrading, resultsQrBox, cutCorner, foldStrip, printLayout, printMode, stickerSpots, paperStyle, extraPages });
+  let current = $derived({ infoText, nameLine, mcCorrectionHint, pageCodes, digitalGrading, resultsQrBox, cutCorner, foldStrip, dottedFields, printLayout, printMode, stickerSpots, paperStyle, extraPages });
 
   /** The fields that differ from the last save. */
   function changes(): ExamLayoutPatch {
     const patch: ExamLayoutPatch = {};
-    for (const key of ["infoText", "nameLine", "mcCorrectionHint", "pageCodes", "digitalGrading", "resultsQrBox", "cutCorner", "foldStrip", "printLayout", "printMode", "stickerSpots", "paperStyle", "extraPages"] as const) {
+    for (const key of ["infoText", "nameLine", "mcCorrectionHint", "pageCodes", "digitalGrading", "resultsQrBox", "cutCorner", "foldStrip", "dottedFields", "printLayout", "printMode", "stickerSpots", "paperStyle", "extraPages"] as const) {
       if (current[key] !== saved[key]) (patch as Record<string, unknown>)[key] = current[key];
     }
     if (extraNotesKey(extraNotes) !== saved.extraNotes) patch.extraNotes = extraNotes;
@@ -364,9 +367,19 @@
           onHighlight={light} onShow={showPart}
           choices={[
             { value: "squared", checked: paperStyle === "squared", icon: faTableCells, title: $t("exam.layout.paper.squared"), text: $t("exam.layout.paper.squaredText"), part: "paper", onPick: () => (paperStyle = "squared") },
+            { value: "dotted", checked: paperStyle === "dotted", icon: faBraille, title: $t("exam.layout.paper.dotted"), text: $t("exam.layout.paper.dottedText"), part: "paper", onPick: () => (paperStyle = "dotted") },
             { value: "lined", checked: paperStyle === "lined", icon: faGripLines, title: $t("exam.layout.paper.lined"), text: $t("exam.layout.paper.linedText"), part: "paper", onPick: () => (paperStyle = "lined") },
             { value: "empty", checked: paperStyle === "empty", icon: faFile, title: $t("exam.layout.paper.empty"), text: $t("exam.layout.paper.emptyText"), part: "paper", onPick: () => (paperStyle = "empty") },
           ]}
+        />
+        <LayoutChoiceRow
+          id="layout-dotted-fields"
+          label={$t("exam.layout.paper.dottedFields")}
+          type="checkbox"
+          columns={2}
+          fallback={$t("exam.layout.paper.dottedFieldsText")}
+          onHighlight={light} onShow={showPart}
+          choices={[{ value: "dottedFields", checked: dottedFields, icon: faBraille, title: $t("exam.layout.paper.dottedFields"), text: $t("exam.layout.paper.dottedFieldsText"), part: "paper", onPick: (on) => (dottedFields = on) }]}
         />
         <div {...stress("notes")} role="presentation">
           <ExtraNotesField value={extraNotes} onChange={(next) => (extraNotes = next)} idPrefix="layoutExtraNotes" />

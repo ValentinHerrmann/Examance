@@ -74,8 +74,8 @@ export function fingerprint(text: string): string {
 
 /** The print settings as stamped: the scan-aid switches (issue #272) only when they differ from what the grading switch printed before, so older stamps stay as they were. */
 function stampedPrint(exam: ExamRecord) {
-    const { cutCorner, foldStrip, ...rest } = printSettingsOf(exam);
-    return { ...rest, ...(cutCorner === rest.digitalGrading ? {} : { cutCorner }), ...(foldStrip === rest.digitalGrading ? {} : { foldStrip }) };
+    const { cutCorner, foldStrip, dottedFields, ...rest } = printSettingsOf(exam);
+    return { ...rest, ...(dottedFields ? { dottedFields } : {}), ...(cutCorner === rest.digitalGrading ? {} : { cutCorner }), ...(foldStrip === rest.digitalGrading ? {} : { foldStrip }) };
 }
 
 const LEGACY_PRINT = JSON.stringify(stampedPrint({} as ExamRecord));

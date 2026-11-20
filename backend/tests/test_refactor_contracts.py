@@ -370,6 +370,20 @@ async def test_exam_scan_aid_switches_round_trip(client: AsyncClient, db: AsyncS
     assert (await client.patch(url, json={"nr": "2"})).json()["cut_corner"] is False
 
 
+@pytest.mark.asyncio
+async def test_exam_dotted_paper_and_fields_round_trip(client: AsyncClient, db: AsyncSession) -> None:
+    await sign_in(client, db, "dotted@example.com")
+    exam = await _exam(client)
+    assert (exam["paper_style"], exam["dotted_fields"]) == ("empty", False)
+
+    # Issue #314: dotted writing paper and dotted answer fields are set independently.
+    url = f"{EXAMS}/{exam['id']}"
+    body = (await client.patch(url, json={"paper_style": "dotted", "dotted_fields": True})).json()
+    assert (body["paper_style"], body["dotted_fields"]) == ("dotted", True)
+    assert (await client.patch(url, json={"nr": "2"})).json()["dotted_fields"] is True
+    assert (await client.patch(url, json={"paper_style": "zigzag"})).status_code == 422
+
+
 def _db_scopes(dependant: Dependant) -> list[str | None]:
     found: list[str | None] = []
     for sub in dependant.dependencies:

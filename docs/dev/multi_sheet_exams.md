@@ -12,7 +12,8 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 | `print_layout` | `duplex`, `booklet` | `duplex` | Layout step | `broschuere` |
 | `print_mode` | `stickers`, `copies` | `stickers` | Layout step | sticker spots only in `stickers` mode; `copies` also without `digital_grading` (issue #272), then `printSettingsOf` reads `results_qr_box` as on, since copies stamp their code into the box and `examCopies.ts` draws page 1's corner tab itself |
 | `sticker_spots` | `cover`, `sheet`, `a3`, `leaf` | `sheet` | Layout step (sticker mode) | `\Aufkleberseiten{bogen|a3}` |
-| `paper_style` | `empty`, `squared`, `lined` | `squared` | Layout step | `papierkaro` / `papierlinien` |
+| `paper_style` | `empty`, `squared`, `dotted`, `lined` | `squared` | Layout step | `papierkaro` / `papierpunkte` / `papierlinien` |
+| `dotted_fields` | bool | `false` | Layout step (Writing space) | `karopunkte`: `\kariert` and `\LoesungKaro` draw a 5 mm dot grid on the student sheet (issue #314) |
 | `extra_pages` | int 0–20 | `0` | Layout step | `\Zusatzseiten{n}` |
 | `booklet_offset_mm` | float −10…10 | `0` | Print step | none (applied by `imposeBooklet`) |
 | `digital_grading` | bool | `true` | Layout step (the corner-markers switch) | off: `ohnemarken` (no corner markers, room kept), steps 5A–7A greyed out; `namenszeile` unless `results_qr_box` and not `name_line` (helper `printsNameLine` in `lib/exam/printLayout.ts`); without `results_qr_box` no sticker spots (`printSettingsOf` reads them as `cover`) |
@@ -63,7 +64,7 @@ All settings are plain `exams` columns (migrations 0058, 0059 and 0060). `printS
 
 ## Extra paper (issue #228)
 
-- **One pattern**: `\SA@pattern{width}{height}` draws the `paper_style` (whole 5 mm squares or 8 mm lines, light grey; empty is blank space). Every writing space uses it.
+- **One pattern**: `\SA@pattern{width}{height}` draws the `paper_style` (whole 5 mm squares, a 5 mm dot grid or 8 mm lines, light grey; empty is blank space). Every writing space uses it.
 - **Full writing pages**: `\SA@writingpage{heading}{note}` puts only the heading in the flow. The pattern is drawn at shipout (`\SA@wpdraw` in `\AddToShipoutPictureBG`) over the text area below the heading and below a sticker spot.
   - Never in the flow: a sticker-spot page has 17 mm less room than the page builder reports, and an in-flow grid spilled onto a new page, leaving a page with only its heading.
   - It serves the extra sheet and the extra pages: `\Zusatzseiten{n}{title}{note}` adds at least n of them in `\AtEndDocument` after the points table, on the student sheet only; filling whole sheets adds more of the same (`\SA@extrapage`, default heading "Platz für weitere Lösungen" without `\Zusatzseiten`).

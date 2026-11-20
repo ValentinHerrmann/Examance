@@ -8,7 +8,7 @@ export type PrintLayout = 'duplex' | 'booklet';
 export type StickerSpots = 'cover' | 'sheet' | 'a3' | 'leaf';
 export type PrintMode = 'stickers' | 'copies';
 /** Pattern of every writing space (issue #228): the rest of the last page, extra pages (also those filling whole sheets) and the extra-sheet stack. */
-export type PaperStyle = 'empty' | 'squared' | 'lined';
+export type PaperStyle = 'empty' | 'squared' | 'dotted' | 'lined';
 /** Most extra pages an exam asks for at least; the print sheet may add more to fill whole sheets. */
 export const MAX_EXTRA_PAGES = 20;
 
@@ -30,15 +30,17 @@ export interface PrintSettings {
   cutCorner: boolean;
   /** A booklet's fold strip (issue #272). */
   foldStrip: boolean;
+  /** Every squared answer field prints as a 5 mm dot grid (issue #314). */
+  dottedFields: boolean;
 }
 
-type PrintFields = Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip'>;
+type PrintFields = Pick<ExamRecord, 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip' | 'dottedFields'>;
 
 /** What a new exam starts with; older exams read as no page codes, a cover sticker and empty writing paper. */
-export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true } as const satisfies PrintFields;
+export const NEW_EXAM_PRINT = { pageCodes: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet', paperStyle: 'squared', extraPages: 0, bookletOffsetMm: 0, digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true, dottedFields: false } as const satisfies PrintFields;
 
 const SPOTS: ReadonlySet<string> = new Set<StickerSpots>(['cover', 'sheet', 'a3', 'leaf']);
-const PAPER: ReadonlySet<string> = new Set<PaperStyle>(['empty', 'squared', 'lined']);
+const PAPER: ReadonlySet<string> = new Set<PaperStyle>(['empty', 'squared', 'dotted', 'lined']);
 
 /** Largest booklet shift either way, in mm; a printer further off needs its own adjustment. */
 export const MAX_BOOKLET_OFFSET = 10;
@@ -81,6 +83,7 @@ export function printSettingsOf(exam: PrintFields): PrintSettings {
     // Absent (records from before the switches) prints as before: with Examance grading only.
     cutCorner: exam.printMode === 'copies' || (exam.cutCorner ?? exam.digitalGrading !== false),
     foldStrip: exam.foldStrip ?? exam.digitalGrading !== false,
+    dottedFields: exam.dottedFields === true,
   };
 }
 

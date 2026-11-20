@@ -33,6 +33,7 @@ export const editor: Translations['editor'] = {
             description: 'Solution vs. a ruled line to fill in.',
         },
         'loesung-karo': { label: 'Graph paper', description: 'Solution vs. rows of graph-paper squares.' },
+        'loesung-punktraster': { label: 'Dot grid', description: 'Solution vs. a 5 mm dot grid (always dots, whatever the squared-fields setting).' },
         'loesung-line': { label: 'Ruled lines', description: 'Solution vs. ruled writing lines.' },
         'loesung-code': {
             label: 'Code solution',
@@ -41,6 +42,10 @@ export const editor: Translations['editor'] = {
         kariert: {
             label: 'Graph paper (raw)',
             description: 'Rows of graph-paper squares, without an answer-key toggle.',
+        },
+        punktraster: {
+            label: 'Dot grid (no solution)',
+            description: 'Rows of a dot grid, without an answer-key toggle.',
         },
         liniert: {
             label: 'Ruled lines (raw)',

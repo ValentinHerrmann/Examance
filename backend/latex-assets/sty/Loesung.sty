@@ -130,6 +130,15 @@ escapeinside={(*@}{@*)}
 	}
 }
 
+%Loesung bzw. Punktraster (issue #314)
+\newcommand{\LoesungPunktraster}[2]{
+	\LSG{
+		#1
+	}{
+		\LSG@field{\punktraster{#2}}
+	}
+}
+
 %Loesung bzw. Linien
 \newcommand{\LoesungLine}[2]{
 	\LSG{
@@ -160,10 +169,22 @@ escapeinside={(*@}{@*)}
 	\end{Form}
 }
 
-\newcommand\kariert[2][0.5cm]{% 
+% Squared field; the exam option karopunkte (issue #314) draws it as a dot grid instead.
+\newif\ifLSG@punktkaro
+\newcommand\LSG@karogrid[2]{%
 	\begin{tikzpicture}[gray,step=#1]
 	\pgfmathtruncatemacro\anzahl{(\linewidth-\pgflinewidth)/#1} % maximale Anzahl Kästchen pro Zeile
 	\draw (0,0) rectangle (\anzahl*#1,#2*#1) (0,0) grid (\anzahl*#1,#2*#1);
+	\end{tikzpicture} 
+}
+\newcommand\kariert[2][0.5cm]{\ifLSG@punktkaro\punktraster[#1]{#2}\else\LSG@karogrid{#1}{#2}\fi}
+
+% Dot grid (issue #314): a gray dot at every corner of the squares \kariert would draw, same size, no frame.
+\newcommand\punktraster[2][0.5cm]{%
+	\begin{tikzpicture}
+	\pgfmathtruncatemacro\anzahl{(\linewidth-\pgflinewidth)/#1}
+	\path (0,0) rectangle (\anzahl*#1,#2*#1);
+	\foreach \LSG@px in {0,...,\anzahl} {\foreach \LSG@py in {0,...,#2} {\fill[gray] (\LSG@px*#1,\LSG@py*#1) circle (0.6pt);}}
 	\end{tikzpicture} 
 }
 

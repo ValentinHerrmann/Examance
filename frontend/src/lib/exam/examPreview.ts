@@ -140,17 +140,17 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
-type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "printMode" | "stickerSpots" | "paperStyle" | "extraPages" | "digitalGrading" | "resultsQrBox" | "cutCorner" | "foldStrip">;
+type LayoutFields = Pick<ExamRecord, "nameLine" | "pageCodes" | "printLayout" | "printMode" | "stickerSpots" | "paperStyle" | "extraPages" | "digitalGrading" | "resultsQrBox" | "cutCorner" | "foldStrip" | "dottedFields">;
 
 /** The Schulaufgabe.sty option of a writing-paper pattern (issue #228); empty paper sets none. */
-const PAPER_OPTION: Record<PaperStyle, string> = { empty: "", squared: "papierkaro", lined: "papierlinien" };
+const PAPER_OPTION: Record<PaperStyle, string> = { empty: "", squared: "papierkaro", dotted: "papierpunkte", lined: "papierlinien" };
 
 /** Adds the exam's layout switches to the Schulaufgabe.sty options (issue #220). *fill* fills the student sheet up to whole sheets of its print layout with extra pages (issue #228); the solution never gets them, so draft and print share one solution source. */
 export function withExamOptions(options: string, layout: LayoutFields, { fill = false }: { fill?: boolean } = {}): string {
   const print = printSettingsOf(layout);
   const filler = fill && !options.split(",").includes("antworten") && "fuellen";
   const booklet = print.layout === "booklet";
-  const multiSheet = [print.pageCodes && "seitencode", booklet && "broschuere", filler, PAPER_OPTION[print.paperStyle]];
+  const multiSheet = [print.pageCodes && "seitencode", booklet && "broschuere", filler, PAPER_OPTION[print.paperStyle], print.dottedFields && "karopunkte"];
   // Each scan aid goes on its own (issue #272), its room stays; without corner markers the QR box may stay for anonymous papers.
   const scanAids = [!print.digitalGrading && "ohnemarken", !print.digitalGrading && print.resultsQrBox && "ergebnisqr", !print.cutCorner && "ohneecke", booklet && !print.foldStrip && "ohnefalz"];
   return [options, printsNameLine(print, layout.nameLine) && "namenszeile", ...multiSheet, ...scanAids].filter(Boolean).join(",");
