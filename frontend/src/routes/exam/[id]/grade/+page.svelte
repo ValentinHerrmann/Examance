@@ -361,10 +361,11 @@
   }
 </script>
 
-<!-- No text selection or iOS callout outside fields, and palm taps near pen use are swallowed: a resting palm selected text on iPad Safari (issue #321). -->
+<!-- Once this device has shown a pen: no text selection or iOS callout outside fields, and palm taps near pen use are swallowed (a resting palm selected text on iPad Safari, issue #321). Mouse-only devices keep selecting text. -->
 <div
-  class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-base text-content select-none [-webkit-touch-callout:none]
-    [&_[contenteditable]]:select-text [&_input]:select-text [&_textarea]:select-text"
+  class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-base text-content {$penSeenStore
+    ? 'select-none [-webkit-touch-callout:none] [&_[contenteditable]]:select-text [&_input]:select-text [&_textarea]:select-text'
+    : ''}"
   use:palmGuard={$penSeenStore}
 >
   {#if submissionsLoadError}

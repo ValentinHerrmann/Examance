@@ -43,6 +43,19 @@ describe('PointerRouter', () => {
     expect(r.up(1)).toEqual({ endedDraw: false, endedPinch: false });
   });
 
+  it('lets fingers a pen took out of a pinch pan and pinch again once it lifted', () => {
+    const r = new PointerRouter(true);
+    r.down(at(1, 'touch', 0, 0));
+    r.down(at(2, 'touch', 10, 0));
+    r.down(at(3, 'pen'));
+    expect(r.moveNav(at(1, 'touch', 5, 5))).toBeNull();
+    r.up(3);
+    expect(r.moveNav(at(1, 'touch', 5, 5))).toBeNull();
+    expect(r.moveNav(at(1, 'touch', 3, 2))).toEqual({ pan: { x: 2, y: 3 } });
+    expect(r.moveNav(at(2, 'touch', 20, 0))).toEqual({ pinchStart: [{ x: 3, y: 2 }, { x: 20, y: 0 }] });
+    expect(r.up(2).endedPinch).toBe(true);
+  });
+
   it('pinches with two fingers once a pen is known', () => {
     const r = new PointerRouter(true);
     r.down(at(1, 'touch', 0, 0));

@@ -5,6 +5,7 @@ import { gradingStore, type VectorStroke } from '#lib/grading/gradingStore';
 import { eraseStrokesAt, newStroke } from './ScanCanvasViewer';
 import { PointerRouter, type Point, type PointerSample } from './pointerInput';
 import { markPenSeen } from '#lib/stores/penInput';
+import { releaseTextFocus } from './palmGuard';
 
 type ClientPoint = { clientX: number; clientY: number };
 
@@ -60,9 +61,10 @@ export class StrokeInput {
   down = (e: PointerEvent) => {
     const action = this.pointers.down(sample(e));
     if (e.pointerType === 'pen' && markPenSeen()) this.view.onPenDetected();
+    if (action.kind === 'ignore') return;
+    // Drawing on the scan never moves focus on iOS (its touches are cancelled), so a score field would keep the keyboard over the scan.
+    releaseTextFocus();
     switch (action.kind) {
-      case 'ignore':
-        return;
       case 'pan':
         capture(e);
         return;
@@ -94,7 +96,8 @@ export class StrokeInput {
     }
     const nav = this.pointers.moveNav(sample(e));
     if (!nav) return;
-    if ('pinch' in nav) this.view.zoom.pinchMove(nav.pinch[0], nav.pinch[1]);
+    if ('pinchStart' in nav) this.view.zoom.pinchStart(nav.pinchStart[0], nav.pinchStart[1]);
+    else if ('pinch' in nav) this.view.zoom.pinchMove(nav.pinch[0], nav.pinch[1]);
     else this.view.scrollBy(nav.pan.x, nav.pan.y);
   };
 
