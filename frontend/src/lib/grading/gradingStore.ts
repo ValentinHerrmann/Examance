@@ -56,7 +56,6 @@ export interface GradingState {
 
   // Modal status
   showLastSubModal: boolean;
-  showClearConfirmModal: boolean;
 
   // Canvas / annotation state
   drawTool: ToolType;
@@ -66,6 +65,9 @@ export interface GradingState {
   currentStrokes: VectorStroke[];
   /** Submission `currentStrokes` were loaded for; null while a scan loads. A save writes annotations only for it. */
   strokesSubmissionId: string | null;
+  /** Whether the viewer's annotation history can step back / forward (issue #330). */
+  canUndo: boolean;
+  canRedo: boolean;
 
     /** True once the teacher changed the current submission (stroke, score, MC toggle) since load/save; loading and re-deriving auto scores never set it. */
   isDirty: boolean;
@@ -85,13 +87,14 @@ const INITIAL_STATE: GradingState = {
   activePartLabel: '',
   mcState: {},
   showLastSubModal: false,
-  showClearConfirmModal: false,
   drawTool: 'pen',
   penColor: '#ef4444',
   zoomScale: 1.0,
   isAutoCropEnabled: true,
   currentStrokes: [],
   strokesSubmissionId: null,
+  canUndo: false,
+  canRedo: false,
   isDirty: false,
   currentPage: 1,
   totalPages: 1,
@@ -167,10 +170,6 @@ function createGradingStore() {
       update((s) => ({ ...s, showLastSubModal: show }));
     },
 
-    setShowClearConfirmModal(show: boolean) {
-      update((s) => ({ ...s, showClearConfirmModal: show }));
-    },
-
     setDrawTool(tool: ToolType) {
       update((s) => ({ ...s, drawTool: tool }));
     },
@@ -185,6 +184,10 @@ function createGradingStore() {
 
     setCurrentStrokes(strokes: VectorStroke[]) {
       update((s) => ({ ...s, currentStrokes: strokes }));
+    },
+
+    setUndoState(canUndo: boolean, canRedo: boolean) {
+      update((s) => (s.canUndo === canUndo && s.canRedo === canRedo ? s : { ...s, canUndo, canRedo }));
     },
 
     setStrokesSubmissionId(id: string | null) {

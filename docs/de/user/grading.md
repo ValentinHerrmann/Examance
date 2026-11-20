@@ -14,7 +14,7 @@ Während des Korrekturgangs sehen Sie **„Anonymer Schüler #3 von 26“**, nie
 
 ## Die Korrekturansicht {#workspace}
 
-- **Bedienelemente links:** Auf Tablet und Computer liegen das Feld **Bewertung**, die Stempel und der Zoom links, damit eine rechte Schreibhand auf dem Scan nichts davon verdeckt. Linkshänder legen sie unter [Einstellungen → Anordnung der Korrekturansicht](settings.md#grading-layout) nach rechts. Das Feld **Bewertung** ist eine schmale Spalte, damit Platz zum Schreiben bleibt; **Vorheriger** und **Nächster Schüler** sind die Pfeilschaltflächen an seinem unteren Ende.
+- **Bedienelemente links:** Auf breiten Bildschirmen (Tablet quer und größer) liegen das Feld **Bewertung**, die Stempel und der Zoom links, damit eine rechte Schreibhand auf dem Scan nichts davon verdeckt. Linkshänder legen sie unter [Einstellungen → Anordnung der Korrekturansicht](settings.md#grading-layout) nach rechts. Das Feld **Bewertung** ist eine schmale Spalte, damit Platz zum Schreiben bleibt; **Vorheriger** und **Nächster Schüler** sind die Pfeilschaltflächen an seinem unteren Ende.
 - **Alle Seiten einer Abgabe stehen untereinander.** Blättern Sie mit dem Mausrad oder der Scrollleiste durch, auf Touchgeräten mit dem Finger.
 - **Stift oder Finger:** Ein Stift und die Maus zeichnen immer. Auf Geräten ohne Stift zeichnet ein Finger, zwei Finger blättern. Sobald Sie einmal einen Stift benutzen, merkt sich Examance das auf diesem Gerät: Danach blättern und zoomen Finger und eine aufgelegte Handfläche nur noch und zeichnen nie. Solange der Stift den Bildschirm berührt, und eine halbe Sekunde danach, markiert eine aufgelegte Handfläche auch keinen Text, drückt keine Schaltfläche und verschiebt den Scan nicht. Ein kurzer Hinweis meldet das, wenn der Stift zum ersten Mal erkannt wird; damit Finger wieder zeichnen, setzen Sie es unter [Einstellungen → Stifteingabe](settings.md#pen-input) zurück.
 - **Strg + Mausrad** oder Zwei-Finger-Zoom vergrößert; **Fit** passt die Seite an die Ansicht an. Die Seitenpfeile springen zwischen den Seiten.
@@ -34,7 +34,10 @@ Korrekturzeichen entstehen auf einer eigenen Ebene über dem Scan. Das Original 
 | **-1.0**, **-0.5**, **-0.25** | Abzüge |
 | **Falsch**, **Fehlt** | Markierungen ohne Punkte |
 | **WF**, **FF** | Wiederholungsfehler, Folgefehler |
-| **Löschen** | Entfernt jede Zeichnung und jeden Stempel auf der Seite und setzt die berechneten Punkte zurück |
+| **Zurück**, **Vor** | Gehen Ihre Änderungen an den Anmerkungen schrittweise zurück und wieder vor (jeder Strich, Stempel, Radiervorgang, jedes Gekritzel und Löschen ist ein Schritt), auch mit Strg+Z und Strg+Umschalt+Z (am Mac Cmd); die berechneten Punkte folgen. Für jeden Schüler beginnt der Verlauf neu. |
+| **Löschen** | Entfernt sofort jede Zeichnung und jeden Stempel der Abgabe und setzt die berechneten Punkte zurück; ein Hinweis bietet **Rückgängig** an |
+
+**Durch Kritzeln radieren:** Kritzeln Sie mit dem Werkzeug **Stift** (per Stift, Maus oder Finger) schnell hin und her über Striche, Linien oder Stempel (mindestens fünfmal), um sie ohne Wechsel zum **Radierer** zu löschen; Stempel nehmen ihre Punkte mit. Nur Markierungen entlang des Gekritzels verschwinden, ein langer Strich, den es nur kreuzt, bleibt, und das Gekritzel selbst bleibt nie stehen. Ein Hinweis nennt, wie viele Markierungen verschwunden sind, und bietet **Rückgängig** an. Ausschalten lässt es sich unter [Einstellungen → Stifteingabe](settings.md#pen-input).
 
 Sie können die Punkte einer Aufgabe auch direkt eintippen. **Als unkorrigiert zurücksetzen** leert eine Zeile wieder.
 

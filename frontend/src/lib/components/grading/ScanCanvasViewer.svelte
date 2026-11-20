@@ -20,10 +20,11 @@
   import { ScanZoom } from "./scanZoom";
   import { StrokeInput } from "./strokeInput";
   import { penSeenStore } from "#lib/stores/penInput";
+  import { capabilitiesStore } from "#lib/stores/capabilities";
   import { ownTouches } from "./palmGuard";
-  import { penInputSettingsHref } from "#lib/utils/links";
-  import { Alert } from "#lib/components/ui";
-  import { t, translate } from "#lib/i18n";
+  import CanvasNotice from "./CanvasNotice.svelte";
+  import { AnnotationUndo } from "./annotationUndo";
+  import { translate } from "#lib/i18n";
 
   interface Props {
     examId: string;
@@ -99,25 +100,29 @@
     redraw: scheduleRedraw,
     zoom,
     scrollBy: (dx, dy) => canvasViewport?.scrollBy({ left: dx, top: dy }),
-    onPenDetected: showPenNotice,
+    onPenDetected: () => undoer.penDetected(),
+    checkpoint: (before) => undoer.checkpoint(before),
+    onScratchOut: (count) => undoer.offerUndo(translate("grading.canvas.scratchedOut", { count })),
   });
   // A reset in Settings (also from another tab) lets fingers draw again.
   onDestroy(penSeenStore.subscribe((seen) => input.setPenSeen(seen)));
+  onDestroy(capabilitiesStore.subscribe((caps) => input.setScratchOut(caps?.gradingScratchOut !== false)));
 
-  // Told once, when this device shows its first pen: fingers stop drawing (issue #233).
-  const PEN_NOTICE_MS = 8000;
-  let penNotice = $state(false);
-  let penNoticeTimer: ReturnType<typeof setTimeout> | undefined;
-  function showPenNotice() {
-    penNotice = true;
-    clearTimeout(penNoticeTimer);
-    penNoticeTimer = setTimeout(() => (penNotice = false), PEN_NOTICE_MS);
-  }
-  function hidePenNotice() {
-    penNotice = false;
-    clearTimeout(penNoticeTimer);
-  }
-  onDestroy(() => clearTimeout(penNoticeTimer));
+  let notice: ReturnType<typeof CanvasNotice> | undefined = $state();
+  const undoer = new AnnotationUndo({
+    strokes: () => strokes,
+    apply: (next) => {
+      persistStrokes(next);
+      recalcScores();
+      redrawAllOverlays();
+      gradingStore.markDirty();
+    },
+    discard: () => input.discard(),
+    notice: () => notice,
+  });
+  /** Annotation undo/redo of the loaded submission; auto scores follow the stamps, typed scores stay. */
+  export const undo = () => undoer.undo();
+  export const redo = () => undoer.redo();
 
   function persistStrokes(next: VectorStroke[]) {
     strokes = next;
@@ -138,12 +143,17 @@
     }
   }
 
-  export async function clearAnnotations() {
+  /** Clears every annotation without asking: one Undo brings it back. */
+  export function clearAnnotations() {
     input.discard();
+    const before = strokes;
     persistStrokes([]);
     recalcScores();
     redrawAllOverlays();
     gradingStore.markDirty();
+    if (before.length === 0) return;
+    undoer.checkpoint(before);
+    undoer.offerUndo(translate("grading.canvas.cleared"));
   }
 
   /** Replaces the page stack with `sizes` (fresh canvases) and waits until they are in the DOM. */
@@ -175,6 +185,7 @@
 
   function applyAnnotations(annBytes: Uint8Array | null, subId: string) {
     gradingStore.setStrokesSubmissionId(subId);
+    undoer.reset();
     if (annBytes) {
       persistStrokes(JSON.parse(new TextDecoder().decode(annBytes)));
       redrawAllOverlays();
@@ -558,18 +569,7 @@
   use:zoom.wheelAction
   onscroll={onViewportScroll}
 >
-  {#if penNotice}
-    <!-- Zero-height sticky row: the notice floats over the scan without moving the pages. -->
-    <div class="pointer-events-none sticky top-0 z-10 h-0">
-      <!-- Opaque backing: the info tint alone is translucent and let the scan show through. -->
-      <div class="pointer-events-auto mx-auto max-w-narrow rounded-md bg-surface-raised shadow-md">
-        <Alert severity="info" onDismiss={hidePenNotice}>
-          {$t("grading.canvas.penDetected")}
-          <a href={penInputSettingsHref} class="link ml-1">{$t("grading.canvas.penDetectedReset")}</a>
-        </Alert>
-      </div>
-    </div>
-  {/if}
+  <CanvasNotice bind:this={notice} />
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead of letting the viewport scroll, so zooming in did nothing. -->
   <!-- touch-none and select-none on the whole stack: fingers pan and pinch through our handlers (also between pages), and a long press never selects or opens a menu that cancels the pen. Safari ignores both for the Apple Pencil, so `ownTouches` cancels the touch events too (issue #321). -->
   <div

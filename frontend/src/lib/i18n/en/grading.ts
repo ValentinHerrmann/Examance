@@ -52,11 +52,10 @@ export const grading: Translations['grading'] = {
         ffTitle: 'Follow-on error',
         clear: 'Clear',
         clearTitle: 'Clear all annotations',
-    },
-    clearModal: {
-        title: 'Clear all annotations?',
-        body: 'Do you really want to delete all drawings and stamps on this page? This also resets the automatically computed points.',
-        confirm: 'Confirm delete',
+        undo: 'Undo',
+        undoTitle: 'Undo (Ctrl+Z)',
+        redo: 'Redo',
+        redoTitle: 'Redo (Ctrl+Shift+Z)',
     },
     lastSubmission: {
         title: 'End of submissions',
@@ -122,6 +121,9 @@ export const grading: Translations['grading'] = {
         scanLoadFailed: '[ Failed to load the scan — please reload the page ]',
         penDetected: 'Pen detected: from now on, fingers only scroll and zoom and no longer draw.',
         penDetectedReset: 'Reset in Settings',
+        scratchedOut: '{count} marks scribbled out.',
+        cleared: 'All annotations cleared.',
+        undo: 'Undo',
     },
     manual: {
         container: {

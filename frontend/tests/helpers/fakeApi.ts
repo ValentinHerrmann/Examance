@@ -44,6 +44,7 @@ export interface FakeApiState {
   /** The account's storage mode as the server records it. */
   storageMode: FakeStorageMode | null;
   gradingControlsSide: 'left' | 'right';
+  gradingScratchOut: boolean;
   /** Email of the last sign-in. */
   email: string;
   /** Role the sign-in reports; set `'admin'` before signing in to open the admin pages. */
@@ -324,6 +325,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     envelopes: { keyId: null, rows: [] },
     storageMode: initialMode(),
     gradingControlsSide: 'left',
+    gradingScratchOut: true,
     email: DEFAULT_EMAIL,
     role: 'teacher',
     adminUsers: seedAdminUsers(),
@@ -351,6 +353,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.envelopes = { keyId: null, rows: [] };
     state.storageMode = initialMode();
     state.gradingControlsSide = 'left';
+    state.gradingScratchOut = true;
     state.email = DEFAULT_EMAIL;
     state.role = 'teacher';
     state.adminUsers = seedAdminUsers();
@@ -443,6 +446,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     account_id: FAKE_TEACHER_ID,
     storage_mode: state.storageMode,
     grading_controls_side: state.gradingControlsSide,
+    grading_scratch_out: state.gradingScratchOut,
     allowed_storage_modes: state.role === 'admin' ? [] : [...ALLOWED_MODES],
     features:
       state.role === 'admin'
@@ -495,6 +499,10 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (method === 'PUT' && action === 'storage-mode') return setStorageMode(body);
     if (method === 'PUT' && action === 'grading-controls-side') {
       state.gradingControlsSide = body?.grading_controls_side === 'right' ? 'right' : 'left';
+      return ok(capabilities());
+    }
+    if (method === 'PUT' && action === 'grading-scratch-out') {
+      state.gradingScratchOut = body?.grading_scratch_out !== false;
       return ok(capabilities());
     }
     if (method === 'POST' && action === 'purge-server-student-data') return purgeServerStudentData();

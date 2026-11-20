@@ -1,18 +1,20 @@
 <script lang="ts">
   import { gradingStore, type ToolType } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
-  import { faCheck, faEraser, faPen, faRulerHorizontal, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+  import { faCheck, faEraser, faPen, faRotateLeft, faRotateRight, faRulerHorizontal, faTrashCan } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon } from "#lib/components/ui";
   import type { ControlsSide } from "#lib/stores/capabilities";
 
   interface Props {
-    /** Clearing is gated by a parent-owned confirm dialog; this component only requests it, never mutates the store. */
-    onClearRequested: () => void;
+    /** The viewer owns the strokes and their history; this component only asks, never mutates the store. */
+    onClear: () => void;
+    onUndo: () => void;
+    onRedo: () => void;
     /** Corner of the canvas it floats in from `lg` up (issue #328). */
     side?: ControlsSide;
   }
 
-  let { onClearRequested, side = "left" }: Props = $props();
+  let { onClear, onUndo, onRedo, side = "left" }: Props = $props();
 
   /* Finger-sized (48px) glyph-over-label tool button. `!` beats the Button size recipe's own padding/gap. */
   const toolBtn = "h-12 min-h-12 w-12 shrink-0 flex-col gap-0! px-1! py-1!";
@@ -188,12 +190,20 @@
     <span class="text-xs font-semibold">{$t("grading.toolbar.ff")}</span>
   </Button>
   <div class="h-8 w-px shrink-0 self-center bg-line lg:h-px lg:w-8"></div>
+  <Button size="sm" variant="text" severity="secondary" class={toolBtn} disabled={!$gradingStore.canUndo} onClick={onUndo} title={$t("grading.toolbar.undoTitle")}>
+    <Icon icon={faRotateLeft} />
+    <span class="text-xs font-semibold">{$t("grading.toolbar.undo")}</span>
+  </Button>
+  <Button size="sm" variant="text" severity="secondary" class={toolBtn} disabled={!$gradingStore.canRedo} onClick={onRedo} title={$t("grading.toolbar.redoTitle")}>
+    <Icon icon={faRotateRight} />
+    <span class="text-xs font-semibold">{$t("grading.toolbar.redo")}</span>
+  </Button>
   <Button
     size="sm"
     variant="text"
     severity="danger"
     class={toolBtn}
-    onClick={onClearRequested}
+    onClick={onClear}
     title={$t("grading.toolbar.clearTitle")}
   >
     <Icon icon={faTrashCan} />

@@ -14,7 +14,7 @@ During the grading pass you see **"Anonymous student #3 of 26"**, never a name. 
 
 ## The grading view {#workspace}
 
-- **Controls on the left:** on a tablet or computer, the **Scoring** panel, the stamps and the zoom sit on the left, so a right hand writing on the scan covers none of them. Left-handed teachers move them to the right under [Settings → Grading view layout](settings.md#grading-layout). The **Scoring** panel is a slim column, leaving the room to draw; **Previous** and **Next student** are the arrow buttons at its bottom.
+- **Controls on the left:** on wide screens (landscape tablets and larger), the **Scoring** panel, the stamps and the zoom sit on the left, so a right hand writing on the scan covers none of them. Left-handed teachers move them to the right under [Settings → Grading view layout](settings.md#grading-layout). The **Scoring** panel is a slim column, leaving the room to draw; **Previous** and **Next student** are the arrow buttons at its bottom.
 - **All pages of a submission are stacked.** Scroll through them with the mouse wheel or the scrollbar, or with your finger on a touch device.
 - **Pen or finger:** a pen, and the mouse, always draw. On a device without a pen, one finger draws and two fingers scroll. As soon as you use a pen once, Examance remembers it on this device: from then on, fingers and a resting palm only scroll and zoom and never draw. While the pen touches the screen, and for half a second after, a resting palm also never selects text, presses a button or scrolls the scan. A short notice says so when the pen is first detected; to draw with a finger again, reset it under [Settings → Pen input](settings.md#pen-input).
 - **Ctrl + mouse wheel** or pinching zooms; **Fit** fits the page to the view. The page arrows jump between pages.
@@ -34,7 +34,10 @@ Correction marks are drawn on a separate layer above the scan. The original stay
 | **−1.0**, **−0.5**, **−0.25** | Deductions |
 | **Wrong**, **Missing** | Marks without points |
 | **WF**, **FF** | Repeated error, follow-on error |
-| **Clear** | Removes every drawing and stamp on the page and resets the computed points |
+| **Undo**, **Redo** | Step back and forward through your annotation changes (each stroke, stamp, eraser sweep, scribble or Clear is one step), also with Ctrl+Z and Ctrl+Shift+Z (Cmd on a Mac); the computed points follow. The history starts afresh for each student. |
+| **Clear** | Removes every drawing and stamp of the submission at once and resets the computed points; a notice offers **Undo** |
+
+**Erase by scribbling:** with the **Pen** tool (pen, mouse or finger), scribble quickly back and forth over pen marks, lines or stamps (at least five passes) to erase them without switching to the **Eraser**; stamps take their points with them. Only marks along the scribble's path go, a long mark it only crosses stays, and the scribble itself is never kept. A notice tells how many marks went and offers **Undo**. Switch it off under [Settings → Pen input](settings.md#pen-input).
 
 You can also type an exercise's points directly. **Reset to ungraded** clears a row again.
 
