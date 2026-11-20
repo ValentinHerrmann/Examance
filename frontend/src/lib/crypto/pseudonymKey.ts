@@ -38,8 +38,6 @@ function examKey(examId: string): Promise<CryptoKey> {
   return key;
 }
 
-/** Lower-case SHA-256 hex; for values that are not pseudonyms (a submission id, a fallback code). */
-
 /** The version-1 form, exactly as older builds sent it: any 64-character value passes through, anything else is hashed. */
 export async function pseudonymBase(value: string): Promise<string> {
   return value?.length === 64 ? value : sha256Hex(value ?? '');

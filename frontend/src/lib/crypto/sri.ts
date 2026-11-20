@@ -1,5 +1,5 @@
-import { sha256Hex } from './hex';
 /** Runtime WASM integrity checker: hashes a fetched WASM binary (SHA-256) against static/sri-manifest.json and throws on mismatch. */
+import { sha256Hex } from './hex';
 
 interface SriManifest {
   wasm: Record<string, string>;
