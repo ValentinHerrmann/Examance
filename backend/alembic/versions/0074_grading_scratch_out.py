@@ -1,7 +1,7 @@
 """Scratch-out erasing in digital grading per account (issue #330)
 
-Revision ID: 0073_grading_scratch_out
-Revises: 0072_grading_controls_side
+Revision ID: 0074_grading_scratch_out
+Revises: 0073_exam_dotted_fields
 Create Date: 2026-11-20
 """
 from __future__ import annotations
@@ -11,8 +11,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "0073_grading_scratch_out"
-down_revision = "0072_grading_controls_side"
+revision = "0074_grading_scratch_out"
+down_revision = "0073_exam_dotted_fields"
 branch_labels = None
 depends_on = None
 
