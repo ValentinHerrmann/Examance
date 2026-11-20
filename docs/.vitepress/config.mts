@@ -148,6 +148,7 @@ export default withMermaid(defineConfig({
           { text: 'Build and CSP', link: '/dev/build_and_csp' },
           { text: 'CI and dependency audit', link: '/dev/ci_and_audit' },
           { text: 'One helper per job', link: '/dev/helper_consolidation' },
+          { text: 'Index and migration checks', link: '/dev/index_checks' },
           { text: 'Training-data donation', link: '/dev/training_donation' },
           { text: 'Third-party licenses and SRI', link: '/THIRD_PARTY_LICENSES' },
           { text: 'Decks and posters: sources', link: '/concept_pitch' },

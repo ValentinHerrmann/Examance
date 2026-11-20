@@ -40,6 +40,8 @@
   import SectionNav from "#lib/components/settings/SectionNav.svelte";
   import SecuritySection from "#lib/components/security/SecuritySection.svelte";
   import SettingsGroupHeading from "#lib/components/settings/SettingsGroupHeading.svelte";
+  import AccountDataCard from "#lib/components/settings/AccountDataCard.svelte";
+  import { accountSections, type AccountSectionId } from "#lib/settings/sections";
   import DeleteAccountCard from "#lib/components/settings/DeleteAccountCard.svelte";
   import PenInputCard from "#lib/components/settings/PenInputCard.svelte";
   import { requestedModeSwitch } from "#lib/services/storageModeSwitch";
@@ -163,13 +165,18 @@
     { id: "theme", label: $t("settings.theme.heading") },
     { id: "pen-input", label: $t("settings.penInput.heading") },
     { id: "group-account", label: $t("settings.groups.account"), group: true },
-    ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
-    ...(isAdmin ? [] : [
-      { id: "gdpr", label: $t("admin.gdprErasureTable.title") },
-      { id: "hygiene", label: $t("settings.hygiene.heading") },
-    ]),
-    ...($isAuthenticated ? [{ id: "delete-account", label: $t("settings.deleteAccount.heading") }] : []),
+    ...accountSections(isAdmin, $isAuthenticated).map((id) => ({ id, label: accountSectionLabel(id) })),
   ]);
+
+  function accountSectionLabel(id: AccountSectionId): string {
+    switch (id) {
+      case "security": return $t("security.page.title");
+      case "gdpr": return $t("admin.gdprErasureTable.title");
+      case "hygiene": return $t("settings.hygiene.heading");
+      case "account-data": return $t("settings.accountData.heading");
+      case "delete-account": return $t("settings.deleteAccount.heading");
+    }
+  }
 
   async function handleClearAllSessionData() {
     if (!confirm(translate("settings.hygiene.confirm"))) return;
@@ -289,6 +296,9 @@
         {/if}
 
         {#if $isAuthenticated}
+          <div id="account-data" class="scroll-mt-16 lg:scroll-mt-4">
+            <AccountDataCard admin={isAdmin} />
+          </div>
           <div id="delete-account" class="scroll-mt-16 lg:scroll-mt-4">
             <DeleteAccountCard email={$sessionStore.email ?? ""} />
           </div>

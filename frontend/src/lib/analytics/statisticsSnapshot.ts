@@ -130,6 +130,3 @@ export function remapSnapshot(snapshot: StatisticsSnapshot, examId: string, rema
     rows: snapshot.rows.map((row) => ({ ...row, scores: remapKeys(row.scores), ...(row.mc ? { mc: remapKeys(row.mc) } : {}) })),
   };
 }
-
-/** Whether a stand-in row came from a record (no grading view, no student behind it). */
-export const isSnapshotSubmissionId = (id: string) => id.startsWith('stats:');

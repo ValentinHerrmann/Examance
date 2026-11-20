@@ -107,6 +107,10 @@ Die Sitzung **sperrt sich nach einer Zeit der Inaktivität selbst**; danach sind
 
 Diese Löschungen sind endgültig und laufen nicht über den [Papierkorb](./trash).
 
+### Ihre Kontodaten {#account-data}
+
+**Meine Kontodaten herunterladen** speichert alles, was der Server über Ihr Konto speichert, als JSON-Datei: Ihre Kontoangaben, Ihre Prüfungen (ohne Schülerdaten) und das Protokoll Ihrer Aktionen. So sehen Sie, was gespeichert ist, oder nehmen Ihre Daten mit. Schülerdaten gehören nicht dazu: Nur Sie können sie nach dem Entsperren lesen, der Server nicht. Exportieren Sie sie pro Schülerin oder Schüler unter [Daten löschen](#deletion).
+
 ### Konto löschen {#delete-account}
 
 **Konto löschen** sendet Ihnen eine E-Mail mit einem Bestätigungslink; gelöscht wird erst, wenn Sie ihn öffnen und bestätigen. Dann wird alles entfernt, was zum Konto auf dem Server gespeichert ist (Prüfungen, Ergebnisse, Anmeldefaktoren), und der Browser, in dem Sie bestätigen, wird geleert. Andere Browser behalten ihre lokale Kopie, die ohne das Konto nicht mehr gelesen werden kann.

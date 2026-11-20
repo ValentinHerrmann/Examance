@@ -27,26 +27,3 @@ export async function deriveSessionKey(
     ['encrypt', 'decrypt']
   );
 }
-
-/** Legacy session key using the old app context ('blindgrade-session-key-v1'), for pre-rename encrypted session stores. */
-export function deriveLegacySessionKey(
-  masterKey: CryptoKey,
-  nonce: Uint8Array
-): Promise<CryptoKey> {
-  // The legacy context string is identical to the current one, so the derivation is shared.
-  return deriveSessionKey(masterKey, nonce);
-}
-
-/** Derive the archive secret (raw bits) from masterKey via HKDF, for pseudonym HMAC in .bgproj archives; purpose matches ARCHIVE_SECRET_PURPOSE in format.ts. */
-export async function deriveArchiveSecret(masterKey: CryptoKey): Promise<ArrayBuffer> {
-  return crypto.subtle.deriveBits(
-    {
-      name: 'HKDF',
-      hash: 'SHA-256',
-      salt: new Uint8Array(16), // Fixed zero-salt for deterministic derivation
-      info: new TextEncoder().encode('bgproj-link'),
-    },
-    masterKey,
-    256 // 32 bytes
-  );
-}

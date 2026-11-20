@@ -107,6 +107,10 @@ The session **locks itself** after a period of inactivity; afterwards the conten
 
 These deletions are final and do not go through the [Trash](./trash).
 
+### Your account data {#account-data}
+
+**Download my account data** saves everything the server stores about your account as a JSON file: your account details, your exams (without student data) and the log of your actions. Use it to see what is stored, or to take your data along. Student data is not part of it: only you can read it, after unlocking, and the server cannot. Export it per student under [Deleting data](#deletion).
+
 ### Delete your account {#delete-account}
 
 **Delete account** sends you an e-mail with a confirmation link; nothing is deleted before you open it and confirm. Then everything stored with the account on the server goes (exams, results, sign-in factors), and the browser you confirm in is cleared. Other browsers keep their local copy, which can no longer be read without the account.

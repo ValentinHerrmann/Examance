@@ -1,6 +1,6 @@
 /** Key envelope: wrapped copies of the random data-encryption key (DEK), independent of any password (a password-derived DEK orphaned every vault on reset, and decryptors swallow GCM failures, so teachers saw blank names). Each factor (password, recovery code, PRF passkey) wraps its own copy in-browser; the server holds ciphertext and public KDF params only. */
 
-import { decrypt, fromBase64url, toArrayBuffer, toBase64url } from './aesGcm';
+import { fromBase64url, toArrayBuffer, toBase64url } from './aesGcm';
 import { deriveArgon2Key, derivePbkdf2Key } from './keyDerivation';
 import { compareCodeUnits } from '#lib/utils/compare';
 
@@ -245,20 +245,6 @@ export async function envelopeFingerprint(set: EnvelopeSet): Promise<string> {
   const material = encoder.encode(`${toBase64url(set.keyId)}|${parts.join('|')}`);
   const digest = await crypto.subtle.digest('SHA-256', toArrayBuffer(material));
   return toBase64url(new Uint8Array(digest));
-}
-
-/** Prove the unwrapped DEK is the vault's: if the store already holds ciphertext, the key must open it (guards against a substituted envelope). */
-export async function dekOpensSample(
-  sessionKey: CryptoKey,
-  sampleCt: Uint8Array,
-  sampleIv: Uint8Array,
-): Promise<boolean> {
-  try {
-    await decrypt(sessionKey, sampleCt, sampleIv);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /** Round-trip self-check used by the migration path before anything is persisted. */

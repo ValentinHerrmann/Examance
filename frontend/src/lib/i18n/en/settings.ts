@@ -215,6 +215,13 @@ export const settings: Translations['settings'] = {
         privacyNote: 'Details in the privacy policy:',
         privacyLink: 'Privacy',
     },
+    accountData: {
+        heading: 'Your account data',
+        description: 'Downloads everything the server stores about your account as a JSON file: account details, your exams (without student data) and the log of your actions. Only you can read student data, after unlocking; the server cannot. Export it per student in the GDPR section.',
+        descriptionAdmin: 'Downloads everything the server stores about your account as a JSON file: account details and the log of your actions.',
+        button: 'Download my account data',
+        failed: 'The account data could not be loaded.',
+    },
     deleteAccount: {
         heading: 'Delete account',
         description: 'Deletes your account and everything stored with it on the server: exams, grading results, exercise groups and sign-in factors, and your exercises unless you keep them. We email you a link to confirm; nothing is deleted before you open it and confirm.',
