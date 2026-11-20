@@ -71,6 +71,18 @@ describe('scratchOutStrokes (issue #330)', () => {
     expect(scratchOutStrokes([crossed, longLine, otherPage, stamp], 1, scribble)).toEqual([crossed, longLine, otherPage]);
   });
 
+  it('judges by the scribble\'s path, not its bounding box (a diagonal band)', () => {
+    const band = polyline(Array.from({ length: 7 }, (_, i) => (i % 2 === 0 ? { x: 100 + i, y: 100 } : { x: 400 + i, y: 400 })));
+    const onPath: VectorStroke = { ...stamp, points: [{ x: 250, y: 255 }] };
+    const offPath: VectorStroke = { ...stamp, points: [{ x: 380, y: 120 }] };
+    expect(scratchOutStrokes([onPath, offPath], 1, band)).toEqual([offPath]);
+  });
+
+  it('judges a line along its length, not by its ends', () => {
+    const across: VectorStroke = { tool: 'line', points: [{ x: 60, y: 130 }, { x: 340, y: 130 }], color: '#000', pageNumber: 1 };
+    expect(scratchOutStrokes([across], 1, scribble)).toEqual([]);
+  });
+
   it('answers null when it covers nothing', () => {
     const far: VectorStroke = { ...stamp, points: [{ x: 500, y: 500 }] };
     expect(scratchOutStrokes([far], 1, scribble)).toBeNull();

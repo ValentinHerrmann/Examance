@@ -13,7 +13,7 @@
   import ReviewReplyBar from "./ReviewReplyBar.svelte";
   import ScanCanvasViewer from "./ScanCanvasViewer.svelte";
   import { t } from "#lib/i18n";
-  import { faChevronDown, faChevronUp, faFlagCheckered, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+  import { faChevronDown, faChevronUp, faFlagCheckered } from "@fortawesome/free-solid-svg-icons";
   import { Button, HeroDialog } from "#lib/components/ui";
   import { examHref } from "#lib/utils/links";
   import type { ScoreBoxContext } from "#lib/grading/scoreBoxes";
@@ -91,14 +91,21 @@
 
   let activeExercise = $derived(exercises.find((e) => e.id === $gradingStore.activeExerciseId));
 
-  function requestClearAnnotations() {
-    gradingStore.setShowClearConfirmModal(true);
-  }
-
-  function cancelClearAnnotations() {
-    gradingStore.setShowClearConfirmModal(false);
+  /** Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo; a focused field keeps its own text undo. */
+  function onKeydown(e: KeyboardEvent) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("input, textarea, select, [contenteditable]")) return;
+    const key = e.key.toLowerCase();
+    const redo = (key === "z" && e.shiftKey) || (key === "y" && !e.shiftKey);
+    if (key !== "z" && !redo) return;
+    e.preventDefault();
+    if (redo) viewerRef?.redo();
+    else viewerRef?.undo();
   }
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 <GradingHeader
   {examId}
@@ -116,7 +123,7 @@
   data-controls-side={side}
 >
   <div class="relative flex min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden rounded-md border border-line bg-surface-sunken lg:h-full lg:gap-0 {layout.canvas}">
-    <AnnotationToolbar onClearRequested={requestClearAnnotations} {side} />
+    <AnnotationToolbar onClear={() => viewerRef?.clearAnnotations()} onUndo={() => viewerRef?.undo()} onRedo={() => viewerRef?.redo()} {side} />
 
     <ScanCanvasViewer
       bind:this={viewerRef}
@@ -191,21 +198,4 @@
   body={$t("grading.lastSubmission.body")}
   primary={{ label: $t("grading.lastSubmission.backToOverview"), href: examHref(examId) }}
   secondary={{ label: $t("grading.lastSubmission.stayHere"), onClick: onStayOnLastSub }}
-/>
-
-<!-- Destructive: the clearing waits for this explicit confirmation. -->
-<HeroDialog
-  open={$gradingStore.showClearConfirmModal}
-  icon={faTrashCan}
-  tone="danger"
-  title={$t("grading.clearModal.title")}
-  body={$t("grading.clearModal.body")}
-  primary={{
-    label: $t("grading.clearModal.confirm"),
-    onClick: async () => {
-      await viewerRef?.clearAnnotations();
-      gradingStore.setShowClearConfirmModal(false);
-    },
-  }}
-  secondary={{ label: $t("common.cancel"), onClick: cancelClearAnnotations }}
 />

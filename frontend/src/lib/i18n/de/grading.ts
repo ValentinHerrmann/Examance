@@ -50,11 +50,10 @@ export const grading = {
         ffTitle: 'Folgefehler',
         clear: 'Löschen',
         clearTitle: 'Alle Anmerkungen löschen',
-    },
-    clearModal: {
-        title: 'Alle Anmerkungen löschen?',
-        body: 'Möchten Sie wirklich alle Zeichnungen und Stempel auf dieser Seite löschen? Dies setzt auch die automatisch berechneten Punkte zurück.',
-        confirm: 'Löschen bestätigen',
+        undo: 'Zurück',
+        undoTitle: 'Rückgängig (Strg+Z)',
+        redo: 'Vor',
+        redoTitle: 'Wiederholen (Strg+Umschalt+Z)',
     },
     lastSubmission: {
         title: 'Ende der Arbeiten',
@@ -120,6 +119,9 @@ export const grading = {
         scanLoadFailed: '[ Scan konnte nicht geladen werden — bitte Seite neu laden ]',
         penDetected: 'Stift erkannt: Finger blättern und zoomen ab jetzt nur noch und zeichnen nicht mehr.',
         penDetectedReset: 'In den Einstellungen zurücksetzen',
+        scratchedOut: '{count} Markierungen weggekritzelt.',
+        cleared: 'Alle Anmerkungen gelöscht.',
+        undo: 'Rückgängig',
     },
     manual: {
         container: {

@@ -57,11 +57,11 @@ Whatever you delete in the app (exams, exercises, files, logos, students, scans,
 
 *Stored in this browser.* Once you use a pen in the grading view, fingers there only scroll and zoom and no longer draw, so a resting palm leaves no marks. The card shows whether a pen has been detected on this device. **Reset pen detection** lets fingers draw again until the next time you use a pen.
 
-*Belongs to your account.* **Erase by scribbling** (on by default): a quick back-and-forth scribble with the **Pen** erases the marks and stamps underneath, on every device you sign in on ([how it works](grading.md#tools)). Switch it off if you cross out student answers with zig-zags.
+*Belongs to your account.* **Erase by scribbling** (on by default): a quick back-and-forth scribble with the **Pen** tool (by pen, mouse or finger) erases the marks and stamps underneath, on every device you sign in on ([how it works](grading.md#tools)). **Undo** in the grading view brings back anything it erased.
 
 ## Grading view layout {#grading-layout}
 
-*Belongs to your account.* Chooses which side of the grading view holds the **Scoring** panel, the stamps and the zoom: **Right-handed: controls on the left** (the default) or **Left-handed: controls on the right**. It applies from tablet width on every device you sign in on; on phones the controls stay above and below the scan.
+*Belongs to your account.* Chooses which side of the grading view holds the **Scoring** panel, the stamps and the zoom: **Right-handed: controls on the left** (the default) or **Left-handed: controls on the right**. It applies on wide screens (landscape tablets and larger) on every device you sign in on; on phones and portrait tablets the controls stay above and below the scan.
 
 ## Exam logo {#logo}
 

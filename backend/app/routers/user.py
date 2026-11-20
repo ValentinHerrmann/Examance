@@ -54,6 +54,12 @@ def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
     )
 
 
+async def _saved(teacher: Teacher, db: DB) -> CapabilitiesOut:
+    """The one ending of every account-preference setter: write, then answer with the capabilities."""
+    await db.flush()
+    return _capabilities_out(teacher)
+
+
 @router.get("/capabilities")
 async def get_capabilities(teacher: CurrentTeacher) -> CapabilitiesOut:
     """The account's storage mode (null until chosen) and what it may use."""
@@ -95,8 +101,7 @@ async def set_storage_mode(
 async def set_review_mail(body: ReviewMailUpdate, teacher: TeachingTeacher, db: DB) -> CapabilitiesOut:
     """Switch the mail on a student's objection on or off (issue #226)."""
     teacher.review_mail = body.review_mail
-    await db.flush()
-    return _capabilities_out(teacher)
+    return await _saved(teacher, db)
 
 
 @router.put("/grading-controls-side")
@@ -105,8 +110,7 @@ async def set_grading_controls_side(
 ) -> CapabilitiesOut:
     """Put the grading view's controls on the left or the right (issue #328)."""
     teacher.grading_controls_side = body.grading_controls_side
-    await db.flush()
-    return _capabilities_out(teacher)
+    return await _saved(teacher, db)
 
 
 @router.put("/grading-scratch-out")
@@ -115,8 +119,7 @@ async def set_grading_scratch_out(
 ) -> CapabilitiesOut:
     """Switch erasing pen marks and stamps by scribbling over them on or off (issue #330)."""
     teacher.grading_scratch_out = body.grading_scratch_out
-    await db.flush()
-    return _capabilities_out(teacher)
+    return await _saved(teacher, db)
 
 
 @router.post(

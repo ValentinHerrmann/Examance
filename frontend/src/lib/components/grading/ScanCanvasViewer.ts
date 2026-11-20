@@ -125,7 +125,7 @@ const SCRATCH_MIN_REVERSALS = 4; // five passes back and forth; a written W or M
 const SCRATCH_MAX_NET_TURN = 0.5; // a zig-zag's turns cancel out; a circle or spiral turns one way
 const SCRATCH_MIN_DENSITY = 3; // path length / bounding-box diagonal: the passes overlap, unlike written letters
 const SCRATCH_MAX_SPREAD = 1.5; // extent across / along the passes: a written word runs across its strokes
-const SCRATCH_PAD = 15; // about half a stamp, so a stamp's point just outside the scribble still counts
+const SCRATCH_PAD = 20; // distance to the scribble's path: covers the gap between two passes and about half a stamp
 const SCRATCH_PEN_SHARE = 0.6; // a long mark merely crossed stays
 
 /** The stroke's points about SCRATCH_STEP apart. */
@@ -219,16 +219,32 @@ export function isScratchOut(points: Point[]): boolean {
   return countReversals(pts, axis) >= SCRATCH_MIN_REVERSALS && netTurnRatio(pts) <= SCRATCH_MAX_NET_TURN;
 }
 
-/** Strokes left after a scribble on `page` erased the marks it covers; null when it covered none. */
+/** The polyline with extra points so no two neighbours are more than SCRATCH_STEP apart (a line stores only its ends). */
+function densify(points: Point[]): Point[] {
+  const out = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / SCRATCH_STEP);
+    for (let k = 1; k <= n; k++) out.push({ x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n });
+  }
+  return out;
+}
+
+function nearPath(p: Point, path: Point[]): boolean {
+  if (path.length === 1) return Math.hypot(p.x - path[0].x, p.y - path[0].y) <= SCRATCH_PAD;
+  for (let i = 1; i < path.length; i++) if (distanceToSegment(p, path[i - 1], path[i]) <= SCRATCH_PAD) return true;
+  return false;
+}
+
+/** Strokes left after a scribble on `page` erased the marks near its own path (not its bounding box); null when it covered none. */
 export function scratchOutStrokes(strokes: VectorStroke[], page: number, scribble: Point[]): VectorStroke[] | null {
-  const b = boundsOf(scribble);
-  const inside = (p: Point) =>
-    p.x >= b.minX - SCRATCH_PAD && p.x <= b.maxX + SCRATCH_PAD && p.y >= b.minY - SCRATCH_PAD && p.y <= b.maxY + SCRATCH_PAD;
+  const path = resample(scribble);
   const covered = (s: VectorStroke): boolean => {
     if ((s.pageNumber ?? 1) !== page || s.points.length === 0) return false;
-    if (s.tool === 'line') return s.points.every(inside);
-    if (s.tool !== 'pen') return inside(s.points[0]);
-    return s.points.filter(inside).length >= SCRATCH_PEN_SHARE * s.points.length;
+    if (s.tool !== 'pen' && s.tool !== 'line') return nearPath(s.points[0], path);
+    const samples = densify(s.points);
+    return samples.filter((p) => nearPath(p, path)).length >= SCRATCH_PEN_SHARE * samples.length;
   };
   const remaining = strokes.filter((s) => !covered(s));
   return remaining.length === strokes.length ? null : remaining;
