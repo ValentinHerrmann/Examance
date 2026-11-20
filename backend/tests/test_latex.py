@@ -247,6 +247,26 @@ Zeichne das Klassendiagramm.
 
 
 @pytest.mark.asyncio
+async def test_compile_dot_grid_fields() -> None:
+    """\\LoesungPunktraster, \\punktraster and the karopunkte switch on \\LoesungKaro/\\kariert compile (issue #314)."""
+    import shutil
+    if not shutil.which("tectonic"):
+        pytest.skip("tectonic binary not available")
+
+    snippet = r"""
+\makeatletter\LSG@punktkarotrue\makeatother
+\begin{Aufgabe}[2]{Punktraster}
+\LoesungPunktraster{Lösung}{4}
+\LoesungKaro{Lösung}{4}
+\punktraster[0.5cm]{3}
+\kariert{3}
+\end{Aufgabe}
+"""
+    pdf_bytes = await compile_latex(snippet, preview=True)
+    assert pdf_bytes.startswith(b"%PDF-")
+
+
+@pytest.mark.asyncio
 async def test_compile_slots_cap_concurrent_runs(monkeypatch) -> None:
     import asyncio
 

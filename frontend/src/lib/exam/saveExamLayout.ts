@@ -22,6 +22,7 @@ const API_FIELDS = {
   resultsQrBox: 'results_qr_box',
   cutCorner: 'cut_corner',
   foldStrip: 'fold_strip',
+  dottedFields: 'dotted_fields',
   extraNotes: 'extra_notes',
 } as const satisfies Partial<Record<keyof ExamRecord, string>>;
 

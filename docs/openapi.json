@@ -12121,6 +12121,7 @@
             "enum": [
               "empty",
               "squared",
+              "dotted",
               "lined"
             ],
             "title": "Paper Style",
@@ -12159,6 +12160,11 @@
             "type": "boolean",
             "title": "Fold Strip",
             "default": true
+          },
+          "dotted_fields": {
+            "type": "boolean",
+            "title": "Dotted Fields",
+            "default": false
           },
           "extra_notes": {
             "anyOf": [
@@ -12665,6 +12671,7 @@
             "enum": [
               "empty",
               "squared",
+              "dotted",
               "lined"
             ],
             "title": "Paper Style",
@@ -12703,6 +12710,11 @@
             "type": "boolean",
             "title": "Fold Strip",
             "default": true
+          },
+          "dotted_fields": {
+            "type": "boolean",
+            "title": "Dotted Fields",
+            "default": false
           },
           "extra_notes": {
             "anyOf": [
@@ -13168,6 +13180,7 @@
                 "enum": [
                   "empty",
                   "squared",
+                  "dotted",
                   "lined"
                 ]
               },
@@ -13246,6 +13259,17 @@
               }
             ],
             "title": "Fold Strip"
+          },
+          "dotted_fields": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dotted Fields"
           },
           "extra_notes": {
             "anyOf": [

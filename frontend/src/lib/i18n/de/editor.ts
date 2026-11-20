@@ -35,6 +35,7 @@ export const editor = {
             description: 'Lösung statt einer Linie zum Ausfüllen.',
         },
         'loesung-karo': { label: 'Karopapier', description: 'Lösung statt Reihen von Karokästchen.' },
+        'loesung-punktraster': { label: 'Punktraster', description: 'Lösung statt eines 5-mm-Punktrasters (immer Punkte, unabhängig von der Karo-Einstellung).' },
         'loesung-line': { label: 'Linierte Zeilen', description: 'Lösung statt linierter Schreibzeilen.' },
         'loesung-code': {
             label: 'Lösungscode',
@@ -44,6 +45,10 @@ export const editor = {
         kariert: {
             label: 'Karopapier (ohne Lösung)',
             description: 'Reihen von Karokästchen, ohne Umschaltung für den Erwartungshorizont.',
+        },
+        punktraster: {
+            label: 'Punktraster (ohne Lösung)',
+            description: 'Reihen eines Punktrasters, ohne Umschaltung für den Erwartungshorizont.',
         },
         liniert: {
             label: 'Linierte Zeilen (ohne Lösung)',

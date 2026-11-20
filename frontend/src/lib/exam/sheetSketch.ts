@@ -45,7 +45,7 @@ export interface SheetSketchModel {
   sheets: number;
 }
 
-type SketchSource = Pick<ExamRecord, 'nameLine' | 'mcCorrectionHint' | 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip' | 'extraNotes' | 'infoText'>;
+type SketchSource = Pick<ExamRecord, 'nameLine' | 'mcCorrectionHint' | 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip' | 'dottedFields' | 'extraNotes' | 'infoText'>;
 
 /** The sample's content pages when it is not compiled yet. */
 export const SAMPLE_PAGES = 3;
