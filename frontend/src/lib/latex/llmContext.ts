@@ -44,6 +44,7 @@ const TEMPLATE_COMMANDS: TemplateCommand[] = [
   { names: ['LoesungLeer'], forms: [String.raw`\LoesungLeer{solution}{height}`], text: 'empty space of that height (e.g. 3cm) on the student sheet.' },
   { names: ['LoesungLuecke'], forms: [String.raw`\LoesungLuecke{solution}{width}`], text: 'fill-in gap: a rule of that width on the student sheet.' },
   { names: ['LoesungKaro'], forms: [String.raw`\LoesungKaro{solution}{rows}`], text: 'a squared grid with that many 0.5 cm rows on the student sheet.' },
+  { names: ['LoesungPunktraster'], forms: [String.raw`\LoesungPunktraster{solution}{rows}`], text: 'like LoesungKaro, but always a 5 mm dot grid on the student sheet.' },
   { names: ['LoesungLine'], forms: [String.raw`\LoesungLine{solution}{rows}`], text: 'that many ruled lines on the student sheet.' },
   { names: ['LoesungImg'], forms: [String.raw`\LoesungImg{solution image}{student image}{width}`], text: 'a different image file per sheet.' },
   {
@@ -56,7 +57,7 @@ const TEMPLATE_COMMANDS: TemplateCommand[] = [
     forms: [String.raw`\LoesungMulti[columns]{ \multi{wrong} \Lmulti{correct} … }`],
     text: `multiple-choice options, one per line; each correct option counts one point (no ${cs('BE')}). ${cs('multi')} and ${cs('Lmulti')} are list items and work only inside it.`,
   },
-  { names: ['kariert', 'liniert', 'Leer'], forms: [String.raw`\kariert[size]{rows}`, String.raw`\liniert[spacing]{rows}`, String.raw`\Leer{height}`], text: 'squared grid, ruled lines, empty space.' },
+  { names: ['kariert', 'punktraster', 'liniert', 'Leer'], forms: [String.raw`\kariert[size]{rows}`, String.raw`\punktraster[size]{rows}`, String.raw`\liniert[spacing]{rows}`, String.raw`\Leer{height}`], text: 'squared grid, dot grid, ruled lines, empty space.' },
   { names: ['Seitenumbruch'], forms: [String.raw`\Seitenumbruch`], text: 'page break between blocks of an exercise.' },
 ];
 

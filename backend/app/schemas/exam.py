@@ -80,7 +80,7 @@ PrintLayout = Literal["duplex", "booklet"]
 StickerSpots = Literal["cover", "sheet", "a3", "leaf"]
 PrintMode = Literal["stickers", "copies"]
 # Extra paper (issue #228).
-PaperStyle = Literal["empty", "squared", "lined"]
+PaperStyle = Literal["empty", "squared", "dotted", "lined"]
 ExtraPages = Annotated[int, Field(ge=0, le=20)]
 BookletOffset = Annotated[float, Field(ge=-10, le=10)]
 _MAX_POSITION = 10_000
@@ -243,6 +243,7 @@ class ExamCreate(BaseModel):
     results_qr_box: bool = False
     cut_corner: bool = True
     fold_strip: bool = True
+    dotted_fields: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     # 2 = keyed per-exam pseudonym HMAC (issue #177); older clients omit it and write SHA-256 values.
@@ -300,6 +301,7 @@ class ExamUpdate(BaseModel):
     results_qr_box: bool | None = None
     cut_corner: bool | None = None
     fold_strip: bool | None = None
+    dotted_fields: bool | None = None
     # Absent keeps the stored block; null switches it off.
     extra_notes: ExtraNotes | None = None
     # Absent keeps the stored ticks; null or {} clears them.
@@ -351,6 +353,7 @@ class ExamResponse(BaseModel):
     results_qr_box: bool = False
     cut_corner: bool = True
     fold_strip: bool = True
+    dotted_fields: bool = False
     extra_notes: ExtraNotes | None = None
     step_checks: dict[str, Any] | None = None
     is_favorite: bool = False

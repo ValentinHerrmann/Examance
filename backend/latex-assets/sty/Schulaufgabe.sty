@@ -229,10 +229,13 @@
 \DeclareOption{fuellleer}{\setboolean{SA@fuellen}{true}}
 \DeclareOption{fuellplatz}{\setboolean{SA@fuellen}{true}}
 % Sticker spots come from \Aufkleberseiten (section 11), not an option: the builder knows the pages.
-% Extra paper (issue #228): papierkaro (5mm squares) or papierlinien (8mm lines) on every writing page; neither leaves them empty.
+% Extra paper (issue #228): papierkaro (5mm squares), papierlinien (8mm lines) or papierpunkte (5mm dots, issue #314) on every writing page; none leaves them empty.
 \def\SA@paper{leer}
 \DeclareOption{papierkaro}{\def\SA@paper{karo}}
 \DeclareOption{papierlinien}{\def\SA@paper{linien}}
+\DeclareOption{papierpunkte}{\def\SA@paper{punkte}}
+% karopunkte (issue #314): every \kariert and \LoesungKaro field is drawn as a dot grid.
+\DeclareOption{karopunkte}{\LSG@punktkarotrue}
 % zusatzblatt: the exam-independent extra sheet (\Zusatzblatt), no cover and no exam title.
 \newboolean{SA@zusatzblatt}
 \DeclareOption{zusatzblatt}{\setboolean{SA@zusatzblatt}{true}}
@@ -867,6 +870,7 @@
 \def\SA@paperkaro{karo}
 \def\SA@paperlinien{linien}
 \def\SA@paperleer{leer}
+\def\SA@paperpunkte{punkte}
 \newcommand{\SA@pattern}[2]{%
     \SA@wph=#2\relax
     \ifx\SA@paper\SA@paperkaro
@@ -874,13 +878,19 @@
             \pgfmathtruncatemacro\SA@nx{#1/5mm}\pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/5mm)}%
             \draw[black!30,line width=0.3pt,step=5mm] (0,0) grid (\SA@nx*5mm,\SA@ny*5mm);%
         \end{tikzpicture}%
+    \else\ifx\SA@paper\SA@paperpunkte
+        \begin{tikzpicture}%
+            \pgfmathtruncatemacro\SA@nx{#1/5mm}\pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/5mm)}%
+            \path (0,0) rectangle (\SA@nx*5mm,\SA@ny*5mm);%
+            \foreach \SA@px in {0,...,\SA@nx} {\foreach \SA@py in {0,...,\SA@ny} {\fill[black!40] (\SA@px*5mm,\SA@py*5mm) circle (0.6pt);}}%
+        \end{tikzpicture}%
     \else\ifx\SA@paper\SA@paperlinien
         \begin{tikzpicture}%
             \pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/8mm)}%
             \path (0,0) rectangle (#1,\SA@ny*8mm);%
             \foreach \SA@li in {1,...,\SA@ny} {\draw[black!35,line width=0.4pt] (0,\SA@li*8mm) -- (#1,\SA@li*8mm);}%
         \end{tikzpicture}%
-    \else\rule{\z@}{\SA@wph}\fi\fi
+    \else\rule{\z@}{\SA@wph}\fi\fi\fi
 }
 
 % A full writing page: heading #1 and note #2 (either may be empty) in the flow, the pattern at shipout over the text area below them.

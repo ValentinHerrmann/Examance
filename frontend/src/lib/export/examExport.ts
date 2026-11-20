@@ -31,8 +31,8 @@ import { compareText } from '#lib/utils/listSort';
 
 /** The scan-aid switches as printed (issue #272); older ZIPs without them import as their grading switch. */
 function scanAidsOf(exam: Parameters<typeof printSettingsOf>[0]) {
-  const { cutCorner, foldStrip } = printSettingsOf(exam);
-  return { cutCorner, foldStrip };
+  const { cutCorner, foldStrip, dottedFields } = printSettingsOf(exam);
+  return { cutCorner, foldStrip, dottedFields };
 }
 
 export type ExamExportPart = 'graded' | 'gradedCombined' | 'latex' | 'pdf' | 'summary' | 'csv';
