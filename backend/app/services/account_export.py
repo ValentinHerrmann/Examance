@@ -1,7 +1,6 @@
 """GDPR Art. 15/20 export: the machine-readable copy of what the server holds about a teacher. Only the account holder's own data: account fields, authored exams, audit trail. Student payloads are excluded (the server cannot read them); the client-side export covers them."""
 from __future__ import annotations
 
-import base64
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -15,6 +14,7 @@ from app.models.exercise import Exercise
 from app.models.exercise_contribution import ExerciseContribution
 from app.models.logo import ExamLogo
 from app.models.teacher import Teacher
+from app.schemas.binary import encode_b64
 from app.services.capabilities import account_features
 from app.services.logo import get_teacher_logo
 
@@ -29,7 +29,7 @@ def _logo_export(mime_type: str | None, content: bytes | None) -> dict[str, Any]
     return {
         "mime_type": mime_type,
         "byte_size": len(content),
-        "content_b64": base64.b64encode(content).decode("ascii"),
+        "content_b64": encode_b64(content),
     }
 
 

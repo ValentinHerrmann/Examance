@@ -1,11 +1,11 @@
 """Pydantic model for LaTeX compilation requests. SECURITY: __repr__ is overridden so LaTeX source never reaches tracebacks, debug logging or error reports, unconditionally (no env toggle). Likewise only resource file names may be logged."""
 from __future__ import annotations
 
-import base64
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.binary import strict_b64decode
 from app.services.latex_resources import (
     MAX_COMPILE_RESOURCE_BYTES,
     MAX_COMPILE_RESOURCE_COUNT,
@@ -33,7 +33,7 @@ class LaTeXResource(BaseModel):
     @classmethod
     def check_content(cls, v: str) -> str:
         try:
-            decoded = base64.b64decode(v, validate=True)
+            decoded = strict_b64decode(v)
         except ValueError:
             raise ValueError("Resource content is not valid base64.") from None
         if not decoded:
@@ -46,7 +46,7 @@ class LaTeXResource(BaseModel):
 
     @property
     def content(self) -> bytes:
-        return base64.b64decode(self.content_b64, validate=True)
+        return strict_b64decode(self.content_b64)
 
     def __repr__(self) -> str:
         # Intentionally does NOT include the file content.

@@ -1,5 +1,6 @@
 /** The bundled LaTeX assets (`backend/latex-assets`), fetched from the authenticated `/latex-assets` endpoint so local and server compiles use identical files. Main thread only: the worker cannot refresh a session, so `compiler.ts` hands it the result. */
 import { api } from '#lib/api/client';
+import { sha256Hex } from '#lib/crypto/hex';
 
 export type LatexAsset = { path: string; content: Uint8Array };
 type AssetIndex = { files: { path: string; sha256: string }[] };
@@ -27,10 +28,6 @@ export function fetchAssetIndex(): Promise<AssetIndex> {
   );
 }
 
-async function sha256Hex(data: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 export function loadLatexAssets(): Promise<LatexAsset[]> {
   return cached(

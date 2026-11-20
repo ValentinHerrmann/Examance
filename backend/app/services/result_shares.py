@@ -1,7 +1,6 @@
 """Result shares (issue #207, docs/dev/result_sharing.md): store, list, revoke, open and expire students' sealed result PDFs. The only code that reads or writes `result_shares` and the "shares" blob kind."""
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import logging
@@ -15,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.result_share import ResultShare, ResultShareReview
-from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
+from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64, encode_b64_or_none
 from app.schemas.result_share import (
     ResultShareCreate,
     ResultShareOut,
@@ -66,7 +65,7 @@ def to_out(share: ResultShare, review: ResultShareReview | None = None) -> Resul
         created_at=share.created_at,
         expires_at=share.expires_at,
         updatable=share.wrapped_key is not None,
-        wrapped_key_b64=_b64(share.wrapped_key),
+        wrapped_key_b64=encode_b64_or_none(share.wrapped_key),
         content_updated_at=share.content_updated_at,
         review_until=share.review_until,
         review_submitted_at=review.submitted_at if review else None,
@@ -77,18 +76,15 @@ def to_out(share: ResultShare, review: ResultShareReview | None = None) -> Resul
 
 def review_out(review: ResultShareReview) -> ReviewOut:
     return ReviewOut(
-        objection_iv_b64=_b64(review.objection_iv),
-        objection_ct_b64=_b64(review.objection_ct),
+        objection_iv_b64=encode_b64_or_none(review.objection_iv),
+        objection_ct_b64=encode_b64_or_none(review.objection_ct),
         submitted_at=review.submitted_at,
         opened_at=review.opened_at,
-        reply_iv_b64=_b64(review.reply_iv),
-        reply_ct_b64=_b64(review.reply_ct),
+        reply_iv_b64=encode_b64_or_none(review.reply_iv),
+        reply_ct_b64=encode_b64_or_none(review.reply_ct),
         replied_at=review.replied_at,
     )
 
-
-def _b64(value: bytes | None) -> str | None:
-    return base64.b64encode(value).decode() if value else None
 
 
 async def _forget(db: AsyncSession, shares: Iterable[ResultShare]) -> None:

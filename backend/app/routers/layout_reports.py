@@ -1,7 +1,6 @@
 """Layout reports — POST /api/v1/layout-reports, admin inbox /api/v1/admin/layout-reports (#134). The teacher deliberately shares plaintext LaTeX and PDFs with the admins (per-report consent in the client). Quota answers are 429 without ``Retry-After`` (client login lockout), as in training."""
 from __future__ import annotations
 
-import hashlib
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Literal, cast
@@ -35,7 +34,6 @@ router = APIRouter(prefix="/layout-reports", tags=["layout-reports"])
 admin_router = APIRouter(prefix="/admin/layout-reports", tags=["admin"])
 
 _QUOTA_PREFIX = "layout-report:q:"
-_DAY_SECONDS = 24 * 60 * 60
 
 
 @router.post("", status_code=status.HTTP_204_NO_CONTENT)
@@ -47,12 +45,8 @@ async def create_layout_report(
 ) -> Response:
     """Store a report and notify the admins (count and link only)."""
     now = datetime.now(tz=UTC)
-    account_hash = hashlib.sha256(str(teacher.id).encode("ascii")).hexdigest()
-    quota_key = f"{_QUOTA_PREFIX}{account_hash}:{now.date().isoformat()}"
-    # Reserved atomically up front, so parallel requests cannot all pass the check.
     limit = settings.LAYOUT_REPORTS_PER_TEACHER_PER_DAY
-    if await ephemeral_store.incr(quota_key, _DAY_SECONDS) > limit:
-        await ephemeral_store.incr(quota_key, _DAY_SECONDS, -1)
+    if await ephemeral_store.reserve_daily_quota(_QUOTA_PREFIX, teacher.id, limit, now=now) is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Daily layout-report quota reached.",

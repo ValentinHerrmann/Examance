@@ -1,4 +1,5 @@
 import { compareText } from './listSort';
+import { parseDecimal } from '#lib/utils/parseDecimal';
 
 /** Format concatenated grade (school year) and course/klasse letter. e.g. grade="10", klasse="a" -> "10a" */
 export function formatExamCourse(grade?: string | null, klasse?: string | null): string {
@@ -57,7 +58,7 @@ export function parseDurationMinutes(text?: string | null): number | null {
   const unit = match[2].toLowerCase();
   const factor = MINUTE_UNITS.has(unit) ? 1 : HOUR_UNITS.has(unit) ? 60 : null;
   if (factor === null) return null;
-  const minutes = Number(match[1].replace(',', '.')) * factor;
+  const minutes = (parseDecimal(match[1]) ?? Number.NaN) * factor;
   return Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : null;
 }
 

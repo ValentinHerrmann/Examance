@@ -33,6 +33,7 @@ import { examRepository, mapApiToExamRecord } from "#lib/repositories/examReposi
 import { isAuthenticated } from "#lib/stores/session";
 import { effectiveLatexCompilation } from "#lib/stores/capabilities";
 import { translate } from "#lib/i18n";
+import { sha256Hex } from "#lib/crypto/hex";
 
 export interface ExamItemRef {
   type: "exercise" | "mc_group";
@@ -140,9 +141,7 @@ export const OMR_TEMPLATE_VERSION = 2;
 
 async function hashOmrTemplate(mcExercises: ExerciseRecord[], mcGroups: McGroup[], blankTex: string): Promise<string> {
   // Unmarked, so stored hashes stay valid and only real document changes mark the template stale.
-  const data = new TextEncoder().encode(`${await computeMcExercisesHash(mcExercises, mcGroups)}\n${stripSourceMarkers(blankTex)}`);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+  return sha256Hex(`${await computeMcExercisesHash(mcExercises, mcGroups)}\n${stripSourceMarkers(blankTex)}`);
 }
 
 /** Identity of an OMR template: the MC answer key plus the whole blank sheet's LaTeX, so editing any exercise, reordering items or a page break marks it stale (bubbles move), not only answer-key edits (issue #135). */

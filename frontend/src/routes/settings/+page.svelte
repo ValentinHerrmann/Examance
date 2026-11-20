@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { downloadBlob } from "#lib/utils/download";
   import { apiHost } from "#lib/api/origin";
   import { goto } from "$app/navigation";
   import { db } from "#lib/db/db";
@@ -50,12 +51,7 @@
     statusMsg = "";
     try {
       const data = await exportStudentData(student);
-      const url = URL.createObjectURL(toDownloadableJson(data));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `auskunft-${data.pseudonymHmac.slice(0, 8)}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(toDownloadableJson(data), `auskunft-${data.pseudonymHmac.slice(0, 8)}.json`);
       statusMsg = translate("settings.status.exportDownloaded");
     } catch (err: any) {
       statusMsg = err?.message ?? translate("settings.status.exportFailed");

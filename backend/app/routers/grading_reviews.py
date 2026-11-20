@@ -1,7 +1,6 @@
 """Grading review records (issue #226) — /api/v1/exams/{id}/submissions/{id}/grading-review. One client-sealed payload per submission; PUT is an idempotent upsert."""
 from __future__ import annotations
 
-import base64
 import uuid
 from typing import Annotated
 
@@ -19,7 +18,7 @@ from app.dependencies import (
 from app.models.exam import Exam
 from app.models.grading_review import GradingReview
 from app.models.scan_submission import ScanSubmission
-from app.schemas.binary import GCM_IV_BYTES, decode_b64
+from app.schemas.binary import GCM_IV_BYTES, decode_b64, encode_b64_or_none
 from app.schemas.grading_review import GradingReviewIn, GradingReviewResponse
 from app.services.capabilities import require_server_results_writable
 
@@ -36,16 +35,13 @@ exam_router = APIRouter(
 )
 
 
-def _b64(value: bytes | None) -> str | None:
-    return base64.b64encode(value).decode() if value else None
-
 
 def _to_response(row: GradingReview) -> GradingReviewResponse:
     return GradingReviewResponse(
         id=row.id,
         submission_id=row.submission_id,
-        payload_ciphertext_b64=_b64(row.payload_ciphertext),
-        payload_iv_b64=_b64(row.payload_iv),
+        payload_ciphertext_b64=encode_b64_or_none(row.payload_ciphertext),
+        payload_iv_b64=encode_b64_or_none(row.payload_iv),
         updated_at=row.updated_at,
     )
 

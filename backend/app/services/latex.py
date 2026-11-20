@@ -1,7 +1,6 @@
 """LaTeX compilation: validates the request, then runs Tectonic in the worker or here."""
 from __future__ import annotations
 
-import base64
 import ctypes
 import logging
 import re
@@ -11,6 +10,7 @@ import httpx
 from fastapi.responses import JSONResponse
 
 from app.config import settings
+from app.schemas.binary import encode_b64
 from app.services.latex_packages import PackageLayer, document_body, exercise_entries, with_packages
 from app.services.latex_resources import validate_resource_name
 from app.services.logo import ResolvedLogo
@@ -70,7 +70,7 @@ async def _run_in_worker(main_tex: str, files: dict[str, bytes], time_limit: flo
     """POST the job to the LaTeX worker and map its answer back onto the local runner's errors."""
     job = {
         "main_tex": main_tex,
-        "files": {path: base64.b64encode(blob).decode() for path, blob in files.items()},
+        "files": {path: encode_b64(blob) for path, blob in files.items()},
         "timeout": time_limit,
     }
     try:

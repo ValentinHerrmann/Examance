@@ -32,6 +32,7 @@ from app.schemas.exam import (
 )
 from app.services import exercise_sharing as sharing
 from app.services import trash
+from app.services.exam_queries import find_own_exercise
 from app.services.exercise_library import (
     cascade_group_metadata,
     filtered,
@@ -397,13 +398,7 @@ async def delete_exercise(
     teacher: CurrentTeacher,
 ) -> None:
     """Delete an exercise from the caller's own library. Idempotent: always 204. Only exercises owned by *teacher* are deleted, so a foreign id is a silent no-op that does not reveal the id exists."""
-    result = await db.execute(
-        select(Exercise).where(
-            Exercise.id == exercise_id,
-            Exercise.teacher_id == teacher.id,
-        )
-    )
-    ex = result.scalar_one_or_none()
+    ex = await find_own_exercise(db, teacher.id, exercise_id)
     if ex is None:
         return
     previous = None

@@ -1,7 +1,6 @@
 """Result sharing with students (issue #207): the teacher's endpoints under /exams/{id}/shares and /exams/{id}/deliveries (delivery status, issue #221) and the public, session-less open endpoint under /shares."""
 from __future__ import annotations
 
-import base64
 import uuid
 from typing import Annotated
 
@@ -11,6 +10,7 @@ from app.dependencies import DB, TeachingTeacher, get_exam_for_teacher, get_teac
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.teacher import Teacher
+from app.schemas.binary import encode_b64
 from app.schemas.result_share import (
     ResultDeliveryOut,
     ResultShareContent,
@@ -34,9 +34,6 @@ router = APIRouter(
 )
 public_router = APIRouter(prefix="/shares", tags=["result-shares"])
 
-
-def _b64(value: bytes) -> str:
-    return base64.b64encode(value).decode()
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -146,9 +143,9 @@ async def open_result_share(
     share, data, review = await result_shares.open_share(db, share_id, body.lookup_b64)
     return ResultShareContent(
         factor=share.factor,  # type: ignore[arg-type]
-        kdf_salt_b64=_b64(share.kdf_salt) if share.kdf_salt is not None else None,
-        iv_b64=_b64(share.iv),
-        ciphertext_b64=_b64(data),
+        kdf_salt_b64=encode_b64(share.kdf_salt) if share.kdf_salt is not None else None,
+        iv_b64=encode_b64(share.iv),
+        ciphertext_b64=encode_b64(data),
         expires_at=share.expires_at,
         content_updated_at=share.content_updated_at,
         review_until=share.review_until,

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { parseDecimal } from "#lib/utils/parseDecimal";
+  import { scoreToWrite } from "#lib/grading/scoreInput";
   import { contentHref } from "#lib/utils/links";
   import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight, faUsers } from "@fortawesome/free-solid-svg-icons";
@@ -61,13 +63,8 @@
 
   const scoreText = (v: number | null | undefined) => (v !== null && v !== undefined ? String(v) : "");
 
-  /** Lenient like the inputs always were ("5,5" and "5abc" read as numbers); null for blank or non-numeric. */
-  function parseScore(raw: string | undefined): number | null {
-    const str = (raw ?? "").trim().replace(",", ".");
-    if (str === "") return null;
-    const num = parseFloat(str);
-    return isNaN(num) ? null : num;
-  }
+  /** Null for blank or non-numeric ("5abc" too, like every points field; `parseDecimal`). */
+  const parseScore = (raw: string | undefined): number | null => parseDecimal(raw);
 
   // What the inputs show after a rebuild, and the scope (student or exercise) it belongs to.
   let source = $derived.by(() => {
@@ -149,9 +146,9 @@
     // Read before any await: a student switch meanwhile refills the inputs with the next student's scores.
     const values = new Map<string, number | null>();
     exercises.forEach((ex, idx) => {
-      const val = parsedScores[idx];
-      // Out of range is not written; the field stays marked invalid.
-      if (val === null || (val >= 0 && val <= ex.maxPoints)) values.set(ex.id, val);
+      // Invalid or out-of-range text is not written; the field stays marked invalid.
+      const next = scoreToWrite(rawInputs[idx], ex.maxPoints);
+      if (next) values.set(ex.id, next.write);
     });
     // Nothing typed: no empty submission for a student who has none.
     if (!currentSub && [...values.values()].every((v) => v === null)) return;
@@ -164,8 +161,9 @@
     const ex = activeExercise;
     const st = students[index];
     if (!ex || !st) return;
-    const val = parseScore(rawInputs[index]);
-    if (val !== null && (val < 0 || val > ex.maxPoints)) return; // stays marked invalid
+    const next = scoreToWrite(rawInputs[index], ex.maxPoints);
+    if (!next) return; // stays marked invalid; the stored score is kept
+    const val = next.write;
     if (val === null && !submissionMap.has(st.pseudonymHmac)) return;
     const sub = await submissionOf(st);
     if (!sub) return;

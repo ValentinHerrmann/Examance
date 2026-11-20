@@ -3,6 +3,7 @@
 import type { StudentRecord } from '#lib/db/schema';
 import { parseRosterLines } from '#lib/utils/rosterLines';
 import { artemisIdOf, formatStudentName, mebisIdOf, mebisStickerId, normalizeLmsId, stickerLmsId } from '#lib/utils/studentQr';
+import { compareText } from '#lib/utils/listSort';
 
 export interface Contact {
   /** As the source writes it: "Lastname, Firstname" or "Firstname Lastname". */
@@ -102,7 +103,7 @@ export function nameKey(name: string | null | undefined): string {
     .normalize('NFC')
     .split(/[\s,]+/)
     .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b, 'de'))
+    .sort(compareText)
     .join(' ');
 }
 

@@ -5,6 +5,7 @@ import { sessionStore } from '#lib/stores/session';
 import { MissingSessionKeyError } from '#lib/db/decryptGuard';
 import { hmacSha256Hex } from '#lib/crypto/hmac';
 import type { PseudonymVersion } from '#lib/db/schema';
+import { sha256Hex } from './hex';
 
 const encoder = new TextEncoder();
 const SALT = encoder.encode('examance-pseudonym-v1');
@@ -35,12 +36,6 @@ function examKey(examId: string): Promise<CryptoKey> {
     perExam.set(id, key);
   }
   return key;
-}
-
-/** Lower-case SHA-256 hex; for values that are not pseudonyms (a submission id, a fallback code). */
-export async function sha256Hex(value: string): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(value));
-  return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /** The version-1 form, exactly as older builds sent it: any 64-character value passes through, anything else is hashed. */

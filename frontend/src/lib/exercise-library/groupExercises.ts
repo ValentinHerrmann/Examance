@@ -2,6 +2,7 @@ import type { ExerciseRecord } from "#lib/db/schema";
 import type { ResyncVariant } from "#lib/api/exerciseSharing";
 import { parseExerciseScore } from "#lib/latex/scoreParser";
 import { translate } from "#lib/i18n";
+import { compareText } from '#lib/utils/listSort';
 
 export interface VariantMember {
   ex: ExerciseRecord;
@@ -75,7 +76,7 @@ function sortedVariantsOf(currentMembers: ExerciseRecord[]): Map<string, Variant
   const keys = [...variants.keys()].sort((a, b) => {
     if (a === "_General") return -1;
     if (b === "_General") return 1;
-    return a.localeCompare(b);
+    return compareText(a, b);
   });
   for (const k of keys) sortedVariants.set(k, variants.get(k)!);
 
@@ -116,6 +117,6 @@ export function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
     groups.push({ groupId, name, topicTag, grade, subject, maxPoints, minPoints, variants: sortedVariants, allMembers });
   }
 
-  groups.sort((a, b) => a.name.localeCompare(b.name));
+  groups.sort((a, b) => compareText(a.name, b.name));
   return groups;
 }

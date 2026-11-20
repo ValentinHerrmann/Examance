@@ -1,7 +1,6 @@
 """Training router: opt-in OMR training-data donation (see docs/dev/training_donation.md). Full session only; the account is used for the daily quota and never stored, audited or logged. Quota answers are 429 without ``Retry-After`` (client login lockout), hence no slowapi limit."""
 from __future__ import annotations
 
-import hashlib
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -24,7 +23,6 @@ from app.services import ephemeral_store
 router = APIRouter(prefix="/training", tags=["training"])
 
 _QUOTA_PREFIX = "train:q:"
-_DAY_SECONDS = 24 * 60 * 60
 
 
 def _quota_exceeded() -> HTTPException:
@@ -58,11 +56,12 @@ async def donate_omr_samples(
     n = len(body.samples)
     now = datetime.now(tz=UTC)
 
-    # Per account, per UTC day. Hashed: the key must not name the account.
-    account_hash = hashlib.sha256(str(teacher.id).encode("ascii")).hexdigest()
-    quota_key = f"{_QUOTA_PREFIX}{account_hash}:{now.date().isoformat()}"
-    # Reserved atomically up front, so parallel requests cannot all pass the check.
-    used = await ephemeral_store.incr(quota_key, _DAY_SECONDS, n)
+    # Per account, per UTC day.
+    reservation = await ephemeral_store.reserve_daily_quota(
+        _QUOTA_PREFIX, teacher.id, settings.TRAINING_SAMPLES_PER_TEACHER_PER_DAY, n, now=now
+    )
+    if reservation is None:
+        raise _quota_exceeded()
 
     # All accounts together — a backstop that holds even when Redis is down.
     today_total = await db.scalar(
@@ -70,11 +69,8 @@ async def donate_omr_samples(
         .select_from(OmrTrainingSample)
         .where(OmrTrainingSample.created_on == now.date())
     )
-    if (
-        used > settings.TRAINING_SAMPLES_PER_TEACHER_PER_DAY
-        or (today_total or 0) + n > settings.TRAINING_SAMPLES_PER_DAY_MAX
-    ):
-        await ephemeral_store.incr(quota_key, _DAY_SECONDS, -n)
+    if (today_total or 0) + n > settings.TRAINING_SAMPLES_PER_DAY_MAX:
+        await reservation.release()
         raise _quota_exceeded()
 
     crops = [

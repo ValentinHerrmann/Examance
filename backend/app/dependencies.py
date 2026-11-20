@@ -16,6 +16,7 @@ from app.models.exercise import Exercise
 from app.models.scan_submission import ScanSubmission
 from app.models.teacher import Teacher
 from app.services import maintenance
+from app.services.exam_queries import find_own_exam, find_own_exercise
 from app.services.exercise_sharing import readable_clause
 from app.services.jwt import decode_token
 
@@ -151,14 +152,7 @@ async def get_exam_for_teacher(
     teacher: Teacher = Depends(get_teaching_teacher),
 ) -> Exam:
     """Return the exam if it belongs to *teacher* and is not soft-deleted. Missing, foreign and deleted all answer the same 404, so existence never leaks. Not 401: the client would refresh the session, and a queued write for a deleted exam would retry forever."""
-    result = await db.execute(
-        select(Exam).where(
-            Exam.id == exam_id,
-            Exam.teacher_id == teacher.id,
-            Exam.deleted_at.is_(None),
-        )
-    )
-    exam = result.scalar_one_or_none()
+    exam = await find_own_exam(db, teacher.id, exam_id)
     if exam is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -174,13 +168,7 @@ async def get_exercise_for_teacher(
     teacher: Teacher = Depends(get_teaching_teacher),
 ) -> Exercise:
     """Return the exercise only if it belongs to *teacher*; use for every write path. Shared (`is_public`) exercises are never writable by non-owners. Raises 404, not 403, so a non-owner cannot tell "someone else's" from "does not exist"."""
-    result = await db.execute(
-        select(Exercise).where(
-            Exercise.id == exercise_id,
-            Exercise.teacher_id == teacher.id,
-        )
-    )
-    exercise = result.scalar_one_or_none()
+    exercise = await find_own_exercise(db, teacher.id, exercise_id)
     if exercise is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
     return exercise

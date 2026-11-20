@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pastedScore } from "#lib/grading/scoreInput";
   import { SHOW_ROSTER_TAB } from "#lib/grading/manualRoster";
   import { studentsHref } from "#lib/utils/links";
   import { untrack } from "svelte";
@@ -50,7 +51,16 @@
     rawNumber?: string;
     matchedStudent?: StudentRecord;
     isNew: boolean;
+    /** Null for an empty cell, NaN for text that is not a number (shown as invalid and never imported). */
     scores: (number | null)[];
+    cells: string[];
+  }
+
+  /** A preview cell: "-" when empty, the pasted text when it is not a number, else the number. */
+  function shownScore(score: number | null, cell: string): string {
+    if (score === null) return "-";
+    if (Number.isNaN(score)) return cell;
+    return String(score);
   }
 
   let parsedRows: ParsedRow[] = $state.raw([]);
@@ -148,19 +158,16 @@
 
       // Trailing K exercise columns
       const exerciseScores: (number | null)[] = [];
+      const scoreCells: string[] = [];
       const totalCols = cells.length;
 
       for (let exIdx = 0; exIdx < k; exIdx++) {
         // Look at trailing K columns or matching indices
         const colIdx = totalCols >= k ? totalCols - k + exIdx : nameColIdx + 1 + exIdx;
-        const cellVal = cells[colIdx] !== undefined ? cells[colIdx].trim().replace(",", ".") : "";
+        const cellVal = cells[colIdx] ?? "";
+        scoreCells.push(cellVal.trim());
 
-        if (cellVal === "") {
-          exerciseScores.push(null);
-        } else {
-          const parsed = parseFloat(cellVal);
-          exerciseScores.push(isNaN(parsed) ? null : parsed);
-        }
+        exerciseScores.push(pastedScore(cellVal));
       }
 
       rows.push({
@@ -169,6 +176,7 @@
         matchedStudent: matched,
         isNew: !matched,
         scores: exerciseScores,
+        cells: scoreCells,
       });
     }
 
@@ -324,9 +332,9 @@
                 <td>{row.rawNumber || "-"}</td>
                 {#each row.scores as score, idx}
                   {@const maxP = exercises[idx]?.maxPoints || 0}
-                  {@const isInvalid = score !== null && (score < 0 || score > maxP)}
+                  {@const isInvalid = score !== null && (Number.isNaN(score) || score < 0 || score > maxP)}
                   <td class={isInvalid ? "font-bold text-danger-fg" : ""}>
-                    {score !== null ? score : "-"}
+                    {shownScore(score, row.cells[idx])}
                   </td>
                 {/each}
               </tr>

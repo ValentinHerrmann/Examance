@@ -10,9 +10,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.exam import Exam
 from app.models.result_delivery import ResultDelivery
 from app.schemas.result_share import ResultDeliveryOut
+from app.services.exam_queries import find_own_exam
 
 # How long the share dialog waits for bounces after an e-mail run; later bounces are forwarded to the teacher.
 BOUNCE_WATCH_SECONDS = 30
@@ -36,12 +36,7 @@ def to_out(row: ResultDelivery) -> ResultDeliveryOut:
 
 async def require_own_exam(db: AsyncSession, teacher_id: uuid.UUID, exam_id: uuid.UUID) -> None:
     """404 unless *exam_id* is a live exam of the teacher (for endpoints that get the exam in the body)."""
-    found = await db.scalar(
-        select(Exam.id).where(
-            Exam.id == exam_id, Exam.teacher_id == teacher_id, Exam.deleted_at.is_(None)
-        )
-    )
-    if found is None:
+    if await find_own_exam(db, teacher_id, exam_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Exam not found.")
 
 

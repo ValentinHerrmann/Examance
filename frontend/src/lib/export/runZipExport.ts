@@ -1,4 +1,4 @@
-import { downloadBlob } from '#lib/components/stats/chartExport';
+import { downloadBlob } from '#lib/utils/download';
 import { translate } from '#lib/i18n';
 import type { ExportProgress, ExportResult } from './progress';
 

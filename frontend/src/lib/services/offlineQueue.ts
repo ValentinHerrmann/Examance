@@ -6,6 +6,7 @@ import { workspaceIdStore, workspaceStatusStore } from '#lib/stores/workspaceSta
 import { isServerBacked } from '#lib/utils/serverBacked';
 import { db } from '#lib/db/db';
 import type { QueuedRequest } from '#lib/db/schema';
+import { safeLocalStorage } from '#lib/utils/storage';
 
 export type { QueuedRequest };
 
@@ -42,7 +43,7 @@ async function persist(queue: QueuedRequest[]): Promise<void> {
 async function hydrate(): Promise<void> {
   let legacy: QueuedRequest[] = [];
   try {
-    legacy = JSON.parse(localStorage.getItem(LEGACY_QUEUE_KEY) ?? '[]');
+    legacy = JSON.parse(safeLocalStorage.getItem(LEGACY_QUEUE_KEY) ?? '[]');
   } catch {
     legacy = [];
   }
@@ -56,7 +57,7 @@ async function hydrate(): Promise<void> {
     return [...byId.values()].sort((a, b) => a.timestamp - b.timestamp);
   });
   await persisting;
-  if (legacy.length > 0) localStorage.removeItem(LEGACY_QUEUE_KEY);
+  if (legacy.length > 0) safeLocalStorage.removeItem(LEGACY_QUEUE_KEY);
 }
 
 if (typeof window !== 'undefined') {

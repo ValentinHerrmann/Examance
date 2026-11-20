@@ -1,4 +1,5 @@
 /** Domain move (issue #198, docs/domain_move.md): the build names the address it retires (`scripts/domain-move.mjs`); this page runs on the old one, the new one, or neither. */
+import { safeSessionStorage } from "#lib/utils/storage";
 
 export interface DomainMove {
   /** Host of the old frontend, also the RP ID of its passkeys. */
@@ -57,18 +58,10 @@ export function redirectDate(): Date | null {
 
 /** Marks this tab's sign-in as made with a passkey of the old address: it must be replaced before going on. */
 export function rememberOldPasskeySignIn(value: boolean): void {
-  try {
-    if (value) sessionStorage.setItem(LEGACY_SIGN_IN_KEY, "1");
-    else sessionStorage.removeItem(LEGACY_SIGN_IN_KEY);
-  } catch {
-    // Storage may be blocked; the dialog then offers "Later" instead of insisting.
-  }
+  // Storage may be blocked; the dialog then offers "Later" instead of insisting.
+  safeSessionStorage.setItem(LEGACY_SIGN_IN_KEY, value ? "1" : "0");
 }
 
 export function signedInWithOldPasskey(): boolean {
-  try {
-    return sessionStorage.getItem(LEGACY_SIGN_IN_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return safeSessionStorage.getItem(LEGACY_SIGN_IN_KEY) === "1";
 }

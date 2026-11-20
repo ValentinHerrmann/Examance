@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { compareText } from "#lib/utils/listSort";
   import type { McVerificationStats } from "#lib/grading/mcVerification";
   import { t } from "#lib/i18n";
   import { TableScroller } from "#lib/components/ui";
@@ -12,7 +13,7 @@
   let sortedExerciseBreakdown = $derived([...stats.perExercise].sort((a, b) => {
     if (b.failed !== a.failed) return b.failed - a.failed;
     if (b.ambiguous !== a.ambiguous) return b.ambiguous - a.ambiguous;
-    return a.exerciseLabel.localeCompare(b.exerciseLabel);
+    return compareText(a.exerciseLabel, b.exerciseLabel);
   }));
 
 </script>

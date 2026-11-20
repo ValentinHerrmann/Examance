@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { compareText } from "#lib/utils/listSort";
   import { faChevronLeft, faChevronRight, faDownload, faTrash } from "@fortawesome/free-solid-svg-icons";
   import type { StudentRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
@@ -28,7 +29,7 @@
   let examOptions = $derived(
     exams
       .filter((e) => students.some((s) => s.examId === e.id))
-      .sort((a, b) => a.title.localeCompare(b.title)),
+      .sort((a, b) => compareText(a.title, b.title)),
   );
   let filtered = $derived.by(() => {
     const q = query.trim().toLowerCase();

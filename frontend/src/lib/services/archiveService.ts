@@ -18,7 +18,7 @@ import {
 } from "#lib/archive/conflicts";
 import { translate } from "#lib/i18n";
 import { EXAM_ARCHIVE_EXT, WORKSPACE_ARCHIVE_EXT } from "#lib/archive/format";
-import { downloadBlob } from "#lib/components/stats/chartExport";
+import { downloadBlob } from "#lib/utils/download";
 
 type ConflictResolver = (conflicts: ArchiveConflict[], identicalCount: number) => Promise<DecisionMap>;
 

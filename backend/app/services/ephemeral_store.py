@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
+import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from app.config import settings
@@ -225,3 +229,30 @@ async def check_reachable() -> bool:
         return False
     reset()
     return await _call("ping") is not None
+
+
+_DAY_SECONDS = 24 * 60 * 60
+
+
+@dataclass(frozen=True)
+class DailyReservation:
+    """Units reserved from an account's daily quota by `reserve_daily_quota`; `release` gives them back when a later check refuses the request."""
+
+    key: str
+    amount: int
+
+    async def release(self) -> None:
+        await incr(self.key, _DAY_SECONDS, -self.amount)
+
+
+async def reserve_daily_quota(
+    prefix: str, account_id: uuid.UUID, limit: int, amount: int = 1, now: datetime | None = None
+) -> DailyReservation | None:
+    """Reserve *amount* of the account's quota for the current UTC day, atomically, so parallel requests cannot all pass; None (nothing kept) when it would exceed *limit*. The key holds a SHA-256 of the account id, never the id itself. The one daily-quota helper (issue #299)."""
+    day = (now or datetime.now(tz=UTC)).date().isoformat()
+    account_hash = hashlib.sha256(str(account_id).encode("ascii")).hexdigest()
+    reservation = DailyReservation(f"{prefix}{account_hash}:{day}", amount)
+    if await incr(reservation.key, _DAY_SECONDS, amount) > limit:
+        await reservation.release()
+        return None
+    return reservation

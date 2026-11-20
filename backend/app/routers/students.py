@@ -1,7 +1,6 @@
 """Students router — /api/v1/exams/{id}/students"""
 from __future__ import annotations
 
-import base64
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -11,7 +10,7 @@ from app.dependencies import DB, TeachingTeacher, get_exam_for_teacher, get_teac
 from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
-from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
+from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64, encode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
 from app.services import result_shares, scan_storage, trash
@@ -158,9 +157,9 @@ async def list_student_identities(
         StudentIdentityResponse(
             pseudonym_hmac=st.pseudonym_hmac,
             exam_id=st.exam_id,
-            pii_ciphertext_b64=base64.b64encode(st.pii_ciphertext).decode(),
-            iv_b64=base64.b64encode(st.iv).decode(),
-            encryption_salt_b64=base64.b64encode(st.encryption_salt).decode(),
+            pii_ciphertext_b64=encode_b64(st.pii_ciphertext),
+            iv_b64=encode_b64(st.iv),
+            encryption_salt_b64=encode_b64(st.encryption_salt),
             pseudonym_version=exam.pseudonym_version,
         )
         for st in identities

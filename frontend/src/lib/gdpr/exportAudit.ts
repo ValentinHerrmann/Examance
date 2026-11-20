@@ -4,15 +4,13 @@
 
 import { db } from '#lib/db/db';
 import { encryptAuditEntry } from '#lib/db/dbEncryption';
+import { sha256Hex } from '#lib/crypto/hex';
 
 /** Log a CSV or data export (`exportFormat` e.g. 'CSV', '.bgproj', 'PDF') of an exam to the audit log, encrypted with the session `key`. */
 export async function logExportAction(examId: string, exportFormat: string, key: CryptoKey | null): Promise<string> {
   const auditId = crypto.randomUUID();
 
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(examId));
-  const targetHash = Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  const targetHash = await sha256Hex(examId);
 
   const plainEntry = {
     id: auditId,

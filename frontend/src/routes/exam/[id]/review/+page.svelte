@@ -7,7 +7,7 @@
   import { t } from "#lib/i18n";
   import type { Locale } from "#lib/i18n/types";
   import { Alert, Button, Card, ConfirmDialog, PageShell, Spinner, actionIcons } from "#lib/components/ui";
-  import { downloadBlob } from "#lib/components/stats/chartExport";
+  import { downloadBlob } from "#lib/utils/download";
   import { closeResultDeliveries, type ResultShareInfo } from "#lib/api/resultShares";
   import type { ArtemisCourse } from "#lib/api/integrations";
   import { watchBounces } from "#lib/sharing/delivery";

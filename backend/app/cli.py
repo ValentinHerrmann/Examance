@@ -367,11 +367,11 @@ def move_blobs(target: str) -> None:
 )
 def training_export(out_path: str, since: datetime | None) -> None:
     """Export donated OMR training samples as JSON Lines for offline model training. Rows (label, versions, detector features, base64 grayscale crop) carry no identifiers by design: keep the export that way, no joins or enrichment."""
-    import base64
     import json
 
     from app.database import AsyncSessionLocal
     from app.models.omr_training_sample import OmrTrainingSample
+    from app.schemas.binary import encode_b64
 
     # The sync CLI owns the file; the coroutine only streams rows into it.
     async def _export(fh: TextIO) -> int:
@@ -392,7 +392,7 @@ def training_export(out_path: str, since: datetime | None) -> None:
                             "label_selected": row.label_selected,
                             "crop_width": row.crop_width,
                             "crop_height": row.crop_height,
-                            "crop_b64": base64.b64encode(row.crop).decode("ascii"),
+                            "crop_b64": encode_b64(row.crop),
                             "meta": row.meta,
                         }
                     )

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { safeLocalStorage } from "#lib/utils/storage";
   import { updated } from "$app/state";
   import { t } from "#lib/i18n";
   import { Alert, Button } from "#lib/components/ui";
@@ -21,12 +22,8 @@
   // Issue #157: the notes never come before the reload prompt, so they wait for the same window (and the first poll).
   const notesReady = $derived($maintenanceStore.checked && !maintenanceBusy);
 
-  function readSeen(): string | null {
-    try { return localStorage.getItem(SEEN_KEY); } catch { return null; }
-  }
-  function writeSeen(v: string) {
-    try { localStorage.setItem(SEEN_KEY, v); } catch { /* storage may be blocked */ }
-  }
+  const readSeen = (): string | null => safeLocalStorage.getItem(SEEN_KEY);
+  const writeSeen = (v: string) => safeLocalStorage.setItem(SEEN_KEY, v);
 
   $effect(() => {
     if (!notesReady) return;

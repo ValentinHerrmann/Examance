@@ -1,7 +1,6 @@
 """Per-exercise scores — /api/v1/exams/{id}/submissions/{id}/scores. The payload (score, selected options, OMR metadata) is sealed client-side; the server stores only the ciphertext. Writes are keyed on (submission, exercise): idempotent, safe to replay offline."""
 from __future__ import annotations
 
-import base64
 import uuid
 from typing import Annotated
 
@@ -20,7 +19,7 @@ from app.models.exam_exercise import ExamExercise
 from app.models.exercise import Exercise
 from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
-from app.schemas.binary import GCM_IV_BYTES, decode_b64
+from app.schemas.binary import GCM_IV_BYTES, decode_b64, encode_b64_or_none
 from app.schemas.exercise_score import ExerciseScoreBulkPut, ExerciseScoreResponse
 from app.services import trash
 from app.services.capabilities import require_server_results_writable
@@ -38,17 +37,14 @@ exam_router = APIRouter(
 )
 
 
-def _b64(value: bytes | None) -> str | None:
-    return base64.b64encode(value).decode() if value else None
-
 
 def _to_response(row: ExerciseScore) -> ExerciseScoreResponse:
     return ExerciseScoreResponse(
         id=row.id,
         submission_id=row.submission_id,
         exercise_id=row.exercise_id,
-        payload_ciphertext_b64=_b64(row.payload_ciphertext),
-        payload_iv_b64=_b64(row.payload_iv),
+        payload_ciphertext_b64=encode_b64_or_none(row.payload_ciphertext),
+        payload_iv_b64=encode_b64_or_none(row.payload_iv),
         updated_at=row.updated_at,
     )
 

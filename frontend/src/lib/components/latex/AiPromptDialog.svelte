@@ -1,5 +1,6 @@
 <script lang="ts">
   /** The AI-chat prompt for a failed compile (issue #168), shown before copying. Clipboard only; the exercise code goes in only on the user's tick (exam content). */
+  import { compareText } from "#lib/utils/listSort";
   import { Button, Checkbox, Modal } from "#lib/components/ui";
   import { locale, t } from "#lib/i18n";
   import { loadLatexAssets, type LatexAsset } from "#lib/latex/assets";
@@ -44,7 +45,7 @@
     // Files the server loaded itself are known by exercise id only; their names come from the repository.
     const { names, exerciseIds } = failure.files;
     Promise.all(exerciseIds.map((id) => exerciseResourceRepository.listNames(id))).then(
-      (lists) => (resourceNames = [...new Set([...names, ...lists.flat()])].sort((a, b) => a.localeCompare(b))),
+      (lists) => (resourceNames = [...new Set([...names, ...lists.flat()])].sort(compareText)),
       () => (resourceNames = [...names])
     );
   });

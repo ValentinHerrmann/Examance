@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { parseDecimal } from "#lib/utils/parseDecimal";
   import {
     REQUIREMENT_LEVELS,
     appendPart,
@@ -44,10 +45,9 @@
 
   /** Empty input = counted score; anything else is a fixed score. */
   function parseScoreInput(raw: string): number | null | undefined {
-    const trimmed = raw.trim().replace(",", ".");
-    if (trimmed === "") return null;
-    const n = Number(trimmed);
-    return Number.isFinite(n) && n >= 0 ? n : undefined;
+    if (raw.trim() === "") return null;
+    const n = parseDecimal(raw);
+    return n !== null && n >= 0 ? n : undefined;
   }
 
   function changeFixed(raw: string, partIndex: number | null) {

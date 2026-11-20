@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { parseDecimal } from "#lib/utils/parseDecimal";
   import { controlClass, controlSmClass } from "#lib/components/ui";
 
   interface Props {
@@ -13,8 +14,8 @@
   let invalid = $derived.by(() => {
     // No fallback on the bindable: the grid binds rows it has not filled yet, and binding undefined to a prop with a fallback throws.
     if (!value) return false;
-    const num = parseFloat(value.replace(",", "."));
-    return isNaN(num) || num < 0 || num > max;
+    const num = parseDecimal(value);
+    return num === null || num < 0 || num > max;
   });
 
   // Enter/ArrowDown and ArrowUp move between the score fields of the same table body.

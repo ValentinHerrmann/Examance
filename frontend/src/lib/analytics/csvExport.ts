@@ -3,7 +3,8 @@
  */
 
 import { logExportAction } from '#lib/gdpr/exportAudit';
-import { downloadBlob } from '#lib/components/stats/chartExport';
+import { downloadBlob } from '#lib/utils/download';
+import { slug } from '#lib/export/zip';
 
 export interface CsvExportRow {
   studentPseudonymId: string;
@@ -61,5 +62,5 @@ export async function exportGradesToCsv(
 ): Promise<void> {
   await logExportAction(examId, 'CSV', key);
   const blob = new Blob([buildGradesCsv(rows) as BlobPart], { type: 'text/csv;charset=utf-8;' });
-  downloadBlob(blob, `${examTitle.replaceAll(/[^a-z0-9_-]/gi, '_')}_grades.csv`);
+  downloadBlob(blob, `${slug(examTitle, 'exam')}_grades.csv`);
 }
