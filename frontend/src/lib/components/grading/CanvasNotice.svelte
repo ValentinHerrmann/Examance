@@ -43,7 +43,8 @@
 {#snippet actionButton()}
   {@const action = notice?.action}
   {#if action}
-    <Button size="sm" variant="outlined" onClick={() => { hide(); action.onClick(); }}>{action.label}</Button>
+    <!-- Take the handler before hiding: `action` follows `notice`, which hide() clears. -->
+    <Button size="sm" variant="outlined" onClick={() => { const run = action.onClick; hide(); run(); }}>{action.label}</Button>
   {/if}
 {/snippet}
 
