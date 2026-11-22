@@ -28,17 +28,21 @@
 </script>
 
 <div class="flex min-w-0 flex-col gap-0.5 text-xs leading-tight">
-  <div class="flex min-w-0 items-center gap-1.5">
-    <span class="text-xl font-bold text-content tabular-nums">{sumGradedScores}</span>
-    <span class="text-muted">{$t("grading.summary.maxPoints", { max: totalMaxPoints })}</span>
-    <span class="flex-1"></span>
-    {#if gradeDetail}
-      <Badge severity={isFullyGraded ? "info" : "secondary"}>
-        <span class="whitespace-nowrap" title={isFullyGraded ? gradeDetail.label : $t("grading.summary.preliminaryTitle")}>
-          {$t("grading.summary.gradeBadge", { grade: gradeDetail.grade })}{isFullyGraded ? "" : ` ${$t("grading.summary.preliminary")}`}
-        </span>
-      </Badge>
-    {/if}
+  <!-- Points and grade wrap as whole pieces: in the slim card the badge moves under the points instead of squeezing them. -->
+  <div class="flex min-w-0 items-start gap-1">
+    <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+      <span class="whitespace-nowrap">
+        <span class="text-xl font-bold text-content tabular-nums">{$fmt.number(sumGradedScores)}</span>
+        <span class="text-muted">{$t("grading.summary.maxPoints", { max: $fmt.number(totalMaxPoints) })}</span>
+      </span>
+      {#if gradeDetail}
+        <Badge severity={isFullyGraded ? "info" : "secondary"}>
+          <span class="whitespace-nowrap" title={isFullyGraded ? gradeDetail.label : $t("grading.summary.preliminaryTitle")}>
+            {$t("grading.summary.gradeBadge", { grade: gradeDetail.grade })}{isFullyGraded ? "" : ` ${$t("grading.summary.preliminary")}`}
+          </span>
+        </Badge>
+      {/if}
+    </div>
     {@render end?.()}
   </div>
 
@@ -56,8 +60,8 @@
   {#if gradeDetail}
     <div class="flex flex-wrap gap-x-2">
       {#if gradeDetail.nextHigher}
-        <span class="inline-flex items-center gap-0.5 whitespace-nowrap text-success-fg" title={$t("grading.summary.nextHigher", { points: gradeDetail.nextHigher.pointsNeeded, grade: gradeDetail.nextHigher.grade })}>
-          <Icon icon={faCaretUp} />{$t("grading.summary.nextHigherShort", { points: gradeDetail.nextHigher.pointsNeeded, grade: gradeDetail.nextHigher.grade })}
+        <span class="inline-flex items-center gap-0.5 whitespace-nowrap text-success-fg" title={$t("grading.summary.nextHigher", { points: $fmt.number(gradeDetail.nextHigher.pointsNeeded), grade: gradeDetail.nextHigher.grade })}>
+          <Icon icon={faCaretUp} />{$t("grading.summary.nextHigherShort", { points: $fmt.number(gradeDetail.nextHigher.pointsNeeded), grade: gradeDetail.nextHigher.grade })}
         </span>
       {:else}
         <span class="inline-flex items-center gap-0.5 whitespace-nowrap text-warning-fg" title={$t("grading.summary.maxAchievedTitle")}>
@@ -65,8 +69,8 @@
         </span>
       {/if}
       {#if gradeDetail.nextLower}
-        <span class="inline-flex items-center gap-0.5 whitespace-nowrap text-muted" title={$t("grading.summary.nextLower", { points: gradeDetail.nextLower.pointsBuffer, grade: gradeDetail.nextLower.grade })}>
-          <Icon icon={faCaretDown} />{$t("grading.summary.nextLowerShort", { points: gradeDetail.nextLower.pointsBuffer, grade: gradeDetail.nextLower.grade })}
+        <span class="inline-flex items-center gap-0.5 whitespace-nowrap text-muted" title={$t("grading.summary.nextLower", { points: $fmt.number(gradeDetail.nextLower.pointsBuffer), grade: gradeDetail.nextLower.grade })}>
+          <Icon icon={faCaretDown} />{$t("grading.summary.nextLowerShort", { points: $fmt.number(gradeDetail.nextLower.pointsBuffer), grade: gradeDetail.nextLower.grade })}
         </span>
       {/if}
     </div>

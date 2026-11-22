@@ -47,7 +47,7 @@
   let surface = $derived(nested ? "bg-surface-sunken" : "bg-surface-raised");
   // Literal class strings per row kind, so Tailwind sees them.
   const PAD = { nested: "pl-5 text-xs", compact: "pl-1", row: "pl-2" } as const;
-  const FIELD = { nested: "w-12! md:w-10!", compact: "w-10! font-bold", row: "w-14! font-bold md:w-11!" } as const;
+  const FIELD = { nested: "w-12! md:w-10!", compact: "w-12! font-bold", row: "w-14! font-bold md:w-11!" } as const;
   function kindOf(): keyof typeof PAD {
     if (nested) return "nested";
     return compact ? "compact" : "row";
