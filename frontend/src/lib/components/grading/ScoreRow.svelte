@@ -23,12 +23,14 @@
     /** Item key of this row in a grading review (issue #226): an objection shows as a badge that opens the review dialog. */
     reviewKey?: string;
     ariaLabel?: string;
+    /** Enter in the score field: the stepper moves on to the next target (issue #330). */
+    onEnter?: () => void;
     onSelect: () => void;
     onValue: (value: number | null) => void;
     onReset: () => void;
   }
 
-  let { label, value, max, maxLabel, active, manual, nested = false, readonlyReason, warning, inputId, reviewKey, ariaLabel, onSelect, onValue, onReset }: Props = $props();
+  let { label, value, max, maxLabel, active, manual, nested = false, readonlyReason, warning, inputId, reviewKey, ariaLabel, onEnter, onSelect, onValue, onReset }: Props = $props();
 
   function handleInput(e: Event) {
     const raw = (e.currentTarget as HTMLInputElement).value.trim();
@@ -86,6 +88,12 @@
     title={readonlyReason}
     onclick={(e) => e.stopPropagation()}
     oninput={handleInput}
+    onkeydown={(e) => {
+      if (e.key !== "Enter" || !onEnter) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onEnter();
+    }}
     class="{controlClass} {controlSmClass} {nested ? 'w-12! md:w-10!' : 'w-14! font-bold md:w-11!'} shrink-0 px-1! text-right read-only:border-transparent read-only:bg-transparent read-only:shadow-none pointer-coarse:min-h-9 pointer-coarse:text-base"
   />
   <span class="w-7 shrink-0 text-xs whitespace-nowrap text-muted">/{maxLabel ?? max}</span>

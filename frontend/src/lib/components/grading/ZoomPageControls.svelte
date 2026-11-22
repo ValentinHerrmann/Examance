@@ -2,8 +2,6 @@
   import { gradingStore } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
   import {
-    faChevronLeft,
-    faChevronRight,
     faExpand,
     faMagnifyingGlassMinus,
     faMagnifyingGlassPlus,
@@ -13,12 +11,10 @@
   import { Button } from "#lib/components/ui";
   import type { ControlsSide } from "#lib/stores/capabilities";
 
-  /** The grading view's bottom bar: annotation history, pages, zoom (issue #330). Callbacks only forward intent; the viewer owns all three. */
+  /** The grading view's bottom bar: annotation history, the page in view, zoom (issue #330). Callbacks only forward intent; the viewer owns them. No page arrows: teachers scroll. */
   interface Props {
     onUndo: () => void;
     onRedo: () => void;
-    onPagePrev: () => void;
-    onPageNext: () => void;
     onZoomOut: () => void;
     onZoomIn: () => void;
     onResetZoom: () => void;
@@ -26,7 +22,7 @@
     side?: ControlsSide;
   }
 
-  let { onUndo, onRedo, onPagePrev, onPageNext, onZoomOut, onZoomIn, onResetZoom, side = "left" }: Props = $props();
+  let { onUndo, onRedo, onZoomOut, onZoomIn, onResetZoom, side = "left" }: Props = $props();
 
   // Icon-only text buttons: no frames, so the bar stays one short line on a tablet; touch keeps 44px targets.
   const btn = { size: "sm", variant: "text", severity: "secondary", iconOnly: true } as const;
@@ -41,9 +37,7 @@
   <Button {...btn} icon={faRotateRight} disabled={!$gradingStore.canRedo} onClick={onRedo} title={$t("grading.toolbar.redoTitle")} ariaLabel={$t("grading.toolbar.redoTitle")} />
   {#if $gradingStore.isScanPdf && $gradingStore.totalPages > 1}
     <div class="mx-0.5 h-4 w-px shrink-0 bg-line"></div>
-    <Button {...btn} icon={faChevronLeft} onClick={onPagePrev} disabled={$gradingStore.currentPage <= 1} title={$t("grading.zoom.pagePrevTitle")} ariaLabel={$t("grading.zoom.pagePrevTitle")} />
-    <span class="whitespace-nowrap tabular-nums">{$t("grading.zoom.pageIndicator", { current: $gradingStore.currentPage, total: $gradingStore.totalPages })}</span>
-    <Button {...btn} icon={faChevronRight} onClick={onPageNext} disabled={$gradingStore.currentPage >= $gradingStore.totalPages} title={$t("grading.zoom.pageNextTitle")} ariaLabel={$t("grading.zoom.pageNextTitle")} />
+    <span class="px-1 whitespace-nowrap tabular-nums">{$t("grading.zoom.pageIndicator", { current: $gradingStore.currentPage, total: $gradingStore.totalPages })}</span>
   {/if}
   <div class="mx-0.5 h-4 w-px shrink-0 bg-line"></div>
   <Button {...btn} icon={faMagnifyingGlassMinus} onClick={onZoomOut} title={$t("grading.zoom.zoomOutTitle")} ariaLabel={$t("grading.zoom.zoomOutTitle")} />

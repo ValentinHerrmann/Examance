@@ -51,7 +51,7 @@
             max={ex.maxPoints}
             active={false}
             manual={!!$gradingStore.manualOverride[ex.id] && !hasPartValues(parts)}
-            readonlyReason={hasPartValues(parts) ? $t("grading.scoreEntry.sumOfParts") : undefined}
+            readonlyReason={exerciseParts(ex).length > 0 ? $t("grading.scoreEntry.sumOfParts") : undefined}
             inputId={`review-score-${ex.id}`}
             onSelect={() => {}}
             onValue={(v) => setTotal(ex, v)}

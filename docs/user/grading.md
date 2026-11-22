@@ -15,11 +15,11 @@ During the grading pass you see **"Anonymous student #3 of 26"**, never a name. 
 ## The grading view {#workspace}
 
 - **Controls on the left:** from tablet width the toolbox, the **Scoring** card and the bottom bar float on the left of the scan, so a right hand writing on the scan covers none of them; the page sits beside them. Left-handed teachers move them to the right under [Settings → Grading view layout](settings.md#grading-layout). On phones the toolbox is a strip above the scan and the **Scoring** card a sheet below it.
-- **Scoring card:** at the top the points so far, their percentage and the grade, marked *(prelim.)* until every exercise is scored. Below it the exercises ("1", "2 a)"), how many points the next better or worse grade is away, and **Previous** and **Next student**. The arrow in its corner folds it up to the points and the arrows; the page then gets the room. This browser remembers the choice.
+- **Scoring card:** at the top the points so far, their percentage and the grade, marked *(prelim.)* until every exercise is scored. Below it the exercises ("1", "2 a)") and how many points the next better or worse grade is away. At the bottom, **Previous exercise** (˄) and **Next exercise** (˅) move the stamp target, part by part; so do **Alt + ↑/↓** and **Enter** in a score field. After the last exercise Examance asks whether to go on with the next submission (before the first: the previous one); the other submission starts at its first exercise. The arrow in the card's corner folds it up to the points and the current stamp target with its score field; the page then gets the room. This browser remembers the choice.
 - **All pages of a submission are stacked.** Scroll through them with the mouse wheel or the scrollbar, or with your finger on a touch device.
 - **Pen or finger:** a pen, and the mouse, always draw. On a device without a pen, one finger draws and two fingers scroll. As soon as you use a pen once, Examance remembers it on this device: from then on, fingers and a resting palm only scroll and zoom and never draw. While the pen touches the screen, and for half a second after, a resting palm also never selects text, presses a button or scrolls the scan. A short notice says so when the pen is first detected; to draw with a finger again, reset it under [Settings → Pen input](settings.md#pen-input).
-- **Bottom bar:** **Undo** and **Redo**, the page arrows (multi-page scans), zoom out and in, and **Fit**, which fits the page to the view. **Ctrl + mouse wheel** or pinching zooms too.
-- **Previous** and **Next student** move through the submissions. The exercise labels in the **Scoring** panel are not links, so tapping one cannot open the exercise by accident.
+- **Bottom bar:** **Undo** and **Redo**, the page in view (multi-page scans; scroll to move between pages), zoom out and in, and **Fit**, which fits the page to the view. **Ctrl + mouse wheel** or pinching zooms too.
+- The arrows **Previous** and **Next student**, left and right of the anonymous student in the header, move through the submissions; an icon next to them shows whether everything is saved. The exercise labels in the **Scoring** panel are not links, so tapping one cannot open the exercise by accident.
 
 The **Scoring** panel lists the exercises with their points. Click a row to make it the **stamp target**: stamps you place then count towards that exercise. The stamp target is the highlighted row with the thick bar on its left.
 
@@ -51,13 +51,12 @@ A submission counts as **partly graded** until every exercise has points. Partly
 
 ## Grading part by part {#parts}
 
-For an exercise with [parts](./exercises#parts), the scoring panel shows one row per part (**Part a)**, **Part b)**, …) below the exercise. Click a part's row to make it the stamp target, so stamps count towards that part, or type its points.
+For an exercise with [parts](./exercises#parts), the scoring panel shows one row per part (**Part a)**, **Part b)**, …) below the exercise. Click a part's row to make it the stamp target (the exercise's row picks its first part), so stamps count towards that part, or type its points.
 
 ![Part rows in the scoring panel and filled score boxes on the scan](../screenshots/guide/grading-parts.jpg)
 
-- The exercise's own field then reads **Follows from the parts once all of them are graded**: the exercise counts as graded only when every part has points.
-- Points outside the parts (for example a scoring unit in the introduction, or stamps set while the exercise itself was the target) are collected in the row **Outside the parts**. If it gets more points than the exercise has outside its parts, the row warns you: probably a stamp landed without a part.
-- You can still grade the exercise as a whole: just leave the part rows empty.
+- The exercise's own field cannot be typed into; it reads **Follows from the parts once all of them are graded**: the exercise counts as graded only when every part has points.
+- Points outside the parts (for example a scoring unit in the introduction) are collected in the row **Outside the parts**, "Rest" in the stepper. If it gets more points than the exercise has outside its parts, the row warns you: probably a stamp landed without a part.
 
 ## Score boxes fill in by themselves {#score-boxes}
 
@@ -86,6 +85,6 @@ These results take part in statistics, analytics and export like scanned ones.
 
 ## Saving {#saving}
 
-Points and marks save themselves, encrypted, a few seconds after your last change. The line above **Previous** and **Next student** shows **Saving…**, **Saved** or why saving failed. Switching to another student or leaving the page saves first. Only if that save fails does Examance ask whether to discard the changes.
+Points and marks save themselves, encrypted, a few seconds after your last change. The icon next to **Next student** in the header shows whether it is saving or saved; if saving fails, the reason appears there. Switching to another student or leaving the page saves first. Only if that save fails does Examance ask whether to discard the changes.
 
 If the connection drops, changes that could not be sent are queued in the browser and sent automatically later.

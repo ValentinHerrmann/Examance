@@ -22,6 +22,7 @@
   import { get } from "svelte/store";
   import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
   import { isMcQuestion } from "#lib/grading/mcScore";
+  import { gradingTargets, selectTarget } from "#lib/grading/gradingTargets";
   import { saveSubmissionScores } from "#lib/grading/scoreService";
   import { buildGradingSheet } from "#lib/grading/gradingSheet";
   import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
@@ -82,9 +83,7 @@
     const key = get(sessionStore).sessionKey;
     exam = (await loadExamEncrypted(examId, key)) || null;
     exercises = await loadExamExercisesEncrypted(examId, key);
-    if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
-      gradingStore.setActiveExerciseId(exercises[0].id);
-    }
+    if (exercises.length > 0 && !get(gradingStore).activeExerciseId) selectTarget(gradingTargets(exercises)[0]);
     void loadScoreBoxContext(examId, key).then((ctx) => (scoreBoxes = ctx));
     reviewsReady = initReviews(examId);
     try {
@@ -189,9 +188,7 @@
     gradingStore.setPartInputs({});
     gradingStore.setMcState({});
     gradingStore.markClean();
-    if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
-      gradingStore.setActiveExerciseId(exercises[0].id);
-    }
+    if (exercises.length > 0 && !get(gradingStore).activeExerciseId) selectTarget(gradingTargets(exercises)[0]);
     const key = get(sessionStore).sessionKey;
     scoresLoadError = "";
     let existingScores: ExerciseScoreRecord[];

@@ -9,7 +9,9 @@
   import ScanCanvasViewer from "./ScanCanvasViewer.svelte";
   import { t } from "#lib/i18n";
   import { faFlagCheckered } from "@fortawesome/free-solid-svg-icons";
-  import { HeroDialog } from "#lib/components/ui";
+  import { ConfirmDialog, HeroDialog } from "#lib/components/ui";
+  import { gradingTargets, selectTarget, stepTarget, targetIndex, targetInputId } from "#lib/grading/gradingTargets";
+  import { tick } from "svelte";
   import { examHref } from "#lib/utils/links";
   import type { ScoreBoxContext } from "#lib/grading/scoreBoxes";
   import type { AutosaveStatus } from "#lib/utils/autosave";
@@ -32,8 +34,9 @@
     onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
     /** The autosave's "Saving… / Saved" state (issue #233). */
     saveStatus: AutosaveStatus;
-    onPrev: () => void;
-    onNext: () => void;
+    /** Student switches; resolve once the switch ran (or was refused). */
+    onPrev: () => Promise<void>;
+    onNext: () => Promise<void>;
     onStayOnLastSub: () => void;
     /** Saves the pending score edits; rejects when that fails (the objection reply needs them stored). */
     onFlush: () => Promise<void>;
@@ -75,8 +78,52 @@
   let openCard = $derived(scoreCardCollapsed ? 0 : RAIL_GAP + cardWidth);
   let railInset = $derived(toolboxWidth > 0 ? 12 + toolboxWidth + openCard : 0);
 
-  /** Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo; a focused field keeps its own text undo. */
+  // The exercise stepper (issue #330): leaving the list at either end asks before switching the student.
+  let wrap: 1 | -1 | null = $state(null);
+
+  async function step(dir: 1 | -1) {
+    const targets = gradingTargets(exercises);
+    const state = $gradingStore;
+    const next = stepTarget(targets, targetIndex(targets, state.activeExerciseId, state.activePartLabel), dir);
+    if (next.kind === "before") {
+      if (currentIndex > 0) wrap = -1;
+      return;
+    }
+    if (next.kind === "after") {
+      // The last student: the end-of-submissions dialog answers instead.
+      if (currentIndex >= submissions.length - 1) void onNext();
+      else wrap = 1;
+      return;
+    }
+    // Enter in a score field carries the focus along, so typing goes on with the next target.
+    const typing = document.activeElement instanceof HTMLInputElement && document.activeElement.id.startsWith("score-") && document.activeElement.id !== "score-stepper";
+    const target = targets[next.index];
+    selectTarget(target);
+    await tick();
+    const field = document.getElementById(targetInputId(target));
+    field?.scrollIntoView({ block: "nearest" });
+    if (typing && field instanceof HTMLInputElement) {
+      field.focus();
+      field.select();
+    }
+  }
+
+  async function confirmWrap() {
+    const dir = wrap;
+    wrap = null;
+    const before = currentIndex;
+    await (dir === 1 ? onNext() : onPrev());
+    // Always the first exercise, also when going back; a refused switch keeps the target.
+    if (currentIndex !== before) selectTarget(gradingTargets(exercises)[0]);
+  }
+
+  /** Alt+↑/↓ step exercises (also from a score field); Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo, a focused field keeps its own text undo. */
   function onKeydown(e: KeyboardEvent) {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      void step(e.key === "ArrowUp" ? -1 : 1);
+      return;
+    }
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     const target = e.target as HTMLElement | null;
     if (target?.closest("input, textarea, select, [contenteditable]")) return;
@@ -98,6 +145,9 @@
   submissionsLength={submissions.length}
   {currentSub}
   {calculatedGrade}
+  {saveStatus}
+  {onPrev}
+  {onNext}
 />
 
 <!-- `flex-1 min-h-0` rather than a viewport-height magic number: the grade page root is a flex column that fills the space above the footer. From `md` the scan takes the whole card and the controls float on the teacher's side (issue #328): a rail with the toolbox and the score card, the bottom bar below it (issue #330). On phones the rail dissolves (`contents`): toolbox strip above the scan, bottom bar and score sheet below it. -->
@@ -115,15 +165,13 @@
           {examId}
           {exercises}
           {currentSub}
-          {currentIndex}
           {isFullyGraded}
           {sumGradedScores}
           {gradedCount}
           {totalMaxPoints}
           {gradeDetail}
-          {saveStatus}
-          {onPrev}
-          {onNext}
+          onStep={step}
+          atFirstStudent={currentIndex === 0}
           {onFlush}
           bind:collapsed={scoreCardCollapsed}
           class="order-last md:order-none"
@@ -145,8 +193,6 @@
     <ZoomPageControls
       onUndo={() => viewerRef?.undo()}
       onRedo={() => viewerRef?.redo()}
-      onPagePrev={() => viewerRef?.goPagePrev()}
-      onPageNext={() => viewerRef?.goPageNext()}
       onZoomOut={() => viewerRef?.zoomOut()}
       onZoomIn={() => viewerRef?.zoomIn()}
       onResetZoom={() => viewerRef?.resetZoom()}
@@ -154,6 +200,17 @@
     />
   </div>
 </div>
+
+<ConfirmDialog
+  open={wrap !== null}
+  title={wrap === -1 ? $t("grading.stepper.prevStudentTitle") : $t("grading.stepper.nextStudentTitle")}
+  message={wrap === -1 ? $t("grading.stepper.prevStudentBody") : $t("grading.stepper.nextStudentBody")}
+  confirmText={wrap === -1 ? $t("grading.actions.prev") : $t("grading.actions.next")}
+  cancelText={$t("grading.stepper.stay")}
+  role="dialog"
+  onConfirm={confirmWrap}
+  onCancel={() => (wrap = null)}
+/>
 
 <HeroDialog
   open={$gradingStore.showLastSubModal}

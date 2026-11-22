@@ -356,13 +356,6 @@
     );
   }
 
-  function scrollToPage(page: number) {
-    const top = pageTop(page);
-    if (top === null || !canvasViewport) return;
-    canvasViewport.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-    gradingStore.setCurrentPage(page);
-  }
-
   let scrollFrame = 0;
   // One page lookup per frame: it measures every page, and scroll events come faster than frames.
   function onViewportScroll() {
@@ -383,22 +376,6 @@
     });
     if (page !== get(gradingStore).currentPage) {
       gradingStore.setCurrentPage(page);
-    }
-  }
-
-  export function goPagePrev() {
-    const state = get(gradingStore);
-    if (state.currentPage > 1) {
-      input.finish();
-      scrollToPage(state.currentPage - 1);
-    }
-  }
-
-  export function goPageNext() {
-    const state = get(gradingStore);
-    if (state.currentPage < state.totalPages) {
-      input.finish();
-      scrollToPage(state.currentPage + 1);
     }
   }
 

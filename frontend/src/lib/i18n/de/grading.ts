@@ -89,8 +89,19 @@ export const grading = {
         nextLowerTitle: 'Punkte-Puffer vor der nächstschlechteren Note',
         nextLower: '-{points} Pkt. zu Note {grade}',
     },
+    stepper: {
+        label: 'Aufgabe wechseln',
+        prev: 'Vorherige Aufgabe (Alt+↑)',
+        next: 'Nächste Aufgabe (Alt+↓ oder Enter im Punktefeld)',
+        rest: 'Rest',
+        nextStudentTitle: 'Letzte Aufgabe erreicht',
+        nextStudentBody: 'Das war die letzte Aufgabe dieser Arbeit. Mit der nächsten Arbeit weitermachen?',
+        prevStudentTitle: 'Erste Aufgabe erreicht',
+        prevStudentBody: 'Das ist die erste Aufgabe dieser Arbeit. Zur vorherigen Arbeit wechseln?',
+        stay: 'Hier bleiben',
+    },
     actions: {
-        prev: 'Vorheriger',
+        prev: 'Vorheriger Schüler',
         next: 'Nächster Schüler',
     },
     mcReview: {
@@ -114,9 +125,7 @@ export const grading = {
         restOverMax: 'Mehr als die Punkte außerhalb der Teilaufgaben ({max}): Stempel ohne Teilaufgabe?',
     },
     zoom: {
-        pagePrevTitle: 'Zur vorherigen Seite springen',
         pageIndicator: 'S. {current}/{total}',
-        pageNextTitle: 'Zur nächsten Seite springen',
         zoomOutTitle: 'Verkleinern (-)',
         fitLabel: 'Fit',
         zoomInTitle: 'Vergrößern (+)',

@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
   import type { GradeDetail } from "#lib/analytics/gradingKey";
-  import type { AutosaveStatus } from "#lib/utils/autosave";
   import { gradingStore } from "#lib/grading/gradingStore";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { t } from "#lib/i18n";
@@ -14,29 +13,28 @@
   import ScoreEntry from "./ScoreEntry.svelte";
   import McAnswerReview from "./McAnswerReview.svelte";
   import ReviewReplyBar from "./ReviewReplyBar.svelte";
-  import GradingActions from "./GradingActions.svelte";
+  import ExerciseStepper from "./ExerciseStepper.svelte";
 
-  /** The grading view's score card (issue #330): floating beside the toolbox from `md`, a bottom sheet on phones; collapses to its summary and the arrows. */
+  /** The grading view's score card (issue #330): floating beside the toolbox from `md`, a bottom sheet on phones; collapses to its summary and the current target's score. */
   interface Props {
     examId: string;
     exercises: ExerciseRecord[];
     currentSub: SubmissionRecord | undefined;
-    currentIndex: number;
     isFullyGraded: boolean;
     sumGradedScores: number;
     gradedCount: number;
     totalMaxPoints: number;
     gradeDetail: GradeDetail | null;
-    saveStatus: AutosaveStatus;
-    onPrev: () => void;
-    onNext: () => void;
+    /** Steps to the previous or next stamp target (issue #330). */
+    onStep: (dir: 1 | -1) => void;
+    atFirstStudent: boolean;
     onFlush: () => Promise<void>;
-    /** Whether only the summary and the arrows show; bindable so the scan can use the room. */
+    /** Whether only the summary and the current target show; bindable so the scan can use the room. */
     collapsed?: boolean;
     class?: string;
   }
 
-  let { examId, exercises, currentSub, currentIndex, isFullyGraded, sumGradedScores, gradedCount, totalMaxPoints, gradeDetail, saveStatus, onPrev, onNext, onFlush, collapsed = $bindable(false), class: className = "" }: Props = $props();
+  let { examId, exercises, currentSub, isFullyGraded, sumGradedScores, gradedCount, totalMaxPoints, gradeDetail, onStep, atFirstStudent, onFlush, collapsed = $bindable(false), class: className = "" }: Props = $props();
 
   const KEY = "grading_score_card_collapsed";
   const wide = minWidth("md");
@@ -79,7 +77,7 @@
   </div>
 
   {#if !collapsed}
-    <ScoreEntry {exercises} />
+    <ScoreEntry {exercises} {onStep} />
     {#if activeExercise && isMcQuestion(activeExercise)}
       <McAnswerReview exercise={activeExercise} />
     {/if}
@@ -90,8 +88,8 @@
     {/if}
   {/if}
 
-  <div class="flex shrink-0 flex-col gap-1.5 border-t border-line px-2 py-1.5">
+  <div class="flex shrink-0 flex-col gap-1.5 border-t border-line px-1 py-1">
+    <ExerciseStepper {exercises} {onStep} {atFirstStudent} withInput={collapsed} />
     <ReviewReplyBar {examId} sub={currentSub} {exercises} {onFlush} />
-    <GradingActions {saveStatus} {onPrev} {onNext} {currentIndex} />
   </div>
 </section>

@@ -91,8 +91,19 @@ export const grading: Translations['grading'] = {
         nextLowerTitle: 'Point buffer before the next lower grade',
         nextLower: '-{points} pts to grade {grade}',
     },
+    stepper: {
+        label: 'Change exercise',
+        prev: 'Previous exercise (Alt+↑)',
+        next: 'Next exercise (Alt+↓ or Enter in the score field)',
+        rest: 'Rest',
+        nextStudentTitle: 'Last exercise reached',
+        nextStudentBody: 'That was the last exercise of this submission. Go on with the next one?',
+        prevStudentTitle: 'First exercise reached',
+        prevStudentBody: 'This is the first exercise of this submission. Go to the previous one?',
+        stay: 'Stay here',
+    },
     actions: {
-        prev: 'Previous',
+        prev: 'Previous student',
         next: 'Next student',
     },
     mcReview: {
@@ -116,9 +127,7 @@ export const grading: Translations['grading'] = {
         restOverMax: 'More than the points outside the parts ({max}): stamps without a part?',
     },
     zoom: {
-        pagePrevTitle: 'Jump to previous page',
         pageIndicator: 'p. {current}/{total}',
-        pageNextTitle: 'Jump to next page',
         zoomOutTitle: 'Zoom out (-)',
         fitLabel: 'Fit',
         zoomInTitle: 'Zoom in (+)',
