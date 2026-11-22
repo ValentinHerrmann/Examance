@@ -101,6 +101,8 @@ export const grading = {
         switchBody: 'Hier beginnt der Bereich einer anderen Aufgabe. Ausgewählt ist Aufgabe {current}.',
         switchTo: 'Zu {target} wechseln',
         stay: 'Bei {current} bleiben',
+        partTitle: 'Zu welcher Teilaufgabe gehört das?',
+        partBody: 'Das ist die Einleitung von Aufgabe {exercise}. Ausgewählt ist {current}.',
         pickTitle: 'Zu welcher Aufgabe gehört das?',
         pickBody: 'Dieser Bereich gehört zu keiner Aufgabe (z. B. Zusatzpapier). Wählen Sie die Aufgabe, für die die Punkte zählen sollen.',
         pickLabel: 'Aufgabe',

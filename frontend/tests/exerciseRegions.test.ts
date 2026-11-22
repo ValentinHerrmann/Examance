@@ -119,6 +119,16 @@ describe('ExerciseGuard', () => {
     expect(guard.question(3, at(3, 400), targets[1], targets, 0)).not.toBeNull();
   });
 
+  it('asks which part for a mark in the intro of the active part\'s exercise, and "stay" pauses', () => {
+    const guard = new ExerciseGuard();
+    guard.setMap(map);
+    const q = guard.question(1, at(1, 660), targets[0], targets, 0);
+    expect(q).toMatchObject({ kind: 'part' });
+    expect(q?.candidates.map((t) => t.partLabel)).toEqual(['b']);
+    expect(guard.answered(q!, targets[0], 0)).toBe(true);
+    expect(guard.question(1, at(1, 660), targets[0], targets, 1)).toBeNull();
+  });
+
   it('never asks without areas', () => {
     const guard = new ExerciseGuard();
     guard.setMap(buildExerciseRegions(pages, {}));

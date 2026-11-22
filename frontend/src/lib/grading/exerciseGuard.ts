@@ -6,9 +6,10 @@ import type { GradingTarget } from "./gradingTargets";
 /** After "stay on the current exercise", no question for this long. */
 export const GUARD_COOL_OFF_MS = 30_000;
 
-/** What to ask: `switch` = the mark is in another exercise's area (`candidates` are its targets); `pick` = no exercise owns the area. */
+/** What to ask: `switch` = the mark is in another exercise's area (`candidates` are its targets); `part` = in the intro of the active part's own exercise (`candidates` are its other targets); `pick` = no exercise owns the area. */
 export type GuardQuestion =
   | { kind: "switch"; candidates: GradingTarget[]; current: GradingTarget | undefined }
+  | { kind: "part"; candidates: GradingTarget[]; current: GradingTarget | undefined }
   | { kind: "pick"; candidates: GradingTarget[]; current: GradingTarget | undefined; page: number };
 
 /** The answer: the target the mark goes to (the current one = stay), or null = drop the mark. */
@@ -46,6 +47,11 @@ export class ExerciseGuard {
     if (!region) return this.pageChoice.get(page) === keyOf(active) ? null : { kind: "pick", candidates: targets, current: active, page };
     if (now < this.quietUntil) return null;
     const candidates = regionTargets(region, targets);
+    // The intro of the active part's own exercise: offer only its other targets, never the current one as a "switch".
+    if (region.partLabel === null && region.exerciseIds.includes(active.exercise.id)) {
+      const others = candidates.filter((t) => keyOf(t) !== keyOf(active));
+      return others.length > 0 ? { kind: "part", candidates: others, current: active } : null;
+    }
     return candidates.length > 0 ? { kind: "switch", candidates, current: active } : null;
   }
 

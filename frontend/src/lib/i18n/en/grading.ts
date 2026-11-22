@@ -103,6 +103,8 @@ export const grading: Translations['grading'] = {
         switchBody: 'This is the area of another exercise. Exercise {current} is selected.',
         switchTo: 'Switch to {target}',
         stay: 'Stay on {current}',
+        partTitle: 'Which part does this belong to?',
+        partBody: 'This is the introduction of exercise {exercise}. {current} is selected.',
         pickTitle: 'Which exercise does this belong to?',
         pickBody: 'No exercise owns this area (e.g. extra paper). Choose the exercise the points count for.',
         pickLabel: 'Exercise',

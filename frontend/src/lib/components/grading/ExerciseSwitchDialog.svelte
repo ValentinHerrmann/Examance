@@ -1,8 +1,9 @@
 <script lang="ts">
-  // Where a mark outside the active exercise goes (issue #234): switch to the exercise whose area it is in, stay, or pick one for an area no exercise owns. Opened through `ask()`; Escape drops the mark.
+  // Where a mark outside the active exercise goes (issue #234): switch to the exercise whose area it is in, to another part of the active exercise (a mark in its intro), stay, or pick one for an area no exercise owns. Opened through `ask()`; Escape drops the mark.
   import { ConfirmDialog, Radio } from "#lib/components/ui";
   import { t } from "#lib/i18n";
   import { targetTag, type GradingTarget } from "#lib/grading/gradingTargets";
+  import { exerciseTag } from "#lib/grading/scoreEdits";
   import type { GuardAnswer, GuardQuestion } from "#lib/grading/exerciseGuard";
 
   let question = $state.raw<GuardQuestion | null>(null);
@@ -27,12 +28,18 @@
     r?.(answer);
   }
 
-  let single = $derived(question?.kind === "switch" && question.candidates.length === 1 ? question.candidates[0] : null);
+  let single = $derived(question && question.kind !== "pick" && question.candidates.length === 1 ? question.candidates[0] : null);
   let current = $derived(question?.current ? targetTag(question.current) : "");
   let picked = $derived(question?.candidates.find((c) => keyOf(c) === chosen));
   let title = $derived.by(() => {
     if (question?.kind === "pick") return $t("grading.regionGuard.pickTitle");
+    if (question?.kind === "part") return $t("grading.regionGuard.partTitle");
     return single ? $t("grading.regionGuard.switchTitle", { target: targetTag(single) }) : $t("grading.regionGuard.switchTitleMany");
+  });
+  let message = $derived.by(() => {
+    if (question?.kind === "pick") return $t("grading.regionGuard.pickBody");
+    if (question?.kind === "part") return $t("grading.regionGuard.partBody", { exercise: question.current ? exerciseTag(question.current.exercise) : "", current });
+    return $t("grading.regionGuard.switchBody", { current });
   });
 </script>
 
@@ -41,12 +48,12 @@
     open
     role="dialog"
     title={title}
-    message={question.kind === "pick" ? $t("grading.regionGuard.pickBody") : $t("grading.regionGuard.switchBody", { current })}
+    message={message}
     confirmText={single ? $t("grading.regionGuard.switchTo", { target: targetTag(single) }) : $t("grading.regionGuard.continueWith", { target: picked ? targetTag(picked) : "" })}
     cancelText={question.kind === "pick" ? $t("grading.regionGuard.cancel") : $t("grading.regionGuard.stay", { current })}
     confirmDisabled={!single && !picked}
     onConfirm={() => finish(single ?? picked ?? null)}
-    onCancel={() => finish(question?.kind === "switch" ? (question.current ?? null) : null)}
+    onCancel={() => finish(question?.kind === "pick" ? null : (question?.current ?? null))}
     onDismiss={() => finish(null)}
   >
     {#if !single}
