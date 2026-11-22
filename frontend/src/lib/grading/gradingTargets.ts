@@ -4,7 +4,6 @@ import type { ExerciseRecord } from "#lib/db/schema";
 import { gradingStore } from "./gradingStore";
 import { exerciseParts, REST_KEY, restMax } from "./partScores";
 import { exerciseTag } from "./scoreEdits";
-import { translate } from "#lib/i18n";
 
 export interface GradingTarget {
   exercise: ExerciseRecord;
@@ -54,11 +53,11 @@ export function selectTarget(target: GradingTarget | undefined): void {
   if (target) gradingStore.setActivePart(target.exercise.id, target.partLabel);
 }
 
-/** The target's short name: "2", "2\u00a0b)" or "2 Rest". */
-export function targetTag(target: GradingTarget): string {
+/** The target's short name: "2", "2\u00a0b)" or "2 Rest"; `restWord` comes from the caller (`$t` in components), so the name follows a language switch. */
+export function targetTag(target: GradingTarget, restWord: string): string {
   const base = exerciseTag(target.exercise);
   if (target.partKey === null) return base;
-  return target.partKey === REST_KEY ? `${base} ${translate("grading.stepper.rest")}` : `${base}\u00a0${target.partKey})`;
+  return target.partKey === REST_KEY ? `${base} ${restWord}` : `${base}\u00a0${target.partKey})`;
 }
 
 /** The active target, matched like `targetIndex`. */

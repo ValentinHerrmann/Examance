@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "#lib/db/schema";
   import { gradingStore } from "#lib/grading/gradingStore";
-  import { gradingTargets, targetIndex, targetTag as tag, type GradingTarget } from "#lib/grading/gradingTargets";
+  import { gradingTargets, targetIndex, targetTag, type GradingTarget } from "#lib/grading/gradingTargets";
   import { resetExercise, resetPart, setPart, setTotal } from "#lib/grading/scoreEdits";
   import { partOverrideKey } from "#lib/grading/partScores";
   import { t } from "#lib/i18n";
@@ -42,6 +42,8 @@
     if (tg.partKey === null) resetExercise(tg.exercise);
     else resetPart(tg.exercise, tg.partKey);
   }
+  // Reads $t, so the label follows a language switch.
+  const tag = (target: GradingTarget) => targetTag(target, $t("grading.stepper.rest"));
 </script>
 
 <div class="flex min-w-0 items-center gap-0.5" role="group" aria-label={$t("grading.stepper.label")}>

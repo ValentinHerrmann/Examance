@@ -2,7 +2,7 @@
   // Where a mark outside the active exercise goes (issue #234): switch to the exercise whose area it is in, to another part of the active exercise (a mark in its intro), stay, or pick one for an area no exercise owns. Opened through `ask()`; Escape drops the mark.
   import { ConfirmDialog, Radio } from "#lib/components/ui";
   import { t } from "#lib/i18n";
-  import { targetTag, type GradingTarget } from "#lib/grading/gradingTargets";
+  import { targetTag as tagOf, type GradingTarget } from "#lib/grading/gradingTargets";
   import { exerciseTag } from "#lib/grading/scoreEdits";
   import type { GuardAnswer, GuardQuestion } from "#lib/grading/exerciseGuard";
 
@@ -10,6 +10,8 @@
   let chosen = $state("");
   let resolve: ((answer: GuardAnswer) => void) | null = null;
 
+  // Reads $t, so the names follow a language switch.
+  const targetTag = (target: GradingTarget) => tagOf(target, $t("grading.stepper.rest"));
   const keyOf = (target: GradingTarget) => `${target.exercise.id}#${target.partLabel}`;
 
   /** Asks and resolves with the chosen target (the current one = stay), or null to drop the mark; a newer question answers the open one with null. */
