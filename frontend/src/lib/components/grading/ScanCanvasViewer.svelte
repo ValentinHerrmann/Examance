@@ -20,6 +20,7 @@
   import { ScanZoom } from "./scanZoom";
   import { StrokeInput } from "./strokeInput";
   import { ExerciseFocus } from "./exerciseFocus";
+  import { PDF_RENDER_SCALE, ScanPageRenderer } from "./scanPageRenderer";
   import type { GuardAnswer, GuardQuestion } from "#lib/grading/exerciseGuard";
   import { penSeenStore } from "#lib/stores/penInput";
   import { capabilitiesStore } from "#lib/stores/capabilities";
@@ -59,7 +60,6 @@
     h: number;
   }
 
-  const PDF_RENDER_SCALE = 2;
   const VIEWPORT_PADDING = 8; // `p-2` on the scroll pane
 
   let canvasViewport: HTMLDivElement | undefined = $state();
@@ -86,10 +86,6 @@
   let loadedSubId: string | null = null;
   let loadSeq = 0;
 
-  // Local PDF state (not needed by any other component, unlike currentPage/totalPages/isScanPdf which live in the store for ZoomPageControls to read).
-  let pdfDoc: any = null;
-  let renderedPages = new Set<number>();
-  let pageObserver: IntersectionObserver | null = null;
 
   const zoom = new ScanZoom({
     viewport: () => canvasViewport,
@@ -97,6 +93,17 @@
     pageEl: (page) => pageEls[page - 1],
     pageTop,
     padding: VIEWPORT_PADDING,
+  });
+  // Local PDF state (not needed by any other component, unlike currentPage/totalPages/isScanPdf which live in the store for ZoomPageControls to read).
+  const pages = new ScanPageRenderer({
+    canvas: (page) => scanCanvases[page - 1],
+    pageEls: () => pageEls,
+    viewport: () => canvasViewport,
+    onRendered: (page) => {
+      scoreLayer.markRendered(page);
+      redrawOverlay(page);
+      focus.paint(page);
+    },
   });
   const scoreLayer = new ScoreBoxLayer((page) => scanCanvases[page - 1], (page) => (redrawOverlay(page), focus.paint(page)));
   const focus = new ExerciseFocus({
@@ -175,8 +182,7 @@
 
   /** Replaces the page stack with `sizes` (fresh canvases) and waits until they are in the DOM. */
   async function setPages(sizes: PageSize[]) {
-    pageObserver?.disconnect();
-    renderedPages = new Set();
+    pages.reset();
     scoreLayer.newDocument(0);
     focus.newDocument(0);
     pageEls = [];
@@ -228,8 +234,7 @@
     if (!canvasViewport) return;
 
     // Reset PDF state
-    void pdfDoc?.loadingTask?.destroy();
-    pdfDoc = null;
+    pages.setDocument(null);
     gradingStore.setPdfPaging(1, 1, false);
     // The previous student's stroke in progress is dropped, never committed onto the next one.
     input.discard();
@@ -289,13 +294,13 @@
           void doc.loadingTask.destroy();
           return;
         }
-        pdfDoc = doc;
+        pages.setDocument(doc);
         gradingStore.setPdfPaging(1, doc.numPages, true);
         await setPages(sizes);
         scoreLayer.newDocument(doc.numPages);
         focus.newDocument(doc.numPages);
         fitToPage();
-        observePages();
+        pages.observe();
         // After the fitted zoom reaches the DOM, so the jump measures the final page sizes.
         await tick();
         if (seq !== loadSeq) return;
@@ -326,51 +331,6 @@
       console.error("Failed to decrypt scan for grading:", err);
       if (seq !== loadSeq) return;
       await showMessage(translate("grading.canvas.scanDecryptFailed"), cssVar("--color-danger-fg", "#a61b29"), 80);
-    }
-  }
-
-  // Renders pages near the viewport (one screen ahead and behind) on first approach.
-  function observePages() {
-    pageObserver?.disconnect();
-    if (!canvasViewport || typeof IntersectionObserver === "undefined") {
-      pageEls.forEach((_, i) => renderPage(i + 1));
-      return;
-    }
-    pageObserver = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const page = Number((entry.target as HTMLElement).dataset.page);
-          if (page) renderPage(page);
-        }
-      },
-      { root: canvasViewport, rootMargin: "100% 0px" }
-    );
-    for (const el of pageEls) {
-      if (el) pageObserver.observe(el);
-    }
-  }
-
-  async function renderPage(page: number) {
-    const doc = pdfDoc;
-    const canvas = scanCanvases[page - 1];
-    if (!doc || !canvas || renderedPages.has(page)) return;
-    renderedPages.add(page);
-    try {
-      const pdfPage = await doc.getPage(page);
-      if (doc !== pdfDoc) return;
-      const viewport = scanViewport(pdfPage, PDF_RENDER_SCALE);
-      await pdfPage.render({ canvasContext: canvas.getContext("2d")!, canvas, viewport } as any).promise;
-      if (doc === pdfDoc) {
-        scoreLayer.markRendered(page);
-        redrawOverlay(page);
-        focus.paint(page);
-      }
-    } catch (err) {
-      if (doc === pdfDoc) {
-        renderedPages.delete(page);
-        console.error(`Failed to render scan page ${page}:`, err);
-      }
     }
   }
 
@@ -441,9 +401,7 @@
       if (redrawFrame) cancelAnimationFrame(redrawFrame);
       if (scrollFrame) cancelAnimationFrame(scrollFrame);
       stopResize();
-      pageObserver?.disconnect();
-      void pdfDoc?.loadingTask?.destroy();
-      pdfDoc = null;
+      pages.destroy();
     };
   });
 
