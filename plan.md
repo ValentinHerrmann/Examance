@@ -11,6 +11,9 @@ Temporary file for a hand-over between agent sessions; delete it before the PR i
 - Tests: `frontend/tests/exerciseRegions.test.ts`. Docs: `docs/user/grading.md` and `docs/de/user/grading.md` `#exercise-check`, `docs/dev/omr.md` "Exercise areas".
 
 ## Tasks (owner's feedback, in order; one commit each)
+
+Status: tasks 1–5 are done (commits "one dim level, …" and "cool-off banner"). Waiting for the owner's next feedback; delete this file before merging.
+
 1. **One dim level.** Drop the light/strong distinction: every dimmed area gets the same opacity (`DimLevel` becomes 0/1, `DIM_ALPHA` one value).
 2. **Part selected → only the part is clear.** The parent exercise's intro (area between the task box and its first part box) is dimmed while a part is the target. `regionAccepts`: an intro/MC area (`partLabel === null`) accepts only `partLabel === ''` targets (whole exercise, rest, MC member); a part area only its own part. The guard follows this too: marking in the intro while a part is active asks (the picker lists that exercise's targets). This keeps "undimmed == never asks".
 3. **Points table always dimmed.** The table at the end (header row with 1…n, Σ, Note; max-points row; cell row) is its own always-dimmed area. The cell boxes are its last row, so the table top ≈ cell box top + 2 × row height (row height ≈ the cell rect height) + a few pt. Store `map.table = {start, end}` like `map.header` (end = the end of that page). It stays an area without an exercise for the guard (picker).

@@ -5,7 +5,9 @@ import type { ExerciseRecord } from '#lib/db/schema';
 import { gradingStore } from '#lib/grading/gradingStore';
 import { activeTarget, gradingTargets, selectTarget } from '#lib/grading/gradingTargets';
 import { buildExerciseRegions, offsetOf, pageAndTop, targetRegion, type RegionMap } from '#lib/grading/exerciseRegions';
-import { ExerciseGuard, type GuardAnswer, type GuardQuestion } from '#lib/grading/exerciseGuard';
+import { ExerciseGuard, GUARD_COOL_OFF_MS, type GuardAnswer, type GuardQuestion } from '#lib/grading/exerciseGuard';
+import { translate } from '#lib/i18n';
+import type { Notice } from './CanvasNotice.svelte';
 import { canvasToTemplateY, paintFocus, templateTopToCanvasY } from '#lib/grading/focusLayer';
 import type { ScoreBoxContext } from '#lib/grading/scoreBoxes';
 import type { ScoreBoxLayer } from '#lib/grading/scoreBoxLayer';
@@ -18,6 +20,8 @@ export interface ExerciseFocusView {
   pageCount(): number;
   scoreLayer: ScoreBoxLayer;
   viewport(): HTMLElement | undefined;
+  /** The notice floating over the scan (the cool-off banner). */
+  notice(): { show(n: Notice): void; hide(): void } | undefined;
   /** Scroll offset of a page's top in the viewport. */
   pageTop(page: number): number | null;
   /** Shows the question; null when nobody can answer (then marks go to the active target unasked). */
@@ -46,6 +50,7 @@ export class ExerciseFocus {
   /** A new student's scan: no cool-off or page choices carried over, dimming on again. */
   newDocument(scanPages: number) {
     this.scanPages = scanPages;
+    this.endCoolOff();
     this.guard.reset();
     gradingStore.setFocusDimming(true);
     this.updateGuard();
@@ -79,13 +84,31 @@ export class ExerciseFocus {
     return asking.then((answer) => {
       // A student switch while the question was open drops the mark.
       if (get(gradingStore).strokesSubmissionId !== submission) return false;
-      this.guard.answered(question, answer, Date.now());
+      if (this.guard.answered(question, answer, Date.now())) this.showCoolOff();
       if (!answer) return false;
       const now = get(gradingStore);
       this.stayPut = answer.exercise.id !== now.activeExerciseId || answer.partLabel !== now.activePartLabel;
       selectTarget(answer);
       return true;
     });
+  }
+
+  /** The banner while questions pause after "stay": a draining bar and a button to ask again at once. */
+  private showCoolOff() {
+    const end = () => this.guard.endCoolOff();
+    this.view.notice()?.show({
+      message: translate('grading.regionGuard.paused'),
+      timeoutMs: GUARD_COOL_OFF_MS,
+      progress: true,
+      action: { label: translate('grading.regionGuard.resume'), onClick: end },
+      onClose: end,
+    });
+  }
+
+  /** Ends a running cool-off together with its banner (a new student). */
+  private endCoolOff() {
+    if (this.guard.isQuiet(Date.now())) this.view.notice()?.hide();
+    this.guard.endCoolOff();
   }
 
   /** Repaints the dimming of one page (cleared where no exercise owns it or dimming is off). */

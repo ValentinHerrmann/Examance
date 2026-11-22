@@ -6,6 +6,10 @@
     action?: { label: string; onClick: () => void };
     /** Hides itself after this long; without it the notice stays until hidden or replaced. */
     timeoutMs?: number;
+    /** Shows the remaining `timeoutMs` as a draining bar. */
+    progress?: boolean;
+    /** The teacher closed it (×); not called on a timeout or replacement. */
+    onClose?: () => void;
   }
 </script>
 
@@ -20,6 +24,12 @@
     clearTimeout(timer);
     notice = next;
     if (next.timeoutMs) timer = setTimeout(hide, next.timeoutMs);
+  }
+
+  function close() {
+    const onClose = notice?.onClose;
+    hide();
+    onClose?.();
   }
 
   export function hide() {
@@ -42,10 +52,34 @@
   <div class="pointer-events-none sticky top-0 z-10 h-0">
     <!-- Opaque backing: the info tint alone is translucent and let the scan show through. -->
     <div class="pointer-events-auto mx-auto max-w-narrow rounded-md bg-surface-raised shadow-md">
-      <Alert severity="info" onDismiss={hide} actions={notice.action ? actionButton : undefined}>
+      <Alert severity="info" onDismiss={close} actions={notice.action ? actionButton : undefined}>
         {notice.message}
         {#if notice.link}<a href={notice.link.href} class="link ml-1">{notice.link.label}</a>{/if}
       </Alert>
+      {#if notice.progress && notice.timeoutMs}
+        {#key notice}
+          <div class="h-1 overflow-hidden rounded-b-md" aria-hidden="true">
+            <div class="drain h-full origin-left bg-primary" style="animation-duration: {notice.timeoutMs}ms"></div>
+          </div>
+        {/key}
+      {/if}
     </div>
   </div>
 {/if}
+
+<style>
+  /* The reverse-loading bar of a notice with `progress`. */
+  .drain {
+    animation-name: drain;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+  @keyframes drain {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+</style>

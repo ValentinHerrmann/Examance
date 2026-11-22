@@ -68,8 +68,7 @@
   let pageEls: HTMLDivElement[] = $state([]);
   let scanCanvases: HTMLCanvasElement[] = $state([]);
   let overlayCanvases: HTMLCanvasElement[] = $state([]);
-  // The focus dimming (issue #235), one canvas per page between scan and annotations.
-  let focusCanvases: HTMLCanvasElement[] = $state([]);
+  let focusCanvases: HTMLCanvasElement[] = $state([]); // the focus dimming (issue #235), between scan and annotations
 
   // Points of the live stroke `liveDrawnFor` already on its canvas (drawn segment by segment).
   let liveDrawn = 0;
@@ -106,6 +105,7 @@
     pageCount: () => pageSizes.length,
     scoreLayer,
     viewport: () => canvasViewport,
+    notice: () => notice,
     pageTop,
     ask: (question) => onAskTarget?.(question) ?? null,
   });

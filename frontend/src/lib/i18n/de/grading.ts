@@ -106,6 +106,8 @@ export const grading = {
         pickLabel: 'Aufgabe',
         continueWith: 'Weiter mit {target}',
         cancel: 'Abbrechen',
+        paused: 'Aufgabenwechsel pausiert',
+        resume: 'Jetzt fortsetzen',
     },
     stepper: {
         label: 'Aufgabe wechseln',

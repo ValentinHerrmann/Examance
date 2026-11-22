@@ -4,7 +4,7 @@ import { acceptsNear, regionAt, regionTargets, type RegionMap } from "./exercise
 import type { GradingTarget } from "./gradingTargets";
 
 /** After "stay on the current exercise", no question for this long. */
-export const GUARD_COOL_OFF_MS = 10_000;
+export const GUARD_COOL_OFF_MS = 30_000;
 
 /** What to ask: `switch` = the mark is in another exercise's area (`candidates` are its targets); `pick` = no exercise owns the area. */
 export type GuardQuestion =
@@ -49,10 +49,25 @@ export class ExerciseGuard {
     return candidates.length > 0 ? { kind: "switch", candidates, current: active } : null;
   }
 
-  /** Records the answer, so the same mark is not asked about again. */
-  answered(question: GuardQuestion, answer: GuardAnswer, now: number) {
-    if (!answer) return;
-    if (question.kind === "pick") this.pageChoice.set(question.page, keyOf(answer));
-    else if (question.current && keyOf(answer) === keyOf(question.current)) this.quietUntil = now + GUARD_COOL_OFF_MS;
+  /** Records the answer, so the same mark is not asked about again; true when it started the cool-off ("stay"). */
+  answered(question: GuardQuestion, answer: GuardAnswer, now: number): boolean {
+    if (!answer) return false;
+    if (question.kind === "pick") {
+      this.pageChoice.set(question.page, keyOf(answer));
+      return false;
+    }
+    if (!question.current || keyOf(answer) !== keyOf(question.current)) return false;
+    this.quietUntil = now + GUARD_COOL_OFF_MS;
+    return true;
+  }
+
+  /** Whether questions about other exercises pause right now. */
+  isQuiet(now: number): boolean {
+    return now < this.quietUntil;
+  }
+
+  /** Asks again from now on (the teacher ended the cool-off early). */
+  endCoolOff() {
+    this.quietUntil = 0;
   }
 }

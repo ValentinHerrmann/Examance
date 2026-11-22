@@ -108,6 +108,8 @@ export const grading: Translations['grading'] = {
         pickLabel: 'Exercise',
         continueWith: 'Continue with {target}',
         cancel: 'Cancel',
+        paused: 'Exercise switching paused',
+        resume: 'Resume now',
     },
     stepper: {
         label: 'Change exercise',

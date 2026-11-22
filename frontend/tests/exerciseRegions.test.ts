@@ -98,6 +98,16 @@ describe('ExerciseGuard', () => {
     expect(guard.question(2, at(2, 300), active, targets, GUARD_COOL_OFF_MS)).not.toBeNull();
   });
 
+  it('ends the cool-off early when the teacher resumes', () => {
+    const guard = new ExerciseGuard();
+    guard.setMap(map);
+    const q = guard.question(2, at(2, 300), targets[0], targets, 0)!;
+    expect(guard.answered(q, targets[0], 0)).toBe(true);
+    expect(guard.isQuiet(1)).toBe(true);
+    guard.endCoolOff();
+    expect(guard.question(2, at(2, 300), targets[0], targets, 1)).not.toBeNull();
+  });
+
   it('asks which exercise on a writing page once per page and target, until reset', () => {
     const guard = new ExerciseGuard();
     guard.setMap(map);
