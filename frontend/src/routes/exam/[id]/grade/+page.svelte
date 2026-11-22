@@ -59,14 +59,13 @@
   let sumGradedScores = $derived(
     Math.round(exercises.reduce((sum, ex) => sum + (scoreInputs[ex.id] ?? 0), 0) * 100) / 100
   );
-  let totalScore = $derived(isFullyGraded ? sumGradedScores : undefined);
 
   let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
-  let calculatedGradeDetail = $derived(
-    isFullyGraded && totalScore !== undefined
-      ? calculateGradeDetail(totalScore, totalMaxPoints, exam?.gradingKey)
-      : null
+  // The grade of the points so far: preliminary in the score card until every exercise is scored, final in the header (issue #330).
+  let gradeDetailSoFar = $derived(
+    gradedCount > 0 && totalMaxPoints > 0 ? calculateGradeDetail(sumGradedScores, totalMaxPoints, exam?.gradingKey) : null
   );
+  let calculatedGradeDetail = $derived(isFullyGraded ? gradeDetailSoFar : null);
   let calculatedGrade = $derived(
     calculatedGradeDetail
       ? { grade: calculatedGradeDetail.grade, label: calculatedGradeDetail.label }
@@ -391,9 +390,8 @@
       {currentIndex}
       {currentSub}
       {calculatedGrade}
-      {calculatedGradeDetail}
+      gradeDetail={gradeDetailSoFar}
       {isFullyGraded}
-      {totalScore}
       {sumGradedScores}
       {gradedCount}
       {totalMaxPoints}

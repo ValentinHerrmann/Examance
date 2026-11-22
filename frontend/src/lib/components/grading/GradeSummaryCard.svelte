@@ -1,70 +1,68 @@
 <script lang="ts">
   import type { GradeDetail } from "#lib/analytics/gradingKey";
   import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
   import { faCaretDown, faCaretUp, faStar } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Icon } from "#lib/components/ui";
 
+  /** Points, percentage and grade of the student on screen; the grade is preliminary until every exercise is scored (issue #330). */
   interface Props {
     isFullyGraded: boolean;
-    totalScore: number | undefined;
     sumGradedScores: number;
     gradedCount: number;
     exercisesLength: number;
     totalMaxPoints: number;
-    calculatedGradeDetail: GradeDetail | null;
+    /** Grade of the points so far (final once fully graded). */
+    gradeDetail: GradeDetail | null;
+    /** Show how many points the next better and worse grade are away. */
+    hints?: boolean;
+    /** Show the points line; false shows only the hints. */
+    summary?: boolean;
   }
 
-  let {
-    isFullyGraded,
-    totalScore,
-    sumGradedScores,
-    gradedCount,
-    exercisesLength,
-    totalMaxPoints,
-    calculatedGradeDetail
-  }: Props = $props();
+  let { isFullyGraded, sumGradedScores, gradedCount, exercisesLength, totalMaxPoints, gradeDetail, hints = false, summary = true }: Props = $props();
+
+  let percent = $derived(totalMaxPoints > 0 ? sumGradedScores / totalMaxPoints : 0);
 </script>
 
-<div class="flex flex-col gap-1.5">
-  <!-- From `lg` the 11rem score panel stacks the label above "points / max", the progress wraps below (issue #328). -->
-  <div class="flex flex-wrap items-baseline justify-between gap-x-3 lg:flex-col lg:items-start lg:gap-0">
-    <span class="text-sm font-medium text-muted lg:text-xs">{$t("grading.summary.totalPoints")}</span>
-    <div class="flex flex-wrap items-baseline gap-x-1.5 leading-tight">
-      <span class="text-2xl font-bold text-content lg:text-xl">{isFullyGraded ? totalScore : sumGradedScores}</span>
-      <span class="text-sm text-muted lg:text-xs">{$t("grading.summary.maxPoints", { max: totalMaxPoints })}</span>
-      {#if !isFullyGraded}
-        <span class="text-sm text-warning-fg lg:text-xs" title={$t("grading.summary.inProgressTitle")}>{$t("grading.summary.inProgress", { graded: gradedCount, total: exercisesLength })}</span>
-      {/if}
-    </div>
+<div class="flex min-w-0 flex-col gap-1">
+  {#if summary}
+  <div class="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 leading-tight">
+    <span class="text-xl font-bold text-content tabular-nums">{sumGradedScores}</span>
+    <span class="text-xs text-muted">{$t("grading.summary.maxPoints", { max: totalMaxPoints })}</span>
+    <span class="text-xs font-semibold text-content tabular-nums">{$fmt.percent(percent, 0)}</span>
+    {#if gradeDetail}
+      <Badge severity={isFullyGraded ? "info" : "secondary"}>
+        <span title={isFullyGraded ? gradeDetail.label : $t("grading.summary.preliminaryTitle")}>
+          {$t("grading.summary.gradeBadge", { grade: gradeDetail.grade })}{isFullyGraded ? "" : ` ${$t("grading.summary.preliminary")}`}
+        </span>
+      </Badge>
+    {/if}
   </div>
+  {#if !isFullyGraded}
+    <span class="text-xs text-warning-fg" title={$t("grading.summary.inProgressTitle")}>{$t("grading.summary.inProgress", { graded: gradedCount, total: exercisesLength })}</span>
+  {/if}
+  {/if}
 
-  {#if calculatedGradeDetail}
-    <div class="flex flex-col gap-1.5 rounded-md border border-line bg-surface-sunken p-2 lg:gap-0.5 lg:p-1.5">
-      <div class="flex flex-wrap items-baseline gap-x-2">
-        <Badge severity="info">{$t("grading.summary.gradeBadge", { grade: calculatedGradeDetail.grade })}</Badge>
-        <span class="text-sm text-muted lg:text-xs">({calculatedGradeDetail.label})</span>
-      </div>
-
-      <div class="flex flex-col gap-1 text-sm lg:text-xs">
-        {#if calculatedGradeDetail.nextHigher}
-          <div class="flex items-start gap-2 lg:gap-1 text-success-fg" title={$t("grading.summary.nextHigherTitle")}>
-            <Icon icon={faCaretUp} class="mt-1" />
-            <span class="min-w-0">{$t("grading.summary.nextHigher", { points: calculatedGradeDetail.nextHigher.pointsNeeded, grade: calculatedGradeDetail.nextHigher.grade })}</span>
-          </div>
-        {:else}
-          <div class="flex items-start gap-2 lg:gap-1 text-warning-fg" title={$t("grading.summary.maxAchievedTitle")}>
-            <Icon icon={faStar} class="mt-1" />
-            <span class="min-w-0">{$t("grading.summary.maxAchieved")}</span>
-          </div>
-        {/if}
-
-        {#if calculatedGradeDetail.nextLower}
-          <div class="flex items-start gap-2 lg:gap-1 text-muted" title={$t("grading.summary.nextLowerTitle")}>
-            <Icon icon={faCaretDown} class="mt-1" />
-            <span class="min-w-0">{$t("grading.summary.nextLower", { points: calculatedGradeDetail.nextLower.pointsBuffer, grade: calculatedGradeDetail.nextLower.grade })}</span>
-          </div>
-        {/if}
-      </div>
+  {#if hints && gradeDetail}
+    <div class="flex flex-col gap-0.5 text-xs">
+      {#if gradeDetail.nextHigher}
+        <div class="flex items-start gap-1 text-success-fg" title={$t("grading.summary.nextHigherTitle")}>
+          <Icon icon={faCaretUp} class="mt-0.5" />
+          <span class="min-w-0">{$t("grading.summary.nextHigher", { points: gradeDetail.nextHigher.pointsNeeded, grade: gradeDetail.nextHigher.grade })}</span>
+        </div>
+      {:else}
+        <div class="flex items-start gap-1 text-warning-fg" title={$t("grading.summary.maxAchievedTitle")}>
+          <Icon icon={faStar} class="mt-0.5" />
+          <span class="min-w-0">{$t("grading.summary.maxAchieved")}</span>
+        </div>
+      {/if}
+      {#if gradeDetail.nextLower}
+        <div class="flex items-start gap-1 text-muted" title={$t("grading.summary.nextLowerTitle")}>
+          <Icon icon={faCaretDown} class="mt-0.5" />
+          <span class="min-w-0">{$t("grading.summary.nextLower", { points: gradeDetail.nextLower.pointsBuffer, grade: gradeDetail.nextLower.grade })}</span>
+        </div>
+      {/if}
     </div>
   {/if}
 </div>

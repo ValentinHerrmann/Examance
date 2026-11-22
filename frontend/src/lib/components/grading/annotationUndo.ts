@@ -1,8 +1,10 @@
-/** Undo/redo and the floating notice of the grading viewer (issues #233, #330); split out of ScanCanvasViewer.svelte. */
+/** Undo/redo, the floating notice and the scratch-out glow of the grading viewer (issues #233, #330); split out of ScanCanvasViewer.svelte. */
 
 import { gradingStore, type VectorStroke } from '#lib/grading/gradingStore';
 import { StrokeHistory } from '#lib/grading/strokeHistory';
 import { translate } from '#lib/i18n';
+import { drawGlow } from '#lib/grading/strokeRenderer';
+import { cssVar } from '#lib/utils/cssVar';
 import { penInputSettingsHref } from '#lib/utils/links';
 import type { Notice } from './CanvasNotice.svelte';
 
@@ -13,12 +15,18 @@ export interface AnnotationUndoView {
   /** Ends the gesture in progress (an eraser drag may still record its entry). */
   discard(): void;
   notice(): { show(n: Notice): void; hide(): void } | undefined;
+  redraw(page: number): void;
 }
+
+const GLOW_MS = 500;
 
 export class AnnotationUndo {
   private readonly history = new StrokeHistory();
   // The notice offers Undo until the next edit or student.
   private undoOffered = false;
+  // Marks a scribble just erased, still drawn glowing so a mistake is noticed.
+  private glow: { strokes: VectorStroke[]; page: number } | null = null;
+  private glowTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly view: AnnotationUndoView) {}
 
@@ -39,8 +47,31 @@ export class AnnotationUndo {
     this.step(this.history.redo(this.view.strokes()));
   };
 
+  /** A scribble erased `removed`: they and the scribble glow for half a second, and the notice offers Undo. */
+  scratchedOut(removed: VectorStroke[], scribble: VectorStroke) {
+    this.offerUndo(translate('grading.canvas.scratchedOut', { count: removed.length }));
+    this.endGlow();
+    const page = scribble.pageNumber ?? 1;
+    this.glow = { strokes: [...removed, scribble], page };
+    this.view.redraw(page);
+    this.glowTimer = setTimeout(() => this.endGlow(), GLOW_MS);
+  }
+
+  /** Called by the overlay redraw of `page`, after the normal strokes. */
+  drawGlow(ctx: CanvasRenderingContext2D, page: number) {
+    if (this.glow?.page === page) drawGlow(ctx, this.glow.strokes, page, cssVar('--color-warning', '#f59e0b'));
+  }
+
+  endGlow() {
+    clearTimeout(this.glowTimer);
+    const page = this.glow?.page;
+    this.glow = null;
+    if (page !== undefined) this.view.redraw(page);
+  }
+
   /** A new submission's annotations: its history starts empty. */
   reset() {
+    this.endGlow();
     this.history.clear();
     this.withdraw();
     this.publish();
@@ -60,6 +91,7 @@ export class AnnotationUndo {
 
   private step(next: VectorStroke[] | null) {
     if (!next) return;
+    this.endGlow();
     this.withdraw();
     this.view.apply(next);
     this.publish();

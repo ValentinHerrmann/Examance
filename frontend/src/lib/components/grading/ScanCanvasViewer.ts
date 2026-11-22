@@ -70,9 +70,8 @@ export async function decodePngBytes(bytes: Uint8Array): Promise<HTMLImageElemen
   }
 }
 
-/** Crop of a legacy PNG scan; the viewer and the PDF export share it so strokes line up. */
-export function legacyScanCrop(img: HTMLImageElement, autoCrop: boolean): AutoCropBounds {
-  if (!autoCrop) return { x: 0, y: 0, w: img.width, h: img.height };
+/** Crop of a legacy PNG scan, always on: its stored strokes are in cropped coordinates; the viewer and the PDF export share it so strokes line up. */
+export function legacyScanCrop(img: HTMLImageElement): AutoCropBounds {
   const canvas = document.createElement('canvas');
   canvas.width = img.width;
   canvas.height = img.height;

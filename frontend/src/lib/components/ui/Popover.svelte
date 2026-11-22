@@ -5,7 +5,8 @@
   /** Anchored panel: `trigger` snippet + children. Fixed-positioned from the trigger rect and clamped to the viewport, so no scroll container clips it. Outside click and Escape close; focus returns to the trigger. */
   interface Props {
     open?: boolean;
-    placement?: "bottom-start" | "bottom-end" | "top-start";
+    /** `right-start`/`left-start` open beside the trigger (a vertical toolbar's flyout). */
+    placement?: "bottom-start" | "bottom-end" | "top-start" | "right-start" | "left-start";
     onClose?: (() => void) | undefined;
     panelClass?: string;
     trigger?: Snippet;
@@ -40,7 +41,10 @@
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     let top = placement === "top-start" ? t.top - p.height - 4 : t.bottom + 4;
+    if (placement === "right-start" || placement === "left-start") top = t.top;
     let left = placement === "bottom-end" ? t.right - p.width : t.left;
+    if (placement === "right-start") left = t.right + 4;
+    if (placement === "left-start") left = t.left - p.width - 4;
     left = Math.max(MARGIN, Math.min(left, vw - p.width - MARGIN));
     top = Math.max(MARGIN, Math.min(top, vh - p.height - MARGIN));
     pos = { top, left };

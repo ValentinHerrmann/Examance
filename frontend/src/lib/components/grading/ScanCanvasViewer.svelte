@@ -33,9 +33,12 @@
     onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
     /** Printed score-box layout to fill in (issue #187); null when the exam has none. */
     scoreBoxes?: ScoreBoxContext | null;
+    /** Room the floating controls take on `side` (px), so the page sits beside them (issue #330). */
+    inset?: number;
+    side?: "left" | "right";
   }
 
-  let { examId, submission, exercises, onSubmissionHydrated, scoreBoxes = null }: Props = $props();
+  let { examId, submission, exercises, onSubmissionHydrated, scoreBoxes = null, inset = 0, side = "left" }: Props = $props();
 
   // ExerciseRecord.mcGroupId/subIndex are not populated for exam-linked exercises (the exam-specific placement lives only in ExamExerciseRecord) — load the real group/letter mapping once per exam for the "a) 1/2" sub-exercise sum stamp in drawOmrDetections().
   let subExerciseLetters: Map<string, string> = $state.raw(new Map());
@@ -102,7 +105,7 @@
     scrollBy: (dx, dy) => canvasViewport?.scrollBy({ left: dx, top: dy }),
     onPenDetected: () => undoer.penDetected(),
     checkpoint: (before) => undoer.checkpoint(before),
-    onScratchOut: (count) => undoer.offerUndo(translate("grading.canvas.scratchedOut", { count })),
+    onScratchOut: (removed, scribble) => undoer.scratchedOut(removed, scribble),
   });
   // A reset in Settings (also from another tab) lets fingers draw again.
   onDestroy(penSeenStore.subscribe((seen) => input.setPenSeen(seen)));
@@ -119,7 +122,9 @@
     },
     discard: () => input.discard(),
     notice: () => notice,
+    redraw: scheduleRedraw,
   });
+  onDestroy(() => undoer.endGlow());
   /** Annotation undo/redo of the loaded submission; auto scores follow the stamps, typed scores stay. */
   export const undo = () => undoer.undo();
   export const redo = () => undoer.redo();
@@ -134,13 +139,6 @@
     const next = recalculateAutoScores(exercises, strokes, state.scoreInputs, state.manualOverride, state.partInputs);
     gradingStore.setPartInputs(next.partInputs);
     gradingStore.setScoreInputs(next.scoreInputs);
-  }
-
-  export function toggleAutoCrop() {
-    gradingStore.setAutoCropEnabled(!get(gradingStore).isAutoCropEnabled);
-    if (submission) {
-      loadSubmissionCanvas(submission);
-    }
   }
 
   /** Clears every annotation without asking: one Undo brings it back. */
@@ -285,7 +283,7 @@
         const img = await decodePngBytes(decryptedBytes);
         if (seq !== loadSeq) return;
 
-        const crop = legacyScanCrop(img, get(gradingStore).isAutoCropEnabled);
+        const crop = legacyScanCrop(img);
 
         await setPages([{ w: crop.w, h: crop.h }]);
         if (seq !== loadSeq || !scanCanvases[0]) return;
@@ -469,6 +467,7 @@
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
     drawStrokes(ctx, strokes, page);
+    undoer.drawGlow(ctx, page);
     drawOmrDetections(ctx, overlayCanvas, page);
     scoreLayer.draw(ctx, page, overlayCanvas.width, overlayCanvas.height, exercises, get(gradingStore));
     const live = input.live;
@@ -568,6 +567,7 @@
   bind:this={canvasViewport}
   use:zoom.wheelAction
   onscroll={onViewportScroll}
+  style="padding-{side}: {VIEWPORT_PADDING + inset}px"
 >
   <CanvasNotice bind:this={notice} />
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead of letting the viewport scroll, so zooming in did nothing. -->

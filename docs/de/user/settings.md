@@ -57,7 +57,7 @@ Was Sie in der App löschen (Prüfungen, Aufgaben, Dateien, Logos, Schüler:inne
 
 *Wird in diesem Browser gespeichert.* Sobald Sie in der Korrekturansicht einmal einen Stift benutzen, blättern und zoomen Finger dort nur noch und zeichnen nicht mehr, damit eine aufgelegte Handfläche keine Striche macht. Die Karte zeigt, ob auf diesem Gerät ein Stift erkannt wurde. **Stifterkennung zurücksetzen** lässt Finger wieder zeichnen, bis Sie das nächste Mal einen Stift benutzen.
 
-*Gehört zu Ihrem Konto.* **Durch Kritzeln radieren** (standardmäßig an): Ein schnelles Hin-und-her-Kritzeln mit dem Werkzeug **Stift** (per Stift, Maus oder Finger) löscht die Striche und Stempel darunter, auf jedem Gerät, auf dem Sie sich anmelden ([so funktioniert es](grading.md#tools)). **Zurück** in der Korrekturansicht holt alles zurück, was es gelöscht hat.
+*Gehört zu Ihrem Konto.* **Durch Kritzeln radieren** (standardmäßig an): Ein schnelles Hin-und-her-Kritzeln mit dem Werkzeug **Stift** (per Stift, Maus oder Finger) löscht die Striche und Stempel darunter, auf jedem Gerät, auf dem Sie sich anmelden ([so funktioniert es](grading.md#tools)). **Rückgängig** in der Korrekturansicht holt alles zurück, was es gelöscht hat.
 
 ## Anordnung der Korrekturansicht {#grading-layout}
 

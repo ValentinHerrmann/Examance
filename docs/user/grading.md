@@ -14,11 +14,11 @@ During the grading pass you see **"Anonymous student #3 of 26"**, never a name. 
 
 ## The grading view {#workspace}
 
-- **Controls on the left:** on wide screens (landscape tablets and larger), the **Scoring** panel, the stamps and the zoom sit on the left, so a right hand writing on the scan covers none of them. Left-handed teachers move them to the right under [Settings → Grading view layout](settings.md#grading-layout). The **Scoring** panel is a slim column, leaving the room to draw; **Previous** and **Next student** are the arrow buttons at its bottom.
+- **Controls on the left:** from tablet width the toolbox, the **Scoring** card and the bottom bar float on the left of the scan, so a right hand writing on the scan covers none of them; the page sits beside them. Left-handed teachers move them to the right under [Settings → Grading view layout](settings.md#grading-layout). On phones the toolbox is a strip above the scan and the **Scoring** card a sheet below it.
+- **Scoring card:** at the top the points so far, their percentage and the grade, marked *(prelim.)* until every exercise is scored. Below it the exercises ("1", "2 a)"), how many points the next better or worse grade is away, and **Previous** and **Next student**. The arrow in its corner folds it up to the points and the arrows; the page then gets the room. This browser remembers the choice.
 - **All pages of a submission are stacked.** Scroll through them with the mouse wheel or the scrollbar, or with your finger on a touch device.
 - **Pen or finger:** a pen, and the mouse, always draw. On a device without a pen, one finger draws and two fingers scroll. As soon as you use a pen once, Examance remembers it on this device: from then on, fingers and a resting palm only scroll and zoom and never draw. While the pen touches the screen, and for half a second after, a resting palm also never selects text, presses a button or scrolls the scan. A short notice says so when the pen is first detected; to draw with a finger again, reset it under [Settings → Pen input](settings.md#pen-input).
-- **Ctrl + mouse wheel** or pinching zooms; **Fit** fits the page to the view. The page arrows jump between pages.
-- **Crop margins** hides the empty page margins for a larger view.
+- **Bottom bar:** **Undo** and **Redo**, the page arrows (multi-page scans), zoom out and in, and **Fit**, which fits the page to the view. **Ctrl + mouse wheel** or pinching zooms too.
 - **Previous** and **Next student** move through the submissions. The exercise labels in the **Scoring** panel are not links, so tapping one cannot open the exercise by accident.
 
 The **Scoring** panel lists the exercises with their points. Click a row to make it the **stamp target**: stamps you place then count towards that exercise. The stamp target is the highlighted row with the thick bar on its left.
@@ -27,6 +27,8 @@ The **Scoring** panel lists the exercises with their points. Click a row to make
 
 Correction marks are drawn on a separate layer above the scan. The original stays untouched and can be shown without annotations at any time.
 
+The toolbox never scrolls: when the screen is too short for every button, the stamps fold into drawers (first **Plus**, **Minus** and **More**, then **Points** and **More**, at last one **Stamps** drawer). A drawer shows the stamp you picked from it; tap it to see the others.
+
 | Tool | Does |
 |---|---|
 | **Pen**, **Line**, **Eraser** | Freehand marks in red, straight lines, erase |
@@ -34,10 +36,10 @@ Correction marks are drawn on a separate layer above the scan. The original stay
 | **−1.0**, **−0.5**, **−0.25** | Deductions |
 | **Wrong**, **Missing** | Marks without points |
 | **WF**, **FF** | Repeated error, follow-on error |
-| **Undo**, **Redo** | Step back and forward through your annotation changes (each stroke, stamp, eraser sweep, scribble or Clear is one step), also with Ctrl+Z and Ctrl+Shift+Z (Cmd on a Mac); the computed points follow. The history starts afresh for each student. |
+| **Undo**, **Redo** (bottom bar) | Step back and forward through your annotation changes (each stroke, stamp, eraser sweep, scribble or Clear is one step), also with Ctrl+Z and Ctrl+Shift+Z (Cmd on a Mac); the computed points follow. The history starts afresh for each student. |
 | **Clear** | Removes every drawing and stamp of the submission at once and resets the computed points; a notice offers **Undo** |
 
-**Erase by scribbling:** with the **Pen** tool (pen, mouse or finger), scribble quickly back and forth over pen marks, lines or stamps (at least five passes) to erase them without switching to the **Eraser**; stamps take their points with them. Only marks along the scribble's path go, a long mark it only crosses stays, and the scribble itself is never kept. A notice tells how many marks went and offers **Undo**. Switch it off under [Settings → Pen input](settings.md#pen-input).
+**Erase by scribbling:** with the **Pen** tool (pen, mouse or finger), scribble quickly back and forth over pen marks, lines or stamps (at least five passes) to erase them without switching to the **Eraser**; stamps take their points with them. Only marks along the scribble's path go, a long mark it only crosses stays, and the scribble itself is never kept. The marks glow amber for half a second before they vanish, so a slip is easy to see, and a notice tells how many went and offers **Undo**. Switch it off under [Settings → Pen input](settings.md#pen-input).
 
 You can also type an exercise's points directly. **Reset to ungraded** clears a row again.
 

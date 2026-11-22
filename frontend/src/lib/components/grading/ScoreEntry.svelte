@@ -23,12 +23,8 @@
   }
 </script>
 
-<div class="shrink-0 border-b border-line bg-surface-raised px-3 py-1.5 lg:px-2">
-  <h3 class="m-0 text-xs font-semibold tracking-wide text-muted uppercase">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
-</div>
-
-<!-- One flat list: hairlines between rows, a stronger line between exercises; no gaps or frames that cost width (issue #328). -->
-<div class="flex min-h-0 flex-1 flex-col divide-y divide-line-strong overflow-y-auto">
+<!-- One flat list: hairlines between rows, a stronger line between exercises; no gaps or frames that cost width (issue #328). The card header carries the totals, so no title row (issue #330). -->
+<div class="flex min-h-0 flex-1 flex-col divide-y divide-line-strong overflow-y-auto" role="group" aria-label={$t("grading.scoreEntry.title", { count: exercises.length })}>
   {#each exercises as ex (ex.id)}
     {@const parts = $gradingStore.partInputs[ex.id]}
     <div class="divide-y divide-line">

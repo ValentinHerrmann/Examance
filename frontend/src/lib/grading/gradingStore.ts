@@ -61,7 +61,6 @@ export interface GradingState {
   drawTool: ToolType;
   penColor: string;
   zoomScale: number;
-  isAutoCropEnabled: boolean;
   currentStrokes: VectorStroke[];
   /** Submission `currentStrokes` were loaded for; null while a scan loads. A save writes annotations only for it. */
   strokesSubmissionId: string | null;
@@ -90,7 +89,6 @@ const INITIAL_STATE: GradingState = {
   drawTool: 'pen',
   penColor: '#ef4444',
   zoomScale: 1.0,
-  isAutoCropEnabled: true,
   currentStrokes: [],
   strokesSubmissionId: null,
   canUndo: false,
@@ -176,10 +174,6 @@ function createGradingStore() {
 
     setZoomScale(zoomScale: number) {
       update((s) => ({ ...s, zoomScale }));
-    },
-
-    setAutoCropEnabled(enabled: boolean) {
-      update((s) => ({ ...s, isAutoCropEnabled: enabled }));
     },
 
     setCurrentStrokes(strokes: VectorStroke[]) {

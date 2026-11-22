@@ -15,10 +15,10 @@ function label(ctx: CanvasRenderingContext2D, font: string, text: string, x: num
   ctx.fillText(text, x, y);
 }
 
-function inkStyle(ctx: CanvasRenderingContext2D) {
-  ctx.strokeStyle = INK;
-  ctx.fillStyle = INK;
-  ctx.lineWidth = 4;
+function inkStyle(ctx: CanvasRenderingContext2D, color = INK, width = 4) {
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = width;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 }
@@ -36,8 +36,8 @@ export function drawPenSegment(ctx: CanvasRenderingContext2D, points: readonly {
 }
 
 /** Draws the persisted annotation strokes of one page in canvas pixel space. The single renderer for the grading overlay and the graded-PDF export, so both look identical. */
-export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: VectorStroke[], page: number): void {
-  inkStyle(ctx);
+export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: VectorStroke[], page: number, color = INK, width = 4): void {
+  inkStyle(ctx, color, width);
 
   for (const stroke of strokes) {
     if ((stroke.pageNumber ?? 1) !== page) continue;
@@ -90,4 +90,13 @@ export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: VectorStroke
         break;
     }
   }
+}
+
+/** Marks about to vanish (scratch-out, issue #330): the same shapes in `color`, thicker and with a soft halo. */
+export function drawGlow(ctx: CanvasRenderingContext2D, strokes: VectorStroke[], page: number, color: string): void {
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 18;
+  drawStrokes(ctx, strokes, page, color, 7);
+  ctx.restore();
 }

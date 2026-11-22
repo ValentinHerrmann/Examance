@@ -64,11 +64,11 @@
     {#if objected}
       <button
         type="button"
-        class="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/20 px-1.5 py-0.5 text-xs font-semibold text-warning-fg lg:px-1 pointer-coarse:min-h-7"
+        class="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/20 px-1.5 py-0.5 text-xs font-semibold text-warning-fg md:px-1 pointer-coarse:min-h-7"
         title={$t("review.thread.objection")}
         onclick={(e) => { e.stopPropagation(); reviewStore.patch({ dialog: "items" }); }}
       >
-        <Icon icon={faCommentDots} /><span class="lg:sr-only">{$t("review.thread.objection")}</span>
+        <Icon icon={faCommentDots} /><span class="md:sr-only">{$t("review.thread.objection")}</span>
       </button>
     {/if}
   </div>
@@ -86,7 +86,7 @@
     title={readonlyReason}
     onclick={(e) => e.stopPropagation()}
     oninput={handleInput}
-    class="{controlClass} {controlSmClass} {nested ? 'w-12! lg:w-10!' : 'w-14! font-bold lg:w-11!'} shrink-0 px-1! text-right read-only:border-transparent read-only:bg-transparent read-only:shadow-none pointer-coarse:min-h-9 pointer-coarse:text-base"
+    class="{controlClass} {controlSmClass} {nested ? 'w-12! md:w-10!' : 'w-14! font-bold md:w-11!'} shrink-0 px-1! text-right read-only:border-transparent read-only:bg-transparent read-only:shadow-none pointer-coarse:min-h-9 pointer-coarse:text-base"
   />
   <span class="w-7 shrink-0 text-xs whitespace-nowrap text-muted">/{maxLabel ?? max}</span>
   <!-- Narrow slot, hidden while there is nothing to reset, so the inputs stay aligned. -->

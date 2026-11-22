@@ -31,7 +31,8 @@ export function resetExercise(ex: ExerciseRecord): void {
   gradingStore.setManualOverrideFlag(ex.id, false);
 }
 
-/** "Q2 b)" — the short name of an exercise row. */
+/** "2 b)": the short name of an exercise row (no "Q", issue #330). */
 export function exerciseTag(ex: ExerciseRecord): string {
-  return `Q${ex.orderIndex}${ex.subIndex ? `\u00a0${String.fromCharCode(96 + ex.subIndex)})` : ''}`;
+  const part = ex.subIndex ? `\u00a0${String.fromCharCode(96 + ex.subIndex)})` : '';
+  return `${ex.orderIndex}${part}`;
 }

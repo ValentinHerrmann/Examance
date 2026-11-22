@@ -26,8 +26,8 @@ export interface StrokeInputView {
   onPenDetected(): void;
   /** One gesture changed the strokes: `before` is the undo snapshot (one history entry per gesture). */
   checkpoint(before: VectorStroke[]): void;
-  /** A scribble erased `count` marks (issue #330). */
-  onScratchOut(count: number): void;
+  /** A scribble erased `removed` (issue #330). */
+  onScratchOut(removed: VectorStroke[], scribble: VectorStroke): void;
 }
 
 const ACCIDENTAL_MS = 300;
@@ -142,13 +142,13 @@ export class StrokeInput {
     this.eraserAt = null;
     const live = this.live;
     this.live = null;
-    const erased = live ? this.commitLive(live) : 0;
+    const removed = live ? this.commitLive(live) : [];
     this.endGesture();
-    if (erased > 0) this.view.onScratchOut(erased);
+    if (live && removed.length > 0) this.view.onScratchOut(removed, live);
   }
 
-  /** Appends a finished pen or line stroke, or lets a scribble erase what it covers; answers how many marks it erased. */
-  private commitLive(live: VectorStroke): number {
+  /** Appends a finished pen or line stroke, or lets a scribble erase what it covers; answers the marks it erased. */
+  private commitLive(live: VectorStroke): VectorStroke[] {
     const page = live.pageNumber ?? this.page;
     const strokes = this.view.strokes();
     // A scribble is never kept as ink, also when it covers nothing: scribbling over student work is not allowed.
@@ -160,12 +160,12 @@ export class StrokeInput {
         gradingStore.markDirty();
       }
       this.view.redraw(page);
-      return remaining ? strokes.length - remaining.length : 0;
+      return remaining ? strokes.filter((st) => !remaining.includes(st)) : [];
     }
     this.view.persist([...strokes, live]);
     gradingStore.markDirty();
     this.view.redraw(page);
-    return 0;
+    return [];
   }
 
   private endGesture() {
@@ -251,9 +251,9 @@ export class StrokeInput {
     this.live = null;
     const accidental = performance.now() - this.startedAt < ACCIDENTAL_MS;
     const strokes = this.view.strokes();
-    let erased = 0;
+    let removed: VectorStroke[] = [];
     if (live && !accidental) {
-      erased = this.commitLive(live);
+      removed = this.commitLive(live);
     } else if (!live && accidental && this.stampIndex !== null && this.stampIndex < strokes.length) {
       const index = this.stampIndex;
       this.view.persist(strokes.filter((_, i) => i !== index));
@@ -262,6 +262,6 @@ export class StrokeInput {
     this.stampIndex = null;
     this.view.redraw(this.page);
     this.endGesture();
-    if (erased > 0) this.view.onScratchOut(erased);
+    if (live && removed.length > 0) this.view.onScratchOut(removed, live);
   }
 }

@@ -258,18 +258,18 @@ test('[layout] the grade page keeps the score list roomy with an objection', asy
   await visit(page, `/exam/${examId}/grade`);
   const reply = page.getByRole('textbox', { name: label('review.thread.reply') });
   const viewport = page.viewportSize()!;
-  const desktop = viewport.width >= 1024;
+  const desktop = viewport.width >= 768;
   const shot = (name: string) => page.screenshot({ path: `${process.env.PW_SHOTS ?? testInfo.outputDir}/grade-objection-${name}.png` });
 
   // Issue #328: the slim score panel has no inline thread at any width; the badge on the row opens the dialog.
   await expect(reply, 'no inline reply field').toHaveCount(0);
   if (desktop) {
-    // By default the 11rem score panel sits left of the scan, so a right hand never covers a control.
-    const grid = page.locator('[data-controls-side]');
-    const panelBox = (await grid.locator('> div').nth(1).boundingBox())!;
-    const canvasBox = (await grid.locator('> div').first().boundingBox())!;
-    expect(panelBox.x + panelBox.width, 'the score panel is left of the scan').toBeLessThanOrEqual(canvasBox.x);
-    expect(panelBox.width, 'the score panel stays slim').toBeLessThanOrEqual(180);
+    // From `md` the score card floats in the rail on the left (issue #330), and Fit places the page beside it, so a right hand never covers a control and the card covers no scan.
+    const card = page.getByRole('region', { name: label('grading.workspace.scorePanel') });
+    const cardBox = (await card.boundingBox())!;
+    const pageBox = (await page.locator('[data-page="1"]').boundingBox())!;
+    expect(cardBox.x + cardBox.width, 'the score card is left of the page').toBeLessThanOrEqual(pageBox.x);
+    expect(cardBox.width, 'the score card stays slim').toBeLessThanOrEqual(220);
   } else {
     await page.getByRole('button', { name: label('grading.workspace.scorePanel') }).click();
   }
@@ -279,7 +279,7 @@ test('[layout] the grade page keeps the score list roomy with an objection', asy
   if (!desktop) {
     const list = page.locator('[id^=score-]').first().locator('xpath=ancestor::div[contains(@class,"overflow-y-auto")][1]');
     // The objection must not crowd the sheet: the list keeps at least half of it, and Previous/Next stay fully on screen.
-    const sheet = list.locator('xpath=ancestor::div[contains(@class,"dvh")][1]');
+    const sheet = list.locator('xpath=ancestor::*[contains(@class,"dvh")][1]');
     expect((await list.boundingBox())!.height, 'the score list keeps half of the score sheet').toBeGreaterThanOrEqual((await sheet.boundingBox())!.height * 0.5);
   }
   const next = page.getByRole('button', { name: label('grading.actions.next') });

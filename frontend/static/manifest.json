@@ -4,6 +4,7 @@
   "description": "Privacy-First Anonymous Exam Management",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["tabbed"],
   "orientation": "any",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
