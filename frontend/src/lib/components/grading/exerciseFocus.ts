@@ -21,7 +21,7 @@ export interface ExerciseFocusView {
   scoreLayer: ScoreBoxLayer;
   viewport(): HTMLElement | undefined;
   /** The notice floating over the scan (the cool-off banner). */
-  notice(): { show(n: Notice): void; hide(): void } | undefined;
+  notice(): { show(n: Notice): number; hide(id?: number): void } | undefined;
   /** Scroll offset of a page's top in the viewport. */
   pageTop(page: number): number | null;
   /** Shows the question; null when nobody can answer (then marks go to the active target unasked). */
@@ -38,6 +38,8 @@ export class ExerciseFocus {
   private stayPut = false;
   /** Target `follow` last brought into view (or found visible), so the focus switch alone never scrolls; set only once that worked, so a target picked before the scan loaded is followed later. */
   private followed = '';
+  /** Id of the shown cool-off banner, so ending the cool-off never hides another notice. */
+  private coolOffNotice: number | undefined;
 
   constructor(private readonly view: ExerciseFocusView) {}
 
@@ -99,7 +101,7 @@ export class ExerciseFocus {
   /** The banner while questions pause after "stay": a draining bar and a button to ask again at once. */
   private showCoolOff() {
     const end = () => this.guard.endCoolOff();
-    this.view.notice()?.show({
+    this.coolOffNotice = this.view.notice()?.show({
       message: translate('grading.regionGuard.paused'),
       timeoutMs: GUARD_COOL_OFF_MS,
       progress: true,
@@ -110,7 +112,8 @@ export class ExerciseFocus {
 
   /** Ends a running cool-off together with its banner (a new student). */
   private endCoolOff() {
-    if (this.guard.isQuiet(Date.now())) this.view.notice()?.hide();
+    if (this.coolOffNotice !== undefined) this.view.notice()?.hide(this.coolOffNotice);
+    this.coolOffNotice = undefined;
     this.guard.endCoolOff();
   }
 

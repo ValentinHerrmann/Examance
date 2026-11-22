@@ -39,7 +39,8 @@
     inset?: number;
     side?: "left" | "right";
     /** Asks where a mark outside the active exercise goes (issue #234). */
-    onAskTarget?: (question: GuardQuestion) => Promise<GuardAnswer>;
+    /** Null when nobody can answer: the mark then goes to the active target unasked. */
+    onAskTarget?: (question: GuardQuestion) => Promise<GuardAnswer> | null;
   }
 
   let { examId, submission, exercises, onSubmissionHydrated, scoreBoxes = null, inset = 0, side = "left", onAskTarget }: Props = $props();

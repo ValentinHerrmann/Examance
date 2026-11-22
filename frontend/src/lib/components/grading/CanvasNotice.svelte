@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  /** One notice floating over the scan (pen detected, marks erased with Undo); a new one replaces the old. */
+  /** One notice floating over the scan (pen detected, marks erased with Undo); a new one replaces the old. `show` returns an id, so its owner can later hide only its own notice. */
   export interface Notice {
     message: string;
     link?: { href: string; label: string };
@@ -19,11 +19,13 @@
 
   let notice: Notice | null = $state.raw(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let shown = 0;
 
-  export function show(next: Notice) {
+  export function show(next: Notice): number {
     clearTimeout(timer);
     notice = next;
-    if (next.timeoutMs) timer = setTimeout(hide, next.timeoutMs);
+    if (next.timeoutMs) timer = setTimeout(() => hide(), next.timeoutMs);
+    return ++shown;
   }
 
   function close() {
@@ -32,7 +34,9 @@
     onClose?.();
   }
 
-  export function hide() {
+  /** Hides the notice; with an id only while that notice is still the one shown. */
+  export function hide(id?: number) {
+    if (id !== undefined && id !== shown) return;
     clearTimeout(timer);
     notice = null;
   }

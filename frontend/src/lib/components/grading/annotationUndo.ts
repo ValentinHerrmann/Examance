@@ -14,7 +14,7 @@ export interface AnnotationUndoView {
   apply(next: VectorStroke[]): void;
   /** Ends the gesture in progress (an eraser drag may still record its entry). */
   discard(): void;
-  notice(): { show(n: Notice): void; hide(): void } | undefined;
+  notice(): { show(n: Notice): number; hide(id?: number): void } | undefined;
   redraw(page: number): void;
 }
 
@@ -22,8 +22,8 @@ const GLOW_MS = 500;
 
 export class AnnotationUndo {
   private readonly history = new StrokeHistory();
-  // The notice offers Undo until the next edit or student.
-  private undoOffered = false;
+  // Id of the notice offering Undo until the next edit or student; hiding by id never hides a notice that replaced it.
+  private undoOffered: number | undefined;
   // Marks a scribble just erased, still drawn glowing so a mistake is noticed.
   private glow: { strokes: VectorStroke[]; page: number } | null = null;
   private glowTimer: ReturnType<typeof setTimeout> | undefined;
@@ -78,13 +78,12 @@ export class AnnotationUndo {
   }
 
   offerUndo(message: string) {
-    this.undoOffered = true;
-    this.view.notice()?.show({ message, action: { label: translate('grading.canvas.undo'), onClick: this.undo } });
+    this.undoOffered = this.view.notice()?.show({ message, action: { label: translate('grading.canvas.undo'), onClick: this.undo } });
   }
 
   /** Told once, when this device shows its first pen: fingers stop drawing. */
   penDetected = () => {
-    this.undoOffered = false;
+    this.undoOffered = undefined;
     const link = { href: penInputSettingsHref, label: translate('grading.canvas.penDetectedReset') };
     this.view.notice()?.show({ message: translate('grading.canvas.penDetected'), link, timeoutMs: 8000 });
   };
@@ -98,8 +97,8 @@ export class AnnotationUndo {
   }
 
   private withdraw() {
-    if (this.undoOffered) this.view.notice()?.hide();
-    this.undoOffered = false;
+    if (this.undoOffered !== undefined) this.view.notice()?.hide(this.undoOffered);
+    this.undoOffered = undefined;
   }
 
   private publish() {

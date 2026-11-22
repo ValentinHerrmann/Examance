@@ -189,7 +189,7 @@
       {scoreBoxes}
       {side}
       inset={railInset}
-      onAskTarget={(question) => switchDialog?.ask(question) ?? Promise.resolve(question.current ?? null)}
+      onAskTarget={(question) => switchDialog?.ask(question) ?? null}
     />
 
     <ZoomPageControls

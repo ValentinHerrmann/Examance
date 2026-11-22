@@ -18,4 +18,17 @@ describe('CanvasNotice', () => {
     expect(onClick).toHaveBeenCalledOnce();
     expect(screen.queryByText('Paused')).toBeNull();
   });
+
+  // Regression: ending the cool-off on a new student hid whichever notice had replaced its banner.
+  it('hides by id only while that notice is still shown', async () => {
+    const { component } = render(CanvasNotice);
+    const banner = component.show({ message: 'Paused' });
+    const undo = component.show({ message: 'Erased' });
+    component.hide(banner);
+    await tick();
+    expect(screen.getByText('Erased')).toBeTruthy();
+    component.hide(undo);
+    await tick();
+    expect(screen.queryByText('Erased')).toBeNull();
+  });
 });
