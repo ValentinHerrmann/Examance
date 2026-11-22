@@ -1,18 +1,15 @@
-## What's new in 0.7.0
+## What's New
+* Grading redesigned for tablets and pens: undo/redo, scribble-to-erase, more room to draw with tools on the left (or right, in Settings), a score card with a preliminary grade, the selected exercise highlighted on the scan, and Apple Pencil support ([#326](https://github.com/ValentinHerrmann/Examance/pull/326), [#331](https://github.com/ValentinHerrmann/Examance/pull/331), [#332](https://github.com/ValentinHerrmann/Examance/pull/332), [#334](https://github.com/ValentinHerrmann/Examance/pull/334), [#335](https://github.com/ValentinHerrmann/Examance/pull/335))
+* Dotted 5 mm paper for answer fields and extra pages ([#333](https://github.com/ValentinHerrmann/Examance/pull/333))
+* Sending results again keeps each student's link; only "Revoke" creates a new one ([#311](https://github.com/ValentinHerrmann/Examance/pull/311))
+* Download all data the server holds about your account from Settings ([#324](https://github.com/ValentinHerrmann/Examance/pull/324))
+* Examance is now licensed under the GNU GPL v3 instead of MIT ([#308](https://github.com/ValentinHerrmann/Examance/pull/308))
 
-* **Select several exams or exercise groups at once:** edit their details together (with a preview), add LaTeX packages, export, share or move them to the trash in one step ([#262](https://github.com/ValentinHerrmann/Examance/pull/262))
-* **Favorites, archive and school years:** mark favorites, archive old exams and exercises, and see exams grouped by school year ([#264](https://github.com/ValentinHerrmann/Examance/pull/264))
-* **New Layout step:** choose a preset (grade in Examance, booklet, anonymous with stickers, or with names) and see a sample exam before printing ([#275](https://github.com/ValentinHerrmann/Examance/pull/275))
-* **Results, Review and Export are now three separate steps:** grade overview, sending graded exams and answering objections, and exports for your records ([#277](https://github.com/ValentinHerrmann/Examance/pull/277))
-* **Students can object to their grading** per exercise through their result link; you reply on the grading page and the result link shows the update ([#270](https://github.com/ValentinHerrmann/Examance/pull/270))
-* **Extra working time and large print:** time extensions per student, Examtimer in one click, and enlarged A3 copies ([#274](https://github.com/ValentinHerrmann/Examance/pull/274))
-* **Numbered class lists:** sort by first or last name and print the number on stickers and exam copies ([#267](https://github.com/ValentinHerrmann/Examance/pull/267))
-* **Smoother pen grading:** palm rejection and automatic saving a few seconds after each change ([#268](https://github.com/ValentinHerrmann/Examance/pull/268))
-* **More automatic saving:** MC detection settings, LaTeX packages, paper grading points and exercise edits ([#269](https://github.com/ValentinHerrmann/Examance/pull/269))
-* **Statistics are kept** (anonymous and encrypted) after results are deleted, if you choose ([#254](https://github.com/ValentinHerrmann/Examance/pull/254))
-* **Printed exams keep their layout**, so scans of sheets printed earlier stay readable after later edits ([#242](https://github.com/ValentinHerrmann/Examance/pull/242)); smaller corner markers leave more room for answers ([#240](https://github.com/ValentinHerrmann/Examance/pull/240))
-* Topics and filters now sort naturally ("Klasse 2" before "Klasse 10") ([#246](https://github.com/ValentinHerrmann/Examance/pull/246))
+## Fixed
+* Grading and scans never lose or overwrite points, answers, names or pages ([#306](https://github.com/ValentinHerrmann/Examance/pull/306), [#312](https://github.com/ValentinHerrmann/Examance/pull/312), [#317](https://github.com/ValentinHerrmann/Examance/pull/317), [#320](https://github.com/ValentinHerrmann/Examance/pull/320))
+* Saving is only confirmed once really stored; failures are reported and retried ([#305](https://github.com/ValentinHerrmann/Examance/pull/305), [#316](https://github.com/ValentinHerrmann/Examance/pull/316), [#319](https://github.com/ValentinHerrmann/Examance/pull/319), [#322](https://github.com/ValentinHerrmann/Examance/pull/322))
+* Stronger security and privacy for sign-in, result delivery, deletions and updates ([#301](https://github.com/ValentinHerrmann/Examance/pull/301), [#304](https://github.com/ValentinHerrmann/Examance/pull/304), [#309](https://github.com/ValentinHerrmann/Examance/pull/309), [#313](https://github.com/ValentinHerrmann/Examance/pull/313))
+* Consistent sorting, file names, number entry and downloads ([#323](https://github.com/ValentinHerrmann/Examance/pull/323))
+* Updated components and tidier code, no visible change ([#278](https://github.com/ValentinHerrmann/Examance/pull/278), [#302](https://github.com/ValentinHerrmann/Examance/pull/302), [#303](https://github.com/ValentinHerrmann/Examance/pull/303), [#307](https://github.com/ValentinHerrmann/Examance/pull/307), [#325](https://github.com/ValentinHerrmann/Examance/pull/325))
 
-**Behind the scenes:** security hardening and updates ([#249](https://github.com/ValentinHerrmann/Examance/pull/249), [#250](https://github.com/ValentinHerrmann/Examance/pull/250)), scan checks for administrators ([#245](https://github.com/ValentinHerrmann/Examance/pull/245)), automatic cleanup of old server backups ([#259](https://github.com/ValentinHerrmann/Examance/pull/259)), safer self-hosting setup ([#257](https://github.com/ValentinHerrmann/Examance/pull/257)), reliability and speed improvements ([#260](https://github.com/ValentinHerrmann/Examance/pull/260)) and a refreshed README ([#243](https://github.com/ValentinHerrmann/Examance/pull/243)).
-
-**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.6.1...0.7.0
+**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.7.0...0.8.0
