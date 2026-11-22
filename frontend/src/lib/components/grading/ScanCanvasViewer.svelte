@@ -20,10 +20,11 @@
   import { ScanZoom } from "./scanZoom";
   import { StrokeInput } from "./strokeInput";
   import { penSeenStore } from "#lib/stores/penInput";
+  import { capabilitiesStore } from "#lib/stores/capabilities";
   import { ownTouches } from "./palmGuard";
-  import { penInputSettingsHref } from "#lib/utils/links";
-  import { Alert } from "#lib/components/ui";
-  import { t, translate } from "#lib/i18n";
+  import CanvasNotice from "./CanvasNotice.svelte";
+  import { AnnotationUndo } from "./annotationUndo";
+  import { translate } from "#lib/i18n";
 
   interface Props {
     examId: string;
@@ -32,9 +33,12 @@
     onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
     /** Printed score-box layout to fill in (issue #187); null when the exam has none. */
     scoreBoxes?: ScoreBoxContext | null;
+    /** Room the floating controls take on `side` (px), so the page sits beside them (issue #330). */
+    inset?: number;
+    side?: "left" | "right";
   }
 
-  let { examId, submission, exercises, onSubmissionHydrated, scoreBoxes = null }: Props = $props();
+  let { examId, submission, exercises, onSubmissionHydrated, scoreBoxes = null, inset = 0, side = "left" }: Props = $props();
 
   // ExerciseRecord.mcGroupId/subIndex are not populated for exam-linked exercises (the exam-specific placement lives only in ExamExerciseRecord) — load the real group/letter mapping once per exam for the "a) 1/2" sub-exercise sum stamp in drawOmrDetections().
   let subExerciseLetters: Map<string, string> = $state.raw(new Map());
@@ -99,25 +103,31 @@
     redraw: scheduleRedraw,
     zoom,
     scrollBy: (dx, dy) => canvasViewport?.scrollBy({ left: dx, top: dy }),
-    onPenDetected: showPenNotice,
+    onPenDetected: () => undoer.penDetected(),
+    checkpoint: (before) => undoer.checkpoint(before),
+    onScratchOut: (removed, scribble) => undoer.scratchedOut(removed, scribble),
   });
   // A reset in Settings (also from another tab) lets fingers draw again.
   onDestroy(penSeenStore.subscribe((seen) => input.setPenSeen(seen)));
+  onDestroy(capabilitiesStore.subscribe((caps) => input.setScratchOut(caps?.gradingScratchOut !== false)));
 
-  // Told once, when this device shows its first pen: fingers stop drawing (issue #233).
-  const PEN_NOTICE_MS = 8000;
-  let penNotice = $state(false);
-  let penNoticeTimer: ReturnType<typeof setTimeout> | undefined;
-  function showPenNotice() {
-    penNotice = true;
-    clearTimeout(penNoticeTimer);
-    penNoticeTimer = setTimeout(() => (penNotice = false), PEN_NOTICE_MS);
-  }
-  function hidePenNotice() {
-    penNotice = false;
-    clearTimeout(penNoticeTimer);
-  }
-  onDestroy(() => clearTimeout(penNoticeTimer));
+  let notice: ReturnType<typeof CanvasNotice> | undefined = $state();
+  const undoer = new AnnotationUndo({
+    strokes: () => strokes,
+    apply: (next) => {
+      persistStrokes(next);
+      recalcScores();
+      redrawAllOverlays();
+      gradingStore.markDirty();
+    },
+    discard: () => input.discard(),
+    notice: () => notice,
+    redraw: scheduleRedraw,
+  });
+  onDestroy(() => undoer.endGlow());
+  /** Annotation undo/redo of the loaded submission; auto scores follow the stamps, typed scores stay. */
+  export const undo = () => undoer.undo();
+  export const redo = () => undoer.redo();
 
   function persistStrokes(next: VectorStroke[]) {
     strokes = next;
@@ -131,19 +141,17 @@
     gradingStore.setScoreInputs(next.scoreInputs);
   }
 
-  export function toggleAutoCrop() {
-    gradingStore.setAutoCropEnabled(!get(gradingStore).isAutoCropEnabled);
-    if (submission) {
-      loadSubmissionCanvas(submission);
-    }
-  }
-
-  export async function clearAnnotations() {
+  /** Clears every annotation without asking: one Undo brings it back. */
+  export function clearAnnotations() {
     input.discard();
+    const before = strokes;
     persistStrokes([]);
     recalcScores();
     redrawAllOverlays();
     gradingStore.markDirty();
+    if (before.length === 0) return;
+    undoer.checkpoint(before);
+    undoer.offerUndo(translate("grading.canvas.cleared"));
   }
 
   /** Replaces the page stack with `sizes` (fresh canvases) and waits until they are in the DOM. */
@@ -175,6 +183,7 @@
 
   function applyAnnotations(annBytes: Uint8Array | null, subId: string) {
     gradingStore.setStrokesSubmissionId(subId);
+    undoer.reset();
     if (annBytes) {
       persistStrokes(JSON.parse(new TextDecoder().decode(annBytes)));
       redrawAllOverlays();
@@ -204,6 +213,8 @@
     // The previous student's stroke in progress is dropped, never committed onto the next one.
     input.discard();
     gradingStore.setStrokesSubmissionId(null);
+    // Undo must never bring the previous student's strokes onto this one while its scan loads.
+    undoer.reset();
     // Replace the previous student's pages at once: they stayed visible next to the new student's scores until the new scan had decrypted and rendered.
     await showMessage(translate("grading.canvas.loading"), cssVar("--color-muted", "#64748b"), 240);
     if (seq !== loadSeq) return;
@@ -274,7 +285,7 @@
         const img = await decodePngBytes(decryptedBytes);
         if (seq !== loadSeq) return;
 
-        const crop = legacyScanCrop(img, get(gradingStore).isAutoCropEnabled);
+        const crop = legacyScanCrop(img);
 
         await setPages([{ w: crop.w, h: crop.h }]);
         if (seq !== loadSeq || !scanCanvases[0]) return;
@@ -347,13 +358,6 @@
     );
   }
 
-  function scrollToPage(page: number) {
-    const top = pageTop(page);
-    if (top === null || !canvasViewport) return;
-    canvasViewport.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-    gradingStore.setCurrentPage(page);
-  }
-
   let scrollFrame = 0;
   // One page lookup per frame: it measures every page, and scroll events come faster than frames.
   function onViewportScroll() {
@@ -374,22 +378,6 @@
     });
     if (page !== get(gradingStore).currentPage) {
       gradingStore.setCurrentPage(page);
-    }
-  }
-
-  export function goPagePrev() {
-    const state = get(gradingStore);
-    if (state.currentPage > 1) {
-      input.finish();
-      scrollToPage(state.currentPage - 1);
-    }
-  }
-
-  export function goPageNext() {
-    const state = get(gradingStore);
-    if (state.currentPage < state.totalPages) {
-      input.finish();
-      scrollToPage(state.currentPage + 1);
     }
   }
 
@@ -458,6 +446,7 @@
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
     drawStrokes(ctx, strokes, page);
+    undoer.drawGlow(ctx, page);
     drawOmrDetections(ctx, overlayCanvas, page);
     scoreLayer.draw(ctx, page, overlayCanvas.width, overlayCanvas.height, exercises, get(gradingStore));
     const live = input.live;
@@ -557,19 +546,9 @@
   bind:this={canvasViewport}
   use:zoom.wheelAction
   onscroll={onViewportScroll}
+  style="padding-{side}: {VIEWPORT_PADDING + inset}px"
 >
-  {#if penNotice}
-    <!-- Zero-height sticky row: the notice floats over the scan without moving the pages. -->
-    <div class="pointer-events-none sticky top-0 z-10 h-0">
-      <!-- Opaque backing: the info tint alone is translucent and let the scan show through. -->
-      <div class="pointer-events-auto mx-auto max-w-narrow rounded-md bg-surface-raised shadow-md">
-        <Alert severity="info" onDismiss={hidePenNotice}>
-          {$t("grading.canvas.penDetected")}
-          <a href={penInputSettingsHref} class="link ml-1">{$t("grading.canvas.penDetectedReset")}</a>
-        </Alert>
-      </div>
-    </div>
-  {/if}
+  <CanvasNotice bind:this={notice} />
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead of letting the viewport scroll, so zooming in did nothing. -->
   <!-- touch-none and select-none on the whole stack: fingers pan and pinch through our handlers (also between pages), and a long press never selects or opens a menu that cancels the pen. Safari ignores both for the Apple Pencil, so `ownTouches` cancels the touch events too (issue #321). -->
   <div

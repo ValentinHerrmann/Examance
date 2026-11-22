@@ -25,6 +25,8 @@ export interface Capabilities {
   reviewMail?: boolean | null;
   /** Grading controls on the left (default, right-handed) or right (issue #328); absent in an older cache. */
   gradingControlsSide?: ControlsSide;
+  /** Scribbling over pen marks and stamps erases them (issue #330); on unless false. */
+  gradingScratchOut?: boolean;
 }
 
 const CACHE_KEY = 'bg_capabilities';
@@ -72,6 +74,7 @@ interface CapabilitiesResponse {
   share_new_exercises?: boolean | null;
   review_mail?: boolean | null;
   grading_controls_side?: string;
+  grading_scratch_out?: boolean;
 }
 
 function fromResponse(res: CapabilitiesResponse): Capabilities {
@@ -86,6 +89,7 @@ function fromResponse(res: CapabilitiesResponse): Capabilities {
     shareNewExercises: typeof res.share_new_exercises === 'boolean' ? res.share_new_exercises : null,
     reviewMail: typeof res.review_mail === 'boolean' ? res.review_mail : null,
     gradingControlsSide: res.grading_controls_side === 'right' ? 'right' : 'left',
+    gradingScratchOut: res.grading_scratch_out !== false,
   };
 }
 
@@ -123,19 +127,22 @@ export function markShareDefault(value: boolean | null): void {
   capabilitiesStore.update((caps) => (caps ? { ...caps, shareNewExercises: value } : caps));
 }
 
-/** Switches the mail on a student's objection (issue #226); the server answers with the capabilities. */
-export async function saveReviewMail(value: boolean | null): Promise<Capabilities> {
-  const caps = fromResponse(await api.put<CapabilitiesResponse>('/user/review-mail', { review_mail: value }, { silentError: true }));
+/** Saves one account preference; the server answers with the capabilities (the one save path of every switch below). */
+async function saveAccountPreference(path: string, body: Record<string, unknown>): Promise<Capabilities> {
+  const caps = fromResponse(await api.put<CapabilitiesResponse>(path, body, { silentError: true }));
   capabilitiesStore.set(caps);
   return caps;
 }
 
-/** Moves the grading controls to the left or right (issue #328); the server answers with the capabilities. */
-export async function saveGradingControlsSide(side: ControlsSide): Promise<Capabilities> {
-  const caps = fromResponse(await api.put<CapabilitiesResponse>('/user/grading-controls-side', { grading_controls_side: side }, { silentError: true }));
-  capabilitiesStore.set(caps);
-  return caps;
-}
+/** Mail on a student's objection (issue #226). */
+export const saveReviewMail = (value: boolean | null) => saveAccountPreference('/user/review-mail', { review_mail: value });
+
+/** Grading controls on the left or right (issue #328). */
+export const saveGradingControlsSide = (side: ControlsSide) =>
+  saveAccountPreference('/user/grading-controls-side', { grading_controls_side: side });
+
+/** Erasing by scribbling over marks (issue #330). */
+export const saveGradingScratchOut = (on: boolean) => saveAccountPreference('/user/grading-scratch-out', { grading_scratch_out: on });
 
 /** Forgets the answer, e.g. at sign-out: the next account must never start from this one's switches. */
 export function clearCapabilities(): void {

@@ -2,108 +2,46 @@
   import { gradingStore } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
   import {
-    faChevronLeft,
-    faChevronRight,
-    faCrop,
+    faExpand,
     faMagnifyingGlassMinus,
     faMagnifyingGlassPlus,
+    faRotateLeft,
+    faRotateRight,
   } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "#lib/components/ui";
   import type { ControlsSide } from "#lib/stores/capabilities";
 
+  /** The grading view's bottom bar: annotation history, the page in view, zoom (issue #330). Callbacks only forward intent; the viewer owns them. No page arrows: teachers scroll. */
   interface Props {
-    onPagePrev: () => void;
-    onPageNext: () => void;
-    onToggleAutoCrop: () => void;
+    onUndo: () => void;
+    onRedo: () => void;
     onZoomOut: () => void;
     onZoomIn: () => void;
     onResetZoom: () => void;
-    /** Corner of the canvas it floats in from `lg` up (issue #328). */
+    /** Corner of the canvas it floats in from `md` up (issue #328). */
     side?: ControlsSide;
   }
 
-  let {
-    onPagePrev,
-    onPageNext,
-    onToggleAutoCrop,
-    onZoomOut,
-    onZoomIn,
-    onResetZoom,
-    side = "left",
-  }: Props = $props();
+  let { onUndo, onRedo, onZoomOut, onZoomIn, onResetZoom, side = "left" }: Props = $props();
 
+  // Icon-only text buttons: no frames, so the bar stays one short line on a tablet; touch keeps 44px targets.
+  const btn = { size: "sm", variant: "text", severity: "secondary", iconOnly: true } as const;
 </script>
 
-<!-- Docked below the canvas on small screens, floating over it from `lg` up (as the annotation toolbar). -->
+<!-- Docked below the canvas on phones, floating in the controls' corner from `md` up. -->
 <div
-  class="scroll-pane z-30 flex shrink-0 items-center justify-center gap-1.5 overflow-x-auto rounded-md border border-line bg-surface-raised px-2 py-1.5 text-xs
-    lg:absolute lg:bottom-3 lg:overflow-visible lg:shadow-md
-    {side === 'right' ? 'lg:right-3 lg:justify-end' : 'lg:left-3 lg:justify-start'}"
+  class="z-30 flex shrink-0 items-center justify-center gap-0.5 rounded-md border border-line bg-surface-raised p-0.5 text-xs
+    md:absolute md:bottom-3 md:shadow-md {side === 'right' ? 'md:right-3' : 'md:left-3'}"
 >
+  <Button {...btn} icon={faRotateLeft} disabled={!$gradingStore.canUndo} onClick={onUndo} title={$t("grading.toolbar.undoTitle")} ariaLabel={$t("grading.toolbar.undoTitle")} />
+  <Button {...btn} icon={faRotateRight} disabled={!$gradingStore.canRedo} onClick={onRedo} title={$t("grading.toolbar.redoTitle")} ariaLabel={$t("grading.toolbar.redoTitle")} />
   {#if $gradingStore.isScanPdf && $gradingStore.totalPages > 1}
-    <Button
-      size="sm"
-      variant="outlined"
-      severity="secondary"
-      iconOnly
-      icon={faChevronLeft}
-      onClick={onPagePrev}
-      disabled={$gradingStore.currentPage <= 1}
-      title={$t("grading.zoom.pagePrevTitle")}
-      ariaLabel={$t("grading.zoom.pagePrevTitle")}
-    />
-    <span class="whitespace-nowrap">{$t("grading.zoom.pageIndicator", { current: $gradingStore.currentPage, total: $gradingStore.totalPages })}</span>
-    <Button
-      size="sm"
-      variant="outlined"
-      severity="secondary"
-      iconOnly
-      icon={faChevronRight}
-      onClick={onPageNext}
-      disabled={$gradingStore.currentPage >= $gradingStore.totalPages}
-      title={$t("grading.zoom.pageNextTitle")}
-      ariaLabel={$t("grading.zoom.pageNextTitle")}
-    />
     <div class="mx-0.5 h-4 w-px shrink-0 bg-line"></div>
+    <span class="px-1 whitespace-nowrap tabular-nums">{$t("grading.zoom.pageIndicator", { current: $gradingStore.currentPage, total: $gradingStore.totalPages })}</span>
   {/if}
-  <Button
-    size="sm"
-    variant="outlined"
-    severity="secondary"
-    icon={faCrop}
-    pressed={$gradingStore.isAutoCropEnabled}
-    onClick={onToggleAutoCrop}
-    title={$gradingStore.isAutoCropEnabled ? $t("grading.zoom.autoCropOnTitle") : $t("grading.zoom.autoCropOffTitle")}
-  >
-    {$gradingStore.isAutoCropEnabled ? $t("grading.zoom.autoCropOn") : $t("grading.zoom.autoCropOff")}
-  </Button>
   <div class="mx-0.5 h-4 w-px shrink-0 bg-line"></div>
-  <Button
-    size="sm"
-    variant="outlined"
-    severity="secondary"
-    iconOnly
-    icon={faMagnifyingGlassMinus}
-    onClick={onZoomOut}
-    title={$t("grading.zoom.zoomOutTitle")}
-    ariaLabel={$t("grading.zoom.zoomOutTitle")}
-  />
-  <span class="px-1 font-mono font-bold whitespace-nowrap text-content">{$gradingStore.zoomScale === 1.0 ? $t("grading.zoom.fitLabel") : `${Math.round($gradingStore.zoomScale * 100)}%`}</span>
-  <Button
-    size="sm"
-    variant="outlined"
-    severity="secondary"
-    iconOnly
-    icon={faMagnifyingGlassPlus}
-    onClick={onZoomIn}
-    title={$t("grading.zoom.zoomInTitle")}
-    ariaLabel={$t("grading.zoom.zoomInTitle")}
-  />
-  <Button
-    size="sm"
-    variant="outlined"
-    severity="secondary"
-    onClick={onResetZoom}
-    title={$t("grading.zoom.fitTitle")}
-  >{$t("grading.zoom.fitLabel")}</Button>
+  <Button {...btn} icon={faMagnifyingGlassMinus} onClick={onZoomOut} title={$t("grading.zoom.zoomOutTitle")} ariaLabel={$t("grading.zoom.zoomOutTitle")} />
+  <span class="min-w-9 text-center font-mono font-bold whitespace-nowrap text-content tabular-nums">{$gradingStore.zoomScale === 1.0 ? $t("grading.zoom.fitLabel") : `${Math.round($gradingStore.zoomScale * 100)}%`}</span>
+  <Button {...btn} icon={faMagnifyingGlassPlus} onClick={onZoomIn} title={$t("grading.zoom.zoomInTitle")} ariaLabel={$t("grading.zoom.zoomInTitle")} />
+  <Button {...btn} icon={faExpand} onClick={onResetZoom} title={$t("grading.zoom.fitTitle")} ariaLabel={$t("grading.zoom.fitTitle")} />
 </div>

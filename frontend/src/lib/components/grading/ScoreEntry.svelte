@@ -8,39 +8,44 @@
 
   interface Props {
     exercises: ExerciseRecord[];
+    /** Enter in a score field steps to the next target. */
+    onStep?: (dir: 1 | -1) => void;
   }
 
-  let { exercises }: Props = $props();
+  let { exercises, onStep }: Props = $props();
+  let onEnter = $derived(onStep ? () => onStep(1) : undefined);
 
   function isTarget(ex: ExerciseRecord, label: string): boolean {
     return $gradingStore.activeExerciseId === ex.id && $gradingStore.activePartLabel === label;
   }
 
-  /** The points-outside-the-parts row: shown while grading part by part when the exercise has such points or stamps landed there. */
+  /** The points-outside-the-parts row: shown when the exercise has such points or stamps landed there. */
   function showRest(ex: ExerciseRecord): boolean {
-    const parts = $gradingStore.partInputs[ex.id];
-    return hasPartValues(parts) && (restMax(ex) > 0 || parts?.[REST_KEY] != null);
+    return exerciseParts(ex).length > 0 && (restMax(ex) > 0 || $gradingStore.partInputs[ex.id]?.[REST_KEY] != null);
+  }
+
+  /** An exercise with parts is graded only through them (issue #330): its row selects the first part. */
+  function selectExercise(ex: ExerciseRecord) {
+    gradingStore.setActivePart(ex.id, exerciseParts(ex)[0]?.label ?? "");
   }
 </script>
 
-<div class="shrink-0 border-b border-line bg-surface-raised px-3 py-1.5 lg:px-2">
-  <h3 class="m-0 text-xs font-semibold tracking-wide text-muted uppercase">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
-</div>
-
-<!-- One flat list: hairlines between rows, a stronger line between exercises; no gaps or frames that cost width (issue #328). -->
-<div class="flex min-h-0 flex-1 flex-col divide-y divide-line-strong overflow-y-auto">
+<!-- One flat list: hairlines between rows, a stronger line between exercises; no gaps or frames that cost width (issue #328). The card header carries the totals, so no title row (issue #330). -->
+<div class="flex min-h-0 flex-1 flex-col divide-y divide-line-strong overflow-y-auto" role="group" aria-label={$t("grading.scoreEntry.title", { count: exercises.length })}>
   {#each exercises as ex (ex.id)}
     {@const parts = $gradingStore.partInputs[ex.id]}
+    {@const hasParts = exerciseParts(ex).length > 0}
     <div class="divide-y divide-line">
     <ScoreRow
       value={$gradingStore.scoreInputs[ex.id]}
       max={ex.maxPoints}
-      active={isTarget(ex, "")}
+      active={!hasParts && isTarget(ex, "")}
       manual={!!$gradingStore.manualOverride[ex.id] && !hasPartValues(parts)}
-      readonlyReason={hasPartValues(parts) ? $t("grading.scoreEntry.sumOfParts") : undefined}
+      readonlyReason={hasParts ? $t("grading.scoreEntry.sumOfParts") : undefined}
       inputId={`score-${ex.id}`}
       reviewKey={ex.id}
-      onSelect={() => gradingStore.setActivePart(ex.id, "")}
+      {onEnter}
+      onSelect={() => selectExercise(ex)}
       onValue={(v) => setTotal(ex, v)}
       onReset={() => resetExercise(ex)}
     >
@@ -57,7 +62,9 @@
         active={isTarget(ex, part.label)}
         manual={!!$gradingStore.manualOverride[partOverrideKey(ex.id, part.label)]}
         ariaLabel={$t("grading.scoreEntry.partRowLabel", { label: part.label })}
+        inputId={`score-${ex.id}-${part.label}`}
         reviewKey={partOverrideKey(ex.id, part.label)}
+        {onEnter}
         onSelect={() => gradingStore.setActivePart(ex.id, part.label)}
         onValue={(v) => setPart(ex, part.label, v)}
         onReset={() => resetPart(ex, part.label)}
@@ -72,10 +79,12 @@
         value={rest}
         max={ex.maxPoints}
         maxLabel={restMax(ex)}
-        active={false}
+        active={isTarget(ex, "")}
         manual={!!$gradingStore.manualOverride[partOverrideKey(ex.id, REST_KEY)]}
         warning={rest != null && rest > restMax(ex) ? $t("grading.scoreEntry.restOverMax", { max: restMax(ex) }) : undefined}
         ariaLabel={$t("grading.scoreEntry.restRowLabel")}
+        inputId={`score-${ex.id}-${REST_KEY}`}
+        {onEnter}
         onSelect={() => gradingStore.setActivePart(ex.id, "")}
         onValue={(v) => setPart(ex, REST_KEY, v)}
         onReset={() => resetPart(ex, REST_KEY)}

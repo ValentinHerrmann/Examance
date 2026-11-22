@@ -1,202 +1,89 @@
 <script lang="ts">
   import { gradingStore, type ToolType } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
-  import { faCheck, faEraser, faPen, faRulerHorizontal, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+  import { faEraser, faPen, faRulerHorizontal, faTrashCan } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon } from "#lib/components/ui";
+  import { minWidth } from "#lib/stores/viewport";
   import type { ControlsSide } from "#lib/stores/capabilities";
+  import StampGlyph from "./StampGlyph.svelte";
+  import StampDrawer from "./StampDrawer.svelte";
+  import { toolbarSections, toolbarStep, type StampDef } from "./toolbarLayout";
 
   interface Props {
-    /** Clearing is gated by a parent-owned confirm dialog; this component only requests it, never mutates the store. */
-    onClearRequested: () => void;
-    /** Corner of the canvas it floats in from `lg` up (issue #328). */
+    /** The viewer owns the strokes; this component only asks, never mutates them. */
+    onClear: () => void;
+    /** Side of the canvas it sits on from `md` up (issue #328); drawers open away from it. */
     side?: ControlsSide;
   }
 
-  let { onClearRequested, side = "left" }: Props = $props();
+  let { onClear, side = "left" }: Props = $props();
 
   /* Finger-sized (48px) glyph-over-label tool button. `!` beats the Button size recipe's own padding/gap. */
   const toolBtn = "h-12 min-h-12 w-12 shrink-0 flex-col gap-0! px-1! py-1!";
+  const separator = "h-8 w-px shrink-0 self-center bg-line md:h-px md:w-8";
+
+  // Vertical from `md` (a column in the side rail), a strip above the scan on phones; either way it folds stamps into drawers instead of scrolling (issue #330).
+  const vertical = minWidth("md");
+  let room = $state({ w: 0, h: 0 });
+  let step = $derived(toolbarStep($vertical ? room.h : room.w));
+  let sections = $derived(toolbarSections(step));
+  // Drawers open away from the rail's edge, or below the strip.
+  const sidePlacement = { left: "right-start", right: "left-start" } as const;
+  let placement: "right-start" | "left-start" | "bottom-start" = $derived($vertical ? sidePlacement[side] : "bottom-start");
 
   function selectTool(tool: ToolType) {
     gradingStore.setDrawTool(tool);
   }
+
+  function isSelected(stamp: StampDef): boolean {
+    const tool = $gradingStore.drawTool;
+    return tool === stamp.tool || !!stamp.aliases?.includes(tool);
+  }
+
+  function observe(node: HTMLElement) {
+    const measure = () => (room = { w: node.clientWidth, h: node.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return { destroy: () => observer.disconnect() };
+  }
 </script>
 
-<!-- Below `lg` docked as a strip above the canvas (floating covered the scan on phones); overlay from `lg` up, leaving room for the zoom controls below it on the same side. -->
-<div
-  class="scroll-pane z-30 flex shrink-0 flex-row gap-1 overflow-x-auto rounded-md border border-line bg-surface-raised p-1.5
-    lg:absolute lg:top-3 lg:max-h-[calc(100%-5.5rem)] lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:p-1 lg:shadow-md
-    {side === 'right' ? 'lg:right-3' : 'lg:left-3'}"
->
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "pen"}
-    onClick={() => selectTool("pen")}
-    title={$t("grading.toolbar.penTitle")}
+<!-- The wrapper takes the room the toolbox may use (the rail's height from `md`, the canvas width below); the bar inside keeps its own size. -->
+<div class="flex min-h-0 min-w-0 shrink-0 md:h-full" use:observe>
+  <div
+    class="z-30 flex shrink-0 flex-row gap-1 self-start rounded-md border border-line bg-surface-raised p-1 md:flex-col md:shadow-md"
+    data-toolbar-step={step}
   >
-    <Icon icon={faPen} />
-    <span class="text-xs font-semibold">{$t("grading.toolbar.pen")}</span>
-  </Button>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "line"}
-    onClick={() => selectTool("line")}
-    title={$t("grading.toolbar.lineTitle")}
-  >
-    <Icon icon={faRulerHorizontal} />
-    <span class="text-xs font-semibold">{$t("grading.toolbar.line")}</span>
-  </Button>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "eraser"}
-    onClick={() => selectTool("eraser")}
-    title={$t("grading.toolbar.eraserTitle")}
-  >
-    <Icon icon={faEraser} />
-    <span class="text-xs font-semibold">{$t("grading.toolbar.eraser")}</span>
-  </Button>
-  <div class="h-8 w-px shrink-0 self-center bg-line lg:h-px lg:w-8"></div>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
-    onClick={() => selectTool("check_full")}
-    title={$t("grading.toolbar.checkFullTitle")}
-  >
-    <Icon icon={faCheck} class="text-success-fg" />
-    <span class="text-xs font-semibold">{$t("grading.toolbar.checkFull")}</span>
-  </Button>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "check_half"}
-    onClick={() => selectTool("check_half")}
-    title={$t("grading.toolbar.checkHalfTitle")}
-  >
-    <span class="flex items-center gap-0.5 text-warning-fg"><Icon icon={faCheck} /><span class="text-xs font-bold">½</span></span>
-    <span class="text-xs font-semibold">{$t("grading.toolbar.checkHalf")}</span>
-  </Button>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "check_quarter"}
-    onClick={() => selectTool("check_quarter")}
-    title={$t("grading.toolbar.checkQuarterTitle")}
-  >
-    <span class="flex items-center gap-0.5 text-warning-fg"><Icon icon={faCheck} /><span class="text-xs font-bold">¼</span></span>
-    <span class="text-xs font-semibold">{$t("grading.toolbar.checkQuarter")}</span>
-  </Button>
-  <div class="h-8 w-px shrink-0 self-center bg-line lg:h-px lg:w-8"></div>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "minus_full"}
-    onClick={() => selectTool("minus_full")}
-    title={$t("grading.toolbar.minusFullTitle")}
-  >
-    <span class="text-base leading-none font-bold text-danger-fg">-1</span>
-    <span class="text-xs font-semibold">{$t("grading.toolbar.minusFull")}</span>
-  </Button>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "minus_half"}
-    onClick={() => selectTool("minus_half")}
-    title={$t("grading.toolbar.minusHalfTitle")}
-  >
-    <span class="text-base leading-none font-bold text-danger-fg">-½</span>
-    <span class="text-xs font-semibold">{$t("grading.toolbar.minusHalf")}</span>
-  </Button>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "minus_quarter"}
-    onClick={() => selectTool("minus_quarter")}
-    title={$t("grading.toolbar.minusQuarterTitle")}
-  >
-    <span class="text-base leading-none font-bold text-danger-fg">-¼</span>
-    <span class="text-xs font-semibold">{$t("grading.toolbar.minusQuarter")}</span>
-  </Button>
-  <div class="h-8 w-px shrink-0 self-center bg-line lg:h-px lg:w-8"></div>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
-    onClick={() => selectTool("wrong")}
-    title={$t("grading.toolbar.wrongTitle")}
-  >
-    <span class="font-serif text-base leading-none font-bold text-danger-fg italic">f</span>
-    <span class="text-xs font-semibold">{$t("grading.toolbar.wrong")}</span>
-  </Button>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "missing"}
-    onClick={() => selectTool("missing")}
-    title={$t("grading.toolbar.missingTitle")}
-  >
-    <span class="text-base leading-none font-bold text-warning-fg">∀</span>
-    <span class="text-xs font-semibold">{$t("grading.toolbar.missing")}</span>
-  </Button>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "wf"}
-    onClick={() => selectTool("wf")}
-    title={$t("grading.toolbar.wfTitle")}
-  >
-    <span class="text-base leading-none font-bold text-info-fg">WF</span>
-    <span class="text-xs font-semibold">{$t("grading.toolbar.wf")}</span>
-  </Button>
-  <Button
-    size="sm"
-    variant="text"
-    severity="secondary"
-    class={toolBtn}
-    pressed={$gradingStore.drawTool === "ff"}
-    onClick={() => selectTool("ff")}
-    title={$t("grading.toolbar.ffTitle")}
-  >
-    <span class="text-base leading-none font-bold text-info-fg">FF</span>
-    <span class="text-xs font-semibold">{$t("grading.toolbar.ff")}</span>
-  </Button>
-  <div class="h-8 w-px shrink-0 self-center bg-line lg:h-px lg:w-8"></div>
-  <Button
-    size="sm"
-    variant="text"
-    severity="danger"
-    class={toolBtn}
-    onClick={onClearRequested}
-    title={$t("grading.toolbar.clearTitle")}
-  >
-    <Icon icon={faTrashCan} />
-    <span class="text-xs font-semibold">{$t("grading.toolbar.clear")}</span>
-  </Button>
+    <Button size="sm" variant="text" severity="secondary" class={toolBtn} pressed={$gradingStore.drawTool === "pen"} onClick={() => selectTool("pen")} title={$t("grading.toolbar.penTitle")}>
+      <Icon icon={faPen} />
+      <span class="text-xs font-semibold">{$t("grading.toolbar.pen")}</span>
+    </Button>
+    <Button size="sm" variant="text" severity="secondary" class={toolBtn} pressed={$gradingStore.drawTool === "line"} onClick={() => selectTool("line")} title={$t("grading.toolbar.lineTitle")}>
+      <Icon icon={faRulerHorizontal} />
+      <span class="text-xs font-semibold">{$t("grading.toolbar.line")}</span>
+    </Button>
+    <Button size="sm" variant="text" severity="secondary" class={toolBtn} pressed={$gradingStore.drawTool === "eraser"} onClick={() => selectTool("eraser")} title={$t("grading.toolbar.eraserTitle")}>
+      <Icon icon={faEraser} />
+      <span class="text-xs font-semibold">{$t("grading.toolbar.eraser")}</span>
+    </Button>
+    <div class={separator}></div>
+    {#each sections as section, i (i)}
+      {#if section.kind === "drawer"}
+        <StampDrawer id={section.id} stamps={section.stamps} {placement} buttonClass={toolBtn} {isSelected} onPick={selectTool} />
+      {:else}
+        {#if i > 0}<div class={separator}></div>{/if}
+        {#each section.stamps as stamp (stamp.tool)}
+          <Button size="sm" variant="text" severity="secondary" class={toolBtn} pressed={isSelected(stamp)} onClick={() => selectTool(stamp.tool)} title={$t(`grading.toolbar.${stamp.key}Title`)}>
+            <StampGlyph {stamp} />
+          </Button>
+        {/each}
+      {/if}
+    {/each}
+    <div class={separator}></div>
+    <Button size="sm" variant="text" severity="danger" class={toolBtn} onClick={onClear} title={$t("grading.toolbar.clearTitle")}>
+      <Icon icon={faTrashCan} />
+      <span class="text-xs font-semibold">{$t("grading.toolbar.clear")}</span>
+    </Button>
+  </div>
 </div>

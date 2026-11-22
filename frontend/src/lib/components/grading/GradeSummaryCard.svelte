@@ -1,70 +1,82 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import type { GradeDetail } from "#lib/analytics/gradingKey";
   import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
   import { faCaretDown, faCaretUp, faStar } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Icon } from "#lib/components/ui";
 
+  /** The score card's header (issue #330): points, both percentages, the grade (preliminary until every exercise is scored) and how far the neighbouring grades are; the same in the open and the folded card. */
   interface Props {
     isFullyGraded: boolean;
-    totalScore: number | undefined;
     sumGradedScores: number;
     gradedCount: number;
     exercisesLength: number;
     totalMaxPoints: number;
-    calculatedGradeDetail: GradeDetail | null;
+    /** Maximum of the exercises scored so far: the preliminary grade is projected from it. */
+    gradedMaxPoints: number;
+    /** Grade of the points so far against `gradedMaxPoints` (final once fully graded). */
+    gradeDetail: GradeDetail | null;
+    /** Sits at the end of the first line (the card's fold button). */
+    end?: Snippet;
   }
 
-  let {
-    isFullyGraded,
-    totalScore,
-    sumGradedScores,
-    gradedCount,
-    exercisesLength,
-    totalMaxPoints,
-    calculatedGradeDetail
-  }: Props = $props();
+  let { isFullyGraded, sumGradedScores, gradedCount, exercisesLength, totalMaxPoints, gradedMaxPoints, gradeDetail, end }: Props = $props();
+
+  let percentTotal = $derived(totalMaxPoints > 0 ? sumGradedScores / totalMaxPoints : 0);
+  let percentGraded = $derived(gradedMaxPoints > 0 ? sumGradedScores / gradedMaxPoints : 0);
 </script>
 
-<div class="flex flex-col gap-1.5">
-  <!-- From `lg` the 11rem score panel stacks the label above "points / max", the progress wraps below (issue #328). -->
-  <div class="flex flex-wrap items-baseline justify-between gap-x-3 lg:flex-col lg:items-start lg:gap-0">
-    <span class="text-sm font-medium text-muted lg:text-xs">{$t("grading.summary.totalPoints")}</span>
-    <div class="flex flex-wrap items-baseline gap-x-1.5 leading-tight">
-      <span class="text-2xl font-bold text-content lg:text-xl">{isFullyGraded ? totalScore : sumGradedScores}</span>
-      <span class="text-sm text-muted lg:text-xs">{$t("grading.summary.maxPoints", { max: totalMaxPoints })}</span>
-      {#if !isFullyGraded}
-        <span class="text-sm text-warning-fg lg:text-xs" title={$t("grading.summary.inProgressTitle")}>{$t("grading.summary.inProgress", { graded: gradedCount, total: exercisesLength })}</span>
+<div class="flex min-w-0 flex-col gap-0.5 text-xs leading-tight">
+  <!-- Points and grade wrap as whole pieces: in the slim card the badge moves under the points instead of squeezing them. -->
+  <div class="flex min-w-0 items-start gap-1">
+    <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+      <span class="whitespace-nowrap">
+        <span class="text-xl font-bold text-content tabular-nums">{$fmt.number(sumGradedScores)}</span>
+        <span class="text-muted">{$t("grading.summary.maxPoints", { max: $fmt.number(totalMaxPoints) })}</span>
+      </span>
+      {#if gradeDetail}
+        <Badge severity={isFullyGraded ? "info" : "secondary"}>
+          <span class="whitespace-nowrap" title={isFullyGraded ? gradeDetail.label : $t("grading.summary.preliminaryTitle")}>
+            {$t("grading.summary.gradeBadge", { grade: gradeDetail.grade })}{isFullyGraded ? "" : ` ${$t("grading.summary.preliminary")}`}
+          </span>
+        </Badge>
       {/if}
     </div>
+    {@render end?.()}
   </div>
 
-  {#if calculatedGradeDetail}
-    <div class="flex flex-col gap-1.5 rounded-md border border-line bg-surface-sunken p-2 lg:gap-0.5 lg:p-1.5">
-      <div class="flex flex-wrap items-baseline gap-x-2">
-        <Badge severity="info">{$t("grading.summary.gradeBadge", { grade: calculatedGradeDetail.grade })}</Badge>
-        <span class="text-sm text-muted lg:text-xs">({calculatedGradeDetail.label})</span>
-      </div>
+  <!-- Two different shares: of the exercises scored so far (what the preliminary grade follows) and of the whole exam; equal once fully graded. -->
+  <div class="text-muted">
+    {#if isFullyGraded || gradedCount === 0}
+      <span title={$t("grading.summary.percentTotalTitle")}><strong class="text-content tabular-nums">{$fmt.percent(percentTotal, 0)}</strong></span>
+    {:else}
+      <span title={$t("grading.summary.percentGradedTitle")}><strong class="text-content tabular-nums">{$fmt.percent(percentGraded, 0)}</strong> {$t("grading.summary.percentGraded")}</span>
+      ·
+      <span title={$t("grading.summary.percentTotalTitle")}><strong class="text-content tabular-nums">{$fmt.percent(percentTotal, 0)}</strong> {$t("grading.summary.percentTotal")}</span>
+    {/if}
+  </div>
 
-      <div class="flex flex-col gap-1 text-sm lg:text-xs">
-        {#if calculatedGradeDetail.nextHigher}
-          <div class="flex items-start gap-2 lg:gap-1 text-success-fg" title={$t("grading.summary.nextHigherTitle")}>
-            <Icon icon={faCaretUp} class="mt-1" />
-            <span class="min-w-0">{$t("grading.summary.nextHigher", { points: calculatedGradeDetail.nextHigher.pointsNeeded, grade: calculatedGradeDetail.nextHigher.grade })}</span>
-          </div>
-        {:else}
-          <div class="flex items-start gap-2 lg:gap-1 text-warning-fg" title={$t("grading.summary.maxAchievedTitle")}>
-            <Icon icon={faStar} class="mt-1" />
-            <span class="min-w-0">{$t("grading.summary.maxAchieved")}</span>
-          </div>
-        {/if}
-
-        {#if calculatedGradeDetail.nextLower}
-          <div class="flex items-start gap-2 lg:gap-1 text-muted" title={$t("grading.summary.nextLowerTitle")}>
-            <Icon icon={faCaretDown} class="mt-1" />
-            <span class="min-w-0">{$t("grading.summary.nextLower", { points: calculatedGradeDetail.nextLower.pointsBuffer, grade: calculatedGradeDetail.nextLower.grade })}</span>
-          </div>
-        {/if}
-      </div>
+  {#if gradeDetail}
+    <div class="flex flex-wrap gap-x-2">
+      {#if gradeDetail.nextHigher}
+        <span class="inline-flex items-center gap-0.5 whitespace-nowrap text-success-fg" title={$t("grading.summary.nextHigher", { points: $fmt.number(gradeDetail.nextHigher.pointsNeeded), grade: gradeDetail.nextHigher.grade })}>
+          <Icon icon={faCaretUp} />{$t("grading.summary.nextHigherShort", { points: $fmt.number(gradeDetail.nextHigher.pointsNeeded), grade: gradeDetail.nextHigher.grade })}
+        </span>
+      {:else}
+        <span class="inline-flex items-center gap-0.5 whitespace-nowrap text-warning-fg" title={$t("grading.summary.maxAchievedTitle")}>
+          <Icon icon={faStar} />{$t("grading.summary.maxAchieved")}
+        </span>
+      {/if}
+      {#if gradeDetail.nextLower}
+        <span class="inline-flex items-center gap-0.5 whitespace-nowrap text-muted" title={$t("grading.summary.nextLower", { points: $fmt.number(gradeDetail.nextLower.pointsBuffer), grade: gradeDetail.nextLower.grade })}>
+          <Icon icon={faCaretDown} />{$t("grading.summary.nextLowerShort", { points: $fmt.number(gradeDetail.nextLower.pointsBuffer), grade: gradeDetail.nextLower.grade })}
+        </span>
+      {/if}
     </div>
+  {/if}
+
+  {#if !isFullyGraded}
+    <span class="text-warning-fg" title={$t("grading.summary.inProgressTitle")}>{$t("grading.summary.inProgress", { graded: gradedCount, total: exercisesLength })}</span>
   {/if}
 </div>

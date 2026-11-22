@@ -2,8 +2,9 @@
   import type { ExamRecord, SubmissionRecord } from "#lib/db/schema";
   import { examCourse } from "#lib/utils/examLabel";
   import { t } from "#lib/i18n";
-  import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button } from "#lib/components/ui";
+  import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
+  import { Badge, Button, SaveStatus } from "#lib/components/ui";
+  import type { AutosaveStatus } from "#lib/utils/autosave";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { joinKey } from "#lib/crypto/pseudonymKey";
   import { untrack } from "svelte";
@@ -15,6 +16,11 @@
     submissionsLength: number;
     currentSub: SubmissionRecord | undefined;
     calculatedGrade: { grade: string; label: string } | null;
+    /** The autosave's state, next to the student it belongs to (issue #233). */
+    saveStatus: AutosaveStatus;
+    /** Student switches; persistence and navigation stay route-owned (issue #330: the arrows sit at the student, not in the score card). */
+    onPrev: () => void;
+    onNext: () => void;
   }
 
   let {
@@ -23,7 +29,10 @@
     currentIndex,
     submissionsLength,
     currentSub,
-    calculatedGrade
+    calculatedGrade,
+    saveStatus,
+    onPrev,
+    onNext
   }: Props = $props();
 
   // A version-1 value can be the QR text including the student's name (issue #80): never render it, only the keyed pseudonym (what the server stores once re-keyed).
@@ -66,14 +75,37 @@
     </div>
   </div>
 
-  <div class="flex min-w-0 items-center justify-center">
-    <div class="flex items-center gap-2 rounded-full border border-line bg-surface-raised px-3 py-0.5 text-xs">
+  <div class="flex min-w-0 items-center justify-center gap-1">
+    <Button
+      size="sm"
+      variant="outlined"
+      severity="secondary"
+      iconOnly
+      icon={faArrowLeft}
+      disabled={currentIndex === 0}
+      onClick={onPrev}
+      title={$t("grading.actions.prev")}
+      ariaLabel={$t("grading.actions.prev")}
+    />
+    <div class="flex min-w-0 items-center gap-2 rounded-full border border-line bg-surface-raised px-3 py-0.5 text-xs">
       <span class="font-semibold text-content">{$t("grading.header.anonymousStudent", { index: currentIndex + 1, total: submissionsLength })}</span>
       <InfoTip text={$t("help.tips.blindGrading")} topic="grading" />
       <span class="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-xs text-muted" title={displayId}>
         {$t("grading.header.idPrefix")}{displayId.substring(0, 10)}...
       </span>
     </div>
+    <Button
+      size="sm"
+      variant="outlined"
+      severity="secondary"
+      iconOnly
+      icon={faArrowRight}
+      onClick={onNext}
+      title={$t("grading.actions.next")}
+      ariaLabel={$t("grading.actions.next")}
+    />
+    <!-- Icon only beside the arrows (a failure keeps its text, SaveStatus does that itself). -->
+    <SaveStatus status={saveStatus} labelClass="sr-only" />
   </div>
 
   <div class="flex flex-wrap items-center gap-2">

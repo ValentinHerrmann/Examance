@@ -1,7 +1,7 @@
 import { loadExamExercisesEncrypted, loadLocalMcGroups, openAnnotation, openScan } from '#lib/db/dbEncryption';
 import { carryAttachments } from '#lib/scan/scanPdf';
 import type { ExerciseScoreRecord, GradingReviewItem, SubmissionRecord } from '#lib/db/schema';
-import { gradingStore, type VectorStroke } from '#lib/grading/gradingStore';
+import type { VectorStroke } from '#lib/grading/gradingStore';
 import { buildSubLabelMap } from '#lib/grading/mcGroupLabels';
 import { drawOmrOverlayForPage, type McOverlayState } from '#lib/grading/omrOverlay';
 import { drawStrokes } from '#lib/grading/strokeRenderer';
@@ -16,7 +16,6 @@ import {
 import { decodePngBytes, isPdfBytes, legacyScanCrop } from '#lib/components/grading/ScanCanvasViewer';
 import { loadPdfjs } from '#lib/pdf/pdfjs';
 import { scanViewport } from '#lib/scan/scanViewport';
-import { get } from 'svelte/store';
 import type { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import { fitText, type PdfLib } from '#lib/pdf/labelKit';
 import { formatStudentName } from '#lib/utils/studentQr';
@@ -145,7 +144,7 @@ async function addPdfScan(c: RenderContext, scanBytes: Uint8Array): Promise<void
 /** Legacy PNG: crop exactly as the viewer does so strokes line up; 192 dpi source. */
 async function addPngScan(c: RenderContext, scanBytes: Uint8Array): Promise<void> {
   const img = await decodePngBytes(scanBytes);
-  const crop = legacyScanCrop(img, get(gradingStore).isAutoCropEnabled);
+  const crop = legacyScanCrop(img);
   const canvas = newCanvas(crop.w, crop.h);
   canvas.getContext('2d')!.drawImage(img, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
   await addPage(c, canvas, 1, 72 / 192);

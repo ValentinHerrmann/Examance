@@ -22,6 +22,7 @@
   import { get } from "svelte/store";
   import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
   import { isMcQuestion } from "#lib/grading/mcScore";
+  import { gradingTargets, selectTarget } from "#lib/grading/gradingTargets";
   import { saveSubmissionScores } from "#lib/grading/scoreService";
   import { buildGradingSheet } from "#lib/grading/gradingSheet";
   import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
@@ -59,14 +60,16 @@
   let sumGradedScores = $derived(
     Math.round(exercises.reduce((sum, ex) => sum + (scoreInputs[ex.id] ?? 0), 0) * 100) / 100
   );
-  let totalScore = $derived(isFullyGraded ? sumGradedScores : undefined);
 
   let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
-  let calculatedGradeDetail = $derived(
-    isFullyGraded && totalScore !== undefined
-      ? calculateGradeDetail(totalScore, totalMaxPoints, exam?.gradingKey)
-      : null
+  let gradedMaxPoints = $derived(
+    exercises.reduce((sum, ex) => sum + (scoreInputs[ex.id] == null ? 0 : ex.maxPoints || 0), 0)
   );
+  // Projected from the exercises scored so far: preliminary in the score card until every exercise is scored, then the final grade in the header too (issue #330).
+  let gradeDetailSoFar = $derived(
+    gradedCount > 0 && gradedMaxPoints > 0 ? calculateGradeDetail(sumGradedScores, gradedMaxPoints, exam?.gradingKey) : null
+  );
+  let calculatedGradeDetail = $derived(isFullyGraded ? gradeDetailSoFar : null);
   let calculatedGrade = $derived(
     calculatedGradeDetail
       ? { grade: calculatedGradeDetail.grade, label: calculatedGradeDetail.label }
@@ -83,9 +86,7 @@
     const key = get(sessionStore).sessionKey;
     exam = (await loadExamEncrypted(examId, key)) || null;
     exercises = await loadExamExercisesEncrypted(examId, key);
-    if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
-      gradingStore.setActiveExerciseId(exercises[0].id);
-    }
+    if (exercises.length > 0 && !get(gradingStore).activeExerciseId) selectTarget(gradingTargets(exercises)[0]);
     void loadScoreBoxContext(examId, key).then((ctx) => (scoreBoxes = ctx));
     reviewsReady = initReviews(examId);
     try {
@@ -190,9 +191,7 @@
     gradingStore.setPartInputs({});
     gradingStore.setMcState({});
     gradingStore.markClean();
-    if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
-      gradingStore.setActiveExerciseId(exercises[0].id);
-    }
+    if (exercises.length > 0 && !get(gradingStore).activeExerciseId) selectTarget(gradingTargets(exercises)[0]);
     const key = get(sessionStore).sessionKey;
     scoresLoadError = "";
     let existingScores: ExerciseScoreRecord[];
@@ -391,12 +390,12 @@
       {currentIndex}
       {currentSub}
       {calculatedGrade}
-      {calculatedGradeDetail}
+      gradeDetail={gradeDetailSoFar}
       {isFullyGraded}
-      {totalScore}
       {sumGradedScores}
       {gradedCount}
       {totalMaxPoints}
+      {gradedMaxPoints}
       onSubmissionHydrated={handleSubmissionHydrated}
       saveStatus={$autosave}
       onPrev={prevStudent}

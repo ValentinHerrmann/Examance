@@ -24,6 +24,8 @@ class CapabilitiesOut(BaseModel):
     review_mail: bool | None = None
     # Side of the grading view's controls (issue #328); a stored null reads as left.
     grading_controls_side: ControlsSide = "left"
+    # Scribbling over pen marks and stamps erases them (issue #330); a stored null reads as on.
+    grading_scratch_out: bool = True
 
 
 class StorageModeUpdate(BaseModel):
@@ -45,3 +47,9 @@ class GradingControlsSideUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     grading_controls_side: ControlsSide
+
+
+class GradingScratchOutUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    grading_scratch_out: bool

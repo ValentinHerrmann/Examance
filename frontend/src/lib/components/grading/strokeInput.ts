@@ -2,7 +2,7 @@
 
 import { get } from 'svelte/store';
 import { gradingStore, type VectorStroke } from '#lib/grading/gradingStore';
-import { eraseStrokesAt, newStroke } from './ScanCanvasViewer';
+import { eraseStrokesAt, isScratchOut, newStroke, scratchOutStrokes } from './ScanCanvasViewer';
 import { PointerRouter, type Point, type PointerSample } from './pointerInput';
 import { markPenSeen } from '#lib/stores/penInput';
 import { releaseTextFocus } from './palmGuard';
@@ -24,6 +24,10 @@ export interface StrokeInputView {
   scrollBy(dx: number, dy: number): void;
   /** The first pen on this device: from now on fingers only scroll and zoom. */
   onPenDetected(): void;
+  /** One gesture changed the strokes: `before` is the undo snapshot (one history entry per gesture). */
+  checkpoint(before: VectorStroke[]): void;
+  /** A scribble erased `removed` (issue #330). */
+  onScratchOut(removed: VectorStroke[], scribble: VectorStroke): void;
 }
 
 const ACCIDENTAL_MS = 300;
@@ -50,6 +54,10 @@ export class StrokeInput {
   // The stamp the first finger placed and when, so a second finger right after (pinch) can take it back.
   private stampIndex: number | null = null;
   private startedAt = 0;
+  // Strokes when the gesture started, for its single undo entry.
+  private before: VectorStroke[] | null = null;
+  // Scribbling over marks erases them (issue #330, account setting).
+  private scratchOut = true;
   /** Pen or line stroke in progress: committed to the store only when the pointer lifts, so a move never notifies every grading subscriber and autosave never sees half a stroke. */
   live: VectorStroke | null = null;
 
@@ -58,6 +66,11 @@ export class StrokeInput {
   /** Follows `penSeenStore` (a reset in Settings lets fingers draw again). */
   setPenSeen(seen: boolean) {
     this.pointers.penSeen = seen;
+  }
+
+  /** Follows the account's scratch-out switch (Settings → Pen input). */
+  setScratchOut(on: boolean) {
+    this.scratchOut = on;
   }
 
   down = (e: PointerEvent) => {
@@ -123,16 +136,44 @@ export class StrokeInput {
     this.reset();
   }
 
-  /** Commits the stroke in progress to the store (one update per stroke). */
+  /** Commits the stroke in progress to the store (one update per stroke) and ends the gesture. */
   finish() {
     this.erasing = false;
     this.eraserAt = null;
     const live = this.live;
-    if (!live) return;
     this.live = null;
-    this.view.persist([...this.view.strokes(), live]);
+    const removed = live ? this.commitLive(live) : [];
+    this.endGesture();
+    if (live && removed.length > 0) this.view.onScratchOut(removed, live);
+  }
+
+  /** Appends a finished pen or line stroke, or lets a scribble erase what it covers; answers the marks it erased. */
+  private commitLive(live: VectorStroke): VectorStroke[] {
+    const page = live.pageNumber ?? this.page;
+    const strokes = this.view.strokes();
+    // A scribble is never kept as ink, also when it covers nothing: scribbling over student work is not allowed.
+    if (live.tool === 'pen' && this.scratchOut && isScratchOut(live.points)) {
+      const remaining = scratchOutStrokes(strokes, page, live.points);
+      if (remaining) {
+        this.view.persist(remaining);
+        this.view.recalcScores();
+        gradingStore.markDirty();
+      }
+      this.view.redraw(page);
+      return remaining ? strokes.filter((st) => !remaining.includes(st)) : [];
+    }
+    this.view.persist([...strokes, live]);
     gradingStore.markDirty();
-    this.view.redraw(live.pageNumber ?? this.page);
+    this.view.redraw(page);
+    return [];
+  }
+
+  private endGesture() {
+    const before = this.before;
+    this.before = null;
+    const now = this.view.strokes();
+    // By element: a stamp a pinch took back leaves a new array with the same strokes, which is no edit.
+    if (before && (now.length !== before.length || now.some((st, i) => st !== before[i]))) this.view.checkpoint(before);
   }
 
   private startDraw(e: PointerEvent) {
@@ -148,6 +189,7 @@ export class StrokeInput {
     this.page = page;
     this.stampIndex = null;
     this.startedAt = performance.now();
+    this.before = this.view.strokes();
 
     const state = get(gradingStore);
     if (state.drawTool === 'eraser') {
@@ -209,9 +251,9 @@ export class StrokeInput {
     this.live = null;
     const accidental = performance.now() - this.startedAt < ACCIDENTAL_MS;
     const strokes = this.view.strokes();
+    let removed: VectorStroke[] = [];
     if (live && !accidental) {
-      this.view.persist([...strokes, live]);
-      gradingStore.markDirty();
+      removed = this.commitLive(live);
     } else if (!live && accidental && this.stampIndex !== null && this.stampIndex < strokes.length) {
       const index = this.stampIndex;
       this.view.persist(strokes.filter((_, i) => i !== index));
@@ -219,5 +261,7 @@ export class StrokeInput {
     }
     this.stampIndex = null;
     this.view.redraw(this.page);
+    this.endGesture();
+    if (live && removed.length > 0) this.view.onScratchOut(removed, live);
   }
 }
