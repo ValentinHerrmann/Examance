@@ -97,38 +97,28 @@ export function dimLevel(region: ExerciseRegion, exerciseId: string, partLabel: 
   return region.exerciseIds.includes(exerciseId) ? 1 : 2;
 }
 
-/** A dimmed stretch of one page in template points from the page top, with the dimming's strength (0–2) at its top and bottom edge. */
+/** A dimmed stretch of one page in template points from the page top, with its strength (1–2). */
 export interface DimBand {
   top: number;
   bottom: number;
-  from: number;
-  to: number;
+  level: DimLevel;
 }
 
-/** The dimmed stretches of one page; each starts undimmed at the edge of an area the target owns and reaches its level after the tolerance, so "undimmed" matches "never asks". */
+/** The dimmed stretches of one page, with sharp edges; an area the target owns stays clear up to the border tolerance, so "undimmed" matches "never asks". */
 export function dimBands(map: RegionMap, page: number, exerciseId: string, partLabel: string): DimBand[] {
   const pageStart = (page - 1) * PAGE_STRIDE;
   const height = map.pageHeights[page - 1] ?? 0;
   const pieces = map.regions
     .filter((r) => r.end > pageStart && r.start < pageStart + height)
-    .map((r) => ({ top: Math.max(0, r.start - pageStart), bottom: Math.min(height, r.end - pageStart), level: dimLevel(r, exerciseId, partLabel) as number }));
+    .map((r) => ({ top: Math.max(0, r.start - pageStart), bottom: Math.min(height, r.end - pageStart), level: dimLevel(r, exerciseId, partLabel) }));
   const bands: DimBand[] = [];
   pieces.forEach((p, i) => {
     if (p.level === 0) return;
-    const above = i > 0 && pieces[i - 1].bottom >= p.top ? pieces[i - 1].level : p.level;
-    const below = i + 1 < pieces.length && pieces[i + 1].top <= p.bottom ? pieces[i + 1].level : p.level;
-    const fadeTop = Math.min(REGION_TOLERANCE_PT, (p.bottom - p.top) / 2);
-    const fadeBottom = fadeTop;
-    let top = p.top;
-    let bottom = p.bottom;
-    if (above < p.level) {
-      bands.push({ top, bottom: top + fadeTop, from: above, to: p.level });
-      top += fadeTop;
-    }
-    const tail = below < p.level ? { top: bottom - fadeBottom, bottom, from: p.level, to: below } : null;
-    if (tail) bottom -= fadeBottom;
-    if (bottom > top) bands.push({ top, bottom, from: p.level, to: p.level });
-    if (tail) bands.push(tail);
+    const clearAbove = i > 0 && pieces[i - 1].level === 0 && pieces[i - 1].bottom >= p.top;
+    const clearBelow = i + 1 < pieces.length && pieces[i + 1].level === 0 && pieces[i + 1].top <= p.bottom;
+    const top = clearAbove ? p.top + REGION_TOLERANCE_PT : p.top;
+    const bottom = clearBelow ? p.bottom - REGION_TOLERANCE_PT : p.bottom;
+    if (bottom > top) bands.push({ top, bottom, level: p.level });
   });
   return bands;
 }

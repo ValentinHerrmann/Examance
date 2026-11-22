@@ -55,10 +55,12 @@ describe('acceptsNear', () => {
 });
 
 describe('dimBands', () => {
-  it('leaves the active area clear, dims sibling parts lightly and fades in at its edge', () => {
+  it('leaves the active area clear up to the tolerance and dims sibling parts lightly, with a sharp edge', () => {
     const bands = dimBands(map, 1, 'ex-1', 'a');
-    expect(bands.every((b) => Math.max(b.from, b.to) <= 1)).toBe(true);
-    expect(bands[0]).toMatchObject({ from: 0, to: 1 });
+    expect(bands).toHaveLength(1);
+    expect(bands[0].level).toBe(1);
+    const border = H - 300 - (4 / 25.4) * 72;
+    expect(bands[0].top).toBeCloseTo(border + REGION_TOLERANCE_PT);
   });
 
   it('dims nothing on a writing page', () => {

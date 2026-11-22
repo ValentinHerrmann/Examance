@@ -40,14 +40,7 @@ export function paintFocus(
     const y0 = Math.round(templateTopToCanvasY(H, band.top, pageWidthPt, pageHeightPt, h));
     const y1 = Math.round(templateTopToCanvasY(H, band.bottom, pageWidthPt, pageHeightPt, h));
     if (y1 <= y0) continue;
-    if (band.from === band.to) {
-      ctx2d.fillStyle = `rgba(${DIM_RGB}, ${DIM_ALPHA[band.from]})`;
-    } else {
-      const gradient = ctx2d.createLinearGradient(0, y0, 0, y1);
-      gradient.addColorStop(0, `rgba(${DIM_RGB}, ${DIM_ALPHA[band.from]})`);
-      gradient.addColorStop(1, `rgba(${DIM_RGB}, ${DIM_ALPHA[band.to]})`);
-      ctx2d.fillStyle = gradient;
-    }
+    ctx2d.fillStyle = `rgba(${DIM_RGB}, ${DIM_ALPHA[band.level]})`;
     ctx2d.fillRect(0, y0, w, y1 - y0);
   }
 }
