@@ -295,6 +295,10 @@
         focus.newDocument(doc.numPages);
         fitToPage();
         observePages();
+        // After the fitted zoom reaches the DOM, so the jump measures the final page sizes.
+        await tick();
+        if (seq !== loadSeq) return;
+        focus.follow();
 
         const annBytes = await decryptAnnotations(sub);
         if (seq !== loadSeq) return;
@@ -533,6 +537,7 @@
       focus.setContext(ctx);
       redrawAllOverlays();
       focus.paintAll();
+      focus.follow();
     });
   });
 

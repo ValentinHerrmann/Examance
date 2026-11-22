@@ -36,7 +36,7 @@ export class ExerciseFocus {
   private readonly guard = new ExerciseGuard();
   /** The next target change came from answering a question about a mark: the scan stays where the teacher is writing. */
   private stayPut = false;
-  /** Target `follow` last saw, so the focus switch alone never scrolls. */
+  /** Target `follow` last brought into view (or found visible), so the focus switch alone never scrolls; set only once that worked, so a target picked before the scan loaded is followed later. */
   private followed = '';
 
   constructor(private readonly view: ExerciseFocusView) {}
@@ -50,6 +50,9 @@ export class ExerciseFocus {
   /** A new student's scan: no cool-off or page choices carried over, dimming on again. */
   newDocument(scanPages: number) {
     this.scanPages = scanPages;
+    // Every new scan opens at the active target.
+    this.followed = '';
+    this.stayPut = false;
     this.endCoolOff();
     this.guard.reset();
     gradingStore.setFocusDimming(true);
@@ -128,27 +131,32 @@ export class ExerciseFocus {
     paintFocus(ctx2d, canvas.width, canvas.height, map, page, template.pageWidthPt, { exerciseId: target.exercise.id, partLabel: target.partLabel }, this.view.scoreLayer.homography(page));
   }
 
-  /** Scrolls the active target's area into view unless its start is already on screen (a target picked in the score list or the stepper). */
+  /** Scrolls the active target's area into view unless its start is already on screen (a target picked in the score list or the stepper, a new scan); retried on later calls until the scan and layout are ready. */
   follow() {
     const state = get(gradingStore);
     const key = `${state.activeExerciseId}#${state.activePartLabel}`;
     if (key === this.followed) return;
-    this.followed = key;
     if (this.stayPut) {
       this.stayPut = false;
+      this.followed = key;
       return;
     }
     const map = this.usableMap();
     const viewport = this.view.viewport();
     if (!map || !viewport) return;
     const target = activeTarget(gradingTargets(this.view.exercises()), state.activeExerciseId, state.activePartLabel);
-    const region = target ? targetRegion(map, target.exercise.id, target.partLabel) : null;
-    if (!region) return;
+    if (!target) return;
+    const region = targetRegion(map, target.exercise.id, target.partLabel);
+    if (!region) {
+      this.followed = key;
+      return;
+    }
     const { page, top } = pageAndTop(region.start);
     const canvas = this.view.focusCanvas(page);
     const template = this.ctx?.pages[page - 1];
     const pageTop = this.view.pageTop(page);
     if (!canvas || !template || pageTop === null || canvas.height === 0) return;
+    this.followed = key;
     const shown = canvas.getBoundingClientRect().height / canvas.height;
     const y = pageTop + templateTopToCanvasY(this.view.scoreLayer.homography(page), top, template.pageWidthPt, template.pageHeightPt, canvas.height) * shown;
     // Already in the upper part of the pane: no jump.
