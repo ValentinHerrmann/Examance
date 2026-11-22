@@ -17,7 +17,7 @@ export function canvasToTemplateY(H: Homography | null | undefined, x: number, y
 }
 
 /** Canvas y of a template line (points from the page top), taken in the page's middle. */
-function templateTopToCanvasY(H: Homography | null | undefined, top: number, pageWidthPt: number, pageHeightPt: number, canvasHeight: number): number {
+export function templateTopToCanvasY(H: Homography | null | undefined, top: number, pageWidthPt: number, pageHeightPt: number, canvasHeight: number): number {
   if (!H) return (top * canvasHeight) / pageHeightPt;
   return transformPoint(H, (pageWidthPt / 2) * SCORE_BOX_SCAN_SCALE, top * SCORE_BOX_SCAN_SCALE)[1];
 }

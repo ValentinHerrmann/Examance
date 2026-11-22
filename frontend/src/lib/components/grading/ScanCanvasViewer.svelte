@@ -68,6 +68,7 @@
   let pageEls: HTMLDivElement[] = $state([]);
   let scanCanvases: HTMLCanvasElement[] = $state([]);
   let overlayCanvases: HTMLCanvasElement[] = $state([]);
+  // The focus dimming (issue #235), one canvas per page between scan and annotations.
   let focusCanvases: HTMLCanvasElement[] = $state([]);
 
   // Points of the live stroke `liveDrawnFor` already on its canvas (drawn segment by segment).
@@ -104,6 +105,8 @@
     overlayCanvas: (page) => overlayCanvases[page - 1],
     pageCount: () => pageSizes.length,
     scoreLayer,
+    viewport: () => canvasViewport,
+    pageTop,
     ask: (question) => onAskTarget?.(question) ?? null,
   });
   onDestroy(() => scoreLayer.destroy());
@@ -418,7 +421,7 @@
   export const zoomIn = () => zoom.zoomIn();
   export const zoomOut = () => zoom.zoomOut();
   export const fitToPage = () => zoom.fitToPage();
-  export const resetZoom = () => zoom.fitToPage();
+  export const resetZoom = fitToPage;
 
   onMount(() => {
     const stopResize = zoom.observeResize();
@@ -533,10 +536,10 @@
     });
   });
 
-  // The dimming follows the stamp target and the toolbar's focus switch (issue #235).
+  // The dimming follows the stamp target and the toolbar's focus switch (issue #235); a new target scrolls into view.
   $effect.pre(() => {
     const key = focusKey;
-    if (key) untrack(() => focus.paintAll());
+    if (key) untrack(() => (focus.paintAll(), focus.follow()));
   });
 
   $effect.pre(() => {
@@ -585,7 +588,6 @@
             height={size.h}
             class="block h-auto w-full rounded-sm bg-surface-raised shadow-md"
           ></canvas>
-          <!-- The focus dimming (issue #235), between scan and annotations. -->
           <canvas bind:this={focusCanvases[i]} width={size.w} height={size.h} class="pointer-events-none absolute top-0 left-0 h-full w-full rounded-sm" aria-hidden="true"></canvas>
           <canvas
             bind:this={overlayCanvases[i]}

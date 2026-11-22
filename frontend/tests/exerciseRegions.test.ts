@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OmrPageTemplate, OmrScoreBoxRect } from '../src/lib/db/schema';
-import { buildExerciseRegions, dimBands, offsetOf, regionAccepts, regionAt } from '../src/lib/grading/exerciseRegions';
+import { acceptsNear, buildExerciseRegions, dimBands, offsetOf, regionAt, REGION_TOLERANCE_PT, targetRegion } from '../src/lib/grading/exerciseRegions';
 import { ExerciseGuard, GUARD_COOL_OFF_MS } from '../src/lib/grading/exerciseGuard';
 import type { GradingTarget } from '../src/lib/grading/gradingTargets';
 
@@ -40,28 +40,35 @@ describe('buildExerciseRegions', () => {
   });
 });
 
-describe('regionAccepts', () => {
-  const accepts = (p: number, y: number, id: string, part: string) => regionAccepts(regionAt(map, at(p, y))!, id, part);
-
+describe('acceptsNear', () => {
   it('accepts the intro for every part, and the MC group for each member', () => {
-    expect(accepts(1, 650, 'ex-1', 'b')).toBe(true);
-    expect(accepts(2, 300, 'mc-b', '')).toBe(true);
-    expect(accepts(1, 400, 'ex-1', 'b')).toBe(false);
+    expect(acceptsNear(map, at(1, 650), 'ex-1', 'b')).toBe(true);
+    expect(acceptsNear(map, at(2, 300), 'mc-b', '')).toBe(true);
+    expect(acceptsNear(map, at(1, 400), 'ex-1', 'b')).toBe(false);
   });
 
-  it('switches exactly at the border, with no overlap', () => {
+  it('tolerates marks up to 5 mm across the border, not further', () => {
     const border = 300 + (4 / 25.4) * 72;
-    expect(accepts(1, border + 1, 'ex-1', 'a')).toBe(true);
-    expect(accepts(1, border - 1, 'ex-1', 'a')).toBe(false);
+    expect(acceptsNear(map, at(1, border + REGION_TOLERANCE_PT - 2), 'ex-1', 'b')).toBe(true);
+    expect(acceptsNear(map, at(1, border + REGION_TOLERANCE_PT + 2), 'ex-1', 'b')).toBe(false);
+  });
+});
+
+describe('targetRegion', () => {
+  it('finds the part area for a part, the group area for an MC member', () => {
+    expect(targetRegion(map, 'ex-1', 'b')).toMatchObject({ partLabel: 'b' });
+    expect(targetRegion(map, 'mc-b', '')).toMatchObject({ exerciseIds: ['mc-a', 'mc-b'] });
   });
 });
 
 describe('dimBands', () => {
-  it('leaves the active area clear and dims sibling parts lightly, starting exactly at the border', () => {
+  it('dims the header, keeps the active area clear up to the tolerance and dims sibling parts lightly', () => {
     const bands = dimBands(map, 1, 'ex-1', 'a');
-    expect(bands).toHaveLength(1);
-    expect(bands[0].level).toBe(1);
-    expect(bands[0].top).toBeCloseTo(H - 300 - (4 / 25.4) * 72);
+    expect(bands).toHaveLength(2);
+    expect(bands[0]).toMatchObject({ top: 0, level: 2 });
+    expect(bands[0].bottom).toBeCloseTo(H - 700 - (4 / 25.4) * 72 - REGION_TOLERANCE_PT);
+    expect(bands[1].level).toBe(1);
+    expect(bands[1].top).toBeCloseTo(H - 300 - (4 / 25.4) * 72 + REGION_TOLERANCE_PT);
   });
 
   it('dims nothing on a writing page', () => {

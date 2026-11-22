@@ -3,6 +3,8 @@
 import type { OmrPageTemplate } from "#lib/db/schema";
 import type { GradingTarget } from "./gradingTargets";
 
+/** Marks may reach this far into a neighbouring area without asking (feedback written at the border); the dimming starts there. */
+export const REGION_TOLERANCE_PT = (5 / 25.4) * 72;
 /** A box sits on its heading's line: the area starts a little above the box, so the heading belongs to it. */
 const HEADING_ROOM_PT = (4 / 25.4) * 72;
 
@@ -18,6 +20,8 @@ export interface ExerciseRegion {
 export interface RegionMap {
   regions: ExerciseRegion[];
   pageHeights: number[];
+  /** The page header above the first exercise (name, date, title): owned by no exercise, always dimmed; null without areas. */
+  header: { start: number; end: number } | null;
 }
 
 /** Page stride of the reading-order offset; larger than any page height in points. */
@@ -31,7 +35,7 @@ export function offsetOf(map: RegionMap, page: number, yPt: number): number {
 
 /** The areas of every exercise and part; empty without a position mapping (then nothing is checked or dimmed). */
 export function buildExerciseRegions(pages: OmrPageTemplate[], positions: Record<number, string[]>): RegionMap {
-  const map: RegionMap = { regions: [], pageHeights: pages.map((p) => p.pageHeightPt) };
+  const map: RegionMap = { regions: [], pageHeights: pages.map((p) => p.pageHeightPt), header: null };
   if (Object.keys(positions).length === 0) return map;
   type Start = { at: number; ids: string[] | null; part: string | null };
   const starts: Start[] = [];
@@ -58,6 +62,11 @@ export function buildExerciseRegions(pages: OmrPageTemplate[], positions: Record
     // A table start before the next exercise's box closes the area; repeated starts (same box twice) collapse.
     if (s.ids && next > s.at) map.regions.push({ exerciseIds: s.ids, partLabel: s.part, start: s.at, end: next });
   });
+  const first = map.regions[0];
+  if (first) {
+    const pageStart = Math.floor(first.start / PAGE_STRIDE) * PAGE_STRIDE;
+    if (first.start > pageStart) map.header = { start: pageStart, end: first.start };
+  }
   return map;
 }
 
@@ -70,6 +79,28 @@ export function regionAt(map: RegionMap, at: number): ExerciseRegion | null {
 export function regionAccepts(region: ExerciseRegion, exerciseId: string, partLabel: string): boolean {
   if (!region.exerciseIds.includes(exerciseId)) return false;
   return region.partLabel === null || region.partLabel === partLabel;
+}
+
+/** Whether a mark at `at` needs no question: the active target owns the area there or within the border tolerance on the same page. */
+export function acceptsNear(map: RegionMap, at: number, exerciseId: string, partLabel: string): boolean {
+  const page = Math.floor(at / PAGE_STRIDE);
+  const pageStart = page * PAGE_STRIDE;
+  const pageEnd = pageStart + (map.pageHeights[page] ?? 0);
+  const from = Math.max(pageStart, at - REGION_TOLERANCE_PT);
+  const to = Math.min(pageEnd, at + REGION_TOLERANCE_PT);
+  return map.regions.some((r) => r.start < to && r.end > from && regionAccepts(r, exerciseId, partLabel));
+}
+
+/** The area a target is graded in: its part's area, else its exercise's (intro or MC group); null when the layout has none. */
+export function targetRegion(map: RegionMap, exerciseId: string, partLabel: string): ExerciseRegion | null {
+  const own = map.regions.filter((r) => r.exerciseIds.includes(exerciseId));
+  return own.find((r) => r.partLabel === partLabel && partLabel !== "") ?? own.find((r) => r.partLabel === null) ?? own[0] ?? null;
+}
+
+/** Page (1-based) and top in points of a reading-order offset. */
+export function pageAndTop(at: number): { page: number; top: number } {
+  const page = Math.floor(at / PAGE_STRIDE);
+  return { page: page + 1, top: at - page * PAGE_STRIDE };
 }
 
 /** The grading targets a mark in the area may go to (for the switch question). */
@@ -92,12 +123,22 @@ export interface DimBand {
   level: DimLevel;
 }
 
-/** The dimmed stretches of one page, with sharp edges at the area borders, so "undimmed" matches "never asks". */
+/** The dimmed stretches of one page, with sharp edges; an area the target owns stays clear up to the border tolerance, so "undimmed" matches "never asks". The header above the first exercise is always dimmed. */
 export function dimBands(map: RegionMap, page: number, exerciseId: string, partLabel: string): DimBand[] {
   const pageStart = (page - 1) * PAGE_STRIDE;
   const height = map.pageHeights[page - 1] ?? 0;
-  const pieces = map.regions
+  const areas = [...(map.header ? [{ ...map.header, level: 2 as DimLevel }] : []), ...map.regions.map((r) => ({ start: r.start, end: r.end, level: dimLevel(r, exerciseId, partLabel) }))];
+  const pieces = areas
     .filter((r) => r.end > pageStart && r.start < pageStart + height)
-    .map((r) => ({ top: Math.max(0, r.start - pageStart), bottom: Math.min(height, r.end - pageStart), level: dimLevel(r, exerciseId, partLabel) }));
-  return pieces.filter((p): p is DimBand => p.level !== 0 && p.bottom > p.top);
+    .map((r) => ({ top: Math.max(0, r.start - pageStart), bottom: Math.min(height, r.end - pageStart), level: r.level }));
+  const bands: DimBand[] = [];
+  pieces.forEach((p, i) => {
+    if (p.level === 0) return;
+    const clearAbove = i > 0 && pieces[i - 1].level === 0 && pieces[i - 1].bottom >= p.top;
+    const clearBelow = i + 1 < pieces.length && pieces[i + 1].level === 0 && pieces[i + 1].top <= p.bottom;
+    const top = clearAbove ? p.top + REGION_TOLERANCE_PT : p.top;
+    const bottom = clearBelow ? p.bottom - REGION_TOLERANCE_PT : p.bottom;
+    if (bottom > top) bands.push({ top, bottom, level: p.level });
+  });
+  return bands;
 }
