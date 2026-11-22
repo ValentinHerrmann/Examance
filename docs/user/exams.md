@@ -77,16 +77,22 @@ Groups are layout only: grading and statistics stay strictly per question.
 
 The **Layout** step (step 2, between **Exercises** and **Students**) holds every option that changes how the printed exam looks. Beside the options a preview shows a **sample exam** (not your own content) with your options applied: one page large and every page of a copy as a small numbered thumbnail, grouped by sheet. From wide screens on, the preview fills the screen beside the options and never scrolls; the page shrinks to fit. The pages are the cover, exercise pages, the last page, your extra pages and the **filler pages** that top every copy up to whole sheets (empty writing pages). Point at an option to highlight its element on the page shown; click or tab into an option and the preview moves to the page it changes; click a thumbnail to show that page large. The sample shows your own info text, a header with 30 minutes of working time plus 5 minutes of reading time and a sample student, Max Mustermann, with a 20 % time extension. Numbered badges on the page match the panel beside it, which explains each element and says **where the name is**: on the sticker (small, above the QR code), on the cut-off corner of a personalised copy, or on the handwritten name line, and whether it is still on the paper you grade. When your exam has been previewed in the **Exercises** step, a line below says how many pages and sheets your own exam has. Order of the options: preset, grading and scan aids, print form, cover, every page, writing space. Each row shows small tiles with the label on the left; the line below a row explains the chosen option, or the one you point at. Every change is saved by itself; the card header shows **Saving…** and then **Saved**. Changes only show in the PDF after you compile again.
 
-**Presets** at the top are starting points; they are not stored. Choosing one sets its options, and all of them stay editable. The page shows which preset matches your settings, or "custom settings" if none does.
+**Templates** at the top set every option on this page except the logo; all of them stay editable afterwards. The page shows which template matches your settings, or "custom settings" if none does (info text and the space for further answers never decide the match).
 
-- **Grade in Examance**: every scan aid, QR code only, the multiple choice correction hint, double-sided A4, identical copies and a sticker on every sheet.
-- **Examance, personalised booklet**: every scan aid, one folded A3 booklet per student with its printed QR code, and a name line.
-- **Anonymous on paper, personalised**: graded by hand; no corner markers or page codes, one copy per student with its printed QR code; the name is on the cut-off corner.
-- **On paper with names, booklet**: no scan aids and no QR code, a folded A3 booklet with a name line.
+- **Examance, personalised booklet**: every scan aid, one folded A3 booklet per student with its printed QR code, no name line.
+- **Examance, anonymous**: every scan aid, identical double-sided A4 copies and a QR sticker on every sheet.
+- **Anonymous on paper**: graded by hand; a QR sticker on the cover and the name on the cut-off corner, double-sided A4.
+- **Classic on paper**: graded by hand; no scan aids and no QR code, double-sided A4, students write their name.
 
-Together they show each grading way with both print forms and with personalised copies. Anonymous paper grading with stickers instead of printed codes is one click away: choose **Stickers** under **Student QR code**.
+All four start with squared writing paper, no extra pages and the multiple choice correction hint. The templates belong to your account and you can change them: the **⋮** button beside a template offers
 
-Presets never change the paper, the extra pages, the info text or the logo. Below them the options are grouped:
+- **Save current settings here**: the template takes every option of this page except the logo, including the info text and the space for further answers. Your other exams do not change.
+- **Rename…**: your own name and short description.
+- **Reset to default** (only for a changed template): name and settings of the default come back.
+
+When a template brings its own info text or space for further answers and your exam already has a different one, Examance asks whether to replace it or keep yours. The default templates never change these texts.
+
+Below them the options are grouped:
 
 - **Grading and scan aids**: corner markers, cut corner, [page codes](#multi-sheet) and the booklet's fold strip, each on or off, see [below](#digital-grading).
 - **Print form**: [stickers or personalised copies](#multi-sheet-print), double-sided A4 or booklet, and the stickers per student (stickers only, and only with a QR box on the cover).

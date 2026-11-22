@@ -28,6 +28,15 @@ const API_FIELDS = {
 
 export type ExamLayoutPatch = Partial<Pick<ExamRecord, keyof typeof API_FIELDS>>;
 
+/** Every setting of the Layout page, and so what a layout template keeps (issue #279); a new page setting joins here. Not the logo (own endpoint) nor the Print step's booklet offset. */
+export const LAYOUT_FIELDS = ['infoText', 'nameLine', 'mcCorrectionHint', 'pageCodes', 'digitalGrading', 'resultsQrBox', 'cutCorner', 'foldStrip', 'dottedFields', 'printLayout', 'printMode', 'stickerSpots', 'paperStyle', 'extraPages', 'extraNotes'] as const satisfies readonly (keyof typeof API_FIELDS)[];
+export type LayoutField = (typeof LAYOUT_FIELDS)[number];
+/** The free-text settings: a template applies them only after asking when they would replace the exam's own text. */
+export const LAYOUT_TEXT_FIELDS = ['infoText', 'extraNotes'] as const satisfies readonly LayoutField[];
+export type LayoutTextField = (typeof LAYOUT_TEXT_FIELDS)[number];
+/** The Layout page's choices besides the free text. */
+export type LayoutChoiceField = Exclude<LayoutField, LayoutTextField>;
+
 /** Returns the saved record; throws on a failed save (the caller shows it). */
 export async function saveExamLayout(exam: ExamRecord, patch: ExamLayoutPatch): Promise<ExamRecord> {
   if (get(isAuthenticated)) {

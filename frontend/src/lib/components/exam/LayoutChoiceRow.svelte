@@ -20,7 +20,7 @@
 </script>
 
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { untrack, type Snippet } from "svelte";
   import { OptionTile } from "#lib/components/ui";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
 
@@ -39,9 +39,11 @@
     onHighlight?: (part: SketchPart, on: boolean) => void;
     /** A tile was focused or clicked: the preview moves to the element's page. */
     onShow?: (part: SketchPart) => void;
+    /** Controls beside each tile, e.g. the layout templates' ⋮ menu (issue #279). */
+    menu?: Snippet<[LayoutChoice]>;
   }
 
-  let { id, label, info = undefined, type = "radio", choices, columns = 3, fallback = "", onHighlight, onShow }: Props = $props();
+  let { id, label, info = undefined, type = "radio", choices, columns = 3, fallback = "", onHighlight, onShow, menu }: Props = $props();
 
   // The last word and the ⓘ never break apart.
   let labelHead = $derived(label.slice(0, label.lastIndexOf(" ") + 1));
@@ -69,20 +71,25 @@
   <div class="flex min-w-0 flex-col gap-1">
     <div class="grid grid-cols-2 gap-1.5 {COLUMNS[columns]}" role={type === "radio" ? "radiogroup" : "group"} aria-labelledby={id}>
       {#each choices as choice (choice.value)}
-        <OptionTile
-          dense
-          {type}
-          name={type === "radio" ? id : undefined}
-          value={choice.value}
-          checked={choice.checked}
-          disabled={!!choice.disabledReason}
-          icon={choice.icon}
-          title={choice.title}
-          describedby="{id}-note"
-          onToggle={(on) => choice.onPick(on)}
-          onHighlight={(on) => hover(choice, on)}
-          onShow={choice.part ? () => onShow?.(choice.part!) : undefined}
-        />
+        <!-- With a menu each tile gets its controls beside it; without, the wrapper takes no box. -->
+        <div class={menu ? "flex min-w-0 items-stretch gap-0.5" : "contents"}>
+          <OptionTile
+            class={menu ? "flex-1" : ""}
+            dense
+            {type}
+            name={type === "radio" ? id : undefined}
+            value={choice.value}
+            checked={choice.checked}
+            disabled={!!choice.disabledReason}
+            icon={choice.icon}
+            title={choice.title}
+            describedby="{id}-note"
+            onToggle={(on) => choice.onPick(on)}
+            onHighlight={(on) => hover(choice, on)}
+            onShow={choice.part ? () => onShow?.(choice.part!) : undefined}
+          />
+          {#if menu}{@render menu(choice)}{/if}
+        </div>
       {/each}
     </div>
     <p id="{id}-note" class="m-0 min-h-4 text-xs text-muted">{note}</p>

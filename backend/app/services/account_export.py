@@ -109,6 +109,8 @@ async def build_export(teacher: Teacher, db: AsyncSession) -> dict[str, Any]:
             ),
             # Packages added to every exam document (issue #108); null means none.
             "latex_packages": teacher.latex_packages,
+            # The account's edited layout templates (issue #279); null means the built-in ones.
+            "layout_templates": teacher.layout_templates,
         },
         "exams": [
             {

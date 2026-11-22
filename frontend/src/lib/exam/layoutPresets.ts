@@ -1,31 +1,96 @@
-/** Layout presets of the Layout step (issue #272): starting points that set the fields shaping the sheet; never stored, the page shows the one the current fields match. Four presets that together show every major choice at least once in each pairing: grading × print form × QR code × name. */
+/** Layout templates of the Layout step (issues #272, #279): four slots that set every Layout-page setting but the logo; each account can overwrite, rename and reset them (`/user/layout-templates`). The page marks the slot the current choices match. Built-ins are everyday ways of working, not a tour of every option. */
 
-import type { ExamRecord } from '#lib/db/schema';
-import { printSettingsOf } from '#lib/exam/printLayout';
-import type { ExamLayoutPatch } from '#lib/exam/saveExamLayout';
+import { api } from '#lib/api/client';
+import type { ExamRecord, ExtraNotes } from '#lib/db/schema';
+import { extraNotesKey } from '#lib/db/schema';
+import { clampExtraPages, printSettingsOf } from '#lib/exam/printLayout';
+import { LAYOUT_FIELDS, LAYOUT_TEXT_FIELDS, type LayoutChoiceField, type LayoutField, type LayoutTextField } from '#lib/exam/saveExamLayout';
 
-export type LayoutPresetId = 'fullDigital' | 'digitalCopiesBooklet' | 'anonymousPaperCopies' | 'namedPaperBooklet';
+export const LAYOUT_PRESET_IDS = ['examanceBooklet', 'examanceAnonymous', 'paperAnonymous', 'paperClassic'] as const;
+export type LayoutPresetId = (typeof LAYOUT_PRESET_IDS)[number];
 
-/** The fields a preset sets; paper, extra pages, notes, logo and info text are content choices and stay as they are. */
-export type PresetFields = Required<Pick<ExamLayoutPatch, 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip' | 'nameLine' | 'pageCodes' | 'mcCorrectionHint' | 'printLayout' | 'printMode' | 'stickerSpots'>>;
+/** What a template sets: every choice, and the free text only when a teacher saved it into the template. */
+export type PresetFields = Required<Pick<ExamRecord, LayoutChoiceField>> & Partial<Pick<ExamRecord, LayoutTextField>>;
 
-const DIGITAL: PresetFields = { digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true, nameLine: false, pageCodes: true, mcCorrectionHint: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet' };
-const PAPER: PresetFields = { digitalGrading: false, resultsQrBox: false, cutCorner: false, foldStrip: false, nameLine: true, pageCodes: false, mcCorrectionHint: true, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'cover' };
+const COMMON = { mcCorrectionHint: true, paperStyle: 'squared', extraPages: 0, dottedFields: false } as const;
+const DIGITAL = { ...COMMON, digitalGrading: true, resultsQrBox: false, cutCorner: true, foldStrip: true, pageCodes: true, nameLine: false } as const;
+const PAPER = { ...COMMON, digitalGrading: false, foldStrip: false, pageCodes: false, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'cover' } as const;
 
 export const LAYOUT_PRESETS: readonly { id: LayoutPresetId; fields: PresetFields }[] = [
-  // Scans and anonymous grading in Examance: identical copies, QR stickers on every sheet.
-  { id: 'fullDigital', fields: DIGITAL },
-  // Scanned A3 booklets with the QR code printed on each copy and the name written on it too.
-  { id: 'digitalCopiesBooklet', fields: { ...DIGITAL, printLayout: 'booklet', printMode: 'copies', stickerSpots: 'cover', nameLine: true } },
-  // Graded by hand but anonymously: the code is printed, name and key sit on the corner that is cut off before grading.
-  { id: 'anonymousPaperCopies', fields: { ...PAPER, resultsQrBox: true, cutCorner: true, nameLine: false, printMode: 'copies' } },
-  // Classic paper exam as an A3 booklet: no scan aids, no QR code, the students write their names.
-  { id: 'namedPaperBooklet', fields: { ...PAPER, printLayout: 'booklet' } },
+  // Scanned A3 booklets with every scan aid; each copy carries its student's printed QR code.
+  { id: 'examanceBooklet', fields: { ...DIGITAL, printLayout: 'booklet', printMode: 'copies', stickerSpots: 'cover' } },
+  // Scanned and graded anonymously: identical double-sided copies, a QR sticker on every sheet.
+  { id: 'examanceAnonymous', fields: { ...DIGITAL, printLayout: 'duplex', printMode: 'stickers', stickerSpots: 'sheet' } },
+  // Graded by hand but anonymously: a QR sticker on the cover, the name on the corner cut off before grading.
+  { id: 'paperAnonymous', fields: { ...PAPER, resultsQrBox: true, cutCorner: true, nameLine: false } },
+  // The classic paper test: no scan aids, no QR code, the students write their names.
+  { id: 'paperClassic', fields: { ...PAPER, resultsQrBox: false, cutCorner: false, nameLine: true } },
 ];
 
-type PresetSource = Pick<ExamRecord, 'nameLine' | 'mcCorrectionHint' | 'pageCodes' | 'printLayout' | 'printMode' | 'stickerSpots' | 'paperStyle' | 'extraPages' | 'bookletOffsetMm' | 'digitalGrading' | 'resultsQrBox' | 'cutCorner' | 'foldStrip'>;
+/** A slot as the account stored it (`/user/layout-templates`); absent parts keep the built-in's. */
+export interface StoredLayoutTemplate {
+  id: LayoutPresetId;
+  title?: string | null;
+  text?: string | null;
+  fields?: Partial<Record<LayoutField, unknown>> | null;
+}
 
-/** The fields as they print: sticker spots only matter with stickers, the fold strip only in a booklet. */
+/** A slot as the page shows it: the built-in with the account's changes. */
+export interface LayoutTemplate {
+  id: LayoutPresetId;
+  fields: PresetFields;
+  /** The account's own title and line, or null for the translated built-in ones. */
+  title: string | null;
+  text: string | null;
+  /** The account changed the slot: "Reset to default" applies. */
+  edited: boolean;
+}
+
+/** The allowed values of the choice settings that are not on/off; a new one needs its list here. */
+const ENUMS: Partial<Record<LayoutChoiceField, readonly unknown[]>> = {
+  printLayout: ['duplex', 'booklet'],
+  printMode: ['stickers', 'copies'],
+  stickerSpots: ['cover', 'sheet', 'a3', 'leaf'],
+  paperStyle: ['empty', 'squared', 'dotted', 'lined'],
+};
+const isNotes = (v: unknown): v is ExtraNotes => typeof v === 'object' && v !== null && typeof (v as ExtraNotes).title === 'string';
+
+/** Whether a stored value fits *key*: the built-in's type, an allowed enum value, free text as text. */
+function fits(key: LayoutField, value: unknown, base: PresetFields): boolean {
+  if (key === 'extraNotes') return value === null || isNotes(value);
+  if (key === 'infoText') return typeof value === 'string';
+  const allowed = ENUMS[key];
+  return allowed ? allowed.includes(value) : typeof value === typeof base[key];
+}
+
+/** The stored settings over the built-in's, each only where it fits; settings saved before a newer field existed keep the built-in's value for it. */
+function mergeFields(base: PresetFields, raw: Partial<Record<LayoutField, unknown>>): PresetFields {
+  const out: Record<string, unknown> = { ...base };
+  for (const key of LAYOUT_FIELDS) {
+    const value = raw[key];
+    if (value !== undefined && fits(key, value, base)) out[key] = value;
+  }
+  const merged = out as PresetFields;
+  return { ...merged, extraPages: clampExtraPages(merged.extraPages) };
+}
+
+/** The four slots with the account's changes applied, in the built-in order. */
+export function effectiveTemplates(stored: readonly StoredLayoutTemplate[]): LayoutTemplate[] {
+  return LAYOUT_PRESETS.map((preset) => {
+    const own = stored.find((s) => s.id === preset.id);
+    return {
+      id: preset.id,
+      fields: own?.fields ? mergeFields(preset.fields, own.fields) : preset.fields,
+      title: own?.title || null,
+      text: own?.text || null,
+      edited: !!own,
+    };
+  });
+}
+
+type PresetSource = Partial<Pick<ExamRecord, LayoutChoiceField | 'bookletOffsetMm'>>;
+
+/** The choices as they print: sticker spots only matter with stickers, the fold strip only in a booklet. Free text is content and never decides the match. */
 function printedForm(fields: PresetSource) {
   const print = printSettingsOf(fields);
   return {
@@ -39,6 +104,9 @@ function printedForm(fields: PresetSource) {
     pageCodes: print.pageCodes,
     mode: print.mode,
     stickerSpots: print.mode === 'stickers' ? print.stickerSpots : 'cover',
+    paperStyle: print.paperStyle,
+    extraPages: print.extraPages,
+    dottedFields: print.dottedFields,
   };
 }
 
@@ -50,9 +118,32 @@ export function allScanAidsOn(fields: ScanAidFields): boolean {
   return fields.digitalGrading && fields.cutCorner && fields.pageCodes && (fields.printLayout !== 'booklet' || fields.foldStrip);
 }
 
-/** The preset the fields match as printed, or 'custom'. */
-export function matchPreset(fields: PresetSource): LayoutPresetId | 'custom' {
+/** The first template the choices match as printed, or 'custom'. */
+export function matchPreset(fields: PresetSource, templates: readonly { id: LayoutPresetId; fields: PresetFields }[] = LAYOUT_PRESETS): LayoutPresetId | 'custom' {
   const current = JSON.stringify(printedForm(fields));
-  const hit = LAYOUT_PRESETS.find((p) => JSON.stringify(printedForm({ ...fields, ...p.fields })) === current);
+  const hit = templates.find((p) => JSON.stringify(printedForm({ ...fields, ...p.fields })) === current);
   return hit?.id ?? 'custom';
+}
+
+/** The free text a template would replace although the exam already has its own (the page asks first, issue #279). */
+export function replacedTexts(template: PresetFields, exam: Partial<Pick<ExamRecord, LayoutTextField>>): LayoutTextField[] {
+  return LAYOUT_TEXT_FIELDS.filter((key) => {
+    if (!(key in template)) return false;
+    if (key === 'infoText') return !!exam.infoText?.trim() && (template.infoText ?? '') !== exam.infoText;
+    return !!exam.extraNotes && extraNotesKey(template.extraNotes) !== extraNotesKey(exam.extraNotes);
+  });
+}
+
+const QUIET = { silentError: true } as const;
+
+/** The account's edited slots; throws, so the page never mistakes a failed load for the defaults being saved. */
+export async function fetchLayoutTemplates(): Promise<StoredLayoutTemplate[]> {
+  const body = await api.get<{ templates: StoredLayoutTemplate[] }>('/user/layout-templates', QUIET);
+  return body.templates;
+}
+
+/** Stores the account's edited slots (all of them; an empty list resets every slot). */
+export async function saveLayoutTemplates(templates: readonly StoredLayoutTemplate[]): Promise<StoredLayoutTemplate[]> {
+  const body = await api.put<{ templates: StoredLayoutTemplate[] }>('/user/layout-templates', { templates }, QUIET);
+  return body.templates;
 }

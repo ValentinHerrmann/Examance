@@ -34,6 +34,7 @@ from app.routers import (
     latex_assets,
     latex_packages,
     layout_reports,
+    layout_templates,
     logos,
     maintenance,
     mfa,
@@ -265,6 +266,7 @@ def create_app() -> FastAPI:
     app.include_router(exams.router, prefix=API_PREFIX)
     app.include_router(latex_assets.router, prefix=API_PREFIX)
     app.include_router(latex_packages.router, prefix=API_PREFIX)
+    app.include_router(layout_templates.router, prefix=API_PREFIX)
     app.include_router(logos.router, prefix=API_PREFIX)
     # Before exercises: its /{exercise_id} would capture /exercises/contributions.
     app.include_router(exercise_contributions.router, prefix=API_PREFIX)
