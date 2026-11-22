@@ -105,6 +105,18 @@ export function transformPoint(H: Homography, x: number, y: number): [number, nu
   return [(h11 * x + h12 * y + h13) / w, (h21 * x + h22 * y + h23) / w];
 }
 
+/** The inverse mapping (scan pixel -> expected template pixel); null for a singular matrix. */
+export function invertHomography(H: Homography): Homography | null {
+  const [a, b, c, d, e, f, g, h, i] = H;
+  const A = e * i - f * h;
+  const B = -(d * i - f * g);
+  const C = d * h - e * g;
+  const det = a * A + b * B + c * C;
+  if (Math.abs(det) < 1e-12) return null;
+  const inv: Homography = [A, -(b * i - c * h), b * f - c * e, B, a * i - c * g, -(a * f - c * d), C, -(a * h - b * g), a * e - b * d];
+  return inv.map((v) => v / det) as Homography;
+}
+
 /** Template point (PDF points, origin bottom-left) -> expected pixel at the scan's raster scale. */
 export function pdfPointToExpectedPixel(
   px: number,

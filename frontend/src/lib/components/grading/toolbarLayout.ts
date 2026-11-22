@@ -36,7 +36,7 @@ const BUTTON = 48; // h-12 / w-12
 const GAP = 4; // gap-1
 const SEPARATOR = 1;
 const FRAME = 10; // p-1 on both ends plus the border
-const FIXED_BUTTONS = 4; // pen, line, eraser, clear
+const FIXED_BUTTONS = 5; // pen, line, eraser, focus, clear
 
 const of = (...groups: StampGroup[]) => STAMPS.filter((s) => groups.includes(s.group));
 

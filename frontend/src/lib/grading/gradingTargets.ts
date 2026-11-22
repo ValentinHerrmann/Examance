@@ -3,6 +3,8 @@
 import type { ExerciseRecord } from "#lib/db/schema";
 import { gradingStore } from "./gradingStore";
 import { exerciseParts, REST_KEY, restMax } from "./partScores";
+import { exerciseTag } from "./scoreEdits";
+import { translate } from "#lib/i18n";
 
 export interface GradingTarget {
   exercise: ExerciseRecord;
@@ -50,4 +52,16 @@ export function targetInputId(target: GradingTarget): string {
 /** Makes the target the stamp target; nothing when there is none (an exam without exercises). */
 export function selectTarget(target: GradingTarget | undefined): void {
   if (target) gradingStore.setActivePart(target.exercise.id, target.partLabel);
+}
+
+/** The target's short name: "2", "2\u00a0b)" or "2 Rest". */
+export function targetTag(target: GradingTarget): string {
+  const base = exerciseTag(target.exercise);
+  if (target.partKey === null) return base;
+  return target.partKey === REST_KEY ? `${base} ${translate("grading.stepper.rest")}` : `${base}\u00a0${target.partKey})`;
+}
+
+/** The active target, matched like `targetIndex`. */
+export function activeTarget(targets: GradingTarget[], exerciseId: string, partLabel: string): GradingTarget | undefined {
+  return targets[targetIndex(targets, exerciseId, partLabel)];
 }

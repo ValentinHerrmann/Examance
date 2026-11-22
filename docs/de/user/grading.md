@@ -32,6 +32,7 @@ Die Werkzeugleiste scrollt nie: Ist der Bildschirm für alle Schaltflächen zu n
 | Werkzeug | Funktion |
 |---|---|
 | **Stift**, **Linie**, **Radierer** | Freihandmarkierungen in Rot, gerade Linien, Radieren |
+| **Fokus** | Dunkelt den Scan außerhalb der gewählten Aufgabe ab, siehe [die richtige Aufgabe für jede Markierung](#exercise-check) |
 | **+1.0**, **+0.5**, **+0.25** | Richtig, halb oder viertel richtig: addiert die Punkte zum Stempelziel |
 | **-1.0**, **-0.5**, **-0.25** | Abzüge |
 | **Falsch**, **Fehlt** | Markierungen ohne Punkte |
@@ -57,6 +58,17 @@ Bei einer Aufgabe mit [Teilaufgaben](./exercises#parts) zeigt die Punkteliste un
 
 - Das Feld der Aufgabe selbst lässt sich nicht eintippen, es zeigt **Ergibt sich aus den Teilaufgaben, sobald alle bewertet sind**: Die Aufgabe gilt erst als bewertet, wenn jede Teilaufgabe Punkte hat.
 - Punkte außerhalb der Teilaufgaben (etwa eine Bewertungseinheit in der Einleitung) sammelt die Zeile **Ohne Teilaufgabe**, im Schrittwechsel „Rest“. Erhält sie mehr Punkte, als die Aufgabe außerhalb ihrer Teilaufgaben hat, warnt die Zeile: Vermutlich ist ein Stempel ohne Teilaufgabe gesetzt worden.
+
+## Die richtige Aufgabe für jede Markierung {#exercise-check}
+
+Examance weiß aus den gedruckten Punktekästchen, wo auf der Seite jede Aufgabe und jede Teilaufgabe beginnt, und erkennt so, zu welcher Aufgabe eine Markierung gehört:
+
+- **Fokus:** Außerhalb der gewählten Aufgabe ist der Scan abgedunkelt: andere Aufgaben deutlich, die übrigen Teilaufgaben derselben Aufgabe leicht. Schreibseiten, Zusatzpapier und Bereiche ohne Aufgabe werden nie abgedunkelt. Die Schaltfläche **Fokus** im Werkzeugkasten schaltet das Abdunkeln für die aktuelle Arbeit aus; mit der nächsten ist es wieder an.
+- **Nachfrage vor der falschen Aufgabe:** Beginnen Sie einen Stempel oder einen Stiftstrich im Bereich einer anderen Aufgabe oder Teilaufgabe, fragt Examance, ob Sie mit dieser weitermachen (**Zu … wechseln**) oder bei der gewählten bleiben (**Bei … bleiben**). Nach **Bei … bleiben** fragt es eine Minute lang nicht erneut. Markierungen knapp über einer Grenze (bis 1 cm, dort wo die Abdunklung einsetzt) lösen nie eine Frage aus, sodass Anmerkungen zwischen zwei Aufgaben nicht stören. Ein Stempel wird nach Ihrer Antwort auf die gewählte Aufgabe gesetzt, einen Stiftstrich ziehen Sie einfach noch einmal. **Esc** verwirft die Markierung.
+- **Bereiche ohne Aufgabe** (Zusatzpapier, Schreibseiten, das Deckblatt über der ersten Aufgabe): Examance fragt, zu welcher Aufgabe die Punkte gehören, mit der gewählten vorausgewählt, und merkt sich die Wahl für diese Seite der Arbeit.
+- Eine Aufgabe mit Teilaufgaben und ohne eigene Punkte lässt sich nie selbst auswählen: Ihre Zeile wählt ihre erste Teilaufgabe.
+
+Ohne aktuelle Antwortbogen-Vorlage (dieselbe, die die [Punktekästchen](#score-boxes) brauchen) kennt Examance die Bereiche nicht: Dann wird nichts abgedunkelt und nichts gefragt.
 
 ## Punktekästchen füllen sich selbst {#score-boxes}
 

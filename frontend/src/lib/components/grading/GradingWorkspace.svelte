@@ -7,6 +7,7 @@
   import AnnotationToolbar from "./AnnotationToolbar.svelte";
   import ScoreCard from "./ScoreCard.svelte";
   import ScanCanvasViewer from "./ScanCanvasViewer.svelte";
+  import ExerciseSwitchDialog from "./ExerciseSwitchDialog.svelte";
   import { t } from "#lib/i18n";
   import { faFlagCheckered } from "@fortawesome/free-solid-svg-icons";
   import { ConfirmDialog, HeroDialog } from "#lib/components/ui";
@@ -72,6 +73,7 @@
   let side = $derived($capabilitiesStore?.gradingControlsSide ?? "left");
 
   let viewerRef: ReturnType<typeof ScanCanvasViewer> | undefined = $state();
+  let switchDialog: ReturnType<typeof ExerciseSwitchDialog> | undefined = $state();
 
   // The scan keeps clear of the rail: Fit places the page beside the toolbox and the open score card (both 0 on phones, where the rail dissolves).
   let toolboxWidth = $state(0);
@@ -187,6 +189,7 @@
       {scoreBoxes}
       {side}
       inset={railInset}
+      onAskTarget={(question) => switchDialog?.ask(question) ?? Promise.resolve(question.current ?? null)}
     />
 
     <ZoomPageControls
@@ -210,6 +213,8 @@
   onConfirm={confirmWrap}
   onCancel={() => (wrap = null)}
 />
+
+<ExerciseSwitchDialog bind:this={switchDialog} />
 
 <HeroDialog
   open={$gradingStore.showLastSubModal}

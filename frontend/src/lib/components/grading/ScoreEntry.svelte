@@ -19,7 +19,7 @@
     return $gradingStore.activeExerciseId === ex.id && $gradingStore.activePartLabel === label;
   }
 
-  /** The points-outside-the-parts row: shown when the exercise has such points or stamps landed there. */
+  /** The points-outside-the-parts row: shown when the exercise has such points or stamps landed there (then only to correct them, never as the target, issue #234). */
   function showRest(ex: ExerciseRecord): boolean {
     return exerciseParts(ex).length > 0 && (restMax(ex) > 0 || $gradingStore.partInputs[ex.id]?.[REST_KEY] != null);
   }
@@ -79,13 +79,13 @@
         value={rest}
         max={ex.maxPoints}
         maxLabel={restMax(ex)}
-        active={isTarget(ex, "")}
+        active={restMax(ex) > 0 && isTarget(ex, "")}
         manual={!!$gradingStore.manualOverride[partOverrideKey(ex.id, REST_KEY)]}
         warning={rest != null && rest > restMax(ex) ? $t("grading.scoreEntry.restOverMax", { max: restMax(ex) }) : undefined}
         ariaLabel={$t("grading.scoreEntry.restRowLabel")}
         inputId={`score-${ex.id}-${REST_KEY}`}
         {onEnter}
-        onSelect={() => gradingStore.setActivePart(ex.id, "")}
+        onSelect={() => (restMax(ex) > 0 ? gradingStore.setActivePart(ex.id, "") : selectExercise(ex))}
         onValue={(v) => setPart(ex, REST_KEY, v)}
         onReset={() => resetPart(ex, REST_KEY)}
       >

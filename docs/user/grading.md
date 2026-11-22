@@ -32,6 +32,7 @@ The toolbox never scrolls: when the screen is too short for every button, the st
 | Tool | Does |
 |---|---|
 | **Pen**, **Line**, **Eraser** | Freehand marks in red, straight lines, erase |
+| **Focus** | Dims the scan outside the selected exercise, see [the right exercise for every mark](#exercise-check) |
 | **+1.0**, **+0.5**, **+0.25** | Correct, half or quarter correct: adds the points to the stamp target |
 | **−1.0**, **−0.5**, **−0.25** | Deductions |
 | **Wrong**, **Missing** | Marks without points |
@@ -57,6 +58,17 @@ For an exercise with [parts](./exercises#parts), the scoring panel shows one row
 
 - The exercise's own field cannot be typed into; it reads **Follows from the parts once all of them are graded**: the exercise counts as graded only when every part has points.
 - Points outside the parts (for example a scoring unit in the introduction) are collected in the row **Outside the parts**, "Rest" in the stepper. If it gets more points than the exercise has outside its parts, the row warns you: probably a stamp landed without a part.
+
+## The right exercise for every mark {#exercise-check}
+
+Examance knows from the printed score boxes where each exercise and each part begins on the page, so it can tell which exercise a mark belongs to:
+
+- **Focus:** the scan is dimmed outside the selected exercise: other exercises clearly, the other parts of the same exercise lightly. Writing pages, extra paper and areas without an exercise are never dimmed. The **Focus** button in the toolbox switches the dimming off for the current submission; it is on again with the next one.
+- **Question before the wrong exercise:** if you start a stamp or a pen stroke in the area of another exercise or part, Examance asks whether to continue with that one (**Switch to …**) or to stay with the selected one (**Stay on …**). After **Stay on …** it does not ask again for a minute. Marks just across a border (up to 1 cm, where the dimming fades in) never ask, so feedback written between two exercises is no trouble. A stamp is placed once you have answered, on the exercise you chose; a pen stroke you simply draw again. **Esc** drops the mark.
+- **Areas without an exercise** (extra paper, writing pages, the cover above the first exercise): Examance asks which exercise the points belong to, with the selected one preselected, and remembers the choice for that page of this submission.
+- An exercise with parts and no points of its own can never be selected itself: its row selects its first part.
+
+Without an up-to-date answer-sheet template (the same one the [score boxes](#score-boxes) need) Examance does not know the areas: then nothing is dimmed and nothing is asked.
 
 ## Score boxes fill in by themselves {#score-boxes}
 
