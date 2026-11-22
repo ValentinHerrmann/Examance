@@ -24,6 +24,7 @@
     sumGradedScores: number;
     gradedCount: number;
     totalMaxPoints: number;
+    gradedMaxPoints: number;
     gradeDetail: GradeDetail | null;
     /** Steps to the previous or next stamp target (issue #330). */
     onStep: (dir: 1 | -1) => void;
@@ -34,7 +35,7 @@
     class?: string;
   }
 
-  let { examId, exercises, currentSub, isFullyGraded, sumGradedScores, gradedCount, totalMaxPoints, gradeDetail, onStep, atFirstStudent, onFlush, collapsed = $bindable(false), class: className = "" }: Props = $props();
+  let { examId, exercises, currentSub, isFullyGraded, sumGradedScores, gradedCount, totalMaxPoints, gradedMaxPoints, gradeDetail, onStep, atFirstStudent, onFlush, collapsed = $bindable(false), class: className = "" }: Props = $props();
 
   const KEY = "grading_score_card_collapsed";
   const wide = minWidth("md");
@@ -59,21 +60,23 @@
     md:w-52 md:self-start md:shadow-md {collapsed ? '' : 'h-[70dvh] md:h-auto md:max-h-full'} {className}"
   aria-label={$t("grading.workspace.scorePanel")}
 >
-  <div class="flex shrink-0 items-start gap-1 border-b border-line px-2 py-1.5">
-    <div class="min-w-0 flex-1">
-      <GradeSummaryCard {isFullyGraded} {sumGradedScores} {gradedCount} exercisesLength={exercises.length} {totalMaxPoints} {gradeDetail} />
-    </div>
-    <Button
-      size="sm"
-      variant="text"
-      severity="secondary"
-      iconOnly
-      icon={collapsed ? faChevronUp : faChevronDown}
-      aria-expanded={!collapsed}
-      onClick={toggle}
-      title={collapsed ? $t("grading.workspace.expandScores") : $t("grading.workspace.collapseScores")}
-      ariaLabel={$t("grading.workspace.scorePanel")}
-    />
+  <div class="shrink-0 border-b border-line py-1.5 pr-1 pl-2">
+    <GradeSummaryCard {isFullyGraded} {sumGradedScores} {gradedCount} exercisesLength={exercises.length} {totalMaxPoints} {gradedMaxPoints} {gradeDetail}>
+      {#snippet end()}
+        <!-- Points down while folded ("open"), up while open ("fold"). -->
+        <Button
+          size="sm"
+          variant="text"
+          severity="secondary"
+          iconOnly
+          icon={collapsed ? faChevronDown : faChevronUp}
+          aria-expanded={!collapsed}
+          onClick={toggle}
+          title={collapsed ? $t("grading.workspace.expandScores") : $t("grading.workspace.collapseScores")}
+          ariaLabel={$t("grading.workspace.scorePanel")}
+        />
+      {/snippet}
+    </GradeSummaryCard>
   </div>
 
   {#if !collapsed}
@@ -81,14 +84,9 @@
     {#if activeExercise && isMcQuestion(activeExercise)}
       <McAnswerReview exercise={activeExercise} />
     {/if}
-    {#if gradeDetail}
-      <div class="shrink-0 border-t border-line px-2 py-1">
-        <GradeSummaryCard {isFullyGraded} {sumGradedScores} {gradedCount} exercisesLength={exercises.length} {totalMaxPoints} {gradeDetail} hints summary={false} />
-      </div>
-    {/if}
   {/if}
 
-  <div class="flex shrink-0 flex-col gap-1.5 border-t border-line px-1 py-1">
+  <div class="flex shrink-0 flex-col gap-1.5 px-1 py-1 {collapsed ? '' : 'border-t border-line'}">
     <ExerciseStepper {exercises} {onStep} {atFirstStudent} withInput={collapsed} />
     <ReviewReplyBar {examId} sub={currentSub} {exercises} {onFlush} />
   </div>

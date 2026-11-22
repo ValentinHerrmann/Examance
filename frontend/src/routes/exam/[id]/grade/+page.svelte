@@ -62,9 +62,12 @@
   );
 
   let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
-  // The grade of the points so far: preliminary in the score card until every exercise is scored, final in the header (issue #330).
+  let gradedMaxPoints = $derived(
+    exercises.reduce((sum, ex) => sum + (scoreInputs[ex.id] == null ? 0 : ex.maxPoints || 0), 0)
+  );
+  // Projected from the exercises scored so far: preliminary in the score card until every exercise is scored, then the final grade in the header too (issue #330).
   let gradeDetailSoFar = $derived(
-    gradedCount > 0 && totalMaxPoints > 0 ? calculateGradeDetail(sumGradedScores, totalMaxPoints, exam?.gradingKey) : null
+    gradedCount > 0 && gradedMaxPoints > 0 ? calculateGradeDetail(sumGradedScores, gradedMaxPoints, exam?.gradingKey) : null
   );
   let calculatedGradeDetail = $derived(isFullyGraded ? gradeDetailSoFar : null);
   let calculatedGrade = $derived(
@@ -392,6 +395,7 @@
       {sumGradedScores}
       {gradedCount}
       {totalMaxPoints}
+      {gradedMaxPoints}
       onSubmissionHydrated={handleSubmissionHydrated}
       saveStatus={$autosave}
       onPrev={prevStudent}

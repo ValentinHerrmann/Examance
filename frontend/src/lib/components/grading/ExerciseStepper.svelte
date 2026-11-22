@@ -5,11 +5,11 @@
   import { exerciseTag, resetExercise, resetPart, setPart, setTotal } from "#lib/grading/scoreEdits";
   import { partOverrideKey, REST_KEY } from "#lib/grading/partScores";
   import { t } from "#lib/i18n";
-  import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
+  import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "#lib/components/ui";
   import ScoreRow from "./ScoreRow.svelte";
 
-  /** Previous/next stamp target of the score card (issue #330): up/down, so it never reads as the student arrows (left/right in the header). */
+  /** Previous/next stamp target of the score card (issue #330): chevrons, unlike the header's outlined student arrows and the card's fold chevron at the top. */
   interface Props {
     exercises: ExerciseRecord[];
     onStep: (dir: 1 | -1) => void;
@@ -56,7 +56,7 @@
     variant="text"
     severity="secondary"
     iconOnly
-    icon={faChevronUp}
+    icon={faChevronLeft}
     disabled={atFirstStudent && index <= 0}
     onClick={() => onStep(-1)}
     title={$t("grading.stepper.prev")}
@@ -70,6 +70,7 @@
         active={false}
         manual={manual(target)}
         inputId="score-stepper"
+        compact
         ariaLabel={tag(target)}
         onEnter={() => onStep(1)}
         onSelect={() => {}}
@@ -87,7 +88,7 @@
     variant="text"
     severity="secondary"
     iconOnly
-    icon={faChevronDown}
+    icon={faChevronRight}
     onClick={() => onStep(1)}
     title={$t("grading.stepper.next")}
     ariaLabel={$t("grading.stepper.next")}

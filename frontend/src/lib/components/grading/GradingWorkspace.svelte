@@ -31,6 +31,8 @@
     sumGradedScores: number;
     gradedCount: number;
     totalMaxPoints: number;
+    /** Maximum of the exercises scored so far (the preliminary grade's base). */
+    gradedMaxPoints: number;
     onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
     /** The autosave's "Saving… / Saved" state (issue #233). */
     saveStatus: AutosaveStatus;
@@ -56,6 +58,7 @@
     sumGradedScores,
     gradedCount,
     totalMaxPoints,
+    gradedMaxPoints,
     onSubmissionHydrated,
     saveStatus,
     onPrev,
@@ -117,13 +120,8 @@
     if (currentIndex !== before) selectTarget(gradingTargets(exercises)[0]);
   }
 
-  /** Alt+↑/↓ step exercises (also from a score field); Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo, a focused field keeps its own text undo. */
+  /** Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo; a focused field keeps its own text undo. */
   function onKeydown(e: KeyboardEvent) {
-    if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-      e.preventDefault();
-      void step(e.key === "ArrowUp" ? -1 : 1);
-      return;
-    }
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     const target = e.target as HTMLElement | null;
     if (target?.closest("input, textarea, select, [contenteditable]")) return;
@@ -169,6 +167,7 @@
           {sumGradedScores}
           {gradedCount}
           {totalMaxPoints}
+          {gradedMaxPoints}
           {gradeDetail}
           onStep={step}
           atFirstStudent={currentIndex === 0}
