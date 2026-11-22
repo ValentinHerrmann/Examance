@@ -1,10 +1,10 @@
 /** Asks before a mark lands outside the active exercise (issue #234): decides, per new mark, whether to ask and what to offer. State lives per student; the viewer resets it on every submission load. */
 
-import { acceptsNear, regionAt, regionTargets, type RegionMap } from "./exerciseRegions";
+import { regionAccepts, regionAt, regionTargets, type RegionMap } from "./exerciseRegions";
 import type { GradingTarget } from "./gradingTargets";
 
 /** After "stay on the current exercise", no question for this long. */
-export const GUARD_COOL_OFF_MS = 60_000;
+export const GUARD_COOL_OFF_MS = 10_000;
 
 /** What to ask: `switch` = the mark is in another exercise's area (`candidates` are its targets); `pick` = no exercise owns the area. */
 export type GuardQuestion =
@@ -41,8 +41,8 @@ export class ExerciseGuard {
   question(page: number, at: number, active: GradingTarget | undefined, targets: GradingTarget[], now: number): GuardQuestion | null {
     const map = this.map;
     if (!map || !active) return null;
-    if (acceptsNear(map, at, active.exercise.id, active.partLabel)) return null;
     const region = regionAt(map, at);
+    if (region && regionAccepts(region, active.exercise.id, active.partLabel)) return null;
     if (!region) return this.pageChoice.get(page) === keyOf(active) ? null : { kind: "pick", candidates: targets, current: active, page };
     if (now < this.quietUntil) return null;
     const candidates = regionTargets(region, targets);

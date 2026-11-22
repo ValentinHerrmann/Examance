@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OmrPageTemplate, OmrScoreBoxRect } from '../src/lib/db/schema';
-import { acceptsNear, buildExerciseRegions, dimBands, offsetOf, regionAt, REGION_TOLERANCE_PT } from '../src/lib/grading/exerciseRegions';
+import { buildExerciseRegions, dimBands, offsetOf, regionAccepts, regionAt } from '../src/lib/grading/exerciseRegions';
 import { ExerciseGuard, GUARD_COOL_OFF_MS } from '../src/lib/grading/exerciseGuard';
 import type { GradingTarget } from '../src/lib/grading/gradingTargets';
 
@@ -40,27 +40,28 @@ describe('buildExerciseRegions', () => {
   });
 });
 
-describe('acceptsNear', () => {
+describe('regionAccepts', () => {
+  const accepts = (p: number, y: number, id: string, part: string) => regionAccepts(regionAt(map, at(p, y))!, id, part);
+
   it('accepts the intro for every part, and the MC group for each member', () => {
-    expect(acceptsNear(map, at(1, 650), 'ex-1', 'b')).toBe(true);
-    expect(acceptsNear(map, at(2, 300), 'mc-b', '')).toBe(true);
-    expect(acceptsNear(map, at(1, 400), 'ex-1', 'b')).toBe(false);
+    expect(accepts(1, 650, 'ex-1', 'b')).toBe(true);
+    expect(accepts(2, 300, 'mc-b', '')).toBe(true);
+    expect(accepts(1, 400, 'ex-1', 'b')).toBe(false);
   });
 
-  it('tolerates marks just across the border, not further', () => {
+  it('switches exactly at the border, with no overlap', () => {
     const border = 300 + (4 / 25.4) * 72;
-    expect(acceptsNear(map, at(1, border + REGION_TOLERANCE_PT - 2), 'ex-1', 'b')).toBe(true);
-    expect(acceptsNear(map, at(1, border + REGION_TOLERANCE_PT + 2), 'ex-1', 'b')).toBe(false);
+    expect(accepts(1, border + 1, 'ex-1', 'a')).toBe(true);
+    expect(accepts(1, border - 1, 'ex-1', 'a')).toBe(false);
   });
 });
 
 describe('dimBands', () => {
-  it('leaves the active area clear up to the tolerance and dims sibling parts lightly, with a sharp edge', () => {
+  it('leaves the active area clear and dims sibling parts lightly, starting exactly at the border', () => {
     const bands = dimBands(map, 1, 'ex-1', 'a');
     expect(bands).toHaveLength(1);
     expect(bands[0].level).toBe(1);
-    const border = H - 300 - (4 / 25.4) * 72;
-    expect(bands[0].top).toBeCloseTo(border + REGION_TOLERANCE_PT);
+    expect(bands[0].top).toBeCloseTo(H - 300 - (4 / 25.4) * 72);
   });
 
   it('dims nothing on a writing page', () => {

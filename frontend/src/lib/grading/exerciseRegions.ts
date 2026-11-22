@@ -3,8 +3,6 @@
 import type { OmrPageTemplate } from "#lib/db/schema";
 import type { GradingTarget } from "./gradingTargets";
 
-/** Marks may reach this far into a neighbouring area without asking (feedback written at the border). */
-export const REGION_TOLERANCE_PT = (10 / 25.4) * 72;
 /** A box sits on its heading's line: the area starts a little above the box, so the heading belongs to it. */
 const HEADING_ROOM_PT = (4 / 25.4) * 72;
 
@@ -74,16 +72,6 @@ export function regionAccepts(region: ExerciseRegion, exerciseId: string, partLa
   return region.partLabel === null || region.partLabel === partLabel;
 }
 
-/** Whether a mark at `at` needs no question: the active target owns the area there or within the border tolerance; null areas never accept. */
-export function acceptsNear(map: RegionMap, at: number, exerciseId: string, partLabel: string): boolean {
-  const page = Math.floor(at / PAGE_STRIDE);
-  const pageStart = page * PAGE_STRIDE;
-  const pageEnd = pageStart + (map.pageHeights[page] ?? 0);
-  const from = Math.max(pageStart, at - REGION_TOLERANCE_PT);
-  const to = Math.min(pageEnd, at + REGION_TOLERANCE_PT);
-  return map.regions.some((r) => r.start < to && r.end > from && regionAccepts(r, exerciseId, partLabel));
-}
-
 /** The grading targets a mark in the area may go to (for the switch question). */
 export function regionTargets(region: ExerciseRegion, targets: GradingTarget[]): GradingTarget[] {
   return targets.filter((t) => region.exerciseIds.includes(t.exercise.id) && (region.partLabel === null || t.partLabel === region.partLabel));
@@ -104,21 +92,12 @@ export interface DimBand {
   level: DimLevel;
 }
 
-/** The dimmed stretches of one page, with sharp edges; an area the target owns stays clear up to the border tolerance, so "undimmed" matches "never asks". */
+/** The dimmed stretches of one page, with sharp edges at the area borders, so "undimmed" matches "never asks". */
 export function dimBands(map: RegionMap, page: number, exerciseId: string, partLabel: string): DimBand[] {
   const pageStart = (page - 1) * PAGE_STRIDE;
   const height = map.pageHeights[page - 1] ?? 0;
   const pieces = map.regions
     .filter((r) => r.end > pageStart && r.start < pageStart + height)
     .map((r) => ({ top: Math.max(0, r.start - pageStart), bottom: Math.min(height, r.end - pageStart), level: dimLevel(r, exerciseId, partLabel) }));
-  const bands: DimBand[] = [];
-  pieces.forEach((p, i) => {
-    if (p.level === 0) return;
-    const clearAbove = i > 0 && pieces[i - 1].level === 0 && pieces[i - 1].bottom >= p.top;
-    const clearBelow = i + 1 < pieces.length && pieces[i + 1].level === 0 && pieces[i + 1].top <= p.bottom;
-    const top = clearAbove ? p.top + REGION_TOLERANCE_PT : p.top;
-    const bottom = clearBelow ? p.bottom - REGION_TOLERANCE_PT : p.bottom;
-    if (bottom > top) bands.push({ top, bottom, level: p.level });
-  });
-  return bands;
+  return pieces.filter((p): p is DimBand => p.level !== 0 && p.bottom > p.top);
 }
