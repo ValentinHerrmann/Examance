@@ -28,6 +28,8 @@ export interface StrokeInputView {
   checkpoint(before: VectorStroke[]): void;
   /** A scribble erased `removed` (issue #330). */
   onScratchOut(removed: VectorStroke[], scribble: VectorStroke): void;
+  /** Asks whether a new mark at `point` goes to the active exercise (issue #234): null = no question; else resolves true once the store holds the chosen target, false to drop the mark. */
+  askTarget(page: number, point: Point): Promise<boolean> | null;
 }
 
 const ACCIDENTAL_MS = 300;
@@ -185,13 +187,25 @@ export class StrokeInput {
       this.pointers.up(e.pointerId);
       return;
     }
+    const state = get(gradingStore);
+    if (state.drawTool !== 'eraser') {
+      const asking = this.view.askTarget(page, point);
+      if (asking) {
+        // The question takes the gesture: a pen stroke is drawn again afterwards, a stamp lands on the chosen target.
+        this.pointers.up(e.pointerId);
+        const stamp = state.drawTool !== 'pen' && state.drawTool !== 'line';
+        void asking.then((go) => {
+          if (go && stamp) this.placeAnsweredStamp(point, page);
+        });
+        return;
+      }
+    }
     capture(e);
     this.page = page;
     this.stampIndex = null;
     this.startedAt = performance.now();
     this.before = this.view.strokes();
 
-    const state = get(gradingStore);
     if (state.drawTool === 'eraser') {
       this.erasing = true;
       this.eraseAt(point);
@@ -203,7 +217,19 @@ export class StrokeInput {
       this.view.redraw(null);
       return;
     }
-    // A stamp is complete on touch.
+    this.placeStamp(stroke, page);
+  }
+
+  /** A stamp held while the question was open, placed on the target now active; one undo entry of its own. */
+  private placeAnsweredStamp(point: Point, page: number) {
+    this.before = this.view.strokes();
+    this.stampIndex = null;
+    this.placeStamp(newStroke(get(gradingStore), this.view.exercises(), point, page), page);
+    this.endGesture();
+  }
+
+  /** A stamp is complete on touch. */
+  private placeStamp(stroke: VectorStroke, page: number) {
     const strokes = this.view.strokes();
     this.stampIndex = strokes.length;
     this.view.persist([...strokes, stroke]);

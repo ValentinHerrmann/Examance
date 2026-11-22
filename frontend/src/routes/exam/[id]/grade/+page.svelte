@@ -104,9 +104,8 @@
       if (idx >= 0) gradingStore.setCurrentIndex(idx);
     }
     const targetExerciseId = page.url.searchParams.get('exerciseId');
-    if (targetExerciseId && exercises.some((e) => e.id === targetExerciseId)) {
-      gradingStore.setActiveExerciseId(targetExerciseId);
-    }
+    // Through the targets: an exercise with parts and no points of its own is never the target itself (issue #234).
+    if (targetExerciseId) selectTarget(gradingTargets(exercises).find((tg) => tg.exercise.id === targetExerciseId));
     if (submissions.length > 0) {
       await initExerciseScores(submissions[get(gradingStore).currentIndex]);
     }

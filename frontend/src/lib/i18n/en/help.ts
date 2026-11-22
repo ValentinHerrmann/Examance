@@ -225,6 +225,10 @@ export const help: Translations['help'] = {
                 h: 'Parts and score boxes',
                 p1: 'Exercises with parts can be graded part by part; the exercise counts as graded once all of its parts are. The printed score boxes and the table at the end fill in automatically on the scan and in the graded PDF.',
             },
+            s7: {
+                h: 'The right exercise',
+                p1: 'The scan is dimmed outside the selected exercise (Focus in the toolbox turns it off for this submission). A stamp or stroke in another exercise\'s area asks whether to switch to it; on extra paper Examance asks which exercise the points belong to.',
+            },
             s3: {
                 h: 'Tick-box exercises',
                 p1: 'For single and multiple choice, the detected ticks and the penalty are applied automatically. You can review and correct the result before saving.',

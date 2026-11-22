@@ -19,6 +19,9 @@
   import { isPdfBytes, decodePngBytes, legacyScanCrop } from "./ScanCanvasViewer";
   import { ScanZoom } from "./scanZoom";
   import { StrokeInput } from "./strokeInput";
+  import { ExerciseFocus } from "./exerciseFocus";
+  import { PDF_RENDER_SCALE, ScanPageRenderer } from "./scanPageRenderer";
+  import type { GuardAnswer, GuardQuestion } from "#lib/grading/exerciseGuard";
   import { penSeenStore } from "#lib/stores/penInput";
   import { capabilitiesStore } from "#lib/stores/capabilities";
   import { ownTouches } from "./palmGuard";
@@ -36,9 +39,12 @@
     /** Room the floating controls take on `side` (px), so the page sits beside them (issue #330). */
     inset?: number;
     side?: "left" | "right";
+    /** Asks where a mark outside the active exercise goes (issue #234). */
+    /** Null when nobody can answer: the mark then goes to the active target unasked. */
+    onAskTarget?: (question: GuardQuestion) => Promise<GuardAnswer> | null;
   }
 
-  let { examId, submission, exercises, onSubmissionHydrated, scoreBoxes = null, inset = 0, side = "left" }: Props = $props();
+  let { examId, submission, exercises, onSubmissionHydrated, scoreBoxes = null, inset = 0, side = "left", onAskTarget }: Props = $props();
 
   // ExerciseRecord.mcGroupId/subIndex are not populated for exam-linked exercises (the exam-specific placement lives only in ExamExerciseRecord) — load the real group/letter mapping once per exam for the "a) 1/2" sub-exercise sum stamp in drawOmrDetections().
   let subExerciseLetters: Map<string, string> = $state.raw(new Map());
@@ -54,7 +60,6 @@
     h: number;
   }
 
-  const PDF_RENDER_SCALE = 2;
   const VIEWPORT_PADDING = 8; // `p-2` on the scroll pane
 
   let canvasViewport: HTMLDivElement | undefined = $state();
@@ -64,6 +69,7 @@
   let pageEls: HTMLDivElement[] = $state([]);
   let scanCanvases: HTMLCanvasElement[] = $state([]);
   let overlayCanvases: HTMLCanvasElement[] = $state([]);
+  let focusCanvases: HTMLCanvasElement[] = $state([]); // the focus dimming (issue #235), between scan and annotations
 
   // Points of the live stroke `liveDrawnFor` already on its canvas (drawn segment by segment).
   let liveDrawn = 0;
@@ -75,14 +81,11 @@
   let mcStateNow = $derived($gradingStore.mcState);
   let scoreInputsNow = $derived($gradingStore.scoreInputs);
   let zoomScaleNow = $derived($gradingStore.zoomScale);
+  let focusKey = $derived(`${$gradingStore.activeExerciseId}#${$gradingStore.activePartLabel}#${$gradingStore.focusDimming}`);
 
   let loadedSubId: string | null = null;
   let loadSeq = 0;
 
-  // Local PDF state (not needed by any other component, unlike currentPage/totalPages/isScanPdf which live in the store for ZoomPageControls to read).
-  let pdfDoc: any = null;
-  let renderedPages = new Set<number>();
-  let pageObserver: IntersectionObserver | null = null;
 
   const zoom = new ScanZoom({
     viewport: () => canvasViewport,
@@ -91,7 +94,29 @@
     pageTop,
     padding: VIEWPORT_PADDING,
   });
-  const scoreLayer = new ScoreBoxLayer((page) => scanCanvases[page - 1], (page) => redrawOverlay(page));
+  // Local PDF state (not needed by any other component, unlike currentPage/totalPages/isScanPdf which live in the store for ZoomPageControls to read).
+  const pages = new ScanPageRenderer({
+    canvas: (page) => scanCanvases[page - 1],
+    pageEls: () => pageEls,
+    viewport: () => canvasViewport,
+    onRendered: (page) => {
+      scoreLayer.markRendered(page);
+      redrawOverlay(page);
+      focus.paint(page);
+    },
+  });
+  const scoreLayer = new ScoreBoxLayer((page) => scanCanvases[page - 1], (page) => (redrawOverlay(page), focus.paint(page)));
+  const focus = new ExerciseFocus({
+    exercises: () => exercises,
+    focusCanvas: (page) => focusCanvases[page - 1],
+    overlayCanvas: (page) => overlayCanvases[page - 1],
+    pageCount: () => pageSizes.length,
+    scoreLayer,
+    viewport: () => canvasViewport,
+    notice: () => notice,
+    pageTop,
+    ask: (question) => onAskTarget?.(question) ?? null,
+  });
   onDestroy(() => scoreLayer.destroy());
   const input = new StrokeInput({
     strokes: () => strokes,
@@ -106,6 +131,7 @@
     onPenDetected: () => undoer.penDetected(),
     checkpoint: (before) => undoer.checkpoint(before),
     onScratchOut: (removed, scribble) => undoer.scratchedOut(removed, scribble),
+    askTarget: (page, point) => focus.askTarget(page, point),
   });
   // A reset in Settings (also from another tab) lets fingers draw again.
   onDestroy(penSeenStore.subscribe((seen) => input.setPenSeen(seen)));
@@ -156,12 +182,13 @@
 
   /** Replaces the page stack with `sizes` (fresh canvases) and waits until they are in the DOM. */
   async function setPages(sizes: PageSize[]) {
-    pageObserver?.disconnect();
-    renderedPages = new Set();
+    pages.reset();
     scoreLayer.newDocument(0);
+    focus.newDocument(0);
     pageEls = [];
     scanCanvases = [];
     overlayCanvases = [];
+    focusCanvases = [];
     pageSizes = sizes;
     docKey += 1;
     await tick();
@@ -207,8 +234,7 @@
     if (!canvasViewport) return;
 
     // Reset PDF state
-    void pdfDoc?.loadingTask?.destroy();
-    pdfDoc = null;
+    pages.setDocument(null);
     gradingStore.setPdfPaging(1, 1, false);
     // The previous student's stroke in progress is dropped, never committed onto the next one.
     input.discard();
@@ -268,12 +294,17 @@
           void doc.loadingTask.destroy();
           return;
         }
-        pdfDoc = doc;
+        pages.setDocument(doc);
         gradingStore.setPdfPaging(1, doc.numPages, true);
         await setPages(sizes);
         scoreLayer.newDocument(doc.numPages);
+        focus.newDocument(doc.numPages);
         fitToPage();
-        observePages();
+        pages.observe();
+        // After the fitted zoom reaches the DOM, so the jump measures the final page sizes.
+        await tick();
+        if (seq !== loadSeq) return;
+        focus.follow();
 
         const annBytes = await decryptAnnotations(sub);
         if (seq !== loadSeq) return;
@@ -300,50 +331,6 @@
       console.error("Failed to decrypt scan for grading:", err);
       if (seq !== loadSeq) return;
       await showMessage(translate("grading.canvas.scanDecryptFailed"), cssVar("--color-danger-fg", "#a61b29"), 80);
-    }
-  }
-
-  // Renders pages near the viewport (one screen ahead and behind) on first approach.
-  function observePages() {
-    pageObserver?.disconnect();
-    if (!canvasViewport || typeof IntersectionObserver === "undefined") {
-      pageEls.forEach((_, i) => renderPage(i + 1));
-      return;
-    }
-    pageObserver = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const page = Number((entry.target as HTMLElement).dataset.page);
-          if (page) renderPage(page);
-        }
-      },
-      { root: canvasViewport, rootMargin: "100% 0px" }
-    );
-    for (const el of pageEls) {
-      if (el) pageObserver.observe(el);
-    }
-  }
-
-  async function renderPage(page: number) {
-    const doc = pdfDoc;
-    const canvas = scanCanvases[page - 1];
-    if (!doc || !canvas || renderedPages.has(page)) return;
-    renderedPages.add(page);
-    try {
-      const pdfPage = await doc.getPage(page);
-      if (doc !== pdfDoc) return;
-      const viewport = scanViewport(pdfPage, PDF_RENDER_SCALE);
-      await pdfPage.render({ canvasContext: canvas.getContext("2d")!, canvas, viewport } as any).promise;
-      if (doc === pdfDoc) {
-        scoreLayer.markRendered(page);
-        redrawOverlay(page);
-      }
-    } catch (err) {
-      if (doc === pdfDoc) {
-        renderedPages.delete(page);
-        console.error(`Failed to render scan page ${page}:`, err);
-      }
     }
   }
 
@@ -376,9 +363,7 @@
     pageEls.forEach((el, i) => {
       if (el && el.getBoundingClientRect().top <= probe) page = i + 1;
     });
-    if (page !== get(gradingStore).currentPage) {
-      gradingStore.setCurrentPage(page);
-    }
+    if (page !== get(gradingStore).currentPage) gradingStore.setCurrentPage(page);
   }
 
   function pageFromEvent(e: PointerEvent): number | null {
@@ -398,21 +383,10 @@
     return (e) => ({ x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy });
   }
 
-  export function zoomIn() {
-    zoom.zoomIn();
-  }
-
-  export function zoomOut() {
-    zoom.zoomOut();
-  }
-
-  export function fitToPage() {
-    zoom.fitToPage();
-  }
-
-  export function resetZoom() {
-    zoom.fitToPage();
-  }
+  export const zoomIn = () => zoom.zoomIn();
+  export const zoomOut = () => zoom.zoomOut();
+  export const fitToPage = () => zoom.fitToPage();
+  export const resetZoom = fitToPage;
 
   onMount(() => {
     const stopResize = zoom.observeResize();
@@ -427,16 +401,12 @@
       if (redrawFrame) cancelAnimationFrame(redrawFrame);
       if (scrollFrame) cancelAnimationFrame(scrollFrame);
       stopResize();
-      pageObserver?.disconnect();
-      void pdfDoc?.loadingTask?.destroy();
-      pdfDoc = null;
+      pages.destroy();
     };
   });
 
   function redrawAllOverlays() {
-    for (let page = 1; page <= pageSizes.length; page++) {
-      redrawOverlay(page);
-    }
+    for (let page = 1; page <= pageSizes.length; page++) redrawOverlay(page);
   }
 
   function redrawOverlay(page: number) {
@@ -523,8 +493,17 @@
     const ctx = scoreBoxes;
     untrack(() => {
       scoreLayer.setContext(ctx);
+      focus.setContext(ctx);
       redrawAllOverlays();
+      focus.paintAll();
+      focus.follow();
     });
+  });
+
+  // The dimming follows the stamp target and the toolbar's focus switch (issue #235); a new target scrolls into view.
+  $effect.pre(() => {
+    const key = focusKey;
+    if (key) untrack(() => (focus.paintAll(), focus.follow()));
   });
 
   $effect.pre(() => {
@@ -573,6 +552,7 @@
             height={size.h}
             class="block h-auto w-full rounded-sm bg-surface-raised shadow-md"
           ></canvas>
+          <canvas bind:this={focusCanvases[i]} width={size.w} height={size.h} class="pointer-events-none absolute top-0 left-0 h-full w-full rounded-sm" aria-hidden="true"></canvas>
           <canvas
             bind:this={overlayCanvases[i]}
             width={size.w}

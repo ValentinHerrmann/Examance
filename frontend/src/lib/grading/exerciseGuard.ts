@@ -1,0 +1,79 @@
+/** Asks before a mark lands outside the active exercise (issue #234): decides, per new mark, whether to ask and what to offer. State lives per student; the viewer resets it on every submission load. */
+
+import { acceptsNear, regionAt, regionTargets, type RegionMap } from "./exerciseRegions";
+import type { GradingTarget } from "./gradingTargets";
+
+/** After "stay on the current exercise", no question for this long. */
+export const GUARD_COOL_OFF_MS = 30_000;
+
+/** What to ask: `switch` = the mark is in another exercise's area (`candidates` are its targets); `part` = in the intro of the active part's own exercise (`candidates` are its other targets); `pick` = no exercise owns the area. */
+export type GuardQuestion =
+  | { kind: "switch"; candidates: GradingTarget[]; current: GradingTarget | undefined }
+  | { kind: "part"; candidates: GradingTarget[]; current: GradingTarget | undefined }
+  | { kind: "pick"; candidates: GradingTarget[]; current: GradingTarget | undefined; page: number };
+
+/** The answer: the target the mark goes to (the current one = stay), or null = drop the mark. */
+export type GuardAnswer = GradingTarget | null;
+
+const keyOf = (t: { exercise: { id: string }; partLabel: string }) => `${t.exercise.id}#${t.partLabel}`;
+
+export class ExerciseGuard {
+  private map: RegionMap | null = null;
+  private quietUntil = 0;
+  /** Target chosen per page that no exercise owns, for this student. */
+  private readonly pageChoice = new Map<number, string>();
+
+  /** The regions of the current layout; null switches the check off. */
+  setMap(map: RegionMap | null) {
+    this.map = map && map.regions.length > 0 ? map : null;
+  }
+
+  get active(): boolean {
+    return this.map !== null;
+  }
+
+  /** A new student: no cool-off, no page choices. */
+  reset() {
+    this.quietUntil = 0;
+    this.pageChoice.clear();
+  }
+
+  /** The question for a mark at reading-order offset `at` on `page`, or null when the mark goes to the active target as is. */
+  question(page: number, at: number, active: GradingTarget | undefined, targets: GradingTarget[], now: number): GuardQuestion | null {
+    const map = this.map;
+    if (!map || !active) return null;
+    if (acceptsNear(map, at, active.exercise.id, active.partLabel)) return null;
+    const region = regionAt(map, at);
+    if (!region) return this.pageChoice.get(page) === keyOf(active) ? null : { kind: "pick", candidates: targets, current: active, page };
+    if (now < this.quietUntil) return null;
+    const candidates = regionTargets(region, targets);
+    // The intro of the active part's own exercise: offer only its other targets, never the current one as a "switch".
+    if (region.partLabel === null && region.exerciseIds.includes(active.exercise.id)) {
+      const others = candidates.filter((t) => keyOf(t) !== keyOf(active));
+      return others.length > 0 ? { kind: "part", candidates: others, current: active } : null;
+    }
+    return candidates.length > 0 ? { kind: "switch", candidates, current: active } : null;
+  }
+
+  /** Records the answer, so the same mark is not asked about again; true when it started the cool-off ("stay"). */
+  answered(question: GuardQuestion, answer: GuardAnswer, now: number): boolean {
+    if (!answer) return false;
+    if (question.kind === "pick") {
+      this.pageChoice.set(question.page, keyOf(answer));
+      return false;
+    }
+    if (!question.current || keyOf(answer) !== keyOf(question.current)) return false;
+    this.quietUntil = now + GUARD_COOL_OFF_MS;
+    return true;
+  }
+
+  /** Whether questions about other exercises pause right now. */
+  isQuiet(now: number): boolean {
+    return now < this.quietUntil;
+  }
+
+  /** Asks again from now on (the teacher ended the cool-off early). */
+  endCoolOff() {
+    this.quietUntil = 0;
+  }
+}

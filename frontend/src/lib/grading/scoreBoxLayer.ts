@@ -60,6 +60,16 @@ export class ScoreBoxLayer {
     drawScoreBoxesForPage(ctx2d, w, h, ctx.pages[page - 1], this.aligned.get(page)!, values);
   }
 
+  /** The page's template-to-scan mapping once aligned; undefined while unknown, null when it cannot be aligned. */
+  homography(page: number): Homography | null | undefined {
+    return this.aligned.get(page);
+  }
+
+  /** Aligns a rendered template page even without values (the exercise areas of issues #234/#235 need it). */
+  ensureAligned(page: number) {
+    if (this.ctx?.pages[page - 1]?.scoreBoxes?.length && this.pageCount >= this.ctx.pages.length && !this.aligned.has(page)) this.align(page);
+  }
+
   destroy() {
     this.worker?.terminate();
     this.worker = null;

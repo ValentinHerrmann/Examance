@@ -71,6 +71,9 @@ export interface GradingState {
     /** True once the teacher changed the current submission (stroke, score, MC toggle) since load/save; loading and re-deriving auto scores never set it. */
   isDirty: boolean;
 
+  /** Dims the scan outside the active exercise (issue #235); on again for every student. */
+  focusDimming: boolean;
+
   // PDF paging
   currentPage: number;
   totalPages: number;
@@ -94,6 +97,7 @@ const INITIAL_STATE: GradingState = {
   canUndo: false,
   canRedo: false,
   isDirty: false,
+  focusDimming: true,
   currentPage: 1,
   totalPages: 1,
   isScanPdf: false,
@@ -128,10 +132,6 @@ function createGradingStore() {
 
     setManualOverrideFlag(exerciseId: string, flag: boolean) {
       update((s) => ({ ...s, manualOverride: { ...s.manualOverride, [exerciseId]: flag }, isDirty: true }));
-    },
-
-    setActiveExerciseId(exerciseId: string) {
-      update((s) => ({ ...s, activeExerciseId: exerciseId, activePartLabel: s.activeExerciseId === exerciseId ? s.activePartLabel : '' }));
     },
 
     /** Makes a part of an exercise the stamp target. */
@@ -170,6 +170,10 @@ function createGradingStore() {
 
     setDrawTool(tool: ToolType) {
       update((s) => ({ ...s, drawTool: tool }));
+    },
+
+    setFocusDimming(focusDimming: boolean) {
+      update((s) => (s.focusDimming === focusDimming ? s : { ...s, focusDimming }));
     },
 
     setZoomScale(zoomScale: number) {

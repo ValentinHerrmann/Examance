@@ -224,6 +224,10 @@ export const help = {
                 h: 'Teilaufgaben und Punktekästchen',
                 p1: 'Aufgaben mit Teilaufgaben lassen sich je Teilaufgabe bewerten; die Aufgabe gilt als bewertet, sobald alle Teilaufgaben bewertet sind. Die gedruckten Punktekästchen und die Tabelle am Ende füllen sich auf dem Scan und im korrigierten PDF automatisch.',
             },
+            s7: {
+                h: 'Die richtige Aufgabe',
+                p1: 'Außerhalb der gewählten Aufgabe ist der Scan abgedunkelt („Fokus“ im Werkzeugkasten schaltet es für diese Arbeit aus). Ein Stempel oder Strich im Bereich einer anderen Aufgabe fragt, ob Sie dorthin wechseln; auf Zusatzpapier fragt Examance, zu welcher Aufgabe die Punkte gehören.',
+            },
             s3: {
                 h: 'Ankreuzaufgaben',
                 p1: 'Bei Single und Multiple Choice werden die erkannten Kreuze samt Punktabzug automatisch übernommen. Sie können das Ergebnis vor dem Speichern prüfen und korrigieren.',

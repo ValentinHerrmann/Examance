@@ -1,7 +1,7 @@
 <script lang="ts">
   import { gradingStore, type ToolType } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
-  import { faEraser, faPen, faRulerHorizontal, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+  import { faCrosshairs, faEraser, faPen, faRulerHorizontal, faTrashCan } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon } from "#lib/components/ui";
   import { minWidth } from "#lib/stores/viewport";
   import type { ControlsSide } from "#lib/stores/capabilities";
@@ -66,6 +66,11 @@
     <Button size="sm" variant="text" severity="secondary" class={toolBtn} pressed={$gradingStore.drawTool === "eraser"} onClick={() => selectTool("eraser")} title={$t("grading.toolbar.eraserTitle")}>
       <Icon icon={faEraser} />
       <span class="text-xs font-semibold">{$t("grading.toolbar.eraser")}</span>
+    </Button>
+    <!-- Dims the scan outside the selected exercise (issue #235); on again with every student. -->
+    <Button size="sm" variant="text" severity="secondary" class={toolBtn} pressed={$gradingStore.focusDimming} onClick={() => gradingStore.setFocusDimming(!$gradingStore.focusDimming)} title={$t("grading.toolbar.focusTitle")}>
+      <Icon icon={faCrosshairs} />
+      <span class="text-xs font-semibold">{$t("grading.toolbar.focus")}</span>
     </Button>
     <div class={separator}></div>
     {#each sections as section, i (i)}

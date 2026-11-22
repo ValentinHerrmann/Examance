@@ -19,6 +19,8 @@
     role?: "dialog" | "alertdialog";
     onConfirm?: (() => void) | undefined;
     onCancel?: (() => void) | undefined;
+    /** Escape and the close button, when they mean something else than the cancel button; defaults to `onCancel`. */
+    onDismiss?: () => void;
     /** Extra controls under the message, e.g. an option for the confirmed action. */
     children?: Snippet;
   }
@@ -36,11 +38,12 @@
     role = "alertdialog",
     onConfirm = undefined,
     onCancel = undefined,
+    onDismiss = undefined,
     children,
   }: Props = $props();
 </script>
 
-<Modal {open} size="small" {title} {role} {error} closeOnEscape={!busy} onClose={busy ? undefined : () => onCancel?.()}>
+<Modal {open} size="small" {title} {role} {error} closeOnEscape={!busy} onClose={busy ? undefined : () => (onDismiss ?? onCancel)?.()}>
   {#if message}<p class="m-0 leading-normal text-muted">{message}</p>{/if}
   {#if children}<div class={message ? "mt-4" : ""}>{@render children()}</div>{/if}
 
