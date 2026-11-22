@@ -4,9 +4,8 @@ import { invertHomography, transformPoint, type Homography } from "./omrRegistra
 import { dimBands, type RegionMap } from "./exerciseRegions";
 import { SCORE_BOX_SCAN_SCALE } from "./scoreBoxes";
 
-/** Opacity of the dimming per level (light: a sibling part, strong: another exercise). */
-const DIM_ALPHA = [0, 0.18, 0.42];
-const DIM_RGB = "15, 23, 42";
+/** The dimming outside the active exercise. */
+const DIM_FILL = "rgba(15, 23, 42, 0.35)";
 
 /** Template y (PDF points from the bottom) of a canvas point. */
 export function canvasToTemplateY(H: Homography | null | undefined, x: number, y: number, pageHeightPt: number, canvasHeight: number): number {
@@ -35,12 +34,12 @@ export function paintFocus(
 ) {
   const pageHeightPt = map.pageHeights[page - 1];
   if (!pageHeightPt) return;
+  ctx2d.fillStyle = DIM_FILL;
   for (const band of dimBands(map, page, target.exerciseId, target.partLabel)) {
-    // Rounded the same way on both sides, so neighbouring bands neither overlap nor leave a hairline.
-    const y0 = Math.round(templateTopToCanvasY(H, band.top, pageWidthPt, pageHeightPt, h));
-    const y1 = Math.round(templateTopToCanvasY(H, band.bottom, pageWidthPt, pageHeightPt, h));
+    // Rounded alike on both sides (no overlap, no hairline); a band at the page's edge runs to the canvas edge, as the template's edges map a few pixels inside the scan.
+    const y0 = band.top <= 0 ? 0 : Math.round(templateTopToCanvasY(H, band.top, pageWidthPt, pageHeightPt, h));
+    const y1 = band.bottom >= pageHeightPt ? h : Math.round(templateTopToCanvasY(H, band.bottom, pageWidthPt, pageHeightPt, h));
     if (y1 <= y0) continue;
-    ctx2d.fillStyle = `rgba(${DIM_RGB}, ${DIM_ALPHA[band.level]})`;
     ctx2d.fillRect(0, y0, w, y1 - y0);
   }
 }

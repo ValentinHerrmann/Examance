@@ -41,8 +41,9 @@ describe('buildExerciseRegions', () => {
 });
 
 describe('acceptsNear', () => {
-  it('accepts the intro for every part, and the MC group for each member', () => {
-    expect(acceptsNear(map, at(1, 650), 'ex-1', 'b')).toBe(true);
+  it('accepts only the own part for a part, the intro for the whole exercise, and the MC group for each member', () => {
+    expect(acceptsNear(map, at(1, 650), 'ex-1', 'b')).toBe(false);
+    expect(acceptsNear(map, at(1, 650), 'ex-1', '')).toBe(true);
     expect(acceptsNear(map, at(2, 300), 'mc-b', '')).toBe(true);
     expect(acceptsNear(map, at(1, 400), 'ex-1', 'b')).toBe(false);
   });
@@ -62,13 +63,21 @@ describe('targetRegion', () => {
 });
 
 describe('dimBands', () => {
-  it('dims the header, keeps the active area clear up to the tolerance and dims sibling parts lightly', () => {
+  const room = (4 / 25.4) * 72;
+
+  it('keeps only the active part clear (up to the tolerance), dimming the header and the parent intro', () => {
     const bands = dimBands(map, 1, 'ex-1', 'a');
-    expect(bands).toHaveLength(2);
-    expect(bands[0]).toMatchObject({ top: 0, level: 2 });
-    expect(bands[0].bottom).toBeCloseTo(H - 700 - (4 / 25.4) * 72 - REGION_TOLERANCE_PT);
-    expect(bands[1].level).toBe(1);
-    expect(bands[1].top).toBeCloseTo(H - 300 - (4 / 25.4) * 72 + REGION_TOLERANCE_PT);
+    expect(bands).toHaveLength(3);
+    expect(bands[0]).toMatchObject({ top: 0 });
+    expect(bands[0].bottom).toBeCloseTo(H - 700 - room);
+    expect(bands[1].bottom).toBeCloseTo(H - 600 - room - REGION_TOLERANCE_PT);
+    expect(bands[2].top).toBeCloseTo(H - 300 - room + REGION_TOLERANCE_PT);
+  });
+
+  it('always dims the points table, from its header row to the end of its page', () => {
+    const bands = dimBands(map, 2, 'mc-a', '');
+    expect(bands.at(-1)!.bottom).toBe(H);
+    expect(bands.at(-1)!.top).toBeCloseTo(H - (150 + 2 * 15 + 4) + REGION_TOLERANCE_PT);
   });
 
   it('dims nothing on a writing page', () => {
