@@ -213,6 +213,8 @@
     // The previous student's stroke in progress is dropped, never committed onto the next one.
     input.discard();
     gradingStore.setStrokesSubmissionId(null);
+    // Undo must never bring the previous student's strokes onto this one while its scan loads.
+    undoer.reset();
     // Replace the previous student's pages at once: they stayed visible next to the new student's scores until the new scan had decrypted and rendered.
     await showMessage(translate("grading.canvas.loading"), cssVar("--color-muted", "#64748b"), 240);
     if (seq !== loadSeq) return;

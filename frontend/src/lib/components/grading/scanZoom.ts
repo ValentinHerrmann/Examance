@@ -46,7 +46,7 @@ export class ScanZoom {
     const size = this.view.pageSize(get(gradingStore).currentPage) ?? this.view.pageSize(1);
     // The side padding can be wider than `padding` (room for the floating controls), so read it from the pane.
     const style = viewport ? getComputedStyle(viewport) : null;
-    const availWidth = (viewport?.clientWidth ?? 0) - (style ? parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) : 2 * this.view.padding);
+    const availWidth = (viewport?.clientWidth ?? 0) - (style ? Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight) : 2 * this.view.padding);
     const availHeight = (viewport?.clientHeight ?? 0) - 2 * this.view.padding;
     if (!size || size.w === 0 || size.h === 0 || availWidth <= 0 || availHeight <= 0) {
       gradingStore.setZoomScale(1.0);

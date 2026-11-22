@@ -24,7 +24,7 @@ export function gradingTargets(exercises: ExerciseRecord[]): GradingTarget[] {
   });
 }
 
-/** Index of the active target; an exercise with parts whose total is active (old data, a click) maps to its first target; -1 when none matches. */
+/** Index of the active target; an empty label on an exercise with parts matches its rest target if it has one, else its first target; -1 when none matches. */
 export function targetIndex(targets: GradingTarget[], exerciseId: string, partLabel: string): number {
   const exact = targets.findIndex((t) => t.exercise.id === exerciseId && t.partLabel === partLabel);
   return exact >= 0 ? exact : targets.findIndex((t) => t.exercise.id === exerciseId);

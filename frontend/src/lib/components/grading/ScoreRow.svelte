@@ -96,7 +96,10 @@
     value={value ?? ""}
     readonly={!!readonlyReason}
     title={readonlyReason}
-    onclick={(e) => e.stopPropagation()}
+    onclick={(e) => {
+      // A read-only total lets the click reach the row, which then selects the exercise's first part.
+      if (!readonlyReason) e.stopPropagation();
+    }}
     oninput={handleInput}
     onkeydown={(e) => {
       if (e.key !== "Enter" || !onEnter) return;

@@ -497,15 +497,24 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (action === 'latex-packages') return latexPackagesRoute(method, body);
     if (action === 'logo') return logoRoute(method, parts, body);
     if (method === 'PUT' && action === 'storage-mode') return setStorageMode(body);
-    if (method === 'PUT' && action === 'grading-controls-side') {
+    if (method === 'PUT') {
+      const setting = accountSettingRoute(action, body);
+      if (setting) return setting;
+    }
+    if (method === 'POST' && action === 'purge-server-student-data') return purgeServerStudentData();
+    return undefined;
+  }
+
+  /** The account's grading preferences (`PUT /user/<setting>`). */
+  function accountSettingRoute(action: string, body: any): Handled {
+    if (action === 'grading-controls-side') {
       state.gradingControlsSide = body?.grading_controls_side === 'right' ? 'right' : 'left';
       return ok(capabilities());
     }
-    if (method === 'PUT' && action === 'grading-scratch-out') {
+    if (action === 'grading-scratch-out') {
       state.gradingScratchOut = body?.grading_scratch_out !== false;
       return ok(capabilities());
     }
-    if (method === 'POST' && action === 'purge-server-student-data') return purgeServerStudentData();
     return undefined;
   }
 
