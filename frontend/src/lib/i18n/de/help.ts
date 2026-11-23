@@ -169,7 +169,7 @@ export const help = {
             },
             s4: {
                 h: 'Layout-Optionen',
-                p1: '„Namenszeile neben dem QR-Code-Feld drucken“ ergänzt eine Namenszeile auf dem Deckblatt. „Platz für weitere Lösungen am Ende“ füllt die letzte Seite mit einem Karobereich. „Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert“ druckt unter jede Ankreuzaufgabe eine kurze Anleitung zum Zurücknehmen und erneuten Wählen. Logo und LaTeX-Pakete einer einzelnen Klausur stellen Sie unter „Prüfung bearbeiten“ ein.',
+                p1: '„Namenszeile neben dem QR-Code-Feld drucken“ ergänzt eine Namenszeile auf dem Deckblatt. „Platz für weitere Lösungen am Ende“ füllt die letzte Seite mit einem Karobereich. „Bei jeder Multiple-Choice-Aufgabe zeigen, wie man ein Kreuz korrigiert“ druckt unter jede Ankreuzaufgabe eine kurze Anleitung zum Zurücknehmen und erneuten Wählen. Logo und LaTeX-Pakete einer einzelnen Klausur stellen Sie unter „Prüfung bearbeiten“ ein. Die Vorlagen oben im Schritt Layout setzen alle Optionen außer dem Logo; über ⋮ an einer Vorlage speichern Sie Ihre aktuellen Einstellungen hinein, benennen sie um oder setzen sie zurück.',
             },
             s5: {
                 h: 'Setzen und drucken',

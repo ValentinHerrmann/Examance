@@ -78,16 +78,22 @@ Gruppen betreffen nur das Layout: Korrektur und Statistik bleiben strikt pro Fra
 
 Der Schritt **Layout** (Schritt 2, zwischen **Aufgaben** und **Schüler**) enthält jede Option, die das Aussehen der gedruckten Prüfung ändert. Neben den Optionen zeigt eine Vorschau eine **Beispielarbeit** (nicht Ihren Inhalt) mit Ihren Einstellungen: eine Seite groß und alle Seiten eines Exemplars als kleine nummerierte Miniaturen, nach Blättern gruppiert. Auf breiten Bildschirmen füllt die Vorschau den Platz neben den Optionen und scrollt nie; die Seite wird dafür kleiner. Die Seiten sind Deckblatt, Aufgabenseiten, letzte Seite, Ihre Zusatzseiten und die **Füllseiten**, die jedes Exemplar auf ganze Blätter auffüllen (leere Schreibseiten). Zeigen Sie auf eine Option, hebt die Vorschau ihr Element auf der gezeigten Seite hervor; klicken Sie hinein oder wählen Sie sie per Tastatur, wechselt die Vorschau auf die Seite, die sie ändert; ein Klick auf eine Miniatur zeigt diese Seite groß. Die Beispielarbeit zeigt Ihren eigenen Infotext, im Kopf 30 Minuten Arbeitszeit plus 5 Minuten Einlesezeit und einen Beispielschüler, Max Mustermann, mit 20 % Zeitverlängerung. Nummern auf der Seite passen zur Liste daneben, die jedes Element erklärt und sagt, **wo der Name steht**: auf dem Aufkleber (klein über dem QR-Code), auf der abgeschnittenen Ecke eines personalisierten Exemplars oder handschriftlich auf der Namenszeile, und ob er auf dem korrigierten Blatt noch zu sehen ist. Wurde Ihre Arbeit im Schritt **Aufgaben** schon in der Vorschau angezeigt, steht darunter, wie viele Seiten und Blätter Ihre eigene Arbeit hat. Reihenfolge der Optionen: Vorlage, Bewertung und Scanhilfen, Druckform, Deckblatt, jede Seite, Schreibplatz. Jede Zeile zeigt kleine Kacheln mit der Beschriftung links; die Zeile darunter erklärt die gewählte Option oder die, auf die Sie zeigen. Jede Änderung wird von selbst gespeichert; der Kartenkopf zeigt **Speichert…** und dann **Gespeichert**. Änderungen erscheinen im PDF erst, wenn Sie erneut kompilieren.
 
-**Voreinstellungen** ganz oben sind Ausgangspunkte; sie werden nicht gespeichert. Wählen Sie eine, setzt sie ihre Optionen, und alle bleiben änderbar. Die Seite zeigt, welche Voreinstellung zu Ihren Einstellungen passt, sonst „eigene Einstellungen“.
+**Vorlagen** ganz oben setzen alle Optionen dieser Seite außer dem Logo; alle bleiben danach änderbar. Die Seite zeigt, welche Vorlage zu Ihren Einstellungen passt, sonst „eigene Einstellungen“ (Infotext und Platz für weitere Lösungen entscheiden nie darüber).
 
-- **Korrektur in Examance**: alle Scanhilfen, nur QR-Code, Korrekturhinweis für Multiple-Choice, beidseitiges A4, gleiche Exemplare und ein Aufkleber auf jedem Blatt.
-- **Examance, personalisierte Broschüre**: alle Scanhilfen, ein gefaltetes A3-Heft pro Schüler mit aufgedrucktem QR-Code und einer Namenszeile.
-- **Anonym auf Papier, personalisiert**: von Hand korrigiert; keine Eckmarkierungen oder Seitencodes, ein Exemplar pro Schüler mit aufgedrucktem QR-Code; der Name steht auf der abgeschnittenen Ecke.
-- **Auf Papier mit Namen, Broschüre**: keine Scanhilfen und kein QR-Code, ein gefaltetes A3-Heft mit Namenszeile.
+- **Examance, personalisiertes Heft**: alle Scanhilfen, ein gefaltetes A3-Heft pro Schüler mit aufgedrucktem QR-Code, keine Namenszeile.
+- **Examance, anonym**: alle Scanhilfen, gleiche beidseitige A4-Exemplare und ein QR-Aufkleber auf jedem Blatt.
+- **Anonym auf Papier**: von Hand korrigiert; ein QR-Aufkleber auf dem Deckblatt, der Name auf der abgeschnittenen Ecke, beidseitiges A4.
+- **Klassisch auf Papier**: von Hand korrigiert; keine Scanhilfen und kein QR-Code, beidseitiges A4, die Schüler schreiben ihren Namen.
 
-Zusammen zeigen sie jede Korrekturweise mit beiden Druckarten und mit personalisierten Exemplaren. Anonym auf Papier mit Aufklebern statt aufgedruckter Codes ist einen Klick entfernt: wählen Sie unter **QR-Code der Schüler** die **Aufkleber**.
+Alle vier beginnen mit kariertem Schreibpapier, ohne Zusatzseiten und mit Korrekturhinweis für Multiple-Choice. Die Vorlagen gehören zu Ihrem Konto, und Sie können sie ändern: die Schaltfläche **⋮** neben einer Vorlage bietet
 
-Voreinstellungen ändern nie Papier, Zusatzseiten, Infotext oder Logo. Darunter sind die Optionen gruppiert:
+- **Aktuelle Einstellungen hier speichern**: die Vorlage übernimmt alle Optionen dieser Seite außer dem Logo, auch Infotext und Platz für weitere Lösungen. Ihre anderen Arbeiten ändern sich nicht.
+- **Umbenennen …**: eigener Name und kurze Beschreibung.
+- **Auf Standard zurücksetzen** (nur bei einer geänderten Vorlage): Name und Einstellungen des Standards kommen zurück.
+
+Bringt eine Vorlage eigenen Infotext oder Platz für weitere Lösungen mit und hat Ihre Arbeit schon einen anderen, fragt Examance, ob er ersetzt werden soll oder Ihrer bleibt. Die Standardvorlagen ändern diese Texte nie.
+
+Darunter sind die Optionen gruppiert:
 
 - **Bewertung und Scanhilfen**: Eckmarkierungen, Schnittecke, [Seitencodes](#multi-sheet) und der Falzstreifen der Broschüre, jeweils ein oder aus, siehe [unten](#digital-grading).
 - **Druckform**: [Aufkleber oder personalisierte Exemplare](#multi-sheet-print), beidseitiges A4 oder Broschüre sowie Aufkleber pro Schüler (nur bei Aufklebern und nur mit QR-Feld auf dem Deckblatt).

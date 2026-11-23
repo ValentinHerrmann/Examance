@@ -6,17 +6,18 @@
   import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
   import { docsHref } from "#lib/help/docsLink";
   import { clampExtraPages, MAX_EXTRA_PAGES, printSettingsOf, spotChoices, type PaperStyle, type PrintLayout, type PrintMode, type StickerSpots } from "#lib/exam/printLayout";
-  import { saveExamLayout, type ExamLayoutPatch } from "#lib/exam/saveExamLayout";
-  import { allScanAidsOn, LAYOUT_PRESETS, matchPreset, type LayoutPresetId, type PresetFields } from "#lib/exam/layoutPresets";
+  import { LAYOUT_FIELDS, saveExamLayout, type ExamLayoutPatch, type LayoutField } from "#lib/exam/saveExamLayout";
+  import { allScanAidsOn, type PresetFields } from "#lib/exam/layoutPresets";
   import type { SketchPart } from "#lib/exam/sheetSketch";
   import LatexEditor from "#lib/components/LatexEditor.svelte";
   import ExamLogoField from "#lib/components/logo/ExamLogoField.svelte";
   import ExtraNotesField from "#lib/components/exam/ExtraNotesField.svelte";
   import SheetSketch from "#lib/components/exam/sketch/SheetSketch.svelte";
   import LayoutChoiceRow, { type LayoutChoice } from "#lib/components/exam/LayoutChoiceRow.svelte";
+  import LayoutTemplateRow from "#lib/components/exam/LayoutTemplateRow.svelte";
   import { extraNotesKey, type ExtraNotes } from "#lib/db/schema";
   import SectionHeading from "#lib/components/help/SectionHeading.svelte";
-  import { faBookOpen, faBraille, faCopy, faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faScissors, faSignature, faTableCells, faTag, faUser, faUserSecret, faBook, faPenNib, faTriangleExclamation, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
+  import { faBookOpen, faBraille, faCopy, faFile, faFileLines, faGripLines, faPenToSquare, faQrcode, faScissors, faSignature, faTableCells, faTag, faUser, faUserSecret, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
   import { Button, Card, CrossLink, Field, Icon, SaveStatus, TextInput } from "#lib/components/ui";
 
   /** The Layout step (issue #272): every choice that changes how the exam looks, from presets to the writing paper, beside a live content-free sketch. Every change saves itself; the Print step only prints. */
@@ -105,16 +106,19 @@
     };
   }
 
-  /** The current edits as record fields, for the sketch, the preset match and the pictograms. */
-  let current = $derived({ infoText, nameLine, mcCorrectionHint, pageCodes, digitalGrading, resultsQrBox, cutCorner, foldStrip, dottedFields, printLayout, printMode, stickerSpots, paperStyle, extraPages });
+  /** The current edits as record fields, for the sketch, the template match and the pictograms; `satisfies` makes a new Layout-page setting (`LAYOUT_FIELDS`) a type error until it is here, so templates keep it too. */
+  let current = $derived({ infoText, nameLine, mcCorrectionHint, pageCodes, digitalGrading, resultsQrBox, cutCorner, foldStrip, dottedFields, printLayout, printMode, stickerSpots, paperStyle, extraPages } satisfies Record<Exclude<LayoutField, "extraNotes">, unknown>);
 
   /** The fields that differ from the last save. */
   function changes(): ExamLayoutPatch {
     const patch: ExamLayoutPatch = {};
-    for (const key of ["infoText", "nameLine", "mcCorrectionHint", "pageCodes", "digitalGrading", "resultsQrBox", "cutCorner", "foldStrip", "dottedFields", "printLayout", "printMode", "stickerSpots", "paperStyle", "extraPages"] as const) {
-      if (current[key] !== saved[key]) (patch as Record<string, unknown>)[key] = current[key];
+    for (const key of LAYOUT_FIELDS) {
+      if (key === "extraNotes") {
+        if (extraNotesKey(extraNotes) !== saved.extraNotes) patch.extraNotes = extraNotes;
+      } else if (current[key] !== saved[key]) {
+        (patch as Record<string, unknown>)[key] = current[key];
+      }
     }
-    if (extraNotesKey(extraNotes) !== saved.extraNotes) patch.extraNotes = extraNotes;
     return patch;
   }
 
@@ -146,9 +150,12 @@
   // Leaving the page still saves what was chosen.
   onDestroy(() => autosave.dispose());
 
-  /** A preset sets its fields at once; everything stays editable afterwards. */
-  function applyPreset(fields: PresetFields) {
-    ({ digitalGrading, resultsQrBox, cutCorner, foldStrip, nameLine, pageCodes, mcCorrectionHint, printLayout, printMode, stickerSpots } = fields);
+  /** A template sets its settings at once, its free text only when it carries some; everything stays editable afterwards. */
+  function applyTemplate(fields: PresetFields) {
+    ({ digitalGrading, resultsQrBox, cutCorner, foldStrip, nameLine, pageCodes, mcCorrectionHint, printLayout, printMode, stickerSpots, paperStyle, dottedFields } = fields);
+    extraPagesText = String(fields.extraPages);
+    if (fields.infoText !== undefined) infoText = fields.infoText;
+    if (fields.extraNotes !== undefined) extraNotes = fields.extraNotes;
   }
 
   /** A layout change keeps the nearest sticker-spot choice of the new layout. */
@@ -165,7 +172,6 @@
     nameLine = next !== "qr";
   }
 
-  let preset = $derived(matchPreset(current));
   /** Stresses *part* while hovered or focused; leaving clears it only if no other element took over meanwhile. */
   function light(part: SketchPart, on: boolean) {
     if (on) highlight = part;
@@ -186,11 +192,6 @@
     onpointerenter: () => light(part, true),
     onpointerleave: () => light(part, false),
   });
-  const presetIcon: Record<LayoutPresetId, IconDefinition> = { fullDigital: faQrcode, digitalCopiesBooklet: faBook, anonymousPaperCopies: faUserSecret, namedPaperBooklet: faPenNib };
-
-  let presetChoices = $derived<LayoutChoice[]>(
-    LAYOUT_PRESETS.map((p) => ({ value: p.id, checked: preset === p.id, icon: presetIcon[p.id], title: $t(`exam.layout.presets.${p.id}`), text: $t(`exam.layout.presets.${p.id}Text`), onPick: () => applyPreset(p.fields) })),
-  );
 
   let booklet = $derived(printLayout === "booklet");
   let aidsOn = $derived(allScanAidsOn({ digitalGrading, cutCorner, pageCodes, foldStrip, printLayout }));
@@ -268,7 +269,7 @@
       <SaveStatus {status} />
     {/snippet}
     <div class="@container flex flex-col gap-5">
-      <LayoutChoiceRow id="layout-presets" label={$t("exam.layout.presets.heading")} info={$t("exam.layout.presets.info")} columns={2} choices={presetChoices} fallback={$t("exam.layout.presets.custom")} onHighlight={light} onShow={showPart} />
+      <LayoutTemplateRow current={{ ...current, extraNotes }} onApply={applyTemplate} {copiesUnavailable} onHighlight={light} onShow={showPart} />
 
       <!-- Each scan aid on its own (issue #272); the corner markers are what Examance's scanner needs, so they carry the grading switch. -->
       <section class="flex min-w-0 flex-col gap-2 border-t border-line pt-4" aria-labelledby="layout-grading-heading">

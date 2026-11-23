@@ -64,6 +64,8 @@ export interface FakeApiState {
   unhandled: string[];
   /** The account's LaTeX package list (`/user/latex-packages`, issue #108). */
   latexPackages: any[];
+  /** The account's edited layout templates (`/user/layout-templates`, issue #279). */
+  layoutTemplates: any[];
   /** Result shares a student can open (`POST /shares/:id/open`, issue #207): the expected `lookup_b64` and the content the server answers with. */
   resultShares: Map<string, { lookupB64: string; content: any }>;
   /** Stored grading review records (issue #226) by submission id: `{ id, submission_id, payload_ciphertext_b64, payload_iv_b64 }`. */
@@ -334,6 +336,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     requests: [],
     unhandled: [],
     latexPackages: [],
+    layoutTemplates: [],
     resultShares: new Map(),
     gradingReviews: new Map(),
   };
@@ -362,6 +365,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.requests.length = 0;
     state.unhandled.length = 0;
     state.latexPackages = [];
+    state.layoutTemplates = [];
     state.resultShares.clear();
     state.gradingReviews.clear();
   }
@@ -464,6 +468,15 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return undefined;
   }
 
+  function layoutTemplatesRoute(method: string, body: any): Handled {
+    if (method === 'GET') return ok({ templates: state.layoutTemplates });
+    if (method === 'PUT') {
+      state.layoutTemplates = Array.isArray(body?.templates) ? body.templates : [];
+      return ok({ templates: state.layoutTemplates });
+    }
+    return undefined;
+  }
+
   function setStorageMode(body: any): FakeResponse {
     if (!ALLOWED_MODES.has(body?.mode)) {
       return fail(403, 'This storage mode is not enabled for your account.', 'ERR_STORAGE_MODE_NOT_ALLOWED');
@@ -495,6 +508,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       return ok({ status: 'sent', expires_in_minutes: 60 });
     }
     if (action === 'latex-packages') return latexPackagesRoute(method, body);
+    if (action === 'layout-templates') return layoutTemplatesRoute(method, body);
     if (action === 'logo') return logoRoute(method, parts, body);
     if (method === 'PUT' && action === 'storage-mode') return setStorageMode(body);
     if (method === 'PUT') {

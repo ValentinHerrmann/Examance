@@ -1722,6 +1722,114 @@
         }
       }
     },
+    "/api/v1/user/layout-templates": {
+      "get": {
+        "tags": [
+          "layout-templates"
+        ],
+        "summary": "Get Layout Templates",
+        "description": "The account's edited layout templates.",
+        "operationId": "get_layout_templates_api_v1_user_layout_templates_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutTemplates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "layout-templates"
+        ],
+        "summary": "Set Layout Templates",
+        "description": "Replace the account's edited templates; an empty list resets all to the defaults.",
+        "operationId": "set_layout_templates_api_v1_user_layout_templates_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LayoutTemplates"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutTemplates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user/logo": {
       "get": {
         "tags": [
@@ -15232,6 +15340,79 @@
           "resolved_at"
         ],
         "title": "LayoutReportSummary"
+      },
+      "LayoutTemplate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "examanceBooklet",
+              "examanceAnonymous",
+              "paperAnonymous",
+              "paperClassic"
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "LayoutTemplate",
+        "description": "One edited slot; keys of ``fields`` are not listed, so a new Layout-page setting needs no backend change."
+      },
+      "LayoutTemplates": {
+        "properties": {
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutTemplate"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Templates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LayoutTemplates",
+        "description": "The slots the account changed; a slot not listed is the built-in default."
       },
       "LoginRequest": {
         "properties": {

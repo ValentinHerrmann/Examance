@@ -170,7 +170,7 @@ export const help: Translations['help'] = {
             },
             s4: {
                 h: 'Layout options',
-                p1: '“Print a name line next to the QR code box” adds a name line to the title page. “Space for extra solutions at the end” fills the last page with a grid area. “Show how to correct a cross at every multiple-choice task” prints a short line on withdrawing and re-choosing a cross under every multiple choice task. Logo and LaTeX packages of a single exam are set under “Edit Exam”.',
+                p1: '“Print a name line next to the QR code box” adds a name line to the title page. “Space for extra solutions at the end” fills the last page with a grid area. “Show how to correct a cross at every multiple-choice task” prints a short line on withdrawing and re-choosing a cross under every multiple choice task. Logo and LaTeX packages of a single exam are set under “Edit Exam”. The templates at the top of the Layout step set every option but the logo; use ⋮ on a template to save your current settings into it, rename it or reset it.',
             },
             s5: {
                 h: 'Typeset and print',

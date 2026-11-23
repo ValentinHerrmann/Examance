@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { allScanAidsOn, LAYOUT_PRESETS, matchPreset } from '../src/lib/exam/layoutPresets';
+import { allScanAidsOn, effectiveTemplates, LAYOUT_PRESETS, matchPreset, replacedTexts, withSlot } from '../src/lib/exam/layoutPresets';
+import { LAYOUT_FIELDS, LAYOUT_TEXT_FIELDS } from '../src/lib/exam/saveExamLayout';
+import { DEFAULT_EXTRA_NOTES } from '../src/lib/db/schema';
 import { NEW_EXAM_PRINT, printSettingsOf, printsNameLine } from '../src/lib/exam/printLayout';
 import { focusPageOf, infoTextLines, nameInfoOf, pageElementsOf, sheetSketchOf } from '../src/lib/exam/sheetSketch';
 import { layoutSampleTex, SAMPLE_INFO_END_URI, SAMPLE_INFO_START_URI, SAMPLE_LABEL, SAMPLE_MC_URI, SAMPLE_REST_URI } from '../src/lib/exam/layoutSample';
@@ -9,37 +11,68 @@ import { withExamOptions } from '../src/lib/exam/examPreview';
 
 const preset = (id: string) => LAYOUT_PRESETS.find((p) => p.id === id)!.fields;
 
-describe('layout presets (issue #272)', () => {
-  it('a new exam matches "grade in Examance"', () => {
-    expect(matchPreset({ ...NEW_EXAM_PRINT, nameLine: false, mcCorrectionHint: true })).toBe('fullDigital');
+describe('layout templates (issues #272, #279)', () => {
+  it('a new exam with the MC hint matches "Examance, anonymous"', () => {
+    expect(matchPreset({ ...NEW_EXAM_PRINT, nameLine: false, mcCorrectionHint: true })).toBe('examanceAnonymous');
   });
 
-  it('every preset matches itself and nothing else', () => {
+  it('every template matches itself and nothing else', () => {
     for (const p of LAYOUT_PRESETS) expect(matchPreset(p.fields)).toBe(p.id);
   });
 
-  it('there are at most four presets, covering both gradings with each print form and QR mode', () => {
-    expect(LAYOUT_PRESETS.length).toBeLessThanOrEqual(4);
-    for (const digitalGrading of [true, false]) {
-      const of = LAYOUT_PRESETS.filter((p) => p.fields.digitalGrading === digitalGrading).map((p) => p.fields);
-      expect(new Set(of.map((f) => f.printLayout))).toEqual(new Set(['duplex', 'booklet']));
-      expect(of.some((f) => f.printMode === 'copies')).toBe(true);
+  it('every built-in sets every Layout choice and leaves the free text alone', () => {
+    for (const p of LAYOUT_PRESETS) {
+      for (const key of LAYOUT_FIELDS) expect(key in p.fields).toBe(!(LAYOUT_TEXT_FIELDS as readonly string[]).includes(key));
     }
   });
 
   it('knows when every scan aid is on (the fold strip counts only in a booklet)', () => {
-    expect(allScanAidsOn(preset('fullDigital'))).toBe(true);
-    expect(allScanAidsOn({ ...preset('fullDigital'), foldStrip: false })).toBe(true);
-    expect(allScanAidsOn({ ...preset('fullDigital'), printLayout: 'booklet', foldStrip: false })).toBe(false);
-    expect(allScanAidsOn(preset('anonymousPaperCopies'))).toBe(false);
+    expect(allScanAidsOn(preset('examanceAnonymous'))).toBe(true);
+    expect(allScanAidsOn({ ...preset('examanceAnonymous'), foldStrip: false })).toBe(true);
+    expect(allScanAidsOn({ ...preset('examanceBooklet'), foldStrip: false })).toBe(false);
+    expect(allScanAidsOn(preset('paperAnonymous'))).toBe(false);
   });
 
   it('sticker spots do not decide the match of personalised copies', () => {
-    expect(matchPreset({ ...preset('anonymousPaperCopies'), stickerSpots: 'sheet' })).toBe('anonymousPaperCopies');
+    expect(matchPreset({ ...preset('examanceBooklet'), stickerSpots: 'leaf' })).toBe('examanceBooklet');
   });
 
-  it('a changed option makes the settings custom', () => {
-    expect(matchPreset({ ...preset('fullDigital'), stickerSpots: 'cover' })).toBe('custom');
+  it('a changed option or paper makes the settings custom; free text does not', () => {
+    expect(matchPreset({ ...preset('examanceAnonymous'), stickerSpots: 'cover' })).toBe('custom');
+    expect(matchPreset({ ...preset('examanceAnonymous'), paperStyle: 'lined' })).toBe('custom');
+    expect(matchPreset({ ...preset('examanceAnonymous'), infoText: 'Hilfsmittel: keine' } as never)).toBe('examanceAnonymous');
+  });
+});
+
+describe('edited layout templates (issue #279)', () => {
+  it('an account change replaces the built-in and keeps the slot order', () => {
+    const tpls = effectiveTemplates([{ id: 'paperClassic', title: 'Ex', fields: { printLayout: 'booklet', infoText: '45 min' } }]);
+    expect(tpls.map((t) => t.id)).toEqual(LAYOUT_PRESETS.map((p) => p.id));
+    const own = tpls.find((t) => t.id === 'paperClassic')!;
+    expect(own).toMatchObject({ title: 'Ex', text: null, edited: true });
+    expect(own.fields).toMatchObject({ ...preset('paperClassic'), printLayout: 'booklet', infoText: '45 min' });
+    expect(matchPreset(own.fields, tpls)).toBe('paperClassic');
+  });
+
+  it('a setting missing from an older save or of the wrong type keeps the built-in value', () => {
+    const [own] = effectiveTemplates([{ id: 'examanceBooklet', fields: { nameLine: 'yes', printMode: 'nonsense', stickerSpots: 'roof', extraPages: 99 } }]);
+    expect(own.fields).toMatchObject({ ...preset('examanceBooklet'), extraPages: 20 });
+  });
+
+  it('merges a change into its slot, keeps the others and drops a slot left empty', () => {
+    const stored = [{ id: 'paperClassic' as const, title: 'Ex' }, { id: 'examanceBooklet' as const, fields: { extraPages: 2 } }];
+    expect(withSlot(stored, 'examanceBooklet', { title: 'Abi' })).toEqual([stored[0], { id: 'examanceBooklet', fields: { extraPages: 2 }, title: 'Abi' }]);
+    expect(withSlot(stored, 'paperClassic', { title: null, text: null })).toEqual([stored[1]]);
+    expect(withSlot(stored, 'paperAnonymous', { title: null, text: null })).toEqual(stored);
+    expect(withSlot(stored, 'examanceBooklet', null)).toEqual([stored[0]]);
+  });
+
+  it('asks before replacing the exam\'s own text only', () => {
+    const fields = { ...preset('paperClassic'), infoText: 'Template', extraNotes: null };
+    expect(replacedTexts(preset('paperClassic'), { infoText: 'Mine' })).toEqual([]);
+    expect(replacedTexts(fields, { infoText: '' })).toEqual([]);
+    expect(replacedTexts(fields, { infoText: 'Template' })).toEqual([]);
+    expect(replacedTexts(fields, { infoText: 'Mine', extraNotes: DEFAULT_EXTRA_NOTES })).toEqual(['infoText', 'extraNotes']);
   });
 });
 
@@ -145,9 +178,8 @@ describe('personalised copies without Examance grading (issue #272)', () => {
     expect(options).not.toContain('ohneecke');
   });
 
-  it('has its own preset, distinct from anonymous stickers', () => {
-    expect(matchPreset(preset('anonymousPaperCopies'))).toBe('anonymousPaperCopies');
-    expect(matchPreset({ ...preset('anonymousPaperCopies'), printMode: 'stickers' })).toBe('custom');
+  it('matches no template: anonymous paper uses stickers', () => {
+    expect(matchPreset({ ...preset('paperAnonymous'), printMode: 'copies' })).toBe('custom');
   });
 
   it('prints the QR code and names the student only on the cut-off corner', () => {

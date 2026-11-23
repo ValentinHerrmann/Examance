@@ -81,6 +81,8 @@ class Teacher(Base):
     grading_scratch_out: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     # LaTeX packages added to every document of the account (#108, app/services/latex_packages.py).
     latex_packages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    # The account's changes to the four layout templates of the exam Layout step (issue #279); null = all built-in.
+    layout_templates: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -36,7 +36,7 @@
   onmouseleave={close}
   onfocusout={onFocusOut}
 >
-  <Popover bind:open panelClass="w-64 max-w-[calc(100vw-1rem)] p-3 text-sm font-normal text-muted sm:w-72">
+  <Popover bind:open panelClass="w-64 max-w-[calc(100vw-1rem)] p-3 text-sm font-normal whitespace-normal text-muted sm:w-72">
     {#snippet trigger()}
         <Button
           variant="text"
