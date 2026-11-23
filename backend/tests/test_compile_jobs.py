@@ -100,7 +100,7 @@ async def test_jobs_are_private_and_capped(client: AsyncClient, db: AsyncSession
 async def test_unfetched_results_expire(client: AsyncClient, db: AsyncSession) -> None:
     await sign_in(client, db, "jobs-expiry@example.com")
 
-    async def quick(latex, preview=True, binary_files=None, logo=None, seed_aux=None):  # type: ignore[no-untyped-def]
+    def quick(latex, preview=True, binary_files=None, logo=None, seed_aux=None):  # type: ignore[no-untyped-def]
         return TectonicResult(pdf=b"%PDF")
 
     with patch("app.routers.compile.compile_latex", side_effect=quick):

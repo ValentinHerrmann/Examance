@@ -277,5 +277,25 @@ describe('compileCache', () => {
       await compileWithCache(key, source + ' extra', true);
       expect(compileSpy).toHaveBeenCalledTimes(2);
     });
+
+    it('seeds a recompile of an edited document with the slot\'s last aux files (issue #341)', async () => {
+      const aux = [{ path: 'main.aux', content: new Uint8Array([1, 2, 3]) }];
+      const compileSpy = vi.spyOn(compilerModule, 'compileLatex').mockResolvedValue({
+        pdfBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+        usedFallback: false,
+        engineUsed: 'server',
+        aux,
+      });
+      const key: CompileCacheKey = { kind: 'exam', id: 'exam-seed', variant: 'angabe' };
+      await compileWithCache(key, 'first', false);
+      expect(compileSpy.mock.calls[0][4]?.seedAux).toEqual([]);
+      const hit = await compileWithCache(key, 'first', false);
+      expect(hit.fromCache).toBe(true);
+      await compileWithCache(key, 'edited', false);
+      expect(compileSpy.mock.calls[1][4]?.seedAux).toEqual(aux);
+      // The draft starts from the printed sheet's aux when it has none of its own.
+      await compileWithCache({ ...key, variant: 'draft' }, 'draft', false);
+      expect(compileSpy.mock.calls[2][4]?.seedAux).toEqual(aux);
+    });
   });
 });

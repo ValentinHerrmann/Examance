@@ -116,10 +116,12 @@
   let pdfVersion = $state(0);
   /** The last compile of this visit as the teacher waited for it (issue #341). */
   let lastCompile = $state.raw<{ ms: number; engine: "local" | "server"; cached: boolean } | null>(null);
-  let timing = $derived(
-    !lastCompile ? "" : lastCompile.cached ? $t("exam.page.preview.timedCached")
-      : $t(lastCompile.engine === "server" ? "exam.page.preview.timedServer" : "exam.page.preview.timedLocal", { seconds: $fmt.number(Math.round(lastCompile.ms / 100) / 10) })
-  );
+  let timing = $derived.by(() => {
+    if (!lastCompile) return "";
+    if (lastCompile.cached) return $t("exam.page.preview.timedCached");
+    const seconds = $fmt.number(Math.round(lastCompile.ms / 100) / 10);
+    return $t(lastCompile.engine === "server" ? "exam.page.preview.timedServer" : "exam.page.preview.timedLocal", { seconds });
+  });
   // Set when a compile skipped the solution: the shown solution may be older than the task sheet.
   let solutionOutdated = $state(false);
 

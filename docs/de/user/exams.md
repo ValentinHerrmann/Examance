@@ -196,7 +196,7 @@ Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Schri
 
 ## Setzen {#typeset}
 
-**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Auf breiten Bildschirmen steht die Vorschau neben Aufgaben und Layout; auf kleineren ist sie ein zweiter Reiter, **Vorschau**, neben **Aufgaben**. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken.
+**Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Auf breiten Bildschirmen steht die Vorschau neben Aufgaben und Layout; auf kleineren ist sie ein zweiter Reiter, **Vorschau**, neben **Aufgaben**. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken. Die Statuszeile sagt, wie lange das Erstellen gedauert hat und ob der Server oder der Browser kompiliert hat. Kompilierte PDFs bleiben verschlüsselt in diesem Browser, bis Sie sich abmelden: Nach dem Neuladen der Seite ist die letzte Vorschau sofort wieder da, und eine Änderung, die das Seitenlayout nicht verschiebt, ist meist schneller fertig als das erste Kompilieren. Fachpakete (Chemie, Schaltungen, UML, Struktogramme, Quelltext) lädt Examance nur, wenn eine Aufgabe sie verwendet.
 
 Je nach Ihren Einstellungen und Ihrem Konto wird die Prüfung
 
@@ -209,7 +209,7 @@ Siehe [LaTeX-Kompilierung](./settings#latex). Sieht etwas falsch aus, [melden Si
 
 ### Vorschau aus der Übersicht {#preview}
 
-In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag das zuletzt kompilierte PDF. Gibt es noch keines, fragt Examance nach, kompiliert die Prüfung und zeigt sie direkt im Fenster an. Die Vorschau bleibt nur bis zum Neuladen der Seite erhalten.
+In der Prüfungsübersicht öffnet **Vorschau** in einem aufgeklappten Eintrag das zuletzt kompilierte PDF. Gibt es noch keines, fragt Examance nach, kompiliert die Prüfung und zeigt sie direkt im Fenster an. Die Vorschau bleibt bis zum Abmelden erhalten, auch über ein Neuladen der Seite hinweg.
 
 ## Drucken {#print}
 

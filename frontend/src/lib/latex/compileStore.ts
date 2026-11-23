@@ -51,7 +51,11 @@ function decode(bytes: Uint8Array): StoredCompile {
   const metaLength = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0);
   const meta = JSON.parse(new TextDecoder().decode(bytes.subarray(4, 4 + metaLength))) as Meta;
   let offset = 4 + metaLength;
-  const take = (length: number) => bytes.slice(offset, (offset += length));
+  const take = (length: number) => {
+    const part = bytes.slice(offset, offset + length);
+    offset += length;
+    return part;
+  };
   const pdfBytes = take(meta.pdfLength);
   const aux = meta.aux.map((f) => ({ path: f.path, content: take(f.length) }));
   return { hash: meta.hash, missingGraphics: meta.missingGraphics, engineUsed: meta.engineUsed, usedFallback: meta.usedFallback, durationMs: meta.durationMs, pdfBytes, aux };

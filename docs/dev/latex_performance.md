@@ -1,0 +1,67 @@
+# LaTeX compile speed (issue #341)
+
+Where a compile spends its time, what Examance does about it, and what was tried and left out.
+
+## Where the time goes
+
+A print job compiles the task sheet and, if printed, the solution: two documents, whatever the number of students. Every per-student copy (QR codes, page codes, corner tab, booklets, A3 copies) is pdf-lib post-processing of those two PDFs (`qr/examCopies.ts`, `qr/booklet.ts`). The cost therefore sits in each single compile:
+
+- **TeX passes.** Schulaufgabe passes each task's score to the next run through `main.aux`, so a document compiled from nothing needs two passes.
+- **The preamble.** Every pass loads the whole template, so subject packages a document never uses (tikz-uml alone is 5,375 lines) are paid on every pass.
+- **Repeats.** Before #341 the server invoked Tectonic twice (Tectonic already reruns until the aux file settles, so that was two extra passes), the solution waited for the task sheet, and every reload compiled again.
+
+## What Examance does
+
+| Measure | Where | Effect |
+|---|---|---|
+| One Tectonic invocation per compile | `services/tectonic.py` `run_tectonic` | Tectonic's own rerun check decides the passes |
+| Subject packages only when used | `lazy` in `latex_package_rules.json`, both mergers (`docs/dev/latex_packages.md`) | a document without them skips their load on every pass |
+| Aux seeding | `compileCache.ts` `seedFor`, `compiler.worker.ts` `compileUntilStable`, `seed_aux`/`return_aux` on `POST /compile/latex/jobs` | an edit that keeps the layout usually needs one pass |
+| Task sheet and solution at once | `examPreview.ts` `compileExamPreview` (server engine only; the browser engine is one queue) | the solution no longer waits |
+| Compiled PDFs kept across reloads | `latex/compileStore.ts`, Dexie table `compiledPdfs` | a reload shows the last preview without compiling |
+| Compile time shown | `ExamPreviewPanel` status line, Print step readiness | teachers and bug reports see engine and seconds |
+
+Measured with Tectonic 0.15 and a warm cache, on a 12-task exam without subject packages:
+
+| | fresh compile | edit with seeded aux |
+|---|---|---|
+| Before #341 (two invocations, full preamble) | ~5.8 s | ~5.8 s |
+| After | 2.6 s | 1.4 s |
+
+The warm-up document (all subject packages) takes 4.3 s fresh and 2.5 s seeded.
+
+### Aux seeding rules
+
+- Seeds are only `main.aux`, `main.toc` and `main.out` (`AUX_FILE_NAMES`, mirrored in the worker's `AUX_EXTENSIONS`), at most 512 KB each.
+- TeX reads the aux file as code, so the server runs seeds through the same path tripwire as `main.tex` (`reject_unsafe_paths`).
+- A stale seed is safe: the engine sees the aux files change and reruns. It only costs the pass it would have saved.
+- A slot is seeded from its own last compile, else from its sibling (`draft` and `angabe` differ only in the filling pages). The seeds are kept independently of the content hash, so an edited document still finds them.
+
+### The persisted cache
+
+- Records are sealed with the session key and bound to their slot key (`sealCompiledPdf`, AAD `compiledPdf`). The content hash sits inside the ciphertext, so no plaintext hash of exam content is stored.
+- The budget is 40 entries and 150 MB, evicted by `lastAccess` through the `[lastAccess+sizeBytes]` index, so eviction never reads a PDF.
+- `clearCompileCache()` empties the table, so it is wiped on sign-out, workspace replacement and package changes.
+- The table belongs to `vaultTables()` but does not count for `workspaceIsEmpty()`.
+
+## Tried and left out: a precompiled preamble (.fmt)
+
+`tectonic --outfmt fmt` dumps a custom format (23 MB for the template), but `--format` resolves format names only inside the bundle, never from the working directory. Shipping one would mean our own bundle overlay. The documents would also need restructuring:
+
+- `\documentclass` and `\ExamancePackages` would move into the format.
+- hyperref must still load last.
+- The solution's `antworten` option would need its own format.
+
+The browser engine (busytex) would need an `-ini` dump inside the WASM VM and a matching cache invalidation. The remaining gain is the preamble's share of one pass, roughly a second. It is not worth it until the cheaper measures above are exhausted.
+
+## Why not Typst
+
+Typst compiles incrementally because its compiler is built from memoised pure functions. TeX expands macros over global state (counters, page breaks, the aux file), so any change can move everything after it, and there is no "recompile page 3" mode. texpresso gets close by snapshotting a patched native TeX process, which cannot run in WASM or behind Tectonic.
+
+Switching to Typst would mean rewriting:
+
+- the exam template and its OMR layout contract (score boxes, fiducials, page codes, bubble links);
+- every teacher's exercise LaTeX, with sharing, copies and versions;
+- both engines.
+
+The measures above recover most of the difference for the edit-compile loop, at no cost to existing content.
