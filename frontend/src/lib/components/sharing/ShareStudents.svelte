@@ -47,6 +47,8 @@
     return s.hasSubmission ? $t(`sharing.share.state.${s.state}`) : $t("sharing.share.state.noSubmission");
   }
 
+  const REVIEW_BADGE_KEY = { objection: "review.students.objection", partial: "review.students.partial", answered: "review.students.answered" } as const;
+
   /** A reply that leaves an objected exercise open keeps the objection open (issue #280). */
   function reviewBadge(share: ResultShareInfo): "objection" | "partial" | "answered" {
     if (!share.reviewRepliedAt) return "objection";
@@ -96,7 +98,7 @@
               {#if s.share?.reviewSubmittedAt && s.submissionId}
                 {@const review = reviewBadge(s.share)}
                 <a href={gradeHref(examId, { submissionId: s.submissionId })} class="no-underline" title={$t("review.students.openGrade")}>
-                  <Badge size="xs" severity={review === "answered" ? "success" : "warning"}>{$t(`review.students.${review}`)}</Badge>
+                  <Badge size="xs" severity={review === "answered" ? "success" : "warning"}>{$t(REVIEW_BADGE_KEY[review])}</Badge>
                 </a>
               {/if}
               {#if s.share}<div class="text-xs text-muted">{$t("sharing.share.sharedUntil", { date: formatDate(s.share.expiresAt) })}</div>{/if}

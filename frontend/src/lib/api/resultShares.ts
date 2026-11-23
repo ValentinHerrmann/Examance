@@ -52,6 +52,7 @@ interface ReviewOut {
   reply_iv_b64: string | null;
   reply_ct_b64: string | null;
   replied_at: string | null;
+  reply_complete?: boolean | null;
 }
 
 interface ResultShareContent {
@@ -72,6 +73,8 @@ export interface SealedReview {
   openedAt: string | null;
   reply: { iv: Uint8Array; ciphertext: Uint8Array } | null;
   repliedAt: string | null;
+  /** The reply answered every objected exercise (issue #280); null for a reply sent before the flag existed. */
+  replyComplete?: boolean | null;
 }
 
 /** One entry of the teacher's list: the thread of a share, under the student's pseudonym. */
@@ -88,6 +91,7 @@ const mapReview = (r: ReviewOut): SealedReview => ({
   openedAt: r.opened_at,
   reply: sealedPart(r.reply_iv_b64, r.reply_ct_b64),
   repliedAt: r.replied_at,
+  replyComplete: r.reply_complete ?? null,
 });
 
 const mapShare = (s: ResultShareOut): ResultShareInfo => ({

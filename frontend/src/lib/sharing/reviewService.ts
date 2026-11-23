@@ -8,6 +8,7 @@ import { reviewStore, type ReviewThread } from '#lib/grading/reviewStore';
 import { loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { reviewRepository } from '#lib/repositories/reviewRepository';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import type { Locale } from '#lib/i18n/types';
 import { translate } from '#lib/i18n';
@@ -67,7 +68,8 @@ export async function openThread(share: ResultShareInfo, row: ExamReviewInfo, it
       const reply = sanitizeReply(await openReviewPart(share.id, contentKey, 'reply', row.reply.ciphertext, row.reply.iv), itemKeys);
       thread.replies = Object.fromEntries(Object.entries(reply.items).map(([k, v]) => [k, v.text]));
       thread.replyPoints = Object.fromEntries(Object.entries(reply.items).map(([k, v]) => [k, { before: v.pointsBefore, after: v.pointsAfter }]));
-      thread.replyComplete = allAnswered(threadAnswerItems(thread.objections, thread.replies, thread.replyPoints));
+      // The server's flag is what the nav badge counts; replies sent before it existed are judged by their content.
+      thread.replyComplete = row.replyComplete ?? allAnswered(threadAnswerItems(thread.objections, thread.replies, thread.replyPoints));
     }
   } catch (err) {
     console.warn('A review could not be opened:', err);
@@ -182,9 +184,9 @@ function recordItems(thread: ReviewThread, texts: Record<string, string>, change
   }));
 }
 
-/** What the student reads per item: the reply text and the points change, with the "before" from the record so a repeated reply still shows the original points. */
+/** What the student reads per item: the reply text and the points change, with the "before" from the record so a repeated reply still shows the original points; every objected item is included, so a points-only answer counts (issue #280). */
 function replyPayload(thread: ReviewThread, texts: Record<string, string>, saved: GradingReviewRecord, after: ReviewItem[]) {
-  const items = Object.keys(texts)
+  const items = Object.keys({ ...thread.objections, ...texts })
     .filter((k) => texts[k] || thread.objections[k]?.trim())
     .map((k) => [k, { text: texts[k] ?? '', pointsBefore: saved.items.find((i) => i.key === k)?.pointsBefore ?? null, pointsAfter: after.find((i) => i.key === k)?.points ?? null }] as const);
   return { items: Object.fromEntries(items) };
@@ -222,6 +224,12 @@ function pendingMailOf(share: ResultShareInfo, published: Republished, studentKe
   return { context: { examId: loaded?.examId ?? '', examTitle: published.examTitle, expiresAt: new Date(share.expiresAt), language: MAIL_LANGUAGE }, student: published.student, studentKey, url: shareUrl(location.origin, published.link) };
 }
 
+/** The submission's gradable items with their current points. */
+async function currentItems(examId: string, submissionId: string, key: CryptoKey): Promise<ReviewItem[]> {
+  const [ctx, scores] = await Promise.all([loadExamCompileContext(examId, key), scoreRepository.getBySubmissionId(examId, submissionId, key)]);
+  return ctx ? buildReviewItems(ctx.exercises, ctx.mcGroups, scores) : [];
+}
+
 /** Whether a reply answers every objected item; a reply item carries its text and points as the student reads them. */
 function replyAnswersAll(thread: ReviewThread, items: Record<string, { text: string; pointsBefore: number | null; pointsAfter: number | null }>): boolean {
   const replies = Object.fromEntries(Object.entries(items).map(([k, v]) => [k, v.text]));
@@ -237,7 +245,8 @@ async function publishReply(examId: string, sub: SubmissionRecord, thread: Revie
     kept.record = await saveReviewRecord(examId, { id: crypto.randomUUID(), submissionId: sub.id, items: recordItems(thread, texts, change), submittedAt: thread.submittedAt, repliedAt }, key);
   };
   if (!share) {
-    await save(null);
+    // No link to republish: the current scores still tell whether an item was answered by its points.
+    await save({ before: [], after: await currentItems(examId, sub.id, key) });
     return { published: null, complete: allAnswered(kept.record?.items ?? []) };
   }
   const published = await republishShare(examId, share, { beforeRender: save });
