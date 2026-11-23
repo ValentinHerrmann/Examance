@@ -46,6 +46,12 @@
   function stateLabel(s: ShareStudent): string {
     return s.hasSubmission ? $t(`sharing.share.state.${s.state}`) : $t("sharing.share.state.noSubmission");
   }
+
+  /** A reply that leaves an objected exercise open keeps the objection open (issue #280). */
+  function reviewBadge(share: ResultShareInfo): "objection" | "partial" | "answered" {
+    if (!share.reviewRepliedAt) return "objection";
+    return share.reviewReplyComplete ? "answered" : "partial";
+  }
 </script>
 
 <div class="flex min-w-0 flex-col gap-2 {fill ? 'xl:min-h-0 xl:flex-1' : ''}">
@@ -88,9 +94,9 @@
                 <Badge size="xs" severity={DELIVERY_BADGE[badge]} title={s.delivery ? deliveryTitle(s.delivery) : undefined}>{$t(`sharing.delivery.status.${badge}`)}</Badge>
               {/if}
               {#if s.share?.reviewSubmittedAt && s.submissionId}
-                {@const answered = Boolean(s.share.reviewRepliedAt)}
+                {@const review = reviewBadge(s.share)}
                 <a href={gradeHref(examId, { submissionId: s.submissionId })} class="no-underline" title={$t("review.students.openGrade")}>
-                  <Badge size="xs" severity={answered ? "success" : "warning"}>{answered ? $t("review.students.answered") : $t("review.students.objection")}</Badge>
+                  <Badge size="xs" severity={review === "answered" ? "success" : "warning"}>{$t(`review.students.${review}`)}</Badge>
                 </a>
               {/if}
               {#if s.share}<div class="text-xs text-muted">{$t("sharing.share.sharedUntil", { date: formatDate(s.share.expiresAt) })}</div>{/if}

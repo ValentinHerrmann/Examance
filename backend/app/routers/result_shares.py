@@ -18,6 +18,7 @@ from app.schemas.result_share import (
     ResultShareOpen,
     ResultShareOut,
     ReviewListItem,
+    ReviewReply,
     ReviewSubmit,
     SealedPayload,
 )
@@ -85,14 +86,16 @@ async def open_result_share_review(
 @router.put("/{share_id}/review/reply", status_code=status.HTTP_204_NO_CONTENT)
 async def reply_to_result_share_review(
     share_id: uuid.UUID,
-    body: SealedPayload,
+    body: ReviewReply,
     request: Request,
     db: DB,
     exam: Annotated[Exam, Depends(get_exam_for_teacher)],
     teacher: TeachingTeacher,
 ) -> Response:
     """Store the teacher's sealed reply for the student's page."""
-    await result_shares.store_reply(db, exam.id, share_id, body.iv_b64, body.ciphertext_b64)
+    await result_shares.store_reply(
+        db, exam.id, share_id, body.iv_b64, body.ciphertext_b64, body.complete
+    )
     await audit_svc.log(db, request, teacher, "REVIEW_REPLIED", exam.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

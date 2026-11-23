@@ -23,6 +23,8 @@ export interface ResultShareInfo {
   reviewSubmittedAt: string | null;
   reviewOpenedAt: string | null;
   reviewRepliedAt: string | null;
+  /** The last reply answered every objected exercise (issue #280); meaningful only with `reviewRepliedAt`. */
+  reviewReplyComplete: boolean;
 }
 
 interface ResultShareOut {
@@ -39,6 +41,7 @@ interface ResultShareOut {
   review_submitted_at?: string | null;
   review_opened_at?: string | null;
   review_replied_at?: string | null;
+  review_reply_complete?: boolean | null;
 }
 
 interface ReviewOut {
@@ -101,6 +104,8 @@ const mapShare = (s: ResultShareOut): ResultShareInfo => ({
   reviewSubmittedAt: s.review_submitted_at ?? null,
   reviewOpenedAt: s.review_opened_at ?? null,
   reviewRepliedAt: s.review_replied_at ?? null,
+  // A reply sent before the flag existed (null) counts as complete.
+  reviewReplyComplete: s.review_reply_complete !== false,
 });
 
 export async function listResultShares(examId: string): Promise<ResultShareInfo[]> {
@@ -212,8 +217,9 @@ export async function openShareReview(examId: string, shareId: string): Promise<
   await api.post(`/exams/${examId}/shares/${shareId}/review/open`, {}, quiet);
 }
 
-export async function replyToShareReview(examId: string, shareId: string, sealed: { iv: Uint8Array; ciphertext: Uint8Array }): Promise<void> {
-  await api.put(`/exams/${examId}/shares/${shareId}/review/reply`, sealedBody(sealed), quiet);
+/** *complete*: the reply answers every objected exercise, else the objection stays open (issue #280). */
+export async function replyToShareReview(examId: string, shareId: string, sealed: { iv: Uint8Array; ciphertext: Uint8Array }, complete: boolean): Promise<void> {
+  await api.put(`/exams/${examId}/shares/${shareId}/review/reply`, { ...sealedBody(sealed), complete }, quiet);
 }
 
 /** The student's objection (or a new version of it); 409 `ERR_REVIEW_CLOSED` once the teacher opened it or `review_until` passed. */

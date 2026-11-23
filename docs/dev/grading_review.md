@@ -19,7 +19,7 @@ Score edits outside a reply are never published automatically: the Share page's 
 `routes/exam/[id]/review/objections` (Objections tab of the Review step, issue #276) (`components/sharing/ReviewOverview` + `ReviewOverviewRow`, data from `lib/sharing/reviewOverview.ts` `loadReviewOverview`) lists every objection of the exam. It is **read only**: it opens threads with `openThread` but never calls `openShareReview`, so nothing gets locked; only the grade page locks.
 
 - One row per student: the current link's server thread, else the objection kept in the `GradingReviewRecord` (`fromRecord`). The record supplies the first-recorded `pointsBefore`; the reply's sealed points (`ReviewThread.replyPoints`) supply the rest.
-- Status: `new` (not opened), `opened` (locked, no reply), `answered`. Only `answered` is closed; the filter shows Open, Answered or All. Open rows sort oldest first, answered newest first.
+- Status: `new` (not opened), `opened` (locked, no reply), `partial` (replied, but an objected item is still unanswered, issue #280), `answered`. An item is answered by a reply text or a points change (both points known), the thread only when every objected item is (`lib/sharing/reviewStatus.ts`). Only `answered` is closed; the filter shows Open, Answered or All. Open rows sort oldest first, answered newest first.
 - Pseudonymous: the title is the join key's first 10 hex characters like the grade header; the page-wide "Show names" switch or a row's eye reveals names, never persisted.
 - The tab's count is the exam layout's `progress.results.objections` (live links only).
 
@@ -53,11 +53,11 @@ interface ReviewItem { key: string; label: string; max: number; points: number |
 ## Server
 
 - `result_shares` gains `wrapped_key` (nullable bytes), `content_updated_at` and `review_until` (nullable timestamps).
-- `result_share_reviews` (1:1 with the share, `ON DELETE CASCADE`) holds `objection_iv`, `objection_ct`, `submitted_at`, `opened_at`, `reply_iv`, `reply_ct`, `replied_at`. It dies with the share: link expiry, revocation, re-share, exam or account deletion.
+- `result_share_reviews` (1:1 with the share, `ON DELETE CASCADE`) holds `objection_iv`, `objection_ct`, `submitted_at`, `opened_at`, `reply_iv`, `reply_ct`, `replied_at`, `reply_complete`. It dies with the share: link expiry, revocation, re-share, exam or account deletion.
 - Teacher endpoints (`get_teaching_teacher`, not gated by `server_results`, like shares):
   - `PUT /exams/{id}/shares/{share_id}/content {iv_b64, ciphertext_b64}` re-seals in place; lookup, factor and salt stay, `content_updated_at` is set. Refused (409 `ERR_SHARE_NOT_UPDATABLE`) for a share without `wrapped_key`.
   - `POST /exams/{id}/shares/{share_id}/review/open` sets `opened_at`.
-  - `PUT /exams/{id}/shares/{share_id}/review/reply {iv_b64, ciphertext_b64}` stores the reply.
+  - `PUT /exams/{id}/shares/{share_id}/review/reply {iv_b64, ciphertext_b64, complete}` stores the reply; `complete` (default true) is the client's verdict that every objected item is answered, stored as `reply_complete` and listed as `review_reply_complete`, so the nav badge and the Share table keep a partial reply open without reading the thread (one bit next to `replied_at`; null for older replies, read as complete).
   - `GET /exams/{id}/reviews` lists every review of the exam: share id, student key, timestamps and ciphertexts.
 - Public endpoints (no session, 10/minute per IP, body cap `BODY_LIMIT_SHARE_REVIEW`):
   - `POST /shares/{id}/review {lookup_b64, iv_b64, ciphertext_b64}` creates or replaces the objection.

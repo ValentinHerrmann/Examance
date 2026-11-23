@@ -21,9 +21,11 @@
 
   let thread = $derived($reviewStore.thread);
   let mine = $derived(Boolean(sub && $reviewStore.submissionId === sub.id && thread?.submittedAt));
+  // A reply that leaves an objected item unanswered keeps it open (issue #280).
+  let answeredKey = $derived(thread?.replyComplete === false ? ("review.bar.partial" as const) : ("review.bar.answered" as const));
   let status = $derived(
     thread?.repliedAt
-      ? $t("review.bar.answered", { date: formatDate(thread.repliedAt) })
+      ? $t(answeredKey, { date: formatDate(thread.repliedAt) })
       : $t("review.bar.open", { date: formatDate(thread?.submittedAt ?? "") })
   );
 </script>
