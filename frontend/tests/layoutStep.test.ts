@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allScanAidsOn, effectiveTemplates, LAYOUT_PRESETS, matchPreset, replacedTexts } from '../src/lib/exam/layoutPresets';
+import { allScanAidsOn, effectiveTemplates, LAYOUT_PRESETS, matchPreset, replacedTexts, withSlot } from '../src/lib/exam/layoutPresets';
 import { LAYOUT_FIELDS, LAYOUT_TEXT_FIELDS } from '../src/lib/exam/saveExamLayout';
 import { DEFAULT_EXTRA_NOTES } from '../src/lib/db/schema';
 import { NEW_EXAM_PRINT, printSettingsOf, printsNameLine } from '../src/lib/exam/printLayout';
@@ -57,6 +57,14 @@ describe('edited layout templates (issue #279)', () => {
   it('a setting missing from an older save or of the wrong type keeps the built-in value', () => {
     const [own] = effectiveTemplates([{ id: 'examanceBooklet', fields: { nameLine: 'yes', printMode: 'nonsense', stickerSpots: 'roof', extraPages: 99 } }]);
     expect(own.fields).toMatchObject({ ...preset('examanceBooklet'), extraPages: 20 });
+  });
+
+  it('merges a change into its slot, keeps the others and drops a slot left empty', () => {
+    const stored = [{ id: 'paperClassic' as const, title: 'Ex' }, { id: 'examanceBooklet' as const, fields: { extraPages: 2 } }];
+    expect(withSlot(stored, 'examanceBooklet', { title: 'Abi' })).toEqual([stored[0], { id: 'examanceBooklet', fields: { extraPages: 2 }, title: 'Abi' }]);
+    expect(withSlot(stored, 'paperClassic', { title: null, text: null })).toEqual([stored[1]]);
+    expect(withSlot(stored, 'paperAnonymous', { title: null, text: null })).toEqual(stored);
+    expect(withSlot(stored, 'examanceBooklet', null)).toEqual([stored[0]]);
   });
 
   it('asks before replacing the exam\'s own text only', () => {

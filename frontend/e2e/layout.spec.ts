@@ -553,6 +553,18 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
 test.describe('German labels', () => {
   test.use({ appLocale: 'de' });
 
+  // The ⓘ of a Layout row sits in a no-wrap span; its tip ran on one line across the page (issue #279).
+  test('[layout] an info tip in a Layout row wraps inside its panel (de)', async ({ page }) => {
+    const examId = await seedWorkspace(page);
+    await visit(page, `/exam/${examId}/layout`);
+    await settleLayout(page);
+    await page.locator('#layout-presets').getByRole('button', { name: label('help.ui.showTip', undefined, 'de') }).hover();
+    const tip = page.getByRole('tooltip').filter({ hasText: label('exam.layout.presets.info', undefined, 'de') });
+    await expect(tip).toBeVisible();
+    const { scroll, client } = await tip.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+    expect(scroll).toBeLessThanOrEqual(client);
+  });
+
   // German labels are the longest ("Varianten-Schlüssel" ran into "Aufgabentyp:", issue #188).
   test('[layout] exercise editor metadata labels stay in their columns (de)', async ({ page }) => {
     await signInFirstTime(page);

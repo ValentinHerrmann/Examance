@@ -269,7 +269,7 @@
       <SaveStatus {status} />
     {/snippet}
     <div class="@container flex flex-col gap-5">
-      <LayoutTemplateRow current={{ ...current, extraNotes }} onApply={applyTemplate} onHighlight={light} onShow={showPart} />
+      <LayoutTemplateRow current={{ ...current, extraNotes }} onApply={applyTemplate} {copiesUnavailable} onHighlight={light} onShow={showPart} />
 
       <!-- Each scan aid on its own (issue #272); the corner markers are what Examance's scanner needs, so they carry the grading switch. -->
       <section class="flex min-w-0 flex-col gap-2 border-t border-line pt-4" aria-labelledby="layout-grading-heading">

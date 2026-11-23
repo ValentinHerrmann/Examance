@@ -88,6 +88,14 @@ export function effectiveTemplates(stored: readonly StoredLayoutTemplate[]): Lay
   });
 }
 
+/** The stored list with *change* merged into slot *id* (null resets it); a slot left with nothing of its own is dropped, so it reads as the default again. */
+export function withSlot(stored: readonly StoredLayoutTemplate[], id: LayoutPresetId, change: Omit<StoredLayoutTemplate, 'id'> | null): StoredLayoutTemplate[] {
+  const rest = stored.filter((s) => s.id !== id);
+  if (!change) return rest;
+  const own: StoredLayoutTemplate = { ...stored.find((s) => s.id === id), ...change, id };
+  return own.title || own.text || own.fields ? [...rest, own] : rest;
+}
+
 type PresetSource = Partial<Pick<ExamRecord, LayoutChoiceField | 'bookletOffsetMm'>>;
 
 /** The choices as they print: sticker spots only matter with stickers, the fold strip only in a booklet. Free text is content and never decides the match. */

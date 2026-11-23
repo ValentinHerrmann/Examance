@@ -16,6 +16,8 @@
     part?: SketchPart;
     /** Radio: picked; checkbox: switched to *on*. */
     onPick: (on: boolean) => void;
+    /** Any click on the tile, also on an already chosen radio (which fires no change). */
+    onClick?: () => void;
   }
 </script>
 
@@ -85,6 +87,7 @@
             title={choice.title}
             describedby="{id}-note"
             onToggle={(on) => choice.onPick(on)}
+            onclick={choice.onClick}
             onHighlight={(on) => hover(choice, on)}
             onShow={choice.part ? () => onShow?.(choice.part!) : undefined}
           />

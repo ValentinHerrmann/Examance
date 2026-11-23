@@ -4,7 +4,7 @@
   import type { ExamRecord } from "#lib/db/schema";
   import type { SketchPart } from "#lib/exam/sheetSketch";
   import type { LayoutField } from "#lib/exam/saveExamLayout";
-  import { effectiveTemplates, fetchLayoutTemplates, matchPreset, replacedTexts, saveLayoutTemplates, type LayoutPresetId, type LayoutTemplate, type PresetFields, type StoredLayoutTemplate } from "#lib/exam/layoutPresets";
+  import { effectiveTemplates, fetchLayoutTemplates, matchPreset, replacedTexts, saveLayoutTemplates, withSlot, type LayoutPresetId, type LayoutTemplate, type PresetFields, type StoredLayoutTemplate } from "#lib/exam/layoutPresets";
   import LayoutChoiceRow, { type LayoutChoice } from "#lib/components/exam/LayoutChoiceRow.svelte";
   import { actionIcons } from "#lib/components/ui/actionIcons";
   import { faArrowRotateLeft, faBook, faFloppyDisk, faPenNib, faQrcode, faUserSecret, faTriangleExclamation, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
@@ -16,14 +16,18 @@
     current: Required<Pick<ExamRecord, Exclude<LayoutField, "extraNotes">>> & Pick<ExamRecord, "extraNotes">;
     /** Sets the template's settings; free text only when it is part of *fields*. */
     onApply: (fields: PresetFields) => void;
+    /** Why personalised copies cannot be made, or null: templates that print them are greyed out with it. */
+    copiesUnavailable?: string | null;
     onHighlight?: (part: SketchPart, on: boolean) => void;
     onShow?: (part: SketchPart) => void;
   }
 
-  let { current, onApply, onHighlight, onShow }: Props = $props();
+  let { current, onApply, copiesUnavailable = null, onHighlight, onShow }: Props = $props();
 
   let stored = $state.raw<StoredLayoutTemplate[]>([]);
   let loadFailed = $state(false);
+  /** The account's list arrived; until then a save would overwrite edits it does not know. */
+  let loaded = $state(false);
   let templates = $derived(effectiveTemplates(stored));
   let matched = $derived(matchPreset(current, templates));
 
@@ -31,7 +35,20 @@
   const titleOf = (tpl: LayoutTemplate) => tpl.title ?? $t(`exam.layout.presets.${tpl.id}`);
   const textOf = (tpl: LayoutTemplate) => tpl.text ?? $t(`exam.layout.presets.${tpl.id}Text`);
 
-  let choices = $derived<LayoutChoice[]>(templates.map((tpl) => ({ value: tpl.id, checked: matched === tpl.id, icon: icons[tpl.id], title: titleOf(tpl), text: textOf(tpl), onPick: () => pick(tpl) })));
+  const carriesText = (tpl: LayoutTemplate) => "infoText" in tpl.fields || "extraNotes" in tpl.fields;
+  // The chosen tile fires no change on a click, so a template whose text differs is applied through its click instead.
+  let choices = $derived<LayoutChoice[]>(
+    templates.map((tpl) => ({
+      value: tpl.id,
+      checked: matched === tpl.id,
+      icon: icons[tpl.id],
+      title: titleOf(tpl),
+      text: textOf(tpl),
+      disabledReason: tpl.fields.printMode === "copies" && matched !== tpl.id ? copiesUnavailable : null,
+      onPick: () => pick(tpl),
+      onClick: matched === tpl.id && carriesText(tpl) ? () => pick(tpl) : undefined,
+    })),
+  );
 
   type Dialog = { kind: "save" | "reset" | "replace" | "rename"; tpl: LayoutTemplate } | null;
   let dialog = $state.raw<Dialog>(null);
@@ -42,7 +59,10 @@
 
   onMount(() => {
     fetchLayoutTemplates()
-      .then((list) => (stored = list))
+      .then((list) => {
+        stored = list;
+        loaded = true;
+      })
       .catch(() => (loadFailed = true));
   });
 
@@ -65,23 +85,19 @@
     dialog = null;
   }
 
-  async function store(next: StoredLayoutTemplate[]) {
+  /** Applies *change* to the account's current list, read again first, so another tab's edits survive. */
+  async function store(id: LayoutPresetId, change: Omit<StoredLayoutTemplate, "id"> | null) {
     busy = true;
     error = "";
     try {
-      stored = await saveLayoutTemplates(next);
+      const fresh = await fetchLayoutTemplates();
+      stored = await saveLayoutTemplates(withSlot(fresh, id, change));
       dialog = null;
     } catch (err) {
       error = $t("exam.layout.presets.saveFailed", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       busy = false;
     }
-  }
-
-  /** The slot with *change* merged over what the account stored for it. */
-  function withSlot(id: LayoutPresetId, change: Partial<StoredLayoutTemplate>): StoredLayoutTemplate[] {
-    const own = stored.find((s) => s.id === id) ?? { id };
-    return [...stored.filter((s) => s.id !== id), { ...own, ...change }];
   }
 
   function confirm() {
@@ -91,15 +107,15 @@
       onApply(tpl.fields);
       dialog = null;
     } else if (kind === "save") {
-      void store(withSlot(tpl.id, { fields: $state.snapshot(current) }));
+      void store(tpl.id, { fields: $state.snapshot(current) });
     } else if (kind === "rename") {
       const builtinTitle = $t(`exam.layout.presets.${tpl.id}`);
       const builtinText = $t(`exam.layout.presets.${tpl.id}Text`);
       const title = nameDraft.trim();
       const text = textDraft.trim();
-      void store(withSlot(tpl.id, { title: title && title !== builtinTitle ? title : null, text: text && text !== builtinText ? text : null }));
+      void store(tpl.id, { title: title && title !== builtinTitle ? title : null, text: text && text !== builtinText ? text : null });
     } else {
-      void store(stored.filter((s) => s.id !== tpl.id));
+      void store(tpl.id, null);
     }
   }
 
@@ -112,10 +128,10 @@
     {#snippet menu(choice)}
       {@const tpl = templates.find((x) => x.id === choice.value)!}
       <Menu label={$t("exam.layout.presets.menu", { name: choice.title })} icon={actionIcons.more} showLabel={false} chevron={false} triggerClass="inline-flex h-full min-h-9 w-7 items-center justify-center rounded-md text-muted hover:bg-surface-inset pointer-coarse:min-w-11">
-        <MenuItem icon={faFloppyDisk} onSelect={() => open("save", tpl)}>{$t("exam.layout.presets.saveInto")}</MenuItem>
-        <MenuItem icon={actionIcons.edit} onSelect={() => open("rename", tpl)}>{$t("exam.layout.presets.rename")}</MenuItem>
+        <MenuItem icon={faFloppyDisk} disabled={!loaded} onSelect={() => open("save", tpl)}>{$t("exam.layout.presets.saveInto")}</MenuItem>
+        <MenuItem icon={actionIcons.edit} disabled={!loaded} onSelect={() => open("rename", tpl)}>{$t("exam.layout.presets.rename")}</MenuItem>
         {#if tpl.edited}
-          <MenuItem icon={faArrowRotateLeft} onSelect={() => open("reset", tpl)}>{$t("exam.layout.presets.reset")}</MenuItem>
+          <MenuItem icon={faArrowRotateLeft} disabled={!loaded} onSelect={() => open("reset", tpl)}>{$t("exam.layout.presets.reset")}</MenuItem>
         {/if}
       </Menu>
     {/snippet}
