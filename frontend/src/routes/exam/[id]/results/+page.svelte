@@ -140,7 +140,7 @@
     const key = get(sessionStore).sessionKey;
     if (!stats) return;
     const rows = await buildGradeRows(exam, students, submissions, { stats, totalMaxPoints });
-    await exportGradesToCsv(examId, exam?.title || 'Exam', rows, key);
+    await exportGradesToCsv(examId, exam ?? {}, rows, key);
   }
 
   $effect.pre(() => {

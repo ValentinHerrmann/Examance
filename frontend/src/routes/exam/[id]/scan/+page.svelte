@@ -25,6 +25,8 @@
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { examRepository } from "#lib/repositories/examRepository";
+  import { examFileName, FILE_KIND, type ExamFileFields } from "#lib/export/fileName";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import type { GradingReviewItem, StudentRecord, PseudonymVersion } from "#lib/db/schema";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
@@ -133,11 +135,14 @@
   let paperNotes = $state.raw<string[]>([]);
   /** Null until `loadOmrContext` knows; without MC the template only serves the score boxes in grading. */
   let examHasMc: boolean | null = null;
+  /** The exam's fields for download names (issue #337); empty until read. */
+  let fileExam = $state.raw<ExamFileFields>({});
 
   /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. Exams without MC skip it here: a visit never compiles, the template follows an upload (`prepareScoreBoxTemplate`). */
   async function loadOmrContext() {
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
+    examRepository.getById(examId, key).then((exam) => { if (exam) fileExam = exam; }).catch(() => undefined);
     const mcExercises = await loadExamMcExercises(examId, key).catch(() => []);
     examHasMc = mcExercises.length > 0;
     if (!examHasMc) {
@@ -415,7 +420,7 @@
       const scores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
 
       const bytes = await renderGradedPdf(sub, scores, key, { fallbackKey: fallbackSessionKey, studentName: item.studentName, review });
-      downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${item.fallbackCode || item.id}_graded.pdf`);
+      downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), examFileName(fileExam, [item.fallbackCode || item.id, FILE_KIND.graded], "pdf"));
     } catch (err: any) {
       alert(translate("scanning.errorExportPdf", { message: err?.message || err }));
     } finally {
@@ -662,6 +667,7 @@
 <ScanPreviewModal
   open={previewModalOpen}
   item={previewItem}
+  exam={fileExam}
   objectUrl={previewObjectUrl}
   isPdf={previewIsPdf}
   loading={previewLoading}

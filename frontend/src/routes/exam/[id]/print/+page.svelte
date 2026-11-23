@@ -14,7 +14,7 @@
   import { examBaseMinutes } from "#lib/students/timeExtension";
   import type { StickerEntry } from "#lib/qr/stickerSheet";
   import { downloadBlob } from "#lib/utils/download";
-  import { slug } from "#lib/export/zip";
+  import { examFileName, FILE_KIND } from "#lib/export/fileName";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
   import { createLoadGuard } from "#lib/utils/loadGuard";
   import ExamPreviewPanel, { type ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
@@ -40,7 +40,11 @@
   // Only what the plan prints: the planned sheets while current, made sticker or copies PDFs as extra panes.
   let shown = $state<PrintPreviews | undefined>(undefined);
   const paneTitle = { exam: "exam.print.job.examBooklet", qr: "exam.print.job.qr", copies: "exam.print.job.copies", copiesA3: "exam.print.job.copiesA3", extra: "exam.print.extra.title" } as const;
-  let extraPanes = $derived((["exam", "qr", "copies", "copiesA3", "extra"] as const).flatMap((job) => (shown?.jobs[job] ? [{ id: job, title: $t(paneTitle[job]), url: shown.jobs[job] ?? null }] : [])));
+  let extraPanes = $derived(
+    (["exam", "qr", "copies", "copiesA3", "extra"] as const).flatMap((job) =>
+      shown?.jobs[job] ? [{ id: job, title: $t(paneTitle[job]), url: shown.jobs[job] ?? null, fileName: shown.fileNames[job] }] : []
+    )
+  );
 
   const key = () => get(sessionStore).sessionKey;
   let examItems = $derived(ctx ? buildExamItems(ctx.exercises, ctx.mcGroups) : []);
@@ -49,7 +53,6 @@
   // Only a results-only import lacks the LaTeX to preview; an exam graded outside Examance still compiles (without scan aids).
   let resultsOnly = $derived(!!ctx && examHasWithheldCode(ctx.exercises));
   let hasMc = $derived(ctx ? resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups).length > 0 : false);
-  let title = $derived(ctx?.exam.title || $t("exam.nav.examFallback"));
   // Pinned answer-sheet layouts (issue #239); exams graded outside Examance print no scan aids and get none.
   let pinnable = $derived(!!ctx && ctx.exam.digitalGrading !== false && !resultsOnly);
   let pinList = $state.raw<OmrTemplateCandidate[] | null>(null);
@@ -154,8 +157,9 @@
 
   async function downloadPdf(variant: "angabe" | "loesung") {
     const bytes = await currentPdf(variant);
-    const suffix = variant === "angabe" ? "" : `_${slug($t("exam.page.pdfPreview.titleLoesung"))}`;
-    downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${slug(title)}${suffix}.pdf`);
+    if (!ctx) return;
+    const kind = variant === "angabe" ? FILE_KIND.exam : FILE_KIND.solution;
+    downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), examFileName(ctx.exam, [kind], "pdf"));
   }
 
   $effect.pre(() => {
@@ -177,7 +181,7 @@
       <PrintPlan
         class="xl:col-start-1 xl:row-start-1"
         {examId}
-        examTitle={ctx.exam.title ?? ""}
+        exam={ctx.exam}
         exerciseCount={ctx.exercises.length}
         {entries}
         {entriesError}

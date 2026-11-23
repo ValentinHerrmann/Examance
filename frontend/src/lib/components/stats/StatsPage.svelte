@@ -120,6 +120,7 @@
         curve={combined.curve}
         axisLabel={$t('stats.submissionHistogram.axisLabel')}
         examTitle={exam?.title ?? ''}
+        {exam}
         fileName="noten_prozentverteilung"
       >
         {#if combined.markers.length}
@@ -136,6 +137,7 @@
         layers={[{ columns: grades, fill: 0.72, labels: 'axis', values: true }]}
         axisLabel={$t('stats.gradeDistribution.axisLabel')}
         examTitle={exam?.title ?? ''}
+        {exam}
         fileName="notenverteilung"
       >
         {#if stats.borderline.length > 0}
@@ -149,6 +151,7 @@
         layers={[{ columns: bins, fill: 0.72, labels: 'axis', values: true }]}
         axisLabel={$t('stats.submissionHistogram.axisLabel')}
         examTitle={exam?.title ?? ''}
+        {exam}
         fileName="prozentverteilung"
       />
     </div>

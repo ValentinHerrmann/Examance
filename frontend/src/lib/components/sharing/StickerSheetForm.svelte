@@ -6,7 +6,8 @@
   import { faKey, faQrcode, faScissors, faTag, faUser } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, OptionTile, TextInput, actionIcons } from "#lib/components/ui";
   import { downloadBlob } from "#lib/utils/download";
-  import { slug, ZipBuilder } from "#lib/export/zip";
+  import { ZipBuilder } from "#lib/export/zip";
+  import { examFileName, FILE_KIND, type ExamFileFields } from "#lib/export/fileName";
   import { renderExamCopies } from "#lib/qr/examCopies";
   import { imposeBooklet, scaleToA3, splitCopies } from "#lib/qr/booklet";
   import { renderStickerSheet, STICKER_GRID, type StickerEntry } from "#lib/qr/stickerSheet";
@@ -20,7 +21,8 @@
   interface Props {
     /** Prints the exam's students (entered on the Students page). */
     examId: string;
-    examTitle?: string;
+    /** The exam's fields for the file names and the copies' PDF title (else read with the students). */
+    exam?: ExamFileFields;
     /** Starts with only the key slips (reprint from the Share page). */
     keysOnly?: boolean;
     /** The compiled student sheet; offers printing onto exam copies. */
@@ -51,7 +53,7 @@
 
   let {
     examId,
-    examTitle = "",
+    exam: givenExam,
     keysOnly: startKeysOnly = false,
     loadExamPdf,
     copiesUnavailable = null,
@@ -94,6 +96,8 @@
   // Personalised page codes name the student by sticker ID (issue #220): a shared ID blocks copies, a missing one leaves only the cover code.
   let idIssues = $derived(copiesMode ? stickerIdIssues(entries ?? examEntries) : null);
   let error = $state("");
+  let loadedExam = $state.raw<ExamFileFields | undefined>(undefined);
+  let fileExam = $derived<ExamFileFields>(givenExam ?? loadedExam ?? {});
 
   onMount(async () => {
     if (entries) {
@@ -105,6 +109,7 @@
       // The working time turns an extension in percent into its printed minutes (issue #265); without the exam it prints the percent alone.
       const key = get(sessionStore).sessionKey;
       const exam = await examRepository.getById(examId, key).catch(() => undefined);
+      loadedExam = exam;
       examEntries = await loadStickerEntries(examId, key, examBaseMinutes(exam));
     } catch (err) {
       // A failed read is reported, never shown as "no students yet" (issue #212).
@@ -127,24 +132,23 @@
   async function deliverCopies(list: StickerEntry[], examPdf: Uint8Array) {
     const issues = stickerIdIssues(list);
     if (issues.duplicates.length) throw new Error($t("sharing.stickers.idDuplicates", { names: issues.duplicates.join(", ") }));
-    const { pdf, pagesPerCopy } = await renderExamCopies(examPdf, list, { examTitle, examId });
-    const base = slug(examTitle || $t("sharing.stickers.copiesTitle"));
+    const { pdf, pagesPerCopy } = await renderExamCopies(examPdf, list, { examTitle: fileExam.title ?? "", examId });
     if (largePrint) {
-      deliver(await scaleToA3(pdf), "copies", `${base}_copies_A3.pdf`);
+      deliver(await scaleToA3(pdf), "copies", examFileName(fileExam, [FILE_KIND.copiesA3], "pdf"));
       return;
     }
     if (booklet === "impose") {
-      deliver(await imposeBooklet(pdf, pagesPerCopy, bookletOffsetMm), "copies", `${base}_booklets.pdf`);
+      deliver(await imposeBooklet(pdf, pagesPerCopy, bookletOffsetMm), "copies", examFileName(fileExam, [FILE_KIND.booklets], "pdf"));
       return;
     }
     if (booklet === "printer") {
       const zip = new ZipBuilder();
-      const files = await splitCopies(pdf, pagesPerCopy, list.map((e, i) => `${e.number ?? String(i + 1).padStart(3, "0")}_${slug(e.label)}`));
+      const files = await splitCopies(pdf, pagesPerCopy, list.map((e, i) => examFileName(fileExam, [e.number ?? String(i + 1).padStart(3, "0"), e.label])));
       for (const file of files) zip.add(`${file.name}.pdf`, file.pdf);
-      deliver(pdf, "copies", `${base}_copies.pdf`, { bytes: zip.toBytes(), fileName: `${base}_copies.zip`, type: "application/zip" });
+      deliver(pdf, "copies", examFileName(fileExam, [FILE_KIND.copies], "pdf"), { bytes: zip.toBytes(), fileName: examFileName(fileExam, [FILE_KIND.copies], "zip"), type: "application/zip" });
       return;
     }
-    deliver(pdf, "copies", `${base}_copies.pdf`);
+    deliver(pdf, "copies", examFileName(fileExam, [FILE_KIND.copies], "pdf"));
   }
 
   async function download() {
@@ -167,7 +171,7 @@
         keys,
         keysOnly: onlyKeys,
       });
-      deliver(pdf, onlyKeys ? "keys" : "stickers", `${slug(examTitle || $t("sharing.stickers.pdfTitle"))}${onlyKeys ? "_keys" : "_qr"}.pdf`);
+      deliver(pdf, onlyKeys ? "keys" : "stickers", examFileName(fileExam, [onlyKeys ? FILE_KIND.keys : FILE_KIND.qr], "pdf"));
     } catch (err) {
       error = `${$t("sharing.errors.stickers")} ${err instanceof Error ? err.message : ""}`.trim();
     } finally {

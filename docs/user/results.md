@@ -62,7 +62,7 @@ The **CSV export** of the grades, for example for the school's grade management,
 
 | Part | Contains |
 |---|---|
-| **Graded scans (PDF)** | each submission with the corrections drawn in and the [score boxes filled in](./grading#score-boxes); partly graded ones too (file name with `_partial`, ungraded with `_ungraded`); the student's name is printed in red at the top of every page |
+| **Graded scans (PDF)** | each submission with the corrections drawn in and the [score boxes filled in](./grading#score-boxes); partly graded ones too (file name with `_teilweise`, ungraded with `_unkorrigiert`); the student's name is printed in red at the top of every page |
 | **LaTeX source** | a separate ZIP with exam and solution, their files and logo, ready for Overleaf (compiler XeLaTeX); only with this part can the ZIP be imported again later (without results) |
 | **Compiled exam and solution (PDF)** | the task and solution sheets (compiling may take a while) |
 | **Summary (PDF)** | metadata, grading key in points and percent, average, the combined chart and the student list with points and grades, partly graded ones highlighted |
@@ -75,6 +75,10 @@ CSV and ZIP contain **real names** and are **not encrypted**. Store them only in
 The ZIP has no Mebis option: feedback files for Mebis come only from [Share results](#share).
 
 For an encrypted copy that can be imported again, choose **Re-importable, password-protected backup** instead, see [Backup and transfer](./backup#exam-backup).
+
+### File names {#file-names}
+
+Every downloaded file of an exam starts with the exam date, so a folder sorts by date, followed by subject, class, exam type and number, for example `2026-11-05_Informatik_10a_Kurzarbeit_1_Loesung.pdf`. Files of single students carry the name after it (`…_Kurzarbeit_1_Mustermann_Max.pdf`). Without a complete date the name starts with `0000-00-00`; when subject, class, exam type and number are empty, the exam title follows. The file kinds are German words in every language (`Angabe`, `Loesung`, `Noten`, `QR`, …); umlauts are spelled out (`ü` becomes `ue`) and spaces become `_`.
 
 ## Share results {#share}
 

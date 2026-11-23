@@ -139,7 +139,7 @@
     onClose={close}
   />
 {:else if kind === "export"}
-  <ExamExportModal exams={targets.map((exam) => ({ id: exam.id, title: exam.title ?? "" }))} onClose={close} />
+  <ExamExportModal exams={targets.map((exam) => ({ ...exam, title: exam.title ?? "" }))} onClose={close} />
 {/if}
 
 <DeleteWithUsageModal

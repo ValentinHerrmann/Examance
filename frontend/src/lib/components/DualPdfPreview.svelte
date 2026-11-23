@@ -14,6 +14,9 @@
     showLoesungPreview?: boolean;
     titleAngabe?: string | undefined;
     titleLoesung?: string | undefined;
+    /** Download names of the two panes (issue #337); the pane title otherwise. */
+    fileNameAngabe?: string;
+    fileNameLoesung?: string;
     /** Inside a flex column the root's (and below lg the pane's) flex-1 overrides this, so give that parent a fixed height; a content-sized one shrinks the PDF to its minimum (issue #210). */
     height?: string;
     placeholderText?: string | undefined;
@@ -24,7 +27,7 @@
     /** False hides the download buttons (a student's view-only result page, issue #207). */
     downloadable?: boolean;
     /** More PDFs beside task sheet and solution (the Print step's sticker sheet). Collapsed until their URL first appears or changes; then they open. */
-    extraPanes?: { id: string; title: string; url: string | null }[];
+    extraPanes?: { id: string; title: string; url: string | null; fileName?: string }[];
     /** Drops panes without a PDF instead of showing their placeholder (the Print step shows only what will be printed). */
     hideEmpty?: boolean;
   }
@@ -36,6 +39,8 @@
     showLoesungPreview = $bindable(false),
     titleAngabe = undefined,
     titleLoesung = undefined,
+    fileNameAngabe = undefined,
+    fileNameLoesung = undefined,
     height = "100%",
     placeholderText = undefined,
     shrinkWhenCollapsed = false,
@@ -67,6 +72,7 @@
     {
       id: "angabe" as PaneId,
       title: angabeTitle,
+      fileName: fileNameAngabe,
       icon: faFilePdf,
       url: previewPdfUrl,
       shown: showAngabePreview,
@@ -75,6 +81,7 @@
     {
       id: "loesung" as PaneId,
       title: loesungTitle,
+      fileName: fileNameLoesung,
       icon: faFileLines,
       url: previewSolutionPdfUrl,
       shown: showLoesungPreview,
@@ -83,6 +90,7 @@
     ...extraPanes.map((x) => ({
       id: x.id,
       title: x.title,
+      fileName: x.fileName,
       icon: faFilePdf,
       url: x.url,
       shown: !!extraOpen[x.id],
@@ -155,7 +163,7 @@
                     iconOnly
                     icon={faDownload}
                     href={pane.url}
-                    download={`${pane.title}.pdf`}
+                    download={pane.fileName ?? `${pane.title}.pdf`}
                     ariaLabel={$t("common.download")}
                     title={$t("common.download")}
                   />

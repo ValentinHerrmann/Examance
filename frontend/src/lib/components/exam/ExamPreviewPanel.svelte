@@ -34,6 +34,7 @@
   import { faCircleCheck, faCircleInfo, faFilePdf, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
   import { fillViewport } from "#lib/utils/fillViewport";
   import { Alert, Button, EmptyState, Icon, actionIcons } from "#lib/components/ui";
+  import { examFileName, FILE_KIND } from "#lib/export/fileName";
 
   /** The exam's compile card (issue #212): compile, task/solution preview, layout report, compile errors and the OMR template status. Never compiles on its own: an edit only marks the shown preview as outdated (issue #197). */
   interface Props {
@@ -56,7 +57,7 @@
     /** Out: starts a compile, for a page that puts the button elsewhere. */
     compile?: (opts?: { solution?: boolean }) => Promise<void>;
     /** More PDFs beside task sheet and solution (the Print step's sticker sheet). */
-    extraPanes?: { id: string; title: string; url: string | null }[];
+    extraPanes?: { id: string; title: string; url: string | null; fileName?: string }[];
     /** Which sheets get a pane (the Print step shows only what it prints). */
     sheets?: { angabe: boolean; loesung: boolean };
     /** Shows a sheet only while it matches the sources and drops panes without a PDF: no outdated file is ever shown (Print step). */
@@ -416,6 +417,8 @@
           bind:showLoesungPreview
           titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
           titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
+          fileNameAngabe={examFileName(exam, [FILE_KIND.exam], "pdf")}
+          fileNameLoesung={examFileName(exam, [FILE_KIND.solution], "pdf")}
           height="100%"
           placeholderText={$t("exam.page.pdfPreview.placeholder")}
           report={layoutReport}

@@ -7,7 +7,7 @@
   import { downloadBlob } from "#lib/utils/download";
   import type { ExamRecord, StudentRecord } from "#lib/db/schema";
   import { buildTimerData, timerExtensionLabels, timerFile, timerLink, timerLinkProblem, timerUrl } from "#lib/export/examTimer";
-  import { slug } from "#lib/export/zip";
+  import { examFileName, FILE_KIND } from "#lib/export/fileName";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { sessionStore } from "#lib/stores/session";
   import { examTimerSettingsHref } from "#lib/utils/links";
@@ -39,7 +39,7 @@
   }
 
   function download() {
-    if (data && exam) downloadBlob(timerFile(data), `${slug(exam.title || "exam", "exam")}_examtimer.json`);
+    if (data && exam) downloadBlob(timerFile(data), examFileName(exam, [FILE_KIND.examtimer], "json"));
   }
 </script>
 

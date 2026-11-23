@@ -6,16 +6,15 @@
 
   interface Props {
     examId: string;
-    examTitle?: string;
     /** Starts with only the key slips. */
     keysOnly?: boolean;
     onClose: () => void;
   }
 
-  let { examId, examTitle = "", keysOnly = false, onClose }: Props = $props();
+  let { examId, keysOnly = false, onClose }: Props = $props();
   let busy = $state(false);
 </script>
 
 <Modal open={true} size="medium" title={$t("sharing.stickers.title")} onClose={busy ? undefined : onClose} closeOnEscape={!busy}>
-  <StickerSheetForm {examId} {examTitle} {keysOnly} bind:busy onDone={onClose} />
+  <StickerSheetForm {examId} {keysOnly} bind:busy onDone={onClose} />
 </Modal>
