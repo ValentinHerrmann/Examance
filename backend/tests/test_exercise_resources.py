@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
 from app.middleware.cors import is_allowed_origin
+from app.services.tectonic import TectonicResult
 
 from .factors import compile_job, sign_in
 
@@ -135,9 +136,9 @@ async def test_compile_loads_resources_by_exercise_id(
 
     seen: dict[str, bytes] = {}
 
-    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None):
+    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.update(binary_files or {})
-        return b"%PDF-1.4 fake"
+        return TectonicResult(pdf=b"%PDF-1.4 fake")
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
         resp = await compile_job(
@@ -167,9 +168,9 @@ async def test_compile_ignores_another_teachers_exercise_ids(
 
     seen: dict[str, bytes] = {}
 
-    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None):
+    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.update(binary_files or {})
-        return b"%PDF-1.4 fake"
+        return TectonicResult(pdf=b"%PDF-1.4 fake")
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
         resp = await compile_job(
@@ -194,9 +195,9 @@ async def test_inline_resource_overrides_the_stored_copy(
 
     seen: dict[str, bytes] = {}
 
-    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None):
+    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.update(binary_files or {})
-        return b"%PDF-1.4 fake"
+        return TectonicResult(pdf=b"%PDF-1.4 fake")
 
     newer = b"\x89PNG\r\n\x1a\nnewer-bytes"
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):

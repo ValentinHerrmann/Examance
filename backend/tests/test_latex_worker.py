@@ -12,7 +12,7 @@ import pytest
 from app import latex_worker
 from app.config import settings
 from app.services import latex
-from app.services.tectonic import CompilationError
+from app.services.tectonic import CompilationError, TectonicResult
 
 
 @pytest.fixture
@@ -29,13 +29,17 @@ def worker(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_worker_returns_the_pdf_and_receives_resources(worker: None) -> None:
-    run = AsyncMock(return_value=b"%PDF-1.7 worker")
+    run = AsyncMock(return_value=TectonicResult(pdf=b"%PDF-1.7 worker", aux={"main.aux": b"\\relax"}))
     with patch.object(latex_worker, "run_tectonic", run):
-        pdf = await latex.compile_latex("Hello", binary_files={"img.png": b"\x89PNG"})
-    assert pdf == b"%PDF-1.7 worker"
-    main_tex, files, _timeout = run.call_args.args
+        result = await latex.compile_latex(
+            "Hello", binary_files={"img.png": b"\x89PNG"}, seed_aux={"main.aux": b"\\relax old"}
+        )
+    assert result.pdf == b"%PDF-1.7 worker"
+    assert result.aux == {"main.aux": b"\\relax"}
+    main_tex, files, _timeout, seed_aux = run.call_args.args
     assert "\\documentclass" in main_tex
     assert files == {"img.png": b"\x89PNG"}
+    assert seed_aux == {"main.aux": b"\\relax old"}
 
 
 @pytest.mark.asyncio

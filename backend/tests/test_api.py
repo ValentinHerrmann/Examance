@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.main import app
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
+from app.services.tectonic import TectonicResult
 
 from .factors import compile_job, sign_in
 
@@ -474,7 +475,7 @@ async def test_compile_endpoint_requires_auth(client: AsyncClient, db: AsyncSess
 
     # Authenticated request passes auth check
     await _create_teacher_and_login(client, db, "compileteacher@example.com")
-    with patch("app.routers.compile.compile_latex", return_value=b"%PDF-1.4 fake"):
+    with patch("app.routers.compile.compile_latex", return_value=TectonicResult(pdf=b"%PDF-1.4 fake")):
         auth_res = await compile_job(client, {"latex": "\\documentclass{article}"})
         assert auth_res.status_code == 200
         assert auth_res.content == b"%PDF-1.4 fake"

@@ -735,7 +735,7 @@
           "compile"
         ],
         "summary": "Start Compile Job",
-        "description": "Start a compile (body limit: BODY_LIMIT_COMPILE) and answer at once with its `job_id`; poll `GET /compile/latex/jobs/{job_id}`. Passes get the full COMPILE_TIMEOUT_SECONDS, which no proxy sees.",
+        "description": "Start a compile (body limit: BODY_LIMIT_COMPILE) and answer at once with its `job_id`; poll `GET /compile/latex/jobs/{job_id}`. The run gets the full COMPILE_TIMEOUT_SECONDS, which no proxy sees.",
         "operationId": "start_compile_job_api_v1_compile_latex_jobs_post",
         "parameters": [
           {
@@ -14915,6 +14915,18 @@
           "account_logo": {
             "type": "boolean",
             "title": "Account Logo",
+            "default": false
+          },
+          "seed_aux": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Seed Aux"
+          },
+          "return_aux": {
+            "type": "boolean",
+            "title": "Return Aux",
             "default": false
           }
         },

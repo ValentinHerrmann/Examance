@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import compile_jobs
 from app.services.latex import CompilationError
+from app.services.tectonic import TectonicResult
 
 from .factors import poll_compile_job, sign_in
 
@@ -25,10 +26,10 @@ async def test_job_runs_with_the_full_budget_and_hands_out_the_pdf_once(
     gate = asyncio.Event()
     seen: list[bool] = []
 
-    async def fake_compile(latex, preview=True, binary_files=None, logo=None):  # type: ignore[no-untyped-def]
+    async def fake_compile(latex, preview=True, binary_files=None, logo=None, seed_aux=None):  # type: ignore[no-untyped-def]
         seen.append(preview)
         await gate.wait()
-        return b"%PDF-1.4 job"
+        return TectonicResult(pdf=b"%PDF-1.4 job")
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
         start = await client.post("/api/v1/compile/latex/jobs", json=DOC)
@@ -74,9 +75,9 @@ async def test_jobs_are_private_and_capped(client: AsyncClient, db: AsyncSession
     await sign_in(client, db, "jobs-owner@example.com")
     gate = asyncio.Event()
 
-    async def slow(latex, preview=True, binary_files=None, logo=None):  # type: ignore[no-untyped-def]
+    async def slow(latex, preview=True, binary_files=None, logo=None, seed_aux=None):  # type: ignore[no-untyped-def]
         await gate.wait()
-        return b"%PDF"
+        return TectonicResult(pdf=b"%PDF")
 
     with patch("app.routers.compile.compile_latex", side_effect=slow):
         ids = [
@@ -99,8 +100,8 @@ async def test_jobs_are_private_and_capped(client: AsyncClient, db: AsyncSession
 async def test_unfetched_results_expire(client: AsyncClient, db: AsyncSession) -> None:
     await sign_in(client, db, "jobs-expiry@example.com")
 
-    async def quick(latex, preview=True, binary_files=None, logo=None):  # type: ignore[no-untyped-def]
-        return b"%PDF"
+    async def quick(latex, preview=True, binary_files=None, logo=None, seed_aux=None):  # type: ignore[no-untyped-def]
+        return TectonicResult(pdf=b"%PDF")
 
     with patch("app.routers.compile.compile_latex", side_effect=quick):
         job_id = (await client.post("/api/v1/compile/latex/jobs", json=DOC)).json()["job_id"]

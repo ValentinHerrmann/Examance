@@ -61,7 +61,8 @@ async def test_tectonic_subprocess_args() -> None:
 
     assert any("tectonic" in args for args in captured_args)
     assert any("-k" in args for args in captured_args)
-    assert len(captured_args) == 2
+    # One invocation: Tectonic reruns TeX itself until the aux files settle (issue #341).
+    assert len(captured_args) == 1
 
     # --untrusted blocks shell-escape and filesystem access outside the working directory, and must precede the input path to take effect.
     for args in captured_args:
@@ -242,8 +243,8 @@ Zeichne das Klassendiagramm.
 \end{tikzpicture}}
 \LoesungKaro{\LsgDiagramm}{40}
 """
-    pdf_bytes = await compile_latex(snippet, preview=True)
-    assert pdf_bytes.startswith(b"%PDF-")
+    result = await compile_latex(snippet, preview=True)
+    assert result.pdf.startswith(b"%PDF-")
 
 
 @pytest.mark.asyncio
@@ -262,8 +263,8 @@ async def test_compile_dot_grid_fields() -> None:
 \kariert{3}
 \end{Aufgabe}
 """
-    pdf_bytes = await compile_latex(snippet, preview=True)
-    assert pdf_bytes.startswith(b"%PDF-")
+    result = await compile_latex(snippet, preview=True)
+    assert result.pdf.startswith(b"%PDF-")
 
 
 @pytest.mark.asyncio
@@ -312,5 +313,39 @@ async def test_tectonic_runs_inside_a_compile_slot(monkeypatch) -> None:
          patch("tempfile.mkdtemp", side_effect=fake_mkdtemp):
         await compile_latex("\\documentclass{article}", preview=True)
 
-    assert slot_held == [True, True]
+    assert slot_held == [True]
     assert not tectonic._compile_slots.locked()
+
+
+@pytest.mark.asyncio
+async def test_one_tectonic_run_settles_aux_even_from_a_stale_seed() -> None:
+    """Issue #341: one run resolves references, and a stale seeded aux is corrected, not trusted."""
+    import shutil
+    if not shutil.which("tectonic"):
+        pytest.skip("tectonic binary not available")
+    from app.services.tectonic import run_tectonic
+
+    doc = r"""\documentclass{article}
+\begin{document}
+See \ref{b}.
+\section{A}\section{B}\label{b}
+\end{document}
+"""
+    fresh = await run_tectonic(doc, {}, time_limit=120)
+    assert b"\\newlabel{b}{{2}" in fresh.aux["main.aux"]
+
+    stale = fresh.aux["main.aux"].replace(b"{{2}", b"{{7}")
+    seeded = await run_tectonic(doc, {}, time_limit=120, seed_aux={"main.aux": stale})
+    assert b"\\newlabel{b}{{2}" in seeded.aux["main.aux"]
+
+
+@pytest.mark.asyncio
+async def test_seed_aux_rejects_unknown_names_and_unsafe_paths() -> None:
+    from app.services.tectonic import run_tectonic
+
+    with pytest.raises(CompilationError):
+        await run_tectonic("\\documentclass{article}", {}, time_limit=1, seed_aux={"evil.tex": b"x"})
+    with pytest.raises(CompilationError):
+        await compile_latex(
+            "\\documentclass{article}", seed_aux={"main.aux": b"\\input{/etc/passwd}"}
+        )

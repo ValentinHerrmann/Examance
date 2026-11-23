@@ -26,6 +26,7 @@ from app.models.teacher import Teacher
 from app.services import retention
 from app.services.crypto import hash_password
 from app.services.password_reset import create_reset_token
+from app.services.tectonic import TectonicResult
 
 from .factors import (
     DEFAULT_PASSWORD,
@@ -763,7 +764,7 @@ async def test_latex_compilation_needs_the_server_latex_feature(
 
     teacher.allow_server_latex = False
     await db.commit()
-    with patch("app.routers.compile.compile_latex", return_value=b"%PDF-1.4 fake") as compiler:
+    with patch("app.routers.compile.compile_latex", return_value=TectonicResult(pdf=b"%PDF-1.4 fake")) as compiler:
         refused = await compile_job(client, body)
         assert refused.status_code == 403
         assert refused.headers.get("code") == "ERR_FEATURE_NOT_ALLOWED"

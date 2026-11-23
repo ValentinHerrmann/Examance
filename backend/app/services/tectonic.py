@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import time
 from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,16 @@ if not ASSETS_DIR.exists():
 _MAX_ERROR_LINES = 5
 _MAX_ERROR_LINE_CHARS = 200
 _MAX_LOG_CHARS = 256 * 1024
+
+# Auxiliary files a compile hands back and accepts as seeds (issue #341): a seeded run usually needs one TeX pass, not two.
+AUX_FILE_NAMES = ("main.aux", "main.toc", "main.out")
+MAX_AUX_FILE_BYTES = 512 * 1024
+
+
+@dataclass(frozen=True)
+class TectonicResult:
+    pdf: bytes
+    aux: dict[str, bytes] = field(default_factory=dict)
 
 
 class CompilationError(Exception):
@@ -109,7 +120,7 @@ def _extract_tex_error(tmpdir: Path) -> str:
 
 
 async def _run_pass(
-    cmd: list[str], tmpdir: Path, time_limit: float, pass_idx: int
+    cmd: list[str], tmpdir: Path, time_limit: float, seeded: bool
 ) -> tuple[int, bytes]:
     # stderr goes to a file, so a pass killed on timeout still shows how far it got.
     err_path = tmpdir / "tectonic.err"
@@ -125,13 +136,13 @@ async def _run_pass(
         try:
             await asyncio.wait_for(proc.wait(), timeout=time_limit)
             # Duration only: shows how close documents get to the limit before one fails.
-            logger.info("Tectonic pass %d took %.1f s", pass_idx, time.monotonic() - started)
+            logger.info("Tectonic run took %.1f s (seeded=%s)", time.monotonic() - started, seeded)
         except TimeoutError:
             # Counts only: Tectonic's notes can name files the document asked for, and document content is never logged.
             downloads = err_path.read_bytes().count(b"downloading")
             logger.warning(
-                "Tectonic pass %d timed out after %.0f s (%d bundle downloads started)",
-                pass_idx, time.monotonic() - started, downloads,
+                "Tectonic run timed out after %.0f s (%d bundle downloads started, seeded=%s)",
+                time.monotonic() - started, downloads, seeded,
             )
             raise
         finally:
@@ -143,8 +154,22 @@ async def _run_pass(
     return proc.returncode or 0, err_path.read_bytes()
 
 
-async def run_tectonic(main_tex: str, files: dict[str, bytes], time_limit: float) -> bytes:
-    """Compile *main_tex* with the bundled assets plus *files* (relative path -> bytes, written after the assets) in two passes and return the PDF. Raises CompilationError or TimeoutError."""
+def _read_aux_files(tmpdir: Path) -> dict[str, bytes]:
+    aux: dict[str, bytes] = {}
+    for name in AUX_FILE_NAMES:
+        path = tmpdir / name
+        if path.is_file() and 0 < path.stat().st_size <= MAX_AUX_FILE_BYTES:
+            aux[name] = path.read_bytes()
+    return aux
+
+
+async def run_tectonic(
+    main_tex: str,
+    files: dict[str, bytes],
+    time_limit: float,
+    seed_aux: dict[str, bytes] | None = None,
+) -> TectonicResult:
+    """Compile *main_tex* with the bundled assets plus *files* (relative path -> bytes, written after the assets) and return the PDF and the aux files. Tectonic reruns TeX itself until the aux files settle, so one invocation suffices; *seed_aux* (names from AUX_FILE_NAMES) lets it start from the previous compile's state. Raises CompilationError or TimeoutError."""
     tmpdir = Path(tempfile.mkdtemp(prefix="blindgrade-latex-"))
     try:
         if ASSETS_DIR.exists():
@@ -158,6 +183,10 @@ async def run_tectonic(main_tex: str, files: dict[str, bytes], time_limit: float
             target_path = safe_path(tmpdir, rel_path)
             target_path.parent.mkdir(parents=True, exist_ok=True)
             target_path.write_bytes(content)
+        for name, content in (seed_aux or {}).items():
+            if name not in AUX_FILE_NAMES or len(content) > MAX_AUX_FILE_BYTES:
+                raise CompilationError("Invalid auxiliary file.")
+            (tmpdir / name).write_bytes(content)
         tex_file = tmpdir / "main.tex"
         tex_file.write_text(main_tex, encoding="utf-8")
 
@@ -166,18 +195,15 @@ async def run_tectonic(main_tex: str, files: dict[str, bytes], time_limit: float
             "tectonic", "--untrusted", "-k", str(tex_file), "--outdir", str(tmpdir), "--keep-logs",
         ]
         async with _compile_slot(time_limit):
-            for pass_idx in range(2):
-                returncode, stderr = await _run_pass(cmd, tmpdir, time_limit, pass_idx + 1)
-                logger.debug("LaTeX pass %d finished (exit %d)", pass_idx + 1, returncode)
-                if returncode != 0:
-                    raise CompilationError(
-                        f"LaTeX compilation failed on pass {pass_idx + 1}: "
-                        f"{_extract_tex_error(tmpdir)}",
-                        log=_read_tex_log(tmpdir, stderr),
-                    )
+            returncode, stderr = await _run_pass(cmd, tmpdir, time_limit, bool(seed_aux))
+        if returncode != 0:
+            raise CompilationError(
+                f"LaTeX compilation failed: {_extract_tex_error(tmpdir)}",
+                log=_read_tex_log(tmpdir, stderr),
+            )
         pdf_path = tmpdir / "main.pdf"
         if not pdf_path.exists():
             raise CompilationError("Tectonic succeeded but main.pdf not found.")
-        return pdf_path.read_bytes()
+        return TectonicResult(pdf=pdf_path.read_bytes(), aux=_read_aux_files(tmpdir))
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)

@@ -9,6 +9,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.tectonic import TectonicResult
+
 from .factors import compile_job, sign_in
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"pretend-logo"
@@ -107,9 +109,9 @@ async def test_compile_writes_the_exam_logo(client: AsyncClient, db: AsyncSessio
 
     seen: list[object] = []
 
-    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None):
+    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.append(logo)
-        return b"%PDF-1.4 fake"
+        return TectonicResult(pdf=b"%PDF-1.4 fake")
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
         for body in (
@@ -142,9 +144,9 @@ async def test_compile_never_reads_another_teachers_exam_logo(
 
     seen: list[object] = []
 
-    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None):
+    async def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.append(logo)
-        return b"%PDF-1.4 fake"
+        return TectonicResult(pdf=b"%PDF-1.4 fake")
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
         resp = await compile_job(

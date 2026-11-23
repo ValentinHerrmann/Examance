@@ -13,6 +13,7 @@ from app.services.latex_resources import (
     ResourceError,
     validate_resource_name,
 )
+from app.services.tectonic import AUX_FILE_NAMES, MAX_AUX_FILE_BYTES
 
 
 class LaTeXResource(BaseModel):
@@ -64,6 +65,10 @@ class LaTeXRequest(BaseModel):
     # : Exam header logo (app.services.logo): ``logo_exam_id`` prints that exam's logo (not owned: : the account logo); ``account_logo`` alone prints the account logo, for an exam the server : does not know yet. Neither prints no logo.
     logo_exam_id: UUID | None = None
     account_logo: bool = False
+    # : The previous compile's aux files (name -> base64, names from AUX_FILE_NAMES): a seeded compile usually needs one TeX pass (issue #341).
+    seed_aux: dict[str, str] = Field(default_factory=dict)
+    # : Answer with JSON ``{pdf_b64, aux}`` instead of the bare PDF, so the client can seed its next compile.
+    return_aux: bool = False
 
     @field_validator("latex")
     @classmethod
@@ -89,6 +94,24 @@ class LaTeXRequest(BaseModel):
         if len(set(names)) != len(names):
             raise ValueError("Resource file names must be unique within one compilation.")
         return v
+
+    @field_validator("seed_aux")
+    @classmethod
+    def check_seed_aux(cls, v: dict[str, str]) -> dict[str, str]:
+        for name, blob in v.items():
+            if name not in AUX_FILE_NAMES:
+                raise ValueError(f"Unknown auxiliary file {name!r}.")
+            try:
+                decoded = strict_b64decode(blob)
+            except ValueError:
+                raise ValueError("Auxiliary files must be valid base64.") from None
+            if len(decoded) > MAX_AUX_FILE_BYTES:
+                raise ValueError("Auxiliary file too large.")
+        return v
+
+    def seed_aux_files(self) -> dict[str, bytes]:
+        """Decoded seed aux files, already validated."""
+        return {name: strict_b64decode(blob) for name, blob in self.seed_aux.items()}
 
     def binary_files(self) -> dict[str, bytes]:
         """Decoded resources keyed by the flat name they get in the working dir."""
