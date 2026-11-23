@@ -8,6 +8,7 @@ import { reviewStore, type ReviewThread } from '#lib/grading/reviewStore';
 import { loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 import { awaitSessionReady, sessionStore } from '#lib/stores/session';
 import { reviewRepository } from '#lib/repositories/reviewRepository';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import type { Locale } from '#lib/i18n/types';
 import { translate } from '#lib/i18n';
@@ -17,6 +18,7 @@ import { mailReviewReply } from './delivery';
 import { buildReviewItems } from './reviewItems';
 import { saveReviewRecord } from './reviewRecord';
 import { openReviewPart, sanitizeObjection, sanitizeReply, sealReviewPart, shareUrl, unwrapShareKey, type ReviewItem } from './shareCrypto';
+import { allAnswered, threadAnswerItems } from './reviewStatus';
 import { republishShare, type Republished } from './shareService';
 
 /** Students are addressed in German unless the teacher says otherwise; the UI language does not decide it. */
@@ -66,6 +68,8 @@ export async function openThread(share: ResultShareInfo, row: ExamReviewInfo, it
       const reply = sanitizeReply(await openReviewPart(share.id, contentKey, 'reply', row.reply.ciphertext, row.reply.iv), itemKeys);
       thread.replies = Object.fromEntries(Object.entries(reply.items).map(([k, v]) => [k, v.text]));
       thread.replyPoints = Object.fromEntries(Object.entries(reply.items).map(([k, v]) => [k, { before: v.pointsBefore, after: v.pointsAfter }]));
+      // The server's flag is what the nav badge counts; replies sent before it existed are judged by their content.
+      thread.replyComplete = row.replyComplete ?? allAnswered(threadAnswerItems(thread.objections, thread.replies, thread.replyPoints));
     }
   } catch (err) {
     console.warn('A review could not be opened:', err);
@@ -136,7 +140,7 @@ async function recordThread(examId: string, subId: string, studentKey: string): 
   if (!record || items.length === 0) return null;
   const objections = Object.fromEntries(items.map((i) => [i.key, i.objection]));
   const replies = Object.fromEntries(items.filter((i) => i.reply).map((i) => [i.key, i.reply]));
-  return { shareId: '', studentKey, objections, replies, unreadable: false, submittedAt: record.submittedAt, openedAt: record.submittedAt, repliedAt: record.repliedAt, fromRecord: true };
+  return { shareId: '', studentKey, objections, replies, unreadable: false, submittedAt: record.submittedAt, openedAt: record.submittedAt, repliedAt: record.repliedAt, replyComplete: allAnswered(items), fromRecord: true };
 }
 
 /** Puts the submission's thread into the store, locking an unopened objection first. */
@@ -180,9 +184,9 @@ function recordItems(thread: ReviewThread, texts: Record<string, string>, change
   }));
 }
 
-/** What the student reads per item: the reply text and the points change, with the "before" from the record so a repeated reply still shows the original points. */
+/** What the student reads per item: the reply text and the points change, with the "before" from the record so a repeated reply still shows the original points; every objected item is included, so a points-only answer counts (issue #280). */
 function replyPayload(thread: ReviewThread, texts: Record<string, string>, saved: GradingReviewRecord, after: ReviewItem[]) {
-  const items = Object.keys(texts)
+  const items = Object.keys({ ...thread.objections, ...texts })
     .filter((k) => texts[k] || thread.objections[k]?.trim())
     .map((k) => [k, { text: texts[k] ?? '', pointsBefore: saved.items.find((i) => i.key === k)?.pointsBefore ?? null, pointsAfter: after.find((i) => i.key === k)?.points ?? null }] as const);
   return { items: Object.fromEntries(items) };
@@ -220,23 +224,40 @@ function pendingMailOf(share: ResultShareInfo, published: Republished, studentKe
   return { context: { examId: loaded?.examId ?? '', examTitle: published.examTitle, expiresAt: new Date(share.expiresAt), language: MAIL_LANGUAGE }, student: published.student, studentKey, url: shareUrl(location.origin, published.link) };
 }
 
-/** Stores the record, then republishes the share (which prints the record) and seals the reply for the student; the record's points are the first-recorded ones. */
-async function publishReply(examId: string, sub: SubmissionRecord, thread: ReviewThread, share: ResultShareInfo | undefined, texts: Record<string, string>, repliedAt: string): Promise<Republished | null> {
+/** The submission's gradable items with their current points. */
+async function currentItems(examId: string, submissionId: string, key: CryptoKey): Promise<ReviewItem[]> {
+  const [ctx, scores] = await Promise.all([loadExamCompileContext(examId, key), scoreRepository.getBySubmissionId(examId, submissionId, key)]);
+  return ctx ? buildReviewItems(ctx.exercises, ctx.mcGroups, scores) : [];
+}
+
+/** Whether a reply answers every objected item; a reply item carries its text and points as the student reads them. */
+function replyAnswersAll(thread: ReviewThread, items: Record<string, { text: string; pointsBefore: number | null; pointsAfter: number | null }>): boolean {
+  const replies = Object.fromEntries(Object.entries(items).map(([k, v]) => [k, v.text]));
+  const points = Object.fromEntries(Object.entries(items).map(([k, v]) => [k, { before: v.pointsBefore, after: v.pointsAfter }]));
+  return allAnswered(threadAnswerItems(thread.objections, replies, points));
+}
+
+/** Stores the record, then republishes the share (which prints the record) and seals the reply for the student; the record's points are the first-recorded ones. `complete` says whether every objected item is answered (issue #280). */
+async function publishReply(examId: string, sub: SubmissionRecord, thread: ReviewThread, share: ResultShareInfo | undefined, texts: Record<string, string>, repliedAt: string): Promise<{ published: Republished | null; complete: boolean }> {
   const key = await sessionKey();
   const kept: { record: GradingReviewRecord | null } = { record: null };
   const save = async (change: { before: ReviewItem[]; after: ReviewItem[] } | null) => {
     kept.record = await saveReviewRecord(examId, { id: crypto.randomUUID(), submissionId: sub.id, items: recordItems(thread, texts, change), submittedAt: thread.submittedAt, repliedAt }, key);
   };
   if (!share) {
-    await save(null);
-    return null;
+    // No link to republish: the current scores still tell whether an item was answered by its points.
+    await save({ before: [], after: await currentItems(examId, sub.id, key) });
+    return { published: null, complete: allAnswered(kept.record?.items ?? []) };
   }
   const published = await republishShare(examId, share, { beforeRender: save });
+  if (!kept.record) return { published, complete: true };
+  const payload = replyPayload(thread, texts, kept.record, published.after);
+  const complete = replyAnswersAll(thread, payload.items);
   // A kept objection has no server thread to answer.
-  if (kept.record && !thread.fromRecord) {
-    await replyToShareReview(examId, share.id, await sealReviewPart(share.id, published.contentKey, 'reply', replyPayload(thread, texts, kept.record, published.after)));
+  if (!thread.fromRecord) {
+    await replyToShareReview(examId, share.id, await sealReviewPart(share.id, published.contentKey, 'reply', payload), complete);
   }
-  return published;
+  return { published, complete };
 }
 
 /** Sends the reply: scores are saved by the caller (*flush*), then the record is stored, the graded PDF re-sealed under the same link, the reply stored and, if asked, mailed. Safe to repeat after a failure. For an objection kept from a replaced link only the record and the student's current link's PDF are updated. */
@@ -257,10 +278,10 @@ export async function sendReviewReply(examId: string, sub: SubmissionRecord, flu
     await flush();
     const texts = trimmed(state.drafts);
     const repliedAt = new Date().toISOString();
-    const published = await publishReply(examId, sub, thread, share, texts, repliedAt);
+    const { published, complete } = await publishReply(examId, sub, thread, share, texts, repliedAt);
     const wantsMail = state.notify && replyMailState(exam, thread).canMail;
     const mailFailed = published && share && wantsMail ? await mailReply(pendingMailOf(share, published, thread.studentKey)) : false;
-    const sent: ReviewThread = { ...thread, replies: texts, repliedAt };
+    const sent: ReviewThread = { ...thread, replies: texts, repliedAt, replyComplete: complete };
     if (!thread.fromRecord) exam.threads.set(thread.studentKey, sent);
     if (stillShown()) reviewStore.patch({ thread: sent, sending: false, sentAt: repliedAt, mailFailed });
   } catch (err) {

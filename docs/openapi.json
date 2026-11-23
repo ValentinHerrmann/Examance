@@ -9019,7 +9019,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SealedPayload"
+                "$ref": "#/components/schemas/ReviewReply"
               }
             }
           }
@@ -16870,6 +16870,17 @@
               }
             ],
             "title": "Review Replied At"
+          },
+          "review_reply_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Reply Complete"
           }
         },
         "type": "object",
@@ -17166,6 +17177,17 @@
             ],
             "title": "Replied At"
           },
+          "reply_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Complete"
+          },
           "share_id": {
             "type": "string",
             "format": "uuid",
@@ -17293,6 +17315,17 @@
               }
             ],
             "title": "Replied At"
+          },
+          "reply_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Complete"
           }
         },
         "type": "object",
@@ -17307,6 +17340,30 @@
         ],
         "title": "ReviewOut",
         "description": "The thread as the student's page sees it."
+      },
+      "ReviewReply": {
+        "properties": {
+          "iv_b64": {
+            "type": "string",
+            "title": "Iv B64"
+          },
+          "ciphertext_b64": {
+            "type": "string",
+            "title": "Ciphertext B64"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "Complete",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "iv_b64",
+          "ciphertext_b64"
+        ],
+        "title": "ReviewReply",
+        "description": "The teacher's sealed reply; *complete* says whether it answers every objected exercise (issue #280)."
       },
       "ReviewReseal": {
         "properties": {
