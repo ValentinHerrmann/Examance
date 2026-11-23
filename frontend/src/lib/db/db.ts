@@ -10,6 +10,7 @@ import type {
   ExerciseRecord,
   ExerciseResourceRecord,
   ExerciseScoreRecord,
+  CompiledPdfRecord,
   GradingReviewRecord,
   LocalTrashRecord,
   OmrTemplateRecord,
@@ -30,6 +31,7 @@ export class BlindGradeDB extends Dexie {
   submissions!: Table<SubmissionRecord>;
   exerciseScores!: Table<ExerciseScoreRecord>;
   gradingReviews!: Table<GradingReviewRecord>;
+  compiledPdfs!: Table<CompiledPdfRecord>;
   exerciseResources!: Table<ExerciseResourceRecord>;
   auditLog!: Table<AuditEntry>;
   omrTemplates!: Table<OmrTemplateRecord>;
@@ -199,6 +201,11 @@ export class BlindGradeDB extends Dexie {
     this.version(14).stores({
       gradingReviews: 'id, submissionId',
     });
+
+    // v15 (issue #341): compiled PDFs kept across reloads, sealed.
+    this.version(15).stores({
+      compiledPdfs: 'slotKey, [lastAccess+sizeBytes]',
+    });
   }
 }
 
@@ -221,6 +228,7 @@ export function vaultTables(): Table[] {
     db.omrTemplates,
     db.exerciseResources,
     db.trash,
+    db.compiledPdfs,
   ];
 }
 

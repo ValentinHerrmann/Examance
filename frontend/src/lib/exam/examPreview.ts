@@ -1,6 +1,6 @@
 import { DEFAULT_EXTRA_NOTES, fillsLastPage, type ExamRecord, type ExerciseRecord, type ExtraNotes } from "#lib/db/schema";
 import type { McGroup } from "#lib/db/dbEncryption";
-import { compileWithCache, getCachedFor, getLatestForSlot, type CachedCompileEntry } from "#lib/latex/compileCache";
+import { compileWithCache, getCachedFor, hasCompiledSlot, type CachedCompileEntry } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
 import { escapeLatex, formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
 import { printedMcOptions } from "#lib/latex/mcOptions";
@@ -259,7 +259,7 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
   const src = await prepareExamSources(input, useLocal, input.draft);
   const opts = { resources: src.resources, resourceExerciseIds: src.resourceExerciseIds, logo: src.logo };
 
-  const angabe = await compileWithCache(
+  const angabePromise = compileWithCache(
     { kind: "exam", id: exam.id, variant: sheetVariant(input.draft) },
     src.angabeTex,
     useLocal,
@@ -267,16 +267,16 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
     false,
     opts
   );
+  const compileLoesung = () =>
+    compileWithCache({ kind: "exam", id: exam.id, variant: "loesung" }, src.loesungTex, useLocal, undefined, false, opts);
+  // The server has two compile slots, so both sheets run at once (issue #341); the browser engine is one queue anyway.
+  const loesungPromise = input.solution !== false && !useLocal ? compileLoesung() : null;
+  // Never left unhandled while the task sheet is awaited: its error surfaces at the await below.
+  loesungPromise?.catch(() => {});
+  const angabe = await angabePromise;
   input.onAngabe?.(angabe);
   if (input.solution === false) return { angabe, loesung: null, missingGraphics: angabe.missingGraphics ?? [] };
-  const loesung = await compileWithCache(
-    { kind: "exam", id: exam.id, variant: "loesung" },
-    src.loesungTex,
-    useLocal,
-    undefined,
-    false,
-    opts
-  );
+  const loesung = await (loesungPromise ?? compileLoesung());
   return {
     angabe,
     loesung,
@@ -301,7 +301,7 @@ export async function getCurrentExamPreview(
 ): Promise<{ angabe: CachedCompileEntry; loesung: CachedCompileEntry } | "stale" | null> {
   const id = input.exam.id;
   const variant = sheetVariant(input.draft);
-  const hadAny = getLatestForSlot({ kind: "exam", id, variant }) || getLatestForSlot({ kind: "exam", id, variant: "loesung" });
+  const hadAny = (await hasCompiledSlot({ kind: "exam", id, variant })) || (await hasCompiledSlot({ kind: "exam", id, variant: "loesung" }));
   if (!hadAny) return null;
   const useLocal = effectiveLatexCompilation() === "local";
   const src = await prepareExamSources(input, useLocal, input.draft);

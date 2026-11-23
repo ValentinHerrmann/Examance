@@ -8,6 +8,8 @@
     busy: boolean;
     /** Counts every task sheet shown, so a file derived from it (page count, imposed booklet) knows when to follow. */
     version: number;
+    /** How the shown PDFs were made ("created in 12 s (server)"), empty before the first compile of this visit (issue #341). */
+    timing: string;
   }
 </script>
 
@@ -112,6 +114,12 @@
   /** The shown preview no longer matches the sources; never recompiled automatically, the user presses compile (issue #197). */
   let previewOutdated = $state(false);
   let pdfVersion = $state(0);
+  /** The last compile of this visit as the teacher waited for it (issue #341). */
+  let lastCompile = $state.raw<{ ms: number; engine: "local" | "server"; cached: boolean } | null>(null);
+  let timing = $derived(
+    !lastCompile ? "" : lastCompile.cached ? $t("exam.page.preview.timedCached")
+      : $t(lastCompile.engine === "server" ? "exam.page.preview.timedServer" : "exam.page.preview.timedLocal", { seconds: $fmt.number(Math.round(lastCompile.ms / 100) / 10) })
+  );
   // Set when a compile skipped the solution: the shown solution may be older than the task sheet.
   let solutionOutdated = $state(false);
 
@@ -130,7 +138,7 @@
     if (pinState?.differs) return { tone: "info", text: $t("exam.page.omr.pinDiffers", { date: $fmt.dateTime(pinState.pinnedAt) }) };
     if (hasPdf && previewOutdated) return { tone: "warning", text: $t("exam.page.preview.statusStale") };
     if (omrPrepareMessage) return { tone: "success", text: omrPrepareMessage };
-    if (hasPdf) return { tone: "success", text: $t("exam.page.preview.statusCurrent") };
+    if (hasPdf) return { tone: "success", text: timing ? `${$t("exam.page.preview.statusCurrent")} · ${timing}` : $t("exam.page.preview.statusCurrent") };
     return { tone: "muted", text: $t("exam.page.preview.statusNone") };
   });
   const toneClass: Record<Tone, string> = { info: "text-info-fg", success: "text-success-fg", warning: "text-warning-fg", muted: "text-muted" };
@@ -188,6 +196,7 @@
         : cached;
     previewOutdated = cached === "stale";
     solutionOutdated = false;
+    lastCompile = cached === "stale" || !shown.angabe ? null : { ms: 0, engine: shown.angabe.engineUsed, cached: true };
     if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
     previewPdfUrl = shown.angabe ? pdfBytesToUrl(shown.angabe.pdfBytes) : null;
     pdfVersion++;
@@ -241,6 +250,7 @@
     errorMsg = "";
     let compileSucceeded = false;
     const versionAtStart = layoutVersion;
+    const started = performance.now();
 
     try {
       await refreshSources();
@@ -263,6 +273,7 @@
         previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
       }
       solutionOutdated = !res.loesung;
+      lastCompile = { ms: performance.now() - started, engine: res.angabe.engineUsed, cached: !!res.angabe.fromCache && (!res.loesung || !!res.loesung.fromCache) };
 
       if (res.missingGraphics.length > 0) {
         errorMsg = translate("common.previewMissingGraphic", { name: res.missingGraphics[0] });
@@ -332,6 +343,7 @@
       omr: omrStatus,
       busy: isPreviewLoading || isPreparingOmr,
       version: pdfVersion,
+      timing,
     };
     untrack(() => (status = next));
   });

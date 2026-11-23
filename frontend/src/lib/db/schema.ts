@@ -499,3 +499,14 @@ export interface LocalTrashRecord {
   /** Submissions as they were before an in-place clear (grading); put back only while still cleared. */
   cleared?: SubmissionRecord[];
 }
+
+/** A compiled PDF kept across reloads (issue #341, `lib/latex/compileStore.ts`): everything but the slot key and its LRU stamps is sealed, the content hash included, so no plaintext hash of exam content is stored. */
+export interface CompiledPdfRecord {
+  /** `kind:id:variant` (`makeSlotKey`). */
+  slotKey: string;
+  lastAccess: number;
+  sizeBytes: number;
+  /** AES-256-GCM of the sealed payload (meta JSON, PDF and aux files), bound to the slot key. */
+  ct: Uint8Array;
+  iv: Uint8Array;
+}
