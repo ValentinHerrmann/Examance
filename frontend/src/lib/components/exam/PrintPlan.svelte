@@ -40,6 +40,7 @@
   import type { StickerEntry } from "#lib/qr/stickerSheet";
   import { bookletTestSheet, imposeBooklet } from "#lib/qr/booklet";
   import { slug } from "#lib/export/zip";
+  import { examFileName, FILE_KIND, type ExamFileFields } from "#lib/export/fileName";
   import { clampBookletOffset, MAX_BOOKLET_OFFSET, printFileKey, stickersPerCopy, type PrintSettings } from "#lib/exam/printLayout";
   import type { ExamLayoutPatch } from "#lib/exam/saveExamLayout";
   import type { ExamPreviewStatus } from "#lib/components/exam/ExamPreviewPanel.svelte";
@@ -50,7 +51,8 @@
   /** The Print step (issue #212): the teacher picks how they print, the page lists the print jobs that follow, each with its readiness, its PDF and a "printed" tick that is only offered once that PDF exists for the current content. */
   interface Props {
     examId: string;
-    examTitle: string;
+    /** The exam's fields for the file names. */
+    exam: ExamFileFields;
     exerciseCount: number;
     /** The exam's students; null while loading. */
     entries: StickerEntry[] | null;
@@ -77,7 +79,7 @@
     class?: string;
   }
 
-  let { examId, examTitle, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, compile, print, onPrintChange, shown = $bindable(), onPin, pins, class: className = "" }: Props = $props();
+  let { examId, exam, exerciseCount, entries, entriesError, preview, hasMc, copiesUnavailable, loadExamPdf, downloadPdf, compile, print, onPrintChange, shown = $bindable(), onPin, pins, class: className = "" }: Props = $props();
 
   let cs = $derived($examChecksState && $examChecksState.examId === examId ? $examChecksState : null);
   let stamps = $derived(cs?.stamps ? printStamps(cs.stamps.content, cs.stamps.students, print) : null);
@@ -174,7 +176,7 @@
   }
 
   function downloadExtraSheet() {
-    if (extraSheet) downloadBlob(new Blob([extraSheet.bytes as BlobPart], { type: "application/pdf" }), `${slug(translate("exam.print.extra.fileName"))}_${print.paperStyle}.pdf`);
+    if (extraSheet) downloadBlob(new Blob([extraSheet.bytes as BlobPart], { type: "application/pdf" }), examFileName(exam, [FILE_KIND.extraSheet, print.paperStyle], "pdf"));
   }
 
   /** The one action of the Print step: compiles what the plan prints (the solution only when it is printed; unchanged sources come from the compile cache), then makes the sticker or copies PDF unless the current one is still valid. */
@@ -223,7 +225,7 @@
     const pdf = await loadExamPdf();
     const lib = await import("pdf-lib");
     const pages = (await lib.PDFDocument.load(pdf)).getPageCount();
-    keep("exam", await imposeBooklet(pdf, pages, print.bookletOffsetMm), `${slug(examTitle || "exam")}_booklet.pdf`);
+    keep("exam", await imposeBooklet(pdf, pages, print.bookletOffsetMm), examFileName(exam, [FILE_KIND.booklet], "pdf"));
   }
 
   async function countPages() {
@@ -436,7 +438,7 @@
           {:else if entries}
             <StickerSheetForm
               {examId}
-              {examTitle}
+              {exam}
               entries={job === "copies" ? normalEntries : job === "copiesA3" ? largeEntries : entries}
               output={job === "qr" ? "stickers" : "copies"}
               largePrint={job === "copiesA3"}

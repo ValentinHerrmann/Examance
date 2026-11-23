@@ -7,6 +7,7 @@
   import { loadExamExercisesEncrypted } from "#lib/db/dbEncryption";
   import { examHasWithheldCode } from "#lib/exam/examPreview";
   import { runExamsExport } from "#lib/export/examExport";
+  import { examFileBase, type ExamFileFields } from "#lib/export/fileName";
   import { examHasReviews } from "#lib/sharing/reviewService";
   import { examExportOptions } from "#lib/export/examExportOptions";
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
@@ -14,7 +15,7 @@
 
   interface Props {
     /** One exam, or several exported together (one ZIP with a folder per exam, issue #261). */
-    exams: { id: string; title: string }[];
+    exams: (ExamFileFields & { id: string; title: string })[];
     onClose: () => void;
   }
 
@@ -47,7 +48,7 @@
     withReview
     {hasReviews}
     run={(selected, progress, reviewPrint) => runExamsExport(exams, selected, progress, reviewPrint)}
-    backup={{ examIds: exams.map((exam) => exam.id), name: exams.length === 1 ? exams[0].title || "exam" : "exams" }}
+    backup={{ examIds: exams.map((exam) => exam.id), name: exams.length === 1 ? examFileBase(exams[0]) : "exams" }}
     {onClose}
   >
     {#snippet notice()}

@@ -4,7 +4,8 @@ import { artemisErrorText, sendArtemisFile, sendArtemisMessage, sendResultMails,
 import { checkResultDeliveries, type ResultDeliveryInfo } from '#lib/api/resultShares';
 import type { StudentRecord } from '#lib/db/schema';
 import { mebisFeedbackPath } from '#lib/export/examExport';
-import { exportDateStamp, slug, ZipBuilder } from '#lib/export/zip';
+import { ZipBuilder } from '#lib/export/zip';
+import { examFileName, FILE_KIND, type ExamFileFields } from '#lib/export/fileName';
 import { translate, translateIn } from '#lib/i18n';
 import type { Locale } from '#lib/i18n/types';
 import { formatDate } from '#lib/utils/format';
@@ -51,7 +52,7 @@ const withArtemisDetail = (sending: Promise<void>): Promise<void> =>
 
 export function createDelivery(
   channel: ShareChannelId,
-  context: { examId: string; examTitle: string; artemis?: ArtemisTarget; language: Locale }
+  context: { examId: string; examTitle: string; exam: ExamFileFields; artemis?: ArtemisTarget; language: Locale }
 ): Delivery {
   const none = () => Promise.resolve();
   if (channel === 'email') {
@@ -91,12 +92,12 @@ export function createDelivery(
       deliverPdf(student, _key, name, _filename, pdf) {
         const id = mebisIdOf(student);
         if (!id) return Promise.reject(new Error(translate('sharing.channels.mebis.missing')));
-        zip.add(mebisFeedbackPath(name, id), pdf);
+        zip.add(mebisFeedbackPath(context.exam, name, id), pdf);
         count++;
         return Promise.resolve();
       },
       finish: () => Promise.resolve([]),
-      download: () => (count ? { bytes: zip.toBytes(), type: 'application/zip', fileName: `${slug(context.examTitle)}_mebis_feedback_${exportDateStamp()}.zip` } : null),
+      download: () => (count ? { bytes: zip.toBytes(), type: 'application/zip', fileName: examFileName(context.exam, [FILE_KIND.mebis], 'zip') } : null),
     };
   }
   if (channel === 'artemis') {

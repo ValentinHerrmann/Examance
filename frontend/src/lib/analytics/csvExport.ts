@@ -4,7 +4,7 @@
 
 import { logExportAction } from '#lib/gdpr/exportAudit';
 import { downloadBlob } from '#lib/utils/download';
-import { slug } from '#lib/export/zip';
+import { examFileName, FILE_KIND, type ExamFileFields } from '#lib/export/fileName';
 
 export interface CsvExportRow {
   studentPseudonymId: string;
@@ -56,11 +56,11 @@ export function buildGradesCsv(rows: CsvExportRow[]): Uint8Array {
 /** Audit-logs the export, then downloads the grades as CSV. */
 export async function exportGradesToCsv(
   examId: string,
-  examTitle: string,
+  exam: ExamFileFields,
   rows: CsvExportRow[],
   key: CryptoKey | null
 ): Promise<void> {
   await logExportAction(examId, 'CSV', key);
   const blob = new Blob([buildGradesCsv(rows) as BlobPart], { type: 'text/csv;charset=utf-8;' });
-  downloadBlob(blob, `${slug(examTitle, 'exam')}_grades.csv`);
+  downloadBlob(blob, examFileName(exam, [FILE_KIND.grades], 'csv'));
 }

@@ -47,7 +47,7 @@ describe('addGradedScans', () => {
     getById.mockResolvedValue({ ...sub('ok-1'), scanCt: new Uint8Array([9]), scanIv: new Uint8Array(12) });
     renderGradedPdf.mockClear();
     const zip = { add: vi.fn() };
-    await addGradedScans({ zip: zip as never, results, key: {} as CryptoKey, fallbackKey: null, progress: vi.fn(), singleFiles: true, combined: combined as never, reviewPrint: { ...DEFAULT_REVIEW_PRINT, attach: true } });
+    await addGradedScans({ zip: zip as never, exam: {}, results, key: {} as CryptoKey, fallbackKey: null, progress: vi.fn(), singleFiles: true, combined: combined as never, reviewPrint: { ...DEFAULT_REVIEW_PRINT, attach: true } });
     return (renderGradedPdf.mock.calls[0][3] as { review: { options: { attach: boolean } } }).review.options.attach;
   };
 

@@ -2,6 +2,7 @@
   // The Archive tab of Results (issue #212): the overview results sheet and all graded papers as one print PDF, each with a preview, and the rest of an exam's raw export as checkboxes.
   import { page } from "$app/state";
   import ExamPageHeader from "#lib/components/exam/ExamPageHeader.svelte";
+  import { examFileBase, examFileName, FILE_KIND, type ExamFileFields } from "#lib/export/fileName";
   import { onDestroy, untrack } from "svelte";
   import { browser } from "$app/env";
   import { get } from "svelte/store";
@@ -27,7 +28,7 @@
   import { awaitSessionReady, sessionStore } from "#lib/stores/session";
 
   let examId = $derived(page.params.id || "");
-  let title = $state("");
+  let fileExam = $state.raw<ExamFileFields>({});
   let withheld = $state(false);
   let ready = $state(false);
   let loadError = $state("");
@@ -68,7 +69,6 @@
     if (box && below > 0) box.scrollTop += below;
   };
   let canDownload = $derived((selected.size > 0 || backup) && (!backup || backupReady(password, passwordRepeat)));
-  let fileTitle = $derived(title || translate("dashboard.examList.untitledExam"));
 
   function revoke() {
     if (sheetUrl) URL.revokeObjectURL(sheetUrl);
@@ -89,7 +89,7 @@
     if (!key) return;
     try {
       const exam = await loadExamEncrypted(id, key);
-      title = exam?.title ?? "";
+      fileExam = exam ?? {};
       withheld = examHasWithheldCode(await loadExamExercisesEncrypted(id, key));
       checked = Object.fromEntries(examExportOptions(withheld, (k) => k).map((o) => [o.key, !o.disabled]));
       hasReviews = await examHasReviews(id);
@@ -154,7 +154,7 @@
       if (backup) {
         step = translate("export.backup.encrypting");
         fraction = null;
-        const report = await exportBgprojArchive(password, { examIds: [examId], name: fileTitle, includeExerciseCode: !withoutCode });
+        const report = await exportBgprojArchive(password, { examIds: [examId], name: examFileBase(fileExam), includeExerciseCode: !withoutCode });
         password = passwordRepeat = "";
         await showArchiveReport(report);
       }
@@ -200,7 +200,7 @@
 {/snippet}
 
 {#snippet sheetAction()}
-  <Button size="sm" iconOnly icon={actionIcons.download} href={sheetUrl || "#"} disabled={!sheetUrl} download={`${fileTitle} – ${$t("exam.archive.sheetFile")}.pdf`} ariaLabel={$t("exam.archive.sheetDownload")} title={$t("exam.archive.sheetDownload")} />
+  <Button size="sm" iconOnly icon={actionIcons.download} href={sheetUrl || "#"} disabled={!sheetUrl} download={examFileName(fileExam, [FILE_KIND.summary], "pdf")} ariaLabel={$t("exam.archive.sheetDownload")} title={$t("exam.archive.sheetDownload")} />
   <Button size="sm" variant="outlined" severity="secondary" iconOnly icon={faArrowsRotate} loading={sheetBusy} disabled={sheetBusy} ariaLabel={$t("exam.archive.sheetRefresh")} title={$t("exam.archive.sheetRefresh")} onClick={() => renderSheet(examId)} />
 {/snippet}
 {#snippet sheetControls()}{/snippet}
@@ -210,7 +210,7 @@
 {/snippet}
 
 {#snippet gradedAction()}
-  <Button size="sm" iconOnly icon={actionIcons.download} href={gradedUrl || "#"} disabled={!gradedUrl} download={`${fileTitle} – ${$t("exam.archive.gradedFile")}.pdf`} ariaLabel={$t("exam.archive.gradedDownload")} title={$t("exam.archive.gradedDownload")} />
+  <Button size="sm" iconOnly icon={actionIcons.download} href={gradedUrl || "#"} disabled={!gradedUrl} download={examFileName(fileExam, [FILE_KIND.gradedAll], "pdf")} ariaLabel={$t("exam.archive.gradedDownload")} title={$t("exam.archive.gradedDownload")} />
   <Button
     size="sm"
     variant={gradedUrl ? "outlined" : "solid"}

@@ -91,7 +91,7 @@ export const exportNs: Translations['export'] = {
             'The download contains unencrypted personal data (names, grades, scans). Store it only in safe places and delete it after use. An immutable audit-log entry is created.',
         options: {
             graded: 'Graded scans (PDF)',
-            gradedHint: 'With annotations burned in, including partly graded submissions (file name with _partial, ungraded ones with _ungraded).',
+            gradedHint: 'With annotations burned in, including partly graded submissions (file name with _teilweise, ungraded ones with _unkorrigiert).',
             gradedCombined: 'All graded papers in one PDF (for printing)',
             gradedCombinedHint: 'One file sorted by name; every paper starts on a new sheet for two-sided printing. The usual way to archive on paper.',
             latex: 'LaTeX source',

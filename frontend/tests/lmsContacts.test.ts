@@ -147,6 +147,6 @@ describe('delivery channels', () => {
 
 describe('Mebis feedback ZIP', () => {
   it('uses Moodle’s per-participant folders', () => {
-    expect(mebisFeedbackPath('Max Muster', '6028356')).toMatch(/^Participant_6028356_assignsubmission_file_\/.+_6028356\.pdf$/);
+    expect(mebisFeedbackPath({ datum: '05.11.2026', fach: 'Mathe' }, 'Max Muster', '6028356')).toBe('Participant_6028356_assignsubmission_file_/2026-11-05_Mathe_Max_Muster_6028356.pdf');
   });
 });

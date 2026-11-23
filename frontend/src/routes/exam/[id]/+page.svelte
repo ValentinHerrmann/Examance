@@ -243,7 +243,7 @@
 <ExamTimerDialog bind:this={timer} />
 
 {#if exportOpen}
-  <ExamExportModal exams={[{ id: examId, title: exam?.title ?? "" }]} onClose={() => (exportOpen = false)} />
+  <ExamExportModal exams={[{ ...exam, id: examId, title: exam?.title ?? "" }]} onClose={() => (exportOpen = false)} />
 {/if}
 
 

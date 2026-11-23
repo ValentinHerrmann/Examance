@@ -9,7 +9,7 @@ import type { StudentRecord } from '#lib/db/schema';
 import { forEachGradedPdf, loadResults } from '#lib/export/examExport';
 import { shareReviewOptions, type ReviewPrintOptions } from '#lib/export/reviewPrint';
 import { loadReviewPrint } from '#lib/export/reviewPrintPrefs';
-import { exportDateStamp, slug } from '#lib/export/zip';
+import { examFileName, FILE_KIND } from '#lib/export/fileName';
 import { logExportAction } from '#lib/gdpr/exportAudit';
 import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 import { compileExamPreview, examHasWithheldCode } from '#lib/exam/examPreview';
@@ -329,7 +329,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
   const keys = await joinKeys(results.students);
   const channel = SHARE_CHANNELS.find((c) => c.id === request.channel);
   const examTitle = ctx.exam.title || translate('sharing.untitledExam');
-  const delivery = createDelivery(request.channel, { examId: request.examId, examTitle, artemis: request.artemis, language: request.language });
+  const delivery = createDelivery(request.channel, { examId: request.examId, examTitle, exam: ctx.exam, artemis: request.artemis, language: request.language });
   // A channel that hands the link to a third party carries only factors with a second secret (docs/dev/result_sharing.md).
   if (!channel || (!delivery.sendsPdf && !channel.factors.includes(request.factor))) throw new Error(translate('sharing.errors.factorChannel'));
 
@@ -369,7 +369,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
         if (index === undefined) return;
         const student = results.students[index];
         const name = displayName(student);
-        const filename = `${slug(examTitle)}_${slug(name)}.pdf`;
+        const filename = examFileName(ctx.exam, [name], 'pdf');
         if (delivery.sendsPdf) {
           await delivery.deliverPdf(student, keys[index], name, filename, pdf);
           sentPdfs++;
@@ -402,7 +402,7 @@ export async function shareResults(request: ShareRequest, progress: ShareProgres
     channel: request.channel,
     warnings,
     download: slips
-      ? { bytes: slips, type: 'application/pdf', fileName: `${slug(examTitle)}_${request.channel === 'slips' ? 'links' : 'codes'}_${exportDateStamp()}.pdf` }
+      ? { bytes: slips, type: 'application/pdf', fileName: examFileName(ctx.exam, [request.channel === 'slips' ? FILE_KIND.links : FILE_KIND.codes], 'pdf') }
       : (delivery.download?.() ?? null),
   };
 }

@@ -2,6 +2,7 @@
   import ZoomableImage from "#lib/components/ZoomableImage.svelte";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import { t } from "#lib/i18n";
+  import { examFileName, FILE_KIND, type ExamFileFields } from "#lib/export/fileName";
   import { faDownload } from "@fortawesome/free-solid-svg-icons";
   import { Button, Modal } from "#lib/components/ui";
 
@@ -22,6 +23,8 @@
   interface Props {
     open?: boolean;
     item?: ScannedSubmissionItem | null;
+    /** The exam's fields for the download name (issue #337). */
+    exam?: ExamFileFields;
     objectUrl?: string | null;
     isPdf?: boolean;
     loading?: boolean;
@@ -32,6 +35,7 @@
   let {
     open = false,
     item = null,
+    exam = {},
     objectUrl = null,
     isPdf = false,
     loading = false,
@@ -40,7 +44,7 @@
   }: Props = $props();
 
   let modalTitle = $derived($t("scanning.previewModal.title", { label: item?.fallbackCode || item?.id || "" }));
-  let downloadName = $derived(`${item?.fallbackCode || item?.id || "scan"}.${isPdf ? "pdf" : "png"}`);
+  let downloadName = $derived(examFileName(exam, [item?.fallbackCode || item?.id, FILE_KIND.scan], isPdf ? "pdf" : "png"));
 </script>
 
 <Modal {open} size="full" bare onClose={onClose}>

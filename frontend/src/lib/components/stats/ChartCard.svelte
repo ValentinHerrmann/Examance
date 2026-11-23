@@ -9,6 +9,7 @@
   import { svgToPdf, svgToPng } from './chartExport';
   import { downloadBlob } from '#lib/utils/download';
   import { slug } from '#lib/export/zip';
+  import { examFileName, type ExamFileFields } from '#lib/export/fileName';
   import { renderChartSvg } from './renderChart';
 
   
@@ -22,8 +23,10 @@
     markers?: ChartMarker[];
     spans?: ChartSpan[];
     curve?: ChartCurve | null;
-    /** Exam title, for the file name and the document title. */
+    /** Exam title, for the document title (and the file name without `exam`). */
     examTitle?: string;
+    /** The exam, for the file name (issue #337). */
+    exam?: ExamFileFields | null;
     /** File name part after the exam title, e.g. `notenverteilung`. */
     fileName: string;
     class?: string;
@@ -41,6 +44,7 @@
     spans = [],
     curve = null,
     examTitle = '',
+    exam = null,
     fileName,
     class: className = '',
     children
@@ -63,7 +67,7 @@
           : format === 'pdf'
             ? await svgToPdf(markup, docTitle)
             : await svgToPng(markup);
-      downloadBlob(blob, `${slug(examTitle, 'exam')}_${fileName}.${format}`);
+      downloadBlob(blob, exam ? examFileName(exam, [fileName], format) : `${slug(examTitle, 'exam')}_${fileName}.${format}`);
     } finally {
       exporting = null;
     }

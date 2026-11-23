@@ -90,7 +90,7 @@ export const exportNs = {
             'Der Download enthält unverschlüsselte personenbezogene Daten (Klarnamen, Noten, Scans). Bitte nur an sicheren Orten speichern und nach Gebrauch löschen. Ein unveränderlicher Prüfprotokolleintrag wird erstellt.',
         options: {
             graded: 'Korrigierte Scans (PDF)',
-            gradedHint: 'Mit eingebrannten Anmerkungen, auch teilweise korrigierte Abgaben (Dateiname mit _partial, unkorrigierte mit _ungraded).',
+            gradedHint: 'Mit eingebrannten Anmerkungen, auch teilweise korrigierte Abgaben (Dateiname mit _teilweise, unkorrigierte mit _unkorrigiert).',
             gradedCombined: 'Alle korrigierten Arbeiten in einer PDF (zum Ausdrucken)',
             gradedCombinedHint: 'Eine Datei, nach Namen sortiert; jede Arbeit beginnt für den beidseitigen Druck auf einem neuen Blatt. Üblich für die Archivierung auf Papier.',
             latex: 'LaTeX-Quelltext',

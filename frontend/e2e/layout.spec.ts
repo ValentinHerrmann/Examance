@@ -226,7 +226,7 @@ test('[layout] the scan page downloads the graded PDF of a paper with an objecti
   await page.getByRole('button', { name: label('scanning.submissionsTable.exportPdf') }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: label('export.review.download.confirm') }).click();
-  expect((await download).suggestedFilename()).toMatch(/_graded\.pdf$/);
+  expect((await download).suggestedFilename()).toMatch(/_korrigiert\.pdf$/);
 });
 
 /** Issue #226: objections must not squeeze the score list: a badge on the row opens the review dialog at every width (issue #328). */
