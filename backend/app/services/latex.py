@@ -115,7 +115,6 @@ async def compile_latex(
         latex_source = _with_body_packages(f"""\\documentclass[a4paper]{{article}}
 \\usepackage[sans,punkte]{{sty/Schulaufgabe}}
 \\usetikzlibrary{{shapes.geometric, arrows}}
-\\usepackage{{sty/tikz-uml}}
 \\neverindent
 \\WarningsOff
 \\begin{{document}}

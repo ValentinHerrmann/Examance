@@ -27,10 +27,15 @@
     <tbody>
       {#each packages as pkg (pkg.name)}
         <tr>
-          <td class="font-mono">{pkg.name}</td>
+          <td class="font-mono">
+            {pkg.name}
+            {#if pkg.lazy}<Badge size="xs">{$t("latexPackages.template.lazy")}</Badge>{/if}
+          </td>
           <td class="max-w-64 break-words font-mono text-xs text-muted">{pkg.options || "–"}</td>
           <td class="whitespace-nowrap text-right">
-            {#if pkg.locked}
+            {#if pkg.lazy}
+              <span class="text-xs text-muted">–</span>
+            {:else if pkg.locked}
               <span
                 class="inline-flex items-center gap-1 text-xs text-muted"
                 title={$t("latexPackages.template.lockedTitle", { reason: reasonText($t, pkg.locked) })}

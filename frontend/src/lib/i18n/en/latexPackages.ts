@@ -41,6 +41,10 @@ export const latexPackages: Translations['latexPackages'] = {
         ignored: '{name} is not loaded: {reason}.',
         aliased: '{name} is replaced by the shortlabels option of {detail}; lists keep their notation.',
         added: 'pgfplots is loaded for the pgfplots libraries.',
+        addedSubject: {
+            used: '{name} is loaded because the document uses it.',
+            all: '{name} is loaded because the account always loads all subject packages.',
+        },
     },
     source: {
         account: 'the account setting',
@@ -55,6 +59,12 @@ export const latexPackages: Translations['latexPackages'] = {
         empty: 'No packages of your own yet. Add one below or add options to a template package.',
         loadFailed: 'The package list could not be loaded: {message}',
         invalid: 'Please correct the marked entries.',
+        subject: {
+            heading: 'Subject packages',
+            toggle: 'Always load all subject packages',
+            description: 'Without this setting, structograms, source code, chemistry, circuits, UML and SVG load their package only when a document uses it, which makes compiling faster. Turn it on if you pull such commands in your own way and a package is missing.',
+            failed: 'The setting could not be saved: {message}',
+        },
     },
     template: {
         heading: 'Loaded by the template',
@@ -66,6 +76,8 @@ export const latexPackages: Translations['latexPackages'] = {
         bundled: 'Loaded by bundled packages ({count})',
         libraries: 'TikZ libraries of the template',
         loadFailed: 'The template list is not available right now.',
+        lazy: 'loaded when used',
+        lazyNote: 'Subject packages: a document loads them only when it uses them.',
     },
     result: {
         heading: 'Result',

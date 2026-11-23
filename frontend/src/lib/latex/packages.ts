@@ -22,6 +22,22 @@ export const PACKAGE_ALIASES: ReadonlyMap<string, readonly [string, string]> = n
 /** Packages that have to load after hyperref. */
 export const AFTER_HYPERREF: ReadonlySet<string> = new Set(RULES.afterHyperref);
 
+/** A subject package the template no longer loads by itself: added when the document uses a trigger. */
+export interface LazyPackage {
+  name: string;
+  options: string;
+  triggers: readonly string[];
+}
+
+/** In load order (tikz-uml before custom-pgf-umlcd); the names may carry a path (sty/tikz-uml). */
+export const LAZY_PACKAGES: readonly LazyPackage[] = RULES.lazy;
+
+/** The account's "always load all subject packages" choice (`setAllSubjectPackages`, kept with the account list by packageSettings.ts), so every document builder picks it up without a new parameter. */
+let accountAllSubject = false;
+export function setAllSubjectPackages(all: boolean): void {
+  accountAllSubject = all;
+}
+
 export interface LatexPackageEntry {
   kind: PackageKind;
   name: string;
@@ -41,7 +57,7 @@ export interface PackageLayer {
 
 export type NoteCode = "conflict" | "override" | "ignored" | "aliased" | "added";
 
-/** conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); added: pgfplots for its libraries. */
+/** conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); added: a package loaded for others (detail empty: pgfplots for its libraries; used: a subject package the document uses; all: the account loads every subject package). */
 export interface PackageNote {
   code: NoteCode;
   kind: PackageKind;
@@ -287,8 +303,33 @@ function apply(merged: Map<string, Merged>, notes: PackageNote[], entry: LatexPa
   mergeOptions(current, notes, options, ref);
 }
 
-/** Merge the levels in order (account, exercises): later ones override option values. */
-export function resolvePackages(layers: readonly PackageLayer[]): ResolvedPackages {
+/** The lazy packages to load, each with why (`all` or `used`), in load order. */
+export function lazyWanted(document: string, allSubject: boolean): [LazyPackage, string][] {
+  const wanted: [LazyPackage, string][] = [];
+  for (const lazy of LAZY_PACKAGES) {
+    if (allSubject) wanted.push([lazy, "all"]);
+    else if (lazy.triggers.some((trigger) => document.includes(trigger))) wanted.push([lazy, "used"]);
+  }
+  return wanted;
+}
+
+/** Adds one lazy package with its fixed options; options already given for it win. */
+function addLazy(merged: Map<string, Merged>, notes: PackageNote[], lazy: LazyPackage, why: string): void {
+  const auto: SourceRef = { source: "auto", label: "" };
+  let current = merged.get(`package:${lazy.name}`);
+  if (!current) {
+    current = { kind: "package", name: lazy.name, options: new Map(), sources: [auto] };
+    merged.set(`package:${lazy.name}`, current);
+    notes.push({ code: "added", kind: "package", name: lazy.name, detail: why, sources: [auto] });
+  }
+  for (const item of splitOptions(lazy.options)) {
+    const optionKey = item.split("=", 1)[0];
+    if (!current.options.has(optionKey)) current.options.set(optionKey, { item, ref: auto });
+  }
+}
+
+/** Merge the levels in order (account, exercises): later ones override option values. `document` is scanned for the triggers of the lazy subject packages; `allSubject` loads them all. */
+export function resolvePackages(layers: readonly PackageLayer[], document = "", allSubject = false): ResolvedPackages {
   const merged = new Map<string, Merged>();
   const notes: PackageNote[] = [];
   for (const layer of layers) {
@@ -301,6 +342,7 @@ export function resolvePackages(layers: readonly PackageLayer[]): ResolvedPackag
     merged.set("package:pgfplots", { kind: "package", name: "pgfplots", options: new Map(), sources: [auto] });
     notes.push({ code: "added", kind: "package", name: "pgfplots", detail: "", sources: [auto] });
   }
+  for (const [lazy, why] of lazyWanted(document, allSubject)) addLazy(merged, notes, lazy, why);
   const packages = [...merged.values()].map((m) => ({
     kind: m.kind,
     name: m.name,
@@ -334,9 +376,9 @@ export function packagePreamble(resolved: ResolvedPackages): string {
   return `${lines.join("\n")}\n`;
 }
 
-/** Write the merged packages of `layers` in front of the `\documentclass` of `doc`. */
-export function withPackages(doc: string, layers: readonly PackageLayer[]): string {
-  const block = packagePreamble(resolvePackages(layers));
+/** Write the merged packages of `layers` (plus the subject packages `doc` uses, or all of them) in front of the `\documentclass` of `doc`. */
+export function withPackages(doc: string, layers: readonly PackageLayer[], allSubject = accountAllSubject): string {
+  const block = packagePreamble(resolvePackages(layers, doc, allSubject));
   if (!block) return doc;
   const found = doc.indexOf(String.raw`\documentclass`);
   const start = Math.max(found, 0);

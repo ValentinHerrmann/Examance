@@ -2,8 +2,115 @@
   "maxEntries": 50,
   "maxOptionsLength": 300,
   "namePattern": "[A-Za-z0-9][A-Za-z0-9._-]{0,63}",
-  "forbidden": { "inputenc": "xetex", "fontenc": "xetex", "paralist": "enumitem" },
-  "locked": { "geometry": "layout", "hyperref": "omr", "eso-pic": "omr" },
-  "aliases": { "enumerate": ["enumitem", "shortlabels"] },
-  "afterHyperref": ["cleveref", "bookmark", "hypcap", "glossaries", "glossaries-extra"]
+  "forbidden": {
+    "inputenc": "xetex",
+    "fontenc": "xetex",
+    "paralist": "enumitem"
+  },
+  "locked": {
+    "geometry": "layout",
+    "hyperref": "omr",
+    "eso-pic": "omr"
+  },
+  "aliases": {
+    "enumerate": [
+      "enumitem",
+      "shortlabels"
+    ]
+  },
+  "afterHyperref": [
+    "cleveref",
+    "bookmark",
+    "hypcap",
+    "glossaries",
+    "glossaries-extra"
+  ],
+  "lazy": [
+    {
+      "name": "struktex",
+      "options": "",
+      "triggers": [
+        "\\begin{struktogramm}",
+        "\\struktogramm",
+        "\\StrukTeX",
+        "\\PositionNSS",
+        "\\sProofOn"
+      ]
+    },
+    {
+      "name": "listings",
+      "options": "",
+      "triggers": [
+        "\\begin{lstlisting}",
+        "\\lstinline",
+        "\\lstinputlisting",
+        "\\lstset",
+        "\\lstdefine",
+        "\\lstnewenvironment"
+      ]
+    },
+    {
+      "name": "svg",
+      "options": "",
+      "triggers": [
+        "\\includesvg"
+      ]
+    },
+    {
+      "name": "chemfig",
+      "options": "",
+      "triggers": [
+        "\\chemfig",
+        "\\setchemfig",
+        "\\chemname",
+        "\\chemmove",
+        "\\chemrel",
+        "\\schemestart",
+        "\\definesubmol",
+        "\\Lewis"
+      ]
+    },
+    {
+      "name": "circuitikz",
+      "options": "",
+      "triggers": [
+        "\\begin{circuitikz}",
+        "\\ctikzset"
+      ]
+    },
+    {
+      "name": "mhchem",
+      "options": "version=4",
+      "triggers": [
+        "\\ce{",
+        "\\pu{",
+        "\\cesplit"
+      ]
+    },
+    {
+      "name": "sty/tikz-uml",
+      "options": "",
+      "triggers": [
+        "\\uml",
+        "\\begin{uml",
+        "\\tikzuml"
+      ]
+    },
+    {
+      "name": "sty/custom-pgf-umlcd",
+      "options": "",
+      "triggers": [
+        "\\begin{class}",
+        "\\begin{interface}",
+        "\\begin{abstractclass}",
+        "\\begin{object}",
+        "\\begin{package}",
+        "\\unidirectionalAssociation",
+        "\\association",
+        "\\aggregation",
+        "\\composition",
+        "\\switchUmlcdSchool"
+      ]
+    }
+  ]
 }

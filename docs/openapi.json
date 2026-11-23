@@ -10389,6 +10389,17 @@
             "type": "array",
             "maxItems": 50,
             "title": "Entries"
+          },
+          "all_subject_packages": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "All Subject Packages"
           }
         },
         "additionalProperties": false,
@@ -18033,6 +18044,11 @@
               }
             ],
             "title": "Locked"
+          },
+          "lazy": {
+            "type": "boolean",
+            "title": "Lazy",
+            "default": false
           }
         },
         "type": "object",

@@ -1,5 +1,7 @@
 /** Context shared by the AI-chat prompts (compile errors, exercise writing; issue #168): English Markdown for a model that knows nothing about Examance. Each fact lives in one place: the frame in `documentSetup`, what a command does in TEMPLATE_COMMANDS (keep in sync with the .sty files); the prompts only add their own requirements. */
 
+import { LAZY_PACKAGES } from './packages';
+
 export const BACKSLASH = String.fromCodePoint(92);
 export const LANGUAGES: Record<string, string> = { de: 'German', en: 'English' };
 const PDFTEX_ONLY = new Set(['iftex', 'inputenc', 'fontenc']);
@@ -80,7 +82,7 @@ export function documentSetup(engine: 'local' | 'server' | null): string {
     `- Engine: ${compiler}; UTF-8 input with ${code('fontspec')}.`,
     `- The teacher edits only the body of an exercise. The app generates everything else: class ${code('article')} with the template package ${code('Schulaufgabe.sty')} (it loads ${code('Loesung.sty')} and ${code('packages.sty')}), the header, and ${code(AUFGABE_FRAME)} around the body.`,
     `- Every document is compiled twice: the student sheet and the solution sheet (package option ${code('antworten')}). Solution arguments are typeset on the student sheet too (into a discarded box), so they must always compile; being macro arguments, they cannot hold verbatim material (${cs('verb')}, ${code('lstlisting')}).`,
-    `- Extra packages: ${code(USEPACKAGE)} on a line of its own in the body (the app moves it into the preamble) or the app's LaTeX package settings; anywhere else it fails.`,
+    `- Extra packages: ${code(USEPACKAGE)} on a line of its own in the body (the app moves it into the preamble) or the app's LaTeX package settings; anywhere else it fails. The subject packages (${LAZY_PACKAGES.map((p) => code(p.name.replace(/^sty\//, ''))).join(', ')}) load by themselves when the body uses their commands.`,
   ].join('\n');
 }
 

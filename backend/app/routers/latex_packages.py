@@ -17,7 +17,8 @@ def _account(teacher: Teacher) -> AccountLatexPackages:
         entries=[
             LatexPackageEntry(kind=e.kind, name=e.name, options=e.options)
             for e in stored_entries(teacher.latex_packages)
-        ]
+        ],
+        all_subject_packages=teacher.latex_all_subject_packages,
     )
 
 
@@ -39,6 +40,8 @@ async def set_account_latex_packages(
     teacher.latex_packages = [
         entry.model_dump() for entry in body.entries
     ] or None
+    if body.all_subject_packages is not None:
+        teacher.latex_all_subject_packages = body.all_subject_packages
     await db.flush()
     return _account(teacher)
 

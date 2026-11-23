@@ -73,6 +73,8 @@ A single exam can override the logo in the **Cover** section of the exam's Layou
 
 *Belongs to your account.* Lists the packages the template loads, and lets you add packages, TikZ libraries and options for all your exams. See [LaTeX packages](./exercises#packages) for how account, exam and exercise packages combine. Every change is saved by itself as soon as the list is valid; the heading shows **Saving…** and then **Saved**.
 
+The switch **Always load all subject packages** (saved at once) makes every document load the packages for chemistry, circuits, UML, structograms, source code and SVG, even when it does not use them. Leave it off for faster compiling; the template list marks these packages as **loaded when used**.
+
 ![LaTeX packages for the whole account](../screenshots/guide/settings-latex-packages.jpg)
 
 ## Fine-tuning MC detection {#mc-detection}

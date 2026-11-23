@@ -1,5 +1,18 @@
 % Cache warm-up document (issue #75): compiled once at image build and on deploy so Tectonic's
 % cache holds the bundle files and format the exam template needs. Public, synthetic content only.
+% The subject packages load only when a document uses them (issue #341); the warm-up loads all of them the way the
+% compile does (packages.sty runs \ExamancePackages), so the cache holds their files.
+\PassOptionsToPackage{version=4}{mhchem}
+\def\ExamancePackages{%
+  \RequirePackage{struktex}%
+  \RequirePackage{listings}%
+  \RequirePackage{svg}%
+  \RequirePackage{chemfig}%
+  \RequirePackage{circuitikz}%
+  \RequirePackage{mhchem}%
+  \RequirePackage{sty/tikz-uml}%
+  \RequirePackage{sty/custom-pgf-umlcd}%
+}
 \documentclass[a4paper]{article}
 \usepackage[sans,punkte,antworten]{sty/Schulaufgabe}
 \usepackage{bbding}
@@ -8,7 +21,6 @@
 \usepackage{framed}
 \usepackage{enumitem}
 \usetikzlibrary{shapes.geometric, arrows}
-\usepackage{sty/tikz-uml}
 
 \Info{Warm-up}
 \Fach{Informatik}

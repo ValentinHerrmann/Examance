@@ -40,6 +40,10 @@ export const latexPackages = {
         ignored: '{name} wird nicht geladen: {reason}.',
         aliased: '{name} wird durch die Option shortlabels von {detail} ersetzt; die Schreibweise der Listen bleibt gleich.',
         added: 'pgfplots wird für die pgfplots-Bibliotheken mitgeladen.',
+        addedSubject: {
+            used: '{name} wird geladen, weil das Dokument es verwendet.',
+            all: '{name} wird geladen, weil das Konto alle Fachpakete immer lädt.',
+        },
     },
     source: {
         account: 'der Kontoeinstellung',
@@ -54,6 +58,12 @@ export const latexPackages = {
         empty: 'Noch keine eigenen Pakete. Fügen Sie unten eines hinzu oder ergänzen Sie die Optionen eines Vorlagenpakets.',
         loadFailed: 'Die Paketliste konnte nicht geladen werden: {message}',
         invalid: 'Bitte korrigieren Sie die markierten Einträge.',
+        subject: {
+            heading: 'Fachpakete',
+            toggle: 'Lädt alle Fachpakete immer',
+            description: 'Ohne diese Einstellung laden Struktogramme, Quelltext, Chemie, Schaltkreise, UML und SVG ihr Paket erst, wenn ein Dokument sie verwendet; das verkürzt das Kompilieren. Schalten Sie sie ein, wenn Sie solche Befehle auf eigene Weise einbinden und ein Paket fehlt.',
+            failed: 'Die Einstellung konnte nicht gespeichert werden: {message}',
+        },
     },
     template: {
         heading: 'Von der Vorlage geladen',
@@ -65,6 +75,8 @@ export const latexPackages = {
         bundled: 'Von mitgelieferten Paketen geladen ({count})',
         libraries: 'TikZ-Bibliotheken der Vorlage',
         loadFailed: 'Die Liste der Vorlage ist gerade nicht verfügbar.',
+        lazy: 'wird bei Bedarf geladen',
+        lazyNote: 'Fachpakete: Das Dokument lädt sie nur, wenn es sie verwendet.',
     },
     result: {
         heading: 'Ergebnis',

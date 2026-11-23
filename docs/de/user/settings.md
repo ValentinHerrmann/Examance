@@ -73,6 +73,8 @@ Eine einzelne Prüfung kann das Logo im Abschnitt **Deckblatt** des Schritts Lay
 
 *Gehört zu Ihrem Konto.* Listet die Pakete auf, die die Vorlage lädt, und lässt Sie Pakete, TikZ-Bibliotheken und Optionen für alle Ihre Prüfungen hinzufügen. Wie Pakete von Konto, Prüfung und Aufgabe zusammenwirken, steht unter [LaTeX-Pakete](./exercises#packages). Jede Änderung wird von selbst gespeichert, sobald die Liste gültig ist; die Überschrift zeigt **Wird gespeichert …** und dann **Gespeichert**.
 
+Der Schalter **Alle Fachpakete immer laden** (wird sofort gespeichert) lässt jedes Dokument die Pakete für Chemie, Schaltkreise, UML, Struktogramme, Quelltext und SVG laden, auch wenn es sie nicht verwendet. Lassen Sie ihn für schnelleres Kompilieren aus; die Liste der Vorlage kennzeichnet diese Pakete als **wird bei Bedarf geladen**.
+
 ![LaTeX-Pakete für das ganze Konto](../../screenshots/guide/settings-latex-packages.jpg)
 
 ## MC-Erkennung feinjustieren {#mc-detection}
