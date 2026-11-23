@@ -38,11 +38,21 @@ export const FILE_KIND = {
   links: 'Links',
   codes: 'Codes',
   scan: 'Scan',
-  sheet: 'Bogen',
 } as const;
+
+/** Longest base and longest further part: a name with student and kind stays well under the 255 bytes file systems and unzip tools allow. */
+const MAX_BASE = 100;
+const MAX_PART = 50;
 
 /** Placeholder when the exam has no full date, so undated exams sort first and read as undated. */
 export const UNDATED = '0000-00-00';
+
+// Cut without leaving a separator at the end.
+function clip(value: string, max: number): string {
+  let end = Math.min(value.length, max);
+  while (end > 0 && (value[end - 1] === '_' || value[end - 1] === '.')) end--;
+  return value.slice(0, end);
+}
 
 function isoDay(date: Date): string {
   const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -54,11 +64,11 @@ function isoDay(date: Date): string {
 export function examFileBase(exam: ExamFileFields): string {
   const date = parseExamDatum(exam.datum ?? undefined);
   const meta = [exam.fach, examCourse(exam), exam.testart, exam.nr].map((p) => slug(p ?? '', '')).filter(Boolean);
-  return [date ? isoDay(date) : UNDATED, ...(meta.length ? meta : [slug(exam.title ?? '', 'exam')])].join('_');
+  return clip([date ? isoDay(date) : UNDATED, ...(meta.length ? meta : [slug(exam.title ?? '', 'exam')])].join('_'), MAX_BASE);
 }
 
 /** `examFileBase` plus the slugged non-empty `parts` (student, file kind) and the extension (without dot; empty for a folder name). */
 export function examFileName(exam: ExamFileFields, parts: (string | null | undefined)[], ext = ''): string {
-  const name = [examFileBase(exam), ...parts.map((p) => slug(p ?? '', ''))].filter(Boolean).join('_');
+  const name = [examFileBase(exam), ...parts.map((p) => clip(slug(p ?? '', ''), MAX_PART))].filter(Boolean).join('_');
   return ext ? `${name}.${ext}` : name;
 }

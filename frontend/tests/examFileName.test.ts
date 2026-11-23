@@ -31,3 +31,13 @@ describe('exam file names (issue #337)', () => {
     expect(examFileName(exam, [])).toBe('2026-11-05_Informatik_10a_Kurzarbeit_1');
   });
 });
+
+describe('exam file name length (issue #337)', () => {
+  it('keeps names with long fields, a student and a kind under 255 characters', () => {
+    const long = 'x'.repeat(100);
+    const name = examFileName({ datum: '05.11.2026', fach: long, course: 'y'.repeat(50), testart: long, nr: '1234567890' }, ['z'.repeat(100), FILE_KIND.partial], 'pdf');
+    expect(name.length).toBeLessThan(255);
+    expect(name.startsWith('2026-11-05_')).toBe(true);
+    expect(name.endsWith('_teilweise.pdf')).toBe(true);
+  });
+});

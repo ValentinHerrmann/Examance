@@ -105,12 +105,16 @@ export async function runExamsExport(
   if (exams.length === 1) return runExamExport(exams[0].id, selected, progress, reviewPrint);
   const zip = new ZipBuilder();
   const warnings: string[] = [];
+  // Exams with the same date, subject, course, type and number still get a folder each.
+  const folders = new Set<string>();
   for (const [i, exam] of exams.entries()) {
     const title = exam.title || translate('dashboard.examList.untitledExam');
     const step: ExportProgress = (s, done, total) => progress(translate('export.exam.steps.ofMany', { n: i + 1, total: exams.length, step: s }), done, total);
     try {
       const res = await runExamExport(exam.id, selected, step, reviewPrint); // NOSONAR: one exam at a time keeps memory bounded
-      zip.merge(res.fileName.replace(/\.zip$/, ''), res.zip);
+      const folder = firstFree(res.fileName.replace(/\.zip$/, ''), (f) => folders.has(f));
+      folders.add(folder);
+      zip.merge(folder, res.zip);
       warnings.push(...res.warnings.map((w) => `${title}: ${w}`));
     } catch (err) {
       warnings.push(`${title}: ${errorText(err)}`);

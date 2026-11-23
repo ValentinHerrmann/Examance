@@ -40,10 +40,9 @@
   // Only what the plan prints: the planned sheets while current, made sticker or copies PDFs as extra panes.
   let shown = $state<PrintPreviews | undefined>(undefined);
   const paneTitle = { exam: "exam.print.job.examBooklet", qr: "exam.print.job.qr", copies: "exam.print.job.copies", copiesA3: "exam.print.job.copiesA3", extra: "exam.print.extra.title" } as const;
-  const paneKind = { exam: FILE_KIND.booklet, qr: FILE_KIND.qr, copies: FILE_KIND.copies, copiesA3: FILE_KIND.copiesA3, extra: FILE_KIND.extraSheet } as const;
   let extraPanes = $derived(
     (["exam", "qr", "copies", "copiesA3", "extra"] as const).flatMap((job) =>
-      shown?.jobs[job] ? [{ id: job, title: $t(paneTitle[job]), url: shown.jobs[job] ?? null, fileName: ctx ? examFileName(ctx.exam, [paneKind[job]], "pdf") : undefined }] : []
+      shown?.jobs[job] ? [{ id: job, title: $t(paneTitle[job]), url: shown.jobs[job] ?? null, fileName: shown.fileNames[job] }] : []
     )
   );
 

@@ -5,6 +5,8 @@
     loesung: boolean;
     /** `extra` is the exam-independent extra sheet (issue #228). */
     jobs: Partial<Record<"exam" | "qr" | "copies" | "copiesA3" | "extra", string>>;
+    /** Download names of those PDFs, as the plan's own buttons save them (issue #337). */
+    fileNames: Partial<Record<"exam" | "qr" | "copies" | "copiesA3" | "extra", string>>;
   }
 </script>
 
@@ -175,8 +177,10 @@
     extraSheet = { url: URL.createObjectURL(new Blob([pdfBytes as BlobPart], { type: "application/pdf" })), bytes: pdfBytes, key };
   }
 
+  const extraFileName = () => examFileName(exam, [FILE_KIND.extraSheet, print.paperStyle], "pdf");
+
   function downloadExtraSheet() {
-    if (extraSheet) downloadBlob(new Blob([extraSheet.bytes as BlobPart], { type: "application/pdf" }), examFileName(exam, [FILE_KIND.extraSheet, print.paperStyle], "pdf"));
+    if (extraSheet) downloadBlob(new Blob([extraSheet.bytes as BlobPart], { type: "application/pdf" }), extraFileName());
   }
 
   /** The one action of the Print step: compiles what the plan prints (the solution only when it is printed; unchanged sources come from the compile cache), then makes the sticker or copies PDF unless the current one is still valid. */
@@ -312,17 +316,17 @@
   });
   // The preview shows only what the plan prints, and only while it fits the current content.
   $effect.pre(() => {
+    const madeJobs = (["exam", "qr", "copies", "copiesA3"] as const).filter((job) => jobPdf[job]?.url && jobs.includes(job) && made(job));
     const next: PrintPreviews = {
       angabe: jobs.includes("exam") && !imposed,
       loesung: jobs.includes("solution"),
       jobs: {
-        ...Object.fromEntries(
-          (["exam", "qr", "copies", "copiesA3"] as const).flatMap((job) => {
-            const url = jobPdf[job]?.url;
-            return url && jobs.includes(job) && made(job) ? [[job, url]] : [];
-          }),
-        ),
+        ...Object.fromEntries(madeJobs.map((job) => [job, jobPdf[job]?.url])),
         ...(extraMade && extraSheet ? { extra: extraSheet.url } : {}),
+      },
+      fileNames: {
+        ...Object.fromEntries(madeJobs.map((job) => [job, jobPdf[job]?.fileName])),
+        ...(extraMade && extraSheet ? { extra: extraFileName() } : {}),
       },
     };
     untrack(() => (shown = next));
