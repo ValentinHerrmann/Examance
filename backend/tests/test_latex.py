@@ -81,6 +81,18 @@ def test_split_preamble_ends_at_the_template_load() -> None:
     assert split_preamble("\\documentclass{article}\\begin{document}x\\end{document}") is None
 
 
+def test_split_preamble_is_linear_on_hostile_input() -> None:
+    """CodeQL: the former regex backtracked on many unclosed "\\usepackage[" (issue #341)."""
+    import time
+
+    from app.services.texrunner import split_preamble
+
+    hostile = "\\documentclass{article}" + "\\usepackage[" * 200_000 + "{sty/Schulaufgabe}"
+    started = time.monotonic()
+    split_preamble(hostile)
+    assert time.monotonic() - started < 1
+
+
 def test_format_key_follows_the_preamble() -> None:
     from app.services.texrunner import format_key
 

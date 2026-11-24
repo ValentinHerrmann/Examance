@@ -6,7 +6,6 @@ import contextlib
 import hashlib
 import logging
 import os
-import re
 import shutil
 import tempfile
 import time
@@ -44,7 +43,7 @@ MAX_TEX_PASSES = 4
 
 _TEX_FLAGS = ["-no-shell-escape", "-no-parse-first-line", "-interaction=nonstopmode", "-halt-on-error"]
 # The format ends right after the template load: everything before it is the same for every exam with the same layout options and packages.
-_TEMPLATE_LOAD = re.compile(r"\\usepackage(?:\[[^\]]*\])?\{sty/Schulaufgabe\}")
+_TEMPLATE_NAME = "{sty/Schulaufgabe}"
 # XeTeX cannot dump OpenType fonts and the kernel loads one as soon as a font is selected: the dump runs in OT1 without Libertine (packages.sty), the document switches back after \endofdump.
 _BEFORE_DUMP = "\\def\\ExamanceDeferFonts{}\\def\\encodingdefault{OT1}\\fontencoding{OT1}\n"
 _AFTER_DUMP = (
@@ -189,12 +188,18 @@ def _environment_digest() -> str:
 
 def split_preamble(main_tex: str) -> tuple[str, str] | None:
     """The document as (part up to and including the template load, rest), or None when it does not load the template."""
-    if "\\documentclass" not in main_tex:
+    # Plain string searches, no regex: documents are untrusted and a backtracking pattern could be made to run for minutes.
+    name_at = main_tex.find(_TEMPLATE_NAME)
+    class_at = main_tex.find("\\documentclass")
+    if name_at < 0 or class_at < 0 or class_at > name_at:
         return None
-    match = _TEMPLATE_LOAD.search(main_tex)
-    if match is None or main_tex.find("\\documentclass") > match.start():
+    head = main_tex[:name_at]
+    if head.endswith("]"):
+        head = head[: head.rfind("[")] if "[" in head else ""
+    if not head.endswith("\\usepackage"):
         return None
-    return main_tex[: match.end()], main_tex[match.end():]
+    end = name_at + len(_TEMPLATE_NAME)
+    return main_tex[:end], main_tex[end:]
 
 
 def format_key(preamble: str) -> str:
