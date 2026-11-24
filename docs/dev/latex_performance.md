@@ -30,6 +30,34 @@ Measured with Tectonic 0.15 and a warm cache, on a 12-task exam without subject 
 
 The warm-up document (all subject packages) takes 4.3 s fresh and 2.5 s seeded.
 
+### Round 2: a real exam (goal: at most 2 s per PDF)
+
+An 8-page Informatik exam (9 tasks, 7 listings, page codes, filler pages, dot paper) still took 12-21 s per PDF on the preview server and 15-28 s in the browser. The profile (Tectonic 0.15, warm cache; seeded = one TeX pass) attributed it:
+
+| Cost per TeX pass | Seconds |
+|---|---|
+| Dot paper drawn as one TikZ `\fill` per dot (one page of it) | ~1.8 |
+| Template packages (`packages.sty`; Libertine 0.4, hyperref 0.2, TikZ and libraries 0.3) | ~1.0 |
+| Engine and output (empty `article`) | 0.4 |
+| Exam body (8 pages) | ~1.0 |
+| Page codes, one `\fill` per dark run | ~0.2 |
+
+A first compile runs three passes (Tectonic reruns until `main.aux` settles), so it costs three times the seeded figure. Fixes, each measured on that exam:
+
+| Change | Student sheet fresh / seeded |
+|---|---|
+| Before | 17.7 / 5.3 s |
+| Dot grids as one row drawn once and stacked (`\LSG@dotgrid` in `Loesung.sty`, used by `\punktraster`, `\kariert` under `karopunkte` and the writing paper) | 8.5 / 3.1 s |
+| Page codes as one path filled once (`\SA@pcdraw`) | 7.9 / 2.7 s |
+| No hard-coded `\usepackage{sty/tikz-uml}` in the exam and exercise builders (the lazy rule loads it when used) | 6.6 / 2.4 s |
+
+A booklet with dot grids went from 21.9 / 10.9 s to 3.6 / 1.9 s.
+
+- **Same output:** rendered at 300 dpi and thresholded, the pages match except for 11-24 edge pixels. The dots sit on the same 5 mm grid; the single page-code path only drops the anti-aliasing seams between runs.
+- **Scan template:** it now shares the student sheet's cache slot (`exam`/`angabe`) instead of its own `omr-blank` one. A click on compile therefore no longer runs a third full compile without seeds, and the Print step reuses that PDF.
+
+What is left per seeded pass is the template's package load (~1 s) and the engine (0.4 s). The next lever is a precompiled format, which Tectonic cannot load (see below); a plain TeX Live XeLaTeX with a dumped format is measured next.
+
 ### Aux seeding rules
 
 - Seeds are only `main.aux`, `main.toc` and `main.out` (`AUX_FILE_NAMES`, mirrored in the worker's `AUX_EXTENSIONS`), at most 512 KB each.

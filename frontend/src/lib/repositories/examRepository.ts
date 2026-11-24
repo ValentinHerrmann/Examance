@@ -343,7 +343,6 @@ export const examRepository = {
   /** The server keeps the exam in its trash (issue #125); `opts.group` ties it to this browser's copy of hybrid results. */
   async delete(id: string, opts: DeleteOptions = {}): Promise<void> {
     invalidateOwner('exam', id);
-    invalidateOwner('omr-blank', id);
     const group = opts.group ?? newTrashGroup();
     const headers = trashHeaders({ group });
     // Server first (F10): a refused delete throws before the local cascade, so nothing is gone on one side only.

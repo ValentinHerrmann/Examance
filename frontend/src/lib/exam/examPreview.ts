@@ -116,7 +116,6 @@ export function buildExamLatex(
 \Lehrernachname{${exam.lehrernachname || ""}}
 \usepackage{fontspec}
 \usetikzlibrary{shapes.geometric, arrows}
-\usepackage{sty/tikz-uml}
 \neverindent
 \WarningsOff
 \begin{document}

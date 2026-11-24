@@ -775,12 +775,15 @@
 \newlength{\SA@pcsize}
 \setlength{\SA@pcsize}{14mm}
 \newlength{\SA@pcmod}
+% All dark runs in one path filled once: a \fill per run cost a TikZ scope each, on every page and TeX pass (issue #341).
+\def\SA@pcrun#1/#2/#3\@nil{\pgfpathrectangle{\pgfqpoint{#1\SA@pcmod}{#2\SA@pcmod}}{\pgfqpoint{#3\SA@pcmod}{\SA@pcmod}}}
 \newcommand{\SA@pcdraw}[2]{%
     \setlength{\SA@pcmod}{\dimexpr\SA@pcsize/#1\relax}%
-    \begin{tikzpicture}[x=\SA@pcmod,y=\SA@pcmod]%
-        \fill[white] (0,0) rectangle (#1,#1);%
-        \foreach \x/\y/\w in {#2} {\fill[black] (\x,\y) rectangle ++(\w,1);}%
-    \end{tikzpicture}%
+    \begin{pgfpicture}%
+        \pgfpathrectangle{\pgfpointorigin}{\pgfqpoint{#1\SA@pcmod}{#1\SA@pcmod}}\pgfsetfillcolor{white}\pgfusepath{fill}%
+        \@for\SA@pcitem:={#2}\do{\expandafter\SA@pcrun\SA@pcitem\@nil}%
+        \pgfsetfillcolor{black}\pgfusepath{fill}%
+    \end{pgfpicture}%
 }
 % The code sits on the inner side of the cut-side top marker (67.5-72.5mm), 75.5-89.5mm from the cut side, its bottom edge 20mm from the top
 % (higher would reach the printer's unprintable margin); there the cut zone has ended, and the head band keeps its height. Its invisible link lets
@@ -879,11 +882,8 @@
             \draw[black!30,line width=0.3pt,step=5mm] (0,0) grid (\SA@nx*5mm,\SA@ny*5mm);%
         \end{tikzpicture}%
     \else\ifx\SA@paper\SA@paperpunkte
-        \begin{tikzpicture}%
-            \pgfmathtruncatemacro\SA@nx{#1/5mm}\pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/5mm)}%
-            \path (0,0) rectangle (\SA@nx*5mm,\SA@ny*5mm);%
-            \foreach \SA@px in {0,...,\SA@nx} {\foreach \SA@py in {0,...,\SA@ny} {\fill[black!40] (\SA@px*5mm,\SA@py*5mm) circle (0.6pt);}}%
-        \end{tikzpicture}%
+        \pgfmathtruncatemacro\SA@nx{#1/5mm}\pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/5mm)}%
+        \LSG@dotgrid{\SA@nx}{\SA@ny}{5mm}{black!40}%
     \else\ifx\SA@paper\SA@paperlinien
         \begin{tikzpicture}%
             \pgfmathtruncatemacro\SA@ny{max(1,\the\SA@wph/8mm)}%

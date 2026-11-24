@@ -182,13 +182,34 @@ escapeinside={(*@}{@*)}
 }
 \newcommand\kariert[2][0.5cm]{\ifLSG@punktkaro\punktraster[#1]{#2}\else\LSG@karogrid{#1}{#2}\fi}
 
+% Dots 0..#1 by 0..#2 at pitch #3 in colour #4: one row drawn once and stacked, since a \fill per dot cost about 1 s per page and TeX pass (issue #341).
+% Same box as the former TikZ picture: the dot centres span the grid, the dots' 0.6pt radius lies around it, the baseline at the bottom.
+\newcount\LSG@dotk
+\newcount\LSG@doty
+\newdimen\LSG@dotpitch
+\newbox\LSG@dotrow
+\newcommand\LSG@dotgrid[4]{%
+	\LSG@dotpitch=#3\relax
+	\setbox\LSG@dotrow\hbox{\begin{pgfpicture}%
+		\LSG@dotk=\z@
+		\loop\ifnum\LSG@dotk>#1 \else
+			\pgfpathcircle{\pgfqpoint{\LSG@dotk\LSG@dotpitch}{\z@}}{0.6pt}%
+			\advance\LSG@dotk by \@ne
+		\repeat
+		\pgfsetfillcolor{#4}\pgfusepath{fill}%
+	\end{pgfpicture}}%
+	\vbox{\offinterlineskip
+		\LSG@doty=\z@
+		\loop\ifnum\LSG@doty<#2
+			\copy\LSG@dotrow\vskip\dimexpr\LSG@dotpitch-\ht\LSG@dotrow-\dp\LSG@dotrow\relax
+			\advance\LSG@doty by \@ne
+		\repeat
+		\copy\LSG@dotrow}%
+}
 % Dot grid (issue #314): a gray dot at every corner of the squares \kariert would draw, same size, no frame.
 \newcommand\punktraster[2][0.5cm]{%
-	\begin{tikzpicture}
-	\pgfmathtruncatemacro\anzahl{(\linewidth-\pgflinewidth)/#1}
-	\path (0,0) rectangle (\anzahl*#1,#2*#1);
-	\foreach \LSG@px in {0,...,\anzahl} {\foreach \LSG@py in {0,...,#2} {\fill[gray] (\LSG@px*#1,\LSG@py*#1) circle (0.6pt);}}
-	\end{tikzpicture} 
+	\pgfmathtruncatemacro\anzahl{(\linewidth-\pgflinewidth)/#1}%
+	\LSG@dotgrid{\anzahl}{#2}{#1}{gray} %
 }
 
 % --- OMR: MC option bubbles ------------------------------------------------

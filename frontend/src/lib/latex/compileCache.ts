@@ -10,9 +10,9 @@ import { clearPackageSettingsCache } from './packageSettings';
 import { sha256Hex } from '#lib/crypto/hex';
 
 /** `extra-sheet` is the exam-independent extra sheet (issue #228), keyed by its paper style. */
-export type CompileKind = 'exam' | 'exercise' | 'omr-blank' | 'extra-sheet' | 'layout-sample';
+export type CompileKind = 'exam' | 'exercise' | 'extra-sheet' | 'layout-sample';
 /** `draft` is the Exam step's task sheet without the extra pages that fill whole sheets (issue #228). */
-export type CompileVariant = 'angabe' | 'loesung' | 'blank' | 'draft';
+export type CompileVariant = 'angabe' | 'loesung' | 'draft';
 
 export interface CompileCacheKey {
   kind: CompileKind;
