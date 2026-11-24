@@ -374,6 +374,37 @@ See \ref{b}.
 
 
 @pytest.mark.asyncio
+async def test_a_seed_the_document_cannot_read_is_dropped() -> None:
+    """Review of #343: a seed with a macro the document no longer defines fails pass 1, so the compile retries unseeded."""
+    import shutil
+    if not shutil.which("xelatex"):
+        pytest.skip("TeX Live xelatex not available")
+    from app.services.texrunner import run_tex
+
+    doc = "\\documentclass{article}\n\\begin{document}\nHi\n\\end{document}\n"
+    result = await run_tex(doc, {}, time_limit=120, seed_aux={"main.aux": b"\\relax\n\\RemovedPackageMacro{x}\n"})
+    assert result.pdf.startswith(b"%PDF")
+    assert b"RemovedPackageMacro" not in result.aux.get("main.aux", b"")
+
+
+@pytest.mark.asyncio
+async def test_a_failed_format_build_is_not_retried(tmp_path, monkeypatch) -> None:
+    """Review of #343: a preamble whose format cannot be built compiles plainly from then on, without another -ini run."""
+    from unittest.mock import AsyncMock
+
+    from app.services import texrunner
+
+    monkeypatch.setattr(texrunner, "FORMAT_DIR", tmp_path)
+    monkeypatch.setattr(texrunner, "_failed_formats", set())
+    run = AsyncMock(return_value=(1, b""))
+    monkeypatch.setattr(texrunner, "_run", run)
+    assert await texrunner._ensure_format("\\documentclass{article}\\usepackage{sty/Schulaufgabe}", 1e12) is None
+    assert await texrunner._ensure_format("\\documentclass{article}\\usepackage{sty/Schulaufgabe}", 1e12) is None
+    assert run.await_count == 1
+    assert texrunner._format_locks == {}
+
+
+@pytest.mark.asyncio
 async def test_seed_aux_rejects_unknown_names_and_unsafe_paths() -> None:
     from app.services.texrunner import run_tex
 

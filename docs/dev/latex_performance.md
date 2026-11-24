@@ -63,6 +63,7 @@ What is left per seeded pass is the template's package load (~1 s) and the engin
 - Seeds are only `main.aux`, `main.toc` and `main.out` (`AUX_FILE_NAMES`, mirrored in the worker's `AUX_EXTENSIONS`), at most 512 KB each.
 - TeX reads the aux file as code, so the server runs seeds through the same path tripwire as `main.tex` (`reject_unsafe_paths`).
 - A stale seed is safe: the engine sees the aux files change and reruns. It only costs the pass it would have saved.
+- A seed the document cannot read (a macro from a package it no longer loads) fails the first pass; both engines then retry once without seeds instead of failing the compile.
 - A slot is seeded from its own last compile, else from its sibling (`draft` and `angabe` differ only in the filling pages). The seeds are kept independently of the content hash, so an edited document still finds them.
 
 ### The persisted cache
@@ -112,7 +113,7 @@ Measured with TeX Live 2026 XeLaTeX in a scratch install; the server has used it
 The server engine moved from Tectonic (TeX Live 2022 bundle, files downloaded on demand) to a pinned TeX Live 2026 XeLaTeX installed in the backend image (`backend/latex-texlive/`, `docs/hosting.md` section 4.5). Server and browser engine now use the same TeX Live year.
 
 - **Passes.** `services/texrunner.py` runs XeLaTeX with `-no-pdf` until `main.aux`, `.toc` and `.out` settle (at most 4 passes, seeded from the previous compile's aux), then `xdvipdfmx` once.
-- **Format cache.** Per preamble, the document up to and including `\usepackage[..]{sty/Schulaufgabe}` is dumped once with mylatexformat. The key is the SHA-256 of preamble, assets and TeX Live snapshot; formats live in `LATEX_FORMAT_DIR` (volume `latex_formats`, LRU 64 formats / 2 GB). XeTeX cannot dump OpenType fonts, so the dump runs in OT1 and `packages.sty` skips Libertine through `\ExamanceDeferFonts`; fonts load after the dump. A failed format build falls back to a plain compile.
+- **Format cache.** Per preamble, the document up to and including `\usepackage[..]{sty/Schulaufgabe}` is dumped once with mylatexformat. The key is the SHA-256 of preamble, assets, the dump wrapper, `backend/latex-texlive/` and the TeX Live snapshot; formats live in `LATEX_FORMAT_DIR` (volume `latex_formats`, LRU 64 formats / 2 GB). XeTeX cannot dump OpenType fonts, so the dump runs in OT1 and `packages.sty` skips Libertine through `\ExamanceDeferFonts`; fonts load after the dump. A failed format build (e.g. a package that loads a font at load time) falls back to a plain compile, and the process remembers the key so it never tries that build again. The compile's time limit starts once it holds a slot.
 - **Warm-up.** `backend/latex-warmup/warmup.sh` compiles `warmup.tex` through the runner at image build (a missing package fails the build) and after a deploy; that builds the warm-up's format and seeds a new volume.
 
 Measured on the 8-page exam inside the built image:

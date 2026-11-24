@@ -158,6 +158,7 @@ export function setCached(key: CompileCacheKey, hash: string, result: CompileRes
  */
 export function invalidateSlot(key: CompileCacheKey): void {
   const slotKey = makeSlotKey(key);
+  markInvalidated(slotKey);
   void dropStoredCompiles(slotKey);
   const entry = cache.get(slotKey);
   if (entry) {
@@ -171,6 +172,7 @@ export function invalidateSlot(key: CompileCacheKey): void {
  */
 export function invalidateOwner(kind: CompileKind, id: string): void {
   const prefix = `${kind}:${id}:`;
+  markInvalidated(prefix);
   void dropStoredCompiles(prefix);
   for (const [slotKey, entry] of cache.entries()) {
     if (slotKey.startsWith(prefix)) {
@@ -185,6 +187,7 @@ export function invalidateOwner(kind: CompileKind, id: string): void {
  */
 export function clearCompileCache(): void {
   cache.clear();
+  markInvalidated('');
   void dropStoredCompiles('');
   lastInputs.clear();
   clearLogoCache();
@@ -203,6 +206,22 @@ export function getCompileCacheStats(): { entryCount: number; totalBytes: number
 }
 
 type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo };
+
+/** Invalidated slot-key prefixes by sequence number: a compile that was running when its slot was invalidated (an exam deleted meanwhile) must not write its PDF back. */
+let invalidationSeq = 0;
+const invalidatedAt = new Map<string, number>();
+const MAX_INVALIDATIONS = 200;
+
+function markInvalidated(prefix: string): void {
+  invalidatedAt.delete(prefix);
+  invalidatedAt.set(prefix, ++invalidationSeq);
+  if (invalidatedAt.size > MAX_INVALIDATIONS) invalidatedAt.delete(invalidatedAt.keys().next().value as string);
+}
+
+function invalidatedSince(slotKey: string, seq: number): boolean {
+  for (const [prefix, at] of invalidatedAt) if (at > seq && slotKey.startsWith(prefix)) return true;
+  return false;
+}
 
 /** The stored compile of a slot, put into the memory level so later lookups stay synchronous. */
 async function fromStore(key: CompileCacheKey): Promise<CachedCompileEntry | undefined> {
@@ -317,7 +336,9 @@ export async function compileWithCache(
   const hit = getCached(key, hash) ?? (!cache.has(makeSlotKey(key)) && (await fromStore(key))?.hash === hash ? getCached(key, hash) : undefined);
   if (hit) return hitResult(hit);
 
+  const startedAt = invalidationSeq;
   const result = await compileLatex(latexSource, useLocal, onStatus, promptFallback, { ...opts, seedAux: await seedFor(key) });
+  if (invalidatedSince(makeSlotKey(key), startedAt)) return result;
   setCached(key, hash, result);
   persist(key, hash, result);
   lastInputs.set(makeSlotKey(key), summarize(latexSource, useLocal, opts));

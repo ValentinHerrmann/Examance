@@ -179,9 +179,12 @@ def _environment_digest() -> str:
     if _assets_digest is None:
         h = hashlib.sha256(os.environ.get("TL_SNAPSHOT", "").encode())
         h.update(str(shutil.which("xelatex")).encode())
-        if ASSETS_DIR.exists():
-            for path in sorted(p for p in ASSETS_DIR.rglob("*") if p.is_file()):
-                h.update(str(path.relative_to(ASSETS_DIR)).encode() + b"\0" + path.read_bytes())
+        # The dump wrapper and our TeX Live config shape the format too; the format volume outlives deploys.
+        h.update((_BEFORE_DUMP + _AFTER_DUMP).encode())
+        for root in (ASSETS_DIR, CONFIG_DIR):
+            if root.exists():
+                for path in sorted(p for p in root.rglob("*") if p.is_file()):
+                    h.update(str(path.relative_to(root)).encode() + b"\0" + path.read_bytes())
         _assets_digest = h.hexdigest()
     return _assets_digest
 
@@ -208,49 +211,79 @@ def format_key(preamble: str) -> str:
 
 def _prune_formats() -> None:
     """Least recently used formats go first, over FORMAT_CACHE_ENTRIES or FORMAT_CACHE_BYTES."""
-    formats = sorted(FORMAT_DIR.glob("*.fmt"), key=lambda p: p.stat().st_mtime, reverse=True)
+    stats: list[tuple[float, int, Path]] = []
+    for path in FORMAT_DIR.glob("*.fmt"):
+        # Another worker process may prune the same directory at the same time.
+        with contextlib.suppress(OSError):
+            st = path.stat()
+            stats.append((st.st_mtime, st.st_size, path))
     total = 0
-    for index, path in enumerate(formats):
-        total += path.stat().st_size
+    for index, (_mtime, size, path) in enumerate(sorted(stats, key=lambda s: s[0], reverse=True)):
+        total += size
         if index >= FORMAT_CACHE_ENTRIES or total > FORMAT_CACHE_BYTES:
-            path.unlink(missing_ok=True)
+            with contextlib.suppress(OSError):
+                path.unlink(missing_ok=True)
 
 
 _format_locks: dict[str, asyncio.Lock] = {}
+# Preambles whose format failed to build in this process (e.g. a package loads a native font at load time): they compile plainly at once.
+_failed_formats: set[str] = set()
+_MAX_FAILED_FORMATS = FORMAT_CACHE_ENTRIES * 4
 
 
 async def _ensure_format(preamble: str, deadline: float) -> str | None:
     """The format name for *preamble*, built on first use; None when it cannot be built (the caller then compiles without one)."""
     key = format_key(preamble)
+    if key in _failed_formats:
+        return None
+    lock = _format_locks.setdefault(key, asyncio.Lock())
+    try:
+        async with lock:
+            return await _build_format(key, preamble, deadline)
+    finally:
+        # Drop the lock once nobody holds or waits on it, so the dict stays as small as the set of builds in flight.
+        if not lock.locked() and not getattr(lock, "_waiters", None):
+            _format_locks.pop(key, None)
+
+
+async def _build_format(key: str, preamble: str, deadline: float) -> str | None:
     path = FORMAT_DIR / f"{key}.fmt"
-    async with _format_locks.setdefault(key, asyncio.Lock()):
-        if path.exists():
+    if path.exists():
+        with contextlib.suppress(OSError):
             os.utime(path)
-            return key
-        started = time.monotonic()
-        work = Path(tempfile.mkdtemp(prefix="examance-format-"))
-        try:
-            _copy_assets(work)
-            (work / "fmt.tex").write_text(_BEFORE_DUMP + preamble + _AFTER_DUMP, encoding="utf-8")
-            cmd = ["xelatex", "-ini", *_TEX_FLAGS, f"-jobname={key}", "&xelatex", "mylatexformat.ltx", "fmt.tex"]
-            returncode, _ = await _run(cmd, work, deadline, "format")
-            built = work / f"{key}.fmt"
-            if returncode != 0 or not built.exists():
-                # A preamble the format cannot hold still compiles, just without the head start.
-                logger.info("LaTeX format build failed after %.1f s; compiling without", time.monotonic() - started)
-                return None
-            FORMAT_DIR.mkdir(parents=True, exist_ok=True)
-            partial = FORMAT_DIR / f"{key}.fmt.part"
-            shutil.copyfile(built, partial)
-            os.replace(partial, path)
-            _prune_formats()
-            logger.info("LaTeX format built in %.1f s", time.monotonic() - started)
-            return key
-        except OSError as exc:
-            logger.warning("LaTeX format could not be stored: %s", exc)
+        return key
+    if key in _failed_formats:
+        return None
+    started = time.monotonic()
+    work = Path(tempfile.mkdtemp(prefix="examance-format-"))
+    try:
+        _copy_assets(work)
+        (work / "fmt.tex").write_text(_BEFORE_DUMP + preamble + _AFTER_DUMP, encoding="utf-8")
+        cmd = ["xelatex", "-ini", *_TEX_FLAGS, f"-jobname={key}", "&xelatex", "mylatexformat.ltx", "fmt.tex"]
+        returncode, _ = await _run(cmd, work, deadline, "format")
+        built = work / f"{key}.fmt"
+        if returncode != 0 or not built.exists():
+            # A preamble the format cannot hold still compiles, just without the head start; remembered so it never retries.
+            if len(_failed_formats) >= _MAX_FAILED_FORMATS:
+                _failed_formats.clear()
+            _failed_formats.add(key)
+            logger.info("LaTeX format build failed after %.1f s; compiling without", time.monotonic() - started)
             return None
-        finally:
-            shutil.rmtree(work, ignore_errors=True)
+        FORMAT_DIR.mkdir(parents=True, exist_ok=True)
+        partial = FORMAT_DIR / f"{key}.fmt.part"
+        shutil.copyfile(built, partial)
+        os.replace(partial, path)
+    except TimeoutError:
+        # TimeoutError is an OSError: it must reach the caller, not count as a storage failure.
+        raise
+    except OSError as exc:
+        logger.warning("LaTeX format could not be stored: %s", exc)
+        return None
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    _prune_formats()
+    logger.info("LaTeX format built in %.1f s", time.monotonic() - started)
+    return key
 
 
 def _read_aux_files(tmpdir: Path) -> dict[str, bytes]:
@@ -294,6 +327,18 @@ async def _run_passes(tmpdir: Path, fmt_args: list[str], seeded: bool, deadline:
         aux = settled
 
 
+async def _run_passes_or_unseeded(tmpdir: Path, fmt_args: list[str], seeded: bool, deadline: float) -> int:
+    """``_run_passes``, retried once without the seeds when a seeded run fails: a stale seed (a macro the document no longer defines) must not fail the compile."""
+    try:
+        return await _run_passes(tmpdir, fmt_args, seeded, deadline)
+    except CompilationError:
+        if not seeded:
+            raise
+    for name in AUX_FILE_NAMES:
+        (tmpdir / name).unlink(missing_ok=True)
+    return await _run_passes(tmpdir, fmt_args, False, deadline)
+
+
 async def run_tex(
     main_tex: str,
     files: dict[str, bytes],
@@ -304,9 +349,10 @@ async def run_tex(
     tmpdir = Path(tempfile.mkdtemp(prefix="blindgrade-latex-"))
     try:
         _prepare_workdir(tmpdir, files, seed_aux or {})
-        started = time.monotonic()
-        deadline = started + time_limit
         async with _compile_slot(time_limit):
+            # The run gets the whole limit; the wait for a slot has its own.
+            started = time.monotonic()
+            deadline = started + time_limit
             fmt_args: list[str] = []
             parts = split_preamble(main_tex)
             if parts is not None and (fmt := await _ensure_format(parts[0], deadline)) is not None:
@@ -314,7 +360,7 @@ async def run_tex(
                 main_tex = _BEFORE_DUMP + parts[0] + _AFTER_DUMP + parts[1]
             (tmpdir / "main.tex").write_text(main_tex, encoding="utf-8")
             format_ready = time.monotonic()
-            passes = await _run_passes(tmpdir, fmt_args, bool(seed_aux), deadline)
+            passes = await _run_passes_or_unseeded(tmpdir, fmt_args, bool(seed_aux), deadline)
             returncode, stderr = await _run(
                 ["xdvipdfmx", "-q", "-E", "-o", "main.pdf", "main.xdv"], tmpdir, deadline, "xdvipdfmx",
             )

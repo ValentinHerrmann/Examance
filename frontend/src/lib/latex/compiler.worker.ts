@@ -179,6 +179,8 @@ async function compileUntilStable(
 ) {
   let aux = seed;
   let result = await engine.compile({ input, additionalFiles: [...baseFiles, ...aux], rerun: false });
+  // A stale seed (a macro the document no longer defines) must not fail the compile: retry once from scratch.
+  if (!result.success && seed.length > 0) return compileUntilStable(engine, activeRunner, input, baseFiles);
   for (let run = 1; run <= MAX_TEX_RUNS && result.success && activeRunner; run++) {
     const next = (await activeRunner.readProjectFiles()) // NOSONAR: each run feeds on the previous run's aux files
       .filter((f) => AUX_EXTENSIONS.some((ext) => f.path.endsWith(`main${ext}`)))
