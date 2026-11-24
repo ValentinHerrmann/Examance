@@ -177,16 +177,16 @@ Bugs found on the way, each of which silently broke correct replays:
 - musl's stdio reads 1024-byte blocks, so an edit in the first kilobyte (here: the preamble and task 1) came before every checkpoint. The host now answers input reads one line at a time, a short read that stdio accepts.
 - Restored file descriptors kept the old text of an input.
 
-**Measurements.** Measured on a 4-core cloud container, in headless Chromium (Vite dev server on localhost) and in Node with the same host (`scripts/texpresso-spike/node-run.mts`). The documents are the 12-task exam and its solution (`samples.ts`, through the production builders) and one exercise each with chemistry, circuits, UML, struktex and listings. "Edit" is one word in the first, middle or last exercise; "preamble" is one line right after `\documentclass`.
+**Measurements.** Measured on a 4-core cloud container, in headless Chromium (four runs; checkpoints are placed by time, so their positions and the resume times vary between runs) (Vite dev server on localhost) and in Node with the same host (`scripts/texpresso-spike/node-run.mts`). The documents are the 12-task exam and its solution (`samples.ts`, through the production builders) and one exercise each with chemistry, circuits, UML, struktex and listings. "Edit" is one word in the first, middle or last exercise; "preamble" is one line right after `\documentclass`.
 
 12-task exam in Chrome:
 
 | | TeXpresso spike | busytex (after #343) |
 |---|---|---|
-| Typeset from scratch (3 passes) | 4.8-7.3 s | 28.9 s first compile in the tab (incl. its boot) |
-| Edit early / mid / late, engine | 0.46-0.91 / 0.48 / 0.28-0.43 s | 3.49 s (one seeded pass) |
-| Preamble edit, engine | 3.0 s (replays from the start) | 3.49 s |
-| xdvipdfmx per update | 0.09-0.26 s | included above |
+| Typeset from scratch (3 passes) | 4.8-7.3 s | 28.6-28.9 s first compile in the tab (incl. its boot) |
+| Edit early / mid / late, engine | 0.46-0.91 / 0.48-0.82 / 0.28-0.43 s | 3.49-3.73 s (one seeded pass) |
+| Preamble edit, engine | 3.0-3.5 s (replays from the start) | 3.49-3.73 s |
+| xdvipdfmx per update | 0.08-0.40 s | included above |
 | Keystroke to new page on screen | 1.5-2.0 s (120 ms debounce; pdf.js redraws every page) | |
 
 Other documents in Node:
@@ -247,7 +247,7 @@ Other documents in Node:
   - libpng and zlib: their own permissive licences.
 - **emscripten runtime and MiniLZ4** (ported in `texTree.ts`): MIT.
 
-**Verdict: go, behind two gates.** Body edits get 4-12 times faster than busytex's seeded pass (0.2-0.9 s against 3.5 s), and the replay is provably the same output. PDF-side editing works with the data we already have. Production must first:
+**Verdict: go, behind two gates.** Body edits get 4-12 times faster than busytex's seeded pass (0.2-0.9 s against 3.5-3.7 s), and the replay is provably the same output. PDF-side editing works with the data we already have. Production must first:
 
 1. bring memory under about 1 GB per tab (XOR-delta layers, a TeX tree subset per template, xdvipdfmx in the engine's VM instead of a second busytex);
 2. pass Firefox and Safari, falling back to busytex when the engine cannot start or memory is short.
