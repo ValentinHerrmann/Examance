@@ -4,7 +4,7 @@ export function pdfBytesToUrl(bytes: Uint8Array): string {
   return URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" }));
 }
 
-/** Object URLs for the last compile of this exam/exercise (in-memory cache only). */
+/** Object URLs for the last compile of this exam/exercise in the memory cache (`hasCompiledSlot` loads one kept from before a reload). */
 export function getCachedPreview(
   kind: Extract<CompileKind, "exam" | "exercise">,
   id: string

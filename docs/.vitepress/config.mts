@@ -138,6 +138,7 @@ export default withMermaid(defineConfig({
           { text: 'Exams with several sheets', link: '/dev/multi_sheet_exams' },
           { text: 'LaTeX in the frontend', link: '/dev/latex' },
           { text: 'LaTeX packages', link: '/dev/latex_packages' },
+          { text: 'LaTeX compile speed', link: '/dev/latex_performance' },
           { text: 'Exercise sharing', link: '/dev/exercise_sharing' },
           { text: 'QR stickers and result sharing', link: '/dev/result_sharing' },
           { text: 'Time extensions, large print, Examtimer', link: '/dev/time_extensions' },

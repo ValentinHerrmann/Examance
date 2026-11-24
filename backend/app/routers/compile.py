@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import DB, get_teaching_teacher
 from app.middleware.rate_limit import limiter
 from app.models.teacher import Teacher
+from app.schemas.binary import encode_b64
 from app.schemas.latex import LaTeXRequest
 from app.services import compile_jobs
 from app.services.capabilities import require_server_latex
@@ -48,10 +49,15 @@ async def _load_inputs(
     return binary_files, logo
 
 
-async def _compile(latex: str, files: dict[str, bytes], logo: ResolvedLogo | None) -> Response:
-    """The PDF, or the error response the caller sees; LaTeX source is NEVER logged, and a 422 carries the diagnostic as `detail` and the sanitized log as `log`, for this caller only."""
+async def _compile(
+    body: LaTeXRequest, files: dict[str, bytes], logo: ResolvedLogo | None
+) -> Response:
+    """The PDF (with `return_aux`, JSON `{pdf_b64, aux}`), or the error response the caller sees; LaTeX source is NEVER logged, and a 422 carries the diagnostic as `detail` and the sanitized log as `log`, for this caller only."""
     try:
-        pdf_bytes = await compile_latex(latex, preview=False, binary_files=files, logo=logo)
+        result = await compile_latex(
+            body.latex, preview=False, binary_files=files, logo=logo,
+            seed_aux=body.seed_aux_files(),
+        )
     except ResourceError as exc:
         return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), "ERR_RESOURCE_INVALID")
     except TimeoutError:
@@ -60,15 +66,20 @@ async def _compile(latex: str, files: dict[str, bytes], logo: ResolvedLogo | Non
         logger.info("LaTeX compilation failed: %s", exc)
         return compilation_failed_response(exc)
     except OSError as exc:
-        # A missing tectonic binary, an unreachable worker, a full disk: not the document's fault, so not an opaque 500.
+        # A missing TeX installation, an unreachable worker, a full disk: not the document's fault, so not an opaque 500.
         logger.exception("LaTeX compilation is unavailable: %s", exc)
         return _error(
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "The LaTeX compilation service is unavailable.",
             "ERR_COMPILE_UNAVAILABLE",
         )
+    if body.return_aux:
+        return JSONResponse(content={
+            "pdf_b64": encode_b64(result.pdf),
+            "aux": {name: encode_b64(blob) for name, blob in result.aux.items()},
+        })
     return Response(
-        content=pdf_bytes,
+        content=result.pdf,
         media_type="application/pdf",
         headers={"Content-Disposition": 'attachment; filename="output.pdf"'},
     )
@@ -82,17 +93,18 @@ async def start_compile_job(
     teacher: Annotated[Teacher, Depends(require_server_latex)],
     db: DB,
 ) -> dict[str, str] | JSONResponse:
-    """Start a compile (body limit: BODY_LIMIT_COMPILE) and answer at once with its `job_id`; poll `GET /compile/latex/jobs/{job_id}`. Passes get the full COMPILE_TIMEOUT_SECONDS, which no proxy sees."""
+    """Start a compile (body limit: BODY_LIMIT_COMPILE) and answer at once with its `job_id`; poll `GET /compile/latex/jobs/{job_id}`. The run gets the full COMPILE_TIMEOUT_SECONDS, which no proxy sees."""
     try:
         files, logo = await _load_inputs(body, teacher, db)
     except ResourceError as exc:
         return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), "ERR_RESOURCE_INVALID")
-    job_id = compile_jobs.start(teacher.id, _compile(body.latex, files, logo))
+    job_id = compile_jobs.start(teacher.id, _compile(body, files, logo))
     return {"job_id": job_id}
 
 
 @router.get("/latex/jobs/{job_id}", response_model=None)
-@limiter.limit("120/minute")
+# Polls are cheap (an in-memory lookup); clients poll every 250 ms at first (lib/latex/compiler.ts), two jobs at once.
+@limiter.limit("300/minute")
 async def poll_compile_job(
     request: Request,  # Required by slowapi for rate limiting
     job_id: str,

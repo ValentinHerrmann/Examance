@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     # Body size limits (bytes). Compile requests carry the document plus its resource files (base64, ~4/3 of raw); the compile route's 10/min rate limit bounds the volume.
     BODY_LIMIT_COMPILE: int = 28 * 1024 * 1024      # 28 MB
-    # LaTeX worker container (app/latex_worker.py), e.g. http://latex:8001. Empty = Tectonic runs in this process (dev, tests). LATEX_MAX_CONCURRENT_COMPILES is read by services/tectonic.
+    # LaTeX worker container (app/latex_worker.py), e.g. http://latex:8001. Empty = TeX runs in this process (dev, tests). LATEX_MAX_CONCURRENT_COMPILES is read by services/texrunner.
     LATEX_WORKER_URL: str = ""
     # Single resource-file upload: 5 MB raw, base64-inflated, plus JSON slack.
     BODY_LIMIT_RESOURCE: int = 7 * 1024 * 1024      # 7 MB

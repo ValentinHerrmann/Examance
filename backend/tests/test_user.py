@@ -204,6 +204,7 @@ async def test_account_export_shape(client: AsyncClient, db: AsyncSession) -> No
         "grading_scratch_out",
         "exam_logo",
         "latex_packages",
+        "latex_all_subject_packages",
         "layout_templates",
     }
     (exam,) = [e for e in first["exams"] if e["id"] == exam_id]

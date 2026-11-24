@@ -21,6 +21,9 @@
 
 <div class="flex min-w-0 flex-col gap-3">
   <TemplatePackageRows packages={main} {adjusted} {onAdjust} />
+  {#if main.some((p) => p.lazy)}
+    <p class="m-0 text-xs text-muted">{$t("latexPackages.template.lazyNote")}</p>
+  {/if}
   {#if bundled.length}
     <details class="min-w-0">
       <summary class="cursor-pointer text-sm text-muted">

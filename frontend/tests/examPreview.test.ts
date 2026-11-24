@@ -14,6 +14,13 @@ import type { ExamRecord } from '../src/lib/db/schema';
 
 const base = { id: 'e1', teacherId: 't', retentionUntil: '2030-01-01', compilationStatus: 'pending', createdAt: '' } as ExamRecord;
 
+describe('buildExamLatex subject packages (issue #341)', () => {
+  it('loads tikz-uml only for an exam that uses it', () => {
+    expect(buildExamLatex(base, '\\Aufgabe{X}', 'sans,punkte', [])).not.toContain('tikz-uml');
+    expect(buildExamLatex(base, '\\umlclass{A}{}{}', 'sans,punkte', [])).toContain('\\RequirePackage{sty/tikz-uml}');
+  });
+});
+
 describe('buildExamLatex extra notes', () => {
   it('ends the body with \\ExamNotes, after the exercises', () => {
     const exam = { ...base, extraNotes: { title: 'Platz & mehr_', description: 'Hinweis', minHeightCm: 4, maxHeightCm: 12 } };

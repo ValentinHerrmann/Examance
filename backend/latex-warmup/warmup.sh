@@ -1,25 +1,26 @@
 #!/bin/sh
-# Fills Tectonic's cache (TECTONIC_CACHE_DIR) with what the exam template needs (issue #75).
-# Runs at image build and after each deploy; no timeout, since a cold cache fetches hundreds of
-# files one by one. Usage: warmup.sh [assets-dir]
+# Compiles warmup.tex through the server's runner (services/texrunner.py, issue #341): checks that TeX Live has
+# every package the template needs and builds the warm-up's format into LATEX_FORMAT_DIR.
+# Runs at image build and after each deploy. Usage: warmup.sh
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
-assets=${1:-"$here/../latex-assets"}
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+cd "$here/.."
+python - <<'PY'
+import asyncio
+import os
+import sys
+from pathlib import Path
 
-cp -R "$assets"/. "$work"/
-cp "$here/warmup.tex" "$work/main.tex"
-cd "$work"
-# Two passes, like every compile: the second reads the .aux (scores) and pulls what it needs.
-# Output only on failure: a successful run prints hundreds of lines into build and deploy logs.
-for pass in 1 2; do
-  if ! tectonic --untrusted -k main.tex --keep-logs >tectonic.out 2>&1; then
-    cat tectonic.out >&2
-    echo "Tectonic warm-up failed in pass $pass" >&2
-    exit 1
-  fi
-done
-test -s main.pdf
-echo "Tectonic cache warm: ${TECTONIC_CACHE_DIR:-default location}"
+from app.services.texrunner import CompilationError, run_tex
+
+source = Path("latex-warmup/warmup.tex").read_text(encoding="utf-8")
+try:
+    result = asyncio.run(run_tex(source, {}, time_limit=600))
+except CompilationError as exc:
+    print(exc.log or exc, file=sys.stderr)
+    print(f"LaTeX warm-up failed: {exc}", file=sys.stderr)
+    sys.exit(1)
+assert result.pdf.startswith(b"%PDF-")
+print("LaTeX warm-up compiled; formats in", os.environ.get("LATEX_FORMAT_DIR", "a temp dir"))
+PY

@@ -195,7 +195,7 @@ Some students need more room than the task sheet offers. The **Writing space** s
 
 ## Typeset {#typeset}
 
-**Live Preview PDF** typesets the exam and the solution sheet. On wide screens the preview sits next to the exercises and the layout; on smaller screens it is a second tab, **Preview**, beside **Exercises**. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again.
+**Live Preview PDF** typesets the exam and the solution sheet. On wide screens the preview sits next to the exercises and the layout; on smaller screens it is a second tab, **Preview**, beside **Exercises**. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again. The status line says how long the compile took and whether the server or the browser compiled. Compiled PDFs stay encrypted in this browser until you sign out: after a reload the last preview is back at once, and a change that does not move the page layout is usually ready faster than the first compile. Subject packages (chemistry, circuits, UML, structograms, source code) are loaded only when an exercise uses them.
 
 Depending on your settings and your account, the exam is typeset
 
@@ -208,7 +208,7 @@ See [LaTeX compilation](./settings#latex). If something looks wrong, [report a l
 
 ### Preview from the overview {#preview}
 
-In the exam overview, **Preview** in an expanded entry opens the last compiled PDF. If there is none, Examance asks, compiles the exam and shows it right in the window. The preview is kept only until the page is reloaded.
+In the exam overview, **Preview** in an expanded entry opens the last compiled PDF. If there is none, Examance asks, compiles the exam and shows it right in the window. The preview is kept until you sign out, also across a page reload.
 
 ## Print {#print}
 

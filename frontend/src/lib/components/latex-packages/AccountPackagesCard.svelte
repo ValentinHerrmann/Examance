@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onDestroy, onMount, untrack } from "svelte";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Card, SaveStatus } from "#lib/components/ui";
+  import { Alert, Card, SaveStatus, Switch } from "#lib/components/ui";
+  import { apiErrorMessage } from "#lib/api/client";
   import { createAutosave } from "#lib/utils/autosave";
   import HelpButton from "#lib/components/help/HelpButton.svelte";
   import { entriesError, type LatexPackageEntry } from "#lib/latex/packages";
   import {
     fetchAccountPackages,
+    getAllSubjectPackages,
     getTemplatePackages,
     saveAccountPackages,
     type TemplatePackages,
@@ -24,6 +26,8 @@
   let loadFailed = $state(false);
   let error = $state("");
   let showInvalid = $state(false);
+  let allSubject = $state(false);
+  let allSubjectBusy = $state(false);
   let editor: ReturnType<typeof PackageEntriesEditor> | undefined = $state();
 
   // Order is load order, so a reordered list counts as a change.
@@ -44,6 +48,20 @@
     if (draft === sent) draft = stored;
   }
 
+  // The subject-package switch saves at once, with the list as last stored (a draft in progress stays out of it).
+  async function toggleAllSubject(next: boolean) {
+    allSubjectBusy = true;
+    try {
+      await saveAccountPackages(saved, next);
+      error = "";
+    } catch (err) {
+      allSubject = !next;
+      error = translate("latexPackages.account.subject.failed", { message: apiErrorMessage(err, "") });
+    } finally {
+      allSubjectBusy = false;
+    }
+  }
+
   const autosave = createAutosave({ run: save });
   onDestroy(() => autosave.dispose());
 
@@ -51,6 +69,7 @@
     const [account, templateResult] = await Promise.allSettled([fetchAccountPackages(), getTemplatePackages()]);
     if (account.status === "fulfilled") {
       saved = draft = account.value;
+      allSubject = getAllSubjectPackages();
     } else {
       loadFailed = true;
       error = translate("latexPackages.account.loadFailed", { message: (account.reason as Error)?.message ?? "" });
@@ -94,6 +113,17 @@
         {#if invalid && showInvalid}
           <p class="m-0 text-xs text-danger-fg">{$t("latexPackages.account.invalid")}</p>
         {/if}
+      </section>
+
+      <section class="mt-4 flex min-w-0 flex-col gap-2">
+        <h3 class="m-0 text-base font-medium text-content">{$t("latexPackages.account.subject.heading")}</h3>
+        <Switch
+          bind:checked={allSubject}
+          disabled={allSubjectBusy}
+          label={$t("latexPackages.account.subject.toggle")}
+          onChange={toggleAllSubject}
+        />
+        <p class="m-0 text-sm text-muted">{$t("latexPackages.account.subject.description")}</p>
       </section>
 
       <details class="mt-4 min-w-0">

@@ -352,6 +352,17 @@ export async function openExamStatistics<T>(examId: string, ct: Uint8Array, iv: 
   return JSON.parse(decoder.decode(await openBytes(key, ct, iv, aadFor('examStats', examId)))) as T;
 }
 
+/** Seals a compiled PDF's payload (issue #341), bound to its cache slot so one slot's record never opens as another's. */
+export async function sealCompiledPdf(slotKey: string, payload: Uint8Array, key: CryptoKey | null): Promise<{ ct: Uint8Array; iv: Uint8Array }> {
+  if (!key) throw new MissingSessionKeyError('compiledPdf');
+  return encryptBytes(key, payload, aadFor('compiledPdf', slotKey));
+}
+
+/** Opens a compiled PDF's payload; throws when it does not open (another account's key or another slot's record). */
+export function openCompiledPdf(slotKey: string, ct: Uint8Array, iv: Uint8Array, key: CryptoKey): Promise<Uint8Array> {
+  return openBytes(key, ct, iv, aadFor('compiledPdf', slotKey));
+}
+
 // ---------------------------------------------------------------------------
 // High-Level Encrypted CRUD Operations (Delegated to Repositories)
 // ---------------------------------------------------------------------------

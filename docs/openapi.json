@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Examance API",
-    "description": "Privacy-first anonymous exam grading backend.\n\n## Key Security & Architecture Features\n- **Zero-Knowledge Encryption**: Student PII, submission scans, and annotations are encrypted client-side (Argon2id + AES-256-GCM) before reaching the server.\n- **Multi-factor sign-in**: a session needs a passkey (user verification required) or two distinct factors out of password, passkey and authenticator (TOTP). Fewer than two enrolled means an enrollment-scoped token that reaches nothing else.\n- **Recoverable data key**: the client's key is random and wrapped per factor (`key_envelopes`), so a password reset re-wraps it rather than orphaning every vault. The server holds ciphertext only.\n- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, `refresh_token` 7 days with rotation & reuse detection).\n- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), IP addresses stored as SHA-256 hashes.\n- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic (`tectonic --untrusted`).",
+    "description": "Privacy-first anonymous exam grading backend.\n\n## Key Security & Architecture Features\n- **Zero-Knowledge Encryption**: Student PII, submission scans, and annotations are encrypted client-side (Argon2id + AES-256-GCM) before reaching the server.\n- **Multi-factor sign-in**: a session needs a passkey (user verification required) or two distinct factors out of password, passkey and authenticator (TOTP). Fewer than two enrolled means an enrollment-scoped token that reaches nothing else.\n- **Recoverable data key**: the client's key is random and wrapped per factor (`key_envelopes`), so a password reset re-wraps it rather than orphaning every vault. The server holds ciphertext only.\n- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, `refresh_token` 7 days with rotation & reuse detection).\n- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), IP addresses stored as SHA-256 hashes.\n- **LaTeX Engine**: Compilation rendered using sandboxed TeX Live XeLaTeX (no shell escape, reads and writes only in the working directory).",
     "version": "0.0.0-dev"
   },
   "paths": {
@@ -735,7 +735,7 @@
           "compile"
         ],
         "summary": "Start Compile Job",
-        "description": "Start a compile (body limit: BODY_LIMIT_COMPILE) and answer at once with its `job_id`; poll `GET /compile/latex/jobs/{job_id}`. Passes get the full COMPILE_TIMEOUT_SECONDS, which no proxy sees.",
+        "description": "Start a compile (body limit: BODY_LIMIT_COMPILE) and answer at once with its `job_id`; poll `GET /compile/latex/jobs/{job_id}`. The run gets the full COMPILE_TIMEOUT_SECONDS, which no proxy sees.",
         "operationId": "start_compile_job_api_v1_compile_latex_jobs_post",
         "parameters": [
           {
@@ -10389,6 +10389,17 @@
             "type": "array",
             "maxItems": 50,
             "title": "Entries"
+          },
+          "all_subject_packages": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "All Subject Packages"
           }
         },
         "additionalProperties": false,
@@ -14916,6 +14927,18 @@
             "type": "boolean",
             "title": "Account Logo",
             "default": false
+          },
+          "seed_aux": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Seed Aux"
+          },
+          "return_aux": {
+            "type": "boolean",
+            "title": "Return Aux",
+            "default": false
           }
         },
         "type": "object",
@@ -18078,6 +18101,11 @@
               }
             ],
             "title": "Locked"
+          },
+          "lazy": {
+            "type": "boolean",
+            "title": "Lazy",
+            "default": false
           }
         },
         "type": "object",
@@ -18359,7 +18387,7 @@
     },
     {
       "name": "compile",
-      "description": "LaTeX document compilation service via sandboxed Tectonic engine."
+      "description": "LaTeX document compilation service via sandboxed XeLaTeX (TeX Live)."
     },
     {
       "name": "exams",

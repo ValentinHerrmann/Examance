@@ -36,7 +36,7 @@ footer: 'Examance 0.5 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 <dt>Lizenz</dt><dd>MIT, Quellcode vollständig einsehbar, selbst betreibbar</dd>
 <dt>Frontend</dt><dd>SvelteKit / Svelte 5, läuft komplett im Browser</dd>
 <dt>Backend</dt><dd>FastAPI, PostgreSQL, Redis, Docker</dd>
-<dt>LaTeX</dt><dd>XeLaTeX im Browser (WebAssembly) oder Tectonic auf dem Server</dd>
+<dt>LaTeX</dt><dd>XeLaTeX im Browser (WebAssembly) oder TeX Live auf dem Server</dd>
 <dt>Sprachen</dt><dd>Deutsch und Englisch</dd>
 </dl>
 </div>
@@ -87,7 +87,7 @@ footer: 'Examance 0.5 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 <li>MC: eine oder mehrere richtige Optionen, Punktabzug für falsche Kreuze, nie unter null; auf Wunsch zeigt eine Zeile an jeder Aufgabe, wie man ein Kreuz zurücknimmt und neu setzt.</li>
 <li>Klausur: Kopf mit Fach, Klasse, Datum, Schullogo; Notenschlüssel linear, Oberstufe oder eigene Grenzen.</li>
 <li>Prüfung und Lösungsblatt werden gemeinsam gesetzt, mit QR-Code und Passmarken.</li>
-<li>Satz standardmäßig <strong>auf dem Server</strong> (Tectonic), wenn die Administration es für das Konto erlaubt, sonst im Browser (XeLaTeX als WebAssembly).</li>
+<li>Satz standardmäßig <strong>auf dem Server</strong> (TeX Live), wenn die Administration es für das Konto erlaubt, sonst im Browser (XeLaTeX als WebAssembly).</li>
 </ul>
 
 ---
@@ -321,7 +321,7 @@ footer: 'Examance 0.5 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 <div class="cols" style="margin-top:0; gap: 24px">
 <div class="stack">
 <div class="card"><h3>Schlüssel im Tab</h3><p>Damit F5 nicht neu fragt, liegt der Sitzungsschlüssel in <code>sessionStorage</code>, versiegelt mit einem nicht exportierbaren Schlüssel je Tab; Skript auf derselben Origin kann ihn trotzdem nutzen, solange der Tab entsperrt ist.</p></div>
-<div class="card"><h3>Klartext auf dem Server</h3><p>LaTeX-Quelltexte samt Aufgabendateien (Tectonic braucht sie), Klausurmetadaten und die Gesamtpunktzahl je Abgabe.</p></div>
+<div class="card"><h3>Klartext auf dem Server</h3><p>LaTeX-Quelltexte samt Aufgabendateien (der Server-Satz braucht sie), Klausurmetadaten und die Gesamtpunktzahl je Abgabe.</p></div>
 <div class="card"><h3>Löschen mit Frist</h3><p>Vom Server gelöschte Ergebnisse bleiben 7 Tage (einstellbar) verschlüsselt wiederherstellbar, bevor der Server sie endgültig entfernt.</p></div>
 </div>
 <div class="stack">

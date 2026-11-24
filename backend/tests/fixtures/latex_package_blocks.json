@@ -1,0 +1,49 @@
+[
+  {
+    "name": "plain text loads nothing",
+    "doc": "\\documentclass{article}\n\\begin{document}\nHallo $x$\n\\end{document}\n",
+    "account": [],
+    "allSubject": false,
+    "block": ""
+  },
+  {
+    "name": "chemistry loads mhchem with its fixed version and chemfig",
+    "doc": "\\documentclass{article}\n\\begin{document}\n\\ce{H2O} \\chemfig{H-O-H}\n\\end{document}\n",
+    "account": [],
+    "allSubject": false,
+    "block": "% LaTeX packages from the Examance settings and the exercises\n\\PassOptionsToPackage{version=4}{mhchem}\n\\def\\ExamancePackages{%\n  \\RequirePackage{chemfig}%\n  \\RequirePackage{mhchem}%\n}\n"
+  },
+  {
+    "name": "code listing and a class diagram load listings and both UML packages in load order",
+    "doc": "\\documentclass{article}\n\\begin{document}\n\\begin{lstlisting}\nint x;\n\\end{lstlisting}\n\\umlclass{A}{}{}\n\\begin{class}{B}{0,0}\\end{class}\n\\end{document}\n",
+    "account": [],
+    "allSubject": false,
+    "block": "% LaTeX packages from the Examance settings and the exercises\n\\def\\ExamancePackages{%\n  \\RequirePackage{listings}%\n  \\RequirePackage{sty/tikz-uml}%\n  \\RequirePackage{sty/custom-pgf-umlcd}%\n}\n"
+  },
+  {
+    "name": "an account entry for mhchem keeps its own version",
+    "doc": "\\documentclass{article}\n\\begin{document}\n\\ce{H2O}\n\\end{document}\n",
+    "account": [
+      {
+        "kind": "package",
+        "name": "mhchem",
+        "options": "version=3"
+      }
+    ],
+    "allSubject": false,
+    "block": "% LaTeX packages from the Examance settings and the exercises\n\\PassOptionsToPackage{version=3}{mhchem}\n\\def\\ExamancePackages{%\n  \\RequirePackage{mhchem}%\n}\n"
+  },
+  {
+    "name": "the account switch loads every subject package",
+    "doc": "\\documentclass{article}\n\\begin{document}\nHallo\n\\end{document}\n",
+    "account": [
+      {
+        "kind": "package",
+        "name": "cleveref",
+        "options": ""
+      }
+    ],
+    "allSubject": true,
+    "block": "% LaTeX packages from the Examance settings and the exercises\n\\PassOptionsToPackage{version=4}{mhchem}\n\\def\\ExamancePackages{%\n  \\RequirePackage{struktex}%\n  \\RequirePackage{listings}%\n  \\RequirePackage{svg}%\n  \\RequirePackage{chemfig}%\n  \\RequirePackage{circuitikz}%\n  \\RequirePackage{mhchem}%\n  \\RequirePackage{sty/tikz-uml}%\n  \\RequirePackage{sty/custom-pgf-umlcd}%\n}\n\\def\\ExamancePackagesAfterHyperref{%\n  \\RequirePackage{cleveref}%\n}\n"
+  }
+]

@@ -58,7 +58,7 @@ export const settings: Translations['settings'] = {
         description: 'Select where LaTeX files are compiled (independent of storage strategy):',
         localTitle: 'Local Client (WebAssembly)',
         localText: 'Compiles inside your browser without sending source to any server.',
-        serverTitle: 'Server (Tectonic)',
+        serverTitle: 'Server',
         serverText: 'High performance server-side compilation. Requires authenticated account.',
     },
     omr: {

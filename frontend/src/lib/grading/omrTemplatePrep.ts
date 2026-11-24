@@ -21,7 +21,7 @@ import {
   loadOmrTemplateEncrypted
 } from "#lib/db/dbEncryption";
 import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
-import { compileWithCache, getCachedFor } from "#lib/latex/compileCache";
+import { compileWithCache } from "#lib/latex/compileCache";
 import { buildExamLatex, buildExerciseBlocks, buildExerciseInputs, collectExamResources } from "#lib/exam/examPreview";
 import { parseOmrUri, scoreBoxKey } from "./omrUri";
 import { getAccountPackages } from "#lib/latex/packageSettings";
@@ -303,10 +303,9 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   const logo = await resolveCompileLogo(examId, useLocal);
   const resourceOptions = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds, logo };
 
-  // The blank sheet is the exam's Angabe (same builder, options and resources): reuse a fresh preview compile instead of compiling twice.
-  const preview = await getCachedFor({ kind: "exam", id: examId, variant: "angabe" }, fullTex, useLocal, resourceOptions);
-  const result = preview ?? await compileWithCache(
-    { kind: "omr-blank", id: examId, variant: "blank" },
+  // The blank sheet is the exam's Angabe (same builder, options and resources), so it shares that slot: a fresh preview or print compile is reused, the Print step reuses this one, and it starts from the draft's aux files (issue #341).
+  const result = await compileWithCache(
+    { kind: "exam", id: examId, variant: "angabe" },
     fullTex,
     useLocal,
     (status) => {

@@ -121,7 +121,7 @@ def pipeline():
     W, step = 205, 232
     x = [12 + i * step for i in range(6)]
     s.box(x[0], 20, W, 150, "Aufgabe", ["LaTeX aus der Bibliothek", "jedes \\BE = ein Punkt", "Varianten A/B"])
-    s.box(x[1], 20, W, 150, "Klausur setzen", ["XeLaTeX im Browser (WASM)", "oder Tectonic auf dem", "Server, falls erlaubt"])
+    s.box(x[1], 20, W, 150, "Klausur setzen", ["XeLaTeX im Browser (WASM)", "oder TeX Live auf dem", "Server, falls erlaubt"])
     s.box(x[2], 20, W, 150, "Drucken, schreiben", ["Feld für QR-Aufkleber", "und Passmarken –", "kein Name auf dem Bogen"])
     s.box(x[3], 20, x[4] + W - x[3], 150, "Weg A · Auf Papier korrigieren", ["Rotstift wie gewohnt; Punkte je Aufgabe", "eintippen oder aus Excel einfügen"])
     s.box(x[2], 240, W, 150, "Scannen", ["ein PDF für den", "ganzen Stapel,", "Schulkopierer genügt"])
@@ -284,7 +284,7 @@ def deployment():
     s.box(400, 40, 300, 120, "Statisches Hosting", ["liefert nur die App-Dateien", "(z. B. CDN oder Schulserver)"])
     s.zone(760, 10, 630, 410, "SERVER · Docker Compose")
     s.box(784, 56, 240, 110, "Caddy", ["TLS, Reverse Proxy"])
-    s.box(1100, 56, 266, 140, "FastAPI-Backend", ["REST /api/v1;", "optional Tectonic"], "key")
+    s.box(1100, 56, 266, 140, "FastAPI-Backend", ["REST /api/v1;", "optional TeX Live"], "key")
     s.box(784, 230, 240, 120, "PostgreSQL", ["Chiffrat + Bibliothek,", "keine offenen Ports"])
     s.box(1100, 230, 266, 120, "Redis", ["Anmeldesperren, Zähler", "(kurzlebig); keine offenen Ports"])
     s.text(784, 396, "+ täglicher Aufbewahrungslauf löscht abgelaufene Daten", 15, C["muted"], 500)

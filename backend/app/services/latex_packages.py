@@ -42,6 +42,21 @@ AFTER_HYPERREF: frozenset[str] = frozenset(_RULES["afterHyperref"])
 
 
 @dataclass(frozen=True)
+class LazyPackage:
+    """A subject package the template no longer loads by itself: added when the document uses a trigger."""
+
+    name: str
+    options: str
+    triggers: tuple[str, ...]
+
+
+# In load order (tikz-uml before custom-pgf-umlcd); the names may carry a path (sty/tikz-uml).
+LAZY_PACKAGES: tuple[LazyPackage, ...] = tuple(
+    LazyPackage(item["name"], item["options"], tuple(item["triggers"])) for item in _RULES["lazy"]
+)
+
+
+@dataclass(frozen=True)
 class PackageEntry:
     kind: PackageKind
     name: str
@@ -63,7 +78,7 @@ class PackageLayer:
 
 @dataclass(frozen=True)
 class PackageNote:
-    # conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); added: pgfplots for its libraries.
+    # conflict: two exercises disagree on an option; override: a later level changed one; ignored: unsupported (detail = reason); aliased: replaced by a template option (detail = target); added: a package loaded for others (detail empty: pgfplots for its libraries; used: a subject package the document uses; all: the account loads every subject package).
     code: str
     kind: PackageKind
     name: str
@@ -299,8 +314,34 @@ def _apply(
     _merge_options(current, notes, options, ref)
 
 
-def resolve_packages(layers: Iterable[PackageLayer]) -> ResolvedPackages:
-    """Merge the levels in order (account, exercises): later ones override option values."""
+def lazy_wanted(document: str, all_subject: bool) -> list[tuple[LazyPackage, str]]:
+    """The lazy packages to load, each with why (``all`` or ``used``), in load order."""
+    wanted: list[tuple[LazyPackage, str]] = []
+    for lazy in LAZY_PACKAGES:
+        if all_subject:
+            wanted.append((lazy, "all"))
+        elif any(trigger in document for trigger in lazy.triggers):
+            wanted.append((lazy, "used"))
+    return wanted
+
+
+def _add_lazy(
+    merged: dict[tuple[str, str], _Merged], notes: list[PackageNote], lazy: LazyPackage, why: str
+) -> None:
+    """Add one lazy package with its fixed options; options already given for it win."""
+    auto = SourceRef("auto")
+    current = merged.get(("package", lazy.name))
+    if current is None:
+        current = merged[("package", lazy.name)] = _Merged("package", lazy.name, sources=[auto])
+        notes.append(PackageNote("added", "package", lazy.name, why, (auto,)))
+    for item in split_options(lazy.options):
+        current.options.setdefault(item.partition("=")[0], (item, auto))
+
+
+def resolve_packages(
+    layers: Iterable[PackageLayer], document: str = "", all_subject: bool = False
+) -> ResolvedPackages:
+    """Merge the levels in order (account, exercises): later ones override option values. *document* is scanned for the triggers of the lazy subject packages, *all_subject* loads them all."""
     merged: dict[tuple[str, str], _Merged] = {}
     notes: list[PackageNote] = []
     for layer in layers:
@@ -312,6 +353,8 @@ def resolve_packages(layers: Iterable[PackageLayer]) -> ResolvedPackages:
         auto = SourceRef("auto")
         merged[("package", "pgfplots")] = _Merged("package", "pgfplots", sources=[auto])
         notes.append(PackageNote("added", "package", "pgfplots", "", (auto,)))
+    for lazy, why in lazy_wanted(document, all_subject):
+        _add_lazy(merged, notes, lazy, why)
     packages = [
         ResolvedPackage(m.kind, m.name, [item for item, _ in m.options.values()], m.sources)
         for m in merged.values()
@@ -346,9 +389,9 @@ def package_preamble(resolved: ResolvedPackages) -> str:
     return "\n".join(lines) + "\n"
 
 
-def with_packages(doc: str, layers: Sequence[PackageLayer]) -> str:
-    """Write the merged packages of *layers* in front of the ``\\documentclass`` of *doc*."""
-    block = package_preamble(resolve_packages(layers))
+def with_packages(doc: str, layers: Sequence[PackageLayer], all_subject: bool = False) -> str:
+    """Write the merged packages of *layers* (plus the subject packages *doc* uses, or all) in front of the ``\\documentclass`` of *doc*."""
+    block = package_preamble(resolve_packages(layers, doc, all_subject))
     if not block:
         return doc
     start = doc.find("\\documentclass")

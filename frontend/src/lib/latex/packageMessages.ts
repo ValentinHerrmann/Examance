@@ -35,7 +35,9 @@ export function sourceText(tr: Translate, ref: SourceRef): string {
 export function noteText(tr: Translate, note: PackageNote): string {
   const [first, second] = note.sources.map((ref) => sourceText(tr, ref));
   const reason = note.code === "ignored" ? reasonText(tr, note.detail) : "";
-  return tr(`latexPackages.note.${note.code}`, { name: note.name, detail: note.detail, first, second, reason });
+  // "added" without a detail is pgfplots for its libraries; with `used` or `all` it is a subject package.
+  const key = note.code === "added" && note.detail ? `addedSubject.${note.detail}` : note.code;
+  return tr(`latexPackages.note.${key}` as TranslationKey, { name: note.name, detail: note.detail, first, second, reason });
 }
 
 /** Notes that need the teacher's attention, as opposed to ones that only explain the result. */

@@ -3,7 +3,7 @@
 import { api } from '#lib/api/client';
 import { translate } from '#lib/i18n';
 import { featureEnabled } from '#lib/stores/capabilities';
-import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
+import { base64ToUint8Array, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { mergeResources, type LatexResourceFile } from './resources';
 import { loadLatexAssets } from './assets';
 import type { CompileLogo } from './logo';
@@ -11,13 +11,27 @@ import { LatexCompileError, withSourceLocations } from './compileError';
 import { extractSourceMap } from './sourceMap';
 import { latexDownloadProgress, type LatexDownloadProgress } from './downloadProgress';
 
+/** An auxiliary file (`main.aux`, `main.toc`, `main.out`) a compile left behind; seeding the next compile with it usually saves a TeX pass (issue #341). */
+export interface AuxFile {
+  path: string;
+  content: Uint8Array;
+}
+
 export interface CompileResult {
   pdfBytes: Uint8Array;
   usedFallback: boolean;
   engineUsed: 'server' | 'local';
   /** Graphics the engine could not load. A missing figure does not fail a XeLaTeX run — the PDF just comes back without it — so callers should show these rather than treat the compile as clean. */
   missingGraphics?: string[];
+  /** Wall time of the compile as the teacher waited for it; absent on a cache hit. */
+  durationMs?: number;
+  /** The aux files to seed the next compile of the same document with. */
+  aux?: AuxFile[];
+  /** Served from the compile cache, no engine ran. */
+  fromCache?: boolean;
 }
+
+type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; seedAux?: AuxFile[] };
 
 /** One compiler worker, created on first use and kept for the session. Compiles are serialised via `compileQueue` and busytex is a single WASM VM, so a second worker would only double the TeX Live mount. */
 let worker: Worker | null = null;
@@ -115,7 +129,8 @@ async function sendAssets(w: Worker): Promise<void> {
 async function compileLocalWasm(
   latexSource: string,
   onStatus?: (status: string) => void,
-  resources: LatexResourceFile[] = []
+  resources: LatexResourceFile[] = [],
+  seedAux: AuxFile[] = []
 ): Promise<CompileResult> {
   const runTask = async (): Promise<CompileResult> => {
     const w = acquireWorker();
@@ -150,7 +165,8 @@ async function compileLocalWasm(
               pdfBytes: e.data.pdfBytes,
               usedFallback: false,
               engineUsed: 'local',
-              missingGraphics: e.data.missingGraphics ?? []
+              missingGraphics: e.data.missingGraphics ?? [],
+              aux: e.data.aux ?? []
             })
           );
         } else {
@@ -173,7 +189,7 @@ async function compileLocalWasm(
 
       w.addEventListener('message', onMessage);
       w.addEventListener('error', onError);
-      w.postMessage({ id, latexSource, resources });
+      w.postMessage({ id, latexSource, resources, seedAux });
     });
   };
 
@@ -196,12 +212,17 @@ export async function compileLatex(
   useLocal = false,
   onStatus?: (status: string) => void,
   promptFallback = true,
-  opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo } = {}
+  opts: CompileOpts = {}
 ): Promise<CompileResult> {
   // Builders mark each exercise body (sourceMap.ts); the engines get the unmarked document.
   const map = extractSourceMap(latexSource);
+  const started = performance.now();
   try {
-    return await compileMapped(map.tex, useLocal, onStatus, promptFallback, opts);
+    const result = await compileMapped(map.tex, useLocal, onStatus, promptFallback, opts);
+    const durationMs = Math.round(performance.now() - started);
+    // Timing only, never content: shows whether a slow compile is the engine, the queue or the seeds.
+    console.info(`[compiler] ${result.engineUsed} compile took ${(durationMs / 1000).toFixed(1)} s (seeded: ${(opts.seedAux ?? []).length > 0})`);
+    return { ...result, durationMs };
   } catch (err) {
     if (!(err instanceof LatexCompileError)) throw err;
     const located = withSourceLocations(err, map);
@@ -215,17 +236,18 @@ async function compileMapped(
   useLocal: boolean,
   onStatus: ((status: string) => void) | undefined,
   promptFallback: boolean,
-  opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo }
+  opts: CompileOpts
 ): Promise<CompileResult> {
   // Throws on a real filename conflict between two exercises — surfacing that beats compiling a document where one figure silently wins.
   const resources = mergeResources(opts.resources ?? []);
   const { logo } = opts;
+  const seedAux = opts.seedAux ?? [];
 
   if (useLocal) {
     try {
       // The logo goes in after the merge: its name is reserved, so no exercise file can collide.
       const localFiles = logo?.file ? [...resources, logo.file] : resources;
-      return await compileLocalWasm(latexSource, onStatus, localFiles);
+      return await compileLocalWasm(latexSource, onStatus, localFiles, seedAux);
     } catch (err: any) {
       // Offer the server only to an account that may use it; it would refuse the compile otherwise.
       if (
@@ -234,35 +256,53 @@ async function compileMapped(
         typeof window !== 'undefined' &&
         window.confirm(translate('misc.compiler.localFailedTryServer'))
       ) {
-        const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo);
+        const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
         return { ...result, usedFallback: true };
       }
       throw err;
     }
   }
-  return compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo);
+  return compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
 }
 
 const POLL_INTERVAL_MS = 1000;
+// A warm server compile takes under 2 s (issue #341), so the first seconds are polled densely; the server allows 300 polls a minute.
+const FAST_POLL_MS = 250;
+const FAST_POLL_WINDOW_MS = 4000;
 // Beyond the server's own job limit, so the server's answer (PDF or error) always arrives first.
 const POLL_DEADLINE_MS = 11 * 60_000;
 
 /** Polls a compile job until it answers with the PDF or throws its error (422 with log, 504, 503, 404 after a restart). */
 async function pollCompileJob(jobId: string): Promise<ArrayBuffer> {
-  const deadline = Date.now() + POLL_DEADLINE_MS;
+  const started = Date.now();
+  const deadline = started + POLL_DEADLINE_MS;
   while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    const interval = Date.now() - started < FAST_POLL_WINDOW_MS ? FAST_POLL_MS : POLL_INTERVAL_MS;
+    await new Promise((resolve) => setTimeout(resolve, interval));
     const pdf = await api.pollBinary(`/compile/latex/jobs/${encodeURIComponent(jobId)}`, { silentError: true });
     if (pdf) return pdf;
   }
   throw new Error(translate('errors.code.ERR_COMPILE_TIMEOUT'));
 }
 
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46]; // "%PDF"
+
+/** A job asked with `return_aux` answers JSON `{pdf_b64, aux}`; a bare PDF (an older backend) still works. */
+export function parseServerCompile(body: Uint8Array): { pdfBytes: Uint8Array; aux: AuxFile[] } {
+  if (PDF_MAGIC.every((b, i) => body[i] === b)) return { pdfBytes: body, aux: [] };
+  const parsed = JSON.parse(new TextDecoder().decode(body)) as { pdf_b64: string; aux?: Record<string, string> };
+  return {
+    pdfBytes: base64ToUint8Array(parsed.pdf_b64),
+    aux: Object.entries(parsed.aux ?? {}).map(([path, b64]) => ({ path, content: base64ToUint8Array(b64) }))
+  };
+}
+
 async function compileOnServer(
   latexSource: string,
   resources: LatexResourceFile[] = [],
   resourceExerciseIds: string[] = [],
-  logo?: CompileLogo
+  logo?: CompileLogo,
+  seedAux: AuxFile[] = []
 ): Promise<CompileResult> {
   try {
     // A background job polled with short requests: a long compile never meets the proxy's timeout (Cloudflare cuts at 100 s).
@@ -276,17 +316,15 @@ async function compileOnServer(
         })),
         resource_exercise_ids: resourceExerciseIds,
         logo_exam_id: logo?.examId ?? null,
-        account_logo: Boolean(logo && !logo.examId)
+        account_logo: Boolean(logo && !logo.examId),
+        seed_aux: Object.fromEntries(seedAux.map((f) => [f.path, uint8ArrayToBase64(f.content)])),
+        return_aux: true
       },
       // A failed compile is an expected outcome: callers show the TeX diagnostics in place, not the HTTP error modal.
       { silentError: true }
     );
-    const pdfBuffer = await pollCompileJob(jobId);
-    return {
-      pdfBytes: new Uint8Array(pdfBuffer),
-      usedFallback: false,
-      engineUsed: 'server',
-    };
+    const { pdfBytes, aux } = parseServerCompile(new Uint8Array(await pollCompileJob(jobId)));
+    return { pdfBytes, aux, usedFallback: false, engineUsed: 'server' };
   } catch (err: any) {
     // Status 0 means the browser never got a usable response: the request was blocked, the server crashed before CORS headers were written, or the API is a different version than this build. Saying so beats "unknown error".
     if (err?.status === 0 || err?.code === 'ERR_NETWORK') {

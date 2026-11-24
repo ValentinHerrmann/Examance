@@ -123,7 +123,7 @@ A missing graphic does not abort the run: the PDF is still produced, and the mis
 
 Packages come from three places, and Examance loads every package only once:
 
-1. **The template** already loads a broad set, including TikZ libraries such as `arrows.meta`, `automata` and `positioning`. **Settings → LaTeX packages** lists them.
+1. **The template** already loads a broad set, including TikZ libraries such as `arrows.meta`, `automata` and `positioning`. **Settings → LaTeX packages** lists them. Packages for special subjects (chemistry, circuits, UML class diagrams, structograms, source code, SVG images) are loaded only when an exercise uses their commands, which keeps compiling fast; switch **Always load all subject packages** on in the settings if you need them everywhere.
 2. **Your account**: in the same settings section you add packages and TikZ libraries for every exam, and pass options to template packages (for example `dvipsnames` for `xcolor`).
 3. **One exercise**: **Packages of this exercise** in the editor stores a `\usepackage` line at the top of the source, so the package travels with the exercise. You may also write such lines by hand.
 

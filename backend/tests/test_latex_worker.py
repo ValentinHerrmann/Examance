@@ -12,7 +12,7 @@ import pytest
 from app import latex_worker
 from app.config import settings
 from app.services import latex
-from app.services.tectonic import CompilationError
+from app.services.texrunner import CompilationError, TexResult
 
 
 @pytest.fixture
@@ -29,28 +29,32 @@ def worker(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_worker_returns_the_pdf_and_receives_resources(worker: None) -> None:
-    run = AsyncMock(return_value=b"%PDF-1.7 worker")
-    with patch.object(latex_worker, "run_tectonic", run):
-        pdf = await latex.compile_latex("Hello", binary_files={"img.png": b"\x89PNG"})
-    assert pdf == b"%PDF-1.7 worker"
-    main_tex, files, _timeout = run.call_args.args
+    run = AsyncMock(return_value=TexResult(pdf=b"%PDF-1.7 worker", aux={"main.aux": b"\\relax"}))
+    with patch.object(latex_worker, "run_tex", run):
+        result = await latex.compile_latex(
+            "Hello", binary_files={"img.png": b"\x89PNG"}, seed_aux={"main.aux": b"\\relax old"}
+        )
+    assert result.pdf == b"%PDF-1.7 worker"
+    assert result.aux == {"main.aux": b"\\relax"}
+    main_tex, files, _timeout, seed_aux = run.call_args.args
     assert "\\documentclass" in main_tex
     assert files == {"img.png": b"\x89PNG"}
+    assert seed_aux == {"main.aux": b"\\relax old"}
 
 
 @pytest.mark.asyncio
 async def test_worker_errors_map_back(worker: None) -> None:
     failing = AsyncMock(side_effect=CompilationError("! Boom", log="full log"))
-    with patch.object(latex_worker, "run_tectonic", failing), pytest.raises(CompilationError) as exc:
+    with patch.object(latex_worker, "run_tex", failing), pytest.raises(CompilationError) as exc:
         await latex.compile_latex("\\documentclass{article}")
     assert str(exc.value) == "! Boom"
     assert exc.value.log == "full log"
 
-    with patch.object(latex_worker, "run_tectonic", AsyncMock(side_effect=TimeoutError)), \
+    with patch.object(latex_worker, "run_tex", AsyncMock(side_effect=TimeoutError)), \
             pytest.raises(TimeoutError):
         await latex.compile_latex("\\documentclass{article}")
 
-    with patch.object(latex_worker, "run_tectonic", AsyncMock(side_effect=OSError)), \
+    with patch.object(latex_worker, "run_tex", AsyncMock(side_effect=OSError)), \
             pytest.raises(OSError):
         await latex.compile_latex("\\documentclass{article}")
 
@@ -78,7 +82,7 @@ async def test_worker_rejects_paths_outside_its_workdir() -> None:
 async def test_pass_timeout_logs_counts_never_document_names(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    from app.services import tectonic
+    from app.services import texrunner
 
     procs: list[AsyncMock] = []
 
@@ -100,17 +104,16 @@ async def test_pass_timeout_logs_counts_never_document_names(
 
     with patch("asyncio.create_subprocess_exec", side_effect=hanging_exec), \
             caplog.at_level("WARNING"), pytest.raises(TimeoutError):
-        await tectonic.run_tectonic("\\documentclass{article}", {}, time_limit=0.05)
+        await texrunner.run_tex("\\documentclass{article}", {}, time_limit=0.05)
 
     assert procs[0].returncode == -9  # killed, never orphaned
     assert "timed out" in caplog.text
-    assert "2 bundle downloads" in caplog.text
     assert "secret-student-name" not in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_each_pass_logs_its_duration(caplog: pytest.LogCaptureFixture) -> None:
-    from app.services import tectonic
+async def test_each_run_logs_its_duration(caplog: pytest.LogCaptureFixture) -> None:
+    from app.services import texrunner
 
     async def quick_exec(*_args: object, **_kwargs: object) -> AsyncMock:
         proc = AsyncMock()
@@ -126,9 +129,11 @@ async def test_each_pass_logs_its_duration(caplog: pytest.LogCaptureFixture) -> 
 
     with patch("asyncio.create_subprocess_exec", side_effect=quick_exec), \
             patch("tempfile.mkdtemp", side_effect=fake_mkdtemp), caplog.at_level("INFO"):
-        await tectonic.run_tectonic("\\documentclass{article} secret-exam-text", {}, time_limit=5)
+        await texrunner.run_tex("\\documentclass{article} secret-exam-text", {}, time_limit=5)
 
     durations = [r.getMessage() for r in caplog.records if "took" in r.getMessage()]
-    assert len(durations) == 2
-    assert durations[0].startswith("Tectonic pass 1 took ")
+    # One summary line per compile, with the passes it took (issue #341).
+    assert len(durations) == 1
+    assert durations[0].startswith("LaTeX compile took ")
+    assert "2 passes" in durations[0]
     assert "secret-exam-text" not in caplog.text

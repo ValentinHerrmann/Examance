@@ -1,0 +1,9 @@
+% Read before the distribution's texmf.cnf (TEXMFCNF, services/texrunner.py): documents are untrusted (issue #341).
+% No shell escape; reads and writes only below the working directory (no absolute paths, no "..", no dotfiles).
+shell_escape = f
+openin_any = p
+openout_any = p
+% Unwrapped log lines, so "!" errors reach the teacher whole (services/texrunner.py _extract_tex_error).
+max_print_line = 1000
+error_line = 254
+half_error_line = 238

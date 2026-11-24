@@ -1,5 +1,5 @@
 import { writable, type Readable } from "svelte/store";
-import { getLatestForSlot, type CompileKind } from "#lib/latex/compileCache";
+import { hasCompiledSlot, type CompileKind } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
 import { getCachedPreview, pdfBytesToUrl } from "#lib/latex/pdfPreview";
 import { translate } from "#lib/i18n";
@@ -141,9 +141,12 @@ export function createPreviewFlow<T>(options: PreviewFlowOptions<T>): PreviewFlo
       current = item;
       const title = options.titleOf(item);
       const id = options.idOf(item);
+      const opened = token;
+      // Also finds a compile kept from before a reload (issue #341) and puts it into the memory cache.
       const hasSlot =
-        getLatestForSlot({ kind: options.kind, id, variant: "angabe" }) ||
-        getLatestForSlot({ kind: options.kind, id, variant: "loesung" });
+        (await hasCompiledSlot({ kind: options.kind, id, variant: "angabe" })) ||
+        (await hasCompiledSlot({ kind: options.kind, id, variant: "loesung" }));
+      if (opened !== token) return;
       if (!hasSlot) {
         set({ phase: "ask", title });
         return;

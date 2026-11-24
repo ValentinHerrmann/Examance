@@ -1,12 +1,14 @@
-# Tectonic LaTeX compiler, fetched in a throwaway stage so the final image gets only the binary.
-# ADD --checksum verifies the archive: it would otherwise install whatever the URL serves at build time.
-FROM python@sha256:229a2c5bfa27522db7815ea81f9bed70af17ccb9de9fc7ad142b1877b5830d36 AS tectonic
-ARG TECTONIC_VERSION=0.17.0
-ARG TECTONIC_SHA256=8533d07f9ccbd7a65824b9e0459041bca34af1eb33daba48f59215593753a3b7
-ADD --checksum=sha256:${TECTONIC_SHA256} \
-    "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
-    /tmp/tectonic.tar.gz
-RUN tar xz -C /usr/local/bin -f /tmp/tectonic.tar.gz tectonic
+# TeX Live (issue #341), installed in a throwaway stage so the final image gets only /opt/texlive.
+# Pinned to a dated snapshot of the TeX Live repository; upgrade by bumping both values together
+# (sha256 of that day's install-tl-unx.tar.gz). Packages: latex-texlive/packages.txt.
+FROM python@sha256:229a2c5bfa27522db7815ea81f9bed70af17ccb9de9fc7ad142b1877b5830d36 AS texlive
+ARG TL_SNAPSHOT=2026/11/23
+ARG TL_INSTALLER_SHA256=0ae16c4b38ed3877c7f126b3726f20ed1ad001751a556ad7b001485253016eb7
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl fontconfig gnupg perl xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+COPY latex-texlive/ /tmp/latex-texlive/
+RUN TL_SNAPSHOT=${TL_SNAPSHOT} TL_INSTALLER_SHA256=${TL_INSTALLER_SHA256} sh /tmp/latex-texlive/install.sh
 
 # Digest-pinned so rebuilds are reproducible and a retagged upstream image
 # cannot silently change what ships. Refresh the digest deliberately when
@@ -21,8 +23,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=tectonic /usr/local/bin/tectonic /usr/local/bin/tectonic
-RUN tectonic --version
+COPY --from=texlive /opt/texlive /opt/texlive
+ARG TL_SNAPSHOT=2026/11/23
+ENV PATH=/opt/texlive/bin/x86_64-linux:${PATH} \
+    TL_SNAPSHOT=${TL_SNAPSHOT}
+RUN xelatex --version | head -1
 
 # uv from its digest-pinned release image, like the base image: no unpinned pip install.
 COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /uvx /bin/
@@ -38,27 +43,27 @@ RUN uv export --frozen --no-dev --no-emit-project -o /tmp/requirements.txt \
  && rm /tmp/requirements.txt
 ENV PYTHONPATH=/app
 
-# Drop privileges. uvicorn and every tectonic subprocess it spawns run as this
+# Drop privileges. uvicorn and every TeX subprocess it spawns run as this
 # user, so a compiler bug or a future path-traversal cannot read the host as
-# root. TECTONIC_CACHE_DIR must be writable by it.
-ENV TECTONIC_CACHE_DIR=/var/cache/tectonic
+# root. LATEX_FORMAT_DIR (formats built from template preambles, issue #341) must be writable by it.
+ENV LATEX_FORMAT_DIR=/var/cache/latex-formats
 # /data/blobs: scan file partition (issue #114); a new named volume inherits this owner.
 RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin appuser \
- && mkdir -p "${TECTONIC_CACHE_DIR}" /data/blobs \
- && chown -R appuser:appuser /app "${TECTONIC_CACHE_DIR}" /data/blobs
+ && mkdir -p "${LATEX_FORMAT_DIR}" /data/blobs \
+ && chown -R appuser:appuser /app "${LATEX_FORMAT_DIR}" /data/blobs
 USER appuser
 
-# Warm Tectonic's cache once, so a fresh deployment's first preview does not time out while
-# hundreds of bundle files download (issue #75). Docker seeds a new cache volume from this.
-# Placed before the app source so code changes keep this layer cached. Public TeX files only.
+# Copy application source; the LaTeX assets and TeX Live settings are read at runtime by services/texrunner.py.
 COPY --chown=appuser:appuser latex-assets/ ./latex-assets/
+COPY --chown=appuser:appuser latex-texlive/ ./latex-texlive/
 COPY --chown=appuser:appuser latex-warmup/ ./latex-warmup/
-RUN sh ./latex-warmup/warmup.sh
-
-# Copy application source
 COPY --chown=appuser:appuser app/ ./app/
 COPY --chown=appuser:appuser alembic/ ./alembic/
 COPY --chown=appuser:appuser alembic.ini ./
+
+# Compile the warm-up document once: proves TeX Live has every package the template needs (a
+# missing one fails the build) and builds its format, which seeds a new format volume.
+RUN sh ./latex-warmup/warmup.sh
 
 # Build version, reported by GET /api/health. Passed by the deploy workflows
 # from the repository-root VERSION file; the default keeps local builds honest

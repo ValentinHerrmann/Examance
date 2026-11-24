@@ -40,7 +40,7 @@ describe('buildAiPrompt', () => {
   it('explains the setup, asks for the UI language and leaves the code out unless asked', () => {
     const prompt = buildAiPrompt({ ...base, includeSource: false });
     expect(prompt).toContain('Reply in German');
-    expect(prompt).toContain('Tectonic');
+    expect(prompt).toContain('TeX Live 2026');
     expect(prompt).toContain('\\LoesungKaro{solution}{rows}');
     expect(prompt).toContain('! Undefined control sequence.');
     expect(prompt).not.toContain('2| Text \\foo');

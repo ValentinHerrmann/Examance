@@ -1,17 +1,18 @@
-/** In-memory LaTeX compilation cache: avoids re-compiling identical documents across tab switches and preview reopen. Keyed by (kind, id, variant) and verified by a SHA-256 of source, app version, engine, resources and exam logo, so any content change misses. Entries hold raw PDF bytes; callers create short-lived object URLs and revoke them on destroy. */
+/** LaTeX compilation cache: avoids re-compiling identical documents across tab switches, preview reopen and (sealed in IndexedDB, `compileStore.ts`) reloads. Keyed by (kind, id, variant) and verified by a SHA-256 of source, app version, engine, resources and exam logo, so any content change misses. Each slot also keeps its last aux files, which seed the next compile of an edited document (issue #341). Entries hold raw PDF bytes; callers create short-lived object URLs and revoke them on destroy. */
 
 import { compareCodeUnits } from '#lib/utils/compare';
 import { frontendVersion } from '#lib/stores/versionStore';
-import { compileLatex, type CompileResult } from './compiler';
+import { compileLatex, type AuxFile, type CompileResult } from './compiler';
+import { dropStoredCompiles, loadStoredCompile, saveStoredCompile, type StoredCompile } from './compileStore';
 import { mergeResources, type LatexResourceFile } from './resources';
 import { clearLogoCache, type CompileLogo } from './logo';
 import { clearPackageSettingsCache } from './packageSettings';
 import { sha256Hex } from '#lib/crypto/hex';
 
 /** `extra-sheet` is the exam-independent extra sheet (issue #228), keyed by its paper style. */
-export type CompileKind = 'exam' | 'exercise' | 'omr-blank' | 'extra-sheet' | 'layout-sample';
+export type CompileKind = 'exam' | 'exercise' | 'extra-sheet' | 'layout-sample';
 /** `draft` is the Exam step's task sheet without the extra pages that fill whole sheets (issue #228). */
-export type CompileVariant = 'angabe' | 'loesung' | 'blank' | 'draft';
+export type CompileVariant = 'angabe' | 'loesung' | 'draft';
 
 export interface CompileCacheKey {
   kind: CompileKind;
@@ -27,6 +28,8 @@ export interface CachedCompileEntry {
   usedFallback: boolean;
   sizeBytes: number;
   lastAccess: number;
+  aux: AuxFile[];
+  durationMs?: number;
 }
 
 /** Maximum total PDF bytes kept in cache (150 MB). */
@@ -142,6 +145,8 @@ export function setCached(key: CompileCacheKey, hash: string, result: CompileRes
     usedFallback: result.usedFallback,
     sizeBytes,
     lastAccess: Date.now(),
+    aux: result.aux ?? [],
+    durationMs: result.durationMs,
   };
 
   cache.set(slotKey, entry);
@@ -153,6 +158,8 @@ export function setCached(key: CompileCacheKey, hash: string, result: CompileRes
  */
 export function invalidateSlot(key: CompileCacheKey): void {
   const slotKey = makeSlotKey(key);
+  markInvalidated(slotKey);
+  void dropStoredCompiles(slotKey);
   const entry = cache.get(slotKey);
   if (entry) {
     currentTotalBytes -= entry.sizeBytes;
@@ -165,6 +172,8 @@ export function invalidateSlot(key: CompileCacheKey): void {
  */
 export function invalidateOwner(kind: CompileKind, id: string): void {
   const prefix = `${kind}:${id}:`;
+  markInvalidated(prefix);
+  void dropStoredCompiles(prefix);
   for (const [slotKey, entry] of cache.entries()) {
     if (slotKey.startsWith(prefix)) {
       currentTotalBytes -= entry.sizeBytes;
@@ -178,6 +187,8 @@ export function invalidateOwner(kind: CompileKind, id: string): void {
  */
 export function clearCompileCache(): void {
   cache.clear();
+  markInvalidated('');
+  void dropStoredCompiles('');
   lastInputs.clear();
   clearLogoCache();
   clearPackageSettingsCache();
@@ -195,6 +206,68 @@ export function getCompileCacheStats(): { entryCount: number; totalBytes: number
 }
 
 type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo };
+
+/** Invalidated slot-key prefixes by sequence number: a compile that was running when its slot was invalidated (an exam deleted meanwhile) must not write its PDF back. */
+let invalidationSeq = 0;
+const invalidatedAt = new Map<string, number>();
+const MAX_INVALIDATIONS = 200;
+
+function markInvalidated(prefix: string): void {
+  invalidatedAt.delete(prefix);
+  invalidatedAt.set(prefix, ++invalidationSeq);
+  if (invalidatedAt.size > MAX_INVALIDATIONS) invalidatedAt.delete(invalidatedAt.keys().next().value as string);
+}
+
+function invalidatedSince(slotKey: string, seq: number): boolean {
+  for (const [prefix, at] of invalidatedAt) if (at > seq && slotKey.startsWith(prefix)) return true;
+  return false;
+}
+
+/** The stored compile of a slot, put into the memory level so later lookups stay synchronous. */
+async function fromStore(key: CompileCacheKey): Promise<CachedCompileEntry | undefined> {
+  const stored = await loadStoredCompile(makeSlotKey(key));
+  if (!stored) return undefined;
+  setCached(key, stored.hash, { ...stored, fromCache: true });
+  return cache.get(makeSlotKey(key));
+}
+
+/** The slot's entry from memory or, after a reload, from the store; any hash. */
+async function latestEntry(key: CompileCacheKey): Promise<CachedCompileEntry | undefined> {
+  return getLatestForSlot(key) ?? (await fromStore(key));
+}
+
+/** Whether this slot was ever compiled in this browser (memory or store). */
+export async function hasCompiledSlot(key: CompileCacheKey): Promise<boolean> {
+  return !!(await latestEntry(key));
+}
+
+/** The draft and the printed task sheet differ only in the filling pages, and the solution shares the sheet's tasks and scores, so a sibling's aux is a good seed. */
+const SIBLING_VARIANT: Partial<Record<CompileVariant, CompileVariant>> = { draft: 'angabe', angabe: 'draft', loesung: 'angabe' };
+
+/** The aux files to start a compile from: the slot's last compile, else its sibling's; stale ones only cost a rerun. */
+async function seedFor(key: CompileCacheKey): Promise<AuxFile[]> {
+  const own = await latestEntry(key);
+  if (own?.aux.length) return own.aux;
+  const sibling = SIBLING_VARIANT[key.variant];
+  return sibling ? ((await latestEntry({ ...key, variant: sibling }))?.aux ?? []) : [];
+}
+
+function persist(key: CompileCacheKey, hash: string, result: CompileResult): void {
+  const stored: StoredCompile = {
+    hash,
+    pdfBytes: result.pdfBytes,
+    missingGraphics: result.missingGraphics ?? [],
+    engineUsed: result.engineUsed,
+    usedFallback: result.usedFallback,
+    durationMs: result.durationMs,
+    aux: result.aux ?? [],
+  };
+  void saveStoredCompile(makeSlotKey(key), stored);
+}
+
+function hitResult(hit: CachedCompileEntry): CompileResult {
+  return { pdfBytes: hit.pdfBytes, usedFallback: hit.usedFallback, engineUsed: hit.engineUsed, missingGraphics: hit.missingGraphics, aux: hit.aux, fromCache: true };
+}
 
 /** What each slot was last compiled from, to say which input changed when a lookup misses (issue #212: a PDF compiled on one exam tab counted as stale on another). Same lifetime as the cache. */
 type InputSummary = { latex: string; resources: string; exIds: string; engine: string; logo: string };
@@ -243,7 +316,7 @@ export async function getCachedFor(
   useLocal: boolean,
   opts: CompileOpts = {}
 ): Promise<CachedCompileEntry | undefined> {
-  if (!cache.has(makeSlotKey(key))) return undefined;
+  if (!cache.has(makeSlotKey(key)) && !(await fromStore(key))) return undefined;
   const hit = getCached(key, await hashFor(latexSource, useLocal, opts));
   if (!hit) explainMiss(key, summarize(latexSource, useLocal, opts));
   return hit;
@@ -259,18 +332,15 @@ export async function compileWithCache(
   opts: CompileOpts = {}
 ): Promise<CompileResult> {
   const hash = await hashFor(latexSource, useLocal, opts);
-  const hit = getCached(key, hash);
-  if (hit) {
-    return {
-      pdfBytes: hit.pdfBytes,
-      usedFallback: hit.usedFallback,
-      engineUsed: hit.engineUsed,
-      missingGraphics: hit.missingGraphics,
-    };
-  }
+  // The store is read only when memory knows nothing of the slot (after a reload): a memory miss with another hash is current there too.
+  const hit = getCached(key, hash) ?? (!cache.has(makeSlotKey(key)) && (await fromStore(key))?.hash === hash ? getCached(key, hash) : undefined);
+  if (hit) return hitResult(hit);
 
-  const result = await compileLatex(latexSource, useLocal, onStatus, promptFallback, opts);
+  const startedAt = invalidationSeq;
+  const result = await compileLatex(latexSource, useLocal, onStatus, promptFallback, { ...opts, seedAux: await seedFor(key) });
+  if (invalidatedSince(makeSlotKey(key), startedAt)) return result;
   setCached(key, hash, result);
+  persist(key, hash, result);
   lastInputs.set(makeSlotKey(key), summarize(latexSource, useLocal, opts));
   return result;
 }

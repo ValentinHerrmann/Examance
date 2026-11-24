@@ -133,8 +133,8 @@ services:
       retries: 5
       start_period: 20s
 
-  # Tectonic in its own container: a TeX document can read any file its process may read, so it
-  # gets no secrets, no database or Redis network and no scan files. Reached only by the backend.
+  # TeX in its own container: documents are untrusted, so it gets no secrets, no database or Redis
+  # network, no scan files and no internet (TeX Live is in the image). Reached only by the backend.
   latex:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
     restart: unless-stopped
@@ -148,10 +148,10 @@ services:
       - /tmp:size=512m
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    # Tectonic cache: an empty one makes the first compile exceed the proxy timeout (a bare
-    # 504/524 that browsers report as a CORS error). Public TeX files only, never exam content.
+    # Formats built from template preambles (issue #341): each saves about 1 s per TeX pass, and a
+    # new volume starts with the warm-up's. Compiled from template code only, never exam content.
     volumes:
-      - tectonic_cache:/var/cache/tectonic
+      - latex_formats:/var/cache/latex-formats
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/health').status == 200 else 1)"]
       interval: 30s
@@ -365,14 +365,15 @@ services:
 
 volumes:
   pg_data:
-  tectonic_cache:
+  latex_formats:
   blob_data:
   restic_cache:
 
 
 networks:
-  # Not internal: Tectonic downloads TeX bundle files it has not cached yet.
-  latex: {}
+  # Internal: TeX Live needs no downloads, so a document has no way out.
+  latex:
+    internal: true
   default:
     ipam:
       config:

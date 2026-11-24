@@ -2,19 +2,25 @@
 
 from __future__ import annotations
 
+import json
 import time
 from datetime import date, timedelta
+from pathlib import Path
+from typing import Any
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.latex_packages import (
+    LAZY_PACKAGES,
     PackageEntry,
     PackageLayer,
     exercise_entries,
     package_preamble,
     resolve_packages,
+    stored_entries,
+    with_packages,
 )
 
 from .factors import sign_in
@@ -99,7 +105,7 @@ async def test_account_packages_roundtrip_and_validation(
     await sign_in(client, db, "packages@example.com")
     resp = await client.get("/api/v1/user/latex-packages")
     assert resp.status_code == 200
-    assert resp.json() == {"entries": []}
+    assert resp.json() == {"entries": [], "all_subject_packages": False}
 
     entries = [
         {"kind": "package", "name": "siunitx", "options": " locale=DE "},
@@ -175,3 +181,59 @@ async def test_template_packages_lists_what_the_template_loads(
     assert packages["xcolor"]["locked"] is None
     assert "inputenc" not in packages
     assert {"name": "arrows.meta", "source": "packages"} in resp.json()["tikz_libraries"]
+
+
+# --- Subject packages load only when used (issue #341) -------------------------------------------
+
+_BLOCK_CASES = json.loads(
+    (Path(__file__).parent / "fixtures" / "latex_package_blocks.json").read_text(encoding="utf-8")
+)
+
+
+def _without_header(block: str) -> str:
+    """The block without its first comment line, which the frontend words differently."""
+    return "\n".join(line for line in block.splitlines() if not line.startswith("% LaTeX packages"))
+
+
+@pytest.mark.parametrize("case", _BLOCK_CASES, ids=[c["name"] for c in _BLOCK_CASES])
+def test_block_matches_the_shared_fixture(case: dict[str, Any]) -> None:
+    layers = [PackageLayer("account", stored_entries(case["account"]))]
+    block = package_preamble(resolve_packages(layers, case["doc"], case["allSubject"]))
+    assert _without_header(block) == _without_header(case["block"])
+
+
+def test_every_lazy_package_has_triggers_and_a_known_name() -> None:
+    assert [lazy.name for lazy in LAZY_PACKAGES][-2:] == ["sty/tikz-uml", "sty/custom-pgf-umlcd"]
+    assert all(lazy.triggers for lazy in LAZY_PACKAGES)
+
+
+def test_all_subject_packages_load_without_triggers() -> None:
+    plain = with_packages("\\documentclass{article}\n", [])
+    assert plain == "\\documentclass{article}\n"
+    every = with_packages("\\documentclass{article}\n", [], all_subject=True)
+    for lazy in LAZY_PACKAGES:
+        assert f"\\RequirePackage{{{lazy.name}}}" in every
+
+
+@pytest.mark.asyncio
+async def test_all_subject_packages_switch_is_stored(client: AsyncClient, db: AsyncSession) -> None:
+    await sign_in(client, db, "subject@example.com")
+    assert (await client.get("/api/v1/user/latex-packages")).json()["all_subject_packages"] is False
+    resp = await client.put(
+        "/api/v1/user/latex-packages", json={"entries": [], "all_subject_packages": True}
+    )
+    assert resp.json()["all_subject_packages"] is True
+    # A save that does not mention the switch leaves it as it is.
+    resp = await client.put("/api/v1/user/latex-packages", json={"entries": []})
+    assert resp.json()["all_subject_packages"] is True
+
+
+@pytest.mark.asyncio
+async def test_template_overview_marks_subject_packages_as_lazy(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await sign_in(client, db, "overview@example.com")
+    packages = (await client.get("/api/v1/latex/template-packages")).json()["packages"]
+    lazy = {p["name"] for p in packages if p["lazy"]}
+    assert {"chemfig", "mhchem", "listings", "tikz-uml"} <= lazy
+    assert not any(p["lazy"] for p in packages if p["name"] == "tikz")

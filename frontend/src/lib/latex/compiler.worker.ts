@@ -169,24 +169,29 @@ function loadAdditionalFiles(): { path: string; content: Uint8Array }[] {
 const AUX_EXTENSIONS = ['.aux', '.toc', '.out'];
 const MAX_TEX_RUNS = 4;
 
-/** busytex's own rerun loop always does 4 XeTeX runs (its `rerunfilecheck` pattern matches whenever hyperref loads the package), ~3.5 s each. We run single passes (`rerun: false`) and feed the previous run's aux files back until they stop changing: usually 2 runs (Schulaufgabe.sty passes each task's score to the next run through the aux file). */
+/** busytex's own rerun loop always does 4 XeTeX runs (its `rerunfilecheck` pattern matches whenever hyperref loads the package), ~3.5 s each. We run single passes (`rerun: false`) and feed the previous run's aux files back until they stop changing: usually 2 runs (Schulaufgabe.sty passes each task's score to the next run through the aux file), and 1 when `seed` (the previous compile's aux, issue #341) is already right; a stale seed only costs a rerun. */
 async function compileUntilStable(
   engine: XeLatex,
   activeRunner: BusyTexRunner | null,
   input: string,
-  baseFiles: { path: string; content: Uint8Array }[]
+  baseFiles: { path: string; content: Uint8Array }[],
+  seed: { path: string; content: Uint8Array }[] = []
 ) {
-  let aux: { path: string; content: Uint8Array }[] = [];
-  let result = await engine.compile({ input, additionalFiles: baseFiles, rerun: false });
-  for (let run = 1; run < MAX_TEX_RUNS && result.success && activeRunner; run++) {
+  let aux = seed;
+  let result = await engine.compile({ input, additionalFiles: [...baseFiles, ...aux], rerun: false });
+  // A stale seed (a macro the document no longer defines) must not fail the compile: retry once from scratch.
+  if (!result.success && seed.length > 0) return compileUntilStable(engine, activeRunner, input, baseFiles);
+  for (let run = 1; run <= MAX_TEX_RUNS && result.success && activeRunner; run++) {
     const next = (await activeRunner.readProjectFiles()) // NOSONAR: each run feeds on the previous run's aux files
       .filter((f) => AUX_EXTENSIONS.some((ext) => f.path.endsWith(`main${ext}`)))
       .map((f) => ({ path: f.path.split('/').pop() as string, content: f.content as Uint8Array }));
-    if (run > 1 && sameFiles(aux, next)) break;
+    // Without a seed the first run read no aux at all, so it never counts as settled.
+    const settled = (run > 1 || seed.length > 0) && sameFiles(aux, next);
     aux = next;
+    if (settled || run === MAX_TEX_RUNS) break;
     result = await engine.compile({ input, additionalFiles: [...baseFiles, ...aux], rerun: false }); // NOSONAR: each run feeds on the previous run's aux files
   }
-  return result;
+  return { result, aux };
 }
 
 function sameFiles(a: { path: string; content: Uint8Array }[], b: { path: string; content: Uint8Array }[]): boolean {
@@ -298,11 +303,14 @@ self.onmessage = (e: MessageEvent) => {
     return;
   }
 
-  const { id, latexSource, resources } = e.data as {
+  const { id, latexSource, resources, seedAux } = e.data as {
     id: number;
     latexSource: string;
     resources?: { filename: string; content: Uint8Array }[];
+    seedAux?: { path: string; content: Uint8Array }[];
   };
+  // Only the files this loop writes itself may come back in as seeds.
+  const seed = (seedAux ?? []).filter((f) => AUX_EXTENSIONS.some((ext) => f.path === `main${ext}`));
 
   compileQueue = compileQueue.then(async () => {
     const runCompile = async () => {
@@ -327,11 +335,11 @@ self.onmessage = (e: MessageEvent) => {
         additionalFiles.push({ path: res.filename, content: res.content });
       }
 
-      return compileUntilStable(xelatex, runner, latexSource, additionalFiles);
+      return compileUntilStable(xelatex, runner, latexSource, additionalFiles, seed);
     };
 
     try {
-      let result = await runCompile();
+      let { result, aux } = await runCompile();
 
       // At most one cache-wipe recovery per worker: the pattern can't tell a corrupted cache from a document referencing a package we don't ship, so without this guard that case re-downloads TeX Live on every retry.
       if (
@@ -347,7 +355,7 @@ self.onmessage = (e: MessageEvent) => {
         await recoverFromPossiblyCorruptedCache();
         const retry = await runCompile();
         // A retry on the freshly wiped cache fails with spurious misses (ulem.sty); the first error names the real one.
-        if (retry.success) result = retry;
+        if (retry.result.success) ({ result, aux } = retry);
       }
 
       if (!result.success) {
@@ -373,7 +381,8 @@ self.onmessage = (e: MessageEvent) => {
           id,
           success: true,
           pdfBytes: result.pdf,
-          missingGraphics: extractMissingGraphics(result.log)
+          missingGraphics: extractMissingGraphics(result.log),
+          aux
         });
       } else {
         // Not reset here — an ordinary compile error (e.g. a LaTeX typo) shouldn't force a full engine reboot on the next attempt.

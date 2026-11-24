@@ -6,8 +6,8 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from app.services.latex_packages import FORBIDDEN_PACKAGES, LOCKED_PACKAGES
-from app.services.tectonic import ASSETS_DIR
+from app.services.latex_packages import FORBIDDEN_PACKAGES, LAZY_PACKAGES, LOCKED_PACKAGES
+from app.services.texrunner import ASSETS_DIR
 
 
 @lru_cache(maxsize=1)
@@ -49,8 +49,8 @@ def _file_order(path: Path) -> tuple[int, str]:
 
 def _read_template_file(
     path: Path,
-    packages: dict[str, dict[str, str | None]],
-    libraries: dict[str, dict[str, str | None]],
+    packages: dict[str, dict[str, str | bool | None]],
+    libraries: dict[str, dict[str, str | bool | None]],
 ) -> None:
     text = _TEX_COMMENT.sub("", path.read_text(encoding="utf-8", errors="replace"))
     for options, argument in _REQUIRE_PACKAGE.findall(text):
@@ -72,12 +72,19 @@ def _read_template_file(
 
 
 @lru_cache(maxsize=1)
-def template_packages() -> dict[str, list[dict[str, str | None]]]:
+def template_packages() -> dict[str, list[dict[str, str | bool | None]]]:
     """Packages and TikZ libraries the bundled .sty files load, for the settings overview (#108). Read from the files themselves so the list cannot drift; pdfLaTeX-only loads are left out."""
-    packages: dict[str, dict[str, str | None]] = {}
-    libraries: dict[str, dict[str, str | None]] = {
+    packages: dict[str, dict[str, str | bool | None]] = {}
+    libraries: dict[str, dict[str, str | bool | None]] = {
         name: {"name": name, "source": "packages"} for name in _BUILDER_TIKZ_LIBRARIES
     }
     for path in sorted((ASSETS_DIR / "sty").glob("*.sty"), key=_file_order):
         _read_template_file(path, packages, libraries)
+    # Subject packages are loaded only when a document uses them (issue #341).
+    for lazy in LAZY_PACKAGES:
+        name = lazy.name.removeprefix("sty/")
+        packages.setdefault(
+            name,
+            {"name": name, "options": lazy.options, "source": "packages", "locked": None, "lazy": True},
+        )
     return {"packages": list(packages.values()), "tikz_libraries": list(libraries.values())}

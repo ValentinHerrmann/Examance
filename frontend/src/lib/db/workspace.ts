@@ -65,10 +65,10 @@ function newManifest(mode: ManifestMode): WorkspaceManifestRecord {
   };
 }
 
-/** True when no data table holds a row; the manifest itself does not count. */
+/** True when no data table holds a row; the manifest and the compiled-PDF cache (rebuilt by any compile) do not count. */
 export async function workspaceIsEmpty(): Promise<boolean> {
   if (!db.exams) return true;
-  const counts = await Promise.all(vaultTables().map((t) => t.count()));
+  const counts = await Promise.all(vaultTables().filter((t) => t !== db.compiledPdfs).map((t) => t.count()));
   return counts.every((n) => n === 0);
 }
 

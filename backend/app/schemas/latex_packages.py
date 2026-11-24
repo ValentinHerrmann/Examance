@@ -54,6 +54,8 @@ class AccountLatexPackages(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     entries: list[LatexPackageEntry] = Field(default_factory=list, max_length=MAX_ENTRIES)
+    # Load every subject package in every document; on a PUT, null leaves the choice as it is.
+    all_subject_packages: bool | None = None
 
     _check_entries = field_validator("entries")(check_entry_list)
 
@@ -65,6 +67,8 @@ class TemplatePackage(BaseModel):
     source: str
     # Why its options are fixed (``layout``, ``omr``), else null.
     locked: str | None = None
+    # Loaded only when the document uses it (or the account loads every subject package).
+    lazy: bool = False
 
 
 class TemplateLibrary(BaseModel):

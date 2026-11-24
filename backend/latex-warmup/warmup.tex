@@ -1,5 +1,18 @@
-% Cache warm-up document (issue #75): compiled once at image build and on deploy so Tectonic's
-% cache holds the bundle files and format the exam template needs. Public, synthetic content only.
+% Warm-up document (issues #75, #341): compiled at image build and on deploy, so a TeX Live without a package the
+% template needs fails the build, and its format is ready. Public, synthetic content only.
+% The subject packages load only when a document uses them; the warm-up loads all of them the way the compile does
+% (packages.sty runs \ExamancePackages), so every one is checked.
+\PassOptionsToPackage{version=4}{mhchem}
+\def\ExamancePackages{%
+  \RequirePackage{struktex}%
+  \RequirePackage{listings}%
+  \RequirePackage{svg}%
+  \RequirePackage{chemfig}%
+  \RequirePackage{circuitikz}%
+  \RequirePackage{mhchem}%
+  \RequirePackage{sty/tikz-uml}%
+  \RequirePackage{sty/custom-pgf-umlcd}%
+}
 \documentclass[a4paper]{article}
 \usepackage[sans,punkte,antworten]{sty/Schulaufgabe}
 \usepackage{bbding}
@@ -8,7 +21,6 @@
 \usepackage{framed}
 \usepackage{enumitem}
 \usetikzlibrary{shapes.geometric, arrows}
-\usepackage{sty/tikz-uml}
 
 \Info{Warm-up}
 \Fach{Informatik}

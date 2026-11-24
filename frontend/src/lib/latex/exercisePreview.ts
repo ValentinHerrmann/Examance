@@ -13,7 +13,6 @@ const getPreamble = (extraOpts: string) => String.raw`\documentclass[a4paper]{ar
 \usepackage{framed}
 \usepackage{enumitem}
 \usetikzlibrary{shapes.geometric, arrows}
-\usepackage{sty/tikz-uml}
 \neverindent
 \WarningsOff
 \renewcommand{\Namenszeile}{}

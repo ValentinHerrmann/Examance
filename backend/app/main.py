@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from app.services.bootstrap import create_initial_admin
     from app.services.latex import forbid_environ_reads
 
-    forbid_environ_reads()  # before the first compile can spawn tectonic
+    forbid_environ_reads()  # before the first compile can spawn TeX
 
     if not settings.SMTP_HOST:
         if not settings.is_dev:
@@ -126,7 +126,7 @@ def create_app() -> FastAPI:
         },
         {
             "name": "compile",
-            "description": "LaTeX document compilation service via sandboxed Tectonic engine.",
+            "description": "LaTeX document compilation service via sandboxed XeLaTeX (TeX Live).",
         },
         {
             "name": "exams",
@@ -211,8 +211,8 @@ def create_app() -> FastAPI:
         "`refresh_token` 7 days with rotation & reuse detection).\n"
         "- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), "
         "IP addresses stored as SHA-256 hashes.\n"
-        "- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic "
-        "(`tectonic --untrusted`)."
+        "- **LaTeX Engine**: Compilation rendered using sandboxed TeX Live XeLaTeX "
+        "(no shell escape, reads and writes only in the working directory)."
     )
 
     app = FastAPI(

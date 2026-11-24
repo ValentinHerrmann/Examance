@@ -123,7 +123,7 @@ Eine fehlende Grafik bricht den Lauf nicht ab: Das PDF wird trotzdem erzeugt, un
 
 Pakete stammen aus drei Quellen, und Examance lädt jedes Paket nur einmal:
 
-1. **Die Vorlage** lädt bereits einen breiten Satz, darunter TikZ-Bibliotheken wie `arrows.meta`, `automata` und `positioning`. **Einstellungen → LaTeX-Pakete** listet sie auf.
+1. **Die Vorlage** lädt bereits einen breiten Satz, darunter TikZ-Bibliotheken wie `arrows.meta`, `automata` und `positioning`. **Einstellungen → LaTeX-Pakete** listet sie auf. Fachpakete (Chemie, Schaltkreise, UML-Klassendiagramme, Struktogramme, Quelltext, SVG-Bilder) werden nur geladen, wenn eine Aufgabe ihre Befehle verwendet; das hält das Kompilieren schnell. Schalten Sie in den Einstellungen **Alle Fachpakete immer laden** ein, wenn Sie sie überall brauchen.
 2. **Ihr Konto**: Im selben Abschnitt der Einstellungen fügen Sie Pakete und TikZ-Bibliotheken für alle Prüfungen hinzu und geben Vorlagenpaketen Optionen mit (zum Beispiel `dvipsnames` für `xcolor`).
 3. **Eine einzelne Aufgabe**: **Pakete dieser Aufgabe** im Editor speichert eine `\usepackage`-Zeile am Anfang des Quelltexts, sodass das Paket mit der Aufgabe reist. Solche Zeilen dürfen Sie auch von Hand schreiben.
 

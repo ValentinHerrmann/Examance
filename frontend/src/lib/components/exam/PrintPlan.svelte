@@ -112,7 +112,7 @@
     if (entriesError) rows.push({ level: "warn", text: $t("exam.print.ready.studentsFailed") });
     else if (entries) rows.push(studentCount > 0 ? { level: "ok", text: $t("exam.print.ready.students", { count: studentCount }) } : { level: "warn", text: $t("exam.print.ready.noStudents"), href: studentsHref(examId) });
     if (preview) {
-      rows.push(preview.pdf === "current" ? { level: "ok", text: $t("exam.print.ready.pdfCurrent") } : { level: preview.pdf === "stale" ? "warn" : "info", text: $t(preview.pdf === "stale" ? "exam.print.ready.pdfStale" : "exam.print.ready.pdfNone") });
+      rows.push(preview.pdf === "current" ? { level: "ok", text: preview.timing ? `${$t("exam.print.ready.pdfCurrent")} (${preview.timing})` : $t("exam.print.ready.pdfCurrent") } : { level: preview.pdf === "stale" ? "warn" : "info", text: $t(preview.pdf === "stale" ? "exam.print.ready.pdfStale" : "exam.print.ready.pdfNone") });
       if (hasMc) {
         const omr = { ready: "omrReady", stale: "omrStale", none: "omrNone", checking: "omrChecking" } as const;
         rows.push({ level: preview.omr === "ready" ? "ok" : preview.omr === "stale" ? "warn" : "info", text: $t(`exam.print.ready.${omr[preview.omr]}`) });
