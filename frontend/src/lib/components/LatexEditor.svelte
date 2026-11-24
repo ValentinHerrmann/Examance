@@ -279,6 +279,24 @@
     }
   }
 
+  /** Puts the cursor at `lineNo` (1-based) and `column` (0-based, clamped to the line), scrolls it into view and focuses the editor. */
+  export function setCursor(lineNo: number, column = 0) {
+    if (!view) return;
+    const doc = view.state.doc;
+    const line = doc.line(Math.max(1, Math.min(lineNo, doc.lines)));
+    const pos = line.from + Math.max(0, Math.min(column, line.length));
+    view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+    view.focus();
+  }
+
+  /** The cursor's line (1-based) and column (0-based). */
+  export function getCursor(): { line: number; column: number } | null {
+    if (!view) return null;
+    const head = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(head);
+    return { line: line.number, column: head - line.from };
+  }
+
   // Rendered text height per line (incl. soft wraps). Diff padding/gap widgets are excluded: they are sized from these numbers, so counting them would feed back into the next measure.
   export function getLineHeights(): Map<number, number> {
     const heights = new Map<number, number>();

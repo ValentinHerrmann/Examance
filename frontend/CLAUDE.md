@@ -65,6 +65,7 @@ UI text lives in typed catalogs under `src/lib/i18n/`.
 - Resource files: per exercise, flat sanitized names next to `main.tex`, staged under a throwaway id and committed on save (`exerciseResourceRepository.commit()` awaits `seedStaging`, or an early save deletes the files). SVG is refused (`lib/latex/resources.ts`, mirrored in `backend/app/services/latex_resources.py`).
 - Builders mark exercise bodies (`markSource`); marked LaTeX never leaves the app or reaches a hash (`stripSourceMarkers`).
 - User packages go only through `withPackages` (`lib/latex/packages.ts`, mirrored in `backend/app/services/latex_packages.py`); never add `\usepackage` lines to a builder.
+- `lib/latex/texpresso-spike/` (incremental XeTeX, route `/dev/texpresso-spike`, report in `docs/dev/latex_performance.md`) is a spike for dev and preview builds: never import it from app code.
 - Server compiles are background jobs (`compileOnServer` polls `/compile/latex/jobs`); a thrown local compile must `resetRunner()`. Compiles go through `compileWithCache` (memory, then the sealed `compiledPdfs` table via `latex/compileStore.ts`, plus aux seeds; `docs/dev/latex_performance.md`); never call `compileLatex` past it for an exam or exercise slot. Snippets and new packages must work in both engines (browser busytex and the server's pinned TeX Live, both 2026).
 
 ## Gotchas

@@ -67,6 +67,12 @@
 /core/busytex/chunk-manifest.json
   Cache-Control: public, max-age=0, must-revalidate
 
+# TeXpresso spike engine (preview builds only, docs/dev/latex_performance.md): gzipped files the
+# worker inflates itself, so they go out as plain bytes; not content-hashed, hence revalidated.
+/core/texpresso-spike/*
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: application/octet-stream
+
 # pdf.js ships its worker as .mjs; make the JS MIME type explicit so the
 # module worker is accepted regardless of the host's extension mapping.
 /_app/immutable/assets/*.mjs

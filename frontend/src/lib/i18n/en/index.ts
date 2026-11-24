@@ -31,6 +31,7 @@ import { trash } from './trash';
 import { sharing } from './sharing';
 import { lms } from './lms';
 import { review } from './review';
+import { texpressoSpike } from './texpressoSpike';
 
 export const en: Translations = {
     common,
@@ -65,4 +66,5 @@ export const en: Translations = {
     sharing,
     lms,
     review,
+    texpressoSpike,
 };

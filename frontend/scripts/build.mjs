@@ -59,8 +59,15 @@ async function main() {
   console.log(`✓ BusyTeX assets placed in ${path.relative(process.cwd(), BUILT_BUSYTEX)}`);
 }
 
+/** The TeXpresso spike's engine (~11 MB) serves only the dev route, which release builds redirect away (computeIsPreview in vite.config.ts). */
+function dropSpikeEngineInRelease() {
+  if (process.env.CF_PAGES_BRANCH !== 'release') return;
+  fs.rmSync(path.resolve('build/core/texpresso-spike'), { recursive: true, force: true });
+}
+
 try {
   await main();
+  dropSpikeEngineInRelease();
 } catch (err) {
   console.error(err);
   process.exit(1);

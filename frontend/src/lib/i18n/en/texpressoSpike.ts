@@ -1,0 +1,30 @@
+import type { Translations } from '../types';
+
+export const texpressoSpike: Translations['texpressoSpike'] = {
+  title: 'TeXpresso spike: instant LaTeX preview',
+  hint: 'An experiment without real data. Edit an exercise; only the part after the change is typeset again. A click on the page puts the cursor at that place in the source.',
+  sample: 'Document',
+  exercise: 'Exercise',
+  status: {
+    booting: 'Loading the engine …',
+    compiling: 'Typesetting …',
+    ready: 'Ready',
+    failed: 'Error: {message}',
+  },
+  timing: '{total} ms (engine {engine} ms in {passes} passes from {from}, xdvipdfmx {xdv} ms)',
+  fromStart: 'the start',
+  fromCheckpoint: 'checkpoint {n}',
+  memory: '{checkpoints} checkpoints, {snapshot} MB snapshots, {memory} MB engine memory',
+  fullCompile: 'Typeset from scratch',
+  bench: 'Run measurement',
+  benchRunning: 'Measuring …',
+  baseline: 'busytex comparison',
+  baselineResult: 'busytex: {fresh} ms fresh, {seeded} ms with aux seed',
+  clickTemplate: 'This text comes from the template (line {line} of {file}) and is read-only.',
+  clickNone: 'There is no source text at this point.',
+  clickHit: 'Exercise “{exercise}”, line {line}, column {column}',
+  provisional: 'provisional',
+  accuracy: 'Click accuracy',
+  log: 'Log',
+  initInfo: 'Startup',
+};
