@@ -395,7 +395,7 @@ replaced by `./`, capped at 256 KB) to the requesting teacher only, so it can be
 In both remaining modes (`all-server` and `hybrid`) an exercise's resource files are stored in the
 `exercise_resources` table as **plaintext bytes**, exactly as `exercises.latex_body`
 is plaintext there: an exercise kept on the server is server-readable by design,
-and the Tectonic compiler cannot read ciphertext. Resource files of exercises that are
+and the server's XeLaTeX (TeX Live) cannot read ciphertext. The compiler runs in a separate `latex` container without secrets, database or scans, with a read-only file system and an internal Docker network (no internet). Its `texmf.cnf` disables shell escape and restricts file access to relative paths without `..` and dotfiles (`openin_any = p`, `openout_any = p`), and the child process gets an allowlisted environment (no proxy variables). Resource files of exercises that are
 not on the server never leave the browser except inline in
 a server *compile* request, which writes them to a temp directory that is deleted
 with the process — and except the opt-in, anonymised MC training-data donation
@@ -412,7 +412,7 @@ which — like exercises themselves — is outside the exam retention sweep. A r
 ### Exam logos on the server
 
 The logo printed in the exam header (issue #46) is stored as **plaintext bytes** like resource
-files, for the same reason (Tectonic compiles it): `teacher_logos` holds an account's deviation
+files, for the same reason (the server's XeLaTeX compiles it): `teacher_logos` holds an account's deviation
 from the default (`none`, or its own file), `exam_logos` an exam's deviation from its account.
 Without a `teacher_logos` row an account prints the bundled default logo (MTG,
 `latex-assets/img/logo_mtg.pdf`), which every exam printed before logos were configurable;

@@ -30,7 +30,7 @@ flowchart LR
 
 - **Frontend**: a static build (HTML, JavaScript, WebAssembly). Encryption, decryption, scan processing and the browser LaTeX engine run in the browser, so the frontend host never sees plaintext.
 - **One site**: the API is at `api.` plus the frontend's host unless the build sets `PUBLIC_API_URL` (section 5.1). Either way it shares the frontend's registrable domain, because the session cookies are `SameSite=Strict`. CORS admits only the frontend's origins (`FRONTEND_ORIGINS`).
-- **Backend stack** (`deploy/docker-compose.deploy.yml`): the API, a separate LaTeX worker without secrets or database access, Postgres, Redis, a daily retention job, and optionally encrypted backups. Postgres and Redis publish no ports; the API binds only to loopback, behind your reverse proxy.
+- **Backend stack** (`deploy/docker-compose.deploy.yml`): the API, a separate LaTeX worker (TeX Live, no secrets, no database access, no internet), Postgres, Redis, a daily retention job, and optionally encrypted backups. Postgres and Redis publish no ports; the API binds only to loopback, behind your reverse proxy.
 
 ## 2. Requirements
 
@@ -38,7 +38,7 @@ flowchart LR
 - Two host names with HTTPS on the same registrable domain: one for the frontend and one for the API, by default `api.` plus the frontend's host (for example `examance.example.org` and `api.examance.example.org`). To avoid a second subdomain level, any other API host on the same domain works with `PUBLIC_API_URL` (for example `examance-api.example.org`).
 - A reverse proxy that terminates TLS on the server. [Caddy](https://caddyserver.com) gets and renews certificates by itself; the examples use it.
 - An SMTP account. Self-registration, invitations and password resets send links by e-mail.
-- Outbound internet access for the server: the LaTeX worker downloads TeX bundle files on demand, and image builds need `relay.fullyjustified.net`.
+- Outbound internet access for image builds: `texlive.info` (the pinned TeX Live snapshot). Running containers need no internet for LaTeX.
 - A static host for the frontend that can set response headers (the Content Security Policy) and fall back to `index.html` for unknown paths. Cloudflare Pages and Netlify do both from the files the build writes.
 
 ## 3. Versions
@@ -151,17 +151,19 @@ No timeout tuning is needed. Server-side LaTeX compiles run as background jobs t
 
 Check: `curl -s https://api.examance.example.org/api/health`.
 
-### 4.5 LaTeX worker and cache
+### 4.5 LaTeX worker and format cache
 
-A TeX document can read any file its process may read, so LaTeX never runs inside the API. The `latex` service runs the same image without secrets in its environment, with a read-only file system, no capabilities and only its cache volume; it can reach the internet for TeX bundle files but not the database or Redis. If it is down, server compiles answer `503 ERR_COMPILE_UNAVAILABLE` and the browser engine still works.
+TeX documents are untrusted: `backend/latex-texlive/texmf.cnf` forbids shell escape and any read or write outside the compile's working directory, and as a second line LaTeX never runs inside the API. The `latex` service runs the same image without secrets in its environment, with a read-only file system, no capabilities and only its format-cache volume; its network is internal, so it reaches neither the internet nor the database or Redis (TeX Live needs no downloads). If it is down, server compiles answer `503 ERR_COMPILE_UNAVAILABLE` and the browser engine still works.
 
-With an empty cache, the first compiles download several hundred bundle files and time out. The image therefore ships a warmed cache, and Docker copies it into a new, empty `tectonic_cache` volume. A volume that already holds files is never refreshed, so after an update warm it up once (seconds when it is already warm):
+The backend image contains a pinned TeX Live 2026 (XeLaTeX) in `/opt/texlive`, installed by `backend/latex-texlive/install.sh` from a dated snapshot of the TeX Live repository. The image is about 2.0 GB. Per document preamble, the runner dumps a precompiled format once and stores it in the `latex_formats` volume (`LATEX_FORMAT_DIR`, at most 64 formats or 2 GB, least recently used first), which makes later compiles of the same preamble faster. A missing or empty volume is rebuilt on demand and a failed format build falls back to a plain compile. After an update, warm it up once (the image build already compiles the warm-up document, which also seeds a new volume):
 
 ```bash
 $COMPOSE exec latex sh /app/latex-warmup/warmup.sh
 ```
 
-To start from scratch: stop the stack, `docker volume rm examance_tectonic_cache`, and `up -d` again. The cache holds only public TeX files, never exam content.
+To start from scratch: stop the stack, `docker volume rm examance_latex_formats`, and `up -d` again. The cache holds only public TeX data, never exam content. Servers updated from the Tectonic engine can remove the unused `examance_tectonic_cache` volume with `docker volume rm`.
+
+**Upgrading TeX Live.** The version is pinned by two build arguments in `backend/Dockerfile`: `TL_SNAPSHOT` (a date, for example `2026/11/01`, taken from `https://texlive.info/tlnet-archive/<YYYY/MM/DD>/tlnet`) and `TL_INSTALLER_SHA256`. To upgrade, pick a snapshot date, download `install-tl-unx.tar.gz` from that snapshot, run `sha256sum` on it, set both arguments and rebuild. The build fails if the checksum does not match or the warm-up document no longer compiles. Page breaks of new compiles can move slightly between snapshots; exams printed before keep their pinned print layout.
 
 ### 4.6 Scan storage and backups
 

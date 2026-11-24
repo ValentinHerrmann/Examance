@@ -20,8 +20,8 @@ faster (see "Lazy subject packages"). The template itself needs none of them: `L
 `\ifdefined\lstset`, and `packages.sty` defines the UML colours (`\umltextcolor` and friends) that `Loesung.sty` recolours,
 which `custom-pgf-umlcd.sty` only `\providecommand`s. The browser engine's TeX Live bundle lacks some of them; those are vendored
 unmodified in `backend/latex-assets/sty/` (mhchem, chemgreek, simplekv for chemfig, like bbding, pifont, struktex; the
-browser worker exposes `sty/*.sty` and `sty/*.tex` flat), while Tectonic takes flat names from its own TeX Live 2022
-bundle. Check a new template package in both engines: a dependency missing from the browser bundle breaks every compile.
+browser worker exposes `sty/*.sty` and `sty/*.tex` flat), while the server engine takes flat names from the TeX Live 2026 in the image. A new template package must be added to
+`backend/latex-texlive/packages.txt` (unless one of its collections already has it) and checked in both engines: a dependency missing from the browser bundle breaks every compile.
 
 Exercise packages stay in the LaTeX on purpose: they then travel with sharing, copies, versions,
 variants, merges, archives and exports without a second field to keep in sync.
@@ -63,7 +63,7 @@ it next to the account list (`packageSettings.ts` calls `setAllSubjectPackages`)
 server wrapper in `latex.py` has no account and loads by triggers only. `GET /latex/template-packages` lists the lazy
 packages with `lazy: true`. A new subject snippet needs its commands in `triggers` (`tests/latexPackages.test.ts`
 checks the palette) and the package in `backend/latex-warmup/warmup.tex`, which loads all of them through
-`\ExamancePackages` so Tectonic's cache stays warm. `backend/tests/fixtures/latex_package_blocks.json` is the shared
+`\ExamancePackages` so a missing package fails the image build and the format cache is seeded. `backend/tests/fixtures/latex_package_blocks.json` is the shared
 fixture both mergers must reproduce.
 
 ## Emission

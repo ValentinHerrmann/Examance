@@ -25,7 +25,7 @@ footer: 'Examance 0.5 (Beta) · Stand November 2026 · Screenshots: echte Oberfl
 <div class="card"><span class="tag teal">Gemeinsam</span><h3>Teilen und Vorschläge</h3><p>Nur Aufgabentexte, nie Schülerdaten. Kopien übernehmen, Verbesserungen vorschlagen, die Autorin entscheidet.</p></div>
 <div class="card"><span class="tag amber">Korrigieren</span><h3>Papier oder Scan</h3><p>Punkte eintippen oder aus Excel einfügen – oder ein Scan-PDF: QR-Zuordnung, Stempel je Teilaufgabe, MC-Erkennung mit Prüfansicht.</p></div>
 <div class="card"><span class="tag green">Auswerten</span><h3>Statistik im Browser</h3><p>Notenspiegel, Grenzfälle, Aufgabenqualität, Variantenvergleich; Namen nur in Notenliste und Export.</p></div>
-<div class="card"><span class="tag red">Betrieb</span><h3>Offen und selbst betreibbar</h3><p>SvelteKit im Browser; FastAPI, PostgreSQL, Redis in Docker. LaTeX als WASM oder mit Tectonic.</p></div>
+<div class="card"><span class="tag red">Betrieb</span><h3>Offen und selbst betreibbar</h3><p>SvelteKit im Browser; FastAPI, PostgreSQL, Redis in Docker. LaTeX als WASM oder mit TeX Live auf dem Server.</p></div>
 </div>
 </div>
 

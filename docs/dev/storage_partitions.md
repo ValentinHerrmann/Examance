@@ -6,7 +6,7 @@ Server data is split into partitions. Each one can have its own mount point, so 
 |---|---|---|---|
 | `db` | Every row: accounts, exams, exercises, scores, annotations, resources, logos, audit | Postgres volume `pg_data` (server SSD) | Low latency, transactions |
 | `blobs` | Scan ciphertexts (`scan_submissions`) | `BLOB_STORAGE_DIR`, a local dir or an rclone mount (pCloud, …) | Large (up to ~50 MB each), written once, read on demand, already client-side encrypted |
-| `cache` | Tectonic cache, per-compile temp dirs | `tectonic_cache` volume, `/tmp` | Disposable, public files only |
+| `cache` | LaTeX format cache, per-compile temp dirs | `latex_formats` volume, `/tmp` | Disposable, public files only |
 | `backups` | Daily restic snapshots of the DB and of `blobs` | restic repository on S3 (IONOS, …) | Off-site, encrypted, deduplicated, bounded lifetime |
 
 Without configuration (`BLOB_STORAGE_BACKEND=db`, no `BLOB_STORAGE_DIR`), everything stays in Postgres, as it did before.

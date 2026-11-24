@@ -12,7 +12,7 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
 
 - Attached **per exercise**, referenced by **flat sanitized filename**; files are written next to `main.tex` in both engines, never in a subdirectory. Names that collide with a bundled `latex-assets` file (including the worker's flattened `sty/x.sty` → `x.sty`) are rejected at upload.
 - Limits: 5 MB per file, 25 MB per exercise, 20 MB / 30 files per compile request; `BODY_LIMIT_COMPILE` 28 MB, `BODY_LIMIT_RESOURCE` 7 MB.
-- Storage: Dexie `exerciseResources`, bytes AES-256-GCM encrypted; server table `exercise_resources`, bytes **plaintext** (same as `exercises.latex_body`; Tectonic cannot read ciphertext).
+- Storage: Dexie `exerciseResources`, bytes AES-256-GCM encrypted; server table `exercise_resources`, bytes **plaintext** (same as `exercises.latex_body`; the server engine cannot read ciphertext).
 - The editor stages files under a throwaway id (never the exercise id) and `exerciseResourceRepository.commit()` moves the staged set onto the exercise on save. Cancel discards. The staged set is authoritative on commit: files removed while editing are deleted server-side too. The staging area is seeded asynchronously (`seedStaging`): the panel loads only once `seeded` is true and `commit` awaits the seed, otherwise the list opens empty and an early save would delete the files.
 - Local compile: `compiler.ts` → worker `additionalFiles`. Server compile sends `resource_exercise_ids` for saved exercises and inline base64 only for staged/local-only files.
 - Two exercises with *different* files under the same name is a hard error before compiling (`mergeResources`); identical bytes are deduped.

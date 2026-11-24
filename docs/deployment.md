@@ -18,7 +18,7 @@ There are two fully independent instances, **production** and **preview**.
 | Image tag | `ghcr.io/…/examance-backend:1.4.0` + `:latest` | `…:sha-<full-sha>` + `:preview` |
 | Compose project | `examance-prod` | `examance-preview` |
 | Loopback port (`APP_PORT`) | `9002` in the template | `9001` in the template |
-| Volumes | `examance-prod_pg_data`, `examance-prod_tectonic_cache`, `examance-prod_blob_data`, `examance-prod_restic_cache` | `examance-preview_pg_data`, `examance-preview_tectonic_cache`, `examance-preview_blob_data`, `examance-preview_restic_cache` |
+| Volumes | `examance-prod_pg_data`, `examance-prod_latex_formats`, `examance-prod_blob_data`, `examance-prod_restic_cache` | `examance-preview_pg_data`, `examance-preview_latex_formats`, `examance-preview_blob_data`, `examance-preview_restic_cache` |
 | Files CI writes | `docker-compose.deploy.yml`, `restore-backup.sh` (next to `.env`) | same |
 | Server env file | `$DEPLOY_APP_DIR/prod/.env` | `$DEPLOY_APP_DIR/preview/.env` |
 
@@ -322,7 +322,7 @@ docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env 
 **Verify the two stacks are really isolated**
 
 ```bash
-docker volume ls | grep examance   # expect <project>_pg_data, _tectonic_cache, _blob_data (and _restic_cache with backups) for prod and preview
+docker volume ls | grep examance   # expect <project>_pg_data, _latex_formats, _blob_data (and _restic_cache with backups) for prod and preview
 ```
 
 ---

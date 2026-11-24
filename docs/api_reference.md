@@ -170,7 +170,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
   run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL` **with** CORS
   headers, so a browser reports the status rather than a phantom CORS failure.
 - **Limits**: this route is rate-limited to 10
-  per minute per IP (`429`). At most `LATEX_MAX_CONCURRENT_COMPILES` (default 2) Tectonic runs
+  per minute per IP (`429`). At most `LATEX_MAX_CONCURRENT_COMPILES` (default 2) TeX runs
   happen at once per LaTeX worker; a request waits for a slot up to its own compile timeout
   (30 s preview, 120 s exam) and then gets `504 ERR_COMPILE_TIMEOUT`.
 

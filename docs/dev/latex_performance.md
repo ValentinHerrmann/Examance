@@ -8,13 +8,13 @@ A print job compiles the task sheet and, if printed, the solution: two documents
 
 - **TeX passes.** Schulaufgabe passes each task's score to the next run through `main.aux`, so a document compiled from nothing needs two passes.
 - **The preamble.** Every pass loads the whole template, so subject packages a document never uses (tikz-uml alone is 5,375 lines) are paid on every pass.
-- **Repeats.** Before #341 the server invoked Tectonic twice (Tectonic already reruns until the aux file settles, so that was two extra passes), the solution waited for the task sheet, and every reload compiled again.
+- **Repeats.** Before #341 the server invoked Tectonic twice (Tectonic already reruns until the aux file settles, so that was two extra passes; since round 4 the runner drives the passes itself), the solution waited for the task sheet, and every reload compiled again.
 
 ## What Examance does
 
 | Measure | Where | Effect |
 |---|---|---|
-| One Tectonic invocation per compile | `services/tectonic.py` `run_tectonic` | Tectonic's own rerun check decides the passes |
+| One compile run, passes until the aux settles | `services/texrunner.py` `run_tex` (was `services/tectonic.py`) | XeLaTeX passes run until `main.aux`, `.toc` and `.out` settle (max 4) |
 | Subject packages only when used | `lazy` in `latex_package_rules.json`, both mergers (`docs/dev/latex_packages.md`) | a document without them skips their load on every pass |
 | Aux seeding | `compileCache.ts` `seedFor`, `compiler.worker.ts` `compileUntilStable`, `seed_aux`/`return_aux` on `POST /compile/latex/jobs` | an edit that keeps the layout usually needs one pass |
 | Task sheet and solution at once | `examPreview.ts` `compileExamPreview` (server engine only; the browser engine is one queue) | the solution no longer waits |
@@ -56,7 +56,7 @@ A booklet with dot grids went from 21.9 / 10.9 s to 3.6 / 1.9 s.
 - **Same output:** rendered at 300 dpi and thresholded, the pages match except for 11-24 edge pixels. The dots sit on the same 5 mm grid; the single page-code path only drops the anti-aliasing seams between runs.
 - **Scan template:** it now shares the student sheet's cache slot (`exam`/`angabe`) instead of its own `omr-blank` one. A click on compile therefore no longer runs a third full compile without seeds, and the Print step reuses that PDF.
 
-What is left per seeded pass is the template's package load (~1 s) and the engine (0.4 s). The next lever is a precompiled format, which Tectonic cannot load (see below); a plain TeX Live XeLaTeX with a dumped format is measured next.
+What is left per seeded pass is the template's package load (~1 s) and the engine (0.4 s). The next lever was a precompiled format, which Tectonic cannot load; it is done on the server in round 4.
 
 ### Aux seeding rules
 
@@ -86,7 +86,7 @@ The three are equal within noise. Overleaf is fast because of server CPU and a p
 
 ## Measured: TeX Live XeLaTeX, a dumped format and memoize (round 3)
 
-Measured with TeX Live 2026 XeLaTeX in a scratch install; nothing in the app uses it yet. Times are one pass with seeded aux, best of three.
+Measured with TeX Live 2026 XeLaTeX in a scratch install; the server has used it since round 4. Times are one pass with seeded aux, best of three.
 
 | Document | Tectonic | XeLaTeX | XeLaTeX + format | + memoize |
 |---|---|---|---|---|
@@ -107,19 +107,34 @@ Measured with TeX Live 2026 XeLaTeX in a scratch install; nothing in the app use
   - It broke the layout: memoized chemfig formulas came back with a wrong size, and the line wrapped differently.
   - It would also need the `antworten` switch in each memo's context and drops links inside pictures.
 
-## Tried and left out: a precompiled preamble (.fmt)
+## Round 4: the server on TeX Live
 
-`tectonic --outfmt fmt` dumps a custom format (23 MB for the template), but `--format` resolves format names only inside the bundle, never from the working directory. Shipping one would mean our own bundle overlay. The documents would also need restructuring:
+The server engine moved from Tectonic (TeX Live 2022 bundle, files downloaded on demand) to a pinned TeX Live 2026 XeLaTeX installed in the backend image (`backend/latex-texlive/`, `docs/hosting.md` section 4.5). Server and browser engine now use the same TeX Live year.
 
-- `\documentclass` and `\ExamancePackages` would move into the format.
-- hyperref must still load last.
-- The solution's `antworten` option would need its own format.
+- **Passes.** `services/texrunner.py` runs XeLaTeX with `-no-pdf` until `main.aux`, `.toc` and `.out` settle (at most 4 passes, seeded from the previous compile's aux), then `xdvipdfmx` once.
+- **Format cache.** Per preamble, the document up to and including `\usepackage[..]{sty/Schulaufgabe}` is dumped once with mylatexformat. The key is the SHA-256 of preamble, assets and TeX Live snapshot; formats live in `LATEX_FORMAT_DIR` (volume `latex_formats`, LRU 64 formats / 2 GB). XeTeX cannot dump OpenType fonts, so the dump runs in OT1 and `packages.sty` skips Libertine through `\ExamanceDeferFonts`; fonts load after the dump. A failed format build falls back to a plain compile.
+- **Warm-up.** `backend/latex-warmup/warmup.sh` compiles `warmup.tex` through the runner at image build (a missing package fails the build) and after a deploy; that builds the warm-up's format and seeds a new volume.
 
-The browser engine (busytex) would need an `-ini` dump inside the WASM VM and a matching cache invalidation. The remaining gain is the preamble's share of one pass, roughly a second. It is not worth it until the cheaper measures above are exhausted.
+Measured on the 8-page exam inside the built image:
+
+| | Seconds |
+|---|---|
+| One seeded compile with the format cached, student sheet / solution | 1.79 / 1.77 |
+| Fresh compile (3 passes) | ~5.1-5.4 |
+| First build of a format (extra, once per preamble) | ~1.3 |
+| Tectonic before: one seeded pass / fresh (before #341) | 2.55 / ~17.7 |
+
+**Page breaks can move.** TeX Live 2026 sets some vertical spacing a fraction of a millimetre differently from Tectonic's TeX Live 2022, so the same source can break pages elsewhere (one solution sheet went from 7 to 6 pages). Exams printed before the switch keep being read with their pinned print layout (issue #239).
+
+## Done on the server: a precompiled preamble (.fmt)
+
+Tectonic could not use one: `tectonic --outfmt fmt` dumps a custom format (23 MB for the template), but `--format` resolves format names only inside the bundle, never from the working directory. With TeX Live in the image the server does it (round 4 above); the format holds everything up to and including the template load, and the solution's `antworten` option gets its own format through the preamble key.
+
+The browser engine (busytex) still compiles without a format: it would need an `-ini` dump inside the WASM VM and a matching cache invalidation. The remaining gain there is the preamble's share of one pass, roughly a second; it is not worth it until the cheaper measures above are exhausted.
 
 ## Why not Typst
 
-Typst compiles incrementally because its compiler is built from memoised pure functions. TeX expands macros over global state (counters, page breaks, the aux file), so any change can move everything after it, and there is no "recompile page 3" mode. texpresso gets close by snapshotting a patched native TeX process, which cannot run in WASM or behind Tectonic.
+Typst compiles incrementally because its compiler is built from memoised pure functions. TeX expands macros over global state (counters, page breaks, the aux file), so any change can move everything after it, and there is no "recompile page 3" mode. texpresso gets close by snapshotting a patched native TeX process, which cannot run in WASM or behind a server engine.
 
 Switching to Typst would mean rewriting:
 
