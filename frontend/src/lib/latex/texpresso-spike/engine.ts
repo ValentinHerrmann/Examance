@@ -299,7 +299,9 @@ export class TexpressoEngine {
     const imports: Record<string, Record<string, unknown>> = {};
     for (const imp of WebAssembly.Module.imports(this.opts.module)) {
       if (imp.kind !== 'function') continue;
-      (imports[imp.module] ??= {})[imp.name] = this.importFor(imp.module, imp.name);
+      const ns = imports[imp.module] ?? {};
+      ns[imp.name] = this.importFor(imp.module, imp.name);
+      imports[imp.module] = ns;
     }
     this.instance = new WebAssembly.Instance(this.opts.module, imports as WebAssembly.Imports);
     this.exports = this.instance.exports as Exports;
@@ -413,26 +415,28 @@ export class TexpressoEngine {
 
   imp___syscall_openat(dirfd: number, pathPtr: number, flags: number): number {
     const path = this.resolve(dirfd, this.str(pathPtr));
-    const write = (flags & O_ACCMODE) !== 0;
-    if (write) {
-      if (!path.startsWith(`${CWD}/`)) return -E.ACCES;
-      let out = this.outputs.get(path);
-      if (!out || flags & O_TRUNC) {
-        // An input of the same name (main.aux) is only shadowed for the rest of this run.
-        const seed = !out && !(flags & O_TRUNC) ? this.inputs.get(path.slice(CWD.length + 1)) : undefined;
-        out = { data: seed ? seed.slice() : new Uint8Array(4096), len: seed?.length ?? 0, frozen: 0 };
-        this.outputs.set(path, out);
-      }
-      const fd = this.nextFd++;
-      this.fds.set(fd, { path, kind: 'output', data: null, out, pos: flags & O_APPEND ? out.len : 0 });
-      return fd;
-    }
+    if ((flags & O_ACCMODE) !== 0) return this.openForWrite(path, flags);
     const hit = this.lookup(path);
     if (!hit) return -E.NOENT;
     if (path.endsWith('.fmt')) this.formatLoaded = true;
     const fd = this.nextFd++;
     const data = hit.kind === 'tree' && !hit.data ? this.tree.read(path) : hit.data;
     this.fds.set(fd, { path, kind: hit.kind, data, out: hit.out, pos: 0 });
+    return fd;
+  }
+
+  /** Engine writes stay under /work; an input of the same name (main.aux) is only shadowed for the rest of this run. */
+  private openForWrite(path: string, flags: number): number {
+    if (!path.startsWith(`${CWD}/`)) return -E.ACCES;
+    const truncate = (flags & O_TRUNC) !== 0;
+    let out = this.outputs.get(path);
+    if (!out || truncate) {
+      const seed = out || truncate ? undefined : this.inputs.get(path.slice(CWD.length + 1));
+      out = { data: seed ? seed.slice() : new Uint8Array(4096), len: seed?.length ?? 0, frozen: 0 };
+      this.outputs.set(path, out);
+    }
+    const fd = this.nextFd++;
+    this.fds.set(fd, { path, kind: 'output', data: null, out, pos: flags & O_APPEND ? out.len : 0 });
     return fd;
   }
 
@@ -495,7 +499,9 @@ export class TexpressoEngine {
     if (!f) return E.BADF;
     const size = f.out ? f.out.len : (f.data?.length ?? 0);
     const o = Number(offset);
-    const pos = whence === 0 ? o : whence === 1 ? f.pos + o : size + o;
+    // WASI whence: 0 = SET, 1 = CUR, 2 = END.
+    const origin = [0, f.pos, size][whence] ?? 0;
+    const pos = origin + o;
     if (pos < 0) return E.INVAL;
     f.pos = pos;
     this.dv.setBigUint64(pnew, BigInt(pos), true);

@@ -104,7 +104,8 @@ function ensureFormat(log: string[]): void {
   if (!fmt) throw new Error(`format dump failed:\n${dump.stdout.slice(-2000)}`);
   tree!.add(OWN_FORMAT, fmt);
   format = OWN_FORMAT;
-  log.push(`format: busytex's does not load (${r.stdout.match(/Fatal format[^\n]*/)?.[0] ?? `exit ${r.exitCode}`}); dumped our own in ${(performance.now() - t0).toFixed(0)} ms`);
+  const reason = /Fatal format[^\n]*/.exec(r.stdout)?.[0] ?? 'exit ' + r.exitCode;
+  log.push(`format: busytex's does not load (${reason}); dumped our own in ${(performance.now() - t0).toFixed(0)} ms`);
 }
 
 async function init(assets: { path: string; content: Uint8Array }[]): Promise<Record<string, unknown>> {
@@ -140,28 +141,31 @@ function typeset(tex: string, full: boolean): { last: RunResult; passes: PassInf
   const e = engine!;
   const passes: PassInfo[] = [];
   const at = e.setInput('main.tex', new TextEncoder().encode(tex));
-  let last: RunResult;
-  if (!hasRun || full) last = e.runFull(runArgs());
-  else if (at < 0) last = e.runFull(runArgs());
-  else last = e.rerun(at);
+  let last = !hasRun || full || at < 0 ? e.runFull(runArgs()) : e.rerun(at);
   hasRun = true;
   passes.push({ ms: last.ms, resumedFrom: last.resumedFrom });
   for (let pass = 1; pass < MAX_PASSES; pass++) {
-    let invalid = Number.POSITIVE_INFINITY;
-    for (const name of AUX_FILES) {
-      const out = last.outputs.get(`/work/${name}`);
-      const prev = e.inputs.get(name);
-      if (!out || (prev && sameBytes(prev, out))) continue;
-      const i = e.setInput(name, out);
-      invalid = Math.min(invalid, i < 0 ? Number.POSITIVE_INFINITY : i);
-      // A file the run never looked for still needs a pass when it is new (first compile).
-      if (i < 0 && !prev) invalid = 0;
-    }
-    if (invalid === Number.POSITIVE_INFINITY) break;
+    const invalid = feedAux(e, last);
+    if (invalid === null) break;
     last = e.rerun(invalid);
     passes.push({ ms: last.ms, resumedFrom: last.resumedFrom });
   }
   return { last, passes };
+}
+
+/** Makes the run's changed aux files the next inputs; the earliest trace index they invalidate, or null when all settled. */
+function feedAux(e: TexpressoEngine, last: RunResult): number | null {
+  let invalid: number | null = null;
+  for (const name of AUX_FILES) {
+    const out = last.outputs.get(`/work/${name}`);
+    const prev = e.inputs.get(name);
+    if (!out || (prev && sameBytes(prev, out))) continue;
+    const i = e.setInput(name, out);
+    // A file the run never looked for still needs a pass when it is new (first compile).
+    const at = i < 0 && !prev ? 0 : i;
+    if (at >= 0) invalid = invalid === null ? at : Math.min(invalid, at);
+  }
+  return invalid;
 }
 
 function sameBytes(a: Uint8Array, b: Uint8Array): boolean {

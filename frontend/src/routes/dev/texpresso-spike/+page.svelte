@@ -173,8 +173,8 @@
 
   const fmtMs = (n: number) => n.toFixed(0);
   const fromLabel = (r: CompileReply) => {
-    const last = r.passes[0]?.resumedFrom;
-    return last === "start" || last === undefined ? $t("texpressoSpike.fromStart") : $t("texpressoSpike.fromCheckpoint", { n: last });
+    const from = r.passes[0]?.resumedFrom;
+    return typeof from === "number" ? $t("texpressoSpike.fromCheckpoint", { n: from }) : $t("texpressoSpike.fromStart");
   };
 
   onMount(async () => {

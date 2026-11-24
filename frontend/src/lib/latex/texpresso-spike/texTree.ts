@@ -73,24 +73,35 @@ function unpack({ pkg, start, end }: Entry): Uint8Array {
   return out;
 }
 
+/** An LZ4 length: the 4-bit field, plus extension bytes while they read 255. */
+function lz4Length(input: Uint8Array, at: number, nibble: number): [number, number] {
+  let len = nibble;
+  if (nibble !== 15) return [len, at];
+  let b: number;
+  do {
+    b = input[at++];
+    len += b;
+  } while (b === 255);
+  return [len, at];
+}
+
 /** LZ4 block decoding, as MiniLZ4.uncompress in emscripten's liblz4 (MIT, after node-lz4 by Pierre Curto). */
 function lz4Block(input: Uint8Array, output: Uint8Array): number {
   let i = 0;
   let j = 0;
   while (i < input.length) {
     const token = input[i++];
-    let lit = token >> 4;
-    if (lit > 0) {
-      if (lit === 15) for (let l = 255; l === 255; lit += l) l = input[i++];
-      output.set(input.subarray(i, i + lit), j);
-      i += lit;
-      j += lit;
-      if (i >= input.length) return j;
-    }
-    const offset = input[i++] | (input[i++] << 8);
+    let lit: number;
+    [lit, i] = lz4Length(input, i, token >> 4);
+    output.set(input.subarray(i, i + lit), j);
+    i += lit;
+    j += lit;
+    if (i >= input.length) return j;
+    const offset = input[i] | (input[i + 1] << 8);
+    i += 2;
     if (offset === 0 || offset > j) throw new Error('corrupt LZ4 block in a busytex package');
-    let len = token & 0xf;
-    if (len === 15) for (let l = 255; l === 255; len += l) l = input[i++];
+    let len: number;
+    [len, i] = lz4Length(input, i, token & 0xf);
     for (let pos = j - offset, endAt = j + len + 4; j < endAt; ) output[j++] = output[pos++];
   }
   return j;

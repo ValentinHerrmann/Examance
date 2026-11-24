@@ -21,76 +21,67 @@ export interface SyncData {
 /** sp to PDF points (big points): unit/65536 pt, 72/72.27 bp per pt. */
 const SP_TO_BP = 72 / 72.27 / 65536;
 
+interface Header {
+  inputs: Map<number, string>;
+  unit: number;
+  /** XDV output carries the 1 in TeX origin as "X Offset"/"Y Offset" (sp); records are relative to it. */
+  dx: number;
+  dy: number;
+}
+
+/** Reads one preamble line into `hdr`; false when the line is not a header line. */
+function readHeader(line: string, hdr: Header): boolean {
+  const colon = line.indexOf(':');
+  if (colon < 0) return false;
+  const key = line.slice(0, colon);
+  const value = line.slice(colon + 1);
+  if (key === 'Input') {
+    const sep = value.indexOf(':');
+    hdr.inputs.set(Number(value.slice(0, sep)), value.slice(sep + 1));
+  } else if (key === 'Unit') hdr.unit = Number(value) || 1;
+  else if (key === 'X Offset') hdr.dx = Number(value) || 0;
+  else if (key === 'Y Offset') hdr.dy = Number(value) || 0;
+  else return false;
+  return true;
+}
+
 export function parseSynctex(text: string): SyncData {
-  const inputs = new Map<number, string>();
+  const hdr: Header = { inputs: new Map(), unit: 1, dx: 0, dy: 0 };
   const pages = new Map<number, SyncRecord[]>();
-  let unit = 1;
-  // XDV output carries the 1 in TeX origin as "X Offset"/"Y Offset" (sp); records are relative to it.
-  let dx = 0;
-  let dy = 0;
   let page: SyncRecord[] | null = null;
   let depth = 0;
-  const scale = () => unit * SP_TO_BP;
   for (const line of text.split('\n')) {
-    if (line.startsWith('Input:')) {
-      const m = /^Input:(\d+):(.*)$/.exec(line);
-      if (m) inputs.set(Number(m[1]), m[2]);
-      continue;
-    }
-    if (line.startsWith('Unit:')) {
-      unit = Number(line.slice(5)) || 1;
-      continue;
-    }
-    if (line.startsWith('X Offset:')) {
-      dx = Number(line.slice(9)) || 0;
-      continue;
-    }
-    if (line.startsWith('Y Offset:')) {
-      dy = Number(line.slice(9)) || 0;
-      continue;
-    }
     const c = line[0];
     if (c === '{') {
       page = [];
       pages.set(Number(line.slice(1)), page);
       depth = 0;
-      continue;
+    } else if (c === '}') page = null;
+    else if (!page) readHeader(line, hdr);
+    else if (c === ']' || c === ')') depth--;
+    else {
+      const rec = parseRecord(line, hdr, depth);
+      if (rec) page.push(rec);
+      if (rec && (c === '[' || c === '(')) depth++;
     }
-    if (c === '}') {
-      page = null;
-      continue;
-    }
-    if (!page) continue;
-    if (c === ']' || c === ')') {
-      depth--;
-      continue;
-    }
-    const rec = parseRecord(line, scale(), dx * SP_TO_BP, dy * SP_TO_BP);
-    if (!rec) continue;
-    rec.depth = depth;
-    page.push(rec);
-    if (c === '[' || c === '(') depth++;
   }
-  return { inputs, pages };
+  return { inputs: hdr.inputs, pages };
 }
 
-const RECORD = /^([[(vhxkg$])(\d+),(\d+)(?:,-?\d+)?:(-?\d+),(-?\d+)(?::(-?\d+)(?:,(-?\d+),(-?\d+))?)?/;
+const KIND: Record<string, SyncRecord['kind']> = { '(': 'hbox', '[': 'vbox', v: 'void', h: 'void', x: 'point', k: 'point', g: 'point', $: 'point' };
 
-function parseRecord(line: string, s: number, ox: number, oy: number): SyncRecord | null {
-  const m = RECORD.exec(line);
-  if (!m) return null;
-  const kind: SyncRecord['kind'] = m[1] === '(' ? 'hbox' : m[1] === '[' ? 'vbox' : m[1] === 'v' || m[1] === 'h' ? 'void' : 'point';
-  return {
-    kind,
-    tag: Number(m[2]),
-    line: Number(m[3]),
-    x: Number(m[4]) * s + ox,
-    y: Number(m[5]) * s + oy,
-    w: Number(m[6] ?? 0) * s,
-    h: Number(m[7] ?? 0) * s,
-    d: Number(m[8] ?? 0) * s,
-    depth: 0,
-  };
+/** `<kind><tag>,<line>[,<column>]:<x>,<y>[:<W>[,<H>,<D>]]`, coordinates in sp. */
+function parseRecord(line: string, hdr: Header, depth: number): SyncRecord | null {
+  const kind = KIND[line[0]];
+  if (!kind) return null;
+  const [where, pos, size] = line.slice(1).split(':');
+  if (!pos) return null;
+  const [tag, ln] = where.split(',').map(Number);
+  const [x, y] = pos.split(',').map(Number);
+  const [w = 0, h = 0, d = 0] = size ? size.split(',').map(Number) : [];
+  if (![tag, ln, x, y].every(Number.isFinite)) return null;
+  const s = hdr.unit * SP_TO_BP;
+  return { kind, tag, line: ln, x: x * s + hdr.dx * SP_TO_BP, y: y * s + hdr.dy * SP_TO_BP, w: w * s, h: h * s, d: d * s, depth };
 }
 
 export interface SourceHit {

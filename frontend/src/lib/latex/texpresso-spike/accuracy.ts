@@ -15,38 +15,44 @@ export interface AccuracyRow {
 
 const words = (s: string) => s.split(/\s+/).map((w) => w.replace(/[.,;:!?()„“"]+/g, '')).filter((w) => w.length >= 3);
 
+type PageItem = { str: string; transform: number[]; width: number; height: number };
+
+function groupOf(owners: SampleExercise[]): string {
+  if (owners.length === 1) return owners[0].name;
+  return owners.length === 0 ? '(template)' : '(ambiguous)';
+}
+
+/** Where the click at the item's centre lands, graded against the exercises that hold `word`. */
+function grade(sync: SyncData, map: SourceMap, exercises: SampleExercise[], page: number, x: number, y: number, word: string, owners: SampleExercise[]): Grade {
+  const hit = sourceAt(sync, page, x, y);
+  if (!hit) return 'none';
+  const loc = hit.file.endsWith('main.tex') ? mapLine(map, hit.line) : null;
+  const ex = loc?.label ? exercises.find((e) => e.name === loc.label) : undefined;
+  if (!ex || !loc) return 'template';
+  if ((ex.body.split('\n')[loc.line - 1] ?? '').includes(word)) return 'exact';
+  return owners.includes(ex) ? 'lineOnly' : 'wrong';
+}
+
 export async function clickAccuracy(pdf: Uint8Array, sync: SyncData, map: SourceMap, exercises: SampleExercise[]): Promise<AccuracyRow[]> {
   const pdfjs = await loadPdfjs();
   const task = pdfjs.getDocument({ data: pdf.slice() });
   const rows = new Map<string, AccuracyRow>();
-  const row = (g: string) => rows.get(g) ?? rows.set(g, { group: g, counts: { exact: 0, lineOnly: 0, template: 0, wrong: 0, none: 0 }, samples: [] }).get(g)!;
   try {
     const doc = await task.promise;
     for (let n = 1; n <= doc.numPages; n++) {
       const page = await doc.getPage(n);
       const height = page.getViewport({ scale: 1 }).height;
-      const { items } = (await page.getTextContent()) as { items: { str: string; transform: number[]; width: number; height: number }[] };
+      const { items } = (await page.getTextContent()) as { items: PageItem[] };
       for (const it of items) {
         const word = words(it.str)[0];
         if (!word || !it.width) continue;
         const owners = exercises.filter((e) => e.body.includes(word));
-        const group = owners.length === 1 ? owners[0].name : owners.length === 0 ? '(template)' : '(ambiguous)';
-        const x = it.transform[4] + it.width / 2;
-        const y = height - it.transform[5] - (it.height || 6) / 3;
-        const hit = sourceAt(sync, n, x, y);
-        const r = row(group);
-        let grade: Grade;
-        if (!hit) grade = 'none';
-        else if (!hit.file.endsWith('main.tex')) grade = 'template';
-        else {
-          const loc = mapLine(map, hit.line);
-          const ex = loc?.label ? exercises.find((e) => e.name === loc.label) : undefined;
-          if (!ex || !loc) grade = 'template';
-          else if ((ex.body.split('\n')[loc.line - 1] ?? '').includes(word)) grade = 'exact';
-          else grade = owners.includes(ex) ? 'lineOnly' : 'wrong';
-        }
-        r.counts[grade]++;
-        if (grade !== 'exact' && r.samples.length < 4) r.samples.push(`${word}→${grade}`);
+        const g = grade(sync, map, exercises, n, it.transform[4] + it.width / 2, height - it.transform[5] - (it.height || 6) / 3, word, owners);
+        const group = groupOf(owners);
+        const r = rows.get(group) ?? { group, counts: { exact: 0, lineOnly: 0, template: 0, wrong: 0, none: 0 }, samples: [] };
+        rows.set(group, r);
+        r.counts[g]++;
+        if (g !== 'exact' && r.samples.length < 4) r.samples.push(`${word}→${g}`);
       }
     }
   } finally {

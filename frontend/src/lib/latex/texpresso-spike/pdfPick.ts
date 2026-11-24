@@ -8,6 +8,13 @@ interface TextItem {
   height: number;
 }
 
+/** The word without trailing punctuation (a loop: a `[…]+$` regex backtracks on long runs). */
+function trimPunctuation(word: string): string {
+  let end = word.length;
+  while (end > 0 && '.,;:!?)'.includes(word[end - 1])) end--;
+  return word.slice(0, end);
+}
+
 /** `x`, `y` in PDF points from the page's top-left; returns the word whose glyph box holds the point, or "". */
 export async function wordAt(pdf: Uint8Array, page: number, x: number, y: number): Promise<string> {
   const pdfjs = await loadPdfjs();
@@ -28,7 +35,7 @@ export async function wordAt(pdf: Uint8Array, page: number, x: number, y: number
       let b = i;
       while (a > 0 && /\S/.test(it.str[a - 1])) a--;
       while (b < it.str.length && /\S/.test(it.str[b])) b++;
-      return it.str.slice(a, b).replace(/[.,;:!?)]+$/, '');
+      return trimPunctuation(it.str.slice(a, b));
     }
     return '';
   } finally {
