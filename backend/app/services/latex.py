@@ -1,4 +1,4 @@
-"""LaTeX compilation: validates the request, then runs Tectonic in the worker or here."""
+"""LaTeX compilation: validates the request, then runs TeX in the worker or here."""
 from __future__ import annotations
 
 import ctypes
@@ -14,15 +14,15 @@ from app.schemas.binary import encode_b64, strict_b64decode
 from app.services.latex_packages import PackageLayer, document_body, exercise_entries, with_packages
 from app.services.latex_resources import validate_resource_name
 from app.services.logo import ResolvedLogo
-from app.services.tectonic import (
+from app.services.texrunner import (
     COMPILE_TIMEOUT_SECONDS,
     PREVIEW_TIMEOUT_SECONDS,
     CompilationError,
-    TectonicResult,
-    run_tectonic,
+    TexResult,
+    run_tex,
 )
 
-__all__ = ["CompilationError", "TectonicResult", "compilation_failed_response", "compile_latex"]
+__all__ = ["CompilationError", "TexResult", "compilation_failed_response", "compile_latex"]
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ _ABSOLUTE_OR_PARENT_PATH = re.compile(
 
 
 def forbid_environ_reads() -> None:
-    """Make this process's /proc/<pid>/environ and memory unreadable to its same-user children. Linux only, called once at startup; matters when Tectonic runs here instead of the worker."""
+    """Make this process's /proc/<pid>/environ and memory unreadable to its same-user children. Linux only, called once at startup; matters when TeX runs here instead of the worker."""
     if not sys.platform.startswith("linux"):
         return
     try:
@@ -69,7 +69,7 @@ def _with_body_packages(doc: str) -> str:
 
 async def _run_in_worker(
     main_tex: str, files: dict[str, bytes], time_limit: float, seed_aux: dict[str, bytes]
-) -> TectonicResult:
+) -> TexResult:
     """POST the job to the LaTeX worker and map its answer back onto the local runner's errors."""
     job = {
         "main_tex": main_tex,
@@ -87,7 +87,7 @@ async def _run_in_worker(
         raise OSError(f"LaTeX worker unreachable: {exc}") from exc
     if res.status_code == 200:
         body = res.json()
-        return TectonicResult(
+        return TexResult(
             pdf=strict_b64decode(body["pdf_b64"]),
             aux={name: strict_b64decode(blob) for name, blob in body.get("aux", {}).items()},
         )
@@ -105,7 +105,7 @@ async def compile_latex(
     binary_files: dict[str, bytes] | None = None,
     logo: ResolvedLogo | None = None,
     seed_aux: dict[str, bytes] | None = None,
-) -> TectonicResult:
+) -> TexResult:
     """Compile *latex_source* and return the PDF and aux files. *binary_files* are teacher resources by flat name, validated so they cannot escape the workdir or shadow a .sty; *logo* is the logo; *seed_aux* the previous compile's aux files (TeX reads them as code, so they pass the same path tripwire)."""
     reject_unsafe_paths(latex_source)
     seed_aux = seed_aux or {}
@@ -132,4 +132,4 @@ async def compile_latex(
     )
     if settings.LATEX_WORKER_URL:
         return await _run_in_worker(latex_source, files, time_limit, seed_aux)
-    return await run_tectonic(latex_source, files, time_limit, seed_aux)
+    return await run_tex(latex_source, files, time_limit, seed_aux)

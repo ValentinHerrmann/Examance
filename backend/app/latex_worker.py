@@ -1,4 +1,4 @@
-"""LaTeX worker: runs Tectonic in its own container without secrets, database or scan files. Reached only by the backend (`LATEX_WORKER_URL`); never import app.config here."""
+"""LaTeX worker: runs TeX in its own container without secrets, database or scan files. Reached only by the backend (`LATEX_WORKER_URL`); never import app.config here."""
 from __future__ import annotations
 
 import base64
@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.services.tectonic import COMPILE_TIMEOUT_SECONDS, CompilationError, run_tectonic
+from app.services.texrunner import COMPILE_TIMEOUT_SECONDS, CompilationError, run_tex
 
 # Same format as the backend; without it only warnings reach the container log.
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:\t%(name)s - %(message)s")
@@ -36,14 +36,14 @@ async def compile_job(job: CompileJob) -> JSONResponse:
     except ValueError:  # binascii.Error is a ValueError
         return JSONResponse(status_code=400, content={"detail": "Invalid file encoding."})
     try:
-        result = await run_tectonic(job.main_tex, files, job.timeout, seed_aux)
+        result = await run_tex(job.main_tex, files, job.timeout, seed_aux)
     except TimeoutError:
         return JSONResponse(status_code=504, content={"detail": "Compilation timed out."})
     except CompilationError as exc:
         # Only the backend reads this; it hands diagnostic and sanitized log to the requesting teacher alone (issue #166, docs/data_flow_and_security.md).
         return JSONResponse(status_code=422, content={"detail": str(exc), "log": exc.log})
     except OSError:
-        return JSONResponse(status_code=503, content={"detail": "Tectonic is unavailable."})
+        return JSONResponse(status_code=503, content={"detail": "TeX is unavailable."})
     return JSONResponse(content={
         "pdf_b64": base64.b64encode(result.pdf).decode("ascii"),
         "aux": {name: base64.b64encode(blob).decode("ascii") for name, blob in result.aux.items()},

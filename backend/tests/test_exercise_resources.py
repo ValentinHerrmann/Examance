@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
 from app.middleware.cors import is_allowed_origin
-from app.services.tectonic import TectonicResult
+from app.services.texrunner import TexResult
 
 from .factors import compile_job, sign_in
 
@@ -138,7 +138,7 @@ async def test_compile_loads_resources_by_exercise_id(
 
     def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.update(binary_files or {})
-        return TectonicResult(pdf=b"%PDF-1.4 fake")
+        return TexResult(pdf=b"%PDF-1.4 fake")
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
         resp = await compile_job(
@@ -170,7 +170,7 @@ async def test_compile_ignores_another_teachers_exercise_ids(
 
     def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.update(binary_files or {})
-        return TectonicResult(pdf=b"%PDF-1.4 fake")
+        return TexResult(pdf=b"%PDF-1.4 fake")
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
         resp = await compile_job(
@@ -197,7 +197,7 @@ async def test_inline_resource_overrides_the_stored_copy(
 
     def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.update(binary_files or {})
-        return TectonicResult(pdf=b"%PDF-1.4 fake")
+        return TexResult(pdf=b"%PDF-1.4 fake")
 
     newer = b"\x89PNG\r\n\x1a\nnewer-bytes"
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
@@ -217,12 +217,12 @@ async def test_inline_resource_overrides_the_stored_copy(
 
 @pytest.mark.asyncio
 async def test_engine_unavailable_is_503_not_500(client: AsyncClient, db: AsyncSession) -> None:
-    """A missing tectonic binary must not surface as an opaque 500."""
+    """A missing TeX installation must not surface as an opaque 500."""
     await _login(client, db, "res-engine@example.com")
 
     with patch(
         "app.routers.compile.compile_latex",
-        side_effect=FileNotFoundError("tectonic"),
+        side_effect=FileNotFoundError("xelatex"),
     ):
         resp = await compile_job(client, {"latex": "\\documentclass{article}"})
     assert resp.status_code == 503

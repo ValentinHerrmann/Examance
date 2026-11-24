@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.tectonic import TectonicResult
+from app.services.texrunner import TexResult
 
 from .factors import compile_job, sign_in
 
@@ -111,7 +111,7 @@ async def test_compile_writes_the_exam_logo(client: AsyncClient, db: AsyncSessio
 
     def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.append(logo)
-        return TectonicResult(pdf=b"%PDF-1.4 fake")
+        return TexResult(pdf=b"%PDF-1.4 fake")
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
         for body in (
@@ -146,7 +146,7 @@ async def test_compile_never_reads_another_teachers_exam_logo(
 
     def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
         seen.append(logo)
-        return TectonicResult(pdf=b"%PDF-1.4 fake")
+        return TexResult(pdf=b"%PDF-1.4 fake")
 
     with patch("app.routers.compile.compile_latex", side_effect=fake_compile):
         resp = await compile_job(

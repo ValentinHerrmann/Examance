@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.services.latex_packages import FORBIDDEN_PACKAGES, LAZY_PACKAGES, LOCKED_PACKAGES
-from app.services.tectonic import ASSETS_DIR
+from app.services.texrunner import ASSETS_DIR
 
 
 @lru_cache(maxsize=1)

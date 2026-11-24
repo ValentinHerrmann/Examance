@@ -1,0 +1,13 @@
+# install-tl profile for the server's TeX Live (issue #341); packages come from packages.txt.
+selected_scheme scheme-basic
+TEXDIR /opt/texlive
+TEXMFLOCAL /opt/texlive/texmf-local
+TEXMFSYSVAR /opt/texlive/texmf-var
+TEXMFSYSCONFIG /opt/texlive/texmf-config
+TEXMFHOME /nonexistent
+instopt_adjustpath 0
+instopt_letter 0
+tlpdbopt_autobackup 0
+tlpdbopt_install_docfiles 0
+tlpdbopt_install_srcfiles 0
+binary_x86_64-linux 1

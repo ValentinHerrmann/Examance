@@ -1,0 +1,29 @@
+# TeX Live packages of the server engine (issue #341), one per line.
+# Broad on purpose: Tectonic offered all of TeX Live 2022, so packages teachers load in exercises must keep working.
+collection-xetex
+collection-latexrecommended
+collection-latexextra
+collection-pictures
+collection-mathscience
+collection-fontsrecommended
+collection-langgerman
+collection-plaingeneric
+# The template's font (in collection-fontsextra, which is too large to take whole) and what it needs.
+libertine
+fontaxes
+mweights
+# Loaded by the template itself (packages.sty, Schulaufgabe.sty, the lazy subject packages); listed even where a collection has them.
+bbding
+psnfss
+struktex
+svg
+chemfig
+mhchem
+chemgreek
+simplekv
+circuitikz
+pgfplots
+listings
+coffeestains
+# Dumps the per-preamble formats (services/texrunner.py).
+mylatexformat

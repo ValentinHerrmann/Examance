@@ -13,7 +13,7 @@ from app.services.latex_resources import (
     ResourceError,
     validate_resource_name,
 )
-from app.services.tectonic import AUX_FILE_NAMES, MAX_AUX_FILE_BYTES
+from app.services.texrunner import AUX_FILE_NAMES, MAX_AUX_FILE_BYTES
 
 
 class LaTeXResource(BaseModel):

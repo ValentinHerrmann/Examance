@@ -66,7 +66,7 @@ async def _compile(
         logger.info("LaTeX compilation failed: %s", exc)
         return compilation_failed_response(exc)
     except OSError as exc:
-        # A missing tectonic binary, an unreachable worker, a full disk: not the document's fault, so not an opaque 500.
+        # A missing TeX installation, an unreachable worker, a full disk: not the document's fault, so not an opaque 500.
         logger.exception("LaTeX compilation is unavailable: %s", exc)
         return _error(
             status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -103,7 +103,8 @@ async def start_compile_job(
 
 
 @router.get("/latex/jobs/{job_id}", response_model=None)
-@limiter.limit("120/minute")
+# Polls are cheap (an in-memory lookup); clients poll every 250 ms at first (lib/latex/compiler.ts), two jobs at once.
+@limiter.limit("300/minute")
 async def poll_compile_job(
     request: Request,  # Required by slowapi for rate limiting
     job_id: str,

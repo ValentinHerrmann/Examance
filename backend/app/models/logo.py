@@ -22,7 +22,7 @@ LOGO_MODES = ("none", "custom")
 
 
 class TeacherLogo(Base):
-    """The account's deviation from the default logo (``app.services.logo``): ``none`` or ``custom``. No row means the default; exams follow this unless they override it. ``content`` is plaintext like ``ExerciseResource.content`` (Tectonic compiles it); only PNG, JPEG, PDF."""
+    """The account's deviation from the default logo (``app.services.logo``): ``none`` or ``custom``. No row means the default; exams follow this unless they override it. ``content`` is plaintext like ``ExerciseResource.content`` (TeX compiles it); only PNG, JPEG, PDF."""
 
     __tablename__ = "teacher_logos"
     __table_args__ = (

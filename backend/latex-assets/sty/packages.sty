@@ -20,7 +20,8 @@
 \RequirePackage{multicol}
 \RequirePackage{fancyhdr}
 \RequirePackage{comment}
-\RequirePackage{libertine}
+% The server dumps a format without fonts (XeTeX cannot store OpenType ones) and loads Libertine after it (services/texrunner.py, issue #341).
+\ifdefined\ExamanceDeferFonts\else\RequirePackage{libertine}\fi
 \RequirePackage{ifthen}
 \RequirePackage[left=1cm, right=1cm, top=0.4cm,bottom=1.4cm,headheight=30pt,headsep=0pt,includehead=true]{geometry}
 \RequirePackage[export]{adjustbox} % 'export' allows valign in \includegraphics
