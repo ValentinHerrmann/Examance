@@ -96,8 +96,11 @@ def test_split_preamble_is_linear_on_hostile_input() -> None:
 def test_format_key_follows_the_preamble() -> None:
     from app.services.texrunner import format_key
 
-    assert format_key("a") == format_key("a")
-    assert format_key("a") != format_key("b")
+    key = format_key("a")
+    # A file name: fixed length, hex only, so a preamble can never name a path.
+    assert len(key) == 40
+    assert set(key) <= set("0123456789abcdef")
+    assert key != format_key("b")
 
 
 @pytest.mark.parametrize(

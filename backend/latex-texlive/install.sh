@@ -8,7 +8,7 @@ repo="https://texlive.info/tlnet-archive/${TL_SNAPSHOT:?}/tlnet"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-curl -fsSL -o "$work/install-tl.tgz" "$repo/install-tl-unx.tar.gz"
+curl -fsSL --proto "=https" --tlsv1.2 -o "$work/install-tl.tgz" "$repo/install-tl-unx.tar.gz"
 echo "${TL_INSTALLER_SHA256:?}  $work/install-tl.tgz" | sha256sum -c -
 mkdir "$work/installer"
 tar xzf "$work/install-tl.tgz" -C "$work/installer" --strip-components=1
