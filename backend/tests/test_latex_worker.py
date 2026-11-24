@@ -113,7 +113,7 @@ async def test_pass_timeout_logs_counts_never_document_names(
 
 
 @pytest.mark.asyncio
-async def test_each_pass_logs_its_duration(caplog: pytest.LogCaptureFixture) -> None:
+async def test_each_run_logs_its_duration(caplog: pytest.LogCaptureFixture) -> None:
     from app.services import tectonic
 
     async def quick_exec(*_args: object, **_kwargs: object) -> AsyncMock:
@@ -133,6 +133,7 @@ async def test_each_pass_logs_its_duration(caplog: pytest.LogCaptureFixture) -> 
         await tectonic.run_tectonic("\\documentclass{article} secret-exam-text", {}, time_limit=5)
 
     durations = [r.getMessage() for r in caplog.records if "took" in r.getMessage()]
-    assert len(durations) == 2
-    assert durations[0].startswith("Tectonic pass 1 took ")
+    # One invocation per compile: Tectonic reruns TeX itself (issue #341).
+    assert len(durations) == 1
+    assert durations[0].startswith("Tectonic run took ")
     assert "secret-exam-text" not in caplog.text
