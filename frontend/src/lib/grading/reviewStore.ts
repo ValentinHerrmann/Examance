@@ -13,6 +13,8 @@ export interface ReviewThread {
   submittedAt: string | null;
   openedAt: string | null;
   repliedAt: string | null;
+  /** The last reply answered every objected item (issue #280); true when there is no reply yet or it cannot be told. */
+  replyComplete?: boolean;
   /** The objection comes from the submission's kept record: its link was replaced, so there is no server thread to answer. */
   fromRecord?: boolean;
   /** Points before and after per item key as the reply published them (the objections overview; the grade page ignores it). */

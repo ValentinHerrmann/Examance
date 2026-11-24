@@ -190,6 +190,18 @@ async def test_objection_lifecycle_and_lock_after_open(client: AsyncClient, db: 
     assert base64.b64decode(review["reply_ct_b64"]) == b"sealed-reply"
     assert review["replied_at"]
     assert review["opened_at"]
+    assert review["reply_complete"] is True
+
+    # A reply that leaves an objected exercise open keeps the objection open (issue #280).
+    client.cookies.update(teacher_cookies)
+    partial = {**reply, "complete": False}
+    assert (await client.put(f"{base}/review/reply", json=partial)).status_code == 204
+    listed = (await client.get(f"/api/v1/exams/{exam_id}/shares")).json()
+    assert listed[0]["review_replied_at"]
+    assert listed[0]["review_reply_complete"] is False
+    assert (await client.put(f"{base}/review/reply", json=reply)).status_code == 204
+    listed = (await client.get(f"/api/v1/exams/{exam_id}/shares")).json()
+    assert listed[0]["review_reply_complete"] is True
 
 
 @pytest.mark.asyncio

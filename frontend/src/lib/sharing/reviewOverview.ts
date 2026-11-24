@@ -8,9 +8,11 @@ import { reviewRepository } from '#lib/repositories/reviewRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { formatStudentName } from '#lib/utils/studentQr';
 import { loadReviewSources, openThread, sessionKey } from './reviewService';
+import { answeredCount } from './reviewStatus';
 import type { ReviewItem } from './shareCrypto';
 
-export type ReviewStatus = 'new' | 'opened' | 'answered';
+/** `partial`: replied, but an objected item is still unanswered (issue #280); it counts as open. */
+export type ReviewStatus = 'new' | 'opened' | 'partial' | 'answered';
 
 export interface ReviewOverviewItem {
   key: string;
@@ -35,6 +37,9 @@ export interface ReviewOverviewRow {
   fromRecord: boolean;
   unreadable: boolean;
   items: ReviewOverviewItem[];
+  /** Objected items with a reply text or a points change, of all objected items. */
+  answered: number;
+  total: number;
 }
 
 const studentName = (st: StudentRecord | undefined) => (st ? formatStudentName(st.studentName) || st.fallbackCode || '?' : '?');
@@ -53,9 +58,12 @@ function recordItems(record: GradingReviewRecord, labels: Map<string, ReviewItem
   return printableItems(record.items).map((i) => ({ ...i, label: labels.get(i.key)?.label ?? i.label, max: labels.get(i.key)?.max ?? null }));
 }
 
-function statusOf(repliedAt: string | null, openedAt: string | null): ReviewStatus {
-  if (repliedAt) return 'answered';
-  return openedAt ? 'opened' : 'new';
+/** Status and counts of a row; the server's flag (*complete*, what the nav badge counts) wins when set, else the items decide; an unreadable thread is judged by its timestamps alone. */
+function statusOf(repliedAt: string | null, opened: boolean, items: ReviewOverviewItem[], unreadable: boolean, complete: boolean | null = null): Pick<ReviewOverviewRow, 'status' | 'answered' | 'total'> {
+  const { answered, total } = answeredCount(items);
+  if (!repliedAt) return { status: opened ? 'opened' : 'new', answered, total };
+  const done = complete ?? (unreadable || answered === total);
+  return { status: done ? 'answered' : 'partial', answered, total };
 }
 
 /** Sorted: open ones oldest first (they wait longest), answered ones newest first. */
@@ -84,13 +92,14 @@ export async function loadReviewOverview(examId: string): Promise<ReviewOverview
     const thread = await openThread(share, row, sources.itemKeys); // NOSONAR: a handful of objections, opened one after another
     const submissionId = subByKey.get(row.studentKey) ?? null;
     const record = submissionId ? recordBySub.get(submissionId) : undefined;
-    rows.set(row.studentKey, { studentKey: row.studentKey, submissionId, name: studentName(students.get(row.studentKey)), status: statusOf(row.repliedAt, row.openedAt), submittedAt: row.submittedAt, repliedAt: row.repliedAt, reviewUntil: share.reviewUntil, fromRecord: false, unreadable: thread.unreadable, items: threadItems(thread, record, labels) });
+    const items = threadItems(thread, record, labels);
+    rows.set(row.studentKey, { studentKey: row.studentKey, submissionId, name: studentName(students.get(row.studentKey)), ...statusOf(row.repliedAt, Boolean(row.openedAt), items, thread.unreadable, row.replyComplete ?? null), submittedAt: row.submittedAt, repliedAt: row.repliedAt, reviewUntil: share.reviewUntil, fromRecord: false, unreadable: thread.unreadable, items });
   }
   for (const record of records) {
     const studentKey = keyBySub.get(record.submissionId);
     const items = record.decryptFailed ? [] : recordItems(record, labels);
     if (!studentKey || rows.has(studentKey) || (items.length === 0 && !record.decryptFailed)) continue;
-    rows.set(studentKey, { studentKey, submissionId: record.submissionId, name: studentName(students.get(studentKey)), status: record.repliedAt ? 'answered' : 'opened', submittedAt: record.submittedAt, repliedAt: record.repliedAt, reviewUntil: null, fromRecord: true, unreadable: Boolean(record.decryptFailed), items });
+    rows.set(studentKey, { studentKey, submissionId: record.submissionId, name: studentName(students.get(studentKey)), ...statusOf(record.repliedAt, true, items, Boolean(record.decryptFailed)), submittedAt: record.submittedAt, repliedAt: record.repliedAt, reviewUntil: null, fromRecord: true, unreadable: Boolean(record.decryptFailed), items });
   }
   return [...rows.values()].sort(byUrgency);
 }

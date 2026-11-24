@@ -25,6 +25,8 @@
   let thread = $derived($reviewStore.thread);
 
   const objected = (key: string) => Boolean(thread?.objections[key]?.trim());
+  // Objected items without a reply text yet; a points change answers them too, but that is known only after sending (issue #280).
+  let unanswered = $derived(Object.keys(thread?.objections ?? {}).filter((k) => objected(k) && !$reviewStore.drafts[k]?.trim()).length);
   const close = () => reviewStore.patch({ dialog: null });
 
   async function send() {
@@ -87,6 +89,7 @@
     {/each}
   </div>
   <p class="m-0 mt-4 text-sm text-muted">{$t("review.bar.hint")}</p>
+  {#if unanswered > 0}<p class="m-0 mt-1 text-sm text-warning-fg">{$t("review.bar.unanswered", { count: unanswered })}</p>{/if}
 
   {#snippet footer()}
     {#if $reviewStore.canMail}

@@ -21,13 +21,13 @@
   let showName = $derived(namesShown || revealed);
   let pseudonym = $derived(`${$t("grading.header.idPrefix")} ${row.studentKey.substring(0, 10)}…`);
 
-  const STATUS = { new: "warning", opened: "info", answered: "success" } as const;
-  const STATUS_KEY = { new: "review.overview.statusNew", opened: "review.overview.statusOpened", answered: "review.overview.statusAnswered" } as const;
+  const STATUS = { new: "warning", opened: "info", partial: "warning", answered: "success" } as const;
+  const STATUS_KEY = { new: "review.overview.statusNew", opened: "review.overview.statusOpened", partial: "review.overview.statusPartial", answered: "review.overview.statusAnswered" } as const;
 </script>
 
 <ExpandableCard title={showName ? row.name : pseudonym} {expanded} onToggle={() => (expanded = !expanded)}>
   {#snippet badges()}
-    <Badge size="xs" severity={STATUS[row.status]}>{$t(STATUS_KEY[row.status])}</Badge>
+    <Badge size="xs" severity={STATUS[row.status]}>{$t(STATUS_KEY[row.status], { answered: row.answered, total: row.total })}</Badge>
     {#if row.fromRecord}<Badge size="xs" severity="secondary">{$t("review.overview.fromRecord")}</Badge>{/if}
     {#if row.items.length > 0}<span class="text-sm text-muted">{$t("review.form.item", { label: row.items.map((i) => i.label).join(", ") })}</span>{/if}
   {/snippet}

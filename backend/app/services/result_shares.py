@@ -71,6 +71,7 @@ def to_out(share: ResultShare, review: ResultShareReview | None = None) -> Resul
         review_submitted_at=review.submitted_at if review else None,
         review_opened_at=review.opened_at if review else None,
         review_replied_at=review.replied_at if review else None,
+        review_reply_complete=review.reply_complete if review else None,
     )
 
 
@@ -83,6 +84,7 @@ def review_out(review: ResultShareReview) -> ReviewOut:
         reply_iv_b64=encode_b64_or_none(review.reply_iv),
         reply_ct_b64=encode_b64_or_none(review.reply_ct),
         replied_at=review.replied_at,
+        reply_complete=review.reply_complete,
     )
 
 
@@ -455,9 +457,14 @@ async def mark_opened(db: AsyncSession, exam_id: uuid.UUID, share_id: uuid.UUID)
 
 
 async def store_reply(
-    db: AsyncSession, exam_id: uuid.UUID, share_id: uuid.UUID, iv_b64: str, ciphertext_b64: str
+    db: AsyncSession,
+    exam_id: uuid.UUID,
+    share_id: uuid.UUID,
+    iv_b64: str,
+    ciphertext_b64: str,
+    complete: bool = True,
 ) -> ResultShareReview:
-    """Store the teacher's sealed reply; replying also closes the thread for the student."""
+    """Store the teacher's sealed reply; replying also closes the thread for the student, *complete* only marks whether every objected exercise is answered."""
     share = await _own(db, exam_id, share_id)
     iv, data = _sealed(iv_b64, ciphertext_b64)
     review = await db.get(ResultShareReview, share.id)
@@ -473,6 +480,7 @@ async def store_reply(
     review.reply_iv = iv
     review.reply_ct = data
     review.replied_at = now
+    review.reply_complete = complete
     review.opened_at = review.opened_at or now
     await db.flush()
     return review

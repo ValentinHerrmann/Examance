@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -83,6 +84,8 @@ class ResultShareReview(Base):
     reply_iv: Mapped[bytes | None] = mapped_column(LargeBinary(12), nullable=True)
     reply_ct: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     replied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The client's verdict that the reply answers every objected exercise (issue #280); null = sent before the flag, complete.
+    reply_complete: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     def __repr__(self) -> str:
         return f"ResultShareReview(share={self.share_id!r})"

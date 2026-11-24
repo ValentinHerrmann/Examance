@@ -58,6 +58,7 @@ class ResultShareOut(BaseModel):
     review_submitted_at: datetime | None = None
     review_opened_at: datetime | None = None
     review_replied_at: datetime | None = None
+    review_reply_complete: bool | None = None
 
 
 class SealedPayload(BaseModel):
@@ -65,6 +66,12 @@ class SealedPayload(BaseModel):
 
     iv_b64: str
     ciphertext_b64: str
+
+
+class ReviewReply(SealedPayload):
+    """The teacher's sealed reply; *complete* says whether it answers every objected exercise (issue #280)."""
+
+    complete: bool = True
 
 
 class ResultShareOpen(BaseModel):
@@ -90,6 +97,7 @@ class ReviewOut(BaseModel):
     reply_iv_b64: str | None
     reply_ct_b64: str | None
     replied_at: datetime | None
+    reply_complete: bool | None = None
 
 
 class ReviewListItem(ReviewOut):

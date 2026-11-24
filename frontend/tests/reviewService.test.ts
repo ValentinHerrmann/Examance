@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get, writable } from 'svelte/store';
 
 const mocks = vi.hoisted(() => ({
@@ -18,7 +18,8 @@ vi.mock('#lib/api/resultShares', () => ({
 vi.mock('#lib/crypto/pseudonymKey', () => ({ joinKey: vi.fn(async (sub: { id: string }) => (sub.id === 'sub-2' ? 'k2' : 'k1')), joinKeys: vi.fn(async (list: unknown[]) => list.map(() => 'k1')) }));
 vi.mock('#lib/stores/session', () => ({ awaitSessionReady: vi.fn(async () => undefined), sessionStore: writable({ sessionKey: {} }) }));
 vi.mock('#lib/repositories/studentRepository', () => ({ studentRepository: { getByExamId: vi.fn(async () => [{ email: 'a@b.c' }]) } }));
-vi.mock('#lib/repositories/reviewRepository', () => ({ reviewRepository: { getBySubmission: vi.fn(async () => mocks.record) } }));
+vi.mock('#lib/repositories/reviewRepository', () => ({ reviewRepository: { getBySubmission: vi.fn(async () => mocks.record), save: vi.fn(async () => undefined) } }));
+vi.mock('#lib/repositories/scoreRepository', () => ({ scoreRepository: { getBySubmissionId: vi.fn(async () => []) } }));
 vi.mock('#lib/grading/omrTemplatePrep', () => ({ loadExamCompileContext: vi.fn(async () => ({ exercises: [{ id: 'ex-1', maxPoints: 4, orderIndex: 1 }], mcGroups: [] })) }));
 vi.mock('#lib/sharing/shareService', () => ({ republishShare: vi.fn() }));
 vi.mock('#lib/sharing/delivery', () => ({ mailReviewReply: vi.fn() }));
@@ -26,12 +27,16 @@ vi.mock('#lib/sharing/shareCrypto', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#lib/sharing/shareCrypto')>()),
   unwrapShareKey: vi.fn(async () => ({ link: {}, contentKey: new Uint8Array(32) })),
   openReviewPart: vi.fn(async () => ({ items: { 'ex-1': 'Too few points', 'ghost': 'unknown item', 'ex-2': 7 } })),
+  sealReviewPart: vi.fn(async () => ({ iv: new Uint8Array(12), ciphertext: new Uint8Array(1) })),
 }));
 
 const { initReviews, showReview, resetReviews, sendReviewReply, resendReviewMail } = await import('#lib/sharing/reviewService');
 const { reviewStore } = await import('#lib/grading/reviewStore');
 const { republishShare } = await import('#lib/sharing/shareService');
 const { mailReviewReply } = await import('#lib/sharing/delivery');
+const { replyToShareReview } = await import('#lib/api/resultShares');
+const { loadExamCompileContext } = await import('#lib/grading/omrTemplatePrep');
+const { openReviewPart } = await import('#lib/sharing/shareCrypto');
 
 const sub = { id: 'sub-1' } as never;
 const unopened = () => [{ shareId: 's1', studentKey: 'k1', objection: { iv: new Uint8Array(12), ciphertext: new Uint8Array(1) }, submittedAt: 't0', openedAt: null, reply: null, repliedAt: null }];
@@ -195,5 +200,48 @@ describe('sendReviewReply (issue #291)', () => {
     await showReview('exam', sub);
     expect(get(reviewStore)).toMatchObject({ canMail: false, mailBlocked: false });
     expect(get(reviewStore).thread?.fromRecord).toBe(true);
+  });
+});
+
+describe('sendReviewReply completeness (issue #280)', () => {
+  const before = [
+    { key: 'ex-1', label: '1', max: 4, points: 2 },
+    { key: 'ex-2', label: '2', max: 4, points: 1 },
+  ];
+  const publishWith = (after: typeof before) =>
+    vi.mocked(republishShare).mockImplementation(async (_examId, _share, options) => {
+      await options?.beforeRender?.({ before, after });
+      return { link: { shareId: 's1', token: new Uint8Array(16) }, contentKey: new Uint8Array(32), student: { email: 'a@b.c' }, examTitle: 'Exam', before, after } as never;
+    });
+
+  beforeEach(async () => {
+    vi.mocked(replyToShareReview).mockReset();
+    vi.mocked(loadExamCompileContext).mockResolvedValue({ exercises: [{ id: 'ex-1', maxPoints: 4, orderIndex: 1 }, { id: 'ex-2', maxPoints: 4, orderIndex: 2 }], mcGroups: [] } as never);
+    vi.mocked(openReviewPart).mockResolvedValue({ items: { 'ex-1': 'Too strict', 'ex-2': 'Missed a step' } } as never);
+    mocks.openShareReview.mockResolvedValue(undefined);
+    await initReviews('exam');
+    await showReview('exam', sub);
+  });
+
+  afterEach(() => {
+    vi.mocked(loadExamCompileContext).mockResolvedValue({ exercises: [{ id: 'ex-1', maxPoints: 4, orderIndex: 1 }], mcGroups: [] } as never);
+    vi.mocked(openReviewPart).mockResolvedValue({ items: { 'ex-1': 'Too few points', 'ghost': 'unknown item', 'ex-2': 7 } } as never);
+  });
+
+  // Regression: one answered exercise closed the whole objection.
+  it('keeps the objection open while an objected exercise has neither text nor a points change', async () => {
+    publishWith(before);
+    reviewStore.setDraft('ex-1', 'Agreed');
+    await sendReviewReply('exam', sub, async () => undefined);
+    expect(vi.mocked(replyToShareReview).mock.calls[0]?.[3]).toBe(false);
+    expect(get(reviewStore).thread?.replyComplete).toBe(false);
+  });
+
+  // Regression: an exercise answered only by its points (its reply field never touched) was left out of the reply.
+  it('counts a points-only answer', async () => {
+    publishWith([before[0], { ...before[1], points: 2 }]);
+    reviewStore.setDraft('ex-1', 'Agreed');
+    await sendReviewReply('exam', sub, async () => undefined);
+    expect(vi.mocked(replyToShareReview).mock.calls[0]?.[3]).toBe(true);
   });
 });
