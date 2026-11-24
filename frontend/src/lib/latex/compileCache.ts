@@ -222,8 +222,8 @@ export async function hasCompiledSlot(key: CompileCacheKey): Promise<boolean> {
   return !!(await latestEntry(key));
 }
 
-/** The draft and the printed task sheet differ only in the filling pages, so one's aux is a good seed for the other. */
-const SIBLING_VARIANT: Partial<Record<CompileVariant, CompileVariant>> = { draft: 'angabe', angabe: 'draft' };
+/** The draft and the printed task sheet differ only in the filling pages, and the solution shares the sheet's tasks and scores, so a sibling's aux is a good seed. */
+const SIBLING_VARIANT: Partial<Record<CompileVariant, CompileVariant>> = { draft: 'angabe', angabe: 'draft', loesung: 'angabe' };
 
 /** The aux files to start a compile from: the slot's last compile, else its sibling's; stale ones only cost a rerun. */
 async function seedFor(key: CompileCacheKey): Promise<AuxFile[]> {

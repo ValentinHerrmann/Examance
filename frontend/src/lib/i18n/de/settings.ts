@@ -56,7 +56,7 @@ export const settings = {
         description: 'Legen Sie fest, wo LaTeX-Dateien kompiliert werden (unabhängig von der Speicherstrategie):',
         localTitle: 'Lokaler Client (WebAssembly)',
         localText: 'Kompiliert im Browser, ohne den Quelltext an einen Server zu senden.',
-        serverTitle: 'Server (Tectonic)',
+        serverTitle: 'Server',
         serverText: 'Schnelle serverseitige Kompilierung. Erfordert ein authentifiziertes Konto.',
     },
     omr: {

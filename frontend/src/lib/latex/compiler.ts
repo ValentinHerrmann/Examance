@@ -266,14 +266,19 @@ async function compileMapped(
 }
 
 const POLL_INTERVAL_MS = 1000;
+// A warm server compile takes under 2 s (issue #341), so the first seconds are polled densely; the server allows 300 polls a minute.
+const FAST_POLL_MS = 250;
+const FAST_POLL_WINDOW_MS = 4000;
 // Beyond the server's own job limit, so the server's answer (PDF or error) always arrives first.
 const POLL_DEADLINE_MS = 11 * 60_000;
 
 /** Polls a compile job until it answers with the PDF or throws its error (422 with log, 504, 503, 404 after a restart). */
 async function pollCompileJob(jobId: string): Promise<ArrayBuffer> {
-  const deadline = Date.now() + POLL_DEADLINE_MS;
+  const started = Date.now();
+  const deadline = started + POLL_DEADLINE_MS;
   while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    const interval = Date.now() - started < FAST_POLL_WINDOW_MS ? FAST_POLL_MS : POLL_INTERVAL_MS;
+    await new Promise((resolve) => setTimeout(resolve, interval));
     const pdf = await api.pollBinary(`/compile/latex/jobs/${encodeURIComponent(jobId)}`, { silentError: true });
     if (pdf) return pdf;
   }

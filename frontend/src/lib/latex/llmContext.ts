@@ -77,7 +77,7 @@ export function documentSetup(engine: 'local' | 'server' | null): string {
   const compiler =
     engine === 'local'
       ? 'XeLaTeX in the browser (busytex, a reduced TeX Live 2026)'
-      : 'XeLaTeX on the server (Tectonic with TeX Live 2022; packages newer than 2022 are missing)';
+      : 'XeLaTeX on the server (TeX Live 2026, pinned snapshot; a curated package set, so rare packages may be missing)';
   return [
     `- Engine: ${compiler}; UTF-8 input with ${code('fontspec')}.`,
     `- The teacher edits only the body of an exercise. The app generates everything else: class ${code('article')} with the template package ${code('Schulaufgabe.sty')} (it loads ${code('Loesung.sty')} and ${code('packages.sty')}), the header, and ${code(AUFGABE_FRAME)} around the body.`,
