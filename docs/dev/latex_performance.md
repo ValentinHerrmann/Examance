@@ -84,6 +84,29 @@ The claim was that TeX caches packages, so exercises loaded as `.sty` files woul
 
 The three are equal within noise. Overleaf is fast because of server CPU and a project directory kept between compiles (aux reuse, which Examance does since #341), not because of a package cache. TeX's only cross-run cache is a dumped format, which helps only for what is the same in every compile (the template).
 
+## Measured: TeX Live XeLaTeX, a dumped format and memoize (round 3)
+
+Measured with TeX Live 2026 XeLaTeX in a scratch install; nothing in the app uses it yet. Times are one pass with seeded aux, best of three.
+
+| Document | Tectonic | XeLaTeX | XeLaTeX + format | + memoize |
+|---|---|---|---|---|
+| The 8-page exam | 2.55 s | 2.03-2.15 s | 1.68 s | n/a |
+| Same template, one task (fixed cost) | | | 0.85 s | |
+| TikZ-heavy test exam (3 UML, 4 circuits, 2 plots, chemfig, 4 pages) | | 2.26-2.44 s | 1.55 s | 1.26 s |
+
+- **Same output with the format:** XeLaTeX with the format matches XeLaTeX without it pixel for pixel at 300 dpi, on both documents.
+- **How the format is dumped:**
+  - XeTeX cannot dump OpenType fonts, and the kernel loads one as soon as the class selects a font.
+  - The format is therefore built with `\fontencoding{OT1}`. Libertine is skipped while dumping (`packages.sty` would need a switch for that).
+  - After `\endofdump` the document switches back to TU and loads Libertine, which costs 0.25 s.
+  - The format holds everything up to and including the template load, `\ExamancePackages` included, so one is needed per distinct preamble.
+- **Where the TikZ-heavy exam spends a pass (without format):** template and text 1.20 s, subject packages +0.58 s, the ten pictures +0.48 s. The format removes most of the package share.
+- **Memoize is rejected:**
+  - It saves only 0.25-0.3 s per pass.
+  - It needs an extraction script between runs, and the stock `memoize-extract.py` fails on xdvipdfmx output (inherited MediaBox) until patched.
+  - It broke the layout: memoized chemfig formulas came back with a wrong size, and the line wrapped differently.
+  - It would also need the `antworten` switch in each memo's context and drops links inside pictures.
+
 ## Tried and left out: a precompiled preamble (.fmt)
 
 `tectonic --outfmt fmt` dumps a custom format (23 MB for the template), but `--format` resolves format names only inside the bundle, never from the working directory. Shipping one would mean our own bundle overlay. The documents would also need restructuring:
