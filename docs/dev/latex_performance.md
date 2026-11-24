@@ -72,6 +72,18 @@ What is left per seeded pass is the template's package load (~1 s) and the engin
 - `clearCompileCache()` empties the table, so it is wiped on sign-out, workspace replacement and package changes.
 - The table belongs to `vaultTables()` but does not count for `workspaceIsEmpty()`.
 
+## Evaluated and rejected: exercises as packages
+
+The claim was that TeX caches packages, so exercises loaded as `.sty` files would compile faster. TeX keeps no state between runs: a `\usepackage` or `\input` file is read and executed in full every time, like inline text. Measured on the 8-page exam (Tectonic, round-2 template, two series):
+
+| Exercises | fresh | seeded |
+|---|---|---|
+| Inline (today) | 7.0-7.1 s | 2.4-2.7 s |
+| One `\input` file each | 7.2-7.4 s | 2.6-2.7 s |
+| `.sty` defining a macro, called in the body (6 of 9; listings cannot live in a macro) | 6.7-7.0 s | 2.4-2.6 s |
+
+The three are equal within noise. Overleaf is fast because of server CPU and a project directory kept between compiles (aux reuse, which Examance does since #341), not because of a package cache. TeX's only cross-run cache is a dumped format, which helps only for what is the same in every compile (the template).
+
 ## Tried and left out: a precompiled preamble (.fmt)
 
 `tectonic --outfmt fmt` dumps a custom format (23 MB for the template), but `--format` resolves format names only inside the bundle, never from the working directory. Shipping one would mean our own bundle overlay. The documents would also need restructuring:
