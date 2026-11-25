@@ -6,6 +6,9 @@ import { translate } from '#lib/i18n';
 
 type PreviewInput = Omit<ExercisePreviewInput, 'onAngabe'>;
 
+/** The live preview waits this long after the last edit before it compiles. */
+const LIVE_DELAY_MS = 300;
+
 /** The exercise editor's compile preview: the two PDFs as object URLs, which panes are open, and the last compile's failure (sent with a layout report). The editor owns one and calls `cleanup()` when it closes. */
 export class EditorPreview {
   loading = $state(false);
@@ -23,9 +26,13 @@ export class EditorPreview {
   private running = false;
   /** Bumped by `cleanup()` (close, a new editor session): a compile still running for the old one then shows nothing. */
   private generation = 0;
+  private liveTimer: ReturnType<typeof setTimeout> | undefined;
+  private liveKey = '';
+  private lastMessage = '';
 
   /** Revokes the object URLs; the panes keep their open state. */
   cleanup(): void {
+    this.stopLive();
     this.generation++;
     if (this.queued) for (const d of this.queued.done) d('');
     this.queued = null;
@@ -39,6 +46,7 @@ export class EditorPreview {
   restore(exerciseId: string | undefined): void {
     this.cleanup();
     this.compiled = false;
+    this.lastMessage = '';
     this.showAngabe = false;
     this.showLoesung = false;
     if (!exerciseId) return;
@@ -46,6 +54,27 @@ export class EditorPreview {
     if (angabe) this.pdfUrl = pdfBytesToUrl(angabe.pdfBytes);
     const loesung = getLatestForSlot({ kind: 'exercise', id: exerciseId, variant: 'loesung' });
     if (loesung) this.solutionUrl = pdfBytesToUrl(loesung.pdfBytes);
+  }
+
+  /** The editor's error line after a compile's `message`: a failure or a missing figure writes it; a good compile clears only the preview's own last message, so one set meanwhile (a failed save) stays. */
+  errorLine(current: string, message: string): string {
+    const line = message || (current === this.lastMessage ? '' : current);
+    this.lastMessage = message;
+    return line;
+  }
+
+  /** Live preview: `run` compiles `LIVE_DELAY_MS` after the last change of `key` while `on`; the key when it came on (the editor opened, the first compile ran) is the baseline, so only edits after it compile. */
+  live(key: string, on: boolean, run: () => void): void {
+    const edited = this.liveKey !== '' && key !== this.liveKey;
+    this.liveKey = on ? key : '';
+    if (!on || !edited) return;
+    this.stopLive();
+    this.liveTimer = setTimeout(run, LIVE_DELAY_MS);
+  }
+
+  private stopLive(): void {
+    clearTimeout(this.liveTimer);
+    this.liveTimer = undefined;
   }
 
   private setPdf(bytes: Uint8Array): void {
@@ -79,8 +108,6 @@ export class EditorPreview {
   private async compileNow(input: PreviewInput): Promise<string> {
     this.compiled = true;
     this.loading = true;
-    this.error = '';
-    this.log = null;
     let angabeShown = false;
     const generation = this.generation;
     const stale = () => generation !== this.generation;
@@ -95,6 +122,9 @@ export class EditorPreview {
         },
       });
       if (stale()) return '';
+      // The failure stays on screen until a compile succeeds, so a live recompile does not make its help flicker.
+      this.error = '';
+      this.log = null;
       if (!angabeShown) this.setPdf(res.angabe.pdfBytes);
       if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
       this.solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);

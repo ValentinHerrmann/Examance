@@ -170,16 +170,18 @@ The measures above recover most of the difference for the edit-compile loop, at 
 
 ### TeXpresso in the browser (spike, November 2026)
 
+*Historical record.* The spike was adopted as the browser engine (above). Its route `/dev/texpresso-spike` is gone; its files now live in `frontend/scripts/latex-engine/`, `frontend/static/core/latex-engine/` and `frontend/src/lib/latex/engine/`, and the paths below are updated to them.
+
 **Question.** Can TeXpresso's incremental engine run in our browser worker, so that an edit shows on the page almost at once and a click on the page puts the cursor in the source? The spike is the dev route `/dev/texpresso-spike` (dev and preview builds only; release builds redirect to `/` and ship no engine files). It holds synthetic samples only.
 
 **What was built.**
 
-- **Engine.** Stock TeX Live 2026.1 XeTeX, compiled with emscripten 4.0.12 by `frontend/scripts/texpresso-spike/build-engine.sh`. The script is derived from `scripts/build-wasm-xetex.sh` of TeXpresso's `eclipse` branch, with three changes:
+- **Engine.** Stock TeX Live 2026.1 XeTeX, compiled with emscripten 4.0.12 by `frontend/scripts/latex-engine/build-engine.sh`. The script is derived from `scripts/build-wasm-xetex.sh` of TeXpresso's `eclipse` branch, with three changes:
   - **Asyncify instead of wasm exceptions.** A JSPI continuation is one-shot and cannot be copied, so a suspended JSPI run cannot be restored to an earlier checkpoint. Asyncify unwinds the call stack into linear memory, so a checkpoint becomes a memory copy. Asyncify cannot instrument wasm exception handling, so the build uses emscripten's JS setjmp/longjmp.
   - **SyncTeX enabled** (upstream builds without it).
   - **Fixed recipe steps:** kpathsea is put into texk's subdirectory list, and the native `tangle`/`ctangle`/`tie` are required for cross-compiling.
-- **Engine files.** `engine.wasm` is 4.7 MB (1.6 MB gzipped), ICU data 22 MB (9.2 MB gzipped). Both are committed gzipped under `frontend/static/core/texpresso-spike/`, with checksums in `SHA256SUMS`.
-- **Host.** `frontend/src/lib/latex/texpresso-spike/engine.ts` is a JS port of `wasm_host.c`:
+- **Engine files.** `engine.wasm` is 4.7 MB (1.6 MB gzipped), ICU data 22 MB (9.2 MB gzipped). Both are committed gzipped under `frontend/static/core/latex-engine/`, with checksums in `SHA256SUMS`.
+- **Host.** `frontend/src/lib/latex/engine/engine.ts` is a JS port of `wasm_host.c`:
   - **VFS:** editable inputs, outputs that checkpoints can restore, and busytex's own TeX tree.
   - **Determinism:** fixed clock, `SOURCE_DATE_EPOCH` and fixed file dates.
   - **Checkpoints:** taken at reads of input files, at most every 150 ms of engine time and at least every 30 lines of `main.tex`.
@@ -198,7 +200,7 @@ Bugs found on the way, each of which silently broke correct replays:
 - musl's stdio reads 1024-byte blocks, so an edit in the first kilobyte (here: the preamble and task 1) came before every checkpoint. The host now answers input reads one line at a time, a short read that stdio accepts.
 - Restored file descriptors kept the old text of an input.
 
-**Measurements.** Measured on a 4-core cloud container, in headless Chromium (four runs; checkpoints are placed by time, so their positions and the resume times vary between runs) (Vite dev server on localhost) and in Node with the same host (`scripts/texpresso-spike/node-run.mts`). The documents are the 12-task exam and its solution (`samples.ts`, through the production builders) and one exercise each with chemistry, circuits, UML, struktex and listings. "Edit" is one word in the first, middle or last exercise; "preamble" is one line right after `\documentclass`.
+**Measurements.** Measured on a 4-core cloud container, in headless Chromium (four runs; checkpoints are placed by time, so their positions and the resume times vary between runs) (Vite dev server on localhost) and in Node with the same host (`scripts/latex-engine/node-run.mts`). The documents are the 12-task exam and its solution (`samples.ts`, through the production builders) and one exercise each with chemistry, circuits, UML, struktex and listings. "Edit" is one word in the first, middle or last exercise; "preamble" is one line right after `\documentclass`.
 
 12-task exam in Chrome:
 

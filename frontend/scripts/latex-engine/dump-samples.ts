@@ -1,4 +1,4 @@
-// TeXpresso spike: writes the sample documents (production builders, markers stripped) to <dir> for node-run.mts.
+// Engine measurements: writes the sample documents (production builders, markers stripped) to <dir> for node-run.mts.
 // Usage: npx vite-node scripts/latex-engine/dump-samples.ts <dir>   (dir inside frontend/)
 import fs from 'node:fs';
 import path from 'node:path';

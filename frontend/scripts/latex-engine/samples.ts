@@ -152,8 +152,8 @@ for (int i = 1; i <= 3; i++) {
 \Loesung{1, 4 und 9 in je einer Zeile.}` },
 ];
 
-const SPIKE_EXAM = {
-  id: 'texpresso-spike',
+const SAMPLE_EXAM = {
+  id: 'engine-sample',
   fach: 'Mathematik',
   testart: 'Schulaufgabe',
   nr: '1',
@@ -168,7 +168,7 @@ function examDoc(exercises: SampleExercise[], solution: boolean): string {
   const records = exercises.map((e, i) => ({ id: `ex${i + 1}`, name: e.name, latexBody: e.body }) as ExerciseRecord);
   const items = records.map((r) => ({ type: 'exercise' as const, id: r.id }));
   const inputs = buildExerciseInputs(items, records, [], [], null);
-  return buildExamLatex(SPIKE_EXAM, inputs, solution ? 'sans,punkte,antworten' : 'sans,punkte', [], { fill: false });
+  return buildExamLatex(SAMPLE_EXAM, inputs, solution ? 'sans,punkte,antworten' : 'sans,punkte', [], { fill: false });
 }
 
 function exerciseDoc(exercise: SampleExercise, solution: boolean): string {

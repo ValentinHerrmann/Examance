@@ -1,4 +1,4 @@
-/** Minimal SyncTeX reader for the spike: uncompressed output of `-synctex=-1`, PDF-to-source lookup only. */
+/** Minimal SyncTeX reader (uncompressed `-synctex=-1` output, PDF-to-source lookup only); kept for click-to-source, issue #347, which wires it up. */
 
 /** One box or point record, in PDF points from the page's top-left corner. */
 export interface SyncRecord {

@@ -333,7 +333,7 @@ async function compile(req: CompileRequest): Promise<void> {
   t.formatMs = performance.now() - t0;
   if (format) t.format = known ? 'cached' : 'dumped';
   const tex = format && parts ? withFormat(parts[0], parts[1]) : req.latexSource;
-  const args = [`${BIN_DIR}/xelatex`, '-no-pdf', '-synctex=-1', ...TEX_FLAGS, `-fmt=${format ?? 'xelatex'}`, 'main.tex'];
+  const args = [`${BIN_DIR}/xelatex`, '-no-pdf', '-synctex=-1' /* read by click-to-source, issue #347 */, ...TEX_FLAGS, `-fmt=${format ?? 'xelatex'}`, 'main.tex'];
   let s = sessionFor(rt, req.session, format);
   let last = await typeset(s, req, tex, args, t);
   // A stale seed (a macro the document no longer defines) must not fail the compile: retry once from scratch, as the server does.

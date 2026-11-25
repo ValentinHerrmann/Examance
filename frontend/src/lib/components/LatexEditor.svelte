@@ -279,7 +279,7 @@
     }
   }
 
-  /** Puts the cursor at `lineNo` (1-based) and `column` (0-based, clamped to the line), scrolls it into view and focuses the editor. */
+  /** Puts the cursor at `lineNo` (1-based) and `column` (0-based, clamped to the line), scrolls it into view and focuses the editor; the target of click-to-source (issue #347). */
   export function setCursor(lineNo: number, column = 0) {
     if (!view) return;
     const doc = view.state.doc;
@@ -289,7 +289,7 @@
     view.focus();
   }
 
-  /** The cursor's line (1-based) and column (0-based). */
+  /** The cursor's line (1-based) and column (0-based); places the typing overlay of issue #347. */
   export function getCursor(): { line: number; column: number } | null {
     if (!view) return null;
     const head = view.state.selection.main.head;
