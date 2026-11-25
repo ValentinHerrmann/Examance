@@ -107,10 +107,11 @@ export const test = base.extend<Fixtures>({
       },
       { key: LOCALE_STORAGE_KEY, value: appLocale },
     );
-    // The one-time "LaTeX now compiles in your browser" dialog (settings/LocalLatexNotice) would cover every page.
+    // The one-time "LaTeX now compiles in your browser" dialog (settings/LocalLatexNotice) would cover every page, and the default browser engine would boot (assets, TeX Live, WASM) in every test, which the fake has no `/texlive/*` tree for; a test may still choose the engine.
     await context.addInitScript(() => {
       try {
         window.localStorage.setItem('bg_latex_local_switch', '1');
+        if (!window.localStorage.getItem('bg_latex_compilation')) window.localStorage.setItem('bg_latex_compilation', 'server');
       } catch {
         // Storage blocked: nothing to seed.
       }
