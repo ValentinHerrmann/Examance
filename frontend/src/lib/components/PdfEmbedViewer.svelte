@@ -132,72 +132,114 @@
     });
   }
 
-  let stopLabels: (() => void) | null = null;
+  /** One mounted viewer in its own element inside the container; a new PDF mounts a second one hidden behind the first and swaps once it shows a rendered page, so a recompile never flashes EmbedPDF's loading screen. */
+  interface Layer {
+    el: HTMLDivElement;
+    viewer: EmbedPdfContainer | null;
+    stopLabels: () => void;
+  }
+  let shown: Layer | null = null;
+  let pending: Layer | null = null;
 
-  function destroy() {
-    stopLabels?.();
-    stopLabels = null;
-    if (overlayTimeout) clearTimeout(overlayTimeout);
+  function dropLayer(layer: Layer | null) {
+    if (!layer) return;
+    layer.stopLabels();
+    layer.el.remove();
+  }
+
+  function unbindZoom() {
     if (unsubscribeZoom) {
       unsubscribeZoom();
       unsubscribeZoom = null;
     }
     zoomCap = null;
-    if (containerEl) {
-      containerEl.removeEventListener("wheel", handleWheel, { capture: true });
-      // eslint-disable-next-line svelte/no-dom-manipulating -- the container only ever holds the imperatively mounted viewer
-      containerEl.innerHTML = "";
-    }
+  }
+
+  function destroy() {
+    if (overlayTimeout) clearTimeout(overlayTimeout);
+    unbindZoom();
+    dropLayer(pending);
+    dropLayer(shown);
+    pending = null;
+    shown = null;
+    containerEl?.removeEventListener("wheel", handleWheel, { capture: true });
     viewer = null;
     mountedSrc = null;
     isOverlayVisible = false;
   }
 
   async function mount(url: string) {
-    const { patchEmbedPdfA11y, mountEmbedPdf } = await import("#lib/pdf/embedpdf");
+    const { patchEmbedPdfA11y, mountEmbedPdf, embedPdfScroller, whenEmbedPdfShown } = await import("#lib/pdf/embedpdf");
     // A src change (or unmount racing a fast page switch) may land here after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
-    destroy();
-    if (!containerEl) return;
-    viewer = mountEmbedPdf({ target: containerEl, src: url, theme: effectiveTheme, zoomLevel }) ?? null;
-    stopLabels = patchEmbedPdfA11y(containerEl, { pageLabel: $t("common.pdfPage"), regionLabel: $t("common.pdfPreview") });
+    const host = containerEl;
+    dropLayer(pending);
+    // The replacement keeps the reader's zoom and scroll position.
+    const previous = shown;
+    const keptZoom = previous ? zoomCap?.getState?.()?.zoomLevel : undefined;
+    const keptScroller = previous ? embedPdfScroller(previous.el) : null;
+    const scroll = keptScroller ? { top: keptScroller.scrollTop, left: keptScroller.scrollLeft } : null;
+    const el = document.createElement("div");
+    el.style.cssText = "position:absolute;inset:0;display:flex";
+    if (previous) el.style.visibility = "hidden";
+    host.appendChild(el);
+    const layer: Layer = {
+      el,
+      viewer: mountEmbedPdf({ target: el, src: url, theme: effectiveTheme, zoomLevel: keptZoom ?? zoomLevel }) ?? null,
+      stopLabels: patchEmbedPdfA11y(el, { pageLabel: $t("common.pdfPage"), regionLabel: $t("common.pdfPreview") }),
+    };
     mountedSrc = url;
-    containerEl.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+    if (previous) {
+      pending = layer;
+      const ok = await whenEmbedPdfShown(el, scroll, () => pending !== layer);
+      if (!ok) return;
+      pending = null;
+      dropLayer(previous);
+      el.style.visibility = "";
+    } else {
+      host.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+    }
+    shown = layer;
+    viewer = layer.viewer;
+    unbindZoom();
+    bindZoom(layer.viewer);
+  }
 
-    if (viewer) {
-      viewer.registry.then((reg) => {
-        try {
-          const plugin = reg.getPlugin<ZoomPlugin>("zoom");
-          if (plugin) {
-            const zoomPluginAny = plugin as unknown as {
-              provides?: () => ZoomCapability;
-              getCapability?: () => ZoomCapability;
-            };
-            zoomCap = (zoomPluginAny.provides ? zoomPluginAny.provides() : zoomPluginAny.getCapability?.()) ?? null;
-            if (zoomCap) {
-              const state = zoomCap.getState?.();
-              if (state?.currentZoomLevel) {
-                currentZoomPercent = Math.round(state.currentZoomLevel * 100);
-              }
-              const unsub = zoomCap.onStateChange?.(({ state: s }) => {
-                if (s?.currentZoomLevel) {
-                  const newPercent = Math.round(s.currentZoomLevel * 100);
-                  if (newPercent !== currentZoomPercent) {
-                    currentZoomPercent = newPercent;
-                    triggerZoomOverlay();
-                  }
+  function bindZoom(v: EmbedPdfContainer | null) {
+    if (!v) return;
+    v.registry.then((reg) => {
+      if (viewer !== v) return;
+      try {
+        const plugin = reg.getPlugin<ZoomPlugin>("zoom");
+        if (plugin) {
+          const zoomPluginAny = plugin as unknown as {
+            provides?: () => ZoomCapability;
+            getCapability?: () => ZoomCapability;
+          };
+          zoomCap = (zoomPluginAny.provides ? zoomPluginAny.provides() : zoomPluginAny.getCapability?.()) ?? null;
+          if (zoomCap) {
+            const state = zoomCap.getState?.();
+            if (state?.currentZoomLevel) {
+              currentZoomPercent = Math.round(state.currentZoomLevel * 100);
+            }
+            const unsub = zoomCap.onStateChange?.(({ state: s }) => {
+              if (s?.currentZoomLevel) {
+                const newPercent = Math.round(s.currentZoomLevel * 100);
+                if (newPercent !== currentZoomPercent) {
+                  currentZoomPercent = newPercent;
+                  triggerZoomOverlay();
                 }
-              });
-              if (typeof unsub === "function") {
-                unsubscribeZoom = unsub;
               }
+            });
+            if (typeof unsub === "function") {
+              unsubscribeZoom = unsub;
             }
           }
-        } catch (err) {
-          console.warn("Could not get zoom capability:", err);
         }
-      });
-    }
+      } catch (err) {
+        console.warn("Could not get zoom capability:", err);
+      }
+    });
   }
 
   // `containerEl` exists only after first render, so this also covers mount-on-first-render.
@@ -216,7 +258,10 @@
   $effect(() => {
     const v = viewer;
     const th = effectiveTheme;
-    untrack(() => v?.setTheme(th));
+    untrack(() => {
+      v?.setTheme(th);
+      pending?.viewer?.setTheme(th);
+    });
   });
 
   onDestroy(() => {

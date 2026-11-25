@@ -44,7 +44,7 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
   - **xdvipdfmx** gets every file the XeTeX session saw (`engine/pdfStep.ts`): it embeds the logo, the bundled images and the exercise figures that XeTeX only measured.
   - **Failures.** xdvipdfmx runs only after a successful XeTeX run; `describeCompileFailure` and `compileLogForUser` (`lib/latex/compileLog.ts`) still report the XeTeX step's `!` errors behind an xdvipdfmx fatal.
   - **Previews** show the Angabe as soon as it is ready (`onAngabe`), and the Lösung follows.
-  - **Live preview** (exercise editor, browser engine only): about 300 ms after the last edit of name, code or files, once the session compiled or shows a PDF. `EditorPreview.compile` runs one compile at a time and then only the newest input, so a stale PDF never shows last; a failure keeps the last good PDF.
+  - **Live preview** (exercise editor, browser engine only): about 300 ms after the last edit of name, code or files, once the session compiled or shows a PDF. `EditorPreview.compile` runs one compile at a time and then only the newest input, so a stale PDF never shows last; a failure keeps the last good PDF. `PdfEmbedViewer` mounts a new PDF hidden behind the shown one and swaps once a page in view has rendered, keeping zoom and scroll (`whenEmbedPdfShown`, `lib/pdf/embedpdf.ts`), so no loading screen flashes.
 
 ## LaTeX palette
 
