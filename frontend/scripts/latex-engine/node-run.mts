@@ -1,32 +1,49 @@
-// TeXpresso spike: runs src/lib/latex/texpresso-spike/engine.ts under Node for repeatable engine timings (no browser, no xdvipdfmx).
-// Usage: node scripts/texpresso-spike/node-run.mts <engine out dir> <doc.tex> [edits.json]   (busytex assets in static/core/busytex)
-// edits.json: [{ "label": "...", "tex": "<full edited document>" }]; prints one JSON line per measurement.
+// Runs the browser LaTeX engine (src/lib/latex/engine/) under Node for repeatable timings and the replay check (docs/dev/latex_performance.md).
+// Usage: npx vite-node scripts/latex-engine/node-run.mts <engine dir with xetex.wasm, xdvipdfmx.wasm, icudt78l.dat> <doc.tex> [edits.json]
+// Reads the TeX Live tree from TEXLIVE_ROOT (default /opt/texlive, the backend image's) with the endpoint's filters (backend/app/services/texlive_tree.py).
+// edits.json: [{ "label": "...", "tex": "<full edited document>" }]; prints one JSON line per measurement; KEEP=<dir> writes the outputs and main.pdf.
+// RECORD_TREE=<json file> merges the tree files this run read into that list (src/lib/latex/engine/templateFiles.json is recorded so).
 import fs from 'node:fs';
 import path from 'node:path';
-import { TexpressoEngine } from '../../src/lib/latex/texpresso-spike/engine.ts';
-import { parsePackageScript, TexTree, TREE_PACKAGES } from '../../src/lib/latex/texpresso-spike/texTree.ts';
+import { TexEngine } from '../../src/lib/latex/engine/engine';
+import { LazyTree, type TreeSource } from '../../src/lib/latex/engine/tree';
 
-const [outDir, docPath, editsPath] = process.argv.slice(2);
-if (!outDir || !docPath) throw new Error('usage: node-run.mts <engine out dir> <doc.tex> [edits.json]');
-const busytex = path.resolve('static/core/busytex');
+const [engineDir, docPath, editsPath] = process.argv.slice(2);
+if (!engineDir || !docPath) throw new Error('usage: node-run.mts <engine dir> <doc.tex> [edits.json]');
+const root = process.env.TEXLIVE_ROOT ?? '/opt/texlive';
 const assetsDir = path.resolve('../backend/latex-assets');
+const examanceCnf = path.resolve('../backend/latex-texlive/texmf.cnf');
+const SKIPPED = ['texmf-dist/doc/', 'texmf-dist/source/', 'texmf-dist/scripts/'];
 
-const tree = new TexTree();
-for (const name of TREE_PACKAGES) {
-  const { files, table } = parsePackageScript(fs.readFileSync(path.join(busytex, `${name}.js`), 'utf8'));
-  const data = new Uint8Array(fs.readFileSync(path.join(busytex, `${name}.data`)));
-  tree.bytes += data.byteLength;
-  tree.addPackage({ data, ...table }, files);
+function localSource(): TreeSource {
+  const files: Record<string, number> = {};
+  if (fs.existsSync(path.join(root, 'texmf.cnf'))) files['texmf.cnf'] = fs.statSync(path.join(root, 'texmf.cnf')).size;
+  for (const top of ['texmf-dist', 'texmf-var']) {
+    for (const rel of fs.readdirSync(path.join(root, top), { recursive: true }) as string[]) {
+      const name = `${top}/${rel}`;
+      const st = fs.statSync(path.join(root, name));
+      if (st.isFile() && !SKIPPED.some((s) => name.startsWith(s))) files[name] = st.size;
+    }
+  }
+  files['examance/texmf.cnf'] = fs.statSync(examanceCnf).size;
+  return {
+    manifest: async () => ({ version: 'local', files }),
+    file: async (rel) => new Uint8Array(fs.readFileSync(rel === 'examance/texmf.cnf' ? examanceCnf : path.join(root, rel))),
+  };
 }
-const module = await WebAssembly.compile(fs.readFileSync(path.join(outDir, 'xetex.wasm')));
-const icuData = new Uint8Array(fs.readFileSync(path.join(outDir, 'icudt78l.dat')));
+
+const tree = await LazyTree.open(localSource(), false);
+const xetex = await WebAssembly.compile(fs.readFileSync(path.join(engineDir, 'xetex.wasm')));
+const xdvipdfmx = await WebAssembly.compile(fs.readFileSync(path.join(engineDir, 'xdvipdfmx.wasm')));
+const icuData = new Uint8Array(fs.readFileSync(path.join(engineDir, 'icudt78l.dat')));
 const log = (o: object) => console.log(JSON.stringify(o));
 
-let format = process.env.FORMAT ?? '/texlive/texmf-dist/texmf-var/web2c/xetex/xelatex.fmt';
-const args = () => ['/bin/xelatex', '-no-pdf', '-synctex=-1', '-interaction=nonstopmode', `-fmt=${format}`, 'main.tex'];
-const make = (fmt: string | null) => new TexpressoEngine({ module, tree, icuData, format: fmt, checkpointEveryMs: Number(process.env.CHECKPOINT_MS ?? 150) });
+const format = process.env.FORMAT ?? 'xelatex';
+const args = () => [`/opt/texlive/bin/x86_64-linux/xelatex`, '-no-pdf', '-synctex=-1', '-interaction=nonstopmode', `-fmt=${format}`, 'main.tex'];
+const make = (incremental = true) =>
+  new TexEngine({ module: xetex, tree, icuData, format, incremental, checkpointEveryMs: Number(process.env.CHECKPOINT_MS ?? 150), memoryBudget: Number(process.env.MEMORY_BUDGET ?? 900 * 2 ** 20) });
 
-function withAssets(e: TexpressoEngine): TexpressoEngine {
+function withAssets(e: TexEngine): TexEngine {
   for (const rel of fs.readdirSync(assetsDir, { recursive: true }) as string[]) {
     const abs = path.join(assetsDir, rel);
     if (!fs.statSync(abs).isFile()) continue;
@@ -37,22 +54,11 @@ function withAssets(e: TexpressoEngine): TexpressoEngine {
   return e;
 }
 
-if (process.env.DUMP_FORMAT) {
-  const t0 = performance.now();
-  const r = make(null).runFull(['/bin/xetex', '-ini', '-etex', '-jobname=xelatex', '-progname=xelatex', 'xelatex.ini']);
-  const fmt = r.outputs.get('/work/xelatex.fmt');
-  log({ step: 'dump-format', ms: performance.now() - t0, bytes: fmt?.length ?? 0, exit: r.exitCode, tail: fmt ? undefined : r.stdout.slice(-1500) });
-  if (fmt) {
-    tree.add('/fmt/xelatex.fmt', fmt);
-    format = '/fmt/xelatex.fmt';
-  }
-}
-
 const AUX = ['main.aux', 'main.toc', 'main.out'];
-function typeset(e: TexpressoEngine, tex: string, fresh: boolean) {
+async function typeset(e: TexEngine, tex: string, fresh: boolean) {
   const t0 = performance.now();
   const at = e.setInput('main.tex', new TextEncoder().encode(tex));
-  let r = fresh || at < 0 ? e.runFull(args()) : e.rerun(at);
+  let r = fresh || at < 0 ? await e.runFull(args()) : await e.rerun(at);
   const passes = [{ ms: r.ms, from: r.resumedFrom }];
   for (let i = 1; i < 4; i++) {
     let inv = Infinity;
@@ -61,35 +67,48 @@ function typeset(e: TexpressoEngine, tex: string, fresh: boolean) {
       const prev = e.inputs.get(n);
       if (!out || (prev && Buffer.compare(prev, out) === 0)) continue;
       const k = e.setInput(n, out);
-      if (process.env.DEBUG_AUX) {
-        const d = prev ? prev.findIndex((v, idx) => v !== out[idx]) : -1;
-        console.error(`aux ${n}: ${prev?.length ?? 'new'} -> ${out.length}, first diff ${d}, invalidates trace ${k}`, prev && d >= 0 ? JSON.stringify(new TextDecoder().decode(out.subarray(Math.max(0, d - 60), d + 80))) : '');
-      }
       inv = Math.min(inv, k < 0 ? (prev ? Infinity : 0) : k);
     }
     if (inv === Infinity) break;
-    r = e.rerun(inv);
+    r = await e.rerun(inv);
     passes.push({ ms: r.ms, from: r.resumedFrom });
   }
   return { r, passes, ms: performance.now() - t0 };
 }
 
+async function toPdf(xdv: Uint8Array) {
+  const e = new TexEngine({ module: xdvipdfmx, tree, icuData, format: null, incremental: false });
+  e.inputs.set('main.xdv', xdv);
+  const t0 = performance.now();
+  const r = await e.runFull([`/opt/texlive/bin/x86_64-linux/xdvipdfmx`, '-o', 'main.pdf', 'main.xdv']);
+  return { pdf: r.outputs.get('/work/main.pdf'), ms: performance.now() - t0, exit: r.exitCode, stdout: r.stdout };
+}
+
 const doc = fs.readFileSync(docPath, 'utf8');
-const engine = withAssets(make(format));
-const first = typeset(engine, doc, true);
+const engine = withAssets(make());
+const first = await typeset(engine, doc, true);
 const xdv = first.r.outputs.get('/work/main.xdv');
-log({ step: 'first', ms: first.ms, passes: first.passes, exit: first.r.exitCode, xdv: xdv?.length ?? 0, ...engine.stats(), missing: engine.importsMissing, tail: xdv ? undefined : first.r.stdout.slice(-3000) });
+const pdf = xdv ? await toPdf(xdv) : null;
+log({ step: 'first', ms: first.ms, passes: first.passes, exit: first.r.exitCode, xdv: xdv?.length ?? 0, pdf: pdf?.pdf?.length ?? 0, pdfMs: pdf?.ms, fetchedMB: tree.fetchedBytes / 2 ** 20, ...engine.stats(), missing: engine.importsMissing, tail: xdv ? undefined : first.r.stdout.slice(-3000), pdfTail: pdf?.pdf ? undefined : pdf?.stdout.slice(-2000) });
 if (process.env.KEEP) {
   for (const [p, b] of first.r.outputs) fs.writeFileSync(path.join(process.env.KEEP, path.basename(p)), b);
+  if (pdf?.pdf) fs.writeFileSync(path.join(process.env.KEEP, 'main.pdf'), pdf.pdf);
+}
+
+if (process.env.RECORD_TREE) {
+  const file = process.env.RECORD_TREE;
+  const before: string[] = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
+  const now = tree.loadedPaths().map((p) => p.slice('/opt/texlive/'.length));
+  fs.writeFileSync(file, `${JSON.stringify([...new Set([...before, ...now])].sort(), null, 1)}\n`);
 }
 
 const edits: { label: string; tex: string }[] = editsPath ? JSON.parse(fs.readFileSync(editsPath, 'utf8')) : [];
 for (const edit of edits) {
-  const inc = typeset(engine, edit.tex, false);
+  const inc = await typeset(engine, edit.tex, false);
   const stats = engine.stats();
-  const fresh = typeset(withAssets(make(format)), edit.tex, true);
+  const fresh = await typeset(withAssets(make(false)), edit.tex, true);
   const a = inc.r.outputs.get('/work/main.xdv');
   const b = fresh.r.outputs.get('/work/main.xdv');
   log({ step: 'edit', label: edit.label, ms: inc.ms, passes: inc.passes, fullMs: fresh.ms, fullPasses: fresh.passes.length, identical: !!a && !!b && Buffer.compare(a, b) === 0, ...stats });
-  typeset(engine, doc, false);
+  await typeset(engine, doc, false);
 }

@@ -1,9 +1,9 @@
 // TeXpresso spike: writes the sample documents (production builders, markers stripped) to <dir> for node-run.mts.
-// Usage: npx vite-node scripts/texpresso-spike/dump-samples.ts <dir>
+// Usage: npx vite-node scripts/latex-engine/dump-samples.ts <dir>
 import fs from 'node:fs';
 import path from 'node:path';
 import { extractSourceMap } from '#lib/latex/sourceMap';
-import { SAMPLES } from '#lib/latex/texpresso-spike/samples';
+import { SAMPLES } from './samples';
 
 const dir = process.argv[2];
 if (!dir) throw new Error('usage: dump-samples.ts <dir>');

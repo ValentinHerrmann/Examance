@@ -31,7 +31,6 @@ import { trash } from './trash';
 import { sharing } from './sharing';
 import { lms } from './lms';
 import { review } from './review';
-import { texpressoSpike } from './texpressoSpike';
 
 export const de = {
     common,
@@ -66,5 +65,4 @@ export const de = {
     sharing,
     lms,
     review,
-    texpressoSpike,
 } as const;

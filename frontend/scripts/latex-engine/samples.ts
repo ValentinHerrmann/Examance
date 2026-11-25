@@ -1,4 +1,4 @@
-/** Synthetic sample documents for the TeXpresso spike, assembled by the production builders (no real data). */
+/** Synthetic sample documents for engine measurements (node-run.mts, docs/dev/latex_performance.md), assembled by the production builders; no real data. */
 import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
 import { buildExamLatex, buildExerciseInputs } from '#lib/exam/examPreview';
 import { buildExerciseDocument } from '#lib/latex/exercisePreview';
@@ -181,18 +181,3 @@ export const SAMPLES: Sample[] = [
   ...SUBJECT_TASKS.map((task) => ({ id: `exercise-${task.name}`, title: `Exercise: ${task.name}`, exercises: [task], build: (ex: SampleExercise[]) => exerciseDoc(ex[0], false) })),
 ];
 
-/** The measured edits: one word into the first, middle and last exercise, and one line at the top of the preamble. */
-export function benchEdits(sample: Sample): { label: string; exercises: SampleExercise[] | null; preamble: boolean }[] {
-  const n = sample.exercises.length;
-  const touch = (i: number) => sample.exercises.map((e, k) => (k === i ? { ...e, body: e.body.replace(/^(\S+)/, '$1 Spike') } : e));
-  const rows: { label: string; exercises: SampleExercise[] | null; preamble: boolean }[] = [{ label: 'early', exercises: touch(0), preamble: false }];
-  if (n > 2) rows.push({ label: 'mid', exercises: touch(Math.floor(n / 2)), preamble: false });
-  if (n > 1) rows.push({ label: 'late', exercises: touch(n - 1), preamble: false });
-  rows.push({ label: 'preamble', exercises: null, preamble: true });
-  return rows;
-}
-
-/** A preamble edit: one definition right after \documentclass, so the replay starts before every package. */
-export function withPreambleEdit(tex: string): string {
-  return tex.replace(/^(\\documentclass[^\n]*\n)/, '$1\\def\\SpikePreambleEdit{1}\n');
-}

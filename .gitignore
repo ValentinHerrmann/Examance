@@ -222,8 +222,6 @@ node_modules/
 frontend/.svelte-kit
 latex-sample-project
 backend/blindgrade.db
-frontend/static/core/busytex/
-frontend/.busytex/
 PLAN.md
 tmp/
 CONTEXT/

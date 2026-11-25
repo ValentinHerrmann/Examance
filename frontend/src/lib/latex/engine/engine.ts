@@ -1,10 +1,11 @@
 /**
- * TeXpresso spike: a JS host for an asyncified XeTeX engine.wasm (scripts/texpresso-spike/build-engine.sh).
- * Ported from src/engine-wasm/wasm_host.c of let-def/texpresso (eclipse, MIT). Report: docs/dev/latex_performance.md.
- * Checkpoints: at an fd_read of an input file the engine unwinds (Asyncify), the host copies linear memory, then rewinds.
- * Restoring one writes the memory back and rewinds into the same fd_read, so TeX resumes there with no native stack to copy.
+ * The browser LaTeX engine's host (issue #346): runs the asyncified XeTeX and xdvipdfmx of scripts/latex-engine/build-engine.sh.
+ * Ported from src/engine-wasm/wasm_host.c of let-def/texpresso (eclipse, MIT). Design and measurements: docs/dev/latex_performance.md.
+ * At an fd_read the engine can unwind (Asyncify): to take a checkpoint (a copy of the pages that changed) or to wait for a tree file.
+ * Restoring a checkpoint writes the memory back and rewinds into the same fd_read, so TeX resumes there with no native stack to copy.
  */
-import type { TexTree } from './texTree';
+import { TREE_ROOT, type Tree } from './tree';
+import { firstInvalidated, type TraceEntry } from './trace';
 
 // Emscripten's musl uses WASI errno numbers (texpresso's C host returns Linux ones).
 const E = { ACCES: 2, BADF: 8, EXIST: 20, INVAL: 28, IO: 29, ISDIR: 31, NOENT: 44, NOSYS: 52, NOTDIR: 54, NOTTY: 59, SPIPE: 70 };
@@ -14,6 +15,20 @@ const S_IFDIR = 0o040000, S_IFREG = 0o100000;
 const PAGE = 4096;
 const EMPTY = new Uint8Array(0);
 const CWD = '/work';
+/** argv[0]: kpathsea derives SELFAUTOPARENT (= the tree root) from it, as for the server's own binary. */
+export const BIN_DIR = `${TREE_ROOT}/bin/x86_64-linux`;
+/** Our runner's texmf.cnf, read before the distribution's (TEXMFCNF ends in ":"), as on the server. */
+const EXAMANCE_CNF_DIR = `${TREE_ROOT}/examance`;
+/** Default budget for engine memory plus checkpoints; above it a session runs without checkpoints. */
+export const DEFAULT_MEMORY_BUDGET = 900 * 2 ** 20;
+
+/** The engine cannot run here (no memory for an instance): callers fall back to the server engine where allowed. */
+export class EngineUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EngineUnavailableError';
+  }
+}
 /** Fixed wall clock for determinism (2026-01-01T00:00:00Z); TeX's \today, random seed and file dates derive from it. */
 export const EPOCH = 1767225600;
 
@@ -37,19 +52,18 @@ interface OutFile {
 interface Fd {
   path: string;
   kind: 'tree' | 'input' | 'output' | 'dir';
+  /** Null for a tree file not fetched yet: the first read unwinds and waits for it. */
   data: Uint8Array | null;
   out: OutFile | null;
   pos: number;
+  size: number;
 }
-/** What the run observed of an editable input: a read of [start, end) or a lookup of whether the file exists. */
-type TraceEntry =
-  | { kind: 'read'; path: string; data: Uint8Array; start: number; end: number; eof: boolean }
-  | { kind: 'lookup'; path: string; existed: boolean };
 
 interface Checkpoint {
   traceLen: number;
   at: number;
-  pages: Map<number, Uint8Array>;
+  /** Layer 0: full pages (shared with the shadow until a page changes again). Later layers: sparse XOR against the previous checkpoint (encodeXor). */
+  pages: Map<number, Uint32Array | Uint8Array>;
   /** Hash of every page at this checkpoint; the next layer is the pages whose hash moved. */
   hashes: Uint32Array;
   memBytes: number;
@@ -71,32 +85,46 @@ export interface RunResult {
 
 export interface EngineStats {
   checkpoints: number;
+  /** XOR layers plus the shadow copy of the last checkpoint. */
   checkpointBytes: number;
   memoryBytes: number;
+  /** 'full' once the memory budget was exceeded: no checkpoints, every edit runs from the start. */
+  mode: 'incremental' | 'full';
   /** Time spent taking checkpoints in the last run (page hashing and copies). */
   checkpointMs: number;
 }
 
 export interface EngineOptions {
   module: WebAssembly.Module;
-  tree: TexTree;
+  tree: Tree;
   icuData: Uint8Array;
   /** Format path inside the tree, or null for an -ini run. */
   format: string | null;
   /** Minimum engine time between checkpoints in ms. */
   checkpointEveryMs?: number;
   maxCheckpoints?: number;
+  /** Engine memory plus checkpoint bytes above which the session stops taking checkpoints. */
+  memoryBudget?: number;
+  /** False for documents compiled once (no edit expected): no checkpoints at all. */
+  incremental?: boolean;
 }
 
 const ASYNC_UNWINDING = 1;
 const ASYNC_DATA_SIZE = 4 * 1024 * 1024;
 
-export class TexpressoEngine {
+export class TexEngine {
   private exports!: Exports;
   private instance!: WebAssembly.Instance;
   private mem!: Uint8Array;
   private dv!: DataView;
-  private readonly tree: TexTree;
+  private readonly tree: Tree;
+  /** Page contents at the last checkpoint, for the next layer's XOR; null without checkpoints. */
+  private shadow: Map<number, Uint8Array> | null = null;
+  /** Shadow pages that are also layer 0's pages, so they are never overwritten in place. */
+  private sharedPages = new Set<Uint8Array>();
+  private layerBytes = 0;
+  private mode: EngineStats['mode'] = 'incremental';
+  private pendingFetch: Fd | null = null;
   readonly inputs = new Map<string, Uint8Array>();
   private outputs = new Map<string, OutFile>();
   private fds = new Map<number, Fd>();
@@ -110,7 +138,6 @@ export class TexpressoEngine {
   private checkpointMs = 0;
   private asyncData = 0;
   private rewinding = false;
-  private wantCheckpoint = false;
   private formatLoaded = false;
   private lastCheckpointAt = 0;
   private runStartedAt = 0;
@@ -122,17 +149,21 @@ export class TexpressoEngine {
   private readonly unknownImports = new Set<string>();
 
   constructor(opts: EngineOptions) {
-    this.opts = { checkpointEveryMs: 150, maxCheckpoints: 12, ...opts };
+    this.opts = { checkpointEveryMs: 150, maxCheckpoints: 12, memoryBudget: DEFAULT_MEMORY_BUDGET, incremental: true, ...opts };
     this.tree = opts.tree;
+    if (!this.opts.incremental) this.mode = 'full';
   }
 
   /** A full run from the beginning in a fresh instance (also the -ini format dump when `format` is null). */
-  runFull(args: string[]): RunResult {
+  async runFull(args: string[]): Promise<RunResult> {
     const t0 = performance.now();
     this.instantiate();
     this.argv = args;
     this.argvPtr = this.writeArgv(args);
     this.checkpoints = [];
+    this.shadow = this.mode === 'incremental' ? new Map() : null;
+    this.sharedPages = new Set();
+    this.layerBytes = 0;
     this.spacing = this.opts.checkpointEveryMs;
     this.checkpointMs = 0;
     this.trace = [];
@@ -143,7 +174,7 @@ export class TexpressoEngine {
     this.formatLoaded = false;
     this.runStartedAt = performance.now();
     this.lastCheckpointAt = this.runStartedAt;
-    const exitCode = this.drive(false);
+    const exitCode = await this.drive(false);
     return this.result(exitCode, t0, 'start');
   }
 
@@ -151,22 +182,18 @@ export class TexpressoEngine {
   setInput(path: string, bytes: Uint8Array): number {
     const old = this.inputs.get(path);
     this.inputs.set(path, bytes);
-    const diff = old ? firstDiff(old, bytes) : -1;
-    for (let i = 0; i < this.trace.length; i++) {
-      const e = this.trace[i];
-      if (e.path !== path) continue;
-      if (e.kind === 'lookup') {
-        if (e.existed !== true || !old) return i;
-        continue;
-      }
-      if (!old || e.data !== old) return i;
-      if (diff >= 0 && (e.end > diff || (e.eof && bytes.length > e.end))) return i;
-    }
-    return -1;
+    return firstInvalidated(this.trace, path, old, bytes);
+  }
+
+  /** Removes an input; the trace index of the first lookup or read of it, or -1 when the last run never saw it. */
+  deleteInput(path: string): number {
+    const old = this.inputs.get(path);
+    if (!this.inputs.delete(path)) return -1;
+    return firstInvalidated(this.trace, path, old, undefined);
   }
 
   /** Resumes from the last checkpoint taken before trace index `invalidAt`, or does a full run when none fits. */
-  rerun(invalidAt: number): RunResult {
+  async rerun(invalidAt: number): Promise<RunResult> {
     const t0 = performance.now();
     let k = -1;
     for (let i = this.checkpoints.length - 1; i >= 0; i--) {
@@ -177,17 +204,28 @@ export class TexpressoEngine {
     }
     if (k < 0 || this.finished === false) return this.runFull(this.argv);
     this.restore(this.checkpoints[k]);
-    this.checkpoints.length = k + 1;
+    this.dropLayersAfter(k);
     this.runStartedAt = performance.now() - this.checkpoints[k].at;
     this.lastCheckpointAt = performance.now();
-    const exitCode = this.drive(true);
+    const exitCode = await this.drive(true);
     return this.result(exitCode, t0, k);
   }
 
+  /** Distinct full pages (layer 0 and the shadow share most of them) plus the sparse layers. */
+  private snapshotBytes(): number {
+    let unshared = 0;
+    for (const page of this.shadow?.values() ?? []) if (!this.sharedPages.has(page)) unshared++;
+    return (this.sharedPages.size + unshared) * PAGE + this.layerBytes;
+  }
+
   stats(): EngineStats {
-    let bytes = 0;
-    for (const c of this.checkpoints) bytes += c.pages.size * PAGE;
-    return { checkpoints: this.checkpoints.length, checkpointBytes: bytes, memoryBytes: this.mem?.byteLength ?? 0, checkpointMs: this.checkpointMs };
+    return {
+      checkpoints: this.checkpoints.length,
+      checkpointBytes: this.snapshotBytes(),
+      memoryBytes: this.mem?.byteLength ?? 0,
+      mode: this.mode,
+      checkpointMs: this.checkpointMs,
+    };
   }
 
   get importsMissing(): string[] {
@@ -196,7 +234,8 @@ export class TexpressoEngine {
 
   // --- run loop -----------------------------------------------------------
 
-  private drive(resume: boolean): number {
+  /** Runs the engine until it exits; an unwind is either a checkpoint or a tree file to wait for. */
+  private async drive(resume: boolean): Promise<number> {
     this.finished = false;
     this.rewinding = resume;
     if (resume) this.exports.asyncify_start_rewind(this.asyncData);
@@ -205,7 +244,10 @@ export class TexpressoEngine {
         const ret = this.entry(this.argv.length, this.argvPtr) as number;
         if (this.exports.asyncify_get_state() === ASYNC_UNWINDING) {
           this.exports.asyncify_stop_unwind();
-          this.takeCheckpoint();
+          const fetch = this.pendingFetch;
+          this.pendingFetch = null;
+          if (fetch) await this.fetchInto(fetch);
+          else this.takeCheckpoint();
           this.rewinding = true;
           this.exports.asyncify_start_rewind(this.asyncData);
           continue;
@@ -222,21 +264,49 @@ export class TexpressoEngine {
     }
   }
 
-  /** A layer holds the pages that changed since the previous checkpoint, found by per-page hashes (no shadow copy of memory). */
+  /** Waits for a tree file the engine began to read; the time spent waiting does not count as engine time. */
+  private async fetchInto(f: Fd): Promise<void> {
+    const t0 = performance.now();
+    f.data = await this.tree.load(f.path);
+    const waited = performance.now() - t0;
+    this.lastCheckpointAt += waited;
+    this.runStartedAt += waited;
+  }
+
+  /** A layer holds the XOR of the pages whose hash moved since the previous checkpoint, against the shadow copy of that checkpoint. */
   private takeCheckpoint(): void {
     const t0 = performance.now();
     const mem = this.mem;
+    const shadow = this.shadow!;
     const total = mem.byteLength / PAGE;
     const prev = this.checkpoints.at(-1)?.hashes;
     const hashes = new Uint32Array(total);
-    const pages = new Map<number, Uint8Array>();
+    const pages = new Map<number, Uint32Array | Uint8Array>();
     const hash = this.hashPage!;
+    const words = new Int32Array(mem.buffer, 0, mem.byteLength >> 2);
+    const first = this.checkpoints.length === 0;
     for (let p = 0; p < total; p++) {
       const h = hash(p);
       hashes[p] = h;
-      // The first layer skips all-zero pages; later ones keep a page whose hash moved (a page that is new since growth counts as moved unless zero).
+      // A page new since growth counts as moved unless it is zero.
       const before = prev && p < prev.length ? prev[p] : zeroPageHash;
-      if (h !== before) pages.set(p, mem.slice(p * PAGE, (p + 1) * PAGE));
+      if (h === before) continue;
+      const old = shadow.get(p);
+      if (first) {
+        // The first layer shares its pages with the shadow; a shared page is copied once it changes again (copy on write).
+        const copy = mem.slice(p * PAGE, (p + 1) * PAGE);
+        pages.set(p, copy);
+        shadow.set(p, copy);
+        this.sharedPages.add(copy);
+        continue;
+      }
+      const delta = encodeXor(words, p * (PAGE >> 2), old ? new Int32Array(old.buffer, old.byteOffset, PAGE >> 2) : null);
+      if (delta.length > 0) {
+        pages.set(p, delta);
+        this.layerBytes += delta.byteLength;
+      }
+      if (old && !this.sharedPages.has(old)) old.set(mem.subarray(p * PAGE, (p + 1) * PAGE));
+      else shadow.set(p, mem.slice(p * PAGE, (p + 1) * PAGE));
     }
     for (const f of this.outputs.values()) f.frozen = Math.max(f.frozen, f.len);
     const { fds, outputs } = cloneState(this.fds, this.outputs);
@@ -254,30 +324,63 @@ export class TexpressoEngine {
     });
     this.thin();
     this.checkpointMs += performance.now() - t0;
-    // Never spend more than a quarter of the engine's time on checkpoints.
-    this.spacing = Math.max(this.opts.checkpointEveryMs, 3 * (performance.now() - t0));
+    if (this.mem.byteLength + this.snapshotBytes() > this.opts.memoryBudget) this.goFull();
+    // Never spend more than about a sixth of the engine's time on checkpoints.
+    this.spacing = Math.max(this.opts.checkpointEveryMs, 5 * (performance.now() - t0));
     this.lastCheckpointAt = performance.now();
     this.linesSinceCheckpoint = 0;
   }
 
-  /** Keeps the count bounded by dropping every other checkpoint of the older half; a dropped layer's pages move into the next one. */
+  /** Over the memory budget: the session keeps no checkpoints and every edit runs from the start. */
+  private goFull(): void {
+    this.mode = 'full';
+    this.checkpoints = [];
+    this.shadow = null;
+    this.sharedPages = new Set();
+    this.layerBytes = 0;
+  }
+
+  /** Keeps the count bounded by dropping every other checkpoint of the older half; a dropped layer is folded into the next one. */
   private thin(): void {
     if (this.checkpoints.length <= this.opts.maxCheckpoints) return;
     const half = this.checkpoints.length >> 1;
     for (let i = half - 1; i >= 1; i -= 2) {
       const dropped = this.checkpoints[i];
       const next = this.checkpoints[i + 1];
-      for (const [p, bytes] of dropped.pages) if (!next.pages.has(p)) next.pages.set(p, bytes);
+      for (const [p, d] of dropped.pages) {
+        const delta = d as Uint32Array;
+        const later = next.pages.get(p) as Uint32Array | undefined;
+        const merged = later ? combineXor(delta, later) : delta;
+        this.layerBytes += merged.byteLength - delta.byteLength - (later?.byteLength ?? 0);
+        if (merged.length > 0) next.pages.set(p, merged);
+        else next.pages.delete(p);
+      }
       this.checkpoints.splice(i, 1);
     }
   }
 
-  /** Zeroes memory, then applies layers 0..k in order (later pages win). */
+  private dropLayersAfter(k: number): void {
+    for (const c of this.checkpoints.slice(k + 1)) for (const d of c.pages.values()) if (d instanceof Uint32Array) this.layerBytes -= d.byteLength;
+    this.checkpoints.length = k + 1;
+  }
+
+  /** Zeroes memory, then XORs layers 0..k onto it in order; the shadow becomes the restored pages. */
   private restore(c: Checkpoint): void {
     const k = this.checkpoints.indexOf(c);
     if (this.mem.byteLength < c.memBytes) this.grow(c.memBytes);
     this.mem.fill(0);
-    for (let i = 0; i <= k; i++) for (const [p, bytes] of this.checkpoints[i].pages) this.mem.set(bytes, p * PAGE);
+    const words = new Int32Array(this.mem.buffer, 0, this.mem.byteLength >> 2);
+    const touched = new Set<number>();
+    for (let i = 0; i <= k; i++) {
+      for (const [p, delta] of this.checkpoints[i].pages) {
+        if (delta instanceof Uint8Array) this.mem.set(delta, p * PAGE);
+        else applyXor(words, p * (PAGE >> 2), delta);
+        touched.add(p);
+      }
+    }
+    // Restored pages are fresh copies; layer 0 keeps its own, so nothing is shared any more.
+    this.shadow = new Map([...touched].map((p) => [p, this.mem.slice(p * PAGE, (p + 1) * PAGE)]));
+    this.sharedPages = new Set();
     this.exports._emscripten_stack_restore(c.sp);
     ({ fds: this.fds, outputs: this.outputs } = cloneState(c.fds, c.outputs));
     // Open inputs read on from the current text: it equals the old one up to the invalidated read, which comes after this checkpoint.
@@ -303,7 +406,13 @@ export class TexpressoEngine {
       ns[imp.name] = this.importFor(imp.module, imp.name);
       imports[imp.module] = ns;
     }
-    this.instance = new WebAssembly.Instance(this.opts.module, imports as WebAssembly.Imports);
+    try {
+      this.instance = new WebAssembly.Instance(this.opts.module, imports as WebAssembly.Imports);
+    } catch (err) {
+      // An instance needs 128 MB of linear memory up front; a RangeError means the browser would not give it.
+      if (err instanceof RangeError) throw new EngineUnavailableError(err.message);
+      throw err;
+    }
     this.exports = this.instance.exports as Exports;
     this.refreshViews();
     this.hashPage = pageHasher(this.exports.memory);
@@ -352,6 +461,7 @@ export class TexpressoEngine {
 
   /** After `spacing` ms of engine time, or after 30 lines of main.tex at least 50 ms apart, so a short body still gets checkpoints. */
   private dueForCheckpoint(f: Fd): boolean {
+    if (this.mode === 'full' || !this.formatLoaded) return false;
     if (f.path === `${CWD}/main.tex`) this.linesSinceCheckpoint++;
     const since = performance.now() - this.lastCheckpointAt;
     if (since < 50) return false;
@@ -405,12 +515,12 @@ export class TexpressoEngine {
       this.trace.push({ kind: 'lookup', path: path.slice(CWD.length + 1), existed: !!data });
       return data ? { kind: 'input', data, out: null, size: data.length } : null;
     }
-    if (path === CWD || path === '/icu' || this.tree.dirs.has(path)) return { kind: 'dir', data: null, out: null, size: 0 };
+    if (path === CWD || path === '/icu' || path === BIN_DIR || BIN_DIR.startsWith(`${path}/`) || path === EXAMANCE_CNF_DIR || this.tree.isDir(path)) return { kind: 'dir', data: null, out: null, size: 0 };
     if (path === this.icuPath) return { kind: 'tree', data: this.opts.icuData, out: null, size: this.opts.icuData.length };
     // kpathsea locates the tree from argv[0]'s directory; the binary itself is only stat-ed.
-    if (path === '/bin/xetex' || path === '/bin/xelatex') return { kind: 'tree', data: EMPTY, out: null, size: 0 };
+    if (path.startsWith(`${BIN_DIR}/`)) return { kind: 'tree', data: EMPTY, out: null, size: 0 };
     const size = this.tree.size(path);
-    return size >= 0 ? { kind: 'tree', data: null, out: null, size } : null;
+    return size >= 0 ? { kind: 'tree', data: this.tree.cached(path), out: null, size } : null;
   }
 
   imp___syscall_openat(dirfd: number, pathPtr: number, flags: number): number {
@@ -420,8 +530,7 @@ export class TexpressoEngine {
     if (!hit) return -E.NOENT;
     if (path.endsWith('.fmt')) this.formatLoaded = true;
     const fd = this.nextFd++;
-    const data = hit.kind === 'tree' && !hit.data ? this.tree.read(path) : hit.data;
-    this.fds.set(fd, { path, kind: hit.kind, data, out: hit.out, pos: 0 });
+    this.fds.set(fd, { path, kind: hit.kind, data: hit.data, out: hit.out, pos: 0, size: hit.size });
     return fd;
   }
 
@@ -436,7 +545,7 @@ export class TexpressoEngine {
       this.outputs.set(path, out);
     }
     const fd = this.nextFd++;
-    this.fds.set(fd, { path, kind: 'output', data: null, out, pos: flags & O_APPEND ? out.len : 0 });
+    this.fds.set(fd, { path, kind: 'output', data: null, out, pos: flags & O_APPEND ? out.len : 0, size: 0 });
     return fd;
   }
 
@@ -445,7 +554,11 @@ export class TexpressoEngine {
     if (this.rewinding) {
       this.exports.asyncify_stop_rewind();
       this.rewinding = false;
-    } else if (f?.kind === 'input' && this.formatLoaded && this.dueForCheckpoint(f)) {
+    } else if (f?.kind === 'tree' && !f.data) {
+      this.pendingFetch = f;
+      this.exports.asyncify_start_unwind(this.asyncData);
+      return 0;
+    } else if (f?.kind === 'input' && this.dueForCheckpoint(f)) {
       this.exports.asyncify_start_unwind(this.asyncData);
       return 0;
     }
@@ -497,7 +610,7 @@ export class TexpressoEngine {
   imp_fd_seek(fd: number, offset: bigint, whence: number, pnew: number): number {
     const f = this.fds.get(fd);
     if (!f) return E.BADF;
-    const size = f.out ? f.out.len : (f.data?.length ?? 0);
+    const size = f.out ? f.out.len : (f.data?.length ?? f.size);
     const o = Number(offset);
     // WASI whence: 0 = SET, 1 = CUR, 2 = END.
     const origin = [0, f.pos, size][whence] ?? 0;
@@ -519,7 +632,7 @@ export class TexpressoEngine {
   imp___syscall_fstat64(fd: number, buf: number): number {
     const f = this.fds.get(fd);
     if (!f) return -E.BADF;
-    this.writeStat(buf, f.kind === 'dir', f.out ? f.out.len : (f.data?.length ?? 0));
+    this.writeStat(buf, f.kind === 'dir', f.out ? f.out.len : (f.data?.length ?? f.size));
     return 0;
   }
 
@@ -592,7 +705,8 @@ export class TexpressoEngine {
   imp__mmap_js(len: number, _prot: number, _flags: number, fd: number, offset: bigint, allocated: number, addr: number): number {
     const f = this.fds.get(fd);
     const src = f?.out ? f.out.data.subarray(0, f.out.len) : f?.data;
-    if (!src) return -E.BADF;
+    // A tree file not fetched yet cannot be mapped synchronously; FreeType then falls back to reading it.
+    if (!src) return f ? -E.NOSYS : -E.BADF;
     const memalign = this.exports.emscripten_builtin_memalign;
     const ptr = memalign ? memalign(65536, len) : this.exports.malloc(len);
     if (!ptr) return -48;
@@ -627,11 +741,8 @@ export class TexpressoEngine {
   }
   private environ(): string[] {
     return [
-      'TEXMFDIST=/texlive/texmf-dist',
-      'TEXMFVAR=/texlive/texmf-dist/texmf-var',
-      'TEXMFCNF=/texlive:/texlive/texmf-dist/web2c',
-      'FONTCONFIG_PATH=/texlive',
-      'FONTCONFIG_FILE=/texlive/fonts.conf',
+      // The trailing ":" appends the distribution's defaults after ours, exactly as services/texrunner.py does.
+      `TEXMFCNF=${EXAMANCE_CNF_DIR}:`,
       'ICU_DATA=/icu',
       `SOURCE_DATE_EPOCH=${EPOCH}`,
       'FORCE_SOURCE_DATE=1',
@@ -726,6 +837,61 @@ function pageHasher(memory: WebAssembly.Memory): (page: number) => number {
   return inst.exports.hash as (page: number) => number;
 }
 
+/** Scratch for encodeXor: a page's worst case is one run of all words plus its two header words. */
+const XOR_SCRATCH = new Uint32Array((PAGE >> 2) + 2);
+
+/** A page's XOR against `prev` (zero when null) as runs: [start, length, words…]…, word offsets within the page. */
+function encodeXor(words: Int32Array, o: number, prev: Int32Array | null): Uint32Array {
+  const n = PAGE >> 2;
+  let w = 0;
+  let i = 0;
+  while (i < n) {
+    const x = words[o + i] ^ (prev ? prev[i] : 0);
+    if (x === 0) {
+      i++;
+      continue;
+    }
+    // A run; when it would not fit the scratch any more (scattered changes), the whole page goes as one run.
+    if (w + 3 > XOR_SCRATCH.length) return fullRun(words, o, prev);
+    const head = w;
+    XOR_SCRATCH[w++] = i;
+    w++;
+    const start = i;
+    for (let y = x; i < n && y !== 0; y = i < n ? words[o + i] ^ (prev ? prev[i] : 0) : 0) {
+      if (w >= XOR_SCRATCH.length) return fullRun(words, o, prev);
+      XOR_SCRATCH[w++] = y;
+      i++;
+    }
+    XOR_SCRATCH[head + 1] = i - start;
+  }
+  return XOR_SCRATCH.slice(0, w);
+}
+
+function fullRun(words: Int32Array, o: number, prev: Int32Array | null): Uint32Array {
+  const n = PAGE >> 2;
+  const out = new Uint32Array(n + 2);
+  out[1] = n;
+  for (let i = 0; i < n; i++) out[i + 2] = words[o + i] ^ (prev ? prev[i] : 0);
+  return out;
+}
+
+function applyXor(words: Int32Array, o: number, delta: Uint32Array): void {
+  for (let k = 0; k < delta.length; ) {
+    const start = delta[k];
+    const len = delta[k + 1];
+    for (let i = 0; i < len; i++) words[o + start + i] ^= delta[k + 2 + i];
+    k += 2 + len;
+  }
+}
+
+/** The single delta that applying `a` then `b` amounts to. */
+function combineXor(a: Uint32Array, b: Uint32Array): Uint32Array {
+  const page = new Int32Array(PAGE >> 2);
+  applyXor(page, 0, a);
+  applyXor(page, 0, b);
+  return encodeXor(page, 0, null);
+}
+
 function writeOut(f: Fd, bytes: Uint8Array): void {
   const out = f.out!;
   if (f.pos < out.frozen) {
@@ -758,11 +924,6 @@ function lineEnd(src: Uint8Array, pos: number): number {
   return nl < 0 ? src.length : nl + 1;
 }
 
-function firstDiff(a: Uint8Array, b: Uint8Array): number {
-  const n = Math.min(a.length, b.length);
-  for (let i = 0; i < n; i++) if (a[i] !== b[i]) return i;
-  return a.length === b.length ? -1 : n;
-}
 
 function normalize(p: string): string {
   const out: string[] = [];

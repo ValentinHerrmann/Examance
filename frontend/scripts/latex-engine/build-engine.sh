@@ -1,11 +1,13 @@
 #!/bin/bash
-# TeXpresso browser spike: builds an asyncified XeTeX engine.wasm for the browser host in src/lib/latex/texpresso-spike/.
-# Derived from scripts/build-wasm-xetex.sh of let-def/texpresso (branch eclipse, MIT); differences are marked "spike:".
+# Builds the browser LaTeX engine (src/lib/latex/engine/): asyncified XeTeX and xdvipdfmx WASM plus ICU data, from pinned TeX Live sources.
+# Derived from scripts/build-wasm-xetex.sh of let-def/texpresso (branch eclipse, MIT); differences are marked "ours:". Report: docs/dev/latex_performance.md.
 # Needs: emsdk 4.0.12 activated (emcc on PATH), git, a host C compiler, native tangle/ctangle/tie on PATH (Debian: texlive-binaries), ~3 GB disk, ~40 min on 4 cores.
-# Usage: scripts/texpresso-spike/build-engine.sh <work dir>   Output: <work dir>/out/{xetex.wasm,xetex.js,icudt78l.dat}
+# Usage: scripts/latex-engine/build-engine.sh <work dir> [<install dir>]
+# Output: <work dir>/out/; with <install dir> (static/core/latex-engine) also the gzipped files and SHA256SUMS that the app serves.
 set -euo pipefail
 
 WORK="$(mkdir -p "${1:?work dir}" && cd "$1" && pwd)"
+INSTALL="${2:-}"
 TEXPRESSO_COMMIT="c3a321b25bc1f9755b2d486ac0f1fcedd3c0ba11" # eclipse, 2026-08-11 (only the fontconfig shim is used)
 TEXLIVE_BRANCH="tags/texlive-2026.1"
 TEXLIVE_COMMIT="6a300188053b8f2ded89dbd52293732a706b9c0e"
@@ -26,13 +28,14 @@ BUILD="$WORK/build"
 OUT="$WORK/out"
 
 export EMCC_SKIP_SANITY_CHECK=1
-# spike: emscripten-style setjmp/longjmp instead of wasm EH, because Asyncify cannot instrument wasm exception handling.
-WASMFLAGS="-O2 -sSUPPORT_LONGJMP=emscripten"
-# spike: Asyncify unwinds the call stack into linear memory at fd_read, so a checkpoint is a memory copy plus globals.
-# spike: -O2 at link so wasm-opt runs after the Asyncify pass; malloc exported for the Asyncify data buffer.
-# spike: the import needs its module name; emcc prefixes a bare name with "env.", which matches nothing and silently breaks every resume.
+# ours: emscripten-style setjmp/longjmp instead of wasm EH, because Asyncify cannot instrument wasm exception handling.
+# ours: -ffile-prefix-map keeps the work dir out of the binary (assert messages), so any checkout rebuilds the same bytes.
+WASMFLAGS="-O2 -sSUPPORT_LONGJMP=emscripten -ffile-prefix-map=$WORK=."
+# ours: Asyncify unwinds the call stack into linear memory at fd_read, so a checkpoint is a memory copy plus globals.
+# ours: -O2 at link so wasm-opt runs after the Asyncify pass; malloc exported for the Asyncify data buffer.
+# ours: the import needs its module name; emcc prefixes a bare name with "env.", which matches nothing and silently breaks every resume.
 CONFFLAGS="-sSUPPORT_LONGJMP=emscripten -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=16MB -sINITIAL_MEMORY=128MB"
-# spike: Asyncify only at the final xetex link; configure's link probes would each run the pass.
+# ours: Asyncify only at the final xetex link; configure's link probes would each run the pass.
 LINKFLAGS="$CONFFLAGS -O2 -sMAXIMUM_MEMORY=2GB -sASYNCIFY=1 -sASYNCIFY_IMPORTS=['wasi_snapshot_preview1.fd_read'] -sEXPORTED_FUNCTIONS=['_main','_malloc','_free'] -sEXPORTED_RUNTIME_METHODS=[] -sINVOKE_RUN=0"
 CXXWASMFLAGS="$WASMFLAGS -DHB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR"
 
@@ -48,7 +51,7 @@ export kpse_cv_fontconfig_libs="$BUILD/libfcshim.a"
 if [ "${RESUME_AT_TEXK:-0}" != 1 ]; then
 rm -rf "$BUILD"; mkdir -p "$BUILD"; cd "$BUILD"
 
-# spike: SyncTeX stays enabled (upstream passes --disable-xetex-synctex --disable-synctex); PDF-side editing needs it.
+# ours: SyncTeX stays enabled (upstream passes --disable-xetex-synctex --disable-synctex); PDF-side editing needs it.
 emconfigure "$SRC/configure" \
   --build="$BUILD_TRIPLE" --host=wasm32-unknown-emscripten \
   --without-x --disable-shared --disable-all-pkgs \
@@ -59,7 +62,8 @@ emconfigure "$SRC/configure" \
   --enable-missing \
   CFLAGS="$WASMFLAGS" CXXFLAGS="$CXXWASMFLAGS" LDFLAGS="$CONFFLAGS"
 
-LIBS_XETEX="zlib libpng freetype2 graphite2 teckit icu harfbuzz pplib"
+# ours: libpaper for xdvipdfmx.
+LIBS_XETEX="zlib libpng freetype2 graphite2 teckit icu harfbuzz pplib libpaper"
 sed -i.bak "s|^CONF_SUBDIRS = .*|CONF_SUBDIRS = $LIBS_XETEX|" libs/Makefile
 sed -i.bak2 "s|^MAKE_SUBDIRS = .*|MAKE_SUBDIRS = $LIBS_XETEX|" libs/Makefile
 
@@ -82,11 +86,12 @@ emar rcs "$BUILD/libfcshim.a" "$BUILD/fcshim.o"
 fi
 cd "$BUILD"
 
-# spike: texk's own list leaves kpathsea out here; put it first (configured and built before web2c) and drop the other programs.
-sed -i.bak "s|^CONF_SUBDIRS = .*|CONF_SUBDIRS = kpathsea web2c|" texk/Makefile
-sed -i.bak2 "s|^MAKE_SUBDIRS = .*|MAKE_SUBDIRS = kpathsea web2c|" texk/Makefile
-echo "=== configure texk, build kpathsea (web2c fails at lua53; only xetex is needed) ==="
-emmake make -C texk -j"$JOBS" || true
+# ours: texk's own list leaves kpathsea out here; put it first, then dvipdfm-x, then web2c (which fails at lua53 and must come last).
+sed -i.bak "s|^CONF_SUBDIRS = .*|CONF_SUBDIRS = kpathsea dvipdfm-x web2c|" texk/Makefile
+sed -i.bak2 "s|^MAKE_SUBDIRS = .*|MAKE_SUBDIRS = kpathsea dvipdfm-x web2c|" texk/Makefile
+echo "=== configure texk, build kpathsea (web2c fails at lua53, xdvipdfmx at getpass; both are linked below) ==="
+# -k: configure and build every subdir despite those expected failures (without it web2c is never configured).
+emmake make -k -C texk -j"$JOBS" || true
 emmake make -C texk/kpathsea -j"$JOBS"
 sed -i.bak "s|^FONTCONFIG_INCLUDES = .*|FONTCONFIG_INCLUDES = -I$SHIM|" texk/web2c/Makefile
 sed -i.bak2 "s|^FONTCONFIG_LIBS = .*|FONTCONFIG_LIBS = $BUILD/libfcshim.a|" texk/web2c/Makefile
@@ -95,7 +100,20 @@ rm -f texk/web2c/xetexdir/libxetex_a-XeTeXFontMgr_FC.o texk/web2c/xetexdir/libxe
 echo "=== link xetex ==="
 emmake make -C texk/web2c -j"$JOBS" xetex LDFLAGS="$LINKFLAGS"
 
-cp texk/web2c/xetex.wasm "$OUT/"
-cp texk/web2c/xetex "$OUT/xetex.js" # libtool names the emscripten glue without its extension
+# ours: xdvipdfmx with the same flags, so the same host fetches its files lazily; getpass (the encryption prompt) is stubbed.
+echo "=== link xdvipdfmx ==="
+printf 'char *getpass(const char *prompt) { (void)prompt; return (char *)""; }\n' > getpass-stub.c
+emcc -O2 -c getpass-stub.c -o getpass-stub.o
+rm -f texk/dvipdfm-x/xdvipdfmx texk/dvipdfm-x/xdvipdfmx.wasm
+emmake make -C texk/dvipdfm-x -j"$JOBS" xdvipdfmx LDFLAGS="$LINKFLAGS $BUILD/getpass-stub.o"
+
+cp texk/web2c/xetex.wasm texk/dvipdfm-x/xdvipdfmx.wasm "$OUT/"
 cp libs/icu/icu-build/data/out/icudt78l.dat "$OUT/"
-sha256sum "$OUT"/* | tee "$OUT/SHA256SUMS"
+(cd "$OUT" && sha256sum xetex.wasm xdvipdfmx.wasm icudt78l.dat | tee SHA256SUMS)
+
+# Deterministic gzip (-n: no name or time), so CI can compare the rebuilt files with the committed ones.
+if [ -n "$INSTALL" ]; then
+  mkdir -p "$INSTALL"
+  for f in xetex.wasm xdvipdfmx.wasm icudt78l.dat; do gzip -9 -n -c "$OUT/$f" > "$INSTALL/$f.gz"; done
+  cp "$OUT/SHA256SUMS" "$INSTALL/SHA256SUMS"
+fi
