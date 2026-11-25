@@ -27,7 +27,7 @@ export const help: Translations['help'] = {
         storageServer: 'Exams, exercises and results live on the server, but encrypted: the key stays in the browser, so the server cannot read the contents. Only the LaTeX source of exercises and exams and the total score are unencrypted.',
         storageHybrid: 'Exercises and exams live on the server (useful for a shared department catalogue). Student data, scans and scores stay in this browser only, encrypted, and are not visible on other devices.',
         latexLocal: 'The exam is typeset in the browser (WebAssembly XeLaTeX). The LaTeX source never leaves the device. The engine loads in the background after sign-in or when you switch to this option (one-time download); until then the first run takes longer.',
-        latexServer: 'The server typesets the exam. Faster on low-spec hardware, but the LaTeX source is transmitted.',
+        latexServer: 'The server typesets the exam. Slower and without a live preview, but it also works on devices where compiling in the browser does not; the LaTeX source is transmitted.',
         variantKey: 'Variants are different phrasings of the same exercise (group A/B/C). They share grading and statistics while making copying harder.',
         mcPenalty: 'Points deducted for a wrongly ticked option. 0 means no negative marking. An exercise total never drops below zero.',
         exerciseScore: String.raw`Counts \BE (1 point), \hBE (0.5) and \qBE (0.25) in the source, and every correct option in MC questions. A fixed score replaces the counted one; clear the field to count again.`,
@@ -325,7 +325,7 @@ export const help: Translations['help'] = {
             },
             s2: {
                 h: 'LaTeX compilation',
-                p1: 'In the browser (the source never leaves the device; the first run downloads the LaTeX environment, after that an edit typesets only the part from the change on again) or on the server (faster on weak hardware). Both use the same TeX Live. Applies per browser.',
+                p1: 'In the browser (the source never leaves the device; the first run downloads the LaTeX environment, after that an edit typesets only the part from the change on again) or on the server (slower, no live preview). The browser is recommended and the default; if it cannot compile on a device, the server steps in where your account allows it. Both use the same TeX Live. Applies per browser.',
             },
             s3: {
                 h: 'Language and colour scheme',

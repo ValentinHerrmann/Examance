@@ -109,13 +109,13 @@ export async function compileExercisePreview(input: ExercisePreviewInput): Promi
   await input.beforeCompile?.();
   const angabe = await compileWithCache(
     { kind: "exercise", id: input.cacheId, variant: "angabe" },
-    angabeTex, input.useLocal, input.onStatus, false, opts
+    angabeTex, input.useLocal, input.onStatus, opts
   );
   input.onAngabe?.(angabe);
   await input.beforeCompile?.();
   const loesung = await compileWithCache(
     { kind: "exercise", id: input.cacheId, variant: "loesung" },
-    loesungTex, input.useLocal, undefined, false, opts
+    loesungTex, input.useLocal, undefined, opts
   );
   return {
     angabe,

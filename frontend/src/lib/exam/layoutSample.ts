@@ -98,5 +98,5 @@ export function layoutSampleTex(): string {
 /** Compiles the sample once per session and engine; every exam's Layout step reuses it. */
 export function compileLayoutSample(onStatus?: (status: string) => void): Promise<CompileResult> {
   const useLocal = effectiveLatexCompilation() === 'local';
-  return compileWithCache({ kind: 'layout-sample', id: 'v2', variant: 'angabe' }, layoutSampleTex(), useLocal, onStatus, false, {});
+  return compileWithCache({ kind: 'layout-sample', id: 'v2', variant: 'angabe' }, layoutSampleTex(), useLocal, onStatus, {});
 }

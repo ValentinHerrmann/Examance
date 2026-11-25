@@ -46,8 +46,10 @@ Was Sie in der App löschen (Prüfungen, Aufgaben, Dateien, Logos, Schüler:inne
 
 *Wird in diesem Browser gespeichert.* Legt unabhängig vom Speicherort fest, wo Prüfungen und Aufgaben gesetzt werden:
 
-- **Lokaler Client (WebAssembly)**: in Ihrem Browser; der LaTeX-Quelltext verlässt Ihr Gerät nie. Er verwendet dasselbe TeX Live wie der Server, ein Dokument sieht also auf beiden Wegen gleich aus. Die Engine und die Dateien, die die Prüfungsvorlage braucht (etwa 30 MB), werden nach der Anmeldung (oder beim Umstellen auf diese Option) einmalig im Hintergrund heruntergeladen; bis dahin dauert der erste Lauf länger. Ein Paket, das Ihre Dokumente zum ersten Mal verwenden, wird bei Bedarf von Ihrem Examance-Server geholt und danach im Browser behalten. Reicht der Arbeitsspeicher Ihres Geräts für die Engine nicht, kompiliert Examance stattdessen auf dem Server, sofern Ihr Konto das erlaubt.
-- **Server**: schneller auf schwacher Hardware; der LaTeX-Quelltext wird an den Server gesendet. Nur verfügbar, wenn Ihr Konto es erlaubt.
+- **Im Browser** (empfohlen, voreingestellt): am schnellsten, mit Live-Vorschau beim Tippen; der LaTeX-Quelltext verlässt zum Kompilieren Ihr Gerät nicht. Er verwendet dasselbe TeX Live wie der Server, ein Dokument sieht also auf beiden Wegen gleich aus. Die Engine und die Dateien, die die Prüfungsvorlage braucht (etwa 30 MB), werden nach der Anmeldung (oder beim Umstellen auf diese Option) einmalig im Hintergrund heruntergeladen; bis dahin dauert der erste Lauf länger. Ein Paket, das Ihre Dokumente zum ersten Mal verwenden, wird bei Bedarf von Ihrem Examance-Server geholt und danach im Browser behalten. Kann die Engine auf Ihrem Gerät nicht laufen (zu wenig Arbeitsspeicher, oder sie lädt nicht), kompiliert Examance stattdessen auf dem Server, sofern Ihr Konto das erlaubt, und fragt, ob dieser Browser ab jetzt auf dem Server kompilieren soll. Ein LaTeX-Fehler in Ihrem Dokument wird wie gewohnt angezeigt; er schlüge auch auf dem Server fehl.
+- **Server**: langsamer und ohne Live-Vorschau; der LaTeX-Quelltext wird an den Server gesendet. Nur verfügbar, wenn Ihr Konto es erlaubt.
+
+Browser, die bisher auf dem Server kompiliert haben, wurden einmalig auf den Browser umgestellt, mit einem kurzen Hinweis nach der Anmeldung; **Weiter auf dem Server kompilieren** in diesem Hinweis oder diese Einstellung stellt zurück.
 
 ## Sprache und Farbschema {#language}
 

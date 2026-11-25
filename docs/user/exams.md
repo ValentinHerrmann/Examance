@@ -199,8 +199,8 @@ Some students need more room than the task sheet offers. The **Writing space** s
 
 Depending on your settings and your account, the exam is typeset
 
-- **in your browser**: nothing leaves your device, but the first run downloads the LaTeX environment and is slower;
-- **on the server**: faster on weak hardware; the LaTeX source is sent to the server.
+- **in your browser** (recommended, the default): fastest; the LaTeX source does not leave your device to compile, and only the very first run downloads the LaTeX environment once;
+- **on the server**: slower; the LaTeX source is sent to the server.
 
 See [LaTeX compilation](./settings#latex). If something looks wrong, [report a layout problem](./exercises#layout-reports); if compiling fails, see [When compiling fails](./exercises#compile-errors).
 

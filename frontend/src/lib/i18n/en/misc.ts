@@ -7,7 +7,6 @@ export const misc: Translations['misc'] = {
         downloadBytes: '{loaded} of {total}',
         prepare: 'Unpacking…',
         prepareStep: 'Unpacking package {step} of {steps}…',
-        localFailedTryServer: 'Local LaTeX compilation failed. Do you want to try compiling on the server?',
         engineUnavailable: 'This device does not have enough memory for the LaTeX preview in the browser, and compiling on the server is not enabled for your account. Close other tabs or ask your administrator to enable server compilation.',
         locationExercise: 'Exercise “{label}”, line {line}',
         locationGenerated: 'Generated frame (header, preamble), line {line}',

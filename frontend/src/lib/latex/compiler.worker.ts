@@ -2,7 +2,7 @@
 /**
  * The browser LaTeX engine (issue #346): XeTeX with checkpoints per document session, then xdvipdfmx, on the server's TeX Live tree.
  * Protocol (compiler.ts): {type:'assets'}, {type:'preload'}, {id, latexSource, resources, seedAux, session?}; answers {id, status},
- * {type:'download', …}, {id, success, pdfBytes, missingGraphics, aux} or {id, success:false, error, log, unavailable?}, and asks
+ * {type:'download', …}, {id, success, pdfBytes, missingGraphics, aux} or {id, success:false, error, log, engineFailed?, unavailable?}, and asks
  * {type:'tree-request', reqId, kind, path?} for TeX Live files, which the main thread fetches through the authenticated API client.
  */
 import { BIN_DIR, DEFAULT_MEMORY_BUDGET, EngineUnavailableError, TexEngine, type RunResult } from './engine/engine';
@@ -406,7 +406,8 @@ self.onmessage = (e: MessageEvent) => {
       // The engine is in an unknown state: drop the session, so the next compile starts clean (the old resetRunner rule).
       if (req.session) sessions.delete(req.session);
       const message = err instanceof Error ? err.message : String(err);
-      self.postMessage({ id: req.id, success: false, error: message, unavailable: err instanceof EngineUnavailableError });
+      // A throw is the engine failing (boot, download, crash), never the document: the main thread may compile it on the server instead.
+      self.postMessage({ id: req.id, success: false, error: message, engineFailed: true, unavailable: err instanceof EngineUnavailableError });
     }
   });
 };

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { storagePolicyStore, DEFAULT_POLICY, getStoragePolicyBadge } from '../src/lib/stores/storagePolicy';
+import { storagePolicyStore, DEFAULT_POLICY, getStoragePolicyBadge, localSwitchPending, switchToLocalOnce } from '../src/lib/stores/storagePolicy';
 import { get } from 'svelte/store';
 
 // Mock localStorage for Vitest environment
@@ -44,6 +44,33 @@ describe('storagePolicyStore', () => {
     localStorage.setItem('bg_storage_policy', JSON.stringify({ storageMode: 'hybrid' }));
     storagePolicyStore.updateSetting('latexCompilation', 'local');
     expect(JSON.parse(localStorage.getItem('bg_storage_policy') || '{}').storageMode).toBe('hybrid');
+  });
+
+  it('defaults to the browser engine', () => {
+    expect(DEFAULT_POLICY.latexCompilation).toBe('local');
+  });
+
+  it('moves a browser that chose the server to the browser engine once', () => {
+    storagePolicyStore.updateSetting('latexCompilation', 'server');
+    expect(localSwitchPending()).toBe(true);
+    expect(switchToLocalOnce()).toBe(true);
+    expect(localStorage.getItem('bg_latex_compilation')).toBe('local');
+    expect(localSwitchPending()).toBe(false);
+    // Switching back afterwards sticks: the move is never repeated.
+    storagePolicyStore.updateSetting('latexCompilation', 'server');
+    expect(localSwitchPending()).toBe(false);
+  });
+
+  it('counts a browser without a stored choice as moved: it compiled on the server under the old default', () => {
+    localStorage.removeItem('bg_latex_compilation');
+    expect(switchToLocalOnce()).toBe(true);
+    expect(localStorage.getItem('bg_latex_compilation')).toBe('local');
+  });
+
+  it('reports no change for a browser that already compiles locally', () => {
+    storagePolicyStore.updateSetting('latexCompilation', 'local');
+    expect(switchToLocalOnce()).toBe(false);
+    expect(localSwitchPending()).toBe(false);
   });
 });
 

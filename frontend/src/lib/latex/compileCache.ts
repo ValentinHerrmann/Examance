@@ -336,7 +336,6 @@ export async function compileWithCache(
   latexSource: string,
   useLocal = false,
   onStatus?: (status: string) => void,
-  promptFallback = true,
   opts: CompileOpts = {}
 ): Promise<CompileResult> {
   const hash = await hashFor(latexSource, useLocal, opts);
@@ -345,7 +344,7 @@ export async function compileWithCache(
   if (hit) return hitResult(hit);
 
   const startedAt = invalidationSeq;
-  const result = await compileLatex(latexSource, useLocal, onStatus, promptFallback, { ...opts, seedAux: await seedFor(key), session: sessionOf(key) });
+  const result = await compileLatex(latexSource, useLocal, onStatus, { ...opts, seedAux: await seedFor(key), session: sessionOf(key) });
   if (invalidatedSince(makeSlotKey(key), startedAt)) return result;
   setCached(key, hash, result);
   persist(key, hash, result);

@@ -64,6 +64,7 @@
   import UpdateNotice from "#lib/components/layout/UpdateNotice.svelte";
   import MaintenanceNotice from "#lib/components/layout/MaintenanceNotice.svelte";
   import DomainMoveNotice from "#lib/components/layout/DomainMoveNotice.svelte";
+  import LocalLatexNotice from "#lib/components/settings/LocalLatexNotice.svelte";
   import DomainMoveHybridPanel from "#lib/components/layout/DomainMoveHybridPanel.svelte";
   import { onOldAddress } from "#lib/domainMove";
   import StorageChoiceModal from "#lib/components/storage/StorageChoiceModal.svelte";
@@ -347,6 +348,7 @@
   <UpdateNotice />
   <MaintenanceNotice />
   <DomainMoveNotice />
+  <LocalLatexNotice />
 
   {#if $versionStatus === "incompatible"}
     <!-- A differing major version means frontend and backend disagree on the API; saving may fail. Not dismissible, and visible without scrolling. -->

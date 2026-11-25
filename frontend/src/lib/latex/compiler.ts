@@ -1,5 +1,6 @@
 /** Client-side LaTeX compiler: the browser engine (compiler.worker.ts, issue #346) or a server compile job (POST /api/v1/compile/latex/jobs). */
 
+import { writable } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { translate } from '#lib/i18n';
 import { featureEnabled } from '#lib/stores/capabilities';
@@ -34,13 +35,24 @@ export interface CompileResult {
 /** `session` names the document (its cache slot) so the browser engine keeps its checkpoints for the next edit; without one it compiles from scratch. */
 type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; seedAux?: AuxFile[]; session?: string };
 
+/** The browser engine itself failed (boot, download, crash, timeout), not the document: the server may compile it instead. */
+export class LocalEngineFailedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LocalEngineFailedError';
+  }
+}
+
 /** The browser engine cannot run on this device (no memory for an engine instance). */
-export class LocalEngineUnavailableError extends Error {
+export class LocalEngineUnavailableError extends LocalEngineFailedError {
   constructor(message: string) {
     super(message);
     this.name = 'LocalEngineUnavailableError';
   }
 }
+
+/** Set when an engine failure was compiled on the server instead; `LocalLatexNotice` then offers to compile there from now on. */
+export const engineFallbackStore = writable(false);
 
 /** One compiler worker, created on first use and kept for the session. Compiles are serialised via `compileQueue`; the worker keeps a few engine sessions with their checkpoints, so a second worker would only double them. */
 let worker: Worker | null = null;
@@ -200,6 +212,8 @@ async function compileLocalWasm(
           );
         } else if (e.data.unavailable) {
           settle(() => reject(new LocalEngineUnavailableError(e.data.error || 'The browser LaTeX engine cannot run here')));
+        } else if (e.data.engineFailed) {
+          settle(() => reject(new LocalEngineFailedError(e.data.error || 'The browser LaTeX engine failed')));
         } else {
           settle(() => reject(new LatexCompileError(e.data.error || 'Local compilation failed', e.data.log ?? '', 'local')));
         }
@@ -208,13 +222,13 @@ async function compileLocalWasm(
       const onError = (event: ErrorEvent) => {
         // The worker itself failed, so it is not reusable.
         discardWorker(`worker error during a compile: ${event.message}`);
-        settle(() => reject(new Error(event.message || 'Local compilation worker crashed')));
+        settle(() => reject(new LocalEngineFailedError(event.message || 'Local compilation worker crashed')));
       };
 
       const timer = setTimeout(() => {
         discardWorker('compile timeout');
         settle(() =>
-          reject(new Error('Local compilation timed out. The document may be too large.'))
+          reject(new LocalEngineFailedError('Local compilation timed out. The document may be too large.'))
         );
       }, COMPILE_TIMEOUT_MS);
 
@@ -242,14 +256,13 @@ export async function compileLatex(
   latexSource: string,
   useLocal = false,
   onStatus?: (status: string) => void,
-  promptFallback = true,
   opts: CompileOpts = {}
 ): Promise<CompileResult> {
   // Builders mark each exercise body (sourceMap.ts); the engines get the unmarked document.
   const map = extractSourceMap(latexSource);
   const started = performance.now();
   try {
-    const result = await compileMapped(map.tex, useLocal, onStatus, promptFallback, opts);
+    const result = await compileMapped(map.tex, useLocal, onStatus, opts);
     const durationMs = Math.round(performance.now() - started);
     // Timing only, never content: shows whether a slow compile is the engine, the queue or the seeds.
     console.info(`[compiler] ${result.engineUsed} compile took ${(durationMs / 1000).toFixed(1)} s (seeded: ${(opts.seedAux ?? []).length > 0})`);
@@ -262,25 +275,18 @@ export async function compileLatex(
   }
 }
 
-/** Whether a failed local compile goes to the server: without asking when the engine cannot run on this device, after a confirm otherwise; only for an account that may compile there. */
-function fallBackToServer(err: unknown, promptFallback: boolean): boolean {
-  if (err instanceof LocalEngineUnavailableError) {
-    if (!featureEnabled('server_latex')) throw new Error(translate('misc.compiler.engineUnavailable'));
-    return true;
-  }
-  return (
-    promptFallback &&
-    featureEnabled('server_latex') &&
-    typeof window !== 'undefined' &&
-    window.confirm(translate('misc.compiler.localFailedTryServer'))
-  );
+/** Whether a failed local compile goes to the server: only when the engine failed (a LaTeX error fails there too) and the account may compile there. */
+export function fallBackToServer(err: unknown): boolean {
+  if (!(err instanceof LocalEngineFailedError)) return false;
+  if (featureEnabled('server_latex')) return true;
+  if (err instanceof LocalEngineUnavailableError) throw new Error(translate('misc.compiler.engineUnavailable'));
+  return false;
 }
 
 async function compileMapped(
   latexSource: string,
   useLocal: boolean,
   onStatus: ((status: string) => void) | undefined,
-  promptFallback: boolean,
   opts: CompileOpts
 ): Promise<CompileResult> {
   // Throws on a real filename conflict between two exercises — surfacing that beats compiling a document where one figure silently wins.
@@ -294,8 +300,10 @@ async function compileMapped(
       const localFiles = logo?.file ? [...resources, logo.file] : resources;
       return await compileLocalWasm(latexSource, onStatus, localFiles, seedAux, opts.session);
     } catch (err) {
-      if (!fallBackToServer(err, promptFallback)) throw err;
+      if (!fallBackToServer(err)) throw err;
+      console.warn('[compiler] The browser engine failed; compiling on the server instead:', err);
       const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
+      engineFallbackStore.set(true);
       return { ...result, usedFallback: true };
     }
   }

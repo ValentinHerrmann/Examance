@@ -5,7 +5,6 @@ export const misc = {
         downloadBytes: '{loaded} von {total}',
         prepare: 'Wird entpackt…',
         prepareStep: 'Paket {step} von {steps} wird entpackt…',
-        localFailedTryServer: 'Die lokale LaTeX-Kompilierung ist fehlgeschlagen. Möchten Sie stattdessen auf dem Server kompilieren?',
         engineUnavailable: 'Dieses Gerät hat nicht genug Arbeitsspeicher für die LaTeX-Vorschau im Browser, und für Ihr Konto ist die Kompilierung auf dem Server nicht freigeschaltet. Schließen Sie andere Tabs oder fragen Sie Ihre Administration nach der Server-Kompilierung.',
         locationExercise: 'Aufgabe „{label}“, Zeile {line}',
         locationGenerated: 'Vom Programm erzeugter Rahmen (Kopf, Präambel), Zeile {line}',

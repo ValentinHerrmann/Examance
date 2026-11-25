@@ -288,14 +288,14 @@ describe('compileCache', () => {
       });
       const key: CompileCacheKey = { kind: 'exam', id: 'exam-seed', variant: 'angabe' };
       await compileWithCache(key, 'first', false);
-      expect(compileSpy.mock.calls[0][4]?.seedAux).toEqual([]);
+      expect(compileSpy.mock.calls[0][3]?.seedAux).toEqual([]);
       const hit = await compileWithCache(key, 'first', false);
       expect(hit.fromCache).toBe(true);
       await compileWithCache(key, 'edited', false);
-      expect(compileSpy.mock.calls[1][4]?.seedAux).toEqual(aux);
+      expect(compileSpy.mock.calls[1][3]?.seedAux).toEqual(aux);
       // The draft starts from the printed sheet's aux when it has none of its own.
       await compileWithCache({ ...key, variant: 'draft' }, 'draft', false);
-      expect(compileSpy.mock.calls[2][4]?.seedAux).toEqual(aux);
+      expect(compileSpy.mock.calls[2][3]?.seedAux).toEqual(aux);
     });
   });
 });

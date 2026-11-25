@@ -107,6 +107,14 @@ export const test = base.extend<Fixtures>({
       },
       { key: LOCALE_STORAGE_KEY, value: appLocale },
     );
+    // The one-time "LaTeX now compiles in your browser" dialog (settings/LocalLatexNotice) would cover every page.
+    await context.addInitScript(() => {
+      try {
+        window.localStorage.setItem('bg_latex_local_switch', '1');
+      } catch {
+        // Storage blocked: nothing to seed.
+      }
+    });
     await use(context);
   },
 

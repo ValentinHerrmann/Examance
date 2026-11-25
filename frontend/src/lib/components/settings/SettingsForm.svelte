@@ -2,7 +2,7 @@
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { t, LOCALES, LOCALE_LABELS, type Locale } from "#lib/i18n";
   import { themePreference, setThemePreference, THEME_PREFERENCES } from "#lib/stores/theme";
-  import { Card, OptionTile } from "#lib/components/ui";
+  import { Badge, Card, OptionTile } from "#lib/components/ui";
   import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
   import HelpButton from "#lib/components/help/HelpButton.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -110,7 +110,7 @@
         text={$t("settings.latex.localText")}
         onclick={() => onLatexChange("local")}
       >
-        {#snippet titleExtra()}<InfoTip text={$t("help.tips.latexLocal")} topic="settings" />{/snippet}
+        {#snippet titleExtra()}<Badge severity="success" size="xs">{$t("settings.latex.recommended")}</Badge><InfoTip text={$t("help.tips.latexLocal")} topic="settings" />{/snippet}
       </OptionTile>
       <OptionTile
         name="latexCompilation"

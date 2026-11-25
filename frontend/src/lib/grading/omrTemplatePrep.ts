@@ -315,7 +315,6 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
         onProgress?.(translate("exam.page.omr.compilingBlank"));
       }
     },
-    true,
     resourceOptions
   );
   console.log(`[PrepareOMR] LaTeX compile finished: pdfBytes=${result.pdfBytes?.length ?? 0}, engineUsed=${result.engineUsed ?? (useLocal ? "local" : "server")}, usedFallback=${result.usedFallback ?? false}`);
