@@ -43,6 +43,7 @@ from app.routers import (
     result_shares,
     students,
     submissions,
+    texlive_tree,
     training,
     trash,
     user,
@@ -265,6 +266,7 @@ def create_app() -> FastAPI:
     app.include_router(compile.router, prefix=API_PREFIX)
     app.include_router(exams.router, prefix=API_PREFIX)
     app.include_router(latex_assets.router, prefix=API_PREFIX)
+    app.include_router(texlive_tree.router, prefix=API_PREFIX)
     app.include_router(latex_packages.router, prefix=API_PREFIX)
     app.include_router(layout_templates.router, prefix=API_PREFIX)
     app.include_router(logos.router, prefix=API_PREFIX)

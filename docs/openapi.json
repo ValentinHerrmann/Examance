@@ -1564,6 +1564,127 @@
         }
       }
     },
+    "/api/v1/texlive/index.json": {
+      "get": {
+        "tags": [
+          "texlive"
+        ],
+        "summary": "Texlive Index",
+        "description": "Every served file with its size; the engine stats files from this and fetches bytes only when it reads them.",
+        "operationId": "texlive_index_api_v1_texlive_index_json_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "integer"
+                        }
+                      }
+                    ]
+                  },
+                  "title": "Response Texlive Index Api V1 Texlive Index Json Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/texlive/{tree_path}": {
+      "get": {
+        "tags": [
+          "texlive"
+        ],
+        "summary": "Texlive File",
+        "description": "One file; the tree only changes with the image, and clients ask with ?v=<version>, so the response is cached for good.",
+        "operationId": "texlive_file_api_v1_texlive__tree_path__get",
+        "parameters": [
+          {
+            "name": "tree_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tree Path"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user/latex-packages": {
       "get": {
         "tags": [
