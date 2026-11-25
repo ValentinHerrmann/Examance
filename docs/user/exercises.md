@@ -38,7 +38,7 @@ Every exercise group in your own library has a checkbox; the box in the toolbar 
 Each exercise is a LaTeX fragment with a live PDF preview next to the source. Name, topic, grade and subject sit in the header of the editor.
 
 - **Ctrl + F** opens search, **Ctrl + H** search and replace (**⌘** on a Mac).
-- **Live Preview PDF** compiles the exercise and shows the task sheet and the solution.
+- **Live Preview PDF** compiles the exercise and shows the task sheet and the solution. With the local engine, a compile after an edit typesets only the part after your change again, so the preview usually updates in about a second.
 - **Saving**: an existing exercise saves itself two seconds after your last change; the editor's footer shows **Saving…**, **Saved** or why saving failed. Images and files are saved along with the exercise. **Close** saves whatever is still pending. If a change cannot be saved (no name, say, or a multiple choice question without a correct answer), Examance asks before closing whether to discard it. A new exercise and a new version are still created with the **Save** button.
 
 ![Exercise editor with live preview](../screenshots/pitch/03-exercise-editor.jpg)

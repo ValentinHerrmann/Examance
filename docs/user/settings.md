@@ -46,7 +46,7 @@ Whatever you delete in the app (exams, exercises, files, logos, students, scans,
 
 *Stored in this browser.* Decides where exams and exercises are typeset, independently of the storage location:
 
-- **Local Client (WebAssembly)**: in your browser; the LaTeX source never leaves your device. The engine downloads once in the background after sign-in (or when you switch to this option); until then the first run takes longer. If that first run fails with a message about a missing `.sty` file, retry once the download has finished.
+- **Local Client (WebAssembly)**: in your browser; the LaTeX source never leaves your device. It uses the same TeX Live as the server, so a document looks the same either way. The engine and the files the exam template needs (about 30 MB) download once in the background after sign-in (or when you switch to this option); until then the first run takes longer. A package your documents use for the first time is fetched from your Examance server when needed, then kept in the browser. If your device does not have enough memory for the engine, Examance compiles on the server instead, where your account allows it.
 - **Server**: faster on weak hardware; the LaTeX source is sent to the server. Available only if your account allows it.
 
 ## Language and colour scheme {#language}

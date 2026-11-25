@@ -325,7 +325,7 @@ export const help: Translations['help'] = {
             },
             s2: {
                 h: 'LaTeX compilation',
-                p1: 'In the browser (nothing leaves the device, the first run downloads the LaTeX environment) or on the server (faster on weak hardware). Applies per browser. If the first run reports a missing .sty file, retry once the download has finished.',
+                p1: 'In the browser (the source never leaves the device; the first run downloads the LaTeX environment, after that an edit typesets only the part from the change on again) or on the server (faster on weak hardware). Both use the same TeX Live. Applies per browser.',
             },
             s3: {
                 h: 'Language and colour scheme',

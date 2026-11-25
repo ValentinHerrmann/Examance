@@ -2,7 +2,7 @@
 
 Loads when working under `frontend/`. Cross-cutting rules are in the root `CLAUDE.md`.
 
-SvelteKit 3 on **Svelte 5 (runes only, no legacy syntax)**, TypeScript 6, Vite 8 (Rolldown), Tailwind v4, `adapter-static` → `build/`. Kit config lives in `vite.config.ts` (`sveltekit({ … })`; there is no `svelte.config.js`). Imports use `#lib/…` (`package.json` "imports" + a matching tsconfig `paths` entry); worker URLs stay relative (`lib/workers/spawn.ts`). Node is pinned in `.node-version` (Kit 3 needs ≥ 22.17). `dexie` is the encrypted IndexedDB cache (and, in hybrid mode, the home of results); `texlyre-busytex` is the browser LaTeX engine. `svelte-check --threshold error` stays clean. Build/CSP/BusyTeX details: `docs/dev/build_and_csp.md`.
+SvelteKit 3 on **Svelte 5 (runes only, no legacy syntax)**, TypeScript 6, Vite 8 (Rolldown), Tailwind v4, `adapter-static` → `build/`. Kit config lives in `vite.config.ts` (`sveltekit({ … })`; there is no `svelte.config.js`). Imports use `#lib/…` (`package.json` "imports" + a matching tsconfig `paths` entry); worker URLs stay relative (`lib/workers/spawn.ts`). Node is pinned in `.node-version` (Kit 3 needs ≥ 22.17). `dexie` is the encrypted IndexedDB cache (and, in hybrid mode, the home of results); the browser LaTeX engine is our own (`lib/latex/engine/`, `docs/dev/latex.md`). `svelte-check --threshold error` stays clean. Build/CSP details: `docs/dev/build_and_csp.md`.
 
 ## Components
 
@@ -65,8 +65,8 @@ UI text lives in typed catalogs under `src/lib/i18n/`.
 - Resource files: per exercise, flat sanitized names next to `main.tex`, staged under a throwaway id and committed on save (`exerciseResourceRepository.commit()` awaits `seedStaging`, or an early save deletes the files). SVG is refused (`lib/latex/resources.ts`, mirrored in `backend/app/services/latex_resources.py`).
 - Builders mark exercise bodies (`markSource`); marked LaTeX never leaves the app or reaches a hash (`stripSourceMarkers`).
 - User packages go only through `withPackages` (`lib/latex/packages.ts`, mirrored in `backend/app/services/latex_packages.py`); never add `\usepackage` lines to a builder.
-- `lib/latex/texpresso-spike/` (incremental XeTeX, route `/dev/texpresso-spike`, report in `docs/dev/latex_performance.md`) is a spike for dev and preview builds: never import it from app code.
-- Server compiles are background jobs (`compileOnServer` polls `/compile/latex/jobs`); a thrown local compile must `resetRunner()`. Compiles go through `compileWithCache` (memory, then the sealed `compiledPdfs` table via `latex/compileStore.ts`, plus aux seeds; `docs/dev/latex_performance.md`); never call `compileLatex` past it for an exam or exercise slot. Snippets and new packages must work in both engines (browser busytex and the server's pinned TeX Live, both 2026).
+- The browser engine (`compiler.worker.ts` on `lib/latex/engine/`, issue #346) keeps checkpoints per cache slot (`session`): a new caller that compiles a document repeatedly passes its slot through `compileWithCache`, never its own worker. Engine files in `static/core/latex-engine/` come only from `scripts/latex-engine/build-engine.sh`; measure engine changes with `scripts/latex-engine/node-run.mts` (replay must stay byte-identical) and `worker-run.mts`.
+- Server compiles are background jobs (`compileOnServer` polls `/compile/latex/jobs`); a thrown local compile drops its engine session (the worker's catch). Compiles go through `compileWithCache` (memory, then the sealed `compiledPdfs` table via `latex/compileStore.ts`, plus aux seeds; `docs/dev/latex_performance.md`); never call `compileLatex` past it for an exam or exercise slot. Both engines read the same pinned TeX Live 2026; a new package goes into `backend/latex-texlive/packages.txt` and works in both.
 
 ## Gotchas
 

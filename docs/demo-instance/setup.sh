@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Rebuild the Examance demo instance from scratch and capture the pitch screenshots.
 # Prerequisites: local PostgreSQL (user/db "blindgrade"), Redis, backend venv (make install),
-# frontend deps (make install-frontend) incl. the BusyTeX assets, backend on :8000, Vite on :4173.
+# frontend deps (make install-frontend), backend on :8000 with TeX Live in /opt/texlive (the browser engine reads it through the API), Vite on :4173.
 # See README.md. Destroys all data in the local "blindgrade" database.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"

@@ -131,7 +131,28 @@ Measured on the 8-page exam inside the built image:
 
 Tectonic could not use one: `tectonic --outfmt fmt` dumps a custom format (23 MB for the template), but `--format` resolves format names only inside the bundle, never from the working directory. With TeX Live in the image the server does it (round 4 above); the format holds everything up to and including the template load, and the solution's `antworten` option gets its own format through the preamble key.
 
-The browser engine (busytex) still compiles without a format: it would need an `-ini` dump inside the WASM VM and a matching cache invalidation. The remaining gain there is the preamble's share of one pass, roughly a second; it is not worth it until the cheaper measures above are exhausted.
+The browser engine does the same since issue #346: `lib/latex/engine/format.ts` mirrors the split, the dump wrapper and the flags, and keeps the formats in IndexedDB (see the next section).
+
+## The browser engine since issue #346
+
+The spike below was adopted (owner decision, November 2026), and busytex is gone. Its design rules now live in `docs/dev/latex.md`: the engine files, the TeX tree from `GET /api/v1/texlive`, sessions per cache slot, the format per preamble, and the fallbacks.
+
+Measured on the 12-task exam on a 4-core cloud container: headless Chromium through the production `compileLatex` (Vite dev server, fake API), and Node through the real worker (`scripts/latex-engine/worker-run.mts`).
+
+| | Browser engine | busytex (after #343) |
+|---|---|---|
+| First compile in a fresh browser (engine download, template prefetch, format dump, 3 passes) | 8.9 s | 25-30 s (630 MB download), then 28.6 s for the first compile |
+| Compile without a session, format cached | 2.2 s | 3.49-3.73 s seeded, ~10 s fresh |
+| Edit early / mid / late in an exercise session (incl. xdvipdfmx) | 1.2-1.3 / 0.8-1.0 / 0.3-0.5 s | 3.49-3.73 s |
+| Edit after the template load (`\Info`) | 0.9-1.3 s | 3.49-3.73 s |
+| TeX Live downloaded for the exam | 261 files, 18 MB (then cached) | 630 MB |
+| Memory per live session | 321 MB engine + ~155 MB snapshots | ~1.3 GB (two VMs with the whole tree) |
+
+- **Replays stay byte-identical** to fresh compiles in every measured edit (`scripts/latex-engine/node-run.mts`).
+- **Snapshots** are XOR deltas against a copy-on-write shadow of the last checkpoint: 160 MB instead of the spike's 444 MB. Checkpoints are spaced by five times their own cost, so they take at most about a sixth of engine time.
+- **Gate 1, memory:** one session needs about 0.5 GB. The worker keeps at most two; on devices reporting 4 GB or less it keeps one with a 500 MB budget, above which a session runs without checkpoints. If the engine cannot even be instantiated, the compile goes to the server where the account may use it.
+- **Gate 2, Firefox and Safari:** still to be tested by hand on the preview stack. The engine needs plain wasm, wasm SIMD and `DecompressionStream`, and no JSPI or cross-origin isolation.
+- **Fixed on the way:** the spike re-read every edit from the first line after two edits, because invalidation compared buffers instead of bytes (`lib/latex/engine/trace.ts`, regression test `tests/latexEngineTrace.test.ts`). Correct output, slow replays.
 
 ## Why not Typst
 
@@ -247,7 +268,7 @@ Other documents in Node:
   - libpng and zlib: their own permissive licences.
 - **emscripten runtime and MiniLZ4** (ported in `texTree.ts`): MIT.
 
-**Verdict: go, behind two gates.** Body edits get 4-12 times faster than busytex's seeded pass (0.2-0.9 s against 3.5-3.7 s), and the replay is provably the same output. PDF-side editing works with the data we already have. Production must first:
+**Verdict: go, behind two gates** (adopted; see "The browser engine since issue #346" above for where the gates stand). Body edits get 4-12 times faster than busytex's seeded pass (0.2-0.9 s against 3.5-3.7 s), and the replay is provably the same output. PDF-side editing works with the data we already have. Production must first:
 
 1. bring memory under about 1 GB per tab (XOR-delta layers, a TeX tree subset per template, xdvipdfmx in the engine's VM instead of a second busytex);
 2. pass Firefox and Safari, falling back to busytex when the engine cannot start or memory is short.

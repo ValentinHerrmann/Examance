@@ -13,6 +13,8 @@ TEXLIVE_BRANCH="tags/texlive-2026.1"
 TEXLIVE_COMMIT="6a300188053b8f2ded89dbd52293732a706b9c0e"
 
 command -v emcc >/dev/null || { echo "emcc not on PATH (source emsdk_env.sh)" >&2; exit 1; }
+# Another emscripten produces other bytes, and CI compares them with the committed files (.github/workflows/latex-engine.yml).
+emcc --version | head -1 | grep -q " 4\.0\.12 " || { echo "emsdk 4.0.12 is required, found: $(emcc --version | head -1)" >&2; exit 1; }
 command -v tangle >/dev/null && command -v ctangle >/dev/null && command -v tie >/dev/null || { echo "native tangle, ctangle and tie are needed for cross-compiling web2c" >&2; exit 1; }
 emcc --version | head -1
 

@@ -46,7 +46,7 @@ Was Sie in der App löschen (Prüfungen, Aufgaben, Dateien, Logos, Schüler:inne
 
 *Wird in diesem Browser gespeichert.* Legt unabhängig vom Speicherort fest, wo Prüfungen und Aufgaben gesetzt werden:
 
-- **Lokaler Client (WebAssembly)**: in Ihrem Browser; der LaTeX-Quelltext verlässt Ihr Gerät nie. Die Engine wird nach der Anmeldung (oder beim Umstellen auf diese Option) einmalig im Hintergrund heruntergeladen; bis dahin dauert der erste Lauf länger. Schlägt dieser erste Lauf mit einer Meldung über eine fehlende `.sty`-Datei fehl, versuchen Sie es erneut, sobald der Download abgeschlossen ist.
+- **Lokaler Client (WebAssembly)**: in Ihrem Browser; der LaTeX-Quelltext verlässt Ihr Gerät nie. Er verwendet dasselbe TeX Live wie der Server, ein Dokument sieht also auf beiden Wegen gleich aus. Die Engine und die Dateien, die die Prüfungsvorlage braucht (etwa 30 MB), werden nach der Anmeldung (oder beim Umstellen auf diese Option) einmalig im Hintergrund heruntergeladen; bis dahin dauert der erste Lauf länger. Ein Paket, das Ihre Dokumente zum ersten Mal verwenden, wird bei Bedarf von Ihrem Examance-Server geholt und danach im Browser behalten. Reicht der Arbeitsspeicher Ihres Geräts für die Engine nicht, kompiliert Examance stattdessen auf dem Server, sofern Ihr Konto das erlaubt.
 - **Server**: schneller auf schwacher Hardware; der LaTeX-Quelltext wird an den Server gesendet. Nur verfügbar, wenn Ihr Konto es erlaubt.
 
 ## Sprache und Farbschema {#language}

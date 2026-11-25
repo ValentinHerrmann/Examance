@@ -324,7 +324,7 @@ export const help = {
             },
             s2: {
                 h: 'LaTeX-Kompilierung',
-                p1: 'Im Browser (nichts verlässt das Gerät, der erste Lauf lädt die LaTeX-Umgebung) oder auf dem Server (schneller auf schwacher Hardware). Gilt pro Browser. Meldet der erste Lauf eine fehlende .sty-Datei, versuchen Sie es nach dem Download erneut.',
+                p1: 'Im Browser (der Quelltext verlässt das Gerät nicht; der erste Lauf lädt die LaTeX-Umgebung, danach setzt eine Änderung nur den Teil ab der Änderung neu) oder auf dem Server (schneller auf schwacher Hardware). Beide verwenden dasselbe TeX Live. Gilt pro Browser.',
             },
             s3: {
                 h: 'Sprache und Farbschema',
