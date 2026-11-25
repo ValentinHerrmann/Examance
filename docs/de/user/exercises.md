@@ -38,7 +38,7 @@ Jede Aufgabengruppe der eigenen Bibliothek hat ein Kästchen; das Kästchen in d
 Jede Aufgabe ist ein LaTeX-Fragment mit einer PDF-Live-Vorschau neben dem Quelltext. Name, Thema, Jahrgang und Fach stehen oben im Kopf des Editors.
 
 - **Strg + F** öffnet die Suche, **Strg + H** Suchen und Ersetzen (auf dem Mac **⌘**).
-- **Live-Vorschau PDF** kompiliert die Aufgabe und zeigt Angabe und Lösung. Mit der lokalen Engine setzt ein Kompilieren nach einer Änderung nur den Teil nach Ihrer Änderung neu, die Vorschau ist daher meist nach etwa einer Sekunde aktuell.
+- **Live-Vorschau PDF** kompiliert die Aufgabe und zeigt Angabe und Lösung. Mit der lokalen Engine setzt ein Kompilieren nach einer Änderung nur den Teil nach Ihrer Änderung neu, die Vorschau ist daher meist nach etwa einer Sekunde aktuell. Nach dem ersten Kompilieren kompiliert die lokale Engine auch von selbst neu, kurz nachdem Sie aufhören zu tippen; bei einem Fehler bleibt das letzte gelungene PDF stehen.
 - **Speichern**: Eine vorhandene Aufgabe speichert sich zwei Sekunden nach Ihrer letzten Änderung selbst; der Fuß des Editors zeigt **Wird gespeichert …**, **Gespeichert** oder warum das Speichern fehlschlug. Bilder und Dateien werden mit der Aufgabe gespeichert. **Schließen** speichert, was noch offen ist. Lässt sich eine Änderung nicht speichern (etwa ohne Namen oder bei einer Ankreuzaufgabe ohne richtige Antwort), fragt Examance vor dem Schließen, ob sie verworfen werden soll. Eine neue Aufgabe und eine neue Version legen Sie weiterhin mit dem Knopf **Speichern** an.
 
 ![Aufgaben-Editor mit Live-Vorschau](../../screenshots/pitch/03-exercise-editor.jpg)

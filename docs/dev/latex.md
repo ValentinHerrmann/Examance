@@ -41,8 +41,10 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
   - **Formats.** A format per preamble is dumped in the browser exactly like the server's (`engine/format.ts` mirrors `split_preamble`, the dump wrapper and the flags of `services/texrunner.py`: change both together) and kept in IndexedDB (`examance-latex-formats`, eight formats).
   - **Assets.** The bundled `latex-assets` come from the authenticated `GET /api/v1/latex-assets/*` (issue #87; `lib/latex/assets.ts` on the main thread, hash-checked against the manifest, handed to the worker via an `assets` message before `preload` or compile). The endpoint answers `private, no-cache` with an ETag, and there is no static copy. The worker exposes `sty/*.sty` and `sty/*.tex` flat as well.
   - **Passes.** The worker runs passes until `main.aux`, `.toc` and `.out` settle (at most 4, like the server). Aux seeds count only for a fresh session, and a stale seed is retried once without. `Schulaufgabe.sty` hands each task's score to the next pass through the aux file.
+  - **xdvipdfmx** gets every file the XeTeX session saw (`engine/pdfStep.ts`): it embeds the logo, the bundled images and the exercise figures that XeTeX only measured.
   - **Failures.** xdvipdfmx runs only after a successful XeTeX run; `describeCompileFailure` and `compileLogForUser` (`lib/latex/compileLog.ts`) still report the XeTeX step's `!` errors behind an xdvipdfmx fatal.
   - **Previews** show the Angabe as soon as it is ready (`onAngabe`), and the Lösung follows.
+  - **Live preview** (exercise editor, browser engine only): about 300 ms after the last edit of name, code or files, once the session compiled or shows a PDF. `EditorPreview.compile` runs one compile at a time and then only the newest input, so a stale PDF never shows last; a failure keeps the last good PDF.
 
 ## LaTeX palette
 

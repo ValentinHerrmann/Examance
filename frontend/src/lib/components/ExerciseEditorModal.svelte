@@ -220,9 +220,11 @@
     },
   });
 
-  async function handlePreviewExercise() {
-    errorMsg = "";
-    // Only a failure or a missing figure writes the line, so a message set meanwhile (a failed save) stays.
+  /** The last message the preview wrote into the error line, so a good live compile clears only its own message. */
+  let previewMessage = "";
+
+  async function runPreview(live: boolean) {
+    if (!live) errorMsg = "";
     const message = await preview.compile({
       cacheId: editingExercise?.id || session.stagingId,
       name: editorName,
@@ -232,8 +234,24 @@
       useLocal: $effectiveLatexStore === "local",
       key: get(sessionStore).sessionKey,
     });
+    // Only a failure or a missing figure writes the line, so a message set meanwhile (a failed save) stays.
     if (message) errorMsg = message;
+    else if (errorMsg && errorMsg === previewMessage) errorMsg = "";
+    previewMessage = message;
   }
+
+  function handlePreviewExercise() {
+    void runPreview(false);
+  }
+
+  /** Live preview (browser engine only; a server compile is a background job): recompiles shortly after typing stops, once this session compiled or shows a PDF. */
+  const LIVE_PREVIEW_DELAY_MS = 300;
+  let liveTimer: ReturnType<typeof setTimeout> | undefined;
+  function stopLivePreview() {
+    clearTimeout(liveTimer);
+    liveTimer = undefined;
+  }
+  onDestroy(stopLivePreview);
 
   function currentDraft(): ExerciseDraft {
     return {
@@ -343,6 +361,7 @@
         lastOpenState = true;
       } else if (!open && last) {
         lastOpenState = false;
+        stopLivePreview();
         preview.cleanup();
       }
     });
@@ -354,6 +373,22 @@
     const on = isOpen && autosaving;
     untrack(() => {
       if (on && key !== session.savedKey) autosave.schedule();
+    });
+  });
+
+  // Every change of the text or the files recompiles the live preview.
+  let previewKey = $derived(JSON.stringify([editorName, editorLatexBody, filesRev]));
+  let lastPreviewKey = "";
+  $effect.pre(() => {
+    const key = previewKey;
+    const on = isOpen && $effectiveLatexStore === "local" && (preview.compiled || !!preview.pdfUrl);
+    untrack(() => {
+      // The text when the live preview came on is the baseline (the editor opened, or the first compile ran); only edits after it compile.
+      const edited = lastPreviewKey !== "" && key !== lastPreviewKey;
+      lastPreviewKey = on ? key : "";
+      if (!on || !edited) return;
+      stopLivePreview();
+      liveTimer = setTimeout(() => void runPreview(true), LIVE_PREVIEW_DELAY_MS);
     });
   });
 </script>

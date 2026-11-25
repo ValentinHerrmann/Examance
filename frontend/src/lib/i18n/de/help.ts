@@ -115,7 +115,7 @@ export const help = {
             },
             s2: {
                 h: 'Der Editor',
-                p1: 'Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau. „LaTeX-Bausteine einfügen“ über dem Quelltext bietet Bausteine für Lösungen, Punkte und Formatierung, dazu fachspezifische wie Baumdiagramme, Schaltungen oder Strukturformeln. Strg + F sucht, Strg + H ersetzt. Eine vorhandene Aufgabe speichert sich selbst; „Schließen“ speichert, was noch offen ist.',
+                p1: 'Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau: Mit LaTeX im Browser kompiliert sie nach dem ersten Kompilieren von selbst neu, kurz nachdem Sie aufhören zu tippen. „LaTeX-Bausteine einfügen“ über dem Quelltext bietet Bausteine für Lösungen, Punkte und Formatierung, dazu fachspezifische wie Baumdiagramme, Schaltungen oder Strukturformeln. Strg + F sucht, Strg + H ersetzt. Eine vorhandene Aufgabe speichert sich selbst; „Schließen“ speichert, was noch offen ist.',
             },
             s3: {
                 h: 'Punkte, Teilaufgaben und Anforderungsbereiche',

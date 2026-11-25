@@ -8,6 +8,7 @@
 import { BIN_DIR, DEFAULT_MEMORY_BUDGET, EngineUnavailableError, TexEngine, type RunResult } from './engine/engine';
 import { LazyTree, TREE_ROOT, type TreeManifest, type TreeSource } from './engine/tree';
 import { dumpSource, formatKey, splitPreamble, TEX_FLAGS, withFormat } from './engine/format';
+import { pdfInputs } from './engine/pdfStep';
 import { compileLogForUser, describeCompileFailure, extractMissingGraphics, type CompileStep } from './compileLog';
 import templateFiles from './engine/templateFiles.json';
 
@@ -305,9 +306,9 @@ async function typeset(s: Session, req: CompileRequest, tex: string, args: strin
   return last;
 }
 
-async function toPdf(rt: Runtime, xdv: Uint8Array): Promise<{ pdf: Uint8Array | undefined; step: CompileStep }> {
+async function toPdf(rt: Runtime, s: Session, xdv: Uint8Array): Promise<{ pdf: Uint8Array | undefined; step: CompileStep }> {
   const engine = new TexEngine({ module: rt.xdvipdfmx, tree: rt.tree, icuData: rt.icu, format: null, incremental: false });
-  engine.inputs.set('main.xdv', xdv);
+  for (const [name, bytes] of pdfInputs(s.engine.inputs, xdv)) engine.inputs.set(name, bytes);
   const cmd = [`${BIN_DIR}/xdvipdfmx`, '-q', '-E', '-o', 'main.pdf', 'main.xdv'];
   const r = await engine.runFull(cmd);
   return { pdf: r.exitCode === 0 ? r.outputs.get('/work/main.pdf') : undefined, step: { cmd: cmd.join(' '), stdout: r.stdout, exit_code: r.exitCode } };
@@ -346,7 +347,7 @@ async function finish(rt: Runtime, req: CompileRequest, s: Session, last: RunRes
   t.mode = st.mode;
   t.checkpointMB = Math.round(st.checkpointBytes / 2 ** 20);
   const tp = performance.now();
-  const pdf = xdv && last.exitCode === 0 ? await toPdf(rt, xdv) : null;
+  const pdf = xdv && last.exitCode === 0 ? await toPdf(rt, s, xdv) : null;
   t.pdfMs = performance.now() - tp;
   if (!pdf?.pdf) {
     const steps = [xetexStep, ...(pdf ? [pdf.step] : [])];

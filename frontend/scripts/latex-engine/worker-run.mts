@@ -1,5 +1,5 @@
 // Drives src/lib/latex/compiler.worker.ts under Node through its real message protocol (formats, sessions, aux seeds, xdvipdfmx).
-// Usage: npx vite-node scripts/latex-engine/worker-run.mts <engine dir> <doc.tex> [edits.json]   (tree: TEXLIVE_ROOT, default /opt/texlive)
+// Usage: npx vite-node scripts/latex-engine/worker-run.mts <engine dir> <doc.tex> [edits.json]   (tree: TEXLIVE_ROOT, default /opt/texlive; RESOURCES: a dir whose files go in as teacher resources, e.g. examance-logo.pdf)
 // Prints one JSON line per compile; each edit compiles in the same session, as the exercise editor would.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -59,6 +59,11 @@ const assets = (fs.readdirSync(assetsDir, { recursive: true }) as string[])
   .map((rel) => ({ path: rel, content: new Uint8Array(fs.readFileSync(path.join(assetsDir, rel))) }));
 send({ type: 'assets', files: assets });
 
+const resourceDir = process.env.RESOURCES;
+const resources = resourceDir
+  ? fs.readdirSync(resourceDir).map((filename) => ({ filename, content: new Uint8Array(fs.readFileSync(path.join(resourceDir, filename))) }))
+  : [];
+
 let nextId = 0;
 function compile(latexSource: string, seedAux: unknown[] = []): Promise<any> {
   const id = ++nextId;
@@ -70,7 +75,7 @@ function compile(latexSource: string, seedAux: unknown[] = []): Promise<any> {
       resolve({ ...m, ms: performance.now() - t0 });
     };
     listeners.push(l);
-    send({ id, latexSource, resources: [], seedAux, session: 'exercise:doc:angabe' });
+    send({ id, latexSource, resources, seedAux, session: 'exercise:doc:angabe' });
   });
 }
 

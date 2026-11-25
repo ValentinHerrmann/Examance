@@ -45,7 +45,7 @@
   const options = "flex flex-col gap-3";
   const description = "mt-0 mb-4 text-sm text-muted";
 
-  /** The radios never select themselves: a mode change runs through the move dialog (and may be cancelled). Cancelling the native toggle keeps the checked dot on what is actually in effect; the store moves it once a change is committed. */
+  /** Storage tiles only: a mode change runs through the move dialog (and may be cancelled), so the native toggle is cancelled and the store moves the dot once committed. Never for a setting that changes inside the click: the browser restores the old radio after a cancelled click, over Svelte's update. */
   function gated(event: MouseEvent, request: () => void) {
     event.preventDefault();
     request();
@@ -108,7 +108,7 @@
         icon={latexPlaceIcons.local}
         title={$t("settings.latex.localTitle")}
         text={$t("settings.latex.localText")}
-        onclick={(e) => gated(e, () => onLatexChange("local"))}
+        onclick={() => onLatexChange("local")}
       >
         {#snippet titleExtra()}<InfoTip text={$t("help.tips.latexLocal")} topic="settings" />{/snippet}
       </OptionTile>
@@ -120,7 +120,7 @@
         icon={latexPlaceIcons.server}
         title={$t("settings.latex.serverTitle")}
         text={$t("settings.latex.serverText")}
-        onclick={(e) => gated(e, () => onLatexChange("server"))}
+        onclick={() => onLatexChange("server")}
       >
         {#snippet titleExtra()}<InfoTip text={$t("help.tips.latexServer")} topic="settings" />{/snippet}
       </OptionTile>

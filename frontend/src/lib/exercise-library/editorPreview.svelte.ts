@@ -4,6 +4,8 @@ import { compileExercisePreview, type ExercisePreviewInput } from '#lib/latex/ex
 import { pdfBytesToUrl } from '#lib/latex/pdfPreview';
 import { translate } from '#lib/i18n';
 
+type PreviewInput = Omit<ExercisePreviewInput, 'onAngabe'>;
+
 /** The exercise editor's compile preview: the two PDFs as object URLs, which panes are open, and the last compile's failure (sent with a layout report). The editor owns one and calls `cleanup()` when it closes. */
 export class EditorPreview {
   loading = $state(false);
@@ -14,6 +16,11 @@ export class EditorPreview {
   showLoesung = $state(false);
   error = $state('');
   log = $state<CompileFailure | null>(null);
+  /** Whether a compile ran in this editor session; the live preview starts only after the first one. */
+  compiled = $state(false);
+  /** The newest source asked for while a compile ran; only it compiles next, so a stale result never shows last. */
+  private queued: { input: PreviewInput; done: ((message: string) => void)[] } | null = null;
+  private running = false;
 
   /** Revokes the object URLs; the panes keep their open state. */
   cleanup(): void {
@@ -26,6 +33,7 @@ export class EditorPreview {
   /** A fresh editor session: panes closed, the last compile of a stored exercise shown again from the in-memory cache. */
   restore(exerciseId: string | undefined): void {
     this.cleanup();
+    this.compiled = false;
     this.showAngabe = false;
     this.showLoesung = false;
     if (!exerciseId) return;
@@ -40,8 +48,31 @@ export class EditorPreview {
     this.pdfUrl = pdfBytesToUrl(bytes);
   }
 
-  /** Compiles task sheet and solution; resolves to the message for the editor's error line ("" when all went well). */
-  async compile(input: Omit<ExercisePreviewInput, 'onAngabe'>): Promise<string> {
+  /** Compiles task sheet and solution, or, while one runs, after it with the newest input only; resolves to the message for the editor's error line ("" when all went well). */
+  compile(input: PreviewInput): Promise<string> {
+    return new Promise((resolve) => {
+      if (this.queued) this.queued = { input, done: [...this.queued.done, resolve] };
+      else this.queued = { input, done: [resolve] };
+      if (!this.running) void this.drain();
+    });
+  }
+
+  private async drain(): Promise<void> {
+    this.running = true;
+    try {
+      while (this.queued) {
+        const { input, done } = this.queued;
+        this.queued = null;
+        const message = await this.compileNow(input);
+        for (const d of done) d(message);
+      }
+    } finally {
+      this.running = false;
+    }
+  }
+
+  private async compileNow(input: PreviewInput): Promise<string> {
+    this.compiled = true;
     this.loading = true;
     this.error = '';
     this.log = null;

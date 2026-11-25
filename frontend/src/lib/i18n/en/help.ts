@@ -116,7 +116,7 @@ export const help: Translations['help'] = {
             },
             s2: {
                 h: 'The editor',
-                p1: 'Each exercise is a LaTeX fragment with a live preview. “Insert LaTeX snippets” above the source offers snippets for solutions, scoring and formatting, plus subject-specific ones such as tree diagrams, circuits or structural formulas. Ctrl + F searches, Ctrl + H replaces. An existing exercise saves itself; “Close” saves whatever is still pending.',
+                p1: 'Each exercise is a LaTeX fragment with a live preview: with LaTeX in the browser, after the first compile it recompiles by itself shortly after you stop typing. “Insert LaTeX snippets” above the source offers snippets for solutions, scoring and formatting, plus subject-specific ones such as tree diagrams, circuits or structural formulas. Ctrl + F searches, Ctrl + H replaces. An existing exercise saves itself; “Close” saves whatever is still pending.',
             },
             s3: {
                 h: 'Scores, part exercises and requirement levels',
