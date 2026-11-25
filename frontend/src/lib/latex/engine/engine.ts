@@ -766,7 +766,9 @@ export class TexEngine {
   imp_emscripten_get_now(): number {
     return 0;
   }
-  imp__tzset_js(): void {}
+  imp__tzset_js(): void {
+    // The clock is fixed (SOURCE_DATE_EPOCH) and UTC, so there is no time zone to set.
+  }
   imp__localtime_js(t: bigint, ptm: number): void {
     this.writeTm(Number(t), ptm);
   }
@@ -825,7 +827,9 @@ export class TexEngine {
   imp_emscripten_system(): number {
     return -1;
   }
-  imp__emscripten_runtime_keepalive_clear(): void {}
+  imp__emscripten_runtime_keepalive_clear(): void {
+    // The host drives the module itself; there is no runtime keepalive to clear.
+  }
 }
 
 /** SIMD page hasher importing the engine's memory (source: pageHash.wat); about 5x faster than hashing in JS. */
@@ -835,7 +839,7 @@ let zeroPageHash = 0;
 
 function pageHasher(memory: WebAssembly.Memory): (page: number) => number {
   if (!pageHashModule) {
-    pageHashModule = new WebAssembly.Module(Uint8Array.from(atob(PAGE_HASH_WASM), (c) => c.charCodeAt(0)));
+    pageHashModule = new WebAssembly.Module(Uint8Array.from(atob(PAGE_HASH_WASM), (c) => c.codePointAt(0) ?? 0));
     const probe = new WebAssembly.Instance(pageHashModule, { env: { memory: new WebAssembly.Memory({ initial: 1 }) } });
     zeroPageHash = (probe.exports.hash as (p: number) => number)(0);
   }

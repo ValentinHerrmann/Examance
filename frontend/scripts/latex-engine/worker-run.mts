@@ -88,7 +88,7 @@ summary('first (dumps the format)', first);
 summary('same document again', await compile(doc));
 // Each edit is made against the base text, and the base is compiled again afterwards (not measured), as in node-run.mts.
 for (const edit of editsPath ? (JSON.parse(fs.readFileSync(editsPath, 'utf8')) as { label: string; tex: string }[]) : []) {
-  summary(edit.label, await compile(edit.tex));
-  await compile(doc);
+  summary(edit.label, await compile(edit.tex)); // NOSONAR: edits are measured one after another in one session
+  await compile(doc); // NOSONAR: back to the base text before the next edit
 }
 process.exit(0);

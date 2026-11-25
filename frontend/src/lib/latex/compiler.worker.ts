@@ -6,11 +6,13 @@
  * {type:'tree-request', reqId, kind, path?} for TeX Live files, which the main thread fetches through the authenticated API client.
  */
 import { BIN_DIR, DEFAULT_MEMORY_BUDGET, EngineUnavailableError, TexEngine, type RunResult } from './engine/engine';
-import { LazyTree, TREE_ROOT, type TreeManifest, type TreeSource } from './engine/tree';
+import { idb, LazyTree, TREE_ROOT, type TreeManifest, type TreeSource } from './engine/tree';
 import { dumpSource, formatKey, splitPreamble, TEX_FLAGS, withFormat } from './engine/format';
 import { pdfInputs } from './engine/pdfStep';
 import { compileLogForUser, describeCompileFailure, extractMissingGraphics, type CompileStep } from './compileLog';
 import templateFiles from './engine/templateFiles.json';
+import { sha256Hex } from '#lib/crypto/hex';
+import engineSums from '../../../static/core/latex-engine/SHA256SUMS?raw';
 
 const ENGINE_BASE = '/core/latex-engine';
 const AUX_FILES = ['main.aux', 'main.toc', 'main.out'];
@@ -52,14 +54,28 @@ interface Runtime {
 let runtime: Promise<Runtime> | null = null;
 
 /** Gzipped engine files committed under static/; a host that already decoded them (Content-Encoding) gets them as they are. */
-async function fetchGz(name: string, onBytes: (n: number) => void): Promise<Uint8Array> {
+/** The committed checksums of the uncompressed engine files (written by build-engine.sh). */
+const ENGINE_SUMS = new Map(
+  engineSums
+    .trim()
+    .split('\n')
+    .map((line) => line.split(/\s+/) as [string, string])
+    .map(([sum, name]) => [name, sum]),
+);
+
+/** An engine file, inflated and checked against the checksum bundled with this build, so only the engine we built ever runs. */
+async function fetchGz(name: string, onBytes: (n: number) => void): Promise<Uint8Array<ArrayBuffer>> {
   const res = await fetch(`${ENGINE_BASE}/${name}.gz`);
   if (!res.ok) throw new Error(`LaTeX engine file ${name}: HTTP ${res.status}`);
-  const bytes = new Uint8Array(await res.arrayBuffer());
+  let bytes = new Uint8Array(await res.arrayBuffer());
   onBytes(bytes.length);
-  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return bytes;
-  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  // A dev server may already have inflated it (Content-Encoding).
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  if ((await sha256Hex(bytes)) !== ENGINE_SUMS.get(name)) throw new Error(`LaTeX engine file ${name}: checksum mismatch`);
+  return bytes;
 }
 
 /** Engine files plus the template's TeX Live files, reported as one download for the loading dialog. */
@@ -75,8 +91,8 @@ async function bootRuntime(): Promise<Runtime> {
   };
   const fetchedBefore = tree.fetchedBytes;
   const [xetex, xdvipdfmx, icu] = await Promise.all([
-    fetchGz('xetex.wasm', report).then((b) => WebAssembly.compile(b as BufferSource)),
-    fetchGz('xdvipdfmx.wasm', report).then((b) => WebAssembly.compile(b as BufferSource)),
+    fetchGz('xetex.wasm', report).then((b) => WebAssembly.compile(b)),
+    fetchGz('xdvipdfmx.wasm', report).then((b) => WebAssembly.compile(b)),
     fetchGz('icudt78l.dat', report),
     tree.prefetch(template).then(() => report(tree.fetchedBytes - fetchedBefore)),
   ]);
@@ -110,8 +126,7 @@ async function setAssets(files: { path: string; content: Uint8Array }[]): Promis
     all.set(p, at);
     at += p.length;
   }
-  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', all));
-  assetsDigest = [...hash].map((b) => b.toString(16).padStart(2, '0')).join('');
+  assetsDigest = await sha256Hex(all);
 }
 
 // --- formats per preamble (issue #344) --------------------------------------------------------
@@ -119,13 +134,6 @@ async function setAssets(files: { path: string; content: Uint8Array }[]): Promis
 const FORMAT_DB = 'examance-latex-formats';
 const MAX_FORMATS = 8;
 const failedFormats = new Set<string>();
-
-function idb<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
 
 async function formatDb(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === 'undefined') return null;
@@ -217,7 +225,7 @@ function sessionFor(rt: Runtime, key: string | undefined, format: string | null)
   const existing = sessions.get(key);
   sessions.delete(key);
   // A different format means a different preamble: the old checkpoints describe another document.
-  const s = existing && existing.format === format ? existing : newSession(rt, true, format);
+  const s = existing?.format === format ? existing : newSession(rt, true, format);
   sessions.set(key, s);
   while (sessions.size > MAX_SESSIONS) sessions.delete(sessions.keys().next().value as string);
   return s;
@@ -300,7 +308,7 @@ async function typeset(s: Session, req: CompileRequest, tex: string, args: strin
   for (let pass = 1; pass < MAX_TEX_PASSES && last.exitCode === 0; pass++) {
     const at = feedAux(s.engine, last);
     if (at === null) break;
-    last = await s.engine.rerun(at);
+    last = await s.engine.rerun(at); // NOSONAR: each pass reads the aux files of the one before
     t.passes.push({ ms: last.ms, from: last.resumedFrom });
   }
   return last;
@@ -364,6 +372,14 @@ async function finish(rt: Runtime, req: CompileRequest, s: Session, last: RunRes
 
 let queue: Promise<void> = Promise.resolve();
 
+async function preload(): Promise<void> {
+  try {
+    await boot();
+  } catch (err) {
+    console.warn('[CompilerWorker] Preload failed; the first compile will retry.', err);
+  }
+}
+
 self.onmessage = (e: MessageEvent) => {
   const data = e.data;
   if (data?.type === 'tree-reply') {
@@ -379,7 +395,7 @@ self.onmessage = (e: MessageEvent) => {
   }
   if (data?.type === 'preload') {
     // A failed boot only costs the head start; the first compile retries it.
-    queue = queue.then(() => boot().then(() => undefined, (err) => console.warn('[CompilerWorker] Preload failed; the first compile will retry.', err)));
+    queue = queue.then(preload);
     return;
   }
   const req = data as CompileRequest;

@@ -144,9 +144,9 @@ export function columnOf(sourceLine: string, word: string): number {
 
 /** Where `line` of the input ending in `file` was typeset: its first point record (page 1-based, PDF points), for the provisional overlay. */
 export function positionOf(data: SyncData, file: string, line: number): { page: number; x: number; y: number } | null {
-  const tags = [...data.inputs].filter(([, path]) => path.endsWith(file)).map(([tag]) => tag);
+  const tags = new Set([...data.inputs].filter(([, path]) => path.endsWith(file)).map(([tag]) => tag));
   for (const [page, recs] of [...data.pages].sort((a, b) => a[0] - b[0])) {
-    const hit = recs.find((r) => r.kind === 'point' && r.line === line && tags.includes(r.tag));
+    const hit = recs.find((r) => r.kind === 'point' && r.line === line && tags.has(r.tag));
     if (hit) return { page, x: hit.x, y: hit.y };
   }
   return null;

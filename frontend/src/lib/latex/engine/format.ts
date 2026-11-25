@@ -12,11 +12,11 @@ export const TEX_FLAGS = ['-no-shell-escape', '-no-parse-first-line', '-interact
 /** The document as [part up to and including the template load, rest], or null when it does not load the template. Plain string searches, no regex: documents are untrusted. */
 export function splitPreamble(mainTex: string): [string, string] | null {
   const nameAt = mainTex.indexOf(TEMPLATE_NAME);
-  const classAt = mainTex.indexOf('\\documentclass');
+  const classAt = mainTex.indexOf(String.raw`\documentclass`);
   if (nameAt < 0 || classAt < 0 || classAt > nameAt) return null;
   let head = mainTex.slice(0, nameAt);
   if (head.endsWith(']')) head = head.includes('[') ? head.slice(0, head.lastIndexOf('[')) : '';
-  if (!head.endsWith('\\usepackage')) return null;
+  if (!head.endsWith(String.raw`\usepackage`)) return null;
   const end = nameAt + TEMPLATE_NAME.length;
   return [mainTex.slice(0, end), mainTex.slice(end)];
 }

@@ -30,10 +30,11 @@ const STORE = 'files';
 const VERSION_KEY = '#version';
 const PREFETCH_PARALLEL = 12;
 
-function idb<T>(req: IDBRequest<T>): Promise<T> {
+/** An IndexedDB request as a promise (the engine's two caches: TeX Live files here, formats in the worker). */
+export function idb<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error('IndexedDB request failed'));
   });
 }
 
@@ -45,7 +46,7 @@ async function openCache(version: string): Promise<IDBDatabase | null> {
       const req = indexedDB.open(DB_NAME, 1);
       req.onupgradeneeded = () => req.result.createObjectStore(STORE);
       req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      req.onerror = () => reject(req.error ?? new Error('IndexedDB open failed'));
     });
     const stored = await idb(db.transaction(STORE).objectStore(STORE).get(VERSION_KEY));
     if (stored !== version) {
@@ -139,7 +140,7 @@ export class LazyTree implements Tree {
   async prefetch(paths: string[]): Promise<void> {
     const queue = paths.filter((p) => this.size(p) >= 0 && !this.cached(p));
     const worker = async () => {
-      for (let p = queue.shift(); p !== undefined; p = queue.shift()) await this.load(p).catch(() => undefined);
+      for (let p = queue.shift(); p !== undefined; p = queue.shift()) await this.load(p).catch(() => undefined); // NOSONAR: each of the parallel workers takes one file at a time
     };
     await Promise.all(Array.from({ length: PREFETCH_PARALLEL }, worker));
   }

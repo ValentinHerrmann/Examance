@@ -262,6 +262,20 @@ export async function compileLatex(
   }
 }
 
+/** Whether a failed local compile goes to the server: without asking when the engine cannot run on this device, after a confirm otherwise; only for an account that may compile there. */
+function fallBackToServer(err: unknown, promptFallback: boolean): boolean {
+  if (err instanceof LocalEngineUnavailableError) {
+    if (!featureEnabled('server_latex')) throw new Error(translate('misc.compiler.engineUnavailable'));
+    return true;
+  }
+  return (
+    promptFallback &&
+    featureEnabled('server_latex') &&
+    typeof window !== 'undefined' &&
+    window.confirm(translate('misc.compiler.localFailedTryServer'))
+  );
+}
+
 async function compileMapped(
   latexSource: string,
   useLocal: boolean,
@@ -279,24 +293,10 @@ async function compileMapped(
       // The logo goes in after the merge: its name is reserved, so no exercise file can collide.
       const localFiles = logo?.file ? [...resources, logo.file] : resources;
       return await compileLocalWasm(latexSource, onStatus, localFiles, seedAux, opts.session);
-    } catch (err: any) {
-      // A device that cannot run the engine at all goes to the server without asking, where the account may use it.
-      if (err instanceof LocalEngineUnavailableError) {
-        if (!featureEnabled('server_latex')) throw new Error(translate('misc.compiler.engineUnavailable'));
-        const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
-        return { ...result, usedFallback: true };
-      }
-      // Offer the server only to an account that may use it; it would refuse the compile otherwise.
-      if (
-        promptFallback &&
-        featureEnabled('server_latex') &&
-        typeof window !== 'undefined' &&
-        window.confirm(translate('misc.compiler.localFailedTryServer'))
-      ) {
-        const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
-        return { ...result, usedFallback: true };
-      }
-      throw err;
+    } catch (err) {
+      if (!fallBackToServer(err, promptFallback)) throw err;
+      const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
+      return { ...result, usedFallback: true };
     }
   }
   return compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);

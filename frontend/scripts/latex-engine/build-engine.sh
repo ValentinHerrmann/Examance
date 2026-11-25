@@ -20,9 +20,9 @@ emcc --version | head -1
 
 SRC="$WORK/texlive-source"
 TP="$WORK/texpresso"
-if [ ! -d "$SRC/.git" ]; then git clone --depth 1 --branch "$TEXLIVE_BRANCH" https://github.com/TeX-Live/texlive-source "$SRC"; fi
-[ "$(git -C "$SRC" rev-parse HEAD)" = "$TEXLIVE_COMMIT" ] || { echo "texlive-source is not at $TEXLIVE_COMMIT" >&2; exit 1; }
-if [ ! -d "$TP/.git" ]; then
+if [[ ! -d "$SRC/.git" ]]; then git clone --depth 1 --branch "$TEXLIVE_BRANCH" https://github.com/TeX-Live/texlive-source "$SRC"; fi
+[[ "$(git -C "$SRC" rev-parse HEAD)" = "$TEXLIVE_COMMIT" ]] || { echo "texlive-source is not at $TEXLIVE_COMMIT" >&2; exit 1; }
+if [[ ! -d "$TP/.git" ]]; then
   git init -q "$TP" && git -C "$TP" fetch -q --depth 1 https://github.com/let-def/texpresso "$TEXPRESSO_COMMIT" && git -C "$TP" checkout -q FETCH_HEAD
 fi
 SHIM="$TP/src/engine-wasm/fontconfig-shim"
@@ -46,11 +46,12 @@ JOBS="$(nproc)"
 /bin/cp -f "$SRC/libs/icu/icu-src/source/config/mh-linux" "$SRC/libs/icu/icu-src/source/config/mh-unknown"
 
 mkdir -p "$OUT"
-export kpse_cv_have_fontconfig=yes
-export kpse_cv_fontconfig_includes="-I$SHIM"
-export kpse_cv_fontconfig_libs="$BUILD/libfcshim.a"
+# Lowercase on purpose; these are the autoconf cache variables kpathsea's configure reads, and renaming them would silently drop the fontconfig shim.
+export kpse_cv_have_fontconfig=yes # NOSONAR
+export kpse_cv_fontconfig_includes="-I$SHIM" # NOSONAR
+export kpse_cv_fontconfig_libs="$BUILD/libfcshim.a" # NOSONAR
 # RESUME_AT_TEXK=1 keeps the built support libraries and starts at the texk step.
-if [ "${RESUME_AT_TEXK:-0}" != 1 ]; then
+if [[ "${RESUME_AT_TEXK:-0}" != 1 ]]; then
 rm -rf "$BUILD"; mkdir -p "$BUILD"; cd "$BUILD"
 
 # ours: SyncTeX stays enabled (upstream passes --disable-xetex-synctex --disable-synctex); PDF-side editing needs it.
@@ -114,7 +115,7 @@ cp libs/icu/icu-build/data/out/icudt78l.dat "$OUT/"
 (cd "$OUT" && sha256sum xetex.wasm xdvipdfmx.wasm icudt78l.dat | tee SHA256SUMS)
 
 # Deterministic gzip (-n: no name or time), so CI can compare the rebuilt files with the committed ones.
-if [ -n "$INSTALL" ]; then
+if [[ -n "$INSTALL" ]]; then
   mkdir -p "$INSTALL"
   for f in xetex.wasm xdvipdfmx.wasm icudt78l.dat; do gzip -9 -n -c "$OUT/$f" > "$INSTALL/$f.gz"; done
   cp "$OUT/SHA256SUMS" "$INSTALL/SHA256SUMS"

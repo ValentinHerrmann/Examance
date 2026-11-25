@@ -21,9 +21,14 @@ export class EditorPreview {
   /** The newest source asked for while a compile ran; only it compiles next, so a stale result never shows last. */
   private queued: { input: PreviewInput; done: ((message: string) => void)[] } | null = null;
   private running = false;
+  /** Bumped by `cleanup()` (close, a new editor session): a compile still running for the old one then shows nothing. */
+  private generation = 0;
 
   /** Revokes the object URLs; the panes keep their open state. */
   cleanup(): void {
+    this.generation++;
+    if (this.queued) for (const d of this.queued.done) d('');
+    this.queued = null;
     if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
     if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
     this.pdfUrl = null;
@@ -63,7 +68,7 @@ export class EditorPreview {
       while (this.queued) {
         const { input, done } = this.queued;
         this.queued = null;
-        const message = await this.compileNow(input);
+        const message = await this.compileNow(input); // NOSONAR: one compile at a time, then only the newest input
         for (const d of done) d(message);
       }
     } finally {
@@ -77,15 +82,19 @@ export class EditorPreview {
     this.error = '';
     this.log = null;
     let angabeShown = false;
+    const generation = this.generation;
+    const stale = () => generation !== this.generation;
     try {
       const res = await compileExercisePreview({
         ...input,
         onAngabe: (angabe) => {
+          if (stale()) return;
           this.setPdf(angabe.pdfBytes);
           angabeShown = true;
           this.showAngabe = true;
         },
       });
+      if (stale()) return '';
       if (!angabeShown) this.setPdf(res.angabe.pdfBytes);
       if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
       this.solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);
@@ -94,6 +103,7 @@ export class EditorPreview {
       // A missing figure does not fail the engine: say so instead of handing back a PDF with a silent hole in it.
       return res.missingGraphics.length > 0 ? translate('common.previewMissingGraphic', { name: res.missingGraphics[0] }) : '';
     } catch (err) {
+      if (stale()) return '';
       console.error('Exercise preview failed:', err);
       const message = err instanceof Error && err.message ? err.message : translate('exercises.editor.previewFailedUnknown');
       this.error = translate('exercises.editor.previewFailed', { message });

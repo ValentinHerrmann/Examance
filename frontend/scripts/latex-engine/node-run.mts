@@ -5,7 +5,8 @@
 // RECORD_TREE=<json file> merges the tree files this run read into that list (src/lib/latex/engine/templateFiles.json is recorded so).
 import fs from 'node:fs';
 import path from 'node:path';
-import { TexEngine } from '../../src/lib/latex/engine/engine';
+import { TexEngine, type RunResult } from '../../src/lib/latex/engine/engine';
+import { compareCodeUnits } from '../../src/lib/utils/compare';
 import { LazyTree, type TreeSource } from '../../src/lib/latex/engine/tree';
 
 const [engineDir, docPath, editsPath] = process.argv.slice(2);
@@ -55,22 +56,29 @@ function withAssets(e: TexEngine): TexEngine {
 }
 
 const AUX = ['main.aux', 'main.toc', 'main.out'];
+
+/** Makes the changed aux files the next inputs; the earliest trace index they invalidate (0 for a new file), or Infinity when all settled. */
+function feedAux(e: TexEngine, r: RunResult): number {
+  let inv = Infinity;
+  for (const n of AUX) {
+    const out = r.outputs.get(`/work/${n}`);
+    const prev = e.inputs.get(n);
+    if (!out || (prev && Buffer.compare(prev, out) === 0)) continue;
+    const k = e.setInput(n, out);
+    if (k >= 0) inv = Math.min(inv, k);
+    else if (!prev) inv = 0;
+  }
+  return inv;
+}
 async function typeset(e: TexEngine, tex: string, fresh: boolean) {
   const t0 = performance.now();
   const at = e.setInput('main.tex', new TextEncoder().encode(tex));
   let r = fresh || at < 0 ? await e.runFull(args()) : await e.rerun(at);
   const passes = [{ ms: r.ms, from: r.resumedFrom }];
   for (let i = 1; i < 4; i++) {
-    let inv = Infinity;
-    for (const n of AUX) {
-      const out = r.outputs.get(`/work/${n}`);
-      const prev = e.inputs.get(n);
-      if (!out || (prev && Buffer.compare(prev, out) === 0)) continue;
-      const k = e.setInput(n, out);
-      inv = Math.min(inv, k < 0 ? (prev ? Infinity : 0) : k);
-    }
+    const inv = feedAux(e, r);
     if (inv === Infinity) break;
-    r = await e.rerun(inv);
+    r = await e.rerun(inv); // NOSONAR: each pass reads the aux files of the one before
     passes.push({ ms: r.ms, from: r.resumedFrom });
   }
   return { r, passes, ms: performance.now() - t0 };
@@ -99,16 +107,16 @@ if (process.env.RECORD_TREE) {
   const file = process.env.RECORD_TREE;
   const before: string[] = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
   const now = tree.loadedPaths().map((p) => p.slice('/opt/texlive/'.length));
-  fs.writeFileSync(file, `${JSON.stringify([...new Set([...before, ...now])].sort(), null, 1)}\n`);
+  fs.writeFileSync(file, `${JSON.stringify([...new Set([...before, ...now])].sort(compareCodeUnits), null, 1)}\n`);
 }
 
 const edits: { label: string; tex: string }[] = editsPath ? JSON.parse(fs.readFileSync(editsPath, 'utf8')) : [];
 for (const edit of edits) {
-  const inc = await typeset(engine, edit.tex, false);
+  const inc = await typeset(engine, edit.tex, false); // NOSONAR: edits are measured one after another on one engine
   const stats = engine.stats();
-  const fresh = await typeset(withAssets(make(false)), edit.tex, true);
+  const fresh = await typeset(withAssets(make(false)), edit.tex, true); // NOSONAR: measured alone, not beside another run
   const a = inc.r.outputs.get('/work/main.xdv');
   const b = fresh.r.outputs.get('/work/main.xdv');
   log({ step: 'edit', label: edit.label, ms: inc.ms, passes: inc.passes, fullMs: fresh.ms, fullPasses: fresh.passes.length, identical: !!a && !!b && Buffer.compare(a, b) === 0, ...stats });
-  await typeset(engine, doc, false);
+  await typeset(engine, doc, false); // NOSONAR: back to the base text before the next edit
 }
