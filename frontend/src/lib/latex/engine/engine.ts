@@ -277,7 +277,6 @@ export class TexEngine {
   private takeCheckpoint(): void {
     const t0 = performance.now();
     const mem = this.mem;
-    const shadow = this.shadow!;
     const total = mem.byteLength / PAGE;
     const prev = this.checkpoints.at(-1)?.hashes;
     const hashes = new Uint32Array(total);
@@ -291,22 +290,8 @@ export class TexEngine {
       // A page new since growth counts as moved unless it is zero.
       const before = prev && p < prev.length ? prev[p] : zeroPageHash;
       if (h === before) continue;
-      const old = shadow.get(p);
-      if (first) {
-        // The first layer shares its pages with the shadow; a shared page is copied once it changes again (copy on write).
-        const copy = mem.slice(p * PAGE, (p + 1) * PAGE);
-        pages.set(p, copy);
-        shadow.set(p, copy);
-        this.sharedPages.add(copy);
-        continue;
-      }
-      const delta = encodeXor(words, p * (PAGE >> 2), old ? new Int32Array(old.buffer, old.byteOffset, PAGE >> 2) : null);
-      if (delta.length > 0) {
-        pages.set(p, delta);
-        this.layerBytes += delta.byteLength;
-      }
-      if (old && !this.sharedPages.has(old)) old.set(mem.subarray(p * PAGE, (p + 1) * PAGE));
-      else shadow.set(p, mem.slice(p * PAGE, (p + 1) * PAGE));
+      if (first) this.firstLayerPage(p, pages);
+      else this.layerPage(p, pages, words);
     }
     for (const f of this.outputs.values()) f.frozen = Math.max(f.frozen, f.len);
     const { fds, outputs } = cloneState(this.fds, this.outputs);
@@ -329,6 +314,27 @@ export class TexEngine {
     this.spacing = Math.max(this.opts.checkpointEveryMs, 5 * (performance.now() - t0));
     this.lastCheckpointAt = performance.now();
     this.linesSinceCheckpoint = 0;
+  }
+
+  /** The first layer shares its pages with the shadow; a shared page is copied once it changes again (copy on write). */
+  private firstLayerPage(p: number, pages: Map<number, Uint32Array | Uint8Array>): void {
+    const copy = this.mem.slice(p * PAGE, (p + 1) * PAGE);
+    pages.set(p, copy);
+    this.shadow!.set(p, copy);
+    this.sharedPages.add(copy);
+  }
+
+  /** A later layer stores the page's XOR against its shadow copy, then brings the shadow up to date. */
+  private layerPage(p: number, pages: Map<number, Uint32Array | Uint8Array>, words: Int32Array): void {
+    const shadow = this.shadow!;
+    const old = shadow.get(p);
+    const delta = encodeXor(words, p * (PAGE >> 2), old ? new Int32Array(old.buffer, old.byteOffset, PAGE >> 2) : null);
+    if (delta.length > 0) {
+      pages.set(p, delta);
+      this.layerBytes += delta.byteLength;
+    }
+    if (old && !this.sharedPages.has(old)) old.set(this.mem.subarray(p * PAGE, (p + 1) * PAGE));
+    else shadow.set(p, this.mem.slice(p * PAGE, (p + 1) * PAGE));
   }
 
   /** Over the memory budget: the session keeps no checkpoints and every edit runs from the start. */
@@ -839,39 +845,39 @@ function pageHasher(memory: WebAssembly.Memory): (page: number) => number {
 
 /** Scratch for encodeXor: a page's worst case is one run of all words plus its two header words. */
 const XOR_SCRATCH = new Uint32Array((PAGE >> 2) + 2);
+const XOR_WORDS = new Int32Array(PAGE >> 2);
+const ZERO_WORDS = new Int32Array(PAGE >> 2);
 
 /** A page's XOR against `prev` (zero when null) as runs: [start, length, words…]…, word offsets within the page. */
 function encodeXor(words: Int32Array, o: number, prev: Int32Array | null): Uint32Array {
-  const n = PAGE >> 2;
+  const base = prev ?? ZERO_WORDS;
+  for (let i = 0; i < XOR_WORDS.length; i++) XOR_WORDS[i] = words[o + i] ^ base[i];
+  return encodeRuns(XOR_WORDS);
+}
+
+function encodeRuns(x: Int32Array): Uint32Array {
+  const n = x.length;
   let w = 0;
-  let i = 0;
-  while (i < n) {
-    const x = words[o + i] ^ (prev ? prev[i] : 0);
-    if (x === 0) {
+  for (let i = 0; i < n; ) {
+    if (x[i] === 0) {
       i++;
       continue;
     }
-    // A run; when it would not fit the scratch any more (scattered changes), the whole page goes as one run.
-    if (w + 3 > XOR_SCRATCH.length) return fullRun(words, o, prev);
-    const head = w;
+    let end = i;
+    while (end < n && x[end] !== 0) end++;
+    // Scattered changes would need more header words than the page has: then the whole page goes as one run.
+    if (w + 2 + (end - i) > XOR_SCRATCH.length) return fullRun(x);
     XOR_SCRATCH[w++] = i;
-    w++;
-    const start = i;
-    for (let y = x; i < n && y !== 0; y = i < n ? words[o + i] ^ (prev ? prev[i] : 0) : 0) {
-      if (w >= XOR_SCRATCH.length) return fullRun(words, o, prev);
-      XOR_SCRATCH[w++] = y;
-      i++;
-    }
-    XOR_SCRATCH[head + 1] = i - start;
+    XOR_SCRATCH[w++] = end - i;
+    for (; i < end; i++) XOR_SCRATCH[w++] = x[i];
   }
   return XOR_SCRATCH.slice(0, w);
 }
 
-function fullRun(words: Int32Array, o: number, prev: Int32Array | null): Uint32Array {
-  const n = PAGE >> 2;
-  const out = new Uint32Array(n + 2);
-  out[1] = n;
-  for (let i = 0; i < n; i++) out[i + 2] = words[o + i] ^ (prev ? prev[i] : 0);
+function fullRun(x: Int32Array): Uint32Array {
+  const out = new Uint32Array(x.length + 2);
+  out[1] = x.length;
+  out.set(x, 2);
   return out;
 }
 

@@ -291,7 +291,9 @@ interface Timings {
 
 async function typeset(s: Session, req: CompileRequest, tex: string, args: string[], t: Timings): Promise<RunResult> {
   const invalid = feedInputs(s, req, tex);
-  let last = s.ran ? await s.engine.rerun(invalid < 0 ? Number.POSITIVE_INFINITY : invalid) : await s.engine.runFull(args);
+  // Nothing the last run read changed: resume from the last checkpoint and replay only the tail.
+  const from = invalid < 0 ? Number.POSITIVE_INFINITY : invalid;
+  let last = s.ran ? await s.engine.rerun(from) : await s.engine.runFull(args);
   s.ran = true;
   t.passes.push({ ms: last.ms, from: last.resumedFrom });
   for (let pass = 1; pass < MAX_TEX_PASSES && last.exitCode === 0; pass++) {
@@ -331,6 +333,11 @@ async function compile(req: CompileRequest): Promise<void> {
     s = sessionFor(rt, req.session, format);
     last = await typeset(s, { ...req, seedAux: [] }, tex, args, t);
   }
+  await finish(rt, req, s, last, args, t);
+}
+
+/** xdvipdfmx after a successful XeTeX run, then the answer: the PDF with aux files and missing figures, or the failure with its log. */
+async function finish(rt: Runtime, req: CompileRequest, s: Session, last: RunResult, args: string[], t: Timings): Promise<void> {
   const log = dec.decode(last.outputs.get('/work/main.log') ?? new Uint8Array()) || last.stdout;
   const xetexStep: CompileStep = { cmd: args.join(' '), log, stdout: last.stdout, exit_code: last.exitCode };
   const xdv = last.outputs.get('/work/main.xdv');

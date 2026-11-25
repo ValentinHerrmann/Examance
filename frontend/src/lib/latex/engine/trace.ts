@@ -8,21 +8,15 @@ export type TraceEntry =
 /** The index of the first entry that `next` (the new content of `path`, absent = deleted) invalidates, or -1. `current` is the content the engine holds now. */
 export function firstInvalidated(trace: readonly TraceEntry[], path: string, current: Uint8Array | undefined, next: Uint8Array | undefined): number {
   const diff = current && next ? firstDiff(current, next) : -1;
-  for (let i = 0; i < trace.length; i++) {
-    const e = trace[i];
-    if (e.path !== path) continue;
-    if (e.kind === 'lookup') {
-      if (e.existed !== !!next) return i;
-      continue;
-    }
-    if (!next) return i;
-    if (e.eof && next.length > e.end) return i;
-    // Entries before the last resume read older versions of the file: compare the bytes they saw, not the buffer.
-    if (e.data === current) {
-      if (diff >= 0 && e.end > diff) return i;
-    } else if (!sameRange(e.data, next, e.start, e.end)) return i;
-  }
-  return -1;
+  return trace.findIndex((e) => e.path === path && (e.kind === 'lookup' ? e.existed !== !!next : readInvalidated(e, current, next, diff)));
+}
+
+function readInvalidated(e: Extract<TraceEntry, { kind: 'read' }>, current: Uint8Array | undefined, next: Uint8Array | undefined, diff: number): boolean {
+  if (!next) return true;
+  if (e.eof && next.length > e.end) return true;
+  // Entries before the last resume read older versions of the file: compare the bytes they saw, not the buffer.
+  if (e.data === current) return diff >= 0 && e.end > diff;
+  return !sameRange(e.data, next, e.start, e.end);
 }
 
 function sameRange(a: Uint8Array, b: Uint8Array, start: number, end: number): boolean {
