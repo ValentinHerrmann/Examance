@@ -27,6 +27,23 @@ if [[ ! -d "$TP/.git" ]]; then
 fi
 SHIM="$TP/src/engine-wasm/fontconfig-shim"
 BUILD="$WORK/build"
+
+# ours: source provenance for click-to-source and inline editing (issue #347): every token keeps its line and column in main.tex, SyncTeX records carry them, and every typeset character and glyph keeps its own (provenance/).
+# Applied to pristine files on every run, so a rerun in the same work dir picks up changes to provenance/.
+PROV="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/provenance"
+W2C="$SRC/texk/web2c"
+XD="texk/web2c/xetexdir"
+git -C "$SRC" checkout -q -- texk/web2c/Makefile.in "$XD/xetex.defines" "$XD/XeTeX_ext.h" "$XD/XeTeX_ext.c" "$XD/XeTeXLayoutInterface.cpp"
+cp "$PROV/provenance.ch" "$W2C/xetexdir/examance-provenance.ch"
+sed -i 's|^\ttex-binpool.ch$|\ttex-binpool.ch \\\n\txetexdir/examance-provenance.ch|' "$W2C/Makefile.in"
+grep -q "examance-provenance.ch" "$W2C/Makefile.in" || { echo "could not add provenance.ch to xetex_ch_srcs" >&2; exit 1; }
+cat "$PROV/provenance.defines" >> "$W2C/xetexdir/xetex.defines"
+cat "$PROV/provenance.h" >> "$W2C/xetexdir/XeTeX_ext.h"
+cat "$PROV/provenance.c" >> "$W2C/xetexdir/XeTeX_ext.c"
+cat "$PROV/provenance.cpp" >> "$W2C/xetexdir/XeTeXLayoutInterface.cpp"
+# The glyph clusters of a whole-text OpenType layout (the single-direction branch of measure_native_node; mixed-direction text keeps none).
+sed -i 's|^            getGlyphPositions(engine, positions);$|&\n            provClusters(node, engine, totalGlyphCount);|' "$W2C/xetexdir/XeTeX_ext.c"
+[[ "$(grep -c "provClusters(node, engine, totalGlyphCount)" "$W2C/xetexdir/XeTeX_ext.c")" = 1 ]] || { echo "could not add the cluster hook to measure_native_node" >&2; exit 1; }
 OUT="$WORK/out"
 
 export EMCC_SKIP_SANITY_CHECK=1

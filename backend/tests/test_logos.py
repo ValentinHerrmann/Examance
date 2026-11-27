@@ -109,7 +109,7 @@ async def test_compile_writes_the_exam_logo(client: AsyncClient, db: AsyncSessio
 
     seen: list[object] = []
 
-    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
+    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None, synctex=False):
         seen.append(logo)
         return TexResult(pdf=b"%PDF-1.4 fake")
 
@@ -144,7 +144,7 @@ async def test_compile_never_reads_another_teachers_exam_logo(
 
     seen: list[object] = []
 
-    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
+    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None, synctex=False):
         seen.append(logo)
         return TexResult(pdf=b"%PDF-1.4 fake")
 

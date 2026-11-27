@@ -10,6 +10,8 @@
   } from "@embedpdf/snippet";
   import { t } from "#lib/i18n";
   import { theme as appTheme } from "#lib/stores/theme";
+  import type { PageLocator } from "#lib/pdf/embedpdf";
+  import PageEditLayer, { type PageEditProps } from "#lib/components/latex/PageEditLayer.svelte";
 
   interface Props {
     /** URL (including `blob:`) of the PDF to display. `null` renders nothing. */
@@ -17,9 +19,13 @@
     /** Defaults to the app theme and follows it while mounted. */
     theme?: "light" | "dark" | "system" | undefined;
     zoomLevel?: ZoomLevel | undefined;
+    /** Clicks, drags, typing and the editor's cursor on the pages (issue #347; `latex/PageEditLayer`). */
+    edit?: PageEditProps;
+    /** The viewer now shows the PDF at `url` (first mount or a swap): its result takes over clicks and marks (`PreviewSync.shown`). */
+    onShown?: (url: string) => void;
   }
 
-  let { src = null, theme = undefined, zoomLevel = undefined }: Props = $props();
+  let { src = null, theme = undefined, zoomLevel = undefined, edit = undefined, onShown = undefined }: Props = $props();
 
   let effectiveTheme = $derived(theme ?? $appTheme);
 
@@ -137,9 +143,16 @@
     el: HTMLDivElement;
     viewer: EmbedPdfContainer | null;
     stopLabels: () => void;
+    locator?: Promise<PageLocator | null>;
+    /** The last load into this viewer: the next one waits for it, so two never overlap. */
+    loading?: Promise<unknown>;
+    /** Bumped by every load into this viewer; a load that sees a newer one stops without showing or closing anything. */
+    ticket?: number;
   }
   let shown: Layer | null = null;
   let pending: Layer | null = null;
+  /** The viewer shown before the last swap, kept hidden: the next PDF loads into it instead of a new viewer and engine (live preview, issue #347). */
+  let spare: Layer | null = null;
 
   function dropLayer(layer: Layer | null) {
     if (!layer) return;
@@ -160,8 +173,10 @@
     unbindZoom();
     dropLayer(pending);
     dropLayer(shown);
+    dropLayer(spare);
     pending = null;
     shown = null;
+    spare = null;
     containerEl?.removeEventListener("wheel", handleWheel, { capture: true });
     viewer = null;
     mountedSrc = null;
@@ -169,41 +184,103 @@
   }
 
   async function mount(url: string) {
-    const { patchEmbedPdfA11y, mountEmbedPdf, embedPdfScroller, whenEmbedPdfShown } = await import("#lib/pdf/embedpdf");
+    const { patchEmbedPdfShadow, mountEmbedPdf, embedPdfScroller, whenEmbedPdfShown, replaceEmbedPdfDocument, embedPdfPageImages, requestEmbedPdfZoom } = await import("#lib/pdf/embedpdf");
+    scrollerOf = embedPdfScroller;
     // A src change (or unmount racing a fast page switch) may land here after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
+    const started = performance.now();
     const host = containerEl;
-    dropLayer(pending);
     // The replacement keeps the reader's zoom and scroll position.
     const previous = shown;
     const keptZoom = previous ? zoomCap?.getState?.()?.zoomLevel : undefined;
     const keptScroller = previous ? embedPdfScroller(previous.el) : null;
     const scroll = keptScroller ? { top: keptScroller.scrollTop, left: keptScroller.scrollLeft } : null;
+    // A hidden viewer (still loading the previous PDF, or the one shown before) takes the new PDF: no new engine to start.
+    const reuse = previous ? (pending ?? spare) : null;
+    if (reuse?.viewer) {
+      pending = reuse;
+      spare = null;
+      mountedSrc = url;
+      const ticket = (reuse.ticket ?? 0) + 1;
+      reuse.ticket = ticket;
+      const superseded = () => pending !== reuse || reuse.ticket !== ticket;
+      await reuse.loading;
+      if (superseded() || !reuse.viewer) return;
+      const stale = embedPdfPageImages(reuse.el);
+      const job = replaceEmbedPdfDocument(reuse.viewer, url, keptZoom).catch(() => false);
+      reuse.loading = job;
+      const loaded = await job;
+      const viewerNow = reuse.viewer;
+      const ok = loaded && (await whenEmbedPdfShown(reuse.el, scroll, superseded, 5000, stale, () => requestEmbedPdfZoom(viewerNow, keptZoom)));
+      if (superseded()) return;
+      if (ok) {
+        swapTo(reuse, previous, started, url);
+        return;
+      }
+      // The viewer could not take the document: a fresh one below.
+      dropLayer(reuse);
+      pending = null;
+    } else dropLayer(pending);
     const el = document.createElement("div");
-    el.style.cssText = "position:absolute;inset:0;display:flex";
+    // Its own stacking context, so EmbedPDF's z-indexes stay below the edit layer's caret and selection.
+    el.style.cssText = "position:absolute;inset:0;display:flex;z-index:0";
     if (previous) el.style.visibility = "hidden";
     host.appendChild(el);
     const layer: Layer = {
       el,
-      viewer: mountEmbedPdf({ target: el, src: url, theme: effectiveTheme, zoomLevel: keptZoom ?? zoomLevel }) ?? null,
-      stopLabels: patchEmbedPdfA11y(el, { pageLabel: $t("common.pdfPage"), regionLabel: $t("common.pdfPreview") }),
+      viewer: mountEmbedPdf({ target: el, src: url, theme: effectiveTheme, zoomLevel: keptZoom ?? zoomLevel, editable: Boolean(edit) }) ?? null,
+      stopLabels: patchEmbedPdfShadow(el, { pageLabel: $t("common.pdfPage"), regionLabel: $t("common.pdfPreview") }),
+      ticket: 1,
     };
     mountedSrc = url;
     if (previous) {
       pending = layer;
-      const ok = await whenEmbedPdfShown(el, scroll, () => pending !== layer);
-      if (!ok) return;
-      pending = null;
-      dropLayer(previous);
-      el.style.visibility = "";
-    } else {
-      host.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+      // A newer PDF may take this viewer over while it loads (`ticket`): then that load shows it, not this one.
+      const fresh = layer.viewer;
+      const ok = await whenEmbedPdfShown(el, scroll, () => pending !== layer || layer.ticket !== 1, 5000, new Set(), fresh ? () => requestEmbedPdfZoom(fresh, keptZoom) : undefined);
+      if (!ok || pending !== layer || layer.ticket !== 1) return;
+      swapTo(layer, previous, started, url);
+      return;
     }
+    host.addEventListener("wheel", handleWheel, { capture: true, passive: false });
     shown = layer;
+    shownSeq++;
     viewer = layer.viewer;
     unbindZoom();
     bindZoom(layer.viewer);
+    onShown?.(url);
   }
+
+  /** Shows `layer` in place of `previous`, which stays mounted and hidden as the spare for the next PDF. */
+  function swapTo(layer: Layer, previous: Layer | null, started: number, url: string) {
+    pending = null;
+    layer.el.style.visibility = "";
+    if (previous) previous.el.style.visibility = "hidden";
+    dropLayer(spare);
+    spare = previous;
+    // Duration only: how long a new PDF took to replace the shown one.
+    console.info(`[preview] swap ${Math.round(performance.now() - started)} ms`);
+    shown = layer;
+    shownSeq++;
+    viewer = layer.viewer;
+    unbindZoom();
+    bindZoom(layer.viewer);
+    onShown?.(url);
+  }
+
+  /** The shown layer's locator, created on first use; the hidden pending layer never takes clicks. */
+  async function locatorOf(layer: Layer | null): Promise<PageLocator | null> {
+    if (!layer?.viewer) return null;
+    if (!layer.locator) {
+      const { embedPdfPageLocator } = await import("#lib/pdf/embedpdf");
+      layer.locator ??= embedPdfPageLocator(layer.viewer, layer.el).catch(() => null);
+    }
+    return layer.locator;
+  }
+
+  /** Bumped on every swap and zoom change, so the edit layer places its marks against the layer now shown. */
+  let shownSeq = $state(0);
+  let scrollerOf: ((target: Element) => HTMLElement | null) | null = null;
 
   function bindZoom(v: EmbedPdfContainer | null) {
     if (!v) return;
@@ -227,6 +304,7 @@
                 const newPercent = Math.round(s.currentZoomLevel * 100);
                 if (newPercent !== currentZoomPercent) {
                   currentZoomPercent = newPercent;
+                  shownSeq++;
                   triggerZoomOverlay();
                 }
               }
@@ -272,6 +350,15 @@
 <!-- The host is absolutely positioned so it always has a real height: EmbedPDF's first zoom fit needs one, and a content-sized host stayed blank for good (issue #93). -->
 <div class="relative h-full min-h-40 w-full">
   <div bind:this={containerEl} class="embed-pdf-viewer absolute inset-0 flex"></div>
+  {#if edit && containerEl && src}
+    <PageEditLayer
+      host={containerEl}
+      locate={() => locatorOf(shown)}
+      scroller={() => (shown && scrollerOf ? scrollerOf(shown.el) : null)}
+      version={shownSeq}
+      {edit}
+    />
+  {/if}
   {#if src && isOverlayVisible}
     <div
       class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar px-2 py-1 text-xs font-medium text-navbar-muted shadow-md"

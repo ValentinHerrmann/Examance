@@ -30,6 +30,9 @@
   import { getLatestForSlot } from "#lib/latex/compileCache";
   import { sessionStore } from "#lib/stores/session";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
+  import TemplateTextTip from "#lib/components/latex/TemplateTextTip.svelte";
+  import { PreviewSync } from "#lib/latex/previewSync.svelte";
+  import type { PageClick } from "#lib/latex/clickToSource";
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { examReportFiles } from "#lib/layout-report/collect";
   import { t, translate } from "#lib/i18n";
@@ -68,6 +71,8 @@
     emptyHint?: string;
     /** The Exam step's draft: no extra pages that fill whole sheets, which follow the print layout (issue #228). */
     draft?: boolean;
+    /** A click on an exercise's text in a fresh preview: which exercise and where (issue #347); template text shows a tooltip instead. */
+    onSourceClick?: (target: { exerciseId: string; line: number; column: number }) => void;
     class?: string;
   }
 
@@ -88,8 +93,17 @@
     currentOnly = false,
     emptyHint = undefined,
     draft = false,
+    onSourceClick = undefined,
     class: className = "",
   }: Props = $props();
+
+  const sync = new PreviewSync();
+
+  async function handlePageClick(paneId: string, click: PageClick) {
+    const bodyOf = (id: string | null) => [...exercises, ...libraryExercises].find((e) => e.id === id)?.latexBody ?? undefined;
+    const target = await sync.click(paneId, click, bodyOf);
+    if (target?.kind === "source" && target.exerciseId) onSourceClick?.({ exerciseId: target.exerciseId, line: target.line, column: target.column });
+  }
 
   let isPreviewLoading = $state(false);
   let compileNotice = $state("");
@@ -269,6 +283,8 @@
 
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
+      sync.setResult("angabe", res.angabe);
+      sync.setResult("loesung", res.loesung ?? undefined);
       pdfVersion++;
       if (res.loesung) {
         if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
@@ -436,7 +452,9 @@
           height="100%"
           placeholderText={$t("exam.page.pdfPreview.placeholder")}
           report={layoutReport}
+          edit={onSourceClick ? (paneId) => ({ onClick: (click) => void handlePageClick(paneId, click) }) : undefined}
         />
+        {#if onSourceClick}<TemplateTextTip {sync} />{/if}
       </div>
     {/if}
 

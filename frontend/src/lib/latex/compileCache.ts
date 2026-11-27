@@ -8,6 +8,7 @@ import { mergeResources, type LatexResourceFile } from './resources';
 import { clearLogoCache, type CompileLogo } from './logo';
 import { clearPackageSettingsCache } from './packageSettings';
 import { sha256Hex } from '#lib/crypto/hex';
+import { extractSourceMap } from './sourceMap';
 
 /** `extra-sheet` is the exam-independent extra sheet (issue #228), keyed by its paper style. */
 export type CompileKind = 'exam' | 'exercise' | 'extra-sheet' | 'layout-sample';
@@ -30,6 +31,13 @@ export interface CachedCompileEntry {
   lastAccess: number;
   aux: AuxFile[];
   durationMs?: number;
+  /** Memory only, never in the sealed store: a reload loses click-to-source until the next compile (issue #347). */
+  synctex?: Uint8Array;
+  synctexLineShift?: number;
+  synctexColumns?: boolean;
+  provenance?: Uint8Array;
+  /** Read back from the sealed store after a reload, so it never has SyncTeX (`compileWithCache` accepts it anyway). */
+  stored?: boolean;
 }
 
 /** Maximum total PDF bytes kept in cache (150 MB). */
@@ -121,7 +129,7 @@ export function setCached(key: CompileCacheKey, hash: string, result: CompileRes
     cache.delete(slotKey);
   }
 
-  const sizeBytes = result.pdfBytes.byteLength;
+  const sizeBytes = result.pdfBytes.byteLength + (result.synctex?.byteLength ?? 0) + (result.provenance?.byteLength ?? 0);
 
   // Evict LRU entries while over budget
   while (
@@ -147,6 +155,10 @@ export function setCached(key: CompileCacheKey, hash: string, result: CompileRes
     lastAccess: Date.now(),
     aux: result.aux ?? [],
     durationMs: result.durationMs,
+    synctex: result.synctex,
+    synctexLineShift: result.synctexLineShift,
+    synctexColumns: result.synctexColumns,
+    provenance: result.provenance,
   };
 
   cache.set(slotKey, entry);
@@ -205,7 +217,7 @@ export function getCompileCacheStats(): { entryCount: number; totalBytes: number
   };
 }
 
-type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo };
+type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; synctex?: boolean };
 
 /** Invalidated slot-key prefixes by sequence number: a compile that was running when its slot was invalidated (an exam deleted meanwhile) must not write its PDF back. */
 let invalidationSeq = 0;
@@ -228,7 +240,9 @@ async function fromStore(key: CompileCacheKey): Promise<CachedCompileEntry | und
   const stored = await loadStoredCompile(makeSlotKey(key));
   if (!stored) return undefined;
   setCached(key, stored.hash, { ...stored, fromCache: true });
-  return cache.get(makeSlotKey(key));
+  const entry = cache.get(makeSlotKey(key));
+  if (entry) entry.stored = true;
+  return entry;
 }
 
 /** The slot's entry from memory or, after a reload, from the store; any hash. */
@@ -265,8 +279,11 @@ function persist(key: CompileCacheKey, hash: string, result: CompileResult): voi
   void saveStoredCompile(makeSlotKey(key), stored);
 }
 
-function hitResult(hit: CachedCompileEntry): CompileResult {
-  return { pdfBytes: hit.pdfBytes, usedFallback: hit.usedFallback, engineUsed: hit.engineUsed, missingGraphics: hit.missingGraphics, aux: hit.aux, fromCache: true };
+function hitResult(hit: CachedCompileEntry, latexSource: string): CompileResult {
+  return {
+    pdfBytes: hit.pdfBytes, usedFallback: hit.usedFallback, engineUsed: hit.engineUsed, missingGraphics: hit.missingGraphics, aux: hit.aux, fromCache: true,
+    synctex: hit.synctex, synctexLineShift: hit.synctexLineShift, synctexColumns: hit.synctexColumns, provenance: hit.provenance, sourceRanges: extractSourceMap(latexSource).ranges,
+  };
 }
 
 /** What each slot was last compiled from, to say which input changed when a lookup misses (issue #212: a PDF compiled on one exam tab counted as stale on another). Same lifetime as the cache. */
@@ -341,7 +358,8 @@ export async function compileWithCache(
   const hash = await hashFor(latexSource, useLocal, opts);
   // The store is read only when memory knows nothing of the slot (after a reload): a memory miss with another hash is current there too.
   const hit = getCached(key, hash) ?? (!cache.has(makeSlotKey(key)) && (await fromStore(key))?.hash === hash ? getCached(key, hash) : undefined);
-  if (hit) return hitResult(hit);
+  // A caller that wants SyncTeX does not take a compile of this session that ran without it (the OMR template shares the exam's slot); after a reload the stored PDF still wins, and clicks follow with the next compile.
+  if (hit && (!opts.synctex || hit.synctex || hit.stored)) return hitResult(hit, latexSource);
 
   const startedAt = invalidationSeq;
   const result = await compileLatex(latexSource, useLocal, onStatus, { ...opts, seedAux: await seedFor(key), session: sessionOf(key) });

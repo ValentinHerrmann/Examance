@@ -116,7 +116,8 @@ export const help: Translations['help'] = {
             },
             s2: {
                 h: 'The editor',
-                p1: 'Each exercise is a LaTeX fragment with a live preview: with LaTeX in the browser, after the first compile it recompiles by itself shortly after you stop typing. “Insert LaTeX snippets” above the source offers snippets for solutions, scoring and formatting, plus subject-specific ones such as tree diagrams, circuits or structural formulas. Ctrl + F searches, Ctrl + H replaces. An existing exercise saves itself; “Close” saves whatever is still pending.',
+                p1: 'Each exercise is a LaTeX fragment with a live preview: with LaTeX in the browser, after the first compile it recompiles by itself as you type. “Insert LaTeX snippets” above the source offers snippets for solutions, scoring and formatting, plus subject-specific ones such as tree diagrams, circuits or structural formulas. Ctrl + F searches, Ctrl + H replaces. An existing exercise saves itself; “Close” saves whatever is still pending.',
+                p2: 'With LaTeX in the browser the preview is a second editor: your cursor blinks in the pages, a click places it (it then lights up briefly in the code), double and triple clicks select a word and a line, dragging selects (hold Space or the middle mouse button to move the pages), and what you type goes into the LaTeX and shows on the page within about a second. Template text (header, score boxes, exercise titles) only shows a hint. In the exam preview, a click opens the exercise in the editor at that place.',
             },
             s3: {
                 h: 'Scores, part exercises and requirement levels',

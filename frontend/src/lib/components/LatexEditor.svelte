@@ -27,6 +27,15 @@
     gaps: DiffGapDecoration[];
   }
 
+  /** A place in the editor: 1-based line, 0-based UTF-16 column. */
+  export interface EditorPos {
+    line: number;
+    column: number;
+  }
+
+  import type { EditorKey as LatexEditorKey } from "./LatexEditor";
+  export type EditorKey = LatexEditorKey;
+
   export interface ScrollInfo {
     scrollTop: number;
     scrollLeft: number;
@@ -40,7 +49,7 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from "svelte";
   import { EditorView, BlockType, keymap, drawSelection, lineNumbers } from "@codemirror/view";
-  import { Annotation, EditorState, EditorSelection, Compartment } from "@codemirror/state";
+  import { Annotation, EditorState, EditorSelection, Compartment, type StateEffect } from "@codemirror/state";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import {
     search,
@@ -55,7 +64,11 @@
     latexLanguage,
     createLatexTheme,
     diffDecorationsField,
-    applyDiffDecorations
+    applyDiffDecorations,
+    EDITOR_KEY_COMMANDS,
+    unfocusedCursorTheme,
+    flashExtension,
+    setFlash
   } from "./LatexEditor";
   import {
     GENERAL_CATEGORIES,
@@ -84,6 +97,10 @@
     /** The user changed the text (typing or the quick-insert bar); not called when `value` is set from outside. */
     onChange?: (value: string) => void;
     onScroll?: (detail: { scrollTop: number; scrollLeft: number }) => void;
+    /** The selection moved or the text changed: anchor and head (equal for a plain cursor); `pointer` when a click or drag in this editor moved it. */
+    onSelectionChange?: (selection: { anchor: EditorPos; head: EditorPos }, how: { pointer: boolean }) => void;
+    /** Keeps a muted cursor visible while another control has the focus (the PDF pages, where typing goes into this editor; issue #347). */
+    showUnfocusedCursor?: boolean;
   }
 
   let {
@@ -94,7 +111,9 @@
     showQuickInsert = false,
     onGeometryChange = null,
     onChange,
-    onScroll
+    onScroll,
+    onSelectionChange,
+    showUnfocusedCursor = false
   }: Props = $props();
 
   // Applied to both wrapper divs: flex ancestors (the editor's stacked phone column) can otherwise collapse them to ~0px and CodeMirror paints into a collapsed box.
@@ -279,14 +298,45 @@
     }
   }
 
-  /** Puts the cursor at `lineNo` (1-based) and `column` (0-based, clamped to the line), scrolls it into view and focuses the editor; the target of click-to-source (issue #347). */
-  export function setCursor(lineNo: number, column = 0) {
+  function offsetOf(p: EditorPos): number {
+    const doc = view!.state.doc;
+    const line = doc.line(Math.max(1, Math.min(p.line, doc.lines)));
+    return line.from + Math.max(0, Math.min(p.column, line.length));
+  }
+
+  function posOf(offset: number): EditorPos {
+    const line = view!.state.doc.lineAt(offset);
+    return { line: line.number, column: offset - line.from };
+  }
+
+  /** Puts the cursor at `lineNo` (1-based) and `column` (0-based, clamped to the line), scrolls it into view and, unless `focus` is false, focuses the editor; the target of click-to-source (issue #347). */
+  export function setCursor(lineNo: number, column = 0, focus = true) {
+    setSelection({ line: lineNo, column }, { line: lineNo, column }, { focus });
+  }
+
+  /** Selects from `anchor` to `head` and scrolls the head into view; the pages keep the focus unless `focus`, and `flash` shows where the cursor went (a click in the PDF; inline editing, issue #347). */
+  export function setSelection(anchor: EditorPos, head: EditorPos, opts: { focus?: boolean; flash?: boolean } = {}) {
     if (!view) return;
-    const doc = view.state.doc;
-    const line = doc.line(Math.max(1, Math.min(lineNo, doc.lines)));
-    const pos = line.from + Math.max(0, Math.min(column, line.length));
-    view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
-    view.focus();
+    const a = offsetOf(anchor);
+    const h = offsetOf(head);
+    const effects: StateEffect<unknown>[] = [EditorView.scrollIntoView(h, { y: "nearest" })];
+    if (opts.flash) effects.push(setFlash.of({ from: Math.min(a, h), to: Math.max(a, h), head: h }));
+    view.dispatch({ selection: { anchor: a, head: h }, effects });
+    if (opts.focus) view.focus();
+  }
+
+  /** Replaces the selection with `text` as typing would (one undo step per call). */
+  export function replaceSelection(text: string) {
+    if (!view || readonly) return;
+    view.dispatch(view.state.replaceSelection(text), { userEvent: "input.type", scrollIntoView: true });
+  }
+
+  /** Runs an editing key the pages forwarded (`extend`: with Shift, the selecting variant); false when the editor did nothing. */
+  export function runKey(key: EditorKey, extend = false): boolean {
+    if (!view) return false;
+    const { move, select, edits } = EDITOR_KEY_COMMANDS[key];
+    if (readonly && edits) return false;
+    return (extend && select ? select : move)(view);
   }
 
   /** The cursor's line (1-based) and column (0-based); places the typing overlay of issue #347. */
@@ -329,6 +379,8 @@
         EditorView.lineWrapping,
         history(),
         drawSelection(),
+        showUnfocusedCursor ? unfocusedCursorTheme : [],
+        flashExtension,
         search({ top: true }),
         highlightSelectionMatches(),
         keymap.of([
@@ -348,6 +400,11 @@
           ".cm-scroller": { minHeight }
         }),
         EditorView.updateListener.of((update) => {
+          if (update.selectionSet || update.docChanged) {
+            const { anchor, head } = update.state.selection.main;
+            const pointer = update.transactions.some((tr) => tr.isUserEvent("select.pointer"));
+            onSelectionChange?.({ anchor: posOf(anchor), head: posOf(head) }, { pointer });
+          }
           if (update.docChanged) {
             isInternalUpdate = true;
             value = update.state.doc.toString();

@@ -1,9 +1,13 @@
 """Unit tests for LaTeX schema, service, and compile endpoint."""
 from __future__ import annotations
 
+import gzip
+from pathlib import Path
+
 import pytest
 
 from app.schemas.latex import LaTeXRequest
+from app.services import texrunner
 from app.services.latex import CompilationError, compile_latex
 
 
@@ -460,3 +464,26 @@ async def test_documents_cannot_leave_their_directory(attack: str) -> None:
         return
     assert b"root:" not in result.pdf
     assert not Path("/tmp/examance-escape.txt").exists()  # noqa: S108 - the path the attack tried to write
+
+
+def test_synctex_leaves_no_server_paths(tmp_path: Path) -> None:
+    """Click-to-source (issue #347): the SyncTeX sent to browsers names work-dir files relatively and TeX Live files from texmf-dist/, never the server's paths."""
+    text = "\n".join([
+        "SyncTeX Version:1",
+        f"Input:1:{tmp_path}/./main.tex",
+        "Input:2:/usr/local/texlive/2026/texmf-dist/tex/latex/base/article.cls",
+        f"Input:3:{tmp_path}/./sty/Schulaufgabe.sty",
+        "Input:4:/etc/odd.tex",
+        "Content:",
+    ])
+    (tmp_path / "main.synctex.gz").write_bytes(gzip.compress(text.encode()))
+    out = texrunner._read_synctex(tmp_path)
+    assert out is not None
+    inputs = [line for line in gzip.decompress(out).decode().split("\n") if line.startswith("Input:")]
+    assert inputs == [
+        "Input:1:./main.tex",
+        "Input:2:texmf-dist/tex/latex/base/article.cls",
+        "Input:3:./sty/Schulaufgabe.sty",
+        "Input:4:odd.tex",
+    ]
+    assert str(tmp_path) not in gzip.decompress(out).decode()

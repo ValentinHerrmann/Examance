@@ -1,13 +1,27 @@
 import { getLatestForSlot } from '#lib/latex/compileCache';
 import { compileFailure, type CompileFailure } from '#lib/latex/compileError';
 import { compileExercisePreview, type ExercisePreviewInput } from '#lib/latex/exercisePreview';
+import type { CompileResult } from '#lib/latex/compiler';
 import { pdfBytesToUrl } from '#lib/latex/pdfPreview';
 import { translate } from '#lib/i18n';
+import { PreviewSync } from '#lib/latex/previewSync.svelte';
+import type { ClickTarget, PageClick } from '#lib/latex/clickToSource';
+import type { PageEditProps } from '#lib/components/latex/PageEditLayer.svelte';
+import type { EditorKey, EditorPos } from '#lib/components/LatexEditor.svelte';
 
 type PreviewInput = Omit<ExercisePreviewInput, 'onAngabe'>;
+/** The part of `LatexEditor` the pages drive. */
+export interface CursorTarget {
+  setCursor(line: number, column?: number, focus?: boolean): void;
+  setSelection(anchor: EditorPos, head: EditorPos, opts?: { focus?: boolean; flash?: boolean }): void;
+  replaceSelection(text: string): void;
+  runKey(key: EditorKey, extend?: boolean): boolean;
+}
 
-/** The live preview waits this long after the last edit before it compiles. */
-const LIVE_DELAY_MS = 300;
+const isWordChar = (c: string | undefined) => c !== undefined && /[\p{L}\p{N}]/u.test(c);
+
+/** The live preview compiles at once on an edit (the queue keeps only the newest source waiting, so fast typing skips versions); devices with 4 GB or less, where the worker also keeps fewer sessions, wait a moment so a typing burst costs one compile (issue #347). */
+const LIVE_DELAY_MS = ((globalThis.navigator as { deviceMemory?: number } | undefined)?.deviceMemory ?? 8) <= 4 ? 300 : 0;
 
 /** The exercise editor's compile preview: the two PDFs as object URLs, which panes are open, and the last compile's failure (sent with a layout report). The editor owns one and calls `cleanup()` when it closes. */
 export class EditorPreview {
@@ -16,11 +30,26 @@ export class EditorPreview {
   solutionUrl: string | null = $state(null);
   // Both panes start collapsed: there is nothing to preview until the user compiles.
   showAngabe = $state(false);
-  showLoesung = $state(false);
+  private solutionShown = $state(false);
+  /** The solution compiled for an older source: opening its pane compiles it again. */
+  private solutionStale = false;
+  private lastInput: PreviewInput | null = null;
+
+  /** Whether the solution pane is open. While it is closed the live preview compiles only the task sheet (issue #347); opening it compiles the solution if it is behind. */
+  get showLoesung(): boolean {
+    return this.solutionShown;
+  }
+
+  set showLoesung(open: boolean) {
+    this.solutionShown = open;
+    if (open && this.solutionStale && this.lastInput) void this.compile(this.lastInput);
+  }
   error = $state('');
   log = $state<CompileFailure | null>(null);
   /** Whether a compile ran in this editor session; the live preview starts only after the first one. */
   compiled = $state(false);
+  /** Click-to-source and the editor's cursor in both panes (issue #347). */
+  readonly sync = new PreviewSync();
   /** The newest source asked for while a compile ran; only it compiles next, so a stale result never shows last. */
   private queued: { input: PreviewInput; done: ((message: string) => void)[] } | null = null;
   private running = false;
@@ -36,6 +65,9 @@ export class EditorPreview {
     this.generation++;
     if (this.queued) for (const d of this.queued.done) d('');
     this.queued = null;
+    this.lastInput = null;
+    this.solutionStale = false;
+    this.sync.reset();
     if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
     if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
     this.pdfUrl = null;
@@ -63,7 +95,7 @@ export class EditorPreview {
     return line;
   }
 
-  /** Live preview: `run` compiles `LIVE_DELAY_MS` after the last change of `key` while `on`; the key when it came on (the editor opened, the first compile ran) is the baseline, so only edits after it compile. */
+  /** Live preview: `run` compiles `LIVE_DELAY_MS` (usually 0) after the last change of `key` while `on`; the key when it came on (the editor opened, the first compile ran) is the baseline, so only edits after it compile. */
   live(key: string, on: boolean, run: () => void): void {
     const edited = this.liveKey !== '' && key !== this.liveKey;
     this.liveKey = on ? key : '';
@@ -77,9 +109,56 @@ export class EditorPreview {
     this.liveTimer = undefined;
   }
 
-  private setPdf(bytes: Uint8Array): void {
+  /** The editor's selection moved or its text changed: the caret and selection in the pages follow; `pointer` (a click in the code editor) makes the page caret pulse once. */
+  cursor(selection: { anchor: EditorPos; head: EditorPos }, body: () => string, pointer = false): void {
+    this.sync.select({ exerciseId: null, ...selection }, () => body(), pointer);
+  }
+
+  /** What pane `paneId` does with clicks and keys (issue #347). With the engine's glyph positions the pages are an editor: a click puts the caret there, a double click selects the word, a triple click the line, a drag selects, and typing goes into `editor()` (the body's LaTeX editor; none for MC, which only gets the template tooltip). Without them a click moves the code editor's cursor and focuses it. */
+  pageEdit(paneId: string, editor: () => CursorTarget | undefined, body: () => string): PageEditProps {
+    const inline = this.sync.editable(paneId) && editor() !== undefined;
+    return {
+      marks: this.sync.marks[paneId] ?? null,
+      onClick: (click, count) => void this.pageClick(paneId, click, count, inline, editor, body),
+      onDrag: inline ? (from, to, done) => void this.pageDrag(paneId, from, to, done, editor, body) : undefined,
+      onText: inline ? (text) => editor()?.replaceSelection(text) : undefined,
+      onKey: inline ? (key, shift) => editor()?.runKey(key, shift) ?? false : undefined,
+    };
+  }
+
+  private async pageClick(paneId: string, click: PageClick, count: number, inline: boolean, editor: () => CursorTarget | undefined, body: () => string): Promise<void> {
+    const target = await this.sync.click(paneId, click, () => body());
+    const ed = editor();
+    if (target?.kind !== 'source' || !ed) return;
+    const at = { line: target.line, column: target.column };
+    if (!inline) return ed.setCursor(at.line, at.column);
+    const text = body().split('\n')[at.line - 1] ?? '';
+    const flash = { flash: true };
+    if (count >= 3) return ed.setSelection({ line: at.line, column: 0 }, { line: at.line, column: text.length }, flash);
+    if (count === 2) {
+      let from = at.column;
+      let to = at.column;
+      while (from > 0 && isWordChar(text[from - 1])) from--;
+      while (to < text.length && isWordChar(text[to])) to++;
+      return ed.setSelection({ line: at.line, column: from }, { line: at.line, column: to }, flash);
+    }
+    ed.setSelection(at, at, flash);
+  }
+
+  /** `done`: the drag ended, so the selection flashes once. */
+  private async pageDrag(paneId: string, from: PageClick, to: PageClick, done: boolean, editor: () => CursorTarget | undefined, body: () => string): Promise<void> {
+    const [a, b] = await Promise.all([this.sync.click(paneId, from, () => body(), false), this.sync.click(paneId, to, () => body(), false)]);
+    const src = (t: ClickTarget | null) => (t?.kind === 'source' ? { line: t.line, column: t.column } : null);
+    const anchor = src(a);
+    const head = src(b);
+    if (anchor && head) editor()?.setSelection(anchor, head, { flash: done });
+  }
+
+  /** Shows a new task sheet; its clicks and marks take over once the viewer shows it, with `body` as the text it was compiled from. */
+  private setPdf(result: CompileResult, body: string): void {
     if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
-    this.pdfUrl = pdfBytesToUrl(bytes);
+    this.pdfUrl = pdfBytesToUrl(result.pdfBytes);
+    this.sync.setResult('angabe', result, { url: this.pdfUrl, compiled: () => body });
   }
 
   /** Compiles task sheet and solution, or, while one runs, after it with the newest input only; resolves to the message for the editor's error line ("" when all went well). */
@@ -112,11 +191,13 @@ export class EditorPreview {
     const generation = this.generation;
     const stale = () => generation !== this.generation;
     try {
+      this.lastInput = input;
       const res = await compileExercisePreview({
         ...input,
+        solution: this.solutionShown,
         onAngabe: (angabe) => {
           if (stale()) return;
-          this.setPdf(angabe.pdfBytes);
+          this.setPdf(angabe, input.latexBody);
           angabeShown = true;
           this.showAngabe = true;
         },
@@ -125,9 +206,13 @@ export class EditorPreview {
       // The failure stays on screen until a compile succeeds, so a live recompile does not make its help flicker.
       this.error = '';
       this.log = null;
-      if (!angabeShown) this.setPdf(res.angabe.pdfBytes);
-      if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
-      this.solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);
+      if (!angabeShown) this.setPdf(res.angabe, input.latexBody);
+      this.solutionStale = !res.loesung;
+      if (res.loesung) {
+        if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
+        this.solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);
+        this.sync.setResult('loesung', res.loesung, { url: this.solutionUrl, compiled: () => input.latexBody });
+      }
       // Now that a PDF exists, open the task-sheet pane so the result is actually visible.
       this.showAngabe = true;
       // A missing figure does not fail the engine: say so instead of handing back a PDF with a silent hole in it.

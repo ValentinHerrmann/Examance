@@ -7,12 +7,14 @@ on:
   pull_request:
     paths:
       - frontend/scripts/latex-engine/build-engine.sh
+      - frontend/scripts/latex-engine/provenance/**
       - frontend/static/core/latex-engine/**
       - .github/workflows/latex-engine.yml
   push:
     branches: [main]
     paths:
       - frontend/scripts/latex-engine/build-engine.sh
+      - frontend/scripts/latex-engine/provenance/**
       - frontend/static/core/latex-engine/**
   workflow_dispatch:
 

@@ -136,7 +136,7 @@ async def test_compile_loads_resources_by_exercise_id(
 
     seen: dict[str, bytes] = {}
 
-    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
+    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None, synctex=False):
         seen.update(binary_files or {})
         return TexResult(pdf=b"%PDF-1.4 fake")
 
@@ -168,7 +168,7 @@ async def test_compile_ignores_another_teachers_exercise_ids(
 
     seen: dict[str, bytes] = {}
 
-    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
+    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None, synctex=False):
         seen.update(binary_files or {})
         return TexResult(pdf=b"%PDF-1.4 fake")
 
@@ -195,7 +195,7 @@ async def test_inline_resource_overrides_the_stored_copy(
 
     seen: dict[str, bytes] = {}
 
-    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None):
+    def fake_compile(latex, extra_files=None, preview=True, binary_files=None, logo=None, seed_aux=None, synctex=False):
         seen.update(binary_files or {})
         return TexResult(pdf=b"%PDF-1.4 fake")
 

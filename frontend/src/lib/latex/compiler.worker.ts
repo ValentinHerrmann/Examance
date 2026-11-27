@@ -7,7 +7,7 @@
  */
 import { BIN_DIR, DEFAULT_MEMORY_BUDGET, EngineUnavailableError, TexEngine, type RunResult } from './engine/engine';
 import { idb, LazyTree, TREE_ROOT, type TreeManifest, type TreeSource } from './engine/tree';
-import { dumpSource, formatKey, splitPreamble, TEX_FLAGS, withFormat } from './engine/format';
+import { dumpSource, FORMAT_LINE_SHIFT, formatKey, splitPreamble, TEX_FLAGS, withFormat } from './engine/format';
 import { pdfInputs } from './engine/pdfStep';
 import { compileLogForUser, describeCompileFailure, extractMissingGraphics, type CompileStep } from './compileLog';
 import templateFiles from './engine/templateFiles.json';
@@ -333,7 +333,7 @@ async function compile(req: CompileRequest): Promise<void> {
   t.formatMs = performance.now() - t0;
   if (format) t.format = known ? 'cached' : 'dumped';
   const tex = format && parts ? withFormat(parts[0], parts[1]) : req.latexSource;
-  const args = [`${BIN_DIR}/xelatex`, '-no-pdf', '-synctex=-1' /* read by click-to-source, issue #347 */, ...TEX_FLAGS, `-fmt=${format ?? 'xelatex'}`, 'main.tex'];
+  const args = [`${BIN_DIR}/xelatex`, '-no-pdf', '-synctex=-1', ...TEX_FLAGS, `-fmt=${format ?? 'xelatex'}`, 'main.tex'];
   let s = sessionFor(rt, req.session, format);
   let last = await typeset(s, req, tex, args, t);
   // A stale seed (a macro the document no longer defines) must not fail the compile: retry once from scratch, as the server does.
@@ -342,11 +342,11 @@ async function compile(req: CompileRequest): Promise<void> {
     s = sessionFor(rt, req.session, format);
     last = await typeset(s, { ...req, seedAux: [] }, tex, args, t);
   }
-  await finish(rt, req, s, last, args, t);
+  await finish(rt, req, s, last, args, t, format ? FORMAT_LINE_SHIFT : 0);
 }
 
 /** xdvipdfmx after a successful XeTeX run, then the answer: the PDF with aux files and missing figures, or the failure with its log. */
-async function finish(rt: Runtime, req: CompileRequest, s: Session, last: RunResult, args: string[], t: Timings): Promise<void> {
+async function finish(rt: Runtime, req: CompileRequest, s: Session, last: RunResult, args: string[], t: Timings, synctexLineShift: number): Promise<void> {
   const log = dec.decode(last.outputs.get('/work/main.log') ?? new Uint8Array()) || last.stdout;
   const xetexStep: CompileStep = { cmd: args.join(' '), log, stdout: last.stdout, exit_code: last.exitCode };
   const xdv = last.outputs.get('/work/main.xdv');
@@ -367,7 +367,13 @@ async function finish(rt: Runtime, req: CompileRequest, s: Session, last: RunRes
     const bytes = last.outputs.get(`/work/${name}`);
     return bytes && bytes.length <= MAX_AUX_FILE_BYTES ? [{ path: name, content: bytes }] : [];
   });
-  self.postMessage({ id: req.id, success: true, pdfBytes: pdf.pdf, missingGraphics: extractMissingGraphics(log), aux, timings: t }, [pdf.pdf.buffer]);
+  // Click-to-source reads it on the main thread (issue #347); lines past the preamble are shifted by the format wrapper.
+  const synctex = last.outputs.get('/work/main.synctex');
+  // Glyph positions of every typeset word (scripts/latex-engine/provenance): exact clicks and the caret in the pages.
+  const provenance = last.outputs.get('/work/main.prov');
+  const transfer = [pdf.pdf.buffer, ...(synctex ? [synctex.buffer] : []), ...(provenance ? [provenance.buffer] : [])];
+  // synctexColumns: this engine stamps line and column on main.tex records (scripts/latex-engine/provenance).
+  self.postMessage({ id: req.id, success: true, pdfBytes: pdf.pdf, missingGraphics: extractMissingGraphics(log), aux, synctex, synctexLineShift, synctexColumns: true, provenance, timings: t }, transfer);
 }
 
 let queue: Promise<void> = Promise.resolve();

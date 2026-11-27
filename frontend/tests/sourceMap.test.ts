@@ -25,9 +25,19 @@ describe('sourceMap', () => {
 
   it('maps a document line to the exercise line', () => {
     const map = extractSourceMap(`head\n${markSource('one\n\\foo bar\nthree', 'Bruch')}\nend`);
-    expect(map.ranges).toEqual([{ label: 'Bruch', start: 2, end: 4 }]);
-    expect(mapLine(map, 3, '\\foo')).toEqual({ label: 'Bruch', line: 2 });
-    expect(mapLine(map, 1)).toEqual({ label: null, line: 1 });
+    expect(map.ranges).toEqual([{ label: 'Bruch', exerciseId: null, start: 2, end: 4 }]);
+    expect(mapLine(map, 3, '\\foo')).toEqual({ label: 'Bruch', exerciseId: null, line: 2 });
+    expect(mapLine(map, 1)).toEqual({ label: null, exerciseId: null, line: 1 });
+  });
+
+  it('keeps two exercises of the same name apart by id', () => {
+    const map = extractSourceMap(`${markSource('a', 'Bruch', 'e1')}\n${markSource('b', 'Bruch', 'e2')}`);
+    expect(mapLine(map, 1)).toEqual({ label: 'Bruch', exerciseId: 'e1', line: 1 });
+    expect(mapLine(map, 2)).toEqual({ label: 'Bruch', exerciseId: 'e2', line: 1 });
+  });
+
+  it('keeps a bar in the name as part of the name', () => {
+    expect(extractSourceMap(markSource('x', 'A|B', 'e1')).ranges[0]).toMatchObject({ label: 'A|B', exerciseId: 'e1' });
   });
 
   it('leaves errors inside package files unmapped', () => {

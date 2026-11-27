@@ -278,6 +278,24 @@ describe('compileCache', () => {
       expect(compileSpy).toHaveBeenCalledTimes(2);
     });
 
+    it('compiles again for SyncTeX when the slot holds a compile of this session without it (issue #347)', async () => {
+      const synctex = new Uint8Array([1]);
+      const compileSpy = vi
+        .spyOn(compilerModule, 'compileLatex')
+        .mockResolvedValueOnce({ pdfBytes: new Uint8Array([0x25]), usedFallback: false, engineUsed: 'server' })
+        .mockResolvedValueOnce({ pdfBytes: new Uint8Array([0x25]), usedFallback: false, engineUsed: 'server', synctex });
+      const key: CompileCacheKey = { kind: 'exam', id: 'exam-sync', variant: 'angabe' };
+      // The OMR template compiles the exam's sheet without SyncTeX; the preview then needs it.
+      await compileWithCache(key, 'doc', false);
+      const withSync = await compileWithCache(key, 'doc', false, undefined, { synctex: true });
+      expect(compileSpy).toHaveBeenCalledTimes(2);
+      expect(withSync.synctex).toEqual(synctex);
+      // Now the slot has it: both callers hit.
+      expect((await compileWithCache(key, 'doc', false, undefined, { synctex: true })).fromCache).toBe(true);
+      expect((await compileWithCache(key, 'doc', false)).fromCache).toBe(true);
+      expect(compileSpy).toHaveBeenCalledTimes(2);
+    });
+
     it('seeds a recompile of an edited document with the slot\'s last aux files (issue #341)', async () => {
       const aux = [{ path: 'main.aux', content: new Uint8Array([1, 2, 3]) }];
       const compileSpy = vi.spyOn(compilerModule, 'compileLatex').mockResolvedValue({

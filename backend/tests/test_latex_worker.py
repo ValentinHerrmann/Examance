@@ -36,10 +36,23 @@ async def test_worker_returns_the_pdf_and_receives_resources(worker: None) -> No
         )
     assert result.pdf == b"%PDF-1.7 worker"
     assert result.aux == {"main.aux": b"\\relax"}
-    main_tex, files, _timeout, seed_aux = run.call_args.args
+    main_tex, files, _timeout, seed_aux, synctex = run.call_args.args
     assert "\\documentclass" in main_tex
     assert files == {"img.png": b"\x89PNG"}
     assert seed_aux == {"main.aux": b"\\relax old"}
+    assert synctex is False
+    assert result.synctex is None
+
+
+@pytest.mark.asyncio
+async def test_worker_returns_synctex_when_asked(worker: None) -> None:
+    """Click-to-source (issue #347): the worker passes the gzipped SyncTeX and the format's line shift through."""
+    run = AsyncMock(return_value=TexResult(pdf=b"%PDF-1.7", synctex=b"\x1f\x8bsync", synctex_line_shift=4))
+    with patch.object(latex_worker, "run_tex", run):
+        result = await latex.compile_latex("Hello", synctex=True)
+    assert run.call_args.args[4] is True
+    assert result.synctex == b"\x1f\x8bsync"
+    assert result.synctex_line_shift == 4
 
 
 @pytest.mark.asyncio

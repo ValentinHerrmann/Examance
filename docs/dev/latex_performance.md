@@ -275,4 +275,4 @@ Other documents in Node:
 1. bring memory under about 1 GB per tab (XOR-delta layers, a TeX tree subset per template, xdvipdfmx in the engine's VM instead of a second busytex);
 2. pass Firefox and Safari, falling back to busytex when the engine cannot start or memory is short.
 
-The busytex format cache (#344, browser half) stays useful either way: it would cut the preamble replay, today about 3 s.
+The browser half of the format cache (#344) shipped with the new engine (`engine/format.ts`); busytex is gone.

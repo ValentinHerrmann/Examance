@@ -6,6 +6,8 @@ const TEMPLATE_NAME = '{sty/Schulaufgabe}';
 /** XeTeX cannot dump OpenType fonts and the kernel loads one as soon as a font is selected: the dump runs in OT1 without Libertine (packages.sty), the document switches back after \endofdump. */
 export const BEFORE_DUMP = '\\def\\ExamanceDeferFonts{}\\def\\encodingdefault{OT1}\\fontencoding{OT1}\n';
 export const AFTER_DUMP = '\n\\csname endofdump\\endcsname\n\\def\\encodingdefault{TU}\\fontencoding{TU}\\RequirePackage{libertine}\\selectfont\n';
+/** Lines `withFormat` inserts before the document body; SyncTeX counts them (texrunner `FORMAT_LINE_SHIFT`, issue #347). */
+export const FORMAT_LINE_SHIFT = (BEFORE_DUMP + AFTER_DUMP).split('\n').length - 1;
 /** The server's TeX flags (texrunner `_TEX_FLAGS`). */
 export const TEX_FLAGS = ['-no-shell-escape', '-no-parse-first-line', '-interaction=nonstopmode', '-halt-on-error'];
 

@@ -69,6 +69,8 @@ class LaTeXRequest(BaseModel):
     seed_aux: dict[str, str] = Field(default_factory=dict)
     # : Answer with JSON ``{pdf_b64, aux}`` instead of the bare PDF, so the client can seed its next compile.
     return_aux: bool = False
+    # : With ``return_aux``, also answer ``synctex_b64`` (gzipped SyncTeX) and ``synctex_line_shift``, for click-to-source in the preview (issue #347).
+    return_synctex: bool = False
 
     @field_validator("latex")
     @classmethod

@@ -26,7 +26,7 @@ async def test_job_runs_with_the_full_budget_and_hands_out_the_pdf_once(
     gate = asyncio.Event()
     seen: list[bool] = []
 
-    async def fake_compile(latex, preview=True, binary_files=None, logo=None, seed_aux=None):  # type: ignore[no-untyped-def]
+    async def fake_compile(latex, preview=True, binary_files=None, logo=None, seed_aux=None, synctex=False):  # type: ignore[no-untyped-def]
         seen.append(preview)
         await gate.wait()
         return TexResult(pdf=b"%PDF-1.4 job")
@@ -75,7 +75,7 @@ async def test_jobs_are_private_and_capped(client: AsyncClient, db: AsyncSession
     await sign_in(client, db, "jobs-owner@example.com")
     gate = asyncio.Event()
 
-    async def slow(latex, preview=True, binary_files=None, logo=None, seed_aux=None):  # type: ignore[no-untyped-def]
+    async def slow(latex, preview=True, binary_files=None, logo=None, seed_aux=None, synctex=False):  # type: ignore[no-untyped-def]
         await gate.wait()
         return TexResult(pdf=b"%PDF")
 
@@ -100,7 +100,7 @@ async def test_jobs_are_private_and_capped(client: AsyncClient, db: AsyncSession
 async def test_unfetched_results_expire(client: AsyncClient, db: AsyncSession) -> None:
     await sign_in(client, db, "jobs-expiry@example.com")
 
-    def quick(latex, preview=True, binary_files=None, logo=None, seed_aux=None):  # type: ignore[no-untyped-def]
+    def quick(latex, preview=True, binary_files=None, logo=None, seed_aux=None, synctex=False):  # type: ignore[no-untyped-def]
         return TexResult(pdf=b"%PDF")
 
     with patch("app.routers.compile.compile_latex", side_effect=quick):
