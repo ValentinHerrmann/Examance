@@ -369,8 +369,11 @@ async function finish(rt: Runtime, req: CompileRequest, s: Session, last: RunRes
   });
   // Click-to-source reads it on the main thread (issue #347); lines past the preamble are shifted by the format wrapper.
   const synctex = last.outputs.get('/work/main.synctex');
-  const transfer = synctex ? [pdf.pdf.buffer, synctex.buffer] : [pdf.pdf.buffer];
-  self.postMessage({ id: req.id, success: true, pdfBytes: pdf.pdf, missingGraphics: extractMissingGraphics(log), aux, synctex, synctexLineShift, timings: t }, transfer);
+  // Glyph positions of every typeset word (scripts/latex-engine/provenance): exact clicks and the caret in the pages.
+  const provenance = last.outputs.get('/work/main.prov');
+  const transfer = [pdf.pdf.buffer, ...(synctex ? [synctex.buffer] : []), ...(provenance ? [provenance.buffer] : [])];
+  // synctexColumns: this engine stamps line and column on main.tex records (scripts/latex-engine/provenance).
+  self.postMessage({ id: req.id, success: true, pdfBytes: pdf.pdf, missingGraphics: extractMissingGraphics(log), aux, synctex, synctexLineShift, synctexColumns: true, provenance, timings: t }, transfer);
 }
 
 let queue: Promise<void> = Promise.resolve();

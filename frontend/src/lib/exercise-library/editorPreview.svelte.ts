@@ -4,11 +4,20 @@ import { compileExercisePreview, type ExercisePreviewInput } from '#lib/latex/ex
 import { pdfBytesToUrl } from '#lib/latex/pdfPreview';
 import { translate } from '#lib/i18n';
 import { PreviewSync } from '#lib/latex/previewSync.svelte';
-import type { PageClick } from '#lib/latex/clickToSource';
+import type { ClickTarget, PageClick } from '#lib/latex/clickToSource';
+import type { PageEditProps } from '#lib/components/latex/PageEditLayer.svelte';
+import type { EditorKey, EditorPos } from '#lib/components/LatexEditor.svelte';
 
 type PreviewInput = Omit<ExercisePreviewInput, 'onAngabe'>;
-/** The part of `LatexEditor` a jump needs. */
-export type CursorTarget = { setCursor(line: number, column?: number): void };
+/** The part of `LatexEditor` the pages drive. */
+export interface CursorTarget {
+  setCursor(line: number, column?: number, focus?: boolean): void;
+  setSelection(anchor: EditorPos, head: EditorPos, focus?: boolean): void;
+  replaceSelection(text: string): void;
+  runKey(key: EditorKey, extend?: boolean): boolean;
+}
+
+const isWordChar = (c: string | undefined) => c !== undefined && /[\p{L}\p{N}]/u.test(c);
 
 /** The live preview compiles at once on an edit (the queue keeps only the newest source waiting, so fast typing skips versions); devices with 4 GB or less, where the worker also keeps fewer sessions, wait a moment so a typing burst costs one compile (issue #347). */
 const LIVE_DELAY_MS = ((globalThis.navigator as { deviceMemory?: number } | undefined)?.deviceMemory ?? 8) <= 4 ? 300 : 0;
@@ -25,10 +34,8 @@ export class EditorPreview {
   log = $state<CompileFailure | null>(null);
   /** Whether a compile ran in this editor session; the live preview starts only after the first one. */
   compiled = $state(false);
-  /** Click-to-source and the provisional typing overlay of both panes (issue #347). */
+  /** Click-to-source and the editor's cursor in both panes (issue #347). */
   readonly sync = new PreviewSync();
-  /** The body the shown PDFs were compiled from; the overlay shows what was typed since. */
-  compiledBody = '';
   /** The newest source asked for while a compile ran; only it compiles next, so a stale result never shows last. */
   private queued: { input: PreviewInput; done: ((message: string) => void)[] } | null = null;
   private running = false;
@@ -45,7 +52,6 @@ export class EditorPreview {
     if (this.queued) for (const d of this.queued.done) d('');
     this.queued = null;
     this.sync.reset();
-    this.compiledBody = '';
     if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
     if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
     this.pdfUrl = null;
@@ -87,15 +93,47 @@ export class EditorPreview {
     this.liveTimer = undefined;
   }
 
-  /** A click on pane `paneId`: the cursor goes to that word in `editor` (the body's LaTeX editor; absent for MC, which only gets the template tooltip). */
-  async jump(paneId: string, click: PageClick, body: string, editor: CursorTarget | undefined): Promise<void> {
-    const target = await this.sync.click(paneId, click, () => body);
-    if (target?.kind === 'source') editor?.setCursor(target.line, target.column);
+  /** The editor's selection moved or its text changed: the caret and selection in the pages follow. */
+  cursor(selection: { anchor: EditorPos; head: EditorPos }, body: () => string): void {
+    this.sync.select({ exerciseId: null, ...selection }, () => body());
   }
 
-  /** An edit of the body: what was typed on the cursor's line shows on the pages until the next PDF. */
-  typed(body: string, cursor: { line: number } | null | undefined): void {
-    if (cursor && this.compiledBody) this.sync.provisional(null, this.compiledBody, body, cursor.line);
+  /** What pane `paneId` does with clicks and keys (issue #347). With the engine's glyph positions the pages are an editor: a click puts the caret there, a double click selects the word, a triple click the line, a drag selects, and typing goes into `editor()` (the body's LaTeX editor; none for MC, which only gets the template tooltip). Without them a click moves the code editor's cursor and focuses it. */
+  pageEdit(paneId: string, editor: () => CursorTarget | undefined, body: () => string): PageEditProps {
+    const inline = this.sync.editable(paneId) && editor() !== undefined;
+    return {
+      marks: this.sync.marks[paneId] ?? null,
+      onClick: (click, count) => void this.pageClick(paneId, click, count, inline, editor, body),
+      onDrag: inline ? (from, to) => void this.pageDrag(paneId, from, to, editor, body) : undefined,
+      onText: inline ? (text) => editor()?.replaceSelection(text) : undefined,
+      onKey: inline ? (key, shift) => editor()?.runKey(key, shift) ?? false : undefined,
+    };
+  }
+
+  private async pageClick(paneId: string, click: PageClick, count: number, inline: boolean, editor: () => CursorTarget | undefined, body: () => string): Promise<void> {
+    const target = await this.sync.click(paneId, click, () => body());
+    const ed = editor();
+    if (target?.kind !== 'source' || !ed) return;
+    const at = { line: target.line, column: target.column };
+    if (!inline) return ed.setCursor(at.line, at.column);
+    const text = body().split('\n')[at.line - 1] ?? '';
+    if (count >= 3) return ed.setSelection({ line: at.line, column: 0 }, { line: at.line, column: text.length });
+    if (count === 2) {
+      let from = at.column;
+      let to = at.column;
+      while (from > 0 && isWordChar(text[from - 1])) from--;
+      while (to < text.length && isWordChar(text[to])) to++;
+      return ed.setSelection({ line: at.line, column: from }, { line: at.line, column: to });
+    }
+    ed.setSelection(at, at);
+  }
+
+  private async pageDrag(paneId: string, from: PageClick, to: PageClick, editor: () => CursorTarget | undefined, body: () => string): Promise<void> {
+    const [a, b] = await Promise.all([this.sync.click(paneId, from, () => body(), false), this.sync.click(paneId, to, () => body(), false)]);
+    const src = (t: ClickTarget | null) => (t?.kind === 'source' ? { line: t.line, column: t.column } : null);
+    const anchor = src(a);
+    const head = src(b);
+    if (anchor && head) editor()?.setSelection(anchor, head);
   }
 
   private setPdf(bytes: Uint8Array): void {
@@ -154,7 +192,6 @@ export class EditorPreview {
       if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
       this.solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);
       this.sync.setResult('loesung', res.loesung);
-      this.compiledBody = input.latexBody;
       // Now that a PDF exists, open the task-sheet pane so the result is actually visible.
       this.showAngabe = true;
       // A missing figure does not fail the engine: say so instead of handing back a PDF with a silent hole in it.
@@ -165,7 +202,6 @@ export class EditorPreview {
       const message = err instanceof Error && err.message ? err.message : translate('exercises.editor.previewFailedUnknown');
       this.error = translate('exercises.editor.previewFailed', { message });
       this.log = compileFailure(err);
-      this.sync.clearOverlays();
       return this.error;
     } finally {
       this.loading = false;

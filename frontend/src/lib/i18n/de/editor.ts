@@ -95,6 +95,7 @@ export const editor = {
         expand: '{title}-PDF ausklappen',
         frameTitle: '{title}-Vorschau',
         templateText: 'Von der Vorlage erzeugt; hier nicht bearbeitbar.',
+        typeHere: 'In der Vorschau tippen',
     },
 
     /** Zoomable image controls. */

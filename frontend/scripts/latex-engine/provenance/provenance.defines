@@ -1,0 +1,5 @@
+@define var provcur;
+@define function provget();
+@define procedure provset();
+@define procedure provalloc();
+@define procedure provword();

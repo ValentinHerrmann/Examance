@@ -1,5 +1,7 @@
 /** Stateful in-memory fake of the Examance API (`/api/v1`) for the vitest archive tests and the Playwright suite (frontend/CLAUDE.md, E2E). Framework-free (no vitest, Playwright or app imports); snake_case responses like the real API (`backend/app/schemas/*.py`), sealed blobs echoed. An unrouted request answers 404 and lands in `state.unhandled`, which fails the e2e test: extend this fake, not the app. */
 
+import { texTreeRoute } from './fakeTexTree';
+
 export type FakeStorageMode = 'all-server' | 'hybrid';
 
 export interface FakeApiOptions {
@@ -1604,6 +1606,10 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         return admin(verb, parts, searchParams, payload);
       case 'latex':
         return verb === 'GET' && parts[1] === 'template-packages' ? ok(TEMPLATE_PACKAGES) : undefined;
+      case 'texlive':
+      case 'latex-assets':
+        // The browser engine's tree and assets, only where a local TeX Live is installed (fakeTexTree.ts).
+        return texTreeRoute(verb, parts);
       case 'compile':
         // No TeX engine here: every job answers the same blank three-page A4 PDF (the Layout step's sample, issue #272).
         if (parts[1] !== 'latex' || parts[2] !== 'jobs') return undefined;

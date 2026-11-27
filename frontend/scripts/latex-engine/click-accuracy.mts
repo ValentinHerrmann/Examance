@@ -1,7 +1,9 @@
-// Click-to-source accuracy (issue #347): clicks every printed word of a compiled sample at its centre and counts how often the cursor lands on that exact word.
-// Usage: npx vite-node scripts/latex-engine/click-accuracy.mts <sample id> <dir with main.pdf, main.synctex> <words.json>
-// words.json: exact word boxes of main.pdf (page, x0, x1, y from the top-left, text), e.g. from pdfminer. The truth for each printed word is its place in a
-// word-sequence alignment (LCS) of all printed words against the exercises' source words, so repeated words are judged by their real occurrence.
+// Click-to-source accuracy (issue #347): clicks every printed word of a compiled sample and counts how often the cursor lands on the exact clicked character.
+// Usage: npx vite-node scripts/latex-engine/click-accuracy.mts <sample id> <dir with main.pdf, main.synctex[, main.prov]> <words.json>
+// The dir is node-run.mts's KEEP output for that sample; words.json comes from pdf-words.py (exact pdfminer boxes). COLUMNS=1 uses the engine's
+// columns and glyph positions (main.prov), as the app does with the browser engine; without it, the pdf.js path of server compiles is measured. The truth for each printed word is its place in a
+// word-sequence alignment (LCS) of all printed words against the exercises' source words, so repeated words are judged by their real occurrence;
+// each word is clicked a quarter into its middle character, and only that character's source column counts as exact.
 import fs from 'node:fs';
 import path from 'node:path';
 import { extractSourceMap } from '#lib/latex/sourceMap';
@@ -16,12 +18,14 @@ interface PdfWord {
   x1: number;
   y: number;
   text: string;
+  /** Exact character boxes: [x0, x1, text]. */
+  chars: [number, number, string][];
 }
 interface SourceWord {
   text: string;
   label: string;
-  line: number;
-  column: number;
+  /** Source line and column of each printed character of the word. */
+  at: [number, number][];
 }
 
 const [id, dir, wordsPath] = process.argv.slice(2);
@@ -37,6 +41,9 @@ const result: SyncedResult = {
   pdfBytes: new Uint8Array(fs.readFileSync(path.join(dir, 'main.pdf'))),
   synctex: new Uint8Array(fs.readFileSync(path.join(dir, 'main.synctex'))),
   synctexLineShift: Number(process.env.SHIFT ?? 0),
+  // COLUMNS=1: SyncTeX and main.prov from the provenance engine (packed columns, glyph positions).
+  synctexColumns: process.env.COLUMNS === '1',
+  provenance: process.env.COLUMNS === '1' ? new Uint8Array(fs.readFileSync(path.join(dir, 'main.prov'))) : undefined,
   sourceRanges: map.ranges,
 };
 
@@ -47,8 +54,7 @@ for (const r of map.ranges) {
   if (body === undefined) continue;
   const view = printedView(body.split('\n'));
   for (const m of view.text.matchAll(/[\p{L}\p{N}]+/gu)) {
-    const [line, column] = view.at[m.index];
-    source.push({ text: m[0], label: r.label, line, column });
+    source.push({ text: m[0], label: r.label, at: view.at.slice(m.index, m.index + m[0].length) });
   }
 }
 const printed = (JSON.parse(fs.readFileSync(wordsPath, 'utf8')) as PdfWord[]).map((w) => ({ ...w, text: normalizePrinted(w.text) }));
@@ -83,20 +89,26 @@ let wrong = 0;
 const misses: string[] = [];
 for (const [i, want] of truth) {
   const w = printed[i];
-  const click = { page: w.page, x: (w.x0 + w.x1) / 2, y: w.y };
+  const k = Math.floor(w.chars.length / 2);
+  const [cx0, cx1] = w.chars[k] ?? [w.x0, w.x1];
+  // A quarter into the character: the cursor goes before it.
+  const click = { page: w.page, x: cx0 + (cx1 - cx0) * 0.25, y: w.y };
   const probe = await wordAt(result.pdfBytes, click);
   const got = resolveClick(result, click, probe, () => bodies.get(want.label));
-  const hit = got?.kind === 'source' && got.label === want.label && got.line === want.line && got.column === want.column;
+  // A ligature box holds several letters: the truth is the first letter of the clicked box.
+  const letter = w.chars.slice(0, k).reduce((sum, c) => sum + normalizePrinted(c[2]).length, 0);
+  const [line, column] = want.at[Math.min(letter, want.at.length - 1)];
+  const hit = got?.kind === 'source' && got.label === want.label && got.line === line && got.column === column;
   if (isText(want.text)) {
     textTotal++;
     if (hit) textExact++;
   }
   if (hit) exact++;
-  else if (got?.kind === 'source' && got.label === want.label && got.line === want.line) rightLine++;
+  else if (got?.kind === 'source' && got.label === want.label && got.line === line) rightLine++;
   else if (got?.kind !== 'source') template++;
   else wrong++;
-  if (!(got?.kind === 'source' && got.line === want.line && got.column === want.column) && misses.length < 40) {
-    misses.push(`${want.text} (${want.label} ${want.line}:${want.column}) -> ${got?.kind === 'source' ? `${got.label} ${got.line}:${got.column}` : (got?.kind ?? 'nothing')} probe=${JSON.stringify(probe)}`);
+  if (!hit && misses.length < 40) {
+    misses.push(`${want.text}[${k}] (${want.label} ${line}:${column}) -> ${got?.kind === 'source' ? `${got.label} ${got.line}:${got.column}` : (got?.kind ?? 'nothing')} probe=${JSON.stringify(probe)}`);
   }
 }
 const total = truth.size;

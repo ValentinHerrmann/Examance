@@ -27,6 +27,18 @@ if [[ ! -d "$TP/.git" ]]; then
 fi
 SHIM="$TP/src/engine-wasm/fontconfig-shim"
 BUILD="$WORK/build"
+
+# ours: source provenance for click-to-source and inline editing (issue #347): every token keeps its line and column in main.tex, and SyncTeX records carry them (provenance/provenance.ch).
+PROV="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/provenance"
+W2C="$SRC/texk/web2c"
+if ! grep -q "examance-provenance.ch" "$W2C/Makefile.in"; then
+  cp "$PROV/provenance.ch" "$W2C/xetexdir/examance-provenance.ch"
+  sed -i 's|^\ttex-binpool.ch$|\ttex-binpool.ch \\\n\txetexdir/examance-provenance.ch|' "$W2C/Makefile.in"
+  grep -q "examance-provenance.ch" "$W2C/Makefile.in" || { echo "could not add provenance.ch to xetex_ch_srcs" >&2; exit 1; }
+  cat "$PROV/provenance.defines" >> "$W2C/xetexdir/xetex.defines"
+  cat "$PROV/provenance.h" >> "$W2C/xetexdir/XeTeX_ext.h"
+  cat "$PROV/provenance.c" >> "$W2C/xetexdir/XeTeX_ext.c"
+fi
 OUT="$WORK/out"
 
 export EMCC_SKIP_SANITY_CHECK=1

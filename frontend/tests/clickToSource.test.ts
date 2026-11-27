@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { insertedText, locateWord, placeOfLine, rangeOf, resolveClick, wordInItems, type WordProbe } from '../src/lib/latex/clickToSource';
+import { caretFor, locateWord, rangeOf, resolveClick, wordInItems, type WordProbe } from '../src/lib/latex/clickToSource';
+import { glyphStarts } from '../src/lib/latex/inlineEdit/glyphMap';
 import { printedView } from '../src/lib/latex/printedText';
 import { createTapTracker } from '../src/lib/pdf/tap';
 
@@ -101,31 +102,18 @@ describe('printedView', () => {
   });
 });
 
-describe('placeOfLine', () => {
-  it('finds where a body line was typeset, with and without the format shift', () => {
-    expect(placeOfLine(result(5), rangeOf(result(5), 'e1')!, 2)).toMatchObject({ page: 1, x: expect.closeTo(72, 1), y: expect.closeTo(90, 1) });
-    expect(placeOfLine(result(9, 4), ranges[0], 2)).toMatchObject({ page: 1 });
-  });
-
+describe('rangeOf', () => {
   it('takes the only range for a document marked without ids', () => {
     const single = { ...result(5), sourceRanges: [{ ...ranges[0], exerciseId: null }] };
     expect(rangeOf(single, null)).toBe(single.sourceRanges[0]);
   });
 });
 
-describe('insertedText', () => {
-  it('returns what was typed between the unchanged ends', () => {
-    expect(insertedText('Hallo Welt', 'Hallo schöne Welt')).toBe('schöne ');
-    expect(insertedText('abc', 'abc')).toBe('');
-    expect(insertedText('', 'neu')).toBe('neu');
-  });
-});
-
 describe('wordInItems', () => {
   const items = [{ str: 'hello world', transform: [1, 0, 0, 1, 72, 700], width: 55, height: 10 }];
   it('finds the word under the point with its neighbours (top-left frame against pdf.js baselines)', () => {
-    expect(wordInItems(items, 842, 112, 842 - 702)).toEqual({ word: 'world', before: ['hello'], after: [] });
-    expect(wordInItems(items, 842, 74, 842 - 702)).toEqual({ word: 'hello', before: [], after: ['world'] });
+    expect(wordInItems(items, 842, 112, 842 - 702)).toMatchObject({ word: 'world', before: ['hello'], after: [] });
+    expect(wordInItems(items, 842, 74, 842 - 702)).toMatchObject({ word: 'hello', before: [], after: ['world'] });
     expect(wordInItems(items, 842, 300, 842 - 702)).toBeNull();
   });
 
@@ -136,7 +124,7 @@ describe('wordInItems', () => {
       { str: 'unten', transform: [1, 0, 0, 1, 72, 686], width: 25, height: 10 },
     ];
     expect(wordInItems(row, 842, 89, 842 - 702)?.word).toMatch(/^(Die|Katze)$/);
-    expect(wordInItems(row, 842, 130, 842 - 702)).toEqual({ word: 'schläft', before: ['Die', 'Katze'], after: [] });
+    expect(wordInItems(row, 842, 130, 842 - 702)).toMatchObject({ word: 'schläft', before: ['Die', 'Katze'], after: [] });
   });
 
   it('splits ligatures the PDF prints', () => {
@@ -167,5 +155,58 @@ describe('createTapTracker', () => {
     expect(taps.up(ev(1, 0, 60))).toBe(false);
     taps.down(ev(1, 0, 100));
     expect(taps.up(ev(1, 0, 150))).toBe(true);
+  });
+});
+
+describe('resolveClick and caretFor with engine glyphs', () => {
+  // main.tex line 5 is body line 2 (range starts at 4): "Die Katze sieht die Maus", spaces at columns 3, 9, 15, 19.
+  const SRC = 'Erste Zeile\nDie Katze sieht die Maus\nEnde';
+  const packed = (line: number, col: number) => line * 4096 + col;
+  // Words on page 1 at baseline 90 pt: [text, left x], 4 pt per glyph.
+  const WORDS: [string, number][] = [['Die', 72], ['Katze', 90], ['sieht', 120], ['die', 150], ['Maus', 168]];
+  const spaces = [3, 9, 15, 19];
+  function columnSynctex(): Uint8Array {
+    const sep = (col: number, x: number) => `k1,${packed(5, col)}:${sp(x)},${sp(90)}`;
+    const text = [
+      'SyncTeX Version:1', 'Input:1:./main.tex', 'Output:xdv', 'Magnification:1000', 'Unit:1', 'X Offset:0', 'Y Offset:0', 'Content:',
+      '{1', `[1,${packed(1, 4095)}:0,0:${sp(595)},${sp(842)},0`,
+      `(1,${packed(5, 0)}:${sp(72)},${sp(90)}:${sp(300)},${sp(10)},0`,
+      ...WORDS.slice(0, 4).map(([t, x], i) => sep(spaces[i], x + t.length * 4)),
+      ')', ']', '}1', '',
+    ].join('\n');
+    return new TextEncoder().encode(text);
+  }
+  const prov = WORDS.map(([t, x]) => `w 1 ${sp(x)} ${sp(90)} ${sp(t.length * 4)} ${sp(10)} ${t.length} ${[...t].map((_, i) => sp(i * 4)).join(' ')}`).join('\n');
+  const res = {
+    pdfBytes: new Uint8Array(), synctex: columnSynctex(), synctexLineShift: 0, synctexColumns: true,
+    provenance: new TextEncoder().encode(`${prov}\n`), sourceRanges: ranges,
+  };
+
+  it('puts the cursor before the clicked glyph of a repeated word', () => {
+    // "die" at 150: d 150-154, i 154-158; a click at 155 is on the left half of i.
+    expect(resolveClick(res, { page: 1, x: 155, y: 88 }, null, () => SRC)).toEqual({ kind: 'source', exerciseId: 'e1', label: 'Bruch', line: 2, column: 17 });
+    // The right half of i: after it.
+    expect(resolveClick(res, { page: 1, x: 157, y: 88 }, null, () => SRC)).toMatchObject({ column: 18 });
+  });
+
+  it('finds the first word of a printed line from the space after it', () => {
+    expect(resolveClick(res, { page: 1, x: 80.5, y: 88 }, null, () => SRC)).toMatchObject({ line: 2, column: 2 });
+  });
+
+  it('places the caret at the glyph of a source position', () => {
+    const box = caretFor(res, 'e1', 2, 17, () => SRC);
+    expect(box).toMatchObject({ page: 1 });
+    expect(box!.x).toBeCloseTo(154, 1);
+    expect(caretFor(res, 'e1', 2, 1, () => SRC)!.x).toBeCloseTo(76, 1);
+    expect(caretFor(res, 'e1', 1, 3, () => SRC)).toBeNull();
+  });
+});
+
+describe('glyphStarts', () => {
+  it('merges ligatures until the glyph count fits', () => {
+    expect(glyphStarts('mittleren', 8)).toEqual([0, 1, 2, 4, 5, 6, 7, 8]);
+    expect(glyphStarts('Auflage', 6)).toEqual([0, 1, 2, 4, 5, 6]);
+    expect(glyphStarts('a--b', 3)).toEqual([0, 1, 3]);
+    expect(glyphStarts('Uhr.', 4)).toEqual([0, 1, 2, 3]);
   });
 });

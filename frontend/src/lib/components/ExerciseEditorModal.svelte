@@ -151,7 +151,6 @@
 
   function handleLatexBodyEdit(latex: string) {
     syncMcStateFromLatex(latex);
-    preview.typed(latex, latexEditor?.getCursor());
   }
 
   function handleStructureChange(latex: string) {
@@ -490,7 +489,7 @@
               {:else}
                 <!-- From @3xl the code area absorbs all free space; no explicit min-height, so its minimum stays palette + code rows and it never paints over the panels (issue #188). -->
                 <div class="flex flex-col @3xl:flex-1">
-                  <LatexEditor bind:this={latexEditor} bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
+                  <LatexEditor bind:this={latexEditor} bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} onSelectionChange={(sel) => preview.cursor(sel, () => editorLatexBody)} />
                 </div>
               {/if}
 
@@ -533,8 +532,7 @@
           placeholderText={$t("exercises.editor.previewPlaceholder")}
           shrinkWhenCollapsed={showLatexPanel}
           report={preview.pdfUrl || preview.solutionUrl || preview.error ? layoutReport : undefined}
-          overlays={preview.sync.overlays}
-          onPageClick={(pane, click) => void preview.jump(pane, click, editorLatexBody, isMc ? undefined : latexEditor)}
+          edit={(pane) => preview.pageEdit(pane, () => (isMc ? undefined : latexEditor), () => editorLatexBody)}
         />
         <TemplateTextTip sync={preview.sync} />
       </div>

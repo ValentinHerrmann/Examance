@@ -25,7 +25,8 @@ test.describe('editor preview', () => {
     const box = await pageImage.boundingBox();
     if (!box) throw new Error('the preview page has no box');
     const scale = box.width / 595.28;
-    await page.mouse.click(box.x + (SYNC_WORD_AT.x + 10) * scale, box.y + (SYNC_WORD_AT.y - 4) * scale);
+    // Into the left half of the word's first letter: the cursor goes before it.
+    await page.mouse.click(box.x + (SYNC_WORD_AT.x + 2) * scale, box.y + (SYNC_WORD_AT.y - 4) * scale);
 
     // The click took the focus to the PDF; the jump (pdf.js reads the word first) gives it back to the code editor.
     await expect(editor.locator('.cm-editor.cm-focused')).toBeVisible();

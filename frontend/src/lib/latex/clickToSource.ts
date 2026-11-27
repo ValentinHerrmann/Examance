@@ -1,7 +1,8 @@
 /** From a click on a compiled preview to the exercise's LaTeX, and from an edited line back to the page (issue #347). SyncTeX gives the line, pdf.js the clicked word and its neighbours, the paragraph's printed view (`printedText.ts`) the column; `docs/dev/latex.md`. */
 import { loadPdfjs } from '#lib/pdf/pdfjs';
 import type { CompileResult } from './compiler';
-import { parseSynctex, positionOf, sourceAt, type SyncData } from './engine/synctex';
+import { parseSynctex, sourceAt, type SyncData } from './engine/synctex';
+import { caretAt, charOfGlyph, glyphAt, parseProv, selectionBoxes, wordAtPoint, wordSource, type CaretBox, type GlyphMap, type PageBox } from './inlineEdit/glyphMap';
 import { normalizePrinted, printedView, wordSpan, wordsOf } from './printedText';
 import { mapLine, type SourceRange } from './sourceMap';
 
@@ -14,20 +15,21 @@ export interface PageClick {
   clientY: number;
 }
 
-/** Text drawn over the shown page until the next PDF arrives, in the same coordinates as `PageClick`. */
-export interface PageOverlay {
-  page: number;
-  x: number;
-  y: number;
-  text: string;
+/** What the pages draw for the editor's cursor: the caret and the selection boxes, PDF points from each page's top-left corner. */
+export interface PageMarks {
+  caret: CaretBox | null;
+  boxes: PageBox[];
 }
+
+/** A point on a page: 1-based page, PDF points from its top-left corner. */
+export type PagePoint = Pick<PageClick, 'page' | 'x' | 'y'>;
 
 export type ClickTarget =
   | { kind: 'source'; exerciseId: string | null; label: string; line: number; column: number }
   | { kind: 'template' };
 
 /** What a lookup needs from a compile; a result without SyncTeX (a reloaded cache entry) cannot be clicked. */
-export type SyncedResult = Pick<CompileResult, 'pdfBytes' | 'synctex' | 'synctexLineShift' | 'sourceRanges'>;
+export type SyncedResult = Pick<CompileResult, 'pdfBytes' | 'synctex' | 'synctexLineShift' | 'synctexColumns' | 'provenance' | 'sourceRanges'>;
 
 /** Lines the SyncTeX reader resolves against: the document is always fed in as main.tex. */
 const MAIN_FILE = 'main.tex';
@@ -41,6 +43,8 @@ export interface WordProbe {
   word: string;
   before: string[];
   after: string[];
+  /** Index of the clicked character in `word`. */
+  offset?: number;
 }
 
 const parsed = new WeakMap<Uint8Array, SyncData>();
@@ -50,7 +54,7 @@ function syncDataOf(result: SyncedResult): SyncData | null {
   if (!bytes) return null;
   let data = parsed.get(bytes);
   if (!data) {
-    data = parseSynctex(new TextDecoder().decode(bytes));
+    data = parseSynctex(new TextDecoder().decode(bytes), result.synctexColumns === true);
     parsed.set(bytes, data);
   }
   return data;
@@ -121,13 +125,15 @@ export function locateWord(lines: string[], line: number, probe: WordProbe | nul
 /** Where the click lands in the source: an exercise line and column, the template, or null when SyncTeX knows nothing there. `bodyOf` returns the LaTeX body of a marked exercise (by id, or the only one when the builder gave none). */
 export function resolveClick(
   result: SyncedResult,
-  click: Pick<PageClick, 'page' | 'x' | 'y'>,
+  click: PagePoint,
   probe: WordProbe | null,
   bodyOf: (exerciseId: string | null) => string | undefined
 ): ClickTarget | null {
   const data = syncDataOf(result);
   const ranges = result.sourceRanges;
   if (!data || !ranges) return null;
+  const exact = byGlyphs(result, data, click, bodyOf);
+  if (exact) return exact;
   const hit = sourceAt(data, click.page, click.x, click.y);
   if (!hit) return null;
   // Package and template files (sty/…) are never the exercise.
@@ -137,10 +143,99 @@ export function resolveClick(
   if (loc?.label) {
     const body = bodyOf(loc.exerciseId);
     if (body === undefined) return { kind: 'template' };
-    const { line, column } = locateWord(body.split('\n'), loc.line, probe);
-    return { kind: 'source', exerciseId: loc.exerciseId, label: loc.label, line, column };
+    const lines = body.split('\n');
+    const { line, column } = locateWord(lines, loc.line, probe);
+    return { kind: 'source', exerciseId: loc.exerciseId, label: loc.label, line, column: charColumn(lines[line - 1] ?? '', column, probe) };
   }
   return runInStart(ranges, docLine, probe, bodyOf) ?? { kind: 'template' };
+}
+
+const glyphMaps = new WeakMap<Uint8Array, GlyphMap>();
+
+function glyphMapOf(result: SyncedResult, data: SyncData): GlyphMap | null {
+  const bytes = result.provenance;
+  if (!bytes || !result.synctexColumns) return null;
+  let map = glyphMaps.get(bytes);
+  if (!map) {
+    map = parseProv(new TextDecoder().decode(bytes), data);
+    glyphMaps.set(bytes, map);
+  }
+  return map;
+}
+
+/** Whether this result has exact glyph positions (the browser engine): clicks need no text extraction and the caret can be drawn. */
+export function hasGlyphs(result: SyncedResult | null | undefined): boolean {
+  return Boolean(result?.provenance && result.synctexColumns && result.synctex && result.sourceRanges);
+}
+
+/** The text of main.tex line `line` (the engine's numbering) when it lies in an exercise body; template lines are not known here. */
+function lineReader(result: SyncedResult, bodyOf: (exerciseId: string | null) => string | undefined): (line: number) => string | undefined {
+  const bodies = new Map<string | null, string[] | undefined>();
+  return (line) => {
+    const loc = mapLine({ tex: '', ranges: result.sourceRanges ?? [] }, documentLine(result, line));
+    if (!loc?.label) return undefined;
+    if (!bodies.has(loc.exerciseId)) bodies.set(loc.exerciseId, bodyOf(loc.exerciseId)?.split('\n'));
+    return bodies.get(loc.exerciseId)?.[loc.line - 1];
+  };
+}
+
+/** The clicked character from the engine's glyph positions and columns: before the glyph under the click, or after it for a click on its right half; null when no main-file word is there (template text, math, pictures). */
+function byGlyphs(result: SyncedResult, data: SyncData, click: PagePoint, bodyOf: (exerciseId: string | null) => string | undefined): ClickTarget | null {
+  const map = glyphMapOf(result, data);
+  const word = map && wordAtPoint(map, click.page, click.x, click.y);
+  if (!word) return null;
+  const lineOf = lineReader(result, bodyOf);
+  const src = wordSource(data, word, lineOf);
+  if (!src) return null;
+  const hit = glyphAt(word, click.x);
+  const [line, column] = charOfGlyph(word, src.text, src.at, hit.index);
+  const loc = mapLine({ tex: '', ranges: result.sourceRanges ?? [] }, documentLine(result, line));
+  if (!loc?.label) return null;
+  const at = hit.before ? column : column + 1;
+  return { kind: 'source', exerciseId: loc.exerciseId, label: loc.label, line: loc.line, column: at };
+}
+
+/** The highlight boxes of a selection in exercise `exerciseId` between body positions `from` and `to` (1-based lines, any order). */
+export function selectionFor(
+  result: SyncedResult,
+  exerciseId: string | null,
+  from: { line: number; column: number },
+  to: { line: number; column: number },
+  bodyOf: (exerciseId: string | null) => string | undefined
+): PageBox[] {
+  const data = syncDataOf(result);
+  const map = data && glyphMapOf(result, data);
+  const range = rangeOf(result, exerciseId);
+  if (!data || !map || !range) return [];
+  const shift = range.start - 1 + (result.synctexLineShift ?? 0);
+  const a = { line: from.line + shift, column: from.column };
+  const b = { line: to.line + shift, column: to.column };
+  const [lo, hi] = a.line < b.line || (a.line === b.line && a.column <= b.column) ? [a, b] : [b, a];
+  return selectionBoxes(data, map, lo, hi, lineReader(result, bodyOf));
+}
+
+/** Where the caret of exercise `exerciseId` at body `line` (1-based) and `column` shows on the page, or null when that place is not typeset text. */
+export function caretFor(
+  result: SyncedResult,
+  exerciseId: string | null,
+  line: number,
+  column: number,
+  bodyOf: (exerciseId: string | null) => string | undefined
+): CaretBox | null {
+  const data = syncDataOf(result);
+  const map = data && glyphMapOf(result, data);
+  const range = rangeOf(result, exerciseId);
+  if (!data || !map || !range) return null;
+  const texLine = range.start + line - 1 + (result.synctexLineShift ?? 0);
+  return caretAt(data, map, { line: texLine, column }, lineReader(result, bodyOf));
+}
+
+/** The column of the clicked character in a word found at `column` of `source`: its `probe.offset`-th printed character (macros in the word included), or the word start. */
+function charColumn(source: string, column: number, probe: WordProbe | null): number {
+  if (!probe?.offset) return column;
+  const view = printedView([source.slice(0, column).replace(/[^\n]/g, ' ') + source.slice(column)]);
+  const start = view.text.search(/[\p{L}\p{N}]/u);
+  return start < 0 ? column : (view.at[start + probe.offset]?.[1] ?? column);
 }
 
 /** Lines between a template line and the exercise body it shares a printed line with (a run-in title, `\begin{Aufgabe}{…}` before the body). */
@@ -160,31 +255,15 @@ function runInStart(
   const found = locateWord(lines, 1, probe);
   // locateWord answers column 0 of the given line when the word is missing; accept that only when the word really starts there.
   const startsThere = found.column > 0 || found.line > 1 || printedView([lines[0] ?? '']).text.trimStart().startsWith(probe.word);
-  return startsThere ? { kind: 'source', exerciseId: range.exerciseId, label: range.label, line: found.line, column: found.column } : null;
-}
-
-/** Where line `line` (1-based) of the marked body `range` was typeset, for the provisional overlay. */
-export function placeOfLine(result: SyncedResult, range: SourceRange, line: number): Omit<PageOverlay, 'text'> | null {
-  const data = syncDataOf(result);
-  if (!data) return null;
-  const docLine = range.start + line - 1;
-  const shift = result.synctexLineShift ?? 0;
-  return positionOf(data, MAIN_FILE, docLine + shift) ?? positionOf(data, MAIN_FILE, docLine);
+  return startsThere
+    ? { kind: 'source', exerciseId: range.exerciseId, label: range.label, line: found.line, column: charColumn(lines[found.line - 1] ?? '', found.column, probe) }
+    : null;
 }
 
 /** The range of the exercise `exerciseId`, or the only range when the document marks one body. */
 export function rangeOf(result: SyncedResult, exerciseId: string | null): SourceRange | undefined {
   const ranges = result.sourceRanges ?? [];
   return exerciseId === null && ranges.length === 1 ? ranges[0] : ranges.find((r) => r.exerciseId === exerciseId);
-}
-
-/** The text typed into `now` compared with `before` (the line as last compiled): the part between their common prefix and suffix. */
-export function insertedText(before: string, now: string): string {
-  let start = 0;
-  while (start < before.length && start < now.length && before[start] === now[start]) start++;
-  let end = 0;
-  while (end < before.length - start && end < now.length - start && before[before.length - 1 - end] === now[now.length - 1 - end]) end++;
-  return now.slice(start, now.length - end);
 }
 
 // --- the clicked word, through pdf.js ---------------------------------------------------------
@@ -275,11 +354,11 @@ export function wordInItems(items: TextItemLike[], pageHeight: number, x: number
   if (!span) return null;
   const before = wordsOf(line.text.slice(0, span.from)).slice(-CONTEXT_WORDS);
   const after = wordsOf(line.text.slice(span.to)).slice(0, CONTEXT_WORDS);
-  return { word: line.text.slice(span.from, span.to), before, after };
+  return { word: line.text.slice(span.from, span.to), before, after, offset: Math.max(0, Math.min(nearest, span.to - 1) - span.from) };
 }
 
 /** The word under the click, or null (an image, a rule, empty space, a PDF pdf.js cannot read). */
-export async function wordAt(pdfBytes: Uint8Array, click: Pick<PageClick, 'page' | 'x' | 'y'>): Promise<WordProbe | null> {
+export async function wordAt(pdfBytes: Uint8Array, click: PagePoint): Promise<WordProbe | null> {
   try {
     const page = await (await docOf(pdfBytes)).getPage(click.page);
     const [left, , , top] = page.view;

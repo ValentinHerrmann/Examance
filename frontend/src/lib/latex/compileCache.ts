@@ -34,6 +34,8 @@ export interface CachedCompileEntry {
   /** Memory only, never in the sealed store: a reload loses click-to-source until the next compile (issue #347). */
   synctex?: Uint8Array;
   synctexLineShift?: number;
+  synctexColumns?: boolean;
+  provenance?: Uint8Array;
 }
 
 /** Maximum total PDF bytes kept in cache (150 MB). */
@@ -125,7 +127,7 @@ export function setCached(key: CompileCacheKey, hash: string, result: CompileRes
     cache.delete(slotKey);
   }
 
-  const sizeBytes = result.pdfBytes.byteLength + (result.synctex?.byteLength ?? 0);
+  const sizeBytes = result.pdfBytes.byteLength + (result.synctex?.byteLength ?? 0) + (result.provenance?.byteLength ?? 0);
 
   // Evict LRU entries while over budget
   while (
@@ -153,6 +155,8 @@ export function setCached(key: CompileCacheKey, hash: string, result: CompileRes
     durationMs: result.durationMs,
     synctex: result.synctex,
     synctexLineShift: result.synctexLineShift,
+    synctexColumns: result.synctexColumns,
+    provenance: result.provenance,
   };
 
   cache.set(slotKey, entry);
@@ -274,7 +278,7 @@ function persist(key: CompileCacheKey, hash: string, result: CompileResult): voi
 function hitResult(hit: CachedCompileEntry, latexSource: string): CompileResult {
   return {
     pdfBytes: hit.pdfBytes, usedFallback: hit.usedFallback, engineUsed: hit.engineUsed, missingGraphics: hit.missingGraphics, aux: hit.aux, fromCache: true,
-    synctex: hit.synctex, synctexLineShift: hit.synctexLineShift, sourceRanges: extractSourceMap(latexSource).ranges,
+    synctex: hit.synctex, synctexLineShift: hit.synctexLineShift, synctexColumns: hit.synctexColumns, provenance: hit.provenance, sourceRanges: extractSourceMap(latexSource).ranges,
   };
 }
 

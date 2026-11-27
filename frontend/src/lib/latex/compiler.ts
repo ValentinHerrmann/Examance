@@ -33,6 +33,10 @@ export interface CompileResult {
   /** Uncompressed SyncTeX of main.tex (issue #347), kept in memory only; lines past the preamble are shifted by `synctexLineShift` (the format wrapper). */
   synctex?: Uint8Array;
   synctexLineShift?: number;
+  /** The SyncTeX records of main.tex carry packed line and column (the browser engine, `scripts/latex-engine/provenance`). */
+  synctexColumns?: boolean;
+  /** main.prov of the browser engine: each typeset word's glyph positions (`lib/latex/inlineEdit/glyphMap.ts`); memory only. */
+  provenance?: Uint8Array;
   /** Where each marked exercise body sits in the compiled document (sourceMap.ts). */
   sourceRanges?: SourceRange[];
 }
@@ -214,7 +218,9 @@ async function compileLocalWasm(
               missingGraphics: e.data.missingGraphics ?? [],
               aux: e.data.aux ?? [],
               synctex: e.data.synctex,
-              synctexLineShift: e.data.synctexLineShift ?? 0
+              synctexLineShift: e.data.synctexLineShift ?? 0,
+              synctexColumns: e.data.synctexColumns === true,
+              provenance: e.data.provenance
             })
           );
         } else if (e.data.unavailable) {

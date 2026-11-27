@@ -1,4 +1,10 @@
-import { EditorView, Decoration, WidgetType, type DecorationSet } from "@codemirror/view";
+import { EditorView, Decoration, WidgetType, type Command, type DecorationSet } from "@codemirror/view";
+import {
+  deleteCharBackward, deleteCharForward, insertNewlineAndIndent, insertTab,
+  cursorCharLeft, cursorCharRight, cursorLineUp, cursorLineDown, cursorLineBoundaryBackward, cursorLineBoundaryForward,
+  selectCharLeft, selectCharRight, selectLineUp, selectLineDown, selectLineBoundaryBackward, selectLineBoundaryForward,
+  undo, redo,
+} from "@codemirror/commands";
 import { StateEffect, StateField, RangeSetBuilder, type Extension } from "@codemirror/state";
 import { HighlightStyle, StreamLanguage } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
@@ -354,3 +360,25 @@ export function applyDiffDecorations(
     effects: setDiffDecorationsEffect.of(builder.finish())
   });
 }
+
+/** Editing keys the PDF pages forward to the editor (inline editing, issue #347). */
+export type EditorKey =
+  | "Backspace" | "Delete" | "Enter" | "Tab"
+  | "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End"
+  | "Undo" | "Redo";
+
+/** The CodeMirror command of each forwarded key, its selecting variant (with Shift), and whether it changes the text. */
+export const EDITOR_KEY_COMMANDS: Record<EditorKey, { move: Command; select?: Command; edits: boolean }> = {
+  Backspace: { move: deleteCharBackward, edits: true },
+  Delete: { move: deleteCharForward, edits: true },
+  Enter: { move: insertNewlineAndIndent, edits: true },
+  Tab: { move: insertTab, edits: true },
+  ArrowLeft: { move: cursorCharLeft, select: selectCharLeft, edits: false },
+  ArrowRight: { move: cursorCharRight, select: selectCharRight, edits: false },
+  ArrowUp: { move: cursorLineUp, select: selectLineUp, edits: false },
+  ArrowDown: { move: cursorLineDown, select: selectLineDown, edits: false },
+  Home: { move: cursorLineBoundaryBackward, select: selectLineBoundaryBackward, edits: false },
+  End: { move: cursorLineBoundaryForward, select: selectLineBoundaryForward, edits: false },
+  Undo: { move: undo, edits: true },
+  Redo: { move: redo, edits: true },
+};

@@ -452,7 +452,7 @@
           height="100%"
           placeholderText={$t("exam.page.pdfPreview.placeholder")}
           report={layoutReport}
-          onPageClick={onSourceClick ? handlePageClick : undefined}
+          edit={onSourceClick ? (paneId) => ({ onClick: (click) => void handlePageClick(paneId, click) }) : undefined}
         />
         {#if onSourceClick}<TemplateTextTip {sync} />{/if}
       </div>
