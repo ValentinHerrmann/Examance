@@ -177,7 +177,7 @@ function wordSynctex(latex: string): string | null {
 function compileAnswer(job: { latex: string; synctex: boolean } | undefined): FakeResponse {
   const sync = job?.synctex ? wordSynctex(job.latex) : null;
   if (!sync) return { status: 200, bytes: blankPdf(3), headers: { 'content-type': 'application/pdf' } };
-  const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+  const b64 = (bytes: Uint8Array) => btoa(String.fromCodePoint(...bytes));
   return ok({ pdf_b64: b64(wordPdf()), aux: {}, synctex_b64: b64(new TextEncoder().encode(sync)), synctex_line_shift: 0 });
 }
 

@@ -17,9 +17,9 @@ export function diffText(older: string, newer: string): TextChange | null {
   if (older === newer) return null;
   const max = Math.min(older.length, newer.length);
   let from = 0;
-  while (from < max && older.charCodeAt(from) === newer.charCodeAt(from)) from++;
+  while (from < max && older[from] === newer[from]) from++;
   let suffix = 0;
-  while (suffix < max - from && older.charCodeAt(older.length - 1 - suffix) === newer.charCodeAt(newer.length - 1 - suffix)) suffix++;
+  while (suffix < max - from && older[older.length - 1 - suffix] === newer[newer.length - 1 - suffix]) suffix++;
   return { from, oldTo: older.length - suffix, newTo: newer.length - suffix };
 }
 

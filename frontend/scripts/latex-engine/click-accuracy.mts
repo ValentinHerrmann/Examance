@@ -96,7 +96,7 @@ for (const [i, want] of truth) {
   // A quarter into the character (into the first letter of a ligature box): the cursor goes before it.
   const letters = Math.max(1, normalizePrinted(ctext).length);
   const click = { page: w.page, x: cx0 + ((cx1 - cx0) * 0.25) / letters, y: w.y };
-  const probe = await wordAt(result.pdfBytes, click);
+  const probe = await wordAt(result.pdfBytes, click); // NOSONAR: one click after the other, in order, on one cached pdf.js document
   const got = resolveClick(result, click, probe, (id) => bodyById.get(id));
   // A ligature box holds several letters: the truth is the first letter of the clicked box.
   const letter = w.chars.slice(0, k).reduce((sum, c) => sum + normalizePrinted(c[2]).length, 0);
@@ -111,7 +111,8 @@ for (const [i, want] of truth) {
   else if (got?.kind !== 'source') template++;
   else wrong++;
   if (!hit && misses.length < 40) {
-    misses.push(`${want.text}[${k}] (${want.label} ${line}:${column}) -> ${got?.kind === 'source' ? `${got.label} ${got.line}:${got.column}` : (got?.kind ?? 'nothing')} probe=${JSON.stringify(probe)}`);
+    const gotText = got?.kind === 'source' ? `${got.label} ${got.line}:${got.column}` : (got?.kind ?? 'nothing');
+    misses.push(`${want.text}[${k}] (${want.label} ${line}:${column}) -> ${gotText} probe=${JSON.stringify(probe)}`);
   }
 }
 const total = truth.size;

@@ -29,8 +29,8 @@ async function caretBox(editor: Locator): Promise<{ x: number; y: number; width:
 }
 
 test.describe('inline editing', () => {
-  test.skip(!hasLocalTexTree(), 'needs a local TeX Live (backend/latex-texlive/install.sh)');
-  test.skip(({ isMobile }) => isMobile, 'desktop layout only');
+  test.skip(!hasLocalTexTree(), 'needs a local TeX Live (backend/latex-texlive/install.sh)'); // NOSONAR: conditional skip, reason given
+  test.skip(({ isMobile }) => isMobile, 'desktop layout only'); // NOSONAR: conditional per-device skip, reason given
 
   test('[editor] the caret shows in the page, clicks and drags place and select, typing on the page edits the LaTeX', async ({ page }) => {
     // Boots the engine and fetches its TeX files from the fake tree.

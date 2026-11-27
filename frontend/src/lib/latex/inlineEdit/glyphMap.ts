@@ -76,7 +76,7 @@ export function parseProv(text: string, frame: Pick<SyncData, 'scale' | 'dx' | '
       glyphs: n.slice(6, 6 + count).map((g) => x + g * frame.scale),
       chars: cs.slice(1, 1 + (cs[0] || 0)).map(unpack),
       clusters: clusters.length === count && clusters.every((c, i) => c >= 0 && (i === 0 || c >= clusters[i - 1])) ? clusters : null,
-      text: String.fromCharCode(...(textPart.trim() ? textPart.trim().split(' ').map(Number) : [])),
+      text: String.fromCodePoint(...(textPart.trim() ? textPart.trim().split(' ').map(Number) : [])),
       transformed: transformed.trim() === '1',
     };
     const list = map.get(page) ?? [];
@@ -161,7 +161,7 @@ export function sourceAt(word: TypesetWord, index: number, before: boolean): Tex
 function afterChar(word: TypesetWord, i: number): TexPos {
   const own = word.chars[i] as TexPos;
   const next = word.chars[i + 1];
-  return next && next.line === own.line && next.column > own.column ? next : { line: own.line, column: own.column + 1 };
+  return next?.line === own.line && next.column > own.column ? next : { line: own.line, column: own.column + 1 };
 }
 
 /** Characters TeX's input ligatures (`tex-text`) and `~` turn into others, with the source characters they come from. */
@@ -250,12 +250,8 @@ export function caretAt(map: GlyphMap, pos: TexPos, accept: (line: number) => bo
   }
   const at = lo > 0 && same(entries[lo - 1].pos, pos) ? lo - 1 : -1;
   if (at >= 0) return box(entries[at].word, charX(entries[at].word, entries[at].index));
-  for (let i = lo - 1; i >= 0; i--) {
-    const e = entries[i];
-    if (!accept(e.pos.line)) break;
-    return box(e.word, charX(e.word, e.index + 1));
-  }
-  return null;
+  const prev = entries[lo - 1];
+  return prev && accept(prev.pos.line) ? box(prev.word, charX(prev.word, prev.index + 1)) : null;
 }
 
 /** The boxes of the typeset text between main.tex positions `from` and `to` (exclusive), one per printed line, spaces between included. */

@@ -110,8 +110,8 @@ function sharpFrames(page: Page, ms: number): Promise<boolean[]> {
 }
 
 test.describe('click accuracy', () => {
-  test.skip(!hasLocalTexTree(), 'needs a local TeX Live (backend/latex-texlive/install.sh)');
-  test.skip(({ isMobile }) => isMobile, 'desktop layout only');
+  test.skip(!hasLocalTexTree(), 'needs a local TeX Live (backend/latex-texlive/install.sh)'); // NOSONAR: conditional skip, reason given
+  test.skip(({ isMobile }) => isMobile, 'desktop layout only'); // NOSONAR: conditional per-device skip, reason given
 
   test('[editor] page clicks put the code cursor on the clicked character, also after recompiles and right after typing; recompiles swap only sharp pages; both cursors flash', async ({ page }) => {
     test.setTimeout(600_000);
