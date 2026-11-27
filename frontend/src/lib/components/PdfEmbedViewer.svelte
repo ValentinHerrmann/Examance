@@ -21,9 +21,11 @@
     zoomLevel?: ZoomLevel | undefined;
     /** Clicks, drags, typing and the editor's cursor on the pages (issue #347; `latex/PageEditLayer`). */
     edit?: PageEditProps;
+    /** The viewer now shows the PDF at `url` (first mount or a swap): its result takes over clicks and marks (`PreviewSync.shown`). */
+    onShown?: (url: string) => void;
   }
 
-  let { src = null, theme = undefined, zoomLevel = undefined, edit = undefined }: Props = $props();
+  let { src = null, theme = undefined, zoomLevel = undefined, edit = undefined, onShown = undefined }: Props = $props();
 
   let effectiveTheme = $derived(theme ?? $appTheme);
 
@@ -142,6 +144,10 @@
     viewer: EmbedPdfContainer | null;
     stopLabels: () => void;
     locator?: Promise<PageLocator | null>;
+    /** The last load into this viewer: the next one waits for it, so two never overlap. */
+    loading?: Promise<unknown>;
+    /** Bumped by every load into this viewer; a load that sees a newer one stops without showing or closing anything. */
+    ticket?: number;
   }
   let shown: Layer | null = null;
   let pending: Layer | null = null;
@@ -178,7 +184,7 @@
   }
 
   async function mount(url: string) {
-    const { patchEmbedPdfA11y, mountEmbedPdf, embedPdfScroller, whenEmbedPdfShown, replaceEmbedPdfDocument, embedPdfPageImages } = await import("#lib/pdf/embedpdf");
+    const { patchEmbedPdfShadow, mountEmbedPdf, embedPdfScroller, whenEmbedPdfShown, replaceEmbedPdfDocument, embedPdfPageImages } = await import("#lib/pdf/embedpdf");
     scrollerOf = embedPdfScroller;
     // A src change (or unmount racing a fast page switch) may land here after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
@@ -195,11 +201,19 @@
       pending = reuse;
       spare = null;
       mountedSrc = url;
+      const ticket = (reuse.ticket ?? 0) + 1;
+      reuse.ticket = ticket;
+      const superseded = () => pending !== reuse || reuse.ticket !== ticket;
+      await reuse.loading;
+      if (superseded() || !reuse.viewer) return;
       const stale = embedPdfPageImages(reuse.el);
-      const loaded = await replaceEmbedPdfDocument(reuse.viewer, url, keptZoom).catch(() => false);
-      if (pending !== reuse) return;
-      if (loaded && (await whenEmbedPdfShown(reuse.el, scroll, () => pending !== reuse, 5000, stale))) {
-        swapTo(reuse, previous, started);
+      const job = replaceEmbedPdfDocument(reuse.viewer, url, keptZoom).catch(() => false);
+      reuse.loading = job;
+      const loaded = await job;
+      const ok = loaded && (await whenEmbedPdfShown(reuse.el, scroll, superseded, 5000, stale));
+      if (superseded()) return;
+      if (ok) {
+        swapTo(reuse, previous, started, url);
         return;
       }
       // The viewer could not take the document: a fresh one below.
@@ -214,14 +228,16 @@
     const layer: Layer = {
       el,
       viewer: mountEmbedPdf({ target: el, src: url, theme: effectiveTheme, zoomLevel: keptZoom ?? zoomLevel, editable: Boolean(edit) }) ?? null,
-      stopLabels: patchEmbedPdfA11y(el, { pageLabel: $t("common.pdfPage"), regionLabel: $t("common.pdfPreview") }),
+      stopLabels: patchEmbedPdfShadow(el, { pageLabel: $t("common.pdfPage"), regionLabel: $t("common.pdfPreview") }),
+      ticket: 1,
     };
     mountedSrc = url;
     if (previous) {
       pending = layer;
-      const ok = await whenEmbedPdfShown(el, scroll, () => pending !== layer);
-      if (!ok) return;
-      swapTo(layer, previous, started);
+      // A newer PDF may take this viewer over while it loads (`ticket`): then that load shows it, not this one.
+      const ok = await whenEmbedPdfShown(el, scroll, () => pending !== layer || layer.ticket !== 1);
+      if (!ok || pending !== layer || layer.ticket !== 1) return;
+      swapTo(layer, previous, started, url);
       return;
     }
     host.addEventListener("wheel", handleWheel, { capture: true, passive: false });
@@ -230,10 +246,11 @@
     viewer = layer.viewer;
     unbindZoom();
     bindZoom(layer.viewer);
+    onShown?.(url);
   }
 
   /** Shows `layer` in place of `previous`, which stays mounted and hidden as the spare for the next PDF. */
-  function swapTo(layer: Layer, previous: Layer | null, started: number) {
+  function swapTo(layer: Layer, previous: Layer | null, started: number, url: string) {
     pending = null;
     layer.el.style.visibility = "";
     if (previous) previous.el.style.visibility = "hidden";
@@ -246,6 +263,7 @@
     viewer = layer.viewer;
     unbindZoom();
     bindZoom(layer.viewer);
+    onShown?.(url);
   }
 
   /** The shown layer's locator, created on first use; the hidden pending layer never takes clicks. */

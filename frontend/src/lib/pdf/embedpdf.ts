@@ -67,8 +67,8 @@ export function mountEmbedPdf(opts: EmbedPdfMountOptions): EmbedPdfContainer | u
   return EmbedPDF.init({ type: "container", target: opts.target, ...config });
 }
 
-/** EmbedPDF's open shadow root lacks two a11y basics: page `<img>`s without `alt`, and a scroll container that the keyboard cannot reach. This adds both (`pageLabel`, `regionLabel`) and keeps them as pages render. Returns the stop function. */
-export function patchEmbedPdfA11y(target: Element, labels: { pageLabel: string; regionLabel: string }): () => void {
+/** EmbedPDF's open shadow root lacks two a11y basics: page `<img>`s without `alt`, and a scroll container that the keyboard cannot reach. This adds both (`pageLabel`, `regionLabel`) and keeps them as pages render; it also gives the scroll container a stable scroll-bar gutter, so fit-width never changes when the pages start or stop overflowing. Returns the stop function. */
+export function patchEmbedPdfShadow(target: Element, labels: { pageLabel: string; regionLabel: string }): () => void {
   let observer: MutationObserver | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let frame = 0;
@@ -85,6 +85,7 @@ export function patchEmbedPdfA11y(target: Element, labels: { pageLabel: string; 
     labelImages(root);
     for (const el of root.querySelectorAll('div:not([tabindex])')) {
       if (!scrolls(el)) continue;
+      (el as HTMLElement).style.scrollbarGutter = 'stable';
       el.setAttribute('tabindex', '0');
       el.setAttribute('role', 'region');
       el.setAttribute('aria-label', labels.regionLabel);
@@ -122,7 +123,7 @@ export function embedPdfScroller(target: Element): HTMLElement | null {
   return null;
 }
 
-/** Resolves once a viewer mounted into `target` shows a rendered page where the reader was (`scroll`, applied as soon as the pages are laid out), or after `timeoutMs`; false when `cancelled()` turned true first. */
+/** Resolves once a viewer mounted into `target` shows the reader's view sharp (`scroll` applied as soon as the pages are laid out, every page in view at full resolution), or after `timeoutMs`; false when `cancelled()` turned true first. */
 export function whenEmbedPdfShown(
   target: Element,
   scroll: { top: number; left: number } | null,
@@ -143,7 +144,7 @@ export function whenEmbedPdfShown(
         scroller.scrollLeft = scroll.left;
         scrolled = true;
       }
-      if (scroller && scrolled && visiblePageRendered(scroller, stale)) return resolve(true);
+      if (scroller && scrolled && viewSharp(scroller, stale)) return resolve(true);
       requestAnimationFrame(check);
     };
     check();
@@ -155,14 +156,40 @@ export function embedPdfPageImages(target: Element): Set<string> {
   return new Set([...(embedPdfScroller(target)?.querySelectorAll('img') ?? [])].map((img) => img.src));
 }
 
-function visiblePageRendered(scroller: HTMLElement, stale: Set<string>): boolean {
+const loaded = (img: HTMLImageElement, stale: Set<string>) => img.complete && img.naturalWidth > 0 && !stale.has(img.src);
+
+/** Whether every page in view is drawn at full resolution: EmbedPDF first shows a low-resolution picture of each page and then sharp tiles over it (in rows and columns), and showing a page before its tiles makes the text blur and sharpen on every recompile. A page counts when its picture alone is sharp enough, or loaded tiles cover a grid of points over its visible part. */
+function viewSharp(scroller: HTMLElement, stale: Set<string>): boolean {
   const view = scroller.getBoundingClientRect();
-  for (const img of scroller.querySelectorAll('img')) {
-    if (stale.has(img.src)) continue;
-    const r = img.getBoundingClientRect();
-    if (r.bottom > view.top && r.top < view.bottom && img.complete && img.naturalWidth > 0) return true;
+  const dpr = window.devicePixelRatio || 1;
+  let pages = 0;
+  for (const base of scroller.querySelectorAll('img')) {
+    if (base.style.position === 'absolute') continue;
+    const b = base.getBoundingClientRect();
+    const top = Math.max(b.top, view.top);
+    const bottom = Math.min(b.bottom, view.bottom);
+    if (bottom <= top) continue;
+    pages++;
+    if (!loaded(base, stale)) return false;
+    if (base.naturalWidth >= b.width * dpr * 0.9) continue;
+    const tiles = [...(base.parentElement?.parentElement?.querySelectorAll('img') ?? [])]
+      .filter((t) => t.style.position === 'absolute' && loaded(t, stale))
+      .map((t) => t.getBoundingClientRect());
+    if (!coveredGrid(tiles, b.left, b.right, top, bottom)) return false;
   }
-  return false;
+  return pages > 0;
+}
+
+/** Whether every point of a 9×9 grid inside the rectangle lies on one of `rects`. */
+function coveredGrid(rects: Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>[], left: number, right: number, top: number, bottom: number): boolean {
+  for (let i = 0; i < 9; i++) {
+    for (let j = 0; j < 9; j++) {
+      const x = left + ((right - left) * (i + 0.5)) / 9;
+      const y = top + ((bottom - top) * (j + 0.5)) / 9;
+      if (!rects.some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) return false;
+    }
+  }
+  return true;
 }
 
 /** A shown page on screen: client px of its top-left corner, px per PDF point and its size in points. */
@@ -246,6 +273,7 @@ export async function embedPdfPageLocator(viewer: EmbedPdfContainer, target: Ele
 
 interface DocumentManagerLike {
   getActiveDocumentId(): string | null;
+  getDocumentOrder(): string[];
   openDocumentUrl(options: { url: string; autoActivate?: boolean }): { toPromise(): Promise<{ documentId: string; task: { toPromise(): Promise<unknown> } }> };
   setActiveDocument(documentId: string): void;
   closeDocument(documentId: string): { toPromise(): Promise<unknown> };
@@ -254,16 +282,16 @@ interface ZoomCapabilityLike {
   forDocument(documentId: string): { requestZoom(level: ZoomLevel): void };
 }
 
-/** Loads `url` into an already mounted viewer, in place of its document: the PDFium engine and the viewer stay, so a recompiled PDF shows much faster than in a new viewer (live preview, issue #347). The zoom carries over; the caller restores the scroll position (`whenEmbedPdfShown`). False when the viewer cannot do it. */
+/** Loads `url` into an already mounted viewer, in place of its documents: the PDFium engine and the viewer stay, so a recompiled PDF shows much faster than in a new viewer (live preview, issue #347). The zoom carries over; the caller restores the scroll position (`whenEmbedPdfShown`) and never runs two of these on one viewer at a time. False when the viewer cannot do it. */
 export async function replaceEmbedPdfDocument(viewer: EmbedPdfContainer, url: string, zoomLevel: ZoomLevel | undefined): Promise<boolean> {
   const registry = await viewer.registry;
   const docs = capabilityOf<DocumentManagerLike>(registry.getPlugin("document-manager"));
   if (!docs) return false;
-  const old = docs.getActiveDocumentId();
   const { documentId, task } = await docs.openDocumentUrl({ url, autoActivate: false }).toPromise();
   await task.toPromise();
   if (zoomLevel !== undefined) capabilityOf<ZoomCapabilityLike>(registry.getPlugin("zoom"))?.forDocument(documentId).requestZoom(zoomLevel);
   docs.setActiveDocument(documentId);
-  if (old && old !== documentId) void docs.closeDocument(old).toPromise().catch(() => undefined);
+  // Every other document goes, not only the one that was active: a viewer keeps exactly the PDF it shows.
+  for (const other of docs.getDocumentOrder()) if (other !== documentId) void docs.closeDocument(other).toPromise().catch(() => undefined);
   return true;
 }

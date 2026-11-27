@@ -1,8 +1,8 @@
-/** From a click on a compiled preview to the exercise's LaTeX, and from an edited line back to the page (issue #347). SyncTeX gives the line, pdf.js the clicked word and its neighbours, the paragraph's printed view (`printedText.ts`) the column; `docs/dev/latex.md`. */
+/** From a click on a compiled preview to the exercise's LaTeX, and from an edited line back to the page (issue #347). With the browser engine every typeset character knows its source position (`inlineEdit/glyphMap.ts`); for other results SyncTeX gives the line, pdf.js the clicked word and its neighbours, the paragraph's printed view (`printedText.ts`) the column; `docs/dev/latex.md`. */
 import { loadPdfjs } from '#lib/pdf/pdfjs';
 import type { CompileResult } from './compiler';
 import { parseSynctex, sourceAt, type SyncData } from './engine/synctex';
-import { caretAt, charOfGlyph, glyphAt, parseProv, selectionBoxes, wordAtPoint, wordSource, type CaretBox, type GlyphMap, type PageBox } from './inlineEdit/glyphMap';
+import { caretAt, charAtX, checkSources, hasSource, parseProv, provHasChars, selectionBoxes, sourceAt as charSource, wordAtPoint, wordBefore, wordByText, type CaretBox, type GlyphMap, type PageBox } from './inlineEdit/glyphMap';
 import { normalizePrinted, printedView, wordSpan, wordsOf } from './printedText';
 import { mapLine, type SourceRange } from './sourceMap';
 
@@ -19,6 +19,8 @@ export interface PageClick {
 export interface PageMarks {
   caret: CaretBox | null;
   boxes: PageBox[];
+  /** Bumped when the caret moved through a click in the code editor: the page caret pulses once. */
+  flash?: number;
 }
 
 /** A point on a page: 1-based page, PDF points from its top-left corner. */
@@ -132,7 +134,8 @@ export function resolveClick(
   const data = syncDataOf(result);
   const ranges = result.sourceRanges;
   if (!data || !ranges) return null;
-  const exact = byGlyphs(result, data, click, bodyOf);
+  // Text by the engine's positions; then the word the PDF shows there, among the engine's transformed words (TikZ labels); with no word there at all, the nearest line, as in a text editor.
+  const exact = glyphTarget(result, click, bodyOf) ?? (probe ? probeTarget(result, data, click.page, probe, bodyOf) : glyphTarget(result, click, bodyOf, false));
   if (exact) return exact;
   const hit = sourceAt(data, click.page, click.x, click.y);
   if (!hit) return null;
@@ -150,22 +153,34 @@ export function resolveClick(
   return runInStart(ranges, docLine, probe, bodyOf) ?? { kind: 'template' };
 }
 
-const glyphMaps = new WeakMap<Uint8Array, GlyphMap>();
+const glyphMaps = new WeakMap<Uint8Array, GlyphMap | null>();
 
+/** The engine's glyph map, or null for results without it (server compiles, engines before character positions). */
 function glyphMapOf(result: SyncedResult, data: SyncData): GlyphMap | null {
   const bytes = result.provenance;
   if (!bytes || !result.synctexColumns) return null;
   let map = glyphMaps.get(bytes);
-  if (!map) {
-    map = parseProv(new TextDecoder().decode(bytes), data);
+  if (map === undefined) {
+    const text = new TextDecoder().decode(bytes);
+    map = provHasChars(text) ? parseProv(text, data) : null;
     glyphMaps.set(bytes, map);
   }
   return map;
 }
 
-/** Whether this result has exact glyph positions (the browser engine): clicks need no text extraction and the caret can be drawn. */
-export function hasGlyphs(result: SyncedResult | null | undefined): boolean {
-  return Boolean(result?.provenance && result.synctexColumns && result.synctex && result.sourceRanges);
+const checked = new WeakSet<GlyphMap>();
+
+/** The glyph map with only the character positions the compiled bodies confirm (`checkSources`); checked once per result, so `bodyOf` must give the text it was compiled from. */
+function checkedMapOf(result: SyncedResult, data: SyncData, bodyOf: (exerciseId: string | null) => string | undefined): GlyphMap | null {
+  const map = glyphMapOf(result, data);
+  if (!map || checked.has(map)) return map;
+  const lineOf = lineReader(result, bodyOf);
+  checkSources(map, (pos) => {
+    const text = lineOf(pos.line);
+    return text === undefined ? undefined : (text[pos.column] ?? null);
+  });
+  checked.add(map);
+  return map;
 }
 
 /** The text of main.tex line `line` (the engine's numbering) when it lies in an exercise body; template lines are not known here. */
@@ -179,20 +194,42 @@ function lineReader(result: SyncedResult, bodyOf: (exerciseId: string | null) =>
   };
 }
 
-/** The clicked character from the engine's glyph positions and columns: before the glyph under the click, or after it for a click on its right half; null when no main-file word is there (template text, math, pictures). */
-function byGlyphs(result: SyncedResult, data: SyncData, click: PagePoint, bodyOf: (exerciseId: string | null) => string | undefined): ClickTarget | null {
-  const map = glyphMapOf(result, data);
-  const word = map && wordAtPoint(map, click.page, click.x, click.y);
-  if (!word) return null;
-  const lineOf = lineReader(result, bodyOf);
-  const src = wordSource(data, word, lineOf);
-  if (!src) return null;
-  const hit = glyphAt(word, click.x);
-  const [line, column] = charOfGlyph(word, src.text, src.at, hit.index);
-  const loc = mapLine({ tex: '', ranges: result.sourceRanges ?? [] }, documentLine(result, line));
-  if (!loc?.label) return null;
-  const at = hit.before ? column : column + 1;
-  return { kind: 'source', exerciseId: loc.exerciseId, label: loc.label, line: loc.line, column: at };
+/** Whether this result has exact glyph and character positions (the browser engine): clicks need no text extraction and the caret can be drawn. */
+export function hasGlyphs(result: SyncedResult | null | undefined): boolean {
+  if (!result?.provenance || !result.synctexColumns || !result.synctex || !result.sourceRanges) return false;
+  const data = syncDataOf(result);
+  return Boolean(data && glyphMapOf(result, data));
+}
+
+/** The clicked character from the engine's positions: the caret before the character under the click, or after it on its right half. With `near` only for a click on or beside a printed line (not on a figure). Null when there is no such word or it has no confirmed position (formulas, template text): the caller then reads the word from the PDF. */
+export function glyphTarget(result: SyncedResult, click: PagePoint, bodyOf: (exerciseId: string | null) => string | undefined, near = true): ClickTarget | null {
+  const data = syncDataOf(result);
+  const map = data && checkedMapOf(result, data, bodyOf);
+  let word = map && wordAtPoint(map, click.page, click.x, click.y, near);
+  if (!map || !word) return null;
+  let pos;
+  if (!hasSource(word) && word.glyphs.length === 1 && wordBefore(map, word)) {
+    // The hyphen of a word broken at the line end: the end of that word.
+    word = wordBefore(map, word) as NonNullable<typeof word>;
+    pos = charSource(word, word.chars.length - 1, false);
+  } else {
+    const hit = charAtX(word, click.x);
+    pos = charSource(word, hit.index, hit.before);
+  }
+  if (!pos) return null;
+  const loc = mapLine({ tex: '', ranges: result.sourceRanges ?? [] }, documentLine(result, pos.line));
+  if (!loc?.label) return { kind: 'template' };
+  return { kind: 'source', exerciseId: loc.exerciseId, label: loc.label, line: loc.line, column: pos.column };
+}
+
+/** The word read from the PDF (`probe`) among the engine's transformed words (TikZ nodes, whose positions TeX does not know): their characters still know their source. */
+function probeTarget(result: SyncedResult, data: SyncData, page: number, probe: WordProbe, bodyOf: (exerciseId: string | null) => string | undefined): ClickTarget | null {
+  const map = checkedMapOf(result, data, bodyOf);
+  const word = map && wordByText(map, page, probe.word, probe.before);
+  const pos = word && charSource(word, Math.min(probe.offset ?? 0, word.chars.length - 1), true);
+  if (!pos) return null;
+  const loc = mapLine({ tex: '', ranges: result.sourceRanges ?? [] }, documentLine(result, pos.line));
+  return loc?.label ? { kind: 'source', exerciseId: loc.exerciseId, label: loc.label, line: loc.line, column: pos.column } : null;
 }
 
 /** The highlight boxes of a selection in exercise `exerciseId` between body positions `from` and `to` (1-based lines, any order). */
@@ -204,30 +241,25 @@ export function selectionFor(
   bodyOf: (exerciseId: string | null) => string | undefined
 ): PageBox[] {
   const data = syncDataOf(result);
-  const map = data && glyphMapOf(result, data);
+  const map = data && checkedMapOf(result, data, bodyOf);
   const range = rangeOf(result, exerciseId);
   if (!data || !map || !range) return [];
   const shift = range.start - 1 + (result.synctexLineShift ?? 0);
   const a = { line: from.line + shift, column: from.column };
   const b = { line: to.line + shift, column: to.column };
   const [lo, hi] = a.line < b.line || (a.line === b.line && a.column <= b.column) ? [a, b] : [b, a];
-  return selectionBoxes(data, map, lo, hi, lineReader(result, bodyOf));
+  return selectionBoxes(map, lo, hi);
 }
 
-/** Where the caret of exercise `exerciseId` at body `line` (1-based) and `column` shows on the page, or null when that place is not typeset text. */
-export function caretFor(
-  result: SyncedResult,
-  exerciseId: string | null,
-  line: number,
-  column: number,
-  bodyOf: (exerciseId: string | null) => string | undefined
-): CaretBox | null {
+/** Where the caret of exercise `exerciseId` at body `line` (1-based) and `column` shows on the page, or null when nothing of that body is typeset before it. */
+export function caretFor(result: SyncedResult, exerciseId: string | null, line: number, column: number, bodyOf: (exerciseId: string | null) => string | undefined): CaretBox | null {
   const data = syncDataOf(result);
-  const map = data && glyphMapOf(result, data);
+  const map = data && checkedMapOf(result, data, bodyOf);
   const range = rangeOf(result, exerciseId);
   if (!data || !map || !range) return null;
-  const texLine = range.start + line - 1 + (result.synctexLineShift ?? 0);
-  return caretAt(data, map, { line: texLine, column }, lineReader(result, bodyOf));
+  const shift = range.start - 1 + (result.synctexLineShift ?? 0);
+  // Only text of this body: before its first character the caret has nowhere to go.
+  return caretAt(map, { line: line + shift, column }, (l) => l >= 1 + shift);
 }
 
 /** The column of the clicked character in a word found at `column` of `source`: its `probe.offset`-th printed character (macros in the word included), or the word start. */

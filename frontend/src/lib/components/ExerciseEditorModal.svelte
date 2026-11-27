@@ -489,7 +489,7 @@
               {:else}
                 <!-- From @3xl the code area absorbs all free space; no explicit min-height, so its minimum stays palette + code rows and it never paints over the panels (issue #188). -->
                 <div class="flex flex-col @3xl:flex-1">
-                  <LatexEditor bind:this={latexEditor} bind:value={editorLatexBody} rows={12} showQuickInsert showUnfocusedCursor onChange={handleLatexBodyEdit} onSelectionChange={(sel) => preview.cursor(sel, () => editorLatexBody)} />
+                  <LatexEditor bind:this={latexEditor} bind:value={editorLatexBody} rows={12} showQuickInsert showUnfocusedCursor onChange={handleLatexBodyEdit} onSelectionChange={(sel, how) => preview.cursor(sel, () => editorLatexBody, how.pointer)} />
                 </div>
               {/if}
 
@@ -533,6 +533,7 @@
           shrinkWhenCollapsed={showLatexPanel}
           report={preview.pdfUrl || preview.solutionUrl || preview.error ? layoutReport : undefined}
           edit={(pane) => preview.pageEdit(pane, () => (isMc ? undefined : latexEditor), () => editorLatexBody)}
+          onShown={(pane, url) => preview.sync.shown(pane, url)}
         />
         <TemplateTextTip sync={preview.sync} />
       </div>

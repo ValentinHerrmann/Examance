@@ -6,8 +6,8 @@
   export interface PageEditProps {
     /** A tap or click on a page; `count` 1 places the caret, 2 selects a word, 3 a line. */
     onClick?: (click: PageClick, count: number) => void;
-    /** A mouse drag from `from` to `to`: select between them. */
-    onDrag?: (from: PageClick, to: PageClick) => void;
+    /** A mouse drag from `from` to `to`: select between them; `done` when the button went up. */
+    onDrag?: (from: PageClick, to: PageClick, done: boolean) => void;
     /** Text typed while the page has the focus (also a paste, a finished composition). */
     onText?: (text: string) => void;
     /** An editing key typed while the page has the focus; true when it was handled. */
@@ -114,7 +114,7 @@
     cancelAnimationFrame(moveFrame);
     moveFrame = requestAnimationFrame(() => {
       void pointAt(clientX, clientY).then((to) => {
-        if (to && dragFrom) edit.onDrag?.(dragFrom, to);
+        if (to && dragFrom) edit.onDrag?.(dragFrom, to, false);
       });
     });
   }
@@ -132,7 +132,13 @@
     }
     tapped = taps.up(e) && !dragging;
     downAt = null;
-    if (dragging) focusInput();
+    if (!dragging) return;
+    const from = dragFrom;
+    cancelAnimationFrame(moveFrame);
+    void pointAt(e.clientX, e.clientY).then((to) => {
+      if (to && from) edit.onDrag?.(from, to, true);
+    });
+    focusInput();
   }
 
   // Clicks carry the count (1, 2, 3); a click that ended a pan or a drag is not a tap and does nothing.
@@ -273,7 +279,23 @@
     };
   });
 
-  onDestroy(() => cancelAnimationFrame(moveFrame));
+  // The caret pulses once per click in the code editor (`marks.flash`), not whenever it reappears.
+  let pulse = $state(0);
+  let seenFlash = 0;
+  let pulseTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    const flash = edit.marks?.flash ?? 0;
+    if (flash === seenFlash) return;
+    seenFlash = flash;
+    pulse = flash;
+    clearTimeout(pulseTimer);
+    pulseTimer = setTimeout(() => (pulse = 0), 900);
+  });
+
+  onDestroy(() => {
+    cancelAnimationFrame(moveFrame);
+    clearTimeout(pulseTimer);
+  });
 </script>
 
 {#each boxRects as r, i (i)}
@@ -287,6 +309,19 @@
     style:top="{caretRect.top}px"
     style:height="{caretRect.height}px"
   ></div>
+  {#key pulse}
+    {#if pulse}
+      <!-- Pulses once where the caret appeared after a click in the code editor, so the eye finds it. -->
+      <div
+        class="page-caret-pulse pointer-events-none absolute z-10 rounded-full"
+        data-testid="pdf-caret-pulse"
+        style:left="{caretRect.left - caretRect.height / 2}px"
+        style:top="{caretRect.top}px"
+        style:width="{caretRect.height}px"
+        style:height="{caretRect.height}px"
+      ></div>
+    {/if}
+  {/key}
 {/if}
 {#if edit.onText}
   <!-- Takes the keys while the page has the focus; the caret drawn above is where they land. -->
@@ -313,6 +348,38 @@
 <style>
   .page-caret {
     animation: page-caret-blink 1.1s steps(1) infinite;
+  }
+
+  .page-caret-pulse {
+    box-shadow: 0 0 0 2px var(--color-accent);
+    opacity: 0;
+    animation: page-caret-pulse 0.8s ease-out;
+  }
+
+  @keyframes page-caret-pulse {
+    0% {
+      opacity: 0.9;
+      transform: scale(0.6);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(2.2);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page-caret-pulse {
+      animation: page-caret-pulse-still 0.8s steps(1);
+    }
+
+    @keyframes page-caret-pulse-still {
+      0% {
+        opacity: 0.9;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
   }
 
   @keyframes page-caret-blink {

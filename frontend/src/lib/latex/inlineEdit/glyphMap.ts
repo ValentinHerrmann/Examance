@@ -1,8 +1,7 @@
-/** The typeset words of a compile with their exact glyph positions (`main.prov` from the browser engine, `scripts/latex-engine/provenance`) tied to their source through SyncTeX's columns: from a point on the page to a source character, and from a source position to a caret box on the page (issue #347). */
-import { MAIN_TAG, type SyncData, type SyncRecord } from '../engine/synctex';
-import { printedView } from '../printedText';
+/** The typeset words of a compile with their exact glyph positions, each character's place in main.tex and each glyph's characters (`main.prov` from the browser engine, `scripts/latex-engine/provenance`): from a point on the page to a source character, and from a source position to a caret box on the page (issue #347). */
+import type { SyncData } from '../engine/synctex';
 
-/** One native word as shipped: PDF points from the page's top-left corner, `y` the baseline, `glyphs` each glyph's left edge. */
+/** One native word as shipped: PDF points from the page's top-left corner, `y` the baseline, `glyphs` each glyph's left edge; `chars` each UTF-16 character's main.tex position (null: none, e.g. template text or a hyphen), `clusters` each glyph's first character (HarfBuzz), absent when shaping kept none, `text` its characters. */
 export interface TypesetWord {
   page: number;
   x: number;
@@ -10,6 +9,11 @@ export interface TypesetWord {
   width: number;
   size: number;
   glyphs: number[];
+  chars: (TexPos | null)[];
+  clusters: number[] | null;
+  text: string;
+  /** Inside content dvipdfmx transforms (TikZ nodes, rotated boxes): not where TeX put it, so only its text and source count. */
+  transformed: boolean;
 }
 
 /** A position in main.tex as the engine counts it (SyncTeX line, 0-based UTF-16 column). */
@@ -38,15 +42,31 @@ export interface PageBox {
 /** Words per page, in shipping order. */
 export type GlyphMap = Map<number, TypesetWord[]>;
 
-/** Parses main.prov (`w page h v width size n x1 … xn`, sp) into PDF points with SyncTeX's frame. */
+/** A packed provenance value (line*4096+column) as a position; 0 and column 4095 (template code) are none. */
+function unpack(v: number): TexPos | null {
+  if (!Number.isFinite(v) || v <= 0) return null;
+  const column = v % 4096;
+  return column === 4095 ? null : { line: Math.floor(v / 4096), column };
+}
+
+/** Whether main.prov has the characters, their positions and the clusters (engines before them wrote glyph positions only). */
+export function provHasChars(text: string): boolean {
+  const first = text.indexOf('w ');
+  return first >= 0 && text.slice(first, text.indexOf('\n', first)).split(' |').length >= 4;
+}
+
+/** Parses main.prov (`w page h v width size n x1 … xn | m p1 … pm | c1 … cn | u1 … um | t`, sp; `u` the characters as UTF-16 units, `t` 1 inside content dvipdfmx transforms) into PDF points with SyncTeX's frame. Transformed words (TikZ nodes, rotated boxes) do not show where TeX put them: they take no clicks by position and draw no caret, and only `wordByText` finds them. */
 export function parseProv(text: string, frame: Pick<SyncData, 'scale' | 'dx' | 'dy'>): GlyphMap {
   const map: GlyphMap = new Map();
   for (const line of text.split('\n')) {
     if (!line.startsWith('w ')) continue;
-    const n = line.slice(2).split(' ').map(Number);
+    const [glyphPart, charPart = '', clusterPart = '', textPart = '', transformed = ''] = line.slice(2).split(' |');
+    const n = glyphPart.split(' ').map(Number);
     const [page, h, v, width, size, count] = n;
     if (![page, h, v, width, size, count].every(Number.isFinite)) continue;
     const x = h * frame.scale + frame.dx;
+    const cs = charPart.trim().split(' ').map(Number);
+    const clusters = clusterPart.trim() ? clusterPart.trim().split(' ').map(Number) : [];
     const word: TypesetWord = {
       page,
       x,
@@ -54,6 +74,10 @@ export function parseProv(text: string, frame: Pick<SyncData, 'scale' | 'dx' | '
       width: width * frame.scale,
       size: size * frame.scale,
       glyphs: n.slice(6, 6 + count).map((g) => x + g * frame.scale),
+      chars: cs.slice(1, 1 + (cs[0] || 0)).map(unpack),
+      clusters: clusters.length === count && clusters.every((c, i) => c >= 0 && (i === 0 || c >= clusters[i - 1])) ? clusters : null,
+      text: String.fromCharCode(...(textPart.trim() ? textPart.trim().split(' ').map(Number) : [])),
+      transformed: transformed.trim() === '1',
     };
     const list = map.get(page) ?? [];
     list.push(word);
@@ -62,21 +86,23 @@ export function parseProv(text: string, frame: Pick<SyncData, 'scale' | 'dx' | '
   return map;
 }
 
-/** The word for a click at (x, y) on `page`, as in a text editor: the nearest printed line (by baseline), then the nearest word on it; a click right of a line's end gets its last word, left of its start its first. Null only on a page without words. */
-export function wordAtPoint(map: GlyphMap, page: number, x: number, y: number): TypesetWord | null {
-  const words = map.get(page) ?? [];
+/** The word for a click at (x, y) on `page`, as in a text editor: the nearest printed line (by baseline), then the nearest word on it; a click right of a line's end gets its last word, left of its start its first. With `near`, only when the click is within a line height of that line (a click on a figure is not a click beside the text). Null on a page without words. */
+export function wordAtPoint(map: GlyphMap, page: number, x: number, y: number, near = false): TypesetWord | null {
+  const words = (map.get(page) ?? []).filter((w) => !w.transformed);
   // Distance from the click to the middle of a word's lowercase letters: a larger title on the same printed line does not win over the text beside it.
   const lineDist = (w: TypesetWord) => Math.abs(y - (w.y - w.size * 0.3));
   let lineY: number | null = null;
   let bestLine = Infinity;
+  let lineSize = 0;
   for (const w of words) {
     const d = lineDist(w);
     if (d < bestLine) {
       bestLine = d;
       lineY = w.y;
+      lineSize = w.size;
     }
   }
-  if (lineY === null) return null;
+  if (lineY === null || (near && bestLine > lineSize)) return null;
   let best: TypesetWord | null = null;
   let bestDist = Infinity;
   for (const w of words) {
@@ -90,144 +116,162 @@ export function wordAtPoint(map: GlyphMap, page: number, x: number, y: number): 
   return best;
 }
 
-/** The glyph index under `x` in `word` (its left half or right half: `before` true means the caret goes before it). */
-export function glyphAt(word: TypesetWord, x: number): { index: number; before: boolean } {
+/** The first character of each glyph: HarfBuzz's clusters, or the characters spread evenly when there are none. */
+function glyphStarts(word: TypesetWord): number[] {
   const n = word.glyphs.length;
-  for (let i = 0; i < n; i++) {
-    const left = word.glyphs[i];
-    const right = i + 1 < n ? word.glyphs[i + 1] : word.x + word.width;
-    if (x < right || i === n - 1) return { index: i, before: x < (left + right) / 2 };
+  const len = word.chars.length;
+  return word.clusters ?? Array.from({ length: n }, (_, g) => Math.round((g * len) / Math.max(1, n)));
+}
+
+/** The x of the left edge of character `i` (`i` = length: the word's right edge); a ligature's characters share its width evenly. */
+export function charX(word: TypesetWord, i: number): number {
+  const len = word.chars.length;
+  const n = word.glyphs.length;
+  if (i >= len || n === 0) return word.x + word.width;
+  const starts = glyphStarts(word);
+  let g = 0;
+  while (g + 1 < n && starts[g + 1] <= i) g++;
+  const end = g + 1 < n ? starts[g + 1] : len;
+  const left = word.glyphs[g];
+  const right = g + 1 < n ? word.glyphs[g + 1] : word.x + word.width;
+  return left + ((right - left) * (i - starts[g])) / Math.max(1, end - starts[g]);
+}
+
+/** The character under `x` in `word`, and whether `x` is on its left half (the caret goes before it). */
+export function charAtX(word: TypesetWord, x: number): { index: number; before: boolean } {
+  const len = word.chars.length;
+  for (let i = 0; i < len; i++) {
+    const left = charX(word, i);
+    const right = charX(word, i + 1);
+    if (x < right || i === len - 1) return { index: i, before: x < (left + right) / 2 };
   }
   return { index: 0, before: true };
 }
 
-/** main.tex separator points (glue, kern, math) with columns on the baseline of `word`, sorted by x: the interword spaces of its printed line. */
-function gluesOnLine(sync: SyncData, word: TypesetWord): SyncRecord[] {
-  return (sync.pages.get(word.page) ?? [])
-    .filter((r) => r.separator && r.tag === MAIN_TAG && r.column >= 0 && Math.abs(r.y - word.y) < 0.5)
-    .sort((a, b) => a.x - b.x);
+/** The source position for a caret at character `index` of `word` (`before` it, else after it), from the nearest character there with a source: a space or hyphen without one gives the end of the character before it, or the start of the one after it. */
+export function sourceAt(word: TypesetWord, index: number, before: boolean): TexPos | null {
+  const own = word.chars[index];
+  if (own) return before ? own : afterChar(word, index);
+  for (let i = index - 1; i >= 0; i--) if (word.chars[i]) return afterChar(word, i);
+  for (let i = index + 1; i < word.chars.length; i++) if (word.chars[i]) return word.chars[i];
+  return null;
 }
 
-/** Whether a source word of `text` can be the typeset `word`: as many glyphs as characters, or a few fewer (ligatures such as fi, tt). */
-function fits(word: TypesetWord, text: string): boolean {
-  const n = word.glyphs.length;
-  return n <= text.length && text.length <= n + 3;
+/** The position right after character `i`: the next character's own position when it follows in the same source line (a mapped `--` keeps its extent), else one column on. */
+function afterChar(word: TypesetWord, i: number): TexPos {
+  const own = word.chars[i] as TexPos;
+  const next = word.chars[i + 1];
+  return next && next.line === own.line && next.column > own.column ? next : { line: own.line, column: own.column + 1 };
 }
 
-/** Where `word` starts in main.tex (a native word is a run without spaces, punctuation included): right after the interword space before it, or (first word of a printed line) right before the space after it, found in `lineText` of that line through its printed view. */
-export function wordSource(sync: SyncData, word: TypesetWord, lineOf: (line: number) => string | undefined): { line: number; text: string; at: [number, number][] } | null {
-  const glues = gluesOnLine(sync, word);
-  const left = glues.filter((g) => g.x <= word.x + 0.01).at(-1);
-  if (left) {
-    const text = lineOf(left.line);
-    if (text !== undefined) {
-      const view = printedView([' '.repeat(left.column + 1) + text.slice(left.column + 1)], left.line);
-      const m = /\S+/u.exec(view.text);
-      if (m && fits(word, m[0])) return { line: left.line, text: m[0], at: view.at.slice(m.index, m.index + m[0].length) };
+/** Characters TeX's input ligatures (`tex-text`) and `~` turn into others, with the source characters they come from. */
+const TYPESET_FROM: Record<string, string> = { '\u2013': '-', '\u2014': '-', '\u201C': '`', '\u2018': '`', '\u201D': "'", '\u2019': "'", '\u201E': ',', '\u00AB': '<', '\u00BB': '>', '\u00A1': '!', '\u00BF': '?', '\u00A0': '~' };
+
+/** Keeps only the character positions that the source confirms: `sourceChar(pos)` gives main.tex's character there (undefined outside exercise bodies, which stay as they are). Text that macros rebuild while expanding (TikZ node labels, `\uppercase`) gets the position of whatever was read at the time, which this drops. */
+export function checkSources(map: GlyphMap, sourceChar: (pos: TexPos) => string | undefined | null): void {
+  for (const words of map.values()) {
+    for (const word of words) {
+      if (word.text.length !== word.chars.length) continue;
+      word.chars = word.chars.map((pos, i) => {
+        if (!pos) return null;
+        const src = sourceChar(pos);
+        if (src === undefined) return pos;
+        const typeset = word.text[i];
+        return src === typeset || TYPESET_FROM[typeset] === src ? pos : null;
+      });
     }
   }
-  const right = glues.find((g) => g.x >= word.x + word.width - 0.01);
-  if (right) {
-    const text = lineOf(right.line);
-    if (text !== undefined) {
-      const view = printedView([text.slice(0, right.column)], right.line);
-      const m = [...view.text.matchAll(/\S+/gu)].at(-1);
-      if (m && fits(word, m[0])) return { line: right.line, text: m[0], at: view.at.slice(m.index, m.index + m[0].length) };
+}
+
+/** The transformed word on `page` whose text is `text` (a word read from the PDF), the one whose preceding words match `before` best when it repeats; only words with a confirmed source count. */
+export function wordByText(map: GlyphMap, page: number, text: string, before: string[]): TypesetWord | null {
+  const words = (map.get(page) ?? []).filter((w) => w.transformed);
+  let best: TypesetWord | null = null;
+  let bestScore = -1;
+  words.forEach((w, i) => {
+    if (w.text !== text || !hasSource(w)) return;
+    let score = 0;
+    for (let k = 1; k <= before.length && i - k >= 0; k++) if (words[i - k].text === before[before.length - k]) score++;
+    if (score > bestScore) {
+      bestScore = score;
+      best = w;
     }
+  });
+  return best;
+}
+
+/** Whether a word holds any character from main.tex. */
+export function hasSource(word: TypesetWord): boolean {
+  return word.chars.some(Boolean);
+}
+
+/** The sourced word that `word` (one glyph without a source, e.g. the hyphen of a broken word) is set right after on its line. */
+export function wordBefore(map: GlyphMap, word: TypesetWord): TypesetWord | null {
+  return (map.get(word.page) ?? []).find((w) => w !== word && hasSource(w) && Math.abs(w.y - word.y) < 0.5 && Math.abs(w.x + w.width - word.x) < 0.5) ?? null;
+}
+
+const before = (a: TexPos, b: TexPos) => a.line < b.line || (a.line === b.line && a.column <= b.column);
+const same = (a: TexPos, b: TexPos) => a.line === b.line && a.column === b.column;
+
+interface CharEntry {
+  word: TypesetWord;
+  index: number;
+  pos: TexPos;
+}
+
+const indexes = new WeakMap<GlyphMap, CharEntry[]>();
+
+/** Every typeset character with a source, in source order. */
+function charIndex(map: GlyphMap): CharEntry[] {
+  let entries = indexes.get(map);
+  if (!entries) {
+    entries = [];
+    for (const words of map.values()) for (const word of words) if (!word.transformed) word.chars.forEach((pos, index) => pos && entries!.push({ word, index, pos }));
+    entries.sort((a, b) => a.pos.line - b.pos.line || a.pos.column - b.pos.column);
+    indexes.set(map, entries);
+  }
+  return entries;
+}
+
+function box(word: TypesetWord, x: number): CaretBox {
+  return { page: word.page, x, top: word.y - word.size * 0.8, height: word.size };
+}
+
+/** The caret box for main.tex position `pos`: before the character typeset from it, else after the last character before it for which `accept(line)` holds (a space, a line end, a macro name), else null. */
+export function caretAt(map: GlyphMap, pos: TexPos, accept: (line: number) => boolean = () => true): CaretBox | null {
+  const entries = charIndex(map);
+  // The first entry at or after `pos`.
+  let lo = 0;
+  let hi = entries.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (before(pos, entries[mid].pos)) hi = mid;
+    else lo = mid + 1;
+  }
+  const at = lo > 0 && same(entries[lo - 1].pos, pos) ? lo - 1 : -1;
+  if (at >= 0) return box(entries[at].word, charX(entries[at].word, entries[at].index));
+  for (let i = lo - 1; i >= 0; i--) {
+    const e = entries[i];
+    if (!accept(e.pos.line)) break;
+    return box(e.word, charX(e.word, e.index + 1));
   }
   return null;
 }
 
-/** Letter pairs and triples the document fonts set as one glyph (Libertine and the TeX defaults), longest first. */
-const LIGATURES = ['---', 'ffi', 'ffl', '--', "''", "``", ',,', '<<', '>>', 'ff', 'fi', 'fl', 'ft', 'fj', 'tt', 'Th', 'st', 'ct'];
-
-/** The first character index of each glyph when `text` is set as `n` glyphs: known ligatures are merged from the left until the counts agree, else the characters are spread evenly. */
-export function glyphStarts(text: string, n: number): number[] {
-  const starts = [...text].map((_, i) => i);
-  if (starts.length === n) return starts;
-  const groups: number[] = [];
-  let i = 0;
-  let surplus = text.length - n;
-  while (i < text.length) {
-    groups.push(i);
-    const lig = surplus > 0 ? LIGATURES.find((l) => l.length - 1 <= surplus && text.startsWith(l, i)) : undefined;
-    surplus -= lig ? lig.length - 1 : 0;
-    i += lig ? lig.length : 1;
-  }
-  if (groups.length === n) return groups;
-  return Array.from({ length: n }, (_, g) => Math.round((g * text.length) / Math.max(1, n)));
-}
-
-/** The source position of glyph `index` of a word whose printed characters `text` sit at `at`. */
-export function charOfGlyph(word: TypesetWord, text: string, at: [number, number][], index: number): [number, number] {
-  const starts = glyphStarts(text, word.glyphs.length);
-  const k = starts[Math.max(0, Math.min(index, starts.length - 1))] ?? 0;
-  return at[Math.max(0, Math.min(k, at.length - 1))];
-}
-
-const before = (a: TexPos, b: TexPos) => a.line < b.line || (a.line === b.line && a.column <= b.column);
-
-const sources = new WeakMap<TypesetWord, ReturnType<typeof wordSource>>();
-
-function cachedSource(sync: SyncData, word: TypesetWord, lineOf: (line: number) => string | undefined): ReturnType<typeof wordSource> {
-  if (!sources.has(word)) sources.set(word, wordSource(sync, word, lineOf));
-  return sources.get(word) ?? null;
-}
-
-/** The caret before character `index` of `word` (`index` = its length: after the last glyph). */
-function caretBox(word: TypesetWord, text: string, index: number): CaretBox {
-  // The glyph that starts at or after character `index`; inside a ligature the caret goes before it.
-  const g = glyphStarts(text, word.glyphs.length).findIndex((st) => st >= index);
-  const x = g < 0 ? word.x + word.width : word.glyphs[g];
-  return { page: word.page, x, top: word.y - word.size * 0.8, height: word.size };
-}
-
-/** The caret box for main.tex position `pos`: in the typeset word whose source holds it, else after the last word before it (a space, a line end, a macro name), else null (nothing typeset before it). */
-export function caretAt(sync: SyncData, map: GlyphMap, pos: TexPos, lineOf: (line: number) => string | undefined): CaretBox | null {
-  let after: { word: TypesetWord; text: string; end: TexPos } | null = null;
-  for (const word of [...map.values()].flat()) {
-    const src = cachedSource(sync, word, lineOf);
-    if (!src || src.at.length === 0) continue;
-    const [l0, c0] = src.at[0];
-    const [l1, c1] = src.at[src.at.length - 1];
-    const end = { line: l1, column: c1 + 1 };
-    if (before({ line: l0, column: c0 }, pos) && before(pos, end)) {
-      const k = src.at.findIndex(([l, c]) => l > pos.line || (l === pos.line && c >= pos.column));
-      return caretBox(word, src.text, k < 0 ? src.at.length : k);
-    }
-    if (before(end, pos) && (!after || before(after.end, end))) after = { word, text: src.text, end };
-  }
-  return after ? caretBox(after.word, after.text, after.text.length) : null;
-}
-
-/** The selected stretch of `word` between `from` and `to` (exclusive) as left and right x, or null when none of it is selected. */
-function selectedPart(word: TypesetWord, src: NonNullable<ReturnType<typeof wordSource>>, from: TexPos, to: TexPos): [number, number] | null {
-  const inside = src.at.map(([line, column]) => before(from, { line, column }) && !before(to, { line, column }) && !(to.line === line && to.column === column));
-  const first = inside.indexOf(true);
-  if (first < 0) return null;
-  const last = inside.lastIndexOf(true);
-  const starts = glyphStarts(src.text, word.glyphs.length);
-  let g0 = 0;
-  while (g0 + 1 < starts.length && starts[g0 + 1] <= first) g0++;
-  const g1 = starts.findIndex((st) => st > last);
-  return [word.glyphs[g0], g1 < 0 ? word.x + word.width : word.glyphs[g1]];
-}
-
-/** The boxes of the typeset text between main.tex positions `from` and `to` (exclusive), one per printed line: from the first selected glyph to the end of the last one, spaces between included. */
-export function selectionBoxes(sync: SyncData, map: GlyphMap, from: TexPos, to: TexPos, lineOf: (line: number) => string | undefined): PageBox[] {
+/** The boxes of the typeset text between main.tex positions `from` and `to` (exclusive), one per printed line, spaces between included. */
+export function selectionBoxes(map: GlyphMap, from: TexPos, to: TexPos): PageBox[] {
   const rows = new Map<string, PageBox>();
-  for (const word of [...map.values()].flat()) {
-    const src = cachedSource(sync, word, lineOf);
-    const part = src && selectedPart(word, src, from, to);
-    if (!part) continue;
-    const [x0, x1] = part;
-    const key = `${word.page}:${word.y.toFixed(1)}`;
+  for (const e of charIndex(map)) {
+    if (!before(from, e.pos) || before(to, e.pos)) continue;
+    const x0 = charX(e.word, e.index);
+    const x1 = charX(e.word, e.index + 1);
+    const key = `${e.word.page}:${e.word.y.toFixed(1)}`;
     const row = rows.get(key);
     if (row) {
       const right = Math.max(row.x + row.width, x1);
       row.x = Math.min(row.x, x0);
       row.width = right - row.x;
-    } else rows.set(key, { page: word.page, x: x0, top: word.y - word.size * 0.8, width: x1 - x0, height: word.size });
+    } else rows.set(key, { page: e.word.page, x: x0, top: e.word.y - e.word.size * 0.8, width: x1 - x0, height: e.word.size });
   }
   return [...rows.values()];
 }

@@ -387,3 +387,81 @@ export const EDITOR_KEY_COMMANDS: Record<EditorKey, { move: Command; select?: Co
 export const unfocusedCursorTheme = EditorView.theme({
   "&:not(.cm-focused) > .cm-scroller > .cm-cursorLayer .cm-cursor": { display: "block", opacity: "0.55" },
 });
+
+/** Shows where a click in the PDF put the cursor (issue #347): a halo at the cursor and a fading highlight of the selected lines, for `FLASH_MS`; `setFlash.of(null)` removes it. */
+export const setFlash = StateEffect.define<{ from: number; to: number; head: number } | null>();
+export const FLASH_MS = 800;
+
+class FlashHalo extends WidgetType {
+  toDOM() {
+    const span = document.createElement("span");
+    span.className = "cm-flash-cursor";
+    span.setAttribute("aria-hidden", "true");
+    return span;
+  }
+  eq() {
+    return true;
+  }
+}
+
+export const flashField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const e of tr.effects) {
+      if (!e.is(setFlash)) continue;
+      if (!e.value) return Decoration.none;
+      const { from, to, head } = e.value;
+      const b = new RangeSetBuilder<Decoration>();
+      const doc = tr.state.doc;
+      const first = doc.lineAt(from).number;
+      const last = doc.lineAt(to).number;
+      const marks: { at: number; deco: Decoration }[] = [];
+      for (let n = first; n <= last; n++) marks.push({ at: doc.line(n).from, deco: Decoration.line({ class: "cm-flash-line" }) });
+      marks.push({ at: head, deco: Decoration.widget({ widget: new FlashHalo(), side: 1 }) });
+      marks.sort((x, y) => x.at - y.at || (x.deco.spec.widget ? 1 : -1));
+      for (const m of marks) b.add(m.at, m.at, m.deco);
+      return b.finish();
+    }
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+/** The flash's look: an accent halo that pulses out from the cursor and a background on the lines that fades, both gone after `FLASH_MS`; with reduced motion both stay still until then. */
+export const flashTheme = EditorView.theme({
+  ".cm-flash-cursor": {
+    position: "relative",
+    display: "inline-block",
+    width: "0",
+    height: "1.2em",
+    verticalAlign: "text-bottom",
+  },
+  ".cm-flash-cursor::after": {
+    content: '""',
+    position: "absolute",
+    left: "-0.6em",
+    top: "0",
+    width: "1.2em",
+    height: "1.2em",
+    borderRadius: "9999px",
+    boxShadow: "0 0 0 2px var(--color-accent)",
+    animation: `cm-flash-halo ${FLASH_MS}ms ease-out forwards`,
+    pointerEvents: "none",
+  },
+  ".cm-flash-line": {
+    animation: `cm-flash-line ${FLASH_MS}ms ease-out forwards`,
+  },
+  "@keyframes cm-flash-halo": {
+    "0%": { opacity: "0.9", transform: "scale(0.6)" },
+    "100%": { opacity: "0", transform: "scale(2.2)" },
+  },
+  "@keyframes cm-flash-line": {
+    "0%": { backgroundColor: "color-mix(in srgb, var(--color-accent) 28%, transparent)" },
+    "100%": { backgroundColor: "transparent" },
+  },
+  "@media (prefers-reduced-motion: reduce)": {
+    ".cm-flash-cursor::after": { animation: "none", opacity: "0.9" },
+    ".cm-flash-line": { animation: "none", backgroundColor: "color-mix(in srgb, var(--color-accent) 20%, transparent)" },
+  },
+});

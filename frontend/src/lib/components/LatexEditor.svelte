@@ -49,7 +49,7 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from "svelte";
   import { EditorView, BlockType, keymap, drawSelection, lineNumbers } from "@codemirror/view";
-  import { Annotation, EditorState, EditorSelection, Compartment } from "@codemirror/state";
+  import { Annotation, EditorState, EditorSelection, Compartment, type StateEffect } from "@codemirror/state";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import {
     search,
@@ -66,7 +66,11 @@
     diffDecorationsField,
     applyDiffDecorations,
     EDITOR_KEY_COMMANDS,
-    unfocusedCursorTheme
+    unfocusedCursorTheme,
+    flashField,
+    flashTheme,
+    setFlash,
+    FLASH_MS
   } from "./LatexEditor";
   import {
     GENERAL_CATEGORIES,
@@ -95,8 +99,8 @@
     /** The user changed the text (typing or the quick-insert bar); not called when `value` is set from outside. */
     onChange?: (value: string) => void;
     onScroll?: (detail: { scrollTop: number; scrollLeft: number }) => void;
-    /** The selection moved or the text changed: anchor and head (equal for a plain cursor). */
-    onSelectionChange?: (selection: { anchor: EditorPos; head: EditorPos }) => void;
+    /** The selection moved or the text changed: anchor and head (equal for a plain cursor); `pointer` when a click or drag in this editor moved it. */
+    onSelectionChange?: (selection: { anchor: EditorPos; head: EditorPos }, how: { pointer: boolean }) => void;
     /** Keeps a muted cursor visible while another control has the focus (the PDF pages, where typing goes into this editor; issue #347). */
     showUnfocusedCursor?: boolean;
   }
@@ -309,16 +313,24 @@
 
   /** Puts the cursor at `lineNo` (1-based) and `column` (0-based, clamped to the line), scrolls it into view and, unless `focus` is false, focuses the editor; the target of click-to-source (issue #347). */
   export function setCursor(lineNo: number, column = 0, focus = true) {
-    setSelection({ line: lineNo, column }, { line: lineNo, column }, focus);
+    setSelection({ line: lineNo, column }, { line: lineNo, column }, { focus });
   }
 
-  /** Selects from `anchor` to `head` and scrolls the head into view; the pages keep the focus unless `focus` (inline editing, issue #347). */
-  export function setSelection(anchor: EditorPos, head: EditorPos, focus = false) {
+  let flashTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Selects from `anchor` to `head` and scrolls the head into view; the pages keep the focus unless `focus`, and `flash` shows where the cursor went (a click in the PDF; inline editing, issue #347). */
+  export function setSelection(anchor: EditorPos, head: EditorPos, opts: { focus?: boolean; flash?: boolean } = {}) {
     if (!view) return;
     const a = offsetOf(anchor);
     const h = offsetOf(head);
-    view.dispatch({ selection: { anchor: a, head: h }, effects: EditorView.scrollIntoView(h, { y: "nearest" }) });
-    if (focus) view.focus();
+    const effects: StateEffect<unknown>[] = [EditorView.scrollIntoView(h, { y: "nearest" })];
+    if (opts.flash) effects.push(setFlash.of({ from: Math.min(a, h), to: Math.max(a, h), head: h }));
+    view.dispatch({ selection: { anchor: a, head: h }, effects });
+    if (opts.flash) {
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => view?.dispatch({ effects: setFlash.of(null) }), FLASH_MS);
+    }
+    if (opts.focus) view.focus();
   }
 
   /** Replaces the selection with `text` as typing would (one undo step per call). */
@@ -376,6 +388,8 @@
         history(),
         drawSelection(),
         showUnfocusedCursor ? unfocusedCursorTheme : [],
+        flashField,
+        flashTheme,
         search({ top: true }),
         highlightSelectionMatches(),
         keymap.of([
@@ -397,7 +411,8 @@
         EditorView.updateListener.of((update) => {
           if (update.selectionSet || update.docChanged) {
             const { anchor, head } = update.state.selection.main;
-            onSelectionChange?.({ anchor: posOf(anchor), head: posOf(head) });
+            const pointer = update.transactions.some((tr) => tr.isUserEvent("select.pointer"));
+            onSelectionChange?.({ anchor: posOf(anchor), head: posOf(head) }, { pointer });
           }
           if (update.docChanged) {
             isInternalUpdate = true;
@@ -444,6 +459,7 @@
 
   onDestroy(() => {
     if (hoverTimer) clearTimeout(hoverTimer);
+    clearTimeout(flashTimer);
     if (view) {
       if (handleScrollListener && view.scrollDOM) {
         view.scrollDOM.removeEventListener("scroll", handleScrollListener);

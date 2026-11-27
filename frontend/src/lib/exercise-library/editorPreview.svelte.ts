@@ -1,6 +1,7 @@
 import { getLatestForSlot } from '#lib/latex/compileCache';
 import { compileFailure, type CompileFailure } from '#lib/latex/compileError';
 import { compileExercisePreview, type ExercisePreviewInput } from '#lib/latex/exercisePreview';
+import type { CompileResult } from '#lib/latex/compiler';
 import { pdfBytesToUrl } from '#lib/latex/pdfPreview';
 import { translate } from '#lib/i18n';
 import { PreviewSync } from '#lib/latex/previewSync.svelte';
@@ -12,7 +13,7 @@ type PreviewInput = Omit<ExercisePreviewInput, 'onAngabe'>;
 /** The part of `LatexEditor` the pages drive. */
 export interface CursorTarget {
   setCursor(line: number, column?: number, focus?: boolean): void;
-  setSelection(anchor: EditorPos, head: EditorPos, focus?: boolean): void;
+  setSelection(anchor: EditorPos, head: EditorPos, opts?: { focus?: boolean; flash?: boolean }): void;
   replaceSelection(text: string): void;
   runKey(key: EditorKey, extend?: boolean): boolean;
 }
@@ -108,9 +109,9 @@ export class EditorPreview {
     this.liveTimer = undefined;
   }
 
-  /** The editor's selection moved or its text changed: the caret and selection in the pages follow. */
-  cursor(selection: { anchor: EditorPos; head: EditorPos }, body: () => string): void {
-    this.sync.select({ exerciseId: null, ...selection }, () => body());
+  /** The editor's selection moved or its text changed: the caret and selection in the pages follow; `pointer` (a click in the code editor) makes the page caret pulse once. */
+  cursor(selection: { anchor: EditorPos; head: EditorPos }, body: () => string, pointer = false): void {
+    this.sync.select({ exerciseId: null, ...selection }, () => body(), pointer);
   }
 
   /** What pane `paneId` does with clicks and keys (issue #347). With the engine's glyph positions the pages are an editor: a click puts the caret there, a double click selects the word, a triple click the line, a drag selects, and typing goes into `editor()` (the body's LaTeX editor; none for MC, which only gets the template tooltip). Without them a click moves the code editor's cursor and focuses it. */
@@ -119,7 +120,7 @@ export class EditorPreview {
     return {
       marks: this.sync.marks[paneId] ?? null,
       onClick: (click, count) => void this.pageClick(paneId, click, count, inline, editor, body),
-      onDrag: inline ? (from, to) => void this.pageDrag(paneId, from, to, editor, body) : undefined,
+      onDrag: inline ? (from, to, done) => void this.pageDrag(paneId, from, to, done, editor, body) : undefined,
       onText: inline ? (text) => editor()?.replaceSelection(text) : undefined,
       onKey: inline ? (key, shift) => editor()?.runKey(key, shift) ?? false : undefined,
     };
@@ -132,28 +133,32 @@ export class EditorPreview {
     const at = { line: target.line, column: target.column };
     if (!inline) return ed.setCursor(at.line, at.column);
     const text = body().split('\n')[at.line - 1] ?? '';
-    if (count >= 3) return ed.setSelection({ line: at.line, column: 0 }, { line: at.line, column: text.length });
+    const flash = { flash: true };
+    if (count >= 3) return ed.setSelection({ line: at.line, column: 0 }, { line: at.line, column: text.length }, flash);
     if (count === 2) {
       let from = at.column;
       let to = at.column;
       while (from > 0 && isWordChar(text[from - 1])) from--;
       while (to < text.length && isWordChar(text[to])) to++;
-      return ed.setSelection({ line: at.line, column: from }, { line: at.line, column: to });
+      return ed.setSelection({ line: at.line, column: from }, { line: at.line, column: to }, flash);
     }
-    ed.setSelection(at, at);
+    ed.setSelection(at, at, flash);
   }
 
-  private async pageDrag(paneId: string, from: PageClick, to: PageClick, editor: () => CursorTarget | undefined, body: () => string): Promise<void> {
+  /** `done`: the drag ended, so the selection flashes once. */
+  private async pageDrag(paneId: string, from: PageClick, to: PageClick, done: boolean, editor: () => CursorTarget | undefined, body: () => string): Promise<void> {
     const [a, b] = await Promise.all([this.sync.click(paneId, from, () => body(), false), this.sync.click(paneId, to, () => body(), false)]);
     const src = (t: ClickTarget | null) => (t?.kind === 'source' ? { line: t.line, column: t.column } : null);
     const anchor = src(a);
     const head = src(b);
-    if (anchor && head) editor()?.setSelection(anchor, head);
+    if (anchor && head) editor()?.setSelection(anchor, head, { flash: done });
   }
 
-  private setPdf(bytes: Uint8Array): void {
+  /** Shows a new task sheet; its clicks and marks take over once the viewer shows it, with `body` as the text it was compiled from. */
+  private setPdf(result: CompileResult, body: string): void {
     if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
-    this.pdfUrl = pdfBytesToUrl(bytes);
+    this.pdfUrl = pdfBytesToUrl(result.pdfBytes);
+    this.sync.setResult('angabe', result, { url: this.pdfUrl, compiled: () => body });
   }
 
   /** Compiles task sheet and solution, or, while one runs, after it with the newest input only; resolves to the message for the editor's error line ("" when all went well). */
@@ -192,8 +197,7 @@ export class EditorPreview {
         solution: this.solutionShown,
         onAngabe: (angabe) => {
           if (stale()) return;
-          this.setPdf(angabe.pdfBytes);
-          this.sync.setResult('angabe', angabe);
+          this.setPdf(angabe, input.latexBody);
           angabeShown = true;
           this.showAngabe = true;
         },
@@ -202,15 +206,12 @@ export class EditorPreview {
       // The failure stays on screen until a compile succeeds, so a live recompile does not make its help flicker.
       this.error = '';
       this.log = null;
-      if (!angabeShown) {
-        this.setPdf(res.angabe.pdfBytes);
-        this.sync.setResult('angabe', res.angabe);
-      }
+      if (!angabeShown) this.setPdf(res.angabe, input.latexBody);
       this.solutionStale = !res.loesung;
       if (res.loesung) {
         if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
         this.solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);
-        this.sync.setResult('loesung', res.loesung);
+        this.sync.setResult('loesung', res.loesung, { url: this.solutionUrl, compiled: () => input.latexBody });
       }
       // Now that a PDF exists, open the task-sheet pane so the result is actually visible.
       this.showAngabe = true;

@@ -3,7 +3,7 @@
 // The dir is node-run.mts's KEEP output for that sample; words.json comes from pdf-words.py (exact pdfminer boxes). COLUMNS=1 uses the engine's
 // columns and glyph positions (main.prov), as the app does with the browser engine; without it, the pdf.js path of server compiles is measured. The truth for each printed word is its place in a
 // word-sequence alignment (LCS) of all printed words against the exercises' source words, so repeated words are judged by their real occurrence;
-// each word is clicked a quarter into its middle character, and only that character's source column counts as exact.
+// each word is clicked a quarter into its middle character (into the first letter of a ligature), and only that character's source column counts as exact.
 import fs from 'node:fs';
 import path from 'node:path';
 import { extractSourceMap } from '#lib/latex/sourceMap';
@@ -37,6 +37,8 @@ if (!sample || !dir || !wordsPath) throw new Error('usage: click-accuracy.mts <s
 
 const map = extractSourceMap(sample.build(sample.exercises));
 const bodies = new Map(sample.exercises.map((e) => [e.name, e.body]));
+// Bodies by the id the builder marked them with, as the app's editor and Exam step answer them.
+const bodyById = new Map(map.ranges.map((r) => [r.exerciseId, bodies.get(r.label)]));
 const result: SyncedResult = {
   pdfBytes: new Uint8Array(fs.readFileSync(path.join(dir, 'main.pdf'))),
   synctex: new Uint8Array(fs.readFileSync(path.join(dir, 'main.synctex'))),
@@ -90,11 +92,12 @@ const misses: string[] = [];
 for (const [i, want] of truth) {
   const w = printed[i];
   const k = Math.floor(w.chars.length / 2);
-  const [cx0, cx1] = w.chars[k] ?? [w.x0, w.x1];
-  // A quarter into the character: the cursor goes before it.
-  const click = { page: w.page, x: cx0 + (cx1 - cx0) * 0.25, y: w.y };
+  const [cx0, cx1, ctext] = w.chars[k] ?? [w.x0, w.x1, w.text];
+  // A quarter into the character (into the first letter of a ligature box): the cursor goes before it.
+  const letters = Math.max(1, normalizePrinted(ctext).length);
+  const click = { page: w.page, x: cx0 + ((cx1 - cx0) * 0.25) / letters, y: w.y };
   const probe = await wordAt(result.pdfBytes, click);
-  const got = resolveClick(result, click, probe, () => bodies.get(want.label));
+  const got = resolveClick(result, click, probe, (id) => bodyById.get(id));
   // A ligature box holds several letters: the truth is the first letter of the clicked box.
   const letter = w.chars.slice(0, k).reduce((sum, c) => sum + normalizePrinted(c[2]).length, 0);
   const [line, column] = want.at[Math.min(letter, want.at.length - 1)];
