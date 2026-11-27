@@ -108,3 +108,48 @@ export function patchEmbedPdfA11y(target: Element, labels: { pageLabel: string; 
     observer?.disconnect();
   };
 }
+
+/** The scroll container inside a mounted viewer's shadow root, once laid out. */
+export function embedPdfScroller(target: Element): HTMLElement | null {
+  const root = target.querySelector('embedpdf-container')?.shadowRoot;
+  if (!root) return null;
+  for (const el of root.querySelectorAll('div')) {
+    if (/(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > 0) return el;
+  }
+  return null;
+}
+
+/** Resolves once a viewer mounted into `target` shows a rendered page where the reader was (`scroll`, applied as soon as the pages are laid out), or after `timeoutMs`; false when `cancelled()` turned true first. */
+export function whenEmbedPdfShown(
+  target: Element,
+  scroll: { top: number; left: number } | null,
+  cancelled: () => boolean,
+  timeoutMs = 5000,
+): Promise<boolean> {
+  const deadline = performance.now() + timeoutMs;
+  let scrolled = !scroll;
+  return new Promise((resolve) => {
+    const check = () => {
+      if (cancelled()) return resolve(false);
+      if (performance.now() > deadline) return resolve(true);
+      const scroller = embedPdfScroller(target);
+      if (scroller && !scrolled && scroll && scroller.scrollHeight > scroller.clientHeight) {
+        scroller.scrollTop = scroll.top;
+        scroller.scrollLeft = scroll.left;
+        scrolled = true;
+      }
+      if (scroller && scrolled && visiblePageRendered(scroller)) return resolve(true);
+      setTimeout(check, 50);
+    };
+    check();
+  });
+}
+
+function visiblePageRendered(scroller: HTMLElement): boolean {
+  const view = scroller.getBoundingClientRect();
+  for (const img of scroller.querySelectorAll('img')) {
+    const r = img.getBoundingClientRect();
+    if (r.bottom > view.top && r.top < view.bottom && img.complete && img.naturalWidth > 0) return true;
+  }
+  return false;
+}

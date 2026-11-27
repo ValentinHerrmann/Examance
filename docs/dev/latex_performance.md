@@ -131,11 +131,32 @@ Measured on the 8-page exam inside the built image:
 
 Tectonic could not use one: `tectonic --outfmt fmt` dumps a custom format (23 MB for the template), but `--format` resolves format names only inside the bundle, never from the working directory. With TeX Live in the image the server does it (round 4 above); the format holds everything up to and including the template load, and the solution's `antworten` option gets its own format through the preamble key.
 
-The browser engine (busytex) still compiles without a format: it would need an `-ini` dump inside the WASM VM and a matching cache invalidation. The remaining gain there is the preamble's share of one pass, roughly a second; it is not worth it until the cheaper measures above are exhausted.
+The browser engine does the same since issue #346: `lib/latex/engine/format.ts` mirrors the split, the dump wrapper and the flags, and keeps the formats in IndexedDB (see the next section).
+
+## The browser engine since issue #346
+
+The spike below was adopted (owner decision, November 2026), and busytex is gone. Its design rules now live in `docs/dev/latex.md`: the engine files, the TeX tree from `GET /api/v1/texlive`, sessions per cache slot, the format per preamble, and the fallbacks.
+
+Measured on the 12-task exam on a 4-core cloud container: headless Chromium through the production `compileLatex` (Vite dev server, fake API), and Node through the real worker (`scripts/latex-engine/worker-run.mts`).
+
+| | Browser engine | busytex (after #343) |
+|---|---|---|
+| First compile in a fresh browser (engine download, template prefetch, format dump, 3 passes) | 8.9 s | 25-30 s (630 MB download), then 28.6 s for the first compile |
+| Compile without a session, format cached | 2.2 s | 3.49-3.73 s seeded, ~10 s fresh |
+| Edit early / mid / late in an exercise session (incl. xdvipdfmx) | 1.2-1.3 / 0.8-1.0 / 0.3-0.5 s | 3.49-3.73 s |
+| Edit after the template load (`\Info`) | 0.9-1.3 s | 3.49-3.73 s |
+| TeX Live downloaded for the exam | 261 files, 18 MB (then cached) | 630 MB |
+| Memory per live session | 321 MB engine + ~155 MB snapshots | ~1.3 GB (two VMs with the whole tree) |
+
+- **Replays stay byte-identical** to fresh compiles in every measured edit (`scripts/latex-engine/node-run.mts`).
+- **Snapshots** are XOR deltas against a copy-on-write shadow of the last checkpoint: 160 MB instead of the spike's 444 MB. Checkpoints are spaced by five times their own cost, so they take at most about a sixth of engine time.
+- **Gate 1, memory:** one session needs about 0.5 GB. The worker keeps at most two; on devices reporting 4 GB or less it keeps one with a 500 MB budget, above which a session runs without checkpoints. If the engine cannot even be instantiated, the compile goes to the server where the account may use it.
+- **Gate 2, Firefox and Safari:** still to be tested by hand on the preview stack. The engine needs plain wasm, wasm SIMD and `DecompressionStream`, and no JSPI or cross-origin isolation.
+- **Fixed on the way:** the spike re-read every edit from the first line after two edits, because invalidation compared buffers instead of bytes (`lib/latex/engine/trace.ts`, regression test `tests/latexEngineTrace.test.ts`). Correct output, slow replays.
 
 ## Why not Typst
 
-Typst compiles incrementally because its compiler is built from memoised pure functions. TeX expands macros over global state (counters, page breaks, the aux file), so any change can move everything after it, and there is no "recompile page 3" mode. texpresso gets close by snapshotting a patched native TeX process, which cannot run in WASM or behind a server engine.
+Typst compiles incrementally because its compiler is built from memoised pure functions. TeX expands macros over global state (counters, page breaks, the aux file), so any change can move everything after it, and there is no "recompile page 3" mode. TeXpresso gets close by snapshotting a running TeX and replaying only what follows an edit; the spike below shows that this also works in our browser engine.
 
 Switching to Typst would mean rewriting:
 
@@ -144,3 +165,114 @@ Switching to Typst would mean rewriting:
 - both engines.
 
 The measures above recover most of the difference for the edit-compile loop, at no cost to existing content.
+
+## Alternatives considered
+
+### TeXpresso in the browser (spike, November 2026)
+
+*Historical record.* The spike was adopted as the browser engine (above). Its route `/dev/texpresso-spike` is gone; its files now live in `frontend/scripts/latex-engine/`, `frontend/static/core/latex-engine/` and `frontend/src/lib/latex/engine/`, and the paths below are updated to them.
+
+**Question.** Can TeXpresso's incremental engine run in our browser worker, so that an edit shows on the page almost at once and a click on the page puts the cursor in the source? The spike is the dev route `/dev/texpresso-spike` (dev and preview builds only; release builds redirect to `/` and ship no engine files). It holds synthetic samples only.
+
+**What was built.**
+
+- **Engine.** Stock TeX Live 2026.1 XeTeX, compiled with emscripten 4.0.12 by `frontend/scripts/latex-engine/build-engine.sh`. The script is derived from `scripts/build-wasm-xetex.sh` of TeXpresso's `eclipse` branch, with three changes:
+  - **Asyncify instead of wasm exceptions.** A JSPI continuation is one-shot and cannot be copied, so a suspended JSPI run cannot be restored to an earlier checkpoint. Asyncify unwinds the call stack into linear memory, so a checkpoint becomes a memory copy. Asyncify cannot instrument wasm exception handling, so the build uses emscripten's JS setjmp/longjmp.
+  - **SyncTeX enabled** (upstream builds without it).
+  - **Fixed recipe steps:** kpathsea is put into texk's subdirectory list, and the native `tangle`/`ctangle`/`tie` are required for cross-compiling.
+- **Engine files.** `engine.wasm` is 4.7 MB (1.6 MB gzipped), ICU data 22 MB (9.2 MB gzipped). Both are committed gzipped under `frontend/static/core/latex-engine/`, with checksums in `SHA256SUMS`.
+- **Host.** `frontend/src/lib/latex/engine/engine.ts` is a JS port of `wasm_host.c`:
+  - **VFS:** editable inputs, outputs that checkpoints can restore, and busytex's own TeX tree.
+  - **Determinism:** fixed clock, `SOURCE_DATE_EPOCH` and fixed file dates.
+  - **Checkpoints:** taken at reads of input files, at most every 150 ms of engine time and at least every 30 lines of `main.tex`.
+  - **Edits:** an edit restores the last checkpoint before the first read it invalidates.
+- **TeX tree and format.** The tree is busytex's (`texlive-*.data`, read from busytex's IndexedDB cache when present), unpacked file by file on first open. Our engine loads busytex's `xelatex.fmt` as is, so no format is dumped.
+- **XDV to PDF.** The XDV goes to PDF with busytex's own `xdvipdfmx` applet in a second worker.
+- **PDF-side editing.**
+  - **SyncTeX** (`-synctex=-1`) gives file and line.
+  - **The source map** of the builders (`lib/latex/sourceMap.ts`) turns that into exercise and line.
+  - **The clicked word** (pdf.js text content) gives the column.
+  - **Typed text** shows as a provisional overlay where the cursor's line was typeset, until the new page arrives.
+
+Bugs found on the way, each of which silently broke correct replays:
+
+- emscripten prefixes a bare `ASYNCIFY_IMPORTS` name with `env.`, so `fd_read` (module `wasi_snapshot_preview1`) was never an unwind point.
+- musl's stdio reads 1024-byte blocks, so an edit in the first kilobyte (here: the preamble and task 1) came before every checkpoint. The host now answers input reads one line at a time, a short read that stdio accepts.
+- Restored file descriptors kept the old text of an input.
+
+**Measurements.** Measured on a 4-core cloud container, in headless Chromium (four runs; checkpoints are placed by time, so their positions and the resume times vary between runs) (Vite dev server on localhost) and in Node with the same host (`scripts/latex-engine/node-run.mts`). The documents are the 12-task exam and its solution (`samples.ts`, through the production builders) and one exercise each with chemistry, circuits, UML, struktex and listings. "Edit" is one word in the first, middle or last exercise; "preamble" is one line right after `\documentclass`.
+
+12-task exam in Chrome:
+
+| | TeXpresso spike | busytex (after #343) |
+|---|---|---|
+| Typeset from scratch (3 passes) | 4.8-7.3 s | 28.6-28.9 s first compile in the tab (incl. its boot) |
+| Edit early / mid / late, engine | 0.46-0.91 / 0.48-0.82 / 0.28-0.43 s | 3.49-3.73 s (one seeded pass) |
+| Preamble edit, engine | 3.0-3.5 s (replays from the start) | 3.49-3.73 s |
+| xdvipdfmx per update | 0.08-0.40 s | included above |
+| Keystroke to new page on screen | 1.5-2.0 s (120 ms debounce; pdf.js redraws every page) | |
+
+Other documents in Node:
+
+| Document | From scratch | Edit | Preamble edit | Snapshots |
+|---|---|---|---|---|
+| 12-task exam | 5.1-5.7 s (3 passes) | 0.30-0.74 s | 2.7-3.0 s | 465-517 MB |
+| Its solution | 6.5 s (2 passes) | 0.75 s | 3.1 s | 397-533 MB |
+| Chemistry (mhchem, chemfig) | 5.4 s | 1.30 s (two resumed passes: the aux changed) | 3.6 s | 387 MB |
+| Circuit (circuitikz) | 5.3 s | 0.60 s | 3.9 s | 448 MB |
+| UML (tikz-uml) | 4.5 s | 0.39 s | 3.2 s | 341 MB |
+| Struktogramm (struktex) | 5.0 s | 0.20 s | 3.2 s | 384 MB |
+| Listing (listings) | 5.2 s | 0.41 s | 3.1 s | 298 MB |
+
+- **Replay equals a full compile.** For every measured edit (4 in Chrome, 16 in Node) the XDV after the incremental update is byte-for-byte identical to a fresh compile of the edited text in a new engine.
+- **Startup.** Cold, without any cache, the first page took 24-30 s:
+  - 16-19 s of downloads and the busytex boot of the xdvipdfmx worker, in parallel;
+  - 0.6-1.0 s format probe;
+  - the first typeset.
+  With busytex's cache filled it still took 22 s. 14 s of that is the second busytex VM that only runs xdvipdfmx.
+- **Memory.**
+  - **Engine:** 321 MB of linear memory.
+  - **Snapshots:** the first layer holds 89 MB of non-zero pages; each further layer about 50 MB. That is the pages TeX rewrote since the previous checkpoint, found by per-page SIMD hashes (`pageHash.wat`, 54 ms per checkpoint). Capped at 12 checkpoints: 300-530 MB in these documents.
+  - **TeX tree:** 630 MB of compressed packages in the worker.
+  - **xdvipdfmx:** a second busytex VM of the same size.
+  - **Total:** well over 2 GB per tab, too much for iPads and school laptops.
+- **IndexedDB.** emscripten keys its package cache by the loading worker's path, so every busytex worker location keeps its own 630 MB copy. The spike's xdvipdfmx worker therefore duplicates the app's cache.
+- **Browsers.** Asyncify needs neither JSPI nor cross-origin isolation. The spike uses plain wasm, wasm SIMD (the page hasher) and `DecompressionStream`: Chrome 91+, Firefox 113+, Safari 16.4+. Only Chromium was available here; **Firefox and Safari are untested**.
+- **Click to source**, on the 12-task exam in Chrome: every pdf.js text item was clicked at its centre (61 items of three or more letters).
+
+  | Grade | Items | Where |
+  |---|---|---|
+  | exact line | 31 | running text, lists, the triangle and graph tasks' text |
+  | right exercise, neighbouring line | 8 | multi-line paragraphs; the units table (`250`, `min`); MC options |
+  | template | 22 | header, footer and score boxes (15); exercise titles (7), which land on the `\begin{Aufgabe}{…}` line outside the editable body |
+  | wrong exercise / nothing | 0 / 0 | |
+
+  XeTeX's SyncTeX records lines, not columns, so the column comes from finding the clicked word in that line. Not measured: TikZ labels (single letters, below the three-letter filter) and the subject exercises in the browser.
+- **Network.** In the Chrome run every request went to the app's own origin.
+
+**Rejected options.**
+
+- **Siglum.** Its format cache is skipped for XeLaTeX with fontspec and for local `.sty` files, which is exactly our template, and it loads from a CDN by default (blocked by `script-src 'self'`).
+- **TeXlyre (texlyre-busytex).** It is already our engine and has no API to dump or load a format.
+- **edit.texpresso.app's host.** AGPL-3.0, and its repositories (`texpresso/texpresso.app`, `texpresso-engines`) are not public; the spike's host is our own.
+- **The engine bundles in TeXpresso's releases.** They are wasm2c C (`engine.c`), not `engine.wasm`.
+- **Oxipresso and the editor plugins** (Doppio, VS Code, Zed). All native; Oxipresso's hand-maintained rewind of engine globals is the approach the whole-memory snapshot avoids.
+
+**Licences.**
+
+- **TeXpresso** (host design, fontconfig shim, build recipe): MIT.
+- **XeTeX, TeX and web2c:** free licences with the usual naming conditions.
+- **Statically linked libraries:**
+  - kpathsea, graphite2 and teckit: LGPL-2.1, satisfied by publishing the build script and sources, so the engine can be relinked;
+  - HarfBuzz: MIT;
+  - FreeType: FTL;
+  - ICU: Unicode licence;
+  - libpng and zlib: their own permissive licences.
+- **emscripten runtime and MiniLZ4** (ported in `texTree.ts`): MIT.
+
+**Verdict: go, behind two gates** (adopted; see "The browser engine since issue #346" above for where the gates stand). Body edits get 4-12 times faster than busytex's seeded pass (0.2-0.9 s against 3.5-3.7 s), and the replay is provably the same output. PDF-side editing works with the data we already have. Production must first:
+
+1. bring memory under about 1 GB per tab (XOR-delta layers, a TeX tree subset per template, xdvipdfmx in the engine's VM instead of a second busytex);
+2. pass Firefox and Safari, falling back to busytex when the engine cannot start or memory is short.
+
+The busytex format cache (#344, browser half) stays useful either way: it would cut the preamble replay, today about 3 s.

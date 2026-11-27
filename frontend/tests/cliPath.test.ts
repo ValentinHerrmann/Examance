@@ -5,7 +5,7 @@ import { FRONTEND_DIR, resolveInside } from '../scripts/cli-path.mjs';
 describe('resolveInside (issue #244)', () => {
   it('resolves arguments inside the base', () => {
     expect(resolveInside(FRONTEND_DIR, 'build')).toBe(path.join(FRONTEND_DIR, 'build'));
-    expect(resolveInside(FRONTEND_DIR, '.busytex/core')).toBe(path.join(FRONTEND_DIR, '.busytex', 'core'));
+    expect(resolveInside(FRONTEND_DIR, 'build/core')).toBe(path.join(FRONTEND_DIR, 'build', 'core'));
     expect(resolveInside(FRONTEND_DIR, '.')).toBe(FRONTEND_DIR);
   });
 

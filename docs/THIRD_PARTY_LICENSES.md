@@ -14,8 +14,8 @@ Examance itself is licensed under the GNU General Public License v3.0 (`LICENSE`
 |---|---|---|---|
 | **argon2-browser** | 1.18.0 | MIT | `sha256-PLACEHOLDER_FILL_AFTER_VENDORING` |
 | **zxing-wasm** | 1.2.3 | MIT | `sha256-PLACEHOLDER_FILL_AFTER_VENDORING` |
-| **texlyre-busytex** (XeLaTeX via WASM, local-compile path) | 1.2.3 | MIT | not tracked in `sri-manifest.json` |
-| **mhchem**, **chemgreek**, **simplekv** (LaTeX, `backend/latex-assets/sty/`, unmodified from CTAN; the browser TeX Live bundle lacks them) | mhchem 4.10, chemgreek 1.1a, simplekv 2025/06/15 | LPPL 1.3c | served with the other LaTeX assets (manifest SHA-256) |
+| **The browser LaTeX engine**: XeTeX and xdvipdfmx from TeX Live 2026.1 sources with kpathsea, HarfBuzz, FreeType, ICU, graphite2, TECkit, libpng, zlib, pplib and libpaper, compiled to WASM (`frontend/scripts/latex-engine/build-engine.sh`, host after TeXpresso's `wasm_host.c`) | TeX Live 2026.1 | XeTeX: MIT-style; kpathsea, graphite2, TECkit: LGPL-2.1 (the build script and pinned sources allow relinking); HarfBuzz: MIT; FreeType: FTL; ICU: Unicode; libpng, zlib: their own; TeXpresso host and fontconfig shim: MIT; emscripten runtime: MIT | `frontend/static/core/latex-engine/SHA256SUMS`, checked by `.github/workflows/latex-engine.yml` |
+| **mhchem**, **chemgreek**, **simplekv** (LaTeX, `backend/latex-assets/sty/`, unmodified from CTAN; vendored since before the server's TeX Live) | mhchem 4.10, chemgreek 1.1a, simplekv 2025/06/15 | LPPL 1.3c | served with the other LaTeX assets (manifest SHA-256) |
 
 *Integrity verification is scaffolded but not wired in.* `fetchAndVerifyWasm()` exists in `#lib/crypto/sri.ts` but is not called from any loader; `static/sri-manifest.json` declares `"enforced": false` with every hash still a placeholder. The Argon2 module that derives every encryption key is therefore loaded unverified today. `opencv.js`, previously listed here, is not a dependency of the current codebase (zero references under `frontend/src`) and has been removed from this table.
 

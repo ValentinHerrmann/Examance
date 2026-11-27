@@ -11,7 +11,6 @@ export default [
       '.svelte-kit/',
       'node_modules/',
       'static/',
-      '.busytex/',
       'coverage/',
       'playwright-report/',
       'test-results/',
@@ -31,7 +30,7 @@ export default [
 
   {
     rules: {
-      // Deliberate at untyped third-party boundaries (argon2-browser, busytex, pdf.js); svelte-check covers types.
+      // Deliberate at untyped third-party boundaries (argon2-browser, the LaTeX engine's WASM exports, pdf.js); svelte-check covers types.
       '@typescript-eslint/no-explicit-any': 'off',
 
       '@typescript-eslint/no-unused-vars': [

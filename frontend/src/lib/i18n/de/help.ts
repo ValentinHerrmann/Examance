@@ -26,7 +26,7 @@ export const help = {
         storageServer: 'Klausuren, Aufgaben und Ergebnisse liegen auf dem Server, aber verschlüsselt: Der Schlüssel bleibt im Browser, der Server kann die Inhalte nicht lesen. Unverschlüsselt sind nur der LaTeX-Quelltext von Aufgaben und Klausuren sowie die Gesamtpunktzahl.',
         storageHybrid: 'Aufgaben und Klausuren liegen auf dem Server (gut für ein Fachschafts-Repertoire). Schülerdaten, Scans und Punkte bleiben nur in diesem Browser, verschlüsselt, und sind auf anderen Geräten nicht sichtbar.',
         latexLocal: 'Die Klausur wird direkt im Browser gesetzt (WebAssembly-XeLaTeX). Der LaTeX-Quelltext verlässt das Gerät nicht. Die Engine wird nach der Anmeldung bzw. beim Umstellen im Hintergrund geladen (einmaliger Download); bis dahin dauert der erste Lauf länger.',
-        latexServer: 'Der Server setzt die Klausur. Schneller auf schwacher Hardware, dafür wird der LaTeX-Quelltext übertragen.',
+        latexServer: 'Der Server setzt die Klausur. Langsamer und ohne Live-Vorschau, dafür auch auf Geräten, auf denen die Kompilierung im Browser nicht läuft; der LaTeX-Quelltext wird übertragen.',
         variantKey: 'Varianten sind unterschiedliche Fassungen derselben Aufgabe (Gruppe A/B/C). Sie teilen sich Auswertung und Statistik, verhindern aber das Abschreiben.',
         mcPenalty: 'Punktabzug für falsch angekreuzte Optionen. 0 bedeutet: keine Minuspunkte. Die Gesamtpunktzahl einer Aufgabe wird nie negativ.',
         exerciseScore: String.raw`Gezählt werden \BE (1 Punkt), \hBE (0,5) und \qBE (0,25) im Quelltext, bei MC jede richtige Option. Eine feste Punktzahl ersetzt die gezählte; Feld leeren, um wieder zu zählen.`,
@@ -115,7 +115,7 @@ export const help = {
             },
             s2: {
                 h: 'Der Editor',
-                p1: 'Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau. „LaTeX-Bausteine einfügen“ über dem Quelltext bietet Bausteine für Lösungen, Punkte und Formatierung, dazu fachspezifische wie Baumdiagramme, Schaltungen oder Strukturformeln. Strg + F sucht, Strg + H ersetzt. Eine vorhandene Aufgabe speichert sich selbst; „Schließen“ speichert, was noch offen ist.',
+                p1: 'Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau: Mit LaTeX im Browser kompiliert sie nach dem ersten Kompilieren von selbst neu, kurz nachdem Sie aufhören zu tippen. „LaTeX-Bausteine einfügen“ über dem Quelltext bietet Bausteine für Lösungen, Punkte und Formatierung, dazu fachspezifische wie Baumdiagramme, Schaltungen oder Strukturformeln. Strg + F sucht, Strg + H ersetzt. Eine vorhandene Aufgabe speichert sich selbst; „Schließen“ speichert, was noch offen ist.',
             },
             s3: {
                 h: 'Punkte, Teilaufgaben und Anforderungsbereiche',
@@ -324,7 +324,7 @@ export const help = {
             },
             s2: {
                 h: 'LaTeX-Kompilierung',
-                p1: 'Im Browser (nichts verlässt das Gerät, der erste Lauf lädt die LaTeX-Umgebung) oder auf dem Server (schneller auf schwacher Hardware). Gilt pro Browser. Meldet der erste Lauf eine fehlende .sty-Datei, versuchen Sie es nach dem Download erneut.',
+                p1: 'Im Browser (der Quelltext verlässt das Gerät nicht; der erste Lauf lädt die LaTeX-Umgebung, danach setzt eine Änderung nur den Teil ab der Änderung neu) oder auf dem Server (langsamer, ohne Live-Vorschau). Empfohlen und voreingestellt ist der Browser; kann er auf einem Gerät nicht kompilieren, springt der Server ein, sofern Ihr Konto das erlaubt. Beide verwenden dasselbe TeX Live. Gilt pro Browser.',
             },
             s3: {
                 h: 'Sprache und Farbschema',

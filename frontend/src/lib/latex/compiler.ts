@@ -1,5 +1,6 @@
-/** Client-side LaTeX Compiler. Compiles LaTeX source to PDF bytes. Falls back to a server compile job (POST /api/v1/compile/latex/jobs) if WASM compiler is unavailable. */
+/** Client-side LaTeX compiler: the browser engine (compiler.worker.ts, issue #346) or a server compile job (POST /api/v1/compile/latex/jobs). */
 
+import { writable } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { translate } from '#lib/i18n';
 import { featureEnabled } from '#lib/stores/capabilities';
@@ -31,9 +32,29 @@ export interface CompileResult {
   fromCache?: boolean;
 }
 
-type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; seedAux?: AuxFile[] };
+/** `session` names the document (its cache slot) so the browser engine keeps its checkpoints for the next edit; without one it compiles from scratch. */
+type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; seedAux?: AuxFile[]; session?: string };
 
-/** One compiler worker, created on first use and kept for the session. Compiles are serialised via `compileQueue` and busytex is a single WASM VM, so a second worker would only double the TeX Live mount. */
+/** The browser engine itself failed (boot, download, crash, timeout), not the document: the server may compile it instead. */
+export class LocalEngineFailedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LocalEngineFailedError';
+  }
+}
+
+/** The browser engine cannot run on this device (no memory for an engine instance). */
+export class LocalEngineUnavailableError extends LocalEngineFailedError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LocalEngineUnavailableError';
+  }
+}
+
+/** Set when an engine failure was compiled on the server instead; `LocalLatexNotice` then offers to compile there from now on. */
+export const engineFallbackStore = writable(false);
+
+/** One compiler worker, created on first use and kept for the session. Compiles are serialised via `compileQueue`; the worker keeps a few engine sessions with their checkpoints, so a second worker would only double them. */
 let worker: Worker | null = null;
 let msgIdCounter = 0;
 let compileQueue: Promise<any> = Promise.resolve();
@@ -59,6 +80,10 @@ function acquireWorker(): Worker {
     let bytesDone = false;
     w.addEventListener('message', (e: MessageEvent) => {
       const m = e.data;
+      if (m?.type === 'tree-request') {
+        void answerTreeRequest(w, m);
+        return;
+      }
       if (m?.type !== 'download') return;
       if (typeof m.cached === 'boolean') engineCached = m.cached;
       if (m.done) {
@@ -78,6 +103,21 @@ function acquireWorker(): Worker {
     worker = w;
   }
   return worker;
+}
+
+/** TeX Live files for the worker (issue #346): only the main thread's API client can refresh an expired session. */
+async function answerTreeRequest(w: Worker, m: { reqId: number; kind: 'manifest' | 'file'; path?: string; version?: string }): Promise<void> {
+  try {
+    if (m.kind === 'manifest') {
+      w.postMessage({ type: 'tree-reply', reqId: m.reqId, value: await api.get('/texlive/index.json', { silentError: true }) });
+      return;
+    }
+    const path = (m.path ?? '').split('/').map(encodeURIComponent).join('/');
+    const bytes = new Uint8Array(await api.getBinary(`/texlive/${path}?v=${encodeURIComponent(m.version ?? '')}`, { silentError: true }));
+    w.postMessage({ type: 'tree-reply', reqId: m.reqId, value: bytes }, [bytes.buffer]);
+  } catch (err) {
+    w.postMessage({ type: 'tree-reply', reqId: m.reqId, error: err instanceof Error ? err.message : String(err) });
+  }
 }
 
 /** Drops the worker so the next compile starts a fresh one. */
@@ -130,7 +170,8 @@ async function compileLocalWasm(
   latexSource: string,
   onStatus?: (status: string) => void,
   resources: LatexResourceFile[] = [],
-  seedAux: AuxFile[] = []
+  seedAux: AuxFile[] = [],
+  session?: string
 ): Promise<CompileResult> {
   const runTask = async (): Promise<CompileResult> => {
     const w = acquireWorker();
@@ -169,6 +210,10 @@ async function compileLocalWasm(
               aux: e.data.aux ?? []
             })
           );
+        } else if (e.data.unavailable) {
+          settle(() => reject(new LocalEngineUnavailableError(e.data.error || 'The browser LaTeX engine cannot run here')));
+        } else if (e.data.engineFailed) {
+          settle(() => reject(new LocalEngineFailedError(e.data.error || 'The browser LaTeX engine failed')));
         } else {
           settle(() => reject(new LatexCompileError(e.data.error || 'Local compilation failed', e.data.log ?? '', 'local')));
         }
@@ -177,19 +222,19 @@ async function compileLocalWasm(
       const onError = (event: ErrorEvent) => {
         // The worker itself failed, so it is not reusable.
         discardWorker(`worker error during a compile: ${event.message}`);
-        settle(() => reject(new Error(event.message || 'Local compilation worker crashed')));
+        settle(() => reject(new LocalEngineFailedError(event.message || 'Local compilation worker crashed')));
       };
 
       const timer = setTimeout(() => {
         discardWorker('compile timeout');
         settle(() =>
-          reject(new Error('Local compilation timed out. The document may be too large.'))
+          reject(new LocalEngineFailedError('Local compilation timed out. The document may be too large.'))
         );
       }, COMPILE_TIMEOUT_MS);
 
       w.addEventListener('message', onMessage);
       w.addEventListener('error', onError);
-      w.postMessage({ id, latexSource, resources, seedAux });
+      w.postMessage({ id, latexSource, resources, seedAux, session });
     });
   };
 
@@ -211,14 +256,13 @@ export async function compileLatex(
   latexSource: string,
   useLocal = false,
   onStatus?: (status: string) => void,
-  promptFallback = true,
   opts: CompileOpts = {}
 ): Promise<CompileResult> {
   // Builders mark each exercise body (sourceMap.ts); the engines get the unmarked document.
   const map = extractSourceMap(latexSource);
   const started = performance.now();
   try {
-    const result = await compileMapped(map.tex, useLocal, onStatus, promptFallback, opts);
+    const result = await compileMapped(map.tex, useLocal, onStatus, opts);
     const durationMs = Math.round(performance.now() - started);
     // Timing only, never content: shows whether a slow compile is the engine, the queue or the seeds.
     console.info(`[compiler] ${result.engineUsed} compile took ${(durationMs / 1000).toFixed(1)} s (seeded: ${(opts.seedAux ?? []).length > 0})`);
@@ -231,11 +275,18 @@ export async function compileLatex(
   }
 }
 
+/** Whether a failed local compile goes to the server: only when the engine failed (a LaTeX error fails there too) and the account may compile there. */
+export function fallBackToServer(err: unknown): boolean {
+  if (!(err instanceof LocalEngineFailedError)) return false;
+  if (featureEnabled('server_latex')) return true;
+  if (err instanceof LocalEngineUnavailableError) throw new Error(translate('misc.compiler.engineUnavailable'));
+  return false;
+}
+
 async function compileMapped(
   latexSource: string,
   useLocal: boolean,
   onStatus: ((status: string) => void) | undefined,
-  promptFallback: boolean,
   opts: CompileOpts
 ): Promise<CompileResult> {
   // Throws on a real filename conflict between two exercises — surfacing that beats compiling a document where one figure silently wins.
@@ -247,19 +298,13 @@ async function compileMapped(
     try {
       // The logo goes in after the merge: its name is reserved, so no exercise file can collide.
       const localFiles = logo?.file ? [...resources, logo.file] : resources;
-      return await compileLocalWasm(latexSource, onStatus, localFiles, seedAux);
-    } catch (err: any) {
-      // Offer the server only to an account that may use it; it would refuse the compile otherwise.
-      if (
-        promptFallback &&
-        featureEnabled('server_latex') &&
-        typeof window !== 'undefined' &&
-        window.confirm(translate('misc.compiler.localFailedTryServer'))
-      ) {
-        const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
-        return { ...result, usedFallback: true };
-      }
-      throw err;
+      return await compileLocalWasm(latexSource, onStatus, localFiles, seedAux, opts.session);
+    } catch (err) {
+      if (!fallBackToServer(err)) throw err;
+      console.warn('[compiler] The browser engine failed; compiling on the server instead:', err);
+      const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
+      engineFallbackStore.set(true);
+      return { ...result, usedFallback: true };
     }
   }
   return compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);

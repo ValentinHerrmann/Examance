@@ -4,8 +4,8 @@
 # is the one that renders the app, holds session key material, and decrypts
 # student PII in memory — it needs its own headers.
 #
-# 'wasm-unsafe-eval' is required by argon2-browser, zxing-wasm, busytex and
-# EmbedPDF's PDFium engine.
+# 'wasm-unsafe-eval' is required by argon2-browser, zxing-wasm, the LaTeX engine
+# (XeTeX and xdvipdfmx) and EmbedPDF's PDFium engine.
 # blob: covers the compiler worker, the EmbedPDF render worker (worker-src),
 # and pdf.js rendering. PDF previews (compiled Angabe/Lösung, scanned
 # submissions) are rendered in-page by EmbedPDF (see lib/pdf/embedpdf.ts)
@@ -40,8 +40,8 @@
 #
 # If the build step is skipped the placeholder survives, browsers ignore the
 # unknown source expression, and inline script stays blocked — fail-closed.
-# Cache-Control: busytex/LaTeX assets are large and rarely change; explicit
-# rules avoid revalidating them on every load. Ordered least- to
+# Cache-Control: explicit rules per asset kind (content-hashed files never
+# revalidate, the LaTeX engine's files do). Ordered least- to
 # most-specific — Pages applies every matching rule and the later one wins.
 
 /*
@@ -58,14 +58,11 @@
 /_app/immutable/*
   Cache-Control: public, max-age=31536000, immutable
 
-# TeX Live bundles and LaTeX assets: not content-hashed, but only change on
-# redeploy, which compiler.worker.ts detects via chunk-manifest.json — so the
-# manifest below is deliberately NOT immutable.
-/core/busytex/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/core/busytex/chunk-manifest.json
+# The browser LaTeX engine (src/lib/latex/engine/, issue #346): gzipped files the
+# worker inflates itself, so they go out as plain bytes; not content-hashed, hence revalidated.
+/core/latex-engine/*
   Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: application/octet-stream
 
 # pdf.js ships its worker as .mjs; make the JS MIME type explicit so the
 # module worker is accepted regardless of the host's extension mapping.
@@ -76,12 +73,6 @@
 # directory via a Vite `?url` import — same belt-and-suspenders MIME
 # override as pdf.worker's .mjs above.
 /_app/immutable/assets/*.wasm
-  Content-Type: application/wasm
-
-/core/busytex/*.wasm
-  Content-Type: application/wasm
-
-/core/busytex/*.wasm.bin
   Content-Type: application/wasm
 
 /wasm/*.wasm

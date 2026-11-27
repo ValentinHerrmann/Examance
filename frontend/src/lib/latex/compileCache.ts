@@ -54,7 +54,7 @@ export async function computeCompileContentHash(
   latexSource: string,
   resources: LatexResourceFile[] = [],
   resourceExerciseIds: string[] = [],
-  engine: 'local' | 'server' = 'local',
+  engine: string = 'local',
   logoFingerprint = ''
 ): Promise<string> {
   const enc = new TextEncoder();
@@ -298,13 +298,21 @@ function explainMiss(key: CompileCacheKey, now: InputSummary): void {
   console.info(`[compileCache] ${makeSlotKey(key)} is stale: ${changed.join(', ')} changed${detail}`);
 }
 
+/** The browser engine in the hash: PDFs from the busytex engine it replaced (issue #346) are never served as its output. */
+const LOCAL_ENGINE_TAG = 'local-texlive-2026';
+
+/** Slots whose document is edited and compiled again keep an engine session with checkpoints; one-off documents (extra sheet, layout sample) do not. */
+function sessionOf(key: CompileCacheKey): string | undefined {
+  return key.kind === 'exercise' || key.kind === 'exam' ? makeSlotKey(key) : undefined;
+}
+
 /** The one hash recipe for a compile, shared by `compileWithCache` and `getCachedFor`. */
 function hashFor(latexSource: string, useLocal: boolean, opts: CompileOpts): Promise<string> {
   return computeCompileContentHash(
     latexSource,
     mergeResources(opts.resources ?? []),
     opts.resourceExerciseIds ?? [],
-    useLocal ? 'local' : 'server',
+    useLocal ? LOCAL_ENGINE_TAG : 'server',
     opts.logo?.fingerprint
   );
 }
@@ -328,7 +336,6 @@ export async function compileWithCache(
   latexSource: string,
   useLocal = false,
   onStatus?: (status: string) => void,
-  promptFallback = true,
   opts: CompileOpts = {}
 ): Promise<CompileResult> {
   const hash = await hashFor(latexSource, useLocal, opts);
@@ -337,7 +344,7 @@ export async function compileWithCache(
   if (hit) return hitResult(hit);
 
   const startedAt = invalidationSeq;
-  const result = await compileLatex(latexSource, useLocal, onStatus, promptFallback, { ...opts, seedAux: await seedFor(key) });
+  const result = await compileLatex(latexSource, useLocal, onStatus, { ...opts, seedAux: await seedFor(key), session: sessionOf(key) });
   if (invalidatedSince(makeSlotKey(key), startedAt)) return result;
   setCached(key, hash, result);
   persist(key, hash, result);

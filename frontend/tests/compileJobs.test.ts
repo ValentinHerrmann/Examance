@@ -17,7 +17,7 @@ describe('server compile jobs', () => {
   it('starts a job and polls until the PDF arrives', async () => {
     const pdf = new Uint8Array([37, 80, 68, 70]).buffer;
     const poll = vi.spyOn(api, 'pollBinary').mockResolvedValueOnce(undefined).mockResolvedValueOnce(pdf);
-    const done = compileLatex('\\documentclass{article}', false, undefined, false);
+    const done = compileLatex('\\documentclass{article}', false);
     await vi.runAllTimersAsync();
     const result = await done;
     expect(api.post).toHaveBeenCalledWith('/compile/latex/jobs', expect.objectContaining({ latex: '\\documentclass{article}' }), { silentError: true });
@@ -31,7 +31,7 @@ describe('server compile jobs', () => {
     const body = JSON.stringify({ pdf_b64: btoa('%PDF-1.7'), aux: { 'main.aux': btoa('\\relax') } });
     vi.spyOn(api, 'pollBinary').mockResolvedValueOnce(new TextEncoder().encode(body).buffer);
     const seed = { path: 'main.aux', content: new TextEncoder().encode('\\relax old') };
-    const done = compileLatex('\\documentclass{article}', false, undefined, false, { seedAux: [seed] });
+    const done = compileLatex('\\documentclass{article}', false, undefined, { seedAux: [seed] });
     await vi.runAllTimersAsync();
     const result = await done;
     expect(api.post).toHaveBeenCalledWith('/compile/latex/jobs', expect.objectContaining({ return_aux: true, seed_aux: { 'main.aux': btoa('\\relax old') } }), { silentError: true });
@@ -43,7 +43,7 @@ describe('server compile jobs', () => {
   it('turns a failed job into a LatexCompileError with the TeX log', async () => {
     const failed = new ApiError(422, 'ERR_COMPILE_FAILED', '! Boom', null, { detail: '! Boom', log: 'full log' });
     vi.spyOn(api, 'pollBinary').mockRejectedValue(failed);
-    const done = compileLatex('\\documentclass{article}', false, undefined, false).catch((e) => e);
+    const done = compileLatex('\\documentclass{article}', false).catch((e) => e);
     await vi.runAllTimersAsync();
     const err = await done;
     expect(err).toBeInstanceOf(LatexCompileError);
@@ -52,7 +52,7 @@ describe('server compile jobs', () => {
 
   it('says the server restarted when the job is gone', async () => {
     vi.spyOn(api, 'pollBinary').mockRejectedValue(new ApiError(404, 'ERR_COMPILE_JOB_UNKNOWN', 'gone'));
-    const done = compileLatex('\\documentclass{article}', false, undefined, false).catch((e) => e);
+    const done = compileLatex('\\documentclass{article}', false).catch((e) => e);
     await vi.runAllTimersAsync();
     expect((await done).message).toMatch(/restart|neu gestartet/);
   });

@@ -182,7 +182,7 @@ ${extraSheetCodesLatex()}
 /** Compiles the extra sheet into the compile cache; it has no exam content, so the cache keys on the paper alone. */
 export function compileExtraSheet(paper: PaperStyle, onStatus?: (status: string) => void): Promise<CompileResult> {
   const useLocal = effectiveLatexCompilation() === "local";
-  return compileWithCache({ kind: "extra-sheet", id: paper, variant: "angabe" }, extraSheetLatex(paper), useLocal, onStatus, false, {});
+  return compileWithCache({ kind: "extra-sheet", id: paper, variant: "angabe" }, extraSheetLatex(paper), useLocal, onStatus, {});
 }
 
 /** What the sheet builders read: the exam's sources and the session key. */
@@ -263,11 +263,10 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
     src.angabeTex,
     useLocal,
     input.onStatus,
-    false,
     opts
   );
   const compileLoesung = () =>
-    compileWithCache({ kind: "exam", id: exam.id, variant: "loesung" }, src.loesungTex, useLocal, undefined, false, opts);
+    compileWithCache({ kind: "exam", id: exam.id, variant: "loesung" }, src.loesungTex, useLocal, undefined, opts);
   // The server has two compile slots, so both sheets run at once (issue #341); the browser engine is one queue anyway.
   const loesungPromise = input.solution !== false && !useLocal ? compileLoesung() : null;
   // Never left unhandled while the task sheet is awaited: its error surfaces at the await below.

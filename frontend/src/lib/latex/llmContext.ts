@@ -76,7 +76,7 @@ export function templateCommandsSection(): string {
 export function documentSetup(engine: 'local' | 'server' | null): string {
   const compiler =
     engine === 'local'
-      ? 'XeLaTeX in the browser (busytex, a reduced TeX Live 2026)'
+      ? 'XeLaTeX in the browser (the server\'s TeX Live 2026, compiled to WebAssembly)'
       : 'XeLaTeX on the server (TeX Live 2026, pinned snapshot; a curated package set, so rare packages may be missing)';
   return [
     `- Engine: ${compiler}; UTF-8 input with ${code('fontspec')}.`,

@@ -1,397 +1,413 @@
-import './fetchInterceptor';
+/// <reference lib="webworker" />
+/**
+ * The browser LaTeX engine (issue #346): XeTeX with checkpoints per document session, then xdvipdfmx, on the server's TeX Live tree.
+ * Protocol (compiler.ts): {type:'assets'}, {type:'preload'}, {id, latexSource, resources, seedAux, session?}; answers {id, status},
+ * {type:'download', …}, {id, success, pdfBytes, missingGraphics, aux} or {id, success:false, error, log, engineFailed?, unavailable?}, and asks
+ * {type:'tree-request', reqId, kind, path?} for TeX Live files, which the main thread fetches through the authenticated API client.
+ */
+import { BIN_DIR, DEFAULT_MEMORY_BUDGET, EngineUnavailableError, TexEngine, type RunResult } from './engine/engine';
+import { idb, LazyTree, TREE_ROOT, type TreeManifest, type TreeSource } from './engine/tree';
+import { dumpSource, formatKey, splitPreamble, TEX_FLAGS, withFormat } from './engine/format';
+import { pdfInputs } from './engine/pdfStep';
+import { compileLogForUser, describeCompileFailure, extractMissingGraphics, type CompileStep } from './compileLog';
+import templateFiles from './engine/templateFiles.json';
+import { sha256Hex } from '#lib/crypto/hex';
+import engineSums from '../../../static/core/latex-engine/SHA256SUMS?raw';
 
-import { BusyTexRunner, XeLatex, isPackageCached, clearAllPackageCache } from 'texlyre-busytex';
-import type { LogEntry } from 'texlyre-busytex';
-import { extractTexErrors } from './texLog';
+const ENGINE_BASE = '/core/latex-engine';
+const AUX_FILES = ['main.aux', 'main.toc', 'main.out'];
+/** Same limit as the server (texrunner MAX_TEX_PASSES). */
+const MAX_TEX_PASSES = 4;
+const MAX_AUX_FILE_BYTES = 512 * 1024;
+/** Few-GB devices keep one live session and a lower budget; elsewhere the exercise editor's task sheet and solution each keep theirs. */
+const lowMemory = ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
+const MAX_SESSIONS = lowMemory ? 1 : 2;
+const SESSION_BUDGET = lowMemory ? 500 * 2 ** 20 : DEFAULT_MEMORY_BUDGET;
 
-let runner: BusyTexRunner | null = null;
-let xelatex: XeLatex | null = null;
+// --- TeX Live files through the main thread ------------------------------------------------
 
-const packages = [
-  '/core/busytex/texlive-basic.js',
-  '/core/busytex/texlive-recommended.js',
-  '/core/busytex/texlive-extra.js'
-];
+let treeReq = 0;
+const treeWaiters = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
 
-// Asset-version cache busting: texlyre-busytex's `ensureCacheVersion` is a no-op in Workers (guards on `localStorage`) and keys on the npm version, which doesn't change when we redeploy our TeX Live bundles (stale packages, bogus "File `X.sty' not found"). We track the chunk-manifest fingerprint in IndexedDB instead and wipe the cache when it changes.
-const ASSET_VERSION_DB = 'blindgrade-busytex-asset-version';
-const ASSET_VERSION_STORE = 'version';
-const ASSET_VERSION_KEY = 'fingerprint';
-
-function openAssetVersionDb(): Promise<IDBDatabase | null> {
-  return new Promise((resolve) => {
-    if (typeof indexedDB === 'undefined') {
-      resolve(null);
-      return;
-    }
-    const request = indexedDB.open(ASSET_VERSION_DB, 1);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore(ASSET_VERSION_STORE);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
+function askMain<T>(msg: { kind: 'manifest' } | { kind: 'file'; path: string; version: string }): Promise<T> {
+  const reqId = ++treeReq;
+  return new Promise<T>((resolve, reject) => {
+    treeWaiters.set(reqId, { resolve: resolve as (v: unknown) => void, reject });
+    self.postMessage({ type: 'tree-request', reqId, ...msg });
   });
 }
 
-async function getStoredAssetFingerprint(): Promise<string | null> {
-  const db = await openAssetVersionDb();
-  if (!db) return null;
-  try {
-    return await new Promise((resolve) => {
-      const tx = db.transaction(ASSET_VERSION_STORE, 'readonly');
-      const req = tx.objectStore(ASSET_VERSION_STORE).get(ASSET_VERSION_KEY);
-      req.onsuccess = () => resolve((req.result as string | undefined) ?? null);
-      req.onerror = () => resolve(null);
-    });
-  } finally {
-    db.close();
-  }
+const source: TreeSource = {
+  manifest: () => askMain<TreeManifest>({ kind: 'manifest' }),
+  file: (path, version) => askMain<Uint8Array>({ kind: 'file', path, version }),
+};
+
+// --- boot -----------------------------------------------------------------------------------
+
+interface Runtime {
+  tree: LazyTree;
+  xetex: WebAssembly.Module;
+  xdvipdfmx: WebAssembly.Module;
+  icu: Uint8Array;
 }
 
-async function setStoredAssetFingerprint(fingerprint: string): Promise<void> {
-  const db = await openAssetVersionDb();
+let runtime: Promise<Runtime> | null = null;
+
+/** Gzipped engine files committed under static/; a host that already decoded them (Content-Encoding) gets them as they are. */
+/** The committed checksums of the uncompressed engine files (written by build-engine.sh). */
+const ENGINE_SUMS = new Map(
+  engineSums
+    .trim()
+    .split('\n')
+    .map((line) => line.split(/\s+/) as [string, string])
+    .map(([sum, name]) => [name, sum]),
+);
+
+/** An engine file, inflated and checked against the checksum bundled with this build, so only the engine we built ever runs. */
+async function fetchGz(name: string, onBytes: (n: number) => void): Promise<Uint8Array<ArrayBuffer>> {
+  const res = await fetch(`${ENGINE_BASE}/${name}.gz`);
+  if (!res.ok) throw new Error(`LaTeX engine file ${name}: HTTP ${res.status}`);
+  let bytes = new Uint8Array(await res.arrayBuffer());
+  onBytes(bytes.length);
+  // A dev server may already have inflated it (Content-Encoding).
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  if ((await sha256Hex(bytes)) !== ENGINE_SUMS.get(name)) throw new Error(`LaTeX engine file ${name}: checksum mismatch`);
+  return bytes;
+}
+
+/** Engine files plus the template's TeX Live files, reported as one download for the loading dialog. */
+async function bootRuntime(): Promise<Runtime> {
+  const tree = await LazyTree.open(source);
+  const template = (templateFiles as string[]).map((p) => `${TREE_ROOT}/${p}`);
+  const engineBytes = 13 * 2 ** 20;
+  const total = engineBytes + template.reduce((n, p) => n + Math.max(0, tree.size(p)), 0);
+  let loaded = 0;
+  const report = (n: number) => {
+    loaded += n;
+    self.postMessage({ type: 'download', phase: 'download', loaded: Math.min(loaded, total), total, cached: false });
+  };
+  const fetchedBefore = tree.fetchedBytes;
+  const [xetex, xdvipdfmx, icu] = await Promise.all([
+    fetchGz('xetex.wasm', report).then((b) => WebAssembly.compile(b)),
+    fetchGz('xdvipdfmx.wasm', report).then((b) => WebAssembly.compile(b)),
+    fetchGz('icudt78l.dat', report),
+    tree.prefetch(template).then(() => report(tree.fetchedBytes - fetchedBefore)),
+  ]);
+  self.postMessage({ type: 'download', done: true });
+  return { tree, xetex, xdvipdfmx, icu };
+}
+
+function boot(): Promise<Runtime> {
+  runtime ??= bootRuntime().catch((err) => {
+    runtime = null;
+    self.postMessage({ type: 'download', done: true });
+    throw err;
+  });
+  return runtime;
+}
+
+// --- assets ---------------------------------------------------------------------------------
+
+/** The bundled LaTeX assets, posted once by the main thread; `sty/x.sty` and `sty/x.tex` are also exposed flat (`\input x.tex`). */
+let assets: { path: string; content: Uint8Array }[] = [];
+let assetsDigest = '';
+
+async function setAssets(files: { path: string; content: Uint8Array }[]): Promise<void> {
+  assets = files.flatMap((file) =>
+    file.path.startsWith('sty/') && /\.(sty|tex)$/.test(file.path) ? [file, { path: file.path.replace('sty/', ''), content: file.content }] : [file]
+  );
+  const parts = [...assets].sort((a, b) => (a.path < b.path ? -1 : 1)).flatMap((f) => [new TextEncoder().encode(`${f.path}\0`), f.content]);
+  const all = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) {
+    all.set(p, at);
+    at += p.length;
+  }
+  assetsDigest = await sha256Hex(all);
+}
+
+// --- formats per preamble (issue #344) --------------------------------------------------------
+
+const FORMAT_DB = 'examance-latex-formats';
+const MAX_FORMATS = 8;
+const failedFormats = new Set<string>();
+
+async function formatDb(): Promise<IDBDatabase | null> {
+  if (typeof indexedDB === 'undefined') return null;
+  return new Promise((resolve) => {
+    const req = indexedDB.open(FORMAT_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('formats');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+}
+
+/** Formats hold no workspace data (template and package code only), so they live outside the encrypted vault; least recently used go first. */
+async function storeFormat(key: string, bytes: Uint8Array): Promise<void> {
+  const db = await formatDb();
   if (!db) return;
   try {
-    await new Promise<void>((resolve) => {
-      const tx = db.transaction(ASSET_VERSION_STORE, 'readwrite');
-      tx.objectStore(ASSET_VERSION_STORE).put(fingerprint, ASSET_VERSION_KEY);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-      tx.onabort = () => resolve();
-    });
+    const store = db.transaction('formats', 'readwrite').objectStore('formats');
+    store.put({ bytes, used: Date.now() }, key);
+    const keys = (await idb(store.getAllKeys())) as string[];
+    if (keys.length > MAX_FORMATS) {
+      const all = (await idb(db.transaction('formats').objectStore('formats').getAll())) as { used: number }[];
+      const order = keys.map((k, i) => [k, all[i].used] as const).sort((a, b) => a[1] - b[1]);
+      const tx = db.transaction('formats', 'readwrite');
+      for (const [k] of order.slice(0, keys.length - MAX_FORMATS)) tx.objectStore('formats').delete(k);
+    }
   } finally {
     db.close();
   }
 }
 
-async function fetchAssetFingerprint(): Promise<string | null> {
+async function loadFormat(key: string): Promise<Uint8Array | null> {
+  const db = await formatDb();
+  if (!db) return null;
   try {
-    const res = await fetch('/core/busytex/chunk-manifest.json');
-    if (!res.ok) return null;
-    return await res.text();
-  } catch {
+    const hit = (await idb(db.transaction('formats').objectStore('formats').get(key))) as { bytes: Uint8Array } | undefined;
+    if (hit) db.transaction('formats', 'readwrite').objectStore('formats').put({ bytes: hit.bytes, used: Date.now() }, key);
+    return hit?.bytes ?? null;
+  } finally {
+    db.close();
+  }
+}
+
+/** The format for `preamble` (built once, then from IndexedDB), or null when it cannot be built; the compile then runs without it, like on the server. */
+async function formatFor(rt: Runtime, preamble: string): Promise<string | null> {
+  const key = await formatKey(rt.tree.version, assetsDigest, preamble);
+  const path = `/fmt/${key}.fmt`;
+  if (rt.tree.cached(path)) return path;
+  if (failedFormats.has(key)) return null;
+  const stored = await loadFormat(key);
+  if (stored) {
+    rt.tree.add(path, stored);
+    return path;
+  }
+  const engine = new TexEngine({ module: rt.xetex, tree: rt.tree, icuData: rt.icu, format: null, incremental: false });
+  for (const f of assets) engine.inputs.set(f.path, f.content);
+  engine.inputs.set('fmt.tex', new TextEncoder().encode(dumpSource(preamble)));
+  const r = await engine.runFull([`${BIN_DIR}/xelatex`, '-ini', ...TEX_FLAGS, `-jobname=${key}`, '&xelatex', 'mylatexformat.ltx', 'fmt.tex']);
+  const fmt = r.exitCode === 0 ? r.outputs.get(`/work/${key}.fmt`) : undefined;
+  if (!fmt) {
+    // A preamble the format cannot hold (a package loads a native font at load time) still compiles, just without the head start.
+    failedFormats.add(key);
     return null;
   }
+  rt.tree.add(path, fmt);
+  void storeFormat(key, fmt);
+  return path;
 }
 
-async function ensureAssetCacheIsFresh(): Promise<void> {
-  const [stored, current] = await Promise.all([getStoredAssetFingerprint(), fetchAssetFingerprint()]);
-  if (!current) return; // Can't determine freshness; don't wipe a possibly-good cache.
-  if (stored !== null && stored !== current) {
-    console.warn('[CompilerWorker] Bundled TeX Live assets changed since last visit; clearing cached packages.');
-    try {
-      await clearAllPackageCache();
-    } catch (err) {
-      console.warn('[CompilerWorker] Failed to clear stale package cache:', err);
-    }
-  }
-  if (stored !== current) {
-    await setStoredAssetFingerprint(current);
-  }
+// --- sessions -------------------------------------------------------------------------------
+
+interface Session {
+  engine: TexEngine;
+  ran: boolean;
+  format: string | null;
+  resources: Set<string>;
 }
 
-// --- Runner lifecycle ----------------------------------------------------
+/** Live engines by cache slot (least recently used first); a compile without a slot gets a throwaway engine without checkpoints. */
+const sessions = new Map<string, Session>();
 
-/** Sum of the compressed chunk sizes: the total scripts/fetch-interceptor.js reports, which tells its byte messages apart from emscripten's. */
-async function compressedEngineBytes(): Promise<number> {
-  const text = await fetchAssetFingerprint();
-  if (!text) return 0;
-  try {
-    const manifest = JSON.parse(text) as Record<string, { gzippedSize?: number }>;
-    return Object.values(manifest).reduce((sum, e) => sum + (e?.gzippedSize ?? 0), 0);
-  } catch {
-    return 0;
-  }
+function newSession(rt: Runtime, incremental: boolean, format: string | null): Session {
+  const engine = new TexEngine({ module: rt.xetex, tree: rt.tree, icuData: rt.icu, format, incremental, memoryBudget: SESSION_BUDGET });
+  for (const f of assets) engine.inputs.set(f.path, f.content);
+  return { engine, ran: false, format, resources: new Set() };
 }
 
-async function allPackagesCached(): Promise<boolean> {
-  for (const pkg of packages) {
-    try {
-      if (!(await isPackageCached(pkg))) return false; // NOSONAR: early exit on the first uncached package
-    } catch {
-      return false;
-    }
+function sessionFor(rt: Runtime, key: string | undefined, format: string | null): Session {
+  if (!key) return newSession(rt, false, format);
+  const existing = sessions.get(key);
+  sessions.delete(key);
+  // A different format means a different preamble: the old checkpoints describe another document.
+  const s = existing?.format === format ? existing : newSession(rt, true, format);
+  sessions.set(key, s);
+  while (sessions.size > MAX_SESSIONS) sessions.delete(sessions.keys().next().value as string);
+  return s;
+}
+
+// --- compile --------------------------------------------------------------------------------
+
+interface CompileRequest {
+  id: number;
+  latexSource: string;
+  resources?: { filename: string; content: Uint8Array }[];
+  seedAux?: { path: string; content: Uint8Array }[];
+  session?: string;
+}
+
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+/** Puts the document, its resources and (for a fresh session) the aux seeds in; the earliest trace index they invalidate, or -1. */
+function feedInputs(s: Session, req: CompileRequest, tex: string): number {
+  const e = s.engine;
+  let invalid = -1;
+  const note = (i: number) => {
+    if (i >= 0) invalid = invalid < 0 ? i : Math.min(invalid, i);
+  };
+  // Teacher resources go in flat and never over a bundled asset (lib/latex/resources.ts refuses such names at upload; this is the second line).
+  const bundled = new Set(assets.map((a) => a.path));
+  const now = new Set<string>();
+  for (const r of req.resources ?? []) {
+    if (bundled.has(r.filename)) continue;
+    now.add(r.filename);
+    note(e.setInput(r.filename, r.content));
   }
+  for (const gone of s.resources) if (!now.has(gone)) note(e.deleteInput(gone));
+  s.resources = now;
+  if (!s.ran) for (const a of req.seedAux ?? []) if (AUX_FILES.includes(a.path)) e.setInput(a.path, a.content);
+  note(e.setInput('main.tex', enc.encode(tex)));
+  return invalid;
+}
+
+/** Makes the run's changed aux files the next inputs; the earliest trace index they invalidate, or null when all settled. */
+function feedAux(e: TexEngine, last: RunResult): number | null {
+  let invalid: number | null = null;
+  for (const name of AUX_FILES) {
+    const out = last.outputs.get(`/work/${name}`);
+    const prev = e.inputs.get(name);
+    if (!out || (prev && sameBytes(prev, out))) continue;
+    const i = e.setInput(name, out);
+    // A file the run never looked for still needs a pass when it is new (first compile).
+    const at = i < 0 && !prev ? 0 : i;
+    if (at >= 0) invalid = invalid === null ? at : Math.min(invalid, at);
+  }
+  return invalid;
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
 }
 
-async function initRunner(onStatus: (status: string) => void) {
-  if (!runner) {
-    await ensureAssetCacheIsFresh();
+/** Durations and counts only (never content), for the compile's console line and tests. */
+interface Timings {
+  formatMs: number;
+  format: 'none' | 'cached' | 'dumped';
+  passes: { ms: number; from: 'start' | number }[];
+  pdfMs: number;
+  checkpoints?: number;
+  mode?: string;
+  checkpointMB?: number;
+}
 
-    const allCached = await allPackagesCached();
-
-    if (!allCached) {
-      onStatus('downloading');
-    } else {
-      onStatus('compiling');
-    }
-
-    // Progress for the loading dialog (store: lib/latex/downloadProgress.ts). The nested busytex worker reports bytes via scripts/fetch-interceptor.js as "Downloading data... (loaded/total)" with the manifest's compressed total; emscripten's own lines of that shape carry uncompressed per-package totals and are ignored. Package steps arrive as "Preparing... (n/m)". The dialog stays up until initialize() is through, also when everything is cached.
-    const compressedTotal = await compressedEngineBytes();
-    console.info(`[CompilerWorker] creating a new engine (TeX Live packages cached: ${allCached})`);
-    runner = new BusyTexRunner({
-      busytexBasePath: '/core/busytex',
-      preloadDataPackages: packages,
-      onDownloadProgress: ({ loaded, total }) => {
-        if (total === compressedTotal) self.postMessage({ type: 'download', phase: 'download', loaded, total, cached: allCached });
-        else if (total > 1 && total < 1000) self.postMessage({ type: 'download', phase: 'prepare', step: loaded, steps: total, cached: allCached });
-      }
-    });
-    self.postMessage({ type: 'download', phase: 'prepare', step: 0, steps: 0, cached: allCached });
-    try {
-      await runner.initialize();
-    } catch (err) {
-      // A half-built runner would make the next call fail with "failed to initialize" instead of retrying.
-      resetRunner(`initialize failed: ${err instanceof Error ? err.message : err}`);
-      throw err;
-    } finally {
-      self.postMessage({ type: 'download', done: true });
-    }
-    xelatex = new XeLatex(runner);
-  } else {
-    onStatus('compiling');
+async function typeset(s: Session, req: CompileRequest, tex: string, args: string[], t: Timings): Promise<RunResult> {
+  const invalid = feedInputs(s, req, tex);
+  // Nothing the last run read changed: resume from the last checkpoint and replay only the tail.
+  const from = invalid < 0 ? Number.POSITIVE_INFINITY : invalid;
+  let last = s.ran ? await s.engine.rerun(from) : await s.engine.runFull(args);
+  s.ran = true;
+  t.passes.push({ ms: last.ms, from: last.resumedFrom });
+  for (let pass = 1; pass < MAX_TEX_PASSES && last.exitCode === 0; pass++) {
+    const at = feedAux(s.engine, last);
+    if (at === null) break;
+    last = await s.engine.rerun(at); // NOSONAR: each pass reads the aux files of the one before
+    t.passes.push({ ms: last.ms, from: last.resumedFrom });
   }
+  return last;
 }
 
-/** The bundled LaTeX assets, posted once by the main thread (`compiler.ts`, which owns the authenticated fetch) before any preload or compile. `sty/x.sty` and `sty/x.tex` are also exposed flat (`\input x.tex`). */
-let bundledAssets: { path: string; content: Uint8Array }[] | null = null;
-
-function loadAdditionalFiles(): { path: string; content: Uint8Array }[] {
-  if (!bundledAssets) throw new Error('LaTeX assets were not provided to the compiler worker.');
-  return bundledAssets.flatMap((file) =>
-    file.path.startsWith('sty/') && /\.(sty|tex)$/.test(file.path)
-      ? [file, { path: file.path.replace('sty/', ''), content: file.content }]
-      : [file]
-  );
+async function toPdf(rt: Runtime, s: Session, xdv: Uint8Array): Promise<{ pdf: Uint8Array | undefined; step: CompileStep }> {
+  const engine = new TexEngine({ module: rt.xdvipdfmx, tree: rt.tree, icuData: rt.icu, format: null, incremental: false });
+  for (const [name, bytes] of pdfInputs(s.engine.inputs, xdv)) engine.inputs.set(name, bytes);
+  const cmd = [`${BIN_DIR}/xdvipdfmx`, '-q', '-E', '-o', 'main.pdf', 'main.xdv'];
+  const r = await engine.runFull(cmd);
+  return { pdf: r.exitCode === 0 ? r.outputs.get('/work/main.pdf') : undefined, step: { cmd: cmd.join(' '), stdout: r.stdout, exit_code: r.exitCode } };
 }
 
-const AUX_EXTENSIONS = ['.aux', '.toc', '.out'];
-const MAX_TEX_RUNS = 4;
-
-/** busytex's own rerun loop always does 4 XeTeX runs (its `rerunfilecheck` pattern matches whenever hyperref loads the package), ~3.5 s each. We run single passes (`rerun: false`) and feed the previous run's aux files back until they stop changing: usually 2 runs (Schulaufgabe.sty passes each task's score to the next run through the aux file), and 1 when `seed` (the previous compile's aux, issue #341) is already right; a stale seed only costs a rerun. */
-async function compileUntilStable(
-  engine: XeLatex,
-  activeRunner: BusyTexRunner | null,
-  input: string,
-  baseFiles: { path: string; content: Uint8Array }[],
-  seed: { path: string; content: Uint8Array }[] = []
-) {
-  let aux = seed;
-  let result = await engine.compile({ input, additionalFiles: [...baseFiles, ...aux], rerun: false });
-  // A stale seed (a macro the document no longer defines) must not fail the compile: retry once from scratch.
-  if (!result.success && seed.length > 0) return compileUntilStable(engine, activeRunner, input, baseFiles);
-  for (let run = 1; run <= MAX_TEX_RUNS && result.success && activeRunner; run++) {
-    const next = (await activeRunner.readProjectFiles()) // NOSONAR: each run feeds on the previous run's aux files
-      .filter((f) => AUX_EXTENSIONS.some((ext) => f.path.endsWith(`main${ext}`)))
-      .map((f) => ({ path: f.path.split('/').pop() as string, content: f.content as Uint8Array }));
-    // Without a seed the first run read no aux at all, so it never counts as settled.
-    const settled = (run > 1 || seed.length > 0) && sameFiles(aux, next);
-    aux = next;
-    if (settled || run === MAX_TEX_RUNS) break;
-    result = await engine.compile({ input, additionalFiles: [...baseFiles, ...aux], rerun: false }); // NOSONAR: each run feeds on the previous run's aux files
+async function compile(req: CompileRequest): Promise<void> {
+  const rt = await boot();
+  self.postMessage({ id: req.id, status: 'compiling' });
+  const t: Timings = { formatMs: 0, format: 'none', passes: [], pdfMs: 0 };
+  const t0 = performance.now();
+  const parts = splitPreamble(req.latexSource);
+  const known = parts ? rt.tree.size(`/fmt/${await formatKey(rt.tree.version, assetsDigest, parts[0])}.fmt`) >= 0 : false;
+  const format = parts ? await formatFor(rt, parts[0]) : null;
+  t.formatMs = performance.now() - t0;
+  if (format) t.format = known ? 'cached' : 'dumped';
+  const tex = format && parts ? withFormat(parts[0], parts[1]) : req.latexSource;
+  const args = [`${BIN_DIR}/xelatex`, '-no-pdf', '-synctex=-1' /* read by click-to-source, issue #347 */, ...TEX_FLAGS, `-fmt=${format ?? 'xelatex'}`, 'main.tex'];
+  let s = sessionFor(rt, req.session, format);
+  let last = await typeset(s, req, tex, args, t);
+  // A stale seed (a macro the document no longer defines) must not fail the compile: retry once from scratch, as the server does.
+  if (last.exitCode !== 0 && (req.seedAux ?? []).length > 0) {
+    if (req.session) sessions.delete(req.session);
+    s = sessionFor(rt, req.session, format);
+    last = await typeset(s, { ...req, seedAux: [] }, tex, args, t);
   }
-  return { result, aux };
+  await finish(rt, req, s, last, args, t);
 }
 
-function sameFiles(a: { path: string; content: Uint8Array }[], b: { path: string; content: Uint8Array }[]): boolean {
-  if (a.length !== b.length) return false;
-  const byPath = new Map(a.map((f) => [f.path, f.content]));
-  return b.every((f) => {
-    const other = byPath.get(f.path);
-    return !!other && other.length === f.content.length && other.every((v, i) => v === f.content[i]);
+/** xdvipdfmx after a successful XeTeX run, then the answer: the PDF with aux files and missing figures, or the failure with its log. */
+async function finish(rt: Runtime, req: CompileRequest, s: Session, last: RunResult, args: string[], t: Timings): Promise<void> {
+  const log = dec.decode(last.outputs.get('/work/main.log') ?? new Uint8Array()) || last.stdout;
+  const xetexStep: CompileStep = { cmd: args.join(' '), log, stdout: last.stdout, exit_code: last.exitCode };
+  const xdv = last.outputs.get('/work/main.xdv');
+  const st = s.engine.stats();
+  t.checkpoints = st.checkpoints;
+  t.mode = st.mode;
+  t.checkpointMB = Math.round(st.checkpointBytes / 2 ** 20);
+  const tp = performance.now();
+  const pdf = xdv && last.exitCode === 0 ? await toPdf(rt, s, xdv) : null;
+  t.pdfMs = performance.now() - tp;
+  if (!pdf?.pdf) {
+    const steps = [xetexStep, ...(pdf ? [pdf.step] : [])];
+    const failure = { log: pdf?.step.stdout || log, logs: steps };
+    self.postMessage({ id: req.id, success: false, error: describeCompileFailure(failure), log: compileLogForUser(failure), timings: t });
+    return;
+  }
+  const aux = AUX_FILES.flatMap((name) => {
+    const bytes = last.outputs.get(`/work/${name}`);
+    return bytes && bytes.length <= MAX_AUX_FILE_BYTES ? [{ path: name, content: bytes }] : [];
   });
+  self.postMessage({ id: req.id, success: true, pdfBytes: pdf.pdf, missingGraphics: extractMissingGraphics(log), aux, timings: t }, [pdf.pdf.buffer]);
 }
 
-function resetRunner(reason = 'unspecified') {
-  if (runner) {
-    console.info(`[CompilerWorker] engine reset: ${reason}`);
-    try {
-      runner.terminate();
-    } catch {}
-    runner = null;
-    xelatex = null;
-  }
-}
+let queue: Promise<void> = Promise.resolve();
 
-// Matches "File `foo.sty' not found" errors for files in our bundled TeX Live packages. That strongly suggests corrupted/truncated cached package data (see fetchInterceptor.ts), not broken LaTeX, so wipe the cache and retry exactly once before surfacing the error.
-export const MISSING_PACKAGE_FILE_PATTERN = /File `[^']+\.(sty|cls|clo|def|cfg|fd)' not found/i;
-
-export function looksLikeMissingBundledPackage(log: string | undefined | null): boolean {
-  return !!log && MISSING_PACKAGE_FILE_PATTERN.test(log);
-}
-
-// A missing figure is not fatal to XeLaTeX: it typesets a box and carries on, so the compile "succeeds" with the picture silently absent. Surfacing it is the difference between a teacher noticing now and noticing on exam day.
-export const MISSING_GRAPHICS_PATTERN =
-  /(File `[^']+\.(png|jpe?g|pdf|eps)' not found|Unable to load picture|Cannot determine size of graphic)/i;
-
-export function extractMissingGraphics(log: string | undefined | null): string[] {
-  if (!log) return [];
-  return log
-    .split("\n")
-    .filter((line) => MISSING_GRAPHICS_PATTERN.test(line))
-    .map((line) => line.trim());
-}
-
-// The xetex_bibtex8_dvipdfmx pipeline runs xdvipdfmx even after XeTeX failed, so the log then ends in this fatal while the real error sits in the XeTeX step's log (`result.logs`).
-export const XDV_OPEN_FATAL_PATTERN = /xdvipdfmx:fatal: Could not open specified DVI \(or XDV\) file/i;
-
-export { extractTexErrors };
-
-type CompileStep = Partial<Pick<LogEntry, 'cmd' | 'log' | 'stdout' | 'stderr' | 'exit_code'>>;
-
-/** The message for a failed compile: the XeTeX step's errors when the log only shows the follow-up xdvipdfmx fatal. */
-export function describeCompileFailure(result: {
-  log?: string | null;
-  logs?: readonly CompileStep[] | null;
-}): string {
-  const full = result.log || 'Compilation failed';
-  if (!XDV_OPEN_FATAL_PATTERN.test(full)) return full;
-
-  const steps = (result.logs ?? []).filter((step) => !/xdvipdfmx/i.test(step.cmd ?? ''));
-  const failed =
-    steps.find((step) => (step.exit_code ?? 0) !== 0) ?? steps.find((step) => /xetex/i.test(step.cmd ?? ''));
-  for (const text of [failed?.log, failed?.stdout, failed?.stderr]) {
-    const blocks = extractTexErrors(text);
-    if (blocks.length > 0) return blocks.join('\n\n');
-  }
-  return full;
-}
-
-/** The full log for the UI; with the follow-up xdvipdfmx fatal it is preceded by the XeTeX step's own log. */
-export function compileLogForUser(result: { log?: string | null; logs?: readonly CompileStep[] | null }): string {
-  const full = result.log || '';
-  if (!XDV_OPEN_FATAL_PATTERN.test(full)) return full;
-  const xetex = (result.logs ?? []).find((step) => /xetex/i.test(step.cmd ?? '') && !/xdvipdfmx/i.test(step.cmd ?? ''));
-  const own = [xetex?.log, xetex?.stdout, xetex?.stderr].filter(Boolean).join('\n');
-  return own ? `${own}\n\n${full}` : full;
-}
-
-async function recoverFromPossiblyCorruptedCache(): Promise<void> {
-  resetRunner('cache recovery after a missing bundled package');
+async function preload(): Promise<void> {
   try {
-    await clearAllPackageCache();
-  } catch (err) {
-    console.warn('[CompilerWorker] Failed to clear package cache during recovery:', err);
-  }
-}
-
-/** Whether the missing-package cache wipe has already been spent in this worker. See the guard in the message handler below. */
-let cacheRecoveryAttempted = false;
-
-let compileQueue: Promise<void> = Promise.resolve();
-
-/** Boots the engine and loads the bundled assets without compiling; a failure only costs the head start. */
-async function preloadEngine(): Promise<void> {
-  try {
-    await initRunner(() => {});
-    loadAdditionalFiles();
+    await boot();
   } catch (err) {
     console.warn('[CompilerWorker] Preload failed; the first compile will retry.', err);
   }
 }
 
 self.onmessage = (e: MessageEvent) => {
-  if (e.data?.type === 'assets') {
-    bundledAssets = e.data.files;
+  const data = e.data;
+  if (data?.type === 'tree-reply') {
+    const w = treeWaiters.get(data.reqId);
+    treeWaiters.delete(data.reqId);
+    if (data.error) w?.reject(new Error(data.error));
+    else w?.resolve(data.value);
     return;
   }
-
-  // Queued like a compile, so a compile posted meanwhile waits for the boot instead of racing it.
-  if (e.data?.type === 'preload') {
-    compileQueue = compileQueue.then(preloadEngine);
+  if (data?.type === 'assets') {
+    queue = queue.then(() => setAssets(data.files));
     return;
   }
-
-  const { id, latexSource, resources, seedAux } = e.data as {
-    id: number;
-    latexSource: string;
-    resources?: { filename: string; content: Uint8Array }[];
-    seedAux?: { path: string; content: Uint8Array }[];
-  };
-  // Only the files this loop writes itself may come back in as seeds.
-  const seed = (seedAux ?? []).filter((f) => AUX_EXTENSIONS.some((ext) => f.path === `main${ext}`));
-
-  compileQueue = compileQueue.then(async () => {
-    const runCompile = async () => {
-      await initRunner((status) => {
-        self.postMessage({ id, status });
-      });
-
-      if (!xelatex) {
-        throw new Error("XeLatex engine failed to initialize");
-      }
-
-      // A copy: the loaded list is cached for the worker's life, resources must not leak into later compiles.
-      const additionalFiles = loadAdditionalFiles();
-
-      // Teacher-uploaded resources go in flat, after the bundled assets, and never over one: a name that would shadow an asset is already refused at upload time (lib/latex/resources.ts), this is the second line.
-      const bundledPaths = new Set(additionalFiles.map((f) => f.path));
-      for (const res of resources ?? []) {
-        if (bundledPaths.has(res.filename)) {
-          console.warn(`[CompilerWorker] Skipping resource '${res.filename}': bundled asset owns that name.`);
-          continue;
-        }
-        additionalFiles.push({ path: res.filename, content: res.content });
-      }
-
-      return compileUntilStable(xelatex, runner, latexSource, additionalFiles, seed);
-    };
-
+  if (data?.type === 'preload') {
+    // A failed boot only costs the head start; the first compile retries it.
+    queue = queue.then(preload);
+    return;
+  }
+  const req = data as CompileRequest;
+  queue = queue.then(async () => {
     try {
-      let { result, aux } = await runCompile();
-
-      // At most one cache-wipe recovery per worker: the pattern can't tell a corrupted cache from a document referencing a package we don't ship, so without this guard that case re-downloads TeX Live on every retry.
-      if (
-        !result.success &&
-        !cacheRecoveryAttempted &&
-        looksLikeMissingBundledPackage(describeCompileFailure(result))
-      ) {
-        cacheRecoveryAttempted = true;
-        console.warn(
-          "[CompilerWorker] Compile failed with a missing-file error for what should be a bundled package; " +
-            "clearing package cache and retrying once in case the local copy is stale/corrupted."
-        );
-        await recoverFromPossiblyCorruptedCache();
-        const retry = await runCompile();
-        // A retry on the freshly wiped cache fails with spurious misses (ulem.sty); the first error names the real one.
-        if (retry.result.success) ({ result, aux } = retry);
-      }
-
-      if (!result.success) {
-        console.error("Compilation LOG error:", result.log);
-      } else if (result.log) {
-        const warnings = result.log
-          .split("\n")
-          .filter(
-            (line: string) =>
-              line.includes("Undefined control sequence") ||
-              line.includes("LaTeX Warning") ||
-              line.includes("Missing ") ||
-              line.includes("omr") ||
-              MISSING_GRAPHICS_PATTERN.test(line)
-          );
-        if (warnings.length > 0) {
-          console.warn("[CompilerWorker] Successful compile produced LaTeX warnings/notices:", warnings);
-        }
-      }
-
-      if (result.success && result.pdf) {
-        self.postMessage({
-          id,
-          success: true,
-          pdfBytes: result.pdf,
-          missingGraphics: extractMissingGraphics(result.log),
-          aux
-        });
-      } else {
-        // Not reset here — an ordinary compile error (e.g. a LaTeX typo) shouldn't force a full engine reboot on the next attempt.
-        self.postMessage({ id, success: false, error: describeCompileFailure(result), log: compileLogForUser(result) });
-      }
-    } catch (error: any) {
-      // A thrown error is different: the engine itself is in an unknown state, so reset. Required for texlyre-busytex's 180 s timeout, which rejects without stopping its worker: that worker's late answer would otherwise resolve the next compile.
-      resetRunner(`compile threw: ${error?.message || error}`);
-      self.postMessage({ id, success: false, error: error.message || "Unknown error in compilation worker" });
+      await compile(req);
+    } catch (err) {
+      // The engine is in an unknown state: drop the session, so the next compile starts clean (the old resetRunner rule).
+      if (req.session) sessions.delete(req.session);
+      const message = err instanceof Error ? err.message : String(err);
+      // A throw is the engine failing (boot, download, crash), never the document: the main thread may compile it on the server instead.
+      self.postMessage({ id: req.id, success: false, error: message, engineFailed: true, unavailable: err instanceof EngineUnavailableError });
     }
   });
 };

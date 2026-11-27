@@ -220,9 +220,8 @@
     },
   });
 
-  async function handlePreviewExercise() {
-    errorMsg = "";
-    // Only a failure or a missing figure writes the line, so a message set meanwhile (a failed save) stays.
+  async function runPreview(live: boolean) {
+    if (!live) errorMsg = "";
     const message = await preview.compile({
       cacheId: editingExercise?.id || session.stagingId,
       name: editorName,
@@ -232,8 +231,9 @@
       useLocal: $effectiveLatexStore === "local",
       key: get(sessionStore).sessionKey,
     });
-    if (message) errorMsg = message;
+    errorMsg = preview.errorLine(errorMsg, message);
   }
+
 
   function currentDraft(): ExerciseDraft {
     return {
@@ -356,6 +356,13 @@
       if (on && key !== session.savedKey) autosave.schedule();
     });
   });
+
+  // Live preview (browser engine only; a server compile is a background job): text and file edits recompile once this session compiled or shows a PDF.
+  $effect.pre(() => {
+    const key = JSON.stringify([editorName, editorLatexBody, filesRev]);
+    const on = isOpen && $effectiveLatexStore === "local" && (preview.compiled || !!preview.pdfUrl);
+    untrack(() => preview.live(key, on, () => void runPreview(true)));
+  });
 </script>
 
 {#snippet layoutReport()}
@@ -470,7 +477,7 @@
               </Button>
               <Button
                 size="sm"
-                onClick={handlePreviewExercise}
+                onClick={() => runPreview(false)}
                 disabled={preview.loading}
                 title={$t("exercises.editor.previewButtonTitle")}
               >{preview.loading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}</Button>

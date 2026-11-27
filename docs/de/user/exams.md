@@ -200,8 +200,8 @@ Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Schri
 
 Je nach Ihren Einstellungen und Ihrem Konto wird die Prüfung
 
-- **in Ihrem Browser** gesetzt: Nichts verlässt Ihr Gerät, aber der erste Lauf lädt die LaTeX-Umgebung herunter und dauert länger;
-- **auf dem Server** gesetzt: schneller auf schwacher Hardware; der LaTeX-Quelltext wird dabei an den Server gesendet.
+- **in Ihrem Browser** gesetzt (empfohlen, voreingestellt): am schnellsten; der LaTeX-Quelltext verlässt zum Kompilieren Ihr Gerät nicht, nur der allererste Lauf lädt einmalig die LaTeX-Umgebung herunter;
+- **auf dem Server** gesetzt: langsamer; der LaTeX-Quelltext wird dabei an den Server gesendet.
 
 Siehe [LaTeX-Kompilierung](./settings#latex). Sieht etwas falsch aus, [melden Sie ein Layoutproblem](./exercises#layout-reports); schlägt das Kompilieren fehl, siehe [Wenn das Kompilieren fehlschlägt](./exercises#compile-errors).
 

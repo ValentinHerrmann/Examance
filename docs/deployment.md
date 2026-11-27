@@ -30,7 +30,7 @@ Publishing a GitHub Release is the **only** action needed to ship production. No
 2. On the server, set up one directory per stack, each with its own `.env` ([section 6](#_6-two-stacks-on-one-server)).
 3. In the repository: the `DEPLOY_*` secrets, and the environments `production` and `preview` with their variables ([section 5](#_5-secrets-and-variables)). Set `BACKEND_PUBLIC_URL` in both: the workflows fall back to the maintainer's API addresses.
 4. Create the Cloudflare Pages project for `frontend/` with your own custom domains and build variables ([Cloudflare Pages](#cloudflare-pages-dashboard-managed)).
-5. Optional: the BusyTeX mirror on Cloudflare R2 ([BusyTeX mirror](#busytex-mirror-cloudflare-r2)) and the documentation site ([Documentation site](#documentation-site-issue-174)).
+5. Optional: the documentation site ([Documentation site](#documentation-site-issue-174)).
 6. Publish a release. It writes `VERSION`, pushes `release`, builds the image and deploys production.
 
 ---
@@ -257,29 +257,12 @@ One Pages project builds the frontend for both stacks. What each build variable 
 - Production branch: `release`.
 - Preview branches: **only** `preview` (Settings → Builds → "Include only certain branches"). This keeps every feature branch from consuming build minutes and gives preview a stable URL, `preview.examance.de`.
 - **Custom domains for both environments** (Settings → Custom domains): `examance.de` for `release`, `preview.examance.de` for `preview`, plus the old `*.valentin-herrmann.com` domains until the end of the [domain move](#domain-move-to-examance-de). Each stack's `FRONTEND_URL` points at its domain, never at `*.pages.dev` ([why](hosting.md#_4-2-settings)).
-- Variables (Settings → Variables and Secrets), per environment: `PUBLIC_API_URL` (`https://api.examance.de` / `https://preview-api.examance.de`; preview needs it, since its default `api.preview.examance.de` would be a second subdomain level, and production sets it so the CSP names the exact API, [why](hosting.md#_5-1-build)), and for **both** environments the `VITE_LEGAL_*` operator details, since the legal pages are public on both stacks. Optional `BUSYTEX_MIRROR_URL` for both (see below).
+- Variables (Settings → Variables and Secrets), per environment: `PUBLIC_API_URL` (`https://api.examance.de` / `https://preview-api.examance.de`; preview needs it, since its default `api.preview.examance.de` would be a second subdomain level, and production sets it so the CSP names the exact API, [why](hosting.md#_5-1-build)), and for **both** environments the `VITE_LEGAL_*` operator details, since the legal pages are public on both stacks.
 - **Web Analytics, Rocket Loader and Email Obfuscation stay off**: they inject scripts after the build, which the Content Security Policy blocks ([troubleshooting](hosting.md#_5-3-troubleshooting-executing-inline-script-violates-content-security-policy)).
 
-### BusyTeX mirror (Cloudflare R2)
+### Former BusyTeX mirror
 
-Every Pages build needs the ~500 MB of BusyTeX assets. From GitHub's release CDN the archive took anywhere from 10 s to 52 s, and gzipping it into ≤ 24 MiB chunks cost another 10–17 s of CPU that competed with `vite build`. The bucket therefore holds two objects per version (names in `frontend/scripts/busytex-mirror.mjs`):
-
-| Object | Content | Used by |
-|---|---|---|
-| `busytex-processed-v<version>-<hash>.tar` | output of `process-large-files.mjs` (chunks, manifest, fetch interceptor); `<hash>` covers that script and `fetch-interceptor.js` | `build.mjs`, first choice — only unpacked, no gzip |
-| `busytex-assets-v<version>.tar.gz` | upstream archive, byte for byte | `fetch-busytex.mjs` (fallback, and `npm run dev`) |
-
-A build falls through processed mirror → raw mirror → GitHub → upstream `texlyre-busytex download-assets`, so a missing or unreachable mirror costs speed, never the build. Only the build reads the bucket — browsers never do, so the CSP and the no-third-party-transfer statements are unaffected.
-
-`.github/workflows/mirror-busytex.yml` keeps it filled: whenever `frontend/package-lock.json`, `busytex-mirror.mjs`, `process-large-files.mjs` or `fetch-interceptor.js` change (PRs from this repository, `main`, or manually) it uploads whichever of the two objects is missing, producing the processed one on the Node version pinned in `frontend/.node-version` (the one Pages builds with), so its chunks are byte-identical to a fallback build's and Pages keeps deduplicating the upload. Nothing needs doing on a BusyTeX update or a change to the processing scripts. Old objects (~500 MB each) stay in the bucket; delete them whenever convenient, or set an R2 lifecycle rule.
-
-One-time setup:
-
-1. Cloudflare dashboard → R2 → create a bucket (e.g. `examance-build-assets`) → Settings → Public access → enable the `r2.dev` subdomain. Note the URL.
-2. R2 → Manage API tokens → create a token with **Object Read & Write**, restricted to that bucket. Note the access key ID, secret access key, and your account ID.
-3. GitHub → Settings → Secrets and variables → Actions: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; repository variable `R2_BUCKET`.
-4. Pages → Settings → Variables and Secrets: `BUSYTEX_MIRROR_URL` for Production and Preview (see above).
-5. Actions → *Mirror BusyTeX assets* → Run workflow. The next Pages build logs `Streaming processed BusyTeX assets from https://pub-….r2.dev/…` followed by `✓ BusyTeX assets staged`.
+Builds used to fetch ~500 MB of BusyTeX assets from an R2 mirror. The browser LaTeX engine is now committed to the repository and reads its TeX Live files from the API (issue #346), so nothing is fetched during a build any more. On an existing setup, the R2 bucket, the `R2_*` secrets, the `R2_BUCKET` variable and the Pages variable `BUSYTEX_MIRROR_URL` are unused and can be deleted.
 
 ---
 

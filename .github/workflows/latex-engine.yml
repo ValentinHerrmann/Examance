@@ -1,0 +1,54 @@
+name: LaTeX engine
+
+# The browser LaTeX engine (frontend/static/core/latex-engine, issue #346) is committed gzipped; this rebuilds it from the pinned
+# sources with frontend/scripts/latex-engine/build-engine.sh and fails if the result differs from the committed checksums.
+# Runs when the build script or the committed files change, and on demand (about 45 min on a standard runner).
+on:
+  pull_request:
+    paths:
+      - frontend/scripts/latex-engine/build-engine.sh
+      - frontend/static/core/latex-engine/**
+      - .github/workflows/latex-engine.yml
+  push:
+    branches: [main]
+    paths:
+      - frontend/scripts/latex-engine/build-engine.sh
+      - frontend/static/core/latex-engine/**
+  workflow_dispatch:
+
+concurrency:
+  group: latex-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    name: Rebuild and compare the engine
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # web2c's cross-compile needs native tangle, ctangle and tie.
+      - name: Native web2c tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q texlive-binaries
+
+      # Same emscripten as the committed build (see the header of build-engine.sh).
+      - name: emsdk 4.0.12
+        run: |
+          git clone --depth 1 --branch 4.0.12 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 4.0.12
+          "$RUNNER_TEMP/emsdk/emsdk" activate 4.0.12
+
+      - name: Build
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          frontend/scripts/latex-engine/build-engine.sh "$RUNNER_TEMP/latex-engine" "$RUNNER_TEMP/latex-engine-install"
+
+      - name: Compare with the committed files
+        run: |
+          diff frontend/static/core/latex-engine/SHA256SUMS "$RUNNER_TEMP/latex-engine-install/SHA256SUMS"
+          for f in xetex.wasm xdvipdfmx.wasm icudt78l.dat; do
+            cmp "frontend/static/core/latex-engine/$f.gz" "$RUNNER_TEMP/latex-engine-install/$f.gz"
+          done

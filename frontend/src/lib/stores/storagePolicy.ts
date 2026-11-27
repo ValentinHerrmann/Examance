@@ -19,6 +19,8 @@ export interface StoragePolicy {
 const LEGACY_MODE_KEY = 'bg_storage_policy';
 /** The LaTeX engine is a per-browser preference with its own key. */
 const LATEX_KEY = 'bg_latex_compilation';
+/** Set once this browser was moved to the browser engine (or had nothing to move); `LocalLatexNotice` moves every browser once. */
+const LOCAL_SWITCH_KEY = 'bg_latex_local_switch';
 
 /** The storage mode decides which store every repository uses, so it is only settable via `commitStorageMode` with a token from `armStorageModeSwitch` (only `lib/db/workspace.ts` calls it); `updateSetting` is narrowed to `latexCompilation` so any other caller is a compile error. */
 let activeSwitchToken: string | null = null;
@@ -34,10 +36,10 @@ export function disarmStorageModeSwitch(): void {
   activeSwitchToken = null;
 }
 
-/** No storage mode by default: every account chooses one explicitly. The LaTeX default is `server`; accounts the admin did not allow server LaTeX fall back to local via `effectiveLatexCompilation()`. Only an explicit choice is persisted. */
+/** No storage mode by default: every account chooses one explicitly. The LaTeX default is the browser engine (faster, live preview); only an explicit choice is persisted. */
 export const DEFAULT_POLICY: StoragePolicy = {
     storageMode: null,
-    latexCompilation: 'server',
+    latexCompilation: 'local',
 };
 
 export function getStoragePolicyBadge(policy: StoragePolicy): { text: string; title: string } {
@@ -137,6 +139,24 @@ function createStoragePolicyStore() {
 }
 
 export const storagePolicyStore = createStoragePolicyStore();
+
+/** Whether this browser still waits for its one-time move to the browser engine. */
+export function localSwitchPending(): boolean {
+    return safeLocalStorage.getItem(LOCAL_SWITCH_KEY) === null;
+}
+
+/** Records the one-time move as done, with or without a change. */
+export function markLocalSwitch(): void {
+    safeLocalStorage.setItem(LOCAL_SWITCH_KEY, '1');
+}
+
+/** The one-time move: this browser compiles locally from now on; the teacher may switch back. A browser without a stored choice compiled on the server under the old default, so it counts as moved too. @returns whether anything changed for this browser. */
+export function switchToLocalOnce(): boolean {
+    markLocalSwitch();
+    if (safeLocalStorage.getItem(LATEX_KEY) === 'local') return false;
+    storagePolicyStore.updateSetting('latexCompilation', 'local');
+    return true;
+}
 
 /** True when grading results (students, submissions, scores) live in IndexedDB, i.e. in `hybrid` mode. */
 export function resultsAreLocal(): boolean {
