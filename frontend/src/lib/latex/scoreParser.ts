@@ -57,7 +57,7 @@ export function formatExerciseLatex(
   const lead = hint + (exerciseId ? `\\OmrExercise{${exerciseId}}\n` : "");
   // The suffix follows the unmarked body, so the stripped document equals the unmarked one.
   const plain = lead + raw;
-  const body = sourceLabel === undefined ? plain : lead + markSource(raw, sourceLabel);
+  const body = sourceLabel === undefined ? plain : lead + markSource(raw, sourceLabel, exerciseId);
   let prefix = "";
   let suffix = "";
 
@@ -90,7 +90,7 @@ export function formatMcGroupLatex(
   correctionHint = false
 ): string {
   const items = members
-    .map((m) => `\\item \\OmrExercise{${m.id}}\n${m.sourceLabel === undefined ? m.latexBody : markSource(m.latexBody, m.sourceLabel)}`)
+    .map((m) => `\\item \\OmrExercise{${m.id}}\n${m.sourceLabel === undefined ? m.latexBody : markSource(m.latexBody, m.sourceLabel, m.id)}`)
     .join("\n");
   return (
     String.raw`\begin{Aufgabe}{${escapeLatex(groupTitle)}}` +

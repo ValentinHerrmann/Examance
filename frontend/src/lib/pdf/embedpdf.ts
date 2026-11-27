@@ -153,3 +153,82 @@ function visiblePageRendered(scroller: HTMLElement): boolean {
   }
   return false;
 }
+
+/** A shown page on screen: client px of its top-left corner, px per PDF point and its size in points. */
+export interface PagePlacement {
+  page: number;
+  left: number;
+  top: number;
+  scale: number;
+  width: number;
+  height: number;
+}
+
+/** Turns client points into page points and back for a mounted viewer (click-to-source, issue #347), from its scroll and viewport capabilities; never reach into the shadow DOM for this elsewhere. */
+export interface PageLocator {
+  pointAt(clientX: number, clientY: number): { page: number; x: number; y: number } | null;
+  clientOf(page: number, x: number, y: number): { left: number; top: number; scale: number } | null;
+}
+
+interface LayoutItem {
+  x: number;
+  y: number;
+  width: number;
+  pageLayouts: { pageNumber: number; x: number; y: number; rotatedWidth: number; rotatedHeight: number }[];
+}
+interface ScrollCapabilityLike {
+  getMetrics(): { pageVisibilityMetrics: { scaled: { scale: number } }[] };
+  getLayout(): { virtualItems: LayoutItem[]; totalContentSize: { width: number } };
+}
+interface ViewportCapabilityLike {
+  getViewportGap(): number;
+}
+
+function capabilityOf<T>(plugin: unknown): T | null {
+  const p = plugin as { provides?: () => T; getCapability?: () => T } | null;
+  return (p?.provides ? p.provides() : p?.getCapability?.()) ?? null;
+}
+
+/** Every page's placement, from the scroll plugin's layout (unscaled points, spreads centred in the content) and the scroller's live scroll offset; its stored visibility metrics can lag behind the real scroll position, so they only give the scale. The viewport pads the content by its gap. */
+function placementsOf(target: Element, scroll: ScrollCapabilityLike, gap: number): PagePlacement[] {
+  const scroller = embedPdfScroller(target);
+  const scale = scroll.getMetrics().pageVisibilityMetrics[0]?.scaled.scale;
+  if (!scroller || !scale || scale <= 0) return [];
+  const box = scroller.getBoundingClientRect();
+  const left0 = box.left + scroller.clientLeft + gap - scroller.scrollLeft;
+  const top0 = box.top + scroller.clientTop + gap - scroller.scrollTop;
+  const { virtualItems, totalContentSize } = scroll.getLayout();
+  return virtualItems.flatMap((item) => {
+    const centre = item.width < totalContentSize.width ? (totalContentSize.width - item.width) / 2 : 0;
+    return item.pageLayouts.map((p) => ({
+      page: p.pageNumber,
+      left: left0 + (item.x + centre + p.x) * scale,
+      top: top0 + (item.y + p.y) * scale,
+      scale,
+      width: p.rotatedWidth,
+      height: p.rotatedHeight,
+    }));
+  });
+}
+
+/** A locator for the viewer mounted into `target`, once its plugins are ready; null when they are missing. */
+export async function embedPdfPageLocator(viewer: EmbedPdfContainer, target: Element): Promise<PageLocator | null> {
+  const registry = await viewer.registry;
+  const scroll = capabilityOf<ScrollCapabilityLike>(registry.getPlugin("scroll"));
+  const gap = capabilityOf<ViewportCapabilityLike>(registry.getPlugin("viewport"))?.getViewportGap() ?? 0;
+  if (!scroll) return null;
+  return {
+    pointAt(clientX, clientY) {
+      for (const p of placementsOf(target, scroll, gap)) {
+        const x = (clientX - p.left) / p.scale;
+        const y = (clientY - p.top) / p.scale;
+        if (x >= 0 && y >= 0 && x <= p.width && y <= p.height) return { page: p.page, x, y };
+      }
+      return null;
+    },
+    clientOf(page, x, y) {
+      const p = placementsOf(target, scroll, gap).find((pl) => pl.page === page);
+      return p ? { left: p.left + x * p.scale, top: p.top + y * p.scale, scale: p.scale } : null;
+    },
+  };
+}

@@ -21,6 +21,7 @@ class CompileJob(BaseModel):
     files: dict[str, str] = {}  # relative path -> base64
     seed_aux: dict[str, str] = {}  # AUX_FILE_NAMES entry -> base64
     timeout: float = Field(gt=0, le=COMPILE_TIMEOUT_SECONDS)
+    synctex: bool = False
 
 
 @app.get("/health")
@@ -36,7 +37,7 @@ async def compile_job(job: CompileJob) -> JSONResponse:
     except ValueError:  # binascii.Error is a ValueError
         return JSONResponse(status_code=400, content={"detail": "Invalid file encoding."})
     try:
-        result = await run_tex(job.main_tex, files, job.timeout, seed_aux)
+        result = await run_tex(job.main_tex, files, job.timeout, seed_aux, job.synctex)
     except TimeoutError:
         return JSONResponse(status_code=504, content={"detail": "Compilation timed out."})
     except CompilationError as exc:
@@ -47,4 +48,6 @@ async def compile_job(job: CompileJob) -> JSONResponse:
     return JSONResponse(content={
         "pdf_b64": base64.b64encode(result.pdf).decode("ascii"),
         "aux": {name: base64.b64encode(blob).decode("ascii") for name, blob in result.aux.items()},
+        "synctex_b64": base64.b64encode(result.synctex).decode("ascii") if result.synctex else None,
+        "synctex_line_shift": result.synctex_line_shift,
     })

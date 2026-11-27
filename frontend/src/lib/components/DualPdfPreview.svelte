@@ -5,6 +5,7 @@
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import { faChevronLeft, faChevronRight, faDownload, faFileLines, faFilePdf } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon, Tabs } from "#lib/components/ui";
+  import type { PageClick, PageOverlay } from "#lib/latex/clickToSource";
 
   // Titles/placeholder stay undefined by default so the catalog text follows the language switch.
   interface Props {
@@ -30,6 +31,10 @@
     extraPanes?: { id: string; title: string; url: string | null; fileName?: string }[];
     /** Drops panes without a PDF instead of showing their placeholder (the Print step shows only what will be printed). */
     hideEmpty?: boolean;
+    /** A tap or click on a page of pane `paneId` ("angabe", "loesung" or an extra pane's id), for click-to-source (issue #347). */
+    onPageClick?: (paneId: string, click: PageClick) => void;
+    /** Provisional text per pane id, drawn over its shown page. */
+    overlays?: Record<string, PageOverlay | null>;
   }
 
   let {
@@ -48,6 +53,8 @@
     downloadable = true,
     extraPanes = [],
     hideEmpty = false,
+    onPageClick = undefined,
+    overlays = {},
   }: Props = $props();
 
   let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
@@ -182,7 +189,7 @@
             </div>
             <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: pane.title })}>
               {#if pane.url}
-                <PdfEmbedViewer src={pane.url} />
+                <PdfEmbedViewer src={pane.url} overlay={overlays[pane.id] ?? null} onPageClick={onPageClick && ((c) => onPageClick?.(pane.id, c))} />
               {:else}
                 <div class="flex h-full items-center justify-center p-4 text-center text-sm text-content">
                   {placeholder}
@@ -223,7 +230,7 @@
 
       <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}>
         {#if activePane.url}
-          <PdfEmbedViewer src={activePane.url} />
+          <PdfEmbedViewer src={activePane.url} overlay={overlays[activePane.id] ?? null} onPageClick={onPageClick && ((c) => onPageClick?.(activePane.id, c))} />
         {:else}
           <div class="flex h-full items-center justify-center p-4 text-center text-sm text-content">
             {placeholder}

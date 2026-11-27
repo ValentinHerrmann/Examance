@@ -3,8 +3,12 @@ import { compileFailure, type CompileFailure } from '#lib/latex/compileError';
 import { compileExercisePreview, type ExercisePreviewInput } from '#lib/latex/exercisePreview';
 import { pdfBytesToUrl } from '#lib/latex/pdfPreview';
 import { translate } from '#lib/i18n';
+import { PreviewSync } from '#lib/latex/previewSync.svelte';
+import type { PageClick } from '#lib/latex/clickToSource';
 
 type PreviewInput = Omit<ExercisePreviewInput, 'onAngabe'>;
+/** The part of `LatexEditor` a jump needs. */
+export type CursorTarget = { setCursor(line: number, column?: number): void };
 
 /** The live preview waits this long after the last edit before it compiles. */
 const LIVE_DELAY_MS = 300;
@@ -21,6 +25,10 @@ export class EditorPreview {
   log = $state<CompileFailure | null>(null);
   /** Whether a compile ran in this editor session; the live preview starts only after the first one. */
   compiled = $state(false);
+  /** Click-to-source and the provisional typing overlay of both panes (issue #347). */
+  readonly sync = new PreviewSync();
+  /** The body the shown PDFs were compiled from; the overlay shows what was typed since. */
+  compiledBody = '';
   /** The newest source asked for while a compile ran; only it compiles next, so a stale result never shows last. */
   private queued: { input: PreviewInput; done: ((message: string) => void)[] } | null = null;
   private running = false;
@@ -36,6 +44,8 @@ export class EditorPreview {
     this.generation++;
     if (this.queued) for (const d of this.queued.done) d('');
     this.queued = null;
+    this.sync.reset();
+    this.compiledBody = '';
     if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
     if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
     this.pdfUrl = null;
@@ -75,6 +85,17 @@ export class EditorPreview {
   private stopLive(): void {
     clearTimeout(this.liveTimer);
     this.liveTimer = undefined;
+  }
+
+  /** A click on pane `paneId`: the cursor goes to that word in `editor` (the body's LaTeX editor; absent for MC, which only gets the template tooltip). */
+  async jump(paneId: string, click: PageClick, body: string, editor: CursorTarget | undefined): Promise<void> {
+    const target = await this.sync.click(paneId, click, () => body);
+    if (target?.kind === 'source') editor?.setCursor(target.line, target.column);
+  }
+
+  /** An edit of the body: what was typed on the cursor's line shows on the pages until the next PDF. */
+  typed(body: string, cursor: { line: number } | null | undefined): void {
+    if (cursor && this.compiledBody) this.sync.provisional(null, this.compiledBody, body, cursor.line);
   }
 
   private setPdf(bytes: Uint8Array): void {
@@ -117,6 +138,7 @@ export class EditorPreview {
         onAngabe: (angabe) => {
           if (stale()) return;
           this.setPdf(angabe.pdfBytes);
+          this.sync.setResult('angabe', angabe);
           angabeShown = true;
           this.showAngabe = true;
         },
@@ -125,9 +147,14 @@ export class EditorPreview {
       // The failure stays on screen until a compile succeeds, so a live recompile does not make its help flicker.
       this.error = '';
       this.log = null;
-      if (!angabeShown) this.setPdf(res.angabe.pdfBytes);
+      if (!angabeShown) {
+        this.setPdf(res.angabe.pdfBytes);
+        this.sync.setResult('angabe', res.angabe);
+      }
       if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
       this.solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);
+      this.sync.setResult('loesung', res.loesung);
+      this.compiledBody = input.latexBody;
       // Now that a PDF exists, open the task-sheet pane so the result is actually visible.
       this.showAngabe = true;
       // A missing figure does not fail the engine: say so instead of handing back a PDF with a silent hole in it.
@@ -138,6 +165,7 @@ export class EditorPreview {
       const message = err instanceof Error && err.message ? err.message : translate('exercises.editor.previewFailedUnknown');
       this.error = translate('exercises.editor.previewFailed', { message });
       this.log = compileFailure(err);
+      this.sync.clearOverlays();
       return this.error;
     } finally {
       this.loading = false;

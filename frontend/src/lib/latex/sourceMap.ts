@@ -4,7 +4,10 @@ const BEGIN = "%%@examance-src:";
 const END = "%%@examance-end";
 
 export interface SourceRange {
+  /** The exercise's display name. */
   label: string;
+  /** The exercise's id, or null when the builder marked without one. */
+  exerciseId: string | null;
   /** First and last line (1-based) of the body in the stripped document. */
   start: number;
   end: number;
@@ -17,15 +20,23 @@ export interface SourceMap {
 }
 
 export interface SourceLocation {
-  /** The exercise, or null for the generated template around it. */
+  /** The exercise's display name, or null for the generated template around it. */
   label: string | null;
+  exerciseId: string | null;
   line: number;
 }
 
-/** `body` between markers; `extractSourceMap` removes exactly the inserted `BEGIN…\n` and `\nEND`, whatever surrounds them. Must start at the beginning of a line. */
-export function markSource(body: string, label: string): string {
-  const clean = label.replace(/\s+/g, " ").trim() || "?";
-  return `${BEGIN}${clean}\n${body}\n${END}`;
+/** `body` between markers labelled `<exerciseId>|<name>` (ids keep two exercises of the same name apart); `extractSourceMap` removes exactly the inserted `BEGIN…\n` and `\nEND`, whatever surrounds them. Must start at the beginning of a line. */
+export function markSource(body: string, name: string, exerciseId?: string | null): string {
+  const clean = name.replace(/\s+/g, " ").trim() || "?";
+  const id = (exerciseId ?? "").replace(/[|\s]/g, "");
+  return `${BEGIN}${id}|${clean}\n${body}\n${END}`;
+}
+
+function parseLabel(raw: string): { label: string; exerciseId: string | null } {
+  const bar = raw.indexOf("|");
+  if (bar < 0) return { label: raw, exerciseId: null };
+  return { label: raw.slice(bar + 1), exerciseId: raw.slice(0, bar) || null };
 }
 
 const MARKER = /(?:^%%@examance-src:([^\n]*)\n)|(?:\n%%@examance-end)/gm;
@@ -37,7 +48,7 @@ export function extractSourceMap(marked: string): SourceMap {
   let lines = 1;
   let last = 0;
   const ranges: SourceRange[] = [];
-  let open: { label: string; start: number } | null = null;
+  let open: Omit<SourceRange, "end"> | null = null;
   for (const m of marked.matchAll(MARKER)) {
     const slice = marked.slice(last, m.index);
     tex += slice;
@@ -47,7 +58,7 @@ export function extractSourceMap(marked: string): SourceMap {
       if (open) ranges.push({ ...open, end: lines });
       open = null;
     } else {
-      open = { label: m[1], start: lines };
+      open = { ...parseLabel(m[1]), start: lines };
     }
   }
   return { tex: tex + marked.slice(last), ranges };
@@ -66,7 +77,7 @@ export function mapLine(map: SourceMap, line: number, echoed?: string): SourceLo
     if (source === undefined || (probe && !source.includes(probe))) return null;
   }
   const range = map.ranges.find((r) => line >= r.start && line <= r.end);
-  return range ? { label: range.label, line: line - range.start + 1 } : { label: null, line };
+  return range ? { label: range.label, exerciseId: range.exerciseId, line: line - range.start + 1 } : { label: null, exerciseId: null, line };
 }
 
 /** Appends the mapped location to each `l.<n>` context line of the log. */

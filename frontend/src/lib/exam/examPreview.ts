@@ -256,7 +256,8 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
   const { exam } = input;
   const useLocal = effectiveLatexCompilation() === "local";
   const src = await prepareExamSources(input, useLocal, input.draft);
-  const opts = { resources: src.resources, resourceExerciseIds: src.resourceExerciseIds, logo: src.logo };
+  // SyncTeX lets a click on the preview open the exercise in the editor (issue #347).
+  const opts = { resources: src.resources, resourceExerciseIds: src.resourceExerciseIds, logo: src.logo, synctex: true };
 
   const angabePromise = compileWithCache(
     { kind: "exam", id: exam.id, variant: sheetVariant(input.draft) },

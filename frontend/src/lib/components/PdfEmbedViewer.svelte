@@ -10,6 +10,9 @@
   } from "@embedpdf/snippet";
   import { t } from "#lib/i18n";
   import { theme as appTheme } from "#lib/stores/theme";
+  import type { PageLocator } from "#lib/pdf/embedpdf";
+  import { createTapTracker } from "#lib/pdf/tap";
+  import type { PageClick, PageOverlay } from "#lib/latex/clickToSource";
 
   interface Props {
     /** URL (including `blob:`) of the PDF to display. `null` renders nothing. */
@@ -17,9 +20,13 @@
     /** Defaults to the app theme and follows it while mounted. */
     theme?: "light" | "dark" | "system" | undefined;
     zoomLevel?: ZoomLevel | undefined;
+    /** A tap or click on a page, in PDF points from its top-left corner (issue #347); pans, pinches and scrolls never fire it. */
+    onPageClick?: (click: PageClick) => void;
+    /** Provisional text drawn over the shown page; cleared by the parent when the next PDF arrives. */
+    overlay?: PageOverlay | null;
   }
 
-  let { src = null, theme = undefined, zoomLevel = undefined }: Props = $props();
+  let { src = null, theme = undefined, zoomLevel = undefined, onPageClick = undefined, overlay = null }: Props = $props();
 
   let effectiveTheme = $derived(theme ?? $appTheme);
 
@@ -137,6 +144,7 @@
     el: HTMLDivElement;
     viewer: EmbedPdfContainer | null;
     stopLabels: () => void;
+    locator?: Promise<PageLocator | null>;
   }
   let shown: Layer | null = null;
   let pending: Layer | null = null;
@@ -163,6 +171,8 @@
     pending = null;
     shown = null;
     containerEl?.removeEventListener("wheel", handleWheel, { capture: true });
+    unbindTaps?.();
+    unbindTaps = null;
     viewer = null;
     mountedSrc = null;
     isOverlayVisible = false;
@@ -198,12 +208,85 @@
       el.style.visibility = "";
     } else {
       host.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+      unbindTaps = bindTaps(host);
     }
     shown = layer;
+    shownSeq++;
     viewer = layer.viewer;
     unbindZoom();
     bindZoom(layer.viewer);
   }
+
+  /** The shown layer's locator, created on first use; the hidden pending layer never takes clicks. */
+  async function locatorOf(layer: Layer | null): Promise<PageLocator | null> {
+    if (!layer?.viewer) return null;
+    if (!layer.locator) {
+      const { embedPdfPageLocator } = await import("#lib/pdf/embedpdf");
+      layer.locator ??= embedPdfPageLocator(layer.viewer, layer.el).catch(() => null);
+    }
+    return layer.locator;
+  }
+
+  let unbindTaps: (() => void) | null = null;
+
+  /** Passive pointer listeners: EmbedPDF keeps its own pan and pinch, a tap only adds the click. */
+  function bindTaps(host: HTMLElement): () => void {
+    const taps = createTapTracker();
+    const down = (e: PointerEvent) => taps.down(e);
+    const cancel = (e: PointerEvent) => taps.cancel(e);
+    const up = (e: PointerEvent) => {
+      if (!taps.up(e) || !onPageClick) return;
+      const layer = shown;
+      const { clientX, clientY } = e;
+      void locatorOf(layer).then((locator) => {
+        const point = layer === shown ? locator?.pointAt(clientX, clientY) : null;
+        if (point) onPageClick?.({ ...point, clientX, clientY });
+      });
+    };
+    host.addEventListener("pointerdown", down, { capture: true, passive: true });
+    host.addEventListener("pointerup", up, { capture: true, passive: true });
+    host.addEventListener("pointercancel", cancel, { capture: true, passive: true });
+    return () => {
+      host.removeEventListener("pointerdown", down, { capture: true });
+      host.removeEventListener("pointerup", up, { capture: true });
+      host.removeEventListener("pointercancel", cancel, { capture: true });
+    };
+  }
+
+  /** Bumped on every swap, so the overlay is placed against the layer now shown. */
+  let shownSeq = $state(0);
+  let overlayBox: { left: number; top: number; size: number } | null = $state(null);
+
+  // Follows scroll and zoom by frame while the overlay is up; it lives about a second, until the next PDF.
+  $effect(() => {
+    const o = overlay;
+    // A swap (shownSeq) places the overlay against the new layer.
+    const swapped = shownSeq >= 0;
+    if (!o || !containerEl || !swapped) {
+      overlayBox = null;
+      return;
+    }
+    const host = containerEl;
+    let frame = 0;
+    let stopped = false;
+    const layer = shown;
+    void locatorOf(layer).then((locator) => {
+      const place = () => {
+        if (stopped) return;
+        const at = locator?.clientOf(o.page, o.x, o.y);
+        const box = host.getBoundingClientRect();
+        // The SyncTeX point is the baseline; body text is about 11 pt.
+        const size = at ? 11 * at.scale : 0;
+        overlayBox = at ? { left: at.left - box.left, top: at.top - box.top - size * 0.8, size } : null;
+        frame = requestAnimationFrame(place);
+      };
+      place();
+    });
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(frame);
+    };
+  });
 
   function bindZoom(v: EmbedPdfContainer | null) {
     if (!v) return;
@@ -272,6 +355,16 @@
 <!-- The host is absolutely positioned so it always has a real height: EmbedPDF's first zoom fit needs one, and a content-sized host stayed blank for good (issue #93). -->
 <div class="relative h-full min-h-40 w-full">
   <div bind:this={containerEl} class="embed-pdf-viewer absolute inset-0 flex"></div>
+  {#if overlay && overlayBox}
+    <span
+      class="pointer-events-none absolute z-10 whitespace-pre text-muted"
+      style:left="{overlayBox.left}px"
+      style:top="{overlayBox.top}px"
+      style:font-size="{overlayBox.size}px"
+      style:line-height="1"
+      aria-hidden="true"
+    >{overlay.text}</span>
+  {/if}
   {#if src && isOverlayVisible}
     <div
       class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar px-2 py-1 text-xs font-medium text-navbar-muted shadow-md"

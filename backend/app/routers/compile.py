@@ -52,11 +52,11 @@ async def _load_inputs(
 async def _compile(
     body: LaTeXRequest, files: dict[str, bytes], logo: ResolvedLogo | None
 ) -> Response:
-    """The PDF (with `return_aux`, JSON `{pdf_b64, aux}`), or the error response the caller sees; LaTeX source is NEVER logged, and a 422 carries the diagnostic as `detail` and the sanitized log as `log`, for this caller only."""
+    """The PDF (with `return_aux`, JSON `{pdf_b64, aux}`, plus `synctex_b64`/`synctex_line_shift` with `return_synctex`), or the error response the caller sees; LaTeX source is NEVER logged, and a 422 carries the diagnostic as `detail` and the sanitized log as `log`, for this caller only."""
     try:
         result = await compile_latex(
             body.latex, preview=False, binary_files=files, logo=logo,
-            seed_aux=body.seed_aux_files(),
+            seed_aux=body.seed_aux_files(), synctex=body.return_aux and body.return_synctex,
         )
     except ResourceError as exc:
         return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), "ERR_RESOURCE_INVALID")
@@ -74,10 +74,14 @@ async def _compile(
             "ERR_COMPILE_UNAVAILABLE",
         )
     if body.return_aux:
-        return JSONResponse(content={
+        content: dict[str, object] = {
             "pdf_b64": encode_b64(result.pdf),
             "aux": {name: encode_b64(blob) for name, blob in result.aux.items()},
-        })
+        }
+        if result.synctex is not None:
+            content["synctex_b64"] = encode_b64(result.synctex)
+            content["synctex_line_shift"] = result.synctex_line_shift
+        return JSONResponse(content=content)
     return Response(
         content=result.pdf,
         media_type="application/pdf",

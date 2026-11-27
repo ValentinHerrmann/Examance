@@ -129,6 +129,56 @@ function blankPdf(pages: number): Uint8Array {
   out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return new TextEncoder().encode(out);
 }
+/** The word the click-to-source e2e test clicks (issue #347); a synced compile prints it and points SyncTeX at its line. */
+export const SYNC_WORD = 'CLICKME';
+/** Where the synced fake PDF prints `SYNC_WORD`, in PDF points from the page's top-left corner. */
+export const SYNC_WORD_AT = { x: 100, y: 90 };
+
+/** One A4 page with `SYNC_WORD` in Helvetica at `SYNC_WORD_AT`, so pdf.js finds the word under a click. */
+function wordPdf(): Uint8Array {
+  const stream = `BT /F1 12 Tf ${SYNC_WORD_AT.x} ${841.89 - SYNC_WORD_AT.y} Td (${SYNC_WORD}) Tj ET`;
+  const objs = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let out = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objs.forEach((o, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = out.length;
+  const entries = offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('');
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${entries}`;
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return new TextEncoder().encode(out);
+}
+
+/** Uncompressed SyncTeX with one hbox on page 1 around `SYNC_WORD_AT`, recorded for the line of `latex` that holds `SYNC_WORD`; null without one. */
+function wordSynctex(latex: string): string | null {
+  const line = latex.split('\n').findIndex((l) => l.includes(SYNC_WORD)) + 1;
+  if (line === 0) return null;
+  const sp = (bp: number) => Math.round((bp * 65536 * 72.27) / 72);
+  const { x, y } = SYNC_WORD_AT;
+  return [
+    'SyncTeX Version:1', 'Input:1:./main.tex', 'Output:xdv', 'Magnification:1000', 'Unit:1', 'X Offset:0', 'Y Offset:0', 'Content:',
+    '{1', `[1,1:0,0:${sp(595)},${sp(842)},0`,
+    `(1,${line}:${sp(x - 28)},${sp(y)}:${sp(300)},${sp(12)},${sp(3)}`, `x1,${line}:${sp(x - 28)},${sp(y)}`, ')',
+    ']', '}1', '',
+  ].join('\n');
+}
+
+/** The compile job's answer: a job that asked for SyncTeX and holds `SYNC_WORD` gets the word PDF with its SyncTeX, every other one the blank three-page PDF. */
+function compileAnswer(job: { latex: string; synctex: boolean } | undefined): FakeResponse {
+  const sync = job?.synctex ? wordSynctex(job.latex) : null;
+  if (!sync) return { status: 200, bytes: blankPdf(3), headers: { 'content-type': 'application/pdf' } };
+  const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+  return ok({ pdf_b64: b64(wordPdf()), aux: {}, synctex_b64: b64(new TextEncoder().encode(sync)), synctex_line_shift: 0 });
+}
+
 const now = (): string => new Date().toISOString();
 
 /** `\begin{Aufgabe}[N]` override, else `\BE`/`\Lmulti` 1, `\hBE` 0.5, `\qBE` 0.25 (`parse_exercise_score` in the backend). */
@@ -312,6 +362,8 @@ function userMatchesStatus(u: any, status: string): boolean {
 export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   const initialMode = (): FakeStorageMode | null => (opts.storageMode === undefined ? 'all-server' : opts.storageMode);
 
+  /** Compile jobs by id: what each asked for (issue #347). */
+  const compileJobs = new Map<string, { latex: string; synctex: boolean }>();
   const state: FakeApiState = {
     exams: new Map(),
     exercises: new Map(),
@@ -342,6 +394,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   };
 
   function reset(): void {
+    compileJobs.clear();
     state.exams.clear();
     state.exercises.clear();
     state.links.clear();
@@ -1554,8 +1607,12 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       case 'compile':
         // No TeX engine here: every job answers the same blank three-page A4 PDF (the Layout step's sample, issue #272).
         if (parts[1] !== 'latex' || parts[2] !== 'jobs') return undefined;
-        if (verb === 'POST' && parts.length === 3) return ok({ job_id: uuid() });
-        return verb === 'GET' && parts.length === 4 ? { status: 200, bytes: blankPdf(3), headers: { 'content-type': 'application/pdf' } } : undefined;
+        if (verb === 'POST' && parts.length === 3) {
+          const id = uuid();
+          compileJobs.set(id, { latex: String(payload?.latex ?? ''), synctex: Boolean(payload?.return_synctex) });
+          return ok({ job_id: id });
+        }
+        return verb === 'GET' && parts.length === 4 ? compileAnswer(compileJobs.get(parts[3])) : undefined;
       case 'shares':
         return sharesRoute(verb, parts, payload);
       case 'statistics':

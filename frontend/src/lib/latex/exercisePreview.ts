@@ -104,7 +104,8 @@ export async function compileExercisePreview(input: ExercisePreviewInput): Promi
     input.key,
     input.staged || input.useLocal
   );
-  const opts = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds };
+  // SyncTeX lets a click on the preview jump to the LaTeX (issue #347).
+  const opts = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds, synctex: true };
 
   await input.beforeCompile?.();
   const angabe = await compileWithCache(

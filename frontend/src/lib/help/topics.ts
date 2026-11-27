@@ -93,7 +93,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.exercises.s1.h", bodyKeys: ["help.topics.exercises.s1.p1"], docs: "exercises#library" },
       { headingKey: "help.topics.exercises.favorites.h", bodyKeys: ["help.topics.exercises.favorites.p1"], docs: "exercises#favorites" },
       { headingKey: "help.topics.exercises.bulk.h", bodyKeys: ["help.topics.exercises.bulk.p1"], docs: "exercises#bulk" },
-      { headingKey: "help.topics.exercises.s2.h", bodyKeys: ["help.topics.exercises.s2.p1"], docs: "exercises#editor" },
+      { headingKey: "help.topics.exercises.s2.h", bodyKeys: ["help.topics.exercises.s2.p1", "help.topics.exercises.s2.p2"], docs: "exercises#editor" },
       { headingKey: "help.topics.exercises.s3.h", bodyKeys: ["help.topics.exercises.s3.p1", "help.topics.exercises.s3.p2"], docs: "exercises#score" },
       { headingKey: "help.topics.exercises.s4.h", bodyKeys: ["help.topics.exercises.s4.p1"], docs: "exercises#variants" },
       { headingKey: "help.topics.exercises.s5.h", bodyKeys: ["help.topics.exercises.s5.p1"], docs: "exercises#multiple-choice" },

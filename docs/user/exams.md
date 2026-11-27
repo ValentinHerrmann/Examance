@@ -197,6 +197,8 @@ Some students need more room than the task sheet offers. The **Writing space** s
 
 **Live Preview PDF** typesets the exam and the solution sheet. On wide screens the preview sits next to the exercises and the layout; on smaller screens it is a second tab, **Preview**, beside **Exercises**. The run produces a print-ready PDF. Its cover page has an empty **QR Code** box for the student's QR sticker, see [QR stickers](./students#qr-stickers). Examance never compiles on its own: after you change the exam, the last preview stays visible, marked as outdated, until you press **Live Preview PDF** again. The status line says how long the compile took and whether the server or the browser compiled. Compiled PDFs stay encrypted in this browser until you sign out: after a reload the last preview is back at once, and a change that does not move the page layout is usually ready faster than the first compile. Subject packages (chemistry, circuits, UML, structograms, source code) are loaded only when an exercise uses them.
 
+Once you have compiled the preview in this visit, a click on an exercise's text opens that exercise in the editor with the cursor on the clicked word; a click on text the template generates shows a short hint instead.
+
 Depending on your settings and your account, the exam is typeset
 
 - **in your browser** (recommended, the default): fastest; the LaTeX source does not leave your device to compile, and only the very first run downloads the LaTeX environment once;

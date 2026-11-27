@@ -52,10 +52,19 @@ _AFTER_DUMP = (
 )
 
 
+# Lines the format wrapper inserts before the document body: SyncTeX counts them, the client subtracts them (issue #347).
+FORMAT_LINE_SHIFT = (_BEFORE_DUMP + _AFTER_DUMP).count("\n")
+# A gzipped SyncTeX file of a long exam is a few hundred KB; anything far beyond that is dropped, not shipped.
+MAX_SYNCTEX_BYTES = 4 * 1024 * 1024
+
+
 @dataclass(frozen=True)
 class TexResult:
     pdf: bytes
     aux: dict[str, bytes] = field(default_factory=dict)
+    # Gzipped SyncTeX of main.tex for click-to-source (issue #347), only when asked for; lines past the preamble are shifted by synctex_line_shift.
+    synctex: bytes | None = None
+    synctex_line_shift: int = 0
 
 
 class CompilationError(Exception):
@@ -307,13 +316,13 @@ def _prepare_workdir(tmpdir: Path, files: dict[str, bytes], seed_aux: dict[str, 
         (tmpdir / name).write_bytes(content)
 
 
-async def _run_passes(tmpdir: Path, fmt_args: list[str], seeded: bool, deadline: float) -> int:
+async def _run_passes(tmpdir: Path, tex_args: list[str], seeded: bool, deadline: float) -> int:
     """XeLaTeX without PDF output until the aux files settle (at most MAX_TEX_PASSES); returns the number of passes."""
     aux = _read_aux_files(tmpdir)
     passes = 0
     while True:
         passes += 1
-        cmd = ["xelatex", *_TEX_FLAGS, "-no-pdf", *fmt_args, "main.tex"]
+        cmd = ["xelatex", *_TEX_FLAGS, "-no-pdf", *tex_args, "main.tex"]
         returncode, stderr = await _run(cmd, tmpdir, deadline, "xelatex")
         if returncode != 0:
             raise CompilationError(
@@ -327,16 +336,23 @@ async def _run_passes(tmpdir: Path, fmt_args: list[str], seeded: bool, deadline:
         aux = settled
 
 
-async def _run_passes_or_unseeded(tmpdir: Path, fmt_args: list[str], seeded: bool, deadline: float) -> int:
+async def _run_passes_or_unseeded(tmpdir: Path, tex_args: list[str], seeded: bool, deadline: float) -> int:
     """``_run_passes``, retried once without the seeds when a seeded run fails: a stale seed (a macro the document no longer defines) must not fail the compile."""
     try:
-        return await _run_passes(tmpdir, fmt_args, seeded, deadline)
+        return await _run_passes(tmpdir, tex_args, seeded, deadline)
     except CompilationError:
         if not seeded:
             raise
     for name in AUX_FILE_NAMES:
         (tmpdir / name).unlink(missing_ok=True)
-    return await _run_passes(tmpdir, fmt_args, False, deadline)
+    return await _run_passes(tmpdir, tex_args, False, deadline)
+
+
+def _read_synctex(tmpdir: Path) -> bytes | None:
+    path = tmpdir / "main.synctex.gz"
+    if not path.is_file() or path.stat().st_size > MAX_SYNCTEX_BYTES:
+        return None
+    return path.read_bytes()
 
 
 async def run_tex(
@@ -344,8 +360,9 @@ async def run_tex(
     files: dict[str, bytes],
     time_limit: float,
     seed_aux: dict[str, bytes] | None = None,
+    synctex: bool = False,
 ) -> TexResult:
-    """Compile *main_tex* with the bundled assets plus *files* (relative path -> bytes, written after the assets) and return the PDF and the aux files. TeX runs until the aux files settle, starting from *seed_aux* (names from AUX_FILE_NAMES) when given; the PDF is written once at the end. Raises CompilationError or TimeoutError."""
+    """Compile *main_tex* with the bundled assets plus *files* (relative path -> bytes, written after the assets) and return the PDF and the aux files (and with *synctex* the gzipped SyncTeX). TeX runs until the aux files settle, starting from *seed_aux* (names from AUX_FILE_NAMES) when given; the PDF is written once at the end. Raises CompilationError or TimeoutError."""
     tmpdir = Path(tempfile.mkdtemp(prefix="blindgrade-latex-"))
     try:
         _prepare_workdir(tmpdir, files, seed_aux or {})
@@ -360,7 +377,8 @@ async def run_tex(
                 main_tex = _BEFORE_DUMP + parts[0] + _AFTER_DUMP + parts[1]
             (tmpdir / "main.tex").write_text(main_tex, encoding="utf-8")
             format_ready = time.monotonic()
-            passes = await _run_passes_or_unseeded(tmpdir, fmt_args, bool(seed_aux), deadline)
+            tex_args = [*fmt_args, "-synctex=1"] if synctex else fmt_args
+            passes = await _run_passes_or_unseeded(tmpdir, tex_args, bool(seed_aux), deadline)
             returncode, stderr = await _run(
                 ["xdvipdfmx", "-q", "-E", "-o", "main.pdf", "main.xdv"], tmpdir, deadline, "xdvipdfmx",
             )
@@ -376,6 +394,10 @@ async def run_tex(
                 "LaTeX compilation failed: the PDF could not be written.",
                 log=_read_tex_log(tmpdir, stderr),
             )
-        return TexResult(pdf=pdf_path.read_bytes(), aux=_read_aux_files(tmpdir))
+        return TexResult(
+            pdf=pdf_path.read_bytes(), aux=_read_aux_files(tmpdir),
+            synctex=_read_synctex(tmpdir) if synctex else None,
+            synctex_line_shift=FORMAT_LINE_SHIFT if fmt_args else 0,
+        )
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)

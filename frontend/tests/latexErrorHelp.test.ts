@@ -33,7 +33,7 @@ describe('buildAiPrompt', () => {
   const source = ['\\documentclass{article}', '\\Lehrernachname{Secret}', '\\begin{document}', 'a', 'Text \\foo', 'x^2']
     .concat(Array.from({ length: 400 }, (_, i) => `frame ${i}`))
     .join('\n');
-  const ranges = [{ label: 'Ex', start: 4, end: 6 }];
+  const ranges = [{ label: 'Ex', exerciseId: null, start: 4, end: 6 }];
   const log = UNDEFINED.replace('l.3 ', 'l.5 ').replace('l.4 ', 'l.6 ');
   const base = { log, engine: 'server' as const, source, ranges, locale: 'de' };
 
@@ -134,7 +134,7 @@ describe('buildAiPrompt privacy and context', () => {
     const body = Array.from({ length: 300 }, (_, i) => `row ${i + 1}`);
     const doc = ['\\begin{document}', ...body].join('\n');
     const log = '! Undefined control sequence.\nl.21 row 20\n! Undefined control sequence.\nl.181 row 180\n';
-    const prompt = buildAiPrompt({ log, engine: 'local', source: doc, ranges: [{ label: 'Long', start: 2, end: 301 }], includeSource: true, locale: 'en' });
+    const prompt = buildAiPrompt({ log, engine: 'local', source: doc, ranges: [{ label: 'Long', exerciseId: null, start: 2, end: 301 }], includeSource: true, locale: 'en' });
     expect(prompt).toContain('error at line 20');
     expect(prompt).toContain('error at line 180');
     expect(prompt).toContain('row 180');

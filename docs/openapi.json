@@ -15060,6 +15060,11 @@
             "type": "boolean",
             "title": "Return Aux",
             "default": false
+          },
+          "return_synctex": {
+            "type": "boolean",
+            "title": "Return Synctex",
+            "default": false
           }
         },
         "type": "object",

@@ -198,6 +198,8 @@ Manche Schüler brauchen mehr Platz, als die Angabe bietet. Dafür hat der Schri
 
 **Live-Vorschau PDF** setzt die Prüfung und den Erwartungshorizont. Auf breiten Bildschirmen steht die Vorschau neben Aufgaben und Layout; auf kleineren ist sie ein zweiter Reiter, **Vorschau**, neben **Aufgaben**. Dabei entsteht ein druckfertiges PDF. Sein Deckblatt hat ein leeres Feld **QR Code** für den QR-Aufkleber der Schülerin oder des Schülers, siehe [QR-Aufkleber](./students#qr-stickers). Examance kompiliert nie von selbst: Nach einer Änderung an der Prüfung bleibt die letzte Vorschau sichtbar und ist als veraltet markiert, bis Sie erneut auf **Live-Vorschau PDF** klicken. Die Statuszeile sagt, wie lange das Erstellen gedauert hat und ob der Server oder der Browser kompiliert hat. Kompilierte PDFs bleiben verschlüsselt in diesem Browser, bis Sie sich abmelden: Nach dem Neuladen der Seite ist die letzte Vorschau sofort wieder da, und eine Änderung, die das Seitenlayout nicht verschiebt, ist meist schneller fertig als das erste Kompilieren. Fachpakete (Chemie, Schaltungen, UML, Struktogramme, Quelltext) lädt Examance nur, wenn eine Aufgabe sie verwendet.
 
+Nachdem Sie die Vorschau in diesem Besuch kompiliert haben, öffnet ein Klick auf den Text einer Aufgabe diese Aufgabe im Editor, mit dem Cursor auf dem angeklickten Wort; ein Klick auf Text, den die Vorlage erzeugt, zeigt stattdessen einen kurzen Hinweis.
+
 Je nach Ihren Einstellungen und Ihrem Konto wird die Prüfung
 
 - **in Ihrem Browser** gesetzt (empfohlen, voreingestellt): am schnellsten; der LaTeX-Quelltext verlässt zum Kompilieren Ihr Gerät nicht, nur der allererste Lauf lädt einmalig die LaTeX-Umgebung herunter;

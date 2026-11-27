@@ -9,7 +9,7 @@ import { mergeResources, type LatexResourceFile } from './resources';
 import { loadLatexAssets } from './assets';
 import type { CompileLogo } from './logo';
 import { LatexCompileError, withSourceLocations } from './compileError';
-import { extractSourceMap } from './sourceMap';
+import { extractSourceMap, type SourceRange } from './sourceMap';
 import { latexDownloadProgress, type LatexDownloadProgress } from './downloadProgress';
 
 /** An auxiliary file (`main.aux`, `main.toc`, `main.out`) a compile left behind; seeding the next compile with it usually saves a TeX pass (issue #341). */
@@ -30,10 +30,15 @@ export interface CompileResult {
   aux?: AuxFile[];
   /** Served from the compile cache, no engine ran. */
   fromCache?: boolean;
+  /** Uncompressed SyncTeX of main.tex (issue #347), kept in memory only; lines past the preamble are shifted by `synctexLineShift` (the format wrapper). */
+  synctex?: Uint8Array;
+  synctexLineShift?: number;
+  /** Where each marked exercise body sits in the compiled document (sourceMap.ts). */
+  sourceRanges?: SourceRange[];
 }
 
-/** `session` names the document (its cache slot) so the browser engine keeps its checkpoints for the next edit; without one it compiles from scratch. */
-type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; seedAux?: AuxFile[]; session?: string };
+/** `session` names the document (its cache slot) so the browser engine keeps its checkpoints for the next edit; without one it compiles from scratch. `synctex` asks the server for SyncTeX too (the browser engine always writes it). */
+type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; seedAux?: AuxFile[]; session?: string; synctex?: boolean };
 
 /** The browser engine itself failed (boot, download, crash, timeout), not the document: the server may compile it instead. */
 export class LocalEngineFailedError extends Error {
@@ -207,7 +212,9 @@ async function compileLocalWasm(
               usedFallback: false,
               engineUsed: 'local',
               missingGraphics: e.data.missingGraphics ?? [],
-              aux: e.data.aux ?? []
+              aux: e.data.aux ?? [],
+              synctex: e.data.synctex,
+              synctexLineShift: e.data.synctexLineShift ?? 0
             })
           );
         } else if (e.data.unavailable) {
@@ -266,7 +273,7 @@ export async function compileLatex(
     const durationMs = Math.round(performance.now() - started);
     // Timing only, never content: shows whether a slow compile is the engine, the queue or the seeds.
     console.info(`[compiler] ${result.engineUsed} compile took ${(durationMs / 1000).toFixed(1)} s (seeded: ${(opts.seedAux ?? []).length > 0})`);
-    return { ...result, durationMs };
+    return { ...result, durationMs, sourceRanges: map.ranges };
   } catch (err) {
     if (!(err instanceof LatexCompileError)) throw err;
     const located = withSourceLocations(err, map);
@@ -302,12 +309,12 @@ async function compileMapped(
     } catch (err) {
       if (!fallBackToServer(err)) throw err;
       console.warn('[compiler] The browser engine failed; compiling on the server instead:', err);
-      const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
+      const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux, opts.synctex);
       engineFallbackStore.set(true);
       return { ...result, usedFallback: true };
     }
   }
-  return compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux);
+  return compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo, seedAux, opts.synctex);
 }
 
 const POLL_INTERVAL_MS = 1000;
@@ -332,14 +339,29 @@ async function pollCompileJob(jobId: string): Promise<ArrayBuffer> {
 
 const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46]; // "%PDF"
 
-/** A job asked with `return_aux` answers JSON `{pdf_b64, aux}`; a bare PDF (an older backend) still works. */
-export function parseServerCompile(body: Uint8Array): { pdfBytes: Uint8Array; aux: AuxFile[] } {
+type ServerCompile = { pdfBytes: Uint8Array; aux: AuxFile[]; synctexGz?: Uint8Array; synctexLineShift?: number };
+
+/** A job asked with `return_aux` answers JSON `{pdf_b64, aux}` (with `return_synctex` also the gzipped `synctex_b64`); a bare PDF (an older backend) still works. */
+export function parseServerCompile(body: Uint8Array): ServerCompile {
   if (PDF_MAGIC.every((b, i) => body[i] === b)) return { pdfBytes: body, aux: [] };
-  const parsed = JSON.parse(new TextDecoder().decode(body)) as { pdf_b64: string; aux?: Record<string, string> };
+  const parsed = JSON.parse(new TextDecoder().decode(body)) as { pdf_b64: string; aux?: Record<string, string>; synctex_b64?: string; synctex_line_shift?: number };
   return {
     pdfBytes: base64ToUint8Array(parsed.pdf_b64),
-    aux: Object.entries(parsed.aux ?? {}).map(([path, b64]) => ({ path, content: base64ToUint8Array(b64) }))
+    aux: Object.entries(parsed.aux ?? {}).map(([path, b64]) => ({ path, content: base64ToUint8Array(b64) })),
+    synctexGz: parsed.synctex_b64 ? base64ToUint8Array(parsed.synctex_b64) : undefined,
+    synctexLineShift: parsed.synctex_line_shift ?? 0
   };
+}
+
+/** Unpacks the server's gzipped SyncTeX (plain bytes pass through); a broken file only disables click-to-source. */
+async function gunzip(bytes: Uint8Array): Promise<Uint8Array | undefined> {
+  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return bytes;
+  try {
+    const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  } catch {
+    return undefined;
+  }
 }
 
 async function compileOnServer(
@@ -347,7 +369,8 @@ async function compileOnServer(
   resources: LatexResourceFile[] = [],
   resourceExerciseIds: string[] = [],
   logo?: CompileLogo,
-  seedAux: AuxFile[] = []
+  seedAux: AuxFile[] = [],
+  synctex = false
 ): Promise<CompileResult> {
   try {
     // A background job polled with short requests: a long compile never meets the proxy's timeout (Cloudflare cuts at 100 s).
@@ -363,13 +386,15 @@ async function compileOnServer(
         logo_exam_id: logo?.examId ?? null,
         account_logo: Boolean(logo && !logo.examId),
         seed_aux: Object.fromEntries(seedAux.map((f) => [f.path, uint8ArrayToBase64(f.content)])),
-        return_aux: true
+        return_aux: true,
+        return_synctex: synctex
       },
       // A failed compile is an expected outcome: callers show the TeX diagnostics in place, not the HTTP error modal.
       { silentError: true }
     );
-    const { pdfBytes, aux } = parseServerCompile(new Uint8Array(await pollCompileJob(jobId)));
-    return { pdfBytes, aux, usedFallback: false, engineUsed: 'server' };
+    const { pdfBytes, aux, synctexGz, synctexLineShift } = parseServerCompile(new Uint8Array(await pollCompileJob(jobId)));
+    const synctexBytes = synctexGz ? await gunzip(synctexGz) : undefined;
+    return { pdfBytes, aux, synctex: synctexBytes, synctexLineShift, usedFallback: false, engineUsed: 'server' };
   } catch (err: any) {
     // Status 0 means the browser never got a usable response: the request was blocked, the server crashed before CORS headers were written, or the API is a different version than this build. Saying so beats "unknown error".
     if (err?.status === 0 || err?.code === 'ERR_NETWORK') {

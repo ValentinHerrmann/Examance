@@ -97,6 +97,8 @@
 
   // Quick exercise editor (opened from exercise names and the library picker).
   let quickEditEx: ExerciseRecord | null = $state.raw(null);
+  /** Where the editor's cursor starts: the place clicked in the preview (issue #347). */
+  let quickEditCursor: { line: number; column: number } | null = $state.raw(null);
   let creatingExercise = $state(false);
   let picker: ReturnType<typeof ExamExercisePicker> | undefined = $state();
 
@@ -322,6 +324,12 @@
           {layoutVersion}
           draft
           refreshSources={refreshExamSources}
+          onSourceClick={({ exerciseId, line, column }) => {
+            const ex = exercises.find((e) => e.id === exerciseId) ?? libraryExercises.find((e) => e.id === exerciseId);
+            if (!ex) return;
+            quickEditCursor = { line, column };
+            quickEditEx = ex;
+          }}
         />
       </div>
     </div>
@@ -342,8 +350,10 @@
 <ExerciseEditorModal
   isOpen={quickEditEx !== null || creatingExercise}
   editingExercise={quickEditEx}
+  initialCursor={quickEditCursor}
   onClose={() => {
     quickEditEx = null;
+    quickEditCursor = null;
     creatingExercise = false;
   }}
   onSave={handleEditorSaved}

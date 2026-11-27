@@ -6,12 +6,14 @@
   import { effectiveLatexStore } from "#lib/stores/capabilities";
   import { askToShare } from "#lib/exercise-library/askToShare";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
-  import { parseMcOptions, buildMcOptionsLatex, type McOption } from "#lib/latex/mcOptions";
-  import { exerciseDraftError, rememberDraftSuggestions, withoutMetaTags, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
+  import type { McOption } from "#lib/latex/mcOptions";
+  import { McDraft } from "#lib/exercise-library/mcDraft.svelte";
+  import { exerciseDraftError, rememberDraftSuggestions, type ExerciseDraft } from "#lib/exercise-library/exerciseEditorSave";
   import { httpErrorStore } from "#lib/stores/httpErrorStore";
   import { EditorSession } from "#lib/exercise-library/editorSession.svelte";
   import { EditorPreview } from "#lib/exercise-library/editorPreview.svelte";
   import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
+  import TemplateTextTip from "#lib/components/latex/TemplateTextTip.svelte";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
   import ExerciseStructureModal from "#lib/components/exercise/ExerciseStructureModal.svelte";
@@ -19,7 +21,6 @@
   import McOptionsEditor from "#lib/components/exercise/McOptionsEditor.svelte";
   import ExercisePromptDialog from "#lib/components/exercise/ExercisePromptDialog.svelte";
   import { fmt } from "#lib/utils/format";
-  import { parseExerciseStructure, setCompetencies, setRequirementLevel } from "#lib/latex/exerciseStructure";
   import ExercisePackagesPanel from "#lib/components/latex-packages/ExercisePackagesPanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
@@ -37,6 +38,8 @@
     versionBaseEx?: ExerciseRecord | null;
     onClose?: () => void;
     onSave?: (detail: { exercise: ExerciseRecord; isNewVersion: boolean }) => void;
+    /** Where the cursor starts once the editor shows (a click in the exam preview, issue #347). */
+    initialCursor?: { line: number; column: number } | null;
   }
 
   let {
@@ -45,7 +48,8 @@
     isCreatingVersion = false,
     versionBaseEx = null,
     onClose,
-    onSave
+    onSave,
+    initialCursor = null
   }: Props = $props();
 
   // Form field state
@@ -56,14 +60,7 @@
   let editorVariantKey = $state("");
   let editorLatexBody = $state("");
   let editorQuestionType: "free_text" | "mc" = $state("free_text");
-  let mcQuestionText = $state("");
-  /** LaTeX after the \LoesungMulti block; kept as is when the MC editor rebuilds the body. */
-  let mcTrailingText = $state("");
-  /** The composed LaTeX has an unclosed \LoesungMulti block: the MC editor must not rebuild from it. */
-  let mcBlockMalformed = $state(false);
-  let mcOptions: McOption[] = $state.raw([]);
-  /** Column layout of the options: "auto" (one per option) or an explicit count, as a <select> value. */
-  let mcColumns = $state("auto");
+  const mc = new McDraft();
   /** Points deducted per wrongly-crossed MC option (right-minus-wrong scoring). Matches the printed scoring text convention. */
   let editorPenalty = $state(0.5);
 
@@ -72,6 +69,7 @@
 
   let baseRecord = $derived(isCreatingVersion ? versionBaseEx : editingExercise);
   const preview = new EditorPreview();
+  let latexEditor: LatexEditor | undefined = $state();
   let showLatexPanel = $state(true);
   let structureOpen = $state(false);
   // AI-chat prompt (issue #168); the request survives closing the dialog while the editor stays open.
@@ -85,13 +83,13 @@
   let errorMsg = $state("");
 
   function insertResourceSnippet(snippet: string) {
-    if (!isMc || mcBlockMalformed) {
+    if (!isMc || mc.malformed) {
       editorLatexBody = `${editorLatexBody}\n${snippet}\n`;
-      if (mcBlockMalformed) syncMcStateFromLatex();
+      if (mc.malformed) syncMcStateFromLatex();
       return;
     }
     // MC: into the question, above the answer boxes.
-    mcQuestionText = `${mcQuestionText}\n${snippet}`;
+    mc.questionText = `${mc.questionText}\n${snippet}`;
     regenerateMcLatex();
   }
 
@@ -144,29 +142,16 @@
   }
 
   function syncMcStateFromLatex(latex: string = editorLatexBody) {
-    const parsed = parseMcOptions(withoutMetaTags(latex));
-    mcQuestionText = parsed.questionText;
-    mcTrailingText = parsed.trailingText;
-    mcBlockMalformed = parsed.malformed;
-    mcOptions = parsed.options;
-    mcColumns = parsed.columns === null ? "auto" : String(parsed.columns);
+    mc.syncFrom(latex);
   }
 
   function regenerateMcLatex() {
-    if (mcBlockMalformed) return;
-    const meta = parseExerciseStructure(editorLatexBody);
-    const body = buildMcOptionsLatex(
-      mcQuestionText,
-      mcOptions,
-      mcColumns === "auto" ? null : Number(mcColumns),
-      mcTrailingText,
-    );
-    editorLatexBody = setCompetencies(setRequirementLevel(body, meta.levels[0] ?? null), meta.competencies);
+    editorLatexBody = mc.rebuild(editorLatexBody) ?? editorLatexBody;
   }
 
-  // Typing in the composed LaTeX updates the MC editor (also in free-text mode, for a later switch), so its next change rebuilds from this text.
   function handleLatexBodyEdit(latex: string) {
     syncMcStateFromLatex(latex);
+    preview.typed(latex, latexEditor?.getCursor());
   }
 
   function handleStructureChange(latex: string) {
@@ -176,18 +161,11 @@
 
   function handleQuestionTypeChange(type: "free_text" | "mc") {
     editorQuestionType = type;
-    if (isMc && mcOptions.length === 0) {
-      mcQuestionText = mcQuestionText.trim() || "Frage hier eingeben...";
-      mcOptions = [
-        { text: "", correct: false },
-        { text: "", correct: false },
-      ];
-      regenerateMcLatex();
-    }
+    if (isMc && mc.start()) regenerateMcLatex();
   }
 
   function setMcOptions(options: McOption[]) {
-    mcOptions = options;
+    mc.options = options;
     regenerateMcLatex();
   }
 
@@ -363,6 +341,20 @@
     const on = isOpen && $effectiveLatexStore === "local" && (preview.compiled || !!preview.pdfUrl);
     untrack(() => preview.live(key, on, () => void runPreview(true)));
   });
+
+  // Once per opening, as soon as the code editor exists.
+  let cursorPlaced = false;
+  $effect.pre(() => {
+    const ed = latexEditor;
+    const open = isOpen;
+    untrack(() => {
+      if (!open) cursorPlaced = false;
+      else if (ed && initialCursor && !cursorPlaced) {
+        cursorPlaced = true;
+        requestAnimationFrame(() => ed.setCursor(initialCursor.line, initialCursor.column));
+      }
+    });
+  });
 </script>
 
 {#snippet layoutReport()}
@@ -486,11 +478,11 @@
             <div class="flex flex-col gap-2 p-2 @3xl:min-h-0 @3xl:flex-1 @3xl:overflow-y-auto">
               {#if isMc}
                 <McOptionsEditor
-                  bind:questionText={mcQuestionText}
-                  bind:columns={mcColumns}
+                  bind:questionText={mc.questionText}
+                  bind:columns={mc.columns}
                   bind:penalty={editorPenalty}
-                  options={mcOptions}
-                  malformed={mcBlockMalformed}
+                  options={mc.options}
+                  malformed={mc.malformed}
                   onChange={regenerateMcLatex}
                   onOptionsChange={setMcOptions}
                   onShowLatex={() => (latexSourceOpen = true)}
@@ -498,7 +490,7 @@
               {:else}
                 <!-- From @3xl the code area absorbs all free space; no explicit min-height, so its minimum stays palette + code rows and it never paints over the panels (issue #188). -->
                 <div class="flex flex-col @3xl:flex-1">
-                  <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
+                  <LatexEditor bind:this={latexEditor} bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
                 </div>
               {/if}
 
@@ -541,7 +533,10 @@
           placeholderText={$t("exercises.editor.previewPlaceholder")}
           shrinkWhenCollapsed={showLatexPanel}
           report={preview.pdfUrl || preview.solutionUrl || preview.error ? layoutReport : undefined}
+          overlays={preview.sync.overlays}
+          onPageClick={(pane, click) => void preview.jump(pane, click, editorLatexBody, isMc ? undefined : latexEditor)}
         />
+        <TemplateTextTip sync={preview.sync} />
       </div>
     </div>
 

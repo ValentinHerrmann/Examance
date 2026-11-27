@@ -2,7 +2,7 @@
   import type { Snippet } from "svelte";
   import { tick } from "svelte";
 
-  /** Anchored panel: `trigger` snippet + children. Fixed-positioned from the trigger rect and clamped to the viewport, so no scroll container clips it. Outside click and Escape close; focus returns to the trigger. */
+  /** Anchored panel: `trigger` snippet (or `anchorPoint`) + children. Fixed-positioned from the trigger rect and clamped to the viewport, so no scroll container clips it. Outside click and Escape close; focus returns to the trigger. */
   interface Props {
     open?: boolean;
     /** `right-start`/`left-start` open beside the trigger (a vertical toolbar's flyout). */
@@ -11,6 +11,8 @@
     panelClass?: string;
     trigger?: Snippet;
     children?: Snippet;
+    /** Anchors the panel at a screen point instead of the trigger (a click on a PDF, issue #347); scrolling then closes it. */
+    anchorPoint?: { x: number; y: number } | null;
   }
 
   let {
@@ -20,6 +22,7 @@
     panelClass = "",
     trigger,
     children,
+    anchorPoint = null,
   }: Props = $props();
 
   let root: HTMLElement | undefined = $state();
@@ -34,9 +37,9 @@
     (root?.querySelector("[data-popover-trigger] :is(button, a, [tabindex])") as HTMLElement | null)?.focus();
   }
 
-  function reposition() {
+  function reposition(point = anchorPoint) {
     if (!root || !panel) return;
-    const t = root.getBoundingClientRect();
+    const t = point ? new DOMRect(point.x, point.y, 0, 0) : root.getBoundingClientRect();
     const p = panel.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -64,10 +67,18 @@
     }
   }
 
+  function onScroll() {
+    if (!open) return;
+    if (!anchorPoint) return reposition();
+    open = false;
+    onClose?.();
+  }
+
   $effect.pre(() => {
     const isOpen = open;
+    const point = anchorPoint;
     if (typeof window === "undefined") return;
-    if (isOpen) void tick().then(reposition);
+    if (isOpen) void tick().then(() => reposition(point));
   });
 </script>
 
@@ -75,7 +86,7 @@
   onpointerdown={onPointerDown}
   onkeydown={onKeydown}
   onresize={() => open && reposition()}
-  onscrollcapture={() => open && reposition()}
+  onscrollcapture={onScroll}
 />
 
 <span bind:this={root} class="inline-flex" data-popover-trigger>

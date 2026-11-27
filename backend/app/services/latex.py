@@ -68,7 +68,7 @@ def _with_body_packages(doc: str) -> str:
 
 
 async def _run_in_worker(
-    main_tex: str, files: dict[str, bytes], time_limit: float, seed_aux: dict[str, bytes]
+    main_tex: str, files: dict[str, bytes], time_limit: float, seed_aux: dict[str, bytes], synctex: bool
 ) -> TexResult:
     """POST the job to the LaTeX worker and map its answer back onto the local runner's errors."""
     job = {
@@ -76,6 +76,7 @@ async def _run_in_worker(
         "files": {path: encode_b64(blob) for path, blob in files.items()},
         "seed_aux": {name: encode_b64(blob) for name, blob in seed_aux.items()},
         "timeout": time_limit,
+        "synctex": synctex,
     }
     try:
         # Slot wait plus the run; internal only, since the browser polls a background job (services/compile_jobs.py).
@@ -90,6 +91,8 @@ async def _run_in_worker(
         return TexResult(
             pdf=strict_b64decode(body["pdf_b64"]),
             aux={name: strict_b64decode(blob) for name, blob in body.get("aux", {}).items()},
+            synctex=strict_b64decode(body["synctex_b64"]) if body.get("synctex_b64") else None,
+            synctex_line_shift=int(body.get("synctex_line_shift", 0)),
         )
     if res.status_code == 422:
         body = res.json()
@@ -105,8 +108,9 @@ async def compile_latex(
     binary_files: dict[str, bytes] | None = None,
     logo: ResolvedLogo | None = None,
     seed_aux: dict[str, bytes] | None = None,
+    synctex: bool = False,
 ) -> TexResult:
-    """Compile *latex_source* and return the PDF and aux files. *binary_files* are teacher resources by flat name, validated so they cannot escape the workdir or shadow a .sty; *logo* is the logo; *seed_aux* the previous compile's aux files (TeX reads them as code, so they pass the same path tripwire)."""
+    """Compile *latex_source* and return the PDF and aux files (with *synctex* also the gzipped SyncTeX, issue #347). *binary_files* are teacher resources by flat name, validated so they cannot escape the workdir or shadow a .sty; *logo* is the logo; *seed_aux* the previous compile's aux files (TeX reads them as code, so they pass the same path tripwire)."""
     reject_unsafe_paths(latex_source)
     seed_aux = seed_aux or {}
     for blob in seed_aux.values():
@@ -131,5 +135,5 @@ async def compile_latex(
         preview, len(latex_source), len(files), sum(len(b) for b in files.values()),
     )
     if settings.LATEX_WORKER_URL:
-        return await _run_in_worker(latex_source, files, time_limit, seed_aux)
-    return await run_tex(latex_source, files, time_limit, seed_aux)
+        return await _run_in_worker(latex_source, files, time_limit, seed_aux, synctex)
+    return await run_tex(latex_source, files, time_limit, seed_aux, synctex)
