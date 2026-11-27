@@ -44,22 +44,69 @@
   let dragging = false;
   let downAt: { x: number; y: number } | null = null;
   const taps = createTapTracker();
+  /** Panning like a hand tool: the middle button, or the left one while Space is held. */
+  let panFrom: { x: number; y: number } | null = null;
+  let spaceHeld = false;
+  /** Space panned instead of typing a space. */
+  let spaceUsed = false;
+  /** A touch held still this long selects the word under it. */
+  const LONG_PRESS_MS = 500;
+  let longPress: ReturnType<typeof setTimeout> | undefined;
+
+  function setCursor() {
+    if (!edit.onText) host.style.cursor = "";
+    else if (panFrom) host.style.cursor = "grabbing";
+    else host.style.cursor = spaceHeld ? "grab" : "text";
+  }
 
   async function pointAt(clientX: number, clientY: number): Promise<PageClick | null> {
     const point = (await locate())?.pointAt(clientX, clientY);
     return point ? { ...point, clientX, clientY } : null;
   }
 
+  /** Mouse and pen belong to the edit layer on editable pages: EmbedPDF's own text selection and pan never see them (touch keeps native scrolling and pinch zoom). */
+  function own(e: PointerEvent) {
+    if (edit.onText && e.pointerType !== "touch") e.stopPropagation();
+  }
+
   function onDown(e: PointerEvent) {
+    own(e);
     taps.down(e);
     dragging = false;
     dragFrom = null;
+    clearTimeout(longPress);
+    if (edit.onText && e.pointerType === "mouse" && (e.button === 1 || (e.button === 0 && spaceHeld))) {
+      // The middle button's own autoscroll and the page's selection would fight the pan.
+      e.preventDefault();
+      panFrom = { x: e.clientX, y: e.clientY };
+      spaceUsed = spaceHeld;
+      downAt = null;
+      setCursor();
+      return;
+    }
+    if (e.pointerType === "touch" && e.isPrimary && edit.onText) {
+      const { clientX, clientY } = e;
+      longPress = setTimeout(() => {
+        void pointAt(clientX, clientY).then((click) => {
+          if (!click) return;
+          edit.onClick?.(click, 2);
+          focusInput();
+        });
+      }, LONG_PRESS_MS);
+    }
     downAt = e.pointerType === "mouse" && e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
     if (downAt && edit.onDrag) void pointAt(e.clientX, e.clientY).then((p) => (dragFrom = p));
   }
 
   let moveFrame = 0;
   function onMove(e: PointerEvent) {
+    own(e);
+    if (panFrom) {
+      scroller()?.scrollBy({ left: panFrom.x - e.clientX, top: panFrom.y - e.clientY });
+      panFrom = { x: e.clientX, y: e.clientY };
+      return;
+    }
+    if (longPress !== undefined && taps.moved(e)) clearTimeout(longPress);
     if (!downAt || !dragFrom || !edit.onDrag || (e.buttons & 1) === 0) return;
     if (!dragging && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 6) return;
     dragging = true;
@@ -73,6 +120,16 @@
   }
 
   function onUp(e: PointerEvent) {
+    own(e);
+    clearTimeout(longPress);
+    longPress = undefined;
+    if (panFrom) {
+      taps.cancel(e);
+      panFrom = null;
+      tapped = false;
+      setCursor();
+      return;
+    }
     tapped = taps.up(e) && !dragging;
     downAt = null;
     if (dragging) focusInput();
@@ -99,11 +156,28 @@
   function onKeydown(e: KeyboardEvent) {
     if (composing || !edit.onKey) return;
     const mod = e.ctrlKey || e.metaKey;
+    // Space types a space when released without a drag; held during a drag it pans.
+    if (e.key === " " && !mod && !e.altKey) {
+      e.preventDefault();
+      if (!e.repeat) {
+        spaceHeld = true;
+        spaceUsed = false;
+        setCursor();
+      }
+      return;
+    }
     let key: EditorKey | null = null;
     if (mod && !e.altKey && e.key.toLowerCase() === "z") key = e.shiftKey ? "Redo" : "Undo";
     else if (mod && !e.altKey && e.key.toLowerCase() === "y") key = "Redo";
     else if (!mod && KEYS.has(e.key)) key = e.key as EditorKey;
     if (key && edit.onKey(key, e.shiftKey)) e.preventDefault();
+  }
+
+  function onKeyup(e: KeyboardEvent) {
+    if (e.key !== " " || !spaceHeld) return;
+    spaceHeld = false;
+    if (!spaceUsed) edit.onText?.(" ");
+    setCursor();
   }
 
   function onInput(e: Event) {
@@ -128,7 +202,7 @@
 
   $effect(() => {
     const h = host;
-    h.addEventListener("pointerdown", onDown, { capture: true, passive: true });
+    h.addEventListener("pointerdown", onDown, { capture: true });
     h.addEventListener("pointermove", onMove, { capture: true, passive: true });
     h.addEventListener("pointerup", onUp, { capture: true, passive: true });
     h.addEventListener("pointercancel", taps.cancel, { capture: true, passive: true });
@@ -140,6 +214,11 @@
       h.removeEventListener("pointercancel", taps.cancel, { capture: true });
       h.removeEventListener("click", onClick, { capture: true });
     };
+  });
+
+  // The text cursor over editable pages; panning and Space switch it to the hand.
+  $effect(() => {
+    host.style.cursor = edit.onText ? "text" : "";
   });
 
   // Marks in host pixels; recomputed on new marks, a swap or zoom (`version`) and every scroll of the pages.
@@ -219,6 +298,11 @@
     autocomplete="off"
     spellcheck="false"
     onkeydown={onKeydown}
+    onkeyup={onKeyup}
+    onblur={() => {
+      spaceHeld = false;
+      setCursor();
+    }}
     oninput={onInput}
     oncompositionstart={() => (composing = true)}
     oncompositionend={onCompositionEnd}

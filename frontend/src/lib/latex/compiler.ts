@@ -210,6 +210,9 @@ async function compileLocalWasm(
           return;
         }
         if (e.data.success) {
+          // Durations only: where a live compile's time goes (TeX passes, the format, xdvipdfmx).
+          const tm = e.data.timings as { formatMs: number; passes: { ms: number }[]; pdfMs: number } | undefined;
+          if (tm) console.info(`[compiler] engine: format ${Math.round(tm.formatMs)} ms, passes ${tm.passes.map((p) => Math.round(p.ms)).join('+')} ms, xdvipdfmx ${Math.round(tm.pdfMs)} ms`);
           settle(() =>
             resolve({
               pdfBytes: e.data.pdfBytes,

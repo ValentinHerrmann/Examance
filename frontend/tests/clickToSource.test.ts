@@ -193,6 +193,22 @@ describe('resolveClick and caretFor with engine glyphs', () => {
     expect(resolveClick(res, { page: 1, x: 80.5, y: 88 }, null, () => SRC)).toMatchObject({ line: 2, column: 2 });
   });
 
+  it('treats clicks beside the text like a text editor: line end, line start, nearest line', () => {
+    // Right of "Maus" (ends at 184): after its last glyph, column 24.
+    expect(resolveClick(res, { page: 1, x: 400, y: 88 }, null, () => SRC)).toMatchObject({ line: 2, column: 24 });
+    // Left of "Die": before it.
+    expect(resolveClick(res, { page: 1, x: 20, y: 88 }, null, () => SRC)).toMatchObject({ line: 2, column: 0 });
+    // Well below the only line: still that line.
+    expect(resolveClick(res, { page: 1, x: 155, y: 140 }, null, () => SRC)).toMatchObject({ line: 2, column: 17 });
+  });
+
+  it('draws the caret on a space at the end of the word before it', () => {
+    // Column 3 is the space after "Die" (72 + 3 glyphs of 4 pt).
+    expect(caretFor(res, 'e1', 2, 3, () => SRC)!.x).toBeCloseTo(84, 1);
+    // Line end, after "Maus".
+    expect(caretFor(res, 'e1', 2, 24, () => SRC)!.x).toBeCloseTo(184, 1);
+  });
+
   it('places the caret at the glyph of a source position', () => {
     const box = caretFor(res, 'e1', 2, 17, () => SRC);
     expect(box).toMatchObject({ page: 1 });

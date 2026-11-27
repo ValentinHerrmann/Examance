@@ -71,11 +71,14 @@ export interface ExercisePreviewInput {
   onAngabe?: (angabe: CompileResult) => void;
   /** Awaited before each compile (the export paces server compiles with it). */
   beforeCompile?: () => Promise<void>;
+  /** False compiles only the Angabe (the editor's live preview while the solution pane is closed, issue #347). */
+  solution?: boolean;
 }
 
 export interface ExercisePreviewResult {
   angabe: CompileResult;
-  loesung: CompileResult;
+  /** Null when `solution` was false. */
+  loesung: CompileResult | null;
   missingGraphics: string[];
 }
 
@@ -94,7 +97,9 @@ export async function prepareExerciseSources(
   };
 }
 
-/** Compiles the Angabe and Lösung PDFs of a single exercise into the compile cache. */
+/** Compiles the Angabe and (unless `solution` is false) the Lösung PDFs of a single exercise into the compile cache. */
+export function compileExercisePreview(input: ExercisePreviewInput & { solution?: true }): Promise<ExercisePreviewResult & { loesung: CompileResult }>;
+export function compileExercisePreview(input: ExercisePreviewInput): Promise<ExercisePreviewResult>;
 export async function compileExercisePreview(input: ExercisePreviewInput): Promise<ExercisePreviewResult> {
   const { name, angabeTex, loesungTex } = await prepareExerciseSources(input.name, input.latexBody);
 
@@ -113,6 +118,7 @@ export async function compileExercisePreview(input: ExercisePreviewInput): Promi
     angabeTex, input.useLocal, input.onStatus, opts
   );
   input.onAngabe?.(angabe);
+  if (input.solution === false) return { angabe, loesung: null, missingGraphics: angabe.missingGraphics ?? [] };
   await input.beforeCompile?.();
   const loesung = await compileWithCache(
     { kind: "exercise", id: input.cacheId, variant: "loesung" },

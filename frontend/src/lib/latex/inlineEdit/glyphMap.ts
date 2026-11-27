@@ -62,19 +62,32 @@ export function parseProv(text: string, frame: Pick<SyncData, 'scale' | 'dx' | '
   return map;
 }
 
-/** The word under (x, y) on `page`, or the nearest one on that baseline within half a line. */
+/** The word for a click at (x, y) on `page`, as in a text editor: the nearest printed line (by baseline), then the nearest word on it; a click right of a line's end gets its last word, left of its start its first. Null only on a page without words. */
 export function wordAtPoint(map: GlyphMap, page: number, x: number, y: number): TypesetWord | null {
+  const words = map.get(page) ?? [];
+  // Distance from the click to the middle of a word's lowercase letters: a larger title on the same printed line does not win over the text beside it.
+  const lineDist = (w: TypesetWord) => Math.abs(y - (w.y - w.size * 0.3));
+  let lineY: number | null = null;
+  let bestLine = Infinity;
+  for (const w of words) {
+    const d = lineDist(w);
+    if (d < bestLine) {
+      bestLine = d;
+      lineY = w.y;
+    }
+  }
+  if (lineY === null) return null;
   let best: TypesetWord | null = null;
   let bestDist = Infinity;
-  for (const w of map.get(page) ?? []) {
-    if (y < w.y - w.size || y > w.y + w.size * 0.35) continue;
+  for (const w of words) {
+    if (Math.abs(w.y - lineY) > 0.5) continue;
     const dist = x < w.x ? w.x - x : Math.max(0, x - (w.x + w.width));
     if (dist < bestDist) {
       bestDist = dist;
       best = w;
     }
   }
-  return best && bestDist <= best.size ? best : null;
+  return best;
 }
 
 /** The glyph index under `x` in `word` (its left half or right half: `before` true means the caret goes before it). */
@@ -154,62 +167,37 @@ export function charOfGlyph(word: TypesetWord, text: string, at: [number, number
 
 const before = (a: TexPos, b: TexPos) => a.line < b.line || (a.line === b.line && a.column <= b.column);
 
-const isMainSeparator = (r: SyncRecord) => r.separator && r.tag === MAIN_TAG && r.column >= 0;
-const posOf = (r: SyncRecord): TexPos => ({ line: r.line, column: r.column });
-
-/** The nearest main.tex separator record before (`dir` -1) or after (+1) `pos`, with its page. */
-function nearestGlue(sync: SyncData, pos: TexPos, dir: -1 | 1): { glue: SyncRecord; page: number } | null {
-  let best: { glue: SyncRecord; page: number } | null = null;
-  // Before `pos` the latest one wins, after it the earliest.
-  const better = (p: TexPos, b: TexPos) => (dir < 0 ? before(b, p) : before(p, b));
-  for (const [page, recs] of sync.pages) {
-    for (const r of recs) {
-      if (!isMainSeparator(r)) continue;
-      const p = posOf(r);
-      const onSide = dir < 0 ? before(p, pos) : !before(p, pos);
-      if (onSide && (!best || better(p, posOf(best.glue)))) best = { glue: r, page };
-    }
-  }
-  return best;
-}
-
-/** The caret box when `word` holds `pos`, else null. */
-function caretIn(sync: SyncData, word: TypesetWord | undefined, pos: TexPos, lineOf: (line: number) => string | undefined): CaretBox | null {
-  const src = word && wordSource(sync, word, lineOf);
-  if (!word || !src || src.at.length === 0) return null;
-  const [l0, c0] = src.at[0];
-  const [l1, c1] = src.at[src.at.length - 1];
-  if (!before({ line: l0, column: c0 }, pos) || !before(pos, { line: l1, column: c1 + 1 })) return null;
-  const k = src.at.findIndex(([l, c]) => l > pos.line || (l === pos.line && c >= pos.column));
-  const index = k < 0 ? src.at.length : k;
-  // The glyph that starts at or after character `index`; inside a ligature the caret goes before it.
-  const starts = glyphStarts(src.text, word.glyphs.length);
-  const g = starts.findIndex((st) => st >= index);
-  const x = g < 0 ? word.x + word.width : word.glyphs[g];
-  return { page: word.page, x, top: word.y - word.size * 0.8, height: word.size };
-}
-
-/** The caret box for main.tex position `pos`: in the word that the last interword space before `pos` opens, or (first word of a paragraph) in the word that the next space closes; null when `pos` is in no typeset word (a macro name, a comment, math). */
-export function caretAt(sync: SyncData, map: GlyphMap, pos: TexPos, lineOf: (line: number) => string | undefined): CaretBox | null {
-  const left = nearestGlue(sync, pos, -1);
-  if (left) {
-    const word = (map.get(left.page) ?? []).filter((w) => Math.abs(w.y - left.glue.y) < 0.5 && w.x >= left.glue.x - 0.01).sort((a, b) => a.x - b.x)[0];
-    const box = caretIn(sync, word, pos, lineOf);
-    if (box) return box;
-  }
-  const right = nearestGlue(sync, pos, 1);
-  if (right) {
-    const word = (map.get(right.page) ?? []).filter((w) => Math.abs(w.y - right.glue.y) < 0.5 && w.x + w.width <= right.glue.x + 0.01).sort((a, b) => b.x - a.x)[0];
-    return caretIn(sync, word, pos, lineOf);
-  }
-  return null;
-}
-
 const sources = new WeakMap<TypesetWord, ReturnType<typeof wordSource>>();
 
 function cachedSource(sync: SyncData, word: TypesetWord, lineOf: (line: number) => string | undefined): ReturnType<typeof wordSource> {
   if (!sources.has(word)) sources.set(word, wordSource(sync, word, lineOf));
   return sources.get(word) ?? null;
+}
+
+/** The caret before character `index` of `word` (`index` = its length: after the last glyph). */
+function caretBox(word: TypesetWord, text: string, index: number): CaretBox {
+  // The glyph that starts at or after character `index`; inside a ligature the caret goes before it.
+  const g = glyphStarts(text, word.glyphs.length).findIndex((st) => st >= index);
+  const x = g < 0 ? word.x + word.width : word.glyphs[g];
+  return { page: word.page, x, top: word.y - word.size * 0.8, height: word.size };
+}
+
+/** The caret box for main.tex position `pos`: in the typeset word whose source holds it, else after the last word before it (a space, a line end, a macro name), else null (nothing typeset before it). */
+export function caretAt(sync: SyncData, map: GlyphMap, pos: TexPos, lineOf: (line: number) => string | undefined): CaretBox | null {
+  let after: { word: TypesetWord; text: string; end: TexPos } | null = null;
+  for (const word of [...map.values()].flat()) {
+    const src = cachedSource(sync, word, lineOf);
+    if (!src || src.at.length === 0) continue;
+    const [l0, c0] = src.at[0];
+    const [l1, c1] = src.at[src.at.length - 1];
+    const end = { line: l1, column: c1 + 1 };
+    if (before({ line: l0, column: c0 }, pos) && before(pos, end)) {
+      const k = src.at.findIndex(([l, c]) => l > pos.line || (l === pos.line && c >= pos.column));
+      return caretBox(word, src.text, k < 0 ? src.at.length : k);
+    }
+    if (before(end, pos) && (!after || before(after.end, end))) after = { word, text: src.text, end };
+  }
+  return after ? caretBox(after.word, after.text, after.text.length) : null;
 }
 
 /** The selected stretch of `word` between `from` and `to` (exclusive) as left and right x, or null when none of it is selected. */

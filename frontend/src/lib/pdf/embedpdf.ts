@@ -42,6 +42,8 @@ export interface EmbedPdfMountOptions {
   src?: string;
   theme?: "light" | "dark" | "system";
   zoomLevel?: ZoomLevel;
+  /** The pages have an edit layer (issue #347): no pan mode and no text selection of EmbedPDF's own; the layer owns clicks and drags, touch scrolls natively. */
+  editable?: boolean;
 }
 
 /** Mounts a chromeless EmbedPDF viewer into `target`. Returns the live container handle. */
@@ -56,7 +58,8 @@ export function mountEmbedPdf(opts: EmbedPdfMountOptions): EmbedPdfContainer | u
     tabBar: "never",
     ui: { schema: chromelessUiSchema },
     zoom: { defaultZoomLevel: opts.zoomLevel ?? ZoomMode.FitWidth },
-    disabledCategories: READONLY_PREVIEW_DISABLED_CATEGORIES,
+    disabledCategories: opts.editable ? [...READONLY_PREVIEW_DISABLED_CATEGORIES, "selection"] : READONLY_PREVIEW_DISABLED_CATEGORIES,
+    ...(opts.editable ? { pan: { defaultMode: "never" as const } } : {}),
         // Empty the default stamp library so there is nothing to fetch (see file-level comment). `manifests` drives the default jsdelivr fetch; `libraries` is cleared too, and `defaultLibrary: false` drops the built-in shell.
     stamp: { libraries: [], manifests: [], defaultLibrary: false },
   };
@@ -125,6 +128,8 @@ export function whenEmbedPdfShown(
   scroll: { top: number; left: number } | null,
   cancelled: () => boolean,
   timeoutMs = 5000,
+  /** Page images of the document this viewer showed before: they do not count as the new one rendered. */
+  stale: Set<string> = new Set(),
 ): Promise<boolean> {
   const deadline = performance.now() + timeoutMs;
   let scrolled = !scroll;
@@ -138,16 +143,22 @@ export function whenEmbedPdfShown(
         scroller.scrollLeft = scroll.left;
         scrolled = true;
       }
-      if (scroller && scrolled && visiblePageRendered(scroller)) return resolve(true);
-      setTimeout(check, 50);
+      if (scroller && scrolled && visiblePageRendered(scroller, stale)) return resolve(true);
+      requestAnimationFrame(check);
     };
     check();
   });
 }
 
-function visiblePageRendered(scroller: HTMLElement): boolean {
+/** The `src` of every page image a mounted viewer shows now. */
+export function embedPdfPageImages(target: Element): Set<string> {
+  return new Set([...(embedPdfScroller(target)?.querySelectorAll('img') ?? [])].map((img) => img.src));
+}
+
+function visiblePageRendered(scroller: HTMLElement, stale: Set<string>): boolean {
   const view = scroller.getBoundingClientRect();
   for (const img of scroller.querySelectorAll('img')) {
+    if (stale.has(img.src)) continue;
     const r = img.getBoundingClientRect();
     if (r.bottom > view.top && r.top < view.bottom && img.complete && img.naturalWidth > 0) return true;
   }
@@ -231,4 +242,28 @@ export async function embedPdfPageLocator(viewer: EmbedPdfContainer, target: Ele
       return p ? { left: p.left + x * p.scale, top: p.top + y * p.scale, scale: p.scale } : null;
     },
   };
+}
+
+interface DocumentManagerLike {
+  getActiveDocumentId(): string | null;
+  openDocumentUrl(options: { url: string; autoActivate?: boolean }): { toPromise(): Promise<{ documentId: string; task: { toPromise(): Promise<unknown> } }> };
+  setActiveDocument(documentId: string): void;
+  closeDocument(documentId: string): { toPromise(): Promise<unknown> };
+}
+interface ZoomCapabilityLike {
+  forDocument(documentId: string): { requestZoom(level: ZoomLevel): void };
+}
+
+/** Loads `url` into an already mounted viewer, in place of its document: the PDFium engine and the viewer stay, so a recompiled PDF shows much faster than in a new viewer (live preview, issue #347). The zoom carries over; the caller restores the scroll position (`whenEmbedPdfShown`). False when the viewer cannot do it. */
+export async function replaceEmbedPdfDocument(viewer: EmbedPdfContainer, url: string, zoomLevel: ZoomLevel | undefined): Promise<boolean> {
+  const registry = await viewer.registry;
+  const docs = capabilityOf<DocumentManagerLike>(registry.getPlugin("document-manager"));
+  if (!docs) return false;
+  const old = docs.getActiveDocumentId();
+  const { documentId, task } = await docs.openDocumentUrl({ url, autoActivate: false }).toPromise();
+  await task.toPromise();
+  if (zoomLevel !== undefined) capabilityOf<ZoomCapabilityLike>(registry.getPlugin("zoom"))?.forDocument(documentId).requestZoom(zoomLevel);
+  docs.setActiveDocument(documentId);
+  if (old && old !== documentId) void docs.closeDocument(old).toPromise().catch(() => undefined);
+  return true;
 }

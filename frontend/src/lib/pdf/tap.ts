@@ -13,6 +13,8 @@ export interface TapTracker {
   /** True when this pointer-up completes a tap. */
   up(e: Pick<PointerEvent, 'pointerId' | 'clientX' | 'clientY' | 'timeStamp'>): boolean;
   cancel(e: Pick<PointerEvent, 'pointerId'>): void;
+  /** Whether the pointer has moved past the tap slop since it went down. */
+  moved(e: Pick<PointerEvent, 'pointerId' | 'clientX' | 'clientY'>): boolean;
 }
 
 export function createTapTracker(): TapTracker {
@@ -37,6 +39,10 @@ export function createTapTracker(): TapTracker {
     cancel(e) {
       downs.delete(e.pointerId);
       if (downs.size === 0) spoiled = false;
+    },
+    moved(e) {
+      const d = downs.get(e.pointerId);
+      return !d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= TAP_SLOP_PX;
     },
   };
 }

@@ -382,3 +382,8 @@ export const EDITOR_KEY_COMMANDS: Record<EditorKey, { move: Command; select?: Co
   Undo: { move: undo, edits: true },
   Redo: { move: redo, edits: true },
 };
+
+/** A muted, steady cursor while the editor is not focused (CodeMirror hides it then); the pages take the keys and the cursor still shows where they land. */
+export const unfocusedCursorTheme = EditorView.theme({
+  "&:not(.cm-focused) > .cm-scroller > .cm-cursorLayer .cm-cursor": { display: "block", opacity: "0.55" },
+});

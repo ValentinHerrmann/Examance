@@ -145,6 +145,8 @@
   }
   let shown: Layer | null = null;
   let pending: Layer | null = null;
+  /** The viewer shown before the last swap, kept hidden: the next PDF loads into it instead of a new viewer and engine (live preview, issue #347). */
+  let spare: Layer | null = null;
 
   function dropLayer(layer: Layer | null) {
     if (!layer) return;
@@ -165,8 +167,10 @@
     unbindZoom();
     dropLayer(pending);
     dropLayer(shown);
+    dropLayer(spare);
     pending = null;
     shown = null;
+    spare = null;
     containerEl?.removeEventListener("wheel", handleWheel, { capture: true });
     viewer = null;
     mountedSrc = null;
@@ -174,24 +178,42 @@
   }
 
   async function mount(url: string) {
-    const { patchEmbedPdfA11y, mountEmbedPdf, embedPdfScroller, whenEmbedPdfShown } = await import("#lib/pdf/embedpdf");
+    const { patchEmbedPdfA11y, mountEmbedPdf, embedPdfScroller, whenEmbedPdfShown, replaceEmbedPdfDocument, embedPdfPageImages } = await import("#lib/pdf/embedpdf");
     scrollerOf = embedPdfScroller;
     // A src change (or unmount racing a fast page switch) may land here after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
+    const started = performance.now();
     const host = containerEl;
-    dropLayer(pending);
     // The replacement keeps the reader's zoom and scroll position.
     const previous = shown;
     const keptZoom = previous ? zoomCap?.getState?.()?.zoomLevel : undefined;
     const keptScroller = previous ? embedPdfScroller(previous.el) : null;
     const scroll = keptScroller ? { top: keptScroller.scrollTop, left: keptScroller.scrollLeft } : null;
+    // A hidden viewer (still loading the previous PDF, or the one shown before) takes the new PDF: no new engine to start.
+    const reuse = previous ? (pending ?? spare) : null;
+    if (reuse?.viewer) {
+      pending = reuse;
+      spare = null;
+      mountedSrc = url;
+      const stale = embedPdfPageImages(reuse.el);
+      const loaded = await replaceEmbedPdfDocument(reuse.viewer, url, keptZoom).catch(() => false);
+      if (pending !== reuse) return;
+      if (loaded && (await whenEmbedPdfShown(reuse.el, scroll, () => pending !== reuse, 5000, stale))) {
+        swapTo(reuse, previous, started);
+        return;
+      }
+      // The viewer could not take the document: a fresh one below.
+      dropLayer(reuse);
+      pending = null;
+    } else dropLayer(pending);
     const el = document.createElement("div");
-    el.style.cssText = "position:absolute;inset:0;display:flex";
+    // Its own stacking context, so EmbedPDF's z-indexes stay below the edit layer's caret and selection.
+    el.style.cssText = "position:absolute;inset:0;display:flex;z-index:0";
     if (previous) el.style.visibility = "hidden";
     host.appendChild(el);
     const layer: Layer = {
       el,
-      viewer: mountEmbedPdf({ target: el, src: url, theme: effectiveTheme, zoomLevel: keptZoom ?? zoomLevel }) ?? null,
+      viewer: mountEmbedPdf({ target: el, src: url, theme: effectiveTheme, zoomLevel: keptZoom ?? zoomLevel, editable: Boolean(edit) }) ?? null,
       stopLabels: patchEmbedPdfA11y(el, { pageLabel: $t("common.pdfPage"), regionLabel: $t("common.pdfPreview") }),
     };
     mountedSrc = url;
@@ -199,12 +221,26 @@
       pending = layer;
       const ok = await whenEmbedPdfShown(el, scroll, () => pending !== layer);
       if (!ok) return;
-      pending = null;
-      dropLayer(previous);
-      el.style.visibility = "";
-    } else {
-      host.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+      swapTo(layer, previous, started);
+      return;
     }
+    host.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+    shown = layer;
+    shownSeq++;
+    viewer = layer.viewer;
+    unbindZoom();
+    bindZoom(layer.viewer);
+  }
+
+  /** Shows `layer` in place of `previous`, which stays mounted and hidden as the spare for the next PDF. */
+  function swapTo(layer: Layer, previous: Layer | null, started: number) {
+    pending = null;
+    layer.el.style.visibility = "";
+    if (previous) previous.el.style.visibility = "hidden";
+    dropLayer(spare);
+    spare = previous;
+    // Duration only: how long a new PDF took to replace the shown one.
+    console.info(`[preview] swap ${Math.round(performance.now() - started)} ms`);
     shown = layer;
     shownSeq++;
     viewer = layer.viewer;

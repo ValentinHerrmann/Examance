@@ -65,7 +65,8 @@
     createLatexTheme,
     diffDecorationsField,
     applyDiffDecorations,
-    EDITOR_KEY_COMMANDS
+    EDITOR_KEY_COMMANDS,
+    unfocusedCursorTheme
   } from "./LatexEditor";
   import {
     GENERAL_CATEGORIES,
@@ -96,6 +97,8 @@
     onScroll?: (detail: { scrollTop: number; scrollLeft: number }) => void;
     /** The selection moved or the text changed: anchor and head (equal for a plain cursor). */
     onSelectionChange?: (selection: { anchor: EditorPos; head: EditorPos }) => void;
+    /** Keeps a muted cursor visible while another control has the focus (the PDF pages, where typing goes into this editor; issue #347). */
+    showUnfocusedCursor?: boolean;
   }
 
   let {
@@ -107,7 +110,8 @@
     onGeometryChange = null,
     onChange,
     onScroll,
-    onSelectionChange
+    onSelectionChange,
+    showUnfocusedCursor = false
   }: Props = $props();
 
   // Applied to both wrapper divs: flex ancestors (the editor's stacked phone column) can otherwise collapse them to ~0px and CodeMirror paints into a collapsed box.
@@ -371,6 +375,7 @@
         EditorView.lineWrapping,
         history(),
         drawSelection(),
+        showUnfocusedCursor ? unfocusedCursorTheme : [],
         search({ top: true }),
         highlightSelectionMatches(),
         keymap.of([

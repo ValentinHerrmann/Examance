@@ -29,7 +29,20 @@ export class EditorPreview {
   solutionUrl: string | null = $state(null);
   // Both panes start collapsed: there is nothing to preview until the user compiles.
   showAngabe = $state(false);
-  showLoesung = $state(false);
+  private solutionShown = $state(false);
+  /** The solution compiled for an older source: opening its pane compiles it again. */
+  private solutionStale = false;
+  private lastInput: PreviewInput | null = null;
+
+  /** Whether the solution pane is open. While it is closed the live preview compiles only the task sheet (issue #347); opening it compiles the solution if it is behind. */
+  get showLoesung(): boolean {
+    return this.solutionShown;
+  }
+
+  set showLoesung(open: boolean) {
+    this.solutionShown = open;
+    if (open && this.solutionStale && this.lastInput) void this.compile(this.lastInput);
+  }
   error = $state('');
   log = $state<CompileFailure | null>(null);
   /** Whether a compile ran in this editor session; the live preview starts only after the first one. */
@@ -51,6 +64,8 @@ export class EditorPreview {
     this.generation++;
     if (this.queued) for (const d of this.queued.done) d('');
     this.queued = null;
+    this.lastInput = null;
+    this.solutionStale = false;
     this.sync.reset();
     if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
     if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
@@ -171,8 +186,10 @@ export class EditorPreview {
     const generation = this.generation;
     const stale = () => generation !== this.generation;
     try {
+      this.lastInput = input;
       const res = await compileExercisePreview({
         ...input,
+        solution: this.solutionShown,
         onAngabe: (angabe) => {
           if (stale()) return;
           this.setPdf(angabe.pdfBytes);
@@ -189,9 +206,12 @@ export class EditorPreview {
         this.setPdf(res.angabe.pdfBytes);
         this.sync.setResult('angabe', res.angabe);
       }
-      if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
-      this.solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);
-      this.sync.setResult('loesung', res.loesung);
+      this.solutionStale = !res.loesung;
+      if (res.loesung) {
+        if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
+        this.solutionUrl = pdfBytesToUrl(res.loesung.pdfBytes);
+        this.sync.setResult('loesung', res.loesung);
+      }
       // Now that a PDF exists, open the task-sheet pane so the result is actually visible.
       this.showAngabe = true;
       // A missing figure does not fail the engine: say so instead of handing back a PDF with a silent hole in it.
